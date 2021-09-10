@@ -1,0 +1,5 @@
+#!/bin/bash
+
+mvn -DskipTests=true clean install -U
+mvn -DskipTests=true compiler:compile
+mvn -DskipTests=true -e exec:java -Dexec.mainClass="com.cobaltplatform.api.AppArchiver"

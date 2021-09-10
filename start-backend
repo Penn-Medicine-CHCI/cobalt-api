@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Usage: specify environment name/port via $COBALT_API_ENV and $COBALT_API_PORT env vars (defaults used if not specified).
+# In the special case of execution via Dockerfile, we look for $COBALT_API_LAUNCHED_IN_DOCKER to be set and run differently (no Maven needed).
+
+ENV=$COBALT_API_ENV
+PORT=$COBALT_API_PORT
+
+if [ -z "$ENV" ]; then
+	ENV="local"
+fi
+
+if [ -z "$PORT" ]; then
+	PORT="8080"
+fi
+
+if [ -z "$COBALT_API_LAUNCHED_IN_DOCKER" ]; then
+	if [ -n "$COBALT_API_REBUILD" ]; then
+		mvn clean install -U -DskipTests
+		mvn compile
+	else
+		mvn compile
+	fi
+
+	COBALT_API_ENV=$ENV COBALT_API_PORT=$PORT mvn -e exec:java -Dexec.mainClass="com.cobaltplatform.api.App"
+else
+	COBALT_API_ENV=$ENV COBALT_API_PORT=$PORT java -Xms128m -Xmx512m -classpath classes:lib/* com.cobaltplatform.api.App
+fi

@@ -1,0 +1,17 @@
+FROM mesosphere/aws-cli:latest
+
+ENV AWS_DEFAULT_REGION=us-east-1
+ENV AWS_ACCESS_KEY_ID=FAKE
+ENV AWS_SECRET_ACCESS_KEY=FAKE
+
+RUN apk --update add postgresql-client
+
+RUN adduser -D inituser
+WORKDIR /home/inituser
+USER inituser
+
+COPY --chown=inituser:inituser ./sql /home/inituser/sql/
+COPY --chown=inituser:inituser ./localstack /home/inituser/localstack/
+
+ENTRYPOINT []
+CMD ["sh", "-c", "cd ./localstack && ./initialize && cd ../sql && ./recreate-bootstrap"]

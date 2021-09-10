@@ -1,0 +1,35 @@
+{{#partial "header"}}
+	<tr>
+		<td valign="top" align="center"><img src="{{{imageUrl}}}" width="512" height="288" alt="{{groupSession.title}}" style="display:block; max-width:512px; border-radius: 0px;" border="0" class="em_img" /></td>
+	</tr>
+	<tr>
+		<td height="30" style="height:30px;" class="em_h20">&nbsp;</td>
+	</tr>
+	<tr>
+		<td align="center" class="em_white" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:36px; line-height:40px; color:#ffffff; font-weight:bold;">We're following up on your recent studio session</td>
+	</tr>
+{{/partial}}
+
+{{#partial "body"}}
+	<tr>
+		<td align="left" class="em_blk" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:20px; line-height:24px; color:#000000; font-weight:bold;">Hi there!</td>
+	</tr>
+	<tr>
+		<td height="20" style="height:20px; line-height:0px; font-size:0px;" class="em_h20">&nbsp;</td>
+	</tr>
+	<tr>
+		<td align="left" class="em_blue" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:18px; line-height:24px; color:#000;">
+			<p>
+				{{{groupSession.followupEmailContent}}}
+			</p>
+
+			{{#if groupSession.followupEmailSurveyUrl}}
+				<p>
+					<a href="{{{groupSession.followupEmailSurveyUrl}}}">Please click here to take the survey</a>
+				</p>
+			{{/if}}
+		</td>
+	</tr>
+{{/partial}}
+
+{{> layouts/en/default}}

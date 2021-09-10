@@ -1,0 +1,30 @@
+{{#partial "header"}}
+	<tr>
+		<td valign="top" align="center"><img src="{{{imageUrl}}}" width="288" height="288" alt="{{providerName}}" style="display:block; max-width:512px; border-radius: 0px;" border="0" class="em_img" /></td>
+	</tr>
+	<tr>
+		<td height="30" style="height:30px;" class="em_h20">&nbsp;</td>
+	</tr>
+	<tr>
+		<td align="center" class="em_white" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:36px; line-height:40px; color:#ffffff; font-weight:bold;">Your one-on-one session with {{providerNameAndCredentials}} is canceled.</td>
+	</tr>
+{{/partial}}
+
+{{#partial "body"}}
+	<tr>
+		<td align="left" class="em_blk" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:20px; line-height:24px; color:#000000; font-weight:bold;">Hi {{patientName}},</td>
+	</tr>
+	<tr>
+		<td height="20" style="height:20px; line-height:0px; font-size:0px;" class="em_h20">&nbsp;</td>
+	</tr>
+	<tr>
+		<td align="left" class="em_blue" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:18px; line-height:24px; color:#000;">
+			<p>
+				Your appointment with <b>{{providerName}}</b> on <b>{{appointmentStartDateDescription}}</b> @ <b>{{appointmentStartTimeDescription}}</b> has been canceled.
+			</p>
+			<br />
+		</td>
+	</tr>
+{{/partial}}
+
+{{> layouts/en/default}}

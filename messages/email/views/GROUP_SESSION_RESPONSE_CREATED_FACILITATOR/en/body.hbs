@@ -1,0 +1,63 @@
+{{#partial "header"}}
+	<tr>
+		<td valign="top" align="center"><img src="{{{imageUrl}}}" width="512" height="288" alt="{{groupSessionRequestTitle}}" style="display:block; max-width:512px; border-radius: 0px;" border="0" class="em_img" /></td>
+	</tr>
+	<tr>
+		<td height="30" style="height:30px;" class="em_h20">&nbsp;</td>
+	</tr>
+	<tr>
+		<td align="center" class="em_white" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:36px; line-height:40px; color:#ffffff; font-weight:bold;">Studio Session requested for ‘{{{groupSessionRequestTitle}}}&rsquo;.</td>
+	</tr>
+{{/partial}}
+
+{{#partial "body"}}
+	<tr>
+		<td align="left" class="em_blk" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:20px; line-height:24px; color:#000000; font-weight:bold;">Hi {{facilitatorName}},</td>
+	</tr>
+	<tr>
+		<td height="20" style="height:20px; line-height:0px; font-size:0px;" class="em_h20">&nbsp;</td>
+	</tr>
+	<tr>
+		<td align="left" class="em_blue" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:18px; line-height:24px; color:#000;">
+			<p>
+				A Studio Session was requested for ‘{{{groupSessionRequestTitle}}}’.
+			</p>
+			<p>
+				&nbsp;
+			</p>
+			<p>
+				<b>Requestor Name:</b> {{respondentName}}
+			</p>
+			<p>
+				<b>Requestor Email Address:</b> {{respondentEmailAddress}}
+			</p>
+			<p>
+				<b>Requestor Phone Number:</b> {{respondentPhoneNumber}}
+			</p>
+			<p>
+				<b>Suggested Date:</b> {{suggestedDate}}
+			</p>
+			<p>
+				<b>Suggested Time:</b> {{suggestedTime}}
+			</p>
+			<p>
+				<b>Expected Participants:</b> {{expectedParticipants}}
+			</p>
+			<p>
+				<b>Notes:</b> {{notes}}
+			</p>
+			{{#if customQuestion1}}
+				<p>
+					<b>{{customQuestion1}}:</b> {{customAnswer1}}
+				</p>
+			{{/if}}
+			{{#if customQuestion2}}
+				<p>
+					<b>{{customQuestion2}}:</b> {{customAnswer2}}
+				</p>
+			{{/if}}
+		</td>
+	</tr>
+{{/partial}}
+
+{{> layouts/en/default}}

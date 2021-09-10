@@ -1,0 +1,11 @@
+node_modules
+target
+.gitignore
+bin
+README.md
+start-localstack
+stop-localstack
+bootstrap
+intellij-codestyle.xml
+.circleci/
+tmp/

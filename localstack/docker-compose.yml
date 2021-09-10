@@ -1,0 +1,36 @@
+version: '3.1'
+
+services:
+  localstack-cobalt:
+    image: localstack/localstack:0.11.0
+    ports:
+      - "4567-4597:4567-4597"
+      - "${PORT_WEB_UI-9090}:${PORT_WEB_UI-9090}"
+    environment:
+      - SERVICES=${SERVICES-ses,s3,sqs,secretsmanager}
+      - DEBUG=${DEBUG-1}
+      - DATA_DIR=${DATA_DIR- }
+      - PORT_WEB_UI=${PORT_WEB_UI-9090}
+      - LAMBDA_EXECUTOR=${LAMBDA_EXECUTOR- }
+      - KINESIS_ERROR_PROBABILITY=${KINESIS_ERROR_PROBABILITY- }
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - "${TMPDIR:-/tmp/localstack}:/tmp/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+
+  postgres-cobalt:
+    image: postgres:11.7
+    ports:
+      - "5501:5432"
+    environment:
+      POSTGRES_PASSWORD: password
+    volumes:
+      - pg-cobalt:/var/lib/postgresql/data
+
+  redis-cobalt:
+    image: redis:5.0.7
+    ports:
+      - "6379:6379"
+
+volumes:
+  pg-cobalt:

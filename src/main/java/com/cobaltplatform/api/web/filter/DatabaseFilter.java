@@ -1,0 +1,153 @@
+/*
+ * Copyright 2021 The University of Pennsylvania and Penn Medicine
+ *
+ * Originally created at the University of Pennsylvania and Penn Medicine by:
+ * Dr. David Asch; Dr. Lisa Bellini; Dr. Cecilia Livesey; Kelley Kugler; and Dr. Matthew Press.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.cobaltplatform.api.web.filter;
+
+import com.cobaltplatform.api.context.DatabaseContext;
+import com.cobaltplatform.api.context.DatabaseContextExecutor;
+import com.pyranid.Database;
+import com.pyranid.StatementLog;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nonnull;
+import javax.annotation.concurrent.ThreadSafe;
+import javax.inject.Inject;
+import javax.inject.Singleton;
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
+import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
+
+/**
+ * @author Transmogrify LLC.
+ */
+@Singleton
+@ThreadSafe
+public class DatabaseFilter implements Filter {
+	@Nonnull
+	private final Database database;
+	@Nonnull
+	private final DatabaseContextExecutor databaseContextExecutor;
+	@Nonnull
+	private final Logger logger;
+
+	@Inject
+	public DatabaseFilter(@Nonnull Database database,
+												@Nonnull DatabaseContextExecutor databaseContextExecutor) {
+		requireNonNull(database);
+		requireNonNull(databaseContextExecutor);
+
+		this.database = database;
+		this.databaseContextExecutor = databaseContextExecutor;
+		this.logger = LoggerFactory.getLogger("com.cobaltplatform.api.sql.REQUEST_SQL");
+	}
+
+	@Override
+	public void init(@Nonnull FilterConfig filterConfig) throws ServletException {
+		requireNonNull(filterConfig);
+		// Nothing for now
+	}
+
+	@Override
+	public void doFilter(@Nonnull ServletRequest servletRequest,
+											 @Nonnull ServletResponse servletResponse,
+											 @Nonnull FilterChain filterChain) throws IOException, ServletException {
+		requireNonNull(servletRequest);
+		requireNonNull(servletResponse);
+		requireNonNull(filterChain);
+
+		HttpServletRequest httpServletRequest = (HttpServletRequest) servletRequest;
+		boolean staticFile = httpServletRequest.getRequestURI().startsWith("/static/");
+		boolean optionsRequest = Objects.equals("OPTIONS", httpServletRequest.getMethod());
+
+		// Don't apply to some requests
+		if (staticFile || optionsRequest) {
+			filterChain.doFilter(servletRequest, servletResponse);
+			return;
+		}
+
+		DatabaseContext databaseContext = new DatabaseContext();
+
+		try {
+			getDatabase().transaction(() -> {
+				getDatabaseContextExecutor().execute(databaseContext, () -> {
+					filterChain.doFilter(servletRequest, servletResponse);
+				});
+			});
+		} finally {
+			Long totalTime = 0L;
+			List<StatementLog> originalStatementLogs = databaseContext.getStatementLogs();
+			List<StatementLog> sortedStatementLogs = new ArrayList<>(originalStatementLogs);
+			List<String> displayableStatementLogs = new ArrayList<>(sortedStatementLogs.size());
+
+			Collections.sort(sortedStatementLogs, (statementLog1, statementLog2) -> {
+				return statementLog2.totalTime().compareTo(statementLog1.totalTime());
+			});
+
+			for (StatementLog statementLog : sortedStatementLogs) {
+				String displayableStatementLog = format("%.1fms: %s", (statementLog.totalTime() / (double) 1000000), statementLog.sql());
+
+				if (statementLog.parameters() != null && statementLog.parameters().size() > 0)
+					displayableStatementLog += " " + statementLog.parameters();
+
+				displayableStatementLogs.add(displayableStatementLog);
+				totalTime += statementLog.totalTime();
+			}
+
+			if (displayableStatementLogs.size() > 0) {
+				String queryText = displayableStatementLogs.size() == 1 ? "statement" : "statements";
+				getLogger().debug("SQL statements for this request:\n{}\nExecuted {} {} in {}ms.", displayableStatementLogs.stream().collect(Collectors.joining("\n")),
+						sortedStatementLogs.size(), queryText, (int) (totalTime / (double) 1000000));
+			}
+		}
+	}
+
+	@Override
+	public void destroy() {
+		// Nothing for now
+	}
+
+	@Nonnull
+	protected Database getDatabase() {
+		return database;
+	}
+
+	@Nonnull
+	protected DatabaseContextExecutor getDatabaseContextExecutor() {
+		return databaseContextExecutor;
+	}
+
+	@Nonnull
+	public Logger getLogger() {
+		return logger;
+	}
+}

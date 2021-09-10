@@ -1,0 +1,32 @@
+{{#partial "body"}}
+	<tr>
+		<td align="left" class="em_blk" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:20px; line-height:24px; color:#000000; font-weight:bold;">Hi {{adminAccountName}},</td>
+	</tr>
+	<tr>
+		<td height="20" style="height:20px; line-height:0px; font-size:0px;" class="em_h20">&nbsp;</td>
+	</tr>
+	<tr>
+		<td align="left" class="em_blue" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:18px; line-height:24px; color:#000;">
+			<p>
+				<b>{{submittingAccountName}} has submitted a Studio Session called '{{groupSessionTitle}}' for your review.
+			</p>
+
+			<table width="100%" border="0" cellspacing="0" cellpadding="0" align="center">
+				<tr>
+					<td height="30" bgcolor="#ffffff" width="50%"></td>
+					<td height="30" bgcolor="#ffffff" width="50%"></td>
+				</tr>
+				<tr>
+					<td align="left" colspan="2">
+						<a href="{{{groupSessionListUrl}}}" target="_blank">
+							<img src="{{{staticFileUrlPrefix}}}/button-approve-or-reject@2x.jpg" width="256" height="44" alt="Approve or Reject this content" />
+						</a>
+					</td>
+				</tr>
+			</table>
+
+		</td>
+	</tr>
+{{/partial}}
+
+{{> layouts/en/default}}

@@ -1,0 +1,24 @@
+A healthcare worker has booked an appointment with you through The Cobalt system.
+<br/><br/>
+{{accountDescription}}
+<br/>
+
+<br/>
+Appointment Date - {{appointmentDate}}
+
+<br/>
+Appointment Time - {{appointmentStartTime}} to {{appointmentEndTime}}
+
+{{#if videoconferenceUrl}}
+	<br/>
+	Videoconference Link - <a href="{{videoconferenceUrl}}">{{videoconferenceUrl}}</a>
+{{/if}}
+
+<br/>
+Assessment results - {{accountScores}}
+
+{{#if intakeResults}}
+	<br/>
+	Intake results - {{intakeResults}}
+{{/if}}
+

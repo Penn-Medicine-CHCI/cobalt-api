@@ -1,0 +1,30 @@
+<!doctype html>
+<html class="no-js" lang="en-US">
+	<head>
+		<meta charset="utf-8">
+		<title>SAML Test</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1"/>
+		<style>
+			body { margin: 20px; }
+		</style>
+	</head>
+	<body>
+		<h1>Simulated SAML Flow</h1>
+
+		<form action="{{samlAssertionPath}}?redirectBaseUrl={{redirectBaseUrl}}" method="POST">
+			Account:
+
+			<select name="accountId">
+				{{accountSelectOptions}}
+			</select>
+
+			<br><br>
+
+			<input type="submit" value="Log In">
+		</form>
+
+		<script type="text/javascript">
+
+		</script>
+	</body>
+</html>

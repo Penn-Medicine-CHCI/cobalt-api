@@ -1,0 +1,70 @@
+{
+  "{{duration}} minutes" : {
+    "translation" : "{{duration}} {{minutesPlaceholder}}",
+    "placeholders" : {
+      "minutesPlaceholder" : {
+        "value" : "duration",
+        "translations" : {
+          "CARDINALITY_ONE" : "minute",
+          "CARDINALITY_OTHER" : "minutes"
+        }
+      }
+    },
+    "alternatives" : [
+      {
+        "duration == 0" : "Unknown duration"
+      }
+    ]
+  },
+  "{{seatsDescription}} seats" : {
+    "translation" : "{{seatsDescription}} {{seatsPlaceholder}}",
+    "placeholders" : {
+      "seatsPlaceholder" : {
+        "value" : "seats",
+        "translations" : {
+          "CARDINALITY_ONE" : "seat",
+          "CARDINALITY_OTHER" : "seats"
+        }
+      }
+    },
+    "alternatives" : [
+      {
+        "seats == 0" : "No seats"
+      }
+    ]
+  },
+  "{{seatsAvailableDescription}} seats available" : {
+    "translation" : "{{seatsAvailableDescription}} {{seatsAvailablePlaceholder}}",
+    "placeholders" : {
+      "seatsAvailablePlaceholder" : {
+        "value" : "seatsAvailable",
+        "translations" : {
+          "CARDINALITY_ONE" : "seat available",
+          "CARDINALITY_OTHER" : "seats available"
+        }
+      }
+    },
+    "alternatives" : [
+      {
+        "seatsAvailable == 0" : "No seats available"
+      }
+    ]
+  },
+  "{{seatsReservedDescription}} reservations" : {
+    "translation" : "{{seatsReservedDescription}} {{seatsReservedPlaceholder}}",
+    "placeholders" : {
+      "seatsReservedPlaceholder" : {
+        "value" : "seatsReserved",
+        "translations" : {
+          "CARDINALITY_ONE" : "reservation",
+          "CARDINALITY_OTHER" : "reservations"
+        }
+      }
+    },
+    "alternatives" : [
+      {
+        "seatsReserved == 0" : "No reservations"
+      }
+    ]
+  }
+}

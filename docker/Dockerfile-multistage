@@ -1,0 +1,51 @@
+# See https://docs.aws.amazon.com/corretto/latest/corretto-8-ug/docker-install.html
+
+# Build image
+#
+# DOCKER_BUILDKIT=1 docker build . -t cobalt-api -f docker/Dockerfile
+
+# Run image
+#
+# docker run -e COBALT_API_ENV='local' -e COBALT_API_PORT='8080' -p 8080:8080 cobalt-api
+
+# Interactive shell
+#
+# docker run -it cobalt-api sh
+
+# Stop image
+#
+# docker stop $(docker ps -q --filter ancestor=cobalt-api)
+
+FROM public.ecr.aws/h4m7v9o4/maven:3.6-jdk-14 as dependencies
+COPY ./pom.xml ./pom.xml
+RUN mvn --no-transfer-progress -DskipTests install
+RUN mvn --no-transfer-progress dependency:go-offline
+
+FROM public.ecr.aws/h4m7v9o4/maven:3.6-jdk-14 as build
+COPY --from=dependencies /root/.m2 /root/.m2
+COPY pom.xml pom.xml
+COPY ./src ./src
+RUN mvn --no-transfer-progress -o  -DskipTests install compile
+RUN mvn --no-transfer-progress -o -DincludeScope=runtime dependency:copy-dependencies
+
+FROM public.ecr.aws/ews-network/amazoncorretto:11 as run
+ARG GIT_COMMIT_HASH=None
+ARG GIT_BRANCH=None
+# RUN apk add --no-cache curl
+RUN yum -y install curl
+WORKDIR /opt/app
+COPY --from=build target/classes classes
+COPY --from=build target/dependency dependency
+COPY --from=build target/cobalt-api-1.0.0-SNAPSHOT.jar .
+COPY messages messages
+COPY config config
+COPY web web
+COPY pom.xml pom.xml
+RUN printf '%s' ${GIT_COMMIT_HASH} | tee git-commit-hash
+RUN printf '%s' ${GIT_BRANCH} | tee git-branch
+RUN chown -R 1000:1000 /opt/app
+USER 1000
+EXPOSE 8080
+COPY launch.sh .
+CMD ["sh", "launch.sh"]
+#CMD ["java", "-cp", "classes:dependency/*", "com.cobaltplatform.api.App"]

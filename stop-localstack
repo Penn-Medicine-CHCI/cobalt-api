@@ -1,0 +1,8 @@
+#!/bin/bash
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  # Special support for OS X
+	TMPDIR=/private$TMPDIR docker-compose -f localstack/docker-compose.yml down
+else
+	docker-compose -f localstack/docker-compose.yml down
+fi
