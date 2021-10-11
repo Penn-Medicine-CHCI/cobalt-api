@@ -4,3 +4,5 @@ PGPASSWORD=password psql -U postgres -h localhost -p 5501 < initial/recreate.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < initial/install-versioning.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < initial/000-base-creates.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < initial/001-initial-inserts.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/001-cobalt-institution.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/002-native-scheduling.sql
