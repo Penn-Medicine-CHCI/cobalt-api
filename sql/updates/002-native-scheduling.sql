@@ -19,7 +19,9 @@ CREATE TABLE account_calendar_permission (
 	granted_to_account_id UUID NOT NULL REFERENCES account(account_id),
 	calendar_permission_id VARCHAR NOT NULL REFERENCES calendar_permission,
 	created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+	created_by_account_id UUID NOT NULL REFERENCES account(account_id),
 	last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+	last_updated_by_account_id UUID NOT NULL REFERENCES account(account_id),
 	PRIMARY KEY(owner_account_id, granted_to_account_id, calendar_permission_id)
 );
 
@@ -46,8 +48,6 @@ INSERT INTO recurrence_type (recurrence_type_id, description) VALUES ('NONE', 'N
 INSERT INTO recurrence_type (recurrence_type_id, description) VALUES ('DAILY', 'Daily');
 
 ALTER TABLE logical_availability ADD COLUMN recurrence_type_id VARCHAR NOT NULL REFERENCES recurrence_type DEFAULT 'NONE';
-ALTER TABLE logical_availability ADD COLUMN recurrence_start TIMESTAMP WITHOUT TIME ZONE;
-ALTER TABLE logical_availability ADD COLUMN recurrence_end TIMESTAMP WITHOUT TIME ZONE;
 ALTER TABLE logical_availability ADD COLUMN recur_sunday BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE logical_availability ADD COLUMN recur_monday BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE logical_availability ADD COLUMN recur_tuesday BOOLEAN NOT NULL DEFAULT FALSE;
@@ -55,6 +55,8 @@ ALTER TABLE logical_availability ADD COLUMN recur_wednesday BOOLEAN NOT NULL DEF
 ALTER TABLE logical_availability ADD COLUMN recur_thursday BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE logical_availability ADD COLUMN recur_friday BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE logical_availability ADD COLUMN recur_saturday BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE logical_availability ADD COLUMN created_by_account_id UUID NOT NULL REFERENCES account(account_id);
+ALTER TABLE logical_availability ADD COLUMN last_updated_by_account_id UUID NOT NULL REFERENCES account(account_id);
 
 -- Reporting table to capture statistics like “provider X had Y slots open on day Z” since our native-scheduling slots
 -- are calculated at runtime and could change over time (a provider might modify recurrence rules, for example).

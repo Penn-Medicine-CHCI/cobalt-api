@@ -80,6 +80,8 @@ public class Account {
 	@Nullable
 	private Instant consentFormAcceptedDate;
 	@Nullable
+	private Boolean cobaltSchedulingTutorialViewed;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -271,6 +273,15 @@ public class Account {
 
 	public void setEpicPatientCreatedByCobalt(@Nullable Boolean epicPatientCreatedByCobalt) {
 		this.epicPatientCreatedByCobalt = epicPatientCreatedByCobalt;
+	}
+
+	@Nullable
+	public Boolean getCobaltSchedulingTutorialViewed() {
+		return cobaltSchedulingTutorialViewed;
+	}
+
+	public void setCobaltSchedulingTutorialViewed(@Nullable Boolean cobaltSchedulingTutorialViewed) {
+		this.cobaltSchedulingTutorialViewed = cobaltSchedulingTutorialViewed;
 	}
 
 	@Nullable
