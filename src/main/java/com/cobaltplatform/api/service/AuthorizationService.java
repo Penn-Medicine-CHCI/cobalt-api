@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.CalendarPermission.CalendarPermissionId;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionRequest;
 import com.cobaltplatform.api.model.db.GroupSessionRequestStatus.GroupSessionRequestStatusId;
@@ -45,16 +46,21 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class AuthorizationService {
 	@Nonnull
+	private final javax.inject.Provider<AvailabilityService> availabilityServiceProvider;
+	@Nonnull
 	private final javax.inject.Provider<GroupSessionService> groupSessionServiceProvider;
 	@Nonnull
 	private final Normalizer normalizer;
 
 	@Inject
-	public AuthorizationService(@Nonnull javax.inject.Provider<GroupSessionService> groupSessionServiceProvider,
+	public AuthorizationService(@Nonnull javax.inject.Provider<AvailabilityService> availabilityServiceProvider,
+															@Nonnull javax.inject.Provider<GroupSessionService> groupSessionServiceProvider,
 															@Nonnull Normalizer normalizer) {
+		requireNonNull(availabilityServiceProvider);
 		requireNonNull(groupSessionServiceProvider);
 		requireNonNull(normalizer);
 
+		this.availabilityServiceProvider = availabilityServiceProvider;
 		this.groupSessionServiceProvider = groupSessionServiceProvider;
 		this.normalizer = normalizer;
 	}
@@ -72,14 +78,17 @@ public class AuthorizationService {
 			accountCapabilities.setViewNavAdminGroupSessionRequest(true);
 			accountCapabilities.setViewNavAdminMyContent(true);
 			accountCapabilities.setViewNavAdminAvailableContent(true);
+			accountCapabilities.setViewNavAdminCalendar(true);
 		} else if (account.getRoleId() == RoleId.ADMINISTRATOR && account.getInstitutionId() == institutionId) {
 			accountCapabilities.setViewNavAdminGroupSession(true);
 			accountCapabilities.setViewNavAdminGroupSessionRequest(true);
 			accountCapabilities.setViewNavAdminMyContent(true);
 			accountCapabilities.setViewNavAdminAvailableContent(true);
+			accountCapabilities.setViewNavAdminCalendar(true);
 		} else if (account.getInstitutionId() == institutionId) {
 			accountCapabilities.setViewNavAdminGroupSession(getGroupSessionService().canTakeActionOnGroupSessions(account, institutionId));
 			accountCapabilities.setViewNavAdminGroupSessionRequest(getGroupSessionService().canTakeActionOnGroupSessionRequests(account, institutionId));
+			accountCapabilities.setViewNavAdminCalendar(getAvailabilityService().canTakeActionOnCalendars(account, institutionId));
 		}
 
 		return accountCapabilities;
@@ -204,6 +213,53 @@ public class AuthorizationService {
 			return true;
 
 		return Objects.equals(account.getProviderId(), provider.getProviderId());
+	}
+
+	@Nonnull
+	public boolean canViewProviderCalendar(@Nonnull Provider provider,
+																				 @Nonnull Account account) {
+		requireNonNull(provider);
+		requireNonNull(account);
+
+		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
+			return true;
+
+		if (account.getRoleId() == RoleId.ADMINISTRATOR && provider.getInstitutionId() == account.getInstitutionId())
+			return true;
+
+		if (Objects.equals(account.getProviderId(), provider.getProviderId()))
+			return true;
+
+		CalendarPermissionId calendarPermissionId = getAvailabilityService().findCalendarPermissionByAccountId(
+				provider.getProviderId(), account.getAccountId()).orElse(null);
+		
+		return calendarPermissionId == CalendarPermissionId.MANAGER || calendarPermissionId == CalendarPermissionId.VIEWER;
+	}
+
+	@Nonnull
+	public boolean canEditProviderCalendar(@Nonnull Provider provider,
+																				 @Nonnull Account account) {
+		requireNonNull(provider);
+		requireNonNull(account);
+
+		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
+			return true;
+
+		if (account.getRoleId() == RoleId.ADMINISTRATOR && provider.getInstitutionId() == account.getInstitutionId())
+			return true;
+
+		if (Objects.equals(account.getProviderId(), provider.getProviderId()))
+			return true;
+
+		CalendarPermissionId calendarPermissionId = getAvailabilityService().findCalendarPermissionByAccountId(
+				provider.getProviderId(), account.getAccountId()).orElse(null);
+
+		return calendarPermissionId == CalendarPermissionId.MANAGER;
+	}
+
+	@Nonnull
+	protected AvailabilityService getAvailabilityService() {
+		return availabilityServiceProvider.get();
 	}
 
 	@Nonnull

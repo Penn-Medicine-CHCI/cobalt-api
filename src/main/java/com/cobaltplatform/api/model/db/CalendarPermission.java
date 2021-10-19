@@ -35,8 +35,7 @@ public class CalendarPermission {
 	private String description;
 
 	public enum CalendarPermissionId {
-		OWNER,
-		EDITOR,
+		MANAGER,
 		VIEWER
 	}
 

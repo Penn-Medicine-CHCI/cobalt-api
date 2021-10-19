@@ -10,19 +10,18 @@ CREATE TABLE calendar_permission (
 	description VARCHAR NOT NULL
 );
 
-INSERT INTO calendar_permission (calendar_permission_id, description) VALUES ('OWNER', 'Owner');
-INSERT INTO calendar_permission (calendar_permission_id, description) VALUES ('EDITOR', 'Editor');
+INSERT INTO calendar_permission (calendar_permission_id, description) VALUES ('MANAGER', 'Manager');
 INSERT INTO calendar_permission (calendar_permission_id, description) VALUES ('VIEWER', 'Viewer');
 
 CREATE TABLE account_calendar_permission (
-	owner_account_id UUID NOT NULL REFERENCES account(account_id),
+	provider_id UUID NOT NULL REFERENCES provider,
 	granted_to_account_id UUID NOT NULL REFERENCES account(account_id),
 	calendar_permission_id VARCHAR NOT NULL REFERENCES calendar_permission,
 	created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
 	created_by_account_id UUID NOT NULL REFERENCES account(account_id),
 	last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
 	last_updated_by_account_id UUID NOT NULL REFERENCES account(account_id),
-	PRIMARY KEY(owner_account_id, granted_to_account_id, calendar_permission_id)
+	PRIMARY KEY(provider_id, granted_to_account_id, calendar_permission_id)
 );
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON account_calendar_permission FOR EACH ROW EXECUTE PROCEDURE set_last_updated();

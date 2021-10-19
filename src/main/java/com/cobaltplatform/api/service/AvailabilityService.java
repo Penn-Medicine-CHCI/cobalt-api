@@ -19,15 +19,20 @@
 
 package com.cobaltplatform.api.service;
 
-import com.lokalized.Strings;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.api.request.CreateLogicalAvailabilityRequest;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AppointmentType;
+import com.cobaltplatform.api.model.db.CalendarPermission.CalendarPermissionId;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.LogicalAvailability;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.ProviderAvailability;
+import com.cobaltplatform.api.model.db.Role.RoleId;
+import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -254,6 +259,36 @@ public class AvailabilityService {
 		sql.append("ORDER BY start_date_time");
 
 		return getDatabase().queryForList(sql.toString(), LogicalAvailability.class, sqlVaragsParameters(parameters));
+	}
+
+	@Nonnull
+	public Optional<CalendarPermissionId> findCalendarPermissionByAccountId(@Nullable UUID providerId,
+																																					@Nullable UUID grantedToAccountId) {
+		if (providerId == null || grantedToAccountId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("SELECT calendar_permission_id " +
+						"FROM account_calendar_permission WHERE provider_id=? AND granted_to_account_id=?",
+				CalendarPermissionId.class, providerId, grantedToAccountId);
+	}
+
+	public boolean canTakeActionOnCalendars(@Nullable Account account,
+																					@Nullable InstitutionId institutionId) {
+		if (account == null || institutionId == null)
+			return false;
+
+		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
+			return true;
+
+		if (account.getRoleId() == RoleId.ADMINISTRATOR && account.getInstitutionId() == institutionId)
+			return true;
+
+		// If you are a provider with COBALT scheduling type, you can take action.
+		// Or if you have permission to do something to anyone else's calendar, you can take action
+		return getDatabase().queryForObject("SELECT (" +
+				"EXISTS(SELECT 1 FROM provider WHERE provider_id=? AND scheduling_system_id=?) " +
+				"OR EXISTS(SELECT 1 FROM account_calendar_permission WHERE granted_to_account_id=?) " +
+				")", Boolean.class, account.getProviderId(), SchedulingSystemId.COBALT, account.getAccountId()).get();
 	}
 
 	@Nonnull

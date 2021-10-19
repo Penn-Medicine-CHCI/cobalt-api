@@ -32,7 +32,7 @@ import java.util.UUID;
 @NotThreadSafe
 public class AccountCalendarPermission {
 	@Nullable
-	private UUID ownerAccountId;
+	private UUID providerId;
 	@Nullable
 	private UUID grantedToAccountId;
 	@Nullable
@@ -47,12 +47,12 @@ public class AccountCalendarPermission {
 	private UUID lastUpdatedByAccountId;
 
 	@Nullable
-	public UUID getOwnerAccountId() {
-		return ownerAccountId;
+	public UUID getProviderId() {
+		return providerId;
 	}
 
-	public void setOwnerAccountId(@Nullable UUID ownerAccountId) {
-		this.ownerAccountId = ownerAccountId;
+	public void setProviderId(@Nullable UUID providerId) {
+		this.providerId = providerId;
 	}
 
 	@Nullable
