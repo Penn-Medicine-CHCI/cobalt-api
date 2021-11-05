@@ -1,0 +1,46 @@
+#!/bin/sh
+
+REGION=us-east-2
+
+function fail() {
+    echo $2
+    exit $1
+}
+
+echo "Creating SecretsManager values..."
+
+# Make a JSON object that conforms to how AWS stores this value when you enter it in the console
+PUBLIC_KEY_AS_STRING=`cat public-key`
+PUBLIC_KEY_AS_STRING="{\"ic/local/public-key\": \"${PUBLIC_KEY_AS_STRING}\"}"
+
+echo "Storing public key at 'ic/local/public-key'..."
+
+aws --endpoint-url=http://localstack-cobalt:4584 secretsmanager delete-secret --secret-id "ic/local/public-key" --region ${REGION} --force-delete-without-recovery > /dev/null 2>&1
+aws --endpoint-url=http://localstack-cobalt:4584 secretsmanager create-secret --name ic/local/public-key --description "Public Key" --region ${REGION} --secret-string "${PUBLIC_KEY_AS_STRING}" 1> /dev/null
+
+[ $? == 0 ] || fail 1 "Failed: AWS / secretsmanager / create-secret"
+
+# Make a JSON object that conforms to how AWS stores this value when you enter it in the console
+PRIVATE_KEY_AS_STRING=`cat private-key`
+PRIVATE_KEY_AS_STRING="{\"ic/local/private-key\": \"${PRIVATE_KEY_AS_STRING}\"}"
+
+echo "Storing private key at 'ic/local/private-key'..."
+
+aws --endpoint-url=http://localstack-cobalt:4584 secretsmanager delete-secret --secret-id "ic/local/private-key" --region ${REGION} --force-delete-without-recovery > /dev/null 2>&1
+aws --endpoint-url=http://localstack-cobalt:4584 secretsmanager create-secret --name ic/local/private-key --description "Public Key" --region ${REGION} --secret-string "${PRIVATE_KEY_AS_STRING}" 1> /dev/null
+
+[ $? == 0 ] || fail 1 "Failed: AWS / secretsmanager / create-secret"
+
+# Make a JSON object that conforms to how AWS stores this value when you enter it in the console
+EPIC_PRIVATE_KEY_AS_STRING=`cat epic-poc-private-key`
+EPIC_PRIVATE_KEY_AS_STRING="{\"ic/local/epic-private-key\": \"${EPIC_PRIVATE_KEY_AS_STRING}\"}"
+
+echo "Storing epic private key at 'ic/local/epic-private-key'..."
+
+aws --endpoint-url=http://localstack-cobalt:4584 secretsmanager delete-secret --secret-id "ic/local/epic-private-key" --region ${REGION} --force-delete-without-recovery > /dev/null 2>&1
+aws --endpoint-url=http://localstack-cobalt:4584 secretsmanager create-secret --name ic/local/epic-private-key --description "Public Key" --region ${REGION} --secret-string "${EPIC_PRIVATE_KEY_AS_STRING}" 1> /dev/null
+
+[ $? == 0 ] || fail 1 "Failed: AWS / secretsmanager / create-secret"
+
+
+echo "SecretsManager values set."

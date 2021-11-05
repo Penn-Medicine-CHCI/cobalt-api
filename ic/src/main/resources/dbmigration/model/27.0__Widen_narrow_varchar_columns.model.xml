@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<migration xmlns="http://ebean-orm.github.io/xml/ns/dbmigration">
+    <changeSet type="apply">
+        <alterColumn columnName="note" tableName="ic.contact" type="varchar(10000)" currentType="varchar" currentNotnull="false"/>
+        <alterColumn columnName="notes" tableName="ic.specialty_care_scheduling" type="varchar(10000)" currentType="varchar" currentNotnull="false"/>
+        <alterColumn columnName="comment" tableName="ic.triage_review" type="varchar(10000)" currentType="varchar" currentNotnull="false"/>
+    </changeSet>
+</migration>

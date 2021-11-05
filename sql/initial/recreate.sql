@@ -11,6 +11,7 @@ WHERE
     AND datname = 'cobalt'
 ;
 
+-- DROP SCHEMA IF EXISTS ic CASCADE;
 DROP DATABASE cobalt;
 DROP ROLE cobalt;
 

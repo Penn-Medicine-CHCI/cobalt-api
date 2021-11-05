@@ -1,0 +1,77 @@
+{
+  "status": "draft",
+  "resourceType": "Questionnaire",
+  "meta": {
+    "profile": [
+      "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire|2.7"
+    ],
+    "tag": [
+      {
+        "code": "This is a modified form for ic/cobalt, do not rely on codes for interoperability with other systems"
+      }
+    ]
+  },
+  "item": [
+    {
+      "type": "display",
+      "linkId": "letsKeepGoing"
+    },
+    {
+      "linkId": "/ic-pre-ptsd",
+      "code": [
+        {
+          "system": "http://loinc.org",
+          "code": "ic-simple-pain",
+          "display": "Simple Pain Screening"
+        }
+      ],
+      "type": "group",
+      "required": true,
+      "text": "Sometimes things happen to people that are unusually or especially frightening, horrible, or traumatic.  For example: ",
+      "item": [
+        {
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+              "valueCodeableConcept": {
+                "coding": [
+                  {
+                    "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "drop-down",
+                    "display": "Drop down"
+                  }
+                ],
+                "text": "Drop down"
+              }
+            }
+          ],
+          "linkId": "/pre-ptsd-1",
+          "code": [
+            {
+              "system": "ic/cobalt",
+              "code": "pre-ptsd-1",
+              "display": "Have you experienced this kind of event?"
+            }
+          ],
+          "text": "Have you experienced this kind of event?",
+          "type": "choice",
+          "required": false,
+          "answerOption": [
+            {
+              "valueCoding": {
+                "code": "LA33-6",
+                "display": "Yes"
+              }
+            },
+            {
+              "valueCoding": {
+                "code": "LA32-8",
+                "display": "No"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

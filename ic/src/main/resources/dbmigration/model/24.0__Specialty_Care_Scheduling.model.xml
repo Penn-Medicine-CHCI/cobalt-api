@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<migration xmlns="http://ebean-orm.github.io/xml/ns/dbmigration">
+    <changeSet type="apply">
+        <createTable name="ic.specialty_care_scheduling" identityType="external" pkName="pk_specialty_care_scheduling">
+            <column name="id" type="uuid" primaryKey="true" identity="true"/>
+            <column name="disposition_id" type="uuid" uniqueOneToOne="uq_specialty_care_scheduling_disposition_id" references="ic.patient_disposition.id" foreignKeyName="fk_specialty_care_scheduling_disposition_id"/>
+            <column name="agency" type="varchar" notnull="true"/>
+            <column name="date" type="date" notnull="true"/>
+            <column name="time" type="time"/>
+            <column name="attendance_confirmed" type="boolean" defaultValue="false" notnull="true"/>
+            <column name="notes" type="varchar"/>
+            <column name="created_dt" type="timestamp" notnull="true"/>
+            <column name="updated_dt" type="timestamp" notnull="true"/>
+            <column name="deleted" type="boolean" defaultValue="false" notnull="true"/>
+        </createTable>
+    </changeSet>
+</migration>

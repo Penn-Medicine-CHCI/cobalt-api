@@ -20,6 +20,10 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.integration.acuity.AcuitySchedulingClient;
+import com.cobaltplatform.api.integration.ic.IcClient;
+import com.cobaltplatform.api.integration.ic.IcException;
+import com.cobaltplatform.api.integration.ic.model.IcAppointmentCanceledRequest;
+import com.cobaltplatform.api.integration.ic.model.IcAppointmentCreatedRequest;
 import com.lokalized.Strings;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.integration.acuity.AcuitySchedulingCache;
@@ -44,10 +48,6 @@ import com.cobaltplatform.api.integration.epic.request.ScheduleAppointmentWithIn
 import com.cobaltplatform.api.integration.epic.response.GetPatientAppointmentsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse;
 import com.cobaltplatform.api.integration.epic.response.ScheduleAppointmentWithInsuranceResponse;
-import com.cobaltplatform.api.integration.pic.PicClient;
-import com.cobaltplatform.api.integration.pic.PicException;
-import com.cobaltplatform.api.integration.pic.model.PicAppointmentCanceledRequest;
-import com.cobaltplatform.api.integration.pic.model.PicAppointmentCreatedRequest;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
@@ -149,7 +149,7 @@ public class AppointmentService {
 	@Nonnull
 	private final BluejeansClient bluejeansClient;
 	@Nonnull
-	private final PicClient picClient;
+	private final IcClient icClient;
 	@Nonnull
 	private final javax.inject.Provider<EpicClient> epicClientProvider;
 	@Nonnull
@@ -191,7 +191,7 @@ public class AppointmentService {
 														@Nonnull AcuitySchedulingClient acuitySchedulingClient,
 														@Nonnull AcuitySchedulingCache acuitySchedulingCache,
 														@Nonnull BluejeansClient bluejeansClient,
-														@Nonnull PicClient picClient,
+														@Nonnull IcClient icClient,
 														@Nonnull @AuditLogged javax.inject.Provider<EpicClient> epicClientProvider,
 														@Nonnull javax.inject.Provider<ProviderService> providerServiceProvider,
 														@Nonnull javax.inject.Provider<AccountService> accountServiceProvider,
@@ -215,7 +215,7 @@ public class AppointmentService {
 		requireNonNull(acuitySchedulingClient);
 		requireNonNull(acuitySchedulingCache);
 		requireNonNull(bluejeansClient);
-		requireNonNull(picClient);
+		requireNonNull(icClient);
 		requireNonNull(providerServiceProvider);
 		requireNonNull(accountServiceProvider);
 		requireNonNull(groupEventServiceProvider);
@@ -237,7 +237,7 @@ public class AppointmentService {
 		this.acuitySchedulingClient = acuitySchedulingClient;
 		this.acuitySchedulingCache = acuitySchedulingCache;
 		this.bluejeansClient = bluejeansClient;
-		this.picClient = picClient;
+		this.icClient = icClient;
 		this.providerServiceProvider = providerServiceProvider;
 		this.accountServiceProvider = accountServiceProvider;
 		this.groupEventServiceProvider = groupEventServiceProvider;
@@ -571,14 +571,14 @@ public class AppointmentService {
 						}
 					}
 
-					// Special behavior for PIC accounts - let PIC know we booked an appointment
+					// Special behavior for IC accounts - let IC know we booked an appointment
 					Account patientAccount = getAccountService().findAccountById(accountId).orElse(null);
 
-					if (patientAccount != null && patientAccount.getSourceSystemId().equals(SourceSystemId.PIC)) {
+					if (patientAccount != null && patientAccount.getSourceSystemId().equals(SourceSystemId.IC)) {
 						try {
-							getPicClient().notifyOfAppointmentCreation(new PicAppointmentCreatedRequest(patientAccount.getAccountId(), appointmentId));
-						} catch (PicException e) {
-							getLogger().error(format("Unable to inform PIC that appointment ID %s was created for account ID %s", appointmentId, patientAccount.getAccountId()), e);
+							getIcClient().notifyOfAppointmentCreation(new IcAppointmentCreatedRequest(patientAccount.getAccountId(), appointmentId));
+						} catch (IcException e) {
+							getLogger().error(format("Unable to inform IC that appointment ID %s was created for account ID %s", appointmentId, patientAccount.getAccountId()), e);
 						}
 					}
 
@@ -786,8 +786,8 @@ public class AppointmentService {
 		if (time == null)
 			validationException.add(new FieldError("time", getStrings().get("Time is required.")));
 
-		// If account has no email address and none was passed in, force user to provide one (unless they are PIC users...then it's optional)
-		if (emailAddress == null && account != null && account.getEmailAddress() == null && account.getSourceSystemId() != SourceSystemId.PIC) {
+		// If account has no email address and none was passed in, force user to provide one (unless they are IC users...then it's optional)
+		if (emailAddress == null && account != null && account.getEmailAddress() == null && account.getSourceSystemId() != SourceSystemId.IC) {
 			validationException.add(new FieldError("emailAddress", getStrings().get("An email address is required to book an appointment.")));
 
 			Map<String, Object> metadata = new HashMap<>();
@@ -1194,12 +1194,12 @@ public class AppointmentService {
 				getEmailMessageManager().enqueueMessage(emailMessage);
 			}
 
-			// Special behavior for PIC accounts - let PIC know we booked an appointment
-			if (pinnedPatientAccount.getSourceSystemId().equals(SourceSystemId.PIC)) {
+			// Special behavior for IC accounts - let IC know we booked an appointment
+			if (pinnedPatientAccount.getSourceSystemId().equals(SourceSystemId.IC)) {
 				try {
-					getPicClient().notifyOfAppointmentCreation(new PicAppointmentCreatedRequest(pinnedPatientAccount.getAccountId(), appointmentId));
-				} catch (PicException e) {
-					getLogger().error(format("Unable to inform PIC that appointment ID %s was created for account ID %s", appointmentId, pinnedPatientAccount.getAccountId()), e);
+					getIcClient().notifyOfAppointmentCreation(new IcAppointmentCreatedRequest(pinnedPatientAccount.getAccountId(), appointmentId));
+				} catch (IcException e) {
+					getLogger().error(format("Unable to inform IC that appointment ID %s was created for account ID %s", appointmentId, pinnedPatientAccount.getAccountId()), e);
 				}
 			}
 		});
@@ -1227,7 +1227,7 @@ public class AppointmentService {
 		String providerName = provider.getName();
 		String videoconferenceUrl = appointment.getVideoconferenceUrl();
 
-		String webappBaseUrl = account.getSourceSystemId() == SourceSystemId.PIC ? getConfiguration().getPicWebappBaseUrl() : getConfiguration().getWebappBaseUrl(provider.getInstitutionId());
+		String webappBaseUrl = account.getSourceSystemId() == SourceSystemId.IC ? getConfiguration().getIcWebappBaseUrl() : getConfiguration().getWebappBaseUrl(provider.getInstitutionId());
 		String providerNameAndCredentials = provider.getName();
 
 		if (provider.getLicense() != null)
@@ -1442,12 +1442,12 @@ public class AppointmentService {
 				sendPatientAndProviderCobaltAppointmentCanceledEmails(appointmentId);
 			}
 
-			// Special behavior for PIC accounts - let PIC know we canceled an appointment
-			if (appointmentAccount != null && appointmentAccount.getSourceSystemId().equals(SourceSystemId.PIC)) {
+			// Special behavior for IC accounts - let IC know we canceled an appointment
+			if (appointmentAccount != null && appointmentAccount.getSourceSystemId().equals(SourceSystemId.IC)) {
 				try {
-					getPicClient().notifyOfAppointmentCancelation(new PicAppointmentCanceledRequest(appointmentAccount.getAccountId(), appointmentId));
-				} catch (PicException e) {
-					getLogger().error(format("Unable to inform PIC that appointment ID %s was canceled for account ID %s", appointmentId, appointmentAccount.getAccountId()), e);
+					getIcClient().notifyOfAppointmentCancelation(new IcAppointmentCanceledRequest(appointmentAccount.getAccountId(), appointmentId));
+				} catch (IcException e) {
+					getLogger().error(format("Unable to inform IC that appointment ID %s was canceled for account ID %s", appointmentId, appointmentAccount.getAccountId()), e);
 				}
 			}
 		});
@@ -1749,8 +1749,8 @@ public class AppointmentService {
 	}
 
 	@Nonnull
-	protected PicClient getPicClient() {
-		return picClient;
+	protected IcClient getIcClient() {
+		return icClient;
 	}
 
 	@Nonnull

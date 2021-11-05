@@ -23,7 +23,7 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
-import com.cobaltplatform.api.model.security.PicSignedRequestRequired;
+import com.cobaltplatform.api.model.security.IcSignedRequestRequired;
 import com.soklet.web.exception.AuthenticationException;
 import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.request.RequestContext;
@@ -121,9 +121,9 @@ public class AuthorizationFilter implements Filter {
 				}
 			}
 
-			if (resourceMethod.getAnnotation(PicSignedRequestRequired.class) != null) {
-				if (!getCurrentContext().getSignedByPic())
-					throw new AuthenticationException(format("Authentication failed. Request to resource method %s must be signed by PIC.", resourceMethod));
+			if (resourceMethod.getAnnotation(IcSignedRequestRequired.class) != null) {
+				if (!getCurrentContext().getSignedByIc())
+					throw new AuthenticationException(format("Authentication failed. Request to resource method %s must be signed by IC.", resourceMethod));
 			}
 		}
 

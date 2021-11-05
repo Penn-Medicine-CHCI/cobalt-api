@@ -1,0 +1,8 @@
+#!/bin/bash
+
+echo "Bootstrapping IC Localstack..."
+
+docker build -t ic-bootstrap -f ./Dockerfile .
+docker run --network localstack_default --rm ic-bootstrap:latest
+
+echo "Bootstrap complete."

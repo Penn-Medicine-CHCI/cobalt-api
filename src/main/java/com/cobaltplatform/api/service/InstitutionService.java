@@ -30,10 +30,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -76,10 +78,11 @@ public class InstitutionService {
 	}
 
 	@Nonnull
-	public Optional<Institution> findInstitutionBySubdomain(@Nonnull String subdomain) {
+	public Optional<Institution> findInstitutionBySubdomain(@Nullable String subdomain) {
+		subdomain = (subdomain == null ? "" : subdomain).trim().toLowerCase(Locale.US);
 
 		Institution institution = getDatabase().queryForObject("SELECT * FROM institution WHERE LOWER(subdomain)=?",
-				Institution.class, subdomain.toLowerCase()).orElse(null);
+				Institution.class, subdomain).orElse(null);
 
 		return Optional.of(institution == null ? findInstitutionById(InstitutionId.COBALT).get() : institution);
 	}
