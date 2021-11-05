@@ -36,7 +36,7 @@ public class SystemAffinity {
 
 	public enum SystemAffinityId {
 		COBALT,
-		PIC,
+		IC,
 		ALL
 	}
 

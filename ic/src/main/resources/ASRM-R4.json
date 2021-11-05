@@ -1,0 +1,480 @@
+{
+  "status": "draft",
+  "resourceType": "Questionnaire",
+  "meta": {
+    "profile": [
+      "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire|2.7"
+    ],
+    "tag": [
+      {
+        "code": "This is a modified form for ic/cobalt, do not rely on codes for interoperability with other systems"
+      }
+    ]
+  },
+  "item": [
+    {
+      "type": "group",
+      "code": [
+        {
+          "code": "ic-ASRM",
+          "display": "Altman Self-Rating Mania Scale",
+          "system": "http://loinc.org"
+        }
+      ],
+      "required": false,
+      "linkId": "/ic-ASRM",
+      "item": [
+        {
+          "type": "choice",
+          "code": [
+            {
+              "code": "65973-0",
+              "display": "Question 1",
+              "system": "http://loinc.org"
+            }
+          ],
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+              "valueCodeableConcept": {
+                "coding": [
+                  {
+                    "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "drop-down",
+                    "display": "Drop down"
+                  }
+                ],
+                "text": "Drop down"
+              }
+            }
+          ],
+          "required": false,
+          "linkId": "/65973-0",
+          "text": "Choose the one statement that best describes the way you have been feeling for the past week.",
+          "answerOption": [
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 0
+                }
+              ],
+              "valueCoding": {
+                "code": "LA137-2",
+                "display": "I do not feel happier or more cheerful than usual."
+              }
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 1
+                }
+              ],
+              "valueCoding": {
+                "code": "LA6752-5",
+                "display": "I occasionally feel happier or more cheerful than usual."
+              }
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 2
+                }
+              ],
+              "valueCoding": {
+                "code": "LA6751-7",
+                "display": "I often feel happier or more cheerful than usual."
+              }
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 3
+                }
+              ],
+              "valueCoding": {
+                "code": "LA6750-9",
+                "display": "I feel happier or more cheerful than usual most of the time."
+              }
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 4
+                }
+              ],
+              "valueCoding": {
+                "code": "LA13958-6",
+                "display": "I feel happier or more cheerful than usual all of the time."
+              }
+            }
+          ]
+        },
+        {
+          "type": "choice",
+          "code": [
+            {
+              "code": "65983-9",
+              "display": "Question 2",
+              "system": "http://loinc.org"
+            }
+          ],
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+              "valueCodeableConcept": {
+                "coding": [
+                  {
+                    "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "drop-down",
+                    "display": "Drop down"
+                  }
+                ],
+                "text": "Drop down"
+              }
+            }
+          ],
+          "required": false,
+          "linkId": "/65983-9",
+          "text": "Choose the one statement that best describes the way you have been feeling for the past week.",
+          "answerOption": [
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 0
+                }
+              ],
+              "valueCoding": {
+                "code": "LA137-2",
+                "display": "I do not feel more self-confident than usual."
+              }
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 1
+                }
+              ],
+              "valueCoding": {
+                "code": "LA6752-5",
+                "display": "I occasionally feel more self-confident than usual."
+              }
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 2
+                }
+              ],
+              "valueCoding": {
+                "code": "LA6751-7",
+                "display": "I often feel more self-confident than usual."
+              }
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 3
+                }
+              ],
+              "valueCoding": {
+                "code": "LA6750-9",
+                "display": "I feel more self-confident than usual."
+              }
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 4
+                }
+              ],
+              "valueCoding": {
+                "code": "LA13958-6",
+                "display": "I feel extremely self-confident all of the time."
+              }
+            }
+          ]
+        },
+        {
+          "type": "choice",
+          "code": [
+            {
+              "code": "65979-7",
+              "display": "Question 3",
+              "system": "http://loinc.org"
+            }
+          ],
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+              "valueCodeableConcept": {
+                "coding": [
+                  {
+                    "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "drop-down",
+                    "display": "Drop down"
+                  }
+                ],
+                "text": "Drop down"
+              }
+            }
+          ],
+          "required": false,
+          "linkId": "/65979-7",
+          "text": "Choose the one statement that best describes the way you have been feeling for the past week.",
+          "answerOption": [
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 0
+                }
+              ],
+              "valueCoding": {
+                "code": "LA137-2",
+                "display": "I do not need less sleep than usual."
+              }
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 1
+                }
+              ],
+              "valueCoding": {
+                "code": "LA6752-5",
+                "display": "I occasionally need less sleep than usual."
+              }
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 2
+                }
+              ],
+              "valueCoding": {
+                "code": "LA6751-7",
+                "display": "I often need less sleep than usual."
+              }
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 3
+                }
+              ],
+              "valueCoding": {
+                "code": "LA6750-9",
+                "display": "I frequently need less sleep than usual."
+              }
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 4
+                }
+              ],
+              "valueCoding": {
+                "code": "LA13958-6",
+                "display": "I can go all day and night without any sleep and still not feel tired."
+              }
+            }
+          ]
+        },
+        {
+          "type": "choice",
+          "code": [
+            {
+              "code": "65976-3",
+              "display": "Question 4",
+              "system": "http://loinc.org"
+            }
+          ],
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+              "valueCodeableConcept": {
+                "coding": [
+                  {
+                    "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "drop-down",
+                    "display": "Drop down"
+                  }
+                ],
+                "text": "Drop down"
+              }
+            }
+          ],
+          "required": false,
+          "linkId": "/65976-3",
+          "text": "Choose the one statement that best describes the way you have been feeling for the past week.",
+          "answerOption": [
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 0
+                }
+              ],
+              "valueCoding": {
+                "code": "LA137-2",
+                "display": "I do not talk more than usual."
+              }
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 1
+                }
+              ],
+              "valueCoding": {
+                "code": "LA6752-5",
+                "display": "I occasionally talk more than usual."
+              }
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 2
+                }
+              ],
+              "valueCoding": {
+                "code": "LA6751-7",
+                "display": "I often talk more than usual."
+              }
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 3
+                }
+              ],
+              "valueCoding": {
+                "code": "LA6750-9",
+                "display": "I frequently talk more than usual."
+              }
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 4
+                }
+              ],
+              "valueCoding": {
+                "code": "LA13958-6",
+                "display": "I talk constantly and cannot be interrupted."
+              }
+            }
+          ]
+        },
+        {
+          "type": "choice",
+          "code": [
+            {
+              "code": "65980-5",
+              "display": "Question 5",
+              "system": "http://loinc.org"
+            }
+          ],
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+              "valueCodeableConcept": {
+                "coding": [
+                  {
+                    "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "drop-down",
+                    "display": "Drop down"
+                  }
+                ],
+                "text": "Drop down"
+              }
+            }
+          ],
+          "required": false,
+          "linkId": "/65980-5",
+          "text": "Choose the one statement that best describes the way you have been feeling for the past week.",
+          "answerOption": [
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 0
+                }
+              ],
+              "valueCoding": {
+                "code": "LA137-2",
+                "display": "I have not been more active (either socially, sexually, at work, home or school) than usual."
+              }
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 1
+                }
+              ],
+              "valueCoding": {
+                "code": "LA6752-5",
+                "display": "I have occasionally been more active than usual."
+              }
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 2
+                }
+              ],
+              "valueCoding": {
+                "code": "LA6751-7",
+                "display": "I have often been more active than usual."
+              }
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 3
+                }
+              ],
+              "valueCoding": {
+                "code": "LA6750-9",
+                "display": "I have frequently been more active than usual."
+              }
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 4
+                }
+              ],
+              "valueCoding": {
+                "code": "LA13958-6",
+                "display": "I am constantly active or on the go all the time."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

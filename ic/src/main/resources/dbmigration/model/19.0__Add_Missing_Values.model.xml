@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<migration xmlns="http://ebean-orm.github.io/xml/ns/dbmigration">
+    <changeSet type="apply">
+        <alterColumn columnName="diagnosis" tableName="ic.patient_disposition" checkConstraint="check ( diagnosis in ('100','0','6','4','40','3','1','11','5','7','9','10','8','2','-2','-1'))" checkConstraintName="ck_patient_disposition_diagnosis"/>
+        <alterColumn columnName="questionnaire_type" tableName="ic.scoring" checkConstraint="check ( questionnaire_type in ('INFO','SYMPTOMS','DIAGNOSES','MILITARY','CSSRS_SHORT','CSSRS','PHQ9','GAD7','ISI','PREPTSD','PTSD5','ASRM','PRIME5','SIMPLEPAIN','BPI','SIMPLEDRUGALCOHOL','OPIOIDSCREEN','DAST10','AUDITC','GOALS'))" checkConstraintName="ck_scoring_questionnaire_type"/>
+    </changeSet>
+</migration>

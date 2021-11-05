@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<migration xmlns="http://ebean-orm.github.io/xml/ns/dbmigration">
+    <changeSet type="apply">
+        <createTable name="ic.messages" identityType="external" pkName="pk_messages">
+            <column name="id" type="uuid" primaryKey="true" identity="true"/>
+            <column name="patient_id" type="uuid" references="ic.patient.id" foreignKeyName="fk_messages_patient_id" foreignKeyIndex="ix_messages_patient_id"/>
+            <column name="attempt" type="smallint" notnull="true"/>
+            <column name="body" type="varchar"/>
+            <column name="address" type="varchar"/>
+            <column name="created_dt" type="timestamp" notnull="true"/>
+            <column name="updated_dt" type="timestamp" notnull="true"/>
+            <column name="deleted" type="boolean" defaultValue="false" notnull="true"/>
+        </createTable>
+    </changeSet>
+</migration>

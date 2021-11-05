@@ -23,7 +23,7 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.error.ErrorReporter;
-import com.cobaltplatform.api.integration.pic.PicClient;
+import com.cobaltplatform.api.integration.ic.IcClient;
 import com.cobaltplatform.api.model.client.RemoteClient;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.security.AccessTokenClaims;
@@ -56,7 +56,7 @@ public class CurrentContextRequestHandler {
 	@Nonnull
 	private static final String ACCESS_TOKEN_REQUEST_PROPERTY_NAME;
 	@Nonnull
-	private static final String PIC_SIGNING_TOKEN_REQUEST_PROPERTY_NAME;
+	private static final String IC_SIGNING_TOKEN_REQUEST_PROPERTY_NAME;
 	@Nonnull
 	private static final String LOCALE_REQUEST_PROPERTY_NAME;
 	@Nonnull
@@ -72,7 +72,7 @@ public class CurrentContextRequestHandler {
 	@Nonnull
 	private final Authenticator authenticator;
 	@Nonnull
-	private final PicClient picClient;
+	private final IcClient icClient;
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
@@ -82,7 +82,7 @@ public class CurrentContextRequestHandler {
 
 	static {
 		ACCESS_TOKEN_REQUEST_PROPERTY_NAME = "X-Cobalt-Access-Token";
-		PIC_SIGNING_TOKEN_REQUEST_PROPERTY_NAME = "X-PIC-Signing-Token";
+		IC_SIGNING_TOKEN_REQUEST_PROPERTY_NAME = "X-IC-Signing-Token";
 		LOCALE_REQUEST_PROPERTY_NAME = "X-Locale";
 		TIME_ZONE_REQUEST_PROPERTY_NAME = "X-Time-Zone";
 
@@ -93,20 +93,20 @@ public class CurrentContextRequestHandler {
 	public CurrentContextRequestHandler(@Nonnull CurrentContextExecutor currentContextExecutor,
 																			@Nonnull AccountService accountService,
 																			@Nonnull Authenticator authenticator,
-																			@Nonnull PicClient picClient,
+																			@Nonnull IcClient icClient,
 																			@Nonnull Configuration configuration,
 																			@Nonnull ErrorReporter errorReporter) {
 		requireNonNull(currentContextExecutor);
 		requireNonNull(accountService);
 		requireNonNull(authenticator);
-		requireNonNull(picClient);
+		requireNonNull(icClient);
 		requireNonNull(configuration);
 		requireNonNull(errorReporter);
 
 		this.currentContextExecutor = currentContextExecutor;
 		this.accountService = accountService;
 		this.authenticator = authenticator;
-		this.picClient = picClient;
+		this.icClient = icClient;
 		this.configuration = configuration;
 		this.errorReporter = errorReporter;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -161,12 +161,12 @@ public class CurrentContextRequestHandler {
 				}
 			}
 
-			// Is this a signed PIC request?
-			String picSigningToken = WebUtility.extractValueFromRequest(httpServletRequest, getPicSigningTokenRequestPropertyName()).orElse(null);
-			boolean signedByPic = false;
+			// Is this a signed IC request?
+			String icSigningToken = WebUtility.extractValueFromRequest(httpServletRequest, getIcSigningTokenRequestPropertyName()).orElse(null);
+			boolean signedByIc = false;
 
-			if (picSigningToken != null)
-				signedByPic = getPicClient().verifyPicSigningToken(picSigningToken);
+			if (icSigningToken != null)
+				signedByIc = getIcClient().verifyIcSigningToken(icSigningToken);
 
 			RemoteClient remoteClient = RemoteClient.fromHttpServletRequest(httpServletRequest);
 
@@ -174,7 +174,7 @@ public class CurrentContextRequestHandler {
 					.accessToken(accessTokenValue.orElse(null))
 					.account(account.orElse(null))
 					.remoteClient(remoteClient)
-					.signedByPic(signedByPic)
+					.signedByIc(signedByIc)
 					.build();
 
 			String currentContextDescription = null;
@@ -213,8 +213,8 @@ public class CurrentContextRequestHandler {
 	}
 
 	@Nonnull
-	public static String getPicSigningTokenRequestPropertyName() {
-		return PIC_SIGNING_TOKEN_REQUEST_PROPERTY_NAME;
+	public static String getIcSigningTokenRequestPropertyName() {
+		return IC_SIGNING_TOKEN_REQUEST_PROPERTY_NAME;
 	}
 
 	@Nonnull
@@ -248,8 +248,8 @@ public class CurrentContextRequestHandler {
 	}
 
 	@Nonnull
-	protected PicClient getPicClient() {
-		return picClient;
+	protected IcClient getIcClient() {
+		return icClient;
 	}
 
 	@Nonnull

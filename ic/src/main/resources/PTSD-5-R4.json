@@ -1,0 +1,301 @@
+{
+  "status": "draft",
+  "resourceType": "Questionnaire",
+  "meta": {
+    "profile": [
+      "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire|2.7"
+    ],
+    "tag": [
+      {
+        "code": "This is a modified form for ic/cobalt, do not rely on codes for interoperability with other systems"
+      }
+    ]
+  },
+  "item": [
+    {
+      "type": "group",
+      "code": [
+        {
+          "code": "ic-ptsd5",
+          "display": "Post traumatic stress disorder (PTSD) checklist - Five Question",
+          "system": "http://loinc.org"
+        }
+      ],
+      "required": false,
+      "linkId": "/ic-ptsd5",
+      "text": "In the past month, have you...",
+      "item": [
+        {
+          "type": "choice",
+          "code": [
+            {
+              "code": "70222-5",
+              "display": "had nightmares about the event(s) or thought about the event(s) when you did not want to?",
+              "system": "http://loinc.org"
+            }
+          ],
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+              "valueCodeableConcept": {
+                "coding": [
+                  {
+                    "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "drop-down",
+                    "display": "Drop down"
+                  }
+                ],
+                "text": "Drop down"
+              }
+            }
+          ],
+          "required": false,
+          "linkId": "/70222-5",
+          "text": "had nightmares about the event(s) or thought about the event(s) when you did not want to?",
+          "answerOption": [
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 1
+                }
+              ],
+              "valueCoding": {
+                "code": "LA33-6",
+                "display": "Yes"
+              }
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 0
+                }
+              ],
+              "valueCoding": {
+                "code": "LA32-8",
+                "display": "No"
+              }
+            }
+          ]
+        },
+        {
+          "type": "choice",
+          "code": [
+            {
+              "code": "70226-6",
+              "display": "tried hard not to think about the event(s) or went out of your way to avoid situations that reminded you of the event(s)?",
+              "system": "http://loinc.org"
+            }
+          ],
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+              "valueCodeableConcept": {
+                "coding": [
+                  {
+                    "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "drop-down",
+                    "display": "Drop down"
+                  }
+                ],
+                "text": "Drop down"
+              }
+            }
+          ],
+          "required": false,
+          "linkId": "/70226-6",
+          "text": "tried hard not to think about the event(s) or went out of your way to avoid situations that reminded you of the event(s)?",
+          "answerOption": [
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 1
+                }
+              ],
+              "valueCoding": {
+                "code": "LA33-6",
+                "display": "Yes"
+              }
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 0
+                }
+              ],
+              "valueCoding": {
+                "code": "LA32-8",
+                "display": "No"
+              }
+            }
+          ]
+        },
+        {
+          "type": "choice",
+          "code": [
+            {
+              "code": "70236-5",
+              "display": "been constantly on guard, watchful, or easily startled?",
+              "system": "http://loinc.org"
+            }
+          ],
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+              "valueCodeableConcept": {
+                "coding": [
+                  {
+                    "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "drop-down",
+                    "display": "Drop down"
+                  }
+                ],
+                "text": "Drop down"
+              }
+            }
+          ],
+          "required": false,
+          "linkId": "/70236-5",
+          "text": "been constantly on guard, watchful, or easily startled?",
+          "answerOption": [
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 1
+                }
+              ],
+              "valueCoding": {
+                "code": "LA33-6",
+                "display": "Yes"
+              }
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 0
+                }
+              ],
+              "valueCoding": {
+                "code": "LA32-8",
+                "display": "No"
+              }
+            }
+          ]
+        },
+        {
+          "type": "choice",
+          "code": [
+            {
+              "code": "70231-6",
+              "display": "felt numb or detached from people, activities, or your surroundings?",
+              "system": "http://loinc.org"
+            }
+          ],
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+              "valueCodeableConcept": {
+                "coding": [
+                  {
+                    "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "drop-down",
+                    "display": "Drop down"
+                  }
+                ],
+                "text": "Drop down"
+              }
+            }
+          ],
+          "required": false,
+          "linkId": "/70231-6",
+          "text": "felt numb or detached from people, activities, or your surroundings?",
+          "answerOption": [
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 1
+                }
+              ],
+              "valueCoding": {
+                "code": "LA33-6",
+                "display": "Yes"
+              }
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 0
+                }
+              ],
+              "valueCoding": {
+                "code": "LA32-8",
+                "display": "No"
+              }
+            }
+          ]
+        },
+        {
+          "type": "choice",
+          "code": [
+            {
+              "code": "70224-1",
+              "display": "felt guilty or unable to stop blaming yourself or others for the event(s) or any problems the event(s) may have caused?",
+              "system": "http://loinc.org"
+            }
+          ],
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+              "valueCodeableConcept": {
+                "coding": [
+                  {
+                    "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "drop-down",
+                    "display": "Drop down"
+                  }
+                ],
+                "text": "Drop down"
+              }
+            }
+          ],
+          "required": false,
+          "linkId": "/70224-1",
+          "text": "felt guilty or unable to stop blaming yourself or others for the event(s) or any problems the event(s) may have caused?",
+          "answerOption": [
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 1
+                }
+              ],
+              "valueCoding": {
+                "code": "LA33-6",
+                "display": "Yes"
+              }
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                  "valueDecimal": 0
+                }
+              ],
+              "valueCoding": {
+                "code": "LA32-8",
+                "display": "No"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

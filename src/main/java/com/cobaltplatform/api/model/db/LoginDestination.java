@@ -36,7 +36,7 @@ public class LoginDestination {
 
 	public enum LoginDestinationId {
 		COBALT_PATIENT,
-		PIC_PANEL
+		IC_PANEL
 	}
 
 	@Override

@@ -1,0 +1,10 @@
+# Reference - https://ebean.io/docs/testing
+ebean:
+  dbSchema: ic
+  test:
+#    shutdown: remove # stop | remove
+    platform: postgres # h2, postgres, mysql, mariadb, nuodb, sqlserver, oracle, hana, clickhouse, cockroach, sqlite
+    ddlMode: dropCreate # none | dropCreate |  migrations
+    dbName: cobalt
+    postgres:
+      image: public.ecr.aws/bitnami/postgresql:11
