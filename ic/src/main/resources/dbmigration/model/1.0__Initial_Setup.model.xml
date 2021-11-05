@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<migration xmlns="http://ebean-orm.github.io/xml/ns/dbmigration">
+    <changeSet type="apply">
+        <createTable name="ic.assessment" identityType="external" pkName="pk_assessment">
+            <column name="id" type="uuid" primaryKey="true" identity="true"/>
+            <column name="patient_id" type="uuid" references="ic.patient.id" foreignKeyName="fk_assessment_patient_id" foreignKeyIndex="ix_assessment_patient_id"/>
+            <column name="status" type="varchar(11)" checkConstraint="check ( status in ('NOT_STARTED','IN_PROGRESS','COMPLETED','STALE'))" checkConstraintName="ck_assessment_status"/>
+            <column name="due" type="timestamp"/>
+            <column name="authored_by" type="varchar"/>
+            <column name="created_dt" type="timestamp" notnull="true"/>
+            <column name="updated_dt" type="timestamp" notnull="true"/>
+            <column name="deleted" type="boolean" defaultValue="false" notnull="true"/>
+        </createTable>
+        <createTable name="ic.patient" identityType="external" pkName="pk_patient">
+            <column name="id" type="uuid" primaryKey="true" identity="true"/>
+            <column name="logged_in_dt" type="varchar[]"/>
+            <column name="fhir_id" type="varchar" unique="uq_patient_fhir_id"/>
+            <column name="fhir_provider" type="varchar"/>
+            <column name="goals" type="varchar[]"/>
+            <column name="preferred_first_name" type="varchar"/>
+            <column name="preferred_last_name" type="varchar"/>
+            <column name="preferred_email" type="varchar"/>
+            <column name="preferred_phone_number" type="varchar"/>
+            <column name="preferred_gender" type="varchar"/>
+            <column name="mrn" type="varchar"/>
+            <column name="cobalt_account_id" type="uuid" unique="uq_patient_cobalt_account_id"/>
+            <column name="orders" type="varchar[]"/>
+            <column name="created_dt" type="timestamp" notnull="true"/>
+            <column name="updated_dt" type="timestamp" notnull="true"/>
+            <column name="deleted" type="boolean" defaultValue="false" notnull="true"/>
+        </createTable>
+        <createTable name="ic.patient_disposition" identityType="external" pkName="pk_patient_disposition">
+            <column name="id" type="uuid" primaryKey="true" identity="true"/>
+            <column name="patient_id" type="uuid" references="ic.patient.id" foreignKeyName="fk_patient_disposition_patient_id" foreignKeyIndex="ix_patient_disposition_patient_id"/>
+            <column name="status" type="integer" checkConstraint="check ( status in (0,1,2,3,4,5,6,7))" checkConstraintName="ck_patient_disposition_status"/>
+            <column name="outcome" type="jsonb"/>
+            <column name="responses" type="uuid[]"/>
+            <column name="notes" type="jsonb"/>
+            <column name="flags" type="jsonb"/>
+            <column name="triage_review_id" type="uuid" uniqueOneToOne="uq_patient_disposition_triage_review_id" references="ic.triage_review.id" foreignKeyName="fk_patient_disposition_triage_review_id"/>
+            <column name="acuity" type="jsonb"/>
+            <column name="created_dt" type="timestamp" notnull="true"/>
+            <column name="updated_dt" type="timestamp" notnull="true"/>
+            <column name="deleted" type="boolean" defaultValue="false" notnull="true"/>
+        </createTable>
+        <createTable name="ic.questionnaire_definition" identityType="external" pkName="pk_questionnaire_definition">
+            <column name="id" type="uuid" primaryKey="true" identity="true"/>
+            <column name="questionnaire_id" type="varchar"/>
+            <column name="filename" type="varchar"/>
+            <column name="questionnaire_version" type="varchar"/>
+            <column name="link_id" type="varchar"/>
+            <column name="questionnaire_fhir" type="jsonb"/>
+            <column name="created_dt" type="timestamp" notnull="true"/>
+            <column name="updated_dt" type="timestamp" notnull="true"/>
+            <column name="deleted" type="boolean" defaultValue="false" notnull="true"/>
+        </createTable>
+        <createTable name="ic.questionnaire_response" identityType="external" pkName="pk_questionnaire_response">
+            <column name="id" type="uuid" primaryKey="true" identity="true"/>
+            <column name="questionnaire_type" type="varchar"/>
+            <column name="response" type="jsonb"/>
+            <column name="assessment_id" type="uuid" references="ic.assessment.id" foreignKeyName="fk_questionnaire_response_assessment_id" foreignKeyIndex="ix_questionnaire_response_assessment_id"/>
+            <column name="patient_id" type="uuid" references="ic.patient.id" foreignKeyName="fk_questionnaire_response_patient_id" foreignKeyIndex="ix_questionnaire_response_patient_id"/>
+            <column name="score" type="bigint" notnull="true"/>
+            <column name="acuity" type="varchar(6)" checkConstraint="check ( acuity in ('LOW','MEDIUM','HIGH'))" checkConstraintName="ck_questionnaire_response_acuity"/>
+            <column name="created_dt" type="timestamp" notnull="true"/>
+            <column name="updated_dt" type="timestamp" notnull="true"/>
+            <column name="deleted" type="boolean" defaultValue="false" notnull="true"/>
+        </createTable>
+        <createTable name="ic.referral_order_report" identityType="external" pkName="pk_referral_order_report">
+            <column name="order_id" type="varchar" primaryKey="true"/>
+            <column name="encounter_dept_name" type="varchar"/>
+            <column name="encounter_dept_id" type="varchar"/>
+            <column name="referring_practice" type="varchar"/>
+            <column name="referring_practice_second" type="varchar"/>
+            <column name="ordering_provider" type="varchar"/>
+            <column name="billing_provider" type="varchar"/>
+            <column name="last_name" type="varchar"/>
+            <column name="first_name" type="varchar"/>
+            <column name="mrn" type="varchar"/>
+            <column name="uid" type="varchar"/>
+            <column name="sex" type="varchar"/>
+            <column name="date_of_birth" type="varchar"/>
+            <column name="primary_payor" type="varchar"/>
+            <column name="primary_plan" type="varchar"/>
+            <column name="order_date" type="varchar"/>
+            <column name="age_of_order" type="varchar"/>
+            <column name="ccbh_order_routing" type="varchar"/>
+            <column name="reasons_for_referral" type="varchar"/>
+            <column name="dx" type="varchar"/>
+            <column name="order_associated_diagnosis" type="varchar"/>
+            <column name="call_back_number" type="varchar"/>
+            <column name="preferred_contact_hours" type="varchar"/>
+            <column name="order_comments" type="varchar"/>
+            <column name="img_cc_recipients" type="varchar"/>
+            <column name="patient_address_line1" type="varchar"/>
+            <column name="patient_address_line2" type="varchar"/>
+            <column name="city" type="varchar"/>
+            <column name="patient_state" type="varchar"/>
+            <column name="patient_zip_code" type="varchar"/>
+            <column name="ccbh_last_active_med_order_summary" type="varchar"/>
+            <column name="ccbh_medications_list" type="varchar"/>
+            <column name="psychotherapeutic_med_lst_two_weeks" type="varchar"/>
+        </createTable>
+        <createTable name="ic.triage_review" identityType="external" pkName="pk_triage_review">
+            <column name="id" type="uuid" primaryKey="true" identity="true"/>
+            <column name="bhp_reviewed_dt" type="timestamp"/>
+            <column name="psychiatrist_reviewed_dt" type="timestamp"/>
+            <column name="comment" type="varchar"/>
+            <column name="needs_focused_review" type="boolean"/>
+            <column name="patient_id" type="uuid" notnull="true" references="ic.patient.id" foreignKeyName="fk_triage_review_patient_id" foreignKeyIndex="ix_triage_review_patient_id"/>
+            <column name="created_dt" type="timestamp" notnull="true"/>
+            <column name="updated_dt" type="timestamp" notnull="true"/>
+            <column name="deleted" type="boolean" defaultValue="false" notnull="true"/>
+        </createTable>
+    </changeSet>
+</migration>

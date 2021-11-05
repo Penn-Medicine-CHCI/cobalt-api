@@ -116,7 +116,7 @@ INSERT INTO cobalt.group_session_system (group_session_system_id,description) VA
 	 ('ACUITY','Acuity');
 INSERT INTO cobalt.login_destination (login_destination_id,description) VALUES
 	 ('COBALT_PATIENT','Cobalt Patient Experience'),
-	 ('PIC_PANEL','PIC Panel');
+	 ('IC_PANEL','IC Panel');
 INSERT INTO cobalt.message_status (message_status_id,description) VALUES
 	 ('ENQUEUED','Enqueued'),
 	 ('SENT','Sent'),
@@ -192,10 +192,10 @@ INSERT INTO cobalt.scheduling_system (scheduling_system_id,description) VALUES
 	 ('COBALT','Cobalt');
 INSERT INTO cobalt.source_system (source_system_id,description) VALUES
 	 ('COBALT','Cobalt'),
-	 ('PIC','PIC');
+	 ('IC','IC');
 INSERT INTO cobalt.system_affinity (system_affinity_id,description) VALUES
 	 ('COBALT','Cobalt'),
-	 ('PIC','PIC'),
+	 ('IC','IC'),
 	 ('ALL','All');
 INSERT INTO cobalt.videoconference_platform (videoconference_platform_id,description) VALUES
 	 ('BLUEJEANS','Bluejeans'),

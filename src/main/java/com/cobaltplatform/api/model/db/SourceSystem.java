@@ -36,7 +36,7 @@ public class SourceSystem {
 
 	public enum SourceSystemId {
 		COBALT,
-		PIC
+		IC
 	}
 
 	@Override

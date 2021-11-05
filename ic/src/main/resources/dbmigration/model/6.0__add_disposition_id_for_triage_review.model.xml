@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<migration xmlns="http://ebean-orm.github.io/xml/ns/dbmigration">
+    <changeSet type="apply">
+        <addColumn tableName="ic.triage_review">
+            <column name="disposition_id" type="uuid" uniqueOneToOne="uq_triage_review_disposition_id" references="ic.patient_disposition.id" foreignKeyName="fk_triage_review_disposition_id"/>
+        </addColumn>
+    </changeSet>
+    <changeSet type="pendingDrops">
+        <dropColumn columnName="patient_id" tableName="ic.triage_review"/>
+    </changeSet>
+</migration>

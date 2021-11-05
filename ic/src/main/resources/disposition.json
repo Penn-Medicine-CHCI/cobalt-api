@@ -1,0 +1,51 @@
+[
+  {
+    "patient": {
+      "id": "dc994de8-769a-4a47-8f74-b7134a0f5f2c",
+      "firstName": "Bob",
+      "lastName": "Vance",
+      "preferredPhoneNumber": "123-233-2333",
+      "preferredEngagement": "PHONE"
+    },
+    "status": {
+      "code": 6,
+      "label": "connected to care"
+    },
+    "outcome": {
+      "care": {
+        "id": 2,
+        "label": "SPECIALTY"
+      },
+      "diagnosis": {
+        "code": 100,
+        "name": "Crisis care"
+      },
+      "crisis": true
+    },
+    "flags": [
+      {
+        "type": "SAFETY",
+        "label": "Needs initial safety planning",
+        "clearedAt": null,
+        "createdAt": "2021-02-12T23:42:47.309Z"
+      },
+      {
+        "type": "GENERAL",
+        "label": "Needs initial safety planning",
+        "clearedAt": "2021-02-08T23:42:47.308Z",
+        "createdAt": "2021-02-08T23:42:47.309Z"
+      },
+      {
+        "type": "GENERAL",
+        "label": "Needs initial safety planning",
+        "clearedAt": "2021-02-06T23:42:47.308Z",
+        "createdAt": "2021-02-06T23:42:47.309Z"
+      }
+    ],
+    "acuity": {
+    "value": 90,
+    "category": "HIGH"
+    },
+    "id": "8d6d393c-5e29-4427-bb7b-2118f1ee90e2"
+  }
+]

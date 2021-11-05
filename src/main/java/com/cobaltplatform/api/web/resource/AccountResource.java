@@ -25,8 +25,8 @@ import com.cobaltplatform.api.model.api.request.AcceptAccountConsentFormRequest;
 import com.cobaltplatform.api.model.api.request.AccessTokenRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountInviteRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
-import com.cobaltplatform.api.model.api.request.CreatePicMpmAccountRequest;
-import com.cobaltplatform.api.model.api.request.CreatePicOrderReportAccountRequest;
+import com.cobaltplatform.api.model.api.request.CreateIcMpmAccountRequest;
+import com.cobaltplatform.api.model.api.request.CreateIcOrderReportAccountRequest;
 import com.cobaltplatform.api.model.api.request.FindGroupSessionsRequest;
 import com.cobaltplatform.api.model.api.request.ForgotPasswordRequest;
 import com.cobaltplatform.api.model.api.request.ResetPasswordRequest;
@@ -64,7 +64,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.LoginDestination.LoginDestinationId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
-import com.cobaltplatform.api.model.security.PicSignedRequestRequired;
+import com.cobaltplatform.api.model.security.IcSignedRequestRequired;
 import com.cobaltplatform.api.model.service.GroupEvent;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AppointmentService;
@@ -73,7 +73,7 @@ import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.GroupEventService;
 import com.cobaltplatform.api.service.GroupSessionService;
 import com.cobaltplatform.api.service.InstitutionService;
-import com.cobaltplatform.api.service.PicService;
+import com.cobaltplatform.api.service.IcService;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.LinkGenerator;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
@@ -121,7 +121,7 @@ public class AccountResource {
 	@Nonnull
 	private final AccountService accountService;
 	@Nonnull
-	private final PicService picService;
+	private final IcService icService;
 	@Nonnull
 	private final GroupEventService groupEventService;
 	@Nonnull
@@ -161,7 +161,7 @@ public class AccountResource {
 
 	@Inject
 	public AccountResource(@Nonnull AccountService accountService,
-												 @Nonnull PicService picService,
+												 @Nonnull IcService icService,
 												 @Nonnull GroupEventService groupEventService,
 												 @Nonnull GroupSessionService groupSessionService,
 												 @Nonnull ContentService contentService,
@@ -180,7 +180,7 @@ public class AccountResource {
 												 @Nonnull InstitutionApiResponseFactory institutionApiResponseFactory,
 												 @Nonnull BetaFeatureAlertApiResponseFactory betaFeatureAlertApiResponseFactory) {
 		requireNonNull(accountService);
-		requireNonNull(picService);
+		requireNonNull(icService);
 		requireNonNull(groupEventService);
 		requireNonNull(groupSessionService);
 		requireNonNull(contentService);
@@ -199,7 +199,7 @@ public class AccountResource {
 		requireNonNull(institutionApiResponseFactory);
 
 		this.accountService = accountService;
-		this.picService = picService;
+		this.icService = icService;
 		this.groupEventService = groupEventService;
 		this.groupSessionService = groupSessionService;
 		this.contentService = contentService;
@@ -297,25 +297,25 @@ public class AccountResource {
 	}
 
 	@Nonnull
-	@POST("/accounts/pic/order-report")
-	@PicSignedRequestRequired
-	public ApiResponse createPicOrderReportPatientAccount(@Nonnull @RequestBody String requestBody) {
+	@POST("/accounts/ic/order-report")
+	@IcSignedRequestRequired
+	public ApiResponse createIcOrderReportPatientAccount(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
 
-		CreatePicOrderReportAccountRequest request = getRequestBodyParser().parse(requestBody, CreatePicOrderReportAccountRequest.class);
-		UUID accountId = getPicService().createOrUpdatePicPatientAccount(request);
+		CreateIcOrderReportAccountRequest request = getRequestBodyParser().parse(requestBody, CreateIcOrderReportAccountRequest.class);
+		UUID accountId = getIcService().createOrUpdateIcPatientAccount(request);
 
 		return generateAccountResponse(accountId);
 	}
 
 	@Nonnull
-	@POST("/accounts/pic/mpm")
-	@PicSignedRequestRequired
-	public ApiResponse createPicMpmPatientAccount(@Nonnull @RequestBody String requestBody) {
+	@POST("/accounts/ic/mpm")
+	@IcSignedRequestRequired
+	public ApiResponse createIcMpmPatientAccount(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
 
-		CreatePicMpmAccountRequest request = getRequestBodyParser().parse(requestBody, CreatePicMpmAccountRequest.class);
-		UUID accountId = getPicService().createOrUpdatePicPatientAccount(request);
+		CreateIcMpmAccountRequest request = getRequestBodyParser().parse(requestBody, CreateIcMpmAccountRequest.class);
+		UUID accountId = getIcService().createOrUpdateIcPatientAccount(request);
 
 		return generateAccountResponse(accountId);
 	}
@@ -334,9 +334,9 @@ public class AccountResource {
 	}
 
 	@Nonnull
-	@GET("/accounts/pic/{accountId}")
-	@PicSignedRequestRequired
-	public ApiResponse accountForPic(@Nonnull @PathParameter UUID accountId) {
+	@GET("/accounts/ic/{accountId}")
+	@IcSignedRequestRequired
+	public ApiResponse accountForIc(@Nonnull @PathParameter UUID accountId) {
 		requireNonNull(accountId);
 
 		Account account = getAccountService().findAccountById(accountId).orElse(null);
@@ -707,8 +707,8 @@ public class AccountResource {
 	}
 
 	@Nonnull
-	protected PicService getPicService() {
-		return picService;
+	protected IcService getIcService() {
+		return icService;
 	}
 
 	@Nonnull

@@ -174,7 +174,7 @@ public class Configuration {
 	@Nonnull
 	private final Boolean shouldUseRealBluejeans;
 	@Nonnull
-	private final Boolean shouldUseRealPic;
+	private final Boolean shouldUseRealIc;
 	@Nonnull
 	private final Boolean shouldEnableCacheDebugging;
 	@Nonnull
@@ -192,9 +192,9 @@ public class Configuration {
 	@Nonnull
 	private final String webappBaseUrl;
 	@Nonnull
-	private final String picWebappBaseUrl;
+	private final String icWebappBaseUrl;
 	@Nonnull
-	private final String picBackendBaseUrl;
+	private final String icBackendBaseUrl;
 	@Nonnull
 	private final String nodeIdentifier;
 	@Nonnull
@@ -359,7 +359,7 @@ public class Configuration {
 		this.shouldUseRealAcuity = valueFor("com.cobaltplatform.api.shouldUseRealAcuity", Boolean.class);
 		this.shouldUseRealEpic = valueFor("com.cobaltplatform.api.shouldUseRealEpic", Boolean.class);
 		this.shouldUseRealBluejeans = valueFor("com.cobaltplatform.api.shouldUseRealBluejeans", Boolean.class);
-		this.shouldUseRealPic = valueFor("com.cobaltplatform.api.shouldUseRealPic", Boolean.class);
+		this.shouldUseRealIc = valueFor("com.cobaltplatform.api.shouldUseRealIc", Boolean.class);
 		this.shouldEnableCacheDebugging = valueFor("com.cobaltplatform.api.shouldEnableCacheDebugging", Boolean.class);
 		this.corsEnabledDomains = valueFor("com.cobaltplatform.api.corsEnabledDomains", String.class);
 		this.emailDefaultFromAddress = valueFor("com.cobaltplatform.api.emailDefaultFromAddress", String.class);
@@ -368,8 +368,8 @@ public class Configuration {
 		this.secretKeyAlgorithm = valueFor("com.cobaltplatform.api.secretKeyAlgorithm", String.class);
 		this.secretKey = CryptoUtility.loadSecretKeyInBase64(valueFor("com.cobaltplatform.api.secretKey", String.class), getSecretKeyAlgorithm());
 		this.webappBaseUrl = valueFor("com.cobaltplatform.api.webappBaseUrl", String.class);
-		this.picWebappBaseUrl = valueFor("com.cobaltplatform.api.picWebappBaseUrl", String.class);
-		this.picBackendBaseUrl = valueFor("com.cobaltplatform.api.picBackendBaseUrl", String.class);
+		this.icWebappBaseUrl = valueFor("com.cobaltplatform.api.icWebappBaseUrl", String.class);
+		this.icBackendBaseUrl = valueFor("com.cobaltplatform.api.icBackendBaseUrl", String.class);
 
 		// The https://github.com/impossibl/pgjdbc-ng driver uses jdbc:pgsql:// while the regular driver uses jdbc:postgresql://.
 		// Due to limitations of the pgjdbc-ng driver, we force to the normal driver.
@@ -1263,8 +1263,8 @@ public class Configuration {
 	}
 
 	@Nonnull
-	public Boolean getShouldUseRealPic() {
-		return shouldUseRealPic;
+	public Boolean getShouldUseRealIc() {
+		return shouldUseRealIc;
 	}
 
 	@Nonnull
@@ -1572,13 +1572,13 @@ public class Configuration {
 	}
 
 	@Nonnull
-	public String getPicWebappBaseUrl() {
-		return picWebappBaseUrl;
+	public String getIcWebappBaseUrl() {
+		return icWebappBaseUrl;
 	}
 
 	@Nonnull
-	public String getPicBackendBaseUrl() {
-		return picBackendBaseUrl;
+	public String getIcBackendBaseUrl() {
+		return icBackendBaseUrl;
 	}
 
 	@Nonnull
