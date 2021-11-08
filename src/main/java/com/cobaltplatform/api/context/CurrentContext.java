@@ -44,7 +44,7 @@ public class CurrentContext {
 	@Nonnull
 	private final ZoneId timeZone;
 	@Nonnull
-	private final Boolean signedByPic;
+	private final Boolean signedByIc;
 	@Nullable
 	private final RemoteClient remoteClient;
 	@Nullable
@@ -64,8 +64,12 @@ public class CurrentContext {
 		this.account = builder.account;
 		this.accessToken = builder.accessToken;
 		this.remoteClient = builder.remoteClient;
+<<<<<<< HEAD
 		this.signedByPic = builder.signedByPic == null ? false : builder.signedByPic;
 		this.sessionTrackingId = builder.sessionTrackingId;
+=======
+		this.signedByIc = builder.signedByIc == null ? false : builder.signedByIc;
+>>>>>>> master
 	}
 
 	@Nonnull
@@ -94,8 +98,8 @@ public class CurrentContext {
 	}
 
 	@Nonnull
-	public Boolean getSignedByPic() {
-		return signedByPic;
+	public Boolean getSignedByIc() {
+		return signedByIc;
 	}
 
 	@Nonnull
@@ -116,9 +120,13 @@ public class CurrentContext {
 		@Nullable
 		private RemoteClient remoteClient;
 		@Nullable
+<<<<<<< HEAD
 		private Boolean signedByPic;
 		@Nonnull
 		private UUID sessionTrackingId;
+=======
+		private Boolean signedByIc;
+>>>>>>> master
 
 		public Builder(@Nonnull Locale locale, @Nonnull ZoneId timeZone) {
 			requireNonNull(locale);
@@ -147,8 +155,8 @@ public class CurrentContext {
 		}
 
 		@Nonnull
-		public Builder signedByPic(@Nullable Boolean signedByPic) {
-			this.signedByPic = signedByPic;
+		public Builder signedByIc(@Nullable Boolean signedByIc) {
+			this.signedByIc = signedByIc;
 			return this;
 		}
 

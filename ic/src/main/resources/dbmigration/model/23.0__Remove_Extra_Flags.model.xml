@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<migration xmlns="http://ebean-orm.github.io/xml/ns/dbmigration">
+    <changeSet type="apply">
+        <alterColumn columnName="diagnosis" tableName="ic.patient_disposition" checkConstraint="check ( diagnosis in ('100','0','6','4','3','1','11','5','7','2','9','10','8','-1'))" checkConstraintName="ck_patient_disposition_diagnosis"/>
+        <alterColumn columnName="flag" tableName="ic.patient_disposition" checkConstraint="check ( flag in (0,1,2,3,4,5,6,7,8,11,12,13,14,15,16,17,18,19,20,21))" checkConstraintName="ck_patient_disposition_flag"/>
+        <alterColumn columnName="had_flag" tableName="ic.messages" checkConstraint="check ( had_flag in (0,1,2,3,4,5,6,7,8,11,12,13,14,15,16,17,18,19,20,21))" checkConstraintName="ck_messages_had_flag"/>
+    </changeSet>
+</migration>

@@ -42,9 +42,9 @@ import com.cobaltplatform.api.integration.bluejeans.MockBluejeansClient;
 import com.cobaltplatform.api.integration.epic.DefaultEpicClient;
 import com.cobaltplatform.api.integration.epic.EpicClient;
 import com.cobaltplatform.api.integration.epic.MockEpicClient;
-import com.cobaltplatform.api.integration.pic.DefaultPicClient;
-import com.cobaltplatform.api.integration.pic.MockPicClient;
-import com.cobaltplatform.api.integration.pic.PicClient;
+import com.cobaltplatform.api.integration.ic.DefaultIcClient;
+import com.cobaltplatform.api.integration.ic.IcClient;
+import com.cobaltplatform.api.integration.ic.MockIcClient;
 import com.cobaltplatform.api.messaging.MessageSender;
 import com.cobaltplatform.api.messaging.MessageSerializer;
 import com.cobaltplatform.api.messaging.call.CallMessage;
@@ -611,15 +611,15 @@ public class AppModule extends AbstractModule {
 	@Provides
 	@Singleton
 	@Nonnull
-	public PicClient providePicClient(@Nonnull Authenticator authenticator,
-																		@Nonnull Configuration configuration) {
+	public IcClient provideIcClient(@Nonnull Authenticator authenticator,
+																	 @Nonnull Configuration configuration) {
 		requireNonNull(authenticator);
 		requireNonNull(configuration);
 
-		if (configuration.getShouldUseRealPic())
-			return new DefaultPicClient(authenticator, configuration);
+		if (configuration.getShouldUseRealIc())
+			return new DefaultIcClient(authenticator, configuration);
 
-		return new MockPicClient();
+		return new MockIcClient();
 	}
 
 	@Provides

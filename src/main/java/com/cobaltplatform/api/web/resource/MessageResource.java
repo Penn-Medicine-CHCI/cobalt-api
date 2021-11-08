@@ -22,7 +22,7 @@ package com.cobaltplatform.api.web.resource;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.SendCallMessagesRequest;
 import com.cobaltplatform.api.model.api.request.SendSmsMessagesRequest;
-import com.cobaltplatform.api.model.security.PicSignedRequestRequired;
+import com.cobaltplatform.api.model.security.IcSignedRequestRequired;
 import com.cobaltplatform.api.service.MessageService;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.POST;
@@ -66,7 +66,7 @@ public class MessageResource {
 		this.requestBodyParser = requestBodyParser;
 	}
 
-	@PicSignedRequestRequired
+	@IcSignedRequestRequired
 	@POST("/messages/sms/send")
 	public void sendSmsMessages(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
@@ -75,7 +75,7 @@ public class MessageResource {
 		getMessageService().sendSmsMessages(request);
 	}
 
-	@PicSignedRequestRequired
+	@IcSignedRequestRequired
 	@POST("/messages/call/send")
 	public void sendCallMessages(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);

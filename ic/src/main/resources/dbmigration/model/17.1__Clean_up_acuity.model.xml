@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<migration xmlns="http://ebean-orm.github.io/xml/ns/dbmigration">
+    <changeSet type="apply">
+        <addColumn tableName="ic.patient_disposition">
+            <column name="acuity_category" type="varchar(6)" checkConstraint="check ( acuity_category in ('LOW','MEDIUM','HIGH'))" checkConstraintName="ck_patient_disposition_acuity_category"/>
+        </addColumn>
+    </changeSet>
+    <changeSet type="pendingDrops">
+        <dropColumn columnName="acuity" tableName="ic.patient_disposition"/>
+    </changeSet>
+</migration>
