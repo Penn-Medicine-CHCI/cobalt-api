@@ -4,3 +4,4 @@ PGPASSWORD=password psql -U postgres -h postgres-cobalt -p 5432 < initial/recrea
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < initial/install-versioning.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < initial/000-base-creates.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < initial/001-initial-inserts.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/002-click-tracking.sql

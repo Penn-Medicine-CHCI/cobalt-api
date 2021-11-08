@@ -30,6 +30,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.time.ZoneId;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
 
@@ -50,6 +51,8 @@ public class CurrentContext {
 	private String accessToken;
 	@Nullable
 	private Account account;
+	@Nonnull
+	private final UUID sessionTrackingId;
 
 	public CurrentContext(@Nonnull CurrentContext.Builder builder) {
 		requireNonNull(builder);
@@ -62,6 +65,7 @@ public class CurrentContext {
 		this.accessToken = builder.accessToken;
 		this.remoteClient = builder.remoteClient;
 		this.signedByPic = builder.signedByPic == null ? false : builder.signedByPic;
+		this.sessionTrackingId = builder.sessionTrackingId;
 	}
 
 	@Nonnull
@@ -94,6 +98,11 @@ public class CurrentContext {
 		return signedByPic;
 	}
 
+	@Nonnull
+	public UUID getSessionTrackingId() {
+		return sessionTrackingId;
+	}
+
 	@NotThreadSafe
 	public static class Builder {
 		@Nonnull
@@ -108,6 +117,8 @@ public class CurrentContext {
 		private RemoteClient remoteClient;
 		@Nullable
 		private Boolean signedByPic;
+		@Nonnull
+		private UUID sessionTrackingId;
 
 		public Builder(@Nonnull Locale locale, @Nonnull ZoneId timeZone) {
 			requireNonNull(locale);
@@ -138,6 +149,12 @@ public class CurrentContext {
 		@Nonnull
 		public Builder signedByPic(@Nullable Boolean signedByPic) {
 			this.signedByPic = signedByPic;
+			return this;
+		}
+
+		@Nonnull
+		public Builder sessionTrackingId(@Nullable UUID sessionTrackingId) {
+			this.sessionTrackingId = sessionTrackingId;
 			return this;
 		}
 

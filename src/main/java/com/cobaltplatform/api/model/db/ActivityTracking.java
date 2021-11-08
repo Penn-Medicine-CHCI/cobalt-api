@@ -42,6 +42,10 @@ public class ActivityTracking {
 	@Nullable
 	private UUID activityKey;
 	@Nullable
+	private UUID sessionTrackingId;
+	@Nullable
+	private String context;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -89,6 +93,24 @@ public class ActivityTracking {
 
 	public void setActivityKey(@Nullable UUID activityKey) {
 		this.activityKey = activityKey;
+	}
+
+	@Nullable
+	public UUID getSessionTrackingId() {
+		return sessionTrackingId;
+	}
+
+	public void setSessionTrackingId(@Nullable UUID sessionTrackingId) {
+		this.sessionTrackingId = sessionTrackingId;
+	}
+
+	@Nullable
+	public String getContext() {
+		return context;
+	}
+
+	public void setContext(@Nullable String context) {
+		this.context = context;
 	}
 
 	@Nullable
