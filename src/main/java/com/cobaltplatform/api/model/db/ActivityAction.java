@@ -36,7 +36,8 @@ public class ActivityAction {
 
 	public enum ActivityActionId {
 		VIEW,
-		DOWNLOAD
+		DOWNLOAD,
+		CREATE
 	}
 
 	@Override

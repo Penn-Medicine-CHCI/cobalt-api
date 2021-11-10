@@ -35,7 +35,9 @@ public class ActivityType {
 	private String description;
 
 	public enum ActivityTypeId {
-		CONTENT
+		CONTENT,
+		APPOINTMENT,
+		URL
 	}
 
 	@Override
