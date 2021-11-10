@@ -64,12 +64,8 @@ public class CurrentContext {
 		this.account = builder.account;
 		this.accessToken = builder.accessToken;
 		this.remoteClient = builder.remoteClient;
-<<<<<<< HEAD
-		this.signedByPic = builder.signedByPic == null ? false : builder.signedByPic;
 		this.sessionTrackingId = builder.sessionTrackingId;
-=======
 		this.signedByIc = builder.signedByIc == null ? false : builder.signedByIc;
->>>>>>> master
 	}
 
 	@Nonnull
@@ -120,13 +116,8 @@ public class CurrentContext {
 		@Nullable
 		private RemoteClient remoteClient;
 		@Nullable
-<<<<<<< HEAD
-		private Boolean signedByPic;
-		@Nonnull
 		private UUID sessionTrackingId;
-=======
 		private Boolean signedByIc;
->>>>>>> master
 
 		public Builder(@Nonnull Locale locale, @Nonnull ZoneId timeZone) {
 			requireNonNull(locale);
