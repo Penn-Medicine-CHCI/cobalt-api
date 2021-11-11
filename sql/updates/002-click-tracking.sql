@@ -5,7 +5,7 @@ ALTER TABLE activity_tracking
 ADD COLUMN session_tracking_id UUID,
 ADD COLUMN context JSONB;
 
-UPDATE activity_tracking SET context = '{ "contentId": "' ||activity_key||'"}'
+UPDATE activity_tracking SET context = CAST ('{ "contentId": "' ||activity_key||'"}' AS JSONB)
 WHERE activity_type_id = 'CONTENT';
 
 ALTER TABLE activity_tracking 
