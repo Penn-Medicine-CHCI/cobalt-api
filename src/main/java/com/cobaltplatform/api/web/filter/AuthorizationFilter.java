@@ -22,7 +22,9 @@ package com.cobaltplatform.api.web.filter;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Role.RoleId;
+import com.cobaltplatform.api.model.security.AccessTokenStatus;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.security.ContentSecurityLevel;
 import com.cobaltplatform.api.model.security.IcSignedRequestRequired;
 import com.soklet.web.exception.AuthenticationException;
 import com.soklet.web.exception.AuthorizationException;
@@ -119,6 +121,16 @@ public class AuthorizationFilter implements Filter {
 						throw new AuthorizationException(format("Authorization failed. Resource method %s requires one of the following roles: %s, but current user has %s",
 								resourceMethod, roleIds, account.getRoleId().name()));
 				}
+
+				if (authenticationRequired.contentSecurityLevel() == ContentSecurityLevel.HIGH) {
+					AccessTokenStatus accessTokenStatus = getCurrentContext().getAccessTokenStatus().orElse(null);
+
+					if (accessTokenStatus != AccessTokenStatus.FULLY_ACTIVE)
+						throw new AuthenticationException(format("Authentication failed. Resource method %s requires %s.%s but your " +
+										"access token is not fully active (status %s)", resourceMethod,
+								ContentSecurityLevel.class.getSimpleName(), ContentSecurityLevel.HIGH.name(), (accessTokenStatus == null ? "unknown" : accessTokenStatus.name())));
+				}
+
 			}
 
 			if (resourceMethod.getAnnotation(IcSignedRequestRequired.class) != null) {

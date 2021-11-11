@@ -23,6 +23,7 @@ import com.google.gson.Gson;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AccessTokenClaims;
+import com.cobaltplatform.api.model.security.AccessTokenStatus;
 import com.cobaltplatform.api.model.security.SigningTokenClaims;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -82,6 +83,8 @@ public class Authenticator {
 	@Nonnull
 	private final Gson gson;
 	@Nonnull
+	private final Long missingIssuedAtOffsetInMinutes;
+	@Nonnull
 	private final Logger logger;
 
 	static {
@@ -94,6 +97,7 @@ public class Authenticator {
 
 		this.configuration = configuration;
 		this.gson = new Gson();
+		this.missingIssuedAtOffsetInMinutes = getConfiguration().getAccessTokenShortExpirationInMinutes();
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
@@ -130,14 +134,41 @@ public class Authenticator {
 
 		// Current mechanism is to use a secret that is part of a keypair so we can share the public key so other systems can verify
 		// our access tokens as authentic
+		Instant now = Instant.now();
+
 		return Jwts.builder().setSubject(accountId.toString())
-				.setExpiration(
-						Date.from(Instant.now().plus(getConfiguration().getAccessTokenExpirationInMinutes(), MINUTES)))
+				.setIssuedAt(Date.from(now))
+				.setExpiration(Date.from(now.plus(getConfiguration().getAccessTokenExpirationInMinutes(), MINUTES)))
 				.addClaims(new HashMap<String, Object>() {{
 					put("roleId", roleId);
 				}})
 				.signWith(getConfiguration().getKeyPair().getPrivate(), getSignatureAlgorithm())
 				.compact();
+	}
+
+	@Nonnull
+	public AccessTokenStatus determineAccessTokenStatus(@Nonnull AccessTokenClaims accessTokenClaims) {
+		requireNonNull(accessTokenClaims);
+		return determineAccessTokenStatus(accessTokenClaims, null);
+	}
+
+	@Nonnull
+	public AccessTokenStatus determineAccessTokenStatus(@Nonnull AccessTokenClaims accessTokenClaims,
+																											@Nullable Instant now) {
+		requireNonNull(accessTokenClaims);
+
+		if (now == null)
+			now = Instant.now();
+
+		if (now.isAfter(accessTokenClaims.getExpiration()))
+			return AccessTokenStatus.FULLY_EXPIRED;
+
+		Instant shortExpirationTimestamp = accessTokenClaims.getIssuedAt().plus(getConfiguration().getAccessTokenShortExpirationInMinutes(), MINUTES);
+
+		if (now.isAfter(shortExpirationTimestamp))
+			return AccessTokenStatus.PARTIALLY_EXPIRED;
+
+		return AccessTokenStatus.FULLY_ACTIVE;
 	}
 
 	@Nonnull
@@ -266,14 +297,17 @@ public class Authenticator {
 
 					UUID accountId = UUID.fromString(jwtComponentTwo.getSub());
 					Instant expiration = Instant.ofEpochSecond(jwtComponentTwo.getExp());
+					Instant now = Instant.now();
 
 					// Should already be handled above by ExpiredJwtException, but just in case...
-					if (expiration.isBefore(Instant.now())) {
+					if (expiration.isBefore(now)) {
 						getLogger().debug("Legacy access token has expired.");
 						return Optional.empty();
 					}
 
-					return Optional.of(new AccessTokenClaims(accountId, expiration));
+					// For this special case, we don't know issued time, so we fudge it
+					Instant issuedAt = now.minus(getMissingIssuedAtOffsetInMinutes(), MINUTES);
+					return Optional.of(new AccessTokenClaims(accountId, issuedAt, expiration));
 				} catch (Exception secondaryException) {
 					getLogger().debug("Unable to handle JWT weak key workaround.", secondaryException);
 					return Optional.empty();
@@ -286,8 +320,13 @@ public class Authenticator {
 
 		try {
 			UUID accountId = UUID.fromString(claims.getBody().getSubject());
+			Instant issuedAt = claims.getBody().getIssuedAt() == null ? null : claims.getBody().getIssuedAt().toInstant();
 
-			return Optional.of(new AccessTokenClaims(accountId, claims.getBody().getExpiration().toInstant()));
+			// For this special case, we don't know issued time, so we fudge it
+			if (issuedAt == null)
+				issuedAt = Instant.now().minus(getMissingIssuedAtOffsetInMinutes(), MINUTES);
+
+			return Optional.of(new AccessTokenClaims(accountId, issuedAt, claims.getBody().getExpiration().toInstant()));
 		} catch (Exception e) {
 			getLogger().debug("Access token claims extraction failed.", e);
 			return Optional.empty();
@@ -370,6 +409,9 @@ public class Authenticator {
 	public static String getDefaultSigningTokenSubject() {
 		return DEFAULT_SIGNING_TOKEN_SUBJECT;
 	}
+
+	@Nonnull
+	public Long getMissingIssuedAtOffsetInMinutes() { return missingIssuedAtOffsetInMinutes; }
 
 	@Nonnull
 	protected Configuration getConfiguration() {
