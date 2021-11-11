@@ -36,8 +36,6 @@ public class CreateActivityTrackingRequest {
 	@Nullable
 	private ActivityAction.ActivityActionId activityActionId;
 	@Nullable
-	private UUID activityKey;
-	@Nullable
 	private UUID sessionTrackingId;
 	@Nullable
 	private String context;
@@ -58,15 +56,6 @@ public class CreateActivityTrackingRequest {
 
 	public void setActivityActionId(@Nullable ActivityAction.ActivityActionId activityActionId) {
 		this.activityActionId = activityActionId;
-	}
-
-	@Nullable
-	public UUID getActivityKey() {
-		return activityKey;
-	}
-
-	public void setActivityKey(@Nullable UUID activityKey) {
-		this.activityKey = activityKey;
 	}
 
 	@Nullable

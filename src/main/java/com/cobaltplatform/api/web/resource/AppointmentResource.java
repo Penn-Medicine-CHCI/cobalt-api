@@ -369,6 +369,14 @@ public class AppointmentResource {
 
 		getAppointmentService().cancelAppointment(request);
 
+		CreateActivityTrackingRequest activityTrackingRequest = new CreateActivityTrackingRequest();
+		activityTrackingRequest.setSessionTrackingId(getCurrentContext().getSessionTrackingId());
+		activityTrackingRequest.setActivityActionId(ActivityActionId.CANCEL);
+		activityTrackingRequest.setActivityTypeId(ActivityTypeId.APPOINTMENT);
+		activityTrackingRequest.setContext(new JSONObject().put("appointmentId",appointmentId.toString()).toString());
+
+		getActivityTrackingService().trackActivity(account, activityTrackingRequest);
+
 		return new ApiResponse();
 	}
 

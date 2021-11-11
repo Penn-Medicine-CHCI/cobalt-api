@@ -160,7 +160,7 @@ public class ContentService {
 		String query = format("SELECT  DISTINCT ON (vc.content_id, new_flag) vc.*, " +
 				"CASE WHEN activity_tracking_id IS NULL THEN true ELSE false " +
 				"END as new_flag FROM v_admin_content vc " +
-				"LEFT OUTER JOIN activity_tracking act ON vc.content_id = act.activity_key " +
+				"LEFT OUTER JOIN activity_tracking act ON vc.content_id = CAST (act.context ->> 'contentId' AS UUID) " +
 				"AND act.account_id = ? WHERE vc.content_id=? %s", institutionClause);
 		Content content = getDatabase().queryForObject(query,
 				Content.class, account.getAccountId(), contentId, institutionArg).get();
@@ -271,7 +271,7 @@ public class ContentService {
 				String.format("SELECT va.*, " +
 						"(select COUNT(*) FROM " +
 						"  activity_tracking a WHERE " +
-						"  a.activity_key = va.content_id AND " +
+						"  va.content_id = CAST (a.context ->> 'contentId' AS UUID) AND " +
 						"  a.activity_action_id = 'VIEW' AND " +
 						"  activity_type_id='CONTENT') AS views ," +
 						"count(*) over() AS total_count " +
@@ -300,7 +300,7 @@ public class ContentService {
 		return getDatabase().queryForObject("SELECT va.*, " +
 						"(select COUNT(*) FROM " +
 						" activity_tracking a WHERE " +
-						" a.activity_key = va.content_id AND " +
+						" va.content_id = CAST (a.context ->> 'contentId' AS UUID) AND " +
 						" a.activity_action_id = 'VIEW' AND " +
 						" activity_type_id='CONTENT') AS views " +
 						"FROM v_admin_content va " +
@@ -771,7 +771,7 @@ public class ContentService {
 		StringBuilder unfilteredQuery = new StringBuilder("SELECT DISTINCT ON (c.content_id, c.created, new_flag) c.* , " +
 				"CASE WHEN (activity_tracking_id IS NULL) AND (c.created >= now() - INTERVAL '1 WEEK') THEN true " +
 				"ELSE false END as new_flag " +
-				"FROM v_admin_content c LEFT OUTER JOIN activity_tracking act ON c.content_id = act.activity_key " +
+				"FROM v_admin_content c LEFT OUTER JOIN activity_tracking act ON c.content_id = CAST (act.context ->> 'contentId' AS UUID) " +
 				"AND act.account_id = ? WHERE c.institution_id = ? AND c.approved_flag=TRUE AND c.archived_flag=FALSE ");
 		final String ORDER_BY = "ORDER BY new_flag DESC, c.created DESC";
 		unfilteredParameters.add(account.getAccountId());
@@ -843,7 +843,7 @@ public class ContentService {
 				"CASE WHEN (activity_tracking_id IS NULL) AND (c.created >= now() - INTERVAL '1 WEEK') THEN true  " +
 				"ELSE false END as new_flag, count(*) as match_count " +
 				"FROM answer_content ac, v_account_session_answer a1, v_admin_content c  " +
-				"LEFT OUTER JOIN activity_tracking act ON c.content_id = act.activity_key AND act.account_id = ? " +
+				"LEFT OUTER JOIN activity_tracking act ON c.content_id = CAST (act.context ->> 'contentId' AS UUID) AND act.account_id = ? " +
 				"WHERE ac.content_id = c.content_id  " +
 				"AND ac.answer_id = a1.answer_id " +
 				"and a1.account_session_id= ? " +

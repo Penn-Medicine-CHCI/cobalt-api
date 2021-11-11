@@ -46,8 +46,6 @@ public class ActivityTrackingApiResponse {
 	@Nullable
 	private ActivityAction.ActivityActionId activityActionId;
 	@Nullable
-	private UUID activityKey;
-	@Nullable
 	private UUID sessionTrackingId;
 	@Nullable
 	private String context;
@@ -67,7 +65,6 @@ public class ActivityTrackingApiResponse {
 		this.accountId = activityTracking.getAccountId();
 		this.activityTypeId = activityTracking.getActivityTypeId();
 		this.activityActionId = activityTracking.getActivityActionId();
-		this.activityKey = activityTracking.getActivityKey();
 		this.sessionTrackingId = activityTracking.getSessionTrackingId();
 		this.context = activityTracking.getContext();
 	}
@@ -90,11 +87,6 @@ public class ActivityTrackingApiResponse {
 	@Nullable
 	public ActivityAction.ActivityActionId getActivityActionId() {
 		return activityActionId;
-	}
-
-	@Nullable
-	public UUID getActivityKey() {
-		return activityKey;
 	}
 
 	@Nullable
