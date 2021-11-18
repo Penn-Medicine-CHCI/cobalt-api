@@ -23,6 +23,7 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AccessTokenClaims;
 import com.cobaltplatform.api.model.security.SigningTokenClaims;
+import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.util.Authenticator.SigningTokenValidationException;
 import com.cobaltplatform.api.util.CryptoUtility.KeyFormat;
 import io.jsonwebtoken.Jwts;
@@ -45,7 +46,7 @@ public class AuthenticatorTests {
 		final UUID ACCOUNT_ID = UUID.fromString("6e54bdb9-b19c-4ca3-9cd0-52cae0c9d2a0");
 		final RoleId ROLE_ID = RoleId.ADMINISTRATOR;
 
-		Authenticator authenticator = new Authenticator(new Configuration());
+		Authenticator authenticator = new Authenticator(new Configuration(), new AccountService());
 		String accessToken = authenticator.generateAccessToken(ACCOUNT_ID, ROLE_ID);
 		AccessTokenClaims accessTokenClaims = authenticator.validateAccessToken(accessToken).get();
 
@@ -58,7 +59,7 @@ public class AuthenticatorTests {
 		final RoleId ROLE_ID = RoleId.ADMINISTRATOR;
 
 		Configuration configuration = new Configuration();
-		Authenticator authenticator = new Authenticator(configuration);
+		Authenticator authenticator = new Authenticator(configuration ,new AccountService());
 		String accessToken = authenticator.generateAccessToken(ACCOUNT_ID, ROLE_ID);
 
 		// This should succeed
@@ -81,7 +82,7 @@ public class AuthenticatorTests {
 	@Test
 	public void testSigningToken() throws SigningTokenValidationException {
 		Configuration configuration = new Configuration();
-		Authenticator authenticator = new Authenticator(configuration);
+		Authenticator authenticator = new Authenticator(configuration, new AccountService());
 
 		Map<String, Object> claims = new HashMap<String, Object>() {{
 			put("a", 1);

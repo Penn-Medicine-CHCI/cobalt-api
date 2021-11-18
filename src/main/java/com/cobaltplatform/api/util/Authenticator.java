@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.util;
 
+import com.cobaltplatform.api.service.AccountService;
 import com.google.gson.Gson;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.db.Role.RoleId;
@@ -50,6 +51,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
+import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -86,19 +88,23 @@ public class Authenticator {
 	private final Long missingIssuedAtOffsetInMinutes;
 	@Nonnull
 	private final Logger logger;
+	@Nonnull
+	private final Provider<AccountService> accountServiceProvider;
 
 	static {
 		DEFAULT_SIGNING_TOKEN_SUBJECT = "COBALT_SYSTEM";
 	}
 
 	@Inject
-	public Authenticator(@Nonnull Configuration configuration) {
+	public Authenticator(@Nonnull Configuration configuration,
+											 @Nonnull Provider<AccountService> accountServiceProvider) {
 		requireNonNull(configuration);
 
 		this.configuration = configuration;
 		this.gson = new Gson();
 		this.missingIssuedAtOffsetInMinutes = getConfiguration().getAccessTokenShortExpirationInMinutes();
 		this.logger = LoggerFactory.getLogger(getClass());
+		this.accountServiceProvider = accountServiceProvider;
 	}
 
 	@Nonnull
@@ -127,7 +133,7 @@ public class Authenticator {
 		if (useLegacySigning) {
 			return Jwts.builder().setSubject(accountId.toString())
 					.setExpiration(
-							Date.from(Instant.now().plus(getConfiguration().getAccessTokenExpirationInMinutes(), MINUTES)))
+							Date.from(Instant.now().plus(getAccountService().findAccessTokenExpirationInMinutesByAccountId(accountId), MINUTES)))
 					.signWith(getConfiguration().getSecretKey(), jwtsSignatureAlgorithmForJcaSecretKeyAlgorithm(getConfiguration().getSecretKeyAlgorithm()))
 					.compact();
 		}
@@ -138,7 +144,7 @@ public class Authenticator {
 
 		return Jwts.builder().setSubject(accountId.toString())
 				.setIssuedAt(Date.from(now))
-				.setExpiration(Date.from(now.plus(getConfiguration().getAccessTokenExpirationInMinutes(), MINUTES)))
+				.setExpiration(Date.from(now.plus(getAccountService().findAccessTokenExpirationInMinutesByAccountId(accountId), MINUTES)))
 				.addClaims(new HashMap<String, Object>() {{
 					put("roleId", roleId);
 				}})
@@ -163,7 +169,8 @@ public class Authenticator {
 		if (now.isAfter(accessTokenClaims.getExpiration()))
 			return AccessTokenStatus.FULLY_EXPIRED;
 
-		Instant shortExpirationTimestamp = accessTokenClaims.getIssuedAt().plus(getConfiguration().getAccessTokenShortExpirationInMinutes(), MINUTES);
+		Instant shortExpirationTimestamp = accessTokenClaims.getIssuedAt().plus(getAccountService()
+				.findAccessTokenShortExpirationInMinutesByAccount(accessTokenClaims.getAccountId()), MINUTES);
 
 		if (now.isAfter(shortExpirationTimestamp))
 			return AccessTokenStatus.PARTIALLY_EXPIRED;
@@ -427,4 +434,7 @@ public class Authenticator {
 	protected Logger getLogger() {
 		return logger;
 	}
+
+	@Nonnull
+	protected AccountService getAccountService() { return accountServiceProvider.get(); }
 }

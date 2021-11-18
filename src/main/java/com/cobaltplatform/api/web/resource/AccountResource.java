@@ -30,6 +30,7 @@ import com.cobaltplatform.api.model.api.request.CreateIcOrderReportAccountReques
 import com.cobaltplatform.api.model.api.request.FindGroupSessionsRequest;
 import com.cobaltplatform.api.model.api.request.ForgotPasswordRequest;
 import com.cobaltplatform.api.model.api.request.ResetPasswordRequest;
+import com.cobaltplatform.api.model.api.request.UpdateAccountAccessTokenExpiration;
 import com.cobaltplatform.api.model.api.request.UpdateAccountBetaStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountEmailAddressRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountPhoneNumberRequest;
@@ -280,6 +281,13 @@ public class AccountResource {
 				setAccountId(pinnedAccountId);
 				setProviderId(accountLoginRule.getProviderId());
 				setRoleId(accountLoginRule.getRoleId());
+			}});
+
+			// Update account access token values with what has been specified
+			getAccountService().updateAccountAccessTokenExpiration(new UpdateAccountAccessTokenExpiration() {{
+				setAccountId(pinnedAccountId);
+				setAccessTokenExpirationInMinutes(accountLoginRule.getAccessTokenExpirationInMinutes());
+				setAccessTokenShortExpirationInMinutes(accountLoginRule.getAccessTokenShortExpirationInMinutes());
 			}});
 
 			// Reload account
