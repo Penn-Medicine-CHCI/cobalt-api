@@ -371,20 +371,20 @@ public class ProviderService {
 			showIntakeAssessmentPromptsByProviderId.put(providerIntakeAssessmentPrompt.getProviderId(), providerIntakeAssessmentPrompt.getShowIntakeAssessmentPrompt());
 
 		// Keep track of all roles broken out by provider so we don't have to do 1+n queries
-		List<ProviderSupportRole> providerSupportRoles = getDatabase().queryForList("SELECT psr.provider_id, sr.description as support_role_description " +
+		List<ProviderSupportRole> providerSupportRoles = getDatabase().queryForList("SELECT psr.provider_id, sr.support_role_id, sr.description as support_role_description " +
 				"FROM provider_support_role psr, support_role sr WHERE sr.support_role_id=psr.support_role_id", ProviderSupportRole.class);
 
-		Map<UUID, List<String>> providerSupportRoleDescriptionsByProviderId = new HashMap<>(providerSupportRoles.size());
+		Map<UUID, List<ProviderSupportRole>> providerSupportRolesByProviderId = new HashMap<>(providerSupportRoles.size());
 
 		for (ProviderSupportRole providerSupportRole : providerSupportRoles) {
-			List<String> supportRoleDescriptions = providerSupportRoleDescriptionsByProviderId.get(providerSupportRole.getProviderId());
+			List<ProviderSupportRole> supportRoles = providerSupportRolesByProviderId.get(providerSupportRole.getProviderId());
 
-			if (supportRoleDescriptions == null) {
-				supportRoleDescriptions = new ArrayList<>(2);
-				providerSupportRoleDescriptionsByProviderId.put(providerSupportRole.getProviderId(), supportRoleDescriptions);
+			if (supportRoles == null) {
+				supportRoles = new ArrayList<>(2);
+				providerSupportRolesByProviderId.put(providerSupportRole.getProviderId(), supportRoles);
 			}
 
-			supportRoleDescriptions.add(providerSupportRole.getSupportRoleDescription());
+			supportRoles.add(providerSupportRole);
 		}
 
 		// Keep track of all psychiatrist IDs so we can determine which resultset values need the "phone number required" field to be set
@@ -671,12 +671,25 @@ public class ProviderService {
 			if (psychiatristProviderIds.contains(provider.getProviderId()))
 				providerFind.setPhoneNumberRequiredForAppointment(true);
 
-			List<String> supportRoleDescriptions = providerSupportRoleDescriptionsByProviderId.get(provider.getProviderId());
+			List<ProviderSupportRole> currentProviderSupportRoles = providerSupportRolesByProviderId.get(provider.getProviderId());
+
+			List<String> supportRoleDescriptions = currentProviderSupportRoles.stream()
+					.map(providerSupportRole -> providerSupportRole.getSupportRoleDescription())
+					.collect(Collectors.toList());
+
 			String supportRolesDescription = supportRoleDescriptions.stream().collect(Collectors.joining(", "));
 
 			// If necessary, replace support roles with title (only if a provider has a single support role)
 			if (provider.getTitle() != null && supportRoleDescriptions.size() == 1 && titleOverrideProviderIds.contains(provider.getProviderId()))
 				supportRolesDescription = provider.getTitle();
+
+			// Special case: resilience coaches should have their title be the support role description instead
+			Set<SupportRoleId> currentProviderSupportRoleIds = currentProviderSupportRoles.stream()
+					.map(providerSupportRole -> providerSupportRole.getSupportRoleId())
+					.collect(Collectors.toSet());
+
+			if(currentProviderSupportRoleIds.size() == 1 && currentProviderSupportRoleIds.contains(SupportRoleId.COACH))
+				providerFind.setTitle(supportRolesDescription);
 
 			providerFind.setSupportRolesDescription(supportRolesDescription);
 
@@ -757,6 +770,8 @@ public class ProviderService {
 		@Nullable
 		private UUID providerId;
 		@Nullable
+		private SupportRoleId supportRoleId;
+		@Nullable
 		private String supportRoleDescription;
 
 		@Nullable
@@ -766,6 +781,15 @@ public class ProviderService {
 
 		public void setProviderId(@Nullable UUID providerId) {
 			this.providerId = providerId;
+		}
+
+		@Nullable
+		public SupportRoleId getSupportRoleId() {
+			return supportRoleId;
+		}
+
+		public void setSupportRoleId(@Nullable SupportRoleId supportRoleId) {
+			this.supportRoleId = supportRoleId;
 		}
 
 		@Nullable
