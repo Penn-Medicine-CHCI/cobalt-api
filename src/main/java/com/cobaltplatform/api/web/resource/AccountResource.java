@@ -76,6 +76,7 @@ import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.IcService;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.LinkGenerator;
+import com.cobaltplatform.api.util.WebUtility;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
@@ -87,6 +88,7 @@ import com.soklet.web.annotation.Resource;
 import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
+import com.soklet.web.response.CustomResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,6 +97,9 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -108,6 +113,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static java.lang.Math.min;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
@@ -261,8 +267,10 @@ public class AccountResource {
 
 	@Nonnull
 	@POST("/accounts/access-token")
-	public ApiResponse accountAccessToken(@Nonnull @RequestBody String requestBody) {
+	public ApiResponse accountAccessToken(@Nonnull @RequestBody String requestBody,
+																				@Nonnull HttpServletResponse httpServletResponse) {
 		requireNonNull(requestBody);
+		requireNonNull(httpServletResponse);
 
 		AccessTokenRequest request = getRequestBodyParser().parse(requestBody, AccessTokenRequest.class);
 		String accessToken = getAccountService().obtainAccessToken(request);
@@ -289,11 +297,52 @@ public class AccountResource {
 		Account pinnedAccount = account;
 		String destinationUrl = getLinkGenerator().generateAuthenticationLink(account.getInstitutionId(), loginDestinationId, ClientDeviceType.ClientDeviceTypeId.WEB_BROWSER, accessToken);
 
+		// TODO: remove this hack
+		if (loginDestinationId == LoginDestinationId.IC_PANEL)
+			destinationUrl = format("%s/accounts/ic/auth-redirect?accessToken=%s", getConfiguration().getBaseUrl(), WebUtility.urlEncode(accessToken));
+
+		String pinnedDestinationUrl = destinationUrl;
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("account", getAccountApiResponseFactory().create(pinnedAccount));
 			put("accessToken", accessToken);
-			put("destinationUrl", destinationUrl);
+			put("destinationUrl", pinnedDestinationUrl);
 		}});
+	}
+
+	@Nonnull
+	@GET("/accounts/ic/auth-redirect")
+	public CustomResponse authRedirect(@Nonnull @QueryParameter String accessToken,
+																		 @Nonnull HttpServletResponse httpServletResponse) throws IOException {
+		requireNonNull(accessToken);
+		requireNonNull(httpServletResponse);
+
+		String icRedirectUrl;
+		Cookie cookie = new Cookie("accessToken", accessToken);
+
+		if (getConfiguration().getEnvironment().equals("local")) {
+			cookie.setDomain("127.0.0.1");
+			icRedirectUrl = format("http://127.0.0.1:8888/auth/redirect?accessToken=%s", WebUtility.urlEncode(accessToken));
+		} else {
+			throw new UnsupportedOperationException();
+		}
+
+		httpServletResponse.addCookie(cookie);
+
+		httpServletResponse.setContentType("text/html");
+
+		// Writes cookies to the response and lets the browser "settle" (no immediate 302 - do a 200 and then have a client-side redirect)
+		// so the cookie is actually written for this domain
+		String html = "<html>\n" +
+				"<head><meta http-equiv='refresh' content=1;url='$IC_REDIRECT_URL'></head>\n" +
+				"<body></body>\n" +
+				"</html>";
+
+		html = html.replace("$IC_REDIRECT_URL", icRedirectUrl);
+
+		httpServletResponse.getWriter().print(html);
+
+		return CustomResponse.instance();
 	}
 
 	@Nonnull
@@ -379,7 +428,7 @@ public class AccountResource {
 		// Don't show too many events
 		if (groupSessions.size() > MAXIMUM_GROUP_SESSIONS)
 			groupSessions = groupSessions.subList(0, MAXIMUM_GROUP_SESSIONS /* exclusive */);
-		
+
 		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
 
 		final int MAXIMUM_GROUP_EVENTS = 3;

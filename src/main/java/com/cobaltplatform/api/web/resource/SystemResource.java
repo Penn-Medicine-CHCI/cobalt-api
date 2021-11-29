@@ -264,7 +264,7 @@ public class SystemResource {
 	@Nonnull
 	@GET("/system/epic/sync-provider")
 	public ApiResponse epicSyncProvider(@Nonnull @QueryParameter UUID providerId,
-																			@Nonnull @QueryParameter LocalDate date) {
+																					 @Nonnull @QueryParameter LocalDate date) {
 		getEpicSyncManager().syncProviderAvailability(providerId, date, true);
 		return new ApiResponse();
 	}
@@ -294,8 +294,10 @@ public class SystemResource {
 	@Nonnull
 	@POST("/system/sync-past-provider-availability")
 	@AuthenticationRequired
-	public ApiResponse syncPastProviderAvailability(@Nonnull @QueryParameter Optional<LocalDate> startingAtDate) {
+	public ApiResponse syncPastProviderAvailability(@Nonnull @QueryParameter Optional<LocalDate> startingAtDate,
+																									@Nonnull @QueryParameter Optional<UUID> providerId) {
 		requireNonNull(startingAtDate);
+		requireNonNull(providerId);
 
 		if (getCurrentContext().getAccount().get().getRoleId() != RoleId.ADMINISTRATOR)
 			throw new AuthorizationException();
@@ -305,6 +307,33 @@ public class SystemResource {
 			@Override
 			public void run() {
 				getSystemService().syncPastProviderAvailability(InstitutionId.COBALT, startingAtDate.orElse(null));
+			}
+		}.start();
+
+		return new ApiResponse();
+	}
+
+	/**
+	 * Special endpoint to force re-sync of availability.
+	 */
+	@Nonnull
+	@POST("/system/sync-provider-availability")
+	@AuthenticationRequired
+	public ApiResponse syncProviderAvailability(@Nonnull @QueryParameter UUID providerId,
+																							@Nonnull @QueryParameter Optional<LocalDate> startingAtDate,
+																							@Nonnull @QueryParameter Optional<LocalDate> endingAtDate) {
+		requireNonNull(providerId);
+		requireNonNull(startingAtDate);
+		requireNonNull(endingAtDate);
+
+		if (getCurrentContext().getAccount().get().getRoleId() != RoleId.ADMINISTRATOR)
+			throw new AuthorizationException();
+
+		// This is slow, do it on a background thread
+		new Thread() {
+			@Override
+			public void run() {
+				getSystemService().syncProviderAvailability(providerId, startingAtDate.orElse(null), endingAtDate.orElse(null));
 			}
 		}.start();
 

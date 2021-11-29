@@ -222,6 +222,7 @@ public class SessionService {
 							"acs.assessment_id = ass.assessment_id AND " +
 							"ia.institution_id = a.institution_id AND " +
 							"ia.assessment_id = ass.assessment_id AND " +
+							"a.account_id = acs.account_id AND " +
 							"a.account_id = ? AND " +
 							"ass.assessment_type_id IN (?, ?, ?, ?) " +
 							")",
