@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.web.response;
 
+import com.cobaltplatform.api.model.security.AccessTokenStatus;
 import com.cobaltplatform.api.util.AccessTokenException;
 import com.lokalized.Strings;
 import com.cobaltplatform.api.Configuration;
@@ -132,6 +133,7 @@ public class JsonPageResponseWriter implements PageResponseWriter {
 				status = 401;
 				code = ErrorCode.AUTHENTICATION_REQUIRED;
 			} else if (status == 401) {
+				modelAsMap.put("accessTokenStatus", AccessTokenStatus.FULLY_EXPIRED);
 				message = getStrings().get("You must be authenticated to perform this action.");
 				code = ErrorCode.AUTHENTICATION_REQUIRED;
 			} else if (status == 403) {
