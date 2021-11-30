@@ -26,6 +26,7 @@ import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.ic.IcClient;
 import com.cobaltplatform.api.model.client.RemoteClient;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.security.AccessTokenClaims;
 import com.cobaltplatform.api.model.security.AccessTokenStatus;
 import com.cobaltplatform.api.service.AccountService;
@@ -173,12 +174,18 @@ public class CurrentContextRequestHandler {
 
 			RemoteClient remoteClient = RemoteClient.fromHttpServletRequest(httpServletRequest);
 
+			AccountSource accountSource = null;
+
+			if (account != null)
+				accountSource = getAccountService().findRequiredAccountSourceByAccountId(account.getAccountId());
+
 			CurrentContext currentContext = new CurrentContext.Builder(locale, timeZone)
 					.accessToken(accessTokenValue)
 					.accessTokenStatus(accessTokenStatus)
 					.account(account)
 					.remoteClient(remoteClient)
 					.signedByIc(signedByIc)
+					.accountSource(accountSource)
 					.build();
 
 			String currentContextDescription = null;

@@ -22,6 +22,7 @@ package com.cobaltplatform.api.context;
 
 import com.cobaltplatform.api.model.client.RemoteClient;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.security.AccessTokenStatus;
 
 import javax.annotation.Nonnull;
@@ -53,6 +54,8 @@ public class CurrentContext {
 	private final AccessTokenStatus accessTokenStatus;
 	@Nullable
 	private Account account;
+	@Nullable
+	private final AccountSource accountSource;
 
 	public CurrentContext(@Nonnull CurrentContext.Builder builder) {
 		requireNonNull(builder);
@@ -66,6 +69,7 @@ public class CurrentContext {
 		this.accessTokenStatus = builder.accessTokenStatus;
 		this.remoteClient = builder.remoteClient;
 		this.signedByIc = builder.signedByIc == null ? false : builder.signedByIc;
+		this.accountSource = builder.accountSource;
 	}
 
 	@Nonnull
@@ -103,6 +107,11 @@ public class CurrentContext {
 		return signedByIc;
 	}
 
+	@Nullable
+	public AccountSource getAccountSource() {
+		return accountSource;
+	}
+
 	@NotThreadSafe
 	public static class Builder {
 		@Nonnull
@@ -119,6 +128,8 @@ public class CurrentContext {
 		private RemoteClient remoteClient;
 		@Nullable
 		private Boolean signedByIc;
+		@Nullable
+		private AccountSource accountSource;
 
 		public Builder(@Nonnull Locale locale, @Nonnull ZoneId timeZone) {
 			requireNonNull(locale);
@@ -155,6 +166,12 @@ public class CurrentContext {
 		@Nonnull
 		public Builder signedByIc(@Nullable Boolean signedByIc) {
 			this.signedByIc = signedByIc;
+			return this;
+		}
+
+		@Nonnull
+		public Builder accountSource(@Nullable AccountSource accountSource) {
+			this.accountSource = accountSource;
 			return this;
 		}
 

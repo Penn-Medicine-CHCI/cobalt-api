@@ -41,6 +41,7 @@ import com.cobaltplatform.api.model.api.request.UpdateBetaFeatureAlertRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountInvite;
 import com.cobaltplatform.api.model.db.AccountLoginRule;
+import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.BetaFeature.BetaFeatureId;
 import com.cobaltplatform.api.model.db.BetaFeatureAlert;
@@ -838,6 +839,14 @@ public class AccountService {
 		else
 			return getInstitutionService().findInstitutionById(account.getInstitutionId()).get()
 					.getAccessTokenShortExpirationInMinutes();
+	}
+
+	@Nonnull
+	public AccountSource findRequiredAccountSourceByAccountId(@Nonnull UUID accountId) {
+		requireNonNull(accountId);
+
+		return getDatabase().queryForObject("SELECT aa.* FROM account_source aa, account a WHERE a.account_source_id = aa.account_source_id "
+				+ "AND a.account_id = ?", AccountSource.class, accountId).get();
 	}
 
 	@Nonnull
