@@ -290,6 +290,9 @@ public class AccountResource {
 				setAccessTokenShortExpirationInMinutes(accountLoginRule.getAccessTokenShortExpirationInMinutes());
 			}});
 
+			// Mark the rule as executed
+			getAccountService().markAccountLoginRoleAsExecuted(accountLoginRule.getAccountLoginRuleId());
+
 			// Reload account
 			account = getAccountService().findAccountById(account.getAccountId()).get();
 		}

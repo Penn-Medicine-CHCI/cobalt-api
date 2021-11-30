@@ -130,6 +130,7 @@ public class JsonPageResponseWriter implements PageResponseWriter {
 				AccessTokenException accessTokenException = (AccessTokenException) exception.get();
 				modelAsMap.put("accessTokenStatus", accessTokenException.getAccessTokenStatus());
 				modelAsMap.put("signOnUrl", accessTokenException.getSignOnUrl());
+				message = getStrings().get("You must be authenticated to perform this action.");
 				status = 401;
 				code = ErrorCode.AUTHENTICATION_REQUIRED;
 			} else if (status == 401) {

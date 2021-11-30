@@ -570,6 +570,14 @@ public class AccountService {
 	}
 
 	@Nonnull
+	public void markAccountLoginRoleAsExecuted(@Nonnull UUID accountLoginRuleId) {
+		requireNonNull(accountLoginRuleId);
+
+		getDatabase().execute("UPDATE account_login_rule SET login_rule_executed=TRUE, login_rule_execution_time=now() WHERE account_login_rule_id=?",
+				accountLoginRuleId);
+	}
+
+	@Nonnull
 	public void updateAccountRole(@Nonnull UpdateAccountRoleRequest request) {
 		requireNonNull(request);
 
@@ -741,7 +749,7 @@ public class AccountService {
 			return Optional.empty();
 
 		return getDatabase().queryForObject("SELECT * FROM account_login_rule " +
-				"WHERE email_address=? AND account_source_id=? AND institution_id=?", AccountLoginRule.class, emailAddress, accountSourceId, institutionId);
+				"WHERE email_address=? AND account_source_id=? AND institution_id=? AND login_rule_executed = FALSE", AccountLoginRule.class, emailAddress, accountSourceId, institutionId);
 	}
 
 	@Nonnull
@@ -823,6 +831,9 @@ public class AccountService {
 
 		if (account.getAccessTokenExpirationInMinutes() != null)
 			return account.getAccessTokenExpirationInMinutes();
+		else if (account.getAccountSourceId().equals(AccountSourceId.ANONYMOUS))
+			return getInstitutionService().findInstitutionById(account.getInstitutionId()).get()
+					.getAnonAccessTokenExpirationInMinutes();
 		else
 			return getInstitutionService().findInstitutionById(account.getInstitutionId()).get()
 					.getAccessTokenExpirationInMinutes();
@@ -836,6 +847,9 @@ public class AccountService {
 
 		if (account.getAccessTokenShortExpirationInMinutes() != null)
 			return account.getAccessTokenShortExpirationInMinutes();
+		else if (account.getAccountSourceId().equals(AccountSourceId.ANONYMOUS))
+			return getInstitutionService().findInstitutionById(account.getInstitutionId()).get()
+					.getAnonAccessTokenShortExpirationInMinutes();
 		else
 			return getInstitutionService().findInstitutionById(account.getInstitutionId()).get()
 					.getAccessTokenShortExpirationInMinutes();

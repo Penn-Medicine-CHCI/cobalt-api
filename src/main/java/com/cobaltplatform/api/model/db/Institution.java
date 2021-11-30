@@ -72,6 +72,10 @@ public class Institution {
 	private Long accessTokenExpirationInMinutes;
 	@Nonnull
 	private Long accessTokenShortExpirationInMinutes;
+	@Nonnull
+	private Long anonAccessTokenExpirationInMinutes;
+	@Nonnull
+	private Long anonAccessTokenShortExpirationInMinutes;
 
 	public enum InstitutionId {
 		COBALT
@@ -251,5 +255,23 @@ public class Institution {
 
 	public void setAccessTokenShortExpirationInMinutes(@Nonnull Long accessTokenShortExpirationInMinutes) {
 		this.accessTokenShortExpirationInMinutes = accessTokenShortExpirationInMinutes;
+	}
+
+	@Nonnull
+	public Long getAnonAccessTokenExpirationInMinutes() {
+		return anonAccessTokenExpirationInMinutes;
+	}
+
+	public void setAnonAccessTokenExpirationInMinutes(@Nonnull Long anonAccessTokenExpirationInMinutes) {
+		this.anonAccessTokenExpirationInMinutes = anonAccessTokenExpirationInMinutes;
+	}
+
+	@Nonnull
+	public Long getAnonAccessTokenShortExpirationInMinutes() {
+		return anonAccessTokenShortExpirationInMinutes;
+	}
+
+	public void setAnonAccessTokenShortExpirationInMinutes(@Nonnull Long anonAccessTokenShortExpirationInMinutes) {
+		this.anonAccessTokenShortExpirationInMinutes = anonAccessTokenShortExpirationInMinutes;
 	}
 }

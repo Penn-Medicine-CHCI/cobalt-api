@@ -132,17 +132,24 @@ public class AuthorizationFilter implements Filter {
 				}
 
 				AccessTokenStatus accessTokenStatus = getCurrentContext().getAccessTokenStatus().orElse(null);
-				
+
 				if ((authenticationRequired.contentSecurityLevel() == ContentSecurityLevel.HIGH && accessTokenStatus != AccessTokenStatus.FULLY_ACTIVE) ||
 						accessTokenStatus == AccessTokenStatus.FULLY_EXPIRED) {
 
 					String signOnUrl = getConfiguration().getEnvironment().equals("prod") ?
 							getCurrentContext().getAccountSource().getProdSsoUrl() : getConfiguration().getEnvironment().equals("dev") ?
 							getCurrentContext().getAccountSource().getDevSsoUrl() : getCurrentContext().getAccountSource().getLocalSsoUrl();
+					String contentSecurityLevel = null;
+
+					if (authenticationRequired.contentSecurityLevel() == ContentSecurityLevel.HIGH)
+						contentSecurityLevel = ContentSecurityLevel.HIGH.name();
+					else
+						contentSecurityLevel = ContentSecurityLevel.LOW.name();
 
 					throw new AccessTokenException(format("Authentication failed. Resource method %s requires %s.%s but your " +
 									"access token is not fully active (status %s)", resourceMethod,
-							ContentSecurityLevel.class.getSimpleName(), ContentSecurityLevel.HIGH.name(), (accessTokenStatus == null ? "unknown" : accessTokenStatus.name())),
+							ContentSecurityLevel.class.getSimpleName(), contentSecurityLevel,
+							(accessTokenStatus == null ? "unknown" : accessTokenStatus.name())),
 							accessTokenStatus == null ? AccessTokenStatus.FULLY_EXPIRED : accessTokenStatus, signOnUrl);
 				}
 
