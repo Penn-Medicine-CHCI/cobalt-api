@@ -20,11 +20,15 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse.AccountSourceApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.InstitutionApiResponse;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
+import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.service.InstitutionService;
+import com.cobaltplatform.api.util.ValidationUtility;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.QueryParameter;
@@ -38,6 +42,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -77,8 +82,10 @@ public class InstitutionResource {
 	}
 
 	@GET("/institution/account-sources")
-	public ApiResponse getAccountSources(@QueryParameter Optional<String> subdomain) {
+	public ApiResponse getAccountSources(@QueryParameter Optional<String> subdomain,
+																			 @QueryParameter Optional<String> accountSourceId) {
 		String requestSubdomain;
+		AccountSource.AccountSourceId requestAccountSourceId = null;
 
 		if (subdomain.isPresent())
 			requestSubdomain = subdomain.get();
@@ -97,22 +104,33 @@ public class InstitutionResource {
 
 		Institution pinnedInstitution = institution.get();
 
+		List<AccountSourceApiResponse> accountSources = requestAccountSourceId == null ? getInstitutionService().findAccountSourcesForByInstitutionId(
+						pinnedInstitution.getInstitutionId().toString()).stream().map((accountSource) ->
+						getAccountSourceApiResponseFactory().create(accountSource, getConfiguration().getEnvironment()))
+				.collect(Collectors.toList()) : getInstitutionService().findAccountSourcesForByInstitutionIdAndAccountSourceId(
+						pinnedInstitution.getInstitutionId().toString(), requestAccountSourceId.toString()).stream().map((accountSource) ->
+						getAccountSourceApiResponseFactory().create(accountSource, getConfiguration().getEnvironment()))
+				.collect(Collectors.toList());
+
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("accountSources", getInstitutionService().findAccountSourcesForByInstitutionId(
-					pinnedInstitution.getInstitutionId().toString()).stream().map((accountSource) ->
-					getAccountSourceApiResponseFactory().create(accountSource, getConfiguration().getEnvironment()))
-					.collect(Collectors.toList()));
+			put("accountSources", accountSources);
 		}});
 	}
 
 	@GET("/institution")
-	public ApiResponse getInstitution(@QueryParameter Optional<String> subdomain) {
+	public ApiResponse getInstitution(@QueryParameter Optional<String> subdomain,
+																		@QueryParameter Optional<String> accountSourceId) {
 		String requestSubdomain;
+		AccountSource.AccountSourceId requestAccountSourceId = null;
 
 		if (subdomain.isPresent())
 			requestSubdomain = subdomain.get();
 		else
 			requestSubdomain = getConfiguration().getDefaultSubdomain();
+
+		if (accountSourceId.isPresent() && ValidationUtility.isValidEnum(accountSourceId.get(),
+				AccountSource.AccountSourceId.class))
+			requestAccountSourceId = AccountSource.AccountSourceId.valueOf(accountSourceId.get());
 
 		// TODO: we should revisit this when we roll out other institutions
 		boolean isWww = subdomain.isPresent() && subdomain.get().trim().toLowerCase(Locale.US).equals("www");
@@ -124,14 +142,31 @@ public class InstitutionResource {
 		if (!institution.isPresent())
 			throw new NotFoundException();
 
+		if (requestAccountSourceId != null) {
+			if (requestAccountSourceId.equals(AccountSource.AccountSourceId.ANONYMOUS)) {
+				institution.get().setEmailEnabled(false);
+				institution.get().setSsoEnabled(false);
+			} else if (requestAccountSourceId.equals(AccountSource.AccountSourceId.EMAIL_PASSWORD)) {
+				institution.get().setSsoEnabled(false);
+				institution.get().setAnonymousEnabled(false);
+			} else {
+				institution.get().setAnonymousEnabled(false);
+				institution.get().setEmailEnabled(false);
+			}
+		}
+
 		Institution pinnedInstitution = institution.get();
+		List<AccountSourceApiResponse> accountSources = requestAccountSourceId == null ? getInstitutionService().findAccountSourcesForByInstitutionId(
+						pinnedInstitution.getInstitutionId().toString()).stream().map((accountSource) ->
+						getAccountSourceApiResponseFactory().create(accountSource, getConfiguration().getEnvironment()))
+				.collect(Collectors.toList()) : getInstitutionService().findAccountSourcesForByInstitutionIdAndAccountSourceId(
+						pinnedInstitution.getInstitutionId().toString(), requestAccountSourceId.toString()).stream().map((accountSource) ->
+						getAccountSourceApiResponseFactory().create(accountSource, getConfiguration().getEnvironment()))
+				.collect(Collectors.toList());
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("institution", getInstitutionApiResponseFactory().create(pinnedInstitution));
-			put("accountSources", getInstitutionService().findAccountSourcesForByInstitutionId(
-					pinnedInstitution.getInstitutionId().toString()).stream().map((accountSource) ->
-					getAccountSourceApiResponseFactory().create(accountSource, getConfiguration().getEnvironment()))
-					.collect(Collectors.toList()));
+			put("accountSources", accountSources);
 		}});
 	}
 

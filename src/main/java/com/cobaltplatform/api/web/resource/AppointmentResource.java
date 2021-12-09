@@ -19,6 +19,10 @@
 
 package com.cobaltplatform.api.web.resource;
 
+import com.cobaltplatform.api.model.api.request.CreateActivityTrackingRequest;
+import com.cobaltplatform.api.model.db.ActivityType.ActivityTypeId;
+import com.cobaltplatform.api.model.db.ActivityAction.ActivityActionId;
+import com.cobaltplatform.api.service.ActivityTrackingService;
 import com.lokalized.Strings;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CancelAppointmentRequest;
@@ -39,6 +43,7 @@ import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
+import com.soklet.json.JSONObject;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.PUT;
@@ -108,6 +113,8 @@ public class AppointmentResource {
 	@Nonnull
 	private final AuditLogService auditLogService;
 	@Nonnull
+	private final ActivityTrackingService activityTrackingService;
+	@Nonnull
 	private final JsonMapper jsonMapper;
 
 	@Inject
@@ -120,6 +127,7 @@ public class AppointmentResource {
 														 @Nonnull Strings strings,
 														 @Nonnull Provider<CurrentContext> currentContextProvider,
 														 @Nonnull AuditLogService auditLogService,
+														 @Nonnull ActivityTrackingService activityTrackingService,
 														 @Nonnull JsonMapper jsonMapper) {
 		requireNonNull(appointmentService);
 		requireNonNull(accountService);
@@ -130,6 +138,7 @@ public class AppointmentResource {
 		requireNonNull(strings);
 		requireNonNull(currentContextProvider);
 		requireNonNull(auditLogService);
+		requireNonNull(activityTrackingService);
 		requireNonNull(jsonMapper);
 
 		this.appointmentService = appointmentService;
@@ -142,6 +151,7 @@ public class AppointmentResource {
 		this.currentContextProvider = currentContextProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.auditLogService = auditLogService;
+		this.activityTrackingService = activityTrackingService;
 		this.jsonMapper = jsonMapper;
 	}
 
@@ -298,6 +308,14 @@ public class AppointmentResource {
 		UUID appointmentId = getAppointmentService().createAppointment(request);
 		Appointment appointment = getAppointmentService().findAppointmentById(appointmentId).get();
 
+		CreateActivityTrackingRequest activityTrackingRequest = new CreateActivityTrackingRequest();
+		activityTrackingRequest.setSessionTrackingId(getCurrentContext().getSessionTrackingId());
+		activityTrackingRequest.setActivityActionId(ActivityActionId.CREATE);
+		activityTrackingRequest.setActivityTypeId(ActivityTypeId.APPOINTMENT);
+		activityTrackingRequest.setContext(new JSONObject().put("appointmentId",appointmentId.toString()).toString());
+
+		getActivityTrackingService().trackActivity(account, activityTrackingRequest);
+
 		// It's possible creating the appointment has updated the account's email address.
 		// Vend the account so client has the latest and greatest
 		Account updatedAccount = getAccountService().findAccountById(request.getAccountId()).get();
@@ -350,6 +368,14 @@ public class AppointmentResource {
 		request.setCanceledByWebhook(false);
 
 		getAppointmentService().cancelAppointment(request);
+
+		CreateActivityTrackingRequest activityTrackingRequest = new CreateActivityTrackingRequest();
+		activityTrackingRequest.setSessionTrackingId(getCurrentContext().getSessionTrackingId());
+		activityTrackingRequest.setActivityActionId(ActivityActionId.CANCEL);
+		activityTrackingRequest.setActivityTypeId(ActivityTypeId.APPOINTMENT);
+		activityTrackingRequest.setContext(new JSONObject().put("appointmentId",appointmentId.toString()).toString());
+
+		getActivityTrackingService().trackActivity(account, activityTrackingRequest);
 
 		return new ApiResponse();
 	}
@@ -469,6 +495,11 @@ public class AppointmentResource {
 	@Nonnull
 	protected AuditLogService getAuditLogService() {
 		return auditLogService;
+	}
+
+	@Nonnull
+	protected ActivityTrackingService getActivityTrackingService() {
+		return activityTrackingService;
 	}
 
 	@Nonnull

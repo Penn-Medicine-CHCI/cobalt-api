@@ -32,6 +32,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.time.ZoneId;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
 
@@ -54,6 +55,8 @@ public class CurrentContext {
 	private final AccessTokenStatus accessTokenStatus;
 	@Nullable
 	private Account account;
+	@Nonnull
+	private final UUID sessionTrackingId;
 	@Nullable
 	private final AccountSource accountSource;
 
@@ -68,6 +71,7 @@ public class CurrentContext {
 		this.accessToken = builder.accessToken;
 		this.accessTokenStatus = builder.accessTokenStatus;
 		this.remoteClient = builder.remoteClient;
+		this.sessionTrackingId = builder.sessionTrackingId;
 		this.signedByIc = builder.signedByIc == null ? false : builder.signedByIc;
 		this.accountSource = builder.accountSource;
 	}
@@ -107,6 +111,11 @@ public class CurrentContext {
 		return signedByIc;
 	}
 
+	@Nonnull
+	public UUID getSessionTrackingId() {
+		return sessionTrackingId;
+	}
+
 	@Nullable
 	public AccountSource getAccountSource() {
 		return accountSource;
@@ -127,6 +136,7 @@ public class CurrentContext {
 		@Nullable
 		private RemoteClient remoteClient;
 		@Nullable
+		private UUID sessionTrackingId;
 		private Boolean signedByIc;
 		@Nullable
 		private AccountSource accountSource;
@@ -166,6 +176,12 @@ public class CurrentContext {
 		@Nonnull
 		public Builder signedByIc(@Nullable Boolean signedByIc) {
 			this.signedByIc = signedByIc;
+			return this;
+		}
+
+		@Nonnull
+		public Builder sessionTrackingId(@Nullable UUID sessionTrackingId) {
+			this.sessionTrackingId = sessionTrackingId;
 			return this;
 		}
 

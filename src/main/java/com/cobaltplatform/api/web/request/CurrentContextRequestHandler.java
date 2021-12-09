@@ -63,6 +63,8 @@ public class CurrentContextRequestHandler {
 	private static final String LOCALE_REQUEST_PROPERTY_NAME;
 	@Nonnull
 	private static final String TIME_ZONE_REQUEST_PROPERTY_NAME;
+	@Nonnull
+	private static final String SESSION_TRACKING_ID_PROPERTY_NAME;
 
 	@Nonnull
 	private static final String CURRENT_CONTEXT_LOGGING_KEY;
@@ -87,6 +89,7 @@ public class CurrentContextRequestHandler {
 		IC_SIGNING_TOKEN_REQUEST_PROPERTY_NAME = "X-IC-Signing-Token";
 		LOCALE_REQUEST_PROPERTY_NAME = "X-Locale";
 		TIME_ZONE_REQUEST_PROPERTY_NAME = "X-Time-Zone";
+		SESSION_TRACKING_ID_PROPERTY_NAME = "X-Session-Tracking-Id";
 
 		CURRENT_CONTEXT_LOGGING_KEY = "CURRENT_CONTEXT";
 	}
@@ -174,6 +177,8 @@ public class CurrentContextRequestHandler {
 
 			RemoteClient remoteClient = RemoteClient.fromHttpServletRequest(httpServletRequest);
 
+			Optional<String> sessionTrackingString = WebUtility.extractValueFromRequest(httpServletRequest, getSessionTrackingIdPropertyName());
+			UUID sessionTrackingId = sessionTrackingString.isPresent() ? UUID.fromString(sessionTrackingString.get()) : null;
 			AccountSource accountSource = null;
 
 			if (account != null)
@@ -184,6 +189,7 @@ public class CurrentContextRequestHandler {
 					.accessTokenStatus(accessTokenStatus)
 					.account(account)
 					.remoteClient(remoteClient)
+					.sessionTrackingId(sessionTrackingId)
 					.signedByIc(signedByIc)
 					.accountSource(accountSource)
 					.build();
@@ -236,6 +242,11 @@ public class CurrentContextRequestHandler {
 	@Nonnull
 	public static String getTimeZoneRequestPropertyName() {
 		return TIME_ZONE_REQUEST_PROPERTY_NAME;
+	}
+
+	@Nonnull
+	public static String getSessionTrackingIdPropertyName() {
+		return SESSION_TRACKING_ID_PROPERTY_NAME;
 	}
 
 	@Nonnull

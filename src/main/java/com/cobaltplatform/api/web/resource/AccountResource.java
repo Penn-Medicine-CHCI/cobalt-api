@@ -25,6 +25,7 @@ import com.cobaltplatform.api.model.api.request.AcceptAccountConsentFormRequest;
 import com.cobaltplatform.api.model.api.request.AccessTokenRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountInviteRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
+import com.cobaltplatform.api.model.api.request.CreateActivityTrackingRequest;
 import com.cobaltplatform.api.model.api.request.CreateIcMpmAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateIcOrderReportAccountRequest;
 import com.cobaltplatform.api.model.api.request.FindGroupSessionsRequest;
@@ -51,6 +52,8 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountInvite;
 import com.cobaltplatform.api.model.db.AccountLoginRule;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
+import com.cobaltplatform.api.model.db.ActivityAction;
+import com.cobaltplatform.api.model.db.ActivityType;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AuditLog;
 import com.cobaltplatform.api.model.db.AuditLogEvent.AuditLogEventId;
@@ -68,6 +71,7 @@ import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.security.IcSignedRequestRequired;
 import com.cobaltplatform.api.model.service.GroupEvent;
 import com.cobaltplatform.api.service.AccountService;
+import com.cobaltplatform.api.service.ActivityTrackingService;
 import com.cobaltplatform.api.service.AppointmentService;
 import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.service.ContentService;
@@ -79,6 +83,7 @@ import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.LinkGenerator;
 import com.cobaltplatform.api.util.WebUtility;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
+import com.soklet.json.JSONObject;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.PUT;
@@ -165,6 +170,8 @@ public class AccountResource {
 	private final InstitutionApiResponseFactory institutionApiResponseFactory;
 	@Nonnull
 	private final BetaFeatureAlertApiResponseFactory betaFeatureAlertApiResponseFactory;
+	@Nonnull
+	private final ActivityTrackingService activityTrackingService;
 
 	@Inject
 	public AccountResource(@Nonnull AccountService accountService,
@@ -185,7 +192,8 @@ public class AccountResource {
 												 @Nonnull AuditLogService auditLogService,
 												 @Nonnull InstitutionService institutionService,
 												 @Nonnull InstitutionApiResponseFactory institutionApiResponseFactory,
-												 @Nonnull BetaFeatureAlertApiResponseFactory betaFeatureAlertApiResponseFactory) {
+												 @Nonnull BetaFeatureAlertApiResponseFactory betaFeatureAlertApiResponseFactory,
+												 @Nonnull ActivityTrackingService activityTrackingService) {
 		requireNonNull(accountService);
 		requireNonNull(icService);
 		requireNonNull(groupEventService);
@@ -204,6 +212,7 @@ public class AccountResource {
 		requireNonNull(auditLogService);
 		requireNonNull(institutionService);
 		requireNonNull(institutionApiResponseFactory);
+		requireNonNull(activityTrackingService);
 
 		this.accountService = accountService;
 		this.icService = icService;
@@ -225,6 +234,7 @@ public class AccountResource {
 		this.institutionService = institutionService;
 		this.institutionApiResponseFactory = institutionApiResponseFactory;
 		this.betaFeatureAlertApiResponseFactory = betaFeatureAlertApiResponseFactory;
+		this.activityTrackingService = activityTrackingService;
 	}
 
 	@Nonnull
@@ -307,6 +317,14 @@ public class AccountResource {
 
 		Account pinnedAccount = account;
 		String destinationUrl = getLinkGenerator().generateAuthenticationLink(account.getInstitutionId(), loginDestinationId, ClientDeviceType.ClientDeviceTypeId.WEB_BROWSER, accessToken);
+
+		CreateActivityTrackingRequest activityTrackingRequest = new CreateActivityTrackingRequest();
+		activityTrackingRequest.setSessionTrackingId(getCurrentContext().getSessionTrackingId());
+		activityTrackingRequest.setActivityActionId(ActivityAction.ActivityActionId.SIGN_IN);
+		activityTrackingRequest.setActivityTypeId(ActivityType.ActivityTypeId.ACCOUNT);
+		activityTrackingRequest.setContext(new JSONObject().put("accountId",account.getAccountId().toString()).toString());
+
+		getActivityTrackingService().trackActivity(account, activityTrackingRequest);
 
 		// TODO: remove this hack
 		if (loginDestinationId == LoginDestinationId.IC_PANEL)
@@ -584,6 +602,14 @@ public class AccountResource {
 
 		String accessToken = getAuthenticator().generateAccessToken(account.getAccountId(), account.getRoleId());
 
+		CreateActivityTrackingRequest activityTrackingRequest = new CreateActivityTrackingRequest();
+		activityTrackingRequest.setSessionTrackingId(getCurrentContext().getSessionTrackingId());
+		activityTrackingRequest.setActivityActionId(ActivityAction.ActivityActionId.CREATE);
+		activityTrackingRequest.setActivityTypeId(ActivityType.ActivityTypeId.ACCOUNT);
+		activityTrackingRequest.setContext(new JSONObject().put("accountId",accountId.toString()).toString());
+
+		getActivityTrackingService().trackActivity(account, activityTrackingRequest);
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("account", getAccountApiResponseFactory().create(account));
 			put("accessToken", accessToken);
@@ -859,5 +885,10 @@ public class AccountResource {
 	@Nonnull
 	protected BetaFeatureAlertApiResponseFactory getBetaFeatureAlertApiResponseFactory() {
 		return betaFeatureAlertApiResponseFactory;
+	}
+
+	@Nonnull
+	public ActivityTrackingService getActivityTrackingService() {
+		return activityTrackingService;
 	}
 }

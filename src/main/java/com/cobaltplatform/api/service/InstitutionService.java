@@ -95,6 +95,14 @@ public class InstitutionService {
 				AccountSource.class, institutionId);
 	}
 
+	@NonNull
+	public List<AccountSource> findAccountSourcesForByInstitutionIdAndAccountSourceId(String institutionId, String accountSourceId) {
+
+		return getDatabase().queryForList("SELECT a.* FROM account_source a, institution_account_source ia " +
+						"WHERE a.account_source_id = ia.account_source_id AND ia.institution_id = ? AND a.account_source_id = ? ",
+				AccountSource.class, institutionId, accountSourceId);
+	}
+
 	@Nonnull
 	public List<Institution> findInstitutions() {
 		return getDatabase().queryForList("SELECT * FROM institution WHERE institution_id != ?", Institution.class, InstitutionId.COBALT);

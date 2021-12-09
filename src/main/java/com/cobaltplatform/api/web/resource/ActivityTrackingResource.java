@@ -79,6 +79,7 @@ public class ActivityTrackingResource {
 
 		Account account = getCurrentContext().getAccount().get();
 		CreateActivityTrackingRequest request = getRequestBodyParser().parse(body, CreateActivityTrackingRequest.class);
+		request.setSessionTrackingId(getCurrentContext().getSessionTrackingId());
 
 		UUID activityTrackingId = getActivityTrackingService().trackActivity(account, request);
 

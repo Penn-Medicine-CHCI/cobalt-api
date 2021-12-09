@@ -62,8 +62,9 @@ public class ActivityTrackingService {
 		UUID activityTrackingId = UUID.randomUUID();
 
 		getDatabase().execute("INSERT INTO activity_tracking (activity_tracking_id, account_id, activity_type_id, "
-						+ "activity_action_id, activity_key) VALUES (?,?,?,?,?)", activityTrackingId, account.getAccountId(),
-				request.getActivityTypeId(), request.getActivityActionId(), request.getActivityKey());
+						+ "activity_action_id, session_tracking_id, context) VALUES (?,?,?,?,?,CAST (? AS JSONB))",
+				activityTrackingId, account.getAccountId(), request.getActivityTypeId(), request.getActivityActionId(),
+				request.getSessionTrackingId(), request.getContext());
 
 		return activityTrackingId;
 	}
