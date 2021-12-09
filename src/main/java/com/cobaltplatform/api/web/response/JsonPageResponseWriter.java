@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.web.response;
 
+import com.cobaltplatform.api.model.security.AccessTokenStatus;
+import com.cobaltplatform.api.util.AccessTokenException;
 import com.lokalized.Strings;
 import com.cobaltplatform.api.Configuration;
 import com.soklet.web.response.PageResponse;
@@ -124,7 +126,15 @@ public class JsonPageResponseWriter implements PageResponseWriter {
 			} else if (exception.get() instanceof RequestBodyParsingException || status == 400) {
 				message = getStrings().get("The request was incorrectly formatted.");
 				code = ErrorCode.BAD_REQUEST;
+			} else if (exception.get() instanceof AccessTokenException) {
+				AccessTokenException accessTokenException = (AccessTokenException) exception.get();
+				modelAsMap.put("accessTokenStatus", accessTokenException.getAccessTokenStatus());
+				modelAsMap.put("signOnUrl", accessTokenException.getSignOnUrl());
+				message = getStrings().get("You must be authenticated to perform this action.");
+				status = 401;
+				code = ErrorCode.AUTHENTICATION_REQUIRED;
 			} else if (status == 401) {
+				modelAsMap.put("accessTokenStatus", AccessTokenStatus.FULLY_EXPIRED);
 				message = getStrings().get("You must be authenticated to perform this action.");
 				code = ErrorCode.AUTHENTICATION_REQUIRED;
 			} else if (status == 403) {

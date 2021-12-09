@@ -184,6 +184,8 @@ public class Configuration {
 	@Nonnull
 	private final Long accessTokenExpirationInMinutes;
 	@Nonnull
+	private final Long accessTokenShortExpirationInMinutes;
+	@Nonnull
 	private final Boolean downForMaintenance;
 	@Nonnull
 	private final SecretKey secretKey;
@@ -364,6 +366,7 @@ public class Configuration {
 		this.corsEnabledDomains = valueFor("com.cobaltplatform.api.corsEnabledDomains", String.class);
 		this.emailDefaultFromAddress = valueFor("com.cobaltplatform.api.emailDefaultFromAddress", String.class);
 		this.accessTokenExpirationInMinutes = valueFor("com.cobaltplatform.api.accessTokenExpirationInMinutes", Long.class);
+		this.accessTokenShortExpirationInMinutes = valueFor("com.cobaltplatform.api.accessTokenShortExpirationInMinutes", Long.class);
 		this.downForMaintenance = valueFor("com.cobaltplatform.api.downForMaintenance", Boolean.class);
 		this.secretKeyAlgorithm = valueFor("com.cobaltplatform.api.secretKeyAlgorithm", String.class);
 		this.secretKey = CryptoUtility.loadSecretKeyInBase64(valueFor("com.cobaltplatform.api.secretKey", String.class), getSecretKeyAlgorithm());
@@ -1286,6 +1289,9 @@ public class Configuration {
 	public Long getAccessTokenExpirationInMinutes() {
 		return accessTokenExpirationInMinutes;
 	}
+
+	@Nonnull
+	public Long getAccessTokenShortExpirationInMinutes() { return accessTokenShortExpirationInMinutes; }
 
 	@Nonnull
 	@Deprecated

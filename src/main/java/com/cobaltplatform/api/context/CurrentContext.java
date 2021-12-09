@@ -22,6 +22,8 @@ package com.cobaltplatform.api.context;
 
 import com.cobaltplatform.api.model.client.RemoteClient;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AccountSource;
+import com.cobaltplatform.api.model.security.AccessTokenStatus;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -47,9 +49,13 @@ public class CurrentContext {
 	@Nullable
 	private final RemoteClient remoteClient;
 	@Nullable
-	private String accessToken;
+	private final String accessToken;
+	@Nullable
+	private final AccessTokenStatus accessTokenStatus;
 	@Nullable
 	private Account account;
+	@Nullable
+	private final AccountSource accountSource;
 
 	public CurrentContext(@Nonnull CurrentContext.Builder builder) {
 		requireNonNull(builder);
@@ -60,8 +66,10 @@ public class CurrentContext {
 		this.timeZone = builder.timeZone;
 		this.account = builder.account;
 		this.accessToken = builder.accessToken;
+		this.accessTokenStatus = builder.accessTokenStatus;
 		this.remoteClient = builder.remoteClient;
 		this.signedByIc = builder.signedByIc == null ? false : builder.signedByIc;
+		this.accountSource = builder.accountSource;
 	}
 
 	@Nonnull
@@ -80,6 +88,11 @@ public class CurrentContext {
 	}
 
 	@Nonnull
+	public Optional<AccessTokenStatus> getAccessTokenStatus() {
+		return Optional.ofNullable(accessTokenStatus);
+	}
+
+	@Nonnull
 	public Optional<Account> getAccount() {
 		return Optional.ofNullable(account);
 	}
@@ -94,6 +107,11 @@ public class CurrentContext {
 		return signedByIc;
 	}
 
+	@Nullable
+	public AccountSource getAccountSource() {
+		return accountSource;
+	}
+
 	@NotThreadSafe
 	public static class Builder {
 		@Nonnull
@@ -103,11 +121,15 @@ public class CurrentContext {
 		@Nullable
 		private String accessToken;
 		@Nullable
+		private AccessTokenStatus accessTokenStatus;
+		@Nullable
 		private Account account;
 		@Nullable
 		private RemoteClient remoteClient;
 		@Nullable
 		private Boolean signedByIc;
+		@Nullable
+		private AccountSource accountSource;
 
 		public Builder(@Nonnull Locale locale, @Nonnull ZoneId timeZone) {
 			requireNonNull(locale);
@@ -120,6 +142,12 @@ public class CurrentContext {
 		@Nonnull
 		public Builder accessToken(@Nullable String accessToken) {
 			this.accessToken = accessToken;
+			return this;
+		}
+
+		@Nonnull
+		public Builder accessTokenStatus(@Nullable AccessTokenStatus accessTokenStatus) {
+			this.accessTokenStatus = accessTokenStatus;
 			return this;
 		}
 
@@ -138,6 +166,12 @@ public class CurrentContext {
 		@Nonnull
 		public Builder signedByIc(@Nullable Boolean signedByIc) {
 			this.signedByIc = signedByIc;
+			return this;
+		}
+
+		@Nonnull
+		public Builder accountSource(@Nullable AccountSource accountSource) {
+			this.accountSource = accountSource;
 			return this;
 		}
 

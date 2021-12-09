@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.web.resource;
 
+import com.cobaltplatform.api.model.security.ContentSecurityLevel;
 import com.lokalized.Strings;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse;
@@ -152,7 +153,7 @@ public class CalendarEventsResource {
 
 	@Nonnull
 	@GET("/calendar-events/upcoming")
-	@AuthenticationRequired
+	@AuthenticationRequired(contentSecurityLevel = ContentSecurityLevel.HIGH)
 	public ApiResponse appointments(@Nonnull @QueryParameter Optional<CalendarEventResponseFormat> responseFormat) {
 		requireNonNull(responseFormat);
 

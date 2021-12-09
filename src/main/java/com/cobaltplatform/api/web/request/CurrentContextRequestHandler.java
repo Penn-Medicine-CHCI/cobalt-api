@@ -26,7 +26,9 @@ import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.ic.IcClient;
 import com.cobaltplatform.api.model.client.RemoteClient;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.security.AccessTokenClaims;
+import com.cobaltplatform.api.model.security.AccessTokenStatus;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.WebUtility;
@@ -122,36 +124,38 @@ public class CurrentContextRequestHandler {
 		try {
 			getErrorReporter().applyHttpServletRequest(httpServletRequest);
 
-			Optional<Account> account = Optional.empty();
+			Account account = null;
 
 			// Try to load account data for access token
-			Optional<String> accessTokenValue = WebUtility.extractValueFromRequest(httpServletRequest, getAccessTokenRequestPropertyName());
+			String accessTokenValue = WebUtility.extractValueFromRequest(httpServletRequest, getAccessTokenRequestPropertyName()).orElse(null);
+			AccessTokenStatus accessTokenStatus = null;
 
-			if (accessTokenValue.isPresent()) {
-				Optional<AccessTokenClaims> accessTokenClaims = getAuthenticator().validateAccessToken(accessTokenValue.get());
+			if (accessTokenValue != null) {
+				AccessTokenClaims accessTokenClaims = getAuthenticator().validateAccessToken(accessTokenValue).orElse(null);
 
-				if (accessTokenClaims.isPresent()) {
-					UUID accountId = accessTokenClaims.get().getAccountId();
-					account = getAccountService().findAccountById(accountId);
+				if (accessTokenClaims != null) {
+					UUID accountId = accessTokenClaims.getAccountId();
+					account = getAccountService().findAccountById(accountId).orElse(null);
+					accessTokenStatus = getAuthenticator().determineAccessTokenStatus(accessTokenClaims);
 				}
 			}
 
 			// Start with default locale and override as needed
-			Optional<String> localeValue = WebUtility.extractValueFromRequest(httpServletRequest, getLocaleRequestPropertyName());
+			String localeValue = WebUtility.extractValueFromRequest(httpServletRequest, getLocaleRequestPropertyName()).orElse(null);
 			Locale locale = httpServletRequest.getLocale();
 
-			if (account.isPresent())
-				locale = account.get().getLocale();
+			if (account != null)
+				locale = account.getLocale();
 
-			if (localeValue.isPresent())
-				locale = Locale.forLanguageTag(localeValue.get());
+			if (localeValue != null)
+				locale = Locale.forLanguageTag(localeValue);
 
 			// Start with default time zone and override as needed
 			Optional<String> timeZoneValue = WebUtility.extractValueFromRequest(httpServletRequest, getTimeZoneRequestPropertyName());
 			ZoneId timeZone = ZoneId.of("UTC");
 
-			if (account.isPresent())
-				timeZone = account.get().getTimeZone();
+			if (account != null)
+				timeZone = account.getTimeZone();
 
 			if (timeZoneValue.isPresent()) {
 				try {
@@ -170,17 +174,24 @@ public class CurrentContextRequestHandler {
 
 			RemoteClient remoteClient = RemoteClient.fromHttpServletRequest(httpServletRequest);
 
+			AccountSource accountSource = null;
+
+			if (account != null)
+				accountSource = getAccountService().findRequiredAccountSourceByAccountId(account.getAccountId());
+
 			CurrentContext currentContext = new CurrentContext.Builder(locale, timeZone)
-					.accessToken(accessTokenValue.orElse(null))
-					.account(account.orElse(null))
+					.accessToken(accessTokenValue)
+					.accessTokenStatus(accessTokenStatus)
+					.account(account)
 					.remoteClient(remoteClient)
 					.signedByIc(signedByIc)
+					.accountSource(accountSource)
 					.build();
 
 			String currentContextDescription = null;
 
-			if (account.isPresent()) {
-				String accountIdentifier = account.get().getEmailAddress() == null ? "[anonymous]" : account.get().getEmailAddress();
+			if (account != null) {
+				String accountIdentifier = account.getEmailAddress() == null ? "[anonymous]" : account.getEmailAddress();
 				getLogger().debug(format("Authenticated '%s' for this request.", accountIdentifier));
 
 				currentContextDescription = format("%s, %s, %s",

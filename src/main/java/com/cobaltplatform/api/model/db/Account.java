@@ -25,6 +25,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
@@ -79,6 +80,10 @@ public class Account {
 	private Boolean consentFormAccepted;
 	@Nullable
 	private Instant consentFormAcceptedDate;
+	@Nonnull
+	private Long accessTokenExpirationInMinutes;
+	@Nonnull
+	private Long accessTokenShortExpirationInMinutes;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -271,6 +276,24 @@ public class Account {
 
 	public void setEpicPatientCreatedByCobalt(@Nullable Boolean epicPatientCreatedByCobalt) {
 		this.epicPatientCreatedByCobalt = epicPatientCreatedByCobalt;
+	}
+
+	@Nonnull
+	public Long getAccessTokenExpirationInMinutes() {
+		return accessTokenExpirationInMinutes;
+	}
+
+	public void setAccessTokenExpirationInMinutes(@Nonnull Long accessTokenExpirationInMinutes) {
+		this.accessTokenExpirationInMinutes = accessTokenExpirationInMinutes;
+	}
+
+	@Nonnull
+	public Long getAccessTokenShortExpirationInMinutes() {
+		return accessTokenShortExpirationInMinutes;
+	}
+
+	public void setAccessTokenShortExpirationInMinutes(@Nonnull Long accessTokenShortExpirationInMinutes) {
+		this.accessTokenShortExpirationInMinutes = accessTokenShortExpirationInMinutes;
 	}
 
 	@Nullable

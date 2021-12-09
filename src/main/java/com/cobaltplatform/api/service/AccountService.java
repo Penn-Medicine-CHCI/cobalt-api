@@ -32,6 +32,7 @@ import com.cobaltplatform.api.model.api.request.CreateAccountInviteRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.ForgotPasswordRequest;
 import com.cobaltplatform.api.model.api.request.ResetPasswordRequest;
+import com.cobaltplatform.api.model.api.request.UpdateAccountAccessTokenExpiration;
 import com.cobaltplatform.api.model.api.request.UpdateAccountBetaStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountEmailAddressRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountPhoneNumberRequest;
@@ -40,6 +41,7 @@ import com.cobaltplatform.api.model.api.request.UpdateBetaFeatureAlertRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountInvite;
 import com.cobaltplatform.api.model.db.AccountLoginRule;
+import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.BetaFeature.BetaFeatureId;
 import com.cobaltplatform.api.model.db.BetaFeatureAlert;
@@ -551,6 +553,31 @@ public class AccountService {
 	}
 
 	@Nonnull
+	public void updateAccountAccessTokenExpiration(@Nonnull UpdateAccountAccessTokenExpiration request) {
+		requireNonNull(request);
+
+		UUID accountId = request.getAccountId();
+		ValidationException validationException = new ValidationException();
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("UPDATE account SET access_token_expiration_in_minutes=?, access_token_short_expiration_in_minutes=? WHERE account_id=?",
+				request.getAccessTokenExpirationInMinutes(), request.getAccessTokenShortExpirationInMinutes(), accountId);
+	}
+
+	@Nonnull
+	public void markAccountLoginRoleAsExecuted(@Nonnull UUID accountLoginRuleId) {
+		requireNonNull(accountLoginRuleId);
+
+		getDatabase().execute("UPDATE account_login_rule SET login_rule_executed=TRUE, login_rule_execution_time=now() WHERE account_login_rule_id=?",
+				accountLoginRuleId);
+	}
+
+	@Nonnull
 	public void updateAccountRole(@Nonnull UpdateAccountRoleRequest request) {
 		requireNonNull(request);
 
@@ -722,7 +749,7 @@ public class AccountService {
 			return Optional.empty();
 
 		return getDatabase().queryForObject("SELECT * FROM account_login_rule " +
-				"WHERE email_address=? AND account_source_id=? AND institution_id=?", AccountLoginRule.class, emailAddress, accountSourceId, institutionId);
+				"WHERE email_address=? AND account_source_id=? AND institution_id=? AND login_rule_executed = FALSE", AccountLoginRule.class, emailAddress, accountSourceId, institutionId);
 	}
 
 	@Nonnull
@@ -776,6 +803,7 @@ public class AccountService {
 		return findBetaFeaturesAlertsAsMap(accountId).get(betaFeatureId);
 	}
 
+	@Nonnull
 	public void updateAccountBetaStatus(@Nonnull UpdateAccountBetaStatusRequest request) {
 		requireNonNull(request);
 
@@ -793,6 +821,46 @@ public class AccountService {
 			throw validationException;
 
 		getDatabase().execute("UPDATE account SET beta_status_id=? WHERE account_id=?", betaStatusId, accountId);
+	}
+
+	@Nonnull
+	public Long findAccessTokenExpirationInMinutesByAccountId(@Nonnull UUID accountID) {
+		requireNonNull(accountID);
+
+		Account account = findRequiredAccountById(accountID);
+
+		if (account.getAccessTokenExpirationInMinutes() != null)
+			return account.getAccessTokenExpirationInMinutes();
+		else if (account.getAccountSourceId().equals(AccountSourceId.ANONYMOUS))
+			return getInstitutionService().findInstitutionById(account.getInstitutionId()).get()
+					.getAnonAccessTokenExpirationInMinutes();
+		else
+			return getInstitutionService().findInstitutionById(account.getInstitutionId()).get()
+					.getAccessTokenExpirationInMinutes();
+	}
+
+	@Nonnull
+	public Long findAccessTokenShortExpirationInMinutesByAccount(@Nonnull UUID accountID) {
+		requireNonNull(accountID);
+
+		Account account = findRequiredAccountById(accountID);
+
+		if (account.getAccessTokenShortExpirationInMinutes() != null)
+			return account.getAccessTokenShortExpirationInMinutes();
+		else if (account.getAccountSourceId().equals(AccountSourceId.ANONYMOUS))
+			return getInstitutionService().findInstitutionById(account.getInstitutionId()).get()
+					.getAnonAccessTokenShortExpirationInMinutes();
+		else
+			return getInstitutionService().findInstitutionById(account.getInstitutionId()).get()
+					.getAccessTokenShortExpirationInMinutes();
+	}
+
+	@Nonnull
+	public AccountSource findRequiredAccountSourceByAccountId(@Nonnull UUID accountId) {
+		requireNonNull(accountId);
+
+		return getDatabase().queryForObject("SELECT aa.* FROM account_source aa, account a WHERE a.account_source_id = aa.account_source_id "
+				+ "AND a.account_id = ?", AccountSource.class, accountId).get();
 	}
 
 	@Nonnull
