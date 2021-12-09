@@ -19,15 +19,21 @@
 
 package com.cobaltplatform.api.web.filter;
 
+import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.Role.RoleId;
+import com.cobaltplatform.api.model.security.AccessTokenStatus;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.security.ContentSecurityLevel;
 import com.cobaltplatform.api.model.security.IcSignedRequestRequired;
+import com.cobaltplatform.api.util.AccessTokenException;
 import com.soklet.web.exception.AuthenticationException;
 import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.request.RequestContext;
 import com.soklet.web.routing.Route;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,16 +71,21 @@ public class AuthorizationFilter implements Filter {
 	private final Provider<RequestContext> requestContextProvider;
 	@Nonnull
 	private final Logger logger;
+	@NonNull
+	private final Provider<Configuration> configurationProvider;
 
 	@Inject
 	public AuthorizationFilter(@Nonnull Provider<CurrentContext> currentContextProvider,
-														 @Nonnull Provider<RequestContext> requestContextProvider) {
+														 @Nonnull Provider<RequestContext> requestContextProvider,
+														 @Nonnull Provider<Configuration> configurationProvider) {
 		requireNonNull(currentContextProvider);
 		requireNonNull(requestContextProvider);
+		requireNonNull(configurationProvider);
 
 		this.currentContextProvider = currentContextProvider;
 		this.requestContextProvider = requestContextProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
+		this.configurationProvider = configurationProvider;
 	}
 
 	@Override
@@ -119,6 +130,29 @@ public class AuthorizationFilter implements Filter {
 						throw new AuthorizationException(format("Authorization failed. Resource method %s requires one of the following roles: %s, but current user has %s",
 								resourceMethod, roleIds, account.getRoleId().name()));
 				}
+
+				AccessTokenStatus accessTokenStatus = getCurrentContext().getAccessTokenStatus().orElse(null);
+
+				if ((authenticationRequired.contentSecurityLevel() == ContentSecurityLevel.HIGH && accessTokenStatus != AccessTokenStatus.FULLY_ACTIVE) ||
+						accessTokenStatus == AccessTokenStatus.FULLY_EXPIRED) {
+
+					String signOnUrl = getConfiguration().getEnvironment().equals("prod") ?
+							getCurrentContext().getAccountSource().getProdSsoUrl() : getConfiguration().getEnvironment().equals("dev") ?
+							getCurrentContext().getAccountSource().getDevSsoUrl() : getCurrentContext().getAccountSource().getLocalSsoUrl();
+					String contentSecurityLevel = null;
+
+					if (authenticationRequired.contentSecurityLevel() == ContentSecurityLevel.HIGH)
+						contentSecurityLevel = ContentSecurityLevel.HIGH.name();
+					else
+						contentSecurityLevel = ContentSecurityLevel.LOW.name();
+
+					throw new AccessTokenException(format("Authentication failed. Resource method %s requires %s.%s but your " +
+									"access token is not fully active (status %s)", resourceMethod,
+							ContentSecurityLevel.class.getSimpleName(), contentSecurityLevel,
+							(accessTokenStatus == null ? "unknown" : accessTokenStatus.name())),
+							accessTokenStatus == null ? AccessTokenStatus.FULLY_EXPIRED : accessTokenStatus, signOnUrl);
+				}
+
 			}
 
 			if (resourceMethod.getAnnotation(IcSignedRequestRequired.class) != null) {
@@ -149,4 +183,10 @@ public class AuthorizationFilter implements Filter {
 	protected Logger getLogger() {
 		return logger;
 	}
+
+	@Nonnull
+	protected Configuration getConfiguration() {
+		return configurationProvider.get();
+	}
+
 }

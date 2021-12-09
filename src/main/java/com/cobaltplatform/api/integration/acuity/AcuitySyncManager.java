@@ -48,6 +48,8 @@ import javax.inject.Singleton;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -288,24 +290,41 @@ public class AcuitySyncManager implements ProviderAvailabilitySyncManager, AutoC
 			}
 		}
 
-		ProviderAvailabilityDateInsert insert = new ProviderAvailabilityDateInsert();
-		insert.setProviderId(provider.getProviderId());
-		insert.setDate(date);
-		insert.setRows(rows);
-
-		return insert;
+		return new ProviderAvailabilityDateInsert(provider.getProviderId(), date, provider.getTimeZone(), rows);
 	}
 
 	protected void performProviderAvailabilityDateInsert(@Nonnull ProviderAvailabilityDateInsert insert) {
 		requireNonNull(insert);
 
-		// 1. Clear out the day
-		getDatabase().execute("DELETE FROM provider_availability WHERE provider_id=? AND date_time::date=?", insert.getProviderId(), insert.getDate());
+		// To keep historical data, never change anything in the past
+		LocalDateTime currentDateTime = LocalDateTime.now(insert.getTimeZone());
+		LocalDate insertDate = insert.getDate();
+		boolean today = currentDateTime.toLocalDate().equals(insertDate);
+
+		if (insertDate.isBefore(currentDateTime.toLocalDate())) {
+			getLogger().info("Ignoring provider sync request for {} because it's for a date in the past: {}", insert.getProviderId(), insertDate);
+			return;
+		}
+
+		if (today) {
+			// 1. This is "today" from the provider's perspective - clear out anything after right now for today
+			LocalDateTime endOfDayDateTime = LocalDateTime.of(currentDateTime.toLocalDate(), LocalTime.MAX); // Insert Date @ 23:59:59.999999999
+			getLogger().info("Provider ID {} is being synced for 'today' - removing any availability between {} and {}...", insert.getProviderId(), currentDateTime, endOfDayDateTime);
+			getDatabase().execute("DELETE FROM provider_availability WHERE provider_id=? AND date_time > ? AND date_time <= ?", insert.getProviderId(), currentDateTime, endOfDayDateTime);
+		} else {
+			// 1. This is a future date - clear out the whole day
+			getDatabase().execute("DELETE FROM provider_availability WHERE provider_id=? AND date_time::date=?", insert.getProviderId(), insert.getDate());
+		}
 
 		// 2. Insert new ones for the day (in batch)
 		List<List<Object>> parameterGroups = new ArrayList<>(insert.getRows().size());
 
 		for (ProviderAvailabilityDateInsertRow row : insert.getRows()) {
+			if (today && row.getDateTime().isBefore(currentDateTime)) {
+				getLogger().info("Provider ID {} is being synced for 'today', so ignore availability insert for {} because it's before now ({})...", insert.getProviderId(), row.getDateTime(), currentDateTime);
+				continue;
+			}
+
 			List<Object> parameterGroup = new ArrayList<>(3);
 			parameterGroup.add(insert.getProviderId());
 			parameterGroup.add(row.getAppointmentTypeId());
@@ -650,38 +669,48 @@ public class AcuitySyncManager implements ProviderAvailabilitySyncManager, AutoC
 
 	@NotThreadSafe
 	protected static class ProviderAvailabilityDateInsert {
-		@Nullable
-		private UUID providerId;
-		@Nullable
-		private LocalDate date;
-		@Nullable
-		private List<ProviderAvailabilityDateInsertRow> rows;
+		@Nonnull
+		private final UUID providerId;
+		@Nonnull
+		private final LocalDate date;
+		@Nonnull
+		private final ZoneId timeZone;
+		@Nonnull
+		private final List<ProviderAvailabilityDateInsertRow> rows;
 
-		@Nullable
+		public ProviderAvailabilityDateInsert(@Nonnull UUID providerId,
+																					@Nonnull LocalDate date,
+																					@Nonnull ZoneId timeZone,
+																					@Nonnull List<ProviderAvailabilityDateInsertRow> rows) {
+			requireNonNull(providerId);
+			requireNonNull(date);
+			requireNonNull(timeZone);
+			requireNonNull(rows);
+
+			this.providerId = providerId;
+			this.date = date;
+			this.timeZone = timeZone;
+			this.rows = rows;
+		}
+
+		@Nonnull
 		public UUID getProviderId() {
 			return providerId;
 		}
 
-		public void setProviderId(@Nullable UUID providerId) {
-			this.providerId = providerId;
-		}
-
-		@Nullable
+		@Nonnull
 		public LocalDate getDate() {
 			return date;
 		}
 
-		public void setDate(@Nullable LocalDate date) {
-			this.date = date;
+		@Nonnull
+		public ZoneId getTimeZone() {
+			return timeZone;
 		}
 
-		@Nullable
+		@Nonnull
 		public List<ProviderAvailabilityDateInsertRow> getRows() {
 			return rows;
-		}
-
-		public void setRows(@Nullable List<ProviderAvailabilityDateInsertRow> rows) {
-			this.rows = rows;
 		}
 	}
 

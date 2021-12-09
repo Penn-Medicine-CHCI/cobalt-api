@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.GroupSessionSystem.GroupSessionSystemId;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.ZoneId;
@@ -67,6 +68,14 @@ public class Institution {
 	private Boolean emailEnabled;
 	@Nullable
 	private Boolean anonymousEnabled;
+	@Nonnull
+	private Long accessTokenExpirationInMinutes;
+	@Nonnull
+	private Long accessTokenShortExpirationInMinutes;
+	@Nonnull
+	private Long anonAccessTokenExpirationInMinutes;
+	@Nonnull
+	private Long anonAccessTokenShortExpirationInMinutes;
 
 	public enum InstitutionId {
 		COBALT
@@ -228,5 +237,41 @@ public class Institution {
 
 	public void setAnonymousEnabled(@Nullable Boolean anonymousEnabled) {
 		this.anonymousEnabled = anonymousEnabled;
+	}
+
+	@Nonnull
+	public Long getAccessTokenExpirationInMinutes() {
+		return accessTokenExpirationInMinutes;
+	}
+
+	public void setAccessTokenExpirationInMinutes(@Nonnull Long accessTokenExpirationInMinutes) {
+		this.accessTokenExpirationInMinutes = accessTokenExpirationInMinutes;
+	}
+
+	@Nonnull
+	public Long getAccessTokenShortExpirationInMinutes() {
+		return accessTokenShortExpirationInMinutes;
+	}
+
+	public void setAccessTokenShortExpirationInMinutes(@Nonnull Long accessTokenShortExpirationInMinutes) {
+		this.accessTokenShortExpirationInMinutes = accessTokenShortExpirationInMinutes;
+	}
+
+	@Nonnull
+	public Long getAnonAccessTokenExpirationInMinutes() {
+		return anonAccessTokenExpirationInMinutes;
+	}
+
+	public void setAnonAccessTokenExpirationInMinutes(@Nonnull Long anonAccessTokenExpirationInMinutes) {
+		this.anonAccessTokenExpirationInMinutes = anonAccessTokenExpirationInMinutes;
+	}
+
+	@Nonnull
+	public Long getAnonAccessTokenShortExpirationInMinutes() {
+		return anonAccessTokenShortExpirationInMinutes;
+	}
+
+	public void setAnonAccessTokenShortExpirationInMinutes(@Nonnull Long anonAccessTokenShortExpirationInMinutes) {
+		this.anonAccessTokenShortExpirationInMinutes = anonAccessTokenShortExpirationInMinutes;
 	}
 }

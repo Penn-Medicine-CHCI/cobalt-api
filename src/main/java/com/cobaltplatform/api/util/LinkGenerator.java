@@ -105,7 +105,7 @@ public class LinkGenerator {
 		String baseUrl = determineBaseUrl(institutionId, clientDeviceTypeId);
 		String urlPath = "auth";
 
-		if(loginDestinationId == LoginDestinationId.IC_PANEL)
+		if (loginDestinationId == LoginDestinationId.IC_PANEL)
 			baseUrl = getConfiguration().getIcWebappBaseUrl();
 
 		return constructUrl(baseUrl, urlPath, new HashMap<String, Object>() {{
