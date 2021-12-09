@@ -82,8 +82,10 @@ public class InstitutionResource {
 	}
 
 	@GET("/institution/account-sources")
-	public ApiResponse getAccountSources(@QueryParameter Optional<String> subdomain) {
+	public ApiResponse getAccountSources(@QueryParameter Optional<String> subdomain,
+																			 @QueryParameter Optional<String> accountSourceId) {
 		String requestSubdomain;
+		AccountSource.AccountSourceId requestAccountSourceId = null;
 
 		if (subdomain.isPresent())
 			requestSubdomain = subdomain.get();
@@ -102,11 +104,16 @@ public class InstitutionResource {
 
 		Institution pinnedInstitution = institution.get();
 
+		List<AccountSourceApiResponse> accountSources = requestAccountSourceId == null ? getInstitutionService().findAccountSourcesForByInstitutionId(
+						pinnedInstitution.getInstitutionId().toString()).stream().map((accountSource) ->
+						getAccountSourceApiResponseFactory().create(accountSource, getConfiguration().getEnvironment()))
+				.collect(Collectors.toList()) : getInstitutionService().findAccountSourcesForByInstitutionIdAndAccountSourceId(
+						pinnedInstitution.getInstitutionId().toString(), requestAccountSourceId.toString()).stream().map((accountSource) ->
+						getAccountSourceApiResponseFactory().create(accountSource, getConfiguration().getEnvironment()))
+				.collect(Collectors.toList());
+
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("accountSources", getInstitutionService().findAccountSourcesForByInstitutionId(
-					pinnedInstitution.getInstitutionId().toString()).stream().map((accountSource) ->
-					getAccountSourceApiResponseFactory().create(accountSource, getConfiguration().getEnvironment()))
-					.collect(Collectors.toList()));
+			put("accountSources", accountSources);
 		}});
 	}
 
@@ -134,6 +141,19 @@ public class InstitutionResource {
 
 		if (!institution.isPresent())
 			throw new NotFoundException();
+
+		if (requestAccountSourceId != null) {
+			if (requestAccountSourceId.equals(AccountSource.AccountSourceId.ANONYMOUS)) {
+				institution.get().setEmailEnabled(false);
+				institution.get().setSsoEnabled(false);
+			} else if (requestAccountSourceId.equals(AccountSource.AccountSourceId.EMAIL_PASSWORD)) {
+				institution.get().setSsoEnabled(false);
+				institution.get().setAnonymousEnabled(false);
+			} else {
+				institution.get().setAnonymousEnabled(false);
+				institution.get().setEmailEnabled(false);
+			}
+		}
 
 		Institution pinnedInstitution = institution.get();
 		List<AccountSourceApiResponse> accountSources = requestAccountSourceId == null ? getInstitutionService().findAccountSourcesForByInstitutionId(
