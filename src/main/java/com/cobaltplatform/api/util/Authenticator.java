@@ -102,7 +102,7 @@ public class Authenticator {
 
 		this.configuration = configuration;
 		this.gson = new Gson();
-		this.missingIssuedAtOffsetInMinutes = getConfiguration().getAccessTokenShortExpirationInMinutes();
+		this.missingIssuedAtOffsetInMinutes = 10080L;  // Arbitrary; supports legacy access tokens
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.accountServiceProvider = accountServiceProvider;
 	}
