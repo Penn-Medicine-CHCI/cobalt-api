@@ -92,6 +92,10 @@ public class InstitutionResource {
 		else
 			requestSubdomain = getConfiguration().getDefaultSubdomain();
 
+		if (accountSourceId.isPresent() && ValidationUtility.isValidEnum(accountSourceId.get(),
+				AccountSource.AccountSourceId.class))
+			requestAccountSourceId = AccountSource.AccountSourceId.valueOf(accountSourceId.get());
+
 		// TODO: we should revisit this when we roll out other institutions
 		boolean isWww = subdomain.isPresent() && subdomain.get().trim().toLowerCase(Locale.US).equals("www");
 		Optional<Institution> institution = getInstitutionService().findInstitutionBySubdomain(requestSubdomain);
