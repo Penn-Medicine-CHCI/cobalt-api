@@ -143,7 +143,7 @@ public class AssessmentResource {
 		return getAssessmentQuestion(AssessmentType.INTRO, questionId.orElse(null), sessionId.orElse(null), null, null);
 	}
 
-
+	@AuthenticationRequired
 	@GET("/assessment/intake")
 	public ApiResponse getIntakeAssessmentQuestion(@QueryParameter("questionId") Optional<String> questionId,
 																								 @QueryParameter("sessionId") Optional<String> sessionId,
@@ -152,8 +152,7 @@ public class AssessmentResource {
 		return getAssessmentQuestion(AssessmentType.INTAKE, questionId.orElse(null), sessionId.orElse(null),
 				providerId.orElse(null), groupSessionId.orElse(null));
 	}
-
-
+	
 	@AuthenticationRequired
 	@GET("/assessment/evidence")
 	public ApiResponse getEvidenceAssessmentQuestion(@QueryParameter("questionId") Optional<String> questionId,
@@ -161,7 +160,6 @@ public class AssessmentResource {
 		return getAssessmentQuestion(AssessmentType.PHQ4, questionId.orElse(null), sessionId.orElse(null), null, null);
 	}
 
-	@AuthenticationRequired
 	private ApiResponse getAssessmentQuestion(@Nonnull AssessmentType assessmentType,
 																						@Nullable String questionId,
 																						@Nullable String sessionId,
