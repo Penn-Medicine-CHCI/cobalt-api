@@ -314,7 +314,7 @@ public class AppointmentResource {
 		activityTrackingRequest.setActivityTypeId(ActivityTypeId.APPOINTMENT);
 		activityTrackingRequest.setContext(new JSONObject().put("appointmentId",appointmentId.toString()).toString());
 
-		getActivityTrackingService().trackActivity(account, activityTrackingRequest);
+		getActivityTrackingService().trackActivity(Optional.of(account), activityTrackingRequest);
 
 		// It's possible creating the appointment has updated the account's email address.
 		// Vend the account so client has the latest and greatest
@@ -375,7 +375,7 @@ public class AppointmentResource {
 		activityTrackingRequest.setActivityTypeId(ActivityTypeId.APPOINTMENT);
 		activityTrackingRequest.setContext(new JSONObject().put("appointmentId",appointmentId.toString()).toString());
 
-		getActivityTrackingService().trackActivity(account, activityTrackingRequest);
+		getActivityTrackingService().trackActivity(Optional.of(account), activityTrackingRequest);
 
 		return new ApiResponse();
 	}

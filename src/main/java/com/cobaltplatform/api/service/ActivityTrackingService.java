@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -56,14 +57,15 @@ public class ActivityTrackingService {
 	}
 
 	@Nonnull
-	public UUID trackActivity(@Nonnull Account account,
+	public UUID trackActivity(@Nonnull Optional<Account> account,
 														@Nonnull CreateActivityTrackingRequest request) {
 
 		UUID activityTrackingId = UUID.randomUUID();
+		UUID accountId = account.isEmpty() ? null : account.get().getAccountId();
 
 		getDatabase().execute("INSERT INTO activity_tracking (activity_tracking_id, account_id, activity_type_id, "
 						+ "activity_action_id, session_tracking_id, context) VALUES (?,?,?,?,?,CAST (? AS JSONB))",
-				activityTrackingId, account.getAccountId(), request.getActivityTypeId(), request.getActivityActionId(),
+				activityTrackingId, accountId, request.getActivityTypeId(), request.getActivityActionId(),
 				request.getSessionTrackingId(), request.getContext());
 
 		return activityTrackingId;

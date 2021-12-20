@@ -324,7 +324,7 @@ public class AccountResource {
 		activityTrackingRequest.setActivityTypeId(ActivityType.ActivityTypeId.ACCOUNT);
 		activityTrackingRequest.setContext(new JSONObject().put("accountId",account.getAccountId().toString()).toString());
 
-		getActivityTrackingService().trackActivity(account, activityTrackingRequest);
+		getActivityTrackingService().trackActivity(Optional.of(account), activityTrackingRequest);
 
 		// TODO: remove this hack
 		if (loginDestinationId == LoginDestinationId.IC_PANEL)
@@ -608,7 +608,7 @@ public class AccountResource {
 		activityTrackingRequest.setActivityTypeId(ActivityType.ActivityTypeId.ACCOUNT);
 		activityTrackingRequest.setContext(new JSONObject().put("accountId",accountId.toString()).toString());
 
-		getActivityTrackingService().trackActivity(account, activityTrackingRequest);
+		getActivityTrackingService().trackActivity(Optional.of(account), activityTrackingRequest);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("account", getAccountApiResponseFactory().create(account));
