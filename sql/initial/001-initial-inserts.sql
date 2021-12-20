@@ -235,4 +235,35 @@ INSERT INTO font_size (font_size_id, description) VALUES
 ('DEFAULT', 'Default'),
 ('SMALL', 'Small');
 
+
+-- Test data
+INSERT INTO institution (institution_id, name, crisis_content, privacy_content, covid_content, subdomain) VALUES
+('COBALT', 'Cobalt', '', '', '', 'cobalt');
+
+INSERT INTO institution_account_source (institution_account_source_id, institution_id, account_source_id) VALUES
+(uuid_generate_v4(), 'COBALT', 'ANONYMOUS');
+INSERT INTO institution_account_source (institution_account_source_id, institution_id, account_source_id) VALUES
+(uuid_generate_v4(), 'COBALT', 'EMAIL_PASSWORD');
+
+-- password - test1234
+INSERT INTO account
+(account_id, role_id, institution_id, account_source_id, email_address, password, first_name, last_name, display_name)
+VALUES
+(uuid_generate_v4(), 'PATIENT', 'COBALT', 'EMAIL_PASSWORD', 'patient@cobaltinnovations.org',
+'$2a$10$M2tPoJ8eQr55OW4iOfpbBOpgqFWt0LxnvVBnW1a/1LhKNA6SuUN42', 'Cobalt', 'Patient', 'Cobalt Patient');
+
+-- password - test1234
+INSERT INTO account
+(account_id, role_id, institution_id, account_source_id, email_address, password, first_name, last_name, display_name)
+VALUES
+(uuid_generate_v4(), 'PROVIDER', 'COBALT', 'EMAIL_PASSWORD', 'provider@cobaltinnovations.org',
+'$2a$10$M2tPoJ8eQr55OW4iOfpbBOpgqFWt0LxnvVBnW1a/1LhKNA6SuUN42', 'Cobalt', 'Provider', 'Cobalt Provider');
+
+-- password - test1234
+INSERT INTO account
+(account_id, role_id, institution_id, account_source_id, email_address, password, first_name, last_name, display_name)
+VALUES
+(uuid_generate_v4(), 'ADMINISTRATOR', 'COBALT', 'EMAIL_PASSWORD', 'admin@cobaltinnovations.org',
+'$2a$10$M2tPoJ8eQr55OW4iOfpbBOpgqFWt0LxnvVBnW1a/1LhKNA6SuUN42', 'Cobalt', 'Admin', 'Cobalt Admin');
+
 COMMIT;
