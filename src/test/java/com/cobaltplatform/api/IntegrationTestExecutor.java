@@ -19,11 +19,11 @@
 
 package com.cobaltplatform.api;
 
+import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.google.inject.AbstractModule;
 import com.google.inject.Module;
 import com.google.inject.Provides;
-import com.cobaltplatform.api.context.CurrentContext;
-import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.pyranid.Database;
 
 import javax.annotation.Nonnull;
@@ -31,6 +31,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Singleton;
 import java.time.ZoneId;
+import java.util.Arrays;
 import java.util.Locale;
 
 import static java.util.Objects.requireNonNull;
@@ -126,6 +127,8 @@ public final class IntegrationTestExecutor {
 		for (int i = 0; i < modules.length; ++i)
 			newModules[i + 1] = modules[i];
 
-		return newModules;
+		return Arrays.stream(newModules)
+				.filter(module -> module != null)
+				.toArray(Module[]::new);
 	}
 }
