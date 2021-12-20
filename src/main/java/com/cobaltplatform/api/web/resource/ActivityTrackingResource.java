@@ -38,6 +38,7 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.util.HashMap;
+import java.util.Optional;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -81,7 +82,23 @@ public class ActivityTrackingResource {
 		CreateActivityTrackingRequest request = getRequestBodyParser().parse(body, CreateActivityTrackingRequest.class);
 		request.setSessionTrackingId(getCurrentContext().getSessionTrackingId());
 
-		UUID activityTrackingId = getActivityTrackingService().trackActivity(account, request);
+		UUID activityTrackingId = getActivityTrackingService().trackActivity(Optional.of(account), request);
+
+		ActivityTracking activityTracking = getActivityTrackingService().findRequiredActivityTrackingById(activityTrackingId);
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("activityTracking", getActivityTrackingApiResponseFactory().create(activityTracking));
+		}});
+	}
+
+	@POST("/unauthenticated-activity-tracking")
+	public ApiResponse createUnauthenticatedActivityTracking(@Nonnull @RequestBody String body) {
+		requireNonNull(body);
+
+		CreateActivityTrackingRequest request = getRequestBodyParser().parse(body, CreateActivityTrackingRequest.class);
+		request.setSessionTrackingId(getCurrentContext().getSessionTrackingId());
+
+		UUID activityTrackingId = getActivityTrackingService().trackActivity(Optional.empty(), request);
 
 		ActivityTracking activityTracking = getActivityTrackingService().findRequiredActivityTrackingById(activityTrackingId);
 
