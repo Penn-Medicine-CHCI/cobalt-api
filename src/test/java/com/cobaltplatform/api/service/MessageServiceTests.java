@@ -29,11 +29,10 @@ import com.google.gson.Gson;
 import org.junit.Test;
 import org.testng.Assert;
 
+import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -50,20 +49,9 @@ public class MessageServiceTests {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			MessageService messageService = app.getInjector().getInstance(MessageService.class);
 
-			Message message = new EmailMessage.Builder(EmailMessageTemplate.ACCOUNT_VERIFICATION, Locale.US)
-					.toAddresses(List.of("fake@example.com"))
-					.fromAddress("alsofake@example.com")
-					.messageContext(new HashMap<String, Object>() {{
-						put("number", 1);
-						put("string", "2");
-					}})
-					.build();
-
+			Message message = createMessage();
 			ZoneId timeZone = ZoneId.systemDefault();
-			LocalDateTime scheduledAt = Instant.now()
-					.plus(5, ChronoUnit.MINUTES)
-					.atZone(timeZone)
-					.toLocalDateTime();
+			LocalDateTime scheduledAt = LocalDateTime.now(timeZone);
 
 			Map<String, Object> metadata = new HashMap<>() {{
 				put("exampleId", UUID.randomUUID());
@@ -89,5 +77,60 @@ public class MessageServiceTests {
 
 			Assert.assertTrue(canceled, "Message was not successfully canceled");
 		});
+	}
+
+	@Test
+	public void findScheduledMessagesMatchingMetadata() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			MessageService messageService = app.getInjector().getInstance(MessageService.class);
+
+			ZoneId timeZone = ZoneId.systemDefault();
+			LocalDateTime scheduledAt = LocalDateTime.now(timeZone);
+
+			Message message1 = createMessage();
+			Map<String, Object> metadata1 = new HashMap<>() {{
+				put("exampleId", UUID.randomUUID());
+			}};
+
+			messageService.createScheduledMessage(new CreateScheduledMessageRequest<>() {{
+				setMessage(message1);
+				setScheduledAt(scheduledAt);
+				setTimeZone(timeZone);
+				setMetadata(metadata1);
+			}});
+
+			Message message2 = createMessage();
+			Map<String, Object> metadata2 = new HashMap<>() {{
+				put("anotherId", UUID.randomUUID());
+			}};
+
+			messageService.createScheduledMessage(new CreateScheduledMessageRequest<>() {{
+				setMessage(message2);
+				setScheduledAt(scheduledAt);
+				setTimeZone(timeZone);
+				setMetadata(metadata2);
+			}});
+
+			List<ScheduledMessage> scheduledMessages = messageService.findScheduledMessagesMatchingMetadata(metadata1);
+
+			Assert.assertTrue(scheduledMessages.size() == 1, "Should have found a single scheduled message");
+
+			ScheduledMessage scheduledMessage = scheduledMessages.get(0);
+			Map<String, Object> metadataFromJson = new Gson().fromJson(scheduledMessage.getMetadata(), Map.class);
+
+			Assert.assertEquals(metadataFromJson.get("exampleId").toString(), metadata1.get("exampleId").toString(), "Metadatas differ");
+		});
+	}
+
+	@Nonnull
+	protected Message createMessage() {
+		return new EmailMessage.Builder(EmailMessageTemplate.ACCOUNT_VERIFICATION, Locale.US)
+				.toAddresses(List.of("fake@example.com"))
+				.fromAddress("alsofake@example.com")
+				.messageContext(new HashMap<String, Object>() {{
+					put("number", 1);
+					put("string", "2");
+				}})
+				.build();
 	}
 }

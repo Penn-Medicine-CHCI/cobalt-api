@@ -215,6 +215,32 @@ public class MessageService {
 	}
 
 	/**
+	 * Finds scheduled messages that match (contain) the provided metadata.
+	 *
+	 * @param metadata (nullable) the metadata to match against
+	 * @return (nonnull) a list of scheduled messages that contain the metadata
+	 */
+	@Nonnull
+	public List<ScheduledMessage> findScheduledMessagesMatchingMetadata(@Nullable Map<String, Object> metadata) {
+		if (metadata == null || metadata.size() == 0)
+			return Collections.emptyList();
+
+		String metadataAsJson = getJsonMapper().toJson(metadata);
+
+		// Uses JSONB containment operator.
+		//
+		// Example from http://www.silota.com/docs/recipes/sql-postgres-json-data-types.html:
+		//
+		// select '{"name": "Alice", "agent": {"bot": true} }'::jsonb @> '{"agent": {"bot": false}}';
+		// -- returns false
+		//
+		// select '{"name": "Alice", "agent": {"bot": true} }'::jsonb @> '{"agent": {"bot": true}}';
+		// -- returns true
+		return getDatabase().queryForList("SELECT * FROM scheduled_message WHERE metadata @> CAST(? AS JSONB) " +
+				"ORDER BY TIMEZONE(time_zone, scheduled_at)", ScheduledMessage.class, metadataAsJson);
+	}
+
+	/**
 	 * Cancels a scheduled message. Only applicable to messages still in PENDING status.
 	 *
 	 * @param scheduledMessageId (nullable) the ID of the scheduled message to cancel
