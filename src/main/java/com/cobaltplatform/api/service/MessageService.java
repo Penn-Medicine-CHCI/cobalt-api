@@ -19,34 +19,49 @@
 
 package com.cobaltplatform.api.service;
 
-import com.lokalized.Strings;
+import com.cobaltplatform.api.messaging.Message;
 import com.cobaltplatform.api.messaging.call.CallMessage;
 import com.cobaltplatform.api.messaging.call.CallMessageManager;
+import com.cobaltplatform.api.messaging.call.CallMessageSerializer;
 import com.cobaltplatform.api.messaging.call.CallMessageTemplate;
-import com.cobaltplatform.api.messaging.email.EmailMessageManager;
+import com.cobaltplatform.api.messaging.email.EmailMessage;
+import com.cobaltplatform.api.messaging.email.EmailMessageSerializer;
 import com.cobaltplatform.api.messaging.sms.SmsMessage;
 import com.cobaltplatform.api.messaging.sms.SmsMessageManager;
+import com.cobaltplatform.api.messaging.sms.SmsMessageSerializer;
 import com.cobaltplatform.api.messaging.sms.SmsMessageTemplate;
+import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
 import com.cobaltplatform.api.model.api.request.SendCallMessagesRequest;
 import com.cobaltplatform.api.model.api.request.SendCallMessagesRequest.SendCallMessageRequest;
 import com.cobaltplatform.api.model.api.request.SendSmsMessagesRequest;
 import com.cobaltplatform.api.model.api.request.SendSmsMessagesRequest.SendSmsMessageRequest;
+import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
+import com.cobaltplatform.api.model.db.ScheduledMessage;
+import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
 import com.cobaltplatform.api.util.Formatter;
+import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -59,18 +74,20 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @ThreadSafe
 public class MessageService {
 	@Nonnull
-	private static final Integer MAXIMUM_MESSAGE_SEND_BATCH_SIZE;
-	@Nonnull
 	private static final Integer MAXIMUM_SMS_BODY_CHARACTER_COUNT;
 	@Nonnull
 	private static final Locale FREEFORM_MESSAGE_LOCALE;
 
 	@Nonnull
-	private final EmailMessageManager emailMessageManager;
+	private final EmailMessageSerializer emailMessageSerializer;
 	@Nonnull
 	private final SmsMessageManager smsMessageManager;
 	@Nonnull
+	private final SmsMessageSerializer smsMessageSerializer;
+	@Nonnull
 	private final CallMessageManager callMessageManager;
+	@Nonnull
+	private final CallMessageSerializer callMessageSerializer;
 	@Nonnull
 	private final Database database;
 	@Nonnull
@@ -78,40 +95,143 @@ public class MessageService {
 	@Nonnull
 	private final Normalizer normalizer;
 	@Nonnull
+	private final JsonMapper jsonMapper;
+	@Nonnull
 	private final Strings strings;
 	@Nonnull
 	private final Logger logger;
 
 	static {
-		MAXIMUM_MESSAGE_SEND_BATCH_SIZE = 100;
 		MAXIMUM_SMS_BODY_CHARACTER_COUNT = 1_600;
-		FREEFORM_MESSAGE_LOCALE = Locale.US;
+		FREEFORM_MESSAGE_LOCALE = Locale.forLanguageTag("en-US");
 	}
 
 	@Inject
-	public MessageService(@Nonnull EmailMessageManager emailMessageManager,
+	public MessageService(@Nonnull EmailMessageSerializer emailMessageSerializer,
 												@Nonnull SmsMessageManager smsMessageManager,
+												@Nonnull SmsMessageSerializer smsMessageSerializer,
 												@Nonnull CallMessageManager callMessageManager,
+												@Nonnull CallMessageSerializer callMessageSerializer,
 												@Nonnull Database database,
 												@Nonnull Formatter formatter,
 												@Nonnull Normalizer normalizer,
+												@Nonnull JsonMapper jsonMapper,
 												@Nonnull Strings strings) {
-		requireNonNull(emailMessageManager);
+		requireNonNull(emailMessageSerializer);
 		requireNonNull(smsMessageManager);
+		requireNonNull(smsMessageSerializer);
 		requireNonNull(callMessageManager);
+		requireNonNull(callMessageSerializer);
 		requireNonNull(database);
 		requireNonNull(formatter);
 		requireNonNull(normalizer);
+		requireNonNull(jsonMapper);
 		requireNonNull(strings);
 
-		this.emailMessageManager = emailMessageManager;
+		this.emailMessageSerializer = emailMessageSerializer;
 		this.smsMessageManager = smsMessageManager;
+		this.smsMessageSerializer = smsMessageSerializer;
 		this.callMessageManager = callMessageManager;
+		this.callMessageSerializer = callMessageSerializer;
 		this.database = database;
 		this.formatter = formatter;
 		this.normalizer = normalizer;
+		this.jsonMapper = jsonMapper;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
+	}
+
+	/**
+	 * Schedules a message that the system will send on or after the specified date/time.
+	 *
+	 * @param request (nonnull) the data necessary to create the scheduled message
+	 * @return (nonnull) the scheduled message ID
+	 */
+	@Nonnull
+	public UUID createScheduledMessage(@Nonnull CreateScheduledMessageRequest request) {
+		requireNonNull(request);
+
+		Message message = request.getMessage();
+		UUID scheduledMessageId = UUID.randomUUID();
+		UUID messageId = message == null ? null : message.getMessageId();
+		MessageTypeId messageTypeId = message == null ? null : message.getMessageTypeId();
+		LocalDateTime scheduledAt = message == null ? null : request.getScheduledAt();
+		ZoneId timeZone = message == null ? null : request.getTimeZone();
+		Map<String, Object> metadata = request.getMetadata() == null ? null : request.getMetadata();
+		String serializedMessage;
+
+		ValidationException validationException = new ValidationException();
+
+		if (messageId == null)
+			validationException.add(new FieldError("messageId", getStrings().get("Message ID is required.")));
+
+		if (messageTypeId == null)
+			validationException.add(new FieldError("messageTypeId", getStrings().get("Message Type ID is required.")));
+
+		if (scheduledAt == null)
+			validationException.add(new FieldError("scheduledAt", getStrings().get("'Scheduled at' date/time is required.")));
+
+		if (timeZone == null)
+			validationException.add(new FieldError("timeZone", getStrings().get("Time zone is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		if (messageTypeId == MessageTypeId.EMAIL)
+			serializedMessage = getEmailMessageSerializer().serializeMessage((EmailMessage) message);
+		else if (messageTypeId == MessageTypeId.SMS)
+			serializedMessage = getSmsMessageSerializer().serializeMessage((SmsMessage) message);
+		else if (messageTypeId == MessageTypeId.CALL)
+			serializedMessage = getCallMessageSerializer().serializeMessage((CallMessage) message);
+		else
+			throw new IllegalStateException(format("Sorry, %s.%s is not yet supported.",
+					MessageTypeId.class.getSimpleName(), messageTypeId.name()));
+
+		String metadataAsJson = metadata == null ? null : getJsonMapper().toJson(metadata);
+
+		getLogger().info("Creating scheduled message of type {}, scheduled for {} {}.\nMetadata:\n{}\nSerialized form:\n{}",
+				messageTypeId.name(), scheduledAt, timeZone.getId(), metadata == null ? "[none]" : metadataAsJson, serializedMessage);
+
+		getDatabase().execute("INSERT INTO scheduled_message (scheduled_message_id, message_id, message_type_id, " +
+						"serialized_message, scheduled_at, time_zone, metadata) VALUES (?,?,?,CAST(? AS JSONB),?,?,CAST(? AS JSONB))",
+				scheduledMessageId, messageId, messageTypeId, serializedMessage, scheduledAt, timeZone, metadataAsJson);
+
+		return scheduledMessageId;
+	}
+
+	/**
+	 * Finds a scheduled message given its ID.
+	 *
+	 * @param scheduledMessageId (nullable) the ID of the scheduled message to find
+	 * @return (nonnull) an {@link Optional} representation of the scheduled message
+	 */
+	@Nonnull
+	public Optional<ScheduledMessage> findScheduledMessageById(@Nullable UUID scheduledMessageId) {
+		if (scheduledMessageId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("SELECT * FROM scheduled_message WHERE scheduled_message_id=?",
+				ScheduledMessage.class, scheduledMessageId);
+	}
+
+	/**
+	 * Cancels a scheduled message. Only applicable to messages still in PENDING status.
+	 *
+	 * @param scheduledMessageId (nullable) the ID of the scheduled message to cancel
+	 * @return (nonnull) {@code true} if cancelation succeeded, {@code false} otherwise
+	 */
+	@Nonnull
+	public Boolean cancelScheduledMessage(@Nullable UUID scheduledMessageId) {
+		if (scheduledMessageId == null)
+			return false;
+
+		boolean canceled = getDatabase().execute("UPDATE scheduled_message SET scheduled_message_status_id=? " +
+						"WHERE scheduled_message_status_id=? AND scheduled_message_id=?", ScheduledMessageStatusId.CANCELED,
+				ScheduledMessageStatusId.PENDING, scheduledMessageId) > 0;
+
+		getLogger().info("Scheduled message ID {} was {} canceled.", scheduledMessageId, canceled ? "successfully" : "NOT");
+
+		return canceled;
 	}
 
 	public void sendSmsMessages(@Nonnull SendSmsMessagesRequest request) {
@@ -211,11 +331,6 @@ public class MessageService {
 	}
 
 	@Nonnull
-	protected Integer getMaximumMessageSendBatchSize() {
-		return MAXIMUM_MESSAGE_SEND_BATCH_SIZE;
-	}
-
-	@Nonnull
 	protected Integer getMaximumSmsBodyCharacterCount() {
 		return MAXIMUM_SMS_BODY_CHARACTER_COUNT;
 	}
@@ -226,8 +341,8 @@ public class MessageService {
 	}
 
 	@Nonnull
-	protected EmailMessageManager getEmailMessageManager() {
-		return emailMessageManager;
+	protected EmailMessageSerializer getEmailMessageSerializer() {
+		return emailMessageSerializer;
 	}
 
 	@Nonnull
@@ -236,8 +351,18 @@ public class MessageService {
 	}
 
 	@Nonnull
+	protected SmsMessageSerializer getSmsMessageSerializer() {
+		return smsMessageSerializer;
+	}
+
+	@Nonnull
 	protected CallMessageManager getCallMessageManager() {
 		return callMessageManager;
+	}
+
+	@Nonnull
+	protected CallMessageSerializer getCallMessageSerializer() {
+		return callMessageSerializer;
 	}
 
 	@Nonnull
@@ -253,6 +378,11 @@ public class MessageService {
 	@Nonnull
 	protected Normalizer getNormalizer() {
 		return normalizer;
+	}
+
+	@Nonnull
+	protected JsonMapper getJsonMapper() {
+		return jsonMapper;
 	}
 
 	@Nonnull
