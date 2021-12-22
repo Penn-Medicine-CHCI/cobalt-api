@@ -25,7 +25,9 @@ import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
 import com.cobaltplatform.api.model.db.ScheduledMessage;
+import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
 import com.google.gson.Gson;
+import com.pyranid.Database;
 import org.junit.Test;
 import org.testng.Assert;
 
@@ -119,6 +121,93 @@ public class MessageServiceTests {
 			Map<String, Object> metadataFromJson = new Gson().fromJson(scheduledMessage.getMetadata(), Map.class);
 
 			Assert.assertEquals(metadataFromJson.get("exampleId").toString(), metadata1.get("exampleId").toString(), "Metadatas differ");
+		});
+	}
+
+	@Test
+	public void testScheduledSending() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			MessageService messageService = app.getInjector().getInstance(MessageService.class);
+			Database database = app.getInjector().getInstance(Database.class);
+
+			// Schedule it for "now" so it will be sent immediately
+			ZoneId timeZone = ZoneId.systemDefault();
+			LocalDateTime scheduledAt = LocalDateTime.now(timeZone);
+
+			UUID scheduledMessageId = messageService.createScheduledMessage(new CreateScheduledMessageRequest<>() {{
+				setMessage(createMessage());
+				setScheduledAt(scheduledAt);
+				setTimeZone(timeZone);
+			}});
+
+			// Force a commit here so the scheduled message sender task will be able to see it
+			database.execute("COMMIT");
+
+			// Wait for the scheduled message sender to notice the message and send it
+			Thread.sleep(3000L);
+
+			ScheduledMessage scheduledMessage = messageService.findScheduledMessageById(scheduledMessageId).get();
+
+			Assert.assertEquals(scheduledMessage.getScheduledMessageStatusId(), ScheduledMessageStatusId.PROCESSED, "Scheduled message was not successfully processed");
+		});
+	}
+
+	@Test
+	public void testScheduledSendingTimeZones() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			MessageService messageService = app.getInjector().getInstance(MessageService.class);
+			Database database = app.getInjector().getInstance(Database.class);
+
+			// Schedule it for "now" so it will be sent immediately
+			ZoneId timeZone = ZoneId.of("America/New_York");
+			LocalDateTime scheduledAt = LocalDateTime.now(timeZone);
+
+			UUID scheduledMessageId = messageService.createScheduledMessage(new CreateScheduledMessageRequest<>() {{
+				setMessage(createMessage());
+				setScheduledAt(scheduledAt);
+				setTimeZone(timeZone);
+			}});
+
+			// Force a commit here so the scheduled message sender task will be able to see it
+			database.execute("COMMIT");
+
+			// Wait for the scheduled message sender to notice the message and send it
+			Thread.sleep(3000L);
+
+			ScheduledMessage scheduledMessage = messageService.findScheduledMessageById(scheduledMessageId).get();
+
+			Assert.assertEquals(scheduledMessage.getScheduledMessageStatusId(), ScheduledMessageStatusId.PROCESSED, "Scheduled message was not successfully processed");
+		});
+	}
+
+	@Test
+	public void testScheduledSendingErrorHandling() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			MessageService messageService = app.getInjector().getInstance(MessageService.class);
+			Database database = app.getInjector().getInstance(Database.class);
+
+			// Schedule it for "now" so it will be sent immediately
+			ZoneId timeZone = ZoneId.systemDefault();
+			LocalDateTime scheduledAt = LocalDateTime.now(timeZone);
+
+			UUID scheduledMessageId = messageService.createScheduledMessage(new CreateScheduledMessageRequest<>() {{
+				setMessage(createMessage());
+				setScheduledAt(scheduledAt);
+				setTimeZone(timeZone);
+			}});
+
+			// Put junk into the serialized message field which will cause the scheduled send to fail
+			database.execute("UPDATE scheduled_message SET serialized_message='{\"junk\": true}'::jsonb WHERE scheduled_message_id=?", scheduledMessageId);
+
+			// Force a commit here so the scheduled message sender task will be able to see it
+			database.execute("COMMIT");
+
+			// Wait for the scheduled message sender to notice the message and send it
+			Thread.sleep(3000L);
+
+			ScheduledMessage scheduledMessage = messageService.findScheduledMessageById(scheduledMessageId).get();
+
+			Assert.assertEquals(scheduledMessage.getScheduledMessageStatusId(), ScheduledMessageStatusId.ERROR, "Scheduled message was not successfully transitioned to ERROR");
 		});
 	}
 
