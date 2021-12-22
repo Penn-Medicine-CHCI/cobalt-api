@@ -19,21 +19,23 @@
 
 package com.cobaltplatform.api.web.resource;
 
-import com.lokalized.Strings;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CancelGroupSessionReservationRequest;
 import com.cobaltplatform.api.model.api.request.CreateGroupSessionReservationRequest;
+import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionReservationApiResponse.GroupSessionReservationApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionReservation;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.service.GroupSessionService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
+import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.PUT;
@@ -74,11 +76,15 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class GroupSessionReservationResource {
 	@Nonnull
+	private final AccountService accountService;
+	@Nonnull
 	private final GroupSessionService groupSessionService;
 	@Nonnull
 	private final GroupSessionApiResponseFactory groupSessionApiResponseFactory;
 	@Nonnull
 	private final GroupSessionReservationApiResponseFactory groupSessionReservationApiResponseFactory;
+	@Nonnull
+	private final AccountApiResponseFactory accountApiResponseFactory;
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
 	@Nonnull
@@ -95,18 +101,22 @@ public class GroupSessionReservationResource {
 	private final JsonMapper jsonMapper;
 
 	@Inject
-	public GroupSessionReservationResource(@Nonnull GroupSessionService groupSessionService,
+	public GroupSessionReservationResource(@Nonnull AccountService accountService,
+																				 @Nonnull GroupSessionService groupSessionService,
 																				 @Nonnull GroupSessionApiResponseFactory groupSessionApiResponseFactory,
 																				 @Nonnull GroupSessionReservationApiResponseFactory groupSessionReservationApiResponseFactory,
+																				 @Nonnull AccountApiResponseFactory accountApiResponseFactory,
 																				 @Nonnull RequestBodyParser requestBodyParser,
 																				 @Nonnull Formatter formatter,
 																				 @Nonnull Strings strings,
 																				 @Nonnull Provider<CurrentContext> currentContextProvider,
 																				 @Nonnull AuditLogService auditLogService,
 																				 @Nonnull JsonMapper jsonMapper) {
+		requireNonNull(accountService);
 		requireNonNull(groupSessionService);
 		requireNonNull(groupSessionApiResponseFactory);
 		requireNonNull(groupSessionReservationApiResponseFactory);
+		requireNonNull(accountApiResponseFactory);
 		requireNonNull(requestBodyParser);
 		requireNonNull(formatter);
 		requireNonNull(strings);
@@ -114,9 +124,11 @@ public class GroupSessionReservationResource {
 		requireNonNull(auditLogService);
 		requireNonNull(jsonMapper);
 
+		this.accountService = accountService;
 		this.groupSessionService = groupSessionService;
 		this.groupSessionApiResponseFactory = groupSessionApiResponseFactory;
 		this.groupSessionReservationApiResponseFactory = groupSessionReservationApiResponseFactory;
+		this.accountApiResponseFactory = accountApiResponseFactory;
 		this.requestBodyParser = requestBodyParser;
 		this.formatter = formatter;
 		this.strings = strings;
@@ -159,8 +171,13 @@ public class GroupSessionReservationResource {
 		UUID groupSessionReservationId = getGroupSessionService().createGroupSessionReservation(request);
 		Pair<GroupSession, GroupSessionReservation> groupSessionReservationPair = getGroupSessionService().findGroupSessionReservationPairById(groupSessionReservationId).get();
 
+		// It's possible creating the reservation has updated the account's email address.
+		// Vend the account so client has the latest and greatest
+		Account updatedAccount = getAccountService().findAccountById(account.getAccountId()).get();
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("groupSessionReservation", getGroupSessionReservationApiResponseFactory().create(groupSessionReservationPair.getRight()));
+			put("account", getAccountApiResponseFactory().create(updatedAccount));
 		}});
 	}
 
@@ -234,6 +251,11 @@ public class GroupSessionReservationResource {
 	}
 
 	@Nonnull
+	protected AccountService getAccountService() {
+		return accountService;
+	}
+
+	@Nonnull
 	protected GroupSessionService getGroupSessionService() {
 		return groupSessionService;
 	}
@@ -246,6 +268,11 @@ public class GroupSessionReservationResource {
 	@Nonnull
 	protected GroupSessionReservationApiResponseFactory getGroupSessionReservationApiResponseFactory() {
 		return groupSessionReservationApiResponseFactory;
+	}
+
+	@Nonnull
+	protected AccountApiResponseFactory getAccountApiResponseFactory() {
+		return accountApiResponseFactory;
 	}
 
 	@Nonnull
