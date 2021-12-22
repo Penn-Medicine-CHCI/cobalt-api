@@ -512,8 +512,6 @@ public class MessageService implements AutoCloseable {
 
 		@Override
 		public void run() {
-			getLogger().info("Scheduled message task running!");
-
 			CurrentContext currentContext = new CurrentContext.Builder(getConfiguration().getDefaultLocale(),
 					getConfiguration().getDefaultTimeZone()).build();
 
