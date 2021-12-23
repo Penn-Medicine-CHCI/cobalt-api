@@ -7,4 +7,5 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < initial/001-initial-in
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/002-click-tracking.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/003-session-expiration.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/004-activity-tracking.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/005-interaction.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/006-scheduled-messages.sql

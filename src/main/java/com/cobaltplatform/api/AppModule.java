@@ -84,6 +84,8 @@ import com.cobaltplatform.api.model.api.response.GroupSessionRequestApiResponse.
 import com.cobaltplatform.api.model.api.response.GroupSessionReservationApiResponse.GroupSessionReservationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionResponseApiResponse.GroupSessionResponseApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.InteractionInstanceApiResponse.InteractionInstanceApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.InteractionOptionApiResponse.InteractionOptionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.IntroAssessmentApiResponse.IntroAssessmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.LogicalAvailabilityApiResponse.LogicalAvailabilityApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
@@ -213,6 +215,8 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(ReportingChartApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ReportingChartMetricApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ReportingChartElementApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(InteractionInstanceApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(InteractionOptionApiResponseFactory.class)));
 	}
 
 	@Provides
