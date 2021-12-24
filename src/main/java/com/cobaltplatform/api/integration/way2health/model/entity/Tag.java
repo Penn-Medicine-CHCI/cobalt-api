@@ -19,11 +19,57 @@
 
 package com.cobaltplatform.api.integration.way2health.model.entity;
 
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.math.BigInteger;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
 public class Tag extends Way2HealthEntity {
+	@Nullable
+	private BigInteger id;
+	@Nullable
+	private String name;
+	@Nullable
+	private String description;
+	@Nullable
+	private Integer incidentCount;
+
+	@Nullable
+	public BigInteger getId() {
+		return id;
+	}
+
+	public void setId(@Nullable BigInteger id) {
+		this.id = id;
+	}
+
+	@Nullable
+	public String getName() {
+		return name;
+	}
+
+	public void setName(@Nullable String name) {
+		this.name = name;
+	}
+
+	@Nullable
+	public String getDescription() {
+		return description;
+	}
+
+	public void setDescription(@Nullable String description) {
+		this.description = description;
+	}
+
+	@Nullable
+	public Integer getIncidentCount() {
+		return incidentCount;
+	}
+
+	public void setIncidentCount(@Nullable Integer incidentCount) {
+		this.incidentCount = incidentCount;
+	}
 }

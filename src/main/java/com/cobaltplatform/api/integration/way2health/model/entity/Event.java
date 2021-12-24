@@ -21,44 +21,81 @@ package com.cobaltplatform.api.integration.way2health.model.entity;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.time.Instant;
+import java.math.BigInteger;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class Comment extends Way2HealthEntity {
+public class Event extends Way2HealthEntity {
 	@Nullable
-	private User user;
+	private BigInteger id;
 	@Nullable
-	private String comment;
+	private String name;
 	@Nullable
-	private Instant time;
+	private String type;
+	@Nullable
+	private Source source;
 
-	@Nullable
-	public User getUser() {
-		return user;
+	@NotThreadSafe
+	public static class Source extends Way2HealthEntity {
+		@Nullable
+		private BigInteger id;
+		@Nullable
+		private String name;
+
+		@Nullable
+		public BigInteger getId() {
+			return id;
+		}
+
+		public void setId(@Nullable BigInteger id) {
+			this.id = id;
+		}
+
+		@Nullable
+		public String getName() {
+			return name;
+		}
+
+		public void setName(@Nullable String name) {
+			this.name = name;
+		}
 	}
 
-	public void setUser(@Nullable User user) {
-		this.user = user;
+	@Nullable
+	public BigInteger getId() {
+		return id;
+	}
+
+	public void setId(@Nullable BigInteger id) {
+		this.id = id;
 	}
 
 	@Nullable
-	public String getComment() {
-		return comment;
+	public String getName() {
+		return name;
 	}
 
-	public void setComment(@Nullable String comment) {
-		this.comment = comment;
+	public void setName(@Nullable String name) {
+		this.name = name;
 	}
 
 	@Nullable
-	public Instant getTime() {
-		return time;
+	public String getType() {
+		return type;
 	}
 
-	public void setTime(@Nullable Instant time) {
-		this.time = time;
+	public void setType(@Nullable String type) {
+		this.type = type;
+	}
+
+	@Nullable
+	public Source getSource() {
+		return source;
+	}
+
+	public void setSource(@Nullable Source source) {
+		this.source = source;
 	}
 }

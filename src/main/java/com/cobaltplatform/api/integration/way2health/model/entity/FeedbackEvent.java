@@ -28,7 +28,7 @@ import java.time.LocalDateTime;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class EnrollmentStep extends Way2HealthEntity {
+public class FeedbackEvent extends Way2HealthEntity {
 	@Nullable
 	private BigInteger id;
 	@Nullable
@@ -64,7 +64,7 @@ public class EnrollmentStep extends Way2HealthEntity {
 	@Nullable
 	private BigInteger studyUserScheduleId;
 	@Nullable
-	private Integer targetValue;
+	private BigInteger targetValue;
 	@Nullable
 	private Participant participant;
 	@Nullable
@@ -226,11 +226,11 @@ public class EnrollmentStep extends Way2HealthEntity {
 	}
 
 	@Nullable
-	public Integer getTargetValue() {
+	public BigInteger getTargetValue() {
 		return targetValue;
 	}
 
-	public void setTargetValue(@Nullable Integer targetValue) {
+	public void setTargetValue(@Nullable BigInteger targetValue) {
 		this.targetValue = targetValue;
 	}
 

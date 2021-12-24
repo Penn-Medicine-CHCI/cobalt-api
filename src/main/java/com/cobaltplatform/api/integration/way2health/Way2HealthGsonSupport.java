@@ -35,6 +35,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.lang.reflect.Type;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -56,6 +57,7 @@ public class Way2HealthGsonSupport {
 				.setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
 				.registerTypeAdapter(LocalDate.class, new LocalDateConverter())
 				.registerTypeAdapter(LocalDateTime.class, new LocalDateTimeConverter())
+				.registerTypeAdapter(Instant.class, new InstantConverter())
 				.create();
 	}
 
@@ -65,7 +67,7 @@ public class Way2HealthGsonSupport {
 	}
 
 	/**
-	 * LocalDateTime: yyyy-MM-dd HH:mm:ss (e.g. 2020-12-14 11:34:56)
+	 * LocalDateTime: yyyy-MM-dd H:mm:ss (e.g. 2020-12-14 11:34:56)
 	 */
 	@ThreadSafe
 	public static class LocalDateTimeConverter implements JsonSerializer<LocalDateTime>, JsonDeserializer<LocalDateTime> {
@@ -73,7 +75,7 @@ public class Way2HealthGsonSupport {
 		private static final DateTimeFormatter DATE_TIME_FORMATTER;
 
 		static {
-			DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withLocale(Locale.US);
+			DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd H:mm:ss").withLocale(Locale.US);
 		}
 
 		@Override
@@ -173,6 +175,60 @@ public class Way2HealthGsonSupport {
 		@Nonnull
 		protected DateTimeFormatter getDateTimeFormatter() {
 			return DATE_TIME_FORMATTER;
+		}
+	}
+
+	/**
+	 * Instant: seconds since epoch as a *string* (e.g. "1452269461")
+	 * Also, there is also a more standard ISO 8601 "2021-12-22T21:37:29Z" format in some places...
+	 */
+	@ThreadSafe
+	public static class InstantConverter implements JsonSerializer<Instant>, JsonDeserializer<Instant> {
+		@Override
+		@Nullable
+		public Instant deserialize(@Nullable JsonElement json,
+															 @Nonnull Type typeOfJson,
+															 @Nonnull JsonDeserializationContext context) throws JsonParseException {
+			requireNonNull(typeOfJson);
+			requireNonNull(context);
+
+			if (json == null)
+				return null;
+
+			JsonPrimitive jsonPrimitive = json.getAsJsonPrimitive();
+
+			if (jsonPrimitive == null)
+				return null;
+
+			String instantAsString = jsonPrimitive.getAsString();
+
+			if (instantAsString == null)
+				return null;
+
+			try {
+				// Handle ISO 8601 "2021-12-22T21:37:29Z" case
+				return DateTimeFormatter.ISO_INSTANT.parse(instantAsString, Instant::from);
+			} catch (Exception ignored) {
+				// There are multiple Instant representations in Way2Health, this must not be the right one...
+			}
+
+			return Instant.ofEpochSecond(Long.valueOf(instantAsString));
+		}
+
+		@Override
+		@Nullable
+		public JsonElement serialize(@Nullable Instant instant,
+																 @Nonnull Type typeOfInstant,
+																 @Nonnull JsonSerializationContext context) {
+			requireNonNull(typeOfInstant);
+			requireNonNull(context);
+
+			if (instant == null)
+				return null;
+
+			// Unclear which of the two formats is "right" in Way2Health-land...we use the more standard ISO 8601 version here.
+			// Alternative would be: String.valueOf(instant.getEpochSecond())
+			return new JsonPrimitive(DateTimeFormatter.ISO_INSTANT.format(instant));
 		}
 	}
 }
