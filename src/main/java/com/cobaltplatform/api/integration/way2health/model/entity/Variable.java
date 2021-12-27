@@ -21,7 +21,6 @@ package com.cobaltplatform.api.integration.way2health.model.entity;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.math.BigInteger;
 import java.time.LocalDateTime;
 
 /**
@@ -30,11 +29,11 @@ import java.time.LocalDateTime;
 @NotThreadSafe
 public class Variable extends Way2HealthEntity {
 	@Nullable
-	private BigInteger id;
+	private Long id;
 	@Nullable
-	private BigInteger participantId;
+	private Long participantId;
 	@Nullable
-	private BigInteger variableId;
+	private Long variableId;
 	@Nullable
 	private String variableName;
 	@Nullable
@@ -44,11 +43,11 @@ public class Variable extends Way2HealthEntity {
 	@Nullable
 	private LocalDateTime asOf;
 	@Nullable
-	private BigInteger changedByUserId;
+	private Long changedByUserId;
 	@Nullable
 	private Boolean isManual;
 	@Nullable
-	private BigInteger feedbackEventId;
+	private Long feedbackEventId;
 	@Nullable
 	private String changedBy;
 	@Nullable
@@ -59,29 +58,29 @@ public class Variable extends Way2HealthEntity {
 	private FeedbackEvent feedbackEvent;
 
 	@Nullable
-	public BigInteger getId() {
+	public Long getId() {
 		return id;
 	}
 
-	public void setId(@Nullable BigInteger id) {
+	public void setId(@Nullable Long id) {
 		this.id = id;
 	}
 
 	@Nullable
-	public BigInteger getParticipantId() {
+	public Long getParticipantId() {
 		return participantId;
 	}
 
-	public void setParticipantId(@Nullable BigInteger participantId) {
+	public void setParticipantId(@Nullable Long participantId) {
 		this.participantId = participantId;
 	}
 
 	@Nullable
-	public BigInteger getVariableId() {
+	public Long getVariableId() {
 		return variableId;
 	}
 
-	public void setVariableId(@Nullable BigInteger variableId) {
+	public void setVariableId(@Nullable Long variableId) {
 		this.variableId = variableId;
 	}
 
@@ -122,11 +121,11 @@ public class Variable extends Way2HealthEntity {
 	}
 
 	@Nullable
-	public BigInteger getChangedByUserId() {
+	public Long getChangedByUserId() {
 		return changedByUserId;
 	}
 
-	public void setChangedByUserId(@Nullable BigInteger changedByUserId) {
+	public void setChangedByUserId(@Nullable Long changedByUserId) {
 		this.changedByUserId = changedByUserId;
 	}
 
@@ -140,11 +139,11 @@ public class Variable extends Way2HealthEntity {
 	}
 
 	@Nullable
-	public BigInteger getFeedbackEventId() {
+	public Long getFeedbackEventId() {
 		return feedbackEventId;
 	}
 
-	public void setFeedbackEventId(@Nullable BigInteger feedbackEventId) {
+	public void setFeedbackEventId(@Nullable Long feedbackEventId) {
 		this.feedbackEventId = feedbackEventId;
 	}
 

@@ -21,7 +21,6 @@ package com.cobaltplatform.api.integration.way2health.model.entity;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.math.BigInteger;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,11 +31,11 @@ import java.util.List;
 @NotThreadSafe
 public class Submission extends Way2HealthEntity {
 	@Nullable
-	private BigInteger id;
+	private Long id;
 	@Nullable
 	private LocalDateTime asOf;
 	@Nullable
-	private BigInteger participantId;
+	private Long participantId;
 	@Nullable
 	private List<Field> fields;
 	@Nullable
@@ -97,11 +96,11 @@ public class Submission extends Way2HealthEntity {
 	}
 
 	@Nullable
-	public BigInteger getId() {
+	public Long getId() {
 		return id;
 	}
 
-	public void setId(@Nullable BigInteger id) {
+	public void setId(@Nullable Long id) {
 		this.id = id;
 	}
 
@@ -115,11 +114,11 @@ public class Submission extends Way2HealthEntity {
 	}
 
 	@Nullable
-	public BigInteger getParticipantId() {
+	public Long getParticipantId() {
 		return participantId;
 	}
 
-	public void setParticipantId(@Nullable BigInteger participantId) {
+	public void setParticipantId(@Nullable Long participantId) {
 		this.participantId = participantId;
 	}
 

@@ -23,7 +23,6 @@ import com.cobaltplatform.api.integration.way2health.Way2HealthGsonSupport;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.math.BigInteger;
 import java.util.List;
 
 /**
@@ -32,7 +31,7 @@ import java.util.List;
 @NotThreadSafe
 public class FindIncidentsRequest {
 	@Nullable
-	private BigInteger studyId;
+	private Long studyId;
 	@Nullable
 	private Integer page;
 	@Nullable
@@ -60,11 +59,11 @@ public class FindIncidentsRequest {
 	}
 
 	@Nullable
-	public BigInteger getStudyId() {
+	public Long getStudyId() {
 		return studyId;
 	}
 
-	public void setStudyId(@Nullable BigInteger studyId) {
+	public void setStudyId(@Nullable Long studyId) {
 		this.studyId = studyId;
 	}
 

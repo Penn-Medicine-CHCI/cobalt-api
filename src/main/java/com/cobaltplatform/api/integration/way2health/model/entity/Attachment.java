@@ -21,7 +21,6 @@ package com.cobaltplatform.api.integration.way2health.model.entity;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.math.BigInteger;
 
 /**
  * @author Transmogrify, LLC.
@@ -29,7 +28,7 @@ import java.math.BigInteger;
 @NotThreadSafe
 public class Attachment extends Way2HealthEntity {
 	@Nullable
-	private BigInteger attachmentId;
+	private Long attachmentId;
 	@Nullable
 	private String objectType;
 	@Nullable
@@ -51,11 +50,11 @@ public class Attachment extends Way2HealthEntity {
 	}
 
 	@Nullable
-	public BigInteger getAttachmentId() {
+	public Long getAttachmentId() {
 		return attachmentId;
 	}
 
-	public void setAttachmentId(@Nullable BigInteger attachmentId) {
+	public void setAttachmentId(@Nullable Long attachmentId) {
 		this.attachmentId = attachmentId;
 	}
 

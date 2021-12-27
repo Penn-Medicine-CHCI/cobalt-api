@@ -35,6 +35,8 @@ public class PagedResponse<T extends Way2HealthEntity> {
 	private List<T> data;
 	@Nullable
 	private Meta meta;
+	@Nullable
+	private String rawResponseBody;
 
 	@Override
 	public String toString() {
@@ -66,7 +68,7 @@ public class PagedResponse<T extends Way2HealthEntity> {
 			@Nullable
 			private Integer totalPages;
 			@Nullable
-			private Links links;
+			private Links links; // Way2Health returns this as either an object or a list; we parse it specially
 
 			@Override
 			public String toString() {
@@ -205,5 +207,14 @@ public class PagedResponse<T extends Way2HealthEntity> {
 
 	public void setMeta(@Nullable Meta meta) {
 		this.meta = meta;
+	}
+
+	@Nullable
+	public String getRawResponseBody() {
+		return rawResponseBody;
+	}
+
+	public void setRawResponseBody(@Nullable String rawResponseBody) {
+		this.rawResponseBody = rawResponseBody;
 	}
 }

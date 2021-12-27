@@ -35,6 +35,8 @@ public class BasicResponse<T extends Way2HealthEntity> {
 	private List<T> data;
 	@Nullable
 	private List<Error> errors;
+	@Nullable
+	private String rawResponseBody;
 
 	@Override
 	public String toString() {
@@ -57,5 +59,14 @@ public class BasicResponse<T extends Way2HealthEntity> {
 
 	public void setErrors(@Nullable List<Error> errors) {
 		this.errors = errors;
+	}
+
+	@Nullable
+	public String getRawResponseBody() {
+		return rawResponseBody;
+	}
+
+	public void setRawResponseBody(@Nullable String rawResponseBody) {
+		this.rawResponseBody = rawResponseBody;
 	}
 }

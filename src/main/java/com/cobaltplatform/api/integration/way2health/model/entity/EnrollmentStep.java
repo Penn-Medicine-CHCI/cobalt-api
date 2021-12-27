@@ -21,7 +21,6 @@ package com.cobaltplatform.api.integration.way2health.model.entity;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.math.BigInteger;
 import java.time.LocalDateTime;
 
 /**
@@ -30,7 +29,7 @@ import java.time.LocalDateTime;
 @NotThreadSafe
 public class EnrollmentStep extends Way2HealthEntity {
 	@Nullable
-	private BigInteger id;
+	private Long id;
 	@Nullable
 	private String name;
 	@Nullable
@@ -46,9 +45,9 @@ public class EnrollmentStep extends Way2HealthEntity {
 	@Nullable
 	private LocalDateTime endDate;
 	@Nullable
-	private BigInteger enrollmentStepId;
+	private Long enrollmentStepId;
 	@Nullable
-	private BigInteger templateEventId;
+	private Long templateEventId;
 	@Nullable
 	private String apiId;
 	@Nullable
@@ -62,7 +61,7 @@ public class EnrollmentStep extends Way2HealthEntity {
 	@Nullable
 	private Boolean eventsCreated;
 	@Nullable
-	private BigInteger studyUserScheduleId;
+	private Long studyUserScheduleId;
 	@Nullable
 	private Integer targetValue;
 	@Nullable
@@ -73,11 +72,11 @@ public class EnrollmentStep extends Way2HealthEntity {
 	private Submission submission;
 
 	@Nullable
-	public BigInteger getId() {
+	public Long getId() {
 		return id;
 	}
 
-	public void setId(@Nullable BigInteger id) {
+	public void setId(@Nullable Long id) {
 		this.id = id;
 	}
 
@@ -145,20 +144,20 @@ public class EnrollmentStep extends Way2HealthEntity {
 	}
 
 	@Nullable
-	public BigInteger getEnrollmentStepId() {
+	public Long getEnrollmentStepId() {
 		return enrollmentStepId;
 	}
 
-	public void setEnrollmentStepId(@Nullable BigInteger enrollmentStepId) {
+	public void setEnrollmentStepId(@Nullable Long enrollmentStepId) {
 		this.enrollmentStepId = enrollmentStepId;
 	}
 
 	@Nullable
-	public BigInteger getTemplateEventId() {
+	public Long getTemplateEventId() {
 		return templateEventId;
 	}
 
-	public void setTemplateEventId(@Nullable BigInteger templateEventId) {
+	public void setTemplateEventId(@Nullable Long templateEventId) {
 		this.templateEventId = templateEventId;
 	}
 
@@ -217,11 +216,11 @@ public class EnrollmentStep extends Way2HealthEntity {
 	}
 
 	@Nullable
-	public BigInteger getStudyUserScheduleId() {
+	public Long getStudyUserScheduleId() {
 		return studyUserScheduleId;
 	}
 
-	public void setStudyUserScheduleId(@Nullable BigInteger studyUserScheduleId) {
+	public void setStudyUserScheduleId(@Nullable Long studyUserScheduleId) {
 		this.studyUserScheduleId = studyUserScheduleId;
 	}
 

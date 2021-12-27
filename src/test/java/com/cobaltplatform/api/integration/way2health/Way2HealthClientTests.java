@@ -26,7 +26,9 @@ import org.junit.Test;
 import org.testng.Assert;
 
 import javax.annotation.concurrent.ThreadSafe;
-import java.math.BigInteger;
+
+import static java.lang.String.format;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -36,13 +38,35 @@ public class Way2HealthClientTests {
 	@Test
 	public void testJsonParsing() throws Way2HealthException {
 		Way2HealthClient way2HealthClient = new MockWay2HealthClient();
-		
+
 		PagedResponse<Incident> incidentsResponse = way2HealthClient.findIncidents(new FindIncidentsRequest() {{
-			setStudyId(BigInteger.valueOf(123));
+			setStudyId(123L);
 		}});
 
-		System.out.println(incidentsResponse);
-
 		Assert.assertEquals(incidentsResponse.getData().size(), 1, "Incident count mismatch in mock data");
+	}
+
+	@Test
+	public void testRealClient() throws Way2HealthException {
+		String environmentVariableName = "COBALT_API_WAY2HEALTH_ACCESS_TOKEN";
+		String accessToken = trimToNull(System.getenv(environmentVariableName));
+
+		if (accessToken == null)
+			throw new IllegalStateException(format("You must specify a value for environment variable '%s'", environmentVariableName));
+
+		Way2HealthClient way2HealthClient = new DefaultWay2HealthClient(Way2HealthEnvironment.PRODUCTION, accessToken);
+
+		PagedResponse<Incident> incidentsResponse = way2HealthClient.findIncidents(new FindIncidentsRequest() {{
+			setStudyId(715L);
+			setOrderBy("desc(created_at)");
+			setPerPage(1);
+		}});
+
+		Assert.assertTrue(incidentsResponse.getData().size() > 0, "No incidents were found");
+
+		// Try pagination
+		incidentsResponse = way2HealthClient.findIncidents(incidentsResponse.getMeta().getPagination().getLinks().getNext());
+
+		Assert.assertTrue(incidentsResponse.getData().size() > 0, "Unable to iterate via pagination");
 	}
 }

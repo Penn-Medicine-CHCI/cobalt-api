@@ -21,7 +21,6 @@ package com.cobaltplatform.api.integration.way2health.model.entity;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.math.BigInteger;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -31,9 +30,9 @@ import java.util.List;
 @NotThreadSafe
 public class Participant extends Way2HealthEntity {
 	@Nullable
-	private BigInteger id;
+	private Long id;
 	@Nullable
-	private BigInteger studyId;
+	private Long studyId;
 	@Nullable
 	private String name;
 	@Nullable
@@ -112,18 +111,18 @@ public class Participant extends Way2HealthEntity {
 	@NotThreadSafe
 	public static class Arm extends Way2HealthEntity {
 		@Nullable
-		private BigInteger id;
+		private Long id;
 		@Nullable
 		private String name;
 		@Nullable
 		private Boolean enablePortal;
 
 		@Nullable
-		public BigInteger getId() {
+		public Long getId() {
 			return id;
 		}
 
-		public void setId(@Nullable BigInteger id) {
+		public void setId(@Nullable Long id) {
 			this.id = id;
 		}
 
@@ -147,20 +146,20 @@ public class Participant extends Way2HealthEntity {
 	}
 
 	@Nullable
-	public BigInteger getId() {
+	public Long getId() {
 		return id;
 	}
 
-	public void setId(@Nullable BigInteger id) {
+	public void setId(@Nullable Long id) {
 		this.id = id;
 	}
 
 	@Nullable
-	public BigInteger getStudyId() {
+	public Long getStudyId() {
 		return studyId;
 	}
 
-	public void setStudyId(@Nullable BigInteger studyId) {
+	public void setStudyId(@Nullable Long studyId) {
 		this.studyId = studyId;
 	}
 

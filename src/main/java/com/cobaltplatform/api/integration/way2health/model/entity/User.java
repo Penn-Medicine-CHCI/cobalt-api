@@ -23,7 +23,6 @@ import com.google.gson.annotations.SerializedName;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.math.BigInteger;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -34,7 +33,7 @@ import java.util.List;
 @NotThreadSafe
 public class User extends Way2HealthEntity {
 	@Nullable
-	private BigInteger id;
+	private Long id;
 	@Nullable
 	private String firstName;
 	@Nullable
@@ -91,7 +90,7 @@ public class User extends Way2HealthEntity {
 	@NotThreadSafe
 	public static class StudyUser extends Way2HealthEntity {
 		@Nullable
-		private BigInteger studyUserId;
+		private Long studyUserId;
 		@Nullable
 		private String projectManager;
 		@Nullable
@@ -100,11 +99,11 @@ public class User extends Way2HealthEntity {
 		private String status;
 
 		@Nullable
-		public BigInteger getStudyUserId() {
+		public Long getStudyUserId() {
 			return studyUserId;
 		}
 
-		public void setStudyUserId(@Nullable BigInteger studyUserId) {
+		public void setStudyUserId(@Nullable Long studyUserId) {
 			this.studyUserId = studyUserId;
 		}
 
@@ -137,11 +136,11 @@ public class User extends Way2HealthEntity {
 	}
 
 	@Nullable
-	public BigInteger getId() {
+	public Long getId() {
 		return id;
 	}
 
-	public void setId(@Nullable BigInteger id) {
+	public void setId(@Nullable Long id) {
 		this.id = id;
 	}
 

@@ -21,7 +21,6 @@ package com.cobaltplatform.api.integration.way2health.model.entity;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.math.BigInteger;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -31,17 +30,17 @@ import java.util.List;
 @NotThreadSafe
 public class Incident extends Way2HealthEntity {
 	@Nullable
-	private BigInteger id;
+	private Long id;
 	@Nullable
-	private BigInteger participantId;
+	private Long participantId;
 	@Nullable
-	private BigInteger reporterId;
+	private Long reporterId;
 	@Nullable
 	private String type;
 	@Nullable
 	private String status;
 	@Nullable
-	private BigInteger studyId;
+	private Long studyId;
 	@Nullable
 	private LocalDateTime createdAt;
 	@Nullable
@@ -54,29 +53,29 @@ public class Incident extends Way2HealthEntity {
 	private List<Attachment> attachments;
 
 	@Nullable
-	public BigInteger getId() {
+	public Long getId() {
 		return id;
 	}
 
-	public void setId(@Nullable BigInteger id) {
+	public void setId(@Nullable Long id) {
 		this.id = id;
 	}
 
 	@Nullable
-	public BigInteger getParticipantId() {
+	public Long getParticipantId() {
 		return participantId;
 	}
 
-	public void setParticipantId(@Nullable BigInteger participantId) {
+	public void setParticipantId(@Nullable Long participantId) {
 		this.participantId = participantId;
 	}
 
 	@Nullable
-	public BigInteger getReporterId() {
+	public Long getReporterId() {
 		return reporterId;
 	}
 
-	public void setReporterId(@Nullable BigInteger reporterId) {
+	public void setReporterId(@Nullable Long reporterId) {
 		this.reporterId = reporterId;
 	}
 
@@ -99,11 +98,11 @@ public class Incident extends Way2HealthEntity {
 	}
 
 	@Nullable
-	public BigInteger getStudyId() {
+	public Long getStudyId() {
 		return studyId;
 	}
 
-	public void setStudyId(@Nullable BigInteger studyId) {
+	public void setStudyId(@Nullable Long studyId) {
 		this.studyId = studyId;
 	}
 

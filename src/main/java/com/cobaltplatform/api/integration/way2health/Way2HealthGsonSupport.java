@@ -19,12 +19,16 @@
 
 package com.cobaltplatform.api.integration.way2health;
 
+import com.cobaltplatform.api.integration.way2health.model.response.PagedResponse.Meta.Pagination;
+import com.cobaltplatform.api.integration.way2health.model.response.PagedResponse.Meta.Pagination.Links;
 import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
@@ -40,6 +44,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
@@ -54,16 +59,111 @@ public class Way2HealthGsonSupport {
 	static {
 		SHARED_GSON = new GsonBuilder()
 				.setPrettyPrinting()
+				.disableHtmlEscaping()
 				.setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
 				.registerTypeAdapter(LocalDate.class, new LocalDateConverter())
 				.registerTypeAdapter(LocalDateTime.class, new LocalDateTimeConverter())
 				.registerTypeAdapter(Instant.class, new InstantConverter())
+				.registerTypeAdapter(Pagination.class, new PaginationDeserializer())
+				.registerTypeAdapter(Links.class, new LinksDeserializer())
 				.create();
 	}
 
 	@Nonnull
 	public static Gson sharedGson() {
 		return SHARED_GSON;
+	}
+
+	@ThreadSafe
+	public static class LinksDeserializer implements JsonDeserializer<Links> {
+		@Override
+		public Links deserialize(@Nullable JsonElement jsonElement,
+														 @Nonnull Type typeOfJson,
+														 @Nonnull JsonDeserializationContext context) throws JsonParseException {
+			requireNonNull(typeOfJson);
+			requireNonNull(context);
+
+			JsonObject jsonObject = jsonElement.getAsJsonObject();
+
+			// We sometimes see this odd format, so we need to parse specially:
+			//
+			// {
+			//   "next":"https:\/\/app.waytohealth.org\/api\/v2\/incidents?per_page=1&order_by=desc(created_at)&study_id=715&page=2",
+			//   "0":{
+			//     "base_request":"https:\/\/app.waytohealth.org\/api\/v2\/incidents?per_page=1&order_by=desc(created_at)&study_id=715"
+			//   }
+			// }
+			//
+			// which normally should be:
+			//
+			// {
+			//   "next":"https:\/\/app.waytohealth.org\/api\/v2\/incidents?per_page=1&order_by=desc(created_at)&study_id=715&page=2",
+			//   "base_request":"https:\/\/app.waytohealth.org\/api\/v2\/incidents?per_page=1&order_by=desc(created_at)&study_id=715"
+			// }
+
+			String next = extractStringFieldValue(jsonObject, "next").orElse(null);
+			String previous = extractStringFieldValue(jsonObject, "previous").orElse(null);
+			String baseRequest = extractStringFieldValue(jsonObject, "base_request").orElse(null);
+
+			JsonObject zeroObject = jsonObject.getAsJsonObject("0");
+
+			if (zeroObject != null && !zeroObject.isJsonNull()) {
+				String alternateBaseRequest = extractStringFieldValue(zeroObject, "base_request").orElse(null);
+
+				if (alternateBaseRequest != null)
+					baseRequest = alternateBaseRequest;
+			}
+
+			Links links = new Links();
+			links.setNext(next);
+			links.setPrevious(previous);
+			links.setBaseRequest(baseRequest);
+
+			return links;
+		}
+	}
+
+	@ThreadSafe
+	public static class PaginationDeserializer implements JsonDeserializer<Pagination> {
+		@Override
+		public Pagination deserialize(@Nullable JsonElement jsonElement,
+																	@Nonnull Type typeOfJson,
+																	@Nonnull JsonDeserializationContext context) throws JsonParseException {
+			requireNonNull(typeOfJson);
+			requireNonNull(context);
+
+			// We sometimes see this odd format, so we need to parse specially:
+			//
+			// "links":[]
+			//
+			// which normally should be:
+			//
+			// "links":{}s
+
+			JsonObject jsonObject = jsonElement.getAsJsonObject();
+
+			Pagination pagination = new Pagination();
+			pagination.setTotal(extractIntegerFieldValue(jsonObject, "total").get());
+			pagination.setCount(extractIntegerFieldValue(jsonObject, "count").get());
+			pagination.setPerPage(extractIntegerFieldValue(jsonObject, "per_page").get());
+			pagination.setCurrentPage(extractIntegerFieldValue(jsonObject, "current_page").get());
+			pagination.setTotalPages(extractIntegerFieldValue(jsonObject, "total_pages").get());
+
+			Links links = new Links();
+
+			JsonElement linksElement = jsonObject.get("links");
+
+			if (linksElement.isJsonArray()) {
+				JsonArray jsonArray = linksElement.getAsJsonArray();
+				links = (sharedGson().fromJson(jsonArray.get(0), Links.class));
+			} else if (linksElement.isJsonObject()) {
+				links = sharedGson().fromJson(linksElement, Links.class);
+			}
+
+			pagination.setLinks(links);
+
+			return pagination;
+		}
 	}
 
 	/**
@@ -80,16 +180,16 @@ public class Way2HealthGsonSupport {
 
 		@Override
 		@Nullable
-		public LocalDateTime deserialize(@Nullable JsonElement json,
+		public LocalDateTime deserialize(@Nullable JsonElement jsonElement,
 																		 @Nonnull Type typeOfJson,
 																		 @Nonnull JsonDeserializationContext context) throws JsonParseException {
 			requireNonNull(typeOfJson);
 			requireNonNull(context);
 
-			if (json == null)
+			if (jsonElement == null)
 				return null;
 
-			JsonPrimitive jsonPrimitive = json.getAsJsonPrimitive();
+			JsonPrimitive jsonPrimitive = jsonElement.getAsJsonPrimitive();
 
 			if (jsonPrimitive == null)
 				return null;
@@ -136,16 +236,16 @@ public class Way2HealthGsonSupport {
 
 		@Override
 		@Nullable
-		public LocalDate deserialize(@Nullable JsonElement json,
+		public LocalDate deserialize(@Nullable JsonElement jsonElement,
 																 @Nonnull Type typeOfJson,
 																 @Nonnull JsonDeserializationContext context) throws JsonParseException {
 			requireNonNull(typeOfJson);
 			requireNonNull(context);
 
-			if (json == null)
+			if (jsonElement == null)
 				return null;
 
-			JsonPrimitive jsonPrimitive = json.getAsJsonPrimitive();
+			JsonPrimitive jsonPrimitive = jsonElement.getAsJsonPrimitive();
 
 			if (jsonPrimitive == null)
 				return null;
@@ -186,16 +286,16 @@ public class Way2HealthGsonSupport {
 	public static class InstantConverter implements JsonSerializer<Instant>, JsonDeserializer<Instant> {
 		@Override
 		@Nullable
-		public Instant deserialize(@Nullable JsonElement json,
+		public Instant deserialize(@Nullable JsonElement jsonElement,
 															 @Nonnull Type typeOfJson,
 															 @Nonnull JsonDeserializationContext context) throws JsonParseException {
 			requireNonNull(typeOfJson);
 			requireNonNull(context);
 
-			if (json == null)
+			if (jsonElement == null)
 				return null;
 
-			JsonPrimitive jsonPrimitive = json.getAsJsonPrimitive();
+			JsonPrimitive jsonPrimitive = jsonElement.getAsJsonPrimitive();
 
 			if (jsonPrimitive == null)
 				return null;
@@ -230,5 +330,39 @@ public class Way2HealthGsonSupport {
 			// Alternative would be: String.valueOf(instant.getEpochSecond())
 			return new JsonPrimitive(DateTimeFormatter.ISO_INSTANT.format(instant));
 		}
+	}
+
+	@Nonnull
+	private static Optional<Integer> extractIntegerFieldValue(@Nonnull JsonObject jsonObject,
+																														@Nonnull String fieldName) {
+		requireNonNull(jsonObject);
+		requireNonNull(fieldName);
+
+		if (!jsonObject.has(fieldName))
+			return Optional.empty();
+
+		JsonElement jsonElement = jsonObject.get(fieldName);
+
+		if (jsonElement == null || jsonElement.isJsonNull())
+			return Optional.empty();
+
+		return Optional.of(jsonElement.getAsInt());
+	}
+
+	@Nonnull
+	private static Optional<String> extractStringFieldValue(@Nonnull JsonObject jsonObject,
+																													@Nonnull String fieldName) {
+		requireNonNull(jsonObject);
+		requireNonNull(fieldName);
+
+		if (!jsonObject.has(fieldName))
+			return Optional.empty();
+
+		JsonElement jsonElement = jsonObject.get(fieldName);
+
+		if (jsonElement == null || jsonElement.isJsonNull())
+			return Optional.empty();
+
+		return Optional.of(jsonElement.getAsString());
 	}
 }
