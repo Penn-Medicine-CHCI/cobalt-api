@@ -20,8 +20,9 @@
 package com.cobaltplatform.api.integration.way2health;
 
 import com.cobaltplatform.api.integration.way2health.model.entity.Incident;
-import com.cobaltplatform.api.integration.way2health.model.request.FindIncidentsRequest;
-import com.cobaltplatform.api.integration.way2health.model.request.PatchIncidentsRequest;
+import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentRequest;
+import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentsRequest;
+import com.cobaltplatform.api.integration.way2health.model.request.UpdateIncidentsRequest;
 import com.cobaltplatform.api.integration.way2health.model.response.BasicResponse;
 import com.cobaltplatform.api.integration.way2health.model.response.PagedResponse;
 
@@ -36,6 +37,18 @@ import javax.annotation.concurrent.ThreadSafe;
 @ThreadSafe
 public interface Way2HealthClient {
 	/**
+	 * Fetch a single incident from Way2Health.
+	 * <p>
+	 * See https://app.waytohealth.org/api/v2#operation/getIncident
+	 *
+	 * @param request (nonnull) parameters which dictate the incident to fetch
+	 * @return (nonnull) an incident response
+	 * @throws Way2HealthException if an error occurred while fetching
+	 */
+	@Nonnull
+	BasicResponse<Incident> getIncident(@Nonnull GetIncidentRequest request) throws Way2HealthException;
+
+	/**
 	 * Fetch a set of incidents from Way2Health.
 	 * <p>
 	 * See https://app.waytohealth.org/api/v2#operation/getIncidents
@@ -45,7 +58,7 @@ public interface Way2HealthClient {
 	 * @throws Way2HealthException if an error occurred while fetching
 	 */
 	@Nonnull
-	PagedResponse<Incident> findIncidents(@Nonnull FindIncidentsRequest request) throws Way2HealthException;
+	PagedResponse<Incident> getIncidents(@Nonnull GetIncidentsRequest request) throws Way2HealthException;
 
 	/**
 	 * Fetch a set of incidents from Way2Health.
@@ -57,7 +70,7 @@ public interface Way2HealthClient {
 	 * @throws Way2HealthException if an error occurred while fetching
 	 */
 	@Nonnull
-	PagedResponse<Incident> findIncidents(@Nonnull String pageLink) throws Way2HealthException;
+	PagedResponse<Incident> getIncidents(@Nonnull String pageLink) throws Way2HealthException;
 
 	/**
 	 * Batch-update incidents in Way2Health.
@@ -72,9 +85,9 @@ public interface Way2HealthClient {
 	 * <p>
 	 * See https://app.waytohealth.org/api/v2#operation/updateIncidents
 	 *
-	 * @param request
-	 * @throws Way2HealthException if an error occurred while fetching
+	 * @param request (nonnull) parameters which dictate how to update a set of incidents
+	 * @throws Way2HealthException if an error occurred while updating
 	 */
 	@Nonnull
-	BasicResponse<Incident> patchIncidents(@Nonnull PatchIncidentsRequest request) throws Way2HealthException;
+	BasicResponse<Incident> updateIncidents(@Nonnull UpdateIncidentsRequest request) throws Way2HealthException;
 }

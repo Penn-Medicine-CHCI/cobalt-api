@@ -29,7 +29,7 @@ import java.util.List;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class PatchIncidentsRequest {
+public class UpdateIncidentsRequest {
 	@Nullable
 	private String id; // Format is "operator(value|value2)", e.g. "in(1234|1553)". Supported operators: is, in, not
 	@Nullable

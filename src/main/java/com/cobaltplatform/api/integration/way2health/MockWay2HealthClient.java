@@ -20,8 +20,9 @@
 package com.cobaltplatform.api.integration.way2health;
 
 import com.cobaltplatform.api.integration.way2health.model.entity.Incident;
-import com.cobaltplatform.api.integration.way2health.model.request.FindIncidentsRequest;
-import com.cobaltplatform.api.integration.way2health.model.request.PatchIncidentsRequest;
+import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentRequest;
+import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentsRequest;
+import com.cobaltplatform.api.integration.way2health.model.request.UpdateIncidentsRequest;
 import com.cobaltplatform.api.integration.way2health.model.response.BasicResponse;
 import com.cobaltplatform.api.integration.way2health.model.response.PagedResponse;
 import com.google.gson.Gson;
@@ -50,7 +51,14 @@ public class MockWay2HealthClient implements Way2HealthClient {
 
 	@Nonnull
 	@Override
-	public PagedResponse<Incident> findIncidents(@Nonnull FindIncidentsRequest request) throws Way2HealthException {
+	public BasicResponse<Incident> getIncident(@Nonnull GetIncidentRequest request) throws Way2HealthException {
+		requireNonNull(request);
+		throw new UnsupportedOperationException();
+	}
+
+	@Nonnull
+	@Override
+	public PagedResponse<Incident> getIncidents(@Nonnull GetIncidentsRequest request) throws Way2HealthException {
 		requireNonNull(request);
 
 		try (FileReader fileReader = new FileReader(Path.of("src/test/resources/way2health-incidents-fetch-response.json").toFile())) {
@@ -63,14 +71,14 @@ public class MockWay2HealthClient implements Way2HealthClient {
 
 	@Nonnull
 	@Override
-	public PagedResponse<Incident> findIncidents(@Nonnull String pageLink) throws Way2HealthException {
+	public PagedResponse<Incident> getIncidents(@Nonnull String pageLink) throws Way2HealthException {
 		requireNonNull(pageLink);
 		throw new UnsupportedOperationException();
 	}
 
 	@Nonnull
 	@Override
-	public BasicResponse<Incident> patchIncidents(@Nonnull PatchIncidentsRequest request) throws Way2HealthException {
+	public BasicResponse<Incident> updateIncidents(@Nonnull UpdateIncidentsRequest request) throws Way2HealthException {
 		requireNonNull(request);
 		throw new UnsupportedOperationException();
 	}

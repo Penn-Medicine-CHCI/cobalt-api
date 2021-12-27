@@ -29,7 +29,7 @@ import java.util.List;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class FindIncidentsRequest {
+public class GetIncidentsRequest {
 	@Nullable
 	private Long studyId;
 	@Nullable

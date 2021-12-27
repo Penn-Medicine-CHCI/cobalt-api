@@ -25,8 +25,9 @@ import com.cobaltplatform.api.http.HttpMethod;
 import com.cobaltplatform.api.http.HttpRequest;
 import com.cobaltplatform.api.http.HttpResponse;
 import com.cobaltplatform.api.integration.way2health.model.entity.Incident;
-import com.cobaltplatform.api.integration.way2health.model.request.FindIncidentsRequest;
-import com.cobaltplatform.api.integration.way2health.model.request.PatchIncidentsRequest;
+import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentRequest;
+import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentsRequest;
+import com.cobaltplatform.api.integration.way2health.model.request.UpdateIncidentsRequest;
 import com.cobaltplatform.api.integration.way2health.model.response.BasicResponse;
 import com.cobaltplatform.api.integration.way2health.model.response.PagedResponse;
 import com.google.gson.Gson;
@@ -79,7 +80,30 @@ public class DefaultWay2HealthClient implements Way2HealthClient {
 
 	@Nonnull
 	@Override
-	public PagedResponse<Incident> findIncidents(@Nonnull FindIncidentsRequest request) throws Way2HealthException {
+	public BasicResponse<Incident> getIncident(@Nonnull GetIncidentRequest request) throws Way2HealthException {
+		requireNonNull(request);
+
+		Map<String, Object> queryParameters = new HashMap<>();
+
+		if (request.getIncidentId() == null)
+			throw new Way2HealthException("Incident ID is required");
+
+		if (request.getInclude() != null && request.getInclude().size() > 0)
+			queryParameters.put("include", request.getInclude().stream().collect(Collectors.joining(",")));
+
+		return makeGetApiCall(format("/incidents/%s", request.getIncidentId()), queryParameters, (responseBody) -> {
+			BasicResponse<Incident> response = getGson().fromJson(responseBody, new TypeToken<BasicResponse<Incident>>() {
+			}.getType());
+
+			response.setRawResponseBody(responseBody);
+
+			return response;
+		});
+	}
+
+	@Nonnull
+	@Override
+	public PagedResponse<Incident> getIncidents(@Nonnull GetIncidentsRequest request) throws Way2HealthException {
 		requireNonNull(request);
 
 		Map<String, Object> queryParameters = new HashMap<>();
@@ -119,7 +143,7 @@ public class DefaultWay2HealthClient implements Way2HealthClient {
 
 	@Nonnull
 	@Override
-	public PagedResponse<Incident> findIncidents(@Nonnull String pageLink) throws Way2HealthException {
+	public PagedResponse<Incident> getIncidents(@Nonnull String pageLink) throws Way2HealthException {
 		requireNonNull(pageLink);
 
 		Map<String, Object> queryParameters = new HashMap<>();
@@ -144,7 +168,7 @@ public class DefaultWay2HealthClient implements Way2HealthClient {
 
 	@Nonnull
 	@Override
-	public BasicResponse<Incident> patchIncidents(@Nonnull PatchIncidentsRequest request) throws Way2HealthException {
+	public BasicResponse<Incident> updateIncidents(@Nonnull UpdateIncidentsRequest request) throws Way2HealthException {
 		requireNonNull(request);
 		throw new UnsupportedOperationException();
 	}
