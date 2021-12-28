@@ -28,7 +28,7 @@ import java.util.Map;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class Error extends Way2HealthEntity {
+public class Way2HealthError extends Way2HealthEntity {
 	@Nullable
 	private Integer code;
 	@Nullable

@@ -25,6 +25,7 @@ import com.cobaltplatform.api.http.HttpMethod;
 import com.cobaltplatform.api.http.HttpRequest;
 import com.cobaltplatform.api.http.HttpResponse;
 import com.cobaltplatform.api.integration.way2health.model.entity.Incident;
+import com.cobaltplatform.api.integration.way2health.model.entity.Way2HealthError;
 import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentRequest;
 import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentsRequest;
 import com.cobaltplatform.api.integration.way2health.model.request.UpdateIncidentsRequest;
@@ -233,6 +234,53 @@ public class DefaultWay2HealthClient implements Way2HealthClient {
 								"with query params %s and request body %s. Response body was\n%s", httpResponse.getStatus(),
 						httpRequest.getHttpMethod().name(), httpRequest.getUrl(), queryParametersDescription,
 						requestBodyDescription, responseBody));
+
+			// Way2Health will normally return an HTTP 200 OK for errors and it's up to us to examine the response body
+			// to see if it has the shape of an error.
+			//
+			// For example, an HTTP 200 might look like this:
+			//
+			// {
+			//  "code": 401,
+			//  "resource_id": null,
+			//  "payload": null,
+			//  "errors": [
+			//    "You are not logged in"
+			//  ],
+			//  "field_errors": []
+			// }
+
+			Way2HealthError way2HealthError = null;
+			boolean detectedError = false;
+
+			try {
+				way2HealthError = getGson().fromJson(responseBody, Way2HealthError.class);
+
+				if (way2HealthError.getErrors() != null && way2HealthError.getFieldErrors() != null && way2HealthError.getCode() != null)
+					detectedError = true;
+			} catch (Exception ignored) {
+				// If we can't parse response into a Way2HealthError, that's OK...it's probably not an error in that case :)
+			}
+
+			if (detectedError) {
+				StringBuilder parsedErrorMessage = new StringBuilder();
+
+				if (way2HealthError.getErrors() != null)
+					parsedErrorMessage.append(way2HealthError.getErrors().stream()
+							.collect(Collectors.joining(", ")));
+
+				if (way2HealthError.getFieldErrors() != null)
+					parsedErrorMessage.append(way2HealthError.getFieldErrors().stream()
+							.map(fieldError -> format("[%s: %s (original value %s)]", fieldError.getField(), fieldError.getMessage(), fieldError.getOriginalValue()))
+							.collect(Collectors.joining(", ")));
+
+				String message = format("Received error code %d and message '%s' for Way2Health API endpoint %s %s " +
+								"with query params %s and request body %s. Response body was\n%s", way2HealthError.getCode(),
+						parsedErrorMessage, httpRequest.getHttpMethod().name(), httpRequest.getUrl(),
+						queryParametersDescription, requestBodyDescription, responseBody);
+
+				throw new Way2HealthResponseException(message, way2HealthError, responseBody);
+			}
 
 			try {
 				return responseBodyMapper.apply(responseBody);
