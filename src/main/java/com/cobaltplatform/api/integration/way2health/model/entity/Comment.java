@@ -21,7 +21,7 @@ package com.cobaltplatform.api.integration.way2health.model.entity;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.time.Instant;
+import java.time.LocalDateTime;
 
 /**
  * @author Transmogrify, LLC.
@@ -33,7 +33,7 @@ public class Comment extends Way2HealthEntity {
 	@Nullable
 	private String comment;
 	@Nullable
-	private Instant time;
+	private LocalDateTime time;
 
 	@Nullable
 	public User getUser() {
@@ -54,11 +54,11 @@ public class Comment extends Way2HealthEntity {
 	}
 
 	@Nullable
-	public Instant getTime() {
+	public LocalDateTime getTime() {
 		return time;
 	}
 
-	public void setTime(@Nullable Instant time) {
+	public void setTime(@Nullable LocalDateTime time) {
 		this.time = time;
 	}
 }

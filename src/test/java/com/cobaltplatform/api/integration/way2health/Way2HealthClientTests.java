@@ -77,6 +77,7 @@ public class Way2HealthClientTests {
 			setStudyId(715L);
 			// setType("Medical Emergency: Suicide Ideation");
 			setOrderBy("desc(created_at)");
+			setInclude(List.of("comments", "participant", "reporter", "tags", "attachments"));
 			setPerPage(1);
 		}});
 

@@ -157,6 +157,7 @@ public class DefaultWay2HealthClient implements Way2HealthClient {
 		} catch (Exception e) {
 			throw new Way2HealthException(format("Unable to parse incident page link '%s'", pageLink), e);
 		}
+
 		return makeGetApiCall("/incidents", queryParameters, (responseBody) -> {
 			PagedResponse<Incident> response = getGson().fromJson(responseBody, new TypeToken<PagedResponse<Incident>>() {
 			}.getType());

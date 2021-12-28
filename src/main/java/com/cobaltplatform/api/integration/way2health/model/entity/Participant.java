@@ -22,6 +22,7 @@ package com.cobaltplatform.api.integration.way2health.model.entity;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -38,7 +39,7 @@ public class Participant extends Way2HealthEntity {
 	@Nullable
 	private String longId;
 	@Nullable
-	private LocalDate startDate;
+	private LocalDateTime startDate;
 	@Nullable
 	private String status;
 	@Nullable
@@ -182,11 +183,11 @@ public class Participant extends Way2HealthEntity {
 	}
 
 	@Nullable
-	public LocalDate getStartDate() {
+	public LocalDateTime getStartDate() {
 		return startDate;
 	}
 
-	public void setStartDate(@Nullable LocalDate startDate) {
+	public void setStartDate(@Nullable LocalDateTime startDate) {
 		this.startDate = startDate;
 	}
 
