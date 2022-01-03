@@ -217,9 +217,8 @@ public class DefaultWay2HealthClient implements Way2HealthClient {
 		if (requestBody != null)
 			httpRequestBuilder.body(requestBody);
 
-		if (httpMethod == HttpMethod.POST)
-			httpRequestBuilder.contentType("application/json; charset=utf-8");
-
+		httpRequestBuilder.contentType("application/json; charset=utf-8");
+		
 		HttpRequest httpRequest = httpRequestBuilder.build();
 
 		String queryParametersDescription = queryParameters.size() == 0 ? "[none]" : queryParameters.toString();
