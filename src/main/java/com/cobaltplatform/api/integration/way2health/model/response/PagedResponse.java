@@ -49,6 +49,8 @@ public class PagedResponse<T extends Way2HealthEntity> {
 		private Pagination pagination;
 		@Nullable
 		private List<String> ignoredFilters;
+		@Nullable
+		private List<String> skippedFilters;
 
 		@Override
 		public String toString() {
@@ -188,6 +190,15 @@ public class PagedResponse<T extends Way2HealthEntity> {
 
 		public void setIgnoredFilters(@Nullable List<String> ignoredFilters) {
 			this.ignoredFilters = ignoredFilters;
+		}
+
+		@Nullable
+		public List<String> getSkippedFilters() {
+			return skippedFilters;
+		}
+
+		public void setSkippedFilters(@Nullable List<String> skippedFilters) {
+			this.skippedFilters = skippedFilters;
 		}
 	}
 

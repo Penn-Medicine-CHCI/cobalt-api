@@ -46,6 +46,8 @@ public class Incident extends Way2HealthEntity {
 	@Nullable
 	private Participant participant;
 	@Nullable
+	private User reporter;
+	@Nullable
 	private List<Comment> comments;
 	@Nullable
 	private List<Tag> tags;
@@ -122,6 +124,15 @@ public class Incident extends Way2HealthEntity {
 
 	public void setParticipant(@Nullable Participant participant) {
 		this.participant = participant;
+	}
+
+	@Nullable
+	public User getReporter() {
+		return reporter;
+	}
+
+	public void setReporter(@Nullable User reporter) {
+		this.reporter = reporter;
 	}
 
 	@Nullable

@@ -22,6 +22,7 @@ package com.cobaltplatform.api.integration.way2health;
 import com.cobaltplatform.api.integration.way2health.model.entity.Incident;
 import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentRequest;
 import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentsRequest;
+import com.cobaltplatform.api.integration.way2health.model.request.UpdateIncidentsRequest;
 import com.cobaltplatform.api.integration.way2health.model.response.BasicResponse;
 import com.cobaltplatform.api.integration.way2health.model.response.PagedResponse;
 import org.junit.Test;
@@ -74,8 +75,9 @@ public class Way2HealthClientTests {
 		Way2HealthClient way2HealthClient = createRealClient();
 
 		PagedResponse<Incident> incidentsResponse = way2HealthClient.getIncidents(new GetIncidentsRequest() {{
+			setStatus("New");
 			setStudyId(715L);
-			// setType("Medical Emergency: Suicide Ideation");
+			//setType("Medical Emergency: Suicide Ideation");
 			setOrderBy("desc(created_at)");
 			setInclude(List.of("comments", "participant", "reporter", "tags", "attachments"));
 			setPerPage(1);
@@ -91,6 +93,27 @@ public class Way2HealthClientTests {
 		}});
 
 		Assert.assertTrue(incidentResponse.getData().size() > 0, "No incident was found for ID " + firstIncident.getId());
+	}
+
+	@Test
+	public void testRealUpdateIncidents() throws Way2HealthException {
+		Way2HealthClient way2HealthClient = createRealClient();
+
+		way2HealthClient.updateIncidents(new UpdateIncidentsRequest() {{
+			setId("in(4297203)");
+			setPatchOperations(List.of(
+					new PatchOperation() {{
+						setOp("add");
+						setPath("/comments");
+						setValue("Imported to Cobalt");
+					}},
+					new PatchOperation() {{
+						setOp("replace");
+						setPath("/status");
+						setValue("Resolved");
+					}}
+			));
+		}});
 	}
 
 	@Nonnull

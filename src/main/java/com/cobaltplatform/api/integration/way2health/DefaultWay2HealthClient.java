@@ -44,12 +44,14 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -92,7 +94,7 @@ public class DefaultWay2HealthClient implements Way2HealthClient {
 		if (request.getInclude() != null && request.getInclude().size() > 0)
 			queryParameters.put("include", request.getInclude().stream().collect(Collectors.joining(",")));
 
-		return makeGetApiCall(format("/incidents/%s", request.getIncidentId()), queryParameters, (responseBody) -> {
+		return makeApiCall(HttpMethod.GET, format("/incidents/%s", request.getIncidentId()), queryParameters, (responseBody) -> {
 			BasicResponse<Incident> response = getGson().fromJson(responseBody, new TypeToken<BasicResponse<Incident>>() {
 			}.getType());
 
@@ -132,7 +134,7 @@ public class DefaultWay2HealthClient implements Way2HealthClient {
 		if (request.getGroupBy() != null)
 			queryParameters.put("group_by", request.getGroupBy());
 
-		return makeGetApiCall("/incidents", queryParameters, (responseBody) -> {
+		return makeApiCall(HttpMethod.GET, "/incidents", queryParameters, (responseBody) -> {
 			PagedResponse<Incident> response = getGson().fromJson(responseBody, new TypeToken<PagedResponse<Incident>>() {
 			}.getType());
 
@@ -158,7 +160,7 @@ public class DefaultWay2HealthClient implements Way2HealthClient {
 			throw new Way2HealthException(format("Unable to parse incident page link '%s'", pageLink), e);
 		}
 
-		return makeGetApiCall("/incidents", queryParameters, (responseBody) -> {
+		return makeApiCall(HttpMethod.GET, "/incidents", queryParameters, (responseBody) -> {
 			PagedResponse<Incident> response = getGson().fromJson(responseBody, new TypeToken<PagedResponse<Incident>>() {
 			}.getType());
 
@@ -172,20 +174,42 @@ public class DefaultWay2HealthClient implements Way2HealthClient {
 	@Override
 	public BasicResponse<Incident> updateIncidents(@Nonnull UpdateIncidentsRequest request) throws Way2HealthException {
 		requireNonNull(request);
-		throw new UnsupportedOperationException();
+
+		String id = trimToNull(request.getId());
+
+		if (id == null)
+			throw new Way2HealthException("You must provide an incident ID filter parameter to update incident[s].");
+
+		// Guard against null values if caller uses double-brace initialization, which Gson does not support
+		List<Map<String, Object>> patchOperations = request.getPatchOperations().stream()
+				.map(patchOperation -> {
+					Map<String, Object> patchOperationAsMap = new HashMap<>();
+					patchOperationAsMap.put("path", patchOperation.getPath());
+					patchOperationAsMap.put("op", patchOperation.getOp());
+					patchOperationAsMap.put("value", patchOperation.getValue());
+
+					return patchOperationAsMap;
+				})
+				.collect(Collectors.toList());
+
+		String requestBody = getGson().toJson(patchOperations);
+
+		return makeApiCall(HttpMethod.PATCH, "/incidents", Map.of("id", id), requestBody, (responseBody) -> {
+			BasicResponse<Incident> response = getGson().fromJson(responseBody, new TypeToken<BasicResponse<Incident>>() {
+			}.getType());
+
+			response.setRawResponseBody(responseBody);
+
+			return response;
+		});
 	}
 
 	@Nonnull
-	protected <T> T makeGetApiCall(@Nonnull String relativeUrl,
-																 @Nonnull Function<String, T> responseBodyMapper) throws Way2HealthException {
-		return makeGetApiCall(relativeUrl, null, responseBodyMapper);
-	}
-
-	@Nonnull
-	protected <T> T makeGetApiCall(@Nonnull String relativeUrl,
-																 @Nullable Map<String, Object> queryParameters,
-																 @Nonnull Function<String, T> responseBodyMapper) throws Way2HealthException {
-		return makeApiCall(HttpMethod.GET, relativeUrl, queryParameters, null, responseBodyMapper);
+	protected <T> T makeApiCall(@Nonnull HttpMethod httpMethod,
+															@Nonnull String relativeUrl,
+															@Nullable Map<String, Object> queryParameters,
+															@Nonnull Function<String, T> responseBodyMapper) throws Way2HealthException {
+		return makeApiCall(httpMethod, relativeUrl, queryParameters, null, responseBodyMapper);
 	}
 
 	@Nonnull

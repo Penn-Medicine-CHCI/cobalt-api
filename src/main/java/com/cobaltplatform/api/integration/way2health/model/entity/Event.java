@@ -19,8 +19,11 @@
 
 package com.cobaltplatform.api.integration.way2health.model.entity;
 
+import com.google.gson.annotations.SerializedName;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.Map;
 
 /**
  * @author Transmogrify, LLC.
@@ -42,6 +45,13 @@ public class Event extends Way2HealthEntity {
 		private Long id;
 		@Nullable
 		private String name;
+		@Nullable
+		@SerializedName("class")
+		private String sourceClass;
+		@Nullable
+		private String type;
+		@Nullable
+		private Map<String, Object> params;
 
 		@Nullable
 		public Long getId() {
@@ -59,6 +69,33 @@ public class Event extends Way2HealthEntity {
 
 		public void setName(@Nullable String name) {
 			this.name = name;
+		}
+
+		@Nullable
+		public String getSourceClass() {
+			return sourceClass;
+		}
+
+		public void setSourceClass(@Nullable String sourceClass) {
+			this.sourceClass = sourceClass;
+		}
+
+		@Nullable
+		public String getType() {
+			return type;
+		}
+
+		public void setType(@Nullable String type) {
+			this.type = type;
+		}
+
+		@Nullable
+		public Map<String, Object> getParams() {
+			return params;
+		}
+
+		public void setParams(@Nullable Map<String, Object> params) {
+			this.params = params;
 		}
 	}
 

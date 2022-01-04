@@ -92,11 +92,15 @@ public class User extends Way2HealthEntity {
 		@Nullable
 		private Long studyUserId;
 		@Nullable
+		private Long armId;
+		@Nullable
 		private String projectManager;
 		@Nullable
 		private String studyId;
 		@Nullable
 		private String status;
+		@Nullable
+		private String role;
 
 		@Nullable
 		public Long getStudyUserId() {
@@ -132,6 +136,24 @@ public class User extends Way2HealthEntity {
 
 		public void setStatus(@Nullable String status) {
 			this.status = status;
+		}
+
+		@Nullable
+		public Long getArmId() {
+			return armId;
+		}
+
+		public void setArmId(@Nullable Long armId) {
+			this.armId = armId;
+		}
+
+		@Nullable
+		public String getRole() {
+			return role;
+		}
+
+		public void setRole(@Nullable String role) {
+			this.role = role;
 		}
 	}
 
