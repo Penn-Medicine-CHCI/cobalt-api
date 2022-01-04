@@ -19,10 +19,6 @@
 
 package com.cobaltplatform.api;
 
-import com.google.inject.Guice;
-import com.google.inject.Injector;
-import com.google.inject.Module;
-import com.google.inject.util.Modules;
 import com.cobaltplatform.api.integration.acuity.AcuitySyncManager;
 import com.cobaltplatform.api.integration.bluejeans.BluejeansCredentialsProvider;
 import com.cobaltplatform.api.integration.epic.EpicSyncManager;
@@ -30,6 +26,11 @@ import com.cobaltplatform.api.messaging.call.CallMessageManager;
 import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.messaging.sms.SmsMessageManager;
 import com.cobaltplatform.api.service.GroupSessionService;
+import com.cobaltplatform.api.service.Way2HealthService;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.google.inject.Module;
+import com.google.inject.util.Modules;
 import com.soklet.guice.SokletModule;
 import com.soklet.web.server.Server;
 import com.soklet.web.server.ServerException;
@@ -177,9 +178,23 @@ public class App implements AutoCloseable {
 		} catch (Exception e) {
 			getLogger().warn("Failed to start Group Session background task", e);
 		}
+
+		try {
+			Way2HealthService way2HealthService = getInjector().getInstance(Way2HealthService.class);
+			way2HealthService.startBackgroundTask();
+		} catch (Exception e) {
+			getLogger().warn("Failed to start Way2Health background task", e);
+		}
 	}
 
 	public void performShutdownTasks() {
+		try {
+			Way2HealthService way2HealthService = getInjector().getInstance(Way2HealthService.class);
+			way2HealthService.stopBackgroundTask();
+		} catch (Exception e) {
+			getLogger().warn("Failed to stop Way2Health background task", e);
+		}
+
 		try {
 			GroupSessionService groupSessionService = getInjector().getInstance(GroupSessionService.class);
 			groupSessionService.stopBackgroundTask();

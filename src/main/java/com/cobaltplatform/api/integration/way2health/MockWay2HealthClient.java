@@ -34,6 +34,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
+import java.util.Collections;
 
 import static java.util.Objects.requireNonNull;
 
@@ -53,7 +54,11 @@ public class MockWay2HealthClient implements Way2HealthClient {
 	@Override
 	public BasicResponse<Incident> getIncident(@Nonnull GetIncidentRequest request) throws Way2HealthException {
 		requireNonNull(request);
-		throw new UnsupportedOperationException();
+		return new BasicResponse<>() {{
+			setData(Collections.singletonList(getIncidents(new GetIncidentsRequest()).getData().get(0)));
+			setRawResponseBody("{}");
+			setErrors(null);
+		}};
 	}
 
 	@Nonnull
@@ -73,14 +78,14 @@ public class MockWay2HealthClient implements Way2HealthClient {
 	@Override
 	public PagedResponse<Incident> getIncidents(@Nonnull String pageLink) throws Way2HealthException {
 		requireNonNull(pageLink);
-		throw new UnsupportedOperationException();
+		return getIncidents(new GetIncidentsRequest());
 	}
 
 	@Nonnull
 	@Override
 	public BasicResponse<Incident> updateIncidents(@Nonnull UpdateIncidentsRequest request) throws Way2HealthException {
 		requireNonNull(request);
-		throw new UnsupportedOperationException();
+		throw new Way2HealthException("Sorry, this is not implemented in the mock client");
 	}
 
 	@Nonnull

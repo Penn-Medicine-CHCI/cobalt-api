@@ -23,5 +23,6 @@ package com.cobaltplatform.api.integration.way2health;
  * @author Transmogrify, LLC.
  */
 public enum Way2HealthEnvironment {
-	PRODUCTION
+	PRODUCTION,
+	SANDBOX
 }
