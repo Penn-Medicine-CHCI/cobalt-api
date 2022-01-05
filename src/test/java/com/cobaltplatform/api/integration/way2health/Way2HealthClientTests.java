@@ -30,6 +30,7 @@ import org.testng.Assert;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.ArrayList;
 import java.util.List;
 
 import static java.lang.String.format;
@@ -55,18 +56,27 @@ public class Way2HealthClientTests {
 	public void testRealClientPagination() throws Way2HealthException {
 		Way2HealthClient way2HealthClient = createRealClient();
 
+		String nextLink;
+		List<Incident> incidents = new ArrayList<>();
+
 		PagedResponse<Incident> incidentsResponse = way2HealthClient.getIncidents(new GetIncidentsRequest() {{
 			setStudyId(715L);
 			setOrderBy("desc(created_at)");
-			setPerPage(1);
+			setPerPage(10);
 		}});
 
-		Assert.assertTrue(incidentsResponse.getData().size() > 0, "No incidents were found");
+		int expectedResults = incidentsResponse.getMeta().getPagination().getTotal();
 
-		// Try pagination
-		incidentsResponse = way2HealthClient.getIncidents(incidentsResponse.getMeta().getPagination().getLinks().getNext());
+		incidents.addAll(incidentsResponse.getData());
+		nextLink = incidentsResponse.getMeta().getPagination().getLinks().getNext();
 
-		Assert.assertTrue(incidentsResponse.getData().size() > 0, "Unable to iterate via pagination");
+		while (nextLink != null) {
+			incidentsResponse = way2HealthClient.getIncidents(nextLink);
+			incidents.addAll(incidentsResponse.getData());
+			nextLink = incidentsResponse.getMeta().getPagination().getLinks().getNext();
+		}
+
+		Assert.assertEquals(incidents.size(), expectedResults, "Mismatch in number of incidents from pagination data");
 	}
 
 	@Test

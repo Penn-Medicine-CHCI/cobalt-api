@@ -29,6 +29,8 @@ import com.cobaltplatform.api.integration.way2health.model.response.PagedRespons
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * A <a href="https://www.waytohealth.org/">Way2Health</a> REST API client implementation.
@@ -72,6 +74,36 @@ public interface Way2HealthClient {
 	 */
 	@Nonnull
 	PagedResponse<Incident> getIncidents(@Nonnull String pageLink) throws Way2HealthException;
+
+	/**
+	 * Fetch all incidents from Way2Health (walk all pages) that conform to the request.
+	 * <p>
+	 * See https://app.waytohealth.org/api/v2#operation/getIncidents
+	 *
+	 * @param request (nonnull) parameters which dictate what incidents to fetch
+	 * @return (nonnull) a list of incidents
+	 * @throws Way2HealthException if an error occurred while fetching
+	 */
+	@Nonnull
+	default List<Incident> getAllIncidents(@Nonnull GetIncidentsRequest request) throws Way2HealthException {
+		List<Incident> incidents = new ArrayList<>();
+		String nextLink;
+
+		// Make initial call using provided request configuration
+		PagedResponse<Incident> incidentsResponse = getIncidents(request);
+
+		incidents.addAll(incidentsResponse.getData());
+		nextLink = incidentsResponse.getMeta().getPagination().getLinks().getNext();
+
+		// Walk remaining pages
+		while (nextLink != null) {
+			incidentsResponse = getIncidents(nextLink);
+			incidents.addAll(incidentsResponse.getData());
+			nextLink = incidentsResponse.getMeta().getPagination().getLinks().getNext();
+		}
+
+		return incidents;
+	}
 
 	/**
 	 * Batch-update incidents in Way2Health.
