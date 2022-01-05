@@ -268,12 +268,11 @@ public class InteractionService {
 		requireNonNull(message);
 
 		Interaction interaction = findInteractionById(interactionInstance.getInteractionId()).get();
-
-
+		
 		return message.replace("[maxInteractionCount]", interaction.getMaxInteractionCount().toString())
 				.replace("[frequencyHoursAndMinutes]", formatter.formatDuration(interaction.getFrequencyInMinutes() * 60))
-				.replace("[completionTimeHoursAndMinutes]", interactionInstance.getCompletedFlag() ? formatter.formatDuration(ChronoUnit.SECONDS.between(interactionInstance.getCompletedDate(),
-						interactionInstance.getStartDateTime())) : "[not completed]");
+				.replace("[completionTimeHoursAndMinutes]", interactionInstance.getCompletedFlag() ? formatter.formatDuration(ChronoUnit.HOURS.between(
+						interactionInstance.getStartDateTime(),interactionInstance.getCompletedDate())) : "[not completed]");
 	}
 
 	@Nonnull
