@@ -57,7 +57,6 @@ public class Way2HealthClientTests {
 
 		PagedResponse<Incident> incidentsResponse = way2HealthClient.getIncidents(new GetIncidentsRequest() {{
 			setStudyId(715L);
-			// setType("Medical Emergency: Suicide Ideation");
 			setOrderBy("desc(created_at)");
 			setPerPage(1);
 		}});
@@ -77,7 +76,7 @@ public class Way2HealthClientTests {
 		PagedResponse<Incident> incidentsResponse = way2HealthClient.getIncidents(new GetIncidentsRequest() {{
 			setStatus("New");
 			setStudyId(715L);
-			//setType("Medical Emergency: Suicide Ideation");
+			setType("Medical Emergency: Suicide Ideation");
 			setOrderBy("desc(created_at)");
 			setInclude(List.of("comments", "participant", "reporter", "tags", "attachments"));
 			setPerPage(1);

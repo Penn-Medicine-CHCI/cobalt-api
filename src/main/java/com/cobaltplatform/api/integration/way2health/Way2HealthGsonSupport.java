@@ -47,6 +47,7 @@ import java.util.Locale;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -194,7 +195,7 @@ public class Way2HealthGsonSupport {
 			if (jsonPrimitive == null)
 				return null;
 
-			String localDateTimeAsString = jsonPrimitive.getAsString();
+			String localDateTimeAsString = trimToNull(jsonPrimitive.getAsString());
 
 			if (localDateTimeAsString == null)
 				return null;
@@ -250,7 +251,7 @@ public class Way2HealthGsonSupport {
 			if (jsonPrimitive == null)
 				return null;
 
-			String localDateAsString = jsonPrimitive.getAsString();
+			String localDateAsString = trimToNull(jsonPrimitive.getAsString());
 
 			if (localDateAsString == null)
 				return null;
@@ -300,7 +301,7 @@ public class Way2HealthGsonSupport {
 			if (jsonPrimitive == null)
 				return null;
 
-			String instantAsString = jsonPrimitive.getAsString();
+			String instantAsString = trimToNull(jsonPrimitive.getAsString());
 
 			if (instantAsString == null)
 				return null;
@@ -363,6 +364,6 @@ public class Way2HealthGsonSupport {
 		if (jsonElement == null || jsonElement.isJsonNull())
 			return Optional.empty();
 
-		return Optional.of(jsonElement.getAsString());
+		return Optional.of(trimToNull(jsonElement.getAsString()));
 	}
 }
