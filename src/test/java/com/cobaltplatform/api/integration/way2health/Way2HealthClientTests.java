@@ -23,7 +23,7 @@ import com.cobaltplatform.api.integration.way2health.model.entity.Incident;
 import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentRequest;
 import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentsRequest;
 import com.cobaltplatform.api.integration.way2health.model.request.UpdateIncidentsRequest;
-import com.cobaltplatform.api.integration.way2health.model.response.BasicResponse;
+import com.cobaltplatform.api.integration.way2health.model.response.ObjectResponse;
 import com.cobaltplatform.api.integration.way2health.model.response.PagedResponse;
 import org.junit.Test;
 import org.testng.Assert;
@@ -87,12 +87,12 @@ public class Way2HealthClientTests {
 
 		Incident firstIncident = incidentsResponse.getData().get(0);
 
-		BasicResponse<Incident> incidentResponse = way2HealthClient.getIncident(new GetIncidentRequest() {{
+		ObjectResponse<Incident> incidentResponse = way2HealthClient.getIncident(new GetIncidentRequest() {{
 			setIncidentId(firstIncident.getId());
 			setInclude(List.of("comments", "participant", "reporter", "tags", "attachments"));
 		}});
 
-		Assert.assertTrue(incidentResponse.getData().size() > 0, "No incident was found for ID " + firstIncident.getId());
+		Assert.assertTrue(incidentResponse.getData() != null, "No incident was found for ID " + firstIncident.getId());
 	}
 
 	@Test

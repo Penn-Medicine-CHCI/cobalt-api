@@ -23,7 +23,8 @@ import com.cobaltplatform.api.integration.way2health.model.entity.Incident;
 import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentRequest;
 import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentsRequest;
 import com.cobaltplatform.api.integration.way2health.model.request.UpdateIncidentsRequest;
-import com.cobaltplatform.api.integration.way2health.model.response.BasicResponse;
+import com.cobaltplatform.api.integration.way2health.model.response.ListResponse;
+import com.cobaltplatform.api.integration.way2health.model.response.ObjectResponse;
 import com.cobaltplatform.api.integration.way2health.model.response.PagedResponse;
 
 import javax.annotation.Nonnull;
@@ -46,7 +47,7 @@ public interface Way2HealthClient {
 	 * @throws Way2HealthException if an error occurred while fetching
 	 */
 	@Nonnull
-	BasicResponse<Incident> getIncident(@Nonnull GetIncidentRequest request) throws Way2HealthException;
+	ObjectResponse<Incident> getIncident(@Nonnull GetIncidentRequest request) throws Way2HealthException;
 
 	/**
 	 * Fetch a set of incidents from Way2Health.
@@ -89,5 +90,5 @@ public interface Way2HealthClient {
 	 * @throws Way2HealthException if an error occurred while updating
 	 */
 	@Nonnull
-	BasicResponse<Incident> updateIncidents(@Nonnull UpdateIncidentsRequest request) throws Way2HealthException;
+	ListResponse<Incident> updateIncidents(@Nonnull UpdateIncidentsRequest request) throws Way2HealthException;
 }

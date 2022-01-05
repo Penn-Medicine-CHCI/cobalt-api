@@ -29,7 +29,8 @@ import com.cobaltplatform.api.integration.way2health.model.entity.Way2HealthErro
 import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentRequest;
 import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentsRequest;
 import com.cobaltplatform.api.integration.way2health.model.request.UpdateIncidentsRequest;
-import com.cobaltplatform.api.integration.way2health.model.response.BasicResponse;
+import com.cobaltplatform.api.integration.way2health.model.response.ListResponse;
+import com.cobaltplatform.api.integration.way2health.model.response.ObjectResponse;
 import com.cobaltplatform.api.integration.way2health.model.response.PagedResponse;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -83,7 +84,7 @@ public class DefaultWay2HealthClient implements Way2HealthClient {
 
 	@Nonnull
 	@Override
-	public BasicResponse<Incident> getIncident(@Nonnull GetIncidentRequest request) throws Way2HealthException {
+	public ObjectResponse<Incident> getIncident(@Nonnull GetIncidentRequest request) throws Way2HealthException {
 		requireNonNull(request);
 
 		Map<String, Object> queryParameters = new HashMap<>();
@@ -95,7 +96,7 @@ public class DefaultWay2HealthClient implements Way2HealthClient {
 			queryParameters.put("include", request.getInclude().stream().collect(Collectors.joining(",")));
 
 		return makeApiCall(HttpMethod.GET, format("/incidents/%s", request.getIncidentId()), queryParameters, (responseBody) -> {
-			BasicResponse<Incident> response = getGson().fromJson(responseBody, new TypeToken<BasicResponse<Incident>>() {
+			ObjectResponse<Incident> response = getGson().fromJson(responseBody, new TypeToken<ObjectResponse<Incident>>() {
 			}.getType());
 
 			response.setRawResponseBody(responseBody);
@@ -172,7 +173,7 @@ public class DefaultWay2HealthClient implements Way2HealthClient {
 
 	@Nonnull
 	@Override
-	public BasicResponse<Incident> updateIncidents(@Nonnull UpdateIncidentsRequest request) throws Way2HealthException {
+	public ListResponse<Incident> updateIncidents(@Nonnull UpdateIncidentsRequest request) throws Way2HealthException {
 		requireNonNull(request);
 
 		String id = trimToNull(request.getId());
@@ -195,7 +196,7 @@ public class DefaultWay2HealthClient implements Way2HealthClient {
 		String requestBody = getGson().toJson(patchOperations);
 
 		return makeApiCall(HttpMethod.PATCH, "/incidents", Map.of("id", id), requestBody, (responseBody) -> {
-			BasicResponse<Incident> response = getGson().fromJson(responseBody, new TypeToken<BasicResponse<Incident>>() {
+			ListResponse<Incident> response = getGson().fromJson(responseBody, new TypeToken<ListResponse<Incident>>() {
 			}.getType());
 
 			response.setRawResponseBody(responseBody);

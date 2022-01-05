@@ -23,7 +23,8 @@ import com.cobaltplatform.api.integration.way2health.model.entity.Incident;
 import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentRequest;
 import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentsRequest;
 import com.cobaltplatform.api.integration.way2health.model.request.UpdateIncidentsRequest;
-import com.cobaltplatform.api.integration.way2health.model.response.BasicResponse;
+import com.cobaltplatform.api.integration.way2health.model.response.ListResponse;
+import com.cobaltplatform.api.integration.way2health.model.response.ObjectResponse;
 import com.cobaltplatform.api.integration.way2health.model.response.PagedResponse;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -34,7 +35,6 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
-import java.util.Collections;
 
 import static java.util.Objects.requireNonNull;
 
@@ -52,10 +52,10 @@ public class MockWay2HealthClient implements Way2HealthClient {
 
 	@Nonnull
 	@Override
-	public BasicResponse<Incident> getIncident(@Nonnull GetIncidentRequest request) throws Way2HealthException {
+	public ObjectResponse<Incident> getIncident(@Nonnull GetIncidentRequest request) throws Way2HealthException {
 		requireNonNull(request);
-		return new BasicResponse<>() {{
-			setData(Collections.singletonList(getIncidents(new GetIncidentsRequest()).getData().get(0)));
+		return new ObjectResponse<>() {{
+			setData(getIncidents(new GetIncidentsRequest()).getData().get(0));
 			setRawResponseBody("{}");
 			setErrors(null);
 		}};
@@ -83,7 +83,7 @@ public class MockWay2HealthClient implements Way2HealthClient {
 
 	@Nonnull
 	@Override
-	public BasicResponse<Incident> updateIncidents(@Nonnull UpdateIncidentsRequest request) throws Way2HealthException {
+	public ListResponse<Incident> updateIncidents(@Nonnull UpdateIncidentsRequest request) throws Way2HealthException {
 		requireNonNull(request);
 		throw new Way2HealthException("Sorry, this is not implemented in the mock client");
 	}

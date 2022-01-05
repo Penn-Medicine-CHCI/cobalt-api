@@ -30,9 +30,9 @@ import java.util.List;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class BasicResponse<T extends Way2HealthEntity> {
+public class ObjectResponse<T extends Way2HealthEntity> {
 	@Nullable
-	private List<T> data;
+	private T data;
 	@Nullable
 	private List<Error> errors;
 	@Nullable
@@ -44,11 +44,11 @@ public class BasicResponse<T extends Way2HealthEntity> {
 	}
 
 	@Nullable
-	public List<T> getData() {
+	public T getData() {
 		return data;
 	}
 
-	public void setData(@Nullable List<T> data) {
+	public void setData(@Nullable T data) {
 		this.data = data;
 	}
 
