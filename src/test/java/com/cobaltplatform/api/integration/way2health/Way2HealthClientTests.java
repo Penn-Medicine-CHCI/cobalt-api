@@ -22,7 +22,7 @@ package com.cobaltplatform.api.integration.way2health;
 import com.cobaltplatform.api.integration.way2health.model.entity.Incident;
 import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentRequest;
 import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentsRequest;
-import com.cobaltplatform.api.integration.way2health.model.request.UpdateIncidentsRequest;
+import com.cobaltplatform.api.integration.way2health.model.request.UpdateIncidentRequest;
 import com.cobaltplatform.api.integration.way2health.model.response.ObjectResponse;
 import com.cobaltplatform.api.integration.way2health.model.response.PagedResponse;
 import org.junit.Test;
@@ -32,6 +32,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -89,7 +90,7 @@ public class Way2HealthClientTests {
 			setType("Medical Emergency: Suicide Ideation");
 			setOrderBy("desc(created_at)");
 			setInclude(List.of("comments", "participant", "reporter", "tags", "attachments"));
-			setPerPage(1);
+			setPerPage(10);
 		}});
 
 		Assert.assertTrue(incidentsResponse.getData().size() > 0, "No incidents were found");
@@ -105,24 +106,34 @@ public class Way2HealthClientTests {
 	}
 
 	@Test
-	public void testRealUpdateIncidents() throws Way2HealthException {
+	public void testRealUpdateIncident() throws Way2HealthException {
 		Way2HealthClient way2HealthClient = createRealClient();
 
-		way2HealthClient.updateIncidents(new UpdateIncidentsRequest() {{
-			setId("in(4297203)");
+		String commentValue = "Cobalt Test";
+		String statusValue = "Resolved";
+
+		ObjectResponse<Incident> incident = way2HealthClient.updateIncident(new UpdateIncidentRequest() {{
+			setIncidentId(4297203L);
 			setPatchOperations(List.of(
 					new PatchOperation() {{
 						setOp("add");
 						setPath("/comments");
-						setValue("Imported to Cobalt");
+						setValue(commentValue);
 					}},
 					new PatchOperation() {{
 						setOp("replace");
 						setPath("/status");
-						setValue("Resolved");
+						setValue(statusValue);
 					}}
 			));
 		}});
+
+		List<String> commentValues = incident.getData().getComments().stream()
+				.map(comment -> comment.getComment())
+				.collect(Collectors.toList());
+
+		Assert.assertTrue(commentValues.contains(commentValue), "No comment was found with the name we specified");
+		Assert.assertEquals(incident.getData().getStatus(), statusValue, "Status value doesn't match the name we specified");
 	}
 
 	@Nonnull

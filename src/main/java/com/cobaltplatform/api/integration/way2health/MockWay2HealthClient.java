@@ -22,6 +22,7 @@ package com.cobaltplatform.api.integration.way2health;
 import com.cobaltplatform.api.integration.way2health.model.entity.Incident;
 import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentRequest;
 import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentsRequest;
+import com.cobaltplatform.api.integration.way2health.model.request.UpdateIncidentRequest;
 import com.cobaltplatform.api.integration.way2health.model.request.UpdateIncidentsRequest;
 import com.cobaltplatform.api.integration.way2health.model.response.ListResponse;
 import com.cobaltplatform.api.integration.way2health.model.response.ObjectResponse;
@@ -56,7 +57,7 @@ public class MockWay2HealthClient implements Way2HealthClient {
 		requireNonNull(request);
 		return new ObjectResponse<>() {{
 			setData(getIncidents(new GetIncidentsRequest()).getData().get(0));
-			setRawResponseBody("{}");
+			setRawResponseBody(getIncidents(new GetIncidentsRequest()).getRawResponseBody());
 			setErrors(null);
 		}};
 	}
@@ -83,9 +84,24 @@ public class MockWay2HealthClient implements Way2HealthClient {
 
 	@Nonnull
 	@Override
+	public ObjectResponse<Incident> updateIncident(@Nonnull UpdateIncidentRequest request) throws Way2HealthException {
+		requireNonNull(request);
+		return new ObjectResponse<>() {{
+			setData(getIncidents(new GetIncidentsRequest()).getData().get(0));
+			setRawResponseBody(getIncidents(new GetIncidentsRequest()).getRawResponseBody());
+			setErrors(null);
+		}};
+	}
+
+	@Nonnull
+	@Override
 	public ListResponse<Incident> updateIncidents(@Nonnull UpdateIncidentsRequest request) throws Way2HealthException {
 		requireNonNull(request);
-		throw new Way2HealthException("Sorry, this is not implemented in the mock client");
+		return new ListResponse<>() {{
+			setData(getIncidents(new GetIncidentsRequest()).getData());
+			setRawResponseBody(getIncidents(new GetIncidentsRequest()).getRawResponseBody());
+			setErrors(null);
+		}};
 	}
 
 	@Nonnull

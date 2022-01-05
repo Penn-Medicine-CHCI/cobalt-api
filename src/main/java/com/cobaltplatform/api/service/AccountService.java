@@ -305,10 +305,7 @@ public class AccountService {
 		else
 			subdomain = getConfiguration().getDefaultSubdomain();
 
-		Optional<Institution> institution = getInstitutionService().findInstitutionBySubdomain(subdomain);
-
-		if (!institution.isPresent())
-			validationException.add(new FieldError("subdomain", getStrings().get("Could not find institution.")));
+		Institution institution = getInstitutionService().findInstitutionBySubdomain(subdomain);
 
 		if (emailAddress == null)
 			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is required.")));
@@ -326,7 +323,7 @@ public class AccountService {
 
 
 		getDatabase().execute("INSERT INTO account_invite (account_invite_id, institution_id, email_address, " +
-						"password, account_invite_code) VALUES (?,?,?,?,?)", accountInviteId, institution.get().getInstitutionId(),
+						"password, account_invite_code) VALUES (?,?,?,?,?)", accountInviteId, institution.getInstitutionId(),
 				emailAddress, getAuthenticator().hashPassword(password), accountInviteCode);
 
 		AccountInvite accountInvite = findAccountInviteById(accountInviteId).get();

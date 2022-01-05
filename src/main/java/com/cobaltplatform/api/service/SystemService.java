@@ -19,7 +19,6 @@
 
 package com.cobaltplatform.api.service;
 
-import com.lokalized.Strings;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.integration.acuity.AcuitySyncManager;
 import com.cobaltplatform.api.integration.common.ProviderAvailabilitySyncManager;
@@ -28,6 +27,8 @@ import com.cobaltplatform.api.model.db.BetaFeature;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
+import com.cobaltplatform.api.model.service.AdvisoryLock;
+import com.lokalized.Strings;
 import com.pyranid.Database;
 import com.soklet.web.exception.NotFoundException;
 import org.slf4j.Logger;
@@ -97,6 +98,35 @@ public class SystemService {
 	@Nonnull
 	public List<BetaFeature> findBetaFeatures() {
 		return getDatabase().queryForList("SELECT * FROM beta_feature ORDER BY description", BetaFeature.class);
+	}
+
+	@Nonnull
+	public Boolean performAdvisoryLockOperationIfAvailable(@Nonnull AdvisoryLock advisoryLock,
+																												 @Nonnull Runnable runnable) {
+		requireNonNull(advisoryLock);
+		requireNonNull(runnable);
+
+		getLogger().debug("Attempting to acquire advisory lock {} (key {})",
+				advisoryLock.name(), advisoryLock.getKey());
+
+		Boolean lockAcquired = getDatabase().queryForObject("SELECT pg_try_advisory_lock(?)",
+				Boolean.class, advisoryLock.getKey()).get();
+
+		if (!lockAcquired) {
+			getLogger().debug("Advisory lock {} (key {}) has already been acquired, not performing operation.",
+					advisoryLock.name(), advisoryLock.getKey());
+			return false;
+		}
+
+		try {
+			runnable.run();
+		} finally {
+			getLogger().debug("Releasing advisory lock {} (key {})...", advisoryLock.name(), advisoryLock.getKey());
+			getDatabase().queryForObject("SELECT pg_advisory_unlock(?)", Boolean.class, advisoryLock.getKey());
+			getLogger().debug("Advisory lock {} (key {}) has been released.", advisoryLock.name(), advisoryLock.getKey());
+		}
+
+		return true;
 	}
 
 	public void syncPastProviderAvailability(@Nonnull InstitutionId institutionId) {

@@ -22,6 +22,7 @@ package com.cobaltplatform.api.integration.way2health;
 import com.cobaltplatform.api.integration.way2health.model.entity.Incident;
 import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentRequest;
 import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentsRequest;
+import com.cobaltplatform.api.integration.way2health.model.request.UpdateIncidentRequest;
 import com.cobaltplatform.api.integration.way2health.model.request.UpdateIncidentsRequest;
 import com.cobaltplatform.api.integration.way2health.model.response.ListResponse;
 import com.cobaltplatform.api.integration.way2health.model.response.ObjectResponse;
@@ -104,6 +105,25 @@ public interface Way2HealthClient {
 
 		return incidents;
 	}
+
+	/**
+	 * Update a single incident in Way2Health.
+	 * <p>
+	 * Example request body:
+	 * <pre>
+	 * [
+	 *   {"op":"add","path":"/comments","value":"Imported to Cobalt”},
+	 *   {"op":"replace","path":"/status","value":"Resolved"}
+	 * ]
+	 * </pre>
+	 * <p>
+	 * See https://app.waytohealth.org/api/v2#operation/updateIncident
+	 *
+	 * @param request (nonnull) parameters which dictate how to update an incident
+	 * @throws Way2HealthException if an error occurred while updating
+	 */
+	@Nonnull
+	ObjectResponse<Incident> updateIncident(@Nonnull UpdateIncidentRequest request) throws Way2HealthException;
 
 	/**
 	 * Batch-update incidents in Way2Health.

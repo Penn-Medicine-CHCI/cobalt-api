@@ -40,6 +40,8 @@ public class Incident extends Way2HealthEntity {
 	@Nullable
 	private String status;
 	@Nullable
+	private String message;
+	@Nullable
 	private Long studyId;
 	@Nullable
 	private LocalDateTime createdAt;
@@ -97,6 +99,15 @@ public class Incident extends Way2HealthEntity {
 
 	public void setStatus(@Nullable String status) {
 		this.status = status;
+	}
+
+	@Nullable
+	public String getMessage() {
+		return message;
+	}
+
+	public void setMessage(@Nullable String message) {
+		this.message = message;
 	}
 
 	@Nullable

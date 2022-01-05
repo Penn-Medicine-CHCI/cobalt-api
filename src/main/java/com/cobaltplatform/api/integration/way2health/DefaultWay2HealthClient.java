@@ -28,6 +28,7 @@ import com.cobaltplatform.api.integration.way2health.model.entity.Incident;
 import com.cobaltplatform.api.integration.way2health.model.entity.Way2HealthError;
 import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentRequest;
 import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentsRequest;
+import com.cobaltplatform.api.integration.way2health.model.request.UpdateIncidentRequest;
 import com.cobaltplatform.api.integration.way2health.model.request.UpdateIncidentsRequest;
 import com.cobaltplatform.api.integration.way2health.model.response.ListResponse;
 import com.cobaltplatform.api.integration.way2health.model.response.ObjectResponse;
@@ -163,6 +164,40 @@ public class DefaultWay2HealthClient implements Way2HealthClient {
 
 		return makeApiCall(HttpMethod.GET, "/incidents", queryParameters, (responseBody) -> {
 			PagedResponse<Incident> response = getGson().fromJson(responseBody, new TypeToken<PagedResponse<Incident>>() {
+			}.getType());
+
+			response.setRawResponseBody(responseBody);
+
+			return response;
+		});
+	}
+
+	@Nonnull
+	@Override
+	public ObjectResponse<Incident> updateIncident(@Nonnull UpdateIncidentRequest request) throws Way2HealthException {
+		requireNonNull(request);
+
+		Long incidentId = request.getIncidentId();
+
+		if (incidentId == null)
+			throw new Way2HealthException("You must provide an incident ID to update an incident.");
+
+		// Guard against null values if caller uses double-brace initialization, which Gson does not support
+		List<Map<String, Object>> patchOperations = request.getPatchOperations().stream()
+				.map(patchOperation -> {
+					Map<String, Object> patchOperationAsMap = new HashMap<>();
+					patchOperationAsMap.put("path", patchOperation.getPath());
+					patchOperationAsMap.put("op", patchOperation.getOp());
+					patchOperationAsMap.put("value", patchOperation.getValue());
+
+					return patchOperationAsMap;
+				})
+				.collect(Collectors.toList());
+
+		String requestBody = getGson().toJson(patchOperations);
+
+		return makeApiCall(HttpMethod.PATCH, format("/incidents/%s", incidentId), Collections.emptyMap(), requestBody, (responseBody) -> {
+			ObjectResponse<Incident> response = getGson().fromJson(responseBody, new TypeToken<ObjectResponse<Incident>>() {
 			}.getType());
 
 			response.setRawResponseBody(responseBody);
