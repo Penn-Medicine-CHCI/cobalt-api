@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('006-way2health', NULL, NULL);
+SELECT _v.register_patch('007-way2health', NULL, NULL);
 
 ALTER TABLE institution ADD COLUMN metadata JSONB NULL;
 
