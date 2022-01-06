@@ -211,17 +211,16 @@ public class InteractionService {
 		LocalDateTime scheduledAt = startDateTime;
 		Integer optionActionCount = findOptionActionCount(interactionInstanceId);
 
-		if (optionActionCount > 0)
-			scheduledAt = scheduledAt.plus(frequencyInMinutes, ChronoUnit.MINUTES);
-
 		for (int i = optionActionCount; i < interaction.getMaxInteractionCount(); i++) {
+			if (i > optionActionCount)
+				scheduledAt = scheduledAt.plus(frequencyInMinutes, ChronoUnit.MINUTES);
 
 			LocalDateTime finalScheduledAt = scheduledAt;
 			List<String> accountsToEmail = getAccountService().findAccountsMatchingMetadata(new HashMap<>() {{
 				put("interactionId", interactionInstance.getInteractionId());
 			}}).stream().map(e -> e.getEmailAddress()).filter(e -> e != null).collect(Collectors.toList());
 
-			if(accountsToEmail.size() == 0) {
+			if (accountsToEmail.size() == 0) {
 				getLogger().warn("Did not find any accounts to email for interaction ID {}", interaction.getInteractionId());
 				continue;
 			}

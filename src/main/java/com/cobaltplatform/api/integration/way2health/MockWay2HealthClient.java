@@ -61,6 +61,11 @@ public class MockWay2HealthClient implements Way2HealthClient {
 	@Override
 	public ObjectResponse<Incident> getIncident(@Nonnull GetIncidentRequest request) throws Way2HealthException {
 		requireNonNull(request);
+
+		// If someone called "updated" on this mock instance, don't return any more incidents
+		if (getPerformedIncidentUpdate())
+			throw new Way2HealthException("No incident was found");
+
 		return new ObjectResponse<>() {{
 			setData(getIncidents(new GetIncidentsRequest()).getData().get(0));
 			setRawResponseBody(getIncidents(new GetIncidentsRequest()).getRawResponseBody());
@@ -114,7 +119,9 @@ public class MockWay2HealthClient implements Way2HealthClient {
 		setPerformedIncidentUpdate(true);
 
 		return new ObjectResponse<>() {{
-			setData(getIncidents(new GetIncidentsRequest()).getData().get(0));
+			List<Incident> incidents = getIncidents(new GetIncidentsRequest()).getData();
+
+			setData(incidents.size() == 0 ? null : incidents.get(0));
 			setRawResponseBody(getIncidents(new GetIncidentsRequest()).getRawResponseBody());
 			setErrors(null);
 		}};
