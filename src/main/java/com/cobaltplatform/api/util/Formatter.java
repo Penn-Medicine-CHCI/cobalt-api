@@ -598,9 +598,11 @@ public final class Formatter {
 
 		double seconds = durationInSecondsAsDouble;
 
-		durationComponents.add(getStrings().get("{{seconds}}s", new HashMap<String, Object>() {{
-			put("seconds", formatNumber(seconds, locale));
-		}}));
+		if (seconds > 0 ) {
+			durationComponents.add(getStrings().get("{{seconds}}s", new HashMap<String, Object>() {{
+				put("seconds", formatNumber(seconds, locale));
+			}}));
+		}
 
 		return durationComponents.stream().collect(Collectors.joining(" "));
 	}

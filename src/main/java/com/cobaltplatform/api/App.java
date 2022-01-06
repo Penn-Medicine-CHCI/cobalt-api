@@ -27,6 +27,7 @@ import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.messaging.sms.SmsMessageManager;
 import com.cobaltplatform.api.service.GroupSessionService;
 import com.cobaltplatform.api.service.Way2HealthService;
+import com.cobaltplatform.api.service.MessageService;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
@@ -149,6 +150,13 @@ public class App implements AutoCloseable {
 			getLogger().warn("Failed to start email manager", e);
 		}
 
+		try {
+			MessageService messageService = getInjector().getInstance(MessageService.class);
+			messageService.start();
+		} catch (Exception e) {
+			getLogger().warn("Failed to start message service", e);
+		}
+
 		if (!configuration.getEnvironment().equalsIgnoreCase("LOCAL")) {
 			try {
 				BluejeansCredentialsProvider bluejeansCredentialsProvider = getInjector().getInstance(BluejeansCredentialsProvider.class);
@@ -214,6 +222,13 @@ public class App implements AutoCloseable {
 			acuitySyncManager.stop();
 		} catch (Exception e) {
 			getLogger().warn("Unable to stop Acuity sync manager", e);
+		}
+
+		try {
+			MessageService messageService = getInjector().getInstance(MessageService.class);
+			messageService.stop();
+		} catch (Exception e) {
+			getLogger().warn("Failed to stop message service", e);
 		}
 
 		try {
