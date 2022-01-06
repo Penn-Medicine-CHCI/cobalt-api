@@ -19,10 +19,6 @@
 
 package com.cobaltplatform.api;
 
-import com.google.inject.Guice;
-import com.google.inject.Injector;
-import com.google.inject.Module;
-import com.google.inject.util.Modules;
 import com.cobaltplatform.api.integration.acuity.AcuitySyncManager;
 import com.cobaltplatform.api.integration.bluejeans.BluejeansCredentialsProvider;
 import com.cobaltplatform.api.integration.epic.EpicSyncManager;
@@ -30,6 +26,11 @@ import com.cobaltplatform.api.messaging.call.CallMessageManager;
 import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.messaging.sms.SmsMessageManager;
 import com.cobaltplatform.api.service.GroupSessionService;
+import com.cobaltplatform.api.service.MessageService;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.google.inject.Module;
+import com.google.inject.util.Modules;
 import com.soklet.guice.SokletModule;
 import com.soklet.web.server.Server;
 import com.soklet.web.server.ServerException;
@@ -148,6 +149,13 @@ public class App implements AutoCloseable {
 			getLogger().warn("Failed to start email manager", e);
 		}
 
+		try {
+			MessageService messageService = getInjector().getInstance(MessageService.class);
+			messageService.start();
+		} catch (Exception e) {
+			getLogger().warn("Failed to start message service", e);
+		}
+
 		if (!configuration.getEnvironment().equalsIgnoreCase("LOCAL")) {
 			try {
 				BluejeansCredentialsProvider bluejeansCredentialsProvider = getInjector().getInstance(BluejeansCredentialsProvider.class);
@@ -199,6 +207,13 @@ public class App implements AutoCloseable {
 			acuitySyncManager.stop();
 		} catch (Exception e) {
 			getLogger().warn("Unable to stop Acuity sync manager", e);
+		}
+
+		try {
+			MessageService messageService = getInjector().getInstance(MessageService.class);
+			messageService.stop();
+		} catch (Exception e) {
+			getLogger().warn("Failed to stop message service", e);
 		}
 
 		try {

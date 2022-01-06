@@ -85,6 +85,8 @@ public class Account {
 	@Nonnull
 	private Long accessTokenShortExpirationInMinutes;
 	@Nullable
+	private String metaData;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -312,5 +314,14 @@ public class Account {
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
+	}
+
+	@Nullable
+	public String getmetadata() {
+		return metaData;
+	}
+
+	public void setmetadata(@Nullable String metaData) {
+		this.metaData = metaData;
 	}
 }

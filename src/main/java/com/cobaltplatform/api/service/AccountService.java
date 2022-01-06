@@ -864,6 +864,19 @@ public class AccountService {
 	}
 
 	@Nonnull
+	public List<Account> findAccountsMatchingMetadata(@Nullable Map<String, Object> metadata) {
+		requireNonNull(metadata);
+
+		if (metadata == null || metadata.size() == 0)
+			return Collections.emptyList();
+
+		String metadataAsJson = getJsonMapper().toJson(metadata);
+
+		return getDatabase().queryForList("SELECT * FROM account WHERE metadata @> CAST(? AS JSONB) "
+				, Account.class, metadataAsJson);
+	}
+
+	@Nonnull
 	public UUID getTestCaseyWatsonAccountId() {
 		return TEST_CASEY_WATSON_ACCOUNT_ID;
 	}

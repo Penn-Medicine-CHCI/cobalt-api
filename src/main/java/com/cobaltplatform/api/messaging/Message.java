@@ -19,7 +19,7 @@
 
 package com.cobaltplatform.api.messaging;
 
-import com.cobaltplatform.api.model.db.MessageType;
+import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -34,5 +34,5 @@ public interface Message {
 	UUID getMessageId();
 
 	@Nonnull
-	MessageType.MessageTypeId getMessageTypeId();
+	MessageTypeId getMessageTypeId();
 }

@@ -23,6 +23,8 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.InteractionInstance;
+import com.cobaltplatform.api.model.db.InteractionOption;
 import com.cobaltplatform.api.model.db.LoginDestination.LoginDestinationId;
 
 import javax.annotation.Nonnull;
@@ -147,6 +149,15 @@ public class LinkGenerator {
 	public String generateGroupSessionsAdminListLink(@Nonnull InstitutionId institutionId) {
 		return constructUrl(determineBaseUrl(institutionId, ClientDeviceTypeId.WEB_BROWSER),
 				"group-sessions/scheduled");
+	}
+
+	@Nonnull
+	public String generateInteractionOptionLink(@Nonnull InstitutionId institutionId,
+																							@Nonnull InteractionOption interactionOption,
+																							@Nonnull InteractionInstance interactionInstance) {
+		return constructUrl(determineBaseUrl(institutionId, ClientDeviceTypeId.WEB_BROWSER),
+				format("interaction/%s/option/%s", interactionInstance.getInteractionInstanceId(), interactionOption.getInteractionOptionId()),
+				new HashMap<String, Object>());
 	}
 
 	@Nonnull
