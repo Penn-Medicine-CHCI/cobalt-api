@@ -213,7 +213,7 @@
         "study_id":1,
         "name":"Jane Doe",
         "long_id":"1000001007",
-        "start_date":"2017-09-25",
+        "start_date":"2017-09-25 16:57:10",
         "status":"Started",
         "arm_id":"15",
         "cohort_id":"3",
@@ -452,7 +452,7 @@
                 "study_id":1,
                 "name":"Jane Doe",
                 "long_id":"1000001007",
-                "start_date":"2017-09-25",
+                "start_date":"2017-09-25 16:57:10",
                 "status":"Started",
                 "arm_id":"15",
                 "cohort_id":"3",
@@ -518,7 +518,7 @@
             "last_login":"2018-01-16 13:19:53"
           },
           "comment":"First Comment!",
-          "time":"1452269461"
+          "time":"2022-01-04 05:01:04"
         }
       ],
       "tags":[

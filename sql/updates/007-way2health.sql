@@ -3,6 +3,16 @@ SELECT _v.register_patch('007-way2health', NULL, NULL);
 
 ALTER TABLE institution ADD COLUMN metadata JSONB NULL;
 
+UPDATE institution
+SET metadata = '{"way2HealthIncidentTrackingConfigs": []}'::jsonb
+WHERE institution_id != 'COBALT';
+
+UPDATE institution
+SET metadata = '{"way2HealthIncidentTrackingConfigs": [{"enabled": true, "studyId": 715, "type": "Medical Emergency: Suicide Ideation", "interactionId": "45f4082c-4d16-400e-aecd-38e87726f6d9"}]}'::jsonb
+WHERE institution_id = 'COBALT';
+
+ALTER TABLE institution ALTER COLUMN metadata SET NOT NULL;
+
 CREATE TABLE way2health_incident (
   way2health_incident_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   institution_id VARCHAR NOT NULL REFERENCES institution,

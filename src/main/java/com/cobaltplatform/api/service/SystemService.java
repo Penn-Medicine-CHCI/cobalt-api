@@ -106,14 +106,14 @@ public class SystemService {
 		requireNonNull(advisoryLock);
 		requireNonNull(runnable);
 
-		getLogger().debug("Attempting to acquire advisory lock {} (key {})",
+		getLogger().trace("Attempting to acquire advisory lock {} (key {})",
 				advisoryLock.name(), advisoryLock.getKey());
 
 		Boolean lockAcquired = getDatabase().queryForObject("SELECT pg_try_advisory_lock(?)",
 				Boolean.class, advisoryLock.getKey()).get();
 
 		if (!lockAcquired) {
-			getLogger().debug("Advisory lock {} (key {}) has already been acquired, not performing operation.",
+			getLogger().trace("Advisory lock {} (key {}) has already been acquired, not performing operation.",
 					advisoryLock.name(), advisoryLock.getKey());
 			return false;
 		}
@@ -121,9 +121,9 @@ public class SystemService {
 		try {
 			runnable.run();
 		} finally {
-			getLogger().debug("Releasing advisory lock {} (key {})...", advisoryLock.name(), advisoryLock.getKey());
+			getLogger().trace("Releasing advisory lock {} (key {})...", advisoryLock.name(), advisoryLock.getKey());
 			getDatabase().queryForObject("SELECT pg_advisory_unlock(?)", Boolean.class, advisoryLock.getKey());
-			getLogger().debug("Advisory lock {} (key {}) has been released.", advisoryLock.name(), advisoryLock.getKey());
+			getLogger().trace("Advisory lock {} (key {}) has been released.", advisoryLock.name(), advisoryLock.getKey());
 		}
 
 		return true;

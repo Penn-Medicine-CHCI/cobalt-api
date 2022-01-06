@@ -29,10 +29,9 @@ import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentRe
 import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentsRequest;
 import com.cobaltplatform.api.integration.way2health.model.request.UpdateIncidentRequest;
 import com.cobaltplatform.api.integration.way2health.model.response.ObjectResponse;
-import com.cobaltplatform.api.messaging.email.EmailMessage;
-import com.cobaltplatform.api.messaging.email.EmailMessageManager;
-import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
+import com.cobaltplatform.api.model.api.request.CreateInteractionInstanceRequest;
 import com.cobaltplatform.api.model.db.Institution;
+import com.cobaltplatform.api.model.db.Institution.StandardMetadata.Way2HealthIncidentTrackingConfig;
 import com.cobaltplatform.api.model.db.Way2HealthIncident;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -47,18 +46,20 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
-import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -171,11 +172,11 @@ public class Way2HealthService implements AutoCloseable {
 		@Nonnull
 		private final InstitutionService institutionService;
 		@Nonnull
+		private final InteractionService interactionService;
+		@Nonnull
 		private final Way2HealthClient way2HealthClient;
 		@Nonnull
 		private final CurrentContextExecutor currentContextExecutor;
-		@Nonnull
-		private final EmailMessageManager emailMessageManager;
 		@Nonnull
 		private final ErrorReporter errorReporter;
 		@Nonnull
@@ -188,26 +189,26 @@ public class Way2HealthService implements AutoCloseable {
 		@Inject
 		public BackgroundSyncTask(@Nonnull SystemService systemService,
 															@Nonnull InstitutionService institutionService,
+															@Nonnull InteractionService interactionService,
 															@Nonnull Way2HealthClient way2HealthClient,
 															@Nonnull CurrentContextExecutor currentContextExecutor,
-															@Nonnull EmailMessageManager emailMessageManager,
 															@Nonnull ErrorReporter errorReporter,
 															@Nonnull Database database,
 															@Nonnull Configuration configuration) {
 			requireNonNull(systemService);
 			requireNonNull(institutionService);
+			requireNonNull(interactionService);
 			requireNonNull(way2HealthClient);
 			requireNonNull(currentContextExecutor);
-			requireNonNull(emailMessageManager);
 			requireNonNull(errorReporter);
 			requireNonNull(database);
 			requireNonNull(configuration);
 
 			this.systemService = systemService;
 			this.institutionService = institutionService;
+			this.interactionService = interactionService;
 			this.way2HealthClient = way2HealthClient;
 			this.currentContextExecutor = currentContextExecutor;
-			this.emailMessageManager = emailMessageManager;
 			this.errorReporter = errorReporter;
 			this.database = database;
 			this.configuration = configuration;
@@ -218,124 +219,123 @@ public class Way2HealthService implements AutoCloseable {
 		public void run() {
 			// Use advisory lock to ensure we don't have multiple nodes working on Way2Health processing at one time
 			getSystemService().performAdvisoryLockOperationIfAvailable(AdvisoryLock.WAY2HEALTH_INCIDENT_SYNCING, () -> {
-				// Find any institutions that are marked as supporting W2H incident tracking
-				List<Institution> institutions = getInstitutionService().findInstitutionsMatchingMetadata(new HashMap<String, Object>() {{
-					put("way2HealthIncidentTrackingEnabled", true);
-				}});
-
 				CurrentContext currentContext = new CurrentContext.Builder(getConfiguration().getDefaultLocale(), getConfiguration().getDefaultTimeZone()).build();
 
 				getCurrentContextExecutor().execute(currentContext, () -> {
-					for (Institution institution : institutions) {
-						String institutionDescription = institution.getInstitutionId().name();
+					for (Institution institution : getInstitutionService().findInstitutions()) {
+						Institution.StandardMetadata institutionMetadata = institution.getStandardMetadata();
 
-						Map<String, Object> metadata = institution.getMetadataAsMap();
-						Number studyId = (Number) metadata.get("way2HealthIncidentTrackingStudyId");
-						String type = (String) metadata.get("way2HealthIncidentTrackingType");
-						List<String> emailAddressesToNotify = (List<String>) metadata.get("way2HealthIncidentTrackingEmailAddressesToNotify");
+						// Institutions can have multiple tracking configs for W2H
+						for (Way2HealthIncidentTrackingConfig config : institutionMetadata.getWay2HealthIncidentTrackingConfigs()) {
+							String institutionDescription = format("%s (study %s, type '%s')", institution.getInstitutionId().name(),
+									config.getStudyId(), config.getType());
 
-						if (studyId == null || type == null || emailAddressesToNotify == null || emailAddressesToNotify.size() == 0) {
-							getErrorReporter().report(format("%s is not configured correctly for Way2Health, not tracking incidents. " +
-									"Values were {studyId=%s, type=%, emailAddressesToNotify=%s}", institutionDescription, studyId, type, emailAddressesToNotify));
-							continue;
-						}
+							if (!config.getEnabled()) {
+								getLogger().trace("{} has Way2Health incident tracking disabled, skipping it...", institutionDescription);
+								continue;
+							}
 
-						List<ObjectResponse<Incident>> incidentResponses = new ArrayList<>();
+							if (config.getInteractionId() == null || config.getStudyId() == null || config.getType() == null) {
+								getErrorReporter().report(format("%s is not configured correctly for Way2Health, not tracking incidents", institutionDescription));
+								continue;
+							}
 
-						try {
-							// Get all incidents (implicitly walking over all available pages) so we can process them
-							List<Incident> incidents = getWay2HealthClient().getAllIncidents(new GetIncidentsRequest() {{
-								setStatus("New");
-								setStudyId(studyId.longValue());
-								setType(type);
-								setOrderBy("desc(created_at)");
-							}});
+							List<ObjectResponse<Incident>> incidentResponses = new ArrayList<>();
 
-							// For each incident, pull in its details so we have the full picture for future reference
-							for (Incident incident : incidents) {
-								ObjectResponse<Incident> incidentResponse = getWay2HealthClient().getIncident(new GetIncidentRequest() {{
-									setIncidentId(incident.getId());
-									setInclude(List.of("comments", "participant", "reporter", "tags", "attachments"));
+							try {
+								// Get all incidents (implicitly walking over all available pages) so we can process them
+								List<Incident> incidents = getWay2HealthClient().getAllIncidents(new GetIncidentsRequest() {{
+									setStatus("New");
+									setStudyId(config.getStudyId());
+									setType(config.getType());
+									setOrderBy("desc(created_at)");
 								}});
 
-								incidentResponses.add(incidentResponse);
-							}
-						} catch (Exception e) {
-							getLogger().error(format("Unable to pull incident data from Way2Health for %s", institutionDescription), e);
-							getErrorReporter().report(e);
-						}
+								// For each incident, pull in its details so we have the full picture for future reference
+								for (Incident incident : incidents) {
+									ObjectResponse<Incident> incidentResponse = getWay2HealthClient().getIncident(new GetIncidentRequest() {{
+										setIncidentId(incident.getId());
+										setInclude(List.of("comments", "participant", "reporter", "tags", "attachments"));
+									}});
 
-						if (incidentResponses.size() > 0) {
-							getLogger().debug("There are {} incident[s] to process for {}.", incidentResponses.size(), institutionDescription);
-
-							for (ObjectResponse<Incident> incidentResponse : incidentResponses) {
-								Incident incident = incidentResponse.getData();
-
-								// See if we have already processed this incident...
-								Way2HealthIncident way2HealthIncident = getDatabase().queryForObject(
-										"SELECT * FROM way2health_incident WHERE incident_id=?", Way2HealthIncident.class, incident.getId()).orElse(null);
-
-								// If we have already processed this incident, there must be some problem,
-								// e.g. the status update PATCH call to W2H failed.  We don't want to reprocess in that case
-								if (way2HealthIncident != null) {
-									getErrorReporter().report(format("Issue detected with Way2Health incident ID %s. " +
-											"It exists in our DB but W2H still considers it 'new'. We are not going to re-send notifications for it.", incident.getId()));
-								} else {
-									getDatabase().transaction(() -> {
-										// Track that we have seen this incident
-										getDatabase().execute("INSERT INTO way2health_incident (institution_id, incident_id, study_id, raw_json) " +
-														"VALUES (?,?,?,CAST (? AS JSONB))",
-												institution.getInstitutionId(), incident.getId(), incident.getStudyId(), incidentResponse.getRawResponseBody());
-
-										// Once we commit successfully, fire off emails letting people know there is an issue
-										getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
-											// Send emails to interested parties to let them know
-											for (String emailAddressToNotify : emailAddressesToNotify) {
-												// TODO: wire up real email information
-												getEmailMessageManager().enqueueMessage(new EmailMessage.Builder(EmailMessageTemplate.FREEFORM, institution.getLocale())
-														.toAddresses(List.of(emailAddressToNotify))
-														.messageContext(new HashMap<String, Object>() {{
-															// Message is supposed to include relevant information, but in case it's null, have a fallback
-															String body = trimToNull(incident.getMessage());
-
-															if (body == null)
-																body = format("Please check Way2Health incident ID %s for crisis information.", incident.getId());
-
-															put("subject", "Way2Health crisis notification");
-															put("body", body);
-														}})
-														.build());
-											}
-
-											try {
-												// Next, let Way2Health know that we have processed the record so it doesn't get reprocessed
-												getWay2HealthClient().updateIncident(new UpdateIncidentRequest() {
-													{
-														setIncidentId(incident.getId());
-														setPatchOperations(List.of(
-																new PatchOperation() {{
-																	setOp("add");
-																	setPath("/comments");
-																	setValue("Imported to Cobalt");
-																}},
-																new PatchOperation() {{
-																	setOp("replace");
-																	setPath("/status");
-																	setValue("Resolved");
-																}}
-														));
-													}
-												});
-											} catch (Exception e) {
-												getLogger().error(format("Unable to update incident ID %s in Way2Health for %s", incident.getId(), institutionDescription), e);
-												getErrorReporter().report(e);
-											}
-										});
-									});
+									incidentResponses.add(incidentResponse);
 								}
+							} catch (Exception e) {
+								getLogger().error(format("Unable to pull incident data from Way2Health for %s", institutionDescription), e);
+								getErrorReporter().report(e);
 							}
-						} else {
-							getLogger().trace("No incidents to process for {}", institutionDescription);
+
+							if (incidentResponses.size() > 0) {
+								getLogger().debug("There are {} incident[s] to process for {}.", incidentResponses.size(), institutionDescription);
+
+								for (ObjectResponse<Incident> incidentResponse : incidentResponses) {
+									Incident incident = incidentResponse.getData();
+
+									// See if we have already processed this incident...
+									Way2HealthIncident way2HealthIncident = getDatabase().queryForObject(
+											"SELECT * FROM way2health_incident WHERE incident_id=?", Way2HealthIncident.class, incident.getId()).orElse(null);
+
+									// If we have already processed this incident, there must be some problem,
+									// e.g. the status update PATCH call to W2H failed.  We don't want to reprocess in that case
+									if (way2HealthIncident != null) {
+										getErrorReporter().report(format("Issue detected with Way2Health incident ID %s. " +
+												"It exists in our DB but W2H still considers it 'new'. We are not going to re-send notifications for it.", incident.getId()));
+									} else {
+										getDatabase().transaction(() -> {
+											// Track that we have seen this incident
+											UUID way2HealthIncidentId = UUID.randomUUID();
+
+											getDatabase().execute("INSERT INTO way2health_incident (way2health_incident_id, institution_id, " +
+															"incident_id, study_id, raw_json) VALUES (?,?,?,?,CAST (? AS JSONB))", way2HealthIncidentId,
+													institution.getInstitutionId(), incident.getId(), incident.getStudyId(), incidentResponse.getRawResponseBody());
+
+											ZoneId timeZone = institution.getTimeZone();
+											LocalDateTime now = LocalDateTime.now(timeZone);
+											Map<String, Object> interactionInstanceMetadata = new HashMap<>() {{
+												put("way2HealthIncidentId", way2HealthIncidentId);
+												put("incidentId", incident.getId());
+												put("studyId", incident.getStudyId());
+											}};
+
+											// Record an interaction for this incident, which might send off some email messages (for example)
+											getInteractionService().createInteractionInstance(new CreateInteractionInstanceRequest() {{
+												setMetadata(interactionInstanceMetadata);
+												setStartDateTime(now);
+												setTimeZone(timeZone);
+												setInteractionId(config.getInteractionId());
+											}});
+
+											// Once we commit successfully, let Way2Health know that we have successfully processed the incident
+											getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
+												try {
+													getWay2HealthClient().updateIncident(new UpdateIncidentRequest() {
+														{
+															setIncidentId(incident.getId());
+															setPatchOperations(List.of(
+																	new PatchOperation() {{
+																		setOp("add");
+																		setPath("/comments");
+																		setValue("Imported to Cobalt");
+																	}},
+																	new PatchOperation() {{
+																		setOp("replace");
+																		setPath("/status");
+																		setValue("Resolved");
+																	}}
+															));
+														}
+													});
+												} catch (Exception e) {
+													getLogger().error(format("Unable to update incident ID %s in Way2Health for %s", incident.getId(), institutionDescription), e);
+													getErrorReporter().report(e);
+												}
+											});
+										});
+									}
+								}
+							} else {
+								getLogger().trace("No incidents to process for {}", institutionDescription);
+							}
 						}
 					}
 				});
@@ -353,6 +353,11 @@ public class Way2HealthService implements AutoCloseable {
 		}
 
 		@Nonnull
+		protected InteractionService getInteractionService() {
+			return interactionService;
+		}
+
+		@Nonnull
 		protected Way2HealthClient getWay2HealthClient() {
 			return way2HealthClient;
 		}
@@ -360,11 +365,6 @@ public class Way2HealthService implements AutoCloseable {
 		@Nonnull
 		protected CurrentContextExecutor getCurrentContextExecutor() {
 			return currentContextExecutor;
-		}
-
-		@Nonnull
-		protected EmailMessageManager getEmailMessageManager() {
-			return emailMessageManager;
 		}
 
 		@Nonnull

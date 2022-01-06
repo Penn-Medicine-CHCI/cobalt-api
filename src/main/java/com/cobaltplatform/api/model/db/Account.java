@@ -85,7 +85,7 @@ public class Account {
 	@Nonnull
 	private Long accessTokenShortExpirationInMinutes;
 	@Nullable
-	private String metaData;
+	private String metadata;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -317,11 +317,11 @@ public class Account {
 	}
 
 	@Nullable
-	public String getmetadata() {
-		return metaData;
+	public String getMetadata() {
+		return metadata;
 	}
 
-	public void setmetadata(@Nullable String metaData) {
-		this.metaData = metaData;
+	public void setMetadata(@Nullable String metadata) {
+		this.metadata = metadata;
 	}
 }

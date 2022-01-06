@@ -32,10 +32,13 @@ import com.google.gson.reflect.TypeToken;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
+import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
@@ -46,9 +49,12 @@ import static java.util.Objects.requireNonNull;
 public class MockWay2HealthClient implements Way2HealthClient {
 	@Nonnull
 	private final Gson gson;
+	@Nonnull
+	private Boolean performedIncidentUpdate;
 
 	public MockWay2HealthClient() {
 		this.gson = Way2HealthGsonSupport.sharedGson();
+		this.performedIncidentUpdate = false;
 	}
 
 	@Nonnull
@@ -67,9 +73,21 @@ public class MockWay2HealthClient implements Way2HealthClient {
 	public PagedResponse<Incident> getIncidents(@Nonnull GetIncidentsRequest request) throws Way2HealthException {
 		requireNonNull(request);
 
-		try (FileReader fileReader = new FileReader(Path.of("src/test/resources/way2health-incidents-fetch-response.json").toFile())) {
-			return getGson().fromJson(fileReader, new TypeToken<PagedResponse<Incident>>() {
+		// If someone called "updated" on this mock instance, don't return any more incidents
+		if (getPerformedIncidentUpdate()) {
+			PagedResponse<Incident> incidentResponse = new PagedResponse<>();
+			incidentResponse.setData(Collections.emptyList());
+			incidentResponse.setMeta(new PagedResponse.Meta());
+			incidentResponse.setRawResponseBody("{}");
+			return incidentResponse;
+		}
+
+		try {
+			String json = Files.readString(Path.of("src/test/resources/way2health-incidents-fetch-response.json"), StandardCharsets.UTF_8);
+			PagedResponse<Incident> incidentResponse = getGson().fromJson(json, new TypeToken<PagedResponse<Incident>>() {
 			}.getType());
+			incidentResponse.setRawResponseBody(json);
+			return incidentResponse;
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
@@ -84,8 +102,17 @@ public class MockWay2HealthClient implements Way2HealthClient {
 
 	@Nonnull
 	@Override
+	public List<Incident> getAllIncidents(@Nonnull GetIncidentsRequest request) throws Way2HealthException {
+		return getIncidents(new GetIncidentsRequest()).getData();
+	}
+
+	@Nonnull
+	@Override
 	public ObjectResponse<Incident> updateIncident(@Nonnull UpdateIncidentRequest request) throws Way2HealthException {
 		requireNonNull(request);
+
+		setPerformedIncidentUpdate(true);
+
 		return new ObjectResponse<>() {{
 			setData(getIncidents(new GetIncidentsRequest()).getData().get(0));
 			setRawResponseBody(getIncidents(new GetIncidentsRequest()).getRawResponseBody());
@@ -97,6 +124,9 @@ public class MockWay2HealthClient implements Way2HealthClient {
 	@Override
 	public ListResponse<Incident> updateIncidents(@Nonnull UpdateIncidentsRequest request) throws Way2HealthException {
 		requireNonNull(request);
+
+		setPerformedIncidentUpdate(true);
+
 		return new ListResponse<>() {{
 			setData(getIncidents(new GetIncidentsRequest()).getData());
 			setRawResponseBody(getIncidents(new GetIncidentsRequest()).getRawResponseBody());
@@ -107,5 +137,14 @@ public class MockWay2HealthClient implements Way2HealthClient {
 	@Nonnull
 	protected Gson getGson() {
 		return gson;
+	}
+
+	@Nonnull
+	protected Boolean getPerformedIncidentUpdate() {
+		return performedIncidentUpdate;
+	}
+
+	protected void setPerformedIncidentUpdate(@Nonnull Boolean performedIncidentUpdate) {
+		this.performedIncidentUpdate = performedIncidentUpdate;
 	}
 }

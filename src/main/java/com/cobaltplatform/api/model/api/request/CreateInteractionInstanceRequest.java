@@ -22,19 +22,23 @@ package com.cobaltplatform.api.model.api.request;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Map;
 import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreateInteractionInstance {
+public class CreateInteractionInstanceRequest {
 	@Nullable
 	private UUID interactionId;
 	@Nullable
 	private LocalDateTime startDateTime;
 	@Nullable
-	private String metaData;
+	private ZoneId timeZone;
+	@Nullable
+	private Map<String, Object> metadata;
 	@Nullable
 	private UUID accountId;
 
@@ -57,12 +61,21 @@ public class CreateInteractionInstance {
 	}
 
 	@Nullable
-	public String getmetadata() {
-		return metaData;
+	public ZoneId getTimeZone() {
+		return timeZone;
 	}
 
-	public void setmetadata(@Nullable String metaData) {
-		this.metaData = metaData;
+	public void setTimeZone(@Nullable ZoneId timeZone) {
+		this.timeZone = timeZone;
+	}
+
+	@Nullable
+	public Map<String, Object> getMetadata() {
+		return metadata;
+	}
+
+	public void setMetadata(@Nullable Map<String, Object> metadata) {
+		this.metadata = metadata;
 	}
 
 	@Nullable

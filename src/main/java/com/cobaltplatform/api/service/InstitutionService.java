@@ -41,6 +41,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -119,14 +120,21 @@ public class InstitutionService {
 	}
 
 	@Nonnull
+	public List<Institution> findNonCobaltInstitutions() {
+		return findInstitutions().stream()
+				.filter(institution -> institution.getInstitutionId() != InstitutionId.COBALT)
+				.collect(Collectors.toList());
+	}
+
+	@Nonnull
 	public List<Institution> findInstitutions() {
-		return getDatabase().queryForList("SELECT * FROM institution WHERE institution_id != ?", Institution.class, InstitutionId.COBALT);
+		return getDatabase().queryForList("SELECT * FROM institution ORDER BY institution_id", Institution.class);
 	}
 
 	@Nonnull
 	public List<Institution> findInstitutionsWithoutSpecifiedContentId(@Nullable UUID contentId) {
 		if (contentId == null)
-			return findInstitutions();
+			return findNonCobaltInstitutions();
 
 		return getDatabase().queryForList("SELECT i.* FROM institution i WHERE i.institution_id NOT IN " +
 				"(SELECT ic.institution_id FROM institution_content ic WHERE ic.content_id = ?)", Institution.class, contentId);
