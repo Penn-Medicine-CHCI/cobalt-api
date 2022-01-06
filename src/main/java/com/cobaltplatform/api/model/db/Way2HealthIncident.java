@@ -36,6 +36,10 @@ public class Way2HealthIncident {
 	@Nullable
 	private InstitutionId institutionId;
 	@Nullable
+	private Long incidentId;
+	@Nullable
+	private Long studyId;
+	@Nullable
 	private String rawJson;
 	@Nullable
 	private Instant created;
@@ -58,6 +62,24 @@ public class Way2HealthIncident {
 
 	public void setInstitutionId(@Nullable InstitutionId institutionId) {
 		this.institutionId = institutionId;
+	}
+
+	@Nullable
+	public Long getIncidentId() {
+		return incidentId;
+	}
+
+	public void setIncidentId(@Nullable Long incidentId) {
+		this.incidentId = incidentId;
+	}
+
+	@Nullable
+	public Long getStudyId() {
+		return studyId;
+	}
+
+	public void setStudyId(@Nullable Long studyId) {
+		this.studyId = studyId;
 	}
 
 	@Nullable

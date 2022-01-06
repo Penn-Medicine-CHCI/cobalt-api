@@ -283,9 +283,9 @@ public class Way2HealthService implements AutoCloseable {
 								} else {
 									getDatabase().transaction(() -> {
 										// Track that we have seen this incident
-										getDatabase().execute("INSERT INTO way2health_incident (institution_id, incident_id, raw_json) " +
-														"VALUES (?,?,CAST (? AS JSONB))",
-												institution.getInstitutionId(), incident.getId(), incidentResponse.getRawResponseBody());
+										getDatabase().execute("INSERT INTO way2health_incident (institution_id, incident_id, study_id, raw_json) " +
+														"VALUES (?,?,?,CAST (? AS JSONB))",
+												institution.getInstitutionId(), incident.getId(), incident.getStudyId(), incidentResponse.getRawResponseBody());
 
 										// Once we commit successfully, fire off emails letting people know there is an issue
 										getDatabase().currentTransaction().get().addPostCommitOperation(() -> {

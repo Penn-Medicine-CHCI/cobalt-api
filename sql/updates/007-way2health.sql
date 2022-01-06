@@ -7,6 +7,7 @@ CREATE TABLE way2health_incident (
   way2health_incident_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   institution_id VARCHAR NOT NULL REFERENCES institution,
   incident_id BIGINT NOT NULL,
+  study_id BIGINT NOT NULL,
   raw_json JSONB NOT NULL,
   created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
