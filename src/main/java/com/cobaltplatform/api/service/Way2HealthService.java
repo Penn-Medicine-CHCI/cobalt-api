@@ -206,6 +206,8 @@ public class Way2HealthService implements AutoCloseable {
 		@Nonnull
 		private final Configuration configuration;
 		@Nonnull
+		private final Strings strings;
+		@Nonnull
 		private final Logger logger;
 
 		@Inject
@@ -216,7 +218,8 @@ public class Way2HealthService implements AutoCloseable {
 															@Nonnull CurrentContextExecutor currentContextExecutor,
 															@Nonnull ErrorReporter errorReporter,
 															@Nonnull Database database,
-															@Nonnull Configuration configuration) {
+															@Nonnull Configuration configuration,
+															@Nonnull Strings strings) {
 			requireNonNull(systemService);
 			requireNonNull(institutionService);
 			requireNonNull(interactionService);
@@ -225,6 +228,7 @@ public class Way2HealthService implements AutoCloseable {
 			requireNonNull(errorReporter);
 			requireNonNull(database);
 			requireNonNull(configuration);
+			requireNonNull(strings);
 
 			this.systemService = systemService;
 			this.institutionService = institutionService;
@@ -234,6 +238,7 @@ public class Way2HealthService implements AutoCloseable {
 			this.errorReporter = errorReporter;
 			this.database = database;
 			this.configuration = configuration;
+			this.strings = strings;
 			this.logger = LoggerFactory.getLogger(getClass());
 		}
 
@@ -318,6 +323,10 @@ public class Way2HealthService implements AutoCloseable {
 												put("incidentId", incident.getId());
 												put("studyId", incident.getStudyId());
 												put("message", incident.getMessage());
+												put("participantName", incident.getParticipant() == null ? getStrings().get("[unknown]") : incident.getParticipant().getName());
+												put("participantCellPhoneNumber", incident.getParticipant() == null ? getStrings().get("[unknown]") : incident.getParticipant().getCellPhone());
+												put("participantHomePhoneNumber", incident.getParticipant() == null ? getStrings().get("[unknown]") : incident.getParticipant().getHomePhone());
+												put("participantWorkPhoneNumber", incident.getParticipant() == null ? getStrings().get("[unknown]") : incident.getParticipant().getWorkPhone());
 											}};
 
 											// Record an interaction for this incident, which might send off some email messages (for example)
@@ -403,6 +412,11 @@ public class Way2HealthService implements AutoCloseable {
 		@Nonnull
 		protected Configuration getConfiguration() {
 			return configuration;
+		}
+
+		@Nonnull
+		protected Strings getStrings() {
+			return strings;
 		}
 
 		@Nonnull
