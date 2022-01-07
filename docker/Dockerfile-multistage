@@ -37,6 +37,7 @@ WORKDIR /opt/app
 COPY --from=build target/classes classes
 COPY --from=build target/dependency dependency
 COPY --from=build target/cobalt-api-1.0.0-SNAPSHOT.jar .
+COPY resources resources
 COPY messages messages
 COPY config config
 COPY web web
