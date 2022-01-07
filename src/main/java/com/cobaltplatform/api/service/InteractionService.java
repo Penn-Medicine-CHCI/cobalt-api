@@ -32,6 +32,7 @@ import com.cobaltplatform.api.model.db.InteractionOption;
 import com.cobaltplatform.api.model.db.ScheduledMessage;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus;
 import com.cobaltplatform.api.util.Formatter;
+import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.ValidationException;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -54,6 +55,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify LLC.
@@ -76,6 +78,8 @@ public class InteractionService {
 	private final Formatter formatter;
 	@Nonnull
 	private final Configuration configuration;
+	@Nonnull
+	private final JsonMapper jsonMapper;
 
 	@Inject
 	public InteractionService(@Nonnull Database database,
@@ -84,7 +88,8 @@ public class InteractionService {
 														@Nonnull MessageService messageService,
 														@Nonnull InteractionOptionApiResponseFactory interactionOptionApiResponseFactory,
 														@Nonnull Formatter formatter,
-														@Nonnull Configuration configuration) {
+														@Nonnull Configuration configuration,
+														@Nonnull JsonMapper jsonMapper) {
 		requireNonNull(database);
 		requireNonNull(accountService);
 		requireNonNull(strings);
@@ -92,6 +97,7 @@ public class InteractionService {
 		requireNonNull(interactionOptionApiResponseFactory);
 		requireNonNull(formatter);
 		requireNonNull(configuration);
+		requireNonNull(jsonMapper);
 
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.database = database;
@@ -101,6 +107,7 @@ public class InteractionService {
 		this.interactionOptionApiResponseFactory = interactionOptionApiResponseFactory;
 		this.formatter = formatter;
 		this.configuration = configuration;
+		this.jsonMapper = jsonMapper;
 	}
 
 	@Nonnull
@@ -229,8 +236,22 @@ public class InteractionService {
 					.toAddresses(accountsToEmail)
 					.fromAddress(getConfiguration().getEmailDefaultFromAddress())
 					.messageContext(new HashMap<String, Object>() {{
-						put("interactionInstanceId", interactionInstanceId);
-						put("metadata", interactionInstance.getMetadata());
+						// Pull out a magic "endUserHtmlRepresentation" key from metadata if possible and expose it to the message template
+						String metadata = trimToNull(interactionInstance.getMetadata());
+						String endUserHtmlRepresentation = null;
+
+						if (metadata != null) {
+							try {
+								Map<String, Object> metadataAsMap = getJsonMapper().toMap(metadata);
+								endUserHtmlRepresentation = trimToNull((String) metadataAsMap.get("endUserHtmlRepresentation"));
+							} catch (Exception ignored) {
+								// Don't worry if this fails, it's just best-effort to get data out
+							}
+						}
+
+						put("caseNumber", interactionInstance.getCaseNumber());
+						put("metadata", metadata);
+						put("endUserHtmlRepresentation", endUserHtmlRepresentation);
 						put("interactionOptions", findInteractionOptionsByInteractionId(interaction.getInteractionId()).stream().map((interactionOption) ->
 								getInteractionOptionApiResponseFactory().create(interactionOption, interactionInstance)).collect(Collectors.toList()));
 					}})
@@ -347,5 +368,10 @@ public class InteractionService {
 	@Nonnull
 	protected Formatter getFormatter() {
 		return formatter;
+	}
+
+	@Nonnull
+	protected JsonMapper getJsonMapper() {
+		return jsonMapper;
 	}
 }
