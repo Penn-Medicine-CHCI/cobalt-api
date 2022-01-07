@@ -63,6 +63,8 @@ public class InteractionInstanceApiResponse {
 	private String completedDateDescription;
 	@Nullable
 	private Map<String, Object> metadata;
+	@Nullable
+	private String caseNumber;
 
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
@@ -92,6 +94,7 @@ public class InteractionInstanceApiResponse {
 		this.completedDate = interactionInstance.getCompletedDate();
 		this.completedDateDescription = interactionInstance.getCompletedDate() == null ? null : formatter.formatTimestamp(interactionInstance.getCompletedDate(), FormatStyle.LONG, FormatStyle.MEDIUM);
 		this.completedFlag = interactionInstance.getCompletedFlag();
+		this.caseNumber = interactionInstance.getCaseNumber();
 	}
 
 	@Nullable

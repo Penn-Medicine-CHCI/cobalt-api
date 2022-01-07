@@ -48,6 +48,8 @@ public class InteractionInstance {
 	@Nullable
 	private Instant completedDate;
 	@Nullable
+	private String caseNumber;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -141,5 +143,14 @@ public class InteractionInstance {
 
 	public void setCompletedDate(@Nullable Instant completedDate) {
 		this.completedDate = completedDate;
+	}
+
+	@Nullable
+	public String getCaseNumber() {
+		return caseNumber;
+	}
+
+	public void setCaseNumber(@Nullable String caseNumber) {
+		this.caseNumber = caseNumber;
 	}
 }
