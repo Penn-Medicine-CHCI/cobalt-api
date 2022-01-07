@@ -197,7 +197,7 @@ public class DefaultHttpClient implements HttpClient {
 			else if (httpRequest.getHttpMethod() == HttpMethod.PUT)
 				requestBuilder.put(requestBody);
 			else if (httpRequest.getHttpMethod() == HttpMethod.PATCH)
-				requestBuilder.put(requestBody);
+				requestBuilder.patch(requestBody);
 			else if (httpRequest.getHttpMethod() == HttpMethod.DELETE)
 				requestBuilder.delete(requestBody);
 			else

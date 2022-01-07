@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.InteractionInstance;
 import com.cobaltplatform.api.util.Formatter;
+import com.cobaltplatform.api.util.JsonMapper;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import com.lokalized.Strings;
@@ -28,8 +29,11 @@ import com.lokalized.Strings;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.FormatStyle;
+import java.util.Map;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -50,9 +54,15 @@ public class InteractionInstanceApiResponse {
 	@Nullable
 	private String startDateTimeDescription;
 	@Nullable
-	private String timeZone;
+	private ZoneId timeZone;
 	@Nullable
-	private String metaData;
+	private Boolean completedFlag;
+	@Nullable
+	private Instant completedDate;
+	@Nullable
+	private String completedDateDescription;
+	@Nullable
+	private Map<String, Object> metadata;
 
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
@@ -65,25 +75,57 @@ public class InteractionInstanceApiResponse {
 	@AssistedInject
 	public InteractionInstanceApiResponse(@Nonnull Formatter formatter,
 																				@Nonnull Strings strings,
+																				@Nonnull JsonMapper jsonMapper,
 																				@Assisted @Nonnull InteractionInstance interactionInstance) {
 		requireNonNull(formatter);
 		requireNonNull(strings);
+		requireNonNull(jsonMapper);
 		requireNonNull(interactionInstance);
 
 		this.interactionId = interactionInstance.getInteractionId();
 		this.interactionInstanceId = interactionInstance.getInteractionInstanceId();
 		this.accountId = interactionInstance.getAccountId();
-		this.metaData = interactionInstance.getmetadata();
+		this.metadata = interactionInstance.getMetadata() == null ? null : jsonMapper.toMap(interactionInstance.getMetadata());
 		this.timeZone = interactionInstance.getTimeZone();
 		this.startDateTime = interactionInstance.getStartDateTime();
 		this.startDateTimeDescription = formatter.formatDateTime(interactionInstance.getStartDateTime(), FormatStyle.LONG, FormatStyle.MEDIUM);
-
+		this.completedDate = interactionInstance.getCompletedDate();
+		this.completedDateDescription = interactionInstance.getCompletedDate() == null ? null : formatter.formatTimestamp(interactionInstance.getCompletedDate(), FormatStyle.LONG, FormatStyle.MEDIUM);
+		this.completedFlag = interactionInstance.getCompletedFlag();
 	}
 
+	@Nullable
+	public UUID getInteractionInstanceId() {
+		return interactionInstanceId;
+	}
 
-	@Nonnull
+	@Nullable
+	public UUID getInteractionId() {
+		return interactionId;
+	}
+
+	@Nullable
+	public UUID getAccountId() {
+		return accountId;
+	}
+
+	@Nullable
 	public LocalDateTime getStartDateTime() {
 		return startDateTime;
 	}
 
+	@Nullable
+	public String getStartDateTimeDescription() {
+		return startDateTimeDescription;
+	}
+
+	@Nullable
+	public ZoneId getTimeZone() {
+		return timeZone;
+	}
+
+	@Nullable
+	public Map<String, Object> getMetadata() {
+		return metadata;
+	}
 }

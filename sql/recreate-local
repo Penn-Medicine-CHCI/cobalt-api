@@ -9,6 +9,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/003-session-ex
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/004-activity-tracking.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/005-interaction.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/006-scheduled-messages.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/007-way2health.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

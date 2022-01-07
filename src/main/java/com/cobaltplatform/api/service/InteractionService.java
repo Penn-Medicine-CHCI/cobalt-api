@@ -23,10 +23,9 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.messaging.Message;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
-import com.cobaltplatform.api.model.api.request.CreateInteractionInstance;
+import com.cobaltplatform.api.model.api.request.CreateInteractionInstanceRequest;
 import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
 import com.cobaltplatform.api.model.api.response.InteractionOptionApiResponse.InteractionOptionApiResponseFactory;
-import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Interaction;
 import com.cobaltplatform.api.model.db.InteractionInstance;
 import com.cobaltplatform.api.model.db.InteractionOption;
@@ -42,10 +41,10 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -158,26 +157,20 @@ public class InteractionService {
 	}
 
 	@Nonnull
-	public UUID createInteractionInstance(@Nonnull CreateInteractionInstance request) {
+	public UUID createInteractionInstance(@Nonnull CreateInteractionInstanceRequest request) {
 		requireNonNull(request);
 
 		ValidationException validationException = new ValidationException();
 		UUID interactionInstanceId = UUID.randomUUID();
-		Account account = null;
 		UUID accountId = request.getAccountId();
 		UUID interactionId = request.getInteractionId();
 		LocalDateTime startDateTime = request.getStartDateTime();
-		String metaData = request.getmetadata();
-		Interaction interaction = null;
+		Map<String, Object> metadata = request.getMetadata() == null ? Collections.emptyMap() : request.getMetadata();
+		ZoneId timeZone = request.getTimeZone();
+		Interaction interaction;
 
-		if (accountId == null) {
-			validationException.add(new ValidationException.FieldError("accountId", getStrings().get("Account ID is required.")));
-		} else {
-			account = getAccountService().findAccountById(accountId).orElse(null);
-
-			if (account == null)
-				validationException.add(new ValidationException.FieldError("accountId", getStrings().get("Account ID is invalid.")));
-		}
+		if (timeZone == null)
+			validationException.add(new ValidationException.FieldError("timeZone", getStrings().get("Time zone is required.")));
 
 		if (interactionId == null) {
 			validationException.add(new ValidationException.FieldError("interactionId", getStrings().get("Interaction ID is required.")));
@@ -196,45 +189,48 @@ public class InteractionService {
 
 		getDatabase().execute("INSERT INTO interaction_instance (interaction_instance_id, interaction_id, account_id, start_date_time, "
 						+ "time_zone, metadata) VALUES (?,?,?,?,?,CAST (? AS JSONB))", interactionInstanceId, interactionId, accountId,
-				startDateTime, account.getTimeZone(), metaData);
+				startDateTime, timeZone, metadata);
 
-		createInteractionInstanceMessages(interactionInstanceId, startDateTime);
+		createInteractionInstanceMessages(interactionInstanceId, startDateTime, timeZone);
 
 		return interactionInstanceId;
 	}
 
 	@Nonnull
-	private void createInteractionInstanceMessages (@Nonnull UUID interactionInstanceId,
-																									@Nonnull LocalDateTime startDateTime) {
+	protected void createInteractionInstanceMessages(@Nonnull UUID interactionInstanceId,
+																									 @Nonnull LocalDateTime startDateTime,
+																									 @Nonnull ZoneId timeZone) {
 		requireNonNull(interactionInstanceId);
 		requireNonNull(startDateTime);
+		requireNonNull(timeZone);
 
 		InteractionInstance interactionInstance = findRequiredInteractionInstanceById(interactionInstanceId);
 		Interaction interaction = findInteractionById(interactionInstance.getInteractionId()).get();
-		Account account = getAccountService().findAccountById(interactionInstance.getAccountId()).get();
 
 		Integer frequencyInMinutes = interaction.getFrequencyInMinutes();
-		ZoneId timeZone = account.getTimeZone();
 		LocalDateTime scheduledAt = startDateTime;
 		Integer optionActionCount = findOptionActionCount(interactionInstanceId);
 
-		if (optionActionCount > 0)
-			scheduledAt = scheduledAt.plus(frequencyInMinutes, ChronoUnit.MINUTES).atZone(timeZone)
-					.toLocalDateTime();
-
 		for (int i = optionActionCount; i < interaction.getMaxInteractionCount(); i++) {
+			if (i > optionActionCount)
+				scheduledAt = scheduledAt.plus(frequencyInMinutes, ChronoUnit.MINUTES);
 
 			LocalDateTime finalScheduledAt = scheduledAt;
 			List<String> accountsToEmail = getAccountService().findAccountsMatchingMetadata(new HashMap<>() {{
 				put("interactionId", interactionInstance.getInteractionId());
-			}}).stream().map( e -> e.getEmailAddress()).filter(e -> e != null).collect(Collectors.toList());
+			}}).stream().map(e -> e.getEmailAddress()).filter(e -> e != null).collect(Collectors.toList());
+
+			if (accountsToEmail.size() == 0) {
+				getLogger().warn("Did not find any accounts to email for interaction ID {}", interaction.getInteractionId());
+				continue;
+			}
 
 			Message message = new EmailMessage.Builder(EmailMessageTemplate.INTERACTION_REMINDER, Locale.US)
 					.toAddresses(accountsToEmail)
 					.fromAddress(getConfiguration().getEmailDefaultFromAddress())
 					.messageContext(new HashMap<String, Object>() {{
 						put("interactionInstanceId", interactionInstanceId);
-						put("metaData", interactionInstance.getmetadata());
+						put("metadata", interactionInstance.getMetadata());
 						put("interactionOptions", findInteractionOptionsByInteractionId(interaction.getInteractionId()).stream().map((interactionOption) ->
 								getInteractionOptionApiResponseFactory().create(interactionOption, interactionInstance)).collect(Collectors.toList()));
 					}})
@@ -244,20 +240,12 @@ public class InteractionService {
 				put("interactionInstanceId", interactionInstanceId);
 			}};
 
-			UUID scheduledMessageId = messageService.createScheduledMessage(new CreateScheduledMessageRequest<>() {{
+			getMessageService().createScheduledMessage(new CreateScheduledMessageRequest<>() {{
 				setMessage(message);
 				setScheduledAt(finalScheduledAt);
 				setTimeZone(timeZone);
 				setMetadata(metadata);
 			}});
-
-			ScheduledMessage scheduledMessage = messageService.findScheduledMessageById(scheduledMessageId).get();
-
-			scheduledAt = scheduledAt
-					.plus(frequencyInMinutes, ChronoUnit.MINUTES)
-					.atZone(timeZone)
-					.toLocalDateTime();
-
 		}
 	}
 
@@ -268,22 +256,26 @@ public class InteractionService {
 		requireNonNull(message);
 
 		Interaction interaction = findInteractionById(interactionInstance.getInteractionId()).get();
-		
+
+		String durationDescription = interactionInstance.getCompletedFlag() ? getFormatter().formatDuration(ChronoUnit.SECONDS.between(
+				interactionInstance.getStartDateTime(), interactionInstance.getCompletedDate().atZone(interactionInstance.getTimeZone()))) : getStrings().get("[not completed]");
+
 		return message.replace("[maxInteractionCount]", interaction.getMaxInteractionCount().toString())
-				.replace("[frequencyHoursAndMinutes]", formatter.formatDuration(interaction.getFrequencyInMinutes() * 60))
-				.replace("[completionTimeHoursAndMinutes]", interactionInstance.getCompletedFlag() ? formatter.formatDuration(ChronoUnit.HOURS.between(
-						interactionInstance.getStartDateTime(),interactionInstance.getCompletedDate())) : "[not completed]");
+				.replace("[frequencyHoursAndMinutes]", getFormatter().formatDuration(interaction.getFrequencyInMinutes() * 60))
+				.replace("[completionTimeHoursAndMinutes]", durationDescription);
 	}
 
 	@Nonnull
 	private Integer findOptionActionCount(@Nonnull UUID interactionInstanceId) {
 		requireNonNull(interactionInstanceId);
 
-		return  getDatabase().queryForObject("SELECT COUNT(*) FROM interaction_option_action WHERE interaction_instance_id = ?", Integer.class, interactionInstanceId).get();
+		return getDatabase().queryForObject("SELECT COUNT(*) FROM interaction_option_action WHERE interaction_instance_id = ?", Integer.class, interactionInstanceId).get();
 	}
 
 	@Nonnull
-	public UUID createInteractionOptionAction(@Nonnull UUID accountId, @Nonnull UUID interactionInstanceId, @Nonnull UUID interactionOptionId) {
+	public UUID createInteractionOptionAction(@Nonnull UUID accountId,
+																						@Nonnull UUID interactionInstanceId,
+																						@Nonnull UUID interactionOptionId) {
 		requireNonNull(accountId);
 		requireNonNull(interactionInstanceId);
 		requireNonNull(interactionOptionId);
@@ -291,7 +283,6 @@ public class InteractionService {
 		ValidationException validationException = new ValidationException();
 		InteractionInstance interactionInstance = findRequiredInteractionInstanceById(interactionInstanceId);
 		Optional<Interaction> interaction = findInteractionById(interactionInstance.getInteractionId());
-		Account account = getAccountService().findAccountById(accountId).get();
 
 		//If this interaction instance is complete and a new interaction option action is being created thrown an exception
 		if (interactionInstance.getCompletedFlag())
@@ -312,7 +303,7 @@ public class InteractionService {
 			markInteractionInstanceComplete(interactionInstanceId);
 		else {
 			cancelPendingMessagesForInteractionInstance(interactionInstanceId);
-			createInteractionInstanceMessages(interactionInstanceId, Instant.now().atZone(account.getTimeZone()).toLocalDateTime());
+			createInteractionInstanceMessages(interactionInstanceId, LocalDateTime.now(interactionInstance.getTimeZone()), interactionInstance.getTimeZone());
 		}
 
 		return interactionOptionActionId;
@@ -344,5 +335,17 @@ public class InteractionService {
 	}
 
 	@Nonnull
-	protected Configuration getConfiguration() {return  configuration; }
+	protected Configuration getConfiguration() {
+		return configuration;
+	}
+
+	@Nonnull
+	protected Logger getLogger() {
+		return logger;
+	}
+
+	@Nonnull
+	protected Formatter getFormatter() {
+		return formatter;
+	}
 }

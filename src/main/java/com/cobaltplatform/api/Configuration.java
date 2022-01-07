@@ -35,6 +35,7 @@ import com.cobaltplatform.api.http.HttpMethod;
 import com.cobaltplatform.api.http.HttpRequest;
 import com.cobaltplatform.api.http.HttpResponse;
 import com.cobaltplatform.api.integration.epic.EpicEnvironment;
+import com.cobaltplatform.api.integration.way2health.Way2HealthEnvironment;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.security.SamlIdentityProvider;
 import com.cobaltplatform.api.util.CryptoUtility;
@@ -174,6 +175,8 @@ public class Configuration {
 	@Nonnull
 	private final Boolean shouldUseRealBluejeans;
 	@Nonnull
+	private final Boolean shouldUseRealWay2Health;
+	@Nonnull
 	private final Boolean shouldUseRealIc;
 	@Nonnull
 	private final Boolean shouldEnableCacheDebugging;
@@ -275,6 +278,10 @@ public class Configuration {
 	private final String twilioAccountSid;
 	@Nonnull
 	private final String twilioAuthToken;
+	@Nonnull
+	private final String way2HealthAccessToken;
+	@Nonnull
+	private final Way2HealthEnvironment way2HealthEnvironment;
 
 	@Nonnull
 	private final String defaultSubdomain;
@@ -357,6 +364,7 @@ public class Configuration {
 		this.shouldUseRealAcuity = valueFor("com.cobaltplatform.api.shouldUseRealAcuity", Boolean.class);
 		this.shouldUseRealEpic = valueFor("com.cobaltplatform.api.shouldUseRealEpic", Boolean.class);
 		this.shouldUseRealBluejeans = valueFor("com.cobaltplatform.api.shouldUseRealBluejeans", Boolean.class);
+		this.shouldUseRealWay2Health = valueFor("com.cobaltplatform.api.shouldUseRealWay2Health", Boolean.class);
 		this.shouldUseRealIc = valueFor("com.cobaltplatform.api.shouldUseRealIc", Boolean.class);
 		this.shouldEnableCacheDebugging = valueFor("com.cobaltplatform.api.shouldEnableCacheDebugging", Boolean.class);
 		this.corsEnabledDomains = valueFor("com.cobaltplatform.api.corsEnabledDomains", String.class);
@@ -422,12 +430,21 @@ public class Configuration {
 		this.twilioAccountSid = valueFor("com.cobaltplatform.api.twilio.accountSid", String.class);
 		this.twilioAuthToken = valueFor("com.cobaltplatform.api.twilio.authToken", String.class);
 
+		this.way2HealthAccessToken = valueFor("com.cobaltplatform.api.way2health.accessToken", String.class);
+		this.way2HealthEnvironment = valueFor("com.cobaltplatform.api.way2health.environment", Way2HealthEnvironment.class);
+
 		this.defaultSubdomain = valueFor("com.cobaltplatform.api.defaultSubdomain", String.class);
 
 		RawKeypair rawKeypair = loadRawKeypair();
 
 		this.keyPair = CryptoUtility.keyPairFromStringRepresentation(rawKeypair.getCert(), rawKeypair.getPrivateKey(), PublicKeyFormat.X509);
 		this.samlSettingsByIdentityProvider = Collections.emptyMap();
+	}
+
+	@Nonnull
+	public Boolean isProduction() {
+		String environment = getEnvironment().toLowerCase(Locale.US);
+		return environment.equals("prod") || environment.endsWith("-prod");
 	}
 
 	@Nonnull
@@ -1260,6 +1277,11 @@ public class Configuration {
 	}
 
 	@Nonnull
+	public Boolean getShouldUseRealWay2Health() {
+		return shouldUseRealWay2Health;
+	}
+
+	@Nonnull
 	public Boolean getShouldUseRealIc() {
 		return shouldUseRealIc;
 	}
@@ -1556,6 +1578,16 @@ public class Configuration {
 	@Nonnull
 	public String getTwilioAuthToken() {
 		return twilioAuthToken;
+	}
+
+	@Nonnull
+	public String getWay2HealthAccessToken() {
+		return way2HealthAccessToken;
+	}
+
+	@Nonnull
+	public Way2HealthEnvironment getWay2HealthEnvironment() {
+		return way2HealthEnvironment;
 	}
 
 	@Nonnull

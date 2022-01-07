@@ -20,9 +20,8 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
-import com.cobaltplatform.api.model.api.request.CreateInteractionInstance;
+import com.cobaltplatform.api.model.api.request.CreateInteractionInstanceRequest;
 import com.cobaltplatform.api.model.api.response.InteractionInstanceApiResponse.InteractionInstanceApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.InteractionOptionApiResponse;
 import com.cobaltplatform.api.model.api.response.InteractionOptionApiResponse.InteractionOptionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.InteractionInstance;
@@ -99,8 +98,11 @@ public class InteractionResource {
 		if (account.getRoleId() != RoleId.ADMINISTRATOR)
 			throw new AuthorizationException();
 
-		CreateInteractionInstance request = getRequestBodyParser().parse(requestBody, CreateInteractionInstance.class);
+		CreateInteractionInstanceRequest request = getRequestBodyParser().parse(requestBody, CreateInteractionInstanceRequest.class);
 		request.setAccountId(account.getAccountId());
+
+		if (request.getTimeZone() == null)
+			request.setTimeZone(getCurrentContext().getTimeZone());
 
 		UUID interactionInstanceId = getInteractionService().createInteractionInstance(request);
 		InteractionInstance interactionInstance = getInteractionService().findRequiredInteractionInstanceById(interactionInstanceId);

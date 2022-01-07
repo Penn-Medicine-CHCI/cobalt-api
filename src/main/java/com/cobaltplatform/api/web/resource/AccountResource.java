@@ -573,15 +573,12 @@ public class AccountResource {
 			else
 				subdomain = getConfiguration().getDefaultSubdomain();
 
-			Optional<Institution> institution = getInstitutionService().findInstitutionBySubdomain(subdomain);
-
-			if (!institution.isPresent())
-				throw new NotFoundException();
+			Institution institution = getInstitutionService().findInstitutionBySubdomain(subdomain);
 
 			// For now - this is only to generate anonymous accounts
 			accountId = getAccountService().createAccount(new CreateAccountRequest() {{
 				setRoleId(RoleId.PATIENT);
-				setInstitutionId(institution.get().getInstitutionId());
+				setInstitutionId(institution.getInstitutionId());
 				setAccountSourceId(AccountSourceId.ANONYMOUS);
 			}});
 		} else {

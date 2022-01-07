@@ -45,6 +45,9 @@ import com.cobaltplatform.api.integration.epic.MockEpicClient;
 import com.cobaltplatform.api.integration.ic.DefaultIcClient;
 import com.cobaltplatform.api.integration.ic.IcClient;
 import com.cobaltplatform.api.integration.ic.MockIcClient;
+import com.cobaltplatform.api.integration.way2health.DefaultWay2HealthClient;
+import com.cobaltplatform.api.integration.way2health.MockWay2HealthClient;
+import com.cobaltplatform.api.integration.way2health.Way2HealthClient;
 import com.cobaltplatform.api.messaging.MessageSender;
 import com.cobaltplatform.api.messaging.MessageSerializer;
 import com.cobaltplatform.api.messaging.call.CallMessage;
@@ -615,8 +618,20 @@ public class AppModule extends AbstractModule {
 	@Provides
 	@Singleton
 	@Nonnull
+	public Way2HealthClient provideWay2HealthClient(@Nonnull Configuration configuration) {
+		requireNonNull(configuration);
+
+		if (configuration.getShouldUseRealWay2Health())
+			return new DefaultWay2HealthClient(configuration.getWay2HealthEnvironment(), configuration.getWay2HealthAccessToken());
+
+		return new MockWay2HealthClient();
+	}
+
+	@Provides
+	@Singleton
+	@Nonnull
 	public IcClient provideIcClient(@Nonnull Authenticator authenticator,
-																	 @Nonnull Configuration configuration) {
+																	@Nonnull Configuration configuration) {
 		requireNonNull(authenticator);
 		requireNonNull(configuration);
 

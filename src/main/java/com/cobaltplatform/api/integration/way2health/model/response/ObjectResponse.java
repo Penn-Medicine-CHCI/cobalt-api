@@ -17,60 +17,56 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.api.request;
+package com.cobaltplatform.api.integration.way2health.model.response;
+
+import com.cobaltplatform.api.integration.way2health.Way2HealthGsonSupport;
+import com.cobaltplatform.api.integration.way2health.model.entity.Way2HealthEntity;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.time.LocalDateTime;
-import java.util.UUID;
+import java.util.List;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreateInteractionInstance {
+public class ObjectResponse<T extends Way2HealthEntity> {
 	@Nullable
-	private UUID interactionId;
+	private T data;
 	@Nullable
-	private LocalDateTime startDateTime;
+	private List<Error> errors;
 	@Nullable
-	private String metaData;
-	@Nullable
-	private UUID accountId;
+	private String rawResponseBody;
 
-	@Nullable
-	public UUID getInteractionId() {
-		return interactionId;
-	}
-
-	public void setInteractionId(@Nullable UUID interactionId) {
-		this.interactionId = interactionId;
+	@Override
+	public String toString() {
+		return Way2HealthGsonSupport.sharedGson().toJson(this);
 	}
 
 	@Nullable
-	public LocalDateTime getStartDateTime() {
-		return startDateTime;
+	public T getData() {
+		return data;
 	}
 
-	public void setStartDateTime(@Nullable LocalDateTime startDateTime) {
-		this.startDateTime = startDateTime;
-	}
-
-	@Nullable
-	public String getmetadata() {
-		return metaData;
-	}
-
-	public void setmetadata(@Nullable String metaData) {
-		this.metaData = metaData;
+	public void setData(@Nullable T data) {
+		this.data = data;
 	}
 
 	@Nullable
-	public UUID getAccountId() {
-		return accountId;
+	public List<Error> getErrors() {
+		return errors;
 	}
 
-	public void setAccountId(@Nullable UUID accountId) {
-		this.accountId = accountId;
+	public void setErrors(@Nullable List<Error> errors) {
+		this.errors = errors;
+	}
+
+	@Nullable
+	public String getRawResponseBody() {
+		return rawResponseBody;
+	}
+
+	public void setRawResponseBody(@Nullable String rawResponseBody) {
+		this.rawResponseBody = rawResponseBody;
 	}
 }

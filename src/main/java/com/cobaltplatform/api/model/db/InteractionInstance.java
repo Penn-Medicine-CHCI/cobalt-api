@@ -23,8 +23,8 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.UUID;
-
 
 /**
  * @author Transmogrify LLC.
@@ -40,13 +40,13 @@ public class InteractionInstance {
 	@Nullable
 	private LocalDateTime startDateTime;
 	@Nullable
-	private String timeZone;
+	private ZoneId timeZone;
 	@Nullable
-	private String metaData;
+	private String metadata;
 	@Nullable
 	private Boolean completedFlag;
 	@Nullable
-	private LocalDateTime completedDate;
+	private Instant completedDate;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -90,21 +90,21 @@ public class InteractionInstance {
 	}
 
 	@Nullable
-	public String getTimeZone() {
+	public ZoneId getTimeZone() {
 		return timeZone;
 	}
 
-	public void setTimeZone(@Nullable String timeZone) {
+	public void setTimeZone(@Nullable ZoneId timeZone) {
 		this.timeZone = timeZone;
 	}
 
 	@Nullable
-	public String getmetadata() {
-		return metaData;
+	public String getMetadata() {
+		return metadata;
 	}
 
-	public void setmetadata(@Nullable String metaData) {
-		this.metaData = metaData;
+	public void setMetadata(@Nullable String metadata) {
+		this.metadata = metadata;
 	}
 
 	@Nullable
@@ -135,20 +135,11 @@ public class InteractionInstance {
 	}
 
 	@Nullable
-	public String getMetaData() {
-		return metaData;
-	}
-
-	public void setMetaData(@Nullable String metaData) {
-		this.metaData = metaData;
-	}
-
-	@Nullable
-	public LocalDateTime getCompletedDate() {
+	public Instant getCompletedDate() {
 		return completedDate;
 	}
 
-	public void setCompletedDate(@Nullable LocalDateTime completedDate) {
+	public void setCompletedDate(@Nullable Instant completedDate) {
 		this.completedDate = completedDate;
 	}
 }

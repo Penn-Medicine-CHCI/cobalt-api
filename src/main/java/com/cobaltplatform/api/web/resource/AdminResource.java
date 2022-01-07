@@ -145,7 +145,7 @@ public class AdminResource {
 	public ApiResponse getMyContentFilter() {
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("contentTypes", getContentService().findContentTypes());
-			put("institutions", getInstitutionService().findInstitutions().stream().
+			put("institutions", getInstitutionService().findNonCobaltInstitutions().stream().
 					map(it -> getAdminInstitutionApiResponseFactory().create(it)).collect(Collectors.toList()));
 			put("myApprovalStatuses", getContentService().findApprovalStatuses());
 			put("otherApprovalStatuses", getContentService().findApprovalStatuses());

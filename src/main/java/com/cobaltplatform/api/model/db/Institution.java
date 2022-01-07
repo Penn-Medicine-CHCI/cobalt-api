@@ -20,20 +20,38 @@
 package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.GroupSessionSystem.GroupSessionSystemId;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.ZoneId;
+import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
 
 import static java.lang.String.format;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
 public class Institution {
+	@Nonnull
+	private static final Gson GSON;
+
+	static {
+		GSON = new GsonBuilder()
+				.setPrettyPrinting()
+				.disableHtmlEscaping()
+				.create();
+	}
+
 	@Nullable
 	private InstitutionId institutionId;
 	@Nullable
@@ -68,6 +86,8 @@ public class Institution {
 	private Boolean emailEnabled;
 	@Nullable
 	private Boolean anonymousEnabled;
+	@Nullable
+	private String metadata;
 	@Nonnull
 	private Long accessTokenExpirationInMinutes;
 	@Nonnull
@@ -84,6 +104,94 @@ public class Institution {
 	@Override
 	public String toString() {
 		return format("%s{institutionId=%s, description=%s}", getClass().getSimpleName(), getInstitutionId(), getDescription());
+	}
+
+	@Nonnull
+	public Map<String, Object> getMetadataAsMap() {
+		String metadata = trimToNull(getMetadata());
+		return metadata == null ? Collections.emptyMap() : getGson().fromJson(metadata, new TypeToken<Map<String, Object>>() {
+		}.getType());
+	}
+
+	@Nonnull
+	public StandardMetadata getStandardMetadata() {
+		String metadata = trimToNull(getMetadata());
+		return metadata == null ? StandardMetadata.emptyInstance() : getGson().fromJson(metadata, StandardMetadata.class);
+	}
+
+	@Nonnull
+	protected Gson getGson() {
+		return GSON;
+	}
+
+	@NotThreadSafe
+	public static class StandardMetadata {
+		@Nullable
+		private List<Way2HealthIncidentTrackingConfig> way2HealthIncidentTrackingConfigs;
+
+		@Nonnull
+		public static StandardMetadata emptyInstance() {
+			StandardMetadata standardMetadata = new StandardMetadata();
+			standardMetadata.setWay2HealthIncidentTrackingConfigs(Collections.emptyList());
+			return standardMetadata;
+		}
+
+		@NotThreadSafe
+		public static class Way2HealthIncidentTrackingConfig {
+			@Nullable
+			private Long studyId;
+			@Nullable
+			private String type;
+			@Nullable
+			private UUID interactionId;
+			@Nullable
+			private Boolean enabled;
+
+			@Nullable
+			public Long getStudyId() {
+				return studyId;
+			}
+
+			public void setStudyId(@Nullable Long studyId) {
+				this.studyId = studyId;
+			}
+
+			@Nullable
+			public String getType() {
+				return type;
+			}
+
+			public void setType(@Nullable String type) {
+				this.type = type;
+			}
+
+			@Nullable
+			public UUID getInteractionId() {
+				return interactionId;
+			}
+
+			public void setInteractionId(@Nullable UUID interactionId) {
+				this.interactionId = interactionId;
+			}
+
+			@Nullable
+			public Boolean getEnabled() {
+				return enabled;
+			}
+
+			public void setEnabled(@Nullable Boolean enabled) {
+				this.enabled = enabled;
+			}
+		}
+
+		@Nullable
+		public List<Way2HealthIncidentTrackingConfig> getWay2HealthIncidentTrackingConfigs() {
+			return way2HealthIncidentTrackingConfigs;
+		}
+
+		public void setWay2HealthIncidentTrackingConfigs(@Nullable List<Way2HealthIncidentTrackingConfig> way2HealthIncidentTrackingConfigs) {
+			this.way2HealthIncidentTrackingConfigs = way2HealthIncidentTrackingConfigs;
+		}
 	}
 
 	@Nullable
@@ -210,6 +318,15 @@ public class Institution {
 
 	public void setName(@Nullable String name) {
 		this.name = name;
+	}
+
+	@Nullable
+	public String getMetadata() {
+		return metadata;
+	}
+
+	public void setMetadata(@Nullable String metadata) {
+		this.metadata = metadata;
 	}
 
 	@Nullable
