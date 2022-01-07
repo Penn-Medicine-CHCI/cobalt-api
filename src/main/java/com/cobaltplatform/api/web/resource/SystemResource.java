@@ -27,17 +27,21 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.integration.acuity.AcuitySchedulingCache;
 import com.cobaltplatform.api.integration.acuity.AcuitySchedulingClient;
 import com.cobaltplatform.api.integration.epic.EpicSyncManager;
+import com.cobaltplatform.api.integration.way2health.MockWay2HealthClient;
+import com.cobaltplatform.api.integration.way2health.Way2HealthClient;
 import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.SystemService;
+import com.cobaltplatform.api.service.Way2HealthService;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.CryptoUtility;
 import com.cobaltplatform.api.util.CryptoUtility.KeyFormat;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.web.response.ResponseGenerator;
 import com.lokalized.Strings;
+import com.pyranid.Database;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.PUT;
@@ -97,6 +101,8 @@ public class SystemResource {
 	@Nonnull
 	private final EpicSyncManager epicSyncManager;
 	@Nonnull
+	private final Way2HealthService way2HealthService;
+	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final Formatter formatter;
@@ -113,6 +119,7 @@ public class SystemResource {
 												@Nonnull AcuitySchedulingCache acuitySchedulingCache,
 												@Nonnull AcuitySchedulingClient acuitySchedulingClient,
 												@Nonnull EpicSyncManager epicSyncManager,
+												@Nonnull Way2HealthService way2HealthService,
 												@Nonnull Provider<CurrentContext> currentContextProvider,
 												@Nonnull Formatter formatter,
 												@Nonnull Strings strings) {
@@ -125,6 +132,7 @@ public class SystemResource {
 		requireNonNull(acuitySchedulingCache);
 		requireNonNull(acuitySchedulingClient);
 		requireNonNull(epicSyncManager);
+		requireNonNull(way2HealthService);
 		requireNonNull(currentContextProvider);
 		requireNonNull(formatter);
 		requireNonNull(strings);
@@ -138,6 +146,7 @@ public class SystemResource {
 		this.acuitySchedulingCache = acuitySchedulingCache;
 		this.acuitySchedulingClient = acuitySchedulingClient;
 		this.epicSyncManager = epicSyncManager;
+		this.way2HealthService = way2HealthService;
 		this.currentContextProvider = currentContextProvider;
 		this.formatter = formatter;
 		this.strings = strings;
@@ -264,7 +273,7 @@ public class SystemResource {
 	@Nonnull
 	@GET("/system/epic/sync-provider")
 	public ApiResponse epicSyncProvider(@Nonnull @QueryParameter UUID providerId,
-																					 @Nonnull @QueryParameter LocalDate date) {
+																			@Nonnull @QueryParameter LocalDate date) {
 		getEpicSyncManager().syncProviderAvailability(providerId, date, true);
 		return new ApiResponse();
 	}
@@ -340,6 +349,18 @@ public class SystemResource {
 		return new ApiResponse();
 	}
 
+	/**
+	 * Simplify Way2Health testing by permitting the mock client to be "reset" so incidents can be re-fetched.
+	 *
+	 * @return API response (nonnull)
+	 */
+	@Nonnull
+	@POST("/system/reset-way2health-incidents")
+	public ApiResponse resetWay2HealthIncidents() {
+		getWay2HealthService().resetIncidents();
+		return new ApiResponse();
+	}
+
 	@Nonnull
 	protected SystemService getSystemService() {
 		return systemService;
@@ -393,6 +414,11 @@ public class SystemResource {
 	@Nonnull
 	protected EpicSyncManager getEpicSyncManager() {
 		return epicSyncManager;
+	}
+
+	@Nonnull
+	protected Way2HealthService getWay2HealthService() {
+		return way2HealthService;
 	}
 
 	@Nonnull

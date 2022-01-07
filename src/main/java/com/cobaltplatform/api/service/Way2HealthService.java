@@ -23,6 +23,7 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.error.ErrorReporter;
+import com.cobaltplatform.api.integration.way2health.MockWay2HealthClient;
 import com.cobaltplatform.api.integration.way2health.Way2HealthClient;
 import com.cobaltplatform.api.integration.way2health.model.entity.Incident;
 import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentRequest;
@@ -34,6 +35,7 @@ import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.StandardMetadata.Way2HealthIncidentTrackingConfig;
 import com.cobaltplatform.api.model.db.Way2HealthIncident;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
+import com.cobaltplatform.api.util.ValidationException;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -77,6 +79,8 @@ public class Way2HealthService implements AutoCloseable {
 	@Nonnull
 	private final Way2HealthClient way2HealthClient;
 	@Nonnull
+	private final Configuration configuration;
+	@Nonnull
 	private final Strings strings;
 	@Nonnull
 	private final Provider<BackgroundSyncTask> backgroundSyncTaskProvider;
@@ -98,15 +102,18 @@ public class Way2HealthService implements AutoCloseable {
 	@Inject
 	public Way2HealthService(@Nonnull Way2HealthClient way2HealthClient,
 													 @Nonnull Database database,
+													 @Nonnull Configuration configuration,
 													 @Nonnull Strings strings,
 													 @Nonnull Provider<BackgroundSyncTask> backgroundSyncTaskProvider) {
 		requireNonNull(way2HealthClient);
 		requireNonNull(database);
+		requireNonNull(configuration);
 		requireNonNull(strings);
 		requireNonNull(backgroundSyncTaskProvider);
 
 		this.way2HealthClient = way2HealthClient;
 		this.database = database;
+		this.configuration = configuration;
 		this.strings = strings;
 		this.backgroundTaskLock = new Object();
 		this.backgroundTaskStarted = false;
@@ -163,6 +170,21 @@ public class Way2HealthService implements AutoCloseable {
 
 			return true;
 		}
+	}
+
+	public void resetIncidents() {
+		boolean resettingPermitted = !getConfiguration().getShouldUseRealWay2Health()
+				&& !getConfiguration().isProduction()
+				&& getWay2HealthClient() instanceof MockWay2HealthClient;
+
+		if (!resettingPermitted)
+			throw new ValidationException(getStrings().get("Resetting Way2Health incidents is not permitted."));
+
+		getDatabase().execute("UPDATE way2health_incident SET deleted=TRUE");
+		((MockWay2HealthClient) getWay2HealthClient()).reset();
+
+		// Immediately run the background sync task
+		new Thread(getBackgroundSyncTaskProvider().get()).start();
 	}
 
 	@ThreadSafe
@@ -273,7 +295,7 @@ public class Way2HealthService implements AutoCloseable {
 
 									// See if we have already processed this incident...
 									Way2HealthIncident way2HealthIncident = getDatabase().queryForObject(
-											"SELECT * FROM way2health_incident WHERE incident_id=?", Way2HealthIncident.class, incident.getId()).orElse(null);
+											"SELECT * FROM way2health_incident WHERE incident_id=? AND deleted=FALSE", Way2HealthIncident.class, incident.getId()).orElse(null);
 
 									// If we have already processed this incident, there must be some problem,
 									// e.g. the status update PATCH call to W2H failed.  We don't want to reprocess in that case
@@ -295,6 +317,7 @@ public class Way2HealthService implements AutoCloseable {
 												put("way2HealthIncidentId", way2HealthIncidentId);
 												put("incidentId", incident.getId());
 												put("studyId", incident.getStudyId());
+												put("message", incident.getMessage());
 											}};
 
 											// Record an interaction for this incident, which might send off some email messages (for example)
@@ -413,6 +436,11 @@ public class Way2HealthService implements AutoCloseable {
 	@Nonnull
 	protected Database getDatabase() {
 		return database;
+	}
+
+	@Nonnull
+	protected Configuration getConfiguration() {
+		return configuration;
 	}
 
 	@Nonnull

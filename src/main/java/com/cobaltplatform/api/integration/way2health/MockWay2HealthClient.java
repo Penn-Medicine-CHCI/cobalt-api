@@ -57,6 +57,10 @@ public class MockWay2HealthClient implements Way2HealthClient {
 		this.performedIncidentUpdate = false;
 	}
 
+	public void reset() {
+		this.performedIncidentUpdate = false;
+	}
+
 	@Nonnull
 	@Override
 	public ObjectResponse<Incident> getIncident(@Nonnull GetIncidentRequest request) throws Way2HealthException {
