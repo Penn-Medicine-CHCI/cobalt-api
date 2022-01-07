@@ -26,6 +26,7 @@ import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.way2health.MockWay2HealthClient;
 import com.cobaltplatform.api.integration.way2health.Way2HealthClient;
 import com.cobaltplatform.api.integration.way2health.model.entity.Incident;
+import com.cobaltplatform.api.integration.way2health.model.entity.Participant;
 import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentRequest;
 import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentsRequest;
 import com.cobaltplatform.api.integration.way2health.model.request.UpdateIncidentRequest;
@@ -59,9 +60,11 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -323,10 +326,10 @@ public class Way2HealthService implements AutoCloseable {
 												put("incidentId", incident.getId());
 												put("studyId", incident.getStudyId());
 												put("message", incident.getMessage());
-												put("participantName", incident.getParticipant() == null ? getStrings().get("[unknown]") : incident.getParticipant().getName());
-												put("participantCellPhoneNumber", incident.getParticipant() == null ? getStrings().get("[unknown]") : incident.getParticipant().getCellPhone());
-												put("participantHomePhoneNumber", incident.getParticipant() == null ? getStrings().get("[unknown]") : incident.getParticipant().getHomePhone());
-												put("participantWorkPhoneNumber", incident.getParticipant() == null ? getStrings().get("[unknown]") : incident.getParticipant().getWorkPhone());
+												put("participantName", valueForParticipantField(incident, (participant) -> participant.getName()));
+												put("participantCellPhoneNumber", valueForParticipantField(incident, (participant) -> participant.getCellPhone()));
+												put("participantHomePhoneNumber", valueForParticipantField(incident, (participant) -> participant.getHomePhone()));
+												put("participantWorkPhoneNumber", valueForParticipantField(incident, (participant) -> participant.getWorkPhone()));
 											}};
 
 											// Record an interaction for this incident, which might send off some email messages (for example)
@@ -372,6 +375,21 @@ public class Way2HealthService implements AutoCloseable {
 					}
 				});
 			});
+		}
+
+		@Nonnull
+		protected String valueForParticipantField(@Nonnull Incident incident,
+																							@Nonnull Function<Participant, String> fieldFunction) {
+			requireNonNull(incident);
+			requireNonNull(fieldFunction);
+
+			final String MISSING_FIELD_VALUE = getStrings().get("[unknown]");
+
+			if (incident.getParticipant() == null)
+				return MISSING_FIELD_VALUE;
+
+			String value = trimToNull(fieldFunction.apply(incident.getParticipant()));
+			return value == null ? MISSING_FIELD_VALUE : value;
 		}
 
 		@Nonnull
