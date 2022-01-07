@@ -1,6 +1,6 @@
 {{#partial "header"}}
 	<tr>
-		<td align="center" class="em_white" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:36px; line-height:40px; color:#ffffff; font-weight:bold;">We're following up with a follow-up reminder </td>
+		<td align="center" class="em_white" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:36px; line-height:40px; color:#ffffff; font-weight:bold;">We're following up with a reminder </td>
 	</tr>
 {{/partial}}
 
@@ -19,20 +19,39 @@
   		</td>
   </tr>
   <tr>
+      <td height="30" bgcolor="#ffffff" width="50%" colspan="2"></td>
+  </tr>
+  <tr>
     		<td align="left" class="em_blue" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:18px; line-height:24px; color:#000;">
     			<p>
     				‘{{{metadata}}}’
     			</p>
     		</td>
     </tr>
+  <tr>
+      					<td height="30" bgcolor="#ffffff" width="50%" colspan="2"></td>
+  </tr>
+  <tr>
+    		<td align="left" class="em_blue" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:18px; line-height:24px; color:#000;">
+    			<p>
+    				Here are links to the actions you can record:
+    			</p>
+    		</td>
+  </tr>
+  <tr>
+      <td height="30" bgcolor="#ffffff" width="50%" colspan="2"></td>
+  </tr>
   {{#each interactionOptions }}
   <tr>
 		<td align="left" class="em_blue" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:18px; line-height:24px; color:#000;">
 			<p>
-			  <a href="{{optionUrl}}">{{optionDescription}}</a>.
+			  <a href="{{optionUrl}}">{{optionDescription}}</a>
 			</p>
 		</td>
 	</tr>
+	<tr>
+      <td height="30" bgcolor="#ffffff" width="50%" colspan="2"></td>
+  </tr>
 	{{/each}}
 {{/partial}}
 
