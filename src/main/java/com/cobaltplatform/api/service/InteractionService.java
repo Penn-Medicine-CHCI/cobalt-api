@@ -257,10 +257,12 @@ public class InteractionService {
 
 		Interaction interaction = findInteractionById(interactionInstance.getInteractionId()).get();
 
+		String durationDescription = interactionInstance.getCompletedFlag() ? getFormatter().formatDuration(ChronoUnit.SECONDS.between(
+				interactionInstance.getStartDateTime(), interactionInstance.getCompletedDate().atZone(interactionInstance.getTimeZone()))) : getStrings().get("[not completed]");
+
 		return message.replace("[maxInteractionCount]", interaction.getMaxInteractionCount().toString())
 				.replace("[frequencyHoursAndMinutes]", getFormatter().formatDuration(interaction.getFrequencyInMinutes() * 60))
-				.replace("[completionTimeHoursAndMinutes]", interactionInstance.getCompletedFlag() ? getFormatter().formatDuration(ChronoUnit.HOURS.between(
-						interactionInstance.getStartDateTime().atZone(interactionInstance.getTimeZone()), interactionInstance.getCompletedDate())) : "[not completed]");
+				.replace("[completionTimeHoursAndMinutes]", durationDescription);
 	}
 
 	@Nonnull
