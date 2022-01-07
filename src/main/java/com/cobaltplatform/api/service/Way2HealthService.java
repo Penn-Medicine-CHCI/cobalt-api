@@ -324,8 +324,15 @@ public class Way2HealthService implements AutoCloseable {
 									// If we have already processed this incident, there must be some problem,
 									// e.g. the status update PATCH call to W2H failed.  We don't want to reprocess in that case
 									if (way2HealthIncident != null) {
-										getErrorReporter().report(format("Issue detected with Way2Health incident ID %s. " +
-												"It exists in our DB but W2H still considers it 'new'. We are not going to re-send notifications for it.", incident.getId()));
+										String errorMessage = format("Issue detected with Way2Health incident ID %s. " +
+												"It exists in our DB but W2H still considers it 'new'. We are not going to re-send notifications for it.", incident.getId());
+
+										// Special production check here since W2H only has a production environment, in our nonprod envs we have to talk
+										// to a mock, and we often encounter duplicates and we don't want error spam
+										if (getConfiguration().isProduction())
+											getErrorReporter().report(errorMessage);
+										else
+											getLogger().warn(errorMessage);
 									} else {
 										getDatabase().transaction(() -> {
 											// Track that we have seen this incident
@@ -340,13 +347,8 @@ public class Way2HealthService implements AutoCloseable {
 											LocalDateTime now = LocalDateTime.now(timeZone);
 											Locale locale = institution.getLocale();
 
-											String message = trimToNull(incident.getMessage());
-
-											if (message == null)
-												message = getStrings().get("[not specified]", locale);
-
 											String participantName = incident.getParticipant() == null ? null : trimToNull(incident.getParticipant().getName());
-											String incidentMessage = trimToNull(incident.getMessage());
+											String message = trimToNull(incident.getMessage());
 											NormalizedPhoneNumber participantCellPhone = valueForParticipantPhoneNumberField(incident, locale, (participant) -> participant.getCellPhone()).orElse(null);
 											NormalizedPhoneNumber participantHomePhone = valueForParticipantPhoneNumberField(incident, locale, (participant) -> participant.getHomePhone()).orElse(null);
 											NormalizedPhoneNumber participantWorkPhone = valueForParticipantPhoneNumberField(incident, locale, (participant) -> participant.getWorkPhone()).orElse(null);
@@ -356,8 +358,8 @@ public class Way2HealthService implements AutoCloseable {
 											htmlListItems.add(createHtmlListItem(getStrings().get("Incident ID", locale), String.valueOf(incident.getId())));
 											htmlListItems.add(createHtmlListItem(getStrings().get("Study ID", locale), String.valueOf(incident.getStudyId())));
 
-											if (incidentMessage != null)
-												htmlListItems.add(createHtmlListItem(getStrings().get("Message", locale), incidentMessage));
+											if (message != null)
+												htmlListItems.add(createHtmlListItem(getStrings().get("Message", locale), message));
 											if (participantName != null)
 												htmlListItems.add(createHtmlListItem(getStrings().get("Name", locale), participantName));
 											if (participantCellPhone != null)
@@ -374,8 +376,8 @@ public class Way2HealthService implements AutoCloseable {
 												put("incidentId", incident.getId());
 												put("studyId", incident.getStudyId());
 
-												if (incidentMessage != null)
-													put("message", incidentMessage);
+												if (message != null)
+													put("message", message);
 
 												if (participantName != null)
 													put("participantName", participantName);

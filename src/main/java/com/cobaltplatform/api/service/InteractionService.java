@@ -26,6 +26,7 @@ import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.CreateInteractionInstanceRequest;
 import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
 import com.cobaltplatform.api.model.api.response.InteractionOptionApiResponse.InteractionOptionApiResponseFactory;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Interaction;
 import com.cobaltplatform.api.model.db.InteractionInstance;
 import com.cobaltplatform.api.model.db.InteractionOption;
@@ -73,6 +74,8 @@ public class InteractionService {
 	@Nonnull
 	private final MessageService messageService;
 	@Nonnull
+	private final InstitutionService institutionService;
+	@Nonnull
 	private final InteractionOptionApiResponseFactory interactionOptionApiResponseFactory;
 	@Nonnull
 	private final Formatter formatter;
@@ -86,6 +89,7 @@ public class InteractionService {
 														@Nonnull AccountService accountService,
 														@Nonnull Strings strings,
 														@Nonnull MessageService messageService,
+														@Nonnull InstitutionService institutionService,
 														@Nonnull InteractionOptionApiResponseFactory interactionOptionApiResponseFactory,
 														@Nonnull Formatter formatter,
 														@Nonnull Configuration configuration,
@@ -94,6 +98,7 @@ public class InteractionService {
 		requireNonNull(accountService);
 		requireNonNull(strings);
 		requireNonNull(messageService);
+		requireNonNull(institutionService);
 		requireNonNull(interactionOptionApiResponseFactory);
 		requireNonNull(formatter);
 		requireNonNull(configuration);
@@ -104,6 +109,7 @@ public class InteractionService {
 		this.accountService = accountService;
 		this.strings = strings;
 		this.messageService = messageService;
+		this.institutionService = institutionService;
 		this.interactionOptionApiResponseFactory = interactionOptionApiResponseFactory;
 		this.formatter = formatter;
 		this.configuration = configuration;
@@ -213,6 +219,7 @@ public class InteractionService {
 
 		InteractionInstance interactionInstance = findRequiredInteractionInstanceById(interactionInstanceId);
 		Interaction interaction = findInteractionById(interactionInstance.getInteractionId()).get();
+		Institution institution = getInstitutionService().findInstitutionById(interaction.getInstitutionId()).get();
 
 		Integer frequencyInMinutes = interaction.getFrequencyInMinutes();
 		LocalDateTime scheduledAt = startDateTime;
@@ -232,7 +239,7 @@ public class InteractionService {
 				continue;
 			}
 
-			Message message = new EmailMessage.Builder(EmailMessageTemplate.INTERACTION_REMINDER, Locale.US)
+			Message message = new EmailMessage.Builder(EmailMessageTemplate.INTERACTION_REMINDER, institution.getLocale())
 					.toAddresses(accountsToEmail)
 					.fromAddress(getConfiguration().getEmailDefaultFromAddress())
 					.messageContext(new HashMap<String, Object>() {{
@@ -242,12 +249,15 @@ public class InteractionService {
 
 						if (metadata != null) {
 							try {
-								Map<String, Object> metadataAsMap = getJsonMapper().toMap(metadata);
+								Map<String, Object> metadataAsMap = getJsonMapper().fromJson(metadata, Map.class);
 								endUserHtmlRepresentation = trimToNull((String) metadataAsMap.get("endUserHtmlRepresentation"));
 							} catch (Exception ignored) {
 								// Don't worry if this fails, it's just best-effort to get data out
 							}
 						}
+
+						if (endUserHtmlRepresentation == null)
+							endUserHtmlRepresentation = metadata == null ? getStrings().get("[none]", institution.getLocale()) : metadata;
 
 						put("caseNumber", interactionInstance.getCaseNumber());
 						put("metadata", metadata);
@@ -277,13 +287,17 @@ public class InteractionService {
 		requireNonNull(message);
 
 		Interaction interaction = findInteractionById(interactionInstance.getInteractionId()).get();
+		Institution institution = getInstitutionService().findInstitutionById(interaction.getInstitutionId()).get();
+		Locale locale = institution.getLocale();
 
-		String durationDescription = interactionInstance.getCompletedFlag() ? getFormatter().formatDuration(ChronoUnit.SECONDS.between(
-				interactionInstance.getStartDateTime(), interactionInstance.getCompletedDate().atZone(interactionInstance.getTimeZone()))) : getStrings().get("[not completed]");
+		Long completionDurationInSeconds = interactionInstance.getCompletedFlag() ? ChronoUnit.SECONDS.between(
+				interactionInstance.getStartDateTime(), interactionInstance.getCompletedDate().atZone(interactionInstance.getTimeZone())) : null;
+
+		String completionTimeHoursAndMinutes = interactionInstance.getCompletedFlag() ? getFormatter().formatDuration(completionDurationInSeconds, locale) : getStrings().get("[not completed]", locale);
 
 		return message.replace("[maxInteractionCount]", interaction.getMaxInteractionCount().toString())
 				.replace("[frequencyHoursAndMinutes]", getFormatter().formatDuration(interaction.getFrequencyInMinutes() * 60))
-				.replace("[completionTimeHoursAndMinutes]", durationDescription);
+				.replace("[completionTimeHoursAndMinutes]", completionTimeHoursAndMinutes);
 	}
 
 	@Nonnull
@@ -348,6 +362,11 @@ public class InteractionService {
 	@Nonnull
 	protected MessageService getMessageService() {
 		return messageService;
+	}
+
+	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return institutionService;
 	}
 
 	@Nonnull
