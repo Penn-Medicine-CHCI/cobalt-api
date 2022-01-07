@@ -229,7 +229,7 @@ public class InteractionService {
 					.toAddresses(accountsToEmail)
 					.fromAddress(getConfiguration().getEmailDefaultFromAddress())
 					.messageContext(new HashMap<String, Object>() {{
-						put("interactionInstanceId", interactionInstanceId);
+						put("caseNumber", interactionInstance.getCaseNumber());
 						put("metadata", interactionInstance.getMetadata());
 						put("interactionOptions", findInteractionOptionsByInteractionId(interaction.getInteractionId()).stream().map((interactionOption) ->
 								getInteractionOptionApiResponseFactory().create(interactionOption, interactionInstance)).collect(Collectors.toList()));
