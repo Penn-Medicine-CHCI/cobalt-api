@@ -26,12 +26,14 @@ import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.CreateInteractionInstanceRequest;
 import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
 import com.cobaltplatform.api.model.api.response.InteractionOptionApiResponse.InteractionOptionApiResponseFactory;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Interaction;
 import com.cobaltplatform.api.model.db.InteractionInstance;
 import com.cobaltplatform.api.model.db.InteractionOption;
 import com.cobaltplatform.api.model.db.ScheduledMessage;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus;
 import com.cobaltplatform.api.util.Formatter;
+import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.ValidationException;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -54,6 +56,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify LLC.
@@ -71,36 +74,46 @@ public class InteractionService {
 	@Nonnull
 	private final MessageService messageService;
 	@Nonnull
+	private final InstitutionService institutionService;
+	@Nonnull
 	private final InteractionOptionApiResponseFactory interactionOptionApiResponseFactory;
 	@Nonnull
 	private final Formatter formatter;
 	@Nonnull
 	private final Configuration configuration;
+	@Nonnull
+	private final JsonMapper jsonMapper;
 
 	@Inject
 	public InteractionService(@Nonnull Database database,
 														@Nonnull AccountService accountService,
 														@Nonnull Strings strings,
 														@Nonnull MessageService messageService,
+														@Nonnull InstitutionService institutionService,
 														@Nonnull InteractionOptionApiResponseFactory interactionOptionApiResponseFactory,
 														@Nonnull Formatter formatter,
-														@Nonnull Configuration configuration) {
+														@Nonnull Configuration configuration,
+														@Nonnull JsonMapper jsonMapper) {
 		requireNonNull(database);
 		requireNonNull(accountService);
 		requireNonNull(strings);
 		requireNonNull(messageService);
+		requireNonNull(institutionService);
 		requireNonNull(interactionOptionApiResponseFactory);
 		requireNonNull(formatter);
 		requireNonNull(configuration);
+		requireNonNull(jsonMapper);
 
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.database = database;
 		this.accountService = accountService;
 		this.strings = strings;
 		this.messageService = messageService;
+		this.institutionService = institutionService;
 		this.interactionOptionApiResponseFactory = interactionOptionApiResponseFactory;
 		this.formatter = formatter;
 		this.configuration = configuration;
+		this.jsonMapper = jsonMapper;
 	}
 
 	@Nonnull
@@ -206,6 +219,7 @@ public class InteractionService {
 
 		InteractionInstance interactionInstance = findRequiredInteractionInstanceById(interactionInstanceId);
 		Interaction interaction = findInteractionById(interactionInstance.getInteractionId()).get();
+		Institution institution = getInstitutionService().findInstitutionById(interaction.getInstitutionId()).get();
 
 		Integer frequencyInMinutes = interaction.getFrequencyInMinutes();
 		LocalDateTime scheduledAt = startDateTime;
@@ -225,12 +239,29 @@ public class InteractionService {
 				continue;
 			}
 
-			Message message = new EmailMessage.Builder(EmailMessageTemplate.INTERACTION_REMINDER, Locale.US)
+			Message message = new EmailMessage.Builder(EmailMessageTemplate.INTERACTION_REMINDER, institution.getLocale())
 					.toAddresses(accountsToEmail)
 					.fromAddress(getConfiguration().getEmailDefaultFromAddress())
 					.messageContext(new HashMap<String, Object>() {{
+						// Pull out a magic "endUserHtmlRepresentation" key from metadata if possible and expose it to the message template
+						String metadata = trimToNull(interactionInstance.getMetadata());
+						String endUserHtmlRepresentation = null;
+
+						if (metadata != null) {
+							try {
+								Map<String, Object> metadataAsMap = getJsonMapper().fromJson(metadata, Map.class);
+								endUserHtmlRepresentation = trimToNull((String) metadataAsMap.get("endUserHtmlRepresentation"));
+							} catch (Exception ignored) {
+								// Don't worry if this fails, it's just best-effort to get data out
+							}
+						}
+
+						if (endUserHtmlRepresentation == null)
+							endUserHtmlRepresentation = metadata == null ? getStrings().get("[none]", institution.getLocale()) : metadata;
+
 						put("caseNumber", interactionInstance.getCaseNumber());
-						put("metadata", interactionInstance.getMetadata());
+						put("metadata", metadata);
+						put("endUserHtmlRepresentation", endUserHtmlRepresentation);
 						put("interactionOptions", findInteractionOptionsByInteractionId(interaction.getInteractionId()).stream().map((interactionOption) ->
 								getInteractionOptionApiResponseFactory().create(interactionOption, interactionInstance)).collect(Collectors.toList()));
 					}})
@@ -256,13 +287,17 @@ public class InteractionService {
 		requireNonNull(message);
 
 		Interaction interaction = findInteractionById(interactionInstance.getInteractionId()).get();
+		Institution institution = getInstitutionService().findInstitutionById(interaction.getInstitutionId()).get();
+		Locale locale = institution.getLocale();
 
-		String durationDescription = interactionInstance.getCompletedFlag() ? getFormatter().formatDuration(ChronoUnit.SECONDS.between(
-				interactionInstance.getStartDateTime(), interactionInstance.getCompletedDate().atZone(interactionInstance.getTimeZone()))) : getStrings().get("[not completed]");
+		Long completionDurationInSeconds = interactionInstance.getCompletedFlag() ? ChronoUnit.SECONDS.between(
+				interactionInstance.getStartDateTime(), interactionInstance.getCompletedDate().atZone(interactionInstance.getTimeZone())) : null;
+
+		String completionTimeHoursAndMinutes = interactionInstance.getCompletedFlag() ? getFormatter().formatDuration(completionDurationInSeconds, locale) : getStrings().get("[not completed]", locale);
 
 		return message.replace("[maxInteractionCount]", interaction.getMaxInteractionCount().toString())
 				.replace("[frequencyHoursAndMinutes]", getFormatter().formatDuration(interaction.getFrequencyInMinutes() * 60))
-				.replace("[completionTimeHoursAndMinutes]", durationDescription);
+				.replace("[completionTimeHoursAndMinutes]", completionTimeHoursAndMinutes);
 	}
 
 	@Nonnull
@@ -331,6 +366,11 @@ public class InteractionService {
 	}
 
 	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return institutionService;
+	}
+
+	@Nonnull
 	protected InteractionOptionApiResponseFactory getInteractionOptionApiResponseFactory() {
 		return interactionOptionApiResponseFactory;
 	}
@@ -348,5 +388,10 @@ public class InteractionService {
 	@Nonnull
 	protected Formatter getFormatter() {
 		return formatter;
+	}
+
+	@Nonnull
+	protected JsonMapper getJsonMapper() {
+		return jsonMapper;
 	}
 }

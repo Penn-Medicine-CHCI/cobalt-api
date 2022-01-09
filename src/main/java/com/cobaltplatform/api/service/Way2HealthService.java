@@ -36,6 +36,8 @@ import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.StandardMetadata.Way2HealthIncidentTrackingConfig;
 import com.cobaltplatform.api.model.db.Way2HealthIncident;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
+import com.cobaltplatform.api.util.Formatter;
+import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
@@ -45,6 +47,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -54,6 +57,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -61,10 +65,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
+import static org.apache.commons.text.StringEscapeUtils.escapeHtml4;
 
 /**
  * @author Transmogrify, LLC.
@@ -205,6 +211,10 @@ public class Way2HealthService implements AutoCloseable {
 		@Nonnull
 		private final ErrorReporter errorReporter;
 		@Nonnull
+		private final Normalizer normalizer;
+		@Nonnull
+		private final Formatter formatter;
+		@Nonnull
 		private final Database database;
 		@Nonnull
 		private final Configuration configuration;
@@ -220,6 +230,8 @@ public class Way2HealthService implements AutoCloseable {
 															@Nonnull Way2HealthClient way2HealthClient,
 															@Nonnull CurrentContextExecutor currentContextExecutor,
 															@Nonnull ErrorReporter errorReporter,
+															@Nonnull Normalizer normalizer,
+															@Nonnull Formatter formatter,
 															@Nonnull Database database,
 															@Nonnull Configuration configuration,
 															@Nonnull Strings strings) {
@@ -229,6 +241,8 @@ public class Way2HealthService implements AutoCloseable {
 			requireNonNull(way2HealthClient);
 			requireNonNull(currentContextExecutor);
 			requireNonNull(errorReporter);
+			requireNonNull(normalizer);
+			requireNonNull(formatter);
 			requireNonNull(database);
 			requireNonNull(configuration);
 			requireNonNull(strings);
@@ -239,6 +253,8 @@ public class Way2HealthService implements AutoCloseable {
 			this.way2HealthClient = way2HealthClient;
 			this.currentContextExecutor = currentContextExecutor;
 			this.errorReporter = errorReporter;
+			this.normalizer = normalizer;
+			this.formatter = formatter;
 			this.database = database;
 			this.configuration = configuration;
 			this.strings = strings;
@@ -308,8 +324,15 @@ public class Way2HealthService implements AutoCloseable {
 									// If we have already processed this incident, there must be some problem,
 									// e.g. the status update PATCH call to W2H failed.  We don't want to reprocess in that case
 									if (way2HealthIncident != null) {
-										getErrorReporter().report(format("Issue detected with Way2Health incident ID %s. " +
-												"It exists in our DB but W2H still considers it 'new'. We are not going to re-send notifications for it.", incident.getId()));
+										String errorMessage = format("Issue detected with Way2Health incident ID %s. " +
+												"It exists in our DB but W2H still considers it 'new'. We are not going to re-send notifications for it.", incident.getId());
+
+										// Special production check here since W2H only has a production environment, in our nonprod envs we have to talk
+										// to a mock, and we often encounter duplicates and we don't want error spam
+										if (getConfiguration().isProduction())
+											getErrorReporter().report(errorMessage);
+										else
+											getLogger().warn(errorMessage);
 									} else {
 										getDatabase().transaction(() -> {
 											// Track that we have seen this incident
@@ -319,17 +342,62 @@ public class Way2HealthService implements AutoCloseable {
 															"incident_id, study_id, raw_json) VALUES (?,?,?,?,CAST (? AS JSONB))", way2HealthIncidentId,
 													institution.getInstitutionId(), incident.getId(), incident.getStudyId(), incidentResponse.getRawResponseBody());
 
+											// Gather information to put into the interaction
 											ZoneId timeZone = institution.getTimeZone();
 											LocalDateTime now = LocalDateTime.now(timeZone);
+											Locale locale = institution.getLocale();
+
+											String participantName = incident.getParticipant() == null ? null : trimToNull(incident.getParticipant().getName());
+											String message = trimToNull(incident.getMessage());
+											NormalizedPhoneNumber participantCellPhone = valueForParticipantPhoneNumberField(incident, locale, (participant) -> participant.getCellPhone()).orElse(null);
+											NormalizedPhoneNumber participantHomePhone = valueForParticipantPhoneNumberField(incident, locale, (participant) -> participant.getHomePhone()).orElse(null);
+											NormalizedPhoneNumber participantWorkPhone = valueForParticipantPhoneNumberField(incident, locale, (participant) -> participant.getWorkPhone()).orElse(null);
+
+											List<String> htmlListItems = new ArrayList<>(7);
+
+											htmlListItems.add(createHtmlListItem(getStrings().get("Incident ID", locale), String.valueOf(incident.getId())));
+											htmlListItems.add(createHtmlListItem(getStrings().get("Study ID", locale), String.valueOf(incident.getStudyId())));
+
+											if (message != null)
+												htmlListItems.add(createHtmlListItem(getStrings().get("Message", locale), message));
+											if (participantName != null)
+												htmlListItems.add(createHtmlListItem(getStrings().get("Name", locale), participantName));
+											if (participantCellPhone != null)
+												htmlListItems.add(createHtmlListItem(getStrings().get("Cell Phone", locale), format("<a href='tel:%s'>%s</a>", participantCellPhone.getE164Representation(), participantCellPhone.getDisplayRepresentation()), false));
+											if (participantHomePhone != null)
+												htmlListItems.add(createHtmlListItem(getStrings().get("Home Phone", locale), format("<a href='tel:%s'>%s</a>", participantHomePhone.getE164Representation(), participantHomePhone.getDisplayRepresentation()), false));
+											if (participantWorkPhone != null)
+												htmlListItems.add(createHtmlListItem(getStrings().get("Work Phone", locale), format("<a href='tel:%s'>%s</a>", participantWorkPhone.getE164Representation(), participantWorkPhone.getDisplayRepresentation()), false));
+
+											String endUserHtmlRepresentation = format("<ul>%s</ul>", htmlListItems.stream().collect(Collectors.joining("")));
+
 											Map<String, Object> interactionInstanceMetadata = new HashMap<>() {{
 												put("way2HealthIncidentId", way2HealthIncidentId);
 												put("incidentId", incident.getId());
 												put("studyId", incident.getStudyId());
-												put("message", incident.getMessage());
-												put("participantName", valueForParticipantField(incident, (participant) -> participant.getName()));
-												put("participantCellPhoneNumber", valueForParticipantField(incident, (participant) -> participant.getCellPhone()));
-												put("participantHomePhoneNumber", valueForParticipantField(incident, (participant) -> participant.getHomePhone()));
-												put("participantWorkPhoneNumber", valueForParticipantField(incident, (participant) -> participant.getWorkPhone()));
+
+												if (message != null)
+													put("message", message);
+
+												if (participantName != null)
+													put("participantName", participantName);
+
+												if (participantCellPhone != null) {
+													put("participantCellPhoneNumber", participantCellPhone.getE164Representation());
+													put("participantCellPhoneNumberForDisplay", participantCellPhone.getDisplayRepresentation());
+												}
+
+												if (participantHomePhone != null) {
+													put("participantHomePhoneNumber", participantHomePhone.getE164Representation());
+													put("participantHomePhoneNumberForDisplay", participantHomePhone.getDisplayRepresentation());
+												}
+
+												if (participantWorkPhone != null) {
+													put("participantWorkPhoneNumber", participantWorkPhone.getE164Representation());
+													put("participantWorkPhoneNumberForDisplay", participantWorkPhone.getDisplayRepresentation());
+												}
+
+												put("endUserHtmlRepresentation", endUserHtmlRepresentation);
 											}};
 
 											// Record an interaction for this incident, which might send off some email messages (for example)
@@ -378,18 +446,77 @@ public class Way2HealthService implements AutoCloseable {
 		}
 
 		@Nonnull
-		protected String valueForParticipantField(@Nonnull Incident incident,
-																							@Nonnull Function<Participant, String> fieldFunction) {
+		protected String createHtmlListItem(@Nonnull String fieldName,
+																				@Nullable String fieldValue) {
+			requireNonNull(fieldName);
+			return createHtmlListItem(fieldName, fieldValue, true);
+		}
+
+		@Nonnull
+		protected String createHtmlListItem(@Nonnull String fieldName,
+																				@Nullable String fieldValue,
+																				@Nonnull Boolean escapeHtml) {
+			requireNonNull(fieldName);
+			requireNonNull(escapeHtml);
+
+			if (trimToNull(fieldValue) == null)
+				fieldValue = getStrings().get("[unknown]");
+
+			return format("<li><strong>%s</strong> %s</li>", escapeHtml ? escapeHtml4(fieldName) : fieldName,
+					escapeHtml ? escapeHtml4(fieldValue) : fieldValue);
+		}
+
+		@Nonnull
+		protected Optional<NormalizedPhoneNumber> valueForParticipantPhoneNumberField(@Nonnull Incident incident,
+																																									@Nonnull Locale locale,
+																																									@Nonnull Function<Participant, String> fieldFunction) {
 			requireNonNull(incident);
+			requireNonNull(locale);
 			requireNonNull(fieldFunction);
 
-			final String MISSING_FIELD_VALUE = getStrings().get("[unknown]");
+			String rawPhoneNumber = trimToNull(fieldFunction.apply(incident.getParticipant()));
 
-			if (incident.getParticipant() == null)
-				return MISSING_FIELD_VALUE;
+			if (rawPhoneNumber == null)
+				return Optional.empty();
 
-			String value = trimToNull(fieldFunction.apply(incident.getParticipant()));
-			return value == null ? MISSING_FIELD_VALUE : value;
+			String e164Representation = getNormalizer().normalizePhoneNumberToE164(rawPhoneNumber, locale).orElse(null);
+
+			if (e164Representation == null)
+				return Optional.empty();
+
+			String displayRepresentation = getFormatter().formatPhoneNumber(e164Representation, locale);
+
+			if (displayRepresentation == null)
+				return Optional.empty();
+
+			return Optional.of(new NormalizedPhoneNumber(e164Representation, displayRepresentation));
+		}
+
+		@Immutable
+		protected static class NormalizedPhoneNumber {
+			@Nonnull
+			private final String e164Representation;
+			@Nonnull
+			private final String displayRepresentation;
+
+			public NormalizedPhoneNumber(@Nonnull String e164Representation,
+																	 @Nonnull String displayRepresentation) {
+				requireNonNull(e164Representation);
+				requireNonNull(displayRepresentation);
+
+				this.e164Representation = e164Representation;
+				this.displayRepresentation = displayRepresentation;
+			}
+
+			@Nonnull
+			public String getE164Representation() {
+				return e164Representation;
+			}
+
+			@Nonnull
+			public String getDisplayRepresentation() {
+				return displayRepresentation;
+			}
 		}
 
 		@Nonnull
@@ -420,6 +547,16 @@ public class Way2HealthService implements AutoCloseable {
 		@Nonnull
 		protected ErrorReporter getErrorReporter() {
 			return errorReporter;
+		}
+
+		@Nonnull
+		protected Normalizer getNormalizer() {
+			return normalizer;
+		}
+
+		@Nonnull
+		protected Formatter getFormatter() {
+			return formatter;
 		}
 
 		@Nonnull

@@ -124,7 +124,6 @@ public class InstitutionResource {
 			requestAccountSourceId = AccountSource.AccountSourceId.valueOf(accountSourceId.get());
 
 		// TODO: we should revisit this when we roll out other institutions
-		boolean isWww = subdomain.isPresent() && subdomain.get().trim().toLowerCase(Locale.US).equals("www");
 		Institution institution = getInstitutionService().findInstitutionBySubdomain(requestSubdomain);
 
 		if (requestAccountSourceId != null) {
