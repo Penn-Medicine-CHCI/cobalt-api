@@ -303,7 +303,8 @@ public class InteractionService {
 			markInteractionInstanceComplete(interactionInstanceId);
 		else {
 			cancelPendingMessagesForInteractionInstance(interactionInstanceId);
-			createInteractionInstanceMessages(interactionInstanceId, LocalDateTime.now(interactionInstance.getTimeZone()), interactionInstance.getTimeZone());
+			createInteractionInstanceMessages(interactionInstanceId, LocalDateTime.now(interactionInstance.getTimeZone())
+					.plus(interaction.get().getFrequencyInMinutes(), ChronoUnit.MINUTES), interactionInstance.getTimeZone());
 		}
 
 		return interactionOptionActionId;
