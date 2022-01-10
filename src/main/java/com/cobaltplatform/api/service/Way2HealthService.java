@@ -347,7 +347,26 @@ public class Way2HealthService implements AutoCloseable {
 											LocalDateTime now = LocalDateTime.now(timeZone);
 											Locale locale = institution.getLocale();
 
-											String participantName = incident.getParticipant() == null ? null : trimToNull(incident.getParticipant().getName());
+											String participantName = null;
+
+											if (incident.getParticipant() != null) {
+												String firstName = trimToNull(incident.getParticipant().getFirstName());
+												String lastName = trimToNull(incident.getParticipant().getLastName());
+
+												List<String> nameComponents = new ArrayList<>(2);
+
+												if (firstName != null)
+													nameComponents.add(firstName);
+												if (lastName != null)
+													nameComponents.add(lastName);
+
+												// If no first or last name: W2H provides a numeric "name" in the name field we use as a fallback
+												if (nameComponents.size() == 0)
+													participantName = trimToNull(incident.getParticipant().getName());
+												else
+													participantName = nameComponents.stream().collect(Collectors.joining(" "));
+											}
+
 											String message = trimToNull(incident.getMessage());
 											NormalizedPhoneNumber participantCellPhone = valueForParticipantPhoneNumberField(incident, locale, (participant) -> participant.getCellPhone()).orElse(null);
 											NormalizedPhoneNumber participantHomePhone = valueForParticipantPhoneNumberField(incident, locale, (participant) -> participant.getHomePhone()).orElse(null);
@@ -371,6 +390,8 @@ public class Way2HealthService implements AutoCloseable {
 
 											String endUserHtmlRepresentation = format("<ul>%s</ul>", htmlListItems.stream().collect(Collectors.joining("")));
 
+											String pinnedParticipantName = participantName;
+
 											Map<String, Object> interactionInstanceMetadata = new HashMap<>() {{
 												put("way2HealthIncidentId", way2HealthIncidentId);
 												put("incidentId", incident.getId());
@@ -379,8 +400,8 @@ public class Way2HealthService implements AutoCloseable {
 												if (message != null)
 													put("message", message);
 
-												if (participantName != null)
-													put("participantName", participantName);
+												if (pinnedParticipantName != null)
+													put("participantName", pinnedParticipantName);
 
 												if (participantCellPhone != null) {
 													put("participantCellPhoneNumber", participantCellPhone.getE164Representation());
