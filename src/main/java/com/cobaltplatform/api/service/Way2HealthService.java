@@ -347,7 +347,26 @@ public class Way2HealthService implements AutoCloseable {
 											LocalDateTime now = LocalDateTime.now(timeZone);
 											Locale locale = institution.getLocale();
 
-											String participantName = incident.getParticipant() == null ? null : trimToNull(incident.getParticipant().getName());
+											String participantName = null;
+
+											if (incident.getParticipant() != null) {
+												String firstName = trimToNull(incident.getParticipant().getFirstName());
+												String lastName = trimToNull(incident.getParticipant().getLastName());
+
+												List<String> nameComponents = new ArrayList<>(2);
+
+												if (firstName != null)
+													nameComponents.add(firstName);
+												if (lastName != null)
+													nameComponents.add(lastName);
+
+												// If no first or last name: W2H provides a numeric "name" in the name field we use as a fallback
+												if (nameComponents.size() == 0)
+													participantName = trimToNull(incident.getParticipant().getName());
+												else
+													participantName = nameComponents.stream().collect(Collectors.joining(" "));
+											}
+
 											String message = trimToNull(incident.getMessage());
 											NormalizedPhoneNumber participantCellPhone = valueForParticipantPhoneNumberField(incident, locale, (participant) -> participant.getCellPhone()).orElse(null);
 											NormalizedPhoneNumber participantHomePhone = valueForParticipantPhoneNumberField(incident, locale, (participant) -> participant.getHomePhone()).orElse(null);
