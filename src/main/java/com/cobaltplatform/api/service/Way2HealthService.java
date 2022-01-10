@@ -390,6 +390,8 @@ public class Way2HealthService implements AutoCloseable {
 
 											String endUserHtmlRepresentation = format("<ul>%s</ul>", htmlListItems.stream().collect(Collectors.joining("")));
 
+											String pinnedParticipantName = participantName;
+
 											Map<String, Object> interactionInstanceMetadata = new HashMap<>() {{
 												put("way2HealthIncidentId", way2HealthIncidentId);
 												put("incidentId", incident.getId());
@@ -398,8 +400,8 @@ public class Way2HealthService implements AutoCloseable {
 												if (message != null)
 													put("message", message);
 
-												if (participantName != null)
-													put("participantName", participantName);
+												if (pinnedParticipantName != null)
+													put("participantName", pinnedParticipantName);
 
 												if (participantCellPhone != null) {
 													put("participantCellPhoneNumber", participantCellPhone.getE164Representation());
