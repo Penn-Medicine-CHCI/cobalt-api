@@ -835,7 +835,7 @@ public class Configuration {
 		// We need to use your IP instead of localhost for Localstack.
 		// For example, the AWS SDK will generate bucket URLs like http://cobalt-local.localhost:4566 but they should be
 		// http://192.168.1.21:4566/cobalt-local, otherwise Localstack has problems dealing with them (CORS, bucket policies, ...)
-		return format("http://%s:%d", ipAddress, 4572 /* getAmazonLocalstackPort() */);
+		return format("http://%s:%d", ipAddress, getAmazonLocalstackPort());
 	}
 
 	@Nonnull
