@@ -55,6 +55,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
@@ -179,6 +180,7 @@ public class InteractionService {
 		UUID interactionId = request.getInteractionId();
 		LocalDateTime startDateTime = request.getStartDateTime();
 		Map<String, Object> metadata = request.getMetadata() == null ? Collections.emptyMap() : request.getMetadata();
+		Map<String, Object> hipaaCompliantMetadata = request.getMetadata() == null ? Collections.emptyMap() : request.getHipaaCompliantMetadata();
 		ZoneId timeZone = request.getTimeZone();
 		Interaction interaction;
 
@@ -201,8 +203,8 @@ public class InteractionService {
 			throw validationException;
 
 		getDatabase().execute("INSERT INTO interaction_instance (interaction_instance_id, interaction_id, account_id, start_date_time, "
-						+ "time_zone, metadata) VALUES (?,?,?,?,?,CAST (? AS JSONB))", interactionInstanceId, interactionId, accountId,
-				startDateTime, timeZone, metadata);
+						+ "time_zone, metadata, hipaa_compliant_metadata) VALUES (?,?,?,?,?,CAST (? AS JSONB),CAST (? AS JSONB))", interactionInstanceId,
+				interactionId, accountId, startDateTime, timeZone, metadata, hipaaCompliantMetadata);
 
 		createInteractionInstanceMessages(interactionInstanceId, startDateTime, timeZone);
 
@@ -243,8 +245,9 @@ public class InteractionService {
 					.toAddresses(accountsToEmail)
 					.fromAddress(getConfiguration().getEmailDefaultFromAddress())
 					.messageContext(new HashMap<String, Object>() {{
-						// Pull out a magic "endUserHtmlRepresentation" key from metadata if possible and expose it to the message template
-						String metadata = trimToNull(interactionInstance.getMetadata());
+						// Pull out a magic "endUserHtmlRepresentation" key from metadata if possible and expose it to the message template.
+						// Use HIPAA-compliant metadata here because this message is going out via email, which should not contain PII
+						String metadata = trimToNull(interactionInstance.getHipaaCompliantMetadata());
 						String endUserHtmlRepresentation = null;
 
 						if (metadata != null) {
@@ -262,8 +265,8 @@ public class InteractionService {
 						put("caseNumber", interactionInstance.getCaseNumber());
 						put("metadata", metadata);
 						put("endUserHtmlRepresentation", endUserHtmlRepresentation);
-						put("interactionOptions", findInteractionOptionsByInteractionId(interaction.getInteractionId()).stream().map((interactionOption) ->
-								getInteractionOptionApiResponseFactory().create(interactionOption, interactionInstance)).collect(Collectors.toList()));
+						put("interactionInstanceUrl", format("%s/interaction-instances/%s",
+								getConfiguration().getWebappBaseUrl(institution.getInstitutionId()), interactionInstanceId));
 					}})
 					.build();
 

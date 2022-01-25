@@ -40,6 +40,8 @@ public class CreateInteractionInstanceRequest {
 	@Nullable
 	private Map<String, Object> metadata;
 	@Nullable
+	private Map<String, Object> hipaaCompliantMetadata;
+	@Nullable
 	private UUID accountId;
 
 	@Nullable
@@ -76,6 +78,15 @@ public class CreateInteractionInstanceRequest {
 
 	public void setMetadata(@Nullable Map<String, Object> metadata) {
 		this.metadata = metadata;
+	}
+
+	@Nullable
+	public Map<String, Object> getHipaaCompliantMetadata() {
+		return hipaaCompliantMetadata;
+	}
+
+	public void setHipaaCompliantMetadata(@Nullable Map<String, Object> hipaaCompliantMetadata) {
+		this.hipaaCompliantMetadata = hipaaCompliantMetadata;
 	}
 
 	@Nullable

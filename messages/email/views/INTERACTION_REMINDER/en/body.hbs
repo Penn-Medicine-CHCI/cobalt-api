@@ -24,33 +24,24 @@
 					{{#if endUserHtmlRepresentation}}
 						{{{endUserHtmlRepresentation}}}
 					{{else}}
-						{{{metadata}}}
+						{{{hipaaCompliantMetadata}}}
 					{{/if}}
     			</p>
     		</td>
     </tr>
   <tr>
-    		<td align="left" class="em_blue" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:18px; line-height:24px; color:#000;">
-    			<p>
-    				Here are links to the actions you can record:
-    			</p>
-    		</td>
-  </tr>
-  <tr>
       <td height="30" bgcolor="#ffffff" width="50%" colspan="2"></td>
   </tr>
-  {{#each interactionOptions }}
   <tr>
 		<td align="left" class="em_blue" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:18px; line-height:24px; color:#000;">
 			<p>
-			  <a href="{{optionUrl}}">{{optionDescription}}</a>
+			  <a href="{{interactionInstanceUrl}}">Click here to access more details in Cobalt</a>
 			</p>
 		</td>
 	</tr>
 	<tr>
       <td height="10" bgcolor="#ffffff" width="50%" colspan="2"></td>
   </tr>
-	{{/each}}
 
 	<tr>
 		<td height="20" bgcolor="#ffffff" width="50%" colspan="2"></td>
