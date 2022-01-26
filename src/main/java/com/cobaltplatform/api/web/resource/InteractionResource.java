@@ -187,6 +187,10 @@ public class InteractionResource {
 		List<InteractionOption> interactionOptions = getInteractionService().findInteractionOptionsByInteractionId(interactionInstance.getInteractionId());
 		List<InteractionOptionAction> interactionOptionActions = getInteractionService().findInteractionOptionActionsByInteractionInstanceId(interactionInstanceId);
 
+		// If this interaction is complete, hide all the options
+		if(interactionInstance.getCompletedFlag())
+			interactionOptions.clear();
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("interactionInstance", getInteractionInstanceApiResponseFactory().create(interactionInstance));
 			put("interactionOptions", interactionOptions.stream()
