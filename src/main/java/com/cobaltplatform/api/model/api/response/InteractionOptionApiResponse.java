@@ -56,7 +56,6 @@ public class InteractionOptionApiResponse {
 	@Nullable
 	private String optionUrl;
 
-
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface InteractionOptionApiResponseFactory {
@@ -89,6 +88,4 @@ public class InteractionOptionApiResponse {
 		this.optionResponse = interactionInstance.getCompletedFlag() ? interactionService.formatInteractionMessage(interactionInstance, interactionOption.getCompletedResponse()) :
 				interactionService.formatInteractionMessage(interactionInstance, interactionOption.getOptionResponse());
 	}
-
-
 }

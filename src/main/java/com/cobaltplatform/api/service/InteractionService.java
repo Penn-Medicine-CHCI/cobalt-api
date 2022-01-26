@@ -24,8 +24,9 @@ import com.cobaltplatform.api.messaging.Message;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.CreateInteractionInstanceRequest;
+import com.cobaltplatform.api.model.api.request.CreateInteractionOptionActionRequest;
 import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
-import com.cobaltplatform.api.model.api.response.InteractionOptionApiResponse.InteractionOptionApiResponseFactory;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Interaction;
 import com.cobaltplatform.api.model.db.InteractionInstance;
@@ -35,12 +36,14 @@ import com.cobaltplatform.api.model.db.ScheduledMessageStatus;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.time.LocalDateTime;
@@ -77,8 +80,6 @@ public class InteractionService {
 	@Nonnull
 	private final InstitutionService institutionService;
 	@Nonnull
-	private final InteractionOptionApiResponseFactory interactionOptionApiResponseFactory;
-	@Nonnull
 	private final Formatter formatter;
 	@Nonnull
 	private final Configuration configuration;
@@ -91,7 +92,6 @@ public class InteractionService {
 														@Nonnull Strings strings,
 														@Nonnull MessageService messageService,
 														@Nonnull InstitutionService institutionService,
-														@Nonnull InteractionOptionApiResponseFactory interactionOptionApiResponseFactory,
 														@Nonnull Formatter formatter,
 														@Nonnull Configuration configuration,
 														@Nonnull JsonMapper jsonMapper) {
@@ -100,7 +100,6 @@ public class InteractionService {
 		requireNonNull(strings);
 		requireNonNull(messageService);
 		requireNonNull(institutionService);
-		requireNonNull(interactionOptionApiResponseFactory);
 		requireNonNull(formatter);
 		requireNonNull(configuration);
 		requireNonNull(jsonMapper);
@@ -111,18 +110,18 @@ public class InteractionService {
 		this.strings = strings;
 		this.messageService = messageService;
 		this.institutionService = institutionService;
-		this.interactionOptionApiResponseFactory = interactionOptionApiResponseFactory;
 		this.formatter = formatter;
 		this.configuration = configuration;
 		this.jsonMapper = jsonMapper;
 	}
 
 	@Nonnull
-	public InteractionInstance findRequiredInteractionInstanceById(@Nonnull UUID interactionInstanceId) {
-		requireNonNull(interactionInstanceId);
+	public Optional<InteractionInstance> findInteractionInstanceById(@Nullable UUID interactionInstanceId) {
+		if (interactionInstanceId == null)
+			return Optional.empty();
 
 		return getDatabase().queryForObject("SELECT * FROM interaction_instance WHERE interaction_instance_id = ?",
-				InteractionInstance.class, interactionInstanceId).get();
+				InteractionInstance.class, interactionInstanceId);
 	}
 
 	@Nonnull
@@ -137,14 +136,17 @@ public class InteractionService {
 	public List<InteractionOption> findInteractionOptionsByInteractionId(@Nonnull UUID interactionId) {
 		requireNonNull(interactionId);
 
-		return getDatabase().queryForList("SELECT * FROM interaction_option WHERE interaction_id = ?", InteractionOption.class, interactionId);
+		return getDatabase().queryForList("SELECT * FROM interaction_option WHERE interaction_id = ?",
+				InteractionOption.class, interactionId);
 	}
 
 	@Nonnull
-	public InteractionOption findRequiredInteractionOptionsById(@Nonnull UUID interactionOptionId) {
-		requireNonNull(interactionOptionId);
+	public Optional<InteractionOption> findInteractionOptionById(@Nullable UUID interactionOptionId) {
+		if (interactionOptionId == null)
+			return Optional.empty();
 
-		return getDatabase().queryForObject("SELECT * FROM interaction_option WHERE interaction_option_id = ?", InteractionOption.class, interactionOptionId).get();
+		return getDatabase().queryForObject("SELECT * FROM interaction_option WHERE interaction_option_id = ?",
+				InteractionOption.class, interactionOptionId);
 	}
 
 	@Nonnull
@@ -185,19 +187,19 @@ public class InteractionService {
 		Interaction interaction;
 
 		if (timeZone == null)
-			validationException.add(new ValidationException.FieldError("timeZone", getStrings().get("Time zone is required.")));
+			validationException.add(new FieldError("timeZone", getStrings().get("Time zone is required.")));
 
 		if (interactionId == null) {
-			validationException.add(new ValidationException.FieldError("interactionId", getStrings().get("Interaction ID is required.")));
+			validationException.add(new FieldError("interactionId", getStrings().get("Interaction ID is required.")));
 		} else {
 			interaction = findInteractionById(interactionId).orElse(null);
 
 			if (interaction == null)
-				validationException.add(new ValidationException.FieldError("interactionId", getStrings().get("Interaction ID is invalid.")));
+				validationException.add(new FieldError("interactionId", getStrings().get("Interaction ID is invalid.")));
 		}
 
 		if (startDateTime == null)
-			validationException.add(new ValidationException.FieldError("startDateTime", getStrings().get("Start date and time is required.")));
+			validationException.add(new FieldError("startDateTime", getStrings().get("Start date and time is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -219,7 +221,7 @@ public class InteractionService {
 		requireNonNull(startDateTime);
 		requireNonNull(timeZone);
 
-		InteractionInstance interactionInstance = findRequiredInteractionInstanceById(interactionInstanceId);
+		InteractionInstance interactionInstance = findInteractionInstanceById(interactionInstanceId).get();
 		Interaction interaction = findInteractionById(interactionInstance.getInteractionId()).get();
 		Institution institution = getInstitutionService().findInstitutionById(interaction.getInstitutionId()).get();
 
@@ -232,9 +234,13 @@ public class InteractionService {
 				scheduledAt = scheduledAt.plus(frequencyInMinutes, ChronoUnit.MINUTES);
 
 			LocalDateTime finalScheduledAt = scheduledAt;
-			List<String> accountsToEmail = getAccountService().findAccountsMatchingMetadata(new HashMap<>() {{
-				put("interactionId", interactionInstance.getInteractionId());
-			}}).stream().map(e -> e.getEmailAddress()).filter(e -> e != null).collect(Collectors.toList());
+
+			Account.StandardMetadata standardMetadata = new Account.StandardMetadata();
+			standardMetadata.setInteractionIds(Collections.singleton(interaction.getInteractionId()));
+
+			List<String> accountsToEmail = getAccountService().findAccountsMatchingMetadata(standardMetadata).stream()
+					.map(e -> e.getEmailAddress()).filter(e -> e != null)
+					.collect(Collectors.toList());
 
 			if (accountsToEmail.size() == 0) {
 				getLogger().warn("Did not find any accounts to email for interaction ID {}", interaction.getInteractionId());
@@ -311,20 +317,48 @@ public class InteractionService {
 	}
 
 	@Nonnull
-	public UUID createInteractionOptionAction(@Nonnull UUID accountId,
-																						@Nonnull UUID interactionInstanceId,
-																						@Nonnull UUID interactionOptionId) {
-		requireNonNull(accountId);
-		requireNonNull(interactionInstanceId);
-		requireNonNull(interactionOptionId);
+	public UUID createInteractionOptionAction(@Nonnull CreateInteractionOptionActionRequest request) {
+		requireNonNull(request);
 
+		UUID interactionInstanceId = request.getInteractionInstanceId();
+		UUID interactionOptionId = request.getInteractionOptionId();
+		UUID accountId = request.getAccountId();
 		ValidationException validationException = new ValidationException();
-		InteractionInstance interactionInstance = findRequiredInteractionInstanceById(interactionInstanceId);
-		Optional<Interaction> interaction = findInteractionById(interactionInstance.getInteractionId());
+		InteractionInstance interactionInstance = null;
+		Interaction interaction = null;
+		InteractionOption interactionOption = null;
 
-		//If this interaction instance is complete and a new interaction option action is being created thrown an exception
-		if (interactionInstance.getCompletedFlag())
-			validationException.add(new ValidationException.FieldError("interactionInstance", getStrings().get(interaction.get().getInteractionCompleteMessage())));
+		if (interactionInstanceId == null) {
+			validationException.add(new FieldError("interactionInstanceId", getStrings().get("Interaction instance ID is required.")));
+		} else {
+			interactionInstance = findInteractionInstanceById(interactionInstanceId).orElse(null);
+
+			if (interactionInstance == null) {
+				validationException.add(new FieldError("interactionInstanceId", getStrings().get("Interaction instance was not found.")));
+			} else {
+				//If this interaction instance is complete and a new interaction option action is being created thrown an exception
+				if (interactionInstance.getCompletedFlag())
+					validationException.add(new FieldError("interactionInstanceId", getStrings().get(interaction.getInteractionCompleteMessage())));
+
+				interaction = findInteractionById(interactionInstance.getInteractionId()).orElse(null);
+
+				if (interaction == null)
+					validationException.add(new FieldError("interactionInstanceId", getStrings().get("No interaction was found for the given interaction instance.")));
+			}
+		}
+
+		if (interactionOptionId == null) {
+			validationException.add(new FieldError("interactionOptionId", getStrings().get("Interaction option ID is required.")));
+		} else {
+			interactionOption = findInteractionOptionById(interactionOptionId).orElse(null);
+
+			if (interactionOption == null) {
+				validationException.add(new FieldError("interactionOptionId", getStrings().get("Interaction option was not found.")));
+			} else {
+				if (interaction != null && !interaction.getInteractionId().equals(interactionOption.getInteractionId()))
+					validationException.add(new FieldError("interactionOptionId", getStrings().get("Interaction option is not valid for the specified interaction instance.")));
+			}
+		}
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -333,16 +367,15 @@ public class InteractionService {
 
 		getDatabase().execute("INSERT INTO interaction_option_action (interaction_option_action_id, interaction_instance_id, interaction_option_id, account_id) " +
 				"VALUES (?,?,?,?)", interactionOptionActionId, interactionInstanceId, interactionOptionId, accountId);
-
-		InteractionOption interactionOption = findRequiredInteractionOptionsById(interactionOptionId);
+		
 		Integer optionActionCount = findOptionActionCount(interactionInstanceId);
 
-		if (interactionOption.getFinalFlag() || optionActionCount >= interaction.get().getMaxInteractionCount())
+		if (interactionOption.getFinalFlag() || optionActionCount >= interaction.getMaxInteractionCount())
 			markInteractionInstanceComplete(interactionInstanceId);
 		else {
 			cancelPendingMessagesForInteractionInstance(interactionInstanceId);
 			createInteractionInstanceMessages(interactionInstanceId, LocalDateTime.now(interactionInstance.getTimeZone())
-					.plus(interaction.get().getFrequencyInMinutes(), ChronoUnit.MINUTES), interactionInstance.getTimeZone());
+					.plus(interaction.getFrequencyInMinutes(), ChronoUnit.MINUTES), interactionInstance.getTimeZone());
 		}
 
 		return interactionOptionActionId;
@@ -371,11 +404,6 @@ public class InteractionService {
 	@Nonnull
 	protected InstitutionService getInstitutionService() {
 		return institutionService;
-	}
-
-	@Nonnull
-	protected InteractionOptionApiResponseFactory getInteractionOptionApiResponseFactory() {
-		return interactionOptionApiResponseFactory;
 	}
 
 	@Nonnull

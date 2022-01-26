@@ -19,50 +19,55 @@
 
 package com.cobaltplatform.api.service;
 
-import com.lokalized.Strings;
-import com.cobaltplatform.api.error.ErrorReporter;
-import com.cobaltplatform.api.messaging.email.EmailMessage;
-import com.cobaltplatform.api.messaging.email.EmailMessageManager;
-import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
+import com.cobaltplatform.api.model.api.request.CreateInteractionInstanceRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
-import com.cobaltplatform.api.model.db.CrisisContact;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.assessment.Answer;
 import com.cobaltplatform.api.model.db.assessment.Assessment;
 import com.cobaltplatform.api.model.db.assessment.Assessment.AssessmentType;
 import com.cobaltplatform.api.model.service.EvidenceScores;
 import com.cobaltplatform.api.util.Formatter;
+import com.lokalized.Strings;
 import com.pyranid.Database;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.model.service.EvidenceScores.Recommendation;
 import static com.cobaltplatform.api.model.service.EvidenceScores.RecommendationLevel;
 import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
+import static org.apache.commons.text.StringEscapeUtils.escapeHtml4;
 
 /**
  * @author Transmogrify LLC.
  */
 @Singleton
 public class AssessmentScoringService {
-
 	@Nonnull
 	private final Provider<SessionService> sessionServiceProvider;
 	@Nonnull
 	private final Provider<AssessmentService> assessmentServiceProvider;
 	@Nonnull
-	private final EmailMessageManager emailMessageManager;
+	private final Provider<InteractionService> interactionServiceProvider;
 	@Nonnull
-	private final ErrorReporter errorReporter;
+	private final Provider<InstitutionService> institutionServiceProvider;
 	@Nonnull
 	private final Database database;
 	@Nonnull
@@ -72,16 +77,24 @@ public class AssessmentScoringService {
 
 	@Inject
 	public AssessmentScoringService(@Nonnull Provider<AssessmentService> assessmentServiceProvder,
-																	@Nonnull Provider<SessionService> sessionService,
-																	@Nonnull EmailMessageManager emailMessageManager,
-																	@Nonnull ErrorReporter errorReporter,
+																	@Nonnull Provider<SessionService> sessionServiceProvder,
+																	@Nonnull Provider<InteractionService> interactionServiceProvider,
+																	@Nonnull Provider<InstitutionService> institutionServiceProvider,
 																	@Nonnull Database database,
 																	@Nonnull Formatter formatter,
 																	@Nonnull Strings strings) {
+		requireNonNull(assessmentServiceProvder);
+		requireNonNull(sessionServiceProvder);
+		requireNonNull(interactionServiceProvider);
+		requireNonNull(institutionServiceProvider);
+		requireNonNull(database);
+		requireNonNull(formatter);
+		requireNonNull(strings);
+
 		this.assessmentServiceProvider = assessmentServiceProvder;
-		this.sessionServiceProvider = sessionService;
-		this.emailMessageManager = emailMessageManager;
-		this.errorReporter = errorReporter;
+		this.sessionServiceProvider = sessionServiceProvder;
+		this.interactionServiceProvider = interactionServiceProvider;
+		this.institutionServiceProvider = institutionServiceProvider;
 		this.database = database;
 		this.formatter = formatter;
 		this.strings = strings;
@@ -97,47 +110,142 @@ public class AssessmentScoringService {
 				.orElseThrow(() -> new IllegalStateException("Just marked session as complete but was not able to calculate final score"));
 
 		if (scores.getCrisis()) {
-			sendCrisisEmail(account, scores);
+			createCrisisInteraction(account, scores);
 		}
 	}
 
-	private void sendCrisisEmail(Account crisisAccount, EvidenceScores scores) {
+	private void createCrisisInteraction(@Nonnull Account crisisAccount,
+																			 @Nonnull EvidenceScores evidenceScores) {
+		requireNonNull(crisisAccount);
+		requireNonNull(evidenceScores);
 
-		List<CrisisContact> crisisContacts = database.queryForList("SELECT * FROM crisis_contact WHERE institution_id = ? AND active = true",
-				CrisisContact.class, crisisAccount.getInstitutionId());
+		// Find the crisis interaction ID for this account's institution
+		Institution institution = getInstitutionService().findInstitutionById(crisisAccount.getInstitutionId()).get();
+		UUID defaultCrisisInteractionId = institution.getStandardMetadata().getDefaultCrisisInteractionId();
 
-		if (crisisContacts.isEmpty()) {
-			errorReporter.report(format("Crisis alert email needed, but there are no active crisis contacts for the users institution. institution_id = %s", crisisAccount.getInstitutionId()));
-			return;
-		}
+		// Gather information to put into the interaction
+		ZoneId timeZone = institution.getTimeZone();
+		LocalDateTime now = LocalDateTime.now(timeZone);
+		Locale locale = institution.getLocale();
 
-		String name = crisisAccount.getDisplayName() == null ? "Anonymous User" : crisisAccount.getDisplayName();
-		String emailAddress = crisisAccount.getEmailAddress() == null ? getStrings().get("[no email address]") : crisisAccount.getEmailAddress();
-		String phoneNumber = getFormatter().formatPhoneNumber(crisisAccount.getPhoneNumber(), crisisAccount.getLocale());
-		phoneNumber = phoneNumber == null ? getStrings().get("[no phone number]") : phoneNumber;
+		Map<String, Object> metadata = createCrisisInteractionMetadata(crisisAccount, evidenceScores, locale);
+		Map<String, Object> hipaaCompliantMetadata = createCrisisInteractionHipaaCompliantMetadata(crisisAccount, evidenceScores, locale);
 
-		String accountDescription = format("Q9 alert for %s at %s with %s and S3: %s and %s and %s and %s.",
-				name, phoneNumber, emailAddress,
-				scores.getPhq4Recommendation().getAnswers(),
-				scores.getPhq9Recommendation().getAnswers(),
-				scores.getGad7Recommendation().getAnswers(),
-				scores.getPcptsdRecommendation().getAnswers());
+		// Record an interaction for this incident, which might send off some email messages (for example)
+		getInteractionService().createInteractionInstance(new CreateInteractionInstanceRequest() {{
+			setMetadata(metadata);
+			setHipaaCompliantMetadata(hipaaCompliantMetadata);
+			setStartDateTime(now);
+			setTimeZone(timeZone);
+			setInteractionId(defaultCrisisInteractionId);
+		}});
+	}
 
-		String institutionDescription = format("Account - %s at %s - %s - %s", crisisAccount.getAccountId(), crisisAccount.getInstitutionId(),
-				emailAddress, phoneNumber);
+	@Nonnull
+	protected Map<String, Object> createCrisisInteractionHipaaCompliantMetadata(@Nonnull Account crisisAccount,
+																																							@Nonnull EvidenceScores evidenceScores,
+																																							@Nonnull Locale locale) {
+		requireNonNull(crisisAccount);
+		requireNonNull(evidenceScores);
+		requireNonNull(locale);
 
-		Map<String, Object> messageContext = new HashMap<>();
-		messageContext.put("accountDescription", accountDescription);
-		messageContext.put("institutionDescription", institutionDescription);
+		List<String> htmlListItems = new ArrayList<>(1);
 
-		for (CrisisContact crisisContact : crisisContacts) {
-			emailMessageManager.enqueueMessage(new EmailMessage.Builder(EmailMessageTemplate.SUICIDE_RISK, crisisContact.getLocale())
-					.toAddresses(new ArrayList<>() {{
-						add(crisisContact.getEmailAddress());
-					}})
-					.messageContext(messageContext)
-					.build());
-		}
+		if (crisisAccount.getPhoneNumber() != null)
+			htmlListItems.add(createHtmlListItem(getStrings().get("Phone Number", locale), format("<a href='tel:%s'>%s</a>", crisisAccount.getPhoneNumber(), getFormatter().formatPhoneNumber(crisisAccount.getPhoneNumber(), locale)), false));
+		else if (crisisAccount.getEmailAddress() != null)
+			htmlListItems.add(createHtmlListItem(getStrings().get("Email Address", locale), format("<a href='mailto:%s'>%s</a>", crisisAccount.getEmailAddress(), crisisAccount.getEmailAddress())));
+		else
+			htmlListItems.add(createHtmlListItem(getStrings().get("Contact Information", locale), getStrings().get("None Available", locale)));
+
+		String endUserHtmlRepresentation = format("<ul>%s</ul>", htmlListItems.stream().collect(Collectors.joining("")));
+
+		return new HashMap<String, Object>() {{
+			if (crisisAccount.getPhoneNumber() != null) {
+				put("phoneNumber", crisisAccount.getPhoneNumber());
+				put("phoneNumberForDisplay", getFormatter().formatPhoneNumber(crisisAccount.getPhoneNumber(), locale));
+			} else if (crisisAccount.getEmailAddress() != null) {
+				put("emailAddress", crisisAccount.getEmailAddress());
+			}
+
+			put("endUserHtmlRepresentation", endUserHtmlRepresentation);
+		}};
+	}
+
+	@Nonnull
+	protected Map<String, Object> createCrisisInteractionMetadata(@Nonnull Account crisisAccount,
+																																@Nonnull EvidenceScores evidenceScores,
+																																@Nonnull Locale locale) {
+		requireNonNull(crisisAccount);
+		requireNonNull(evidenceScores);
+		requireNonNull(locale);
+
+		List<String> htmlListItems = new ArrayList<>(7);
+
+		if (crisisAccount.getDisplayName() != null)
+			htmlListItems.add(createHtmlListItem(getStrings().get("Name", locale), crisisAccount.getDisplayName()));
+		if (crisisAccount.getPhoneNumber() != null)
+			htmlListItems.add(createHtmlListItem(getStrings().get("Phone Number", locale), format("<a href='tel:%s'>%s</a>", crisisAccount.getPhoneNumber(), getFormatter().formatPhoneNumber(crisisAccount.getPhoneNumber(), locale)), false));
+		if (crisisAccount.getEmailAddress() != null)
+			htmlListItems.add(createHtmlListItem(getStrings().get("Email Address", locale), format("<a href='mailto:%s'>%s</a>", crisisAccount.getEmailAddress(), crisisAccount.getEmailAddress())));
+		if (evidenceScores.getPhq4Recommendation().getAnswers() != null)
+			htmlListItems.add(createHtmlListItem(getStrings().get("PHQ4 Answers", locale), evidenceScores.getPhq4Recommendation().getAnswers()));
+		if (evidenceScores.getPhq9Recommendation().getAnswers() != null)
+			htmlListItems.add(createHtmlListItem(getStrings().get("PHQ9 Answers", locale), evidenceScores.getPhq9Recommendation().getAnswers()));
+		if (evidenceScores.getGad7Recommendation().getAnswers() != null)
+			htmlListItems.add(createHtmlListItem(getStrings().get("GAD7 Answers", locale), evidenceScores.getGad7Recommendation().getAnswers()));
+		if (evidenceScores.getPcptsdRecommendation().getAnswers() != null)
+			htmlListItems.add(createHtmlListItem(getStrings().get("PCPTSD Answers", locale), evidenceScores.getPcptsdRecommendation().getAnswers()));
+
+		String endUserHtmlRepresentation = format("<ul>%s</ul>", htmlListItems.stream().collect(Collectors.joining("")));
+
+		return new HashMap<String, Object>() {{
+			if (crisisAccount.getDisplayName() != null)
+				put("name", crisisAccount.getDisplayName());
+
+			if (crisisAccount.getPhoneNumber() != null) {
+				put("phoneNumber", crisisAccount.getPhoneNumber());
+				put("phoneNumberForDisplay", getFormatter().formatPhoneNumber(crisisAccount.getPhoneNumber(), locale));
+			}
+
+			if (crisisAccount.getEmailAddress() != null)
+				put("emailAddress", crisisAccount.getEmailAddress());
+
+			if (evidenceScores.getPhq4Recommendation().getAnswers() != null)
+				put("phq4Answers", evidenceScores.getPhq4Recommendation().getAnswers());
+
+			if (evidenceScores.getPhq9Recommendation().getAnswers() != null)
+				put("phq9Answers", evidenceScores.getPhq9Recommendation().getAnswers());
+
+			if (evidenceScores.getGad7Recommendation().getAnswers() != null)
+				put("gad7Answers", evidenceScores.getGad7Recommendation().getAnswers());
+
+			if (evidenceScores.getPcptsdRecommendation().getAnswers() != null)
+				put("pcptsdAnswers", evidenceScores.getPcptsdRecommendation().getAnswers());
+
+			put("endUserHtmlRepresentation", endUserHtmlRepresentation);
+		}};
+	}
+
+	@Nonnull
+	protected String createHtmlListItem(@Nonnull String fieldName,
+																			@Nullable String fieldValue) {
+		requireNonNull(fieldName);
+		return createHtmlListItem(fieldName, fieldValue, true);
+	}
+
+	@Nonnull
+	protected String createHtmlListItem(@Nonnull String fieldName,
+																			@Nullable String fieldValue,
+																			@Nonnull Boolean escapeHtml) {
+		requireNonNull(fieldName);
+		requireNonNull(escapeHtml);
+
+		if (trimToNull(fieldValue) == null)
+			fieldValue = getStrings().get("[unknown]");
+
+		return format("<li><strong>%s</strong> %s</li>", escapeHtml ? escapeHtml4(fieldName) : fieldName,
+				escapeHtml ? escapeHtml4(fieldValue) : fieldValue);
 	}
 
 	@Nonnull
@@ -147,7 +255,7 @@ public class AssessmentScoringService {
 		if (!assessment.isPresent())
 			return false;
 
-		Integer count = database.queryForObject("SELECT SUM(a.answer_value) " +
+		Integer count = getDatabase().queryForObject("SELECT SUM(a.answer_value) " +
 						"FROM account_session_answer asa, answer a " +
 						"WHERE asa.answer_id = a.answer_id AND asa.account_session_id = ?",
 				Integer.class, accountSession.getAccountSessionId()).get();
@@ -229,7 +337,7 @@ public class AssessmentScoringService {
 	}
 
 	@Nonnull
-	private String generateAnswersString(List<Answer> answers) {
+	protected String generateAnswersString(List<Answer> answers) {
 		return answers.stream().map(a -> a.getAnswerValue().toString()).collect(joining("-"));
 	}
 
@@ -238,8 +346,24 @@ public class AssessmentScoringService {
 		return assessmentServiceProvider.get();
 	}
 
-	private SessionService sessionService() {
+	@Nonnull
+	protected SessionService sessionService() {
 		return sessionServiceProvider.get();
+	}
+
+	@Nonnull
+	protected InteractionService getInteractionService() {
+		return interactionServiceProvider.get();
+	}
+
+	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return institutionServiceProvider.get();
+	}
+
+	@Nonnull
+	protected Database getDatabase() {
+		return database;
 	}
 
 	@Nonnull

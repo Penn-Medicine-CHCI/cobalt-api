@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.util;
 
+import com.cobaltplatform.api.context.CurrentContext;
 import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
 import com.google.gson.FieldNamingPolicy;
@@ -32,7 +33,6 @@ import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import com.google.gson.reflect.TypeToken;
-import com.cobaltplatform.api.context.CurrentContext;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -115,6 +115,12 @@ public class JsonMapper {
 	public Map<String, Object> toMap(@Nullable Object object) {
 		String json = toJsonInternal(object);
 
+		return getGsonSupplier().get().fromJson(json, new TypeToken<Map<String, Object>>() {
+		}.getType());
+	}
+
+	@Nullable
+	public Map<String, Object> toMapFromRawJson(@Nullable String json) {
 		return getGsonSupplier().get().fromJson(json, new TypeToken<Map<String, Object>>() {
 		}.getType());
 	}
