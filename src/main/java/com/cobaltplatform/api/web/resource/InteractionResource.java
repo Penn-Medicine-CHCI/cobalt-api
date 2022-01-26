@@ -23,11 +23,13 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateInteractionInstanceRequest;
 import com.cobaltplatform.api.model.api.request.CreateInteractionOptionActionRequest;
 import com.cobaltplatform.api.model.api.response.InteractionInstanceApiResponse.InteractionInstanceApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.InteractionOptionActionApiResponse.InteractionOptionActionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InteractionOptionApiResponse.InteractionOptionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Interaction;
 import com.cobaltplatform.api.model.db.InteractionInstance;
 import com.cobaltplatform.api.model.db.InteractionOption;
+import com.cobaltplatform.api.model.db.InteractionOptionAction;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.InteractionService;
@@ -75,6 +77,8 @@ public class InteractionResource {
 	private final InteractionInstanceApiResponseFactory interactionInstanceApiResponseFactory;
 	@Nonnull
 	private final InteractionOptionApiResponseFactory interactionOptionApiResponseFactory;
+	@Nonnull
+	private final InteractionOptionActionApiResponseFactory interactionOptionActionApiResponseFactory;
 
 	@Inject
 	public InteractionResource(@Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
@@ -82,13 +86,15 @@ public class InteractionResource {
 														 @Nonnull InteractionService interactionService,
 														 @Nonnull AuthorizationService authorizationService,
 														 @Nonnull InteractionInstanceApiResponseFactory interactionInstanceApiResponseFactory,
-														 @Nonnull InteractionOptionApiResponseFactory interactionOptionApiResponseFactory) {
+														 @Nonnull InteractionOptionApiResponseFactory interactionOptionApiResponseFactory,
+														 @Nonnull InteractionOptionActionApiResponseFactory interactionOptionActionApiResponseFactory) {
 		requireNonNull(currentContextProvider);
 		requireNonNull(requestBodyParser);
 		requireNonNull(interactionService);
 		requireNonNull(authorizationService);
 		requireNonNull(interactionInstanceApiResponseFactory);
 		requireNonNull(interactionOptionApiResponseFactory);
+		requireNonNull(interactionOptionActionApiResponseFactory);
 
 		this.currentContextProvider = currentContextProvider;
 		this.requestBodyParser = requestBodyParser;
@@ -97,6 +103,7 @@ public class InteractionResource {
 		this.authorizationService = authorizationService;
 		this.interactionInstanceApiResponseFactory = interactionInstanceApiResponseFactory;
 		this.interactionOptionApiResponseFactory = interactionOptionApiResponseFactory;
+		this.interactionOptionActionApiResponseFactory = interactionOptionActionApiResponseFactory;
 	}
 
 	@Nonnull
@@ -122,15 +129,8 @@ public class InteractionResource {
 			request.setTimeZone(getCurrentContext().getTimeZone());
 
 		UUID interactionInstanceId = getInteractionService().createInteractionInstance(request);
-		InteractionInstance interactionInstance = getInteractionService().findInteractionInstanceById(interactionInstanceId).get();
-		List<InteractionOption> interactionOptions = getInteractionService().findInteractionOptionsByInteractionId(interactionInstance.getInteractionId());
 
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("interactionInstance", getInteractionInstanceApiResponseFactory().create(interactionInstance));
-			put("interactionOptions", interactionOptions.stream()
-					.map(interactionOption -> getInteractionOptionApiResponseFactory().create(interactionOption, interactionInstance))
-					.collect(Collectors.toList()));
-		}});
+		return createInteractionInstanceApiResponse(interactionInstanceId);
 	}
 
 	@Nonnull
@@ -147,14 +147,7 @@ public class InteractionResource {
 		if (!getAuthorizationService().canViewInteractionInstance(interactionInstance, getCurrentContext().getAccount().get()))
 			throw new AuthorizationException();
 
-		List<InteractionOption> interactionOptions = getInteractionService().findInteractionOptionsByInteractionId(interactionInstance.getInteractionId());
-
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("interactionInstance", getInteractionInstanceApiResponseFactory().create(interactionInstance));
-			put("interactionOptions", interactionOptions.stream()
-					.map(interactionOption -> getInteractionOptionApiResponseFactory().create(interactionOption, interactionInstance))
-					.collect(Collectors.toList()));
-		}});
+		return createInteractionInstanceApiResponse(interactionInstanceId);
 	}
 
 	@Nonnull
@@ -183,13 +176,24 @@ public class InteractionResource {
 
 		getInteractionService().createInteractionOptionAction(request);
 
-		InteractionInstance updatedInteractionInstance = getInteractionService().findInteractionInstanceById(request.getInteractionInstanceId()).orElse(null);
+		return createInteractionInstanceApiResponse(request.getInteractionInstanceId());
+	}
+
+	@Nonnull
+	protected ApiResponse createInteractionInstanceApiResponse(@Nonnull UUID interactionInstanceId) {
+		requireNonNull(interactionInstanceId);
+
+		InteractionInstance interactionInstance = getInteractionService().findInteractionInstanceById(interactionInstanceId).orElse(null);
 		List<InteractionOption> interactionOptions = getInteractionService().findInteractionOptionsByInteractionId(interactionInstance.getInteractionId());
+		List<InteractionOptionAction> interactionOptionActions = getInteractionService().findInteractionOptionActionsByInteractionInstanceId(interactionInstanceId);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("interactionInstance", getInteractionInstanceApiResponseFactory().create(updatedInteractionInstance));
+			put("interactionInstance", getInteractionInstanceApiResponseFactory().create(interactionInstance));
 			put("interactionOptions", interactionOptions.stream()
 					.map(interactionOption -> getInteractionOptionApiResponseFactory().create(interactionOption, interactionInstance))
+					.collect(Collectors.toList()));
+			put("interactionOptionActions", interactionOptionActions.stream()
+					.map(interactionOptionAction -> getInteractionOptionActionApiResponseFactory().create(interactionOptionAction))
 					.collect(Collectors.toList()));
 		}});
 	}
@@ -229,4 +233,8 @@ public class InteractionResource {
 		return interactionOptionApiResponseFactory;
 	}
 
+	@Nonnull
+	protected InteractionOptionActionApiResponseFactory getInteractionOptionActionApiResponseFactory() {
+		return interactionOptionActionApiResponseFactory;
+	}
 }

@@ -31,6 +31,7 @@ import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Interaction;
 import com.cobaltplatform.api.model.db.InteractionInstance;
 import com.cobaltplatform.api.model.db.InteractionOption;
+import com.cobaltplatform.api.model.db.InteractionOptionAction;
 import com.cobaltplatform.api.model.db.ScheduledMessage;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus;
 import com.cobaltplatform.api.util.Formatter;
@@ -290,8 +291,8 @@ public class InteractionService {
 	}
 
 	@Nonnull
-	public String formatInteractionMessage(@Nonnull InteractionInstance interactionInstance,
-																				 @Nonnull String message) {
+	public String formatInteractionOptionResponseMessage(@Nonnull InteractionInstance interactionInstance,
+																											 @Nonnull String message) {
 		requireNonNull(interactionInstance);
 		requireNonNull(message);
 
@@ -367,7 +368,7 @@ public class InteractionService {
 
 		getDatabase().execute("INSERT INTO interaction_option_action (interaction_option_action_id, interaction_instance_id, interaction_option_id, account_id) " +
 				"VALUES (?,?,?,?)", interactionOptionActionId, interactionInstanceId, interactionOptionId, accountId);
-		
+
 		Integer optionActionCount = findOptionActionCount(interactionInstanceId);
 
 		if (interactionOption.getFinalFlag() || optionActionCount >= interaction.getMaxInteractionCount())
@@ -379,6 +380,24 @@ public class InteractionService {
 		}
 
 		return interactionOptionActionId;
+	}
+
+	@Nonnull
+	public Optional<InteractionOptionAction> findInteractionOptionActionById(@Nullable UUID interactionOptionActionId) {
+		if (interactionOptionActionId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("SELECT * FROM interaction_option_action WHERE interaction_option_action_id=?",
+				InteractionOptionAction.class, interactionOptionActionId);
+	}
+
+	@Nonnull
+	public List<InteractionOptionAction> findInteractionOptionActionsByInteractionInstanceId(@Nullable UUID interactionInstanceId) {
+		if (interactionInstanceId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("SELECT * FROM interaction_option_action WHERE interaction_instance_id=? " +
+				"ORDER BY created DESC", InteractionOptionAction.class, interactionInstanceId);
 	}
 
 	@Nonnull

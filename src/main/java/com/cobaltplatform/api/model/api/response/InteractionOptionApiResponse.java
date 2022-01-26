@@ -84,8 +84,8 @@ public class InteractionOptionApiResponse {
 		this.finalFlag = interactionOption.getFinalFlag();
 		this.optionOrder = interactionOption.getOptionOrder();
 		this.optionUrl = linkGenerator.generateInteractionOptionLink(interaction.getInstitutionId(), interactionOption, interactionInstance);
-		this.optionDescription = interactionService.formatInteractionMessage(interactionInstance, interactionOption.getOptionDescription());
-		this.optionResponse = interactionInstance.getCompletedFlag() ? interactionService.formatInteractionMessage(interactionInstance, interactionOption.getCompletedResponse()) :
-				interactionService.formatInteractionMessage(interactionInstance, interactionOption.getOptionResponse());
+		this.optionDescription = interactionOption.getOptionDescription();
+		this.optionResponse = interactionInstance.getCompletedFlag() ? interactionService.formatInteractionOptionResponseMessage(interactionInstance, interactionOption.getCompletedResponse()) :
+				interactionService.formatInteractionOptionResponseMessage(interactionInstance, interactionOption.getOptionResponse());
 	}
 }
