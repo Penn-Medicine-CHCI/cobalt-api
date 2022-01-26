@@ -19,6 +19,9 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.InteractionType.InteractionTypeId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
@@ -33,9 +36,9 @@ public class Interaction {
 	@Nullable
 	private UUID interactionId;
 	@Nullable
-	private InteractionType.InteractionTypeId interactionTypeId;
+	private InteractionTypeId interactionTypeId;
 	@Nullable
-	private Institution.InstitutionId institutionId;
+	private InstitutionId institutionId;
 	@Nullable
 	private Integer maxInteractionCount;
 	@Nullable
@@ -57,11 +60,11 @@ public class Interaction {
 	}
 
 	@Nullable
-	public InteractionType.InteractionTypeId getInteractionTypeId() {
+	public InteractionTypeId getInteractionTypeId() {
 		return interactionTypeId;
 	}
 
-	public void setInteractionTypeId(@Nullable InteractionType.InteractionTypeId interactionTypeId) {
+	public void setInteractionTypeId(@Nullable InteractionTypeId interactionTypeId) {
 		this.interactionTypeId = interactionTypeId;
 	}
 
@@ -111,11 +114,11 @@ public class Interaction {
 	}
 
 	@Nullable
-	public Institution.InstitutionId getInstitutionId() {
+	public InstitutionId getInstitutionId() {
 		return institutionId;
 	}
 
-	public void setInstitutionId(@Nullable Institution.InstitutionId institutionId) {
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
 		this.institutionId = institutionId;
 	}
 }

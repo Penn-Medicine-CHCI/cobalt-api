@@ -49,6 +49,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
@@ -187,9 +189,29 @@ public class InteractionResource {
 		List<InteractionOption> interactionOptions = getInteractionService().findInteractionOptionsByInteractionId(interactionInstance.getInteractionId());
 		List<InteractionOptionAction> interactionOptionActions = getInteractionService().findInteractionOptionActionsByInteractionInstanceId(interactionInstanceId);
 
-		// If this interaction is complete, hide all the options
-		if(interactionInstance.getCompletedFlag())
+		// If this interaction is complete, hide all the options.
+		// Otherwise, if there was a nonfinal interaction action taken under an hour ago,
+		// don't show the option to re-take it until the remainder of the hour passes
+		// (this helps avoid -- but does not strictly prevent -- people smashing the "Contacted, no response" button, for example)
+		if (interactionInstance.getCompletedFlag()) {
 			interactionOptions.clear();
+		} else if (interactionOptionActions.size() > 0) {
+			Instant mostRecentActionTimestamp = interactionOptionActions.stream()
+					.map(interactionOptionAction -> interactionOptionAction.getCreated())
+					.max(Instant::compareTo)
+					.get();
+
+			Instant now = Instant.now();
+			Instant threshold = now.minus(1, ChronoUnit.HOURS);
+
+			if (mostRecentActionTimestamp.isAfter(threshold)) {
+				List<InteractionOption> nonfinalInteractionOptions = interactionOptions.stream()
+						.filter(interactionOption -> !interactionOption.getFinalFlag())
+						.collect(Collectors.toList());
+
+				interactionOptions.removeAll(nonfinalInteractionOptions);
+			}
+		}
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("interactionInstance", getInteractionInstanceApiResponseFactory().create(interactionInstance));
