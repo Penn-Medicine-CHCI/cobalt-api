@@ -180,6 +180,11 @@ public class AssessmentScoringService {
 		Institution institution = getInstitutionService().findInstitutionById(crisisAccount.getInstitutionId()).get();
 		UUID defaultCrisisInteractionId = institution.getStandardMetadata().getDefaultCrisisInteractionId();
 
+		if (defaultCrisisInteractionId == null) {
+			getErrorReporter().report(format("No default crisis interaction ID is available for institution %s", institution.getInstitutionId()));
+			return;
+		}
+
 		// Gather information to put into the interaction
 		ZoneId timeZone = institution.getTimeZone();
 		LocalDateTime now = LocalDateTime.now(timeZone);
