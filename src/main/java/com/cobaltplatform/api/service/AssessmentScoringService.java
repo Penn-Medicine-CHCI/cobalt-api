@@ -19,9 +19,14 @@
 
 package com.cobaltplatform.api.service;
 
+import com.cobaltplatform.api.error.ErrorReporter;
+import com.cobaltplatform.api.messaging.email.EmailMessage;
+import com.cobaltplatform.api.messaging.email.EmailMessageManager;
+import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.CreateInteractionInstanceRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
+import com.cobaltplatform.api.model.db.CrisisContact;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.assessment.Answer;
 import com.cobaltplatform.api.model.db.assessment.Assessment;
@@ -69,6 +74,10 @@ public class AssessmentScoringService {
 	@Nonnull
 	private final Provider<InstitutionService> institutionServiceProvider;
 	@Nonnull
+	private final EmailMessageManager emailMessageManager;
+	@Nonnull
+	private final ErrorReporter errorReporter;
+	@Nonnull
 	private final Database database;
 	@Nonnull
 	private final Formatter formatter;
@@ -80,6 +89,8 @@ public class AssessmentScoringService {
 																	@Nonnull Provider<SessionService> sessionServiceProvder,
 																	@Nonnull Provider<InteractionService> interactionServiceProvider,
 																	@Nonnull Provider<InstitutionService> institutionServiceProvider,
+																	@Nonnull EmailMessageManager emailMessageManager,
+																	@Nonnull ErrorReporter errorReporter,
 																	@Nonnull Database database,
 																	@Nonnull Formatter formatter,
 																	@Nonnull Strings strings) {
@@ -87,6 +98,8 @@ public class AssessmentScoringService {
 		requireNonNull(sessionServiceProvder);
 		requireNonNull(interactionServiceProvider);
 		requireNonNull(institutionServiceProvider);
+		requireNonNull(emailMessageManager);
+		requireNonNull(errorReporter);
 		requireNonNull(database);
 		requireNonNull(formatter);
 		requireNonNull(strings);
@@ -95,6 +108,8 @@ public class AssessmentScoringService {
 		this.sessionServiceProvider = sessionServiceProvder;
 		this.interactionServiceProvider = interactionServiceProvider;
 		this.institutionServiceProvider = institutionServiceProvider;
+		this.emailMessageManager = emailMessageManager;
+		this.errorReporter = errorReporter;
 		this.database = database;
 		this.formatter = formatter;
 		this.strings = strings;
@@ -110,7 +125,49 @@ public class AssessmentScoringService {
 				.orElseThrow(() -> new IllegalStateException("Just marked session as complete but was not able to calculate final score"));
 
 		if (scores.getCrisis()) {
+			// TODO: remove crisis email in favor of the crisis interaction
+			sendCrisisEmail(account, scores);
 			createCrisisInteraction(account, scores);
+		}
+	}
+
+	// TODO: remove crisis email in favor of the crisis interaction
+	private void sendCrisisEmail(Account crisisAccount, EvidenceScores scores) {
+
+		List<CrisisContact> crisisContacts = database.queryForList("SELECT * FROM crisis_contact WHERE institution_id = ? AND active = true",
+				CrisisContact.class, crisisAccount.getInstitutionId());
+
+		if (crisisContacts.isEmpty()) {
+			getErrorReporter().report(format("Crisis alert email needed, but there are no active crisis contacts for the users institution. institution_id = %s", crisisAccount.getInstitutionId()));
+			return;
+		}
+
+		String name = crisisAccount.getDisplayName() == null ? "Anonymous User" : crisisAccount.getDisplayName();
+		String emailAddress = crisisAccount.getEmailAddress() == null ? getStrings().get("[no email address]") : crisisAccount.getEmailAddress();
+		String phoneNumber = getFormatter().formatPhoneNumber(crisisAccount.getPhoneNumber(), crisisAccount.getLocale());
+		phoneNumber = phoneNumber == null ? getStrings().get("[no phone number]") : phoneNumber;
+
+		String accountDescription = format("Q9 alert for %s at %s with %s and S3: %s and %s and %s and %s.",
+				name, phoneNumber, emailAddress,
+				scores.getPhq4Recommendation().getAnswers(),
+				scores.getPhq9Recommendation().getAnswers(),
+				scores.getGad7Recommendation().getAnswers(),
+				scores.getPcptsdRecommendation().getAnswers());
+
+		String institutionDescription = format("Account - %s at %s - %s - %s", crisisAccount.getAccountId(), crisisAccount.getInstitutionId(),
+				emailAddress, phoneNumber);
+
+		Map<String, Object> messageContext = new HashMap<>();
+		messageContext.put("accountDescription", accountDescription);
+		messageContext.put("institutionDescription", institutionDescription);
+
+		for (CrisisContact crisisContact : crisisContacts) {
+			getEmailMessageManager().enqueueMessage(new EmailMessage.Builder(EmailMessageTemplate.SUICIDE_RISK, crisisContact.getLocale())
+					.toAddresses(new ArrayList<>() {{
+						add(crisisContact.getEmailAddress());
+					}})
+					.messageContext(messageContext)
+					.build());
 		}
 	}
 
@@ -359,6 +416,16 @@ public class AssessmentScoringService {
 	@Nonnull
 	protected InstitutionService getInstitutionService() {
 		return institutionServiceProvider.get();
+	}
+
+	@Nonnull
+	protected EmailMessageManager getEmailMessageManager() {
+		return emailMessageManager;
+	}
+
+	@Nonnull
+	protected ErrorReporter getErrorReporter() {
+		return errorReporter;
 	}
 
 	@Nonnull
