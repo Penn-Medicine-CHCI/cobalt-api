@@ -345,85 +345,14 @@ public class Way2HealthService implements AutoCloseable {
 											// Gather information to put into the interaction
 											ZoneId timeZone = institution.getTimeZone();
 											LocalDateTime now = LocalDateTime.now(timeZone);
-											Locale locale = institution.getLocale();
 
-											String participantName = null;
-
-											if (incident.getParticipant() != null) {
-												String firstName = trimToNull(incident.getParticipant().getFirstName());
-												String lastName = trimToNull(incident.getParticipant().getLastName());
-
-												List<String> nameComponents = new ArrayList<>(2);
-
-												if (firstName != null)
-													nameComponents.add(firstName);
-												if (lastName != null)
-													nameComponents.add(lastName);
-
-												// If no first or last name: W2H provides a numeric "name" in the name field we use as a fallback
-												if (nameComponents.size() == 0)
-													participantName = trimToNull(incident.getParticipant().getName());
-												else
-													participantName = nameComponents.stream().collect(Collectors.joining(" "));
-											}
-
-											String message = trimToNull(incident.getMessage());
-											NormalizedPhoneNumber participantCellPhone = valueForParticipantPhoneNumberField(incident, locale, (participant) -> participant.getCellPhone()).orElse(null);
-											NormalizedPhoneNumber participantHomePhone = valueForParticipantPhoneNumberField(incident, locale, (participant) -> participant.getHomePhone()).orElse(null);
-											NormalizedPhoneNumber participantWorkPhone = valueForParticipantPhoneNumberField(incident, locale, (participant) -> participant.getWorkPhone()).orElse(null);
-
-											List<String> htmlListItems = new ArrayList<>(7);
-
-											htmlListItems.add(createHtmlListItem(getStrings().get("Incident ID", locale), String.valueOf(incident.getId())));
-											htmlListItems.add(createHtmlListItem(getStrings().get("Study ID", locale), String.valueOf(incident.getStudyId())));
-
-											if (message != null)
-												htmlListItems.add(createHtmlListItem(getStrings().get("Message", locale), message));
-											if (participantName != null)
-												htmlListItems.add(createHtmlListItem(getStrings().get("Name", locale), participantName));
-											if (participantCellPhone != null)
-												htmlListItems.add(createHtmlListItem(getStrings().get("Cell Phone", locale), format("<a href='tel:%s'>%s</a>", participantCellPhone.getE164Representation(), participantCellPhone.getDisplayRepresentation()), false));
-											if (participantHomePhone != null)
-												htmlListItems.add(createHtmlListItem(getStrings().get("Home Phone", locale), format("<a href='tel:%s'>%s</a>", participantHomePhone.getE164Representation(), participantHomePhone.getDisplayRepresentation()), false));
-											if (participantWorkPhone != null)
-												htmlListItems.add(createHtmlListItem(getStrings().get("Work Phone", locale), format("<a href='tel:%s'>%s</a>", participantWorkPhone.getE164Representation(), participantWorkPhone.getDisplayRepresentation()), false));
-
-											String endUserHtmlRepresentation = format("<ul>%s</ul>", htmlListItems.stream().collect(Collectors.joining("")));
-
-											String pinnedParticipantName = participantName;
-
-											Map<String, Object> interactionInstanceMetadata = new HashMap<>() {{
-												put("way2HealthIncidentId", way2HealthIncidentId);
-												put("incidentId", incident.getId());
-												put("studyId", incident.getStudyId());
-
-												if (message != null)
-													put("message", message);
-
-												if (pinnedParticipantName != null)
-													put("participantName", pinnedParticipantName);
-
-												if (participantCellPhone != null) {
-													put("participantCellPhoneNumber", participantCellPhone.getE164Representation());
-													put("participantCellPhoneNumberForDisplay", participantCellPhone.getDisplayRepresentation());
-												}
-
-												if (participantHomePhone != null) {
-													put("participantHomePhoneNumber", participantHomePhone.getE164Representation());
-													put("participantHomePhoneNumberForDisplay", participantHomePhone.getDisplayRepresentation());
-												}
-
-												if (participantWorkPhone != null) {
-													put("participantWorkPhoneNumber", participantWorkPhone.getE164Representation());
-													put("participantWorkPhoneNumberForDisplay", participantWorkPhone.getDisplayRepresentation());
-												}
-
-												put("endUserHtmlRepresentation", endUserHtmlRepresentation);
-											}};
+											Map<String, Object> interactionInstanceMetadata = createInteractionInstanceMetadata(institution, incident, way2HealthIncidentId);
+											Map<String, Object> interactionInstanceHipaaCompliantMetadata = createInteractionInstanceHipaaCompliantMetadata(institution, incident, way2HealthIncidentId);
 
 											// Record an interaction for this incident, which might send off some email messages (for example)
 											getInteractionService().createInteractionInstance(new CreateInteractionInstanceRequest() {{
 												setMetadata(interactionInstanceMetadata);
+												setHipaaCompliantMetadata(interactionInstanceHipaaCompliantMetadata);
 												setStartDateTime(now);
 												setTimeZone(timeZone);
 												setInteractionId(config.getInteractionId());
@@ -464,6 +393,134 @@ public class Way2HealthService implements AutoCloseable {
 					}
 				});
 			});
+		}
+
+		@Nonnull
+		protected Map<String, Object> createInteractionInstanceMetadata(@Nonnull Institution institution,
+																																		@Nonnull Incident incident,
+																																		@Nonnull UUID way2HealthIncidentId) {
+			requireNonNull(institution);
+			requireNonNull(incident);
+			requireNonNull(way2HealthIncidentId);
+
+			Locale locale = institution.getLocale();
+
+			String participantName = null;
+
+			if (incident.getParticipant() != null) {
+				String firstName = trimToNull(incident.getParticipant().getFirstName());
+				String lastName = trimToNull(incident.getParticipant().getLastName());
+
+				List<String> nameComponents = new ArrayList<>(2);
+
+				if (firstName != null)
+					nameComponents.add(firstName);
+				if (lastName != null)
+					nameComponents.add(lastName);
+
+				// If no first or last name: W2H provides a numeric "name" in the name field we use as a fallback
+				if (nameComponents.size() == 0)
+					participantName = trimToNull(incident.getParticipant().getName());
+				else
+					participantName = nameComponents.stream().collect(Collectors.joining(" "));
+			}
+
+			String message = trimToNull(incident.getMessage());
+			NormalizedPhoneNumber participantCellPhone = valueForParticipantPhoneNumberField(incident, locale, (participant) -> participant.getCellPhone()).orElse(null);
+			NormalizedPhoneNumber participantHomePhone = valueForParticipantPhoneNumberField(incident, locale, (participant) -> participant.getHomePhone()).orElse(null);
+			NormalizedPhoneNumber participantWorkPhone = valueForParticipantPhoneNumberField(incident, locale, (participant) -> participant.getWorkPhone()).orElse(null);
+
+			List<String> htmlListItems = new ArrayList<>(7);
+
+			htmlListItems.add(createHtmlListItem(getStrings().get("Incident ID", locale), String.valueOf(incident.getId())));
+			htmlListItems.add(createHtmlListItem(getStrings().get("Study ID", locale), String.valueOf(incident.getStudyId())));
+
+			if (message != null)
+				htmlListItems.add(createHtmlListItem(getStrings().get("Message", locale), message));
+			if (participantName != null)
+				htmlListItems.add(createHtmlListItem(getStrings().get("Name", locale), participantName));
+			if (participantCellPhone != null)
+				htmlListItems.add(createHtmlListItem(getStrings().get("Cell Phone", locale), format("<a href='tel:%s'>%s</a>", participantCellPhone.getE164Representation(), participantCellPhone.getDisplayRepresentation()), false));
+			if (participantHomePhone != null)
+				htmlListItems.add(createHtmlListItem(getStrings().get("Home Phone", locale), format("<a href='tel:%s'>%s</a>", participantHomePhone.getE164Representation(), participantHomePhone.getDisplayRepresentation()), false));
+			if (participantWorkPhone != null)
+				htmlListItems.add(createHtmlListItem(getStrings().get("Work Phone", locale), format("<a href='tel:%s'>%s</a>", participantWorkPhone.getE164Representation(), participantWorkPhone.getDisplayRepresentation()), false));
+
+			String endUserHtmlRepresentation = format("<ul>%s</ul>", htmlListItems.stream().collect(Collectors.joining("")));
+
+			String pinnedParticipantName = participantName;
+
+			return new HashMap<>() {{
+				put("way2HealthIncidentId", way2HealthIncidentId);
+				put("incidentId", incident.getId());
+				put("studyId", incident.getStudyId());
+
+				if (message != null)
+					put("message", message);
+
+				if (pinnedParticipantName != null)
+					put("participantName", pinnedParticipantName);
+
+				if (participantCellPhone != null) {
+					put("participantCellPhoneNumber", participantCellPhone.getE164Representation());
+					put("participantCellPhoneNumberForDisplay", participantCellPhone.getDisplayRepresentation());
+				}
+
+				if (participantHomePhone != null) {
+					put("participantHomePhoneNumber", participantHomePhone.getE164Representation());
+					put("participantHomePhoneNumberForDisplay", participantHomePhone.getDisplayRepresentation());
+				}
+
+				if (participantWorkPhone != null) {
+					put("participantWorkPhoneNumber", participantWorkPhone.getE164Representation());
+					put("participantWorkPhoneNumberForDisplay", participantWorkPhone.getDisplayRepresentation());
+				}
+
+				put("endUserHtmlRepresentation", endUserHtmlRepresentation);
+			}};
+		}
+
+		@Nonnull
+		protected Map<String, Object> createInteractionInstanceHipaaCompliantMetadata(@Nonnull Institution institution,
+																																									@Nonnull Incident incident,
+																																									@Nonnull UUID way2HealthIncidentId) {
+			requireNonNull(institution);
+			requireNonNull(incident);
+			requireNonNull(way2HealthIncidentId);
+
+			Locale locale = institution.getLocale();
+
+			List<String> htmlListItems = new ArrayList<>(3);
+
+			htmlListItems.add(createHtmlListItem(getStrings().get("Incident ID", locale), String.valueOf(incident.getId())));
+			htmlListItems.add(createHtmlListItem(getStrings().get("Study ID", locale), String.valueOf(incident.getStudyId())));
+
+			NormalizedPhoneNumber phoneNumber = valueForParticipantPhoneNumberField(incident, locale, (participant) -> participant.getCellPhone()).orElse(null);
+
+			if (phoneNumber == null)
+				phoneNumber = valueForParticipantPhoneNumberField(incident, locale, (participant) -> participant.getHomePhone()).orElse(null);
+			if (phoneNumber == null)
+				phoneNumber = valueForParticipantPhoneNumberField(incident, locale, (participant) -> participant.getWorkPhone()).orElse(null);
+
+			if (phoneNumber != null)
+				htmlListItems.add(createHtmlListItem(getStrings().get("Phone Number", locale), format("<a href='tel:%s'>%s</a>", phoneNumber.getE164Representation(), phoneNumber.getDisplayRepresentation()), false));
+
+			String endUserHtmlRepresentation = format("<ul>%s</ul>", htmlListItems.stream().collect(Collectors.joining("")));
+
+			NormalizedPhoneNumber pinnedPhoneNumber = phoneNumber;
+
+			return new HashMap<>() {{
+				put("way2HealthIncidentId", way2HealthIncidentId);
+				put("incidentId", incident.getId());
+				put("studyId", incident.getStudyId());
+
+				if (pinnedPhoneNumber != null) {
+					put("phoneNumber", pinnedPhoneNumber.getE164Representation());
+					put("phoneNumberForDisplay", pinnedPhoneNumber.getDisplayRepresentation());
+				}
+
+				put("endUserHtmlRepresentation", endUserHtmlRepresentation);
+			}};
 		}
 
 		@Nonnull

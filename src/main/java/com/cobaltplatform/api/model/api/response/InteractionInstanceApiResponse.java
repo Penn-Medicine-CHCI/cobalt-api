@@ -64,6 +64,8 @@ public class InteractionInstanceApiResponse {
 	@Nullable
 	private Map<String, Object> metadata;
 	@Nullable
+	private Map<String, Object> hipaaCompliantMetadata;
+	@Nullable
 	private String caseNumber;
 
 
@@ -87,10 +89,11 @@ public class InteractionInstanceApiResponse {
 		this.interactionId = interactionInstance.getInteractionId();
 		this.interactionInstanceId = interactionInstance.getInteractionInstanceId();
 		this.accountId = interactionInstance.getAccountId();
-		this.metadata = interactionInstance.getMetadata() == null ? null : jsonMapper.toMap(interactionInstance.getMetadata());
+		this.metadata = interactionInstance.getMetadata() == null ? null : jsonMapper.toMapFromRawJson(interactionInstance.getMetadata());
+		this.hipaaCompliantMetadata = interactionInstance.getHipaaCompliantMetadata() == null ? null : jsonMapper.toMapFromRawJson(interactionInstance.getHipaaCompliantMetadata());
 		this.timeZone = interactionInstance.getTimeZone();
 		this.startDateTime = interactionInstance.getStartDateTime();
-		this.startDateTimeDescription = formatter.formatDateTime(interactionInstance.getStartDateTime(), FormatStyle.LONG, FormatStyle.MEDIUM);
+		this.startDateTimeDescription = formatter.formatDateTime(interactionInstance.getStartDateTime(), FormatStyle.LONG, FormatStyle.SHORT);
 		this.completedDate = interactionInstance.getCompletedDate();
 		this.completedDateDescription = interactionInstance.getCompletedDate() == null ? null : formatter.formatTimestamp(interactionInstance.getCompletedDate(), FormatStyle.LONG, FormatStyle.MEDIUM);
 		this.completedFlag = interactionInstance.getCompletedFlag();
@@ -130,5 +133,30 @@ public class InteractionInstanceApiResponse {
 	@Nullable
 	public Map<String, Object> getMetadata() {
 		return metadata;
+	}
+
+	@Nullable
+	public Boolean getCompletedFlag() {
+		return completedFlag;
+	}
+
+	@Nullable
+	public Instant getCompletedDate() {
+		return completedDate;
+	}
+
+	@Nullable
+	public String getCompletedDateDescription() {
+		return completedDateDescription;
+	}
+
+	@Nullable
+	public Map<String, Object> getHipaaCompliantMetadata() {
+		return hipaaCompliantMetadata;
+	}
+
+	@Nullable
+	public String getCaseNumber() {
+		return caseNumber;
 	}
 }

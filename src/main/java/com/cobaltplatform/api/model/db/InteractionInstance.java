@@ -44,6 +44,8 @@ public class InteractionInstance {
 	@Nullable
 	private String metadata;
 	@Nullable
+	private String hipaaCompliantMetadata;
+	@Nullable
 	private Boolean completedFlag;
 	@Nullable
 	private Instant completedDate;
@@ -107,6 +109,15 @@ public class InteractionInstance {
 
 	public void setMetadata(@Nullable String metadata) {
 		this.metadata = metadata;
+	}
+
+	@Nullable
+	public String getHipaaCompliantMetadata() {
+		return hipaaCompliantMetadata;
+	}
+
+	public void setHipaaCompliantMetadata(@Nullable String hipaaCompliantMetadata) {
+		this.hipaaCompliantMetadata = hipaaCompliantMetadata;
 	}
 
 	@Nullable

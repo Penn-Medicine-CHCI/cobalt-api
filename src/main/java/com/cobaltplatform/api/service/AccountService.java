@@ -39,6 +39,7 @@ import com.cobaltplatform.api.model.api.request.UpdateAccountPhoneNumberRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountRoleRequest;
 import com.cobaltplatform.api.model.api.request.UpdateBetaFeatureAlertRequest;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.Account.StandardMetadata;
 import com.cobaltplatform.api.model.db.AccountInvite;
 import com.cobaltplatform.api.model.db.AccountLoginRule;
 import com.cobaltplatform.api.model.db.AccountSource;
@@ -861,16 +862,22 @@ public class AccountService {
 	}
 
 	@Nonnull
-	public List<Account> findAccountsMatchingMetadata(@Nullable Map<String, Object> metadata) {
-		requireNonNull(metadata);
+	public List<Account> findAccountsMatchingMetadata(@Nullable StandardMetadata standardMetadata) {
+		if (standardMetadata == null)
+			return findAccountsMatchingMetadata(Collections.emptyMap());
 
+		return findAccountsMatchingMetadata(getJsonMapper().toMap(standardMetadata));
+	}
+
+	@Nonnull
+	public List<Account> findAccountsMatchingMetadata(@Nullable Map<String, Object> metadata) {
 		if (metadata == null || metadata.size() == 0)
 			return Collections.emptyList();
 
 		String metadataAsJson = getJsonMapper().toJson(metadata);
 
-		return getDatabase().queryForList("SELECT * FROM account WHERE metadata @> CAST(? AS JSONB) "
-				, Account.class, metadataAsJson);
+		return getDatabase().queryForList("SELECT * FROM account WHERE metadata @> CAST(? AS JSONB)",
+				Account.class, metadataAsJson);
 	}
 
 	@Nonnull
