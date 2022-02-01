@@ -20,8 +20,8 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
-import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse;
+import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
@@ -31,6 +31,7 @@ import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.PathParameter;
 import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.Resource;
+import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
 
 import javax.annotation.Nonnull;
@@ -104,12 +105,14 @@ public class ContentResource {
 		requireNonNull(contentId);
 
 		Account account = getCurrentContext().getAccount().get();
-		Content content = getContentService().findRequiredContentById(account, contentId);
+		Content content = getContentService().findContentById(account, contentId).orElse(null);
+
+		if (content == null)
+			throw new NotFoundException();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("content", getContentApiResponseFactory().create(content));
 		}});
-
 	}
 
 	@Nonnull

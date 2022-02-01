@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.Optional;
@@ -37,12 +38,10 @@ import java.util.UUID;
  */
 @Singleton
 public class ActivityTrackingService {
-
 	@Nonnull
 	private final Database database;
 	@Nonnull
 	private final Logger logger;
-
 
 	@Inject
 	public ActivityTrackingService(@Nonnull Database database) {
@@ -51,9 +50,12 @@ public class ActivityTrackingService {
 	}
 
 	@Nonnull
-	public ActivityTracking findRequiredActivityTrackingById(UUID activityTrackingId) {
+	public Optional<ActivityTracking> findActivityTrackingById(@Nullable UUID activityTrackingId) {
+		if (activityTrackingId == null)
+			return Optional.empty();
+
 		return getDatabase().queryForObject("SELECT * FROM activity_tracking WHERE activity_tracking_id = ?",
-				ActivityTracking.class, activityTrackingId).get();
+				ActivityTracking.class, activityTrackingId);
 	}
 
 	@Nonnull

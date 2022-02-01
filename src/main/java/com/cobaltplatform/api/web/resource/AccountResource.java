@@ -77,12 +77,14 @@ import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.GroupEventService;
 import com.cobaltplatform.api.service.GroupSessionService;
-import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.IcService;
+import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.LinkGenerator;
+import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.WebUtility;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
+import com.lokalized.Strings;
 import com.soklet.json.JSONObject;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
@@ -172,6 +174,8 @@ public class AccountResource {
 	private final BetaFeatureAlertApiResponseFactory betaFeatureAlertApiResponseFactory;
 	@Nonnull
 	private final ActivityTrackingService activityTrackingService;
+	@Nonnull
+	private final Strings strings;
 
 	@Inject
 	public AccountResource(@Nonnull AccountService accountService,
@@ -193,7 +197,8 @@ public class AccountResource {
 												 @Nonnull InstitutionService institutionService,
 												 @Nonnull InstitutionApiResponseFactory institutionApiResponseFactory,
 												 @Nonnull BetaFeatureAlertApiResponseFactory betaFeatureAlertApiResponseFactory,
-												 @Nonnull ActivityTrackingService activityTrackingService) {
+												 @Nonnull ActivityTrackingService activityTrackingService,
+												 @Nonnull Strings strings) {
 		requireNonNull(accountService);
 		requireNonNull(icService);
 		requireNonNull(groupEventService);
@@ -213,6 +218,7 @@ public class AccountResource {
 		requireNonNull(institutionService);
 		requireNonNull(institutionApiResponseFactory);
 		requireNonNull(activityTrackingService);
+		requireNonNull(strings);
 
 		this.accountService = accountService;
 		this.icService = icService;
@@ -235,6 +241,7 @@ public class AccountResource {
 		this.institutionApiResponseFactory = institutionApiResponseFactory;
 		this.betaFeatureAlertApiResponseFactory = betaFeatureAlertApiResponseFactory;
 		this.activityTrackingService = activityTrackingService;
+		this.strings = strings;
 	}
 
 	@Nonnull
@@ -322,7 +329,7 @@ public class AccountResource {
 		activityTrackingRequest.setSessionTrackingId(getCurrentContext().getSessionTrackingId());
 		activityTrackingRequest.setActivityActionId(ActivityAction.ActivityActionId.SIGN_IN);
 		activityTrackingRequest.setActivityTypeId(ActivityType.ActivityTypeId.ACCOUNT);
-		activityTrackingRequest.setContext(new JSONObject().put("accountId",account.getAccountId().toString()).toString());
+		activityTrackingRequest.setContext(new JSONObject().put("accountId", account.getAccountId().toString()).toString());
 
 		getActivityTrackingService().trackActivity(Optional.of(account), activityTrackingRequest);
 
@@ -603,7 +610,7 @@ public class AccountResource {
 		activityTrackingRequest.setSessionTrackingId(getCurrentContext().getSessionTrackingId());
 		activityTrackingRequest.setActivityActionId(ActivityAction.ActivityActionId.CREATE);
 		activityTrackingRequest.setActivityTypeId(ActivityType.ActivityTypeId.ACCOUNT);
-		activityTrackingRequest.setContext(new JSONObject().put("accountId",accountId.toString()).toString());
+		activityTrackingRequest.setContext(new JSONObject().put("accountId", accountId.toString()).toString());
 
 		getActivityTrackingService().trackActivity(Optional.of(account), activityTrackingRequest);
 
@@ -716,7 +723,10 @@ public class AccountResource {
 		requireNonNull(body);
 
 		ResetPasswordRequest request = getRequestBodyParser().parse(body, ResetPasswordRequest.class);
-		Account account = getAccountService().resetPassword(request);
+		Account account = getAccountService().resetPassword(request).orElse(null);
+
+		if (account == null)
+			throw new ValidationException(getStrings().get("Sorry, we were unable to reset your password."));
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("account", getAccountApiResponseFactory().create(account));
@@ -885,7 +895,12 @@ public class AccountResource {
 	}
 
 	@Nonnull
-	public ActivityTrackingService getActivityTrackingService() {
+	protected ActivityTrackingService getActivityTrackingService() {
 		return activityTrackingService;
+	}
+
+	@Nonnull
+	protected Strings getStrings() {
+		return strings;
 	}
 }
