@@ -422,7 +422,7 @@ public class DefaultAcuitySchedulingClient implements AcuitySchedulingClient {
 				// Seems like Acuity has some layer above its API that (mistakenly?) is rate-limiting us?
 				// If we detect this special case, throw a special exception
 				if (httpResponse.getStatus() == 403 && "</html>".equals(trimToEmpty(responseBody)))
-					throw new AcuitySchedulingUndocumentedRateLimitException(format("Detected undocumented rate limit error for Acuity Scheduling API endpoint %s %s with query params %s and request body %s", httpResponse.getStatus(), httpRequest.getHttpMethod().name(), httpRequest.getUrl(), queryParametersDescription, requestBodyDescription));
+					throw new AcuitySchedulingUndocumentedRateLimitException(format("Detected undocumented rate limit error for Acuity Scheduling API endpoint %s %s with query params %s and request body %s", httpRequest.getHttpMethod().name(), httpRequest.getUrl(), queryParametersDescription, requestBodyDescription));
 
 				AcuityError acuityError = null;
 

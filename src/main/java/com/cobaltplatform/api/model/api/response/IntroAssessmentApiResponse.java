@@ -19,13 +19,13 @@
 
 package com.cobaltplatform.api.model.api.response;
 
-import com.google.inject.assistedinject.Assisted;
-import com.google.inject.assistedinject.AssistedInject;
 import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.assessment.Answer;
 import com.cobaltplatform.api.model.db.assessment.Question;
 import com.cobaltplatform.api.service.AssessmentService;
 import com.cobaltplatform.api.service.SessionService;
+import com.google.inject.assistedinject.Assisted;
+import com.google.inject.assistedinject.AssistedInject;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -35,7 +35,6 @@ import java.util.List;
 
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
-import static org.apache.http.client.methods.RequestBuilder.put;
 
 /**
  * @author Transmogrify LLC.

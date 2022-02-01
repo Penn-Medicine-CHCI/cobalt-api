@@ -89,7 +89,7 @@ public class AdminAvailableContentApiResponse {
 		this.author = adminContent.getAuthor();
 		this.ownerInstitution = adminContent.getOwnerInstitution();
 
-		if (adminContent.getApprovedFlag() == true)
+		if (adminContent.getApprovedFlag())
 			contentActionIdList.add(ContentAction.ContentActionId.REMOVE);
 		else
 			contentActionIdList.add(ContentAction.ContentActionId.APPROVE);

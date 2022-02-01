@@ -22,7 +22,6 @@ package com.cobaltplatform.api.web.filter;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.Account;
-import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AccessTokenStatus;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;

@@ -22,8 +22,6 @@ package com.cobaltplatform.api.model.db;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
-import static java.lang.String.format;
-
 /**
  * @author Transmogrify LLC.
  */

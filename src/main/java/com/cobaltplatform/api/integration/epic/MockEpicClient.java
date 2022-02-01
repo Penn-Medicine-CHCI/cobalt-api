@@ -23,7 +23,6 @@ import com.cobaltplatform.api.integration.epic.request.CancelAppointmentRequest;
 import com.cobaltplatform.api.integration.epic.request.GetPatientAppointmentsRequest;
 import com.cobaltplatform.api.integration.epic.request.GetPatientDemographicsRequest;
 import com.cobaltplatform.api.integration.epic.request.GetProviderScheduleRequest;
-import com.cobaltplatform.api.integration.epic.request.PatientCreateFhirRequest;
 import com.cobaltplatform.api.integration.epic.request.PatientCreateRequest;
 import com.cobaltplatform.api.integration.epic.request.PatientSearchRequest;
 import com.cobaltplatform.api.integration.epic.request.ScheduleAppointmentWithInsuranceRequest;
