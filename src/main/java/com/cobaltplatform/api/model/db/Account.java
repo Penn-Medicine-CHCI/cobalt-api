@@ -24,20 +24,38 @@ import com.cobaltplatform.api.model.db.BetaStatus.BetaStatusId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.Collections;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
 public class Account {
+	@Nonnull
+	private static final Gson GSON;
+
+	static {
+		GSON = new GsonBuilder()
+				.setPrettyPrinting()
+				.disableHtmlEscaping()
+				.create();
+	}
+
 	@Nullable
 	private UUID accountId;
 	@Nullable
@@ -90,6 +108,46 @@ public class Account {
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
+
+	@Nonnull
+	public Map<String, Object> getMetadataAsMap() {
+		String metadata = trimToNull(getMetadata());
+		return metadata == null ? Collections.emptyMap() : getGson().fromJson(metadata, new TypeToken<Map<String, Object>>() {
+		}.getType());
+	}
+
+	@Nonnull
+	public StandardMetadata getStandardMetadata() {
+		String metadata = trimToNull(getMetadata());
+		return metadata == null ? StandardMetadata.emptyInstance() : getGson().fromJson(metadata, StandardMetadata.class);
+	}
+
+	@Nonnull
+	protected Gson getGson() {
+		return GSON;
+	}
+
+	@NotThreadSafe
+	public static class StandardMetadata {
+		@Nullable
+		private Set<UUID> interactionIds;
+
+		@Nonnull
+		public static StandardMetadata emptyInstance() {
+			StandardMetadata standardMetadata = new StandardMetadata();
+			standardMetadata.setInteractionIds(Collections.emptySet());
+			return standardMetadata;
+		}
+
+		@Nullable
+		public Set<UUID> getInteractionIds() {
+			return interactionIds;
+		}
+
+		public void setInteractionIds(@Nullable Set<UUID> interactionIds) {
+			this.interactionIds = interactionIds;
+		}
+	}
 
 	@Nullable
 	public UUID getAccountId() {

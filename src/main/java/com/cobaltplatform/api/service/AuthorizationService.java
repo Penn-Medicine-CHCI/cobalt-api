@@ -25,6 +25,8 @@ import com.cobaltplatform.api.model.db.GroupSessionRequest;
 import com.cobaltplatform.api.model.db.GroupSessionRequestStatus.GroupSessionRequestStatusId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.Interaction;
+import com.cobaltplatform.api.model.db.InteractionInstance;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AccountCapabilities;
@@ -47,15 +49,20 @@ public class AuthorizationService {
 	@Nonnull
 	private final javax.inject.Provider<GroupSessionService> groupSessionServiceProvider;
 	@Nonnull
+	private final javax.inject.Provider<InteractionService> interactionServiceProvider;
+	@Nonnull
 	private final Normalizer normalizer;
 
 	@Inject
 	public AuthorizationService(@Nonnull javax.inject.Provider<GroupSessionService> groupSessionServiceProvider,
+															@Nonnull javax.inject.Provider<InteractionService> interactionServiceProvider,
 															@Nonnull Normalizer normalizer) {
 		requireNonNull(groupSessionServiceProvider);
+		requireNonNull(interactionServiceProvider);
 		requireNonNull(normalizer);
 
 		this.groupSessionServiceProvider = groupSessionServiceProvider;
+		this.interactionServiceProvider = interactionServiceProvider;
 		this.normalizer = normalizer;
 	}
 
@@ -192,7 +199,7 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
-	public boolean canEditProvider(@Nonnull Provider provider,
+	public Boolean canEditProvider(@Nonnull Provider provider,
 																 @Nonnull Account account) {
 		requireNonNull(provider);
 		requireNonNull(account);
@@ -207,8 +214,59 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
+	public Boolean canCreateInteractionInstance(@Nonnull Interaction interaction,
+																							@Nonnull Account account) {
+		requireNonNull(interaction);
+		requireNonNull(account);
+
+		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
+			return true;
+
+		if (!Objects.equals(interaction.getInstitutionId(), account.getInstitutionId()))
+			return false;
+
+		return account.getStandardMetadata().getInteractionIds() != null
+				&& account.getStandardMetadata().getInteractionIds().contains(interaction.getInteractionId());
+	}
+
+	@Nonnull
+	public Boolean canViewInteractionInstance(@Nonnull InteractionInstance interactionInstance,
+																						@Nonnull Account account) {
+		requireNonNull(interactionInstance);
+		requireNonNull(account);
+
+		Interaction interaction = getInteractionService().findInteractionById(interactionInstance.getInteractionId()).orElse(null);
+
+		if (interaction == null)
+			return false;
+
+		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
+			return true;
+
+		if (!Objects.equals(interaction.getInstitutionId(), account.getInstitutionId()))
+			return false;
+
+		return account.getStandardMetadata().getInteractionIds() != null
+				&& account.getStandardMetadata().getInteractionIds().contains(interactionInstance.getInteractionId());
+	}
+
+	@Nonnull
+	public Boolean canTakeActionOnInteractionInstance(@Nonnull InteractionInstance interactionInstance,
+																										@Nonnull Account account) {
+		requireNonNull(interactionInstance);
+		requireNonNull(account);
+
+		return canViewInteractionInstance(interactionInstance, account);
+	}
+
+	@Nonnull
 	protected GroupSessionService getGroupSessionService() {
 		return groupSessionServiceProvider.get();
+	}
+
+	@Nonnull
+	protected InteractionService getInteractionService() {
+		return interactionServiceProvider.get();
 	}
 
 	@Nonnull
