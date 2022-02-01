@@ -21,72 +21,36 @@ package com.cobaltplatform.api.model.api.request;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.Map;
 import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreateInteractionInstanceRequest {
+public class CreateInteractionOptionActionRequest {
 	@Nullable
-	private UUID interactionId;
+	private UUID interactionInstanceId;
 	@Nullable
-	private LocalDateTime startDateTime;
-	@Nullable
-	private ZoneId timeZone;
-	@Nullable
-	private Map<String, Object> metadata;
-	@Nullable
-	private Map<String, Object> hipaaCompliantMetadata;
+	private UUID interactionOptionId;
 	@Nullable
 	private UUID accountId;
 
 	@Nullable
-	public UUID getInteractionId() {
-		return interactionId;
+	public UUID getInteractionInstanceId() {
+		return interactionInstanceId;
 	}
 
-	public void setInteractionId(@Nullable UUID interactionId) {
-		this.interactionId = interactionId;
-	}
-
-	@Nullable
-	public LocalDateTime getStartDateTime() {
-		return startDateTime;
-	}
-
-	public void setStartDateTime(@Nullable LocalDateTime startDateTime) {
-		this.startDateTime = startDateTime;
+	public void setInteractionInstanceId(@Nullable UUID interactionInstanceId) {
+		this.interactionInstanceId = interactionInstanceId;
 	}
 
 	@Nullable
-	public ZoneId getTimeZone() {
-		return timeZone;
+	public UUID getInteractionOptionId() {
+		return interactionOptionId;
 	}
 
-	public void setTimeZone(@Nullable ZoneId timeZone) {
-		this.timeZone = timeZone;
-	}
-
-	@Nullable
-	public Map<String, Object> getMetadata() {
-		return metadata;
-	}
-
-	public void setMetadata(@Nullable Map<String, Object> metadata) {
-		this.metadata = metadata;
-	}
-
-	@Nullable
-	public Map<String, Object> getHipaaCompliantMetadata() {
-		return hipaaCompliantMetadata;
-	}
-
-	public void setHipaaCompliantMetadata(@Nullable Map<String, Object> hipaaCompliantMetadata) {
-		this.hipaaCompliantMetadata = hipaaCompliantMetadata;
+	public void setInteractionOptionId(@Nullable UUID interactionOptionId) {
+		this.interactionOptionId = interactionOptionId;
 	}
 
 	@Nullable

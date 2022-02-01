@@ -54,7 +54,7 @@ public class InteractionServiceTests {
 					"frequencyHoursAndMinutes: [frequencyHoursAndMinutes]\n" +
 					"completionTimeHoursAndMinutes: [completionTimeHoursAndMinutes]";
 
-			String formattedMessage = interactionService.formatInteractionMessage(interactionInstance, message);
+			String formattedMessage = interactionService.formatInteractionOptionResponseMessage(interactionInstance, message);
 
 			Assert.assertEquals("Format mismatch", "maxInteractionCount: 3\n" +
 					"frequencyHoursAndMinutes: 24h\n" +

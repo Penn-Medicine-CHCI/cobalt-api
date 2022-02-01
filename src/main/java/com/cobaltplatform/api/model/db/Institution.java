@@ -127,6 +127,8 @@ public class Institution {
 	@NotThreadSafe
 	public static class StandardMetadata {
 		@Nullable
+		private UUID defaultCrisisInteractionId;
+		@Nullable
 		private List<Way2HealthIncidentTrackingConfig> way2HealthIncidentTrackingConfigs;
 
 		@Nonnull
@@ -182,6 +184,15 @@ public class Institution {
 			public void setEnabled(@Nullable Boolean enabled) {
 				this.enabled = enabled;
 			}
+		}
+
+		@Nullable
+		public UUID getDefaultCrisisInteractionId() {
+			return defaultCrisisInteractionId;
+		}
+
+		public void setDefaultCrisisInteractionId(@Nullable UUID defaultCrisisInteractionId) {
+			this.defaultCrisisInteractionId = defaultCrisisInteractionId;
 		}
 
 		@Nullable
