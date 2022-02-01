@@ -231,7 +231,7 @@ public class AmazonSqsManager implements AutoCloseable {
 		AmazonSQSClientBuilder builder = AmazonSQSClientBuilder.standard();
 
 		if (getUseLocalstack()) {
-			builder.withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(format("http://localhost:%d", 4576 /* localstackPort */), getRegion().getName()))
+			builder.withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(format("http://localhost:%d", localstackPort), getRegion().getName()))
 					.withCredentials(getCredentialsProvider());
 		} else {
 			builder.withCredentials(getCredentialsProvider())

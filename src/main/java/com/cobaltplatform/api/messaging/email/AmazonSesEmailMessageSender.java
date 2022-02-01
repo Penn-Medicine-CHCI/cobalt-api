@@ -191,7 +191,7 @@ public class AmazonSesEmailMessageSender implements MessageSender<EmailMessage> 
 		AmazonSimpleEmailServiceClientBuilder builder = AmazonSimpleEmailServiceClientBuilder.standard();
 
 		if (getConfiguration().getAmazonUseLocalstack()) {
-			builder.withEndpointConfiguration(new EndpointConfiguration(format("http://localhost:%d", /* getConfiguration().getAmazonLocalstackPort() */ 4579), getConfiguration().getAmazonSesRegion().getName()))
+			builder.withEndpointConfiguration(new EndpointConfiguration(format("http://localhost:%d", getConfiguration().getAmazonLocalstackPort()), getConfiguration().getAmazonSesRegion().getName()))
 					.withCredentials(getConfiguration().getAmazonCredentialsProvider());
 		} else {
 			builder.withCredentials(getConfiguration().getAmazonCredentialsProvider())
