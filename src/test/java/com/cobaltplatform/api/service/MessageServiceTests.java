@@ -28,8 +28,8 @@ import com.cobaltplatform.api.model.db.ScheduledMessage;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
 import com.google.gson.Gson;
 import com.pyranid.Database;
+import org.junit.Assert;
 import org.junit.Test;
-import org.testng.Assert;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -68,8 +68,8 @@ public class MessageServiceTests {
 
 			ScheduledMessage scheduledMessage = messageService.findScheduledMessageById(scheduledMessageId).get();
 
-			Assert.assertEquals(scheduledMessage.getScheduledAt(), scheduledAt, "Schedule date/times differ");
-			Assert.assertEquals(scheduledMessage.getTimeZone(), timeZone, "Timezones differ");
+			Assert.assertEquals("Schedule date/times differ", scheduledAt, scheduledMessage.getScheduledAt());
+			Assert.assertEquals("Timezones differ", timeZone, scheduledMessage.getTimeZone());
 
 			Map<String, Object> metadataFromJson = new Gson().fromJson(scheduledMessage.getMetadata(), Map.class);
 
@@ -77,7 +77,7 @@ public class MessageServiceTests {
 
 			boolean canceled = messageService.cancelScheduledMessage(scheduledMessageId);
 
-			Assert.assertTrue(canceled, "Message was not successfully canceled");
+			Assert.assertTrue("Message was not successfully canceled", canceled);
 		});
 	}
 
@@ -115,7 +115,7 @@ public class MessageServiceTests {
 
 			List<ScheduledMessage> scheduledMessages = messageService.findScheduledMessagesMatchingMetadata(metadata1);
 
-			Assert.assertTrue(scheduledMessages.size() == 1, "Should have found a single scheduled message");
+			Assert.assertTrue("Should have found a single scheduled message", scheduledMessages.size() == 1);
 
 			ScheduledMessage scheduledMessage = scheduledMessages.get(0);
 			Map<String, Object> metadataFromJson = new Gson().fromJson(scheduledMessage.getMetadata(), Map.class);
@@ -148,7 +148,8 @@ public class MessageServiceTests {
 
 			ScheduledMessage scheduledMessage = messageService.findScheduledMessageById(scheduledMessageId).get();
 
-			Assert.assertEquals(scheduledMessage.getScheduledMessageStatusId(), ScheduledMessageStatusId.PROCESSED, "Scheduled message was not successfully processed");
+			Assert.assertEquals("Scheduled message was not successfully processed",
+					ScheduledMessageStatusId.PROCESSED, scheduledMessage.getScheduledMessageStatusId());
 		});
 	}
 
@@ -176,7 +177,8 @@ public class MessageServiceTests {
 
 			ScheduledMessage scheduledMessage = messageService.findScheduledMessageById(scheduledMessageId).get();
 
-			Assert.assertEquals(scheduledMessage.getScheduledMessageStatusId(), ScheduledMessageStatusId.PROCESSED, "Scheduled message was not successfully processed");
+			Assert.assertEquals("Scheduled message was not successfully processed",
+					ScheduledMessageStatusId.PROCESSED, scheduledMessage.getScheduledMessageStatusId());
 		});
 	}
 
@@ -207,7 +209,8 @@ public class MessageServiceTests {
 
 			ScheduledMessage scheduledMessage = messageService.findScheduledMessageById(scheduledMessageId).get();
 
-			Assert.assertEquals(scheduledMessage.getScheduledMessageStatusId(), ScheduledMessageStatusId.ERROR, "Scheduled message was not successfully transitioned to ERROR");
+			Assert.assertEquals("Scheduled message was not successfully transitioned to ERROR",
+					ScheduledMessageStatusId.ERROR, scheduledMessage.getScheduledMessageStatusId());
 		});
 	}
 

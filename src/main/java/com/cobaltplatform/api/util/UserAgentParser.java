@@ -26,8 +26,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.servlet.http.HttpServletRequest;
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.util.LinkedHashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -47,12 +45,7 @@ public class UserAgentParser {
 	private final Set<String> searchBotUserAgentIds;
 
 	public UserAgentParser() {
-		try {
-			this.parser = new Parser();
-		} catch (IOException e) {
-			throw new UncheckedIOException("Unable to initialize ua_parser library", e);
-		}
-
+		this.parser = new Parser();
 		this.searchBotUserAgentIds = unmodifiableSet(provideSearchBotUserAgentIds());
 	}
 

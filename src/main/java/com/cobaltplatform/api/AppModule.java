@@ -24,7 +24,6 @@ import com.cobaltplatform.api.cache.CaffeineCache;
 import com.cobaltplatform.api.cache.CurrentContextCache;
 import com.cobaltplatform.api.cache.DistributedCache;
 import com.cobaltplatform.api.cache.LocalCache;
-import com.cobaltplatform.api.cache.RedisCache;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.context.DatabaseContext;
@@ -707,8 +706,8 @@ public class AppModule extends AbstractModule {
 		requireNonNull(configuration);
 
 		// Note: this is a hack for now to only enable Redis when running locally
-		if (configuration.getEnvironment().equals("local"))
-			return new RedisCache(configuration.getRedisHost(), configuration.getRedisPort());
+		// if (configuration.getEnvironment().equals("local"))
+		//	return new RedisCache(configuration.getRedisHost(), configuration.getRedisPort());
 
 		return provideLocalCache();
 	}

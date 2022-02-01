@@ -22,7 +22,7 @@ if [ -z "$COBALT_API_LAUNCHED_IN_DOCKER" ]; then
 		mvn compile
 	fi
 
-	COBALT_API_ENV=$ENV COBALT_API_PORT=$PORT mvn -e exec:java -Dexec.mainClass="com.cobaltplatform.api.App"
+	MAVEN_OPTS="--add-opens java.base/java.time=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED" COBALT_API_ENV=$ENV COBALT_API_PORT=$PORT mvn -e exec:java -Dexec.mainClass="com.cobaltplatform.api.App"
 else
-	COBALT_API_ENV=$ENV COBALT_API_PORT=$PORT java -Xms128m -Xmx512m -classpath classes:lib/* com.cobaltplatform.api.App
+	MAVEN_OPTS="--add-opens java.base/java.time=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED" COBALT_API_ENV=$ENV COBALT_API_PORT=$PORT java -Xms128m -Xmx512m -classpath classes:lib/* com.cobaltplatform.api.App
 fi

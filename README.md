@@ -4,9 +4,9 @@
 
 ### Prerequisites
 
-* [Java 11+](https://docs.aws.amazon.com/corretto/latest/corretto-11-ug/macos-install.html)
+* [Java 17+](https://docs.aws.amazon.com/corretto/latest/corretto-17-ug/downloads-list.html)
 * [Maven 3.6+](http://maven.apache.org/download.cgi)
-* [Docker](https://www.docker.com/products/docker-desktop)
+* [Docker 3.8+](https://www.docker.com/products/docker-desktop)
 
 ### Getting Started: Start + Configure Local Environment
 

@@ -25,8 +25,8 @@ import com.cobaltplatform.api.integration.way2health.model.request.GetIncidentsR
 import com.cobaltplatform.api.integration.way2health.model.request.UpdateIncidentRequest;
 import com.cobaltplatform.api.integration.way2health.model.response.ObjectResponse;
 import com.cobaltplatform.api.integration.way2health.model.response.PagedResponse;
+import org.junit.Assert;
 import org.junit.Test;
-import org.testng.Assert;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -50,7 +50,7 @@ public class Way2HealthClientTests {
 			setStudyId(123L);
 		}});
 
-		Assert.assertEquals(incidentsResponse.getData().size(), 1, "Incident count mismatch in mock data");
+		Assert.assertEquals("Incident count mismatch in mock data", 1, incidentsResponse.getData().size());
 	}
 
 	@Test
@@ -77,7 +77,7 @@ public class Way2HealthClientTests {
 			nextLink = incidentsResponse.getMeta().getPagination().getLinks().getNext();
 		}
 
-		Assert.assertEquals(incidents.size(), expectedResults, "Mismatch in number of incidents from pagination data");
+		Assert.assertEquals("Mismatch in number of incidents from pagination data", expectedResults, incidents.size());
 	}
 
 	@Test
@@ -93,7 +93,7 @@ public class Way2HealthClientTests {
 			setPerPage(10);
 		}});
 
-		Assert.assertTrue(incidentsResponse.getData().size() > 0, "No incidents were found");
+		Assert.assertTrue("No incidents were found", incidentsResponse.getData().size() > 0);
 
 		Incident firstIncident = incidentsResponse.getData().get(0);
 
@@ -102,7 +102,7 @@ public class Way2HealthClientTests {
 			setInclude(List.of("comments", "participant", "reporter", "tags", "attachments"));
 		}});
 
-		Assert.assertTrue(incidentResponse.getData() != null, "No incident was found for ID " + firstIncident.getId());
+		Assert.assertTrue("No incident was found for ID " + firstIncident.getId(), incidentResponse.getData() != null);
 	}
 
 	@Test
@@ -132,8 +132,8 @@ public class Way2HealthClientTests {
 				.map(comment -> comment.getComment())
 				.collect(Collectors.toList());
 
-		Assert.assertTrue(commentValues.contains(commentValue), "No comment was found with the name we specified");
-		Assert.assertEquals(incident.getData().getStatus(), statusValue, "Status value doesn't match the name we specified");
+		Assert.assertTrue("No comment was found with the name we specified", commentValues.contains(commentValue));
+		Assert.assertEquals("Status value doesn't match the name we specified", statusValue, incident.getData().getStatus());
 	}
 
 	@Nonnull

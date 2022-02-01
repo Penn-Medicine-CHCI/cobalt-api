@@ -21,8 +21,8 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.IntegrationTestExecutor;
 import com.cobaltplatform.api.model.db.InteractionInstance;
+import org.junit.Assert;
 import org.junit.Test;
-import org.testng.Assert;
 
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
@@ -56,9 +56,9 @@ public class InteractionServiceTests {
 
 			String formattedMessage = interactionService.formatInteractionOptionResponseMessage(interactionInstance, message);
 
-			Assert.assertEquals(formattedMessage, "maxInteractionCount: 3\n" +
+			Assert.assertEquals("Format mismatch", "maxInteractionCount: 3\n" +
 					"frequencyHoursAndMinutes: 24h\n" +
-					"completionTimeHoursAndMinutes: 9h 59m 55s", "Format mismatch");
+					"completionTimeHoursAndMinutes: 9h 59m 55s", formattedMessage);
 		});
 	}
 }
