@@ -80,7 +80,7 @@ public class UploadManager {
 		requireNonNull(key);
 		requireNonNull(contentType);
 
-		return createPresignedUpload(key, contentType);
+		return createPresignedUpload(key, contentType, Collections.emptyMap());
 	}
 
 	@Nonnull

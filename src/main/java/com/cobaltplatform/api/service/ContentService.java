@@ -19,10 +19,6 @@
 
 package com.cobaltplatform.api.service;
 
-import com.linkedin.urls.Url;
-import com.linkedin.urls.detection.UrlDetector;
-import com.linkedin.urls.detection.UrlDetectorOptions;
-import com.lokalized.Strings;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageManager;
@@ -54,11 +50,16 @@ import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
+import com.linkedin.urls.Url;
+import com.linkedin.urls.detection.UrlDetector;
+import com.linkedin.urls.detection.UrlDetectorOptions;
+import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
@@ -72,9 +73,9 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static com.cobaltplatform.api.model.db.ApprovalStatus.*;
-import static com.cobaltplatform.api.model.db.Role.*;
-import static com.cobaltplatform.api.model.db.Visibility.*;
+import static com.cobaltplatform.api.model.db.ApprovalStatus.ApprovalStatusId;
+import static com.cobaltplatform.api.model.db.Role.RoleId;
+import static com.cobaltplatform.api.model.db.Visibility.VisibilityId;
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
 import static java.lang.String.format;
 import static java.util.Collections.emptyList;
@@ -145,10 +146,10 @@ public class ContentService {
 	}
 
 	@Nonnull
-	public Content findRequiredContentById(@Nonnull Account account,
-																				 @Nonnull UUID contentId) {
-		requireNonNull(account);
-		requireNonNull(contentId);
+	public Optional<Content> findContentById(@Nullable Account account,
+																					 @Nullable UUID contentId) {
+		if (account == null || contentId == null)
+			return Optional.empty();
 
 		String institutionClause = " AND vc.institution_id = ? ";
 		String institutionArg = account.getInstitutionId().name();
@@ -163,7 +164,10 @@ public class ContentService {
 				"LEFT OUTER JOIN activity_tracking act ON vc.content_id = CAST (act.context ->> 'contentId' AS UUID) " +
 				"AND act.account_id = ? WHERE vc.content_id=? %s", institutionClause);
 		Content content = getDatabase().queryForObject(query,
-				Content.class, account.getAccountId(), contentId, institutionArg).get();
+				Content.class, account.getAccountId(), contentId, institutionArg).orElse(null);
+
+		if (content == null)
+			return Optional.empty();
 
 		if (content.getContentTypeId().compareTo(ContentTypeId.INT_BLOG) == 0) {
 			String description = trimToEmpty(content.getDescription());
@@ -181,7 +185,7 @@ public class ContentService {
 			content.setDescription(description);
 		}
 
-		return content;
+		return Optional.of(content);
 	}
 
 	@Nonnull
@@ -562,7 +566,7 @@ public class ContentService {
 		List<Account> accountsToNotify;
 		if (accountAddingContent.getRoleId() == RoleId.SUPER_ADMINISTRATOR) {
 			return;
-		}else if (accountAddingContent.getRoleId() == RoleId.ADMINISTRATOR) {
+		} else if (accountAddingContent.getRoleId() == RoleId.ADMINISTRATOR) {
 			accountsToNotify = getAccountService().findSuperAdminAccounts();
 		} else {
 			accountsToNotify = getAccountService().findAdminAccountsForInstitution(accountAddingContent.getInstitutionId());
@@ -571,8 +575,8 @@ public class ContentService {
 		String date = adminContent.getDateCreated() == null ? getFormatter().formatDate(LocalDate.now(), FormatStyle.SHORT) : getFormatter().formatDate(adminContent.getDateCreated(), FormatStyle.SHORT);
 
 		getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
-			for(Account accountToNotify : accountsToNotify) {
-				if(accountToNotify.getEmailAddress() != null) {
+			for (Account accountToNotify : accountsToNotify) {
+				if (accountToNotify.getEmailAddress() != null) {
 					EmailMessage emailMessage = new EmailMessage.Builder(EmailMessageTemplate.ADMIN_CMS_CONTENT_ADDED, accountToNotify.getLocale())
 							.toAddresses(List.of(accountToNotify.getEmailAddress()))
 							.messageContext(Map.of(
@@ -708,14 +712,14 @@ public class ContentService {
 							InstitutionId.COBALT, existingContent.getOwnerInstitutionId());
 				}
 
-				if(existingContent.getVisibilityId() != VisibilityId.PUBLIC || existingContent.getVisibilityId() != VisibilityId.NETWORK) {
+				if (existingContent.getVisibilityId() != VisibilityId.PUBLIC || existingContent.getVisibilityId() != VisibilityId.NETWORK) {
 					shouldNotify = true;
 				}
 
 			} else if (visibilityIdCommand == VisibilityId.PUBLIC) {
 				ApprovalStatusId publicApprovalStatusId = account.getRoleId() == RoleId.SUPER_ADMINISTRATOR ? ApprovalStatusId.APPROVED : ApprovalStatusId.PENDING;
 				otherInstitutionsApprovalStatusId = publicApprovalStatusId;
-				if(existingContent.getVisibilityId() != VisibilityId.PUBLIC) {
+				if (existingContent.getVisibilityId() != VisibilityId.PUBLIC) {
 					shouldNotify = true;
 				}
 			}
@@ -741,7 +745,7 @@ public class ContentService {
 		}
 
 		AdminContent adminContent = findAdminContentByIdForInstitution(account.getInstitutionId(), command.getContentId()).get();
-		if(shouldNotify){
+		if (shouldNotify) {
 			sendAdminNotification(account, adminContent);
 		}
 		return adminContent;

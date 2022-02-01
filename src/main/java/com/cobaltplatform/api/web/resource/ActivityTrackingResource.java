@@ -84,7 +84,7 @@ public class ActivityTrackingResource {
 
 		UUID activityTrackingId = getActivityTrackingService().trackActivity(Optional.of(account), request);
 
-		ActivityTracking activityTracking = getActivityTrackingService().findRequiredActivityTrackingById(activityTrackingId);
+		ActivityTracking activityTracking = getActivityTrackingService().findActivityTrackingById(activityTrackingId).get();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("activityTracking", getActivityTrackingApiResponseFactory().create(activityTracking));
@@ -100,7 +100,7 @@ public class ActivityTrackingResource {
 
 		UUID activityTrackingId = getActivityTrackingService().trackActivity(Optional.empty(), request);
 
-		ActivityTracking activityTracking = getActivityTrackingService().findRequiredActivityTrackingById(activityTrackingId);
+		ActivityTracking activityTracking = getActivityTrackingService().findActivityTrackingById(activityTrackingId).get();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("activityTracking", getActivityTrackingApiResponseFactory().create(activityTracking));

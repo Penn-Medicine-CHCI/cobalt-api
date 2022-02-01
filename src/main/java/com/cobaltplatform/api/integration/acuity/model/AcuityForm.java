@@ -47,7 +47,7 @@ public class AcuityForm {
 	private List<AcuityFormField> fields;
 
 	@NotThreadSafe
-	public class AcuityFormField {
+	public static class AcuityFormField {
 		@Nullable
 		private Long id;
 		@Nullable

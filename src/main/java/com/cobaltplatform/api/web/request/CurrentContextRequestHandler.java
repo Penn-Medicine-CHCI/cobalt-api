@@ -182,7 +182,7 @@ public class CurrentContextRequestHandler {
 			AccountSource accountSource = null;
 
 			if (account != null)
-				accountSource = getAccountService().findRequiredAccountSourceByAccountId(account.getAccountId());
+				accountSource = getAccountService().findAccountSourceByAccountId(account.getAccountId()).orElse(null);
 
 			CurrentContext currentContext = new CurrentContext.Builder(locale, timeZone)
 					.accessToken(accessTokenValue)
