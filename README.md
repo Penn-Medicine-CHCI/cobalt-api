@@ -4,9 +4,9 @@
 
 ### Prerequisites
 
-* [Java 11+](https://docs.aws.amazon.com/corretto/latest/corretto-11-ug/macos-install.html)
+* [Java 17+](https://docs.aws.amazon.com/corretto/latest/corretto-17-ug/downloads-list.html)
 * [Maven 3.6+](http://maven.apache.org/download.cgi)
-* [Docker](https://www.docker.com/products/docker-desktop)
+* [Docker 3.8+](https://www.docker.com/products/docker-desktop)
 
 ### Getting Started: Start + Configure Local Environment
 
@@ -26,7 +26,9 @@ cobalt-api$ ./stop-localstack
 
 2. Bootstrap Localstack And Postgres
 
-This script creates and runs transient Docker containers that stand up Localstack resources and create + seed our Postgres DB.  
+This script creates and runs transient Docker containers that stand up Localstack resources and create + seed our Postgres DB.
+
+To get the full seed dataset, you'll want to download the latest `bootstrap.sql` file from [Google Drive](https://drive.google.com/drive/folders/1DSav9EwjHNjaKYqo47PZpvTGJD5503B_) and place it in `sql/initial/bootstrap.sql`.  This is helpful but not strictly required to run the backend.
 
 ```
 cobalt-api$ ./bootstrap

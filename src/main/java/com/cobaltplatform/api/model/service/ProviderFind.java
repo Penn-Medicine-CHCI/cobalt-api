@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.service;
 
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
+import com.cobaltplatform.api.model.db.Specialty;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 
@@ -57,6 +58,8 @@ public class ProviderFind {
 	@Nullable
 	private String imageUrl;
 	@Nullable
+	private String bioUrl;
+	@Nullable
 	private SchedulingSystemId schedulingSystemId;
 	@Nullable
 	private List<String> paymentFundingDescriptions;
@@ -74,6 +77,8 @@ public class ProviderFind {
 	private Boolean skipIntakePrompt;
 	@Nullable
 	private String treatmentDescription;
+	@Nullable
+	private List<Specialty> specialties;
 
 	@Override
 	public String toString() {
@@ -271,6 +276,15 @@ public class ProviderFind {
 	}
 
 	@Nullable
+	public String getBioUrl() {
+		return bioUrl;
+	}
+
+	public void setBioUrl(@Nullable String bioUrl) {
+		this.bioUrl = bioUrl;
+	}
+
+	@Nullable
 	public SchedulingSystemId getSchedulingSystemId() {
 		return schedulingSystemId;
 	}
@@ -349,5 +363,14 @@ public class ProviderFind {
 
 	public void setEpicDepartmentIds(@Nullable Set<UUID> epicDepartmentIds) {
 		this.epicDepartmentIds = epicDepartmentIds;
+	}
+
+	@Nullable
+	public List<Specialty> getSpecialties() {
+		return specialties;
+	}
+
+	public void setSpecialties(@Nullable List<Specialty> specialties) {
+		this.specialties = specialties;
 	}
 }

@@ -36,20 +36,25 @@ public class AccessTokenClaims {
 	@Nonnull
 	private final UUID accountId;
 	@Nonnull
+	private final Instant issuedAt;
+	@Nonnull
 	private final Instant expiration;
 
 	public AccessTokenClaims(@Nonnull UUID accountId,
+													 @Nonnull Instant issuedAt,
 													 @Nonnull Instant expiration) {
 		requireNonNull(accountId);
+		requireNonNull(issuedAt);
 		requireNonNull(expiration);
 
 		this.accountId = accountId;
+		this.issuedAt = issuedAt;
 		this.expiration = expiration;
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{accountId=%s, expiration=%s}", getClass().getSimpleName(), getAccountId(), getExpiration());
+		return format("%s{accountId=%s, issuedAt=%s, expiration=%s}", getClass().getSimpleName(), getAccountId(), getIssuedAt(), getExpiration());
 	}
 
 	@Override
@@ -62,17 +67,23 @@ public class AccessTokenClaims {
 
 		AccessTokenClaims otherAccessTokenClaims = (AccessTokenClaims) other;
 		return Objects.equals(this.getAccountId(), otherAccessTokenClaims.getAccountId())
+				&& Objects.equals(this.getIssuedAt(), otherAccessTokenClaims.getIssuedAt())
 				&& Objects.equals(this.getExpiration(), otherAccessTokenClaims.getExpiration());
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(getAccountId(), getExpiration());
+		return Objects.hash(getAccountId(), getIssuedAt(), getExpiration());
 	}
 
 	@Nonnull
 	public UUID getAccountId() {
 		return accountId;
+	}
+
+	@Nonnull
+	public Instant getIssuedAt() {
+		return issuedAt;
 	}
 
 	@Nonnull

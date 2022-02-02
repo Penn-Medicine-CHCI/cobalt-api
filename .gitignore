@@ -43,3 +43,4 @@ node_modules
 src/test/resources/account-activities.json
 src/test/resources/accounts.json
 /pic/reports/*.csv
+sql/initial/bootstrap.sql

@@ -25,11 +25,13 @@ import com.cobaltplatform.api.model.api.request.AcceptAccountConsentFormRequest;
 import com.cobaltplatform.api.model.api.request.AccessTokenRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountInviteRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
+import com.cobaltplatform.api.model.api.request.CreateActivityTrackingRequest;
 import com.cobaltplatform.api.model.api.request.CreateIcMpmAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateIcOrderReportAccountRequest;
 import com.cobaltplatform.api.model.api.request.FindGroupSessionsRequest;
 import com.cobaltplatform.api.model.api.request.ForgotPasswordRequest;
 import com.cobaltplatform.api.model.api.request.ResetPasswordRequest;
+import com.cobaltplatform.api.model.api.request.UpdateAccountAccessTokenExpiration;
 import com.cobaltplatform.api.model.api.request.UpdateAccountBetaStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountEmailAddressRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountPhoneNumberRequest;
@@ -50,6 +52,8 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountInvite;
 import com.cobaltplatform.api.model.db.AccountLoginRule;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
+import com.cobaltplatform.api.model.db.ActivityAction;
+import com.cobaltplatform.api.model.db.ActivityType;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AuditLog;
 import com.cobaltplatform.api.model.db.AuditLogEvent.AuditLogEventId;
@@ -67,16 +71,21 @@ import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.security.IcSignedRequestRequired;
 import com.cobaltplatform.api.model.service.GroupEvent;
 import com.cobaltplatform.api.service.AccountService;
+import com.cobaltplatform.api.service.ActivityTrackingService;
 import com.cobaltplatform.api.service.AppointmentService;
 import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.GroupEventService;
 import com.cobaltplatform.api.service.GroupSessionService;
-import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.IcService;
+import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.LinkGenerator;
+import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.util.WebUtility;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
+import com.lokalized.Strings;
+import com.soklet.json.JSONObject;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.PUT;
@@ -87,6 +96,7 @@ import com.soklet.web.annotation.Resource;
 import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
+import com.soklet.web.response.CustomResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,6 +105,9 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -108,6 +121,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static java.lang.Math.min;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
@@ -158,6 +172,10 @@ public class AccountResource {
 	private final InstitutionApiResponseFactory institutionApiResponseFactory;
 	@Nonnull
 	private final BetaFeatureAlertApiResponseFactory betaFeatureAlertApiResponseFactory;
+	@Nonnull
+	private final ActivityTrackingService activityTrackingService;
+	@Nonnull
+	private final Strings strings;
 
 	@Inject
 	public AccountResource(@Nonnull AccountService accountService,
@@ -178,7 +196,9 @@ public class AccountResource {
 												 @Nonnull AuditLogService auditLogService,
 												 @Nonnull InstitutionService institutionService,
 												 @Nonnull InstitutionApiResponseFactory institutionApiResponseFactory,
-												 @Nonnull BetaFeatureAlertApiResponseFactory betaFeatureAlertApiResponseFactory) {
+												 @Nonnull BetaFeatureAlertApiResponseFactory betaFeatureAlertApiResponseFactory,
+												 @Nonnull ActivityTrackingService activityTrackingService,
+												 @Nonnull Strings strings) {
 		requireNonNull(accountService);
 		requireNonNull(icService);
 		requireNonNull(groupEventService);
@@ -197,6 +217,8 @@ public class AccountResource {
 		requireNonNull(auditLogService);
 		requireNonNull(institutionService);
 		requireNonNull(institutionApiResponseFactory);
+		requireNonNull(activityTrackingService);
+		requireNonNull(strings);
 
 		this.accountService = accountService;
 		this.icService = icService;
@@ -218,6 +240,8 @@ public class AccountResource {
 		this.institutionService = institutionService;
 		this.institutionApiResponseFactory = institutionApiResponseFactory;
 		this.betaFeatureAlertApiResponseFactory = betaFeatureAlertApiResponseFactory;
+		this.activityTrackingService = activityTrackingService;
+		this.strings = strings;
 	}
 
 	@Nonnull
@@ -261,8 +285,10 @@ public class AccountResource {
 
 	@Nonnull
 	@POST("/accounts/access-token")
-	public ApiResponse accountAccessToken(@Nonnull @RequestBody String requestBody) {
+	public ApiResponse accountAccessToken(@Nonnull @RequestBody String requestBody,
+																				@Nonnull HttpServletResponse httpServletResponse) {
 		requireNonNull(requestBody);
+		requireNonNull(httpServletResponse);
 
 		AccessTokenRequest request = getRequestBodyParser().parse(requestBody, AccessTokenRequest.class);
 		String accessToken = getAccountService().obtainAccessToken(request);
@@ -282,6 +308,16 @@ public class AccountResource {
 				setRoleId(accountLoginRule.getRoleId());
 			}});
 
+			// Update account access token values with what has been specified
+			getAccountService().updateAccountAccessTokenExpiration(new UpdateAccountAccessTokenExpiration() {{
+				setAccountId(pinnedAccountId);
+				setAccessTokenExpirationInMinutes(accountLoginRule.getAccessTokenExpirationInMinutes());
+				setAccessTokenShortExpirationInMinutes(accountLoginRule.getAccessTokenShortExpirationInMinutes());
+			}});
+
+			// Mark the rule as executed
+			getAccountService().markAccountLoginRoleAsExecuted(accountLoginRule.getAccountLoginRuleId());
+
 			// Reload account
 			account = getAccountService().findAccountById(account.getAccountId()).get();
 		}
@@ -289,11 +325,60 @@ public class AccountResource {
 		Account pinnedAccount = account;
 		String destinationUrl = getLinkGenerator().generateAuthenticationLink(account.getInstitutionId(), loginDestinationId, ClientDeviceType.ClientDeviceTypeId.WEB_BROWSER, accessToken);
 
+		CreateActivityTrackingRequest activityTrackingRequest = new CreateActivityTrackingRequest();
+		activityTrackingRequest.setSessionTrackingId(getCurrentContext().getSessionTrackingId());
+		activityTrackingRequest.setActivityActionId(ActivityAction.ActivityActionId.SIGN_IN);
+		activityTrackingRequest.setActivityTypeId(ActivityType.ActivityTypeId.ACCOUNT);
+		activityTrackingRequest.setContext(new JSONObject().put("accountId", account.getAccountId().toString()).toString());
+
+		getActivityTrackingService().trackActivity(Optional.of(account), activityTrackingRequest);
+
+		// TODO: remove this hack
+		if (loginDestinationId == LoginDestinationId.IC_PANEL)
+			destinationUrl = format("%s/accounts/ic/auth-redirect?accessToken=%s", getConfiguration().getBaseUrl(), WebUtility.urlEncode(accessToken));
+
+		String pinnedDestinationUrl = destinationUrl;
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("account", getAccountApiResponseFactory().create(pinnedAccount));
 			put("accessToken", accessToken);
-			put("destinationUrl", destinationUrl);
+			put("destinationUrl", pinnedDestinationUrl);
 		}});
+	}
+
+	@Nonnull
+	@GET("/accounts/ic/auth-redirect")
+	public CustomResponse authRedirect(@Nonnull @QueryParameter String accessToken,
+																		 @Nonnull HttpServletResponse httpServletResponse) throws IOException {
+		requireNonNull(accessToken);
+		requireNonNull(httpServletResponse);
+
+		String icRedirectUrl;
+		Cookie cookie = new Cookie("accessToken", accessToken);
+
+		if (getConfiguration().getEnvironment().equals("local")) {
+			cookie.setDomain("127.0.0.1");
+			icRedirectUrl = format("http://127.0.0.1:8888/auth/redirect?accessToken=%s", WebUtility.urlEncode(accessToken));
+		} else {
+			throw new UnsupportedOperationException();
+		}
+
+		httpServletResponse.addCookie(cookie);
+
+		httpServletResponse.setContentType("text/html");
+
+		// Writes cookies to the response and lets the browser "settle" (no immediate 302 - do a 200 and then have a client-side redirect)
+		// so the cookie is actually written for this domain
+		String html = "<html>\n" +
+				"<head><meta http-equiv='refresh' content=1;url='$IC_REDIRECT_URL'></head>\n" +
+				"<body></body>\n" +
+				"</html>";
+
+		html = html.replace("$IC_REDIRECT_URL", icRedirectUrl);
+
+		httpServletResponse.getWriter().print(html);
+
+		return CustomResponse.instance();
 	}
 
 	@Nonnull
@@ -379,7 +464,7 @@ public class AccountResource {
 		// Don't show too many events
 		if (groupSessions.size() > MAXIMUM_GROUP_SESSIONS)
 			groupSessions = groupSessions.subList(0, MAXIMUM_GROUP_SESSIONS /* exclusive */);
-		
+
 		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
 
 		final int MAXIMUM_GROUP_EVENTS = 3;
@@ -495,15 +580,12 @@ public class AccountResource {
 			else
 				subdomain = getConfiguration().getDefaultSubdomain();
 
-			Optional<Institution> institution = getInstitutionService().findInstitutionBySubdomain(subdomain);
-
-			if (!institution.isPresent())
-				throw new NotFoundException();
+			Institution institution = getInstitutionService().findInstitutionBySubdomain(subdomain);
 
 			// For now - this is only to generate anonymous accounts
 			accountId = getAccountService().createAccount(new CreateAccountRequest() {{
 				setRoleId(RoleId.PATIENT);
-				setInstitutionId(institution.get().getInstitutionId());
+				setInstitutionId(institution.getInstitutionId());
 				setAccountSourceId(AccountSourceId.ANONYMOUS);
 			}});
 		} else {
@@ -523,6 +605,14 @@ public class AccountResource {
 		getAuditLogService().audit(auditLog);
 
 		String accessToken = getAuthenticator().generateAccessToken(account.getAccountId(), account.getRoleId());
+
+		CreateActivityTrackingRequest activityTrackingRequest = new CreateActivityTrackingRequest();
+		activityTrackingRequest.setSessionTrackingId(getCurrentContext().getSessionTrackingId());
+		activityTrackingRequest.setActivityActionId(ActivityAction.ActivityActionId.CREATE);
+		activityTrackingRequest.setActivityTypeId(ActivityType.ActivityTypeId.ACCOUNT);
+		activityTrackingRequest.setContext(new JSONObject().put("accountId", accountId.toString()).toString());
+
+		getActivityTrackingService().trackActivity(Optional.of(account), activityTrackingRequest);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("account", getAccountApiResponseFactory().create(account));
@@ -633,7 +723,10 @@ public class AccountResource {
 		requireNonNull(body);
 
 		ResetPasswordRequest request = getRequestBodyParser().parse(body, ResetPasswordRequest.class);
-		Account account = getAccountService().resetPassword(request);
+		Account account = getAccountService().resetPassword(request).orElse(null);
+
+		if (account == null)
+			throw new ValidationException(getStrings().get("Sorry, we were unable to reset your password."));
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("account", getAccountApiResponseFactory().create(account));
@@ -799,5 +892,15 @@ public class AccountResource {
 	@Nonnull
 	protected BetaFeatureAlertApiResponseFactory getBetaFeatureAlertApiResponseFactory() {
 		return betaFeatureAlertApiResponseFactory;
+	}
+
+	@Nonnull
+	protected ActivityTrackingService getActivityTrackingService() {
+		return activityTrackingService;
+	}
+
+	@Nonnull
+	protected Strings getStrings() {
+		return strings;
 	}
 }

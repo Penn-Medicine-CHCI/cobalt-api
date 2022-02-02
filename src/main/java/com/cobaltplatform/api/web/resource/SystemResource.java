@@ -32,6 +32,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.SystemService;
+import com.cobaltplatform.api.service.Way2HealthService;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.CryptoUtility;
 import com.cobaltplatform.api.util.CryptoUtility.KeyFormat;
@@ -97,6 +98,8 @@ public class SystemResource {
 	@Nonnull
 	private final EpicSyncManager epicSyncManager;
 	@Nonnull
+	private final Way2HealthService way2HealthService;
+	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final Formatter formatter;
@@ -113,6 +116,7 @@ public class SystemResource {
 												@Nonnull AcuitySchedulingCache acuitySchedulingCache,
 												@Nonnull AcuitySchedulingClient acuitySchedulingClient,
 												@Nonnull EpicSyncManager epicSyncManager,
+												@Nonnull Way2HealthService way2HealthService,
 												@Nonnull Provider<CurrentContext> currentContextProvider,
 												@Nonnull Formatter formatter,
 												@Nonnull Strings strings) {
@@ -125,6 +129,7 @@ public class SystemResource {
 		requireNonNull(acuitySchedulingCache);
 		requireNonNull(acuitySchedulingClient);
 		requireNonNull(epicSyncManager);
+		requireNonNull(way2HealthService);
 		requireNonNull(currentContextProvider);
 		requireNonNull(formatter);
 		requireNonNull(strings);
@@ -138,6 +143,7 @@ public class SystemResource {
 		this.acuitySchedulingCache = acuitySchedulingCache;
 		this.acuitySchedulingClient = acuitySchedulingClient;
 		this.epicSyncManager = epicSyncManager;
+		this.way2HealthService = way2HealthService;
 		this.currentContextProvider = currentContextProvider;
 		this.formatter = formatter;
 		this.strings = strings;
@@ -294,8 +300,10 @@ public class SystemResource {
 	@Nonnull
 	@POST("/system/sync-past-provider-availability")
 	@AuthenticationRequired
-	public ApiResponse syncPastProviderAvailability(@Nonnull @QueryParameter Optional<LocalDate> startingAtDate) {
+	public ApiResponse syncPastProviderAvailability(@Nonnull @QueryParameter Optional<LocalDate> startingAtDate,
+																									@Nonnull @QueryParameter Optional<UUID> providerId) {
 		requireNonNull(startingAtDate);
+		requireNonNull(providerId);
 
 		if (getCurrentContext().getAccount().get().getRoleId() != RoleId.ADMINISTRATOR)
 			throw new AuthorizationException();
@@ -308,6 +316,45 @@ public class SystemResource {
 			}
 		}.start();
 
+		return new ApiResponse();
+	}
+
+	/**
+	 * Special endpoint to force re-sync of availability.
+	 */
+	@Nonnull
+	@POST("/system/sync-provider-availability")
+	@AuthenticationRequired
+	public ApiResponse syncProviderAvailability(@Nonnull @QueryParameter UUID providerId,
+																							@Nonnull @QueryParameter Optional<LocalDate> startingAtDate,
+																							@Nonnull @QueryParameter Optional<LocalDate> endingAtDate) {
+		requireNonNull(providerId);
+		requireNonNull(startingAtDate);
+		requireNonNull(endingAtDate);
+
+		if (getCurrentContext().getAccount().get().getRoleId() != RoleId.ADMINISTRATOR)
+			throw new AuthorizationException();
+
+		// This is slow, do it on a background thread
+		new Thread() {
+			@Override
+			public void run() {
+				getSystemService().syncProviderAvailability(providerId, startingAtDate.orElse(null), endingAtDate.orElse(null));
+			}
+		}.start();
+
+		return new ApiResponse();
+	}
+
+	/**
+	 * Simplify Way2Health testing by permitting the mock client to be "reset" so incidents can be re-fetched.
+	 *
+	 * @return API response (nonnull)
+	 */
+	@Nonnull
+	@POST("/system/reset-way2health-incidents")
+	public ApiResponse resetWay2HealthIncidents() {
+		getWay2HealthService().resetIncidents();
 		return new ApiResponse();
 	}
 
@@ -364,6 +411,11 @@ public class SystemResource {
 	@Nonnull
 	protected EpicSyncManager getEpicSyncManager() {
 		return epicSyncManager;
+	}
+
+	@Nonnull
+	protected Way2HealthService getWay2HealthService() {
+		return way2HealthService;
 	}
 
 	@Nonnull

@@ -19,10 +19,10 @@
 
 package com.cobaltplatform.api.util;
 
+import com.cobaltplatform.api.context.CurrentContext;
 import com.google.i18n.phonenumbers.NumberParseException;
 import com.google.i18n.phonenumbers.PhoneNumberUtil;
 import com.google.i18n.phonenumbers.Phonenumber;
-import com.cobaltplatform.api.context.CurrentContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

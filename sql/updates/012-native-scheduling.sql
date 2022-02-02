@@ -1,8 +1,7 @@
 BEGIN;
-SELECT _v.register_patch('002-native-scheduling', ARRAY['000-base-creates'], NULL);
+SELECT _v.register_patch('012-native-scheduling', ARRAY['000-base-creates'], NULL);
 
--- Track whether we've viewed the scheduling tutorial
-ALTER TABLE account ADD COLUMN cobalt_scheduling_tutorial_viewed BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE account ADD COLUMN scheduling_tutorial_viewed BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Allow people to interact with (view/edit/etc.) each other's calendars
 CREATE TABLE calendar_permission (

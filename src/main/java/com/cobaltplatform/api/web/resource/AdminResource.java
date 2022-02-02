@@ -26,9 +26,9 @@ import com.cobaltplatform.api.model.api.request.UpdateContentApprovalStatusReque
 import com.cobaltplatform.api.model.api.request.UpdateContentArchivedStatus;
 import com.cobaltplatform.api.model.api.request.UpdateContentRequest;
 import com.cobaltplatform.api.model.api.response.AdminAvailableContentApiResponse.AdminAvailableContentApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.AdminContentApiResponse.AdminContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AdminInstitutionApiResponse.AdminInstitutionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.AdminContentApiResponse.AdminContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ApprovalStatus;
@@ -70,9 +70,10 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static com.cobaltplatform.api.model.api.response.AdminContentApiResponse.*;
-import static com.cobaltplatform.api.model.api.response.AssessmentFormApiResponse.*;
-import static com.cobaltplatform.api.model.db.assessment.Assessment.AssessmentType.*;
+import static com.cobaltplatform.api.model.api.response.AdminContentApiResponse.AdminContentDisplayType;
+import static com.cobaltplatform.api.model.api.response.AssessmentFormApiResponse.AssessmentFormApiResponseFactory;
+import static com.cobaltplatform.api.model.api.response.AssessmentFormApiResponse.AssessmentFormApiResponseType;
+import static com.cobaltplatform.api.model.db.assessment.Assessment.AssessmentType.INTRO;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Objects.requireNonNull;
@@ -145,7 +146,7 @@ public class AdminResource {
 	public ApiResponse getMyContentFilter() {
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("contentTypes", getContentService().findContentTypes());
-			put("institutions", getInstitutionService().findInstitutions().stream().
+			put("institutions", getInstitutionService().findNonCobaltInstitutions().stream().
 					map(it -> getAdminInstitutionApiResponseFactory().create(it)).collect(Collectors.toList()));
 			put("myApprovalStatuses", getContentService().findApprovalStatuses());
 			put("otherApprovalStatuses", getContentService().findApprovalStatuses());
@@ -223,7 +224,7 @@ public class AdminResource {
 	@AuthenticationRequired
 	public ApiResponse getInNetworkInstitutions() {
 		Account account = getCurrentContext().getAccount().get();
-		if(account.getRoleId() == Role.RoleId.SUPER_ADMINISTRATOR || account.getRoleId() == Role.RoleId.ADMINISTRATOR) {
+		if (account.getRoleId() == Role.RoleId.SUPER_ADMINISTRATOR || account.getRoleId() == Role.RoleId.ADMINISTRATOR) {
 			return new ApiResponse(Map.of(
 					"institutions", getInstitutionService().findNetworkInstitutions(account.getInstitutionId()).stream().
 							map(it -> getAdminInstitutionApiResponseFactory().create(it)).collect(Collectors.toList())
@@ -267,7 +268,7 @@ public class AdminResource {
 		UpdateContentRequest request = getRequestBodyParser().parse(requestBody, UpdateContentRequest.class);
 		request.setContentId(contentId);
 		AdminContent adminContent = getContentService().updateContent(account, request);
-		AdminContentDisplayType adminContentDisplayType = (request.getRemoveFromInstitution() == null || !request.getRemoveFromInstitution() ) ?
+		AdminContentDisplayType adminContentDisplayType = (request.getRemoveFromInstitution() == null || !request.getRemoveFromInstitution()) ?
 				AdminContentDisplayType.DETAIL : AdminContentDisplayType.AVAILABLE_CONTENT;
 
 		return new ApiResponse(new HashMap<String, Object>() {{
@@ -315,7 +316,7 @@ public class AdminResource {
 		AdminContent adminContent = contentService.findAdminContentByIdForInstitution(account.getInstitutionId(), contentId).get();
 
 		AdminContentDisplayType displayType;
-		if(adminContent.getOwnerInstitutionId() == account.getInstitutionId()){
+		if (adminContent.getOwnerInstitutionId() == account.getInstitutionId()) {
 			displayType = AdminContentDisplayType.MY_CONTENT;
 		} else {
 			displayType = AdminContentDisplayType.AVAILABLE_CONTENT;

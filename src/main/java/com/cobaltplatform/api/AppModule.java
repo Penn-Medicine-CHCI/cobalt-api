@@ -24,7 +24,6 @@ import com.cobaltplatform.api.cache.CaffeineCache;
 import com.cobaltplatform.api.cache.CurrentContextCache;
 import com.cobaltplatform.api.cache.DistributedCache;
 import com.cobaltplatform.api.cache.LocalCache;
-import com.cobaltplatform.api.cache.RedisCache;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.context.DatabaseContext;
@@ -45,6 +44,9 @@ import com.cobaltplatform.api.integration.epic.MockEpicClient;
 import com.cobaltplatform.api.integration.ic.DefaultIcClient;
 import com.cobaltplatform.api.integration.ic.IcClient;
 import com.cobaltplatform.api.integration.ic.MockIcClient;
+import com.cobaltplatform.api.integration.way2health.DefaultWay2HealthClient;
+import com.cobaltplatform.api.integration.way2health.MockWay2HealthClient;
+import com.cobaltplatform.api.integration.way2health.Way2HealthClient;
 import com.cobaltplatform.api.messaging.MessageSender;
 import com.cobaltplatform.api.messaging.MessageSerializer;
 import com.cobaltplatform.api.messaging.call.CallMessage;
@@ -84,6 +86,9 @@ import com.cobaltplatform.api.model.api.response.GroupSessionRequestApiResponse.
 import com.cobaltplatform.api.model.api.response.GroupSessionReservationApiResponse.GroupSessionReservationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionResponseApiResponse.GroupSessionResponseApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.InteractionInstanceApiResponse.InteractionInstanceApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.InteractionOptionActionApiResponse.InteractionOptionActionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.InteractionOptionApiResponse.InteractionOptionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.IntroAssessmentApiResponse.IntroAssessmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.LogicalAvailabilityApiResponse.LogicalAvailabilityApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
@@ -92,6 +97,7 @@ import com.cobaltplatform.api.model.api.response.QuestionApiResponse.QuestionApi
 import com.cobaltplatform.api.model.api.response.ReportingChartApiResponse.ReportingChartApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ReportingChartApiResponse.ReportingChartElementApiResponse.ReportingChartElementApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ReportingChartApiResponse.ReportingChartMetricApiResponse.ReportingChartMetricApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.SpecialtyApiResponse.SpecialtyApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
 import com.cobaltplatform.api.model.qualifier.AuditLogged;
@@ -213,6 +219,10 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(ReportingChartApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ReportingChartMetricApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ReportingChartElementApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(InteractionInstanceApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(InteractionOptionApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(InteractionOptionActionApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(SpecialtyApiResponseFactory.class)));
 	}
 
 	@Provides
@@ -611,8 +621,20 @@ public class AppModule extends AbstractModule {
 	@Provides
 	@Singleton
 	@Nonnull
+	public Way2HealthClient provideWay2HealthClient(@Nonnull Configuration configuration) {
+		requireNonNull(configuration);
+
+		if (configuration.getShouldUseRealWay2Health())
+			return new DefaultWay2HealthClient(configuration.getWay2HealthEnvironment(), configuration.getWay2HealthAccessToken());
+
+		return new MockWay2HealthClient();
+	}
+
+	@Provides
+	@Singleton
+	@Nonnull
 	public IcClient provideIcClient(@Nonnull Authenticator authenticator,
-																	 @Nonnull Configuration configuration) {
+																	@Nonnull Configuration configuration) {
 		requireNonNull(authenticator);
 		requireNonNull(configuration);
 
@@ -686,8 +708,8 @@ public class AppModule extends AbstractModule {
 		requireNonNull(configuration);
 
 		// Note: this is a hack for now to only enable Redis when running locally
-		if (configuration.getEnvironment().equals("local"))
-			return new RedisCache(configuration.getRedisHost(), configuration.getRedisPort());
+		// if (configuration.getEnvironment().equals("local"))
+		//	return new RedisCache(configuration.getRedisHost(), configuration.getRedisPort());
 
 		return provideLocalCache();
 	}

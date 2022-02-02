@@ -19,10 +19,6 @@
 
 package com.cobaltplatform.api.service;
 
-import com.linkedin.urls.Url;
-import com.linkedin.urls.detection.UrlDetector;
-import com.linkedin.urls.detection.UrlDetectorOptions;
-import com.lokalized.Strings;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageManager;
@@ -54,11 +50,16 @@ import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
+import com.linkedin.urls.Url;
+import com.linkedin.urls.detection.UrlDetector;
+import com.linkedin.urls.detection.UrlDetectorOptions;
+import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
@@ -72,9 +73,9 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static com.cobaltplatform.api.model.db.ApprovalStatus.*;
-import static com.cobaltplatform.api.model.db.Role.*;
-import static com.cobaltplatform.api.model.db.Visibility.*;
+import static com.cobaltplatform.api.model.db.ApprovalStatus.ApprovalStatusId;
+import static com.cobaltplatform.api.model.db.Role.RoleId;
+import static com.cobaltplatform.api.model.db.Visibility.VisibilityId;
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
 import static java.lang.String.format;
 import static java.util.Collections.emptyList;
@@ -145,10 +146,10 @@ public class ContentService {
 	}
 
 	@Nonnull
-	public Content findRequiredContentById(@Nonnull Account account,
-																				 @Nonnull UUID contentId) {
-		requireNonNull(account);
-		requireNonNull(contentId);
+	public Optional<Content> findContentById(@Nullable Account account,
+																					 @Nullable UUID contentId) {
+		if (account == null || contentId == null)
+			return Optional.empty();
 
 		String institutionClause = " AND vc.institution_id = ? ";
 		String institutionArg = account.getInstitutionId().name();
@@ -160,10 +161,13 @@ public class ContentService {
 		String query = format("SELECT  DISTINCT ON (vc.content_id, new_flag) vc.*, " +
 				"CASE WHEN activity_tracking_id IS NULL THEN true ELSE false " +
 				"END as new_flag FROM v_admin_content vc " +
-				"LEFT OUTER JOIN activity_tracking act ON vc.content_id = act.activity_key " +
+				"LEFT OUTER JOIN activity_tracking act ON vc.content_id = CAST (act.context ->> 'contentId' AS UUID) " +
 				"AND act.account_id = ? WHERE vc.content_id=? %s", institutionClause);
 		Content content = getDatabase().queryForObject(query,
-				Content.class, account.getAccountId(), contentId, institutionArg).get();
+				Content.class, account.getAccountId(), contentId, institutionArg).orElse(null);
+
+		if (content == null)
+			return Optional.empty();
 
 		if (content.getContentTypeId().compareTo(ContentTypeId.INT_BLOG) == 0) {
 			String description = trimToEmpty(content.getDescription());
@@ -181,7 +185,7 @@ public class ContentService {
 			content.setDescription(description);
 		}
 
-		return content;
+		return Optional.of(content);
 	}
 
 	@Nonnull
@@ -271,7 +275,7 @@ public class ContentService {
 				String.format("SELECT va.*, " +
 						"(select COUNT(*) FROM " +
 						"  activity_tracking a WHERE " +
-						"  a.activity_key = va.content_id AND " +
+						"  va.content_id = CAST (a.context ->> 'contentId' AS UUID) AND " +
 						"  a.activity_action_id = 'VIEW' AND " +
 						"  activity_type_id='CONTENT') AS views ," +
 						"count(*) over() AS total_count " +
@@ -300,7 +304,7 @@ public class ContentService {
 		return getDatabase().queryForObject("SELECT va.*, " +
 						"(select COUNT(*) FROM " +
 						" activity_tracking a WHERE " +
-						" a.activity_key = va.content_id AND " +
+						" va.content_id = CAST (a.context ->> 'contentId' AS UUID) AND " +
 						" a.activity_action_id = 'VIEW' AND " +
 						" activity_type_id='CONTENT') AS views " +
 						"FROM v_admin_content va " +
@@ -562,7 +566,7 @@ public class ContentService {
 		List<Account> accountsToNotify;
 		if (accountAddingContent.getRoleId() == RoleId.SUPER_ADMINISTRATOR) {
 			return;
-		}else if (accountAddingContent.getRoleId() == RoleId.ADMINISTRATOR) {
+		} else if (accountAddingContent.getRoleId() == RoleId.ADMINISTRATOR) {
 			accountsToNotify = getAccountService().findSuperAdminAccounts();
 		} else {
 			accountsToNotify = getAccountService().findAdminAccountsForInstitution(accountAddingContent.getInstitutionId());
@@ -571,8 +575,8 @@ public class ContentService {
 		String date = adminContent.getDateCreated() == null ? getFormatter().formatDate(LocalDate.now(), FormatStyle.SHORT) : getFormatter().formatDate(adminContent.getDateCreated(), FormatStyle.SHORT);
 
 		getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
-			for(Account accountToNotify : accountsToNotify) {
-				if(accountToNotify.getEmailAddress() != null) {
+			for (Account accountToNotify : accountsToNotify) {
+				if (accountToNotify.getEmailAddress() != null) {
 					EmailMessage emailMessage = new EmailMessage.Builder(EmailMessageTemplate.ADMIN_CMS_CONTENT_ADDED, accountToNotify.getLocale())
 							.toAddresses(List.of(accountToNotify.getEmailAddress()))
 							.messageContext(Map.of(
@@ -708,14 +712,14 @@ public class ContentService {
 							InstitutionId.COBALT, existingContent.getOwnerInstitutionId());
 				}
 
-				if(existingContent.getVisibilityId() != VisibilityId.PUBLIC || existingContent.getVisibilityId() != VisibilityId.NETWORK) {
+				if (existingContent.getVisibilityId() != VisibilityId.PUBLIC || existingContent.getVisibilityId() != VisibilityId.NETWORK) {
 					shouldNotify = true;
 				}
 
 			} else if (visibilityIdCommand == VisibilityId.PUBLIC) {
 				ApprovalStatusId publicApprovalStatusId = account.getRoleId() == RoleId.SUPER_ADMINISTRATOR ? ApprovalStatusId.APPROVED : ApprovalStatusId.PENDING;
 				otherInstitutionsApprovalStatusId = publicApprovalStatusId;
-				if(existingContent.getVisibilityId() != VisibilityId.PUBLIC) {
+				if (existingContent.getVisibilityId() != VisibilityId.PUBLIC) {
 					shouldNotify = true;
 				}
 			}
@@ -741,7 +745,7 @@ public class ContentService {
 		}
 
 		AdminContent adminContent = findAdminContentByIdForInstitution(account.getInstitutionId(), command.getContentId()).get();
-		if(shouldNotify){
+		if (shouldNotify) {
 			sendAdminNotification(account, adminContent);
 		}
 		return adminContent;
@@ -771,7 +775,7 @@ public class ContentService {
 		StringBuilder unfilteredQuery = new StringBuilder("SELECT DISTINCT ON (c.content_id, c.created, new_flag) c.* , " +
 				"CASE WHEN (activity_tracking_id IS NULL) AND (c.created >= now() - INTERVAL '1 WEEK') THEN true " +
 				"ELSE false END as new_flag " +
-				"FROM v_admin_content c LEFT OUTER JOIN activity_tracking act ON c.content_id = act.activity_key " +
+				"FROM v_admin_content c LEFT OUTER JOIN activity_tracking act ON c.content_id = CAST (act.context ->> 'contentId' AS UUID) " +
 				"AND act.account_id = ? WHERE c.institution_id = ? AND c.approved_flag=TRUE AND c.archived_flag=FALSE ");
 		final String ORDER_BY = "ORDER BY new_flag DESC, c.created DESC";
 		unfilteredParameters.add(account.getAccountId());
@@ -843,7 +847,7 @@ public class ContentService {
 				"CASE WHEN (activity_tracking_id IS NULL) AND (c.created >= now() - INTERVAL '1 WEEK') THEN true  " +
 				"ELSE false END as new_flag, count(*) as match_count " +
 				"FROM answer_content ac, v_account_session_answer a1, v_admin_content c  " +
-				"LEFT OUTER JOIN activity_tracking act ON c.content_id = act.activity_key AND act.account_id = ? " +
+				"LEFT OUTER JOIN activity_tracking act ON c.content_id = CAST (act.context ->> 'contentId' AS UUID) AND act.account_id = ? " +
 				"WHERE ac.content_id = c.content_id  " +
 				"AND ac.answer_id = a1.answer_id " +
 				"and a1.account_session_id= ? " +

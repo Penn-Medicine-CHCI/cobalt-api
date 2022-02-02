@@ -56,9 +56,10 @@ public class AppArchiver {
 				add(ArchivePaths.get(Paths.get("config")));
 				add(ArchivePaths.get(Paths.get("messages")));
 				add(ArchivePaths.get(Paths.get("web")));
+				add(ArchivePaths.get(Paths.get("resources")));
 				add(ArchivePaths.get(Paths.get("target/dependency"), Paths.get("lib")));
 				add(ArchivePaths.get(Paths.get("target/classes"), Paths.get("classes")));
-				add(ArchivePaths.get(Paths.get("start-api"), Paths.get(".")));
+				add(ArchivePaths.get(Paths.get("start-backend"), Paths.get(".")));
 
 				// Generated below during preprocessing phase
 				add(ArchivePaths.get(Paths.get("build-timestamp"), Paths.get(".")));

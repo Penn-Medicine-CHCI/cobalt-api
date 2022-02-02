@@ -26,8 +26,6 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.UUID;
 
-import static java.lang.String.format;
-
 /**
  * @author Transmogrify LLC.
  */

@@ -40,7 +40,7 @@ public class GoogleCalendarUrlGenerator {
 	private final DateTimeFormatter dateTimeFormatter;
 
 	public GoogleCalendarUrlGenerator() {
-		this.dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmSS").withZone(ZoneId.of("GMT"));
+		this.dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss").withZone(ZoneId.of("GMT"));
 	}
 
 	public String generateNewEventUrl(@Nonnull String title,

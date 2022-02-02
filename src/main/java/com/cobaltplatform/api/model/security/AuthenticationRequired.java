@@ -33,4 +33,6 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface AuthenticationRequired {
 	RoleId[] value() default {};
+
+	ContentSecurityLevel contentSecurityLevel() default ContentSecurityLevel.LOW;
 }

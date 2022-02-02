@@ -46,7 +46,9 @@ public class ActivityTrackingApiResponse {
 	@Nullable
 	private ActivityAction.ActivityActionId activityActionId;
 	@Nullable
-	private UUID activityKey;
+	private UUID sessionTrackingId;
+	@Nullable
+	private String context;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -63,7 +65,8 @@ public class ActivityTrackingApiResponse {
 		this.accountId = activityTracking.getAccountId();
 		this.activityTypeId = activityTracking.getActivityTypeId();
 		this.activityActionId = activityTracking.getActivityActionId();
-		this.activityKey = activityTracking.getActivityKey();
+		this.sessionTrackingId = activityTracking.getSessionTrackingId();
+		this.context = activityTracking.getContext();
 	}
 
 	@Nullable
@@ -87,7 +90,12 @@ public class ActivityTrackingApiResponse {
 	}
 
 	@Nullable
-	public UUID getActivityKey() {
-		return activityKey;
+	public UUID getSessionTrackingId() {
+		return sessionTrackingId;
+	}
+
+	@Nullable
+	public String getContext() {
+		return context;
 	}
 }

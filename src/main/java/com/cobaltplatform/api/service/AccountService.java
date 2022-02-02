@@ -32,14 +32,17 @@ import com.cobaltplatform.api.model.api.request.CreateAccountInviteRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.ForgotPasswordRequest;
 import com.cobaltplatform.api.model.api.request.ResetPasswordRequest;
+import com.cobaltplatform.api.model.api.request.UpdateAccountAccessTokenExpiration;
 import com.cobaltplatform.api.model.api.request.UpdateAccountBetaStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountEmailAddressRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountPhoneNumberRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountRoleRequest;
 import com.cobaltplatform.api.model.api.request.UpdateBetaFeatureAlertRequest;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.Account.StandardMetadata;
 import com.cobaltplatform.api.model.db.AccountInvite;
 import com.cobaltplatform.api.model.db.AccountLoginRule;
+import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.BetaFeature.BetaFeatureId;
 import com.cobaltplatform.api.model.db.BetaFeatureAlert;
@@ -96,9 +99,6 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @ThreadSafe
 public class AccountService {
 	@Nonnull
-	private static final UUID TEST_CASEY_WATSON_ACCOUNT_ID;
-
-	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final Database database;
@@ -124,10 +124,6 @@ public class AccountService {
 	private final InstitutionService institutionService;
 	@Nonnull
 	private final LinkGenerator linkGenerator;
-
-	static {
-		TEST_CASEY_WATSON_ACCOUNT_ID = UUID.fromString("e16ebeb4-b2fd-4e04-b9d2-cac6362c96ec");
-	}
 
 	@Inject
 	public AccountService(@Nonnull Provider<CurrentContext> currentContextProvider,
@@ -225,12 +221,6 @@ public class AccountService {
 	}
 
 	@Nonnull
-	private Account findRequiredAccountById(@Nonnull UUID accountId) {
-		requireNonNull(accountId);
-		return findAccountById(accountId).get();
-	}
-
-	@Nonnull
 	public Optional<Account> findAccountByAccountSourceIdAndSsoId(@Nullable AccountSourceId accountSourceId,
 																																@Nullable String ssoId) {
 		if (accountSourceId == null || ssoId == null)
@@ -303,10 +293,7 @@ public class AccountService {
 		else
 			subdomain = getConfiguration().getDefaultSubdomain();
 
-		Optional<Institution> institution = getInstitutionService().findInstitutionBySubdomain(subdomain);
-
-		if (!institution.isPresent())
-			validationException.add(new FieldError("subdomain", getStrings().get("Could not find institution.")));
+		Institution institution = getInstitutionService().findInstitutionBySubdomain(subdomain);
 
 		if (emailAddress == null)
 			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is required.")));
@@ -324,7 +311,7 @@ public class AccountService {
 
 
 		getDatabase().execute("INSERT INTO account_invite (account_invite_id, institution_id, email_address, " +
-						"password, account_invite_code) VALUES (?,?,?,?,?)", accountInviteId, institution.get().getInstitutionId(),
+						"password, account_invite_code) VALUES (?,?,?,?,?)", accountInviteId, institution.getInstitutionId(),
 				emailAddress, getAuthenticator().hashPassword(password), accountInviteCode);
 
 		AccountInvite accountInvite = findAccountInviteById(accountInviteId).get();
@@ -551,6 +538,31 @@ public class AccountService {
 	}
 
 	@Nonnull
+	public void updateAccountAccessTokenExpiration(@Nonnull UpdateAccountAccessTokenExpiration request) {
+		requireNonNull(request);
+
+		UUID accountId = request.getAccountId();
+		ValidationException validationException = new ValidationException();
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("UPDATE account SET access_token_expiration_in_minutes=?, access_token_short_expiration_in_minutes=? WHERE account_id=?",
+				request.getAccessTokenExpirationInMinutes(), request.getAccessTokenShortExpirationInMinutes(), accountId);
+	}
+
+	@Nonnull
+	public void markAccountLoginRoleAsExecuted(@Nonnull UUID accountLoginRuleId) {
+		requireNonNull(accountLoginRuleId);
+
+		getDatabase().execute("UPDATE account_login_rule SET login_rule_executed=TRUE, login_rule_execution_time=now() WHERE account_login_rule_id=?",
+				accountLoginRuleId);
+	}
+
+	@Nonnull
 	public void updateAccountRole(@Nonnull UpdateAccountRoleRequest request) {
 		requireNonNull(request);
 
@@ -657,7 +669,7 @@ public class AccountService {
 	}
 
 	@Nonnull
-	public Account resetPassword(ResetPasswordRequest request) {
+	public Optional<Account> resetPassword(ResetPasswordRequest request) {
 		requireNonNull(request);
 
 		ValidationException validationException = new ValidationException();
@@ -665,34 +677,34 @@ public class AccountService {
 		UUID passwordResetToken = request.getPasswordResetToken();
 		String password = trimToNull(request.getPassword());
 		String confirmPassword = trimToNull(request.getConfirmPassword());
-		Optional<PasswordResetRequest> passwordResetRequest = findPasswordResetRequestByToken(passwordResetToken);
+		PasswordResetRequest passwordResetRequest = findPasswordResetRequestByToken(passwordResetToken).orElse(null);
 
 		if (password == null)
-			validationException.add(new FieldError("password", strings.get("Password is required")));
+			validationException.add(new FieldError("password", getStrings().get("Password is required")));
 		else if (confirmPassword == null)
-			validationException.add(new FieldError("confirmPassword", strings.get("Password is required")));
+			validationException.add(new FieldError("confirmPassword", getStrings().get("Password is required")));
 		else {
 			if (!password.equals(confirmPassword))
-				validationException.add(new FieldError("password", strings.get("Passwords must match")));
+				validationException.add(new FieldError("password", getStrings().get("Passwords must match")));
 			else if (!getAuthenticator().validatePasswordRules(password))
 				validationException.add(new FieldError("password", getStrings().get("Password must be at least 8 characters long and contain at least one letter, one number")));
 
-			if (!passwordResetRequest.isPresent())
-				validationException.add(new FieldError("passwordResetRequest", strings.get("Sorry, unable to reset password")));
-			else if (Instant.now().isAfter(passwordResetRequest.get().getExpirationTimestamp()))
-				validationException.add(new FieldError("resetToken", strings.get("Sorry, unable to reset password")));
+			if (passwordResetRequest == null)
+				validationException.add(new FieldError("passwordResetRequest", getStrings().get("Sorry, unable to reset password")));
+			else if (Instant.now().isAfter(passwordResetRequest.getExpirationTimestamp()))
+				validationException.add(new FieldError("resetToken", getStrings().get("Sorry, unable to reset password")));
 		}
 
 		if (validationException.hasErrors())
 			throw validationException;
 
-		database.execute("UPDATE account SET password = ? WHERE account_id = ?",
-				authenticator.hashPassword(request.getPassword()), passwordResetRequest.get().getAccountId());
+		getDatabase().execute("UPDATE account SET password = ? WHERE account_id = ?",
+				getAuthenticator().hashPassword(request.getPassword()), passwordResetRequest.getAccountId());
 
-		database.execute("UPDATE password_reset_request SET expiration_timestamp = now() WHERE password_reset_request_id = ?",
-				passwordResetRequest.get().getPasswordResetRequestId());
+		getDatabase().execute("UPDATE password_reset_request SET expiration_timestamp = now() WHERE password_reset_request_id = ?",
+				passwordResetRequest.getPasswordResetRequestId());
 
-		return findRequiredAccountById(passwordResetRequest.get().getAccountId());
+		return findAccountById(passwordResetRequest.getAccountId());
 	}
 
 	@Nonnull
@@ -722,7 +734,7 @@ public class AccountService {
 			return Optional.empty();
 
 		return getDatabase().queryForObject("SELECT * FROM account_login_rule " +
-				"WHERE email_address=? AND account_source_id=? AND institution_id=?", AccountLoginRule.class, emailAddress, accountSourceId, institutionId);
+				"WHERE email_address=? AND account_source_id=? AND institution_id=? AND login_rule_executed = FALSE", AccountLoginRule.class, emailAddress, accountSourceId, institutionId);
 	}
 
 	@Nonnull
@@ -776,6 +788,7 @@ public class AccountService {
 		return findBetaFeaturesAlertsAsMap(accountId).get(betaFeatureId);
 	}
 
+	@Nonnull
 	public void updateAccountBetaStatus(@Nonnull UpdateAccountBetaStatusRequest request) {
 		requireNonNull(request);
 
@@ -796,8 +809,69 @@ public class AccountService {
 	}
 
 	@Nonnull
-	public UUID getTestCaseyWatsonAccountId() {
-		return TEST_CASEY_WATSON_ACCOUNT_ID;
+	public Long findAccessTokenExpirationInMinutesByAccountId(@Nullable UUID accountId) {
+		Account account = findAccountById(accountId).orElse(null);
+
+		// Fallback to the default COBALT institution's configuration if no valid account
+		if (account == null)
+			return getInstitutionService().findInstitutionById(InstitutionId.COBALT)
+					.get().getAnonAccessTokenExpirationInMinutes();
+
+		if (account.getAccessTokenExpirationInMinutes() != null)
+			return account.getAccessTokenExpirationInMinutes();
+		else if (account.getAccountSourceId().equals(AccountSourceId.ANONYMOUS))
+			return getInstitutionService().findInstitutionById(account.getInstitutionId()).get()
+					.getAnonAccessTokenExpirationInMinutes();
+
+		return getInstitutionService().findInstitutionById(account.getInstitutionId()).get()
+				.getAccessTokenExpirationInMinutes();
+	}
+
+	@Nonnull
+	public Long findAccessTokenShortExpirationInMinutesByAccount(@Nullable UUID accountId) {
+		Account account = findAccountById(accountId).orElse(null);
+
+		// Fallback to the default COBALT institution's configuration if no valid account
+		if (account == null)
+			return getInstitutionService().findInstitutionById(InstitutionId.COBALT)
+					.get().getAnonAccessTokenShortExpirationInMinutes();
+
+		if (account.getAccessTokenShortExpirationInMinutes() != null)
+			return account.getAccessTokenShortExpirationInMinutes();
+		else if (account.getAccountSourceId().equals(AccountSourceId.ANONYMOUS))
+			return getInstitutionService().findInstitutionById(account.getInstitutionId()).get()
+					.getAnonAccessTokenShortExpirationInMinutes();
+
+		return getInstitutionService().findInstitutionById(account.getInstitutionId()).get()
+				.getAccessTokenShortExpirationInMinutes();
+	}
+
+	@Nonnull
+	public Optional<AccountSource> findAccountSourceByAccountId(@Nullable UUID accountId) {
+		if (accountId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("SELECT aa.* FROM account_source aa, account a WHERE a.account_source_id = aa.account_source_id "
+				+ "AND a.account_id = ?", AccountSource.class, accountId);
+	}
+
+	@Nonnull
+	public List<Account> findAccountsMatchingMetadata(@Nullable StandardMetadata standardMetadata) {
+		if (standardMetadata == null)
+			return findAccountsMatchingMetadata(Collections.emptyMap());
+
+		return findAccountsMatchingMetadata(getJsonMapper().toMap(standardMetadata));
+	}
+
+	@Nonnull
+	public List<Account> findAccountsMatchingMetadata(@Nullable Map<String, Object> metadata) {
+		if (metadata == null || metadata.size() == 0)
+			return Collections.emptyList();
+
+		String metadataAsJson = getJsonMapper().toJson(metadata);
+
+		return getDatabase().queryForList("SELECT * FROM account WHERE metadata @> CAST(? AS JSONB)",
+				Account.class, metadataAsJson);
 	}
 
 	@Nonnull

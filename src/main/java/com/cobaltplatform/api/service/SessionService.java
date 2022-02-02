@@ -99,7 +99,7 @@ public class SessionService {
 		return findAnswersForSessionAndQuestion(lastCompleteSession.get(), question);
 	}
 
-	public void markCurrentSessionCompleteForAssessmentType(@Nonnull Account account,
+		public void markCurrentSessionCompleteForAssessmentType(@Nonnull Account account,
 																													@Nonnull AssessmentType assessmentTypeId) {
 		database.execute("UPDATE account_session SET complete_flag = ? WHERE account_session_id = " +
 						"(" +
@@ -222,6 +222,7 @@ public class SessionService {
 							"acs.assessment_id = ass.assessment_id AND " +
 							"ia.institution_id = a.institution_id AND " +
 							"ia.assessment_id = ass.assessment_id AND " +
+							"a.account_id = acs.account_id AND " +
 							"a.account_id = ? AND " +
 							"ass.assessment_type_id IN (?, ?, ?, ?) " +
 							")",

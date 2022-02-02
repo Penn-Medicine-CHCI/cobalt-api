@@ -5,4 +5,19 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < initial/install-versio
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < initial/000-base-creates.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < initial/001-initial-inserts.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/001-cobalt-institution.sql
-PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/002-native-scheduling.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/002-click-tracking.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/003-session-expiration.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/004-activity-tracking.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/005-interaction.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/006-scheduled-messages.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/007-way2health.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/008-interaction-identifier.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/009-chaplain-rename.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/010-crisis-interaction-metadata.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/011-provider-specialties.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/012-native-scheduling.sql
+
+if [ -f "initial/bootstrap.sql" ]; then
+  echo "Loading bootstrap data..."
+  PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < initial/bootstrap.sql
+fi

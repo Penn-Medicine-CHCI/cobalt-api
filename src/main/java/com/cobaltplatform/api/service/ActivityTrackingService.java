@@ -27,8 +27,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -36,12 +38,10 @@ import java.util.UUID;
  */
 @Singleton
 public class ActivityTrackingService {
-
 	@Nonnull
 	private final Database database;
 	@Nonnull
 	private final Logger logger;
-
 
 	@Inject
 	public ActivityTrackingService(@Nonnull Database database) {
@@ -50,20 +50,25 @@ public class ActivityTrackingService {
 	}
 
 	@Nonnull
-	public ActivityTracking findRequiredActivityTrackingById(UUID activityTrackingId) {
+	public Optional<ActivityTracking> findActivityTrackingById(@Nullable UUID activityTrackingId) {
+		if (activityTrackingId == null)
+			return Optional.empty();
+
 		return getDatabase().queryForObject("SELECT * FROM activity_tracking WHERE activity_tracking_id = ?",
-				ActivityTracking.class, activityTrackingId).get();
+				ActivityTracking.class, activityTrackingId);
 	}
 
 	@Nonnull
-	public UUID trackActivity(@Nonnull Account account,
+	public UUID trackActivity(@Nonnull Optional<Account> account,
 														@Nonnull CreateActivityTrackingRequest request) {
 
 		UUID activityTrackingId = UUID.randomUUID();
+		UUID accountId = account.isEmpty() ? null : account.get().getAccountId();
 
 		getDatabase().execute("INSERT INTO activity_tracking (activity_tracking_id, account_id, activity_type_id, "
-						+ "activity_action_id, activity_key) VALUES (?,?,?,?,?)", activityTrackingId, account.getAccountId(),
-				request.getActivityTypeId(), request.getActivityActionId(), request.getActivityKey());
+						+ "activity_action_id, session_tracking_id, context) VALUES (?,?,?,?,?,CAST (? AS JSONB))",
+				activityTrackingId, accountId, request.getActivityTypeId(), request.getActivityActionId(),
+				request.getSessionTrackingId(), request.getContext());
 
 		return activityTrackingId;
 	}
