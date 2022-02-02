@@ -19,7 +19,6 @@
 
 package com.cobaltplatform.api.web.resource;
 
-import com.lokalized.Strings;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest.ProviderFindAvailability;
@@ -32,6 +31,7 @@ import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApi
 import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseSupplement;
+import com.cobaltplatform.api.model.api.response.SpecialtyApiResponse.SpecialtyApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
@@ -43,6 +43,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PaymentType;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.RecommendationLevel;
+import com.cobaltplatform.api.model.db.Specialty;
 import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
@@ -58,6 +59,7 @@ import com.cobaltplatform.api.service.FollowupService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
+import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.PathParameter;
@@ -79,6 +81,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -93,6 +96,7 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
@@ -133,6 +137,8 @@ public class ProviderResource {
 	@Nonnull
 	private final SupportRoleApiResponseFactory supportRoleApiResponseFactory;
 	@Nonnull
+	private final SpecialtyApiResponseFactory specialtyApiResponseFactory;
+	@Nonnull
 	private final javax.inject.Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
@@ -158,6 +164,7 @@ public class ProviderResource {
 													@Nonnull FollowupApiResponseFactory followupApiResponseFactory,
 													@Nonnull TimeZoneApiResponseFactory timeZoneApiResponseFactory,
 													@Nonnull SupportRoleApiResponseFactory supportRoleApiResponseFactory,
+													@Nonnull SpecialtyApiResponseFactory specialtyApiResponseFactory,
 													@Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
 													@Nonnull RequestBodyParser requestBodyParser,
 													@Nonnull Formatter formatter,
@@ -176,6 +183,7 @@ public class ProviderResource {
 		requireNonNull(followupApiResponseFactory);
 		requireNonNull(timeZoneApiResponseFactory);
 		requireNonNull(supportRoleApiResponseFactory);
+		requireNonNull(specialtyApiResponseFactory);
 		requireNonNull(currentContextProvider);
 		requireNonNull(requestBodyParser);
 		requireNonNull(formatter);
@@ -195,6 +203,7 @@ public class ProviderResource {
 		this.followupApiResponseFactory = followupApiResponseFactory;
 		this.timeZoneApiResponseFactory = timeZoneApiResponseFactory;
 		this.supportRoleApiResponseFactory = supportRoleApiResponseFactory;
+		this.specialtyApiResponseFactory = specialtyApiResponseFactory;
 		this.currentContextProvider = currentContextProvider;
 		this.requestBodyParser = requestBodyParser;
 		this.formatter = formatter;
@@ -278,6 +287,7 @@ public class ProviderResource {
 				normalizedProviderFind.put("specialty", providerFind.getSpecialty());
 				normalizedProviderFind.put("supportRolesDescription", providerFind.getSupportRolesDescription());
 				normalizedProviderFind.put("imageUrl", providerFind.getImageUrl());
+				normalizedProviderFind.put("bioUrl", providerFind.getBioUrl());
 				normalizedProviderFind.put("schedulingSystemId", providerFind.getSchedulingSystemId());
 				normalizedProviderFind.put("phoneNumberRequiredForAppointment", providerFind.getPhoneNumberRequiredForAppointment());
 				normalizedProviderFind.put("paymentFundingDescriptions", providerFind.getPaymentFundingDescriptions());
@@ -288,6 +298,9 @@ public class ProviderResource {
 				normalizedProviderFind.put("skipIntakePrompt", providerFind.getSkipIntakePrompt());
 				normalizedProviderFind.put("appointmentTypeIds", providerFind.getAppointmentTypeIds());
 				normalizedProviderFind.put("times", normalizedTimes);
+				normalizedProviderFind.put("specialtyIds", providerFind.getSpecialties().stream()
+						.map(specialty -> specialty.getSpecialtyId())
+						.collect(Collectors.toList()));
 
 				normalizedProviderFinds.add(normalizedProviderFind);
 			}
@@ -347,9 +360,18 @@ public class ProviderResource {
 				}))
 				.collect(Collectors.toList());
 
-		List<Clinic> clinics = new ArrayList<>();
+		// Pull out distinct specialties from the provider data
+		Map<UUID, Specialty> specialtiesById = providerFinds.stream()
+				.map(providerFind -> providerFind.getSpecialties())
+				.filter(providerSpecialties -> providerSpecialties != null && providerSpecialties.size() > 0)
+				.flatMap(Collection::stream)
+				.collect(Collectors.toMap(Specialty::getSpecialtyId, Function.identity(), (existing, replacement) -> existing));
+
+		List<Specialty> specialties = new ArrayList<>(specialtiesById.values());
 
 		// If caller filters on clinics, return the clinics that were filtered on
+		List<Clinic> clinics = new ArrayList<>();
+
 		if (request.getClinicIds() != null && request.getClinicIds().size() > 0)
 			clinics.addAll(getClinicService().findClinicsByInstitutionId(account.getInstitutionId()).stream()
 					.filter(clinic -> request.getClinicIds().contains(clinic.getClinicId()))
@@ -403,6 +425,11 @@ public class ProviderResource {
 			if (clinics.size() > 0)
 				put("clinics", clinics.stream()
 						.map(clinic -> getClinicApiResponseFactory().create(clinic))
+						.collect(Collectors.toList()));
+
+			if (specialties.size() > 0)
+				put("specialties", specialties.stream()
+						.map(specialty -> getSpecialtyApiResponseFactory().create(specialty))
 						.collect(Collectors.toList()));
 
 			if (includeAppointments)
@@ -492,7 +519,7 @@ public class ProviderResource {
 	@Nonnull
 	@GET("/providers/find-options")
 	@AuthenticationRequired
-	public ApiResponse providerFindOptions(@Nonnull @QueryParameter Optional<InstitutionId> institutionId,  // TODO: FE should be updated to pass this in so it's no longer optional
+	public ApiResponse providerFindOptions(@Nonnull @QueryParameter InstitutionId institutionId,
 																				 @Nonnull @QueryParameter Optional<SupportRoleId> supportRoleId,
 																				 @Nonnull @QueryParameter("startDate") Optional<LocalDate> startDateOverride,
 																				 @Nonnull @QueryParameter("endDate") Optional<LocalDate> endDateOverride,
@@ -510,7 +537,7 @@ public class ProviderResource {
 		RecommendationLevel recommendationLevel = getAssessmentService().findRecommendationLevelById(level.toString()).orElse(null);
 
 		// For now - don't expose MHIC role to UI
-		List<SupportRole> allSupportRoles = getProviderService().findSupportRolesByInstitutionId(institutionId.orElse(InstitutionId.COBALT)).stream()
+		List<SupportRole> allSupportRoles = getProviderService().findSupportRolesByInstitutionId(institutionId).stream()
 				.filter(supportRole -> supportRole.getSupportRoleId() != SupportRoleId.MHIC)
 				.collect(Collectors.toList());
 
@@ -537,6 +564,7 @@ public class ProviderResource {
 
 		List<SupportRoleId> defaultSupportRoleIds = defaultSupportRoles.stream().map(supportRole -> supportRole.getSupportRoleId()).collect(Collectors.toList());
 		List<PaymentType> paymentTypes = getProviderService().findPaymentTypes();
+		List<Specialty> specialties = getProviderService().findSpecialtiesByInstitutionId(institutionId);
 
 		Map<String, Object> availabilityAll = new LinkedHashMap<>();
 		availabilityAll.put("availability", ProviderFindAvailability.ALL);
@@ -606,6 +634,9 @@ public class ProviderResource {
 		response.put("supportRoles", allSupportRoles);
 		response.put("paymentTypes", paymentTypes);
 		response.put("scores", scores);
+		response.put("specialties", specialties.stream()
+				.map(specialty -> getSpecialtyApiResponseFactory().create(specialty))
+				.collect(Collectors.toList()));
 
 		return new ApiResponse(response);
 	}
@@ -730,6 +761,11 @@ public class ProviderResource {
 	@Nonnull
 	protected SupportRoleApiResponseFactory getSupportRoleApiResponseFactory() {
 		return supportRoleApiResponseFactory;
+	}
+
+	@Nonnull
+	protected SpecialtyApiResponseFactory getSpecialtyApiResponseFactory() {
+		return specialtyApiResponseFactory;
 	}
 
 	@Nonnull

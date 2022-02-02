@@ -67,6 +67,8 @@ public class ProviderFindRequest {
 	private Set<ProviderFindLicenseType> licenseTypes; // Empty means "any"
 	@Nullable
 	private SystemAffinityId systemAffinityId; // Null means "COBALT"
+	@Nullable
+	private Set<UUID> specialtyIds; // Empty means "any"
 
 	public enum ProviderFindAvailability {
 		ALL,
@@ -215,5 +217,14 @@ public class ProviderFindRequest {
 
 	public void setSystemAffinityId(@Nullable SystemAffinityId systemAffinityId) {
 		this.systemAffinityId = systemAffinityId;
+	}
+
+	@Nullable
+	public Set<UUID> getSpecialtyIds() {
+		return specialtyIds;
+	}
+
+	public void setSpecialtyIds(@Nullable Set<UUID> specialtyIds) {
+		this.specialtyIds = specialtyIds;
 	}
 }
