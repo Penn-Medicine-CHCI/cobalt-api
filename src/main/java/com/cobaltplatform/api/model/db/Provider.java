@@ -59,6 +59,8 @@ public class Provider {
 	@Nullable
 	private String imageUrl;
 	@Nullable
+	private String bioUrl;
+	@Nullable
 	private Locale locale;
 	@Nullable
 	private ZoneId timeZone;
@@ -184,6 +186,15 @@ public class Provider {
 
 	public void setImageUrl(@Nullable String imageUrl) {
 		this.imageUrl = imageUrl;
+	}
+
+	@Nullable
+	public String getBioUrl() {
+		return bioUrl;
+	}
+
+	public void setBioUrl(@Nullable String bioUrl) {
+		this.bioUrl = bioUrl;
 	}
 
 	@Nullable

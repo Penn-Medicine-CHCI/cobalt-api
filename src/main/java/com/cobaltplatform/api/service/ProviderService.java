@@ -36,6 +36,7 @@ import com.cobaltplatform.api.model.db.PaymentType;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.ProviderAvailability;
 import com.cobaltplatform.api.model.db.RecommendationLevel.RecommendationLevelId;
+import com.cobaltplatform.api.model.db.Specialty;
 import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.db.SystemAffinity.SystemAffinityId;
@@ -260,6 +261,7 @@ public class ProviderService {
 		Set<ProviderFindSupplement> supplements = request.getSupplements() == null ? Collections.emptySet() : request.getSupplements();
 		Set<ProviderFindLicenseType> licenseTypes = request.getLicenseTypes() == null ? Collections.emptySet() : request.getLicenseTypes();
 		SystemAffinityId systemAffinityId = request.getSystemAffinityId() == null ? SystemAffinityId.COBALT : request.getSystemAffinityId();
+		Set<UUID> specialtyIds = request.getSpecialtyIds() == null ? Collections.emptySet() : request.getSpecialtyIds();
 		LocalDateTime currentDateTime = LocalDateTime.now(account.getTimeZone());
 		LocalDate currentDate = currentDateTime.toLocalDate();
 		ValidationException validationException = new ValidationException();
@@ -360,6 +362,29 @@ public class ProviderService {
 
 		if (providers.size() == 0)
 			return Collections.emptyList();
+
+		// Single query to pull in all specialties for all providers in the resultset
+		Map<UUID, List<Specialty>> specialtiesByProviderId = specialtiesByProviderIdForProviderIds(providers.stream()
+				.map(provider -> provider.getProviderId())
+				.collect(Collectors.toSet()));
+
+		// If specialties are specified, throw out any provider that doesn't match them
+		if (specialtyIds.size() > 0) {
+			providers = providers.stream()
+					.filter(provider -> {
+						List<Specialty> specialties = specialtiesByProviderId.get(provider.getProviderId());
+
+						if (specialties == null)
+							return false;
+
+						for (Specialty specialty : specialties)
+							if (specialtyIds.contains(specialty.getSpecialtyId()))
+								return true;
+
+						return false;
+					})
+					.collect(Collectors.toList());
+		}
 
 		List<ProviderIntakeAssessmentPrompt> providerIntakeAssessmentPrompts = getDatabase().queryForList("SELECT p.provider_id, c.show_intake_assessment_prompt " +
 				"FROM provider p, clinic c, provider_clinic pc " +
@@ -660,9 +685,11 @@ public class ProviderService {
 			providerFind.setClinic(provider.getClinic());
 			providerFind.setEntity(provider.getEntity());
 			providerFind.setImageUrl(provider.getImageUrl());
+			providerFind.setBioUrl(provider.getBioUrl());
 			providerFind.setIntakeAssessmentRequired(intakeAssessmentRequired);
 			providerFind.setIntakeAssessmentIneligible(intakeAssessmentIneligible);
 			providerFind.setSchedulingSystemId(provider.getSchedulingSystemId());
+			providerFind.setSpecialties(specialtiesByProviderId.getOrDefault(provider.getProviderId(), Collections.emptyList()));
 
 			// If assessment is required, include a flag that says whether the user is prompted before taking it
 			if (intakeAssessmentRequired)
@@ -688,7 +715,7 @@ public class ProviderService {
 					.map(providerSupportRole -> providerSupportRole.getSupportRoleId())
 					.collect(Collectors.toSet());
 
-			if(currentProviderSupportRoleIds.size() == 1 && currentProviderSupportRoleIds.contains(SupportRoleId.COACH))
+			if (currentProviderSupportRoleIds.size() == 1 && currentProviderSupportRoleIds.contains(SupportRoleId.COACH))
 				providerFind.setTitle(supportRolesDescription);
 
 			providerFind.setSupportRolesDescription(supportRolesDescription);
@@ -872,6 +899,76 @@ public class ProviderService {
 		return getDatabase().queryForList("SELECT DISTINCT pf.* FROM payment_funding pf, provider_payment_type ppt, payment_type pt " +
 				"WHERE ppt.provider_id=? AND ppt.payment_type_id=pt.payment_type_id AND pt.payment_funding_id=pf.payment_funding_id " +
 				"ORDER BY pf.description", PaymentFunding.class, providerId);
+	}
+
+	@Nonnull
+	public List<Specialty> findSpecialtiesByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("SELECT * FROM specialty WHERE institution_id=? ORDER BY display_order",
+				Specialty.class, institutionId);
+	}
+
+	@Nonnull
+	public List<Specialty> findSpecialtiesByProviderId(@Nullable UUID providerId) {
+		if (providerId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("SELECT s.* FROM specialty s, provider_specialty sp " +
+						"WHERE sp.provider_id=? AND sp.specialty_id=s.specialty_id ORDER BY s.display_order",
+				Specialty.class, providerId);
+	}
+
+	@Nonnull
+	public Map<UUID, List<Specialty>> specialtiesByProviderIdForProviderIds(@Nullable Set<UUID> providerIds) {
+		if (providerIds == null || providerIds.size() == 0)
+			return Collections.emptyMap();
+
+		// Use subquery expression for better performance than in "in" list.
+		// This will not be efficient for set sizes in the thousands, but in practice that is a nonissue for us.
+		// See https://dba.stackexchange.com/a/91539
+
+		// e.g. "('b795f6b5-3709-48aa-a294-91ed049ccce0'), ('32433795-ad52-4605-8c90-39d30d3dab23'), ..."
+		String subqueryExpressionValues = providerIds.stream()
+				.map(providerId -> format("('%s'::uuid)", providerId))
+				.collect(Collectors.joining(", "));
+
+		List<SpecialtyWithProviderId> specialtiesWithProviderId = getDatabase().queryForList(
+				format("SELECT s.*, ps.provider_id FROM specialty s, provider_specialty ps " +
+						"WHERE s.specialty_id=ps.specialty_id AND ps.provider_id IN (VALUES %s)", subqueryExpressionValues),
+				SpecialtyWithProviderId.class);
+
+		// Transform flat resultset into a map
+		Map<UUID, List<Specialty>> specialtiesByProviderId = new HashMap<>(providerIds.size());
+
+		for (SpecialtyWithProviderId specialtyWithProviderId : specialtiesWithProviderId) {
+			List<Specialty> specialties = specialtiesByProviderId.get(specialtyWithProviderId.getProviderId());
+
+			if (specialties == null) {
+				specialties = new ArrayList<Specialty>();
+				specialtiesByProviderId.put(specialtyWithProviderId.getProviderId(), specialties);
+			}
+
+			specialties.add(specialtyWithProviderId);
+		}
+
+		return specialtiesByProviderId;
+	}
+
+	@NotThreadSafe
+	protected static class SpecialtyWithProviderId extends Specialty {
+		@Nullable
+		private UUID providerId;
+
+		@Nullable
+		public UUID getProviderId() {
+			return providerId;
+		}
+
+		public void setProviderId(@Nullable UUID providerId) {
+			this.providerId = providerId;
+		}
 	}
 
 	@Nonnull

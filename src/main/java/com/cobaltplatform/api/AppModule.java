@@ -97,6 +97,7 @@ import com.cobaltplatform.api.model.api.response.QuestionApiResponse.QuestionApi
 import com.cobaltplatform.api.model.api.response.ReportingChartApiResponse.ReportingChartApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ReportingChartApiResponse.ReportingChartElementApiResponse.ReportingChartElementApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ReportingChartApiResponse.ReportingChartMetricApiResponse.ReportingChartMetricApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.SpecialtyApiResponse.SpecialtyApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
 import com.cobaltplatform.api.model.qualifier.AuditLogged;
@@ -221,6 +222,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(InteractionInstanceApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(InteractionOptionApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(InteractionOptionActionApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(SpecialtyApiResponseFactory.class)));
 	}
 
 	@Provides
