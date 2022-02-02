@@ -46,7 +46,6 @@ You can specify an alternate port and environment via environment variables, lik
 
 ```
 cobalt-api$ COBALT_API_ENV=local COBALT_API_PORT=4000 ./start-backend
-
 ```
 
 ## Unit and Integration Tests
@@ -54,13 +53,13 @@ cobalt-api$ COBALT_API_ENV=local COBALT_API_PORT=4000 ./start-backend
 Run unit tests:
 
 ```
-mvn test -Dgroups="com.cobaltplatform.api.UnitTest"
+cobalt-api$ mvn test -Dgroups="com.cobaltplatform.api.UnitTest"
 ```
 
 Run integration tests (currently requires Localstack/Postgres/Redis to be running):
 
 ```
-mvn test -Dgroups="com.cobaltplatform.api.IntegrationTest"
+cobalt-api$ mvn test -Dgroups="com.cobaltplatform.api.IntegrationTest"
 ```
 
 ## Development
