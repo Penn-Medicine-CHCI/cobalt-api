@@ -19,14 +19,9 @@
 
 package com.cobaltplatform.api.service;
 
-import com.cobaltplatform.api.integration.acuity.AcuitySchedulingClient;
-import com.cobaltplatform.api.integration.ic.IcClient;
-import com.cobaltplatform.api.integration.ic.IcException;
-import com.cobaltplatform.api.integration.ic.model.IcAppointmentCanceledRequest;
-import com.cobaltplatform.api.integration.ic.model.IcAppointmentCreatedRequest;
-import com.lokalized.Strings;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.integration.acuity.AcuitySchedulingCache;
+import com.cobaltplatform.api.integration.acuity.AcuitySchedulingClient;
 import com.cobaltplatform.api.integration.acuity.AcuitySchedulingException;
 import com.cobaltplatform.api.integration.acuity.AcuitySchedulingNotAvailableException;
 import com.cobaltplatform.api.integration.acuity.AcuitySyncManager;
@@ -40,14 +35,18 @@ import com.cobaltplatform.api.integration.bluejeans.BluejeansClient;
 import com.cobaltplatform.api.integration.bluejeans.MeetingResponse;
 import com.cobaltplatform.api.integration.epic.EpicClient;
 import com.cobaltplatform.api.integration.epic.EpicSyncManager;
-import com.cobaltplatform.api.integration.gcal.GoogleCalendarUrlGenerator;
-import com.cobaltplatform.api.integration.ical.ICalInviteGenerator;
 import com.cobaltplatform.api.integration.epic.request.GetPatientAppointmentsRequest;
 import com.cobaltplatform.api.integration.epic.request.GetProviderScheduleRequest;
 import com.cobaltplatform.api.integration.epic.request.ScheduleAppointmentWithInsuranceRequest;
 import com.cobaltplatform.api.integration.epic.response.GetPatientAppointmentsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse;
 import com.cobaltplatform.api.integration.epic.response.ScheduleAppointmentWithInsuranceResponse;
+import com.cobaltplatform.api.integration.gcal.GoogleCalendarUrlGenerator;
+import com.cobaltplatform.api.integration.ic.IcClient;
+import com.cobaltplatform.api.integration.ic.IcException;
+import com.cobaltplatform.api.integration.ic.model.IcAppointmentCanceledRequest;
+import com.cobaltplatform.api.integration.ic.model.IcAppointmentCreatedRequest;
+import com.cobaltplatform.api.integration.ical.ICalInviteGenerator;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
@@ -55,6 +54,7 @@ import com.cobaltplatform.api.model.api.request.CancelAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.ChangeAppointmentAttendanceStatusRequest;
 import com.cobaltplatform.api.model.api.request.CreateAcuityAppointmentTypeRequest;
 import com.cobaltplatform.api.model.api.request.CreateAppointmentRequest;
+import com.cobaltplatform.api.model.api.request.CreateAppointmentTypeRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountEmailAddressRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountPhoneNumberRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAcuityAppointmentTypeRequest;
@@ -87,6 +87,7 @@ import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -429,7 +430,7 @@ public class AppointmentService {
 
 				LocalDateTime now = LocalDateTime.now(timeZone);
 
-				if(meetingStartTime.isBefore(now)) {
+				if (meetingStartTime.isBefore(now)) {
 					getLogger().warn("Meeting start time {} for EPIC appointment with CSN {} is after 'now' ({} in {} time zone), cannot create new appointment.", meetingStartTime, csn, now, timeZone.getId());
 					continue;
 				}
@@ -1205,6 +1206,63 @@ public class AppointmentService {
 		});
 
 		return appointmentId;
+	}
+
+	@Nonnull
+	public UUID createAppointmentType(@Nonnull CreateAppointmentTypeRequest request) {
+		requireNonNull(request);
+
+		UUID providerId = request.getProviderId();
+		SchedulingSystemId schedulingSystemId = request.getSchedulingSystemId();
+		VisitTypeId visitTypeId = request.getVisitTypeId();
+		String name = trimToNull(request.getName());
+		Long durationInMinutes = request.getDurationInMinutes();
+		UUID appointmentTypeId = UUID.randomUUID();
+		Provider provider = null;
+
+		ValidationException validationException = new ValidationException();
+
+		if (providerId == null) {
+			validationException.add(new FieldError("providerId", getStrings().get("Provider ID is required.")));
+		} else {
+			provider = getProviderService().findProviderById(providerId).orElse(null);
+
+			if (provider == null)
+				validationException.add(new FieldError("providerId", getStrings().get("Provider ID is invalid.")));
+		}
+
+		if (name == null)
+			validationException.add(new FieldError("name", getStrings().get("Name is required.")));
+
+		if (schedulingSystemId == null)
+			validationException.add(new FieldError("schedulingSystemId", getStrings().get("Scheduling System ID is required.")));
+		else if (schedulingSystemId != SchedulingSystemId.COBALT)
+			validationException.add(new FieldError("schedulingSystemId", getStrings().get("Sorry, the only supported Scheduling System ID is {{supportedSchedulingSystemId}}.", new HashMap<String, Object>() {{
+				put("supportedSchedulingSystemId", SchedulingSystemId.COBALT.name());
+			}})));
+
+		if (visitTypeId == null)
+			validationException.add(new FieldError("visitTypeId", getStrings().get("Visit Type ID is required.")));
+
+		if (durationInMinutes == null)
+			validationException.add(new FieldError("durationInMinutes", getStrings().get("Duration is required.")));
+		else if (durationInMinutes < 1)
+			validationException.add(new FieldError("durationInMinutes", getStrings().get("Duration is too small.")));
+		else if (durationInMinutes > 60 * 4 /* arbitrary upper bound to prevent accidental errors */)
+			validationException.add(new FieldError("durationInMinutes", getStrings().get("Duration is too large.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("INSERT INTO appointment_type (appointment_type_id, visit_type_id, " +
+						"name, duration_in_minutes, scheduling_system_id) VALUES (?,?,?,?,?)", appointmentTypeId, visitTypeId, name,
+				durationInMinutes, schedulingSystemId);
+
+		getDatabase().execute("INSERT INTO provider_appointment_type (provider_id, appointment_type_id, display_order) " +
+						"SELECT ?,?, MAX(display_order) + 1 FROM provider_appointment_type WHERE provider_id=?",
+				providerId, appointmentTypeId, providerId);
+
+		return appointmentTypeId;
 	}
 
 	protected void sendPatientAndProviderCobaltAppointmentCreatedEmails(@Nonnull UUID appointmentId) {
