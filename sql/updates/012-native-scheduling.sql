@@ -69,4 +69,48 @@ CREATE TABLE reporting_provider_availability (
 	created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
+-- 3692510 is "Cobalt Blue" 0x3857DE in decimal
+ALTER TABLE appointment_type ADD COLUMN hex_color INTEGER NOT NULL DEFAULT 3692510;
+
+-- Keep track of all intake assessments tied to an appointment type.
+-- We want to keep a history for historical reasons, so if an appointment type has a new assessment tied to it,
+-- we can trace back previous answers instead of having the old assessment become "free floating".
+--
+-- Only one assessment can be active per appointment type, see trigger below which enforces this.
+CREATE TABLE appointment_type_assessment (
+    assessment_id UUID NOT NULL REFERENCES assessment,
+    appointment_type_id UUID NOT NULL REFERENCES appointment_type,
+    active BOOLEAN NOT NULL,
+    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    PRIMARY KEY(assessment_id, appointment_type_id)
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON appointment_type_assessment FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+CREATE OR REPLACE FUNCTION appointment_type_assessment_active_fn()
+RETURNS trigger
+AS $function$
+BEGIN
+	IF (NEW.active = TRUE) THEN
+  	UPDATE appointment_type_assessment SET active=FALSE WHERE appointment_type_id=NEW.appointment_type_id;
+	END IF;
+
+	RETURN NEW;
+END;
+$function$
+LANGUAGE plpgsql;
+
+CREATE TRIGGER appointment_type_assessment_active_tg
+BEFORE INSERT OR UPDATE OF active ON appointment_type_assessment
+FOR EACH ROW WHEN (NEW.active = true)
+EXECUTE PROCEDURE appointment_type_assessment_active_fn();
+
+-- Include active assessment ID on appointment type, filter out deleted appointment types
+CREATE VIEW v_appointment_type AS
+SELECT app_type.*, ata.assessment_id
+FROM appointment_type app_type
+LEFT OUTER JOIN appointment_type_assessment ata ON app_type.appointment_type_id = ata.appointment_type_id AND ata.active=TRUE
+WHERE app_type.deleted = FALSE;
+
 COMMIT;

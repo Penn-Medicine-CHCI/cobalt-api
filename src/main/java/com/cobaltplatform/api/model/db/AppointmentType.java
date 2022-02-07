@@ -51,11 +51,17 @@ public class AppointmentType {
 	@Nullable
 	private Long durationInMinutes;
 	@Nullable
+	private Integer hexColor;
+	@Nullable
 	private Boolean deleted;
 	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
+
+	// Joined in by v_appointment_type
+	@Nullable
+	private UUID assessmentId;
 
 	@Nullable
 	public UUID getAppointmentTypeId() {
@@ -163,5 +169,23 @@ public class AppointmentType {
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
+	}
+
+	@Nullable
+	public Integer getHexColor() {
+		return hexColor;
+	}
+
+	public void setHexColor(@Nullable Integer hexColor) {
+		this.hexColor = hexColor;
+	}
+
+	@Nullable
+	public UUID getAssessmentId() {
+		return assessmentId;
+	}
+
+	public void setAssessmentId(@Nullable UUID assessmentId) {
+		this.assessmentId = assessmentId;
 	}
 }

@@ -217,9 +217,10 @@ public class ProviderResource {
 	public ApiResponse findProviders(@Nonnull @RequestBody String requestBody) {
 		Account account = getCurrentContext().getAccount().get();
 		Locale locale = getCurrentContext().getLocale();
+		InstitutionId institutionId = account.getInstitutionId();
 
 		ProviderFindRequest request = getRequestBodyParser().parse(requestBody, ProviderFindRequest.class);
-		request.setInstitutionId(account.getInstitutionId());
+		request.setInstitutionId(institutionId);
 
 		Set<UUID> providerIds = new HashSet<>();
 		Set<ProviderFindSupplement> supplements = request.getSupplements() == null ? Collections.emptySet() : request.getSupplements();
@@ -322,7 +323,7 @@ public class ProviderResource {
 			if (providerFind.getAppointmentTypeIds() != null)
 				appointmentTypeIds.addAll(providerFind.getAppointmentTypeIds());
 
-		List<Map<String, Object>> appointmentTypesJson = getAppointmentService().findAppointmentTypes().stream()
+		List<Map<String, Object>> appointmentTypesJson = getAppointmentService().findAppointmentTypesByInstitutionId(institutionId).stream()
 				.filter((appointmentType -> appointmentTypeIds.contains(appointmentType.getAppointmentTypeId())))
 				.map((appointmentType -> {
 					Map<String, Object> appointmentTypeJson = new LinkedHashMap<>();
@@ -347,7 +348,7 @@ public class ProviderResource {
 			if (providerFind.getEpicDepartmentIds() != null)
 				epicDepartmentIds.addAll(providerFind.getEpicDepartmentIds());
 
-		List<Map<String, Object>> epicDepartmentsJson = getAppointmentService().findEpicDepartmentsByInstitutionId(account.getInstitutionId()).stream()
+		List<Map<String, Object>> epicDepartmentsJson = getAppointmentService().findEpicDepartmentsByInstitutionId(institutionId).stream()
 				.filter((epicDepartment -> epicDepartmentIds.contains(epicDepartment.getEpicDepartmentId())))
 				.map((epicDepartment -> {
 					Map<String, Object> epicDepartmentJson = new LinkedHashMap<>();
@@ -373,7 +374,7 @@ public class ProviderResource {
 		List<Clinic> clinics = new ArrayList<>();
 
 		if (request.getClinicIds() != null && request.getClinicIds().size() > 0)
-			clinics.addAll(getClinicService().findClinicsByInstitutionId(account.getInstitutionId()).stream()
+			clinics.addAll(getClinicService().findClinicsByInstitutionId(institutionId).stream()
 					.filter(clinic -> request.getClinicIds().contains(clinic.getClinicId()))
 					.collect(Collectors.toList()));
 

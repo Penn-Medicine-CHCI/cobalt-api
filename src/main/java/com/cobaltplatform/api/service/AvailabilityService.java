@@ -215,7 +215,7 @@ public class AvailabilityService {
 		if (logicalAvailabilityId == null)
 			return Collections.emptyList();
 
-		return getDatabase().queryForList("SELECT apt.* FROM appointment_type apt, logical_availability_appointment_type laat "
+		return getDatabase().queryForList("SELECT apt.* FROM v_appointment_type apt, logical_availability_appointment_type laat "
 				+ "WHERE laat.logical_availability_id=? AND apt.appointment_type_id=laat.appointment_type_id", AppointmentType.class, logicalAvailabilityId);
 	}
 

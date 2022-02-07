@@ -293,7 +293,7 @@ public class ProviderService {
 				query.append(", provider_clinic pc");
 
 			if (visitTypeIds.size() > 0)
-				query.append(", provider_appointment_type pat, appointment_type at");
+				query.append(", provider_appointment_type pat, v_appointment_type at");
 
 			query.append(" WHERE institution_id=? AND p.active=TRUE");
 			parameters.add(institutionId);
@@ -453,9 +453,11 @@ public class ProviderService {
 		Map<UUID, Set<UUID>> epicDepartmentIdsByProviderId = new HashMap<>();
 
 		StringBuilder providerAppointmentTypesQuery = new StringBuilder("SELECT pat.provider_id, pat.appointment_type_id " +
-				"FROM provider_appointment_type pat, appointment_type at WHERE pat.appointment_type_id=at.appointment_type_id ");
+				"FROM provider_appointment_type pat, v_appointment_type at, provider p " +
+				"WHERE pat.appointment_type_id=at.appointment_type_id AND pat.provider_id=p.provider_id AND p.institution_id=? ");
 
 		List<Object> providerAppointmentTypesParameters = new ArrayList<>();
+		providerAppointmentTypesParameters.add(institutionId);
 
 		if (visitTypeIds.size() > 0) {
 			providerAppointmentTypesQuery.append(" AND at.visit_type_id IN ");
@@ -496,7 +498,7 @@ public class ProviderService {
 			List<AvailabilityDate> dates = new ArrayList<>();
 
 			// First, fill in "available" slots based on what we know from Acuity
-			StringBuilder providerAvailabilityQuery = new StringBuilder("SELECT pa.* FROM provider_availability pa, appointment_type at WHERE pa.provider_id=? AND pa.appointment_type_id=at.appointment_type_id ");
+			StringBuilder providerAvailabilityQuery = new StringBuilder("SELECT pa.* FROM provider_availability pa, v_appointment_type at WHERE pa.provider_id=? AND pa.appointment_type_id=at.appointment_type_id ");
 			List<Object> providerAvailabilityParameters = new ArrayList<>();
 			providerAvailabilityParameters.add(provider.getProviderId());
 

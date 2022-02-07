@@ -26,8 +26,8 @@ import com.cobaltplatform.api.messaging.call.CallMessageManager;
 import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.messaging.sms.SmsMessageManager;
 import com.cobaltplatform.api.service.GroupSessionService;
-import com.cobaltplatform.api.service.Way2HealthService;
 import com.cobaltplatform.api.service.MessageService;
+import com.cobaltplatform.api.service.Way2HealthService;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
@@ -79,7 +79,7 @@ public class App implements AutoCloseable {
 	public App(@Nonnull Configuration configuration, @Nonnull Iterable<Module> overrideModules) {
 		requireNonNull(configuration);
 		requireNonNull(overrideModules);
-
+		
 		// Override system defaults for locale and timezone
 		TimeZone.setDefault(TimeZone.getTimeZone(configuration.getDefaultTimeZone()));
 		Locale.setDefault(configuration.getDefaultLocale());

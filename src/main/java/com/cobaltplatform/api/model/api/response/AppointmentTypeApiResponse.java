@@ -19,13 +19,13 @@
 
 package com.cobaltplatform.api.model.api.response;
 
-import com.google.inject.assistedinject.Assisted;
-import com.google.inject.assistedinject.AssistedInject;
-import com.lokalized.Strings;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.cobaltplatform.api.util.Formatter;
+import com.google.inject.assistedinject.Assisted;
+import com.google.inject.assistedinject.AssistedInject;
+import com.lokalized.Strings;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -33,6 +33,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.util.HashMap;
 import java.util.UUID;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -60,6 +61,12 @@ public class AppointmentTypeApiResponse {
 	private final Long durationInMinutes;
 	@Nonnull
 	private final String durationInMinutesDescription;
+	@Nonnull
+	private final Integer hexColor;
+	@Nonnull
+	private final String hexColorDescription;
+	@Nullable
+	private final UUID assessmentId;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -87,6 +94,9 @@ public class AppointmentTypeApiResponse {
 		this.durationInMinutesDescription = strings.get("{{duration}} minutes", new HashMap<String, Object>() {{
 			put("duration", appointmentType.getDurationInMinutes());
 		}});
+		this.hexColor = appointmentType.getHexColor();
+		this.hexColorDescription = format("#%s", Integer.toHexString(appointmentType.getHexColor()));
+		this.assessmentId = appointmentType.getAssessmentId();
 	}
 
 	@Nonnull
@@ -137,5 +147,20 @@ public class AppointmentTypeApiResponse {
 	@Nonnull
 	public String getDurationInMinutesDescription() {
 		return durationInMinutesDescription;
+	}
+
+	@Nonnull
+	public Integer getHexColor() {
+		return hexColor;
+	}
+
+	@Nonnull
+	public String getHexColorDescription() {
+		return hexColorDescription;
+	}
+
+	@Nullable
+	public UUID getAssessmentId() {
+		return assessmentId;
 	}
 }

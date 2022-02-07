@@ -19,12 +19,16 @@
 
 package com.cobaltplatform.api.model.api.request;
 
+import com.cobaltplatform.api.model.db.FontSize;
+import com.cobaltplatform.api.model.db.FontSize.FontSizeId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
+import com.cobaltplatform.api.model.db.assessment.QuestionType.QuestionTypeId;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -42,6 +46,49 @@ public class CreateAppointmentTypeRequest {
 	private String name;
 	@Nonnull
 	private Long durationInMinutes;
+	@Nonnull
+	private Integer hexColor;
+	@Nonnull
+	private List<CreatePatientIntakeQuestionRequest> patientIntakeQuestions;
+	@Nonnull
+	private List<CreateScreeningQuestionRequest> screeningIntakeQuestions;
+
+	@NotThreadSafe
+	public static class CreatePatientIntakeQuestionRequest {
+		@Nullable
+		private String question;
+		@Nullable
+		private QuestionTypeId questionTypeId;
+		@Nullable
+		private FontSizeId fontSizeId;
+
+		@Nullable
+		public String getQuestion() {
+			return question;
+		}
+
+		public void setQuestion(@Nullable String question) {
+			this.question = question;
+		}
+
+		@Nullable
+		public QuestionTypeId getQuestionTypeId() {
+			return questionTypeId;
+		}
+
+		public void setQuestionTypeId(@Nullable QuestionTypeId questionTypeId) {
+			this.questionTypeId = questionTypeId;
+		}
+
+		@Nullable
+		public FontSizeId getFontSizeId() {
+			return fontSizeId;
+		}
+
+		public void setFontSizeId(@Nullable FontSizeId fontSizeId) {
+			this.fontSizeId = fontSizeId;
+		}
+	}
 
 	@Nullable
 	public UUID getProviderId() {
@@ -86,5 +133,32 @@ public class CreateAppointmentTypeRequest {
 
 	public void setDurationInMinutes(@Nonnull Long durationInMinutes) {
 		this.durationInMinutes = durationInMinutes;
+	}
+
+	@Nonnull
+	public Integer getHexColor() {
+		return hexColor;
+	}
+
+	public void setHexColor(@Nonnull Integer hexColor) {
+		this.hexColor = hexColor;
+	}
+
+	@Nonnull
+	public List<CreatePatientIntakeQuestionRequest> getPatientIntakeQuestions() {
+		return patientIntakeQuestions;
+	}
+
+	public void setPatientIntakeQuestions(@Nonnull List<CreatePatientIntakeQuestionRequest> patientIntakeQuestions) {
+		this.patientIntakeQuestions = patientIntakeQuestions;
+	}
+
+	@Nonnull
+	public List<CreateScreeningQuestionRequest> getScreeningIntakeQuestions() {
+		return screeningIntakeQuestions;
+	}
+
+	public void setScreeningIntakeQuestions(@Nonnull List<CreateScreeningQuestionRequest> screeningIntakeQuestions) {
+		this.screeningIntakeQuestions = screeningIntakeQuestions;
 	}
 }
