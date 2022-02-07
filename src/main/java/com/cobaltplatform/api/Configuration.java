@@ -171,11 +171,19 @@ public class Configuration {
 	@Nonnull
 	private final Boolean shouldUseRealAcuity;
 	@Nonnull
+	private final Boolean shouldPollAcuity;
+	@Nonnull
 	private final Boolean shouldUseRealEpic;
+	@Nonnull
+	private final Boolean shouldPollEpic;
 	@Nonnull
 	private final Boolean shouldUseRealBluejeans;
 	@Nonnull
+	private final Boolean shouldPollBluejeans;
+	@Nonnull
 	private final Boolean shouldUseRealWay2Health;
+	@Nonnull
+	private final Boolean shouldPollWay2Health;
 	@Nonnull
 	private final Boolean shouldUseRealIc;
 	@Nonnull
@@ -362,9 +370,13 @@ public class Configuration {
 		this.shouldEnableDebuggingHeaders = valueFor("com.cobaltplatform.api.shouldEnableDebuggingHeaders", Boolean.class);
 		this.shouldUseRealAuthentication = valueFor("com.cobaltplatform.api.shouldUseRealAuthentication", Boolean.class);
 		this.shouldUseRealAcuity = valueFor("com.cobaltplatform.api.shouldUseRealAcuity", Boolean.class);
+		this.shouldPollAcuity = valueFor("com.cobaltplatform.api.shouldPollAcuity", Boolean.class);
 		this.shouldUseRealEpic = valueFor("com.cobaltplatform.api.shouldUseRealEpic", Boolean.class);
+		this.shouldPollEpic = valueFor("com.cobaltplatform.api.shouldPollEpic", Boolean.class);
 		this.shouldUseRealBluejeans = valueFor("com.cobaltplatform.api.shouldUseRealBluejeans", Boolean.class);
+		this.shouldPollBluejeans = valueFor("com.cobaltplatform.api.shouldPollBluejeans", Boolean.class);
 		this.shouldUseRealWay2Health = valueFor("com.cobaltplatform.api.shouldUseRealWay2Health", Boolean.class);
+		this.shouldPollWay2Health = valueFor("com.cobaltplatform.api.shouldPollWay2Health", Boolean.class);
 		this.shouldUseRealIc = valueFor("com.cobaltplatform.api.shouldUseRealIc", Boolean.class);
 		this.shouldEnableCacheDebugging = valueFor("com.cobaltplatform.api.shouldEnableCacheDebugging", Boolean.class);
 		this.corsEnabledDomains = valueFor("com.cobaltplatform.api.corsEnabledDomains", String.class);
@@ -1608,6 +1620,26 @@ public class Configuration {
 	@Nonnull
 	public KeyPair getKeyPair() {
 		return keyPair;
+	}
+
+	@Nonnull
+	public Boolean getShouldPollAcuity() {
+		return shouldPollAcuity;
+	}
+
+	@Nonnull
+	public Boolean getShouldPollEpic() {
+		return shouldPollEpic;
+	}
+
+	@Nonnull
+	public Boolean getShouldPollBluejeans() {
+		return shouldPollBluejeans;
+	}
+
+	@Nonnull
+	public Boolean getShouldPollWay2Health() {
+		return shouldPollWay2Health;
 	}
 
 	@Nonnull
