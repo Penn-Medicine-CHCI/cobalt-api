@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('012-native-scheduling', ARRAY['000-base-creates'], NULL);
+SELECT _v.register_patch('013-native-scheduling', ARRAY['000-base-creates'], NULL);
 
 ALTER TABLE account ADD COLUMN scheduling_tutorial_viewed BOOLEAN NOT NULL DEFAULT FALSE;
 

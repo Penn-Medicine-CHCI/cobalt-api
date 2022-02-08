@@ -59,6 +59,8 @@ public class CurrentContext {
 	private final UUID sessionTrackingId;
 	@Nullable
 	private final AccountSource accountSource;
+	@Nullable
+	private final String fingerprintId;
 
 	public CurrentContext(@Nonnull CurrentContext.Builder builder) {
 		requireNonNull(builder);
@@ -74,6 +76,7 @@ public class CurrentContext {
 		this.sessionTrackingId = builder.sessionTrackingId;
 		this.signedByIc = builder.signedByIc == null ? false : builder.signedByIc;
 		this.accountSource = builder.accountSource;
+		this.fingerprintId = builder.fingerprintId;
 	}
 
 	@Nonnull
@@ -121,6 +124,11 @@ public class CurrentContext {
 		return accountSource;
 	}
 
+	@Nullable
+	public Optional<String> getFingerprintId() {
+		return Optional.ofNullable(fingerprintId);
+	}
+
 	@NotThreadSafe
 	public static class Builder {
 		@Nonnull
@@ -140,6 +148,8 @@ public class CurrentContext {
 		private Boolean signedByIc;
 		@Nullable
 		private AccountSource accountSource;
+		@Nullable
+		private String fingerprintId;
 
 		public Builder(@Nonnull Locale locale, @Nonnull ZoneId timeZone) {
 			requireNonNull(locale);
@@ -188,6 +198,12 @@ public class CurrentContext {
 		@Nonnull
 		public Builder accountSource(@Nullable AccountSource accountSource) {
 			this.accountSource = accountSource;
+			return this;
+		}
+
+		@Nonnull
+		public Builder fingerprintId(@Nullable String fingerprintId) {
+			this.fingerprintId = fingerprintId;
 			return this;
 		}
 
