@@ -24,7 +24,6 @@ import com.cobaltplatform.api.model.client.RemoteClient;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.security.AccessTokenStatus;
-import net.fortuna.ical4j.filter.FilterExpression;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
