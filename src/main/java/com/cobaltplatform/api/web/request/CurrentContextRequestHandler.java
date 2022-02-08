@@ -30,6 +30,7 @@ import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.security.AccessTokenClaims;
 import com.cobaltplatform.api.model.security.AccessTokenStatus;
 import com.cobaltplatform.api.service.AccountService;
+import com.cobaltplatform.api.service.FingerprintService;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.WebUtility;
 import org.slf4j.Logger;
@@ -65,6 +66,8 @@ public class CurrentContextRequestHandler {
 	private static final String TIME_ZONE_REQUEST_PROPERTY_NAME;
 	@Nonnull
 	private static final String SESSION_TRACKING_ID_PROPERTY_NAME;
+	@Nonnull
+	private static final String FINGERPRINT_ID_PROPERTY_NAME;
 
 	@Nonnull
 	private static final String CURRENT_CONTEXT_LOGGING_KEY;
@@ -73,6 +76,8 @@ public class CurrentContextRequestHandler {
 	private final CurrentContextExecutor currentContextExecutor;
 	@Nonnull
 	private final AccountService accountService;
+	@Nonnull
+	private final FingerprintService fingerprintService;
 	@Nonnull
 	private final Authenticator authenticator;
 	@Nonnull
@@ -90,6 +95,7 @@ public class CurrentContextRequestHandler {
 		LOCALE_REQUEST_PROPERTY_NAME = "X-Locale";
 		TIME_ZONE_REQUEST_PROPERTY_NAME = "X-Time-Zone";
 		SESSION_TRACKING_ID_PROPERTY_NAME = "X-Session-Tracking-Id";
+		FINGERPRINT_ID_PROPERTY_NAME = "X-Cobalt-Fingerprint-Id";
 
 		CURRENT_CONTEXT_LOGGING_KEY = "CURRENT_CONTEXT";
 	}
@@ -97,12 +103,14 @@ public class CurrentContextRequestHandler {
 	@Inject
 	public CurrentContextRequestHandler(@Nonnull CurrentContextExecutor currentContextExecutor,
 																			@Nonnull AccountService accountService,
+																			@Nonnull FingerprintService fingerprintService,
 																			@Nonnull Authenticator authenticator,
 																			@Nonnull IcClient icClient,
 																			@Nonnull Configuration configuration,
 																			@Nonnull ErrorReporter errorReporter) {
 		requireNonNull(currentContextExecutor);
 		requireNonNull(accountService);
+		requireNonNull(fingerprintService);
 		requireNonNull(authenticator);
 		requireNonNull(icClient);
 		requireNonNull(configuration);
@@ -110,6 +118,7 @@ public class CurrentContextRequestHandler {
 
 		this.currentContextExecutor = currentContextExecutor;
 		this.accountService = accountService;
+		this.fingerprintService = fingerprintService;
 		this.authenticator = authenticator;
 		this.icClient = icClient;
 		this.configuration = configuration;
@@ -184,6 +193,13 @@ public class CurrentContextRequestHandler {
 			if (account != null)
 				accountSource = getAccountService().findAccountSourceByAccountId(account.getAccountId()).orElse(null);
 
+			// Try to get fingerprint id
+			String fingerprintIdValue = WebUtility.extractValueFromRequest(httpServletRequest, getFingerprintIdPropertyName()).orElse(null);
+
+			if (fingerprintIdValue != null && account != null) {
+				getFingerprintService().storeFingerprintForAccount(account.getAccountId(), fingerprintIdValue);
+			}
+
 			CurrentContext currentContext = new CurrentContext.Builder(locale, timeZone)
 					.accessToken(accessTokenValue)
 					.accessTokenStatus(accessTokenStatus)
@@ -192,6 +208,7 @@ public class CurrentContextRequestHandler {
 					.sessionTrackingId(sessionTrackingId)
 					.signedByIc(signedByIc)
 					.accountSource(accountSource)
+					.fingerprintId(fingerprintIdValue)
 					.build();
 
 			String currentContextDescription = null;
@@ -250,6 +267,11 @@ public class CurrentContextRequestHandler {
 	}
 
 	@Nonnull
+	public static String getFingerprintIdPropertyName() {
+		return FINGERPRINT_ID_PROPERTY_NAME;
+	}
+
+	@Nonnull
 	public static String getCurrentContextLoggingKey() {
 		return CURRENT_CONTEXT_LOGGING_KEY;
 	}
@@ -262,6 +284,11 @@ public class CurrentContextRequestHandler {
 	@Nonnull
 	protected AccountService getAccountService() {
 		return accountService;
+	}
+
+	@Nonnull
+	protected FingerprintService getFingerprintService() {
+		return fingerprintService;
 	}
 
 	@Nonnull
