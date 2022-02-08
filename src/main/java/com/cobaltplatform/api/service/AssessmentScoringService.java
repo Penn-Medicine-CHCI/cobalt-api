@@ -30,7 +30,7 @@ import com.cobaltplatform.api.model.db.CrisisContact;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.assessment.Answer;
 import com.cobaltplatform.api.model.db.assessment.Assessment;
-import com.cobaltplatform.api.model.db.assessment.Assessment.AssessmentType;
+import com.cobaltplatform.api.model.db.assessment.Assessment.AssessmentTypeId;
 import com.cobaltplatform.api.model.service.EvidenceScores;
 import com.cobaltplatform.api.util.Formatter;
 import com.lokalized.Strings;
@@ -117,10 +117,10 @@ public class AssessmentScoringService {
 
 	@Nonnull
 	public void finishEvidenceAssessment(@Nonnull Account account) {
-		sessionService().markCurrentSessionCompleteForAssessmentType(account, AssessmentType.PHQ4);
-		sessionService().markCurrentSessionCompleteForAssessmentType(account, AssessmentType.PHQ9);
-		sessionService().markCurrentSessionCompleteForAssessmentType(account, AssessmentType.GAD7);
-		sessionService().markCurrentSessionCompleteForAssessmentType(account, AssessmentType.PCPTSD);
+		sessionService().markCurrentSessionCompleteForAssessmentType(account, AssessmentTypeId.PHQ4);
+		sessionService().markCurrentSessionCompleteForAssessmentType(account, AssessmentTypeId.PHQ9);
+		sessionService().markCurrentSessionCompleteForAssessmentType(account, AssessmentTypeId.GAD7);
+		sessionService().markCurrentSessionCompleteForAssessmentType(account, AssessmentTypeId.PCPTSD);
 		EvidenceScores scores = getEvidenceAssessmentRecommendation(account)
 				.orElseThrow(() -> new IllegalStateException("Just marked session as complete but was not able to calculate final score"));
 
@@ -331,7 +331,7 @@ public class AssessmentScoringService {
 	@Nonnull
 	public Optional<EvidenceScores> getEvidenceAssessmentRecommendation(@Nonnull Account account) {
 
-		Optional<AccountSession> phq4Session = sessionService().getCompletedAssessmentSessionForAccount(account, AssessmentType.PHQ4);
+		Optional<AccountSession> phq4Session = sessionService().getCompletedAssessmentSessionForAccount(account, AssessmentTypeId.PHQ4);
 		if (phq4Session.isEmpty()) {
 			return Optional.empty();
 		} else {
@@ -343,7 +343,7 @@ public class AssessmentScoringService {
 				return Optional.of(new EvidenceScores(phq4Recommendation, null, null, null, false));
 			} else {
 
-				Optional<AccountSession> phq9Session = sessionService().getCompletedAssessmentSessionForAccount(account, AssessmentType.PHQ9);
+				Optional<AccountSession> phq9Session = sessionService().getCompletedAssessmentSessionForAccount(account, AssessmentTypeId.PHQ9);
 				if (phq9Session.isEmpty()) return Optional.empty();
 				List<Answer> phq9UserAnswers = sessionService().findAnswersForSession(phq9Session.get());
 				phq9UserAnswers.add(0, phq4UserAnswers.get(2));
@@ -363,7 +363,7 @@ public class AssessmentScoringService {
 					phq9Recommendation = new Recommendation(RecommendationLevel.PSYCHIATRIST, phq9AnswerValue, phq9Session.get().getAccountSessionId(), phq9AnswerString);
 				}
 
-				Optional<AccountSession> gad7Session = sessionService().getCompletedAssessmentSessionForAccount(account, AssessmentType.GAD7);
+				Optional<AccountSession> gad7Session = sessionService().getCompletedAssessmentSessionForAccount(account, AssessmentTypeId.GAD7);
 				if (gad7Session.isEmpty()) return Optional.empty();
 				List<Answer> gad7UserAnswers = sessionService().findAnswersForSession(gad7Session.get());
 				gad7UserAnswers.add(0, phq4UserAnswers.get(0));
@@ -382,7 +382,7 @@ public class AssessmentScoringService {
 				}
 
 
-				Optional<AccountSession> pcptsdSession = sessionService().getCompletedAssessmentSessionForAccount(account, AssessmentType.PCPTSD);
+				Optional<AccountSession> pcptsdSession = sessionService().getCompletedAssessmentSessionForAccount(account, AssessmentTypeId.PCPTSD);
 				if (pcptsdSession.isEmpty()) return Optional.empty();
 				List<Answer> pcptsdUserAnswers = sessionService().findAnswersForSession(pcptsdSession.get());
 				int pcptsdAnswerValue = pcptsdUserAnswers.stream().mapToInt(Answer::getAnswerValue).sum();

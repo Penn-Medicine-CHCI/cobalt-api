@@ -1359,7 +1359,7 @@ public class AppointmentService {
 		UUID assessmentId = UUID.randomUUID();
 
 		getDatabase().execute("INSERT INTO assessment (assessment_id, assessment_type_id, " +
-				"minimum_eligibility_score, answers_may_contain_pii) VALUES (?,?,?,?)", assessmentId, Assessment.AssessmentType.INTAKE, screeningQuestions.size(), false);
+				"minimum_eligibility_score, answers_may_contain_pii) VALUES (?,?,?,?)", assessmentId, Assessment.AssessmentTypeId.INTAKE, screeningQuestions.size(), false);
 
 		UUID mostRecentQuestionId = null;
 

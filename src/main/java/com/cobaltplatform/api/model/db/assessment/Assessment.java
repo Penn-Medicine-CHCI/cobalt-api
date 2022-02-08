@@ -28,7 +28,7 @@ import java.util.UUID;
  */
 public class Assessment {
 
-	public enum AssessmentType{
+	public enum AssessmentTypeId {
 		INTRO,
 		PHQ4,
 		GAD7,
@@ -40,7 +40,7 @@ public class Assessment {
 	@Nonnull
 	private UUID assessmentId;
 	@Nonnull
-	private AssessmentType assessmentTypeId;
+	private AssessmentTypeId assessmentTypeId;
 	@Nonnull
 	private String baseQuestion;
 	@Nullable
@@ -60,11 +60,11 @@ public class Assessment {
 	}
 
 	@Nonnull
-	public AssessmentType getAssessmentTypeId() {
+	public AssessmentTypeId getAssessmentTypeId() {
 		return assessmentTypeId;
 	}
 
-	public void setAssessmentTypeId(@Nonnull AssessmentType assessmentTypeId) {
+	public void setAssessmentTypeId(@Nonnull AssessmentTypeId assessmentTypeId) {
 		this.assessmentTypeId = assessmentTypeId;
 	}
 

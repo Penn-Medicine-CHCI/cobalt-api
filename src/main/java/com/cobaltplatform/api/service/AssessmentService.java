@@ -32,6 +32,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.assessment.AccountSessionAnswer;
 import com.cobaltplatform.api.model.db.assessment.Answer;
 import com.cobaltplatform.api.model.db.assessment.Assessment;
+import com.cobaltplatform.api.model.db.assessment.Assessment.AssessmentTypeId;
 import com.cobaltplatform.api.model.db.assessment.Question;
 import com.cobaltplatform.api.model.db.assessment.QuestionType;
 import com.cobaltplatform.api.model.db.assessment.QuestionType.QuestionTypeId;
@@ -55,7 +56,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-import static com.cobaltplatform.api.model.db.assessment.Assessment.AssessmentType;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidLocalDate;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidStudentId;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidUUID;
@@ -107,13 +107,13 @@ public class AssessmentService {
 	}
 
 	@Nonnull
-	public Optional<Assessment> findAssessmentByTypeForUser(@Nonnull AssessmentType assessmentType,
+	public Optional<Assessment> findAssessmentByTypeForUser(@Nonnull AssessmentTypeId assessmentTypeId,
 																													@Nonnull Account account) {
-		return findAssessmentByTypeForInstitution(assessmentType, account.getInstitutionId());
+		return findAssessmentByTypeForInstitution(assessmentTypeId, account.getInstitutionId());
 	}
 
 	@Nonnull
-	public Optional<Assessment> findAssessmentByTypeForInstitution(@Nonnull AssessmentType assessmentType,
+	public Optional<Assessment> findAssessmentByTypeForInstitution(@Nonnull AssessmentTypeId assessmentTypeId,
 																																 @Nonnull InstitutionId institutionId) {
 		return database.queryForObject(
 				"SELECT a.* FROM assessment as a, institution_assessment as ia WHERE " +
@@ -122,7 +122,7 @@ public class AssessmentService {
 						"ia.assessment_id = a.assessment_id",
 				Assessment.class,
 				institutionId,
-				assessmentType
+				assessmentTypeId
 		);
 	}
 
@@ -424,13 +424,13 @@ public class AssessmentService {
 
 		if (nextQuestion.isEmpty()) {
 			boolean endedSession = false;
-			if (assessment.getAssessmentTypeId() == AssessmentType.INTRO ||
-					assessment.getAssessmentTypeId() == AssessmentType.INTAKE) {
+			if (assessment.getAssessmentTypeId() == AssessmentTypeId.INTRO ||
+					assessment.getAssessmentTypeId() == AssessmentTypeId.INTAKE) {
 				sessionService.markSessionAsComplete(accountSession);
 				endedSession = true;
 			}
 
-			if (assessment.getAssessmentTypeId() == AssessmentType.PHQ4) {
+			if (assessment.getAssessmentTypeId() == AssessmentTypeId.PHQ4) {
 				List<Answer> previousAnswers = getSessionService().findAnswersForSession(accountSession);
 				int score = previousAnswers.stream().mapToInt(Answer::getAnswerValue).sum();
 				if (score <= 2) {
@@ -447,7 +447,7 @@ public class AssessmentService {
 					accountSession = sessionService.createSessionForAssessment(accountSession.getAccountId(), nextAssessment.get());
 					nextQuestion = findFirstQuestionForAssessment(nextAssessment.get().getAssessmentId());
 				} else {
-					if (assessment.getAssessmentTypeId().equals(AssessmentType.PCPTSD)) {
+					if (assessment.getAssessmentTypeId().equals(AssessmentTypeId.PCPTSD)) {
 						assessmentScoringService.finishEvidenceAssessment(account);
 					}
 				}
@@ -466,7 +466,7 @@ public class AssessmentService {
 
 	@Nonnull
 	public AssessmentQuestionAnswers getNextAssessmentQuestion(@Nonnull Account account,
-																														 @Nonnull AssessmentType assessmentType,
+																														 @Nonnull AssessmentTypeId assessmentTypeId,
 																														 @Nullable String questionIdCommand,
 																														 @Nullable String sessionIdCommand,
 																														 @Nullable UUID providerId,
@@ -475,7 +475,7 @@ public class AssessmentService {
 		boolean groupSessionIntake = false;
 		Assessment initialAssessment;
 
-		if (assessmentType == AssessmentType.INTAKE) {
+		if (assessmentTypeId == AssessmentTypeId.INTAKE) {
 			if (providerId != null && groupSessionId != null)
 				throw new IllegalArgumentException();
 
@@ -489,7 +489,7 @@ public class AssessmentService {
 				throw new IllegalArgumentException();
 			}
 		} else {
-			initialAssessment = findAssessmentByTypeForUser(assessmentType, account).orElse(null);
+			initialAssessment = findAssessmentByTypeForUser(assessmentTypeId, account).orElse(null);
 		}
 
 		if (initialAssessment == null)
@@ -501,10 +501,10 @@ public class AssessmentService {
 			accountSession = getSessionService().findAccountSessionByIdAndAccount(account, UUID.fromString(sessionIdCommand))
 					.orElseThrow(() -> new NotFoundException("Couldn't find session"));
 		} else {
-			if (initialAssessment.getAssessmentTypeId().equals(AssessmentType.PHQ4)) {
+			if (initialAssessment.getAssessmentTypeId().equals(AssessmentTypeId.PHQ4)) {
 				accountSession = getSessionService().findCurrentIncompleteEvidenceAssessmentForAccount(account)
 						.orElseGet(() -> sessionService.createSessionForAssessment(account.getAccountId(), initialAssessment));
-			} else if (initialAssessment.getAssessmentTypeId().equals(AssessmentType.INTRO)) {
+			} else if (initialAssessment.getAssessmentTypeId().equals(AssessmentTypeId.INTRO)) {
 				accountSession = getSessionService().findCurrentIncompleteIntroAssessmentForAccount(account)
 						.orElseGet(() -> sessionService.createSessionForAssessment(account.getAccountId(), initialAssessment));
 			} else if (providerIntake) {
@@ -516,7 +516,7 @@ public class AssessmentService {
 						groupSessionId, false).orElseGet(() -> sessionService.createSessionForAssessment(account.getAccountId(),
 						initialAssessment));
 			} else {
-				throw new IllegalStateException(format("Not sure how to handle assessment type %s.%s", AssessmentType.class.getSimpleName(),
+				throw new IllegalStateException(format("Not sure how to handle assessment type %s.%s", AssessmentTypeId.class.getSimpleName(),
 						initialAssessment.getAssessmentTypeId().name()));
 			}
 		}
@@ -603,7 +603,7 @@ public class AssessmentService {
 	public UUID submitPersonalizeAssessmentAnswers(@Nonnull Account account, @Nonnull PersonalizeAssessmentChoicesCommand command) {
 		ValidationException validationException = new ValidationException();
 
-		Assessment introAssessment = findAssessmentByTypeForUser(AssessmentType.INTRO, account).orElseThrow();
+		Assessment introAssessment = findAssessmentByTypeForUser(AssessmentTypeId.INTRO, account).orElseThrow();
 		AccountSession accountSession = getSessionService().createSessionForAssessment(account.getAccountId(), introAssessment);
 
 		Map<UUID, List<SubmissionAnswer>> choicesAsMap = validateIntroAssessmentSubmissionCommand(command, introAssessment, validationException);

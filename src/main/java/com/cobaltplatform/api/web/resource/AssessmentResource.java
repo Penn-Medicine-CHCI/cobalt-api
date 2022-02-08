@@ -19,7 +19,6 @@
 
 package com.cobaltplatform.api.web.resource;
 
-import com.lokalized.Strings;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.PersonalizeAssessmentChoicesCommand;
 import com.cobaltplatform.api.model.api.request.SubmitAssessmentAnswerRequest;
@@ -29,7 +28,7 @@ import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApi
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.assessment.Assessment;
-import com.cobaltplatform.api.model.db.assessment.Assessment.AssessmentType;
+import com.cobaltplatform.api.model.db.assessment.Assessment.AssessmentTypeId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.AssessmentQuestionAnswers;
 import com.cobaltplatform.api.service.AssessmentScoringService;
@@ -37,6 +36,7 @@ import com.cobaltplatform.api.service.AssessmentService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.service.SessionService;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
+import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.PUT;
@@ -114,7 +114,7 @@ public class AssessmentResource {
 	@GET("/assessment/personalize")
 	public ApiResponse getPersonalizedQuestions() {
 		Account account = getCurrentContext().getAccount().orElseThrow(AuthenticationException::new);
-		Assessment assessment = getAssessmentService().findAssessmentByTypeForUser(AssessmentType.INTRO, account).orElseThrow();
+		Assessment assessment = getAssessmentService().findAssessmentByTypeForUser(AssessmentTypeId.INTRO, account).orElseThrow();
 		Optional<AccountSession> accountSession = sessionService.findCurrentAccountSessionForAssessment(account, assessment);
 
 		return new ApiResponse(Map.of(
@@ -128,7 +128,7 @@ public class AssessmentResource {
 		Account account = getCurrentContext().getAccount().orElseThrow(AuthenticationException::new);
 		PersonalizeAssessmentChoicesCommand command = requestBodyParser.parse(body, PersonalizeAssessmentChoicesCommand.class);
 		UUID sessionId = assessmentService.submitPersonalizeAssessmentAnswers(account, command);
-		Assessment assessment = getAssessmentService().findAssessmentByTypeForUser(AssessmentType.INTRO, account).orElseThrow();
+		Assessment assessment = getAssessmentService().findAssessmentByTypeForUser(AssessmentTypeId.INTRO, account).orElseThrow();
 		Optional<AccountSession> accountSession = getSessionService().findAccountSessionById(sessionId);
 
 		return new ApiResponse(
@@ -140,7 +140,7 @@ public class AssessmentResource {
 	@GET("/assessment/intro")
 	public ApiResponse getIntroAssessmentQuestion(@QueryParameter("questionId") Optional<String> questionId,
 																								@QueryParameter("sessionId") Optional<String> sessionId) {
-		return getAssessmentQuestion(AssessmentType.INTRO, questionId.orElse(null), sessionId.orElse(null), null, null);
+		return getAssessmentQuestion(AssessmentTypeId.INTRO, questionId.orElse(null), sessionId.orElse(null), null, null);
 	}
 
 	@AuthenticationRequired
@@ -149,25 +149,25 @@ public class AssessmentResource {
 																								 @QueryParameter("sessionId") Optional<String> sessionId,
 																								 @QueryParameter("providerId") Optional<UUID> providerId,
 																								 @QueryParameter("groupSessionId") Optional<UUID> groupSessionId) {
-		return getAssessmentQuestion(AssessmentType.INTAKE, questionId.orElse(null), sessionId.orElse(null),
+		return getAssessmentQuestion(AssessmentTypeId.INTAKE, questionId.orElse(null), sessionId.orElse(null),
 				providerId.orElse(null), groupSessionId.orElse(null));
 	}
-	
+
 	@AuthenticationRequired
 	@GET("/assessment/evidence")
 	public ApiResponse getEvidenceAssessmentQuestion(@QueryParameter("questionId") Optional<String> questionId,
 																									 @QueryParameter("sessionId") Optional<String> sessionId) {
-		return getAssessmentQuestion(AssessmentType.PHQ4, questionId.orElse(null), sessionId.orElse(null), null, null);
+		return getAssessmentQuestion(AssessmentTypeId.PHQ4, questionId.orElse(null), sessionId.orElse(null), null, null);
 	}
 
-	private ApiResponse getAssessmentQuestion(@Nonnull AssessmentType assessmentType,
+	private ApiResponse getAssessmentQuestion(@Nonnull AssessmentTypeId assessmentTypeId,
 																						@Nullable String questionId,
 																						@Nullable String sessionId,
 																						@Nullable UUID providerId,
 																						@Nullable UUID groupSessionId) {
 		Account account = getCurrentContext().getAccount().get();
 		AssessmentQuestionAnswers assessmentQuestionAnswers = getAssessmentService().getNextAssessmentQuestion(account,
-				assessmentType, questionId, sessionId, providerId, groupSessionId);
+				assessmentTypeId, questionId, sessionId, providerId, groupSessionId);
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("assessment", getAssessmentQuestionAnswerApiResponseFactory().create(assessmentQuestionAnswers, account));
 		}});
@@ -206,7 +206,7 @@ public class AssessmentResource {
 					UUID.fromString(request.getSessionId())).get();
 			Optional<Assessment> assessment = getAssessmentService().findAssessmentById(accountSession.getAssessmentId());
 
-			if (!assessment.isPresent() || assessment.get().getAssessmentTypeId() != AssessmentType.INTAKE)
+			if (!assessment.isPresent() || assessment.get().getAssessmentTypeId() != AssessmentTypeId.INTAKE)
 				return new ApiResponse(new HashMap<String, Object>());
 			else {
 				Map<String, Object> response = new LinkedHashMap<>();

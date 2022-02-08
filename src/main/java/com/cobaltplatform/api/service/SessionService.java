@@ -24,7 +24,7 @@ import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.assessment.AccountSessionAnswer;
 import com.cobaltplatform.api.model.db.assessment.Answer;
 import com.cobaltplatform.api.model.db.assessment.Assessment;
-import com.cobaltplatform.api.model.db.assessment.Assessment.AssessmentType;
+import com.cobaltplatform.api.model.db.assessment.Assessment.AssessmentTypeId;
 import com.cobaltplatform.api.model.db.assessment.Question;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -99,8 +99,8 @@ public class SessionService {
 		return findAnswersForSessionAndQuestion(lastCompleteSession.get(), question);
 	}
 
-		public void markCurrentSessionCompleteForAssessmentType(@Nonnull Account account,
-																													@Nonnull AssessmentType assessmentTypeId) {
+	public void markCurrentSessionCompleteForAssessmentType(@Nonnull Account account,
+																													@Nonnull AssessmentTypeId assessmentTypeId) {
 		database.execute("UPDATE account_session SET complete_flag = ? WHERE account_session_id = " +
 						"(" +
 						"SELECT account_session_id FROM " +
@@ -168,12 +168,12 @@ public class SessionService {
 				AccountSession.class,
 				account.getAccountId(),
 				account.getInstitutionId(),
-				AssessmentType.INTRO);
+				AssessmentTypeId.INTRO);
 	}
 
 	@Nonnull
 	public Optional<AccountSession> getCompletedAssessmentSessionForAccount(@Nonnull Account account,
-																																					@Nonnull AssessmentType assessmentType) {
+																																					@Nonnull AssessmentTypeId assessmentTypeId) {
 		return database.queryForObject("SELECT account_session.* FROM " +
 						"account, " +
 						"account_session, " +
@@ -190,7 +190,7 @@ public class SessionService {
 						"LIMIT 1",
 				AccountSession.class,
 				account.getAccountId(),
-				assessmentType,
+				assessmentTypeId,
 				true
 		);
 	}
@@ -209,7 +209,7 @@ public class SessionService {
 		database.execute("UPDATE account_session SET current_flag = ? AND complete_flag = ? WHERE account_id = ? AND assessment_id = ?",
 				false, false, accountId, assessment.getAssessmentId());
 
-		if (assessment.getAssessmentTypeId().equals(AssessmentType.PHQ4)) {
+		if (assessment.getAssessmentTypeId().equals(AssessmentTypeId.PHQ4)) {
 			database.execute(
 					"UPDATE account_session SET current_flag = ? WHERE account_session_id IN (" +
 							"SELECT acs.account_session_id " +
@@ -226,7 +226,7 @@ public class SessionService {
 							"a.account_id = ? AND " +
 							"ass.assessment_type_id IN (?, ?, ?, ?) " +
 							")",
-					false, accountId, AssessmentType.PHQ4, AssessmentType.PHQ9, AssessmentType.GAD7, AssessmentType.PCPTSD);
+					false, accountId, AssessmentTypeId.PHQ4, AssessmentTypeId.PHQ9, AssessmentTypeId.GAD7, AssessmentTypeId.PCPTSD);
 		}
 
 		return database.executeReturning("INSERT INTO account_session VALUES (?,?,?) RETURNING *",
@@ -252,7 +252,7 @@ public class SessionService {
 				"acs.complete_flag = ? AND " +
 				"acs.current_flag = ? AND " +
 				"ass.assessment_type_id IN (?, ?, ?, ?) " +
-				"ORDER by acs.created DESC LIMIT 1", AccountSession.class, account.getAccountId(), false, true, AssessmentType.PHQ4, AssessmentType.PHQ9, AssessmentType.GAD7, AssessmentType.PCPTSD);
+				"ORDER by acs.created DESC LIMIT 1", AccountSession.class, account.getAccountId(), false, true, AssessmentTypeId.PHQ4, AssessmentTypeId.PHQ9, AssessmentTypeId.GAD7, AssessmentTypeId.PCPTSD);
 		return opt;
 	}
 
@@ -273,7 +273,7 @@ public class SessionService {
 				"acs.complete_flag = ? AND " +
 				"acs.current_flag = ? AND " +
 				"ass.assessment_type_id = ? " +
-				"ORDER by acs.created DESC LIMIT 1", AccountSession.class, account.getAccountId(), false, true, AssessmentType.INTRO);
+				"ORDER by acs.created DESC LIMIT 1", AccountSession.class, account.getAccountId(), false, true, AssessmentTypeId.INTRO);
 		return opt;
 	}
 
@@ -298,7 +298,7 @@ public class SessionService {
 						"acs.current_flag = ? AND " +
 						"ass.assessment_type_id = ? " +
 						"ORDER by acs.created DESC LIMIT 1", AccountSession.class, providerId,
-				account.getAccountId(), complete, true, AssessmentType.INTAKE);
+				account.getAccountId(), complete, true, AssessmentTypeId.INTAKE);
 		return opt;
 	}
 
@@ -321,7 +321,7 @@ public class SessionService {
 						"acs.current_flag = ? AND " +
 						"ass.assessment_type_id = ? " +
 						"ORDER by acs.created DESC LIMIT 1", AccountSession.class, groupSessionId,
-				account.getAccountId(), complete, true, AssessmentType.INTAKE);
+				account.getAccountId(), complete, true, AssessmentTypeId.INTAKE);
 		return opt;
 	}
 
