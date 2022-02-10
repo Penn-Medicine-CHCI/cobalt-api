@@ -17,32 +17,45 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db.assessment;
+package com.cobaltplatform.api.model.db;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.UUID;
 
 /**
  * @author Transmogrify LLC.
  */
-public class Answer {
+public class AccountSessionAnswer {
 
+	@Nonnull
+	private UUID accountSessionAnswerId;
+	@Nonnull
+	private UUID accountSessionId;
 	@Nonnull
 	private UUID answerId;
 	@Nonnull
 	private UUID questionId;
-	@Nonnull
+	@Nullable
 	private String answerText;
+
 	@Nonnull
-	private Integer answerValue;
+	public UUID getAccountSessionAnswerId() {
+		return accountSessionAnswerId;
+	}
+
+	public void setAccountSessionAnswerId(@Nonnull UUID accountSessionAnswerId) {
+		this.accountSessionAnswerId = accountSessionAnswerId;
+	}
+
 	@Nonnull
-	private Integer displayOrder;
-	@Nonnull
-	private Boolean crisis;
-	@Nonnull
-	private Boolean call;
-	@Nonnull
-	private UUID nextQuestionId;
+	public UUID getAccountSessionId() {
+		return accountSessionId;
+	}
+
+	public void setAccountSessionId(@Nonnull UUID accountSessionId) {
+		this.accountSessionId = accountSessionId;
+	}
 
 	@Nonnull
 	public UUID getAnswerId() {
@@ -62,57 +75,13 @@ public class Answer {
 		this.questionId = questionId;
 	}
 
-	@Nonnull
+	@Nullable
 	public String getAnswerText() {
 		return answerText;
 	}
 
-	public void setAnswerText(@Nonnull String answerText) {
+	public void setAnswerText(@Nullable String answerText) {
 		this.answerText = answerText;
 	}
 
-	@Nonnull
-	public Integer getAnswerValue() {
-		return answerValue;
-	}
-
-	public void setAnswerValue(@Nonnull Integer answerValue) {
-		this.answerValue = answerValue;
-	}
-
-	@Nonnull
-	public Integer getDisplayOrder() {
-		return displayOrder;
-	}
-
-	public void setDisplayOrder(@Nonnull Integer displayOrder) {
-		this.displayOrder = displayOrder;
-	}
-
-	@Nonnull
-	public Boolean getCrisis() {
-		return crisis;
-	}
-
-	public void setCrisis(@Nonnull Boolean crisis) {
-		this.crisis = crisis;
-	}
-
-	@Nonnull
-	public Boolean getCall() {
-		return call;
-	}
-
-	public void setCall(@Nonnull Boolean call) {
-		this.call = call;
-	}
-
-	@Nonnull
-	public UUID getNextQuestionId() {
-		return nextQuestionId;
-	}
-
-	public void setNextQuestionId(@Nonnull UUID nextQuestionId) {
-		this.nextQuestionId = nextQuestionId;
-	}
 }

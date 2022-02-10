@@ -21,11 +21,11 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
-import com.cobaltplatform.api.model.db.assessment.AccountSessionAnswer;
-import com.cobaltplatform.api.model.db.assessment.Answer;
-import com.cobaltplatform.api.model.db.assessment.Assessment;
-import com.cobaltplatform.api.model.db.assessment.Assessment.AssessmentTypeId;
-import com.cobaltplatform.api.model.db.assessment.Question;
+import com.cobaltplatform.api.model.db.AccountSessionAnswer;
+import com.cobaltplatform.api.model.db.Answer;
+import com.cobaltplatform.api.model.db.Assessment;
+import com.cobaltplatform.api.model.db.Assessment.AssessmentTypeId;
+import com.cobaltplatform.api.model.db.Question;
 import com.pyranid.Database;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

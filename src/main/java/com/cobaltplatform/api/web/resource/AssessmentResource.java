@@ -27,8 +27,8 @@ import com.cobaltplatform.api.model.api.response.AssessmentFormApiResponse.Asses
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
-import com.cobaltplatform.api.model.db.assessment.Assessment;
-import com.cobaltplatform.api.model.db.assessment.Assessment.AssessmentTypeId;
+import com.cobaltplatform.api.model.db.Assessment;
+import com.cobaltplatform.api.model.db.Assessment.AssessmentTypeId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.AssessmentQuestionAnswers;
 import com.cobaltplatform.api.service.AssessmentScoringService;

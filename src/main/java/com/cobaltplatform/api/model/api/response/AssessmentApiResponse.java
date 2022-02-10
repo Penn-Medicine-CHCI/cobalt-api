@@ -24,9 +24,9 @@ import com.google.inject.assistedinject.AssistedInject;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.FontSize.FontSizeId;
-import com.cobaltplatform.api.model.db.assessment.Answer;
-import com.cobaltplatform.api.model.db.assessment.Question;
-import com.cobaltplatform.api.model.db.assessment.QuestionType.QuestionTypeId;
+import com.cobaltplatform.api.model.db.Answer;
+import com.cobaltplatform.api.model.db.Question;
+import com.cobaltplatform.api.model.db.QuestionType.QuestionTypeId;
 import com.cobaltplatform.api.model.service.AssessmentQuestionAnswers;
 import com.cobaltplatform.api.service.SessionService;
 import com.cobaltplatform.api.util.Formatter;
@@ -40,7 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static com.cobaltplatform.api.model.db.assessment.Assessment.AssessmentTypeId.INTRO;
+import static com.cobaltplatform.api.model.db.Assessment.AssessmentTypeId.INTRO;
 import static java.util.stream.Collectors.toList;
 
 /**

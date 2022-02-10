@@ -30,7 +30,9 @@ import com.lokalized.Strings;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Set;
 import java.util.UUID;
 
 import static java.lang.String.format;
@@ -68,19 +70,37 @@ public class AppointmentTypeApiResponse {
 	@Nullable
 	private final UUID assessmentId;
 
+	public enum AppointmentTypeApiResponseSupplement {
+		EVERYTHING
+	}
+
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface AppointmentTypeApiResponseFactory {
 		@Nonnull
 		AppointmentTypeApiResponse create(@Nonnull AppointmentType appointmentType);
+
+		@Nonnull
+		AppointmentTypeApiResponse create(@Nonnull AppointmentType appointmentType,
+																			@Nonnull Set<AppointmentTypeApiResponseSupplement> supplements);
 	}
 
 	@AssistedInject
 	public AppointmentTypeApiResponse(@Nonnull Formatter formatter,
 																		@Nonnull Strings strings,
 																		@Assisted @Nonnull AppointmentType appointmentType) {
+		this(formatter, strings, appointmentType, Collections.emptySet());
+	}
+
+	@AssistedInject
+	public AppointmentTypeApiResponse(@Nonnull Formatter formatter,
+																		@Nonnull Strings strings,
+																		@Assisted @Nonnull AppointmentType appointmentType,
+																		@Assisted @Nonnull Set<AppointmentTypeApiResponseSupplement> supplements) {
 		requireNonNull(formatter);
 		requireNonNull(strings);
+		requireNonNull(appointmentType);
+		requireNonNull(supplements);
 
 		this.appointmentTypeId = appointmentType.getAppointmentTypeId();
 		this.schedulingSystemId = appointmentType.getSchedulingSystemId();
@@ -97,6 +117,8 @@ public class AppointmentTypeApiResponse {
 		this.hexColor = appointmentType.getHexColor();
 		this.hexColorDescription = format("#%s", Integer.toHexString(appointmentType.getHexColor()));
 		this.assessmentId = appointmentType.getAssessmentId();
+
+		// TODO: supplement-driven fields, e.g. assessment data
 	}
 
 	@Nonnull

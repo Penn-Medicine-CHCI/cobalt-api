@@ -41,7 +41,7 @@ import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.db.SystemAffinity.SystemAffinityId;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
-import com.cobaltplatform.api.model.db.assessment.Assessment;
+import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityStatus;

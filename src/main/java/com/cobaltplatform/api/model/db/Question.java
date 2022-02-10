@@ -17,10 +17,10 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db.assessment;
+package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.FontSize.FontSizeId;
-import com.cobaltplatform.api.model.db.assessment.QuestionType.QuestionTypeId;
+import com.cobaltplatform.api.model.db.QuestionType.QuestionTypeId;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;

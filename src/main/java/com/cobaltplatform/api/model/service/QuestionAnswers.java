@@ -19,8 +19,8 @@
 
 package com.cobaltplatform.api.model.service;
 
-import com.cobaltplatform.api.model.db.assessment.Answer;
-import com.cobaltplatform.api.model.db.assessment.Question;
+import com.cobaltplatform.api.model.db.Answer;
+import com.cobaltplatform.api.model.db.Question;
 
 import javax.annotation.Nonnull;
 import java.util.List;

@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.client;
+package com.cobaltplatform.api.model.service;
 
 import com.cobaltplatform.api.model.db.ClientDeviceType;
 import com.cobaltplatform.api.util.UserAgent;

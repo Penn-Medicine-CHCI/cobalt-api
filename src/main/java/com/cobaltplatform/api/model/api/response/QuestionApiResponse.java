@@ -24,7 +24,7 @@ import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.FontSize.FontSizeId;
-import com.cobaltplatform.api.model.db.assessment.Question;
+import com.cobaltplatform.api.model.db.Question;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;

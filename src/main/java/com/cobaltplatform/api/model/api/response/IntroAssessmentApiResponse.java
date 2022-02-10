@@ -20,8 +20,8 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.AccountSession;
-import com.cobaltplatform.api.model.db.assessment.Answer;
-import com.cobaltplatform.api.model.db.assessment.Question;
+import com.cobaltplatform.api.model.db.Answer;
+import com.cobaltplatform.api.model.db.Question;
 import com.cobaltplatform.api.service.AssessmentService;
 import com.cobaltplatform.api.service.SessionService;
 import com.google.inject.assistedinject.Assisted;

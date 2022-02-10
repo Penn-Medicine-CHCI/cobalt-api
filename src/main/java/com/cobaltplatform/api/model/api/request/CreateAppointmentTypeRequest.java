@@ -19,13 +19,11 @@
 
 package com.cobaltplatform.api.model.api.request;
 
-import com.cobaltplatform.api.model.db.FontSize;
 import com.cobaltplatform.api.model.db.FontSize.FontSizeId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
-import com.cobaltplatform.api.model.db.assessment.QuestionType.QuestionTypeId;
+import com.cobaltplatform.api.model.db.QuestionType.QuestionTypeId;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.List;
@@ -40,17 +38,19 @@ public class CreateAppointmentTypeRequest {
 	private UUID providerId;
 	@Nullable
 	private SchedulingSystemId schedulingSystemId;
-	@Nonnull
+	@Nullable
 	private VisitTypeId visitTypeId;
-	@Nonnull
+	@Nullable
 	private String name;
-	@Nonnull
+	@Nullable
+	private String description;
+	@Nullable
 	private Long durationInMinutes;
-	@Nonnull
+	@Nullable
 	private Integer hexColor;
-	@Nonnull
+	@Nullable
 	private List<CreatePatientIntakeQuestionRequest> patientIntakeQuestions;
-	@Nonnull
+	@Nullable
 	private List<CreateScreeningQuestionRequest> screeningIntakeQuestions;
 
 	@NotThreadSafe
@@ -108,57 +108,66 @@ public class CreateAppointmentTypeRequest {
 		this.schedulingSystemId = schedulingSystemId;
 	}
 
-	@Nonnull
+	@Nullable
 	public VisitTypeId getVisitTypeId() {
 		return visitTypeId;
 	}
 
-	public void setVisitTypeId(@Nonnull VisitTypeId visitTypeId) {
+	public void setVisitTypeId(@Nullable VisitTypeId visitTypeId) {
 		this.visitTypeId = visitTypeId;
 	}
 
-	@Nonnull
+	@Nullable
 	public String getName() {
 		return name;
 	}
 
-	public void setName(@Nonnull String name) {
+	public void setName(@Nullable String name) {
 		this.name = name;
 	}
 
-	@Nonnull
+	@Nullable
+	public String getDescription() {
+		return description;
+	}
+
+	public void setDescription(@Nullable String description) {
+		this.description = description;
+	}
+
+	@Nullable
 	public Long getDurationInMinutes() {
 		return durationInMinutes;
 	}
 
-	public void setDurationInMinutes(@Nonnull Long durationInMinutes) {
+	public void setDurationInMinutes(@Nullable Long durationInMinutes) {
 		this.durationInMinutes = durationInMinutes;
 	}
 
-	@Nonnull
+	@Nullable
 	public Integer getHexColor() {
 		return hexColor;
 	}
 
-	public void setHexColor(@Nonnull Integer hexColor) {
+	public void setHexColor(@Nullable Integer hexColor) {
 		this.hexColor = hexColor;
 	}
 
-	@Nonnull
+	@Nullable
 	public List<CreatePatientIntakeQuestionRequest> getPatientIntakeQuestions() {
 		return patientIntakeQuestions;
 	}
 
-	public void setPatientIntakeQuestions(@Nonnull List<CreatePatientIntakeQuestionRequest> patientIntakeQuestions) {
+	public void setPatientIntakeQuestions(@Nullable List<CreatePatientIntakeQuestionRequest> patientIntakeQuestions) {
 		this.patientIntakeQuestions = patientIntakeQuestions;
 	}
 
-	@Nonnull
+	@Nullable
 	public List<CreateScreeningQuestionRequest> getScreeningIntakeQuestions() {
 		return screeningIntakeQuestions;
 	}
 
-	public void setScreeningIntakeQuestions(@Nonnull List<CreateScreeningQuestionRequest> screeningIntakeQuestions) {
+	public void setScreeningIntakeQuestions(@Nullable List<CreateScreeningQuestionRequest> screeningIntakeQuestions) {
 		this.screeningIntakeQuestions = screeningIntakeQuestions;
 	}
 }

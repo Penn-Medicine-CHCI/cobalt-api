@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db.assessment;
+package com.cobaltplatform.api.model.db;
 
 import javax.annotation.Nonnull;
 

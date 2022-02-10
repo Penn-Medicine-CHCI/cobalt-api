@@ -17,45 +17,32 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db.assessment;
+package com.cobaltplatform.api.model.db;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.util.UUID;
 
 /**
  * @author Transmogrify LLC.
  */
-public class AccountSessionAnswer {
+public class Answer {
 
-	@Nonnull
-	private UUID accountSessionAnswerId;
-	@Nonnull
-	private UUID accountSessionId;
 	@Nonnull
 	private UUID answerId;
 	@Nonnull
 	private UUID questionId;
-	@Nullable
+	@Nonnull
 	private String answerText;
-
 	@Nonnull
-	public UUID getAccountSessionAnswerId() {
-		return accountSessionAnswerId;
-	}
-
-	public void setAccountSessionAnswerId(@Nonnull UUID accountSessionAnswerId) {
-		this.accountSessionAnswerId = accountSessionAnswerId;
-	}
-
+	private Integer answerValue;
 	@Nonnull
-	public UUID getAccountSessionId() {
-		return accountSessionId;
-	}
-
-	public void setAccountSessionId(@Nonnull UUID accountSessionId) {
-		this.accountSessionId = accountSessionId;
-	}
+	private Integer displayOrder;
+	@Nonnull
+	private Boolean crisis;
+	@Nonnull
+	private Boolean call;
+	@Nonnull
+	private UUID nextQuestionId;
 
 	@Nonnull
 	public UUID getAnswerId() {
@@ -75,13 +62,57 @@ public class AccountSessionAnswer {
 		this.questionId = questionId;
 	}
 
-	@Nullable
+	@Nonnull
 	public String getAnswerText() {
 		return answerText;
 	}
 
-	public void setAnswerText(@Nullable String answerText) {
+	public void setAnswerText(@Nonnull String answerText) {
 		this.answerText = answerText;
 	}
 
+	@Nonnull
+	public Integer getAnswerValue() {
+		return answerValue;
+	}
+
+	public void setAnswerValue(@Nonnull Integer answerValue) {
+		this.answerValue = answerValue;
+	}
+
+	@Nonnull
+	public Integer getDisplayOrder() {
+		return displayOrder;
+	}
+
+	public void setDisplayOrder(@Nonnull Integer displayOrder) {
+		this.displayOrder = displayOrder;
+	}
+
+	@Nonnull
+	public Boolean getCrisis() {
+		return crisis;
+	}
+
+	public void setCrisis(@Nonnull Boolean crisis) {
+		this.crisis = crisis;
+	}
+
+	@Nonnull
+	public Boolean getCall() {
+		return call;
+	}
+
+	public void setCall(@Nonnull Boolean call) {
+		this.call = call;
+	}
+
+	@Nonnull
+	public UUID getNextQuestionId() {
+		return nextQuestionId;
+	}
+
+	public void setNextQuestionId(@Nonnull UUID nextQuestionId) {
+		this.nextQuestionId = nextQuestionId;
+	}
 }
