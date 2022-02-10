@@ -19,7 +19,6 @@
 
 package com.cobaltplatform.api.web.resource;
 
-import com.lokalized.Strings;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateFollowupRequest;
 import com.cobaltplatform.api.model.api.request.FindFollowupsRequest;
@@ -42,6 +41,7 @@ import com.cobaltplatform.api.service.FollowupService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
+import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.PathParameter;
@@ -59,10 +59,10 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -179,7 +179,7 @@ public class FollowupResource {
 			throw new AuthorizationException();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("followup", getFollowupApiResponseFactory().create(followup, Collections.singleton(FollowupApiResponseSupplement.ALL)));
+			put("followup", getFollowupApiResponseFactory().create(followup, Set.of(FollowupApiResponseSupplement.ALL)));
 		}});
 	}
 
@@ -198,7 +198,7 @@ public class FollowupResource {
 		Followup followup = getFollowupService().findFollowupById(followupId).get();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("followup", getFollowupApiResponseFactory().create(followup, Collections.singleton(FollowupApiResponseSupplement.ALL)));
+			put("followup", getFollowupApiResponseFactory().create(followup, Set.of(FollowupApiResponseSupplement.ALL)));
 		}});
 	}
 
@@ -238,7 +238,7 @@ public class FollowupResource {
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("followups", followups.stream()
-					.map(followup -> getFollowupApiResponseFactory().create(followup, Collections.singleton(FollowupApiResponseSupplement.ALL)))
+					.map(followup -> getFollowupApiResponseFactory().create(followup, Set.of(FollowupApiResponseSupplement.ALL)))
 					.collect(Collectors.toList()));
 		}});
 	}

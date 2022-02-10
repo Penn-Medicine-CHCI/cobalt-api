@@ -113,4 +113,23 @@ FROM appointment_type app_type
 LEFT OUTER JOIN appointment_type_assessment ata ON app_type.appointment_type_id = ata.appointment_type_id AND ata.active=TRUE
 WHERE app_type.deleted = FALSE;
 
+CREATE TABLE question_content_hint (
+	question_content_hint_id VARCHAR NOT NULL PRIMARY KEY,
+	description VARCHAR NOT NULL
+);
+
+INSERT INTO question_content_hint (question_content_hint_id, description) VALUES ('NONE', 'None');
+INSERT INTO question_content_hint (question_content_hint_id, description) VALUES ('FIRST_NAME', 'First Name');
+INSERT INTO question_content_hint (question_content_hint_id, description) VALUES ('LAST_NAME', 'Last Name');
+INSERT INTO question_content_hint (question_content_hint_id, description) VALUES ('PHONE_NUMBER', 'Last Name');
+INSERT INTO question_content_hint (question_content_hint_id, description) VALUES ('EMAIL_ADDRESS', 'Email Address');
+INSERT INTO question_content_hint (question_content_hint_id, description) VALUES ('STUDENT_ID', 'Student ID');
+
+ALTER TABLE question ADD COLUMN question_content_hint_id TEXT REFERENCES question_content_hint NOT NULL DEFAULT 'NONE';
+
+-- In the future, we will deprecate these question types and use the content hints instead.
+-- For now, just set the content hints for existing data accordingly
+UPDATE question SET question_content_hint_id = 'PHONE_NUMBER' WHERE question_type_id='PHONE_NUMBER';
+UPDATE question SET question_content_hint_id = 'STUDENT_ID' WHERE question_type_id='STUDENT_ID';
+
 COMMIT;

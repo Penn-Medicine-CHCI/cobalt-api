@@ -19,10 +19,8 @@
 
 package com.cobaltplatform.api.model.api.request;
 
-import com.cobaltplatform.api.model.db.FontSize.FontSizeId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
-import com.cobaltplatform.api.model.db.QuestionType.QuestionTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -52,43 +50,6 @@ public class CreateAppointmentTypeRequest {
 	private List<CreatePatientIntakeQuestionRequest> patientIntakeQuestions;
 	@Nullable
 	private List<CreateScreeningQuestionRequest> screeningIntakeQuestions;
-
-	@NotThreadSafe
-	public static class CreatePatientIntakeQuestionRequest {
-		@Nullable
-		private String question;
-		@Nullable
-		private QuestionTypeId questionTypeId;
-		@Nullable
-		private FontSizeId fontSizeId;
-
-		@Nullable
-		public String getQuestion() {
-			return question;
-		}
-
-		public void setQuestion(@Nullable String question) {
-			this.question = question;
-		}
-
-		@Nullable
-		public QuestionTypeId getQuestionTypeId() {
-			return questionTypeId;
-		}
-
-		public void setQuestionTypeId(@Nullable QuestionTypeId questionTypeId) {
-			this.questionTypeId = questionTypeId;
-		}
-
-		@Nullable
-		public FontSizeId getFontSizeId() {
-			return fontSizeId;
-		}
-
-		public void setFontSizeId(@Nullable FontSizeId fontSizeId) {
-			this.fontSizeId = fontSizeId;
-		}
-	}
 
 	@Nullable
 	public UUID getProviderId() {

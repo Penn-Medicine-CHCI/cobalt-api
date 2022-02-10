@@ -26,6 +26,7 @@ import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionRequest;
 import com.cobaltplatform.api.model.db.GroupSessionRequestStatus.GroupSessionRequestStatusId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Interaction;
 import com.cobaltplatform.api.model.db.InteractionInstance;
@@ -318,8 +319,22 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
-	public Boolean canViewAppointmentTypes(@Nonnull Provider provider,
-																				 @Nonnull Account account) {
+	public Boolean canViewAppointmentType(@Nonnull AppointmentType appointmentType,
+																				@Nonnull Account account) {
+		requireNonNull(appointmentType);
+		requireNonNull(account);
+
+		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
+			return true;
+
+		Institution institution = getAppointmentService().findInstitutionForAppointmentTypeId(appointmentType.getAppointmentTypeId()).get();
+
+		return Objects.equals(institution.getInstitutionId(), account.getInstitutionId());
+	}
+
+	@Nonnull
+	public Boolean canViewAppointmentTypesForProvider(@Nonnull Provider provider,
+																										@Nonnull Account account) {
 		requireNonNull(provider);
 		requireNonNull(account);
 

@@ -20,8 +20,11 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.AppointmentType;
+import com.cobaltplatform.api.model.db.Question;
+import com.cobaltplatform.api.model.db.QuestionType.QuestionTypeId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
+import com.cobaltplatform.api.service.AssessmentService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -32,6 +35,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -70,8 +74,24 @@ public class AppointmentTypeApiResponse {
 	@Nullable
 	private final UUID assessmentId;
 
+	//   "patientIntakeQuestions": [
+	//   {
+	//     "question": "What is your first name?",
+	//     "questionTypeId": "TEXT",
+	//     "fontSizeId": "DEFAULT",
+	//     "questionContentHintId": "FIRST_NAME"
+	//   },
+
+	//   "screeningIntakeQuestions": [
+	//    {
+	//     "question": "Is this your first time visiting this provider?",
+	//     "fontSizeId": "SMALL"
+	//    }
+	//  ]
+
 	public enum AppointmentTypeApiResponseSupplement {
-		EVERYTHING
+		EVERYTHING,
+		ASSESSMENT
 	}
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
@@ -86,17 +106,20 @@ public class AppointmentTypeApiResponse {
 	}
 
 	@AssistedInject
-	public AppointmentTypeApiResponse(@Nonnull Formatter formatter,
+	public AppointmentTypeApiResponse(@Nonnull AssessmentService assessmentService,
+																		@Nonnull Formatter formatter,
 																		@Nonnull Strings strings,
 																		@Assisted @Nonnull AppointmentType appointmentType) {
-		this(formatter, strings, appointmentType, Collections.emptySet());
+		this(assessmentService, formatter, strings, appointmentType, Collections.emptySet());
 	}
 
 	@AssistedInject
-	public AppointmentTypeApiResponse(@Nonnull Formatter formatter,
+	public AppointmentTypeApiResponse(@Nonnull AssessmentService assessmentService,
+																		@Nonnull Formatter formatter,
 																		@Nonnull Strings strings,
 																		@Assisted @Nonnull AppointmentType appointmentType,
 																		@Assisted @Nonnull Set<AppointmentTypeApiResponseSupplement> supplements) {
+		requireNonNull(assessmentService);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(appointmentType);
@@ -118,7 +141,38 @@ public class AppointmentTypeApiResponse {
 		this.hexColorDescription = format("#%s", Integer.toHexString(appointmentType.getHexColor()));
 		this.assessmentId = appointmentType.getAssessmentId();
 
-		// TODO: supplement-driven fields, e.g. assessment data
+		if (appointmentType.getAssessmentId() != null &&
+				(supplements.contains(AppointmentTypeApiResponseSupplement.ASSESSMENT)
+						|| supplements.contains(AppointmentTypeApiResponseSupplement.EVERYTHING))) {
+			List<Question> questions = assessmentService.findQuestionsForAssessmentId(appointmentType.getAssessmentId());
+
+			for (Question question : questions) {
+
+				// Screening intakes are of type QUAD
+				if (question.getQuestionTypeId() == QuestionTypeId.QUAD) {
+
+				} else {
+					// This must be a patient intake question
+				}
+
+				// TODO: filter these
+				//
+				//   "patientIntakeQuestions": [
+				//   {
+				//     "question": "What is your first name?",
+				//     "questionTypeId": "TEXT",
+				//     "fontSizeId": "DEFAULT",
+				//     "questionContentHintId": "FIRST_NAME"
+				//   },
+
+				//   "screeningIntakeQuestions": [
+				//    {
+				//     "question": "Is this your first time visiting this provider?",
+				//     "fontSizeId": "SMALL"
+				//    }
+				//  ]
+			}
+		}
 	}
 
 	@Nonnull

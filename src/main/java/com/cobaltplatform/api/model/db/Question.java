@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.FontSize.FontSizeId;
+import com.cobaltplatform.api.model.db.QuestionContentHint.QuestionContentHintId;
 import com.cobaltplatform.api.model.db.QuestionType.QuestionTypeId;
 
 import javax.annotation.Nonnull;
@@ -37,6 +38,8 @@ public class Question {
 	private UUID assessmentId;
 	@Nonnull
 	private QuestionTypeId questionTypeId;
+	@Nonnull
+	private QuestionContentHintId questionContentHintId;
 	@Nonnull
 	private FontSizeId fontSizeId;
 	@Nonnull
@@ -77,6 +80,15 @@ public class Question {
 
 	public void setQuestionTypeId(@Nonnull QuestionTypeId questionTypeId) {
 		this.questionTypeId = questionTypeId;
+	}
+
+	@Nonnull
+	public QuestionContentHintId getQuestionContentHintId() {
+		return questionContentHintId;
+	}
+
+	public void setQuestionContentHintId(@Nonnull QuestionContentHintId questionContentHintId) {
+		this.questionContentHintId = questionContentHintId;
 	}
 
 	@Nonnull

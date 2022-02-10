@@ -19,30 +19,30 @@
 
 package com.cobaltplatform.api.web.resource;
 
-import com.cobaltplatform.api.model.api.request.CreateActivityTrackingRequest;
-import com.cobaltplatform.api.model.db.ActivityType.ActivityTypeId;
-import com.cobaltplatform.api.model.db.ActivityAction.ActivityActionId;
-import com.cobaltplatform.api.service.ActivityTrackingService;
-import com.lokalized.Strings;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CancelAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.ChangeAppointmentAttendanceStatusRequest;
+import com.cobaltplatform.api.model.api.request.CreateActivityTrackingRequest;
 import com.cobaltplatform.api.model.api.request.CreateAppointmentRequest;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseSupplement;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.ActivityAction.ActivityActionId;
+import com.cobaltplatform.api.model.db.ActivityType.ActivityTypeId;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AuditLog;
 import com.cobaltplatform.api.model.db.AuditLogEvent;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AccountService;
+import com.cobaltplatform.api.service.ActivityTrackingService;
 import com.cobaltplatform.api.service.AppointmentService;
 import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
+import com.lokalized.Strings;
 import com.soklet.json.JSONObject;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
@@ -72,7 +72,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -191,7 +190,7 @@ public class AppointmentResource {
 			throw new AuthorizationException();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("appointment", getAppointmentApiResponseFactory().create(appointment, Collections.singleton(AppointmentApiResponseSupplement.PROVIDER)));
+			put("appointment", getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER)));
 		}});
 	}
 
@@ -312,7 +311,7 @@ public class AppointmentResource {
 		activityTrackingRequest.setSessionTrackingId(getCurrentContext().getSessionTrackingId());
 		activityTrackingRequest.setActivityActionId(ActivityActionId.CREATE);
 		activityTrackingRequest.setActivityTypeId(ActivityTypeId.APPOINTMENT);
-		activityTrackingRequest.setContext(new JSONObject().put("appointmentId",appointmentId.toString()).toString());
+		activityTrackingRequest.setContext(new JSONObject().put("appointmentId", appointmentId.toString()).toString());
 
 		getActivityTrackingService().trackActivity(Optional.of(account), activityTrackingRequest);
 
@@ -321,7 +320,7 @@ public class AppointmentResource {
 		Account updatedAccount = getAccountService().findAccountById(request.getAccountId()).get();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("appointment", getAppointmentApiResponseFactory().create(appointment, Collections.singleton(AppointmentApiResponseSupplement.PROVIDER)));
+			put("appointment", getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER)));
 			put("account", getAccountApiResponseFactory().create(updatedAccount));
 		}});
 	}
@@ -373,7 +372,7 @@ public class AppointmentResource {
 		activityTrackingRequest.setSessionTrackingId(getCurrentContext().getSessionTrackingId());
 		activityTrackingRequest.setActivityActionId(ActivityActionId.CANCEL);
 		activityTrackingRequest.setActivityTypeId(ActivityTypeId.APPOINTMENT);
-		activityTrackingRequest.setContext(new JSONObject().put("appointmentId",appointmentId.toString()).toString());
+		activityTrackingRequest.setContext(new JSONObject().put("appointmentId", appointmentId.toString()).toString());
 
 		getActivityTrackingService().trackActivity(Optional.of(account), activityTrackingRequest);
 
@@ -406,7 +405,7 @@ public class AppointmentResource {
 		Appointment updatedAppointment = getAppointmentService().findAppointmentById(appointmentId).orElse(null);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("appointment", getAppointmentApiResponseFactory().create(updatedAppointment, Collections.singleton(AppointmentApiResponseSupplement.ALL)));
+			put("appointment", getAppointmentApiResponseFactory().create(updatedAppointment, Set.of(AppointmentApiResponseSupplement.ALL)));
 		}});
 	}
 
@@ -428,7 +427,7 @@ public class AppointmentResource {
 	@AuthenticationRequired
 	@Nonnull
 	public CustomResponse appointmentIcal(@Nonnull @PathParameter UUID appointmentId,
-																										@Nonnull HttpServletResponse httpServletResponse) throws IOException {
+																				@Nonnull HttpServletResponse httpServletResponse) throws IOException {
 		requireNonNull(appointmentId);
 		requireNonNull(httpServletResponse);
 

@@ -55,7 +55,7 @@ import com.cobaltplatform.api.model.api.request.ChangeAppointmentAttendanceStatu
 import com.cobaltplatform.api.model.api.request.CreateAcuityAppointmentTypeRequest;
 import com.cobaltplatform.api.model.api.request.CreateAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.CreateAppointmentTypeRequest;
-import com.cobaltplatform.api.model.api.request.CreateAppointmentTypeRequest.CreatePatientIntakeQuestionRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientIntakeQuestionRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningQuestionRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountEmailAddressRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountPhoneNumberRequest;
@@ -63,28 +63,30 @@ import com.cobaltplatform.api.model.api.request.UpdateAcuityAppointmentTypeReque
 import com.cobaltplatform.api.model.api.request.UpdateAppointmentTypeRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
+import com.cobaltplatform.api.model.db.AccountSessionAnswer;
+import com.cobaltplatform.api.model.db.Answer;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentReason;
 import com.cobaltplatform.api.model.db.AppointmentReasonType.AppointmentReasonTypeId;
 import com.cobaltplatform.api.model.db.AppointmentType;
+import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.AttendanceStatus.AttendanceStatusId;
 import com.cobaltplatform.api.model.db.AuditLog;
 import com.cobaltplatform.api.model.db.AuditLogEvent.AuditLogEventId;
 import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.FontSize.FontSizeId;
 import com.cobaltplatform.api.model.db.GroupEventType;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Provider;
+import com.cobaltplatform.api.model.db.Question;
+import com.cobaltplatform.api.model.db.QuestionContentHint.QuestionContentHintId;
+import com.cobaltplatform.api.model.db.QuestionType.QuestionTypeId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.db.VideoconferencePlatform.VideoconferencePlatformId;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
-import com.cobaltplatform.api.model.db.AccountSessionAnswer;
-import com.cobaltplatform.api.model.db.Answer;
-import com.cobaltplatform.api.model.db.Assessment;
-import com.cobaltplatform.api.model.db.Question;
-import com.cobaltplatform.api.model.db.QuestionType.QuestionTypeId;
 import com.cobaltplatform.api.model.qualifier.AuditLogged;
 import com.cobaltplatform.api.model.service.EvidenceScores;
 import com.cobaltplatform.api.util.Formatter;
@@ -1400,6 +1402,10 @@ public class AppointmentService {
 				String screeningQuestion = intakeQuestionRequest.getQuestion();
 				QuestionTypeId questionTypeId = intakeQuestionRequest.getQuestionTypeId();
 				FontSizeId fontSizeId = intakeQuestionRequest.getFontSizeId();
+				QuestionContentHintId questionContentHintId = intakeQuestionRequest.getQuestionContentHintId();
+
+				if (questionContentHintId == null)
+					questionContentHintId = QuestionContentHintId.NONE;
 
 				// Only support these types currently
 				if (intakeQuestionRequest.getQuestionTypeId() == QuestionTypeId.TEXT
@@ -1409,7 +1415,8 @@ public class AppointmentService {
 
 					// Careful: display order must start at 1, not 0
 					getDatabase().execute("INSERT INTO question (question_id, assessment_id, question_type_id, font_size_id, " +
-							"question_text, display_order) VALUES (?,?,?,?,?,?)", mostRecentQuestionId, assessmentId, questionTypeId, fontSizeId, screeningQuestion, i + 1);
+									"question_content_hint_id, question_text, display_order) VALUES (?,?,?,?,?,?,?)", mostRecentQuestionId,
+							assessmentId, questionTypeId, fontSizeId, questionContentHintId, screeningQuestion, i + 1);
 
 					getDatabase().execute("INSERT INTO answer (answer_id, question_id, answer_text, display_order, " +
 							"answer_value, next_question_id) VALUES (?,?,?,?,?,?)", answerId, mostRecentQuestionId, getStrings().get("Type here"), 1, 1, nextQuestionId);
@@ -1429,6 +1436,29 @@ public class AppointmentService {
 
 		return getDatabase().execute("UPDATE appointment_type SET deleted=TRUE " +
 				"WHERE appointment_type_id=?", appointmentTypeId) > 0;
+	}
+
+	@Nonnull
+	public Optional<Institution> findInstitutionForAppointmentTypeId(@Nullable UUID appointmentTypeId) {
+		if (appointmentTypeId == null)
+			return Optional.empty();
+
+		List<Institution> institutions = getDatabase().queryForList("SELECT i.* FROM institution i, " +
+				"provider_appointment_type pat, provider p WHERE pat.appointment_type_id=? AND pat.provider_id=p.provider_id " +
+				"AND p.institution_id=i.institution_id", Institution.class, appointmentTypeId);
+
+		if (institutions.size() == 0)
+			return Optional.empty();
+
+		if (institutions.size() == 1)
+			return Optional.of(institutions.get(0));
+
+		throw new IllegalStateException(format("Found multiple institutions (%s) for appointment type ID %s",
+				institutions.stream()
+						.map(institution -> institution.getInstitutionId().name())
+						.collect(Collectors.joining(", ")),
+				appointmentTypeId
+		));
 	}
 
 	protected void sendPatientAndProviderCobaltAppointmentCreatedEmails(@Nonnull UUID appointmentId) {

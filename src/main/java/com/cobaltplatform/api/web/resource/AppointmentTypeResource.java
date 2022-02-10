@@ -23,6 +23,7 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateAppointmentTypeRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAppointmentTypeRequest;
 import com.cobaltplatform.api.model.api.response.AppointmentTypeApiResponse.AppointmentTypeApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.AppointmentTypeApiResponse.AppointmentTypeApiResponseSupplement;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Provider;
@@ -52,6 +53,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -119,7 +121,7 @@ public class AppointmentTypeResource {
 		if (provider == null)
 			throw new NotFoundException();
 
-		if (!getAuthorizationService().canViewAppointmentTypes(provider, account))
+		if (!getAuthorizationService().canViewAppointmentTypesForProvider(provider, account))
 			throw new AuthorizationException();
 
 		List<AppointmentType> appointmentTypes = getAppointmentService().findAppointmentTypesByProviderId(providerId);
@@ -150,7 +152,27 @@ public class AppointmentTypeResource {
 		AppointmentType appointmentType = getAppointmentService().findAppointmentTypeById(appointmentTypeId).get();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("appointmentType", getAppointmentTypeApiResponseFactory().create(appointmentType));
+			put("appointmentType", getAppointmentTypeApiResponseFactory().create(appointmentType, Set.of(AppointmentTypeApiResponseSupplement.EVERYTHING)));
+		}});
+	}
+
+	@Nonnull
+	@GET("/appointment-types/{appointmentTypeId}")
+	@AuthenticationRequired
+	public ApiResponse getAppointmentType(@Nonnull @PathParameter UUID appointmentTypeId) {
+		requireNonNull(appointmentTypeId);
+
+		Account account = getCurrentContext().getAccount().get();
+		AppointmentType appointmentType = getAppointmentService().findAppointmentTypeById(appointmentTypeId).orElse(null);
+
+		if (appointmentType == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canViewAppointmentType(appointmentType, account))
+			throw new AuthorizationException();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("appointmentType", getAppointmentTypeApiResponseFactory().create(appointmentType, Set.of(AppointmentTypeApiResponseSupplement.EVERYTHING)));
 		}});
 	}
 
@@ -160,6 +182,7 @@ public class AppointmentTypeResource {
 	public ApiResponse updateAppointmentType(@Nonnull @RequestBody String requestBody,
 																					 @Nonnull @PathParameter UUID appointmentTypeId) {
 		requireNonNull(requestBody);
+		requireNonNull(appointmentTypeId);
 
 		Account account = getCurrentContext().getAccount().get();
 		AppointmentType appointmentType = getAppointmentService().findAppointmentTypeById(appointmentTypeId).orElse(null);
@@ -177,7 +200,7 @@ public class AppointmentTypeResource {
 		AppointmentType updatedAppointmentType = getAppointmentService().findAppointmentTypeById(appointmentTypeId).get();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("appointmentType", getAppointmentTypeApiResponseFactory().create(updatedAppointmentType));
+			put("appointmentType", getAppointmentTypeApiResponseFactory().create(updatedAppointmentType, Set.of(AppointmentTypeApiResponseSupplement.EVERYTHING)));
 		}});
 	}
 

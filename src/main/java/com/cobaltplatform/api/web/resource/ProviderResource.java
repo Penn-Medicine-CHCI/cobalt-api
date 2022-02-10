@@ -440,7 +440,7 @@ public class ProviderResource {
 
 			if (includeFollowups)
 				put("followups", sortedFollowups.stream()
-						.map(followup -> getFollowupApiResponseFactory().create(followup, Collections.singleton(FollowupApiResponseSupplement.ALL)))
+						.map(followup -> getFollowupApiResponseFactory().create(followup, Set.of(FollowupApiResponseSupplement.ALL)))
 						.collect(Collectors.toList()));
 		}});
 	}
