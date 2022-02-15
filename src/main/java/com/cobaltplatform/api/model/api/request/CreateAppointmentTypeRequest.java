@@ -49,7 +49,7 @@ public class CreateAppointmentTypeRequest {
 	@Nullable
 	private List<CreatePatientIntakeQuestionRequest> patientIntakeQuestions;
 	@Nullable
-	private List<CreateScreeningQuestionRequest> screeningIntakeQuestions;
+	private List<CreateScreeningQuestionRequest> screeningQuestions;
 
 	@Nullable
 	public UUID getProviderId() {
@@ -124,11 +124,11 @@ public class CreateAppointmentTypeRequest {
 	}
 
 	@Nullable
-	public List<CreateScreeningQuestionRequest> getScreeningIntakeQuestions() {
-		return screeningIntakeQuestions;
+	public List<CreateScreeningQuestionRequest> getScreeningQuestions() {
+		return screeningQuestions;
 	}
 
-	public void setScreeningIntakeQuestions(@Nullable List<CreateScreeningQuestionRequest> screeningIntakeQuestions) {
-		this.screeningIntakeQuestions = screeningIntakeQuestions;
+	public void setScreeningQuestions(@Nullable List<CreateScreeningQuestionRequest> screeningQuestions) {
+		this.screeningQuestions = screeningQuestions;
 	}
 }

@@ -21,7 +21,6 @@ package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.FontSize.FontSizeId;
 import com.cobaltplatform.api.model.db.QuestionContentHint.QuestionContentHintId;
-import com.cobaltplatform.api.model.db.QuestionType.QuestionTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -34,8 +33,6 @@ public class CreatePatientIntakeQuestionRequest {
 	@Nullable
 	private String question;
 	@Nullable
-	private QuestionTypeId questionTypeId;
-	@Nullable
 	private QuestionContentHintId questionContentHintId;
 	@Nullable
 	private FontSizeId fontSizeId;
@@ -47,15 +44,6 @@ public class CreatePatientIntakeQuestionRequest {
 
 	public void setQuestion(@Nullable String question) {
 		this.question = question;
-	}
-
-	@Nullable
-	public QuestionTypeId getQuestionTypeId() {
-		return questionTypeId;
-	}
-
-	public void setQuestionTypeId(@Nullable QuestionTypeId questionTypeId) {
-		this.questionTypeId = questionTypeId;
 	}
 
 	@Nullable

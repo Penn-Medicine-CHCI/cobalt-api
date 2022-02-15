@@ -1234,7 +1234,7 @@ public class AppointmentService {
 		Long durationInMinutes = request.getDurationInMinutes();
 		Integer hexColor = request.getHexColor();
 		List<CreatePatientIntakeQuestionRequest> patientIntakeQuestions = request.getPatientIntakeQuestions() == null ? Collections.emptyList() : request.getPatientIntakeQuestions();
-		List<CreateScreeningQuestionRequest> screeningIntakeQuestions = request.getScreeningIntakeQuestions() == null ? Collections.emptyList() : request.getScreeningIntakeQuestions();
+		List<CreateScreeningQuestionRequest> screeningQuestions = request.getScreeningQuestions() == null ? Collections.emptyList() : request.getScreeningQuestions();
 		UUID appointmentTypeId = UUID.randomUUID();
 		Provider provider;
 
@@ -1275,15 +1275,9 @@ public class AppointmentService {
 			if (patientIntakeQuestion == null)
 				continue;
 
-			QuestionTypeId questionTypeId = patientIntakeQuestion.getQuestionTypeId();
 			String question = trimToNull(patientIntakeQuestion.getQuestion());
 			FontSizeId fontSizeId = patientIntakeQuestion.getFontSizeId();
 			int questionNumber = i + 1;
-
-			if (questionTypeId == null)
-				validationException.add(new FieldError(format("patientIntakeQuestions[%d].questionTypeId"), getStrings().get("Question type is required for patient intake question {{questionNumber}}.", new HashMap<String, Object>() {{
-					put("questionNumber", questionNumber);
-				}})));
 
 			if (question == null)
 				validationException.add(new FieldError(format("patientIntakeQuestions[%d].question"), getStrings().get("Question text is required for patient intake question {{questionNumber}}.", new HashMap<String, Object>() {{
@@ -1296,19 +1290,19 @@ public class AppointmentService {
 				}})));
 		}
 
-		for (int i = 0; i < screeningIntakeQuestions.size(); ++i) {
-			CreateScreeningQuestionRequest screeningIntakeQuestion = screeningIntakeQuestions.get(i);
+		for (int i = 0; i < screeningQuestions.size(); ++i) {
+			CreateScreeningQuestionRequest screeningIntakeQuestion = screeningQuestions.get(i);
 			String question = trimToNull(screeningIntakeQuestion.getQuestion());
 			FontSizeId fontSizeId = screeningIntakeQuestion.getFontSizeId();
 			int questionNumber = i + 1;
 
 			if (question == null)
-				validationException.add(new FieldError(format("screeningIntakeQuestions[%d].question"), getStrings().get("Question text is required for screening question {{questionNumber}}.", new HashMap<String, Object>() {{
+				validationException.add(new FieldError(format("screeningQuestions[%d].question"), getStrings().get("Question text is required for screening question {{questionNumber}}.", new HashMap<String, Object>() {{
 					put("questionNumber", questionNumber);
 				}})));
 
 			if (fontSizeId == null)
-				validationException.add(new FieldError(format("screeningIntakeQuestions[%d].fontSizeId"), getStrings().get("Font size is required for screening question {{questionNumber}}.", new HashMap<String, Object>() {{
+				validationException.add(new FieldError(format("screeningQuestions[%d].fontSizeId"), getStrings().get("Font size is required for screening question {{questionNumber}}.", new HashMap<String, Object>() {{
 					put("questionNumber", questionNumber);
 				}})));
 		}
@@ -1332,12 +1326,12 @@ public class AppointmentService {
 				.collect(Collectors.toList());
 
 		// Normalize
-		screeningIntakeQuestions = screeningIntakeQuestions.stream()
-				.filter(screeningIntakeQuestion -> screeningIntakeQuestion != null)
+		screeningQuestions = screeningQuestions.stream()
+				.filter(screeningQuestion -> screeningQuestion != null)
 				.collect(Collectors.toList());
 
-		if (patientIntakeQuestions.size() > 0 || screeningIntakeQuestions.size() > 0) {
-			UUID assessmentId = createIntakeAssessmentForAppointmentTypeQuestions(screeningIntakeQuestions, patientIntakeQuestions);
+		if (patientIntakeQuestions.size() > 0 || screeningQuestions.size() > 0) {
+			UUID assessmentId = createIntakeAssessmentForAppointmentTypeQuestions(screeningQuestions, patientIntakeQuestions);
 
 			getDatabase().execute("INSERT INTO appointment_type_assessment (appointment_type_id, " +
 					"assessment_id, active) VALUES (?,?,?)", appointmentTypeId, assessmentId, true);
@@ -1400,29 +1394,22 @@ public class AppointmentService {
 				CreatePatientIntakeQuestionRequest intakeQuestionRequest = (CreatePatientIntakeQuestionRequest) question;
 
 				String screeningQuestion = intakeQuestionRequest.getQuestion();
-				QuestionTypeId questionTypeId = intakeQuestionRequest.getQuestionTypeId();
+				QuestionTypeId questionTypeId = QuestionTypeId.TEXT;
 				FontSizeId fontSizeId = intakeQuestionRequest.getFontSizeId();
 				QuestionContentHintId questionContentHintId = intakeQuestionRequest.getQuestionContentHintId();
 
 				if (questionContentHintId == null)
 					questionContentHintId = QuestionContentHintId.NONE;
 
-				// Only support these types currently
-				if (intakeQuestionRequest.getQuestionTypeId() == QuestionTypeId.TEXT
-						|| intakeQuestionRequest.getQuestionTypeId() == QuestionTypeId.PHONE_NUMBER) {
+				UUID answerId = UUID.randomUUID();
 
-					UUID answerId = UUID.randomUUID();
+				// Careful: display order must start at 1, not 0
+				getDatabase().execute("INSERT INTO question (question_id, assessment_id, question_type_id, font_size_id, " +
+								"question_content_hint_id, question_text, display_order) VALUES (?,?,?,?,?,?,?)", mostRecentQuestionId,
+						assessmentId, questionTypeId, fontSizeId, questionContentHintId, screeningQuestion, i + 1);
 
-					// Careful: display order must start at 1, not 0
-					getDatabase().execute("INSERT INTO question (question_id, assessment_id, question_type_id, font_size_id, " +
-									"question_content_hint_id, question_text, display_order) VALUES (?,?,?,?,?,?,?)", mostRecentQuestionId,
-							assessmentId, questionTypeId, fontSizeId, questionContentHintId, screeningQuestion, i + 1);
-
-					getDatabase().execute("INSERT INTO answer (answer_id, question_id, answer_text, display_order, " +
-							"answer_value, next_question_id) VALUES (?,?,?,?,?,?)", answerId, mostRecentQuestionId, getStrings().get("Type here"), 1, 1, nextQuestionId);
-				} else {
-					throw new ValidationException(getStrings().get("We currently only support text and phone number question types."));
-				}
+				getDatabase().execute("INSERT INTO answer (answer_id, question_id, answer_text, display_order, " +
+						"answer_value, next_question_id) VALUES (?,?,?,?,?,?)", answerId, mostRecentQuestionId, getStrings().get("Type here"), 1, 1, nextQuestionId);
 			}
 		}
 
