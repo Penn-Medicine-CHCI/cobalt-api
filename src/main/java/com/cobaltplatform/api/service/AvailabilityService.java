@@ -42,15 +42,15 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -94,15 +94,6 @@ public class AvailabilityService {
 		this.configuration = configuration;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
-	}
-
-	@Nonnull
-	public Optional<ProviderAvailability> findProviderAvailabilityById(@Nullable UUID providerAvailabilityId) {
-		if (providerAvailabilityId == null)
-			return Optional.empty();
-
-		return getDatabase().queryForObject("SELECT * FROM provider_availability WHERE provider_availability_id=?",
-				ProviderAvailability.class, providerAvailabilityId);
 	}
 
 	@Nonnull
@@ -168,46 +159,34 @@ public class AvailabilityService {
 			getDatabase().execute("INSERT INTO logical_availability_appointment_type(logical_availability_id, appointment_type_id) VALUES (?,?)",
 					logicalAvailabilityId, appointmentType.getAppointmentTypeId());
 
-		// TODO: improve/test this logic...here we are creating appointment types that map to logical availabilities
-		long longestAppointmentTypeDurationInMinutes = 0L;
-
-		for (AppointmentType appointmentType : appointmentTypes) {
-			if (appointmentType.getDurationInMinutes() > longestAppointmentTypeDurationInMinutes) {
-				longestAppointmentTypeDurationInMinutes = appointmentType.getDurationInMinutes();
-			}
-		}
-
-		Duration logicalAvailabilityDuration = Duration.between(startDateTime, endDateTime);
-		long logicalAvailabilityDurationInMinutes = logicalAvailabilityDuration.toMinutes();
-
-		if (logicalAvailabilityDurationInMinutes < longestAppointmentTypeDurationInMinutes) {
-			Long pinnedLongestAppointmentTypeDurationInMinutes = longestAppointmentTypeDurationInMinutes;
-
-			throw new ValidationException(getStrings().get("Your availability is not long enough ({{availabilityMins}} mins) to accommodate your longest appointment type ({{appointmentTypeMins}} mins).", new HashMap<String, Object>() {{
-				put("availabilityMins", logicalAvailabilityDurationInMinutes);
-				put("appointmentTypeMins", pinnedLongestAppointmentTypeDurationInMinutes);
-			}}));
-		}
-
-		LocalDateTime providerAvailabilityStartDateTime = startDateTime;
-		List<List<Object>> parameterGroups = new ArrayList<>();
-
-		while (!providerAvailabilityStartDateTime.plusMinutes(longestAppointmentTypeDurationInMinutes).isAfter(endDateTime)) {
-			for (AppointmentType appointmentType : appointmentTypes) {
-				List<Object> parameterGroup = new ArrayList<>(3);
-				parameterGroup.add(providerId);
-				parameterGroup.add(appointmentType.getAppointmentTypeId());
-				parameterGroup.add(providerAvailabilityStartDateTime);
-				parameterGroup.add(logicalAvailabilityId);
-				parameterGroups.add(parameterGroup);
-			}
-
-			providerAvailabilityStartDateTime = providerAvailabilityStartDateTime.plusMinutes(longestAppointmentTypeDurationInMinutes);
-		}
-
-		getDatabase().executeBatch("INSERT INTO provider_availability(provider_id, appointment_type_id, date_time, logical_availability_id) VALUES (?,?,?,?)", parameterGroups);
-
 		return logicalAvailabilityId;
+	}
+
+	@Nonnull
+	public List<ProviderAvailability> findProviderAvailabilities(@Nullable UUID providerId,
+																															 @Nullable LocalDateTime startDateTime,
+																															 @Nullable LocalDateTime endDateTime) {
+		if (providerId == null || startDateTime == null || endDateTime == null)
+			return Collections.emptyList();
+
+		Map<UUID, List<ProviderAvailability>> providerAvailabilitiesByProviderId = findProviderAvailabilities(Set.of(providerId), startDateTime, endDateTime);
+		List<ProviderAvailability> providerAvailabilities = providerAvailabilitiesByProviderId.get(providerId);
+		return providerAvailabilities == null ? Collections.emptyList() : providerAvailabilities;
+	}
+
+	@Nonnull
+	public Map<UUID, List<ProviderAvailability>> findProviderAvailabilities(@Nullable Set<UUID> providerIds,
+																																					@Nullable LocalDateTime startDateTime,
+																																					@Nullable LocalDateTime endDateTime) {
+		if (providerIds == null || startDateTime == null || endDateTime == null)
+			return Collections.emptyMap();
+
+		if (startDateTime.isEqual(endDateTime) || startDateTime.isAfter(endDateTime))
+			return Collections.emptyMap();
+
+		// TODO: heavy lifting of filling in synthetic availability slots
+
+		return Collections.emptyMap();
 	}
 
 	@Nonnull
@@ -226,7 +205,6 @@ public class AvailabilityService {
 
 		boolean deleted = false;
 
-		deleted = deleted || getDatabase().execute("DELETE FROM provider_availability WHERE logical_availability_id=?", logicalAvailabilityId) > 0;
 		deleted = deleted || getDatabase().execute("DELETE FROM logical_availability_appointment_type WHERE logical_availability_id=?", logicalAvailabilityId) > 0;
 		deleted = deleted || getDatabase().execute("DELETE FROM logical_availability WHERE logical_availability_id=?", logicalAvailabilityId) > 0;
 
