@@ -130,6 +130,7 @@ import java.util.stream.Stream;
 
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
+import static com.cobaltplatform.api.util.ValidationUtility.isValidHexColor;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
@@ -181,6 +182,8 @@ public class AppointmentService {
 	@Nonnull
 	private final Formatter formatter;
 	@Nonnull
+	private final Normalizer normalizer;
+	@Nonnull
 	private final SessionService sessionService;
 	@Nonnull
 	private final AssessmentService assessmentService;
@@ -210,6 +213,7 @@ public class AppointmentService {
 														@Nonnull javax.inject.Provider<ClinicService> clinicServiceProvider,
 														@Nonnull EmailMessageManager emailMessageManager,
 														@Nonnull Formatter formatter,
+														@Nonnull Normalizer normalizer,
 														@Nonnull SessionService sessionService,
 														@Nonnull AssessmentService assessmentService,
 														@Nonnull GoogleCalendarUrlGenerator googleCalendarUrlGenerator,
@@ -231,6 +235,8 @@ public class AppointmentService {
 		requireNonNull(auditLogServiceProvider);
 		requireNonNull(clinicServiceProvider);
 		requireNonNull(emailMessageManager);
+		requireNonNull(formatter);
+		requireNonNull(normalizer);
 		requireNonNull(sessionService);
 		requireNonNull(assessmentService);
 		requireNonNull(googleCalendarUrlGenerator);
@@ -255,12 +261,13 @@ public class AppointmentService {
 		this.clinicServiceProvider = clinicServiceProvider;
 		this.assessmentScoringServiceProvider = assessmentScoringServiceProvider;
 		this.formatter = formatter;
-		this.logger = LoggerFactory.getLogger(getClass());
+		this.normalizer = normalizer;
 		this.sessionService = sessionService;
 		this.assessmentService = assessmentService;
 		this.googleCalendarUrlGenerator = googleCalendarUrlGenerator;
 		this.iCalInviteGenerator = iCalInviteGenerator;
 		this.jsonMapper = jsonMapper;
+		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
 	@Nonnull
@@ -1232,7 +1239,7 @@ public class AppointmentService {
 		VisitTypeId visitTypeId = request.getVisitTypeId();
 		String name = trimToNull(request.getName());
 		Long durationInMinutes = request.getDurationInMinutes();
-		Integer hexColor = request.getHexColor();
+		String hexColor = trimToNull(request.getHexColor());
 		List<CreatePatientIntakeQuestionRequest> patientIntakeQuestions = request.getPatientIntakeQuestions() == null ? Collections.emptyList() : request.getPatientIntakeQuestions();
 		List<CreateScreeningQuestionRequest> screeningQuestions = request.getScreeningQuestions() == null ? Collections.emptyList() : request.getScreeningQuestions();
 		UUID appointmentTypeId = UUID.randomUUID();
@@ -1251,6 +1258,11 @@ public class AppointmentService {
 
 		if (name == null)
 			validationException.add(new FieldError("name", getStrings().get("Name is required.")));
+
+		if (hexColor == null)
+			validationException.add(new FieldError("hexColor", getStrings().get("Hex color is required.")));
+		else if (!isValidHexColor(hexColor))
+			validationException.add(new FieldError("hexColor", getStrings().get("Hex color is invalid.")));
 
 		if (schedulingSystemId == null)
 			validationException.add(new FieldError("schedulingSystemId", getStrings().get("Scheduling System ID is required.")));
@@ -1310,9 +1322,11 @@ public class AppointmentService {
 		if (validationException.hasErrors())
 			throw validationException;
 
+		Integer normalizedHexColor = getNormalizer().normalizeHexColor(hexColor).get();
+
 		getDatabase().execute("INSERT INTO appointment_type (appointment_type_id, visit_type_id, " +
-						"name, duration_in_minutes, scheduling_system_id) VALUES (?,?,?,?,?)", appointmentTypeId, visitTypeId, name,
-				durationInMinutes, schedulingSystemId);
+						"name, duration_in_minutes, scheduling_system_id, hex_color) VALUES (?,?,?,?,?,?)", appointmentTypeId, visitTypeId, name,
+				durationInMinutes, schedulingSystemId, normalizedHexColor);
 
 		getDatabase().execute("INSERT INTO provider_appointment_type (provider_id, appointment_type_id, display_order) " +
 						"SELECT ?,?, MAX(display_order) + 1 FROM provider_appointment_type WHERE provider_id=?",
@@ -2042,6 +2056,11 @@ public class AppointmentService {
 	@Nonnull
 	protected Formatter getFormatter() {
 		return formatter;
+	}
+
+	@Nonnull
+	protected Normalizer getNormalizer() {
+		return normalizer;
 	}
 
 	@Nonnull

@@ -45,7 +45,7 @@ public class CreateAppointmentTypeRequest {
 	@Nullable
 	private Long durationInMinutes;
 	@Nullable
-	private Integer hexColor;
+	private String hexColor; // of the form "#FFFFFF"
 	@Nullable
 	private List<CreatePatientIntakeQuestionRequest> patientIntakeQuestions;
 	@Nullable
@@ -106,11 +106,11 @@ public class CreateAppointmentTypeRequest {
 	}
 
 	@Nullable
-	public Integer getHexColor() {
+	public String getHexColor() {
 		return hexColor;
 	}
 
-	public void setHexColor(@Nullable Integer hexColor) {
+	public void setHexColor(@Nullable String hexColor) {
 		this.hexColor = hexColor;
 	}
 

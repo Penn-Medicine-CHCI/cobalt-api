@@ -72,9 +72,7 @@ public class AppointmentTypeApiResponse {
 	@Nonnull
 	private final String durationInMinutesDescription;
 	@Nonnull
-	private final Integer hexColor;
-	@Nonnull
-	private final String hexColorDescription;
+	private final String hexColor;
 	@Nullable
 	private final UUID assessmentId;
 	@Nullable
@@ -129,8 +127,7 @@ public class AppointmentTypeApiResponse {
 		this.durationInMinutesDescription = strings.get("{{duration}} minutes", new HashMap<String, Object>() {{
 			put("duration", appointmentType.getDurationInMinutes());
 		}});
-		this.hexColor = appointmentType.getHexColor();
-		this.hexColorDescription = format("#%s", Integer.toHexString(appointmentType.getHexColor()));
+		this.hexColor = formatter.formatHexColor(appointmentType.getHexColor());
 		this.assessmentId = appointmentType.getAssessmentId();
 
 		if (appointmentType.getAssessmentId() != null && (supplements.contains(AppointmentTypeApiResponseSupplement.ASSESSMENT) || supplements.contains(AppointmentTypeApiResponseSupplement.EVERYTHING))) {
@@ -262,13 +259,8 @@ public class AppointmentTypeApiResponse {
 	}
 
 	@Nonnull
-	public Integer getHexColor() {
+	public String getHexColor() {
 		return hexColor;
-	}
-
-	@Nonnull
-	public String getHexColorDescription() {
-		return hexColorDescription;
 	}
 
 	@Nullable

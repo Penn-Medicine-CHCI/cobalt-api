@@ -654,6 +654,12 @@ public final class Formatter {
 		return stringWriter.toString();
 	}
 
+	@Nonnull
+	public String formatHexColor(@Nonnull Integer color) {
+		// e.g. 3692510 (decimal) would be #3857de
+		return format("#%s", Integer.toHexString(color)).toLowerCase(Locale.US);
+	}
+
 	public enum FilesizeUnit {
 		DECIMAL(1_000), BINARY(1_024);
 
