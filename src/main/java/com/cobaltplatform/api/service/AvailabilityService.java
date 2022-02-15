@@ -152,8 +152,9 @@ public class AvailabilityService {
 
 		UUID logicalAvailabilityId = UUID.randomUUID();
 
-		getDatabase().execute("INSERT INTO logical_availability(logical_availability_id, provider_id, start_date_time, end_date_time) VALUES (?,?,?,?)",
-				logicalAvailabilityId, providerId, startDateTime, endDateTime);
+		getDatabase().execute("INSERT INTO logical_availability(logical_availability_id, provider_id, start_date_time, " +
+						"end_date_time, created_by_account_id, last_updated_by_account_id) VALUES (?,?,?,?,?,?)",
+				logicalAvailabilityId, providerId, startDateTime, endDateTime, accountId, accountId);
 
 		for (AppointmentType appointmentType : appointmentTypes)
 			getDatabase().execute("INSERT INTO logical_availability_appointment_type(logical_availability_id, appointment_type_id) VALUES (?,?)",

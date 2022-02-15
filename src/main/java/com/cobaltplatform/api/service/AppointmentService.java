@@ -1329,7 +1329,7 @@ public class AppointmentService {
 				durationInMinutes, schedulingSystemId, normalizedHexColor);
 
 		getDatabase().execute("INSERT INTO provider_appointment_type (provider_id, appointment_type_id, display_order) " +
-						"SELECT ?,?, MAX(display_order) + 1 FROM provider_appointment_type WHERE provider_id=?",
+						"SELECT ?,?, COALESCE(MAX(display_order) + 1, 1) FROM provider_appointment_type WHERE provider_id=?",
 				providerId, appointmentTypeId, providerId);
 
 		// Build assessment, if needed
