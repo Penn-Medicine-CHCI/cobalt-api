@@ -93,16 +93,24 @@ public class AppointmentTypeApiResponse {
 		AppointmentTypeApiResponse create(@Nonnull AppointmentType appointmentType);
 
 		@Nonnull
-		AppointmentTypeApiResponse create(@Nonnull AppointmentType appointmentType, @Nonnull Set<AppointmentTypeApiResponseSupplement> supplements);
+		AppointmentTypeApiResponse create(@Nonnull AppointmentType appointmentType,
+																			@Nonnull Set<AppointmentTypeApiResponseSupplement> supplements);
 	}
 
 	@AssistedInject
-	public AppointmentTypeApiResponse(@Nonnull AssessmentService assessmentService, @Nonnull Formatter formatter, @Nonnull Strings strings, @Assisted @Nonnull AppointmentType appointmentType) {
+	public AppointmentTypeApiResponse(@Nonnull AssessmentService assessmentService,
+																		@Nonnull Formatter formatter,
+																		@Nonnull Strings strings,
+																		@Assisted @Nonnull AppointmentType appointmentType) {
 		this(assessmentService, formatter, strings, appointmentType, Collections.emptySet());
 	}
 
 	@AssistedInject
-	public AppointmentTypeApiResponse(@Nonnull AssessmentService assessmentService, @Nonnull Formatter formatter, @Nonnull Strings strings, @Assisted @Nonnull AppointmentType appointmentType, @Assisted @Nonnull Set<AppointmentTypeApiResponseSupplement> supplements) {
+	public AppointmentTypeApiResponse(@Nonnull AssessmentService assessmentService,
+																		@Nonnull Formatter formatter,
+																		@Nonnull Strings strings,
+																		@Assisted @Nonnull AppointmentType appointmentType,
+																		@Assisted @Nonnull Set<AppointmentTypeApiResponseSupplement> supplements) {
 		requireNonNull(assessmentService);
 		requireNonNull(formatter);
 		requireNonNull(strings);
