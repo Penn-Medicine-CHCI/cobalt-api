@@ -25,7 +25,9 @@ import com.cobaltplatform.api.model.api.request.CreateAppointmentTypeRequest;
 import com.cobaltplatform.api.model.api.request.CreateLogicalAvailabilityRequest;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.LogicalAvailabilityType.LogicalAvailabilityTypeId;
 import com.cobaltplatform.api.model.db.ProviderAvailability;
+import com.cobaltplatform.api.model.db.RecurrenceType.RecurrenceTypeId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
@@ -89,6 +91,8 @@ public class AvailabilityServiceTests {
 			availabilityService.createLogicalAvailability(new CreateLogicalAvailabilityRequest() {{
 				setProviderId(PROVIDER_ID);
 				setAccountId(accountId);
+				setLogicalAvailabilityTypeId(LogicalAvailabilityTypeId.OPEN);
+				setRecurrenceTypeId(RecurrenceTypeId.NONE);
 				setAppointmentTypeIds(List.of(npvAppointmentTypeId));
 				setStartDateTime(LocalDateTime.of(
 						LocalDate.of(2022, 2, 15),
