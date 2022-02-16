@@ -33,14 +33,18 @@ import com.cobaltplatform.api.model.db.ActivityType.ActivityTypeId;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AuditLog;
 import com.cobaltplatform.api.model.db.AuditLogEvent;
+import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.ActivityTrackingService;
 import com.cobaltplatform.api.service.AppointmentService;
 import com.cobaltplatform.api.service.AuditLogService;
+import com.cobaltplatform.api.service.AuthorizationService;
+import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
+import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.lokalized.Strings;
 import com.soklet.json.JSONObject;
@@ -63,7 +67,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
-import javax.inject.Provider;
 import javax.inject.Singleton;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -106,13 +109,17 @@ public class AppointmentResource {
 	@Nonnull
 	private final Strings strings;
 	@Nonnull
-	private final Provider<CurrentContext> currentContextProvider;
+	private final javax.inject.Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final Logger logger;
 	@Nonnull
 	private final AuditLogService auditLogService;
 	@Nonnull
 	private final ActivityTrackingService activityTrackingService;
+	@Nonnull
+	private final AuthorizationService authorizationService;
+	@Nonnull
+	private final ProviderService providerService;
 	@Nonnull
 	private final JsonMapper jsonMapper;
 
@@ -124,9 +131,11 @@ public class AppointmentResource {
 														 @Nonnull RequestBodyParser requestBodyParser,
 														 @Nonnull Formatter formatter,
 														 @Nonnull Strings strings,
-														 @Nonnull Provider<CurrentContext> currentContextProvider,
+														 @Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
 														 @Nonnull AuditLogService auditLogService,
 														 @Nonnull ActivityTrackingService activityTrackingService,
+														 @Nonnull AuthorizationService authorizationService,
+														 @Nonnull ProviderService providerService,
 														 @Nonnull JsonMapper jsonMapper) {
 		requireNonNull(appointmentService);
 		requireNonNull(accountService);
@@ -138,6 +147,8 @@ public class AppointmentResource {
 		requireNonNull(currentContextProvider);
 		requireNonNull(auditLogService);
 		requireNonNull(activityTrackingService);
+		requireNonNull(authorizationService);
+		requireNonNull(providerService);
 		requireNonNull(jsonMapper);
 
 		this.appointmentService = appointmentService;
@@ -151,6 +162,8 @@ public class AppointmentResource {
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.auditLogService = auditLogService;
 		this.activityTrackingService = activityTrackingService;
+		this.authorizationService = authorizationService;
+		this.providerService = providerService;
 		this.jsonMapper = jsonMapper;
 	}
 
@@ -199,12 +212,37 @@ public class AppointmentResource {
 	@AuthenticationRequired
 	public ApiResponse appointments(@Nonnull @QueryParameter Optional<AppointmentResponseFormat> responseFormat,
 																	@Nonnull @QueryParameter Optional<AppointmentResponseType> type,
-																	@Nonnull @QueryParameter Optional<UUID> accountId) {
+																	@Nonnull @QueryParameter Optional<UUID> accountId,
+																	@Nonnull @QueryParameter Optional<UUID> providerId,
+																	@Nonnull @QueryParameter Optional<LocalDate> startDate,
+																	@Nonnull @QueryParameter Optional<LocalDate> endDate) {
 		requireNonNull(responseFormat);
 		requireNonNull(type);
 		requireNonNull(accountId);
+		requireNonNull(providerId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
 
 		Account account = getCurrentContext().getAccount().get();
+
+		if (providerId.isPresent()) {
+			Optional<Provider> provider = getProviderService().findProviderById(providerId.get());
+			if (!provider.isPresent())
+				throw new NotFoundException();
+			else if (!getAuthorizationService().canViewProviderCalendar(provider.get(), account))
+				throw new AuthorizationException();
+
+			if (!startDate.isPresent() || !endDate.isPresent())
+				throw new ValidationException(new ValidationException.FieldError("date", getStrings().get("Start and end dates are required.")));
+
+			List<Appointment> appointments = getAppointmentService().findAppointmentsByProviderId(providerId.get(), startDate.get(), endDate.get());
+			return new ApiResponse(new HashMap<String, Object>() {{
+				put("appointments", appointments.stream()
+						.map((appointment) -> getAppointmentApiResponseFactory().create(appointment, null))
+						.collect(Collectors.toList()));
+			}});
+
+		}
 
 		// Some users can book on behalf of other users
 		// TODO: this checking should be more strict and institution-specific
@@ -500,6 +538,12 @@ public class AppointmentResource {
 	protected ActivityTrackingService getActivityTrackingService() {
 		return activityTrackingService;
 	}
+
+	@Nonnull
+	protected AuthorizationService getAuthorizationService() { return authorizationService; }
+
+	@Nonnull
+	protected ProviderService getProviderService() { return providerService; }
 
 	@Nonnull
 	protected JsonMapper getJsonMapper() {

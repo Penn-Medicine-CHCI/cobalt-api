@@ -287,6 +287,18 @@ public class AppointmentService {
 	}
 
 	@Nonnull
+	public List<Appointment> findAppointmentsByProviderId(@Nullable UUID providerId,
+																												@Nullable LocalDate startDate,
+																												@Nullable LocalDate endDate) {
+		if (providerId == null || startDate ==null || endDate ==null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("SELECT * FROM appointment WHERE provider_id=? AND canceled=FALSE " +
+				"AND start_time >= ? AND start_time <= ? ORDER BY start_time DESC", Appointment.class, providerId, startDate, endDate);
+	}
+
+
+	@Nonnull
 	public List<Appointment> findRecentAppointmentsByAccountId(@Nullable UUID accountId,
 																														 @Nullable ZoneId timeZone) {
 		if (accountId == null || timeZone == null)
