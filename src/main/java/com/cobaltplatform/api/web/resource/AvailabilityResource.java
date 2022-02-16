@@ -21,6 +21,7 @@ package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateLogicalAvailabilityRequest;
+import com.cobaltplatform.api.model.api.request.UpdateLogicalAvailabilityRequest;
 import com.cobaltplatform.api.model.api.response.LogicalAvailabilityApiResponse.LogicalAvailabilityApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.LogicalAvailability;
@@ -36,6 +37,7 @@ import com.lokalized.Strings;
 import com.soklet.web.annotation.DELETE;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
+import com.soklet.web.annotation.PUT;
 import com.soklet.web.annotation.PathParameter;
 import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.RequestBody;
@@ -138,6 +140,42 @@ public class AvailabilityResource {
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("logicalAvailability", getLogicalAvailabilityApiResponseFactory().create(logicalAvailability));
+		}});
+	}
+
+	@Nonnull
+	@PUT("/logical-availabilities/{logicalAvailabilityId}")
+	@AuthenticationRequired
+	public ApiResponse updateLogicalAvailability(@Nonnull @PathParameter UUID logicalAvailabilityId,
+																							 @Nonnull @RequestBody String requestBody) {
+		requireNonNull(logicalAvailabilityId);
+		requireNonNull(requestBody);
+
+		LogicalAvailability logicalAvailability = getAvailabilityService().findLogicalAvailabilityById(logicalAvailabilityId).orElse(null);
+
+		if (logicalAvailability == null)
+			throw new NotFoundException();
+
+		Account account = getCurrentContext().getAccount().get();
+
+		UpdateLogicalAvailabilityRequest request = getRequestBodyParser().parse(requestBody, UpdateLogicalAvailabilityRequest.class);
+		request.setLogicalAvailabilityId(logicalAvailabilityId);
+		request.setAccountId(account.getAccountId());
+
+		Provider provider = getProviderService().findProviderById(request.getProviderId()).orElse(null);
+
+		if (provider == null)
+			throw new ValidationException(new ValidationException.FieldError("providerId", getStrings().get("Provider is invalid.")));
+
+		if (!getAuthorizationService().canEditProviderCalendar(provider, account))
+			throw new AuthorizationException();
+
+		getAvailabilityService().updateLogicalAvailability(request);
+
+		LogicalAvailability updatedLogicalAvailability = getAvailabilityService().findLogicalAvailabilityById(logicalAvailabilityId).get();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("logicalAvailability", getLogicalAvailabilityApiResponseFactory().create(updatedLogicalAvailability));
 		}});
 	}
 

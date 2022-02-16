@@ -21,6 +21,7 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.api.request.CreateLogicalAvailabilityRequest;
+import com.cobaltplatform.api.model.api.request.UpdateLogicalAvailabilityRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.CalendarPermission.CalendarPermissionId;
@@ -201,6 +202,105 @@ public class AvailabilityService {
 					logicalAvailabilityId, appointmentType.getAppointmentTypeId());
 
 		return logicalAvailabilityId;
+	}
+
+	@Nonnull
+	public Boolean updateLogicalAvailability(@Nonnull UpdateLogicalAvailabilityRequest request) {
+		requireNonNull(request);
+
+		UUID logicalAvailabilityId = request.getLogicalAvailabilityId();
+		UUID providerId = request.getProviderId();
+		UUID accountId = request.getAccountId();
+		LocalDateTime startDateTime = request.getStartDateTime();
+		LocalDateTime endDateTime = request.getEndDateTime();
+		List<UUID> appointmentTypeIds = request.getAppointmentTypeIds() == null ? Collections.emptyList() : request.getAppointmentTypeIds();
+		LogicalAvailabilityTypeId logicalAvailabilityTypeId = request.getLogicalAvailabilityTypeId();
+		RecurrenceTypeId recurrenceTypeId = request.getRecurrenceTypeId();
+		boolean recurSunday = request.getRecurSunday() == null ? false : request.getRecurSunday();
+		boolean recurMonday = request.getRecurMonday() == null ? false : request.getRecurMonday();
+		boolean recurTuesday = request.getRecurTuesday() == null ? false : request.getRecurTuesday();
+		boolean recurWednesday = request.getRecurWednesday() == null ? false : request.getRecurWednesday();
+		boolean recurThursday = request.getRecurThursday() == null ? false : request.getRecurThursday();
+		boolean recurFriday = request.getRecurFriday() == null ? false : request.getRecurFriday();
+		boolean recurSaturday = request.getRecurSaturday() == null ? false : request.getRecurSaturday();
+
+		ValidationException validationException = new ValidationException();
+
+		if (logicalAvailabilityId == null)
+			validationException.add(new FieldError("logicalAvailabilityId", getStrings().get("Logical Availability ID is required.")));
+
+		if (providerId == null) {
+			validationException.add(new FieldError("providerId", getStrings().get("Provider ID is required.")));
+		} else {
+			Provider provider = getProviderService().findProviderById(providerId).orElse(null);
+
+			if (provider == null)
+				validationException.add(new FieldError("providerId", getStrings().get("Provider ID is invalid.")));
+		}
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (startDateTime == null)
+			validationException.add(new FieldError("startDateTime", getStrings().get("Start date/time is required.")));
+
+		if (endDateTime == null)
+			validationException.add(new FieldError("endDateTime", getStrings().get("End date/time is required.")));
+
+		List<AppointmentType> appointmentTypes = appointmentTypeIds.stream()
+				.filter(appointmentTypeId -> appointmentTypeId != null)
+				.distinct()
+				.map(appointmentTypeId -> getAppointmentService().findAppointmentTypeById(appointmentTypeId).get())
+				.collect(Collectors.toList());
+
+		if (startDateTime != null && endDateTime != null && !endDateTime.isAfter(startDateTime))
+			validationException.add(getStrings().get("End time must be after start time."));
+
+		if (logicalAvailabilityTypeId == null)
+			validationException.add(new FieldError("logicalAvailabilityTypeId", getStrings().get("Availability type is required.")));
+
+		if (recurrenceTypeId == null) {
+			validationException.add(new FieldError("recurrenceTypeId", getStrings().get("Recurrence type is required.")));
+		} else {
+			if (recurrenceTypeId == RecurrenceTypeId.NONE) {
+				recurSunday = false;
+				recurMonday = false;
+				recurTuesday = false;
+				recurWednesday = false;
+				recurThursday = false;
+				recurFriday = false;
+				recurSaturday = false;
+			} else if (recurrenceTypeId == RecurrenceTypeId.DAILY) {
+				if (!recurSunday
+						&& !recurMonday
+						&& !recurTuesday
+						&& !recurWednesday
+						&& !recurThursday
+						&& !recurFriday
+						&& !recurSaturday)
+					validationException.add(new FieldError("recurrenceTypeId", getStrings().get("You must specify at least one recurrence day.")));
+			} else {
+				validationException.add(new FieldError("recurrenceTypeId", getStrings().get("Unsupported recurrence type was specified.")));
+			}
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("UPDATE logical_availability SET provider_id=?, start_date_time=?, " +
+						"end_date_time=?, logical_availability_type_id=?, recurrence_type_id=?, recur_sunday=?, recur_monday=?, recur_tuesday=?, " +
+						"recur_wednesday=?, recur_thursday=?, recur_friday=?, recur_saturday=?, last_updated_by_account_id=? ",
+				providerId, startDateTime, endDateTime, logicalAvailabilityTypeId, recurrenceTypeId,
+				recurSunday, recurMonday, recurTuesday, recurWednesday, recurThursday, recurFriday, recurSaturday, accountId, logicalAvailabilityId);
+
+		getDatabase().execute("DELETE FROM logical_availability_appointment_type WHERE logical_availability_id=?", logicalAvailabilityId);
+
+		// Note: if no appointment types, any active appointment type for the provider is bookable
+		for (AppointmentType appointmentType : appointmentTypes)
+			getDatabase().execute("INSERT INTO logical_availability_appointment_type(logical_availability_id, appointment_type_id) VALUES (?,?)",
+					logicalAvailabilityId, appointmentType.getAppointmentTypeId());
+
+		return true;
 	}
 
 	@Nonnull
