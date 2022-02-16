@@ -290,7 +290,7 @@ public class AppointmentService {
 	public List<Appointment> findAppointmentsByProviderId(@Nullable UUID providerId,
 																												@Nullable LocalDate startDate,
 																												@Nullable LocalDate endDate) {
-		if (providerId == null || startDate ==null || endDate ==null)
+		if (providerId == null || startDate == null || endDate == null)
 			return Collections.emptyList();
 
 		return getDatabase().queryForList("SELECT * FROM appointment WHERE provider_id=? AND canceled=FALSE " +
@@ -1367,9 +1367,136 @@ public class AppointmentService {
 	}
 
 	@Nonnull
-	public UUID updateAppointmentType(@Nonnull UpdateAppointmentTypeRequest request) {
+	public Boolean updateAppointmentType(@Nonnull UpdateAppointmentTypeRequest request) {
 		requireNonNull(request);
-		throw new UnsupportedOperationException("TODO: implement this");
+
+		UUID appointmentTypeId = request.getAppointmentTypeId();
+		UUID providerId = request.getProviderId();
+		SchedulingSystemId schedulingSystemId = request.getSchedulingSystemId();
+		VisitTypeId visitTypeId = request.getVisitTypeId();
+		String name = trimToNull(request.getName());
+		Long durationInMinutes = request.getDurationInMinutes();
+		String hexColor = trimToNull(request.getHexColor());
+		List<CreatePatientIntakeQuestionRequest> patientIntakeQuestions = request.getPatientIntakeQuestions() == null ? Collections.emptyList() : request.getPatientIntakeQuestions();
+		List<CreateScreeningQuestionRequest> screeningQuestions = request.getScreeningQuestions() == null ? Collections.emptyList() : request.getScreeningQuestions();
+		Provider provider;
+
+		ValidationException validationException = new ValidationException();
+
+		if (appointmentTypeId == null)
+			validationException.add(new FieldError("appointmentTypeId", getStrings().get("Appointment Type ID is required.")));
+
+		if (providerId == null) {
+			validationException.add(new FieldError("providerId", getStrings().get("Provider ID is required.")));
+		} else {
+			provider = getProviderService().findProviderById(providerId).orElse(null);
+
+			if (provider == null)
+				validationException.add(new FieldError("providerId", getStrings().get("Provider ID is invalid.")));
+		}
+
+		if (name == null)
+			validationException.add(new FieldError("name", getStrings().get("Name is required.")));
+
+		if (hexColor == null)
+			validationException.add(new FieldError("hexColor", getStrings().get("Hex color is required.")));
+		else if (!isValidHexColor(hexColor))
+			validationException.add(new FieldError("hexColor", getStrings().get("Hex color is invalid.")));
+
+		if (schedulingSystemId == null)
+			validationException.add(new FieldError("schedulingSystemId", getStrings().get("Scheduling System ID is required.")));
+		else if (schedulingSystemId != SchedulingSystemId.COBALT)
+			validationException.add(new FieldError("schedulingSystemId", getStrings().get("Sorry, the only supported Scheduling System ID is {{supportedSchedulingSystemId}}.", new HashMap<String, Object>() {{
+				put("supportedSchedulingSystemId", SchedulingSystemId.COBALT.name());
+			}})));
+
+		if (visitTypeId == null)
+			validationException.add(new FieldError("visitTypeId", getStrings().get("Visit Type ID is required.")));
+
+		if (durationInMinutes == null)
+			validationException.add(new FieldError("durationInMinutes", getStrings().get("Duration is required.")));
+		else if (durationInMinutes < 1)
+			validationException.add(new FieldError("durationInMinutes", getStrings().get("Duration is too small.")));
+		else if (durationInMinutes > 60 * 4 /* arbitrary upper bound to prevent accidental errors */)
+			validationException.add(new FieldError("durationInMinutes", getStrings().get("Duration is too large.")));
+
+		for (int i = 0; i < patientIntakeQuestions.size(); ++i) {
+			CreatePatientIntakeQuestionRequest patientIntakeQuestion = patientIntakeQuestions.get(i);
+
+			if (patientIntakeQuestion == null)
+				continue;
+
+			String question = trimToNull(patientIntakeQuestion.getQuestion());
+			FontSizeId fontSizeId = patientIntakeQuestion.getFontSizeId();
+			int questionNumber = i + 1;
+
+			if (question == null)
+				validationException.add(new FieldError(format("patientIntakeQuestions[%d].question"), getStrings().get("Question text is required for patient intake question {{questionNumber}}.", new HashMap<String, Object>() {{
+					put("questionNumber", questionNumber);
+				}})));
+
+			if (fontSizeId == null)
+				validationException.add(new FieldError(format("patientIntakeQuestions[%d].fontSizeId"), getStrings().get("Font size is required for patient intake question {{questionNumber}}.", new HashMap<String, Object>() {{
+					put("questionNumber", questionNumber);
+				}})));
+		}
+
+		for (int i = 0; i < screeningQuestions.size(); ++i) {
+			CreateScreeningQuestionRequest screeningIntakeQuestion = screeningQuestions.get(i);
+			String question = trimToNull(screeningIntakeQuestion.getQuestion());
+			FontSizeId fontSizeId = screeningIntakeQuestion.getFontSizeId();
+			int questionNumber = i + 1;
+
+			if (question == null)
+				validationException.add(new FieldError(format("screeningQuestions[%d].question"), getStrings().get("Question text is required for screening question {{questionNumber}}.", new HashMap<String, Object>() {{
+					put("questionNumber", questionNumber);
+				}})));
+
+			if (fontSizeId == null)
+				validationException.add(new FieldError(format("screeningQuestions[%d].fontSizeId"), getStrings().get("Font size is required for screening question {{questionNumber}}.", new HashMap<String, Object>() {{
+					put("questionNumber", questionNumber);
+				}})));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		Integer normalizedHexColor = getNormalizer().normalizeHexColor(hexColor).get();
+
+		getDatabase().execute("UPDATE appointment_type SET visit_type_id=? " +
+						"name=?, duration_in_minutes=?, scheduling_system_id=?, hex_color=? WHERE appointment_type_id=?", visitTypeId, name,
+				durationInMinutes, schedulingSystemId, normalizedHexColor, appointmentTypeId);
+
+		getDatabase().execute("DELETE FROM provider_appointment_type WHERE provider_id=? AND appointment_type_id=?", providerId, appointmentTypeId);
+
+		getDatabase().execute("INSERT INTO provider_appointment_type (provider_id, appointment_type_id, display_order) " +
+						"SELECT ?,?, COALESCE(MAX(display_order) + 1, 1) FROM provider_appointment_type WHERE provider_id=?",
+				providerId, appointmentTypeId, providerId);
+
+		// Build assessment, if needed
+
+		// Normalize
+		patientIntakeQuestions = patientIntakeQuestions.stream()
+				.filter(patientIntakeQuestion -> patientIntakeQuestion != null)
+				.collect(Collectors.toList());
+
+		// Normalize
+		screeningQuestions = screeningQuestions.stream()
+				.filter(screeningQuestion -> screeningQuestion != null)
+				.collect(Collectors.toList());
+
+		// TODO: would be nice to only recreate the assessment if it has changed instead of on every edit
+
+		getDatabase().execute("UPDATE appointment_type_assessment SET active=FALSE WHERE appointment_type_id=?", appointmentTypeId);
+
+		if (patientIntakeQuestions.size() > 0 || screeningQuestions.size() > 0) {
+			UUID assessmentId = createIntakeAssessmentForAppointmentTypeQuestions(screeningQuestions, patientIntakeQuestions);
+
+			getDatabase().execute("INSERT INTO appointment_type_assessment (appointment_type_id, " +
+					"assessment_id, active) VALUES (?,?,?)", appointmentTypeId, assessmentId, true);
+		}
+
+		return true;
 	}
 
 	@Nonnull
