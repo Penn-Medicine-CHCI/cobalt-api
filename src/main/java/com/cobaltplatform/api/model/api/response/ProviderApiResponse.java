@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.Configuration;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import com.lokalized.Strings;
@@ -91,6 +92,10 @@ public class ProviderApiResponse {
 	private final Boolean phoneNumberRequiredForAppointment;
 	@Nullable
 	private List<String> paymentFundingDescriptions;
+	@Nullable
+	private String bioUrl;
+	@Nullable
+	private String bio;
 
 	public enum ProviderApiResponseSupplement {
 		EVERYTHING,
@@ -118,9 +123,10 @@ public class ProviderApiResponse {
 														 @Nonnull JsonMapper jsonMapper,
 														 @Nonnull AvailabilityTimeApiResponseFactory availabilityTimeApiResponseFactory,
 														 @Nonnull SupportRoleApiResponseFactory supportRoleApiResponseFactory,
+														 @Nonnull Configuration configuration,
 														 @Assisted @Nonnull Provider provider,
 														 @Assisted @Nullable ProviderApiResponseSupplement... supplements) {
-		this(providerService, formatter, strings, jsonMapper, availabilityTimeApiResponseFactory, supportRoleApiResponseFactory, provider, null, supplements);
+		this(providerService, formatter, strings, jsonMapper, availabilityTimeApiResponseFactory, supportRoleApiResponseFactory, configuration, provider, null, supplements);
 	}
 
 	@AssistedInject
@@ -130,6 +136,7 @@ public class ProviderApiResponse {
 														 @Nonnull JsonMapper jsonMapper,
 														 @Nonnull AvailabilityTimeApiResponseFactory availabilityTimeApiResponseFactory,
 														 @Nonnull SupportRoleApiResponseFactory supportRoleApiResponseFactory,
+														 @Nonnull Configuration configuration,
 														 @Assisted @Nonnull Provider provider,
 														 @Assisted @Nullable List<AvailabilityTime> availabilityTimes,
 														 @Assisted @Nullable ProviderApiResponseSupplement... supplements) {
@@ -140,6 +147,7 @@ public class ProviderApiResponse {
 		requireNonNull(availabilityTimeApiResponseFactory);
 		requireNonNull(supportRoleApiResponseFactory);
 		requireNonNull(provider);
+		requireNonNull(configuration);
 
 		List<ProviderApiResponseSupplement> supplementsList = Arrays.asList(supplements);
 
@@ -157,6 +165,8 @@ public class ProviderApiResponse {
 		this.timeZone = provider.getTimeZone();
 		this.locale = provider.getLocale();
 		this.tags = provider.getTags() == null ? Collections.emptyList() : jsonMapper.toList(provider.getTags(), String.class);
+		this.bio = provider.getBio();
+		this.bioUrl =  provider.getBio() == null ? provider.getBioUrl() : String.format("%s/providers/%s", configuration.getWebappBaseUrl(provider.getInstitutionId()), providerId);
 
 		boolean includeEverything = supplementsList.contains(ProviderApiResponseSupplement.EVERYTHING);
 
