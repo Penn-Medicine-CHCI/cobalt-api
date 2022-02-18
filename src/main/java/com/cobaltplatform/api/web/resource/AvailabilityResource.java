@@ -25,6 +25,8 @@ import com.cobaltplatform.api.model.api.request.UpdateLogicalAvailabilityRequest
 import com.cobaltplatform.api.model.api.response.LogicalAvailabilityApiResponse.LogicalAvailabilityApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.LogicalAvailability;
+import com.cobaltplatform.api.model.db.LogicalAvailabilityType;
+import com.cobaltplatform.api.model.db.LogicalAvailabilityType.LogicalAvailabilityTypeId;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AccountService;
@@ -183,9 +185,11 @@ public class AvailabilityResource {
 	@GET("/logical-availabilities")
 	@AuthenticationRequired
 	public ApiResponse logicalAvailabilities(@Nonnull @QueryParameter UUID providerId,
+																					 @Nonnull @QueryParameter Optional<LogicalAvailabilityTypeId> logicalAvailabilityTypeId,
 																					 @Nonnull @QueryParameter Optional<LocalDate> startDate,
 																					 @Nonnull @QueryParameter Optional<LocalDate> endDate) {
 		requireNonNull(providerId);
+		requireNonNull(logicalAvailabilityTypeId);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
 
@@ -198,7 +202,8 @@ public class AvailabilityResource {
 		if (!getAuthorizationService().canViewProviderCalendar(provider, account))
 			throw new AuthorizationException();
 
-		List<LogicalAvailability> logicalAvailabilities = getAvailabilityService().findLogicalAvailabilities(providerId, startDate.orElse(null), endDate.orElse(null));
+		List<LogicalAvailability> logicalAvailabilities = getAvailabilityService().findLogicalAvailabilities(providerId,
+				logicalAvailabilityTypeId.orElse(null), startDate.orElse(null), endDate.orElse(null));
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("logicalAvailabilities", logicalAvailabilities.stream()

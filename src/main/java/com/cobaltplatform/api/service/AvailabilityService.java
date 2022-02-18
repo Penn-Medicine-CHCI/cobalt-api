@@ -354,6 +354,7 @@ public class AvailabilityService {
 
 	@Nonnull
 	public List<LogicalAvailability> findLogicalAvailabilities(@Nullable UUID providerId,
+																														 @Nullable LogicalAvailabilityTypeId logicalAvailabilityTypeId,
 																														 @Nullable LocalDate startDate,
 																														 @Nullable LocalDate endDate) {
 		if (providerId == null)
@@ -375,7 +376,12 @@ public class AvailabilityService {
 			parameters.add(endDate.atTime(LocalTime.MAX));
 		}
 
-		sql.append("ORDER BY start_date_time");
+		if (logicalAvailabilityTypeId != null) {
+			sql.append("AND logical_availability_type_id = ? ");
+			parameters.add(logicalAvailabilityTypeId);
+		}
+
+		sql.append("ORDER BY start_date_time, logical_availability_id");
 
 		return getDatabase().queryForList(sql.toString(), LogicalAvailability.class, sqlVaragsParameters(parameters));
 	}
