@@ -1463,7 +1463,7 @@ public class AppointmentService {
 
 		Integer normalizedHexColor = getNormalizer().normalizeHexColor(hexColor).get();
 
-		getDatabase().execute("UPDATE appointment_type SET visit_type_id=? " +
+		getDatabase().execute("UPDATE appointment_type SET visit_type_id=?, " +
 						"name=?, duration_in_minutes=?, scheduling_system_id=?, hex_color=? WHERE appointment_type_id=?", visitTypeId, name,
 				durationInMinutes, schedulingSystemId, normalizedHexColor, appointmentTypeId);
 
