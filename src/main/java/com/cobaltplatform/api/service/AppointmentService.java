@@ -1583,9 +1583,10 @@ public class AppointmentService {
 		if (appointmentTypeId == null)
 			return Optional.empty();
 
-		List<Institution> institutions = getDatabase().queryForList("SELECT i.* FROM institution i, " +
-				"provider_appointment_type pat, provider p WHERE pat.appointment_type_id=? AND pat.provider_id=p.provider_id " +
-				"AND p.institution_id=i.institution_id", Institution.class, appointmentTypeId);
+		List<Institution> institutions = getDatabase().queryForList("SELECT DISTINCT i.* FROM institution i, " +
+				"provider_appointment_type pat, provider p, appointment_type at WHERE pat.appointment_type_id=? AND pat.provider_id=p.provider_id " +
+				"AND p.institution_id=i.institution_id AND pat.appointment_type_id=at.appointment_type_id " +
+				"AND at.deleted=FALSE AND p.active=TRUE", Institution.class, appointmentTypeId);
 
 		if (institutions.size() == 0)
 			return Optional.empty();
