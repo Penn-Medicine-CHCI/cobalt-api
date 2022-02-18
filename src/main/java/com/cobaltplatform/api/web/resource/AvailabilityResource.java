@@ -25,7 +25,6 @@ import com.cobaltplatform.api.model.api.request.UpdateLogicalAvailabilityRequest
 import com.cobaltplatform.api.model.api.response.LogicalAvailabilityApiResponse.LogicalAvailabilityApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.LogicalAvailability;
-import com.cobaltplatform.api.model.db.LogicalAvailabilityType;
 import com.cobaltplatform.api.model.db.LogicalAvailabilityType.LogicalAvailabilityTypeId;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
@@ -209,6 +208,31 @@ public class AvailabilityResource {
 			put("logicalAvailabilities", logicalAvailabilities.stream()
 					.map(logicalAvailability -> getLogicalAvailabilityApiResponseFactory().create(logicalAvailability))
 					.collect(Collectors.toList()));
+		}});
+	}
+
+	@Nonnull
+	@GET("/logical-availabilities/{logicalAvailabilityId}")
+	@AuthenticationRequired
+	public ApiResponse logicalAvailability(@Nonnull @PathParameter UUID logicalAvailabilityId) {
+		requireNonNull(logicalAvailabilityId);
+
+		LogicalAvailability logicalAvailability = getAvailabilityService().findLogicalAvailabilityById(logicalAvailabilityId).orElse(null);
+
+		if (logicalAvailability == null)
+			throw new NotFoundException();
+
+		Account account = getCurrentContext().getAccount().get();
+		Provider provider = getProviderService().findProviderById(logicalAvailability.getProviderId()).orElse(null);
+
+		if (provider == null)
+			throw new ValidationException(new ValidationException.FieldError("providerId", getStrings().get("Provider is invalid.")));
+
+		if (!getAuthorizationService().canViewProviderCalendar(provider, account))
+			throw new AuthorizationException();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("logicalAvailability", getLogicalAvailabilityApiResponseFactory().create(logicalAvailability));
 		}});
 	}
 
