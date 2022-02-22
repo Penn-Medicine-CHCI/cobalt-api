@@ -192,7 +192,7 @@ public class AvailabilityService {
 		getDatabase().execute("INSERT INTO logical_availability(logical_availability_id, provider_id, start_date_time, " +
 						"end_date_time, logical_availability_type_id, recurrence_type_id, recur_sunday, recur_monday, recur_tuesday, " +
 						"recur_wednesday, recur_thursday, recur_friday, recur_saturday, created_by_account_id, last_updated_by_account_id) " +
-						"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+						"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
 				logicalAvailabilityId, providerId, startDateTime, endDateTime, logicalAvailabilityTypeId, recurrenceTypeId,
 				recurSunday, recurMonday, recurTuesday, recurWednesday, recurThursday, recurFriday, recurSaturday, accountId, accountId);
 
@@ -289,7 +289,7 @@ public class AvailabilityService {
 
 		getDatabase().execute("UPDATE logical_availability SET provider_id=?, start_date_time=?, " +
 						"end_date_time=?, logical_availability_type_id=?, recurrence_type_id=?, recur_sunday=?, recur_monday=?, recur_tuesday=?, " +
-						"recur_wednesday=?, recur_thursday=?, recur_friday=?, recur_saturday=?, last_updated_by_account_id=? ",
+						"recur_wednesday=?, recur_thursday=?, recur_friday=?, recur_saturday=?, last_updated_by_account_id=? WHERE logical_availability_id=?",
 				providerId, startDateTime, endDateTime, logicalAvailabilityTypeId, recurrenceTypeId,
 				recurSunday, recurMonday, recurTuesday, recurWednesday, recurThursday, recurFriday, recurSaturday, accountId, logicalAvailabilityId);
 
