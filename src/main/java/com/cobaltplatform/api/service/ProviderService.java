@@ -494,7 +494,7 @@ public class ProviderService {
 		Map<UUID, List<ProviderAvailability>> nativeSchedulingProviderAvailabilitiesByProviderId = getAvailabilityService().nativeSchedulingProviderAvailabilitiesByProviderId(
 				providers.stream()
 						.filter(provider -> provider.getSchedulingSystemId() == SchedulingSystemId.COBALT)
-						.map(provider -> providerId)
+						.map(provider -> provider.getProviderId())
 						.collect(Collectors.toSet()), visitTypeIds, currentDateTime, currentDateTime.plusMonths(1) /* arbitrarily cap at 1 month ahead */);
 
 		for (Provider provider : providers) {
@@ -515,6 +515,9 @@ public class ProviderService {
 			if(provider.getSchedulingSystemId() == SchedulingSystemId.COBALT) {
 				// Different code path for Cobalt native scheduling: use synthetic "provider availability" records
 				providerAvailabilities = nativeSchedulingProviderAvailabilitiesByProviderId.get(provider.getProviderId());
+
+				if(providerAvailabilities == null)
+					providerAvailabilities = Collections.emptyList();
 			} else {
 				// First, fill in "available" slots based on what we know from Acuity
 				StringBuilder providerAvailabilityQuery = new StringBuilder("SELECT pa.* FROM provider_availability pa, v_appointment_type at WHERE pa.provider_id=? AND pa.appointment_type_id=at.appointment_type_id ");

@@ -349,11 +349,13 @@ public class AvailabilityService {
 		// e.g. "(?),(?),(?)" for Postgres' VALUES clause (faster than IN list)
 		String providerIdValuesSql = providerIds.stream().map(providerId -> "(?)").collect(Collectors.joining(","));
 
-		// Pull in all logical availabilities and group by provider ID
+		// Pull in all logical availabilities and group by provider ID.  Outer join so we include even those w/o explicit appointment type restriction
 		// TODO: filter logical availabilities by date range, taking recurrence into account
-		String logicalAvailabilitiesSql = format("SELECT la.* FROM v_appointment_type apt, logical_availability la, logical_availability_appointment_type laat, provider p " +
-				"WHERE laat.appointment_type_id=apt.appointment_type_id AND laat.logical_availability_id=la.logical_availability_id " +
-				"AND la.provider_id=p.provider_id AND p.active=TRUE AND p.provider_id IN (VALUES %s)", providerIdValuesSql);
+		String logicalAvailabilitiesSql = format("SELECT la.* FROM logical_availability la " +
+				"LEFT OUTER JOIN logical_availability_appointment_type laat ON la.logical_availability_id=laat.logical_availability_id " +
+				"LEFT JOIN v_appointment_type apt ON apt.appointment_type_id=laat.appointment_type_id " +
+				"LEFT JOIN provider p ON la.provider_id=p.provider_id " +
+				"WHERE p.active=TRUE AND p.provider_id IN (VALUES %s)", providerIdValuesSql);
 
 		List<Object> logicalAvailabilityParameters = new ArrayList<>(providerIds.size() + providerIds.size());
 		logicalAvailabilityParameters.addAll(providerIds);
@@ -394,6 +396,26 @@ public class AvailabilityService {
 		Map<UUID, List<AppointmentTypeWithLogicalAvailabilityId>> appointmentTypesByLogicalAvailabilityId = allAppointmentTypes.stream()
 				.collect(Collectors.groupingBy(AppointmentTypeWithLogicalAvailabilityId::getLogicalAvailabilityId));
 
+		String allActiveAppointmentTypesSql = format("SELECT apt.*, p.provider_id FROM appointment_type apt, provider_appointment_type pat, provider p " +
+				"WHERE pat.appointment_type_id=apt.appointment_type_id " +
+				"AND pat.provider_id=p.provider_id AND p.active=TRUE AND p.provider_id IN (VALUES %s)", providerIdValuesSql);
+
+		List<Object> allActiveAppointmentTypesParameters = new ArrayList<>();
+		allActiveAppointmentTypesParameters.addAll(providerIds);
+
+		if (visitTypeIds.size() > 0) {
+			allActiveAppointmentTypesParameters.addAll(visitTypeIds);
+			// e.g. "(?),(?),(?)" for Postgres' VALUES clause (faster than IN list)
+			String visitTypeIdValuesSql = visitTypeIds.stream().map(visitTypeId -> "(?)").collect(Collectors.joining(","));
+			allActiveAppointmentTypesSql = format("%s AND apt.visit_type_id IN (VALUES %s)", allActiveAppointmentTypesSql, visitTypeIdValuesSql);
+		}
+
+		List<AppointmentTypeWithProviderId> allActiveAppointmentTypes = getDatabase().queryForList(allActiveAppointmentTypesSql,
+				AppointmentTypeWithProviderId.class, allActiveAppointmentTypesParameters.toArray());
+
+		Map<UUID, List<AppointmentTypeWithProviderId>> allActiveAppointmentTypesByProviderId = allActiveAppointmentTypes.stream()
+				.collect(Collectors.groupingBy(AppointmentTypeWithProviderId::getProviderId));
+
 		// Walk providers and create synthetic provider availability records
 		Map<UUID, List<ProviderAvailability>> providerAvailabilitiesByProviderId = new HashMap<>(providerIds.size());
 
@@ -411,22 +433,30 @@ public class AvailabilityService {
 			}
 
 			for (LogicalAvailability logicalAvailability : logicalAvailabilities) {
-				List<AppointmentTypeWithLogicalAvailabilityId> appointmentTypes = appointmentTypesByLogicalAvailabilityId.get(logicalAvailability.getLogicalAvailabilityId());
-				Map<Long, List<AppointmentTypeWithLogicalAvailabilityId>> appointmentTypesByDuration = appointmentTypes.stream()
-						.collect(Collectors.groupingBy(AppointmentTypeWithLogicalAvailabilityId::getDurationInMinutes));
+				List<? extends AppointmentType> appointmentTypes = appointmentTypesByLogicalAvailabilityId.get(logicalAvailability.getLogicalAvailabilityId());
+
+				// No appointment types defined for the logical availability?  That means all appointment types are applicable
+				if (appointmentTypes == null || appointmentTypes.size() == 0)
+					appointmentTypes = allActiveAppointmentTypesByProviderId.get(providerId);
+
+				if (appointmentTypes == null)
+					appointmentTypes = Collections.emptyList();
+
+				Map<Long, List<AppointmentType>> appointmentTypesByDuration = appointmentTypes.stream()
+						.collect(Collectors.groupingBy(AppointmentType::getDurationInMinutes));
 
 				if (logicalAvailability.getRecurrenceTypeId() == RecurrenceTypeId.NONE) {
 					List<ProviderAvailability> pinnedProviderAvailabilities = providerAvailabilities;
 
 					appointmentTypesByDuration.entrySet().forEach((entry) -> {
 						Long durationInMinutes = entry.getKey();
-						List<AppointmentTypeWithLogicalAvailabilityId> appointmentTypesForSlot = entry.getValue();
+						List<AppointmentType> appointmentTypesForSlot = entry.getValue();
 
 						LocalDateTime slotCurrentDateTime = logicalAvailability.getStartDateTime();
 						LocalDateTime slotEndDateTime = logicalAvailability.getEndDateTime();
 
 						while (slotCurrentDateTime.isBefore(slotEndDateTime)) {
-							for (AppointmentTypeWithLogicalAvailabilityId appointmentType : appointmentTypesForSlot) {
+							for (AppointmentType appointmentType : appointmentTypesForSlot) {
 								ProviderAvailability providerAvailability = new ProviderAvailability();
 								providerAvailability.setProviderAvailabilityId(UUID.randomUUID());
 								providerAvailability.setProviderId(providerId);
@@ -451,6 +481,21 @@ public class AvailabilityService {
 		}
 
 		return providerAvailabilitiesByProviderId;
+	}
+
+	@NotThreadSafe
+	protected static class AppointmentTypeWithProviderId extends AppointmentType {
+		@Nullable
+		private UUID providerId;
+
+		@Nullable
+		public UUID getProviderId() {
+			return providerId;
+		}
+
+		public void setProviderId(@Nullable UUID providerId) {
+			this.providerId = providerId;
+		}
 	}
 
 	@NotThreadSafe
