@@ -27,6 +27,8 @@ import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
 import java.util.UUID;
 
+import static java.lang.String.format;
+
 /**
  * @author Transmogrify, LLC.
  */
@@ -62,6 +64,12 @@ public class AppointmentType {
 	// Joined in by v_appointment_type
 	@Nullable
 	private UUID assessmentId;
+
+	@Override
+	public String toString() {
+		return format("%s{%s (%s), scheduling system %s, %s minutes}", getClass().getSimpleName(), getName(),
+				getVisitTypeId(), getSchedulingSystemId(), getDurationInMinutes());
+	}
 
 	@Nullable
 	public UUID getAppointmentTypeId() {

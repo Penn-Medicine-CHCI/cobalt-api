@@ -72,7 +72,8 @@ public class LogicalAvailability {
 
 	@Override
 	public String toString() {
-		return format("%s{%s to %s}", getClass().getSimpleName(), getStartDateTime(), getEndDateTime());
+		return format("%s{%s to %s, availability type %s, recurrence type %s}", getClass().getSimpleName(), getStartDateTime(),
+				getEndDateTime(), getLogicalAvailabilityTypeId(), getRecurrenceTypeId());
 	}
 
 	@Nullable

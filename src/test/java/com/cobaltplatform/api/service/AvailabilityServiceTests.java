@@ -32,6 +32,7 @@ import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.pyranid.Database;
+import org.junit.Assert;
 import org.junit.Test;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -40,6 +41,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -112,9 +114,29 @@ public class AvailabilityServiceTests {
 					LocalTime.of(18, 00));
 
 			// 6. Verify slots
-			List<ProviderAvailability> providerAvailabilities = availabilityService.findProviderAvailabilities(PROVIDER_ID, startDateTime, endDateTime);
+			List<ProviderAvailability> providerAvailabilities = availabilityService.nativeSchedulingProviderAvailabilitiesByProviderId(
+					PROVIDER_ID, Set.of(VisitTypeId.INITIAL), startDateTime, endDateTime);
 
-			// TODO: verify slots...
+			// For 60 minute NPV, slots should be:
+			// 10:30-11:30, 11:30-12:30, 12:30-1:30, 1:30-2:30
+
+			Assert.assertEquals("Wrong number of availability slots", 4, providerAvailabilities.size());
+
+			Assert.assertEquals("Wrong 1st slot time",  LocalDateTime.of(
+					LocalDate.of(2022, 2, 15),
+					LocalTime.of(10, 30)), providerAvailabilities.get(0).getDateTime());
+
+			Assert.assertEquals("Wrong 2nd slot time",  LocalDateTime.of(
+					LocalDate.of(2022, 2, 15),
+					LocalTime.of(11, 30)), providerAvailabilities.get(1).getDateTime());
+
+			Assert.assertEquals("Wrong 3rd slot time",  LocalDateTime.of(
+					LocalDate.of(2022, 2, 15),
+					LocalTime.of(12, 30)), providerAvailabilities.get(2).getDateTime());
+
+			Assert.assertEquals("Wrong 4th slot time",  LocalDateTime.of(
+					LocalDate.of(2022, 2, 15),
+					LocalTime.of(13, 30)), providerAvailabilities.get(3).getDateTime());
 		});
 	}
 }

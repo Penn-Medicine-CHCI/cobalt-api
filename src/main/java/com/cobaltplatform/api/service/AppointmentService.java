@@ -1288,10 +1288,12 @@ public class AppointmentService {
 
 		if (durationInMinutes == null)
 			validationException.add(new FieldError("durationInMinutes", getStrings().get("Duration is required.")));
-		else if (durationInMinutes < 1)
-			validationException.add(new FieldError("durationInMinutes", getStrings().get("Duration is too small.")));
-		else if (durationInMinutes > 60 * 4 /* arbitrary upper bound to prevent accidental errors */)
-			validationException.add(new FieldError("durationInMinutes", getStrings().get("Duration is too large.")));
+		else if (durationInMinutes < 5)
+			validationException.add(new FieldError("durationInMinutes", getStrings().get("Duration is too small (minimum 5 minutes).")));
+		else if (durationInMinutes > 60 * 24 /* arbitrary upper bound to prevent accidental errors */)
+			validationException.add(new FieldError("durationInMinutes", getStrings().get("Duration is too large (maximum 24 hours).")));
+		else if (durationInMinutes % 5 != 0 /* for now, enforce increments of 5 to make it simpler to handle edge cases */)
+			validationException.add(new FieldError("durationInMinutes", getStrings().get("Only 5 minute increments are supported for appointment duration.")));
 
 		for (int i = 0; i < patientIntakeQuestions.size(); ++i) {
 			CreatePatientIntakeQuestionRequest patientIntakeQuestion = patientIntakeQuestions.get(i);

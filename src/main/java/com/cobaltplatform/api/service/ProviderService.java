@@ -36,6 +36,8 @@ import com.cobaltplatform.api.model.db.PaymentType;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.ProviderAvailability;
 import com.cobaltplatform.api.model.db.RecommendationLevel.RecommendationLevelId;
+import com.cobaltplatform.api.model.db.SchedulingSystem;
+import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.Specialty;
 import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
@@ -96,6 +98,8 @@ public class ProviderService {
 	@Nonnull
 	private final javax.inject.Provider<ClinicService> clinicServiceProvider;
 	@Nonnull
+	private final javax.inject.Provider<AvailabilityService> availabilityServiceProvider;
+	@Nonnull
 	private final Database database;
 	@Nonnull
 	private final Configuration configuration;
@@ -115,6 +119,7 @@ public class ProviderService {
 												 @Nonnull javax.inject.Provider<SessionService> sessionServiceProvider,
 												 @Nonnull javax.inject.Provider<AssessmentScoringService> assessmentScoringServiceProvider,
 												 @Nonnull javax.inject.Provider<ClinicService> clinicServiceProvider,
+												 @Nonnull javax.inject.Provider<AvailabilityService> availabilityServiceProvider,
 												 @Nonnull Database database,
 												 @Nonnull Configuration configuration,
 												 @Nonnull AcuitySchedulingClient acuitySchedulingClient,
@@ -124,6 +129,7 @@ public class ProviderService {
 		requireNonNull(sessionServiceProvider);
 		requireNonNull(assessmentScoringServiceProvider);
 		requireNonNull(clinicServiceProvider);
+		requireNonNull(availabilityServiceProvider);
 		requireNonNull(database);
 		requireNonNull(configuration);
 		requireNonNull(acuitySchedulingClient);
@@ -134,6 +140,7 @@ public class ProviderService {
 		this.sessionServiceProvider = sessionServiceProvider;
 		this.assessmentScoringServiceProvider = assessmentScoringServiceProvider;
 		this.clinicServiceProvider = clinicServiceProvider;
+		this.availabilityServiceProvider = availabilityServiceProvider;
 		this.database = database;
 		this.configuration = configuration;
 		this.acuitySchedulingClient = acuitySchedulingClient;
@@ -483,6 +490,13 @@ public class ProviderService {
 
 		List<ProviderFind> providerFinds = new ArrayList<>(providers.size());
 
+		// Different code path for Cobalt Native scheduling: calculate synthetic "provider availability" records from logical availability data
+		Map<UUID, List<ProviderAvailability>> nativeSchedulingProviderAvailabilitiesByProviderId = getAvailabilityService().nativeSchedulingProviderAvailabilitiesByProviderId(
+				providers.stream()
+						.filter(provider -> provider.getSchedulingSystemId() == SchedulingSystemId.COBALT)
+						.map(provider -> providerId)
+						.collect(Collectors.toSet()), visitTypeIds, currentDateTime, currentDateTime.plusMonths(1) /* arbitrarily cap at 1 month ahead */);
+
 		for (Provider provider : providers) {
 			Optional<Assessment> intakeAssessment = getAssessmentService().findIntakeAssessmentByProviderId(provider.getProviderId());
 			boolean intakeAssessmentRequired = intakeAssessment.isPresent();
@@ -496,20 +510,26 @@ public class ProviderService {
 			}
 
 			List<AvailabilityDate> dates = new ArrayList<>();
+			List<ProviderAvailability> providerAvailabilities;
 
-			// First, fill in "available" slots based on what we know from Acuity
-			StringBuilder providerAvailabilityQuery = new StringBuilder("SELECT pa.* FROM provider_availability pa, v_appointment_type at WHERE pa.provider_id=? AND pa.appointment_type_id=at.appointment_type_id ");
-			List<Object> providerAvailabilityParameters = new ArrayList<>();
-			providerAvailabilityParameters.add(provider.getProviderId());
+			if(provider.getSchedulingSystemId() == SchedulingSystemId.COBALT) {
+				// Different code path for Cobalt native scheduling: use synthetic "provider availability" records
+				providerAvailabilities = nativeSchedulingProviderAvailabilitiesByProviderId.get(provider.getProviderId());
+			} else {
+				// First, fill in "available" slots based on what we know from Acuity
+				StringBuilder providerAvailabilityQuery = new StringBuilder("SELECT pa.* FROM provider_availability pa, v_appointment_type at WHERE pa.provider_id=? AND pa.appointment_type_id=at.appointment_type_id ");
+				List<Object> providerAvailabilityParameters = new ArrayList<>();
+				providerAvailabilityParameters.add(provider.getProviderId());
 
-			if (visitTypeIds.size() > 0) {
-				providerAvailabilityQuery.append(" AND at.visit_type_id IN ");
-				providerAvailabilityQuery.append(sqlInListPlaceholders(visitTypeIds));
+				if (visitTypeIds.size() > 0) {
+					providerAvailabilityQuery.append(" AND at.visit_type_id IN ");
+					providerAvailabilityQuery.append(sqlInListPlaceholders(visitTypeIds));
 
-				providerAvailabilityParameters.addAll(visitTypeIds);
+					providerAvailabilityParameters.addAll(visitTypeIds);
+				}
+
+				providerAvailabilities = getDatabase().queryForList(providerAvailabilityQuery.toString(), ProviderAvailability.class, providerAvailabilityParameters.toArray(new Object[]{}));
 			}
-
-			List<ProviderAvailability> providerAvailabilities = getDatabase().queryForList(providerAvailabilityQuery.toString(), ProviderAvailability.class, providerAvailabilityParameters.toArray(new Object[]{}));
 
 			// Keep track of all epic department IDs for this provider
 			Set<UUID> epicDepartmentIds = new HashSet<>();
@@ -1025,6 +1045,11 @@ public class ProviderService {
 	@Nonnull
 	protected ClinicService getClinicService() {
 		return clinicServiceProvider.get();
+	}
+
+	@Nonnull
+	protected AvailabilityService getAvailabilityService() {
+		return availabilityServiceProvider.get();
 	}
 
 	@Nonnull
