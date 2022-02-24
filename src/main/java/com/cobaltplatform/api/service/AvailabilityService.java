@@ -345,62 +345,52 @@ public class AvailabilityService {
 			visitTypeIds = visitTypeIds.stream().filter(visitTypeId -> visitTypeId != null).collect(Collectors.toSet());
 
 		Instant now = Instant.now();
+		Set<VisitTypeId> pinnedVisitTypeIds = visitTypeIds;
 
 		// e.g. "(?),(?),(?)" for Postgres' VALUES clause (faster than IN list)
 		String providerIdValuesSql = providerIds.stream().map(providerId -> "(?)").collect(Collectors.joining(","));
 
-		// Pull in all logical availabilities and group by provider ID.  Outer join so we include even those w/o explicit appointment type restriction
-		// TODO: filter logical availabilities by date range, taking recurrence into account
-		String logicalAvailabilitiesSql = format("SELECT la.* FROM logical_availability la " +
-				"LEFT OUTER JOIN logical_availability_appointment_type laat ON la.logical_availability_id=laat.logical_availability_id " +
-				"LEFT JOIN v_appointment_type apt ON apt.appointment_type_id=laat.appointment_type_id " +
-				"LEFT JOIN provider p ON la.provider_id=p.provider_id " +
-				"WHERE p.active=TRUE AND p.provider_id IN (VALUES %s)", providerIdValuesSql);
+		// Pull only those logical availabilities that are for active providers and have not already ended
+		String logicalAvailabilitiesSql = format("SELECT la.* FROM logical_availability la, provider p " +
+				"WHERE p.provider_id=la.provider_id AND p.active=TRUE AND p.provider_id IN (VALUES %s) " +
+				"AND (la.end_date_time IS NULL OR la.end_date_time > ?)", providerIdValuesSql);
 
-		List<Object> logicalAvailabilityParameters = new ArrayList<>(providerIds.size() + providerIds.size());
+		List<Object> logicalAvailabilityParameters = new ArrayList<>(providerIds.size() + 1);
 		logicalAvailabilityParameters.addAll(providerIds);
+		logicalAvailabilityParameters.add(startDateTime);
 
-		if (visitTypeIds.size() > 0) {
-			logicalAvailabilityParameters.addAll(visitTypeIds);
-			// e.g. "(?),(?),(?)" for Postgres' VALUES clause (faster than IN list)
-			String visitTypeIdValuesSql = visitTypeIds.stream().map(visitTypeId -> "(?)").collect(Collectors.joining(","));
-			logicalAvailabilitiesSql = format("%s AND apt.visit_type_id IN (VALUES %s)", logicalAvailabilitiesSql, visitTypeIdValuesSql);
-		}
-
-		List<LogicalAvailability> allLogicalAvailabilities = getDatabase().queryForList(logicalAvailabilitiesSql,
-				LogicalAvailability.class, logicalAvailabilityParameters.toArray());
-
-		Map<UUID, List<LogicalAvailability>> logicalAvailabilitiesByProviderId = allLogicalAvailabilities.stream()
+		Map<UUID, List<LogicalAvailability>> logicalAvailabilitiesByProviderId = getDatabase().queryForList(logicalAvailabilitiesSql, LogicalAvailability.class,
+						logicalAvailabilityParameters.toArray()).stream()
 				.collect(Collectors.groupingBy(LogicalAvailability::getProviderId));
 
-		// Pull in all appointment types and group by logical availability ID
-		// TODO: filter logical availabilities by date range, taking recurrence into account
-		// TODO: perhaps better to express this as one big query (combine w/above) instead of splitting into 2 similar queries like this
-		String appointmentTypesSql = format("SELECT apt.*, la.logical_availability_id FROM v_appointment_type apt, logical_availability la, logical_availability_appointment_type laat, provider p " +
+		// Pull appointment types associated with logical availabilities
+		String logicalAvailabilityAppointmentTypesSql = format("SELECT apt.*, la.logical_availability_id FROM v_appointment_type apt, logical_availability la, logical_availability_appointment_type laat, provider p " +
 				"WHERE laat.appointment_type_id=apt.appointment_type_id AND laat.logical_availability_id=la.logical_availability_id " +
 				"AND la.provider_id=p.provider_id AND p.active=TRUE AND p.provider_id IN (VALUES %s)", providerIdValuesSql);
 
-		List<Object> appointmentTypeParameters = new ArrayList<>();
-		appointmentTypeParameters.addAll(providerIds);
+		List<Object> logicalAvailabilityAppointmentTypeParameters = new ArrayList<>();
+		logicalAvailabilityAppointmentTypeParameters.addAll(providerIds);
 
-		if (visitTypeIds.size() > 0) {
-			appointmentTypeParameters.addAll(visitTypeIds);
-			// e.g. "(?),(?),(?)" for Postgres' VALUES clause (faster than IN list)
-			String visitTypeIdValuesSql = visitTypeIds.stream().map(visitTypeId -> "(?)").collect(Collectors.joining(","));
-			appointmentTypesSql = format("%s AND apt.visit_type_id IN (VALUES %s)", appointmentTypesSql, visitTypeIdValuesSql);
-		}
+		List<AppointmentTypeWithLogicalAvailabilityId> logicalAvailabilityAppointmentTypes = getDatabase().queryForList(logicalAvailabilityAppointmentTypesSql,
+						AppointmentTypeWithLogicalAvailabilityId.class, logicalAvailabilityAppointmentTypeParameters.toArray()).stream()
+				.filter((appointmentType -> {
+					// If visit types specified, filter
+					if (pinnedVisitTypeIds.size() > 0)
+						return pinnedVisitTypeIds.contains(appointmentType.getVisitTypeId());
 
-		List<AppointmentTypeWithLogicalAvailabilityId> allAppointmentTypes = getDatabase().queryForList(appointmentTypesSql,
-				AppointmentTypeWithLogicalAvailabilityId.class, appointmentTypeParameters.toArray());
+					return true;
+				}))
+				.collect(Collectors.toList());
 
-		Map<UUID, List<AppointmentTypeWithLogicalAvailabilityId>> appointmentTypesByLogicalAvailabilityId = allAppointmentTypes.stream()
+		Map<UUID, List<AppointmentTypeWithLogicalAvailabilityId>> appointmentTypesByLogicalAvailabilityId = logicalAvailabilityAppointmentTypes.stream()
 				.collect(Collectors.groupingBy(AppointmentTypeWithLogicalAvailabilityId::getLogicalAvailabilityId));
 
+		// Pull all appointment types for active providers
 		String allActiveAppointmentTypesSql = format("SELECT apt.*, p.provider_id FROM appointment_type apt, provider_appointment_type pat, provider p " +
 				"WHERE pat.appointment_type_id=apt.appointment_type_id " +
 				"AND pat.provider_id=p.provider_id AND p.active=TRUE AND p.provider_id IN (VALUES %s)", providerIdValuesSql);
 
-		List<Object> allActiveAppointmentTypesParameters = new ArrayList<>();
+		List<Object> allActiveAppointmentTypesParameters = new ArrayList<>(providerIds.size() + visitTypeIds.size());
 		allActiveAppointmentTypesParameters.addAll(providerIds);
 
 		if (visitTypeIds.size() > 0) {

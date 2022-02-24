@@ -132,4 +132,8 @@ ALTER TABLE question ADD COLUMN question_content_hint_id TEXT REFERENCES questio
 UPDATE question SET question_content_hint_id = 'PHONE_NUMBER' WHERE question_type_id='PHONE_NUMBER';
 UPDATE question SET question_content_hint_id = 'STUDENT_ID' WHERE question_type_id='STUDENT_ID';
 
+-- Remove no-longer-needed provider_availability records for COBALT (native) scheduling providers.
+-- For them, synthetic records are generated at runtime in order to more easily handle recurrence rules etc.
+DELETE FROM provider_availability WHERE provider_id IN (SELECT provider_id FROM provider WHERE scheduling_system_id='COBALT');
+
 COMMIT;
