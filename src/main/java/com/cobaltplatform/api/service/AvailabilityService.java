@@ -47,6 +47,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -435,9 +436,9 @@ public class AvailabilityService {
 				Map<Long, List<AppointmentType>> appointmentTypesByDuration = appointmentTypes.stream()
 						.collect(Collectors.groupingBy(AppointmentType::getDurationInMinutes));
 
-				if (logicalAvailability.getRecurrenceTypeId() == RecurrenceTypeId.NONE) {
-					List<ProviderAvailability> pinnedProviderAvailabilities = providerAvailabilities;
+				List<ProviderAvailability> pinnedProviderAvailabilities = providerAvailabilities;
 
+				if (logicalAvailability.getRecurrenceTypeId() == RecurrenceTypeId.NONE) {
 					appointmentTypesByDuration.entrySet().forEach((entry) -> {
 						Long durationInMinutes = entry.getKey();
 						List<AppointmentType> appointmentTypesForSlot = entry.getValue();
@@ -462,13 +463,61 @@ public class AvailabilityService {
 						}
 					});
 				} else if (logicalAvailability.getRecurrenceTypeId() == RecurrenceTypeId.DAILY) {
-					// TODO: implement recurrence
+					appointmentTypesByDuration.entrySet().forEach((entry) -> {
+						Long durationInMinutes = entry.getKey();
+						List<AppointmentType> appointmentTypesForSlot = entry.getValue();
+
+						// Figure out the first and last dates of the range we're getting availability for
+						LocalDate currentDate = startDateTime.toLocalDate();
+						LocalDate endDate = endDateTime.toLocalDate();
+
+						// For each date within the range...
+						while (currentDate.isEqual(endDate) || currentDate.isBefore(endDate)) {
+							// If recurrence rule is enabled for the day...
+							if ((currentDate.getDayOfWeek() == DayOfWeek.MONDAY && logicalAvailability.getRecurMonday())
+									|| (currentDate.getDayOfWeek() == DayOfWeek.TUESDAY && logicalAvailability.getRecurTuesday())
+									|| (currentDate.getDayOfWeek() == DayOfWeek.WEDNESDAY && logicalAvailability.getRecurWednesday())
+									|| (currentDate.getDayOfWeek() == DayOfWeek.THURSDAY && logicalAvailability.getRecurThursday())
+									|| (currentDate.getDayOfWeek() == DayOfWeek.FRIDAY && logicalAvailability.getRecurFriday())
+									|| (currentDate.getDayOfWeek() == DayOfWeek.SATURDAY && logicalAvailability.getRecurSaturday())
+									|| (currentDate.getDayOfWeek() == DayOfWeek.SUNDAY && logicalAvailability.getRecurSunday())) {
+								// ...normalize the logical availability's start and end times to be "today"
+								LocalDateTime slotCurrentDateTime = LocalDateTime.of(currentDate, logicalAvailability.getStartDateTime().toLocalTime());
+								LocalDateTime slotEndDateTime = LocalDateTime.of(currentDate, logicalAvailability.getEndDateTime().toLocalTime());
+
+								if (slotEndDateTime.isAfter(endDateTime))
+									slotEndDateTime = endDateTime;
+
+								while (slotCurrentDateTime.isBefore(slotEndDateTime)) {
+									for (AppointmentType appointmentType : appointmentTypesForSlot) {
+										ProviderAvailability providerAvailability = new ProviderAvailability();
+										providerAvailability.setProviderAvailabilityId(UUID.randomUUID());
+										providerAvailability.setProviderId(providerId);
+										providerAvailability.setAppointmentTypeId(appointmentType.getAppointmentTypeId());
+										providerAvailability.setDateTime(slotCurrentDateTime);
+										providerAvailability.setCreated(now);
+										providerAvailability.setLastUpdated(now);
+
+										pinnedProviderAvailabilities.add(providerAvailability);
+									}
+
+									slotCurrentDateTime = slotCurrentDateTime.plusMinutes(durationInMinutes);
+								}
+							}
+
+							currentDate = currentDate.plusDays(1);
+						}
+					});
 				} else {
 					throw new IllegalStateException(format("Not sure how to handle %s.%s", RecurrenceTypeId.class.getSimpleName(),
 							logicalAvailability.getRecurrenceTypeId().name()));
 				}
 			}
 		}
+
+		// Ensure provider availabilities are sorted
+		providerAvailabilitiesByProviderId.values()
+				.forEach((providerAvailabilities -> Collections.sort(providerAvailabilities, (pa1, pa2) -> pa1.getDateTime().compareTo(pa2.getDateTime()))));
 
 		return providerAvailabilitiesByProviderId;
 	}
