@@ -27,24 +27,9 @@ import java.util.UUID;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class CancelAppointmentRequest {
+public class UpdateAppointmentRequest extends CreateAppointmentRequest {
 	@Nullable
 	private UUID appointmentId;
-	@Nullable
-	private UUID accountId;
-	@Nullable
-	private Boolean canceledByWebhook;
-	@Nullable
-	private Boolean canceledForReschedule;
-
-	@Nullable
-	public UUID getAccountId() {
-		return accountId;
-	}
-
-	public void setAccountId(@Nullable UUID accountId) {
-		this.accountId = accountId;
-	}
 
 	@Nullable
 	public UUID getAppointmentId() {
@@ -53,23 +38,5 @@ public class CancelAppointmentRequest {
 
 	public void setAppointmentId(@Nullable UUID appointmentId) {
 		this.appointmentId = appointmentId;
-	}
-
-	@Nullable
-	public Boolean getCanceledByWebhook() {
-		return canceledByWebhook;
-	}
-
-	public void setCanceledByWebhook(@Nullable Boolean canceledByWebhook) {
-		this.canceledByWebhook = canceledByWebhook;
-	}
-
-	@Nullable
-	public Boolean getCanceledForReschedule() {
-		return canceledForReschedule;
-	}
-
-	public void setCanceledForReschedule(@Nullable Boolean canceledForReschedule) {
-		this.canceledForReschedule = canceledForReschedule;
 	}
 }

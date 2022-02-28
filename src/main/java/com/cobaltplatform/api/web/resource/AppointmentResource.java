@@ -24,6 +24,7 @@ import com.cobaltplatform.api.model.api.request.CancelAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.ChangeAppointmentAttendanceStatusRequest;
 import com.cobaltplatform.api.model.api.request.CreateActivityTrackingRequest;
 import com.cobaltplatform.api.model.api.request.CreateAppointmentRequest;
+import com.cobaltplatform.api.model.api.request.UpdateAppointmentRequest;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseSupplement;
@@ -313,6 +314,39 @@ public class AppointmentResource {
 	}
 
 	@Nonnull
+	@PUT("/appointments")
+	@AuthenticationRequired
+	public ApiResponse updateAppointment(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+		UpdateAppointmentRequest request = getRequestBodyParser().parse(requestBody, UpdateAppointmentRequest.class);
+		Appointment beforeUpdateAppointment = getAppointmentService().findAppointmentById(request.getAppointmentId()).orElse(null);
+		Account appointmentAccount = getAccountService().findAccountById(request.getAccountId()).orElse(null);
+
+		if (beforeUpdateAppointment == null || appointmentAccount == null)
+			throw new NotFoundException();
+		if (!getAuthorizationService().canUpdateAppointment(account, appointmentAccount))
+			throw new AuthorizationException();
+
+		AuditLog auditLog = new AuditLog();
+		auditLog.setAccountId(account.getAccountId());
+		auditLog.setAuditLogEventId(AuditLogEvent.AuditLogEventId.APPOINTMENT_UPDATE);
+		auditLog.setPayload( getJsonMapper().toJson(new HashMap<String, Object>() {{
+			put("appointment", beforeUpdateAppointment);
+		}}));
+		getAuditLogService().audit(auditLog);
+
+		request.setCreatedByAcountId(account.getAccountId());
+		UUID newAppointmentId = getAppointmentService().updateAppointment(request);
+		Appointment appointment = getAppointmentService().findAppointmentById(newAppointmentId).get();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("appointment", getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER)));
+		}});
+	}
+
+	@Nonnull
 	@POST("/appointments")
 	@AuthenticationRequired
 	public ApiResponse createAppointment(@Nonnull @RequestBody String requestBody) {
@@ -403,6 +437,7 @@ public class AppointmentResource {
 		request.setAccountId(appointmentAccount.getAccountId());
 		request.setAppointmentId(appointmentId);
 		request.setCanceledByWebhook(false);
+		request.setCanceledForReschedule(false);
 
 		getAppointmentService().cancelAppointment(request);
 

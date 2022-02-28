@@ -34,6 +34,7 @@ import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AccountCapabilities;
 import com.cobaltplatform.api.util.Normalizer;
+import com.soklet.web.exception.AuthorizationException;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -368,6 +369,31 @@ public class AuthorizationService {
 		for (AppointmentType providerAppointmentType : appointmentTypes)
 			if (Objects.equals(providerAppointmentType.getAppointmentTypeId(), appointmentType.getAppointmentTypeId()))
 				return true;
+
+		return false;
+	}
+
+	@Nonnull
+	public boolean canUpdateAppointment(@Nonnull Account account,
+																			@Nonnull Account appointmentAccount) {
+		requireNonNull(account);
+		requireNonNull(appointmentAccount);
+
+		// Some users can update appointments on behalf of other users
+		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR) {
+			return true;
+		} else if (account.getRoleId() == RoleId.MHIC || account.getRoleId() == RoleId.ADMINISTRATOR || account.getRoleId() == RoleId.PROVIDER) {
+			// "Normal" admins can update anything within the same institution
+			// TODO: Should we include the PROVIDER role in this?
+			if (!account.getInstitutionId().equals(appointmentAccount.getInstitutionId()))
+				return false;
+			else
+				return true;
+		} else {
+			// If you are not a special role, you can only update for yourself
+			if (appointmentAccount.getAccountId().equals(account.getAccountId()))
+				return true;
+		}
 
 		return false;
 	}

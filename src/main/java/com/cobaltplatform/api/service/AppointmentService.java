@@ -60,6 +60,7 @@ import com.cobaltplatform.api.model.api.request.CreateScreeningQuestionRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountEmailAddressRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountPhoneNumberRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAcuityAppointmentTypeRequest;
+import com.cobaltplatform.api.model.api.request.UpdateAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAppointmentTypeRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
@@ -781,6 +782,33 @@ public class AppointmentService {
 
 		return getDatabase().execute("UPDATE appointment_type SET name=?, description=?, duration_in_minutes=?, deleted=? " +
 				"WHERE appointment_type_id=?", name, description, durationInMinutes, deleted, appointmentTypeId) > 0;
+	}
+
+	@Nonnull
+	public UUID updateAppointment(@Nonnull UpdateAppointmentRequest request) {
+		requireNonNull(request);
+
+		ValidationException validationException = new ValidationException();
+		Optional<Appointment> appointment = findAppointmentById(request.getAppointmentId());
+
+		if (!appointment.isPresent())
+			validationException.add(new FieldError("appointmentId", "Not a valid appointment"));
+		else if (appointment.get().getCanceled())
+			validationException.add(new FieldError("canceled", "Canceled appointments cannot be edited"));
+
+		if (validationException.hasErrors())
+				throw validationException;
+
+		CancelAppointmentRequest cancelRequest = new CancelAppointmentRequest();
+		cancelRequest.setAppointmentId(request.getAppointmentId());
+		cancelRequest.setAccountId(request.getAccountId());
+		cancelRequest.setCanceledByWebhook(false);
+		cancelRequest.setCanceledForReschedule(true);
+
+		cancelAppointment(cancelRequest);
+		UUID newAppointmentId = createAppointment(request);
+
+		return newAppointmentId;
 	}
 
 	@Nonnull
@@ -1817,7 +1845,7 @@ public class AppointmentService {
 			}
 		}
 
-		boolean canceled = getDatabase().execute("UPDATE appointment SET canceled=TRUE, attendance_status_id=?, canceled_at=NOW() WHERE appointment_id=?", AttendanceStatusId.CANCELED, appointmentId) > 0;
+		boolean canceled = getDatabase().execute("UPDATE appointment SET canceled=TRUE, attendance_status_id=?, canceled_at=NOW(), canceled_for_reschedule=? WHERE appointment_id=?", AttendanceStatusId.CANCELED, request.getCanceledForReschedule(), appointmentId) > 0;
 
 		Appointment pinnedAppointment = appointment;
 		Account appointmentAccount = getAccountService().findAccountById(pinnedAppointment.getAccountId()).orElse(null);

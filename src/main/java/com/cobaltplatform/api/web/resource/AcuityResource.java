@@ -234,6 +234,7 @@ public class AcuityResource {
 			getAppointmentService().cancelAppointment(new CancelAppointmentRequest() {{
 				setAppointmentId(localAppointment.getAppointmentId());
 				setCanceledByWebhook(true);
+				setCanceledForReschedule(false);
 			}});
 		} else {
 			getLogger().debug("No appointment to cancel in local database.");
