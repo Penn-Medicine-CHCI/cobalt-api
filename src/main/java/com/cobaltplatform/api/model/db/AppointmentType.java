@@ -67,7 +67,7 @@ public class AppointmentType {
 
 	@Override
 	public String toString() {
-		return format("%s{%s (%s), scheduling system %s, %s minutes}", getClass().getSimpleName(), getName(),
+		return format("%s{%s (%s), scheduling system %s, %s minutes}", AppointmentType.class.getSimpleName(), getName(),
 				getVisitTypeId(), getSchedulingSystemId(), getDurationInMinutes());
 	}
 
