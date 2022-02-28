@@ -18,7 +18,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/011-provider-s
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/012-fingerprinting.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/013-native-scheduling.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/014-provider-bio.sql
-PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/014-appointment-update.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/015-appointment-update.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

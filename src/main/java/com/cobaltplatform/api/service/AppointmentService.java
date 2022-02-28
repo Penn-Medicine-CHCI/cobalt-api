@@ -785,7 +785,7 @@ public class AppointmentService {
 	}
 
 	@Nonnull
-	public UUID updateAppointment(@Nonnull UpdateAppointmentRequest request) {
+	public UUID rescheduleAppointment(@Nonnull UpdateAppointmentRequest request) {
 		requireNonNull(request);
 
 		ValidationException validationException = new ValidationException();
@@ -799,14 +799,16 @@ public class AppointmentService {
 		if (validationException.hasErrors())
 				throw validationException;
 
+		UUID newAppointmentId = createAppointment(request);
+
 		CancelAppointmentRequest cancelRequest = new CancelAppointmentRequest();
 		cancelRequest.setAppointmentId(request.getAppointmentId());
 		cancelRequest.setAccountId(request.getAccountId());
 		cancelRequest.setCanceledByWebhook(false);
 		cancelRequest.setCanceledForReschedule(true);
+		cancelRequest.setRescheduleAppointmentId(newAppointmentId);
 
 		cancelAppointment(cancelRequest);
-		UUID newAppointmentId = createAppointment(request);
 
 		return newAppointmentId;
 	}
@@ -1845,7 +1847,8 @@ public class AppointmentService {
 			}
 		}
 
-		boolean canceled = getDatabase().execute("UPDATE appointment SET canceled=TRUE, attendance_status_id=?, canceled_at=NOW(), canceled_for_reschedule=? WHERE appointment_id=?", AttendanceStatusId.CANCELED, request.getCanceledForReschedule(), appointmentId) > 0;
+		boolean canceled = getDatabase().execute("UPDATE appointment SET canceled=TRUE, attendance_status_id=?, canceled_at=NOW(), " +
+				"canceled_for_reschedule=?, rescheduled_appointment_id=? WHERE appointment_id=?", AttendanceStatusId.CANCELED, request.getCanceledForReschedule(), request.getRescheduleAppointmentId(), appointmentId) > 0;
 
 		Appointment pinnedAppointment = appointment;
 		Account appointmentAccount = getAccountService().findAccountById(pinnedAppointment.getAccountId()).orElse(null);

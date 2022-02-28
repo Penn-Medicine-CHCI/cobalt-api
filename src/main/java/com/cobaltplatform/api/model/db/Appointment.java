@@ -86,6 +86,10 @@ public class Appointment {
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
+	@Nullable
+	private Boolean canceledForReschedule;
+	@Nullable
+	private UUID rescheduledAppointmentId;
 
 	@Nullable
 	public UUID getAppointmentId() {
@@ -319,5 +323,23 @@ public class Appointment {
 
 	public void setAttendanceStatusId(@Nullable AttendanceStatusId attendanceStatusId) {
 		this.attendanceStatusId = attendanceStatusId;
+	}
+
+	@Nullable
+	public Boolean getCanceledForReschedule() {
+		return canceledForReschedule;
+	}
+
+	public void setCanceledForReschedule(@Nullable Boolean canceledForReschedule) {
+		this.canceledForReschedule = canceledForReschedule;
+	}
+
+	@Nullable
+	public UUID getRescheduledAppointmentId() {
+		return rescheduledAppointmentId;
+	}
+
+	public void setRescheduledAppointmentId(@Nullable UUID rescheduledAppointmentId) {
+		this.rescheduledAppointmentId = rescheduledAppointmentId;
 	}
 }

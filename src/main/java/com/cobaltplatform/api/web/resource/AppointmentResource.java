@@ -314,14 +314,15 @@ public class AppointmentResource {
 	}
 
 	@Nonnull
-	@PUT("/appointments")
+	@PUT("/appointments/{appointmentId}/reschedule")
 	@AuthenticationRequired
-	public ApiResponse updateAppointment(@Nonnull @RequestBody String requestBody) {
+	public ApiResponse rescheduleAppointment(@Nonnull @PathParameter UUID appointmentId,
+																					 @Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
 
 		Account account = getCurrentContext().getAccount().get();
 		UpdateAppointmentRequest request = getRequestBodyParser().parse(requestBody, UpdateAppointmentRequest.class);
-		Appointment beforeUpdateAppointment = getAppointmentService().findAppointmentById(request.getAppointmentId()).orElse(null);
+		Appointment beforeUpdateAppointment = getAppointmentService().findAppointmentById(appointmentId).orElse(null);
 		Account appointmentAccount = getAccountService().findAccountById(request.getAccountId()).orElse(null);
 
 		if (beforeUpdateAppointment == null || appointmentAccount == null)
@@ -338,7 +339,8 @@ public class AppointmentResource {
 		getAuditLogService().audit(auditLog);
 
 		request.setCreatedByAcountId(account.getAccountId());
-		UUID newAppointmentId = getAppointmentService().updateAppointment(request);
+		request.setAppointmentId(appointmentId);
+		UUID newAppointmentId = getAppointmentService().rescheduleAppointment(request);
 		Appointment appointment = getAppointmentService().findAppointmentById(newAppointmentId).get();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
