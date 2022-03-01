@@ -671,7 +671,7 @@ public class AppointmentService {
 		if (institutionId == null)
 			return Collections.emptyList();
 
-		return getDatabase().queryForList("SELECT vat.* FROM v_appointment_type vat, provider_appointment_type pat, provider p " +
+		return getDatabase().queryForList("SELECT DISTINCT vat.* FROM v_appointment_type vat, provider_appointment_type pat, provider p " +
 				"WHERE vat.appointment_type_id=pat.appointment_type_id AND pat.provider_id=p.provider_id AND p.institution_id=? " +
 				"ORDER BY vat.appointment_type_id", AppointmentType.class, institutionId);
 	}
