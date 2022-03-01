@@ -105,9 +105,9 @@ public class LogicalAvailabilityApiResponse {
 		this.logicalAvailabilityTypeId = logicalAvailability.getLogicalAvailabilityTypeId();
 		this.recurrenceTypeId = logicalAvailability.getRecurrenceTypeId();
 		this.startDateTime = logicalAvailability.getStartDateTime();
-		this.startDateTimeDescription = formatter.formatDateTime(logicalAvailability.getStartDateTime(), FormatStyle.LONG, FormatStyle.MEDIUM);
+		this.startDateTimeDescription = formatter.formatDateTime(logicalAvailability.getStartDateTime(), FormatStyle.LONG, FormatStyle.SHORT);
 		this.endDateTime = logicalAvailability.getEndDateTime();
-		this.endDateTimeDescription = formatter.formatDateTime(logicalAvailability.getEndDateTime(), FormatStyle.LONG, FormatStyle.MEDIUM);
+		this.endDateTimeDescription = formatter.formatDateTime(logicalAvailability.getEndDateTime(), FormatStyle.LONG, FormatStyle.SHORT);
 		this.recurSunday = logicalAvailability.getRecurSunday();
 		this.recurMonday = logicalAvailability.getRecurMonday();
 		this.recurTuesday = logicalAvailability.getRecurTuesday();
