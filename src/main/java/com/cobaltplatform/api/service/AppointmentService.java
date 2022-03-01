@@ -1281,6 +1281,7 @@ public class AppointmentService {
 		SchedulingSystemId schedulingSystemId = request.getSchedulingSystemId();
 		VisitTypeId visitTypeId = request.getVisitTypeId();
 		String name = trimToNull(request.getName());
+		String description = trimToNull(request.getDescription());
 		Long durationInMinutes = request.getDurationInMinutes();
 		String hexColor = trimToNull(request.getHexColor());
 		List<CreatePatientIntakeQuestionRequest> patientIntakeQuestions = request.getPatientIntakeQuestions() == null ? Collections.emptyList() : request.getPatientIntakeQuestions();
@@ -1301,6 +1302,9 @@ public class AppointmentService {
 
 		if (name == null)
 			validationException.add(new FieldError("name", getStrings().get("Name is required.")));
+
+		if (description == null)
+			validationException.add(new FieldError("description", getStrings().get("Nickname is required.")));
 
 		if (hexColor == null)
 			validationException.add(new FieldError("hexColor", getStrings().get("Hex color is required.")));
@@ -1370,7 +1374,8 @@ public class AppointmentService {
 		Integer normalizedHexColor = getNormalizer().normalizeHexColor(hexColor).get();
 
 		getDatabase().execute("INSERT INTO appointment_type (appointment_type_id, visit_type_id, " +
-						"name, duration_in_minutes, scheduling_system_id, hex_color) VALUES (?,?,?,?,?,?)", appointmentTypeId, visitTypeId, name,
+						"name, description, duration_in_minutes, scheduling_system_id, hex_color) VALUES (?,?,?,?,?,?,?)",
+				appointmentTypeId, visitTypeId, name, description,
 				durationInMinutes, schedulingSystemId, normalizedHexColor);
 
 		getDatabase().execute("INSERT INTO provider_appointment_type (provider_id, appointment_type_id, display_order) " +
@@ -1408,6 +1413,7 @@ public class AppointmentService {
 		SchedulingSystemId schedulingSystemId = request.getSchedulingSystemId();
 		VisitTypeId visitTypeId = request.getVisitTypeId();
 		String name = trimToNull(request.getName());
+		String description = trimToNull(request.getDescription());
 		Long durationInMinutes = request.getDurationInMinutes();
 		String hexColor = trimToNull(request.getHexColor());
 		List<CreatePatientIntakeQuestionRequest> patientIntakeQuestions = request.getPatientIntakeQuestions() == null ? Collections.emptyList() : request.getPatientIntakeQuestions();
@@ -1430,6 +1436,9 @@ public class AppointmentService {
 
 		if (name == null)
 			validationException.add(new FieldError("name", getStrings().get("Name is required.")));
+
+		if (description == null)
+			validationException.add(new FieldError("description", getStrings().get("Nickname is required.")));
 
 		if (hexColor == null)
 			validationException.add(new FieldError("hexColor", getStrings().get("Hex color is required.")));
@@ -1497,8 +1506,8 @@ public class AppointmentService {
 		Integer normalizedHexColor = getNormalizer().normalizeHexColor(hexColor).get();
 
 		getDatabase().execute("UPDATE appointment_type SET visit_type_id=?, " +
-						"name=?, duration_in_minutes=?, scheduling_system_id=?, hex_color=? WHERE appointment_type_id=?", visitTypeId, name,
-				durationInMinutes, schedulingSystemId, normalizedHexColor, appointmentTypeId);
+						"name=?, description=?, duration_in_minutes=?, scheduling_system_id=?, hex_color=? WHERE appointment_type_id=?", visitTypeId, name,
+				description, durationInMinutes, schedulingSystemId, normalizedHexColor, appointmentTypeId);
 
 		getDatabase().execute("DELETE FROM provider_appointment_type WHERE provider_id=? AND appointment_type_id=?", providerId, appointmentTypeId);
 
