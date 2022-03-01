@@ -91,7 +91,7 @@ public class ProviderCalendarApiResponse {
 				.map(followup -> followupApiResponseFactory.create(followup))
 				.collect(Collectors.toList());
 		this.appointments = providerCalendar.getAppointments() == null ? Collections.emptyList() : providerCalendar.getAppointments().stream()
-				.map(appointment -> appointmentApiResponseFactory.create(appointment, Set.of(AppointmentApiResponseSupplement.ACCOUNT)))
+				.map(appointment -> appointmentApiResponseFactory.create(appointment, Set.of(AppointmentApiResponseSupplement.ACCOUNT, AppointmentApiResponseSupplement.APPOINTMENT_TYPE)))
 				.collect(Collectors.toList());
 	}
 
