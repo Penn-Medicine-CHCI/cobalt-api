@@ -30,7 +30,7 @@ import com.cobaltplatform.api.model.db.CrisisContact;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Answer;
 import com.cobaltplatform.api.model.db.Assessment;
-import com.cobaltplatform.api.model.db.Assessment.AssessmentTypeId;
+import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
 import com.cobaltplatform.api.model.service.EvidenceScores;
 import com.cobaltplatform.api.util.Formatter;
 import com.lokalized.Strings;

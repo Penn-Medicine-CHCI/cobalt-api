@@ -40,7 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static com.cobaltplatform.api.model.db.Assessment.AssessmentTypeId.INTRO;
+import static com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId.INTRO;
 import static java.util.stream.Collectors.toList;
 
 /**

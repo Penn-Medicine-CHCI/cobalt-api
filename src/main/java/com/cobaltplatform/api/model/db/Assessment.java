@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.UUID;
@@ -27,16 +28,6 @@ import java.util.UUID;
  * @author Transmogrify LLC.
  */
 public class Assessment {
-
-	public enum AssessmentTypeId {
-		INTRO,
-		PHQ4,
-		GAD7,
-		PHQ9,
-		PCPTSD,
-		INTAKE
-	}
-
 	@Nonnull
 	private UUID assessmentId;
 	@Nonnull

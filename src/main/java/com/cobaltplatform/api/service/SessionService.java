@@ -24,7 +24,7 @@ import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.AccountSessionAnswer;
 import com.cobaltplatform.api.model.db.Answer;
 import com.cobaltplatform.api.model.db.Assessment;
-import com.cobaltplatform.api.model.db.Assessment.AssessmentTypeId;
+import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
 import com.cobaltplatform.api.model.db.Question;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -300,6 +300,12 @@ public class SessionService {
 						"ORDER by acs.created DESC LIMIT 1", AccountSession.class, providerId,
 				account.getAccountId(), complete, true, AssessmentTypeId.INTAKE);
 		return opt;
+	}
+
+	@Nonnull
+	public List<AccountSession> findCompletedAccountSessionsForAccount(@Nonnull Account account) {
+		return database.queryForList("SELECT * FROM account_session WHERE account_id = ? AND complete_flag = true", AccountSession.class,
+				account.getAccountId());
 	}
 
 	@Nonnull

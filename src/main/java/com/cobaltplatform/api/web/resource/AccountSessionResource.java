@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.web.resource;
 
+import com.cobaltplatform.api.model.api.response.AccountSessionApiResponse;
+import com.cobaltplatform.api.model.api.response.AccountSessionApiResponse.AccountSessionApiResponseFactory;
 import com.lokalized.Strings;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.Account;
@@ -38,6 +40,7 @@ import com.soklet.web.annotation.PathParameter;
 import com.soklet.web.annotation.Resource;
 import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.exception.NotFoundException;
+import com.soklet.web.response.ApiResponse;
 import com.soklet.web.response.BinaryResponse;
 
 import javax.annotation.Nonnull;
@@ -49,6 +52,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -74,6 +78,8 @@ public class AccountSessionResource {
 	private final Strings strings;
 	@Nonnull
 	private final Formatter formatter;
+	@Nonnull
+	private final AccountSessionApiResponseFactory accountSessionApiResponseFactory;
 
 	@Inject
 	public AccountSessionResource(@Nonnull AccountService accountService,
@@ -81,13 +87,15 @@ public class AccountSessionResource {
 																@Nonnull AssessmentService assessmentService,
 																@Nonnull Provider<CurrentContext> currentContextProvider,
 																@Nonnull Strings strings,
-																@Nonnull Formatter formatter) {
+																@Nonnull Formatter formatter,
+																@Nonnull AccountSessionApiResponseFactory accountSessionApiResponseFactory) {
 		requireNonNull(accountService);
 		requireNonNull(sessionService);
 		requireNonNull(assessmentService);
 		requireNonNull(currentContextProvider);
 		requireNonNull(strings);
 		requireNonNull(formatter);
+		requireNonNull(accountSessionApiResponseFactory);
 
 		this.accountService = accountService;
 		this.sessionService = sessionService;
@@ -95,6 +103,7 @@ public class AccountSessionResource {
 		this.currentContextProvider = currentContextProvider;
 		this.strings = strings;
 		this.formatter = formatter;
+		this.accountSessionApiResponseFactory = accountSessionApiResponseFactory;
 	}
 
 	@GET("/account-sessions/{accountSessionId}/text")
@@ -138,6 +147,24 @@ public class AccountSessionResource {
 	}
 
 	@Nonnull
+	@GET("/account-sessions/{accountId}")
+	@AuthenticationRequired
+	public ApiResponse accountSessions (@Nonnull @PathParameter UUID accountId) {
+		Optional<Account> account = getAccountService().findAccountById(accountId);
+		//TODO: Security
+		if (!account.isPresent())
+			throw new NotFoundException();
+
+		List<AccountSession> accountSessions = getSessionService().findCompletedAccountSessionsForAccount(account.get());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("accountSessions", accountSessions.stream()
+					.map((accountSession) -> getAccountSessionApiResponseFactory().create(accountSession))
+					.collect(Collectors.toList()));
+		}});
+	}
+
+	@Nonnull
 	protected AccountService getAccountService() {
 		return accountService;
 	}
@@ -166,4 +193,7 @@ public class AccountSessionResource {
 	protected Formatter getFormatter() {
 		return formatter;
 	}
+
+	@Nonnull
+	protected AccountSessionApiResponseFactory getAccountSessionApiResponseFactory() { return accountSessionApiResponseFactory; }
 }

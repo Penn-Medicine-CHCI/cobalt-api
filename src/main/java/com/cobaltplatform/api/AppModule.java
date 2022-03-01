@@ -65,6 +65,7 @@ import com.cobaltplatform.api.messaging.sms.SmsMessageManager;
 import com.cobaltplatform.api.messaging.sms.SmsMessageSerializer;
 import com.cobaltplatform.api.messaging.sms.TwilioSmsMessageSender;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.AccountSessionApiResponse.AccountSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse.AccountSourceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ActivityTrackingApiResponse.ActivityTrackingApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AdminAvailableContentApiResponse.AdminAvailableContentApiResponseFactory;
@@ -223,6 +224,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(InteractionOptionApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(InteractionOptionActionApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(SpecialtyApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(AccountSessionApiResponseFactory.class)));
 	}
 
 	@Provides

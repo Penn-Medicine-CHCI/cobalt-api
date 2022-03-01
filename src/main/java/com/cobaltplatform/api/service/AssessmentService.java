@@ -28,11 +28,12 @@ import com.cobaltplatform.api.model.api.request.SubmitAssessmentAnswerRequest;
 import com.cobaltplatform.api.model.api.request.SubmitAssessmentAnswerRequest.AnswerRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
+import com.cobaltplatform.api.model.db.AssessmentType;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.AccountSessionAnswer;
 import com.cobaltplatform.api.model.db.Answer;
 import com.cobaltplatform.api.model.db.Assessment;
-import com.cobaltplatform.api.model.db.Assessment.AssessmentTypeId;
+import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
 import com.cobaltplatform.api.model.db.Question;
 import com.cobaltplatform.api.model.db.QuestionType;
 import com.cobaltplatform.api.model.db.QuestionType.QuestionTypeId;
@@ -621,6 +622,11 @@ public class AssessmentService {
 
 
 		return accountSession.getAccountSessionId();
+	}
+
+	@Nonnull
+	public AssessmentType findRequiredAssessmentTypeById(String assessmentTypeId) {
+		return database.queryForObject("SELECT * FROM assessment_type WHERE assessment_type_id = ? ", AssessmentType.class, assessmentTypeId).get();
 	}
 
 	@Nonnull

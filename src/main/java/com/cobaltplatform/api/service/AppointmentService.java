@@ -71,6 +71,7 @@ import com.cobaltplatform.api.model.db.AppointmentReason;
 import com.cobaltplatform.api.model.db.AppointmentReasonType.AppointmentReasonTypeId;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Assessment;
+import com.cobaltplatform.api.model.db.AssessmentType;
 import com.cobaltplatform.api.model.db.AttendanceStatus.AttendanceStatusId;
 import com.cobaltplatform.api.model.db.AuditLog;
 import com.cobaltplatform.api.model.db.AuditLogEvent.AuditLogEventId;
@@ -1540,7 +1541,7 @@ public class AppointmentService {
 		UUID assessmentId = UUID.randomUUID();
 
 		getDatabase().execute("INSERT INTO assessment (assessment_id, assessment_type_id, " +
-				"minimum_eligibility_score, answers_may_contain_pii) VALUES (?,?,?,?)", assessmentId, Assessment.AssessmentTypeId.INTAKE, screeningQuestions.size(), false);
+				"minimum_eligibility_score, answers_may_contain_pii) VALUES (?,?,?,?)", assessmentId, AssessmentType.AssessmentTypeId.INTAKE, screeningQuestions.size(), false);
 
 		UUID mostRecentQuestionId = null;
 

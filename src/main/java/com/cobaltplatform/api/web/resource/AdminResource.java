@@ -73,7 +73,7 @@ import java.util.stream.Collectors;
 import static com.cobaltplatform.api.model.api.response.AdminContentApiResponse.AdminContentDisplayType;
 import static com.cobaltplatform.api.model.api.response.AssessmentFormApiResponse.AssessmentFormApiResponseFactory;
 import static com.cobaltplatform.api.model.api.response.AssessmentFormApiResponse.AssessmentFormApiResponseType;
-import static com.cobaltplatform.api.model.db.Assessment.AssessmentTypeId.INTRO;
+import static com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId.INTRO;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Objects.requireNonNull;
