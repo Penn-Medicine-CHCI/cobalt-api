@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.service;
 
+import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Followup;
 
@@ -44,13 +45,16 @@ public class ProviderCalendar {
 	private List<Block> blocks;
 	@Nullable
 	private List<Followup> followups;
+	@Nullable
+	private List<Appointment> appointments;
 
 	@Override
 	public String toString() {
 		return format("%s {\n\tProvider ID: %s\n\tAvailabilities:\n\t\t%s\n\tBlocks:\n\t\t%s\n\tFollowups:\n\t\t%s\n}", getClass().getSimpleName(), getProviderId(),
 				(getAvailabilities().size() == 0 ? "[none]" : getAvailabilities().stream().map(availability -> availability.toString()).collect(Collectors.joining("\n\t\t"))),
 				(getBlocks().size() == 0 ? "[none]" : getBlocks().stream().map(block -> block.toString()).collect(Collectors.joining("\n\t\t"))),
-				(getFollowups().size() == 0 ? "[none]" : getFollowups().stream().map(followup -> followup.toString()).collect(Collectors.joining("\n\t\t"))));
+				(getFollowups().size() == 0 ? "[none]" : getFollowups().stream().map(followup -> followup.toString()).collect(Collectors.joining("\n\t\t"))),
+				(getAppointments().size() == 0 ? "[none]" : getAppointments().stream().map(appointment -> appointment.toString()).collect(Collectors.joining("\n\t\t"))));
 	}
 
 	@NotThreadSafe
@@ -184,5 +188,14 @@ public class ProviderCalendar {
 
 	public void setFollowups(@Nullable List<Followup> followups) {
 		this.followups = followups;
+	}
+
+	@Nullable
+	public List<Appointment> getAppointments() {
+		return appointments;
+	}
+
+	public void setAppointments(@Nullable List<Appointment> appointments) {
+		this.appointments = appointments;
 	}
 }

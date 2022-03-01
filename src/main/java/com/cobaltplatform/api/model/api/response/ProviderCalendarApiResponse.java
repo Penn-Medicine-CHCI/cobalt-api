@@ -19,7 +19,10 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.AppointmentTypeApiResponse.AppointmentTypeApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApiResponseFactory;
 import com.cobaltplatform.api.model.service.ProviderCalendar;
 import com.cobaltplatform.api.service.AvailabilityService;
 import com.cobaltplatform.api.util.Formatter;
@@ -32,6 +35,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -50,6 +54,8 @@ public class ProviderCalendarApiResponse {
 	private final List<ProviderCalendarBlockApiResponse> blocks;
 	@Nonnull
 	private final List<FollowupApiResponse> followups;
+	@Nonnull
+	private final List<AppointmentApiResponse> appointments;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -63,13 +69,15 @@ public class ProviderCalendarApiResponse {
 																		 @Nonnull Strings strings,
 																		 @Nonnull AvailabilityService availabilityService,
 																		 @Nonnull AppointmentTypeApiResponseFactory appointmentTypeApiResponseFactory,
-																		 @Nonnull FollowupApiResponse.FollowupApiResponseFactory followupApiResponseFactory,
+																		 @Nonnull FollowupApiResponseFactory followupApiResponseFactory,
+																		 @Nonnull AppointmentApiResponseFactory appointmentApiResponseFactory,
 																		 @Assisted @Nonnull ProviderCalendar providerCalendar) {
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(availabilityService);
 		requireNonNull(appointmentTypeApiResponseFactory);
 		requireNonNull(followupApiResponseFactory);
+		requireNonNull(appointmentApiResponseFactory);
 		requireNonNull(providerCalendar);
 
 		this.providerId = providerCalendar.getProviderId();
@@ -81,6 +89,9 @@ public class ProviderCalendarApiResponse {
 				.collect(Collectors.toList());
 		this.followups = providerCalendar.getFollowups() == null ? Collections.emptyList() : providerCalendar.getFollowups().stream()
 				.map(followup -> followupApiResponseFactory.create(followup))
+				.collect(Collectors.toList());
+		this.appointments = providerCalendar.getAppointments() == null ? Collections.emptyList() : providerCalendar.getAppointments().stream()
+				.map(appointment -> appointmentApiResponseFactory.create(appointment, Set.of(AppointmentApiResponseSupplement.ACCOUNT)))
 				.collect(Collectors.toList());
 	}
 
@@ -196,5 +207,30 @@ public class ProviderCalendarApiResponse {
 		public String getEndDateTimeDescription() {
 			return endDateTimeDescription;
 		}
+	}
+
+	@Nonnull
+	public UUID getProviderId() {
+		return providerId;
+	}
+
+	@Nonnull
+	public List<ProviderCalendarAvailabilityApiResponse> getAvailabilities() {
+		return availabilities;
+	}
+
+	@Nonnull
+	public List<ProviderCalendarBlockApiResponse> getBlocks() {
+		return blocks;
+	}
+
+	@Nonnull
+	public List<FollowupApiResponse> getFollowups() {
+		return followups;
+	}
+
+	@Nonnull
+	public List<AppointmentApiResponse> getAppointments() {
+		return appointments;
 	}
 }

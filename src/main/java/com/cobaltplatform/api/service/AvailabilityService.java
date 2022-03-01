@@ -23,6 +23,7 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.api.request.CreateLogicalAvailabilityRequest;
 import com.cobaltplatform.api.model.api.request.UpdateLogicalAvailabilityRequest;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.CalendarPermission.CalendarPermissionId;
 import com.cobaltplatform.api.model.db.Followup;
@@ -639,6 +640,7 @@ public class AvailabilityService {
 		List<Availability> availabilities = new ArrayList<>();
 		List<Block> blocks = new ArrayList<>();
 		List<Followup> followups = getFollowupService().findFollowupsByProviderId(providerId, startDate, endDate);
+		List<Appointment> appointments = getAppointmentService().findAppointmentsByProviderId(providerId, startDate, endDate);
 
 		// Pull relevant logical availabilities
 		List<LogicalAvailability> logicalAvailabilities = getDatabase().queryForList("SELECT la.* FROM logical_availability la, provider p " +
@@ -729,12 +731,14 @@ public class AvailabilityService {
 		Collections.sort(availabilities, (availability1, availability2) -> availability1.getStartDateTime().compareTo(availability2.getStartDateTime()));
 		Collections.sort(blocks, (block1, block2) -> block1.getStartDateTime().compareTo(block2.getStartDateTime()));
 		Collections.sort(followups, (followup1, followup2) -> followup1.getFollowupDate().compareTo(followup2.getFollowupDate()));
+		Collections.sort(appointments, (appointment1, appointment2) -> appointment1.getStartTime().compareTo(appointment2.getStartTime()));
 
 		ProviderCalendar providerCalendar = new ProviderCalendar();
 		providerCalendar.setProviderId(providerId);
 		providerCalendar.setAvailabilities(availabilities);
 		providerCalendar.setBlocks(blocks);
 		providerCalendar.setFollowups(followups);
+		providerCalendar.setAppointments(appointments);
 
 		return providerCalendar;
 	}
