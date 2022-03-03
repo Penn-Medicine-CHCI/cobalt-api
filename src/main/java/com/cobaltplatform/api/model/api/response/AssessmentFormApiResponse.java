@@ -117,7 +117,7 @@ public class AssessmentFormApiResponse {
 				.collect(toList());
 
 		List<SubmissionAnswer> selectedAnswers = previousAnswersByQuestionId.getOrDefault(question.getQuestionId(), Collections.emptyList()).stream()
-				.map(it -> new SubmissionAnswer(it.getAnswerId())).collect(toList());
+				.map(it -> new SubmissionAnswer(it.getAnswerId(), it.getAnswerText())).collect(toList());
 
 		return new AssessmentQuestion(
 				question.getQuestionId().toString(),

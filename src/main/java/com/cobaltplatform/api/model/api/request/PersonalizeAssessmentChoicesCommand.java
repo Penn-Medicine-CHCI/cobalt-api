@@ -73,8 +73,10 @@ public class PersonalizeAssessmentChoicesCommand {
 		@Nullable
 		private String answerText;
 
-		public SubmissionAnswer(@Nullable UUID answerId) {
+		public SubmissionAnswer(@Nullable UUID answerId,
+														@Nullable String answerText) {
 			this.answerId = answerId;
+			this.answerText = answerText;
 		}
 
 		@Nullable

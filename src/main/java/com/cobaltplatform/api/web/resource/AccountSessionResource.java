@@ -19,8 +19,8 @@
 
 package com.cobaltplatform.api.web.resource;
 
-import com.cobaltplatform.api.model.api.response.AccountSessionApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountSessionApiResponse.AccountSessionApiResponseFactory;
+import com.cobaltplatform.api.service.AuthorizationService;
 import com.lokalized.Strings;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.Account;
@@ -80,6 +80,8 @@ public class AccountSessionResource {
 	private final Formatter formatter;
 	@Nonnull
 	private final AccountSessionApiResponseFactory accountSessionApiResponseFactory;
+	@Nonnull
+	private final AuthorizationService authorizationService;
 
 	@Inject
 	public AccountSessionResource(@Nonnull AccountService accountService,
@@ -88,7 +90,8 @@ public class AccountSessionResource {
 																@Nonnull Provider<CurrentContext> currentContextProvider,
 																@Nonnull Strings strings,
 																@Nonnull Formatter formatter,
-																@Nonnull AccountSessionApiResponseFactory accountSessionApiResponseFactory) {
+																@Nonnull AccountSessionApiResponseFactory accountSessionApiResponseFactory,
+																@Nonnull AuthorizationService authorizationService) {
 		requireNonNull(accountService);
 		requireNonNull(sessionService);
 		requireNonNull(assessmentService);
@@ -96,6 +99,7 @@ public class AccountSessionResource {
 		requireNonNull(strings);
 		requireNonNull(formatter);
 		requireNonNull(accountSessionApiResponseFactory);
+		requireNonNull(authorizationService);
 
 		this.accountService = accountService;
 		this.sessionService = sessionService;
@@ -104,6 +108,7 @@ public class AccountSessionResource {
 		this.strings = strings;
 		this.formatter = formatter;
 		this.accountSessionApiResponseFactory = accountSessionApiResponseFactory;
+		this.authorizationService = authorizationService;
 	}
 
 	@GET("/account-sessions/{accountSessionId}/text")
@@ -147,24 +152,6 @@ public class AccountSessionResource {
 	}
 
 	@Nonnull
-	@GET("/account-sessions/{accountId}")
-	@AuthenticationRequired
-	public ApiResponse accountSessions (@Nonnull @PathParameter UUID accountId) {
-		Optional<Account> account = getAccountService().findAccountById(accountId);
-		//TODO: Security
-		if (!account.isPresent())
-			throw new NotFoundException();
-
-		List<AccountSession> accountSessions = getSessionService().findCompletedAccountSessionsForAccount(account.get());
-
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("accountSessions", accountSessions.stream()
-					.map((accountSession) -> getAccountSessionApiResponseFactory().create(accountSession))
-					.collect(Collectors.toList()));
-		}});
-	}
-
-	@Nonnull
 	protected AccountService getAccountService() {
 		return accountService;
 	}
@@ -196,4 +183,7 @@ public class AccountSessionResource {
 
 	@Nonnull
 	protected AccountSessionApiResponseFactory getAccountSessionApiResponseFactory() { return accountSessionApiResponseFactory; }
+
+	@Nonnull
+	protected AuthorizationService getAuthorizationService() { return  authorizationService; }
 }
