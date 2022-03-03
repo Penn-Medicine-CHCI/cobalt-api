@@ -385,6 +385,9 @@ public class AuthorizationService {
 		if (Objects.equals(appointment.getAccountId(), account.getAccountId()))
 			return true;
 
+		if (Objects.equals(appointment.getProviderId(), account.getProviderId()))
+			return true;
+
 		// TODO: probably want more detailed rules here, like if we share calendars across MHICs
 		return Objects.equals(appointment.getCreatedByAccountId(), account.getAccountId());
 	}
