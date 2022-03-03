@@ -78,6 +78,13 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class AvailabilityService {
 	@Nonnull
+	private static final LocalDate DISTANT_FUTURE_DATE;
+
+	static {
+		DISTANT_FUTURE_DATE = LocalDate.of(9999, 1, 1);
+	}
+
+	@Nonnull
 	private final javax.inject.Provider<AppointmentService> appointmentServiceProvider;
 	@Nonnull
 	private final javax.inject.Provider<ProviderService> providerServiceProvider;
@@ -131,7 +138,8 @@ public class AvailabilityService {
 		UUID providerId = request.getProviderId();
 		UUID accountId = request.getAccountId();
 		LocalDateTime startDateTime = request.getStartDateTime();
-		LocalDateTime endDateTime = request.getEndDateTime();
+		LocalDate endDate = request.getEndDate();
+		LocalTime endTime = request.getEndTime();
 		List<UUID> appointmentTypeIds = request.getAppointmentTypeIds() == null ? Collections.emptyList() : request.getAppointmentTypeIds();
 		LogicalAvailabilityTypeId logicalAvailabilityTypeId = request.getLogicalAvailabilityTypeId();
 		RecurrenceTypeId recurrenceTypeId = request.getRecurrenceTypeId();
@@ -160,8 +168,11 @@ public class AvailabilityService {
 		if (startDateTime == null)
 			validationException.add(new FieldError("startDateTime", getStrings().get("Start date/time is required.")));
 
-		if (endDateTime == null)
-			validationException.add(new FieldError("endDateTime", getStrings().get("End date/time is required.")));
+		if (endTime == null)
+			validationException.add(new FieldError("endTime", getStrings().get("End time is required.")));
+
+		if(endDate == null && recurrenceTypeId == RecurrenceTypeId.NONE)
+			validationException.add(new FieldError("endDate", getStrings().get("End date is required.")));
 
 		List<AppointmentType> appointmentTypes = appointmentTypeIds.stream()
 				.filter(appointmentTypeId -> appointmentTypeId != null)
@@ -169,7 +180,7 @@ public class AvailabilityService {
 				.map(appointmentTypeId -> getAppointmentService().findAppointmentTypeById(appointmentTypeId).get())
 				.collect(Collectors.toList());
 
-		if (startDateTime != null && endDateTime != null && !endDateTime.isAfter(startDateTime))
+		if (startDateTime != null && endDate != null && endTime != null && !LocalDateTime.of(endDate, endTime).isAfter(startDateTime))
 			validationException.add(getStrings().get("End time must be after start time."));
 
 		if (logicalAvailabilityTypeId == null)
@@ -205,6 +216,10 @@ public class AvailabilityService {
 
 		UUID logicalAvailabilityId = UUID.randomUUID();
 
+		// We have an arbitrary distant future date we use to indicate a recurrence with no practical end (recurs "forever").
+		// From an API perspective - they see end date as null, but internally we store a non-null value
+		LocalDateTime endDateTime = LocalDateTime.of(endDate == null ? getDistantFutureDate() : endDate, endTime);
+
 		getDatabase().execute("INSERT INTO logical_availability(logical_availability_id, provider_id, start_date_time, " +
 						"end_date_time, logical_availability_type_id, recurrence_type_id, recur_sunday, recur_monday, recur_tuesday, " +
 						"recur_wednesday, recur_thursday, recur_friday, recur_saturday, created_by_account_id, last_updated_by_account_id) " +
@@ -228,7 +243,8 @@ public class AvailabilityService {
 		UUID providerId = request.getProviderId();
 		UUID accountId = request.getAccountId();
 		LocalDateTime startDateTime = request.getStartDateTime();
-		LocalDateTime endDateTime = request.getEndDateTime();
+		LocalDate endDate = request.getEndDate();
+		LocalTime endTime = request.getEndTime();
 		List<UUID> appointmentTypeIds = request.getAppointmentTypeIds() == null ? Collections.emptyList() : request.getAppointmentTypeIds();
 		LogicalAvailabilityTypeId logicalAvailabilityTypeId = request.getLogicalAvailabilityTypeId();
 		RecurrenceTypeId recurrenceTypeId = request.getRecurrenceTypeId();
@@ -260,8 +276,11 @@ public class AvailabilityService {
 		if (startDateTime == null)
 			validationException.add(new FieldError("startDateTime", getStrings().get("Start date/time is required.")));
 
-		if (endDateTime == null)
-			validationException.add(new FieldError("endDateTime", getStrings().get("End date/time is required.")));
+		if (endTime == null)
+			validationException.add(new FieldError("endTime", getStrings().get("End time is required.")));
+
+		if(endDate == null && recurrenceTypeId == RecurrenceTypeId.NONE)
+			validationException.add(new FieldError("endDate", getStrings().get("End date is required.")));
 
 		List<AppointmentType> appointmentTypes = appointmentTypeIds.stream()
 				.filter(appointmentTypeId -> appointmentTypeId != null)
@@ -269,7 +288,7 @@ public class AvailabilityService {
 				.map(appointmentTypeId -> getAppointmentService().findAppointmentTypeById(appointmentTypeId).get())
 				.collect(Collectors.toList());
 
-		if (startDateTime != null && endDateTime != null && !endDateTime.isAfter(startDateTime))
+		if (startDateTime != null && endDate != null && endTime != null && !LocalDateTime.of(endDate, endTime).isAfter(startDateTime))
 			validationException.add(getStrings().get("End time must be after start time."));
 
 		if (logicalAvailabilityTypeId == null)
@@ -302,6 +321,10 @@ public class AvailabilityService {
 
 		if (validationException.hasErrors())
 			throw validationException;
+
+		// We have an arbitrary distant future date we use to indicate a recurrence with no practical end (recurs "forever").
+		// From an API perspective - they see end date as null, but internally we store a non-null value
+		LocalDateTime endDateTime = LocalDateTime.of(endDate == null ? getDistantFutureDate() : endDate, endTime);
 
 		getDatabase().execute("UPDATE logical_availability SET provider_id=?, start_date_time=?, " +
 						"end_date_time=?, logical_availability_type_id=?, recurrence_type_id=?, recur_sunday=?, recur_monday=?, recur_tuesday=?, " +
@@ -771,6 +794,24 @@ public class AvailabilityService {
 		public void setLogicalAvailabilityId(@Nullable UUID logicalAvailabilityId) {
 			this.logicalAvailabilityId = logicalAvailabilityId;
 		}
+	}
+
+	@Nonnull
+	public Optional<LocalDate> normalizedEndDate(@Nonnull LogicalAvailability logicalAvailability) {
+		requireNonNull(logicalAvailability);
+
+		LocalDate endDate = logicalAvailability.getEndDateTime().toLocalDate();
+
+		// If end date is "distant future", treat it like there is no end at all (null)
+		if (endDate.equals(getDistantFutureDate()))
+			return Optional.empty();
+
+		return Optional.of(endDate);
+	}
+
+	@Nonnull
+	public LocalDate getDistantFutureDate() {
+		return DISTANT_FUTURE_DATE;
 	}
 
 	@Nonnull

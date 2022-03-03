@@ -82,9 +82,8 @@ public class AvailabilityServiceTests {
 				setStartDateTime(LocalDateTime.of(
 						LocalDate.of(2022, 2, 15),
 						LocalTime.of(10, 30)));
-				setEndDateTime(LocalDateTime.of(
-						LocalDate.of(2022, 2, 15),
-						LocalTime.of(14, 30)));
+				setEndDate(LocalDate.of(2022, 2, 15));
+				setEndTime(LocalTime.of(14, 30));
 			}});
 
 			// 2. Ask for availability slots
@@ -144,9 +143,8 @@ public class AvailabilityServiceTests {
 				setStartDateTime(LocalDateTime.of(
 						LocalDate.of(2022, 3, 1),
 						LocalTime.of(10, 30)));
-				setEndDateTime(LocalDateTime.of(
-						LocalDate.of(2022, 3, 5),
-						LocalTime.of(14, 30)));
+				setEndDate(LocalDate.of(2022, 3, 5));
+				setEndTime(LocalTime.of(14, 30));
 			}});
 
 			// 2. Pull the calendar for the provider

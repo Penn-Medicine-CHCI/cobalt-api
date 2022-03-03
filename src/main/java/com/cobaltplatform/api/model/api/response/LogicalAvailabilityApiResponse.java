@@ -35,7 +35,9 @@ import com.cobaltplatform.api.util.Formatter;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.FormatStyle;
 import java.util.List;
 import java.util.UUID;
@@ -60,10 +62,14 @@ public class LogicalAvailabilityApiResponse {
 	private final LocalDateTime startDateTime;
 	@Nonnull
 	private final String startDateTimeDescription;
-	@Nonnull
-	private final LocalDateTime endDateTime;
-	@Nonnull
-	private final String endDateTimeDescription;
+	@Nullable
+	private final LocalDate endDate;
+	@Nullable
+	private final String endDateDescription;
+	@Nullable
+	private final LocalTime endTime;
+	@Nullable
+	private final String endTimeDescription;
 	@Nonnull
 	private final Boolean recurSunday;
 	@Nonnull
@@ -106,8 +112,10 @@ public class LogicalAvailabilityApiResponse {
 		this.recurrenceTypeId = logicalAvailability.getRecurrenceTypeId();
 		this.startDateTime = logicalAvailability.getStartDateTime();
 		this.startDateTimeDescription = formatter.formatDateTime(logicalAvailability.getStartDateTime(), FormatStyle.LONG, FormatStyle.SHORT);
-		this.endDateTime = logicalAvailability.getEndDateTime();
-		this.endDateTimeDescription = formatter.formatDateTime(logicalAvailability.getEndDateTime(), FormatStyle.LONG, FormatStyle.SHORT);
+		this.endDate = availabilityService.normalizedEndDate(logicalAvailability).orElse(null);
+		this.endDateDescription = endDate == null ? null : formatter.formatDate(endDate, FormatStyle.LONG);
+		this.endTime = logicalAvailability.getEndDateTime().toLocalTime();
+		this.endTimeDescription = formatter.formatTime(endTime, FormatStyle.SHORT);
 		this.recurSunday = logicalAvailability.getRecurSunday();
 		this.recurMonday = logicalAvailability.getRecurMonday();
 		this.recurTuesday = logicalAvailability.getRecurTuesday();
@@ -153,14 +161,24 @@ public class LogicalAvailabilityApiResponse {
 		return startDateTimeDescription;
 	}
 
-	@Nonnull
-	public LocalDateTime getEndDateTime() {
-		return endDateTime;
+	@Nullable
+	public LocalDate getEndDate() {
+		return endDate;
 	}
 
-	@Nonnull
-	public String getEndDateTimeDescription() {
-		return endDateTimeDescription;
+	@Nullable
+	public String getEndDateDescription() {
+		return endDateDescription;
+	}
+
+	@Nullable
+	public LocalTime getEndTime() {
+		return endTime;
+	}
+
+	@Nullable
+	public String getEndTimeDescription() {
+		return endTimeDescription;
 	}
 
 	@Nonnull
