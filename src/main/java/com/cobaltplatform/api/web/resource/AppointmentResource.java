@@ -200,7 +200,7 @@ public class AppointmentResource {
 		if (appointment == null)
 			throw new NotFoundException();
 
-		if (!appointment.getAccountId().equals(account.getAccountId()))
+		if (!getAuthorizationService().canViewAppointment(appointment, account))
 			throw new AuthorizationException();
 
 		return new ApiResponse(new HashMap<String, Object>() {{

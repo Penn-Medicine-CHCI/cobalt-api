@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.CalendarPermission.CalendarPermissionId;
 import com.cobaltplatform.api.model.db.GroupSession;
@@ -34,7 +35,6 @@ import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AccountCapabilities;
 import com.cobaltplatform.api.util.Normalizer;
-import com.soklet.web.exception.AuthorizationException;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -371,6 +371,22 @@ public class AuthorizationService {
 				return true;
 
 		return false;
+	}
+
+	@Nonnull
+	public Boolean canViewAppointment(@Nonnull Appointment appointment,
+																		@Nonnull Account account) {
+		requireNonNull(appointment);
+		requireNonNull(account);
+
+		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
+			return true;
+
+		if (appointment.getAccountId().equals(account.getAccountId()))
+			return true;
+
+		// TODO: probably want more detailed rules here, like if we share calendars across MHICs
+		return appointment.getCreatedByAccountId().equals(account.getAccountId());
 	}
 
 	@Nonnull
