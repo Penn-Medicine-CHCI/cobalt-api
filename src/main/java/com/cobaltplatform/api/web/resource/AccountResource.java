@@ -872,7 +872,7 @@ public class AccountResource {
 		List<Appointment> appointments = getAppointmentService().findUpcomingAppointmentsByAccountId(appointmentAccount.getAccountId(), getCurrentContext().getTimeZone());
 
 		AccountSession intakeSession = getSessionService().findCurrentIntakeAssessmentForAccountAndProvider(appointmentAccount,
-				provider.getProviderId(), true).orElse(null);
+				provider.getProviderId(), appointment.getAppointmentTypeId(), true).orElse(null);
 		Assessment intakeAssessment = getAssessmentService().findAssessmentById(intakeSession.getAssessmentId()).orElse(null);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
