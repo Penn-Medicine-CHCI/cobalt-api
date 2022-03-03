@@ -288,7 +288,7 @@ public class SessionService {
 							"account_session as acs, " +
 							"account as a, " +
 							"assessment as ass, " +
-							"v_provider_appointment_type pat, " +
+							"provider_appointment_type pat, " +
 							"appointment_type at " +
 							"WHERE " +
 							"acs.assessment_id = ass.assessment_id AND " +
