@@ -842,7 +842,7 @@ public class AccountResource {
 		Account account = getCurrentContext().getAccount().get();
 		Account appointmentAccount = getAccountService().findAccountById(accountId).orElse(null);
 		AuditLog auditLog = new AuditLog();
-		auditLog.setAccountId(accountId);
+		auditLog.setAccountId(account.getAccountId());
 
 		if (appointmentAccount == null) {
 			auditLog.setAuditLogEventId(AuditLogEventId.ACCOUNT_LOOKUP_FAILURE);
@@ -871,17 +871,21 @@ public class AccountResource {
 
 		List<Appointment> appointments = getAppointmentService().findUpcomingAppointmentsByAccountId(appointmentAccount.getAccountId(), getCurrentContext().getTimeZone());
 
+		Map<String, Object> responseData = new HashMap<>();
+		responseData.put("account", getAccountApiResponseFactory().create(appointmentAccount, finalSupplements));
+		responseData.put("appointment", getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponse.AppointmentApiResponseSupplement.PROVIDER)));
+		responseData.put("appointments", appointments.stream()
+				.map((a) -> getAppointmentApiResponseFactory().create(a, Set.of(AppointmentApiResponse.AppointmentApiResponseSupplement.PROVIDER))).collect(Collectors.toList()));
+
 		AccountSession intakeSession = getSessionService().findCurrentIntakeAssessmentForAccountAndProvider(appointmentAccount,
 				provider.getProviderId(), appointment.getAppointmentTypeId(), true).orElse(null);
-		Assessment intakeAssessment = getAssessmentService().findAssessmentById(intakeSession.getAssessmentId()).orElse(null);
 
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("account", getAccountApiResponseFactory().create(appointmentAccount, finalSupplements));
-			put("appointment", getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponse.AppointmentApiResponseSupplement.PROVIDER)));
-			put("appointments", appointments.stream()
-					.map((appointment) -> getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponse.AppointmentApiResponseSupplement.PROVIDER))).collect(Collectors.toList()));
-			put("assessment", getAssessmentFormApiResponseFactory().create(intakeAssessment, Optional.of(intakeSession)));
-		}});
+		if (intakeSession != null) {
+			Assessment intakeAssessment = getAssessmentService().findAssessmentById(intakeSession.getAssessmentId()).orElse(null);
+			responseData.put("assessment", getAssessmentFormApiResponseFactory().create(intakeAssessment, Optional.of(intakeSession)));
+		}
+
+		return new ApiResponse(responseData);
 	}
 
 	@Nonnull
