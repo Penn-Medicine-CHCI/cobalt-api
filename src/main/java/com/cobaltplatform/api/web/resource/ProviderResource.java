@@ -346,6 +346,7 @@ public class ProviderResource {
 					appointmentTypeJson.put("schedulingSystemId", appointmentType.getSchedulingSystemId());
 					appointmentTypeJson.put("visitTypeId", appointmentType.getVisitTypeId());
 					appointmentTypeJson.put("acuityAppointmentTypeId", appointmentType.getAcuityAppointmentTypeId());
+					appointmentTypeJson.put("assessmentId", appointmentType.getAssessmentId());
 					appointmentTypeJson.put("epicVisitTypeId", appointmentType.getEpicVisitTypeId());
 					appointmentTypeJson.put("epicVisitTypeIdType", appointmentType.getEpicVisitTypeIdType());
 					appointmentTypeJson.put("name", appointmentType.getName());
