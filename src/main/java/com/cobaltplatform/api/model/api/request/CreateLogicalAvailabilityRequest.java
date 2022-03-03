@@ -24,7 +24,9 @@ import com.cobaltplatform.api.model.db.RecurrenceType.RecurrenceTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -44,7 +46,9 @@ public class CreateLogicalAvailabilityRequest {
 	@Nullable
 	private LocalDateTime startDateTime;
 	@Nullable
-	private LocalDateTime endDateTime;
+	private LocalDate endDate;
+	@Nullable
+	private LocalTime endTime;
 	@Nullable
 	private Boolean recurSunday;
 	@Nullable
@@ -108,12 +112,21 @@ public class CreateLogicalAvailabilityRequest {
 	}
 
 	@Nullable
-	public LocalDateTime getEndDateTime() {
-		return endDateTime;
+	public LocalDate getEndDate() {
+		return endDate;
 	}
 
-	public void setEndDateTime(@Nullable LocalDateTime endDateTime) {
-		this.endDateTime = endDateTime;
+	public void setEndDate(@Nullable LocalDate endDate) {
+		this.endDate = endDate;
+	}
+
+	@Nullable
+	public LocalTime getEndTime() {
+		return endTime;
+	}
+
+	public void setEndTime(@Nullable LocalTime endTime) {
+		this.endTime = endTime;
 	}
 
 	@Nullable
