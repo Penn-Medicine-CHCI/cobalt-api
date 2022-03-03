@@ -497,16 +497,24 @@ public class ProviderService {
 						.map(provider -> provider.getProviderId())
 						.collect(Collectors.toSet()), visitTypeIds, currentDateTime, currentDateTime.plusMonths(1) /* arbitrarily cap at 1 month ahead */);
 
+		Set<UUID> nativeSchedulingProviderIds = nativeSchedulingProviderAvailabilitiesByProviderId.keySet();
+
 		for (Provider provider : providers) {
-			Optional<Assessment> intakeAssessment = getAssessmentService().findIntakeAssessmentByProviderId(provider.getProviderId());
-			boolean intakeAssessmentRequired = intakeAssessment.isPresent();
+			boolean intakeAssessmentRequired = false;
 			boolean intakeAssessmentIneligible = false;
 
-			if (intakeAssessment.isPresent()) {
-				Optional<AccountSession> accountSession = getSessionService()
-						.findCurrentIntakeAssessmentForAccountAndProvider(account, provider.getProviderId(), true);
-				if (accountSession.isPresent())
-					intakeAssessmentIneligible = !getAssessmentScoringService().isBookingAllowed(accountSession.get());
+			// Native scheduling providers can have per-appointment-type assessments, so skip this logic
+			if(!nativeSchedulingProviderIds.contains(provider.getProviderId())) {
+				Optional<Assessment> intakeAssessment = getAssessmentService().findIntakeAssessmentByProviderId(provider.getProviderId(), null);
+				intakeAssessmentRequired = intakeAssessment.isPresent();
+
+
+				if (intakeAssessment.isPresent()) {
+					Optional<AccountSession> accountSession = getSessionService()
+							.findCurrentIntakeAssessmentForAccountAndProvider(account, provider.getProviderId(), null,true);
+					if (accountSession.isPresent())
+						intakeAssessmentIneligible = !getAssessmentScoringService().isBookingAllowed(accountSession.get());
+				}
 			}
 
 			List<AvailabilityDate> dates = new ArrayList<>();

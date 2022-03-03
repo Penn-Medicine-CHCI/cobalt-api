@@ -129,7 +129,19 @@ public class AssessmentService {
 
 
 	@Nonnull
-	public Optional<Assessment> findIntakeAssessmentByProviderId(@Nonnull UUID providerId) {
+	public Optional<Assessment> findIntakeAssessmentByProviderId(@Nonnull UUID providerId,
+																															 @Nullable UUID appointmentTypeId) {
+		if(appointmentTypeId != null) {
+			return database.queryForObject(
+					"SELECT a.* FROM assessment as a, provider p, provider_appointment_type pat, v_appointment_type at WHERE " +
+							"p.provider_id = pat.provider_id AND pat.appointment_type_id = at.appointment_type_id " +
+							"AND at.assessment_id = a.assessment_id " +
+							"AND p.provider_id=? AND at.appointment_type_id=?",
+					Assessment.class,
+					providerId, appointmentTypeId
+			);
+		}
+
 		return database.queryForObject(
 				"SELECT a.* FROM assessment as a, provider p, provider_clinic pc , clinic c WHERE " +
 						"p.provider_id = pc.provider_id AND pc.clinic_id = c.clinic_id " +
@@ -471,6 +483,7 @@ public class AssessmentService {
 																														 @Nullable String questionIdCommand,
 																														 @Nullable String sessionIdCommand,
 																														 @Nullable UUID providerId,
+																														 @Nullable UUID appointmentTypeId,
 																														 @Nullable UUID groupSessionId) {
 		boolean providerIntake = false;
 		boolean groupSessionIntake = false;
@@ -482,7 +495,7 @@ public class AssessmentService {
 
 			if (providerId != null) {
 				providerIntake = true;
-				initialAssessment = findIntakeAssessmentByProviderId(providerId).orElse(null);
+				initialAssessment = findIntakeAssessmentByProviderId(providerId, appointmentTypeId).orElse(null);
 			} else if (groupSessionId != null) {
 				groupSessionIntake = true;
 				initialAssessment = findIntakeAssessmentByGroupSessionId(groupSessionId).orElse(null);
@@ -510,7 +523,7 @@ public class AssessmentService {
 						.orElseGet(() -> sessionService.createSessionForAssessment(account.getAccountId(), initialAssessment));
 			} else if (providerIntake) {
 				accountSession = getSessionService().findCurrentIntakeAssessmentForAccountAndProvider(account,
-						providerId, false).orElseGet(() -> sessionService.createSessionForAssessment(account.getAccountId(),
+						providerId, appointmentTypeId, false).orElseGet(() -> sessionService.createSessionForAssessment(account.getAccountId(),
 						initialAssessment));
 			} else if (groupSessionIntake) {
 				accountSession = getSessionService().findCurrentIntakeAssessmentForAccountAndGroupSessionId(account,

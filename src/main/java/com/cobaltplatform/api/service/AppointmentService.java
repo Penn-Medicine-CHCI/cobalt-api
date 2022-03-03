@@ -896,9 +896,9 @@ public class AppointmentService {
 		}
 
 		AccountSession intakeSession = getSessionService().findCurrentIntakeAssessmentForAccountAndProvider(account,
-				providerId, true).orElse(null);
+				providerId, appointmentTypeId, true).orElse(null);
 
-		if (oneOnOne && providerId != null && getAssessmentService().findIntakeAssessmentByProviderId(providerId).isPresent()) {
+		if (oneOnOne && providerId != null && getAssessmentService().findIntakeAssessmentByProviderId(providerId, appointmentTypeId).isPresent()) {
 			if (intakeSession != null && !getAssessmentScoringService().isBookingAllowed(intakeSession))
 				validationException.add(getStrings().get("Based on your responses you are not permitted to book with this provider."));
 			else if (intakeSession == null)

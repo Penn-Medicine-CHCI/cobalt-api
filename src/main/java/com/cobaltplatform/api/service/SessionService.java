@@ -278,9 +278,34 @@ public class SessionService {
 	}
 
 	@Nonnull
-	public Optional<AccountSession> findCurrentIntakeAssessmentForAccountAndProvider(@Nonnull Account account, @Nonnull UUID providerId,
+	public Optional<AccountSession> findCurrentIntakeAssessmentForAccountAndProvider(@Nonnull Account account,
+																																									 @Nonnull UUID providerId,
+																																									 @Nullable UUID appointmentTypeId,
 																																									 @Nonnull Boolean complete) {
-		Optional<AccountSession> opt = database.queryForObject("SELECT acs.* " +
+		if(appointmentTypeId != null) {
+			return database.queryForObject("SELECT acs.* " +
+							"FROM " +
+							"account_session as acs, " +
+							"account as a, " +
+							"assessment as ass, " +
+							"v_provider_appointment_type pat, " +
+							"appointment_type at " +
+							"WHERE " +
+							"acs.assessment_id = ass.assessment_id AND " +
+							"pat.appointment_type_id = a.appointment_type_id AND " +
+							"a.appointment_type_id=at.appointment_type_id AND " +
+							"pat.provider_id = ? AND " +
+							"at.assessment_id = ass.assessment_id AND " +
+							"a.account_id = ? AND " +
+							"acs.account_id = a.account_id AND " +
+							"acs.complete_flag = ? AND " +
+							"acs.current_flag = ? AND " +
+							"ass.assessment_type_id = ? " +
+							"ORDER by acs.created DESC LIMIT 1", AccountSession.class, providerId,
+					account.getAccountId(), complete, true, AssessmentTypeId.INTAKE);
+		}
+
+		return database.queryForObject("SELECT acs.* " +
 						"FROM " +
 						"account_session as acs, " +
 						"account as a, " +
@@ -299,7 +324,6 @@ public class SessionService {
 						"ass.assessment_type_id = ? " +
 						"ORDER by acs.created DESC LIMIT 1", AccountSession.class, providerId,
 				account.getAccountId(), complete, true, AssessmentTypeId.INTAKE);
-		return opt;
 	}
 
 	@Nonnull

@@ -140,7 +140,7 @@ public class AssessmentResource {
 	@GET("/assessment/intro")
 	public ApiResponse getIntroAssessmentQuestion(@QueryParameter("questionId") Optional<String> questionId,
 																								@QueryParameter("sessionId") Optional<String> sessionId) {
-		return getAssessmentQuestion(AssessmentTypeId.INTRO, questionId.orElse(null), sessionId.orElse(null), null, null);
+		return getAssessmentQuestion(AssessmentTypeId.INTRO, questionId.orElse(null), sessionId.orElse(null), null, null,null);
 	}
 
 	@AuthenticationRequired
@@ -148,26 +148,28 @@ public class AssessmentResource {
 	public ApiResponse getIntakeAssessmentQuestion(@QueryParameter("questionId") Optional<String> questionId,
 																								 @QueryParameter("sessionId") Optional<String> sessionId,
 																								 @QueryParameter("providerId") Optional<UUID> providerId,
+																								 @QueryParameter("appointmentTypeId") Optional<UUID> appointmentTypeId,
 																								 @QueryParameter("groupSessionId") Optional<UUID> groupSessionId) {
 		return getAssessmentQuestion(AssessmentTypeId.INTAKE, questionId.orElse(null), sessionId.orElse(null),
-				providerId.orElse(null), groupSessionId.orElse(null));
+				providerId.orElse(null), appointmentTypeId.orElse(null), groupSessionId.orElse(null));
 	}
 
 	@AuthenticationRequired
 	@GET("/assessment/evidence")
 	public ApiResponse getEvidenceAssessmentQuestion(@QueryParameter("questionId") Optional<String> questionId,
 																									 @QueryParameter("sessionId") Optional<String> sessionId) {
-		return getAssessmentQuestion(AssessmentTypeId.PHQ4, questionId.orElse(null), sessionId.orElse(null), null, null);
+		return getAssessmentQuestion(AssessmentTypeId.PHQ4, questionId.orElse(null), sessionId.orElse(null), null, null, null);
 	}
 
 	private ApiResponse getAssessmentQuestion(@Nonnull AssessmentTypeId assessmentTypeId,
 																						@Nullable String questionId,
 																						@Nullable String sessionId,
 																						@Nullable UUID providerId,
+																						@Nullable UUID appointmentTypeId,
 																						@Nullable UUID groupSessionId) {
 		Account account = getCurrentContext().getAccount().get();
 		AssessmentQuestionAnswers assessmentQuestionAnswers = getAssessmentService().getNextAssessmentQuestion(account,
-				assessmentTypeId, questionId, sessionId, providerId, groupSessionId);
+				assessmentTypeId, questionId, sessionId, providerId, appointmentTypeId, groupSessionId);
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("assessment", getAssessmentQuestionAnswerApiResponseFactory().create(assessmentQuestionAnswers, account));
 		}});
