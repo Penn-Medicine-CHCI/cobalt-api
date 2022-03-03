@@ -382,11 +382,11 @@ public class AuthorizationService {
 		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
 			return true;
 
-		if (appointment.getAccountId().equals(account.getAccountId()))
+		if (Objects.equals(appointment.getAccountId(), account.getAccountId()))
 			return true;
 
 		// TODO: probably want more detailed rules here, like if we share calendars across MHICs
-		return appointment.getCreatedByAccountId().equals(account.getAccountId());
+		return Objects.equals(appointment.getCreatedByAccountId(), account.getAccountId());
 	}
 
 	@Nonnull
