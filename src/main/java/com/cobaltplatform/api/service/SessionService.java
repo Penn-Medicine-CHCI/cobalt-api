@@ -292,12 +292,11 @@ public class SessionService {
 							"appointment_type at " +
 							"WHERE " +
 							"acs.assessment_id = ass.assessment_id AND " +
-							"pat.appointment_type_id = a.appointment_type_id AND " +
-							"a.appointment_type_id=at.appointment_type_id AND " +
-							"pat.provider_id = ? AND " +
-							"at.assessment_id = ass.assessment_id AND " +
-							"a.account_id = ? AND " +
 							"acs.account_id = a.account_id AND " +
+							"pat.appointment_type_id = at.appointment_type_id AND " +
+							"pat.provider_id = ? AND " +
+							"acs.assessment_id = ass.assessment_id AND " +
+							"a.account_id = ? AND " +
 							"acs.complete_flag = ? AND " +
 							"acs.current_flag = ? AND " +
 							"ass.assessment_type_id = ? " +
