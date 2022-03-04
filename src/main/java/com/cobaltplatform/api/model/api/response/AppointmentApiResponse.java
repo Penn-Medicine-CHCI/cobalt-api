@@ -21,6 +21,8 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.api.response.AppointmentTypeApiResponse.AppointmentTypeApiResponseFactory;
 import com.cobaltplatform.api.model.db.AppointmentType;
+import com.cobaltplatform.api.model.db.SchedulingSystem;
+import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import com.lokalized.Strings;
@@ -69,6 +71,8 @@ public class AppointmentApiResponse {
 	@Nullable
 	private final UUID appointmentTypeId;
 	@Nullable
+	private final UUID intakeAssessmentId;
+	@Nullable
 	private final Long acuityAppointmentId;
 	@Nonnull
 	private final Long bluejeansMeetingId;
@@ -110,6 +114,8 @@ public class AppointmentApiResponse {
 	private final String videoconferenceUrl;
 	@Nonnull
 	private final VideoconferencePlatformId videoconferencePlatformId;
+	@Nonnull
+	private final SchedulingSystemId schedulingSystemId;
 	@Nullable
 	private final Boolean canceled;
 	@Nullable
@@ -196,6 +202,7 @@ public class AppointmentApiResponse {
 		this.attendanceStatusId = appointment.getAttendanceStatusId();
 		this.createdByAccountId = appointment.getCreatedByAccountId();
 		this.acuityAppointmentId = appointment.getAcuityAppointmentId();
+		this.intakeAssessmentId = appointment.getIntakeAssessmentId();
 		this.appointmentTypeId = appointment.getAppointmentTypeId();
 		this.bluejeansMeetingId = appointment.getBluejeansMeetingId();
 		this.groupEventId = appointment.getAcuityClassId() == null ? null : String.valueOf(appointment.getAcuityClassId());
@@ -221,6 +228,7 @@ public class AppointmentApiResponse {
 		this.timeZone = appointment.getTimeZone();
 		this.videoconferenceUrl = appointment.getVideoconferenceUrl();
 		this.videoconferencePlatformId = appointment.getVideoconferencePlatformId();
+		this.schedulingSystemId = appointment.getSchedulingSystemId();
 		this.canceled = appointment.getCanceled();
 		this.canceledAt = appointment.getCanceledAt();
 		this.canceledAtDescription = appointment.getCanceledAt() == null ? null : formatter.formatTimestamp(appointment.getCanceledAt());
@@ -248,7 +256,6 @@ public class AppointmentApiResponse {
 		}
 
 		this.appointmentReason = appointmentReasonApiResponse;
-
 
 		AppointmentTypeApiResponse appointmentTypeApiResponse = null;
 
@@ -285,6 +292,11 @@ public class AppointmentApiResponse {
 	@Nonnull
 	public Long getAcuityAppointmentId() {
 		return acuityAppointmentId;
+	}
+
+	@Nullable
+	public UUID getIntakeAssessmentId() {
+		return intakeAssessmentId;
 	}
 
 	@Nullable
@@ -374,6 +386,11 @@ public class AppointmentApiResponse {
 	@Nonnull
 	public VideoconferencePlatformId getVideoconferencePlatformId() {
 		return videoconferencePlatformId;
+	}
+
+	@Nonnull
+	public SchedulingSystemId getSchedulingSystemId() {
+		return schedulingSystemId;
 	}
 
 	@Nullable

@@ -56,19 +56,6 @@ ALTER TABLE logical_availability ADD COLUMN recur_saturday BOOLEAN NOT NULL DEFA
 ALTER TABLE logical_availability ADD COLUMN created_by_account_id UUID NOT NULL REFERENCES account(account_id);
 ALTER TABLE logical_availability ADD COLUMN last_updated_by_account_id UUID NOT NULL REFERENCES account(account_id);
 
--- Reporting table to capture statistics like “provider X had Y slots open on day Z” since our native-scheduling slots
--- are calculated at runtime and could change over time (a provider might modify recurrence rules, for example).
--- A nightly job will examine a provider's availability for the day in her timezone (just like
--- an end user of the app would see) and writes to this table so we have an immutable record of that day's availability.
-
-CREATE TABLE reporting_provider_availability (
-	provider_id UUID NOT NULL REFERENCES provider,
-	appointment_id UUID REFERENCES appointment, -- nice-to-have but not strictly necessary
-	date_time TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-	available BOOLEAN NOT NULL,
-	created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-);
-
 -- 3692510 is "Cobalt Blue" 0x3857DE in decimal
 ALTER TABLE appointment_type ADD COLUMN hex_color INTEGER NOT NULL DEFAULT 3692510;
 
@@ -135,5 +122,16 @@ UPDATE question SET question_content_hint_id = 'STUDENT_ID' WHERE question_type_
 -- Remove no-longer-needed provider_availability records for COBALT (native) scheduling providers.
 -- For them, synthetic records are generated at runtime in order to more easily handle recurrence rules etc.
 DELETE FROM provider_availability WHERE provider_id IN (SELECT provider_id FROM provider WHERE scheduling_system_id='COBALT');
+
+INSERT INTO attendance_status (attendance_status_id, description) VALUES ('ATTENDED', 'Attended');
+
+ALTER TABLE appointment ADD COLUMN intake_assessment_id UUID REFERENCES assessment;
+ALTER TABLE appointment ADD COLUMN scheduling_system_id TEXT REFERENCES scheduling_system;
+
+UPDATE appointment SET scheduling_system_id = 'EPIC' WHERE epic_contact_id IS NOT NULL;
+UPDATE appointment SET scheduling_system_id = 'ACUITY' WHERE acuity_appointment_id IS NOT NULL OR acuity_class_id IS NOT NULL;
+UPDATE appointment SET scheduling_system_id = 'COBALT' WHERE scheduling_system_id IS NULL;
+
+ALTER TABLE appointment ALTER COLUMN scheduling_system_id SET NOT NULL;
 
 COMMIT;

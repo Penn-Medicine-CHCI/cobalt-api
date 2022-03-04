@@ -511,6 +511,7 @@ public class AppointmentService {
 				String comment;
 				UUID createdByAccountId;
 				String phoneNumber;
+				UUID intakeAssessmentId = null;
 
 				if (duplicateAppointmentForOtherAccount == null) {
 					MeetingResponse meetingResponse = null;
@@ -543,14 +544,15 @@ public class AppointmentService {
 					comment = duplicateAppointmentForOtherAccount.getComment();
 					createdByAccountId = duplicateAppointmentForOtherAccount.getCreatedByAccountId();
 					phoneNumber = duplicateAppointmentForOtherAccount.getPhoneNumber();
+					intakeAssessmentId = duplicateAppointmentForOtherAccount.getIntakeAssessmentId();
 				}
 
 				getDatabase().execute("INSERT INTO appointment (appointment_id, provider_id, account_id, created_by_account_id, " +
 								"appointment_type_id, acuity_appointment_id, acuity_class_id, bluejeans_meeting_id, bluejeans_participant_passcode, title, start_time, end_time, " +
 								"duration_in_minutes, time_zone, videoconference_url, videoconference_platform_id, epic_contact_id, epic_contact_id_type, " +
-								"phone_number, appointment_reason_id, comment) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+								"phone_number, appointment_reason_id, comment, intake_assessment_id, scheduling_system_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
 						appointmentId, providerId, accountId, createdByAccountId, appointmentType.getAppointmentTypeId(), null, null, bluejeansMeetingId, bluejeansParticipantPasscode,
-						appointmentType.getName(), meetingStartTime, meetingEndTime, appointmentType.getDurationInMinutes(), timeZone, videoconferenceUrl, provider.getVideoconferencePlatformId(), csn, "CSN", phoneNumber, appointmentReasonId, comment);
+						appointmentType.getName(), meetingStartTime, meetingEndTime, appointmentType.getDurationInMinutes(), timeZone, videoconferenceUrl, provider.getVideoconferencePlatformId(), csn, "CSN", phoneNumber, appointmentReasonId, comment, intakeAssessmentId, appointmentType.getSchedulingSystemId());
 
 				Map<String, Object> createPayload = new HashMap<>();
 				createPayload.put("csn", csn);
@@ -827,6 +829,7 @@ public class AppointmentService {
 		String groupEventId = trimToNull(request.getGroupEventId());
 		UUID groupEventTypeId = request.getGroupEventTypeId();
 		UUID appointmentTypeId = request.getAppointmentTypeId();
+		UUID intakeAssessmentId = request.getIntakeAssessmentId();
 		String emailAddress = trimToNull(request.getEmailAddress());
 		String phoneNumber = trimToNull(request.getPhoneNumber());
 		String comment = trimToNull(request.getComment());
@@ -1193,10 +1196,10 @@ public class AppointmentService {
 		getDatabase().execute("INSERT INTO appointment (appointment_id, provider_id, account_id, created_by_account_id, " +
 						"appointment_type_id, acuity_appointment_id, acuity_class_id, bluejeans_meeting_id, bluejeans_participant_passcode, title, start_time, end_time, " +
 						"duration_in_minutes, time_zone, videoconference_url, epic_contact_id, epic_contact_id_type, videoconference_platform_id, " +
-						"phone_number, appointment_reason_id, comment) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", appointmentId, providerId,
+						"phone_number, appointment_reason_id, comment, intake_assessment_id, scheduling_system_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", appointmentId, providerId,
 				accountId, createdByAccountId, appointmentTypeId, acuityAppointmentId, acuityClassId, bluejeansMeetingId, bluejeansParticipantPasscode,
 				title, meetingStartTime, meetingEndTime, durationInMinutes, timeZone, videoconferenceUrl, epicContactId,
-				epicContactIdType, videoconferencePlatformId, appointmentPhoneNumber, appointmentReasonId, comment);
+				epicContactIdType, videoconferencePlatformId, appointmentPhoneNumber, appointmentReasonId, comment, intakeAssessmentId, appointmentType.getSchedulingSystemId());
 
 		if (provider != null) {
 			sendProviderScoreEmail(provider, account, emailAddress, phoneNumber, videoconferenceUrl,

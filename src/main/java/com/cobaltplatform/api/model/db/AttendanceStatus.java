@@ -37,7 +37,8 @@ public class AttendanceStatus {
 	public enum AttendanceStatusId {
 		UNKNOWN,
 		MISSED,
-		CANCELED
+		CANCELED,
+		ATTENDED
 	}
 
 	@Override
