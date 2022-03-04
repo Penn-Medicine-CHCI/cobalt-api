@@ -19,30 +19,36 @@
 
 package com.cobaltplatform.api.model.api.response;
 
-import com.cobaltplatform.api.model.db.LogicalAvailabilityType;
-import com.cobaltplatform.api.model.db.LogicalAvailabilityType.LogicalAvailabilityTypeId;
-import com.cobaltplatform.api.model.db.RecurrenceType;
-import com.cobaltplatform.api.model.db.RecurrenceType.RecurrenceTypeId;
-import com.google.inject.assistedinject.Assisted;
-import com.google.inject.assistedinject.AssistedInject;
-import com.lokalized.Strings;
+import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.AppointmentTypeApiResponse.AppointmentTypeApiResponseFactory;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.LogicalAvailability;
+import com.cobaltplatform.api.model.db.LogicalAvailabilityType.LogicalAvailabilityTypeId;
+import com.cobaltplatform.api.model.db.RecurrenceType.RecurrenceTypeId;
 import com.cobaltplatform.api.service.AvailabilityService;
 import com.cobaltplatform.api.util.Formatter;
+import com.google.inject.assistedinject.Assisted;
+import com.google.inject.assistedinject.AssistedInject;
+import com.lokalized.Strings;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import javax.inject.Provider;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.FormatStyle;
+import java.time.format.TextStyle;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -85,6 +91,8 @@ public class LogicalAvailabilityApiResponse {
 	@Nonnull
 	private final Boolean recurSaturday;
 	@Nonnull
+	private List<String> descriptionComponents;
+	@Nonnull
 	private final List<AppointmentTypeApiResponse> appointmentTypes;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
@@ -99,11 +107,13 @@ public class LogicalAvailabilityApiResponse {
 																				@Nonnull Strings strings,
 																				@Nonnull AvailabilityService availabilityService,
 																				@Nonnull AppointmentTypeApiResponseFactory appointmentTypeApiResponseFactory,
+																				@Nonnull Provider<CurrentContext> currentContextProvider,
 																				@Assisted @Nonnull LogicalAvailability logicalAvailability) {
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(availabilityService);
 		requireNonNull(appointmentTypeApiResponseFactory);
+		requireNonNull(currentContextProvider);
 		requireNonNull(logicalAvailability);
 
 		this.logicalAvailabilityId = logicalAvailability.getLogicalAvailabilityId();
@@ -129,6 +139,54 @@ public class LogicalAvailabilityApiResponse {
 		this.appointmentTypes = appointmentTypes.stream()
 				.map(appointmentType -> appointmentTypeApiResponseFactory.create(appointmentType))
 				.collect(Collectors.toList());
+
+		List<String> descriptionComponents = new ArrayList<>(4);
+
+		Locale locale = currentContextProvider.get().getLocale();
+
+		if (recurrenceTypeId == RecurrenceTypeId.NONE) {
+			// e.g. "9:00 AM - 5:00 PM" / "March 1, 2022"
+			descriptionComponents.add(format("%s - %s", formatter.formatTime(getStartDateTime().toLocalTime(), FormatStyle.SHORT),
+					formatter.formatTime(getEndTime(), FormatStyle.SHORT)));
+			descriptionComponents.add(formatter.formatDate(getStartDateTime().toLocalDate(), FormatStyle.LONG));
+		} else if (recurrenceTypeId == RecurrenceTypeId.DAILY) {
+			// e.g "9:00 AM - 5:00 PM" / "Every MTWRF" / "Starting March 1, 2022" / "Ending March 31, 2022"
+			descriptionComponents.add(format("%s - %s", formatter.formatTime(getStartDateTime().toLocalTime(), FormatStyle.SHORT),
+					formatter.formatTime(getEndTime(), FormatStyle.SHORT)));
+
+			List<String> dayAbbreviations = new ArrayList<>(7 /* days in a week */);
+
+			if (getRecurSunday())
+				dayAbbreviations.add(DayOfWeek.SUNDAY.getDisplayName(TextStyle.SHORT_STANDALONE, locale));
+			if (getRecurMonday())
+				dayAbbreviations.add(DayOfWeek.MONDAY.getDisplayName(TextStyle.SHORT_STANDALONE, locale));
+			if (getRecurTuesday())
+				dayAbbreviations.add(DayOfWeek.TUESDAY.getDisplayName(TextStyle.SHORT_STANDALONE, locale));
+			if (getRecurWednesday())
+				dayAbbreviations.add(DayOfWeek.WEDNESDAY.getDisplayName(TextStyle.SHORT_STANDALONE, locale));
+			if (getRecurThursday())
+				dayAbbreviations.add(DayOfWeek.THURSDAY.getDisplayName(TextStyle.SHORT_STANDALONE, locale));
+			if (getRecurFriday())
+				dayAbbreviations.add(DayOfWeek.FRIDAY.getDisplayName(TextStyle.SHORT_STANDALONE, locale));
+			if (getRecurSaturday())
+				dayAbbreviations.add(DayOfWeek.SATURDAY.getDisplayName(TextStyle.SHORT_STANDALONE, locale));
+
+			descriptionComponents.add(dayAbbreviations.stream().collect(Collectors.joining(", ")));
+
+			descriptionComponents.add(strings.get("Starting on {{startDate}}", new HashMap<String, Object>() {{
+				put("startDate", formatter.formatDate(getStartDateTime().toLocalDate(), FormatStyle.LONG));
+			}}));
+
+			if (getEndDate() != null)
+				descriptionComponents.add(strings.get("Ending on {{endDate}}", new HashMap<String, Object>() {{
+					put("endDate", formatter.formatDate(getEndDate(), FormatStyle.LONG));
+				}}));
+		} else {
+			throw new IllegalStateException(format("Not sure how to handle %s.%s", RecurrenceTypeId.class.getSimpleName(),
+					logicalAvailability.getRecurrenceTypeId().name()));
+		}
+
+		this.descriptionComponents = descriptionComponents;
 	}
 
 	@Nonnull
@@ -149,6 +207,11 @@ public class LogicalAvailabilityApiResponse {
 	@Nonnull
 	public RecurrenceTypeId getRecurrenceTypeId() {
 		return recurrenceTypeId;
+	}
+
+	@Nonnull
+	public List<String> getDescriptionComponents() {
+		return descriptionComponents;
 	}
 
 	@Nonnull
