@@ -323,10 +323,12 @@ public class AppointmentResource {
 		Account account = getCurrentContext().getAccount().get();
 		UpdateAppointmentRequest request = getRequestBodyParser().parse(requestBody, UpdateAppointmentRequest.class);
 		Appointment beforeUpdateAppointment = getAppointmentService().findAppointmentById(appointmentId).orElse(null);
-		Account appointmentAccount = getAccountService().findAccountById(request.getAccountId()).orElse(null);
 
-		if (beforeUpdateAppointment == null || appointmentAccount == null)
+		if (beforeUpdateAppointment == null)
 			throw new NotFoundException();
+
+		Account appointmentAccount = getAccountService().findAccountById(beforeUpdateAppointment.getAccountId()).orElse(null);
+
 		if (!getAuthorizationService().canUpdateAppointment(account, appointmentAccount))
 			throw new AuthorizationException();
 
@@ -340,6 +342,8 @@ public class AppointmentResource {
 
 		request.setCreatedByAcountId(account.getAccountId());
 		request.setAppointmentId(appointmentId);
+		request.setAccountId(appointmentAccount.getAccountId());
+
 		UUID newAppointmentId = getAppointmentService().rescheduleAppointment(request);
 		Appointment appointment = getAppointmentService().findAppointmentById(newAppointmentId).get();
 
