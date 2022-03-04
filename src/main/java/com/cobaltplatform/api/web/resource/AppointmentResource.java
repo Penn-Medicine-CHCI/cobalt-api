@@ -467,8 +467,9 @@ public class AppointmentResource {
 		if (appointment == null)
 			throw new NotFoundException();
 
-		// TODO: eventually providers should be able to mark appointments as "missed"...but for now, the UI only permits patients to self-report
-		if (!appointment.getAccountId().equals(account.getAccountId()))
+		Account appointmentAccount = getAccountService().findAccountById(appointment.getAccountId()).get();
+
+		if (!getAuthorizationService().canUpdateAppointment(account, appointmentAccount))
 			throw new AuthorizationException();
 
 		ChangeAppointmentAttendanceStatusRequest request = getRequestBodyParser().parse(requestBody, ChangeAppointmentAttendanceStatusRequest.class);
