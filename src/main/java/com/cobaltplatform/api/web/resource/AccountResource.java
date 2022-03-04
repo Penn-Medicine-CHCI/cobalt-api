@@ -42,6 +42,7 @@ import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiRe
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.AssessmentFormApiResponse.AssessmentFormApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.BetaFeatureAlertApiResponse.BetaFeatureAlertApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse;
@@ -873,9 +874,9 @@ public class AccountResource {
 
 		Map<String, Object> responseData = new HashMap<>();
 		responseData.put("account", getAccountApiResponseFactory().create(appointmentAccount, finalSupplements));
-		responseData.put("appointment", getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponse.AppointmentApiResponseSupplement.PROVIDER)));
+		responseData.put("appointment", getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER, AppointmentApiResponseSupplement.APPOINTMENT_TYPE)));
 		responseData.put("appointments", appointments.stream()
-				.map((a) -> getAppointmentApiResponseFactory().create(a, Set.of(AppointmentApiResponse.AppointmentApiResponseSupplement.PROVIDER))).collect(Collectors.toList()));
+				.map((a) -> getAppointmentApiResponseFactory().create(a, Set.of(AppointmentApiResponseSupplement.PROVIDER, AppointmentApiResponseSupplement.APPOINTMENT_TYPE))).collect(Collectors.toList()));
 
 		AccountSession intakeSession = getSessionService().findCurrentIntakeAssessmentForAccountAndProvider(appointmentAccount,
 				provider.getProviderId(), appointment.getAppointmentTypeId(), true).orElse(null);
