@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.AttendanceStatus.AttendanceStatusId;
+import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.VideoconferencePlatform.VideoconferencePlatformId;
 
 import javax.annotation.Nullable;
@@ -49,6 +50,8 @@ public class Appointment {
 	@Nullable
 	private AttendanceStatusId attendanceStatusId;
 	@Nullable
+	private UUID intakeAssessmentId;
+	@Nullable
 	private Long acuityAppointmentId;
 	@Nullable
 	private Long acuityClassId;
@@ -60,6 +63,8 @@ public class Appointment {
 	private String videoconferenceUrl;
 	@Nullable
 	private VideoconferencePlatformId videoconferencePlatformId;
+	@Nullable
+	private SchedulingSystemId schedulingSystemId;
 	@Nullable
 	private String epicContactId;
 	@Nullable
@@ -86,6 +91,10 @@ public class Appointment {
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
+	@Nullable
+	private Boolean canceledForReschedule;
+	@Nullable
+	private UUID rescheduledAppointmentId;
 
 	@Nullable
 	public UUID getAppointmentId() {
@@ -277,6 +286,15 @@ public class Appointment {
 	}
 
 	@Nullable
+	public SchedulingSystemId getSchedulingSystemId() {
+		return schedulingSystemId;
+	}
+
+	public void setSchedulingSystemId(@Nullable SchedulingSystemId schedulingSystemId) {
+		this.schedulingSystemId = schedulingSystemId;
+	}
+
+	@Nullable
 	public Instant getCreated() {
 		return created;
 	}
@@ -319,5 +337,32 @@ public class Appointment {
 
 	public void setAttendanceStatusId(@Nullable AttendanceStatusId attendanceStatusId) {
 		this.attendanceStatusId = attendanceStatusId;
+	}
+
+	@Nullable
+	public UUID getIntakeAssessmentId() {
+		return intakeAssessmentId;
+	}
+
+	public void setIntakeAssessmentId(@Nullable UUID intakeAssessmentId) {
+		this.intakeAssessmentId = intakeAssessmentId;
+	}
+
+	@Nullable
+	public Boolean getCanceledForReschedule() {
+		return canceledForReschedule;
+	}
+
+	public void setCanceledForReschedule(@Nullable Boolean canceledForReschedule) {
+		this.canceledForReschedule = canceledForReschedule;
+	}
+
+	@Nullable
+	public UUID getRescheduledAppointmentId() {
+		return rescheduledAppointmentId;
+	}
+
+	public void setRescheduledAppointmentId(@Nullable UUID rescheduledAppointmentId) {
+		this.rescheduledAppointmentId = rescheduledAppointmentId;
 	}
 }

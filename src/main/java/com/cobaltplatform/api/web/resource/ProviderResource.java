@@ -31,6 +31,8 @@ import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApi
 import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseSupplement;
+import com.cobaltplatform.api.model.api.response.ProviderCalendarApiResponse;
+import com.cobaltplatform.api.model.api.response.ProviderCalendarApiResponse.ProviderCalendarApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SpecialtyApiResponse.SpecialtyApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse;
@@ -49,15 +51,18 @@ import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.EvidenceScores;
+import com.cobaltplatform.api.model.service.ProviderCalendar;
 import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.service.AppointmentService;
 import com.cobaltplatform.api.service.AssessmentScoringService;
 import com.cobaltplatform.api.service.AssessmentService;
 import com.cobaltplatform.api.service.AuthorizationService;
+import com.cobaltplatform.api.service.AvailabilityService;
 import com.cobaltplatform.api.service.ClinicService;
 import com.cobaltplatform.api.service.FollowupService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.util.Formatter;
+import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
@@ -123,6 +128,8 @@ public class ProviderResource {
 	@Nonnull
 	private final AuthorizationService authorizationService;
 	@Nonnull
+	private final AvailabilityService availabilityService;
+	@Nonnull
 	private final ProviderApiResponseFactory providerApiResponseFactory;
 	@Nonnull
 	private final ClinicApiResponseFactory clinicApiResponseFactory;
@@ -138,6 +145,8 @@ public class ProviderResource {
 	private final SupportRoleApiResponseFactory supportRoleApiResponseFactory;
 	@Nonnull
 	private final SpecialtyApiResponseFactory specialtyApiResponseFactory;
+	@Nonnull
+	private final ProviderCalendarApiResponseFactory providerCalendarApiResponseFactory;
 	@Nonnull
 	private final javax.inject.Provider<CurrentContext> currentContextProvider;
 	@Nonnull
@@ -157,6 +166,7 @@ public class ProviderResource {
 													@Nonnull ClinicService clinicService,
 													@Nonnull FollowupService followupService,
 													@Nonnull AuthorizationService authorizationService,
+													@Nonnull AvailabilityService availabilityService,
 													@Nonnull ProviderApiResponseFactory providerApiResponseFactory,
 													@Nonnull ClinicApiResponseFactory clinicApiResponseFactory,
 													@Nonnull AppointmentApiResponseFactory appointmentApiResponseFactory,
@@ -165,6 +175,7 @@ public class ProviderResource {
 													@Nonnull TimeZoneApiResponseFactory timeZoneApiResponseFactory,
 													@Nonnull SupportRoleApiResponseFactory supportRoleApiResponseFactory,
 													@Nonnull SpecialtyApiResponseFactory specialtyApiResponseFactory,
+													@Nonnull ProviderCalendarApiResponseFactory providerCalendarApiResponseFactory,
 													@Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
 													@Nonnull RequestBodyParser requestBodyParser,
 													@Nonnull Formatter formatter,
@@ -176,6 +187,7 @@ public class ProviderResource {
 		requireNonNull(clinicService);
 		requireNonNull(followupService);
 		requireNonNull(authorizationService);
+		requireNonNull(availabilityService);
 		requireNonNull(providerApiResponseFactory);
 		requireNonNull(clinicApiResponseFactory);
 		requireNonNull(appointmentApiResponseFactory);
@@ -184,6 +196,7 @@ public class ProviderResource {
 		requireNonNull(timeZoneApiResponseFactory);
 		requireNonNull(supportRoleApiResponseFactory);
 		requireNonNull(specialtyApiResponseFactory);
+		requireNonNull(providerCalendarApiResponseFactory);
 		requireNonNull(currentContextProvider);
 		requireNonNull(requestBodyParser);
 		requireNonNull(formatter);
@@ -196,6 +209,7 @@ public class ProviderResource {
 		this.clinicService = clinicService;
 		this.followupService = followupService;
 		this.authorizationService = authorizationService;
+		this.availabilityService = availabilityService;
 		this.providerApiResponseFactory = providerApiResponseFactory;
 		this.clinicApiResponseFactory = clinicApiResponseFactory;
 		this.appointmentApiResponseFactory = appointmentApiResponseFactory;
@@ -204,6 +218,7 @@ public class ProviderResource {
 		this.timeZoneApiResponseFactory = timeZoneApiResponseFactory;
 		this.supportRoleApiResponseFactory = supportRoleApiResponseFactory;
 		this.specialtyApiResponseFactory = specialtyApiResponseFactory;
+		this.providerCalendarApiResponseFactory = providerCalendarApiResponseFactory;
 		this.currentContextProvider = currentContextProvider;
 		this.requestBodyParser = requestBodyParser;
 		this.formatter = formatter;
@@ -217,9 +232,10 @@ public class ProviderResource {
 	public ApiResponse findProviders(@Nonnull @RequestBody String requestBody) {
 		Account account = getCurrentContext().getAccount().get();
 		Locale locale = getCurrentContext().getLocale();
+		InstitutionId institutionId = account.getInstitutionId();
 
 		ProviderFindRequest request = getRequestBodyParser().parse(requestBody, ProviderFindRequest.class);
-		request.setInstitutionId(account.getInstitutionId());
+		request.setInstitutionId(institutionId);
 
 		Set<UUID> providerIds = new HashSet<>();
 		Set<ProviderFindSupplement> supplements = request.getSupplements() == null ? Collections.emptySet() : request.getSupplements();
@@ -322,7 +338,7 @@ public class ProviderResource {
 			if (providerFind.getAppointmentTypeIds() != null)
 				appointmentTypeIds.addAll(providerFind.getAppointmentTypeIds());
 
-		List<Map<String, Object>> appointmentTypesJson = getAppointmentService().findAppointmentTypes().stream()
+		List<Map<String, Object>> appointmentTypesJson = getAppointmentService().findAppointmentTypesByInstitutionId(institutionId).stream()
 				.filter((appointmentType -> appointmentTypeIds.contains(appointmentType.getAppointmentTypeId())))
 				.map((appointmentType -> {
 					Map<String, Object> appointmentTypeJson = new LinkedHashMap<>();
@@ -330,6 +346,7 @@ public class ProviderResource {
 					appointmentTypeJson.put("schedulingSystemId", appointmentType.getSchedulingSystemId());
 					appointmentTypeJson.put("visitTypeId", appointmentType.getVisitTypeId());
 					appointmentTypeJson.put("acuityAppointmentTypeId", appointmentType.getAcuityAppointmentTypeId());
+					appointmentTypeJson.put("assessmentId", appointmentType.getAssessmentId());
 					appointmentTypeJson.put("epicVisitTypeId", appointmentType.getEpicVisitTypeId());
 					appointmentTypeJson.put("epicVisitTypeIdType", appointmentType.getEpicVisitTypeIdType());
 					appointmentTypeJson.put("name", appointmentType.getName());
@@ -347,7 +364,7 @@ public class ProviderResource {
 			if (providerFind.getEpicDepartmentIds() != null)
 				epicDepartmentIds.addAll(providerFind.getEpicDepartmentIds());
 
-		List<Map<String, Object>> epicDepartmentsJson = getAppointmentService().findEpicDepartmentsByInstitutionId(account.getInstitutionId()).stream()
+		List<Map<String, Object>> epicDepartmentsJson = getAppointmentService().findEpicDepartmentsByInstitutionId(institutionId).stream()
 				.filter((epicDepartment -> epicDepartmentIds.contains(epicDepartment.getEpicDepartmentId())))
 				.map((epicDepartment -> {
 					Map<String, Object> epicDepartmentJson = new LinkedHashMap<>();
@@ -373,7 +390,7 @@ public class ProviderResource {
 		List<Clinic> clinics = new ArrayList<>();
 
 		if (request.getClinicIds() != null && request.getClinicIds().size() > 0)
-			clinics.addAll(getClinicService().findClinicsByInstitutionId(account.getInstitutionId()).stream()
+			clinics.addAll(getClinicService().findClinicsByInstitutionId(institutionId).stream()
 					.filter(clinic -> request.getClinicIds().contains(clinic.getClinicId()))
 					.collect(Collectors.toList()));
 
@@ -439,7 +456,7 @@ public class ProviderResource {
 
 			if (includeFollowups)
 				put("followups", sortedFollowups.stream()
-						.map(followup -> getFollowupApiResponseFactory().create(followup, Collections.singleton(FollowupApiResponseSupplement.ALL)))
+						.map(followup -> getFollowupApiResponseFactory().create(followup, Set.of(FollowupApiResponseSupplement.ALL)))
 						.collect(Collectors.toList()));
 		}});
 	}
@@ -694,6 +711,32 @@ public class ProviderResource {
 	}
 
 	@Nonnull
+	@GET("/providers/{providerId}/calendar")
+	@AuthenticationRequired
+	public ApiResponse providerCalendar(@Nonnull @PathParameter UUID providerId,
+																			@Nonnull @QueryParameter LocalDate startDate,
+																			@Nonnull @QueryParameter LocalDate endDate) {
+		requireNonNull(providerId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		Account account = getCurrentContext().getAccount().get();
+		Provider provider = getProviderService().findProviderById(providerId).orElse(null);
+
+		if (provider == null)
+			throw new ValidationException(new ValidationException.FieldError("providerId", getStrings().get("Provider is invalid.")));
+
+		if (!getAuthorizationService().canViewProviderCalendar(provider, account))
+			throw new AuthorizationException();
+
+		ProviderCalendar providerCalendar = getAvailabilityService().findProviderCalendar(providerId, startDate, endDate);
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("providerCalendar", getProviderCalendarApiResponseFactory().create(providerCalendar));
+		}});
+	}
+
+	@Nonnull
 	protected AssessmentService getAssessmentService() {
 		return assessmentService;
 	}
@@ -716,6 +759,11 @@ public class ProviderResource {
 	@Nonnull
 	protected AppointmentService getAppointmentService() {
 		return appointmentService;
+	}
+
+	@Nonnull
+	protected AvailabilityService getAvailabilityService() {
+		return availabilityService;
 	}
 
 	@Nonnull
@@ -766,6 +814,11 @@ public class ProviderResource {
 	@Nonnull
 	protected SpecialtyApiResponseFactory getSpecialtyApiResponseFactory() {
 		return specialtyApiResponseFactory;
+	}
+
+	@Nonnull
+	protected ProviderCalendarApiResponseFactory getProviderCalendarApiResponseFactory() {
+		return providerCalendarApiResponseFactory;
 	}
 
 	@Nonnull

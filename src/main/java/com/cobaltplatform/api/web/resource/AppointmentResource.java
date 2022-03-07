@@ -19,30 +19,35 @@
 
 package com.cobaltplatform.api.web.resource;
 
-import com.cobaltplatform.api.model.api.request.CreateActivityTrackingRequest;
-import com.cobaltplatform.api.model.db.ActivityType.ActivityTypeId;
-import com.cobaltplatform.api.model.db.ActivityAction.ActivityActionId;
-import com.cobaltplatform.api.service.ActivityTrackingService;
-import com.lokalized.Strings;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CancelAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.ChangeAppointmentAttendanceStatusRequest;
+import com.cobaltplatform.api.model.api.request.CreateActivityTrackingRequest;
 import com.cobaltplatform.api.model.api.request.CreateAppointmentRequest;
+import com.cobaltplatform.api.model.api.request.UpdateAppointmentRequest;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseSupplement;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.ActivityAction.ActivityActionId;
+import com.cobaltplatform.api.model.db.ActivityType.ActivityTypeId;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AuditLog;
 import com.cobaltplatform.api.model.db.AuditLogEvent;
+import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AccountService;
+import com.cobaltplatform.api.service.ActivityTrackingService;
 import com.cobaltplatform.api.service.AppointmentService;
 import com.cobaltplatform.api.service.AuditLogService;
+import com.cobaltplatform.api.service.AuthorizationService;
+import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
+import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
+import com.lokalized.Strings;
 import com.soklet.json.JSONObject;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
@@ -63,7 +68,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
-import javax.inject.Provider;
 import javax.inject.Singleton;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -72,7 +76,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -107,13 +110,17 @@ public class AppointmentResource {
 	@Nonnull
 	private final Strings strings;
 	@Nonnull
-	private final Provider<CurrentContext> currentContextProvider;
+	private final javax.inject.Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final Logger logger;
 	@Nonnull
 	private final AuditLogService auditLogService;
 	@Nonnull
 	private final ActivityTrackingService activityTrackingService;
+	@Nonnull
+	private final AuthorizationService authorizationService;
+	@Nonnull
+	private final ProviderService providerService;
 	@Nonnull
 	private final JsonMapper jsonMapper;
 
@@ -125,9 +132,11 @@ public class AppointmentResource {
 														 @Nonnull RequestBodyParser requestBodyParser,
 														 @Nonnull Formatter formatter,
 														 @Nonnull Strings strings,
-														 @Nonnull Provider<CurrentContext> currentContextProvider,
+														 @Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
 														 @Nonnull AuditLogService auditLogService,
 														 @Nonnull ActivityTrackingService activityTrackingService,
+														 @Nonnull AuthorizationService authorizationService,
+														 @Nonnull ProviderService providerService,
 														 @Nonnull JsonMapper jsonMapper) {
 		requireNonNull(appointmentService);
 		requireNonNull(accountService);
@@ -139,6 +148,8 @@ public class AppointmentResource {
 		requireNonNull(currentContextProvider);
 		requireNonNull(auditLogService);
 		requireNonNull(activityTrackingService);
+		requireNonNull(authorizationService);
+		requireNonNull(providerService);
 		requireNonNull(jsonMapper);
 
 		this.appointmentService = appointmentService;
@@ -152,6 +163,8 @@ public class AppointmentResource {
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.auditLogService = auditLogService;
 		this.activityTrackingService = activityTrackingService;
+		this.authorizationService = authorizationService;
+		this.providerService = providerService;
 		this.jsonMapper = jsonMapper;
 	}
 
@@ -187,11 +200,11 @@ public class AppointmentResource {
 		if (appointment == null)
 			throw new NotFoundException();
 
-		if (!appointment.getAccountId().equals(account.getAccountId()))
+		if (!getAuthorizationService().canViewAppointment(appointment, account))
 			throw new AuthorizationException();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("appointment", getAppointmentApiResponseFactory().create(appointment, Collections.singleton(AppointmentApiResponseSupplement.PROVIDER)));
+			put("appointment", getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER)));
 		}});
 	}
 
@@ -200,12 +213,37 @@ public class AppointmentResource {
 	@AuthenticationRequired
 	public ApiResponse appointments(@Nonnull @QueryParameter Optional<AppointmentResponseFormat> responseFormat,
 																	@Nonnull @QueryParameter Optional<AppointmentResponseType> type,
-																	@Nonnull @QueryParameter Optional<UUID> accountId) {
+																	@Nonnull @QueryParameter Optional<UUID> accountId,
+																	@Nonnull @QueryParameter Optional<UUID> providerId,
+																	@Nonnull @QueryParameter Optional<LocalDate> startDate,
+																	@Nonnull @QueryParameter Optional<LocalDate> endDate) {
 		requireNonNull(responseFormat);
 		requireNonNull(type);
 		requireNonNull(accountId);
+		requireNonNull(providerId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
 
 		Account account = getCurrentContext().getAccount().get();
+
+		if (providerId.isPresent()) {
+			Optional<Provider> provider = getProviderService().findProviderById(providerId.get());
+			if (!provider.isPresent())
+				throw new NotFoundException();
+			else if (!getAuthorizationService().canViewProviderCalendar(provider.get(), account))
+				throw new AuthorizationException();
+
+			if (!startDate.isPresent() || !endDate.isPresent())
+				throw new ValidationException(new ValidationException.FieldError("date", getStrings().get("Start and end dates are required.")));
+
+			List<Appointment> appointments = getAppointmentService().findAppointmentsByProviderId(providerId.get(), startDate.get(), endDate.get());
+			return new ApiResponse(new HashMap<String, Object>() {{
+				put("appointments", appointments.stream()
+						.map((appointment) -> getAppointmentApiResponseFactory().create(appointment, null))
+						.collect(Collectors.toList()));
+			}});
+
+		}
 
 		// Some users can book on behalf of other users
 		// TODO: this checking should be more strict and institution-specific
@@ -276,6 +314,45 @@ public class AppointmentResource {
 	}
 
 	@Nonnull
+	@PUT("/appointments/{appointmentId}/reschedule")
+	@AuthenticationRequired
+	public ApiResponse rescheduleAppointment(@Nonnull @PathParameter UUID appointmentId,
+																					 @Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+		UpdateAppointmentRequest request = getRequestBodyParser().parse(requestBody, UpdateAppointmentRequest.class);
+		Appointment beforeUpdateAppointment = getAppointmentService().findAppointmentById(appointmentId).orElse(null);
+
+		if (beforeUpdateAppointment == null)
+			throw new NotFoundException();
+
+		Account appointmentAccount = getAccountService().findAccountById(beforeUpdateAppointment.getAccountId()).orElse(null);
+
+		if (!getAuthorizationService().canUpdateAppointment(account, appointmentAccount))
+			throw new AuthorizationException();
+
+		AuditLog auditLog = new AuditLog();
+		auditLog.setAccountId(account.getAccountId());
+		auditLog.setAuditLogEventId(AuditLogEvent.AuditLogEventId.APPOINTMENT_UPDATE);
+		auditLog.setPayload( getJsonMapper().toJson(new HashMap<String, Object>() {{
+			put("appointment", beforeUpdateAppointment);
+		}}));
+		getAuditLogService().audit(auditLog);
+
+		request.setCreatedByAcountId(account.getAccountId());
+		request.setAppointmentId(appointmentId);
+		request.setAccountId(appointmentAccount.getAccountId());
+
+		UUID newAppointmentId = getAppointmentService().rescheduleAppointment(request);
+		Appointment appointment = getAppointmentService().findAppointmentById(newAppointmentId).get();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("appointment", getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER)));
+		}});
+	}
+
+	@Nonnull
 	@POST("/appointments")
 	@AuthenticationRequired
 	public ApiResponse createAppointment(@Nonnull @RequestBody String requestBody) {
@@ -312,7 +389,7 @@ public class AppointmentResource {
 		activityTrackingRequest.setSessionTrackingId(getCurrentContext().getSessionTrackingId());
 		activityTrackingRequest.setActivityActionId(ActivityActionId.CREATE);
 		activityTrackingRequest.setActivityTypeId(ActivityTypeId.APPOINTMENT);
-		activityTrackingRequest.setContext(new JSONObject().put("appointmentId",appointmentId.toString()).toString());
+		activityTrackingRequest.setContext(new JSONObject().put("appointmentId", appointmentId.toString()).toString());
 
 		getActivityTrackingService().trackActivity(Optional.of(account), activityTrackingRequest);
 
@@ -321,7 +398,7 @@ public class AppointmentResource {
 		Account updatedAccount = getAccountService().findAccountById(request.getAccountId()).get();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("appointment", getAppointmentApiResponseFactory().create(appointment, Collections.singleton(AppointmentApiResponseSupplement.PROVIDER)));
+			put("appointment", getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER)));
 			put("account", getAccountApiResponseFactory().create(updatedAccount));
 		}});
 	}
@@ -366,6 +443,7 @@ public class AppointmentResource {
 		request.setAccountId(appointmentAccount.getAccountId());
 		request.setAppointmentId(appointmentId);
 		request.setCanceledByWebhook(false);
+		request.setCanceledForReschedule(false);
 
 		getAppointmentService().cancelAppointment(request);
 
@@ -373,7 +451,7 @@ public class AppointmentResource {
 		activityTrackingRequest.setSessionTrackingId(getCurrentContext().getSessionTrackingId());
 		activityTrackingRequest.setActivityActionId(ActivityActionId.CANCEL);
 		activityTrackingRequest.setActivityTypeId(ActivityTypeId.APPOINTMENT);
-		activityTrackingRequest.setContext(new JSONObject().put("appointmentId",appointmentId.toString()).toString());
+		activityTrackingRequest.setContext(new JSONObject().put("appointmentId", appointmentId.toString()).toString());
 
 		getActivityTrackingService().trackActivity(Optional.of(account), activityTrackingRequest);
 
@@ -393,8 +471,9 @@ public class AppointmentResource {
 		if (appointment == null)
 			throw new NotFoundException();
 
-		// TODO: eventually providers should be able to mark appointments as "missed"...but for now, the UI only permits patients to self-report
-		if (!appointment.getAccountId().equals(account.getAccountId()))
+		Account appointmentAccount = getAccountService().findAccountById(appointment.getAccountId()).get();
+
+		if (!getAuthorizationService().canUpdateAppointment(account, appointmentAccount))
 			throw new AuthorizationException();
 
 		ChangeAppointmentAttendanceStatusRequest request = getRequestBodyParser().parse(requestBody, ChangeAppointmentAttendanceStatusRequest.class);
@@ -406,7 +485,7 @@ public class AppointmentResource {
 		Appointment updatedAppointment = getAppointmentService().findAppointmentById(appointmentId).orElse(null);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("appointment", getAppointmentApiResponseFactory().create(updatedAppointment, Collections.singleton(AppointmentApiResponseSupplement.ALL)));
+			put("appointment", getAppointmentApiResponseFactory().create(updatedAppointment, Set.of(AppointmentApiResponseSupplement.ALL)));
 		}});
 	}
 
@@ -428,7 +507,7 @@ public class AppointmentResource {
 	@AuthenticationRequired
 	@Nonnull
 	public CustomResponse appointmentIcal(@Nonnull @PathParameter UUID appointmentId,
-																										@Nonnull HttpServletResponse httpServletResponse) throws IOException {
+																				@Nonnull HttpServletResponse httpServletResponse) throws IOException {
 		requireNonNull(appointmentId);
 		requireNonNull(httpServletResponse);
 
@@ -501,6 +580,12 @@ public class AppointmentResource {
 	protected ActivityTrackingService getActivityTrackingService() {
 		return activityTrackingService;
 	}
+
+	@Nonnull
+	protected AuthorizationService getAuthorizationService() { return authorizationService; }
+
+	@Nonnull
+	protected ProviderService getProviderService() { return providerService; }
 
 	@Nonnull
 	protected JsonMapper getJsonMapper() {

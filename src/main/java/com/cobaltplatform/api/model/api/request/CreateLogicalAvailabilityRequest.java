@@ -19,9 +19,14 @@
 
 package com.cobaltplatform.api.model.api.request;
 
+import com.cobaltplatform.api.model.db.LogicalAvailabilityType.LogicalAvailabilityTypeId;
+import com.cobaltplatform.api.model.db.RecurrenceType.RecurrenceTypeId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -35,9 +40,29 @@ public class CreateLogicalAvailabilityRequest {
 	@Nullable
 	private UUID accountId;
 	@Nullable
+	private LogicalAvailabilityTypeId logicalAvailabilityTypeId;
+	@Nullable
+	private RecurrenceTypeId recurrenceTypeId;
+	@Nullable
 	private LocalDateTime startDateTime;
 	@Nullable
-	private LocalDateTime endDateTime;
+	private LocalDate endDate;
+	@Nullable
+	private LocalTime endTime;
+	@Nullable
+	private Boolean recurSunday;
+	@Nullable
+	private Boolean recurMonday;
+	@Nullable
+	private Boolean recurTuesday;
+	@Nullable
+	private Boolean recurWednesday;
+	@Nullable
+	private Boolean recurThursday;
+	@Nullable
+	private Boolean recurFriday;
+	@Nullable
+	private Boolean recurSaturday;
 	@Nullable
 	private List<UUID> appointmentTypeIds;
 
@@ -60,6 +85,24 @@ public class CreateLogicalAvailabilityRequest {
 	}
 
 	@Nullable
+	public LogicalAvailabilityTypeId getLogicalAvailabilityTypeId() {
+		return logicalAvailabilityTypeId;
+	}
+
+	public void setLogicalAvailabilityTypeId(@Nullable LogicalAvailabilityTypeId logicalAvailabilityTypeId) {
+		this.logicalAvailabilityTypeId = logicalAvailabilityTypeId;
+	}
+
+	@Nullable
+	public RecurrenceTypeId getRecurrenceTypeId() {
+		return recurrenceTypeId;
+	}
+
+	public void setRecurrenceTypeId(@Nullable RecurrenceTypeId recurrenceTypeId) {
+		this.recurrenceTypeId = recurrenceTypeId;
+	}
+
+	@Nullable
 	public LocalDateTime getStartDateTime() {
 		return startDateTime;
 	}
@@ -69,12 +112,84 @@ public class CreateLogicalAvailabilityRequest {
 	}
 
 	@Nullable
-	public LocalDateTime getEndDateTime() {
-		return endDateTime;
+	public LocalDate getEndDate() {
+		return endDate;
 	}
 
-	public void setEndDateTime(@Nullable LocalDateTime endDateTime) {
-		this.endDateTime = endDateTime;
+	public void setEndDate(@Nullable LocalDate endDate) {
+		this.endDate = endDate;
+	}
+
+	@Nullable
+	public LocalTime getEndTime() {
+		return endTime;
+	}
+
+	public void setEndTime(@Nullable LocalTime endTime) {
+		this.endTime = endTime;
+	}
+
+	@Nullable
+	public Boolean getRecurSunday() {
+		return recurSunday;
+	}
+
+	public void setRecurSunday(@Nullable Boolean recurSunday) {
+		this.recurSunday = recurSunday;
+	}
+
+	@Nullable
+	public Boolean getRecurMonday() {
+		return recurMonday;
+	}
+
+	public void setRecurMonday(@Nullable Boolean recurMonday) {
+		this.recurMonday = recurMonday;
+	}
+
+	@Nullable
+	public Boolean getRecurTuesday() {
+		return recurTuesday;
+	}
+
+	public void setRecurTuesday(@Nullable Boolean recurTuesday) {
+		this.recurTuesday = recurTuesday;
+	}
+
+	@Nullable
+	public Boolean getRecurWednesday() {
+		return recurWednesday;
+	}
+
+	public void setRecurWednesday(@Nullable Boolean recurWednesday) {
+		this.recurWednesday = recurWednesday;
+	}
+
+	@Nullable
+	public Boolean getRecurThursday() {
+		return recurThursday;
+	}
+
+	public void setRecurThursday(@Nullable Boolean recurThursday) {
+		this.recurThursday = recurThursday;
+	}
+
+	@Nullable
+	public Boolean getRecurFriday() {
+		return recurFriday;
+	}
+
+	public void setRecurFriday(@Nullable Boolean recurFriday) {
+		this.recurFriday = recurFriday;
+	}
+
+	@Nullable
+	public Boolean getRecurSaturday() {
+		return recurSaturday;
+	}
+
+	public void setRecurSaturday(@Nullable Boolean recurSaturday) {
+		this.recurSaturday = recurSaturday;
 	}
 
 	@Nullable

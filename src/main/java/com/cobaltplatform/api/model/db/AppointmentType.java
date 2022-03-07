@@ -27,6 +27,8 @@ import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
 import java.util.UUID;
 
+import static java.lang.String.format;
+
 /**
  * @author Transmogrify, LLC.
  */
@@ -51,11 +53,23 @@ public class AppointmentType {
 	@Nullable
 	private Long durationInMinutes;
 	@Nullable
+	private Integer hexColor;
+	@Nullable
 	private Boolean deleted;
 	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
+
+	// Joined in by v_appointment_type
+	@Nullable
+	private UUID assessmentId;
+
+	@Override
+	public String toString() {
+		return format("%s{%s (%s), scheduling system %s, %s minutes}", AppointmentType.class.getSimpleName(), getName(),
+				getVisitTypeId(), getSchedulingSystemId(), getDurationInMinutes());
+	}
 
 	@Nullable
 	public UUID getAppointmentTypeId() {
@@ -163,5 +177,23 @@ public class AppointmentType {
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
+	}
+
+	@Nullable
+	public Integer getHexColor() {
+		return hexColor;
+	}
+
+	public void setHexColor(@Nullable Integer hexColor) {
+		this.hexColor = hexColor;
+	}
+
+	@Nullable
+	public UUID getAssessmentId() {
+		return assessmentId;
+	}
+
+	public void setAssessmentId(@Nullable UUID assessmentId) {
+		this.assessmentId = assessmentId;
 	}
 }

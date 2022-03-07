@@ -23,6 +23,7 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.AcceptAccountConsentFormRequest;
 import com.cobaltplatform.api.model.api.request.AccessTokenRequest;
+import com.cobaltplatform.api.model.api.request.AccountRoleRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountInviteRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateActivityTrackingRequest;
@@ -40,6 +41,9 @@ import com.cobaltplatform.api.model.api.request.UpdateBetaFeatureAlertRequest;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseSupplement;
+import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseSupplement;
+import com.cobaltplatform.api.model.api.response.AssessmentFormApiResponse.AssessmentFormApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.BetaFeatureAlertApiResponse.BetaFeatureAlertApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
@@ -51,11 +55,14 @@ import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.Institut
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountInvite;
 import com.cobaltplatform.api.model.db.AccountLoginRule;
+import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.ActivityAction;
 import com.cobaltplatform.api.model.db.ActivityType;
 import com.cobaltplatform.api.model.db.Appointment;
+import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.AuditLog;
+import com.cobaltplatform.api.model.db.AuditLogEvent;
 import com.cobaltplatform.api.model.db.AuditLogEvent.AuditLogEventId;
 import com.cobaltplatform.api.model.db.BetaFeatureAlert;
 import com.cobaltplatform.api.model.db.ClientDeviceType;
@@ -73,12 +80,16 @@ import com.cobaltplatform.api.model.service.GroupEvent;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.ActivityTrackingService;
 import com.cobaltplatform.api.service.AppointmentService;
+import com.cobaltplatform.api.service.AssessmentService;
 import com.cobaltplatform.api.service.AuditLogService;
+import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.GroupEventService;
 import com.cobaltplatform.api.service.GroupSessionService;
 import com.cobaltplatform.api.service.IcService;
 import com.cobaltplatform.api.service.InstitutionService;
+import com.cobaltplatform.api.service.ProviderService;
+import com.cobaltplatform.api.service.SessionService;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.LinkGenerator;
 import com.cobaltplatform.api.util.ValidationException;
@@ -176,6 +187,18 @@ public class AccountResource {
 	private final ActivityTrackingService activityTrackingService;
 	@Nonnull
 	private final Strings strings;
+	@Nonnull
+	final AppointmentApiResponseFactory appointmentApiResponseFactory;
+	@Nonnull
+	final AuthorizationService authorizationService;
+	@Nonnull
+	final ProviderService providerService;
+	@Nonnull
+	final SessionService sessionService;
+	@Nonnull
+	final AssessmentService assessmentService;
+	@Nonnull
+	final AssessmentFormApiResponseFactory assessmentFormApiResponseFactory;
 
 	@Inject
 	public AccountResource(@Nonnull AccountService accountService,
@@ -198,7 +221,13 @@ public class AccountResource {
 												 @Nonnull InstitutionApiResponseFactory institutionApiResponseFactory,
 												 @Nonnull BetaFeatureAlertApiResponseFactory betaFeatureAlertApiResponseFactory,
 												 @Nonnull ActivityTrackingService activityTrackingService,
-												 @Nonnull Strings strings) {
+												 @Nonnull Strings strings,
+												 @Nonnull AppointmentApiResponseFactory appointmentApiResponseFactory,
+												 @Nonnull AuthorizationService authorizationService,
+												 @Nonnull ProviderService providerService,
+												 @Nonnull SessionService sessionService,
+												 @Nonnull AssessmentService assessmentService,
+												 @Nonnull AssessmentFormApiResponseFactory assessmentFormApiResponseFactory) {
 		requireNonNull(accountService);
 		requireNonNull(icService);
 		requireNonNull(groupEventService);
@@ -219,6 +248,12 @@ public class AccountResource {
 		requireNonNull(institutionApiResponseFactory);
 		requireNonNull(activityTrackingService);
 		requireNonNull(strings);
+		requireNonNull(appointmentApiResponseFactory);
+		requireNonNull(authorizationService);
+		requireNonNull(providerService);
+		requireNonNull(sessionService);
+		requireNonNull(assessmentService);
+		requireNonNull(assessmentFormApiResponseFactory);
 
 		this.accountService = accountService;
 		this.icService = icService;
@@ -242,6 +277,12 @@ public class AccountResource {
 		this.betaFeatureAlertApiResponseFactory = betaFeatureAlertApiResponseFactory;
 		this.activityTrackingService = activityTrackingService;
 		this.strings = strings;
+		this.appointmentApiResponseFactory = appointmentApiResponseFactory;
+		this.authorizationService = authorizationService;
+		this.providerService = providerService;
+		this.sessionService = sessionService;
+		this.assessmentService = assessmentService;
+		this.assessmentFormApiResponseFactory = assessmentFormApiResponseFactory;
 	}
 
 	@Nonnull
@@ -733,6 +774,7 @@ public class AccountResource {
 		}});
 	}
 
+	@AuthenticationRequired
 	@GET("/accounts/{accountId}/beta-feature-alerts")
 	public ApiResponse betaFeatureAlerts(@Nonnull @PathParameter UUID accountId) {
 		requireNonNull(accountId);
@@ -751,6 +793,7 @@ public class AccountResource {
 		}});
 	}
 
+	@AuthenticationRequired
 	@PUT("/accounts/{accountId}/beta-feature-alerts")
 	public ApiResponse updateBetaFeatureAlert(@Nonnull @PathParameter UUID accountId,
 																						@Nonnull @RequestBody String body) {
@@ -772,6 +815,7 @@ public class AccountResource {
 		}});
 	}
 
+	@AuthenticationRequired
 	@PUT("/accounts/{accountId}/beta-status")
 	public ApiResponse updateAccountBetaStatus(@Nonnull @PathParameter UUID accountId,
 																						 @Nonnull @RequestBody String body) {
@@ -792,6 +836,81 @@ public class AccountResource {
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("account", getAccountApiResponseFactory().create(updatedAccount));
 		}});
+	}
+
+	@AuthenticationRequired
+	@GET("/accounts/{accountId}/appointment-details/{appointmentId}")
+	public ApiResponse accountWithAppointmentDetails(@Nonnull @PathParameter UUID accountId,
+																									 @Nonnull @PathParameter UUID appointmentId) {
+		requireNonNull(accountId);
+		requireNonNull(appointmentId);
+
+		Account account = getCurrentContext().getAccount().get();
+		Account appointmentAccount = getAccountService().findAccountById(accountId).orElse(null);
+		AuditLog auditLog = new AuditLog();
+		auditLog.setAccountId(account.getAccountId());
+
+		if (appointmentAccount == null) {
+			auditLog.setAuditLogEventId(AuditLogEventId.ACCOUNT_LOOKUP_FAILURE);
+			getAuditLogService().audit(auditLog);
+			throw new NotFoundException();
+		}
+
+		Appointment appointment = getAppointmentService().findAppointmentById(appointmentId).orElse(null);
+
+		if (appointment == null)
+			throw new NotFoundException();
+
+		com.cobaltplatform.api.model.db.Provider provider = getProviderService().findProviderById(appointment.getProviderId()).orElse(null);
+
+		if (provider == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canViewProviderCalendar(provider, account))
+			throw new AuthorizationException();
+
+		auditLog.setAuditLogEventId(AuditLogEventId.ACCOUNT_LOOKUP_SUCCESS);
+		getAuditLogService().audit(auditLog);
+
+		Set<AccountApiResponseSupplement> finalSupplements = new HashSet<>();
+		finalSupplements.add(AccountApiResponseSupplement.EVERYTHING);
+
+		List<Appointment> appointments = getAppointmentService().findUpcomingAppointmentsByAccountId(appointmentAccount.getAccountId(), getCurrentContext().getTimeZone());
+
+		Map<String, Object> responseData = new HashMap<>();
+		responseData.put("account", getAccountApiResponseFactory().create(appointmentAccount, finalSupplements));
+		responseData.put("appointment", getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER, AppointmentApiResponseSupplement.APPOINTMENT_TYPE)));
+		responseData.put("appointments", appointments.stream()
+				.map((a) -> getAppointmentApiResponseFactory().create(a, Set.of(AppointmentApiResponseSupplement.PROVIDER, AppointmentApiResponseSupplement.APPOINTMENT_TYPE))).collect(Collectors.toList()));
+
+		AccountSession intakeSession = getSessionService().findCurrentIntakeAssessmentForAccountAndProvider(appointmentAccount,
+				provider.getProviderId(), appointment.getAppointmentTypeId(), true).orElse(null);
+
+		if (intakeSession != null) {
+			Assessment intakeAssessment = getAssessmentService().findAssessmentById(intakeSession.getAssessmentId()).orElse(null);
+			responseData.put("assessment", getAssessmentFormApiResponseFactory().create(intakeAssessment, Optional.of(intakeSession)));
+		}
+
+		return new ApiResponse(responseData);
+	}
+
+	@AuthenticationRequired
+	@POST("/accounts/{accountId}/role-request")
+	public void processRoleRequest(@Nonnull @PathParameter UUID accountId,
+																 @Nonnull @RequestBody String body) {
+		requireNonNull(accountId);
+		requireNonNull(body);
+
+		AccountRoleRequest request = getRequestBodyParser().parse(body, AccountRoleRequest.class);
+		request.setAccountId(accountId);
+
+		Account currentAccount = getCurrentContext().getAccount().get();
+
+		// You can only request for yourself for now
+		if(!currentAccount.getAccountId().equals(accountId))
+			throw new AuthorizationException();
+
+		getAccountService().requestRoleForAccount(request);
 	}
 
 	@Nonnull
@@ -902,5 +1021,35 @@ public class AccountResource {
 	@Nonnull
 	protected Strings getStrings() {
 		return strings;
+	}
+
+	@Nonnull
+	protected AppointmentApiResponseFactory getAppointmentApiResponseFactory() {
+		return appointmentApiResponseFactory;
+	}
+
+	@Nonnull
+	protected AuthorizationService getAuthorizationService() {
+		return authorizationService;
+	}
+
+	@Nonnull
+	protected ProviderService getProviderService() {
+		return providerService;
+	}
+
+	@Nonnull
+	protected SessionService getSessionService() {
+		return sessionService;
+	}
+
+	@Nonnull
+	protected AssessmentService getAssessmentService() {
+		return assessmentService;
+	}
+
+	@Nonnull
+	protected AssessmentFormApiResponseFactory getAssessmentFormApiResponseFactory() {
+		return assessmentFormApiResponseFactory;
 	}
 }

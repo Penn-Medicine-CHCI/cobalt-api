@@ -19,12 +19,14 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.db.QuestionContentHint;
+import com.cobaltplatform.api.model.db.QuestionContentHint.QuestionContentHintId;
 import com.google.inject.Provider;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.FontSize.FontSizeId;
-import com.cobaltplatform.api.model.db.assessment.Question;
+import com.cobaltplatform.api.model.db.Question;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -44,6 +46,8 @@ public class QuestionApiResponse {
 	private final UUID questionId;
 	@Nonnull
 	private final FontSizeId fontSizeId;
+	@Nonnull
+	private final QuestionContentHintId questionContentHintId;
 	@Nullable
 	private final String question;
 
@@ -62,6 +66,7 @@ public class QuestionApiResponse {
 
 		this.questionId = question.getQuestionId();
 		this.fontSizeId = question.getFontSizeId();
+		this.questionContentHintId = question.getQuestionContentHintId();
 		this.question = question.getQuestionText();
 	}
 
@@ -73,6 +78,11 @@ public class QuestionApiResponse {
 	@Nonnull
 	public FontSizeId getFontSizeId() {
 		return fontSizeId;
+	}
+
+	@Nonnull
+	public QuestionContentHintId getQuestionContentHintId() {
+		return questionContentHintId;
 	}
 
 	@Nonnull

@@ -49,6 +49,8 @@ public class CreateAppointmentRequest {
 	@Nullable
 	private UUID appointmentTypeId;
 	@Nullable
+	private UUID intakeAssessmentId;
+	@Nullable
 	private String emailAddress; // only required for anon accounts currently
 	@Nullable
 	private String phoneNumber;
@@ -125,6 +127,15 @@ public class CreateAppointmentRequest {
 
 	public void setAppointmentTypeId(@Nullable UUID appointmentTypeId) {
 		this.appointmentTypeId = appointmentTypeId;
+	}
+
+	@Nullable
+	public UUID getIntakeAssessmentId() {
+		return intakeAssessmentId;
+	}
+
+	public void setIntakeAssessmentId(@Nullable UUID intakeAssessmentId) {
+		this.intakeAssessmentId = intakeAssessmentId;
 	}
 
 	@Nullable

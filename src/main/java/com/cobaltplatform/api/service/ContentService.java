@@ -41,7 +41,8 @@ import com.cobaltplatform.api.model.db.ContentTypeLabel;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Visibility;
-import com.cobaltplatform.api.model.db.assessment.Assessment;
+import com.cobaltplatform.api.model.db.Assessment;
+import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
 import com.cobaltplatform.api.model.service.AdminContent;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.util.Formatter;
@@ -499,7 +500,7 @@ public class ContentService {
 		Map<UUID, List<SubmissionAnswer>> contentTagChoices = null;
 		if (account.getRoleId() == RoleId.ADMINISTRATOR) {
 			if (contentTagCommand != null && contentTagCommand.getChoices().size() > 0) {
-				Assessment assessment = getAssessmentService().findAssessmentByTypeForInstitution(Assessment.AssessmentType.INTRO, account.getInstitutionId()).orElseThrow();
+				Assessment assessment = getAssessmentService().findAssessmentByTypeForInstitution(AssessmentTypeId.INTRO, account.getInstitutionId()).orElseThrow();
 				contentTagChoices = getAssessmentService().validateIntroAssessmentSubmissionCommand(contentTagCommand, assessment, validationException);
 			}
 		} else {
@@ -660,7 +661,7 @@ public class ContentService {
 		}
 
 		Map<UUID, List<SubmissionAnswer>> contentTagChoices = null;
-		Assessment assessment = getAssessmentService().findAssessmentByTypeForInstitution(Assessment.AssessmentType.INTRO, account.getInstitutionId()).orElseThrow();
+		Assessment assessment = getAssessmentService().findAssessmentByTypeForInstitution(AssessmentTypeId.INTRO, account.getInstitutionId()).orElseThrow();
 		;
 		//if (existingContent.getOwnerInstitutionId().equals(account.getInstitutionId())) {
 		if (contentTagCommand != null && contentTagCommand.getChoices().size() > 0) {

@@ -178,7 +178,7 @@ public class ReportingChartApiResponse {
 			this.description = metric.getDescription();
 			this.count = metric.getCount();
 			this.countDescription = formatter.formatNumber(getCount());
-			this.color = format("#%s", Integer.toHexString(metric.getHexColor()));
+			this.color = formatter.formatHexColor(metric.getHexColor());
 			this.alpha = metric.getAlpha();
 		}
 

@@ -65,6 +65,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
@@ -228,7 +229,7 @@ public class CalendarEventsResource {
 
 		if (calendarEvent.getCalendarEventType() == CalendarEventType.APPOINTMENT) {
 			json.put("calendarEventTypeId", "APPOINTMENT");
-			json.put("appointment", getAppointmentApiResponseFactory().create(calendarEvent.getAppointment().get(), Collections.singleton(AppointmentApiResponse.AppointmentApiResponseSupplement.PROVIDER)));
+			json.put("appointment", getAppointmentApiResponseFactory().create(calendarEvent.getAppointment().get(), Set.of(AppointmentApiResponse.AppointmentApiResponseSupplement.PROVIDER)));
 		} else if (calendarEvent.getCalendarEventType() == CalendarEventType.GROUP_SESSION_RESERVATION) {
 			json.put("calendarEventTypeId", "GROUP_SESSION_RESERVATION");
 			json.put("groupSession", getGroupSessionApiResponseFactory().create(calendarEvent.getGroupSession().get()));

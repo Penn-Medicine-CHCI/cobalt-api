@@ -19,7 +19,7 @@
 
 package com.cobaltplatform.api.model.service;
 
-import com.cobaltplatform.api.model.db.assessment.Assessment;
+import com.cobaltplatform.api.model.db.Assessment;
 
 import javax.annotation.Nonnull;
 import java.util.List;

@@ -26,8 +26,8 @@ import com.cobaltplatform.api.messaging.call.CallMessageManager;
 import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.messaging.sms.SmsMessageManager;
 import com.cobaltplatform.api.service.GroupSessionService;
-import com.cobaltplatform.api.service.Way2HealthService;
 import com.cobaltplatform.api.service.MessageService;
+import com.cobaltplatform.api.service.Way2HealthService;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
@@ -157,7 +157,7 @@ public class App implements AutoCloseable {
 			getLogger().warn("Failed to start message service", e);
 		}
 
-		if (!configuration.getEnvironment().equalsIgnoreCase("LOCAL")) {
+		if (getConfiguration().getShouldPollBluejeans()) {
 			try {
 				BluejeansCredentialsProvider bluejeansCredentialsProvider = getInjector().getInstance(BluejeansCredentialsProvider.class);
 				bluejeansCredentialsProvider.start();
@@ -166,18 +166,22 @@ public class App implements AutoCloseable {
 			}
 		}
 
-		try {
-			AcuitySyncManager acuitySyncManager = getInjector().getInstance(AcuitySyncManager.class);
-			acuitySyncManager.start();
-		} catch (Exception e) {
-			getLogger().warn("Failed to start Acuity sync manager", e);
+		if (getConfiguration().getShouldPollAcuity()) {
+			try {
+				AcuitySyncManager acuitySyncManager = getInjector().getInstance(AcuitySyncManager.class);
+				acuitySyncManager.start();
+			} catch (Exception e) {
+				getLogger().warn("Failed to start Acuity sync manager", e);
+			}
 		}
 
-		try {
-			EpicSyncManager epicSyncManager = getInjector().getInstance(EpicSyncManager.class);
-			epicSyncManager.start();
-		} catch (Exception e) {
-			getLogger().warn("Failed to start EPIC sync manager", e);
+		if (getConfiguration().getShouldPollEpic()) {
+			try {
+				EpicSyncManager epicSyncManager = getInjector().getInstance(EpicSyncManager.class);
+				epicSyncManager.start();
+			} catch (Exception e) {
+				getLogger().warn("Failed to start EPIC sync manager", e);
+			}
 		}
 
 		try {
@@ -187,20 +191,24 @@ public class App implements AutoCloseable {
 			getLogger().warn("Failed to start Group Session background task", e);
 		}
 
-		try {
-			Way2HealthService way2HealthService = getInjector().getInstance(Way2HealthService.class);
-			way2HealthService.startBackgroundTask();
-		} catch (Exception e) {
-			getLogger().warn("Failed to start Way2Health background task", e);
+		if (getConfiguration().getShouldPollWay2Health()) {
+			try {
+				Way2HealthService way2HealthService = getInjector().getInstance(Way2HealthService.class);
+				way2HealthService.startBackgroundTask();
+			} catch (Exception e) {
+				getLogger().warn("Failed to start Way2Health background task", e);
+			}
 		}
 	}
 
 	public void performShutdownTasks() {
-		try {
-			Way2HealthService way2HealthService = getInjector().getInstance(Way2HealthService.class);
-			way2HealthService.stopBackgroundTask();
-		} catch (Exception e) {
-			getLogger().warn("Failed to stop Way2Health background task", e);
+		if (getConfiguration().getShouldPollWay2Health()) {
+			try {
+				Way2HealthService way2HealthService = getInjector().getInstance(Way2HealthService.class);
+				way2HealthService.stopBackgroundTask();
+			} catch (Exception e) {
+				getLogger().warn("Failed to stop Way2Health background task", e);
+			}
 		}
 
 		try {
@@ -210,18 +218,22 @@ public class App implements AutoCloseable {
 			getLogger().warn("Failed to stop Group Session background task", e);
 		}
 
-		try {
-			EpicSyncManager epicSyncManager = getInjector().getInstance(EpicSyncManager.class);
-			epicSyncManager.stop();
-		} catch (Exception e) {
-			getLogger().warn("Unable to stop EPIC sync manager", e);
+		if (getConfiguration().getShouldPollEpic()) {
+			try {
+				EpicSyncManager epicSyncManager = getInjector().getInstance(EpicSyncManager.class);
+				epicSyncManager.stop();
+			} catch (Exception e) {
+				getLogger().warn("Unable to stop EPIC sync manager", e);
+			}
 		}
 
-		try {
-			AcuitySyncManager acuitySyncManager = getInjector().getInstance(AcuitySyncManager.class);
-			acuitySyncManager.stop();
-		} catch (Exception e) {
-			getLogger().warn("Unable to stop Acuity sync manager", e);
+		if (getConfiguration().getShouldPollAcuity()) {
+			try {
+				AcuitySyncManager acuitySyncManager = getInjector().getInstance(AcuitySyncManager.class);
+				acuitySyncManager.stop();
+			} catch (Exception e) {
+				getLogger().warn("Unable to stop Acuity sync manager", e);
+			}
 		}
 
 		try {
@@ -252,7 +264,7 @@ public class App implements AutoCloseable {
 			getLogger().warn("Failed to stop call message manager", e);
 		}
 
-		if (!configuration.getEnvironment().equalsIgnoreCase("LOCAL")) {
+		if (getConfiguration().getShouldPollBluejeans()) {
 			try {
 				BluejeansCredentialsProvider bluejeansCredentialsProvider = getInjector().getInstance(BluejeansCredentialsProvider.class);
 				bluejeansCredentialsProvider.shutdown();

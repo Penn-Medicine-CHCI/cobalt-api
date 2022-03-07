@@ -19,6 +19,9 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.LogicalAvailabilityType.LogicalAvailabilityTypeId;
+import com.cobaltplatform.api.model.db.RecurrenceType.RecurrenceTypeId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
@@ -37,17 +40,40 @@ public class LogicalAvailability {
 	@Nullable
 	private UUID providerId;
 	@Nullable
+	private LogicalAvailabilityTypeId logicalAvailabilityTypeId;
+	@Nullable
+	private RecurrenceTypeId recurrenceTypeId;
+	@Nullable
 	private LocalDateTime startDateTime;
 	@Nullable
 	private LocalDateTime endDateTime;
 	@Nullable
+	private Boolean recurSunday;
+	@Nullable
+	private Boolean recurMonday;
+	@Nullable
+	private Boolean recurTuesday;
+	@Nullable
+	private Boolean recurWednesday;
+	@Nullable
+	private Boolean recurThursday;
+	@Nullable
+	private Boolean recurFriday;
+	@Nullable
+	private Boolean recurSaturday;
+	@Nullable
 	private Instant created;
 	@Nullable
+	private UUID createdByAccountId;
+	@Nullable
 	private Instant lastUpdated;
+	@Nullable
+	private UUID lastUpdatedByAccountId;
 
 	@Override
 	public String toString() {
-		return format("%s{%s to %s}", getClass().getSimpleName(), getStartDateTime(), getEndDateTime());
+		return format("%s{%s to %s, availability type %s, recurrence type %s}", getClass().getSimpleName(), getStartDateTime(),
+				getEndDateTime(), getLogicalAvailabilityTypeId(), getRecurrenceTypeId());
 	}
 
 	@Nullable
@@ -69,6 +95,24 @@ public class LogicalAvailability {
 	}
 
 	@Nullable
+	public LogicalAvailabilityTypeId getLogicalAvailabilityTypeId() {
+		return logicalAvailabilityTypeId;
+	}
+
+	public void setLogicalAvailabilityTypeId(@Nullable LogicalAvailabilityTypeId logicalAvailabilityTypeId) {
+		this.logicalAvailabilityTypeId = logicalAvailabilityTypeId;
+	}
+
+	@Nullable
+	public RecurrenceTypeId getRecurrenceTypeId() {
+		return recurrenceTypeId;
+	}
+
+	public void setRecurrenceTypeId(@Nullable RecurrenceTypeId recurrenceTypeId) {
+		this.recurrenceTypeId = recurrenceTypeId;
+	}
+
+	@Nullable
 	public LocalDateTime getStartDateTime() {
 		return startDateTime;
 	}
@@ -87,6 +131,69 @@ public class LogicalAvailability {
 	}
 
 	@Nullable
+	public Boolean getRecurSunday() {
+		return recurSunday;
+	}
+
+	public void setRecurSunday(@Nullable Boolean recurSunday) {
+		this.recurSunday = recurSunday;
+	}
+
+	@Nullable
+	public Boolean getRecurMonday() {
+		return recurMonday;
+	}
+
+	public void setRecurMonday(@Nullable Boolean recurMonday) {
+		this.recurMonday = recurMonday;
+	}
+
+	@Nullable
+	public Boolean getRecurTuesday() {
+		return recurTuesday;
+	}
+
+	public void setRecurTuesday(@Nullable Boolean recurTuesday) {
+		this.recurTuesday = recurTuesday;
+	}
+
+	@Nullable
+	public Boolean getRecurWednesday() {
+		return recurWednesday;
+	}
+
+	public void setRecurWednesday(@Nullable Boolean recurWednesday) {
+		this.recurWednesday = recurWednesday;
+	}
+
+	@Nullable
+	public Boolean getRecurThursday() {
+		return recurThursday;
+	}
+
+	public void setRecurThursday(@Nullable Boolean recurThursday) {
+		this.recurThursday = recurThursday;
+	}
+
+	@Nullable
+	public Boolean getRecurFriday() {
+		return recurFriday;
+	}
+
+	public void setRecurFriday(@Nullable Boolean recurFriday) {
+		this.recurFriday = recurFriday;
+	}
+
+	@Nullable
+	public Boolean getRecurSaturday() {
+		return recurSaturday;
+	}
+
+	public void setRecurSaturday(@Nullable Boolean recurSaturday) {
+		this.recurSaturday = recurSaturday;
+	}
+
+	@Nullable
 	public Instant getCreated() {
 		return created;
 	}
@@ -96,11 +203,29 @@ public class LogicalAvailability {
 	}
 
 	@Nullable
+	public UUID getCreatedByAccountId() {
+		return createdByAccountId;
+	}
+
+	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
+		this.createdByAccountId = createdByAccountId;
+	}
+
+	@Nullable
 	public Instant getLastUpdated() {
 		return lastUpdated;
 	}
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
+	}
+
+	@Nullable
+	public UUID getLastUpdatedByAccountId() {
+		return lastUpdatedByAccountId;
+	}
+
+	public void setLastUpdatedByAccountId(@Nullable UUID lastUpdatedByAccountId) {
+		this.lastUpdatedByAccountId = lastUpdatedByAccountId;
 	}
 }

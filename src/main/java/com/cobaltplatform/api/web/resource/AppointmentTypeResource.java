@@ -20,18 +20,26 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.request.CreateAppointmentTypeRequest;
+import com.cobaltplatform.api.model.api.request.UpdateAppointmentTypeRequest;
 import com.cobaltplatform.api.model.api.response.AppointmentTypeApiResponse.AppointmentTypeApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.AppointmentTypeApiResponse.AppointmentTypeApiResponseSupplement;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Provider;
-import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AppointmentService;
+import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
+import com.soklet.web.annotation.DELETE;
 import com.soklet.web.annotation.GET;
+import com.soklet.web.annotation.POST;
+import com.soklet.web.annotation.PUT;
+import com.soklet.web.annotation.PathParameter;
 import com.soklet.web.annotation.QueryParameter;
+import com.soklet.web.annotation.RequestBody;
 import com.soklet.web.annotation.Resource;
 import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.exception.NotFoundException;
@@ -45,6 +53,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -64,6 +73,8 @@ public class AppointmentTypeResource {
 	@Nonnull
 	private final AppointmentService appointmentService;
 	@Nonnull
+	private final AuthorizationService authorizationService;
+	@Nonnull
 	private final javax.inject.Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
@@ -76,12 +87,14 @@ public class AppointmentTypeResource {
 	public AppointmentTypeResource(@Nonnull AccountService accountService,
 																 @Nonnull ProviderService providerService,
 																 @Nonnull AppointmentService appointmentService,
+																 @Nonnull AuthorizationService authorizationService,
 																 @Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
 																 @Nonnull RequestBodyParser requestBodyParser,
 																 @Nonnull AppointmentTypeApiResponseFactory appointmentTypeApiResponseFactory) {
 		requireNonNull(accountService);
 		requireNonNull(providerService);
 		requireNonNull(appointmentService);
+		requireNonNull(authorizationService);
 		requireNonNull(currentContextProvider);
 		requireNonNull(requestBodyParser);
 		requireNonNull(appointmentTypeApiResponseFactory);
@@ -89,6 +102,7 @@ public class AppointmentTypeResource {
 		this.accountService = accountService;
 		this.providerService = providerService;
 		this.appointmentService = appointmentService;
+		this.authorizationService = authorizationService;
 		this.currentContextProvider = currentContextProvider;
 		this.requestBodyParser = requestBodyParser;
 		this.appointmentTypeApiResponseFactory = appointmentTypeApiResponseFactory;
@@ -107,8 +121,7 @@ public class AppointmentTypeResource {
 		if (provider == null)
 			throw new NotFoundException();
 
-		// You can only look at providers in your own institution unless you're a superadmin
-		if (account.getRoleId() != RoleId.SUPER_ADMINISTRATOR && !provider.getInstitutionId().equals(account.getInstitutionId()))
+		if (!getAuthorizationService().canViewAppointmentTypesForProvider(provider, account))
 			throw new AuthorizationException();
 
 		List<AppointmentType> appointmentTypes = getAppointmentService().findAppointmentTypesByProviderId(providerId);
@@ -121,6 +134,97 @@ public class AppointmentTypeResource {
 	}
 
 	@Nonnull
+	@POST("/appointment-types")
+	@AuthenticationRequired
+	public ApiResponse createAppointmentType(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		// You can only create appointment types for yourself, if you are a provider
+		if (account.getProviderId() == null)
+			throw new AuthorizationException();
+
+		CreateAppointmentTypeRequest request = getRequestBodyParser().parse(requestBody, CreateAppointmentTypeRequest.class);
+		request.setProviderId(account.getProviderId());
+
+		UUID appointmentTypeId = getAppointmentService().createAppointmentType(request);
+		AppointmentType appointmentType = getAppointmentService().findAppointmentTypeById(appointmentTypeId).get();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("appointmentType", getAppointmentTypeApiResponseFactory().create(appointmentType, Set.of(AppointmentTypeApiResponseSupplement.EVERYTHING)));
+		}});
+	}
+
+	@Nonnull
+	@GET("/appointment-types/{appointmentTypeId}")
+	@AuthenticationRequired
+	public ApiResponse getAppointmentType(@Nonnull @PathParameter UUID appointmentTypeId) {
+		requireNonNull(appointmentTypeId);
+
+		Account account = getCurrentContext().getAccount().get();
+		AppointmentType appointmentType = getAppointmentService().findAppointmentTypeById(appointmentTypeId).orElse(null);
+
+		if (appointmentType == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canViewAppointmentType(appointmentType, account))
+			throw new AuthorizationException();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("appointmentType", getAppointmentTypeApiResponseFactory().create(appointmentType, Set.of(AppointmentTypeApiResponseSupplement.EVERYTHING)));
+		}});
+	}
+
+	@Nonnull
+	@PUT("/appointment-types/{appointmentTypeId}")
+	@AuthenticationRequired
+	public ApiResponse updateAppointmentType(@Nonnull @RequestBody String requestBody,
+																					 @Nonnull @PathParameter UUID appointmentTypeId) {
+		requireNonNull(requestBody);
+		requireNonNull(appointmentTypeId);
+
+		Account account = getCurrentContext().getAccount().get();
+		AppointmentType appointmentType = getAppointmentService().findAppointmentTypeById(appointmentTypeId).orElse(null);
+
+		if (appointmentType == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canDeleteAppointmentType(appointmentType, account))
+			throw new AuthorizationException();
+
+		UpdateAppointmentTypeRequest request = getRequestBodyParser().parse(requestBody, UpdateAppointmentTypeRequest.class);
+		request.setAppointmentTypeId(appointmentTypeId);
+
+		getAppointmentService().updateAppointmentType(request);
+		AppointmentType updatedAppointmentType = getAppointmentService().findAppointmentTypeById(appointmentTypeId).get();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("appointmentType", getAppointmentTypeApiResponseFactory().create(updatedAppointmentType, Set.of(AppointmentTypeApiResponseSupplement.EVERYTHING)));
+		}});
+	}
+
+	@Nonnull
+	@DELETE("/appointment-types/{appointmentTypeId}")
+	@AuthenticationRequired
+	public ApiResponse deleteAppointmentType(@Nonnull @PathParameter UUID appointmentTypeId) {
+		requireNonNull(appointmentTypeId);
+
+		Account account = getCurrentContext().getAccount().get();
+		AppointmentType appointmentType = getAppointmentService().findAppointmentTypeById(appointmentTypeId).orElse(null);
+
+		if (appointmentType == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canDeleteAppointmentType(appointmentType, account))
+			throw new AuthorizationException();
+
+		getAppointmentService().deleteAppointmentType(appointmentTypeId);
+
+		return new ApiResponse();
+	}
+
+	@Nonnull
 	protected AccountService getAccountService() {
 		return accountService;
 	}
@@ -128,6 +232,11 @@ public class AppointmentTypeResource {
 	@Nonnull
 	protected AppointmentService getAppointmentService() {
 		return appointmentService;
+	}
+
+	@Nonnull
+	protected AuthorizationService getAuthorizationService() {
+		return authorizationService;
 	}
 
 	@Nonnull

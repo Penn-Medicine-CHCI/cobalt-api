@@ -20,7 +20,7 @@
 package com.cobaltplatform.api.context;
 
 
-import com.cobaltplatform.api.model.client.RemoteClient;
+import com.cobaltplatform.api.model.service.RemoteClient;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.security.AccessTokenStatus;

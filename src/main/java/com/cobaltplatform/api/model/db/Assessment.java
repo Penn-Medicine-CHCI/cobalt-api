@@ -17,8 +17,9 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db.assessment;
+package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.UUID;
@@ -27,20 +28,10 @@ import java.util.UUID;
  * @author Transmogrify LLC.
  */
 public class Assessment {
-
-	public enum AssessmentType{
-		INTRO,
-		PHQ4,
-		GAD7,
-		PHQ9,
-		PCPTSD,
-		INTAKE
-	}
-
 	@Nonnull
 	private UUID assessmentId;
 	@Nonnull
-	private AssessmentType assessmentTypeId;
+	private AssessmentTypeId assessmentTypeId;
 	@Nonnull
 	private String baseQuestion;
 	@Nullable
@@ -60,11 +51,11 @@ public class Assessment {
 	}
 
 	@Nonnull
-	public AssessmentType getAssessmentTypeId() {
+	public AssessmentTypeId getAssessmentTypeId() {
 		return assessmentTypeId;
 	}
 
-	public void setAssessmentTypeId(@Nonnull AssessmentType assessmentTypeId) {
+	public void setAssessmentTypeId(@Nonnull AssessmentTypeId assessmentTypeId) {
 		this.assessmentTypeId = assessmentTypeId;
 	}
 

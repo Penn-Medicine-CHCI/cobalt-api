@@ -105,6 +105,8 @@ public class Account {
 	@Nullable
 	private String metadata;
 	@Nullable
+	private Boolean schedulingTutorialViewed;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -354,6 +356,15 @@ public class Account {
 
 	public void setAccessTokenShortExpirationInMinutes(@Nonnull Long accessTokenShortExpirationInMinutes) {
 		this.accessTokenShortExpirationInMinutes = accessTokenShortExpirationInMinutes;
+	}
+
+	@Nullable
+	public Boolean getSchedulingTutorialViewed() {
+		return schedulingTutorialViewed;
+	}
+
+	public void setSchedulingTutorialViewed(@Nullable Boolean schedulingTutorialViewed) {
+		this.schedulingTutorialViewed = schedulingTutorialViewed;
 	}
 
 	@Nullable

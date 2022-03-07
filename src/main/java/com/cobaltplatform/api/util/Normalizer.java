@@ -38,6 +38,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static com.cobaltplatform.api.util.ValidationUtility.isValidHexColor;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -109,6 +110,19 @@ public class Normalizer {
 			return Optional.empty();
 
 		return Optional.ofNullable(PhoneNumberUtil.getInstance().format(parsedPhoneNumber, PhoneNumberUtil.PhoneNumberFormat.E164));
+	}
+
+	@Nonnull
+	public Optional<Integer> normalizeHexColor(@Nullable String hexColor) {
+		hexColor = trimToNull(hexColor);
+
+		if(hexColor == null || !isValidHexColor(hexColor))
+			return Optional.empty();
+
+		// Strip off leading "#"
+		hexColor = hexColor.substring(1);
+
+		return Optional.of(Integer.parseInt(hexColor, 16));
 	}
 
 	@Nonnull

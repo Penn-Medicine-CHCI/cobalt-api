@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db.assessment;
+package com.cobaltplatform.api.model.db;
 
 import javax.annotation.Nonnull;
 
@@ -35,8 +35,8 @@ public class QuestionType {
 		DROPDOWN,
 		TEXT,
 		DATE,
-		STUDENT_ID,
-		PHONE_NUMBER;
+		STUDENT_ID,  // TODO: replace with QuestionContentHintId value in the future
+		PHONE_NUMBER; // TODO: replace with QuestionContentHintId value in the future
 
 		@Nonnull
 		public static Boolean isFreeform(@Nonnull QuestionTypeId questionTypeId) {

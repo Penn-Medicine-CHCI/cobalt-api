@@ -4,6 +4,7 @@ PGPASSWORD=password psql -U postgres -h postgres-cobalt -p 5432 < initial/recrea
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < initial/install-versioning.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < initial/000-base-creates.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < initial/001-initial-inserts.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/001-cobalt-institution.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/002-click-tracking.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/003-session-expiration.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/004-activity-tracking.sql
@@ -15,6 +16,11 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/009-chap
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/010-crisis-interaction-metadata.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/011-provider-specialties.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/012-fingerprinting.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/013-native-scheduling.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/014-provider-bio.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/015-appointment-update.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/016-account-role-request.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/016-local-only-account-role-request.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

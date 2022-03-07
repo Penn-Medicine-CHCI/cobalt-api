@@ -56,6 +56,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -237,7 +238,7 @@ public class InteractionService {
 			LocalDateTime finalScheduledAt = scheduledAt;
 
 			Account.StandardMetadata standardMetadata = new Account.StandardMetadata();
-			standardMetadata.setInteractionIds(Collections.singleton(interaction.getInteractionId()));
+			standardMetadata.setInteractionIds(Set.of(interaction.getInteractionId()));
 
 			List<String> accountsToEmail = getAccountService().findAccountsMatchingMetadata(standardMetadata).stream()
 					.map(e -> e.getEmailAddress()).filter(e -> e != null)

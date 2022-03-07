@@ -24,7 +24,7 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.ic.IcClient;
-import com.cobaltplatform.api.model.client.RemoteClient;
+import com.cobaltplatform.api.model.service.RemoteClient;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.security.AccessTokenClaims;

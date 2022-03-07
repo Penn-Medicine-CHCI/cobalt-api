@@ -19,8 +19,6 @@
 
 package com.cobaltplatform.api.service;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.lokalized.Strings;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
@@ -59,9 +57,9 @@ import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
-import com.cobaltplatform.api.model.db.assessment.Assessment.AssessmentType;
-import com.cobaltplatform.api.model.db.assessment.Question;
-import com.cobaltplatform.api.model.db.assessment.QuestionType.QuestionTypeId;
+import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
+import com.cobaltplatform.api.model.db.Question;
+import com.cobaltplatform.api.model.db.QuestionType.QuestionTypeId;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.GroupSessionRequestWithTotalCount;
 import com.cobaltplatform.api.model.service.GroupSessionStatusWithCount;
@@ -74,6 +72,8 @@ import com.cobaltplatform.api.util.UploadManager.PresignedUpload;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
@@ -704,7 +704,7 @@ public class GroupSessionService implements AutoCloseable {
 		UUID assessmentId = UUID.randomUUID();
 
 		getDatabase().execute("INSERT INTO assessment (assessment_id, assessment_type_id, " +
-				"minimum_eligibility_score, answers_may_contain_pii) VALUES (?,?,?,?)", assessmentId, AssessmentType.INTAKE, screeningQuestions.size(), false);
+				"minimum_eligibility_score, answers_may_contain_pii) VALUES (?,?,?,?)", assessmentId, AssessmentTypeId.INTAKE, screeningQuestions.size(), false);
 
 		UUID mostRecentQuestionId = null;
 

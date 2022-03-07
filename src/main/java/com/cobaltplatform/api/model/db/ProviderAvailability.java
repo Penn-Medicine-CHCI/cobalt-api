@@ -25,6 +25,8 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import static java.lang.String.format;
+
 /**
  * @author Transmogrify, LLC.
  */
@@ -39,13 +41,17 @@ public class ProviderAvailability {
 	@Nullable
 	private UUID epicDepartmentId;
 	@Nullable
-	private UUID logicalAvailabilityId;
-	@Nullable
 	private LocalDateTime dateTime;
 	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
+
+	@Override
+	public String toString() {
+		return format("%s{dateTime=%s, providerId=%s, appointmentTypeId=%s}", getClass().getSimpleName(),
+				getDateTime(), getProviderId(), getAppointmentTypeId());
+	}
 
 	@Nullable
 	public UUID getProviderAvailabilityId() {
@@ -81,15 +87,6 @@ public class ProviderAvailability {
 
 	public void setEpicDepartmentId(@Nullable UUID epicDepartmentId) {
 		this.epicDepartmentId = epicDepartmentId;
-	}
-
-	@Nullable
-	public UUID getLogicalAvailabilityId() {
-		return logicalAvailabilityId;
-	}
-
-	public void setLogicalAvailabilityId(@Nullable UUID logicalAvailabilityId) {
-		this.logicalAvailabilityId = logicalAvailabilityId;
 	}
 
 	@Nullable

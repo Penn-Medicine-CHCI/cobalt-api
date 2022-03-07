@@ -61,6 +61,8 @@ public class Provider {
 	@Nullable
 	private String bioUrl;
 	@Nullable
+	private String bio;
+	@Nullable
 	private Locale locale;
 	@Nullable
 	private ZoneId timeZone;
@@ -321,5 +323,14 @@ public class Provider {
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
+	}
+
+	@Nullable
+	public String getBio() {
+		return bio;
+	}
+
+	public void setBio(@Nullable String bio) {
+		this.bio = bio;
 	}
 }
