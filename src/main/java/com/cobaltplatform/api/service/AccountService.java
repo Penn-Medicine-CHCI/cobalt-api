@@ -23,13 +23,16 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.cache.Cache;
 import com.cobaltplatform.api.cache.DistributedCache;
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.AcceptAccountConsentFormRequest;
 import com.cobaltplatform.api.model.api.request.AccessTokenRequest;
+import com.cobaltplatform.api.model.api.request.AccountRoleRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountInviteRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
+import com.cobaltplatform.api.model.api.request.CreateInteractionInstanceRequest;
 import com.cobaltplatform.api.model.api.request.ForgotPasswordRequest;
 import com.cobaltplatform.api.model.api.request.ResetPasswordRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountAccessTokenExpiration;
@@ -44,6 +47,8 @@ import com.cobaltplatform.api.model.db.AccountInvite;
 import com.cobaltplatform.api.model.db.AccountLoginRule;
 import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
+import com.cobaltplatform.api.model.db.AuditLog;
+import com.cobaltplatform.api.model.db.AuditLogEvent.AuditLogEventId;
 import com.cobaltplatform.api.model.db.BetaFeature.BetaFeatureId;
 import com.cobaltplatform.api.model.db.BetaFeatureAlert;
 import com.cobaltplatform.api.model.db.BetaFeatureAlert.BetaFeatureAlertStatusId;
@@ -76,6 +81,7 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -101,6 +107,10 @@ public class AccountService {
 	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
+	private final Provider<AuditLogService> auditLogServiceProvider;
+	@Nonnull
+	private final Provider<InteractionService> interactionServiceProvider;
+	@Nonnull
 	private final Database database;
 	@Nonnull
 	private final Cache distributedCache;
@@ -124,9 +134,13 @@ public class AccountService {
 	private final InstitutionService institutionService;
 	@Nonnull
 	private final LinkGenerator linkGenerator;
+	@Nonnull
+	private final ErrorReporter errorReporter;
 
 	@Inject
 	public AccountService(@Nonnull Provider<CurrentContext> currentContextProvider,
+												@Nonnull Provider<AuditLogService> auditLogServiceProvider,
+												@Nonnull Provider<InteractionService> interactionServiceProvider,
 												@Nonnull Database database,
 												@Nonnull @DistributedCache Cache distributedCache,
 												@Nonnull Authenticator authenticator,
@@ -137,8 +151,11 @@ public class AccountService {
 												@Nonnull EmailMessageManager emailMessageManager,
 												@Nonnull InstitutionService institutionService,
 												@Nonnull LinkGenerator linkGenerator,
+												@Nonnull ErrorReporter errorReporter,
 												@Nonnull Strings strings) {
 		requireNonNull(currentContextProvider);
+		requireNonNull(auditLogServiceProvider);
+		requireNonNull(interactionServiceProvider);
 		requireNonNull(database);
 		requireNonNull(distributedCache);
 		requireNonNull(authenticator);
@@ -150,8 +167,11 @@ public class AccountService {
 		requireNonNull(emailMessageManager);
 		requireNonNull(institutionService);
 		requireNonNull(linkGenerator);
+		requireNonNull(errorReporter);
 
 		this.currentContextProvider = currentContextProvider;
+		this.auditLogServiceProvider = auditLogServiceProvider;
+		this.interactionServiceProvider = interactionServiceProvider;
 		this.database = database;
 		this.distributedCache = distributedCache;
 		this.authenticator = authenticator;
@@ -164,6 +184,7 @@ public class AccountService {
 		this.emailMessageManager = emailMessageManager;
 		this.institutionService = institutionService;
 		this.linkGenerator = linkGenerator;
+		this.errorReporter = errorReporter;
 	}
 
 	@Nonnull
@@ -245,7 +266,7 @@ public class AccountService {
 	public Boolean accountInviteExpired(UUID accountInviteCode) {
 		Integer INVITE_GOOD_FOR_MINUTES = 10;
 
-		return getDatabase().queryForObject(String.format("SELECT count(*) FROM account_invite " +
+		return getDatabase().queryForObject(format("SELECT count(*) FROM account_invite " +
 						"WHERE account_invite_code = ? AND now() >= created + INTERVAL '%s MINUTES'", INVITE_GOOD_FOR_MINUTES),
 				Boolean.class, accountInviteCode).get();
 	}
@@ -875,8 +896,106 @@ public class AccountService {
 	}
 
 	@Nonnull
+	public void requestRoleForAccount(@Nonnull AccountRoleRequest request) {
+		requireNonNull(request);
+
+		UUID requestingAccountId = request.getAccountId();
+		RoleId roleId = request.getRoleId();
+		Account requestingAccount = null;
+		Account currentAccount = getCurrentContext().getAccount().orElse(null);
+		ValidationException validationException = new ValidationException();
+
+		if (requestingAccountId == null) {
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+		} else {
+			requestingAccount = findAccountById(requestingAccountId).orElse(null);
+
+			if (requestingAccount == null)
+				validationException.add(new FieldError("accountId", getStrings().get("Account ID is invalid.")));
+		}
+
+		if (roleId == null)
+			validationException.add(new FieldError("roleId", getStrings().get("Role ID is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		// 1. Record the role request in our audit log
+		AuditLog auditLog = new AuditLog();
+		auditLog.setAccountId(currentAccount.getAccountId());
+		auditLog.setAuditLogEventId(AuditLogEventId.ACCOUNT_ROLE_REQUEST);
+		auditLog.setMessage(format("Role ID %s was requested for account ID %s", roleId.name(), requestingAccountId));
+		auditLog.setPayload(getJsonMapper().toJson(new HashMap<String, Object>() {{
+			put("requestingAccountId", requestingAccountId);
+			put("roleId", roleId);
+		}}));
+
+		getAuditLogService().audit(auditLog);
+
+		// 2. Pick out the role request interaction for the appropriate institution so we know how to record this request
+		// and notify relevant people
+		Institution institution = getInstitutionService().findInstitutionById(requestingAccount.getInstitutionId()).get();
+		UUID roleRequestInteractionId = institution.getStandardMetadata().getDefaultRoleRequestInteractionId();
+
+		if (roleRequestInteractionId == null) {
+			getErrorReporter().report(format("No role request interaction ID is available for institution %s", institution.getInstitutionId()));
+			return;
+		}
+
+		// Gather information to put into the interaction instance
+		ZoneId timeZone = institution.getTimeZone();
+		LocalDateTime now = LocalDateTime.now(timeZone);
+
+		List<String> hipaaCompliantHtmlListItems = new ArrayList<>(2);
+
+		hipaaCompliantHtmlListItems.add(format("<li><strong>Requesting Account ID</strong> %s</li>", requestingAccountId));
+
+		if (requestingAccount.getFirstName() != null)
+			hipaaCompliantHtmlListItems.add(format("<li><strong>First Name</strong> %s</li>", requestingAccount.getFirstName()));
+
+		// Non-HIPAA is HIPAA plus a few more fields
+		List<String> htmlListItems = new ArrayList<>(hipaaCompliantHtmlListItems);
+
+		if (requestingAccount.getLastName() != null)
+			htmlListItems.add(format("<li><strong>Last Name</strong> %s</li>", requestingAccount.getLastName()));
+		if (requestingAccount.getEmailAddress() != null)
+			htmlListItems.add(format("<li><strong>Email Address</strong> %s</li>", requestingAccount.getEmailAddress()));
+
+		// HIPAA
+		Map<String, Object> hipaaCompliantMetadata = new HashMap<>();
+		hipaaCompliantMetadata.put("requestingAccountId", requestingAccountId);
+		hipaaCompliantMetadata.put("firstName", requestingAccount.getFirstName());
+		hipaaCompliantMetadata.put("endUserHtmlRepresentation", format("<ul>%s</ul>", hipaaCompliantHtmlListItems.stream().collect(Collectors.joining(""))));
+
+		// Non-HIPAA
+		Map<String, Object> metadata = new HashMap<>(hipaaCompliantMetadata);
+		hipaaCompliantMetadata.put("lastName", requestingAccount.getLastName());
+		hipaaCompliantMetadata.put("emailAddress", requestingAccount.getEmailAddress());
+		hipaaCompliantMetadata.put("endUserHtmlRepresentation", format("<ul>%s</ul>", htmlListItems.stream().collect(Collectors.joining(""))));
+
+		// Create our interaction instance to notify appropriate users to review the request
+		getInteractionService().createInteractionInstance(new CreateInteractionInstanceRequest() {{
+			setMetadata(metadata);
+			setHipaaCompliantMetadata(hipaaCompliantMetadata);
+			setStartDateTime(now);
+			setTimeZone(timeZone);
+			setInteractionId(roleRequestInteractionId);
+		}});
+	}
+
+	@Nonnull
 	protected CurrentContext getCurrentContext() {
 		return currentContextProvider.get();
+	}
+
+	@Nonnull
+	protected AuditLogService getAuditLogService() {
+		return auditLogServiceProvider.get();
+	}
+
+	@Nonnull
+	protected InteractionService getInteractionService() {
+		return interactionServiceProvider.get();
 	}
 
 	@Nonnull
@@ -937,5 +1056,10 @@ public class AccountService {
 	@Nonnull
 	protected LinkGenerator getLinkGenerator() {
 		return linkGenerator;
+	}
+
+	@Nonnull
+	protected ErrorReporter getErrorReporter() {
+		return errorReporter;
 	}
 }

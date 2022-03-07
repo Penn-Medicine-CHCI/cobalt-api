@@ -23,6 +23,7 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.AcceptAccountConsentFormRequest;
 import com.cobaltplatform.api.model.api.request.AccessTokenRequest;
+import com.cobaltplatform.api.model.api.request.AccountRoleRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountInviteRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateActivityTrackingRequest;
@@ -40,7 +41,6 @@ import com.cobaltplatform.api.model.api.request.UpdateBetaFeatureAlertRequest;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseSupplement;
-import com.cobaltplatform.api.model.api.response.AppointmentApiResponse;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.AssessmentFormApiResponse.AssessmentFormApiResponseFactory;
@@ -62,6 +62,7 @@ import com.cobaltplatform.api.model.db.ActivityType;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.AuditLog;
+import com.cobaltplatform.api.model.db.AuditLogEvent;
 import com.cobaltplatform.api.model.db.AuditLogEvent.AuditLogEventId;
 import com.cobaltplatform.api.model.db.BetaFeatureAlert;
 import com.cobaltplatform.api.model.db.ClientDeviceType;
@@ -773,6 +774,7 @@ public class AccountResource {
 		}});
 	}
 
+	@AuthenticationRequired
 	@GET("/accounts/{accountId}/beta-feature-alerts")
 	public ApiResponse betaFeatureAlerts(@Nonnull @PathParameter UUID accountId) {
 		requireNonNull(accountId);
@@ -791,6 +793,7 @@ public class AccountResource {
 		}});
 	}
 
+	@AuthenticationRequired
 	@PUT("/accounts/{accountId}/beta-feature-alerts")
 	public ApiResponse updateBetaFeatureAlert(@Nonnull @PathParameter UUID accountId,
 																						@Nonnull @RequestBody String body) {
@@ -812,6 +815,7 @@ public class AccountResource {
 		}});
 	}
 
+	@AuthenticationRequired
 	@PUT("/accounts/{accountId}/beta-status")
 	public ApiResponse updateAccountBetaStatus(@Nonnull @PathParameter UUID accountId,
 																						 @Nonnull @RequestBody String body) {
@@ -834,6 +838,7 @@ public class AccountResource {
 		}});
 	}
 
+	@AuthenticationRequired
 	@GET("/accounts/{accountId}/appointment-details/{appointmentId}")
 	public ApiResponse accountWithAppointmentDetails(@Nonnull @PathParameter UUID accountId,
 																									 @Nonnull @PathParameter UUID appointmentId) {
@@ -887,6 +892,25 @@ public class AccountResource {
 		}
 
 		return new ApiResponse(responseData);
+	}
+
+	@AuthenticationRequired
+	@POST("/accounts/{accountId}/role-request")
+	public void processRoleRequest(@Nonnull @PathParameter UUID accountId,
+																 @Nonnull @RequestBody String body) {
+		requireNonNull(accountId);
+		requireNonNull(body);
+
+		AccountRoleRequest request = getRequestBodyParser().parse(body, AccountRoleRequest.class);
+		request.setAccountId(accountId);
+
+		Account currentAccount = getCurrentContext().getAccount().get();
+
+		// You can only request for yourself for now
+		if(!currentAccount.getAccountId().equals(accountId))
+			throw new AuthorizationException();
+
+		getAccountService().requestRoleForAccount(request);
 	}
 
 	@Nonnull
@@ -1000,20 +1024,32 @@ public class AccountResource {
 	}
 
 	@Nonnull
-	protected AppointmentApiResponseFactory getAppointmentApiResponseFactory() { return appointmentApiResponseFactory; }
+	protected AppointmentApiResponseFactory getAppointmentApiResponseFactory() {
+		return appointmentApiResponseFactory;
+	}
 
 	@Nonnull
-	protected AuthorizationService getAuthorizationService() { return authorizationService; }
+	protected AuthorizationService getAuthorizationService() {
+		return authorizationService;
+	}
 
 	@Nonnull
-	protected ProviderService getProviderService() { return providerService; }
+	protected ProviderService getProviderService() {
+		return providerService;
+	}
 
 	@Nonnull
-	protected SessionService getSessionService() { return sessionService; }
+	protected SessionService getSessionService() {
+		return sessionService;
+	}
 
 	@Nonnull
-	protected AssessmentService getAssessmentService() { return assessmentService; }
+	protected AssessmentService getAssessmentService() {
+		return assessmentService;
+	}
 
 	@Nonnull
-	protected AssessmentFormApiResponseFactory getAssessmentFormApiResponseFactory() { return assessmentFormApiResponseFactory; }
+	protected AssessmentFormApiResponseFactory getAssessmentFormApiResponseFactory() {
+		return assessmentFormApiResponseFactory;
+	}
 }

@@ -19,6 +19,8 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/012-fing
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/013-native-scheduling.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/014-provider-bio.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/015-appointment-update.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/016-account-role-request.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/016-local-only-account-role-request.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

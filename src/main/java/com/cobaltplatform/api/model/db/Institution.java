@@ -129,6 +129,8 @@ public class Institution {
 		@Nullable
 		private UUID defaultCrisisInteractionId;
 		@Nullable
+		private UUID defaultRoleRequestInteractionId;
+		@Nullable
 		private List<Way2HealthIncidentTrackingConfig> way2HealthIncidentTrackingConfigs;
 
 		@Nonnull
@@ -193,6 +195,15 @@ public class Institution {
 
 		public void setDefaultCrisisInteractionId(@Nullable UUID defaultCrisisInteractionId) {
 			this.defaultCrisisInteractionId = defaultCrisisInteractionId;
+		}
+
+		@Nullable
+		public UUID getDefaultRoleRequestInteractionId() {
+			return defaultRoleRequestInteractionId;
+		}
+
+		public void setDefaultRoleRequestInteractionId(@Nullable UUID defaultRoleRequestInteractionId) {
+			this.defaultRoleRequestInteractionId = defaultRoleRequestInteractionId;
 		}
 
 		@Nullable
