@@ -961,6 +961,8 @@ public class AccountService {
 		if (requestingAccount.getEmailAddress() != null)
 			htmlListItems.add(format("<li><strong>Email Address</strong> %s</li>", requestingAccount.getEmailAddress()));
 
+		htmlListItems.add(format("<li><strong>Requested Role ID</strong> %s</li>", roleId.name()));
+
 		// HIPAA
 		Map<String, Object> hipaaCompliantMetadata = new HashMap<>();
 		hipaaCompliantMetadata.put("requestingAccountId", requestingAccountId);
@@ -971,6 +973,7 @@ public class AccountService {
 		Map<String, Object> metadata = new HashMap<>(hipaaCompliantMetadata);
 		metadata.put("lastName", requestingAccount.getLastName());
 		metadata.put("emailAddress", requestingAccount.getEmailAddress());
+		metadata.put("roleId", roleId);
 		metadata.put("endUserHtmlRepresentation", format("<ul>%s</ul>", htmlListItems.stream().collect(Collectors.joining(""))));
 
 		// Create our interaction instance to notify appropriate users to review the request
