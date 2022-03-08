@@ -211,7 +211,10 @@ public class AssessmentScoringService {
 		requireNonNull(evidenceScores);
 		requireNonNull(locale);
 
-		List<String> htmlListItems = new ArrayList<>(1);
+		List<String> htmlListItems = new ArrayList<>(2);
+
+		if(crisisAccount.getFirstName() != null)
+			htmlListItems.add(createHtmlListItem(getStrings().get("First Name", locale), crisisAccount.getFirstName()));
 
 		if (crisisAccount.getPhoneNumber() != null)
 			htmlListItems.add(createHtmlListItem(getStrings().get("Phone Number", locale), format("<a href='tel:%s'>%s</a>", crisisAccount.getPhoneNumber(), getFormatter().formatPhoneNumber(crisisAccount.getPhoneNumber(), locale)), false));
@@ -223,6 +226,9 @@ public class AssessmentScoringService {
 		String endUserHtmlRepresentation = format("<ul>%s</ul>", htmlListItems.stream().collect(Collectors.joining("")));
 
 		return new HashMap<String, Object>() {{
+			if(crisisAccount.getFirstName() != null)
+				put("firstName", crisisAccount.getFirstName());
+			
 			if (crisisAccount.getPhoneNumber() != null) {
 				put("phoneNumber", crisisAccount.getPhoneNumber());
 				put("phoneNumberForDisplay", getFormatter().formatPhoneNumber(crisisAccount.getPhoneNumber(), locale));
