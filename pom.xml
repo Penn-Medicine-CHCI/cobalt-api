@@ -155,13 +155,13 @@
         <dependency>
             <groupId>com.google.inject</groupId>
             <artifactId>guice</artifactId>
-            <version>5.0.1</version>
+            <version>5.1.0</version>
         </dependency>
 
         <dependency>
             <groupId>com.google.inject.extensions</groupId>
             <artifactId>guice-assistedinject</artifactId>
-            <version>5.0.1</version>
+            <version>5.1.0</version>
         </dependency>
 
         <dependency>
@@ -272,7 +272,7 @@
         <dependency>
             <groupId>io.sentry</groupId>
             <artifactId>sentry</artifactId>
-            <version>5.5.2</version>
+            <version>5.6.2</version>
         </dependency>
 
         <dependency>
@@ -389,6 +389,20 @@
             <version>2.12.5</version>
         </dependency>
 
+        <!-- Override okhttp's Kotlin version 1.4.0 -->
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-stdlib</artifactId>
+            <version>${kotlin.version}</version>
+        </dependency>
+
+        <!-- Override okhttp's Kotlin version 1.4.10 -->
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-stdlib-common</artifactId>
+            <version>${kotlin.version}</version>
+        </dependency>
+
         <!-- Avoid log4j vulnerability -->
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
@@ -402,13 +416,10 @@
             <version>2.17.1</version>
         </dependency>
 
-        <!-- Compile-time -->
-
         <dependency>
             <groupId>com.google.code.findbugs</groupId>
             <artifactId>jsr305</artifactId>
             <version>3.0.2</version>
-            <scope>compile</scope>
         </dependency>
 
         <!-- Testing -->
