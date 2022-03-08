@@ -875,7 +875,8 @@ public class AccountResource {
 		Set<AccountApiResponseSupplement> finalSupplements = new HashSet<>();
 		finalSupplements.add(AccountApiResponseSupplement.EVERYTHING);
 
-		List<Appointment> appointments = getAppointmentService().findUpcomingAppointmentsByAccountId(appointmentAccount.getAccountId(), getCurrentContext().getTimeZone());
+		List<Appointment> appointments = getAppointmentService().findUpcomingAppointmentsByAccountIdAndProviderId(appointmentAccount.getAccountId(), provider.getProviderId(),
+				getCurrentContext().getTimeZone());
 
 		Map<String, Object> responseData = new HashMap<>();
 		responseData.put("account", getAccountApiResponseFactory().create(appointmentAccount, finalSupplements));
@@ -883,8 +884,7 @@ public class AccountResource {
 		responseData.put("appointments", appointments.stream()
 				.map((a) -> getAppointmentApiResponseFactory().create(a, Set.of(AppointmentApiResponseSupplement.PROVIDER, AppointmentApiResponseSupplement.APPOINTMENT_TYPE))).collect(Collectors.toList()));
 
-		AccountSession intakeSession = getSessionService().findCurrentIntakeAssessmentForAccountAndProvider(appointmentAccount,
-				provider.getProviderId(), appointment.getAppointmentTypeId(), true).orElse(null);
+		AccountSession intakeSession = getSessionService().findIntakeAssessmentForAppointmentId(appointmentId).orElse(null);
 
 		if (intakeSession != null) {
 			Assessment intakeAssessment = getAssessmentService().findAssessmentById(intakeSession.getAssessmentId()).orElse(null);

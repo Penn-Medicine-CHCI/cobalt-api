@@ -278,30 +278,49 @@ public class SessionService {
 	}
 
 	@Nonnull
+	public Optional<AccountSession> findIntakeAssessmentForAppointmentId(@Nonnull UUID appointmentId) {
+		return database.queryForObject("SELECT acs.*  " +
+						"FROM  " +
+						"account_session as acs, " +
+						"assessment as ass,  " +
+						"appointment a " +
+						"WHERE " +
+						"acs.assessment_id = ass.assessment_id AND " +
+						"ass.assessment_id = a.intake_assessment_id AND " +
+						"acs.complete_flag = ? AND  " +
+						"acs.current_flag = ? AND  " +
+						"a.appointment_id = ? "+
+						"ORDER by acs.created DESC LIMIT 1 "
+				, AccountSession.class, true, true, appointmentId);
+	}
+
+	@Nonnull
 	public Optional<AccountSession> findCurrentIntakeAssessmentForAccountAndProvider(@Nonnull Account account,
 																																									 @Nonnull UUID providerId,
 																																									 @Nullable UUID appointmentTypeId,
 																																									 @Nonnull Boolean complete) {
-		if(appointmentTypeId != null) {
-			return database.queryForObject("SELECT acs.* " +
-							"FROM " +
-							"account_session as acs, " +
-							"account as a, " +
-							"assessment as ass, " +
-							"provider_appointment_type pat, " +
-							"appointment_type at " +
-							"WHERE " +
+		if (appointmentTypeId != null) {
+			return database.queryForObject("SELECT acs.*  " +
+							"FROM  " +
+							"account as a,  " +
+							"account_session as acs,  " +
+							"assessment as ass,  " +
+							"appointment_type_assessment ata, " +
+							"provider_appointment_type pat " +
+							"WHERE  " +
+							"a.account_id = acs.account_id AND  " +
 							"acs.assessment_id = ass.assessment_id AND " +
-							"acs.account_id = a.account_id AND " +
-							"pat.appointment_type_id = at.appointment_type_id AND " +
-							"pat.provider_id = ? AND " +
-							"acs.assessment_id = ass.assessment_id AND " +
-							"a.account_id = ? AND " +
-							"acs.complete_flag = ? AND " +
-							"acs.current_flag = ? AND " +
-							"ass.assessment_type_id = ? " +
-							"ORDER by acs.created DESC LIMIT 1", AccountSession.class, providerId,
-					account.getAccountId(), complete, true, AssessmentTypeId.INTAKE);
+							"ass.assessment_id = ata.assessment_id AND " +
+							"ata.appointment_type_id = pat.appointment_type_id AND " +
+							"pat.provider_id = ? AND  " +
+							"a.account_id = ? AND  " +
+							//"ata.active = ? AND " +
+							"acs.complete_flag = ? AND  " +
+							"acs.current_flag = ? AND  " +
+							"pat.appointment_type_id = ? " +
+							"ORDER by acs.created DESC LIMIT 1 "
+					, AccountSession.class, providerId,
+					account.getAccountId(), complete, true, appointmentTypeId);
 		}
 
 		return database.queryForObject("SELECT acs.* " +

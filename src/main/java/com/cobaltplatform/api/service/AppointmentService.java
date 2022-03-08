@@ -299,6 +299,17 @@ public class AppointmentService {
 				"AND start_time >= ? AND start_time <= ? ORDER BY start_time DESC", Appointment.class, providerId, startDate, endDate);
 	}
 
+	@Nonnull
+	public List<Appointment> findUpcomingAppointmentsByAccountIdAndProviderId(@Nullable UUID accountId,
+																																						@Nullable UUID providerId,
+																																						@Nullable ZoneId timeZone) {
+		if (providerId == null || accountId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("SELECT * FROM appointment WHERE account_id = ? AND provider_id=? AND canceled=FALSE " +
+				"AND start_time >= ?  ORDER BY start_time DESC", Appointment.class, accountId, providerId, LocalDate.now(timeZone));
+	}
+
 
 	@Nonnull
 	public List<Appointment> findRecentAppointmentsByAccountId(@Nullable UUID accountId,
@@ -1581,7 +1592,7 @@ public class AppointmentService {
 
 				// Careful: display order must start at 1, not 0
 				getDatabase().execute("INSERT INTO question (question_id, assessment_id, question_type_id, font_size_id, " +
-						"question_text, display_order) VALUES (?,?,?,?,?,?)", mostRecentQuestionId, assessmentId, QuestionTypeId.QUAD, fontSizeId, screeningQuestion, i + 1);
+						"question_text, display_order, is_root_question) VALUES (?,?,?,?,?,?,?)", mostRecentQuestionId, assessmentId, QuestionTypeId.QUAD, fontSizeId, screeningQuestion, i + 1, true);
 
 				getDatabase().execute("INSERT INTO answer (answer_id, question_id, answer_text, display_order, " +
 						"answer_value, next_question_id) VALUES (?,?,?,?,?,?)", answerYesId, mostRecentQuestionId, getStrings().get("Yes"), 1, 1, nextQuestionId);
@@ -1603,8 +1614,8 @@ public class AppointmentService {
 
 				// Careful: display order must start at 1, not 0
 				getDatabase().execute("INSERT INTO question (question_id, assessment_id, question_type_id, font_size_id, " +
-								"question_content_hint_id, question_text, display_order) VALUES (?,?,?,?,?,?,?)", mostRecentQuestionId,
-						assessmentId, questionTypeId, fontSizeId, questionContentHintId, screeningQuestion, i + 1);
+								"question_content_hint_id, question_text, display_order, is_root_question) VALUES (?,?,?,?,?,?,?,?)", mostRecentQuestionId,
+						assessmentId, questionTypeId, fontSizeId, questionContentHintId, screeningQuestion, i + 1, true);
 
 				getDatabase().execute("INSERT INTO answer (answer_id, question_id, answer_text, display_order, " +
 						"answer_value, next_question_id) VALUES (?,?,?,?,?,?)", answerId, mostRecentQuestionId, getStrings().get("Type here"), 1, 1, nextQuestionId);
