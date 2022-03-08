@@ -153,7 +153,7 @@ public class HandlebarsTemplater {
 			Template template = getHandlebars().compile(templateName);
 
 			Context handlebarsContext = Context.newBuilder(context).resolver(MapValueResolver.INSTANCE, JavaBeanValueResolver.INSTANCE,
-					FieldValueResolver.INSTANCE, MethodValueResolver.INSTANCE)
+					MethodValueResolver.INSTANCE, FieldValueResolver.INSTANCE)
 					.build();
 
 			return Optional.of(template.apply(handlebarsContext));
