@@ -1358,12 +1358,12 @@ public class AppointmentService {
 			int questionNumber = i + 1;
 
 			if (question == null)
-				validationException.add(new FieldError(format("patientIntakeQuestions[%d].question"), getStrings().get("Question text is required for patient intake question {{questionNumber}}.", new HashMap<String, Object>() {{
+				validationException.add(new FieldError(format("patientIntakeQuestions[%d].question", questionNumber), getStrings().get("Question text is required for patient intake question {{questionNumber}}.", new HashMap<String, Object>() {{
 					put("questionNumber", questionNumber);
 				}})));
 
 			if (fontSizeId == null)
-				validationException.add(new FieldError(format("patientIntakeQuestions[%d].fontSizeId"), getStrings().get("Font size is required for patient intake question {{questionNumber}}.", new HashMap<String, Object>() {{
+				validationException.add(new FieldError(format("patientIntakeQuestions[%d].fontSizeId", questionNumber), getStrings().get("Font size is required for patient intake question {{questionNumber}}.", new HashMap<String, Object>() {{
 					put("questionNumber", questionNumber);
 				}})));
 		}
@@ -1375,12 +1375,12 @@ public class AppointmentService {
 			int questionNumber = i + 1;
 
 			if (question == null)
-				validationException.add(new FieldError(format("screeningQuestions[%d].question"), getStrings().get("Question text is required for screening question {{questionNumber}}.", new HashMap<String, Object>() {{
+				validationException.add(new FieldError(format("screeningQuestions[%d].question", questionNumber), getStrings().get("Question text is required for screening question {{questionNumber}}.", new HashMap<String, Object>() {{
 					put("questionNumber", questionNumber);
 				}})));
 
 			if (fontSizeId == null)
-				validationException.add(new FieldError(format("screeningQuestions[%d].fontSizeId"), getStrings().get("Font size is required for screening question {{questionNumber}}.", new HashMap<String, Object>() {{
+				validationException.add(new FieldError(format("screeningQuestions[%d].fontSizeId", questionNumber), getStrings().get("Font size is required for screening question {{questionNumber}}.", new HashMap<String, Object>() {{
 					put("questionNumber", questionNumber);
 				}})));
 		}
@@ -1490,12 +1490,12 @@ public class AppointmentService {
 			int questionNumber = i + 1;
 
 			if (question == null)
-				validationException.add(new FieldError(format("patientIntakeQuestions[%d].question"), getStrings().get("Question text is required for patient intake question {{questionNumber}}.", new HashMap<String, Object>() {{
+				validationException.add(new FieldError(format("patientIntakeQuestions[%d].question", questionNumber), getStrings().get("Question text is required for patient intake question {{questionNumber}}.", new HashMap<String, Object>() {{
 					put("questionNumber", questionNumber);
 				}})));
 
 			if (fontSizeId == null)
-				validationException.add(new FieldError(format("patientIntakeQuestions[%d].fontSizeId"), getStrings().get("Font size is required for patient intake question {{questionNumber}}.", new HashMap<String, Object>() {{
+				validationException.add(new FieldError(format("patientIntakeQuestions[%d].fontSizeId", questionNumber), getStrings().get("Font size is required for patient intake question {{questionNumber}}.", new HashMap<String, Object>() {{
 					put("questionNumber", questionNumber);
 				}})));
 		}
@@ -1507,12 +1507,12 @@ public class AppointmentService {
 			int questionNumber = i + 1;
 
 			if (question == null)
-				validationException.add(new FieldError(format("screeningQuestions[%d].question"), getStrings().get("Question text is required for screening question {{questionNumber}}.", new HashMap<String, Object>() {{
+				validationException.add(new FieldError(format("screeningQuestions[%d].question", questionNumber), getStrings().get("Question text is required for screening question {{questionNumber}}.", new HashMap<String, Object>() {{
 					put("questionNumber", questionNumber);
 				}})));
 
 			if (fontSizeId == null)
-				validationException.add(new FieldError(format("screeningQuestions[%d].fontSizeId"), getStrings().get("Font size is required for screening question {{questionNumber}}.", new HashMap<String, Object>() {{
+				validationException.add(new FieldError(format("screeningQuestions[%d].fontSizeId", questionNumber), getStrings().get("Font size is required for screening question {{questionNumber}}.", new HashMap<String, Object>() {{
 					put("questionNumber", questionNumber);
 				}})));
 		}
