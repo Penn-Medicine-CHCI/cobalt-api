@@ -1204,8 +1204,10 @@ public class AppointmentService {
 			getAuditLogService().audit(auditLog);
 		}
 
-		Assessment intakeAssessment = getAssessmentService().findAssessmentById(intakeAssessmentId).get();
-		AccountSession intakeAccountSession = getSessionService().findCurrentAccountSessionForAssessment(account, intakeAssessment).orElse(null);
+		Optional<Assessment> intakeAssessment = getAssessmentService().findAssessmentById(intakeAssessmentId);
+		UUID intakeAccountSessionId = null;
+		if (intakeAssessment.isPresent())
+			intakeAccountSessionId = getSessionService().findCurrentAccountSessionForAssessment(account, intakeAssessment.get()).get().getAccountSessionId();
 
 		getDatabase().execute("INSERT INTO appointment (appointment_id, provider_id, account_id, created_by_account_id, " +
 						"appointment_type_id, acuity_appointment_id, acuity_class_id, bluejeans_meeting_id, bluejeans_participant_passcode, title, start_time, end_time, " +
@@ -1213,7 +1215,7 @@ public class AppointmentService {
 						"phone_number, appointment_reason_id, comment, intake_assessment_id, scheduling_system_id, intake_account_session_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", appointmentId, providerId,
 				accountId, createdByAccountId, appointmentTypeId, acuityAppointmentId, acuityClassId, bluejeansMeetingId, bluejeansParticipantPasscode,
 				title, meetingStartTime, meetingEndTime, durationInMinutes, timeZone, videoconferenceUrl, epicContactId,
-				epicContactIdType, videoconferencePlatformId, appointmentPhoneNumber, appointmentReasonId, comment, intakeAssessmentId, appointmentType.getSchedulingSystemId(), intakeAccountSession.getAccountSessionId());
+				epicContactIdType, videoconferencePlatformId, appointmentPhoneNumber, appointmentReasonId, comment, intakeAssessmentId, appointmentType.getSchedulingSystemId(), intakeAccountSessionId);
 
 		if (provider != null) {
 			sendProviderScoreEmail(provider, account, emailAddress, phoneNumber, videoconferenceUrl,
