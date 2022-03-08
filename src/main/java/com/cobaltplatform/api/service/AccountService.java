@@ -969,9 +969,9 @@ public class AccountService {
 
 		// Non-HIPAA
 		Map<String, Object> metadata = new HashMap<>(hipaaCompliantMetadata);
-		hipaaCompliantMetadata.put("lastName", requestingAccount.getLastName());
-		hipaaCompliantMetadata.put("emailAddress", requestingAccount.getEmailAddress());
-		hipaaCompliantMetadata.put("endUserHtmlRepresentation", format("<ul>%s</ul>", htmlListItems.stream().collect(Collectors.joining(""))));
+		metadata.put("lastName", requestingAccount.getLastName());
+		metadata.put("emailAddress", requestingAccount.getEmailAddress());
+		metadata.put("endUserHtmlRepresentation", format("<ul>%s</ul>", htmlListItems.stream().collect(Collectors.joining(""))));
 
 		// Create our interaction instance to notify appropriate users to review the request
 		getInteractionService().createInteractionInstance(new CreateInteractionInstanceRequest() {{
