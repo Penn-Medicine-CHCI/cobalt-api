@@ -884,9 +884,8 @@ public class AccountResource {
 		responseData.put("appointments", appointments.stream()
 				.map((a) -> getAppointmentApiResponseFactory().create(a, Set.of(AppointmentApiResponseSupplement.PROVIDER, AppointmentApiResponseSupplement.APPOINTMENT_TYPE))).collect(Collectors.toList()));
 
-		AccountSession intakeSession = getSessionService().findIntakeAssessmentForAppointmentId(appointmentId).orElse(null);
-
-		if (intakeSession != null) {
+		if (appointment.getIntakeAccountSessionId() != null) {
+			AccountSession intakeSession = getSessionService().findAccountSessionById(appointment.getIntakeAccountSessionId()).orElse(null);
 			Assessment intakeAssessment = getAssessmentService().findAssessmentById(intakeSession.getAssessmentId()).orElse(null);
 			responseData.put("assessment", getAssessmentFormApiResponseFactory().create(intakeAssessment, Optional.of(intakeSession)));
 		}
