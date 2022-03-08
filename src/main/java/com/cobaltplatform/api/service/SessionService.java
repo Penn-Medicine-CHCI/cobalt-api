@@ -136,7 +136,7 @@ public class SessionService {
 		if (accountSessionId == null)
 			return Collections.emptyList();
 
-		return database.queryForList("SELECT asa.* FROM " +
+		return database.queryForList("SELECT asa.*, q.question_id FROM " +
 						"answer as a, " +
 						"question as q, " +
 						"account_session_answer as asa WHERE " +
