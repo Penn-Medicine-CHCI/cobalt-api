@@ -95,6 +95,8 @@ public class Appointment {
 	private Boolean canceledForReschedule;
 	@Nullable
 	private UUID rescheduledAppointmentId;
+	@Nullable
+	private UUID intakeAccountSessionId;
 
 	@Nullable
 	public UUID getAppointmentId() {
@@ -364,5 +366,14 @@ public class Appointment {
 
 	public void setRescheduledAppointmentId(@Nullable UUID rescheduledAppointmentId) {
 		this.rescheduledAppointmentId = rescheduledAppointmentId;
+	}
+
+	@Nullable
+	public UUID getIntakeAccountSessionId() {
+		return intakeAccountSessionId;
+	}
+
+	public void setIntakeAccountSessionId(@Nullable UUID intakeAccountSessionId) {
+		this.intakeAccountSessionId = intakeAccountSessionId;
 	}
 }
