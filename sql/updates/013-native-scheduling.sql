@@ -45,6 +45,11 @@ CREATE TABLE recurrence_type (
 INSERT INTO recurrence_type (recurrence_type_id, description) VALUES ('NONE', 'None');
 INSERT INTO recurrence_type (recurrence_type_id, description) VALUES ('DAILY', 'Daily');
 
+-- Clear out old logical availability data since it was not publicly used in any envs, including production
+DELETE FROM provider_availability WHERE logical_availability_id IS NOT NULL;
+DELETE FROM logical_availability_appointment_type;
+DELETE FROM logical_availability;
+
 ALTER TABLE logical_availability ADD COLUMN recurrence_type_id VARCHAR NOT NULL REFERENCES recurrence_type DEFAULT 'NONE';
 ALTER TABLE logical_availability ADD COLUMN recur_sunday BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE logical_availability ADD COLUMN recur_monday BOOLEAN NOT NULL DEFAULT FALSE;
