@@ -91,11 +91,11 @@ public class ProviderApiResponse {
 	@Nullable
 	private final Boolean phoneNumberRequiredForAppointment;
 	@Nullable
-	private List<String> paymentFundingDescriptions;
+	private final List<String> paymentFundingDescriptions;
 	@Nullable
-	private String bioUrl;
+	private final String bioUrl;
 	@Nullable
-	private String bio;
+	private final String bio;
 
 	public enum ProviderApiResponseSupplement {
 		EVERYTHING,
@@ -166,7 +166,7 @@ public class ProviderApiResponse {
 		this.locale = provider.getLocale();
 		this.tags = provider.getTags() == null ? Collections.emptyList() : jsonMapper.toList(provider.getTags(), String.class);
 		this.bio = provider.getBio();
-		this.bioUrl =  provider.getBio() == null ? provider.getBioUrl() : String.format("%s/providers/%s", configuration.getWebappBaseUrl(provider.getInstitutionId()), providerId);
+		this.bioUrl =  provider.getBioUrl();
 
 		boolean includeEverything = supplementsList.contains(ProviderApiResponseSupplement.EVERYTHING);
 
@@ -305,5 +305,15 @@ public class ProviderApiResponse {
 	@Nullable
 	public List<String> getPaymentFundingDescriptions() {
 		return paymentFundingDescriptions;
+	}
+
+	@Nullable
+	public String getBioUrl() {
+		return bioUrl;
+	}
+
+	@Nullable
+	public String getBio() {
+		return bio;
 	}
 }
