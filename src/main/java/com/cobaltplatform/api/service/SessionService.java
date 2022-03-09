@@ -300,7 +300,7 @@ public class SessionService {
 																																									 @Nullable UUID appointmentTypeId,
 																																									 @Nonnull Boolean complete) {
 		if (appointmentTypeId != null) {
-			return database.queryForObject("SELECT acs.*  " +
+			Optional<AccountSession> accountSession = database.queryForObject("SELECT acs.*  " +
 							"FROM  " +
 							"account as a,  " +
 							"account_session as acs,  " +
@@ -314,13 +314,15 @@ public class SessionService {
 							"ata.appointment_type_id = pat.appointment_type_id AND " +
 							"pat.provider_id = ? AND  " +
 							"a.account_id = ? AND  " +
-							//"ata.active = ? AND " +
 							"acs.complete_flag = ? AND  " +
 							"acs.current_flag = ? AND  " +
 							"pat.appointment_type_id = ? " +
 							"ORDER by acs.created DESC LIMIT 1 "
 					, AccountSession.class, providerId,
 					account.getAccountId(), complete, true, appointmentTypeId);
+
+			if (accountSession.isPresent())
+				return accountSession;
 		}
 
 		return database.queryForObject("SELECT acs.* " +
