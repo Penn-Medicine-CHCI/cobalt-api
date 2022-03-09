@@ -116,6 +116,10 @@ public class AppointmentApiResponse {
 	private final VideoconferencePlatformId videoconferencePlatformId;
 	@Nonnull
 	private final SchedulingSystemId schedulingSystemId;
+	@Nonnull
+	private final Boolean canceledForReschedule;
+	@Nullable
+	private final UUID rescheduledAppointmentId;
 	@Nullable
 	private final Boolean canceled;
 	@Nullable
@@ -229,6 +233,8 @@ public class AppointmentApiResponse {
 		this.videoconferenceUrl = appointment.getVideoconferenceUrl();
 		this.videoconferencePlatformId = appointment.getVideoconferencePlatformId();
 		this.schedulingSystemId = appointment.getSchedulingSystemId();
+		this.rescheduledAppointmentId = appointment.getRescheduledAppointmentId();
+		this.canceledForReschedule = appointment.getCanceledForReschedule() == null ? false : appointment.getCanceledForReschedule();
 		this.canceled = appointment.getCanceled();
 		this.canceledAt = appointment.getCanceledAt();
 		this.canceledAtDescription = appointment.getCanceledAt() == null ? null : formatter.formatTimestamp(appointment.getCanceledAt());
@@ -391,6 +397,16 @@ public class AppointmentApiResponse {
 	@Nonnull
 	public SchedulingSystemId getSchedulingSystemId() {
 		return schedulingSystemId;
+	}
+
+	@Nonnull
+	public Boolean getCanceledForReschedule() {
+		return canceledForReschedule;
+	}
+
+	@Nullable
+	public UUID getRescheduledAppointmentId() {
+		return rescheduledAppointmentId;
 	}
 
 	@Nullable
