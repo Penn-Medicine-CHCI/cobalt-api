@@ -503,18 +503,15 @@ public class ProviderService {
 			boolean intakeAssessmentRequired = false;
 			boolean intakeAssessmentIneligible = false;
 
-			// Native scheduling providers can have per-appointment-type assessments, so skip this logic
-			if(!nativeSchedulingProviderIds.contains(provider.getProviderId())) {
-				Optional<Assessment> intakeAssessment = getAssessmentService().findIntakeAssessmentByProviderId(provider.getProviderId(), null);
-				intakeAssessmentRequired = intakeAssessment.isPresent();
+			Optional<Assessment> intakeAssessment = getAssessmentService().findIntakeAssessmentByProviderId(provider.getProviderId(), null);
+			intakeAssessmentRequired = intakeAssessment.isPresent();
 
 
-				if (intakeAssessment.isPresent()) {
-					Optional<AccountSession> accountSession = getSessionService()
-							.findCurrentIntakeAssessmentForAccountAndProvider(account, provider.getProviderId(), null,true);
-					if (accountSession.isPresent())
-						intakeAssessmentIneligible = !getAssessmentScoringService().isBookingAllowed(accountSession.get());
-				}
+			if (intakeAssessment.isPresent()) {
+				Optional<AccountSession> accountSession = getSessionService()
+						.findCurrentIntakeAssessmentForAccountAndProvider(account, provider.getProviderId(), null, true);
+				if (accountSession.isPresent())
+					intakeAssessmentIneligible = !getAssessmentScoringService().isBookingAllowed(accountSession.get());
 			}
 
 			List<AvailabilityDate> dates = new ArrayList<>();
