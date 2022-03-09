@@ -171,7 +171,7 @@ public class AvailabilityService {
 		if (endTime == null)
 			validationException.add(new FieldError("endTime", getStrings().get("End time is required.")));
 
-		if(endDate == null && recurrenceTypeId == RecurrenceTypeId.NONE)
+		if (endDate == null && recurrenceTypeId == RecurrenceTypeId.NONE)
 			validationException.add(new FieldError("endDate", getStrings().get("End date is required.")));
 
 		List<AppointmentType> appointmentTypes = appointmentTypeIds.stream()
@@ -279,7 +279,7 @@ public class AvailabilityService {
 		if (endTime == null)
 			validationException.add(new FieldError("endTime", getStrings().get("End time is required.")));
 
-		if(endDate == null && recurrenceTypeId == RecurrenceTypeId.NONE)
+		if (endDate == null && recurrenceTypeId == RecurrenceTypeId.NONE)
 			validationException.add(new FieldError("endDate", getStrings().get("End date is required.")));
 
 		List<AppointmentType> appointmentTypes = appointmentTypeIds.stream()
@@ -712,37 +712,39 @@ public class AvailabilityService {
 
 				// For each date within the range...
 				while (currentDate.isEqual(endDate) || currentDate.isBefore(endDate)) {
-					// If recurrence rule is enabled for the day...
-					if ((currentDate.getDayOfWeek() == DayOfWeek.MONDAY && logicalAvailability.getRecurMonday())
-							|| (currentDate.getDayOfWeek() == DayOfWeek.TUESDAY && logicalAvailability.getRecurTuesday())
-							|| (currentDate.getDayOfWeek() == DayOfWeek.WEDNESDAY && logicalAvailability.getRecurWednesday())
-							|| (currentDate.getDayOfWeek() == DayOfWeek.THURSDAY && logicalAvailability.getRecurThursday())
-							|| (currentDate.getDayOfWeek() == DayOfWeek.FRIDAY && logicalAvailability.getRecurFriday())
-							|| (currentDate.getDayOfWeek() == DayOfWeek.SATURDAY && logicalAvailability.getRecurSaturday())
-							|| (currentDate.getDayOfWeek() == DayOfWeek.SUNDAY && logicalAvailability.getRecurSunday())) {
-						// ...normalize the logical availability's start and end times to be "today"
-						LocalDateTime currentStartDateTime = LocalDateTime.of(currentDate, logicalAvailability.getStartDateTime().toLocalTime());
-						LocalDateTime currentEndDateTime = LocalDateTime.of(currentDate, logicalAvailability.getEndDateTime().toLocalTime());
+					if ((currentDate.isEqual(logicalAvailability.getStartDateTime().toLocalDate()) || currentDate.isAfter(logicalAvailability.getStartDateTime().toLocalDate()))
+							&& (currentDate.isEqual(logicalAvailability.getEndDateTime().toLocalDate()) || currentDate.isBefore(logicalAvailability.getEndDateTime().toLocalDate()))) {
+						// If recurrence rule is enabled for the day...
+						if ((currentDate.getDayOfWeek() == DayOfWeek.MONDAY && logicalAvailability.getRecurMonday())
+								|| (currentDate.getDayOfWeek() == DayOfWeek.TUESDAY && logicalAvailability.getRecurTuesday())
+								|| (currentDate.getDayOfWeek() == DayOfWeek.WEDNESDAY && logicalAvailability.getRecurWednesday())
+								|| (currentDate.getDayOfWeek() == DayOfWeek.THURSDAY && logicalAvailability.getRecurThursday())
+								|| (currentDate.getDayOfWeek() == DayOfWeek.FRIDAY && logicalAvailability.getRecurFriday())
+								|| (currentDate.getDayOfWeek() == DayOfWeek.SATURDAY && logicalAvailability.getRecurSaturday())
+								|| (currentDate.getDayOfWeek() == DayOfWeek.SUNDAY && logicalAvailability.getRecurSunday())) {
+							// ...normalize the logical availability's start and end times to be "today"
+							LocalDateTime currentStartDateTime = LocalDateTime.of(currentDate, logicalAvailability.getStartDateTime().toLocalTime());
+							LocalDateTime currentEndDateTime = LocalDateTime.of(currentDate, logicalAvailability.getEndDateTime().toLocalTime());
 
-						if (logicalAvailability.getLogicalAvailabilityTypeId() == LogicalAvailabilityTypeId.OPEN) {
-							Availability availability = new Availability();
-							availability.setLogicalAvailabilityId(logicalAvailability.getLogicalAvailabilityId());
-							availability.setStartDateTime(currentStartDateTime);
-							availability.setEndDateTime(currentEndDateTime);
-							availability.setAppointmentTypes(new ArrayList<>(appointmentTypes));
-							availabilities.add(availability);
-						} else if (logicalAvailability.getLogicalAvailabilityTypeId() == LogicalAvailabilityTypeId.BLOCK) {
-							Block block = new Block();
-							block.setLogicalAvailabilityId(logicalAvailability.getLogicalAvailabilityId());
-							block.setStartDateTime(currentStartDateTime);
-							block.setEndDateTime(currentEndDateTime);
-							blocks.add(block);
-						} else {
-							throw new IllegalStateException(format("Not sure how to handle %s.%s", LogicalAvailabilityTypeId.class.getSimpleName(),
-									logicalAvailability.getLogicalAvailabilityTypeId().name()));
+							if (logicalAvailability.getLogicalAvailabilityTypeId() == LogicalAvailabilityTypeId.OPEN) {
+								Availability availability = new Availability();
+								availability.setLogicalAvailabilityId(logicalAvailability.getLogicalAvailabilityId());
+								availability.setStartDateTime(currentStartDateTime);
+								availability.setEndDateTime(currentEndDateTime);
+								availability.setAppointmentTypes(new ArrayList<>(appointmentTypes));
+								availabilities.add(availability);
+							} else if (logicalAvailability.getLogicalAvailabilityTypeId() == LogicalAvailabilityTypeId.BLOCK) {
+								Block block = new Block();
+								block.setLogicalAvailabilityId(logicalAvailability.getLogicalAvailabilityId());
+								block.setStartDateTime(currentStartDateTime);
+								block.setEndDateTime(currentEndDateTime);
+								blocks.add(block);
+							} else {
+								throw new IllegalStateException(format("Not sure how to handle %s.%s", LogicalAvailabilityTypeId.class.getSimpleName(),
+										logicalAvailability.getLogicalAvailabilityTypeId().name()));
+							}
 						}
 					}
-
 					currentDate = currentDate.plusDays(1);
 				}
 			} else {
