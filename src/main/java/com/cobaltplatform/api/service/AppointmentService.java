@@ -307,7 +307,7 @@ public class AppointmentService {
 			return Collections.emptyList();
 
 		return getDatabase().queryForList("SELECT * FROM appointment WHERE account_id = ? AND provider_id=? AND canceled=FALSE " +
-				"AND start_time >= ?  ORDER BY start_time DESC", Appointment.class, accountId, providerId, LocalDate.now(timeZone));
+				"AND start_time >= ?  ORDER BY start_time ASC", Appointment.class, accountId, providerId, LocalDate.now(timeZone));
 	}
 
 
@@ -1981,6 +1981,11 @@ public class AppointmentService {
 
 		if (provider.getVideoconferencePlatformId() == VideoconferencePlatformId.SWITCHBOARD) {
 			getLogger().debug("Provider {} uses Switchboard, do not send a provider score email.", provider.getName());
+			return;
+		}
+
+		if (provider.getSchedulingSystemId() == SchedulingSystemId.COBALT) {
+			getLogger().debug("Provider {} uses native scheduling, do not send a provider score email.", provider.getName());
 			return;
 		}
 

@@ -20,9 +20,6 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.Configuration;
-import com.google.inject.assistedinject.Assisted;
-import com.google.inject.assistedinject.AssistedInject;
-import com.lokalized.Strings;
 import com.cobaltplatform.api.model.api.response.AvailabilityTimeApiResponse.AvailabilityTimeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -33,6 +30,9 @@ import com.cobaltplatform.api.model.service.AvailabilityTime;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
+import com.google.inject.assistedinject.Assisted;
+import com.google.inject.assistedinject.AssistedInject;
+import com.lokalized.Strings;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -47,7 +47,9 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -91,11 +93,11 @@ public class ProviderApiResponse {
 	@Nullable
 	private final Boolean phoneNumberRequiredForAppointment;
 	@Nullable
-	private List<String> paymentFundingDescriptions;
+	private final List<String> paymentFundingDescriptions;
 	@Nullable
-	private String bioUrl;
+	private final String bioUrl;
 	@Nullable
-	private String bio;
+	private final String bio;
 
 	public enum ProviderApiResponseSupplement {
 		EVERYTHING,
@@ -165,8 +167,22 @@ public class ProviderApiResponse {
 		this.timeZone = provider.getTimeZone();
 		this.locale = provider.getLocale();
 		this.tags = provider.getTags() == null ? Collections.emptyList() : jsonMapper.toList(provider.getTags(), String.class);
-		this.bio = provider.getBio();
-		this.bioUrl =  provider.getBio() == null ? provider.getBioUrl() : String.format("%s/providers/%s", configuration.getWebappBaseUrl(provider.getInstitutionId()), providerId);
+		this.bioUrl = trimToNull(provider.getBioUrl());
+
+		String bio = trimToNull(provider.getBio());
+
+		if (bio != null) {
+			// HTML-ify line breaks if we do have a bio
+			bio = bio.replace("\n", "<br/>");
+		} else if (bioUrl != null) {
+			// Make a synthetic bio if we have a URL but no real bio
+			bio = format(strings.get("<a target='_blank' href='{{bioUrl}}'>Click here to read more about {{providerName}}</a>", new HashMap<String, Object>() {{
+				put("bioUrl", bioUrl);
+				put("providerName", getName());
+			}}));
+		}
+
+		this.bio = bio;
 
 		boolean includeEverything = supplementsList.contains(ProviderApiResponseSupplement.EVERYTHING);
 
@@ -305,5 +321,15 @@ public class ProviderApiResponse {
 	@Nullable
 	public List<String> getPaymentFundingDescriptions() {
 		return paymentFundingDescriptions;
+	}
+
+	@Nullable
+	public String getBioUrl() {
+		return bioUrl;
+	}
+
+	@Nullable
+	public String getBio() {
+		return bio;
 	}
 }
