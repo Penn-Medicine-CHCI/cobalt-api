@@ -208,7 +208,7 @@ public class InteractionService {
 
 		getDatabase().execute("INSERT INTO interaction_instance (interaction_instance_id, interaction_id, account_id, start_date_time, "
 						+ "time_zone, metadata, hipaa_compliant_metadata) VALUES (?,?,?,?,?,CAST (? AS JSONB),CAST (? AS JSONB))", interactionInstanceId,
-				interactionId, accountId, startDateTime, timeZone, metadata, hipaaCompliantMetadata);
+				interactionId, accountId, startDateTime, timeZone, getJsonMapper().toJson(metadata), getJsonMapper().toJson(hipaaCompliantMetadata));
 
 		createInteractionInstanceMessages(interactionInstanceId, startDateTime, timeZone);
 
