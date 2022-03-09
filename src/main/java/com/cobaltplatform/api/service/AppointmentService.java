@@ -299,6 +299,17 @@ public class AppointmentService {
 				"AND start_time >= ? AND start_time <= ? ORDER BY start_time DESC", Appointment.class, providerId, startDate, endDate);
 	}
 
+	@Nonnull
+	public List<Appointment> findUpcomingAppointmentsByAccountIdAndProviderId(@Nullable UUID accountId,
+																																						@Nullable UUID providerId,
+																																						@Nullable ZoneId timeZone) {
+		if (providerId == null || accountId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("SELECT * FROM appointment WHERE account_id = ? AND provider_id=? AND canceled=FALSE " +
+				"AND start_time >= ?  ORDER BY start_time DESC", Appointment.class, accountId, providerId, LocalDate.now(timeZone));
+	}
+
 
 	@Nonnull
 	public List<Appointment> findRecentAppointmentsByAccountId(@Nullable UUID accountId,
@@ -1193,13 +1204,18 @@ public class AppointmentService {
 			getAuditLogService().audit(auditLog);
 		}
 
+		Optional<Assessment> intakeAssessment = getAssessmentService().findAssessmentById(intakeAssessmentId);
+		UUID intakeAccountSessionId = null;
+		if (intakeAssessment.isPresent())
+			intakeAccountSessionId = getSessionService().findCurrentAccountSessionForAssessment(account, intakeAssessment.get()).get().getAccountSessionId();
+
 		getDatabase().execute("INSERT INTO appointment (appointment_id, provider_id, account_id, created_by_account_id, " +
 						"appointment_type_id, acuity_appointment_id, acuity_class_id, bluejeans_meeting_id, bluejeans_participant_passcode, title, start_time, end_time, " +
 						"duration_in_minutes, time_zone, videoconference_url, epic_contact_id, epic_contact_id_type, videoconference_platform_id, " +
-						"phone_number, appointment_reason_id, comment, intake_assessment_id, scheduling_system_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", appointmentId, providerId,
+						"phone_number, appointment_reason_id, comment, intake_assessment_id, scheduling_system_id, intake_account_session_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", appointmentId, providerId,
 				accountId, createdByAccountId, appointmentTypeId, acuityAppointmentId, acuityClassId, bluejeansMeetingId, bluejeansParticipantPasscode,
 				title, meetingStartTime, meetingEndTime, durationInMinutes, timeZone, videoconferenceUrl, epicContactId,
-				epicContactIdType, videoconferencePlatformId, appointmentPhoneNumber, appointmentReasonId, comment, intakeAssessmentId, appointmentType.getSchedulingSystemId());
+				epicContactIdType, videoconferencePlatformId, appointmentPhoneNumber, appointmentReasonId, comment, intakeAssessmentId, appointmentType.getSchedulingSystemId(), intakeAccountSessionId);
 
 		if (provider != null) {
 			sendProviderScoreEmail(provider, account, emailAddress, phoneNumber, videoconferenceUrl,
@@ -1344,12 +1360,12 @@ public class AppointmentService {
 			int questionNumber = i + 1;
 
 			if (question == null)
-				validationException.add(new FieldError(format("patientIntakeQuestions[%d].question"), getStrings().get("Question text is required for patient intake question {{questionNumber}}.", new HashMap<String, Object>() {{
+				validationException.add(new FieldError(format("patientIntakeQuestions[%d].question", questionNumber), getStrings().get("Question text is required for patient intake question {{questionNumber}}.", new HashMap<String, Object>() {{
 					put("questionNumber", questionNumber);
 				}})));
 
 			if (fontSizeId == null)
-				validationException.add(new FieldError(format("patientIntakeQuestions[%d].fontSizeId"), getStrings().get("Font size is required for patient intake question {{questionNumber}}.", new HashMap<String, Object>() {{
+				validationException.add(new FieldError(format("patientIntakeQuestions[%d].fontSizeId", questionNumber), getStrings().get("Font size is required for patient intake question {{questionNumber}}.", new HashMap<String, Object>() {{
 					put("questionNumber", questionNumber);
 				}})));
 		}
@@ -1361,12 +1377,12 @@ public class AppointmentService {
 			int questionNumber = i + 1;
 
 			if (question == null)
-				validationException.add(new FieldError(format("screeningQuestions[%d].question"), getStrings().get("Question text is required for screening question {{questionNumber}}.", new HashMap<String, Object>() {{
+				validationException.add(new FieldError(format("screeningQuestions[%d].question", questionNumber), getStrings().get("Question text is required for screening question {{questionNumber}}.", new HashMap<String, Object>() {{
 					put("questionNumber", questionNumber);
 				}})));
 
 			if (fontSizeId == null)
-				validationException.add(new FieldError(format("screeningQuestions[%d].fontSizeId"), getStrings().get("Font size is required for screening question {{questionNumber}}.", new HashMap<String, Object>() {{
+				validationException.add(new FieldError(format("screeningQuestions[%d].fontSizeId", questionNumber), getStrings().get("Font size is required for screening question {{questionNumber}}.", new HashMap<String, Object>() {{
 					put("questionNumber", questionNumber);
 				}})));
 		}
@@ -1476,12 +1492,12 @@ public class AppointmentService {
 			int questionNumber = i + 1;
 
 			if (question == null)
-				validationException.add(new FieldError(format("patientIntakeQuestions[%d].question"), getStrings().get("Question text is required for patient intake question {{questionNumber}}.", new HashMap<String, Object>() {{
+				validationException.add(new FieldError(format("patientIntakeQuestions[%d].question", questionNumber), getStrings().get("Question text is required for patient intake question {{questionNumber}}.", new HashMap<String, Object>() {{
 					put("questionNumber", questionNumber);
 				}})));
 
 			if (fontSizeId == null)
-				validationException.add(new FieldError(format("patientIntakeQuestions[%d].fontSizeId"), getStrings().get("Font size is required for patient intake question {{questionNumber}}.", new HashMap<String, Object>() {{
+				validationException.add(new FieldError(format("patientIntakeQuestions[%d].fontSizeId", questionNumber), getStrings().get("Font size is required for patient intake question {{questionNumber}}.", new HashMap<String, Object>() {{
 					put("questionNumber", questionNumber);
 				}})));
 		}
@@ -1493,12 +1509,12 @@ public class AppointmentService {
 			int questionNumber = i + 1;
 
 			if (question == null)
-				validationException.add(new FieldError(format("screeningQuestions[%d].question"), getStrings().get("Question text is required for screening question {{questionNumber}}.", new HashMap<String, Object>() {{
+				validationException.add(new FieldError(format("screeningQuestions[%d].question", questionNumber), getStrings().get("Question text is required for screening question {{questionNumber}}.", new HashMap<String, Object>() {{
 					put("questionNumber", questionNumber);
 				}})));
 
 			if (fontSizeId == null)
-				validationException.add(new FieldError(format("screeningQuestions[%d].fontSizeId"), getStrings().get("Font size is required for screening question {{questionNumber}}.", new HashMap<String, Object>() {{
+				validationException.add(new FieldError(format("screeningQuestions[%d].fontSizeId", questionNumber), getStrings().get("Font size is required for screening question {{questionNumber}}.", new HashMap<String, Object>() {{
 					put("questionNumber", questionNumber);
 				}})));
 		}
@@ -1581,7 +1597,7 @@ public class AppointmentService {
 
 				// Careful: display order must start at 1, not 0
 				getDatabase().execute("INSERT INTO question (question_id, assessment_id, question_type_id, font_size_id, " +
-						"question_text, display_order) VALUES (?,?,?,?,?,?)", mostRecentQuestionId, assessmentId, QuestionTypeId.QUAD, fontSizeId, screeningQuestion, i + 1);
+						"question_text, display_order, is_root_question) VALUES (?,?,?,?,?,?,?)", mostRecentQuestionId, assessmentId, QuestionTypeId.QUAD, fontSizeId, screeningQuestion, i + 1, true);
 
 				getDatabase().execute("INSERT INTO answer (answer_id, question_id, answer_text, display_order, " +
 						"answer_value, next_question_id) VALUES (?,?,?,?,?,?)", answerYesId, mostRecentQuestionId, getStrings().get("Yes"), 1, 1, nextQuestionId);
@@ -1603,8 +1619,8 @@ public class AppointmentService {
 
 				// Careful: display order must start at 1, not 0
 				getDatabase().execute("INSERT INTO question (question_id, assessment_id, question_type_id, font_size_id, " +
-								"question_content_hint_id, question_text, display_order) VALUES (?,?,?,?,?,?,?)", mostRecentQuestionId,
-						assessmentId, questionTypeId, fontSizeId, questionContentHintId, screeningQuestion, i + 1);
+								"question_content_hint_id, question_text, display_order, is_root_question) VALUES (?,?,?,?,?,?,?,?)", mostRecentQuestionId,
+						assessmentId, questionTypeId, fontSizeId, questionContentHintId, screeningQuestion, i + 1, true);
 
 				getDatabase().execute("INSERT INTO answer (answer_id, question_id, answer_text, display_order, " +
 						"answer_value, next_question_id) VALUES (?,?,?,?,?,?)", answerId, mostRecentQuestionId, getStrings().get("Type here"), 1, 1, nextQuestionId);

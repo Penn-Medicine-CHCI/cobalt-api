@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.db.AccountSessionAnswer;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import com.cobaltplatform.api.model.api.request.PersonalizeAssessmentChoicesCommand.SubmissionAnswer;
@@ -82,10 +83,10 @@ public class AssessmentFormApiResponse {
 																	 @Assisted @Nonnull Assessment assessment,
 																	 @Assisted @Nonnull Optional<AccountSession> accountSession,
 																	 @Assisted @Nonnull AssessmentFormApiResponseType assessmentFormApiResponseType) {
-		final Map<UUID, List<Answer>> previousAnswersByQuestionId;
+		final Map<UUID, List<AccountSessionAnswer>> previousAnswersByQuestionId;
 		if (accountSession.isPresent()) {
-			previousAnswersByQuestionId = sessionService.findAnswersForSession(accountSession.get())
-					.stream().collect(groupingBy(Answer::getQuestionId));
+			previousAnswersByQuestionId = sessionService.findAccountSessionAnswersForAccountSessionId(accountSession.get().getAccountSessionId())
+					.stream().collect(groupingBy(AccountSessionAnswer::getQuestionId));
 		} else {
 			previousAnswersByQuestionId = Collections.emptyMap();
 		}
@@ -97,7 +98,7 @@ public class AssessmentFormApiResponse {
 	}
 
 	private AssessmentQuestion generateQuestionResponse(@Nonnull AssessmentService assessmentService,
-																											@Nonnull Map<UUID, List<Answer>> previousAnswersByQuestionId,
+																											@Nonnull Map<UUID, List<AccountSessionAnswer>> previousAnswersByQuestionId,
 																											@Nonnull Question question,
 																											@Nonnull AssessmentFormApiResponseType assessmentFormApiResponseType) {
 

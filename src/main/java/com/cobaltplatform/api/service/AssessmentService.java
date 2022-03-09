@@ -132,7 +132,7 @@ public class AssessmentService {
 	public Optional<Assessment> findIntakeAssessmentByProviderId(@Nonnull UUID providerId,
 																															 @Nullable UUID appointmentTypeId) {
 		if(appointmentTypeId != null) {
-			return database.queryForObject(
+			Optional<Assessment> assessment =  database.queryForObject(
 					"SELECT a.* FROM assessment as a, provider p, provider_appointment_type pat, v_appointment_type at WHERE " +
 							"p.provider_id = pat.provider_id AND pat.appointment_type_id = at.appointment_type_id " +
 							"AND at.assessment_id = a.assessment_id " +
@@ -140,6 +140,9 @@ public class AssessmentService {
 					Assessment.class,
 					providerId, appointmentTypeId
 			);
+
+			if (assessment.isPresent())
+				return assessment;
 		}
 
 		return database.queryForObject(
