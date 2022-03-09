@@ -1984,6 +1984,11 @@ public class AppointmentService {
 			return;
 		}
 
+		if (provider.getSchedulingSystemId() == SchedulingSystemId.COBALT) {
+			getLogger().debug("Provider {} uses native scheduling, do not send a provider score email.", provider.getName());
+			return;
+		}
+
 		Optional<EvidenceScores> evidenceScores = getAssessmentScoringService().getEvidenceAssessmentRecommendation(account);
 		String intakeAssessmentAnswerString = intakeSession == null ? getStrings().get("No intake responses") :
 				getSessionService().findAnswersForSession(intakeSession).stream()
