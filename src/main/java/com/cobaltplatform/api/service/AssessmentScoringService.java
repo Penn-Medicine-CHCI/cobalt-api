@@ -219,7 +219,7 @@ public class AssessmentScoringService {
 		if (crisisAccount.getPhoneNumber() != null)
 			htmlListItems.add(createHtmlListItem(getStrings().get("Phone Number", locale), format("<a href='tel:%s'>%s</a>", crisisAccount.getPhoneNumber(), getFormatter().formatPhoneNumber(crisisAccount.getPhoneNumber(), locale)), false));
 		else if (crisisAccount.getEmailAddress() != null)
-			htmlListItems.add(createHtmlListItem(getStrings().get("Email Address", locale), format("<a href='mailto:%s'>%s</a>", crisisAccount.getEmailAddress(), crisisAccount.getEmailAddress())));
+			htmlListItems.add(createHtmlListItem(getStrings().get("Email Address", locale), format("<a href='mailto:%s'>%s</a>", crisisAccount.getEmailAddress(), crisisAccount.getEmailAddress()), false));
 		else
 			htmlListItems.add(createHtmlListItem(getStrings().get("Contact Information", locale), getStrings().get("None Available", locale)));
 
@@ -255,7 +255,7 @@ public class AssessmentScoringService {
 		if (crisisAccount.getPhoneNumber() != null)
 			htmlListItems.add(createHtmlListItem(getStrings().get("Phone Number", locale), format("<a href='tel:%s'>%s</a>", crisisAccount.getPhoneNumber(), getFormatter().formatPhoneNumber(crisisAccount.getPhoneNumber(), locale)), false));
 		if (crisisAccount.getEmailAddress() != null)
-			htmlListItems.add(createHtmlListItem(getStrings().get("Email Address", locale), format("<a href='mailto:%s'>%s</a>", crisisAccount.getEmailAddress(), crisisAccount.getEmailAddress())));
+			htmlListItems.add(createHtmlListItem(getStrings().get("Email Address", locale), format("<a href='mailto:%s'>%s</a>", crisisAccount.getEmailAddress(), crisisAccount.getEmailAddress()), false));
 		if (evidenceScores.getPhq4Recommendation().getAnswers() != null)
 			htmlListItems.add(createHtmlListItem(getStrings().get("PHQ4 Answers", locale), evidenceScores.getPhq4Recommendation().getAnswers()));
 		if (evidenceScores.getPhq9Recommendation().getAnswers() != null)
