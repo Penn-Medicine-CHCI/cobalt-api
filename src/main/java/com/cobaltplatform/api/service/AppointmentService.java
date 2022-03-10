@@ -1676,7 +1676,7 @@ public class AppointmentService {
 		Account account = getAccountService().findAccountById(appointment.getAccountId()).get();
 		Provider provider = getProviderService().findProviderById(appointment.getProviderId()).get();
 
-		String appointmentStartDateTimeDescription = getFormatter().formatDateTime(appointment.getStartTime());
+		String appointmentStartDateTimeDescription = getFormatter().formatDateTime(appointment.getStartTime(), FormatStyle.LONG, FormatStyle.SHORT);
 		String appointmentStartDateDescription = getFormatter().formatDate(appointment.getStartTime().toLocalDate());
 		String appointmentStartTimeDescription = getFormatter().formatTime(appointment.getStartTime().toLocalTime(), FormatStyle.SHORT);
 		String accountName = getAccountService().determineDisplayName(account);
@@ -1743,7 +1743,7 @@ public class AppointmentService {
 		Account account = getAccountService().findAccountById(appointment.getAccountId()).get();
 		Provider provider = getProviderService().findProviderById(appointment.getProviderId()).get();
 
-		String appointmentStartDateTimeDescription = getFormatter().formatDateTime(appointment.getStartTime());
+		String appointmentStartDateTimeDescription = getFormatter().formatDateTime(appointment.getStartTime(), FormatStyle.LONG, FormatStyle.SHORT);
 		String appointmentStartDateDescription = getFormatter().formatDate(appointment.getStartTime().toLocalDate());
 		String appointmentStartTimeDescription = getFormatter().formatTime(appointment.getStartTime().toLocalTime(), FormatStyle.SHORT);
 		String accountName = getAccountService().determineDisplayName(account);
