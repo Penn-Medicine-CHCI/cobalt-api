@@ -31,6 +31,8 @@ import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.LogicalAvailability;
+import com.cobaltplatform.api.model.db.LogicalAvailabilityType;
 import com.cobaltplatform.api.model.db.PaymentFunding;
 import com.cobaltplatform.api.model.db.PaymentFunding.PaymentFundingId;
 import com.cobaltplatform.api.model.db.PaymentType;
@@ -43,6 +45,8 @@ import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.db.SystemAffinity.SystemAffinityId;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
+import com.cobaltplatform.api.model.service.AppointmentTypeWithLogicalAvailabilityId;
+import com.cobaltplatform.api.model.service.AppointmentTypeWithProviderId;
 import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityStatus;
@@ -56,11 +60,13 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.time.DayOfWeek;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -490,6 +496,16 @@ public class ProviderService {
 
 		List<ProviderFind> providerFinds = new ArrayList<>(providers.size());
 
+		// Special handling for native scheduling: precalculate all logical availability/appointment type data for the
+		// specified providers up-front so we can use it further down to build availability date/time slots
+		Set<UUID> nativeSchedulingProviderIds = providers.stream()
+				.filter(provider -> provider.getSchedulingSystemId() == SchedulingSystemId.COBALT)
+				.map(provider -> provider.getProviderId())
+				.collect(Collectors.toSet());
+
+		NativeSchedulingAvailabilityData nativeSchedulingAvailabilityData = loadNativeSchedulingAvailabilityData(nativeSchedulingProviderIds,
+				visitTypeIds, currentDateTime, currentDateTime.plusMonths(1) /* arbitrarily cap at 1 month ahead */);
+
 		for (Provider provider : providers) {
 			boolean intakeAssessmentRequired = false;
 			boolean intakeAssessmentIneligible = false;
@@ -506,6 +522,7 @@ public class ProviderService {
 					intakeAssessmentIneligible = !getAssessmentScoringService().isBookingAllowed(accountSession);
 			}
 
+			// Figure out the final set of availability dates/times for this provider
 			AvailabilityDatesCommand datesCommand = new AvailabilityDatesCommand();
 			datesCommand.setProvider(provider);
 			datesCommand.setVisitTypeIds(visitTypeIds);
@@ -521,7 +538,7 @@ public class ProviderService {
 
 			// Different code path for Cobalt native scheduling: use synthetic "provider availability" records
 			if (provider.getSchedulingSystemId() == SchedulingSystemId.COBALT)
-				dates.addAll(availabilityDatesForNativeScheduling(datesCommand));
+				dates.addAll(availabilityDatesForNativeScheduling(nativeSchedulingAvailabilityData));
 			else
 				dates.addAll(availabilityDatesForNonNativeScheduling(datesCommand));
 
@@ -627,8 +644,101 @@ public class ProviderService {
 	}
 
 	@Nonnull
-	protected List<AvailabilityDate> availabilityDatesForNativeScheduling(@Nonnull AvailabilityDatesCommand command) {
-		requireNonNull(command);
+	protected NativeSchedulingAvailabilityData loadNativeSchedulingAvailabilityData(@Nonnull Set<UUID> providerIds,
+																																									@Nonnull Set<VisitTypeId> visitTypeIds,
+																																									@Nonnull LocalDateTime startDateTime,
+																																									@Nonnull LocalDateTime endDateTime) {
+		requireNonNull(providerIds);
+		requireNonNull(visitTypeIds);
+		requireNonNull(startDateTime);
+		requireNonNull(endDateTime);
+
+		if (startDateTime.isEqual(endDateTime) || startDateTime.isAfter(endDateTime))
+			return NativeSchedulingAvailabilityData.empty();
+
+		providerIds = providerIds.stream()
+				.filter(providerId -> providerId != null)
+				.collect(Collectors.toSet());
+
+		if (providerIds.size() == 0)
+			return NativeSchedulingAvailabilityData.empty();
+
+		if (visitTypeIds == null)
+			visitTypeIds = Collections.emptySet();
+		else
+			visitTypeIds = visitTypeIds.stream().filter(visitTypeId -> visitTypeId != null).collect(Collectors.toSet());
+
+		Instant now = Instant.now();
+		Set<VisitTypeId> pinnedVisitTypeIds = visitTypeIds;
+
+		// e.g. "(?),(?),(?)" for Postgres' VALUES clause (faster than IN list)
+		String providerIdValuesSql = providerIds.stream().map(providerId -> "(?)").collect(Collectors.joining(","));
+
+		// Pull only those logical availabilities that are for active providers and have not already ended
+		String logicalAvailabilitiesSql = format("SELECT la.* FROM logical_availability la, provider p " +
+				"WHERE p.provider_id=la.provider_id AND p.active=TRUE AND p.provider_id IN (VALUES %s) " +
+				"AND la.logical_availability_type_id=? AND (la.end_date_time IS NULL OR la.end_date_time > ?)", providerIdValuesSql);
+
+		List<Object> logicalAvailabilityParameters = new ArrayList<>(providerIds.size() + 1);
+		logicalAvailabilityParameters.addAll(providerIds);
+		logicalAvailabilityParameters.add(LogicalAvailabilityType.LogicalAvailabilityTypeId.OPEN);
+		logicalAvailabilityParameters.add(startDateTime);
+
+		Map<UUID, List<LogicalAvailability>> logicalAvailabilitiesByProviderId = getDatabase().queryForList(logicalAvailabilitiesSql, LogicalAvailability.class,
+						logicalAvailabilityParameters.toArray()).stream()
+				.collect(Collectors.groupingBy(LogicalAvailability::getProviderId));
+
+		// Pull appointment types associated with logical availabilities
+		String logicalAvailabilityAppointmentTypesSql = format("SELECT apt.*, la.logical_availability_id FROM v_appointment_type apt, logical_availability la, logical_availability_appointment_type laat, provider p " +
+				"WHERE laat.appointment_type_id=apt.appointment_type_id AND laat.logical_availability_id=la.logical_availability_id " +
+				"AND la.logical_availability_type_id=? AND la.provider_id=p.provider_id AND p.active=TRUE AND p.provider_id IN (VALUES %s)", providerIdValuesSql);
+
+		List<Object> logicalAvailabilityAppointmentTypeParameters = new ArrayList<>();
+		logicalAvailabilityAppointmentTypeParameters.add(LogicalAvailabilityType.LogicalAvailabilityTypeId.OPEN);
+		logicalAvailabilityAppointmentTypeParameters.addAll(providerIds);
+
+		List<AppointmentTypeWithLogicalAvailabilityId> logicalAvailabilityAppointmentTypes = getDatabase().queryForList(logicalAvailabilityAppointmentTypesSql,
+						AppointmentTypeWithLogicalAvailabilityId.class, logicalAvailabilityAppointmentTypeParameters.toArray()).stream()
+				.filter((appointmentType -> {
+					// If visit types specified, filter
+					if (pinnedVisitTypeIds.size() > 0)
+						return pinnedVisitTypeIds.contains(appointmentType.getVisitTypeId());
+
+					return true;
+				}))
+				.collect(Collectors.toList());
+
+		Map<UUID, List<AppointmentTypeWithLogicalAvailabilityId>> appointmentTypesByLogicalAvailabilityId = logicalAvailabilityAppointmentTypes.stream()
+				.collect(Collectors.groupingBy(AppointmentTypeWithLogicalAvailabilityId::getLogicalAvailabilityId));
+
+		// Pull all appointment types for active providers
+		String allActiveAppointmentTypesSql = format("SELECT apt.*, p.provider_id FROM appointment_type apt, provider_appointment_type pat, provider p " +
+				"WHERE pat.appointment_type_id=apt.appointment_type_id " +
+				"AND pat.provider_id=p.provider_id AND p.active=TRUE AND p.provider_id IN (VALUES %s)", providerIdValuesSql);
+
+		List<Object> allActiveAppointmentTypesParameters = new ArrayList<>(providerIds.size() + visitTypeIds.size());
+		allActiveAppointmentTypesParameters.addAll(providerIds);
+
+		if (visitTypeIds.size() > 0) {
+			allActiveAppointmentTypesParameters.addAll(visitTypeIds);
+			// e.g. "(?),(?),(?)" for Postgres' VALUES clause (faster than IN list)
+			String visitTypeIdValuesSql = visitTypeIds.stream().map(visitTypeId -> "(?)").collect(Collectors.joining(","));
+			allActiveAppointmentTypesSql = format("%s AND apt.visit_type_id IN (VALUES %s)", allActiveAppointmentTypesSql, visitTypeIdValuesSql);
+		}
+
+		List<AppointmentTypeWithProviderId> allActiveAppointmentTypes = getDatabase().queryForList(allActiveAppointmentTypesSql,
+				AppointmentTypeWithProviderId.class, allActiveAppointmentTypesParameters.toArray());
+
+		Map<UUID, List<AppointmentTypeWithProviderId>> allActiveAppointmentTypesByProviderId = allActiveAppointmentTypes.stream()
+				.collect(Collectors.groupingBy(AppointmentTypeWithProviderId::getProviderId));
+
+		return new NativeSchedulingAvailabilityData(logicalAvailabilitiesByProviderId,
+				appointmentTypesByLogicalAvailabilityId, allActiveAppointmentTypesByProviderId);
+	}
+
+	@Nonnull
+	protected List<AvailabilityDate> availabilityDatesForNativeScheduling(@Nonnull NativeSchedulingAvailabilityData nativeSchedulingAvailabilityData) {
+		requireNonNull(nativeSchedulingAvailabilityData);
 
 		List<AvailabilityDate> dates = new ArrayList<>();
 
@@ -793,6 +903,48 @@ public class ProviderService {
 		}
 
 		return dates;
+	}
+
+	@Immutable
+	protected static class NativeSchedulingAvailabilityData {
+		@Nonnull
+		private Map<UUID, List<LogicalAvailability>> logicalAvailabilitiesByProviderId;
+		@Nonnull
+		private Map<UUID, List<AppointmentTypeWithLogicalAvailabilityId>> appointmentTypesByLogicalAvailabilityId;
+		@Nonnull
+		private Map<UUID, List<AppointmentTypeWithProviderId>> allActiveAppointmentTypesByProviderId;
+
+		@Nonnull
+		public static NativeSchedulingAvailabilityData empty() {
+			return new NativeSchedulingAvailabilityData(Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap());
+		}
+
+		public NativeSchedulingAvailabilityData(@Nonnull Map<UUID, List<LogicalAvailability>> logicalAvailabilitiesByProviderId,
+																						@Nonnull Map<UUID, List<AppointmentTypeWithLogicalAvailabilityId>> appointmentTypesByLogicalAvailabilityId,
+																						@Nonnull Map<UUID, List<AppointmentTypeWithProviderId>> allActiveAppointmentTypesByProviderId) {
+			requireNonNull(logicalAvailabilitiesByProviderId);
+			requireNonNull(appointmentTypesByLogicalAvailabilityId);
+			requireNonNull(allActiveAppointmentTypesByProviderId);
+
+			this.logicalAvailabilitiesByProviderId = logicalAvailabilitiesByProviderId;
+			this.appointmentTypesByLogicalAvailabilityId = appointmentTypesByLogicalAvailabilityId;
+			this.allActiveAppointmentTypesByProviderId = allActiveAppointmentTypesByProviderId;
+		}
+
+		@Nonnull
+		public Map<UUID, List<LogicalAvailability>> getLogicalAvailabilitiesByProviderId() {
+			return logicalAvailabilitiesByProviderId;
+		}
+
+		@Nonnull
+		public Map<UUID, List<AppointmentTypeWithLogicalAvailabilityId>> getAppointmentTypesByLogicalAvailabilityId() {
+			return appointmentTypesByLogicalAvailabilityId;
+		}
+
+		@Nonnull
+		public Map<UUID, List<AppointmentTypeWithProviderId>> getAllActiveAppointmentTypesByProviderId() {
+			return allActiveAppointmentTypesByProviderId;
+		}
 	}
 
 	@NotThreadSafe

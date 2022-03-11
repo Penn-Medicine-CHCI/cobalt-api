@@ -36,6 +36,8 @@ import com.cobaltplatform.api.model.db.RecurrenceType.RecurrenceTypeId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
+import com.cobaltplatform.api.model.service.AppointmentTypeWithLogicalAvailabilityId;
+import com.cobaltplatform.api.model.service.AppointmentTypeWithProviderId;
 import com.cobaltplatform.api.model.service.ProviderCalendar;
 import com.cobaltplatform.api.model.service.ProviderCalendar.Availability;
 import com.cobaltplatform.api.model.service.ProviderCalendar.Block;
@@ -48,7 +50,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -768,36 +769,6 @@ public class AvailabilityService {
 		providerCalendar.setAppointments(appointments);
 
 		return providerCalendar;
-	}
-
-	@NotThreadSafe
-	protected static class AppointmentTypeWithProviderId extends AppointmentType {
-		@Nullable
-		private UUID providerId;
-
-		@Nullable
-		public UUID getProviderId() {
-			return providerId;
-		}
-
-		public void setProviderId(@Nullable UUID providerId) {
-			this.providerId = providerId;
-		}
-	}
-
-	@NotThreadSafe
-	protected static class AppointmentTypeWithLogicalAvailabilityId extends AppointmentType {
-		@Nullable
-		private UUID logicalAvailabilityId;
-
-		@Nullable
-		public UUID getLogicalAvailabilityId() {
-			return logicalAvailabilityId;
-		}
-
-		public void setLogicalAvailabilityId(@Nullable UUID logicalAvailabilityId) {
-			this.logicalAvailabilityId = logicalAvailabilityId;
-		}
 	}
 
 	@Nonnull
