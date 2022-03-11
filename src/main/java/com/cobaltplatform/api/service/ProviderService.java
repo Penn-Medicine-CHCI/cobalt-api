@@ -66,7 +66,6 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.time.DayOfWeek;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -668,7 +667,6 @@ public class ProviderService {
 		else
 			visitTypeIds = visitTypeIds.stream().filter(visitTypeId -> visitTypeId != null).collect(Collectors.toSet());
 
-		Instant now = Instant.now();
 		Set<VisitTypeId> pinnedVisitTypeIds = visitTypeIds;
 
 		// e.g. "(?),(?),(?)" for Postgres' VALUES clause (faster than IN list)
@@ -732,8 +730,32 @@ public class ProviderService {
 		Map<UUID, List<AppointmentTypeWithProviderId>> allActiveAppointmentTypesByProviderId = allActiveAppointmentTypes.stream()
 				.collect(Collectors.groupingBy(AppointmentTypeWithProviderId::getProviderId));
 
+		// Pull active appointments for providers within the current time window
+		String appointmentsSql = format("SELECT a.* FROM appointment a, provider p " +
+				"WHERE p.provider_id=a.provider_id AND p.active=TRUE AND p.provider_id IN (VALUES %s) " +
+				"AND a.canceled=FALSE AND a.start_time at time zone a.time_zone >= ? ORDER BY a.start_time", providerIdValuesSql);
+
+		List<Object> appointmentsParameters = new ArrayList<>(providerIds.size() + 1);
+		appointmentsParameters.addAll(providerIds);
+		
+		// The "start_time at time zone a.time_zone" in the SQL above will normalize the appointment's start time to DB timezone (UTC).
+		// This addresses the edge case of querying over a set of providers with different time zones.
+		// The input startDateTime (a LocalDateTime) is normalized to UTC as well so we can do a consistent comparison across all appointments.
+		//
+		// Example: 3PM appointment in our DB with America/New_York is normalized to 7PM UTC by the query.
+		//
+		// select start_time, time_zone, start_time at time zone time_zone as normalized from appointment order by created desc limit 1;
+		//     start_time      |    time_zone     |       normalized
+		//---------------------+------------------+------------------------
+		// 2022-03-16 15:00:00 | America/New_York | 2022-03-16 19:00:00+00
+		appointmentsParameters.add(startDateTime.atZone(getConfiguration().getDefaultTimeZone()).toInstant());
+
+		Map<UUID, List<Appointment>> activeAppointmentsByProviderId = getDatabase().queryForList(appointmentsSql, Appointment.class,
+						appointmentsParameters.toArray()).stream()
+				.collect(Collectors.groupingBy(Appointment::getProviderId));
+
 		return new NativeSchedulingAvailabilityData(logicalAvailabilitiesByProviderId,
-				appointmentTypesByLogicalAvailabilityId, allActiveAppointmentTypesByProviderId);
+				appointmentTypesByLogicalAvailabilityId, allActiveAppointmentTypesByProviderId, activeAppointmentsByProviderId);
 	}
 
 	@Nonnull
@@ -913,22 +935,28 @@ public class ProviderService {
 		private Map<UUID, List<AppointmentTypeWithLogicalAvailabilityId>> appointmentTypesByLogicalAvailabilityId;
 		@Nonnull
 		private Map<UUID, List<AppointmentTypeWithProviderId>> allActiveAppointmentTypesByProviderId;
+		@Nonnull
+		private Map<UUID, List<Appointment>> activeAppointmentsByProviderId;
 
 		@Nonnull
 		public static NativeSchedulingAvailabilityData empty() {
-			return new NativeSchedulingAvailabilityData(Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap());
+			return new NativeSchedulingAvailabilityData(Collections.emptyMap(), Collections.emptyMap(),
+					Collections.emptyMap(), Collections.emptyMap());
 		}
 
 		public NativeSchedulingAvailabilityData(@Nonnull Map<UUID, List<LogicalAvailability>> logicalAvailabilitiesByProviderId,
 																						@Nonnull Map<UUID, List<AppointmentTypeWithLogicalAvailabilityId>> appointmentTypesByLogicalAvailabilityId,
-																						@Nonnull Map<UUID, List<AppointmentTypeWithProviderId>> allActiveAppointmentTypesByProviderId) {
+																						@Nonnull Map<UUID, List<AppointmentTypeWithProviderId>> allActiveAppointmentTypesByProviderId,
+																						@Nonnull Map<UUID, List<Appointment>> activeAppointmentsByProviderId) {
 			requireNonNull(logicalAvailabilitiesByProviderId);
 			requireNonNull(appointmentTypesByLogicalAvailabilityId);
 			requireNonNull(allActiveAppointmentTypesByProviderId);
+			requireNonNull(activeAppointmentsByProviderId);
 
 			this.logicalAvailabilitiesByProviderId = logicalAvailabilitiesByProviderId;
 			this.appointmentTypesByLogicalAvailabilityId = appointmentTypesByLogicalAvailabilityId;
 			this.allActiveAppointmentTypesByProviderId = allActiveAppointmentTypesByProviderId;
+			this.activeAppointmentsByProviderId = activeAppointmentsByProviderId;
 		}
 
 		@Nonnull
@@ -944,6 +972,11 @@ public class ProviderService {
 		@Nonnull
 		public Map<UUID, List<AppointmentTypeWithProviderId>> getAllActiveAppointmentTypesByProviderId() {
 			return allActiveAppointmentTypesByProviderId;
+		}
+
+		@Nonnull
+		public Map<UUID, List<Appointment>> getActiveAppointmentsByProviderId() {
+			return activeAppointmentsByProviderId;
 		}
 	}
 
