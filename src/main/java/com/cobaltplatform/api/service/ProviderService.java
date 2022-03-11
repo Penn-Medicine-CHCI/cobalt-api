@@ -29,6 +29,7 @@ import com.cobaltplatform.api.model.api.request.ProviderFindRequest.ProviderFind
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.Appointment;
+import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PaymentFunding;
 import com.cobaltplatform.api.model.db.PaymentFunding.PaymentFundingId;
@@ -36,17 +37,16 @@ import com.cobaltplatform.api.model.db.PaymentType;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.ProviderAvailability;
 import com.cobaltplatform.api.model.db.RecommendationLevel.RecommendationLevelId;
-import com.cobaltplatform.api.model.db.SchedulingSystem;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.Specialty;
 import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.db.SystemAffinity.SystemAffinityId;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
-import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityStatus;
+import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityTime;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.lokalized.Strings;
@@ -490,193 +490,49 @@ public class ProviderService {
 
 		List<ProviderFind> providerFinds = new ArrayList<>(providers.size());
 
-		// Different code path for Cobalt Native scheduling: calculate synthetic "provider availability" records from logical availability data
-		Map<UUID, List<ProviderAvailability>> nativeSchedulingProviderAvailabilitiesByProviderId = getAvailabilityService().nativeSchedulingProviderAvailabilitiesByProviderId(
-				providers.stream()
-						.filter(provider -> provider.getSchedulingSystemId() == SchedulingSystemId.COBALT)
-						.map(provider -> provider.getProviderId())
-						.collect(Collectors.toSet()), visitTypeIds, currentDateTime, currentDateTime.plusMonths(1) /* arbitrarily cap at 1 month ahead */);
-
-		Set<UUID> nativeSchedulingProviderIds = nativeSchedulingProviderAvailabilitiesByProviderId.keySet();
-
 		for (Provider provider : providers) {
 			boolean intakeAssessmentRequired = false;
 			boolean intakeAssessmentIneligible = false;
 
-			Optional<Assessment> intakeAssessment = getAssessmentService().findIntakeAssessmentByProviderId(provider.getProviderId(), null);
-			intakeAssessmentRequired = intakeAssessment.isPresent();
+			Assessment intakeAssessment = getAssessmentService().findIntakeAssessmentByProviderId(provider.getProviderId(), null).orElse(null);
 
+			if (intakeAssessment != null) {
+				intakeAssessmentRequired = true;
 
-			if (intakeAssessment.isPresent()) {
-				Optional<AccountSession> accountSession = getSessionService()
-						.findCurrentIntakeAssessmentForAccountAndProvider(account, provider.getProviderId(), null, true);
-				if (accountSession.isPresent())
-					intakeAssessmentIneligible = !getAssessmentScoringService().isBookingAllowed(accountSession.get());
+				AccountSession accountSession = getSessionService()
+						.findCurrentIntakeAssessmentForAccountAndProvider(account, provider.getProviderId(), null, true).orElse(null);
+
+				if (accountSession != null)
+					intakeAssessmentIneligible = !getAssessmentScoringService().isBookingAllowed(accountSession);
 			}
+
+			AvailabilityDatesCommand datesCommand = new AvailabilityDatesCommand();
+			datesCommand.setProvider(provider);
+			datesCommand.setVisitTypeIds(visitTypeIds);
+			datesCommand.setStartDate(startDate);
+			datesCommand.setStartTime(startTime);
+			datesCommand.setEndDate(endDate);
+			datesCommand.setEndTime(endTime);
+			datesCommand.setCurrentDate(currentDate);
+			datesCommand.setDaysOfWeek(daysOfWeek);
+			datesCommand.setAvailability(availability);
 
 			List<AvailabilityDate> dates = new ArrayList<>();
-			List<ProviderAvailability> providerAvailabilities;
 
-			if(provider.getSchedulingSystemId() == SchedulingSystemId.COBALT) {
-				// Different code path for Cobalt native scheduling: use synthetic "provider availability" records
-				providerAvailabilities = nativeSchedulingProviderAvailabilitiesByProviderId.get(provider.getProviderId());
+			// Different code path for Cobalt native scheduling: use synthetic "provider availability" records
+			if (provider.getSchedulingSystemId() == SchedulingSystemId.COBALT)
+				dates.addAll(availabilityDatesForNativeScheduling(datesCommand));
+			else
+				dates.addAll(availabilityDatesForNonNativeScheduling(datesCommand));
 
-				if(providerAvailabilities == null)
-					providerAvailabilities = Collections.emptyList();
-			} else {
-				// First, fill in "available" slots based on what we know from Acuity
-				StringBuilder providerAvailabilityQuery = new StringBuilder("SELECT pa.* FROM provider_availability pa, v_appointment_type at WHERE pa.provider_id=? AND pa.appointment_type_id=at.appointment_type_id ");
-				List<Object> providerAvailabilityParameters = new ArrayList<>();
-				providerAvailabilityParameters.add(provider.getProviderId());
-
-				if (visitTypeIds.size() > 0) {
-					providerAvailabilityQuery.append(" AND at.visit_type_id IN ");
-					providerAvailabilityQuery.append(sqlInListPlaceholders(visitTypeIds));
-
-					providerAvailabilityParameters.addAll(visitTypeIds);
-				}
-
-				providerAvailabilities = getDatabase().queryForList(providerAvailabilityQuery.toString(), ProviderAvailability.class, providerAvailabilityParameters.toArray(new Object[]{}));
-			}
-
-			// Keep track of all epic department IDs for this provider
+			// Pick out distinct EPIC department IDs by provider by reviewing the availability data
 			Set<UUID> epicDepartmentIds = new HashSet<>();
 			epicDepartmentIdsByProviderId.put(provider.getProviderId(), epicDepartmentIds);
 
-			Map<LocalDate, AvailabilityDate> availabilityDatesByDate = new HashMap<>(14);
-			Map<LocalDateTime, ProviderFind.AvailabilityTime> availabilityTimesByDateTime = new HashMap<>();
-
-			for (ProviderAvailability providerAvailability : providerAvailabilities) {
-				LocalDateTime dateTime = providerAvailability.getDateTime();
-				LocalDate date = dateTime.toLocalDate();
-				LocalTime time = dateTime.toLocalTime();
-
-				// Respect "day of week" filter
-				if (daysOfWeek.size() > 0 && !daysOfWeek.contains(date.getDayOfWeek()))
-					continue;
-
-				// Respect "start date" filter
-				if (startDate != null && date.isBefore(startDate))
-					continue;
-
-				// Respect "end date" filter
-				if (endDate != null && date.isAfter(endDate))
-					continue;
-
-				// Respect "start time" filter
-				if (startTime != null && time.isBefore(startTime))
-					continue;
-
-				// Respect "end time" filter
-				if (endTime != null && time.isAfter(endTime))
-					continue;
-
-				// Don't include anything that is "today"
-				if (!date.isAfter(currentDate))
-					continue;
-
-				AvailabilityDate availabilityDate = availabilityDatesByDate.get(date);
-
-				if (availabilityDate == null) {
-					availabilityDate = new AvailabilityDate();
-					availabilityDate.setDate(date);
-					availabilityDatesByDate.put(date, availabilityDate);
-					dates.add(availabilityDate);
-				}
-
-				List<ProviderFind.AvailabilityTime> availabilityTimes = availabilityDate.getTimes();
-
-				if (availabilityTimes == null) {
-					availabilityTimes = new ArrayList<>();
-					availabilityDate.setTimes(availabilityTimes);
-				}
-
-				ProviderFind.AvailabilityTime availabilityTime = availabilityTimesByDateTime.get(dateTime);
-
-				if (availabilityTime == null) {
-					availabilityTime = new ProviderFind.AvailabilityTime();
-					availabilityTime.setStatus(AvailabilityStatus.AVAILABLE);
-					availabilityTime.setTime(time);
-					availabilityTime.setAppointmentTypeIds(new ArrayList<>());
-					availabilityTime.setEpicDepartmentId(providerAvailability.getEpicDepartmentId());
-					availabilityTimes.add(availabilityTime);
-					availabilityTimesByDateTime.put(dateTime, availabilityTime);
-				}
-
-				// If you set up overlapping logical availabilities with COBALT scheduling, you can have the same appointment type multiple times.
-				// Ignore extras here
-				if (!availabilityTime.getAppointmentTypeIds().contains(providerAvailability.getAppointmentTypeId()))
-					availabilityTime.getAppointmentTypeIds().add(providerAvailability.getAppointmentTypeId());
-
-				if (providerAvailability.getEpicDepartmentId() != null)
-					epicDepartmentIds.add(providerAvailability.getEpicDepartmentId());
-			}
-
-			if (availability == ProviderFindAvailability.ALL) {
-				// Next, fill in "booked" slots using appointments on file in our DB.
-				// Ignore times before now!
-				LocalDateTime rightNow = LocalDateTime.now(provider.getTimeZone());
-				List<Appointment> appointments = getDatabase().queryForList("SELECT * FROM appointment WHERE provider_id=? AND start_time > ? AND canceled=FALSE", Appointment.class, provider.getProviderId(), rightNow);
-
-				for (Appointment appointment : appointments) {
-					LocalDateTime dateTime = appointment.getStartTime();
-					LocalDate date = dateTime.toLocalDate();
-					LocalTime time = dateTime.toLocalTime();
-
-					// Respect "day of week" filter
-					if (daysOfWeek.size() > 0 && !daysOfWeek.contains(date.getDayOfWeek()))
-						continue;
-
-					// Respect "start date" filter
-					if (startDate != null && date.isBefore(startDate))
-						continue;
-
-					// Respect "end date" filter
-					if (endDate != null && date.isAfter(endDate))
-						continue;
-
-					// Respect "start time" filter
-					if (startTime != null && time.isBefore(startTime))
-						continue;
-
-					// Respect "end time" filter
-					if (endTime != null && time.isAfter(endTime))
-						continue;
-
-					AvailabilityDate availabilityDate = availabilityDatesByDate.get(date);
-
-					if (availabilityDate == null) {
-						availabilityDate = new AvailabilityDate();
-						availabilityDate.setDate(date);
-						availabilityDatesByDate.put(date, availabilityDate);
-						dates.add(availabilityDate);
-					}
-
-					List<ProviderFind.AvailabilityTime> availabilityTimes = availabilityDate.getTimes();
-
-					if (availabilityTimes == null) {
-						availabilityTimes = new ArrayList<>();
-						availabilityDate.setTimes(availabilityTimes);
-					}
-
-					ProviderFind.AvailabilityTime availabilityTime = availabilityTimesByDateTime.get(dateTime);
-
-					// Fix up disconnect in the event of our DB being out of sync with what's live in Acuity (we sync every 10 mins or so).
-					// BOOKED should trump AVAILABLE.
-					// If availability time is not null here, that means there is already an AVAILABLE record and it should
-					// instead be overwritten with BOOKED
-					if (availabilityTime == null) {
-						availabilityTime = new ProviderFind.AvailabilityTime();
-						availabilityTimes.add(availabilityTime);
-						availabilityTime.setTime(time);
-						availabilityTimesByDateTime.put(dateTime, availabilityTime);
-					}
-
-					List<UUID> appointmentTypeIds = new ArrayList<>();
-					appointmentTypeIds.add(appointment.getAppointmentTypeId());
-
-					availabilityTime.setStatus(AvailabilityStatus.BOOKED);
-					availabilityTime.setAppointmentTypeIds(appointmentTypeIds);
+			for (AvailabilityDate availabilityDate : dates) {
+				for (AvailabilityTime availabilityTime : availabilityDate.getTimes()) {
+					if (availabilityTime.getEpicDepartmentId() != null)
+						epicDepartmentIds.add(availabilityTime.getEpicDepartmentId());
 				}
 			}
 
@@ -688,10 +544,10 @@ public class ProviderService {
 
 				boolean fullyBooked = true;
 
-				for (ProviderFind.AvailabilityTime availabilityTime : availabilityDate.getTimes())
+				for (AvailabilityTime availabilityTime : availabilityDate.getTimes())
 					Collections.sort(availabilityTime.getAppointmentTypeIds());
 
-				for (ProviderFind.AvailabilityTime availabilityTime : availabilityDate.getTimes()) {
+				for (AvailabilityTime availabilityTime : availabilityDate.getTimes()) {
 					if (availabilityTime.getStatus() != AvailabilityStatus.BOOKED) {
 						fullyBooked = false;
 						break;
@@ -768,6 +624,278 @@ public class ProviderService {
 		}
 
 		return providerFinds;
+	}
+
+	@Nonnull
+	protected List<AvailabilityDate> availabilityDatesForNativeScheduling(@Nonnull AvailabilityDatesCommand command) {
+		requireNonNull(command);
+
+		List<AvailabilityDate> dates = new ArrayList<>();
+
+		// TODO: implement
+
+		return dates;
+	}
+
+	@Nonnull
+	protected List<AvailabilityDate> availabilityDatesForNonNativeScheduling(@Nonnull AvailabilityDatesCommand command) {
+		requireNonNull(command);
+
+		List<AvailabilityDate> dates = new ArrayList<>();
+
+		// First, fill in "available" slots based on what we know from Acuity/EPIC
+		List<ProviderAvailability> providerAvailabilities;
+		StringBuilder providerAvailabilityQuery = new StringBuilder("SELECT pa.* FROM provider_availability pa, v_appointment_type at WHERE pa.provider_id=? AND pa.appointment_type_id=at.appointment_type_id ");
+		List<Object> providerAvailabilityParameters = new ArrayList<>();
+		providerAvailabilityParameters.add(command.getProvider().getProviderId());
+
+		if (command.getVisitTypeIds().size() > 0) {
+			providerAvailabilityQuery.append(" AND at.visit_type_id IN ");
+			providerAvailabilityQuery.append(sqlInListPlaceholders(command.getVisitTypeIds()));
+
+			providerAvailabilityParameters.addAll(command.getVisitTypeIds());
+		}
+
+		providerAvailabilities = getDatabase().queryForList(providerAvailabilityQuery.toString(), ProviderAvailability.class, providerAvailabilityParameters.toArray(new Object[]{}));
+
+		Map<LocalDate, AvailabilityDate> availabilityDatesByDate = new HashMap<>(14);
+		Map<LocalDateTime, AvailabilityTime> availabilityTimesByDateTime = new HashMap<>();
+
+		for (ProviderAvailability providerAvailability : providerAvailabilities) {
+			LocalDateTime dateTime = providerAvailability.getDateTime();
+			LocalDate date = dateTime.toLocalDate();
+			LocalTime time = dateTime.toLocalTime();
+
+			// Respect "day of week" filter
+			if (command.getDaysOfWeek().size() > 0 && !command.getDaysOfWeek().contains(date.getDayOfWeek()))
+				continue;
+
+			// Respect "start date" filter
+			if (command.getStartDate() != null && date.isBefore(command.getStartDate()))
+				continue;
+
+			// Respect "end date" filter
+			if (command.getEndDate() != null && date.isAfter(command.getEndDate()))
+				continue;
+
+			// Respect "start time" filter
+			if (command.getStartTime() != null && time.isBefore(command.getStartTime()))
+				continue;
+
+			// Respect "end time" filter
+			if (command.getEndTime() != null && time.isAfter(command.getEndTime()))
+				continue;
+
+			// Don't include anything that is "today"
+			if (!date.isAfter(command.getCurrentDate()))
+				continue;
+
+			AvailabilityDate availabilityDate = availabilityDatesByDate.get(date);
+
+			if (availabilityDate == null) {
+				availabilityDate = new AvailabilityDate();
+				availabilityDate.setDate(date);
+				availabilityDatesByDate.put(date, availabilityDate);
+				dates.add(availabilityDate);
+			}
+
+			List<AvailabilityTime> availabilityTimes = availabilityDate.getTimes();
+
+			if (availabilityTimes == null) {
+				availabilityTimes = new ArrayList<>();
+				availabilityDate.setTimes(availabilityTimes);
+			}
+
+			AvailabilityTime availabilityTime = availabilityTimesByDateTime.get(dateTime);
+
+			if (availabilityTime == null) {
+				availabilityTime = new AvailabilityTime();
+				availabilityTime.setStatus(AvailabilityStatus.AVAILABLE);
+				availabilityTime.setTime(time);
+				availabilityTime.setAppointmentTypeIds(new ArrayList<>());
+				availabilityTime.setEpicDepartmentId(providerAvailability.getEpicDepartmentId());
+				availabilityTimes.add(availabilityTime);
+				availabilityTimesByDateTime.put(dateTime, availabilityTime);
+			}
+
+			// If you set up overlapping logical availabilities with COBALT scheduling, you can have the same appointment type multiple times.
+			// Ignore extras here
+			if (!availabilityTime.getAppointmentTypeIds().contains(providerAvailability.getAppointmentTypeId()))
+				availabilityTime.getAppointmentTypeIds().add(providerAvailability.getAppointmentTypeId());
+		}
+
+		if (command.getAvailability() == ProviderFindAvailability.ALL) {
+			// Next, fill in "booked" slots using appointments on file in our DB.
+			// Ignore times before now!
+			LocalDateTime rightNow = LocalDateTime.now(command.getProvider().getTimeZone());
+			List<Appointment> appointments = getDatabase().queryForList("SELECT * FROM appointment WHERE provider_id=? AND start_time > ? AND canceled=FALSE", Appointment.class, command.getProvider().getProviderId(), rightNow);
+
+			for (Appointment appointment : appointments) {
+				LocalDateTime dateTime = appointment.getStartTime();
+				LocalDate date = dateTime.toLocalDate();
+				LocalTime time = dateTime.toLocalTime();
+
+				// Respect "day of week" filter
+				if (command.getDaysOfWeek().size() > 0 && !command.getDaysOfWeek().contains(date.getDayOfWeek()))
+					continue;
+
+				// Respect "start date" filter
+				if (command.getStartDate() != null && date.isBefore(command.getStartDate()))
+					continue;
+
+				// Respect "end date" filter
+				if (command.getEndDate() != null && date.isAfter(command.getEndDate()))
+					continue;
+
+				// Respect "start time" filter
+				if (command.getStartTime() != null && time.isBefore(command.getStartTime()))
+					continue;
+
+				// Respect "end time" filter
+				if (command.getEndTime() != null && time.isAfter(command.getEndTime()))
+					continue;
+
+				AvailabilityDate availabilityDate = availabilityDatesByDate.get(date);
+
+				if (availabilityDate == null) {
+					availabilityDate = new AvailabilityDate();
+					availabilityDate.setDate(date);
+					availabilityDatesByDate.put(date, availabilityDate);
+					dates.add(availabilityDate);
+				}
+
+				List<AvailabilityTime> availabilityTimes = availabilityDate.getTimes();
+
+				if (availabilityTimes == null) {
+					availabilityTimes = new ArrayList<>();
+					availabilityDate.setTimes(availabilityTimes);
+				}
+
+				AvailabilityTime availabilityTime = availabilityTimesByDateTime.get(dateTime);
+
+				// Fix up disconnect in the event of our DB being out of sync with what's live in Acuity (we sync every 10 mins or so).
+				// BOOKED should trump AVAILABLE.
+				// If availability time is not null here, that means there is already an AVAILABLE record and it should
+				// instead be overwritten with BOOKED
+				if (availabilityTime == null) {
+					availabilityTime = new AvailabilityTime();
+					availabilityTimes.add(availabilityTime);
+					availabilityTime.setTime(time);
+					availabilityTimesByDateTime.put(dateTime, availabilityTime);
+				}
+
+				List<UUID> appointmentTypeIds = new ArrayList<>();
+				appointmentTypeIds.add(appointment.getAppointmentTypeId());
+
+				availabilityTime.setStatus(AvailabilityStatus.BOOKED);
+				availabilityTime.setAppointmentTypeIds(appointmentTypeIds);
+			}
+		}
+
+		return dates;
+	}
+
+	@NotThreadSafe
+	protected static class AvailabilityDatesCommand {
+		@Nullable
+		private Provider provider;
+		@Nullable
+		private Set<VisitTypeId> visitTypeIds;
+		@Nullable
+		private LocalDate startDate;
+		@Nullable
+		private LocalTime startTime;
+		@Nullable
+		private LocalDate endDate;
+		@Nullable
+		private LocalTime endTime;
+		@Nullable
+		private LocalDate currentDate;
+		@Nullable
+		private Set<DayOfWeek> daysOfWeek;
+		@Nullable
+		private ProviderFindAvailability availability;
+
+		@Nullable
+		public Provider getProvider() {
+			return provider;
+		}
+
+		public void setProvider(@Nullable Provider provider) {
+			this.provider = provider;
+		}
+
+		@Nullable
+		public Set<VisitTypeId> getVisitTypeIds() {
+			return visitTypeIds;
+		}
+
+		public void setVisitTypeIds(@Nullable Set<VisitTypeId> visitTypeIds) {
+			this.visitTypeIds = visitTypeIds;
+		}
+
+		@Nullable
+		public LocalDate getStartDate() {
+			return startDate;
+		}
+
+		public void setStartDate(@Nullable LocalDate startDate) {
+			this.startDate = startDate;
+		}
+
+		@Nullable
+		public LocalTime getStartTime() {
+			return startTime;
+		}
+
+		public void setStartTime(@Nullable LocalTime startTime) {
+			this.startTime = startTime;
+		}
+
+		@Nullable
+		public LocalDate getEndDate() {
+			return endDate;
+		}
+
+		public void setEndDate(@Nullable LocalDate endDate) {
+			this.endDate = endDate;
+		}
+
+		@Nullable
+		public LocalTime getEndTime() {
+			return endTime;
+		}
+
+		public void setEndTime(@Nullable LocalTime endTime) {
+			this.endTime = endTime;
+		}
+
+		@Nullable
+		public LocalDate getCurrentDate() {
+			return currentDate;
+		}
+
+		public void setCurrentDate(@Nullable LocalDate currentDate) {
+			this.currentDate = currentDate;
+		}
+
+		@Nullable
+		public Set<DayOfWeek> getDaysOfWeek() {
+			return daysOfWeek;
+		}
+
+		public void setDaysOfWeek(@Nullable Set<DayOfWeek> daysOfWeek) {
+			this.daysOfWeek = daysOfWeek;
+		}
+
+		@Nullable
+		public ProviderFindAvailability getAvailability() {
+			return availability;
+		}
+
+		public void setAvailability(@Nullable ProviderFindAvailability availability) {
+			this.availability = availability;
+		}
 	}
 
 	@NotThreadSafe
