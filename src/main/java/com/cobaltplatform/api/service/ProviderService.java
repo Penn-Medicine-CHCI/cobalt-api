@@ -32,7 +32,7 @@ import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.LogicalAvailability;
-import com.cobaltplatform.api.model.db.LogicalAvailabilityType;
+import com.cobaltplatform.api.model.db.LogicalAvailabilityType.LogicalAvailabilityTypeId;
 import com.cobaltplatform.api.model.db.PaymentFunding;
 import com.cobaltplatform.api.model.db.PaymentFunding.PaymentFundingId;
 import com.cobaltplatform.api.model.db.PaymentType;
@@ -55,6 +55,8 @@ import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.lokalized.Strings;
 import com.pyranid.Database;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -502,8 +504,11 @@ public class ProviderService {
 				.map(provider -> provider.getProviderId())
 				.collect(Collectors.toSet());
 
+		LocalDateTime nativeSchedulingStartDateTime = currentDateTime;
+		LocalDateTime nativeSchedulingEndDateTime = nativeSchedulingStartDateTime.plusMonths(1).toLocalDate().atStartOfDay(); /* arbitrarily cap at 1 month ahead */
+
 		NativeSchedulingAvailabilityData nativeSchedulingAvailabilityData = loadNativeSchedulingAvailabilityData(nativeSchedulingProviderIds,
-				visitTypeIds, currentDateTime, currentDateTime.plusMonths(1) /* arbitrarily cap at 1 month ahead */);
+				visitTypeIds, nativeSchedulingStartDateTime, nativeSchedulingEndDateTime);
 
 		for (Provider provider : providers) {
 			boolean intakeAssessmentRequired = false;
@@ -537,7 +542,7 @@ public class ProviderService {
 
 			// Different code path for Cobalt native scheduling: use synthetic "provider availability" records
 			if (provider.getSchedulingSystemId() == SchedulingSystemId.COBALT)
-				dates.addAll(availabilityDatesForNativeScheduling(nativeSchedulingAvailabilityData));
+				dates.addAll(availabilityDatesForNativeScheduling(datesCommand, nativeSchedulingStartDateTime, nativeSchedulingEndDateTime, nativeSchedulingAvailabilityData));
 			else
 				dates.addAll(availabilityDatesForNonNativeScheduling(datesCommand));
 
@@ -679,7 +684,7 @@ public class ProviderService {
 
 		List<Object> logicalAvailabilityParameters = new ArrayList<>(providerIds.size() + 1);
 		logicalAvailabilityParameters.addAll(providerIds);
-		logicalAvailabilityParameters.add(LogicalAvailabilityType.LogicalAvailabilityTypeId.OPEN);
+		logicalAvailabilityParameters.add(LogicalAvailabilityTypeId.OPEN);
 		logicalAvailabilityParameters.add(startDateTime);
 
 		Map<UUID, List<LogicalAvailability>> logicalAvailabilitiesByProviderId = getDatabase().queryForList(logicalAvailabilitiesSql, LogicalAvailability.class,
@@ -692,7 +697,7 @@ public class ProviderService {
 				"AND la.logical_availability_type_id=? AND la.provider_id=p.provider_id AND p.active=TRUE AND p.provider_id IN (VALUES %s)", providerIdValuesSql);
 
 		List<Object> logicalAvailabilityAppointmentTypeParameters = new ArrayList<>();
-		logicalAvailabilityAppointmentTypeParameters.add(LogicalAvailabilityType.LogicalAvailabilityTypeId.OPEN);
+		logicalAvailabilityAppointmentTypeParameters.add(LogicalAvailabilityTypeId.OPEN);
 		logicalAvailabilityAppointmentTypeParameters.addAll(providerIds);
 
 		List<AppointmentTypeWithLogicalAvailabilityId> logicalAvailabilityAppointmentTypes = getDatabase().queryForList(logicalAvailabilityAppointmentTypesSql,
@@ -737,7 +742,7 @@ public class ProviderService {
 
 		List<Object> appointmentsParameters = new ArrayList<>(providerIds.size() + 1);
 		appointmentsParameters.addAll(providerIds);
-		
+
 		// The "start_time at time zone a.time_zone" in the SQL above will normalize the appointment's start time to DB timezone (UTC).
 		// This addresses the edge case of querying over a set of providers with different time zones.
 		// The input startDateTime (a LocalDateTime) is normalized to UTC as well so we can do a consistent comparison across all appointments.
@@ -759,12 +764,46 @@ public class ProviderService {
 	}
 
 	@Nonnull
-	protected List<AvailabilityDate> availabilityDatesForNativeScheduling(@Nonnull NativeSchedulingAvailabilityData nativeSchedulingAvailabilityData) {
+	protected List<AvailabilityDate> availabilityDatesForNativeScheduling(@Nonnull AvailabilityDatesCommand command,
+																																				@Nonnull LocalDateTime startDateTime,
+																																				@Nonnull LocalDateTime endDateTime,
+																																				@Nonnull NativeSchedulingAvailabilityData nativeSchedulingAvailabilityData) {
+		requireNonNull(command);
+		requireNonNull(startDateTime);
+		requireNonNull(endDateTime);
 		requireNonNull(nativeSchedulingAvailabilityData);
+
+		List<LogicalAvailability> logicalAvailabilities = nativeSchedulingAvailabilityData.getLogicalAvailabilitiesByProviderId().get(command.getProvider().getProviderId());
+
+		if (logicalAvailabilities == null)
+			logicalAvailabilities = Collections.emptyList();
+
+		List<Appointment> appointments = nativeSchedulingAvailabilityData.getActiveAppointmentsByProviderId().get(command.getProvider().getProviderId());
+
+		if (appointments == null)
+			appointments = Collections.emptyList();
+
+		Map<LocalDate, List<Appointment>> appointmentsByDate = appointments.stream()
+				.collect(Collectors.groupingBy((appointment -> appointment.getStartTime().toLocalDate())));
+
+		List<LogicalAvailability> openAvailabilities = logicalAvailabilities.stream()
+				.filter(la -> la.getLogicalAvailabilityTypeId() == LogicalAvailabilityTypeId.OPEN)
+				.collect(Collectors.toList());
+
+		List<LogicalAvailability> blockAvailabilities = logicalAvailabilities.stream()
+				.filter(la -> la.getLogicalAvailabilityTypeId() == LogicalAvailabilityTypeId.OPEN)
+				.collect(Collectors.toList());
 
 		List<AvailabilityDate> dates = new ArrayList<>();
 
-		// TODO: implement
+		LocalDate currentDate = startDateTime.toLocalDate();
+		LocalDate endDate = endDateTime.toLocalDate();
+
+		while (currentDate.isBefore(endDate)) {
+			// TODO: finish up
+
+			currentDate = currentDate.plusDays(1);
+		}
 
 		return dates;
 	}
@@ -959,6 +998,12 @@ public class ProviderService {
 			this.activeAppointmentsByProviderId = activeAppointmentsByProviderId;
 		}
 
+		@Override
+		@Nonnull
+		public String toString() {
+			return ToStringBuilder.reflectionToString(this, ToStringStyle.MULTI_LINE_STYLE);
+		}
+
 		@Nonnull
 		public Map<UUID, List<LogicalAvailability>> getLogicalAvailabilitiesByProviderId() {
 			return logicalAvailabilitiesByProviderId;
@@ -1000,6 +1045,12 @@ public class ProviderService {
 		private Set<DayOfWeek> daysOfWeek;
 		@Nullable
 		private ProviderFindAvailability availability;
+
+		@Override
+		@Nonnull
+		public String toString() {
+			return ToStringBuilder.reflectionToString(this, ToStringStyle.MULTI_LINE_STYLE);
+		}
 
 		@Nullable
 		public Provider getProvider() {
