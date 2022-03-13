@@ -788,20 +788,9 @@ public class ProviderService {
 		LocalDate startDate = startDateTime.toLocalDate();
 		LocalDate endDate = endDateTime.toLocalDate();
 
-		List<LogicalAvailability> logicalAvailabilities = nativeSchedulingAvailabilityData.getLogicalAvailabilitiesByProviderId().get(command.getProvider().getProviderId());
-
-		if (logicalAvailabilities == null)
-			logicalAvailabilities = Collections.emptyList();
-
-		List<Appointment> appointments = nativeSchedulingAvailabilityData.getActiveAppointmentsByProviderId().get(command.getProvider().getProviderId());
-
-		if (appointments == null)
-			appointments = Collections.emptyList();
-
-		List<AppointmentTypeWithProviderId> allActiveAppointmentTypes = nativeSchedulingAvailabilityData.getAllActiveAppointmentTypesByProviderId().get(command.getProvider().getProviderId());
-
-		if (allActiveAppointmentTypes == null)
-			allActiveAppointmentTypes = Collections.emptyList();
+		List<LogicalAvailability> logicalAvailabilities = requiredValues(nativeSchedulingAvailabilityData.getLogicalAvailabilitiesByProviderId(), command.getProvider().getProviderId());
+		List<Appointment> appointments = requiredValues(nativeSchedulingAvailabilityData.getActiveAppointmentsByProviderId(), command.getProvider().getProviderId());
+		List<AppointmentTypeWithProviderId> allActiveAppointmentTypes = requiredValues(nativeSchedulingAvailabilityData.getAllActiveAppointmentTypesByProviderId(), command.getProvider().getProviderId());
 
 		// First, break everything out by date - start with appointments...
 		Map<LocalDate, List<Appointment>> appointmentsByDate = appointments.stream()
@@ -889,16 +878,214 @@ public class ProviderService {
 		}
 
 		// Now that we have everything broken out by date, walk through all dates in the requested range and build out slots.
-		List<AvailabilityDate> dates = new ArrayList<>();
+		Map<LocalDate, AvailabilityDate> availabilityDatesByDate = new HashMap<>();
 		LocalDate currentDate = startDate;
 
+		// For each date in the date range, figure out available ranges and remove ranges we know are unavailable
+		// (either blocks or appointments) so we end up with a set of subrange[s].
 		while (currentDate.isBefore(endDate)) {
-			// TODO: finish up
+			// First, get a list of all availabilities/blocks/appointments for this date
+			List<Availability> currentAvailabilities = requiredValues(availabilitiesByDate, currentDate);
+			List<Block> currentBlocks = requiredValues(blocksByDate, currentDate);
+			List<Appointment> currentAppointments = requiredValues(appointmentsByDate, currentDate);
+
+			// Ensure they are sorted before working with them
+			Collections.sort(currentAvailabilities);
+			Collections.sort(currentBlocks);
+			Collections.sort(currentAppointments);
+
+			// Create a list of "ranges" for each, so we can subtract out the "holes" of blocks/appointment ranges from availability ranges
+			List<RangedValue<Availability>> availabilityRanges = currentAvailabilities.stream()
+					.map(availability -> new RangedValue<>(availability, availability.getStartDateTime(), availability.getEndDateTime()))
+					.collect(Collectors.toList());
+
+			List<RangedValue<Block>> blockRanges = currentBlocks.stream()
+					.map(block -> new RangedValue<>(block, block.getStartDateTime(), block.getEndDateTime()))
+					.collect(Collectors.toList());
+
+			List<RangedValue<Appointment>> appointmentRanges = currentAppointments.stream()
+					.map(appointment -> new RangedValue<>(appointment, appointment.getStartTime(), appointment.getEndTime()))
+					.collect(Collectors.toList());
+
+			List<RangedValue<Availability>> availabilityRangesMinusBlocks = new ArrayList<>();
+
+			// Remove block ranges first...
+			if (blockRanges.size() > 0) {
+				for (RangedValue<Availability> availabilityRange : availabilityRanges)
+					for (RangedValue<Block> blockRange : blockRanges)
+						availabilityRangesMinusBlocks.addAll(availabilityRange.minusRange(blockRange));
+			} else {
+				availabilityRangesMinusBlocks.addAll(availabilityRanges);
+			}
+
+			// ...then remove appointment ranges to finalize
+			List<RangedValue<Availability>> finalAvailabilityRanges = new ArrayList<>();
+
+			if (appointmentRanges.size() > 0) {
+				for (RangedValue<Availability> availabilityRange : availabilityRangesMinusBlocks)
+					for (RangedValue<Appointment> appointmentRange : appointmentRanges)
+						finalAvailabilityRanges.addAll(availabilityRange.minusRange(appointmentRange));
+			} else {
+				finalAvailabilityRanges.addAll(availabilityRangesMinusBlocks);
+			}
+
+			// We are left with a final set of availability ranges for this date.
+			// We can turn these into a set of AvailabilityDates (slots) to return to the user.
+			AvailabilityDate availabilityDate = availabilityDatesByDate.get(currentDate);
+
+			if (availabilityDate == null) {
+				availabilityDate = new AvailabilityDate();
+				availabilityDate.setDate(currentDate);
+				availabilityDate.setTimes(new ArrayList<>());
+				availabilityDate.setFullyBooked(false);
+
+				availabilityDatesByDate.put(currentDate, availabilityDate);
+			}
+
+			// To make slots, we find the shortest appointment type duration in the range and make slots of that size.
+			// If there are any appointment types that could cause a slot to "bleed" outside of the availability range, remove them.
+			for (RangedValue<Availability> availabilityRange : finalAvailabilityRanges) {
+				List<AppointmentType> appointmentTypes = availabilityRange.getValue().getAppointmentTypes();
+
+				if (appointmentTypes.size() == 0) {
+					getLogger().warn("No appointment types available for range; we should not see this scenario");
+					continue;
+				}
+
+				// Slot size is the size of the shortest appointment type in the range
+				int slotSizeInMinutes = appointmentTypes.stream()
+						.mapToInt(appointmentType -> appointmentType.getDurationInMinutes().intValue())
+						.min()
+						.getAsInt();
+
+				LocalTime slotTime = availabilityRange.getStartDateTime().toLocalTime();
+				LocalTime slotEndTime = availabilityRange.getEndDateTime().toLocalTime();
+
+				while (slotTime.isBefore(slotEndTime)) {
+					// Figure out which appointment IDs fit in the slot
+					List<UUID> appointmentTypeIdsThatFit = new ArrayList<>(appointmentTypes.size());
+
+					for (AppointmentType appointmentType : appointmentTypes) {
+						LocalTime appointmentTypeEndTime = slotTime.plusMinutes(appointmentType.getDurationInMinutes());
+
+						if (appointmentTypeEndTime.isBefore(slotEndTime) || appointmentTypeEndTime.equals(slotEndTime))
+							appointmentTypeIdsThatFit.add(appointmentType.getAppointmentTypeId());
+					}
+
+					// Only add the slot if there are appointment types (if no appointment types, that means nothing fit in the slot)
+					if (appointmentTypeIdsThatFit.size() > 0) {
+						AvailabilityTime availabilityTime = new AvailabilityTime();
+						availabilityTime.setStatus(AvailabilityStatus.AVAILABLE);
+						availabilityTime.setTime(slotTime);
+						availabilityTime.setAppointmentTypeIds(appointmentTypeIdsThatFit);
+
+						availabilityDate.getTimes().add(availabilityTime);
+					}
+
+					slotTime = slotTime.plusMinutes(slotSizeInMinutes);
+				}
+			}
 
 			currentDate = currentDate.plusDays(1);
 		}
 
+		List<AvailabilityDate> dates = new ArrayList<>(availabilityDatesByDate.values());
+		Collections.sort(dates, (date1, date2) -> date1.getDate().compareTo(date2.getDate()));
+
 		return dates;
+	}
+
+	@ThreadSafe
+	protected static class RangedValue<T> {
+		@Nonnull
+		private final T value;
+		@Nonnull
+		private final LocalDateTime startDateTime;
+		@Nonnull
+		private final LocalDateTime endDateTime;
+
+		public RangedValue(@Nonnull T value,
+											 @Nonnull LocalDateTime startDateTime,
+											 @Nonnull LocalDateTime endDateTime) {
+			requireNonNull(value);
+			requireNonNull(startDateTime);
+			requireNonNull(endDateTime);
+
+			this.value = value;
+			this.startDateTime = startDateTime;
+			this.endDateTime = endDateTime;
+		}
+
+		@Override
+		public String toString() {
+			return format("%s{startDateTime=%s, endDateTime=%s, value=%s}", getClass().getSimpleName(),
+					getStartDateTime(), getEndDateTime(), getValue());
+		}
+
+		@Nonnull
+		public List<RangedValue<T>> minusRange(@Nonnull RangedValue<?> otherRange) {
+			requireNonNull(otherRange);
+
+			// If the other range is equal or larger than this range, this range goes away entirely
+			if ((otherRange.getStartDateTime().isBefore(getStartDateTime()) || otherRange.getStartDateTime().isEqual(getStartDateTime()))
+					&& (otherRange.getEndDateTime().isAfter(getEndDateTime()) || otherRange.getEndDateTime().isEqual(getEndDateTime())))
+				return List.of();
+
+			// If the other range ends on or before this one begins, nothing to do
+			if (otherRange.getEndDateTime().isBefore(getStartDateTime()) || otherRange.getEndDateTime().isEqual(getStartDateTime()))
+				return List.of(this);
+
+			// If the other range begins on or after this one ends, nothing to do
+			if (otherRange.getStartDateTime().isAfter(getEndDateTime()) || otherRange.getStartDateTime().isEqual(getEndDateTime()))
+				return List.of(this);
+
+			// At this point, we must have an overlap - modify our range (potentially dividing it into two) by subtracting out the other range.
+			//
+			// There are 3 scenarios:
+			//
+			//  1: Other range might start before this range and end during it (result: 1 subrange)
+			//  2: Other range might start during this range and end after it (result: 1 subrange)
+			//  3: Other range might start during this range and end during this range (divide into 2 subranges)
+
+			// Scenario 1
+			if ((otherRange.getStartDateTime().isBefore(getStartDateTime()) || otherRange.getStartDateTime().isEqual(getStartDateTime()))
+					&& otherRange.getEndDateTime().isBefore(getEndDateTime()))
+				return List.of(new RangedValue<>(getValue(), otherRange.getEndDateTime(), getEndDateTime()));
+
+			// Scenario 2
+			if (otherRange.getStartDateTime().isAfter(getStartDateTime())
+					&& (otherRange.getEndDateTime().isAfter(getEndDateTime()) || otherRange.getEndDateTime().isEqual(getEndDateTime())))
+				return List.of(new RangedValue<>(getValue(), getStartDateTime(), otherRange.getStartDateTime()));
+
+			// Scenario 3
+			return List.of(new RangedValue<>(getValue(), getStartDateTime(), otherRange.getStartDateTime()),
+					new RangedValue<>(getValue(), otherRange.getEndDateTime(), getEndDateTime()));
+		}
+
+		@Nonnull
+		public T getValue() {
+			return value;
+		}
+
+		@Nonnull
+		public LocalDateTime getStartDateTime() {
+			return startDateTime;
+		}
+
+		@Nonnull
+		public LocalDateTime getEndDateTime() {
+			return endDateTime;
+		}
+	}
+
+	@Nonnull
+	protected <K, V> List<V> requiredValues(@Nonnull Map<K, List<V>> valuesByKey,
+																					@Nonnull K key) {
+		requireNonNull(valuesByKey);
+		requireNonNull(key);
+
+		List<V> values = valuesByKey.get(key);
+		return values == null ? Collections.emptyList() : values;
 	}
 
 	protected <K, V> void addToValues(@Nonnull Map<K, List<V>> valuesByKey,

@@ -23,18 +23,25 @@ import com.cobaltplatform.api.model.db.AttendanceStatus.AttendanceStatusId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.VideoconferencePlatform.VideoconferencePlatformId;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Comparator;
 import java.util.UUID;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class Appointment {
+public class Appointment implements Comparable<Appointment> {
+	@Nonnull
+	private static final Comparator<Appointment> DEFAULT_COMPARATOR;
+
 	@Nullable
 	private UUID appointmentId;
 	@Nullable
@@ -97,6 +104,22 @@ public class Appointment {
 	private UUID rescheduledAppointmentId;
 	@Nullable
 	private UUID intakeAccountSessionId;
+
+	static {
+		DEFAULT_COMPARATOR = Comparator.comparing(Appointment::getStartTime)
+				.thenComparing(Appointment::getEndTime);
+	}
+
+	@Override
+	public int compareTo(@Nonnull Appointment otherAppointment) {
+		requireNonNull(otherAppointment);
+		return getDefaultComparator().compare(this, otherAppointment);
+	}
+
+	@Nonnull
+	public Comparator<Appointment> getDefaultComparator() {
+		return DEFAULT_COMPARATOR;
+	}
 
 	@Nullable
 	public UUID getAppointmentId() {

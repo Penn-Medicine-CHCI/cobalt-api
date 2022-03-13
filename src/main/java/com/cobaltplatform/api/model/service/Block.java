@@ -19,18 +19,24 @@
 
 package com.cobaltplatform.api.model.service;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.UUID;
 
 import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class Block {
+public class Block implements Comparable<Block> {
+	@Nonnull
+	private static final Comparator<Block> DEFAULT_COMPARATOR;
+
 	@Nullable
 	private UUID logicalAvailabilityId;
 	@Nullable
@@ -38,10 +44,26 @@ public class Block {
 	@Nullable
 	private LocalDateTime endDateTime;
 
+	static {
+		DEFAULT_COMPARATOR = Comparator.comparing(Block::getStartDateTime)
+				.thenComparing(Block::getEndDateTime);
+	}
+
+	@Override
+	public int compareTo(@Nonnull Block otherBlock) {
+		requireNonNull(otherBlock);
+		return getDefaultComparator().compare(this, otherBlock);
+	}
+
 	@Override
 	public String toString() {
 		return format("%s{%s to %s}", getClass().getSimpleName(), getStartDateTime(),
 				getEndDateTime());
+	}
+
+	@Nonnull
+	public Comparator<Block> getDefaultComparator() {
+		return DEFAULT_COMPARATOR;
 	}
 
 	@Nullable

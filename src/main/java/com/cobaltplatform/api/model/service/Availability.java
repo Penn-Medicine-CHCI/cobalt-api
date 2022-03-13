@@ -21,19 +21,25 @@ package com.cobaltplatform.api.model.service;
 
 import com.cobaltplatform.api.model.db.AppointmentType;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
 import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class Availability {
+public class Availability implements Comparable<Availability> {
+	@Nonnull
+	private static final Comparator<Availability> DEFAULT_COMPARATOR;
+
 	@Nullable
 	private UUID logicalAvailabilityId;
 	@Nullable
@@ -43,10 +49,26 @@ public class Availability {
 	@Nullable
 	private List<AppointmentType> appointmentTypes;
 
+	static {
+		DEFAULT_COMPARATOR = Comparator.comparing(Availability::getStartDateTime)
+				.thenComparing(Availability::getEndDateTime);
+	}
+
+	@Override
+	public int compareTo(@Nonnull Availability otherAvailability) {
+		requireNonNull(otherAvailability);
+		return getDefaultComparator().compare(this, otherAvailability);
+	}
+
 	@Override
 	public String toString() {
 		return format("%s{%s to %s, appointment types %s}", getClass().getSimpleName(), getStartDateTime(),
 				getEndDateTime(), getAppointmentTypes());
+	}
+
+	@Nonnull
+	public Comparator<Availability> getDefaultComparator() {
+		return DEFAULT_COMPARATOR;
 	}
 
 	@Nullable
