@@ -23,6 +23,8 @@ import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.Appointm
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.AppointmentTypeApiResponse.AppointmentTypeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApiResponseFactory;
+import com.cobaltplatform.api.model.service.Availability;
+import com.cobaltplatform.api.model.service.Block;
 import com.cobaltplatform.api.model.service.ProviderCalendar;
 import com.cobaltplatform.api.service.AvailabilityService;
 import com.cobaltplatform.api.util.Formatter;
@@ -110,7 +112,7 @@ public class ProviderCalendarApiResponse {
 		@Nonnull
 		private final List<AppointmentTypeApiResponse> appointmentTypes;
 
-		public ProviderCalendarAvailabilityApiResponse(@Nonnull ProviderCalendar.Availability availability,
+		public ProviderCalendarAvailabilityApiResponse(@Nonnull Availability availability,
 																									 @Nonnull AppointmentTypeApiResponseFactory appointmentTypeApiResponseFactory,
 																									 @Nonnull Formatter formatter) {
 			requireNonNull(availability);
@@ -171,7 +173,7 @@ public class ProviderCalendarApiResponse {
 		@Nonnull
 		private final String endDateTimeDescription;
 
-		public ProviderCalendarBlockApiResponse(@Nonnull ProviderCalendar.Block block,
+		public ProviderCalendarBlockApiResponse(@Nonnull Block block,
 																						@Nonnull Formatter formatter) {
 			requireNonNull(block);
 			requireNonNull(formatter);

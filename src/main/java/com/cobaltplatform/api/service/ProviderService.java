@@ -29,6 +29,7 @@ import com.cobaltplatform.api.model.api.request.ProviderFindRequest.ProviderFind
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.Appointment;
+import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.LogicalAvailability;
@@ -39,6 +40,7 @@ import com.cobaltplatform.api.model.db.PaymentType;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.ProviderAvailability;
 import com.cobaltplatform.api.model.db.RecommendationLevel.RecommendationLevelId;
+import com.cobaltplatform.api.model.db.RecurrenceType.RecurrenceTypeId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.Specialty;
 import com.cobaltplatform.api.model.db.SupportRole;
@@ -47,6 +49,8 @@ import com.cobaltplatform.api.model.db.SystemAffinity.SystemAffinityId;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.cobaltplatform.api.model.service.AppointmentTypeWithLogicalAvailabilityId;
 import com.cobaltplatform.api.model.service.AppointmentTypeWithProviderId;
+import com.cobaltplatform.api.model.service.Availability;
+import com.cobaltplatform.api.model.service.Block;
 import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityStatus;
@@ -540,7 +544,9 @@ public class ProviderService {
 
 			List<AvailabilityDate> dates = new ArrayList<>();
 
-			// Different code path for Cobalt native scheduling: use synthetic "provider availability" records
+			// Different code path for Cobalt native scheduling: it creates slots based on logical_availability records.
+			// Non-native scheduling (Acuity, EPIC) will use provider_availability records.
+			// This is the heavy lifting for creating slots
 			if (provider.getSchedulingSystemId() == SchedulingSystemId.COBALT)
 				dates.addAll(availabilityDatesForNativeScheduling(datesCommand, nativeSchedulingStartDateTime, nativeSchedulingEndDateTime, nativeSchedulingAvailabilityData));
 			else
@@ -626,7 +632,6 @@ public class ProviderService {
 				providerFind.setTitle(supportRolesDescription);
 
 			providerFind.setSupportRolesDescription(supportRolesDescription);
-
 			providerFind.setDates(dates);
 			providerFind.setPaymentFundingDescriptions(providerPaymentFundingDescriptions);
 
@@ -647,6 +652,11 @@ public class ProviderService {
 		return providerFinds;
 	}
 
+	/**
+	 * To try and keep things efficient, for native scheduling providers, we pull all their data at once and break it out in-memory
+	 * to reduce the number of queries we need to make.  Then we put the processed results into NativeSchedulingAvailabilityData
+	 * for later slot creation calculations.
+	 */
 	@Nonnull
 	protected NativeSchedulingAvailabilityData loadNativeSchedulingAvailabilityData(@Nonnull Set<UUID> providerIds,
 																																									@Nonnull Set<VisitTypeId> visitTypeIds,
@@ -680,11 +690,10 @@ public class ProviderService {
 		// Pull only those logical availabilities that are for active providers and have not already ended
 		String logicalAvailabilitiesSql = format("SELECT la.* FROM logical_availability la, provider p " +
 				"WHERE p.provider_id=la.provider_id AND p.active=TRUE AND p.provider_id IN (VALUES %s) " +
-				"AND la.logical_availability_type_id=? AND (la.end_date_time IS NULL OR la.end_date_time > ?)", providerIdValuesSql);
+				"AND (la.end_date_time IS NULL OR la.end_date_time > ?)", providerIdValuesSql);
 
 		List<Object> logicalAvailabilityParameters = new ArrayList<>(providerIds.size() + 1);
 		logicalAvailabilityParameters.addAll(providerIds);
-		logicalAvailabilityParameters.add(LogicalAvailabilityTypeId.OPEN);
 		logicalAvailabilityParameters.add(startDateTime);
 
 		Map<UUID, List<LogicalAvailability>> logicalAvailabilitiesByProviderId = getDatabase().queryForList(logicalAvailabilitiesSql, LogicalAvailability.class,
@@ -763,6 +772,9 @@ public class ProviderService {
 				appointmentTypesByLogicalAvailabilityId, allActiveAppointmentTypesByProviderId, activeAppointmentsByProviderId);
 	}
 
+	/**
+	 * This performs the actual "slot" work, turning logical availabilities into bookable appointment slots.
+	 */
 	@Nonnull
 	protected List<AvailabilityDate> availabilityDatesForNativeScheduling(@Nonnull AvailabilityDatesCommand command,
 																																				@Nonnull LocalDateTime startDateTime,
@@ -772,6 +784,9 @@ public class ProviderService {
 		requireNonNull(startDateTime);
 		requireNonNull(endDateTime);
 		requireNonNull(nativeSchedulingAvailabilityData);
+
+		LocalDate startDate = startDateTime.toLocalDate();
+		LocalDate endDate = endDateTime.toLocalDate();
 
 		List<LogicalAvailability> logicalAvailabilities = nativeSchedulingAvailabilityData.getLogicalAvailabilitiesByProviderId().get(command.getProvider().getProviderId());
 
@@ -783,21 +798,99 @@ public class ProviderService {
 		if (appointments == null)
 			appointments = Collections.emptyList();
 
+		List<AppointmentTypeWithProviderId> allActiveAppointmentTypes = nativeSchedulingAvailabilityData.getAllActiveAppointmentTypesByProviderId().get(command.getProvider().getProviderId());
+
+		if (allActiveAppointmentTypes == null)
+			allActiveAppointmentTypes = Collections.emptyList();
+
+		// First, break everything out by date - start with appointments...
 		Map<LocalDate, List<Appointment>> appointmentsByDate = appointments.stream()
 				.collect(Collectors.groupingBy((appointment -> appointment.getStartTime().toLocalDate())));
 
-		List<LogicalAvailability> openAvailabilities = logicalAvailabilities.stream()
-				.filter(la -> la.getLogicalAvailabilityTypeId() == LogicalAvailabilityTypeId.OPEN)
-				.collect(Collectors.toList());
+		// ... and then, logical availabilities (similar to how our ProviderCalendar "expands" logical availabilities based on recurrence rules)
+		Map<LocalDate, List<Availability>> availabilitiesByDate = new HashMap<>();
+		Map<LocalDate, List<Block>> blocksByDate = new HashMap<>();
 
-		List<LogicalAvailability> blockAvailabilities = logicalAvailabilities.stream()
-				.filter(la -> la.getLogicalAvailabilityTypeId() == LogicalAvailabilityTypeId.OPEN)
-				.collect(Collectors.toList());
+		for (LogicalAvailability logicalAvailability : logicalAvailabilities) {
+			List<? extends AppointmentType> appointmentTypes = nativeSchedulingAvailabilityData.getAppointmentTypesByLogicalAvailabilityId().get(logicalAvailability.getLogicalAvailabilityId());
 
+			// If there are no appointment types specified, it indicates that _all_ active appointment types for the provider are valid.
+			if (appointmentTypes == null || appointmentTypes.size() == 0)
+				appointmentTypes = allActiveAppointmentTypes;
+
+			if (logicalAvailability.getRecurrenceTypeId() == RecurrenceTypeId.NONE) {
+				// Simple case: no recurrence
+				if (logicalAvailability.getLogicalAvailabilityTypeId() == LogicalAvailabilityTypeId.OPEN) {
+					Availability availability = new Availability();
+					availability.setLogicalAvailabilityId(logicalAvailability.getLogicalAvailabilityId());
+					availability.setStartDateTime(logicalAvailability.getStartDateTime());
+					availability.setEndDateTime(logicalAvailability.getEndDateTime());
+					availability.setAppointmentTypes(new ArrayList<>(appointmentTypes));
+
+					addToValues(availabilitiesByDate, availability.getStartDateTime().toLocalDate(), availability);
+				} else if (logicalAvailability.getLogicalAvailabilityTypeId() == LogicalAvailabilityTypeId.BLOCK) {
+					Block block = new Block();
+					block.setLogicalAvailabilityId(logicalAvailability.getLogicalAvailabilityId());
+					block.setStartDateTime(logicalAvailability.getStartDateTime());
+					block.setEndDateTime(logicalAvailability.getEndDateTime());
+
+					addToValues(blocksByDate, block.getStartDateTime().toLocalDate(), block);
+				} else {
+					throw new IllegalStateException(format("Not sure how to handle %s.%s", LogicalAvailabilityTypeId.class.getSimpleName(),
+							logicalAvailability.getLogicalAvailabilityTypeId().name()));
+				}
+			} else if (logicalAvailability.getRecurrenceTypeId() == RecurrenceTypeId.DAILY) {
+				// Figure out the first and last dates of the range we're getting availability for
+				LocalDate currentDate = startDate;
+
+				// For each date within the range...
+				while (currentDate.isEqual(endDate) || currentDate.isBefore(endDate)) {
+					if ((currentDate.isEqual(logicalAvailability.getStartDateTime().toLocalDate()) || currentDate.isAfter(logicalAvailability.getStartDateTime().toLocalDate()))
+							&& (currentDate.isEqual(logicalAvailability.getEndDateTime().toLocalDate()) || currentDate.isBefore(logicalAvailability.getEndDateTime().toLocalDate()))) {
+						// If recurrence rule is enabled for the day...
+						if ((currentDate.getDayOfWeek() == DayOfWeek.MONDAY && logicalAvailability.getRecurMonday())
+								|| (currentDate.getDayOfWeek() == DayOfWeek.TUESDAY && logicalAvailability.getRecurTuesday())
+								|| (currentDate.getDayOfWeek() == DayOfWeek.WEDNESDAY && logicalAvailability.getRecurWednesday())
+								|| (currentDate.getDayOfWeek() == DayOfWeek.THURSDAY && logicalAvailability.getRecurThursday())
+								|| (currentDate.getDayOfWeek() == DayOfWeek.FRIDAY && logicalAvailability.getRecurFriday())
+								|| (currentDate.getDayOfWeek() == DayOfWeek.SATURDAY && logicalAvailability.getRecurSaturday())
+								|| (currentDate.getDayOfWeek() == DayOfWeek.SUNDAY && logicalAvailability.getRecurSunday())) {
+							// ...normalize the logical availability's start and end times to be "today"
+							LocalDateTime currentStartDateTime = LocalDateTime.of(currentDate, logicalAvailability.getStartDateTime().toLocalTime());
+							LocalDateTime currentEndDateTime = LocalDateTime.of(currentDate, logicalAvailability.getEndDateTime().toLocalTime());
+
+							if (logicalAvailability.getLogicalAvailabilityTypeId() == LogicalAvailabilityTypeId.OPEN) {
+								Availability availability = new Availability();
+								availability.setLogicalAvailabilityId(logicalAvailability.getLogicalAvailabilityId());
+								availability.setStartDateTime(currentStartDateTime);
+								availability.setEndDateTime(currentEndDateTime);
+								availability.setAppointmentTypes(new ArrayList<>(appointmentTypes));
+
+								addToValues(availabilitiesByDate, currentDate, availability);
+							} else if (logicalAvailability.getLogicalAvailabilityTypeId() == LogicalAvailabilityTypeId.BLOCK) {
+								Block block = new Block();
+								block.setLogicalAvailabilityId(logicalAvailability.getLogicalAvailabilityId());
+								block.setStartDateTime(currentStartDateTime);
+								block.setEndDateTime(currentEndDateTime);
+
+								addToValues(blocksByDate, currentDate, block);
+							} else {
+								throw new IllegalStateException(format("Not sure how to handle %s.%s", LogicalAvailabilityTypeId.class.getSimpleName(),
+										logicalAvailability.getLogicalAvailabilityTypeId().name()));
+							}
+						}
+					}
+					currentDate = currentDate.plusDays(1);
+				}
+			} else {
+				throw new IllegalStateException(format("Not sure how to handle %s.%s", RecurrenceTypeId.class.getSimpleName(),
+						logicalAvailability.getRecurrenceTypeId().name()));
+			}
+		}
+
+		// Now that we have everything broken out by date, walk through all dates in the requested range and build out slots.
 		List<AvailabilityDate> dates = new ArrayList<>();
-
-		LocalDate currentDate = startDateTime.toLocalDate();
-		LocalDate endDate = endDateTime.toLocalDate();
+		LocalDate currentDate = startDate;
 
 		while (currentDate.isBefore(endDate)) {
 			// TODO: finish up
@@ -806,6 +899,23 @@ public class ProviderService {
 		}
 
 		return dates;
+	}
+
+	protected <K, V> void addToValues(@Nonnull Map<K, List<V>> valuesByKey,
+																		@Nonnull K key,
+																		@Nonnull V value) {
+		requireNonNull(valuesByKey);
+		requireNonNull(key);
+		requireNonNull(value);
+
+		List<V> values = valuesByKey.get(key);
+
+		if (values == null) {
+			values = new ArrayList<>();
+			valuesByKey.put(key, values);
+		}
+
+		values.add(value);
 	}
 
 	@Nonnull

@@ -20,12 +20,10 @@
 package com.cobaltplatform.api.model.service;
 
 import com.cobaltplatform.api.model.db.Appointment;
-import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Followup;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -55,103 +53,6 @@ public class ProviderCalendar {
 				(getBlocks().size() == 0 ? "[none]" : getBlocks().stream().map(block -> block.toString()).collect(Collectors.joining("\n\t\t"))),
 				(getFollowups().size() == 0 ? "[none]" : getFollowups().stream().map(followup -> followup.toString()).collect(Collectors.joining("\n\t\t"))),
 				(getAppointments().size() == 0 ? "[none]" : getAppointments().stream().map(appointment -> appointment.toString()).collect(Collectors.joining("\n\t\t"))));
-	}
-
-	@NotThreadSafe
-	public static class Availability {
-		@Nullable
-		private UUID logicalAvailabilityId;
-		@Nullable
-		private LocalDateTime startDateTime;
-		@Nullable
-		private LocalDateTime endDateTime;
-		@Nullable
-		private List<AppointmentType> appointmentTypes;
-
-		@Override
-		public String toString() {
-			return format("%s{%s to %s, appointment types %s}", getClass().getSimpleName(), getStartDateTime(),
-					getEndDateTime(), getAppointmentTypes());
-		}
-
-		@Nullable
-		public UUID getLogicalAvailabilityId() {
-			return logicalAvailabilityId;
-		}
-
-		public void setLogicalAvailabilityId(@Nullable UUID logicalAvailabilityId) {
-			this.logicalAvailabilityId = logicalAvailabilityId;
-		}
-
-		@Nullable
-		public LocalDateTime getStartDateTime() {
-			return startDateTime;
-		}
-
-		public void setStartDateTime(@Nullable LocalDateTime startDateTime) {
-			this.startDateTime = startDateTime;
-		}
-
-		@Nullable
-		public LocalDateTime getEndDateTime() {
-			return endDateTime;
-		}
-
-		public void setEndDateTime(@Nullable LocalDateTime endDateTime) {
-			this.endDateTime = endDateTime;
-		}
-
-		@Nullable
-		public List<AppointmentType> getAppointmentTypes() {
-			return appointmentTypes;
-		}
-
-		public void setAppointmentTypes(@Nullable List<AppointmentType> appointmentTypes) {
-			this.appointmentTypes = appointmentTypes;
-		}
-	}
-
-	@NotThreadSafe
-	public static class Block {
-		@Nullable
-		private UUID logicalAvailabilityId;
-		@Nullable
-		private LocalDateTime startDateTime;
-		@Nullable
-		private LocalDateTime endDateTime;
-
-		@Override
-		public String toString() {
-			return format("%s{%s to %s}", getClass().getSimpleName(), getStartDateTime(),
-					getEndDateTime());
-		}
-
-		@Nullable
-		public UUID getLogicalAvailabilityId() {
-			return logicalAvailabilityId;
-		}
-
-		public void setLogicalAvailabilityId(@Nullable UUID logicalAvailabilityId) {
-			this.logicalAvailabilityId = logicalAvailabilityId;
-		}
-
-		@Nullable
-		public LocalDateTime getStartDateTime() {
-			return startDateTime;
-		}
-
-		public void setStartDateTime(@Nullable LocalDateTime startDateTime) {
-			this.startDateTime = startDateTime;
-		}
-
-		@Nullable
-		public LocalDateTime getEndDateTime() {
-			return endDateTime;
-		}
-
-		public void setEndDateTime(@Nullable LocalDateTime endDateTime) {
-			this.endDateTime = endDateTime;
-		}
 	}
 
 	@Nullable
