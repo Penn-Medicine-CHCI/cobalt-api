@@ -16,6 +16,12 @@
 			<p>
 				<b>{{accountName}} ({{accountEmailAddress}})</b> will be meeting with you at <a href="{{{videoconferenceUrl}}}">{{{videoconferenceUrl}}}</a> on <b>{{appointmentStartDateDescription}}</b> @ <b>{{appointmentStartTimeDescription}}</b>.
 			</p>
+
+			{{#if providerSchedulingUrl}}
+				<p>
+					<a href="{{{providerSchedulingUrl}}}">Click here to view this appointment on your Cobalt calendar.</a>
+				</p>
+			{{/if}}
 		</td>
 	</tr>
 {{/partial}}

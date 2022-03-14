@@ -314,9 +314,10 @@ public class ProviderResource {
 				normalizedProviderFind.put("skipIntakePrompt", providerFind.getSkipIntakePrompt());
 				normalizedProviderFind.put("appointmentTypeIds", providerFind.getAppointmentTypeIds());
 				normalizedProviderFind.put("times", normalizedTimes);
-				normalizedProviderFind.put("specialtyIds", providerFind.getSpecialties().stream()
+				List<UUID> specialtyIds = providerFind.getSpecialties().stream()
 						.map(specialty -> specialty.getSpecialtyId())
-						.collect(Collectors.toList()));
+						.collect(Collectors.toList());
+				normalizedProviderFind.put("specialtyIds", specialtyIds);
 
 				normalizedProviderFinds.add(normalizedProviderFind);
 			}
@@ -444,10 +445,13 @@ public class ProviderResource {
 						.map(clinic -> getClinicApiResponseFactory().create(clinic))
 						.collect(Collectors.toList()));
 
-			if (specialties.size() > 0)
+			if (specialties.size() > 0) {
 				put("specialties", specialties.stream()
 						.map(specialty -> getSpecialtyApiResponseFactory().create(specialty))
 						.collect(Collectors.toList()));
+				put("showSpecialties", true);
+			} else
+				put("showSpecialties", false);
 
 			if (includeAppointments)
 				put("appointments", sortedAppointments.stream()

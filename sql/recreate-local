@@ -22,6 +22,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/015-appointmen
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/016-account-role-request.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/016-local-only-account-role-request.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/017-account-session-for-intake.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/018-provider-active-flag.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
