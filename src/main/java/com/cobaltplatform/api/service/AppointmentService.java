@@ -1722,6 +1722,10 @@ public class AppointmentService {
 		cobaltProviderEmailMessageContext.put("accountEmailAddress", account.getEmailAddress());
 		cobaltProviderEmailMessageContext.put("videoconferenceUrl", videoconferenceUrl);
 
+		// With native scheduling, providers can deeplink right to the appointment on their calendar
+		if(appointment.getSchedulingSystemId() == SchedulingSystemId.COBALT)
+			cobaltProviderEmailMessageContext.put("providerSchedulingUrl", format("%s/scheduling/appointments/%s", webappBaseUrl, appointmentId));
+
 		EmailMessage providerEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_CREATED_PROVIDER, provider.getLocale())
 				.toAddresses(List.of(provider.getEmailAddress()))
 				.messageContext(cobaltProviderEmailMessageContext)
