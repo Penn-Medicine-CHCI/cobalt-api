@@ -84,8 +84,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -1013,8 +1016,49 @@ public class ProviderService {
 			currentDate = currentDate.plusDays(1);
 		}
 
+		// Get our final list of dates and make sure it's sorted
 		List<AvailabilityDate> dates = new ArrayList<>(availabilityDatesByDate.values());
 		Collections.sort(dates, (date1, date2) -> date1.getDate().compareTo(date2.getDate()));
+
+		// If a user specifies overlapping logical availabilities, we might have duplicate time slots (with perhaps different appointment types).
+		// Normalize these slots by "squishing" together into a single slot with the union of the appointment types.
+		for (AvailabilityDate date : dates) {
+			// See where our duplicates are, and keep track of the union of all appointment types by time
+			SortedMap<LocalTime, List<AvailabilityTime>> availabilityTimesByTime = new TreeMap<>();
+			Map<LocalTime, Set<UUID>> appointmentTypeIdsByTime = new HashMap<>(date.getTimes().size());
+
+			for (AvailabilityTime time : date.getTimes()) {
+				addToValues(availabilityTimesByTime, time.getTime(), time);
+
+				Set<UUID> appointmentTypeIds = appointmentTypeIdsByTime.get(time.getTime());
+
+				if (appointmentTypeIds == null) {
+					appointmentTypeIds = new HashSet<>();
+					appointmentTypeIdsByTime.put(time.getTime(), appointmentTypeIds);
+				}
+
+				appointmentTypeIds.addAll(time.getAppointmentTypeIds());
+			}
+
+			List<AvailabilityTime> normalizedAvailabilityTimes = new ArrayList<>(date.getTimes().size());
+
+			for (Entry<LocalTime, List<AvailabilityTime>> entry : availabilityTimesByTime.entrySet()) {
+				List<AvailabilityTime> availabilityTimes = entry.getValue();
+
+				if (availabilityTimes.size() == 1) {
+					// Normal case: no duplicates, so no squishing needed
+					normalizedAvailabilityTimes.add(availabilityTimes.get(0));
+				} else if (availabilityTimes.size() > 1) {
+					// Found a duplicate - let's squish.  Pick the first one arbitrarily and then apply the union of appointment types
+					AvailabilityTime squishedAvailabilityTime = availabilityTimes.get(0);
+					squishedAvailabilityTime.setAppointmentTypeIds(new ArrayList<>(appointmentTypeIdsByTime.get(entry.getKey())));
+
+					normalizedAvailabilityTimes.add(squishedAvailabilityTime);
+				}
+			}
+
+			date.setTimes(normalizedAvailabilityTimes);
+		}
 
 		return dates;
 	}
@@ -1109,7 +1153,7 @@ public class ProviderService {
 		requireNonNull(key);
 
 		List<V> values = valuesByKey.get(key);
-		return values == null ? Collections.emptyList() : values;
+		return values == null ? new ArrayList<>() : values;
 	}
 
 	protected <K, V> void addToValues(@Nonnull Map<K, List<V>> valuesByKey,
