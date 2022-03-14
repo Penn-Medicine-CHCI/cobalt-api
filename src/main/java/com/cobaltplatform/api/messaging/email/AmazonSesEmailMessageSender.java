@@ -19,17 +19,17 @@
 
 package com.cobaltplatform.api.messaging.email;
 
-import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
-import com.amazonaws.services.simpleemail.AmazonSimpleEmailService;
-import com.amazonaws.services.simpleemail.AmazonSimpleEmailServiceClientBuilder;
-import com.amazonaws.services.simpleemail.model.RawMessage;
-import com.amazonaws.services.simpleemail.model.SendRawEmailRequest;
-import com.amazonaws.services.simpleemail.model.SendRawEmailResult;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.messaging.MessageSender;
 import com.cobaltplatform.api.util.HandlebarsTemplater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.services.ses.SesClient;
+import software.amazon.awssdk.services.ses.SesClientBuilder;
+import software.amazon.awssdk.services.ses.model.RawMessage;
+import software.amazon.awssdk.services.ses.model.SendRawEmailRequest;
+import software.amazon.awssdk.services.ses.model.SendRawEmailResponse;
 
 import javax.activation.DataHandler;
 import javax.activation.DataSource;
@@ -48,6 +48,7 @@ import javax.mail.internet.MimeMultipart;
 import javax.mail.util.ByteArrayDataSource;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -71,7 +72,7 @@ public class AmazonSesEmailMessageSender implements MessageSender<EmailMessage> 
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
-	private final AmazonSimpleEmailService amazonSimpleEmailService;
+	private final SesClient amazonSimpleEmailService;
 	@Nonnull
 	private final String defaultFromAddress;
 	@Nonnull
@@ -96,7 +97,7 @@ public class AmazonSesEmailMessageSender implements MessageSender<EmailMessage> 
 		Map<String, Object> messageContext = new HashMap<>(emailMessage.getMessageContext());
 		// e.g. https://cobaltplatform.s3.us-east-2.amazonaws.com/local/emails/button-start-appointment@2x.jpg
 		messageContext.put("staticFileUrlPrefix", format(" https://%s.s3.%s.amazonaws.com/%s/emails",
-				getConfiguration().getAmazonS3BucketName(), getConfiguration().getAmazonS3Region().getName(), getConfiguration().getEnvironment()));
+				getConfiguration().getAmazonS3BucketName(), getConfiguration().getAmazonS3Region().id(), getConfiguration().getEnvironment()));
 		messageContext.put("copyrightYear", LocalDateTime.now(ZoneId.of("America/New_York")).getYear());
 
 		String fromAddress = emailMessage.getFromAddress().isPresent() ? emailMessage.getFromAddress().get() : getDefaultFromAddress();
@@ -154,14 +155,18 @@ public class AmazonSesEmailMessageSender implements MessageSender<EmailMessage> 
 
 			ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 			mimeMessage.writeTo(outputStream);
-			RawMessage rawMessage = new RawMessage(ByteBuffer.wrap(outputStream.toByteArray()));
+			RawMessage rawMessage = RawMessage.builder()
+					.data(SdkBytes.fromByteBuffer(ByteBuffer.wrap(outputStream.toByteArray())))
+					.build();
 
-			SendRawEmailRequest request = new SendRawEmailRequest()
-					.withRawMessage(rawMessage);
+			SendRawEmailRequest request = SendRawEmailRequest.builder()
+					.source(fromAddress)
+					.rawMessage(rawMessage)
+					.build();
 
-			SendRawEmailResult result = getAmazonSimpleEmailService().sendRawEmail(request);
+			SendRawEmailResponse result = getAmazonSimpleEmailService().sendRawEmail(request);
 
-			getLogger().info("Successfully sent email (message ID {}) in {} ms.", result.getMessageId(), System.currentTimeMillis() - time);
+			getLogger().info("Successfully sent email (message ID {}) in {} ms.", result.messageId(), System.currentTimeMillis() - time);
 		} catch (IOException | MessagingException e) {
 			throw new RuntimeException(format("Unable to send %s", emailMessage), e);
 		}
@@ -187,22 +192,20 @@ public class AmazonSesEmailMessageSender implements MessageSender<EmailMessage> 
 	}
 
 	@Nonnull
-	protected AmazonSimpleEmailService createAmazonSimpleEmailService() {
-		AmazonSimpleEmailServiceClientBuilder builder = AmazonSimpleEmailServiceClientBuilder.standard();
+	protected SesClient createAmazonSimpleEmailService() {
+		SesClientBuilder builder = SesClient.builder()
+				.region(getConfiguration().getAmazonSesRegion());
 
 		if (getConfiguration().getAmazonUseLocalstack()) {
-			builder.withEndpointConfiguration(new EndpointConfiguration(format("http://localhost:%d", getConfiguration().getAmazonLocalstackPort()), getConfiguration().getAmazonSesRegion().getName()))
-					.withCredentials(getConfiguration().getAmazonCredentialsProvider());
-		} else {
-			builder.withCredentials(getConfiguration().getAmazonCredentialsProvider())
-					.withRegion(getConfiguration().getAmazonSesRegion().getName());
+			builder.endpointOverride(URI.create(format("http://localhost:%d", getConfiguration().getAmazonLocalstackPort())));
 		}
 
 		return builder.build();
 	}
 
+
 	@Nonnull
-	protected AmazonSimpleEmailService getAmazonSimpleEmailService() {
+	protected SesClient getAmazonSimpleEmailService() {
 		return amazonSimpleEmailService;
 	}
 

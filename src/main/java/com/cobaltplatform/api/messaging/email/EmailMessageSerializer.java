@@ -19,26 +19,30 @@
 
 package com.cobaltplatform.api.messaging.email;
 
-import com.amazonaws.client.builder.AwsClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.messaging.MessageSerializer;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3ClientBuilder;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.net.URI;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -55,7 +59,7 @@ public class EmailMessageSerializer implements MessageSerializer<EmailMessage> {
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
-	private final AmazonS3 amazonS3;
+	private final S3Client amazonS3;
 	@Nonnull
 	private final Logger logger;
 
@@ -122,15 +126,11 @@ public class EmailMessageSerializer implements MessageSerializer<EmailMessage> {
 	}
 
 	@Nonnull
-	protected AmazonS3 createAmazonS3() {
-		AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
+	protected S3Client createAmazonS3() {
+		S3ClientBuilder builder = S3Client.builder()	.region(getConfiguration().getAmazonS3Region());
 
 		if (getConfiguration().getAmazonUseLocalstack()) {
-			builder.withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(getConfiguration().getAmazonS3BaseUrl(), getConfiguration().getAmazonSesRegion().getName()))
-					.withCredentials(getConfiguration().getAmazonCredentialsProvider());
-		} else {
-			builder.withCredentials(getConfiguration().getAmazonCredentialsProvider())
-					.withRegion(getConfiguration().getAmazonSesRegion().getName());
+			builder.endpointOverride(URI.create(getConfiguration().getAmazonS3BaseUrl()));
 		}
 
 		return builder.build();
@@ -142,16 +142,19 @@ public class EmailMessageSerializer implements MessageSerializer<EmailMessage> {
 		requireNonNull(emailMessage);
 		requireNonNull(emailAttachment);
 
-		ObjectMetadata objectMetadata = new ObjectMetadata();
-		objectMetadata.setContentType(emailAttachment.getContentType());
-
 		String key = determineEmailAttachmentDataKey(emailMessage.getMessageId(), emailAttachment.getFilename());
 
 		getLogger().debug("Uploading email attachment data to {}...", key);
 
-		try (ByteArrayInputStream inputStream = new ByteArrayInputStream(emailAttachment.getData())) {
-			PutObjectRequest putObjectRequest = new PutObjectRequest(getConfiguration().getAmazonS3BucketName(), key, inputStream, objectMetadata);
-			getAmazonS3().putObject(putObjectRequest);
+		try (InputStream inputStream = new ByteArrayInputStream(emailAttachment.getData())) {
+			PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+					.bucket(getConfiguration().getAmazonS3BucketName())
+					.key(key)
+					.contentType(emailAttachment.getContentType())
+					.build();
+
+
+			getAmazonS3().putObject(putObjectRequest, RequestBody.fromInputStream(inputStream, emailAttachment.getData().length));
 			getLogger().debug("Email attachment data successfully uploaded to {}",
 					format("%s/%s/%s", getConfiguration().getAmazonS3BaseUrl(), getConfiguration().getAmazonS3BucketName(), key));
 			return key;
@@ -174,11 +177,13 @@ public class EmailMessageSerializer implements MessageSerializer<EmailMessage> {
 		requireNonNull(key);
 
 		getLogger().debug("Fetching email attachment data from {}...", key);
+		GetObjectRequest objectRequest = GetObjectRequest.builder()
+				.bucket(getConfiguration().getAmazonS3BucketName())
+				.key(key)
+				.build();
 
-		S3Object s3Object = getAmazonS3().getObject(getConfiguration().getAmazonS3BucketName(), key);
-
-		try (S3ObjectInputStream s3is = s3Object.getObjectContent()) {
-			byte[] data = IOUtils.toByteArray(s3is);
+		try (ResponseInputStream<GetObjectResponse> s3Object = getAmazonS3().getObject(objectRequest);) {
+			byte[] data = IOUtils.toByteArray(s3Object);
 			getLogger().debug("Email attachment data successfully fetched from {}.", key);
 			return data;
 		} catch (IOException e) {
@@ -197,7 +202,7 @@ public class EmailMessageSerializer implements MessageSerializer<EmailMessage> {
 	}
 
 	@Nonnull
-	protected AmazonS3 getAmazonS3() {
+	protected S3Client getAmazonS3() {
 		return amazonS3;
 	}
 

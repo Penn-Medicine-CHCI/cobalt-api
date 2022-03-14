@@ -19,17 +19,19 @@
 
 package com.cobaltplatform.api.util;
 
-import com.amazonaws.HttpMethod;
-import com.amazonaws.client.builder.AwsClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.Headers;
-import com.amazonaws.services.s3.model.CannedAccessControlList;
-import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
-import com.lokalized.Strings;
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.http.HttpMethod;
+import com.lokalized.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.ObjectCannedACL;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -37,11 +39,12 @@ import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.net.URI;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
-import java.util.Date;
 import java.util.Map;
-import java.util.Map.Entry;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.time.temporal.ChronoUnit.MINUTES;
@@ -54,7 +57,7 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class UploadManager {
 	@Nonnull
-	private final AmazonS3 amazonS3;
+	private final S3Presigner amazonS3;
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
@@ -94,58 +97,62 @@ public class UploadManager {
 			metadata = Collections.emptyMap();
 
 		Instant expirationTimestamp = Instant.now().plus(getConfiguration().getAmazonS3PresignedUploadExpirationInMinutes(), MINUTES);
-		GeneratePresignedUrlRequest generatePresignedUrlRequest = new GeneratePresignedUrlRequest(getConfiguration().getAmazonS3BucketName(), key);
+		PutObjectRequest.Builder putObjectRequestBuilder = PutObjectRequest.builder()
+				.bucket(getConfiguration().getAmazonS3BucketName())
+				.key(key)
+				.contentType(contentType)
+				.expires(expirationTimestamp)
+				// Always set public read flag since these images are not sensitive information
+				.acl(ObjectCannedACL.PUBLIC_READ)
+				.metadata(metadata.entrySet().stream().collect(Collectors.toMap(e -> format("x-amz-meta-%s", e.getKey()), Map.Entry::getValue)));
 
-		for (Entry<String, String> entry : metadata.entrySet())
-			generatePresignedUrlRequest.putCustomRequestHeader(format("x-amz-meta-%s", entry.getKey()), entry.getValue());
+		PutObjectRequest putObjectRequest = putObjectRequestBuilder.build();
 
-		HttpMethod httpMethod = HttpMethod.PUT;
-
-		generatePresignedUrlRequest.setMethod(httpMethod);
-		generatePresignedUrlRequest.setExpiration(Date.from(expirationTimestamp));
-		generatePresignedUrlRequest.setContentType(contentType);
-
-		// Always set public read flag since these images are not sensitive information
-		generatePresignedUrlRequest.addRequestParameter(
-				Headers.S3_CANNED_ACL,
-				CannedAccessControlList.PublicRead.toString()
-		);
+		PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+				.signatureDuration(Duration.ofMinutes(getConfiguration().getAmazonS3PresignedUploadExpirationInMinutes()))
+				.putObjectRequest(putObjectRequest)
+				.build();
 
 		getLogger().debug("Generating presigned S3 upload URL for key '{}' and metadata {}...", key, metadata);
-
-		String url = getAmazonS3().generatePresignedUrl(generatePresignedUrlRequest).toString();
-
-		// For Localstack, the post-S3-upload Lambda will not be triggered if we have any query parameters, so strip them off.
+		PresignedPutObjectRequest presignedRequest = amazonS3.presignPutObject(presignRequest);
+		String url = presignedRequest.url().toString();
+		//
+		// For AWS SDK 1.x , For Localstack, the post-S3-upload Lambda will not be triggered if we have any query parameters, so strip them off.
 		// This took a while to figure out...
-		if (getConfiguration().getAmazonUseLocalstack())
-			url = url.substring(0, url.indexOf("?"));
+		//
+		// For AWS SDK 2.x, query parameters must remain for presigned urls, not sure about lambda triggers
+		//if (getConfiguration().getAmazonUseLocalstack())
+		//  url = url.substring(0, url.indexOf("?"));
 
-		return new PresignedUpload(httpMethod.name(), url, contentType, expirationTimestamp, generatePresignedUrlRequest.getCustomRequestHeaders());
+		return new PresignedUpload(HttpMethod.PUT.name(), url, contentType, expirationTimestamp, putObjectRequest.metadata());
 	}
 
-	@Nonnull
 	public String createPresignedViewUrl(@Nonnull String bucket,
 																			 @Nonnull String key) {
 		requireNonNull(bucket);
 		requireNonNull(key);
 
-		GeneratePresignedUrlRequest generatePresignedUrlRequest = new GeneratePresignedUrlRequest(bucket, key);
+		GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+				.bucket(bucket)
+				.key(key)
+				.build();
 
-		// TODO: figure out further restrictions...
+		GetObjectPresignRequest getObjectPresignRequest = GetObjectPresignRequest.builder()
+				.signatureDuration(Duration.ofMinutes(getConfiguration().getAmazonS3PresignedUploadExpirationInMinutes()))
+				.getObjectRequest(getObjectRequest)
+				.build();
 
-		return getAmazonS3().generatePresignedUrl(generatePresignedUrlRequest).toString();
+		PresignedGetObjectRequest presignedGetObjectRequest = amazonS3.presignGetObject(getObjectPresignRequest);
+		return presignedGetObjectRequest.url().toString();
 	}
 
 	@Nonnull
-	protected AmazonS3 createAmazonS3() {
-		AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
+	protected S3Presigner createAmazonS3() {
+		S3Presigner.Builder builder = S3Presigner.builder()
+				.region(getConfiguration().getAmazonS3Region());
 
 		if (getConfiguration().getAmazonUseLocalstack()) {
-			builder.withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(getConfiguration().getAmazonS3BaseUrl(), getConfiguration().getAmazonS3Region().getName()))
-					.withCredentials(getConfiguration().getAmazonCredentialsProvider());
-		} else {
-			builder.withCredentials(getConfiguration().getAmazonCredentialsProvider())
-					.withRegion(getConfiguration().getAmazonS3Region().getName());
+			builder.endpointOverride(URI.create(getConfiguration().getAmazonS3BaseUrl()));
 		}
 
 		return builder.build();
@@ -216,7 +223,7 @@ public class UploadManager {
 	}
 
 	@Nonnull
-	protected AmazonS3 getAmazonS3() {
+	protected S3Presigner getAmazonS3() {
 		return amazonS3;
 	}
 
