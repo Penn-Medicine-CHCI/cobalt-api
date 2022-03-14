@@ -888,6 +888,15 @@ public class ProviderService {
 		// For each date in the date range, figure out available ranges and remove ranges we know are unavailable
 		// (either blocks or appointments) so we end up with a set of subrange[s].
 		while (currentDate.isBefore(endDate)) {
+			if ((command.getDaysOfWeek().size() > 0 && !command.getDaysOfWeek().contains(currentDate.getDayOfWeek()) /* Respect "day of week" filter */)
+					|| (command.getStartDate() != null && currentDate.isBefore(command.getStartDate())) /* Respect "start date" filter */
+					|| (command.getEndDate() != null && currentDate.isAfter(command.getEndDate())) /* Respect "end date" filter */
+					|| (!currentDate.isAfter(command.getCurrentDate())) /* Don't include anything that is "today" */
+			) {
+				currentDate = currentDate.plusDays(1);
+				continue;
+			}
+
 			// First, get a list of all availabilities/blocks/appointments for this date
 			List<Availability> currentAvailabilities = requiredValues(availabilitiesByDate, currentDate);
 			List<Block> currentBlocks = requiredValues(blocksByDate, currentDate);
@@ -1001,12 +1010,19 @@ public class ProviderService {
 
 					// Only add the slot if there are appointment types (if no appointment types, that means nothing fit in the slot)
 					if (appointmentTypeIdsThatFit.size() > 0) {
-						AvailabilityTime availabilityTime = new AvailabilityTime();
-						availabilityTime.setStatus(AvailabilityStatus.AVAILABLE);
-						availabilityTime.setTime(slotTime);
-						availabilityTime.setAppointmentTypeIds(appointmentTypeIdsThatFit);
 
-						availabilityDate.getTimes().add(availabilityTime);
+						// Respect "start time" and "end time" filters
+						boolean tooEarlyForFilter = command.getStartTime() != null && slotTime.isBefore(command.getStartTime());
+						boolean tooLateForFilter = command.getEndTime() != null && slotTime.isAfter(command.getEndTime());
+
+						if (!tooEarlyForFilter && !tooLateForFilter) {
+							AvailabilityTime availabilityTime = new AvailabilityTime();
+							availabilityTime.setStatus(AvailabilityStatus.AVAILABLE);
+							availabilityTime.setTime(slotTime);
+							availabilityTime.setAppointmentTypeIds(appointmentTypeIdsThatFit);
+
+							availabilityDate.getTimes().add(availabilityTime);
+						}
 					}
 
 					slotTime = slotTime.plusMinutes(slotSizeInMinutes);
