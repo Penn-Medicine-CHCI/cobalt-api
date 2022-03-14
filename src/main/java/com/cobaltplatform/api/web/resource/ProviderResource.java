@@ -270,6 +270,7 @@ public class ProviderResource {
 			List<Object> normalizedProviderFinds = new ArrayList<>(providerFindsForDate.size());
 
 			boolean allProvidersFullyBooked = true;
+			boolean providersWithSpecialties = false;
 
 			for (ProviderFind providerFind : providerFindsForDate) {
 				List<Object> normalizedTimes = new ArrayList<>(providerFindsForDate.size());
@@ -314,9 +315,12 @@ public class ProviderResource {
 				normalizedProviderFind.put("skipIntakePrompt", providerFind.getSkipIntakePrompt());
 				normalizedProviderFind.put("appointmentTypeIds", providerFind.getAppointmentTypeIds());
 				normalizedProviderFind.put("times", normalizedTimes);
-				normalizedProviderFind.put("specialtyIds", providerFind.getSpecialties().stream()
+				List<UUID> specialtyIds = providerFind.getSpecialties().stream()
 						.map(specialty -> specialty.getSpecialtyId())
-						.collect(Collectors.toList()));
+						.collect(Collectors.toList());
+				normalizedProviderFind.put("specialtyIds", specialtyIds);
+				if (specialtyIds.size() > 0)
+					providersWithSpecialties = true;
 
 				normalizedProviderFinds.add(normalizedProviderFind);
 			}
@@ -326,6 +330,7 @@ public class ProviderResource {
 			section.put("dateDescription", getFormatter().formatDate(date, FormatStyle.FULL));
 			section.put("fullyBooked", allProvidersFullyBooked);
 			section.put("providers", normalizedProviderFinds);
+			section.put("providersWithSpecialties", providersWithSpecialties);
 
 			sections.add(section);
 		}
