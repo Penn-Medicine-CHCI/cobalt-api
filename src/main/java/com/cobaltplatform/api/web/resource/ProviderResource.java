@@ -270,7 +270,6 @@ public class ProviderResource {
 			List<Object> normalizedProviderFinds = new ArrayList<>(providerFindsForDate.size());
 
 			boolean allProvidersFullyBooked = true;
-			boolean providersWithSpecialties = false;
 
 			for (ProviderFind providerFind : providerFindsForDate) {
 				List<Object> normalizedTimes = new ArrayList<>(providerFindsForDate.size());
@@ -319,8 +318,6 @@ public class ProviderResource {
 						.map(specialty -> specialty.getSpecialtyId())
 						.collect(Collectors.toList());
 				normalizedProviderFind.put("specialtyIds", specialtyIds);
-				if (specialtyIds.size() > 0)
-					providersWithSpecialties = true;
 
 				normalizedProviderFinds.add(normalizedProviderFind);
 			}
@@ -330,7 +327,6 @@ public class ProviderResource {
 			section.put("dateDescription", getFormatter().formatDate(date, FormatStyle.FULL));
 			section.put("fullyBooked", allProvidersFullyBooked);
 			section.put("providers", normalizedProviderFinds);
-			section.put("providersWithSpecialties", providersWithSpecialties);
 
 			sections.add(section);
 		}
@@ -449,10 +445,13 @@ public class ProviderResource {
 						.map(clinic -> getClinicApiResponseFactory().create(clinic))
 						.collect(Collectors.toList()));
 
-			if (specialties.size() > 0)
+			if (specialties.size() > 0) {
 				put("specialties", specialties.stream()
 						.map(specialty -> getSpecialtyApiResponseFactory().create(specialty))
 						.collect(Collectors.toList()));
+				put("showSpecialties", true);
+			} else
+				put("showSpecialties", false);
 
 			if (includeAppointments)
 				put("appointments", sortedAppointments.stream()
