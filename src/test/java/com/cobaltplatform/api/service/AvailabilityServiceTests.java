@@ -26,7 +26,6 @@ import com.cobaltplatform.api.model.api.request.CreateLogicalAvailabilityRequest
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.LogicalAvailabilityType.LogicalAvailabilityTypeId;
-import com.cobaltplatform.api.model.db.ProviderAvailability;
 import com.cobaltplatform.api.model.db.RecurrenceType.RecurrenceTypeId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
@@ -46,7 +45,6 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -62,64 +60,6 @@ public class AvailabilityServiceTests {
 
 	static {
 		SEQUENCE_GENERATOR = new AtomicLong(0);
-	}
-
-	@Test
-	public void testLogicalAvailabilitySlots() {
-		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
-			AvailabilityService availabilityService = app.getInjector().getInstance(AvailabilityService.class);
-
-			// Make a new provider
-			TestProvider testProvider = createTestProvider(app.getInjector());
-
-			// 1. Create logical availability
-			availabilityService.createLogicalAvailability(new CreateLogicalAvailabilityRequest() {{
-				setProviderId(testProvider.getProviderId());
-				setAccountId(testProvider.getAccountId());
-				setLogicalAvailabilityTypeId(LogicalAvailabilityTypeId.OPEN);
-				setRecurrenceTypeId(RecurrenceTypeId.NONE);
-				setAppointmentTypeIds(List.of(testProvider.getNpvAppointmentTypeId()));
-				setStartDateTime(LocalDateTime.of(
-						LocalDate.of(2022, 2, 15),
-						LocalTime.of(10, 30)));
-				setEndDate(LocalDate.of(2022, 2, 15));
-				setEndTime(LocalTime.of(14, 30));
-			}});
-
-			// 2. Ask for availability slots
-			LocalDateTime startDateTime = LocalDateTime.of(
-					LocalDate.of(2022, 2, 15),
-					LocalTime.of(9, 00));
-
-			LocalDateTime endDateTime = LocalDateTime.of(
-					LocalDate.of(2022, 2, 15),
-					LocalTime.of(18, 00));
-
-			// 3. Verify slots
-			List<ProviderAvailability> providerAvailabilities = availabilityService.nativeSchedulingProviderAvailabilitiesByProviderId(
-					testProvider.getProviderId(), Set.of(VisitTypeId.INITIAL), startDateTime, endDateTime);
-
-			// For 60 minute NPV, slots should be:
-			// 10:30-11:30, 11:30-12:30, 12:30-1:30, 1:30-2:30
-
-			Assert.assertEquals("Wrong number of availability slots", 4, providerAvailabilities.size());
-
-			Assert.assertEquals("Wrong 1st slot time", LocalDateTime.of(
-					LocalDate.of(2022, 2, 15),
-					LocalTime.of(10, 30)), providerAvailabilities.get(0).getDateTime());
-
-			Assert.assertEquals("Wrong 2nd slot time", LocalDateTime.of(
-					LocalDate.of(2022, 2, 15),
-					LocalTime.of(11, 30)), providerAvailabilities.get(1).getDateTime());
-
-			Assert.assertEquals("Wrong 3rd slot time", LocalDateTime.of(
-					LocalDate.of(2022, 2, 15),
-					LocalTime.of(12, 30)), providerAvailabilities.get(2).getDateTime());
-
-			Assert.assertEquals("Wrong 4th slot time", LocalDateTime.of(
-					LocalDate.of(2022, 2, 15),
-					LocalTime.of(13, 30)), providerAvailabilities.get(3).getDateTime());
-		});
 	}
 
 	@Test

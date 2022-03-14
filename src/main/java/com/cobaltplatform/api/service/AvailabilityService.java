@@ -31,13 +31,10 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.LogicalAvailability;
 import com.cobaltplatform.api.model.db.LogicalAvailabilityType.LogicalAvailabilityTypeId;
 import com.cobaltplatform.api.model.db.Provider;
-import com.cobaltplatform.api.model.db.ProviderAvailability;
 import com.cobaltplatform.api.model.db.RecurrenceType.RecurrenceTypeId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
-import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.cobaltplatform.api.model.service.AppointmentTypeWithLogicalAvailabilityId;
-import com.cobaltplatform.api.model.service.AppointmentTypeWithProviderId;
 import com.cobaltplatform.api.model.service.Availability;
 import com.cobaltplatform.api.model.service.Block;
 import com.cobaltplatform.api.model.service.ProviderCalendar;
@@ -54,17 +51,14 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.time.DayOfWeek;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -341,223 +335,6 @@ public class AvailabilityService {
 					logicalAvailabilityId, appointmentType.getAppointmentTypeId());
 
 		return true;
-	}
-
-	@Nonnull
-	public List<ProviderAvailability> nativeSchedulingProviderAvailabilitiesByProviderId(@Nullable UUID providerId,
-																																											 @Nullable Set<VisitTypeId> visitTypeIds,
-																																											 @Nullable LocalDateTime startDateTime,
-																																											 @Nullable LocalDateTime endDateTime) {
-		if (providerId == null || startDateTime == null || endDateTime == null)
-			return Collections.emptyList();
-
-		Map<UUID, List<ProviderAvailability>> providerAvailabilitiesByProviderId = nativeSchedulingProviderAvailabilitiesByProviderId(Set.of(providerId), visitTypeIds, startDateTime, endDateTime);
-		List<ProviderAvailability> providerAvailabilities = providerAvailabilitiesByProviderId.get(providerId);
-		return providerAvailabilities == null ? Collections.emptyList() : providerAvailabilities;
-	}
-
-	@Nonnull
-	public Map<UUID, List<ProviderAvailability>> nativeSchedulingProviderAvailabilitiesByProviderId(@Nullable Set<UUID> providerIds,
-																																																	@Nullable Set<VisitTypeId> visitTypeIds,
-																																																	@Nullable LocalDateTime startDateTime,
-																																																	@Nullable LocalDateTime endDateTime) {
-		if (providerIds == null || startDateTime == null || endDateTime == null)
-			return Collections.emptyMap();
-
-		if (startDateTime.isEqual(endDateTime) || startDateTime.isAfter(endDateTime))
-			return Collections.emptyMap();
-
-		providerIds = providerIds.stream()
-				.filter(providerId -> providerId != null)
-				.collect(Collectors.toSet());
-
-		if (providerIds.size() == 0)
-			return Collections.emptyMap();
-
-		if (visitTypeIds == null)
-			visitTypeIds = Collections.emptySet();
-		else
-			visitTypeIds = visitTypeIds.stream().filter(visitTypeId -> visitTypeId != null).collect(Collectors.toSet());
-
-		Instant now = Instant.now();
-		Set<VisitTypeId> pinnedVisitTypeIds = visitTypeIds;
-
-		// e.g. "(?),(?),(?)" for Postgres' VALUES clause (faster than IN list)
-		String providerIdValuesSql = providerIds.stream().map(providerId -> "(?)").collect(Collectors.joining(","));
-
-		// Pull only those logical availabilities that are for active providers and have not already ended
-		String logicalAvailabilitiesSql = format("SELECT la.* FROM logical_availability la, provider p " +
-				"WHERE p.provider_id=la.provider_id AND p.active=TRUE AND p.provider_id IN (VALUES %s) " +
-				"AND la.logical_availability_type_id=? AND (la.end_date_time IS NULL OR la.end_date_time > ?)", providerIdValuesSql);
-
-		List<Object> logicalAvailabilityParameters = new ArrayList<>(providerIds.size() + 1);
-		logicalAvailabilityParameters.addAll(providerIds);
-		logicalAvailabilityParameters.add(LogicalAvailabilityTypeId.OPEN);
-		logicalAvailabilityParameters.add(startDateTime);
-
-		Map<UUID, List<LogicalAvailability>> logicalAvailabilitiesByProviderId = getDatabase().queryForList(logicalAvailabilitiesSql, LogicalAvailability.class,
-						logicalAvailabilityParameters.toArray()).stream()
-				.collect(Collectors.groupingBy(LogicalAvailability::getProviderId));
-
-		// Pull appointment types associated with logical availabilities
-		String logicalAvailabilityAppointmentTypesSql = format("SELECT apt.*, la.logical_availability_id FROM v_appointment_type apt, logical_availability la, logical_availability_appointment_type laat, provider p " +
-				"WHERE laat.appointment_type_id=apt.appointment_type_id AND laat.logical_availability_id=la.logical_availability_id " +
-				"AND la.logical_availability_type_id=? AND la.provider_id=p.provider_id AND p.active=TRUE AND p.provider_id IN (VALUES %s)", providerIdValuesSql);
-
-		List<Object> logicalAvailabilityAppointmentTypeParameters = new ArrayList<>();
-		logicalAvailabilityAppointmentTypeParameters.add(LogicalAvailabilityTypeId.OPEN);
-		logicalAvailabilityAppointmentTypeParameters.addAll(providerIds);
-
-		List<AppointmentTypeWithLogicalAvailabilityId> logicalAvailabilityAppointmentTypes = getDatabase().queryForList(logicalAvailabilityAppointmentTypesSql,
-						AppointmentTypeWithLogicalAvailabilityId.class, logicalAvailabilityAppointmentTypeParameters.toArray()).stream()
-				.filter((appointmentType -> {
-					// If visit types specified, filter
-					if (pinnedVisitTypeIds.size() > 0)
-						return pinnedVisitTypeIds.contains(appointmentType.getVisitTypeId());
-
-					return true;
-				}))
-				.collect(Collectors.toList());
-
-		Map<UUID, List<AppointmentTypeWithLogicalAvailabilityId>> appointmentTypesByLogicalAvailabilityId = logicalAvailabilityAppointmentTypes.stream()
-				.collect(Collectors.groupingBy(AppointmentTypeWithLogicalAvailabilityId::getLogicalAvailabilityId));
-
-		// Pull all appointment types for active providers
-		String allActiveAppointmentTypesSql = format("SELECT apt.*, p.provider_id FROM appointment_type apt, provider_appointment_type pat, provider p " +
-				"WHERE pat.appointment_type_id=apt.appointment_type_id " +
-				"AND pat.provider_id=p.provider_id AND p.active=TRUE AND p.provider_id IN (VALUES %s)", providerIdValuesSql);
-
-		List<Object> allActiveAppointmentTypesParameters = new ArrayList<>(providerIds.size() + visitTypeIds.size());
-		allActiveAppointmentTypesParameters.addAll(providerIds);
-
-		if (visitTypeIds.size() > 0) {
-			allActiveAppointmentTypesParameters.addAll(visitTypeIds);
-			// e.g. "(?),(?),(?)" for Postgres' VALUES clause (faster than IN list)
-			String visitTypeIdValuesSql = visitTypeIds.stream().map(visitTypeId -> "(?)").collect(Collectors.joining(","));
-			allActiveAppointmentTypesSql = format("%s AND apt.visit_type_id IN (VALUES %s)", allActiveAppointmentTypesSql, visitTypeIdValuesSql);
-		}
-
-		List<AppointmentTypeWithProviderId> allActiveAppointmentTypes = getDatabase().queryForList(allActiveAppointmentTypesSql,
-				AppointmentTypeWithProviderId.class, allActiveAppointmentTypesParameters.toArray());
-
-		Map<UUID, List<AppointmentTypeWithProviderId>> allActiveAppointmentTypesByProviderId = allActiveAppointmentTypes.stream()
-				.collect(Collectors.groupingBy(AppointmentTypeWithProviderId::getProviderId));
-
-		// Walk providers and create synthetic provider availability records
-		Map<UUID, List<ProviderAvailability>> providerAvailabilitiesByProviderId = new HashMap<>(providerIds.size());
-
-		for (UUID providerId : providerIds) {
-			List<LogicalAvailability> logicalAvailabilities = logicalAvailabilitiesByProviderId.get(providerId);
-
-			if (logicalAvailabilities == null)
-				logicalAvailabilities = Collections.emptyList();
-
-			List<ProviderAvailability> providerAvailabilities = providerAvailabilitiesByProviderId.get(providerId);
-
-			if (providerAvailabilities == null) {
-				providerAvailabilities = new ArrayList<>();
-				providerAvailabilitiesByProviderId.put(providerId, providerAvailabilities);
-			}
-
-			for (LogicalAvailability logicalAvailability : logicalAvailabilities) {
-				List<? extends AppointmentType> appointmentTypes = appointmentTypesByLogicalAvailabilityId.get(logicalAvailability.getLogicalAvailabilityId());
-
-				// No appointment types defined for the logical availability?  That means all appointment types are applicable
-				if (appointmentTypes == null || appointmentTypes.size() == 0)
-					appointmentTypes = allActiveAppointmentTypesByProviderId.get(providerId);
-
-				if (appointmentTypes == null)
-					appointmentTypes = Collections.emptyList();
-
-				Map<Long, List<AppointmentType>> appointmentTypesByDuration = appointmentTypes.stream()
-						.collect(Collectors.groupingBy(AppointmentType::getDurationInMinutes));
-
-				List<ProviderAvailability> pinnedProviderAvailabilities = providerAvailabilities;
-
-				if (logicalAvailability.getRecurrenceTypeId() == RecurrenceTypeId.NONE) {
-					appointmentTypesByDuration.entrySet().forEach((entry) -> {
-						Long durationInMinutes = entry.getKey();
-						List<AppointmentType> appointmentTypesForSlot = entry.getValue();
-
-						LocalDateTime slotCurrentDateTime = logicalAvailability.getStartDateTime();
-						LocalDateTime slotEndDateTime = logicalAvailability.getEndDateTime();
-
-						while (slotCurrentDateTime.isBefore(slotEndDateTime)) {
-							for (AppointmentType appointmentType : appointmentTypesForSlot) {
-								ProviderAvailability providerAvailability = new ProviderAvailability();
-								providerAvailability.setProviderAvailabilityId(UUID.randomUUID());
-								providerAvailability.setProviderId(providerId);
-								providerAvailability.setAppointmentTypeId(appointmentType.getAppointmentTypeId());
-								providerAvailability.setDateTime(slotCurrentDateTime);
-								providerAvailability.setCreated(now);
-								providerAvailability.setLastUpdated(now);
-
-								pinnedProviderAvailabilities.add(providerAvailability);
-							}
-
-							slotCurrentDateTime = slotCurrentDateTime.plusMinutes(durationInMinutes);
-						}
-					});
-				} else if (logicalAvailability.getRecurrenceTypeId() == RecurrenceTypeId.DAILY) {
-					appointmentTypesByDuration.entrySet().forEach((entry) -> {
-						Long durationInMinutes = entry.getKey();
-						List<AppointmentType> appointmentTypesForSlot = entry.getValue();
-
-						// Figure out the first and last dates of the range we're getting availability for
-						LocalDate currentDate = startDateTime.toLocalDate();
-						LocalDate endDate = endDateTime.toLocalDate();
-
-						// For each date within the range...
-						while (currentDate.isEqual(endDate) || currentDate.isBefore(endDate)) {
-							if ((currentDate.isEqual(logicalAvailability.getStartDateTime().toLocalDate()) || currentDate.isAfter(logicalAvailability.getStartDateTime().toLocalDate()))
-									&& (currentDate.isEqual(logicalAvailability.getEndDateTime().toLocalDate()) || currentDate.isBefore(logicalAvailability.getEndDateTime().toLocalDate()))) {
-								// If recurrence rule is enabled for the day...
-								if ((currentDate.getDayOfWeek() == DayOfWeek.MONDAY && logicalAvailability.getRecurMonday())
-										|| (currentDate.getDayOfWeek() == DayOfWeek.TUESDAY && logicalAvailability.getRecurTuesday())
-										|| (currentDate.getDayOfWeek() == DayOfWeek.WEDNESDAY && logicalAvailability.getRecurWednesday())
-										|| (currentDate.getDayOfWeek() == DayOfWeek.THURSDAY && logicalAvailability.getRecurThursday())
-										|| (currentDate.getDayOfWeek() == DayOfWeek.FRIDAY && logicalAvailability.getRecurFriday())
-										|| (currentDate.getDayOfWeek() == DayOfWeek.SATURDAY && logicalAvailability.getRecurSaturday())
-										|| (currentDate.getDayOfWeek() == DayOfWeek.SUNDAY && logicalAvailability.getRecurSunday())) {
-									// ...normalize the logical availability's start and end times to be "today"
-									LocalDateTime slotCurrentDateTime = LocalDateTime.of(currentDate, logicalAvailability.getStartDateTime().toLocalTime());
-									LocalDateTime slotEndDateTime = LocalDateTime.of(currentDate, logicalAvailability.getEndDateTime().toLocalTime());
-
-									if (slotEndDateTime.isAfter(endDateTime))
-										slotEndDateTime = endDateTime;
-
-									while (slotCurrentDateTime.isBefore(slotEndDateTime)) {
-										for (AppointmentType appointmentType : appointmentTypesForSlot) {
-											ProviderAvailability providerAvailability = new ProviderAvailability();
-											providerAvailability.setProviderAvailabilityId(UUID.randomUUID());
-											providerAvailability.setProviderId(providerId);
-											providerAvailability.setAppointmentTypeId(appointmentType.getAppointmentTypeId());
-											providerAvailability.setDateTime(slotCurrentDateTime);
-											providerAvailability.setCreated(now);
-											providerAvailability.setLastUpdated(now);
-
-											pinnedProviderAvailabilities.add(providerAvailability);
-										}
-
-										slotCurrentDateTime = slotCurrentDateTime.plusMinutes(durationInMinutes);
-									}
-								}
-							}
-							currentDate = currentDate.plusDays(1);
-						}
-					});
-				} else {
-					throw new IllegalStateException(format("Not sure how to handle %s.%s", RecurrenceTypeId.class.getSimpleName(),
-							logicalAvailability.getRecurrenceTypeId().name()));
-				}
-			}
-		}
-
-		// Ensure provider availabilities are sorted
-		providerAvailabilitiesByProviderId.values()
-				.forEach((providerAvailabilities -> Collections.sort(providerAvailabilities, (pa1, pa2) -> pa1.getDateTime().compareTo(pa2.getDateTime()))));
-
-		return providerAvailabilitiesByProviderId;
 	}
 
 	@Nonnull
