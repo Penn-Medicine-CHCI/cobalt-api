@@ -918,13 +918,25 @@ public class ProviderService {
 				availabilityRangesMinusBlocks.addAll(availabilityRanges);
 			}
 
-			// ...then remove appointment ranges to finalize
+			// ...then remove appointment ranges to finalize.
 			List<RangedValue<Availability>> finalAvailabilityRanges = new ArrayList<>();
 
 			if (appointmentRanges.size() > 0) {
-				for (RangedValue<Availability> availabilityRange : availabilityRangesMinusBlocks)
-					for (RangedValue<Appointment> appointmentRange : appointmentRanges)
-						finalAvailabilityRanges.addAll(availabilityRange.minusRange(appointmentRange));
+				// For each availability range, cut it up into smaller and smaller sub-ranges as we see more and more appointments
+				for (RangedValue<Availability> availabilityRange : availabilityRangesMinusBlocks) {
+					List<RangedValue<Availability>> currentAvailabilityRanges = List.of(availabilityRange);
+
+					for (RangedValue<Appointment> appointmentRange : appointmentRanges) {
+						List<RangedValue<Availability>> updatedAvailabilityRanges = new ArrayList<>();
+
+						for (RangedValue<Availability> currentAvailabilityRange : currentAvailabilityRanges)
+							updatedAvailabilityRanges.addAll(currentAvailabilityRange.minusRange(appointmentRange));
+
+						currentAvailabilityRanges = updatedAvailabilityRanges;
+					}
+
+					finalAvailabilityRanges.addAll(currentAvailabilityRanges);
+				}
 			} else {
 				finalAvailabilityRanges.addAll(availabilityRangesMinusBlocks);
 			}
