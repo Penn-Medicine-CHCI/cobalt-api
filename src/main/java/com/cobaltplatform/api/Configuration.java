@@ -19,16 +19,7 @@
 
 package com.cobaltplatform.api;
 
-import com.amazonaws.auth.AWSCredentials;
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.auth.BasicSessionCredentials;
-import com.amazonaws.client.builder.AwsClientBuilder;
-import com.amazonaws.regions.Regions;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.S3Object;
+
 import com.cobaltplatform.api.http.DefaultHttpClient;
 import com.cobaltplatform.api.http.HttpClient;
 import com.cobaltplatform.api.http.HttpMethod;
@@ -56,6 +47,13 @@ import com.soklet.web.server.ServerLauncher.StoppingStrategy;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3ClientBuilder;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -70,6 +68,7 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
+import java.net.URI;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -215,8 +214,6 @@ public class Configuration {
 	@Nonnull
 	private final Integer jdbcMaximumPoolSize;
 	@Nonnull
-	private final AWSCredentialsProvider amazonCredentialsProvider;
-	@Nonnull
 	private final String amazonEc2RoleName;
 	@Nonnull
 	private final Boolean amazonUseLocalstack;
@@ -225,9 +222,9 @@ public class Configuration {
 	@Nonnull
 	private final String amazonLambdaCallbackBaseUrl;
 	@Nonnull
-	private final Regions amazonSesRegion;
+	private final Region amazonSesRegion;
 	@Nonnull
-	private final Regions amazonS3Region;
+	private final Region amazonS3Region;
 	@Nonnull
 	private final String amazonS3BucketName;
 	@Nonnull
@@ -235,7 +232,7 @@ public class Configuration {
 	@Nonnull
 	private final String amazonS3BaseUrl;
 	@Nonnull
-	private final Regions amazonSqsRegion;
+	private final Region amazonSqsRegion;
 	@Nonnull
 	private final String amazonSqsEmailMessageQueueName;
 	@Nonnull
@@ -400,16 +397,15 @@ public class Configuration {
 		this.amazonUseLocalstack = valueFor("com.cobaltplatform.api.amazon.useLocalstack", Boolean.class);
 		this.amazonLocalstackPort = valueFor("com.cobaltplatform.api.amazon.localstackPort", Integer.class);
 
-		this.amazonCredentialsProvider = createAmazonCredentialsProviderForDeploymentTarget(getDeploymentTarget());
-		this.amazonSesRegion = Regions.fromName(valueFor("com.cobaltplatform.api.amazon.ses.region", String.class));
+		this.amazonSesRegion = Region.of(valueFor("com.cobaltplatform.api.amazon.ses.region", String.class));
 
-		this.amazonS3Region = Regions.fromName(valueFor("com.cobaltplatform.api.amazon.s3.region", String.class));
+		this.amazonS3Region = Region.of(valueFor("com.cobaltplatform.api.amazon.s3.region", String.class));
 		this.amazonS3BucketName = valueFor("com.cobaltplatform.api.amazon.s3.bucketName", String.class);
 		this.amazonS3PresignedUploadExpirationInMinutes = valueFor("com.cobaltplatform.api.amazon.s3.presignedUploadExpirationInMinutes", Integer.class);
 		this.amazonS3BaseUrl = determineAmazonS3BaseUrl();
 		this.amazonLambdaCallbackBaseUrl = determineAmazonLambdaCallbackBaseUrl();
 
-		this.amazonSqsRegion = Regions.fromName(valueFor("com.cobaltplatform.api.amazon.sqs.region", String.class));
+		this.amazonSqsRegion = Region.of(valueFor("com.cobaltplatform.api.amazon.sqs.region", String.class));
 		this.amazonSqsEmailMessageQueueName = valueFor("com.cobaltplatform.api.amazon.sqs.emailMessageQueueName", String.class);
 		this.amazonSqsEmailMessageQueueWaitTimeSeconds = valueFor("com.cobaltplatform.api.amazon.sqs.emailMessageQueueWaitTimeSeconds", Integer.class);
 		this.amazonSqsSmsMessageQueueName = valueFor("com.cobaltplatform.api.amazon.sqs.smsMessageQueueName", String.class);
@@ -491,141 +487,6 @@ public class Configuration {
 			return determineAmazonEcsTaskIdentifier();
 
 		throw new UnsupportedOperationException(format("Unknown deployment target %s", deploymentTarget.name()));
-	}
-
-	@Nonnull
-	protected AWSCredentialsProvider createAmazonCredentialsProviderForDeploymentTarget(@Nonnull DeploymentTarget deploymentTarget) {
-		requireNonNull(deploymentTarget);
-
-		if (deploymentTarget == DeploymentTarget.LOCAL) {
-			String accessKey = valueFor("com.cobaltplatform.api.amazon.accessKey", String.class);
-			String secretKey = valueFor("com.cobaltplatform.api.amazon.secretKey", String.class);
-			return new AWSStaticCredentialsProvider(new BasicAWSCredentials(accessKey, secretKey));
-		}
-
-		if (deploymentTarget == DeploymentTarget.AMAZON_EC2) {
-			throw new UnsupportedOperationException();
-		}
-
-		if (deploymentTarget == DeploymentTarget.AMAZON_ECS) {
-			// Unfortunately InstanceProfileCredentialsProvider doesn't work on Fargate currently, and we need support for refreshable tokens.
-			// So we write our own here...
-			return new EcsCredentialsProvider();
-		}
-
-		throw new UnsupportedOperationException(format("Unknown deployment target %s", deploymentTarget.name()));
-	}
-
-	@ThreadSafe
-	protected static class EcsCredentialsProvider implements AWSCredentialsProvider {
-		@Nonnull
-		private static final Long REFRESH_INTERVAL_IN_MINUTES;
-
-		@Nonnull
-		private final ScheduledExecutorService scheduledExecutorService;
-		@Nonnull
-		private final HttpClient httpClient;
-		@Nonnull
-		private final Logger logger;
-
-		@Nonnull
-		private BasicSessionCredentials basicSessionCredentials;
-
-		static {
-			REFRESH_INTERVAL_IN_MINUTES = 1L;
-		}
-
-		public EcsCredentialsProvider() {
-			this.httpClient = new DefaultHttpClient("com.cobaltplatform.api.tokenrefresh");
-			this.logger = LoggerFactory.getLogger(getClass());
-
-			// Force initial synchronous pull of credentials
-			refresh();
-
-			this.scheduledExecutorService = Executors.newScheduledThreadPool(1, new ThreadFactory() {
-				@Override
-				public Thread newThread(@Nonnull Runnable runnable) {
-					requireNonNull(runnable);
-
-					Thread thread = Executors.defaultThreadFactory().newThread(runnable);
-					thread.setName("ecs-credentials-refresh");
-					thread.setDaemon(true);
-					return thread;
-				}
-			});
-
-			getScheduledExecutorService().scheduleWithFixedDelay(new Runnable() {
-				@Override
-				public void run() {
-					try {
-						refresh();
-					} catch (Exception e) {
-						getLogger().warn(format("Unable to refresh ECS credentials - will retry in %s minute[s]", String.valueOf(getRefreshIntervalInMinutes())), e);
-					}
-				}
-			}, getRefreshIntervalInMinutes(), getRefreshIntervalInMinutes(), TimeUnit.MINUTES);
-		}
-
-		@Override
-		public AWSCredentials getCredentials() {
-			return basicSessionCredentials;
-		}
-
-		@Override
-		public void refresh() {
-			if (!environmentValueFor("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI").isPresent())
-				throw new RuntimeException("ESC Deployment Target required ENV var 'AWS_CONTAINER_CREDENTIALS_RELATIVE_URI' missing.");
-
-			// ECS provides a magic URL that, if requested from an ECS Container, will return the security credentials for that task's role.
-			String url = format("http://169.254.170.2%s", environmentValueFor("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI").get());
-
-			try {
-				HttpResponse httpResponse = getHttpClient().execute(new HttpRequest.Builder(HttpMethod.GET, url).build());
-				String responseBody = new String(httpResponse.getBody().get(), StandardCharsets.UTF_8).trim();
-
-				if (httpResponse.getStatus() >= 400)
-					throw new IOException(format("Bad HTTP response (status %s). Response body was:\n%s", httpResponse.getStatus(), responseBody));
-
-				// Response:
-				// "AccessKeyId": "ACCESS_KEY_ID",
-				// "Expiration": "EXPIRATION_DATE",
-				// "RoleArn": "TASK_ROLE_ARN",
-				// "SecretAccessKey": "SECRET_ACCESS_KEY",
-				// "Token": "SECURITY_TOKEN_STRING"
-
-				JsonMapper jsonMapper = new JsonMapper();
-				AwsEcsRoleCredentialsResponse ecsRoleCredentialsResponse = jsonMapper.fromJson(responseBody, AwsEcsRoleCredentialsResponse.class);
-
-				this.basicSessionCredentials = new BasicSessionCredentials(ecsRoleCredentialsResponse.getAccessKeyId(), ecsRoleCredentialsResponse.getSecretAccessKey(), ecsRoleCredentialsResponse.getToken());
-			} catch (IOException e) {
-				throw new UncheckedIOException(format("Unable to determine ECS credentials from %s", url), e);
-			}
-		}
-
-		@Nonnull
-		protected Long getRefreshIntervalInMinutes() {
-			return REFRESH_INTERVAL_IN_MINUTES;
-		}
-
-		@Nonnull
-		protected HttpClient getHttpClient() {
-			return httpClient;
-		}
-
-		@Nonnull
-		protected ScheduledExecutorService getScheduledExecutorService() {
-			return scheduledExecutorService;
-		}
-
-		@Nonnull
-		protected BasicSessionCredentials getBasicSessionCredentials() {
-			return basicSessionCredentials;
-		}
-
-		@Nonnull
-		protected Logger getLogger() {
-			return logger;
-		}
 	}
 
 	@Nonnull
@@ -959,28 +820,33 @@ public class Configuration {
 				throw new UncheckedIOException(e);
 			}
 		} else if (sensitiveDataStorageLocation == SensitiveDataStorageLocation.AMAZON_S3) {
-			AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
+			S3ClientBuilder builder = S3Client.builder().region(getAmazonS3Region());
 
 			if (getAmazonUseLocalstack()) {
-				builder.withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(getAmazonS3BaseUrl(), getAmazonS3Region().getName()))
-						.withCredentials(getAmazonCredentialsProvider());
-			} else {
-				builder.withCredentials(getAmazonCredentialsProvider()).withRegion(getAmazonS3Region().getName());
+				builder.endpointOverride(URI.create(getAmazonS3BaseUrl()));
 			}
 
-			AmazonS3 amazonS3 = builder.build();
+			S3Client amazonS3 = builder.build();
 
 			// e.g. https://cobaltplatform.s3.us-east-2.amazonaws.com/prod/cobalt.crt
-			S3Object certS3Object = amazonS3.getObject(getAmazonS3BucketName(), format("%s/cobalt.crt", getEnvironment()));
-			try (InputStream inputStream = certS3Object.getObjectContent()) {
+			GetObjectRequest certObjectRequest = GetObjectRequest.builder()
+					.bucket(getAmazonS3BucketName())
+					.key(format("%s/cobalt.crt", getEnvironment()))
+					.build();
+
+			try (InputStream inputStream = amazonS3.getObject(certObjectRequest)){
 				cert = IOUtils.toString(inputStream, StandardCharsets.UTF_8.name());
 			} catch (IOException e) {
 				throw new UncheckedIOException(e);
 			}
 
 			// e.g. https://cobaltplatform.s3.us-east-2.amazonaws.com/prod/cobaltplatform.pem
-			S3Object privateKeyS3Object = amazonS3.getObject(getAmazonS3BucketName(), format("%s/cobalt.pem", getEnvironment()));
-			try (InputStream inputStream = privateKeyS3Object.getObjectContent()) {
+			GetObjectRequest privateKeyObjectRequest = GetObjectRequest.builder()
+					.bucket(getAmazonS3BucketName())
+					.key(format("%s/cobalt.pem", getEnvironment()))
+					.build();
+
+			try (InputStream inputStream = amazonS3.getObject(privateKeyObjectRequest)) {
 				privateKey = IOUtils.toString(inputStream, StandardCharsets.UTF_8.name());
 			} catch (IOException e) {
 				throw new UncheckedIOException(e);
@@ -1383,11 +1249,6 @@ public class Configuration {
 	}
 
 	@Nonnull
-	public AWSCredentialsProvider getAmazonCredentialsProvider() {
-		return amazonCredentialsProvider;
-	}
-
-	@Nonnull
 	public Boolean getDownForMaintenance() {
 		return downForMaintenance;
 	}
@@ -1413,12 +1274,12 @@ public class Configuration {
 	}
 
 	@Nonnull
-	public Regions getAmazonSesRegion() {
+	public Region getAmazonSesRegion() {
 		return amazonSesRegion;
 	}
 
 	@Nonnull
-	public Regions getAmazonS3Region() {
+	public Region getAmazonS3Region() {
 		return amazonS3Region;
 	}
 
@@ -1438,7 +1299,7 @@ public class Configuration {
 	}
 
 	@Nonnull
-	public Regions getAmazonSqsRegion() {
+	public Region getAmazonSqsRegion() {
 		return amazonSqsRegion;
 	}
 

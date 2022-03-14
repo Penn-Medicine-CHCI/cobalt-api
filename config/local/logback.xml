@@ -24,7 +24,7 @@
 	<logger name="org.eclipse.jetty" level="WARN" />
 	<logger name="com.google.inject" level="WARN" />
 	<logger name="com.zaxxer" level="WARN" />
-	<logger name="com.amazonaws" level="ERROR" />
+	<logger name="software.amazon.awssdk" level="ERROR" />
 	<logger name="org.apache" level="ERROR" />
 	<logger name="com.github.jknack.handlebars" level="WARN" />
 	<logger name="org.postgresql" level="INFO" />

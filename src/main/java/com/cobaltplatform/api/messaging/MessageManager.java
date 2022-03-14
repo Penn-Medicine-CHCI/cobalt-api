@@ -19,7 +19,7 @@
 
 package com.cobaltplatform.api.messaging;
 
-import com.amazonaws.services.sqs.model.SendMessageRequest;
+
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.db.MessageStatus.MessageStatusId;
 import com.cobaltplatform.api.service.AccountService;
@@ -28,6 +28,7 @@ import com.cobaltplatform.api.util.Formatter;
 import com.pyranid.Database;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -152,11 +153,12 @@ public class MessageManager<T extends Message> implements AutoCloseable {
 
 		getAmazonSqsManager().get().sendMessage((queueUrl) -> {
 			// Special handling for FIFO/deduplication support
-			SendMessageRequest sendMessageRequest = new SendMessageRequest(queueUrl, serializedMessage);
-			sendMessageRequest.setMessageGroupId(message.getMessageId().toString());
-			sendMessageRequest.setMessageDeduplicationId(message.getMessageId().toString());
-
-			return sendMessageRequest;
+			return SendMessageRequest.builder()
+					.queueUrl(queueUrl)
+					.messageGroupId(message.getMessageId().toString())
+					.messageDeduplicationId(message.getMessageId().toString())
+					.messageBody(serializedMessage)
+					.build();
 		});
 
 		getDatabase().execute("INSERT INTO message_log (message_id, message_type_id, message_status_id, serialized_message, enqueued) VALUES (?,?,?,CAST(? AS JSONB),NOW())",
@@ -166,10 +168,10 @@ public class MessageManager<T extends Message> implements AutoCloseable {
 	/**
 	 * Handles a message (email, SMS, etc.) from an SQS queue (performs actual send operation).
 	 */
-	protected void handleDequeuedSqsMessage(@Nonnull com.amazonaws.services.sqs.model.Message sqsMessage) throws Exception {
+	protected void handleDequeuedSqsMessage(@Nonnull software.amazon.awssdk.services.sqs.model.Message sqsMessage) throws Exception {
 		requireNonNull(sqsMessage);
 
-		T deserializedMessage = getMessageSerializer().deserializeMessage(sqsMessage.getBody());
+		T deserializedMessage = getMessageSerializer().deserializeMessage(sqsMessage.body());
 		boolean sent = false;
 
 		try {
@@ -196,7 +198,7 @@ public class MessageManager<T extends Message> implements AutoCloseable {
 			throw e;
 		} finally {
 			if (sent)
-				getAmazonSqsManager().get().deleteMessage(sqsMessage.getReceiptHandle());
+				getAmazonSqsManager().get().deleteMessage(sqsMessage.receiptHandle());
 		}
 	}
 

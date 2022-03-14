@@ -469,7 +469,6 @@ public class AppModule extends AbstractModule {
 
 		return new EmailMessageManager(accountServiceProvider, database, configuration, formatter, messageSender, messageSerializer, (processingFunction) -> {
 			return new AmazonSqsManager.Builder(getConfiguration().getAmazonSqsEmailMessageQueueName(),
-					getConfiguration().getAmazonCredentialsProvider(),
 					getConfiguration().getAmazonSqsRegion())
 					.useLocalstack(getConfiguration().getAmazonUseLocalstack())
 					.localstackPort(getConfiguration().getAmazonLocalstackPort())
@@ -521,7 +520,6 @@ public class AppModule extends AbstractModule {
 
 		return new SmsMessageManager(accountServiceProvider, database, configuration, formatter, messageSender, messageSerializer, (processingFunction) -> {
 			return new AmazonSqsManager.Builder(getConfiguration().getAmazonSqsSmsMessageQueueName(),
-					getConfiguration().getAmazonCredentialsProvider(),
 					getConfiguration().getAmazonSqsRegion())
 					.useLocalstack(getConfiguration().getAmazonUseLocalstack())
 					.localstackPort(getConfiguration().getAmazonLocalstackPort())
@@ -575,7 +573,6 @@ public class AppModule extends AbstractModule {
 
 		return new CallMessageManager(accountServiceProvider, database, configuration, formatter, messageSender, messageSerializer, (processingFunction) -> {
 			return new AmazonSqsManager.Builder(getConfiguration().getAmazonSqsCallMessageQueueName(),
-					getConfiguration().getAmazonCredentialsProvider(),
 					getConfiguration().getAmazonSqsRegion())
 					.useLocalstack(getConfiguration().getAmazonUseLocalstack())
 					.localstackPort(getConfiguration().getAmazonLocalstackPort())

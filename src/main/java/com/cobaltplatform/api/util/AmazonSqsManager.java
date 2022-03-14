@@ -19,28 +19,29 @@
 
 package com.cobaltplatform.api.util;
 
-import com.amazonaws.AbortedException;
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.client.builder.AwsClientBuilder;
-import com.amazonaws.regions.Regions;
-import com.amazonaws.services.sqs.AmazonSQS;
-import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
-import com.amazonaws.services.sqs.model.DeleteMessageRequest;
-import com.amazonaws.services.sqs.model.DeleteMessageResult;
-import com.amazonaws.services.sqs.model.Message;
-import com.amazonaws.services.sqs.model.QueueDoesNotExistException;
-import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
-import com.amazonaws.services.sqs.model.ReceiveMessageResult;
-import com.amazonaws.services.sqs.model.SendMessageRequest;
-import com.amazonaws.services.sqs.model.SendMessageResult;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
+import software.amazon.awssdk.core.exception.AbortedException;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.SqsClientBuilder;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageResponse;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
+import software.amazon.awssdk.services.sqs.model.Message;
+import software.amazon.awssdk.services.sqs.model.QueueDoesNotExistException;
+import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
+import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
+import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
+import software.amazon.awssdk.services.sqs.model.SendMessageResponse;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
+import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -66,10 +67,6 @@ import static java.util.Objects.requireNonNull;
 public class AmazonSqsManager implements AutoCloseable {
 	@Nonnull
 	private final String queueName;
-	@Nonnull
-	private final AWSCredentialsProvider credentialsProvider;
-	@Nonnull
-	private final Regions region;
 	@Nonnull
 	private final Boolean useLocalstack;
 	@Nonnull
@@ -98,7 +95,9 @@ public class AmazonSqsManager implements AutoCloseable {
 	@Nonnull
 	private Boolean started;
 	@Nonnull
-	private AmazonSQS amazonSqs;
+	private SqsClient amazonSqs;
+	@Nonnull
+	private Region region;
 	@Nullable
 	private String queueUrl;
 	@Nullable
@@ -110,7 +109,6 @@ public class AmazonSqsManager implements AutoCloseable {
 		requireNonNull(builder);
 
 		this.queueName = builder.queueName;
-		this.credentialsProvider = builder.credentialsProvider;
 		this.region = builder.region;
 		this.useLocalstack = builder.useLocalstack == null ? false : builder.useLocalstack;
 		this.localstackPort = builder.localstackPort == null ? 4566 : builder.localstackPort;
@@ -171,7 +169,7 @@ public class AmazonSqsManager implements AutoCloseable {
 
 			// Need explicit shutdown in order to have SQS client's internal socket[s] tear down long polling.
 			// It's not sufficient to interrupt the thread
-			getAmazonSqs().get().shutdown();
+			getAmazonSqs().get().close();
 
 			getPollingExecutorService().get().shutdownNow();
 			pollingExecutorService = null;
@@ -194,7 +192,7 @@ public class AmazonSqsManager implements AutoCloseable {
 	}
 
 	@Nonnull
-	public SendMessageResult sendMessage(@Nonnull Function<String, SendMessageRequest> sendMessageFunction) {
+	public SendMessageResponse sendMessage(@Nonnull Function<String, SendMessageRequest> sendMessageFunction) {
 		requireNonNull(sendMessageFunction);
 
 		if (!isStarted())
@@ -210,10 +208,10 @@ public class AmazonSqsManager implements AutoCloseable {
 	}
 
 	@Nonnull
-	public DeleteMessageResult deleteMessage(@Nonnull String messageReceiptHandle) {
+	public DeleteMessageResponse deleteMessage(@Nonnull String messageReceiptHandle) {
 		requireNonNull(messageReceiptHandle);
 		getLogger().trace("Deleting message with receipt handle {}", messageReceiptHandle);
-		return getAmazonSqs().get().deleteMessage(new DeleteMessageRequest(getQueueUrl().get(), messageReceiptHandle));
+		return getAmazonSqs().get().deleteMessage(DeleteMessageRequest.builder().queueUrl(getQueueUrl().get()).receiptHandle(messageReceiptHandle).build());
 	}
 
 	@Nonnull
@@ -227,24 +225,19 @@ public class AmazonSqsManager implements AutoCloseable {
 	}
 
 	@Nonnull
-	protected AmazonSQS createAmazonSqs() {
-		AmazonSQSClientBuilder builder = AmazonSQSClientBuilder.standard();
-
+	protected SqsClient createAmazonSqs() {
+		SqsClientBuilder builder = SqsClient.builder()
+				.region(region);
 		if (getUseLocalstack()) {
-			builder.withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(format("http://localhost:%d", localstackPort), getRegion().getName()))
-					.withCredentials(getCredentialsProvider());
-		} else {
-			builder.withCredentials(getCredentialsProvider())
-					.withRegion(getRegion().getName());
+			builder.endpointOverride(URI.create(format("http://localhost:%d", localstackPort)));
 		}
-
 		return builder.build();
 	}
 
 	@Nonnull
 	protected String determineQueueUrl() {
 		try {
-			return getAmazonSqs().get().getQueueUrl(getQueueName()).getQueueUrl();
+			return getAmazonSqs().get().getQueueUrl(GetQueueUrlRequest.builder().queueName(getQueueName()).build()).queueUrl();
 		} catch (QueueDoesNotExistException e) {
 			getLogger().warn("Could not find SQS queue with name '{}'", getQueueName());
 			throw e;
@@ -269,24 +262,24 @@ public class AmazonSqsManager implements AutoCloseable {
 		public void run() {
 			while (!Thread.currentThread().isInterrupted()) {
 				try {
-					ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest()
-							.withQueueUrl(getAmazonSqsManager().getQueueUrl().get());
+					ReceiveMessageRequest.Builder receiveMessageRequestBuilder = ReceiveMessageRequest.builder()
+							.queueUrl(getAmazonSqsManager().getQueueUrl().get());
 
 					// Localstack does not support this long-poll configuration
 					if (!getAmazonSqsManager().getUseLocalstack()) {
 						Integer queueWaitTimeSeconds = getAmazonSqsManager().getQueueWaitTimeSeconds().orElse(null);
 
 						if (queueWaitTimeSeconds != null)
-							receiveMessageRequest.withWaitTimeSeconds(queueWaitTimeSeconds);
+							receiveMessageRequestBuilder.waitTimeSeconds(queueWaitTimeSeconds);
 					}
 
-					AmazonSQS amazonSqs = getAmazonSqsManager().getAmazonSqs().orElse(null);
+					SqsClient amazonSqs = getAmazonSqsManager().getAmazonSqs().orElse(null);
 					List<Message> messages = Collections.emptyList();
 
 					// Might be null in small time window where we are shutting down
 					if (amazonSqs != null) {
-						ReceiveMessageResult receiveMessageResult = amazonSqs.receiveMessage(receiveMessageRequest);
-						messages = receiveMessageResult.getMessages();
+						ReceiveMessageResponse receiveMessageResult = amazonSqs.receiveMessage(receiveMessageRequestBuilder.build());
+						messages = receiveMessageResult.messages();
 					}
 
 					for (Message message : messages) {
@@ -371,9 +364,7 @@ public class AmazonSqsManager implements AutoCloseable {
 		@Nonnull
 		private final String queueName;
 		@Nonnull
-		private final AWSCredentialsProvider credentialsProvider;
-		@Nonnull
-		private final Regions region;
+		private final Region region;
 		@Nullable
 		private Boolean useLocalstack;
 		@Nullable
@@ -392,14 +383,11 @@ public class AmazonSqsManager implements AutoCloseable {
 		private Integer queueWaitTimeSeconds;
 
 		public Builder(@Nonnull String queueName,
-									 @Nonnull AWSCredentialsProvider credentialsProvider,
-									 @Nonnull Regions region) {
+									 @Nonnull Region region) {
 			requireNonNull(queueName);
-			requireNonNull(credentialsProvider);
 			requireNonNull(region);
 
 			this.queueName = queueName;
-			this.credentialsProvider = credentialsProvider;
 			this.region = region;
 		}
 
@@ -454,12 +442,7 @@ public class AmazonSqsManager implements AutoCloseable {
 	}
 
 	@Nonnull
-	protected AWSCredentialsProvider getCredentialsProvider() {
-		return credentialsProvider;
-	}
-
-	@Nonnull
-	protected Regions getRegion() {
+	protected Region getRegion() {
 		return region;
 	}
 
@@ -519,7 +502,7 @@ public class AmazonSqsManager implements AutoCloseable {
 	}
 
 	@Nullable
-	protected Optional<AmazonSQS> getAmazonSqs() {
+	protected Optional<SqsClient> getAmazonSqs() {
 		return Optional.ofNullable(amazonSqs);
 	}
 
