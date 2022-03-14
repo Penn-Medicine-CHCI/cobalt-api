@@ -77,6 +77,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -954,13 +955,24 @@ public class ProviderService {
 				availabilityDatesByDate.put(currentDate, availabilityDate);
 			}
 
+			// Add appointments as "booked" slots
+			for (Appointment appointment : currentAppointments) {
+				AvailabilityTime availabilityTime = new AvailabilityTime();
+				availabilityTime.setStatus(AvailabilityStatus.BOOKED);
+				availabilityTime.setTime(appointment.getStartTime().toLocalTime());
+				availabilityTime.setAppointmentTypeIds(Arrays.asList(appointment.getAppointmentTypeId()));
+
+				availabilityDate.getTimes().add(availabilityTime);
+			}
+
 			// To make slots, we find the shortest appointment type duration in the range and make slots of that size.
 			// If there are any appointment types that could cause a slot to "bleed" outside of the availability range, remove them.
 			for (RangedValue<Availability> availabilityRange : finalAvailabilityRanges) {
 				List<AppointmentType> appointmentTypes = availabilityRange.getValue().getAppointmentTypes();
 
 				if (appointmentTypes.size() == 0) {
-					getLogger().warn("No appointment types available for range; we should not see this scenario");
+					getLogger().warn("No appointment types available for range with logical availability ID {}; we should not see this scenario",
+							availabilityRange.getValue().getLogicalAvailabilityId());
 					continue;
 				}
 
