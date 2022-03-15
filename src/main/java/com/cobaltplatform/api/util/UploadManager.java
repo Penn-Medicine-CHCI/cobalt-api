@@ -43,6 +43,7 @@ import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -97,16 +98,14 @@ public class UploadManager {
 			metadata = Collections.emptyMap();
 
 		Instant expirationTimestamp = Instant.now().plus(getConfiguration().getAmazonS3PresignedUploadExpirationInMinutes(), MINUTES);
-		PutObjectRequest.Builder putObjectRequestBuilder = PutObjectRequest.builder()
+
+		PutObjectRequest putObjectRequest = PutObjectRequest.builder()
 				.bucket(getConfiguration().getAmazonS3BucketName())
 				.key(key)
 				.contentType(contentType)
-				.expires(expirationTimestamp)
-				// Always set public read flag since these images are not sensitive information
 				.acl(ObjectCannedACL.PUBLIC_READ)
-				.metadata(metadata.entrySet().stream().collect(Collectors.toMap(e -> format("x-amz-meta-%s", e.getKey()), Map.Entry::getValue)));
-
-		PutObjectRequest putObjectRequest = putObjectRequestBuilder.build();
+				.metadata(metadata.entrySet().stream().collect(Collectors.toMap(e -> format("x-amz-meta-%s", e.getKey()), Map.Entry::getValue)))
+				.build();
 
 		PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
 				.signatureDuration(Duration.ofMinutes(getConfiguration().getAmazonS3PresignedUploadExpirationInMinutes()))
@@ -114,17 +113,15 @@ public class UploadManager {
 				.build();
 
 		getLogger().debug("Generating presigned S3 upload URL for key '{}' and metadata {}...", key, metadata);
-		PresignedPutObjectRequest presignedRequest = amazonS3.presignPutObject(presignRequest);
-		String url = presignedRequest.url().toString();
-		//
-		// For AWS SDK 1.x , For Localstack, the post-S3-upload Lambda will not be triggered if we have any query parameters, so strip them off.
-		// This took a while to figure out...
-		//
-		// For AWS SDK 2.x, query parameters must remain for presigned urls, not sure about lambda triggers
-		//if (getConfiguration().getAmazonUseLocalstack())
-		//  url = url.substring(0, url.indexOf("?"));
 
-		return new PresignedUpload(HttpMethod.PUT.name(), url, contentType, expirationTimestamp, putObjectRequest.metadata());
+		PresignedPutObjectRequest presignedRequest = getAmazonS3().presignPutObject(presignRequest);
+
+		String url = presignedRequest.url().toString();
+
+		Map<String, String> finalMetadata = new HashMap<>(putObjectRequest.metadata());
+		finalMetadata.put("x-amz-acl", "public-read"); // If you do not include this header for ObjectCannedACL.PUBLIC_READ, you will get a 403
+
+		return new PresignedUpload(HttpMethod.PUT.name(), url, contentType, expirationTimestamp, finalMetadata);
 	}
 
 	public String createPresignedViewUrl(@Nonnull String bucket,
