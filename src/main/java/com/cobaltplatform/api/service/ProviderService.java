@@ -610,6 +610,9 @@ public class ProviderService {
 
 			List<ProviderSupportRole> currentProviderSupportRoles = providerSupportRolesByProviderId.get(provider.getProviderId());
 
+			if(currentProviderSupportRoles == null)
+				currentProviderSupportRoles = List.of();
+
 			List<String> supportRoleDescriptions = currentProviderSupportRoles.stream()
 					.map(providerSupportRole -> providerSupportRole.getSupportRoleDescription())
 					.collect(Collectors.toList());
