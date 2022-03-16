@@ -21,7 +21,6 @@ package com.cobaltplatform.api;
 
 
 import com.cobaltplatform.api.http.DefaultHttpClient;
-import com.cobaltplatform.api.http.HttpClient;
 import com.cobaltplatform.api.http.HttpMethod;
 import com.cobaltplatform.api.http.HttpRequest;
 import com.cobaltplatform.api.http.HttpResponse;
@@ -47,19 +46,15 @@ import com.soklet.web.server.ServerLauncher.StoppingStrategy;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
-import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.S3Object;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.NotThreadSafe;
-import javax.annotation.concurrent.ThreadSafe;
 import javax.crypto.SecretKey;
 import javax.inject.Singleton;
 import java.io.FileInputStream;
@@ -85,10 +80,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -447,6 +438,13 @@ public class Configuration {
 
 		this.keyPair = CryptoUtility.keyPairFromStringRepresentation(rawKeypair.getCert(), rawKeypair.getPrivateKey(), PublicKeyFormat.X509);
 		this.samlSettingsByIdentityProvider = Collections.emptyMap();
+
+		if (getAmazonUseLocalstack()) {
+			// Prime the default credential provider chain
+			// https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials.html
+			System.setProperty("aws.accessKeyId", "fake");
+			System.setProperty("aws.secretAccessKey", "fake");
+		}
 	}
 
 	@Nonnull
@@ -834,7 +832,7 @@ public class Configuration {
 					.key(format("%s/cobalt.crt", getEnvironment()))
 					.build();
 
-			try (InputStream inputStream = amazonS3.getObject(certObjectRequest)){
+			try (InputStream inputStream = amazonS3.getObject(certObjectRequest)) {
 				cert = IOUtils.toString(inputStream, StandardCharsets.UTF_8.name());
 			} catch (IOException e) {
 				throw new UncheckedIOException(e);
