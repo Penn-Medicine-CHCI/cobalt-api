@@ -386,9 +386,7 @@ public class ProviderService {
 			return Collections.emptyList();
 
 		// Single query to pull in all specialties for all providers in the resultset
-		Map<UUID, List<Specialty>> specialtiesByProviderId = specialtiesByProviderIdForProviderIds(providers.stream()
-				.map(provider -> provider.getProviderId())
-				.collect(Collectors.toSet()));
+		Map<UUID, List<Specialty>> specialtiesByProviderId = specialtiesByProviderIdForInstitutionId(institutionId);
 
 		// If specialties are specified, throw out any provider that doesn't match them
 		if (specialtyIds.size() > 0) {
@@ -679,7 +677,7 @@ public class ProviderService {
 		// Pull only those logical availabilities that are for active providers and have not already ended
 		String logicalAvailabilitiesSql = "SELECT la.* FROM logical_availability la, provider p " +
 				"WHERE p.provider_id=la.provider_id AND p.active=TRUE AND p.institution_id=? AND p.scheduling_system_id=? " +
-				"AND (la.end_date_time IS NULL OR la.end_date_time > ?)";
+				"AND la.end_date_time > ?";
 
 		List<Object> logicalAvailabilityParameters = new ArrayList<>(3);
 		logicalAvailabilityParameters.add(institutionId);
@@ -1685,26 +1683,17 @@ public class ProviderService {
 	}
 
 	@Nonnull
-	public Map<UUID, List<Specialty>> specialtiesByProviderIdForProviderIds(@Nullable Set<UUID> providerIds) {
-		if (providerIds == null || providerIds.size() == 0)
+	public Map<UUID, List<Specialty>> specialtiesByProviderIdForInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
 			return Collections.emptyMap();
 
-		// Use subquery expression for better performance than in "in" list.
-		// This will not be efficient for set sizes in the thousands, but in practice that is a nonissue for us.
-		// See https://dba.stackexchange.com/a/91539
-
-		// e.g. "('b795f6b5-3709-48aa-a294-91ed049ccce0'), ('32433795-ad52-4605-8c90-39d30d3dab23'), ..."
-		String subqueryExpressionValues = providerIds.stream()
-				.map(providerId -> format("('%s'::uuid)", providerId))
-				.collect(Collectors.joining(", "));
-
 		List<SpecialtyWithProviderId> specialtiesWithProviderId = getDatabase().queryForList(
-				format("SELECT s.*, ps.provider_id FROM specialty s, provider_specialty ps " +
-						"WHERE s.specialty_id=ps.specialty_id AND ps.provider_id IN (VALUES %s)", subqueryExpressionValues),
-				SpecialtyWithProviderId.class);
+				"SELECT s.*, ps.provider_id FROM specialty s, provider_specialty ps, provider p " +
+						"WHERE s.specialty_id=ps.specialty_id AND ps.provider_id=p.provider_id AND p.institution_id=?",
+				SpecialtyWithProviderId.class, institutionId);
 
 		// Transform flat resultset into a map
-		Map<UUID, List<Specialty>> specialtiesByProviderId = new HashMap<>(providerIds.size());
+		Map<UUID, List<Specialty>> specialtiesByProviderId = new HashMap<>(specialtiesWithProviderId.size());
 
 		for (SpecialtyWithProviderId specialtyWithProviderId : specialtiesWithProviderId) {
 			List<Specialty> specialties = specialtiesByProviderId.get(specialtyWithProviderId.getProviderId());
