@@ -565,7 +565,7 @@ public class ProviderService {
 
 			for (AvailabilityDate availabilityDate : dates) {
 				Collections.sort(availabilityDate.getTimes(), (time1, time2) -> time1.getTime().compareTo(time2.getTime()));
-
+				
 				boolean fullyBooked = true;
 
 				for (AvailabilityTime availabilityTime : availabilityDate.getTimes())
@@ -610,7 +610,7 @@ public class ProviderService {
 
 			List<ProviderSupportRole> currentProviderSupportRoles = providerSupportRolesByProviderId.get(provider.getProviderId());
 
-			if(currentProviderSupportRoles == null)
+			if (currentProviderSupportRoles == null)
 				currentProviderSupportRoles = List.of();
 
 			List<String> supportRoleDescriptions = currentProviderSupportRoles.stream()
@@ -1023,7 +1023,10 @@ public class ProviderService {
 		}
 
 		// Get our final list of dates and make sure it's sorted
-		List<AvailabilityDate> dates = new ArrayList<>(availabilityDatesByDate.values());
+		List<AvailabilityDate> dates = new ArrayList<>(availabilityDatesByDate.values()).stream()
+				.filter(date -> date.getTimes().size() > 0)
+				.collect(Collectors.toList());
+
 		Collections.sort(dates, (date1, date2) -> date1.getDate().compareTo(date2.getDate()));
 
 		// If a user specifies overlapping logical availabilities, we might have duplicate time slots (with perhaps different appointment types).
