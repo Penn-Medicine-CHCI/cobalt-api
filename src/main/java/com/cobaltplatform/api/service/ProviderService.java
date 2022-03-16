@@ -386,9 +386,7 @@ public class ProviderService {
 			return Collections.emptyList();
 
 		// Single query to pull in all specialties for all providers in the resultset
-		Map<UUID, List<Specialty>> specialtiesByProviderId = specialtiesByProviderIdForProviderIds(providers.stream()
-				.map(provider -> provider.getProviderId())
-				.collect(Collectors.toSet()));
+		Map<UUID, List<Specialty>> specialtiesByProviderId = specialtiesByProviderIdForInstitutionId(institutionId);
 
 		// If specialties are specified, throw out any provider that doesn't match them
 		if (specialtyIds.size() > 0) {
@@ -507,15 +505,10 @@ public class ProviderService {
 
 		// Special handling for native scheduling: precalculate all logical availability/appointment type data for the
 		// specified providers up-front so we can use it further down to build availability date/time slots
-		Set<UUID> nativeSchedulingProviderIds = providers.stream()
-				.filter(provider -> provider.getSchedulingSystemId() == SchedulingSystemId.COBALT)
-				.map(provider -> provider.getProviderId())
-				.collect(Collectors.toSet());
-
 		LocalDateTime nativeSchedulingStartDateTime = currentDateTime;
 		LocalDateTime nativeSchedulingEndDateTime = nativeSchedulingStartDateTime.plusMonths(1).toLocalDate().atStartOfDay(); /* arbitrarily cap at 1 month ahead */
 
-		NativeSchedulingAvailabilityData nativeSchedulingAvailabilityData = loadNativeSchedulingAvailabilityData(nativeSchedulingProviderIds,
+		NativeSchedulingAvailabilityData nativeSchedulingAvailabilityData = loadNativeSchedulingAvailabilityData(institutionId,
 				visitTypeIds, nativeSchedulingStartDateTime, nativeSchedulingEndDateTime);
 
 		for (Provider provider : providers) {
@@ -572,7 +565,7 @@ public class ProviderService {
 
 			for (AvailabilityDate availabilityDate : dates) {
 				Collections.sort(availabilityDate.getTimes(), (time1, time2) -> time1.getTime().compareTo(time2.getTime()));
-
+				
 				boolean fullyBooked = true;
 
 				for (AvailabilityTime availabilityTime : availabilityDate.getTimes())
@@ -616,6 +609,9 @@ public class ProviderService {
 				providerFind.setPhoneNumberRequiredForAppointment(true);
 
 			List<ProviderSupportRole> currentProviderSupportRoles = providerSupportRolesByProviderId.get(provider.getProviderId());
+
+			if (currentProviderSupportRoles == null)
+				currentProviderSupportRoles = List.of();
 
 			List<String> supportRoleDescriptions = currentProviderSupportRoles.stream()
 					.map(providerSupportRole -> providerSupportRole.getSupportRoleDescription())
@@ -662,23 +658,16 @@ public class ProviderService {
 	 * for later slot creation calculations.
 	 */
 	@Nonnull
-	protected NativeSchedulingAvailabilityData loadNativeSchedulingAvailabilityData(@Nonnull Set<UUID> providerIds,
+	protected NativeSchedulingAvailabilityData loadNativeSchedulingAvailabilityData(@Nonnull InstitutionId institutionId,
 																																									@Nonnull Set<VisitTypeId> visitTypeIds,
 																																									@Nonnull LocalDateTime startDateTime,
 																																									@Nonnull LocalDateTime endDateTime) {
-		requireNonNull(providerIds);
+		requireNonNull(institutionId);
 		requireNonNull(visitTypeIds);
 		requireNonNull(startDateTime);
 		requireNonNull(endDateTime);
 
 		if (startDateTime.isEqual(endDateTime) || startDateTime.isAfter(endDateTime))
-			return NativeSchedulingAvailabilityData.empty();
-
-		providerIds = providerIds.stream()
-				.filter(providerId -> providerId != null)
-				.collect(Collectors.toSet());
-
-		if (providerIds.size() == 0)
 			return NativeSchedulingAvailabilityData.empty();
 
 		if (visitTypeIds == null)
@@ -688,16 +677,14 @@ public class ProviderService {
 
 		Set<VisitTypeId> pinnedVisitTypeIds = visitTypeIds;
 
-		// e.g. "(?),(?),(?)" for Postgres' VALUES clause (faster than IN list)
-		String providerIdValuesSql = providerIds.stream().map(providerId -> "(?)").collect(Collectors.joining(","));
-
 		// Pull only those logical availabilities that are for active providers and have not already ended
-		String logicalAvailabilitiesSql = format("SELECT la.* FROM logical_availability la, provider p " +
-				"WHERE p.provider_id=la.provider_id AND p.active=TRUE AND p.provider_id IN (VALUES %s) " +
-				"AND (la.end_date_time IS NULL OR la.end_date_time > ?)", providerIdValuesSql);
+		String logicalAvailabilitiesSql = "SELECT la.* FROM logical_availability la, provider p " +
+				"WHERE p.provider_id=la.provider_id AND p.active=TRUE AND p.institution_id=? AND p.scheduling_system_id=? " +
+				"AND la.end_date_time > ?";
 
-		List<Object> logicalAvailabilityParameters = new ArrayList<>(providerIds.size() + 1);
-		logicalAvailabilityParameters.addAll(providerIds);
+		List<Object> logicalAvailabilityParameters = new ArrayList<>(3);
+		logicalAvailabilityParameters.add(institutionId);
+		logicalAvailabilityParameters.add(SchedulingSystemId.COBALT);
 		logicalAvailabilityParameters.add(startDateTime);
 
 		Map<UUID, List<LogicalAvailability>> logicalAvailabilitiesByProviderId = getDatabase().queryForList(logicalAvailabilitiesSql, LogicalAvailability.class,
@@ -705,13 +692,14 @@ public class ProviderService {
 				.collect(Collectors.groupingBy(LogicalAvailability::getProviderId));
 
 		// Pull appointment types associated with logical availabilities
-		String logicalAvailabilityAppointmentTypesSql = format("SELECT apt.*, la.logical_availability_id FROM v_appointment_type apt, logical_availability la, logical_availability_appointment_type laat, provider p " +
+		String logicalAvailabilityAppointmentTypesSql = "SELECT apt.*, la.logical_availability_id FROM v_appointment_type apt, logical_availability la, logical_availability_appointment_type laat, provider p " +
 				"WHERE laat.appointment_type_id=apt.appointment_type_id AND laat.logical_availability_id=la.logical_availability_id " +
-				"AND la.logical_availability_type_id=? AND la.provider_id=p.provider_id AND p.active=TRUE AND p.provider_id IN (VALUES %s)", providerIdValuesSql);
+				"AND la.logical_availability_type_id=? AND la.provider_id=p.provider_id AND p.active=TRUE AND p.institution_id=? AND p.scheduling_system_id=?";
 
 		List<Object> logicalAvailabilityAppointmentTypeParameters = new ArrayList<>();
 		logicalAvailabilityAppointmentTypeParameters.add(LogicalAvailabilityTypeId.OPEN);
-		logicalAvailabilityAppointmentTypeParameters.addAll(providerIds);
+		logicalAvailabilityAppointmentTypeParameters.add(institutionId);
+		logicalAvailabilityAppointmentTypeParameters.add(SchedulingSystemId.COBALT);
 
 		List<AppointmentTypeWithLogicalAvailabilityId> logicalAvailabilityAppointmentTypes = getDatabase().queryForList(logicalAvailabilityAppointmentTypesSql,
 						AppointmentTypeWithLogicalAvailabilityId.class, logicalAvailabilityAppointmentTypeParameters.toArray()).stream()
@@ -728,12 +716,13 @@ public class ProviderService {
 				.collect(Collectors.groupingBy(AppointmentTypeWithLogicalAvailabilityId::getLogicalAvailabilityId));
 
 		// Pull all appointment types for active providers
-		String allActiveAppointmentTypesSql = format("SELECT apt.*, p.provider_id FROM appointment_type apt, provider_appointment_type pat, provider p " +
+		String allActiveAppointmentTypesSql = "SELECT apt.*, p.provider_id FROM appointment_type apt, provider_appointment_type pat, provider p " +
 				"WHERE pat.appointment_type_id=apt.appointment_type_id " +
-				"AND pat.provider_id=p.provider_id AND p.active=TRUE AND p.provider_id IN (VALUES %s)", providerIdValuesSql);
+				"AND pat.provider_id=p.provider_id AND p.active=TRUE AND p.institution_id=? AND p.scheduling_system_id=?";
 
-		List<Object> allActiveAppointmentTypesParameters = new ArrayList<>(providerIds.size() + visitTypeIds.size());
-		allActiveAppointmentTypesParameters.addAll(providerIds);
+		List<Object> allActiveAppointmentTypesParameters = new ArrayList<>(2 + visitTypeIds.size());
+		allActiveAppointmentTypesParameters.add(institutionId);
+		allActiveAppointmentTypesParameters.add(SchedulingSystemId.COBALT);
 
 		if (visitTypeIds.size() > 0) {
 			allActiveAppointmentTypesParameters.addAll(visitTypeIds);
@@ -749,12 +738,13 @@ public class ProviderService {
 				.collect(Collectors.groupingBy(AppointmentTypeWithProviderId::getProviderId));
 
 		// Pull active appointments for providers within the current time window
-		String appointmentsSql = format("SELECT a.* FROM appointment a, provider p " +
-				"WHERE p.provider_id=a.provider_id AND p.active=TRUE AND p.provider_id IN (VALUES %s) " +
-				"AND a.canceled=FALSE AND a.start_time at time zone a.time_zone >= ? ORDER BY a.start_time", providerIdValuesSql);
+		String appointmentsSql = "SELECT a.* FROM appointment a, provider p " +
+				"WHERE p.provider_id=a.provider_id AND p.active=TRUE AND p.institution_id=? AND p.scheduling_system_id=? " +
+				"AND a.canceled=FALSE AND a.start_time at time zone a.time_zone >= ? ORDER BY a.start_time";
 
-		List<Object> appointmentsParameters = new ArrayList<>(providerIds.size() + 1);
-		appointmentsParameters.addAll(providerIds);
+		List<Object> appointmentsParameters = new ArrayList<>(3);
+		appointmentsParameters.add(institutionId);
+		appointmentsParameters.add(SchedulingSystemId.COBALT);
 
 		// The "start_time at time zone a.time_zone" in the SQL above will normalize the appointment's start time to DB timezone (UTC).
 		// This addresses the edge case of querying over a set of providers with different time zones.
@@ -1033,7 +1023,10 @@ public class ProviderService {
 		}
 
 		// Get our final list of dates and make sure it's sorted
-		List<AvailabilityDate> dates = new ArrayList<>(availabilityDatesByDate.values());
+		List<AvailabilityDate> dates = new ArrayList<>(availabilityDatesByDate.values()).stream()
+				.filter(date -> date.getTimes().size() > 0)
+				.collect(Collectors.toList());
+
 		Collections.sort(dates, (date1, date2) -> date1.getDate().compareTo(date2.getDate()));
 
 		// If a user specifies overlapping logical availabilities, we might have duplicate time slots (with perhaps different appointment types).
@@ -1696,26 +1689,17 @@ public class ProviderService {
 	}
 
 	@Nonnull
-	public Map<UUID, List<Specialty>> specialtiesByProviderIdForProviderIds(@Nullable Set<UUID> providerIds) {
-		if (providerIds == null || providerIds.size() == 0)
+	public Map<UUID, List<Specialty>> specialtiesByProviderIdForInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
 			return Collections.emptyMap();
 
-		// Use subquery expression for better performance than in "in" list.
-		// This will not be efficient for set sizes in the thousands, but in practice that is a nonissue for us.
-		// See https://dba.stackexchange.com/a/91539
-
-		// e.g. "('b795f6b5-3709-48aa-a294-91ed049ccce0'), ('32433795-ad52-4605-8c90-39d30d3dab23'), ..."
-		String subqueryExpressionValues = providerIds.stream()
-				.map(providerId -> format("('%s'::uuid)", providerId))
-				.collect(Collectors.joining(", "));
-
 		List<SpecialtyWithProviderId> specialtiesWithProviderId = getDatabase().queryForList(
-				format("SELECT s.*, ps.provider_id FROM specialty s, provider_specialty ps " +
-						"WHERE s.specialty_id=ps.specialty_id AND ps.provider_id IN (VALUES %s)", subqueryExpressionValues),
-				SpecialtyWithProviderId.class);
+				"SELECT s.*, ps.provider_id FROM specialty s, provider_specialty ps, provider p " +
+						"WHERE s.specialty_id=ps.specialty_id AND ps.provider_id=p.provider_id AND p.institution_id=?",
+				SpecialtyWithProviderId.class, institutionId);
 
 		// Transform flat resultset into a map
-		Map<UUID, List<Specialty>> specialtiesByProviderId = new HashMap<>(providerIds.size());
+		Map<UUID, List<Specialty>> specialtiesByProviderId = new HashMap<>(specialtiesWithProviderId.size());
 
 		for (SpecialtyWithProviderId specialtyWithProviderId : specialtiesWithProviderId) {
 			List<Specialty> specialties = specialtiesByProviderId.get(specialtyWithProviderId.getProviderId());

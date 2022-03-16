@@ -448,14 +448,14 @@ public class AvailabilityService {
 		// Pull relevant logical availabilities
 		List<LogicalAvailability> logicalAvailabilities = getDatabase().queryForList("SELECT la.* FROM logical_availability la, provider p " +
 				"WHERE p.provider_id=la.provider_id AND p.active=TRUE AND p.provider_id = ? " +
-				"AND (la.end_date_time IS NULL OR la.end_date_time > ?)", LogicalAvailability.class, providerId, startDateTime);
+				"AND la.end_date_time > ?", LogicalAvailability.class, providerId, startDateTime);
 
 		// Pull appointment types associated with logical availabilities
 		List<AppointmentTypeWithLogicalAvailabilityId> logicalAvailabilityAppointmentTypes = getDatabase().queryForList("SELECT apt.*, la.logical_availability_id " +
 				"FROM v_appointment_type apt, logical_availability la, logical_availability_appointment_type laat, provider p " +
 				"WHERE laat.appointment_type_id=apt.appointment_type_id AND laat.logical_availability_id=la.logical_availability_id " +
 				"AND la.provider_id=p.provider_id AND p.active=TRUE AND p.provider_id=? " +
-				"AND (la.end_date_time IS NULL OR la.end_date_time > ?)", AppointmentTypeWithLogicalAvailabilityId.class, providerId, startDateTime);
+				"AND la.end_date_time > ?", AppointmentTypeWithLogicalAvailabilityId.class, providerId, startDateTime);
 
 		Map<UUID, List<AppointmentTypeWithLogicalAvailabilityId>> appointmentTypesByLogicalAvailabilityId = logicalAvailabilityAppointmentTypes.stream()
 				.collect(Collectors.groupingBy(AppointmentTypeWithLogicalAvailabilityId::getLogicalAvailabilityId));
