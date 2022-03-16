@@ -48,10 +48,12 @@ public class ProviderGenerator {
 	private final ZoneId timeZone;
 
 	public static void main(String[] args) {
-		new ProviderGenerator(Locale.forLanguageTag("en-US"), ZoneId.of("America/New_York")).generate(50);
+		new ProviderGenerator(Locale.forLanguageTag("en-US"), ZoneId.of("America/New_York"))
+				.generate(50);
 	}
 
-	public ProviderGenerator(@Nonnull Locale locale, @Nonnull ZoneId timeZone) {
+	public ProviderGenerator(@Nonnull Locale locale,
+													 @Nonnull ZoneId timeZone) {
 		requireNonNull(locale);
 		requireNonNull(timeZone);
 
