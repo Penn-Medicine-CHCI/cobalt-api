@@ -351,7 +351,7 @@ public class DefaultWay2HealthClient implements Way2HealthClient {
 			} catch (Exception e) {
 				throw new Way2HealthException(format("Unable to parse JSON for Way2Health API endpoint %s %s " +
 								"with query params %s  and request body %s. Response body was\n%s", httpRequest.getHttpMethod().name(),
-						httpRequest.getUrl(), queryParametersDescription, requestBodyDescription, responseBody));
+						httpRequest.getUrl(), queryParametersDescription, requestBodyDescription, responseBody), e);
 			}
 		} catch (IOException e) {
 			throw new Way2HealthException(format("Unable to call Way2Health API endpoint %s %s with query params %s " +
