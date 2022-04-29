@@ -249,7 +249,7 @@ public class InteractionService {
 				continue;
 			}
 
-			Message message = new EmailMessage.Builder(EmailMessageTemplate.INTERACTION_REMINDER, institution.getLocale())
+			Message message = new EmailMessage.Builder(Enum.valueOf(EmailMessageTemplate.class, interaction.getMessageTemplate()), institution.getLocale())
 					.toAddresses(accountsToEmail)
 					.fromAddress(getConfiguration().getEmailDefaultFromAddress())
 					.messageContext(new HashMap<String, Object>() {{

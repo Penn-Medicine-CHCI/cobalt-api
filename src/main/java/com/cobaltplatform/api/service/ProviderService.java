@@ -32,6 +32,8 @@ import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.Interaction;
+import com.cobaltplatform.api.model.db.InteractionType;
 import com.cobaltplatform.api.model.db.LogicalAvailability;
 import com.cobaltplatform.api.model.db.LogicalAvailabilityType.LogicalAvailabilityTypeId;
 import com.cobaltplatform.api.model.db.PaymentFunding;
@@ -1762,6 +1764,12 @@ public class ProviderService {
 				ZoneId.of("America/Shiprock"),
 				ZoneId.of("America/Los_Angeles")
 		);
+	}
+
+	@Nonnull
+	public List<Interaction> findInteractionsByTypeAndProviderId(InteractionType.InteractionTypeId interactionTypeId, UUID providerId ){
+		return getDatabase().queryForList("SELECT i.* FROM interaction i, provider_interaction pi WHERE i.interaction_id = pi.interaction_id " +
+				"AND pi.provider_id = ? AND i.interaction_type_id = ? ", Interaction.class, providerId, interactionTypeId);
 	}
 
 	@Nonnull
