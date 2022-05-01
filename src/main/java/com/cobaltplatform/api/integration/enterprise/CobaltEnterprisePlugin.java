@@ -23,10 +23,12 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
+import javax.inject.Singleton;
 
 /**
  * @author Transmogrify, LLC.
  */
+@Singleton
 @ThreadSafe
 public class CobaltEnterprisePlugin implements EnterprisePlugin {
 	@Nonnull

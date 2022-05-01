@@ -22,6 +22,8 @@ package com.cobaltplatform.api.integration.enterprise;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.google.common.base.CaseFormat;
+import com.google.inject.Injector;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -29,8 +31,13 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.time.ZoneId;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -40,16 +47,25 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class EnterprisePluginProvider {
 	@Nonnull
+	private final Injector injector;
+	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
+	@Nonnull
+	private final Map<InstitutionId, Class<? extends EnterprisePlugin>> enterprisePluginClassesByInstitutionId;
 
 	@Inject
-	public EnterprisePluginProvider(@Nonnull Provider<CurrentContext> currentContextProvider) {
+	public EnterprisePluginProvider(@Nonnull Injector injector,
+																	@Nonnull Provider<CurrentContext> currentContextProvider) {
+		requireNonNull(injector);
 		requireNonNull(currentContextProvider);
+
+		this.injector = injector;
 		this.currentContextProvider = currentContextProvider;
+		this.enterprisePluginClassesByInstitutionId = Collections.unmodifiableMap(createEnterprisePluginClassesByInstitutionId());
 	}
 
 	@Nonnull
-	public EnterprisePlugin enterprisePluginForCurrentContext() {
+	public EnterprisePlugin enterprisePluginForCurrentInstitution() {
 		InstitutionId institutionId = InstitutionId.COBALT; // Default
 		CurrentContext currentContext = getCurrentContext();
 		Account account = currentContext.getAccount().orElse(null);
@@ -64,7 +80,54 @@ public class EnterprisePluginProvider {
 	public EnterprisePlugin enterprisePluginForInstitutionId(@Nonnull InstitutionId institutionId) {
 		requireNonNull(institutionId);
 
-		return new CobaltEnterprisePlugin();
+		try {
+			Class<? extends EnterprisePlugin> enterprisePluginClass = getEnterprisePluginClassesByInstitutionId().get(institutionId);
+			return getInjector().getInstance(enterprisePluginClass);
+		} catch (Exception e) {
+			throw new RuntimeException(format("Unable to load enterprise plugin for institution ID %s.", institutionId), e);
+		}
+	}
+
+	@Nonnull
+	protected Map<InstitutionId, Class<? extends EnterprisePlugin>> createEnterprisePluginClassesByInstitutionId() {
+		Map<InstitutionId, Class<? extends EnterprisePlugin>> enterprisePluginClassesByInstitutionId = new HashMap<>();
+
+		// Magic: figure out institution plugin class names based on Institution IDs.
+		// For example, turns institution ID "EXAMPLE_INSTITUTION" into "ExampleInstitutionPlugin".
+		// This permits us to avoid merge conflicts w/enterprise repo and we normally don't need extra flexibility around plugin loading.
+		for (InstitutionId institutionId : InstitutionId.values()) {
+			// e.g. COBALT_EXAMPLE -> CobaltExampleEnterprisePlugin
+			String className = format("%s%s", CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, institutionId.name()),
+					EnterprisePlugin.class.getSimpleName());
+			// Assumes plugins are in the same package as this class
+			String packageName = EnterprisePluginProvider.class.getPackageName();
+			String fullyQualifiedClassName = format("%s.%s", packageName, className);
+
+			try {
+				// This line appears unsafe, but we do a check below to confirm it's kosher
+				Class<? extends EnterprisePlugin> enterprisePluginClass = (Class<? extends EnterprisePlugin>) Class.forName(fullyQualifiedClassName);
+
+				if (!Arrays.stream(enterprisePluginClass.getInterfaces()).toList().contains(EnterprisePlugin.class))
+					throw new IllegalStateException(format("Plugin class %s must be modified to implement the %s interface.",
+							fullyQualifiedClassName, EnterprisePlugin.class));
+
+				enterprisePluginClassesByInstitutionId.put(institutionId, enterprisePluginClass);
+			} catch (Exception e) {
+				throw new IllegalStateException(format("Unable to load enterprise plugin class for name %s", fullyQualifiedClassName), e);
+			}
+		}
+
+		return enterprisePluginClassesByInstitutionId;
+	}
+
+	@Nonnull
+	protected Injector getInjector() {
+		return injector;
+	}
+
+	@Nonnull
+	protected Map<InstitutionId, Class<? extends EnterprisePlugin>> getEnterprisePluginClassesByInstitutionId() {
+		return enterprisePluginClassesByInstitutionId;
 	}
 
 	@Nonnull
