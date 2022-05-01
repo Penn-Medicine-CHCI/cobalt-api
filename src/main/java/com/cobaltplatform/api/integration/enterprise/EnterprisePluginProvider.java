@@ -93,7 +93,7 @@ public class EnterprisePluginProvider {
 		Map<InstitutionId, Class<? extends EnterprisePlugin>> enterprisePluginClassesByInstitutionId = new HashMap<>();
 
 		// Magic: figure out institution plugin class names based on Institution IDs.
-		// For example, turns institution ID "EXAMPLE_INSTITUTION" into "ExampleInstitutionPlugin".
+		// For example, turns institution ID "EXAMPLE_INSTITUTION" into "ExampleInstitutionEnterprisePlugin".
 		// This permits us to avoid merge conflicts w/enterprise repo and we normally don't need extra flexibility around plugin loading.
 		for (InstitutionId institutionId : InstitutionId.values()) {
 			// e.g. COBALT_EXAMPLE -> CobaltExampleEnterprisePlugin
