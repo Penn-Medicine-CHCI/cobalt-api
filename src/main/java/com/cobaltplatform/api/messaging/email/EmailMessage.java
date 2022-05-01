@@ -76,6 +76,21 @@ public class EmailMessage implements Message {
 		this.emailAttachments = builder.emailAttachments == null ? Collections.emptyList() : Collections.unmodifiableList(new ArrayList<>(builder.emailAttachments));
 	}
 
+	/**
+	 * Turns this immutable email back into a mutable builder so we can effectively clone it.
+	 * @return a mutable builder prefilled with this email's data.
+	 */
+	@Nonnull
+	public Builder toBuilder() {
+		return new Builder(getMessageId(), getMessageTemplate(), getLocale())
+				.messageContext(getMessageContext())
+				.fromAddress(getFromAddress().orElse(null))
+				.toAddresses(getToAddresses())
+				.ccAddresses(getCcAddresses())
+				.bccAddresses(getBccAddresses())
+				.emailAttachments(getEmailAttachments());
+	}
+
 	@Override
 	@Nonnull
 	public String toString() {
