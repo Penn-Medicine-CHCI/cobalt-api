@@ -38,6 +38,7 @@ import com.cobaltplatform.api.integration.bluejeans.BluejeansApi;
 import com.cobaltplatform.api.integration.bluejeans.BluejeansClient;
 import com.cobaltplatform.api.integration.bluejeans.DefaultBluejeansClient;
 import com.cobaltplatform.api.integration.bluejeans.MockBluejeansClient;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.epic.DefaultEpicClient;
 import com.cobaltplatform.api.integration.epic.EpicClient;
 import com.cobaltplatform.api.integration.epic.MockEpicClient;
@@ -454,12 +455,14 @@ public class AppModule extends AbstractModule {
 	@Provides
 	@Singleton
 	@Nonnull
-	public EmailMessageManager provideEmailMessageManager(@Nonnull Provider<AccountService> accountServiceProvider,
+	public EmailMessageManager provideEmailMessageManager(@Nonnull EnterprisePluginProvider enterprisePluginProvider,
+																												@Nonnull Provider<AccountService> accountServiceProvider,
 																												@Nonnull Database database,
 																												@Nonnull Configuration configuration,
 																												@Nonnull Formatter formatter,
 																												@Nonnull MessageSender<EmailMessage> messageSender,
 																												@Nonnull MessageSerializer<EmailMessage> messageSerializer) {
+		requireNonNull(enterprisePluginProvider);
 		requireNonNull(accountServiceProvider);
 		requireNonNull(database);
 		requireNonNull(configuration);
@@ -467,7 +470,7 @@ public class AppModule extends AbstractModule {
 		requireNonNull(messageSender);
 		requireNonNull(messageSerializer);
 
-		return new EmailMessageManager(accountServiceProvider, database, configuration, formatter, messageSender, messageSerializer, (processingFunction) -> {
+		return new EmailMessageManager(enterprisePluginProvider, accountServiceProvider, database, configuration, formatter, messageSender, messageSerializer, (processingFunction) -> {
 			return new AmazonSqsManager.Builder(getConfiguration().getAmazonSqsEmailMessageQueueName(),
 					getConfiguration().getAmazonSqsRegion())
 					.useLocalstack(getConfiguration().getAmazonUseLocalstack())
