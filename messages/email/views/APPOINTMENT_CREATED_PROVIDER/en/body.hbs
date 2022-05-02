@@ -24,6 +24,21 @@
 			{{/if}}
 		</td>
 	</tr>
+	{{#if showExternalCalendarUrls}}
+		<tr>
+			<td height="30" bgcolor="#ffffff" width="50%"></td>
+		</tr>
+		<tr>
+			<td align="left" colspan="2">
+				<a href="{{{icalUrl}}}" target="_blank">
+					<img src="{{{staticFileUrlPrefix}}}/button-ical@2x.jpg" width="293" height="44" alt="Add to iCal/Outlook Calendar" />
+				</a>
+				<a href="{{{googleCalendarUrl}}}" target="_blank">
+					<img src="{{{staticFileUrlPrefix}}}/button-google@2x.jpg" width="247" height="44" alt="Add to Google Calendar" />
+				</a>
+			</td>
+		</tr>
+	{{/if}}
 {{/partial}}
 
 {{> layouts/en/default}}
