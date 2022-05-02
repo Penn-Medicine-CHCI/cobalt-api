@@ -594,6 +594,7 @@ public class AppointmentService {
 				String patientEmailAddress = account.getEmailAddress();
 
 				Map<String, Object> messageContext = new HashMap<>();
+				messageContext.put("appointmentId", appointmentId);
 				messageContext.put("appointmentDateDescription", getFormatter().formatDate(epicAppointmentDate, FormatStyle.MEDIUM, locale));
 				messageContext.put("appointmentTimeDescription", getFormatter().formatTime(epicAppointmentStartTime, FormatStyle.MEDIUM, locale));
 				messageContext.put("videoconferenceUrl", videoconferenceUrl);
@@ -1270,6 +1271,7 @@ public class AppointmentService {
 							if (pinnedProvider.getLicense() != null)
 								providerNameAndCredentials = format("%s, %s", pinnedProvider.getName(), pinnedProvider.getLicense());
 
+							put("appointmentId", appointmentId);
 							put("providerName", pinnedProvider.getName());
 							put("providerNameAndCredentials", providerNameAndCredentials);
 							put("videoconferenceUrl", pinnedVideoconferenceUrl);
@@ -1743,6 +1745,7 @@ public class AppointmentService {
 		// Patient email
 		if (account.getEmailAddress() != null) {
 			Map<String, Object> cobaltPatientEmailMessageContext = new HashMap<>();
+			cobaltPatientEmailMessageContext.put("appointmentId", appointmentId);
 			cobaltPatientEmailMessageContext.put("providerName", provider.getName());
 			cobaltPatientEmailMessageContext.put("providerNameAndCredentials", providerNameAndCredentials);
 			cobaltPatientEmailMessageContext.put("videoconferenceUrl", appointment.getVideoconferenceUrl());
@@ -1765,6 +1768,7 @@ public class AppointmentService {
 
 		// Provider email
 		Map<String, Object> cobaltProviderEmailMessageContext = new HashMap<>();
+		cobaltProviderEmailMessageContext.put("appointmentId", appointmentId);
 		cobaltProviderEmailMessageContext.put("appointmentStartDateTimeDescription", appointmentStartDateTimeDescription);
 		cobaltProviderEmailMessageContext.put("appointmentStartDateDescription", appointmentStartDateDescription);
 		cobaltProviderEmailMessageContext.put("appointmentStartTimeDescription", appointmentStartTimeDescription);
@@ -1772,6 +1776,8 @@ public class AppointmentService {
 		cobaltProviderEmailMessageContext.put("accountName", accountName);
 		cobaltProviderEmailMessageContext.put("accountEmailAddress", account.getEmailAddress());
 		cobaltProviderEmailMessageContext.put("videoconferenceUrl", videoconferenceUrl);
+		cobaltProviderEmailMessageContext.put("icalUrl", format("%s/appointments/%s/ical", webappBaseUrl, appointmentId));
+		cobaltProviderEmailMessageContext.put("googleCalendarUrl", format("%s/appointments/%s/google-calendar", webappBaseUrl, appointmentId));
 
 		// With native scheduling, providers can deeplink right to the appointment on their calendar
 		if(appointment.getSchedulingSystemId() == SchedulingSystemId.COBALT)
@@ -1812,6 +1818,7 @@ public class AppointmentService {
 		// Patient email
 		if (account.getEmailAddress() != null) {
 			Map<String, Object> cobaltPatientEmailMessageContext = new HashMap<>();
+			cobaltPatientEmailMessageContext.put("appointmentId", appointmentId);
 			cobaltPatientEmailMessageContext.put("providerName", provider.getName());
 			cobaltPatientEmailMessageContext.put("providerNameAndCredentials", providerNameAndCredentials);
 			cobaltPatientEmailMessageContext.put("videoconferenceUrl", appointment.getVideoconferenceUrl());
@@ -1830,6 +1837,7 @@ public class AppointmentService {
 
 		// Provider email
 		Map<String, Object> cobaltProviderEmailMessageContext = new HashMap<>();
+		cobaltProviderEmailMessageContext.put("appointmentId", appointmentId);
 		cobaltProviderEmailMessageContext.put("appointmentStartDateTimeDescription", appointmentStartDateTimeDescription);
 		cobaltProviderEmailMessageContext.put("appointmentStartDateDescription", appointmentStartDateDescription);
 		cobaltProviderEmailMessageContext.put("appointmentStartTimeDescription", appointmentStartTimeDescription);

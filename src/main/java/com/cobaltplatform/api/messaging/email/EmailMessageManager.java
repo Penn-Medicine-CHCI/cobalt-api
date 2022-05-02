@@ -20,6 +20,8 @@
 package com.cobaltplatform.api.messaging.email;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.util.AmazonSqsManager;
 import com.cobaltplatform.api.util.Formatter;
@@ -33,12 +35,18 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Provider;
 import java.util.function.Function;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * @author Transmogrify, LLC.
  */
 @ThreadSafe
 public class EmailMessageManager extends MessageManager<EmailMessage> {
-	public EmailMessageManager(@Nonnull Provider<AccountService> accountServiceProvider,
+	@Nonnull
+	private final EnterprisePluginProvider enterprisePluginProvider;
+
+	public EmailMessageManager(@Nonnull EnterprisePluginProvider enterprisePluginProvider,
+														 @Nonnull Provider<AccountService> accountServiceProvider,
 														 @Nonnull Database database,
 														 @Nonnull Configuration configuration,
 														 @Nonnull Formatter formatter,
@@ -46,5 +54,21 @@ public class EmailMessageManager extends MessageManager<EmailMessage> {
 														 @Nonnull MessageSerializer<EmailMessage> messageSerializer,
 														 @Nonnull Function<AmazonSqsManager.AmazonSqsProcessingFunction, AmazonSqsManager> amazonSqsManagerProvider) {
 		super(accountServiceProvider, database, configuration, formatter, messageSender, messageSerializer, amazonSqsManagerProvider);
+		this.enterprisePluginProvider = enterprisePluginProvider;
+	}
+
+	@Nonnull
+	@Override
+	public void enqueueMessage(@Nonnull EmailMessage emailMessage) {
+		requireNonNull(emailMessage);
+
+		// Hook for institutions to customize outgoing emails
+		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForCurrentInstitution();
+		super.enqueueMessage(enterprisePlugin.customizeEmailMessage(emailMessage));
+	}
+
+	@Nonnull
+	protected EnterprisePluginProvider getEnterprisePluginProvider() {
+		return enterprisePluginProvider;
 	}
 }
