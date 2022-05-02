@@ -37,7 +37,8 @@ public class InteractionType {
 	public enum InteractionTypeId {
 		SI,
 		ROLE_REQUEST,
-		APPOINTMENT
+		APPOINTMENT_PATIENT,
+		APPOINTMENT_PROVIDER
 	}
 
 	@Override

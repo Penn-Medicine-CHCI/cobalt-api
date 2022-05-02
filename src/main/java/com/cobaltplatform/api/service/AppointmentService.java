@@ -1297,23 +1297,46 @@ public class AppointmentService {
 			}
 		});
 
-		//Send any appointment followup interactions that might be defined for the provider being scheduled with
-		List<Interaction> interactions = getProviderService().findInteractionsByTypeAndProviderId(InteractionType.InteractionTypeId.APPOINTMENT, providerId);
+		//Send any patient appointment interactions that might be defined for the provider being scheduled with
+		List<Interaction> patientInteractions = getProviderService().findInteractionsByTypeAndProviderId(InteractionType.InteractionTypeId.APPOINTMENT_PATIENT, providerId);
 
-		if (!interactions.isEmpty()) {
-			ZoneId providerTimeZone = provider.getTimeZone();
-
-			for (Interaction interaction : interactions) {
-				LocalDateTime followupSendTime = LocalDateTime.now(timeZone).plusMinutes(interaction.getSendOffsetInMinutes());
+		if (!patientInteractions.isEmpty()) {
+			for (Interaction interaction : patientInteractions) {
+				LocalDateTime followupSendTime = meetingEndTime.plusMinutes(interaction.getSendOffsetInMinutes());
+				List<UUID> additionalAccountsToNotify = new ArrayList<>();
+				additionalAccountsToNotify.add(createdByAccountId);
 
 				UUID interactionInstanceId = getInteractionService().createInteractionInstance(new CreateInteractionInstanceRequest() {{
 					setStartDateTime(followupSendTime);
-					setTimeZone(providerTimeZone);
+					setTimeZone(pinnedTimeZone);
 					setInteractionId(interaction.getInteractionId());
+					setAdditionalAccountsToNotify(additionalAccountsToNotify);
 				}});
 
-				getDatabase().execute("INSERT INTO appointment_interaction_instance (appointment_interaction_instance_id, appointment_id, interaction_instance_id) " +
-						"VALUES (?,?,?)", UUID.randomUUID(), appointmentId, interactionInstanceId);
+				getInteractionService().linkInteractionInstanceToAppointment(interactionInstanceId, appointmentId);
+			}
+		}
+
+		//Send any provider appointment interactions that might be defined for the provider being scheduled with
+		List<Interaction> providerInteractions = getProviderService().findInteractionsByTypeAndProviderId(InteractionType.InteractionTypeId.APPOINTMENT_PROVIDER, providerId);
+
+		if (!providerInteractions.isEmpty()) {
+			for (Interaction interaction : providerInteractions) {
+				LocalDateTime followupSendTime = meetingEndTime.plusMinutes(interaction.getSendOffsetInMinutes());
+				List<UUID> additionalAccountsToNotify = new ArrayList<>();
+				Optional<Account> providerAccount = getAccountService().findAccountByProviderId(providerId);
+
+				if (providerAccount.isPresent())
+					additionalAccountsToNotify.add(providerAccount.get().getAccountId());
+
+				UUID interactionInstanceId = getInteractionService().createInteractionInstance(new CreateInteractionInstanceRequest() {{
+					setStartDateTime(followupSendTime);
+					setTimeZone(pinnedTimeZone);
+					setInteractionId(interaction.getInteractionId());
+					setAdditionalAccountsToNotify(additionalAccountsToNotify);
+				}});
+
+				getInteractionService().linkInteractionInstanceToAppointment(interactionInstanceId, appointmentId);
 			}
 		}
 
@@ -1910,6 +1933,9 @@ public class AppointmentService {
 
 		boolean canceled = getDatabase().execute("UPDATE appointment SET canceled=TRUE, attendance_status_id=?, canceled_at=NOW(), " +
 				"canceled_for_reschedule=?, rescheduled_appointment_id=? WHERE appointment_id=?", AttendanceStatusId.CANCELED, request.getCanceledForReschedule(), request.getRescheduleAppointmentId(), appointmentId) > 0;
+
+		//Cancel any interaction instances that are scheduled for this appointment
+		getInteractionService().cancelInteractionInstancesForAppointment(appointmentId);
 
 		Appointment pinnedAppointment = appointment;
 		Account appointmentAccount = getAccountService().findAccountById(pinnedAppointment.getAccountId()).orElse(null);

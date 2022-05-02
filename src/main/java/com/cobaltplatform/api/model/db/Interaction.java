@@ -48,6 +48,8 @@ public class Interaction {
 	@Nullable
 	private String messageTemplate;
 	@Nullable
+	private String messageTemplateBody;
+	@Nullable
 	private Integer sendOffsetInMinutes;
 	@Nullable
 	private Instant created;
@@ -142,5 +144,14 @@ public class Interaction {
 
 	public void setSendOffsetInMinutes(@Nullable Integer sendOffsetInMinutes) {
 		this.sendOffsetInMinutes = sendOffsetInMinutes;
+	}
+
+	@Nullable
+	public String getMessageTemplateBody() {
+		return messageTemplateBody;
+	}
+
+	public void setMessageTemplateBody(@Nullable String messageTemplateBody) {
+		this.messageTemplateBody = messageTemplateBody;
 	}
 }

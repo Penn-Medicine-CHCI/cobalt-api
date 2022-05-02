@@ -987,6 +987,13 @@ public class AccountService {
 	}
 
 	@Nonnull
+	public Optional<Account> findAccountByProviderId(@Nonnull UUID accountId) {
+		requireNonNull(accountId);
+
+		return getDatabase().queryForObject("SELECT * FROM account WHERE provider_id=?", Account.class, accountId);
+	}
+
+	@Nonnull
 	protected CurrentContext getCurrentContext() {
 		return currentContextProvider.get();
 	}
