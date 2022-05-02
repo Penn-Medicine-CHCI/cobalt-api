@@ -1714,6 +1714,7 @@ public class AppointmentService {
 
 		// Provider email
 		Map<String, Object> cobaltProviderEmailMessageContext = new HashMap<>();
+		cobaltProviderEmailMessageContext.put("appointmentId", appointmentId);
 		cobaltProviderEmailMessageContext.put("appointmentStartDateTimeDescription", appointmentStartDateTimeDescription);
 		cobaltProviderEmailMessageContext.put("appointmentStartDateDescription", appointmentStartDateDescription);
 		cobaltProviderEmailMessageContext.put("appointmentStartTimeDescription", appointmentStartTimeDescription);
