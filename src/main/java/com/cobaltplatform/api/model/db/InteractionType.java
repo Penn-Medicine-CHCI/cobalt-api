@@ -35,7 +35,10 @@ public class InteractionType {
 	private String description;
 
 	public enum InteractionTypeId {
-		EMAIL
+		SI,
+		ROLE_REQUEST,
+		APPOINTMENT_PATIENT,
+		APPOINTMENT_PROVIDER
 	}
 
 	@Override

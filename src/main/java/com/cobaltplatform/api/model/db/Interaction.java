@@ -46,6 +46,12 @@ public class Interaction {
 	@Nullable
 	private Integer frequencyInMinutes;
 	@Nullable
+	private String messageTemplate;
+	@Nullable
+	private String messageTemplateBody;
+	@Nullable
+	private Integer sendOffsetInMinutes;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -120,5 +126,32 @@ public class Interaction {
 
 	public void setInstitutionId(@Nullable InstitutionId institutionId) {
 		this.institutionId = institutionId;
+	}
+
+	@Nullable
+	public String getMessageTemplate() {
+		return messageTemplate;
+	}
+
+	public void setMessageTemplate(@Nullable String messageTemplate) {
+		this.messageTemplate = messageTemplate;
+	}
+
+	@Nullable
+	public Integer getSendOffsetInMinutes() {
+		return sendOffsetInMinutes;
+	}
+
+	public void setSendOffsetInMinutes(@Nullable Integer sendOffsetInMinutes) {
+		this.sendOffsetInMinutes = sendOffsetInMinutes;
+	}
+
+	@Nullable
+	public String getMessageTemplateBody() {
+		return messageTemplateBody;
+	}
+
+	public void setMessageTemplateBody(@Nullable String messageTemplateBody) {
+		this.messageTemplateBody = messageTemplateBody;
 	}
 }

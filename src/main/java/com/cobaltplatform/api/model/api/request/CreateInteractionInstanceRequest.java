@@ -23,6 +23,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -43,6 +44,8 @@ public class CreateInteractionInstanceRequest {
 	private Map<String, Object> hipaaCompliantMetadata;
 	@Nullable
 	private UUID accountId;
+	@Nullable
+	private List<UUID> additionalAccountsToNotify;
 
 	@Nullable
 	public UUID getInteractionId() {
@@ -96,5 +99,14 @@ public class CreateInteractionInstanceRequest {
 
 	public void setAccountId(@Nullable UUID accountId) {
 		this.accountId = accountId;
+	}
+
+	@Nullable
+	public List<UUID> getAdditionalAccountsToNotify() {
+		return additionalAccountsToNotify;
+	}
+
+	public void setAdditionalAccountsToNotify(@Nullable List<UUID> additionalAccountsToNotify) {
+		this.additionalAccountsToNotify = additionalAccountsToNotify;
 	}
 }

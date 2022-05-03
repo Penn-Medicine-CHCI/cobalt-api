@@ -206,6 +206,10 @@ public class InteractionService {
 		if (validationException.hasErrors())
 			throw validationException;
 
+		if (request.getAdditionalAccountsToNotify() != null && request.getAdditionalAccountsToNotify().size() > 0)
+			for (UUID accountIdToUpdate : request.getAdditionalAccountsToNotify())
+				addInteractionIdToAccount(interactionId, accountIdToUpdate);
+
 		getDatabase().execute("INSERT INTO interaction_instance (interaction_instance_id, interaction_id, account_id, start_date_time, "
 						+ "time_zone, metadata, hipaa_compliant_metadata) VALUES (?,?,?,?,?,CAST (? AS JSONB),CAST (? AS JSONB))", interactionInstanceId,
 				interactionId, accountId, startDateTime, timeZone, getJsonMapper().toJson(metadata), getJsonMapper().toJson(hipaaCompliantMetadata));
@@ -249,7 +253,7 @@ public class InteractionService {
 				continue;
 			}
 
-			Message message = new EmailMessage.Builder(EmailMessageTemplate.INTERACTION_REMINDER, institution.getLocale())
+			Message message = new EmailMessage.Builder(Enum.valueOf(EmailMessageTemplate.class, interaction.getMessageTemplate()), institution.getLocale())
 					.toAddresses(accountsToEmail)
 					.fromAddress(getConfiguration().getEmailDefaultFromAddress())
 					.messageContext(new HashMap<String, Object>() {{
@@ -275,6 +279,7 @@ public class InteractionService {
 						put("endUserHtmlRepresentation", endUserHtmlRepresentation);
 						put("interactionInstanceUrl", format("%s/interaction-instances/%s",
 								getConfiguration().getWebappBaseUrl(institution.getInstitutionId()), interactionInstanceId));
+						put("messageTemplateBodyHtml", interaction.getMessageTemplateBody());
 					}})
 					.build();
 
@@ -399,6 +404,51 @@ public class InteractionService {
 
 		return getDatabase().queryForList("SELECT * FROM interaction_option_action WHERE interaction_instance_id=? " +
 				"ORDER BY created DESC", InteractionOptionAction.class, interactionInstanceId);
+	}
+
+	@Nonnull
+	private void addInteractionIdToAccount(@Nonnull UUID interactionId,
+																				 @Nonnull UUID accountId) {
+		requireNonNull(interactionId);
+		requireNonNull(accountId);
+
+		Boolean accountHasInteractions = getDatabase().queryForObject("SELECT COUNT(*) > 0 FROM account WHERE metadata ?? 'interactionIds' AND account_id=? ",
+				Boolean.class,accountId).get();
+		
+		if (accountHasInteractions)
+		getDatabase().execute(format("UPDATE account SET metadata = jsonb_set(" +
+				"  metadata::jsonb, array['interactionIds'], " +
+				"  (metadata->'interactionIds')::jsonb || '[\"%s\"]'::jsonb) " +
+				"WHERE account_id = ?", interactionId),  accountId);
+		else
+			getDatabase().execute(format("UPDATE account SET metadata = '{\"interactionIds\": [\"%s\"]}'::JSONB WHERE account_id = ?", interactionId),accountId);
+
+	}
+
+	@Nonnull
+	public UUID linkInteractionInstanceToAppointment(@Nonnull UUID interactionInstanceId,
+																									 @Nonnull UUID appointmentId) {
+		requireNonNull(interactionInstanceId);
+		requireNonNull(appointmentId);
+
+		UUID appointmentInteractionInstanceId = UUID.randomUUID();
+
+		getDatabase().execute("INSERT INTO appointment_interaction_instance (appointment_interaction_instance_id, appointment_id, interaction_instance_id) " +
+				"VALUES (?,?,?)", appointmentInteractionInstanceId, appointmentId, interactionInstanceId);
+
+		return appointmentInteractionInstanceId;
+	}
+
+	@Nonnull
+	public void cancelInteractionInstancesForAppointment(@Nonnull UUID appointmentId) {
+		requireNonNull(appointmentId);
+
+		List<UUID> interactionInstanceIds = getDatabase().queryForList("SELECT interaction_instance_id FROM appointment_interaction_instance " +
+				"WHERE appointment_id = ?", UUID.class, appointmentId);
+
+		for (UUID interactionInstanceId : interactionInstanceIds)
+			cancelPendingMessagesForInteractionInstance(interactionInstanceId);
+
 	}
 
 	@Nonnull

@@ -55,6 +55,7 @@ import com.cobaltplatform.api.model.api.request.ChangeAppointmentAttendanceStatu
 import com.cobaltplatform.api.model.api.request.CreateAcuityAppointmentTypeRequest;
 import com.cobaltplatform.api.model.api.request.CreateAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.CreateAppointmentTypeRequest;
+import com.cobaltplatform.api.model.api.request.CreateInteractionInstanceRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientIntakeQuestionRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningQuestionRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountEmailAddressRequest;
@@ -80,6 +81,8 @@ import com.cobaltplatform.api.model.db.FontSize.FontSizeId;
 import com.cobaltplatform.api.model.db.GroupEventType;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.Interaction;
+import com.cobaltplatform.api.model.db.InteractionType;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.Question;
 import com.cobaltplatform.api.model.db.QuestionContentHint.QuestionContentHintId;
@@ -195,6 +198,8 @@ public class AppointmentService {
 	private final ICalInviteGenerator iCalInviteGenerator;
 	@Nonnull
 	private final JsonMapper jsonMapper;
+	@Nonnull
+	private final InteractionService interactionService;
 
 	@Inject
 	public AppointmentService(@Nonnull Database database,
@@ -220,7 +225,8 @@ public class AppointmentService {
 														@Nonnull AssessmentService assessmentService,
 														@Nonnull GoogleCalendarUrlGenerator googleCalendarUrlGenerator,
 														@Nonnull ICalInviteGenerator iCalInviteGenerator,
-														@Nonnull JsonMapper jsonMapper) {
+														@Nonnull JsonMapper jsonMapper,
+														@Nonnull InteractionService interactionService) {
 		requireNonNull(database);
 		requireNonNull(configuration);
 		requireNonNull(strings);
@@ -244,6 +250,7 @@ public class AppointmentService {
 		requireNonNull(googleCalendarUrlGenerator);
 		requireNonNull(iCalInviteGenerator);
 		requireNonNull(jsonMapper);
+		requireNonNull(interactionService);
 
 		this.database = database;
 		this.configuration = configuration;
@@ -270,6 +277,7 @@ public class AppointmentService {
 		this.iCalInviteGenerator = iCalInviteGenerator;
 		this.jsonMapper = jsonMapper;
 		this.logger = LoggerFactory.getLogger(getClass());
+		this.interactionService = interactionService;
 	}
 
 	@Nonnull
@@ -1291,6 +1299,49 @@ public class AppointmentService {
 			}
 		});
 
+		//Send any patient appointment interactions that might be defined for the provider being scheduled with
+		List<Interaction> patientInteractions = getProviderService().findInteractionsByTypeAndProviderId(InteractionType.InteractionTypeId.APPOINTMENT_PATIENT, providerId);
+
+		if (!patientInteractions.isEmpty()) {
+			for (Interaction interaction : patientInteractions) {
+				LocalDateTime followupSendTime = meetingEndTime.plusMinutes(interaction.getSendOffsetInMinutes());
+				List<UUID> additionalAccountsToNotify = new ArrayList<>();
+				additionalAccountsToNotify.add(createdByAccountId);
+
+				UUID interactionInstanceId = getInteractionService().createInteractionInstance(new CreateInteractionInstanceRequest() {{
+					setStartDateTime(followupSendTime);
+					setTimeZone(pinnedTimeZone);
+					setInteractionId(interaction.getInteractionId());
+					setAdditionalAccountsToNotify(additionalAccountsToNotify);
+				}});
+
+				getInteractionService().linkInteractionInstanceToAppointment(interactionInstanceId, appointmentId);
+			}
+		}
+
+		//Send any provider appointment interactions that might be defined for the provider being scheduled with
+		List<Interaction> providerInteractions = getProviderService().findInteractionsByTypeAndProviderId(InteractionType.InteractionTypeId.APPOINTMENT_PROVIDER, providerId);
+
+		if (!providerInteractions.isEmpty()) {
+			for (Interaction interaction : providerInteractions) {
+				LocalDateTime followupSendTime = meetingEndTime.plusMinutes(interaction.getSendOffsetInMinutes());
+				List<UUID> additionalAccountsToNotify = new ArrayList<>();
+				Optional<Account> providerAccount = getAccountService().findAccountByProviderId(providerId);
+
+				if (providerAccount.isPresent())
+					additionalAccountsToNotify.add(providerAccount.get().getAccountId());
+
+				UUID interactionInstanceId = getInteractionService().createInteractionInstance(new CreateInteractionInstanceRequest() {{
+					setStartDateTime(followupSendTime);
+					setTimeZone(pinnedTimeZone);
+					setInteractionId(interaction.getInteractionId());
+					setAdditionalAccountsToNotify(additionalAccountsToNotify);
+				}});
+
+				getInteractionService().linkInteractionInstanceToAppointment(interactionInstanceId, appointmentId);
+			}
+		}
+
 		return appointmentId;
 	}
 
@@ -1891,6 +1942,9 @@ public class AppointmentService {
 		boolean canceled = getDatabase().execute("UPDATE appointment SET canceled=TRUE, attendance_status_id=?, canceled_at=NOW(), " +
 				"canceled_for_reschedule=?, rescheduled_appointment_id=? WHERE appointment_id=?", AttendanceStatusId.CANCELED, request.getCanceledForReschedule(), request.getRescheduleAppointmentId(), appointmentId) > 0;
 
+		//Cancel any interaction instances that are scheduled for this appointment
+		getInteractionService().cancelInteractionInstancesForAppointment(appointmentId);
+
 		Appointment pinnedAppointment = appointment;
 		Account appointmentAccount = getAccountService().findAccountById(pinnedAppointment.getAccountId()).orElse(null);
 
@@ -2311,4 +2365,7 @@ public class AppointmentService {
 	protected JsonMapper getJsonMapper() {
 		return jsonMapper;
 	}
+
+	@Nonnull
+	protected InteractionService getInteractionService() { return interactionService; }
 }
