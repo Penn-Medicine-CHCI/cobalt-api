@@ -23,6 +23,7 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.AccountSessionAnswer;
 import com.cobaltplatform.api.model.db.Answer;
+import com.cobaltplatform.api.model.db.AppointmentTypeAssessment;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
 import com.cobaltplatform.api.model.db.Question;
@@ -35,6 +36,8 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -321,8 +324,30 @@ public class SessionService {
 					, AccountSession.class, providerId,
 					account.getAccountId(), complete, true, appointmentTypeId);
 
-			if (accountSession.isPresent())
+			if (accountSession.isPresent()) {
+				// Special case: if there was an intake assessment that has a newer assessment
+				UUID assessmentId = accountSession.get().getAssessmentId();
+
+				AppointmentTypeAssessment activeAppointmentTypeAssessment = database.queryForObject("SELECT * FROM appointment_type_assessment " +
+						"WHERE appointment_type_id=? AND active=true", AppointmentTypeAssessment.class, appointmentTypeId).orElse(null);
+
+				if(activeAppointmentTypeAssessment != null && !activeAppointmentTypeAssessment.getAssessmentId().equals(assessmentId)) {
+					logger.debug("Appointment type ID {} has a newer assessment ID {} than the old assessment ID {} associated with account session ID",
+							appointmentTypeId, activeAppointmentTypeAssessment.getAssessmentId(), assessmentId, accountSession.get().getAccountSessionId());
+
+					Long gracePeriodInMinutes = 10L;
+					Instant now = Instant.now();
+					Instant gracePeriodEnd = activeAppointmentTypeAssessment.getCreated().plus(gracePeriodInMinutes, ChronoUnit.MINUTES);
+
+					if(now.isAfter(gracePeriodEnd)) {
+						logger.debug("Current time is {}, which is after the grace period time {} ({} minutes) for appointment type assessment updates. " +
+								"We're going to force user to start a new session.", now, gracePeriodEnd, gracePeriodInMinutes);
+						return Optional.empty();
+					}
+				}
+
 				return accountSession;
+			}
 		}
 
 		return database.queryForObject("SELECT acs.* " +
