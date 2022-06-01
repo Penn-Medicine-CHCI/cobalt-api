@@ -10,6 +10,10 @@ VALUES
 
 ALTER TABLE interaction_type RENAME COLUMN interation_type_id TO interaction_type_id;
 
+-- Update old EMAIL interactions
+UPDATE interaction SET interaction_type_id = 'SI' WHERE interaction_complete_message = 'This case has already been completed.';
+UPDATE interaction SET interaction_type_id = 'ROLE_REQUEST' WHERE interaction_complete_message = 'Role request process has been completed.';
+
 DELETE FROM interaction_type WHERE interaction_type_id = 'EMAIL';
 
 CREATE TABLE provider_interaction
