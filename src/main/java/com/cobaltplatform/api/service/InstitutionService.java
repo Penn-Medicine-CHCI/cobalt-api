@@ -95,7 +95,7 @@ public class InstitutionService {
 		Institution institution = getDatabase().queryForObject("SELECT * FROM institution WHERE LOWER(subdomain)=?",
 				Institution.class, subdomain).orElse(null);
 
-		return institution == null ? findInstitutionById(InstitutionId.COBALT).get() : institution;
+		return institution == null ? findInstitutionById(getConfiguration().getDefaultSubdomainInstitutionId()).get() : institution;
 	}
 
 	@Nonnull

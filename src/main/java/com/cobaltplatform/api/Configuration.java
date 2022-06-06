@@ -282,6 +282,8 @@ public class Configuration {
 	@Nonnull
 	private final String defaultSubdomain;
 	@Nonnull
+	private final InstitutionId defaultSubdomainInstitutionId;
+	@Nonnull
 	private final KeyPair keyPair;
 
 	@Nonnull
@@ -433,6 +435,7 @@ public class Configuration {
 		this.way2HealthEnvironment = valueFor("com.cobaltplatform.api.way2health.environment", Way2HealthEnvironment.class);
 
 		this.defaultSubdomain = valueFor("com.cobaltplatform.api.defaultSubdomain", String.class);
+		this.defaultSubdomainInstitutionId = valueFor("com.cobaltplatform.api.defaultSubdomainInstitutionId", InstitutionId.class);
 
 		RawKeypair rawKeypair = loadRawKeypair();
 
@@ -1464,6 +1467,11 @@ public class Configuration {
 	@Nonnull
 	public String getDefaultSubdomain() {
 		return defaultSubdomain;
+	}
+
+	@Nonnull
+	public InstitutionId getDefaultSubdomainInstitutionId() {
+		return defaultSubdomainInstitutionId;
 	}
 
 	@Nonnull
