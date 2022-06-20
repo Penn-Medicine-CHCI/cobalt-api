@@ -343,14 +343,15 @@ public class InteractionService {
 			if (interactionInstance == null) {
 				validationException.add(new FieldError("interactionInstanceId", getStrings().get("Interaction instance was not found.")));
 			} else {
-				//If this interaction instance is complete and a new interaction option action is being created thrown an exception
-				if (interactionInstance.getCompletedFlag())
-					validationException.add(new FieldError("interactionInstanceId", getStrings().get(interaction.getInteractionCompleteMessage())));
-
 				interaction = findInteractionById(interactionInstance.getInteractionId()).orElse(null);
 
-				if (interaction == null)
+				if (interaction == null) {
 					validationException.add(new FieldError("interactionInstanceId", getStrings().get("No interaction was found for the given interaction instance.")));
+				} else {
+					// If this interaction instance is complete and a new interaction option action is being created, throw an exception
+					if (interactionInstance.getCompletedFlag())
+						validationException.add(getStrings().get(interaction.getInteractionCompleteMessage()));
+				}
 			}
 		}
 
