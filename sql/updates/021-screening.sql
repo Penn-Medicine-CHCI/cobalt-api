@@ -51,11 +51,27 @@ CREATE TABLE screening_version (
 ALTER TABLE screening ADD CONSTRAINT screening_active_screening_version_fk FOREIGN KEY (active_screening_version_id) REFERENCES screening_version (screening_version_id);
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_version FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
+CREATE TABLE screening_template (
+	screening_template_id UUID PRIMARY KEY,
+	institution_id TEXT NOT NULL REFERENCES institution,
+	initial_screening_id UUID NOT NULL REFERENCES screening (screening_id),
+	name TEXT NOT NULL,
+	orchestration_function TEXT NOT NULL, -- Javascript code
+	scoring_function TEXT NOT NULL, -- Javascript code
+	created_by_account_id UUID NOT NULL REFERENCES account (account_id),
+	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX screening_template_institution_name_idx ON screening_template (institution_id, LOWER(TRIM(name)));
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_template FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
 -- A session is tied to browser tab.  You can have many sessions at once and not step on each other.
 -- The created_by_account_id is who is actually taking the survey, the target_account_id is who the results should be tied to,
 -- e.g. an MHIC could take an assessment on behalf of someone else
 CREATE TABLE screening_session (
 	screening_session_id UUID PRIMARY KEY,
+	screening_template_id UUID NOT NULL REFERENCES screening_template,
 	target_account_id UUID NOT NULL REFERENCES account (account_id),
 	created_by_account_id UUID NOT NULL REFERENCES account (account_id),
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -85,24 +101,24 @@ INSERT INTO screening_answer_format (screening_answer_format_id, description) VA
 INSERT INTO screening_answer_format (screening_answer_format_id, description) VALUES ('FREEFORM_TEXT', 'Freeform text');
 
 -- e.g. "This question is asking for a phone number" (normally used with FREEFORM_TEXT answer format)
-CREATE TABLE screening_question_content_hint (
-	screening_question_content_hint_id TEXT PRIMARY KEY,
+CREATE TABLE screening_answer_content_hint (
+	screening_answer_content_hint_id TEXT PRIMARY KEY,
 	description TEXT NOT NULL
 );
 
-INSERT INTO screening_question_content_hint (screening_question_content_hint_id, description) VALUES ('NONE', 'None');
-INSERT INTO screening_question_content_hint (screening_question_content_hint_id, description) VALUES ('FIRST_NAME', 'First Name');
-INSERT INTO screening_question_content_hint (screening_question_content_hint_id, description) VALUES ('LAST_NAME', 'Last Name');
-INSERT INTO screening_question_content_hint (screening_question_content_hint_id, description) VALUES ('FULL_NAME', 'Full Name');
-INSERT INTO screening_question_content_hint (screening_question_content_hint_id, description) VALUES ('PHONE_NUMBER', 'Phone Number');
-INSERT INTO screening_question_content_hint (screening_question_content_hint_id, description) VALUES ('EMAIL_ADDRESS', 'Email Address');
+INSERT INTO screening_answer_content_hint (screening_answer_content_hint_id, description) VALUES ('NONE', 'None');
+INSERT INTO screening_answer_content_hint (screening_answer_content_hint_id, description) VALUES ('FIRST_NAME', 'First Name');
+INSERT INTO screening_answer_content_hint (screening_answer_content_hint_id, description) VALUES ('LAST_NAME', 'Last Name');
+INSERT INTO screening_answer_content_hint (screening_answer_content_hint_id, description) VALUES ('FULL_NAME', 'Full Name');
+INSERT INTO screening_answer_content_hint (screening_answer_content_hint_id, description) VALUES ('PHONE_NUMBER', 'Phone Number');
+INSERT INTO screening_answer_content_hint (screening_answer_content_hint_id, description) VALUES ('EMAIL_ADDRESS', 'Email Address');
 
 -- e.g. “How often are you feeling depressed?”
 CREATE TABLE screening_question (
 	screening_question_id UUID PRIMARY KEY,
 	screening_version_id UUID NOT NULL REFERENCES screening_version,
 	screening_answer_format_id TEXT NOT NULL REFERENCES screening_answer_format,
-	screening_question_content_hint_id TEXT NOT NULL REFERENCES screening_question_content_hint,
+	screening_answer_content_hint_id TEXT NOT NULL REFERENCES screening_answer_content_hint,
 	display_order INTEGER NOT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
