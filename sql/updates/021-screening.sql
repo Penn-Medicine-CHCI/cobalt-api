@@ -27,12 +27,14 @@ INSERT INTO screening_type (screening_type_id, description) VALUES ('AUDIT_C', '
 CREATE TABLE screening (
 	screening_id UUID PRIMARY KEY,
 	institution_id TEXT NOT NULL REFERENCES institution,
+	name TEXT NOT NULL,
 	active_screening_version_id UUID, -- Circular; a 'REFERENCES screening_version' is added later
 	created_by_account_id UUID NOT NULL REFERENCES account (account_id),
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE UNIQUE INDEX screening_institution_name_idx ON screening (institution_id, LOWER(TRIM(name)));
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 CREATE TABLE screening_version (
@@ -61,8 +63,8 @@ CREATE TABLE screening_session (
 );
 
 -- Keeps track of which screening[s] are answered during a session - there might be many back-to-back
-CREATE TABLE screening_session_screening (
-	screening_session_screening_id UUID PRIMARY KEY,
+CREATE TABLE screening_session_context (
+	screening_session_context_id UUID PRIMARY KEY,
 	screening_session_id UUID NOT NULL REFERENCES screening_session,
 	screening_version_id UUID NOT NULL REFERENCES screening_version,
 	screening_order INTEGER NOT NULL,
@@ -125,7 +127,7 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_answer_opti
 CREATE TABLE screening_answer (
   screening_answer_id UUID PRIMARY KEY,
 	screening_answer_option_id UUID NOT NULL REFERENCES screening_answer_option,
-	screening_session_screening_id UUID NOT NULL REFERENCES screening_session_screening,
+	screening_session_context_id UUID NOT NULL REFERENCES screening_session_context,
 	text TEXT, -- Usage depends on question format, currently used to hold freeform text value entered by user
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
