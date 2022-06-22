@@ -102,6 +102,17 @@ CREATE TABLE screening_session_execution (
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_session_execution FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
+-- Notes logged during orchestration, used for humans to review transitions/scoring/etc.
+CREATE TABLE screening_session_execution_note (
+	screening_session_execution_note_id UUID PRIMARY KEY,
+	screening_session_execution_id UUID NOT NULL REFERENCES screening_session_execution,
+	note TEXT NOT NULL,
+	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_session_execution_note FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
 -- How are the answer[s] to the question formatted (single-select, multi-select, freeform, ...)?
 CREATE TABLE screening_answer_format (
 	screening_answer_format_id TEXT PRIMARY KEY,
