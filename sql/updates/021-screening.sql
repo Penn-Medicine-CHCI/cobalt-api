@@ -54,6 +54,7 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_version FOR
 CREATE TABLE screening_template (
 	screening_template_id UUID PRIMARY KEY,
 	institution_id TEXT NOT NULL REFERENCES institution,
+	active_screening_template_version_id UUID, -- Circular; a 'REFERENCES screening_template_version' is added later
 	name TEXT NOT NULL,
 	created_by_account_id UUID NOT NULL REFERENCES account (account_id),
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -74,6 +75,7 @@ CREATE TABLE screening_template_version (
 	updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE screening_template ADD CONSTRAINT screening_template_active_screening_template_version_fk FOREIGN KEY (active_screening_template_version_id) REFERENCES screening_template_version (screening_template_version_id);
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_template_version FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 -- A session is tied to browser tab.  You can have many sessions at once and not step on each other.
@@ -84,15 +86,22 @@ CREATE TABLE screening_session (
 	screening_template_version_id UUID NOT NULL REFERENCES screening_template_version,
 	target_account_id UUID NOT NULL REFERENCES account (account_id),
 	created_by_account_id UUID NOT NULL REFERENCES account (account_id),
+	complete BOOLEAN NOT NULL DEFAULT FALSE,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_session FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
--- Keeps track of which screening[s] are answered during a session - there might be many back-to-back
-CREATE TABLE screening_session_execution (
-	screening_session_execution_id UUID PRIMARY KEY,
+CREATE TABLE screening_session_support_role_recommendation (
+	screening_session_id UUID NOT NULL REFERENCES screening_session,
+	support_role_id TEXT NOT NULL REFERENCES support_role,
+	PRIMARY KEY (screening_session_id, support_role_id)
+);
+
+-- Keeps track of which screening version[s] are answered during a session - there might be many back-to-back
+CREATE TABLE screening_session_context (
+	screening_session_context_id UUID PRIMARY KEY,
 	screening_session_id UUID NOT NULL REFERENCES screening_session,
 	screening_version_id UUID NOT NULL REFERENCES screening_version,
 	screening_order INTEGER NOT NULL,
@@ -100,18 +109,18 @@ CREATE TABLE screening_session_execution (
 	updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_session_execution FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_session_context FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 -- Notes logged during orchestration, used for humans to review transitions/scoring/etc.
-CREATE TABLE screening_session_execution_note (
-	screening_session_execution_note_id UUID PRIMARY KEY,
-	screening_session_execution_id UUID NOT NULL REFERENCES screening_session_execution,
+CREATE TABLE screening_session_note (
+	screening_session_note_id UUID PRIMARY KEY,
+	screening_session_context_id UUID NOT NULL REFERENCES screening_session_context,
 	note TEXT NOT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_session_execution_note FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_session_note FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 -- How are the answer[s] to the question formatted (single-select, multi-select, freeform, ...)?
 CREATE TABLE screening_answer_format (
@@ -166,7 +175,7 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_answer_opti
 CREATE TABLE screening_answer (
   screening_answer_id UUID PRIMARY KEY,
 	screening_answer_option_id UUID NOT NULL REFERENCES screening_answer_option,
-	screening_session_execution_id UUID NOT NULL REFERENCES screening_session_execution,
+	screening_session_context_id UUID NOT NULL REFERENCES screening_session_context,
 	text TEXT, -- Usage depends on question format, currently used to hold freeform text value entered by user
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
