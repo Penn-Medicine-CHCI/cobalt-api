@@ -1,21 +1,12 @@
 BEGIN;
 SELECT _v.register_patch('021-screening', NULL, NULL);
 
-CREATE TABLE screening_version_status (
-	screening_version_status_id TEXT PRIMARY KEY,
-	description TEXT NOT NULL
-);
-
-INSERT INTO screening_version_status (screening_version_status_id, description) VALUES ('DRAFT', 'Draft');
-INSERT INTO screening_version_status (screening_version_status_id, description) VALUES ('PUBLISHED', 'Published');
-INSERT INTO screening_version_status (screening_version_status_id, description) VALUES ('ARCHIVED', 'Archived');
-
 CREATE TABLE screening_type (
 	screening_type_id TEXT PRIMARY KEY,
 	description TEXT NOT NULL
 );
 
-INSERT INTO screening_type (screening_type_id, description) VALUES ('OTHER', 'Other');
+INSERT INTO screening_type (screening_type_id, description) VALUES ('CUSTOM', 'Custom');
 INSERT INTO screening_type (screening_type_id, description) VALUES ('GAD_2', 'GAD-2');
 INSERT INTO screening_type (screening_type_id, description) VALUES ('GAD_7', 'GAD-7');
 INSERT INTO screening_type (screening_type_id, description) VALUES ('PHQ_4', 'PHQ-4');
@@ -36,6 +27,7 @@ INSERT INTO screening_type (screening_type_id, description) VALUES ('AUDIT_C', '
 CREATE TABLE screening (
 	screening_id UUID PRIMARY KEY,
 	institution_id TEXT NOT NULL REFERENCES institution,
+	active_screening_version_id UUID, -- Circular; a 'REFERENCES screening_version' is added later
 	created_by_account_id UUID NOT NULL REFERENCES account (account_id),
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -46,7 +38,6 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening FOR EACH RO
 CREATE TABLE screening_version (
 	screening_version_id UUID PRIMARY KEY,
 	screening_id UUID NOT NULL REFERENCES screening,
-	screening_version_status_id TEXT NOT NULL REFERENCES screening_version_status,
 	screening_type_id TEXT NOT NULL REFERENCES screening_type,
 	created_by_account_id UUID NOT NULL REFERENCES account (account_id),
 	version_number INTEGER NOT NULL,
@@ -55,15 +46,26 @@ CREATE TABLE screening_version (
 	UNIQUE (screening_id, version_number)
 );
 
+ALTER TABLE screening ADD CONSTRAINT screening_active_screening_version_fk FOREIGN KEY (active_screening_version_id) REFERENCES screening_version (screening_version_id);
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_version FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
--- A session is tied to browser tab.  You can have many sessions at once and not step on each other.  The created_by_account_id is who is
--- actually taking the survey, the target_account_id is who the results should be tied to
--- (e.g. an MHIC could take an assessment on behalf of someone else)
+-- A session is tied to browser tab.  You can have many sessions at once and not step on each other.
+-- The created_by_account_id is who is actually taking the survey, the target_account_id is who the results should be tied to,
+-- e.g. an MHIC could take an assessment on behalf of someone else
 CREATE TABLE screening_session (
 	screening_session_id UUID PRIMARY KEY,
 	target_account_id UUID NOT NULL REFERENCES account (account_id),
 	created_by_account_id UUID NOT NULL REFERENCES account (account_id),
+	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Keeps track of which screening[s] are answered during a session - there might be many back-to-back
+CREATE TABLE screening_session_screening (
+	screening_session_screening_id UUID PRIMARY KEY,
+	screening_session_id UUID NOT NULL REFERENCES screening_session,
+	screening_version_id UUID NOT NULL REFERENCES screening_version,
+	screening_order INTEGER NOT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -111,6 +113,8 @@ CREATE TABLE screening_answer_option (
 	screening_answer_option_id UUID PRIMARY KEY,
 	screening_question_id UUID NOT NULL REFERENCES screening_question,
 	text TEXT, -- Usage depends on question format, e.g. single-select option value or freeform text placeholder value
+	score INTEGER NOT NULL,
+	display_order INTEGER NOT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -121,7 +125,7 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_answer_opti
 CREATE TABLE screening_answer (
   screening_answer_id UUID PRIMARY KEY,
 	screening_answer_option_id UUID NOT NULL REFERENCES screening_answer_option,
-	screening_session_id UUID NULL REFERENCES screening_session,
+	screening_session_screening_id UUID NOT NULL REFERENCES screening_session_screening,
 	text TEXT, -- Usage depends on question format, currently used to hold freeform text value entered by user
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
