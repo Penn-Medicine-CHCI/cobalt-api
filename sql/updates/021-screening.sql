@@ -54,10 +54,7 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_version FOR
 CREATE TABLE screening_template (
 	screening_template_id UUID PRIMARY KEY,
 	institution_id TEXT NOT NULL REFERENCES institution,
-	initial_screening_id UUID NOT NULL REFERENCES screening (screening_id),
 	name TEXT NOT NULL,
-	orchestration_function TEXT NOT NULL, -- Javascript code
-	scoring_function TEXT NOT NULL, -- Javascript code
 	created_by_account_id UUID NOT NULL REFERENCES account (account_id),
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -66,21 +63,36 @@ CREATE TABLE screening_template (
 CREATE UNIQUE INDEX screening_template_institution_name_idx ON screening_template (institution_id, LOWER(TRIM(name)));
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_template FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
+CREATE TABLE screening_template_version (
+	screening_template_version_id UUID PRIMARY KEY,
+	screening_template_id UUID NOT NULL REFERENCES screening_template,
+	initial_screening_id UUID NOT NULL REFERENCES screening (screening_id),
+	orchestration_function TEXT NOT NULL, -- Javascript code
+	scoring_function TEXT NOT NULL, -- Javascript code
+	created_by_account_id UUID NOT NULL REFERENCES account (account_id),
+	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_template_version FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
 -- A session is tied to browser tab.  You can have many sessions at once and not step on each other.
 -- The created_by_account_id is who is actually taking the survey, the target_account_id is who the results should be tied to,
 -- e.g. an MHIC could take an assessment on behalf of someone else
 CREATE TABLE screening_session (
 	screening_session_id UUID PRIMARY KEY,
-	screening_template_id UUID NOT NULL REFERENCES screening_template,
+	screening_template_version_id UUID NOT NULL REFERENCES screening_template_version,
 	target_account_id UUID NOT NULL REFERENCES account (account_id),
 	created_by_account_id UUID NOT NULL REFERENCES account (account_id),
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_session FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
 -- Keeps track of which screening[s] are answered during a session - there might be many back-to-back
-CREATE TABLE screening_session_context (
-	screening_session_context_id UUID PRIMARY KEY,
+CREATE TABLE screening_session_execution (
+	screening_session_execution_id UUID PRIMARY KEY,
 	screening_session_id UUID NOT NULL REFERENCES screening_session,
 	screening_version_id UUID NOT NULL REFERENCES screening_version,
 	screening_order INTEGER NOT NULL,
@@ -88,7 +100,7 @@ CREATE TABLE screening_session_context (
 	updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_session FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_session_execution FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 -- How are the answer[s] to the question formatted (single-select, multi-select, freeform, ...)?
 CREATE TABLE screening_answer_format (
@@ -130,7 +142,7 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_question FO
 CREATE TABLE screening_answer_option (
 	screening_answer_option_id UUID PRIMARY KEY,
 	screening_question_id UUID NOT NULL REFERENCES screening_question,
-	text TEXT, -- Usage depends on question format, e.g. single-select option value or freeform text placeholder value
+	text TEXT, -- Display/usage depends on question format, e.g. could be single-select option value or freeform text placeholder
 	score INTEGER NOT NULL,
 	display_order INTEGER NOT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -143,7 +155,7 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_answer_opti
 CREATE TABLE screening_answer (
   screening_answer_id UUID PRIMARY KEY,
 	screening_answer_option_id UUID NOT NULL REFERENCES screening_answer_option,
-	screening_session_context_id UUID NOT NULL REFERENCES screening_session_context,
+	screening_session_execution_id UUID NOT NULL REFERENCES screening_session_execution,
 	text TEXT, -- Usage depends on question format, currently used to hold freeform text value entered by user
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
