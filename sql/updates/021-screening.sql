@@ -86,6 +86,7 @@ CREATE TABLE screening_session (
 	screening_template_version_id UUID NOT NULL REFERENCES screening_template_version,
 	target_account_id UUID NOT NULL REFERENCES account (account_id),
 	created_by_account_id UUID NOT NULL REFERENCES account (account_id),
+	crisis_indicated BOOLEAN NOT NULL DEFAULT FALSE,
 	complete BOOLEAN NOT NULL DEFAULT FALSE,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
