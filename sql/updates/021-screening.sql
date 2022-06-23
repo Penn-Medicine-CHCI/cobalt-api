@@ -27,7 +27,6 @@ INSERT INTO screening_type (screening_type_id, description) VALUES ('AUDIT_C', '
 -- An individual screening (set of questions and answers), e.g. PHQ-9, GAD-7, or custom screening
 CREATE TABLE screening (
 	screening_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-	institution_id TEXT NOT NULL REFERENCES institution,
 	name TEXT NOT NULL,
 	active_screening_version_id UUID, -- Circular; a 'REFERENCES screening_version' is added later
 	created_by_account_id UUID NOT NULL REFERENCES account (account_id),
@@ -35,8 +34,13 @@ CREATE TABLE screening (
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE UNIQUE INDEX screening_institution_name_idx ON screening (institution_id, LOWER(TRIM(name)));
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+CREATE TABLE screening_institution (
+  screening_id UUID REFERENCES screening,
+  institution_id TEXT REFERENCES institution,
+  PRIMARY KEY (screening_id, institution_id)
+);
 
 -- Screenings are versioned, so history is fully preserved if changes are made.
 -- Only one active version of a screening can exist at a time
@@ -118,7 +122,7 @@ CREATE TABLE screening_session_context (
 	screening_order INTEGER NOT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-	UNIQUE (screening_session_id, screening_version_id, screening_order)
+	UNIQUE (screening_session_id, screening_order)
 );
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_session_context FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
@@ -167,7 +171,8 @@ CREATE TABLE screening_question (
 	question_text TEXT NOT NULL,
 	display_order INTEGER NOT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	UNIQUE (screening_version_id, display_order)
 );
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_question FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
@@ -181,7 +186,8 @@ CREATE TABLE screening_answer_option (
 	indicates_crisis BOOLEAN NOT NULL DEFAULT FALSE,
 	display_order INTEGER NOT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	UNIQUE (screening_question_id, display_order)
 );
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_answer_option FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
