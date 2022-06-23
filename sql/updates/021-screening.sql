@@ -46,6 +46,7 @@ CREATE TABLE screening_version (
 	screening_type_id TEXT NOT NULL REFERENCES screening_type,
 	created_by_account_id UUID NOT NULL REFERENCES account (account_id),
 	version_number INTEGER NOT NULL,
+	scoring_function TEXT NOT NULL, -- Javascript code that knows how to score this version of a screening given current answers
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	UNIQUE (screening_id, version_number)
@@ -56,54 +57,45 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_version FOR
 
 -- Logical "flow" manager for a set of one or more screenings.
 -- Example would be "1:1 Initial Screening", which might have WHO-5, PHQ-9, GAD-7, etc. and rules about how to transition and score.
-CREATE TABLE screening_template (
-	screening_template_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE TABLE screening_flow (
+	screening_flow_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	institution_id TEXT NOT NULL REFERENCES institution,
-	active_screening_template_version_id UUID, -- Circular; a 'REFERENCES screening_template_version' is added later
+	active_screening_flow_version_id UUID, -- Circular; a 'REFERENCES screening_flow_version' is added later
 	name TEXT NOT NULL,
 	created_by_account_id UUID NOT NULL REFERENCES account (account_id),
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE UNIQUE INDEX screening_template_institution_name_idx ON screening_template (institution_id, LOWER(TRIM(name)));
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_template FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE UNIQUE INDEX screening_flow_institution_name_idx ON screening_flow (institution_id, LOWER(TRIM(name)));
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_flow FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
--- Screening templates are versioned, so history is fully preserved if changes are made.
--- Only one active version of a screening template can exist at a time
-CREATE TABLE screening_template_version (
-	screening_template_version_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-	screening_template_id UUID NOT NULL REFERENCES screening_template,
+-- Screening flows are versioned, so history is fully preserved if changes are made.
+-- Only one active version of a screening flow can exist at a time
+CREATE TABLE screening_flow_version (
+	screening_flow_version_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+	screening_flow_id UUID NOT NULL REFERENCES screening_flow,
 	initial_screening_id UUID NOT NULL REFERENCES screening (screening_id),
 	orchestration_function TEXT NOT NULL, -- Javascript code, invoked every time an answer is given to a screening question
-	scoring_function TEXT NOT NULL, -- Javascript code, invoked once a screening session transitions to COMPLETE status
+	results_function TEXT NOT NULL, -- Javascript code, invoked once a screening session transitions to COMPLETE status
 	created_by_account_id UUID NOT NULL REFERENCES account (account_id),
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE screening_template ADD CONSTRAINT screening_template_active_screening_template_version_fk FOREIGN KEY (active_screening_template_version_id) REFERENCES screening_template_version (screening_template_version_id);
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_template_version FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+ALTER TABLE screening_flow ADD CONSTRAINT screening_flow_active_screening_flow_version_fk FOREIGN KEY (active_screening_flow_version_id) REFERENCES screening_flow_version (screening_flow_version_id);
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_flow_version FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
-CREATE TABLE screening_session_status (
-	screening_session_status_id TEXT PRIMARY KEY,
-	description TEXT NOT NULL
-);
-
-INSERT INTO screening_session_status (screening_session_status_id, description) VALUES ('ACTIVE', 'Active');
-INSERT INTO screening_session_status (screening_session_status_id, description) VALUES ('COMPLETE', 'Complete');
-INSERT INTO screening_session_status (screening_session_status_id, description) VALUES ('ABANDONED', 'Abandoned');
-
--- A session ties an instance of a screening template to browser tab to track progress through it.
+-- A session ties an instance of a screening flow to browser tab to track progress through it.
 -- A user could have many sessions at once and they would not step on each other.
 -- The created_by_account_id is who is actually taking the screenings, the target_account_id is who the results should be tied to,
 -- e.g. an MHIC could take a screening on behalf of someone else
 CREATE TABLE screening_session (
 	screening_session_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-	screening_template_version_id UUID NOT NULL REFERENCES screening_template_version,
+	screening_flow_version_id UUID NOT NULL REFERENCES screening_flow_version,
 	target_account_id UUID NOT NULL REFERENCES account (account_id),
 	created_by_account_id UUID NOT NULL REFERENCES account (account_id),
-	screening_session_status_id TEXT NOT NULL REFERENCES screening_session_status DEFAULT 'ACTIVE',
+	completed BOOLEAN NOT NULL DEFAULT FALSE,
 	crisis_indicated BOOLEAN NOT NULL DEFAULT FALSE,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -125,7 +117,8 @@ CREATE TABLE screening_session_context (
 	screening_version_id UUID NOT NULL REFERENCES screening_version,
 	screening_order INTEGER NOT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	UNIQUE (screening_session_id, screening_version_id, screening_order)
 );
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_session_context FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
