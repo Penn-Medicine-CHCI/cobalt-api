@@ -185,6 +185,7 @@ CREATE TABLE screening_answer_option (
 	screening_question_id UUID NOT NULL REFERENCES screening_question,
 	answer_option_text TEXT, -- Display/usage depends on question format, e.g. could be single-select option value or freeform text placeholder
 	score INTEGER NOT NULL,
+	indicates_crisis BOOLEAN NOT NULL DEFAULT FALSE,
 	display_order INTEGER NOT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
