@@ -120,6 +120,8 @@ CREATE TABLE screening_session_context (
 	screening_session_id UUID NOT NULL REFERENCES screening_session,
 	screening_version_id UUID NOT NULL REFERENCES screening_version,
 	screening_order INTEGER NOT NULL,
+	completed BOOLEAN NOT NULL DEFAULT FALSE, -- Calculated value set by orchestration function
+	score INTEGER NOT NULL DEFAULT 0, -- Calculated value set by orchestration function
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	UNIQUE (screening_session_id, screening_order)
