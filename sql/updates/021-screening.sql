@@ -59,14 +59,25 @@ CREATE TABLE screening_version (
 ALTER TABLE screening ADD CONSTRAINT screening_active_screening_version_fk FOREIGN KEY (active_screening_version_id) REFERENCES screening_version (screening_version_id);
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_version FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
+CREATE TABLE screening_flow_type (
+	screening_flow_type_id TEXT PRIMARY KEY,
+	description TEXT NOT NULL
+);
+
+INSERT INTO screening_flow_type (screening_flow_type_id, description) VALUES ('CUSTOM', 'Custom');
+INSERT INTO screening_flow_type (screening_flow_type_id, description) VALUES ('PROVIDER_TRIAGE', 'Provider Triage');
+INSERT INTO screening_flow_type (screening_flow_type_id, description) VALUES ('CONTENT_TRIAGE', 'Content Triage');
+INSERT INTO screening_flow_type (screening_flow_type_id, description) VALUES ('PROVIDER_INTAKE', 'Provider Intake');
+
 -- Logical "flow" manager for a set of one or more screenings.
 -- Example would be "1:1 Initial Screening", which might have WHO-5, PHQ-9, GAD-7, etc. and rules about how to transition and score.
 CREATE TABLE screening_flow (
 	screening_flow_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	institution_id TEXT NOT NULL REFERENCES institution,
 	active_screening_flow_version_id UUID, -- Circular; a 'REFERENCES screening_flow_version' is added later
-	name TEXT NOT NULL,
+	screening_flow_type_id TEXT NOT NULL REFERENCES screening_flow_type,
 	created_by_account_id UUID NOT NULL REFERENCES account (account_id),
+	name TEXT NOT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

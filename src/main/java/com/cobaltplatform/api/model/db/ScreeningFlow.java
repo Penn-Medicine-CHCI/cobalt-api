@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.ScreeningFlowType.ScreeningFlowTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -35,6 +36,8 @@ public class ScreeningFlow {
 	private UUID screeningFlowId;
 	@Nullable
 	private InstitutionId institutionId;
+	@Nullable
+	private ScreeningFlowTypeId screeningFlowTypeId;
 	@Nullable
 	private UUID activeScreeningFlowVersionId;
 	@Nullable
@@ -62,6 +65,15 @@ public class ScreeningFlow {
 
 	public void setInstitutionId(@Nullable InstitutionId institutionId) {
 		this.institutionId = institutionId;
+	}
+
+	@Nullable
+	public ScreeningFlowTypeId getScreeningFlowTypeId() {
+		return this.screeningFlowTypeId;
+	}
+
+	public void setScreeningFlowTypeId(@Nullable ScreeningFlowTypeId screeningFlowTypeId) {
+		this.screeningFlowTypeId = screeningFlowTypeId;
 	}
 
 	@Nullable
