@@ -19,15 +19,22 @@
 
 package com.cobaltplatform.api.service;
 
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.ScreeningFlow;
+import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
 
@@ -53,6 +60,27 @@ public class ScreeningService {
 		this.database = database;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
+	}
+
+	@Nonnull
+	public List<ScreeningFlow> findScreeningFlowsByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("SELECT * FROM screening_flow WHERE institution_id=? ORDER BY name",
+				ScreeningFlow.class, institutionId);
+	}
+
+	@Nonnull
+	public List<ScreeningSession> findScreeningSessionsByScreeningFlowId(@Nullable UUID screeningFlowId,
+																																			 @Nullable UUID participantAccountId) {
+		if (screeningFlowId == null || participantAccountId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("SELECT ss.* FROM screening_session ss, screening_flow_version sfv " +
+						"WHERE sfv.screening_flow_id=? AND ss.screening_flow_version_id=sfv.screening_flow_version_id " +
+						"AND (ss.target_account_id=? OR ss.created_by_account_id=?) ORDER BY ss.created DESC",
+				ScreeningSession.class, screeningFlowId, participantAccountId, participantAccountId);
 	}
 
 	@Nonnull
