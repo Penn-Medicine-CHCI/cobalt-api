@@ -28,9 +28,9 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class ScreeningSessionContext {
+public class ScreeningSessionScreening {
 	@Nullable
-	private UUID screeningSessionContextId;
+	private UUID screeningSessionScreeningId;
 	@Nullable
 	private UUID screeningSessionId;
 	@Nullable
@@ -47,12 +47,12 @@ public class ScreeningSessionContext {
 	private Instant lastUpdated;
 
 	@Nullable
-	public UUID getScreeningSessionContextId() {
-		return this.screeningSessionContextId;
+	public UUID getScreeningSessionScreeningId() {
+		return this.screeningSessionScreeningId;
 	}
 
-	public void setScreeningSessionContextId(@Nullable UUID screeningSessionContextId) {
-		this.screeningSessionContextId = screeningSessionContextId;
+	public void setScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
+		this.screeningSessionScreeningId = screeningSessionScreeningId;
 	}
 
 	@Nullable

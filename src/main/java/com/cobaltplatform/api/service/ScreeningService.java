@@ -19,14 +19,22 @@
 
 package com.cobaltplatform.api.service;
 
+import com.cobaltplatform.api.model.api.request.CreateScreeningAnswerRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Screening;
+import com.cobaltplatform.api.model.db.ScreeningAnswer;
+import com.cobaltplatform.api.model.db.ScreeningAnswerOption;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
+import com.cobaltplatform.api.model.db.ScreeningQuestion;
 import com.cobaltplatform.api.model.db.ScreeningSession;
+import com.cobaltplatform.api.model.db.ScreeningSessionScreening;
 import com.cobaltplatform.api.model.db.ScreeningVersion;
+import com.cobaltplatform.api.model.service.ScreeningQuestionWithAnswerOptions;
+import com.cobaltplatform.api.model.service.ScreeningSessionQuestion;
+import com.cobaltplatform.api.util.JavascriptExecutor;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.lokalized.Strings;
@@ -40,12 +48,17 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -58,6 +71,8 @@ public class ScreeningService {
 	@Nonnull
 	private final Provider<AuthorizationService> authorizationServiceProvider;
 	@Nonnull
+	private final JavascriptExecutor javascriptExecutor;
+	@Nonnull
 	private final Database database;
 	@Nonnull
 	private final Strings strings;
@@ -67,15 +82,18 @@ public class ScreeningService {
 	@Inject
 	public ScreeningService(@Nonnull Provider<AccountService> accountServiceProvider,
 													@Nonnull Provider<AuthorizationService> authorizationServiceProvider,
+													@Nonnull JavascriptExecutor javascriptExecutor,
 													@Nonnull Database database,
 													@Nonnull Strings strings) {
 		requireNonNull(accountServiceProvider);
 		requireNonNull(authorizationServiceProvider);
+		requireNonNull(javascriptExecutor);
 		requireNonNull(database);
 		requireNonNull(strings);
 
 		this.accountServiceProvider = accountServiceProvider;
 		this.authorizationServiceProvider = authorizationServiceProvider;
+		this.javascriptExecutor = javascriptExecutor;
 		this.database = database;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -97,6 +115,24 @@ public class ScreeningService {
 
 		return getDatabase().queryForObject("SELECT * FROM screening_version WHERE screening_version_id=?",
 				ScreeningVersion.class, screeningVersionId);
+	}
+
+	@Nonnull
+	public Optional<ScreeningSession> findScreeningSessionById(@Nullable UUID screeningSessionId) {
+		if (screeningSessionId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("SELECT * FROM screening_session WHERE screening_session_id=?",
+				ScreeningSession.class, screeningSessionId);
+	}
+
+	@Nonnull
+	public Optional<ScreeningSessionScreening> findScreeningSessionScreeningById(@Nullable UUID screeningSessionScreeningId) {
+		if (screeningSessionScreeningId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("SELECT * FROM screening_session WHERE screening_session_screening_id=?",
+				ScreeningSessionScreening.class, screeningSessionScreeningId);
 	}
 
 	@Nonnull
@@ -197,13 +233,156 @@ public class ScreeningService {
 
 		Screening screening = findScreeningById(screeningFlowVersion.getInitialScreeningId()).get();
 
-		// Initial context is the first screening version specified in the flow
+		// Initial screening is the current version of the screening specified in the flow
 		getDatabase().execute("""
-				INSERT INTO screening_session_context(screening_session_id, screening_version_id, screening_order)
+				INSERT INTO screening_session_screening(screening_session_id, screening_version_id, screening_order)
 				VALUES (?,?,?)
 				""", screeningSessionId, screening.getActiveScreeningVersionId(), 1);
 
 		return screeningSessionId;
+	}
+
+	@Nonnull
+	public Optional<ScreeningSessionQuestion> findNextScreeningSessionQuestionByScreeningSessionId(@Nullable UUID screeningSessionId) {
+		if (screeningSessionId == null)
+			return Optional.empty();
+
+		ScreeningSession screeningSession = findScreeningSessionById(screeningSessionId).orElse(null);
+
+		// If the session does not exist, there is no next question
+		if (screeningSession == null)
+			return Optional.empty();
+
+		// If the session is already completed, there is no next question
+		if (screeningSession.getCompleted())
+			return Optional.empty();
+
+		// Get the most recent screening for this session
+		ScreeningSessionScreening screeningSessionScreening = findCurrentScreeningSessionScreeningByScreeningSessionId(screeningSessionId).orElse(null);
+
+		// Indicates programmer error
+		if (screeningSessionScreening == null)
+			throw new IllegalStateException(format("Screening session ID %s does not have a current screening session screening.",
+					screeningSessionId));
+
+		// Indicates programmer error
+		if (screeningSessionScreening.getCompleted())
+			throw new IllegalStateException(format("Screening session ID %s is completed, but screening session screening ID %s is not.",
+					screeningSessionId, screeningSessionScreening.getScreeningSessionScreeningId()));
+
+		List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions = findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
+		List<ScreeningAnswer> screeningAnswers = findScreeningAnswersByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionId());
+		Set<UUID> answeredScreeningAnswerOptionIds = screeningAnswers.stream()
+				.map(screeningAnswer -> screeningAnswer.getScreeningAnswerOptionId())
+				.collect(Collectors.toSet());
+
+		ScreeningQuestionWithAnswerOptions nextScreeningQuestionWithAnswerOptions = null;
+
+		for (ScreeningQuestionWithAnswerOptions screeningQuestionWithAnswerOptions : screeningQuestionsWithAnswerOptions) {
+			for (ScreeningAnswerOption screeningAnswerOption : screeningQuestionWithAnswerOptions.getScreeningAnswerOptions()) {
+				if (!answeredScreeningAnswerOptionIds.contains(screeningAnswerOption.getScreeningAnswerOptionId())) {
+					nextScreeningQuestionWithAnswerOptions = screeningQuestionWithAnswerOptions;
+					break;
+				}
+			}
+
+			if (nextScreeningQuestionWithAnswerOptions != null)
+				break;
+		}
+
+		// Normally won't be in this situation - could occur if there is a race with the same screening being worked on concurrently
+		if (nextScreeningQuestionWithAnswerOptions == null)
+			throw new IllegalStateException(format("Screening session ID %s is incomplete, but does not have any unanswered questions.",
+					screeningSessionScreening.getScreeningSessionScreeningId()));
+
+		ScreeningSessionQuestion screeningSessionQuestion = new ScreeningSessionQuestion();
+
+		// TODO: fill in
+
+		return Optional.of(screeningSessionQuestion);
+	}
+
+	@Nonnull
+	protected Optional<ScreeningSessionScreening> findCurrentScreeningSessionScreeningByScreeningSessionId(@Nullable UUID screeningSessionId) {
+		if (screeningSessionId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT * FROM screening_session_screening WHERE screening_session_id=? 
+				ORDER BY screening_order DESC LIMIT 1
+				""", ScreeningSessionScreening.class, screeningSessionId);
+	}
+
+	@Nonnull
+	protected List<ScreeningQuestionWithAnswerOptions> findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(
+			@Nullable UUID screeningSessionScreeningId) {
+		if (screeningSessionScreeningId == null)
+			return Collections.emptyList();
+
+		List<ScreeningQuestion> screeningQuestions = getDatabase().queryForList("""
+				SELECT sq.* 
+				FROM screening_question sq, screening_session_screening sss 
+				WHERE sss.screening_session_screening_id=?
+				AND sss.screening_version_id=sq.screening_version_id
+				ORDER BY sq.display_order
+				""", ScreeningQuestion.class, screeningSessionScreeningId);
+
+		List<ScreeningAnswerOption> screeningAnswerOptions = getDatabase().queryForList("""
+				SELECT sao.*
+				FROM screening_answer_option sao, screening_question sq, screening_session_screening sss
+				WHERE sao.screening_question_id=sq.screening_question_id
+				AND sss.screening_version_id=sq.screening_version_id
+				AND sss.screening_session_screening_id=?
+				ORDER BY sao.display_order
+				""", ScreeningAnswerOption.class, screeningSessionScreeningId);
+
+		List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions = new ArrayList<>(screeningQuestions.size());
+
+		// Group answer options by question
+		for (ScreeningQuestion screeningQuestion : screeningQuestions) {
+			List<ScreeningAnswerOption> screeningAnswerOptionsForQuestion = screeningAnswerOptions.stream()
+					.filter(screeningAnswerOption -> screeningAnswerOption.getScreeningQuestionId().equals(screeningQuestion.getScreeningQuestionId()))
+					.collect(Collectors.toList());
+
+			screeningQuestionsWithAnswerOptions.add(new ScreeningQuestionWithAnswerOptions(screeningQuestion, screeningAnswerOptionsForQuestion));
+		}
+
+		return screeningQuestionsWithAnswerOptions;
+	}
+
+	@Nonnull
+	protected List<ScreeningAnswer> findScreeningAnswersByScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
+		if (screeningSessionScreeningId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("SELECT * FROM screening_answer WHERE screening_session_screening_id=? ORDER BY created",
+				ScreeningAnswer.class, screeningSessionScreeningId);
+	}
+
+	@Nonnull
+	public UUID createScreeningAnswer(@Nullable CreateScreeningAnswerRequest request) {
+		requireNonNull(request);
+
+		UUID screeningSessionScreeningId = request.getScreeningSessionScreeningId();
+		UUID screeningAnswerOptionId = request.getScreeningAnswerOptionId();
+		String text = trimToNull(request.getText());
+		UUID screeningAnswerId = UUID.randomUUID();
+		ValidationException validationException = new ValidationException();
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		throw new UnsupportedOperationException();
+
+//		getDatabase().execute("""
+//				INSERT INTO screening_session(screening_session_id, screening_flow_version_id, target_account_id, created_by_account_id)
+//				VALUES (?,?,?,?)
+//				""", screeningSessionId, screeningFlowVersion.getScreeningFlowVersionId(), targetAccountId, createdByAccountId);
+
+		// TODO: execute javascript
+		// TODO: insert into next context, if applicable
+
+		// return screeningAnswerId;
 	}
 
 	@Nonnull
@@ -214,6 +393,11 @@ public class ScreeningService {
 	@Nonnull
 	protected AuthorizationService getAuthorizationService() {
 		return this.authorizationServiceProvider.get();
+	}
+
+	@Nonnull
+	protected JavascriptExecutor getJavascriptExecutor() {
+		return this.javascriptExecutor;
 	}
 
 	@Nonnull

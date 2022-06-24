@@ -23,10 +23,11 @@ import com.cobaltplatform.api.IntegrationTestExecutor;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
-import com.cobaltplatform.api.model.db.ScreeningFlowType.ScreeningFlowTypeId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
+import com.cobaltplatform.api.model.service.ScreeningSessionQuestion;
 import org.junit.Test;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -44,8 +45,11 @@ public class ScreeningServiceTests {
 	public void basicScreening() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			InstitutionId institutionId = InstitutionId.COBALT;
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
 			ScreeningService screeningService = app.getInjector().getInstance(ScreeningService.class);
 			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+
+			Institution institution = institutionService.findInstitutionById(institutionId).get();
 
 			// Make an anonymous account to test the flow
 			UUID accountId = accountService.createAccount(new CreateAccountRequest() {{
@@ -53,26 +57,39 @@ public class ScreeningServiceTests {
 				setInstitutionId(institutionId);
 			}});
 
-			ScreeningFlow providerTriageScreeningFlow = screeningService.findScreeningFlowsByInstitutionId(institutionId).stream()
-					.filter(screeningFlow -> screeningFlow.getScreeningFlowTypeId() == ScreeningFlowTypeId.PROVIDER_TRIAGE)
-					.findFirst().get();
+			// Find the provider triage flow for the account's institution
+			ScreeningFlow providerTriageScreeningFlow = screeningService.findScreeningFlowById(institution.getProviderTriageScreeningFlowId()).get();
 
+			// Confirm there are no existing screening sessions for that flow
 			List<ScreeningSession> screeningSessions = screeningService.findScreeningSessionsByScreeningFlowId(
 					providerTriageScreeningFlow.getScreeningFlowId(), accountId);
 
 			assertEquals("Account already has a provider triage screening session", 0, screeningSessions.size());
 
+			// Start a new screening session for that flow
 			UUID screeningSessionId = screeningService.createScreeningSession(new CreateScreeningSessionRequest() {{
 				setScreeningFlowId(providerTriageScreeningFlow.getScreeningFlowId());
 				setTargetAccountId(accountId);
 				setCreatedByAccountId(accountId);
 			}});
 
+			// Ensure the screening session was created
 			screeningSessions = screeningService.findScreeningSessionsByScreeningFlowId(
 					providerTriageScreeningFlow.getScreeningFlowId(), accountId);
 
 			assertEquals("Account is missing a provider triage screening session", 1, screeningSessions.size());
 
+			ScreeningSessionQuestion screeningSessionQuestion = screeningService.findNextScreeningSessionQuestionByScreeningSessionId(screeningSessionId).get();
+
+			// Pick the first answer option...
+			//UUID screeningAnswerOptionId = screeningSessionQuestion.getScreeningAnswerOptions().get(0).getScreeningAnswerOptionId();
+
+			// ...and answer it.
+//			screeningService.createScreeningAnswer(new CreateScreeningAnswerRequest() {{
+//				setScreeningSessionScreeningId(screeningSessionQuestion.getScreeningSessionScreening().getScreeningSessionScreeningId());
+//				setScreeningAnswerOptionId(screeningAnswerOptionId);
+//				setCreatedByAccountId(accountId);
+//			}});
 			// TBD
 		});
 	}

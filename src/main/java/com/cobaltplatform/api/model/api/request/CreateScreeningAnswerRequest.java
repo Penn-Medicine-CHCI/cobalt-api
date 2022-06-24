@@ -17,40 +17,33 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db;
+package com.cobaltplatform.api.model.api.request;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.time.Instant;
 import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class ScreeningAnswer {
-	@Nullable
-	private UUID screeningAnswerId;
-	@Nullable
-	private UUID screeningAnswerOptionId;
+public class CreateScreeningAnswerRequest {
 	@Nullable
 	private UUID screeningSessionScreeningId;
+	@Nullable
+	private UUID screeningAnswerOptionId;
 	@Nullable
 	private UUID createdByAccountId;
 	@Nullable
 	private String text;
-	@Nullable
-	private Instant created;
-	@Nullable
-	private Instant lastUpdated;
 
 	@Nullable
-	public UUID getScreeningAnswerId() {
-		return this.screeningAnswerId;
+	public UUID getScreeningSessionScreeningId() {
+		return this.screeningSessionScreeningId;
 	}
 
-	public void setScreeningAnswerId(@Nullable UUID screeningAnswerId) {
-		this.screeningAnswerId = screeningAnswerId;
+	public void setScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
+		this.screeningSessionScreeningId = screeningSessionScreeningId;
 	}
 
 	@Nullable
@@ -60,15 +53,6 @@ public class ScreeningAnswer {
 
 	public void setScreeningAnswerOptionId(@Nullable UUID screeningAnswerOptionId) {
 		this.screeningAnswerOptionId = screeningAnswerOptionId;
-	}
-
-	@Nullable
-	public UUID getScreeningSessionScreeningId() {
-		return this.screeningSessionScreeningId;
-	}
-
-	public void setScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
-		this.screeningSessionScreeningId = screeningSessionScreeningId;
 	}
 
 	@Nullable
@@ -87,23 +71,5 @@ public class ScreeningAnswer {
 
 	public void setText(@Nullable String text) {
 		this.text = text;
-	}
-
-	@Nullable
-	public Instant getCreated() {
-		return this.created;
-	}
-
-	public void setCreated(@Nullable Instant created) {
-		this.created = created;
-	}
-
-	@Nullable
-	public Instant getLastUpdated() {
-		return this.lastUpdated;
-	}
-
-	public void setLastUpdated(@Nullable Instant lastUpdated) {
-		this.lastUpdated = lastUpdated;
 	}
 }

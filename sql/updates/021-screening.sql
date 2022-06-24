@@ -126,8 +126,8 @@ CREATE TABLE screening_session_support_role_recommendation (
 );
 
 -- Keeps track of which screening version[s] are answered during a session, and in what order
-CREATE TABLE screening_session_context (
-	screening_session_context_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE TABLE screening_session_screening (
+	screening_session_screening_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	screening_session_id UUID NOT NULL REFERENCES screening_session,
 	screening_version_id UUID NOT NULL REFERENCES screening_version,
 	screening_order INTEGER NOT NULL,
@@ -138,12 +138,12 @@ CREATE TABLE screening_session_context (
 	UNIQUE (screening_session_id, screening_order)
 );
 
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_session_context FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_session_screening FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 -- Notes logged during orchestration, used for humans to review transitions/scoring/etc.
 CREATE TABLE screening_session_note (
 	screening_session_note_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-	screening_session_context_id UUID NOT NULL REFERENCES screening_session_context,
+	screening_session_screening_id UUID NOT NULL REFERENCES screening_session_screening,
 	note TEXT NOT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -209,12 +209,16 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_answer_opti
 CREATE TABLE screening_answer (
   screening_answer_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	screening_answer_option_id UUID NOT NULL REFERENCES screening_answer_option,
-	screening_session_context_id UUID NOT NULL REFERENCES screening_session_context,
+	screening_session_screening_id UUID NOT NULL REFERENCES screening_session_screening,
+	created_by_account_id UUID NOT NULL REFERENCES account (account_id),
 	text TEXT, -- Usage depends on question format, currently used to hold freeform text value entered by user
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_answer FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+-- Each institution can optionally have a screening flow ID that can be triggered prior to provider triage
+ALTER TABLE institution ADD COLUMN provider_triage_screening_flow_id UUID REFERENCES screening_flow;
 
 COMMIT;

@@ -32,7 +32,7 @@ public class ScreeningSessionNote {
 	@Nullable
 	private UUID screeningSessionNoteId;
 	@Nullable
-	private UUID screeningSessionContextId;
+	private UUID screeningSessionScreeningId;
 	@Nullable
 	private String note;
 	@Nullable
@@ -50,12 +50,12 @@ public class ScreeningSessionNote {
 	}
 
 	@Nullable
-	public UUID getScreeningSessionContextId() {
-		return this.screeningSessionContextId;
+	public UUID getScreeningSessionScreeningId() {
+		return this.screeningSessionScreeningId;
 	}
 
-	public void setScreeningSessionContextId(@Nullable UUID screeningSessionContextId) {
-		this.screeningSessionContextId = screeningSessionContextId;
+	public void setScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
+		this.screeningSessionScreeningId = screeningSessionScreeningId;
 	}
 
 	@Nullable
