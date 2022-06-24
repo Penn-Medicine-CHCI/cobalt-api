@@ -21,6 +21,7 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.IntegrationTestExecutor;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
+import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
@@ -60,6 +61,17 @@ public class ScreeningServiceTests {
 					providerTriageScreeningFlow.getScreeningFlowId(), accountId);
 
 			assertEquals("Account already has a provider triage screening session", 0, screeningSessions.size());
+
+			UUID screeningSessionId = screeningService.createScreeningSession(new CreateScreeningSessionRequest() {{
+				setScreeningFlowId(providerTriageScreeningFlow.getScreeningFlowId());
+				setTargetAccountId(accountId);
+				setCreatedByAccountId(accountId);
+			}});
+
+			screeningSessions = screeningService.findScreeningSessionsByScreeningFlowId(
+					providerTriageScreeningFlow.getScreeningFlowId(), accountId);
+
+			assertEquals("Account is missing a provider triage screening session", 1, screeningSessions.size());
 
 			// TBD
 		});

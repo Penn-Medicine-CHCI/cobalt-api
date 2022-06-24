@@ -418,6 +418,28 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
+	public Boolean canPerformScreening(@Nonnull Account performingAccount,
+																		 @Nonnull Account targetAccount) {
+		requireNonNull(performingAccount);
+		requireNonNull(targetAccount);
+
+		// If you are a super admin, you can screen anyone
+		if (performingAccount.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
+			return true;
+
+		// You can always screen yourself
+		if (Objects.equals(performingAccount.getAccountId(), targetAccount.getAccountId()))
+			return true;
+
+		// An admin or MHIC at the same institution is able to screen others at that institution
+		if (Objects.equals(performingAccount.getInstitutionId(), targetAccount.getInstitutionId())
+				&& (performingAccount.getRoleId() == RoleId.ADMINISTRATOR || performingAccount.getRoleId() == RoleId.MHIC))
+			return true;
+
+		return false;
+	}
+
+	@Nonnull
 	protected GroupSessionService getGroupSessionService() {
 		return groupSessionServiceProvider.get();
 	}
