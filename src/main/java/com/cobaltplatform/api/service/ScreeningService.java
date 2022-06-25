@@ -460,7 +460,30 @@ public class ScreeningService {
 		if (validationException.hasErrors())
 			throw validationException;
 
+		// Temporary hack for testing
+		String scoringFunctionJs = """
+        // We are completed if the number of answers matches the number of questions
+				output.completed = input.screeningAnswers.length === input.screeningQuestionsWithAnswerOptions.length;
+				
+				// It's illegal for this screening to have more answers than questions -
+				// should not occur, but check as a failsafe
+			  if(input.screeningAnswers.length > input.screeningQuestionsWithAnswerOptions.length)
+			    throw "There are more answers than questions";
+				
+        // Track running score
+				output.score = 0;
+				    
+				// Add each answer's score to the running total
+				input.screeningAnswers.forEach(function(screeningAnswer) {
+				  const screeningAnswerOption = input.screeningAnswerOptionsByScreeningAnswerId[screeningAnswer.screeningAnswerId];
+				  output.score += screeningAnswerOption.score;
+				});
+				""";
+		getDatabase().execute("UPDATE screening_version SET scoring_function=? WHERE screening_version_id=?", scoringFunctionJs, screeningSessionScreening.getScreeningVersionId());
+		// End temporary hack
+
 		ScreeningSession screeningSession = findScreeningSessionById(screeningSessionScreening.getScreeningSessionId()).get();
+		ScreeningVersion screeningVersion = findScreeningVersionById(screeningSessionScreening.getScreeningVersionId()).get();
 		ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
 
 		getDatabase().execute("""
@@ -468,6 +491,25 @@ public class ScreeningService {
 				VALUES (?,?,?,?,?)
 				""", screeningAnswerId, screeningAnswerOptionId, screeningSessionScreeningId, createdByAccountId, text);
 
+		// Score the individual screening by calling its scoring function
+		List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions =
+				findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreeningId);
+		List<ScreeningAnswer> screeningAnswers = findScreeningAnswersByScreeningSessionScreeningId(screeningSessionScreeningId);
+
+		ScreeningScoringOutput screeningScoringOutput = executeScreeningScoringFunction(
+				screeningVersion.getScoringFunction(), screeningQuestionsWithAnswerOptions, screeningAnswers);
+
+		getLogger().info("Screening session screening ID {} ({}) was scored {} with completed flag={}", screeningSessionScreeningId,
+				screeningVersion.getScreeningTypeId().name(), screeningScoringOutput.getScore(), screeningScoringOutput.getCompleted());
+
+		// Based on screening scoring function output, set score/completed flags
+		getDatabase().execute("""
+				UPDATE screening_session_screening 
+				SET completed=?, score=?
+				WHERE screening_session_screening_id=?
+				""", screeningScoringOutput.getCompleted(), screeningScoringOutput.getScore(), screeningSessionScreening.getScreeningSessionScreeningId());
+
+		// Screening Flow Orchestration Function
 		Map<String, Object> orchestrationFunctionContext = new HashMap<>();
 		OrchestrationFunctionOutput orchestrationFunctionOutput;
 
@@ -489,6 +531,64 @@ public class ScreeningService {
 		// TODO: insert into next context, if applicable
 
 		return screeningAnswerId;
+	}
+
+	@Nonnull
+	protected ScreeningScoringOutput executeScreeningScoringFunction(@Nonnull String screeningScoringFunctionJavascript,
+																																	 @Nonnull List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions,
+																																	 @Nonnull List<ScreeningAnswer> screeningAnswers) {
+		requireNonNull(screeningScoringFunctionJavascript);
+		requireNonNull(screeningQuestionsWithAnswerOptions);
+		requireNonNull(screeningAnswers);
+
+		// Massage data a bit to make it easier for function to get a screening answer option given a screening answer ID
+		Map<UUID, ScreeningAnswerOption> screeningAnswerOptionsById = new HashMap<>();
+		Map<UUID, ScreeningAnswerOption> screeningAnswerOptionsByScreeningAnswerId = new HashMap<>(screeningAnswers.size());
+
+		for (ScreeningQuestionWithAnswerOptions screeningQuestionWithAnswerOptions : screeningQuestionsWithAnswerOptions)
+			for (ScreeningAnswerOption screeningAnswerOption : screeningQuestionWithAnswerOptions.getScreeningAnswerOptions())
+				screeningAnswerOptionsById.put(screeningAnswerOption.getScreeningAnswerOptionId(), screeningAnswerOption);
+
+		for (ScreeningAnswer screeningAnswer : screeningAnswers)
+			screeningAnswerOptionsByScreeningAnswerId.put(screeningAnswer.getScreeningAnswerId(), screeningAnswerOptionsById.get(screeningAnswer.getScreeningAnswerOptionId()));
+
+		Map<String, Object> screeningScoringContext = new HashMap<>();
+		screeningScoringContext.put("screeningQuestionsWithAnswerOptions", screeningQuestionsWithAnswerOptions);
+		screeningScoringContext.put("screeningAnswers", screeningAnswers);
+		screeningScoringContext.put("screeningAnswerOptionsByScreeningAnswerId", screeningAnswerOptionsByScreeningAnswerId);
+
+		try {
+			return getJavascriptExecutor().execute(screeningScoringFunctionJavascript,
+					screeningScoringContext, ScreeningScoringOutput.class);
+		} catch (JavascriptExecutionException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	@NotThreadSafe
+	protected static class ScreeningScoringOutput {
+		@Nullable
+		private Boolean completed;
+		@Nullable
+		private Integer score;
+
+		@Nullable
+		public Boolean getCompleted() {
+			return this.completed;
+		}
+
+		public void setCompleted(@Nullable Boolean completed) {
+			this.completed = completed;
+		}
+
+		@Nullable
+		public Integer getScore() {
+			return this.score;
+		}
+
+		public void setScore(@Nullable Integer score) {
+			this.score = score;
+		}
 	}
 
 	@NotThreadSafe
