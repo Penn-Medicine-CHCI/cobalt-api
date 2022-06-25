@@ -36,6 +36,7 @@ CREATE TABLE screening (
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
+-- Screenings can be "turned on" per-institution
 CREATE TABLE screening_institution (
   screening_id UUID REFERENCES screening,
   institution_id TEXT REFERENCES institution,

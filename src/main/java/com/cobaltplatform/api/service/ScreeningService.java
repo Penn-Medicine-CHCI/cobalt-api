@@ -166,6 +166,19 @@ public class ScreeningService {
 	}
 
 	@Nonnull
+	public List<Screening> findScreeningsByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+				SELECT s.* FROM screening s, screening_institution si 
+				WHERE s.screening_id=si.screening_id
+				AND si.institution_id=?
+				ORDER BY s.name
+				""", Screening.class, institutionId);
+	}
+
+	@Nonnull
 	public List<ScreeningFlow> findScreeningFlowsByInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return Collections.emptyList();
@@ -401,6 +414,18 @@ public class ScreeningService {
 	}
 
 	@Nonnull
+	protected List<ScreeningSessionScreening> findScreeningSessionScreeningsByScreeningSessionId(@Nullable UUID screeningSessionId) {
+		if (screeningSessionId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+				SELECT * FROM screening_session_screening
+				WHERE screening_session_id=?
+				ORDER BY screening_order
+				""", ScreeningSessionScreening.class, screeningSessionId);
+	}
+
+	@Nonnull
 	public UUID createScreeningAnswer(@Nullable CreateScreeningAnswerRequest request) {
 		requireNonNull(request);
 
@@ -469,6 +494,8 @@ public class ScreeningService {
 		if (validationException.hasErrors())
 			throw validationException;
 
+		// Screening Scoring Function
+
 		// Temporary hack for testing
 		String scoringFunctionJs = """
 				    // We are completed if the number of answers matches the number of questions
@@ -518,19 +545,81 @@ public class ScreeningService {
 				WHERE screening_session_screening_id=?
 				""", screeningScoringOutput.getCompleted(), screeningScoringOutput.getScore(), screeningSessionScreening.getScreeningSessionScreeningId());
 
+		// Screening Flow Orchestration Function
+
 		// Temporary hack for testing
 		String orchestrationFunctionJs = """
-				 output.crisisIndicated = false;
-				 output.completed = false;
-				 
-				 console.log('TODO: finish up orchestration function');
+console.log("** Starting orchestration function");
+
+output.crisisIndicated = false;
+output.completed = false;
+output.nextScreeningId = null;
+
+// WHO-5 always comes first.
+const who5 = input.screeningSessionScreenings[0];
+const phq9 =
+  input.screeningSessionScreenings.length > 1
+    ? input.screeningSessionScreenings[1]
+    : null;
+const gad7 =
+  input.screeningSessionScreenings.length > 2
+    ? input.screeningSessionScreenings[2]
+    : null;
+
+if (input.screeningSessionScreenings.length === 1) {
+  // We have not yet progressed past WHO-5
+  if (who5.completed) {
+    console.log("WHO-5 is complete.  Score is " + who5.score);
+    if (who5.score >= 13) {
+      // We're done; triage to resilience coach support role
+      // TODO: triage
+      output.completed = true;
+    } else {
+      // Complete PHQ9 + GAD7
+      output.nextScreeningId = screeningsByName["PHQ-9"].screeningId;
+    }
+  } else {
+    console.log("WHO-5 not complete yet.  Score is " + who5.score);
+  }
+} else if (input.screeningSessionScreenings.length === 2) {
+  // We are on PHQ-9. Is it done yet?
+  if (phq9.complete) {
+    // TODO: set crisisIndicated as appropriate.  Also hard stop!
+    // Given a question index, need to expose answer options and answer
+    // so we can say things like "if Q9 is scored 1 or higher, crisis/hard stop"
+  } else {
+    console.log("PHQ-9 not complete yet.  Score is " + phq9.score);
+  }
+} else if (input.screeningSessionScreenings.length === 3) {
+  // We are on GAD-7. Is it done yet?
+  if (gad7.complete) {
+    // We're done!
+    // TODO: triage
+    output.completed = true;
+  } else {
+    console.log("GAD-7 not complete yet.  Score is " + gad7.score);
+  }
+} else {
+  throw "There is an unexpected number of screening session screenings";
+}
+
+//console.log("screenings: " + JSON.stringify(input.screenings));
+//console.log("screeningsByName: " + JSON.stringify(input.screeningsByName));
+//console.log("screeningSessionScreenings: " + JSON.stringify(input.screeningSessionScreenings));
+console.log("** TODO: finish up orchestration function");
+
+// Need a simple way to get at screenings by ID and screening versions by ID so we can tie screening sessions back to them
+// and answer questions like "WHO-5 was done first and then PHQ-9 next, so GAD-7 is coming up"
 				""";
 		getDatabase().execute("UPDATE screening_flow_version SET orchestration_function=? WHERE screening_flow_version_id=?", orchestrationFunctionJs, screeningSession.getScreeningFlowVersionId());
 		screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
 		// End temporary hack
 
-		// Screening Flow Orchestration Function
-		OrchestrationFunctionOutput orchestrationFunctionOutput = executeScreeningFlowOrchestrationFunction(screeningFlowVersion.getOrchestrationFunction());
+		// Pull data we'll need to pass in to the orchestration function
+		List<Screening> screenings = findScreeningsByInstitutionId(createdByAccount.getInstitutionId());
+		List<ScreeningSessionScreening> screeningSessionScreenings = findScreeningSessionScreeningsByScreeningSessionId(screeningSessionScreening.getScreeningSessionId());
+
+		OrchestrationFunctionOutput orchestrationFunctionOutput = executeScreeningFlowOrchestrationFunction(screeningFlowVersion.getOrchestrationFunction(), screenings, screeningSessionScreenings);
 
 		// If orchestration logic says we are in crisis, trigger crisis flow
 		if (orchestrationFunctionOutput.getCrisisIndicated()) {
@@ -539,9 +628,13 @@ public class ScreeningService {
 			// TODO: should we handle short-circuiting?
 		}
 
-		// TODO: use orchestrationFunctionOutput for other things
+		if (orchestrationFunctionOutput.getCompleted()) {
+			getLogger().info("Orchestration function indicated that screening session ID {} is now complete.", screeningSession.getScreeningSessionId());
+			getDatabase().execute("UPDATE screening_session SET completed=TRUE WHERE screening_session_id=?", screeningSession.getScreeningSessionId());
+		}
 
-		// TODO: insert into next context, if applicable
+		// TODO: use orchestrationFunctionOutput for other things
+		// TODO: insert into next screening_session_screening, if applicable
 
 		return screeningAnswerId;
 	}
@@ -553,6 +646,8 @@ public class ScreeningService {
 		requireNonNull(screeningScoringFunctionJavascript);
 		requireNonNull(screeningQuestionsWithAnswerOptions);
 		requireNonNull(screeningAnswers);
+
+		ScreeningScoringOutput screeningScoringOutput;
 
 		// Massage data a bit to make it easier for function to get a screening answer option given a screening answer ID
 		Map<UUID, ScreeningAnswerOption> screeningAnswerOptionsById = new HashMap<>();
@@ -571,21 +666,57 @@ public class ScreeningService {
 		context.put("screeningAnswerOptionsByScreeningAnswerId", screeningAnswerOptionsByScreeningAnswerId);
 
 		try {
-			return getJavascriptExecutor().execute(screeningScoringFunctionJavascript, context, ScreeningScoringOutput.class);
+			screeningScoringOutput = getJavascriptExecutor().execute(screeningScoringFunctionJavascript, context, ScreeningScoringOutput.class);
 		} catch (JavascriptExecutionException e) {
 			throw new RuntimeException(e);
 		}
+
+		if (screeningScoringOutput.getCompleted() == null)
+			throw new IllegalStateException("Screening scoring function must provide a 'completed' value in output");
+
+		if (screeningScoringOutput.getScore() == null)
+			throw new IllegalStateException("Screening scoring function must provide a 'score' value in output");
+
+		return screeningScoringOutput;
 	}
 
 	@Nonnull
-	protected OrchestrationFunctionOutput executeScreeningFlowOrchestrationFunction(@Nonnull String screeningFlowOrchestrationFunctionJavascript) {
+	protected OrchestrationFunctionOutput executeScreeningFlowOrchestrationFunction(@Nonnull String screeningFlowOrchestrationFunctionJavascript,
+																																									@Nonnull List<Screening> screenings,
+																																									@Nonnull List<ScreeningSessionScreening> screeningSessionScreenings) {
+		requireNonNull(screeningFlowOrchestrationFunctionJavascript);
+		requireNonNull(screenings);
+		requireNonNull(screeningSessionScreenings);
+
+		OrchestrationFunctionOutput orchestrationFunctionOutput;
+
+		// Massage data a bit to make it easier for function to get a handle to a screening by using its name
+		Map<String, Screening> screeningsByName = new HashMap<>(screenings.size());
+
+		for (Screening screening : screenings)
+			screeningsByName.put(screening.getName(), screening);
+
 		Map<String, Object> context = new HashMap<>();
+		context.put("screenings", screenings);
+		context.put("screeningsByName", screeningsByName);
+		context.put("screeningSessionScreenings", screeningSessionScreenings);
 
 		try {
-			return getJavascriptExecutor().execute(screeningFlowOrchestrationFunctionJavascript, context, OrchestrationFunctionOutput.class);
+			orchestrationFunctionOutput = getJavascriptExecutor().execute(screeningFlowOrchestrationFunctionJavascript, context, OrchestrationFunctionOutput.class);
 		} catch (JavascriptExecutionException e) {
 			throw new RuntimeException(e);
 		}
+
+		if (orchestrationFunctionOutput.getCompleted() == null)
+			throw new IllegalStateException("Orchestration function must provide a 'completed' value in output");
+
+		if (orchestrationFunctionOutput.getCrisisIndicated() == null)
+			throw new IllegalStateException("Orchestration function must provide a 'crisisIndicated' value in output");
+
+		if (orchestrationFunctionOutput.getCompleted() && orchestrationFunctionOutput.getNextScreeningId() != null)
+			throw new IllegalStateException(format("Orchestration function output says this screening session is completed, but also provides a nonnull 'nextScreeningId' value"));
+
+		return orchestrationFunctionOutput;
 	}
 
 	@NotThreadSafe
@@ -620,8 +751,8 @@ public class ScreeningService {
 		private Boolean crisisIndicated;
 		@Nullable
 		private Boolean completed;
-
-		// TODO: more fields?
+		@Nullable
+		private UUID nextScreeningId;
 
 		@Nullable
 		public Boolean getCrisisIndicated() {
@@ -639,6 +770,15 @@ public class ScreeningService {
 
 		public void setCompleted(@Nullable Boolean completed) {
 			this.completed = completed;
+		}
+
+		@Nullable
+		public UUID getNextScreeningId() {
+			return this.nextScreeningId;
+		}
+
+		public void setNextScreeningId(@Nullable UUID nextScreeningId) {
+			this.nextScreeningId = nextScreeningId;
 		}
 	}
 
