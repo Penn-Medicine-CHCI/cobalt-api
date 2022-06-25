@@ -80,19 +80,22 @@ public class ScreeningServiceTests {
 
 			assertEquals("Account is missing a provider triage screening session", 1, screeningSessions.size());
 
-			ScreeningSessionQuestion screeningSessionQuestion = screeningService.findNextScreeningSessionQuestionByScreeningSessionId(screeningSessionId).get();
+			while (true) {
+				ScreeningSessionQuestion screeningSessionQuestion = screeningService.findNextScreeningSessionQuestionByScreeningSessionId(screeningSessionId).orElse(null);
 
-			// Pick the first answer option...
-			UUID screeningAnswerOptionId = screeningSessionQuestion.getScreeningAnswerOptions().get(0).getScreeningAnswerOptionId();
+				if (screeningSessionQuestion == null)
+					break;
 
-			// ...and answer it.
-			screeningService.createScreeningAnswer(new CreateScreeningAnswerRequest() {{
-				setScreeningSessionScreeningId(screeningSessionQuestion.getScreeningSessionScreening().getScreeningSessionScreeningId());
-				setScreeningAnswerOptionId(screeningAnswerOptionId);
-				setCreatedByAccountId(accountId);
-			}});
+				// Pick the first answer option...
+				UUID screeningAnswerOptionId = screeningSessionQuestion.getScreeningAnswerOptions().get(0).getScreeningAnswerOptionId();
 
-			// TBD
+				// ...and answer it.
+				screeningService.createScreeningAnswer(new CreateScreeningAnswerRequest() {{
+					setScreeningSessionScreeningId(screeningSessionQuestion.getScreeningSessionScreening().getScreeningSessionScreeningId());
+					setScreeningAnswerOptionId(screeningAnswerOptionId);
+					setCreatedByAccountId(accountId);
+				}});
+			}
 		});
 	}
 }

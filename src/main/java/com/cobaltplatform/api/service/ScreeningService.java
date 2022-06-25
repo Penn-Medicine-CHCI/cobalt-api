@@ -631,6 +631,8 @@ public class ScreeningService {
 			getDatabase().execute("UPDATE screening_session SET completed=TRUE WHERE screening_session_id=?", screeningSession.getScreeningSessionId());
 		}
 
+		// TODO: execute scoring function and insert triage-related records (support role, etc.)
+
 		return screeningAnswerId;
 	}
 
