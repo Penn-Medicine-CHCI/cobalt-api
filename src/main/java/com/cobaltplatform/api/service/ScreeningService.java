@@ -193,6 +193,15 @@ public class ScreeningService {
 	}
 
 	@Nonnull
+	public Optional<ScreeningAnswer> findScreeningAnswerById(@Nullable UUID screeningAnswerId) {
+		if (screeningAnswerId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("SELECT * FROM screening_answer WHERE screening_answer_id=?",
+				ScreeningAnswer.class, screeningAnswerId);
+	}
+
+	@Nonnull
 	public List<ScreeningSession> findScreeningSessionsByScreeningFlowId(@Nullable UUID screeningFlowId,
 																																			 @Nullable UUID participantAccountId) {
 		if (screeningFlowId == null || participantAccountId == null)
@@ -462,15 +471,15 @@ public class ScreeningService {
 
 		// Temporary hack for testing
 		String scoringFunctionJs = """
-        // We are completed if the number of answers matches the number of questions
+				    // We are completed if the number of answers matches the number of questions
 				output.completed = input.screeningAnswers.length === input.screeningQuestionsWithAnswerOptions.length;
-				
+								
 				// It's illegal for this screening to have more answers than questions -
 				// should not occur, but check as a failsafe
-			  if(input.screeningAnswers.length > input.screeningQuestionsWithAnswerOptions.length)
-			    throw "There are more answers than questions";
-				
-        // Track running score
+				 if(input.screeningAnswers.length > input.screeningQuestionsWithAnswerOptions.length)
+				   throw "There are more answers than questions";
+								
+				    // Track running score
 				output.score = 0;
 				    
 				// Add each answer's score to the running total
@@ -499,8 +508,8 @@ public class ScreeningService {
 		ScreeningScoringOutput screeningScoringOutput = executeScreeningScoringFunction(
 				screeningVersion.getScoringFunction(), screeningQuestionsWithAnswerOptions, screeningAnswers);
 
-		getLogger().info("Screening session screening ID {} ({}) was scored {} with completed flag={}", screeningSessionScreeningId,
-				screeningVersion.getScreeningTypeId().name(), screeningScoringOutput.getScore(), screeningScoringOutput.getCompleted());
+		getLogger().info("Screening session screening ID {} ({}) was scored {} with completed flag={}. {} out of {} questions have been answered.", screeningSessionScreeningId,
+				screeningVersion.getScreeningTypeId().name(), screeningScoringOutput.getScore(), screeningScoringOutput.getCompleted(), screeningAnswers.size(), screeningQuestionsWithAnswerOptions.size());
 
 		// Based on screening scoring function output, set score/completed flags
 		getDatabase().execute("""
@@ -509,21 +518,25 @@ public class ScreeningService {
 				WHERE screening_session_screening_id=?
 				""", screeningScoringOutput.getCompleted(), screeningScoringOutput.getScore(), screeningSessionScreening.getScreeningSessionScreeningId());
 
+		// Temporary hack for testing
+		String orchestrationFunctionJs = """
+				 output.crisisIndicated = false;
+				 output.completed = false;
+				 
+				 console.log('TODO: finish up orchestration function');
+				""";
+		getDatabase().execute("UPDATE screening_flow_version SET orchestration_function=? WHERE screening_flow_version_id=?", orchestrationFunctionJs, screeningSession.getScreeningFlowVersionId());
+		screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
+		// End temporary hack
+
 		// Screening Flow Orchestration Function
-		Map<String, Object> orchestrationFunctionContext = new HashMap<>();
-		OrchestrationFunctionOutput orchestrationFunctionOutput;
+		OrchestrationFunctionOutput orchestrationFunctionOutput = executeScreeningFlowOrchestrationFunction(screeningFlowVersion.getOrchestrationFunction());
 
-		try {
-			orchestrationFunctionOutput = getJavascriptExecutor().execute(screeningFlowVersion.getOrchestrationFunction(),
-					orchestrationFunctionContext, OrchestrationFunctionOutput.class);
-		} catch (JavascriptExecutionException e) {
-			throw new RuntimeException(e);
-		}
-
-		// If answer indicates crisis or orchestration logic says we are in crisis, trigger crisis flow
-		if (screeningAnswerOption.getIndicatesCrisis() ||
-				(orchestrationFunctionOutput.getTriggerCrisis() != null && orchestrationFunctionOutput.getTriggerCrisis())) {
-			// TODO: if not already in crisis, flip to crisis
+		// If orchestration logic says we are in crisis, trigger crisis flow
+		if (orchestrationFunctionOutput.getCrisisIndicated()) {
+			// TODO: if not already in crisis, flip to crisis.
+			// TODO: Create interaction instance to be sent to relevant care provider[s] that includes screening Q and A values from this flow + scores
+			// TODO: should we handle short-circuiting?
 		}
 
 		// TODO: use orchestrationFunctionOutput for other things
@@ -552,14 +565,24 @@ public class ScreeningService {
 		for (ScreeningAnswer screeningAnswer : screeningAnswers)
 			screeningAnswerOptionsByScreeningAnswerId.put(screeningAnswer.getScreeningAnswerId(), screeningAnswerOptionsById.get(screeningAnswer.getScreeningAnswerOptionId()));
 
-		Map<String, Object> screeningScoringContext = new HashMap<>();
-		screeningScoringContext.put("screeningQuestionsWithAnswerOptions", screeningQuestionsWithAnswerOptions);
-		screeningScoringContext.put("screeningAnswers", screeningAnswers);
-		screeningScoringContext.put("screeningAnswerOptionsByScreeningAnswerId", screeningAnswerOptionsByScreeningAnswerId);
+		Map<String, Object> context = new HashMap<>();
+		context.put("screeningQuestionsWithAnswerOptions", screeningQuestionsWithAnswerOptions);
+		context.put("screeningAnswers", screeningAnswers);
+		context.put("screeningAnswerOptionsByScreeningAnswerId", screeningAnswerOptionsByScreeningAnswerId);
 
 		try {
-			return getJavascriptExecutor().execute(screeningScoringFunctionJavascript,
-					screeningScoringContext, ScreeningScoringOutput.class);
+			return getJavascriptExecutor().execute(screeningScoringFunctionJavascript, context, ScreeningScoringOutput.class);
+		} catch (JavascriptExecutionException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	@Nonnull
+	protected OrchestrationFunctionOutput executeScreeningFlowOrchestrationFunction(@Nonnull String screeningFlowOrchestrationFunctionJavascript) {
+		Map<String, Object> context = new HashMap<>();
+
+		try {
+			return getJavascriptExecutor().execute(screeningFlowOrchestrationFunctionJavascript, context, OrchestrationFunctionOutput.class);
 		} catch (JavascriptExecutionException e) {
 			throw new RuntimeException(e);
 		}
@@ -594,17 +617,28 @@ public class ScreeningService {
 	@NotThreadSafe
 	protected static class OrchestrationFunctionOutput {
 		@Nullable
-		private Boolean triggerCrisis;
+		private Boolean crisisIndicated;
+		@Nullable
+		private Boolean completed;
 
-		// TODO: more fields
+		// TODO: more fields?
 
 		@Nullable
-		public Boolean getTriggerCrisis() {
-			return this.triggerCrisis;
+		public Boolean getCrisisIndicated() {
+			return this.crisisIndicated;
 		}
 
-		public void setTriggerCrisis(@Nullable Boolean triggerCrisis) {
-			this.triggerCrisis = triggerCrisis;
+		public void setCrisisIndicated(@Nullable Boolean crisisIndicated) {
+			this.crisisIndicated = crisisIndicated;
+		}
+
+		@Nullable
+		public Boolean getCompleted() {
+			return this.completed;
+		}
+
+		public void setCompleted(@Nullable Boolean completed) {
+			this.completed = completed;
 		}
 	}
 
