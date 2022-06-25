@@ -549,68 +549,62 @@ public class ScreeningService {
 
 		// Temporary hack for testing
 		String orchestrationFunctionJs = """
-console.log("** Starting orchestration function");
+				console.log("** Starting orchestration function");
 
-output.crisisIndicated = false;
-output.completed = false;
-output.nextScreeningId = null;
+				output.crisisIndicated = false;
+				output.completed = false;
+				output.nextScreeningId = null;
 
-// WHO-5 always comes first.
-const who5 = input.screeningSessionScreenings[0];
-const phq9 =
-  input.screeningSessionScreenings.length > 1
-    ? input.screeningSessionScreenings[1]
-    : null;
-const gad7 =
-  input.screeningSessionScreenings.length > 2
-    ? input.screeningSessionScreenings[2]
-    : null;
+				// WHO-5 always comes first.
+				const who5 = input.screeningSessionScreenings[0];
+				const phq9 = input.screeningSessionScreenings.length > 1 ? input.screeningSessionScreenings[1] : null;
+				const gad7 = input.screeningSessionScreenings.length > 2 ? input.screeningSessionScreenings[2] : null;
 
-if (input.screeningSessionScreenings.length === 1) {
-  // We have not yet progressed past WHO-5
-  if (who5.completed) {
-    console.log("WHO-5 is complete.  Score is " + who5.score);
-    if (who5.score >= 13) {
-      // We're done; triage to resilience coach support role
-      // TODO: triage
-      output.completed = true;
-    } else {
-      // Complete PHQ9 + GAD7
-      output.nextScreeningId = screeningsByName["PHQ-9"].screeningId;
-    }
-  } else {
-    console.log("WHO-5 not complete yet.  Score is " + who5.score);
-  }
-} else if (input.screeningSessionScreenings.length === 2) {
-  // We are on PHQ-9. Is it done yet?
-  if (phq9.complete) {
-    // TODO: set crisisIndicated as appropriate.  Also hard stop!
-    // Given a question index, need to expose answer options and answer
-    // so we can say things like "if Q9 is scored 1 or higher, crisis/hard stop"
-  } else {
-    console.log("PHQ-9 not complete yet.  Score is " + phq9.score);
-  }
-} else if (input.screeningSessionScreenings.length === 3) {
-  // We are on GAD-7. Is it done yet?
-  if (gad7.complete) {
-    // We're done!
-    // TODO: triage
-    output.completed = true;
-  } else {
-    console.log("GAD-7 not complete yet.  Score is " + gad7.score);
-  }
-} else {
-  throw "There is an unexpected number of screening session screenings";
-}
+				if (input.screeningSessionScreenings.length === 1) {
+				  // We have not yet progressed past WHO-5
+				  if (who5.completed) {
+				    console.log("WHO-5 is complete.  Score is " + who5.score);
+				    if (who5.score >= 13) {
+				      // We're done; triage to resilience coach support role
+				      // TODO: triage here, or in scoring function?
+				      output.completed = true;
+				    } else {
+				      // Complete PHQ9 + GAD7
+				      output.nextScreeningId = screeningsByName["PHQ-9"].screeningId;
+				    }
+				  } else {
+				    console.log("WHO-5 not complete yet.  Score is " + who5.score);
+				  }
+				} else if (input.screeningSessionScreenings.length === 2) {
+				  // We are on PHQ-9. Is it done yet?
+				  if (phq9.complete) {
+				    // TODO: set crisisIndicated as appropriate.  Also hard stop!
+				    // Given a question index, need to expose answer options and answer
+				    // so we can say things like "if Q9 is scored 1 or higher, crisis/hard stop"
+				  } else {
+				    console.log("PHQ-9 not complete yet.  Score is " + phq9.score);
+				  }
+				} else if (input.screeningSessionScreenings.length === 3) {
+				  // We are on GAD-7. Is it done yet?
+				  if (gad7.complete) {
+				    // We're done!
+				    // TODO: triage here, or in scoring function?
+				    output.completed = true;
+				  } else {
+				    console.log("GAD-7 not complete yet.  Score is " + gad7.score);
+				  }
+				} else {
+				  throw "There is an unexpected number of screening session screenings";
+				}
 
-//console.log("screenings: " + JSON.stringify(input.screenings));
-//console.log("screeningsByName: " + JSON.stringify(input.screeningsByName));
-//console.log("screeningSessionScreenings: " + JSON.stringify(input.screeningSessionScreenings));
-console.log("** TODO: finish up orchestration function");
+				//console.log("screenings: " + JSON.stringify(input.screenings));
+				//console.log("screeningsByName: " + JSON.stringify(input.screeningsByName));
+				//console.log("screeningSessionScreenings: " + JSON.stringify(input.screeningSessionScreenings));
+				console.log("** TODO: finish up orchestration function");
 
-// Need a simple way to get at screenings by ID and screening versions by ID so we can tie screening sessions back to them
-// and answer questions like "WHO-5 was done first and then PHQ-9 next, so GAD-7 is coming up"
-				""";
+				// Need a simple way to get at screenings by ID and screening versions by ID so we can tie screening sessions back to them
+				// and answer questions like "WHO-5 was done first and then PHQ-9 next, so GAD-7 is coming up"
+								""";
 		getDatabase().execute("UPDATE screening_flow_version SET orchestration_function=? WHERE screening_flow_version_id=?", orchestrationFunctionJs, screeningSession.getScreeningFlowVersionId());
 		screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
 		// End temporary hack
@@ -620,6 +614,10 @@ console.log("** TODO: finish up orchestration function");
 		List<ScreeningSessionScreening> screeningSessionScreenings = findScreeningSessionScreeningsByScreeningSessionId(screeningSessionScreening.getScreeningSessionId());
 
 		OrchestrationFunctionOutput orchestrationFunctionOutput = executeScreeningFlowOrchestrationFunction(screeningFlowVersion.getOrchestrationFunction(), screenings, screeningSessionScreenings);
+
+		if (orchestrationFunctionOutput.getNextScreeningId() != null) {
+			// TODO: insert into next screening_session_screening, if applicable
+		}
 
 		// If orchestration logic says we are in crisis, trigger crisis flow
 		if (orchestrationFunctionOutput.getCrisisIndicated()) {
@@ -632,9 +630,6 @@ console.log("** TODO: finish up orchestration function");
 			getLogger().info("Orchestration function indicated that screening session ID {} is now complete.", screeningSession.getScreeningSessionId());
 			getDatabase().execute("UPDATE screening_session SET completed=TRUE WHERE screening_session_id=?", screeningSession.getScreeningSessionId());
 		}
-
-		// TODO: use orchestrationFunctionOutput for other things
-		// TODO: insert into next screening_session_screening, if applicable
 
 		return screeningAnswerId;
 	}
