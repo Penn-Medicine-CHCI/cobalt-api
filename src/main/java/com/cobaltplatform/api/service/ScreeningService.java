@@ -25,6 +25,7 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Screening;
 import com.cobaltplatform.api.model.db.ScreeningAnswer;
+import com.cobaltplatform.api.model.db.ScreeningAnswerFormat.ScreeningAnswerFormatId;
 import com.cobaltplatform.api.model.db.ScreeningAnswerOption;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
@@ -34,7 +35,9 @@ import com.cobaltplatform.api.model.db.ScreeningSessionScreening;
 import com.cobaltplatform.api.model.db.ScreeningVersion;
 import com.cobaltplatform.api.model.service.ScreeningQuestionWithAnswerOptions;
 import com.cobaltplatform.api.model.service.ScreeningSessionQuestion;
+import com.cobaltplatform.api.util.JavascriptExecutionException;
 import com.cobaltplatform.api.util.JavascriptExecutor;
+import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.lokalized.Strings;
@@ -44,18 +47,22 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static com.cobaltplatform.api.util.ValidationUtility.isValidEmailAddress;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -73,6 +80,8 @@ public class ScreeningService {
 	@Nonnull
 	private final JavascriptExecutor javascriptExecutor;
 	@Nonnull
+	private final Normalizer normalizer;
+	@Nonnull
 	private final Database database;
 	@Nonnull
 	private final Strings strings;
@@ -83,17 +92,20 @@ public class ScreeningService {
 	public ScreeningService(@Nonnull Provider<AccountService> accountServiceProvider,
 													@Nonnull Provider<AuthorizationService> authorizationServiceProvider,
 													@Nonnull JavascriptExecutor javascriptExecutor,
+													@Nonnull Normalizer normalizer,
 													@Nonnull Database database,
 													@Nonnull Strings strings) {
 		requireNonNull(accountServiceProvider);
 		requireNonNull(authorizationServiceProvider);
 		requireNonNull(javascriptExecutor);
+		requireNonNull(normalizer);
 		requireNonNull(database);
 		requireNonNull(strings);
 
 		this.accountServiceProvider = accountServiceProvider;
 		this.authorizationServiceProvider = authorizationServiceProvider;
 		this.javascriptExecutor = javascriptExecutor;
+		this.normalizer = normalizer;
 		this.database = database;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -131,7 +143,7 @@ public class ScreeningService {
 		if (screeningSessionScreeningId == null)
 			return Optional.empty();
 
-		return getDatabase().queryForObject("SELECT * FROM screening_session WHERE screening_session_screening_id=?",
+		return getDatabase().queryForObject("SELECT * FROM screening_session_screening WHERE screening_session_screening_id=?",
 				ScreeningSessionScreening.class, screeningSessionScreeningId);
 	}
 
@@ -160,6 +172,24 @@ public class ScreeningService {
 
 		return getDatabase().queryForList("SELECT * FROM screening_flow WHERE institution_id=? ORDER BY name",
 				ScreeningFlow.class, institutionId);
+	}
+
+	@Nonnull
+	public Optional<ScreeningAnswerOption> findScreeningAnswerOptionById(@Nullable UUID screeningAnswerOptionId) {
+		if (screeningAnswerOptionId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("SELECT * FROM screening_answer_option WHERE screening_answer_option_id=?",
+				ScreeningAnswerOption.class, screeningAnswerOptionId);
+	}
+
+	@Nonnull
+	public Optional<ScreeningQuestion> findScreeningQuestionById(@Nullable UUID screeningQuestionId) {
+		if (screeningQuestionId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("SELECT * FROM screening_question WHERE screening_question_id=?",
+				ScreeningQuestion.class, screeningQuestionId);
 	}
 
 	@Nonnull
@@ -296,8 +326,10 @@ public class ScreeningService {
 					screeningSessionScreening.getScreeningSessionScreeningId()));
 
 		ScreeningSessionQuestion screeningSessionQuestion = new ScreeningSessionQuestion();
-
-		// TODO: fill in
+		screeningSessionQuestion.setScreeningQuestion(nextScreeningQuestionWithAnswerOptions.getScreeningQuestion());
+		screeningSessionQuestion.setScreeningAnswerOptions(nextScreeningQuestionWithAnswerOptions.getScreeningAnswerOptions());
+		screeningSessionQuestion.setScreeningSessionScreening(screeningSessionScreening);
+		// TODO: fill in anyting else?
 
 		return Optional.of(screeningSessionQuestion);
 	}
@@ -365,24 +397,115 @@ public class ScreeningService {
 
 		UUID screeningSessionScreeningId = request.getScreeningSessionScreeningId();
 		UUID screeningAnswerOptionId = request.getScreeningAnswerOptionId();
+		UUID createdByAccountId = request.getCreatedByAccountId();
 		String text = trimToNull(request.getText());
 		UUID screeningAnswerId = UUID.randomUUID();
+		ScreeningSessionScreening screeningSessionScreening = null;
+		ScreeningAnswerOption screeningAnswerOption = null;
+		Account createdByAccount = null;
 		ValidationException validationException = new ValidationException();
+
+		if (screeningSessionScreeningId == null) {
+			validationException.add(new FieldError("screeningSessionScreeningId", getStrings().get("Screening session screening ID is required.")));
+		} else {
+			screeningSessionScreening = findScreeningSessionScreeningById(screeningSessionScreeningId).orElse(null);
+
+			if (screeningSessionScreening == null)
+				validationException.add(new FieldError("screeningSessionScreening", getStrings().get("Screening session screening ID is invalid.")));
+		}
+
+		if (screeningAnswerOptionId == null) {
+			validationException.add(new FieldError("screeningAnswerOptionId", getStrings().get("Screening answer option ID is required.")));
+		} else {
+			screeningAnswerOption = findScreeningAnswerOptionById(screeningAnswerOptionId).orElse(null);
+
+			if (screeningAnswerOption == null)
+				validationException.add(new FieldError("screeningAnswerOptionId", getStrings().get("Screening answer option ID is invalid.")));
+		}
+
+		if (createdByAccountId == null) {
+			validationException.add(new FieldError("createdByAccountId", getStrings().get("Created by account ID is required.")));
+		} else {
+			createdByAccount = getAccountService().findAccountById(createdByAccountId).orElse(null);
+
+			if (createdByAccount == null)
+				validationException.add(new FieldError("createdByAccountId", getStrings().get("Created by account ID is invalid.")));
+		}
+
+		if (screeningAnswerOption != null) {
+			ScreeningQuestion screeningQuestion = findScreeningQuestionById(screeningAnswerOption.getScreeningQuestionId()).get();
+
+			if (screeningQuestion.getScreeningAnswerFormatId() == ScreeningAnswerFormatId.FREEFORM_TEXT) {
+				if (text == null) {
+					validationException.add(new FieldError("text", getStrings().get("Your response is required.")));
+				} else {
+					switch (screeningQuestion.getScreeningAnswerContentHintId()) {
+						case PHONE_NUMBER -> {
+							text = getNormalizer().normalizePhoneNumberToE164(text).orElse(null);
+
+							if (text == null)
+								validationException.add(new FieldError("text", getStrings().get("A valid phone number is required.")));
+						}
+						case EMAIL_ADDRESS -> {
+							text = getNormalizer().normalizeEmailAddress(text).orElse(null);
+
+							if (!isValidEmailAddress(text))
+								validationException.add(new FieldError("text", getStrings().get("A valid email address is required.")));
+						}
+					}
+				}
+			}
+		}
 
 		if (validationException.hasErrors())
 			throw validationException;
 
-		throw new UnsupportedOperationException();
+		ScreeningSession screeningSession = findScreeningSessionById(screeningSessionScreening.getScreeningSessionId()).get();
+		ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
 
-//		getDatabase().execute("""
-//				INSERT INTO screening_session(screening_session_id, screening_flow_version_id, target_account_id, created_by_account_id)
-//				VALUES (?,?,?,?)
-//				""", screeningSessionId, screeningFlowVersion.getScreeningFlowVersionId(), targetAccountId, createdByAccountId);
+		getDatabase().execute("""
+				INSERT INTO screening_answer(screening_answer_id, screening_answer_option_id, screening_session_screening_id, created_by_account_id, text)
+				VALUES (?,?,?,?,?)
+				""", screeningAnswerId, screeningAnswerOptionId, screeningSessionScreeningId, createdByAccountId, text);
 
-		// TODO: execute javascript
+		Map<String, Object> orchestrationFunctionContext = new HashMap<>();
+		OrchestrationFunctionOutput orchestrationFunctionOutput;
+
+		try {
+			orchestrationFunctionOutput = getJavascriptExecutor().execute(screeningFlowVersion.getOrchestrationFunction(),
+					orchestrationFunctionContext, OrchestrationFunctionOutput.class);
+		} catch (JavascriptExecutionException e) {
+			throw new RuntimeException(e);
+		}
+
+		// If answer indicates crisis or orchestration logic says we are in crisis, trigger crisis flow
+		if (screeningAnswerOption.getIndicatesCrisis() ||
+				(orchestrationFunctionOutput.getTriggerCrisis() != null && orchestrationFunctionOutput.getTriggerCrisis())) {
+			// TODO: if not already in crisis, flip to crisis
+		}
+
+		// TODO: use orchestrationFunctionOutput for other things
+
 		// TODO: insert into next context, if applicable
 
-		// return screeningAnswerId;
+		return screeningAnswerId;
+	}
+
+	@NotThreadSafe
+	protected static class OrchestrationFunctionOutput {
+		@Nullable
+		private Boolean triggerCrisis;
+
+		// TODO: more fields
+
+		@Nullable
+		public Boolean getTriggerCrisis() {
+			return this.triggerCrisis;
+		}
+
+		public void setTriggerCrisis(@Nullable Boolean triggerCrisis) {
+			this.triggerCrisis = triggerCrisis;
+		}
 	}
 
 	@Nonnull
@@ -398,6 +521,11 @@ public class ScreeningService {
 	@Nonnull
 	protected JavascriptExecutor getJavascriptExecutor() {
 		return this.javascriptExecutor;
+	}
+
+	@Nonnull
+	protected Normalizer getNormalizer() {
+		return this.normalizer;
 	}
 
 	@Nonnull

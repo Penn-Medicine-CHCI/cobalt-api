@@ -21,6 +21,7 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.IntegrationTestExecutor;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
+import com.cobaltplatform.api.model.api.request.CreateScreeningAnswerRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Institution;
@@ -82,14 +83,15 @@ public class ScreeningServiceTests {
 			ScreeningSessionQuestion screeningSessionQuestion = screeningService.findNextScreeningSessionQuestionByScreeningSessionId(screeningSessionId).get();
 
 			// Pick the first answer option...
-			//UUID screeningAnswerOptionId = screeningSessionQuestion.getScreeningAnswerOptions().get(0).getScreeningAnswerOptionId();
+			UUID screeningAnswerOptionId = screeningSessionQuestion.getScreeningAnswerOptions().get(0).getScreeningAnswerOptionId();
 
 			// ...and answer it.
-//			screeningService.createScreeningAnswer(new CreateScreeningAnswerRequest() {{
-//				setScreeningSessionScreeningId(screeningSessionQuestion.getScreeningSessionScreening().getScreeningSessionScreeningId());
-//				setScreeningAnswerOptionId(screeningAnswerOptionId);
-//				setCreatedByAccountId(accountId);
-//			}});
+			screeningService.createScreeningAnswer(new CreateScreeningAnswerRequest() {{
+				setScreeningSessionScreeningId(screeningSessionQuestion.getScreeningSessionScreening().getScreeningSessionScreeningId());
+				setScreeningAnswerOptionId(screeningAnswerOptionId);
+				setCreatedByAccountId(accountId);
+			}});
+
 			// TBD
 		});
 	}

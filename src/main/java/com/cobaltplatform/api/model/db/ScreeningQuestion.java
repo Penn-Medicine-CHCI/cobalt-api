@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.ScreeningAnswerContentHint.ScreeningAnswerContentHintId;
+import com.cobaltplatform.api.model.db.ScreeningAnswerFormat.ScreeningAnswerFormatId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -35,6 +36,8 @@ public class ScreeningQuestion {
 	private UUID screeningQuestionId;
 	@Nullable
 	private UUID screeningVersionId;
+	@Nullable
+	private ScreeningAnswerFormatId screeningAnswerFormatId;
 	@Nullable
 	private ScreeningAnswerContentHintId screeningAnswerContentHintId;
 	@Nullable
@@ -64,6 +67,15 @@ public class ScreeningQuestion {
 
 	public void setScreeningVersionId(@Nullable UUID screeningVersionId) {
 		this.screeningVersionId = screeningVersionId;
+	}
+
+	@Nullable
+	public ScreeningAnswerFormatId getScreeningAnswerFormatId() {
+		return this.screeningAnswerFormatId;
+	}
+
+	public void setScreeningAnswerFormatId(@Nullable ScreeningAnswerFormatId screeningAnswerFormatId) {
+		this.screeningAnswerFormatId = screeningAnswerFormatId;
 	}
 
 	@Nullable
