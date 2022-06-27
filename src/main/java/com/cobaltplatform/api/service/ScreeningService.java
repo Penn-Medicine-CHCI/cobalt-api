@@ -570,23 +570,24 @@ public class ScreeningService {
 				      output.completed = true;
 				    } else {
 				      // Complete PHQ9 + GAD7
-				      output.nextScreeningId = screeningsByName["PHQ-9"].screeningId;
+				      output.nextScreeningId = input.screeningsByName["PHQ-9"].screeningId;
 				    }
 				  } else {
 				    console.log("WHO-5 not complete yet.  Score is " + who5.score);
 				  }
 				} else if (input.screeningSessionScreenings.length === 2) {
 				  // We are on PHQ-9. Is it done yet?
-				  if (phq9.complete) {
+				  if (phq9.completed) {
 				    // TODO: set crisisIndicated as appropriate.  Also hard stop!
 				    // Given a question index, need to expose answer options and answer
 				    // so we can say things like "if Q9 is scored 1 or higher, crisis/hard stop"
+				    output.nextScreeningId = input.screeningsByName["GAD-7"].screeningId;
 				  } else {
 				    console.log("PHQ-9 not complete yet.  Score is " + phq9.score);
 				  }
 				} else if (input.screeningSessionScreenings.length === 3) {
 				  // We are on GAD-7. Is it done yet?
-				  if (gad7.complete) {
+				  if (gad7.completed) {
 				    // We're done!
 				    // TODO: triage here, or in scoring function?
 				    output.completed = true;
@@ -597,13 +598,7 @@ public class ScreeningService {
 				  throw "There is an unexpected number of screening session screenings";
 				}
 
-				//console.log("screenings: " + JSON.stringify(input.screenings));
-				//console.log("screeningsByName: " + JSON.stringify(input.screeningsByName));
-				//console.log("screeningSessionScreenings: " + JSON.stringify(input.screeningSessionScreenings));
 				console.log("** TODO: finish up orchestration function");
-
-				// Need a simple way to get at screenings by ID and screening versions by ID so we can tie screening sessions back to them
-				// and answer questions like "WHO-5 was done first and then PHQ-9 next, so GAD-7 is coming up"
 								""";
 		getDatabase().execute("UPDATE screening_flow_version SET orchestration_function=? WHERE screening_flow_version_id=?", orchestrationFunctionJs, screeningSession.getScreeningFlowVersionId());
 		screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
@@ -616,7 +611,22 @@ public class ScreeningService {
 		OrchestrationFunctionOutput orchestrationFunctionOutput = executeScreeningFlowOrchestrationFunction(screeningFlowVersion.getOrchestrationFunction(), screenings, screeningSessionScreenings);
 
 		if (orchestrationFunctionOutput.getNextScreeningId() != null) {
-			// TODO: insert into next screening_session_screening, if applicable
+			Integer nextScreeningOrder = getDatabase().queryForObject("""
+					SELECT MAX(screening_order) + 1 
+					FROM screening_session_screening 
+					WHERE screening_session_id=?
+					""", Integer.class, screeningSession.getScreeningSessionId()).get();
+
+			Screening nextScreening = findScreeningById(orchestrationFunctionOutput.getNextScreeningId()).get();
+			ScreeningVersion nextScreeningVersion = findScreeningVersionById(nextScreening.getActiveScreeningVersionId()).get();
+
+			getLogger().info("Screening session screening ID {} ({}) indicates that we should transition to screening ID {} ({}).", screeningSessionScreeningId,
+					screeningVersion.getScreeningTypeId().name(), nextScreening.getScreeningId(), nextScreeningVersion.getScreeningTypeId().name());
+
+			getDatabase().execute("""
+					INSERT INTO screening_session_screening(screening_session_id, screening_version_id, screening_order)
+					VALUES (?,?,?)
+					""", screeningSession.getScreeningSessionId(), nextScreeningVersion.getScreeningVersionId(), nextScreeningOrder);
 		}
 
 		// If orchestration logic says we are in crisis, trigger crisis flow

@@ -86,8 +86,9 @@ public class ScreeningServiceTests {
 				if (screeningSessionQuestion == null)
 					break;
 
-				// Pick the first answer option...
-				UUID screeningAnswerOptionId = screeningSessionQuestion.getScreeningAnswerOptions().get(0).getScreeningAnswerOptionId();
+				// Pick the last answer option...
+				UUID screeningAnswerOptionId = screeningSessionQuestion.getScreeningAnswerOptions().get(
+						screeningSessionQuestion.getScreeningAnswerOptions().size() - 1).getScreeningAnswerOptionId();
 
 				// ...and answer it.
 				screeningService.createScreeningAnswer(new CreateScreeningAnswerRequest() {{
