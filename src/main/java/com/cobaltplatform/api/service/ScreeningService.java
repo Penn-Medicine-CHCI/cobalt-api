@@ -37,6 +37,7 @@ import com.cobaltplatform.api.model.service.ScreeningQuestionWithAnswerOptions;
 import com.cobaltplatform.api.model.service.ScreeningSessionQuestion;
 import com.cobaltplatform.api.util.JavascriptExecutionException;
 import com.cobaltplatform.api.util.JavascriptExecutor;
+import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
@@ -317,29 +318,29 @@ public class ScreeningService {
 			throw new IllegalStateException(format("Screening session ID %s does not have a current screening session screening.",
 					screeningSessionId));
 
-		// Indicates programmer error
-		if (screeningSessionScreening.getCompleted())
-			throw new IllegalStateException(format("Screening session ID %s is completed, but screening session screening ID %s is not.",
-					screeningSessionId, screeningSessionScreening.getScreeningSessionScreeningId()));
-
 		List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions = findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
-		List<ScreeningAnswer> screeningAnswers = findScreeningAnswersByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionId());
+		List<ScreeningAnswer> screeningAnswers = findScreeningAnswersByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
 		Set<UUID> answeredScreeningAnswerOptionIds = screeningAnswers.stream()
 				.map(screeningAnswer -> screeningAnswer.getScreeningAnswerOptionId())
 				.collect(Collectors.toSet());
 
 		ScreeningQuestionWithAnswerOptions nextScreeningQuestionWithAnswerOptions = null;
 
+		// For each question, if there exists an answer ID that maps to the question's answer options, it's already answered.
 		for (ScreeningQuestionWithAnswerOptions screeningQuestionWithAnswerOptions : screeningQuestionsWithAnswerOptions) {
+			boolean foundAnswer = false;
+
 			for (ScreeningAnswerOption screeningAnswerOption : screeningQuestionWithAnswerOptions.getScreeningAnswerOptions()) {
-				if (!answeredScreeningAnswerOptionIds.contains(screeningAnswerOption.getScreeningAnswerOptionId())) {
-					nextScreeningQuestionWithAnswerOptions = screeningQuestionWithAnswerOptions;
+				if (answeredScreeningAnswerOptionIds.contains(screeningAnswerOption.getScreeningAnswerOptionId())) {
+					foundAnswer = true;
 					break;
 				}
 			}
 
-			if (nextScreeningQuestionWithAnswerOptions != null)
+			if (!foundAnswer) {
+				nextScreeningQuestionWithAnswerOptions = screeningQuestionWithAnswerOptions;
 				break;
+			}
 		}
 
 		// Normally won't be in this situation - could occur if there is a race with the same screening being worked on concurrently
@@ -351,7 +352,7 @@ public class ScreeningService {
 		screeningSessionQuestion.setScreeningQuestion(nextScreeningQuestionWithAnswerOptions.getScreeningQuestion());
 		screeningSessionQuestion.setScreeningAnswerOptions(nextScreeningQuestionWithAnswerOptions.getScreeningAnswerOptions());
 		screeningSessionQuestion.setScreeningSessionScreening(screeningSessionScreening);
-		// TODO: fill in anyting else?
+		// TODO: fill in anything else?
 
 		return Optional.of(screeningSessionQuestion);
 	}
@@ -523,7 +524,7 @@ public class ScreeningService {
 		ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
 
 		getDatabase().execute("""
-				INSERT INTO screening_answer(screening_answer_id, screening_answer_option_id, screening_session_screening_id, created_by_account_id, text)
+				INSERT INTO screening_answer (screening_answer_id, screening_answer_option_id, screening_session_screening_id, created_by_account_id, text)
 				VALUES (?,?,?,?,?)
 				""", screeningAnswerId, screeningAnswerOptionId, screeningSessionScreeningId, createdByAccountId, text);
 
@@ -554,13 +555,15 @@ public class ScreeningService {
 				output.crisisIndicated = false;
 				output.completed = false;
 				output.nextScreeningId = null;
+				output.hardStop = false;
 
-				// WHO-5 always comes first.
+				// WHO-5 always comes first.				
 				const who5 = input.screeningSessionScreenings[0];
 				const phq9 = input.screeningSessionScreenings.length > 1 ? input.screeningSessionScreenings[1] : null;
-				const gad7 = input.screeningSessionScreenings.length > 2 ? input.screeningSessionScreenings[2] : null;
+				const gad7 = input.screeningSessionScreenings.length > 2 ? input.screeningSessionScreenings[2] : null;				
+				const screeningsCount = input.screeningSessionScreenings.length;
 
-				if (input.screeningSessionScreenings.length === 1) {
+				if (screeningsCount === 1) {
 				  // We have not yet progressed past WHO-5
 				  if (who5.completed) {
 				    console.log("WHO-5 is complete.  Score is " + who5.score);
@@ -575,17 +578,27 @@ public class ScreeningService {
 				  } else {
 				    console.log("WHO-5 not complete yet.  Score is " + who5.score);
 				  }
-				} else if (input.screeningSessionScreenings.length === 2) {
+				} else if (screeningsCount === 2) {
 				  // We are on PHQ-9. Is it done yet?
 				  if (phq9.completed) {
-				    // TODO: set crisisIndicated as appropriate.  Also hard stop!
-				    // Given a question index, need to expose answer options and answer
-				    // so we can say things like "if Q9 is scored 1 or higher, crisis/hard stop"
-				    output.nextScreeningId = input.screeningsByName["GAD-7"].screeningId;
+				    console.log("PHQ-9 is complete.  Score is " + phq9.score);
+				    
+				    const phq9Questions = input.screeningResultsByScreeningSessionScreeningId[phq9.screeningSessionScreeningId];
+				    const phq9Question9 = phq9Questions[8];
+				  
+				    // PHQ-9 crisis is indicated if Q9 is scored >= 1
+				    if(phq9Question9.screeningAnswerOption.score >= 1) {
+				      console.log("Crisis indicated, hard stop.");
+				    	output.crisisIndicated = true;
+				    	output.completed = true;
+				    } else {
+				      console.log("Crisis not indicated, starting GAD-7");
+				    	output.nextScreeningId = input.screeningsByName["GAD-7"].screeningId;
+				    }				    
 				  } else {
 				    console.log("PHQ-9 not complete yet.  Score is " + phq9.score);
 				  }
-				} else if (input.screeningSessionScreenings.length === 3) {
+				} else if (screeningsCount === 3) {
 				  // We are on GAD-7. Is it done yet?
 				  if (gad7.completed) {
 				    // We're done!
@@ -598,17 +611,16 @@ public class ScreeningService {
 				  throw "There is an unexpected number of screening session screenings";
 				}
 
-				console.log("** TODO: finish up orchestration function");
+				console.log("** Finished orchestration function");
 								""";
+
 		getDatabase().execute("UPDATE screening_flow_version SET orchestration_function=? WHERE screening_flow_version_id=?", orchestrationFunctionJs, screeningSession.getScreeningFlowVersionId());
 		screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
 		// End temporary hack
 
 		// Pull data we'll need to pass in to the orchestration function
 		List<Screening> screenings = findScreeningsByInstitutionId(createdByAccount.getInstitutionId());
-		List<ScreeningSessionScreening> screeningSessionScreenings = findScreeningSessionScreeningsByScreeningSessionId(screeningSessionScreening.getScreeningSessionId());
-
-		OrchestrationFunctionOutput orchestrationFunctionOutput = executeScreeningFlowOrchestrationFunction(screeningFlowVersion.getOrchestrationFunction(), screenings, screeningSessionScreenings);
+		OrchestrationFunctionOutput orchestrationFunctionOutput = executeScreeningFlowOrchestrationFunction(screeningFlowVersion.getOrchestrationFunction(), screenings, screeningSession.getScreeningSessionId());
 
 		if (orchestrationFunctionOutput.getNextScreeningId() != null) {
 			Integer nextScreeningOrder = getDatabase().queryForObject("""
@@ -620,7 +632,7 @@ public class ScreeningService {
 			Screening nextScreening = findScreeningById(orchestrationFunctionOutput.getNextScreeningId()).get();
 			ScreeningVersion nextScreeningVersion = findScreeningVersionById(nextScreening.getActiveScreeningVersionId()).get();
 
-			getLogger().info("Screening session screening ID {} ({}) indicates that we should transition to screening ID {} ({}).", screeningSessionScreeningId,
+			getLogger().info("Orchestration function for screening session screening ID {} ({}) indicates that we should transition to screening ID {} ({}).", screeningSessionScreeningId,
 					screeningVersion.getScreeningTypeId().name(), nextScreening.getScreeningId(), nextScreeningVersion.getScreeningTypeId().name());
 
 			getDatabase().execute("""
@@ -631,13 +643,20 @@ public class ScreeningService {
 
 		// If orchestration logic says we are in crisis, trigger crisis flow
 		if (orchestrationFunctionOutput.getCrisisIndicated()) {
-			// TODO: if not already in crisis, flip to crisis.
-			// TODO: Create interaction instance to be sent to relevant care provider[s] that includes screening Q and A values from this flow + scores
-			// TODO: should we handle short-circuiting?
+			if (screeningSession.getCrisisIndicated()) {
+				getLogger().info("Orchestration function for screening session screening ID {} ({}) indicated crisis. " +
+						"This session was already marked as having a crisis indicated, so no action needed.", screeningSessionScreeningId, screeningVersion.getScreeningTypeId().name());
+			} else {
+				getLogger().info("Orchestration function for screening session screening ID {} ({}) indicated crisis.  Creating crisis interacting instance...",
+						screeningSessionScreeningId, screeningVersion.getScreeningTypeId().name());
+
+				// TODO: Create interaction instance to be sent to relevant care provider[s] that includes screening Q and A values from this flow + scores
+			}
 		}
 
 		if (orchestrationFunctionOutput.getCompleted()) {
-			getLogger().info("Orchestration function indicated that screening session ID {} is now complete.", screeningSession.getScreeningSessionId());
+			getLogger().info("Orchestration function for screening session screening ID {} ({}) indicated that screening session ID {} is now complete.", screeningSessionScreeningId,
+					screeningVersion.getScreeningTypeId().name(), screeningSession.getScreeningSessionId());
 			getDatabase().execute("UPDATE screening_session SET completed=TRUE WHERE screening_session_id=?", screeningSession.getScreeningSessionId());
 		}
 
@@ -690,10 +709,10 @@ public class ScreeningService {
 	@Nonnull
 	protected OrchestrationFunctionOutput executeScreeningFlowOrchestrationFunction(@Nonnull String screeningFlowOrchestrationFunctionJavascript,
 																																									@Nonnull List<Screening> screenings,
-																																									@Nonnull List<ScreeningSessionScreening> screeningSessionScreenings) {
+																																									@Nonnull UUID screeningSessionId) {
 		requireNonNull(screeningFlowOrchestrationFunctionJavascript);
 		requireNonNull(screenings);
-		requireNonNull(screeningSessionScreenings);
+		requireNonNull(screeningSessionId);
 
 		OrchestrationFunctionOutput orchestrationFunctionOutput;
 
@@ -703,10 +722,70 @@ public class ScreeningService {
 		for (Screening screening : screenings)
 			screeningsByName.put(screening.getName(), screening);
 
+		// Set up data so it's easy to access questions/answers to make decisions, look at scores, etc.
+		//
+		// Example:
+		//
+		// const phq9Questions = input.screeningQuestionsByScreeningSessionScreeningId[phq9.screeningSessionScreeningId];
+		// const phq9Question9 = phq9Questions[8];
+		//
+		// // The screeningAnswerOption and screeningAnswer objects are only present if the user has answered the question
+		// console.log(phq9Question9.screeningAnswerOption.score); // easy access to the score for the selected answer option
+		// console.log(phq9Question9.screeningAnswer.text); // the answer itself, in case you need it (e.g. free-form text)
+		List<ScreeningSessionScreening> screeningSessionScreenings = findScreeningSessionScreeningsByScreeningSessionId(screeningSessionId);
+		Map<UUID, Object> screeningResultsByScreeningSessionScreeningId = new HashMap<>();
+
+		// We could do this as a single query, but the dataset is small, and this is a little clearer and fast enough
+		for (ScreeningSessionScreening screeningSessionScreening : screeningSessionScreenings) {
+			List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions = findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
+			List<ScreeningAnswer> screeningAnswers = findScreeningAnswersByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
+			Map<UUID, ScreeningAnswer> screeningAnswersByAnswerOptionId = new HashMap<>(screeningAnswers.size());
+
+			for (ScreeningAnswer screeningAnswer : screeningAnswers)
+				screeningAnswersByAnswerOptionId.put(screeningAnswer.getScreeningAnswerOptionId(), screeningAnswer);
+
+			List<Map<String, Object>> screeningResults = new ArrayList<>();
+
+			for (ScreeningQuestionWithAnswerOptions screeningQuestionsWithAnswerOption : screeningQuestionsWithAnswerOptions) {
+				Map<String, Object> screeningResult = new HashMap<>();
+
+				ScreeningQuestion screeningQuestion = screeningQuestionsWithAnswerOption.getScreeningQuestion();
+
+				screeningResult.put("screeningQuestionId", screeningQuestion.getScreeningQuestionId());
+				screeningResult.put("screeningAnswerFormatId", screeningQuestion.getScreeningAnswerFormatId());
+				screeningResult.put("screeningAnswerContentHintId", screeningQuestion.getScreeningAnswerContentHintId());
+				screeningResult.put("questionText", screeningQuestion.getQuestionText());
+
+				for (ScreeningAnswerOption screeningAnswerOption : screeningQuestionsWithAnswerOption.getScreeningAnswerOptions()) {
+					ScreeningAnswer screeningAnswer = screeningAnswersByAnswerOptionId.get(screeningAnswerOption.getScreeningAnswerOptionId());
+
+					if (screeningAnswer != null) {
+						Map<String, Object> screeningAnswerOptionJson = new HashMap<>();
+						screeningAnswerOptionJson.put("screeningAnswerOptionId", screeningAnswerOption.getScreeningAnswerOptionId());
+						screeningAnswerOptionJson.put("answerOptionText", screeningAnswerOption.getAnswerOptionText());
+						screeningAnswerOptionJson.put("indicatesCrisis", screeningAnswerOption.getIndicatesCrisis());
+						screeningAnswerOptionJson.put("score", screeningAnswerOption.getScore());
+
+						Map<String, Object> screeningAnswerJson = new HashMap<>();
+						screeningAnswerJson.put("screeningAnswerId", screeningAnswer.getScreeningAnswerId());
+						screeningAnswerJson.put("text", screeningAnswer.getText());
+
+						screeningResult.put("screeningAnswerOption", screeningAnswerOptionJson);
+						screeningResult.put("screeningAnswer", screeningAnswerJson);
+					}
+				}
+
+				screeningResults.add(screeningResult);
+			}
+
+			screeningResultsByScreeningSessionScreeningId.put(screeningSessionScreening.getScreeningSessionScreeningId(), screeningResults);
+		}
+
 		Map<String, Object> context = new HashMap<>();
 		context.put("screenings", screenings);
 		context.put("screeningsByName", screeningsByName);
 		context.put("screeningSessionScreenings", screeningSessionScreenings);
+		context.put("screeningResultsByScreeningSessionScreeningId", screeningResultsByScreeningSessionScreeningId);
 
 		try {
 			orchestrationFunctionOutput = getJavascriptExecutor().execute(screeningFlowOrchestrationFunctionJavascript, context, OrchestrationFunctionOutput.class);
