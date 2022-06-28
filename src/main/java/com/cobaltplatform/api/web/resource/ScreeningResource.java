@@ -21,6 +21,9 @@ package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
+import com.cobaltplatform.api.model.api.response.ScreeningAnswerApiResponse.ScreeningAnswerApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ScreeningAnswerOptionApiResponse.ScreeningAnswerOptionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ScreeningQuestionApiResponse.ScreeningQuestionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ScreeningAnswer;
@@ -54,6 +57,7 @@ import javax.inject.Singleton;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -76,6 +80,12 @@ public class ScreeningResource {
 	@Nonnull
 	private final ScreeningSessionApiResponseFactory screeningSessionApiResponseFactory;
 	@Nonnull
+	private final ScreeningQuestionApiResponseFactory screeningQuestionApiResponseFactory;
+	@Nonnull
+	private final ScreeningAnswerOptionApiResponseFactory screeningAnswerOptionApiResponseFactory;
+	@Nonnull
+	private final ScreeningAnswerApiResponseFactory screeningAnswerApiResponseFactory;
+	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final Logger logger;
@@ -86,12 +96,18 @@ public class ScreeningResource {
 													 @Nonnull AuthorizationService authorizationService,
 													 @Nonnull RequestBodyParser requestBodyParser,
 													 @Nonnull ScreeningSessionApiResponseFactory screeningSessionApiResponseFactory,
+													 @Nonnull ScreeningQuestionApiResponseFactory screeningQuestionApiResponseFactory,
+													 @Nonnull ScreeningAnswerOptionApiResponseFactory screeningAnswerOptionApiResponseFactory,
+													 @Nonnull ScreeningAnswerApiResponseFactory screeningAnswerApiResponseFactory,
 													 @Nonnull Provider<CurrentContext> currentContextProvider) {
 		requireNonNull(screeningService);
 		requireNonNull(accountService);
 		requireNonNull(authorizationService);
 		requireNonNull(requestBodyParser);
 		requireNonNull(screeningSessionApiResponseFactory);
+		requireNonNull(screeningQuestionApiResponseFactory);
+		requireNonNull(screeningAnswerOptionApiResponseFactory);
+		requireNonNull(screeningAnswerApiResponseFactory);
 		requireNonNull(currentContextProvider);
 
 		this.screeningService = screeningService;
@@ -99,6 +115,9 @@ public class ScreeningResource {
 		this.authorizationService = authorizationService;
 		this.requestBodyParser = requestBodyParser;
 		this.screeningSessionApiResponseFactory = screeningSessionApiResponseFactory;
+		this.screeningQuestionApiResponseFactory = screeningQuestionApiResponseFactory;
+		this.screeningAnswerOptionApiResponseFactory = screeningAnswerOptionApiResponseFactory;
+		this.screeningAnswerApiResponseFactory = screeningAnswerApiResponseFactory;
 		this.currentContextProvider = currentContextProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
@@ -158,9 +177,13 @@ public class ScreeningResource {
 		List<ScreeningAnswer> screeningAnswers = getScreeningService().findScreeningAnswersByScreeningSessionScreeningIdAndQuestionId(screeningQuestionContextId.getScreeningSessionScreeningId(), screeningQuestionContextId.getScreeningQuestionId());
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("screeningQuestion", screeningQuestion); // TODO: API response factory
-			put("screeningAnswerOptions", screeningAnswerOptions); // TODO: API response factory
-			put("screeningAnswers", screeningAnswers); // TODO: API response factory
+			put("screeningQuestion", getScreeningQuestionApiResponseFactory().create(screeningQuestion));
+			put("screeningAnswerOptions", screeningAnswerOptions.stream()
+					.map(screeningAnswerOption -> getScreeningAnswerOptionApiResponseFactory().create(screeningAnswerOption))
+					.collect(Collectors.toList()));
+			put("screeningAnswers", screeningAnswers.stream()
+					.map(screeningAnswer -> getScreeningAnswerApiResponseFactory().create(screeningAnswer))
+					.collect(Collectors.toList()));
 		}});
 	}
 
@@ -241,6 +264,21 @@ public class ScreeningResource {
 	@Nonnull
 	protected ScreeningSessionApiResponseFactory getScreeningSessionApiResponseFactory() {
 		return this.screeningSessionApiResponseFactory;
+	}
+
+	@Nonnull
+	protected ScreeningQuestionApiResponseFactory getScreeningQuestionApiResponseFactory() {
+		return this.screeningQuestionApiResponseFactory;
+	}
+
+	@Nonnull
+	protected ScreeningAnswerOptionApiResponseFactory getScreeningAnswerOptionApiResponseFactory() {
+		return this.screeningAnswerOptionApiResponseFactory;
+	}
+
+	@Nonnull
+	protected ScreeningAnswerApiResponseFactory getScreeningAnswerApiResponseFactory() {
+		return this.screeningAnswerApiResponseFactory;
 	}
 
 	@Nonnull
