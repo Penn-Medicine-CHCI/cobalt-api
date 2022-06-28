@@ -290,6 +290,31 @@ public class ScreeningService {
 	}
 
 	@Nonnull
+	public List<ScreeningAnswer> findScreeningAnswersByScreeningSessionScreeningIdAndQuestionId(@Nullable UUID screeningSessionScreeningId,
+																																															@Nullable UUID screeningQuestionId) {
+		if (screeningSessionScreeningId == null || screeningQuestionId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+				SELECT sa.*
+				FROM screening_answer sa, screening_answer_option sao
+				WHERE sa.screening_session_screening_id=?
+				AND sa.screening_answer_option_id=sao.screening_answer_option_id
+				AND sao.screening_question_id=?
+				ORDER BY sa.created, sa.screening_answer_id
+				""", ScreeningAnswer.class, screeningSessionScreeningId, screeningQuestionId);
+	}
+
+	@Nonnull
+	public Optional<ScreeningSessionScreeningContext> findScreeningSessionScreeningContextByScreeningSessionScreeningAndQuestionIds(@Nullable UUID screeningSessionScreeningId,
+																																																																	@Nullable UUID screeningQuestionId) {
+		if (screeningSessionScreeningId == null || screeningQuestionId == null)
+			return Optional.empty();
+
+		throw new UnsupportedOperationException();
+	}
+
+	@Nonnull
 	public Optional<ScreeningSessionScreeningContext> findNextScreeningSessionScreeningContextByScreeningSessionId(@Nullable UUID screeningSessionId) {
 		if (screeningSessionId == null)
 			return Optional.empty();
@@ -404,7 +429,11 @@ public class ScreeningService {
 		if (screeningSessionScreeningId == null)
 			return Collections.emptyList();
 
-		return getDatabase().queryForList("SELECT * FROM screening_answer WHERE screening_session_screening_id=? ORDER BY created",
+		return getDatabase().queryForList("""
+						SELECT * FROM screening_answer
+						WHERE screening_session_screening_id=?
+						ORDER BY created, screening_answer_id
+						""",
 				ScreeningAnswer.class, screeningSessionScreeningId);
 	}
 

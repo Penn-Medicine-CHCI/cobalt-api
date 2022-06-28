@@ -90,7 +90,7 @@ public class ScreeningServiceTests {
 				//UUID screeningAnswerOptionId = screeningSessionScreeningContext.getScreeningAnswerOptions().get(0).getScreeningAnswerOptionId();
 
 				// Pick the last answer option...
-				 UUID screeningAnswerOptionId = screeningSessionScreeningContext.getScreeningAnswerOptions().get(
+				UUID screeningAnswerOptionId = screeningSessionScreeningContext.getScreeningAnswerOptions().get(
 						screeningSessionScreeningContext.getScreeningAnswerOptions().size() - 1).getScreeningAnswerOptionId();
 
 				// ...and answer it.
