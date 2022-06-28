@@ -28,7 +28,7 @@ import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningSession;
-import com.cobaltplatform.api.model.service.ScreeningSessionQuestion;
+import com.cobaltplatform.api.model.service.ScreeningSessionScreeningContext;
 import org.junit.Test;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -81,18 +81,21 @@ public class ScreeningServiceTests {
 			assertEquals("Account is missing a provider triage screening session", 1, screeningSessions.size());
 
 			while (true) {
-				ScreeningSessionQuestion screeningSessionQuestion = screeningService.findNextScreeningSessionQuestionByScreeningSessionId(screeningSessionId).orElse(null);
+				ScreeningSessionScreeningContext screeningSessionScreeningContext = screeningService.findNextScreeningSessionScreeningContextByScreeningSessionId(screeningSessionId).orElse(null);
 
-				if (screeningSessionQuestion == null)
+				if (screeningSessionScreeningContext == null)
 					break;
 
+				// Pick the first answer option...
+				//UUID screeningAnswerOptionId = screeningSessionScreeningContext.getScreeningAnswerOptions().get(0).getScreeningAnswerOptionId();
+
 				// Pick the last answer option...
-				UUID screeningAnswerOptionId = screeningSessionQuestion.getScreeningAnswerOptions().get(
-						screeningSessionQuestion.getScreeningAnswerOptions().size() - 1).getScreeningAnswerOptionId();
+				 UUID screeningAnswerOptionId = screeningSessionScreeningContext.getScreeningAnswerOptions().get(
+						screeningSessionScreeningContext.getScreeningAnswerOptions().size() - 1).getScreeningAnswerOptionId();
 
 				// ...and answer it.
 				screeningService.createScreeningAnswer(new CreateScreeningAnswerRequest() {{
-					setScreeningSessionScreeningId(screeningSessionQuestion.getScreeningSessionScreening().getScreeningSessionScreeningId());
+					setScreeningSessionScreeningId(screeningSessionScreeningContext.getScreeningSessionScreening().getScreeningSessionScreeningId());
 					setScreeningAnswerOptionId(screeningAnswerOptionId);
 					setCreatedByAccountId(accountId);
 				}});

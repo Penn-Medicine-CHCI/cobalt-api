@@ -34,10 +34,9 @@ import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.ScreeningSessionScreening;
 import com.cobaltplatform.api.model.db.ScreeningVersion;
 import com.cobaltplatform.api.model.service.ScreeningQuestionWithAnswerOptions;
-import com.cobaltplatform.api.model.service.ScreeningSessionQuestion;
+import com.cobaltplatform.api.model.service.ScreeningSessionScreeningContext;
 import com.cobaltplatform.api.util.JavascriptExecutionException;
 import com.cobaltplatform.api.util.JavascriptExecutor;
-import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
@@ -269,11 +268,6 @@ public class ScreeningService {
 				validationException.add(new FieldError("screeningFlowId", getStrings().get("Screening flow ID is invalid.")));
 		}
 
-		if (createdByAccount != null && targetAccount != null) {
-			if (!getAuthorizationService().canPerformScreening(createdByAccount, targetAccount))
-				validationException.add(getStrings().get("You are not authorized to create this screening session."));
-		}
-
 		if (validationException.hasErrors())
 			throw validationException;
 
@@ -296,7 +290,7 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	public Optional<ScreeningSessionQuestion> findNextScreeningSessionQuestionByScreeningSessionId(@Nullable UUID screeningSessionId) {
+	public Optional<ScreeningSessionScreeningContext> findNextScreeningSessionScreeningContextByScreeningSessionId(@Nullable UUID screeningSessionId) {
 		if (screeningSessionId == null)
 			return Optional.empty();
 
@@ -348,13 +342,13 @@ public class ScreeningService {
 			throw new IllegalStateException(format("Screening session ID %s is incomplete, but does not have any unanswered questions.",
 					screeningSessionScreening.getScreeningSessionScreeningId()));
 
-		ScreeningSessionQuestion screeningSessionQuestion = new ScreeningSessionQuestion();
-		screeningSessionQuestion.setScreeningQuestion(nextScreeningQuestionWithAnswerOptions.getScreeningQuestion());
-		screeningSessionQuestion.setScreeningAnswerOptions(nextScreeningQuestionWithAnswerOptions.getScreeningAnswerOptions());
-		screeningSessionQuestion.setScreeningSessionScreening(screeningSessionScreening);
+		ScreeningSessionScreeningContext screeningSessionScreeningContext = new ScreeningSessionScreeningContext();
+		screeningSessionScreeningContext.setScreeningQuestion(nextScreeningQuestionWithAnswerOptions.getScreeningQuestion());
+		screeningSessionScreeningContext.setScreeningAnswerOptions(nextScreeningQuestionWithAnswerOptions.getScreeningAnswerOptions());
+		screeningSessionScreeningContext.setScreeningSessionScreening(screeningSessionScreening);
 		// TODO: fill in anything else?
 
-		return Optional.of(screeningSessionQuestion);
+		return Optional.of(screeningSessionScreeningContext);
 	}
 
 	@Nonnull

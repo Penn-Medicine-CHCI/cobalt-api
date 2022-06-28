@@ -19,14 +19,9 @@
 
 package com.cobaltplatform.api.model.service;
 
-import com.cobaltplatform.api.model.db.Screening;
 import com.cobaltplatform.api.model.db.ScreeningAnswerOption;
-import com.cobaltplatform.api.model.db.ScreeningFlow;
-import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
 import com.cobaltplatform.api.model.db.ScreeningQuestion;
-import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.ScreeningSessionScreening;
-import com.cobaltplatform.api.model.db.ScreeningVersion;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -36,32 +31,13 @@ import java.util.List;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class ScreeningSessionQuestion {
-	@Nonnull
-	private ScreeningSession screeningSession;
+public class ScreeningSessionScreeningContext {
 	@Nonnull
 	private ScreeningSessionScreening screeningSessionScreening;
-	@Nonnull
-	private Screening screening;
-	@Nonnull
-	private ScreeningVersion screeningVersion;
-	@Nonnull
-	private ScreeningFlow screeningFlow;
-	@Nonnull
-	private ScreeningFlowVersion screeningFlowVersion;
 	@Nonnull
 	private ScreeningQuestion screeningQuestion;
 	@Nonnull
 	private List<ScreeningAnswerOption> screeningAnswerOptions;
-
-	@Nonnull
-	public ScreeningSession getScreeningSession() {
-		return this.screeningSession;
-	}
-
-	public void setScreeningSession(@Nonnull ScreeningSession screeningSession) {
-		this.screeningSession = screeningSession;
-	}
 
 	@Nonnull
 	public ScreeningSessionScreening getScreeningSessionScreening() {
@@ -70,42 +46,6 @@ public class ScreeningSessionQuestion {
 
 	public void setScreeningSessionScreening(@Nonnull ScreeningSessionScreening screeningSessionScreening) {
 		this.screeningSessionScreening = screeningSessionScreening;
-	}
-
-	@Nonnull
-	public Screening getScreening() {
-		return this.screening;
-	}
-
-	public void setScreening(@Nonnull Screening screening) {
-		this.screening = screening;
-	}
-
-	@Nonnull
-	public ScreeningVersion getScreeningVersion() {
-		return this.screeningVersion;
-	}
-
-	public void setScreeningVersion(@Nonnull ScreeningVersion screeningVersion) {
-		this.screeningVersion = screeningVersion;
-	}
-
-	@Nonnull
-	public ScreeningFlow getScreeningFlow() {
-		return this.screeningFlow;
-	}
-
-	public void setScreeningFlow(@Nonnull ScreeningFlow screeningFlow) {
-		this.screeningFlow = screeningFlow;
-	}
-
-	@Nonnull
-	public ScreeningFlowVersion getScreeningFlowVersion() {
-		return this.screeningFlowVersion;
-	}
-
-	public void setScreeningFlowVersion(@Nonnull ScreeningFlowVersion screeningFlowVersion) {
-		this.screeningFlowVersion = screeningFlowVersion;
 	}
 
 	@Nonnull
