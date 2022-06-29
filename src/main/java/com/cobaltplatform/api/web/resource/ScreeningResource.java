@@ -166,17 +166,29 @@ public class ScreeningResource {
 		requireNonNull(screeningQuestionContextIdAsString);
 
 		ScreeningQuestionContextId screeningQuestionContextId = new ScreeningQuestionContextId(screeningQuestionContextIdAsString);
-		ScreeningSessionScreeningContext screeningSessionScreeningContext = getScreeningService().findScreeningSessionScreeningContextByScreeningSessionScreeningAndQuestionIds(
+		ScreeningSessionScreeningContext screeningSessionScreeningContext = getScreeningService().findScreeningSessionScreeningContextByScreeningSessionScreeningIdAndQuestionId(
 				screeningQuestionContextId.getScreeningSessionScreeningId(), screeningQuestionContextId.getScreeningQuestionId()).orElse(null);
 
 		if (screeningSessionScreeningContext == null)
 			throw new NotFoundException();
 
+		// Questions, answer options, and any answers already given for this screening session screening
 		ScreeningQuestion screeningQuestion = screeningSessionScreeningContext.getScreeningQuestion();
 		List<ScreeningAnswerOption> screeningAnswerOptions = screeningSessionScreeningContext.getScreeningAnswerOptions();
 		List<ScreeningAnswer> screeningAnswers = getScreeningService().findCurrentScreeningAnswersByScreeningSessionScreeningIdAndQuestionId(screeningQuestionContextId.getScreeningSessionScreeningId(), screeningQuestionContextId.getScreeningQuestionId());
 
+		// Generate a link back to the previously-answered question in the same screening session.
+		// This might be a question in a previous screening session screening.
+		// This will not exist at all if we have not answered any questions yet.
+		ScreeningSessionScreeningContext previousScreeningSessionScreeningContext = getScreeningService().findPreviousScreeningSessionScreeningContextByScreeningSessionScreeningIdAndQuestionId(
+				screeningSessionScreeningContext.getScreeningSessionScreening().getScreeningSessionScreeningId(), screeningQuestion.getScreeningQuestionId()).orElse(null);
+
+		String previousScreeningQuestionContextId = previousScreeningSessionScreeningContext == null ? null :
+				new ScreeningQuestionContextId(previousScreeningSessionScreeningContext.getScreeningSessionScreening().getScreeningSessionScreeningId(),
+						previousScreeningSessionScreeningContext.getScreeningQuestion().getScreeningQuestionId()).getIdentifier();
+
 		return new ApiResponse(new HashMap<String, Object>() {{
+			put("previousScreeningQuestionContextId", previousScreeningQuestionContextId);
 			put("screeningQuestion", getScreeningQuestionApiResponseFactory().create(screeningQuestion));
 			put("screeningAnswerOptions", screeningAnswerOptions.stream()
 					.map(screeningAnswerOption -> getScreeningAnswerOptionApiResponseFactory().create(screeningAnswerOption))

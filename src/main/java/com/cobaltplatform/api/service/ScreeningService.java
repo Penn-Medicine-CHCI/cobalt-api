@@ -306,14 +306,26 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	public Optional<ScreeningSessionScreeningContext> findScreeningSessionScreeningContextByScreeningSessionScreeningAndQuestionIds(@Nullable UUID screeningSessionScreeningId,
-																																																																	@Nullable UUID screeningQuestionId) {
+	public Optional<ScreeningSessionScreeningContext> findScreeningSessionScreeningContextByScreeningSessionScreeningIdAndQuestionId(@Nullable UUID screeningSessionScreeningId,
+																																																																	 @Nullable UUID screeningQuestionId) {
 		if (screeningSessionScreeningId == null || screeningQuestionId == null)
 			return Optional.empty();
 
 		throw new UnsupportedOperationException();
 	}
 
+	public Optional<ScreeningSessionScreeningContext> findPreviousScreeningSessionScreeningContextByScreeningSessionScreeningIdAndQuestionId(@Nullable UUID screeningSessionScreeningId,
+																																																																					 @Nullable UUID screeningQuestionId) {
+		if (screeningSessionScreeningId == null || screeningQuestionId == null)
+			return Optional.empty();
+
+		// TODO: finish implementing
+		return Optional.empty();
+	}
+
+	// TODO: this currently finds the next unanswered question, if any.
+	// We want to also have a variant that takes as input a screening session screening ID and screening question ID,
+	// so we can find the next question after the given already-answered question (for example, if a user wants to navigate forward without re-answering the question)
 	@Nonnull
 	public Optional<ScreeningSessionScreeningContext> findNextScreeningSessionScreeningContextByScreeningSessionId(@Nullable UUID screeningSessionId) {
 		if (screeningSessionId == null)
@@ -371,7 +383,6 @@ public class ScreeningService {
 		screeningSessionScreeningContext.setScreeningQuestion(nextScreeningQuestionWithAnswerOptions.getScreeningQuestion());
 		screeningSessionScreeningContext.setScreeningAnswerOptions(nextScreeningQuestionWithAnswerOptions.getScreeningAnswerOptions());
 		screeningSessionScreeningContext.setScreeningSessionScreening(screeningSessionScreening);
-		// TODO: fill in anything else?
 
 		return Optional.of(screeningSessionScreeningContext);
 	}
@@ -545,6 +556,8 @@ public class ScreeningService {
 		ScreeningSession screeningSession = findScreeningSessionById(screeningSessionScreening.getScreeningSessionId()).get();
 		ScreeningVersion screeningVersion = findScreeningVersionById(screeningSessionScreening.getScreeningVersionId()).get();
 		ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
+
+		// TODO: if we are re-applying the same answers to an already-answered question, no-op and return immediately
 
 		// TODO: if we are re-answering in the same screening session screening, invalidate the existing answer and and downstream answers
 
