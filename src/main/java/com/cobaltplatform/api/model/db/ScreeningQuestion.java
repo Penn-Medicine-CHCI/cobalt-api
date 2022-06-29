@@ -45,6 +45,10 @@ public class ScreeningQuestion {
 	@Nullable
 	private String questionText;
 	@Nullable
+	private Integer minimumAnswerCount;
+	@Nullable
+	private Integer maximumAnswerCount;
+	@Nullable
 	private Integer displayOrder;
 	@Nullable
 	private Instant created;
@@ -103,6 +107,24 @@ public class ScreeningQuestion {
 
 	public void setQuestionText(@Nullable String questionText) {
 		this.questionText = questionText;
+	}
+
+	@Nullable
+	public Integer getMinimumAnswerCount() {
+		return this.minimumAnswerCount;
+	}
+
+	public void setMinimumAnswerCount(@Nullable Integer minimumAnswerCount) {
+		this.minimumAnswerCount = minimumAnswerCount;
+	}
+
+	@Nullable
+	public Integer getMaximumAnswerCount() {
+		return this.maximumAnswerCount;
+	}
+
+	public void setMaximumAnswerCount(@Nullable Integer maximumAnswerCount) {
+		this.maximumAnswerCount = maximumAnswerCount;
 	}
 
 	@Nullable

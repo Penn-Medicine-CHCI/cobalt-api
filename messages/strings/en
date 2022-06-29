@@ -66,5 +66,29 @@
         "seatsReserved == 0" : "No reservations"
       }
     ]
+  },
+  "You must choose at least {{minimumAnswerCount}} answers to proceed.": {
+    "translation" : "You must choose at least {{minimumAnswerCount}} {{answersPlaceholder}} to proceed.",
+    "placeholders" : {
+      "answersPlaceholder" : {
+        "value" : "minimumAnswerCount",
+        "translations" : {
+          "CARDINALITY_ONE" : "answer",
+          "CARDINALITY_OTHER" : "answers"
+        }
+      }
+    }
+  },
+  "You must choose at most {{maximumAnswerCount}} answers to proceed." : {
+    "translation" : "You must choose at most {{maximumAnswerCount}} {{answersPlaceholder}} to proceed.",
+    "placeholders" : {
+      "answersPlaceholder" : {
+        "value" : "maximumAnswerCount",
+        "translations" : {
+          "CARDINALITY_ONE" : "answer",
+          "CARDINALITY_OTHER" : "answers"
+        }
+      }
+    }
   }
 }

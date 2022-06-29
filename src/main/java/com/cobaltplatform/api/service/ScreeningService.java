@@ -31,7 +31,9 @@ import com.cobaltplatform.api.model.db.ScreeningAnswerOption;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
 import com.cobaltplatform.api.model.db.ScreeningQuestion;
+import com.cobaltplatform.api.model.db.ScreeningQuestionAnsweredStatus.ScreeningQuestionAnsweredStatusId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
+import com.cobaltplatform.api.model.db.ScreeningSessionAnsweredScreeningQuestion;
 import com.cobaltplatform.api.model.db.ScreeningSessionScreening;
 import com.cobaltplatform.api.model.db.ScreeningVersion;
 import com.cobaltplatform.api.model.service.ScreeningQuestionWithAnswerOptions;
@@ -59,7 +61,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -291,22 +292,6 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	public List<ScreeningAnswer> findCurrentScreeningAnswersByScreeningSessionScreeningIdAndQuestionId(@Nullable UUID screeningSessionScreeningId,
-																																																		 @Nullable UUID screeningQuestionId) {
-		if (screeningSessionScreeningId == null || screeningQuestionId == null)
-			return Collections.emptyList();
-
-		return getDatabase().queryForList("""
-				SELECT sa.*
-				FROM v_current_screening_answer sa, screening_answer_option sao
-				WHERE sa.screening_session_screening_id=?
-				AND sa.screening_answer_option_id=sao.screening_answer_option_id
-				AND sao.screening_question_id=?
-				ORDER BY sa.created, sa.screening_answer_id
-				""", ScreeningAnswer.class, screeningSessionScreeningId, screeningQuestionId);
-	}
-
-	@Nonnull
 	public Optional<ScreeningSessionScreeningContext> findScreeningSessionScreeningContextByScreeningSessionScreeningIdAndQuestionId(@Nullable UUID screeningSessionScreeningId,
 																																																																	 @Nullable UUID screeningQuestionId) {
 		if (screeningSessionScreeningId == null || screeningQuestionId == null)
@@ -350,35 +335,22 @@ public class ScreeningService {
 			throw new IllegalStateException(format("Screening session ID %s does not have a current screening session screening.",
 					screeningSessionId));
 
+		// Get all the questions + answer options
 		List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions = findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
-		List<ScreeningAnswer> screeningAnswers = findCurrentScreeningAnswersByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
-		Set<UUID> answeredScreeningAnswerOptionIds = screeningAnswers.stream()
-				.map(screeningAnswer -> screeningAnswer.getScreeningAnswerOptionId())
-				.collect(Collectors.toSet());
 
+		// Get all the questions that have already been answered for this session
+		List<ScreeningSessionAnsweredScreeningQuestion> screeningSessionAnsweredScreeningQuestions = findCurrentScreeningSessionAnsweredScreeningQuestionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
+
+		// Holder for the next unanswered question (if there is one)
 		ScreeningQuestionWithAnswerOptions nextScreeningQuestionWithAnswerOptions = null;
 
-		// For each question, if there exists an answer ID that maps to the question's answer options, it's already answered.
-		for (ScreeningQuestionWithAnswerOptions screeningQuestionWithAnswerOptions : screeningQuestionsWithAnswerOptions) {
-			boolean foundAnswer = false;
+		// These lists are both ordered by question order, so figure out "next" by picking the last-answered index + 1
+		if (screeningSessionAnsweredScreeningQuestions.size() < screeningQuestionsWithAnswerOptions.size())
+			nextScreeningQuestionWithAnswerOptions = screeningQuestionsWithAnswerOptions.get(screeningSessionAnsweredScreeningQuestions.size());
 
-			for (ScreeningAnswerOption screeningAnswerOption : screeningQuestionWithAnswerOptions.getScreeningAnswerOptions()) {
-				if (answeredScreeningAnswerOptionIds.contains(screeningAnswerOption.getScreeningAnswerOptionId())) {
-					foundAnswer = true;
-					break;
-				}
-			}
-
-			if (!foundAnswer) {
-				nextScreeningQuestionWithAnswerOptions = screeningQuestionWithAnswerOptions;
-				break;
-			}
-		}
-
-		// Normally won't be in this situation - could occur if there is a race with the same screening being worked on concurrently
+		// If everything was already answered, nothing comes next for this screening session screening
 		if (nextScreeningQuestionWithAnswerOptions == null)
-			throw new IllegalStateException(format("Screening session ID %s is incomplete, but does not have any unanswered questions.",
-					screeningSessionScreening.getScreeningSessionScreeningId()));
+			return Optional.empty();
 
 		ScreeningSessionScreeningContext screeningSessionScreeningContext = new ScreeningSessionScreeningContext();
 		screeningSessionScreeningContext.setScreeningQuestion(nextScreeningQuestionWithAnswerOptions.getScreeningQuestion());
@@ -437,16 +409,54 @@ public class ScreeningService {
 	}
 
 	@Nonnull
+	protected List<ScreeningSessionAnsweredScreeningQuestion> findCurrentScreeningSessionAnsweredScreeningQuestionsByScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
+		if (screeningSessionScreeningId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+				SELECT ssasq.*
+				FROM screening_session_answered_screening_question ssasq, screening_question sq
+				WHERE ssasq.screening_session_screening_id=?
+				AND ssasq.screening_question_answered_status_id=?
+				AND ssasq.screening_question_id=sq.screening_question_id
+				ORDER BY sq.display_order
+				""", ScreeningSessionAnsweredScreeningQuestion.class, screeningSessionScreeningId, ScreeningQuestionAnsweredStatusId.CURRENT);
+	}
+
+	@Nonnull
 	protected List<ScreeningAnswer> findCurrentScreeningAnswersByScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
 		if (screeningSessionScreeningId == null)
 			return Collections.emptyList();
 
 		return getDatabase().queryForList("""
-						SELECT * FROM v_current_screening_answer
-						WHERE screening_session_screening_id=?
-						ORDER BY created, screening_answer_id
-						""",
-				ScreeningAnswer.class, screeningSessionScreeningId);
+				SELECT sa.*
+				FROM screening_session_answered_screening_question ssasq, screening_question sq, screening_answer_option sao, screening_answer sa
+				WHERE ssasq.screening_session_screening_id=?
+				AND ssasq.screening_question_answered_status_id=?
+				AND ssasq.screening_question_id=sq.screening_question_id
+				AND sq.screening_question_id=sao.screening_question_id
+				AND sa.screening_answer_option_id=sao.screening_answer_option_id
+				ORDER BY sa.created, sa.screening_answer_id
+				""", ScreeningAnswer.class, screeningSessionScreeningId, ScreeningQuestionAnsweredStatusId.CURRENT);
+	}
+
+	@Nonnull
+	public List<ScreeningAnswer> findCurrentScreeningAnswersByScreeningSessionScreeningIdAndQuestionId(@Nullable UUID screeningSessionScreeningId,
+																																																		 @Nullable UUID screeningQuestionId) {
+		if (screeningSessionScreeningId == null || screeningQuestionId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+				SELECT sa.*
+				FROM screening_session_answered_screening_question ssasq, screening_question sq, screening_answer_option sao, screening_answer sa
+				WHERE ssasq.screening_session_screening_id=?
+				AND ssasq.screening_question_answered_status_id=?
+				AND ssasq.screening_question_id=?
+				AND ssasq.screening_question_id=sq.screening_question_id
+				AND sq.screening_question_id=sao.screening_question_id
+				AND sa.screening_answer_option_id=sao.screening_answer_option_id
+				ORDER BY sa.created, sa.screening_answer_id
+				""", ScreeningAnswer.class, screeningSessionScreeningId, ScreeningQuestionAnsweredStatusId.CURRENT, screeningQuestionId);
 	}
 
 	@Nonnull
@@ -491,66 +501,82 @@ public class ScreeningService {
 		} else {
 			screeningQuestion = findScreeningQuestionById(screeningQuestionId).orElse(null);
 
-			if (screeningQuestion == null)
+			if (screeningQuestion == null) {
 				validationException.add(new FieldError("screeningQuestionId", getStrings().get("Screening question ID is invalid.")));
-		}
+			} else {
+				ScreeningQuestion pinnedScreeningQuestion = screeningQuestion;
 
-		if (answers.size() == 0) {
-			// TODO: we should support a scenario in which the user can "skip" the question without answering, e.g.
-			// a group of checkboxes where none apply, or an optional text field.
-			validationException.add(new FieldError("answers", getStrings().get("You must answer the question to proceed.")));
-		} else {
-			int i = 0;
-			boolean illegalScreeningQuestionId = false;
-
-			for (CreateAnswerRequest answer : answers) {
-				UUID screeningAnswerOptionId = answer.getScreeningAnswerOptionId();
-				String text = trimToNull(answer.getText());
-
-				// Use the trimmed version for insert later
-				answer.setText(text);
-
-				if (screeningAnswerOptionId == null) {
-					validationException.add(new FieldError(format("answers.screeningAnswerOptionId[%d]", i), getStrings().get("Screening answer option ID is required.")));
+				if (answers.size() < screeningQuestion.getMinimumAnswerCount() || answers.size() > screeningQuestion.getMaximumAnswerCount()) {
+					// Special case, friendlier message
+					if (screeningQuestion.getMinimumAnswerCount() == 1 && screeningQuestion.getMaximumAnswerCount() == 1)
+						validationException.add(new FieldError("answers", getStrings().get("You must answer the question to proceed.")));
+					else if (answers.size() < screeningQuestion.getMinimumAnswerCount())
+						validationException.add(new FieldError("answers", getStrings().get("You must choose at least {{minimumAnswerCount}} answers to proceed.", new HashMap<>() {{
+							put("minimumAnswerCount", pinnedScreeningQuestion.getMinimumAnswerCount());
+						}})));
+					else if (answers.size() > screeningQuestion.getMaximumAnswerCount())
+						validationException.add(new FieldError("answers", getStrings().get("You must choose at most {{maximumAnswerCount}} answers to proceed.", new HashMap<>() {{
+							put("maximumAnswerCount", pinnedScreeningQuestion.getMaximumAnswerCount());
+						}})));
+					else
+						validationException.add(new FieldError("answers", getStrings().get("You must choose {{minimumAnswerCount}}-{{maximumAnswerCount}} answers to proceed.", new HashMap<>() {{
+							put("minimumAnswerCount", pinnedScreeningQuestion.getMinimumAnswerCount());
+							put("maximumAnswerCount", pinnedScreeningQuestion.getMaximumAnswerCount());
+						}})));
 				} else {
-					ScreeningAnswerOption screeningAnswerOption = findScreeningAnswerOptionById(screeningAnswerOptionId).orElse(null);
+					int i = 0;
+					boolean illegalScreeningQuestionId = false;
 
-					if (screeningAnswerOption == null) {
-						validationException.add(new FieldError(format("answers.screeningAnswerOptionId[%d]", i), getStrings().get("Screening answer option ID is invalid.")));
-					} else if (screeningQuestion != null) {
-						if (!screeningAnswerOption.getScreeningQuestionId().equals(screeningQuestionId))
-							illegalScreeningQuestionId = true;
+					for (CreateAnswerRequest answer : answers) {
+						UUID screeningAnswerOptionId = answer.getScreeningAnswerOptionId();
+						String text = trimToNull(answer.getText());
 
-						if (screeningQuestion.getScreeningAnswerFormatId() == ScreeningAnswerFormatId.FREEFORM_TEXT) {
-							if (text == null) {
-								validationException.add(new FieldError("text", getStrings().get("Your response is required.")));
-							} else {
-								switch (screeningQuestion.getScreeningAnswerContentHintId()) {
-									case PHONE_NUMBER -> {
-										text = getNormalizer().normalizePhoneNumberToE164(text).orElse(null);
+						// Use the trimmed version for insert later
+						answer.setText(text);
 
-										if (text == null)
-											validationException.add(new FieldError("text", getStrings().get("A valid phone number is required.")));
-									}
-									case EMAIL_ADDRESS -> {
-										text = getNormalizer().normalizeEmailAddress(text).orElse(null);
+						if (screeningAnswerOptionId == null) {
+							validationException.add(new FieldError(format("answers.screeningAnswerOptionId[%d]", i), getStrings().get("Screening answer option ID is required.")));
+						} else {
+							ScreeningAnswerOption screeningAnswerOption = findScreeningAnswerOptionById(screeningAnswerOptionId).orElse(null);
 
-										if (!isValidEmailAddress(text))
-											validationException.add(new FieldError("text", getStrings().get("A valid email address is required.")));
+							if (screeningAnswerOption == null) {
+								validationException.add(new FieldError(format("answers.screeningAnswerOptionId[%d]", i), getStrings().get("Screening answer option ID is invalid.")));
+							} else if (screeningQuestion != null) {
+								if (!screeningAnswerOption.getScreeningQuestionId().equals(screeningQuestionId))
+									illegalScreeningQuestionId = true;
+
+								if (screeningQuestion.getScreeningAnswerFormatId() == ScreeningAnswerFormatId.FREEFORM_TEXT) {
+									if (text == null) {
+										validationException.add(new FieldError("text", getStrings().get("Your response is required.")));
+									} else {
+										switch (screeningQuestion.getScreeningAnswerContentHintId()) {
+											case PHONE_NUMBER -> {
+												text = getNormalizer().normalizePhoneNumberToE164(text).orElse(null);
+
+												if (text == null)
+													validationException.add(new FieldError("text", getStrings().get("A valid phone number is required.")));
+											}
+											case EMAIL_ADDRESS -> {
+												text = getNormalizer().normalizeEmailAddress(text).orElse(null);
+
+												if (!isValidEmailAddress(text))
+													validationException.add(new FieldError("text", getStrings().get("A valid email address is required.")));
+											}
+										}
 									}
 								}
+
+								screeningAnswerOptions.add(screeningAnswerOption);
 							}
 						}
 
-						screeningAnswerOptions.add(screeningAnswerOption);
+						++i;
 					}
+
+					if (illegalScreeningQuestionId)
+						validationException.add(getStrings().get("You can only supply answers for the current question."));
 				}
-
-				++i;
 			}
-
-			if (illegalScreeningQuestionId)
-				validationException.add(getStrings().get("You can only supply answers for the current question."));
 		}
 
 		if (createdByAccountId == null) {
@@ -596,6 +622,17 @@ public class ScreeningService {
 		// TODO: if we are re-applying the same answers to an already-answered question, no-op and return immediately
 
 		// TODO: if we are re-answering in the same screening session screening, invalidate the existing answer and and downstream answers
+		// Do this by getting the created timestamp of the previous screening_session_answered_screening_question,
+		// finding any screening_session_answered_screening_question records created after that timestamp, and marking them as
+		// implicitly invalidated.  Mark the one we're replacing as explicitly invalidated.
+
+		UUID screeningSessionAnsweredScreeningQuestionId = UUID.randomUUID();
+
+		getDatabase().execute("""
+				INSERT INTO screening_session_answered_screening_question (screening_session_answered_screening_question_id,
+				screening_session_screening_id, screening_question_id, screening_question_answered_status_id)
+				VALUES (?,?,?,?)
+				""", screeningSessionAnsweredScreeningQuestionId, screeningSessionScreeningId, screeningQuestionId, ScreeningQuestionAnsweredStatusId.CURRENT);
 
 		List<UUID> screeningAnswerIds = new ArrayList<>(answers.size());
 
@@ -605,9 +642,9 @@ public class ScreeningService {
 			screeningAnswerIds.add(screeningAnswerId);
 
 			getDatabase().execute("""
-					INSERT INTO screening_answer (screening_answer_id, screening_answer_option_id, screening_session_screening_id, created_by_account_id, text)
+					INSERT INTO screening_answer (screening_answer_id, screening_answer_option_id, screening_session_answered_screening_question_id, created_by_account_id, text)
 					VALUES (?,?,?,?,?)
-					""", screeningAnswerId, answer.getScreeningAnswerOptionId(), screeningSessionScreeningId, createdByAccountId, answer.getText());
+					""", screeningAnswerId, answer.getScreeningAnswerOptionId(), screeningSessionAnsweredScreeningQuestionId, createdByAccountId, answer.getText());
 		}
 
 		// Score the individual screening by calling its scoring function
@@ -669,7 +706,7 @@ public class ScreeningService {
 				    const phq9Question9 = phq9Questions[8];
 				  
 				    // PHQ-9 crisis is indicated if Q9 is scored >= 1
-				    if(phq9Question9.screeningAnswerOption.score >= 1) {
+				    if(phq9Question9.screeningResponses[0].screeningAnswerOption.score >= 1) {
 				      console.log("Crisis indicated, hard stop.");
 				    	output.crisisIndicated = true;
 				    	output.completed = true;
@@ -811,9 +848,9 @@ public class ScreeningService {
 		// const phq9Questions = input.screeningQuestionsByScreeningSessionScreeningId[phq9.screeningSessionScreeningId];
 		// const phq9Question9 = phq9Questions[8];
 		//
-		// // The screeningAnswerOption and screeningAnswer objects are only present if the user has answered the question
-		// console.log(phq9Question9.screeningAnswerOption.score); // easy access to the score for the selected answer option
-		// console.log(phq9Question9.screeningAnswer.text); // the answer itself, in case you need it (e.g. free-form text)
+		// // The screeningResponses array is only present if the user has answered the question in some way
+		// console.log(phq9Question9.screeningResponses[0].screeningAnswerOption.score); // easy access to the score for the selected answer option
+		// console.log(phq9Question9.screeningResponses[0].screeningAnswer.text); // the answers themselves, in case you need them (e.g. free-form text)
 		List<ScreeningSessionScreening> screeningSessionScreenings = findScreeningSessionScreeningsByScreeningSessionId(screeningSessionId);
 		Map<UUID, Object> screeningResultsByScreeningSessionScreeningId = new HashMap<>();
 
@@ -832,31 +869,45 @@ public class ScreeningService {
 				Map<String, Object> screeningResult = new HashMap<>();
 
 				ScreeningQuestion screeningQuestion = screeningQuestionsWithAnswerOption.getScreeningQuestion();
+				List<ScreeningAnswerOption> screeningAnswerOptions = screeningQuestionsWithAnswerOption.getScreeningAnswerOptions();
+				Map<UUID, ScreeningAnswerOption> screeningAnswerOptionsById = new HashMap<>(screeningAnswerOptions.size());
+
+				for (ScreeningAnswerOption screeningAnswerOption : screeningAnswerOptions)
+					screeningAnswerOptionsById.put(screeningAnswerOption.getScreeningAnswerOptionId(), screeningAnswerOption);
 
 				screeningResult.put("screeningQuestionId", screeningQuestion.getScreeningQuestionId());
 				screeningResult.put("screeningAnswerFormatId", screeningQuestion.getScreeningAnswerFormatId());
 				screeningResult.put("screeningAnswerContentHintId", screeningQuestion.getScreeningAnswerContentHintId());
 				screeningResult.put("questionText", screeningQuestion.getQuestionText());
+				screeningResult.put("minimumAnswerCount", screeningQuestion.getMinimumAnswerCount());
+				screeningResult.put("maximumAnswerCount", screeningQuestion.getMaximumAnswerCount());
 
-				for (ScreeningAnswerOption screeningAnswerOption : screeningQuestionsWithAnswerOption.getScreeningAnswerOptions()) {
-					ScreeningAnswer screeningAnswer = screeningAnswersByAnswerOptionId.get(screeningAnswerOption.getScreeningAnswerOptionId());
+				// Each element in this list is a screeningAnswerOption and screeningAnswer pair
+				List<Map<String, Object>> screeningResponses = new ArrayList<>();
 
-					if (screeningAnswer != null) {
-						Map<String, Object> screeningAnswerOptionJson = new HashMap<>();
+				for (ScreeningAnswer screeningAnswer : screeningAnswers) {
+					if (screeningAnswerOptionsById.keySet().contains(screeningAnswer.getScreeningAnswerOptionId())) {
+						ScreeningAnswerOption screeningAnswerOption = screeningAnswerOptionsById.get(screeningAnswer.getScreeningAnswerOptionId());
+
+						Map<String, Object> screeningAnswerOptionJson = new HashMap<>(4);
 						screeningAnswerOptionJson.put("screeningAnswerOptionId", screeningAnswerOption.getScreeningAnswerOptionId());
 						screeningAnswerOptionJson.put("answerOptionText", screeningAnswerOption.getAnswerOptionText());
 						screeningAnswerOptionJson.put("indicatesCrisis", screeningAnswerOption.getIndicatesCrisis());
 						screeningAnswerOptionJson.put("score", screeningAnswerOption.getScore());
 
-						Map<String, Object> screeningAnswerJson = new HashMap<>();
+						Map<String, Object> screeningAnswerJson = new HashMap<>(2);
 						screeningAnswerJson.put("screeningAnswerId", screeningAnswer.getScreeningAnswerId());
 						screeningAnswerJson.put("text", screeningAnswer.getText());
 
-						screeningResult.put("screeningAnswerOption", screeningAnswerOptionJson);
-						screeningResult.put("screeningAnswer", screeningAnswerJson);
+						Map<String, Object> screeningResponse = new HashMap<>(2);
+						screeningResponse.put("screeningAnswerOption", screeningAnswerOptionJson);
+						screeningResponse.put("screeningAnswer", screeningAnswerJson);
+
+						screeningResponses.add(screeningResponse);
 					}
 				}
 
+				screeningResult.put("screeningResponses", screeningResponses);
 				screeningResults.add(screeningResult);
 			}
 

@@ -43,7 +43,7 @@ public class ScreeningAnswerApiResponse {
 	@Nonnull
 	private final UUID screeningAnswerOptionId;
 	@Nonnull
-	private final UUID screeningSessionScreeningId;
+	private final UUID screeningSessionAnsweredScreeningQuestionId;
 	@Nonnull
 	private final UUID createdByAccountId;
 	@Nullable
@@ -70,7 +70,7 @@ public class ScreeningAnswerApiResponse {
 
 		this.screeningAnswerId = screeningAnswer.getScreeningAnswerId();
 		this.screeningAnswerOptionId = screeningAnswer.getScreeningAnswerOptionId();
-		this.screeningSessionScreeningId = screeningAnswer.getScreeningSessionScreeningId();
+		this.screeningSessionAnsweredScreeningQuestionId = screeningAnswer.getScreeningSessionAnsweredScreeningQuestionId();
 		this.createdByAccountId = screeningAnswer.getCreatedByAccountId();
 		this.text = screeningAnswer.getText();
 		this.created = screeningAnswer.getCreated();
@@ -88,8 +88,8 @@ public class ScreeningAnswerApiResponse {
 	}
 
 	@Nonnull
-	public UUID getScreeningSessionScreeningId() {
-		return this.screeningSessionScreeningId;
+	public UUID getScreeningSessionAnsweredScreeningQuestionId() {
+		return this.screeningSessionAnsweredScreeningQuestionId;
 	}
 
 	@Nonnull

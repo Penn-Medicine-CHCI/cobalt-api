@@ -28,13 +28,13 @@ import static java.lang.String.format;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class ScreeningAnswerStatus {
+public class ScreeningQuestionAnsweredStatus {
 	@Nullable
-	private ScreeningAnswerStatusId screeningAnswerStatusId;
+	private ScreeningQuestionAnsweredStatusId screeningQuestionAnsweredStatusId;
 	@Nullable
 	private String description;
 
-	public enum ScreeningAnswerStatusId {
+	public enum ScreeningQuestionAnsweredStatusId {
 		CURRENT,
 		INVALIDATED_EXPLICITLY,
 		INVALIDATED_IMPLICITLY
@@ -42,16 +42,16 @@ public class ScreeningAnswerStatus {
 
 	@Override
 	public String toString() {
-		return format("%s{screeningAnswerStatusId=%s, description=%s}", getClass().getSimpleName(), getScreeningAnswerStatusId().name(), getDescription());
+		return format("%s{screeningQuestionAnsweredStatusId=%s, description=%s}", getClass().getSimpleName(), getScreeningQuestionAnsweredStatusId().name(), getDescription());
 	}
 
 	@Nullable
-	public ScreeningAnswerStatusId getScreeningAnswerStatusId() {
-		return this.screeningAnswerStatusId;
+	public ScreeningQuestionAnsweredStatusId getScreeningQuestionAnsweredStatusId() {
+		return this.screeningQuestionAnsweredStatusId;
 	}
 
-	public void setScreeningAnswerStatusId(@Nullable ScreeningAnswerStatusId screeningAnswerStatusId) {
-		this.screeningAnswerStatusId = screeningAnswerStatusId;
+	public void setScreeningQuestionAnsweredStatusId(@Nullable ScreeningQuestionAnsweredStatusId screeningQuestionAnsweredStatusId) {
+		this.screeningQuestionAnsweredStatusId = screeningQuestionAnsweredStatusId;
 	}
 
 	@Nullable

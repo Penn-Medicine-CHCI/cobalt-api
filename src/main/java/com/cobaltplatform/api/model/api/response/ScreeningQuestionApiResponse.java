@@ -52,6 +52,14 @@ public class ScreeningQuestionApiResponse {
 	@Nonnull
 	private final String questionText;
 	@Nonnull
+	private final Integer minimumAnswerCount;
+	@Nonnull
+	private final String minimumAnswerCountDescription;
+	@Nonnull
+	private final Integer maximumAnswerCount;
+	@Nonnull
+	private final String maximumAnswerCountDescription;
+	@Nonnull
 	private final Integer displayOrder;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
@@ -75,6 +83,10 @@ public class ScreeningQuestionApiResponse {
 		this.screeningAnswerContentHintId = screeningQuestion.getScreeningAnswerContentHintId();
 		this.questionText = screeningQuestion.getQuestionText();
 		this.introText = screeningQuestion.getIntroText();
+		this.minimumAnswerCount = screeningQuestion.getMinimumAnswerCount();
+		this.minimumAnswerCountDescription = formatter.formatInteger(screeningQuestion.getMinimumAnswerCount());
+		this.maximumAnswerCount = screeningQuestion.getMaximumAnswerCount();
+		this.maximumAnswerCountDescription = formatter.formatInteger(screeningQuestion.getMaximumAnswerCount());
 		this.displayOrder = screeningQuestion.getDisplayOrder();
 	}
 
@@ -106,6 +118,26 @@ public class ScreeningQuestionApiResponse {
 	@Nonnull
 	public String getQuestionText() {
 		return this.questionText;
+	}
+
+	@Nonnull
+	public Integer getMinimumAnswerCount() {
+		return this.minimumAnswerCount;
+	}
+
+	@Nonnull
+	public String getMinimumAnswerCountDescription() {
+		return this.minimumAnswerCountDescription;
+	}
+
+	@Nonnull
+	public Integer getMaximumAnswerCount() {
+		return this.maximumAnswerCount;
+	}
+
+	@Nonnull
+	public String getMaximumAnswerCountDescription() {
+		return this.maximumAnswerCountDescription;
 	}
 
 	@Nonnull

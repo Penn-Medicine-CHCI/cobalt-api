@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.ScreeningQuestionAnsweredStatus.ScreeningQuestionAnsweredStatusId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
@@ -28,39 +30,19 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class ScreeningAnswer {
-	@Nullable
-	private UUID screeningAnswerId;
-	@Nullable
-	private UUID screeningAnswerOptionId;
+public class ScreeningSessionAnsweredScreeningQuestion {
 	@Nullable
 	private UUID screeningSessionAnsweredScreeningQuestionId;
 	@Nullable
-	private UUID createdByAccountId;
+	private UUID screeningSessionScreeningId;
 	@Nullable
-	private String text;
+	private UUID screeningSessionScreeningQuestionId;
+	@Nullable
+	private ScreeningQuestionAnsweredStatusId screeningQuestionAnsweredStatusId;
 	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
-
-	@Nullable
-	public UUID getScreeningAnswerId() {
-		return this.screeningAnswerId;
-	}
-
-	public void setScreeningAnswerId(@Nullable UUID screeningAnswerId) {
-		this.screeningAnswerId = screeningAnswerId;
-	}
-
-	@Nullable
-	public UUID getScreeningAnswerOptionId() {
-		return this.screeningAnswerOptionId;
-	}
-
-	public void setScreeningAnswerOptionId(@Nullable UUID screeningAnswerOptionId) {
-		this.screeningAnswerOptionId = screeningAnswerOptionId;
-	}
 
 	@Nullable
 	public UUID getScreeningSessionAnsweredScreeningQuestionId() {
@@ -72,21 +54,30 @@ public class ScreeningAnswer {
 	}
 
 	@Nullable
-	public UUID getCreatedByAccountId() {
-		return this.createdByAccountId;
+	public UUID getScreeningSessionScreeningId() {
+		return this.screeningSessionScreeningId;
 	}
 
-	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
-		this.createdByAccountId = createdByAccountId;
+	public void setScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
+		this.screeningSessionScreeningId = screeningSessionScreeningId;
 	}
 
 	@Nullable
-	public String getText() {
-		return this.text;
+	public UUID getScreeningSessionScreeningQuestionId() {
+		return this.screeningSessionScreeningQuestionId;
 	}
 
-	public void setText(@Nullable String text) {
-		this.text = text;
+	public void setScreeningSessionScreeningQuestionId(@Nullable UUID screeningSessionScreeningQuestionId) {
+		this.screeningSessionScreeningQuestionId = screeningSessionScreeningQuestionId;
+	}
+
+	@Nullable
+	public ScreeningQuestionAnsweredStatusId getScreeningQuestionAnsweredStatusId() {
+		return this.screeningQuestionAnsweredStatusId;
+	}
+
+	public void setScreeningQuestionAnsweredStatusId(@Nullable ScreeningQuestionAnsweredStatusId screeningQuestionAnsweredStatusId) {
+		this.screeningQuestionAnsweredStatusId = screeningQuestionAnsweredStatusId;
 	}
 
 	@Nullable
