@@ -298,7 +298,35 @@ public class ScreeningService {
 		if (screeningSessionScreeningId == null || screeningQuestionId == null)
 			return Optional.empty();
 
-		throw new UnsupportedOperationException();
+		ScreeningSessionScreening screeningSessionScreening = findScreeningSessionScreeningById(screeningSessionScreeningId).orElse(null);
+
+		if (screeningSessionScreening == null)
+			return Optional.empty();
+
+		// Get all the questions + answer options
+		List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions = findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
+
+		// Get all the questions that have already been answered for this session
+		List<ScreeningSessionAnsweredScreeningQuestion> screeningSessionAnsweredScreeningQuestions = findCurrentScreeningSessionAnsweredScreeningQuestionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
+
+		ScreeningQuestionWithAnswerOptions screeningQuestionWithAnswerOptions = null;
+
+		for (ScreeningQuestionWithAnswerOptions potentialScreeningQuestionWithAnswerOptions : screeningQuestionsWithAnswerOptions) {
+			if (potentialScreeningQuestionWithAnswerOptions.getScreeningQuestion().getScreeningQuestionId().equals(screeningQuestionId)) {
+				screeningQuestionWithAnswerOptions = potentialScreeningQuestionWithAnswerOptions;
+				break;
+			}
+		}
+
+		if (screeningQuestionWithAnswerOptions == null)
+			return Optional.empty();
+
+		ScreeningSessionScreeningContext screeningSessionScreeningContext = new ScreeningSessionScreeningContext();
+		screeningSessionScreeningContext.setScreeningQuestion(screeningQuestionWithAnswerOptions.getScreeningQuestion());
+		screeningSessionScreeningContext.setScreeningAnswerOptions(screeningQuestionWithAnswerOptions.getScreeningAnswerOptions());
+		screeningSessionScreeningContext.setScreeningSessionScreening(screeningSessionScreening);
+
+		return Optional.of(screeningSessionScreeningContext);
 	}
 
 	public Optional<ScreeningSessionScreeningContext> findPreviousScreeningSessionScreeningContextByScreeningSessionScreeningIdAndQuestionId(@Nullable UUID screeningSessionScreeningId,
