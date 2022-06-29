@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.util;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
 import com.google.gson.FieldNamingPolicy;
@@ -403,6 +404,39 @@ public class JsonMapper {
 				requireNonNull(jsonSerializationContext);
 
 				return localDateTime == null ? null : new JsonPrimitive(localDateTime.toString());
+			}
+		});
+
+		gsonBuilder.registerTypeAdapter(ScreeningQuestionContextId.class, new JsonDeserializer<ScreeningQuestionContextId>() {
+			@Override
+			@Nullable
+			public ScreeningQuestionContextId deserialize(@Nullable JsonElement json, @Nonnull Type type,
+																										@Nonnull JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
+				requireNonNull(type);
+				requireNonNull(jsonDeserializationContext);
+
+				if (json == null)
+					return null;
+
+				JsonPrimitive jsonPrimitive = json.getAsJsonPrimitive();
+
+				if (jsonPrimitive.isString()) {
+					String string = trimToNull(json.getAsString());
+					return string == null ? null : new ScreeningQuestionContextId(string);
+				}
+
+				throw new IllegalArgumentException(format("Unable to convert JSON value '%s' to %s", json, type));
+			}
+		});
+
+		gsonBuilder.registerTypeAdapter(ScreeningQuestionContextId.class, new JsonSerializer<ScreeningQuestionContextId>() {
+			@Override
+			@Nullable
+			public JsonElement serialize(@Nullable ScreeningQuestionContextId screeningQuestionContextId, @Nonnull Type type, @Nonnull JsonSerializationContext jsonSerializationContext) {
+				requireNonNull(type);
+				requireNonNull(jsonSerializationContext);
+
+				return screeningQuestionContextId == null ? null : new JsonPrimitive(screeningQuestionContextId.getIdentifier());
 			}
 		});
 	}

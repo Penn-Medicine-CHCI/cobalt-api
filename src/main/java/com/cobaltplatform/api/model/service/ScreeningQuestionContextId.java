@@ -68,6 +68,12 @@ public class ScreeningQuestionContextId {
 		}
 	}
 
+	@Override
+	@Nonnull
+	public String toString() {
+		return getIdentifier();
+	}
+
 	@Nonnull
 	public String getIdentifier() {
 		return this.identifier;

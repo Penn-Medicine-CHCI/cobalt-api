@@ -228,7 +228,8 @@ public class ScreeningResource {
 		CreateScreeningAnswersRequest request = getRequestBodyParser().parse(requestBody, CreateScreeningAnswersRequest.class);
 		request.setCreatedByAccountId(account.getAccountId());
 
-		ScreeningSessionScreening screeningSessionScreening = getScreeningService().findScreeningSessionScreeningById(request.getScreeningSessionScreeningId()).orElse(null);
+		ScreeningSessionScreening screeningSessionScreening = request.getScreeningQuestionContextId() == null ? null :
+				getScreeningService().findScreeningSessionScreeningById(request.getScreeningQuestionContextId().getScreeningSessionScreeningId()).orElse(null);
 
 		if (screeningSessionScreening == null)
 			throw new NotFoundException();

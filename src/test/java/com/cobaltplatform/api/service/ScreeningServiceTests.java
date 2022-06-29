@@ -28,6 +28,7 @@ import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningSession;
+import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.cobaltplatform.api.model.service.ScreeningSessionScreeningContext;
 import org.junit.Test;
 
@@ -93,10 +94,13 @@ public class ScreeningServiceTests {
 				UUID screeningAnswerOptionId = screeningSessionScreeningContext.getScreeningAnswerOptions().get(
 						screeningSessionScreeningContext.getScreeningAnswerOptions().size() - 1).getScreeningAnswerOptionId();
 
+				ScreeningQuestionContextId screeningQuestionContextId = new ScreeningQuestionContextId(
+						screeningSessionScreeningContext.getScreeningSessionScreening().getScreeningSessionScreeningId(),
+						screeningSessionScreeningContext.getScreeningQuestion().getScreeningQuestionId());
+
 				// ...and answer it.
 				screeningService.createScreeningAnswers(new CreateScreeningAnswersRequest() {{
-					setScreeningSessionScreeningId(screeningSessionScreeningContext.getScreeningSessionScreening().getScreeningSessionScreeningId());
-					setScreeningQuestionId(screeningSessionScreeningContext.getScreeningQuestion().getScreeningQuestionId());
+					setScreeningQuestionContextId(screeningQuestionContextId);
 					setCreatedByAccountId(accountId);
 					setAnswers(List.of(new CreateAnswerRequest() {{
 						setScreeningAnswerOptionId(screeningAnswerOptionId);

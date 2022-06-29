@@ -109,6 +109,7 @@ import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportR
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
 import com.cobaltplatform.api.model.qualifier.AuditLogged;
 import com.cobaltplatform.api.model.qualifier.NotAuditLogged;
+import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.util.AmazonSqsManager;
@@ -137,10 +138,15 @@ import com.lokalized.Strings;
 import com.pyranid.Database;
 import com.pyranid.StatementLog;
 import com.pyranid.StatementLogger;
+import com.soklet.converter.AbstractValueConverter;
+import com.soklet.converter.ValueConversionException;
+import com.soklet.converter.ValueConverterRegistry;
 import com.soklet.jetty.JettyServer;
 import com.soklet.util.InstanceProvider;
 import com.soklet.web.HashedUrlManifest;
+import com.soklet.web.request.DefaultRequestHandler;
 import com.soklet.web.request.RequestContext;
+import com.soklet.web.request.RequestHandler;
 import com.soklet.web.request.SokletFilter;
 import com.soklet.web.response.ResponseHandler;
 import com.soklet.web.response.writer.ApiResponseWriter;
@@ -702,6 +708,26 @@ public class AppModule extends AbstractModule {
 				.mappingFormat(getConfiguration().getJsonMappingFormat())
 				.mappingNullability(MappingNullability.EXCLUDE_NULLS)
 				.build();
+	}
+
+	@Provides
+	@Singleton
+	public RequestHandler provideRequestHandler(@Nonnull InstanceProvider instanceProvider) {
+		requireNonNull(instanceProvider);
+
+		// Support for special ScreeningQuestionContextId type
+		ValueConverterRegistry valueConverterRegistry = new ValueConverterRegistry();
+		valueConverterRegistry.add(new AbstractValueConverter<String, ScreeningQuestionContextId>() {
+			@Override
+			public ScreeningQuestionContextId convert(String from) throws ValueConversionException {
+				if (from == null)
+					return null;
+
+				return new ScreeningQuestionContextId(from);
+			}
+		});
+
+		return new DefaultRequestHandler(instanceProvider, valueConverterRegistry);
 	}
 
 	@Provides

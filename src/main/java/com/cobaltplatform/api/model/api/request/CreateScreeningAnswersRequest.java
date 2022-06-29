@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.model.api.request;
 
+import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.List;
@@ -30,30 +32,19 @@ import java.util.UUID;
 @NotThreadSafe
 public class CreateScreeningAnswersRequest {
 	@Nullable
-	private UUID screeningSessionScreeningId;
-	@Nullable
-	private UUID screeningQuestionId;
+	private ScreeningQuestionContextId screeningQuestionContextId;
 	@Nullable
 	private UUID createdByAccountId;
 	@Nullable
 	private List<CreateAnswerRequest> answers;
 
 	@Nullable
-	public UUID getScreeningSessionScreeningId() {
-		return this.screeningSessionScreeningId;
+	public ScreeningQuestionContextId getScreeningQuestionContextId() {
+		return this.screeningQuestionContextId;
 	}
 
-	public void setScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
-		this.screeningSessionScreeningId = screeningSessionScreeningId;
-	}
-
-	@Nullable
-	public UUID getScreeningQuestionId() {
-		return this.screeningQuestionId;
-	}
-
-	public void setScreeningQuestionId(@Nullable UUID screeningQuestionId) {
-		this.screeningQuestionId = screeningQuestionId;
+	public void setScreeningQuestionContextId(@Nullable ScreeningQuestionContextId screeningQuestionContextId) {
+		this.screeningQuestionContextId = screeningQuestionContextId;
 	}
 
 	@Nullable

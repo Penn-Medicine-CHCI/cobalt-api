@@ -36,6 +36,7 @@ import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.ScreeningSessionAnsweredScreeningQuestion;
 import com.cobaltplatform.api.model.db.ScreeningSessionScreening;
 import com.cobaltplatform.api.model.db.ScreeningVersion;
+import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.cobaltplatform.api.model.service.ScreeningQuestionWithAnswerOptions;
 import com.cobaltplatform.api.model.service.ScreeningSessionScreeningContext;
 import com.cobaltplatform.api.util.JavascriptExecutionException;
@@ -506,30 +507,35 @@ public class ScreeningService {
 	public List<UUID> createScreeningAnswers(@Nullable CreateScreeningAnswersRequest request) {
 		requireNonNull(request);
 
-		UUID screeningSessionScreeningId = request.getScreeningSessionScreeningId();
-		UUID screeningQuestionId = request.getScreeningQuestionId();
+		ScreeningQuestionContextId screeningQuestionContextId = request.getScreeningQuestionContextId();
 		List<CreateAnswerRequest> answers = request.getAnswers() == null ? List.of() : request.getAnswers().stream()
 				.filter(answer -> answer != null)
 				.collect(Collectors.toList());
 		UUID createdByAccountId = request.getCreatedByAccountId();
+		UUID screeningSessionScreeningId = null;
+		UUID screeningQuestionId = null;
 		ScreeningSessionScreening screeningSessionScreening = null;
-		ScreeningQuestion screeningQuestion = null;
+		ScreeningQuestion screeningQuestion;
 		List<ScreeningAnswerOption> screeningAnswerOptions = new ArrayList<>();
 		Account createdByAccount = null;
 		ValidationException validationException = new ValidationException();
 
-		if (screeningSessionScreeningId == null) {
-			validationException.add(new FieldError("screeningSessionScreeningId", getStrings().get("Screening session screening ID is required.")));
+		if (screeningQuestionContextId == null) {
+			validationException.add(new FieldError("screeningQuestionContextId", getStrings().get("Screening question context ID is required.")));
 		} else {
+			screeningSessionScreeningId = screeningQuestionContextId.getScreeningSessionScreeningId();
 			screeningSessionScreening = findScreeningSessionScreeningById(screeningSessionScreeningId).orElse(null);
 
 			if (screeningSessionScreening == null)
-				validationException.add(new FieldError("screeningSessionScreening", getStrings().get("Screening session screening ID is invalid.")));
+				validationException.add(new FieldError("screeningQuestionContextId", getStrings().get("Screening question context ID specifies an invalid screening session screening ID.")));
+
+			screeningQuestionId = screeningQuestionContextId.getScreeningQuestionId();
+
+			if (screeningQuestionId == null)
+				validationException.add(new FieldError("screeningQuestionContextId", getStrings().get("Screening question context ID specifies an invalid screening question ID.")));
 		}
 
-		if (screeningQuestionId == null) {
-			validationException.add(new FieldError("screeningQuestionId", getStrings().get("Screening question ID is required.")));
-		} else {
+		if (screeningQuestionId != null && screeningSessionScreening != null) {
 			screeningQuestion = findScreeningQuestionById(screeningQuestionId).orElse(null);
 
 			if (screeningQuestion == null) {
