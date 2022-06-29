@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.ScreeningAnswerStatus.ScreeningAnswerStatusId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
@@ -33,6 +35,8 @@ public class ScreeningAnswer {
 	private UUID screeningAnswerId;
 	@Nullable
 	private UUID screeningAnswerOptionId;
+	@Nullable
+	private ScreeningAnswerStatusId screeningAnswerStatusId;
 	@Nullable
 	private UUID screeningSessionScreeningId;
 	@Nullable
@@ -60,6 +64,15 @@ public class ScreeningAnswer {
 
 	public void setScreeningAnswerOptionId(@Nullable UUID screeningAnswerOptionId) {
 		this.screeningAnswerOptionId = screeningAnswerOptionId;
+	}
+
+	@Nullable
+	public ScreeningAnswerStatusId getScreeningAnswerStatusId() {
+		return this.screeningAnswerStatusId;
+	}
+
+	public void setScreeningAnswerStatusId(@Nullable ScreeningAnswerStatusId screeningAnswerStatusId) {
+		this.screeningAnswerStatusId = screeningAnswerStatusId;
 	}
 
 	@Nullable

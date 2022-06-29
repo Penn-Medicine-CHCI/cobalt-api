@@ -174,7 +174,7 @@ public class ScreeningResource {
 
 		ScreeningQuestion screeningQuestion = screeningSessionScreeningContext.getScreeningQuestion();
 		List<ScreeningAnswerOption> screeningAnswerOptions = screeningSessionScreeningContext.getScreeningAnswerOptions();
-		List<ScreeningAnswer> screeningAnswers = getScreeningService().findScreeningAnswersByScreeningSessionScreeningIdAndQuestionId(screeningQuestionContextId.getScreeningSessionScreeningId(), screeningQuestionContextId.getScreeningQuestionId());
+		List<ScreeningAnswer> screeningAnswers = getScreeningService().findCurrentScreeningAnswersByScreeningSessionScreeningIdAndQuestionId(screeningQuestionContextId.getScreeningSessionScreeningId(), screeningQuestionContextId.getScreeningQuestionId());
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("screeningQuestion", getScreeningQuestionApiResponseFactory().create(screeningQuestion));

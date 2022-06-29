@@ -206,10 +206,21 @@ CREATE TABLE screening_answer_option (
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_answer_option FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
+--
+CREATE TABLE screening_answer_status (
+	screening_answer_status_id TEXT PRIMARY KEY,
+	description TEXT NOT NULL
+);
+
+INSERT INTO screening_answer_status (screening_answer_status_id, description) VALUES ('CURRENT', 'Current');
+INSERT INTO screening_answer_status (screening_answer_status_id, description) VALUES ('INVALIDATED_EXPLICITLY', 'Invalidated (Explicitly)');
+INSERT INTO screening_answer_status (screening_answer_status_id, description) VALUES ('INVALIDATED_IMPLICITLY', 'Invalidated (Implicitly)');
+
 -- What the user actually answers
 CREATE TABLE screening_answer (
   screening_answer_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	screening_answer_option_id UUID NOT NULL REFERENCES screening_answer_option,
+	screening_answer_status_id TEXT NOT NULL REFERENCES screening_answer_status DEFAULT 'CURRENT',
 	screening_session_screening_id UUID NOT NULL REFERENCES screening_session_screening,
 	created_by_account_id UUID NOT NULL REFERENCES account (account_id),
 	text TEXT, -- Usage depends on question format, currently used to hold freeform text value entered by user
@@ -218,6 +229,10 @@ CREATE TABLE screening_answer (
 );
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_answer FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+CREATE VIEW v_current_screening_answer AS
+SELECT * FROM screening_answer
+WHERE screening_answer_status_id = 'CURRENT';
 
 -- Each institution can optionally have a screening flow ID that can be triggered prior to provider triage
 ALTER TABLE institution ADD COLUMN provider_triage_screening_flow_id UUID REFERENCES screening_flow;

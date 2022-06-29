@@ -290,14 +290,14 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	public List<ScreeningAnswer> findScreeningAnswersByScreeningSessionScreeningIdAndQuestionId(@Nullable UUID screeningSessionScreeningId,
-																																															@Nullable UUID screeningQuestionId) {
+	public List<ScreeningAnswer> findCurrentScreeningAnswersByScreeningSessionScreeningIdAndQuestionId(@Nullable UUID screeningSessionScreeningId,
+																																																		 @Nullable UUID screeningQuestionId) {
 		if (screeningSessionScreeningId == null || screeningQuestionId == null)
 			return Collections.emptyList();
 
 		return getDatabase().queryForList("""
 				SELECT sa.*
-				FROM screening_answer sa, screening_answer_option sao
+				FROM v_current_screening_answer sa, screening_answer_option sao
 				WHERE sa.screening_session_screening_id=?
 				AND sa.screening_answer_option_id=sao.screening_answer_option_id
 				AND sao.screening_question_id=?
@@ -338,7 +338,7 @@ public class ScreeningService {
 					screeningSessionId));
 
 		List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions = findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
-		List<ScreeningAnswer> screeningAnswers = findScreeningAnswersByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
+		List<ScreeningAnswer> screeningAnswers = findCurrentScreeningAnswersByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
 		Set<UUID> answeredScreeningAnswerOptionIds = screeningAnswers.stream()
 				.map(screeningAnswer -> screeningAnswer.getScreeningAnswerOptionId())
 				.collect(Collectors.toSet());
@@ -425,12 +425,12 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	protected List<ScreeningAnswer> findScreeningAnswersByScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
+	protected List<ScreeningAnswer> findCurrentScreeningAnswersByScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
 		if (screeningSessionScreeningId == null)
 			return Collections.emptyList();
 
 		return getDatabase().queryForList("""
-						SELECT * FROM screening_answer
+						SELECT * FROM v_current_screening_answer
 						WHERE screening_session_screening_id=?
 						ORDER BY created, screening_answer_id
 						""",
@@ -546,6 +546,8 @@ public class ScreeningService {
 		ScreeningVersion screeningVersion = findScreeningVersionById(screeningSessionScreening.getScreeningVersionId()).get();
 		ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
 
+		// TODO: if we are re-answering in the same screening session screening, invalidate the existing answer and and downstream answers
+
 		getDatabase().execute("""
 				INSERT INTO screening_answer (screening_answer_id, screening_answer_option_id, screening_session_screening_id, created_by_account_id, text)
 				VALUES (?,?,?,?,?)
@@ -554,7 +556,7 @@ public class ScreeningService {
 		// Score the individual screening by calling its scoring function
 		List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions =
 				findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreeningId);
-		List<ScreeningAnswer> screeningAnswers = findScreeningAnswersByScreeningSessionScreeningId(screeningSessionScreeningId);
+		List<ScreeningAnswer> screeningAnswers = findCurrentScreeningAnswersByScreeningSessionScreeningId(screeningSessionScreeningId);
 
 		ScreeningScoringOutput screeningScoringOutput = executeScreeningScoringFunction(
 				screeningVersion.getScoringFunction(), screeningQuestionsWithAnswerOptions, screeningAnswers);
@@ -761,7 +763,7 @@ public class ScreeningService {
 		// We could do this as a single query, but the dataset is small, and this is a little clearer and fast enough
 		for (ScreeningSessionScreening screeningSessionScreening : screeningSessionScreenings) {
 			List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions = findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
-			List<ScreeningAnswer> screeningAnswers = findScreeningAnswersByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
+			List<ScreeningAnswer> screeningAnswers = findCurrentScreeningAnswersByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
 			Map<UUID, ScreeningAnswer> screeningAnswersByAnswerOptionId = new HashMap<>(screeningAnswers.size());
 
 			for (ScreeningAnswer screeningAnswer : screeningAnswers)
