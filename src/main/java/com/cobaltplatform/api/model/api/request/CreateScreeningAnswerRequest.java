@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.api.request;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -31,11 +32,9 @@ public class CreateScreeningAnswerRequest {
 	@Nullable
 	private UUID screeningSessionScreeningId;
 	@Nullable
-	private UUID screeningAnswerOptionId;
-	@Nullable
 	private UUID createdByAccountId;
 	@Nullable
-	private String text;
+	private List<CreateAnswerRequest> answers;
 
 	@Nullable
 	public UUID getScreeningSessionScreeningId() {
@@ -44,15 +43,6 @@ public class CreateScreeningAnswerRequest {
 
 	public void setScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
 		this.screeningSessionScreeningId = screeningSessionScreeningId;
-	}
-
-	@Nullable
-	public UUID getScreeningAnswerOptionId() {
-		return this.screeningAnswerOptionId;
-	}
-
-	public void setScreeningAnswerOptionId(@Nullable UUID screeningAnswerOptionId) {
-		this.screeningAnswerOptionId = screeningAnswerOptionId;
 	}
 
 	@Nullable
@@ -65,11 +55,37 @@ public class CreateScreeningAnswerRequest {
 	}
 
 	@Nullable
-	public String getText() {
-		return this.text;
+	public List<CreateAnswerRequest> getAnswers() {
+		return this.answers;
 	}
 
-	public void setText(@Nullable String text) {
-		this.text = text;
+	public void setAnswers(@Nullable List<CreateAnswerRequest> answers) {
+		this.answers = answers;
+	}
+
+	@NotThreadSafe
+	public static class CreateAnswerRequest {
+		@Nullable
+		private UUID screeningAnswerOptionId;
+		@Nullable
+		private String text;
+
+		@Nullable
+		public UUID getScreeningAnswerOptionId() {
+			return this.screeningAnswerOptionId;
+		}
+
+		public void setScreeningAnswerOptionId(@Nullable UUID screeningAnswerOptionId) {
+			this.screeningAnswerOptionId = screeningAnswerOptionId;
+		}
+
+		@Nullable
+		public String getText() {
+			return this.text;
+		}
+
+		public void setText(@Nullable String text) {
+			this.text = text;
+		}
 	}
 }

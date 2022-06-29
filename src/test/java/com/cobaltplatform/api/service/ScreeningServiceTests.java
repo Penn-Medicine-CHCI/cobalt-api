@@ -81,7 +81,7 @@ public class ScreeningServiceTests {
 			assertEquals("Account is missing a provider triage screening session", 1, screeningSessions.size());
 
 			while (true) {
-				ScreeningSessionScreeningContext screeningSessionScreeningContext = screeningService.findNextScreeningSessionScreeningContextByScreeningSessionId(screeningSessionId).orElse(null);
+				ScreeningSessionScreeningContext screeningSessionScreeningContext = screeningService.findNextUnansweredScreeningSessionScreeningContextByScreeningSessionId(screeningSessionId).orElse(null);
 
 				if (screeningSessionScreeningContext == null)
 					break;
@@ -94,10 +94,12 @@ public class ScreeningServiceTests {
 						screeningSessionScreeningContext.getScreeningAnswerOptions().size() - 1).getScreeningAnswerOptionId();
 
 				// ...and answer it.
-				screeningService.createScreeningAnswer(new CreateScreeningAnswerRequest() {{
+				screeningService.createScreeningAnswers(new CreateScreeningAnswerRequest() {{
 					setScreeningSessionScreeningId(screeningSessionScreeningContext.getScreeningSessionScreening().getScreeningSessionScreeningId());
-					setScreeningAnswerOptionId(screeningAnswerOptionId);
 					setCreatedByAccountId(accountId);
+					setAnswers(List.of(new CreateAnswerRequest() {{
+						setScreeningAnswerOptionId(screeningAnswerOptionId);
+					}}));
 				}});
 			}
 		});

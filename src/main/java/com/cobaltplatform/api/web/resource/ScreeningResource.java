@@ -148,7 +148,7 @@ public class ScreeningResource {
 		UUID screeningSessionId = getScreeningService().createScreeningSession(request);
 		ScreeningSession screeningSession = getScreeningService().findScreeningSessionById(screeningSessionId).get();
 
-		ScreeningSessionScreeningContext nextScreeningSessionScreeningContext = getScreeningService().findNextScreeningSessionScreeningContextByScreeningSessionId(screeningSessionId).orElse(null);
+		ScreeningSessionScreeningContext nextScreeningSessionScreeningContext = getScreeningService().findNextUnansweredScreeningSessionScreeningContextByScreeningSessionId(screeningSessionId).orElse(null);
 		ScreeningQuestionContextId nextScreeningQuestionContextId = new ScreeningQuestionContextId(
 				nextScreeningSessionScreeningContext.getScreeningSessionScreening().getScreeningSessionScreeningId(),
 				nextScreeningSessionScreeningContext.getScreeningQuestion().getScreeningQuestionId());

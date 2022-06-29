@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswerRequest;
+import com.cobaltplatform.api.model.api.request.CreateScreeningAnswerRequest.CreateAnswerRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -55,6 +56,7 @@ import javax.inject.Singleton;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -327,7 +329,7 @@ public class ScreeningService {
 	// We want to also have a variant that takes as input a screening session screening ID and screening question ID,
 	// so we can find the next question after the given already-answered question (for example, if a user wants to navigate forward without re-answering the question)
 	@Nonnull
-	public Optional<ScreeningSessionScreeningContext> findNextScreeningSessionScreeningContextByScreeningSessionId(@Nullable UUID screeningSessionId) {
+	public Optional<ScreeningSessionScreeningContext> findNextUnansweredScreeningSessionScreeningContextByScreeningSessionId(@Nullable UUID screeningSessionId) {
 		if (screeningSessionId == null)
 			return Optional.empty();
 
@@ -461,16 +463,16 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	public UUID createScreeningAnswer(@Nullable CreateScreeningAnswerRequest request) {
+	public List<UUID> createScreeningAnswers(@Nullable CreateScreeningAnswerRequest request) {
 		requireNonNull(request);
 
 		UUID screeningSessionScreeningId = request.getScreeningSessionScreeningId();
-		UUID screeningAnswerOptionId = request.getScreeningAnswerOptionId();
+		List<CreateAnswerRequest> answers = request.getAnswers() == null ? List.of() : request.getAnswers().stream()
+				.filter(answer -> answer != null)
+				.collect(Collectors.toList());
 		UUID createdByAccountId = request.getCreatedByAccountId();
-		String text = trimToNull(request.getText());
-		UUID screeningAnswerId = UUID.randomUUID();
 		ScreeningSessionScreening screeningSessionScreening = null;
-		ScreeningAnswerOption screeningAnswerOption = null;
+		List<ScreeningAnswerOption> screeningAnswerOptions = new ArrayList<>();
 		Account createdByAccount = null;
 		ValidationException validationException = new ValidationException();
 
@@ -483,13 +485,62 @@ public class ScreeningService {
 				validationException.add(new FieldError("screeningSessionScreening", getStrings().get("Screening session screening ID is invalid.")));
 		}
 
-		if (screeningAnswerOptionId == null) {
-			validationException.add(new FieldError("screeningAnswerOptionId", getStrings().get("Screening answer option ID is required.")));
+		if (answers.size() == 0) {
+			// TODO: we should support a scenario in which the user can "skip" the question without answering, e.g.
+			// a group of checkboxes where none apply, or an optional text field.
+			validationException.add(new FieldError("answers", getStrings().get("You must answer the question to proceed.")));
 		} else {
-			screeningAnswerOption = findScreeningAnswerOptionById(screeningAnswerOptionId).orElse(null);
+			int i = 0;
+			Set<UUID> screeningQuestionIds = new HashSet<>();
 
-			if (screeningAnswerOption == null)
-				validationException.add(new FieldError("screeningAnswerOptionId", getStrings().get("Screening answer option ID is invalid.")));
+			for (CreateAnswerRequest answer : answers) {
+				UUID screeningAnswerOptionId = answer.getScreeningAnswerOptionId();
+				String text = trimToNull(answer.getText());
+
+				// Use the trimmed version for insert later
+				answer.setText(text);
+
+				if (screeningAnswerOptionId == null) {
+					validationException.add(new FieldError(format("answers.screeningAnswerOptionId[%d]", i), getStrings().get("Screening answer option ID is required.")));
+				} else {
+					ScreeningAnswerOption screeningAnswerOption = findScreeningAnswerOptionById(screeningAnswerOptionId).orElse(null);
+
+					if (screeningAnswerOption == null) {
+						validationException.add(new FieldError(format("answers.screeningAnswerOptionId[%d]", i), getStrings().get("Screening answer option ID is invalid.")));
+					} else {
+						ScreeningQuestion screeningQuestion = findScreeningQuestionById(screeningAnswerOption.getScreeningQuestionId()).get();
+						screeningQuestionIds.add(screeningAnswerOption.getScreeningQuestionId());
+
+						if (screeningQuestion.getScreeningAnswerFormatId() == ScreeningAnswerFormatId.FREEFORM_TEXT) {
+							if (text == null) {
+								validationException.add(new FieldError("text", getStrings().get("Your response is required.")));
+							} else {
+								switch (screeningQuestion.getScreeningAnswerContentHintId()) {
+									case PHONE_NUMBER -> {
+										text = getNormalizer().normalizePhoneNumberToE164(text).orElse(null);
+
+										if (text == null)
+											validationException.add(new FieldError("text", getStrings().get("A valid phone number is required.")));
+									}
+									case EMAIL_ADDRESS -> {
+										text = getNormalizer().normalizeEmailAddress(text).orElse(null);
+
+										if (!isValidEmailAddress(text))
+											validationException.add(new FieldError("text", getStrings().get("A valid email address is required.")));
+									}
+								}
+							}
+						}
+
+						screeningAnswerOptions.add(screeningAnswerOption);
+					}
+				}
+
+				++i;
+			}
+
+			if (screeningQuestionIds.size() > 1)
+				throw new IllegalStateException("Attempted to answer multiple questions at the same time");
 		}
 
 		if (createdByAccountId == null) {
@@ -499,31 +550,6 @@ public class ScreeningService {
 
 			if (createdByAccount == null)
 				validationException.add(new FieldError("createdByAccountId", getStrings().get("Created by account ID is invalid.")));
-		}
-
-		if (screeningAnswerOption != null) {
-			ScreeningQuestion screeningQuestion = findScreeningQuestionById(screeningAnswerOption.getScreeningQuestionId()).get();
-
-			if (screeningQuestion.getScreeningAnswerFormatId() == ScreeningAnswerFormatId.FREEFORM_TEXT) {
-				if (text == null) {
-					validationException.add(new FieldError("text", getStrings().get("Your response is required.")));
-				} else {
-					switch (screeningQuestion.getScreeningAnswerContentHintId()) {
-						case PHONE_NUMBER -> {
-							text = getNormalizer().normalizePhoneNumberToE164(text).orElse(null);
-
-							if (text == null)
-								validationException.add(new FieldError("text", getStrings().get("A valid phone number is required.")));
-						}
-						case EMAIL_ADDRESS -> {
-							text = getNormalizer().normalizeEmailAddress(text).orElse(null);
-
-							if (!isValidEmailAddress(text))
-								validationException.add(new FieldError("text", getStrings().get("A valid email address is required.")));
-						}
-					}
-				}
-			}
 		}
 
 		if (validationException.hasErrors())
@@ -561,10 +587,18 @@ public class ScreeningService {
 
 		// TODO: if we are re-answering in the same screening session screening, invalidate the existing answer and and downstream answers
 
-		getDatabase().execute("""
-				INSERT INTO screening_answer (screening_answer_id, screening_answer_option_id, screening_session_screening_id, created_by_account_id, text)
-				VALUES (?,?,?,?,?)
-				""", screeningAnswerId, screeningAnswerOptionId, screeningSessionScreeningId, createdByAccountId, text);
+		List<UUID> screeningAnswerIds = new ArrayList<>(answers.size());
+
+		// TODO: we can do a batch insert for slightly better performance here
+		for (CreateAnswerRequest answer : answers) {
+			UUID screeningAnswerId = UUID.randomUUID();
+			screeningAnswerIds.add(screeningAnswerId);
+
+			getDatabase().execute("""
+					INSERT INTO screening_answer (screening_answer_id, screening_answer_option_id, screening_session_screening_id, created_by_account_id, text)
+					VALUES (?,?,?,?,?)
+					""", screeningAnswerId, answer.getScreeningAnswerOptionId(), screeningSessionScreeningId, createdByAccountId, answer.getText());
+		}
 
 		// Score the individual screening by calling its scoring function
 		List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions =
@@ -700,7 +734,7 @@ public class ScreeningService {
 
 		// TODO: execute scoring function and insert triage-related records (support role, etc.)
 
-		return screeningAnswerId;
+		return screeningAnswerIds;
 	}
 
 	@Nonnull
