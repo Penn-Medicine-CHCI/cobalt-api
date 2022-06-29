@@ -21,7 +21,7 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.IntegrationTestExecutor;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
-import com.cobaltplatform.api.model.api.request.CreateScreeningAnswerRequest;
+import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Institution;
@@ -94,8 +94,9 @@ public class ScreeningServiceTests {
 						screeningSessionScreeningContext.getScreeningAnswerOptions().size() - 1).getScreeningAnswerOptionId();
 
 				// ...and answer it.
-				screeningService.createScreeningAnswers(new CreateScreeningAnswerRequest() {{
+				screeningService.createScreeningAnswers(new CreateScreeningAnswersRequest() {{
 					setScreeningSessionScreeningId(screeningSessionScreeningContext.getScreeningSessionScreening().getScreeningSessionScreeningId());
+					setScreeningQuestionId(screeningSessionScreeningContext.getScreeningQuestion().getScreeningQuestionId());
 					setCreatedByAccountId(accountId);
 					setAnswers(List.of(new CreateAnswerRequest() {{
 						setScreeningAnswerOptionId(screeningAnswerOptionId);

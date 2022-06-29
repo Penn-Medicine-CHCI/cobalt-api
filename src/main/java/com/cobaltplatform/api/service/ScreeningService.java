@@ -19,8 +19,8 @@
 
 package com.cobaltplatform.api.service;
 
-import com.cobaltplatform.api.model.api.request.CreateScreeningAnswerRequest;
-import com.cobaltplatform.api.model.api.request.CreateScreeningAnswerRequest.CreateAnswerRequest;
+import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest;
+import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest.CreateAnswerRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -56,7 +56,6 @@ import javax.inject.Singleton;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -463,15 +462,17 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	public List<UUID> createScreeningAnswers(@Nullable CreateScreeningAnswerRequest request) {
+	public List<UUID> createScreeningAnswers(@Nullable CreateScreeningAnswersRequest request) {
 		requireNonNull(request);
 
 		UUID screeningSessionScreeningId = request.getScreeningSessionScreeningId();
+		UUID screeningQuestionId = request.getScreeningQuestionId();
 		List<CreateAnswerRequest> answers = request.getAnswers() == null ? List.of() : request.getAnswers().stream()
 				.filter(answer -> answer != null)
 				.collect(Collectors.toList());
 		UUID createdByAccountId = request.getCreatedByAccountId();
 		ScreeningSessionScreening screeningSessionScreening = null;
+		ScreeningQuestion screeningQuestion = null;
 		List<ScreeningAnswerOption> screeningAnswerOptions = new ArrayList<>();
 		Account createdByAccount = null;
 		ValidationException validationException = new ValidationException();
@@ -485,13 +486,22 @@ public class ScreeningService {
 				validationException.add(new FieldError("screeningSessionScreening", getStrings().get("Screening session screening ID is invalid.")));
 		}
 
+		if (screeningQuestionId == null) {
+			validationException.add(new FieldError("screeningQuestionId", getStrings().get("Screening question ID is required.")));
+		} else {
+			screeningQuestion = findScreeningQuestionById(screeningQuestionId).orElse(null);
+
+			if (screeningQuestion == null)
+				validationException.add(new FieldError("screeningQuestionId", getStrings().get("Screening question ID is invalid.")));
+		}
+
 		if (answers.size() == 0) {
 			// TODO: we should support a scenario in which the user can "skip" the question without answering, e.g.
 			// a group of checkboxes where none apply, or an optional text field.
 			validationException.add(new FieldError("answers", getStrings().get("You must answer the question to proceed.")));
 		} else {
 			int i = 0;
-			Set<UUID> screeningQuestionIds = new HashSet<>();
+			boolean illegalScreeningQuestionId = false;
 
 			for (CreateAnswerRequest answer : answers) {
 				UUID screeningAnswerOptionId = answer.getScreeningAnswerOptionId();
@@ -507,9 +517,9 @@ public class ScreeningService {
 
 					if (screeningAnswerOption == null) {
 						validationException.add(new FieldError(format("answers.screeningAnswerOptionId[%d]", i), getStrings().get("Screening answer option ID is invalid.")));
-					} else {
-						ScreeningQuestion screeningQuestion = findScreeningQuestionById(screeningAnswerOption.getScreeningQuestionId()).get();
-						screeningQuestionIds.add(screeningAnswerOption.getScreeningQuestionId());
+					} else if (screeningQuestion != null) {
+						if (!screeningAnswerOption.getScreeningQuestionId().equals(screeningQuestionId))
+							illegalScreeningQuestionId = true;
 
 						if (screeningQuestion.getScreeningAnswerFormatId() == ScreeningAnswerFormatId.FREEFORM_TEXT) {
 							if (text == null) {
@@ -539,8 +549,8 @@ public class ScreeningService {
 				++i;
 			}
 
-			if (screeningQuestionIds.size() > 1)
-				throw new IllegalStateException("Attempted to answer multiple questions at the same time");
+			if (illegalScreeningQuestionId)
+				validationException.add(getStrings().get("You can only supply answers for the current question."));
 		}
 
 		if (createdByAccountId == null) {

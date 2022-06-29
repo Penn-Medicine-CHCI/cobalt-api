@@ -28,9 +28,11 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreateScreeningAnswerRequest {
+public class CreateScreeningAnswersRequest {
 	@Nullable
 	private UUID screeningSessionScreeningId;
+	@Nullable
+	private UUID screeningQuestionId;
 	@Nullable
 	private UUID createdByAccountId;
 	@Nullable
@@ -43,6 +45,15 @@ public class CreateScreeningAnswerRequest {
 
 	public void setScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
 		this.screeningSessionScreeningId = screeningSessionScreeningId;
+	}
+
+	@Nullable
+	public UUID getScreeningQuestionId() {
+		return this.screeningQuestionId;
+	}
+
+	public void setScreeningQuestionId(@Nullable UUID screeningQuestionId) {
+		this.screeningQuestionId = screeningQuestionId;
 	}
 
 	@Nullable

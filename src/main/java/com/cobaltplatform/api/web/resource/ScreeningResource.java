@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.response.ScreeningAnswerApiResponse.ScreeningAnswerApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningAnswerOptionApiResponse.ScreeningAnswerOptionApiResponseFactory;
@@ -30,6 +31,7 @@ import com.cobaltplatform.api.model.db.ScreeningAnswer;
 import com.cobaltplatform.api.model.db.ScreeningAnswerOption;
 import com.cobaltplatform.api.model.db.ScreeningQuestion;
 import com.cobaltplatform.api.model.db.ScreeningSession;
+import com.cobaltplatform.api.model.db.ScreeningSessionScreening;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.ScreeningSessionScreeningContext;
 import com.cobaltplatform.api.service.AccountService;
@@ -197,6 +199,35 @@ public class ScreeningResource {
 					.map(screeningAnswer -> getScreeningAnswerApiResponseFactory().create(screeningAnswer))
 					.collect(Collectors.toList()));
 		}});
+	}
+
+	@Nonnull
+	@POST("/screening-answers")
+	@AuthenticationRequired
+	public ApiResponse createScreeningAnswers(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		CreateScreeningAnswersRequest request = getRequestBodyParser().parse(requestBody, CreateScreeningAnswersRequest.class);
+		request.setCreatedByAccountId(account.getAccountId());
+
+		ScreeningSessionScreening screeningSessionScreening = getScreeningService().findScreeningSessionScreeningById(request.getScreeningSessionScreeningId()).orElse(null);
+
+		if (screeningSessionScreening == null)
+			throw new NotFoundException();
+
+		ScreeningSession screeningSession = getScreeningService().findScreeningSessionById(screeningSessionScreening.getScreeningSessionId()).get();
+		Account targetAccount = getAccountService().findAccountById(screeningSession.getTargetAccountId()).orElse(null);
+
+		// Ensure you have permission to answer for this screening session
+		if (!getAuthorizationService().canPerformScreening(account, targetAccount))
+			throw new AuthorizationException();
+
+		List<UUID> screeningAnswerIds = getScreeningService().createScreeningAnswers(request);
+		ScreeningAnswer screeningAnswer = getScreeningService().findScreeningAnswerById(screeningAnswerIds.get(0)).get();
+
+		throw new UnsupportedOperationException();
 	}
 
 	/**
