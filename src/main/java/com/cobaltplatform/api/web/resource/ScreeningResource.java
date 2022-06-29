@@ -33,15 +33,16 @@ import com.cobaltplatform.api.model.db.ScreeningQuestion;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.ScreeningSessionScreening;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.cobaltplatform.api.model.service.ScreeningSessionScreeningContext;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
-import com.devskiller.friendly_id.FriendlyId;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.PathParameter;
+import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.RequestBody;
 import com.soklet.web.annotation.Resource;
 import com.soklet.web.exception.AuthorizationException;
@@ -51,17 +52,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
-import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -150,14 +150,30 @@ public class ScreeningResource {
 		UUID screeningSessionId = getScreeningService().createScreeningSession(request);
 		ScreeningSession screeningSession = getScreeningService().findScreeningSessionById(screeningSessionId).get();
 
-		ScreeningSessionScreeningContext nextScreeningSessionScreeningContext = getScreeningService().findNextUnansweredScreeningSessionScreeningContextByScreeningSessionId(screeningSessionId).orElse(null);
-		ScreeningQuestionContextId nextScreeningQuestionContextId = new ScreeningQuestionContextId(
-				nextScreeningSessionScreeningContext.getScreeningSessionScreening().getScreeningSessionScreeningId(),
-				nextScreeningSessionScreeningContext.getScreeningQuestion().getScreeningQuestionId());
-
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("screeningSession", getScreeningSessionApiResponseFactory().create(screeningSession));
-			put("nextScreeningQuestionContextId", nextScreeningQuestionContextId);
+		}});
+	}
+
+	@Nonnull
+	@GET("/screening-sessions")
+	@AuthenticationRequired
+	public ApiResponse screeningSessions(@Nonnull @QueryParameter UUID screeningFlowId,
+																			 @Nonnull @QueryParameter Optional<UUID> targetAccountId) {
+		requireNonNull(screeningFlowId);
+		requireNonNull(targetAccountId);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		List<ScreeningSession> screeningSessions = getScreeningService().findScreeningSessionsByScreeningFlowId(screeningFlowId, account.getAccountId()).stream()
+				.filter(screeningSession -> targetAccountId.isEmpty() ? true : screeningSession.getTargetAccountId().equals(targetAccountId.get()))
+				.filter(screeningSession -> getAuthorizationService().canViewScreeningSession(screeningSession, account, getAccountService().findAccountById(screeningSession.getTargetAccountId()).get()))
+				.collect(Collectors.toList());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("screeningSessions", screeningSessions.stream()
+					.map(screeningSession -> getScreeningSessionApiResponseFactory().create(screeningSession))
+					.collect(Collectors.toList()));
 		}});
 	}
 
@@ -225,63 +241,21 @@ public class ScreeningResource {
 			throw new AuthorizationException();
 
 		List<UUID> screeningAnswerIds = getScreeningService().createScreeningAnswers(request);
-		ScreeningAnswer screeningAnswer = getScreeningService().findScreeningAnswerById(screeningAnswerIds.get(0)).get();
+		List<ScreeningAnswer> screeningAnswers = screeningAnswerIds.stream()
+				.map(screeningAnswerId -> getScreeningService().findScreeningAnswerById(screeningAnswerId).get())
+				.collect(Collectors.toList());
 
-		throw new UnsupportedOperationException();
-	}
+		ScreeningSessionScreeningContext nextScreeningSessionScreeningContext = getScreeningService().findNextUnansweredScreeningSessionScreeningContextByScreeningSessionId(screeningSession.getScreeningSessionId()).orElse(null);
+		ScreeningQuestionContextId nextScreeningQuestionContextId = nextScreeningSessionScreeningContext == null ? null : new ScreeningQuestionContextId(
+				nextScreeningSessionScreeningContext.getScreeningSessionScreening().getScreeningSessionScreeningId(),
+				nextScreeningSessionScreeningContext.getScreeningQuestion().getScreeningQuestionId());
 
-	/**
-	 * Combines screeningSessionScreeningId and screeningQuestionId into a single identifier string for API ease-of-use.
-	 */
-	@Immutable
-	public static class ScreeningQuestionContextId {
-		@Nonnull
-		private final String identifier;
-		@Nonnull
-		private final UUID screeningSessionScreeningId;
-		@Nonnull
-		private final UUID screeningQuestionId;
-
-		public ScreeningQuestionContextId(@Nonnull UUID screeningSessionScreeningId,
-																			@Nonnull UUID screeningQuestionId) {
-			requireNonNull(screeningSessionScreeningId);
-			requireNonNull(screeningQuestionId);
-
-			this.screeningSessionScreeningId = screeningSessionScreeningId;
-			this.screeningQuestionId = screeningQuestionId;
-			this.identifier = format("%s-%s", FriendlyId.toFriendlyId(screeningSessionScreeningId), FriendlyId.toFriendlyId(screeningQuestionId));
-		}
-
-		public ScreeningQuestionContextId(@Nonnull String screeningQuestionContextId) {
-			requireNonNull(screeningQuestionContextId);
-
-			screeningQuestionContextId = screeningQuestionContextId.trim();
-
-			try {
-				String[] components = screeningQuestionContextId.split("-");
-
-				this.screeningSessionScreeningId = FriendlyId.toUuid(components[0]);
-				this.screeningQuestionId = FriendlyId.toUuid(components[1]);
-				this.identifier = screeningQuestionContextId;
-			} catch (Exception e) {
-				throw new IllegalArgumentException(format("Illegal ScreeningQuestionContextId was specified: '%s'", screeningQuestionContextId));
-			}
-		}
-
-		@Nonnull
-		public String getIdentifier() {
-			return this.identifier;
-		}
-
-		@Nonnull
-		public UUID getScreeningSessionScreeningId() {
-			return this.screeningSessionScreeningId;
-		}
-
-		@Nonnull
-		public UUID getScreeningQuestionId() {
-			return this.screeningQuestionId;
-		}
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("screeningAnswers", screeningAnswers.stream()
+					.map(screeningAnswer -> getScreeningAnswerApiResponseFactory().create(screeningAnswer))
+					.collect(Collectors.toList()));
+			put("nextScreeningQuestionContextId", nextScreeningQuestionContextId);
+		}});
 	}
 
 	@Nonnull

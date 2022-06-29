@@ -33,6 +33,7 @@ import com.cobaltplatform.api.model.db.Interaction;
 import com.cobaltplatform.api.model.db.InteractionInstance;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.Role.RoleId;
+import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.security.AccountCapabilities;
 import com.cobaltplatform.api.util.Normalizer;
 
@@ -415,6 +416,19 @@ public class AuthorizationService {
 		}
 
 		return false;
+	}
+
+	@Nonnull
+	public Boolean canViewScreeningSession(@Nonnull ScreeningSession screeningSession,
+																				 @Nonnull Account viewingAccount,
+																				 @Nonnull Account screenedAccount) {
+		requireNonNull(screeningSession);
+		requireNonNull(viewingAccount);
+		requireNonNull(screenedAccount);
+
+		// TODO: revisit later when we have more usage; we might open results up
+		// to a provider who has been granted access to treat the patient, for example
+		return canPerformScreening(viewingAccount, screenedAccount);
 	}
 
 	@Nonnull

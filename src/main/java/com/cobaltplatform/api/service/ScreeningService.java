@@ -225,7 +225,8 @@ public class ScreeningService {
 		return getDatabase().queryForList("""
 						SELECT ss.* FROM screening_session ss, screening_flow_version sfv 
 						WHERE sfv.screening_flow_id=? AND ss.screening_flow_version_id=sfv.screening_flow_version_id 
-						AND (ss.target_account_id=? OR ss.created_by_account_id=?) ORDER BY ss.created DESC
+						AND (ss.target_account_id=? OR ss.created_by_account_id=?)
+						ORDER BY ss.created DESC
 						""",
 				ScreeningSession.class, screeningFlowId, participantAccountId, participantAccountId);
 	}
@@ -365,8 +366,10 @@ public class ScreeningService {
 		if (screeningSessionId == null)
 			return Optional.empty();
 
+		// TODO: need to take inactive screenings into account
 		return getDatabase().queryForObject("""
-				SELECT * FROM screening_session_screening WHERE screening_session_id=? 
+				SELECT * FROM screening_session_screening
+				WHERE screening_session_id=? 
 				ORDER BY screening_order DESC LIMIT 1
 				""", ScreeningSessionScreening.class, screeningSessionId);
 	}
@@ -595,15 +598,10 @@ public class ScreeningService {
 
 		// Temporary hack for testing
 		String scoringFunctionJs = """
-				    // We are completed if the number of answers matches the number of questions
+				// We are completed if the number of answers matches the number of questions
 				output.completed = input.screeningAnswers.length === input.screeningQuestionsWithAnswerOptions.length;
 								
-				// It's illegal for this screening to have more answers than questions -
-				// should not occur, but check as a failsafe
-				 if(input.screeningAnswers.length > input.screeningQuestionsWithAnswerOptions.length)
-				   throw "There are more answers than questions";
-								
-				    // Track running score
+				// Track running score
 				output.score = 0;
 				    
 				// Add each answer's score to the running total
@@ -805,6 +803,7 @@ public class ScreeningService {
 		for (ScreeningAnswer screeningAnswer : screeningAnswers)
 			screeningAnswerOptionsByScreeningAnswerId.put(screeningAnswer.getScreeningAnswerId(), screeningAnswerOptionsById.get(screeningAnswer.getScreeningAnswerOptionId()));
 
+		// TODO: refactor this to be more like the orchestration function, specifically the "screeningResponses" construct
 		Map<String, Object> context = new HashMap<>();
 		context.put("screeningQuestionsWithAnswerOptions", screeningQuestionsWithAnswerOptions);
 		context.put("screeningAnswers", screeningAnswers);

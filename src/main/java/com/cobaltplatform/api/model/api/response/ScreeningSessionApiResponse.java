@@ -20,12 +20,16 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.ScreeningSession;
+import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
+import com.cobaltplatform.api.model.service.ScreeningSessionScreeningContext;
+import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import com.lokalized.Strings;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
 import java.util.UUID;
@@ -54,6 +58,9 @@ public class ScreeningSessionApiResponse {
 	@Nonnull
 	private final String createdDescription;
 
+	@Nullable
+	private final String nextScreeningQuestionContextId;
+
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface ScreeningSessionApiResponseFactory {
@@ -62,9 +69,11 @@ public class ScreeningSessionApiResponse {
 	}
 
 	@AssistedInject
-	public ScreeningSessionApiResponse(@Nonnull Formatter formatter,
+	public ScreeningSessionApiResponse(@Nonnull ScreeningService screeningService,
+																		 @Nonnull Formatter formatter,
 																		 @Nonnull Strings strings,
 																		 @Assisted @Nonnull ScreeningSession screeningSession) {
+		requireNonNull(screeningService);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(screeningSession);
@@ -77,6 +86,14 @@ public class ScreeningSessionApiResponse {
 		this.crisisIndicated = screeningSession.getCrisisIndicated();
 		this.created = screeningSession.getCreated();
 		this.createdDescription = formatter.formatTimestamp(screeningSession.getCreated());
+
+		ScreeningSessionScreeningContext nextScreeningSessionScreeningContext = screeningService.findNextUnansweredScreeningSessionScreeningContextByScreeningSessionId(screeningSessionId).orElse(null);
+
+		ScreeningQuestionContextId nextScreeningQuestionContextId = nextScreeningSessionScreeningContext == null ? null : new ScreeningQuestionContextId(
+				nextScreeningSessionScreeningContext.getScreeningSessionScreening().getScreeningSessionScreeningId(),
+				nextScreeningSessionScreeningContext.getScreeningQuestion().getScreeningQuestionId());
+
+		this.nextScreeningQuestionContextId = nextScreeningQuestionContextId.getIdentifier();
 	}
 
 	@Nonnull
