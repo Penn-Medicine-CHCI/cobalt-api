@@ -19,8 +19,6 @@
 
 package com.cobaltplatform.api.model.db;
 
-import com.cobaltplatform.api.model.db.ScreeningQuestionAnsweredStatus.ScreeningQuestionAnsweredStatusId;
-
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
@@ -36,9 +34,9 @@ public class ScreeningSessionAnsweredScreeningQuestion {
 	@Nullable
 	private UUID screeningSessionScreeningId;
 	@Nullable
-	private UUID screeningSessionScreeningQuestionId;
+	private UUID screeningQuestionId;
 	@Nullable
-	private ScreeningQuestionAnsweredStatusId screeningQuestionAnsweredStatusId;
+	private Boolean valid;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -63,21 +61,21 @@ public class ScreeningSessionAnsweredScreeningQuestion {
 	}
 
 	@Nullable
-	public UUID getScreeningSessionScreeningQuestionId() {
-		return this.screeningSessionScreeningQuestionId;
+	public UUID getScreeningQuestionId() {
+		return this.screeningQuestionId;
 	}
 
-	public void setScreeningSessionScreeningQuestionId(@Nullable UUID screeningSessionScreeningQuestionId) {
-		this.screeningSessionScreeningQuestionId = screeningSessionScreeningQuestionId;
+	public void setScreeningQuestionId(@Nullable UUID screeningQuestionId) {
+		this.screeningQuestionId = screeningQuestionId;
 	}
 
 	@Nullable
-	public ScreeningQuestionAnsweredStatusId getScreeningQuestionAnsweredStatusId() {
-		return this.screeningQuestionAnsweredStatusId;
+	public Boolean getValid() {
+		return this.valid;
 	}
 
-	public void setScreeningQuestionAnsweredStatusId(@Nullable ScreeningQuestionAnsweredStatusId screeningQuestionAnsweredStatusId) {
-		this.screeningQuestionAnsweredStatusId = screeningQuestionAnsweredStatusId;
+	public void setValid(@Nullable Boolean valid) {
+		this.valid = valid;
 	}
 
 	@Nullable

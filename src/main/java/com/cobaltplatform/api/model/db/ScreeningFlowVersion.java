@@ -36,6 +36,8 @@ public class ScreeningFlowVersion {
 	@Nullable
 	private UUID initialScreeningId;
 	@Nullable
+	private Integer versionNumber;
+	@Nullable
 	private String orchestrationFunction;
 	@Nullable
 	private String resultsFunction;
@@ -71,6 +73,15 @@ public class ScreeningFlowVersion {
 
 	public void setInitialScreeningId(@Nullable UUID initialScreeningId) {
 		this.initialScreeningId = initialScreeningId;
+	}
+
+	@Nullable
+	public Integer getVersionNumber() {
+		return this.versionNumber;
+	}
+
+	public void setVersionNumber(@Nullable Integer versionNumber) {
+		this.versionNumber = versionNumber;
 	}
 
 	@Nullable

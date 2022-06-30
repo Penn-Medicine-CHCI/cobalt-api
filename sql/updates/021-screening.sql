@@ -50,7 +50,7 @@ CREATE TABLE screening_version (
 	screening_id UUID NOT NULL REFERENCES screening,
 	screening_type_id TEXT NOT NULL REFERENCES screening_type,
 	created_by_account_id UUID NOT NULL REFERENCES account (account_id),
-	version_number INTEGER NOT NULL,
+	version_number INTEGER NOT NULL DEFAULT 1,
 	scoring_function TEXT NOT NULL, -- Javascript code that knows how to score this version of a screening given current answers
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -92,6 +92,7 @@ CREATE TABLE screening_flow_version (
 	screening_flow_version_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	screening_flow_id UUID NOT NULL REFERENCES screening_flow,
 	initial_screening_id UUID NOT NULL REFERENCES screening (screening_id),
+	version_number INTEGER NOT NULL DEFAULT 1,
 	orchestration_function TEXT NOT NULL, -- Javascript code, invoked every time an answer is given to a screening question
 	results_function TEXT NOT NULL, -- Javascript code, invoked once a screening session transitions to "completed" status
 	created_by_account_id UUID NOT NULL REFERENCES account (account_id),
@@ -132,6 +133,7 @@ CREATE TABLE screening_session_screening (
 	screening_session_id UUID NOT NULL REFERENCES screening_session,
 	screening_version_id UUID NOT NULL REFERENCES screening_version,
 	screening_order INTEGER NOT NULL,
+	valid BOOLEAN NOT NULL DEFAULT TRUE,
 	completed BOOLEAN NOT NULL DEFAULT FALSE, -- Calculated value set by orchestration function
 	score INTEGER NOT NULL DEFAULT 0, -- Calculated value set by orchestration function
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -140,6 +142,11 @@ CREATE TABLE screening_session_screening (
 );
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_session_screening FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+CREATE VIEW v_screening_session_screening AS
+SELECT *
+FROM screening_session_screening
+WHERE valid=TRUE;
 
 -- Notes logged during orchestration, used for humans to review transitions/scoring/etc.
 CREATE TABLE screening_session_note (
@@ -208,25 +215,21 @@ CREATE TABLE screening_answer_option (
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_answer_option FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
-CREATE TABLE screening_question_answered_status (
-	screening_question_answered_status_id TEXT PRIMARY KEY,
-	description TEXT NOT NULL
-);
-
-INSERT INTO screening_question_answered_status (screening_question_answered_status_id, description) VALUES ('CURRENT', 'Current');
-INSERT INTO screening_question_answered_status (screening_question_answered_status_id, description) VALUES ('INVALIDATED_EXPLICITLY', 'Invalidated (Explicitly)');
-INSERT INTO screening_question_answered_status (screening_question_answered_status_id, description) VALUES ('INVALIDATED_IMPLICITLY', 'Invalidated (Implicitly)');
-
 CREATE TABLE screening_session_answered_screening_question (
   screening_session_answered_screening_question_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	screening_session_screening_id UUID NOT NULL REFERENCES screening_session_screening,
 	screening_question_id UUID NOT NULL REFERENCES screening_question,
-	screening_question_answered_status_id TEXT NOT NULL REFERENCES screening_question_answered_status,
+	valid BOOLEAN NOT NULL DEFAULT TRUE,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_session_answered_screening_question FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+CREATE VIEW v_screening_session_answered_screening_question AS
+SELECT *
+FROM screening_session_answered_screening_question
+WHERE valid=TRUE;
 
 -- What the user actually answers
 CREATE TABLE screening_answer (
@@ -235,11 +238,17 @@ CREATE TABLE screening_answer (
 	screening_session_answered_screening_question_id UUID NOT NULL REFERENCES screening_session_answered_screening_question,
 	created_by_account_id UUID NOT NULL REFERENCES account (account_id),
 	text TEXT, -- Usage depends on question format, currently used to hold freeform text value entered by user
+	valid BOOLEAN NOT NULL DEFAULT TRUE,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_answer FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+CREATE VIEW v_screening_answer AS
+SELECT *
+FROM screening_answer
+WHERE valid=TRUE;
 
 -- Each institution can optionally have a screening flow ID that can be triggered prior to provider triage
 ALTER TABLE institution ADD COLUMN provider_triage_screening_flow_id UUID REFERENCES screening_flow;

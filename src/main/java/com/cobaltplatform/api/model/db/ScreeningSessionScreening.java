@@ -36,6 +36,8 @@ public class ScreeningSessionScreening {
 	@Nullable
 	private UUID screeningVersionId;
 	@Nullable
+	private Boolean valid;
+	@Nullable
 	private Integer screeningOrder;
 	@Nullable
 	private Boolean completed;
@@ -80,6 +82,15 @@ public class ScreeningSessionScreening {
 
 	public void setScreeningOrder(@Nullable Integer screeningOrder) {
 		this.screeningOrder = screeningOrder;
+	}
+
+	@Nullable
+	public Boolean getValid() {
+		return this.valid;
+	}
+
+	public void setValid(@Nullable Boolean valid) {
+		this.valid = valid;
 	}
 
 	@Nullable

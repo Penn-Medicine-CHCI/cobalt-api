@@ -81,31 +81,53 @@ public class ScreeningServiceTests {
 
 			assertEquals("Account is missing a provider triage screening session", 1, screeningSessions.size());
 
+			int screeningQuestionIndexToResetTo = 2;
+			int screeningQuestionIndexToResetAt = 12;
+			boolean reset = false;
+			ScreeningSessionScreeningContext screeningSessionScreeningContextToResetTo = null;
+			int i = 0;
+
 			while (true) {
 				ScreeningSessionScreeningContext screeningSessionScreeningContext = screeningService.findNextUnansweredScreeningSessionScreeningContextByScreeningSessionId(screeningSessionId).orElse(null);
 
+				// No more questions in the session, we're done.
 				if (screeningSessionScreeningContext == null)
 					break;
 
-				// Pick the first answer option...
-				//UUID screeningAnswerOptionId = screeningSessionScreeningContext.getScreeningAnswerOptions().get(0).getScreeningAnswerOptionId();
+				// Store off so we can reset to this question later
+				if (i == screeningQuestionIndexToResetTo)
+					screeningSessionScreeningContextToResetTo = screeningSessionScreeningContext;
+
+				// If it's time to reset, restore the old question context
+				if (i == screeningQuestionIndexToResetAt && !reset)
+					screeningSessionScreeningContext = screeningSessionScreeningContextToResetTo;
 
 				// Pick the last answer option...
 				UUID screeningAnswerOptionId = screeningSessionScreeningContext.getScreeningAnswerOptions().get(
 						screeningSessionScreeningContext.getScreeningAnswerOptions().size() - 1).getScreeningAnswerOptionId();
 
+				// ...or, if we are resetting, change the previous answer to a different one (the first option)
+				if (i == screeningQuestionIndexToResetAt) {
+					screeningAnswerOptionId = screeningSessionScreeningContext.getScreeningAnswerOptions().get(0).getScreeningAnswerOptionId();
+					reset = true;
+				}
+
 				ScreeningQuestionContextId screeningQuestionContextId = new ScreeningQuestionContextId(
 						screeningSessionScreeningContext.getScreeningSessionScreening().getScreeningSessionScreeningId(),
 						screeningSessionScreeningContext.getScreeningQuestion().getScreeningQuestionId());
+
+				UUID pinnedScreeningAnswerOptionId = screeningAnswerOptionId;
 
 				// ...and answer it.
 				screeningService.createScreeningAnswers(new CreateScreeningAnswersRequest() {{
 					setScreeningQuestionContextId(screeningQuestionContextId);
 					setCreatedByAccountId(accountId);
 					setAnswers(List.of(new CreateAnswerRequest() {{
-						setScreeningAnswerOptionId(screeningAnswerOptionId);
+						setScreeningAnswerOptionId(pinnedScreeningAnswerOptionId);
 					}}));
 				}});
+
+				++i;
 			}
 		});
 	}

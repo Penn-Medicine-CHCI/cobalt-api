@@ -31,7 +31,6 @@ import com.cobaltplatform.api.model.db.ScreeningAnswerOption;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
 import com.cobaltplatform.api.model.db.ScreeningQuestion;
-import com.cobaltplatform.api.model.db.ScreeningQuestionAnsweredStatus.ScreeningQuestionAnsweredStatusId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.ScreeningSessionAnsweredScreeningQuestion;
 import com.cobaltplatform.api.model.db.ScreeningSessionScreening;
@@ -56,6 +55,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -395,9 +395,9 @@ public class ScreeningService {
 		if (screeningSessionId == null)
 			return Optional.empty();
 
-		// TODO: need to take inactive screenings into account
 		return getDatabase().queryForObject("""
-				SELECT * FROM screening_session_screening
+				SELECT *
+				FROM v_screening_session_screening
 				WHERE screening_session_id=? 
 				ORDER BY screening_order DESC LIMIT 1
 				""", ScreeningSessionScreening.class, screeningSessionId);
@@ -411,7 +411,7 @@ public class ScreeningService {
 
 		List<ScreeningQuestion> screeningQuestions = getDatabase().queryForList("""
 				SELECT sq.* 
-				FROM screening_question sq, screening_session_screening sss 
+				FROM screening_question sq, v_screening_session_screening sss 
 				WHERE sss.screening_session_screening_id=?
 				AND sss.screening_version_id=sq.screening_version_id
 				ORDER BY sq.display_order
@@ -419,7 +419,7 @@ public class ScreeningService {
 
 		List<ScreeningAnswerOption> screeningAnswerOptions = getDatabase().queryForList("""
 				SELECT sao.*
-				FROM screening_answer_option sao, screening_question sq, screening_session_screening sss
+				FROM screening_answer_option sao, screening_question sq, v_screening_session_screening sss
 				WHERE sao.screening_question_id=sq.screening_question_id
 				AND sss.screening_version_id=sq.screening_version_id
 				AND sss.screening_session_screening_id=?
@@ -447,12 +447,11 @@ public class ScreeningService {
 
 		return getDatabase().queryForList("""
 				SELECT ssasq.*
-				FROM screening_session_answered_screening_question ssasq, screening_question sq
+				FROM v_screening_session_answered_screening_question ssasq, screening_question sq
 				WHERE ssasq.screening_session_screening_id=?
-				AND ssasq.screening_question_answered_status_id=?
 				AND ssasq.screening_question_id=sq.screening_question_id
 				ORDER BY sq.display_order
-				""", ScreeningSessionAnsweredScreeningQuestion.class, screeningSessionScreeningId, ScreeningQuestionAnsweredStatusId.CURRENT);
+				""", ScreeningSessionAnsweredScreeningQuestion.class, screeningSessionScreeningId);
 	}
 
 	@Nonnull
@@ -462,14 +461,13 @@ public class ScreeningService {
 
 		return getDatabase().queryForList("""
 				SELECT sa.*
-				FROM screening_session_answered_screening_question ssasq, screening_question sq, screening_answer_option sao, screening_answer sa
+				FROM v_screening_session_answered_screening_question ssasq, screening_question sq, screening_answer_option sao, v_screening_answer sa
 				WHERE ssasq.screening_session_screening_id=?
-				AND ssasq.screening_question_answered_status_id=?
 				AND ssasq.screening_question_id=sq.screening_question_id
 				AND sq.screening_question_id=sao.screening_question_id
 				AND sa.screening_answer_option_id=sao.screening_answer_option_id
 				ORDER BY sa.created, sa.screening_answer_id
-				""", ScreeningAnswer.class, screeningSessionScreeningId, ScreeningQuestionAnsweredStatusId.CURRENT);
+				""", ScreeningAnswer.class, screeningSessionScreeningId);
 	}
 
 	@Nonnull
@@ -480,24 +478,24 @@ public class ScreeningService {
 
 		return getDatabase().queryForList("""
 				SELECT sa.*
-				FROM screening_session_answered_screening_question ssasq, screening_question sq, screening_answer_option sao, screening_answer sa
+				FROM v_screening_session_answered_screening_question ssasq, screening_question sq, screening_answer_option sao, v_screening_answer sa
 				WHERE ssasq.screening_session_screening_id=?
-				AND ssasq.screening_question_answered_status_id=?
 				AND ssasq.screening_question_id=?
 				AND ssasq.screening_question_id=sq.screening_question_id
 				AND sq.screening_question_id=sao.screening_question_id
 				AND sa.screening_answer_option_id=sao.screening_answer_option_id
 				ORDER BY sa.created, sa.screening_answer_id
-				""", ScreeningAnswer.class, screeningSessionScreeningId, ScreeningQuestionAnsweredStatusId.CURRENT, screeningQuestionId);
+				""", ScreeningAnswer.class, screeningSessionScreeningId, screeningQuestionId);
 	}
 
 	@Nonnull
-	protected List<ScreeningSessionScreening> findScreeningSessionScreeningsByScreeningSessionId(@Nullable UUID screeningSessionId) {
+	protected List<ScreeningSessionScreening> findCurrentScreeningSessionScreeningsByScreeningSessionId(@Nullable UUID screeningSessionId) {
 		if (screeningSessionId == null)
 			return Collections.emptyList();
 
 		return getDatabase().queryForList("""
-				SELECT * FROM screening_session_screening
+				SELECT * 
+				FROM v_screening_session_screening
 				WHERE screening_session_id=?
 				ORDER BY screening_order
 				""", ScreeningSessionScreening.class, screeningSessionId);
@@ -651,20 +649,62 @@ public class ScreeningService {
 		ScreeningVersion screeningVersion = findScreeningVersionById(screeningSessionScreening.getScreeningVersionId()).get();
 		ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
 
-		// TODO: if we are re-applying the same answers to an already-answered question, no-op and return immediately
+		// See if this question was already answered for this session...
+		ScreeningSessionAnsweredScreeningQuestion screeningSessionAnsweredScreeningQuestion = getDatabase().queryForObject("""
+				SELECT *
+				FROM v_screening_session_answered_screening_question
+				WHERE screening_session_screening_id=?
+				AND screening_question_id=?
+				""", ScreeningSessionAnsweredScreeningQuestion.class, screeningSessionScreeningId, screeningQuestionId).orElse(null);
 
-		// TODO: if we are re-answering in the same screening session screening, invalidate the existing answer and and downstream answers
-		// Do this by getting the created timestamp of the previous screening_session_answered_screening_question,
-		// finding any screening_session_answered_screening_question records created after that timestamp, and marking them as
-		// implicitly invalidated.  Mark the one we're replacing as explicitly invalidated.
+		if (screeningSessionAnsweredScreeningQuestion != null) {
+			// The question was already answered.
+			// Mark all downstream answered questions, answers, and screenings in this session as invalid.
+			// Note:
+
+			getLogger().info("Screening session screening ID {} ({}) screening question ID {} was previously answered and is being answered again.",
+					screeningSessionScreeningId, screeningVersion.getScreeningTypeId().name(), screeningQuestionId);
+
+			// Mark downstream answered questions as invalid
+			long downstreamQuestionsInvalidatedCount = getDatabase().execute("""
+					UPDATE screening_session_answered_screening_question AS ssasq 
+					SET valid=FALSE
+					FROM screening_session_screening sss
+					WHERE sss.screening_session_id=?
+					AND ssasq.valid=TRUE
+					AND sss.screening_session_screening_id=ssasq.screening_session_screening_id
+					AND ssasq.created >= ?""", screeningSession.getScreeningSessionId(), screeningSessionAnsweredScreeningQuestion.getCreated());
+
+			// Mark downstream answers as invalid
+			getDatabase().execute("""
+					UPDATE screening_answer AS sa
+					SET valid=FALSE
+					FROM screening_session_answered_screening_question ssasq, screening_session_screening sss
+					WHERE sa.screening_session_answered_screening_question_id=ssasq.screening_session_answered_screening_question_id
+					AND sa.valid=TRUE
+					AND ssasq.screening_session_screening_id=sss.screening_session_screening_id
+					AND sss.screening_session_id=?
+					AND sa.created >= ?""", screeningSession.getScreeningSessionId(), screeningSessionAnsweredScreeningQuestion.getCreated());
+
+			// Mark downstream screenings as invalid
+			long downstreamScreeningSessionScreeningsInvalidatedCount = getDatabase().execute("""
+					UPDATE screening_session_screening 
+					SET valid=FALSE
+					WHERE screening_session_id=?
+					AND valid=TRUE
+					AND screening_order > ?""", screeningSession.getScreeningSessionId(), screeningSessionScreening.getScreeningOrder());
+
+			getLogger().info("Marked {} downstream answered question[s] as invalid and {} downstream screening session screening[s] as invalid.",
+					downstreamQuestionsInvalidatedCount, downstreamScreeningSessionScreeningsInvalidatedCount);
+		}
 
 		UUID screeningSessionAnsweredScreeningQuestionId = UUID.randomUUID();
 
 		getDatabase().execute("""
-				INSERT INTO screening_session_answered_screening_question (screening_session_answered_screening_question_id,
-				screening_session_screening_id, screening_question_id, screening_question_answered_status_id)
-				VALUES (?,?,?,?)
-				""", screeningSessionAnsweredScreeningQuestionId, screeningSessionScreeningId, screeningQuestionId, ScreeningQuestionAnsweredStatusId.CURRENT);
+						INSERT INTO screening_session_answered_screening_question(screening_session_answered_screening_question_id, 
+						screening_session_screening_id, screening_question_id, created)
+						VALUES(?,?,?,?)
+				""", screeningSessionAnsweredScreeningQuestionId, screeningSessionScreeningId, screeningQuestionId, Instant.now());
 
 		List<UUID> screeningAnswerIds = new ArrayList<>(answers.size());
 
@@ -674,15 +714,18 @@ public class ScreeningService {
 			screeningAnswerIds.add(screeningAnswerId);
 
 			getDatabase().execute("""
-					INSERT INTO screening_answer (screening_answer_id, screening_answer_option_id, screening_session_answered_screening_question_id, created_by_account_id, text)
-					VALUES (?,?,?,?,?)
-					""", screeningAnswerId, answer.getScreeningAnswerOptionId(), screeningSessionAnsweredScreeningQuestionId, createdByAccountId, answer.getText());
+					INSERT INTO
+					screening_answer(screening_answer_id, screening_answer_option_id, screening_session_answered_screening_question_id, created_by_account_id, text, created)
+					VALUES(?,?,?,?,?,?)
+					""", screeningAnswerId, answer.getScreeningAnswerOptionId(), screeningSessionAnsweredScreeningQuestionId, createdByAccountId, answer.getText(), Instant.now());
 		}
 
 		// Score the individual screening by calling its scoring function
 		List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions =
 				findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreeningId);
 		List<ScreeningAnswer> screeningAnswers = findCurrentScreeningAnswersByScreeningSessionScreeningId(screeningSessionScreeningId);
+
+		// debugScreeningSession(screeningSession.getScreeningSessionId());
 
 		ScreeningScoringOutput screeningScoringOutput = executeScreeningScoringFunction(
 				screeningVersion.getScoringFunction(), screeningQuestionsWithAnswerOptions, screeningAnswers);
@@ -692,7 +735,7 @@ public class ScreeningService {
 
 		// Based on screening scoring function output, set score/completed flags
 		getDatabase().execute("""
-				UPDATE screening_session_screening 
+				UPDATE screening_session_screening
 				SET completed=?, score=?
 				WHERE screening_session_screening_id=?
 				""", screeningScoringOutput.getCompleted(), screeningScoringOutput.getScore(), screeningSessionScreening.getScreeningSessionScreeningId());
@@ -775,9 +818,9 @@ public class ScreeningService {
 
 		if (orchestrationFunctionOutput.getNextScreeningId() != null) {
 			Integer nextScreeningOrder = getDatabase().queryForObject("""
-					SELECT MAX(screening_order) + 1 
-					FROM screening_session_screening 
-					WHERE screening_session_id=?
+					SELECT MAX (screening_order) + 1
+					FROM screening_session_screening
+					WHERE screening_session_id =?
 					""", Integer.class, screeningSession.getScreeningSessionId()).get();
 
 			Screening nextScreening = findScreeningById(orchestrationFunctionOutput.getNextScreeningId()).get();
@@ -788,7 +831,7 @@ public class ScreeningService {
 
 			getDatabase().execute("""
 					INSERT INTO screening_session_screening(screening_session_id, screening_version_id, screening_order)
-					VALUES (?,?,?)
+					VALUES( ?,?,?)
 					""", screeningSession.getScreeningSessionId(), nextScreeningVersion.getScreeningVersionId(), nextScreeningOrder);
 		}
 
@@ -884,7 +927,7 @@ public class ScreeningService {
 		// // The screeningResponses array is only present if the user has answered the question in some way
 		// console.log(phq9Question9.screeningResponses[0].screeningAnswerOption.score); // easy access to the score for the selected answer option
 		// console.log(phq9Question9.screeningResponses[0].screeningAnswer.text); // the answers themselves, in case you need them (e.g. free-form text)
-		List<ScreeningSessionScreening> screeningSessionScreenings = findScreeningSessionScreeningsByScreeningSessionId(screeningSessionId);
+		List<ScreeningSessionScreening> screeningSessionScreenings = findCurrentScreeningSessionScreeningsByScreeningSessionId(screeningSessionId);
 		Map<UUID, Object> screeningResultsByScreeningSessionScreeningId = new HashMap<>();
 
 		// We could do this as a single query, but the dataset is small, and this is a little clearer and fast enough
@@ -969,6 +1012,57 @@ public class ScreeningService {
 			throw new IllegalStateException(format("Orchestration function output says this screening session is completed, but also provides a nonnull 'nextScreeningId' value"));
 
 		return orchestrationFunctionOutput;
+	}
+
+	protected void debugScreeningSession(@Nonnull UUID screeningSessionId) {
+		requireNonNull(screeningSessionId);
+
+		if (!getLogger().isDebugEnabled())
+			return;
+
+		ScreeningSession screeningSession = findScreeningSessionById(screeningSessionId).get();
+		ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
+		ScreeningFlow screeningFlow = findScreeningFlowById(screeningFlowVersion.getScreeningFlowId()).get();
+		List<ScreeningSessionScreening> screeningSessionScreenings = findCurrentScreeningSessionScreeningsByScreeningSessionId(screeningSessionId);
+
+		List<String> logLines = new ArrayList<>();
+
+		logLines.add("*** SCREENING SESSION DEBUG ***");
+		logLines.add(format("Screening Flow '%s', version %d", screeningFlow.getName(), screeningFlowVersion.getVersionNumber()));
+
+		for (ScreeningSessionScreening screeningSessionScreening : screeningSessionScreenings) {
+			ScreeningVersion screeningVersion = findScreeningVersionById(screeningSessionScreening.getScreeningVersionId()).get();
+			Screening screening = findScreeningById(screeningVersion.getScreeningId()).get();
+
+			logLines.add(format("\tScreening '%s', version %d", screening.getName(), screeningVersion.getVersionNumber()));
+
+			List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions = findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
+			List<ScreeningSessionAnsweredScreeningQuestion> screeningSessionAnsweredScreeningQuestions = findCurrentScreeningSessionAnsweredScreeningQuestionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
+
+			for (ScreeningSessionAnsweredScreeningQuestion screeningSessionAnsweredScreeningQuestion : screeningSessionAnsweredScreeningQuestions) {
+				for (ScreeningQuestionWithAnswerOptions screeningQuestionWithAnswerOptions : screeningQuestionsWithAnswerOptions) {
+					if (screeningQuestionWithAnswerOptions.getScreeningQuestion().getScreeningQuestionId().equals(screeningSessionAnsweredScreeningQuestion.getScreeningQuestionId())) {
+						logLines.add(format("\t\tQuestion: %s", screeningQuestionWithAnswerOptions.getScreeningQuestion().getQuestionText()));
+
+						List<ScreeningAnswer> screeningAnswers = findCurrentScreeningAnswersByScreeningSessionScreeningIdAndQuestionId(screeningSessionScreening.getScreeningSessionScreeningId(), screeningQuestionWithAnswerOptions.getScreeningQuestion().getScreeningQuestionId());
+
+						logLines.add(format("\t\tAnswer[s]: %s", screeningAnswers.stream().map(screeningAnswer -> {
+							ScreeningAnswerOption screeningAnswerOption = null;
+
+							for (ScreeningAnswerOption potentialScreeningAnswerOption : screeningQuestionWithAnswerOptions.getScreeningAnswerOptions()) {
+								if (screeningAnswer.getScreeningAnswerOptionId().equals(potentialScreeningAnswerOption.getScreeningAnswerOptionId())) {
+									return potentialScreeningAnswerOption.getAnswerOptionText();
+								}
+							}
+
+							throw new IllegalStateException("Answer w/o matching option, should never happen");
+						}).collect(Collectors.joining(", "))));
+					}
+				}
+			}
+		}
+
+		getLogger().debug(logLines.stream().collect(Collectors.joining("\n")));
 	}
 
 	@NotThreadSafe
