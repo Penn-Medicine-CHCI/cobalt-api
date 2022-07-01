@@ -66,6 +66,7 @@ import com.cobaltplatform.api.model.db.AuditLogEvent;
 import com.cobaltplatform.api.model.db.AuditLogEvent.AuditLogEventId;
 import com.cobaltplatform.api.model.db.BetaFeatureAlert;
 import com.cobaltplatform.api.model.db.ClientDeviceType;
+import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
@@ -364,7 +365,7 @@ public class AccountResource {
 		}
 
 		Account pinnedAccount = account;
-		String destinationUrl = getLinkGenerator().generateAuthenticationLink(account.getInstitutionId(), loginDestinationId, ClientDeviceType.ClientDeviceTypeId.WEB_BROWSER, accessToken);
+		String destinationUrl = getLinkGenerator().generateAuthenticationLink(account.getInstitutionId(), loginDestinationId, ClientDeviceTypeId.WEB_BROWSER, accessToken);
 
 		CreateActivityTrackingRequest activityTrackingRequest = new CreateActivityTrackingRequest();
 		activityTrackingRequest.setSessionTrackingId(getCurrentContext().getSessionTrackingId());

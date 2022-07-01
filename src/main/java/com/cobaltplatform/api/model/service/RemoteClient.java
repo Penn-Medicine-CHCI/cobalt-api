@@ -19,7 +19,7 @@
 
 package com.cobaltplatform.api.model.service;
 
-import com.cobaltplatform.api.model.db.ClientDeviceType;
+import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.util.UserAgent;
 import com.cobaltplatform.api.util.UserAgentParser;
 import com.cobaltplatform.api.util.WebUtility;
@@ -47,7 +47,7 @@ public class RemoteClient {
 	@Nullable
 	private final String appBuildNumber;
 	@Nullable
-	private final ClientDeviceType.ClientDeviceTypeId typeId;
+	private final ClientDeviceTypeId typeId;
 	@Nullable
 	private final String operatingSystemName;
 	@Nullable
@@ -69,7 +69,7 @@ public class RemoteClient {
 
 	private RemoteClient(@Nullable String appVersion,
 											 @Nullable String appBuildNumber,
-											 @Nullable ClientDeviceType.ClientDeviceTypeId typeId,
+											 @Nullable ClientDeviceTypeId typeId,
 											 @Nullable String operatingSystemName,
 											 @Nullable String operatingSystemVersion,
 											 @Nullable String model,
@@ -100,7 +100,7 @@ public class RemoteClient {
 		String appVersion = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-App-Version").orElse(null);
 		String appBuildNumber = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-App-Build-Number").orElse(null);
 		String typeIdAsString = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-Type-Id").orElse(null);
-		ClientDeviceType.ClientDeviceTypeId typeId = typeIdAsString == null ? null : ClientDeviceType.ClientDeviceTypeId.valueOf(typeIdAsString);
+		ClientDeviceTypeId typeId = typeIdAsString == null ? null : ClientDeviceTypeId.valueOf(typeIdAsString);
 		String model = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-Model").orElse(null);
 		String brand = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-Brand").orElse(null);
 		String manufacturer = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-Manufacturer").orElse(null);
@@ -133,16 +133,16 @@ public class RemoteClient {
 	@Nonnull
 	public String getDescription() {
 		String appVersion = getAppVersion().orElse(null);
-		ClientDeviceType.ClientDeviceTypeId clientDeviceTypeId = getTypeId().orElse(null);
+		ClientDeviceTypeId clientDeviceTypeId = getTypeId().orElse(null);
 
 		if (appVersion == null || clientDeviceTypeId == null)
 			return getUserAgent().getDescription();
 
 		String clientDeviceTypeIdDescription = "Unknown";
 
-		if (clientDeviceTypeId == ClientDeviceType.ClientDeviceTypeId.ANDROID_APP)
+		if (clientDeviceTypeId == ClientDeviceTypeId.ANDROID_APP)
 			clientDeviceTypeIdDescription = "Android App";
-		else if (clientDeviceTypeId == ClientDeviceType.ClientDeviceTypeId.IOS_APP)
+		else if (clientDeviceTypeId == ClientDeviceTypeId.IOS_APP)
 			clientDeviceTypeIdDescription = "iOS App";
 
 		return format("%s %s (App %s on %s)", clientDeviceTypeIdDescription,
@@ -162,7 +162,7 @@ public class RemoteClient {
 	}
 
 	@Nonnull
-	public Optional<ClientDeviceType.ClientDeviceTypeId> getTypeId() {
+	public Optional<ClientDeviceTypeId> getTypeId() {
 		return Optional.ofNullable(typeId);
 	}
 

@@ -24,11 +24,11 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.ic.IcClient;
-import com.cobaltplatform.api.model.service.RemoteClient;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.security.AccessTokenClaims;
 import com.cobaltplatform.api.model.security.AccessTokenStatus;
+import com.cobaltplatform.api.model.service.RemoteClient;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.FingerprintService;
 import com.cobaltplatform.api.util.Authenticator;
@@ -68,6 +68,8 @@ public class CurrentContextRequestHandler {
 	private static final String SESSION_TRACKING_ID_PROPERTY_NAME;
 	@Nonnull
 	private static final String FINGERPRINT_ID_PROPERTY_NAME;
+	@Nonnull
+	private static final String WEBAPP_BASE_URL_PROPERTY_NAME;
 
 	@Nonnull
 	private static final String CURRENT_CONTEXT_LOGGING_KEY;
@@ -96,6 +98,7 @@ public class CurrentContextRequestHandler {
 		TIME_ZONE_REQUEST_PROPERTY_NAME = "X-Time-Zone";
 		SESSION_TRACKING_ID_PROPERTY_NAME = "X-Session-Tracking-Id";
 		FINGERPRINT_ID_PROPERTY_NAME = "X-Cobalt-Fingerprint-Id";
+		WEBAPP_BASE_URL_PROPERTY_NAME = "X-Cobalt-Webapp-Base-Url";
 
 		CURRENT_CONTEXT_LOGGING_KEY = "CURRENT_CONTEXT";
 	}
@@ -196,15 +199,17 @@ public class CurrentContextRequestHandler {
 			// Try to get fingerprint id
 			String fingerprintIdValue = WebUtility.extractValueFromRequest(httpServletRequest, getFingerprintIdPropertyName()).orElse(null);
 
-			if (fingerprintIdValue != null && account != null) {
+			if (fingerprintIdValue != null && account != null)
 				getFingerprintService().storeFingerprintForAccount(account.getAccountId(), fingerprintIdValue);
-			}
+
+			String webappBaseUrl = WebUtility.extractValueFromRequest(httpServletRequest, getWebappBaseUrlPropertyName()).orElse(null);
 
 			CurrentContext currentContext = new CurrentContext.Builder(locale, timeZone)
 					.accessToken(accessTokenValue)
 					.accessTokenStatus(accessTokenStatus)
 					.account(account)
 					.remoteClient(remoteClient)
+					.webappBaseUrl(webappBaseUrl)
 					.sessionTrackingId(sessionTrackingId)
 					.signedByIc(signedByIc)
 					.accountSource(accountSource)
@@ -269,6 +274,11 @@ public class CurrentContextRequestHandler {
 	@Nonnull
 	public static String getFingerprintIdPropertyName() {
 		return FINGERPRINT_ID_PROPERTY_NAME;
+	}
+
+	@Nonnull
+	public static String getWebappBaseUrlPropertyName() {
+		return WEBAPP_BASE_URL_PROPERTY_NAME;
 	}
 
 	@Nonnull

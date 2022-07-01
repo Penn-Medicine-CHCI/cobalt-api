@@ -361,7 +361,6 @@ public class AccountService {
 		requireNonNull(accountInvite);
 
 		Institution institution = getInstitutionService().findInstitutionById(accountInvite.getInstitutionId()).get();
-		String webBaseUrl = getConfiguration().getWebappBaseUrl(accountInvite.getInstitutionId());
 
 		EmailMessage verificationEmail = new EmailMessage.Builder(
 				EmailMessageTemplate.ACCOUNT_VERIFICATION, institution.getLocale())
