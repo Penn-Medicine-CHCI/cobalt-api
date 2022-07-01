@@ -29,7 +29,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
-import com.cobaltplatform.api.model.service.ScreeningSessionScreeningContext;
+import com.cobaltplatform.api.model.service.ScreeningQuestionContext;
 import org.junit.Test;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -84,11 +84,11 @@ public class ScreeningServiceTests {
 			int screeningQuestionIndexToResetTo = 2;
 			int screeningQuestionIndexToResetAt = 12;
 			boolean reset = false;
-			ScreeningSessionScreeningContext screeningSessionScreeningContextToResetTo = null;
+			ScreeningQuestionContext screeningSessionScreeningContextToResetTo = null;
 			int i = 0;
 
 			while (true) {
-				ScreeningSessionScreeningContext screeningSessionScreeningContext = screeningService.findNextUnansweredScreeningSessionScreeningContextByScreeningSessionId(screeningSessionId).orElse(null);
+				ScreeningQuestionContext screeningSessionScreeningContext = screeningService.findNextUnansweredScreeningQuestionContextByScreeningSessionId(screeningSessionId).orElse(null);
 
 				// No more questions in the session, we're done.
 				if (screeningSessionScreeningContext == null)

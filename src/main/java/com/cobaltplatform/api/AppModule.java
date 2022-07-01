@@ -726,6 +726,15 @@ public class AppModule extends AbstractModule {
 				return new ScreeningQuestionContextId(from);
 			}
 		});
+		valueConverterRegistry.add(new AbstractValueConverter<ScreeningQuestionContextId, String>() {
+			@Override
+			public String convert(ScreeningQuestionContextId from) throws ValueConversionException {
+				if (from == null)
+					return null;
+
+				return from.getIdentifier();
+			}
+		});
 
 		return new DefaultRequestHandler(instanceProvider, valueConverterRegistry);
 	}

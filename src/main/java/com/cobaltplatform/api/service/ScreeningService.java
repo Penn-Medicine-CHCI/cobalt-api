@@ -35,9 +35,9 @@ import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.ScreeningSessionAnsweredScreeningQuestion;
 import com.cobaltplatform.api.model.db.ScreeningSessionScreening;
 import com.cobaltplatform.api.model.db.ScreeningVersion;
+import com.cobaltplatform.api.model.service.ScreeningQuestionContext;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.cobaltplatform.api.model.service.ScreeningQuestionWithAnswerOptions;
-import com.cobaltplatform.api.model.service.ScreeningSessionScreeningContext;
 import com.cobaltplatform.api.util.JavascriptExecutionException;
 import com.cobaltplatform.api.util.JavascriptExecutor;
 import com.cobaltplatform.api.util.Normalizer;
@@ -294,12 +294,11 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	public Optional<ScreeningSessionScreeningContext> findScreeningSessionScreeningContextByScreeningSessionScreeningIdAndQuestionId(@Nullable UUID screeningSessionScreeningId,
-																																																																	 @Nullable UUID screeningQuestionId) {
-		if (screeningSessionScreeningId == null || screeningQuestionId == null)
+	public Optional<ScreeningQuestionContext> findScreeningQuestionContextById(@Nullable ScreeningQuestionContextId screeningQuestionContextId) {
+		if (screeningQuestionContextId == null)
 			return Optional.empty();
 
-		ScreeningSessionScreening screeningSessionScreening = findScreeningSessionScreeningById(screeningSessionScreeningId).orElse(null);
+		ScreeningSessionScreening screeningSessionScreening = findScreeningSessionScreeningById(screeningQuestionContextId.getScreeningSessionScreeningId()).orElse(null);
 
 		if (screeningSessionScreening == null)
 			return Optional.empty();
@@ -307,13 +306,10 @@ public class ScreeningService {
 		// Get all the questions + answer options
 		List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions = findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
 
-		// Get all the questions that have already been answered for this session
-		List<ScreeningSessionAnsweredScreeningQuestion> screeningSessionAnsweredScreeningQuestions = findCurrentScreeningSessionAnsweredScreeningQuestionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
-
 		ScreeningQuestionWithAnswerOptions screeningQuestionWithAnswerOptions = null;
 
 		for (ScreeningQuestionWithAnswerOptions potentialScreeningQuestionWithAnswerOptions : screeningQuestionsWithAnswerOptions) {
-			if (potentialScreeningQuestionWithAnswerOptions.getScreeningQuestion().getScreeningQuestionId().equals(screeningQuestionId)) {
+			if (potentialScreeningQuestionWithAnswerOptions.getScreeningQuestion().getScreeningQuestionId().equals(screeningQuestionContextId.getScreeningQuestionId())) {
 				screeningQuestionWithAnswerOptions = potentialScreeningQuestionWithAnswerOptions;
 				break;
 			}
@@ -322,28 +318,31 @@ public class ScreeningService {
 		if (screeningQuestionWithAnswerOptions == null)
 			return Optional.empty();
 
-		ScreeningSessionScreeningContext screeningSessionScreeningContext = new ScreeningSessionScreeningContext();
-		screeningSessionScreeningContext.setScreeningQuestion(screeningQuestionWithAnswerOptions.getScreeningQuestion());
-		screeningSessionScreeningContext.setScreeningAnswerOptions(screeningQuestionWithAnswerOptions.getScreeningAnswerOptions());
-		screeningSessionScreeningContext.setScreeningSessionScreening(screeningSessionScreening);
+		List<ScreeningAnswer> screeningAnswers = findCurrentScreeningAnswersByScreeningQuestionContextId(screeningQuestionContextId);
 
-		return Optional.of(screeningSessionScreeningContext);
+		return Optional.of(new ScreeningQuestionContext(screeningSessionScreening,
+				screeningQuestionWithAnswerOptions.getScreeningQuestion(),
+				screeningQuestionWithAnswerOptions.getScreeningAnswerOptions(),
+				screeningAnswers));
 	}
 
-	public Optional<ScreeningSessionScreeningContext> findPreviousScreeningSessionScreeningContextByScreeningSessionScreeningIdAndQuestionId(@Nullable UUID screeningSessionScreeningId,
-																																																																					 @Nullable UUID screeningQuestionId) {
-		if (screeningSessionScreeningId == null || screeningQuestionId == null)
+	public Optional<ScreeningQuestionContext> findPreviousScreeningQuestionContextByScreeningQuestionContextId(@Nullable ScreeningQuestionContextId screeningQuestionContextId) {
+		if (screeningQuestionContextId == null)
 			return Optional.empty();
+
+		ScreeningSessionScreening screeningSessionScreening = findScreeningSessionScreeningById(screeningQuestionContextId.getScreeningSessionScreeningId()).orElse(null);
+
+		if (screeningSessionScreening == null)
+			return Optional.empty();
+
+		// findCurrentScreeningSessionAnsweredScreeningQuestionsByScreeningSessionScreeningId()
 
 		// TODO: finish implementing
 		return Optional.empty();
 	}
 
-	// TODO: this currently finds the next unanswered question, if any.
-	// We want to also have a variant that takes as input a screening session screening ID and screening question ID,
-	// so we can find the next question after the given already-answered question (for example, if a user wants to navigate forward without re-answering the question)
 	@Nonnull
-	public Optional<ScreeningSessionScreeningContext> findNextUnansweredScreeningSessionScreeningContextByScreeningSessionId(@Nullable UUID screeningSessionId) {
+	public Optional<ScreeningQuestionContext> findNextUnansweredScreeningQuestionContextByScreeningSessionId(@Nullable UUID screeningSessionId) {
 		if (screeningSessionId == null)
 			return Optional.empty();
 
@@ -382,12 +381,8 @@ public class ScreeningService {
 		if (nextScreeningQuestionWithAnswerOptions == null)
 			return Optional.empty();
 
-		ScreeningSessionScreeningContext screeningSessionScreeningContext = new ScreeningSessionScreeningContext();
-		screeningSessionScreeningContext.setScreeningQuestion(nextScreeningQuestionWithAnswerOptions.getScreeningQuestion());
-		screeningSessionScreeningContext.setScreeningAnswerOptions(nextScreeningQuestionWithAnswerOptions.getScreeningAnswerOptions());
-		screeningSessionScreeningContext.setScreeningSessionScreening(screeningSessionScreening);
-
-		return Optional.of(screeningSessionScreeningContext);
+		return Optional.of(new ScreeningQuestionContext(screeningSessionScreening, nextScreeningQuestionWithAnswerOptions.getScreeningQuestion(),
+				nextScreeningQuestionWithAnswerOptions.getScreeningAnswerOptions()));
 	}
 
 	@Nonnull
@@ -471,9 +466,8 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	public List<ScreeningAnswer> findCurrentScreeningAnswersByScreeningSessionScreeningIdAndQuestionId(@Nullable UUID screeningSessionScreeningId,
-																																																		 @Nullable UUID screeningQuestionId) {
-		if (screeningSessionScreeningId == null || screeningQuestionId == null)
+	public List<ScreeningAnswer> findCurrentScreeningAnswersByScreeningQuestionContextId(@Nullable ScreeningQuestionContextId screeningQuestionContextId) {
+		if (screeningQuestionContextId == null)
 			return Collections.emptyList();
 
 		return getDatabase().queryForList("""
@@ -485,7 +479,7 @@ public class ScreeningService {
 				AND sq.screening_question_id=sao.screening_question_id
 				AND sa.screening_answer_option_id=sao.screening_answer_option_id
 				ORDER BY sa.created, sa.screening_answer_id
-				""", ScreeningAnswer.class, screeningSessionScreeningId, screeningQuestionId);
+				""", ScreeningAnswer.class, screeningQuestionContextId.getScreeningSessionScreeningId(), screeningQuestionContextId.getScreeningQuestionId());
 	}
 
 	@Nonnull
@@ -725,13 +719,11 @@ public class ScreeningService {
 				findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreeningId);
 		List<ScreeningAnswer> screeningAnswers = findCurrentScreeningAnswersByScreeningSessionScreeningId(screeningSessionScreeningId);
 
-		// debugScreeningSession(screeningSession.getScreeningSessionId());
-
 		ScreeningScoringOutput screeningScoringOutput = executeScreeningScoringFunction(
 				screeningVersion.getScoringFunction(), screeningQuestionsWithAnswerOptions, screeningAnswers);
 
-		getLogger().info("Screening session screening ID {} ({}) was scored {} with completed flag={}. {} out of {} questions have been answered.", screeningSessionScreeningId,
-				screeningVersion.getScreeningTypeId().name(), screeningScoringOutput.getScore(), screeningScoringOutput.getCompleted(), screeningAnswers.size(), screeningQuestionsWithAnswerOptions.size());
+		getLogger().info("Screening session screening ID {} ({}) was scored {} with completed flag={}. {} question[s] in this screening have been answered.", screeningSessionScreeningId,
+				screeningVersion.getScreeningTypeId().name(), screeningScoringOutput.getScore(), screeningScoringOutput.getCompleted(), screeningQuestionsWithAnswerOptions.size());
 
 		// Based on screening scoring function output, set score/completed flags
 		getDatabase().execute("""
@@ -1044,7 +1036,8 @@ public class ScreeningService {
 					if (screeningQuestionWithAnswerOptions.getScreeningQuestion().getScreeningQuestionId().equals(screeningSessionAnsweredScreeningQuestion.getScreeningQuestionId())) {
 						logLines.add(format("\t\tQuestion: %s", screeningQuestionWithAnswerOptions.getScreeningQuestion().getQuestionText()));
 
-						List<ScreeningAnswer> screeningAnswers = findCurrentScreeningAnswersByScreeningSessionScreeningIdAndQuestionId(screeningSessionScreening.getScreeningSessionScreeningId(), screeningQuestionWithAnswerOptions.getScreeningQuestion().getScreeningQuestionId());
+						List<ScreeningAnswer> screeningAnswers = findCurrentScreeningAnswersByScreeningQuestionContextId(
+								new ScreeningQuestionContextId(screeningSessionScreening.getScreeningSessionScreeningId(), screeningQuestionWithAnswerOptions.getScreeningQuestion().getScreeningQuestionId()));
 
 						logLines.add(format("\t\tAnswer[s]: %s", screeningAnswers.stream().map(screeningAnswer -> {
 							ScreeningAnswerOption screeningAnswerOption = null;
