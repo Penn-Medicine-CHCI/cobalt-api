@@ -192,7 +192,7 @@ public class ScreeningResource {
 		// Questions, answer options, and any answers already given for this screening session screening
 		ScreeningQuestion screeningQuestion = screeningSessionScreeningContext.getScreeningQuestion();
 		List<ScreeningAnswerOption> screeningAnswerOptions = screeningSessionScreeningContext.getScreeningAnswerOptions();
-		List<ScreeningAnswer> screeningAnswers = getScreeningService().findCurrentScreeningAnswersByScreeningQuestionContextId(screeningQuestionContextId);
+		List<ScreeningAnswer> screeningAnswers = getScreeningService().findScreeningAnswersByScreeningQuestionContextId(screeningQuestionContextId);
 
 		// Generate a link back to the previously-answered question in the same screening session.
 		// This might be a question in a previous screening session screening.

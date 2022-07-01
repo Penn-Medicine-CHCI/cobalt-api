@@ -318,7 +318,7 @@ public class ScreeningService {
 		if (screeningQuestionWithAnswerOptions == null)
 			return Optional.empty();
 
-		List<ScreeningAnswer> screeningAnswers = findCurrentScreeningAnswersByScreeningQuestionContextId(screeningQuestionContextId);
+		List<ScreeningAnswer> screeningAnswers = findScreeningAnswersByScreeningQuestionContextId(screeningQuestionContextId);
 
 		return Optional.of(new ScreeningQuestionContext(screeningSessionScreening,
 				screeningQuestionWithAnswerOptions.getScreeningQuestion(),
@@ -326,6 +326,7 @@ public class ScreeningService {
 				screeningAnswers));
 	}
 
+	@Nonnull
 	public Optional<ScreeningQuestionContext> findPreviousScreeningQuestionContextByScreeningQuestionContextId(@Nullable ScreeningQuestionContextId screeningQuestionContextId) {
 		if (screeningQuestionContextId == null)
 			return Optional.empty();
@@ -335,10 +336,57 @@ public class ScreeningService {
 		if (screeningSessionScreening == null)
 			return Optional.empty();
 
-		// findCurrentScreeningSessionAnsweredScreeningQuestionsByScreeningSessionScreeningId()
+		// First, see if the previously-answered question is within the same screening session screening...
+		List<ScreeningSessionAnsweredScreeningQuestion> screeningSessionAnsweredScreeningQuestions =
+				findScreeningSessionAnsweredScreeningQuestionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
 
-		// TODO: finish implementing
-		return Optional.empty();
+		UUID sameScreeningSessionScreeningPreviousAnsweredQuestionId = null;
+
+		for (ScreeningSessionAnsweredScreeningQuestion screeningSessionAnsweredScreeningQuestion : screeningSessionAnsweredScreeningQuestions) {
+			if (screeningSessionAnsweredScreeningQuestion.getScreeningQuestionId().equals(screeningQuestionContextId.getScreeningQuestionId()))
+				break;
+
+			sameScreeningSessionScreeningPreviousAnsweredQuestionId = screeningSessionAnsweredScreeningQuestion.getScreeningQuestionId();
+		}
+
+		// Great, we found a previously-answered question in the same screening.  Let's return its context
+		if (sameScreeningSessionScreeningPreviousAnsweredQuestionId != null)
+			return findScreeningQuestionContextById(new ScreeningQuestionContextId(
+					screeningSessionScreening.getScreeningSessionScreeningId(), sameScreeningSessionScreeningPreviousAnsweredQuestionId));
+
+		// The previously-answered question was not in the same screening session screening.
+		// Let's check the previous screening session screening and find the last-answered question there.
+		//
+		// Note: we are assuming the previous screening has at least 1 answered question.  It's technically possible but not practically likely that we
+		// will have "empty" screenings w/ no questions
+		List<ScreeningSessionScreening> screeningSessionScreenings = findCurrentScreeningSessionScreeningsByScreeningSessionId(screeningSessionScreening.getScreeningSessionId());
+
+		ScreeningSessionScreening previousScreeningSessionScreening = null;
+
+		for (ScreeningSessionScreening potentialPreviousScreeningSessionScreening : screeningSessionScreenings) {
+			if (potentialPreviousScreeningSessionScreening.getScreeningSessionScreeningId().equals(screeningSessionScreening.getScreeningSessionScreeningId()))
+				break;
+
+			previousScreeningSessionScreening = potentialPreviousScreeningSessionScreening;
+		}
+
+		// No previous screening in the session?  That means the request was for the first question of the first screening, so there is no previous context
+		if (previousScreeningSessionScreening == null)
+			return Optional.empty();
+
+		// Grab the previous screening's last answered question
+		List<ScreeningSessionAnsweredScreeningQuestion> previousScreeningSessionAnsweredScreeningQuestions =
+				findScreeningSessionAnsweredScreeningQuestionsByScreeningSessionScreeningId(previousScreeningSessionScreening.getScreeningSessionScreeningId());
+
+		// We should not be in this state
+		if (previousScreeningSessionAnsweredScreeningQuestions.size() == 0)
+			return Optional.empty();
+
+		ScreeningSessionAnsweredScreeningQuestion previousScreeningSessionLastAnsweredScreeningQuestion =
+				previousScreeningSessionAnsweredScreeningQuestions.get(previousScreeningSessionAnsweredScreeningQuestions.size() - 1);
+
+		return findScreeningQuestionContextById(new ScreeningQuestionContextId(
+				previousScreeningSessionScreening.getScreeningSessionScreeningId(), previousScreeningSessionLastAnsweredScreeningQuestion.getScreeningQuestionId()));
 	}
 
 	@Nonnull
@@ -368,7 +416,7 @@ public class ScreeningService {
 		List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions = findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
 
 		// Get all the questions that have already been answered for this session
-		List<ScreeningSessionAnsweredScreeningQuestion> screeningSessionAnsweredScreeningQuestions = findCurrentScreeningSessionAnsweredScreeningQuestionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
+		List<ScreeningSessionAnsweredScreeningQuestion> screeningSessionAnsweredScreeningQuestions = findScreeningSessionAnsweredScreeningQuestionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
 
 		// Holder for the next unanswered question (if there is one)
 		ScreeningQuestionWithAnswerOptions nextScreeningQuestionWithAnswerOptions = null;
@@ -436,7 +484,7 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	protected List<ScreeningSessionAnsweredScreeningQuestion> findCurrentScreeningSessionAnsweredScreeningQuestionsByScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
+	protected List<ScreeningSessionAnsweredScreeningQuestion> findScreeningSessionAnsweredScreeningQuestionsByScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
 		if (screeningSessionScreeningId == null)
 			return Collections.emptyList();
 
@@ -450,7 +498,7 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	protected List<ScreeningAnswer> findCurrentScreeningAnswersByScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
+	protected List<ScreeningAnswer> findScreeningAnswersAcrossAllQuestionsByScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
 		if (screeningSessionScreeningId == null)
 			return Collections.emptyList();
 
@@ -466,7 +514,7 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	public List<ScreeningAnswer> findCurrentScreeningAnswersByScreeningQuestionContextId(@Nullable ScreeningQuestionContextId screeningQuestionContextId) {
+	public List<ScreeningAnswer> findScreeningAnswersByScreeningQuestionContextId(@Nullable ScreeningQuestionContextId screeningQuestionContextId) {
 		if (screeningQuestionContextId == null)
 			return Collections.emptyList();
 
@@ -717,7 +765,7 @@ public class ScreeningService {
 		// Score the individual screening by calling its scoring function
 		List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions =
 				findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreeningId);
-		List<ScreeningAnswer> screeningAnswers = findCurrentScreeningAnswersByScreeningSessionScreeningId(screeningSessionScreeningId);
+		List<ScreeningAnswer> screeningAnswers = findScreeningAnswersAcrossAllQuestionsByScreeningSessionScreeningId(screeningSessionScreeningId);
 
 		ScreeningScoringOutput screeningScoringOutput = executeScreeningScoringFunction(
 				screeningVersion.getScoringFunction(), screeningQuestionsWithAnswerOptions, screeningAnswers);
@@ -925,7 +973,7 @@ public class ScreeningService {
 		// We could do this as a single query, but the dataset is small, and this is a little clearer and fast enough
 		for (ScreeningSessionScreening screeningSessionScreening : screeningSessionScreenings) {
 			List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions = findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
-			List<ScreeningAnswer> screeningAnswers = findCurrentScreeningAnswersByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
+			List<ScreeningAnswer> screeningAnswers = findScreeningAnswersAcrossAllQuestionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
 			Map<UUID, ScreeningAnswer> screeningAnswersByAnswerOptionId = new HashMap<>(screeningAnswers.size());
 
 			for (ScreeningAnswer screeningAnswer : screeningAnswers)
@@ -1029,14 +1077,14 @@ public class ScreeningService {
 			logLines.add(format("\tScreening '%s', version %d", screening.getName(), screeningVersion.getVersionNumber()));
 
 			List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions = findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
-			List<ScreeningSessionAnsweredScreeningQuestion> screeningSessionAnsweredScreeningQuestions = findCurrentScreeningSessionAnsweredScreeningQuestionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
+			List<ScreeningSessionAnsweredScreeningQuestion> screeningSessionAnsweredScreeningQuestions = findScreeningSessionAnsweredScreeningQuestionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
 
 			for (ScreeningSessionAnsweredScreeningQuestion screeningSessionAnsweredScreeningQuestion : screeningSessionAnsweredScreeningQuestions) {
 				for (ScreeningQuestionWithAnswerOptions screeningQuestionWithAnswerOptions : screeningQuestionsWithAnswerOptions) {
 					if (screeningQuestionWithAnswerOptions.getScreeningQuestion().getScreeningQuestionId().equals(screeningSessionAnsweredScreeningQuestion.getScreeningQuestionId())) {
 						logLines.add(format("\t\tQuestion: %s", screeningQuestionWithAnswerOptions.getScreeningQuestion().getQuestionText()));
 
-						List<ScreeningAnswer> screeningAnswers = findCurrentScreeningAnswersByScreeningQuestionContextId(
+						List<ScreeningAnswer> screeningAnswers = findScreeningAnswersByScreeningQuestionContextId(
 								new ScreeningQuestionContextId(screeningSessionScreening.getScreeningSessionScreeningId(), screeningQuestionWithAnswerOptions.getScreeningQuestion().getScreeningQuestionId()));
 
 						logLines.add(format("\t\tAnswer[s]: %s", screeningAnswers.stream().map(screeningAnswer -> {
