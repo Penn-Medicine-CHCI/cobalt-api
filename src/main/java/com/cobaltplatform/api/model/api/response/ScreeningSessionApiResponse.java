@@ -59,7 +59,7 @@ public class ScreeningSessionApiResponse {
 	private final String createdDescription;
 
 	@Nullable
-	private final String nextScreeningQuestionContextId;
+	private ScreeningQuestionContextId nextScreeningQuestionContextId;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -87,13 +87,11 @@ public class ScreeningSessionApiResponse {
 		this.created = screeningSession.getCreated();
 		this.createdDescription = formatter.formatTimestamp(screeningSession.getCreated());
 
-		ScreeningQuestionContext nextScreeningSessionScreeningContext = screeningService.findNextUnansweredScreeningQuestionContextByScreeningSessionId(screeningSessionId).orElse(null);
+		ScreeningQuestionContext nextScreeningQuestionContext =
+				screeningService.findNextUnansweredScreeningQuestionContextByScreeningSessionId(screeningSessionId).orElse(null);
 
-		ScreeningQuestionContextId nextScreeningQuestionContextId = nextScreeningSessionScreeningContext == null ? null : new ScreeningQuestionContextId(
-				nextScreeningSessionScreeningContext.getScreeningSessionScreening().getScreeningSessionScreeningId(),
-				nextScreeningSessionScreeningContext.getScreeningQuestion().getScreeningQuestionId());
-
-		this.nextScreeningQuestionContextId = nextScreeningQuestionContextId.getIdentifier();
+		this.nextScreeningQuestionContextId = nextScreeningQuestionContext == null ? null
+				: nextScreeningQuestionContext.getScreeningQuestionContextId();
 	}
 
 	@Nonnull
@@ -134,5 +132,10 @@ public class ScreeningSessionApiResponse {
 	@Nonnull
 	public String getCreatedDescription() {
 		return this.createdDescription;
+	}
+
+	@Nullable
+	public ScreeningQuestionContextId getNextScreeningQuestionContextId() {
+		return this.nextScreeningQuestionContextId;
 	}
 }

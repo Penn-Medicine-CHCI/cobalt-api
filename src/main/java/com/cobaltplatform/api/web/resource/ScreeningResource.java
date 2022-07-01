@@ -183,26 +183,26 @@ public class ScreeningResource {
 	public ApiResponse screeningQuestionContext(@Nonnull @PathParameter ScreeningQuestionContextId screeningQuestionContextId) {
 		requireNonNull(screeningQuestionContextId);
 
-		ScreeningQuestionContext screeningSessionScreeningContext = getScreeningService().findScreeningQuestionContextById(
+		ScreeningQuestionContext screeningQuestionContext = getScreeningService().findScreeningQuestionContextById(
 				screeningQuestionContextId).orElse(null);
 
-		if (screeningSessionScreeningContext == null)
+		if (screeningQuestionContext == null)
 			throw new NotFoundException();
 
 		// Questions, answer options, and any answers already given for this screening session screening
-		ScreeningQuestion screeningQuestion = screeningSessionScreeningContext.getScreeningQuestion();
-		List<ScreeningAnswerOption> screeningAnswerOptions = screeningSessionScreeningContext.getScreeningAnswerOptions();
+		ScreeningQuestion screeningQuestion = screeningQuestionContext.getScreeningQuestion();
+		List<ScreeningAnswerOption> screeningAnswerOptions = screeningQuestionContext.getScreeningAnswerOptions();
 		List<ScreeningAnswer> screeningAnswers = getScreeningService().findScreeningAnswersByScreeningQuestionContextId(screeningQuestionContextId);
 
 		// Generate a link back to the previously-answered question in the same screening session.
 		// This might be a question in a previous screening session screening.
 		// This will not exist at all if we have not answered any questions yet.
-		ScreeningQuestionContext previousScreeningSessionScreeningContext =
+		ScreeningQuestionContext previousScreeningQuestionContext =
 				getScreeningService().findPreviousScreeningQuestionContextByScreeningQuestionContextId(screeningQuestionContextId).orElse(null);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("previousScreeningQuestionContextId", previousScreeningSessionScreeningContext == null ? null
-					: previousScreeningSessionScreeningContext.getScreeningQuestionContextId());
+			put("previousScreeningQuestionContextId", previousScreeningQuestionContext == null ? null
+					: previousScreeningQuestionContext.getScreeningQuestionContextId());
 			put("screeningQuestion", getScreeningQuestionApiResponseFactory().create(screeningQuestion));
 			put("screeningAnswerOptions", screeningAnswerOptions.stream()
 					.map(screeningAnswerOption -> getScreeningAnswerOptionApiResponseFactory().create(screeningAnswerOption))
@@ -242,16 +242,14 @@ public class ScreeningResource {
 				.map(screeningAnswerId -> getScreeningService().findScreeningAnswerById(screeningAnswerId).get())
 				.collect(Collectors.toList());
 
-		ScreeningQuestionContext nextScreeningSessionScreeningContext = getScreeningService().findNextUnansweredScreeningQuestionContextByScreeningSessionId(screeningSession.getScreeningSessionId()).orElse(null);
-		ScreeningQuestionContextId nextScreeningQuestionContextId = nextScreeningSessionScreeningContext == null ? null : new ScreeningQuestionContextId(
-				nextScreeningSessionScreeningContext.getScreeningSessionScreening().getScreeningSessionScreeningId(),
-				nextScreeningSessionScreeningContext.getScreeningQuestion().getScreeningQuestionId());
+		ScreeningQuestionContext nextScreeningQuestionContext =
+				getScreeningService().findNextUnansweredScreeningQuestionContextByScreeningSessionId(screeningSession.getScreeningSessionId()).orElse(null);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("screeningAnswers", screeningAnswers.stream()
 					.map(screeningAnswer -> getScreeningAnswerApiResponseFactory().create(screeningAnswer))
 					.collect(Collectors.toList()));
-			put("nextScreeningQuestionContextId", nextScreeningQuestionContextId);
+			put("nextScreeningQuestionContextId", nextScreeningQuestionContext == null ? null : nextScreeningQuestionContext.getScreeningQuestionContextId());
 		}});
 	}
 

@@ -28,8 +28,8 @@ import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningSession;
-import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContext;
+import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import org.junit.Test;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -84,37 +84,37 @@ public class ScreeningServiceTests {
 			int screeningQuestionIndexToResetTo = 2;
 			int screeningQuestionIndexToResetAt = 12;
 			boolean reset = false;
-			ScreeningQuestionContext screeningSessionScreeningContextToResetTo = null;
+			ScreeningQuestionContext screeningQuestionContextToResetTo = null;
 			int i = 0;
 
 			while (true) {
-				ScreeningQuestionContext screeningSessionScreeningContext = screeningService.findNextUnansweredScreeningQuestionContextByScreeningSessionId(screeningSessionId).orElse(null);
+				ScreeningQuestionContext screeningQuestionContext = screeningService.findNextUnansweredScreeningQuestionContextByScreeningSessionId(screeningSessionId).orElse(null);
 
 				// No more questions in the session, we're done.
-				if (screeningSessionScreeningContext == null)
+				if (screeningQuestionContext == null)
 					break;
 
 				// Store off so we can reset to this question later
 				if (i == screeningQuestionIndexToResetTo)
-					screeningSessionScreeningContextToResetTo = screeningSessionScreeningContext;
+					screeningQuestionContextToResetTo = screeningQuestionContext;
 
 				// If it's time to reset, restore the old question context
 				if (i == screeningQuestionIndexToResetAt && !reset)
-					screeningSessionScreeningContext = screeningSessionScreeningContextToResetTo;
+					screeningQuestionContext = screeningQuestionContextToResetTo;
 
 				// Pick the last answer option...
-				UUID screeningAnswerOptionId = screeningSessionScreeningContext.getScreeningAnswerOptions().get(
-						screeningSessionScreeningContext.getScreeningAnswerOptions().size() - 1).getScreeningAnswerOptionId();
+				UUID screeningAnswerOptionId = screeningQuestionContext.getScreeningAnswerOptions().get(
+						screeningQuestionContext.getScreeningAnswerOptions().size() - 1).getScreeningAnswerOptionId();
 
 				// ...or, if we are resetting, change the previous answer to a different one (the first option)
 				if (i == screeningQuestionIndexToResetAt) {
-					screeningAnswerOptionId = screeningSessionScreeningContext.getScreeningAnswerOptions().get(0).getScreeningAnswerOptionId();
+					screeningAnswerOptionId = screeningQuestionContext.getScreeningAnswerOptions().get(0).getScreeningAnswerOptionId();
 					reset = true;
 				}
 
 				ScreeningQuestionContextId screeningQuestionContextId = new ScreeningQuestionContextId(
-						screeningSessionScreeningContext.getScreeningSessionScreening().getScreeningSessionScreeningId(),
-						screeningSessionScreeningContext.getScreeningQuestion().getScreeningQuestionId());
+						screeningQuestionContext.getScreeningSessionScreening().getScreeningSessionScreeningId(),
+						screeningQuestionContext.getScreeningQuestion().getScreeningQuestionId());
 
 				UUID pinnedScreeningAnswerOptionId = screeningAnswerOptionId;
 
