@@ -35,6 +35,7 @@ import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.ScreeningSessionAnsweredScreeningQuestion;
 import com.cobaltplatform.api.model.db.ScreeningSessionScreening;
 import com.cobaltplatform.api.model.db.ScreeningVersion;
+import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContext;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.cobaltplatform.api.model.service.ScreeningQuestionWithAnswerOptions;
@@ -62,6 +63,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -767,18 +769,18 @@ public class ScreeningService {
 				findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreeningId);
 		List<ScreeningAnswer> screeningAnswers = findScreeningAnswersAcrossAllQuestionsByScreeningSessionScreeningId(screeningSessionScreeningId);
 
-		ScreeningScoringOutput screeningScoringOutput = executeScreeningScoringFunction(
+		ScreeningScoringFunctionOutput screeningScoringFunctionOutput = executeScreeningScoringFunction(
 				screeningVersion.getScoringFunction(), screeningQuestionsWithAnswerOptions, screeningAnswers);
 
 		getLogger().info("Screening session screening ID {} ({}) was scored {} with completed flag={}. {} question[s] in this screening have been answered.", screeningSessionScreeningId,
-				screeningVersion.getScreeningTypeId().name(), screeningScoringOutput.getScore(), screeningScoringOutput.getCompleted(), screeningQuestionsWithAnswerOptions.size());
+				screeningVersion.getScreeningTypeId().name(), screeningScoringFunctionOutput.getScore(), screeningScoringFunctionOutput.getCompleted(), screeningQuestionsWithAnswerOptions.size());
 
 		// Based on screening scoring function output, set score/completed flags
 		getDatabase().execute("""
 				UPDATE screening_session_screening
 				SET completed=?, score=?
 				WHERE screening_session_screening_id=?
-				""", screeningScoringOutput.getCompleted(), screeningScoringOutput.getScore(), screeningSessionScreening.getScreeningSessionScreeningId());
+				""", screeningScoringFunctionOutput.getCompleted(), screeningScoringFunctionOutput.getScore(), screeningSessionScreening.getScreeningSessionScreeningId());
 
 		// Screening Flow Orchestration Function
 
@@ -852,9 +854,7 @@ public class ScreeningService {
 		screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
 		// End temporary hack
 
-		// Pull data we'll need to pass in to the orchestration function
-		List<Screening> screenings = findScreeningsByInstitutionId(createdByAccount.getInstitutionId());
-		OrchestrationFunctionOutput orchestrationFunctionOutput = executeScreeningFlowOrchestrationFunction(screeningFlowVersion.getOrchestrationFunction(), screenings, screeningSession.getScreeningSessionId());
+		OrchestrationFunctionOutput orchestrationFunctionOutput = executeScreeningFlowOrchestrationFunction(screeningFlowVersion.getOrchestrationFunction(), screeningSession.getScreeningSessionId(), createdByAccount.getInstitutionId()).get();
 
 		if (orchestrationFunctionOutput.getNextScreeningId() != null) {
 			Integer nextScreeningOrder = getDatabase().queryForObject("""
@@ -884,6 +884,8 @@ public class ScreeningService {
 				getLogger().info("Orchestration function for screening session screening ID {} ({}) indicated crisis.  Creating crisis interacting instance...",
 						screeningSessionScreeningId, screeningVersion.getScreeningTypeId().name());
 
+				getDatabase().execute("UPDATE screening_session SET crisis_indicated=TRUE WHERE screening_session_id=?", screeningSession.getScreeningSessionId());
+
 				// TODO: Create interaction instance to be sent to relevant care provider[s] that includes screening Q and A values from this flow + scores
 			}
 		}
@@ -900,14 +902,50 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	protected ScreeningScoringOutput executeScreeningScoringFunction(@Nonnull String screeningScoringFunctionJavascript,
-																																	 @Nonnull List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions,
-																																	 @Nonnull List<ScreeningAnswer> screeningAnswers) {
+	public Optional<String> determineDestinationUrlForScreeningSessionId(@Nullable UUID screeningSessionId) {
+		if (screeningSessionId == null)
+			return Optional.empty();
+
+		ScreeningSession screeningSession = findScreeningSessionById(screeningSessionId).orElse(null);
+
+		if (screeningSession == null || !screeningSession.getCompleted())
+			return Optional.empty();
+
+		ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
+		Account targetAccount = getAccountService().findAccountById(screeningSession.getTargetAccountId()).get();
+
+		// Temporary hack for testing
+		String destinationFunctionJs = """
+				console.log("** Starting destination function");
+
+				output.url = null;
+				
+				if(input.screeningSession.completed) {
+				  output.url = input.screeningSession.crisisIndicated ? '/crisis' : '/connect-with-support';
+				}
+
+				console.log("** Finished destination function");
+								""";
+
+		getDatabase().execute("UPDATE screening_flow_version SET destination_function=? WHERE screening_flow_version_id=?", destinationFunctionJs, screeningSession.getScreeningFlowVersionId());
+		screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
+		// End temporary hack
+
+		DestinationFunctionOutput destinationFunctionOutput = executeScreeningFlowDestinationFunction(screeningFlowVersion.getDestinationFunction(),
+				screeningSessionId, targetAccount.getInstitutionId()).orElse(null);
+
+		return Optional.ofNullable(destinationFunctionOutput == null ? null : destinationFunctionOutput.getUrl());
+	}
+
+	@Nonnull
+	protected ScreeningScoringFunctionOutput executeScreeningScoringFunction(@Nonnull String screeningScoringFunctionJavascript,
+																																					 @Nonnull List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions,
+																																					 @Nonnull List<ScreeningAnswer> screeningAnswers) {
 		requireNonNull(screeningScoringFunctionJavascript);
 		requireNonNull(screeningQuestionsWithAnswerOptions);
 		requireNonNull(screeningAnswers);
 
-		ScreeningScoringOutput screeningScoringOutput;
+		ScreeningScoringFunctionOutput screeningScoringFunctionOutput;
 
 		// Massage data a bit to make it easier for function to get a screening answer option given a screening answer ID
 		Map<UUID, ScreeningAnswerOption> screeningAnswerOptionsById = new HashMap<>();
@@ -927,29 +965,111 @@ public class ScreeningService {
 		context.put("screeningAnswerOptionsByScreeningAnswerId", screeningAnswerOptionsByScreeningAnswerId);
 
 		try {
-			screeningScoringOutput = getJavascriptExecutor().execute(screeningScoringFunctionJavascript, context, ScreeningScoringOutput.class);
+			screeningScoringFunctionOutput = getJavascriptExecutor().execute(screeningScoringFunctionJavascript, context, ScreeningScoringFunctionOutput.class);
 		} catch (JavascriptExecutionException e) {
 			throw new RuntimeException(e);
 		}
 
-		if (screeningScoringOutput.getCompleted() == null)
+		if (screeningScoringFunctionOutput.getCompleted() == null)
 			throw new IllegalStateException("Screening scoring function must provide a 'completed' value in output");
 
-		if (screeningScoringOutput.getScore() == null)
+		if (screeningScoringFunctionOutput.getScore() == null)
 			throw new IllegalStateException("Screening scoring function must provide a 'score' value in output");
 
-		return screeningScoringOutput;
+		return screeningScoringFunctionOutput;
+	}
+
+
+	@Nonnull
+	protected Optional<OrchestrationFunctionOutput> executeScreeningFlowOrchestrationFunction(@Nonnull String screeningFlowOrchestrationFunctionJavascript,
+																																														@Nullable UUID screeningSessionId,
+																																														@Nullable InstitutionId institutionId) {
+		requireNonNull(screeningFlowOrchestrationFunctionJavascript);
+
+		if (screeningSessionId == null || institutionId == null)
+			return Optional.empty();
+
+		OrchestrationFunctionOutput orchestrationFunctionOutput = executeScreeningFlowFunction(screeningFlowOrchestrationFunctionJavascript,
+				OrchestrationFunctionOutput.class, screeningSessionId, institutionId).orElse(null);
+
+		if (orchestrationFunctionOutput == null)
+			return Optional.empty();
+
+		if (orchestrationFunctionOutput.getCompleted() == null)
+			throw new IllegalStateException("Screening flow orchestration function must provide a 'completed' value in output");
+
+		if (orchestrationFunctionOutput.getCrisisIndicated() == null)
+			throw new IllegalStateException("Screening flow orchestration function must provide a 'crisisIndicated' value in output");
+
+		if (orchestrationFunctionOutput.getCompleted() && orchestrationFunctionOutput.getNextScreeningId() != null)
+			throw new IllegalStateException(format("Screening flow orchestration function output says this screening session is completed, but also provides a nonnull 'nextScreeningId' value"));
+
+		return Optional.of(orchestrationFunctionOutput);
 	}
 
 	@Nonnull
-	protected OrchestrationFunctionOutput executeScreeningFlowOrchestrationFunction(@Nonnull String screeningFlowOrchestrationFunctionJavascript,
-																																									@Nonnull List<Screening> screenings,
-																																									@Nonnull UUID screeningSessionId) {
-		requireNonNull(screeningFlowOrchestrationFunctionJavascript);
-		requireNonNull(screenings);
-		requireNonNull(screeningSessionId);
+	protected Optional<ResultsFunctionOutput> executeScreeningFlowResultsFunction(@Nonnull String screeningFlowResultsFunctionJavascript,
+																																								@Nullable UUID screeningSessionId,
+																																								@Nullable InstitutionId institutionId) {
+		requireNonNull(screeningFlowResultsFunctionJavascript);
 
-		OrchestrationFunctionOutput orchestrationFunctionOutput;
+		if (screeningSessionId == null || institutionId == null)
+			return Optional.empty();
+
+		ResultsFunctionOutput resultsFunctionOutput = executeScreeningFlowFunction(screeningFlowResultsFunctionJavascript,
+				ResultsFunctionOutput.class, screeningSessionId, institutionId).orElse(null);
+
+		if (resultsFunctionOutput == null)
+			return Optional.empty();
+
+		if (resultsFunctionOutput.getRecommendedSupportRoleIds() == null)
+			throw new IllegalStateException("Screening flow results function must provide a 'recommendedSupportRoleIds' value in output");
+
+		return Optional.of(resultsFunctionOutput);
+	}
+
+	@Nonnull
+	protected Optional<DestinationFunctionOutput> executeScreeningFlowDestinationFunction(@Nonnull String screeningFlowDestinationFunctionJavascript,
+																																												@Nullable UUID screeningSessionId,
+																																												@Nullable InstitutionId institutionId) {
+		requireNonNull(screeningFlowDestinationFunctionJavascript);
+
+		if (screeningSessionId == null || institutionId == null)
+			return Optional.empty();
+
+		DestinationFunctionOutput destinationFunctionOutput = executeScreeningFlowFunction(screeningFlowDestinationFunctionJavascript,
+				DestinationFunctionOutput.class, screeningSessionId, institutionId).orElse(null);
+
+		if (destinationFunctionOutput == null)
+			return Optional.empty();
+
+		if (destinationFunctionOutput.getUrl() == null)
+			throw new IllegalStateException("Screening flow destination function must provide a 'url' value in output");
+
+		return Optional.of(destinationFunctionOutput);
+	}
+
+	@Nonnull
+	protected <T> Optional<T> executeScreeningFlowFunction(@Nonnull String screeningFlowFunctionJavascript,
+																												 @Nonnull Class<T> screeningFlowFunctionResultType,
+																												 @Nullable UUID screeningSessionId,
+																												 @Nullable InstitutionId institutionId) {
+		requireNonNull(screeningFlowFunctionJavascript);
+
+		if (screeningSessionId == null || institutionId == null)
+			return Optional.empty();
+
+		T screeningFlowFunctionResult;
+
+		ScreeningSession screeningSession = findScreeningSessionById(screeningSessionId).orElse(null);
+
+		if (screeningSession == null)
+			return Optional.empty();
+
+		List<Screening> screenings = findScreeningsByInstitutionId(institutionId);
+
+		if (screenings.size() == 0)
+			return Optional.empty();
 
 		// Massage data a bit to make it easier for function to get a handle to a screening by using its name
 		Map<String, Screening> screeningsByName = new HashMap<>(screenings.size());
@@ -1033,25 +1153,17 @@ public class ScreeningService {
 		Map<String, Object> context = new HashMap<>();
 		context.put("screenings", screenings);
 		context.put("screeningsByName", screeningsByName);
+		context.put("screeningSession", screeningSession);
 		context.put("screeningSessionScreenings", screeningSessionScreenings);
 		context.put("screeningResultsByScreeningSessionScreeningId", screeningResultsByScreeningSessionScreeningId);
 
 		try {
-			orchestrationFunctionOutput = getJavascriptExecutor().execute(screeningFlowOrchestrationFunctionJavascript, context, OrchestrationFunctionOutput.class);
+			screeningFlowFunctionResult = getJavascriptExecutor().execute(screeningFlowFunctionJavascript, context, screeningFlowFunctionResultType);
 		} catch (JavascriptExecutionException e) {
 			throw new RuntimeException(e);
 		}
 
-		if (orchestrationFunctionOutput.getCompleted() == null)
-			throw new IllegalStateException("Orchestration function must provide a 'completed' value in output");
-
-		if (orchestrationFunctionOutput.getCrisisIndicated() == null)
-			throw new IllegalStateException("Orchestration function must provide a 'crisisIndicated' value in output");
-
-		if (orchestrationFunctionOutput.getCompleted() && orchestrationFunctionOutput.getNextScreeningId() != null)
-			throw new IllegalStateException(format("Orchestration function output says this screening session is completed, but also provides a nonnull 'nextScreeningId' value"));
-
-		return orchestrationFunctionOutput;
+		return Optional.ofNullable(screeningFlowFunctionResult);
 	}
 
 	protected void debugScreeningSession(@Nonnull UUID screeningSessionId) {
@@ -1107,7 +1219,7 @@ public class ScreeningService {
 	}
 
 	@NotThreadSafe
-	protected static class ScreeningScoringOutput {
+	protected static class ScreeningScoringFunctionOutput {
 		@Nullable
 		private Boolean completed;
 		@Nullable
@@ -1166,6 +1278,38 @@ public class ScreeningService {
 
 		public void setNextScreeningId(@Nullable UUID nextScreeningId) {
 			this.nextScreeningId = nextScreeningId;
+		}
+	}
+
+	@NotThreadSafe
+	protected static class ResultsFunctionOutput {
+		@Nullable
+		private Set<SupportRoleId> recommendedSupportRoleIds;
+
+		// TODO: recommended Content tags
+
+		@Nullable
+		public Set<SupportRoleId> getRecommendedSupportRoleIds() {
+			return this.recommendedSupportRoleIds;
+		}
+
+		public void setRecommendedSupportRoleIds(@Nullable Set<SupportRoleId> recommendedSupportRoleIds) {
+			this.recommendedSupportRoleIds = recommendedSupportRoleIds;
+		}
+	}
+
+	@NotThreadSafe
+	protected static class DestinationFunctionOutput {
+		@Nullable
+		private String url;
+
+		@Nullable
+		public String getUrl() {
+			return this.url;
+		}
+
+		public void setUrl(@Nullable String url) {
+			this.url = url;
 		}
 	}
 

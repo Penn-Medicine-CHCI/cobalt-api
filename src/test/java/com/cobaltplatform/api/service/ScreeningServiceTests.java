@@ -30,6 +30,7 @@ import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContext;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
+import org.junit.Assert;
 import org.junit.Test;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -81,6 +82,8 @@ public class ScreeningServiceTests {
 
 			assertEquals("Account is missing a provider triage screening session", 1, screeningSessions.size());
 
+			// Keep track of some things so we can answer questions from a few screenings, then "reset" to an earlier
+			// screening by jumping back and changing our answer to an earlier question
 			int screeningQuestionIndexToResetTo = 2;
 			int screeningQuestionIndexToResetAt = 12;
 			boolean reset = false;
@@ -129,6 +132,10 @@ public class ScreeningServiceTests {
 
 				++i;
 			}
+
+			String destinationUrl = screeningService.determineDestinationUrlForScreeningSessionId(screeningSessionId).orElse(null);
+
+			Assert.assertEquals("Post-session destination should have been the crisis screen", "/crisis", destinationUrl);
 		});
 	}
 }
