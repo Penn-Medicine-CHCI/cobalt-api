@@ -35,6 +35,7 @@ import com.cobaltplatform.api.model.db.ScreeningSessionScreening;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContext;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
+import com.cobaltplatform.api.model.service.ScreeningSessionDestination;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.ScreeningService;
@@ -200,7 +201,7 @@ public class ScreeningResource {
 		ScreeningQuestionContext previousScreeningQuestionContext =
 				getScreeningService().findPreviousScreeningQuestionContextByScreeningQuestionContextId(screeningQuestionContextId).orElse(null);
 
-		String destinationUrl = getScreeningService().determineDestinationUrlForScreeningSessionId(screeningQuestionContext.getScreeningSessionScreening().getScreeningSessionId()).orElse(null);
+		ScreeningSessionDestination screeningSessionDestination = getScreeningService().determineDestinationForScreeningSessionId(screeningQuestionContext.getScreeningSessionScreening().getScreeningSessionId()).orElse(null);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("previousScreeningQuestionContextId", previousScreeningQuestionContext == null ? null
@@ -212,7 +213,7 @@ public class ScreeningResource {
 			put("screeningAnswers", screeningAnswers.stream()
 					.map(screeningAnswer -> getScreeningAnswerApiResponseFactory().create(screeningAnswer))
 					.collect(Collectors.toList()));
-			put("destinationUrl", destinationUrl);
+			put("screeningSessionDestination", screeningSessionDestination);
 		}});
 	}
 
@@ -248,14 +249,14 @@ public class ScreeningResource {
 		ScreeningQuestionContext nextScreeningQuestionContext =
 				getScreeningService().findNextUnansweredScreeningQuestionContextByScreeningSessionId(screeningSession.getScreeningSessionId()).orElse(null);
 
-		String destinationUrl = getScreeningService().determineDestinationUrlForScreeningSessionId(screeningSession.getScreeningSessionId()).orElse(null);
+		ScreeningSessionDestination screeningSessionDestination = getScreeningService().determineDestinationForScreeningSessionId(screeningSession.getScreeningSessionId()).orElse(null);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("screeningAnswers", screeningAnswers.stream()
 					.map(screeningAnswer -> getScreeningAnswerApiResponseFactory().create(screeningAnswer))
 					.collect(Collectors.toList()));
 			put("nextScreeningQuestionContextId", nextScreeningQuestionContext == null ? null : nextScreeningQuestionContext.getScreeningQuestionContextId());
-			put("destinationUrl", destinationUrl);
+			put("screeningSessionDestination", screeningSessionDestination);
 		}});
 	}
 

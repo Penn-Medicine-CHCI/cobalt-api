@@ -39,6 +39,8 @@ import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContext;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.cobaltplatform.api.model.service.ScreeningQuestionWithAnswerOptions;
+import com.cobaltplatform.api.model.service.ScreeningSessionDestination;
+import com.cobaltplatform.api.model.service.ScreeningSessionDestination.ScreeningSessionDestinationId;
 import com.cobaltplatform.api.util.JavascriptExecutionException;
 import com.cobaltplatform.api.util.JavascriptExecutor;
 import com.cobaltplatform.api.util.Normalizer;
@@ -902,7 +904,7 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	public Optional<String> determineDestinationUrlForScreeningSessionId(@Nullable UUID screeningSessionId) {
+	public Optional<ScreeningSessionDestination> determineDestinationForScreeningSessionId(@Nullable UUID screeningSessionId) {
 		if (screeningSessionId == null)
 			return Optional.empty();
 
@@ -918,10 +920,11 @@ public class ScreeningService {
 		String destinationFunctionJs = """
 				console.log("** Starting destination function");
 
-				output.url = null;
-				
+				output.screeningSessionDestinationId = null;
+				output.context = {};
+								
 				if(input.screeningSession.completed) {
-				  output.url = input.screeningSession.crisisIndicated ? '/crisis' : '/connect-with-support';
+				  output.screeningSessionDestinationId = input.screeningSession.crisisIndicated ? 'CRISIS' : 'ONE_ON_ONE_PROVIDER_LIST';
 				}
 
 				console.log("** Finished destination function");
@@ -932,9 +935,13 @@ public class ScreeningService {
 		// End temporary hack
 
 		DestinationFunctionOutput destinationFunctionOutput = executeScreeningFlowDestinationFunction(screeningFlowVersion.getDestinationFunction(),
-				screeningSessionId, targetAccount.getInstitutionId()).orElse(null);
+				screeningSessionId, targetAccount.getInstitutionId()).get();
 
-		return Optional.ofNullable(destinationFunctionOutput == null ? null : destinationFunctionOutput.getUrl());
+		if (destinationFunctionOutput.getScreeningSessionDestinationId() == null)
+			return Optional.empty();
+
+		return Optional.of(new ScreeningSessionDestination(
+				destinationFunctionOutput.getScreeningSessionDestinationId(), destinationFunctionOutput.getContext()));
 	}
 
 	@Nonnull
@@ -1042,9 +1049,6 @@ public class ScreeningService {
 
 		if (destinationFunctionOutput == null)
 			return Optional.empty();
-
-		if (destinationFunctionOutput.getUrl() == null)
-			throw new IllegalStateException("Screening flow destination function must provide a 'url' value in output");
 
 		return Optional.of(destinationFunctionOutput);
 	}
@@ -1301,15 +1305,26 @@ public class ScreeningService {
 	@NotThreadSafe
 	protected static class DestinationFunctionOutput {
 		@Nullable
-		private String url;
+		private ScreeningSessionDestinationId screeningSessionDestinationId;
+		@Nullable
+		private Map<String, Object> context;
 
 		@Nullable
-		public String getUrl() {
-			return this.url;
+		public ScreeningSessionDestinationId getScreeningSessionDestinationId() {
+			return this.screeningSessionDestinationId;
 		}
 
-		public void setUrl(@Nullable String url) {
-			this.url = url;
+		public void setScreeningSessionDestinationId(@Nullable ScreeningSessionDestinationId screeningSessionDestinationId) {
+			this.screeningSessionDestinationId = screeningSessionDestinationId;
+		}
+
+		@Nullable
+		public Map<String, Object> getContext() {
+			return this.context;
+		}
+
+		public void setContext(@Nullable Map<String, Object> context) {
+			this.context = context;
 		}
 	}
 

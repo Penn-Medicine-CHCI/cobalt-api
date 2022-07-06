@@ -30,6 +30,8 @@ import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContext;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
+import com.cobaltplatform.api.model.service.ScreeningSessionDestination;
+import com.cobaltplatform.api.model.service.ScreeningSessionDestination.ScreeningSessionDestinationId;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -133,9 +135,10 @@ public class ScreeningServiceTests {
 				++i;
 			}
 
-			String destinationUrl = screeningService.determineDestinationUrlForScreeningSessionId(screeningSessionId).orElse(null);
+			ScreeningSessionDestination screeningSessionDestination = screeningService.determineDestinationForScreeningSessionId(screeningSessionId).get();
 
-			Assert.assertEquals("Post-session destination should have been the crisis screen", "/crisis", destinationUrl);
+			Assert.assertEquals("Post-session destination should have been the crisis screen",
+					ScreeningSessionDestinationId.CRISIS, screeningSessionDestination.getScreeningSessionDestinationId());
 		});
 	}
 }

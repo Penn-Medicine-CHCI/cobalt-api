@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContext;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
+import com.cobaltplatform.api.model.service.ScreeningSessionDestination;
 import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
@@ -61,7 +62,7 @@ public class ScreeningSessionApiResponse {
 	@Nullable
 	private ScreeningQuestionContextId nextScreeningQuestionContextId;
 	@Nullable
-	private final String destinationUrl;
+	private final ScreeningSessionDestination screeningSessionDestination;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -95,7 +96,7 @@ public class ScreeningSessionApiResponse {
 		this.nextScreeningQuestionContextId = nextScreeningQuestionContext == null ? null
 				: nextScreeningQuestionContext.getScreeningQuestionContextId();
 
-		this.destinationUrl = screeningService.determineDestinationUrlForScreeningSessionId(screeningSessionId).orElse(null);
+		this.screeningSessionDestination = screeningService.determineDestinationForScreeningSessionId(screeningSessionId).orElse(null);
 	}
 
 	@Nonnull
@@ -144,7 +145,7 @@ public class ScreeningSessionApiResponse {
 	}
 
 	@Nullable
-	public String getDestinationUrl() {
-		return this.destinationUrl;
+	public ScreeningSessionDestination getScreeningSessionDestination() {
+		return this.screeningSessionDestination;
 	}
 }

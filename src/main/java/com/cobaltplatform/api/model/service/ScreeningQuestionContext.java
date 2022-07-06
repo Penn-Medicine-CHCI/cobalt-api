@@ -26,7 +26,7 @@ import com.cobaltplatform.api.model.db.ScreeningSessionScreening;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.annotation.concurrent.NotThreadSafe;
+import javax.annotation.concurrent.ThreadSafe;
 import java.util.List;
 
 import static java.util.Objects.requireNonNull;
@@ -34,7 +34,7 @@ import static java.util.Objects.requireNonNull;
 /**
  * @author Transmogrify, LLC.
  */
-@NotThreadSafe
+@ThreadSafe
 public class ScreeningQuestionContext {
 	@Nonnull
 	private final ScreeningQuestionContextId screeningQuestionContextId;
