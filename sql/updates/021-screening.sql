@@ -94,7 +94,8 @@ CREATE TABLE screening_flow_version (
 	initial_screening_id UUID NOT NULL REFERENCES screening (screening_id),
 	version_number INTEGER NOT NULL DEFAULT 1,
 	orchestration_function TEXT NOT NULL, -- Javascript code, invoked every time an answer is given to a screening question
-	results_function TEXT NOT NULL, -- Javascript code, invoked once a screening session transitions to "completed" status
+	results_function TEXT NOT NULL, -- Javascript code, invoked once the flow transitions to "completed" status
+	destination_function TEXT NOT NULL, -- Javascript code, invoked when we want to know where to go next after the flow is completed
 	created_by_account_id UUID NOT NULL REFERENCES account (account_id),
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()

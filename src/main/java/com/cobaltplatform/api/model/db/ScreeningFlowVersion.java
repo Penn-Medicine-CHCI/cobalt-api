@@ -42,6 +42,8 @@ public class ScreeningFlowVersion {
 	@Nullable
 	private String resultsFunction;
 	@Nullable
+	private String destinationFunction;
+	@Nullable
 	private UUID createdByAccountId;
 	@Nullable
 	private Instant created;
@@ -100,6 +102,15 @@ public class ScreeningFlowVersion {
 
 	public void setResultsFunction(@Nullable String resultsFunction) {
 		this.resultsFunction = resultsFunction;
+	}
+
+	@Nullable
+	public String getDestinationFunction() {
+		return this.destinationFunction;
+	}
+
+	public void setDestinationFunction(@Nullable String destinationFunction) {
+		this.destinationFunction = destinationFunction;
 	}
 
 	@Nullable
