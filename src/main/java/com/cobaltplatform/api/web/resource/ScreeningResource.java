@@ -200,6 +200,8 @@ public class ScreeningResource {
 		ScreeningQuestionContext previousScreeningQuestionContext =
 				getScreeningService().findPreviousScreeningQuestionContextByScreeningQuestionContextId(screeningQuestionContextId).orElse(null);
 
+		String destinationUrl = getScreeningService().determineDestinationUrlForScreeningSessionId(screeningQuestionContext.getScreeningSessionScreening().getScreeningSessionId()).orElse(null);
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("previousScreeningQuestionContextId", previousScreeningQuestionContext == null ? null
 					: previousScreeningQuestionContext.getScreeningQuestionContextId());
@@ -210,6 +212,7 @@ public class ScreeningResource {
 			put("screeningAnswers", screeningAnswers.stream()
 					.map(screeningAnswer -> getScreeningAnswerApiResponseFactory().create(screeningAnswer))
 					.collect(Collectors.toList()));
+			put("destinationUrl", destinationUrl);
 		}});
 	}
 
@@ -245,11 +248,14 @@ public class ScreeningResource {
 		ScreeningQuestionContext nextScreeningQuestionContext =
 				getScreeningService().findNextUnansweredScreeningQuestionContextByScreeningSessionId(screeningSession.getScreeningSessionId()).orElse(null);
 
+		String destinationUrl = getScreeningService().determineDestinationUrlForScreeningSessionId(screeningSession.getScreeningSessionId()).orElse(null);
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("screeningAnswers", screeningAnswers.stream()
 					.map(screeningAnswer -> getScreeningAnswerApiResponseFactory().create(screeningAnswer))
 					.collect(Collectors.toList()));
 			put("nextScreeningQuestionContextId", nextScreeningQuestionContext == null ? null : nextScreeningQuestionContext.getScreeningQuestionContextId());
+			put("destinationUrl", destinationUrl);
 		}});
 	}
 

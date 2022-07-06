@@ -60,6 +60,8 @@ public class ScreeningSessionApiResponse {
 
 	@Nullable
 	private ScreeningQuestionContextId nextScreeningQuestionContextId;
+	@Nullable
+	private final String destinationUrl;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -92,6 +94,8 @@ public class ScreeningSessionApiResponse {
 
 		this.nextScreeningQuestionContextId = nextScreeningQuestionContext == null ? null
 				: nextScreeningQuestionContext.getScreeningQuestionContextId();
+
+		this.destinationUrl = screeningService.determineDestinationUrlForScreeningSessionId(screeningSessionId).orElse(null);
 	}
 
 	@Nonnull
@@ -137,5 +141,10 @@ public class ScreeningSessionApiResponse {
 	@Nullable
 	public ScreeningQuestionContextId getNextScreeningQuestionContextId() {
 		return this.nextScreeningQuestionContextId;
+	}
+
+	@Nullable
+	public String getDestinationUrl() {
+		return this.destinationUrl;
 	}
 }
