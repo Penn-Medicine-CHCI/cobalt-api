@@ -852,7 +852,7 @@ public class ContentService {
 				"WHERE ac.content_id = c.content_id  " +
 				"AND ac.answer_id = a1.answer_id " +
 				"and a1.account_session_id= ? " +
-				"AND c.institution_id = ? AND c.approved_flag = TRUE AND c.archived_flag=FALSE ");
+				"AND c.institution_id = ? AND c.approved_flag = TRUE AND c.archived_flag=FALSE AND c.owner_institution_approval_status_id='APPROVED' ");
 		final String GROUP_BY = "group by c.content_id,c.content_type_id,c.title,c.url,c.date_created,c.image_url, " +
 				"c.description,c.author,c.created,c.last_updated,c.owner_institution_id, " +
 				"c.content_type_label,c.content_type_description,c.call_to_action,c.institution_id, c.duration_in_minutes , new_flag  ";
