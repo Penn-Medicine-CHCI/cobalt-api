@@ -36,6 +36,8 @@ public class ScreeningFlowVersion {
 	@Nullable
 	private UUID initialScreeningId;
 	@Nullable
+	private Boolean phoneNumberRequired;
+	@Nullable
 	private Integer versionNumber;
 	@Nullable
 	private String orchestrationFunction;
@@ -75,6 +77,15 @@ public class ScreeningFlowVersion {
 
 	public void setInitialScreeningId(@Nullable UUID initialScreeningId) {
 		this.initialScreeningId = initialScreeningId;
+	}
+
+	@Nullable
+	public Boolean getPhoneNumberRequired() {
+		return this.phoneNumberRequired;
+	}
+
+	public void setPhoneNumberRequired(@Nullable Boolean phoneNumberRequired) {
+		this.phoneNumberRequired = phoneNumberRequired;
 	}
 
 	@Nullable

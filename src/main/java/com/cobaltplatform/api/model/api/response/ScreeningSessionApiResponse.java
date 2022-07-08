@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContext;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
@@ -55,6 +57,8 @@ public class ScreeningSessionApiResponse {
 	@Nonnull
 	private final Boolean crisisIndicated;
 	@Nonnull
+	private final Boolean promptForPhoneNumber;
+	@Nonnull
 	private final Instant created;
 	@Nonnull
 	private final String createdDescription;
@@ -68,18 +72,21 @@ public class ScreeningSessionApiResponse {
 	@ThreadSafe
 	public interface ScreeningSessionApiResponseFactory {
 		@Nonnull
-		ScreeningSessionApiResponse create(@Nonnull ScreeningSession screeningSession);
+		ScreeningSessionApiResponse create(@Nonnull ScreeningSession screeningSession,
+																			 @Nonnull Account targetAccount);
 	}
 
 	@AssistedInject
 	public ScreeningSessionApiResponse(@Nonnull ScreeningService screeningService,
 																		 @Nonnull Formatter formatter,
 																		 @Nonnull Strings strings,
-																		 @Assisted @Nonnull ScreeningSession screeningSession) {
+																		 @Assisted @Nonnull ScreeningSession screeningSession,
+																		 @Assisted @Nonnull Account targetAccount) {
 		requireNonNull(screeningService);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(screeningSession);
+		requireNonNull(targetAccount);
 
 		this.screeningSessionId = screeningSession.getScreeningSessionId();
 		this.screeningFlowVersionId = screeningSession.getScreeningFlowVersionId();
@@ -97,6 +104,10 @@ public class ScreeningSessionApiResponse {
 				: nextScreeningQuestionContext.getScreeningQuestionContextId();
 
 		this.screeningSessionDestination = screeningService.determineDestinationForScreeningSessionId(screeningSessionId).orElse(null);
+
+		ScreeningFlowVersion screeningFlowVersion = screeningService.findScreeningFlowVersionById(getScreeningFlowVersionId()).get();
+
+		this.promptForPhoneNumber = screeningFlowVersion.getPhoneNumberRequired() && targetAccount.getPhoneNumber() == null;
 	}
 
 	@Nonnull
@@ -147,5 +158,10 @@ public class ScreeningSessionApiResponse {
 	@Nullable
 	public ScreeningSessionDestination getScreeningSessionDestination() {
 		return this.screeningSessionDestination;
+	}
+
+	@Nonnull
+	public Boolean getPromptForPhoneNumber() {
+		return this.promptForPhoneNumber;
 	}
 }

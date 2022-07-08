@@ -132,6 +132,7 @@ public class ScreeningResource {
 		requireNonNull(requestBody);
 
 		Account account = getCurrentContext().getAccount().get();
+		Account targetAccount = null;
 
 		CreateScreeningSessionRequest request = getRequestBodyParser().parse(requestBody, CreateScreeningSessionRequest.class);
 		request.setCreatedByAccountId(account.getAccountId());
@@ -142,7 +143,7 @@ public class ScreeningResource {
 
 		// Ensure you are permitted to start a screening session for the specified account
 		if (request.getTargetAccountId() != null) {
-			Account targetAccount = getAccountService().findAccountById(request.getTargetAccountId()).orElse(null);
+			targetAccount = getAccountService().findAccountById(request.getTargetAccountId()).orElse(null);
 
 			if (!getAuthorizationService().canPerformScreening(account, targetAccount))
 				throw new AuthorizationException();
@@ -150,9 +151,10 @@ public class ScreeningResource {
 
 		UUID screeningSessionId = getScreeningService().createScreeningSession(request);
 		ScreeningSession screeningSession = getScreeningService().findScreeningSessionById(screeningSessionId).get();
+		Account pinnedTargetAccount = targetAccount;
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("screeningSession", getScreeningSessionApiResponseFactory().create(screeningSession));
+			put("screeningSession", getScreeningSessionApiResponseFactory().create(screeningSession, pinnedTargetAccount));
 		}});
 	}
 
@@ -173,8 +175,10 @@ public class ScreeningResource {
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("screeningSessions", screeningSessions.stream()
-					.map(screeningSession -> getScreeningSessionApiResponseFactory().create(screeningSession))
-					.collect(Collectors.toList()));
+					.map(screeningSession -> {
+						Account targetAccount = getAccountService().findAccountById(screeningSession.getTargetAccountId()).get();
+						return getScreeningSessionApiResponseFactory().create(screeningSession, targetAccount);
+					}).collect(Collectors.toList()));
 		}});
 	}
 

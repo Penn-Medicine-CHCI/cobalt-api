@@ -92,6 +92,7 @@ CREATE TABLE screening_flow_version (
 	screening_flow_version_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	screening_flow_id UUID NOT NULL REFERENCES screening_flow,
 	initial_screening_id UUID NOT NULL REFERENCES screening (screening_id),
+	phone_number_required BOOLEAN NOT NULL DEFAULT FALSE,
 	version_number INTEGER NOT NULL DEFAULT 1,
 	orchestration_function TEXT NOT NULL, -- Javascript code, invoked every time an answer is given to a screening question
 	results_function TEXT NOT NULL, -- Javascript code, invoked once the flow transitions to "completed" status
