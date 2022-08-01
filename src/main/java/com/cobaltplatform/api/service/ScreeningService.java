@@ -508,11 +508,15 @@ public class ScreeningService {
 
 		return getDatabase().queryForList("""
 				SELECT sa.*
-				FROM v_screening_session_answered_screening_question ssasq, screening_question sq, screening_answer_option sao, v_screening_answer sa
+				FROM v_screening_session_answered_screening_question ssasq, screening_question sq, screening_answer_option sao, v_screening_answer sa,
+				  screening_session_screening sss, screening_session ss
 				WHERE ssasq.screening_session_screening_id=?
 				AND ssasq.screening_question_id=sq.screening_question_id
 				AND sq.screening_question_id=sao.screening_question_id
 				AND sa.screening_answer_option_id=sao.screening_answer_option_id
+				AND sss.screening_session_screening_id=ssasq.screening_session_screening_id
+				AND sss.screening_session_id=ss.screening_session_id
+				AND (sa.created_by_account_id=ss.created_by_account_id OR sa.created_by_account_id=ss.target_account_id)
 				ORDER BY sa.created, sa.screening_answer_id
 				""", ScreeningAnswer.class, screeningSessionScreeningId);
 	}
@@ -806,8 +810,6 @@ public class ScreeningService {
 				  if (who5.completed) {
 				    console.log("WHO-5 is complete.  Score is " + who5.score);
 				    if (who5.score >= 13) {
-				      // We're done; triage to resilience coach support role
-				      // TODO: triage here, or in scoring function?
 				      output.completed = true;
 				    } else {
 				      // Complete PHQ9 + GAD7
@@ -839,8 +841,6 @@ public class ScreeningService {
 				} else if (screeningsCount === 3) {
 				  // We are on GAD-7. Is it done yet?
 				  if (gad7.completed) {
-				    // We're done!
-				    // TODO: triage here, or in scoring function?
 				    output.completed = true;
 				  } else {
 				    console.log("GAD-7 not complete yet.  Score is " + gad7.score);
@@ -852,7 +852,26 @@ public class ScreeningService {
 				console.log("** Finished orchestration function");
 								""";
 
-		getDatabase().execute("UPDATE screening_flow_version SET orchestration_function=? WHERE screening_flow_version_id=?", orchestrationFunctionJs, screeningSession.getScreeningFlowVersionId());
+		String resultsFunctionJs = """
+				console.log("** Starting results function");
+				    
+				output.recommendedSupportRoleIds = [];
+				    
+				const who5 = input.screeningSessionScreenings[0];
+				const gad7 = input.screeningSessionScreenings.length > 2 ? input.screeningSessionScreenings[2] : null;
+				    
+				if(who5.completed && who5.score >= 13) {
+					output.recommendedSupportRoleIds = ['COACH'];
+				} else if(gad7 && gad7.score <= 9) {
+				  output.recommendedSupportRoleIds = ['COACH'];
+				}
+				
+				console.log("Recommended support role IDs", output.recommendedSupportRoleIds);
+				    
+				console.log("** Finished results function");
+				""";
+
+		getDatabase().execute("UPDATE screening_flow_version SET orchestration_function=?, results_function=? WHERE screening_flow_version_id=?", orchestrationFunctionJs, resultsFunctionJs, screeningSession.getScreeningFlowVersionId());
 		screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
 		// End temporary hack
 
@@ -892,13 +911,19 @@ public class ScreeningService {
 			}
 		}
 
+		// TODO: handle un-marking as crisis (?)
+
 		if (orchestrationFunctionOutput.getCompleted()) {
 			getLogger().info("Orchestration function for screening session screening ID {} ({}) indicated that screening session ID {} is now complete.", screeningSessionScreeningId,
 					screeningVersion.getScreeningTypeId().name(), screeningSession.getScreeningSessionId());
 			getDatabase().execute("UPDATE screening_session SET completed=TRUE WHERE screening_session_id=?", screeningSession.getScreeningSessionId());
-		}
 
-		// TODO: execute scoring function and insert triage-related records (support role, etc.)
+			// Execute results function and store off results
+			ResultsFunctionOutput resultsFunctionOutput = executeScreeningFlowResultsFunction(screeningFlowVersion.getResultsFunction(),
+					screeningSession.getScreeningSessionId(), createdByAccount.getInstitutionId()).get();
+
+			// TODO: write out records for resultsFunctionOutput.getRecommendedSupportRoleIds();
+		}
 
 		return screeningAnswerIds;
 	}
