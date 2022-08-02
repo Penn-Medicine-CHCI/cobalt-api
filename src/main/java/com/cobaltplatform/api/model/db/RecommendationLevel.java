@@ -26,12 +26,14 @@ import javax.annotation.concurrent.NotThreadSafe;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
+@Deprecated
 public class RecommendationLevel {
 	@Nullable
 	private RecommendationLevelId recommendationLevelId;
 	@Nullable
 	private String description;
 
+	@Deprecated
 	public enum RecommendationLevelId {
 		PEER,
 		PEER_COACH,

@@ -122,13 +122,6 @@ CREATE TABLE screening_session (
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_session FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
--- As output, a screening session could recommend one or more support roles
-CREATE TABLE screening_session_support_role_recommendation (
-	screening_session_id UUID NOT NULL REFERENCES screening_session,
-	support_role_id TEXT NOT NULL REFERENCES support_role,
-	PRIMARY KEY (screening_session_id, support_role_id)
-);
-
 -- Keeps track of which screening version[s] are answered during a session, and in what order
 CREATE TABLE screening_session_screening (
 	screening_session_screening_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -254,5 +247,18 @@ WHERE valid=TRUE;
 
 -- Each institution can optionally have a screening flow ID that can be triggered prior to provider triage
 ALTER TABLE institution ADD COLUMN provider_triage_screening_flow_id UUID REFERENCES screening_flow;
+
+-- As output, a screening session could recommend one or more support roles
+CREATE TABLE screening_session_support_role_recommendation (
+  screening_session_support_role_recommendation_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  screening_session_id UUID NOT NULL REFERENCES screening_session,
+  support_role_id TEXT NOT NULL REFERENCES support_role,
+  weight DECIMAL NOT NULL,
+  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (screening_session_id, support_role_id)
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_session_support_role_recommendation FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 COMMIT;

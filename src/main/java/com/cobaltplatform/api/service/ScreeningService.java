@@ -41,6 +41,7 @@ import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.cobaltplatform.api.model.service.ScreeningQuestionWithAnswerOptions;
 import com.cobaltplatform.api.model.service.ScreeningSessionDestination;
 import com.cobaltplatform.api.model.service.ScreeningSessionDestination.ScreeningSessionDestinationId;
+import com.cobaltplatform.api.service.ScreeningService.ResultsFunctionOutput.SupportRoleRecommendation;
 import com.cobaltplatform.api.util.JavascriptExecutionException;
 import com.cobaltplatform.api.util.JavascriptExecutor;
 import com.cobaltplatform.api.util.Normalizer;
@@ -775,6 +776,10 @@ public class ScreeningService {
 				findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreeningId);
 		List<ScreeningAnswer> screeningAnswers = findScreeningAnswersAcrossAllQuestionsByScreeningSessionScreeningId(screeningSessionScreeningId);
 
+		if (screeningAnswers.size() > screeningQuestionsWithAnswerOptions.size())
+			throw new IllegalStateException(format("Screening Session Screening ID %s has too many answers (%d) for %d question[s].",
+					screeningSessionScreeningId, screeningAnswers.size(), screeningQuestionsWithAnswerOptions.size()));
+
 		ScreeningScoringFunctionOutput screeningScoringFunctionOutput = executeScreeningScoringFunction(
 				screeningVersion.getScoringFunction(), screeningQuestionsWithAnswerOptions, screeningAnswers);
 
@@ -855,18 +860,18 @@ public class ScreeningService {
 		String resultsFunctionJs = """
 				console.log("** Starting results function");
 				    
-				output.recommendedSupportRoleIds = [];
+				output.supportRoleRecommendations = [];
 				    
 				const who5 = input.screeningSessionScreenings[0];
 				const gad7 = input.screeningSessionScreenings.length > 2 ? input.screeningSessionScreenings[2] : null;
 				    
 				if(who5.completed && who5.score >= 13) {
-					output.recommendedSupportRoleIds = ['COACH'];
+					output.supportRoleRecommendations = [{supportRoleId: 'COACH', weight: 1}];
 				} else if(gad7 && gad7.score <= 9) {
-				  output.recommendedSupportRoleIds = ['COACH'];
+				  output.supportRoleRecommendations = [{supportRoleId: 'COACH', weight: 1}];
 				}
-				
-				console.log("Recommended support role IDs", output.recommendedSupportRoleIds);
+								
+				console.log("Support role recommendations", output.supportRoleRecommendations);
 				    
 				console.log("** Finished results function");
 				""";
@@ -922,7 +927,12 @@ public class ScreeningService {
 			ResultsFunctionOutput resultsFunctionOutput = executeScreeningFlowResultsFunction(screeningFlowVersion.getResultsFunction(),
 					screeningSession.getScreeningSessionId(), createdByAccount.getInstitutionId()).get();
 
-			// TODO: write out records for resultsFunctionOutput.getRecommendedSupportRoleIds();
+			getDatabase().execute("DELETE FROM screening_session_support_role_recommendation WHERE screening_session_id=?",
+					screeningSession.getScreeningSessionId());
+
+			for (SupportRoleRecommendation supportRoleRecommendation : resultsFunctionOutput.getSupportRoleRecommendations())
+				getDatabase().execute("INSERT INTO screening_session_support_role_recommendation(screening_session_id, support_role_id, weight) " +
+						"VALUES (?,?,?)", screeningSession.getScreeningSessionId(), supportRoleRecommendation.getSupportRoleId(), supportRoleRecommendation.getWeight());
 		}
 
 		return screeningAnswerIds;
@@ -1054,8 +1064,8 @@ public class ScreeningService {
 		if (resultsFunctionOutput == null)
 			return Optional.empty();
 
-		if (resultsFunctionOutput.getRecommendedSupportRoleIds() == null)
-			throw new IllegalStateException("Screening flow results function must provide a 'recommendedSupportRoleIds' value in output");
+		if (resultsFunctionOutput.getSupportRoleRecommendations() == null)
+			throw new IllegalStateException("Screening flow results function must provide a 'supportRoleRecommendations' value in output");
 
 		return Optional.of(resultsFunctionOutput);
 	}
@@ -1313,17 +1323,44 @@ public class ScreeningService {
 	@NotThreadSafe
 	protected static class ResultsFunctionOutput {
 		@Nullable
-		private Set<SupportRoleId> recommendedSupportRoleIds;
+		private Set<SupportRoleRecommendation> supportRoleRecommendations;
 
 		// TODO: recommended Content tags
 
+
 		@Nullable
-		public Set<SupportRoleId> getRecommendedSupportRoleIds() {
-			return this.recommendedSupportRoleIds;
+		public Set<SupportRoleRecommendation> getSupportRoleRecommendations() {
+			return this.supportRoleRecommendations;
 		}
 
-		public void setRecommendedSupportRoleIds(@Nullable Set<SupportRoleId> recommendedSupportRoleIds) {
-			this.recommendedSupportRoleIds = recommendedSupportRoleIds;
+		public void setSupportRoleRecommendations(@Nullable Set<SupportRoleRecommendation> supportRoleRecommendations) {
+			this.supportRoleRecommendations = supportRoleRecommendations;
+		}
+
+		@NotThreadSafe
+		public static class SupportRoleRecommendation {
+			@Nullable
+			private SupportRoleId supportRoleId;
+			@Nullable
+			private Double weight;
+
+			@Nullable
+			public SupportRoleId getSupportRoleId() {
+				return this.supportRoleId;
+			}
+
+			public void setSupportRoleId(@Nullable SupportRoleId supportRoleId) {
+				this.supportRoleId = supportRoleId;
+			}
+
+			@Nullable
+			public Double getWeight() {
+				return this.weight;
+			}
+
+			public void setWeight(@Nullable Double weight) {
+				this.weight = weight;
+			}
 		}
 	}
 
