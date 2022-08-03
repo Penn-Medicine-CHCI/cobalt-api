@@ -59,6 +59,8 @@ public class Institution {
 	@Nullable
 	private UUID providerTriageScreeningFlowId;
 	@Nullable
+	private UUID contentScreeningFlowId;
+	@Nullable
 	private String description;
 	@Nullable
 	private ZoneId timeZone;
@@ -252,6 +254,15 @@ public class Institution {
 
 	public void setProviderTriageScreeningFlowId(@Nullable UUID providerTriageScreeningFlowId) {
 		this.providerTriageScreeningFlowId = providerTriageScreeningFlowId;
+	}
+
+	@Nullable
+	public UUID getContentScreeningFlowId() {
+		return this.contentScreeningFlowId;
+	}
+
+	public void setContentScreeningFlowId(@Nullable UUID contentScreeningFlowId) {
+		this.contentScreeningFlowId = contentScreeningFlowId;
 	}
 
 	@Nullable

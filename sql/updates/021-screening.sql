@@ -248,6 +248,9 @@ WHERE valid=TRUE;
 -- Each institution can optionally have a screening flow ID that can be triggered prior to provider triage
 ALTER TABLE institution ADD COLUMN provider_triage_screening_flow_id UUID REFERENCES screening_flow;
 
+-- Each institution can optionally have a screening flow ID that can be triggered prior to on-your-time content access
+ALTER TABLE institution ADD COLUMN content_screening_flow_id UUID REFERENCES screening_flow;
+
 -- As output, a screening session could recommend one or more support roles
 CREATE TABLE screening_session_support_role_recommendation (
   screening_session_support_role_recommendation_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

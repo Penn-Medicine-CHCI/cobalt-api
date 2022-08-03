@@ -19,17 +19,16 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import com.lokalized.Strings;
-import com.cobaltplatform.api.model.db.Institution;
-import com.cobaltplatform.api.util.Formatter;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
-
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -43,6 +42,8 @@ public class InstitutionApiResponse {
 	private final InstitutionId institutionId;
 	@Nullable
 	private final UUID providerTriageScreeningFlowId;
+	@Nullable
+	private final UUID contentScreeningFlowId;
 	@Nonnull
 	private final String description;
 	@Nullable
@@ -85,6 +86,7 @@ public class InstitutionApiResponse {
 
 		this.institutionId = institution.getInstitutionId();
 		this.providerTriageScreeningFlowId = institution.getProviderTriageScreeningFlowId();
+		this.contentScreeningFlowId = institution.getContentScreeningFlowId();
 		this.description = institution.getDescription();
 		this.crisisContent = institution.getCrisisContent();
 		this.privacyContent = institution.getPrivacyContent();
@@ -107,6 +109,11 @@ public class InstitutionApiResponse {
 	@Nullable
 	public UUID getProviderTriageScreeningFlowId() {
 		return this.providerTriageScreeningFlowId;
+	}
+
+	@Nullable
+	public UUID getContentScreeningFlowId() {
+		return this.contentScreeningFlowId;
 	}
 
 	@Nonnull
