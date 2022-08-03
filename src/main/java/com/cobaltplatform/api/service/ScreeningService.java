@@ -675,25 +675,6 @@ public class ScreeningService {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		// Screening Scoring Function
-
-		// Temporary hack for testing
-		String scoringFunctionJs = """
-				// We are completed if the number of answers matches the number of questions
-				output.completed = input.screeningAnswers.length === input.screeningQuestionsWithAnswerOptions.length;
-								
-				// Track running score
-				output.score = 0;
-				    
-				// Add each answer's score to the running total
-				input.screeningAnswers.forEach(function(screeningAnswer) {
-				  const screeningAnswerOption = input.screeningAnswerOptionsByScreeningAnswerId[screeningAnswer.screeningAnswerId];
-				  output.score += screeningAnswerOption.score;
-				});
-				""";
-		getDatabase().execute("UPDATE screening_version SET scoring_function=? WHERE screening_version_id=?", scoringFunctionJs, screeningSessionScreening.getScreeningVersionId());
-		// End temporary hack
-
 		ScreeningSession screeningSession = findScreeningSessionById(screeningSessionScreening.getScreeningSessionId()).get();
 		ScreeningVersion screeningVersion = findScreeningVersionById(screeningSessionScreening.getScreeningVersionId()).get();
 		ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
@@ -709,8 +690,6 @@ public class ScreeningService {
 		if (screeningSessionAnsweredScreeningQuestion != null) {
 			// The question was already answered.
 			// Mark all downstream answered questions, answers, and screenings in this session as invalid.
-			// Note:
-
 			getLogger().info("Screening session screening ID {} ({}) screening question ID {} was previously answered and is being answered again.",
 					screeningSessionScreeningId, screeningVersion.getScreeningTypeId().name(), screeningQuestionId);
 
@@ -791,93 +770,6 @@ public class ScreeningService {
 				WHERE screening_session_screening_id=?
 				""", screeningScoringFunctionOutput.getCompleted(), screeningScoringFunctionOutput.getScore(), screeningSessionScreening.getScreeningSessionScreeningId());
 
-		// Screening Flow Orchestration Function
-
-		// Temporary hack for testing
-		String orchestrationFunctionJs = """
-				console.log("** Starting orchestration function");
-
-				output.crisisIndicated = false;
-				output.completed = false;
-				output.nextScreeningId = null;
-				output.hardStop = false;
-
-				// WHO-5 always comes first.				
-				const who5 = input.screeningSessionScreenings[0];
-				const phq9 = input.screeningSessionScreenings.length > 1 ? input.screeningSessionScreenings[1] : null;
-				const gad7 = input.screeningSessionScreenings.length > 2 ? input.screeningSessionScreenings[2] : null;				
-				const screeningsCount = input.screeningSessionScreenings.length;
-
-				if (screeningsCount === 1) {
-				  // We have not yet progressed past WHO-5
-				  if (who5.completed) {
-				    console.log("WHO-5 is complete.  Score is " + who5.score);
-				    if (who5.score >= 13) {
-				      output.completed = true;
-				    } else {
-				      // Complete PHQ9 + GAD7
-				      output.nextScreeningId = input.screeningsByName["PHQ-9"].screeningId;
-				    }
-				  } else {
-				    console.log("WHO-5 not complete yet.  Score is " + who5.score);
-				  }
-				} else if (screeningsCount === 2) {
-				  // We are on PHQ-9. Is it done yet?
-				  if (phq9.completed) {
-				    console.log("PHQ-9 is complete.  Score is " + phq9.score);
-				    
-				    const phq9Questions = input.screeningResultsByScreeningSessionScreeningId[phq9.screeningSessionScreeningId];
-				    const phq9Question9 = phq9Questions[8];
-				  
-				    // PHQ-9 crisis is indicated if Q9 is scored >= 1
-				    if(phq9Question9.screeningResponses[0].screeningAnswerOption.score >= 1) {
-				      console.log("Crisis indicated, hard stop.");
-				    	output.crisisIndicated = true;
-				    	output.completed = true;
-				    } else {
-				      console.log("Crisis not indicated, starting GAD-7");
-				    	output.nextScreeningId = input.screeningsByName["GAD-7"].screeningId;
-				    }				    
-				  } else {
-				    console.log("PHQ-9 not complete yet.  Score is " + phq9.score);
-				  }
-				} else if (screeningsCount === 3) {
-				  // We are on GAD-7. Is it done yet?
-				  if (gad7.completed) {
-				    output.completed = true;
-				  } else {
-				    console.log("GAD-7 not complete yet.  Score is " + gad7.score);
-				  }
-				} else {
-				  throw "There is an unexpected number of screening session screenings";
-				}
-
-				console.log("** Finished orchestration function");
-								""";
-
-		String resultsFunctionJs = """
-				console.log("** Starting results function");
-				    
-				output.supportRoleRecommendations = [];
-				    
-				const who5 = input.screeningSessionScreenings[0];
-				const gad7 = input.screeningSessionScreenings.length > 2 ? input.screeningSessionScreenings[2] : null;
-				    
-				if(who5.completed && who5.score >= 13) {
-					output.supportRoleRecommendations = [{supportRoleId: 'COACH', weight: 1}];
-				} else if(gad7 && gad7.score <= 9) {
-				  output.supportRoleRecommendations = [{supportRoleId: 'COACH', weight: 1}];
-				}
-								
-				console.log("Support role recommendations", output.supportRoleRecommendations);
-				    
-				console.log("** Finished results function");
-				""";
-
-		getDatabase().execute("UPDATE screening_flow_version SET orchestration_function=?, results_function=? WHERE screening_flow_version_id=?", orchestrationFunctionJs, resultsFunctionJs, screeningSession.getScreeningFlowVersionId());
-		screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
-		// End temporary hack
-
 		OrchestrationFunctionOutput orchestrationFunctionOutput = executeScreeningFlowOrchestrationFunction(screeningFlowVersion.getOrchestrationFunction(), screeningSession.getScreeningSessionId(), createdByAccount.getInstitutionId()).get();
 
 		if (orchestrationFunctionOutput.getNextScreeningId() != null) {
@@ -948,24 +840,6 @@ public class ScreeningService {
 
 		ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
 		Account targetAccount = getAccountService().findAccountById(screeningSession.getTargetAccountId()).get();
-
-		// Temporary hack for testing
-		String destinationFunctionJs = """
-				console.log("** Starting destination function");
-
-				output.screeningSessionDestinationId = null;
-				output.context = {};
-								
-				if(input.screeningSession.completed) {
-				  output.screeningSessionDestinationId = input.screeningSession.crisisIndicated ? 'CRISIS' : 'ONE_ON_ONE_PROVIDER_LIST';
-				}
-
-				console.log("** Finished destination function");
-								""";
-
-		getDatabase().execute("UPDATE screening_flow_version SET destination_function=? WHERE screening_flow_version_id=?", destinationFunctionJs, screeningSession.getScreeningFlowVersionId());
-		screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
-		// End temporary hack
 
 		DestinationFunctionOutput destinationFunctionOutput = executeScreeningFlowDestinationFunction(screeningFlowVersion.getDestinationFunction(),
 				screeningSessionId, targetAccount.getInstitutionId()).get();
