@@ -529,12 +529,16 @@ public class ScreeningService {
 
 		return getDatabase().queryForList("""
 				SELECT sa.*
-				FROM v_screening_session_answered_screening_question ssasq, screening_question sq, screening_answer_option sao, v_screening_answer sa
+				FROM v_screening_session_answered_screening_question ssasq, screening_question sq, screening_answer_option sao, v_screening_answer sa,
+					screening_session_screening sss, screening_session ss
 				WHERE ssasq.screening_session_screening_id=?
 				AND ssasq.screening_question_id=?
 				AND ssasq.screening_question_id=sq.screening_question_id
 				AND sq.screening_question_id=sao.screening_question_id
 				AND sa.screening_answer_option_id=sao.screening_answer_option_id
+				AND sss.screening_session_screening_id=ssasq.screening_session_screening_id
+				AND sss.screening_session_id=ss.screening_session_id
+				AND (sa.created_by_account_id=ss.created_by_account_id OR sa.created_by_account_id=ss.target_account_id)				
 				ORDER BY sa.created, sa.screening_answer_id
 				""", ScreeningAnswer.class, screeningQuestionContextId.getScreeningSessionScreeningId(), screeningQuestionContextId.getScreeningQuestionId());
 	}
