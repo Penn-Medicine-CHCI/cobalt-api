@@ -22,40 +22,41 @@ package com.cobaltplatform.api.model.db;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
+import static java.lang.String.format;
+
 /**
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-@Deprecated
-public class RecommendationLevel {
+public class ScreeningAnswerFormat {
 	@Nullable
-	private RecommendationLevelId recommendationLevelId;
+	private ScreeningAnswerFormatId screeningAnswerFormatId;
 	@Nullable
 	private String description;
 
-	@Deprecated
-	public enum RecommendationLevelId {
-		PEER,
-		PEER_COACH,
-		COACH,
-		COACH_CLINICIAN,
-		CLINICIAN,
-		CLINICIAN_PSYCHIATRIST,
-		PSYCHIATRIST
+	public enum ScreeningAnswerFormatId {
+		SINGLE_SELECT,
+		MULTI_SELECT,
+		FREEFORM_TEXT
+	}
+
+	@Override
+	public String toString() {
+		return format("%s{screeningAnswerFormatId=%s, description=%s}", getClass().getSimpleName(), getScreeningAnswerFormatId().name(), getDescription());
 	}
 
 	@Nullable
-	public RecommendationLevelId getRecommendationLevelId() {
-		return recommendationLevelId;
+	public ScreeningAnswerFormatId getScreeningAnswerFormatId() {
+		return this.screeningAnswerFormatId;
 	}
 
-	public void setRecommendationLevelId(@Nullable RecommendationLevelId recommendationLevelId) {
-		this.recommendationLevelId = recommendationLevelId;
+	public void setScreeningAnswerFormatId(@Nullable ScreeningAnswerFormatId screeningAnswerFormatId) {
+		this.screeningAnswerFormatId = screeningAnswerFormatId;
 	}
 
 	@Nullable
 	public String getDescription() {
-		return description;
+		return this.description;
 	}
 
 	public void setDescription(@Nullable String description) {

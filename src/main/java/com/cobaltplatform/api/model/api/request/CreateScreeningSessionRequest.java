@@ -17,48 +17,48 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db;
+package com.cobaltplatform.api.model.api.request;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.UUID;
 
 /**
- * @author Transmogrify LLC.
+ * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-@Deprecated
-public class RecommendationLevel {
+public class CreateScreeningSessionRequest {
 	@Nullable
-	private RecommendationLevelId recommendationLevelId;
+	private UUID screeningFlowId;
 	@Nullable
-	private String description;
+	private UUID targetAccountId;
+	@Nullable
+	private UUID createdByAccountId;
 
-	@Deprecated
-	public enum RecommendationLevelId {
-		PEER,
-		PEER_COACH,
-		COACH,
-		COACH_CLINICIAN,
-		CLINICIAN,
-		CLINICIAN_PSYCHIATRIST,
-		PSYCHIATRIST
+	@Nullable
+	public UUID getScreeningFlowId() {
+		return this.screeningFlowId;
+	}
+
+	public void setScreeningFlowId(@Nullable UUID screeningFlowId) {
+		this.screeningFlowId = screeningFlowId;
 	}
 
 	@Nullable
-	public RecommendationLevelId getRecommendationLevelId() {
-		return recommendationLevelId;
+	public UUID getTargetAccountId() {
+		return this.targetAccountId;
 	}
 
-	public void setRecommendationLevelId(@Nullable RecommendationLevelId recommendationLevelId) {
-		this.recommendationLevelId = recommendationLevelId;
+	public void setTargetAccountId(@Nullable UUID targetAccountId) {
+		this.targetAccountId = targetAccountId;
 	}
 
 	@Nullable
-	public String getDescription() {
-		return description;
+	public UUID getCreatedByAccountId() {
+		return this.createdByAccountId;
 	}
 
-	public void setDescription(@Nullable String description) {
-		this.description = description;
+	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
+		this.createdByAccountId = createdByAccountId;
 	}
 }

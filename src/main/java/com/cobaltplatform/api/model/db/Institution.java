@@ -57,6 +57,10 @@ public class Institution {
 	@Nullable
 	private GroupSessionSystemId groupSessionSystemId;
 	@Nullable
+	private UUID providerTriageScreeningFlowId;
+	@Nullable
+	private UUID contentScreeningFlowId;
+	@Nullable
 	private String description;
 	@Nullable
 	private ZoneId timeZone;
@@ -241,6 +245,24 @@ public class Institution {
 
 	public void setGroupSessionSystemId(@Nullable GroupSessionSystemId groupSessionSystemId) {
 		this.groupSessionSystemId = groupSessionSystemId;
+	}
+
+	@Nullable
+	public UUID getProviderTriageScreeningFlowId() {
+		return this.providerTriageScreeningFlowId;
+	}
+
+	public void setProviderTriageScreeningFlowId(@Nullable UUID providerTriageScreeningFlowId) {
+		this.providerTriageScreeningFlowId = providerTriageScreeningFlowId;
+	}
+
+	@Nullable
+	public UUID getContentScreeningFlowId() {
+		return this.contentScreeningFlowId;
+	}
+
+	public void setContentScreeningFlowId(@Nullable UUID contentScreeningFlowId) {
+		this.contentScreeningFlowId = contentScreeningFlowId;
 	}
 
 	@Nullable

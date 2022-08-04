@@ -20,10 +20,10 @@
 package com.cobaltplatform.api.context;
 
 
-import com.cobaltplatform.api.model.service.RemoteClient;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.security.AccessTokenStatus;
+import com.cobaltplatform.api.model.service.RemoteClient;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -35,6 +35,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -49,6 +50,8 @@ public class CurrentContext {
 	private final Boolean signedByIc;
 	@Nullable
 	private final RemoteClient remoteClient;
+	@Nullable
+	private final String webappBaseUrl;
 	@Nullable
 	private final String accessToken;
 	@Nullable
@@ -70,9 +73,10 @@ public class CurrentContext {
 		this.locale = builder.locale;
 		this.timeZone = builder.timeZone;
 		this.account = builder.account;
-		this.accessToken = builder.accessToken;
+		this.accessToken = trimToNull(builder.accessToken);
 		this.accessTokenStatus = builder.accessTokenStatus;
 		this.remoteClient = builder.remoteClient;
+		this.webappBaseUrl = trimToNull(builder.webappBaseUrl);
 		this.sessionTrackingId = builder.sessionTrackingId;
 		this.signedByIc = builder.signedByIc == null ? false : builder.signedByIc;
 		this.accountSource = builder.accountSource;
@@ -104,9 +108,14 @@ public class CurrentContext {
 		return Optional.ofNullable(account);
 	}
 
-	@Nullable
+	@Nonnull
 	public Optional<RemoteClient> getRemoteClient() {
 		return Optional.ofNullable(remoteClient);
+	}
+
+	@Nonnull
+	public Optional<String> getWebappBaseUrl() {
+		return Optional.ofNullable(this.webappBaseUrl);
 	}
 
 	@Nonnull
@@ -144,7 +153,10 @@ public class CurrentContext {
 		@Nullable
 		private RemoteClient remoteClient;
 		@Nullable
+		private String webappBaseUrl;
+		@Nullable
 		private UUID sessionTrackingId;
+		@Nullable
 		private Boolean signedByIc;
 		@Nullable
 		private AccountSource accountSource;
@@ -204,6 +216,12 @@ public class CurrentContext {
 		@Nonnull
 		public Builder fingerprintId(@Nullable String fingerprintId) {
 			this.fingerprintId = fingerprintId;
+			return this;
+		}
+
+		@Nonnull
+		public Builder webappBaseUrl(@Nullable String webappBaseUrl) {
+			this.webappBaseUrl = webappBaseUrl;
 			return this;
 		}
 

@@ -166,10 +166,19 @@ public class LinkGenerator {
 		requireNonNull(institutionId);
 		requireNonNull(clientDeviceTypeId);
 
-		if (clientDeviceTypeId == ClientDeviceTypeId.WEB_BROWSER)
-			return getConfiguration().getWebappBaseUrl(institutionId) + "/";
-		else
-			throw new IllegalStateException(format("Unexpected %s value %s encountered", ClientDeviceTypeId.class.getSimpleName(), clientDeviceTypeId.name()));
+		if (clientDeviceTypeId == ClientDeviceTypeId.WEB_BROWSER) {
+			String contextWebappBaseUrl = null;
+
+			try {
+				contextWebappBaseUrl = getCurrentContext().getWebappBaseUrl().orElse(null);
+			} catch (Exception ignored) {
+				// If we're not in a current context, it's OK
+			}
+
+			return (contextWebappBaseUrl == null ? getConfiguration().getWebappBaseUrl(institutionId) : contextWebappBaseUrl) + "/";
+		}
+
+		throw new IllegalStateException(format("Unexpected %s value %s encountered", ClientDeviceTypeId.class.getSimpleName(), clientDeviceTypeId.name()));
 	}
 
 	@Nonnull

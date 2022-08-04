@@ -95,17 +95,21 @@ import com.cobaltplatform.api.model.api.response.IntroAssessmentApiResponse.Intr
 import com.cobaltplatform.api.model.api.response.LogicalAvailabilityApiResponse.LogicalAvailabilityApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.ProviderCalendarApiResponse;
 import com.cobaltplatform.api.model.api.response.ProviderCalendarApiResponse.ProviderCalendarApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.QuestionApiResponse.QuestionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ReportingChartApiResponse.ReportingChartApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ReportingChartApiResponse.ReportingChartElementApiResponse.ReportingChartElementApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ReportingChartApiResponse.ReportingChartMetricApiResponse.ReportingChartMetricApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ScreeningAnswerApiResponse.ScreeningAnswerApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ScreeningAnswerOptionApiResponse.ScreeningAnswerOptionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ScreeningQuestionApiResponse.ScreeningQuestionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SpecialtyApiResponse.SpecialtyApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
 import com.cobaltplatform.api.model.qualifier.AuditLogged;
 import com.cobaltplatform.api.model.qualifier.NotAuditLogged;
+import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.util.AmazonSqsManager;
@@ -134,10 +138,15 @@ import com.lokalized.Strings;
 import com.pyranid.Database;
 import com.pyranid.StatementLog;
 import com.pyranid.StatementLogger;
+import com.soklet.converter.AbstractValueConverter;
+import com.soklet.converter.ValueConversionException;
+import com.soklet.converter.ValueConverterRegistry;
 import com.soklet.jetty.JettyServer;
 import com.soklet.util.InstanceProvider;
 import com.soklet.web.HashedUrlManifest;
+import com.soklet.web.request.DefaultRequestHandler;
 import com.soklet.web.request.RequestContext;
+import com.soklet.web.request.RequestHandler;
 import com.soklet.web.request.SokletFilter;
 import com.soklet.web.response.ResponseHandler;
 import com.soklet.web.response.writer.ApiResponseWriter;
@@ -229,6 +238,10 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(SpecialtyApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(AccountSessionApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ProviderCalendarApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(ScreeningSessionApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(ScreeningQuestionApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(ScreeningAnswerOptionApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(ScreeningAnswerApiResponseFactory.class)));
 	}
 
 	@Provides
@@ -695,6 +708,35 @@ public class AppModule extends AbstractModule {
 				.mappingFormat(getConfiguration().getJsonMappingFormat())
 				.mappingNullability(MappingNullability.EXCLUDE_NULLS)
 				.build();
+	}
+
+	@Provides
+	@Singleton
+	public RequestHandler provideRequestHandler(@Nonnull InstanceProvider instanceProvider) {
+		requireNonNull(instanceProvider);
+
+		// Support for special ScreeningQuestionContextId type
+		ValueConverterRegistry valueConverterRegistry = new ValueConverterRegistry();
+		valueConverterRegistry.add(new AbstractValueConverter<String, ScreeningQuestionContextId>() {
+			@Override
+			public ScreeningQuestionContextId convert(String from) throws ValueConversionException {
+				if (from == null)
+					return null;
+
+				return new ScreeningQuestionContextId(from);
+			}
+		});
+		valueConverterRegistry.add(new AbstractValueConverter<ScreeningQuestionContextId, String>() {
+			@Override
+			public String convert(ScreeningQuestionContextId from) throws ValueConversionException {
+				if (from == null)
+					return null;
+
+				return from.getIdentifier();
+			}
+		});
+
+		return new DefaultRequestHandler(instanceProvider, valueConverterRegistry);
 	}
 
 	@Provides

@@ -22,40 +22,42 @@ package com.cobaltplatform.api.model.db;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
+import static java.lang.String.format;
+
 /**
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-@Deprecated
-public class RecommendationLevel {
+public class ScreeningFlowType {
 	@Nullable
-	private RecommendationLevelId recommendationLevelId;
+	private ScreeningFlowTypeId screeningFlowTypeId;
 	@Nullable
 	private String description;
 
-	@Deprecated
-	public enum RecommendationLevelId {
-		PEER,
-		PEER_COACH,
-		COACH,
-		COACH_CLINICIAN,
-		CLINICIAN,
-		CLINICIAN_PSYCHIATRIST,
-		PSYCHIATRIST
+	public enum ScreeningFlowTypeId {
+		CUSTOM,
+		PROVIDER_TRIAGE,
+		CONTENT_TRIAGE,
+		PROVIDER_INTAKE
+	}
+
+	@Override
+	public String toString() {
+		return format("%s{screeningFlowTypeId=%s, description=%s}", getClass().getSimpleName(), getScreeningFlowTypeId().name(), getDescription());
 	}
 
 	@Nullable
-	public RecommendationLevelId getRecommendationLevelId() {
-		return recommendationLevelId;
+	public ScreeningFlowTypeId getScreeningFlowTypeId() {
+		return this.screeningFlowTypeId;
 	}
 
-	public void setRecommendationLevelId(@Nullable RecommendationLevelId recommendationLevelId) {
-		this.recommendationLevelId = recommendationLevelId;
+	public void setScreeningFlowTypeId(@Nullable ScreeningFlowTypeId screeningFlowTypeId) {
+		this.screeningFlowTypeId = screeningFlowTypeId;
 	}
 
 	@Nullable
 	public String getDescription() {
-		return description;
+		return this.description;
 	}
 
 	public void setDescription(@Nullable String description) {

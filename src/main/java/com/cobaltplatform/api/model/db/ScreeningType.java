@@ -22,40 +22,55 @@ package com.cobaltplatform.api.model.db;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
+import static java.lang.String.format;
+
 /**
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-@Deprecated
-public class RecommendationLevel {
+public class ScreeningType {
 	@Nullable
-	private RecommendationLevelId recommendationLevelId;
+	private ScreeningTypeId screeningTypeId;
 	@Nullable
 	private String description;
 
-	@Deprecated
-	public enum RecommendationLevelId {
-		PEER,
-		PEER_COACH,
-		COACH,
-		COACH_CLINICIAN,
-		CLINICIAN,
-		CLINICIAN_PSYCHIATRIST,
-		PSYCHIATRIST
+	public enum ScreeningTypeId {
+		CUSTOM,
+		GAD_2,
+		GAD_7,
+		PHQ_4,
+		PHQ_8,
+		PHQ_9,
+		WHO_5,
+		PC_PTSD_5,
+		AUDIT_C_ALCOHOL,
+		CAGE_ALCOHOL,
+		TICS,
+		ISI,
+		ASRM,
+		C_SSRS,
+		DAST_10,
+		BPI,
+		AUDIT_C
+	}
+
+	@Override
+	public String toString() {
+		return format("%s{screeningTypeId=%s, description=%s}", getClass().getSimpleName(), getScreeningTypeId().name(), getDescription());
 	}
 
 	@Nullable
-	public RecommendationLevelId getRecommendationLevelId() {
-		return recommendationLevelId;
+	public ScreeningTypeId getScreeningTypeId() {
+		return this.screeningTypeId;
 	}
 
-	public void setRecommendationLevelId(@Nullable RecommendationLevelId recommendationLevelId) {
-		this.recommendationLevelId = recommendationLevelId;
+	public void setScreeningTypeId(@Nullable ScreeningTypeId screeningTypeId) {
+		this.screeningTypeId = screeningTypeId;
 	}
 
 	@Nullable
 	public String getDescription() {
-		return description;
+		return this.description;
 	}
 
 	public void setDescription(@Nullable String description) {

@@ -19,15 +19,17 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.db.Institution;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import com.lokalized.Strings;
-import com.cobaltplatform.api.model.db.Institution;
-import com.cobaltplatform.api.util.Formatter;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
 
@@ -36,16 +38,20 @@ import static java.util.Objects.requireNonNull;
  */
 @ThreadSafe
 public class InstitutionApiResponse {
+	@Nonnull
+	private final InstitutionId institutionId;
 	@Nullable
-	private Institution.InstitutionId institutionId;
+	private final UUID providerTriageScreeningFlowId;
 	@Nullable
-	private String description;
+	private final UUID contentScreeningFlowId;
+	@Nonnull
+	private final String description;
 	@Nullable
-	private String crisisContent;
+	private final String crisisContent;
 	@Nullable
-	private String privacyContent;
+	private final String privacyContent;
 	@Nullable
-	private String covidContent;
+	private final String covidContent;
 	@Nullable
 	private Boolean requireConsentForm;
 	@Nullable
@@ -63,7 +69,6 @@ public class InstitutionApiResponse {
 	@Nullable
 	private Boolean anonymousEnabled;
 
-
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface InstitutionApiResponseFactory {
@@ -80,6 +85,8 @@ public class InstitutionApiResponse {
 		requireNonNull(institution);
 
 		this.institutionId = institution.getInstitutionId();
+		this.providerTriageScreeningFlowId = institution.getProviderTriageScreeningFlowId();
+		this.contentScreeningFlowId = institution.getContentScreeningFlowId();
 		this.description = institution.getDescription();
 		this.crisisContent = institution.getCrisisContent();
 		this.privacyContent = institution.getPrivacyContent();
@@ -94,68 +101,78 @@ public class InstitutionApiResponse {
 		this.emailEnabled = institution.getEmailEnabled();
 	}
 
-	@Nullable
-	public Institution.InstitutionId getInstitutionId() {
-		return institutionId;
+	@Nonnull
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
 	}
 
 	@Nullable
+	public UUID getProviderTriageScreeningFlowId() {
+		return this.providerTriageScreeningFlowId;
+	}
+
+	@Nullable
+	public UUID getContentScreeningFlowId() {
+		return this.contentScreeningFlowId;
+	}
+
+	@Nonnull
 	public String getDescription() {
-		return description;
+		return this.description;
 	}
 
 	@Nullable
 	public String getCrisisContent() {
-		return crisisContent;
+		return this.crisisContent;
 	}
 
 	@Nullable
 	public String getPrivacyContent() {
-		return privacyContent;
+		return this.privacyContent;
 	}
 
 	@Nullable
 	public String getCovidContent() {
-		return covidContent;
+		return this.covidContent;
 	}
 
 	@Nullable
 	public Boolean getRequireConsentForm() {
-		return requireConsentForm;
+		return this.requireConsentForm;
 	}
 
 	@Nullable
 	public String getConsentFormContent() {
-		return consentFormContent;
+		return this.consentFormContent;
 	}
 
 	@Nullable
 	public String getCalendarDescription() {
-		return calendarDescription;
+		return this.calendarDescription;
 	}
 
 	@Nullable
 	public Boolean getSupportEnabled() {
-		return supportEnabled;
+		return this.supportEnabled;
 	}
 
 	@Nullable
 	public String getWellBeingContent() {
-		return wellBeingContent;
+		return this.wellBeingContent;
 	}
 
 	@Nullable
 	public Boolean getSsoEnabled() {
-		return ssoEnabled;
+		return this.ssoEnabled;
 	}
 
 	@Nullable
 	public Boolean getEmailEnabled() {
-		return emailEnabled;
+		return this.emailEnabled;
 	}
 
 	@Nullable
 	public Boolean getAnonymousEnabled() {
-		return anonymousEnabled;
+		return this.anonymousEnabled;
 	}
 }

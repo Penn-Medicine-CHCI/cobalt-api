@@ -33,6 +33,7 @@ import com.cobaltplatform.api.model.db.Interaction;
 import com.cobaltplatform.api.model.db.InteractionInstance;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.Role.RoleId;
+import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.security.AccountCapabilities;
 import com.cobaltplatform.api.util.Normalizer;
 
@@ -413,6 +414,41 @@ public class AuthorizationService {
 			if (appointmentAccount.getAccountId().equals(account.getAccountId()))
 				return true;
 		}
+
+		return false;
+	}
+
+	@Nonnull
+	public Boolean canViewScreeningSession(@Nonnull ScreeningSession screeningSession,
+																				 @Nonnull Account viewingAccount,
+																				 @Nonnull Account screenedAccount) {
+		requireNonNull(screeningSession);
+		requireNonNull(viewingAccount);
+		requireNonNull(screenedAccount);
+
+		// TODO: revisit later when we have more usage; we might open results up
+		// to a provider who has been granted access to treat the patient, for example
+		return canPerformScreening(viewingAccount, screenedAccount);
+	}
+
+	@Nonnull
+	public Boolean canPerformScreening(@Nonnull Account performingAccount,
+																		 @Nonnull Account targetAccount) {
+		requireNonNull(performingAccount);
+		requireNonNull(targetAccount);
+
+		// If you are a super admin, you can screen anyone
+		if (performingAccount.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
+			return true;
+
+		// You can always screen yourself
+		if (Objects.equals(performingAccount.getAccountId(), targetAccount.getAccountId()))
+			return true;
+
+		// An admin or MHIC at the same institution is able to screen others at that institution
+		if (Objects.equals(performingAccount.getInstitutionId(), targetAccount.getInstitutionId())
+				&& (performingAccount.getRoleId() == RoleId.ADMINISTRATOR || performingAccount.getRoleId() == RoleId.MHIC))
+			return true;
 
 		return false;
 	}

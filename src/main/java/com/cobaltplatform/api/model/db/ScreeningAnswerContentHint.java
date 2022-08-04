@@ -22,40 +22,44 @@ package com.cobaltplatform.api.model.db;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
+import static java.lang.String.format;
+
 /**
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-@Deprecated
-public class RecommendationLevel {
+public class ScreeningAnswerContentHint {
 	@Nullable
-	private RecommendationLevelId recommendationLevelId;
+	private ScreeningAnswerContentHintId screeningAnswerContentHintId;
 	@Nullable
 	private String description;
 
-	@Deprecated
-	public enum RecommendationLevelId {
-		PEER,
-		PEER_COACH,
-		COACH,
-		COACH_CLINICIAN,
-		CLINICIAN,
-		CLINICIAN_PSYCHIATRIST,
-		PSYCHIATRIST
+	public enum ScreeningAnswerContentHintId {
+		NONE,
+		FIRST_NAME,
+		LAST_NAME,
+		FULL_NAME,
+		PHONE_NUMBER,
+		EMAIL_ADDRESS
+	}
+
+	@Override
+	public String toString() {
+		return format("%s{screeningAnswerContentHintId=%s, description=%s}", getClass().getSimpleName(), getScreeningAnswerContentHintId().name(), getDescription());
 	}
 
 	@Nullable
-	public RecommendationLevelId getRecommendationLevelId() {
-		return recommendationLevelId;
+	public ScreeningAnswerContentHintId getScreeningAnswerContentHintId() {
+		return this.screeningAnswerContentHintId;
 	}
 
-	public void setRecommendationLevelId(@Nullable RecommendationLevelId recommendationLevelId) {
-		this.recommendationLevelId = recommendationLevelId;
+	public void setScreeningAnswerContentHintId(@Nullable ScreeningAnswerContentHintId screeningAnswerContentHintId) {
+		this.screeningAnswerContentHintId = screeningAnswerContentHintId;
 	}
 
 	@Nullable
 	public String getDescription() {
-		return description;
+		return this.description;
 	}
 
 	public void setDescription(@Nullable String description) {
