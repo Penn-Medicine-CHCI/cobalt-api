@@ -298,9 +298,20 @@ public class ProviderService {
 
 		List<Provider> providers;
 
-		// If provider ID is specified, ignore the rest
+		// If provider ID is specified or clinic IDs are specified, ignore the rest of the filters
 		if (providerId != null) {
 			providers = getDatabase().queryForList("SELECT * FROM provider WHERE provider_id=?", Provider.class, providerId);
+		} else if (clinicIds.size() > 0) {
+			// For now - clinics also trump other filter types
+			List<Object> parameters = new ArrayList<>();
+			parameters.addAll(clinicIds);
+
+			providers = getDatabase().queryForList(format("""
+						SELECT DISTINCT p.* FROM provider p, provider_clinic pc
+						WHERE p.provider_id=pc.provider_id
+						AND pc.clinic_id IN %s
+						ORDER BY p.name  
+					""", sqlInListPlaceholders(clinicIds)), Provider.class, parameters.toArray(new Object[]{}));
 		} else {
 			StringBuilder query = new StringBuilder();
 			List<Object> parameters = new ArrayList<>();
@@ -567,7 +578,7 @@ public class ProviderService {
 
 			for (AvailabilityDate availabilityDate : dates) {
 				Collections.sort(availabilityDate.getTimes(), (time1, time2) -> time1.getTime().compareTo(time2.getTime()));
-				
+
 				boolean fullyBooked = true;
 
 				for (AvailabilityTime availabilityTime : availabilityDate.getTimes())
@@ -1767,7 +1778,7 @@ public class ProviderService {
 	}
 
 	@Nonnull
-	public List<Interaction> findInteractionsByTypeAndProviderId(InteractionType.InteractionTypeId interactionTypeId, UUID providerId ){
+	public List<Interaction> findInteractionsByTypeAndProviderId(InteractionType.InteractionTypeId interactionTypeId, UUID providerId) {
 		return getDatabase().queryForList("SELECT i.* FROM interaction i, provider_interaction pi WHERE i.interaction_id = pi.interaction_id " +
 				"AND pi.provider_id = ? AND i.interaction_type_id = ? ", Interaction.class, providerId, interactionTypeId);
 	}

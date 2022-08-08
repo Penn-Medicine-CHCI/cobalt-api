@@ -37,6 +37,8 @@ import com.cobaltplatform.api.model.api.response.SpecialtyApiResponse.SpecialtyA
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.VisitTypeApiResponse;
+import com.cobaltplatform.api.model.api.response.VisitTypeApiResponse.VisitTypeApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.Clinic;
@@ -48,6 +50,7 @@ import com.cobaltplatform.api.model.db.RecommendationLevel;
 import com.cobaltplatform.api.model.db.Specialty;
 import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
+import com.cobaltplatform.api.model.db.VisitType;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.EvidenceScores;
@@ -148,6 +151,8 @@ public class ProviderResource {
 	@Nonnull
 	private final ProviderCalendarApiResponseFactory providerCalendarApiResponseFactory;
 	@Nonnull
+	private final VisitTypeApiResponseFactory visitTypeApiResponseFactory;
+	@Nonnull
 	private final javax.inject.Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
@@ -176,6 +181,7 @@ public class ProviderResource {
 													@Nonnull SupportRoleApiResponseFactory supportRoleApiResponseFactory,
 													@Nonnull SpecialtyApiResponseFactory specialtyApiResponseFactory,
 													@Nonnull ProviderCalendarApiResponseFactory providerCalendarApiResponseFactory,
+													@Nonnull VisitTypeApiResponseFactory visitTypeApiResponseFactory,
 													@Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
 													@Nonnull RequestBodyParser requestBodyParser,
 													@Nonnull Formatter formatter,
@@ -197,6 +203,7 @@ public class ProviderResource {
 		requireNonNull(supportRoleApiResponseFactory);
 		requireNonNull(specialtyApiResponseFactory);
 		requireNonNull(providerCalendarApiResponseFactory);
+		requireNonNull(visitTypeApiResponseFactory);
 		requireNonNull(currentContextProvider);
 		requireNonNull(requestBodyParser);
 		requireNonNull(formatter);
@@ -219,6 +226,7 @@ public class ProviderResource {
 		this.supportRoleApiResponseFactory = supportRoleApiResponseFactory;
 		this.specialtyApiResponseFactory = specialtyApiResponseFactory;
 		this.providerCalendarApiResponseFactory = providerCalendarApiResponseFactory;
+		this.visitTypeApiResponseFactory = visitTypeApiResponseFactory;
 		this.currentContextProvider = currentContextProvider;
 		this.requestBodyParser = requestBodyParser;
 		this.formatter = formatter;
@@ -639,6 +647,8 @@ public class ProviderResource {
 			for (VisitTypeId visitTypeId : VisitTypeId.values())
 				visitTypeIds.add(visitTypeId);
 
+		List<VisitType> visitTypes = getAppointmentService().findVisitTypes();
+
 		Map<String, Object> response = new LinkedHashMap<>();
 		response.put("defaultSupportRoleIds", defaultSupportRoleIds);
 		response.put("defaultStartDate", startDate);
@@ -655,6 +665,9 @@ public class ProviderResource {
 		response.put("supportRoles", allSupportRoles);
 		response.put("paymentTypes", paymentTypes);
 		response.put("scores", scores);
+		response.put("visitTypes", visitTypes.stream()
+				.map(visitType -> getVisitTypeApiResponseFactory().create(visitType))
+				.collect(Collectors.toList()));
 		response.put("specialties", specialties.stream()
 				.map(specialty -> getSpecialtyApiResponseFactory().create(specialty))
 				.collect(Collectors.toList()));
@@ -823,6 +836,11 @@ public class ProviderResource {
 	@Nonnull
 	protected ProviderCalendarApiResponseFactory getProviderCalendarApiResponseFactory() {
 		return providerCalendarApiResponseFactory;
+	}
+
+	@Nonnull
+	protected VisitTypeApiResponseFactory getVisitTypeApiResponseFactory() {
+		return this.visitTypeApiResponseFactory;
 	}
 
 	@Nonnull

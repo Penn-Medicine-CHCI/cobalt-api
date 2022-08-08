@@ -20,6 +20,9 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.context.CurrentContextExecutor;
+import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.model.api.request.CreateLogicalAvailabilityRequest;
 import com.cobaltplatform.api.model.api.request.UpdateLogicalAvailabilityRequest;
 import com.cobaltplatform.api.model.db.Account;
@@ -40,6 +43,7 @@ import com.cobaltplatform.api.model.service.Block;
 import com.cobaltplatform.api.model.service.ProviderCalendar;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -60,6 +64,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
@@ -71,12 +78,23 @@ import static java.util.Objects.requireNonNull;
  */
 @Singleton
 @ThreadSafe
-public class AvailabilityService {
+public class AvailabilityService implements AutoCloseable {
 	@Nonnull
 	private static final LocalDate DISTANT_FUTURE_DATE;
+	@Nonnull
+	private static final Long BACKGROUND_TASK_INTERVAL_IN_SECONDS;
+	@Nonnull
+	private static final Long BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS;
+	@Nonnull
+	private static final LocalTime BACKGROUND_TASK_START_TIME;
+	//@Nonnull
+	//private static final LocalTime BACKGROUND_TASK_START_TIME;
 
 	static {
 		DISTANT_FUTURE_DATE = LocalDate.of(9999, 1, 1);
+		BACKGROUND_TASK_INTERVAL_IN_SECONDS = 60L * 5L;
+		BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS = 10L;
+		BACKGROUND_TASK_START_TIME = LocalTime.of(22, 0);
 	}
 
 	@Nonnull
@@ -86,6 +104,8 @@ public class AvailabilityService {
 	@Nonnull
 	private final javax.inject.Provider<FollowupService> followupServiceProvider;
 	@Nonnull
+	private final javax.inject.Provider<BackgroundSyncTask> backgroundSyncTaskProvider;
+	@Nonnull
 	private final Database database;
 	@Nonnull
 	private final Configuration configuration;
@@ -94,16 +114,25 @@ public class AvailabilityService {
 	@Nonnull
 	private final Logger logger;
 
+	@Nonnull
+	private final Object backgroundTaskLock;
+	@Nonnull
+	private Boolean backgroundTaskStarted;
+	@Nullable
+	private ScheduledExecutorService backgroundTaskExecutorService;
+
 	@Inject
 	public AvailabilityService(@Nonnull javax.inject.Provider<AppointmentService> appointmentServiceProvider,
 														 @Nonnull javax.inject.Provider<ProviderService> providerServiceProvider,
 														 @Nonnull javax.inject.Provider<FollowupService> followupServiceProvider,
+														 @Nonnull javax.inject.Provider<BackgroundSyncTask> backgroundSyncTaskProvider,
 														 @Nonnull Database database,
 														 @Nonnull Configuration configuration,
 														 @Nonnull Strings strings) {
 		requireNonNull(appointmentServiceProvider);
 		requireNonNull(providerServiceProvider);
 		requireNonNull(followupServiceProvider);
+		requireNonNull(backgroundSyncTaskProvider);
 		requireNonNull(database);
 		requireNonNull(configuration);
 		requireNonNull(strings);
@@ -111,10 +140,66 @@ public class AvailabilityService {
 		this.appointmentServiceProvider = appointmentServiceProvider;
 		this.providerServiceProvider = providerServiceProvider;
 		this.followupServiceProvider = followupServiceProvider;
+		this.backgroundSyncTaskProvider = backgroundSyncTaskProvider;
 		this.database = database;
 		this.configuration = configuration;
 		this.strings = strings;
+		this.backgroundTaskLock = new Object();
+		this.backgroundTaskStarted = false;
 		this.logger = LoggerFactory.getLogger(getClass());
+	}
+
+	@Override
+	public void close() throws Exception {
+		stopBackgroundTask();
+	}
+
+	@Nonnull
+	public Boolean startBackgroundTask() {
+		synchronized (getBackgroundTaskLock()) {
+			if (isBackgroundTaskStarted())
+				return false;
+
+			getLogger().trace("Starting group session background task...");
+
+			this.backgroundTaskExecutorService = Executors.newScheduledThreadPool(1, new ThreadFactoryBuilder().setNameFormat("group-session-background-task").build());
+			this.backgroundTaskStarted = true;
+
+			/*
+			getBackgroundTaskExecutorService().get().scheduleWithFixedDelay(new Runnable() {
+				@Override
+				public void run() {
+					try {
+						getBackgroundSyncTaskProvider().get().run();
+					} catch (Exception e) {
+						getLogger().warn(format("Unable to complete group session background task - will retry in %s seconds", String.valueOf(getBackgroundTaskIntervalInSeconds())), e);
+					}
+				}
+			}, getBackgroundTaskInitialDelayInSeconds(), getBackgroundTaskIntervalInSeconds(), TimeUnit.SECONDS);
+*/
+			getLogger().trace("Group session background task started.");
+
+			return true;
+		}
+	}
+
+	@Nonnull
+	public Boolean stopBackgroundTask() {
+		synchronized (getBackgroundTaskLock()) {
+			if (!isBackgroundTaskStarted())
+				return false;
+
+			getLogger().trace("Stopping group session background task...");
+
+			/*
+			getBackgroundTaskExecutorService().get().shutdownNow();
+			this.backgroundTaskExecutorService = null;
+			this.backgroundTaskStarted = false;
+*/
+			getLogger().trace("Group session background task stopped.");
+
+			return true;
+		}
 	}
 
 	@Nonnull
@@ -567,37 +652,148 @@ public class AvailabilityService {
 	}
 
 	@Nonnull
+	private Long getBackgroundTaskIntervalInSeconds() {
+		return BACKGROUND_TASK_INTERVAL_IN_SECONDS;
+	}
+
+	@Nonnull
+	private Long getBackgroundTaskInitialDelayInSeconds() {
+		return BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS;
+	}
+
+	@Nonnull
+	private LocalTime getBackgroundTaskStartTime() {
+		return BACKGROUND_TASK_START_TIME;
+	}
+
+	@Nonnull
 	protected AppointmentService getAppointmentService() {
-		return appointmentServiceProvider.get();
+		return this.appointmentServiceProvider.get();
 	}
 
 	@Nonnull
 	protected ProviderService getProviderService() {
-		return providerServiceProvider.get();
+		return this.providerServiceProvider.get();
 	}
 
 	@Nonnull
 	protected FollowupService getFollowupService() {
-		return followupServiceProvider.get();
+		return this.followupServiceProvider.get();
+	}
+
+	@Nonnull
+	protected BackgroundSyncTask getBackgroundSyncTask() {
+		return this.backgroundSyncTaskProvider.get();
 	}
 
 	@Nonnull
 	protected Database getDatabase() {
-		return database;
+		return this.database;
 	}
 
 	@Nonnull
 	protected Configuration getConfiguration() {
-		return configuration;
+		return this.configuration;
 	}
 
 	@Nonnull
 	protected Strings getStrings() {
-		return strings;
+		return this.strings;
 	}
 
 	@Nonnull
 	protected Logger getLogger() {
-		return logger;
+		return this.logger;
+	}
+
+	@Nonnull
+	public Boolean isBackgroundTaskStarted() {
+		synchronized (getBackgroundTaskLock()) {
+			return this.backgroundTaskStarted;
+		}
+	}
+
+	@Nonnull
+	protected Object getBackgroundTaskLock() {
+		return this.backgroundTaskLock;
+	}
+
+	@Nullable
+	protected ScheduledExecutorService getBackgroundTaskExecutorService() {
+		return this.backgroundTaskExecutorService;
+	}
+
+	@ThreadSafe
+	protected static class BackgroundSyncTask implements Runnable {
+		@Nonnull
+		private final CurrentContextExecutor currentContextExecutor;
+		@Nonnull
+		private final ErrorReporter errorReporter;
+		@Nonnull
+		private final Database database;
+		@Nonnull
+		private final Configuration configuration;
+		@Nonnull
+		private final Logger logger;
+
+		@Inject
+		public BackgroundSyncTask(@Nonnull CurrentContextExecutor currentContextExecutor,
+															@Nonnull ErrorReporter errorReporter,
+															@Nonnull Database database,
+															@Nonnull Configuration configuration) {
+			requireNonNull(currentContextExecutor);
+			requireNonNull(errorReporter);
+			requireNonNull(database);
+			requireNonNull(configuration);
+
+			this.currentContextExecutor = currentContextExecutor;
+			this.errorReporter = errorReporter;
+			this.database = database;
+			this.configuration = configuration;
+			this.logger = LoggerFactory.getLogger(getClass());
+		}
+
+		@Override
+		public void run() {
+			CurrentContext currentContext = new CurrentContext.Builder(getConfiguration().getDefaultLocale(), getConfiguration().getDefaultTimeZone()).build();
+
+			getCurrentContextExecutor().execute(currentContext, () -> {
+				try {
+					storeProviderAvailabilitySlotsForReporting();
+				} catch (Exception e) {
+					getLogger().error("Unable to store provider availability slots for reporting", e);
+					getErrorReporter().report(e);
+				}
+			});
+		}
+
+		protected void storeProviderAvailabilitySlotsForReporting() {
+			// TODO
+		}
+
+		@Nonnull
+		protected CurrentContextExecutor getCurrentContextExecutor() {
+			return this.currentContextExecutor;
+		}
+
+		@Nonnull
+		protected ErrorReporter getErrorReporter() {
+			return this.errorReporter;
+		}
+
+		@Nonnull
+		protected Database getDatabase() {
+			return this.database;
+		}
+
+		@Nonnull
+		protected Configuration getConfiguration() {
+			return this.configuration;
+		}
+
+		@Nonnull
+		protected Logger getLogger() {
+			return this.logger;
+		}
 	}
 }

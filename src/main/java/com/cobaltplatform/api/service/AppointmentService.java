@@ -91,6 +91,7 @@ import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.db.VideoconferencePlatform.VideoconferencePlatformId;
+import com.cobaltplatform.api.model.db.VisitType;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.cobaltplatform.api.model.qualifier.AuditLogged;
 import com.cobaltplatform.api.model.service.EvidenceScores;
@@ -2239,6 +2240,11 @@ public class AppointmentService {
 		return getStrings().get("1:1 Session with {{providerName}}", new HashMap<String, Object>() {{
 			put("providerName", provider.getName());
 		}});
+	}
+
+	@Nonnull
+	public List<VisitType> findVisitTypes() {
+		return getDatabase().queryForList("SELECT * FROM visit_type ORDER BY display_order", VisitType.class);
 	}
 
 	@Nonnull
