@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.service;
 
+import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest.CreateAnswerRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
@@ -34,6 +35,8 @@ import com.cobaltplatform.api.model.db.ScreeningQuestion;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.ScreeningSessionAnsweredScreeningQuestion;
 import com.cobaltplatform.api.model.db.ScreeningSessionScreening;
+import com.cobaltplatform.api.model.db.ScreeningType;
+import com.cobaltplatform.api.model.db.ScreeningType.ScreeningTypeId;
 import com.cobaltplatform.api.model.db.ScreeningVersion;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContext;
@@ -82,11 +85,17 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @ThreadSafe
 public class ScreeningService {
 	@Nonnull
+	private final Provider<InstitutionService> institutionServiceProvider;
+	@Nonnull
+	private final Provider<InteractionService> interactionServiceProvider;
+	@Nonnull
 	private final Provider<AccountService> accountServiceProvider;
 	@Nonnull
 	private final Provider<AuthorizationService> authorizationServiceProvider;
 	@Nonnull
 	private final JavascriptExecutor javascriptExecutor;
+	@Nonnull
+	private final ErrorReporter errorReporter;
 	@Nonnull
 	private final Normalizer normalizer;
 	@Nonnull
@@ -97,22 +106,31 @@ public class ScreeningService {
 	private final Logger logger;
 
 	@Inject
-	public ScreeningService(@Nonnull Provider<AccountService> accountServiceProvider,
+	public ScreeningService(@Nonnull Provider<InstitutionService> institutionServiceProvider,
+													@Nonnull Provider<InteractionService> interactionServiceProvider,
+													@Nonnull Provider<AccountService> accountServiceProvider,
 													@Nonnull Provider<AuthorizationService> authorizationServiceProvider,
 													@Nonnull JavascriptExecutor javascriptExecutor,
+													@Nonnull ErrorReporter errorReporter,
 													@Nonnull Normalizer normalizer,
 													@Nonnull Database database,
 													@Nonnull Strings strings) {
+		requireNonNull(institutionServiceProvider);
+		requireNonNull(interactionServiceProvider);
 		requireNonNull(accountServiceProvider);
 		requireNonNull(authorizationServiceProvider);
 		requireNonNull(javascriptExecutor);
+		requireNonNull(errorReporter);
 		requireNonNull(normalizer);
 		requireNonNull(database);
 		requireNonNull(strings);
 
+		this.institutionServiceProvider = institutionServiceProvider;
+		this.interactionServiceProvider = interactionServiceProvider;
 		this.accountServiceProvider = accountServiceProvider;
 		this.authorizationServiceProvider = authorizationServiceProvider;
 		this.javascriptExecutor = javascriptExecutor;
+		this.errorReporter = errorReporter;
 		this.normalizer = normalizer;
 		this.database = database;
 		this.strings = strings;
@@ -153,6 +171,15 @@ public class ScreeningService {
 
 		return getDatabase().queryForObject("SELECT * FROM screening_session_screening WHERE screening_session_screening_id=?",
 				ScreeningSessionScreening.class, screeningSessionScreeningId);
+	}
+
+	@Nonnull
+	public Optional<ScreeningType> findScreeningTypeById(@Nullable ScreeningTypeId screeningTypeId) {
+		if (screeningTypeId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("SELECT * FROM screening_type WHERE screening_type_id=?",
+				ScreeningType.class, screeningTypeId);
 	}
 
 	@Nonnull
@@ -797,16 +824,16 @@ public class ScreeningService {
 				getLogger().info("Orchestration function for screening session screening ID {} ({}) indicated crisis. " +
 						"This session was already marked as having a crisis indicated, so no action needed.", screeningSessionScreeningId, screeningVersion.getScreeningTypeId().name());
 			} else {
-				getLogger().info("Orchestration function for screening session screening ID {} ({}) indicated crisis.  Creating crisis interacting instance...",
+				getLogger().info("Orchestration function for screening session screening ID {} ({}) indicated crisis.  Creating crisis interaction instance...",
 						screeningSessionScreeningId, screeningVersion.getScreeningTypeId().name());
 
 				getDatabase().execute("UPDATE screening_session SET crisis_indicated=TRUE WHERE screening_session_id=?", screeningSession.getScreeningSessionId());
 
-				// TODO: Create interaction instance to be sent to relevant care provider[s] that includes screening Q and A values from this flow + scores
+				getInteractionService().createCrisisInteraction(screeningSession.getScreeningSessionId());
 			}
 		}
 
-		// TODO: handle un-marking as crisis (?)
+		// TODO: should we handle un-marking as crisis (? - need futher clinical input)
 
 		if (orchestrationFunctionOutput.getCompleted()) {
 			getLogger().info("Orchestration function for screening session screening ID {} ({}) indicated that screening session ID {} is now complete.", screeningSessionScreeningId,
@@ -1263,6 +1290,16 @@ public class ScreeningService {
 	}
 
 	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return this.institutionServiceProvider.get();
+	}
+
+	@Nonnull
+	protected InteractionService getInteractionService() {
+		return this.interactionServiceProvider.get();
+	}
+
+	@Nonnull
 	protected AccountService getAccountService() {
 		return this.accountServiceProvider.get();
 	}
@@ -1275,6 +1312,11 @@ public class ScreeningService {
 	@Nonnull
 	protected JavascriptExecutor getJavascriptExecutor() {
 		return this.javascriptExecutor;
+	}
+
+	@Nonnull
+	protected ErrorReporter getErrorReporter() {
+		return this.errorReporter;
 	}
 
 	@Nonnull
