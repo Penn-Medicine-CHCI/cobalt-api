@@ -244,6 +244,7 @@ public class ProviderResource {
 
 		ProviderFindRequest request = getRequestBodyParser().parse(requestBody, ProviderFindRequest.class);
 		request.setInstitutionId(institutionId);
+		request.setIncludePastAvailability(false);
 
 		Set<UUID> providerIds = new HashSet<>();
 		Set<ProviderFindSupplement> supplements = request.getSupplements() == null ? Collections.emptySet() : request.getSupplements();

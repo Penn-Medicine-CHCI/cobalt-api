@@ -69,6 +69,8 @@ public class ProviderFindRequest {
 	private SystemAffinityId systemAffinityId; // Null means "COBALT"
 	@Nullable
 	private Set<UUID> specialtyIds; // Empty means "any"
+	@Nullable
+	private Boolean includePastAvailability; // Provide availability for date ranges that are in the past, e.g. for reporting. Null means "don't provide"
 
 	public enum ProviderFindAvailability {
 		ALL,
@@ -226,5 +228,14 @@ public class ProviderFindRequest {
 
 	public void setSpecialtyIds(@Nullable Set<UUID> specialtyIds) {
 		this.specialtyIds = specialtyIds;
+	}
+
+	@Nullable
+	public Boolean getIncludePastAvailability() {
+		return this.includePastAvailability;
+	}
+
+	public void setIncludePastAvailability(@Nullable Boolean includePastAvailability) {
+		this.includePastAvailability = includePastAvailability;
 	}
 }

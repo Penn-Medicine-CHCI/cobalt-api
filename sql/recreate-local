@@ -25,6 +25,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/018-provider-a
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/019-provider-find-indexing.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/020-interaction-generalization.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/021-screening.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/022-provider-availability-history.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

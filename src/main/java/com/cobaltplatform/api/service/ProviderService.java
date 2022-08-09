@@ -286,6 +286,7 @@ public class ProviderService {
 		Set<ProviderFindLicenseType> licenseTypes = request.getLicenseTypes() == null ? Collections.emptySet() : request.getLicenseTypes();
 		SystemAffinityId systemAffinityId = request.getSystemAffinityId() == null ? SystemAffinityId.COBALT : request.getSystemAffinityId();
 		Set<UUID> specialtyIds = request.getSpecialtyIds() == null ? Collections.emptySet() : request.getSpecialtyIds();
+		boolean includePastAvailability = request.getIncludePastAvailability() == null ? false : request.getIncludePastAvailability();
 		LocalDateTime currentDateTime = LocalDateTime.now(account.getTimeZone());
 		LocalDate currentDate = currentDateTime.toLocalDate();
 		ValidationException validationException = new ValidationException();
@@ -558,7 +559,7 @@ public class ProviderService {
 			// Non-native scheduling (Acuity, EPIC) will use provider_availability records.
 			// This is the heavy lifting for creating slots
 			if (provider.getSchedulingSystemId() == SchedulingSystemId.COBALT)
-				dates.addAll(availabilityDatesForNativeScheduling(datesCommand, nativeSchedulingStartDateTime, nativeSchedulingEndDateTime, nativeSchedulingAvailabilityData));
+				dates.addAll(availabilityDatesForNativeScheduling(datesCommand, nativeSchedulingStartDateTime, nativeSchedulingEndDateTime, nativeSchedulingAvailabilityData, includePastAvailability));
 			else
 				dates.addAll(availabilityDatesForNonNativeScheduling(datesCommand));
 
@@ -786,11 +787,13 @@ public class ProviderService {
 	protected List<AvailabilityDate> availabilityDatesForNativeScheduling(@Nonnull AvailabilityDatesCommand command,
 																																				@Nonnull LocalDateTime startDateTime,
 																																				@Nonnull LocalDateTime endDateTime,
-																																				@Nonnull NativeSchedulingAvailabilityData nativeSchedulingAvailabilityData) {
+																																				@Nonnull NativeSchedulingAvailabilityData nativeSchedulingAvailabilityData,
+																																				@Nonnull Boolean includePastAvailability) {
 		requireNonNull(command);
 		requireNonNull(startDateTime);
 		requireNonNull(endDateTime);
 		requireNonNull(nativeSchedulingAvailabilityData);
+		requireNonNull(includePastAvailability);
 
 		LocalDate startDate = startDateTime.toLocalDate();
 		LocalDate endDate = endDateTime.toLocalDate();
@@ -894,7 +897,7 @@ public class ProviderService {
 			if ((command.getDaysOfWeek().size() > 0 && !command.getDaysOfWeek().contains(currentDate.getDayOfWeek()) /* Respect "day of week" filter */)
 					|| (command.getStartDate() != null && currentDate.isBefore(command.getStartDate())) /* Respect "start date" filter */
 					|| (command.getEndDate() != null && currentDate.isAfter(command.getEndDate())) /* Respect "end date" filter */
-					|| (!currentDate.isAfter(command.getCurrentDate())) /* Don't include anything that is "today" */
+					|| (includePastAvailability ? false : (!currentDate.isAfter(command.getCurrentDate()))) /* Don't include anything that is "today" if includePastAvailability is false */
 			) {
 				currentDate = currentDate.plusDays(1);
 				continue;
