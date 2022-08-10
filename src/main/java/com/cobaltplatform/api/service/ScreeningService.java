@@ -24,6 +24,7 @@ import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest.CreateAnswerRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Screening;
 import com.cobaltplatform.api.model.db.ScreeningAnswer;
@@ -38,6 +39,7 @@ import com.cobaltplatform.api.model.db.ScreeningSessionScreening;
 import com.cobaltplatform.api.model.db.ScreeningType;
 import com.cobaltplatform.api.model.db.ScreeningType.ScreeningTypeId;
 import com.cobaltplatform.api.model.db.ScreeningVersion;
+import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContext;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
@@ -198,6 +200,46 @@ public class ScreeningService {
 
 		return getDatabase().queryForObject("SELECT * FROM screening_flow_version WHERE screening_flow_version_id=?",
 				ScreeningFlowVersion.class, screeningFlowVersionId);
+	}
+
+	@Nonnull
+	public List<SupportRole> findRecommendedSupportRolesByAccountId(@Nullable UUID accountId) {
+		if (accountId == null)
+			return Collections.emptyList();
+
+		Account account = getAccountService().findAccountById(accountId).orElse(null);
+
+		if (account == null)
+			return Collections.emptyList();
+
+		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
+
+		if (institution.getProviderTriageScreeningFlowId() == null)
+			return Collections.emptyList();
+
+		ScreeningSession mostRecentCompletedProviderTriageScreeningSession = getDatabase().queryForObject("""
+				SELECT ss.*
+				FROM screening_session ss, screening_flow_version sfv
+				WHERE sfv.screening_flow_version_id=ss.screening_flow_version_id
+				AND sfv.screening_flow_id=? 
+				AND ss.completed = TRUE
+				AND ss.target_account_id=?
+				ORDER BY ss.last_updated DESC
+				LIMIT 1
+				""", ScreeningSession.class, institution.getProviderTriageScreeningFlowId(), accountId).orElse(null);
+
+		if (mostRecentCompletedProviderTriageScreeningSession == null)
+			return Collections.emptyList();
+
+		List<SupportRole> recommendedSupportRoles = getDatabase().queryForList("""
+				SELECT sr.*
+				FROM support_role sr, screening_session_support_role_recommendation sssrr
+				WHERE sr.support_role_id=sssrr.support_role_id
+				AND sssrr.screening_session_id=?
+				ORDER BY sssrr.weight DESC
+				""", SupportRole.class, mostRecentCompletedProviderTriageScreeningSession.getScreeningSessionId());
+
+		return recommendedSupportRoles;
 	}
 
 	@Nonnull

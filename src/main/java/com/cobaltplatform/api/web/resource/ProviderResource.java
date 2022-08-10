@@ -63,7 +63,9 @@ import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.AvailabilityService;
 import com.cobaltplatform.api.service.ClinicService;
 import com.cobaltplatform.api.service.FollowupService;
+import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ProviderService;
+import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
@@ -133,6 +135,10 @@ public class ProviderResource {
 	@Nonnull
 	private final AvailabilityService availabilityService;
 	@Nonnull
+	private final InstitutionService institutionService;
+	@Nonnull
+	private final ScreeningService screeningService;
+	@Nonnull
 	private final ProviderApiResponseFactory providerApiResponseFactory;
 	@Nonnull
 	private final ClinicApiResponseFactory clinicApiResponseFactory;
@@ -172,6 +178,8 @@ public class ProviderResource {
 													@Nonnull FollowupService followupService,
 													@Nonnull AuthorizationService authorizationService,
 													@Nonnull AvailabilityService availabilityService,
+													@Nonnull InstitutionService institutionService,
+													@Nonnull ScreeningService screeningService,
 													@Nonnull ProviderApiResponseFactory providerApiResponseFactory,
 													@Nonnull ClinicApiResponseFactory clinicApiResponseFactory,
 													@Nonnull AppointmentApiResponseFactory appointmentApiResponseFactory,
@@ -194,6 +202,8 @@ public class ProviderResource {
 		requireNonNull(followupService);
 		requireNonNull(authorizationService);
 		requireNonNull(availabilityService);
+		requireNonNull(institutionService);
+		requireNonNull(screeningService);
 		requireNonNull(providerApiResponseFactory);
 		requireNonNull(clinicApiResponseFactory);
 		requireNonNull(appointmentApiResponseFactory);
@@ -217,6 +227,8 @@ public class ProviderResource {
 		this.followupService = followupService;
 		this.authorizationService = authorizationService;
 		this.availabilityService = availabilityService;
+		this.institutionService = institutionService;
+		this.screeningService = screeningService;
 		this.providerApiResponseFactory = providerApiResponseFactory;
 		this.clinicApiResponseFactory = clinicApiResponseFactory;
 		this.appointmentApiResponseFactory = appointmentApiResponseFactory;
@@ -562,6 +574,8 @@ public class ProviderResource {
 		SupportRole overriddenSupportRole = null;
 
 		Account account = getCurrentContext().getAccount().get();
+		List<SupportRole> recommendedSupportRoles = getScreeningService().findRecommendedSupportRolesByAccountId(account.getAccountId());
+
 		EvidenceScores scores = getAssessmentScoringService().getEvidenceAssessmentRecommendation(account).orElse(null);
 		EvidenceScores.RecommendationLevel level = scores != null ? scores.getTopRecommendation().getLevel() : EvidenceScores.RecommendationLevel.COACH;
 		RecommendationLevel recommendationLevel = getAssessmentService().findRecommendationLevelById(level.toString()).orElse(null);
@@ -782,6 +796,16 @@ public class ProviderResource {
 	@Nonnull
 	protected AvailabilityService getAvailabilityService() {
 		return availabilityService;
+	}
+
+	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return this.institutionService;
+	}
+
+	@Nonnull
+	protected ScreeningService getScreeningService() {
+		return this.screeningService;
 	}
 
 	@Nonnull
