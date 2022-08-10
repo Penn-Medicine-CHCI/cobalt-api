@@ -20,13 +20,18 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.context.CurrentContextExecutor;
+import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.model.api.request.CreateLogicalAvailabilityRequest;
+import com.cobaltplatform.api.model.api.request.ProviderFindRequest;
 import com.cobaltplatform.api.model.api.request.UpdateLogicalAvailabilityRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.CalendarPermission.CalendarPermissionId;
 import com.cobaltplatform.api.model.db.Followup;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.LogicalAvailability;
 import com.cobaltplatform.api.model.db.LogicalAvailabilityType.LogicalAvailabilityTypeId;
@@ -34,12 +39,16 @@ import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.RecurrenceType.RecurrenceTypeId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
+import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.cobaltplatform.api.model.service.AppointmentTypeWithLogicalAvailabilityId;
 import com.cobaltplatform.api.model.service.Availability;
 import com.cobaltplatform.api.model.service.Block;
 import com.cobaltplatform.api.model.service.ProviderCalendar;
+import com.cobaltplatform.api.model.service.ProviderFind;
+import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -60,6 +69,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
@@ -71,12 +83,26 @@ import static java.util.Objects.requireNonNull;
  */
 @Singleton
 @ThreadSafe
-public class AvailabilityService {
+public class AvailabilityService implements AutoCloseable {
 	@Nonnull
 	private static final LocalDate DISTANT_FUTURE_DATE;
+	@Nonnull
+	private static final Long HISTORY_BACKGROUND_TASK_INTERVAL_IN_SECONDS;
+	@Nonnull
+	private static final Long HISTORY_BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS;
+	@Nonnull
+	private static final LocalTime HISTORY_BACKGROUND_TASK_RUN_START_TIME_WINDOW;
+	@Nonnull
+	private static final LocalTime HISTORY_BACKGROUND_TASK_RUN_END_TIME_WINDOW;
 
 	static {
 		DISTANT_FUTURE_DATE = LocalDate.of(9999, 1, 1);
+		HISTORY_BACKGROUND_TASK_INTERVAL_IN_SECONDS = 60L * 20L;
+		HISTORY_BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS = 10L;
+
+		// History task is runnable during this time window in each institution's time zone
+		HISTORY_BACKGROUND_TASK_RUN_START_TIME_WINDOW = LocalTime.of(22, 0);
+		HISTORY_BACKGROUND_TASK_RUN_END_TIME_WINDOW = LocalTime.of(23, 0);
 	}
 
 	@Nonnull
@@ -86,6 +112,8 @@ public class AvailabilityService {
 	@Nonnull
 	private final javax.inject.Provider<FollowupService> followupServiceProvider;
 	@Nonnull
+	private final javax.inject.Provider<HistoryBackgroundTask> historyBackgroundTaskProvider;
+	@Nonnull
 	private final Database database;
 	@Nonnull
 	private final Configuration configuration;
@@ -94,16 +122,25 @@ public class AvailabilityService {
 	@Nonnull
 	private final Logger logger;
 
+	@Nonnull
+	private final Object historyBackgroundTaskLock;
+	@Nonnull
+	private Boolean historyBackgroundTaskStarted;
+	@Nullable
+	private ScheduledExecutorService historyBackgroundTaskExecutorService;
+
 	@Inject
 	public AvailabilityService(@Nonnull javax.inject.Provider<AppointmentService> appointmentServiceProvider,
 														 @Nonnull javax.inject.Provider<ProviderService> providerServiceProvider,
 														 @Nonnull javax.inject.Provider<FollowupService> followupServiceProvider,
+														 @Nonnull javax.inject.Provider<HistoryBackgroundTask> historyBackgroundTaskProvider,
 														 @Nonnull Database database,
 														 @Nonnull Configuration configuration,
 														 @Nonnull Strings strings) {
 		requireNonNull(appointmentServiceProvider);
 		requireNonNull(providerServiceProvider);
 		requireNonNull(followupServiceProvider);
+		requireNonNull(historyBackgroundTaskProvider);
 		requireNonNull(database);
 		requireNonNull(configuration);
 		requireNonNull(strings);
@@ -111,10 +148,64 @@ public class AvailabilityService {
 		this.appointmentServiceProvider = appointmentServiceProvider;
 		this.providerServiceProvider = providerServiceProvider;
 		this.followupServiceProvider = followupServiceProvider;
+		this.historyBackgroundTaskProvider = historyBackgroundTaskProvider;
 		this.database = database;
 		this.configuration = configuration;
 		this.strings = strings;
+		this.historyBackgroundTaskLock = new Object();
+		this.historyBackgroundTaskStarted = false;
 		this.logger = LoggerFactory.getLogger(getClass());
+	}
+
+	@Override
+	public void close() throws Exception {
+		stopHistoryBackgroundTask();
+	}
+
+	@Nonnull
+	public Boolean startHistoryBackgroundTask() {
+		synchronized (getHistoryBackgroundTaskLock()) {
+			if (isHistoryBackgroundTaskStarted())
+				return false;
+
+			getLogger().trace("Starting availability history background task...");
+
+			this.historyBackgroundTaskExecutorService = Executors.newScheduledThreadPool(1, new ThreadFactoryBuilder().setNameFormat("availability-history-background-task").build());
+			this.historyBackgroundTaskStarted = true;
+
+			getHistoryBackgroundTaskExecutorService().get().scheduleWithFixedDelay(new Runnable() {
+				@Override
+				public void run() {
+					try {
+						getHistoryBackgroundTaskProvider().get().run();
+					} catch (Exception e) {
+						getLogger().warn(format("Unable to complete availability history background task - will retry in %s seconds", String.valueOf(getHistoryBackgroundTaskIntervalInSeconds())), e);
+					}
+				}
+			}, getHistoryBackgroundTaskInitialDelayInSeconds(), getHistoryBackgroundTaskIntervalInSeconds(), TimeUnit.SECONDS);
+
+			getLogger().trace("Availability history background task started.");
+
+			return true;
+		}
+	}
+
+	@Nonnull
+	public Boolean stopHistoryBackgroundTask() {
+		synchronized (getHistoryBackgroundTaskLock()) {
+			if (!isHistoryBackgroundTaskStarted())
+				return false;
+
+			getLogger().trace("Stopping availability history background task...");
+
+			getHistoryBackgroundTaskExecutorService().get().shutdownNow();
+			this.historyBackgroundTaskExecutorService = null;
+			this.historyBackgroundTaskStarted = false;
+
+			getLogger().trace("Availability history background task stopped.");
+
+			return true;
+		}
 	}
 
 	@Nonnull
@@ -567,37 +658,281 @@ public class AvailabilityService {
 	}
 
 	@Nonnull
+	protected Long getHistoryBackgroundTaskIntervalInSeconds() {
+		return HISTORY_BACKGROUND_TASK_INTERVAL_IN_SECONDS;
+	}
+
+	@Nonnull
+	protected Long getHistoryBackgroundTaskInitialDelayInSeconds() {
+		return HISTORY_BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS;
+	}
+
+	@Nonnull
 	protected AppointmentService getAppointmentService() {
-		return appointmentServiceProvider.get();
+		return this.appointmentServiceProvider.get();
 	}
 
 	@Nonnull
 	protected ProviderService getProviderService() {
-		return providerServiceProvider.get();
+		return this.providerServiceProvider.get();
 	}
 
 	@Nonnull
 	protected FollowupService getFollowupService() {
-		return followupServiceProvider.get();
+		return this.followupServiceProvider.get();
+	}
+
+	@Nonnull
+	protected HistoryBackgroundTask getHistoryBackgroundTask() {
+		return this.historyBackgroundTaskProvider.get();
 	}
 
 	@Nonnull
 	protected Database getDatabase() {
-		return database;
+		return this.database;
 	}
 
 	@Nonnull
 	protected Configuration getConfiguration() {
-		return configuration;
+		return this.configuration;
 	}
 
 	@Nonnull
 	protected Strings getStrings() {
-		return strings;
+		return this.strings;
 	}
 
 	@Nonnull
 	protected Logger getLogger() {
-		return logger;
+		return this.logger;
+	}
+
+	@Nonnull
+	public Boolean isHistoryBackgroundTaskStarted() {
+		synchronized (getHistoryBackgroundTaskLock()) {
+			return this.historyBackgroundTaskStarted;
+		}
+	}
+
+	@Nonnull
+	protected Object getHistoryBackgroundTaskLock() {
+		return this.historyBackgroundTaskLock;
+	}
+
+	@Nonnull
+	protected Optional<ScheduledExecutorService> getHistoryBackgroundTaskExecutorService() {
+		return Optional.ofNullable(this.historyBackgroundTaskExecutorService);
+	}
+
+	@Nonnull
+	protected javax.inject.Provider<HistoryBackgroundTask> getHistoryBackgroundTaskProvider() {
+		return this.historyBackgroundTaskProvider;
+	}
+
+	@ThreadSafe
+	protected static class HistoryBackgroundTask implements Runnable {
+		@Nonnull
+		private final SystemService systemService;
+		@Nonnull
+		private final ProviderService providerService;
+		@Nonnull
+		private final InstitutionService institutionService;
+		@Nonnull
+		private final AppointmentService appointmentService;
+		@Nonnull
+		private final CurrentContextExecutor currentContextExecutor;
+		@Nonnull
+		private final ErrorReporter errorReporter;
+		@Nonnull
+		private final Database database;
+		@Nonnull
+		private final Configuration configuration;
+		@Nonnull
+		private final Logger logger;
+
+		@Inject
+		public HistoryBackgroundTask(@Nonnull SystemService systemService,
+																 @Nonnull ProviderService providerService,
+																 @Nonnull InstitutionService institutionService,
+																 @Nonnull AppointmentService appointmentService,
+																 @Nonnull CurrentContextExecutor currentContextExecutor,
+																 @Nonnull ErrorReporter errorReporter,
+																 @Nonnull Database database,
+																 @Nonnull Configuration configuration) {
+			requireNonNull(systemService);
+			requireNonNull(providerService);
+			requireNonNull(institutionService);
+			requireNonNull(appointmentService);
+			requireNonNull(currentContextExecutor);
+			requireNonNull(errorReporter);
+			requireNonNull(database);
+			requireNonNull(configuration);
+
+			this.systemService = systemService;
+			this.providerService = providerService;
+			this.institutionService = institutionService;
+			this.appointmentService = appointmentService;
+			this.currentContextExecutor = currentContextExecutor;
+			this.errorReporter = errorReporter;
+			this.database = database;
+			this.configuration = configuration;
+			this.logger = LoggerFactory.getLogger(getClass());
+		}
+
+		@Override
+		public void run() {
+			CurrentContext currentContext = new CurrentContext.Builder(getConfiguration().getDefaultLocale(), getConfiguration().getDefaultTimeZone()).build();
+
+			getCurrentContextExecutor().execute(currentContext, () -> {
+				try {
+					getDatabase().transaction(() -> {
+						getSystemService().performAdvisoryLockOperationIfAvailable(AdvisoryLock.PROVIDER_AVAILABILITY_HISTORY_STORAGE, () -> {
+							storeProviderAvailabilityHistoryForCurrentDate();
+						});
+					});
+				} catch (Exception e) {
+					getLogger().error("Unable to store provider availability slots for reporting", e);
+					getErrorReporter().report(e);
+				}
+			});
+		}
+
+		protected void storeProviderAvailabilityHistoryForCurrentDate() {
+			getLogger().trace("Starting provider availability history storage task...");
+
+			for (Institution institution : getInstitutionService().findInstitutions()) {
+				Account account = new Account();
+				account.setTimeZone(institution.getTimeZone());
+
+				LocalDateTime currentDateTimeForInstitution = LocalDateTime.now(institution.getTimeZone());
+				LocalDateTime startOfDay = currentDateTimeForInstitution.with(LocalTime.MIN);
+				LocalDateTime endOfDay = currentDateTimeForInstitution.with(LocalTime.MAX);
+
+				boolean withinTimeWindow = currentDateTimeForInstitution.toLocalTime().isAfter(getHistoryBackgroundTaskRunStartTimeWindow())
+						&& currentDateTimeForInstitution.toLocalTime().isBefore(getHistoryBackgroundTaskRunEndTimeWindow());
+
+				// Only do the sync within the specified time window
+				if (!withinTimeWindow)
+					continue;
+
+				List<ProviderFind> providerFinds = getProviderService().findProviders(new ProviderFindRequest() {{
+					setStartDate(startOfDay.toLocalDate());
+					setStartTime(startOfDay.toLocalTime());
+					setEndDate(endOfDay.toLocalDate());
+					setEndTime(endOfDay.toLocalTime());
+					setInstitutionId(institution.getInstitutionId());
+					setIncludePastAvailability(true);
+				}}, account);
+
+				for (ProviderFind providerFind : providerFinds) {
+					// For now - only tracking history for native scheduling.
+					// It will be additional effort to track ACUITY and EPIC slots (we will likely want to do that in
+					// AcuitySyncManager, EpicSyncManager)
+					if (providerFind.getSchedulingSystemId() != SchedulingSystemId.COBALT)
+						continue;
+
+					for (AvailabilityDate availabilityDate : providerFind.getDates()) {
+						for (ProviderFind.AvailabilityTime availabilityTime : availabilityDate.getTimes()) {
+							LocalDateTime slotDateTime = LocalDateTime.of(availabilityDate.getDate(), availabilityTime.getTime());
+
+							UUID providerAvailabilityHistoryId = getDatabase().queryForObject("""
+									SELECT provider_availability_history_id
+									FROM provider_availability_history
+									WHERE provider_id=?
+									AND slot_date_time=?
+									AND time_zone=?
+									""", UUID.class, providerFind.getProviderId(), slotDateTime, institution.getTimeZone()).orElse(null);
+
+							if (providerAvailabilityHistoryId == null) {
+								providerAvailabilityHistoryId = UUID.randomUUID();
+
+								getDatabase().execute("""
+												INSERT INTO provider_availability_history (
+												  provider_availability_history_id, provider_id, scheduling_system_id, 
+												  name, slot_date_time, time_zone
+												)
+												VALUES (?,?,?,?,?,?)
+												""", providerAvailabilityHistoryId, providerFind.getProviderId(), providerFind.getSchedulingSystemId(),
+										providerFind.getName(), slotDateTime, institution.getTimeZone());
+							}
+
+							getDatabase().execute("""
+									DELETE FROM provider_availability_appointment_type_history
+									WHERE provider_availability_history_id=?
+									""", providerAvailabilityHistoryId);
+
+							for (UUID appointmentTypeId : availabilityTime.getAppointmentTypeIds()) {
+								AppointmentType appointmentType = getAppointmentService().findAppointmentTypeById(appointmentTypeId).get();
+
+								getDatabase().execute("""
+												INSERT INTO provider_availability_appointment_type_history (
+													provider_availability_history_id, appointment_type_id, visit_type_id, name, duration_in_minutes
+												)
+												VALUES (?,?,?,?,?)
+												""", providerAvailabilityHistoryId, appointmentTypeId, appointmentType.getVisitTypeId(),
+										appointmentType.getName(), appointmentType.getDurationInMinutes());
+							}
+						}
+					}
+				}
+			}
+
+			getLogger().trace("Finished provider availability history storage task.");
+		}
+
+		@Nonnull
+		protected LocalTime getHistoryBackgroundTaskRunStartTimeWindow() {
+			return HISTORY_BACKGROUND_TASK_RUN_START_TIME_WINDOW;
+		}
+
+		@Nonnull
+		protected LocalTime getHistoryBackgroundTaskRunEndTimeWindow() {
+			return HISTORY_BACKGROUND_TASK_RUN_END_TIME_WINDOW;
+		}
+
+		@Nonnull
+		protected SystemService getSystemService() {
+			return this.systemService;
+		}
+
+		@Nonnull
+		protected ProviderService getProviderService() {
+			return this.providerService;
+		}
+
+		@Nonnull
+		protected InstitutionService getInstitutionService() {
+			return this.institutionService;
+		}
+
+		@Nonnull
+		protected AppointmentService getAppointmentService() {
+			return this.appointmentService;
+		}
+
+		@Nonnull
+		protected CurrentContextExecutor getCurrentContextExecutor() {
+			return this.currentContextExecutor;
+		}
+
+		@Nonnull
+		protected ErrorReporter getErrorReporter() {
+			return this.errorReporter;
+		}
+
+		@Nonnull
+		protected Database getDatabase() {
+			return this.database;
+		}
+
+		@Nonnull
+		protected Configuration getConfiguration() {
+			return this.configuration;
+		}
+
+		@Nonnull
+		protected Logger getLogger() {
+			return this.logger;
+		}
 	}
 }

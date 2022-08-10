@@ -107,6 +107,8 @@ import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.Scr
 import com.cobaltplatform.api.model.api.response.SpecialtyApiResponse.SpecialtyApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.VisitTypeApiResponse;
+import com.cobaltplatform.api.model.api.response.VisitTypeApiResponse.VisitTypeApiResponseFactory;
 import com.cobaltplatform.api.model.qualifier.AuditLogged;
 import com.cobaltplatform.api.model.qualifier.NotAuditLogged;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
@@ -242,6 +244,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(ScreeningQuestionApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ScreeningAnswerOptionApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ScreeningAnswerApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(VisitTypeApiResponseFactory.class)));
 	}
 
 	@Provides

@@ -19,12 +19,8 @@
 
 package com.cobaltplatform.api.model.api.response;
 
-import com.google.inject.assistedinject.Assisted;
-import com.google.inject.assistedinject.AssistedInject;
-import com.lokalized.Strings;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.Account;
-import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.BetaStatus.BetaStatusId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -35,6 +31,9 @@ import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.SessionService;
 import com.cobaltplatform.api.util.Formatter;
+import com.google.inject.assistedinject.Assisted;
+import com.google.inject.assistedinject.AssistedInject;
+import com.lokalized.Strings;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -45,7 +44,6 @@ import java.time.ZoneId;
 import java.util.Collections;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -82,8 +80,6 @@ public class AccountApiResponse {
 	private final String phoneNumber;
 	@Nullable
 	private final String phoneNumberDescription;
-	@Nullable
-	private final Boolean completedIntroAssessment;
 	@Nonnull
 	private final ZoneId timeZone;
 	@Nonnull
@@ -108,10 +104,6 @@ public class AccountApiResponse {
 	private final Instant lastUpdated;
 	@Nullable
 	private final String lastUpdatedDescription;
-	@Nullable
-	private final IntroAssessmentApiResponse introAssessment;
-	@Nullable
-	private final String lastUpdatedIntroAssessmentDescription;
 	@Nullable
 	private final Map<InstitutionId, AccountCapabilities> capabilities;
 
@@ -139,9 +131,8 @@ public class AccountApiResponse {
 														@Nonnull Formatter formatter,
 														@Nonnull Strings strings,
 														@Nonnull Provider<CurrentContext> currentContextProvider,
-														@Nonnull IntroAssessmentApiResponse.IntroAssessmentApiResponseFactory introAssessmentApiResponseFactory,
 														@Assisted @Nonnull Account account) {
-		this(accountService, sessionService, authorizationService, formatter, strings, currentContextProvider, introAssessmentApiResponseFactory, account, Collections.emptySet());
+		this(accountService, sessionService, authorizationService, formatter, strings, currentContextProvider, account, Collections.emptySet());
 	}
 
 	@AssistedInject
@@ -151,7 +142,6 @@ public class AccountApiResponse {
 														@Nonnull Formatter formatter,
 														@Nonnull Strings strings,
 														@Nonnull Provider<CurrentContext> currentContextProvider,
-														@Nonnull IntroAssessmentApiResponse.IntroAssessmentApiResponseFactory introAssessmentApiResponseFactory,
 														@Assisted @Nonnull Account account,
 														@Assisted @Nonnull Set<AccountApiResponseSupplement> supplements) {
 		requireNonNull(accountService);
@@ -183,8 +173,6 @@ public class AccountApiResponse {
 		this.providerId = account.getProviderId();
 
 		if (showPrivateDetails) {
-			Optional<AccountSession> introSession = sessionService.getCurrentIntroSessionForAccount(account);
-			this.completedIntroAssessment = introSession.isPresent();
 			this.emailAddress = account.getEmailAddress();
 			this.lastUpdated = account.getLastUpdated();
 			this.consentFormAccepted = account.getConsentFormAccepted();
@@ -193,20 +181,10 @@ public class AccountApiResponse {
 			this.lastUpdatedDescription = formatter.formatTimestamp(account.getLastUpdated());
 			this.phoneNumber = account.getPhoneNumber();
 			this.phoneNumberDescription = account.getPhoneNumber() == null ? null : formatter.formatPhoneNumber(account.getPhoneNumber());
-
-			if (completedIntroAssessment) {
-				this.lastUpdatedIntroAssessmentDescription = formatter.formatTimestamp(introSession.get().getCreated());
-				this.introAssessment = introAssessmentApiResponseFactory.create(introSession.get());
-			} else {
-				this.introAssessment = null;
-				this.lastUpdatedIntroAssessmentDescription = null;
-			}
-
 			this.epicPatientId = account.getEpicPatientId();
 			this.epicPatientIdType = account.getEpicPatientIdType();
 			this.epicPatientCreatedByCobalt = account.getEpicPatientCreatedByCobalt();
 		} else {
-			this.completedIntroAssessment = null;
 			this.consentFormAccepted = null;
 			this.consentFormAcceptedDate = null;
 			this.consentFormAcceptedDateDescription = null;
@@ -215,14 +193,12 @@ public class AccountApiResponse {
 			this.phoneNumberDescription = null;
 			this.lastUpdated = null;
 			this.lastUpdatedDescription = null;
-			this.introAssessment = null;
-			this.lastUpdatedIntroAssessmentDescription = null;
 			this.epicPatientId = null;
 			this.epicPatientIdType = null;
 			this.epicPatientCreatedByCobalt = null;
 		}
 
-		if(supplements.contains(AccountApiResponseSupplement.EVERYTHING)
+		if (supplements.contains(AccountApiResponseSupplement.EVERYTHING)
 				|| supplements.contains(AccountApiResponseSupplement.CAPABILITIES)) {
 			this.capabilities = authorizationService.determineAccountCapabilitiesByInstitutionId(account);
 		} else {
@@ -348,21 +324,6 @@ public class AccountApiResponse {
 	@Nullable
 	public String getLastUpdatedDescription() {
 		return lastUpdatedDescription;
-	}
-
-	@Nullable
-	public IntroAssessmentApiResponse getIntroAssessment() {
-		return introAssessment;
-	}
-
-	@Nullable
-	public String getLastUpdatedIntroAssessmentDescription() {
-		return lastUpdatedIntroAssessmentDescription;
-	}
-
-	@Nullable
-	public Boolean getCompletedIntroAssessment() {
-		return completedIntroAssessment;
 	}
 
 	@Nullable

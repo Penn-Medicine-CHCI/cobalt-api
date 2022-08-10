@@ -25,6 +25,7 @@ import com.cobaltplatform.api.integration.epic.EpicSyncManager;
 import com.cobaltplatform.api.messaging.call.CallMessageManager;
 import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.messaging.sms.SmsMessageManager;
+import com.cobaltplatform.api.service.AvailabilityService;
 import com.cobaltplatform.api.service.GroupSessionService;
 import com.cobaltplatform.api.service.MessageService;
 import com.cobaltplatform.api.service.Way2HealthService;
@@ -199,9 +200,23 @@ public class App implements AutoCloseable {
 				getLogger().warn("Failed to start Way2Health background task", e);
 			}
 		}
+
+		try {
+			AvailabilityService availabilityService = getInjector().getInstance(AvailabilityService.class);
+			availabilityService.startHistoryBackgroundTask();
+		} catch (Exception e) {
+			getLogger().warn("Failed to start Availability Service history background task", e);
+		}
 	}
 
 	public void performShutdownTasks() {
+		try {
+			AvailabilityService availabilityService = getInjector().getInstance(AvailabilityService.class);
+			availabilityService.stopHistoryBackgroundTask();
+		} catch (Exception e) {
+			getLogger().warn("Failed to stop Availability Service history background task", e);
+		}
+
 		if (getConfiguration().getShouldPollWay2Health()) {
 			try {
 				Way2HealthService way2HealthService = getInjector().getInstance(Way2HealthService.class);

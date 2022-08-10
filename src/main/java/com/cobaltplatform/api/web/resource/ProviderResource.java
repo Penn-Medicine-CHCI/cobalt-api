@@ -31,12 +31,12 @@ import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApi
 import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseSupplement;
-import com.cobaltplatform.api.model.api.response.ProviderCalendarApiResponse;
 import com.cobaltplatform.api.model.api.response.ProviderCalendarApiResponse.ProviderCalendarApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SpecialtyApiResponse.SpecialtyApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.VisitTypeApiResponse.VisitTypeApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.Clinic;
@@ -44,13 +44,12 @@ import com.cobaltplatform.api.model.db.Followup;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PaymentType;
 import com.cobaltplatform.api.model.db.Provider;
-import com.cobaltplatform.api.model.db.RecommendationLevel;
 import com.cobaltplatform.api.model.db.Specialty;
 import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
+import com.cobaltplatform.api.model.db.VisitType;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
-import com.cobaltplatform.api.model.service.EvidenceScores;
 import com.cobaltplatform.api.model.service.ProviderCalendar;
 import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.service.AppointmentService;
@@ -60,7 +59,9 @@ import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.AvailabilityService;
 import com.cobaltplatform.api.service.ClinicService;
 import com.cobaltplatform.api.service.FollowupService;
+import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ProviderService;
+import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
@@ -130,6 +131,10 @@ public class ProviderResource {
 	@Nonnull
 	private final AvailabilityService availabilityService;
 	@Nonnull
+	private final InstitutionService institutionService;
+	@Nonnull
+	private final ScreeningService screeningService;
+	@Nonnull
 	private final ProviderApiResponseFactory providerApiResponseFactory;
 	@Nonnull
 	private final ClinicApiResponseFactory clinicApiResponseFactory;
@@ -147,6 +152,8 @@ public class ProviderResource {
 	private final SpecialtyApiResponseFactory specialtyApiResponseFactory;
 	@Nonnull
 	private final ProviderCalendarApiResponseFactory providerCalendarApiResponseFactory;
+	@Nonnull
+	private final VisitTypeApiResponseFactory visitTypeApiResponseFactory;
 	@Nonnull
 	private final javax.inject.Provider<CurrentContext> currentContextProvider;
 	@Nonnull
@@ -167,6 +174,8 @@ public class ProviderResource {
 													@Nonnull FollowupService followupService,
 													@Nonnull AuthorizationService authorizationService,
 													@Nonnull AvailabilityService availabilityService,
+													@Nonnull InstitutionService institutionService,
+													@Nonnull ScreeningService screeningService,
 													@Nonnull ProviderApiResponseFactory providerApiResponseFactory,
 													@Nonnull ClinicApiResponseFactory clinicApiResponseFactory,
 													@Nonnull AppointmentApiResponseFactory appointmentApiResponseFactory,
@@ -176,6 +185,7 @@ public class ProviderResource {
 													@Nonnull SupportRoleApiResponseFactory supportRoleApiResponseFactory,
 													@Nonnull SpecialtyApiResponseFactory specialtyApiResponseFactory,
 													@Nonnull ProviderCalendarApiResponseFactory providerCalendarApiResponseFactory,
+													@Nonnull VisitTypeApiResponseFactory visitTypeApiResponseFactory,
 													@Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
 													@Nonnull RequestBodyParser requestBodyParser,
 													@Nonnull Formatter formatter,
@@ -188,6 +198,8 @@ public class ProviderResource {
 		requireNonNull(followupService);
 		requireNonNull(authorizationService);
 		requireNonNull(availabilityService);
+		requireNonNull(institutionService);
+		requireNonNull(screeningService);
 		requireNonNull(providerApiResponseFactory);
 		requireNonNull(clinicApiResponseFactory);
 		requireNonNull(appointmentApiResponseFactory);
@@ -197,6 +209,7 @@ public class ProviderResource {
 		requireNonNull(supportRoleApiResponseFactory);
 		requireNonNull(specialtyApiResponseFactory);
 		requireNonNull(providerCalendarApiResponseFactory);
+		requireNonNull(visitTypeApiResponseFactory);
 		requireNonNull(currentContextProvider);
 		requireNonNull(requestBodyParser);
 		requireNonNull(formatter);
@@ -210,6 +223,8 @@ public class ProviderResource {
 		this.followupService = followupService;
 		this.authorizationService = authorizationService;
 		this.availabilityService = availabilityService;
+		this.institutionService = institutionService;
+		this.screeningService = screeningService;
 		this.providerApiResponseFactory = providerApiResponseFactory;
 		this.clinicApiResponseFactory = clinicApiResponseFactory;
 		this.appointmentApiResponseFactory = appointmentApiResponseFactory;
@@ -219,6 +234,7 @@ public class ProviderResource {
 		this.supportRoleApiResponseFactory = supportRoleApiResponseFactory;
 		this.specialtyApiResponseFactory = specialtyApiResponseFactory;
 		this.providerCalendarApiResponseFactory = providerCalendarApiResponseFactory;
+		this.visitTypeApiResponseFactory = visitTypeApiResponseFactory;
 		this.currentContextProvider = currentContextProvider;
 		this.requestBodyParser = requestBodyParser;
 		this.formatter = formatter;
@@ -236,6 +252,7 @@ public class ProviderResource {
 
 		ProviderFindRequest request = getRequestBodyParser().parse(requestBody, ProviderFindRequest.class);
 		request.setInstitutionId(institutionId);
+		request.setIncludePastAvailability(false);
 
 		Set<UUID> providerIds = new HashSet<>();
 		Set<ProviderFindSupplement> supplements = request.getSupplements() == null ? Collections.emptySet() : request.getSupplements();
@@ -553,25 +570,17 @@ public class ProviderResource {
 		SupportRole overriddenSupportRole = null;
 
 		Account account = getCurrentContext().getAccount().get();
-		EvidenceScores scores = getAssessmentScoringService().getEvidenceAssessmentRecommendation(account).orElse(null);
-		EvidenceScores.RecommendationLevel level = scores != null ? scores.getTopRecommendation().getLevel() : EvidenceScores.RecommendationLevel.COACH;
-		RecommendationLevel recommendationLevel = getAssessmentService().findRecommendationLevelById(level.toString()).orElse(null);
 
 		// For now - don't expose MHIC role to UI
 		List<SupportRole> allSupportRoles = getProviderService().findSupportRolesByInstitutionId(institutionId).stream()
 				.filter(supportRole -> supportRole.getSupportRoleId() != SupportRoleId.MHIC)
 				.collect(Collectors.toList());
 
-		List<SupportRole> defaultSupportRoles;
+		List<SupportRole> recommendedSupportRoles = getScreeningService().findRecommendedSupportRolesByAccountId(account.getAccountId());
+		List<SupportRole> defaultSupportRoles = new ArrayList<>(recommendedSupportRoles);
 
-		if (scores == null) {
+		if (defaultSupportRoles.size() == 0)
 			defaultSupportRoles = allSupportRoles;
-		} else {
-			defaultSupportRoles = getProviderService().findRecommendedSupportRolesByRecommendationLevelId(recommendationLevel == null ? null : recommendationLevel.getRecommendationLevelId());
-
-			if (defaultSupportRoles.size() == 0)
-				defaultSupportRoles = allSupportRoles;
-		}
 
 		if (supportRoleIdOverride != null) {
 			for (SupportRole supportRole : allSupportRoles) {
@@ -608,22 +617,32 @@ public class ProviderResource {
 		String recommendation;
 		String recommendationHtml;
 
-		if (scores == null && overriddenSupportRole == null) {
-			recommendation = getStrings().get("our 1:1 resources are here to listen, support, and provide clinical care");
+		if (recommendedSupportRoles.size() == 0) {
+			recommendation = getStrings().get("Our 1:1 resources are here to listen, support, and provide clinical care");
 			recommendationHtml = recommendation;
 		} else {
 			String supportRoleDescription = overriddenSupportRole != null
 					? overriddenSupportRole.getDescription()
-					: recommendationLevel.getDescription();
+					: recommendedSupportRoles.stream().map(supportRole -> supportRole.getDescription()).collect(Collectors.joining(" or "));
 
-			String normalizedSupportRoleDescription = supportRoleDescription.toLowerCase(getCurrentContext().getLocale());
+			// Hack for the moment until Lokalized supports "starts with vowel" functionality
+			boolean startsWithVowel = "aeiou".indexOf(supportRoleDescription.toLowerCase(account.getLocale()).charAt(0)) != -1;
 
-			recommendation = getStrings().get("we recommend that you meet with a {{supportRoleDescription}}", new HashMap<String, Object>() {{
-				put("supportRoleDescription", normalizedSupportRoleDescription);
-			}});
-			recommendationHtml = getStrings().get("we <strong>recommend</strong> that you meet with a <strong>{{supportRoleDescription}}</strong>", new HashMap<String, Object>() {{
-				put("supportRoleDescription", normalizedSupportRoleDescription);
-			}});
+			if (startsWithVowel) {
+				recommendation = getStrings().get("We recommend that you meet with an {{supportRoleDescription}}", new HashMap<String, Object>() {{
+					put("supportRoleDescription", supportRoleDescription);
+				}});
+				recommendationHtml = getStrings().get("We <strong>recommend</strong> that you meet with an <strong>{{supportRoleDescription}}</strong>", new HashMap<String, Object>() {{
+					put("supportRoleDescription", supportRoleDescription);
+				}});
+			} else {
+				recommendation = getStrings().get("We recommend that you meet with a {{supportRoleDescription}}", new HashMap<String, Object>() {{
+					put("supportRoleDescription", supportRoleDescription);
+				}});
+				recommendationHtml = getStrings().get("We <strong>recommend</strong> that you meet with a <strong>{{supportRoleDescription}}</strong>", new HashMap<String, Object>() {{
+					put("supportRoleDescription", supportRoleDescription);
+				}});
+			}
 		}
 
 		// Psychiatrist filter should now read “Psychiatrist or Psych NP”
@@ -639,6 +658,8 @@ public class ProviderResource {
 			for (VisitTypeId visitTypeId : VisitTypeId.values())
 				visitTypeIds.add(visitTypeId);
 
+		List<VisitType> visitTypes = getAppointmentService().findVisitTypes();
+
 		Map<String, Object> response = new LinkedHashMap<>();
 		response.put("defaultSupportRoleIds", defaultSupportRoleIds);
 		response.put("defaultStartDate", startDate);
@@ -650,11 +671,15 @@ public class ProviderResource {
 		response.put("defaultVisitTypeIds", visitTypeIds);
 		response.put("recommendation", recommendation);
 		response.put("recommendationHtml", recommendationHtml);
-		response.put("recommendationLevel", recommendationLevel);
+		response.put("recommendedSupportRoleIds", recommendedSupportRoles.stream()
+				.map(supportRole -> supportRole.getSupportRoleId())
+				.collect(Collectors.toList()));
 		response.put("availabilities", availabilities);
 		response.put("supportRoles", allSupportRoles);
 		response.put("paymentTypes", paymentTypes);
-		response.put("scores", scores);
+		response.put("visitTypes", visitTypes.stream()
+				.map(visitType -> getVisitTypeApiResponseFactory().create(visitType))
+				.collect(Collectors.toList()));
 		response.put("specialties", specialties.stream()
 				.map(specialty -> getSpecialtyApiResponseFactory().create(specialty))
 				.collect(Collectors.toList()));
@@ -771,6 +796,16 @@ public class ProviderResource {
 	}
 
 	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return this.institutionService;
+	}
+
+	@Nonnull
+	protected ScreeningService getScreeningService() {
+		return this.screeningService;
+	}
+
+	@Nonnull
 	protected ProviderApiResponseFactory getProviderApiResponseFactory() {
 		return providerApiResponseFactory;
 	}
@@ -823,6 +858,11 @@ public class ProviderResource {
 	@Nonnull
 	protected ProviderCalendarApiResponseFactory getProviderCalendarApiResponseFactory() {
 		return providerCalendarApiResponseFactory;
+	}
+
+	@Nonnull
+	protected VisitTypeApiResponseFactory getVisitTypeApiResponseFactory() {
+		return this.visitTypeApiResponseFactory;
 	}
 
 	@Nonnull
