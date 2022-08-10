@@ -31,13 +31,11 @@ import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApi
 import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseSupplement;
-import com.cobaltplatform.api.model.api.response.ProviderCalendarApiResponse;
 import com.cobaltplatform.api.model.api.response.ProviderCalendarApiResponse.ProviderCalendarApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SpecialtyApiResponse.SpecialtyApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.VisitTypeApiResponse;
 import com.cobaltplatform.api.model.api.response.VisitTypeApiResponse.VisitTypeApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Appointment;
@@ -46,14 +44,12 @@ import com.cobaltplatform.api.model.db.Followup;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PaymentType;
 import com.cobaltplatform.api.model.db.Provider;
-import com.cobaltplatform.api.model.db.RecommendationLevel;
 import com.cobaltplatform.api.model.db.Specialty;
 import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.db.VisitType;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
-import com.cobaltplatform.api.model.service.EvidenceScores;
 import com.cobaltplatform.api.model.service.ProviderCalendar;
 import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.service.AppointmentService;
@@ -574,27 +570,17 @@ public class ProviderResource {
 		SupportRole overriddenSupportRole = null;
 
 		Account account = getCurrentContext().getAccount().get();
-		List<SupportRole> recommendedSupportRoles = getScreeningService().findRecommendedSupportRolesByAccountId(account.getAccountId());
-
-		EvidenceScores scores = getAssessmentScoringService().getEvidenceAssessmentRecommendation(account).orElse(null);
-		EvidenceScores.RecommendationLevel level = scores != null ? scores.getTopRecommendation().getLevel() : EvidenceScores.RecommendationLevel.COACH;
-		RecommendationLevel recommendationLevel = getAssessmentService().findRecommendationLevelById(level.toString()).orElse(null);
 
 		// For now - don't expose MHIC role to UI
 		List<SupportRole> allSupportRoles = getProviderService().findSupportRolesByInstitutionId(institutionId).stream()
 				.filter(supportRole -> supportRole.getSupportRoleId() != SupportRoleId.MHIC)
 				.collect(Collectors.toList());
 
-		List<SupportRole> defaultSupportRoles;
+		List<SupportRole> recommendedSupportRoles = getScreeningService().findRecommendedSupportRolesByAccountId(account.getAccountId());
+		List<SupportRole> defaultSupportRoles = new ArrayList<>(recommendedSupportRoles);
 
-		if (scores == null) {
+		if (defaultSupportRoles.size() == 0)
 			defaultSupportRoles = allSupportRoles;
-		} else {
-			defaultSupportRoles = getProviderService().findRecommendedSupportRolesByRecommendationLevelId(recommendationLevel == null ? null : recommendationLevel.getRecommendationLevelId());
-
-			if (defaultSupportRoles.size() == 0)
-				defaultSupportRoles = allSupportRoles;
-		}
 
 		if (supportRoleIdOverride != null) {
 			for (SupportRole supportRole : allSupportRoles) {
@@ -631,22 +617,32 @@ public class ProviderResource {
 		String recommendation;
 		String recommendationHtml;
 
-		if (scores == null && overriddenSupportRole == null) {
-			recommendation = getStrings().get("our 1:1 resources are here to listen, support, and provide clinical care");
+		if (recommendedSupportRoles.size() == 0) {
+			recommendation = getStrings().get("Our 1:1 resources are here to listen, support, and provide clinical care");
 			recommendationHtml = recommendation;
 		} else {
 			String supportRoleDescription = overriddenSupportRole != null
 					? overriddenSupportRole.getDescription()
-					: recommendationLevel.getDescription();
+					: recommendedSupportRoles.stream().map(supportRole -> supportRole.getDescription()).collect(Collectors.joining(" or "));
 
-			String normalizedSupportRoleDescription = supportRoleDescription.toLowerCase(getCurrentContext().getLocale());
+			// Hack for the moment until Lokalized supports "starts with vowel" functionality
+			boolean startsWithVowel = "aeiou".indexOf(supportRoleDescription.toLowerCase(account.getLocale()).charAt(0)) != -1;
 
-			recommendation = getStrings().get("we recommend that you meet with a {{supportRoleDescription}}", new HashMap<String, Object>() {{
-				put("supportRoleDescription", normalizedSupportRoleDescription);
-			}});
-			recommendationHtml = getStrings().get("we <strong>recommend</strong> that you meet with a <strong>{{supportRoleDescription}}</strong>", new HashMap<String, Object>() {{
-				put("supportRoleDescription", normalizedSupportRoleDescription);
-			}});
+			if (startsWithVowel) {
+				recommendation = getStrings().get("We recommend that you meet with an {{supportRoleDescription}}", new HashMap<String, Object>() {{
+					put("supportRoleDescription", supportRoleDescription);
+				}});
+				recommendationHtml = getStrings().get("We <strong>recommend</strong> that you meet with an <strong>{{supportRoleDescription}}</strong>", new HashMap<String, Object>() {{
+					put("supportRoleDescription", supportRoleDescription);
+				}});
+			} else {
+				recommendation = getStrings().get("We recommend that you meet with a {{supportRoleDescription}}", new HashMap<String, Object>() {{
+					put("supportRoleDescription", supportRoleDescription);
+				}});
+				recommendationHtml = getStrings().get("We <strong>recommend</strong> that you meet with a <strong>{{supportRoleDescription}}</strong>", new HashMap<String, Object>() {{
+					put("supportRoleDescription", supportRoleDescription);
+				}});
+			}
 		}
 
 		// Psychiatrist filter should now read “Psychiatrist or Psych NP”
@@ -675,11 +671,12 @@ public class ProviderResource {
 		response.put("defaultVisitTypeIds", visitTypeIds);
 		response.put("recommendation", recommendation);
 		response.put("recommendationHtml", recommendationHtml);
-		response.put("recommendationLevel", recommendationLevel);
+		response.put("recommendedSupportRoleIds", recommendedSupportRoles.stream()
+				.map(supportRole -> supportRole.getSupportRoleId())
+				.collect(Collectors.toList()));
 		response.put("availabilities", availabilities);
 		response.put("supportRoles", allSupportRoles);
 		response.put("paymentTypes", paymentTypes);
-		response.put("scores", scores);
 		response.put("visitTypes", visitTypes.stream()
 				.map(visitType -> getVisitTypeApiResponseFactory().create(visitType))
 				.collect(Collectors.toList()));
