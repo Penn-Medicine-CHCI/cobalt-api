@@ -681,6 +681,19 @@ public class AppointmentService {
 	}
 
 	@Nonnull
+	public Optional<AppointmentType> findAppointmentTypeByIdEvenIfDeleted(@Nullable UUID appointmentTypeId) {
+		if (appointmentTypeId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT app_type.*, ata.assessment_id
+				FROM appointment_type app_type
+				LEFT OUTER JOIN appointment_type_assessment ata ON app_type.appointment_type_id = ata.appointment_type_id
+				WHERE app_type.appointment_type_id=?
+				""", AppointmentType.class, appointmentTypeId);
+	}
+
+	@Nonnull
 	public Optional<AppointmentType> findAppointmentTypeByAcuityAppointmentTypeId(@Nullable Long acuityAppointmentTypeId) {
 		if (acuityAppointmentTypeId == null)
 			return Optional.empty();
@@ -821,7 +834,7 @@ public class AppointmentService {
 			validationException.add(new FieldError("canceled", "Canceled appointments cannot be edited"));
 
 		if (validationException.hasErrors())
-				throw validationException;
+			throw validationException;
 
 		UUID newAppointmentId = createAppointment(request);
 
@@ -1781,7 +1794,7 @@ public class AppointmentService {
 		cobaltProviderEmailMessageContext.put("googleCalendarUrl", format("%s/appointments/%s/google-calendar", webappBaseUrl, appointmentId));
 
 		// With native scheduling, providers can deeplink right to the appointment on their calendar
-		if(appointment.getSchedulingSystemId() == SchedulingSystemId.COBALT)
+		if (appointment.getSchedulingSystemId() == SchedulingSystemId.COBALT)
 			cobaltProviderEmailMessageContext.put("providerSchedulingUrl", format("%s/scheduling/appointments/%s", webappBaseUrl, appointmentId));
 
 		EmailMessage providerEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_CREATED_PROVIDER, provider.getLocale())
@@ -2249,129 +2262,131 @@ public class AppointmentService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return database;
+		return this.database;
 	}
 
 	@Nonnull
 	protected Configuration getConfiguration() {
-		return configuration;
+		return this.configuration;
 	}
 
 	@Nonnull
 	protected Strings getStrings() {
-		return strings;
+		return this.strings;
 	}
 
 	@Nonnull
 	protected EpicClient getEpicClient() {
-		return epicClientProvider.get();
+		return this.epicClientProvider.get();
 	}
 
 	@Nonnull
 	protected EpicSyncManager getEpicSyncManager() {
-		return epicSyncManager;
+		return this.epicSyncManager;
 	}
 
 	@Nonnull
 	protected AcuitySchedulingClient getAcuitySchedulingClient() {
-		return acuitySchedulingClient;
+		return this.acuitySchedulingClient;
 	}
 
 	@Nonnull
 	protected BluejeansClient getBluejeansClient() {
-		return bluejeansClient;
+		return this.bluejeansClient;
 	}
 
 	@Nonnull
 	protected IcClient getIcClient() {
-		return icClient;
+		return this.icClient;
 	}
 
 	@Nonnull
 	protected AcuitySchedulingCache getAcuitySchedulingCache() {
-		return acuitySchedulingCache;
+		return this.acuitySchedulingCache;
 	}
 
 	@Nonnull
 	protected ProviderService getProviderService() {
-		return providerServiceProvider.get();
+		return this.providerServiceProvider.get();
 	}
 
 	@Nonnull
 	protected AccountService getAccountService() {
-		return accountServiceProvider.get();
+		return this.accountServiceProvider.get();
 	}
 
 	@Nonnull
 	protected GroupEventService getGroupEventService() {
-		return groupEventServiceProvider.get();
+		return this.groupEventServiceProvider.get();
 	}
 
 	@Nonnull
 	protected AuditLogService getAuditLogService() {
-		return auditLogServiceProvider.get();
+		return this.auditLogServiceProvider.get();
 	}
 
 	@Nonnull
 	protected ClinicService getClinicService() {
-		return clinicServiceProvider.get();
+		return this.clinicServiceProvider.get();
 	}
 
 	@Nonnull
 	protected EmailMessageManager getEmailMessageManager() {
-		return emailMessageManager;
+		return this.emailMessageManager;
 	}
 
 	@Nonnull
 	protected AssessmentScoringService getAssessmentScoringService() {
-		return assessmentScoringServiceProvider.get();
+		return this.assessmentScoringServiceProvider.get();
 	}
 
 	@Nonnull
 	public AcuitySyncManager getAcuitySyncManager() {
-		return acuitySyncManagerProvider.get();
+		return this.acuitySyncManagerProvider.get();
 	}
 
 	@Nonnull
 	protected Formatter getFormatter() {
-		return formatter;
+		return this.formatter;
 	}
 
 	@Nonnull
 	protected Normalizer getNormalizer() {
-		return normalizer;
+		return this.normalizer;
 	}
 
 	@Nonnull
 	protected Logger getLogger() {
-		return logger;
+		return this.logger;
 	}
 
 	@Nonnull
 	protected SessionService getSessionService() {
-		return sessionService;
+		return this.sessionService;
 	}
 
 	@Nonnull
 	protected AssessmentService getAssessmentService() {
-		return assessmentService;
+		return this.assessmentService;
 	}
 
 	@Nonnull
 	protected GoogleCalendarUrlGenerator getGoogleCalendarUrlGenerator() {
-		return googleCalendarUrlGenerator;
+		return this.googleCalendarUrlGenerator;
 	}
 
 	@Nonnull
 	protected ICalInviteGenerator getiCalInviteGenerator() {
-		return iCalInviteGenerator;
+		return this.iCalInviteGenerator;
 	}
 
 	@Nonnull
 	protected JsonMapper getJsonMapper() {
-		return jsonMapper;
+		return this.jsonMapper;
 	}
 
 	@Nonnull
-	protected InteractionService getInteractionService() { return interactionService; }
+	protected InteractionService getInteractionService() {
+		return this.interactionService;
+	}
 }
