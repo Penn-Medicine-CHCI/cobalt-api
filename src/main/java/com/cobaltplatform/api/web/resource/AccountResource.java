@@ -47,7 +47,6 @@ import com.cobaltplatform.api.model.api.response.AssessmentFormApiResponse.Asses
 import com.cobaltplatform.api.model.api.response.BetaFeatureAlertApiResponse.BetaFeatureAlertApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.GroupEventApiResponse;
 import com.cobaltplatform.api.model.api.response.GroupEventApiResponse.GroupEventApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
@@ -62,22 +61,18 @@ import com.cobaltplatform.api.model.db.ActivityType;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.AuditLog;
-import com.cobaltplatform.api.model.db.AuditLogEvent;
 import com.cobaltplatform.api.model.db.AuditLogEvent.AuditLogEventId;
 import com.cobaltplatform.api.model.db.BetaFeatureAlert;
-import com.cobaltplatform.api.model.db.ClientDeviceType;
 import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
-import com.cobaltplatform.api.model.db.GroupSessionSystem.GroupSessionSystemId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.LoginDestination.LoginDestinationId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.security.IcSignedRequestRequired;
-import com.cobaltplatform.api.model.service.GroupEvent;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.ActivityTrackingService;
 import com.cobaltplatform.api.service.AppointmentService;
@@ -149,8 +144,6 @@ public class AccountResource {
 	@Nonnull
 	private final IcService icService;
 	@Nonnull
-	private final GroupEventService groupEventService;
-	@Nonnull
 	private final GroupSessionService groupSessionService;
 	@Nonnull
 	private final ContentService contentService;
@@ -158,8 +151,6 @@ public class AccountResource {
 	private final AppointmentService appointmentService;
 	@Nonnull
 	private final AccountApiResponseFactory accountApiResponseFactory;
-	@Nonnull
-	private final GroupEventApiResponseFactory groupEventApiResponseFactory;
 	@Nonnull
 	private final GroupSessionApiResponseFactory groupSessionApiResponseFactory;
 	@Nonnull
@@ -204,12 +195,10 @@ public class AccountResource {
 	@Inject
 	public AccountResource(@Nonnull AccountService accountService,
 												 @Nonnull IcService icService,
-												 @Nonnull GroupEventService groupEventService,
 												 @Nonnull GroupSessionService groupSessionService,
 												 @Nonnull ContentService contentService,
 												 @Nonnull AppointmentService appointmentService,
 												 @Nonnull AccountApiResponseFactory accountApiResponseFactory,
-												 @Nonnull GroupEventApiResponseFactory groupEventApiResponseFactory,
 												 @Nonnull GroupSessionApiResponseFactory groupSessionApiResponseFactory,
 												 @Nonnull ContentApiResponseFactory contentApiResponseFactory,
 												 @Nonnull Configuration configuration,
@@ -231,12 +220,10 @@ public class AccountResource {
 												 @Nonnull AssessmentFormApiResponseFactory assessmentFormApiResponseFactory) {
 		requireNonNull(accountService);
 		requireNonNull(icService);
-		requireNonNull(groupEventService);
 		requireNonNull(groupSessionService);
 		requireNonNull(contentService);
 		requireNonNull(appointmentService);
 		requireNonNull(accountApiResponseFactory);
-		requireNonNull(groupEventApiResponseFactory);
 		requireNonNull(groupSessionApiResponseFactory);
 		requireNonNull(contentApiResponseFactory);
 		requireNonNull(configuration);
@@ -258,12 +245,10 @@ public class AccountResource {
 
 		this.accountService = accountService;
 		this.icService = icService;
-		this.groupEventService = groupEventService;
 		this.groupSessionService = groupSessionService;
 		this.contentService = contentService;
 		this.appointmentService = appointmentService;
 		this.accountApiResponseFactory = accountApiResponseFactory;
-		this.groupEventApiResponseFactory = groupEventApiResponseFactory;
 		this.groupSessionApiResponseFactory = groupSessionApiResponseFactory;
 		this.contentApiResponseFactory = contentApiResponseFactory;
 		this.configuration = configuration;
@@ -493,7 +478,7 @@ public class AccountResource {
 		if (!account.getAccountId().equals(accountId))
 			throw new AuthorizationException();
 
-		final int MAXIMUM_GROUP_SESSIONS = 3;
+		final int MAXIMUM_GROUP_SESSIONS = 8;
 		List<GroupSession> groupSessions = new ArrayList<>(getGroupSessionService().findGroupSessions(new FindGroupSessionsRequest() {{
 			setGroupSessionStatusId(GroupSessionStatusId.ADDED);
 			setInstitutionId(account.getInstitutionId());
@@ -509,25 +494,7 @@ public class AccountResource {
 
 		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
 
-		final int MAXIMUM_GROUP_EVENTS = 3;
-		List<GroupEvent> groupEvents = institution.getGroupSessionSystemId() != GroupSessionSystemId.ACUITY ? Collections.emptyList() : getGroupEventService().findGroupEventsByInstitutionId(account.getInstitutionId(), account.getTimeZone())
-				.stream()
-				// Only show events with available seats
-				.filter(groupEvent -> groupEvent.getSeatsAvailable() > 0)
-				.collect(Collectors.toList());
-
-		// Don't show too many events
-		if (groupEvents.size() > MAXIMUM_GROUP_EVENTS)
-			groupEvents = groupEvents.subList(0, MAXIMUM_GROUP_EVENTS /* exclusive */);
-
-		List<String> groupEventIds = groupEvents.stream().map((groupEvent) -> groupEvent.getGroupEventId()).collect(Collectors.toList());
-		Map<String, Appointment> appointmentsByGroupEventId = getAppointmentService().findAppointmentsForGroupEvents(account.getAccountId(), groupEventIds);
-
-		List<GroupEventApiResponse> groupEventApiResponses = groupEvents.stream()
-				.map((groupEvent) -> getGroupEventApiResponseFactory().create(groupEvent, appointmentsByGroupEventId.get(groupEvent.getGroupEventId())))
-				.collect(Collectors.toList());
-
-		final int MAXIMUM_CONTENTS = 3;
+		final int MAXIMUM_CONTENTS = 12;
 		List<Content> contents = getContentService().findContentForAccount(account, Optional.empty(), Optional.empty());
 
 		// Don't show too many content pieces
@@ -547,7 +514,7 @@ public class AccountResource {
 				.collect(Collectors.toList());
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("groupEvents", groupEventApiResponses);
+			put("groupEvents", Collections.emptyList()); // Legacy; deprecated
 			put("contents", contentApiResponses);
 			put("groupSessions", groupSessionApiResponses);
 		}});
@@ -907,7 +874,7 @@ public class AccountResource {
 		Account currentAccount = getCurrentContext().getAccount().get();
 
 		// You can only request for yourself for now
-		if(!currentAccount.getAccountId().equals(accountId))
+		if (!currentAccount.getAccountId().equals(accountId))
 			throw new AuthorizationException();
 
 		getAccountService().requestRoleForAccount(request);
@@ -954,11 +921,6 @@ public class AccountResource {
 	}
 
 	@Nonnull
-	protected GroupEventService getGroupEventService() {
-		return groupEventService;
-	}
-
-	@Nonnull
 	protected GroupSessionService getGroupSessionService() {
 		return groupSessionService;
 	}
@@ -971,11 +933,6 @@ public class AccountResource {
 	@Nonnull
 	protected AppointmentService getAppointmentService() {
 		return appointmentService;
-	}
-
-	@Nonnull
-	protected GroupEventApiResponseFactory getGroupEventApiResponseFactory() {
-		return groupEventApiResponseFactory;
 	}
 
 	@Nonnull

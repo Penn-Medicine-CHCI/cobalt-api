@@ -862,7 +862,7 @@ public class AvailabilityService implements AutoCloseable {
 									""", providerAvailabilityHistoryId);
 
 							for (UUID appointmentTypeId : availabilityTime.getAppointmentTypeIds()) {
-								AppointmentType appointmentType = getAppointmentService().findAppointmentTypeById(appointmentTypeId).get();
+								AppointmentType appointmentType = getAppointmentService().findAppointmentTypeByIdEvenIfDeleted(appointmentTypeId).get();
 
 								getDatabase().execute("""
 												INSERT INTO provider_availability_appointment_type_history (
