@@ -690,6 +690,7 @@ public class AppointmentService {
 				FROM appointment_type app_type
 				LEFT OUTER JOIN appointment_type_assessment ata ON app_type.appointment_type_id = ata.appointment_type_id
 				WHERE app_type.appointment_type_id=?
+				AND (ata.assessment_id IS NULL OR ata.active=TRUE)
 				""", AppointmentType.class, appointmentTypeId);
 	}
 
