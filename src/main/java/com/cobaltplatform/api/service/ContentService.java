@@ -170,7 +170,8 @@ public class ContentService {
 		if (content == null)
 			return Optional.empty();
 
-		if (content.getContentTypeId().compareTo(ContentTypeId.INT_BLOG) == 0) {
+		if (content.getContentTypeId().compareTo(ContentTypeId.INT_BLOG) == 0
+			|| content.getContentTypeId().compareTo(ContentTypeId.EXT_BLOG) == 0) {
 			String description = trimToEmpty(content.getDescription());
 			UrlDetector parser = new UrlDetector(description, UrlDetectorOptions.Default);
 			List<Url> urls = parser.detect();
