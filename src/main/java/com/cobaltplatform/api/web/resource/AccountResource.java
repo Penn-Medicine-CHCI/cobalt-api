@@ -21,6 +21,7 @@ package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.model.api.request.AcceptAccountConsentFormRequest;
 import com.cobaltplatform.api.model.api.request.AccessTokenRequest;
 import com.cobaltplatform.api.model.api.request.AccountRoleRequest;
@@ -47,7 +48,6 @@ import com.cobaltplatform.api.model.api.response.AssessmentFormApiResponse.Asses
 import com.cobaltplatform.api.model.api.response.BetaFeatureAlertApiResponse.BetaFeatureAlertApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.GroupEventApiResponse.GroupEventApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
@@ -80,7 +80,6 @@ import com.cobaltplatform.api.service.AssessmentService;
 import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.ContentService;
-import com.cobaltplatform.api.service.GroupEventService;
 import com.cobaltplatform.api.service.GroupSessionService;
 import com.cobaltplatform.api.service.IcService;
 import com.cobaltplatform.api.service.InstitutionService;
@@ -180,17 +179,19 @@ public class AccountResource {
 	@Nonnull
 	private final Strings strings;
 	@Nonnull
-	final AppointmentApiResponseFactory appointmentApiResponseFactory;
+	private final AppointmentApiResponseFactory appointmentApiResponseFactory;
 	@Nonnull
-	final AuthorizationService authorizationService;
+	private final AuthorizationService authorizationService;
 	@Nonnull
-	final ProviderService providerService;
+	private final ProviderService providerService;
 	@Nonnull
-	final SessionService sessionService;
+	private final SessionService sessionService;
 	@Nonnull
-	final AssessmentService assessmentService;
+	private final AssessmentService assessmentService;
 	@Nonnull
-	final AssessmentFormApiResponseFactory assessmentFormApiResponseFactory;
+	private final AssessmentFormApiResponseFactory assessmentFormApiResponseFactory;
+	@Nonnull
+	private final EnterprisePluginProvider enterprisePluginProvider;
 
 	@Inject
 	public AccountResource(@Nonnull AccountService accountService,
@@ -217,7 +218,8 @@ public class AccountResource {
 												 @Nonnull ProviderService providerService,
 												 @Nonnull SessionService sessionService,
 												 @Nonnull AssessmentService assessmentService,
-												 @Nonnull AssessmentFormApiResponseFactory assessmentFormApiResponseFactory) {
+												 @Nonnull AssessmentFormApiResponseFactory assessmentFormApiResponseFactory,
+												 @Nonnull EnterprisePluginProvider enterprisePluginProvider) {
 		requireNonNull(accountService);
 		requireNonNull(icService);
 		requireNonNull(groupSessionService);
@@ -242,6 +244,7 @@ public class AccountResource {
 		requireNonNull(sessionService);
 		requireNonNull(assessmentService);
 		requireNonNull(assessmentFormApiResponseFactory);
+		requireNonNull(enterprisePluginProvider);
 
 		this.accountService = accountService;
 		this.icService = icService;
@@ -269,6 +272,7 @@ public class AccountResource {
 		this.sessionService = sessionService;
 		this.assessmentService = assessmentService;
 		this.assessmentFormApiResponseFactory = assessmentFormApiResponseFactory;
+		this.enterprisePluginProvider = enterprisePluginProvider;
 	}
 
 	@Nonnull
@@ -881,132 +885,149 @@ public class AccountResource {
 	}
 
 	@Nonnull
+	@GET("/accounts/{accountId}/federated-logout-url")
+	public ApiResponse federatedLogoutUrl(@Nonnull @PathParameter UUID accountId) {
+		Account account = getAccountService().findAccountById(accountId).orElse(null);
+		String federatedLogoutUrl = getEnterprisePluginProvider().enterprisePluginForInstitutionId(account.getInstitutionId())
+				.federatedLogoutUrl(account).orElse(null);
+		
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("federatedLogoutUrl", federatedLogoutUrl);
+		}});
+	}
+
+	@Nonnull
 	protected AccountService getAccountService() {
-		return accountService;
+		return this.accountService;
 	}
 
 	@Nonnull
 	protected IcService getIcService() {
-		return icService;
+		return this.icService;
 	}
 
 	@Nonnull
 	protected AccountApiResponseFactory getAccountApiResponseFactory() {
-		return accountApiResponseFactory;
+		return this.accountApiResponseFactory;
 	}
 
 	@Nonnull
 	protected Configuration getConfiguration() {
-		return configuration;
+		return this.configuration;
 	}
 
 	@Nonnull
 	protected CurrentContext getCurrentContext() {
-		return currentContextProvider.get();
+		return this.currentContextProvider.get();
 	}
 
 	@Nonnull
 	protected RequestBodyParser getRequestBodyParser() {
-		return requestBodyParser;
+		return this.requestBodyParser;
 	}
 
 	@Nonnull
 	protected Authenticator getAuthenticator() {
-		return authenticator;
+		return this.authenticator;
 	}
 
 	@Nonnull
 	protected LinkGenerator getLinkGenerator() {
-		return linkGenerator;
+		return this.linkGenerator;
 	}
 
 	@Nonnull
 	protected GroupSessionService getGroupSessionService() {
-		return groupSessionService;
+		return this.groupSessionService;
 	}
 
 	@Nonnull
 	protected ContentService getContentService() {
-		return contentService;
+		return this.contentService;
 	}
 
 	@Nonnull
 	protected AppointmentService getAppointmentService() {
-		return appointmentService;
+		return this.appointmentService;
 	}
 
 	@Nonnull
 	protected GroupSessionApiResponseFactory getGroupSessionApiResponseFactory() {
-		return groupSessionApiResponseFactory;
+		return this.groupSessionApiResponseFactory;
 	}
 
 	@Nonnull
 	protected ContentApiResponseFactory getContentApiResponseFactory() {
-		return contentApiResponseFactory;
+		return this.contentApiResponseFactory;
 	}
 
 	@Nonnull
 	protected Logger getLogger() {
-		return logger;
+		return this.logger;
 	}
 
 	@Nonnull
 	protected AuditLogService getAuditLogService() {
-		return auditLogService;
+		return this.auditLogService;
 	}
 
 	@Nonnull
 	protected InstitutionService getInstitutionService() {
-		return institutionService;
+		return this.institutionService;
 	}
 
 	@Nonnull
 	protected InstitutionApiResponseFactory getInstitutionApiResponseFactory() {
-		return institutionApiResponseFactory;
+		return this.institutionApiResponseFactory;
 	}
 
 	@Nonnull
 	protected BetaFeatureAlertApiResponseFactory getBetaFeatureAlertApiResponseFactory() {
-		return betaFeatureAlertApiResponseFactory;
+		return this.betaFeatureAlertApiResponseFactory;
 	}
 
 	@Nonnull
 	protected ActivityTrackingService getActivityTrackingService() {
-		return activityTrackingService;
+		return this.activityTrackingService;
 	}
 
 	@Nonnull
 	protected Strings getStrings() {
-		return strings;
+		return this.strings;
 	}
 
 	@Nonnull
 	protected AppointmentApiResponseFactory getAppointmentApiResponseFactory() {
-		return appointmentApiResponseFactory;
+		return this.appointmentApiResponseFactory;
 	}
 
 	@Nonnull
 	protected AuthorizationService getAuthorizationService() {
-		return authorizationService;
+		return this.authorizationService;
 	}
 
 	@Nonnull
 	protected ProviderService getProviderService() {
-		return providerService;
+		return this.providerService;
 	}
 
 	@Nonnull
 	protected SessionService getSessionService() {
-		return sessionService;
+		return this.sessionService;
 	}
 
 	@Nonnull
 	protected AssessmentService getAssessmentService() {
-		return assessmentService;
+		return this.assessmentService;
 	}
 
 	@Nonnull
 	protected AssessmentFormApiResponseFactory getAssessmentFormApiResponseFactory() {
-		return assessmentFormApiResponseFactory;
+		return this.assessmentFormApiResponseFactory;
+	}
+
+	@Nonnull
+	protected EnterprisePluginProvider getEnterprisePluginProvider() {
+		return this.enterprisePluginProvider;
 	}
 }
