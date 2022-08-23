@@ -20,9 +20,12 @@
 package com.cobaltplatform.api.integration.enterprise;
 
 import com.cobaltplatform.api.messaging.email.EmailMessage;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.util.Optional;
 
 /**
  * @author Transmogrify, LLC.
@@ -35,5 +38,9 @@ public interface EnterprisePlugin {
 	default EmailMessage customizeEmailMessage(@Nonnull EmailMessage emailMessage) {
 		// No customization by default
 		return emailMessage;
+	}
+
+	default Optional<String> federatedLogoutUrl(@Nullable Account account) {
+		return Optional.empty();
 	}
 }
