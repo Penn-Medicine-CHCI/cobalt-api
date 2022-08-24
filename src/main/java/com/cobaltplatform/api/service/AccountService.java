@@ -428,6 +428,14 @@ public class AccountService {
 			}
 		} else if (accountSourceId == AccountSourceId.EMAIL_PASSWORD) {
 			password = request.getPassword();
+
+			if (institutionId != null) {
+				Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+
+				if (!institution.getEmailSignupEnabled())
+					validationException.add(getStrings().get("Creating an account with an email and password is not supported for this institution."));
+			}
+
 		} else {
 			throw new UnsupportedOperationException(format("Don't know how to handle %s value %s yet", AccountSourceId.class.getSimpleName(), accountSourceId));
 		}

@@ -66,6 +66,8 @@ public class InstitutionApiResponse {
 	private Boolean ssoEnabled;
 	@Nullable
 	private Boolean emailEnabled;
+	@Nonnull
+	private final Boolean emailSignupEnabled;
 	@Nullable
 	private Boolean anonymousEnabled;
 
@@ -99,6 +101,7 @@ public class InstitutionApiResponse {
 		this.ssoEnabled = institution.getSsoEnabled();
 		this.anonymousEnabled = institution.getAnonymousEnabled();
 		this.emailEnabled = institution.getEmailEnabled();
+		this.emailSignupEnabled = institution.getEmailSignupEnabled();
 	}
 
 	@Nonnull
@@ -174,5 +177,10 @@ public class InstitutionApiResponse {
 	@Nullable
 	public Boolean getAnonymousEnabled() {
 		return this.anonymousEnabled;
+	}
+
+	@Nonnull
+	public Boolean getEmailSignupEnabled() {
+		return this.emailSignupEnabled;
 	}
 }

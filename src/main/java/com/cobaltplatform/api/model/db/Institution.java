@@ -89,6 +89,8 @@ public class Institution {
 	@Nullable
 	private Boolean emailEnabled;
 	@Nullable
+	private Boolean emailSignupEnabled;
+	@Nullable
 	private Boolean anonymousEnabled;
 	@Nullable
 	private String metadata;
@@ -389,6 +391,15 @@ public class Institution {
 
 	public void setEmailEnabled(@Nullable Boolean emailEnabled) {
 		this.emailEnabled = emailEnabled;
+	}
+
+	@Nullable
+	public Boolean getEmailSignupEnabled() {
+		return this.emailSignupEnabled;
+	}
+
+	public void setEmailSignupEnabled(@Nullable Boolean emailSignupEnabled) {
+		this.emailSignupEnabled = emailSignupEnabled;
 	}
 
 	@Nullable
