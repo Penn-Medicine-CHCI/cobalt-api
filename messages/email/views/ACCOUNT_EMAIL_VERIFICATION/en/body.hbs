@@ -1,0 +1,92 @@
+{{#partial "header"}}
+	<tr>
+		<td valign="top" align="center"><img src="{{{imageUrl}}}" width="288" height="288" alt="{{providerName}}" style="display:block; max-width:512px; border-radius: 0px;" border="0" class="em_img" /></td>
+	</tr>
+	<tr>
+		<td height="30" style="height:30px;" class="em_h20">&nbsp;</td>
+	</tr>
+	<tr>
+		<td align="center" class="em_white" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:36px; line-height:40px; color:#ffffff; font-weight:bold;">Your one-on-one session is reserved with {{providerNameAndCredentials}}.</td>
+	</tr>
+{{/partial}}
+
+{{#partial "body"}}
+	<tr>
+		<td align="left" class="em_blk" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:20px; line-height:24px; color:#000000; font-weight:bold;">Hi {{patientName}},</td>
+	</tr>
+	<tr>
+		<td height="20" style="height:20px; line-height:0px; font-size:0px;" class="em_h20">&nbsp;</td>
+	</tr>
+	<tr>
+		<td align="left" class="em_blue" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:18px; line-height:24px; color:#000;">
+			<p>
+				<b>{{providerName}}</b> looks forward to seeing you on <b>{{appointmentStartDateDescription}}</b> @ <b>{{appointmentStartTimeDescription}}</b>.
+			</p>
+			<br />
+
+			<table width="100%" border="0" cellspacing="0" cellpadding="0" align="center">
+				<tr>
+					<td height="5" bgcolor="#ffffff" width="50%" colspan="2"></td>
+				</tr>
+				<tr>
+					<td align="left" width="50%">
+						<a href="{{{videoconferenceUrl}}}" target="_blank">
+							<img src="{{{staticFileUrlPrefix}}}/button-start-appointment@2x.jpg" width="155" height="54" alt="Join Now" />
+						</a>
+					</td>
+					<td align="right" width="50%">
+						<a href="{{{cancelUrl}}}" target="_blank" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:16px; line-height:20px; font-weight: bold;">Cancel Appointment</a>
+					</td>
+				</tr>
+				<tr>
+					<td height="30" bgcolor="#ffffff" width="50%" colspan="2"></td>
+				</tr>
+				<tr>
+					<td height="1" bgcolor="#ccc" width="50%" colspan="2"></td>
+				</tr>
+			</table>
+			<table width="100%" border="0" cellspacing="0" cellpadding="0" align="center">
+				<tr>
+					<td height="30" bgcolor="#ffffff" width="50%"></td>
+					<td height="30" bgcolor="#ffffff" width="50%"></td>
+				</tr>
+				<tr>
+					<td align="left" colspan="2">
+						<a href="{{{icalUrl}}}" target="_blank">
+							<img src="{{{staticFileUrlPrefix}}}/button-ical@2x.jpg" width="293" height="44" alt="Add to iCal/Outlook Calendar" />
+						</a>
+						<a href="{{{googleCalendarUrl}}}" target="_blank">
+							<img src="{{{staticFileUrlPrefix}}}/button-google@2x.jpg" width="247" height="44" alt="Add to Google Calendar" />
+						</a>
+						<a href="{{{anotherTimeUrl}}}" target="_blank">
+							<img src="{{{staticFileUrlPrefix}}}/button-another-time@2x.jpg" width="256" height="44" alt="Reserve Another Session" />
+						</a>
+					</td>
+				</tr>
+				<tr>
+					<td height="30" bgcolor="#ffffff" width="50%" colspan="2"></td>
+				</tr>
+				<tr>
+					<td height="1" bgcolor="#ccc" width="50%" colspan="2"></td>
+				</tr>
+				<tr>
+					<td height="20" bgcolor="#ffffff" width="50%" colspan="2"></td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						<p><b>Here are a few tips to help you have a smooth session:</b></p>
+						<ul>
+							<li style="margin-bottom: 5px;">Find a quiet space with a comfortable chair</li>
+							<li style="margin-bottom: 5px;">Sit facing a window or have a light nearby</li>
+							<li style="margin-bottom: 5px;">Take 5 minutes to jot down your thoughts or any goals for your time together</li>
+							<li style="margin-bottom: 5px;">Close all other browser windows, turn your phone off, and make the video full screen</li>
+							<li style="margin-bottom: 5px;">Allow for a few minutes of troubleshooting and settling in</li>
+						</ul>
+					</td>
+				</tr>
+			</table>
+		</td>
+	</tr>
+{{/partial}}
+
+{{> layouts/en/default}}
