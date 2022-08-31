@@ -746,7 +746,18 @@ public class ContentService {
 
 		}
 
-		AdminContent adminContent = findAdminContentByIdForInstitution(account.getInstitutionId(), command.getContentId()).get();
+		AdminContent adminContent = findAdminContentByIdForInstitution(account.getInstitutionId(), command.getContentId()).orElse(null);
+
+		if(adminContent == null) {
+			if(addToInstitution) {
+				Content content = findContentById(command.getContentId()).get();
+				adminContent = findAdminContentByIdForInstitution(content.getOwnerInstitutionId(), command.getContentId()).get();
+			} else {
+				throw new IllegalStateException(format("Can't find admin content for account ID %s and content ID %s",
+						account.getAccountId(), command.getContentId()));
+			}
+		}
+
 		if (shouldNotify) {
 			sendAdminNotification(account, adminContent);
 		}
