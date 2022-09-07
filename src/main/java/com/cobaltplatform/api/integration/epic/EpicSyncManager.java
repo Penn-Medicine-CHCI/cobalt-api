@@ -19,8 +19,6 @@
 
 package com.cobaltplatform.api.integration.epic;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.lokalized.Strings;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
@@ -37,6 +35,8 @@ import com.cobaltplatform.api.model.qualifier.NotAuditLogged;
 import com.cobaltplatform.api.service.AppointmentService;
 import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.service.ProviderService;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -113,13 +113,13 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 
 	@Inject
 	public EpicSyncManager(@Nonnull javax.inject.Provider<AvailabilitySyncTask> availabilitySyncTaskProvider,
-															@Nonnull javax.inject.Provider<ProviderService> providerServiceProvider,
-															@Nonnull javax.inject.Provider<AppointmentService> appointmentServiceProvider,
-															@Nonnull javax.inject.Provider<AuditLogService> auditLogServiceProvider,
-															@Nonnull @NotAuditLogged javax.inject.Provider<EpicClient> epicClientProvider,
-															@Nonnull Database database,
-															@Nonnull Configuration configuration,
-															@Nonnull Strings strings) {
+												 @Nonnull javax.inject.Provider<ProviderService> providerServiceProvider,
+												 @Nonnull javax.inject.Provider<AppointmentService> appointmentServiceProvider,
+												 @Nonnull javax.inject.Provider<AuditLogService> auditLogServiceProvider,
+												 @Nonnull @NotAuditLogged javax.inject.Provider<EpicClient> epicClientProvider,
+												 @Nonnull Database database,
+												 @Nonnull Configuration configuration,
+												 @Nonnull Strings strings) {
 		requireNonNull(availabilitySyncTaskProvider);
 		requireNonNull(providerServiceProvider);
 		requireNonNull(appointmentServiceProvider);
@@ -470,7 +470,8 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 
 		@Override
 		public void run() {
-			CurrentContext currentContext = new CurrentContext.Builder(getConfiguration().getDefaultLocale(), getConfiguration().getDefaultTimeZone()).build();
+			CurrentContext currentContext = new CurrentContext.Builder(InstitutionId.COBALT,
+					getConfiguration().getDefaultLocale(), getConfiguration().getDefaultTimeZone()).build();
 
 			getCurrentContextExecutor().execute(currentContext, () -> {
 				// Pick out all EPIC-scheduled providers

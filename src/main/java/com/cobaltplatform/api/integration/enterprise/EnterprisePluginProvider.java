@@ -19,8 +19,8 @@
 
 package com.cobaltplatform.api.integration.enterprise;
 
+import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
-import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.google.common.base.CaseFormat;
 import com.google.inject.Injector;
@@ -30,11 +30,9 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
-import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Map;
 
 import static java.lang.String.format;
@@ -49,31 +47,29 @@ public class EnterprisePluginProvider {
 	@Nonnull
 	private final Injector injector;
 	@Nonnull
+	private final Configuration configuration;
+	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final Map<InstitutionId, Class<? extends EnterprisePlugin>> enterprisePluginClassesByInstitutionId;
 
 	@Inject
 	public EnterprisePluginProvider(@Nonnull Injector injector,
+																	@Nonnull Configuration configuration,
 																	@Nonnull Provider<CurrentContext> currentContextProvider) {
 		requireNonNull(injector);
+		requireNonNull(configuration);
 		requireNonNull(currentContextProvider);
 
 		this.injector = injector;
+		this.configuration = configuration;
 		this.currentContextProvider = currentContextProvider;
 		this.enterprisePluginClassesByInstitutionId = Collections.unmodifiableMap(createEnterprisePluginClassesByInstitutionId());
 	}
 
 	@Nonnull
 	public EnterprisePlugin enterprisePluginForCurrentInstitution() {
-		InstitutionId institutionId = InstitutionId.COBALT; // Default
-		CurrentContext currentContext = getCurrentContext();
-		Account account = currentContext.getAccount().orElse(null);
-
-		if (account != null)
-			institutionId = account.getInstitutionId();
-
-		return enterprisePluginForInstitutionId(institutionId);
+		return enterprisePluginForInstitutionId(getCurrentContext().getInstitutionId());
 	}
 
 	@Nonnull
@@ -122,12 +118,17 @@ public class EnterprisePluginProvider {
 
 	@Nonnull
 	protected Injector getInjector() {
-		return injector;
+		return this.injector;
+	}
+
+	@Nonnull
+	protected Configuration getConfiguration() {
+		return this.configuration;
 	}
 
 	@Nonnull
 	protected Map<InstitutionId, Class<? extends EnterprisePlugin>> getEnterprisePluginClassesByInstitutionId() {
-		return enterprisePluginClassesByInstitutionId;
+		return this.enterprisePluginClassesByInstitutionId;
 	}
 
 	@Nonnull
@@ -135,7 +136,8 @@ public class EnterprisePluginProvider {
 		try {
 			return currentContextProvider.get();
 		} catch (Exception ignored) {
-			return new CurrentContext.Builder(Locale.getDefault(), ZoneId.systemDefault()).build();
+			return new CurrentContext.Builder(InstitutionId.COBALT, getConfiguration().getDefaultLocale(),
+					getConfiguration().getDefaultTimeZone()).build();
 		}
 	}
 }

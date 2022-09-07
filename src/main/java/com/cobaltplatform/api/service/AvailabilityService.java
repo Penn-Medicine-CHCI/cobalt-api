@@ -781,7 +781,7 @@ public class AvailabilityService implements AutoCloseable {
 
 		@Override
 		public void run() {
-			CurrentContext currentContext = new CurrentContext.Builder(getConfiguration().getDefaultLocale(), getConfiguration().getDefaultTimeZone()).build();
+			CurrentContext currentContext = new CurrentContext.Builder(InstitutionId.COBALT, getConfiguration().getDefaultLocale(), getConfiguration().getDefaultTimeZone()).build();
 
 			getCurrentContextExecutor().execute(currentContext, () -> {
 				try {

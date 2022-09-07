@@ -43,6 +43,7 @@ import com.cobaltplatform.api.model.api.request.UpdateGroupSessionRequestRequest
 import com.cobaltplatform.api.model.api.request.UpdateGroupSessionRequestStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdateGroupSessionStatusRequest;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
 import com.cobaltplatform.api.model.db.FollowupEmailStatus.FollowupEmailStatusId;
 import com.cobaltplatform.api.model.db.FontSize.FontSizeId;
 import com.cobaltplatform.api.model.db.GroupSession;
@@ -56,10 +57,9 @@ import com.cobaltplatform.api.model.db.GroupSessionStatus;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.Role.RoleId;
-import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
 import com.cobaltplatform.api.model.db.Question;
 import com.cobaltplatform.api.model.db.QuestionType.QuestionTypeId;
+import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.GroupSessionRequestWithTotalCount;
 import com.cobaltplatform.api.model.service.GroupSessionStatusWithCount;
@@ -1628,7 +1628,8 @@ public class GroupSessionService implements AutoCloseable {
 
 		@Override
 		public void run() {
-			CurrentContext currentContext = new CurrentContext.Builder(getConfiguration().getDefaultLocale(), getConfiguration().getDefaultTimeZone()).build();
+			CurrentContext currentContext = new CurrentContext.Builder(InstitutionId.COBALT,
+					getConfiguration().getDefaultLocale(), getConfiguration().getDefaultTimeZone()).build();
 
 			getCurrentContextExecutor().execute(currentContext, () -> {
 				try {

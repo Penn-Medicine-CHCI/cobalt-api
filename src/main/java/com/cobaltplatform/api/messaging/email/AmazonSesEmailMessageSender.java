@@ -22,19 +22,8 @@ package com.cobaltplatform.api.messaging.email;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.messaging.MessageSender;
 import com.cobaltplatform.api.util.HandlebarsTemplater;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.core.SdkBytes;
-import software.amazon.awssdk.services.ses.SesClient;
-import software.amazon.awssdk.services.ses.SesClientBuilder;
-import software.amazon.awssdk.services.ses.model.RawMessage;
-import software.amazon.awssdk.services.ses.model.SendRawEmailRequest;
-import software.amazon.awssdk.services.ses.model.SendRawEmailResponse;
-
 import jakarta.activation.DataHandler;
 import jakarta.activation.DataSource;
-import javax.annotation.Nonnull;
-import javax.annotation.concurrent.ThreadSafe;
 import jakarta.mail.Address;
 import jakarta.mail.BodyPart;
 import jakarta.mail.Message;
@@ -46,14 +35,22 @@ import jakarta.mail.internet.MimeBodyPart;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.mail.internet.MimeMultipart;
 import jakarta.mail.util.ByteArrayDataSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.services.ses.SesClient;
+import software.amazon.awssdk.services.ses.SesClientBuilder;
+import software.amazon.awssdk.services.ses.model.RawMessage;
+import software.amazon.awssdk.services.ses.model.SendRawEmailRequest;
+import software.amazon.awssdk.services.ses.model.SendRawEmailResponse;
+
+import javax.annotation.Nonnull;
+import javax.annotation.concurrent.ThreadSafe;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -94,12 +91,7 @@ public class AmazonSesEmailMessageSender implements MessageSender<EmailMessage> 
 	public void sendMessage(@Nonnull EmailMessage emailMessage) {
 		requireNonNull(emailMessage);
 
-		Map<String, Object> messageContext = new HashMap<>(emailMessage.getMessageContext());
-		// e.g. https://cobaltplatform.s3.us-east-2.amazonaws.com/local/emails/button-start-appointment@2x.jpg
-		messageContext.put("staticFileUrlPrefix", format(" https://%s.s3.%s.amazonaws.com/%s/emails",
-				getConfiguration().getAmazonS3BucketName(), getConfiguration().getAmazonS3Region().id(), getConfiguration().getEnvironment()));
-		messageContext.put("copyrightYear", LocalDateTime.now(ZoneId.of("America/New_York")).getYear());
-
+		Map<String, Object> messageContext = emailMessage.getMessageContext();
 		String fromAddress = emailMessage.getFromAddress().isPresent() ? emailMessage.getFromAddress().get() : getDefaultFromAddress();
 		String subject = getHandlebarsTemplater().mergeTemplate(emailMessage.getMessageTemplate().name(), "subject", emailMessage.getLocale(), messageContext).get();
 		String body = getHandlebarsTemplater().mergeTemplate(emailMessage.getMessageTemplate().name(), "body", emailMessage.getLocale(), messageContext).get();
@@ -129,7 +121,7 @@ public class AmazonSesEmailMessageSender implements MessageSender<EmailMessage> 
 
 			Session session = Session.getDefaultInstance(new Properties());
 			MimeMessage mimeMessage = new MimeMessage(session);
-			mimeMessage.addFrom(new Address[] { normalizedFromAddress });
+			mimeMessage.addFrom(new Address[]{normalizedFromAddress});
 			mimeMessage.addRecipients(Message.RecipientType.TO, toAddresses(emailMessage.getToAddresses()));
 			mimeMessage.addRecipients(Message.RecipientType.CC, toAddresses(emailMessage.getCcAddresses()));
 			mimeMessage.addRecipients(Message.RecipientType.BCC, toAddresses(emailMessage.getBccAddresses()));
@@ -181,7 +173,7 @@ public class AmazonSesEmailMessageSender implements MessageSender<EmailMessage> 
 		for (int i = 0; i < emailAddresses.size(); ++i) {
 			String emailAddress = emailAddresses.get(i);
 			try {
-				if(emailAddress != null)
+				if (emailAddress != null)
 					addresses[i] = new InternetAddress(emailAddress);
 			} catch (AddressException e) {
 				throw new RuntimeException(format("Unable to parse email address '%s'", emailAddress), e);

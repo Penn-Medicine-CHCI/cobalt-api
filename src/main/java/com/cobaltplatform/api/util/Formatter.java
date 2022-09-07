@@ -19,13 +19,14 @@
 
 package com.cobaltplatform.api.util;
 
-import com.google.i18n.phonenumbers.PhoneNumberUtil;
-import com.google.i18n.phonenumbers.Phonenumber.PhoneNumber;
-import com.lokalized.Strings;
 import com.cobaltplatform.api.cache.Cache;
 import com.cobaltplatform.api.cache.CurrentContextCache;
 import com.cobaltplatform.api.cache.LocalCache;
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.db.Account;
+import com.google.i18n.phonenumbers.PhoneNumberUtil;
+import com.google.i18n.phonenumbers.Phonenumber.PhoneNumber;
+import com.lokalized.Strings;
 import org.apache.commons.text.WordUtils;
 import org.ocpsoft.prettytime.PrettyTime;
 import org.slf4j.Logger;
@@ -598,7 +599,7 @@ public final class Formatter {
 
 		double seconds = durationInSecondsAsDouble;
 
-		if (seconds > 0 ) {
+		if (seconds > 0) {
 			durationComponents.add(getStrings().get("{{seconds}}s", new HashMap<String, Object>() {{
 				put("seconds", formatNumber(seconds, locale));
 			}}));
@@ -658,6 +659,16 @@ public final class Formatter {
 	public String formatHexColor(@Nonnull Integer color) {
 		// e.g. 3692510 (decimal) would be #3857de
 		return format("#%s", Integer.toHexString(color)).toLowerCase(Locale.US);
+	}
+
+	@Nonnull
+	public String formatEmailSalutation(@Nullable Account account) {
+		if (account == null || account.getFirstName() == null || account.getFirstName().trim().length() == 0)
+			return getStrings().get("Hello,");
+
+		return getStrings().get("Hi {{firstName}},", new HashMap<>() {{
+			put("name", account.getFirstName());
+		}});
 	}
 
 	public enum FilesizeUnit {

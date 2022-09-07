@@ -40,6 +40,8 @@ import com.cobaltplatform.api.model.api.request.SendCallMessagesRequest;
 import com.cobaltplatform.api.model.api.request.SendCallMessagesRequest.SendCallMessageRequest;
 import com.cobaltplatform.api.model.api.request.SendSmsMessagesRequest;
 import com.cobaltplatform.api.model.api.request.SendSmsMessagesRequest.SendSmsMessageRequest;
+import com.cobaltplatform.api.model.db.Institution;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
 import com.cobaltplatform.api.model.db.ScheduledMessage;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
@@ -512,8 +514,8 @@ public class MessageService implements AutoCloseable {
 
 		@Override
 		public void run() {
-			CurrentContext currentContext = new CurrentContext.Builder(getConfiguration().getDefaultLocale(),
-					getConfiguration().getDefaultTimeZone()).build();
+			CurrentContext currentContext = new CurrentContext.Builder(InstitutionId.COBALT,
+					getConfiguration().getDefaultLocale(), getConfiguration().getDefaultTimeZone()).build();
 
 			getCurrentContextExecutor().execute(currentContext, () -> {
 				getDatabase().transaction(() -> {

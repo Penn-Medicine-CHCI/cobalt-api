@@ -1035,7 +1035,7 @@ public class AccountService {
 
 		UUID accountEmailVerificationCodeId = UUID.randomUUID();
 		Instant expiration = Instant.now().plus(10, ChronoUnit.MINUTES);
-		String code = String.format("%06d", new Random().nextInt(999_999)); // 6-digit number, zero-padded
+		String code = String.format("%06d", new Random().nextInt(999_999)); // random 6-digit number, zero-padded
 
 		getDatabase().execute("""
 				INSERT INTO account_email_verification_code (account_email_verification_code_id, account_id, code,
@@ -1045,6 +1045,14 @@ public class AccountService {
 		// After transaction commits, send an email to the address so we can verify it
 		Account pinnedAccount = account;
 
+		// Email verification is worded a little differently when it occurs during the appointment booking flow.
+		// It also provides
+		String title = accountEmailVerificationFlowType == AccountEmailVerificationFlowType.APPOINTMENT_BOOKING ?
+				getStrings().get("Appointment Confirmation Code") : getStrings().get("Email Confirmation Code");
+
+		String codeTypeDescription = title.toLowerCase(account.getLocale());
+		String salutation = getFormatter().formatEmailSalutation(account);
+
 		getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
 			EmailMessage verificationEmail = new EmailMessage.Builder(
 					EmailMessageTemplate.ACCOUNT_EMAIL_VERIFICATION, pinnedAccount.getLocale())
@@ -1052,8 +1060,10 @@ public class AccountService {
 						add(emailAddress);
 					}})
 					.messageContext(new HashMap<String, Object>() {{
-//						put("verificationUrl", getLinkGenerator().generateAccountInviteLink(institution.getInstitutionId(),
-//								ClientDeviceType.ClientDeviceTypeId.WEB_BROWSER, accountInvite.getAccountInviteCode()));
+						put("title", title);
+						put("salutation", salutation);
+						put("codeTypeDescription", codeTypeDescription);
+						put("code", code);
 					}})
 					.build();
 

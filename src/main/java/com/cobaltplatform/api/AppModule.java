@@ -114,6 +114,7 @@ import com.cobaltplatform.api.model.qualifier.NotAuditLogged;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AuditLogService;
+import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.AmazonSqsManager;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.Formatter;
@@ -473,6 +474,8 @@ public class AppModule extends AbstractModule {
 	@Nonnull
 	public EmailMessageManager provideEmailMessageManager(@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 																												@Nonnull Provider<AccountService> accountServiceProvider,
+																												@Nonnull Provider<InstitutionService> institutionServiceProvider,
+																												@Nonnull Provider<CurrentContext> currentContextProvider,
 																												@Nonnull Database database,
 																												@Nonnull Configuration configuration,
 																												@Nonnull Formatter formatter,
@@ -480,13 +483,15 @@ public class AppModule extends AbstractModule {
 																												@Nonnull MessageSerializer<EmailMessage> messageSerializer) {
 		requireNonNull(enterprisePluginProvider);
 		requireNonNull(accountServiceProvider);
+		requireNonNull(institutionServiceProvider);
+		requireNonNull(currentContextProvider);
 		requireNonNull(database);
 		requireNonNull(configuration);
 		requireNonNull(formatter);
 		requireNonNull(messageSender);
 		requireNonNull(messageSerializer);
 
-		return new EmailMessageManager(enterprisePluginProvider, accountServiceProvider, database, configuration, formatter, messageSender, messageSerializer, (processingFunction) -> {
+		return new EmailMessageManager(enterprisePluginProvider, accountServiceProvider, institutionServiceProvider, currentContextProvider, database, configuration, formatter, messageSender, messageSerializer, (processingFunction) -> {
 			return new AmazonSqsManager.Builder(getConfiguration().getAmazonSqsEmailMessageQueueName(),
 					getConfiguration().getAmazonSqsRegion())
 					.useLocalstack(getConfiguration().getAmazonUseLocalstack())
