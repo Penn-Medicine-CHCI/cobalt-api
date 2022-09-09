@@ -62,7 +62,7 @@ import com.cobaltplatform.api.model.db.Role;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
 import com.cobaltplatform.api.model.security.AccessTokenClaims;
-import com.cobaltplatform.api.model.service.AccountEmailVerificationFlowType;
+import com.cobaltplatform.api.model.service.AccountEmailVerificationFlowTypeId;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
@@ -1010,7 +1010,7 @@ public class AccountService {
 		ValidationException validationException = new ValidationException();
 		UUID accountId = request.getAccountId();
 		String emailAddress = trimToNull(request.getEmailAddress());
-		AccountEmailVerificationFlowType accountEmailVerificationFlowType = request.getAccountEmailVerificationFlowType();
+		AccountEmailVerificationFlowTypeId accountEmailVerificationFlowTypeId = request.getAccountEmailVerificationFlowTypeId();
 		Account account = null;
 
 		if (emailAddress == null)
@@ -1027,8 +1027,8 @@ public class AccountService {
 				validationException.add(new FieldError("accountId", getStrings().get("Account ID is invalid.")));
 		}
 
-		if (accountEmailVerificationFlowType == null)
-			validationException.add(new FieldError("accountEmailVerificationFlowType", getStrings().get("Flow type is required.")));
+		if (accountEmailVerificationFlowTypeId == null)
+			validationException.add(new FieldError("accountEmailVerificationFlowTypeId", getStrings().get("Email verification flow type ID is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -1047,7 +1047,7 @@ public class AccountService {
 
 		// Email verification is worded a little differently when it occurs during the appointment booking flow.
 		// It also provides
-		String title = accountEmailVerificationFlowType == AccountEmailVerificationFlowType.APPOINTMENT_BOOKING ?
+		String title = accountEmailVerificationFlowTypeId == AccountEmailVerificationFlowTypeId.APPOINTMENT_BOOKING ?
 				getStrings().get("Appointment Confirmation Code") : getStrings().get("Email Confirmation Code");
 
 		String codeTypeDescription = title.toLowerCase(account.getLocale());

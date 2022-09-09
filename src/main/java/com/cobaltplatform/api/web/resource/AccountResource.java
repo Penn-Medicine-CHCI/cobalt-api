@@ -25,6 +25,8 @@ import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.model.api.request.AcceptAccountConsentFormRequest;
 import com.cobaltplatform.api.model.api.request.AccessTokenRequest;
 import com.cobaltplatform.api.model.api.request.AccountRoleRequest;
+import com.cobaltplatform.api.model.api.request.ApplyAccountEmailVerificationCodeRequest;
+import com.cobaltplatform.api.model.api.request.CreateAccountEmailVerificationCodeRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountInviteRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateActivityTrackingRequest;
@@ -890,10 +892,58 @@ public class AccountResource {
 		Account account = getAccountService().findAccountById(accountId).orElse(null);
 		String federatedLogoutUrl = getEnterprisePluginProvider().enterprisePluginForInstitutionId(account.getInstitutionId())
 				.federatedLogoutUrl(account).orElse(null);
-		
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("federatedLogoutUrl", federatedLogoutUrl);
 		}});
+	}
+
+	@Nonnull
+	@AuthenticationRequired
+	@POST("/accounts/{accountId}/email-verification-code")
+	public ApiResponse createAccountEmailVerificationCode(@Nonnull @PathParameter UUID accountId,
+																												@Nonnull @RequestBody String body) {
+		requireNonNull(accountId);
+		requireNonNull(body);
+
+		CreateAccountEmailVerificationCodeRequest request = getRequestBodyParser().parse(body, CreateAccountEmailVerificationCodeRequest.class);
+		request.setAccountId(accountId);
+
+		Account currentAccount = getCurrentContext().getAccount().get();
+
+		// You can only request for yourself for now
+		if (!currentAccount.getAccountId().equals(accountId))
+			throw new AuthorizationException();
+
+		// TODO wire up for real
+		// getAccountService().createAccountEmailVerificationCode(request);
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("verified", false);
+		}});
+	}
+
+	@Nonnull
+	@AuthenticationRequired
+	@POST("/accounts/{accountId}/apply-email-verification-code")
+	public ApiResponse applyAccountEmailVerificationCode(@Nonnull @PathParameter UUID accountId,
+																											 @Nonnull @RequestBody String body) {
+		requireNonNull(accountId);
+		requireNonNull(body);
+
+		ApplyAccountEmailVerificationCodeRequest request = getRequestBodyParser().parse(body, ApplyAccountEmailVerificationCodeRequest.class);
+		request.setAccountId(accountId);
+
+		Account currentAccount = getCurrentContext().getAccount().get();
+
+		// You can only request for yourself for now
+		if (!currentAccount.getAccountId().equals(accountId))
+			throw new AuthorizationException();
+
+		// TODO wire up for real
+		// getAccountService().applyAccountEmailVerificationCode(request);
+
+		return new ApiResponse();
 	}
 
 	@Nonnull

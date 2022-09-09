@@ -19,7 +19,7 @@
 
 package com.cobaltplatform.api.model.api.request;
 
-import com.cobaltplatform.api.model.service.AccountEmailVerificationFlowType;
+import com.cobaltplatform.api.model.service.AccountEmailVerificationFlowTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -35,7 +35,7 @@ public class CreateAccountEmailVerificationCodeRequest {
 	@Nullable
 	private String emailAddress;
 	@Nullable
-	private AccountEmailVerificationFlowType accountEmailVerificationFlowType;
+	private AccountEmailVerificationFlowTypeId accountEmailVerificationFlowTypeId;
 
 	@Nullable
 	public UUID getAccountId() {
@@ -56,11 +56,11 @@ public class CreateAccountEmailVerificationCodeRequest {
 	}
 
 	@Nullable
-	public AccountEmailVerificationFlowType getAccountEmailVerificationFlowType() {
-		return this.accountEmailVerificationFlowType;
+	public AccountEmailVerificationFlowTypeId getAccountEmailVerificationFlowTypeId() {
+		return this.accountEmailVerificationFlowTypeId;
 	}
 
-	public void setAccountEmailVerificationFlowType(@Nullable AccountEmailVerificationFlowType accountEmailVerificationFlowType) {
-		this.accountEmailVerificationFlowType = accountEmailVerificationFlowType;
+	public void setAccountEmailVerificationFlowTypeId(@Nullable AccountEmailVerificationFlowTypeId accountEmailVerificationFlowTypeId) {
+		this.accountEmailVerificationFlowTypeId = accountEmailVerificationFlowTypeId;
 	}
 }

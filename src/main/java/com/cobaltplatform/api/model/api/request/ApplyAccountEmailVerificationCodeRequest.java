@@ -17,12 +17,39 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.service;
+package com.cobaltplatform.api.model.api.request;
+
+import com.cobaltplatform.api.model.service.AccountEmailVerificationFlowTypeId;
+
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
+import java.util.UUID;
 
 /**
- * @author Transmogrify, LLC.
+ * @author Transmogrify LLC.
  */
-public enum AccountEmailVerificationFlowType {
-	DEFAULT,
-	APPOINTMENT_BOOKING
+@NotThreadSafe
+public class ApplyAccountEmailVerificationCodeRequest {
+	@Nullable
+	private UUID accountId;
+	@Nullable
+	private String code;
+
+	@Nullable
+	public UUID getAccountId() {
+		return this.accountId;
+	}
+
+	public void setAccountId(@Nullable UUID accountId) {
+		this.accountId = accountId;
+	}
+
+	@Nullable
+	public String getCode() {
+		return this.code;
+	}
+
+	public void setCode(@Nullable String code) {
+		this.code = code;
+	}
 }
