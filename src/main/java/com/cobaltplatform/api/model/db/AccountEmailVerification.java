@@ -28,15 +28,17 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class AccountEmailVerificationCode {
+public class AccountEmailVerification {
 	@Nullable
-	private UUID accountEmailVerificationCodeId;
+	private UUID accountEmailVerificationId;
 	@Nullable
 	private UUID accountId;
 	@Nullable
 	private String code;
 	@Nullable
 	private String emailAddress;
+	@Nullable
+	private Boolean verified;
 	@Nullable
 	private Instant expiration;
 	@Nullable
@@ -45,12 +47,12 @@ public class AccountEmailVerificationCode {
 	private Instant lastUpdated;
 
 	@Nullable
-	public UUID getAccountEmailVerificationCodeId() {
-		return this.accountEmailVerificationCodeId;
+	public UUID getAccountEmailVerificationId() {
+		return this.accountEmailVerificationId;
 	}
 
-	public void setAccountEmailVerificationCodeId(@Nullable UUID accountEmailVerificationCodeId) {
-		this.accountEmailVerificationCodeId = accountEmailVerificationCodeId;
+	public void setAccountEmailVerificationId(@Nullable UUID accountEmailVerificationId) {
+		this.accountEmailVerificationId = accountEmailVerificationId;
 	}
 
 	@Nullable
@@ -78,6 +80,15 @@ public class AccountEmailVerificationCode {
 
 	public void setEmailAddress(@Nullable String emailAddress) {
 		this.emailAddress = emailAddress;
+	}
+
+	@Nullable
+	public Boolean getVerified() {
+		return this.verified;
+	}
+
+	public void setVerified(@Nullable Boolean verified) {
+		this.verified = verified;
 	}
 
 	@Nullable

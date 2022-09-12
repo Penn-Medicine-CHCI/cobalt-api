@@ -30,7 +30,8 @@ import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.AcceptAccountConsentFormRequest;
 import com.cobaltplatform.api.model.api.request.AccessTokenRequest;
 import com.cobaltplatform.api.model.api.request.AccountRoleRequest;
-import com.cobaltplatform.api.model.api.request.CreateAccountEmailVerificationCodeRequest;
+import com.cobaltplatform.api.model.api.request.ApplyAccountEmailVerificationCodeRequest;
+import com.cobaltplatform.api.model.api.request.CreateAccountEmailVerificationRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountInviteRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateInteractionInstanceRequest;
@@ -1004,7 +1005,7 @@ public class AccountService {
 	}
 
 	@Nonnull
-	public UUID createAccountEmailVerificationCode(@Nonnull CreateAccountEmailVerificationCodeRequest request) {
+	public UUID createAccountEmailVerification(@Nonnull CreateAccountEmailVerificationRequest request) {
 		requireNonNull(request);
 
 		ValidationException validationException = new ValidationException();
@@ -1033,20 +1034,19 @@ public class AccountService {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		UUID accountEmailVerificationCodeId = UUID.randomUUID();
+		UUID accountEmailVerificationId = UUID.randomUUID();
 		Instant expiration = Instant.now().plus(10, ChronoUnit.MINUTES);
 		String code = String.format("%06d", new Random().nextInt(999_999)); // random 6-digit number, zero-padded
 
 		getDatabase().execute("""
-				INSERT INTO account_email_verification_code (account_email_verification_code_id, account_id, code,
+				INSERT INTO account_email_verification (account_email_verification_id, account_id, code,
 				email_address, expiration) VALUES (?,?,?,?,?)
-				""", accountEmailVerificationCodeId, accountId, code, emailAddress, expiration);
+				""", accountEmailVerificationId, accountId, code, emailAddress, expiration);
 
 		// After transaction commits, send an email to the address so we can verify it
 		Account pinnedAccount = account;
 
-		// Email verification is worded a little differently when it occurs during the appointment booking flow.
-		// It also provides
+		// Email verification is worded a little differently when it occurs during the appointment booking flow
 		String title = accountEmailVerificationFlowTypeId == AccountEmailVerificationFlowTypeId.APPOINTMENT_BOOKING ?
 				getStrings().get("Appointment Confirmation Code") : getStrings().get("Email Confirmation Code");
 
@@ -1070,7 +1070,79 @@ public class AccountService {
 			getEmailMessageManager().enqueueMessage(verificationEmail);
 		});
 
-		return accountEmailVerificationCodeId;
+		return accountEmailVerificationId;
+	}
+
+	@Nonnull
+	public void applyAccountEmailVerificationCode(@Nonnull ApplyAccountEmailVerificationCodeRequest request) {
+		requireNonNull(request);
+
+		UUID accountId = request.getAccountId();
+		String code = trimToNull(request.getCode());
+		String emailAddress = getNormalizer().normalizeEmailAddress(request.getEmailAddress()).orElse(null);
+
+		ValidationException validationException = new ValidationException();
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", "Account ID is required."));
+
+		if (code == null)
+			validationException.add(new FieldError("code", "Code is required."));
+
+		if (emailAddress == null)
+			validationException.add(new FieldError("emailAddress", "Email address is required."));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		// If this email has already been verified for this account, nothing to do
+		if (isEmailAddressVerifiedForAccountId(emailAddress, accountId))
+			return;
+
+		// Friendly error handling - see if code is valid but expired
+		boolean validButExpiredCode = getDatabase().queryForObject("""
+				SELECT COUNT(*) > 0
+				FROM account_email_verification
+				WHERE verified=FALSE 
+				AND account_id=?
+				AND code=?
+				AND email_address=?
+				AND NOW() >= expiration
+				""", Boolean.class, accountId, code, emailAddress).get();
+
+		if (validButExpiredCode)
+			throw new ValidationException(getStrings().get(
+					"Sorry, this code is expired and cannot be used to verify your email address."));
+
+		boolean verified = getDatabase().execute("""
+				UPDATE account_email_verification
+				SET verified=TRUE
+				WHERE account_id=?
+				AND code=?
+				AND email_address=?
+				AND NOW() < expiration
+				""", accountId, code, emailAddress) > 0;
+
+		if (!verified)
+			throw new ValidationException(getStrings().get(
+					"Sorry, we could not use this code to verify your email address.  Please make sure you typed it in correctly."));
+	}
+
+	@Nonnull
+	public Boolean isEmailAddressVerifiedForAccountId(@Nullable String emailAddress,
+																										@Nullable UUID accountId) {
+		emailAddress = getNormalizer().normalizeEmailAddress(emailAddress).orElse(null);
+
+		if (accountId == null || emailAddress == null)
+			return false;
+
+		return getDatabase().queryForObject("""
+				SELECT COUNT(*) > 0
+				FROM account_email_verification
+				WHERE verified=TRUE
+				AND email_address=?
+				AND account_id=?
+				""", Boolean.class, emailAddress, accountId).get();
 	}
 
 	@Nonnull

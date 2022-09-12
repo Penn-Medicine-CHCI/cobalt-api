@@ -29,7 +29,7 @@ import java.util.UUID;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class CreateAccountEmailVerificationCodeRequest {
+public class CreateAccountEmailVerificationRequest {
 	@Nullable
 	private UUID accountId;
 	@Nullable
