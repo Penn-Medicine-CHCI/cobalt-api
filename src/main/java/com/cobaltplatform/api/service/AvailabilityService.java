@@ -46,6 +46,7 @@ import com.cobaltplatform.api.model.service.Block;
 import com.cobaltplatform.api.model.service.ProviderCalendar;
 import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
+import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityStatus;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -833,6 +834,10 @@ public class AvailabilityService implements AutoCloseable {
 
 					for (AvailabilityDate availabilityDate : providerFind.getDates()) {
 						for (ProviderFind.AvailabilityTime availabilityTime : availabilityDate.getTimes()) {
+							// Throw out any slots that already have appointments booked
+							if (availabilityTime.getStatus() == AvailabilityStatus.BOOKED)
+								continue;
+
 							LocalDateTime slotDateTime = LocalDateTime.of(availabilityDate.getDate(), availabilityTime.getTime());
 
 							UUID providerAvailabilityHistoryId = getDatabase().queryForObject("""
