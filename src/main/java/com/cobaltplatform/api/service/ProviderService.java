@@ -287,7 +287,7 @@ public class ProviderService {
 		SystemAffinityId systemAffinityId = request.getSystemAffinityId() == null ? SystemAffinityId.COBALT : request.getSystemAffinityId();
 		Set<UUID> specialtyIds = request.getSpecialtyIds() == null ? Collections.emptySet() : request.getSpecialtyIds();
 		boolean includePastAvailability = request.getIncludePastAvailability() == null ? false : request.getIncludePastAvailability();
-		LocalDateTime currentDateTime = LocalDateTime.now(account.getTimeZone());
+		LocalDateTime currentDateTime = includePastAvailability ? LocalDateTime.of(startDate, startTime) : LocalDateTime.now(account.getTimeZone());
 		LocalDate currentDate = currentDateTime.toLocalDate();
 		ValidationException validationException = new ValidationException();
 
@@ -519,7 +519,7 @@ public class ProviderService {
 
 		// Special handling for native scheduling: precalculate all logical availability/appointment type data for the
 		// specified providers up-front so we can use it further down to build availability date/time slots
-		LocalDateTime nativeSchedulingStartDateTime = includePastAvailability ? LocalDateTime.of(startDate, startTime) : currentDateTime;
+		LocalDateTime nativeSchedulingStartDateTime = currentDateTime;
 		LocalDateTime nativeSchedulingEndDateTime = nativeSchedulingStartDateTime.plusMonths(1).toLocalDate().atStartOfDay(); /* arbitrarily cap at 1 month ahead */
 
 		NativeSchedulingAvailabilityData nativeSchedulingAvailabilityData = loadNativeSchedulingAvailabilityData(institutionId,
@@ -549,7 +549,7 @@ public class ProviderService {
 			datesCommand.setStartTime(startTime);
 			datesCommand.setEndDate(endDate);
 			datesCommand.setEndTime(endTime);
-			datesCommand.setCurrentDate(includePastAvailability ? startDate : currentDate);
+			datesCommand.setCurrentDate(currentDate);
 			datesCommand.setDaysOfWeek(daysOfWeek);
 			datesCommand.setAvailability(availability);
 
@@ -559,7 +559,7 @@ public class ProviderService {
 			// Non-native scheduling (Acuity, EPIC) will use provider_availability records.
 			// This is the heavy lifting for creating slots
 			if (provider.getSchedulingSystemId() == SchedulingSystemId.COBALT)
-				dates.addAll(availabilityDatesForNativeScheduling(datesCommand, nativeSchedulingStartDateTime, nativeSchedulingEndDateTime, nativeSchedulingAvailabilityData, includePastAvailability));
+				dates.addAll(availabilityDatesForNativeScheduling(datesCommand, nativeSchedulingStartDateTime, nativeSchedulingEndDateTime, nativeSchedulingAvailabilityData));
 			else
 				dates.addAll(availabilityDatesForNonNativeScheduling(datesCommand));
 
@@ -663,7 +663,56 @@ public class ProviderService {
 			providerFinds.add(providerFind);
 		}
 
+		// Special case for Cobalt-scheduled providers: filter out any availability that is
+		// too early for the provider's configured "lead time" (normally 24 to 48 hours)
+		if (!includePastAvailability)
+			filterProviderFindsBySchedulingLeadTime(providerFinds, providers, currentDateTime);
+
 		return providerFinds;
+	}
+
+	/**
+	 * Be aware: this method may mutate the content of {@code providerFinds} in-place.
+	 */
+	protected void filterProviderFindsBySchedulingLeadTime(@Nonnull List<ProviderFind> providerFinds,
+																												 @Nonnull List<Provider> providers,
+																												 @Nonnull LocalDateTime currentDateTime) {
+		requireNonNull(providerFinds);
+		requireNonNull(providers);
+		requireNonNull(currentDateTime);
+
+		Map<UUID, LocalDateTime> earliestAllowedDateTimeByProviderId = providers.stream().collect(Collectors.toMap(
+				provider -> provider.getProviderId(),
+				provider -> currentDateTime.plusHours(provider.getSchedulingLeadTimeInHours())));
+
+		for (ProviderFind providerFind : providerFinds) {
+			if (providerFind.getSchedulingSystemId() != SchedulingSystemId.COBALT)
+				continue;
+
+			List<AvailabilityDate> availabilityDatesToRemove = new ArrayList<>(providerFind.getDates().size());
+
+			LocalDateTime earliestAllowedDateTime = earliestAllowedDateTimeByProviderId.get(providerFind.getProviderId());
+
+			for (AvailabilityDate availabilityDate : providerFind.getDates()) {
+				List<AvailabilityTime> availabilityTimesToRemove = new ArrayList<>();
+
+				for (AvailabilityTime availabilityTime : availabilityDate.getTimes()) {
+					if (availabilityTime.getStatus() == AvailabilityStatus.AVAILABLE) {
+						LocalDateTime availabilityDateTime = LocalDateTime.of(availabilityDate.getDate(), availabilityTime.getTime());
+
+						if (availabilityDateTime.isBefore(earliestAllowedDateTime))
+							availabilityTimesToRemove.add(availabilityTime);
+					}
+				}
+
+				availabilityDate.getTimes().removeAll(availabilityTimesToRemove);
+
+				if (availabilityDate.getTimes().size() == 0)
+					availabilityDatesToRemove.add(availabilityDate);
+			}
+
+			providerFind.getDates().removeAll(availabilityDatesToRemove);
+		}
 	}
 
 	/**
@@ -787,13 +836,11 @@ public class ProviderService {
 	protected List<AvailabilityDate> availabilityDatesForNativeScheduling(@Nonnull AvailabilityDatesCommand command,
 																																				@Nonnull LocalDateTime startDateTime,
 																																				@Nonnull LocalDateTime endDateTime,
-																																				@Nonnull NativeSchedulingAvailabilityData nativeSchedulingAvailabilityData,
-																																				@Nonnull Boolean includePastAvailability) {
+																																				@Nonnull NativeSchedulingAvailabilityData nativeSchedulingAvailabilityData) {
 		requireNonNull(command);
 		requireNonNull(startDateTime);
 		requireNonNull(endDateTime);
 		requireNonNull(nativeSchedulingAvailabilityData);
-		requireNonNull(includePastAvailability);
 
 		LocalDate startDate = startDateTime.toLocalDate();
 		LocalDate endDate = endDateTime.toLocalDate();
@@ -897,7 +944,6 @@ public class ProviderService {
 			if ((command.getDaysOfWeek().size() > 0 && !command.getDaysOfWeek().contains(currentDate.getDayOfWeek()) /* Respect "day of week" filter */)
 					|| (command.getStartDate() != null && currentDate.isBefore(command.getStartDate())) /* Respect "start date" filter */
 					|| (command.getEndDate() != null && currentDate.isAfter(command.getEndDate())) /* Respect "end date" filter */
-					|| (includePastAvailability ? false : (!currentDate.isAfter(command.getCurrentDate()))) /* Don't include anything that is "today" if includePastAvailability is false */
 			) {
 				currentDate = currentDate.plusDays(1);
 				continue;

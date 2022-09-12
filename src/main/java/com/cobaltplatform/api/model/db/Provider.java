@@ -87,6 +87,8 @@ public class Provider {
 	@Nullable
 	private String videoconferenceUrl;
 	@Nullable
+	private Integer schedulingLeadTimeInHours;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -305,6 +307,15 @@ public class Provider {
 
 	public void setVideoconferenceUrl(@Nullable String videoconferenceUrl) {
 		this.videoconferenceUrl = videoconferenceUrl;
+	}
+
+	@Nullable
+	public Integer getSchedulingLeadTimeInHours() {
+		return this.schedulingLeadTimeInHours;
+	}
+
+	public void setSchedulingLeadTimeInHours(@Nullable Integer schedulingLeadTimeInHours) {
+		this.schedulingLeadTimeInHours = schedulingLeadTimeInHours;
 	}
 
 	@Nullable
