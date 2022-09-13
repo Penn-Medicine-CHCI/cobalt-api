@@ -25,6 +25,7 @@ package com.cobaltplatform.api.messaging.email;
 public enum EmailMessageTemplate {
 	FREEFORM,
 	ACCOUNT_VERIFICATION,
+	ACCOUNT_EMAIL_VERIFICATION,
 	ADMIN_CMS_CONTENT_ADDED,
 	ADMIN_GROUP_SESSION_ADDED,
 	APPOINTMENT_CANCELED_PATIENT,

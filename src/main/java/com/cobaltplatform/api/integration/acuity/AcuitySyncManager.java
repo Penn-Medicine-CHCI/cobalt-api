@@ -19,8 +19,6 @@
 
 package com.cobaltplatform.api.integration.acuity;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.lokalized.Strings;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
@@ -35,6 +33,8 @@ import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.service.AppointmentService;
 import com.cobaltplatform.api.service.ProviderService;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -417,7 +417,8 @@ public class AcuitySyncManager implements ProviderAvailabilitySyncManager, AutoC
 
 		@Override
 		public void run() {
-			CurrentContext currentContext = new CurrentContext.Builder(getConfiguration().getDefaultLocale(), getConfiguration().getDefaultTimeZone()).build();
+			CurrentContext currentContext = new CurrentContext.Builder(InstitutionId.COBALT,
+					getConfiguration().getDefaultLocale(), getConfiguration().getDefaultTimeZone()).build();
 
 			getCurrentContextExecutor().execute(currentContext, () -> {
 				// Pick out all Acuity-scheduled providers
@@ -549,7 +550,8 @@ public class AcuitySyncManager implements ProviderAvailabilitySyncManager, AutoC
 
 		@Override
 		public void run() {
-			CurrentContext currentContext = new CurrentContext.Builder(getConfiguration().getDefaultLocale(), getConfiguration().getDefaultTimeZone()).build();
+			CurrentContext currentContext = new CurrentContext.Builder(InstitutionId.COBALT,
+					getConfiguration().getDefaultLocale(), getConfiguration().getDefaultTimeZone()).build();
 
 			getCurrentContextExecutor().execute(currentContext, () -> {
 				getLogger().info("Running Acuity appointment type sync...");

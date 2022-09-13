@@ -32,7 +32,6 @@ import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.Resource;
 import com.soklet.web.response.ApiResponse;
-import org.checkerframework.checker.nullness.qual.NonNull;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -43,33 +42,30 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-
 /**
  * @author Transmogrify LLC.
  */
-
 @Resource
 @Singleton
 @ThreadSafe
 public class InstitutionResource {
-
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
-	@NonNull
+	@Nonnull
 	private final InstitutionApiResponseFactory institutionApiResponseFactory;
-	@NonNull
+	@Nonnull
 	private final InstitutionService institutionService;
-	@NonNull
+	@Nonnull
 	private final AccountSourceApiResponseFactory accountSourceApiResponseFactory;
-	@NonNull
+	@Nonnull
 	private final Configuration configuration;
 
 	@Inject
 	public InstitutionResource(@Nonnull RequestBodyParser requestBodyParser,
-														 @NonNull InstitutionApiResponseFactory institutionApiResponseFactory,
-														 @NonNull InstitutionService institutionService,
-														 @NonNull AccountSourceApiResponseFactory accountSourceApiResponseFactory,
-														 @NonNull Configuration configuration) {
+														 @Nonnull InstitutionApiResponseFactory institutionApiResponseFactory,
+														 @Nonnull InstitutionService institutionService,
+														 @Nonnull AccountSourceApiResponseFactory accountSourceApiResponseFactory,
+														 @Nonnull Configuration configuration) {
 		this.requestBodyParser = requestBodyParser;
 		this.institutionApiResponseFactory = institutionApiResponseFactory;
 		this.institutionService = institutionService;
@@ -153,27 +149,27 @@ public class InstitutionResource {
 	}
 
 	@Nonnull
-	public RequestBodyParser getRequestBodyParser() {
-		return requestBodyParser;
+	protected RequestBodyParser getRequestBodyParser() {
+		return this.requestBodyParser;
 	}
 
-	@NonNull
-	public InstitutionApiResponseFactory getInstitutionApiResponseFactory() {
-		return institutionApiResponseFactory;
+	@Nonnull
+	protected InstitutionApiResponseFactory getInstitutionApiResponseFactory() {
+		return this.institutionApiResponseFactory;
 	}
 
-	@NonNull
-	public InstitutionService getInstitutionService() {
-		return institutionService;
+	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return this.institutionService;
 	}
 
-	@NonNull
-	public AccountSourceApiResponseFactory getAccountSourceApiResponseFactory() {
-		return accountSourceApiResponseFactory;
+	@Nonnull
+	protected AccountSourceApiResponseFactory getAccountSourceApiResponseFactory() {
+		return this.accountSourceApiResponseFactory;
 	}
 
-	@NonNull
-	public Configuration getConfiguration() {
-		return configuration;
+	@Nonnull
+	protected Configuration getConfiguration() {
+		return this.configuration;
 	}
 }

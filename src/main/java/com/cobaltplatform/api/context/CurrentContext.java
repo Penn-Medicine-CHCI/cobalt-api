@@ -22,6 +22,7 @@ package com.cobaltplatform.api.context;
 
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.security.AccessTokenStatus;
 import com.cobaltplatform.api.model.service.RemoteClient;
 
@@ -56,8 +57,10 @@ public class CurrentContext {
 	private final String accessToken;
 	@Nullable
 	private final AccessTokenStatus accessTokenStatus;
+	@Nonnull
+	private final InstitutionId institutionId;
 	@Nullable
-	private Account account;
+	private final Account account;
 	@Nonnull
 	private final UUID sessionTrackingId;
 	@Nullable
@@ -65,14 +68,18 @@ public class CurrentContext {
 	@Nullable
 	private final String fingerprintId;
 
-	public CurrentContext(@Nonnull CurrentContext.Builder builder) {
+	public CurrentContext(@Nonnull Builder builder) {
 		requireNonNull(builder);
 		requireNonNull(builder.locale);
 		requireNonNull(builder.timeZone);
 
+		if (builder.account == null && builder.institutionId == null)
+			throw new IllegalArgumentException("Either an account or institution must be provided.");
+
 		this.locale = builder.locale;
 		this.timeZone = builder.timeZone;
 		this.account = builder.account;
+		this.institutionId = builder.institutionId;
 		this.accessToken = trimToNull(builder.accessToken);
 		this.accessTokenStatus = builder.accessTokenStatus;
 		this.remoteClient = builder.remoteClient;
@@ -95,22 +102,27 @@ public class CurrentContext {
 
 	@Nonnull
 	public Optional<String> getAccessToken() {
-		return Optional.ofNullable(accessToken);
+		return Optional.ofNullable(this.accessToken);
 	}
 
 	@Nonnull
 	public Optional<AccessTokenStatus> getAccessTokenStatus() {
-		return Optional.ofNullable(accessTokenStatus);
+		return Optional.ofNullable(this.accessTokenStatus);
 	}
 
 	@Nonnull
 	public Optional<Account> getAccount() {
-		return Optional.ofNullable(account);
+		return Optional.ofNullable(this.account);
+	}
+
+	@Nonnull
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
 	}
 
 	@Nonnull
 	public Optional<RemoteClient> getRemoteClient() {
-		return Optional.ofNullable(remoteClient);
+		return Optional.ofNullable(this.remoteClient);
 	}
 
 	@Nonnull
@@ -120,22 +132,22 @@ public class CurrentContext {
 
 	@Nonnull
 	public Boolean getSignedByIc() {
-		return signedByIc;
+		return this.signedByIc;
 	}
 
 	@Nonnull
 	public UUID getSessionTrackingId() {
-		return sessionTrackingId;
+		return this.sessionTrackingId;
 	}
 
 	@Nullable
 	public AccountSource getAccountSource() {
-		return accountSource;
+		return this.accountSource;
 	}
 
 	@Nullable
 	public Optional<String> getFingerprintId() {
-		return Optional.ofNullable(fingerprintId);
+		return Optional.ofNullable(this.fingerprintId);
 	}
 
 	@NotThreadSafe
@@ -145,11 +157,13 @@ public class CurrentContext {
 		@Nonnull
 		private final ZoneId timeZone;
 		@Nullable
+		private final Account account;
+		@Nullable
+		private final InstitutionId institutionId;
+		@Nullable
 		private String accessToken;
 		@Nullable
 		private AccessTokenStatus accessTokenStatus;
-		@Nullable
-		private Account account;
 		@Nullable
 		private RemoteClient remoteClient;
 		@Nullable
@@ -163,10 +177,28 @@ public class CurrentContext {
 		@Nullable
 		private String fingerprintId;
 
-		public Builder(@Nonnull Locale locale, @Nonnull ZoneId timeZone) {
+		public Builder(@Nonnull Account account,
+									 @Nonnull Locale locale,
+									 @Nonnull ZoneId timeZone) {
+			requireNonNull(account);
 			requireNonNull(locale);
 			requireNonNull(timeZone);
 
+			this.account = account;
+			this.institutionId = account.getInstitutionId();
+			this.locale = locale;
+			this.timeZone = timeZone;
+		}
+
+		public Builder(@Nonnull InstitutionId institutionId,
+									 @Nonnull Locale locale,
+									 @Nonnull ZoneId timeZone) {
+			requireNonNull(institutionId);
+			requireNonNull(locale);
+			requireNonNull(timeZone);
+
+			this.account = null;
+			this.institutionId = institutionId;
 			this.locale = locale;
 			this.timeZone = timeZone;
 		}
@@ -180,12 +212,6 @@ public class CurrentContext {
 		@Nonnull
 		public Builder accessTokenStatus(@Nullable AccessTokenStatus accessTokenStatus) {
 			this.accessTokenStatus = accessTokenStatus;
-			return this;
-		}
-
-		@Nonnull
-		public Builder account(@Nullable Account account) {
-			this.account = account;
 			return this;
 		}
 

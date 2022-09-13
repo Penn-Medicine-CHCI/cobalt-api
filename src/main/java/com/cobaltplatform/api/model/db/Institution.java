@@ -102,6 +102,8 @@ public class Institution {
 	private Long anonAccessTokenExpirationInMinutes;
 	@Nonnull
 	private Long anonAccessTokenShortExpirationInMinutes;
+	@Nullable
+	private String supportEmailAddress;
 
 	public enum InstitutionId {
 		COBALT
@@ -445,5 +447,14 @@ public class Institution {
 
 	public void setAnonAccessTokenShortExpirationInMinutes(@Nonnull Long anonAccessTokenShortExpirationInMinutes) {
 		this.anonAccessTokenShortExpirationInMinutes = anonAccessTokenShortExpirationInMinutes;
+	}
+
+	@Nullable
+	public String getSupportEmailAddress() {
+		return this.supportEmailAddress;
+	}
+
+	public void setSupportEmailAddress(@Nullable String supportEmailAddress) {
+		this.supportEmailAddress = supportEmailAddress;
 	}
 }

@@ -26,11 +26,13 @@ import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.ic.IcClient;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.security.AccessTokenClaims;
 import com.cobaltplatform.api.model.security.AccessTokenStatus;
 import com.cobaltplatform.api.model.service.RemoteClient;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.FingerprintService;
+import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.WebUtility;
 import org.slf4j.Logger;
@@ -81,6 +83,8 @@ public class CurrentContextRequestHandler {
 	@Nonnull
 	private final FingerprintService fingerprintService;
 	@Nonnull
+	private final InstitutionService institutionService;
+	@Nonnull
 	private final Authenticator authenticator;
 	@Nonnull
 	private final IcClient icClient;
@@ -106,6 +110,7 @@ public class CurrentContextRequestHandler {
 	@Inject
 	public CurrentContextRequestHandler(@Nonnull CurrentContextExecutor currentContextExecutor,
 																			@Nonnull AccountService accountService,
+																			@Nonnull InstitutionService institutionService,
 																			@Nonnull FingerprintService fingerprintService,
 																			@Nonnull Authenticator authenticator,
 																			@Nonnull IcClient icClient,
@@ -113,6 +118,7 @@ public class CurrentContextRequestHandler {
 																			@Nonnull ErrorReporter errorReporter) {
 		requireNonNull(currentContextExecutor);
 		requireNonNull(accountService);
+		requireNonNull(institutionService);
 		requireNonNull(fingerprintService);
 		requireNonNull(authenticator);
 		requireNonNull(icClient);
@@ -121,6 +127,7 @@ public class CurrentContextRequestHandler {
 
 		this.currentContextExecutor = currentContextExecutor;
 		this.accountService = accountService;
+		this.institutionService = institutionService;
 		this.fingerprintService = fingerprintService;
 		this.authenticator = authenticator;
 		this.icClient = icClient;
@@ -203,11 +210,14 @@ public class CurrentContextRequestHandler {
 				getFingerprintService().storeFingerprintForAccount(account.getAccountId(), fingerprintIdValue);
 
 			String webappBaseUrl = WebUtility.extractValueFromRequest(httpServletRequest, getWebappBaseUrlPropertyName()).orElse(null);
+			Institution institution = getInstitutionService().findInstitutionByWebappBaseUrl(webappBaseUrl);
 
-			CurrentContext currentContext = new CurrentContext.Builder(locale, timeZone)
+			CurrentContext.Builder currentContextBuilder = account == null ?
+					new CurrentContext.Builder(institution.getInstitutionId(), locale, timeZone) : new CurrentContext.Builder(account, locale, timeZone);
+
+			CurrentContext currentContext = currentContextBuilder
 					.accessToken(accessTokenValue)
 					.accessTokenStatus(accessTokenStatus)
-					.account(account)
 					.remoteClient(remoteClient)
 					.webappBaseUrl(webappBaseUrl)
 					.sessionTrackingId(sessionTrackingId)
@@ -288,41 +298,46 @@ public class CurrentContextRequestHandler {
 
 	@Nonnull
 	protected CurrentContextExecutor getCurrentContextExecutor() {
-		return currentContextExecutor;
+		return this.currentContextExecutor;
 	}
 
 	@Nonnull
 	protected AccountService getAccountService() {
-		return accountService;
+		return this.accountService;
+	}
+
+	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return this.institutionService;
 	}
 
 	@Nonnull
 	protected FingerprintService getFingerprintService() {
-		return fingerprintService;
+		return this.fingerprintService;
 	}
 
 	@Nonnull
 	protected Authenticator getAuthenticator() {
-		return authenticator;
+		return this.authenticator;
 	}
 
 	@Nonnull
 	protected IcClient getIcClient() {
-		return icClient;
+		return this.icClient;
 	}
 
 	@Nonnull
 	protected Configuration getConfiguration() {
-		return configuration;
+		return this.configuration;
 	}
 
 	@Nonnull
 	protected ErrorReporter getErrorReporter() {
-		return errorReporter;
+		return this.errorReporter;
 	}
 
 	@Nonnull
 	protected Logger getLogger() {
-		return logger;
+		return this.logger;
 	}
 }

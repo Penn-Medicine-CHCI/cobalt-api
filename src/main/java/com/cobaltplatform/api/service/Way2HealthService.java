@@ -33,6 +33,8 @@ import com.cobaltplatform.api.integration.way2health.model.request.UpdateInciden
 import com.cobaltplatform.api.integration.way2health.model.response.ObjectResponse;
 import com.cobaltplatform.api.model.api.request.CreateInteractionInstanceRequest;
 import com.cobaltplatform.api.model.db.Institution;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.Institution.StandardMetadata;
 import com.cobaltplatform.api.model.db.Institution.StandardMetadata.Way2HealthIncidentTrackingConfig;
 import com.cobaltplatform.api.model.db.Way2HealthIncident;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
@@ -265,11 +267,11 @@ public class Way2HealthService implements AutoCloseable {
 		public void run() {
 			// Use advisory lock to ensure we don't have multiple nodes working on Way2Health processing at one time
 			getSystemService().performAdvisoryLockOperationIfAvailable(AdvisoryLock.WAY2HEALTH_INCIDENT_SYNCING, () -> {
-				CurrentContext currentContext = new CurrentContext.Builder(getConfiguration().getDefaultLocale(), getConfiguration().getDefaultTimeZone()).build();
+				CurrentContext currentContext = new CurrentContext.Builder(InstitutionId.COBALT, getConfiguration().getDefaultLocale(), getConfiguration().getDefaultTimeZone()).build();
 
 				getCurrentContextExecutor().execute(currentContext, () -> {
 					for (Institution institution : getInstitutionService().findInstitutions()) {
-						Institution.StandardMetadata institutionMetadata = institution.getStandardMetadata();
+						StandardMetadata institutionMetadata = institution.getStandardMetadata();
 
 						// Institutions can have multiple tracking configs for W2H
 						for (Way2HealthIncidentTrackingConfig config : institutionMetadata.getWay2HealthIncidentTrackingConfigs()) {

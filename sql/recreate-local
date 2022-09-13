@@ -27,6 +27,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/020-interactio
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/021-screening.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/022-provider-availability-history.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/023-institution-account-creation.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/024-account-email-verification.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/025-provider-scheduling-lead-time.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/026-screening-skip.sql
 

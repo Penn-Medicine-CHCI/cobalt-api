@@ -44,6 +44,8 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToEmpty;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -96,6 +98,41 @@ public class InstitutionService {
 				Institution.class, subdomain).orElse(null);
 
 		return institution == null ? findInstitutionById(getConfiguration().getDefaultSubdomainInstitutionId()).get() : institution;
+	}
+
+	@Nonnull
+	public Institution findInstitutionByWebappBaseUrl(@Nullable String webappBaseUrl) {
+		webappBaseUrl = trimToEmpty(webappBaseUrl).toLowerCase(Locale.US);
+
+		if (webappBaseUrl.length() == 0)
+			return findInstitutionBySubdomain(null);
+
+		// Assume input is equivalent to window.location.origin in JS
+		// See https://developer.mozilla.org/en-US/docs/Web/API/Location/origin
+		//
+		// Example: https://subdomain.cobaltinnovations.org
+
+		if (webappBaseUrl.startsWith("https://"))
+			webappBaseUrl = webappBaseUrl.substring("https://".length());
+		else if (webappBaseUrl.startsWith("http://"))
+			webappBaseUrl = webappBaseUrl.substring("http://".length());
+
+		// Discard any trailing port number
+		int portNumberSeparator = webappBaseUrl.indexOf(":");
+
+		if (portNumberSeparator != -1)
+			webappBaseUrl = webappBaseUrl.substring(0, portNumberSeparator);
+
+		String[] components = webappBaseUrl.split("\\.");
+		String subdomain;
+
+		// Length 1 is special case, like "localhost"
+		if (components.length == 1)
+			subdomain = components[0];
+		else
+			subdomain = components.length > 0 ? trimToNull(components[0]) : null;
+
+		return findInstitutionBySubdomain(subdomain);
 	}
 
 	@Nonnull

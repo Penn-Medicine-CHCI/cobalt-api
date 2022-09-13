@@ -27,8 +27,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Singleton;
-import java.time.ZoneId;
-import java.util.Locale;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
@@ -67,13 +65,6 @@ public class CurrentContextExecutor {
 
 		this.errorReporter = errorReporter;
 		this.currentContextCacheSize = currentContextCacheSize == null ? getDefaultCurrentContextCacheSize() : currentContextCacheSize;
-	}
-
-	public void execute(@Nonnull CurrentContextOperation currentContextOperation) throws Exception {
-		requireNonNull(currentContextOperation);
-
-		// Creates a "default" current context
-		execute(new CurrentContext.Builder(Locale.getDefault(), ZoneId.systemDefault()).build(), currentContextOperation);
 	}
 
 	public void execute(@Nonnull CurrentContext currentContext,

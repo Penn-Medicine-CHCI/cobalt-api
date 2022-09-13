@@ -30,6 +30,8 @@ import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.AcceptAccountConsentFormRequest;
 import com.cobaltplatform.api.model.api.request.AccessTokenRequest;
 import com.cobaltplatform.api.model.api.request.AccountRoleRequest;
+import com.cobaltplatform.api.model.api.request.ApplyAccountEmailVerificationCodeRequest;
+import com.cobaltplatform.api.model.api.request.CreateAccountEmailVerificationRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountInviteRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateInteractionInstanceRequest;
@@ -61,6 +63,7 @@ import com.cobaltplatform.api.model.db.Role;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
 import com.cobaltplatform.api.model.security.AccessTokenClaims;
+import com.cobaltplatform.api.model.service.AccountEmailVerificationFlowTypeId;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
@@ -68,7 +71,6 @@ import com.cobaltplatform.api.util.LinkGenerator;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
-import com.cobaltplatform.api.util.ValidationUtility;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -91,9 +93,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static com.cobaltplatform.api.util.ValidationUtility.isValidEmailAddress;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -318,7 +322,7 @@ public class AccountService {
 
 		if (emailAddress == null)
 			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is required.")));
-		else if (emailAddress != null && !ValidationUtility.isValidEmailAddress(emailAddress))
+		else if (emailAddress != null && !isValidEmailAddress(emailAddress))
 			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is invalid.")));
 		else if (findAccountByEmailAddressAndAccountSourceId(emailAddress, AccountSourceId.EMAIL_PASSWORD).isPresent())
 			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is already in use.")));
@@ -413,7 +417,7 @@ public class AccountService {
 				validationException.add(new FieldError("ssoId", getStrings().get("SSO ID is required.")));
 
 			// In some cases, we will not have an email address from SSO.  This is OK, flow is similar to anonymous user
-			if (emailAddress != null && !ValidationUtility.isValidEmailAddress(emailAddress))
+			if (emailAddress != null && !isValidEmailAddress(emailAddress))
 				validationException.add(new FieldError("emailAddress", getStrings().get("Email address is invalid.")));
 
 			if (displayName == null)
@@ -524,7 +528,7 @@ public class AccountService {
 
 		if (emailAddress == null)
 			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is required.")));
-		else if (!ValidationUtility.isValidEmailAddress(emailAddress))
+		else if (!isValidEmailAddress(emailAddress))
 			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is invalid.")));
 
 		if (validationException.hasErrors())
@@ -998,6 +1002,147 @@ public class AccountService {
 		requireNonNull(accountId);
 
 		return getDatabase().queryForObject("SELECT * FROM account WHERE provider_id=?", Account.class, accountId);
+	}
+
+	@Nonnull
+	public UUID createAccountEmailVerification(@Nonnull CreateAccountEmailVerificationRequest request) {
+		requireNonNull(request);
+
+		ValidationException validationException = new ValidationException();
+		UUID accountId = request.getAccountId();
+		String emailAddress = trimToNull(request.getEmailAddress());
+		AccountEmailVerificationFlowTypeId accountEmailVerificationFlowTypeId = request.getAccountEmailVerificationFlowTypeId();
+		Account account = null;
+
+		if (emailAddress == null)
+			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is required.")));
+		else if (!isValidEmailAddress(emailAddress))
+			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is invalid.")));
+
+		if (accountId == null) {
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+		} else {
+			account = findAccountById(accountId).orElse(null);
+
+			if (account == null)
+				validationException.add(new FieldError("accountId", getStrings().get("Account ID is invalid.")));
+		}
+
+		if (accountEmailVerificationFlowTypeId == null)
+			validationException.add(new FieldError("accountEmailVerificationFlowTypeId", getStrings().get("Email verification flow type ID is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		UUID accountEmailVerificationId = UUID.randomUUID();
+		Instant expiration = Instant.now().plus(10, ChronoUnit.MINUTES);
+		String code = String.format("%06d", new Random().nextInt(999_999)); // random 6-digit number, zero-padded
+
+		getDatabase().execute("""
+				INSERT INTO account_email_verification (account_email_verification_id, account_id, code,
+				email_address, expiration) VALUES (?,?,?,?,?)
+				""", accountEmailVerificationId, accountId, code, emailAddress, expiration);
+
+		// After transaction commits, send an email to the address so we can verify it
+		Account pinnedAccount = account;
+
+		// Email verification is worded a little differently when it occurs during the appointment booking flow
+		String title = accountEmailVerificationFlowTypeId == AccountEmailVerificationFlowTypeId.APPOINTMENT_BOOKING ?
+				getStrings().get("Appointment Confirmation Code") : getStrings().get("Email Confirmation Code");
+
+		String codeTypeDescription = title.toLowerCase(account.getLocale());
+		String salutation = getFormatter().formatEmailSalutation(account);
+
+		getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
+			EmailMessage verificationEmail = new EmailMessage.Builder(
+					EmailMessageTemplate.ACCOUNT_EMAIL_VERIFICATION, pinnedAccount.getLocale())
+					.toAddresses(new ArrayList<>() {{
+						add(emailAddress);
+					}})
+					.messageContext(new HashMap<String, Object>() {{
+						put("title", title);
+						put("salutation", salutation);
+						put("codeTypeDescription", codeTypeDescription);
+						put("code", code);
+					}})
+					.build();
+
+			getEmailMessageManager().enqueueMessage(verificationEmail);
+		});
+
+		return accountEmailVerificationId;
+	}
+
+	@Nonnull
+	public void applyAccountEmailVerificationCode(@Nonnull ApplyAccountEmailVerificationCodeRequest request) {
+		requireNonNull(request);
+
+		UUID accountId = request.getAccountId();
+		String code = trimToNull(request.getCode());
+		String emailAddress = getNormalizer().normalizeEmailAddress(request.getEmailAddress()).orElse(null);
+
+		ValidationException validationException = new ValidationException();
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", "Account ID is required."));
+
+		if (code == null)
+			validationException.add(new FieldError("code", "Code is required."));
+
+		if (emailAddress == null)
+			validationException.add(new FieldError("emailAddress", "Email address is required."));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		// If this email has already been verified for this account, nothing to do
+		if (isEmailAddressVerifiedForAccountId(emailAddress, accountId))
+			return;
+
+		// Friendly error handling - see if code is valid but expired
+		boolean validButExpiredCode = getDatabase().queryForObject("""
+				SELECT COUNT(*) > 0
+				FROM account_email_verification
+				WHERE verified=FALSE 
+				AND account_id=?
+				AND code=?
+				AND email_address=?
+				AND NOW() >= expiration
+				""", Boolean.class, accountId, code, emailAddress).get();
+
+		if (validButExpiredCode)
+			throw new ValidationException(getStrings().get(
+					"Sorry, this code is expired and cannot be used to verify your email address."));
+
+		boolean verified = getDatabase().execute("""
+				UPDATE account_email_verification
+				SET verified=TRUE
+				WHERE account_id=?
+				AND code=?
+				AND email_address=?
+				AND NOW() < expiration
+				""", accountId, code, emailAddress) > 0;
+
+		if (!verified)
+			throw new ValidationException(getStrings().get(
+					"Sorry, we could not use this code to verify your email address.  Please make sure you typed it in correctly."));
+	}
+
+	@Nonnull
+	public Boolean isEmailAddressVerifiedForAccountId(@Nullable String emailAddress,
+																										@Nullable UUID accountId) {
+		emailAddress = getNormalizer().normalizeEmailAddress(emailAddress).orElse(null);
+
+		if (accountId == null || emailAddress == null)
+			return false;
+
+		return getDatabase().queryForObject("""
+				SELECT COUNT(*) > 0
+				FROM account_email_verification
+				WHERE verified=TRUE
+				AND email_address=?
+				AND account_id=?
+				""", Boolean.class, emailAddress, accountId).get();
 	}
 
 	@Nonnull
