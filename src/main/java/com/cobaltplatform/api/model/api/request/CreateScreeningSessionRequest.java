@@ -34,6 +34,8 @@ public class CreateScreeningSessionRequest {
 	private UUID targetAccountId;
 	@Nullable
 	private UUID createdByAccountId;
+	@Nullable
+	private Boolean immediatelySkip;
 
 	@Nullable
 	public UUID getScreeningFlowId() {
@@ -60,5 +62,14 @@ public class CreateScreeningSessionRequest {
 
 	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
 		this.createdByAccountId = createdByAccountId;
+	}
+
+	@Nullable
+	public Boolean getImmediatelySkip() {
+		return this.immediatelySkip;
+	}
+
+	public void setImmediatelySkip(@Nullable Boolean immediatelySkip) {
+		this.immediatelySkip = immediatelySkip;
 	}
 }

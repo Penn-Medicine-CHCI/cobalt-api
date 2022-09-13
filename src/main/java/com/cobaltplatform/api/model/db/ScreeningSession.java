@@ -40,7 +40,15 @@ public class ScreeningSession {
 	@Nullable
 	private Boolean completed;
 	@Nullable
+	private Instant completedAt;
+	@Nullable
+	private Boolean skipped;
+	@Nullable
+	private Instant skippedAt;
+	@Nullable
 	private Boolean crisisIndicated;
+	@Nullable
+	private Instant crisisIndicatedAt;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -92,12 +100,48 @@ public class ScreeningSession {
 	}
 
 	@Nullable
+	public Instant getCompletedAt() {
+		return this.completedAt;
+	}
+
+	public void setCompletedAt(@Nullable Instant completedAt) {
+		this.completedAt = completedAt;
+	}
+
+	@Nullable
+	public Boolean getSkipped() {
+		return this.skipped;
+	}
+
+	public void setSkipped(@Nullable Boolean skipped) {
+		this.skipped = skipped;
+	}
+
+	@Nullable
+	public Instant getSkippedAt() {
+		return this.skippedAt;
+	}
+
+	public void setSkippedAt(@Nullable Instant skippedAt) {
+		this.skippedAt = skippedAt;
+	}
+
+	@Nullable
 	public Boolean getCrisisIndicated() {
 		return this.crisisIndicated;
 	}
 
 	public void setCrisisIndicated(@Nullable Boolean crisisIndicated) {
 		this.crisisIndicated = crisisIndicated;
+	}
+
+	@Nullable
+	public Instant getCrisisIndicatedAt() {
+		return this.crisisIndicatedAt;
+	}
+
+	public void setCrisisIndicatedAt(@Nullable Instant crisisIndicatedAt) {
+		this.crisisIndicatedAt = crisisIndicatedAt;
 	}
 
 	@Nullable

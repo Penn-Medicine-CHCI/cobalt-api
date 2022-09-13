@@ -23,6 +23,7 @@ import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest.CreateAnswerRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
+import com.cobaltplatform.api.model.api.request.SkipScreeningSessionRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -316,6 +317,7 @@ public class ScreeningService {
 		Account targetAccount = null;
 		Account createdByAccount = null;
 		ScreeningFlow screeningFlow = null;
+		boolean immediatelySkip = request.getImmediatelySkip() == null ? false : request.getImmediatelySkip();
 		UUID screeningSessionId = UUID.randomUUID();
 		ValidationException validationException = new ValidationException();
 
@@ -356,15 +358,55 @@ public class ScreeningService {
 				VALUES (?,?,?,?)
 				""", screeningSessionId, screeningFlowVersion.getScreeningFlowVersionId(), targetAccountId, createdByAccountId);
 
-		Screening screening = findScreeningById(screeningFlowVersion.getInitialScreeningId()).get();
+		// If we're immediately skipping, mark this session as completed/skipped and do nothing else.
+		// If we're not immediately skipping, create an initial screening session screening
+		if (immediatelySkip) {
+			skipScreeningSession(new SkipScreeningSessionRequest() {{
+				setScreeningSessionId(screeningSessionId);
+			}});
+		} else {
+			Screening screening = findScreeningById(screeningFlowVersion.getInitialScreeningId()).get();
 
-		// Initial screening is the current version of the screening specified in the flow
-		getDatabase().execute("""
-				INSERT INTO screening_session_screening(screening_session_id, screening_version_id, screening_order)
-				VALUES (?,?,?)
-				""", screeningSessionId, screening.getActiveScreeningVersionId(), 1);
+			// Initial screening is the current version of the screening specified in the flow
+			getDatabase().execute("""
+					INSERT INTO screening_session_screening(screening_session_id, screening_version_id, screening_order)
+					VALUES (?,?,?)
+					""", screeningSessionId, screening.getActiveScreeningVersionId(), 1);
+		}
 
 		return screeningSessionId;
+	}
+
+	@Nonnull
+	public void skipScreeningSession(@Nonnull SkipScreeningSessionRequest request) {
+		requireNonNull(request);
+
+		UUID screeningSessionId = request.getScreeningSessionId();
+		ValidationException validationException = new ValidationException();
+
+		if (screeningSessionId == null) {
+			validationException.add(new FieldError("screeningSessionId", getStrings().get("Screening Session ID is required.")));
+		} else {
+			ScreeningSession screeningSession = findScreeningSessionById(screeningSessionId).orElse(null);
+
+			if (screeningSession == null) {
+				validationException.add(new FieldError("screeningSessionId", getStrings().get("Screening Session ID is invalid.")));
+			} else {
+				ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
+
+				if (!screeningFlowVersion.getSkippable())
+					validationException.add(getStrings().get("Sorry, you are not permitted to skip this screening."));
+			}
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+				UPDATE screening_session
+				SET completed=TRUE, completed_at=NOW(), skipped=TRUE, skipped_at=NOW()
+				WHERE screening_session_id=?
+				""", screeningSessionId);
 	}
 
 	@Nonnull
@@ -869,7 +911,7 @@ public class ScreeningService {
 				getLogger().info("Orchestration function for screening session screening ID {} ({}) indicated crisis.  Creating crisis interaction instance...",
 						screeningSessionScreeningId, screeningVersion.getScreeningTypeId().name());
 
-				getDatabase().execute("UPDATE screening_session SET crisis_indicated=TRUE WHERE screening_session_id=?", screeningSession.getScreeningSessionId());
+				getDatabase().execute("UPDATE screening_session SET crisis_indicated=TRUE, crisis_indicated_at=NOW() WHERE screening_session_id=?", screeningSession.getScreeningSessionId());
 
 				getInteractionService().createCrisisInteraction(screeningSession.getScreeningSessionId());
 			}
@@ -880,7 +922,7 @@ public class ScreeningService {
 		if (orchestrationFunctionOutput.getCompleted()) {
 			getLogger().info("Orchestration function for screening session screening ID {} ({}) indicated that screening session ID {} is now complete.", screeningSessionScreeningId,
 					screeningVersion.getScreeningTypeId().name(), screeningSession.getScreeningSessionId());
-			getDatabase().execute("UPDATE screening_session SET completed=TRUE WHERE screening_session_id=?", screeningSession.getScreeningSessionId());
+			getDatabase().execute("UPDATE screening_session SET completed=TRUE, completed_at=NOW() WHERE screening_session_id=?", screeningSession.getScreeningSessionId());
 
 			// Execute results function and store off results
 			ResultsFunctionOutput resultsFunctionOutput = executeScreeningFlowResultsFunction(screeningFlowVersion.getResultsFunction(),
