@@ -55,7 +55,23 @@ public class ScreeningSessionApiResponse {
 	@Nonnull
 	private final Boolean completed;
 	@Nonnull
+	private final Instant completedAt;
+	@Nonnull
+	private final String completedAtDescription;
+	@Nonnull
+	private final Boolean skipped;
+	@Nonnull
+	private final Instant skippedAt;
+	@Nonnull
+	private final String skippedAtDescription;
+	@Nonnull
 	private final Boolean crisisIndicated;
+	@Nonnull
+	private final Instant crisisIndicatedAt;
+	@Nonnull
+	private final String crisisIndicatedAtDescription;
+	@Nonnull
+	private final Boolean skippable;
 	@Nonnull
 	private final Boolean promptForPhoneNumber;
 	@Nonnull
@@ -93,7 +109,14 @@ public class ScreeningSessionApiResponse {
 		this.createdByAccountId = screeningSession.getCreatedByAccountId();
 		this.targetAccountId = screeningSession.getTargetAccountId();
 		this.completed = screeningSession.getCompleted();
+		this.completedAt = screeningSession.getCompletedAt();
+		this.completedAtDescription = screeningSession.getCompletedAt() == null ? null : formatter.formatTimestamp(screeningSession.getCompletedAt());
+		this.skipped = screeningSession.getSkipped();
+		this.skippedAt = screeningSession.getSkippedAt();
+		this.skippedAtDescription = screeningSession.getSkippedAt() == null ? null : formatter.formatTimestamp(screeningSession.getSkippedAt());
 		this.crisisIndicated = screeningSession.getCrisisIndicated();
+		this.crisisIndicatedAt = screeningSession.getCrisisIndicatedAt();
+		this.crisisIndicatedAtDescription = screeningSession.getCrisisIndicatedAt() == null ? null : formatter.formatTimestamp(screeningSession.getCrisisIndicatedAt());
 		this.created = screeningSession.getCreated();
 		this.createdDescription = formatter.formatTimestamp(screeningSession.getCreated());
 
@@ -107,6 +130,7 @@ public class ScreeningSessionApiResponse {
 
 		ScreeningFlowVersion screeningFlowVersion = screeningService.findScreeningFlowVersionById(getScreeningFlowVersionId()).get();
 
+		this.skippable = screeningFlowVersion.getSkippable();
 		this.promptForPhoneNumber = screeningFlowVersion.getPhoneNumberRequired() && targetAccount.getPhoneNumber() == null;
 	}
 
@@ -136,8 +160,53 @@ public class ScreeningSessionApiResponse {
 	}
 
 	@Nonnull
+	public Instant getCompletedAt() {
+		return this.completedAt;
+	}
+
+	@Nonnull
+	public String getCompletedAtDescription() {
+		return this.completedAtDescription;
+	}
+
+	@Nonnull
+	public Boolean getSkipped() {
+		return this.skipped;
+	}
+
+	@Nonnull
+	public Instant getSkippedAt() {
+		return this.skippedAt;
+	}
+
+	@Nonnull
+	public String getSkippedAtDescription() {
+		return this.skippedAtDescription;
+	}
+
+	@Nonnull
 	public Boolean getCrisisIndicated() {
 		return this.crisisIndicated;
+	}
+
+	@Nonnull
+	public Instant getCrisisIndicatedAt() {
+		return this.crisisIndicatedAt;
+	}
+
+	@Nonnull
+	public String getCrisisIndicatedAtDescription() {
+		return this.crisisIndicatedAtDescription;
+	}
+
+	@Nonnull
+	public Boolean getPromptForPhoneNumber() {
+		return this.promptForPhoneNumber;
+	}
+
+	@Nonnull
+	public Boolean getSkippable() {
+		return this.skippable;
 	}
 
 	@Nonnull
@@ -158,10 +227,5 @@ public class ScreeningSessionApiResponse {
 	@Nullable
 	public ScreeningSessionDestination getScreeningSessionDestination() {
 		return this.screeningSessionDestination;
-	}
-
-	@Nonnull
-	public Boolean getPromptForPhoneNumber() {
-		return this.promptForPhoneNumber;
 	}
 }

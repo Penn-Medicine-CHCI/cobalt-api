@@ -38,6 +38,8 @@ public class ScreeningFlowVersion {
 	@Nullable
 	private Boolean phoneNumberRequired;
 	@Nullable
+	private Boolean skippable;
+	@Nullable
 	private Integer versionNumber;
 	@Nullable
 	private String orchestrationFunction;
@@ -86,6 +88,15 @@ public class ScreeningFlowVersion {
 
 	public void setPhoneNumberRequired(@Nullable Boolean phoneNumberRequired) {
 		this.phoneNumberRequired = phoneNumberRequired;
+	}
+
+	@Nullable
+	public Boolean getSkippable() {
+		return this.skippable;
+	}
+
+	public void setSkippable(@Nullable Boolean skippable) {
+		this.skippable = skippable;
 	}
 
 	@Nullable
