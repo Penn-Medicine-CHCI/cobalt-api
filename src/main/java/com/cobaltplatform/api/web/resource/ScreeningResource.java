@@ -22,6 +22,7 @@ package com.cobaltplatform.api.web.resource;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
+import com.cobaltplatform.api.model.api.request.SkipScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.response.ScreeningAnswerApiResponse.ScreeningAnswerApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningAnswerOptionApiResponse.ScreeningAnswerOptionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningQuestionApiResponse.ScreeningQuestionApiResponseFactory;
@@ -179,6 +180,84 @@ public class ScreeningResource {
 						Account targetAccount = getAccountService().findAccountById(screeningSession.getTargetAccountId()).get();
 						return getScreeningSessionApiResponseFactory().create(screeningSession, targetAccount);
 					}).collect(Collectors.toList()));
+		}});
+	}
+
+	/**
+	 * Skips an entire screening flow, e.g. user clicks "Skip for now" on 1:1 triage flow before even starting the
+	 * screening.  In this scenario, we find the active screening flow version, create a session for it, and immediately
+	 * mark the session completed/skipped.
+	 */
+	@Nonnull
+	@POST("/screening-flows/{screeningFlowId}/skip")
+	@AuthenticationRequired
+	public ApiResponse skipEntireScreeningFlow(@Nonnull @PathParameter UUID screeningFlowId) {
+		requireNonNull(screeningFlowId);
+
+		Account account = getCurrentContext().getAccount().get();
+		UUID screeningSessionId = getScreeningService().createScreeningSession(new CreateScreeningSessionRequest() {{
+			setScreeningFlowId(screeningFlowId);
+			setCreatedByAccountId(account.getAccountId());
+			setTargetAccountId(account.getAccountId());
+			setImmediatelySkip(true);
+		}});
+
+		ScreeningSession screeningSession = getScreeningService().findScreeningSessionById(screeningSessionId).get();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("screeningSession", getScreeningSessionApiResponseFactory().create(screeningSession, account));
+		}});
+	}
+
+	/**
+	 * Skips a screening flow (marks complete/skipped) after a screening session has been created.
+	 * For example, you might be a few answers into a screening and decide to skip instead.
+	 * <p>
+	 * This is just a convenience for FE to call us with a screeningQuestionContextId.  This method just hands off to
+	 * the more "direct" POST /screening-sessions/{screeningSessionId}/skip.
+	 */
+	@Nonnull
+	@POST("/screening-question-contexts/{screeningQuestionContextId}/skip")
+	@AuthenticationRequired
+	public ApiResponse skipRemainingScreeningFlow(@Nonnull @PathParameter ScreeningQuestionContextId screeningQuestionContextId) {
+		requireNonNull(screeningQuestionContextId);
+
+		ScreeningSessionScreening screeningSessionScreening = getScreeningService().findScreeningSessionScreeningById(screeningQuestionContextId.getScreeningSessionScreeningId()).orElse(null);
+
+		if (screeningSessionScreening == null)
+			throw new NotFoundException();
+
+		return skipRemainingScreeningFlow(screeningSessionScreening.getScreeningSessionId());
+	}
+
+	/**
+	 * Skips a screening flow (marks complete/skipped) after a screening session has been created.
+	 * For example, you might be a few answers into a screening and decide to skip instead.
+	 */
+	@Nonnull
+	@POST("/screening-sessions/{screeningSessionId}/skip")
+	@AuthenticationRequired
+	public ApiResponse skipRemainingScreeningFlow(@Nonnull @PathParameter UUID screeningSessionId) {
+		requireNonNull(screeningSessionId);
+
+		ScreeningSession screeningSession = getScreeningService().findScreeningSessionById(screeningSessionId).orElse(null);
+
+		if (screeningSession == null)
+			throw new NotFoundException();
+
+		Account account = getCurrentContext().getAccount().get();
+		Account targetAccount = getAccountService().findAccountById(screeningSession.getTargetAccountId()).orElse(null);
+
+		// Ensure you have permission to skip for this screening session
+		if (!getAuthorizationService().canPerformScreening(account, targetAccount))
+			throw new AuthorizationException();
+
+		getScreeningService().skipScreeningSession(new SkipScreeningSessionRequest() {{
+			setScreeningSessionId(screeningSessionId);
+		}});
+
+		ScreeningSession skippedScreeningSession = getScreeningService().findScreeningSessionById(screeningSessionId).get();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("screeningSession", getScreeningSessionApiResponseFactory().create(skippedScreeningSession, account));
 		}});
 	}
 
