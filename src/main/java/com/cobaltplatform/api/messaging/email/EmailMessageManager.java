@@ -88,6 +88,7 @@ public class EmailMessageManager extends MessageManager<EmailMessage> {
 		messageContext.put("staticFileUrlPrefix", format(" https://%s.s3.%s.amazonaws.com/%s/emails",
 				getConfiguration().getAmazonS3BucketName(), getConfiguration().getAmazonS3Region().id(), getConfiguration().getEnvironment()));
 		messageContext.put("copyrightYear", LocalDateTime.now(institution.getTimeZone()).getYear());
+		messageContext.put("supportEmailAddress", institution.getSupportEmailAddress());
 
 		// Create a new email message using the updated email message context
 		emailMessage = emailMessage.toBuilder()
