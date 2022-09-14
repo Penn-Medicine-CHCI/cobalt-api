@@ -21,6 +21,7 @@ package com.cobaltplatform.api;
 
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.google.inject.AbstractModule;
 import com.google.inject.Module;
 import com.google.inject.Provides;
@@ -51,7 +52,7 @@ public final class IntegrationTestExecutor {
 
 		try (App app = new App(new Configuration("local"), normalizeModules(modules))) {
 			CurrentContextExecutor currentContextExecutor = app.getInjector().getInstance(CurrentContextExecutor.class);
-			currentContextExecutor.execute(new CurrentContext.Builder(Locale.US, ZoneId.of("America/New_York")).build(), () -> {
+			currentContextExecutor.execute(new CurrentContext.Builder(InstitutionId.COBALT, Locale.US, ZoneId.of("America/New_York")).build(), () -> {
 				app.performStartupTasks();
 
 				try {
