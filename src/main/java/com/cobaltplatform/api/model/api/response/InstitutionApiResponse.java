@@ -53,23 +53,25 @@ public class InstitutionApiResponse {
 	@Nullable
 	private final String covidContent;
 	@Nullable
-	private Boolean requireConsentForm;
+	private final Boolean requireConsentForm;
 	@Nullable
-	private String consentFormContent;
+	private final String consentFormContent;
 	@Nullable
-	private String calendarDescription;
+	private final String calendarDescription;
 	@Nullable
-	private Boolean supportEnabled;
+	private final Boolean supportEnabled;
 	@Nullable
-	private String wellBeingContent;
+	private final String wellBeingContent;
 	@Nullable
-	private Boolean ssoEnabled;
+	private final Boolean ssoEnabled;
 	@Nullable
-	private Boolean emailEnabled;
+	private final Boolean emailEnabled;
 	@Nonnull
 	private final Boolean emailSignupEnabled;
 	@Nullable
-	private Boolean anonymousEnabled;
+	private final Boolean anonymousEnabled;
+	@Nonnull
+	private final String supportEmailAddress;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -102,6 +104,7 @@ public class InstitutionApiResponse {
 		this.anonymousEnabled = institution.getAnonymousEnabled();
 		this.emailEnabled = institution.getEmailEnabled();
 		this.emailSignupEnabled = institution.getEmailSignupEnabled();
+		this.supportEmailAddress = institution.getSupportEmailAddress();
 	}
 
 	@Nonnull
@@ -182,5 +185,10 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public Boolean getEmailSignupEnabled() {
 		return this.emailSignupEnabled;
+	}
+
+	@Nonnull
+	public String getSupportEmailAddress() {
+		return this.supportEmailAddress;
 	}
 }
