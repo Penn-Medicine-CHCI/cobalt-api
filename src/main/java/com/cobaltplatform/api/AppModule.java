@@ -102,12 +102,12 @@ import com.cobaltplatform.api.model.api.response.ReportingChartApiResponse.Repor
 import com.cobaltplatform.api.model.api.response.ReportingChartApiResponse.ReportingChartMetricApiResponse.ReportingChartMetricApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningAnswerApiResponse.ScreeningAnswerApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningAnswerOptionApiResponse.ScreeningAnswerOptionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ScreeningFlowVersionApiResponse.ScreeningFlowVersionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningQuestionApiResponse.ScreeningQuestionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SpecialtyApiResponse.SpecialtyApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.VisitTypeApiResponse;
 import com.cobaltplatform.api.model.api.response.VisitTypeApiResponse.VisitTypeApiResponseFactory;
 import com.cobaltplatform.api.model.qualifier.AuditLogged;
 import com.cobaltplatform.api.model.qualifier.NotAuditLogged;
@@ -246,6 +246,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(ScreeningAnswerOptionApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ScreeningAnswerApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(VisitTypeApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(ScreeningFlowVersionApiResponseFactory.class)));
 	}
 
 	@Provides
