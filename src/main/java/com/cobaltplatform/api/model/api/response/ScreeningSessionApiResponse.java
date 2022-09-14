@@ -20,7 +20,6 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.Account;
-import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContext;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
@@ -70,10 +69,6 @@ public class ScreeningSessionApiResponse {
 	private final Instant crisisIndicatedAt;
 	@Nonnull
 	private final String crisisIndicatedAtDescription;
-	@Nonnull
-	private final Boolean skippable;
-	@Nonnull
-	private final Boolean promptForPhoneNumber;
 	@Nonnull
 	private final Instant created;
 	@Nonnull
@@ -127,11 +122,6 @@ public class ScreeningSessionApiResponse {
 				: nextScreeningQuestionContext.getScreeningQuestionContextId();
 
 		this.screeningSessionDestination = screeningService.determineDestinationForScreeningSessionId(screeningSessionId).orElse(null);
-
-		ScreeningFlowVersion screeningFlowVersion = screeningService.findScreeningFlowVersionById(getScreeningFlowVersionId()).get();
-
-		this.skippable = screeningFlowVersion.getSkippable();
-		this.promptForPhoneNumber = screeningFlowVersion.getPhoneNumberRequired() && targetAccount.getPhoneNumber() == null;
 	}
 
 	@Nonnull
@@ -197,16 +187,6 @@ public class ScreeningSessionApiResponse {
 	@Nonnull
 	public String getCrisisIndicatedAtDescription() {
 		return this.crisisIndicatedAtDescription;
-	}
-
-	@Nonnull
-	public Boolean getPromptForPhoneNumber() {
-		return this.promptForPhoneNumber;
-	}
-
-	@Nonnull
-	public Boolean getSkippable() {
-		return this.skippable;
 	}
 
 	@Nonnull
