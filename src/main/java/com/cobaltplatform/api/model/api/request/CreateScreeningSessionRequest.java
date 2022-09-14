@@ -31,6 +31,8 @@ public class CreateScreeningSessionRequest {
 	@Nullable
 	private UUID screeningFlowId;
 	@Nullable
+	private UUID screeningFlowVersionId;
+	@Nullable
 	private UUID targetAccountId;
 	@Nullable
 	private UUID createdByAccountId;
@@ -44,6 +46,15 @@ public class CreateScreeningSessionRequest {
 
 	public void setScreeningFlowId(@Nullable UUID screeningFlowId) {
 		this.screeningFlowId = screeningFlowId;
+	}
+
+	@Nullable
+	public UUID getScreeningFlowVersionId() {
+		return this.screeningFlowVersionId;
+	}
+
+	public void setScreeningFlowVersionId(@Nullable UUID screeningFlowVersionId) {
+		this.screeningFlowVersionId = screeningFlowVersionId;
 	}
 
 	@Nullable

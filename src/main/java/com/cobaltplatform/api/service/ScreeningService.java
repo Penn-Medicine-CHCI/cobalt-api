@@ -293,6 +293,19 @@ public class ScreeningService {
 	}
 
 	@Nonnull
+	public List<ScreeningFlowVersion> findScreeningFlowVersionsByScreeningFlowId(@Nullable UUID screeningFlowId) {
+		if (screeningFlowId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM screening_flow_version
+				WHERE screening_flow_id=?
+				ORDER BY version_number DESC
+				""", ScreeningFlowVersion.class, screeningFlowId);
+	}
+
+	@Nonnull
 	public List<ScreeningSession> findScreeningSessionsByScreeningFlowId(@Nullable UUID screeningFlowId,
 																																			 @Nullable UUID participantAccountId) {
 		if (screeningFlowId == null || participantAccountId == null)
@@ -314,9 +327,10 @@ public class ScreeningService {
 		UUID targetAccountId = request.getTargetAccountId();
 		UUID createdByAccountId = request.getCreatedByAccountId();
 		UUID screeningFlowId = request.getScreeningFlowId();
+		UUID screeningFlowVersionId = request.getScreeningFlowVersionId();
+		ScreeningFlowVersion screeningFlowVersion = null;
 		Account targetAccount = null;
 		Account createdByAccount = null;
-		ScreeningFlow screeningFlow = null;
 		boolean immediatelySkip = request.getImmediatelySkip() == null ? false : request.getImmediatelySkip();
 		UUID screeningSessionId = UUID.randomUUID();
 		ValidationException validationException = new ValidationException();
@@ -339,19 +353,26 @@ public class ScreeningService {
 				validationException.add(new FieldError("targetAccountId", getStrings().get("Target account ID is invalid.")));
 		}
 
-		if (screeningFlowId == null) {
-			validationException.add(new FieldError("screeningFlowId", getStrings().get("Screening flow ID is required.")));
+		if (screeningFlowId == null && screeningFlowVersionId == null) {
+			validationException.add(getStrings().get("Either a screening flow ID or screening flow version ID is required."));
+		} else if (screeningFlowId != null && screeningFlowVersionId != null) {
+			validationException.add(getStrings().get("You cannot provide both a screening flow ID and a screening flow version ID."));
+		} else if (screeningFlowVersionId != null) {
+			screeningFlowVersion = findScreeningFlowVersionById(screeningFlowVersionId).orElse(null);
+
+			if (screeningFlowVersion == null)
+				validationException.add(new FieldError("screeningFlowVersionId", getStrings().get("Screening flow ID is invalid.")));
 		} else {
-			screeningFlow = findScreeningFlowById(screeningFlowId).orElse(null);
+			ScreeningFlow screeningFlow = findScreeningFlowById(screeningFlowId).orElse(null);
 
 			if (screeningFlow == null)
 				validationException.add(new FieldError("screeningFlowId", getStrings().get("Screening flow ID is invalid.")));
+			else
+				screeningFlowVersion = findScreeningFlowVersionById(screeningFlow.getActiveScreeningFlowVersionId()).get();
 		}
 
 		if (validationException.hasErrors())
 			throw validationException;
-
-		ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningFlow.getActiveScreeningFlowVersionId()).get();
 
 		getDatabase().execute("""
 				INSERT INTO screening_session(screening_session_id, screening_flow_version_id, target_account_id, created_by_account_id)

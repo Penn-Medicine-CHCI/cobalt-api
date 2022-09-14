@@ -25,11 +25,14 @@ import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.request.SkipScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.response.ScreeningAnswerApiResponse.ScreeningAnswerApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningAnswerOptionApiResponse.ScreeningAnswerOptionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ScreeningFlowVersionApiResponse.ScreeningFlowVersionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningQuestionApiResponse.ScreeningQuestionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ScreeningAnswer;
 import com.cobaltplatform.api.model.db.ScreeningAnswerOption;
+import com.cobaltplatform.api.model.db.ScreeningFlow;
+import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
 import com.cobaltplatform.api.model.db.ScreeningQuestion;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.ScreeningSessionScreening;
@@ -90,6 +93,8 @@ public class ScreeningResource {
 	@Nonnull
 	private final ScreeningAnswerApiResponseFactory screeningAnswerApiResponseFactory;
 	@Nonnull
+	private final ScreeningFlowVersionApiResponseFactory screeningFlowVersionApiResponseFactory;
+	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final Logger logger;
@@ -103,6 +108,7 @@ public class ScreeningResource {
 													 @Nonnull ScreeningQuestionApiResponseFactory screeningQuestionApiResponseFactory,
 													 @Nonnull ScreeningAnswerOptionApiResponseFactory screeningAnswerOptionApiResponseFactory,
 													 @Nonnull ScreeningAnswerApiResponseFactory screeningAnswerApiResponseFactory,
+													 @Nonnull ScreeningFlowVersionApiResponseFactory screeningFlowVersionApiResponseFactory,
 													 @Nonnull Provider<CurrentContext> currentContextProvider) {
 		requireNonNull(screeningService);
 		requireNonNull(accountService);
@@ -112,6 +118,7 @@ public class ScreeningResource {
 		requireNonNull(screeningQuestionApiResponseFactory);
 		requireNonNull(screeningAnswerOptionApiResponseFactory);
 		requireNonNull(screeningAnswerApiResponseFactory);
+		requireNonNull(screeningFlowVersionApiResponseFactory);
 		requireNonNull(currentContextProvider);
 
 		this.screeningService = screeningService;
@@ -122,6 +129,7 @@ public class ScreeningResource {
 		this.screeningQuestionApiResponseFactory = screeningQuestionApiResponseFactory;
 		this.screeningAnswerOptionApiResponseFactory = screeningAnswerOptionApiResponseFactory;
 		this.screeningAnswerApiResponseFactory = screeningAnswerApiResponseFactory;
+		this.screeningFlowVersionApiResponseFactory = screeningFlowVersionApiResponseFactory;
 		this.currentContextProvider = currentContextProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
@@ -180,6 +188,32 @@ public class ScreeningResource {
 						Account targetAccount = getAccountService().findAccountById(screeningSession.getTargetAccountId()).get();
 						return getScreeningSessionApiResponseFactory().create(screeningSession, targetAccount);
 					}).collect(Collectors.toList()));
+		}});
+	}
+
+	@Nonnull
+	@GET("/screening-flow-versions")
+	@AuthenticationRequired
+	public ApiResponse screeningFlowVersions(@Nonnull @QueryParameter UUID screeningFlowId,
+																					 @Nonnull @QueryParameter Optional<Boolean> activeOnly) {
+		requireNonNull(screeningFlowId);
+		requireNonNull(activeOnly);
+
+		ScreeningFlow screeningFlow = getScreeningService().findScreeningFlowById(screeningFlowId).orElse(null);
+
+		if (screeningFlow == null)
+			throw new NotFoundException();
+
+		List<ScreeningFlowVersion> screeningFlowVersions = getScreeningService().findScreeningFlowVersionsByScreeningFlowId(screeningFlowId);
+		UUID activeScreeningFlowVersionId = screeningFlow.getActiveScreeningFlowVersionId();
+
+		boolean filterActiveOnly = activeOnly.orElse(false);
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("screeningFlowVersions", screeningFlowVersions.stream()
+					.filter(screeningFlow -> filterActiveOnly ? activeScreeningFlowVersionId.equals(screeningFlow.getScreeningFlowId()) : true)
+					.map(screeningFlowVersion -> getScreeningFlowVersionApiResponseFactory().create(screeningFlowVersion))
+					.collect(Collectors.toList()));
+			put("activeScreeningFlowVersionId", activeScreeningFlowVersionId);
 		}});
 	}
 
@@ -381,6 +415,11 @@ public class ScreeningResource {
 	@Nonnull
 	protected ScreeningAnswerApiResponseFactory getScreeningAnswerApiResponseFactory() {
 		return this.screeningAnswerApiResponseFactory;
+	}
+
+	@Nonnull
+	protected ScreeningFlowVersionApiResponseFactory getScreeningFlowVersionApiResponseFactory() {
+		return this.screeningFlowVersionApiResponseFactory;
 	}
 
 	@Nonnull
