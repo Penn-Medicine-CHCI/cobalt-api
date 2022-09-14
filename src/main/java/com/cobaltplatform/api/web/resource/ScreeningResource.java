@@ -218,19 +218,19 @@ public class ScreeningResource {
 	}
 
 	/**
-	 * Skips an entire screening flow, e.g. user clicks "Skip for now" on 1:1 triage flow before even starting the
-	 * screening.  In this scenario, we find the active screening flow version, create a session for it, and immediately
-	 * mark the session completed/skipped.
+	 * Skips an entire screening flow version, e.g. user clicks "Skip for now" on 1:1 triage flow before even starting the
+	 * screening.  In this scenario, we create a session for the provided version, and immediately
+	 * mark as completed/skipped.
 	 */
 	@Nonnull
-	@POST("/screening-flows/{screeningFlowId}/skip")
+	@POST("/screening-flow-versions/{screeningFlowVersionId}/skip")
 	@AuthenticationRequired
-	public ApiResponse skipEntireScreeningFlow(@Nonnull @PathParameter UUID screeningFlowId) {
-		requireNonNull(screeningFlowId);
+	public ApiResponse skipEntireScreeningFlowVersion(@Nonnull @PathParameter UUID screeningFlowVersionId) {
+		requireNonNull(screeningFlowVersionId);
 
 		Account account = getCurrentContext().getAccount().get();
 		UUID screeningSessionId = getScreeningService().createScreeningSession(new CreateScreeningSessionRequest() {{
-			setScreeningFlowId(screeningFlowId);
+			setScreeningFlowVersionId(screeningFlowVersionId);
 			setCreatedByAccountId(account.getAccountId());
 			setTargetAccountId(account.getAccountId());
 			setImmediatelySkip(true);
@@ -320,6 +320,9 @@ public class ScreeningResource {
 
 		ScreeningSessionDestination screeningSessionDestination = getScreeningService().determineDestinationForScreeningSessionId(screeningQuestionContext.getScreeningSessionScreening().getScreeningSessionId()).orElse(null);
 
+		ScreeningSession screeningSession = getScreeningService().findScreeningSessionById(screeningQuestionContext.getScreeningSessionScreening().getScreeningSessionId()).get();
+		ScreeningFlowVersion screeningFlowVersion = getScreeningService().findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("previousScreeningQuestionContextId", previousScreeningQuestionContext == null ? null
 					: previousScreeningQuestionContext.getScreeningQuestionContextId());
@@ -331,6 +334,7 @@ public class ScreeningResource {
 					.map(screeningAnswer -> getScreeningAnswerApiResponseFactory().create(screeningAnswer))
 					.collect(Collectors.toList()));
 			put("screeningSessionDestination", screeningSessionDestination);
+			put("screeningFlowVersion", getScreeningFlowVersionApiResponseFactory().create(screeningFlowVersion));
 		}});
 	}
 
