@@ -35,6 +35,8 @@ public class CreateAccountEmailVerificationRequest {
 	@Nullable
 	private String emailAddress;
 	@Nullable
+	private Boolean forceVerification;
+	@Nullable
 	private AccountEmailVerificationFlowTypeId accountEmailVerificationFlowTypeId;
 
 	@Nullable
@@ -53,6 +55,15 @@ public class CreateAccountEmailVerificationRequest {
 
 	public void setEmailAddress(@Nullable String emailAddress) {
 		this.emailAddress = emailAddress;
+	}
+
+	@Nullable
+	public Boolean getForceVerification() {
+		return this.forceVerification;
+	}
+
+	public void setForceVerification(@Nullable Boolean forceVerification) {
+		this.forceVerification = forceVerification;
 	}
 
 	@Nullable

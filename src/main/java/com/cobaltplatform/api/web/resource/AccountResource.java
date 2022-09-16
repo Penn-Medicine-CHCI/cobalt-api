@@ -916,8 +916,9 @@ public class AccountResource {
 			throw new AuthorizationException();
 
 		boolean verified = getAccountService().isEmailAddressVerifiedForAccountId(request.getEmailAddress(), accountId);
+		boolean forceVerification = request.getForceVerification() == null ? false : request.getForceVerification();
 
-		if (!verified)
+		if (forceVerification || !verified)
 			getAccountService().createAccountEmailVerification(request);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
