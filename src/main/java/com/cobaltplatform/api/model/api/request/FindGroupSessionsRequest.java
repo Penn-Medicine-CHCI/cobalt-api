@@ -40,6 +40,8 @@ public class FindGroupSessionsRequest {
 	@Nullable
 	private String urlName;
 	@Nullable
+	private String searchQuery;
+	@Nullable
 	private InstitutionId institutionId;
 	@Nullable
 	private OrderBy orderBy;
@@ -83,6 +85,15 @@ public class FindGroupSessionsRequest {
 
 	public void setUrlName(@Nullable String urlName) {
 		this.urlName = urlName;
+	}
+
+	@Nullable
+	public String getSearchQuery() {
+		return this.searchQuery;
+	}
+
+	public void setSearchQuery(@Nullable String searchQuery) {
+		this.searchQuery = searchQuery;
 	}
 
 	@Nullable
