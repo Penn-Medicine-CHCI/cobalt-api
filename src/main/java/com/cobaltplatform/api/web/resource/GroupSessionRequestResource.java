@@ -19,7 +19,6 @@
 
 package com.cobaltplatform.api.web.resource;
 
-import com.lokalized.Strings;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateGroupSessionRequestRequest;
 import com.cobaltplatform.api.model.api.request.CreatePresignedUploadRequest;
@@ -42,6 +41,7 @@ import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.UploadManager.PresignedUpload;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
+import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.PUT;
@@ -144,10 +144,12 @@ public class GroupSessionRequestResource {
 	public ApiResponse groupSessionRequests(@Nonnull @QueryParameter Optional<Integer> pageNumber,
 																					@Nonnull @QueryParameter Optional<Integer> pageSize,
 																					@Nonnull @QueryParameter Optional<String> urlName,
+																					@Nonnull @QueryParameter Optional<String> searchQuery,
 																					@Nonnull @QueryParameter Optional<GroupSessionRequestViewType> viewType) {
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
 		requireNonNull(urlName);
+		requireNonNull(searchQuery);
 		requireNonNull(viewType);
 
 		Account account = getCurrentContext().getAccount().get();
@@ -157,6 +159,7 @@ public class GroupSessionRequestResource {
 		request.setPageNumber(pageNumber.orElse(null));
 		request.setPageSize(pageSize.orElse(null));
 		request.setUrlName(urlName.orElse(null));
+		request.setSearchQuery(searchQuery.orElse(null));
 		request.setFilterBehavior(FilterBehavior.DEFAULT);
 
 		GroupSessionRequestViewType finalViewType = viewType.orElse(GroupSessionRequestViewType.PATIENT);

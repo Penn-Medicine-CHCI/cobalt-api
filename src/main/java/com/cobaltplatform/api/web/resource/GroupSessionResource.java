@@ -160,11 +160,13 @@ public class GroupSessionResource {
 																	 @Nonnull @QueryParameter Optional<Integer> pageSize,
 																	 @Nonnull @QueryParameter Optional<GroupSessionViewType> viewType,
 																	 @Nonnull @QueryParameter Optional<String> urlName,
+																	 @Nonnull @QueryParameter Optional<String> searchQuery,
 																	 @Nonnull @QueryParameter Optional<FindGroupSessionsRequest.OrderBy> orderBy) {
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
 		requireNonNull(viewType);
 		requireNonNull(urlName);
+		requireNonNull(searchQuery);
 		requireNonNull(orderBy);
 
 		Account account = getCurrentContext().getAccount().get();
@@ -174,6 +176,7 @@ public class GroupSessionResource {
 		request.setPageNumber(pageNumber.orElse(null));
 		request.setPageSize(pageSize.orElse(null));
 		request.setUrlName(urlName.orElse(null));
+		request.setSearchQuery(searchQuery.orElse(null));
 		request.setOrderBy(orderBy.orElse(null));
 		request.setFilterBehavior(FilterBehavior.DEFAULT);
 
