@@ -270,6 +270,7 @@ public class GroupSessionService implements AutoCloseable {
 		Integer pageSize = request.getPageSize();
 		GroupSessionStatusId groupSessionStatusId = request.getGroupSessionStatusId();
 		String urlName = trimToNull(request.getUrlName());
+		String searchQuery = trimToNull(request.getSearchQuery());
 		InstitutionId institutionId = request.getInstitutionId();
 		Account account = request.getAccount();
 		FindGroupSessionsRequest.FilterBehavior filterBehavior = request.getFilterBehavior() == null ? FindGroupSessionsRequest.FilterBehavior.DEFAULT : request.getFilterBehavior();
@@ -302,6 +303,13 @@ public class GroupSessionService implements AutoCloseable {
 		if (urlName != null) {
 			sql.append("AND gs.url_name=? ");
 			parameters.add(urlName);
+		}
+
+		if (searchQuery != null) {
+			sql.append("AND ((gs.en_search_vector @@ to_tsquery('english', ?)) OR (gs.title ILIKE CONCAT('%',?,'%') OR gs.description ILIKE CONCAT('%',?,'%'))) ");
+			parameters.add(searchQuery);
+			parameters.add(searchQuery);
+			parameters.add(searchQuery);
 		}
 
 		if (filterBehavior == FindGroupSessionsRequest.FilterBehavior.ONLY_MY_SESSIONS) {
@@ -1139,6 +1147,7 @@ public class GroupSessionService implements AutoCloseable {
 		Integer pageNumber = request.getPageNumber();
 		Integer pageSize = request.getPageSize();
 		String urlName = trimToNull(request.getUrlName());
+		String searchQuery = trimToNull(request.getSearchQuery());
 		InstitutionId institutionId = request.getInstitutionId();
 		GroupSessionRequestStatusId groupSessionRequestStatusId = request.getGroupSessionRequestStatusId();
 		Account account = request.getAccount();
@@ -1171,6 +1180,13 @@ public class GroupSessionService implements AutoCloseable {
 		if (urlName != null) {
 			sql.append("AND gsr.url_name=? ");
 			parameters.add(urlName);
+		}
+
+		if (searchQuery != null) {
+			sql.append("AND ((gsr.en_search_vector @@ to_tsquery('english', ?)) OR (gsr.title ILIKE CONCAT('%',?,'%') OR gsr.description ILIKE CONCAT('%',?,'%'))) ");
+			parameters.add(searchQuery);
+			parameters.add(searchQuery);
+			parameters.add(searchQuery);
 		}
 
 		if (filterBehavior == FindGroupSessionRequestsRequest.FilterBehavior.ONLY_MY_SESSIONS) {
