@@ -33,6 +33,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/026-screening-
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/027-capitalization-updates.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/028-institution-support-email.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/029-group-session-search.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/030-group-sessions-screening.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
