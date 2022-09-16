@@ -1,11 +1,51 @@
 BEGIN;
 SELECT _v.register_patch('029-group-session-search', NULL, NULL);
 
-ALTER TABLE group_session ADD COLUMN en_search_vector TSVECTOR GENERATED ALWAYS AS (to_tsvector('english', coalesce(title, '') || ' ' || coalesce(description, '')|| ' ' || coalesce(url_name, '')|| ' ' || coalesce(facilitator_name, ''))) STORED;
+-- Group Session
+-- Cannot use TSVECTOR GENERATED ALWAYS in RDS (yet...)
+ALTER TABLE group_session ADD COLUMN en_search_vector TSVECTOR;
+
 CREATE INDEX group_session_en_search_vector_idx ON group_session USING GIN (en_search_vector);
 
-ALTER TABLE group_session_request ADD COLUMN en_search_vector TSVECTOR GENERATED ALWAYS AS (to_tsvector('english', coalesce(title, '') || ' ' || coalesce(description, '')|| ' ' || coalesce(url_name, '')|| ' ' || coalesce(facilitator_name, ''))) STORED;
+CREATE FUNCTION group_session_en_search_vector_update() RETURNS TRIGGER AS $$
+BEGIN
+    NEW.en_search_vector = TO_TSVECTOR('pg_catalog.english', COALESCE(NEW.title, '') || ' ' || COALESCE(NEW.description, '') || ' ' || COALESCE(NEW.url_name, '') || ' ' || COALESCE(NEW.facilitator_name, ''));
+    RETURN NEW;
+END
+$$ LANGUAGE 'plpgsql';
+
+CREATE TRIGGER group_session_en_search_vector_update_tg BEFORE INSERT OR UPDATE ON group_session
+FOR EACH ROW EXECUTE PROCEDURE group_session_en_search_vector_update();
+
+-- Force trigger to run
+UPDATE group_session SET title=title;
+
+ALTER TABLE group_session ALTER COLUMN en_search_vector SET NOT NULL;
+
+
+-- Group Session Request
+
+-- Cannot use TSVECTOR GENERATED ALWAYS in RDS (yet...)
+ALTER TABLE group_session_request ADD COLUMN en_search_vector TSVECTOR;
+
 CREATE INDEX group_session_request_en_search_vector_idx ON group_session_request USING GIN (en_search_vector);
+
+CREATE FUNCTION group_session_request_en_search_vector_update() RETURNS TRIGGER AS $$
+BEGIN
+    NEW.en_search_vector = TO_TSVECTOR('pg_catalog.english', COALESCE(NEW.title, '') || ' ' || COALESCE(NEW.description, '') || ' ' || COALESCE(NEW.url_name, '') || ' ' || COALESCE(NEW.facilitator_name, ''));
+    RETURN NEW;
+END
+$$ LANGUAGE 'plpgsql';
+
+CREATE TRIGGER group_session_request_en_search_vector_update_tg BEFORE INSERT OR UPDATE ON group_session_request
+FOR EACH ROW EXECUTE PROCEDURE group_session_request_en_search_vector_update();
+
+-- Force trigger to run
+UPDATE group_session_request SET title=title;
+
+ALTER TABLE group_session_request ALTER COLUMN en_search_vector SET NOT NULL;
+
+-- Views
 
 DROP VIEW v_group_session;
 
