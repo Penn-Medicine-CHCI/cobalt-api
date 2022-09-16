@@ -61,6 +61,8 @@ public class Institution {
 	@Nullable
 	private UUID contentScreeningFlowId;
 	@Nullable
+	private UUID groupSessionsScreeningFlowId;
+	@Nullable
 	private String description;
 	@Nullable
 	private ZoneId timeZone;
@@ -267,6 +269,15 @@ public class Institution {
 
 	public void setContentScreeningFlowId(@Nullable UUID contentScreeningFlowId) {
 		this.contentScreeningFlowId = contentScreeningFlowId;
+	}
+
+	@Nullable
+	public UUID getGroupSessionsScreeningFlowId() {
+		return this.groupSessionsScreeningFlowId;
+	}
+
+	public void setGroupSessionsScreeningFlowId(@Nullable UUID groupSessionsScreeningFlowId) {
+		this.groupSessionsScreeningFlowId = groupSessionsScreeningFlowId;
 	}
 
 	@Nullable

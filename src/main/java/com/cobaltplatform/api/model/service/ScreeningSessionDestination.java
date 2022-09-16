@@ -41,7 +41,9 @@ public class ScreeningSessionDestination {
 
 	public enum ScreeningSessionDestinationId {
 		CRISIS,
-		ONE_ON_ONE_PROVIDER_LIST
+		ONE_ON_ONE_PROVIDER_LIST,
+		CONTENT_LIST,
+		GROUP_SESSION_LIST
 	}
 
 	public ScreeningSessionDestination(@Nonnull ScreeningSessionDestinationId screeningSessionDestinationId) {
