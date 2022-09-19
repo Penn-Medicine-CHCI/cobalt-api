@@ -865,7 +865,7 @@ public class AppointmentService {
 		UUID groupEventTypeId = request.getGroupEventTypeId();
 		UUID appointmentTypeId = request.getAppointmentTypeId();
 		UUID intakeAssessmentId = request.getIntakeAssessmentId();
-		String emailAddress = trimToNull(request.getEmailAddress());
+		String emailAddress = getNormalizer().normalizeEmailAddress(request.getEmailAddress()).orElse(null);
 		String phoneNumber = trimToNull(request.getPhoneNumber());
 		String comment = trimToNull(request.getComment());
 		Account account = null;
@@ -953,8 +953,8 @@ public class AppointmentService {
 			appointmentReasonId = findNotSpecifiedAppointmentReasonByInstitutionId(institutionId).getAppointmentReasonId();
 		}
 
-		// If email address was provided and account has no email address, permit updating the account's email on file
-		if (emailAddress != null && account.getEmailAddress() == null) {
+		// If email address was provided, update the account's email on file
+		if (emailAddress != null) {
 			String pinnedEmailAddress = emailAddress;
 			getAccountService().updateAccountEmailAddress(new UpdateAccountEmailAddressRequest() {{
 				setAccountId(accountId);
@@ -963,6 +963,9 @@ public class AppointmentService {
 		} else {
 			emailAddress = account.getEmailAddress();
 		}
+
+		if (!getAccountService().isEmailAddressVerifiedForAccountId(emailAddress, accountId))
+			throw new ValidationException(getStrings().get("Sorry, you must validate your email address before booking an appointment."));
 
 		// If phone number was provided and account has no phone number, permit updating the account's phone number on file
 		if (phoneNumber != null && account.getPhoneNumber() == null) {
