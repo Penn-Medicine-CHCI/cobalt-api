@@ -306,7 +306,7 @@ public class GroupSessionService implements AutoCloseable {
 		}
 
 		if (searchQuery != null) {
-			sql.append("AND ((gs.en_search_vector @@ to_tsquery('english', ?)) OR (gs.title ILIKE CONCAT('%',?,'%') OR gs.description ILIKE CONCAT('%',?,'%'))) ");
+			sql.append("AND ((gs.en_search_vector @@ websearch_to_tsquery('english', ?)) OR (gs.title ILIKE CONCAT('%',?,'%') OR gs.description ILIKE CONCAT('%',?,'%'))) ");
 			parameters.add(searchQuery);
 			parameters.add(searchQuery);
 			parameters.add(searchQuery);
@@ -1183,7 +1183,7 @@ public class GroupSessionService implements AutoCloseable {
 		}
 
 		if (searchQuery != null) {
-			sql.append("AND ((gsr.en_search_vector @@ to_tsquery('english', ?)) OR (gsr.title ILIKE CONCAT('%',?,'%') OR gsr.description ILIKE CONCAT('%',?,'%'))) ");
+			sql.append("AND ((gsr.en_search_vector @@ websearch_to_tsquery('english', ?)) OR (gsr.title ILIKE CONCAT('%',?,'%') OR gsr.description ILIKE CONCAT('%',?,'%'))) ");
 			parameters.add(searchQuery);
 			parameters.add(searchQuery);
 			parameters.add(searchQuery);
