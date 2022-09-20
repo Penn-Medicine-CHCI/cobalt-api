@@ -667,7 +667,7 @@ public final class Formatter {
 			return getStrings().get("Hello,");
 
 		return getStrings().get("Hi {{firstName}},", new HashMap<>() {{
-			put("name", account.getFirstName());
+			put("firstName", account.getFirstName());
 		}});
 	}
 
