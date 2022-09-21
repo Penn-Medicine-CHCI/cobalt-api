@@ -62,6 +62,8 @@ public class GroupSessionRequest {
 	@DatabaseColumn("custom_question_2")
 	private String customQuestion2;
 	@Nullable
+	private Boolean dataCollectionEnabled;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -181,6 +183,15 @@ public class GroupSessionRequest {
 
 	public void setCustomQuestion2(@Nullable String customQuestion2) {
 		this.customQuestion2 = customQuestion2;
+	}
+
+	@Nullable
+	public Boolean getDataCollectionEnabled() {
+		return this.dataCollectionEnabled;
+	}
+
+	public void setDataCollectionEnabled(@Nullable Boolean dataCollectionEnabled) {
+		this.dataCollectionEnabled = dataCollectionEnabled;
 	}
 
 	@Nullable

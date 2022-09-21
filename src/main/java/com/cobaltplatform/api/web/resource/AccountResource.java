@@ -32,6 +32,7 @@ import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateActivityTrackingRequest;
 import com.cobaltplatform.api.model.api.request.CreateIcMpmAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateIcOrderReportAccountRequest;
+import com.cobaltplatform.api.model.api.request.FindGroupSessionRequestsRequest;
 import com.cobaltplatform.api.model.api.request.FindGroupSessionsRequest;
 import com.cobaltplatform.api.model.api.request.ForgotPasswordRequest;
 import com.cobaltplatform.api.model.api.request.ResetPasswordRequest;
@@ -52,6 +53,8 @@ import com.cobaltplatform.api.model.api.response.ContentApiResponse;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.GroupSessionRequestApiResponse;
+import com.cobaltplatform.api.model.api.response.GroupSessionRequestApiResponse.GroupSessionRequestApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountInvite;
@@ -68,6 +71,8 @@ import com.cobaltplatform.api.model.db.BetaFeatureAlert;
 import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.GroupSession;
+import com.cobaltplatform.api.model.db.GroupSessionRequest;
+import com.cobaltplatform.api.model.db.GroupSessionRequestStatus.GroupSessionRequestStatusId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -155,6 +160,8 @@ public class AccountResource {
 	@Nonnull
 	private final GroupSessionApiResponseFactory groupSessionApiResponseFactory;
 	@Nonnull
+	private final GroupSessionRequestApiResponseFactory groupSessionRequestApiResponseFactory;
+	@Nonnull
 	private final ContentApiResponseFactory contentApiResponseFactory;
 	@Nonnull
 	private final Configuration configuration;
@@ -203,6 +210,7 @@ public class AccountResource {
 												 @Nonnull AppointmentService appointmentService,
 												 @Nonnull AccountApiResponseFactory accountApiResponseFactory,
 												 @Nonnull GroupSessionApiResponseFactory groupSessionApiResponseFactory,
+												 @Nonnull GroupSessionRequestApiResponseFactory groupSessionRequestApiResponseFactory,
 												 @Nonnull ContentApiResponseFactory contentApiResponseFactory,
 												 @Nonnull Configuration configuration,
 												 @Nonnull RequestBodyParser requestBodyParser,
@@ -229,6 +237,7 @@ public class AccountResource {
 		requireNonNull(appointmentService);
 		requireNonNull(accountApiResponseFactory);
 		requireNonNull(groupSessionApiResponseFactory);
+		requireNonNull(groupSessionRequestApiResponseFactory);
 		requireNonNull(contentApiResponseFactory);
 		requireNonNull(configuration);
 		requireNonNull(currentContextProvider);
@@ -255,6 +264,7 @@ public class AccountResource {
 		this.appointmentService = appointmentService;
 		this.accountApiResponseFactory = accountApiResponseFactory;
 		this.groupSessionApiResponseFactory = groupSessionApiResponseFactory;
+		this.groupSessionRequestApiResponseFactory = groupSessionRequestApiResponseFactory;
 		this.contentApiResponseFactory = contentApiResponseFactory;
 		this.configuration = configuration;
 		this.currentContextProvider = currentContextProvider;
@@ -484,7 +494,10 @@ public class AccountResource {
 		if (!account.getAccountId().equals(accountId))
 			throw new AuthorizationException();
 
+		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
+
 		final int MAXIMUM_GROUP_SESSIONS = 8;
+
 		List<GroupSession> groupSessions = new ArrayList<>(getGroupSessionService().findGroupSessions(new FindGroupSessionsRequest() {{
 			setGroupSessionStatusId(GroupSessionStatusId.ADDED);
 			setInstitutionId(account.getInstitutionId());
@@ -498,9 +511,24 @@ public class AccountResource {
 		if (groupSessions.size() > MAXIMUM_GROUP_SESSIONS)
 			groupSessions = groupSessions.subList(0, MAXIMUM_GROUP_SESSIONS /* exclusive */);
 
-		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
+		final int MAXIMUM_GROUP_SESSION_REQUESTS = 8;
+
+		List<GroupSessionRequest> groupSessionRequests = Collections.emptyList();
+
+		// Not everyone gets recommended these group sessions by-request
+		if (institution.getRecommendGroupSessionRequests()) {
+			groupSessionRequests = new ArrayList<>(getGroupSessionService().findGroupSessionRequests(new FindGroupSessionRequestsRequest() {{
+				setGroupSessionRequestStatusId(GroupSessionRequestStatusId.ADDED);
+				setInstitutionId(account.getInstitutionId());
+			}}).getResults());
+
+			// Don't show too many events
+			if (groupSessionRequests.size() > MAXIMUM_GROUP_SESSION_REQUESTS)
+				groupSessionRequests = groupSessionRequests.subList(0, MAXIMUM_GROUP_SESSION_REQUESTS /* exclusive */);
+		}
 
 		final int MAXIMUM_CONTENTS = 12;
+
 		List<Content> contents = getContentService().findContentForAccount(account, Optional.empty(), Optional.empty());
 
 		// Don't show too many content pieces
@@ -519,10 +547,14 @@ public class AccountResource {
 				.map(groupSession -> getGroupSessionApiResponseFactory().create(groupSession))
 				.collect(Collectors.toList());
 
+		List<GroupSessionRequestApiResponse> groupSessionRequestApiResponses = groupSessionRequests.stream()
+				.map(groupSessionRequest -> getGroupSessionRequestApiResponseFactory().create(groupSessionRequest))
+				.collect(Collectors.toList());
+
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("groupEvents", Collections.emptyList()); // Legacy; deprecated
 			put("contents", contentApiResponses);
 			put("groupSessions", groupSessionApiResponses);
+			put("groupSessionRequests", groupSessionRequestApiResponses);
 		}});
 	}
 
@@ -1029,6 +1061,11 @@ public class AccountResource {
 	@Nonnull
 	protected GroupSessionApiResponseFactory getGroupSessionApiResponseFactory() {
 		return this.groupSessionApiResponseFactory;
+	}
+
+	@Nonnull
+	protected GroupSessionRequestApiResponseFactory getGroupSessionRequestApiResponseFactory() {
+		return this.groupSessionRequestApiResponseFactory;
 	}
 
 	@Nonnull
