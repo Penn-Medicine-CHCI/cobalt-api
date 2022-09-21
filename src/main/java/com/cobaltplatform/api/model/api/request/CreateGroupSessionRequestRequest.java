@@ -52,6 +52,8 @@ public class CreateGroupSessionRequestRequest {
 	private String customQuestion1;
 	@Nullable
 	private String customQuestion2;
+	@Nullable
+	private Boolean dataCollectionEnabled;
 
 	@Nullable
 	public InstitutionId getInstitutionId() {
@@ -150,5 +152,14 @@ public class CreateGroupSessionRequestRequest {
 
 	public void setCustomQuestion2(@Nullable String customQuestion2) {
 		this.customQuestion2 = customQuestion2;
+	}
+
+	@Nullable
+	public Boolean getDataCollectionEnabled() {
+		return this.dataCollectionEnabled;
+	}
+
+	public void setDataCollectionEnabled(@Nullable Boolean dataCollectionEnabled) {
+		this.dataCollectionEnabled = dataCollectionEnabled;
 	}
 }

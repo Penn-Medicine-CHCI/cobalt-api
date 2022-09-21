@@ -1256,6 +1256,7 @@ public class GroupSessionService implements AutoCloseable {
 		String imageUrl = trimToNull(request.getImageUrl());
 		String customQuestion1 = trimToNull(request.getCustomQuestion1());
 		String customQuestion2 = trimToNull(request.getCustomQuestion2());
+		boolean dataCollectionEnabled = request.getDataCollectionEnabled() == null ? true : request.getDataCollectionEnabled();
 		Institution institution = null;
 		Account submitterAccount = null;
 		UUID groupSessionRequestId = UUID.randomUUID();
@@ -1303,6 +1304,11 @@ public class GroupSessionService implements AutoCloseable {
 		if (imageUrl == null)
 			imageUrl = getDefaultGroupSessionImageUrl();
 
+		if (!dataCollectionEnabled) {
+			customQuestion1 = null;
+			customQuestion2 = null;
+		}
+
 		getDatabase().execute("INSERT INTO group_session_request (group_session_request_id, institution_id, " +
 						"group_session_request_status_id, title, description, submitter_account_id, facilitator_account_id, facilitator_name, facilitator_email_address, " +
 						"image_url, url_name, custom_question_1, custom_question_2) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
@@ -1325,6 +1331,7 @@ public class GroupSessionService implements AutoCloseable {
 		String imageUrl = trimToNull(request.getImageUrl());
 		String customQuestion1 = trimToNull(request.getCustomQuestion1());
 		String customQuestion2 = trimToNull(request.getCustomQuestion2());
+		boolean dataCollectionEnabled = request.getDataCollectionEnabled() == null ? true : request.getDataCollectionEnabled();
 
 		ValidationException validationException = new ValidationException();
 
@@ -1350,6 +1357,11 @@ public class GroupSessionService implements AutoCloseable {
 
 		if (imageUrl == null)
 			imageUrl = getDefaultGroupSessionImageUrl();
+
+		if (!dataCollectionEnabled) {
+			customQuestion1 = null;
+			customQuestion2 = null;
+		}
 
 		getDatabase().execute("UPDATE group_session_request SET title=?, description=?, facilitator_account_id=?, " +
 						"facilitator_name=?, facilitator_email_address=?, image_url=?, url_name=?, custom_question_1=?, " +

@@ -19,9 +19,6 @@
 
 package com.cobaltplatform.api.model.api.response;
 
-import com.google.inject.assistedinject.Assisted;
-import com.google.inject.assistedinject.AssistedInject;
-import com.lokalized.Strings;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.GroupSessionRequest;
 import com.cobaltplatform.api.model.db.GroupSessionRequestStatus.GroupSessionRequestStatusId;
@@ -29,6 +26,9 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.service.GroupSessionService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.Formatter;
+import com.google.inject.assistedinject.Assisted;
+import com.google.inject.assistedinject.AssistedInject;
+import com.lokalized.Strings;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -76,6 +76,8 @@ public class GroupSessionRequestApiResponse {
 	@Nullable
 	private final String customQuestion2;
 	@Nonnull
+	private final Boolean dataCollectionEnabled;
+	@Nonnull
 	private final Instant created;
 	@Nonnull
 	private final String createdDescription;
@@ -122,6 +124,7 @@ public class GroupSessionRequestApiResponse {
 		this.imageUrl = groupSessionRequest.getImageUrl();
 		this.customQuestion1 = groupSessionRequest.getCustomQuestion1();
 		this.customQuestion2 = groupSessionRequest.getCustomQuestion2();
+		this.dataCollectionEnabled = groupSessionRequest.getDataCollectionEnabled();
 		this.created = groupSessionRequest.getCreated();
 		this.createdDescription = formatter.formatTimestamp(groupSessionRequest.getCreated());
 
@@ -134,101 +137,106 @@ public class GroupSessionRequestApiResponse {
 
 	@Nonnull
 	public UUID getGroupSessionRequestId() {
-		return groupSessionRequestId;
+		return this.groupSessionRequestId;
 	}
 
 	@Nullable
 	public InstitutionId getInstitutionId() {
-		return institutionId;
+		return this.institutionId;
 	}
 
 	@Nullable
 	public String getInstitutionDescription() {
-		return institutionDescription;
+		return this.institutionDescription;
 	}
 
 	@Nullable
 	public GroupSessionRequestStatusId getGroupSessionRequestStatusId() {
-		return groupSessionRequestStatusId;
+		return this.groupSessionRequestStatusId;
 	}
 
 	@Nullable
 	public String getGroupSessionRequestStatusIdDescription() {
-		return groupSessionRequestStatusIdDescription;
+		return this.groupSessionRequestStatusIdDescription;
 	}
 
 	@Nonnull
 	public UUID getSubmitterAccountId() {
-		return submitterAccountId;
+		return this.submitterAccountId;
 	}
 
 	@Nullable
 	public String getTitle() {
-		return title;
+		return this.title;
 	}
 
 	@Nullable
 	public String getDescription() {
-		return description;
+		return this.description;
 	}
 
 	@Nullable
 	public String getUrlName() {
-		return urlName;
+		return this.urlName;
 	}
 
 	@Nullable
 	public UUID getFacilitatorAccountId() {
-		return facilitatorAccountId;
+		return this.facilitatorAccountId;
 	}
 
 	@Nullable
 	public String getFacilitatorName() {
-		return facilitatorName;
+		return this.facilitatorName;
 	}
 
 	@Nullable
 	public String getFacilitatorEmailAddress() {
-		return facilitatorEmailAddress;
+		return this.facilitatorEmailAddress;
 	}
 
 	@Nullable
 	public String getImageUrl() {
-		return imageUrl;
+		return this.imageUrl;
 	}
 
 	@Nullable
 	public String getCustomQuestion1() {
-		return customQuestion1;
+		return this.customQuestion1;
 	}
 
 	@Nullable
 	public String getCustomQuestion2() {
-		return customQuestion2;
+		return this.customQuestion2;
+	}
+
+	@Nonnull
+	public Boolean getDataCollectionEnabled() {
+		return this.dataCollectionEnabled;
 	}
 
 	@Nonnull
 	public Instant getCreated() {
-		return created;
+		return this.created;
 	}
 
 	@Nonnull
 	public String getCreatedDescription() {
-		return createdDescription;
+		return this.createdDescription;
 	}
 
 	@Nonnull
 	public String getCreatedDateDescription() {
-		return createdDateDescription;
+		return this.createdDateDescription;
 	}
 
 	@Nullable
 	public Instant getLastUpdated() {
-		return lastUpdated;
+		return this.lastUpdated;
 	}
 
 	@Nullable
 	public String getLastUpdatedDescription() {
-		return lastUpdatedDescription;
+		return this.lastUpdatedDescription;
 	}
 }
