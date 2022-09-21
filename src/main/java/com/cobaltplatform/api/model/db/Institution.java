@@ -108,6 +108,10 @@ public class Institution {
 	private String supportEmailAddress;
 	@Nullable
 	private Boolean recommendGroupSessionRequests;
+	@Nullable
+	private Boolean immediateAccessEnabled;
+	@Nullable
+	private Boolean contactUsEnabled;
 
 	public enum InstitutionId {
 		COBALT
@@ -478,5 +482,23 @@ public class Institution {
 
 	public void setRecommendGroupSessionRequests(@Nullable Boolean recommendGroupSessionRequests) {
 		this.recommendGroupSessionRequests = recommendGroupSessionRequests;
+	}
+
+	@Nullable
+	public Boolean getImmediateAccessEnabled() {
+		return this.immediateAccessEnabled;
+	}
+
+	public void setImmediateAccessEnabled(@Nullable Boolean immediateAccessEnabled) {
+		this.immediateAccessEnabled = immediateAccessEnabled;
+	}
+
+	@Nullable
+	public Boolean getContactUsEnabled() {
+		return this.contactUsEnabled;
+	}
+
+	public void setContactUsEnabled(@Nullable Boolean contactUsEnabled) {
+		this.contactUsEnabled = contactUsEnabled;
 	}
 }
