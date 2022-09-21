@@ -74,6 +74,10 @@ public class InstitutionApiResponse {
 	private final Boolean anonymousEnabled;
 	@Nonnull
 	private final String supportEmailAddress;
+	@Nonnull
+	private final Boolean immediateAccessEnabled;
+	@Nonnull
+	private final Boolean contactUsEnabled;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -108,6 +112,8 @@ public class InstitutionApiResponse {
 		this.emailEnabled = institution.getEmailEnabled();
 		this.emailSignupEnabled = institution.getEmailSignupEnabled();
 		this.supportEmailAddress = institution.getSupportEmailAddress();
+		this.immediateAccessEnabled = institution.getImmediateAccessEnabled();
+		this.contactUsEnabled = institution.getContactUsEnabled();
 	}
 
 	@Nonnull
@@ -198,5 +204,15 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public String getSupportEmailAddress() {
 		return this.supportEmailAddress;
+	}
+
+	@Nonnull
+	public Boolean getImmediateAccessEnabled() {
+		return this.immediateAccessEnabled;
+	}
+
+	@Nonnull
+	public Boolean getContactUsEnabled() {
+		return this.contactUsEnabled;
 	}
 }
