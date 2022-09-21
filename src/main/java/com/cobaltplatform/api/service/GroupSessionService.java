@@ -1309,11 +1309,15 @@ public class GroupSessionService implements AutoCloseable {
 			customQuestion2 = null;
 		}
 
-		getDatabase().execute("INSERT INTO group_session_request (group_session_request_id, institution_id, " +
-						"group_session_request_status_id, title, description, submitter_account_id, facilitator_account_id, facilitator_name, facilitator_email_address, " +
-						"image_url, url_name, custom_question_1, custom_question_2) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-				groupSessionRequestId, institutionId, GroupSessionRequestStatusId.NEW,
-				title, description, submitterAccountId, facilitatorAccountId, facilitatorName, facilitatorEmailAddress, imageUrl, urlName, customQuestion1, customQuestion2);
+		getDatabase().execute("""
+						INSERT INTO group_session_request (group_session_request_id, institution_id, 
+						group_session_request_status_id, title, description, submitter_account_id, facilitator_account_id, 
+						facilitator_name, facilitator_email_address, image_url, url_name, custom_question_1, custom_question_2, 
+						data_collection_enabled)
+						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						""", groupSessionRequestId, institutionId, GroupSessionRequestStatusId.NEW,
+				title, description, submitterAccountId, facilitatorAccountId, facilitatorName, facilitatorEmailAddress,
+				imageUrl, urlName, customQuestion1, customQuestion2);
 
 		return groupSessionRequestId;
 	}
@@ -1363,10 +1367,13 @@ public class GroupSessionService implements AutoCloseable {
 			customQuestion2 = null;
 		}
 
-		getDatabase().execute("UPDATE group_session_request SET title=?, description=?, facilitator_account_id=?, " +
-						"facilitator_name=?, facilitator_email_address=?, image_url=?, url_name=?, custom_question_1=?, " +
-						"custom_question_2=? WHERE group_session_request_id=?", title, description, facilitatorAccountId, facilitatorName,
-				facilitatorEmailAddress, imageUrl, urlName, customQuestion1, customQuestion2, groupSessionRequestId);
+		getDatabase().execute("""
+						UPDATE group_session_request SET title=?, description=?, facilitator_account_id=?,
+						facilitator_name=?, facilitator_email_address=?, image_url=?, url_name=?, custom_question_1=?, 
+						custom_question_2=?, data_collection_enabled=? 
+						WHERE group_session_request_id=?
+						""", title, description, facilitatorAccountId, facilitatorName, facilitatorEmailAddress, imageUrl,
+				urlName, customQuestion1, customQuestion2, dataCollectionEnabled, groupSessionRequestId);
 	}
 
 	@Nonnull
