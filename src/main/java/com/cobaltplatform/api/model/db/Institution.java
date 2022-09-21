@@ -106,6 +106,8 @@ public class Institution {
 	private Long anonAccessTokenShortExpirationInMinutes;
 	@Nullable
 	private String supportEmailAddress;
+	@Nullable
+	private Boolean recommendGroupSessionRequests;
 
 	public enum InstitutionId {
 		COBALT
@@ -467,5 +469,14 @@ public class Institution {
 
 	public void setSupportEmailAddress(@Nullable String supportEmailAddress) {
 		this.supportEmailAddress = supportEmailAddress;
+	}
+
+	@Nullable
+	public Boolean getRecommendGroupSessionRequests() {
+		return this.recommendGroupSessionRequests;
+	}
+
+	public void setRecommendGroupSessionRequests(@Nullable Boolean recommendGroupSessionRequests) {
+		this.recommendGroupSessionRequests = recommendGroupSessionRequests;
 	}
 }

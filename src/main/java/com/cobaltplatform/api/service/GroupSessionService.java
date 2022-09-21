@@ -1315,9 +1315,9 @@ public class GroupSessionService implements AutoCloseable {
 						facilitator_name, facilitator_email_address, image_url, url_name, custom_question_1, custom_question_2, 
 						data_collection_enabled)
 						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-						""", groupSessionRequestId, institutionId, GroupSessionRequestStatusId.NEW,
+						""", 	groupSessionRequestId, institutionId, GroupSessionRequestStatusId.NEW,
 				title, description, submitterAccountId, facilitatorAccountId, facilitatorName, facilitatorEmailAddress,
-				imageUrl, urlName, customQuestion1, customQuestion2);
+				imageUrl, urlName, customQuestion1, customQuestion2, dataCollectionEnabled);
 
 		return groupSessionRequestId;
 	}

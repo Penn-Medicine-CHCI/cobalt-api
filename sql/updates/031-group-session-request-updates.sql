@@ -1,6 +1,11 @@
 BEGIN;
 SELECT _v.register_patch('031-group-session-request-updates', NULL, NULL);
 
+ALTER TABLE institution ADD COLUMN recommend_group_session_requests BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Turn this on for our example institution
+UPDATE institution SET recommend_group_session_requests=TRUE WHERE institution_id = 'COBALT';
+
 ALTER TABLE group_session_request ADD COLUMN data_collection_enabled BOOLEAN NOT NULL DEFAULT TRUE;
 
 DROP VIEW v_group_session_request;
