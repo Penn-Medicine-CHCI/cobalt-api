@@ -51,7 +51,8 @@ public class ScreeningType {
 		C_SSRS,
 		DAST_10,
 		BPI,
-		AUDIT_C
+		AUDIT_C,
+		MBI_9
 	}
 
 	@Override
