@@ -37,6 +37,7 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/030-grou
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/031-group-session-request-updates.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/032-institution-updates.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/033-mbi-screening-type.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/034-screening-scoring.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

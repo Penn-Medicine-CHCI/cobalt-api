@@ -19,10 +19,16 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.service.ScreeningScore;
+
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
+
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -42,7 +48,9 @@ public class ScreeningSessionScreening {
 	@Nullable
 	private Boolean completed;
 	@Nullable
-	private Integer score;
+	private String score; // JSON
+	@Nullable
+	private ScreeningScore scoreAsObject;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -103,12 +111,18 @@ public class ScreeningSessionScreening {
 	}
 
 	@Nullable
-	public Integer getScore() {
+	public String getScore() {
 		return this.score;
 	}
 
-	public void setScore(@Nullable Integer score) {
+	@Nonnull
+	public Optional<ScreeningScore> getScoreAsObject() {
+		return Optional.of(this.scoreAsObject);
+	}
+
+	public void setScore(@Nullable String score) {
 		this.score = score;
+		this.scoreAsObject = trimToNull(score) == null ? null : ScreeningScore.fromJsonRepresentation(score);
 	}
 
 	@Nullable
