@@ -45,6 +45,7 @@ import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContext;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.cobaltplatform.api.model.service.ScreeningQuestionWithAnswerOptions;
+import com.cobaltplatform.api.model.service.ScreeningScore;
 import com.cobaltplatform.api.model.service.ScreeningSessionDestination;
 import com.cobaltplatform.api.model.service.ScreeningSessionDestination.ScreeningSessionDestinationId;
 import com.cobaltplatform.api.service.ScreeningService.ResultsFunctionOutput.SupportRoleRecommendation;
@@ -897,10 +898,12 @@ public class ScreeningService {
 
 		// Based on screening scoring function output, set score/completed flags
 		getDatabase().execute("""
-				UPDATE screening_session_screening
-				SET completed=?, score=?
-				WHERE screening_session_screening_id=?
-				""", screeningScoringFunctionOutput.getCompleted(), screeningScoringFunctionOutput.getScore(), screeningSessionScreening.getScreeningSessionScreeningId());
+						UPDATE screening_session_screening
+						SET completed=?, score=CAST(? AS JSONB)
+						WHERE screening_session_screening_id=?
+						""", screeningScoringFunctionOutput.getCompleted(),
+				screeningScoringFunctionOutput.getScore().toJsonRepresentation(),
+				screeningSessionScreening.getScreeningSessionScreeningId());
 
 		OrchestrationFunctionOutput orchestrationFunctionOutput = executeScreeningFlowOrchestrationFunction(screeningFlowVersion.getOrchestrationFunction(), screeningSession.getScreeningSessionId(), createdByAccount.getInstitutionId()).get();
 
@@ -1266,7 +1269,7 @@ public class ScreeningService {
 		@Nullable
 		private Boolean completed;
 		@Nullable
-		private Integer score;
+		private ScreeningScore score;
 
 		@Nullable
 		public Boolean getCompleted() {
@@ -1278,11 +1281,11 @@ public class ScreeningService {
 		}
 
 		@Nullable
-		public Integer getScore() {
+		public ScreeningScore getScore() {
 			return this.score;
 		}
 
-		public void setScore(@Nullable Integer score) {
+		public void setScore(@Nullable ScreeningScore score) {
 			this.score = score;
 		}
 	}
