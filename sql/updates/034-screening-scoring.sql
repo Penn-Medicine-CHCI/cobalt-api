@@ -10,8 +10,8 @@ UPDATE screening_session_screening SET score_temp=('{"overallScore":' || score |
 -- Temporarily drop view
 DROP VIEW v_screening_session_screening;
 
--- Remove old 'score' integer column
-ALTER TABLE screening_session_screening DROP COLUMN score;
+-- Rename old 'score' integer column (don't delete yet)
+ALTER TABLE screening_session_screening RENAME COLUMN score TO legacy_score;
 
 -- Slide new 'score' JSONB column into place
 ALTER TABLE screening_session_screening RENAME COLUMN score_temp TO score;
