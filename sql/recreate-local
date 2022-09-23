@@ -38,6 +38,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/031-group-sess
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/032-institution-updates.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/033-mbi-screening-type.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/034-screening-scoring.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/035-cfa-rename.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
