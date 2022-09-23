@@ -28,6 +28,8 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.apache.commons.lang3.StringUtils.trimToNull;
+
 /**
  * @author Transmogrify, LLC.
  */
@@ -47,6 +49,8 @@ public class ScreeningSessionScreening {
 	private Boolean completed;
 	@Nullable
 	private String score; // JSON
+	@Nullable
+	private ScreeningScore scoreAsObject;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -113,14 +117,12 @@ public class ScreeningSessionScreening {
 
 	@Nonnull
 	public Optional<ScreeningScore> getScoreAsObject() {
-		if (getScore() == null)
-			return Optional.empty();
-
-		return Optional.of(ScreeningScore.fromJsonRepresentation(getScore()));
+		return Optional.of(this.scoreAsObject);
 	}
 
 	public void setScore(@Nullable String score) {
 		this.score = score;
+		this.scoreAsObject = trimToNull(score) == null ? null : ScreeningScore.fromJsonRepresentation(score);
 	}
 
 	@Nullable
