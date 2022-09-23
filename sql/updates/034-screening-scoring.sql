@@ -12,6 +12,7 @@ DROP VIEW v_screening_session_screening;
 
 -- Rename old 'score' integer column (don't delete yet)
 ALTER TABLE screening_session_screening RENAME COLUMN score TO legacy_score;
+ALTER TABLE screening_session_screening ALTER COLUMN legacy_score DROP NOT NULL;
 
 -- Slide new 'score' JSONB column into place
 ALTER TABLE screening_session_screening RENAME COLUMN score_temp TO score;
