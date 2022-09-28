@@ -83,6 +83,8 @@ public class Account {
 	@Nullable
 	private String phoneNumber;
 	@Nullable
+	private String ssoId;
+	@Nullable
 	private String ssoAttributes;
 	@Nullable
 	private String epicPatientId;
@@ -266,6 +268,15 @@ public class Account {
 
 	public void setPhoneNumber(@Nullable String phoneNumber) {
 		this.phoneNumber = phoneNumber;
+	}
+
+	@Nullable
+	public String getSsoId() {
+		return this.ssoId;
+	}
+
+	public void setSsoId(@Nullable String ssoId) {
+		this.ssoId = ssoId;
 	}
 
 	@Nullable
