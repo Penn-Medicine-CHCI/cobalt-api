@@ -327,8 +327,6 @@ public class ScreeningResource {
 				getScreeningService().findPreviousScreeningQuestionContextByScreeningQuestionContextId(screeningQuestionContextId).orElse(null);
 
 		ScreeningSessionDestination screeningSessionDestination = getScreeningService().determineDestinationForScreeningSessionId(screeningQuestionContext.getScreeningSessionScreening().getScreeningSessionId()).orElse(null);
-
-		ScreeningSession screeningSession = getScreeningService().findScreeningSessionById(screeningQuestionContext.getScreeningSessionScreening().getScreeningSessionId()).get();
 		ScreeningFlowVersion screeningFlowVersion = getScreeningService().findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
