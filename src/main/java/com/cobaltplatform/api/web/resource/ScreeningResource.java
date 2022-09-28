@@ -307,6 +307,14 @@ public class ScreeningResource {
 		if (screeningQuestionContext == null)
 			throw new NotFoundException();
 
+		ScreeningSession screeningSession = getScreeningService().findScreeningSessionById(screeningQuestionContext.getScreeningSessionScreening().getScreeningSessionId()).get();
+		Account account = getCurrentContext().getAccount().get();
+		Account targetAccount = getAccountService().findAccountById(screeningSession.getTargetAccountId()).get();
+
+		// Ensure you have permission to pull data for this screening session
+		if (!getAuthorizationService().canPerformScreening(account, targetAccount))
+			throw new AuthorizationException();
+
 		// Questions, answer options, and any answers already given for this screening session screening
 		ScreeningQuestion screeningQuestion = screeningQuestionContext.getScreeningQuestion();
 		List<ScreeningAnswerOption> screeningAnswerOptions = screeningQuestionContext.getScreeningAnswerOptions();
