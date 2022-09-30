@@ -245,16 +245,18 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	public List<Screening> findScreeningsByInstitutionId(@Nullable InstitutionId institutionId) {
+	public List<Screening> findScreeningsAvailableToInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return Collections.emptyList();
 
+		// "Available to institution" means screenings for that institution as well as those
+		// in the generic COBALT institution (shared screenings)
 		return getDatabase().queryForList("""
 				SELECT s.* FROM screening s, screening_institution si 
 				WHERE s.screening_id=si.screening_id
-				AND si.institution_id=?
+				AND si.institution_id IN (?,?)
 				ORDER BY s.name
-				""", Screening.class, institutionId);
+				""", Screening.class, institutionId, InstitutionId.COBALT);
 	}
 
 	@Nonnull
@@ -886,15 +888,11 @@ public class ScreeningService {
 				findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreeningId);
 		List<ScreeningAnswer> screeningAnswers = findScreeningAnswersAcrossAllQuestionsByScreeningSessionScreeningId(screeningSessionScreeningId);
 
-		if (screeningAnswers.size() > screeningQuestionsWithAnswerOptions.size())
-			throw new IllegalStateException(format("Screening Session Screening ID %s has too many answers (%d) for %d question[s].",
-					screeningSessionScreeningId, screeningAnswers.size(), screeningQuestionsWithAnswerOptions.size()));
-
 		ScreeningScoringFunctionOutput screeningScoringFunctionOutput = executeScreeningScoringFunction(
 				screeningVersion.getScoringFunction(), screeningQuestionsWithAnswerOptions, screeningAnswers);
 
-		getLogger().info("Screening session screening ID {} ({}) was scored {} with completed flag={}. {} question[s] in this screening have been answered.", screeningSessionScreeningId,
-				screeningVersion.getScreeningTypeId().name(), screeningScoringFunctionOutput.getScore(), screeningScoringFunctionOutput.getCompleted(), screeningQuestionsWithAnswerOptions.size());
+		getLogger().info("Screening session screening ID {} ({}) was scored {} with completed flag={}.", screeningSessionScreeningId,
+				screeningVersion.getScreeningTypeId().name(), screeningScoringFunctionOutput.getScore(), screeningScoringFunctionOutput.getCompleted());
 
 		// Based on screening scoring function output, set score/completed flags
 		getDatabase().execute("""
@@ -1112,7 +1110,7 @@ public class ScreeningService {
 		if (screeningSession == null)
 			return Optional.empty();
 
-		List<Screening> screenings = findScreeningsByInstitutionId(institutionId);
+		List<Screening> screenings = findScreeningsAvailableToInstitutionId(institutionId);
 
 		if (screenings.size() == 0)
 			return Optional.empty();
