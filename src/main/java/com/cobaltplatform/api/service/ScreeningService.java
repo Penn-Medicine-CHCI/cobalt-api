@@ -245,18 +245,16 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	public List<Screening> findScreeningsAvailableToInstitutionId(@Nullable InstitutionId institutionId) {
+	public List<Screening> findScreeningsByInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return Collections.emptyList();
 
-		// "Available to institution" means screenings for that institution as well as those
-		// in the generic COBALT institution (shared screenings)
 		return getDatabase().queryForList("""
 				SELECT s.* FROM screening s, screening_institution si 
 				WHERE s.screening_id=si.screening_id
-				AND si.institution_id IN (?,?)
+				AND si.institution_id=?
 				ORDER BY s.name
-				""", Screening.class, institutionId, InstitutionId.COBALT);
+				""", Screening.class, institutionId);
 	}
 
 	@Nonnull
@@ -1110,7 +1108,7 @@ public class ScreeningService {
 		if (screeningSession == null)
 			return Optional.empty();
 
-		List<Screening> screenings = findScreeningsAvailableToInstitutionId(institutionId);
+		List<Screening> screenings = findScreeningsByInstitutionId(institutionId);
 
 		if (screenings.size() == 0)
 			return Optional.empty();
