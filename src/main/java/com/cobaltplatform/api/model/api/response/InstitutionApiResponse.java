@@ -29,6 +29,7 @@ import com.lokalized.Strings;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.Optional;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -78,6 +79,9 @@ public class InstitutionApiResponse {
 	private final Boolean immediateAccessEnabled;
 	@Nonnull
 	private final Boolean contactUsEnabled;
+	@Nullable
+	private final String ga4MeasurementId;
+
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -114,6 +118,7 @@ public class InstitutionApiResponse {
 		this.supportEmailAddress = institution.getSupportEmailAddress();
 		this.immediateAccessEnabled = institution.getImmediateAccessEnabled();
 		this.contactUsEnabled = institution.getContactUsEnabled();
+		this.ga4MeasurementId = institution.getGa4MeasurementId();
 	}
 
 	@Nonnull
@@ -214,5 +219,10 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public Boolean getContactUsEnabled() {
 		return this.contactUsEnabled;
+	}
+
+	@Nonnull
+	public Optional<String> getGa4MeasurementId() {
+		return Optional.ofNullable(this.ga4MeasurementId);
 	}
 }
