@@ -23,6 +23,7 @@ import com.cobaltplatform.api.model.db.GroupSessionSystem.GroupSessionSystemId;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import com.pyranid.DatabaseColumn;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -112,6 +113,9 @@ public class Institution {
 	private Boolean immediateAccessEnabled;
 	@Nullable
 	private Boolean contactUsEnabled;
+	@Nullable
+	@DatabaseColumn("ga4_measurement_id")
+	private String ga4MeasurementId;
 
 	public enum InstitutionId {
 		COBALT
@@ -500,5 +504,14 @@ public class Institution {
 
 	public void setContactUsEnabled(@Nullable Boolean contactUsEnabled) {
 		this.contactUsEnabled = contactUsEnabled;
+	}
+
+	@Nullable
+	public String getGa4MeasurementId() {
+		return this.ga4MeasurementId;
+	}
+
+	public void setGa4MeasurementId(@Nullable String ga4MeasurementId) {
+		this.ga4MeasurementId = ga4MeasurementId;
 	}
 }
