@@ -78,6 +78,7 @@ import com.cobaltplatform.api.model.api.response.AssessmentApiResponse.Assessmen
 import com.cobaltplatform.api.model.api.response.AssessmentFormApiResponse.AssessmentFormApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AvailabilityTimeApiResponse.AvailabilityTimeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.BetaFeatureAlertApiResponse.BetaFeatureAlertApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.CallToActionApiResponse.CallToActionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ClinicApiResponse.ClinicApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ExternalGroupEventTypeApiResponse.ExternalGroupEventTypeApiResponseFactory;
@@ -247,6 +248,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(ScreeningAnswerApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(VisitTypeApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ScreeningFlowVersionApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(CallToActionApiResponseFactory.class)));
 	}
 
 	@Provides
