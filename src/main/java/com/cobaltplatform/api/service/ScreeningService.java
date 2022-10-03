@@ -205,8 +205,9 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	public List<SupportRole> findRecommendedSupportRolesByAccountId(@Nullable UUID accountId) {
-		if (accountId == null)
+	public List<SupportRole> findRecommendedSupportRolesByAccountId(@Nullable UUID accountId,
+																																	@Nullable UUID triageScreeningFlowId) {
+		if (accountId == null || triageScreeningFlowId == null)
 			return Collections.emptyList();
 
 		Account account = getAccountService().findAccountById(accountId).orElse(null);
@@ -219,7 +220,7 @@ public class ScreeningService {
 		if (institution.getProviderTriageScreeningFlowId() == null)
 			return Collections.emptyList();
 
-		ScreeningSession mostRecentCompletedProviderTriageScreeningSession = getDatabase().queryForObject("""
+		ScreeningSession mostRecentCompletedTriageScreeningSession = getDatabase().queryForObject("""
 				SELECT ss.*
 				FROM screening_session ss, screening_flow_version sfv
 				WHERE sfv.screening_flow_version_id=ss.screening_flow_version_id
@@ -228,9 +229,9 @@ public class ScreeningService {
 				AND ss.target_account_id=?
 				ORDER BY ss.last_updated DESC
 				LIMIT 1
-				""", ScreeningSession.class, institution.getProviderTriageScreeningFlowId(), accountId).orElse(null);
+				""", ScreeningSession.class, triageScreeningFlowId, accountId).orElse(null);
 
-		if (mostRecentCompletedProviderTriageScreeningSession == null)
+		if (mostRecentCompletedTriageScreeningSession == null)
 			return Collections.emptyList();
 
 		List<SupportRole> recommendedSupportRoles = getDatabase().queryForList("""
@@ -239,7 +240,7 @@ public class ScreeningService {
 				WHERE sr.support_role_id=sssrr.support_role_id
 				AND sssrr.screening_session_id=?
 				ORDER BY sssrr.weight DESC
-				""", SupportRole.class, mostRecentCompletedProviderTriageScreeningSession.getScreeningSessionId());
+				""", SupportRole.class, mostRecentCompletedTriageScreeningSession.getScreeningSessionId());
 
 		return recommendedSupportRoles;
 	}
