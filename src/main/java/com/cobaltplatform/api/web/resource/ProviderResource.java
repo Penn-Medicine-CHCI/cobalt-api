@@ -41,6 +41,7 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.Clinic;
 import com.cobaltplatform.api.model.db.Followup;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PaymentType;
 import com.cobaltplatform.api.model.db.Provider;
@@ -570,13 +571,14 @@ public class ProviderResource {
 		SupportRole overriddenSupportRole = null;
 
 		Account account = getCurrentContext().getAccount().get();
+		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
 
 		// For now - don't expose MHIC role to UI
 		List<SupportRole> allSupportRoles = getProviderService().findSupportRolesByInstitutionId(institutionId).stream()
 				.filter(supportRole -> supportRole.getSupportRoleId() != SupportRoleId.MHIC)
 				.collect(Collectors.toList());
 
-		List<SupportRole> recommendedSupportRoles = getScreeningService().findRecommendedSupportRolesByAccountId(account.getAccountId());
+		List<SupportRole> recommendedSupportRoles = getScreeningService().findRecommendedSupportRolesByAccountId(account.getAccountId(), institution.getProviderTriageScreeningFlowId());
 		List<SupportRole> defaultSupportRoles = new ArrayList<>(recommendedSupportRoles);
 
 		if (defaultSupportRoles.size() == 0)
