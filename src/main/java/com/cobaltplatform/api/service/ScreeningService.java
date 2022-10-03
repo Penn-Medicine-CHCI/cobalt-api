@@ -25,7 +25,6 @@ import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest.Cr
 import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.request.SkipScreeningSessionRequest;
 import com.cobaltplatform.api.model.db.Account;
-import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Screening;
 import com.cobaltplatform.api.model.db.ScreeningAnswer;
@@ -213,11 +212,6 @@ public class ScreeningService {
 		Account account = getAccountService().findAccountById(accountId).orElse(null);
 
 		if (account == null)
-			return Collections.emptyList();
-
-		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
-
-		if (institution.getProviderTriageScreeningFlowId() == null)
 			return Collections.emptyList();
 
 		ScreeningSession mostRecentCompletedTriageScreeningSession = getDatabase().queryForObject("""
