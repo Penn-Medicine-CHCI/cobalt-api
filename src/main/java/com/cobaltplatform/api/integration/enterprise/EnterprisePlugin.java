@@ -44,10 +44,12 @@ public interface EnterprisePlugin {
 		return emailMessage;
 	}
 
+	@Nonnull
 	default Optional<String> federatedLogoutUrl(@Nullable Account account) {
 		return Optional.empty();
 	}
 
+	@Nonnull
 	default List<CallToAction> determineCallsToAction(@Nullable Account account,
 																										@Nullable CallToActionDisplayAreaId callToActionDisplayAreaId) {
 		return Collections.emptyList();
