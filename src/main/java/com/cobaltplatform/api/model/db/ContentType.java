@@ -43,7 +43,8 @@ public class ContentType {
 		AUDIO,
 		ARTICLE,
 		WORKSHEET,
-		PODCAST
+		PODCAST,
+		APP
 	}
 
 	@Override
