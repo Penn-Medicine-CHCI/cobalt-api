@@ -22,9 +22,13 @@ package com.cobaltplatform.api.integration.enterprise;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.service.CallToAction;
+import com.cobaltplatform.api.model.service.CallToActionDisplayAreaId;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -42,5 +46,10 @@ public interface EnterprisePlugin {
 
 	default Optional<String> federatedLogoutUrl(@Nullable Account account) {
 		return Optional.empty();
+	}
+
+	default List<CallToAction> determineCallsToAction(@Nullable Account account,
+																										@Nullable CallToActionDisplayAreaId callToActionDisplayAreaId) {
+		return Collections.emptyList();
 	}
 }
