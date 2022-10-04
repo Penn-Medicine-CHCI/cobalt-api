@@ -111,7 +111,7 @@ public class GroupSessionRequestApiResponse {
 
 		this.groupSessionRequestId = groupSessionRequest.getGroupSessionRequestId();
 		this.institutionId = groupSessionRequest.getInstitutionId();
-		this.institutionDescription = institutionService.findInstitutionById(institutionId).get().getDescription();
+		this.institutionDescription = institutionService.findInstitutionById(institutionId).get().getName();
 		this.groupSessionRequestStatusId = groupSessionRequest.getGroupSessionRequestStatusId();
 		this.groupSessionRequestStatusIdDescription = groupSessionService.findGroupSessionRequestStatusById(groupSessionRequest.getGroupSessionRequestStatusId()).get().getDescription();
 		this.submitterAccountId = groupSessionRequest.getSubmitterAccountId();

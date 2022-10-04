@@ -19,9 +19,6 @@
 
 package com.cobaltplatform.api.model.api.response;
 
-import com.google.inject.assistedinject.Assisted;
-import com.google.inject.assistedinject.AssistedInject;
-import com.lokalized.Strings;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.QuestionApiResponse.QuestionApiResponseFactory;
 import com.cobaltplatform.api.model.db.GroupSession;
@@ -32,6 +29,9 @@ import com.cobaltplatform.api.service.GroupSessionService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.AppointmentTimeFormatter;
 import com.cobaltplatform.api.util.Formatter;
+import com.google.inject.assistedinject.Assisted;
+import com.google.inject.assistedinject.AssistedInject;
+import com.lokalized.Strings;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -166,7 +166,7 @@ public class GroupSessionApiResponse {
 
 		this.groupSessionId = groupSession.getGroupSessionId();
 		this.institutionId = groupSession.getInstitutionId();
-		this.institutionDescription = institutionService.findInstitutionById(institutionId).get().getDescription();
+		this.institutionDescription = institutionService.findInstitutionById(institutionId).get().getName();
 		this.groupSessionStatusId = groupSession.getGroupSessionStatusId();
 		this.groupSessionStatusIdDescription = groupSessionService.findGroupSessionStatusById(groupSession.getGroupSessionStatusId()).get().getDescription();
 		this.groupSessionSchedulingSystemId = groupSession.getGroupSessionSchedulingSystemId();

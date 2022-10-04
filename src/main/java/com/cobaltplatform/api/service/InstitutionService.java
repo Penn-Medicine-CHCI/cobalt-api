@@ -20,10 +20,9 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
-import com.cobaltplatform.api.model.db.AccountSource;
-import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -136,24 +135,19 @@ public class InstitutionService {
 	}
 
 	@Nonnull
-	public List<AccountSource> findAccountSourcesByInstitutionId(@Nullable InstitutionId institutionId) {
+	public List<AccountSourceForInstitution> findAccountSourcesByInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return Collections.emptyList();
 
-		return getDatabase().queryForList("SELECT a.* FROM account_source a, institution_account_source ia " +
-						"WHERE a.account_source_id = ia.account_source_id AND ia.institution_id = ? ",
-				AccountSource.class, institutionId);
-	}
-
-	@Nonnull
-	public List<AccountSource> findAccountSourcesByInstitutionIdAndAccountSourceId(@Nullable InstitutionId institutionId,
-																																								 @Nullable AccountSourceId accountSourceId) {
-		if (institutionId == null || accountSourceId == null)
-			return Collections.emptyList();
-
-		return getDatabase().queryForList("SELECT a.* FROM account_source a, institution_account_source ia " +
-						"WHERE a.account_source_id = ia.account_source_id AND ia.institution_id = ? AND a.account_source_id = ? ",
-				AccountSource.class, institutionId, accountSourceId);
+		return getDatabase().queryForList("""
+						SELECT ias.institution_id, a.account_source_id, ias.account_source_display_style_id,
+						a.description, ias.authentication_description, a.local_sso_url, a.dev_sso_url,
+						a.prod_sso_url, ias.display_order 
+						FROM institution_account_source ias, account_source a
+						WHERE ias.institution_id=?
+						AND ias.account_source_id=a.account_source_id
+						ORDER BY ias.display_order
+				""", AccountSourceForInstitution.class, institutionId);
 	}
 
 	@Nonnull

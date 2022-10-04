@@ -16,21 +16,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.cobaltplatform.api.model.service;
 
-package com.cobaltplatform.api.model.db;
+import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
+import com.cobaltplatform.api.model.db.AccountSourceDisplayStyle.AccountSourceDisplayStyleId;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
-import static java.lang.String.format;
-
 /**
- * @author Transmogrify LLC.
+ * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class AccountSource {
+public class AccountSourceForInstitution {
+	@Nullable
+	private InstitutionId institutionId;
 	@Nullable
 	private AccountSourceId accountSourceId;
+	@Nullable
+	private AccountSourceDisplayStyleId accountSourceDisplayStyleId;
 	@Nullable
 	private String description;
 	@Nullable
@@ -41,21 +46,21 @@ public class AccountSource {
 	private String devSsoUrl;
 	@Nullable
 	private String prodSsoUrl;
+	@Nullable
+	private Integer displayOrder;
 
-	public enum AccountSourceId {
-		COBALT_SSO,
-		ANONYMOUS,
-		EMAIL_PASSWORD,
+	@Nullable
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
 	}
 
-	@Override
-	public String toString() {
-		return format("%s{accountSourceId=%s, description=%s}", getClass().getSimpleName(), getAccountSourceId(), getDescription());
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
 	}
 
 	@Nullable
 	public AccountSourceId getAccountSourceId() {
-		return accountSourceId;
+		return this.accountSourceId;
 	}
 
 	public void setAccountSourceId(@Nullable AccountSourceId accountSourceId) {
@@ -63,8 +68,17 @@ public class AccountSource {
 	}
 
 	@Nullable
+	public AccountSourceDisplayStyleId getAccountSourceDisplayStyleId() {
+		return this.accountSourceDisplayStyleId;
+	}
+
+	public void setAccountSourceDisplayStyleId(@Nullable AccountSourceDisplayStyleId accountSourceDisplayStyleId) {
+		this.accountSourceDisplayStyleId = accountSourceDisplayStyleId;
+	}
+
+	@Nullable
 	public String getDescription() {
-		return description;
+		return this.description;
 	}
 
 	public void setDescription(@Nullable String description) {
@@ -82,7 +96,7 @@ public class AccountSource {
 
 	@Nullable
 	public String getLocalSsoUrl() {
-		return localSsoUrl;
+		return this.localSsoUrl;
 	}
 
 	public void setLocalSsoUrl(@Nullable String localSsoUrl) {
@@ -91,7 +105,7 @@ public class AccountSource {
 
 	@Nullable
 	public String getDevSsoUrl() {
-		return devSsoUrl;
+		return this.devSsoUrl;
 	}
 
 	public void setDevSsoUrl(@Nullable String devSsoUrl) {
@@ -100,10 +114,19 @@ public class AccountSource {
 
 	@Nullable
 	public String getProdSsoUrl() {
-		return prodSsoUrl;
+		return this.prodSsoUrl;
 	}
 
 	public void setProdSsoUrl(@Nullable String prodSsoUrl) {
 		this.prodSsoUrl = prodSsoUrl;
+	}
+
+	@Nullable
+	public Integer getDisplayOrder() {
+		return this.displayOrder;
+	}
+
+	public void setDisplayOrder(@Nullable Integer displayOrder) {
+		this.displayOrder = displayOrder;
 	}
 }

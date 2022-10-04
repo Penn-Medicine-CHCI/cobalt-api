@@ -23,10 +23,9 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse.AccountSourceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
-import com.cobaltplatform.api.model.db.AccountSource;
+import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.service.InstitutionService;
-import com.cobaltplatform.api.util.ValidationUtility;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.QueryParameter;
@@ -75,27 +74,20 @@ public class InstitutionResource {
 
 	@GET("/institution/account-sources")
 	public ApiResponse getAccountSources(@QueryParameter Optional<String> subdomain,
-																			 @QueryParameter Optional<String> accountSourceId) {
+																			 @QueryParameter Optional<AccountSourceId> accountSourceId) {
 		String requestSubdomain;
-		AccountSource.AccountSourceId requestAccountSourceId = null;
+		AccountSourceId requestAccountSourceId = accountSourceId.orElse(null);
 
 		if (subdomain.isPresent())
 			requestSubdomain = subdomain.get();
 		else
 			requestSubdomain = getConfiguration().getDefaultSubdomain();
 
-		if (accountSourceId.isPresent() && ValidationUtility.isValidEnum(accountSourceId.get(),
-				AccountSource.AccountSourceId.class))
-			requestAccountSourceId = AccountSource.AccountSourceId.valueOf(accountSourceId.get());
-
 		Institution institution = getInstitutionService().findInstitutionBySubdomain(requestSubdomain);
 
-		List<AccountSourceApiResponse> accountSources = requestAccountSourceId == null ? getInstitutionService().findAccountSourcesByInstitutionId(
-						institution.getInstitutionId()).stream().map((accountSource) ->
-						getAccountSourceApiResponseFactory().create(accountSource, getConfiguration().getEnvironment()))
-				.collect(Collectors.toList()) : getInstitutionService().findAccountSourcesByInstitutionIdAndAccountSourceId(
-						institution.getInstitutionId(), requestAccountSourceId).stream().map((accountSource) ->
-						getAccountSourceApiResponseFactory().create(accountSource, getConfiguration().getEnvironment()))
+		List<AccountSourceApiResponse> accountSources = getInstitutionService().findAccountSourcesByInstitutionId(institution.getInstitutionId()).stream()
+				.filter(accountSource -> requestAccountSourceId == null ? true : accountSource.getAccountSourceId().equals(requestAccountSourceId))
+				.map(accountSource -> getAccountSourceApiResponseFactory().create(accountSource, getConfiguration().getEnvironment()))
 				.collect(Collectors.toList());
 
 		return new ApiResponse(new HashMap<String, Object>() {{
@@ -105,41 +97,20 @@ public class InstitutionResource {
 
 	@GET("/institution")
 	public ApiResponse getInstitution(@QueryParameter Optional<String> subdomain,
-																		@QueryParameter Optional<String> accountSourceId) {
+																		@QueryParameter Optional<AccountSourceId> accountSourceId) {
 		String requestSubdomain;
-		AccountSource.AccountSourceId requestAccountSourceId = null;
+		AccountSourceId requestAccountSourceId = accountSourceId.orElse(null);
 
 		if (subdomain.isPresent())
 			requestSubdomain = subdomain.get();
 		else
 			requestSubdomain = getConfiguration().getDefaultSubdomain();
 
-		if (accountSourceId.isPresent() && ValidationUtility.isValidEnum(accountSourceId.get(),
-				AccountSource.AccountSourceId.class))
-			requestAccountSourceId = AccountSource.AccountSourceId.valueOf(accountSourceId.get());
-
-		// TODO: we should revisit this when we roll out other institutions
 		Institution institution = getInstitutionService().findInstitutionBySubdomain(requestSubdomain);
 
-		if (requestAccountSourceId != null) {
-			if (requestAccountSourceId.equals(AccountSource.AccountSourceId.ANONYMOUS)) {
-				institution.setEmailEnabled(false);
-				institution.setSsoEnabled(false);
-			} else if (requestAccountSourceId.equals(AccountSource.AccountSourceId.EMAIL_PASSWORD)) {
-				institution.setSsoEnabled(false);
-				institution.setAnonymousEnabled(false);
-			} else {
-				institution.setAnonymousEnabled(false);
-				institution.setEmailEnabled(false);
-			}
-		}
-
-		List<AccountSourceApiResponse> accountSources = requestAccountSourceId == null ? getInstitutionService().findAccountSourcesByInstitutionId(
-						institution.getInstitutionId()).stream().map((accountSource) ->
-						getAccountSourceApiResponseFactory().create(accountSource, getConfiguration().getEnvironment()))
-				.collect(Collectors.toList()) : getInstitutionService().findAccountSourcesByInstitutionIdAndAccountSourceId(
-						institution.getInstitutionId(), requestAccountSourceId).stream().map((accountSource) ->
-						getAccountSourceApiResponseFactory().create(accountSource, getConfiguration().getEnvironment()))
+		List<AccountSourceApiResponse> accountSources = getInstitutionService().findAccountSourcesByInstitutionId(institution.getInstitutionId()).stream()
+				.filter(accountSource -> requestAccountSourceId == null ? true : accountSource.getAccountSourceId().equals(requestAccountSourceId))
+				.map(accountSource -> getAccountSourceApiResponseFactory().create(accountSource, getConfiguration().getEnvironment()))
 				.collect(Collectors.toList());
 
 		return new ApiResponse(new HashMap<String, Object>() {{
