@@ -19,16 +19,18 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
+import com.cobaltplatform.api.model.db.AccountSourceDisplayStyle.AccountSourceDisplayStyleId;
+import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
+import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import com.lokalized.Strings;
-import com.cobaltplatform.api.model.db.AccountSource;
-import com.cobaltplatform.api.util.Formatter;
-import org.checkerframework.checker.nullness.qual.NonNull;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
@@ -37,50 +39,65 @@ import static java.util.Objects.requireNonNull;
  */
 @ThreadSafe
 public class AccountSourceApiResponse {
+	@Nonnull
+	private final AccountSourceId accountSourceId;
+	@Nonnull
+	private final String description;
+	@Nonnull
+	private final String authenticationDescription;
+	@Nonnull
+	private final AccountSourceDisplayStyleId accountSourceDisplayStyleId;
 	@Nullable
-	private AccountSource.AccountSourceId accountSourceId;
-	@Nullable
-	private String description;
-	@Nullable
-	private String ssoUrl;
+	private final String ssoUrl;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface AccountSourceApiResponseFactory {
 		@Nonnull
-		AccountSourceApiResponse create(@Nonnull AccountSource accountSource,
-																		@NonNull String environment);
+		AccountSourceApiResponse create(@Nonnull AccountSourceForInstitution accountSource,
+																		@Nonnull String environment);
 	}
 
 	@AssistedInject
 	public AccountSourceApiResponse(@Nonnull Formatter formatter,
 																	@Nonnull Strings strings,
-																	@Assisted @Nonnull AccountSource accountSource,
-																	@Assisted @NonNull String environment) {
+																	@Assisted @Nonnull AccountSourceForInstitution accountSource,
+																	@Assisted @Nonnull String environment) {
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(accountSource);
 
 		this.accountSourceId = accountSource.getAccountSourceId();
 		this.description = accountSource.getDescription();
+		this.authenticationDescription = accountSource.getAuthenticationDescription();
+		this.accountSourceDisplayStyleId = accountSource.getAccountSourceDisplayStyleId();
 		this.ssoUrl = environment.equals("prod") ?
 				accountSource.getProdSsoUrl() : environment.equals("dev") ?
-				accountSource.getDevSsoUrl() :accountSource.getLocalSsoUrl();
+				accountSource.getDevSsoUrl() : accountSource.getLocalSsoUrl();
 	}
 
-	@Nullable
-	public AccountSource.AccountSourceId getAccountSourceId() {
-		return accountSourceId;
+	@Nonnull
+	public AccountSourceId getAccountSourceId() {
+		return this.accountSourceId;
 	}
 
-	@Nullable
+	@Nonnull
 	public String getDescription() {
-		return description;
+		return this.description;
 	}
 
-	@Nullable
-	public String getSsoUrl() {
-		return ssoUrl;
+	@Nonnull
+	public String getAuthenticationDescription() {
+		return this.authenticationDescription;
 	}
 
+	@Nonnull
+	public AccountSourceDisplayStyleId getAccountSourceDisplayStyleId() {
+		return this.accountSourceDisplayStyleId;
+	}
+
+	@Nonnull
+	public Optional<String> getSsoUrl() {
+		return Optional.ofNullable(ssoUrl);
+	}
 }

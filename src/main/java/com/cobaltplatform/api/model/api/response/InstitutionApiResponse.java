@@ -48,30 +48,38 @@ public class InstitutionApiResponse {
 	@Nullable
 	private final UUID groupSessionsScreeningFlowId;
 	@Nonnull
-	private final String description;
+	private final String name;
 	@Nullable
+	@Deprecated
 	private final String crisisContent;
 	@Nullable
+	@Deprecated
 	private final String privacyContent;
 	@Nullable
+	@Deprecated
 	private final String covidContent;
 	@Nullable
 	private final Boolean requireConsentForm;
 	@Nullable
+	@Deprecated
 	private final String consentFormContent;
 	@Nullable
 	private final String calendarDescription;
 	@Nullable
 	private final Boolean supportEnabled;
 	@Nullable
+	@Deprecated
 	private final String wellBeingContent;
 	@Nullable
+	@Deprecated
 	private final Boolean ssoEnabled;
 	@Nullable
+	@Deprecated
 	private final Boolean emailEnabled;
 	@Nonnull
 	private final Boolean emailSignupEnabled;
 	@Nullable
+	@Deprecated
 	private final Boolean anonymousEnabled;
 	@Nonnull
 	private final String supportEmailAddress;
@@ -98,22 +106,26 @@ public class InstitutionApiResponse {
 		requireNonNull(strings);
 		requireNonNull(institution);
 
+		// TODO: we are "blanking out" some fields until FE can transition away from using them.
+		// This is to provide backwards compatibility for JS clients, so they don't blow up when BE is updated.
+		// In the future, we will remove these entirely.
+
 		this.institutionId = institution.getInstitutionId();
 		this.providerTriageScreeningFlowId = institution.getProviderTriageScreeningFlowId();
 		this.contentScreeningFlowId = institution.getContentScreeningFlowId();
 		this.groupSessionsScreeningFlowId = institution.getGroupSessionsScreeningFlowId();
-		this.description = institution.getDescription();
-		this.crisisContent = institution.getCrisisContent();
-		this.privacyContent = institution.getPrivacyContent();
-		this.covidContent = institution.getCovidContent();
+		this.name = institution.getName();
+		this.crisisContent = ""; // institution.getCrisisContent();
+		this.privacyContent = ""; // institution.getPrivacyContent();
+		this.covidContent = ""; // institution.getCovidContent();
 		this.requireConsentForm = institution.getRequireConsentForm();
-		this.consentFormContent = institution.getConsentFormContent();
+		this.consentFormContent = ""; // institution.getConsentFormContent();
 		this.calendarDescription = institution.getCalendarDescription();
 		this.supportEnabled = institution.getSupportEnabled();
-		this.wellBeingContent = institution.getWellBeingContent();
-		this.ssoEnabled = institution.getSsoEnabled();
-		this.anonymousEnabled = institution.getAnonymousEnabled();
-		this.emailEnabled = institution.getEmailEnabled();
+		this.wellBeingContent = ""; // institution.getWellBeingContent();
+		this.ssoEnabled = false; // institution.getSsoEnabled();
+		this.anonymousEnabled = false; // institution.getAnonymousEnabled();
+		this.emailEnabled = false; // institution.getEmailEnabled();
 		this.emailSignupEnabled = institution.getEmailSignupEnabled();
 		this.supportEmailAddress = institution.getSupportEmailAddress();
 		this.immediateAccessEnabled = institution.getImmediateAccessEnabled();
@@ -142,21 +154,24 @@ public class InstitutionApiResponse {
 	}
 
 	@Nonnull
-	public String getDescription() {
-		return this.description;
+	public String getName() {
+		return this.name;
 	}
 
 	@Nullable
+	@Deprecated
 	public String getCrisisContent() {
 		return this.crisisContent;
 	}
 
 	@Nullable
+	@Deprecated
 	public String getPrivacyContent() {
 		return this.privacyContent;
 	}
 
 	@Nullable
+	@Deprecated
 	public String getCovidContent() {
 		return this.covidContent;
 	}
@@ -167,6 +182,7 @@ public class InstitutionApiResponse {
 	}
 
 	@Nullable
+	@Deprecated
 	public String getConsentFormContent() {
 		return this.consentFormContent;
 	}
@@ -182,21 +198,25 @@ public class InstitutionApiResponse {
 	}
 
 	@Nullable
+	@Deprecated
 	public String getWellBeingContent() {
 		return this.wellBeingContent;
 	}
 
 	@Nullable
+	@Deprecated
 	public Boolean getSsoEnabled() {
 		return this.ssoEnabled;
 	}
 
 	@Nullable
+	@Deprecated
 	public Boolean getEmailEnabled() {
 		return this.emailEnabled;
 	}
 
 	@Nullable
+	@Deprecated
 	public Boolean getAnonymousEnabled() {
 		return this.anonymousEnabled;
 	}
