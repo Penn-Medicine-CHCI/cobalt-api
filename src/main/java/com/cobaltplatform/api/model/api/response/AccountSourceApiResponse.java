@@ -71,9 +71,17 @@ public class AccountSourceApiResponse {
 		this.description = accountSource.getDescription();
 		this.authenticationDescription = accountSource.getAuthenticationDescription();
 		this.accountSourceDisplayStyleId = accountSource.getAccountSourceDisplayStyleId();
-		this.ssoUrl = environment.equals("prod") ?
-				accountSource.getProdSsoUrl() : environment.equals("dev") ?
-				accountSource.getDevSsoUrl() : accountSource.getLocalSsoUrl();
+
+		String ssoUrl = null;
+
+		if(environment.endsWith("prod"))
+			ssoUrl = accountSource.getProdSsoUrl();
+		else if(environment.endsWith("dev"))
+			ssoUrl = accountSource.getDevSsoUrl();
+		else if(environment.equals("local"))
+			ssoUrl = accountSource.getLocalSsoUrl();
+
+		this.ssoUrl = ssoUrl;
 	}
 
 	@Nonnull
