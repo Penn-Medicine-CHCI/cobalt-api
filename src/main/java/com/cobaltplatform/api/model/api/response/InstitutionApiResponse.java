@@ -21,6 +21,8 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.service.NavigationItem;
+import com.cobaltplatform.api.service.TopicCenterService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -29,6 +31,7 @@ import com.lokalized.Strings;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -89,7 +92,8 @@ public class InstitutionApiResponse {
 	private final Boolean contactUsEnabled;
 	@Nullable
 	private final String ga4MeasurementId;
-
+	@Nonnull
+	private final List<NavigationItem> additionalNavigationItems;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -99,9 +103,11 @@ public class InstitutionApiResponse {
 	}
 
 	@AssistedInject
-	public InstitutionApiResponse(@Nonnull Formatter formatter,
+	public InstitutionApiResponse(@Nonnull TopicCenterService topicCenterService,
+																@Nonnull Formatter formatter,
 																@Nonnull Strings strings,
 																@Assisted @Nonnull Institution institution) {
+		requireNonNull(topicCenterService);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(institution);
@@ -131,6 +137,7 @@ public class InstitutionApiResponse {
 		this.immediateAccessEnabled = institution.getImmediateAccessEnabled();
 		this.contactUsEnabled = institution.getContactUsEnabled();
 		this.ga4MeasurementId = institution.getGa4MeasurementId();
+		this.additionalNavigationItems = topicCenterService.findTopicCenterNavigationItemsByInstitutionId(institutionId);
 	}
 
 	@Nonnull
@@ -244,5 +251,10 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public Optional<String> getGa4MeasurementId() {
 		return Optional.ofNullable(this.ga4MeasurementId);
+	}
+
+	@Nonnull
+	public List<NavigationItem> getAdditionalNavigationItems() {
+		return this.additionalNavigationItems;
 	}
 }
