@@ -141,6 +141,26 @@ public class TopicCenterService {
 				ORDER BY tcr.display_order, tcrgs.display_order
 				""", GroupSessionTopicCenterRow.class, topicCenterId);
 
+		// Pull all of the group sessions across all rows in the topic center (so we don't have to query for each row individually)
+		List<GroupSessionRequestTopicCenterRow> groupSessionRequestTopicCenterRows = getDatabase().queryForList("""
+				SELECT gsr.*, tcr.topic_center_row_id
+				FROM topic_center_row tcr, v_group_session_request gsr, topic_center_row_group_session_request tcrgsr
+				WHERE tcr.topic_center_id=?
+				AND tcr.topic_center_row_id=tcrgsr.topic_center_row_id
+				AND tcrgsr.group_session_request_id=gsr.group_session_request_id
+				ORDER BY tcr.display_order, tcrgsr.display_order
+				""", GroupSessionRequestTopicCenterRow.class, topicCenterId);
+
+		// Pull all of the content across all rows in the topic center (so we don't have to query for each row individually)
+		List<PinboardNoteTopicCenterRow> pinboardNoteTopicCenterRows = getDatabase().queryForList("""
+				SELECT pn.*, tcr.topic_center_row_id
+				FROM topic_center_row tcr, pinboard_note pn, topic_center_row_pinboard_note tcrpn
+				WHERE tcr.topic_center_id=?
+				AND tcr.topic_center_row_id=tcrpn.topic_center_row_id
+				AND tcrpn.pinboard_note_id=pn.pinboard_note_id
+				ORDER BY tcr.display_order, tcrpn.display_order
+				""", PinboardNoteTopicCenterRow.class, topicCenterId);
+
 		// Pull all of the content across all rows in the topic center (so we don't have to query for each row individually)
 		List<ContentTopicCenterRow> contentTopicCenterRows = getDatabase().queryForList("""
 				SELECT c.*, tcr.topic_center_row_id
@@ -160,6 +180,14 @@ public class TopicCenterService {
 			for (GroupSessionTopicCenterRow groupSession : groupSessionTopicCenterRows)
 				if (groupSession.getTopicCenterRowId().equals(topicCenterRow.getTopicCenterRowId()))
 					topicCenterRow.getGroupSessions().add(groupSession);
+
+			for (GroupSessionRequestTopicCenterRow groupSessionRequest : groupSessionRequestTopicCenterRows)
+				if (groupSessionRequest.getTopicCenterRowId().equals(topicCenterRow.getTopicCenterRowId()))
+					topicCenterRow.getGroupSessionRequests().add(groupSessionRequest);
+
+			for (PinboardNoteTopicCenterRow pinboardNote : pinboardNoteTopicCenterRows)
+				if (pinboardNote.getTopicCenterRowId().equals(topicCenterRow.getTopicCenterRowId()))
+					topicCenterRow.getPinboardNotes().add(pinboardNote);
 
 			for (ContentTopicCenterRow content : contentTopicCenterRows)
 				if (content.getTopicCenterRowId().equals(topicCenterRow.getTopicCenterRowId()))
