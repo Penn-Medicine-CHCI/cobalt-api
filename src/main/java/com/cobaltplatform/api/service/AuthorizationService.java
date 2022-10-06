@@ -29,11 +29,13 @@ import com.cobaltplatform.api.model.db.GroupSessionRequestStatus.GroupSessionReq
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.InstitutionTopicCenter;
 import com.cobaltplatform.api.model.db.Interaction;
 import com.cobaltplatform.api.model.db.InteractionInstance;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
+import com.cobaltplatform.api.model.db.TopicCenter;
 import com.cobaltplatform.api.model.security.AccountCapabilities;
 import com.cobaltplatform.api.util.Normalizer;
 
@@ -61,6 +63,8 @@ public class AuthorizationService {
 	@Nonnull
 	private final javax.inject.Provider<AppointmentService> appointmentServiceProvider;
 	@Nonnull
+	private final javax.inject.Provider<TopicCenterService> topicCenterServiceProvider;
+	@Nonnull
 	private final Normalizer normalizer;
 
 	@Inject
@@ -68,17 +72,20 @@ public class AuthorizationService {
 															@Nonnull javax.inject.Provider<GroupSessionService> groupSessionServiceProvider,
 															@Nonnull javax.inject.Provider<InteractionService> interactionServiceProvider,
 															@Nonnull javax.inject.Provider<AppointmentService> appointmentServiceProvider,
+															@Nonnull javax.inject.Provider<TopicCenterService> topicCenterServiceProvider,
 															@Nonnull Normalizer normalizer) {
 		requireNonNull(availabilityServiceProvider);
 		requireNonNull(groupSessionServiceProvider);
 		requireNonNull(interactionServiceProvider);
 		requireNonNull(appointmentServiceProvider);
+		requireNonNull(topicCenterServiceProvider);
 		requireNonNull(normalizer);
 
 		this.availabilityServiceProvider = availabilityServiceProvider;
 		this.groupSessionServiceProvider = groupSessionServiceProvider;
 		this.interactionServiceProvider = interactionServiceProvider;
 		this.appointmentServiceProvider = appointmentServiceProvider;
+		this.topicCenterServiceProvider = topicCenterServiceProvider;
 		this.normalizer = normalizer;
 	}
 
@@ -454,27 +461,44 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
+	public Boolean canViewTopicCenter(@Nonnull TopicCenter topicCenter,
+																		@Nonnull Account account) {
+		requireNonNull(topicCenter);
+		requireNonNull(account);
+
+		InstitutionTopicCenter institutionTopicCenter = getTopicCenterService().findInstitutionTopicCenter(
+				account.getInstitutionId(), topicCenter.getTopicCenterId()).orElse(null);
+
+		return institutionTopicCenter != null;
+	}
+
+	@Nonnull
 	protected GroupSessionService getGroupSessionService() {
-		return groupSessionServiceProvider.get();
+		return this.groupSessionServiceProvider.get();
 	}
 
 	@Nonnull
 	protected InteractionService getInteractionService() {
-		return interactionServiceProvider.get();
+		return this.interactionServiceProvider.get();
 	}
 
 	@Nonnull
 	protected AvailabilityService getAvailabilityService() {
-		return availabilityServiceProvider.get();
+		return this.availabilityServiceProvider.get();
 	}
 
 	@Nonnull
 	protected AppointmentService getAppointmentService() {
-		return appointmentServiceProvider.get();
+		return this.appointmentServiceProvider.get();
+	}
+
+	@Nonnull
+	protected TopicCenterService getTopicCenterService() {
+		return this.topicCenterServiceProvider.get();
 	}
 
 	@Nonnull
 	protected Normalizer getNormalizer() {
-		return normalizer;
+		return this.normalizer;
 	}
 }
