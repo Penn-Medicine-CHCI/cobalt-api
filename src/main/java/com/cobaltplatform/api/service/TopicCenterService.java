@@ -26,6 +26,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionTopicCenter;
 import com.cobaltplatform.api.model.db.PinboardNote;
 import com.cobaltplatform.api.model.db.TopicCenter;
+import com.cobaltplatform.api.model.service.NavigationItem;
 import com.cobaltplatform.api.model.service.TopicCenterRowDetail;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -115,6 +116,20 @@ public class TopicCenterService {
 				WHERE institution_id=?
 				AND topic_center_id=?
 				""", InstitutionTopicCenter.class, institutionId, topicCenterId);
+	}
+
+	@Nonnull
+	public List<NavigationItem> findTopicCenterNavigationItemsByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+				SELECT itc.navigation_icon_name as icon_name, tc.url_name as url, tc.name as name
+				FROM institution_topic_center itc, topic_center tc
+				WHERE itc.topic_center_id=tc.topic_center_id
+				AND itc.navigation_item_enabled=TRUE
+				ORDER BY itc.navigation_display_order
+				""", NavigationItem.class);
 	}
 
 	@Nonnull
