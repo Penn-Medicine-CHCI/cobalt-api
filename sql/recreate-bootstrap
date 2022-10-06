@@ -42,6 +42,7 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/035-cfa-
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/036-ga4-measurement.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/037-app-content-type.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/038-institution-account-source.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/039-topic-centers.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

@@ -94,6 +94,7 @@ import com.cobaltplatform.api.model.api.response.InteractionOptionActionApiRespo
 import com.cobaltplatform.api.model.api.response.InteractionOptionApiResponse.InteractionOptionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.IntroAssessmentApiResponse.IntroAssessmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.LogicalAvailabilityApiResponse.LogicalAvailabilityApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PinboardNoteApiResponse.PinboardNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderCalendarApiResponse.ProviderCalendarApiResponseFactory;
@@ -109,6 +110,9 @@ import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.Scr
 import com.cobaltplatform.api.model.api.response.SpecialtyApiResponse.SpecialtyApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.TopicCenterApiResponse.TopicCenterApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.TopicCenterRowApiResponse;
+import com.cobaltplatform.api.model.api.response.TopicCenterRowApiResponse.TopicCenterRowApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.VisitTypeApiResponse.VisitTypeApiResponseFactory;
 import com.cobaltplatform.api.model.qualifier.AuditLogged;
 import com.cobaltplatform.api.model.qualifier.NotAuditLogged;
@@ -249,6 +253,9 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(VisitTypeApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ScreeningFlowVersionApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(CallToActionApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PinboardNoteApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(TopicCenterApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(TopicCenterRowApiResponseFactory.class)));
 	}
 
 	@Provides
