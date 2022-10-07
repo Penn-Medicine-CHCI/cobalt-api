@@ -91,6 +91,7 @@ CREATE TABLE institution_topic_center (
   institution_id TEXT NOT NULL REFERENCES institution,
 	topic_center_id UUID NOT NULL REFERENCES topic_center,
 	navigation_item_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+	navigation_item_name TEXT,
 	navigation_icon_name TEXT,
 	navigation_display_order INTEGER,
 	PRIMARY KEY (institution_id, topic_center_id)
