@@ -37,6 +37,8 @@ public class InstitutionTopicCenter {
 	@Nullable
 	private Boolean navigationItemEnabled;
 	@Nullable
+	private String navigationItemName;
+	@Nullable
 	private String navigationIconName;
 	@Nullable
 	private Integer navigationDisplayOrder;
@@ -66,6 +68,15 @@ public class InstitutionTopicCenter {
 
 	public void setNavigationItemEnabled(@Nullable Boolean navigationItemEnabled) {
 		this.navigationItemEnabled = navigationItemEnabled;
+	}
+
+	@Nullable
+	public String getNavigationItemName() {
+		return this.navigationItemName;
+	}
+
+	public void setNavigationItemName(@Nullable String navigationItemName) {
+		this.navigationItemName = navigationItemName;
 	}
 
 	@Nullable
