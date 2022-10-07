@@ -124,7 +124,7 @@ public class TopicCenterService {
 			return Collections.emptyList();
 
 		return getDatabase().queryForList("""
-				SELECT itc.navigation_icon_name as icon_name, ('/' || tc.url_name) as url, tc.name as name
+				SELECT itc.navigation_icon_name as icon_name, ('/topic-centers/' || tc.url_name) as url, tc.name as name
 				FROM institution_topic_center itc, topic_center tc
 				WHERE itc.topic_center_id=tc.topic_center_id
 				AND itc.navigation_item_enabled=TRUE
