@@ -23,7 +23,6 @@ import com.github.scribejava.core.builder.ServiceBuilder;
 import com.github.scribejava.core.builder.api.DefaultApi20;
 import com.github.scribejava.core.model.OAuth2AccessToken;
 import com.github.scribejava.core.oauth.OAuth20Service;
-import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -108,7 +107,7 @@ public class DefaultMyChartAuthenticator implements MyChartAuthenticator {
 				.build();
 	}
 
-	@NotNull
+	@Nonnull
 	@Override
 	public MyChartAccessToken obtainAccessTokenFromCode(@Nonnull String code) throws MyChartException {
 		requireNonNull(code);
