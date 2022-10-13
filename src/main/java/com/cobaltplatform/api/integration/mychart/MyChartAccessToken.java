@@ -23,6 +23,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import java.time.Instant;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -41,39 +44,43 @@ public class MyChartAccessToken {
 	@Nonnull
 	private final Instant expiresAt;
 	@Nonnull
-	private final String refreshToken;
+	private final Map<String, Object> metadata;
 	@Nullable
 	private final String scope;
+	@Nullable
+	private final String refreshToken;
 
 	public MyChartAccessToken(@Nonnull String accessToken,
 														@Nonnull String tokenType,
 														@Nonnull Instant expiresAt,
-														@Nonnull String refreshToken) {
-		this(accessToken, tokenType, expiresAt, refreshToken, null);
+														@Nonnull Map<String, Object> metadata) {
+		this(accessToken, tokenType, expiresAt, metadata, null, null);
 	}
 
 	public MyChartAccessToken(@Nonnull String accessToken,
 														@Nonnull String tokenType,
 														@Nonnull Instant expiresAt,
-														@Nonnull String refreshToken,
-														@Nullable String scope) {
+														@Nonnull Map<String, Object> metadata,
+														@Nullable String scope,
+														@Nullable String refreshToken) {
 		requireNonNull(accessToken);
 		requireNonNull(tokenType);
 		requireNonNull(expiresAt);
-		requireNonNull(refreshToken);
+		requireNonNull(metadata);
 
 		this.accessToken = accessToken;
 		this.tokenType = tokenType;
 		this.expiresAt = expiresAt;
-		this.refreshToken = refreshToken;
+		this.metadata = Collections.unmodifiableMap(new HashMap<>(metadata));
 		this.scope = scope;
+		this.refreshToken = refreshToken;
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{accessToken=%s, tokenType=%s, expiresAt=%s, refreshToken=%s, scope=%s}",
+		return format("%s{accessToken=%s, tokenType=%s, expiresAt=%s, scope=%s, refreshToken=%s, metadata=%s}",
 				getClass().getSimpleName(), getAccessToken(), getTokenType(), getExpiresAt(),
-				getRefreshToken(), getScope());
+				getScope(), getRefreshToken(), getMetadata());
 	}
 
 	@Override
@@ -88,13 +95,13 @@ public class MyChartAccessToken {
 		return Objects.equals(this.getAccessToken(), otherMyChartAccessToken.getAccessToken())
 				&& Objects.equals(this.getTokenType(), otherMyChartAccessToken.getTokenType())
 				&& Objects.equals(this.getExpiresAt(), otherMyChartAccessToken.getExpiresAt())
-				&& Objects.equals(this.getRefreshToken(), otherMyChartAccessToken.getRefreshToken())
-				&& Objects.equals(this.getScope(), otherMyChartAccessToken.getScope());
+				&& Objects.equals(this.getScope(), otherMyChartAccessToken.getScope())
+				&& Objects.equals(this.getRefreshToken(), otherMyChartAccessToken.getRefreshToken());
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(getAccessToken(), getTokenType(), getExpiresAt(), getRefreshToken(), getScope());
+		return Objects.hash(getAccessToken(), getTokenType(), getExpiresAt(), getScope(), getRefreshToken());
 	}
 
 	@Nonnull
@@ -113,12 +120,17 @@ public class MyChartAccessToken {
 	}
 
 	@Nonnull
-	public String getRefreshToken() {
-		return this.refreshToken;
+	public Map<String, Object> getMetadata() {
+		return this.metadata;
 	}
 
 	@Nonnull
 	public Optional<String> getScope() {
 		return Optional.ofNullable(this.scope);
+	}
+
+	@Nonnull
+	public Optional<String> getRefreshToken() {
+		return Optional.ofNullable(this.refreshToken);
 	}
 }
