@@ -40,9 +40,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Optional;
 
-import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
-import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -50,10 +48,7 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @ThreadSafe
 public interface EpicClient {
 	@Nonnull
-	String getEpicUserId();
-
-	@Nonnull
-	String getEpicUsername();
+	EpicConfiguration getEpicConfiguration();
 
 	@Nonnull
 	PatientSearchResponse performPatientSearch(@Nonnull PatientSearchRequest request);
@@ -98,6 +93,7 @@ public interface EpicClient {
 	String formatPhoneNumber(@Nonnull String phoneNumber);
 
 	@Nonnull
+	@Deprecated
 	default Optional<String> determineLatestUIDForPatientIdentifier(@Nonnull String oldIdentifierId,
 																																	@Nonnull String oldIdentifierTypeId) {
 		requireNonNull(oldIdentifierId);
@@ -119,14 +115,6 @@ public interface EpicClient {
 	}
 
 	@Nonnull
-	default String determineEpicBaseUrl(@Nonnull EpicEnvironment epicEnvironment) {
-		requireNonNull(epicEnvironment);
-
-		throw new UnsupportedOperationException(format("Not sure what the base URL is for %s.%s",
-				EpicEnvironment.class.getSimpleName(), epicEnvironment.name()));
-	}
-
-	@Nonnull
 	default Optional<String> extractUIDFromPatientEntry(@Nonnull PatientSearchResponse.Entry patientEntry) {
 		requireNonNull(patientEntry);
 
@@ -134,31 +122,6 @@ public interface EpicClient {
 			for (PatientSearchResponse.Entry.Resource.Identifier identifier : patientEntry.getResource().getIdentifier())
 				if ("urn:oid:1.3.6.1.4.1.22812.19.44324.0".equals(identifier.getSystem()))
 					return Optional.of(identifier.getValue());
-
-		return Optional.empty();
-	}
-
-	@Nonnull
-	default Optional<String> extractSsnLastFourFromPatientEntry(@Nonnull PatientSearchResponse.Entry patientEntry) {
-		requireNonNull(patientEntry);
-
-		if (patientEntry.getResource().getIdentifier() != null) {
-			for (PatientSearchResponse.Entry.Resource.Identifier identifier : patientEntry.getResource().getIdentifier()) {
-				if ("urn:oid:2.16.840.1.113883.4.1".equals(identifier.getSystem())) {
-					if (identifier.getExtension() != null) {
-						for (PatientSearchResponse.Entry.Resource.Extension extension : identifier.getExtension()) {
-							String maskedSsn = trimToNull(extension.getValueString());
-
-							if (!"http://hl7.org/fhir/StructureDefinition/rendered-value".equals(extension.getUrl()) || maskedSsn == null || maskedSsn.length() != 11)
-								continue;
-
-							// Looks like xxx-xx-1429
-							return Optional.of(maskedSsn.substring(7));
-						}
-					}
-				}
-			}
-		}
 
 		return Optional.empty();
 	}

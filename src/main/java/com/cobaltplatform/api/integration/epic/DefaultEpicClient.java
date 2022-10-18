@@ -19,8 +19,6 @@
 
 package com.cobaltplatform.api.integration.epic;
 
-import com.cobaltplatform.api.Configuration;
-import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.http.DefaultHttpClient;
 import com.cobaltplatform.api.http.HttpClient;
 import com.cobaltplatform.api.http.HttpMethod;
@@ -40,10 +38,6 @@ import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleRespo
 import com.cobaltplatform.api.integration.epic.response.PatientCreateResponse;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse;
 import com.cobaltplatform.api.integration.epic.response.ScheduleAppointmentWithInsuranceResponse;
-import com.cobaltplatform.api.model.db.Account;
-import com.cobaltplatform.api.model.db.AuditLog;
-import com.cobaltplatform.api.model.db.AuditLogEvent;
-import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.util.Normalizer;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -54,7 +48,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
-import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -66,7 +59,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -82,21 +74,7 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @Singleton
 public class DefaultEpicClient implements EpicClient {
 	@Nonnull
-	private final EpicEnvironment epicEnvironment;
-	@Nonnull
-	private final String epicClientId;
-	@Nonnull
-	private final String epicUserId;
-	@Nonnull
-	private final String epicUsername;
-	@Nonnull
-	private final String epicPassword;
-	@Nonnull
-	private final String epicBaseUrl;
-	@Nullable
-	private final AuditLogService auditLogService;
-	@Nullable
-	private final Provider<CurrentContext> currentContextProvider;
+	private final EpicConfiguration epicConfiguration;
 	@Nonnull
 	private final HttpClient httpClient;
 	@Nonnull
@@ -116,56 +94,19 @@ public class DefaultEpicClient implements EpicClient {
 	@Nonnull
 	private final Logger logger;
 
-	public DefaultEpicClient(@Nonnull Configuration configuration,
-													 @Nullable AuditLogService auditLogService,
-													 @Nullable Provider<CurrentContext> currentContextProvider,
+	public DefaultEpicClient(@Nonnull EpicConfiguration epicConfiguration) {
+		this(epicConfiguration, null, null);
+	}
+
+	public DefaultEpicClient(@Nonnull EpicConfiguration epicConfiguration,
 													 @Nullable Normalizer normalizer,
 													 @Nullable String httpLoggingBaseName) {
-		this(configuration.getEpicEnvironment(),
-				configuration.getEpicClientId(),
-				configuration.getEpicUserId(),
-				configuration.getEpicUsername(),
-				configuration.getEpicPassword(),
-				normalizer,
-				httpLoggingBaseName,
-				auditLogService,
-				currentContextProvider);
-	}
+		requireNonNull(epicConfiguration);
 
-	public DefaultEpicClient(@Nonnull EpicEnvironment epicEnvironment,
-													 @Nonnull String epicClientId,
-													 @Nonnull String epicUserId,
-													 @Nonnull String epicUsername,
-													 @Nonnull String epicPassword) {
-		this(epicEnvironment, epicClientId, epicUserId, epicUsername, epicPassword, null, null, null, null);
-	}
-
-	public DefaultEpicClient(@Nonnull EpicEnvironment epicEnvironment,
-													 @Nonnull String epicClientId,
-													 @Nonnull String epicUserId,
-													 @Nonnull String epicUsername,
-													 @Nonnull String epicPassword,
-													 @Nullable Normalizer normalizer,
-													 @Nullable String httpLoggingBaseName,
-													 @Nullable AuditLogService auditLogService,
-													 @Nullable Provider<CurrentContext> currentContextProvider) {
-		requireNonNull(epicEnvironment);
-		requireNonNull(epicClientId);
-		requireNonNull(epicUserId);
-		requireNonNull(epicUsername);
-		requireNonNull(epicPassword);
-
-		this.epicEnvironment = epicEnvironment;
-		this.epicClientId = epicClientId;
-		this.epicUserId = epicUserId;
-		this.epicUsername = epicUsername;
-		this.epicPassword = epicPassword;
-		this.epicBaseUrl = determineEpicBaseUrl(epicEnvironment);
-		this.httpClient = createHttpClient(epicEnvironment, httpLoggingBaseName);
+		this.epicConfiguration = epicConfiguration;
+		this.httpClient = createHttpClient(epicConfiguration, httpLoggingBaseName);
 		this.gson = new GsonBuilder().setPrettyPrinting().create();
 		this.normalizer = normalizer == null ? new Normalizer() : normalizer;
-		this.auditLogService = auditLogService;
-		this.currentContextProvider = currentContextProvider;
 		this.dateFormatterHyphens = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.US); // e.g. 1987-04-21
 		this.dateFormatterSlashes = DateTimeFormatter.ofPattern("M/d/yyyy", Locale.US); // e.g. 6/8/2020
 		this.amPmTimeFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.US); // e.g. "8:00 AM"
@@ -407,7 +348,7 @@ public class DefaultEpicClient implements EpicClient {
 		if (queryParameters == null)
 			queryParameters = Collections.emptyMap();
 
-		String finalUrl = format("%s/%s", getEpicBaseUrl(), url);
+		String finalUrl = format("%s/%s", getEpicConfiguration().getBaseUrl(), url);
 		String basicAuthCredentials = format("emp$%s:%s", getEpicUsername(), getEpicPassword());
 		String encodedBasicAuthCredentials = Base64.getEncoder().encodeToString(basicAuthCredentials.getBytes(StandardCharsets.UTF_8));
 
@@ -415,9 +356,13 @@ public class DefaultEpicClient implements EpicClient {
 				.headers(new HashMap<String, Object>() {{
 					put("Authorization", format("Basic %s", encodedBasicAuthCredentials));
 					put("Content-Type", "application/json");
-					put("Epic-Client-ID", getEpicClientId());
-					put("Epic-User-ID", getEpicUserId());
-					put("Epic-User-IDType", "EXTERNAL");
+					put("Epic-Client-ID", getEpicConfiguration().getClientId());
+
+					if (getEpicConfiguration().getUserId().isPresent())
+						put("Epic-User-ID", getEpicConfiguration().getUserId().get());
+
+					if (getEpicConfiguration().getUserIdType().isPresent())
+						put("Epic-User-IDType", getEpicConfiguration().getUserIdType().get());
 				}});
 
 		if (queryParameters.size() > 0)
@@ -439,31 +384,6 @@ public class DefaultEpicClient implements EpicClient {
 			byte[] rawResponseBody = httpResponse.getBody().orElse(null);
 			String responseBody = rawResponseBody == null ? null : new String(rawResponseBody, StandardCharsets.UTF_8);
 
-			AuditLogService auditLogService = getAuditLogService().orElse(null);
-			AuditLog auditLog = null;
-
-			// TODO: clean this up...
-			if (auditLogService != null) {
-				Map<String, Object> payload = new HashMap<>();
-				payload.put("httpMethod", httpMethod.name());
-				payload.put("url", url);
-				payload.put("queryParameters", queryParameters);
-				payload.put("requestBody", requestBody);
-				payload.put("responseBody", responseBody);
-
-				CurrentContext currentContext = getCurrentContext().orElse(null);
-				Account account = currentContext == null ? null : currentContext.getAccount().orElse(null);
-
-				auditLog = new AuditLog();
-
-				if (account != null)
-					auditLog.setAccountId(account.getAccountId());
-
-				auditLog.setAuditLogEventId(AuditLogEvent.AuditLogEventId.EPIC_ERROR);
-				auditLog.setMessage(format("Error calling %s", url));
-				auditLog.setPayload(getGson().toJson(payload));
-			}
-
 			// TODO: parse messaging out into fields on EpicException for better error experience
 
 			// {
@@ -479,19 +399,12 @@ public class DefaultEpicClient implements EpicClient {
 			//   }
 			//}
 
-			if (httpResponse.getStatus() > 299) {
-				if (auditLog != null)
-					auditLogService.auditInSeparateTransaction(auditLog);
-
+			if (httpResponse.getStatus() > 299)
 				throw new EpicException(format("Bad HTTP response %d for EPIC endpoint %s %s with query params %s and request body %s. Response body was\n%s", httpResponse.getStatus(), httpRequest.getHttpMethod().name(), httpRequest.getUrl(), queryParametersDescription, requestBodyDescription, responseBody));
-			}
 
 			try {
 				return responseBodyMapper.apply(responseBody);
 			} catch (Exception e) {
-				if (auditLog != null)
-					auditLogService.auditInSeparateTransaction(auditLog);
-
 				throw new EpicException(format("Unable to parse JSON for EPIC endpoint %s %s with query params %s and request body %s. Response body was\n%s", httpRequest.getHttpMethod().name(), httpRequest.getUrl(), queryParametersDescription, requestBodyDescription, responseBody));
 			}
 		} catch (IOException e) {
@@ -500,14 +413,12 @@ public class DefaultEpicClient implements EpicClient {
 	}
 
 	@Nonnull
-	protected HttpClient createHttpClient(@Nonnull EpicEnvironment epicEnvironment,
+	protected HttpClient createHttpClient(@Nonnull EpicConfiguration epicConfiguration,
 																				@Nullable String httpLoggingBaseName) {
-		requireNonNull(epicEnvironment);
+		requireNonNull(epicConfiguration);
 
 		httpLoggingBaseName = httpLoggingBaseName == null ? "com.cobaltplatform.api.integration.epic" : httpLoggingBaseName;
-
-		boolean permitUnsafeCerts = epicEnvironment == EpicEnvironment.COBALT;
-		return new DefaultHttpClient(httpLoggingBaseName, permitUnsafeCerts);
+		return new DefaultHttpClient(httpLoggingBaseName, epicConfiguration.getPermitUnsafeCerts());
 	}
 
 	@Nonnull
@@ -519,88 +430,48 @@ public class DefaultEpicClient implements EpicClient {
 
 	@Nonnull
 	@Override
-	public String getEpicUserId() {
-		return epicUserId;
-	}
-
-	@Nonnull
-	@Override
-	public String getEpicUsername() {
-		return epicUsername;
-	}
-
-	@Nonnull
-	protected EpicEnvironment getEpicEnvironment() {
-		return epicEnvironment;
-	}
-
-	@Nonnull
-	protected String getEpicClientId() {
-		return epicClientId;
-	}
-
-	@Nonnull
-	protected String getEpicPassword() {
-		return epicPassword;
-	}
-
-	@Nonnull
-	protected String getEpicBaseUrl() {
-		return epicBaseUrl;
+	public EpicConfiguration getEpicConfiguration() {
+		return this.epicConfiguration;
 	}
 
 	@Nonnull
 	protected HttpClient getHttpClient() {
-		return httpClient;
+		return this.httpClient;
 	}
 
 	@Nonnull
 	protected DateTimeFormatter getDateFormatterHyphens() {
-		return dateFormatterHyphens;
+		return this.dateFormatterHyphens;
 	}
 
 	@Nonnull
 	protected DateTimeFormatter getDateFormatterSlashes() {
-		return dateFormatterSlashes;
+		return this.dateFormatterSlashes;
 	}
 
 	@Nonnull
 	protected DateTimeFormatter getAmPmTimeFormatter() {
-		return amPmTimeFormatter;
+		return this.amPmTimeFormatter;
 	}
 
 	@Nonnull
 	protected DateTimeFormatter getMilitaryTimeFormatter() {
-		return militaryTimeFormatter;
+		return this.militaryTimeFormatter;
 	}
 
 	@Nonnull
 	protected Gson getGson() {
-		return gson;
+		return this.gson;
 	}
 
 	@Nonnull
 	protected Normalizer getNormalizer() {
-		return normalizer;
+		return this.normalizer;
 	}
 
 	@Nonnull
 	protected Pattern getPhoneNumberPattern() {
-		return phoneNumberPattern;
-	}
-
-	@Nonnull
-	protected Optional<AuditLogService> getAuditLogService() {
-		return Optional.ofNullable(auditLogService);
-	}
-
-	@Nonnull
-	protected Optional<CurrentContext> getCurrentContext() {
-		try {
-			return Optional.ofNullable(currentContextProvider.get());
-		} catch (Exception e) {
-			return Optional.empty();
-		}
+		return this.phoneNumberPattern;
 	}
 
 	@Nonnull

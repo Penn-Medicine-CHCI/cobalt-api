@@ -124,7 +124,8 @@ public class Institution {
 	private String ga4MeasurementId;
 
 	public enum InstitutionId {
-		COBALT
+		COBALT,
+		COBALT_IC,
 	}
 
 	@Override

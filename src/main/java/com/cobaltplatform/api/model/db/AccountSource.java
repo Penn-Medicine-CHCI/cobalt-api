@@ -46,6 +46,7 @@ public class AccountSource {
 		COBALT_SSO,
 		ANONYMOUS,
 		EMAIL_PASSWORD,
+		MYCHART,
 	}
 
 	@Override

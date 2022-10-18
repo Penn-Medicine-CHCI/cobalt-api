@@ -48,14 +48,11 @@ import java.util.Collections;
 public class MockEpicClient implements EpicClient {
 	@Nonnull
 	@Override
-	public String getEpicUserId() {
-		return "fake-user-id";
-	}
-
-	@Nonnull
-	@Override
-	public String getEpicUsername() {
-		return "fake-username";
+	public EpicConfiguration getEpicConfiguration() {
+		return new EpicConfiguration.Builder(
+				"fake-client-id",
+				"https://www.example.com"
+		).build();
 	}
 
 	@Nonnull

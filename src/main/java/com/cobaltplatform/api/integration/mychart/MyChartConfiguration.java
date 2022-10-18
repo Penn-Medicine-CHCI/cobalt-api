@@ -30,8 +30,6 @@ public class MyChartConfiguration {
 	@Nullable
 	private String clientId;
 	@Nullable
-	private String clientSecret;
-	@Nullable
 	private String responseType; // e.g. "code"
 	@Nullable
 	private String scope; // e.g. "patient/*.* user/*.*"
@@ -49,15 +47,6 @@ public class MyChartConfiguration {
 
 	public void setClientId(@Nullable String clientId) {
 		this.clientId = clientId;
-	}
-
-	@Nullable
-	public String getClientSecret() {
-		return this.clientSecret;
-	}
-
-	public void setClientSecret(@Nullable String clientSecret) {
-		this.clientSecret = clientSecret;
 	}
 
 	@Nullable
