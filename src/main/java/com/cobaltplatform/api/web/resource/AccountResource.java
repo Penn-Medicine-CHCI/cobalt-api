@@ -529,7 +529,7 @@ public class AccountResource {
 
 		final int MAXIMUM_CONTENTS = 12;
 
-		List<Content> contents = getContentService().findContentForAccount(account, Optional.empty(), Optional.empty());
+		List<Content> contents = getContentService().findContentForAccount(account);
 
 		// Don't show too many content pieces
 		if (contents.size() > MAXIMUM_CONTENTS)

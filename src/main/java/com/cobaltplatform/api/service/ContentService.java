@@ -33,6 +33,8 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.ApprovalStatus;
+import com.cobaltplatform.api.model.db.Assessment;
+import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
 import com.cobaltplatform.api.model.db.AvailableStatus;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.ContentType;
@@ -41,8 +43,6 @@ import com.cobaltplatform.api.model.db.ContentTypeLabel;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Visibility;
-import com.cobaltplatform.api.model.db.Assessment;
-import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
 import com.cobaltplatform.api.model.service.AdminContent;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.util.Formatter;
@@ -171,7 +171,7 @@ public class ContentService {
 			return Optional.empty();
 
 		if (content.getContentTypeId().compareTo(ContentTypeId.INT_BLOG) == 0
-			|| content.getContentTypeId().compareTo(ContentTypeId.EXT_BLOG) == 0) {
+				|| content.getContentTypeId().compareTo(ContentTypeId.EXT_BLOG) == 0) {
 			String description = trimToEmpty(content.getDescription());
 			UrlDetector parser = new UrlDetector(description, UrlDetectorOptions.Default);
 			List<Url> urls = parser.detect();
@@ -748,8 +748,8 @@ public class ContentService {
 
 		AdminContent adminContent = findAdminContentByIdForInstitution(account.getInstitutionId(), command.getContentId()).orElse(null);
 
-		if(adminContent == null) {
-			if(addToInstitution) {
+		if (adminContent == null) {
+			if (addToInstitution) {
 				Content content = findContentById(command.getContentId()).get();
 				adminContent = findAdminContentByIdForInstitution(content.getOwnerInstitutionId(), command.getContentId()).get();
 			} else {
@@ -839,10 +839,20 @@ public class ContentService {
 	}
 
 	@Nonnull
-	public List<Content> findContentForAccount(@Nonnull Account account,
-																						 @Nonnull Optional<String> format,
-																						 @Nonnull Optional<Integer> maxLengthMinutes) {
+	public List<Content> findContentForAccount(@Nonnull Account account) {
 		requireNonNull(account);
+		return findContentForAccount(account, null, null, null);
+	}
+
+	@Nonnull
+	public List<Content> findContentForAccount(@Nonnull Account account,
+																						 @Nullable String format,
+																						 @Nullable Integer maxLengthMinutes,
+																						 @Nullable String searchQuery) {
+		requireNonNull(account);
+
+		format = trimToNull(format);
+		searchQuery = trimToNull(searchQuery);
 
 		List<Content> content = new ArrayList<>();
 		Optional<AccountSession> accountSession = getSessionService().getCurrentIntroSessionForAccount(
@@ -873,32 +883,37 @@ public class ContentService {
 		parameters.add(accountSession.get().getAccountSessionId());
 		parameters.add(account.getInstitutionId());
 
-		//Do not show internal blog posts to anon users
+		if (searchQuery != null) {
+			query.append("AND ((c.en_search_vector @@ websearch_to_tsquery('english', ?)) OR (c.title ILIKE CONCAT('%',?,'%') OR c.description ILIKE CONCAT('%',?,'%'))) ");
+			parameters.add(searchQuery);
+			parameters.add(searchQuery);
+			parameters.add(searchQuery);
+		}
+
+		// Do not show internal blog posts to anon users
 		if (account.getAccountSourceId().compareTo(AccountSource.AccountSourceId.ANONYMOUS) == 0) {
 			query.append("AND content_type_id != ? ");
 			parameters.add(ContentTypeId.INT_BLOG);
 		}
 
-		if (format.isPresent() && format.get() != null) {
-			String formatList = Arrays.asList(format.get().split(","))
+		if (format != null) {
+			String formatList = Arrays.asList(format.split(","))
 					.stream().map(c -> String.format("'%s'", c))
 					.collect(Collectors.joining(","));
 			query.append(String.format("AND c.content_type_label_id IN (%s) ", formatList));
 		}
 
-		if (maxLengthMinutes.isPresent() && maxLengthMinutes.get() != null) {
+		if (maxLengthMinutes != null) {
 			query.append("AND duration_in_minutes <= ? ");
-			parameters.add(maxLengthMinutes.get());
+			parameters.add(maxLengthMinutes);
 		}
 
 		query.append(GROUP_BY);
 		query.append(ORDER_BY);
 
-		logger.debug(query.toString());
-		content = getDatabase().queryForList(query.toString(),
-				Content.class, parameters.toArray());
+		content = getDatabase().queryForList(query.toString(), Content.class, parameters.toArray());
 
-		return (content);
+		return content;
 	}
 
 	@Nonnull
