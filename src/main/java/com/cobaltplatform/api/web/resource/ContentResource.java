@@ -79,11 +79,16 @@ public class ContentResource {
 
 	@GET("/content")
 	@AuthenticationRequired
-	public ApiResponse getContent(@QueryParameter Optional<String> format,
-																@QueryParameter Optional<Integer> maxLengthMinutes) {
+	public ApiResponse getContent(@Nonnull @QueryParameter Optional<String> format,
+																@Nonnull @QueryParameter Optional<Integer> maxLengthMinutes,
+																@Nonnull @QueryParameter Optional<String> searchQuery) {
+		requireNonNull(format);
+		requireNonNull(maxLengthMinutes);
+		requireNonNull(searchQuery);
+
 		Account account = getCurrentContext().getAccount().get();
-		List<Content> contents =
-				getContentService().findContentForAccount(account, format, maxLengthMinutes);
+		List<Content> contents = getContentService().findContentForAccount(account, format.orElse(null),
+				maxLengthMinutes.orElse(null), searchQuery.orElse(null));
 
 		List<ContentApiResponse> filteredContent = contents.stream().map(
 				content -> getContentApiResponseFactory().create(content)).collect(Collectors.toList());
