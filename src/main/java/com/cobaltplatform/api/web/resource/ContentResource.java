@@ -98,9 +98,20 @@ public class ContentResource {
 						content -> getContentApiResponseFactory().create(content)).collect(Collectors.toList());
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("formats", getContentService().findContentTypeLabelsForAccount(account));
 			put("content", filteredContent);
 			put("additionalContent", additionalContent);
+
+			// TODO: remove this once FE no longer uses it
+			put("formats", getContentService().findContentTypeLabelsForAccount(account));
+		}});
+	}
+
+	@GET("/content-type-labels")
+	@AuthenticationRequired
+	public ApiResponse contentTypeLabels() {
+		Account account = getCurrentContext().getAccount().get();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("content-type-labels", getContentService().findContentTypeLabelsForAccount(account));
 		}});
 	}
 
