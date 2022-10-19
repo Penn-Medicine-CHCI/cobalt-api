@@ -111,7 +111,7 @@ public class ContentResource {
 	public ApiResponse contentTypeLabels() {
 		Account account = getCurrentContext().getAccount().get();
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("content-type-labels", getContentService().findContentTypeLabelsForAccount(account));
+			put("contentTypeLabels", getContentService().findContentTypeLabelsForAccount(account));
 		}});
 	}
 
