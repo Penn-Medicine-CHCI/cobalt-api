@@ -778,11 +778,24 @@ public class ContentService {
 
 	@Nonnull
 	public List<Content> findAdditionalContentForAccount(@Nonnull Account account,
-																											 @Nonnull List<Content> filteredContent,
-																											 @Nonnull Optional<String> format,
-																											 @Nonnull Optional<Integer> maxLengthMinutes) {
+																											 @Nonnull List<Content> filteredContent) {
 		requireNonNull(account);
 		requireNonNull(filteredContent);
+
+		return findAdditionalContentForAccount(account, filteredContent, null, null, null);
+	}
+
+	@Nonnull
+	public List<Content> findAdditionalContentForAccount(@Nonnull Account account,
+																											 @Nonnull List<Content> filteredContent,
+																											 @Nullable String format,
+																											 @Nullable Integer maxLengthMinutes,
+																											 @Nullable String searchQuery) {
+		requireNonNull(account);
+		requireNonNull(filteredContent);
+
+		format = trimToNull(format);
+		searchQuery = trimToNull(searchQuery);
 
 		List<Object> unfilteredParameters = new ArrayList();
 		StringBuilder unfilteredQuery = new StringBuilder("SELECT DISTINCT ON (c.content_id, c.created, new_flag) c.* , " +
@@ -800,16 +813,16 @@ public class ContentService {
 			unfilteredParameters.add(ContentTypeId.INT_BLOG);
 		}
 
-		if (format.isPresent() && format.get() != null) {
-			String formatList = Arrays.asList(format.get().split(","))
+		if (format != null) {
+			String formatList = Arrays.asList(format.split(","))
 					.stream().map(c -> String.format("'%s'", c))
 					.collect(Collectors.joining(","));
 			unfilteredQuery.append(String.format("AND c.content_type_label_id IN (%s) ", formatList));
 		}
 
-		if (maxLengthMinutes.isPresent() && maxLengthMinutes.get() != null) {
+		if (maxLengthMinutes != null) {
 			unfilteredQuery.append("AND duration_in_minutes <= ? ");
-			unfilteredParameters.add(maxLengthMinutes.get());
+			unfilteredParameters.add(maxLengthMinutes);
 		}
 
 		String inList = filteredContent.stream().map(c -> String.format("'%s'", c.getContentId().toString()))
@@ -817,6 +830,13 @@ public class ContentService {
 
 		if (trimToNull(inList) != null)
 			unfilteredQuery.append(String.format(" AND c.content_id NOT IN (%s) ", inList));
+
+		if (searchQuery != null) {
+			unfilteredQuery.append("AND ((c.en_search_vector @@ websearch_to_tsquery('english', ?)) OR (c.title ILIKE CONCAT('%',?,'%') OR c.description ILIKE CONCAT('%',?,'%'))) ");
+			unfilteredParameters.add(searchQuery);
+			unfilteredParameters.add(searchQuery);
+			unfilteredParameters.add(searchQuery);
+		}
 
 		unfilteredQuery.append(ORDER_BY);
 

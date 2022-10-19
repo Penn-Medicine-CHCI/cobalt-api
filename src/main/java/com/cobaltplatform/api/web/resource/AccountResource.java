@@ -535,7 +535,7 @@ public class AccountResource {
 		if (contents.size() > MAXIMUM_CONTENTS)
 			contents = contents.subList(0, MAXIMUM_CONTENTS /* exclusive */);
 		else if (contents.size() < MAXIMUM_CONTENTS) {
-			contents.addAll(getContentService().findAdditionalContentForAccount(account, contents, Optional.empty(), Optional.empty()));
+			contents.addAll(getContentService().findAdditionalContentForAccount(account, contents));
 			contents = contents.subList(0, min(contents.size(), MAXIMUM_CONTENTS));
 		}
 
