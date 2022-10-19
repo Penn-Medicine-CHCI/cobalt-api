@@ -94,7 +94,7 @@ public class ContentResource {
 				content -> getContentApiResponseFactory().create(content)).collect(Collectors.toList());
 
 		List<ContentApiResponse> additionalContent =
-				getContentService().findAdditionalContentForAccount(account, contents, format, maxLengthMinutes).stream().map(
+				getContentService().findAdditionalContentForAccount(account, contents, format.orElse(null), maxLengthMinutes.orElse(null), searchQuery.orElse(null)).stream().map(
 						content -> getContentApiResponseFactory().create(content)).collect(Collectors.toList());
 
 		return new ApiResponse(new HashMap<String, Object>() {{
