@@ -317,6 +317,50 @@ public class ScreeningService {
 	}
 
 	@Nonnull
+	public List<ScreeningSession> findScreeningSessionsByScreeningFlowIdAndTargetAccountId(@Nullable UUID screeningFlowId,
+																																												 @Nullable UUID targetAccountId) {
+		if (screeningFlowId == null || targetAccountId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+						SELECT ss.* FROM screening_session ss, screening_flow_version sfv 
+						WHERE sfv.screening_flow_id=? AND ss.screening_flow_version_id=sfv.screening_flow_version_id 
+						AND ss.target_account_id=?
+						ORDER BY ss.created DESC
+						""",
+				ScreeningSession.class, screeningFlowId, targetAccountId);
+	}
+
+	@Nonnull
+	public Optional<ScreeningSession> findMostRecentlyCompletedScreeningSessionByScreeningFlowAndTargetAccountId(@Nullable UUID screeningFlowId,
+																																																							 @Nullable UUID targetAccountId) {
+		if (screeningFlowId == null || targetAccountId == null)
+			return Optional.empty();
+
+		List<ScreeningSession> completedScreeningSessions = findScreeningSessionsByScreeningFlowIdAndTargetAccountId(screeningFlowId, targetAccountId).stream()
+				.filter(screeningSession -> screeningSession.getCompleted() && !screeningSession.getSkipped())
+				.collect(Collectors.toList());
+
+		// Most recently completed first
+		Collections.sort(completedScreeningSessions, (ss1, ss2) -> ss2.getCompletedAt().compareTo(ss1.getCompletedAt()));
+
+		return Optional.ofNullable(completedScreeningSessions.size() > 0 ? completedScreeningSessions.get(0) : null);
+	}
+
+	@Nonnull
+	public List<ScreeningSessionScreening> findScreeningSessionScreeningsByScreeningSessionId(@Nullable UUID screeningSessionId) {
+		if (screeningSessionId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+				SELECT * 
+				FROM v_screening_session_screening 
+				WHERE screening_session_id=? 
+				ORDER BY screening_order
+				""", ScreeningSessionScreening.class, screeningSessionId);
+	}
+
+	@Nonnull
 	public UUID createScreeningSession(@Nonnull CreateScreeningSessionRequest request) {
 		requireNonNull(request);
 
