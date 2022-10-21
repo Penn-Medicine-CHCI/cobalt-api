@@ -529,13 +529,13 @@ public class AccountResource {
 
 		final int MAXIMUM_CONTENTS = 12;
 
-		List<Content> contents = getContentService().findContentForAccount(account, Optional.empty(), Optional.empty());
+		List<Content> contents = getContentService().findContentForAccount(account);
 
 		// Don't show too many content pieces
 		if (contents.size() > MAXIMUM_CONTENTS)
 			contents = contents.subList(0, MAXIMUM_CONTENTS /* exclusive */);
 		else if (contents.size() < MAXIMUM_CONTENTS) {
-			contents.addAll(getContentService().findAdditionalContentForAccount(account, contents, Optional.empty(), Optional.empty()));
+			contents.addAll(getContentService().findAdditionalContentForAccount(account, contents));
 			contents = contents.subList(0, min(contents.size(), MAXIMUM_CONTENTS));
 		}
 

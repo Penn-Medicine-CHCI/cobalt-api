@@ -79,23 +79,39 @@ public class ContentResource {
 
 	@GET("/content")
 	@AuthenticationRequired
-	public ApiResponse getContent(@QueryParameter Optional<String> format,
-																@QueryParameter Optional<Integer> maxLengthMinutes) {
+	public ApiResponse getContent(@Nonnull @QueryParameter Optional<String> format,
+																@Nonnull @QueryParameter Optional<Integer> maxLengthMinutes,
+																@Nonnull @QueryParameter Optional<String> searchQuery) {
+		requireNonNull(format);
+		requireNonNull(maxLengthMinutes);
+		requireNonNull(searchQuery);
+
 		Account account = getCurrentContext().getAccount().get();
-		List<Content> contents =
-				getContentService().findContentForAccount(account, format, maxLengthMinutes);
+		List<Content> contents = getContentService().findContentForAccount(account, format.orElse(null),
+				maxLengthMinutes.orElse(null), searchQuery.orElse(null));
 
 		List<ContentApiResponse> filteredContent = contents.stream().map(
 				content -> getContentApiResponseFactory().create(content)).collect(Collectors.toList());
 
 		List<ContentApiResponse> additionalContent =
-				getContentService().findAdditionalContentForAccount(account, contents, format, maxLengthMinutes).stream().map(
+				getContentService().findAdditionalContentForAccount(account, contents, format.orElse(null), maxLengthMinutes.orElse(null), searchQuery.orElse(null)).stream().map(
 						content -> getContentApiResponseFactory().create(content)).collect(Collectors.toList());
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("formats", getContentService().findContentTypeLabelsForAccount(account));
 			put("content", filteredContent);
 			put("additionalContent", additionalContent);
+
+			// TODO: remove this once FE no longer uses it
+			put("formats", getContentService().findContentTypeLabelsForAccount(account));
+		}});
+	}
+
+	@GET("/content-type-labels")
+	@AuthenticationRequired
+	public ApiResponse contentTypeLabels() {
+		Account account = getCurrentContext().getAccount().get();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("contentTypeLabels", getContentService().findContentTypeLabelsForAccount(account));
 		}});
 	}
 
