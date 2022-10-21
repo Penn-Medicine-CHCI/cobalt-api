@@ -123,6 +123,39 @@ public class Institution {
 	@DatabaseColumn("ga4_measurement_id")
 	private String ga4MeasurementId;
 
+	// EPIC / MyChart configuration
+
+	@Nullable
+	private String epicClientId;
+	@Nullable
+	private String epicUserId;
+	@Nullable
+	private String epicUserIdType;
+	@Nullable
+	private String epicUsername;
+	@Nullable
+	private String epicPassword;
+	@Nullable
+	private String epicBaseUrl;
+	@Nullable
+	@DatabaseColumn("mychart_client_id") // In DB, it's "mychart", in code, it's "MyChart"
+	private String myChartClientId;
+	@Nullable
+	@DatabaseColumn("mychart_scope")
+	private String myChartScope;
+	@Nullable
+	@DatabaseColumn("mychart_response_type")
+	private String myChartResponseType;
+	@Nullable
+	@DatabaseColumn("mychart_token_url")
+	private String myChartTokenUrl;
+	@Nullable
+	@DatabaseColumn("mychart_authorize_url")
+	private String myChartAuthorizeUrl;
+	@Nullable
+	@DatabaseColumn("mychart_callback_url")
+	private String myChartCallbackUrl;
+
 	public enum InstitutionId {
 		COBALT,
 		COBALT_IC,
@@ -527,5 +560,113 @@ public class Institution {
 
 	public void setGa4MeasurementId(@Nullable String ga4MeasurementId) {
 		this.ga4MeasurementId = ga4MeasurementId;
+	}
+
+	@Nullable
+	public String getEpicClientId() {
+		return this.epicClientId;
+	}
+
+	public void setEpicClientId(@Nullable String epicClientId) {
+		this.epicClientId = epicClientId;
+	}
+
+	@Nullable
+	public String getEpicUserId() {
+		return this.epicUserId;
+	}
+
+	public void setEpicUserId(@Nullable String epicUserId) {
+		this.epicUserId = epicUserId;
+	}
+
+	@Nullable
+	public String getEpicUserIdType() {
+		return this.epicUserIdType;
+	}
+
+	public void setEpicUserIdType(@Nullable String epicUserIdType) {
+		this.epicUserIdType = epicUserIdType;
+	}
+
+	@Nullable
+	public String getEpicUsername() {
+		return this.epicUsername;
+	}
+
+	public void setEpicUsername(@Nullable String epicUsername) {
+		this.epicUsername = epicUsername;
+	}
+
+	@Nullable
+	public String getEpicPassword() {
+		return this.epicPassword;
+	}
+
+	public void setEpicPassword(@Nullable String epicPassword) {
+		this.epicPassword = epicPassword;
+	}
+
+	@Nullable
+	public String getEpicBaseUrl() {
+		return this.epicBaseUrl;
+	}
+
+	public void setEpicBaseUrl(@Nullable String epicBaseUrl) {
+		this.epicBaseUrl = epicBaseUrl;
+	}
+
+	@Nullable
+	public String getMyChartClientId() {
+		return this.myChartClientId;
+	}
+
+	public void setMyChartClientId(@Nullable String myChartClientId) {
+		this.myChartClientId = myChartClientId;
+	}
+
+	@Nullable
+	public String getMyChartScope() {
+		return this.myChartScope;
+	}
+
+	public void setMyChartScope(@Nullable String myChartScope) {
+		this.myChartScope = myChartScope;
+	}
+
+	@Nullable
+	public String getMyChartResponseType() {
+		return this.myChartResponseType;
+	}
+
+	public void setMyChartResponseType(@Nullable String myChartResponseType) {
+		this.myChartResponseType = myChartResponseType;
+	}
+
+	@Nullable
+	public String getMyChartTokenUrl() {
+		return this.myChartTokenUrl;
+	}
+
+	public void setMyChartTokenUrl(@Nullable String myChartTokenUrl) {
+		this.myChartTokenUrl = myChartTokenUrl;
+	}
+
+	@Nullable
+	public String getMyChartAuthorizeUrl() {
+		return this.myChartAuthorizeUrl;
+	}
+
+	public void setMyChartAuthorizeUrl(@Nullable String myChartAuthorizeUrl) {
+		this.myChartAuthorizeUrl = myChartAuthorizeUrl;
+	}
+
+	@Nullable
+	public String getMyChartCallbackUrl() {
+		return this.myChartCallbackUrl;
+	}
+
+	public void setMyChartCallbackUrl(@Nullable String myChartCallbackUrl) {
+		this.myChartCallbackUrl = myChartCallbackUrl;
 	}
 }

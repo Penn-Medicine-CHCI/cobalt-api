@@ -3,7 +3,9 @@ package com.cobaltplatform.api.integration.epic;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 import static java.util.Objects.requireNonNull;
 
@@ -22,6 +24,8 @@ public class EpicConfiguration {
 	private final String username;
 	@Nullable
 	private final String password;
+	@Nonnull
+	private final Consumer<Map<String, String>> requestHeaderCustomizer;
 
 	protected EpicConfiguration(@Nonnull EpicConfiguration.Builder builder) {
 		requireNonNull(builder);
@@ -33,6 +37,9 @@ public class EpicConfiguration {
 		this.userIdType = builder.userIdType;
 		this.username = builder.username;
 		this.password = builder.password;
+		this.requestHeaderCustomizer = builder.requestHeaderCustomizer == null ? (requestHeaders -> {
+			// no-op
+		}) : builder.requestHeaderCustomizer;
 	}
 
 	@Nonnull
@@ -70,6 +77,11 @@ public class EpicConfiguration {
 		return Optional.ofNullable(this.password);
 	}
 
+	@Nonnull
+	public Consumer<Map<String, String>> getRequestHeaderCustomizer() {
+		return this.requestHeaderCustomizer;
+	}
+
 	@NotThreadSafe
 	public static class Builder {
 		@Nonnull
@@ -86,6 +98,8 @@ public class EpicConfiguration {
 		private String username;
 		@Nullable
 		private String password;
+		@Nullable
+		private Consumer<Map<String, String>> requestHeaderCustomizer;
 
 		@Nonnull
 		public Builder(@Nonnull String clientId,
@@ -124,6 +138,12 @@ public class EpicConfiguration {
 		@Nonnull
 		public Builder password(@Nullable String password) {
 			this.password = password;
+			return this;
+		}
+
+		@Nonnull
+		public Builder requestHeaderCustomizer(@Nullable Consumer<Map<String, String>> requestHeaderCustomizer) {
+			this.requestHeaderCustomizer = requestHeaderCustomizer;
 			return this;
 		}
 

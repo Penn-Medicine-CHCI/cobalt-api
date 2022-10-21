@@ -39,9 +39,6 @@ import com.cobaltplatform.api.integration.bluejeans.BluejeansClient;
 import com.cobaltplatform.api.integration.bluejeans.DefaultBluejeansClient;
 import com.cobaltplatform.api.integration.bluejeans.MockBluejeansClient;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
-import com.cobaltplatform.api.integration.epic.DefaultEpicClient;
-import com.cobaltplatform.api.integration.epic.EpicClient;
-import com.cobaltplatform.api.integration.epic.MockEpicClient;
 import com.cobaltplatform.api.integration.ic.DefaultIcClient;
 import com.cobaltplatform.api.integration.ic.IcClient;
 import com.cobaltplatform.api.integration.ic.MockIcClient;
@@ -111,14 +108,10 @@ import com.cobaltplatform.api.model.api.response.SpecialtyApiResponse.SpecialtyA
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TopicCenterApiResponse.TopicCenterApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.TopicCenterRowApiResponse;
 import com.cobaltplatform.api.model.api.response.TopicCenterRowApiResponse.TopicCenterRowApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.VisitTypeApiResponse.VisitTypeApiResponseFactory;
-import com.cobaltplatform.api.model.qualifier.AuditLogged;
-import com.cobaltplatform.api.model.qualifier.NotAuditLogged;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.cobaltplatform.api.service.AccountService;
-import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.AmazonSqsManager;
 import com.cobaltplatform.api.util.Authenticator;
@@ -414,40 +407,6 @@ public class AppModule extends AbstractModule {
 			return new DefaultAcuitySchedulingClient(configuration);
 
 		return new MockAcuitySchedulingClient();
-	}
-
-	@AuditLogged
-	@Provides
-	@Singleton
-	@Nonnull
-	public EpicClient provideAuditLoggedEpicClient(@Nonnull Configuration configuration,
-																								 @Nonnull Provider<CurrentContext> currentContextProvider,
-																								 @Nonnull Normalizer normalizer,
-																								 @Nonnull AuditLogService auditLogService) {
-		requireNonNull(configuration);
-		requireNonNull(currentContextProvider);
-		requireNonNull(normalizer);
-		requireNonNull(auditLogService);
-
-		if (configuration.getShouldUseRealEpic())
-			return new DefaultEpicClient(configuration, auditLogService, currentContextProvider, normalizer, "com.cobaltplatform.api.integration.epic.sync.http");
-
-		return new MockEpicClient();
-	}
-
-	@NotAuditLogged
-	@Provides
-	@Singleton
-	@Nonnull
-	public EpicClient provideNotAuditLoggedEpicClient(@Nonnull Configuration configuration,
-																										@Nonnull Normalizer normalizer) {
-		requireNonNull(configuration);
-		requireNonNull(normalizer);
-
-		if (configuration.getShouldUseRealEpic())
-			return new DefaultEpicClient(configuration, null, null, normalizer, "com.cobaltplatform.api.integration.epic.sync.http");
-
-		return new MockEpicClient();
 	}
 
 	@Provides

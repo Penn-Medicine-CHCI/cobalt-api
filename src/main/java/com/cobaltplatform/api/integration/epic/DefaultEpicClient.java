@@ -54,7 +54,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
@@ -349,21 +348,15 @@ public class DefaultEpicClient implements EpicClient {
 			queryParameters = Collections.emptyMap();
 
 		String finalUrl = format("%s/%s", getEpicConfiguration().getBaseUrl(), url);
-		String basicAuthCredentials = format("emp$%s:%s", getEpicUsername(), getEpicPassword());
-		String encodedBasicAuthCredentials = Base64.getEncoder().encodeToString(basicAuthCredentials.getBytes(StandardCharsets.UTF_8));
+
+		Map<String, String> headers = new HashMap<>();
+		headers.put("Content-Type", "application/json");
+
+		// Allow configuration to modify headers
+		getEpicConfiguration().getRequestHeaderCustomizer().accept(headers);
 
 		HttpRequest.Builder httpRequestBuilder = new HttpRequest.Builder(httpMethod, finalUrl)
-				.headers(new HashMap<String, Object>() {{
-					put("Authorization", format("Basic %s", encodedBasicAuthCredentials));
-					put("Content-Type", "application/json");
-					put("Epic-Client-ID", getEpicConfiguration().getClientId());
-
-					if (getEpicConfiguration().getUserId().isPresent())
-						put("Epic-User-ID", getEpicConfiguration().getUserId().get());
-
-					if (getEpicConfiguration().getUserIdType().isPresent())
-						put("Epic-User-IDType", getEpicConfiguration().getUserIdType().get());
-				}});
+				.headers(Collections.<String, Object>unmodifiableMap(headers));
 
 		if (queryParameters.size() > 0)
 			httpRequestBuilder.queryParameters(queryParameters);

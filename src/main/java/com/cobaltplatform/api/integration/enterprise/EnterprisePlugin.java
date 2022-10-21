@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.integration.enterprise;
 
+import com.cobaltplatform.api.integration.epic.EpicClient;
+import com.cobaltplatform.api.integration.mychart.MyChartAuthenticator;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -53,5 +55,15 @@ public interface EnterprisePlugin {
 	default List<CallToAction> determineCallsToAction(@Nullable Account account,
 																										@Nullable CallToActionDisplayAreaId callToActionDisplayAreaId) {
 		return Collections.emptyList();
+	}
+
+	@Nonnull
+	default Optional<EpicClient> epicClient() {
+		return Optional.empty();
+	}
+
+	@Nonnull
+	default Optional<MyChartAuthenticator> myChartAuthenticator() {
+		return Optional.empty();
 	}
 }
