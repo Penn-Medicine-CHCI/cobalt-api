@@ -51,9 +51,6 @@ import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
-import com.linkedin.urls.Url;
-import com.linkedin.urls.detection.UrlDetector;
-import com.linkedin.urls.detection.UrlDetectorOptions;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -169,23 +166,6 @@ public class ContentService {
 
 		if (content == null)
 			return Optional.empty();
-
-		if (content.getContentTypeId().compareTo(ContentTypeId.INT_BLOG) == 0
-				|| content.getContentTypeId().compareTo(ContentTypeId.EXT_BLOG) == 0) {
-			String description = trimToEmpty(content.getDescription());
-			UrlDetector parser = new UrlDetector(description, UrlDetectorOptions.Default);
-			List<Url> urls = parser.detect();
-
-			for (Url url : urls) {
-				description = description.replace(url.getOriginalUrl(),
-						String.format(("<a href='%s' target='_blank'>%s</a>"), url.getOriginalUrl(), url.getOriginalUrl()));
-			}
-			description = description.replaceAll("\n", "</br>");
-			description = description.replaceAll("\r", "</br>");
-			description = description.replaceAll("Q:", "<strong>Q:</strong>");
-			description = description.replaceAll("A:", "</br> <strong>A:</strong>");
-			content.setDescription(description);
-		}
 
 		return Optional.of(content);
 	}
