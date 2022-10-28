@@ -86,7 +86,7 @@ public class ScreeningFlowVersionApiResponse {
 	public UUID getInitialScreeningId() {
 		return this.initialScreeningId;
 	}
-
+	
 	@Nonnull
 	public Boolean getPhoneNumberRequired() {
 		return this.phoneNumberRequired;

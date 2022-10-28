@@ -24,12 +24,14 @@ import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest.CreateAnswerRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.request.SkipScreeningSessionRequest;
+import com.cobaltplatform.api.model.api.response.ScreeningConfirmationPromptApiResponse.ScreeningConfirmationPromptApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Screening;
 import com.cobaltplatform.api.model.db.ScreeningAnswer;
 import com.cobaltplatform.api.model.db.ScreeningAnswerFormat.ScreeningAnswerFormatId;
 import com.cobaltplatform.api.model.db.ScreeningAnswerOption;
+import com.cobaltplatform.api.model.db.ScreeningConfirmationPrompt;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
 import com.cobaltplatform.api.model.db.ScreeningQuestion;
@@ -96,6 +98,8 @@ public class ScreeningService {
 	@Nonnull
 	private final Provider<AuthorizationService> authorizationServiceProvider;
 	@Nonnull
+	private final ScreeningConfirmationPromptApiResponseFactory screeningConfirmationPromptApiResponseFactory;
+	@Nonnull
 	private final JavascriptExecutor javascriptExecutor;
 	@Nonnull
 	private final ErrorReporter errorReporter;
@@ -113,6 +117,7 @@ public class ScreeningService {
 													@Nonnull Provider<InteractionService> interactionServiceProvider,
 													@Nonnull Provider<AccountService> accountServiceProvider,
 													@Nonnull Provider<AuthorizationService> authorizationServiceProvider,
+													@Nonnull ScreeningConfirmationPromptApiResponseFactory screeningConfirmationPromptApiResponseFactory,
 													@Nonnull JavascriptExecutor javascriptExecutor,
 													@Nonnull ErrorReporter errorReporter,
 													@Nonnull Normalizer normalizer,
@@ -122,6 +127,7 @@ public class ScreeningService {
 		requireNonNull(interactionServiceProvider);
 		requireNonNull(accountServiceProvider);
 		requireNonNull(authorizationServiceProvider);
+		requireNonNull(screeningConfirmationPromptApiResponseFactory);
 		requireNonNull(javascriptExecutor);
 		requireNonNull(errorReporter);
 		requireNonNull(normalizer);
@@ -132,6 +138,7 @@ public class ScreeningService {
 		this.interactionServiceProvider = interactionServiceProvider;
 		this.accountServiceProvider = accountServiceProvider;
 		this.authorizationServiceProvider = authorizationServiceProvider;
+		this.screeningConfirmationPromptApiResponseFactory = screeningConfirmationPromptApiResponseFactory;
 		this.javascriptExecutor = javascriptExecutor;
 		this.errorReporter = errorReporter;
 		this.normalizer = normalizer;
@@ -201,6 +208,15 @@ public class ScreeningService {
 
 		return getDatabase().queryForObject("SELECT * FROM screening_flow_version WHERE screening_flow_version_id=?",
 				ScreeningFlowVersion.class, screeningFlowVersionId);
+	}
+
+	@Nonnull
+	public Optional<ScreeningConfirmationPrompt> findScreeningConfirmationPromptById(@Nullable UUID screeningConfirmationPromptId) {
+		if (screeningConfirmationPromptId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("SELECT * FROM screening_confirmation_prompt WHERE screening_confirmation_prompt_id=?",
+				ScreeningConfirmationPrompt.class, screeningConfirmationPromptId);
 	}
 
 	@Nonnull
@@ -737,6 +753,7 @@ public class ScreeningService {
 		ScreeningQuestion screeningQuestion;
 		List<ScreeningAnswerOption> screeningAnswerOptions = new ArrayList<>();
 		Account createdByAccount = null;
+		boolean force = request.getForce() == null ? false : request.getForce();
 		ValidationException validationException = new ValidationException();
 
 		if (screeningQuestionContextId == null) {
@@ -993,6 +1010,20 @@ public class ScreeningService {
 		if (orchestrationFunctionOutput.getCompleted()) {
 			getLogger().info("Orchestration function for screening session screening ID {} ({}) indicated that screening session ID {} is now complete.", screeningSessionScreeningId,
 					screeningVersion.getScreeningTypeId().name(), screeningSession.getScreeningSessionId());
+
+			// Special case: if we have a pre-completion screening confirmation prompt for this flow AND request did not indicate that we
+			// should "force" the answer, throw a special exception that provides the confirmation prompt to display to the user
+			// (if user accepts, request should specify to "force" the answer to indicate confirmation and skip this check).
+			if (screeningFlowVersion.getPreCompletionScreeningConfirmationPromptId() != null && !force) {
+				ValidationException screeningConfirmationPromptValidationException = new ValidationException(getStrings().get("Please confirm your answers before submitting."));
+
+				// Frontend should look for this special metadata field "screeningConfirmationPrompt" and present the user with it
+				ScreeningConfirmationPrompt screeningConfirmationPrompt = findScreeningConfirmationPromptById(screeningFlowVersion.getPreCompletionScreeningConfirmationPromptId()).get();
+				screeningConfirmationPromptValidationException.setMetadata(Map.of("screeningConfirmationPrompt", getScreeningConfirmationPromptApiResponseFactory().create(screeningConfirmationPrompt)));
+
+				throw screeningConfirmationPromptValidationException;
+			}
+
 			getDatabase().execute("UPDATE screening_session SET completed=TRUE, completed_at=NOW() WHERE screening_session_id=?", screeningSession.getScreeningSessionId());
 
 			// Execute results function and store off results
@@ -1462,6 +1493,11 @@ public class ScreeningService {
 	@Nonnull
 	protected AuthorizationService getAuthorizationService() {
 		return this.authorizationServiceProvider.get();
+	}
+
+	@Nonnull
+	protected ScreeningConfirmationPromptApiResponseFactory getScreeningConfirmationPromptApiResponseFactory() {
+		return this.screeningConfirmationPromptApiResponseFactory;
 	}
 
 	@Nonnull

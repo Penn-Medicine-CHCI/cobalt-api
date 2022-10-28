@@ -37,6 +37,8 @@ public class ScreeningQuestion {
 	@Nullable
 	private UUID screeningVersionId;
 	@Nullable
+	private UUID preQuestionScreeningConfirmationPromptId;
+	@Nullable
 	private ScreeningAnswerFormatId screeningAnswerFormatId;
 	@Nullable
 	private ScreeningAnswerContentHintId screeningAnswerContentHintId;
@@ -73,6 +75,15 @@ public class ScreeningQuestion {
 
 	public void setScreeningVersionId(@Nullable UUID screeningVersionId) {
 		this.screeningVersionId = screeningVersionId;
+	}
+
+	@Nullable
+	public UUID getPreQuestionScreeningConfirmationPromptId() {
+		return this.preQuestionScreeningConfirmationPromptId;
+	}
+
+	public void setPreQuestionScreeningConfirmationPromptId(@Nullable UUID preQuestionScreeningConfirmationPromptId) {
+		this.preQuestionScreeningConfirmationPromptId = preQuestionScreeningConfirmationPromptId;
 	}
 
 	@Nullable

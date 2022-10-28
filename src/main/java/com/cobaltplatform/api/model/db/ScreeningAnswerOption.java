@@ -42,7 +42,7 @@ public class ScreeningAnswerOption {
 	@Nullable
 	private Boolean freeformSupplement;
 	@Nullable
-	private String freeformSupplementDescription;
+	private String freeformSupplementText;
 	@Nullable
 	private Integer displayOrder;
 	@Nullable
@@ -105,12 +105,12 @@ public class ScreeningAnswerOption {
 	}
 
 	@Nullable
-	public String getFreeformSupplementDescription() {
-		return this.freeformSupplementDescription;
+	public String getFreeformSupplementText() {
+		return this.freeformSupplementText;
 	}
 
-	public void setFreeformSupplementDescription(@Nullable String freeformSupplementDescription) {
-		this.freeformSupplementDescription = freeformSupplementDescription;
+	public void setFreeformSupplementText(@Nullable String freeformSupplementText) {
+		this.freeformSupplementText = freeformSupplementText;
 	}
 
 	@Nullable

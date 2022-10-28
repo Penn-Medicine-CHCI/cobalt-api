@@ -34,6 +34,8 @@ public class CreateScreeningAnswersRequest {
 	@Nullable
 	private ScreeningQuestionContextId screeningQuestionContextId;
 	@Nullable
+	private Boolean force;
+	@Nullable
 	private UUID createdByAccountId;
 	@Nullable
 	private List<CreateAnswerRequest> answers;
@@ -45,6 +47,15 @@ public class CreateScreeningAnswersRequest {
 
 	public void setScreeningQuestionContextId(@Nullable ScreeningQuestionContextId screeningQuestionContextId) {
 		this.screeningQuestionContextId = screeningQuestionContextId;
+	}
+
+	@Nullable
+	public Boolean getForce() {
+		return this.force;
+	}
+
+	public void setForce(@Nullable Boolean force) {
+		this.force = force;
 	}
 
 	@Nullable

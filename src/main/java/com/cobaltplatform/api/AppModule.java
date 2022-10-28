@@ -104,6 +104,7 @@ import com.cobaltplatform.api.model.api.response.ReportingChartApiResponse.Repor
 import com.cobaltplatform.api.model.api.response.ReportingChartApiResponse.ReportingChartMetricApiResponse.ReportingChartMetricApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningAnswerApiResponse.ScreeningAnswerApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningAnswerOptionApiResponse.ScreeningAnswerOptionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ScreeningConfirmationPromptApiResponse.ScreeningConfirmationPromptApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningFlowVersionApiResponse.ScreeningFlowVersionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningQuestionApiResponse.ScreeningQuestionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
@@ -111,7 +112,6 @@ import com.cobaltplatform.api.model.api.response.SpecialtyApiResponse.SpecialtyA
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TopicCenterApiResponse.TopicCenterApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.TopicCenterRowApiResponse;
 import com.cobaltplatform.api.model.api.response.TopicCenterRowApiResponse.TopicCenterRowApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.VisitTypeApiResponse.VisitTypeApiResponseFactory;
 import com.cobaltplatform.api.model.qualifier.AuditLogged;
@@ -256,6 +256,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(PinboardNoteApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(TopicCenterApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(TopicCenterRowApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(ScreeningConfirmationPromptApiResponseFactory.class)));
 	}
 
 	@Provides
