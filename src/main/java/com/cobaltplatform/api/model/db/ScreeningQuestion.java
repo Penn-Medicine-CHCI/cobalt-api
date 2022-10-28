@@ -45,6 +45,8 @@ public class ScreeningQuestion {
 	@Nullable
 	private String questionText;
 	@Nullable
+	private String footerText;
+	@Nullable
 	private Integer minimumAnswerCount;
 	@Nullable
 	private Integer maximumAnswerCount;
@@ -107,6 +109,15 @@ public class ScreeningQuestion {
 
 	public void setQuestionText(@Nullable String questionText) {
 		this.questionText = questionText;
+	}
+
+	@Nullable
+	public String getFooterText() {
+		return this.footerText;
+	}
+
+	public void setFooterText(@Nullable String footerText) {
+		this.footerText = footerText;
 	}
 
 	@Nullable

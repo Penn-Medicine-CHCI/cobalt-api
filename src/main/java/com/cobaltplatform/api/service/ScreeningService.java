@@ -820,6 +820,18 @@ public class ScreeningService {
 											}
 										}
 									}
+								} else if (screeningQuestion.getScreeningAnswerFormatId() != ScreeningAnswerFormatId.FREEFORM_TEXT) {
+									// Handle "supplement" (like a radio button with an "Other" option where people can type whatever they like)
+									if (screeningAnswerOption.getFreeformSupplement()) {
+										if (text == null)
+											validationException.add(new FieldError("text", getStrings().get("Please specify a value for '{{screeningAnswerOption}}'.", new HashMap<String, Object>() {{
+												put("screeningAnswerOption", screeningAnswerOption.getAnswerOptionText());
+											}})));
+									} else {
+										// If we're not freeform text and this is NOT a supplement, clear out the text so we don't get odd
+										// data in the DB in the event of a FE bug
+										answer.setText(null);
+									}
 								}
 
 								screeningAnswerOptions.add(screeningAnswerOption);

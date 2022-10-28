@@ -44,6 +44,10 @@ public class ScreeningAnswerOptionApiResponse {
 	@Nullable
 	private final String answerOptionText;
 	@Nonnull
+	private final Boolean freeformSupplement;
+	@Nullable
+	private final String freeformSupplementDescription;
+	@Nonnull
 	private final Integer displayOrder;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
@@ -64,6 +68,8 @@ public class ScreeningAnswerOptionApiResponse {
 		this.screeningAnswerOptionId = screeningAnswerOption.getScreeningAnswerOptionId();
 		this.screeningQuestionId = screeningAnswerOption.getScreeningQuestionId();
 		this.answerOptionText = screeningAnswerOption.getAnswerOptionText();
+		this.freeformSupplement = screeningAnswerOption.getFreeformSupplement();
+		this.freeformSupplementDescription = screeningAnswerOption.getFreeformSupplementDescription();
 		this.displayOrder = screeningAnswerOption.getDisplayOrder();
 	}
 
@@ -80,6 +86,16 @@ public class ScreeningAnswerOptionApiResponse {
 	@Nullable
 	public String getAnswerOptionText() {
 		return this.answerOptionText;
+	}
+
+	@Nonnull
+	public Boolean getFreeformSupplement() {
+		return this.freeformSupplement;
+	}
+
+	@Nullable
+	public String getFreeformSupplementDescription() {
+		return this.freeformSupplementDescription;
 	}
 
 	@Nonnull
