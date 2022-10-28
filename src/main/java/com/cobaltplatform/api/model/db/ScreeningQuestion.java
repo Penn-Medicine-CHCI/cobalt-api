@@ -37,6 +37,8 @@ public class ScreeningQuestion {
 	@Nullable
 	private UUID screeningVersionId;
 	@Nullable
+	private UUID preQuestionScreeningConfirmationPromptId;
+	@Nullable
 	private ScreeningAnswerFormatId screeningAnswerFormatId;
 	@Nullable
 	private ScreeningAnswerContentHintId screeningAnswerContentHintId;
@@ -44,6 +46,8 @@ public class ScreeningQuestion {
 	private String introText;
 	@Nullable
 	private String questionText;
+	@Nullable
+	private String footerText;
 	@Nullable
 	private Integer minimumAnswerCount;
 	@Nullable
@@ -71,6 +75,15 @@ public class ScreeningQuestion {
 
 	public void setScreeningVersionId(@Nullable UUID screeningVersionId) {
 		this.screeningVersionId = screeningVersionId;
+	}
+
+	@Nullable
+	public UUID getPreQuestionScreeningConfirmationPromptId() {
+		return this.preQuestionScreeningConfirmationPromptId;
+	}
+
+	public void setPreQuestionScreeningConfirmationPromptId(@Nullable UUID preQuestionScreeningConfirmationPromptId) {
+		this.preQuestionScreeningConfirmationPromptId = preQuestionScreeningConfirmationPromptId;
 	}
 
 	@Nullable
@@ -107,6 +120,15 @@ public class ScreeningQuestion {
 
 	public void setQuestionText(@Nullable String questionText) {
 		this.questionText = questionText;
+	}
+
+	@Nullable
+	public String getFooterText() {
+		return this.footerText;
+	}
+
+	public void setFooterText(@Nullable String footerText) {
+		this.footerText = footerText;
 	}
 
 	@Nullable

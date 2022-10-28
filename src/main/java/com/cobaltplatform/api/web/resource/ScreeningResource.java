@@ -25,12 +25,15 @@ import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.request.SkipScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.response.ScreeningAnswerApiResponse.ScreeningAnswerApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningAnswerOptionApiResponse.ScreeningAnswerOptionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ScreeningConfirmationPromptApiResponse;
+import com.cobaltplatform.api.model.api.response.ScreeningConfirmationPromptApiResponse.ScreeningConfirmationPromptApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningFlowVersionApiResponse.ScreeningFlowVersionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningQuestionApiResponse.ScreeningQuestionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ScreeningAnswer;
 import com.cobaltplatform.api.model.db.ScreeningAnswerOption;
+import com.cobaltplatform.api.model.db.ScreeningConfirmationPrompt;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
 import com.cobaltplatform.api.model.db.ScreeningQuestion;
@@ -95,6 +98,8 @@ public class ScreeningResource {
 	@Nonnull
 	private final ScreeningFlowVersionApiResponseFactory screeningFlowVersionApiResponseFactory;
 	@Nonnull
+	private final ScreeningConfirmationPromptApiResponseFactory screeningConfirmationPromptApiResponseFactory;
+	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final Logger logger;
@@ -109,6 +114,7 @@ public class ScreeningResource {
 													 @Nonnull ScreeningAnswerOptionApiResponseFactory screeningAnswerOptionApiResponseFactory,
 													 @Nonnull ScreeningAnswerApiResponseFactory screeningAnswerApiResponseFactory,
 													 @Nonnull ScreeningFlowVersionApiResponseFactory screeningFlowVersionApiResponseFactory,
+													 @Nonnull ScreeningConfirmationPromptApiResponseFactory screeningConfirmationPromptApiResponseFactory,
 													 @Nonnull Provider<CurrentContext> currentContextProvider) {
 		requireNonNull(screeningService);
 		requireNonNull(accountService);
@@ -119,6 +125,7 @@ public class ScreeningResource {
 		requireNonNull(screeningAnswerOptionApiResponseFactory);
 		requireNonNull(screeningAnswerApiResponseFactory);
 		requireNonNull(screeningFlowVersionApiResponseFactory);
+		requireNonNull(screeningConfirmationPromptApiResponseFactory);
 		requireNonNull(currentContextProvider);
 
 		this.screeningService = screeningService;
@@ -130,6 +137,7 @@ public class ScreeningResource {
 		this.screeningAnswerOptionApiResponseFactory = screeningAnswerOptionApiResponseFactory;
 		this.screeningAnswerApiResponseFactory = screeningAnswerApiResponseFactory;
 		this.screeningFlowVersionApiResponseFactory = screeningFlowVersionApiResponseFactory;
+		this.screeningConfirmationPromptApiResponseFactory = screeningConfirmationPromptApiResponseFactory;
 		this.currentContextProvider = currentContextProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
@@ -329,6 +337,16 @@ public class ScreeningResource {
 		ScreeningSessionDestination screeningSessionDestination = getScreeningService().determineDestinationForScreeningSessionId(screeningQuestionContext.getScreeningSessionScreening().getScreeningSessionId()).orElse(null);
 		ScreeningFlowVersion screeningFlowVersion = getScreeningService().findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
 
+		// Is there a prompt we should show before displaying this question?  If so, provide it.
+		UUID preQuestionScreeningConfirmationPromptId = screeningQuestion.getPreQuestionScreeningConfirmationPromptId();
+		ScreeningConfirmationPrompt preQuestionScreeningConfirmationPrompt = null;
+
+		if (preQuestionScreeningConfirmationPromptId != null)
+			preQuestionScreeningConfirmationPrompt = getScreeningService().findScreeningConfirmationPromptById(preQuestionScreeningConfirmationPromptId).get();
+
+		ScreeningConfirmationPromptApiResponse preQuestionScreeningConfirmationPromptApiResponse = preQuestionScreeningConfirmationPrompt == null ? null
+				: getScreeningConfirmationPromptApiResponseFactory().create(preQuestionScreeningConfirmationPrompt);
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("previousScreeningQuestionContextId", previousScreeningQuestionContext == null ? null
 					: previousScreeningQuestionContext.getScreeningQuestionContextId());
@@ -341,6 +359,7 @@ public class ScreeningResource {
 					.collect(Collectors.toList()));
 			put("screeningSessionDestination", screeningSessionDestination);
 			put("screeningFlowVersion", getScreeningFlowVersionApiResponseFactory().create(screeningFlowVersion));
+			put("preQuestionScreeningConfirmationPrompt", preQuestionScreeningConfirmationPromptApiResponse);
 		}});
 	}
 
@@ -430,6 +449,11 @@ public class ScreeningResource {
 	@Nonnull
 	protected ScreeningFlowVersionApiResponseFactory getScreeningFlowVersionApiResponseFactory() {
 		return this.screeningFlowVersionApiResponseFactory;
+	}
+
+	@Nonnull
+	protected ScreeningConfirmationPromptApiResponseFactory getScreeningConfirmationPromptApiResponseFactory() {
+		return this.screeningConfirmationPromptApiResponseFactory;
 	}
 
 	@Nonnull

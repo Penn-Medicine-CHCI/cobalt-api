@@ -51,6 +51,8 @@ public class ScreeningQuestionApiResponse {
 	private final String introText;
 	@Nonnull
 	private final String questionText;
+	@Nullable
+	private final String footerText;
 	@Nonnull
 	private final Integer minimumAnswerCount;
 	@Nonnull
@@ -83,6 +85,7 @@ public class ScreeningQuestionApiResponse {
 		this.screeningAnswerContentHintId = screeningQuestion.getScreeningAnswerContentHintId();
 		this.questionText = screeningQuestion.getQuestionText();
 		this.introText = screeningQuestion.getIntroText();
+		this.footerText = screeningQuestion.getFooterText();
 		this.minimumAnswerCount = screeningQuestion.getMinimumAnswerCount();
 		this.minimumAnswerCountDescription = formatter.formatInteger(screeningQuestion.getMinimumAnswerCount());
 		this.maximumAnswerCount = screeningQuestion.getMaximumAnswerCount();
@@ -118,6 +121,11 @@ public class ScreeningQuestionApiResponse {
 	@Nonnull
 	public String getQuestionText() {
 		return this.questionText;
+	}
+
+	@Nullable
+	public String getFooterText() {
+		return this.footerText;
 	}
 
 	@Nonnull
