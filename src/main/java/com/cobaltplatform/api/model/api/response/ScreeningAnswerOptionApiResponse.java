@@ -28,6 +28,7 @@ import com.lokalized.Strings;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.Optional;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -43,6 +44,10 @@ public class ScreeningAnswerOptionApiResponse {
 	private final UUID screeningQuestionId;
 	@Nullable
 	private final String answerOptionText;
+	@Nonnull
+	private final Boolean freeformSupplement;
+	@Nullable
+	private final String freeformSupplementText;
 	@Nonnull
 	private final Integer displayOrder;
 
@@ -64,6 +69,8 @@ public class ScreeningAnswerOptionApiResponse {
 		this.screeningAnswerOptionId = screeningAnswerOption.getScreeningAnswerOptionId();
 		this.screeningQuestionId = screeningAnswerOption.getScreeningQuestionId();
 		this.answerOptionText = screeningAnswerOption.getAnswerOptionText();
+		this.freeformSupplement = screeningAnswerOption.getFreeformSupplement();
+		this.freeformSupplementText = screeningAnswerOption.getFreeformSupplementText();
 		this.displayOrder = screeningAnswerOption.getDisplayOrder();
 	}
 
@@ -77,9 +84,19 @@ public class ScreeningAnswerOptionApiResponse {
 		return this.screeningQuestionId;
 	}
 
-	@Nullable
-	public String getAnswerOptionText() {
-		return this.answerOptionText;
+	@Nonnull
+	public Optional<String> getAnswerOptionText() {
+		return Optional.ofNullable(this.answerOptionText);
+	}
+
+	@Nonnull
+	public Boolean getFreeformSupplement() {
+		return this.freeformSupplement;
+	}
+
+	@Nonnull
+	public Optional<String> getFreeformSupplementText() {
+		return Optional.ofNullable(this.freeformSupplementText);
 	}
 
 	@Nonnull

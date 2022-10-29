@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('041-epic-mychart-refactor', NULL, NULL);
+SELECT _v.register_patch('042-epic-mychart-refactor', NULL, NULL);
 
 ALTER TABLE institution ADD COLUMN integrated_care_enabled BOOLEAN NOT NULL DEFAULT FALSE;
 

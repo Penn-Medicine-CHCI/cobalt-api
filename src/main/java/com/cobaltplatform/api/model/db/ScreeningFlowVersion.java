@@ -36,6 +36,8 @@ public class ScreeningFlowVersion {
 	@Nullable
 	private UUID initialScreeningId;
 	@Nullable
+	private UUID preCompletionScreeningConfirmationPromptId;
+	@Nullable
 	private Boolean phoneNumberRequired;
 	@Nullable
 	private Boolean skippable;
@@ -79,6 +81,15 @@ public class ScreeningFlowVersion {
 
 	public void setInitialScreeningId(@Nullable UUID initialScreeningId) {
 		this.initialScreeningId = initialScreeningId;
+	}
+
+	@Nullable
+	public UUID getPreCompletionScreeningConfirmationPromptId() {
+		return this.preCompletionScreeningConfirmationPromptId;
+	}
+
+	public void setPreCompletionScreeningConfirmationPromptId(@Nullable UUID preCompletionScreeningConfirmationPromptId) {
+		this.preCompletionScreeningConfirmationPromptId = preCompletionScreeningConfirmationPromptId;
 	}
 
 	@Nullable

@@ -40,6 +40,10 @@ public class ScreeningAnswerOption {
 	@Nullable
 	private Boolean indicatesCrisis;
 	@Nullable
+	private Boolean freeformSupplement;
+	@Nullable
+	private String freeformSupplementText;
+	@Nullable
 	private Integer displayOrder;
 	@Nullable
 	private Instant created;
@@ -89,6 +93,24 @@ public class ScreeningAnswerOption {
 
 	public void setIndicatesCrisis(@Nullable Boolean indicatesCrisis) {
 		this.indicatesCrisis = indicatesCrisis;
+	}
+
+	@Nullable
+	public Boolean getFreeformSupplement() {
+		return this.freeformSupplement;
+	}
+
+	public void setFreeformSupplement(@Nullable Boolean freeformSupplement) {
+		this.freeformSupplement = freeformSupplement;
+	}
+
+	@Nullable
+	public String getFreeformSupplementText() {
+		return this.freeformSupplementText;
+	}
+
+	public void setFreeformSupplementText(@Nullable String freeformSupplementText) {
+		this.freeformSupplementText = freeformSupplementText;
 	}
 
 	@Nullable

@@ -319,12 +319,6 @@
         </dependency>
 
         <dependency>
-            <groupId>io.github.url-detector</groupId>
-            <artifactId>url-detector</artifactId>
-            <version>0.1.23</version>
-        </dependency>
-
-        <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-csv</artifactId>
             <version>1.9.0</version>
