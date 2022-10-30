@@ -43,6 +43,13 @@ import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
 import com.cobaltplatform.api.util.Normalizer;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
 import com.google.gson.reflect.TypeToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +60,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Singleton;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -108,7 +116,7 @@ public class DefaultEpicClient implements EpicClient {
 
 		this.epicConfiguration = epicConfiguration;
 		this.httpClient = createHttpClient(epicConfiguration, httpLoggingBaseName);
-		this.gson = new GsonBuilder().setPrettyPrinting().create();
+		this.gson = createGson();
 		this.normalizer = normalizer == null ? new Normalizer() : normalizer;
 		this.dateFormatterHyphens = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.US); // e.g. 1987-04-21
 		this.dateFormatterSlashes = DateTimeFormatter.ofPattern("M/d/yyyy", Locale.US); // e.g. 6/8/2020
@@ -420,7 +428,7 @@ public class DefaultEpicClient implements EpicClient {
 			try {
 				return apiCall.getResponseBodyMapper().apply(responseBody);
 			} catch (Exception e) {
-				throw new EpicException(format("Unable to parse JSON for EPIC endpoint %s %s with query params %s and request body %s. Response body was\n%s", httpRequest.getHttpMethod().name(), httpRequest.getUrl(), queryParametersDescription, requestBodyDescription, responseBody));
+				throw new EpicException(format("Unable to parse JSON for EPIC endpoint %s %s with query params %s and request body %s. Response body was\n%s", httpRequest.getHttpMethod().name(), httpRequest.getUrl(), queryParametersDescription, requestBodyDescription, responseBody), e);
 			}
 		} catch (IOException e) {
 			throw new EpicException(format("Unable to call EPIC endpoint %s %s with query params %s and request body %s", httpRequest.getHttpMethod().name(), httpRequest.getUrl(), queryParametersDescription, requestBodyDescription), e);
@@ -443,6 +451,49 @@ public class DefaultEpicClient implements EpicClient {
 		return getGson().toJson(map);
 	}
 
+	@Nonnull
+	protected Gson createGson() {
+		GsonBuilder gsonBuilder = new GsonBuilder().setPrettyPrinting();
+
+		gsonBuilder.registerTypeAdapter(LocalDate.class, new JsonDeserializer<LocalDate>() {
+			@Override
+			@Nullable
+			public LocalDate deserialize(@Nullable JsonElement json,
+																	 @Nonnull Type type,
+																	 @Nonnull JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
+				requireNonNull(type);
+				requireNonNull(jsonDeserializationContext);
+
+				if (json == null)
+					return null;
+
+				JsonPrimitive jsonPrimitive = json.getAsJsonPrimitive();
+
+				if (jsonPrimitive.isString()) {
+					String string = trimToNull(json.getAsString());
+					return string == null ? null : LocalDate.parse(string);
+				}
+
+				throw new IllegalArgumentException(format("Unable to convert JSON value '%s' to %s", json, type));
+			}
+		});
+
+		gsonBuilder.registerTypeAdapter(LocalDate.class, new JsonSerializer<LocalDate>() {
+			@Override
+			@Nullable
+			public JsonElement serialize(@Nullable LocalDate localDate,
+																	 @Nonnull Type type,
+																	 @Nonnull JsonSerializationContext jsonSerializationContext) {
+				requireNonNull(type);
+				requireNonNull(jsonSerializationContext);
+
+				return localDate == null ? null : new JsonPrimitive(localDate.toString());
+			}
+		});
+
+		return gsonBuilder.create();
+	}
+	
 	@Nonnull
 	@Override
 	public EpicConfiguration getEpicConfiguration() {

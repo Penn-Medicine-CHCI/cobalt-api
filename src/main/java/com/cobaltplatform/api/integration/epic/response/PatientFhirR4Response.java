@@ -34,6 +34,8 @@ public class PatientFhirR4Response {
 	@Nullable
 	private String resourceType;
 	@Nullable
+	private List<GeneralPractitioner> generalPractitioner;
+	@Nullable
 	private ManagingOrganization managingOrganization;
 	@Nullable
 	private List<Communication> communication;
@@ -57,6 +59,8 @@ public class PatientFhirR4Response {
 	private List<Identifier> identifier;
 	@Nullable
 	private List<Extension> extension;
+	@Nullable
+	private List<Contact> contact;
 
 	@Nullable
 	public String getId() {
@@ -184,10 +188,32 @@ public class PatientFhirR4Response {
 		this.extension = extension;
 	}
 
+	@Nullable
+	public List<GeneralPractitioner> getGeneralPractitioner() {
+		return this.generalPractitioner;
+	}
+
+	public void setGeneralPractitioner(@Nullable List<GeneralPractitioner> generalPractitioner) {
+		this.generalPractitioner = generalPractitioner;
+	}
+
+	@Nullable
+	public List<Contact> getContact() {
+		return this.contact;
+	}
+
+	public void setContact(@Nullable List<Contact> contact) {
+		this.contact = contact;
+	}
+
 	@NotThreadSafe
-	private static class Extension {
+	public static class Extension {
 		@Nullable
 		private String url;
+		@Nullable
+		private String valueCode;
+		@Nullable
+		private ValueCodeableConcept valueCodeableConcept;
 		@Nullable
 		private List<Extension2> extension;
 
@@ -201,6 +227,15 @@ public class PatientFhirR4Response {
 		}
 
 		@Nullable
+		public String getValueCode() {
+			return this.valueCode;
+		}
+
+		public void setValueCode(@Nullable String valueCode) {
+			this.valueCode = valueCode;
+		}
+
+		@Nullable
 		public List<Extension2> getExtension() {
 			return this.extension;
 		}
@@ -209,8 +244,32 @@ public class PatientFhirR4Response {
 			this.extension = extension;
 		}
 
+		@Nullable
+		public ValueCodeableConcept getValueCodeableConcept() {
+			return this.valueCodeableConcept;
+		}
+
+		public void setValueCodeableConcept(@Nullable ValueCodeableConcept valueCodeableConcept) {
+			this.valueCodeableConcept = valueCodeableConcept;
+		}
+
 		@NotThreadSafe
-		private static class Extension2 {
+		public static class ValueCodeableConcept {
+			@Nullable
+			private List<Coding> coding;
+
+			@Nullable
+			public List<Coding> getCoding() {
+				return this.coding;
+			}
+
+			public void setCoding(@Nullable List<Coding> coding) {
+				this.coding = coding;
+			}
+		}
+
+		@NotThreadSafe
+		public static class Extension2 {
 			@Nullable
 			private String valueString;
 			@Nullable
@@ -246,7 +305,7 @@ public class PatientFhirR4Response {
 			}
 
 			@NotThreadSafe
-			private static class ValueCoding {
+			public static class ValueCoding {
 				@Nullable
 				private String system;
 				@Nullable
@@ -285,7 +344,7 @@ public class PatientFhirR4Response {
 	}
 
 	@NotThreadSafe
-	private static class Identifier {
+	public static class Identifier {
 		@Nullable
 		private String use;
 		@Nullable
@@ -312,7 +371,7 @@ public class PatientFhirR4Response {
 	}
 
 	@NotThreadSafe
-	private static class Name {
+	public static class Name {
 		@Nullable
 		private String use;
 		@Nullable
@@ -360,7 +419,7 @@ public class PatientFhirR4Response {
 	}
 
 	@NotThreadSafe
-	private static class Telecom {
+	public static class Telecom {
 		@Nullable
 		private String use;
 		@Nullable
@@ -397,7 +456,7 @@ public class PatientFhirR4Response {
 	}
 
 	@NotThreadSafe
-	private static class Address {
+	public static class Address {
 		@Nullable
 		private String use;
 		@Nullable
@@ -478,7 +537,7 @@ public class PatientFhirR4Response {
 	}
 
 	@NotThreadSafe
-	private static class MaritalStatus {
+	public static class MaritalStatus {
 		@Nullable
 		private String text;
 
@@ -493,7 +552,96 @@ public class PatientFhirR4Response {
 	}
 
 	@NotThreadSafe
-	private static class Communication {
+	public static class Contact {
+		@Nullable
+		private List<Telecom> telecom;
+		@Nullable
+		private Name name;
+		@Nullable
+		private List<Relationship> relationship;
+
+		@Nullable
+		public List<Telecom> getTelecom() {
+			return this.telecom;
+		}
+
+		public void setTelecom(@Nullable List<Telecom> telecom) {
+			this.telecom = telecom;
+		}
+
+		@Nullable
+		public Name getName() {
+			return this.name;
+		}
+
+		public void setName(@Nullable Name name) {
+			this.name = name;
+		}
+
+		@Nullable
+		public List<Relationship> getRelationship() {
+			return this.relationship;
+		}
+
+		public void setRelationship(@Nullable List<Relationship> relationship) {
+			this.relationship = relationship;
+		}
+
+		@NotThreadSafe
+		public static class Relationship {
+			@Nullable
+			private String text;
+			@Nullable
+			private List<Coding> coding;
+
+			@Nullable
+			public String getText() {
+				return this.text;
+			}
+
+			public void setText(@Nullable String text) {
+				this.text = text;
+			}
+
+			@Nullable
+			public List<Coding> getCoding() {
+				return this.coding;
+			}
+
+			public void setCoding(@Nullable List<Coding> coding) {
+				this.coding = coding;
+			}
+		}
+
+		@NotThreadSafe
+		public static class Name {
+			@Nullable
+			private String use;
+			@Nullable
+			private String text;
+
+			@Nullable
+			public String getUse() {
+				return this.use;
+			}
+
+			public void setUse(@Nullable String use) {
+				this.use = use;
+			}
+
+			@Nullable
+			public String getText() {
+				return this.text;
+			}
+
+			public void setText(@Nullable String text) {
+				this.text = text;
+			}
+		}
+	}
+
+	@NotThreadSafe
+	public static class Communication {
 		@Nullable
 		private Language language;
 		@Nullable
@@ -518,7 +666,7 @@ public class PatientFhirR4Response {
 		}
 
 		@NotThreadSafe
-		private static class Language {
+		public static class Language {
 			@Nullable
 			private List<Coding> coding;
 			@Nullable
@@ -541,48 +689,48 @@ public class PatientFhirR4Response {
 			public void setText(@Nullable String text) {
 				this.text = text;
 			}
-
-			@NotThreadSafe
-			private static class Coding {
-				@Nullable
-				private String system;
-				@Nullable
-				private String code;
-				@Nullable
-				private String display;
-
-				@Nullable
-				public String getSystem() {
-					return this.system;
-				}
-
-				public void setSystem(@Nullable String system) {
-					this.system = system;
-				}
-
-				@Nullable
-				public String getCode() {
-					return this.code;
-				}
-
-				public void setCode(@Nullable String code) {
-					this.code = code;
-				}
-
-				@Nullable
-				public String getDisplay() {
-					return this.display;
-				}
-
-				public void setDisplay(@Nullable String display) {
-					this.display = display;
-				}
-			}
 		}
 	}
 
 	@NotThreadSafe
-	private static class ManagingOrganization {
+	public static class Coding {
+		@Nullable
+		private String system;
+		@Nullable
+		private String code;
+		@Nullable
+		private String display;
+
+		@Nullable
+		public String getSystem() {
+			return this.system;
+		}
+
+		public void setSystem(@Nullable String system) {
+			this.system = system;
+		}
+
+		@Nullable
+		public String getCode() {
+			return this.code;
+		}
+
+		public void setCode(@Nullable String code) {
+			this.code = code;
+		}
+
+		@Nullable
+		public String getDisplay() {
+			return this.display;
+		}
+
+		public void setDisplay(@Nullable String display) {
+			this.display = display;
+		}
+	}
+
+	@NotThreadSafe
+	public static class ManagingOrganization {
 		@Nullable
 		private String reference;
 		@Nullable
@@ -595,6 +743,43 @@ public class PatientFhirR4Response {
 
 		public void setReference(@Nullable String reference) {
 			this.reference = reference;
+		}
+
+		@Nullable
+		public String getDisplay() {
+			return this.display;
+		}
+
+		public void setDisplay(@Nullable String display) {
+			this.display = display;
+		}
+	}
+
+	@NotThreadSafe
+	public static class GeneralPractitioner {
+		@Nullable
+		private String reference;
+		@Nullable
+		private String type;
+		@Nullable
+		private String display;
+
+		@Nullable
+		public String getReference() {
+			return this.reference;
+		}
+
+		public void setReference(@Nullable String reference) {
+			this.reference = reference;
+		}
+
+		@Nullable
+		public String getType() {
+			return this.type;
+		}
+
+		public void setType(@Nullable String type) {
+			this.type = type;
 		}
 
 		@Nullable
