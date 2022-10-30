@@ -38,6 +38,7 @@ import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleRespo
 import com.cobaltplatform.api.integration.epic.response.PatientCreateResponse;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse;
 import com.cobaltplatform.api.integration.epic.response.ScheduleAppointmentWithInsuranceResponse;
+import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
 import com.cobaltplatform.api.util.Normalizer;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -47,6 +48,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Singleton;
 import java.io.IOException;
@@ -58,6 +60,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -116,6 +119,28 @@ public class DefaultEpicClient implements EpicClient {
 
 	@Nonnull
 	@Override
+	public Optional<Object> findPatientFhirR4(@Nonnull MyChartAccessToken myChartAccessToken,
+																						@Nullable String patientId) {
+		requireNonNull(myChartAccessToken);
+
+		patientId = trimToNull(patientId);
+
+		if (patientId == null)
+			return Optional.empty();
+
+		HttpMethod httpMethod = HttpMethod.GET;
+		String url = format("api/FHIR/R4/Patient/%s", "TOqVFFXGu5N9VdAsjSLNvxWEcGg5TnU2Fh1Om6oSGnfkB");
+		Function<String, Optional<Object>> responseBodyMapper = (responseBody) -> getGson().fromJson(responseBody, Optional.class);
+
+		ApiCall<Optional<Object>> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+				.myChartAccessToken(myChartAccessToken)
+				.build();
+
+		return makeApiCall(apiCall);
+	}
+
+	@Nonnull
+	@Override
 	public PatientSearchResponse performPatientSearch(@Nonnull PatientSearchRequest request) {
 		requireNonNull(request);
 
@@ -148,11 +173,15 @@ public class DefaultEpicClient implements EpicClient {
 				queryParameters.put("telecom", formatPhoneNumber(telecom));
 		}
 
-		return makeGetApiCall("api/FHIR/DSTU2/Patient",
-				queryParameters,
-				(responseBody) -> {
-					return getGson().fromJson(responseBody, PatientSearchResponse.class);
-				});
+		HttpMethod httpMethod = HttpMethod.GET;
+		String url = "api/FHIR/DSTU2/Patient";
+		Function<String, PatientSearchResponse> responseBodyMapper = (responseBody) -> getGson().fromJson(responseBody, PatientSearchResponse.class);
+
+		ApiCall<PatientSearchResponse> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+				.queryParameters(queryParameters)
+				.build();
+
+		return makeApiCall(apiCall);
 	}
 
 	@Nonnull
@@ -160,12 +189,15 @@ public class DefaultEpicClient implements EpicClient {
 	public GetPatientDemographicsResponse performGetPatientDemographics(@Nonnull GetPatientDemographicsRequest request) {
 		requireNonNull(request);
 
-		return makeApiCall(HttpMethod.POST,
-				"api/epic/2015/Common/Patient/GetPatientDemographics/Patient/Demographics",
-				getGson().toJson(request),
-				(responseBody) -> {
-					return getGson().fromJson(responseBody, GetPatientDemographicsResponse.class);
-				});
+		HttpMethod httpMethod = HttpMethod.POST;
+		String url = "api/epic/2015/Common/Patient/GetPatientDemographics/Patient/Demographics";
+		Function<String, GetPatientDemographicsResponse> responseBodyMapper = (responseBody) -> getGson().fromJson(responseBody, GetPatientDemographicsResponse.class);
+
+		ApiCall<GetPatientDemographicsResponse> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+				.requestBody(getGson().toJson(request))
+				.build();
+
+		return makeApiCall(apiCall);
 	}
 
 	@Nonnull
@@ -173,23 +205,26 @@ public class DefaultEpicClient implements EpicClient {
 	public GetProviderScheduleResponse performGetProviderSchedule(@Nonnull GetProviderScheduleRequest request) {
 		requireNonNull(request);
 
-		return makeApiCall(HttpMethod.POST,
-				"api/epic/2012/Scheduling/Provider/GETPROVIDERSCHEDULE/Schedule",
-				new HashMap<String, Object>() {{
-					put("ProviderID", request.getProviderID());
-					put("ProviderIDType", request.getProviderIDType());
-					put("DepartmentID", request.getDepartmentID());
-					put("DepartmentIDType", request.getDepartmentIDType());
-					put("UserID", request.getUserID());
-					put("UserIDType", request.getUserIDType());
-					put("VisitTypeID", request.getVisitTypeID());
-					put("VisitTypeIDType", request.getVisitTypeIDType());
-					put("Date", formatDateWithSlashes(request.getDate()));
-				}},
-				null,
-				(responseBody) -> {
-					return getGson().fromJson(responseBody, GetProviderScheduleResponse.class);
-				});
+		HttpMethod httpMethod = HttpMethod.POST;
+		String url = "api/epic/2012/Scheduling/Provider/GETPROVIDERSCHEDULE/Schedule";
+		Function<String, GetProviderScheduleResponse> responseBodyMapper = (responseBody) -> getGson().fromJson(responseBody, GetProviderScheduleResponse.class);
+		Map<String, Object> queryParameters = new HashMap<String, Object>() {{
+			put("ProviderID", request.getProviderID());
+			put("ProviderIDType", request.getProviderIDType());
+			put("DepartmentID", request.getDepartmentID());
+			put("DepartmentIDType", request.getDepartmentIDType());
+			put("UserID", request.getUserID());
+			put("UserIDType", request.getUserIDType());
+			put("VisitTypeID", request.getVisitTypeID());
+			put("VisitTypeIDType", request.getVisitTypeIDType());
+			put("Date", formatDateWithSlashes(request.getDate()));
+		}};
+
+		ApiCall<GetProviderScheduleResponse> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+				.queryParameters(queryParameters)
+				.build();
+
+		return makeApiCall(apiCall);
 	}
 
 	@Nonnull
@@ -197,12 +232,15 @@ public class DefaultEpicClient implements EpicClient {
 	public GetPatientAppointmentsResponse performGetPatientAppointments(@Nonnull GetPatientAppointmentsRequest request) {
 		requireNonNull(request);
 
-		return makeApiCall(HttpMethod.POST,
-				"api/epic/2013/Scheduling/Patient/GETPATIENTAPPOINTMENTS/GetPatientAppointments",
-				getGson().toJson(request),
-				(responseBody) -> {
-					return getGson().fromJson(responseBody, GetPatientAppointmentsResponse.class);
-				});
+		HttpMethod httpMethod = HttpMethod.POST;
+		String url = "api/epic/2013/Scheduling/Patient/GETPATIENTAPPOINTMENTS/GetPatientAppointments";
+		Function<String, GetPatientAppointmentsResponse> responseBodyMapper = (responseBody) -> getGson().fromJson(responseBody, GetPatientAppointmentsResponse.class);
+
+		ApiCall<GetPatientAppointmentsResponse> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+				.requestBody(getGson().toJson(request))
+				.build();
+
+		return makeApiCall(apiCall);
 	}
 
 	@Nonnull
@@ -210,12 +248,15 @@ public class DefaultEpicClient implements EpicClient {
 	public PatientCreateResponse performPatientCreate(@Nonnull PatientCreateRequest request) {
 		requireNonNull(request);
 
-		return makeApiCall(HttpMethod.POST,
-				"api/epic/2012/EMPI/External/PatientCreate/Patient/Create",
-				getGson().toJson(request),
-				(responseBody) -> {
-					return getGson().fromJson(responseBody, PatientCreateResponse.class);
-				});
+		HttpMethod httpMethod = HttpMethod.POST;
+		String url = "api/epic/2012/EMPI/External/PatientCreate/Patient/Create";
+		Function<String, PatientCreateResponse> responseBodyMapper = (responseBody) -> getGson().fromJson(responseBody, PatientCreateResponse.class);
+
+		ApiCall<PatientCreateResponse> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+				.requestBody(getGson().toJson(request))
+				.build();
+
+		return makeApiCall(apiCall);
 	}
 
 	@Nonnull
@@ -223,12 +264,15 @@ public class DefaultEpicClient implements EpicClient {
 	public ScheduleAppointmentWithInsuranceResponse performScheduleAppointmentWithInsurance(@Nonnull ScheduleAppointmentWithInsuranceRequest request) {
 		requireNonNull(request);
 
-		return makeApiCall(HttpMethod.POST,
-				"api/epic/2014/PatientAccess/External/ScheduleAppointmentWithInsurance/Scheduling/Open/ScheduleWithInsurance",
-				getGson().toJson(request),
-				(responseBody) -> {
-					return getGson().fromJson(responseBody, ScheduleAppointmentWithInsuranceResponse.class);
-				});
+		HttpMethod httpMethod = HttpMethod.POST;
+		String url = "api/epic/2014/PatientAccess/External/ScheduleAppointmentWithInsurance/Scheduling/Open/ScheduleWithInsurance";
+		Function<String, ScheduleAppointmentWithInsuranceResponse> responseBodyMapper = (responseBody) -> getGson().fromJson(responseBody, ScheduleAppointmentWithInsuranceResponse.class);
+
+		ApiCall<ScheduleAppointmentWithInsuranceResponse> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+				.requestBody(getGson().toJson(request))
+				.build();
+
+		return makeApiCall(apiCall);
 	}
 
 	@Nonnull
@@ -236,12 +280,15 @@ public class DefaultEpicClient implements EpicClient {
 	public CancelAppointmentResponse performCancelAppointment(@Nonnull CancelAppointmentRequest request) {
 		requireNonNull(request);
 
-		return makeApiCall(HttpMethod.POST,
-				"api/epic/2014/PatientAccess/External/CancelAppointment/Scheduling/Cancel",
-				getGson().toJson(request),
-				(responseBody) -> {
-					return getGson().fromJson(responseBody, CancelAppointmentResponse.class);
-				});
+		HttpMethod httpMethod = HttpMethod.POST;
+		String url = "api/epic/2014/PatientAccess/External/CancelAppointment/Scheduling/Cancel";
+		Function<String, CancelAppointmentResponse> responseBodyMapper = (responseBody) -> getGson().fromJson(responseBody, CancelAppointmentResponse.class);
+
+		ApiCall<CancelAppointmentResponse> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+				.requestBody(getGson().toJson(request))
+				.build();
+
+		return makeApiCall(apiCall);
 	}
 
 	@Nonnull
@@ -306,70 +353,40 @@ public class DefaultEpicClient implements EpicClient {
 	}
 
 	@Nonnull
-	protected <T> T makeGetApiCall(@Nonnull String url,
-																 @Nonnull Function<String, T> responseBodyMapper) {
-		return makeGetApiCall(url, null, responseBodyMapper);
-	}
+	protected <T> T makeApiCall(@Nonnull ApiCall<T> apiCall) {
+		requireNonNull(apiCall);
 
-	@Nonnull
-	protected <T> T makeGetApiCall(@Nonnull String url,
-																 @Nullable Map<String, Object> queryParameters,
-																 @Nonnull Function<String, T> responseBodyMapper) {
-		return makeApiCall(HttpMethod.GET, url, queryParameters, null, responseBodyMapper);
-	}
-
-	@Nonnull
-	protected <T> T makeApiCall(@Nonnull HttpMethod httpMethod,
-															@Nonnull String url,
-															@Nullable String requestBody,
-															@Nonnull Function<String, T> responseBodyMapper) {
-		return makeApiCall(httpMethod, url, null, requestBody, responseBodyMapper);
-	}
-
-	@Nonnull
-	protected <T> T makeApiCall(@Nonnull HttpMethod httpMethod,
-															@Nonnull String url,
-															@Nullable Map<String, Object> queryParameters,
-															@Nonnull Function<String, T> responseBodyMapper) {
-		return makeApiCall(httpMethod, url, queryParameters, null, responseBodyMapper);
-	}
-
-	@Nonnull
-	protected <T> T makeApiCall(@Nonnull HttpMethod httpMethod,
-															@Nonnull String url,
-															@Nullable Map<String, Object> queryParameters,
-															@Nullable String requestBody,
-															@Nonnull Function<String, T> responseBodyMapper) {
-		requireNonNull(httpMethod);
-		requireNonNull(url);
-		requireNonNull(responseBodyMapper);
-
-		if (queryParameters == null)
-			queryParameters = Collections.emptyMap();
-
-		String finalUrl = format("%s/%s", getEpicConfiguration().getBaseUrl(), url);
+		String finalUrl = format("%s/%s", getEpicConfiguration().getBaseUrl(), apiCall.getUrl());
 
 		Map<String, String> headers = new HashMap<>();
 		headers.put("Content-Type", "application/json");
+		headers.put("Accept", "application/json");
+
+		MyChartAccessToken myChartAccessToken = apiCall.getMyChartAccessToken().orElse(null);
+
+		if (myChartAccessToken != null)
+			headers.put("Authorization", format("Bearer %s", myChartAccessToken.getAccessToken()));
 
 		// Allow configuration to modify headers
 		getEpicConfiguration().getRequestHeaderCustomizer().accept(headers);
 
-		HttpRequest.Builder httpRequestBuilder = new HttpRequest.Builder(httpMethod, finalUrl)
+		HttpRequest.Builder httpRequestBuilder = new HttpRequest.Builder(apiCall.getHttpMethod(), finalUrl)
 				.headers(Collections.<String, Object>unmodifiableMap(headers));
 
-		if (queryParameters.size() > 0)
-			httpRequestBuilder.queryParameters(queryParameters);
+		if (apiCall.getQueryParameters().size() > 0)
+			httpRequestBuilder.queryParameters(apiCall.getQueryParameters());
+
+		String requestBody = apiCall.getRequestBody().orElse(null);
 
 		if (requestBody != null)
 			httpRequestBuilder.body(requestBody);
 
-		if (httpMethod == HttpMethod.POST)
+		if (apiCall.getHttpMethod() == HttpMethod.POST)
 			httpRequestBuilder.contentType("application/json; charset=utf-8");
 
 		HttpRequest httpRequest = httpRequestBuilder.build();
 
-		String queryParametersDescription = queryParameters.size() == 0 ? "[none]" : queryParameters.toString();
+		String queryParametersDescription = apiCall.getQueryParameters().size() == 0 ? "[none]" : apiCall.getQueryParameters().toString();
 		String requestBodyDescription = requestBody == null ? "[none]" : requestBody;
 
 		try {
@@ -396,7 +413,7 @@ public class DefaultEpicClient implements EpicClient {
 				throw new EpicException(format("Bad HTTP response %d for EPIC endpoint %s %s with query params %s and request body %s. Response body was\n%s", httpResponse.getStatus(), httpRequest.getHttpMethod().name(), httpRequest.getUrl(), queryParametersDescription, requestBodyDescription, responseBody));
 
 			try {
-				return responseBodyMapper.apply(responseBody);
+				return apiCall.getResponseBodyMapper().apply(responseBody);
 			} catch (Exception e) {
 				throw new EpicException(format("Unable to parse JSON for EPIC endpoint %s %s with query params %s and request body %s. Response body was\n%s", httpRequest.getHttpMethod().name(), httpRequest.getUrl(), queryParametersDescription, requestBodyDescription, responseBody));
 			}
@@ -470,5 +487,113 @@ public class DefaultEpicClient implements EpicClient {
 	@Nonnull
 	protected Logger getLogger() {
 		return logger;
+	}
+
+	@ThreadSafe
+	protected static class ApiCall<T> {
+		@Nonnull
+		private final HttpMethod httpMethod;
+		@Nonnull
+		private final String url;
+		@Nonnull
+		private final Function<String, T> responseBodyMapper;
+		@Nonnull
+		private final Map<String, Object> queryParameters;
+		@Nullable
+		private final String requestBody;
+		@Nullable
+		private final MyChartAccessToken myChartAccessToken;
+
+		protected ApiCall(@Nonnull Builder<T> builder) {
+			requireNonNull(builder);
+
+			this.httpMethod = builder.httpMethod;
+			this.url = builder.url;
+			this.responseBodyMapper = builder.responseBodyMapper == null ? (responseBody) -> (T) responseBody : builder.responseBodyMapper;
+			this.queryParameters = builder.queryParameters == null ? Collections.emptyMap() : builder.queryParameters;
+			this.requestBody = builder.requestBody;
+			this.myChartAccessToken = builder.myChartAccessToken;
+		}
+
+		@Nonnull
+		public HttpMethod getHttpMethod() {
+			return this.httpMethod;
+		}
+
+		@Nonnull
+		public String getUrl() {
+			return this.url;
+		}
+
+		@Nonnull
+		public Function<String, T> getResponseBodyMapper() {
+			return this.responseBodyMapper;
+		}
+
+		@Nonnull
+		public Map<String, Object> getQueryParameters() {
+			return this.queryParameters;
+		}
+
+		@Nonnull
+		public Optional<String> getRequestBody() {
+			return Optional.ofNullable(this.requestBody);
+		}
+
+		@Nonnull
+		public Optional<MyChartAccessToken> getMyChartAccessToken() {
+			return Optional.ofNullable(this.myChartAccessToken);
+		}
+
+		@NotThreadSafe
+		protected static class Builder<T> {
+			@Nonnull
+			private final HttpMethod httpMethod;
+			@Nonnull
+			private final String url;
+			@Nonnull
+			private final Function<String, T> responseBodyMapper;
+			@Nullable
+			private Map<String, Object> queryParameters;
+			@Nullable
+			private String requestBody;
+			@Nullable
+			private MyChartAccessToken myChartAccessToken;
+
+			public Builder(@Nonnull HttpMethod httpMethod,
+										 @Nonnull String url,
+										 @Nonnull Function<String, T> responseBodyMapper) {
+				requireNonNull(httpMethod);
+				requireNonNull(url);
+				requireNonNull(responseBodyMapper);
+
+				this.httpMethod = httpMethod;
+				this.url = url;
+				this.responseBodyMapper = responseBodyMapper;
+			}
+
+			@Nonnull
+			public Builder queryParameters(@Nullable Map<String, Object> queryParameters) {
+				this.queryParameters = queryParameters;
+				return this;
+			}
+
+			@Nonnull
+			public Builder requestBody(@Nullable String requestBody) {
+				this.requestBody = requestBody;
+				return this;
+			}
+
+			@Nonnull
+			public Builder myChartAccessToken(@Nullable MyChartAccessToken myChartAccessToken) {
+				this.myChartAccessToken = myChartAccessToken;
+				return this;
+			}
+
+			@Nonnull
+			public ApiCall<T> build() {
+				return new ApiCall<>(this);
+			}
+		}
 	}
 }

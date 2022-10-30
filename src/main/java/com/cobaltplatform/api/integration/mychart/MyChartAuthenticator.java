@@ -21,31 +21,24 @@ package com.cobaltplatform.api.integration.mychart;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.Map;
 
 /**
  * @author Transmogrify, LLC.
  */
 public interface MyChartAuthenticator {
 	@Nonnull
-	MyChartAccessToken obtainAccessTokenFromCode(@Nonnull String code) throws MyChartException;
+	default MyChartAccessToken obtainAccessTokenFromCode(@Nonnull String code) throws MyChartException {
+		return obtainAccessTokenFromCode(code, null);
+	}
+
+	MyChartAccessToken obtainAccessTokenFromCode(@Nonnull String code,
+																							 @Nullable String state) throws MyChartException;
 
 	@Nonnull
-	default String generateAuthorizationRedirectUrl() {
-		return generateAuthorizationRedirectUrl(null, null);
+	default String generateAuthenticationRedirectUrl() {
+		return generateAuthenticationRedirectUrl(null);
 	}
 
 	@Nonnull
-	default String generateAuthorizationRedirectUrl(@Nullable String state) {
-		return generateAuthorizationRedirectUrl(state, null);
-	}
-
-	@Nonnull
-	default String generateAuthorizationRedirectUrl(@Nullable Map<String, String> additionalParameters) {
-		return generateAuthorizationRedirectUrl(null, additionalParameters);
-	}
-
-	@Nonnull
-	String generateAuthorizationRedirectUrl(@Nullable String state,
-																					@Nullable Map<String, String> additionalParameters);
+	String generateAuthenticationRedirectUrl(@Nullable String state);
 }

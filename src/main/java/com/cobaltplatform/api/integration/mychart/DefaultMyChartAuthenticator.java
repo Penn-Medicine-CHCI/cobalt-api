@@ -24,7 +24,6 @@ import com.cobaltplatform.api.http.HttpClient;
 import com.cobaltplatform.api.http.HttpMethod;
 import com.cobaltplatform.api.http.HttpRequest;
 import com.cobaltplatform.api.http.HttpResponse;
-import com.cobaltplatform.api.util.WebUtility;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -35,11 +34,12 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
+import static com.cobaltplatform.api.util.WebUtility.urlEncode;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -96,37 +96,36 @@ public class DefaultMyChartAuthenticator implements MyChartAuthenticator {
 
 	@Override
 	@Nonnull
-	public String generateAuthorizationRedirectUrl(@Nullable String state,
-																								 @Nullable Map<String, String> additionalParameters) {
+	public String generateAuthenticationRedirectUrl(@Nullable String state) {
 		List<String> queryParameters = new ArrayList<>();
-		queryParameters.add(format("response_type=%s", getMyChartConfiguration().getResponseType()));
-		queryParameters.add(format("client_id=%s", getMyChartConfiguration().getClientId()));
-		queryParameters.add(format("redirect_uri=%s", WebUtility.urlEncode(getMyChartConfiguration().getCallbackUrl())));
-		queryParameters.add(format("scope=%s", WebUtility.urlEncode(getMyChartConfiguration().getScope())));
+		queryParameters.add(format("response_type=%s", urlEncode(getMyChartConfiguration().getResponseType())));
+		queryParameters.add(format("client_id=%s", urlEncode(getMyChartConfiguration().getClientId())));
+		queryParameters.add(format("redirect_uri=%s", urlEncode(getMyChartConfiguration().getCallbackUrl())));
+		queryParameters.add(format("scope=%s", urlEncode(getMyChartConfiguration().getScope())));
 
 		if (state != null)
-			queryParameters.add(format("state=%s", WebUtility.urlEncode(state)));
+			queryParameters.add(format("state=%s", urlEncode(state)));
 
-		if (additionalParameters != null) {
-			for (Entry<String, String> entry : additionalParameters.entrySet()) {
-				queryParameters.add(format("%s=%s", entry.getKey(), WebUtility.urlEncode(entry.getValue())));
-			}
-		}
-
-		return format("%s?%s", getMyChartConfiguration().getAuthorizeUrl(), queryParameters.stream().collect(Collectors.joining("&")));
+		return format("%s?%s", getMyChartConfiguration().getAuthorizeUrl(), queryParameters.stream()
+				.collect(Collectors.joining("&")));
 	}
 
 	@Nonnull
 	@Override
-	public MyChartAccessToken obtainAccessTokenFromCode(@Nonnull String code) throws MyChartException {
+	public MyChartAccessToken obtainAccessTokenFromCode(@Nonnull String code,
+																											@Nullable String state) throws MyChartException {
 		requireNonNull(code);
 
-		String requestBody = List.of(
-				"grant_type=authorization_code",
-				format("code=%s", code.trim()),
-				format("redirect_uri=%s", getMyChartConfiguration().getCallbackUrl()),
-				format("client_id=%s", getMyChartConfiguration().getClientId())
-		).stream().collect(Collectors.joining("&"));
+		List<String> requestBodyComponents = new ArrayList<>(5);
+		requestBodyComponents.add("grant_type=authorization_code");
+		requestBodyComponents.add(format("code=%s", code.trim()));
+		requestBodyComponents.add(format("redirect_uri=%s", urlEncode(getMyChartConfiguration().getCallbackUrl())));
+		requestBodyComponents.add(format("client_id=%s", urlEncode(getMyChartConfiguration().getClientId())));
+
+		if (state != null)
+			requestBodyComponents.add(format("state=%s", state));
+
+		String requestBody = requestBodyComponents.stream().collect(Collectors.joining("&"));
 
 		HttpRequest httpRequest = new HttpRequest.Builder(HttpMethod.POST, getMyChartConfiguration().getTokenUrl())
 				.contentType("application/x-www-form-urlencoded")
@@ -154,12 +153,30 @@ public class DefaultMyChartAuthenticator implements MyChartAuthenticator {
 			// }
 			String accessToken = jsonObject.get("access_token").toString();
 			String tokenType = jsonObject.get("token_type").toString();
+			String tokenState = jsonObject.get("state") != null ? jsonObject.get("state").toString() : null;  // In theory should be identical to "state" passed in to this method
 			Integer expiresIn = ((Number) jsonObject.get("expires_in")).intValue();
 			String scope = jsonObject.get("scope").toString() == null ? null : jsonObject.get("scope").toString();
 			String refreshToken = jsonObject.get("refresh_token") == null ? null : jsonObject.get("refresh_token").toString();
 
-			return new MyChartAccessToken(accessToken, tokenType, Instant.now().plus(expiresIn, ChronoUnit.SECONDS),
-					jsonObject, scope, refreshToken);
+			Instant expiresAt = Instant.now().plus(expiresIn, ChronoUnit.SECONDS);
+
+			// Metadata is just a copy of the response body with the well-known keys removed.
+			// An institution might provide fields like "__epic.dstu2.patient" or "patient", for example,
+			// and those would be surfaced in the metadata.
+			Map<String, Object> metadata = new HashMap<>(jsonObject);
+			metadata.remove("access_token");
+			metadata.remove("token_type");
+			metadata.remove("state");
+			metadata.remove("expires_in");
+			metadata.remove("scope");
+			metadata.remove("refresh_token");
+
+			return new MyChartAccessToken.Builder(accessToken, tokenType, expiresAt)
+					.refreshToken(refreshToken)
+					.scope(scope)
+					.state(tokenState)
+					.metadata(metadata)
+					.build();
 		} catch (MyChartException e) {
 			throw e;
 		} catch (Exception e) {

@@ -33,6 +33,7 @@ import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleRespo
 import com.cobaltplatform.api.integration.epic.response.PatientCreateResponse;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse;
 import com.cobaltplatform.api.integration.epic.response.ScheduleAppointmentWithInsuranceResponse;
+import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -40,12 +41,20 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Collections;
+import java.util.Optional;
 
 /**
  * @author Transmogrify, LLC.
  */
 @ThreadSafe
 public class MockEpicClient implements EpicClient {
+	@Nonnull
+	@Override
+	public Optional<Object> findPatientFhirR4(@Nonnull MyChartAccessToken myChartAccessToken,
+																						@Nonnull String patientId) {
+		return Optional.empty();
+	}
+
 	@Nonnull
 	@Override
 	public EpicConfiguration getEpicConfiguration() {

@@ -19,13 +19,13 @@
 
 package com.cobaltplatform.api.util;
 
-import com.cobaltplatform.api.service.AccountService;
-import com.google.gson.Gson;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AccessTokenClaims;
 import com.cobaltplatform.api.model.security.AccessTokenStatus;
 import com.cobaltplatform.api.model.security.SigningTokenClaims;
+import com.cobaltplatform.api.service.AccountService;
+import com.google.gson.Gson;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jws;
@@ -223,7 +223,12 @@ public class Authenticator {
 		try {
 			Jws<Claims> claims = Jwts.parserBuilder().setSigningKey(getConfiguration().getKeyPair().getPublic()).build().parseClaimsJws(signingToken);
 			Map<String, Object> claimsAsMap = claims.getBody();
-			return new SigningTokenClaims(claimsAsMap == null ? Collections.emptyMap() : claimsAsMap, claims.getBody().getExpiration().toInstant());
+			Instant expiration = claims.getBody().getExpiration().toInstant();
+
+			if (expiration.isBefore(Instant.now()))
+				throw new SigningTokenValidationException("Signing token has expired");
+
+			return new SigningTokenClaims(claimsAsMap == null ? Collections.emptyMap() : claimsAsMap, expiration);
 		} catch (UnsupportedJwtException e) {
 			throw new SigningTokenValidationException(e);
 		} catch (ExpiredJwtException e) {
@@ -235,6 +240,10 @@ public class Authenticator {
 
 	@NotThreadSafe
 	public static class SigningTokenValidationException extends Exception {
+		public SigningTokenValidationException(@Nullable String message) {
+			super(message);
+		}
+
 		public SigningTokenValidationException(@Nullable Exception cause) {
 			super(cause);
 		}
@@ -418,7 +427,9 @@ public class Authenticator {
 	}
 
 	@Nonnull
-	public Long getMissingIssuedAtOffsetInMinutes() { return missingIssuedAtOffsetInMinutes; }
+	public Long getMissingIssuedAtOffsetInMinutes() {
+		return missingIssuedAtOffsetInMinutes;
+	}
 
 	@Nonnull
 	protected Configuration getConfiguration() {
@@ -436,5 +447,7 @@ public class Authenticator {
 	}
 
 	@Nonnull
-	protected AccountService getAccountService() { return accountServiceProvider.get(); }
+	protected AccountService getAccountService() {
+		return accountServiceProvider.get();
+	}
 }
