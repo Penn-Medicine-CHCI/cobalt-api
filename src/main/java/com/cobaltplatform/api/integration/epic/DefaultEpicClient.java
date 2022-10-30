@@ -36,6 +36,7 @@ import com.cobaltplatform.api.integration.epic.response.GetPatientAppointmentsRe
 import com.cobaltplatform.api.integration.epic.response.GetPatientDemographicsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse;
 import com.cobaltplatform.api.integration.epic.response.PatientCreateResponse;
+import com.cobaltplatform.api.integration.epic.response.PatientFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse;
 import com.cobaltplatform.api.integration.epic.response.ScheduleAppointmentWithInsuranceResponse;
 import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
@@ -119,8 +120,8 @@ public class DefaultEpicClient implements EpicClient {
 
 	@Nonnull
 	@Override
-	public Optional<Object> findPatientFhirR4(@Nonnull MyChartAccessToken myChartAccessToken,
-																						@Nullable String patientId) {
+	public Optional<PatientFhirR4Response> findPatientFhirR4(@Nonnull MyChartAccessToken myChartAccessToken,
+																													 @Nullable String patientId) {
 		requireNonNull(myChartAccessToken);
 
 		patientId = trimToNull(patientId);
@@ -129,10 +130,14 @@ public class DefaultEpicClient implements EpicClient {
 			return Optional.empty();
 
 		HttpMethod httpMethod = HttpMethod.GET;
-		String url = format("api/FHIR/R4/Patient/%s", "TOqVFFXGu5N9VdAsjSLNvxWEcGg5TnU2Fh1Om6oSGnfkB");
-		Function<String, Optional<Object>> responseBodyMapper = (responseBody) -> getGson().fromJson(responseBody, Optional.class);
+		String url = format("api/FHIR/R4/Patient/%s", patientId);
+		Function<String, Optional<PatientFhirR4Response>> responseBodyMapper = (responseBody) -> {
+			// TODO: handle "not found" case
+			PatientFhirR4Response response = getGson().fromJson(responseBody, PatientFhirR4Response.class);
+			return Optional.of(response);
+		};
 
-		ApiCall<Optional<Object>> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+		ApiCall<Optional<PatientFhirR4Response>> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
 				.myChartAccessToken(myChartAccessToken)
 				.build();
 

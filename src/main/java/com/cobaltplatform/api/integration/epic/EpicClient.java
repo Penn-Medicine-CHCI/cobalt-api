@@ -31,6 +31,7 @@ import com.cobaltplatform.api.integration.epic.response.GetPatientAppointmentsRe
 import com.cobaltplatform.api.integration.epic.response.GetPatientDemographicsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse;
 import com.cobaltplatform.api.integration.epic.response.PatientCreateResponse;
+import com.cobaltplatform.api.integration.epic.response.PatientFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse;
 import com.cobaltplatform.api.integration.epic.response.ScheduleAppointmentWithInsuranceResponse;
 import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
@@ -53,8 +54,8 @@ public interface EpicClient {
 	EpicConfiguration getEpicConfiguration();
 
 	@Nonnull
-	Optional<Object> findPatientFhirR4(@Nonnull MyChartAccessToken myChartAccessToken,
-																		 @Nullable String patientId);
+	Optional<PatientFhirR4Response> findPatientFhirR4(@Nonnull MyChartAccessToken myChartAccessToken,
+																										@Nullable String patientId);
 
 	@Nonnull
 	PatientSearchResponse performPatientSearch(@Nonnull PatientSearchRequest request);
