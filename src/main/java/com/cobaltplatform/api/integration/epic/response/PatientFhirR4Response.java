@@ -30,6 +30,9 @@ import java.util.List;
 @NotThreadSafe
 public class PatientFhirR4Response {
 	@Nullable
+	private String rawJson;
+
+	@Nullable
 	private String id;
 	@Nullable
 	private String resourceType;
@@ -61,6 +64,15 @@ public class PatientFhirR4Response {
 	private List<Extension> extension;
 	@Nullable
 	private List<Contact> contact;
+
+	@Nullable
+	public String getRawJson() {
+		return this.rawJson;
+	}
+
+	public void setRawJson(@Nullable String rawJson) {
+		this.rawJson = rawJson;
+	}
 
 	@Nullable
 	public String getId() {

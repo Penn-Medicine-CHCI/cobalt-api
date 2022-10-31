@@ -139,9 +139,12 @@ public class DefaultEpicClient implements EpicClient {
 
 		HttpMethod httpMethod = HttpMethod.GET;
 		String url = format("api/FHIR/R4/Patient/%s", patientId);
+
+		// TODO: handle "not found" case
 		Function<String, Optional<PatientFhirR4Response>> responseBodyMapper = (responseBody) -> {
-			// TODO: handle "not found" case
 			PatientFhirR4Response response = getGson().fromJson(responseBody, PatientFhirR4Response.class);
+			response.setRawJson(responseBody.trim());
+
 			return Optional.of(response);
 		};
 
@@ -493,7 +496,7 @@ public class DefaultEpicClient implements EpicClient {
 
 		return gsonBuilder.create();
 	}
-	
+
 	@Nonnull
 	@Override
 	public EpicConfiguration getEpicConfiguration() {
