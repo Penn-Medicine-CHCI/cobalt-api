@@ -347,6 +347,13 @@ public class ScreeningResource {
 		ScreeningConfirmationPromptApiResponse preQuestionScreeningConfirmationPromptApiResponse = preQuestionScreeningConfirmationPrompt == null ? null
 				: getScreeningConfirmationPromptApiResponseFactory().create(preQuestionScreeningConfirmationPrompt);
 
+		// UI might want to take special action if this question has been previously answered.
+		// We need an explicit flag here because for questions that have a minimum of 0 answers - skippable questions -
+		// we need to know that the question was "answered" with no answers.
+		boolean previouslyAnswered = getScreeningService().hasPreviouslyAnsweredQuestionInScreeningSessionScreening(
+				screeningQuestionContext.getScreeningQuestion().getScreeningQuestionId(),
+				screeningQuestionContext.getScreeningSessionScreening().getScreeningSessionScreeningId());
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("previousScreeningQuestionContextId", previousScreeningQuestionContext == null ? null
 					: previousScreeningQuestionContext.getScreeningQuestionContextId());
@@ -360,6 +367,7 @@ public class ScreeningResource {
 			put("screeningSessionDestination", screeningSessionDestination);
 			put("screeningFlowVersion", getScreeningFlowVersionApiResponseFactory().create(screeningFlowVersion));
 			put("preQuestionScreeningConfirmationPrompt", preQuestionScreeningConfirmationPromptApiResponse);
+			put("previouslyAnswered", previouslyAnswered);
 		}});
 	}
 

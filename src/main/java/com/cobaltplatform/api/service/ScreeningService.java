@@ -739,6 +739,20 @@ public class ScreeningService {
 	}
 
 	@Nonnull
+	public Boolean hasPreviouslyAnsweredQuestionInScreeningSessionScreening(@Nullable UUID screeningQuestionId,
+																																					@Nullable UUID screeningSessionScreeningId) {
+		if (screeningQuestionId == null || screeningSessionScreeningId == null)
+			return false;
+
+		return getDatabase().queryForObject("""
+				SELECT COUNT(*)
+				FROM screening_session_answered_screening_question
+				WHERE screening_session_screening_id=?
+				AND screening_question_id=?
+				""", Integer.class, screeningSessionScreeningId, screeningQuestionId).get() > 0;
+	}
+
+	@Nonnull
 	public List<UUID> createScreeningAnswers(@Nullable CreateScreeningAnswersRequest request) {
 		requireNonNull(request);
 
