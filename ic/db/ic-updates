@@ -1,3 +1,0 @@
-#!/bin/sh
-
-PGPASSWORD=password psql -U ic -h localhost -p 5501 cobalt < 001-tracking-tables.sql

@@ -187,13 +187,6 @@ public class CurrentContextRequestHandler {
 				}
 			}
 
-			// Is this a signed IC request?
-			String icSigningToken = WebUtility.extractValueFromRequest(httpServletRequest, getIcSigningTokenRequestPropertyName()).orElse(null);
-			boolean signedByIc = false;
-
-			if (icSigningToken != null)
-				signedByIc = getIcClient().verifyIcSigningToken(icSigningToken);
-
 			RemoteClient remoteClient = RemoteClient.fromHttpServletRequest(httpServletRequest);
 
 			Optional<String> sessionTrackingString = WebUtility.extractValueFromRequest(httpServletRequest, getSessionTrackingIdPropertyName());
@@ -221,7 +214,6 @@ public class CurrentContextRequestHandler {
 					.remoteClient(remoteClient)
 					.webappBaseUrl(webappBaseUrl)
 					.sessionTrackingId(sessionTrackingId)
-					.signedByIc(signedByIc)
 					.accountSource(accountSource)
 					.fingerprintId(fingerprintIdValue)
 					.build();

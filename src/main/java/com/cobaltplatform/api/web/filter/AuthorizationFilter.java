@@ -26,7 +26,6 @@ import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AccessTokenStatus;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.security.ContentSecurityLevel;
-import com.cobaltplatform.api.model.security.IcSignedRequestRequired;
 import com.cobaltplatform.api.util.AccessTokenException;
 import com.soklet.web.exception.AuthenticationException;
 import com.soklet.web.exception.AuthorizationException;
@@ -151,12 +150,6 @@ public class AuthorizationFilter implements Filter {
 							(accessTokenStatus == null ? "unknown" : accessTokenStatus.name())),
 							accessTokenStatus == null ? AccessTokenStatus.FULLY_EXPIRED : accessTokenStatus, signOnUrl);
 				}
-
-			}
-
-			if (resourceMethod.getAnnotation(IcSignedRequestRequired.class) != null) {
-				if (!getCurrentContext().getSignedByIc())
-					throw new AuthenticationException(format("Authentication failed. Request to resource method %s must be signed by IC.", resourceMethod));
 			}
 		}
 

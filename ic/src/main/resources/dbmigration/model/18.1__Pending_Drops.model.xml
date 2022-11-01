@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<migration xmlns="http://ebean-orm.github.io/xml/ns/dbmigration">
-    <changeSet type="apply" dropsFor="7.0">
-        <dropColumn columnName="triage_review_id" tableName="ic.patient_disposition"/>
-    </changeSet>
-</migration>

@@ -5,8 +5,4 @@ echo "Bootstrapping Cobalt API..."
 docker build -t cobalt-bootstrap -f ./docker/Dockerfile-bootstrap .
 docker run --network localstack_default --rm cobalt-bootstrap:latest
 
-echo "Bootstrap complete. Now bootstrapping IC..."
-
-cd ic
-./bootstrap
-cd ..
+echo "Bootstrap complete."

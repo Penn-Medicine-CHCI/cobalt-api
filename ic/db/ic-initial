@@ -1,3 +1,0 @@
-#!/bin/sh
-
-PGPASSWORD=password psql -U postgres -h localhost -p 5501 < initialize.sql

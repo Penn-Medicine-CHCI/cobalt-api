@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<migration xmlns="http://ebean-orm.github.io/xml/ns/dbmigration">
-    <changeSet type="apply">
-        <addColumn tableName="ic.assessment">
-            <column name="disposition_id" type="uuid" uniqueOneToOne="uq_assessment_disposition_id" references="ic.patient_disposition.id" foreignKeyName="fk_assessment_disposition_id"/>
-        </addColumn>
-        <alterColumn columnName="flag" tableName="ic.patient_disposition" checkConstraint="check ( flag in (0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18))" checkConstraintName="ck_patient_disposition_flag"/>
-    </changeSet>
-</migration>

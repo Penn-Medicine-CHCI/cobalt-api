@@ -47,8 +47,6 @@ public class CurrentContext {
 	private final Locale locale;
 	@Nonnull
 	private final ZoneId timeZone;
-	@Nonnull
-	private final Boolean signedByIc;
 	@Nullable
 	private final RemoteClient remoteClient;
 	@Nullable
@@ -85,7 +83,6 @@ public class CurrentContext {
 		this.remoteClient = builder.remoteClient;
 		this.webappBaseUrl = trimToNull(builder.webappBaseUrl);
 		this.sessionTrackingId = builder.sessionTrackingId;
-		this.signedByIc = builder.signedByIc == null ? false : builder.signedByIc;
 		this.accountSource = builder.accountSource;
 		this.fingerprintId = builder.fingerprintId;
 	}
@@ -131,11 +128,6 @@ public class CurrentContext {
 	}
 
 	@Nonnull
-	public Boolean getSignedByIc() {
-		return this.signedByIc;
-	}
-
-	@Nonnull
 	public UUID getSessionTrackingId() {
 		return this.sessionTrackingId;
 	}
@@ -170,8 +162,6 @@ public class CurrentContext {
 		private String webappBaseUrl;
 		@Nullable
 		private UUID sessionTrackingId;
-		@Nullable
-		private Boolean signedByIc;
 		@Nullable
 		private AccountSource accountSource;
 		@Nullable
@@ -218,12 +208,6 @@ public class CurrentContext {
 		@Nonnull
 		public Builder remoteClient(@Nullable RemoteClient remoteClient) {
 			this.remoteClient = remoteClient;
-			return this;
-		}
-
-		@Nonnull
-		public Builder signedByIc(@Nullable Boolean signedByIc) {
-			this.signedByIc = signedByIc;
 			return this;
 		}
 
