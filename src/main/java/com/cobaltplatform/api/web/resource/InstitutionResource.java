@@ -20,9 +20,6 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.Configuration;
-import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
-import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
-import com.cobaltplatform.api.integration.mychart.MyChartAuthenticator;
 import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse.AccountSourceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
@@ -30,8 +27,7 @@ import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.service.InstitutionService;
-import com.cobaltplatform.api.util.Authenticator;
-import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.service.MyChartService;
 import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.PathParameter;
@@ -47,7 +43,6 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -67,9 +62,7 @@ public class InstitutionResource {
 	@Nonnull
 	private final InstitutionService institutionService;
 	@Nonnull
-	private final EnterprisePluginProvider enterprisePluginProvider;
-	@Nonnull
-	private final Authenticator authenticator;
+	private final MyChartService myChartService;
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
@@ -79,23 +72,20 @@ public class InstitutionResource {
 	public InstitutionResource(@Nonnull InstitutionApiResponseFactory institutionApiResponseFactory,
 														 @Nonnull AccountSourceApiResponseFactory accountSourceApiResponseFactory,
 														 @Nonnull InstitutionService institutionService,
-														 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
-														 @Nonnull Authenticator authenticator,
+														 @Nonnull MyChartService myChartService,
 														 @Nonnull Configuration configuration,
 														 @Nonnull Strings strings) {
 		requireNonNull(institutionApiResponseFactory);
 		requireNonNull(accountSourceApiResponseFactory);
 		requireNonNull(institutionService);
-		requireNonNull(enterprisePluginProvider);
-		requireNonNull(authenticator);
+		requireNonNull(myChartService);
 		requireNonNull(configuration);
 		requireNonNull(strings);
 
 		this.institutionApiResponseFactory = institutionApiResponseFactory;
 		this.accountSourceApiResponseFactory = accountSourceApiResponseFactory;
 		this.institutionService = institutionService;
-		this.enterprisePluginProvider = enterprisePluginProvider;
-		this.authenticator = authenticator;
+		this.myChartService = myChartService;
 		this.configuration = configuration;
 		this.strings = strings;
 	}
@@ -158,16 +148,7 @@ public class InstitutionResource {
 																				 @Nonnull @QueryParameter Optional<Boolean> redirectImmediately) {
 		requireNonNull(institutionId);
 
-		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId);
-		MyChartAuthenticator myChartAuthenticator = enterprisePlugin.myChartAuthenticator().orElse(null);
-
-		if (myChartAuthenticator == null)
-			throw new ValidationException(getStrings().get("MyChart is not available for this institution."));
-
-		Map<String, Object> stateClaims = Map.of("environment", getConfiguration().getEnvironment());
-		String state = getAuthenticator().generateSigningToken("mychart", 60L * 30L, stateClaims);
-		
-		String authenticationUrl = myChartAuthenticator.generateAuthenticationRedirectUrl(state);
+		String authenticationUrl = getMyChartService().generateAuthenticationUrlForInstitutionId(institutionId);
 
 		if (redirectImmediately.isPresent() && redirectImmediately.get())
 			return new RedirectResponse(authenticationUrl, Type.TEMPORARY);
@@ -188,6 +169,11 @@ public class InstitutionResource {
 	}
 
 	@Nonnull
+	protected MyChartService getMyChartService() {
+		return this.myChartService;
+	}
+
+	@Nonnull
 	protected AccountSourceApiResponseFactory getAccountSourceApiResponseFactory() {
 		return this.accountSourceApiResponseFactory;
 	}
@@ -195,16 +181,6 @@ public class InstitutionResource {
 	@Nonnull
 	protected Configuration getConfiguration() {
 		return this.configuration;
-	}
-
-	@Nonnull
-	protected EnterprisePluginProvider getEnterprisePluginProvider() {
-		return this.enterprisePluginProvider;
-	}
-
-	@Nonnull
-	protected Authenticator getAuthenticator() {
-		return this.authenticator;
 	}
 
 	@Nonnull
