@@ -45,6 +45,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/038-institutio
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/039-topic-centers.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/040-content-search.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/041-screening-enhancements.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/042-epic-mychart-refactor.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

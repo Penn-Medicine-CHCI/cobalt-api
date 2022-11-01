@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<migration xmlns="http://ebean-orm.github.io/xml/ns/dbmigration">
-    <changeSet type="apply">
-        <alterColumn columnName="diagnosis" tableName="ic.patient_disposition" checkConstraint="check ( diagnosis in ('100','0','6','4','40','3','1','11','5','7','2','9','10','8','-1'))" checkConstraintName="ck_patient_disposition_diagnosis"/>
-    </changeSet>
-</migration>

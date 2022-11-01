@@ -31,8 +31,10 @@ import com.cobaltplatform.api.integration.epic.response.GetPatientAppointmentsRe
 import com.cobaltplatform.api.integration.epic.response.GetPatientDemographicsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse;
 import com.cobaltplatform.api.integration.epic.response.PatientCreateResponse;
+import com.cobaltplatform.api.integration.epic.response.PatientFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse;
 import com.cobaltplatform.api.integration.epic.response.ScheduleAppointmentWithInsuranceResponse;
+import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -40,6 +42,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Collections;
+import java.util.Optional;
 
 /**
  * @author Transmogrify, LLC.
@@ -48,14 +51,18 @@ import java.util.Collections;
 public class MockEpicClient implements EpicClient {
 	@Nonnull
 	@Override
-	public String getEpicUserId() {
-		return "fake-user-id";
+	public Optional<PatientFhirR4Response> findPatientFhirR4(@Nonnull MyChartAccessToken myChartAccessToken,
+																													 @Nonnull String patientId) {
+		return Optional.empty();
 	}
 
 	@Nonnull
 	@Override
-	public String getEpicUsername() {
-		return "fake-username";
+	public EpicConfiguration getEpicConfiguration() {
+		return new EpicConfiguration.Builder(
+				"fake-client-id",
+				"https://www.example.com"
+		).build();
 	}
 
 	@Nonnull

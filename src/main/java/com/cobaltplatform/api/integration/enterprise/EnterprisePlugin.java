@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.integration.enterprise;
 
+import com.cobaltplatform.api.integration.epic.EpicClient;
+import com.cobaltplatform.api.integration.mychart.MyChartAuthenticator;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -27,9 +29,12 @@ import com.cobaltplatform.api.model.service.CallToActionDisplayAreaId;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -53,5 +58,27 @@ public interface EnterprisePlugin {
 	default List<CallToAction> determineCallsToAction(@Nullable Account account,
 																										@Nullable CallToActionDisplayAreaId callToActionDisplayAreaId) {
 		return Collections.emptyList();
+	}
+
+	@Nonnull
+	default Optional<EpicClient> epicClient() {
+		return Optional.empty();
+	}
+
+	@Nonnull
+	default Optional<MyChartAuthenticator> myChartAuthenticator() {
+		return Optional.empty();
+	}
+
+	@Nonnull
+	default Boolean isInstantWithinBusinessHours(@Nonnull Instant instant) {
+		requireNonNull(instant);
+		return instant.equals(nextInstantWithinBusinessHours(instant));
+	}
+
+	@Nonnull
+	default Instant nextInstantWithinBusinessHours(@Nonnull Instant instant) {
+		requireNonNull(instant);
+		return instant;
 	}
 }

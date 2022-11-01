@@ -30,8 +30,6 @@ import com.cobaltplatform.api.model.api.request.CreateAccountEmailVerificationRe
 import com.cobaltplatform.api.model.api.request.CreateAccountInviteRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateActivityTrackingRequest;
-import com.cobaltplatform.api.model.api.request.CreateIcMpmAccountRequest;
-import com.cobaltplatform.api.model.api.request.CreateIcOrderReportAccountRequest;
 import com.cobaltplatform.api.model.api.request.FindGroupSessionRequestsRequest;
 import com.cobaltplatform.api.model.api.request.FindGroupSessionsRequest;
 import com.cobaltplatform.api.model.api.request.ForgotPasswordRequest;
@@ -79,7 +77,6 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.LoginDestination.LoginDestinationId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
-import com.cobaltplatform.api.model.security.IcSignedRequestRequired;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.ActivityTrackingService;
 import com.cobaltplatform.api.service.AppointmentService;
@@ -88,7 +85,6 @@ import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.GroupSessionService;
-import com.cobaltplatform.api.service.IcService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.service.SessionService;
@@ -148,8 +144,6 @@ public class AccountResource {
 	@Nonnull
 	private final AccountService accountService;
 	@Nonnull
-	private final IcService icService;
-	@Nonnull
 	private final GroupSessionService groupSessionService;
 	@Nonnull
 	private final ContentService contentService;
@@ -204,7 +198,6 @@ public class AccountResource {
 
 	@Inject
 	public AccountResource(@Nonnull AccountService accountService,
-												 @Nonnull IcService icService,
 												 @Nonnull GroupSessionService groupSessionService,
 												 @Nonnull ContentService contentService,
 												 @Nonnull AppointmentService appointmentService,
@@ -231,7 +224,6 @@ public class AccountResource {
 												 @Nonnull AssessmentFormApiResponseFactory assessmentFormApiResponseFactory,
 												 @Nonnull EnterprisePluginProvider enterprisePluginProvider) {
 		requireNonNull(accountService);
-		requireNonNull(icService);
 		requireNonNull(groupSessionService);
 		requireNonNull(contentService);
 		requireNonNull(appointmentService);
@@ -258,7 +250,6 @@ public class AccountResource {
 		requireNonNull(enterprisePluginProvider);
 
 		this.accountService = accountService;
-		this.icService = icService;
 		this.groupSessionService = groupSessionService;
 		this.contentService = contentService;
 		this.appointmentService = appointmentService;
@@ -425,30 +416,6 @@ public class AccountResource {
 	}
 
 	@Nonnull
-	@POST("/accounts/ic/order-report")
-	@IcSignedRequestRequired
-	public ApiResponse createIcOrderReportPatientAccount(@Nonnull @RequestBody String requestBody) {
-		requireNonNull(requestBody);
-
-		CreateIcOrderReportAccountRequest request = getRequestBodyParser().parse(requestBody, CreateIcOrderReportAccountRequest.class);
-		UUID accountId = getIcService().createOrUpdateIcPatientAccount(request);
-
-		return generateAccountResponse(accountId);
-	}
-
-	@Nonnull
-	@POST("/accounts/ic/mpm")
-	@IcSignedRequestRequired
-	public ApiResponse createIcMpmPatientAccount(@Nonnull @RequestBody String requestBody) {
-		requireNonNull(requestBody);
-
-		CreateIcMpmAccountRequest request = getRequestBodyParser().parse(requestBody, CreateIcMpmAccountRequest.class);
-		UUID accountId = getIcService().createOrUpdateIcPatientAccount(request);
-
-		return generateAccountResponse(accountId);
-	}
-
-	@Nonnull
 	protected ApiResponse generateAccountResponse(@Nonnull UUID accountId) {
 		requireNonNull(accountId);
 
@@ -458,25 +425,6 @@ public class AccountResource {
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("account", getAccountApiResponseFactory().create(account, Set.of(AccountApiResponseSupplement.EVERYTHING)));
 			put("accessToken", accessToken);
-		}});
-	}
-
-	@Nonnull
-	@GET("/accounts/ic/{accountId}")
-	@IcSignedRequestRequired
-	public ApiResponse accountForIc(@Nonnull @PathParameter UUID accountId) {
-		requireNonNull(accountId);
-
-		Account account = getAccountService().findAccountById(accountId).orElse(null);
-
-		if (account == null)
-			throw new NotFoundException();
-
-		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
-
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("account", getAccountApiResponseFactory().create(account, Set.of(AccountApiResponseSupplement.EVERYTHING)));
-			put("institution", getInstitutionApiResponseFactory().create(institution));
 		}});
 	}
 
@@ -1006,11 +954,6 @@ public class AccountResource {
 	@Nonnull
 	protected AccountService getAccountService() {
 		return this.accountService;
-	}
-
-	@Nonnull
-	protected IcService getIcService() {
-		return this.icService;
 	}
 
 	@Nonnull

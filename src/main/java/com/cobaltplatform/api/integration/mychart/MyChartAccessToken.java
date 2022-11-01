@@ -22,7 +22,11 @@ package com.cobaltplatform.api.integration.mychart;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
+import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -41,39 +45,31 @@ public class MyChartAccessToken {
 	@Nonnull
 	private final Instant expiresAt;
 	@Nonnull
-	private final String refreshToken;
+	private final String state;
 	@Nullable
 	private final String scope;
+	@Nullable
+	private final String refreshToken;
+	@Nonnull
+	private final Map<String, Object> metadata;
 
-	public MyChartAccessToken(@Nonnull String accessToken,
-														@Nonnull String tokenType,
-														@Nonnull Instant expiresAt,
-														@Nonnull String refreshToken) {
-		this(accessToken, tokenType, expiresAt, refreshToken, null);
-	}
+	protected MyChartAccessToken(@Nonnull Builder builder) {
+		requireNonNull(builder);
 
-	public MyChartAccessToken(@Nonnull String accessToken,
-														@Nonnull String tokenType,
-														@Nonnull Instant expiresAt,
-														@Nonnull String refreshToken,
-														@Nullable String scope) {
-		requireNonNull(accessToken);
-		requireNonNull(tokenType);
-		requireNonNull(expiresAt);
-		requireNonNull(refreshToken);
-
-		this.accessToken = accessToken;
-		this.tokenType = tokenType;
-		this.expiresAt = expiresAt;
-		this.refreshToken = refreshToken;
-		this.scope = scope;
+		this.accessToken = builder.accessToken;
+		this.tokenType = builder.tokenType;
+		this.expiresAt = builder.expiresAt;
+		this.state = builder.state;
+		this.scope = builder.scope;
+		this.refreshToken = builder.refreshToken;
+		this.metadata = builder.metadata == null ? Collections.emptyMap() : Collections.unmodifiableMap(new HashMap<>(builder.metadata));
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{accessToken=%s, tokenType=%s, expiresAt=%s, refreshToken=%s, scope=%s}",
+		return format("%s{accessToken=%s, tokenType=%s, expiresAt=%s, scope=%s, refreshToken=%s, state=%s, metadata=%s}",
 				getClass().getSimpleName(), getAccessToken(), getTokenType(), getExpiresAt(),
-				getRefreshToken(), getScope());
+				getScope(), getRefreshToken(), getState(), getMetadata());
 	}
 
 	@Override
@@ -88,13 +84,14 @@ public class MyChartAccessToken {
 		return Objects.equals(this.getAccessToken(), otherMyChartAccessToken.getAccessToken())
 				&& Objects.equals(this.getTokenType(), otherMyChartAccessToken.getTokenType())
 				&& Objects.equals(this.getExpiresAt(), otherMyChartAccessToken.getExpiresAt())
-				&& Objects.equals(this.getRefreshToken(), otherMyChartAccessToken.getRefreshToken())
-				&& Objects.equals(this.getScope(), otherMyChartAccessToken.getScope());
+				&& Objects.equals(this.getState(), otherMyChartAccessToken.getState())
+				&& Objects.equals(this.getScope(), otherMyChartAccessToken.getScope())
+				&& Objects.equals(this.getRefreshToken(), otherMyChartAccessToken.getRefreshToken());
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(getAccessToken(), getTokenType(), getExpiresAt(), getRefreshToken(), getScope());
+		return Objects.hash(getAccessToken(), getTokenType(), getExpiresAt(), getState(), getScope(), getRefreshToken());
 	}
 
 	@Nonnull
@@ -113,12 +110,81 @@ public class MyChartAccessToken {
 	}
 
 	@Nonnull
-	public String getRefreshToken() {
-		return this.refreshToken;
+	public Optional<String> getState() {
+		return Optional.ofNullable(this.state);
 	}
 
 	@Nonnull
 	public Optional<String> getScope() {
 		return Optional.ofNullable(this.scope);
+	}
+
+	@Nonnull
+	public Optional<String> getRefreshToken() {
+		return Optional.ofNullable(this.refreshToken);
+	}
+
+	@Nonnull
+	public Map<String, Object> getMetadata() {
+		return this.metadata;
+	}
+
+	@NotThreadSafe
+	public static class Builder {
+		@Nonnull
+		private final String accessToken;
+		@Nonnull
+		private final String tokenType;
+		@Nonnull
+		private final Instant expiresAt;
+		@Nullable
+		private String state;
+		@Nullable
+		private String scope;
+		@Nullable
+		private String refreshToken;
+		@Nullable
+		private Map<String, Object> metadata;
+
+		public Builder(@Nonnull String accessToken,
+									 @Nonnull String tokenType,
+									 @Nonnull Instant expiresAt) {
+			requireNonNull(accessToken);
+			requireNonNull(tokenType);
+			requireNonNull(expiresAt);
+
+			this.accessToken = accessToken;
+			this.tokenType = tokenType;
+			this.expiresAt = expiresAt;
+		}
+
+		@Nonnull
+		public Builder state(@Nullable String state) {
+			this.state = state;
+			return this;
+		}
+
+		@Nonnull
+		public Builder scope(@Nullable String scope) {
+			this.scope = scope;
+			return this;
+		}
+
+		@Nonnull
+		public Builder refreshToken(@Nullable String refreshToken) {
+			this.refreshToken = refreshToken;
+			return this;
+		}
+
+		@Nonnull
+		public Builder metadata(@Nullable Map<String, Object> metadata) {
+			this.metadata = metadata;
+			return this;
+		}
+
+		@Nonnull
+		public MyChartAccessToken build() {
+			return new MyChartAccessToken(this);
+		}
 	}
 }

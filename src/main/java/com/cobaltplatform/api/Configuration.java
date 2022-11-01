@@ -24,7 +24,6 @@ import com.cobaltplatform.api.http.DefaultHttpClient;
 import com.cobaltplatform.api.http.HttpMethod;
 import com.cobaltplatform.api.http.HttpRequest;
 import com.cobaltplatform.api.http.HttpResponse;
-import com.cobaltplatform.api.integration.epic.EpicEnvironment;
 import com.cobaltplatform.api.integration.way2health.Way2HealthEnvironment;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.security.SamlIdentityProvider;
@@ -257,16 +256,6 @@ public class Configuration {
 	@Nonnull
 	private final Long acuityVideoconferenceFormFieldId;
 	@Nonnull
-	private final EpicEnvironment epicEnvironment;
-	@Nonnull
-	private final String epicClientId;
-	@Nonnull
-	private final String epicUserId;
-	@Nonnull
-	private final String epicUsername;
-	@Nonnull
-	private final String epicPassword;
-	@Nonnull
 	private final String twilioFromNumber;
 	@Nonnull
 	private final String twilioSid;
@@ -419,12 +408,6 @@ public class Configuration {
 		this.acuityUserId = valueFor("com.cobaltplatform.api.acuity.userId", String.class);
 		this.acuityApiKey = valueFor("com.cobaltplatform.api.acuity.apiKey", String.class);
 		this.acuityVideoconferenceFormFieldId = valueFor("com.cobaltplatform.api.acuity.videoconferenceFormFieldId", Long.class);
-
-		this.epicEnvironment = valueFor("com.cobaltplatform.api.epic.environment", EpicEnvironment.class);
-		this.epicClientId = valueFor("com.cobaltplatform.api.epic.clientId", String.class);
-		this.epicUserId = valueFor("com.cobaltplatform.api.epic.userId", String.class);
-		this.epicUsername = valueFor("com.cobaltplatform.api.epic.username", String.class);
-		this.epicPassword = valueFor("com.cobaltplatform.api.epic.password", String.class);
 
 		this.twilioFromNumber = valueFor("com.cobaltplatform.api.twilio.fromNumber", String.class);
 		this.twilioSid = valueFor("com.cobaltplatform.api.twilio.sid", String.class);
@@ -1407,31 +1390,6 @@ public class Configuration {
 	@Nonnull
 	public Long getAcuityVideoconferenceFormFieldId() {
 		return acuityVideoconferenceFormFieldId;
-	}
-
-	@Nonnull
-	public EpicEnvironment getEpicEnvironment() {
-		return epicEnvironment;
-	}
-
-	@Nonnull
-	public String getEpicClientId() {
-		return epicClientId;
-	}
-
-	@Nonnull
-	public String getEpicUserId() {
-		return epicUserId;
-	}
-
-	@Nonnull
-	public String getEpicUsername() {
-		return epicUsername;
-	}
-
-	@Nonnull
-	public String getEpicPassword() {
-		return epicPassword;
 	}
 
 	@Nonnull

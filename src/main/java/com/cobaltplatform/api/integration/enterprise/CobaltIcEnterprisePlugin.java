@@ -42,12 +42,12 @@ import static java.util.Objects.requireNonNull;
  */
 @Singleton
 @ThreadSafe
-public class CobaltEnterprisePlugin implements EnterprisePlugin {
+public class CobaltIcEnterprisePlugin implements EnterprisePlugin {
 	@Nonnull
 	private final InstitutionService institutionService;
 
 	@Inject
-	public CobaltEnterprisePlugin(@Nonnull InstitutionService institutionService) {
+	public CobaltIcEnterprisePlugin(@Nonnull InstitutionService institutionService) {
 		requireNonNull(institutionService);
 		this.institutionService = institutionService;
 	}
@@ -55,7 +55,7 @@ public class CobaltEnterprisePlugin implements EnterprisePlugin {
 	@Nonnull
 	@Override
 	public InstitutionId getInstitutionId() {
-		return InstitutionId.COBALT;
+		return InstitutionId.COBALT_IC;
 	}
 
 	// No custom behavior for this institution

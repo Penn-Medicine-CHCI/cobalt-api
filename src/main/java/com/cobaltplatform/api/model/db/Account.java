@@ -21,17 +21,23 @@ package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.BetaStatus.BetaStatusId;
+import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
+import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import com.pyranid.DatabaseColumn;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Collections;
 import java.util.Locale;
@@ -71,6 +77,16 @@ public class Account {
 	@Nullable
 	private UUID providerId;
 	@Nullable
+	private GenderIdentityId genderIdentityId;
+	@Nullable
+	private BirthSexId birthSexId;
+	@Nullable
+	private RaceId raceId;
+	@Nullable
+	private EthnicityId ethnicityId;
+	@Nullable
+	private UUID addressId;
+	@Nullable
 	private String emailAddress;
 	@Nullable
 	private String password;
@@ -85,11 +101,14 @@ public class Account {
 	@Nullable
 	private String ssoId;
 	@Nullable
-	private String ssoAttributes;
+	private String ssoAttributes; // JSONB
+	@Deprecated
 	@Nullable
 	private String epicPatientId;
+	@Deprecated
 	@Nullable
 	private String epicPatientIdType;
+	@Deprecated
 	@Nullable
 	private Boolean epicPatientCreatedByCobalt;
 	@Nullable
@@ -105,9 +124,17 @@ public class Account {
 	@Nonnull
 	private Long accessTokenShortExpirationInMinutes;
 	@Nullable
-	private String metadata;
+	private String metadata; // JSONB
 	@Nullable
 	private Boolean schedulingTutorialViewed;
+	@Nullable
+	private LocalDate birthdate;
+	@Nullable
+	@DatabaseColumn("mychart_patient_record")
+	private String myChartPatientRecord; // JSONB
+	@Nullable
+	@DatabaseColumn("mychart_patient_record_last_imported_at")
+	private Instant myChartPatientRecordLastImportedAt;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -325,28 +352,34 @@ public class Account {
 	}
 
 	@Nullable
+	@Deprecated
 	public String getEpicPatientId() {
 		return epicPatientId;
 	}
 
+	@Deprecated
 	public void setEpicPatientId(@Nullable String epicPatientId) {
 		this.epicPatientId = epicPatientId;
 	}
 
 	@Nullable
+	@Deprecated
 	public String getEpicPatientIdType() {
 		return epicPatientIdType;
 	}
 
+	@Deprecated
 	public void setEpicPatientIdType(@Nullable String epicPatientIdType) {
 		this.epicPatientIdType = epicPatientIdType;
 	}
 
 	@Nullable
+	@Deprecated
 	public Boolean getEpicPatientCreatedByCobalt() {
 		return epicPatientCreatedByCobalt;
 	}
 
+	@Deprecated
 	public void setEpicPatientCreatedByCobalt(@Nullable Boolean epicPatientCreatedByCobalt) {
 		this.epicPatientCreatedByCobalt = epicPatientCreatedByCobalt;
 	}
@@ -403,5 +436,77 @@ public class Account {
 
 	public void setMetadata(@Nullable String metadata) {
 		this.metadata = metadata;
+	}
+
+	@Nullable
+	public GenderIdentityId getGenderIdentityId() {
+		return this.genderIdentityId;
+	}
+
+	public void setGenderIdentityId(@Nullable GenderIdentityId genderIdentityId) {
+		this.genderIdentityId = genderIdentityId;
+	}
+
+	@Nullable
+	public BirthSexId getBirthSexId() {
+		return this.birthSexId;
+	}
+
+	public void setBirthSexId(@Nullable BirthSexId birthSexId) {
+		this.birthSexId = birthSexId;
+	}
+
+	@Nullable
+	public RaceId getRaceId() {
+		return this.raceId;
+	}
+
+	public void setRaceId(@Nullable RaceId raceId) {
+		this.raceId = raceId;
+	}
+
+	@Nullable
+	public EthnicityId getEthnicityId() {
+		return this.ethnicityId;
+	}
+
+	public void setEthnicityId(@Nullable EthnicityId ethnicityId) {
+		this.ethnicityId = ethnicityId;
+	}
+
+	@Nullable
+	public LocalDate getBirthdate() {
+		return this.birthdate;
+	}
+
+	public void setBirthdate(@Nullable LocalDate birthdate) {
+		this.birthdate = birthdate;
+	}
+
+	@Nullable
+	public String getMyChartPatientRecord() {
+		return this.myChartPatientRecord;
+	}
+
+	public void setMyChartPatientRecord(@Nullable String myChartPatientRecord) {
+		this.myChartPatientRecord = myChartPatientRecord;
+	}
+
+	@Nullable
+	public Instant getMyChartPatientRecordLastImportedAt() {
+		return this.myChartPatientRecordLastImportedAt;
+	}
+
+	public void setMyChartPatientRecordLastImportedAt(@Nullable Instant myChartPatientRecordLastImportedAt) {
+		this.myChartPatientRecordLastImportedAt = myChartPatientRecordLastImportedAt;
+	}
+
+	@Nullable
+	public UUID getAddressId() {
+		return this.addressId;
+	}
+
+	public void setAddressId(@Nullable UUID addressId) {
+		this.addressId = addressId;
 	}
 }

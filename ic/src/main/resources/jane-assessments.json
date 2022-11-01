@@ -1,9 +1,0 @@
-[
-  {
-    "id": "1234",
-    "nextQuestionnaire": "short-CSSRS",
-    "status": "not-started",
-    "due": "string",
-    "authored": "string"
-  }
-]

@@ -23,6 +23,7 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.integration.common.ProviderAvailabilitySyncManager;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.epic.request.GetProviderScheduleRequest;
 import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse;
 import com.cobaltplatform.api.model.db.AppointmentType;
@@ -31,7 +32,6 @@ import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
-import com.cobaltplatform.api.model.qualifier.NotAuditLogged;
 import com.cobaltplatform.api.service.AppointmentService;
 import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.service.ProviderService;
@@ -88,7 +88,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 	@Nonnull
 	private final javax.inject.Provider<AppointmentService> appointmentServiceProvider;
 	@Nonnull
-	private final javax.inject.Provider<EpicClient> epicClientProvider;
+	private final EnterprisePluginProvider enterprisePluginProvider;
 	@Nonnull
 	private final Database database;
 	@Nonnull
@@ -116,7 +116,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 												 @Nonnull javax.inject.Provider<ProviderService> providerServiceProvider,
 												 @Nonnull javax.inject.Provider<AppointmentService> appointmentServiceProvider,
 												 @Nonnull javax.inject.Provider<AuditLogService> auditLogServiceProvider,
-												 @Nonnull @NotAuditLogged javax.inject.Provider<EpicClient> epicClientProvider,
+												 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
 												 @Nonnull Database database,
 												 @Nonnull Configuration configuration,
 												 @Nonnull Strings strings) {
@@ -124,7 +124,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 		requireNonNull(providerServiceProvider);
 		requireNonNull(appointmentServiceProvider);
 		requireNonNull(auditLogServiceProvider);
-		requireNonNull(epicClientProvider);
+		requireNonNull(enterprisePluginProvider);
 		requireNonNull(database);
 		requireNonNull(configuration);
 		requireNonNull(strings);
@@ -132,7 +132,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 		this.availabilitySyncTaskProvider = availabilitySyncTaskProvider;
 		this.providerServiceProvider = providerServiceProvider;
 		this.appointmentServiceProvider = appointmentServiceProvider;
-		this.epicClientProvider = epicClientProvider;
+		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.database = database;
 		this.configuration = configuration;
 		this.strings = strings;
@@ -224,9 +224,11 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 			return false;
 		}
 
+		EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(provider.getInstitutionId()).epicClient().get();
+
 		getLogger().info("Syncing availabilty for provider {} on {}...", provider.getName(), date);
 
-		ProviderAvailabilityDateInsert insert = generateProviderAvailabilityDateInsert(provider, date);
+		ProviderAvailabilityDateInsert insert = generateProviderAvailabilityDateInsert(epicClient, provider, date);
 
 		if (performInOwnTransaction)
 			getDatabase().transaction(() -> {
@@ -239,7 +241,8 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 	}
 
 	@Nonnull
-	protected ProviderAvailabilityDateInsert generateProviderAvailabilityDateInsert(@Nonnull Provider provider,
+	protected ProviderAvailabilityDateInsert generateProviderAvailabilityDateInsert(@Nonnull EpicClient epicClient,
+																																									@Nonnull Provider provider,
 																																									@Nonnull LocalDate date) {
 		requireNonNull(provider);
 		requireNonNull(date);
@@ -263,13 +266,13 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 					request.setDepartmentIDType(epicDepartment.getDepartmentIdType());
 					request.setVisitTypeID(appointmentType.getEpicVisitTypeId());
 					request.setVisitTypeIDType(appointmentType.getEpicVisitTypeIdType());
-					request.setUserID(getEpicClient().getEpicUserId());
-					request.setUserIDType("EXTERNAL");
+					request.setUserID(epicClient.getEpicConfiguration().getUserId().orElse(null));
+					request.setUserIDType(epicClient.getEpicConfiguration().getUserIdType().orElse(null));
 
-					GetProviderScheduleResponse response = getEpicClient().performGetProviderSchedule(request);
+					GetProviderScheduleResponse response = epicClient.performGetProviderSchedule(request);
 
 					for (GetProviderScheduleResponse.ScheduleSlot scheduleSlot : response.getScheduleSlots()) {
-						LocalTime startTime = getEpicClient().parseTimeAmPm(scheduleSlot.getStartTime());
+						LocalTime startTime = epicClient.parseTimeAmPm(scheduleSlot.getStartTime());
 						Integer availableOpenings = Integer.valueOf(scheduleSlot.getAvailableOpenings());
 						LocalDateTime dateTime = LocalDateTime.of(date, startTime);
 
@@ -310,13 +313,13 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 				request.setProviderIDType(provider.getEpicProviderIdType());
 				request.setDepartmentID(epicDepartment.getDepartmentId());
 				request.setDepartmentIDType(epicDepartment.getDepartmentIdType());
-				request.setUserID(getEpicClient().getEpicUserId());
-				request.setUserIDType("EXTERNAL");
+				request.setUserID(epicClient.getEpicConfiguration().getUserId().orElse(null));
+				request.setUserIDType(epicClient.getEpicConfiguration().getUserIdType().orElse(null));
 
-				GetProviderScheduleResponse response = getEpicClient().performGetProviderSchedule(request);
+				GetProviderScheduleResponse response = epicClient.performGetProviderSchedule(request);
 
 				for (GetProviderScheduleResponse.ScheduleSlot scheduleSlot : response.getScheduleSlots()) {
-					LocalTime startTime = getEpicClient().parseTimeAmPm(scheduleSlot.getStartTime());
+					LocalTime startTime = epicClient.parseTimeAmPm(scheduleSlot.getStartTime());
 					Integer availableOpenings = Integer.valueOf(scheduleSlot.getAvailableOpenings());
 					Long length = Long.valueOf(scheduleSlot.getLength());
 					LocalDateTime dateTime = LocalDateTime.of(date, startTime);
@@ -435,7 +438,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 		@Nonnull
 		private final javax.inject.Provider<ProviderService> providerServiceProvider;
 		@Nonnull
-		private final javax.inject.Provider<EpicClient> epicClientProvider;
+		private final EnterprisePluginProvider enterprisePluginProvider;
 		@Nonnull
 		private final CurrentContextExecutor currentContextExecutor;
 		@Nonnull
@@ -448,13 +451,13 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 		@Inject
 		public AvailabilitySyncTask(@Nonnull javax.inject.Provider<EpicSyncManager> epicSyncManager,
 																@Nonnull javax.inject.Provider<ProviderService> providerServiceProvider,
-																@Nonnull @NotAuditLogged javax.inject.Provider<EpicClient> epicClientProvider,
+																@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 																@Nonnull CurrentContextExecutor currentContextExecutor,
 																@Nonnull Database database,
 																@Nonnull Configuration configuration) {
 			requireNonNull(epicSyncManager);
 			requireNonNull(providerServiceProvider);
-			requireNonNull(epicClientProvider);
+			requireNonNull(enterprisePluginProvider);
 			requireNonNull(currentContextExecutor);
 			requireNonNull(database);
 			requireNonNull(configuration);
@@ -462,7 +465,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 			this.epicSyncManager = epicSyncManager;
 			this.providerServiceProvider = providerServiceProvider;
 			this.currentContextExecutor = currentContextExecutor;
-			this.epicClientProvider = epicClientProvider;
+			this.enterprisePluginProvider = enterprisePluginProvider;
 			this.database = database;
 			this.configuration = configuration;
 			this.logger = LoggerFactory.getLogger(getClass());
@@ -479,6 +482,8 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 						.filter(provider -> provider.getSchedulingSystemId().equals(SchedulingSystemId.EPIC))
 						.collect(Collectors.toList());
 
+				EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(InstitutionId.COBALT).epicClient().get();
+
 				getLogger().info("Running EPIC availability sync for {} providers...", providers.size());
 				int providerSuccessCount = 0;
 
@@ -489,7 +494,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 						List<ProviderAvailabilityDateInsert> inserts = new ArrayList<>(getEpicSyncManager().getAvailabilitySyncNumberOfDaysAhead());
 
 						for (int i = 0; i < getEpicSyncManager().getAvailabilitySyncNumberOfDaysAhead(); ++i) {
-							ProviderAvailabilityDateInsert insert = getEpicSyncManager().generateProviderAvailabilityDateInsert(provider, syncDate);
+							ProviderAvailabilityDateInsert insert = getEpicSyncManager().generateProviderAvailabilityDateInsert(epicClient, provider, syncDate);
 							inserts.add(insert);
 							syncDate = syncDate.plusDays(1);
 						}
@@ -534,8 +539,8 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 		}
 
 		@Nonnull
-		protected EpicClient getEpicClient() {
-			return epicClientProvider.get();
+		protected EnterprisePluginProvider getEnterprisePluginProvider() {
+			return enterprisePluginProvider;
 		}
 
 		@Nonnull
@@ -681,8 +686,8 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 	}
 
 	@Nonnull
-	protected EpicClient getEpicClient() {
-		return epicClientProvider.get();
+	protected EnterprisePluginProvider getEnterprisePluginProvider() {
+		return this.enterprisePluginProvider;
 	}
 
 	@Nonnull
