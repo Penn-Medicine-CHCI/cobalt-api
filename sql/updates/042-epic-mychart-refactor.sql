@@ -17,6 +17,7 @@ ALTER TABLE institution ADD COLUMN mychart_response_type TEXT;
 ALTER TABLE institution ADD COLUMN mychart_token_url TEXT;
 ALTER TABLE institution ADD COLUMN mychart_authorize_url TEXT;
 ALTER TABLE institution ADD COLUMN mychart_callback_url TEXT;
+ALTER TABLE institution ADD COLUMN integrated_care_screening_flow_id UUID REFERENCES screening_flow;
 
 INSERT INTO account_source (account_source_id, description) VALUES ('MYCHART', 'MyChart');
 

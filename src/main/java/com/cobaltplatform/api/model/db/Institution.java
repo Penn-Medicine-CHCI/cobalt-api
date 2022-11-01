@@ -64,6 +64,8 @@ public class Institution {
 	@Nullable
 	private UUID groupSessionsScreeningFlowId;
 	@Nullable
+	private UUID integratedCareScreeningFlowId;
+	@Nullable
 	private ZoneId timeZone;
 	@Nullable
 	private Locale locale;
@@ -319,6 +321,15 @@ public class Institution {
 
 	public void setGroupSessionsScreeningFlowId(@Nullable UUID groupSessionsScreeningFlowId) {
 		this.groupSessionsScreeningFlowId = groupSessionsScreeningFlowId;
+	}
+
+	@Nullable
+	public UUID getIntegratedCareScreeningFlowId() {
+		return this.integratedCareScreeningFlowId;
+	}
+
+	public void setIntegratedCareScreeningFlowId(@Nullable UUID integratedCareScreeningFlowId) {
+		this.integratedCareScreeningFlowId = integratedCareScreeningFlowId;
 	}
 
 	@Nullable
