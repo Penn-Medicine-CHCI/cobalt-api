@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.util;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AccessTokenClaims;
 import com.cobaltplatform.api.model.security.AccessTokenStatus;
@@ -31,9 +32,8 @@ import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.SignatureException;
 import io.jsonwebtoken.UnsupportedJwtException;
-import io.jsonwebtoken.security.WeakKeyException;
+import io.jsonwebtoken.security.SignatureException;
 import org.mindrot.jbcrypt.BCrypt;
 import org.passay.CharacterRule;
 import org.passay.EnglishCharacterData;
@@ -53,19 +53,15 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
-import static java.lang.String.format;
 import static java.time.temporal.ChronoUnit.MINUTES;
 import static java.time.temporal.ChronoUnit.SECONDS;
 import static java.util.Objects.requireNonNull;
@@ -79,6 +75,10 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 public class Authenticator {
 	@Nonnull
 	private static final String DEFAULT_SIGNING_TOKEN_SUBJECT;
+	@Nonnull
+	private static final String ROLE_ID_CLAIM_NAME;
+	@Nonnull
+	private static final String MY_CHART_ACCESS_TOKEN_CLAIM_NAME;
 
 	@Nonnull
 	private final Configuration configuration;
@@ -93,6 +93,8 @@ public class Authenticator {
 
 	static {
 		DEFAULT_SIGNING_TOKEN_SUBJECT = "COBALT_SYSTEM";
+		ROLE_ID_CLAIM_NAME = "roleId";
+		MY_CHART_ACCESS_TOKEN_CLAIM_NAME = "myChartAccessToken";
 	}
 
 	@Inject
@@ -124,29 +126,34 @@ public class Authenticator {
 	@Nonnull
 	public String generateAccessToken(@Nonnull UUID accountId,
 																		@Nonnull RoleId roleId) {
+		return generateAccessToken(accountId, roleId, null);
+	}
+
+	@Nonnull
+	public String generateAccessToken(@Nonnull UUID accountId,
+																		@Nonnull RoleId roleId,
+																		@Nullable MyChartAccessToken myChartAccessToken) {
 		requireNonNull(accountId);
 		requireNonNull(roleId);
 
-		boolean useLegacySigning = false;
-
-		// Leaving here for reference - this was our legacy method to signing JWTs (a secret that was not part of a keypair)
-		if (useLegacySigning) {
-			return Jwts.builder().setSubject(accountId.toString())
-					.setExpiration(
-							Date.from(Instant.now().plus(getAccountService().findAccessTokenExpirationInMinutesByAccountId(accountId), MINUTES)))
-					.signWith(getConfiguration().getSecretKey(), jwtsSignatureAlgorithmForJcaSecretKeyAlgorithm(getConfiguration().getSecretKeyAlgorithm()))
-					.compact();
-		}
-
-		// Current mechanism is to use a secret that is part of a keypair so we can share the public key so other systems can verify
-		// our access tokens as authentic
+		// Use a secret that is part of a keypair.
+		// We can share the public key so other systems can verify our access tokens as authentic
 		Instant now = Instant.now();
+
+		// Respect expiration of MyChart access token if it exists.
+		// Otherwise, use the account's configuration.
+		Date expiration = myChartAccessToken == null ?
+				Date.from(now.plus(getAccountService().findAccessTokenExpirationInMinutesByAccountId(accountId), MINUTES))
+				: Date.from(myChartAccessToken.getExpiresAt());
 
 		return Jwts.builder().setSubject(accountId.toString())
 				.setIssuedAt(Date.from(now))
-				.setExpiration(Date.from(now.plus(getAccountService().findAccessTokenExpirationInMinutesByAccountId(accountId), MINUTES)))
+				.setExpiration(expiration)
 				.addClaims(new HashMap<String, Object>() {{
-					put("roleId", roleId);
+					put(getRoleIdClaimName(), roleId);
+
+					if (myChartAccessToken != null)
+						put(getMyChartAccessTokenClaimName(), myChartAccessToken.serialize());
 				}})
 				.signWith(getConfiguration().getKeyPair().getPrivate(), getSignatureAlgorithm())
 				.compact();
@@ -273,7 +280,7 @@ public class Authenticator {
 
 		Jws<Claims> claims = null;
 
-		// For current access tokens - use public key of keypair to validate claims
+		// Use public key of keypair to validate claims
 		try {
 			claims = Jwts.parserBuilder().setSigningKey(getConfiguration().getKeyPair().getPublic()).build().parseClaimsJws(accessToken);
 		} catch (UnsupportedJwtException e) {
@@ -286,53 +293,8 @@ public class Authenticator {
 			getLogger().debug("Access token claims parsing failed.", e);
 		}
 
-		// If current access token logic failed, it might be a legacy access token - use standalone secret key to validate claims
-		if (claims == null) {
-			try {
-				claims = Jwts.parserBuilder().setSigningKey(getConfiguration().getSecretKey()).build().parseClaimsJws(accessToken);
-			} catch (ExpiredJwtException e) {
-				getLogger().debug("Access token has expired.");
-				return Optional.empty();
-			} catch (SignatureException e) {
-				getLogger().debug("Access token signature does not match locally computed signature.");
-				return Optional.empty();
-			} catch (WeakKeyException e) {
-				// Special case for legacy production keys: new JWT library version we use will report WeakKeyException now (384 bits vs 512)
-				// so we treat this as "acceptable" since that's how it has been since the system started.
-				// Parse out the JWT components and validate them manually.
-				// We can assume JWT library has already performed the overall signature check, and only reason for failing is key strength.
-				try {
-					String[] accessTokenComponents = accessToken.split("\\.");
-					// [0]: {"alg":"HS512"}
-					// [1]: {"sub":"eceb624a-baec-436e-a122-a7c8c2894d0e","exp":1649356571}
-					JwtComponentOne jwtComponentOne = getGson().fromJson(new String(Base64.getDecoder().decode(accessTokenComponents[0]), StandardCharsets.UTF_8), JwtComponentOne.class);
-					JwtComponentTwo jwtComponentTwo = getGson().fromJson(new String(Base64.getDecoder().decode(accessTokenComponents[1]), StandardCharsets.UTF_8), JwtComponentTwo.class);
-
-					if (!Objects.equals(jwtComponentOne.getAlg(), "HS512"))
-						throw new Exception(format("JWT component one algorithm '%s' doesn't match expected value '%s'", jwtComponentOne.getAlg(), "HS512"));
-
-					UUID accountId = UUID.fromString(jwtComponentTwo.getSub());
-					Instant expiration = Instant.ofEpochSecond(jwtComponentTwo.getExp());
-					Instant now = Instant.now();
-
-					// Should already be handled above by ExpiredJwtException, but just in case...
-					if (expiration.isBefore(now)) {
-						getLogger().debug("Legacy access token has expired.");
-						return Optional.empty();
-					}
-
-					// For this special case, we don't know issued time, so we fudge it
-					Instant issuedAt = now.minus(getMissingIssuedAtOffsetInMinutes(), MINUTES);
-					return Optional.of(new AccessTokenClaims(accountId, issuedAt, expiration));
-				} catch (Exception secondaryException) {
-					getLogger().debug("Unable to handle JWT weak key workaround.", secondaryException);
-					return Optional.empty();
-				}
-			} catch (Exception e) {
-				getLogger().debug("Access token claims parsing failed.", e);
-				return Optional.empty();
-			}
-		}
+		if (claims == null)
+			return Optional.empty();
 
 		try {
 			UUID accountId = UUID.fromString(claims.getBody().getSubject());
@@ -342,70 +304,18 @@ public class Authenticator {
 			if (issuedAt == null)
 				issuedAt = Instant.now().minus(getMissingIssuedAtOffsetInMinutes(), MINUTES);
 
-			return Optional.of(new AccessTokenClaims(accountId, issuedAt, claims.getBody().getExpiration().toInstant()));
+			// See if we have a serialized MyChart access token - if so, rehydrate it
+			MyChartAccessToken myChartAccessToken = null;
+			String serializedMyChartAccessToken = (String) claims.getBody().get(getMyChartAccessTokenClaimName());
+
+			if (serializedMyChartAccessToken != null)
+				myChartAccessToken = MyChartAccessToken.deserialize(serializedMyChartAccessToken);
+
+			return Optional.of(new AccessTokenClaims(accountId, issuedAt, claims.getBody().getExpiration().toInstant(), myChartAccessToken));
 		} catch (Exception e) {
 			getLogger().debug("Access token claims extraction failed.", e);
 			return Optional.empty();
 		}
-	}
-
-	@NotThreadSafe
-	private static class JwtComponentOne {
-		@Nullable
-		private String alg;
-
-		@Nullable
-		public String getAlg() {
-			return alg;
-		}
-
-		public void setAlg(@Nullable String alg) {
-			this.alg = alg;
-		}
-	}
-
-	@NotThreadSafe
-	private static class JwtComponentTwo {
-		@Nullable
-		private String sub;
-		@Nullable
-		private Long exp;
-
-		@Nullable
-		public String getSub() {
-			return sub;
-		}
-
-		public void setSub(@Nullable String sub) {
-			this.sub = sub;
-		}
-
-		@Nullable
-		public Long getExp() {
-			return exp;
-		}
-
-		public void setExp(@Nullable Long exp) {
-			this.exp = exp;
-		}
-	}
-
-	/**
-	 * JWTS uses its own signature names, so we need to be able to convert JCA
-	 * names to JWTS values.
-	 *
-	 * @param secretKeyAlgorithm For example, {@code HmacSHA512}
-	 */
-	@Nonnull
-	protected SignatureAlgorithm jwtsSignatureAlgorithmForJcaSecretKeyAlgorithm(@Nonnull String secretKeyAlgorithm) {
-		requireNonNull(secretKeyAlgorithm);
-
-		for (SignatureAlgorithm signatureAlgorithm : SignatureAlgorithm.values())
-			if (secretKeyAlgorithm.equals(signatureAlgorithm.getJcaName()))
-				return signatureAlgorithm;
-
-		throw new IllegalArgumentException(format("No representation of JWTS %s exists for JCA algorithm named '%s'",
-				SignatureAlgorithm.class.getSimpleName(), secretKeyAlgorithm));
 	}
 
 	@Nonnull
@@ -416,6 +326,7 @@ public class Authenticator {
 				new CharacterRule(EnglishCharacterData.Alphabetical, 1),
 				new CharacterRule(EnglishCharacterData.Digit, 1)
 		);
+
 		PasswordValidator validator = new PasswordValidator(rules);
 		RuleResult ruleResult = validator.validate(new PasswordData(password));
 		return ruleResult.isValid();
@@ -424,6 +335,16 @@ public class Authenticator {
 	@Nonnull
 	public static String getDefaultSigningTokenSubject() {
 		return DEFAULT_SIGNING_TOKEN_SUBJECT;
+	}
+
+	@Nonnull
+	protected String getRoleIdClaimName() {
+		return ROLE_ID_CLAIM_NAME;
+	}
+
+	@Nonnull
+	protected String getMyChartAccessTokenClaimName() {
+		return MY_CHART_ACCESS_TOKEN_CLAIM_NAME;
 	}
 
 	@Nonnull

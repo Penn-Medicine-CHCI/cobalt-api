@@ -359,17 +359,17 @@ public class AccountResource {
 		Account pinnedAccount = account;
 		String destinationUrl = getLinkGenerator().generateAuthenticationLink(account.getInstitutionId(), loginDestinationId, ClientDeviceTypeId.WEB_BROWSER, accessToken);
 
-		CreateActivityTrackingRequest activityTrackingRequest = new CreateActivityTrackingRequest();
-		activityTrackingRequest.setSessionTrackingId(getCurrentContext().getSessionTrackingId());
-		activityTrackingRequest.setActivityActionId(ActivityAction.ActivityActionId.SIGN_IN);
-		activityTrackingRequest.setActivityTypeId(ActivityType.ActivityTypeId.ACCOUNT);
-		activityTrackingRequest.setContext(new JSONObject().put("accountId", account.getAccountId().toString()).toString());
+		UUID sessionTrackingId = getCurrentContext().getSessionTrackingId().orElse(null);
 
-		getActivityTrackingService().trackActivity(Optional.of(account), activityTrackingRequest);
+		if (sessionTrackingId != null) {
+			CreateActivityTrackingRequest activityTrackingRequest = new CreateActivityTrackingRequest();
+			activityTrackingRequest.setSessionTrackingId(sessionTrackingId);
+			activityTrackingRequest.setActivityActionId(ActivityAction.ActivityActionId.SIGN_IN);
+			activityTrackingRequest.setActivityTypeId(ActivityType.ActivityTypeId.ACCOUNT);
+			activityTrackingRequest.setContext(new JSONObject().put("accountId", account.getAccountId().toString()).toString());
 
-		// TODO: remove this hack
-		if (loginDestinationId == LoginDestinationId.IC_PANEL)
-			destinationUrl = format("%s/accounts/ic/auth-redirect?accessToken=%s", getConfiguration().getBaseUrl(), WebUtility.urlEncode(accessToken));
+			getActivityTrackingService().trackActivity(Optional.of(account), activityTrackingRequest);
+		}
 
 		String pinnedDestinationUrl = destinationUrl;
 
@@ -601,13 +601,17 @@ public class AccountResource {
 
 		String accessToken = getAuthenticator().generateAccessToken(account.getAccountId(), account.getRoleId());
 
-		CreateActivityTrackingRequest activityTrackingRequest = new CreateActivityTrackingRequest();
-		activityTrackingRequest.setSessionTrackingId(getCurrentContext().getSessionTrackingId());
-		activityTrackingRequest.setActivityActionId(ActivityAction.ActivityActionId.CREATE);
-		activityTrackingRequest.setActivityTypeId(ActivityType.ActivityTypeId.ACCOUNT);
-		activityTrackingRequest.setContext(new JSONObject().put("accountId", accountId.toString()).toString());
+		UUID sessionTrackingId = getCurrentContext().getSessionTrackingId().orElse(null);
 
-		getActivityTrackingService().trackActivity(Optional.of(account), activityTrackingRequest);
+		if (sessionTrackingId != null) {
+			CreateActivityTrackingRequest activityTrackingRequest = new CreateActivityTrackingRequest();
+			activityTrackingRequest.setSessionTrackingId(sessionTrackingId);
+			activityTrackingRequest.setActivityActionId(ActivityAction.ActivityActionId.CREATE);
+			activityTrackingRequest.setActivityTypeId(ActivityType.ActivityTypeId.ACCOUNT);
+			activityTrackingRequest.setContext(new JSONObject().put("accountId", accountId.toString()).toString());
+
+			getActivityTrackingService().trackActivity(Optional.of(account), activityTrackingRequest);
+		}
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("account", getAccountApiResponseFactory().create(account));

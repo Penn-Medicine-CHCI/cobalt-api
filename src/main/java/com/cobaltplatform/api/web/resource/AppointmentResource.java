@@ -335,7 +335,7 @@ public class AppointmentResource {
 		AuditLog auditLog = new AuditLog();
 		auditLog.setAccountId(account.getAccountId());
 		auditLog.setAuditLogEventId(AuditLogEvent.AuditLogEventId.APPOINTMENT_UPDATE);
-		auditLog.setPayload( getJsonMapper().toJson(new HashMap<String, Object>() {{
+		auditLog.setPayload(getJsonMapper().toJson(new HashMap<String, Object>() {{
 			put("appointment", beforeUpdateAppointment);
 		}}));
 		getAuditLogService().audit(auditLog);
@@ -385,13 +385,17 @@ public class AppointmentResource {
 		UUID appointmentId = getAppointmentService().createAppointment(request);
 		Appointment appointment = getAppointmentService().findAppointmentById(appointmentId).get();
 
-		CreateActivityTrackingRequest activityTrackingRequest = new CreateActivityTrackingRequest();
-		activityTrackingRequest.setSessionTrackingId(getCurrentContext().getSessionTrackingId());
-		activityTrackingRequest.setActivityActionId(ActivityActionId.CREATE);
-		activityTrackingRequest.setActivityTypeId(ActivityTypeId.APPOINTMENT);
-		activityTrackingRequest.setContext(new JSONObject().put("appointmentId", appointmentId.toString()).toString());
+		UUID sessionTrackingId = getCurrentContext().getSessionTrackingId().orElse(null);
 
-		getActivityTrackingService().trackActivity(Optional.of(account), activityTrackingRequest);
+		if (sessionTrackingId != null) {
+			CreateActivityTrackingRequest activityTrackingRequest = new CreateActivityTrackingRequest();
+			activityTrackingRequest.setSessionTrackingId(sessionTrackingId);
+			activityTrackingRequest.setActivityActionId(ActivityActionId.CREATE);
+			activityTrackingRequest.setActivityTypeId(ActivityTypeId.APPOINTMENT);
+			activityTrackingRequest.setContext(new JSONObject().put("appointmentId", appointmentId.toString()).toString());
+
+			getActivityTrackingService().trackActivity(Optional.of(account), activityTrackingRequest);
+		}
 
 		// It's possible creating the appointment has updated the account's email address.
 		// Vend the account so client has the latest and greatest
@@ -447,13 +451,17 @@ public class AppointmentResource {
 
 		getAppointmentService().cancelAppointment(request);
 
-		CreateActivityTrackingRequest activityTrackingRequest = new CreateActivityTrackingRequest();
-		activityTrackingRequest.setSessionTrackingId(getCurrentContext().getSessionTrackingId());
-		activityTrackingRequest.setActivityActionId(ActivityActionId.CANCEL);
-		activityTrackingRequest.setActivityTypeId(ActivityTypeId.APPOINTMENT);
-		activityTrackingRequest.setContext(new JSONObject().put("appointmentId", appointmentId.toString()).toString());
+		UUID sessionTrackingId = getCurrentContext().getSessionTrackingId().orElse(null);
 
-		getActivityTrackingService().trackActivity(Optional.of(account), activityTrackingRequest);
+		if (sessionTrackingId != null) {
+			CreateActivityTrackingRequest activityTrackingRequest = new CreateActivityTrackingRequest();
+			activityTrackingRequest.setSessionTrackingId(sessionTrackingId);
+			activityTrackingRequest.setActivityActionId(ActivityActionId.CANCEL);
+			activityTrackingRequest.setActivityTypeId(ActivityTypeId.APPOINTMENT);
+			activityTrackingRequest.setContext(new JSONObject().put("appointmentId", appointmentId.toString()).toString());
+
+			getActivityTrackingService().trackActivity(Optional.of(account), activityTrackingRequest);
+		}
 
 		return new ApiResponse();
 	}
@@ -582,10 +590,14 @@ public class AppointmentResource {
 	}
 
 	@Nonnull
-	protected AuthorizationService getAuthorizationService() { return authorizationService; }
+	protected AuthorizationService getAuthorizationService() {
+		return authorizationService;
+	}
 
 	@Nonnull
-	protected ProviderService getProviderService() { return providerService; }
+	protected ProviderService getProviderService() {
+		return providerService;
+	}
 
 	@Nonnull
 	protected JsonMapper getJsonMapper() {

@@ -19,10 +19,14 @@
 
 package com.cobaltplatform.api.model.security;
 
+import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
+
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import java.time.Instant;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 import static java.lang.String.format;
@@ -39,10 +43,19 @@ public class AccessTokenClaims {
 	private final Instant issuedAt;
 	@Nonnull
 	private final Instant expiration;
+	@Nullable
+	private MyChartAccessToken myChartAccessToken;
 
 	public AccessTokenClaims(@Nonnull UUID accountId,
 													 @Nonnull Instant issuedAt,
 													 @Nonnull Instant expiration) {
+		this(accountId, issuedAt, expiration, null);
+	}
+
+	public AccessTokenClaims(@Nonnull UUID accountId,
+													 @Nonnull Instant issuedAt,
+													 @Nonnull Instant expiration,
+													 @Nullable MyChartAccessToken myChartAccessToken) {
 		requireNonNull(accountId);
 		requireNonNull(issuedAt);
 		requireNonNull(expiration);
@@ -50,11 +63,13 @@ public class AccessTokenClaims {
 		this.accountId = accountId;
 		this.issuedAt = issuedAt;
 		this.expiration = expiration;
+		this.myChartAccessToken = myChartAccessToken;
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{accountId=%s, issuedAt=%s, expiration=%s}", getClass().getSimpleName(), getAccountId(), getIssuedAt(), getExpiration());
+		return format("%s{accountId=%s, issuedAt=%s, expiration=%s, myChartAccessToken=%s}", getClass().getSimpleName(),
+				getAccountId(), getIssuedAt(), getExpiration(), getMyChartAccessToken());
 	}
 
 	@Override
@@ -68,12 +83,13 @@ public class AccessTokenClaims {
 		AccessTokenClaims otherAccessTokenClaims = (AccessTokenClaims) other;
 		return Objects.equals(this.getAccountId(), otherAccessTokenClaims.getAccountId())
 				&& Objects.equals(this.getIssuedAt(), otherAccessTokenClaims.getIssuedAt())
-				&& Objects.equals(this.getExpiration(), otherAccessTokenClaims.getExpiration());
+				&& Objects.equals(this.getExpiration(), otherAccessTokenClaims.getExpiration())
+				&& Objects.equals(this.getMyChartAccessToken(), otherAccessTokenClaims.getMyChartAccessToken());
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(getAccountId(), getIssuedAt(), getExpiration());
+		return Objects.hash(getAccountId(), getIssuedAt(), getExpiration(), getMyChartAccessToken());
 	}
 
 	@Nonnull
@@ -89,5 +105,10 @@ public class AccessTokenClaims {
 	@Nonnull
 	public Instant getExpiration() {
 		return expiration;
+	}
+
+	@Nonnull
+	public Optional<MyChartAccessToken> getMyChartAccessToken() {
+		return Optional.ofNullable(this.myChartAccessToken);
 	}
 }

@@ -80,7 +80,7 @@ public class ActivityTrackingResource {
 
 		Account account = getCurrentContext().getAccount().get();
 		CreateActivityTrackingRequest request = getRequestBodyParser().parse(body, CreateActivityTrackingRequest.class);
-		request.setSessionTrackingId(getCurrentContext().getSessionTrackingId());
+		request.setSessionTrackingId(getCurrentContext().getSessionTrackingId().orElse(null));
 
 		UUID activityTrackingId = getActivityTrackingService().trackActivity(Optional.of(account), request);
 
@@ -96,7 +96,7 @@ public class ActivityTrackingResource {
 		requireNonNull(body);
 
 		CreateActivityTrackingRequest request = getRequestBodyParser().parse(body, CreateActivityTrackingRequest.class);
-		request.setSessionTrackingId(getCurrentContext().getSessionTrackingId());
+		request.setSessionTrackingId(getCurrentContext().getSessionTrackingId().orElse(null));
 
 		UUID activityTrackingId = getActivityTrackingService().trackActivity(Optional.empty(), request);
 
