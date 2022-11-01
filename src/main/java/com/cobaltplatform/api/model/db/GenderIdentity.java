@@ -44,7 +44,7 @@ public class GenderIdentity {
 		TRANSGENDER_FTM,
 		NON_BINARY,
 		OTHER,
-		UNDISCLOSED
+		NOT_DISCLOSED
 	}
 
 	@Override

@@ -40,7 +40,7 @@ public class Ethnicity {
 		NOT_ASKED,
 		HISPANIC_OR_LATINO,
 		NOT_HISPANIC_OR_LATINO,
-		UNDISCLOSED
+		NOT_DISCLOSED
 	}
 
 	@Override

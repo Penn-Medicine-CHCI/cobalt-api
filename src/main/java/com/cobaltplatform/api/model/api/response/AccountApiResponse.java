@@ -23,7 +23,11 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.BetaStatus.BetaStatusId;
+import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
+import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
 import com.cobaltplatform.api.model.security.AccountCapabilities;
@@ -40,6 +44,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Provider;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Collections;
 import java.util.Locale;
@@ -91,11 +96,26 @@ public class AccountApiResponse {
 	@Nullable
 	private final String consentFormAcceptedDateDescription;
 	@Nullable
+	@Deprecated
 	private final String epicPatientId;
 	@Nullable
+	@Deprecated
 	private final String epicPatientIdType;
 	@Nonnull
+	@Deprecated
 	private final Boolean epicPatientCreatedByCobalt;
+	@Nullable
+	private final GenderIdentityId genderIdentityId;
+	@Nullable
+	private final EthnicityId ethnicityId;
+	@Nullable
+	private final BirthSexId birthSexId;
+	@Nullable
+	private final RaceId raceId;
+	@Nullable
+	private final UUID addressId;
+	@Nullable
+	private final LocalDate birthdate;
 	@Nonnull
 	private final Instant created;
 	@Nonnull
@@ -184,6 +204,12 @@ public class AccountApiResponse {
 			this.epicPatientId = account.getEpicPatientId();
 			this.epicPatientIdType = account.getEpicPatientIdType();
 			this.epicPatientCreatedByCobalt = account.getEpicPatientCreatedByCobalt();
+			this.genderIdentityId = account.getGenderIdentityId();
+			this.ethnicityId = account.getEthnicityId();
+			this.birthSexId = account.getBirthSexId();
+			this.raceId = account.getRaceId();
+			this.addressId = account.getAddressId();
+			this.birthdate = account.getBirthdate();
 		} else {
 			this.consentFormAccepted = null;
 			this.consentFormAcceptedDate = null;
@@ -196,6 +222,12 @@ public class AccountApiResponse {
 			this.epicPatientId = null;
 			this.epicPatientIdType = null;
 			this.epicPatientCreatedByCobalt = null;
+			this.genderIdentityId = null;
+			this.ethnicityId = null;
+			this.birthSexId = null;
+			this.raceId = null;
+			this.addressId = null;
+			this.birthdate = null;
 		}
 
 		if (supplements.contains(AccountApiResponseSupplement.EVERYTHING)
@@ -327,16 +359,19 @@ public class AccountApiResponse {
 	}
 
 	@Nullable
+	@Deprecated
 	public String getEpicPatientId() {
 		return epicPatientId;
 	}
 
 	@Nullable
+	@Deprecated
 	public String getEpicPatientIdType() {
 		return epicPatientIdType;
 	}
 
 	@Nonnull
+	@Deprecated
 	public Boolean getEpicPatientCreatedByCobalt() {
 		return epicPatientCreatedByCobalt;
 	}
@@ -344,5 +379,35 @@ public class AccountApiResponse {
 	@Nullable
 	public Map<InstitutionId, AccountCapabilities> getCapabilities() {
 		return capabilities;
+	}
+
+	@Nullable
+	public GenderIdentityId getGenderIdentityId() {
+		return this.genderIdentityId;
+	}
+
+	@Nullable
+	public EthnicityId getEthnicityId() {
+		return this.ethnicityId;
+	}
+
+	@Nullable
+	public BirthSexId getBirthSexId() {
+		return this.birthSexId;
+	}
+
+	@Nullable
+	public RaceId getRaceId() {
+		return this.raceId;
+	}
+
+	@Nullable
+	public UUID getAddressId() {
+		return this.addressId;
+	}
+
+	@Nullable
+	public LocalDate getBirthdate() {
+		return this.birthdate;
 	}
 }

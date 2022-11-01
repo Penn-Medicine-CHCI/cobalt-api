@@ -39,7 +39,7 @@ public class BirthSex {
 		MALE,
 		FEMALE,
 		UNKNOWN,
-		UNDISCLOSED
+		NOT_DISCLOSED
 	}
 
 	@Override

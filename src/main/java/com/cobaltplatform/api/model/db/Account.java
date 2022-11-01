@@ -85,6 +85,8 @@ public class Account {
 	@Nullable
 	private EthnicityId ethnicityId;
 	@Nullable
+	private UUID addressId;
+	@Nullable
 	private String emailAddress;
 	@Nullable
 	private String password;
@@ -100,10 +102,13 @@ public class Account {
 	private String ssoId;
 	@Nullable
 	private String ssoAttributes; // JSONB
+	@Deprecated
 	@Nullable
 	private String epicPatientId;
+	@Deprecated
 	@Nullable
 	private String epicPatientIdType;
+	@Deprecated
 	@Nullable
 	private Boolean epicPatientCreatedByCobalt;
 	@Nullable
@@ -347,28 +352,34 @@ public class Account {
 	}
 
 	@Nullable
+	@Deprecated
 	public String getEpicPatientId() {
 		return epicPatientId;
 	}
 
+	@Deprecated
 	public void setEpicPatientId(@Nullable String epicPatientId) {
 		this.epicPatientId = epicPatientId;
 	}
 
 	@Nullable
+	@Deprecated
 	public String getEpicPatientIdType() {
 		return epicPatientIdType;
 	}
 
+	@Deprecated
 	public void setEpicPatientIdType(@Nullable String epicPatientIdType) {
 		this.epicPatientIdType = epicPatientIdType;
 	}
 
 	@Nullable
+	@Deprecated
 	public Boolean getEpicPatientCreatedByCobalt() {
 		return epicPatientCreatedByCobalt;
 	}
 
+	@Deprecated
 	public void setEpicPatientCreatedByCobalt(@Nullable Boolean epicPatientCreatedByCobalt) {
 		this.epicPatientCreatedByCobalt = epicPatientCreatedByCobalt;
 	}
@@ -488,5 +499,14 @@ public class Account {
 
 	public void setMyChartPatientRecordLastImportedAt(@Nullable Instant myChartPatientRecordLastImportedAt) {
 		this.myChartPatientRecordLastImportedAt = myChartPatientRecordLastImportedAt;
+	}
+
+	@Nullable
+	public UUID getAddressId() {
+		return this.addressId;
+	}
+
+	public void setAddressId(@Nullable UUID addressId) {
+		this.addressId = addressId;
 	}
 }
