@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse.AccountSourceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
@@ -40,6 +41,7 @@ import com.soklet.web.response.RedirectResponse.Type;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
+import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.util.HashMap;
 import java.util.List;
@@ -64,6 +66,8 @@ public class InstitutionResource {
 	@Nonnull
 	private final MyChartService myChartService;
 	@Nonnull
+	private final Provider<CurrentContext> currentContextProvider;
+	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
 	private final Strings strings;
@@ -73,12 +77,14 @@ public class InstitutionResource {
 														 @Nonnull AccountSourceApiResponseFactory accountSourceApiResponseFactory,
 														 @Nonnull InstitutionService institutionService,
 														 @Nonnull MyChartService myChartService,
+														 @Nonnull Provider<CurrentContext> currentContextProvider,
 														 @Nonnull Configuration configuration,
 														 @Nonnull Strings strings) {
 		requireNonNull(institutionApiResponseFactory);
 		requireNonNull(accountSourceApiResponseFactory);
 		requireNonNull(institutionService);
 		requireNonNull(myChartService);
+		requireNonNull(currentContextProvider);
 		requireNonNull(configuration);
 		requireNonNull(strings);
 
@@ -86,6 +92,7 @@ public class InstitutionResource {
 		this.accountSourceApiResponseFactory = accountSourceApiResponseFactory;
 		this.institutionService = institutionService;
 		this.myChartService = myChartService;
+		this.currentContextProvider = currentContextProvider;
 		this.configuration = configuration;
 		this.strings = strings;
 	}
@@ -171,6 +178,11 @@ public class InstitutionResource {
 	@Nonnull
 	protected MyChartService getMyChartService() {
 		return this.myChartService;
+	}
+
+	@Nonnull
+	protected CurrentContext getCurrentContext() {
+		return this.currentContextProvider.get();
 	}
 
 	@Nonnull
