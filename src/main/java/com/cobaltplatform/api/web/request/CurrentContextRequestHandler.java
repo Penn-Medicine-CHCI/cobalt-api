@@ -198,16 +198,30 @@ public class CurrentContextRequestHandler {
 			if (fingerprintIdValue != null && account != null)
 				getFingerprintService().storeFingerprintForAccount(account.getAccountId(), fingerprintIdValue);
 
+			// We use webappBaseUrl to derive the institution context for this request (IOW - the URL the user sees in their browser drives the institution)
 			String webappBaseUrl = WebUtility.extractValueFromRequest(httpServletRequest, getWebappBaseUrlPropertyName()).orElse(null);
-			Institution institution = getInstitutionService().findInstitutionByWebappBaseUrl(webappBaseUrl).get();
 
-			// It's an error to access an account outside of its own institution's context
-			if (account != null && !Objects.equals(account.getInstitutionId(), institution.getInstitutionId()))
-				throw new IllegalStateException(format("Account ID %s is associated with institution %s but is being accessed in the context of institution %s",
+			// In general - webappBaseUrl should never be null (clients should always include the X-Cobalt-Webapp-Base-Url header).
+			// However, if it is null and we have an authenticated account, use as a fallback.
+			// We don't fail-fast on a missing value here because more thorough testing is needed on FE to ensure there are no surprise edge cases.
+			Institution institution = getInstitutionService().findInstitutionByWebappBaseUrl(webappBaseUrl).orElse(null);
+
+			if (account == null && institution == null)
+				throw new IllegalStateException(format("This request has an undefined institution because it did not " +
+						"specify %s and no account was authenticated", getWebappBaseUrlPropertyName()));
+
+			if (account != null && institution == null)
+				getLogger().debug("This request did not specify its institution via {}, so current context will default to %s, " +
+						"which is associated with account ID %s", getWebappBaseUrlPropertyName(), account.getAccountId());
+
+			// It's illegal to access an account outside of its own institution's context
+			if (account != null && institution != null && !Objects.equals(account.getInstitutionId(), institution.getInstitutionId()))
+				throw new IllegalStateException(format("Account ID %s is associated with %s but is being accessed in the context of %s",
 						account.getAccountId(), account.getInstitutionId().name(), institution.getInstitutionId().name()));
 
-			CurrentContext.Builder currentContextBuilder = account == null ?
-					new CurrentContext.Builder(institution.getInstitutionId(), locale, timeZone) : new CurrentContext.Builder(account, locale, timeZone);
+			CurrentContext.Builder currentContextBuilder = account == null
+					? new CurrentContext.Builder(institution.getInstitutionId(), locale, timeZone)
+					: new CurrentContext.Builder(account, locale, timeZone);
 
 			CurrentContext currentContext = currentContextBuilder
 					.accessToken(accessTokenValue)
