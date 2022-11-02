@@ -56,8 +56,6 @@ public class CreateAccountRequest {
 	@Nullable
 	private Map<String, ?> ssoAttributes;
 	@Nullable
-	private String subdomain;
-	@Nullable
 	private String password;
 	@Nullable
 	private String epicPatientId;
@@ -161,15 +159,6 @@ public class CreateAccountRequest {
 
 	public void setSsoAttributes(@Nullable Map<String, ?> ssoAttributes) {
 		this.ssoAttributes = ssoAttributes;
-	}
-
-	@Nullable
-	public String getSubdomain() {
-		return subdomain;
-	}
-
-	public void setSubdomain(@Nullable String subdomain) {
-		this.subdomain = subdomain;
 	}
 
 	@Nullable

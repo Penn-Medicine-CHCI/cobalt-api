@@ -39,9 +39,6 @@ import com.cobaltplatform.api.integration.bluejeans.BluejeansClient;
 import com.cobaltplatform.api.integration.bluejeans.DefaultBluejeansClient;
 import com.cobaltplatform.api.integration.bluejeans.MockBluejeansClient;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
-import com.cobaltplatform.api.integration.ic.DefaultIcClient;
-import com.cobaltplatform.api.integration.ic.IcClient;
-import com.cobaltplatform.api.integration.ic.MockIcClient;
 import com.cobaltplatform.api.integration.way2health.DefaultWay2HealthClient;
 import com.cobaltplatform.api.integration.way2health.MockWay2HealthClient;
 import com.cobaltplatform.api.integration.way2health.Way2HealthClient;
@@ -115,7 +112,6 @@ import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.AmazonSqsManager;
-import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.HandlebarsTemplater;
 import com.cobaltplatform.api.util.HttpLoggingInterceptor;
@@ -346,9 +342,14 @@ public class AppModule extends AbstractModule {
 		return new SokletFilter(routeMatcher, responseHandler) {
 			@Override
 			protected void handleRequest(RequestContext requestContext, FilterChain filterChain) {
-				currentContextRequestHandler.handle(requestContext.httpServletRequest(), () -> {
+				// CORS preflights should skip over current context handling
+				if (requestContext.httpServletRequest().getMethod().equals("OPTIONS")) {
 					super.handleRequest(requestContext, filterChain);
-				});
+				} else {
+					currentContextRequestHandler.handle(requestContext.httpServletRequest(), () -> {
+						super.handleRequest(requestContext, filterChain);
+					});
+				}
 			}
 
 			@Override
@@ -625,20 +626,6 @@ public class AppModule extends AbstractModule {
 			return new DefaultWay2HealthClient(configuration.getWay2HealthEnvironment(), configuration.getWay2HealthAccessToken());
 
 		return new MockWay2HealthClient();
-	}
-
-	@Provides
-	@Singleton
-	@Nonnull
-	public IcClient provideIcClient(@Nonnull Authenticator authenticator,
-																	@Nonnull Configuration configuration) {
-		requireNonNull(authenticator);
-		requireNonNull(configuration);
-
-		if (configuration.getShouldUseRealIc())
-			return new DefaultIcClient(authenticator, configuration);
-
-		return new MockIcClient();
 	}
 
 	@Provides

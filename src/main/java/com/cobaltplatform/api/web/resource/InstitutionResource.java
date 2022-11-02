@@ -98,20 +98,11 @@ public class InstitutionResource {
 	}
 
 	@GET("/institution/account-sources")
-	public ApiResponse getAccountSources(@Nonnull @QueryParameter Optional<String> subdomain,
-																			 @Nonnull @QueryParameter Optional<AccountSourceId> accountSourceId) {
-		requireNonNull(subdomain);
+	public ApiResponse getAccountSources(@Nonnull @QueryParameter Optional<AccountSourceId> accountSourceId) {
 		requireNonNull(accountSourceId);
 
-		String requestSubdomain;
 		AccountSourceId requestAccountSourceId = accountSourceId.orElse(null);
-
-		if (subdomain.isPresent())
-			requestSubdomain = subdomain.get();
-		else
-			requestSubdomain = getConfiguration().getDefaultSubdomain();
-
-		Institution institution = getInstitutionService().findInstitutionBySubdomain(requestSubdomain);
+		Institution institution = getInstitutionService().findInstitutionById(getCurrentContext().getInstitutionId()).get();
 
 		List<AccountSourceApiResponse> accountSources = getInstitutionService().findAccountSourcesByInstitutionId(institution.getInstitutionId()).stream()
 				.filter(accountSource -> requestAccountSourceId == null ? true : accountSource.getAccountSourceId().equals(requestAccountSourceId))
@@ -124,20 +115,12 @@ public class InstitutionResource {
 	}
 
 	@GET("/institution")
-	public ApiResponse getInstitution(@Nonnull @QueryParameter Optional<String> subdomain,
-																		@Nonnull @QueryParameter Optional<AccountSourceId> accountSourceId) {
-		requireNonNull(subdomain);
+	public ApiResponse getInstitution(@Nonnull @QueryParameter Optional<AccountSourceId> accountSourceId) {
 		requireNonNull(accountSourceId);
 
-		String requestSubdomain;
 		AccountSourceId requestAccountSourceId = accountSourceId.orElse(null);
 
-		if (subdomain.isPresent())
-			requestSubdomain = subdomain.get();
-		else
-			requestSubdomain = getConfiguration().getDefaultSubdomain();
-
-		Institution institution = getInstitutionService().findInstitutionBySubdomain(requestSubdomain);
+		Institution institution = getInstitutionService().findInstitutionById(getCurrentContext().getInstitutionId()).get();
 
 		List<AccountSourceApiResponse> accountSources = getInstitutionService().findAccountSourcesByInstitutionId(institution.getInstitutionId()).stream()
 				.filter(accountSource -> requestAccountSourceId == null ? true : accountSource.getAccountSourceId().equals(requestAccountSourceId))

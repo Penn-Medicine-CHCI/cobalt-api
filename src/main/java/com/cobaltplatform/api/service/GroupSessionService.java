@@ -839,7 +839,7 @@ public class GroupSessionService implements AutoCloseable {
 								put("attendeeName", attendeeName);
 								put("groupSessionStartDateDescription", getFormatter().formatDate(pinnedGroupSession.getStartDateTime().toLocalDate()));
 								put("groupSessionStartTimeDescription", getFormatter().formatTime(pinnedGroupSession.getStartDateTime().toLocalTime(), FormatStyle.SHORT));
-								put("anotherTimeUrl", format("%s/in-the-studio", getConfiguration().getWebappBaseUrl(pinnedGroupSession.getInstitutionId())));
+								put("anotherTimeUrl", format("%s/in-the-studio", getInstitutionService().findWebappBaseUrlByInstitutionId(pinnedGroupSession.getInstitutionId()).get()));
 							}})
 							.build();
 
@@ -861,7 +861,7 @@ public class GroupSessionService implements AutoCloseable {
 							.messageContext(new HashMap<String, Object>() {{
 								put("groupSession", pinnedGroupSession);
 								put("imageUrl", firstNonNull(pinnedGroupSession.getImageUrl(), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
-								put("groupSessionUrl", format("%s/in-the-studio", getConfiguration().getWebappBaseUrl(pinnedGroupSession.getInstitutionId())));
+								put("groupSessionUrl", format("%s/in-the-studio", getInstitutionService().findWebappBaseUrlByInstitutionId(pinnedGroupSession.getInstitutionId()).get()));
 							}})
 							.build();
 
@@ -1040,10 +1040,10 @@ public class GroupSessionService implements AutoCloseable {
 						put("attendeeName", attendeeName);
 						put("groupSessionStartDateDescription", getFormatter().formatDate(groupSession.getStartDateTime().toLocalDate()));
 						put("groupSessionStartTimeDescription", getFormatter().formatTime(groupSession.getStartDateTime().toLocalTime(), FormatStyle.SHORT));
-						put("cancelUrl", format("%s/my-calendar?groupSessionReservationId=%s&action=cancel", getConfiguration().getWebappBaseUrl(institution.getInstitutionId()), groupSessionReservationId));
-						put("icalUrl", format("%s/group-session-reservations/%s/ical", getConfiguration().getWebappBaseUrl(institution.getInstitutionId()), groupSessionReservationId));
-						put("googleCalendarUrl", format("%s/group-session-reservations/%s/google-calendar", getConfiguration().getWebappBaseUrl(institution.getInstitutionId()), groupSessionReservationId));
-						put("anotherTimeUrl", format("%s/in-the-studio", getConfiguration().getWebappBaseUrl(institution.getInstitutionId())));
+						put("cancelUrl", format("%s/my-calendar?groupSessionReservationId=%s&action=cancel", getInstitutionService().findWebappBaseUrlByInstitutionId(institution.getInstitutionId()).get(), groupSessionReservationId));
+						put("icalUrl", format("%s/group-session-reservations/%s/ical", getInstitutionService().findWebappBaseUrlByInstitutionId(institution.getInstitutionId()).get(), groupSessionReservationId));
+						put("googleCalendarUrl", format("%s/group-session-reservations/%s/google-calendar", getInstitutionService().findWebappBaseUrlByInstitutionId(institution.getInstitutionId()).get(), groupSessionReservationId));
+						put("anotherTimeUrl", format("%s/in-the-studio", getInstitutionService().findWebappBaseUrlByInstitutionId(institution.getInstitutionId()).get()));
 					}})
 					.build();
 
@@ -1058,7 +1058,7 @@ public class GroupSessionService implements AutoCloseable {
 						put("imageUrl", firstNonNull(groupSession.getImageUrl(), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
 						put("facilitatorName", groupSession.getFacilitatorName());
 						put("attendeeName", attendeeName);
-						put("groupSessionUrl", format("%s/group-sessions/scheduled/%s/edit", getConfiguration().getWebappBaseUrl(institution.getInstitutionId()), groupSession.getGroupSessionId()));
+						put("groupSessionUrl", format("%s/group-sessions/scheduled/%s/edit", getInstitutionService().findWebappBaseUrlByInstitutionId(institution.getInstitutionId()).get(), groupSession.getGroupSessionId()));
 						put("attendeeEmailAddress", attendeeEmailAddress);
 						put("groupSessionStartDateDescription", getFormatter().formatDate(groupSession.getStartDateTime().toLocalDate()));
 						put("groupSessionStartTimeDescription", getFormatter().formatTime(groupSession.getStartDateTime().toLocalTime(), FormatStyle.SHORT));
@@ -1112,7 +1112,7 @@ public class GroupSessionService implements AutoCloseable {
 						put("attendeeName", attendeeName);
 						put("groupSessionStartDateDescription", getFormatter().formatDate(groupSession.getStartDateTime().toLocalDate()));
 						put("groupSessionStartTimeDescription", getFormatter().formatTime(groupSession.getStartDateTime().toLocalTime(), FormatStyle.SHORT));
-						put("anotherTimeUrl", format("%s/in-the-studio", getConfiguration().getWebappBaseUrl(institution.getInstitutionId())));
+						put("anotherTimeUrl", format("%s/in-the-studio", getInstitutionService().findWebappBaseUrlByInstitutionId(institution.getInstitutionId()).get()));
 					}})
 					.build();
 
@@ -1128,7 +1128,7 @@ public class GroupSessionService implements AutoCloseable {
 						put("facilitatorName", groupSession.getFacilitatorName());
 						put("attendeeName", attendeeName);
 						put("attendeeEmailAddress", attendeeEmailAddress);
-						put("groupSessionUrl", format("%s/group-sessions/scheduled/%s/edit", getConfiguration().getWebappBaseUrl(institution.getInstitutionId()), groupSession.getGroupSessionId()));
+						put("groupSessionUrl", format("%s/group-sessions/scheduled/%s/edit", getInstitutionService().findWebappBaseUrlByInstitutionId(institution.getInstitutionId()).get(), groupSession.getGroupSessionId()));
 						put("groupSessionStartDateDescription", getFormatter().formatDate(groupSession.getStartDateTime().toLocalDate()));
 						put("groupSessionStartTimeDescription", getFormatter().formatTime(groupSession.getStartDateTime().toLocalTime(), FormatStyle.SHORT));
 					}})
@@ -1315,7 +1315,7 @@ public class GroupSessionService implements AutoCloseable {
 						facilitator_name, facilitator_email_address, image_url, url_name, custom_question_1, custom_question_2, 
 						data_collection_enabled)
 						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-						""", 	groupSessionRequestId, institutionId, GroupSessionRequestStatusId.NEW,
+						""", groupSessionRequestId, institutionId, GroupSessionRequestStatusId.NEW,
 				title, description, submitterAccountId, facilitatorAccountId, facilitatorName, facilitatorEmailAddress,
 				imageUrl, urlName, customQuestion1, customQuestion2, dataCollectionEnabled);
 
@@ -1425,7 +1425,7 @@ public class GroupSessionService implements AutoCloseable {
 							.messageContext(new HashMap<String, Object>() {{
 								put("groupSessionRequest", pinnedGroupSessionRequest);
 								put("imageUrl", firstNonNull(pinnedGroupSessionRequest.getImageUrl(), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
-								put("groupSessionRequestUrl", format("%s/in-the-studio", getConfiguration().getWebappBaseUrl(pinnedGroupSessionRequest.getInstitutionId())));
+								put("groupSessionRequestUrl", format("%s/in-the-studio", getInstitutionService().findWebappBaseUrlByInstitutionId(pinnedGroupSessionRequest.getInstitutionId()).get()));
 							}})
 							.build();
 

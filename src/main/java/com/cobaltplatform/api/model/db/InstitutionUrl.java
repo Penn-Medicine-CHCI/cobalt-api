@@ -17,9 +17,9 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.api.request;
+package com.cobaltplatform.api.model.db;
 
-import com.cobaltplatform.api.integration.ic.model.IcEpicPatient;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -28,16 +28,49 @@ import javax.annotation.concurrent.NotThreadSafe;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreateIcMpmAccountRequest {
+public class InstitutionUrl {
 	@Nullable
-	private IcEpicPatient patient;
+	private InstitutionId institutionId;
+	@Nullable
+	private String url;
+	@Nullable
+	private String hostname;
+	@Nullable
+	private Boolean preferred;
 
 	@Nullable
-	public IcEpicPatient getPatient() {
-		return patient;
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
 	}
 
-	public void setPatient(@Nullable IcEpicPatient patient) {
-		this.patient = patient;
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
+	}
+
+	@Nullable
+	public String getUrl() {
+		return this.url;
+	}
+
+	public void setUrl(@Nullable String url) {
+		this.url = url;
+	}
+
+	@Nullable
+	public String getHostname() {
+		return this.hostname;
+	}
+
+	public void setHostname(@Nullable String hostname) {
+		this.hostname = hostname;
+	}
+
+	@Nullable
+	public Boolean getPreferred() {
+		return this.preferred;
+	}
+
+	public void setPreferred(@Nullable Boolean preferred) {
+		this.preferred = preferred;
 	}
 }

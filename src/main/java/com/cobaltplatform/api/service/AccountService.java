@@ -308,17 +308,15 @@ public class AccountService {
 
 		UUID accountInviteId = UUID.randomUUID();
 		ValidationException validationException = new ValidationException();
+		InstitutionId institutionId = request.getInstitutionId();
 		String emailAddress = trimToNull(request.getEmailAddress());
 		String password = trimToNull(request.getPassword());
 		UUID accountInviteCode = UUID.randomUUID();
-		String subdomain;
 
-		if (trimToNull(request.getSubdomain()) != null)
-			subdomain = request.getSubdomain();
-		else
-			subdomain = getConfiguration().getDefaultSubdomain();
-
-		Institution institution = getInstitutionService().findInstitutionBySubdomain(subdomain);
+		if (institutionId == null)
+			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
+		else if (getInstitutionService().findInstitutionById(institutionId).isEmpty())
+			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is invalid.")));
 
 		if (emailAddress == null)
 			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is required.")));
@@ -326,6 +324,7 @@ public class AccountService {
 			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is invalid.")));
 		else if (findAccountByEmailAddressAndAccountSourceId(emailAddress, AccountSourceId.EMAIL_PASSWORD).isPresent())
 			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is already in use.")));
+
 		if (password == null)
 			validationException.add(new FieldError("password", getStrings().get("Password is required")));
 		else if (!getAuthenticator().validatePasswordRules(password))
@@ -334,14 +333,13 @@ public class AccountService {
 		if (validationException.hasErrors())
 			throw validationException;
 
-
 		getDatabase().execute("INSERT INTO account_invite (account_invite_id, institution_id, email_address, " +
-						"password, account_invite_code) VALUES (?,?,?,?,?)", accountInviteId, institution.getInstitutionId(),
+						"password, account_invite_code) VALUES (?,?,?,?,?)", accountInviteId, institutionId,
 				emailAddress, getAuthenticator().hashPassword(password), accountInviteCode);
 
 		AccountInvite accountInvite = findAccountInviteById(accountInviteId).get();
-
 		sendAccountVerificationEmail(accountInvite);
+
 		return accountInviteId;
 	}
 

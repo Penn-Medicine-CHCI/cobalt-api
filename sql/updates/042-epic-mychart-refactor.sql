@@ -19,6 +19,16 @@ ALTER TABLE institution ADD COLUMN mychart_authorize_url TEXT;
 ALTER TABLE institution ADD COLUMN mychart_callback_url TEXT;
 ALTER TABLE institution ADD COLUMN integrated_care_screening_flow_id UUID REFERENCES screening_flow;
 
+-- TODO: let's drop the "subdomain" column on institution at some point in the future, this table replaces it
+-- TODO: would be nice to have a trigger to enforce "only one 'preferred=TRUE' per institution ID"
+CREATE TABLE institution_url (
+  institution_id TEXT REFERENCES institution,
+  url TEXT NOT NULL,
+  hostname TEXT NOT NULL, -- This could be calculated dynamically from url, but quicker to have it precalculated like this
+  preferred BOOLEAN NOT NULL,
+  PRIMARY KEY (institution_id, url)
+);
+
 INSERT INTO account_source (account_source_id, description) VALUES ('MYCHART', 'MyChart');
 
 -- Account-level changes

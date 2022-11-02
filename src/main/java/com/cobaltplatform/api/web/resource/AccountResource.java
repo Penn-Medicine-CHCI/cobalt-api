@@ -77,6 +77,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.LoginDestination.LoginDestinationId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.ActivityTrackingService;
 import com.cobaltplatform.api.service.AppointmentService;
@@ -132,7 +133,6 @@ import java.util.stream.Collectors;
 import static java.lang.Math.min;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
-import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -508,9 +508,11 @@ public class AccountResource {
 
 	@Nonnull
 	@POST("/accounts/invite")
-	public ApiResponse createAccountInvite(@Nonnull @RequestBody Optional<String> body) {
+	public ApiResponse createAccountInvite(@Nonnull @RequestBody String body) {
 		requireNonNull(body);
-		CreateAccountInviteRequest request = getRequestBodyParser().parse(body.get(), CreateAccountInviteRequest.class);
+
+		CreateAccountInviteRequest request = getRequestBodyParser().parse(body, CreateAccountInviteRequest.class);
+		request.setInstitutionId(getCurrentContext().getInstitutionId());
 
 		UUID accountInviteId = getAccountService().createAccountInvite(request);
 
@@ -560,37 +562,28 @@ public class AccountResource {
 
 	@Nonnull
 	@POST("/accounts")
-	public ApiResponse createAccount(@Nonnull @RequestBody Optional<String> body) {
-		requireNonNull(body);
+	public ApiResponse createAccount() {
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+		List<AccountSourceForInstitution> accountSources = getInstitutionService().findAccountSourcesByInstitutionId(institutionId);
 
-		UUID accountId;
+		boolean supportsAnonymous = false;
 
-		// Optional request body is to support legacy frontend before we finish rolling out new multi-institution support
-		if (body.isPresent()) {
-			CreateAccountRequest request = getRequestBodyParser().parse(body.get(), CreateAccountRequest.class);
-			String subdomain;
-
-			if (trimToNull(request.getSubdomain()) != null)
-				subdomain = request.getSubdomain();
-			else
-				subdomain = getConfiguration().getDefaultSubdomain();
-
-			Institution institution = getInstitutionService().findInstitutionBySubdomain(subdomain);
-
-			// For now - this is only to generate anonymous accounts
-			accountId = getAccountService().createAccount(new CreateAccountRequest() {{
-				setRoleId(RoleId.PATIENT);
-				setInstitutionId(institution.getInstitutionId());
-				setAccountSourceId(AccountSourceId.ANONYMOUS);
-			}});
-		} else {
-			// For now - this is only to generate anonymous accounts
-			accountId = getAccountService().createAccount(new CreateAccountRequest() {{
-				setRoleId(RoleId.PATIENT);
-				setInstitutionId(InstitutionId.COBALT);
-				setAccountSourceId(AccountSourceId.ANONYMOUS);
-			}});
+		for (AccountSourceForInstitution accountSource : accountSources) {
+			if (accountSource.getAccountSourceId() == AccountSourceId.ANONYMOUS) {
+				supportsAnonymous = true;
+				break;
+			}
 		}
+
+		if (!supportsAnonymous)
+			throw new IllegalStateException(format("Not permitted to create anonymous accounts for institution ID %s", institutionId.name()));
+
+		// For now - this is only to generate anonymous accounts
+		UUID accountId = getAccountService().createAccount(new CreateAccountRequest() {{
+			setRoleId(RoleId.PATIENT);
+			setInstitutionId(getCurrentContext().getInstitutionId());
+			setAccountSourceId(AccountSourceId.ANONYMOUS);
+		}});
 
 		Account account = getAccountService().findAccountById(accountId).get();
 

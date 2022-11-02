@@ -23,7 +23,6 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.error.ErrorReporter;
-import com.cobaltplatform.api.integration.ic.IcClient;
 import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource;
@@ -47,6 +46,7 @@ import javax.inject.Singleton;
 import javax.servlet.http.HttpServletRequest;
 import java.time.ZoneId;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -61,8 +61,6 @@ import static java.util.Objects.requireNonNull;
 public class CurrentContextRequestHandler {
 	@Nonnull
 	private static final String ACCESS_TOKEN_REQUEST_PROPERTY_NAME;
-	@Nonnull
-	private static final String IC_SIGNING_TOKEN_REQUEST_PROPERTY_NAME;
 	@Nonnull
 	private static final String LOCALE_REQUEST_PROPERTY_NAME;
 	@Nonnull
@@ -88,8 +86,6 @@ public class CurrentContextRequestHandler {
 	@Nonnull
 	private final Authenticator authenticator;
 	@Nonnull
-	private final IcClient icClient;
-	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
 	private final ErrorReporter errorReporter;
@@ -98,7 +94,6 @@ public class CurrentContextRequestHandler {
 
 	static {
 		ACCESS_TOKEN_REQUEST_PROPERTY_NAME = "X-Cobalt-Access-Token";
-		IC_SIGNING_TOKEN_REQUEST_PROPERTY_NAME = "X-IC-Signing-Token";
 		LOCALE_REQUEST_PROPERTY_NAME = "X-Locale";
 		TIME_ZONE_REQUEST_PROPERTY_NAME = "X-Time-Zone";
 		SESSION_TRACKING_ID_PROPERTY_NAME = "X-Session-Tracking-Id";
@@ -114,7 +109,6 @@ public class CurrentContextRequestHandler {
 																			@Nonnull InstitutionService institutionService,
 																			@Nonnull FingerprintService fingerprintService,
 																			@Nonnull Authenticator authenticator,
-																			@Nonnull IcClient icClient,
 																			@Nonnull Configuration configuration,
 																			@Nonnull ErrorReporter errorReporter) {
 		requireNonNull(currentContextExecutor);
@@ -122,7 +116,6 @@ public class CurrentContextRequestHandler {
 		requireNonNull(institutionService);
 		requireNonNull(fingerprintService);
 		requireNonNull(authenticator);
-		requireNonNull(icClient);
 		requireNonNull(configuration);
 		requireNonNull(errorReporter);
 
@@ -131,7 +124,6 @@ public class CurrentContextRequestHandler {
 		this.institutionService = institutionService;
 		this.fingerprintService = fingerprintService;
 		this.authenticator = authenticator;
-		this.icClient = icClient;
 		this.configuration = configuration;
 		this.errorReporter = errorReporter;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -207,7 +199,12 @@ public class CurrentContextRequestHandler {
 				getFingerprintService().storeFingerprintForAccount(account.getAccountId(), fingerprintIdValue);
 
 			String webappBaseUrl = WebUtility.extractValueFromRequest(httpServletRequest, getWebappBaseUrlPropertyName()).orElse(null);
-			Institution institution = getInstitutionService().findInstitutionByWebappBaseUrl(webappBaseUrl);
+			Institution institution = getInstitutionService().findInstitutionByWebappBaseUrl(webappBaseUrl).get();
+
+			// It's an error to access an account outside of its own institution's context
+			if (account != null && !Objects.equals(account.getInstitutionId(), institution.getInstitutionId()))
+				throw new IllegalStateException(format("Account ID %s is associated with institution %s but is being accessed in the context of institution %s",
+						account.getAccountId(), account.getInstitutionId().name(), institution.getInstitutionId().name()));
 
 			CurrentContext.Builder currentContextBuilder = account == null ?
 					new CurrentContext.Builder(institution.getInstitutionId(), locale, timeZone) : new CurrentContext.Builder(account, locale, timeZone);
@@ -256,11 +253,6 @@ public class CurrentContextRequestHandler {
 	@Nonnull
 	public static String getAccessTokenRequestPropertyName() {
 		return ACCESS_TOKEN_REQUEST_PROPERTY_NAME;
-	}
-
-	@Nonnull
-	public static String getIcSigningTokenRequestPropertyName() {
-		return IC_SIGNING_TOKEN_REQUEST_PROPERTY_NAME;
 	}
 
 	@Nonnull
@@ -316,11 +308,6 @@ public class CurrentContextRequestHandler {
 	@Nonnull
 	protected Authenticator getAuthenticator() {
 		return this.authenticator;
-	}
-
-	@Nonnull
-	protected IcClient getIcClient() {
-		return this.icClient;
 	}
 
 	@Nonnull

@@ -26,6 +26,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InteractionInstance;
 import com.cobaltplatform.api.model.db.InteractionOption;
 import com.cobaltplatform.api.model.db.LoginDestination.LoginDestinationId;
+import com.cobaltplatform.api.service.InstitutionService;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -54,15 +55,20 @@ public class LinkGenerator {
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
+	private final Provider<InstitutionService> institutionServiceProvider;
+	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 
 	@Inject
 	public LinkGenerator(@Nonnull Configuration configuration,
+											 @Nonnull Provider<InstitutionService> institutionServiceProvider,
 											 @Nonnull Provider<CurrentContext> currentContextProvider) {
 		requireNonNull(configuration);
-		requireNonNull(configuration);
+		requireNonNull(institutionServiceProvider);
+		requireNonNull(currentContextProvider);
 
 		this.configuration = configuration;
+		this.institutionServiceProvider = institutionServiceProvider;
 		this.currentContextProvider = currentContextProvider;
 	}
 
@@ -106,9 +112,6 @@ public class LinkGenerator {
 
 		String baseUrl = determineBaseUrl(institutionId, clientDeviceTypeId);
 		String urlPath = "auth";
-
-		if (loginDestinationId == LoginDestinationId.IC_PANEL)
-			baseUrl = getConfiguration().getIcWebappBaseUrl();
 
 		return constructUrl(baseUrl, urlPath, new HashMap<String, Object>() {{
 			put("accessToken", accessToken);
@@ -166,17 +169,8 @@ public class LinkGenerator {
 		requireNonNull(institutionId);
 		requireNonNull(clientDeviceTypeId);
 
-		if (clientDeviceTypeId == ClientDeviceTypeId.WEB_BROWSER) {
-			String contextWebappBaseUrl = null;
-
-			try {
-				contextWebappBaseUrl = getCurrentContext().getWebappBaseUrl().orElse(null);
-			} catch (Exception ignored) {
-				// If we're not in a current context, it's OK
-			}
-
-			return (contextWebappBaseUrl == null ? getConfiguration().getWebappBaseUrl(institutionId) : contextWebappBaseUrl) + "/";
-		}
+		if (clientDeviceTypeId == ClientDeviceTypeId.WEB_BROWSER)
+			return getInstitutionService().findWebappBaseUrlByInstitutionId(institutionId).get();
 
 		throw new IllegalStateException(format("Unexpected %s value %s encountered", ClientDeviceTypeId.class.getSimpleName(), clientDeviceTypeId.name()));
 	}
@@ -239,6 +233,11 @@ public class LinkGenerator {
 	@Nonnull
 	protected Configuration getConfiguration() {
 		return configuration;
+	}
+
+	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return this.institutionServiceProvider.get();
 	}
 
 	@Nonnull

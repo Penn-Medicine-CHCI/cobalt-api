@@ -174,8 +174,6 @@ public class Configuration {
 	@Nonnull
 	private final Boolean shouldPollWay2Health;
 	@Nonnull
-	private final Boolean shouldUseRealIc;
-	@Nonnull
 	private final Boolean shouldEnableCacheDebugging;
 	@Nonnull
 	private final String corsEnabledDomains;
@@ -187,12 +185,6 @@ public class Configuration {
 	private final SecretKey secretKey;
 	@Nonnull
 	private final String secretKeyAlgorithm;
-	@Nonnull
-	private final String webappBaseUrl;
-	@Nonnull
-	private final String icWebappBaseUrl;
-	@Nonnull
-	private final String icBackendBaseUrl;
 	@Nonnull
 	private final String nodeIdentifier;
 	@Nonnull
@@ -268,10 +260,6 @@ public class Configuration {
 	@Nonnull
 	private final Way2HealthEnvironment way2HealthEnvironment;
 
-	@Nonnull
-	private final String defaultSubdomain;
-	@Nonnull
-	private final InstitutionId defaultSubdomainInstitutionId;
 	@Nonnull
 	private final KeyPair keyPair;
 
@@ -356,16 +344,12 @@ public class Configuration {
 		this.shouldPollBluejeans = valueFor("com.cobaltplatform.api.shouldPollBluejeans", Boolean.class);
 		this.shouldUseRealWay2Health = valueFor("com.cobaltplatform.api.shouldUseRealWay2Health", Boolean.class);
 		this.shouldPollWay2Health = valueFor("com.cobaltplatform.api.shouldPollWay2Health", Boolean.class);
-		this.shouldUseRealIc = valueFor("com.cobaltplatform.api.shouldUseRealIc", Boolean.class);
 		this.shouldEnableCacheDebugging = valueFor("com.cobaltplatform.api.shouldEnableCacheDebugging", Boolean.class);
 		this.corsEnabledDomains = valueFor("com.cobaltplatform.api.corsEnabledDomains", String.class);
 		this.emailDefaultFromAddress = valueFor("com.cobaltplatform.api.emailDefaultFromAddress", String.class);
 		this.downForMaintenance = valueFor("com.cobaltplatform.api.downForMaintenance", Boolean.class);
 		this.secretKeyAlgorithm = valueFor("com.cobaltplatform.api.secretKeyAlgorithm", String.class);
 		this.secretKey = CryptoUtility.loadSecretKeyInBase64(valueFor("com.cobaltplatform.api.secretKey", String.class), getSecretKeyAlgorithm());
-		this.webappBaseUrl = valueFor("com.cobaltplatform.api.webappBaseUrl", String.class);
-		this.icWebappBaseUrl = valueFor("com.cobaltplatform.api.icWebappBaseUrl", String.class);
-		this.icBackendBaseUrl = valueFor("com.cobaltplatform.api.icBackendBaseUrl", String.class);
 
 		// The https://github.com/impossibl/pgjdbc-ng driver uses jdbc:pgsql:// while the regular driver uses jdbc:postgresql://.
 		// Due to limitations of the pgjdbc-ng driver, we force to the normal driver.
@@ -416,9 +400,6 @@ public class Configuration {
 
 		this.way2HealthAccessToken = valueFor("com.cobaltplatform.api.way2health.accessToken", String.class);
 		this.way2HealthEnvironment = valueFor("com.cobaltplatform.api.way2health.environment", Way2HealthEnvironment.class);
-
-		this.defaultSubdomain = valueFor("com.cobaltplatform.api.defaultSubdomain", String.class);
-		this.defaultSubdomainInstitutionId = valueFor("com.cobaltplatform.api.defaultSubdomainInstitutionId", InstitutionId.class);
 
 		RawKeypair rawKeypair = loadRawKeypair();
 
@@ -1144,11 +1125,6 @@ public class Configuration {
 	}
 
 	@Nonnull
-	public Boolean getShouldUseRealIc() {
-		return shouldUseRealIc;
-	}
-
-	@Nonnull
 	public Boolean getShouldEnableCacheDebugging() {
 		return shouldEnableCacheDebugging;
 	}
@@ -1183,28 +1159,6 @@ public class Configuration {
 	@Nonnull
 	public SensitiveDataStorageLocation getSensitiveDataStorageLocation() {
 		return sensitiveDataStorageLocation;
-	}
-
-	@Nonnull
-	public String getWebappBaseUrl(@Nonnull InstitutionId institutionId) {
-		requireNonNull(institutionId);
-
-		String cobaltPlatformBaseUrl = webappBaseUrl;
-
-		// TODO: we should query for this instead
-		String institutionSubdomain = institutionId.name().toLowerCase(Locale.US);
-
-		if ("dev".equals(getEnvironment())) {
-			// e.g. https://dev.cobaltplatform.com would become https://chicago-dev.cobaltplatform.com
-			return cobaltPlatformBaseUrl.replace("https://dev.", format("https://%s-dev.", institutionSubdomain));
-		}
-
-		if ("prod".equals(getEnvironment())) {
-			// e.g. https://www.cobaltplatform.com would become https://chicago.cobaltplatform.com
-			return cobaltPlatformBaseUrl.replace("https://www.", format("https://%s.", institutionSubdomain));
-		}
-
-		return webappBaseUrl;
 	}
 
 	@Nonnull
@@ -1420,26 +1374,6 @@ public class Configuration {
 	@Nonnull
 	public Way2HealthEnvironment getWay2HealthEnvironment() {
 		return way2HealthEnvironment;
-	}
-
-	@Nonnull
-	public String getDefaultSubdomain() {
-		return defaultSubdomain;
-	}
-
-	@Nonnull
-	public InstitutionId getDefaultSubdomainInstitutionId() {
-		return defaultSubdomainInstitutionId;
-	}
-
-	@Nonnull
-	public String getIcWebappBaseUrl() {
-		return icWebappBaseUrl;
-	}
-
-	@Nonnull
-	public String getIcBackendBaseUrl() {
-		return icBackendBaseUrl;
 	}
 
 	@Nonnull
