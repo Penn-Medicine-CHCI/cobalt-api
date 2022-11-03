@@ -39,8 +39,11 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.util.ValidationUtility.isValidHexColor;
+import static com.cobaltplatform.api.util.ValidationUtility.isValidIso3166ThreeLetterCountryCode;
+import static com.cobaltplatform.api.util.ValidationUtility.isValidIso3166TwoLetterCountryCode;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
@@ -61,16 +64,6 @@ public class Normalizer {
 	public Normalizer(@Nullable Provider<CurrentContext> currentContextProvider) {
 		this.currentContextProvider = currentContextProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
-	}
-
-	@Nonnull
-	public Optional<String> normalizeVin(@Nullable String vin) {
-		vin = trimToNull(vin);
-
-		if (vin == null)
-			return Optional.empty();
-
-		return Optional.of(vin.toUpperCase());
 	}
 
 	@Nonnull
@@ -113,10 +106,33 @@ public class Normalizer {
 	}
 
 	@Nonnull
+	public Optional<String> normalizeCountryCodeToIso3166TwoLetter(@Nullable String countryCode) {
+		countryCode = trimToEmpty(countryCode).toUpperCase(Locale.US);
+
+		if (countryCode.length() == 0)
+			return Optional.empty();
+
+		if (countryCode.length() == 3) {
+			if (isValidIso3166ThreeLetterCountryCode(countryCode)) {
+				return Optional.of(new Locale("en", countryCode).getCountry());
+			} else {
+				return Optional.empty();
+			}
+		} else if (countryCode.length() == 2) {
+			if (isValidIso3166TwoLetterCountryCode(countryCode))
+				return Optional.of(countryCode);
+			else
+				return Optional.empty();
+		}
+
+		return Optional.empty();
+	}
+
+	@Nonnull
 	public Optional<Integer> normalizeHexColor(@Nullable String hexColor) {
 		hexColor = trimToNull(hexColor);
 
-		if(hexColor == null || !isValidHexColor(hexColor))
+		if (hexColor == null || !isValidHexColor(hexColor))
 			return Optional.empty();
 
 		// Strip off leading "#"

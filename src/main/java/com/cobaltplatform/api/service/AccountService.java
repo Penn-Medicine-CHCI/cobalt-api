@@ -34,6 +34,7 @@ import com.cobaltplatform.api.model.api.request.ApplyAccountEmailVerificationCod
 import com.cobaltplatform.api.model.api.request.CreateAccountEmailVerificationRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountInviteRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
+import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreateInteractionInstanceRequest;
 import com.cobaltplatform.api.model.api.request.ForgotPasswordRequest;
 import com.cobaltplatform.api.model.api.request.ResetPasswordRequest;
@@ -55,10 +56,14 @@ import com.cobaltplatform.api.model.db.BetaFeature.BetaFeatureId;
 import com.cobaltplatform.api.model.db.BetaFeatureAlert;
 import com.cobaltplatform.api.model.db.BetaFeatureAlert.BetaFeatureAlertStatusId;
 import com.cobaltplatform.api.model.db.BetaStatus.BetaStatusId;
+import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.ClientDeviceType;
+import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
+import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PasswordResetRequest;
+import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
@@ -83,6 +88,7 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
@@ -98,6 +104,8 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.util.ValidationUtility.isValidEmailAddress;
+import static com.cobaltplatform.api.util.ValidationUtility.isValidIso3166CountryCode;
+import static com.cobaltplatform.api.util.ValidationUtility.isValidUsPostalCode;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -395,8 +403,16 @@ public class AccountService {
 		String phoneNumber = trimToNull(request.getPhoneNumber());
 		String password = null;
 		Map<String, ?> ssoAttributes = request.getSsoAttributes();
+		String ssoAttributesAsJson = trimToNull(request.getSsoAttributesAsJson());
 		String epicPatientId = trimToNull(request.getEpicPatientId());
 		String epicPatientIdType = trimToNull(request.getEpicPatientIdType());
+		String myChartPatientRecordAsJson = trimToNull(request.getMyChartPatientRecordAsJson());
+		GenderIdentityId genderIdentityId = request.getGenderIdentityId();
+		EthnicityId ethnicityId = request.getEthnicityId();
+		BirthSexId birthSexId = request.getBirthSexId();
+		RaceId raceId = request.getRaceId();
+		LocalDate birthDate = request.getBirthDate();
+		UUID addressId = null;
 		ValidationException validationException = new ValidationException();
 
 		if (accountSourceId == null) {
@@ -436,10 +452,28 @@ public class AccountService {
 
 				if (!institution.getEmailSignupEnabled())
 					validationException.add(getStrings().get("Creating an account with an email and password is not supported for this institution."));
+			} else if (accountSourceId == AccountSourceId.MYCHART) {
+				if (myChartPatientRecordAsJson == null) {
+					validationException.add(new FieldError("myChartPatientRecordAsJson", getStrings().get("MyChart patient record is required.")));
+				} else {
+					try {
+						getJsonMapper().fromJson(myChartPatientRecordAsJson, Map.class);
+					} catch (Exception e) {
+						getLogger().warn(format("Unable to process MyChart JSON: %s", myChartPatientRecordAsJson), e);
+						validationException.add(new FieldError("myChartPatientRecordAsJson", getStrings().get("MyChart patient record could not be processed.")));
+					}
+				}
 			}
-
 		} else {
 			throw new UnsupportedOperationException(format("Don't know how to handle %s value %s yet", AccountSourceId.class.getSimpleName(), accountSourceId));
+		}
+
+		if (request.getAddress() != null) {
+			try {
+				addressId = createAddress(request.getAddress());
+			} catch (ValidationException e) {
+				validationException.add(e);
+			}
 		}
 
 		if (phoneNumber != null)
@@ -448,6 +482,15 @@ public class AccountService {
 		if (institutionId == null)
 			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
 
+		if (ssoAttributesAsJson != null) {
+			try {
+				getJsonMapper().fromJson(ssoAttributesAsJson, Map.class);
+			} catch (Exception e) {
+				getLogger().warn(format("Unable to process SSO JSON: %s", ssoAttributesAsJson), e);
+				validationException.add(new FieldError("ssoAttributesAsJson", getStrings().get("Provided SSO attributes are invalid.")));
+			}
+		}
+
 		if (validationException.hasErrors())
 			throw validationException;
 
@@ -455,12 +498,87 @@ public class AccountService {
 		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
 		ZoneId timeZone = institution.getTimeZone();
 
-		String ssoAttributesJson = ssoAttributes == null ? null : getJsonMapper().toJson(ssoAttributes);
+		String finalSsoAttributesAsJson = null;
+
+		// Prefer raw JSON if available
+		if (ssoAttributesAsJson != null)
+			finalSsoAttributesAsJson = ssoAttributesAsJson;
+		else if (ssoAttributes != null)
+			finalSsoAttributesAsJson = getJsonMapper().toJson(ssoAttributes);
+
 		getDatabase().execute("INSERT INTO account (account_id, role_id, institution_id, account_source_id, source_system_id, sso_id, "
 						+ "first_name, last_name, display_name, email_address, phone_number, sso_attributes, password, epic_patient_id, epic_patient_id_type, time_zone) VALUES (?,?,?,?,?,?,?,?,?,?,?,CAST(? AS JSONB),?,?,?,?)",
-				accountId, roleId, institutionId, accountSourceId, sourceSystemId, ssoId, firstName, lastName, displayName, emailAddress, phoneNumber, ssoAttributesJson, password, epicPatientId, epicPatientIdType, timeZone);
+				accountId, roleId, institutionId, accountSourceId, sourceSystemId, ssoId, firstName, lastName, displayName, emailAddress, phoneNumber, finalSsoAttributesAsJson, password, epicPatientId, epicPatientIdType, timeZone);
 
 		return accountId;
+	}
+
+	@Nonnull
+	protected UUID createAddress(@Nonnull CreateAddressRequest request) {
+		requireNonNull(request);
+
+		UUID addressId = UUID.randomUUID();
+		String postalName = trimToNull(request.getPostalName());
+		String streetAddress1 = trimToNull(request.getStreetAddress1());
+		String streetAddress2 = trimToNull(request.getStreetAddress2());
+		String streetAddress3 = trimToNull(request.getStreetAddress3());
+		String streetAddress4 = trimToNull(request.getStreetAddress4());
+		String postOfficeBoxNumber = trimToNull(request.getPostOfficeBoxNumber());
+		String crossStreet = trimToNull(request.getCrossStreet());
+		String suburb = trimToNull(request.getSuburb());
+		String locality = trimToNull(request.getLocality());
+		String region = trimToNull(request.getRegion());
+		String postalCode = trimToNull(request.getPostalCode());
+		String countrySubdivisionCode = trimToNull(request.getCountrySubdivisionCode());
+		String countryCode = trimToNull(request.getCountryCode());
+		ValidationException validationException = new ValidationException();
+
+		if (postalName == null)
+			validationException.add(new FieldError("postalName", getStrings().get("Postal name is required.")));
+
+		if (streetAddress1 == null)
+			validationException.add(new FieldError("streetAddress1", getStrings().get("Street address is required.")));
+
+		// Currently we only support US addresses.
+		// Once we have international rollout, build out more rigorous support for non-US address validation
+		if (countryCode == null) {
+			validationException.add(new FieldError("countryCode", getStrings().get("Country code is required.")));
+		} else if (!isValidIso3166CountryCode(countryCode)) {
+			validationException.add(new FieldError("countryCode", getStrings().get("Country code must be a valid ISO-3166 (2 or 3 letter) value.")));
+		} else {
+			countryCode = getNormalizer().normalizeCountryCodeToIso3166TwoLetter(countryCode).get();
+
+			if ("US".equals(countryCode)) {
+				// US address validation
+				if (locality == null)
+					validationException.add(new FieldError("locality", getStrings().get("City name is required.")));
+				if (locality == null)
+					validationException.add(new FieldError("region", getStrings().get("State is required.")));
+
+				if (postalCode == null)
+					validationException.add(new FieldError("postalCode", getStrings().get("ZIP code is required.")));
+				else if (!isValidUsPostalCode(postalCode))
+					validationException.add(new FieldError("postalCode", getStrings().get("ZIP code is invalid.")));
+			} else {
+				// TODO: remove once we go international
+				validationException.add(new FieldError("countryCode", getStrings().get("Sorry, only US addresses are supported at this time.")));
+			}
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+						INSERT INTO address (
+						address_id, postal_name, street_address_1, street_address_2, street_address_3, street_address_4,
+						post_office_box_number, cross_street, suburb,	locality, region, postal_code, country_subdivision_code,
+						country_code
+						)
+						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						""", addressId, postalName, streetAddress1, streetAddress2, streetAddress3, streetAddress4,
+				postOfficeBoxNumber, crossStreet, suburb, locality, region, postalCode, countrySubdivisionCode, countryCode);
+
+		return addressId;
 	}
 
 	@Nonnull

@@ -30,6 +30,7 @@ import com.cobaltplatform.api.model.api.request.CreateAccountEmailVerificationRe
 import com.cobaltplatform.api.model.api.request.CreateAccountInviteRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateActivityTrackingRequest;
+import com.cobaltplatform.api.model.api.request.CreateMyChartAccountRequest;
 import com.cobaltplatform.api.model.api.request.FindGroupSessionRequestsRequest;
 import com.cobaltplatform.api.model.api.request.FindGroupSessionsRequest;
 import com.cobaltplatform.api.model.api.request.ForgotPasswordRequest;
@@ -87,12 +88,12 @@ import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.GroupSessionService;
 import com.cobaltplatform.api.service.InstitutionService;
+import com.cobaltplatform.api.service.MyChartService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.service.SessionService;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.LinkGenerator;
 import com.cobaltplatform.api.util.ValidationException;
-import com.cobaltplatform.api.util.WebUtility;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.lokalized.Strings;
 import com.soklet.json.JSONObject;
@@ -106,7 +107,6 @@ import com.soklet.web.annotation.Resource;
 import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
-import com.soklet.web.response.CustomResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -115,9 +115,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -149,6 +147,8 @@ public class AccountResource {
 	private final ContentService contentService;
 	@Nonnull
 	private final AppointmentService appointmentService;
+	@Nonnull
+	private final MyChartService myChartService;
 	@Nonnull
 	private final AccountApiResponseFactory accountApiResponseFactory;
 	@Nonnull
@@ -201,6 +201,7 @@ public class AccountResource {
 												 @Nonnull GroupSessionService groupSessionService,
 												 @Nonnull ContentService contentService,
 												 @Nonnull AppointmentService appointmentService,
+												 @Nonnull MyChartService myChartService,
 												 @Nonnull AccountApiResponseFactory accountApiResponseFactory,
 												 @Nonnull GroupSessionApiResponseFactory groupSessionApiResponseFactory,
 												 @Nonnull GroupSessionRequestApiResponseFactory groupSessionRequestApiResponseFactory,
@@ -227,6 +228,7 @@ public class AccountResource {
 		requireNonNull(groupSessionService);
 		requireNonNull(contentService);
 		requireNonNull(appointmentService);
+		requireNonNull(myChartService);
 		requireNonNull(accountApiResponseFactory);
 		requireNonNull(groupSessionApiResponseFactory);
 		requireNonNull(groupSessionRequestApiResponseFactory);
@@ -253,6 +255,7 @@ public class AccountResource {
 		this.groupSessionService = groupSessionService;
 		this.contentService = contentService;
 		this.appointmentService = appointmentService;
+		this.myChartService = myChartService;
 		this.accountApiResponseFactory = accountApiResponseFactory;
 		this.groupSessionApiResponseFactory = groupSessionApiResponseFactory;
 		this.groupSessionRequestApiResponseFactory = groupSessionRequestApiResponseFactory;
@@ -378,41 +381,6 @@ public class AccountResource {
 			put("accessToken", accessToken);
 			put("destinationUrl", pinnedDestinationUrl);
 		}});
-	}
-
-	@Nonnull
-	@GET("/accounts/ic/auth-redirect")
-	public CustomResponse authRedirect(@Nonnull @QueryParameter String accessToken,
-																		 @Nonnull HttpServletResponse httpServletResponse) throws IOException {
-		requireNonNull(accessToken);
-		requireNonNull(httpServletResponse);
-
-		String icRedirectUrl;
-		Cookie cookie = new Cookie("accessToken", accessToken);
-
-		if (getConfiguration().getEnvironment().equals("local")) {
-			cookie.setDomain("127.0.0.1");
-			icRedirectUrl = format("http://127.0.0.1:8888/auth/redirect?accessToken=%s", WebUtility.urlEncode(accessToken));
-		} else {
-			throw new UnsupportedOperationException();
-		}
-
-		httpServletResponse.addCookie(cookie);
-
-		httpServletResponse.setContentType("text/html");
-
-		// Writes cookies to the response and lets the browser "settle" (no immediate 302 - do a 200 and then have a client-side redirect)
-		// so the cookie is actually written for this domain
-		String html = "<html>\n" +
-				"<head><meta http-equiv='refresh' content=1;url='$IC_REDIRECT_URL'></head>\n" +
-				"<body></body>\n" +
-				"</html>";
-
-		html = html.replace("$IC_REDIRECT_URL", icRedirectUrl);
-
-		httpServletResponse.getWriter().print(html);
-
-		return CustomResponse.instance();
 	}
 
 	@Nonnull
@@ -640,6 +608,19 @@ public class AccountResource {
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("account", getAccountApiResponseFactory().create(updatedAccount));
 		}});
+	}
+
+	@Nonnull
+	@POST("/accounts/mychart")
+	public ApiResponse createMyChartAccount(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		CreateMyChartAccountRequest request = getRequestBodyParser().parse(requestBody, CreateMyChartAccountRequest.class);
+		request.setInstitutionId(getCurrentContext().getInstitutionId());
+
+		UUID accountId = getMyChartService().createAccount(request);
+
+		return generateAccountResponse(accountId);
 	}
 
 	@Nonnull
@@ -996,6 +977,11 @@ public class AccountResource {
 	@Nonnull
 	protected AppointmentService getAppointmentService() {
 		return this.appointmentService;
+	}
+
+	@Nonnull
+	protected MyChartService getMyChartService() {
+		return this.myChartService;
 	}
 
 	@Nonnull

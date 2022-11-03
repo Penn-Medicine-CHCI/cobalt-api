@@ -206,7 +206,7 @@ public class CurrentContextRequestHandler {
 			// In general, webappBaseUrl is usually non-null (clients should always include the X-Cobalt-Webapp-Base-Url header).
 			// However, in special cases like an OAuth callback, we won't get that header because we can't control how we're called.
 			Institution institution = getInstitutionService().findInstitutionByWebappBaseUrl(webappBaseUrl).orElse(null);
-			
+
 			if (account == null && institution == null) {
 				// If no signed-in account or X-Cobalt-Webapp-Base-Url header, assume default COBALT institution.
 				// This would be the case for an OAuth callback, for example

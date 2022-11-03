@@ -28,12 +28,12 @@ import com.cobaltplatform.api.model.api.request.SubmitAssessmentAnswerRequest;
 import com.cobaltplatform.api.model.api.request.SubmitAssessmentAnswerRequest.AnswerRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
-import com.cobaltplatform.api.model.db.AssessmentType;
-import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.AccountSessionAnswer;
 import com.cobaltplatform.api.model.db.Answer;
 import com.cobaltplatform.api.model.db.Assessment;
+import com.cobaltplatform.api.model.db.AssessmentType;
 import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Question;
 import com.cobaltplatform.api.model.db.QuestionType;
 import com.cobaltplatform.api.model.db.QuestionType.QuestionTypeId;
@@ -58,7 +58,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static com.cobaltplatform.api.util.ValidationUtility.isValidLocalDate;
-import static com.cobaltplatform.api.util.ValidationUtility.isValidStudentId;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidUUID;
 import static com.soklet.util.StringUtils.trimToNull;
 import static java.lang.String.format;
@@ -131,8 +130,8 @@ public class AssessmentService {
 	@Nonnull
 	public Optional<Assessment> findIntakeAssessmentByProviderId(@Nonnull UUID providerId,
 																															 @Nullable UUID appointmentTypeId) {
-		if(appointmentTypeId != null) {
-			Optional<Assessment> assessment =  database.queryForObject(
+		if (appointmentTypeId != null) {
+			Optional<Assessment> assessment = database.queryForObject(
 					"SELECT a.* FROM assessment as a, provider p, provider_appointment_type pat, v_appointment_type at WHERE " +
 							"p.provider_id = pat.provider_id AND pat.appointment_type_id = at.appointment_type_id " +
 							"AND at.assessment_id = a.assessment_id " +
@@ -396,9 +395,6 @@ public class AssessmentService {
 
 										break;
 									case STUDENT_ID:
-										if (!isValidStudentId(answerCommand.getAnswerText())) {
-											validationException.add(new FieldError("answerText", "Student Id is not a valid format"));
-										}
 										break;
 									case DATE:
 										if (!isValidLocalDate(answerCommand.getAnswerText())) {

@@ -23,9 +23,15 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.mychart.MyChartAuthenticator;
+import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
+import com.cobaltplatform.api.model.api.request.CreateMyChartAccountRequest;
+import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.security.SigningTokenClaims;
 import com.cobaltplatform.api.util.Authenticator;
+import com.cobaltplatform.api.util.Authenticator.SigningTokenValidationException;
 import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -35,13 +41,16 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
+import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -55,13 +64,11 @@ public class MyChartService {
 	private static final Long SIGNING_TOKEN_EXPIRATION_IN_SECONDS;
 	@Nonnull
 	private static final String ENVIRONMENT_CLAIMS_NAME;
+	@Nonnull
+	private static final String INSTITUTION_ID_CLAIMS_NAME;
 
-	static {
-		SIGNING_TOKEN_NAME = "mychart";
-		SIGNING_TOKEN_EXPIRATION_IN_SECONDS = 30L * 60L;
-		ENVIRONMENT_CLAIMS_NAME = "environment";
-	}
-
+	@Nonnull
+	private final Provider<AccountService> accountServiceProvider;
 	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
 	@Nonnull
@@ -75,18 +82,28 @@ public class MyChartService {
 	@Nonnull
 	private final Logger logger;
 
+	static {
+		SIGNING_TOKEN_NAME = "mychart";
+		SIGNING_TOKEN_EXPIRATION_IN_SECONDS = 30L * 60L;
+		ENVIRONMENT_CLAIMS_NAME = "environment";
+		INSTITUTION_ID_CLAIMS_NAME = "institutionId";
+	}
+
 	@Inject
-	public MyChartService(@Nonnull EnterprisePluginProvider enterprisePluginProvider,
+	public MyChartService(@Nonnull Provider<AccountService> accountServiceProvider,
+												@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 												@Nonnull Authenticator authenticator,
 												@Nonnull Database database,
 												@Nonnull Configuration configuration,
 												@Nonnull Strings strings) {
+		requireNonNull(accountServiceProvider);
 		requireNonNull(enterprisePluginProvider);
 		requireNonNull(authenticator);
 		requireNonNull(database);
 		requireNonNull(configuration);
 		requireNonNull(strings);
 
+		this.accountServiceProvider = accountServiceProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.authenticator = authenticator;
 		this.database = database;
@@ -126,13 +143,65 @@ public class MyChartService {
 		// By default, we add the environment to the signing token JWT's claims so we can key off of it when we get our OAuth
 		// callback.  This is useful for development, e.g. the scenario where we want to use the real MyChart flow
 		// but have it redirect back from a dev environment to a local environment instead
-		Map<String, Object> finalClaims = new HashMap<>(claims.size() + 1);
+		Map<String, Object> finalClaims = new HashMap<>(claims.size() + 2);
 		finalClaims.putAll(claims);
 		finalClaims.put(getEnvironmentClaimsName(), getConfiguration().getEnvironment());
+		finalClaims.put(getInstitutionIdClaimsName(), institutionId.name());
 
 		String state = getAuthenticator().generateSigningToken(getSigningTokenName(), getSigningTokenExpirationInSeconds(), claims);
 
 		return myChartAuthenticator.generateAuthenticationRedirectUrl(state);
+	}
+
+
+	@Nonnull
+	public UUID createAccount(@Nonnull CreateMyChartAccountRequest request) {
+		requireNonNull(request);
+
+		String code = trimToNull(request.getCode());
+		String state = trimToNull(request.getState());
+		SigningTokenClaims stateClaims = null;
+		InstitutionId institutionId = request.getInstitutionId();
+		ValidationException validationException = new ValidationException();
+
+		if (code == null)
+			validationException.add(new FieldError("code", "Code is required."));
+
+		if (institutionId == null)
+			validationException.add(new FieldError("institutionId", "Institution ID is required."));
+
+		if (state == null) {
+			validationException.add(new FieldError("state", "State is required."));
+		} else {
+			try {
+				stateClaims = getAuthenticator().validateSigningToken(state);
+			} catch (SigningTokenValidationException e) {
+				getLogger().warn("Unable to validate signing token", e);
+				validationException.add(new FieldError("state", "Unable to validate your signing token."));
+			}
+
+			if (stateClaims != null) {
+				try {
+					InstitutionId claimsInstitutionId = (InstitutionId) stateClaims.getClaims().get(getInstitutionIdClaimsName());
+
+					if (claimsInstitutionId != institutionId)
+						validationException.add(new FieldError("state", "Institution ID in claims doesn't match."));
+				} catch (Exception e) {
+					getLogger().warn("Unable to extract state claims from signing token", e);
+					validationException.add(new FieldError("state", "Unable to extract state claims from your signing token."));
+				}
+			}
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		return getAccountService().createAccount(new CreateAccountRequest() {{
+			setAccountSourceId(AccountSourceId.MYCHART);
+			setInstitutionId(institutionId);
+
+			// TODO: rest of the fields
+		}});
 	}
 
 	@Nonnull
@@ -148,6 +217,16 @@ public class MyChartService {
 	@Nonnull
 	protected String getEnvironmentClaimsName() {
 		return ENVIRONMENT_CLAIMS_NAME;
+	}
+
+	@Nonnull
+	protected String getInstitutionIdClaimsName() {
+		return INSTITUTION_ID_CLAIMS_NAME;
+	}
+
+	@Nonnull
+	protected AccountService getAccountService() {
+		return this.accountServiceProvider.get();
 	}
 
 	@Nonnull
