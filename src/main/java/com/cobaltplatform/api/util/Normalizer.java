@@ -33,13 +33,15 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.util.ValidationUtility.isValidHexColor;
-import static com.cobaltplatform.api.util.ValidationUtility.isValidIso3166ThreeLetterCountryCode;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidIso3166TwoLetterCountryCode;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -51,10 +53,24 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
  */
 @ThreadSafe
 public class Normalizer {
+	@Nonnull
+	private static final Map<String, String> ISO_3166_THREE_TO_TWO_LETTER_COUNTRY_CODES;
+
 	@Nullable
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final Logger logger;
+
+	static {
+		Map<String, String> iso3166ThreeToTwoLetterCountryCodes = new HashMap<>();
+
+		for (String twoLetterCountryCode : Locale.getISOCountries()) {
+			String threeLetterCountryCode = new Locale("", twoLetterCountryCode).getISO3Country().toUpperCase(Locale.US);
+			iso3166ThreeToTwoLetterCountryCodes.put(threeLetterCountryCode, twoLetterCountryCode);
+		}
+
+		ISO_3166_THREE_TO_TWO_LETTER_COUNTRY_CODES = Collections.unmodifiableMap(iso3166ThreeToTwoLetterCountryCodes);
+	}
 
 	public Normalizer() {
 		this(null);
@@ -113,11 +129,7 @@ public class Normalizer {
 			return Optional.empty();
 
 		if (countryCode.length() == 3) {
-			if (isValidIso3166ThreeLetterCountryCode(countryCode)) {
-				return Optional.of(new Locale("en", countryCode).getCountry());
-			} else {
-				return Optional.empty();
-			}
+			return Optional.ofNullable(getIso3166ThreeToTwoLetterCountryCodes().get(countryCode));
 		} else if (countryCode.length() == 2) {
 			if (isValidIso3166TwoLetterCountryCode(countryCode))
 				return Optional.of(countryCode);
@@ -295,6 +307,11 @@ public class Normalizer {
 		public Optional<String> getLastName() {
 			return Optional.ofNullable(lastName);
 		}
+	}
+
+	@Nonnull
+	protected Map<String, String> getIso3166ThreeToTwoLetterCountryCodes() {
+		return ISO_3166_THREE_TO_TWO_LETTER_COUNTRY_CODES;
 	}
 
 	@Nonnull

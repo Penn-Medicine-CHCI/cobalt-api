@@ -79,7 +79,7 @@ public class CreateAccountRequest {
 	@Nullable
 	private RaceId raceId;
 	@Nullable
-	private LocalDate birthDate;
+	private LocalDate birthdate;
 	@Nullable
 	private CreateAddressRequest address;
 
@@ -264,12 +264,12 @@ public class CreateAccountRequest {
 	}
 
 	@Nullable
-	public LocalDate getBirthDate() {
-		return this.birthDate;
+	public LocalDate getBirthdate() {
+		return this.birthdate;
 	}
 
-	public void setBirthDate(@Nullable LocalDate birthDate) {
-		this.birthDate = birthDate;
+	public void setBirthdate(@Nullable LocalDate birthdate) {
+		this.birthdate = birthdate;
 	}
 
 	@Nullable

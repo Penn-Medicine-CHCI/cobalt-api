@@ -69,6 +69,7 @@ import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
 import com.cobaltplatform.api.model.security.AccessTokenClaims;
 import com.cobaltplatform.api.model.service.AccountEmailVerificationFlowTypeId;
+import com.cobaltplatform.api.model.service.Region;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
@@ -407,11 +408,12 @@ public class AccountService {
 		String epicPatientId = trimToNull(request.getEpicPatientId());
 		String epicPatientIdType = trimToNull(request.getEpicPatientIdType());
 		String myChartPatientRecordAsJson = trimToNull(request.getMyChartPatientRecordAsJson());
-		GenderIdentityId genderIdentityId = request.getGenderIdentityId();
-		EthnicityId ethnicityId = request.getEthnicityId();
-		BirthSexId birthSexId = request.getBirthSexId();
-		RaceId raceId = request.getRaceId();
-		LocalDate birthDate = request.getBirthDate();
+		Instant myChartPatientRecordImportedAt = null;
+		GenderIdentityId genderIdentityId = request.getGenderIdentityId() == null ? GenderIdentityId.NOT_ASKED : request.getGenderIdentityId();
+		EthnicityId ethnicityId = request.getEthnicityId() == null ? EthnicityId.NOT_ASKED : request.getEthnicityId();
+		BirthSexId birthSexId = request.getBirthSexId() == null ? BirthSexId.NOT_ASKED : request.getBirthSexId();
+		RaceId raceId = request.getRaceId() == null ? RaceId.NOT_ASKED : request.getRaceId();
+		LocalDate birthdate = request.getBirthdate();
 		UUID addressId = null;
 		ValidationException validationException = new ValidationException();
 
@@ -458,6 +460,7 @@ public class AccountService {
 				} else {
 					try {
 						getJsonMapper().fromJson(myChartPatientRecordAsJson, Map.class);
+						myChartPatientRecordImportedAt = Instant.now();
 					} catch (Exception e) {
 						getLogger().warn(format("Unable to process MyChart JSON: %s", myChartPatientRecordAsJson), e);
 						validationException.add(new FieldError("myChartPatientRecordAsJson", getStrings().get("MyChart patient record could not be processed.")));
@@ -506,9 +509,19 @@ public class AccountService {
 		else if (ssoAttributes != null)
 			finalSsoAttributesAsJson = getJsonMapper().toJson(ssoAttributes);
 
-		getDatabase().execute("INSERT INTO account (account_id, role_id, institution_id, account_source_id, source_system_id, sso_id, "
-						+ "first_name, last_name, display_name, email_address, phone_number, sso_attributes, password, epic_patient_id, epic_patient_id_type, time_zone) VALUES (?,?,?,?,?,?,?,?,?,?,?,CAST(? AS JSONB),?,?,?,?)",
-				accountId, roleId, institutionId, accountSourceId, sourceSystemId, ssoId, firstName, lastName, displayName, emailAddress, phoneNumber, finalSsoAttributesAsJson, password, epicPatientId, epicPatientIdType, timeZone);
+		getDatabase().execute("""
+						INSERT INTO account (
+						account_id, role_id, institution_id, account_source_id, source_system_id, sso_id, 
+						first_name, last_name, display_name, email_address, phone_number, sso_attributes, password, epic_patient_id, 
+						epic_patient_id_type, time_zone, address_id, mychart_patient_record, mychart_patient_record_imported_at,
+						gender_identity_id, ethnicity_id, birth_sex_id, race_id, birthdate
+						) 
+						VALUES (?,?,?,?,?,?,?,?,?,?,?,CAST(? AS JSONB),?,?,?,?,?,CAST(? AS JSONB),?,?,?,?,?,?)
+						""",
+				accountId, roleId, institutionId, accountSourceId, sourceSystemId, ssoId, firstName, lastName, displayName,
+				emailAddress, phoneNumber, finalSsoAttributesAsJson, password, epicPatientId, epicPatientIdType, timeZone,
+				addressId, myChartPatientRecordAsJson, myChartPatientRecordImportedAt, genderIdentityId, ethnicityId,
+				birthSexId, raceId, birthdate);
 
 		return accountId;
 	}
@@ -548,12 +561,19 @@ public class AccountService {
 		} else {
 			countryCode = getNormalizer().normalizeCountryCodeToIso3166TwoLetter(countryCode).get();
 
+			// US address validation
 			if ("US".equals(countryCode)) {
-				// US address validation
 				if (locality == null)
 					validationException.add(new FieldError("locality", getStrings().get("City name is required.")));
-				if (locality == null)
-					validationException.add(new FieldError("region", getStrings().get("State is required.")));
+
+				// Normalize state abbreviation
+				if (region != null)
+					region = region.toUpperCase(Locale.US);
+
+				if (region == null)
+					validationException.add(new FieldError("region", getStrings().get("State abbreviation is required.")));
+				else if (Region.forAbbreviationAndCountryCode(region, "US").isEmpty())
+					validationException.add(new FieldError("region", getStrings().get("A valid state abbreviation is required.")));
 
 				if (postalCode == null)
 					validationException.add(new FieldError("postalCode", getStrings().get("ZIP code is required.")));
