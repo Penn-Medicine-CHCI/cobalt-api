@@ -27,6 +27,7 @@ import com.cobaltplatform.api.integration.epic.code.NameUseCode;
 import com.cobaltplatform.api.integration.epic.code.RaceCode;
 import com.cobaltplatform.api.integration.epic.code.TelecomUseCode;
 import com.cobaltplatform.api.integration.epic.response.PatientFhirR4Response.Extension.ExtensionInner;
+import com.cobaltplatform.api.integration.epic.response.PatientFhirR4Response.Identifier.Type;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
@@ -87,7 +88,27 @@ public class PatientFhirR4Response {
 	private List<Contact> contact;
 
 	@Nonnull
+	public Optional<String> extractIdentifierByType(@Nullable String type) {
+		type = trimToNull(type);
+
+		if (type == null)
+			return Optional.empty();
+
+		for (Identifier identifier : getIdentifier()) {
+			Type identifierType = identifier.getType();
+
+			if (identifierType != null && Objects.equals(identifierType.getText(), type))
+				return Optional.ofNullable(identifier.getValue());
+		}
+
+		return Optional.empty();
+	}
+
+	@Nonnull
 	public Optional<GenderIdentityId> extractGenderIdentityId() {
+		if (getExtension() == null)
+			return Optional.empty();
+
 		Extension matchingExtension = getExtension().stream()
 				.filter(extension -> Objects.equals(GenderIdentityCode.EXTENSION_URL, extension.getUrl()))
 				.findFirst().orElse(null);
@@ -127,6 +148,9 @@ public class PatientFhirR4Response {
 
 	@Nonnull
 	public Optional<RaceId> extractRaceId() {
+		if (getExtension() == null)
+			return Optional.empty();
+
 		Extension matchingExtension = getExtension().stream()
 				.filter(extension -> Objects.equals(RaceCode.EXTENSION_URL, extension.getUrl()))
 				.findFirst().orElse(null);
@@ -158,6 +182,9 @@ public class PatientFhirR4Response {
 
 	@Nonnull
 	public Optional<EthnicityId> extractEthnicityId() {
+		if (getExtension() == null)
+			return Optional.empty();
+
 		Extension matchingExtension = getExtension().stream()
 				.filter(extension -> Objects.equals(EthnicityCode.EXTENSION_URL, extension.getUrl()))
 				.findFirst().orElse(null);
@@ -183,6 +210,9 @@ public class PatientFhirR4Response {
 
 	@Nonnull
 	public Optional<BirthSexId> extractBirthSexId() {
+		if (getExtension() == null)
+			return Optional.empty();
+
 		Extension matchingExtension = getExtension().stream()
 				.filter(extension -> Objects.equals(BirthSexCode.EXTENSION_URL, extension.getUrl()))
 				.findFirst().orElse(null);
@@ -629,6 +659,42 @@ public class PatientFhirR4Response {
 		private String value;
 		@Nullable
 		private Type type;
+
+		@Nullable
+		public String getUse() {
+			return this.use;
+		}
+
+		public void setUse(@Nullable String use) {
+			this.use = use;
+		}
+
+		@Nullable
+		public String getSystem() {
+			return this.system;
+		}
+
+		public void setSystem(@Nullable String system) {
+			this.system = system;
+		}
+
+		@Nullable
+		public String getValue() {
+			return this.value;
+		}
+
+		public void setValue(@Nullable String value) {
+			this.value = value;
+		}
+
+		@Nullable
+		public Type getType() {
+			return this.type;
+		}
+
+		public void setType(@Nullable Type type) {
+			this.type = type;
+		}
 
 		@NotThreadSafe
 		public static class Type {
