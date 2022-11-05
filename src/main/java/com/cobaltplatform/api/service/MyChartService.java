@@ -295,6 +295,8 @@ public class MyChartService {
 			validationException.add(getStrings().get("Unable to load patient data from EPIC."));
 		}
 
+		String epicPatientId = patientId;
+		String epicPatientIdType = patient.extractTypeByIdentifier(epicPatientId).orElse(null);
 		GenderIdentityId genderIdentityId = patient.extractGenderIdentityId().orElse(null);
 		RaceId raceId = patient.extractRaceId().orElse(null);
 		EthnicityId ethnicityId = patient.extractEthnicityId().orElse(null);
@@ -304,7 +306,7 @@ public class MyChartService {
 		PatientFhirR4Response.Address address = patient.extractFirstMatchingAddress(AddressUseCode.HOME, AddressUseCode.BILLING, AddressUseCode.TEMP).orElse(null);
 		String phoneNumber = patient.extractFirstMatchingPhoneNumber(TelecomUseCode.MOBILE, TelecomUseCode.HOME, TelecomUseCode.WORK).orElse(null);
 		List<String> emailAddresses = patient.extractEmailAddresses();
-		String myChartPatientRecordAsJson = patient.getRawJson();
+		String ssoAttributesAsJson = patient.getRawJson();
 
 		String firstName = name == null || name.getGiven() == null ? null : name.getGiven().stream().collect(Collectors.joining(" "));
 		String lastName = name == null || name.getFamily() == null ? null : trimToNull(name.getFamily());
@@ -358,11 +360,13 @@ public class MyChartService {
 		CreateAddressRequest pinnedAddressRequest = addressRequest;
 
 		return getAccountService().createAccount(new CreateAccountRequest() {{
+			setEpicPatientId(epicPatientId);
+			setEpicPatientIdType(epicPatientIdType);
 			setAccountSourceId(AccountSourceId.MYCHART);
 			setRoleId(RoleId.PATIENT);
 			setSsoId(ssoId);
 			setInstitutionId(institutionId);
-			setMyChartPatientRecordAsJson(myChartPatientRecordAsJson);
+			setSsoAttributesAsJson(ssoAttributesAsJson);
 			setGenderIdentityId(genderIdentityId);
 			setRaceId(raceId);
 			setEthnicityId(ethnicityId);
