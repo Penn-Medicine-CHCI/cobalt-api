@@ -110,7 +110,7 @@ public class Region {
 		regions.add(new Region("Wisconsin", "WI", "US"));
 		regions.add(new Region("Wyoming", "WY", "US"));
 
-		// TODO: support additional regions
+		// TODO: support additional regions once we need to go international and replace this in-memory stuff with a DB table
 
 		Map<String, Map<String, Region>> regionsByAbbreviationByCountryCode = new HashMap<>();
 

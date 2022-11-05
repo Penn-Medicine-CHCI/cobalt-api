@@ -85,8 +85,9 @@ CREATE TABLE birth_sex (
 INSERT INTO birth_sex (birth_sex_id, description, display_order) VALUES ('NOT_ASKED', 'Not asked', 1);
 INSERT INTO birth_sex (birth_sex_id, description, display_order) VALUES ('MALE', 'Male', 2);
 INSERT INTO birth_sex (birth_sex_id, description, display_order) VALUES ('FEMALE', 'Female', 3);
-INSERT INTO birth_sex (birth_sex_id, description, display_order) VALUES ('UNKNOWN', 'Unknown', 4);
-INSERT INTO birth_sex (birth_sex_id, description, display_order) VALUES ('NOT_DISCLOSED', 'Do not wish to disclose', 5);
+INSERT INTO birth_sex (birth_sex_id, description, display_order) VALUES ('OTHER', 'Other', 4);
+INSERT INTO birth_sex (birth_sex_id, description, display_order) VALUES ('UNKNOWN', 'Unknown', 5);
+INSERT INTO birth_sex (birth_sex_id, description, display_order) VALUES ('NOT_DISCLOSED', 'Do not wish to disclose', 6);
 
 -- Race 2.16.840.1.114222.4.11.6065
 -- Concept Code - Description

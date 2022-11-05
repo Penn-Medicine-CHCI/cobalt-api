@@ -19,7 +19,6 @@
 
 package com.cobaltplatform.api.model.api.request;
 
-import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 import javax.annotation.Nullable;
@@ -29,11 +28,13 @@ import javax.annotation.concurrent.NotThreadSafe;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreateMyChartAccountRequest {
+public class ObtainMyChartAccessTokenRequest {
 	@Nullable
 	private InstitutionId institutionId;
 	@Nullable
-	private MyChartAccessToken myChartAccessToken;
+	private String code;
+	@Nullable
+	private String state;
 
 	@Nullable
 	public InstitutionId getInstitutionId() {
@@ -45,11 +46,20 @@ public class CreateMyChartAccountRequest {
 	}
 
 	@Nullable
-	public MyChartAccessToken getMyChartAccessToken() {
-		return this.myChartAccessToken;
+	public String getCode() {
+		return this.code;
 	}
 
-	public void setMyChartAccessToken(@Nullable MyChartAccessToken myChartAccessToken) {
-		this.myChartAccessToken = myChartAccessToken;
+	public void setCode(@Nullable String code) {
+		this.code = code;
+	}
+
+	@Nullable
+	public String getState() {
+		return this.state;
+	}
+
+	public void setState(@Nullable String state) {
+		this.state = state;
 	}
 }

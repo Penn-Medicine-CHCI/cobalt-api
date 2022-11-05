@@ -38,6 +38,7 @@ public class BirthSex {
 		NOT_ASKED,
 		MALE,
 		FEMALE,
+		OTHER,
 		UNKNOWN,
 		NOT_DISCLOSED
 	}

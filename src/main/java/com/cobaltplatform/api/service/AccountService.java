@@ -255,12 +255,18 @@ public class AccountService {
 	}
 
 	@Nonnull
-	public Optional<Account> findAccountByAccountSourceIdAndSsoId(@Nullable AccountSourceId accountSourceId,
-																																@Nullable String ssoId) {
-		if (accountSourceId == null || ssoId == null)
+	public Optional<Account> findAccountByAccountSourceIdAndSsoIdAndInstitutionId(@Nullable AccountSourceId accountSourceId,
+																																								@Nullable String ssoId,
+																																								@Nullable InstitutionId institutionId) {
+		if (accountSourceId == null || ssoId == null || institutionId == null)
 			return Optional.empty();
 
-		return getDatabase().queryForObject("SELECT * FROM account WHERE account_source_id=? AND sso_id=?", Account.class, accountSourceId, ssoId);
+		return getDatabase().queryForObject("""
+				SELECT * FROM account 
+				WHERE account_source_id=? 
+				AND sso_id=?
+				AND institution_id=?
+				""", Account.class, accountSourceId, ssoId, institutionId);
 	}
 
 	@Nonnull

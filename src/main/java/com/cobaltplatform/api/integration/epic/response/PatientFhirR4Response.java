@@ -19,10 +19,31 @@
 
 package com.cobaltplatform.api.integration.epic.response;
 
+import com.cobaltplatform.api.integration.epic.code.AddressUseCode;
+import com.cobaltplatform.api.integration.epic.code.BirthSexCode;
+import com.cobaltplatform.api.integration.epic.code.EthnicityCode;
+import com.cobaltplatform.api.integration.epic.code.GenderIdentityCode;
+import com.cobaltplatform.api.integration.epic.code.NameUseCode;
+import com.cobaltplatform.api.integration.epic.code.RaceCode;
+import com.cobaltplatform.api.integration.epic.code.TelecomUseCode;
+import com.cobaltplatform.api.integration.epic.response.PatientFhirR4Response.Extension.ExtensionInner;
+import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
+import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
+import com.cobaltplatform.api.model.db.Race.RaceId;
+
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -64,6 +85,247 @@ public class PatientFhirR4Response {
 	private List<Extension> extension;
 	@Nullable
 	private List<Contact> contact;
+
+	@Nonnull
+	public Optional<GenderIdentityId> extractGenderIdentityId() {
+		Extension matchingExtension = getExtension().stream()
+				.filter(extension -> Objects.equals(GenderIdentityCode.EXTENSION_URL, extension.getUrl()))
+				.findFirst().orElse(null);
+
+		if (matchingExtension == null)
+			return Optional.empty();
+
+		for (ExtensionInner extensionInner : matchingExtension.getExtension()) {
+			if (extensionInner.getValueString() != null) {
+				GenderIdentityCode genderIdentityCode = GenderIdentityCode.fromFhirValue(extensionInner.getValueString()).orElse(null);
+
+				if (genderIdentityCode != null) {
+					if (genderIdentityCode == GenderIdentityCode.FEMALE)
+						return Optional.of(GenderIdentityId.FEMALE);
+					if (genderIdentityCode == GenderIdentityCode.MALE)
+						return Optional.of(GenderIdentityId.MALE);
+					if (genderIdentityCode == GenderIdentityCode.TRANSGENDER_FEMALE)
+						return Optional.of(GenderIdentityId.TRANSGENDER_MTF);
+					if (genderIdentityCode == GenderIdentityCode.TRANSGENDER_MALE)
+						return Optional.of(GenderIdentityId.TRANSGENDER_FTM);
+					if (genderIdentityCode == GenderIdentityCode.NON_BINARY)
+						return Optional.of(GenderIdentityId.NON_BINARY);
+					if (genderIdentityCode == GenderIdentityCode.OTHER)
+						return Optional.of(GenderIdentityId.OTHER);
+				}
+			}
+		}
+
+		return Optional.empty();
+	}
+
+	@Nonnull
+	public Optional<RaceId> extractRaceId() {
+		Extension matchingExtension = getExtension().stream()
+				.filter(extension -> Objects.equals(RaceCode.EXTENSION_URL, extension.getUrl()))
+				.findFirst().orElse(null);
+
+		if (matchingExtension == null)
+			return Optional.empty();
+
+		for (ExtensionInner extensionInner : matchingExtension.getExtension()) {
+			if (extensionInner.getValueString() != null) {
+				RaceCode raceCode = RaceCode.fromFhirValue(extensionInner.getValueString()).orElse(null);
+
+				if (raceCode != null) {
+					if (raceCode == RaceCode.WHITE)
+						return Optional.of(RaceId.WHITE);
+					if (raceCode == RaceCode.AMERICAN_INDIAN_OR_ALASKA_NATIVE)
+						return Optional.of(RaceId.AMERICAN_INDIAN_OR_ALASKA_NATIVE);
+					if (raceCode == RaceCode.ASIAN)
+						return Optional.of(RaceId.ASIAN);
+					if (raceCode == RaceCode.BLACK_OR_AFRICAN_AMERICAN)
+						return Optional.of(RaceId.BLACK_OR_AFRICAN_AMERICAN);
+					if (raceCode == RaceCode.NATIVE_HAWAIIAN_OR_PACIFIC_ISLANDER)
+						return Optional.of(RaceId.HAWAIIAN_OR_PACIFIC_ISLANDER);
+				}
+			}
+		}
+
+		return Optional.empty();
+	}
+
+	@Nonnull
+	public Optional<EthnicityId> extractEthnicityId() {
+		Extension matchingExtension = getExtension().stream()
+				.filter(extension -> Objects.equals(EthnicityCode.EXTENSION_URL, extension.getUrl()))
+				.findFirst().orElse(null);
+
+		if (matchingExtension == null)
+			return Optional.empty();
+
+		for (ExtensionInner extensionInner : matchingExtension.getExtension()) {
+			if (extensionInner.getValueString() != null) {
+				EthnicityCode ethnicityCode = EthnicityCode.fromFhirValue(extensionInner.getValueString()).orElse(null);
+
+				if (ethnicityCode != null) {
+					if (ethnicityCode == EthnicityCode.HISPANIC_OR_LATINO)
+						return Optional.of(EthnicityId.HISPANIC_OR_LATINO);
+					if (ethnicityCode == EthnicityCode.NOT_HISPANIC_OR_LATINO)
+						return Optional.of(EthnicityId.NOT_HISPANIC_OR_LATINO);
+				}
+			}
+		}
+
+		return Optional.empty();
+	}
+
+	@Nonnull
+	public Optional<BirthSexId> extractBirthSexId() {
+		Extension matchingExtension = getExtension().stream()
+				.filter(extension -> Objects.equals(BirthSexCode.EXTENSION_URL, extension.getUrl()))
+				.findFirst().orElse(null);
+
+		if (matchingExtension == null)
+			return Optional.empty();
+
+		for (ExtensionInner extensionInner : matchingExtension.getExtension()) {
+			if (extensionInner.getValueString() != null) {
+				BirthSexCode birthSexCode = BirthSexCode.fromFhirValue(extensionInner.getValueString()).orElse(null);
+
+				if (birthSexCode != null) {
+					if (birthSexCode == BirthSexCode.FEMALE)
+						return Optional.of(BirthSexId.FEMALE);
+					if (birthSexCode == BirthSexCode.MALE)
+						return Optional.of(BirthSexId.MALE);
+					if (birthSexCode == BirthSexCode.OTHER)
+						return Optional.of(BirthSexId.OTHER);
+					if (birthSexCode == BirthSexCode.UNKNOWN)
+						return Optional.of(BirthSexId.UNKNOWN);
+				}
+			}
+		}
+
+		return Optional.empty();
+	}
+
+	@Nonnull
+	public Optional<Name> extractFirstMatchingName(@Nullable NameUseCode... nameUseCodes) {
+		if (nameUseCodes == null)
+			return Optional.empty();
+
+		Map<NameUseCode, List<Name>> namesByUseCode = new HashMap<>();
+
+		if (getName() != null) {
+			for (Name name : getName()) {
+				NameUseCode nameUseCode = NameUseCode.fromFhirValue(name.getUse()).orElse(null);
+
+				if (nameUseCode != null) {
+					List<Name> names = namesByUseCode.get(nameUseCode);
+
+					if (names == null) {
+						names = new ArrayList<>();
+						namesByUseCode.put(nameUseCode, names);
+					}
+
+					names.add(name);
+				}
+			}
+		}
+
+		for (NameUseCode nameUseCode : nameUseCodes) {
+			List<Name> names = namesByUseCode.get(nameUseCode);
+
+			if (names != null && names.size() > 0)
+				return Optional.of(names.get(0));
+		}
+
+		return Optional.empty();
+	}
+
+	@Nonnull
+	public Optional<Address> extractFirstMatchingAddress(@Nullable AddressUseCode... addressUseCodes) {
+		if (addressUseCodes == null)
+			return Optional.empty();
+
+		Map<AddressUseCode, List<Address>> addressesByUseCode = new HashMap<>();
+
+		if (getAddress() != null) {
+			for (Address address : getAddress()) {
+				AddressUseCode addressUseCode = AddressUseCode.fromFhirValue(address.getUse()).orElse(null);
+
+				if (addressUseCode != null) {
+					List<Address> addresses = addressesByUseCode.get(addressUseCode);
+
+					if (addresses == null) {
+						addresses = new ArrayList<>();
+						addressesByUseCode.put(addressUseCode, addresses);
+					}
+
+					addresses.add(address);
+				}
+			}
+		}
+
+		for (AddressUseCode addressUseCode : addressUseCodes) {
+			List<Address> addresses = addressesByUseCode.get(addressUseCode);
+
+			if (addresses != null && addresses.size() > 0)
+				return Optional.of(addresses.get(0));
+		}
+
+		return Optional.empty();
+	}
+
+	@Nonnull
+	public Optional<String> extractFirstMatchingPhoneNumber(@Nullable TelecomUseCode... telecomUseCodes) {
+		if (telecomUseCodes == null)
+			return Optional.empty();
+
+		Map<TelecomUseCode, List<String>> phoneNumbersByUseCode = new HashMap<>();
+
+		if (getTelecom() != null) {
+			for (Telecom telecom : getTelecom()) {
+				if (Objects.equals("phone", telecom.getSystem())) {
+					TelecomUseCode telecomUseCode = TelecomUseCode.fromFhirValue(telecom.getUse()).orElse(null);
+					String phoneNumber = trimToNull(telecom.getValue());
+
+					if (telecomUseCode != null && phoneNumber != null) {
+						List<String> phoneNumbers = phoneNumbersByUseCode.get(telecomUseCode);
+
+						if (phoneNumbers == null) {
+							phoneNumbers = new ArrayList<>();
+							phoneNumbersByUseCode.put(telecomUseCode, phoneNumbers);
+						}
+
+						phoneNumbers.add(phoneNumber);
+					}
+				}
+			}
+		}
+
+		for (TelecomUseCode telecomUseCode : telecomUseCodes) {
+			List<String> phoneNumbers = phoneNumbersByUseCode.get(telecomUseCode);
+
+			if (phoneNumbers != null && phoneNumbers.size() > 0)
+				return Optional.of(phoneNumbers.get(0));
+		}
+
+		return Optional.empty();
+	}
+
+	@Nonnull
+	public List<String> extractEmailAddresses() {
+		List<String> emailAddresses = new ArrayList<>();
+
+		if (getTelecom() != null) {
+			for (Telecom telecom : getTelecom()) {
+				if (Objects.equals("email", telecom.getSystem())) {
+					String emailAddress = trimToNull(telecom.getValue());
+
+					if (emailAddress != null)
+						emailAddresses.add(emailAddress);
+				}
+			}
+		}
+
+		return emailAddresses;
+	}
 
 	@Nullable
 	public String getRawJson() {
@@ -227,7 +489,7 @@ public class PatientFhirR4Response {
 		@Nullable
 		private ValueCodeableConcept valueCodeableConcept;
 		@Nullable
-		private List<Extension2> extension;
+		private List<ExtensionInner> extension;
 
 		@Nullable
 		public String getUrl() {
@@ -248,11 +510,11 @@ public class PatientFhirR4Response {
 		}
 
 		@Nullable
-		public List<Extension2> getExtension() {
+		public List<ExtensionInner> getExtension() {
 			return this.extension;
 		}
 
-		public void setExtension(@Nullable List<Extension2> extension) {
+		public void setExtension(@Nullable List<ExtensionInner> extension) {
 			this.extension = extension;
 		}
 
@@ -281,7 +543,7 @@ public class PatientFhirR4Response {
 		}
 
 		@NotThreadSafe
-		public static class Extension2 {
+		public static class ExtensionInner {
 			@Nullable
 			private String valueString;
 			@Nullable

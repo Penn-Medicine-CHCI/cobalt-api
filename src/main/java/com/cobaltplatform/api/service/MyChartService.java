@@ -22,14 +22,29 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
+import com.cobaltplatform.api.integration.epic.EpicClient;
+import com.cobaltplatform.api.integration.epic.code.AddressUseCode;
+import com.cobaltplatform.api.integration.epic.code.NameUseCode;
+import com.cobaltplatform.api.integration.epic.code.TelecomUseCode;
+import com.cobaltplatform.api.integration.epic.response.PatientFhirR4Response;
+import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
 import com.cobaltplatform.api.integration.mychart.MyChartAuthenticator;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
+import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreateMyChartAccountRequest;
+import com.cobaltplatform.api.model.api.request.ObtainMyChartAccessTokenRequest;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
+import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
+import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.Race.RaceId;
+import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.SigningTokenClaims;
+import com.cobaltplatform.api.model.service.MyChartAccessTokenWithClaims;
 import com.cobaltplatform.api.util.Authenticator;
-import com.cobaltplatform.api.util.Authenticator.SigningTokenValidationException;
+import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.lokalized.Strings;
@@ -43,10 +58,14 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -74,6 +93,8 @@ public class MyChartService {
 	@Nonnull
 	private final Authenticator authenticator;
 	@Nonnull
+	private final Normalizer normalizer;
+	@Nonnull
 	private final Database database;
 	@Nonnull
 	private final Configuration configuration;
@@ -93,12 +114,14 @@ public class MyChartService {
 	public MyChartService(@Nonnull Provider<AccountService> accountServiceProvider,
 												@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 												@Nonnull Authenticator authenticator,
+												@Nonnull Normalizer normalizer,
 												@Nonnull Database database,
 												@Nonnull Configuration configuration,
 												@Nonnull Strings strings) {
 		requireNonNull(accountServiceProvider);
 		requireNonNull(enterprisePluginProvider);
 		requireNonNull(authenticator);
+		requireNonNull(normalizer);
 		requireNonNull(database);
 		requireNonNull(configuration);
 		requireNonNull(strings);
@@ -106,6 +129,7 @@ public class MyChartService {
 		this.accountServiceProvider = accountServiceProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.authenticator = authenticator;
+		this.normalizer = normalizer;
 		this.database = database;
 		this.configuration = configuration;
 		this.strings = strings;
@@ -148,20 +172,52 @@ public class MyChartService {
 		finalClaims.put(getEnvironmentClaimsName(), getConfiguration().getEnvironment());
 		finalClaims.put(getInstitutionIdClaimsName(), institutionId.name());
 
-		String state = getAuthenticator().generateSigningToken(getSigningTokenName(), getSigningTokenExpirationInSeconds(), claims);
+		String state = getAuthenticator().generateSigningToken(getSigningTokenName(), getSigningTokenExpirationInSeconds(), finalClaims);
 
 		return myChartAuthenticator.generateAuthenticationRedirectUrl(state);
 	}
 
+	@Nonnull
+	public Map<String, Object> extractAndValidateClaimsFromMyChartState(@Nonnull InstitutionId institutionId,
+																																			@Nonnull String state) {
+		requireNonNull(institutionId);
+		requireNonNull(state);
+
+		SigningTokenClaims stateClaims = null;
+		ValidationException validationException = new ValidationException();
+
+		try {
+			stateClaims = getAuthenticator().validateSigningToken(state);
+		} catch (Exception e) {
+			getLogger().warn("Unable to validate MyChart state", e);
+			validationException.add(new FieldError("state", "Unable to validate MyChart state."));
+		}
+
+		if (stateClaims != null) {
+			InstitutionId claimsInstitutionId = InstitutionId.valueOf((String) stateClaims.getClaims().get(getInstitutionIdClaimsName()));
+
+			// This suggests something is pretty wrong and needs further investigation
+			if (claimsInstitutionId != institutionId)
+				throw new IllegalStateException(format("Institution ID %s in MyChart state claims doesn't match expected institution %s.",
+						claimsInstitutionId == null ? "[null]" : claimsInstitutionId.name(), institutionId.name()));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		return stateClaims.getClaims();
+	}
 
 	@Nonnull
-	public UUID createAccount(@Nonnull CreateMyChartAccountRequest request) {
+	public MyChartAccessTokenWithClaims obtainMyChartAccessToken(@Nonnull ObtainMyChartAccessTokenRequest request) {
 		requireNonNull(request);
 
 		String code = trimToNull(request.getCode());
 		String state = trimToNull(request.getState());
-		SigningTokenClaims stateClaims = null;
 		InstitutionId institutionId = request.getInstitutionId();
+		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId);
+		MyChartAuthenticator myChartAuthenticator = enterprisePlugin.myChartAuthenticator().get();
+		Map<String, Object> claims = null;
 		ValidationException validationException = new ValidationException();
 
 		if (code == null)
@@ -173,34 +229,151 @@ public class MyChartService {
 		if (state == null) {
 			validationException.add(new FieldError("state", "State is required."));
 		} else {
+			// Ensure we have non-spoofed claims for this state
 			try {
-				stateClaims = getAuthenticator().validateSigningToken(state);
-			} catch (SigningTokenValidationException e) {
-				getLogger().warn("Unable to validate signing token", e);
-				validationException.add(new FieldError("state", "Unable to validate your signing token."));
-			}
-
-			if (stateClaims != null) {
-				try {
-					InstitutionId claimsInstitutionId = (InstitutionId) stateClaims.getClaims().get(getInstitutionIdClaimsName());
-
-					if (claimsInstitutionId != institutionId)
-						validationException.add(new FieldError("state", "Institution ID in claims doesn't match."));
-				} catch (Exception e) {
-					getLogger().warn("Unable to extract state claims from signing token", e);
-					validationException.add(new FieldError("state", "Unable to extract state claims from your signing token."));
-				}
+				claims = extractAndValidateClaimsFromMyChartState(institutionId, state);
+			} catch (ValidationException e) {
+				validationException.add(e);
 			}
 		}
 
 		if (validationException.hasErrors())
 			throw validationException;
 
+		try {
+			MyChartAccessToken myChartAccessToken = myChartAuthenticator.obtainAccessTokenFromCode(code, state);
+			return new MyChartAccessTokenWithClaims(myChartAccessToken, claims);
+		} catch (Exception e) {
+			getLogger().warn("Unable to obtain a MyChart access token", e);
+			throw new ValidationException(getStrings().get("Unable to obtain a MyChart access token."));
+		}
+	}
+
+	@Nonnull
+	public UUID createAccount(@Nonnull CreateMyChartAccountRequest request) {
+		requireNonNull(request);
+
+		String patientId = null;
+		PatientFhirR4Response patient = null;
+		MyChartAccessToken myChartAccessToken = request.getMyChartAccessToken();
+		InstitutionId institutionId = request.getInstitutionId();
+		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId);
+		EpicClient epicClient = enterprisePlugin.epicClient().get();
+		ValidationException validationException = new ValidationException();
+
+		if (institutionId == null)
+			validationException.add(new FieldError("institutionId", "Institution ID is required."));
+
+		if (myChartAccessToken == null) {
+			validationException.add(new FieldError("myChartAccessToken", "MyChart access token is required."));
+		} else {
+			patientId = enterprisePlugin.extractPatientIdFromMyChartAccessToken(myChartAccessToken).orElse(null);
+
+			if (patientId == null)
+				validationException.add(new FieldError("myChartAccessToken", "Cannot find patient ID in MyChart access token."));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		String ssoId = patientId;
+		Account existingAccount = getAccountService().findAccountByAccountSourceIdAndSsoIdAndInstitutionId(AccountSourceId.MYCHART, ssoId, institutionId).orElse(null);
+
+		// Account already exists for this account source/SSO ID/institution, return it instead of creating another
+		if (existingAccount != null)
+			return existingAccount.getAccountId();
+
+		try {
+			patient = epicClient.findPatientFhirR4(myChartAccessToken, patientId).orElse(null);
+
+			if (patient == null) {
+				getLogger().warn("Unable to find record in EPIC for patient ID {}", patientId);
+				validationException.add(getStrings().get("Unable to find patient record in EPIC."));
+			}
+		} catch (Exception e) {
+			getLogger().warn(format("Unable to load patient data from EPIC for patient ID %s", patientId), e);
+			validationException.add(getStrings().get("Unable to load patient data from EPIC."));
+		}
+
+		GenderIdentityId genderIdentityId = patient.extractGenderIdentityId().orElse(null);
+		RaceId raceId = patient.extractRaceId().orElse(null);
+		EthnicityId ethnicityId = patient.extractEthnicityId().orElse(null);
+		BirthSexId birthSexId = patient.extractBirthSexId().orElse(null);
+		LocalDate birthdate = patient.getBirthDate();
+		PatientFhirR4Response.Name name = patient.extractFirstMatchingName(NameUseCode.OFFICIAL, NameUseCode.USUAL).orElse(null);
+		PatientFhirR4Response.Address address = patient.extractFirstMatchingAddress(AddressUseCode.HOME, AddressUseCode.BILLING, AddressUseCode.TEMP).orElse(null);
+		String phoneNumber = patient.extractFirstMatchingPhoneNumber(TelecomUseCode.MOBILE, TelecomUseCode.HOME, TelecomUseCode.WORK).orElse(null);
+		List<String> emailAddresses = patient.extractEmailAddresses();
+		String myChartPatientRecordAsJson = patient.getRawJson();
+
+		String firstName = name == null || name.getGiven() == null ? null : name.getGiven().stream().collect(Collectors.joining(" "));
+		String lastName = name == null || name.getFamily() == null ? null : trimToNull(name.getFamily());
+		String displayName = name == null || name.getText() == null ? null : trimToNull(name.getText());
+		String emailAddress = emailAddresses.size() == 0 ? null : getNormalizer().normalizeEmailAddress(emailAddresses.get(0)).orElse(null);
+		// TODO: revisit once we support non-US EPIC users
+		String normalizedPhoneNumber = phoneNumber == null ? null : getNormalizer().normalizePhoneNumberToE164(phoneNumber, Locale.US).orElse(null);
+
+		CreateAddressRequest addressRequest = null;
+
+		if (address != null) {
+			addressRequest = new CreateAddressRequest();
+			addressRequest.setPostalName(displayName);
+
+			if (address.getLine() != null) {
+				for (int i = 0; i < address.getLine().size(); ++i) {
+					String line = trimToNull(address.getLine().get(i));
+
+					if (line != null) {
+						if (i == 0)
+							addressRequest.setStreetAddress1(line);
+						else if (i == 1)
+							addressRequest.setStreetAddress2(line);
+						else if (i == 2)
+							addressRequest.setStreetAddress3(line);
+						else if (i == 3)
+							addressRequest.setStreetAddress4(line);
+					}
+				}
+			}
+
+			// TODO: revisit once we support non-US EPIC users
+			addressRequest.setLocality(trimToNull(address.getCity()));
+			addressRequest.setRegion(trimToNull(address.getState()));
+			addressRequest.setPostalCode(trimToNull(address.getPostalCode()));
+			addressRequest.setCountryCode(trimToNull(address.getCountry()));
+
+			// If we don't have sufficient information to compose a valid US address,
+			// then pretend we have no address at all
+			boolean validUsAddress = addressRequest.getPostalName() != null
+					&& addressRequest.getStreetAddress1() != null
+					&& addressRequest.getLocality() != null
+					&& addressRequest.getRegion() != null
+					&& addressRequest.getPostalCode() != null
+					&& addressRequest.getCountryCode() != null;
+
+			if (!validUsAddress)
+				addressRequest = null;
+		}
+
+		CreateAddressRequest pinnedAddressRequest = addressRequest;
+
 		return getAccountService().createAccount(new CreateAccountRequest() {{
 			setAccountSourceId(AccountSourceId.MYCHART);
+			setRoleId(RoleId.PATIENT);
+			setSsoId(ssoId);
 			setInstitutionId(institutionId);
-
-			// TODO: rest of the fields
+			setMyChartPatientRecordAsJson(myChartPatientRecordAsJson);
+			setGenderIdentityId(genderIdentityId);
+			setRaceId(raceId);
+			setEthnicityId(ethnicityId);
+			setBirthSexId(birthSexId);
+			setBirthdate(birthdate);
+			setDisplayName(displayName);
+			setFirstName(firstName);
+			setLastName(lastName);
+			setEmailAddress(emailAddress);
+			setPhoneNumber(normalizedPhoneNumber);
+			setAddress(pinnedAddressRequest);
 		}});
 	}
 
@@ -237,6 +410,11 @@ public class MyChartService {
 	@Nonnull
 	protected Authenticator getAuthenticator() {
 		return this.authenticator;
+	}
+
+	@Nonnull
+	protected Normalizer getNormalizer() {
+		return this.normalizer;
 	}
 
 	@Nonnull
