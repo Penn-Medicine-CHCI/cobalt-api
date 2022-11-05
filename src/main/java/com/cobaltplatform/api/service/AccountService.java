@@ -414,7 +414,7 @@ public class AccountService {
 		String epicPatientId = trimToNull(request.getEpicPatientId());
 		String epicPatientIdType = trimToNull(request.getEpicPatientIdType());
 		String myChartPatientRecordAsJson = trimToNull(request.getMyChartPatientRecordAsJson());
-		Instant myChartPatientRecordImportedAt = null;
+		Instant myChartPatientRecordLastImportedAt = null;
 		GenderIdentityId genderIdentityId = request.getGenderIdentityId() == null ? GenderIdentityId.NOT_ASKED : request.getGenderIdentityId();
 		EthnicityId ethnicityId = request.getEthnicityId() == null ? EthnicityId.NOT_ASKED : request.getEthnicityId();
 		BirthSexId birthSexId = request.getBirthSexId() == null ? BirthSexId.NOT_ASKED : request.getBirthSexId();
@@ -460,17 +460,17 @@ public class AccountService {
 
 				if (!institution.getEmailSignupEnabled())
 					validationException.add(getStrings().get("Creating an account with an email and password is not supported for this institution."));
-			} else if (accountSourceId == AccountSourceId.MYCHART) {
-				if (myChartPatientRecordAsJson == null) {
-					validationException.add(new FieldError("myChartPatientRecordAsJson", getStrings().get("MyChart patient record is required.")));
-				} else {
-					try {
-						getJsonMapper().fromJson(myChartPatientRecordAsJson, Map.class);
-						myChartPatientRecordImportedAt = Instant.now();
-					} catch (Exception e) {
-						getLogger().warn(format("Unable to process MyChart JSON: %s", myChartPatientRecordAsJson), e);
-						validationException.add(new FieldError("myChartPatientRecordAsJson", getStrings().get("MyChart patient record could not be processed.")));
-					}
+			}
+		} else if (accountSourceId == AccountSourceId.MYCHART) {
+			if (myChartPatientRecordAsJson == null) {
+				validationException.add(new FieldError("myChartPatientRecordAsJson", getStrings().get("MyChart patient record is required.")));
+			} else {
+				try {
+					getJsonMapper().fromJson(myChartPatientRecordAsJson, Map.class);
+					myChartPatientRecordLastImportedAt = Instant.now();
+				} catch (Exception e) {
+					getLogger().warn(format("Unable to process MyChart JSON: %s", myChartPatientRecordAsJson), e);
+					validationException.add(new FieldError("myChartPatientRecordAsJson", getStrings().get("MyChart patient record could not be processed.")));
 				}
 			}
 		} else {
@@ -519,14 +519,14 @@ public class AccountService {
 						INSERT INTO account (
 						account_id, role_id, institution_id, account_source_id, source_system_id, sso_id, 
 						first_name, last_name, display_name, email_address, phone_number, sso_attributes, password, epic_patient_id, 
-						epic_patient_id_type, time_zone, address_id, mychart_patient_record, mychart_patient_record_imported_at,
+						epic_patient_id_type, time_zone, address_id, mychart_patient_record, mychart_patient_record_last_imported_at,
 						gender_identity_id, ethnicity_id, birth_sex_id, race_id, birthdate
 						) 
 						VALUES (?,?,?,?,?,?,?,?,?,?,?,CAST(? AS JSONB),?,?,?,?,?,CAST(? AS JSONB),?,?,?,?,?,?)
 						""",
 				accountId, roleId, institutionId, accountSourceId, sourceSystemId, ssoId, firstName, lastName, displayName,
 				emailAddress, phoneNumber, finalSsoAttributesAsJson, password, epicPatientId, epicPatientIdType, timeZone,
-				addressId, myChartPatientRecordAsJson, myChartPatientRecordImportedAt, genderIdentityId, ethnicityId,
+				addressId, myChartPatientRecordAsJson, myChartPatientRecordLastImportedAt, genderIdentityId, ethnicityId,
 				birthSexId, raceId, birthdate);
 
 		return accountId;

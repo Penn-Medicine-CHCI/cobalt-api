@@ -92,28 +92,34 @@ public class PatientFhirR4Response {
 				.filter(extension -> Objects.equals(GenderIdentityCode.EXTENSION_URL, extension.getUrl()))
 				.findFirst().orElse(null);
 
-		if (matchingExtension == null)
+		if (matchingExtension == null || matchingExtension.getValueCodeableConcept() == null)
 			return Optional.empty();
 
-		for (ExtensionInner extensionInner : matchingExtension.getExtension()) {
-			if (extensionInner.getValueString() != null) {
-				GenderIdentityCode genderIdentityCode = GenderIdentityCode.fromFhirValue(extensionInner.getValueString()).orElse(null);
+		Coding coding = matchingExtension.getValueCodeableConcept().getCoding().stream().findFirst().orElse(null);
 
-				if (genderIdentityCode != null) {
-					if (genderIdentityCode == GenderIdentityCode.FEMALE)
-						return Optional.of(GenderIdentityId.FEMALE);
-					if (genderIdentityCode == GenderIdentityCode.MALE)
-						return Optional.of(GenderIdentityId.MALE);
-					if (genderIdentityCode == GenderIdentityCode.TRANSGENDER_FEMALE)
-						return Optional.of(GenderIdentityId.TRANSGENDER_MTF);
-					if (genderIdentityCode == GenderIdentityCode.TRANSGENDER_MALE)
-						return Optional.of(GenderIdentityId.TRANSGENDER_FTM);
-					if (genderIdentityCode == GenderIdentityCode.NON_BINARY)
-						return Optional.of(GenderIdentityId.NON_BINARY);
-					if (genderIdentityCode == GenderIdentityCode.OTHER)
-						return Optional.of(GenderIdentityId.OTHER);
-				}
-			}
+		if (coding == null)
+			return Optional.empty();
+
+		String code = coding.getCode();
+
+		if (code == null)
+			return Optional.empty();
+
+		GenderIdentityCode genderIdentityCode = GenderIdentityCode.fromFhirValue(code).orElse(null);
+
+		if (genderIdentityCode != null) {
+			if (genderIdentityCode == GenderIdentityCode.FEMALE)
+				return Optional.of(GenderIdentityId.FEMALE);
+			if (genderIdentityCode == GenderIdentityCode.MALE)
+				return Optional.of(GenderIdentityId.MALE);
+			if (genderIdentityCode == GenderIdentityCode.TRANSGENDER_FEMALE)
+				return Optional.of(GenderIdentityId.TRANSGENDER_MTF);
+			if (genderIdentityCode == GenderIdentityCode.TRANSGENDER_MALE)
+				return Optional.of(GenderIdentityId.TRANSGENDER_FTM);
+			if (genderIdentityCode == GenderIdentityCode.NON_BINARY)
+				return Optional.of(GenderIdentityId.NON_BINARY);
+			if (genderIdentityCode == GenderIdentityCode.OTHER)
+				return Optional.of(GenderIdentityId.OTHER);
 		}
 
 		return Optional.empty();
@@ -125,7 +131,7 @@ public class PatientFhirR4Response {
 				.filter(extension -> Objects.equals(RaceCode.EXTENSION_URL, extension.getUrl()))
 				.findFirst().orElse(null);
 
-		if (matchingExtension == null)
+		if (matchingExtension == null || matchingExtension.getExtension() == null)
 			return Optional.empty();
 
 		for (ExtensionInner extensionInner : matchingExtension.getExtension()) {
@@ -156,7 +162,7 @@ public class PatientFhirR4Response {
 				.filter(extension -> Objects.equals(EthnicityCode.EXTENSION_URL, extension.getUrl()))
 				.findFirst().orElse(null);
 
-		if (matchingExtension == null)
+		if (matchingExtension == null || matchingExtension.getExtension() == null)
 			return Optional.empty();
 
 		for (ExtensionInner extensionInner : matchingExtension.getExtension()) {
@@ -181,24 +187,20 @@ public class PatientFhirR4Response {
 				.filter(extension -> Objects.equals(BirthSexCode.EXTENSION_URL, extension.getUrl()))
 				.findFirst().orElse(null);
 
-		if (matchingExtension == null)
+		if (matchingExtension == null || matchingExtension.getValueCode() == null)
 			return Optional.empty();
 
-		for (ExtensionInner extensionInner : matchingExtension.getExtension()) {
-			if (extensionInner.getValueString() != null) {
-				BirthSexCode birthSexCode = BirthSexCode.fromFhirValue(extensionInner.getValueString()).orElse(null);
+		BirthSexCode birthSexCode = BirthSexCode.fromFhirValue(matchingExtension.getValueCode()).orElse(null);
 
-				if (birthSexCode != null) {
-					if (birthSexCode == BirthSexCode.FEMALE)
-						return Optional.of(BirthSexId.FEMALE);
-					if (birthSexCode == BirthSexCode.MALE)
-						return Optional.of(BirthSexId.MALE);
-					if (birthSexCode == BirthSexCode.OTHER)
-						return Optional.of(BirthSexId.OTHER);
-					if (birthSexCode == BirthSexCode.UNKNOWN)
-						return Optional.of(BirthSexId.UNKNOWN);
-				}
-			}
+		if (birthSexCode != null) {
+			if (birthSexCode == BirthSexCode.FEMALE)
+				return Optional.of(BirthSexId.FEMALE);
+			if (birthSexCode == BirthSexCode.MALE)
+				return Optional.of(BirthSexId.MALE);
+			if (birthSexCode == BirthSexCode.OTHER)
+				return Optional.of(BirthSexId.OTHER);
+			if (birthSexCode == BirthSexCode.UNKNOWN)
+				return Optional.of(BirthSexId.UNKNOWN);
 		}
 
 		return Optional.empty();
