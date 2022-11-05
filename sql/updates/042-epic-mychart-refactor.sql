@@ -139,7 +139,5 @@ ALTER TABLE account ADD COLUMN birth_sex_id TEXT REFERENCES birth_sex NOT NULL D
 ALTER TABLE account ADD COLUMN race_id TEXT REFERENCES race NOT NULL DEFAULT 'NOT_ASKED';
 ALTER TABLE account ADD COLUMN address_id UUID REFERENCES address;
 ALTER TABLE account ADD COLUMN birthdate DATE;
-ALTER TABLE account ADD COLUMN mychart_patient_record JSONB;
-ALTER TABLE account ADD COLUMN mychart_patient_record_last_imported_at TIMESTAMPTZ;
 
 COMMIT;

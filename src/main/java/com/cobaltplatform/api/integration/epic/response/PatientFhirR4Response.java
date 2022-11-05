@@ -105,6 +105,25 @@ public class PatientFhirR4Response {
 	}
 
 	@Nonnull
+	public Optional<String> extractTypeByIdentifier(@Nullable String identifier) {
+		identifier = trimToNull(identifier);
+
+		if (identifier == null)
+			return Optional.empty();
+
+		for (Identifier identifierElement : getIdentifier()) {
+			if (Objects.equals(identifierElement.getValue(), identifier)) {
+				Type identifierType = identifierElement.getType();
+
+				if (identifierType != null)
+					return Optional.ofNullable(identifierType.getText());
+			}
+		}
+
+		return Optional.empty();
+	}
+
+	@Nonnull
 	public Optional<GenderIdentityId> extractGenderIdentityId() {
 		if (getExtension() == null)
 			return Optional.empty();

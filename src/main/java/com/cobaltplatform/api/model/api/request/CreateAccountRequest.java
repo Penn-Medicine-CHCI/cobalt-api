@@ -69,8 +69,6 @@ public class CreateAccountRequest {
 	@Nullable
 	private String epicPatientIdType;
 	@Nullable
-	private String myChartPatientRecordAsJson;
-	@Nullable
 	private GenderIdentityId genderIdentityId;
 	@Nullable
 	private EthnicityId ethnicityId;
@@ -216,15 +214,6 @@ public class CreateAccountRequest {
 
 	public void setEpicPatientIdType(@Nullable String epicPatientIdType) {
 		this.epicPatientIdType = epicPatientIdType;
-	}
-
-	@Nullable
-	public String getMyChartPatientRecordAsJson() {
-		return this.myChartPatientRecordAsJson;
-	}
-
-	public void setMyChartPatientRecordAsJson(@Nullable String myChartPatientRecordAsJson) {
-		this.myChartPatientRecordAsJson = myChartPatientRecordAsJson;
 	}
 
 	@Nullable

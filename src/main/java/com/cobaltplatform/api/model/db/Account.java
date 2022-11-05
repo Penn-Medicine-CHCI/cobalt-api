@@ -31,7 +31,6 @@ import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
-import com.pyranid.DatabaseColumn;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -129,12 +128,6 @@ public class Account {
 	private Boolean schedulingTutorialViewed;
 	@Nullable
 	private LocalDate birthdate;
-	@Nullable
-	@DatabaseColumn("mychart_patient_record")
-	private String myChartPatientRecord; // JSONB
-	@Nullable
-	@DatabaseColumn("mychart_patient_record_last_imported_at")
-	private Instant myChartPatientRecordLastImportedAt;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -481,24 +474,6 @@ public class Account {
 
 	public void setBirthdate(@Nullable LocalDate birthdate) {
 		this.birthdate = birthdate;
-	}
-
-	@Nullable
-	public String getMyChartPatientRecord() {
-		return this.myChartPatientRecord;
-	}
-
-	public void setMyChartPatientRecord(@Nullable String myChartPatientRecord) {
-		this.myChartPatientRecord = myChartPatientRecord;
-	}
-
-	@Nullable
-	public Instant getMyChartPatientRecordLastImportedAt() {
-		return this.myChartPatientRecordLastImportedAt;
-	}
-
-	public void setMyChartPatientRecordLastImportedAt(@Nullable Instant myChartPatientRecordLastImportedAt) {
-		this.myChartPatientRecordLastImportedAt = myChartPatientRecordLastImportedAt;
 	}
 
 	@Nullable
