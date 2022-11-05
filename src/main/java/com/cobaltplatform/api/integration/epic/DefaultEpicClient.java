@@ -140,7 +140,33 @@ public class DefaultEpicClient implements EpicClient {
 		HttpMethod httpMethod = HttpMethod.GET;
 		String url = format("api/FHIR/R4/Patient/%s", patientId);
 
-		// TODO: handle "not found" case
+		// TODO: handle "not found" case (HTTP 400, response body below)
+		// {
+		//    "resourceType": "OperationOutcome",
+		//    "issue": [
+		//        {
+		//            "severity": "fatal",
+		//            "code": "not-found",
+		//            "details": {
+		//                "coding": [
+		//                    {
+		//                        "system": "urn:oid:1.2.840.114350.1.13.87.3.7.2.657369",
+		//                        "code": "59144",
+		//                        "display": "The reference provided was not found."
+		//                    }
+		//                ],
+		//                "text": "The reference provided was not found."
+		//            },
+		//            "diagnostics": "Invalid FHIR ID provided",
+		//            "location": [
+		//                "/f:id"
+		//            ],
+		//            "expression": [
+		//                "id"
+		//            ]
+		//        }
+		//    ]
+		// }
 		Function<String, Optional<PatientFhirR4Response>> responseBodyMapper = (responseBody) -> {
 			PatientFhirR4Response response = getGson().fromJson(responseBody, PatientFhirR4Response.class);
 			response.setRawJson(responseBody.trim());
