@@ -87,6 +87,7 @@ import com.cobaltplatform.api.model.db.LoginDestination.LoginDestinationId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
+import com.cobaltplatform.api.model.service.Region;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.ActivityTrackingService;
 import com.cobaltplatform.api.service.AppointmentService;
@@ -131,6 +132,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -999,11 +1001,21 @@ public class AccountResource {
 				.map(insurance -> getInsuranceApiResponseFactory().create(insurance))
 				.collect(Collectors.toList());
 
+		// Regions
+		Map<String, List<Region>> regionsByCountryCode = Region.getRegionsByCountryCode();
+		Map<String, List<Map<String, Object>>> normalizedRegionsByCountryCode = new HashMap<>(regionsByCountryCode.size());
+
+		for (Entry<String, List<Region>> entry : regionsByCountryCode.entrySet())
+			normalizedRegionsByCountryCode.put(entry.getKey(), entry.getValue().stream()
+					.map(region -> Map.of("name", (Object) region.getName(), "abbreviation", region.getAbbreviation()))
+					.collect(Collectors.toList()));
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("timeZones", timeZones);
 			put("countries", countries);
 			put("languages", languages);
 			put("insurances", insurances);
+			put("regionsByCountryCode", normalizedRegionsByCountryCode);
 		}});
 	}
 

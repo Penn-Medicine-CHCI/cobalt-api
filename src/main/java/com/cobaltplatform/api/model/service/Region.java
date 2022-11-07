@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -42,6 +43,8 @@ import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 public class Region {
 	@Nonnull
 	private static final Map<String, Map<String, Region>> REGIONS_BY_ABBREVIATION_BY_COUNTRY_CODE;
+	@Nonnull
+	private static final Map<String, List<Region>> REGIONS_BY_COUNTRY_CODE;
 
 	@Nonnull
 	private final String name;
@@ -125,7 +128,29 @@ public class Region {
 			regionsByAbbreviation.put(region.getAbbreviation(), region);
 		}
 
+		for (Entry<String, Map<String, Region>> entry : regionsByAbbreviationByCountryCode.entrySet())
+			regionsByAbbreviationByCountryCode.put(entry.getKey(), Collections.unmodifiableMap(entry.getValue()));
+
 		REGIONS_BY_ABBREVIATION_BY_COUNTRY_CODE = Collections.unmodifiableMap(regionsByAbbreviationByCountryCode);
+
+
+		Map<String, List<Region>> regionsByCountryCode = new HashMap<>();
+
+		for (Region region : regions) {
+			List<Region> currentRegions = regionsByCountryCode.get(region.getCountryCode());
+
+			if (currentRegions == null) {
+				currentRegions = new ArrayList<>();
+				regionsByCountryCode.put(region.getCountryCode(), currentRegions);
+			}
+
+			currentRegions.add(region);
+		}
+
+		for (Entry<String, List<Region>> entry : regionsByCountryCode.entrySet())
+			regionsByCountryCode.put(entry.getKey(), Collections.unmodifiableList(entry.getValue()));
+
+		REGIONS_BY_COUNTRY_CODE = regionsByCountryCode;
 	}
 
 	public Region(@Nonnull String name,
@@ -180,6 +205,22 @@ public class Region {
 			return Optional.empty();
 
 		return Optional.ofNullable(regionsByAbbreviation.get(abbreviation));
+	}
+
+	@Nonnull
+	public static Map<String, List<Region>> getRegionsByCountryCode() {
+		return REGIONS_BY_COUNTRY_CODE;
+	}
+
+	@Nonnull
+	public static List<Region> regionsForCountryCode(@Nullable String countryCode) {
+		countryCode = trimToEmpty(countryCode).toUpperCase(Locale.US);
+
+		if (countryCode.length() == 0)
+			return Collections.emptyList();
+
+		List<Region> regions = getRegionsByCountryCode().get(countryCode);
+		return regions == null ? Collections.emptyList() : regions;
 	}
 
 	@Nonnull
