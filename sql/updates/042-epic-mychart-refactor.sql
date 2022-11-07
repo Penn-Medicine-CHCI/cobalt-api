@@ -31,6 +31,41 @@ CREATE TABLE institution_url (
 
 INSERT INTO account_source (account_source_id, description) VALUES ('MYCHART', 'MyChart');
 
+-- Insurance
+CREATE TABLE insurance_type (
+	insurance_type_id TEXT PRIMARY KEY,
+	description TEXT NOT NULL
+);
+
+INSERT INTO insurance_type (insurance_type_id, description) VALUES ('UNKNOWN', 'Unknown');
+INSERT INTO insurance_type (insurance_type_id, description) VALUES ('OUT_OF_POCKET', 'Out-of-pocket');
+INSERT INTO insurance_type (insurance_type_id, description) VALUES ('OTHER', 'Other');
+INSERT INTO insurance_type (insurance_type_id, description) VALUES ('UNCATEGORIZED', 'Uncategorized');
+INSERT INTO insurance_type (insurance_type_id, description) VALUES ('PPO', 'Preferred Provider Organization (PPO)');
+INSERT INTO insurance_type (insurance_type_id, description) VALUES ('HMO', 'Health Maintenance Organization (HMO)');
+INSERT INTO insurance_type (insurance_type_id, description) VALUES ('POS', 'Point of Service (POS)');
+INSERT INTO insurance_type (insurance_type_id, description) VALUES ('EPO', 'Exclusive Provider Organization (EPO)');
+INSERT INTO insurance_type (insurance_type_id, description) VALUES ('HSA', 'Health Savings Account (HSA)');
+INSERT INTO insurance_type (insurance_type_id, description) VALUES ('INDEMNITY', 'Indemnity (fee-for-service)');
+INSERT INTO insurance_type (insurance_type_id, description) VALUES ('MEDICARE', 'Medicare');
+INSERT INTO insurance_type (insurance_type_id, description) VALUES ('MEDICAID', 'Medicaid');
+
+CREATE TABLE insurance (
+  insurance_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  insurance_type_id TEXT NOT NULL REFERENCES insurance_type,
+  description TEXT NOT NULL
+);
+
+INSERT INTO insurance (insurance_id, insurance_type_id, description) VALUES ('4ebe93f3-8f40-45c4-86fa-b503f6ab3889', 'UNKNOWN', 'Unknown');
+INSERT INTO insurance (insurance_id, insurance_type_id, description) VALUES ('a03a97d0-ab21-44f7-aed4-55092f569eed', 'OUT_OF_POCKET', 'Pay out-of-pocket');
+INSERT INTO insurance (insurance_id, insurance_type_id, description) VALUES ('125782e3-72f7-4e3f-9701-246baef34c64', 'OTHER', 'Other');
+
+CREATE TABLE institution_insurance (
+  institution_id TEXT NOT NULL REFERENCES institution,
+  insurance_id UUID NOT NULL REFERENCES insurance,
+  PRIMARY KEY (institution_id, insurance_id)
+);
+
 -- Account-level changes
 
 CREATE TABLE gender_identity (
@@ -138,6 +173,7 @@ ALTER TABLE account ADD COLUMN ethnicity_id TEXT REFERENCES ethnicity NOT NULL D
 ALTER TABLE account ADD COLUMN birth_sex_id TEXT REFERENCES birth_sex NOT NULL DEFAULT 'NOT_ASKED';
 ALTER TABLE account ADD COLUMN race_id TEXT REFERENCES race NOT NULL DEFAULT 'NOT_ASKED';
 ALTER TABLE account ADD COLUMN address_id UUID REFERENCES address;
+ALTER TABLE account ADD COLUMN insurance_id UUID NOT NULL DEFAULT '4ebe93f3-8f40-45c4-86fa-b503f6ab3889' REFERENCES insurance;
 ALTER TABLE account ADD COLUMN birthdate DATE;
 
 COMMIT;

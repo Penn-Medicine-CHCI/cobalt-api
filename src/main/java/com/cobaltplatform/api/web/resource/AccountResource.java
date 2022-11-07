@@ -57,6 +57,8 @@ import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSe
 import com.cobaltplatform.api.model.api.response.GroupSessionRequestApiResponse;
 import com.cobaltplatform.api.model.api.response.GroupSessionRequestApiResponse.GroupSessionRequestApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.InsuranceApiResponse;
+import com.cobaltplatform.api.model.api.response.InsuranceApiResponse.InsuranceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.LanguageApiResponse;
 import com.cobaltplatform.api.model.api.response.LanguageApiResponse.LanguageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse;
@@ -171,6 +173,8 @@ public class AccountResource {
 	@Nonnull
 	private final CountryApiResponseFactory countryApiResponseFactory;
 	@Nonnull
+	private final InsuranceApiResponseFactory insuranceApiResponseFactory;
+	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
@@ -222,6 +226,7 @@ public class AccountResource {
 												 @Nonnull TimeZoneApiResponseFactory timeZoneApiResponseFactory,
 												 @Nonnull LanguageApiResponseFactory languageApiResponseFactory,
 												 @Nonnull CountryApiResponseFactory countryApiResponseFactory,
+												 @Nonnull InsuranceApiResponseFactory insuranceApiResponseFactory,
 												 @Nonnull Configuration configuration,
 												 @Nonnull RequestBodyParser requestBodyParser,
 												 @Nonnull Authenticator authenticator,
@@ -252,6 +257,7 @@ public class AccountResource {
 		requireNonNull(timeZoneApiResponseFactory);
 		requireNonNull(languageApiResponseFactory);
 		requireNonNull(countryApiResponseFactory);
+		requireNonNull(insuranceApiResponseFactory);
 		requireNonNull(configuration);
 		requireNonNull(currentContextProvider);
 		requireNonNull(authenticator);
@@ -282,6 +288,7 @@ public class AccountResource {
 		this.timeZoneApiResponseFactory = timeZoneApiResponseFactory;
 		this.languageApiResponseFactory = languageApiResponseFactory;
 		this.countryApiResponseFactory = countryApiResponseFactory;
+		this.insuranceApiResponseFactory = insuranceApiResponseFactory;
 		this.configuration = configuration;
 		this.currentContextProvider = currentContextProvider;
 		this.requestBodyParser = requestBodyParser;
@@ -953,7 +960,11 @@ public class AccountResource {
 
 	@Nonnull
 	@GET("/accounts/reference-data")
-	public ApiResponse lookupTimeZones() {
+	public ApiResponse accountReferenceData(@Nonnull @QueryParameter Optional<InstitutionId> institutionId) {
+		requireNonNull(institutionId);
+
+		InstitutionId finalInstitutionId = institutionId.orElse(getCurrentContext().getInstitutionId());
+
 		// Time zones
 		List<TimeZoneApiResponse> timeZones = getAccountService().getAccountTimeZones().stream()
 				.map(timeZone -> getTimeZoneApiResponseFactory().create(timeZone))
@@ -983,10 +994,16 @@ public class AccountResource {
 			return language1.getDescription().compareTo(language2.getDescription());
 		});
 
+		// Insurances
+		List<InsuranceApiResponse> insurances = getInstitutionService().findInsurancesByInstitutionId(finalInstitutionId).stream()
+				.map(insurance -> getInsuranceApiResponseFactory().create(insurance))
+				.collect(Collectors.toList());
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("timeZones", timeZones);
 			put("countries", countries);
 			put("languages", languages);
+			put("insurances", insurances);
 		}});
 	}
 
@@ -1073,6 +1090,11 @@ public class AccountResource {
 	@Nonnull
 	protected CountryApiResponseFactory getCountryApiResponseFactory() {
 		return this.countryApiResponseFactory;
+	}
+
+	@Nonnull
+	protected InsuranceApiResponseFactory getInsuranceApiResponseFactory() {
+		return this.insuranceApiResponseFactory;
 	}
 
 	@Nonnull

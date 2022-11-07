@@ -86,6 +86,8 @@ public class Account {
 	@Nullable
 	private UUID addressId;
 	@Nullable
+	private UUID insuranceId;
+	@Nullable
 	private String emailAddress;
 	@Nullable
 	private String password;
@@ -297,6 +299,15 @@ public class Account {
 
 	public void setSsoId(@Nullable String ssoId) {
 		this.ssoId = ssoId;
+	}
+
+	@Nullable
+	public UUID getInsuranceId() {
+		return this.insuranceId;
+	}
+
+	public void setInsuranceId(@Nullable UUID insuranceId) {
+		this.insuranceId = insuranceId;
 	}
 
 	@Nullable

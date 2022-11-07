@@ -84,6 +84,7 @@ import com.cobaltplatform.api.model.api.response.GroupSessionRequestApiResponse.
 import com.cobaltplatform.api.model.api.response.GroupSessionReservationApiResponse.GroupSessionReservationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionResponseApiResponse.GroupSessionResponseApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.InsuranceApiResponse.InsuranceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InteractionInstanceApiResponse.InteractionInstanceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InteractionOptionActionApiResponse.InteractionOptionActionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InteractionOptionApiResponse.InteractionOptionApiResponseFactory;
@@ -251,6 +252,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(ScreeningConfirmationPromptApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(CountryApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(LanguageApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(InsuranceApiResponseFactory.class)));
 	}
 
 	@Provides

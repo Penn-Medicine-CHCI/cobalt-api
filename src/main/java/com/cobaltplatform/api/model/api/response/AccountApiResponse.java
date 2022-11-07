@@ -46,6 +46,7 @@ import javax.inject.Provider;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.FormatStyle;
 import java.util.Collections;
 import java.util.Locale;
 import java.util.Map;
@@ -73,6 +74,8 @@ public class AccountApiResponse {
 	private final BetaStatusId betaStatusId;
 	@Nullable
 	private final UUID providerId;
+	@Nullable
+	private final UUID insuranceId;
 	@Nullable
 	private final String firstName;
 	@Nullable
@@ -120,6 +123,8 @@ public class AccountApiResponse {
 	private final UUID addressId;
 	@Nullable
 	private final LocalDate birthdate;
+	@Nullable
+	private final String birthdateDescription;
 	@Nonnull
 	private final Instant created;
 	@Nonnull
@@ -215,7 +220,9 @@ public class AccountApiResponse {
 			this.birthSexId = account.getBirthSexId();
 			this.raceId = account.getRaceId();
 			this.addressId = account.getAddressId();
+			this.insuranceId = account.getInsuranceId();
 			this.birthdate = account.getBirthdate();
+			this.birthdateDescription = account.getBirthdate() == null ? null : formatter.formatDate(account.getBirthdate(), FormatStyle.MEDIUM);
 		} else {
 			this.consentFormAccepted = null;
 			this.consentFormAcceptedDate = null;
@@ -233,7 +240,9 @@ public class AccountApiResponse {
 			this.birthSexId = null;
 			this.raceId = null;
 			this.addressId = null;
+			this.insuranceId = null;
 			this.birthdate = null;
+			this.birthdateDescription = null;
 		}
 
 		if (supplements.contains(AccountApiResponseSupplement.EVERYTHING)
@@ -425,5 +434,10 @@ public class AccountApiResponse {
 	@Nullable
 	public LocalDate getBirthdate() {
 		return this.birthdate;
+	}
+
+	@Nullable
+	public String getBirthdateDescription() {
+		return this.birthdateDescription;
 	}
 }
