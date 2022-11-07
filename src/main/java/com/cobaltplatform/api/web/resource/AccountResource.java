@@ -50,11 +50,17 @@ import com.cobaltplatform.api.model.api.response.AssessmentFormApiResponse.Asses
 import com.cobaltplatform.api.model.api.response.BetaFeatureAlertApiResponse.BetaFeatureAlertApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.CountryApiResponse;
+import com.cobaltplatform.api.model.api.response.CountryApiResponse.CountryApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionRequestApiResponse;
 import com.cobaltplatform.api.model.api.response.GroupSessionRequestApiResponse.GroupSessionRequestApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.LanguageApiResponse;
+import com.cobaltplatform.api.model.api.response.LanguageApiResponse.LanguageApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse;
+import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountInvite;
 import com.cobaltplatform.api.model.db.AccountLoginRule;
@@ -121,6 +127,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -157,6 +164,12 @@ public class AccountResource {
 	private final GroupSessionRequestApiResponseFactory groupSessionRequestApiResponseFactory;
 	@Nonnull
 	private final ContentApiResponseFactory contentApiResponseFactory;
+	@Nonnull
+	private final TimeZoneApiResponseFactory timeZoneApiResponseFactory;
+	@Nonnull
+	private final LanguageApiResponseFactory languageApiResponseFactory;
+	@Nonnull
+	private final CountryApiResponseFactory countryApiResponseFactory;
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
@@ -206,6 +219,9 @@ public class AccountResource {
 												 @Nonnull GroupSessionApiResponseFactory groupSessionApiResponseFactory,
 												 @Nonnull GroupSessionRequestApiResponseFactory groupSessionRequestApiResponseFactory,
 												 @Nonnull ContentApiResponseFactory contentApiResponseFactory,
+												 @Nonnull TimeZoneApiResponseFactory timeZoneApiResponseFactory,
+												 @Nonnull LanguageApiResponseFactory languageApiResponseFactory,
+												 @Nonnull CountryApiResponseFactory countryApiResponseFactory,
 												 @Nonnull Configuration configuration,
 												 @Nonnull RequestBodyParser requestBodyParser,
 												 @Nonnull Authenticator authenticator,
@@ -233,6 +249,9 @@ public class AccountResource {
 		requireNonNull(groupSessionApiResponseFactory);
 		requireNonNull(groupSessionRequestApiResponseFactory);
 		requireNonNull(contentApiResponseFactory);
+		requireNonNull(timeZoneApiResponseFactory);
+		requireNonNull(languageApiResponseFactory);
+		requireNonNull(countryApiResponseFactory);
 		requireNonNull(configuration);
 		requireNonNull(currentContextProvider);
 		requireNonNull(authenticator);
@@ -260,6 +279,9 @@ public class AccountResource {
 		this.groupSessionApiResponseFactory = groupSessionApiResponseFactory;
 		this.groupSessionRequestApiResponseFactory = groupSessionRequestApiResponseFactory;
 		this.contentApiResponseFactory = contentApiResponseFactory;
+		this.timeZoneApiResponseFactory = timeZoneApiResponseFactory;
+		this.languageApiResponseFactory = languageApiResponseFactory;
+		this.countryApiResponseFactory = countryApiResponseFactory;
 		this.configuration = configuration;
 		this.currentContextProvider = currentContextProvider;
 		this.requestBodyParser = requestBodyParser;
@@ -930,6 +952,45 @@ public class AccountResource {
 	}
 
 	@Nonnull
+	@GET("/accounts/reference-data")
+	public ApiResponse lookupTimeZones() {
+		// Time zones
+		List<TimeZoneApiResponse> timeZones = getAccountService().getAccountTimeZones().stream()
+				.map(timeZone -> getTimeZoneApiResponseFactory().create(timeZone))
+				.collect(Collectors.toList());
+
+		Collections.sort(timeZones, (tz1, tz2) -> {
+			return tz1.getDescription().compareTo(tz2.getDescription());
+		});
+
+		// Countries
+		Set<Locale> countryLocales = getAccountService().getAccountCountries();
+		List<CountryApiResponse> countries = new ArrayList<>(countryLocales.size());
+
+		for (Locale locale : countryLocales)
+			countries.add(getCountryApiResponseFactory().create(locale));
+
+		Collections.sort(countries, (country1, country2) -> {
+			return country1.getDescription().compareTo(country2.getDescription());
+		});
+
+		// Languages
+		List<LanguageApiResponse> languages = getAccountService().getAccountLanguages().stream()
+				.map(language -> getLanguageApiResponseFactory().create(language))
+				.collect(Collectors.toList());
+
+		Collections.sort(languages, (language1, language2) -> {
+			return language1.getDescription().compareTo(language2.getDescription());
+		});
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("timeZones", timeZones);
+			put("countries", countries);
+			put("languages", languages);
+		}});
+	}
+
+	@Nonnull
 	protected AccountService getAccountService() {
 		return this.accountService;
 	}
@@ -997,6 +1058,21 @@ public class AccountResource {
 	@Nonnull
 	protected ContentApiResponseFactory getContentApiResponseFactory() {
 		return this.contentApiResponseFactory;
+	}
+
+	@Nonnull
+	protected TimeZoneApiResponseFactory getTimeZoneApiResponseFactory() {
+		return this.timeZoneApiResponseFactory;
+	}
+
+	@Nonnull
+	protected LanguageApiResponseFactory getLanguageApiResponseFactory() {
+		return this.languageApiResponseFactory;
+	}
+
+	@Nonnull
+	protected CountryApiResponseFactory getCountryApiResponseFactory() {
+		return this.countryApiResponseFactory;
 	}
 
 	@Nonnull

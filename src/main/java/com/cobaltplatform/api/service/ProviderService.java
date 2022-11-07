@@ -163,7 +163,7 @@ public class ProviderService {
 		this.acuitySchedulingClient = acuitySchedulingClient;
 		this.acuitySchedulingCache = acuitySchedulingCache;
 		this.strings = strings;
-		this.providerTimeZones = determineProviderTimeZones();
+		this.providerTimeZones = Collections.unmodifiableSet(determineProviderTimeZones());
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
 

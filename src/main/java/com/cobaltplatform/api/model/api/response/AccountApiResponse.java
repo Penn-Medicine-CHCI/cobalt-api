@@ -90,6 +90,10 @@ public class AccountApiResponse {
 	@Nonnull
 	private final Locale locale;
 	@Nonnull
+	private final String languageCode;
+	@Nonnull
+	private final String countryCode;
+	@Nonnull
 	private final Boolean consentFormAccepted;
 	@Nullable
 	private final Instant consentFormAcceptedDate;
@@ -188,6 +192,8 @@ public class AccountApiResponse {
 		this.displayName = account.getDisplayName();
 		this.timeZone = account.getTimeZone();
 		this.locale = account.getLocale();
+		this.languageCode = account.getLocale().getLanguage();
+		this.countryCode = account.getLocale().getCountry();
 		this.created = account.getCreated();
 		this.createdDescription = formatter.formatTimestamp(account.getCreated());
 		this.providerId = account.getProviderId();
@@ -321,6 +327,16 @@ public class AccountApiResponse {
 	@Nonnull
 	public Locale getLocale() {
 		return locale;
+	}
+
+	@Nonnull
+	public String getLanguageCode() {
+		return this.languageCode;
+	}
+
+	@Nonnull
+	public String getCountryCode() {
+		return this.countryCode;
 	}
 
 	@Nonnull

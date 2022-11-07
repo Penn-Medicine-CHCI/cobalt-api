@@ -75,6 +75,7 @@ import com.cobaltplatform.api.model.api.response.BetaFeatureAlertApiResponse.Bet
 import com.cobaltplatform.api.model.api.response.CallToActionApiResponse.CallToActionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ClinicApiResponse.ClinicApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.CountryApiResponse.CountryApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ExternalGroupEventTypeApiResponse.ExternalGroupEventTypeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupEventApiResponse.GroupEventApiResponseFactory;
@@ -87,6 +88,7 @@ import com.cobaltplatform.api.model.api.response.InteractionInstanceApiResponse.
 import com.cobaltplatform.api.model.api.response.InteractionOptionActionApiResponse.InteractionOptionActionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InteractionOptionApiResponse.InteractionOptionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.IntroAssessmentApiResponse.IntroAssessmentApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.LanguageApiResponse.LanguageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.LogicalAvailabilityApiResponse.LogicalAvailabilityApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PinboardNoteApiResponse.PinboardNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
@@ -247,6 +249,8 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(TopicCenterApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(TopicCenterRowApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ScreeningConfirmationPromptApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(CountryApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(LanguageApiResponseFactory.class)));
 	}
 
 	@Provides
