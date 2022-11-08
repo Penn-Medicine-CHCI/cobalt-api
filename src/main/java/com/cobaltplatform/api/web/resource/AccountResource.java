@@ -34,6 +34,7 @@ import com.cobaltplatform.api.model.api.request.CreateMyChartAccountRequest;
 import com.cobaltplatform.api.model.api.request.FindGroupSessionRequestsRequest;
 import com.cobaltplatform.api.model.api.request.FindGroupSessionsRequest;
 import com.cobaltplatform.api.model.api.request.ForgotPasswordRequest;
+import com.cobaltplatform.api.model.api.request.PatchAccountRequest;
 import com.cobaltplatform.api.model.api.request.ResetPasswordRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountAccessTokenExpiration;
 import com.cobaltplatform.api.model.api.request.UpdateAccountBetaStatusRequest;
@@ -105,12 +106,14 @@ import com.cobaltplatform.api.service.MyChartService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.service.SessionService;
 import com.cobaltplatform.api.util.Authenticator;
+import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.LinkGenerator;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.lokalized.Strings;
 import com.soklet.json.JSONObject;
 import com.soklet.web.annotation.GET;
+import com.soklet.web.annotation.PATCH;
 import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.PUT;
 import com.soklet.web.annotation.PathParameter;
@@ -187,6 +190,8 @@ public class AccountResource {
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
 	@Nonnull
+	private final JsonMapper jsonMapper;
+	@Nonnull
 	private final Authenticator authenticator;
 	@Nonnull
 	private final LinkGenerator linkGenerator;
@@ -235,6 +240,7 @@ public class AccountResource {
 												 @Nonnull InsuranceApiResponseFactory insuranceApiResponseFactory,
 												 @Nonnull Configuration configuration,
 												 @Nonnull RequestBodyParser requestBodyParser,
+												 @Nonnull JsonMapper jsonMapper,
 												 @Nonnull Authenticator authenticator,
 												 @Nonnull LinkGenerator linkGenerator,
 												 @Nonnull Provider<CurrentContext> currentContextProvider,
@@ -269,6 +275,7 @@ public class AccountResource {
 		requireNonNull(authenticator);
 		requireNonNull(linkGenerator);
 		requireNonNull(requestBodyParser);
+		requireNonNull(jsonMapper);
 		requireNonNull(auditLogService);
 		requireNonNull(institutionService);
 		requireNonNull(institutionApiResponseFactory);
@@ -298,6 +305,7 @@ public class AccountResource {
 		this.configuration = configuration;
 		this.currentContextProvider = currentContextProvider;
 		this.requestBodyParser = requestBodyParser;
+		this.jsonMapper = jsonMapper;
 		this.authenticator = authenticator;
 		this.linkGenerator = linkGenerator;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -965,6 +973,51 @@ public class AccountResource {
 	}
 
 	@Nonnull
+	@AuthenticationRequired
+	@PATCH("/accounts/{accountId}")
+	public ApiResponse patchAccount(@Nonnull @PathParameter UUID accountId,
+																	@Nonnull @RequestBody String requestBody) {
+		requireNonNull(accountId);
+		requireNonNull(requestBody);
+
+		PatchAccountRequest request = getRequestBodyParser().parse(requestBody, PatchAccountRequest.class);
+		request.setAccountId(accountId);
+
+		Account currentAccount = getCurrentContext().getAccount().get();
+
+		// You can only PATCH yourself for now
+		if (!currentAccount.getAccountId().equals(accountId))
+			throw new AuthorizationException();
+
+		// Only patch fields specified in the request
+		Map<String, Object> requestBodyAsJson = getJsonMapper().fromJson(requestBody);
+
+		request.setShouldUpdateAddress(requestBodyAsJson.containsKey("address"));
+		request.setShouldUpdateBirthdate(requestBodyAsJson.containsKey("birthdate"));
+		request.setShouldUpdateBirthSexId(requestBodyAsJson.containsKey("birthSexId"));
+		request.setShouldUpdateCountryCode(requestBodyAsJson.containsKey("countryCode"));
+		request.setShouldUpdateDisplayName(requestBodyAsJson.containsKey("displayName"));
+		request.setShouldUpdateEmailAddress(requestBodyAsJson.containsKey("emailAddress"));
+		request.setShouldUpdateEthnicityId(requestBodyAsJson.containsKey("ethnicityId"));
+		request.setShouldUpdateFirstName(requestBodyAsJson.containsKey("firstName"));
+		request.setShouldUpdateLanguageCode(requestBodyAsJson.containsKey("languageCode"));
+		request.setShouldUpdateInsuranceId(requestBodyAsJson.containsKey("insuranceId"));
+		request.setShouldUpdateGenderIdentityId(requestBodyAsJson.containsKey("genderIdentityId"));
+		request.setShouldUpdateLastName(requestBodyAsJson.containsKey("lastName"));
+		request.setShouldUpdatePhoneNumber(requestBodyAsJson.containsKey("phoneNumber"));
+		request.setShouldUpdateRaceId(requestBodyAsJson.containsKey("raceId"));
+		request.setShouldUpdateTimeZone(requestBodyAsJson.containsKey("timeZone"));
+
+		getAccountService().patchAccount(request);
+
+		Account updatedAccount = getAccountService().findAccountById(accountId).get();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("account", getAccountApiResponseFactory().create(updatedAccount));
+		}});
+	}
+
+	@Nonnull
 	@GET("/accounts/reference-data")
 	public ApiResponse accountReferenceData(@Nonnull @QueryParameter Optional<InstitutionId> institutionId) {
 		requireNonNull(institutionId);
@@ -1071,6 +1124,11 @@ public class AccountResource {
 	@Nonnull
 	protected RequestBodyParser getRequestBodyParser() {
 		return this.requestBodyParser;
+	}
+
+	@Nonnull
+	protected JsonMapper getJsonMapper() {
+		return this.jsonMapper;
 	}
 
 	@Nonnull

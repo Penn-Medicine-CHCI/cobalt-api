@@ -37,6 +37,7 @@ import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreateInteractionInstanceRequest;
 import com.cobaltplatform.api.model.api.request.ForgotPasswordRequest;
+import com.cobaltplatform.api.model.api.request.PatchAccountRequest;
 import com.cobaltplatform.api.model.api.request.ResetPasswordRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountAccessTokenExpiration;
 import com.cobaltplatform.api.model.api.request.UpdateAccountBetaStatusRequest;
@@ -637,6 +638,34 @@ public class AccountService {
 				postOfficeBoxNumber, crossStreet, suburb, locality, region, postalCode, countrySubdivisionCode, countryCode);
 
 		return addressId;
+	}
+
+	@Nonnull
+	public void patchAccount(@Nonnull PatchAccountRequest request) {
+		requireNonNull(request);
+
+		UUID accountId = request.getAccountId();
+		String firstName = trimToNull(request.getFirstName());
+		String lastName = trimToNull(request.getLastName());
+		String displayName = trimToNull(request.getDisplayName());
+		String emailAddress = trimToNull(request.getEmailAddress());
+		String phoneNumber = trimToNull(request.getPhoneNumber());
+		GenderIdentityId genderIdentityId = request.getGenderIdentityId();
+		EthnicityId ethnicityId = request.getEthnicityId();
+		BirthSexId birthSexId = request.getBirthSexId();
+		RaceId raceId = request.getRaceId();
+		LocalDate birthdate = request.getBirthdate();
+		UUID insuranceId = request.getInsuranceId();
+		String countryCode = trimToNull(request.getCountryCode());
+		String languageCode = trimToNull(request.getLanguage());
+		ZoneId timeZone = request.getTimeZone();
+		CreateAddressRequest address = request.getAddress();
+		ValidationException validationException = new ValidationException();
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		throw new UnsupportedOperationException("TODO: implement PATCH");
 	}
 
 	@Nonnull
