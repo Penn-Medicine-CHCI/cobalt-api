@@ -56,13 +56,17 @@ import com.cobaltplatform.api.model.db.BetaFeature.BetaFeatureId;
 import com.cobaltplatform.api.model.db.BetaFeatureAlert;
 import com.cobaltplatform.api.model.db.BetaFeatureAlert.BetaFeatureAlertStatusId;
 import com.cobaltplatform.api.model.db.BetaStatus.BetaStatusId;
+import com.cobaltplatform.api.model.db.BirthSex;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.ClientDeviceType;
+import com.cobaltplatform.api.model.db.Ethnicity;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
+import com.cobaltplatform.api.model.db.GenderIdentity;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PasswordResetRequest;
+import com.cobaltplatform.api.model.db.Race;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role;
 import com.cobaltplatform.api.model.db.Role.RoleId;
@@ -1291,6 +1295,26 @@ public class AccountService {
 				AND email_address=?
 				AND account_id=?
 				""", Boolean.class, emailAddress, accountId).get();
+	}
+
+	@Nonnull
+	public List<GenderIdentity> findGenderIdentities() {
+		return getDatabase().queryForList("SELECT * FROM gender_identity ORDER BY display_order", GenderIdentity.class);
+	}
+
+	@Nonnull
+	public List<Race> findRaces() {
+		return getDatabase().queryForList("SELECT * FROM race ORDER BY display_order", Race.class);
+	}
+
+	@Nonnull
+	public List<BirthSex> findBirthSexes() {
+		return getDatabase().queryForList("SELECT * FROM birth_sex ORDER BY display_order", BirthSex.class);
+	}
+
+	@Nonnull
+	public List<Ethnicity> findEthnicities() {
+		return getDatabase().queryForList("SELECT * FROM ethnicity ORDER BY display_order", Ethnicity.class);
 	}
 
 	@Nonnull

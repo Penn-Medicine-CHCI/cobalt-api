@@ -75,8 +75,11 @@ import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.AuditLog;
 import com.cobaltplatform.api.model.db.AuditLogEvent.AuditLogEventId;
 import com.cobaltplatform.api.model.db.BetaFeatureAlert;
+import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.model.db.Content;
+import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
+import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionRequest;
 import com.cobaltplatform.api.model.db.GroupSessionRequestStatus.GroupSessionRequestStatusId;
@@ -84,6 +87,7 @@ import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.LoginDestination.LoginDestinationId;
+import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
@@ -1010,11 +1014,36 @@ public class AccountResource {
 					.map(region -> Map.of("name", (Object) region.getName(), "abbreviation", region.getAbbreviation()))
 					.collect(Collectors.toList()));
 
+		// Demographics
+		List<Map<String, Object>> genderIdentities = getAccountService().findGenderIdentities().stream()
+				.filter(genderIdentity -> genderIdentity.getGenderIdentityId() != GenderIdentityId.NOT_ASKED)
+				.map(genderIdentity -> Map.<String, Object>of("genderIdentityId", genderIdentity.getGenderIdentityId(), "description", genderIdentity.getDescription()))
+				.collect(Collectors.toList());
+
+		List<Map<String, Object>> races = getAccountService().findRaces().stream()
+				.filter(race -> race.getRaceId() != RaceId.NOT_ASKED)
+				.map(race -> Map.<String, Object>of("raceId", race.getRaceId(), "description", race.getDescription()))
+				.collect(Collectors.toList());
+
+		List<Map<String, Object>> birthSexes = getAccountService().findBirthSexes().stream()
+				.filter(birthSex -> birthSex.getBirthSexId() != BirthSexId.NOT_ASKED)
+				.map(birthSex -> Map.<String, Object>of("birthSexId", birthSex.getBirthSexId(), "description", birthSex.getDescription()))
+				.collect(Collectors.toList());
+
+		List<Map<String, Object>> ethnicities = getAccountService().findEthnicities().stream()
+				.filter(ethnicity -> ethnicity.getEthnicityId() != EthnicityId.NOT_ASKED)
+				.map(ethnicity -> Map.<String, Object>of("ethnicityId", ethnicity.getEthnicityId(), "description", ethnicity.getDescription()))
+				.collect(Collectors.toList());
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("timeZones", timeZones);
 			put("countries", countries);
 			put("languages", languages);
 			put("insurances", insurances);
+			put("genderIdentities", genderIdentities);
+			put("races", races);
+			put("birthSexes", birthSexes);
+			put("ethnicities", ethnicities);
 			put("regionsByCountryCode", normalizedRegionsByCountryCode);
 		}});
 	}
