@@ -84,8 +84,6 @@ public class Account {
 	@Nullable
 	private EthnicityId ethnicityId;
 	@Nullable
-	private UUID addressId;
-	@Nullable
 	private UUID insuranceId;
 	@Nullable
 	private String emailAddress;
@@ -485,14 +483,5 @@ public class Account {
 
 	public void setBirthdate(@Nullable LocalDate birthdate) {
 		this.birthdate = birthdate;
-	}
-
-	@Nullable
-	public UUID getAddressId() {
-		return this.addressId;
-	}
-
-	public void setAddressId(@Nullable UUID addressId) {
-		this.addressId = addressId;
 	}
 }

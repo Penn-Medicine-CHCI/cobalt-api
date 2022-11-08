@@ -63,6 +63,7 @@ import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiRe
 import com.cobaltplatform.api.model.api.response.AccountSessionApiResponse.AccountSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse.AccountSourceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ActivityTrackingApiResponse.ActivityTrackingApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.AddressApiResponse.AddressApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AdminAvailableContentApiResponse.AdminAvailableContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AdminContentApiResponse.AdminContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AdminInstitutionApiResponse.AdminInstitutionApiResponseFactory;
@@ -253,6 +254,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(CountryApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(LanguageApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(InsuranceApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(AddressApiResponseFactory.class)));
 	}
 
 	@Provides

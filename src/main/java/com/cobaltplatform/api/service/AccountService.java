@@ -50,6 +50,7 @@ import com.cobaltplatform.api.model.db.AccountInvite;
 import com.cobaltplatform.api.model.db.AccountLoginRule;
 import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
+import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.AuditLog;
 import com.cobaltplatform.api.model.db.AuditLogEvent.AuditLogEventId;
 import com.cobaltplatform.api.model.db.BetaFeature.BetaFeatureId;
@@ -531,19 +532,40 @@ public class AccountService {
 						INSERT INTO account (
 						account_id, role_id, institution_id, account_source_id, source_system_id, sso_id, 
 						first_name, last_name, display_name, email_address, phone_number, sso_attributes, password, epic_patient_id, 
-						epic_patient_id_type, time_zone, address_id, gender_identity_id, ethnicity_id, birth_sex_id, race_id, birthdate
+						epic_patient_id_type, time_zone, gender_identity_id, ethnicity_id, birth_sex_id, race_id, birthdate
 						) 
-						VALUES (?,?,?,?,?,?,?,?,?,?,?,CAST(? AS JSONB),?,?,?,?,?,?,?,?,?,?)
+						VALUES (?,?,?,?,?,?,?,?,?,?,?,CAST(? AS JSONB),?,?,?,?,?,?,?,?,?)
 						""",
 				accountId, roleId, institutionId, accountSourceId, sourceSystemId, ssoId, firstName, lastName, displayName,
 				emailAddress, phoneNumber, finalSsoAttributesAsJson, password, epicPatientId, epicPatientIdType, timeZone,
-				addressId, genderIdentityId, ethnicityId, birthSexId, raceId, birthdate);
+				genderIdentityId, ethnicityId, birthSexId, raceId, birthdate);
+
+		if (addressId != null) {
+			getDatabase().execute("""
+					INSERT INTO account_address (account_id, address_id, active)
+					VALUES (?,?,?)
+					""", accountId, addressId, true);
+		}
 
 		return accountId;
 	}
 
 	@Nonnull
-	protected UUID createAddress(@Nonnull CreateAddressRequest request) {
+	public Optional<Address> findActiveAddressByAccountId(@Nullable UUID accountId) {
+		if (accountId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT a.*
+				FROM address a, account_address aa
+				WHERE aa.account_id=?
+				AND aa.address_id=a.address_id
+				AND aa.active=TRUE
+				""", Address.class, accountId);
+	}
+
+	@Nonnull
+	public UUID createAddress(@Nonnull CreateAddressRequest request) {
 		requireNonNull(request);
 
 		UUID addressId = UUID.randomUUID();
