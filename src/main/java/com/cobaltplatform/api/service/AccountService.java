@@ -657,7 +657,7 @@ public class AccountService {
 		LocalDate birthdate = request.getBirthdate();
 		UUID insuranceId = request.getInsuranceId();
 		String countryCode = trimToNull(request.getCountryCode());
-		String languageCode = trimToNull(request.getLanguage());
+		String languageCode = trimToNull(request.getLanguageCode());
 		ZoneId timeZone = request.getTimeZone();
 		CreateAddressRequest address = request.getAddress();
 		ValidationException validationException = new ValidationException();
