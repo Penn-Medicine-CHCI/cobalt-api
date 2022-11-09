@@ -19,13 +19,6 @@
 
 package com.cobaltplatform.api.integration.enterprise;
 
-import com.cobaltplatform.api.integration.epic.DefaultEpicClient;
-import com.cobaltplatform.api.integration.epic.EpicClient;
-import com.cobaltplatform.api.integration.epic.EpicConfiguration;
-import com.cobaltplatform.api.integration.mychart.DefaultMyChartAuthenticator;
-import com.cobaltplatform.api.integration.mychart.MyChartAuthenticator;
-import com.cobaltplatform.api.integration.mychart.MyChartConfiguration;
-import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.service.InstitutionService;
 
@@ -33,7 +26,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
@@ -59,37 +51,6 @@ public class CobaltEnterprisePlugin implements EnterprisePlugin {
 	}
 
 	// No custom behavior for this institution
-
-	@Nonnull
-	@Override
-	public Optional<EpicClient> epicClient() {
-		Institution institution = getInstitutionService().findInstitutionById(getInstitutionId()).get();
-
-		EpicConfiguration epicConfiguration = new EpicConfiguration.Builder(institution.getEpicClientId(), institution.getEpicBaseUrl())
-				.userId(institution.getEpicUserId())
-				.userIdType(institution.getEpicUserIdType())
-				.username(institution.getEpicUsername())
-				.password(institution.getEpicPassword())
-				.build();
-
-		return Optional.of(new DefaultEpicClient(epicConfiguration));
-	}
-
-	@Nonnull
-	@Override
-	public Optional<MyChartAuthenticator> myChartAuthenticator() {
-		Institution institution = getInstitutionService().findInstitutionById(getInstitutionId()).get();
-
-		MyChartConfiguration myChartConfiguration = new MyChartConfiguration();
-		myChartConfiguration.setClientId(institution.getMyChartClientId());
-		myChartConfiguration.setScope(institution.getMyChartScope());
-		myChartConfiguration.setResponseType(institution.getMyChartResponseType());
-		myChartConfiguration.setCallbackUrl(institution.getMyChartCallbackUrl());
-		myChartConfiguration.setAuthorizeUrl(institution.getMyChartAuthorizeUrl());
-		myChartConfiguration.setTokenUrl(institution.getMyChartTokenUrl());
-
-		return Optional.of(new DefaultMyChartAuthenticator(myChartConfiguration));
-	}
 
 	@Nonnull
 	protected InstitutionService getInstitutionService() {
