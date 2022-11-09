@@ -49,7 +49,7 @@ public class MyChartAccessToken {
 
 	static {
 		GsonBuilder gsonBuilder = new GsonBuilder().disableHtmlEscaping();
-		GsonUtility.applyDefaultTypeAdapters(gsonBuilder);
+		GsonUtility.applyDefaultTypeAdapters(gsonBuilder, MyChartAccessToken.class);
 		GSON = gsonBuilder.create();
 	}
 

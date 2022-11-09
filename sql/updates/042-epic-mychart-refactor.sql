@@ -171,7 +171,7 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON address FOR EACH ROW 
 -- TODO: would be nice to have a trigger to enforce "only one 'active=TRUE' per account ID"
 CREATE TABLE account_address (
   account_id UUID NOT NULL REFERENCES account,
-  address_id UUID NOT NULL REFERENCES account,
+  address_id UUID NOT NULL REFERENCES address,
   active BOOLEAN NOT NULL,
   created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
