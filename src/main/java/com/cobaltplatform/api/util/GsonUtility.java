@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.util;
 
+import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializationContext;
@@ -56,12 +57,11 @@ public final class GsonUtility {
 	public static void applyDefaultTypeAdapters(@Nonnull GsonBuilder gsonBuilder) {
 		requireNonNull(gsonBuilder);
 
-		requireNonNull(gsonBuilder);
-
 		gsonBuilder.registerTypeAdapter(Instant.class, new JsonDeserializer<Instant>() {
 			@Override
 			@Nullable
-			public Instant deserialize(@Nullable JsonElement json, @Nonnull Type type,
+			public Instant deserialize(@Nullable JsonElement json,
+																 @Nonnull Type type,
 																 @Nonnull JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
 				requireNonNull(type);
 				requireNonNull(jsonDeserializationContext);
@@ -86,7 +86,9 @@ public final class GsonUtility {
 		gsonBuilder.registerTypeAdapter(Instant.class, new JsonSerializer<Instant>() {
 			@Override
 			@Nullable
-			public JsonElement serialize(@Nullable Instant instant, @Nonnull Type type, @Nonnull JsonSerializationContext jsonSerializationContext) {
+			public JsonElement serialize(@Nullable Instant instant,
+																	 @Nonnull Type type,
+																	 @Nonnull JsonSerializationContext jsonSerializationContext) {
 				requireNonNull(type);
 				requireNonNull(jsonSerializationContext);
 
@@ -97,7 +99,8 @@ public final class GsonUtility {
 		gsonBuilder.registerTypeAdapter(Locale.class, new JsonDeserializer<Locale>() {
 			@Override
 			@Nullable
-			public Locale deserialize(@Nullable JsonElement json, @Nonnull Type type,
+			public Locale deserialize(@Nullable JsonElement json,
+																@Nonnull Type type,
 																@Nonnull JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
 				requireNonNull(type);
 				requireNonNull(jsonDeserializationContext);
@@ -119,7 +122,9 @@ public final class GsonUtility {
 		gsonBuilder.registerTypeAdapter(Locale.class, new JsonSerializer<Locale>() {
 			@Override
 			@Nullable
-			public JsonElement serialize(@Nullable Locale locale, @Nonnull Type type, @Nonnull JsonSerializationContext jsonSerializationContext) {
+			public JsonElement serialize(@Nullable Locale locale,
+																	 @Nonnull Type type,
+																	 @Nonnull JsonSerializationContext jsonSerializationContext) {
 				requireNonNull(type);
 				requireNonNull(jsonSerializationContext);
 
@@ -130,7 +135,8 @@ public final class GsonUtility {
 		gsonBuilder.registerTypeAdapter(ZoneId.class, new JsonDeserializer<ZoneId>() {
 			@Override
 			@Nullable
-			public ZoneId deserialize(@Nullable JsonElement json, @Nonnull Type type,
+			public ZoneId deserialize(@Nullable JsonElement json,
+																@Nonnull Type type,
 																@Nonnull JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
 				requireNonNull(type);
 				requireNonNull(jsonDeserializationContext);
@@ -152,7 +158,9 @@ public final class GsonUtility {
 		gsonBuilder.registerTypeAdapter(ZoneId.class, new JsonSerializer<ZoneId>() {
 			@Override
 			@Nullable
-			public JsonElement serialize(@Nullable ZoneId zoneId, @Nonnull Type type, @Nonnull JsonSerializationContext jsonSerializationContext) {
+			public JsonElement serialize(@Nullable ZoneId zoneId,
+																	 @Nonnull Type type,
+																	 @Nonnull JsonSerializationContext jsonSerializationContext) {
 				requireNonNull(type);
 				requireNonNull(jsonSerializationContext);
 
@@ -163,7 +171,8 @@ public final class GsonUtility {
 		gsonBuilder.registerTypeAdapter(LocalDate.class, new JsonDeserializer<LocalDate>() {
 			@Override
 			@Nullable
-			public LocalDate deserialize(@Nullable JsonElement json, @Nonnull Type type,
+			public LocalDate deserialize(@Nullable JsonElement json,
+																	 @Nonnull Type type,
 																	 @Nonnull JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
 				requireNonNull(type);
 				requireNonNull(jsonDeserializationContext);
@@ -185,7 +194,9 @@ public final class GsonUtility {
 		gsonBuilder.registerTypeAdapter(LocalDate.class, new JsonSerializer<LocalDate>() {
 			@Override
 			@Nullable
-			public JsonElement serialize(@Nullable LocalDate localDate, @Nonnull Type type, @Nonnull JsonSerializationContext jsonSerializationContext) {
+			public JsonElement serialize(@Nullable LocalDate localDate,
+																	 @Nonnull Type type,
+																	 @Nonnull JsonSerializationContext jsonSerializationContext) {
 				requireNonNull(type);
 				requireNonNull(jsonSerializationContext);
 
@@ -196,7 +207,8 @@ public final class GsonUtility {
 		gsonBuilder.registerTypeAdapter(LocalTime.class, new JsonDeserializer<LocalTime>() {
 			@Override
 			@Nullable
-			public LocalTime deserialize(@Nullable JsonElement json, @Nonnull Type type,
+			public LocalTime deserialize(@Nullable JsonElement json,
+																	 @Nonnull Type type,
 																	 @Nonnull JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
 				requireNonNull(type);
 				requireNonNull(jsonDeserializationContext);
@@ -218,7 +230,9 @@ public final class GsonUtility {
 		gsonBuilder.registerTypeAdapter(LocalTime.class, new JsonSerializer<LocalTime>() {
 			@Override
 			@Nullable
-			public JsonElement serialize(@Nullable LocalTime localTime, @Nonnull Type type, @Nonnull JsonSerializationContext jsonSerializationContext) {
+			public JsonElement serialize(@Nullable LocalTime localTime,
+																	 @Nonnull Type type,
+																	 @Nonnull JsonSerializationContext jsonSerializationContext) {
 				requireNonNull(type);
 				requireNonNull(jsonSerializationContext);
 
@@ -229,7 +243,8 @@ public final class GsonUtility {
 		gsonBuilder.registerTypeAdapter(LocalDateTime.class, new JsonDeserializer<LocalDateTime>() {
 			@Override
 			@Nullable
-			public LocalDateTime deserialize(@Nullable JsonElement json, @Nonnull Type type,
+			public LocalDateTime deserialize(@Nullable JsonElement json,
+																			 @Nonnull Type type,
 																			 @Nonnull JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
 				requireNonNull(type);
 				requireNonNull(jsonDeserializationContext);
@@ -251,7 +266,9 @@ public final class GsonUtility {
 		gsonBuilder.registerTypeAdapter(LocalDateTime.class, new JsonSerializer<LocalDateTime>() {
 			@Override
 			@Nullable
-			public JsonElement serialize(@Nullable LocalDateTime localDateTime, @Nonnull Type type, @Nonnull JsonSerializationContext jsonSerializationContext) {
+			public JsonElement serialize(@Nullable LocalDateTime localDateTime,
+																	 @Nonnull Type type,
+																	 @Nonnull JsonSerializationContext jsonSerializationContext) {
 				requireNonNull(type);
 				requireNonNull(jsonSerializationContext);
 
@@ -262,7 +279,8 @@ public final class GsonUtility {
 		gsonBuilder.registerTypeAdapter(ScreeningQuestionContextId.class, new JsonDeserializer<ScreeningQuestionContextId>() {
 			@Override
 			@Nullable
-			public ScreeningQuestionContextId deserialize(@Nullable JsonElement json, @Nonnull Type type,
+			public ScreeningQuestionContextId deserialize(@Nullable JsonElement json,
+																										@Nonnull Type type,
 																										@Nonnull JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
 				requireNonNull(type);
 				requireNonNull(jsonDeserializationContext);
@@ -284,11 +302,49 @@ public final class GsonUtility {
 		gsonBuilder.registerTypeAdapter(ScreeningQuestionContextId.class, new JsonSerializer<ScreeningQuestionContextId>() {
 			@Override
 			@Nullable
-			public JsonElement serialize(@Nullable ScreeningQuestionContextId screeningQuestionContextId, @Nonnull Type type, @Nonnull JsonSerializationContext jsonSerializationContext) {
+			public JsonElement serialize(@Nullable ScreeningQuestionContextId screeningQuestionContextId,
+																	 @Nonnull Type type,
+																	 @Nonnull JsonSerializationContext jsonSerializationContext) {
 				requireNonNull(type);
 				requireNonNull(jsonSerializationContext);
 
 				return screeningQuestionContextId == null ? null : new JsonPrimitive(screeningQuestionContextId.getIdentifier());
+			}
+		});
+
+		gsonBuilder.registerTypeAdapter(MyChartAccessToken.class, new JsonDeserializer<MyChartAccessToken>() {
+			@Override
+			@Nullable
+			public MyChartAccessToken deserialize(@Nullable JsonElement json,
+																						@Nonnull Type type,
+																						@Nonnull JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
+				requireNonNull(type);
+				requireNonNull(jsonDeserializationContext);
+
+				if (json == null)
+					return null;
+
+				JsonPrimitive jsonPrimitive = json.getAsJsonPrimitive();
+
+				if (jsonPrimitive.isString()) {
+					String string = trimToNull(json.getAsString());
+					return string == null ? null : MyChartAccessToken.deserialize(string);
+				}
+
+				throw new IllegalArgumentException(format("Unable to convert JSON value '%s' to %s", json, type));
+			}
+		});
+
+		gsonBuilder.registerTypeAdapter(MyChartAccessToken.class, new JsonSerializer<MyChartAccessToken>() {
+			@Override
+			@Nullable
+			public JsonElement serialize(@Nullable MyChartAccessToken myChartAccessToken,
+																	 @Nonnull Type type,
+																	 @Nonnull JsonSerializationContext jsonSerializationContext) {
+				requireNonNull(type);
+				requireNonNull(jsonSerializationContext);
+
+				return myChartAccessToken == null ? null : new JsonPrimitive(myChartAccessToken.serialize());
 			}
 		});
 	}
