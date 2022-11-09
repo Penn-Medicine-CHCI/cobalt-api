@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.model.api.request;
 
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -28,18 +30,19 @@ import javax.annotation.concurrent.NotThreadSafe;
 @NotThreadSafe
 public class CreateAccountInviteRequest {
 	@Nullable
-	private String subdomain;
+	private InstitutionId institutionId;
 	@Nullable
 	private String emailAddress;
 	@Nullable
 	private String password;
 
-	public String getSubdomain() {
-		return subdomain;
+	@Nullable
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
 	}
 
-	public void setSubdomain(String subdomain) {
-		this.subdomain = subdomain;
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
 	}
 
 	@Nullable

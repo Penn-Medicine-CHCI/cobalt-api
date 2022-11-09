@@ -22,11 +22,13 @@ package com.cobaltplatform.api.web.request;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
+import com.cobaltplatform.api.context.CurrentContextExecutor.CurrentContextOperation;
 import com.cobaltplatform.api.error.ErrorReporter;
-import com.cobaltplatform.api.integration.ic.IcClient;
+import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.Institution;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.security.AccessTokenClaims;
 import com.cobaltplatform.api.model.security.AccessTokenStatus;
 import com.cobaltplatform.api.model.service.RemoteClient;
@@ -34,7 +36,6 @@ import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.FingerprintService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.Authenticator;
-import com.cobaltplatform.api.util.WebUtility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -46,9 +47,11 @@ import javax.inject.Singleton;
 import javax.servlet.http.HttpServletRequest;
 import java.time.ZoneId;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
+import static com.cobaltplatform.api.util.WebUtility.extractValueFromRequest;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -60,8 +63,6 @@ import static java.util.Objects.requireNonNull;
 public class CurrentContextRequestHandler {
 	@Nonnull
 	private static final String ACCESS_TOKEN_REQUEST_PROPERTY_NAME;
-	@Nonnull
-	private static final String IC_SIGNING_TOKEN_REQUEST_PROPERTY_NAME;
 	@Nonnull
 	private static final String LOCALE_REQUEST_PROPERTY_NAME;
 	@Nonnull
@@ -87,8 +88,6 @@ public class CurrentContextRequestHandler {
 	@Nonnull
 	private final Authenticator authenticator;
 	@Nonnull
-	private final IcClient icClient;
-	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
 	private final ErrorReporter errorReporter;
@@ -97,7 +96,6 @@ public class CurrentContextRequestHandler {
 
 	static {
 		ACCESS_TOKEN_REQUEST_PROPERTY_NAME = "X-Cobalt-Access-Token";
-		IC_SIGNING_TOKEN_REQUEST_PROPERTY_NAME = "X-IC-Signing-Token";
 		LOCALE_REQUEST_PROPERTY_NAME = "X-Locale";
 		TIME_ZONE_REQUEST_PROPERTY_NAME = "X-Time-Zone";
 		SESSION_TRACKING_ID_PROPERTY_NAME = "X-Session-Tracking-Id";
@@ -113,7 +111,6 @@ public class CurrentContextRequestHandler {
 																			@Nonnull InstitutionService institutionService,
 																			@Nonnull FingerprintService fingerprintService,
 																			@Nonnull Authenticator authenticator,
-																			@Nonnull IcClient icClient,
 																			@Nonnull Configuration configuration,
 																			@Nonnull ErrorReporter errorReporter) {
 		requireNonNull(currentContextExecutor);
@@ -121,7 +118,6 @@ public class CurrentContextRequestHandler {
 		requireNonNull(institutionService);
 		requireNonNull(fingerprintService);
 		requireNonNull(authenticator);
-		requireNonNull(icClient);
 		requireNonNull(configuration);
 		requireNonNull(errorReporter);
 
@@ -130,18 +126,19 @@ public class CurrentContextRequestHandler {
 		this.institutionService = institutionService;
 		this.fingerprintService = fingerprintService;
 		this.authenticator = authenticator;
-		this.icClient = icClient;
 		this.configuration = configuration;
 		this.errorReporter = errorReporter;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
 	public void handle(@Nonnull HttpServletRequest httpServletRequest,
-										 @Nonnull CurrentContextExecutor.CurrentContextOperation currentContextOperation) {
+										 @Nonnull CurrentContextOperation currentContextOperation) {
 		requireNonNull(httpServletRequest);
 		requireNonNull(currentContextOperation);
 
 		getErrorReporter().startScope();
+
+		MyChartAccessToken myChartAccessToken = null;
 
 		try {
 			getErrorReporter().applyHttpServletRequest(httpServletRequest);
@@ -149,7 +146,7 @@ public class CurrentContextRequestHandler {
 			Account account = null;
 
 			// Try to load account data for access token
-			String accessTokenValue = WebUtility.extractValueFromRequest(httpServletRequest, getAccessTokenRequestPropertyName()).orElse(null);
+			String accessTokenValue = extractValueFromRequest(httpServletRequest, getAccessTokenRequestPropertyName()).orElse(null);
 			AccessTokenStatus accessTokenStatus = null;
 
 			if (accessTokenValue != null) {
@@ -159,11 +156,12 @@ public class CurrentContextRequestHandler {
 					UUID accountId = accessTokenClaims.getAccountId();
 					account = getAccountService().findAccountById(accountId).orElse(null);
 					accessTokenStatus = getAuthenticator().determineAccessTokenStatus(accessTokenClaims);
+					myChartAccessToken = accessTokenClaims.getMyChartAccessToken().orElse(null);
 				}
 			}
 
 			// Start with default locale and override as needed
-			String localeValue = WebUtility.extractValueFromRequest(httpServletRequest, getLocaleRequestPropertyName()).orElse(null);
+			String localeValue = extractValueFromRequest(httpServletRequest, getLocaleRequestPropertyName()).orElse(null);
 			Locale locale = httpServletRequest.getLocale();
 
 			if (account != null)
@@ -173,7 +171,7 @@ public class CurrentContextRequestHandler {
 				locale = Locale.forLanguageTag(localeValue);
 
 			// Start with default time zone and override as needed
-			Optional<String> timeZoneValue = WebUtility.extractValueFromRequest(httpServletRequest, getTimeZoneRequestPropertyName());
+			Optional<String> timeZoneValue = extractValueFromRequest(httpServletRequest, getTimeZoneRequestPropertyName());
 			ZoneId timeZone = ZoneId.of("UTC");
 
 			if (account != null)
@@ -189,7 +187,7 @@ public class CurrentContextRequestHandler {
 
 			RemoteClient remoteClient = RemoteClient.fromHttpServletRequest(httpServletRequest);
 
-			Optional<String> sessionTrackingString = WebUtility.extractValueFromRequest(httpServletRequest, getSessionTrackingIdPropertyName());
+			Optional<String> sessionTrackingString = extractValueFromRequest(httpServletRequest, getSessionTrackingIdPropertyName());
 			UUID sessionTrackingId = sessionTrackingString.isPresent() ? UUID.fromString(sessionTrackingString.get()) : null;
 			AccountSource accountSource = null;
 
@@ -197,16 +195,34 @@ public class CurrentContextRequestHandler {
 				accountSource = getAccountService().findAccountSourceByAccountId(account.getAccountId()).orElse(null);
 
 			// Try to get fingerprint id
-			String fingerprintIdValue = WebUtility.extractValueFromRequest(httpServletRequest, getFingerprintIdPropertyName()).orElse(null);
+			String fingerprintIdValue = extractValueFromRequest(httpServletRequest, getFingerprintIdPropertyName()).orElse(null);
 
 			if (fingerprintIdValue != null && account != null)
 				getFingerprintService().storeFingerprintForAccount(account.getAccountId(), fingerprintIdValue);
 
-			String webappBaseUrl = WebUtility.extractValueFromRequest(httpServletRequest, getWebappBaseUrlPropertyName()).orElse(null);
-			Institution institution = getInstitutionService().findInstitutionByWebappBaseUrl(webappBaseUrl);
+			// We use webappBaseUrl to derive the institution context for this request (IOW - the URL the user sees in their browser drives the institution)
+			String webappBaseUrl = extractValueFromRequest(httpServletRequest, getWebappBaseUrlPropertyName()).orElse(null);
 
-			CurrentContext.Builder currentContextBuilder = account == null ?
-					new CurrentContext.Builder(institution.getInstitutionId(), locale, timeZone) : new CurrentContext.Builder(account, locale, timeZone);
+			// In general, webappBaseUrl is usually non-null (clients should always include the X-Cobalt-Webapp-Base-Url header).
+			// However, in special cases like an OAuth callback, we won't get that header because we can't control how we're called.
+			Institution institution = getInstitutionService().findInstitutionByWebappBaseUrl(webappBaseUrl).orElse(null);
+
+			if (account == null && institution == null) {
+				// If no signed-in account or X-Cobalt-Webapp-Base-Url header, assume default COBALT institution.
+				// This would be the case for an OAuth callback, for example
+				institution = getInstitutionService().findInstitutionById(InstitutionId.COBALT).get();
+			} else if (account != null && institution == null) {
+				getLogger().debug("This request did not specify its institution via {}, so current context will default to {}, " +
+						"which is associated with account ID {}", getWebappBaseUrlPropertyName(), account.getAccountId());
+			} else if (account != null && institution != null && !Objects.equals(account.getInstitutionId(), institution.getInstitutionId())) {
+				// It's illegal to access an account outside of its own institution's context
+				throw new IllegalStateException(format("Account ID %s is associated with %s but is being accessed in the context of %s",
+						account.getAccountId(), account.getInstitutionId().name(), institution.getInstitutionId().name()));
+			}
+
+			CurrentContext.Builder currentContextBuilder = account == null
+					? new CurrentContext.Builder(institution.getInstitutionId(), locale, timeZone)
+					: new CurrentContext.Builder(account, locale, timeZone);
 
 			CurrentContext currentContext = currentContextBuilder
 					.accessToken(accessTokenValue)
@@ -216,9 +232,10 @@ public class CurrentContextRequestHandler {
 					.sessionTrackingId(sessionTrackingId)
 					.accountSource(accountSource)
 					.fingerprintId(fingerprintIdValue)
+					.myChartAccessToken(myChartAccessToken)
 					.build();
 
-			String currentContextDescription = null;
+			String currentContextDescription;
 
 			if (account != null) {
 				String accountIdentifier = account.getEmailAddress() == null ? "[anonymous]" : account.getEmailAddress();
@@ -246,16 +263,12 @@ public class CurrentContextRequestHandler {
 		} finally {
 			getErrorReporter().endScope();
 		}
+
 	}
 
 	@Nonnull
 	public static String getAccessTokenRequestPropertyName() {
 		return ACCESS_TOKEN_REQUEST_PROPERTY_NAME;
-	}
-
-	@Nonnull
-	public static String getIcSigningTokenRequestPropertyName() {
-		return IC_SIGNING_TOKEN_REQUEST_PROPERTY_NAME;
 	}
 
 	@Nonnull
@@ -311,11 +324,6 @@ public class CurrentContextRequestHandler {
 	@Nonnull
 	protected Authenticator getAuthenticator() {
 		return this.authenticator;
-	}
-
-	@Nonnull
-	protected IcClient getIcClient() {
-		return this.icClient;
 	}
 
 	@Nonnull

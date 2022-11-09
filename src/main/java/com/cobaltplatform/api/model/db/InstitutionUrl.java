@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -26,52 +28,49 @@ import javax.annotation.concurrent.NotThreadSafe;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class BirthSex {
+public class InstitutionUrl {
 	@Nullable
-	private BirthSexId birthSexId;
+	private InstitutionId institutionId;
 	@Nullable
-	private String description;
+	private String url;
 	@Nullable
-	private Integer displayOrder;
+	private String hostname;
+	@Nullable
+	private Boolean preferred;
 
-	public enum BirthSexId {
-		NOT_ASKED,
-		MALE,
-		FEMALE,
-		OTHER,
-		UNKNOWN,
-		NOT_DISCLOSED
+	@Nullable
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
 	}
 
-	@Override
-	public String toString() {
-		return String.format("%s{birthSexId=%s, description=%s}", getClass().getSimpleName(), getBirthSexId(), getDescription());
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
 	}
 
 	@Nullable
-	public BirthSexId getBirthSexId() {
-		return this.birthSexId;
+	public String getUrl() {
+		return this.url;
 	}
 
-	public void setBirthSexId(@Nullable BirthSexId birthSexId) {
-		this.birthSexId = birthSexId;
-	}
-
-	@Nullable
-	public String getDescription() {
-		return this.description;
-	}
-
-	public void setDescription(@Nullable String description) {
-		this.description = description;
+	public void setUrl(@Nullable String url) {
+		this.url = url;
 	}
 
 	@Nullable
-	public Integer getDisplayOrder() {
-		return this.displayOrder;
+	public String getHostname() {
+		return this.hostname;
 	}
 
-	public void setDisplayOrder(@Nullable Integer displayOrder) {
-		this.displayOrder = displayOrder;
+	public void setHostname(@Nullable String hostname) {
+		this.hostname = hostname;
+	}
+
+	@Nullable
+	public Boolean getPreferred() {
+		return this.preferred;
+	}
+
+	public void setPreferred(@Nullable Boolean preferred) {
+		this.preferred = preferred;
 	}
 }

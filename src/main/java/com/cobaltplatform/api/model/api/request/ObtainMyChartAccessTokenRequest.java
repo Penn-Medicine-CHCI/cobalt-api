@@ -17,40 +17,49 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.integration.ic.model;
+package com.cobaltplatform.api.model.api.request;
 
-import javax.annotation.Nonnull;
-import javax.annotation.concurrent.Immutable;
-import java.util.UUID;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
-import static java.util.Objects.requireNonNull;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * @author Transmogrify, LLC.
  */
-@Immutable
-public class IcAppointmentCreatedRequest {
-	@Nonnull
-	private final UUID accountId;
-	@Nonnull
-	private final UUID appointmentId;
+@NotThreadSafe
+public class ObtainMyChartAccessTokenRequest {
+	@Nullable
+	private InstitutionId institutionId;
+	@Nullable
+	private String code;
+	@Nullable
+	private String state;
 
-	public IcAppointmentCreatedRequest(@Nonnull UUID accountId,
-																		 @Nonnull UUID appointmentId) {
-		requireNonNull(accountId);
-		requireNonNull(appointmentId);
-
-		this.accountId = accountId;
-		this.appointmentId = appointmentId;
+	@Nullable
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
 	}
 
-	@Nonnull
-	public UUID getAccountId() {
-		return accountId;
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
 	}
 
-	@Nonnull
-	public UUID getAppointmentId() {
-		return appointmentId;
+	@Nullable
+	public String getCode() {
+		return this.code;
+	}
+
+	public void setCode(@Nullable String code) {
+		this.code = code;
+	}
+
+	@Nullable
+	public String getState() {
+		return this.state;
+	}
+
+	public void setState(@Nullable String state) {
+		this.state = state;
 	}
 }

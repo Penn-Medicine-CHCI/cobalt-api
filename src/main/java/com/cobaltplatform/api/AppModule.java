@@ -39,9 +39,6 @@ import com.cobaltplatform.api.integration.bluejeans.BluejeansClient;
 import com.cobaltplatform.api.integration.bluejeans.DefaultBluejeansClient;
 import com.cobaltplatform.api.integration.bluejeans.MockBluejeansClient;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
-import com.cobaltplatform.api.integration.ic.DefaultIcClient;
-import com.cobaltplatform.api.integration.ic.IcClient;
-import com.cobaltplatform.api.integration.ic.MockIcClient;
 import com.cobaltplatform.api.integration.way2health.DefaultWay2HealthClient;
 import com.cobaltplatform.api.integration.way2health.MockWay2HealthClient;
 import com.cobaltplatform.api.integration.way2health.Way2HealthClient;
@@ -66,6 +63,7 @@ import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiRe
 import com.cobaltplatform.api.model.api.response.AccountSessionApiResponse.AccountSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse.AccountSourceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ActivityTrackingApiResponse.ActivityTrackingApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.AddressApiResponse.AddressApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AdminAvailableContentApiResponse.AdminAvailableContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AdminContentApiResponse.AdminContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AdminInstitutionApiResponse.AdminInstitutionApiResponseFactory;
@@ -78,6 +76,7 @@ import com.cobaltplatform.api.model.api.response.BetaFeatureAlertApiResponse.Bet
 import com.cobaltplatform.api.model.api.response.CallToActionApiResponse.CallToActionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ClinicApiResponse.ClinicApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.CountryApiResponse.CountryApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ExternalGroupEventTypeApiResponse.ExternalGroupEventTypeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupEventApiResponse.GroupEventApiResponseFactory;
@@ -86,10 +85,12 @@ import com.cobaltplatform.api.model.api.response.GroupSessionRequestApiResponse.
 import com.cobaltplatform.api.model.api.response.GroupSessionReservationApiResponse.GroupSessionReservationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionResponseApiResponse.GroupSessionResponseApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.InsuranceApiResponse.InsuranceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InteractionInstanceApiResponse.InteractionInstanceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InteractionOptionActionApiResponse.InteractionOptionActionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InteractionOptionApiResponse.InteractionOptionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.IntroAssessmentApiResponse.IntroAssessmentApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.LanguageApiResponse.LanguageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.LogicalAvailabilityApiResponse.LogicalAvailabilityApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PinboardNoteApiResponse.PinboardNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
@@ -115,7 +116,6 @@ import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.AmazonSqsManager;
-import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.HandlebarsTemplater;
 import com.cobaltplatform.api.util.HttpLoggingInterceptor;
@@ -251,6 +251,10 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(TopicCenterApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(TopicCenterRowApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ScreeningConfirmationPromptApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(CountryApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(LanguageApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(InsuranceApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(AddressApiResponseFactory.class)));
 	}
 
 	@Provides
@@ -346,9 +350,14 @@ public class AppModule extends AbstractModule {
 		return new SokletFilter(routeMatcher, responseHandler) {
 			@Override
 			protected void handleRequest(RequestContext requestContext, FilterChain filterChain) {
-				currentContextRequestHandler.handle(requestContext.httpServletRequest(), () -> {
+				// CORS preflights should skip over current context handling
+				if (requestContext.httpServletRequest().getMethod().equals("OPTIONS")) {
 					super.handleRequest(requestContext, filterChain);
-				});
+				} else {
+					currentContextRequestHandler.handle(requestContext.httpServletRequest(), () -> {
+						super.handleRequest(requestContext, filterChain);
+					});
+				}
 			}
 
 			@Override
@@ -625,20 +634,6 @@ public class AppModule extends AbstractModule {
 			return new DefaultWay2HealthClient(configuration.getWay2HealthEnvironment(), configuration.getWay2HealthAccessToken());
 
 		return new MockWay2HealthClient();
-	}
-
-	@Provides
-	@Singleton
-	@Nonnull
-	public IcClient provideIcClient(@Nonnull Authenticator authenticator,
-																	@Nonnull Configuration configuration) {
-		requireNonNull(authenticator);
-		requireNonNull(configuration);
-
-		if (configuration.getShouldUseRealIc())
-			return new DefaultIcClient(authenticator, configuration);
-
-		return new MockIcClient();
 	}
 
 	@Provides

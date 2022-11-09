@@ -22,6 +22,7 @@ package com.cobaltplatform.api.web.filter;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AccessTokenStatus;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
@@ -134,9 +135,11 @@ public class AuthorizationFilter implements Filter {
 				if ((authenticationRequired.contentSecurityLevel() == ContentSecurityLevel.HIGH && accessTokenStatus != AccessTokenStatus.FULLY_ACTIVE) ||
 						accessTokenStatus == AccessTokenStatus.FULLY_EXPIRED) {
 
+					AccountSource accountSource = getCurrentContext().getAccountSource().get();
+
 					String signOnUrl = getConfiguration().getEnvironment().equals("prod") ?
-							getCurrentContext().getAccountSource().getProdSsoUrl() : getConfiguration().getEnvironment().equals("dev") ?
-							getCurrentContext().getAccountSource().getDevSsoUrl() : getCurrentContext().getAccountSource().getLocalSsoUrl();
+							accountSource.getProdSsoUrl() : getConfiguration().getEnvironment().equals("dev") ?
+							accountSource.getDevSsoUrl() : accountSource.getLocalSsoUrl();
 					String contentSecurityLevel = null;
 
 					if (authenticationRequired.contentSecurityLevel() == ContentSecurityLevel.HIGH)

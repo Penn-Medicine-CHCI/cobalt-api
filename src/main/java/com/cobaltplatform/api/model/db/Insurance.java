@@ -17,47 +17,50 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.api.request;
+package com.cobaltplatform.api.model.db;
+
+import com.cobaltplatform.api.model.db.InsuranceType.InsuranceTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreateIcOrderReportAccountRequest {
+public class Insurance {
 	@Nullable
-	private String uid;
+	private UUID insuranceId;
 	@Nullable
-	private String firstname;
+	private InsuranceTypeId insuranceTypeId;
 	@Nullable
-	private String lastName;
+	private String description;
 
 	@Nullable
-	public String getUid() {
-		return uid;
+	public UUID getInsuranceId() {
+		return this.insuranceId;
 	}
 
-	public void setUid(@Nullable String uid) {
-		this.uid = uid;
-	}
-
-	@Nullable
-	public String getFirstname() {
-		return firstname;
-	}
-
-	public void setFirstname(@Nullable String firstname) {
-		this.firstname = firstname;
+	public void setInsuranceId(@Nullable UUID insuranceId) {
+		this.insuranceId = insuranceId;
 	}
 
 	@Nullable
-	public String getLastName() {
-		return lastName;
+	public InsuranceTypeId getInsuranceTypeId() {
+		return this.insuranceTypeId;
 	}
 
-	public void setLastName(@Nullable String lastName) {
-		this.lastName = lastName;
+	public void setInsuranceTypeId(@Nullable InsuranceTypeId insuranceTypeId) {
+		this.insuranceTypeId = insuranceTypeId;
+	}
+
+	@Nullable
+	public String getDescription() {
+		return this.description;
+	}
+
+	public void setDescription(@Nullable String description) {
+		this.description = description;
 	}
 }

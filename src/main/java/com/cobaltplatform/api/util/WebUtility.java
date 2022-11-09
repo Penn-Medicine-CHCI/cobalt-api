@@ -23,8 +23,10 @@ import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.FileUploadException;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import javax.servlet.ServletContext;
 import javax.servlet.http.Cookie;
@@ -242,5 +244,43 @@ public final class WebUtility {
 		} catch (FileUploadException e) {
 			throw new RuntimeException("Unable to parse multipart request", e);
 		}
+	}
+
+	@Nonnull
+	public static Optional<String> normalizedHostnameForUrl(@Nullable String url) {
+		url = StringUtils.trimToEmpty(url).toLowerCase(Locale.US);
+
+		if (url.length() == 0)
+			return Optional.empty();
+
+		// Save off for error messaging (if necessary)
+		String originalUrl = url;
+
+		// Discard protocol
+		if (url.startsWith("https://"))
+			url = url.substring("https://".length());
+		else if (url.startsWith("http://"))
+			url = url.substring("http://".length());
+
+		// Discard query string
+		int queryStringSeparator = url.indexOf("?");
+
+		if (queryStringSeparator != -1)
+			url = url.substring(0, queryStringSeparator);
+
+		// Discard trailing slashes
+		while (url.length() > 0 && url.endsWith("/"))
+			url = url.substring(0, url.length() - 1);
+
+		// Discard trailing port number
+		int portNumberSeparator = url.indexOf(":");
+
+		if (portNumberSeparator != -1)
+			url = url.substring(0, portNumberSeparator);
+
+		if (url.length() == 0)
+			return Optional.empty();
+
+		return Optional.of(url);
 	}
 }

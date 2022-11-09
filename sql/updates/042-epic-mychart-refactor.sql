@@ -19,7 +19,52 @@ ALTER TABLE institution ADD COLUMN mychart_authorize_url TEXT;
 ALTER TABLE institution ADD COLUMN mychart_callback_url TEXT;
 ALTER TABLE institution ADD COLUMN integrated_care_screening_flow_id UUID REFERENCES screening_flow;
 
+-- TODO: let's drop the "subdomain" column on institution at some point in the future, this table replaces it
+-- TODO: would be nice to have a trigger to enforce "only one 'preferred=TRUE' per institution ID"
+CREATE TABLE institution_url (
+  institution_id TEXT REFERENCES institution,
+  url TEXT NOT NULL,
+  hostname TEXT NOT NULL, -- This could be calculated dynamically from url, but quicker to have it precalculated like this
+  preferred BOOLEAN NOT NULL,
+  PRIMARY KEY (institution_id, url)
+);
+
 INSERT INTO account_source (account_source_id, description) VALUES ('MYCHART', 'MyChart');
+
+-- Insurance
+CREATE TABLE insurance_type (
+	insurance_type_id TEXT PRIMARY KEY,
+	description TEXT NOT NULL
+);
+
+INSERT INTO insurance_type (insurance_type_id, description) VALUES ('UNKNOWN', 'Unknown');
+INSERT INTO insurance_type (insurance_type_id, description) VALUES ('OUT_OF_POCKET', 'Out-of-pocket');
+INSERT INTO insurance_type (insurance_type_id, description) VALUES ('OTHER', 'Other');
+INSERT INTO insurance_type (insurance_type_id, description) VALUES ('UNCATEGORIZED', 'Uncategorized');
+INSERT INTO insurance_type (insurance_type_id, description) VALUES ('PPO', 'Preferred Provider Organization (PPO)');
+INSERT INTO insurance_type (insurance_type_id, description) VALUES ('HMO', 'Health Maintenance Organization (HMO)');
+INSERT INTO insurance_type (insurance_type_id, description) VALUES ('POS', 'Point of Service (POS)');
+INSERT INTO insurance_type (insurance_type_id, description) VALUES ('EPO', 'Exclusive Provider Organization (EPO)');
+INSERT INTO insurance_type (insurance_type_id, description) VALUES ('HSA', 'Health Savings Account (HSA)');
+INSERT INTO insurance_type (insurance_type_id, description) VALUES ('INDEMNITY', 'Indemnity (fee-for-service)');
+INSERT INTO insurance_type (insurance_type_id, description) VALUES ('MEDICARE', 'Medicare');
+INSERT INTO insurance_type (insurance_type_id, description) VALUES ('MEDICAID', 'Medicaid');
+
+CREATE TABLE insurance (
+  insurance_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  insurance_type_id TEXT NOT NULL REFERENCES insurance_type,
+  description TEXT NOT NULL
+);
+
+INSERT INTO insurance (insurance_id, insurance_type_id, description) VALUES ('4ebe93f3-8f40-45c4-86fa-b503f6ab3889', 'UNKNOWN', 'Unknown');
+INSERT INTO insurance (insurance_id, insurance_type_id, description) VALUES ('a03a97d0-ab21-44f7-aed4-55092f569eed', 'OUT_OF_POCKET', 'Pay out-of-pocket');
+INSERT INTO insurance (insurance_id, insurance_type_id, description) VALUES ('125782e3-72f7-4e3f-9701-246baef34c64', 'OTHER', 'Other');
+
+CREATE TABLE institution_insurance (
+  institution_id TEXT NOT NULL REFERENCES institution,
+  insurance_id UUID NOT NULL REFERENCES insurance,
+  PRIMARY KEY (institution_id, insurance_id)
+);
 
 -- Account-level changes
 
@@ -75,8 +120,9 @@ CREATE TABLE birth_sex (
 INSERT INTO birth_sex (birth_sex_id, description, display_order) VALUES ('NOT_ASKED', 'Not asked', 1);
 INSERT INTO birth_sex (birth_sex_id, description, display_order) VALUES ('MALE', 'Male', 2);
 INSERT INTO birth_sex (birth_sex_id, description, display_order) VALUES ('FEMALE', 'Female', 3);
-INSERT INTO birth_sex (birth_sex_id, description, display_order) VALUES ('UNKNOWN', 'Unknown', 4);
-INSERT INTO birth_sex (birth_sex_id, description, display_order) VALUES ('NOT_DISCLOSED', 'Do not wish to disclose', 5);
+INSERT INTO birth_sex (birth_sex_id, description, display_order) VALUES ('OTHER', 'Other', 4);
+INSERT INTO birth_sex (birth_sex_id, description, display_order) VALUES ('UNKNOWN', 'Unknown', 5);
+INSERT INTO birth_sex (birth_sex_id, description, display_order) VALUES ('NOT_DISCLOSED', 'Do not wish to disclose', 6);
 
 -- Race 2.16.840.1.114222.4.11.6065
 -- Concept Code - Description
@@ -122,13 +168,23 @@ CREATE TABLE address (
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON address FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
+-- TODO: would be nice to have a trigger to enforce "only one 'active=TRUE' per account ID"
+CREATE TABLE account_address (
+  account_id UUID NOT NULL REFERENCES account,
+  address_id UUID NOT NULL REFERENCES account,
+  active BOOLEAN NOT NULL,
+  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (account_id, address_id)
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON account_address FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
 ALTER TABLE account ADD COLUMN gender_identity_id TEXT REFERENCES gender_identity NOT NULL DEFAULT 'NOT_ASKED';
 ALTER TABLE account ADD COLUMN ethnicity_id TEXT REFERENCES ethnicity NOT NULL DEFAULT 'NOT_ASKED';
 ALTER TABLE account ADD COLUMN birth_sex_id TEXT REFERENCES birth_sex NOT NULL DEFAULT 'NOT_ASKED';
 ALTER TABLE account ADD COLUMN race_id TEXT REFERENCES race NOT NULL DEFAULT 'NOT_ASKED';
-ALTER TABLE account ADD COLUMN address_id UUID REFERENCES address;
+ALTER TABLE account ADD COLUMN insurance_id UUID NOT NULL DEFAULT '4ebe93f3-8f40-45c4-86fa-b503f6ab3889' REFERENCES insurance;
 ALTER TABLE account ADD COLUMN birthdate DATE;
-ALTER TABLE account ADD COLUMN mychart_patient_record JSONB;
-ALTER TABLE account ADD COLUMN mychart_patient_record_last_imported_at TIMESTAMPTZ;
 
 COMMIT;

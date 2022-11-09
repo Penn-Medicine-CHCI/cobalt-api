@@ -20,9 +20,7 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.Configuration;
-import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
-import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
-import com.cobaltplatform.api.integration.mychart.MyChartAuthenticator;
+import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse.AccountSourceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
@@ -30,8 +28,7 @@ import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.service.InstitutionService;
-import com.cobaltplatform.api.util.Authenticator;
-import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.service.MyChartService;
 import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.PathParameter;
@@ -44,10 +41,10 @@ import com.soklet.web.response.RedirectResponse.Type;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
+import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -67,9 +64,9 @@ public class InstitutionResource {
 	@Nonnull
 	private final InstitutionService institutionService;
 	@Nonnull
-	private final EnterprisePluginProvider enterprisePluginProvider;
+	private final MyChartService myChartService;
 	@Nonnull
-	private final Authenticator authenticator;
+	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
@@ -79,42 +76,33 @@ public class InstitutionResource {
 	public InstitutionResource(@Nonnull InstitutionApiResponseFactory institutionApiResponseFactory,
 														 @Nonnull AccountSourceApiResponseFactory accountSourceApiResponseFactory,
 														 @Nonnull InstitutionService institutionService,
-														 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
-														 @Nonnull Authenticator authenticator,
+														 @Nonnull MyChartService myChartService,
+														 @Nonnull Provider<CurrentContext> currentContextProvider,
 														 @Nonnull Configuration configuration,
 														 @Nonnull Strings strings) {
 		requireNonNull(institutionApiResponseFactory);
 		requireNonNull(accountSourceApiResponseFactory);
 		requireNonNull(institutionService);
-		requireNonNull(enterprisePluginProvider);
-		requireNonNull(authenticator);
+		requireNonNull(myChartService);
+		requireNonNull(currentContextProvider);
 		requireNonNull(configuration);
 		requireNonNull(strings);
 
 		this.institutionApiResponseFactory = institutionApiResponseFactory;
 		this.accountSourceApiResponseFactory = accountSourceApiResponseFactory;
 		this.institutionService = institutionService;
-		this.enterprisePluginProvider = enterprisePluginProvider;
-		this.authenticator = authenticator;
+		this.myChartService = myChartService;
+		this.currentContextProvider = currentContextProvider;
 		this.configuration = configuration;
 		this.strings = strings;
 	}
 
 	@GET("/institution/account-sources")
-	public ApiResponse getAccountSources(@Nonnull @QueryParameter Optional<String> subdomain,
-																			 @Nonnull @QueryParameter Optional<AccountSourceId> accountSourceId) {
-		requireNonNull(subdomain);
+	public ApiResponse getAccountSources(@Nonnull @QueryParameter Optional<AccountSourceId> accountSourceId) {
 		requireNonNull(accountSourceId);
 
-		String requestSubdomain;
 		AccountSourceId requestAccountSourceId = accountSourceId.orElse(null);
-
-		if (subdomain.isPresent())
-			requestSubdomain = subdomain.get();
-		else
-			requestSubdomain = getConfiguration().getDefaultSubdomain();
-
-		Institution institution = getInstitutionService().findInstitutionBySubdomain(requestSubdomain);
+		Institution institution = getInstitutionService().findInstitutionById(getCurrentContext().getInstitutionId()).get();
 
 		List<AccountSourceApiResponse> accountSources = getInstitutionService().findAccountSourcesByInstitutionId(institution.getInstitutionId()).stream()
 				.filter(accountSource -> requestAccountSourceId == null ? true : accountSource.getAccountSourceId().equals(requestAccountSourceId))
@@ -127,20 +115,12 @@ public class InstitutionResource {
 	}
 
 	@GET("/institution")
-	public ApiResponse getInstitution(@Nonnull @QueryParameter Optional<String> subdomain,
-																		@Nonnull @QueryParameter Optional<AccountSourceId> accountSourceId) {
-		requireNonNull(subdomain);
+	public ApiResponse getInstitution(@Nonnull @QueryParameter Optional<AccountSourceId> accountSourceId) {
 		requireNonNull(accountSourceId);
 
-		String requestSubdomain;
 		AccountSourceId requestAccountSourceId = accountSourceId.orElse(null);
 
-		if (subdomain.isPresent())
-			requestSubdomain = subdomain.get();
-		else
-			requestSubdomain = getConfiguration().getDefaultSubdomain();
-
-		Institution institution = getInstitutionService().findInstitutionBySubdomain(requestSubdomain);
+		Institution institution = getInstitutionService().findInstitutionById(getCurrentContext().getInstitutionId()).get();
 
 		List<AccountSourceApiResponse> accountSources = getInstitutionService().findAccountSourcesByInstitutionId(institution.getInstitutionId()).stream()
 				.filter(accountSource -> requestAccountSourceId == null ? true : accountSource.getAccountSourceId().equals(requestAccountSourceId))
@@ -158,16 +138,7 @@ public class InstitutionResource {
 																				 @Nonnull @QueryParameter Optional<Boolean> redirectImmediately) {
 		requireNonNull(institutionId);
 
-		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId);
-		MyChartAuthenticator myChartAuthenticator = enterprisePlugin.myChartAuthenticator().orElse(null);
-
-		if (myChartAuthenticator == null)
-			throw new ValidationException(getStrings().get("MyChart is not available for this institution."));
-
-		Map<String, Object> stateClaims = Map.of("environment", getConfiguration().getEnvironment());
-		String state = getAuthenticator().generateSigningToken("mychart", 60L * 30L, stateClaims);
-		
-		String authenticationUrl = myChartAuthenticator.generateAuthenticationRedirectUrl(state);
+		String authenticationUrl = getMyChartService().generateAuthenticationUrlForInstitutionId(institutionId);
 
 		if (redirectImmediately.isPresent() && redirectImmediately.get())
 			return new RedirectResponse(authenticationUrl, Type.TEMPORARY);
@@ -188,6 +159,16 @@ public class InstitutionResource {
 	}
 
 	@Nonnull
+	protected MyChartService getMyChartService() {
+		return this.myChartService;
+	}
+
+	@Nonnull
+	protected CurrentContext getCurrentContext() {
+		return this.currentContextProvider.get();
+	}
+
+	@Nonnull
 	protected AccountSourceApiResponseFactory getAccountSourceApiResponseFactory() {
 		return this.accountSourceApiResponseFactory;
 	}
@@ -195,16 +176,6 @@ public class InstitutionResource {
 	@Nonnull
 	protected Configuration getConfiguration() {
 		return this.configuration;
-	}
-
-	@Nonnull
-	protected EnterprisePluginProvider getEnterprisePluginProvider() {
-		return this.enterprisePluginProvider;
-	}
-
-	@Nonnull
-	protected Authenticator getAuthenticator() {
-		return this.authenticator;
 	}
 
 	@Nonnull

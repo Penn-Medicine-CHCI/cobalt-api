@@ -1,0 +1,295 @@
+/*
+ * Copyright 2021 The University of Pennsylvania and Penn Medicine
+ *
+ * Originally created at the University of Pennsylvania and Penn Medicine by:
+ * Dr. David Asch; Dr. Lisa Bellini; Dr. Cecilia Livesey; Kelley Kugler; and Dr. Matthew Press.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.cobaltplatform.api.util;
+
+import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.ThreadSafe;
+import java.lang.reflect.Type;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.util.Locale;
+
+import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
+
+/**
+ * @author Transmogrify, LLC.
+ */
+@ThreadSafe
+public final class GsonUtility {
+	private GsonUtility() {
+		// Non-instantiable
+	}
+
+	public static void applyDefaultTypeAdapters(@Nonnull GsonBuilder gsonBuilder) {
+		requireNonNull(gsonBuilder);
+
+		requireNonNull(gsonBuilder);
+
+		gsonBuilder.registerTypeAdapter(Instant.class, new JsonDeserializer<Instant>() {
+			@Override
+			@Nullable
+			public Instant deserialize(@Nullable JsonElement json, @Nonnull Type type,
+																 @Nonnull JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
+				requireNonNull(type);
+				requireNonNull(jsonDeserializationContext);
+
+				if (json == null)
+					return null;
+
+				JsonPrimitive jsonPrimitive = json.getAsJsonPrimitive();
+
+				if (jsonPrimitive.isNumber())
+					return Instant.ofEpochMilli(json.getAsLong());
+
+				if (jsonPrimitive.isString()) {
+					String string = trimToNull(json.getAsString());
+					return string == null ? null : Instant.parse(string);
+				}
+
+				throw new IllegalArgumentException(format("Unable to convert JSON value '%s' to %s", json, type));
+			}
+		});
+
+		gsonBuilder.registerTypeAdapter(Instant.class, new JsonSerializer<Instant>() {
+			@Override
+			@Nullable
+			public JsonElement serialize(@Nullable Instant instant, @Nonnull Type type, @Nonnull JsonSerializationContext jsonSerializationContext) {
+				requireNonNull(type);
+				requireNonNull(jsonSerializationContext);
+
+				return instant == null ? null : new JsonPrimitive(instant.toString());
+			}
+		});
+
+		gsonBuilder.registerTypeAdapter(Locale.class, new JsonDeserializer<Locale>() {
+			@Override
+			@Nullable
+			public Locale deserialize(@Nullable JsonElement json, @Nonnull Type type,
+																@Nonnull JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
+				requireNonNull(type);
+				requireNonNull(jsonDeserializationContext);
+
+				if (json == null)
+					return null;
+
+				JsonPrimitive jsonPrimitive = json.getAsJsonPrimitive();
+
+				if (jsonPrimitive.isString()) {
+					String string = trimToNull(json.getAsString());
+					return string == null ? null : Locale.forLanguageTag(string);
+				}
+
+				throw new IllegalArgumentException(format("Unable to convert JSON value '%s' to %s", json, type));
+			}
+		});
+
+		gsonBuilder.registerTypeAdapter(Locale.class, new JsonSerializer<Locale>() {
+			@Override
+			@Nullable
+			public JsonElement serialize(@Nullable Locale locale, @Nonnull Type type, @Nonnull JsonSerializationContext jsonSerializationContext) {
+				requireNonNull(type);
+				requireNonNull(jsonSerializationContext);
+
+				return locale == null ? null : new JsonPrimitive(locale.toLanguageTag());
+			}
+		});
+
+		gsonBuilder.registerTypeAdapter(ZoneId.class, new JsonDeserializer<ZoneId>() {
+			@Override
+			@Nullable
+			public ZoneId deserialize(@Nullable JsonElement json, @Nonnull Type type,
+																@Nonnull JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
+				requireNonNull(type);
+				requireNonNull(jsonDeserializationContext);
+
+				if (json == null)
+					return null;
+
+				JsonPrimitive jsonPrimitive = json.getAsJsonPrimitive();
+
+				if (jsonPrimitive.isString()) {
+					String string = trimToNull(json.getAsString());
+					return string == null ? null : ZoneId.of(string);
+				}
+
+				throw new IllegalArgumentException(format("Unable to convert JSON value '%s' to %s", json, type));
+			}
+		});
+
+		gsonBuilder.registerTypeAdapter(ZoneId.class, new JsonSerializer<ZoneId>() {
+			@Override
+			@Nullable
+			public JsonElement serialize(@Nullable ZoneId zoneId, @Nonnull Type type, @Nonnull JsonSerializationContext jsonSerializationContext) {
+				requireNonNull(type);
+				requireNonNull(jsonSerializationContext);
+
+				return zoneId == null ? null : new JsonPrimitive(zoneId.getId());
+			}
+		});
+
+		gsonBuilder.registerTypeAdapter(LocalDate.class, new JsonDeserializer<LocalDate>() {
+			@Override
+			@Nullable
+			public LocalDate deserialize(@Nullable JsonElement json, @Nonnull Type type,
+																	 @Nonnull JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
+				requireNonNull(type);
+				requireNonNull(jsonDeserializationContext);
+
+				if (json == null)
+					return null;
+
+				JsonPrimitive jsonPrimitive = json.getAsJsonPrimitive();
+
+				if (jsonPrimitive.isString()) {
+					String string = trimToNull(json.getAsString());
+					return string == null ? null : LocalDate.parse(string);
+				}
+
+				throw new IllegalArgumentException(format("Unable to convert JSON value '%s' to %s", json, type));
+			}
+		});
+
+		gsonBuilder.registerTypeAdapter(LocalDate.class, new JsonSerializer<LocalDate>() {
+			@Override
+			@Nullable
+			public JsonElement serialize(@Nullable LocalDate localDate, @Nonnull Type type, @Nonnull JsonSerializationContext jsonSerializationContext) {
+				requireNonNull(type);
+				requireNonNull(jsonSerializationContext);
+
+				return localDate == null ? null : new JsonPrimitive(localDate.toString());
+			}
+		});
+
+		gsonBuilder.registerTypeAdapter(LocalTime.class, new JsonDeserializer<LocalTime>() {
+			@Override
+			@Nullable
+			public LocalTime deserialize(@Nullable JsonElement json, @Nonnull Type type,
+																	 @Nonnull JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
+				requireNonNull(type);
+				requireNonNull(jsonDeserializationContext);
+
+				if (json == null)
+					return null;
+
+				JsonPrimitive jsonPrimitive = json.getAsJsonPrimitive();
+
+				if (jsonPrimitive.isString()) {
+					String string = trimToNull(json.getAsString());
+					return string == null ? null : LocalTime.parse(string);
+				}
+
+				throw new IllegalArgumentException(format("Unable to convert JSON value '%s' to %s", json, type));
+			}
+		});
+
+		gsonBuilder.registerTypeAdapter(LocalTime.class, new JsonSerializer<LocalTime>() {
+			@Override
+			@Nullable
+			public JsonElement serialize(@Nullable LocalTime localTime, @Nonnull Type type, @Nonnull JsonSerializationContext jsonSerializationContext) {
+				requireNonNull(type);
+				requireNonNull(jsonSerializationContext);
+
+				return localTime == null ? null : new JsonPrimitive(localTime.toString());
+			}
+		});
+
+		gsonBuilder.registerTypeAdapter(LocalDateTime.class, new JsonDeserializer<LocalDateTime>() {
+			@Override
+			@Nullable
+			public LocalDateTime deserialize(@Nullable JsonElement json, @Nonnull Type type,
+																			 @Nonnull JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
+				requireNonNull(type);
+				requireNonNull(jsonDeserializationContext);
+
+				if (json == null)
+					return null;
+
+				JsonPrimitive jsonPrimitive = json.getAsJsonPrimitive();
+
+				if (jsonPrimitive.isString()) {
+					String string = trimToNull(json.getAsString());
+					return string == null ? null : LocalDateTime.parse(string);
+				}
+
+				throw new IllegalArgumentException(format("Unable to convert JSON value '%s' to %s", json, type));
+			}
+		});
+
+		gsonBuilder.registerTypeAdapter(LocalDateTime.class, new JsonSerializer<LocalDateTime>() {
+			@Override
+			@Nullable
+			public JsonElement serialize(@Nullable LocalDateTime localDateTime, @Nonnull Type type, @Nonnull JsonSerializationContext jsonSerializationContext) {
+				requireNonNull(type);
+				requireNonNull(jsonSerializationContext);
+
+				return localDateTime == null ? null : new JsonPrimitive(localDateTime.toString());
+			}
+		});
+
+		gsonBuilder.registerTypeAdapter(ScreeningQuestionContextId.class, new JsonDeserializer<ScreeningQuestionContextId>() {
+			@Override
+			@Nullable
+			public ScreeningQuestionContextId deserialize(@Nullable JsonElement json, @Nonnull Type type,
+																										@Nonnull JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
+				requireNonNull(type);
+				requireNonNull(jsonDeserializationContext);
+
+				if (json == null)
+					return null;
+
+				JsonPrimitive jsonPrimitive = json.getAsJsonPrimitive();
+
+				if (jsonPrimitive.isString()) {
+					String string = trimToNull(json.getAsString());
+					return string == null ? null : new ScreeningQuestionContextId(string);
+				}
+
+				throw new IllegalArgumentException(format("Unable to convert JSON value '%s' to %s", json, type));
+			}
+		});
+
+		gsonBuilder.registerTypeAdapter(ScreeningQuestionContextId.class, new JsonSerializer<ScreeningQuestionContextId>() {
+			@Override
+			@Nullable
+			public JsonElement serialize(@Nullable ScreeningQuestionContextId screeningQuestionContextId, @Nonnull Type type, @Nonnull JsonSerializationContext jsonSerializationContext) {
+				requireNonNull(type);
+				requireNonNull(jsonSerializationContext);
+
+				return screeningQuestionContextId == null ? null : new JsonPrimitive(screeningQuestionContextId.getIdentifier());
+			}
+		});
+	}
+}

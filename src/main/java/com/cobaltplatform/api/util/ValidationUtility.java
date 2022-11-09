@@ -24,6 +24,10 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.util.Collections;
+import java.util.Locale;
+import java.util.Locale.IsoCountryCode;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -38,37 +42,34 @@ public final class ValidationUtility {
 	private static final Pattern EMAIL_VALIDATION_PATTERN;
 	@Nonnull
 	private static final Pattern HEX_COLOR_VALIDATION_PATTERN;
+	@Nonnull
+	private static final Pattern US_POSTAL_CODE_VALIDATION_PATTERN;
+	@Nonnull
+	private static final Set<String> ISO_3166_TWO_LETTER_COUNTRY_CODES;
+	@Nonnull
+	private static final Set<String> ISO_3166_THREE_LETTER_COUNTRY_CODES;
 
 	static {
+		// Pretty lenient
 		EMAIL_VALIDATION_PATTERN = Pattern.compile("^.+@.+(\\.[^\\.]+)+$");
+
 		// e.g. "#FFEE00"
 		HEX_COLOR_VALIDATION_PATTERN = Pattern.compile("^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$");
+
+		// Can be:
+		// 5 digits
+		// 5 digits, hyphen, 4 digits
+		US_POSTAL_CODE_VALIDATION_PATTERN = Pattern.compile("^[0-9]{5}(?:-[0-9]{4})?$");
+		ISO_3166_TWO_LETTER_COUNTRY_CODES = Collections.unmodifiableSet(Locale.getISOCountries(IsoCountryCode.PART1_ALPHA2));
+		ISO_3166_THREE_LETTER_COUNTRY_CODES = Collections.unmodifiableSet(Locale.getISOCountries(IsoCountryCode.PART1_ALPHA3));
 	}
 
 	private ValidationUtility() {
 		// Non-instantiable
 	}
 
-	public static boolean isValidStudentId(@Nullable String value){
-		if(value == null) return false;
-		if(trimToNull(value).length() != 8){
-			return false;
-		}
-		return value.chars().allMatch(Character::isDigit);
-	}
-
-	public static boolean isValidVin(@Nullable String value) {
-		value = trimToNull(value);
-
-		if (value == null)
-			return false;
-
-		if (value.length() != 17) return false;
-
-		return true;
-	}
-
-	public static <T extends Enum<T>> boolean isValidEnum(String input, Class<T> enumClass) {
+	@Nonnull
+	public static <T extends Enum<T>> Boolean isValidEnum(String input, Class<T> enumClass) {
 		if (input == null) return false;
 
 		try {
@@ -79,7 +80,8 @@ public final class ValidationUtility {
 		}
 	}
 
-	public static boolean isValidEmailAddress(@Nullable String value) {
+	@Nonnull
+	public static Boolean isValidEmailAddress(@Nullable String value) {
 		value = trimToNull(value);
 
 		if (value == null)
@@ -88,7 +90,8 @@ public final class ValidationUtility {
 		return getEmailValidationPattern().matcher(value).matches();
 	}
 
-	public static boolean isValidHexColor(@Nullable String value) {
+	@Nonnull
+	public static Boolean isValidHexColor(@Nullable String value) {
 		value = trimToNull(value);
 
 		if (value == null)
@@ -97,7 +100,8 @@ public final class ValidationUtility {
 		return getHexColorValidationPattern().matcher(value).matches();
 	}
 
-	public static boolean isValidUUID(@Nullable String value) {
+	@Nonnull
+	public static Boolean isValidUUID(@Nullable String value) {
 		value = trimToNull(value);
 
 		if (value == null)
@@ -112,7 +116,8 @@ public final class ValidationUtility {
 		return true;
 	}
 
-	public static boolean isValidLocalDate(@Nullable String value) {
+	@Nonnull
+	public static Boolean isValidLocalDate(@Nullable String value) {
 		value = trimToNull(value);
 
 		if (value == null)
@@ -127,7 +132,8 @@ public final class ValidationUtility {
 		return true;
 	}
 
-	public static boolean isValidInteger(@Nullable String value) {
+	@Nonnull
+	public static Boolean isValidInteger(@Nullable String value) {
 		value = trimToNull(value);
 
 		if (value == null)
@@ -142,7 +148,8 @@ public final class ValidationUtility {
 		return true;
 	}
 
-	public static boolean isValidDouble(@Nullable String value) {
+	@Nonnull
+	public static Boolean isValidDouble(@Nullable String value) {
 		value = trimToNull(value);
 
 		if (value == null)
@@ -157,19 +164,37 @@ public final class ValidationUtility {
 		return true;
 	}
 
-	public static boolean isValidZipCode(@Nullable String value) {
+	@Nonnull
+	public static Boolean isValidUsPostalCode(@Nullable String value) {
 		value = trimToNull(value);
 
 		if (value == null)
 			return false;
 
-		try {
-			Integer.parseInt(value);
-		} catch (Exception e) {
-			return false;
-		}
+		return getUsPostalCodeValidationPattern().matcher(value).matches();
+	}
 
-		return value.length() == 5;
+	public static Boolean isValidIso3166CountryCode(@Nullable String value) {
+		if (value == null)
+			return false;
+
+		return isValidIso3166TwoLetterCountryCode(value) || isValidIso3166ThreeLetterCountryCode(value);
+	}
+
+	@Nonnull
+	public static Boolean isValidIso3166TwoLetterCountryCode(@Nullable String value) {
+		if (value == null || value.length() != 2)
+			return false;
+
+		return getIso3166TwoLetterCountryCodes().contains(value);
+	}
+
+	@Nonnull
+	public static Boolean isValidIso3166ThreeLetterCountryCode(@Nullable String value) {
+		if (value == null || value.length() != 3)
+			return false;
+
+		return getIso3166ThreeLetterCountryCodes().contains(value);
 	}
 
 	@Nonnull
@@ -180,5 +205,20 @@ public final class ValidationUtility {
 	@Nonnull
 	private static Pattern getHexColorValidationPattern() {
 		return HEX_COLOR_VALIDATION_PATTERN;
+	}
+
+	@Nonnull
+	private static Pattern getUsPostalCodeValidationPattern() {
+		return US_POSTAL_CODE_VALIDATION_PATTERN;
+	}
+
+	@Nonnull
+	private static Set<String> getIso3166TwoLetterCountryCodes() {
+		return ISO_3166_TWO_LETTER_COUNTRY_CODES;
+	}
+
+	@Nonnull
+	private static Set<String> getIso3166ThreeLetterCountryCodes() {
+		return ISO_3166_THREE_LETTER_COUNTRY_CODES;
 	}
 }

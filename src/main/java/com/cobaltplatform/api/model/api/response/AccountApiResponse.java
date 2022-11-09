@@ -20,8 +20,10 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.response.AddressApiResponse.AddressApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
+import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.BetaStatus.BetaStatusId;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
@@ -46,6 +48,7 @@ import javax.inject.Provider;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.FormatStyle;
 import java.util.Collections;
 import java.util.Locale;
 import java.util.Map;
@@ -74,6 +77,8 @@ public class AccountApiResponse {
 	@Nullable
 	private final UUID providerId;
 	@Nullable
+	private final UUID insuranceId;
+	@Nullable
 	private final String firstName;
 	@Nullable
 	private final String lastName;
@@ -89,6 +94,10 @@ public class AccountApiResponse {
 	private final ZoneId timeZone;
 	@Nonnull
 	private final Locale locale;
+	@Nonnull
+	private final String languageCode;
+	@Nonnull
+	private final String countryCode;
 	@Nonnull
 	private final Boolean consentFormAccepted;
 	@Nullable
@@ -113,9 +122,9 @@ public class AccountApiResponse {
 	@Nullable
 	private final RaceId raceId;
 	@Nullable
-	private final UUID addressId;
-	@Nullable
 	private final LocalDate birthdate;
+	@Nullable
+	private final String birthdateDescription;
 	@Nonnull
 	private final Instant created;
 	@Nonnull
@@ -124,6 +133,8 @@ public class AccountApiResponse {
 	private final Instant lastUpdated;
 	@Nullable
 	private final String lastUpdatedDescription;
+	@Nullable
+	private final AddressApiResponse address;
 	@Nullable
 	private final Map<InstitutionId, AccountCapabilities> capabilities;
 
@@ -151,8 +162,9 @@ public class AccountApiResponse {
 														@Nonnull Formatter formatter,
 														@Nonnull Strings strings,
 														@Nonnull Provider<CurrentContext> currentContextProvider,
+														@Nonnull AddressApiResponseFactory addressApiResponseFactory,
 														@Assisted @Nonnull Account account) {
-		this(accountService, sessionService, authorizationService, formatter, strings, currentContextProvider, account, Collections.emptySet());
+		this(accountService, sessionService, authorizationService, formatter, strings, currentContextProvider, addressApiResponseFactory, account, Collections.emptySet());
 	}
 
 	@AssistedInject
@@ -162,6 +174,7 @@ public class AccountApiResponse {
 														@Nonnull Formatter formatter,
 														@Nonnull Strings strings,
 														@Nonnull Provider<CurrentContext> currentContextProvider,
+														@Nonnull AddressApiResponseFactory addressApiResponseFactory,
 														@Assisted @Nonnull Account account,
 														@Assisted @Nonnull Set<AccountApiResponseSupplement> supplements) {
 		requireNonNull(accountService);
@@ -170,6 +183,7 @@ public class AccountApiResponse {
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(currentContextProvider);
+		requireNonNull(addressApiResponseFactory);
 		requireNonNull(account);
 		requireNonNull(supplements);
 
@@ -188,6 +202,8 @@ public class AccountApiResponse {
 		this.displayName = account.getDisplayName();
 		this.timeZone = account.getTimeZone();
 		this.locale = account.getLocale();
+		this.languageCode = account.getLocale().getLanguage();
+		this.countryCode = account.getLocale().getCountry();
 		this.created = account.getCreated();
 		this.createdDescription = formatter.formatTimestamp(account.getCreated());
 		this.providerId = account.getProviderId();
@@ -208,8 +224,12 @@ public class AccountApiResponse {
 			this.ethnicityId = account.getEthnicityId();
 			this.birthSexId = account.getBirthSexId();
 			this.raceId = account.getRaceId();
-			this.addressId = account.getAddressId();
+			this.insuranceId = account.getInsuranceId();
 			this.birthdate = account.getBirthdate();
+			this.birthdateDescription = account.getBirthdate() == null ? null : formatter.formatDate(account.getBirthdate(), FormatStyle.MEDIUM);
+
+			Address address = accountService.findActiveAddressByAccountId(accountId).orElse(null);
+			this.address = address == null ? null : addressApiResponseFactory.create(address);
 		} else {
 			this.consentFormAccepted = null;
 			this.consentFormAcceptedDate = null;
@@ -226,8 +246,10 @@ public class AccountApiResponse {
 			this.ethnicityId = null;
 			this.birthSexId = null;
 			this.raceId = null;
-			this.addressId = null;
+			this.insuranceId = null;
 			this.birthdate = null;
+			this.birthdateDescription = null;
+			this.address = null;
 		}
 
 		if (supplements.contains(AccountApiResponseSupplement.EVERYTHING)
@@ -324,6 +346,16 @@ public class AccountApiResponse {
 	}
 
 	@Nonnull
+	public String getLanguageCode() {
+		return this.languageCode;
+	}
+
+	@Nonnull
+	public String getCountryCode() {
+		return this.countryCode;
+	}
+
+	@Nonnull
 	public Boolean getConsentFormAccepted() {
 		return consentFormAccepted;
 	}
@@ -402,12 +434,22 @@ public class AccountApiResponse {
 	}
 
 	@Nullable
-	public UUID getAddressId() {
-		return this.addressId;
+	public LocalDate getBirthdate() {
+		return this.birthdate;
 	}
 
 	@Nullable
-	public LocalDate getBirthdate() {
-		return this.birthdate;
+	public String getBirthdateDescription() {
+		return this.birthdateDescription;
+	}
+
+	@Nullable
+	public UUID getInsuranceId() {
+		return this.insuranceId;
+	}
+
+	@Nullable
+	public AddressApiResponse getAddress() {
+		return this.address;
 	}
 }

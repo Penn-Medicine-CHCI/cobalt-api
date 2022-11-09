@@ -22,6 +22,9 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.InstitutionUrl;
+import com.cobaltplatform.api.model.db.Insurance;
+import com.cobaltplatform.api.model.db.InsuranceType.InsuranceTypeId;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.lokalized.Strings;
@@ -36,15 +39,13 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static com.cobaltplatform.api.util.WebUtility.normalizedHostnameForUrl;
 import static java.util.Objects.requireNonNull;
-import static org.apache.commons.lang3.StringUtils.trimToEmpty;
-import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -90,48 +91,56 @@ public class InstitutionService {
 	}
 
 	@Nonnull
-	public Institution findInstitutionBySubdomain(@Nullable String subdomain) {
-		subdomain = (subdomain == null ? "" : subdomain).trim().toLowerCase(Locale.US);
+	public Optional<String> findWebappBaseUrlByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return Optional.empty();
 
-		Institution institution = getDatabase().queryForObject("SELECT * FROM institution WHERE LOWER(subdomain)=?",
-				Institution.class, subdomain).orElse(null);
+		InstitutionUrl institutionUrl = getDatabase().queryForObject("""
+				    SELECT *
+				    FROM institution_url
+				    WHERE institution_id=?
+				    AND preferred=TRUE
+				""", InstitutionUrl.class, institutionId).orElse(null);
 
-		return institution == null ? findInstitutionById(getConfiguration().getDefaultSubdomainInstitutionId()).get() : institution;
+		if (institutionUrl == null)
+			return Optional.empty();
+
+		return Optional.of(institutionUrl.getUrl());
 	}
 
 	@Nonnull
-	public Institution findInstitutionByWebappBaseUrl(@Nullable String webappBaseUrl) {
-		webappBaseUrl = trimToEmpty(webappBaseUrl).toLowerCase(Locale.US);
+	public Optional<Institution> findInstitutionByWebappBaseUrl(@Nullable String webappBaseUrl) {
+		if (webappBaseUrl == null || webappBaseUrl.trim().length() == 0)
+			return Optional.empty();
 
-		if (webappBaseUrl.length() == 0)
-			return findInstitutionBySubdomain(null);
+		String hostname = normalizedHostnameForUrl(webappBaseUrl).orElse(null);
 
-		// Assume input is equivalent to window.location.origin in JS
-		// See https://developer.mozilla.org/en-US/docs/Web/API/Location/origin
-		//
-		// Example: https://subdomain.cobaltinnovations.org
+		if (hostname == null)
+			return Optional.empty();
 
-		if (webappBaseUrl.startsWith("https://"))
-			webappBaseUrl = webappBaseUrl.substring("https://".length());
-		else if (webappBaseUrl.startsWith("http://"))
-			webappBaseUrl = webappBaseUrl.substring("http://".length());
+		return getDatabase().queryForObject("""
+				SELECT i.* 
+				FROM institution_url iu, institution i
+				WHERE iu.hostname=?
+				AND iu.institution_id=i.institution_id
+				""", Institution.class, hostname);
+	}
 
-		// Discard any trailing port number
-		int portNumberSeparator = webappBaseUrl.indexOf(":");
+	@Nonnull
+	public Optional<InstitutionUrl> findInstitutionUrlByWebappBaseUrl(@Nullable String webappBaseUrl) {
+		if (webappBaseUrl == null)
+			return Optional.empty();
 
-		if (portNumberSeparator != -1)
-			webappBaseUrl = webappBaseUrl.substring(0, portNumberSeparator);
+		String hostname = normalizedHostnameForUrl(webappBaseUrl).orElse(null);
 
-		String[] components = webappBaseUrl.split("\\.");
-		String subdomain;
+		if (hostname == null)
+			return Optional.empty();
 
-		// Length 1 is special case, like "localhost"
-		if (components.length == 1)
-			subdomain = components[0];
-		else
-			subdomain = components.length > 0 ? trimToNull(components[0]) : null;
-
-		return findInstitutionBySubdomain(subdomain);
+		return getDatabase().queryForObject("""
+				SELECT * 
+				FROM institution_url
+				WHERE hostname=?
+				""", InstitutionUrl.class, hostname);
 	}
 
 	@Nonnull
@@ -202,6 +211,42 @@ public class InstitutionService {
 
 		return getDatabase().queryForList("SELECT * FROM institution WHERE metadata @> CAST(? AS JSONB)",
 				Institution.class, metadataAsJson);
+	}
+
+	@Nonnull
+	public List<Insurance> findInsurancesByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return Collections.emptyList();
+
+		List<Insurance> insurances = getDatabase().queryForList("""
+				    SELECT i.*
+				    FROM insurance i, institution_insurance ii
+				    WHERE ii.institution_id=?
+				    AND ii.insurance_id=i.insurance_id
+				    ORDER BY i.description
+				""", Insurance.class, institutionId);
+
+		Insurance outOfPocket = insurances.stream()
+				.filter(insurance -> insurance.getInsuranceTypeId() == InsuranceTypeId.OUT_OF_POCKET)
+				.findFirst().orElse(null);
+
+		Insurance other = insurances.stream()
+				.filter(insurance -> insurance.getInsuranceTypeId() == InsuranceTypeId.OTHER)
+				.findFirst().orElse(null);
+
+		// If present, put out-of-pocket at the head of the list
+		if (outOfPocket != null) {
+			insurances.remove(outOfPocket);
+			insurances.add(0, outOfPocket);
+		}
+
+		// If present, put 'other' at the tail of the list
+		if (other != null) {
+			insurances.remove(other);
+			insurances.add(other);
+		}
+
+		return insurances;
 	}
 
 	@Nonnull

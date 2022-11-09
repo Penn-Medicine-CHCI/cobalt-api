@@ -20,29 +20,23 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.Configuration;
-import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
-import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
-import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
-import com.cobaltplatform.api.integration.mychart.MyChartAuthenticator;
 import com.cobaltplatform.api.integration.mychart.MyChartException;
+import com.cobaltplatform.api.model.api.request.ObtainMyChartAccessTokenRequest;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.security.SigningTokenClaims;
-import com.cobaltplatform.api.util.Authenticator;
-import com.cobaltplatform.api.util.Authenticator.SigningTokenValidationException;
-import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.model.service.MyChartAccessTokenWithClaims;
+import com.cobaltplatform.api.service.InstitutionService;
+import com.cobaltplatform.api.service.MyChartService;
 import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.Resource;
-import com.soklet.web.exception.AuthorizationException;
-import com.soklet.web.response.ApiResponse;
 import com.soklet.web.response.RedirectResponse;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 import static com.cobaltplatform.api.util.WebUtility.urlEncode;
@@ -57,73 +51,68 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class OAuthCobaltResource {
 	@Nonnull
-	private final EnterprisePluginProvider enterprisePluginProvider;
+	private final MyChartService myChartService;
 	@Nonnull
-	private final Authenticator authenticator;
+	private final InstitutionService institutionService;
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
 	private final Strings strings;
 
 	@Inject
-	public OAuthCobaltResource(@Nonnull EnterprisePluginProvider enterprisePluginProvider,
-														 @Nonnull Authenticator authenticator,
+	public OAuthCobaltResource(@Nonnull MyChartService myChartService,
+														 @Nonnull InstitutionService institutionService,
 														 @Nonnull Configuration configuration,
 														 @Nonnull Strings strings) {
-		requireNonNull(enterprisePluginProvider);
-		requireNonNull(authenticator);
+		requireNonNull(myChartService);
+		requireNonNull(institutionService);
 		requireNonNull(configuration);
 		requireNonNull(strings);
 
-		this.enterprisePluginProvider = enterprisePluginProvider;
-		this.authenticator = authenticator;
+		this.myChartService = myChartService;
+		this.institutionService = institutionService;
 		this.configuration = configuration;
 		this.strings = strings;
 	}
 
 	// TODO: this should move to Enterprise
 	@GET("/oauth/pic")
-	public Object oauthAssertion(@Nonnull @QueryParameter String code,
-															 @Nonnull @QueryParameter String state) throws MyChartException {
+	public RedirectResponse oauthAssertion(@Nonnull @QueryParameter String code,
+																				 @Nonnull @QueryParameter String state) throws MyChartException {
 		requireNonNull(code);
 		requireNonNull(state);
 
-		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(InstitutionId.COBALT_IC);
-		MyChartAuthenticator myChartAuthenticator = enterprisePlugin.myChartAuthenticator().orElse(null);
+		Map<String, Object> claims = getMyChartService().extractAndValidateClaimsFromMyChartState(InstitutionId.COBALT_IC, state);
+		String claimsEnvironment = (String) claims.get("environment");
 
-		if (myChartAuthenticator == null)
-			throw new ValidationException(getStrings().get("MyChart is not available for this institution."));
-
-		SigningTokenClaims signingTokenClaims;
-
-		try {
-			signingTokenClaims = getAuthenticator().validateSigningToken(state);
-		} catch (SigningTokenValidationException e) {
-			throw new AuthorizationException(e);
-		}
-
-		MyChartAccessToken accessToken = myChartAuthenticator.obtainAccessTokenFromCode(code, state);
-		String environment = (String) signingTokenClaims.getClaims().get("environment");
+		if (claimsEnvironment == null)
+			throw new IllegalStateException("MyChart token Claims are missing 'environment' value");
 
 		// Special handling to send callbacks down to local env if we're deployed nonlocally.
 		// Some MyChart setups don't support localhost/127.0.0.1 callbacks...
-		if (Objects.equals("local", environment)
+		if (Objects.equals("local", claimsEnvironment)
 				&& !Objects.equals("local", getConfiguration().getEnvironment()))
 			return new RedirectResponse(format("http://localhost:8080/oauth/pic?code=%s&state=%s", urlEncode(code), urlEncode(state)), RedirectResponse.Type.TEMPORARY);
-		
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("accessToken", accessToken);
+
+		MyChartAccessTokenWithClaims myChartAccessTokenWithClaims = getMyChartService().obtainMyChartAccessToken(new ObtainMyChartAccessTokenRequest() {{
+			setCode(code);
+			setState(state);
+			setInstitutionId(InstitutionId.COBALT_IC);
 		}});
+
+		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionId(InstitutionId.COBALT_IC).get();
+
+		return new RedirectResponse(format("%s/TBD?code=%s&state=%s", webappBaseUrl, code, state));
 	}
 
 	@Nonnull
-	protected EnterprisePluginProvider getEnterprisePluginProvider() {
-		return this.enterprisePluginProvider;
+	protected MyChartService getMyChartService() {
+		return this.myChartService;
 	}
 
 	@Nonnull
-	protected Authenticator getAuthenticator() {
-		return this.authenticator;
+	protected InstitutionService getInstitutionService() {
+		return this.institutionService;
 	}
 
 	@Nonnull

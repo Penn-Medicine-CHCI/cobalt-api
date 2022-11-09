@@ -89,11 +89,11 @@ public class InteractionService {
 	@Nonnull
 	private final Logger logger;
 	@Nonnull
-	private final AccountService accountService;
+	private final javax.inject.Provider<AccountService> accountServiceProvider;
 	@Nonnull
-	private final MessageService messageService;
+	private final javax.inject.Provider<MessageService> messageServiceProvider;
 	@Nonnull
-	private final InstitutionService institutionService;
+	private final javax.inject.Provider<InstitutionService> institutionServiceProvider;
 	@Nonnull
 	private final javax.inject.Provider<ScreeningService> screeningServiceProvider;
 	@Nonnull
@@ -107,20 +107,20 @@ public class InteractionService {
 
 	@Inject
 	public InteractionService(@Nonnull Database database,
-														@Nonnull AccountService accountService,
+														@Nonnull javax.inject.Provider<AccountService> accountServiceProvider,
 														@Nonnull Strings strings,
-														@Nonnull MessageService messageService,
-														@Nonnull InstitutionService institutionService,
+														@Nonnull javax.inject.Provider<MessageService> messageServiceProvider,
+														@Nonnull javax.inject.Provider<InstitutionService> institutionServiceProvider,
 														@Nonnull javax.inject.Provider<ScreeningService> screeningServiceProvider,
 														@Nonnull Formatter formatter,
 														@Nonnull ErrorReporter errorReporter,
 														@Nonnull Configuration configuration,
 														@Nonnull JsonMapper jsonMapper) {
 		requireNonNull(database);
-		requireNonNull(accountService);
+		requireNonNull(accountServiceProvider);
 		requireNonNull(strings);
-		requireNonNull(messageService);
-		requireNonNull(institutionService);
+		requireNonNull(messageServiceProvider);
+		requireNonNull(institutionServiceProvider);
 		requireNonNull(screeningServiceProvider);
 		requireNonNull(formatter);
 		requireNonNull(errorReporter);
@@ -129,10 +129,10 @@ public class InteractionService {
 
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.database = database;
-		this.accountService = accountService;
+		this.accountServiceProvider = accountServiceProvider;
 		this.strings = strings;
-		this.messageService = messageService;
-		this.institutionService = institutionService;
+		this.messageServiceProvider = messageServiceProvider;
+		this.institutionServiceProvider = institutionServiceProvider;
 		this.screeningServiceProvider = screeningServiceProvider;
 		this.formatter = formatter;
 		this.errorReporter = errorReporter;
@@ -178,13 +178,13 @@ public class InteractionService {
 	private void cancelPendingMessagesForInteractionInstance(@Nonnull UUID interactionInstanceId) {
 		requireNonNull(interactionInstanceId);
 
-		List<ScheduledMessage> scheduledMessages = messageService.findScheduledMessagesMatchingMetadata(new HashMap<>() {{
+		List<ScheduledMessage> scheduledMessages = getMessageService().findScheduledMessagesMatchingMetadata(new HashMap<>() {{
 			put("interactionInstanceId", interactionInstanceId);
 		}});
 
 		for (ScheduledMessage scheduledMessage : scheduledMessages) {
 			if (scheduledMessage.getScheduledMessageStatusId().equals(ScheduledMessageStatus.ScheduledMessageStatusId.PENDING))
-				messageService.cancelScheduledMessage(scheduledMessage.getScheduledMessageId());
+				getMessageService().cancelScheduledMessage(scheduledMessage.getScheduledMessageId());
 		}
 	}
 
@@ -301,7 +301,7 @@ public class InteractionService {
 						put("metadata", metadata);
 						put("endUserHtmlRepresentation", endUserHtmlRepresentation);
 						put("interactionInstanceUrl", format("%s/interaction-instances/%s",
-								getConfiguration().getWebappBaseUrl(institution.getInstitutionId()), interactionInstanceId));
+								getInstitutionService().findWebappBaseUrlByInstitutionId(institution.getInstitutionId()).get(), interactionInstanceId));
 						put("messageTemplateBodyHtml", interaction.getMessageTemplateBody());
 					}})
 					.build();
@@ -681,7 +681,7 @@ public class InteractionService {
 
 	@Nonnull
 	protected AccountService getAccountService() {
-		return accountService;
+		return accountServiceProvider.get();
 	}
 
 	@Nonnull
@@ -691,12 +691,12 @@ public class InteractionService {
 
 	@Nonnull
 	protected MessageService getMessageService() {
-		return messageService;
+		return messageServiceProvider.get();
 	}
 
 	@Nonnull
 	protected InstitutionService getInstitutionService() {
-		return institutionService;
+		return institutionServiceProvider.get();
 	}
 
 	@Nonnull

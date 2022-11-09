@@ -19,11 +19,17 @@
 
 package com.cobaltplatform.api.integration.mychart;
 
+import com.cobaltplatform.api.util.GsonUtility;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -38,6 +44,15 @@ import static java.util.Objects.requireNonNull;
  */
 @Immutable
 public class MyChartAccessToken {
+	@Nonnull
+	private static final Gson GSON;
+
+	static {
+		GsonBuilder gsonBuilder = new GsonBuilder().disableHtmlEscaping();
+		GsonUtility.applyDefaultTypeAdapters(gsonBuilder);
+		GSON = gsonBuilder.create();
+	}
+
 	@Nonnull
 	private final String accessToken;
 	@Nonnull
@@ -63,6 +78,20 @@ public class MyChartAccessToken {
 		this.scope = builder.scope;
 		this.refreshToken = builder.refreshToken;
 		this.metadata = builder.metadata == null ? Collections.emptyMap() : Collections.unmodifiableMap(new HashMap<>(builder.metadata));
+	}
+
+	@Nonnull
+	public String serialize() {
+		String json = GSON.toJson(this);
+		return Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8));
+	}
+
+	@Nonnull
+	public static MyChartAccessToken deserialize(@Nonnull String serializedMyChartAccessToken) {
+		requireNonNull(serializedMyChartAccessToken);
+
+		String json = new String(Base64.getDecoder().decode(serializedMyChartAccessToken), StandardCharsets.UTF_8);
+		return GSON.fromJson(json, MyChartAccessToken.class);
 	}
 
 	@Override

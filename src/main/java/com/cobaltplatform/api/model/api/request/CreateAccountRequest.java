@@ -20,12 +20,17 @@
 package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
+import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
+import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.time.LocalDate;
 import java.util.Map;
 
 /**
@@ -56,13 +61,25 @@ public class CreateAccountRequest {
 	@Nullable
 	private Map<String, ?> ssoAttributes;
 	@Nullable
-	private String subdomain;
+	private String ssoAttributesAsJson;
 	@Nullable
 	private String password;
 	@Nullable
 	private String epicPatientId;
 	@Nullable
 	private String epicPatientIdType;
+	@Nullable
+	private GenderIdentityId genderIdentityId;
+	@Nullable
+	private EthnicityId ethnicityId;
+	@Nullable
+	private BirthSexId birthSexId;
+	@Nullable
+	private RaceId raceId;
+	@Nullable
+	private LocalDate birthdate;
+	@Nullable
+	private CreateAddressRequest address;
 
 	@Nullable
 	public RoleId getRoleId() {
@@ -164,12 +181,12 @@ public class CreateAccountRequest {
 	}
 
 	@Nullable
-	public String getSubdomain() {
-		return subdomain;
+	public String getSsoAttributesAsJson() {
+		return this.ssoAttributesAsJson;
 	}
 
-	public void setSubdomain(@Nullable String subdomain) {
-		this.subdomain = subdomain;
+	public void setSsoAttributesAsJson(@Nullable String ssoAttributesAsJson) {
+		this.ssoAttributesAsJson = ssoAttributesAsJson;
 	}
 
 	@Nullable
@@ -197,5 +214,59 @@ public class CreateAccountRequest {
 
 	public void setEpicPatientIdType(@Nullable String epicPatientIdType) {
 		this.epicPatientIdType = epicPatientIdType;
+	}
+
+	@Nullable
+	public GenderIdentityId getGenderIdentityId() {
+		return this.genderIdentityId;
+	}
+
+	public void setGenderIdentityId(@Nullable GenderIdentityId genderIdentityId) {
+		this.genderIdentityId = genderIdentityId;
+	}
+
+	@Nullable
+	public EthnicityId getEthnicityId() {
+		return this.ethnicityId;
+	}
+
+	public void setEthnicityId(@Nullable EthnicityId ethnicityId) {
+		this.ethnicityId = ethnicityId;
+	}
+
+	@Nullable
+	public BirthSexId getBirthSexId() {
+		return this.birthSexId;
+	}
+
+	public void setBirthSexId(@Nullable BirthSexId birthSexId) {
+		this.birthSexId = birthSexId;
+	}
+
+	@Nullable
+	public RaceId getRaceId() {
+		return this.raceId;
+	}
+
+	public void setRaceId(@Nullable RaceId raceId) {
+		this.raceId = raceId;
+	}
+
+	@Nullable
+	public LocalDate getBirthdate() {
+		return this.birthdate;
+	}
+
+	public void setBirthdate(@Nullable LocalDate birthdate) {
+		this.birthdate = birthdate;
+	}
+
+	@Nullable
+	public CreateAddressRequest getAddress() {
+		return this.address;
+	}
+
+	public void setAddress(@Nullable CreateAddressRequest address) {
+		this.address = address;
 	}
 }

@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.context;
 
 
+import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -59,12 +60,14 @@ public class CurrentContext {
 	private final InstitutionId institutionId;
 	@Nullable
 	private final Account account;
-	@Nonnull
+	@Nullable
 	private final UUID sessionTrackingId;
 	@Nullable
 	private final AccountSource accountSource;
 	@Nullable
 	private final String fingerprintId;
+	@Nullable
+	private final MyChartAccessToken myChartAccessToken;
 
 	public CurrentContext(@Nonnull Builder builder) {
 		requireNonNull(builder);
@@ -85,6 +88,7 @@ public class CurrentContext {
 		this.sessionTrackingId = builder.sessionTrackingId;
 		this.accountSource = builder.accountSource;
 		this.fingerprintId = builder.fingerprintId;
+		this.myChartAccessToken = builder.myChartAccessToken;
 	}
 
 	@Nonnull
@@ -128,18 +132,23 @@ public class CurrentContext {
 	}
 
 	@Nonnull
-	public UUID getSessionTrackingId() {
-		return this.sessionTrackingId;
+	public Optional<UUID> getSessionTrackingId() {
+		return Optional.ofNullable(this.sessionTrackingId);
 	}
 
-	@Nullable
-	public AccountSource getAccountSource() {
-		return this.accountSource;
+	@Nonnull
+	public Optional<AccountSource> getAccountSource() {
+		return Optional.ofNullable(this.accountSource);
 	}
 
-	@Nullable
+	@Nonnull
 	public Optional<String> getFingerprintId() {
 		return Optional.ofNullable(this.fingerprintId);
+	}
+
+	@Nonnull
+	public Optional<MyChartAccessToken> getMyChartAccessToken() {
+		return Optional.ofNullable(this.myChartAccessToken);
 	}
 
 	@NotThreadSafe
@@ -166,6 +175,8 @@ public class CurrentContext {
 		private AccountSource accountSource;
 		@Nullable
 		private String fingerprintId;
+		@Nullable
+		private MyChartAccessToken myChartAccessToken;
 
 		public Builder(@Nonnull Account account,
 									 @Nonnull Locale locale,
@@ -232,6 +243,12 @@ public class CurrentContext {
 		@Nonnull
 		public Builder webappBaseUrl(@Nullable String webappBaseUrl) {
 			this.webappBaseUrl = webappBaseUrl;
+			return this;
+		}
+
+		@Nonnull
+		public Builder myChartAccessToken(@Nullable MyChartAccessToken myChartAccessToken) {
+			this.myChartAccessToken = myChartAccessToken;
 			return this;
 		}
 

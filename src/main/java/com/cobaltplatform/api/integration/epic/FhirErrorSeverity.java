@@ -17,40 +17,13 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.integration.ic.model;
-
-import javax.annotation.Nonnull;
-import javax.annotation.concurrent.Immutable;
-import java.util.UUID;
-
-import static java.util.Objects.requireNonNull;
+package com.cobaltplatform.api.integration.epic;
 
 /**
  * @author Transmogrify, LLC.
  */
-@Immutable
-public class IcAppointmentCanceledRequest {
-	@Nonnull
-	private final UUID accountId;
-	@Nonnull
-	private final UUID appointmentId;
-
-	public IcAppointmentCanceledRequest(@Nonnull UUID accountId,
-																			@Nonnull UUID appointmentId) {
-		requireNonNull(accountId);
-		requireNonNull(appointmentId);
-
-		this.accountId = accountId;
-		this.appointmentId = appointmentId;
-	}
-
-	@Nonnull
-	public UUID getAccountId() {
-		return accountId;
-	}
-
-	@Nonnull
-	public UUID getAppointmentId() {
-		return appointmentId;
-	}
+public enum FhirErrorSeverity {
+	WARNING,
+	FATAL,
+	INFORMATION
 }

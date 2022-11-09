@@ -28,6 +28,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.security.SamlIdentityProvider;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AuditLogService;
+import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.LinkGenerator;
 import com.cobaltplatform.api.util.SamlManager;
@@ -73,6 +74,8 @@ public class SamlResource {
 	@Nonnull
 	private final AccountService accountService;
 	@Nonnull
+	private final InstitutionService institutionService;
+	@Nonnull
 	private final Authenticator authenticator;
 	@Nonnull
 	private final SamlManager samlManager;
@@ -87,17 +90,20 @@ public class SamlResource {
 
 	@Inject
 	public SamlResource(@Nonnull AccountService accountService,
+											@Nonnull InstitutionService institutionService,
 											@Nonnull Authenticator authenticator,
 											@Nonnull LinkGenerator linkGenerator,
 											@Nonnull Configuration configuration,
 											@Nonnull AuditLogService auditLogService) {
 		requireNonNull(accountService);
+		requireNonNull(institutionService);
 		requireNonNull(authenticator);
 		requireNonNull(linkGenerator);
 		requireNonNull(configuration);
 		requireNonNull(auditLogService);
 
 		this.accountService = accountService;
+		this.institutionService = institutionService;
 		this.authenticator = authenticator;
 		this.linkGenerator = linkGenerator;
 		this.configuration = configuration;
@@ -120,7 +126,7 @@ public class SamlResource {
 			throw new IllegalStateException();
 
 		// Default if not specified...
-		String redirectBaseUrl = providedRedirectBaseUrl.orElse(getConfiguration().getWebappBaseUrl(InstitutionId.COBALT));
+		String redirectBaseUrl = providedRedirectBaseUrl.orElse(getInstitutionService().findWebappBaseUrlByInstitutionId(InstitutionId.COBALT).get());
 
 		// Fake login page for testing
 		String html = Files.readString(Paths.get("web/pages/saml-login.html"), StandardCharsets.UTF_8);
@@ -211,10 +217,15 @@ public class SamlResource {
 		getSamlManager().redirectToLogout(httpServletRequest, httpServletResponse, returnToUrl);
 		return CustomResponse.instance();
 	}
-	
+
 	@Nonnull
 	protected AccountService getAccountService() {
 		return accountService;
+	}
+
+	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return this.institutionService;
 	}
 
 	@Nonnull

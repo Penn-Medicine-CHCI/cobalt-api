@@ -22,56 +22,53 @@ package com.cobaltplatform.api.model.db;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
+import static java.lang.String.format;
+
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class BirthSex {
+public class InsuranceType {
 	@Nullable
-	private BirthSexId birthSexId;
+	private InsuranceTypeId insuranceTypeId;
 	@Nullable
 	private String description;
-	@Nullable
-	private Integer displayOrder;
 
-	public enum BirthSexId {
-		NOT_ASKED,
-		MALE,
-		FEMALE,
-		OTHER,
+	public enum InsuranceTypeId {
 		UNKNOWN,
-		NOT_DISCLOSED
+		OUT_OF_POCKET,
+		OTHER,
+		UNCATEGORIZED,
+		PPO,
+		HMO,
+		POS,
+		EPO,
+		HSA,
+		INDEMNITY,
+		MEDICARE,
+		MEDICAID
 	}
 
 	@Override
 	public String toString() {
-		return String.format("%s{birthSexId=%s, description=%s}", getClass().getSimpleName(), getBirthSexId(), getDescription());
+		return format("%s{insuranceTypeId=%s, description=%s}", getClass().getSimpleName(), getInsuranceTypeId(), getDescription());
 	}
 
 	@Nullable
-	public BirthSexId getBirthSexId() {
-		return this.birthSexId;
+	public InsuranceTypeId getInsuranceTypeId() {
+		return this.insuranceTypeId;
 	}
 
-	public void setBirthSexId(@Nullable BirthSexId birthSexId) {
-		this.birthSexId = birthSexId;
+	public void setInsuranceTypeId(@Nullable InsuranceTypeId insuranceTypeId) {
+		this.insuranceTypeId = insuranceTypeId;
 	}
 
 	@Nullable
 	public String getDescription() {
-		return this.description;
+		return description;
 	}
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
-	}
-
-	@Nullable
-	public Integer getDisplayOrder() {
-		return this.displayOrder;
-	}
-
-	public void setDisplayOrder(@Nullable Integer displayOrder) {
-		this.displayOrder = displayOrder;
 	}
 }

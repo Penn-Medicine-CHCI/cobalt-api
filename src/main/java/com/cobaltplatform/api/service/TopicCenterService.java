@@ -22,6 +22,8 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionRequest;
+import com.cobaltplatform.api.model.db.GroupSessionRequestStatus.GroupSessionRequestStatusId;
+import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionTopicCenter;
 import com.cobaltplatform.api.model.db.PinboardNote;
@@ -153,8 +155,9 @@ public class TopicCenterService {
 				WHERE tcr.topic_center_id=?
 				AND tcr.topic_center_row_id=tcrgs.topic_center_row_id
 				AND tcrgs.group_session_id=gs.group_session_id
+				AND gs.group_session_status_id=?
 				ORDER BY tcr.display_order, tcrgs.display_order
-				""", GroupSessionTopicCenterRow.class, topicCenterId);
+				""", GroupSessionTopicCenterRow.class, topicCenterId, GroupSessionStatusId.ADDED);
 
 		// Pull all of the group sessions across all rows in the topic center (so we don't have to query for each row individually)
 		List<GroupSessionRequestTopicCenterRow> groupSessionRequestTopicCenterRows = getDatabase().queryForList("""
@@ -163,8 +166,9 @@ public class TopicCenterService {
 				WHERE tcr.topic_center_id=?
 				AND tcr.topic_center_row_id=tcrgsr.topic_center_row_id
 				AND tcrgsr.group_session_request_id=gsr.group_session_request_id
+				AND gsr.group_session_request_status_id=?
 				ORDER BY tcr.display_order, tcrgsr.display_order
-				""", GroupSessionRequestTopicCenterRow.class, topicCenterId);
+				""", GroupSessionRequestTopicCenterRow.class, topicCenterId, GroupSessionRequestStatusId.ADDED);
 
 		// Pull all of the content across all rows in the topic center (so we don't have to query for each row individually)
 		List<PinboardNoteTopicCenterRow> pinboardNoteTopicCenterRows = getDatabase().queryForList("""

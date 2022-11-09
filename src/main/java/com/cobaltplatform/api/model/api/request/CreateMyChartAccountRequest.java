@@ -19,7 +19,8 @@
 
 package com.cobaltplatform.api.model.api.request;
 
-import com.cobaltplatform.api.integration.ic.model.IcEpicPatient;
+import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -28,16 +29,27 @@ import javax.annotation.concurrent.NotThreadSafe;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreateIcMpmAccountRequest {
+public class CreateMyChartAccountRequest {
 	@Nullable
-	private IcEpicPatient patient;
+	private InstitutionId institutionId;
+	@Nullable
+	private MyChartAccessToken myChartAccessToken;
 
 	@Nullable
-	public IcEpicPatient getPatient() {
-		return patient;
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
 	}
 
-	public void setPatient(@Nullable IcEpicPatient patient) {
-		this.patient = patient;
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
+	}
+
+	@Nullable
+	public MyChartAccessToken getMyChartAccessToken() {
+		return this.myChartAccessToken;
+	}
+
+	public void setMyChartAccessToken(@Nullable MyChartAccessToken myChartAccessToken) {
+		this.myChartAccessToken = myChartAccessToken;
 	}
 }

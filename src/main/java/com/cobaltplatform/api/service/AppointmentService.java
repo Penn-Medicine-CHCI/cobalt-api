@@ -44,10 +44,6 @@ import com.cobaltplatform.api.integration.epic.response.GetPatientAppointmentsRe
 import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse;
 import com.cobaltplatform.api.integration.epic.response.ScheduleAppointmentWithInsuranceResponse;
 import com.cobaltplatform.api.integration.gcal.GoogleCalendarUrlGenerator;
-import com.cobaltplatform.api.integration.ic.IcClient;
-import com.cobaltplatform.api.integration.ic.IcException;
-import com.cobaltplatform.api.integration.ic.model.IcAppointmentCanceledRequest;
-import com.cobaltplatform.api.integration.ic.model.IcAppointmentCreatedRequest;
 import com.cobaltplatform.api.integration.ical.ICalInviteGenerator;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageManager;
@@ -165,8 +161,6 @@ public class AppointmentService {
 	@Nonnull
 	private final BluejeansClient bluejeansClient;
 	@Nonnull
-	private final IcClient icClient;
-	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
 	@Nonnull
 	private final javax.inject.Provider<ProviderService> providerServiceProvider;
@@ -178,6 +172,8 @@ public class AppointmentService {
 	private final javax.inject.Provider<AuditLogService> auditLogServiceProvider;
 	@Nonnull
 	private final javax.inject.Provider<ClinicService> clinicServiceProvider;
+	@Nonnull
+	private final javax.inject.Provider<InstitutionService> institutionServiceProvider;
 	@Nonnull
 	private final Logger logger;
 	@Nonnull
@@ -211,7 +207,6 @@ public class AppointmentService {
 														@Nonnull AcuitySchedulingClient acuitySchedulingClient,
 														@Nonnull AcuitySchedulingCache acuitySchedulingCache,
 														@Nonnull BluejeansClient bluejeansClient,
-														@Nonnull IcClient icClient,
 														@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 														@Nonnull javax.inject.Provider<ProviderService> providerServiceProvider,
 														@Nonnull javax.inject.Provider<AccountService> accountServiceProvider,
@@ -220,6 +215,7 @@ public class AppointmentService {
 														@Nonnull javax.inject.Provider<AcuitySyncManager> acuitySyncManagerProvider,
 														@Nonnull javax.inject.Provider<AuditLogService> auditLogServiceProvider,
 														@Nonnull javax.inject.Provider<ClinicService> clinicServiceProvider,
+														@Nonnull javax.inject.Provider<InstitutionService> institutionServiceProvider,
 														@Nonnull EmailMessageManager emailMessageManager,
 														@Nonnull Formatter formatter,
 														@Nonnull Normalizer normalizer,
@@ -237,13 +233,13 @@ public class AppointmentService {
 		requireNonNull(acuitySchedulingClient);
 		requireNonNull(acuitySchedulingCache);
 		requireNonNull(bluejeansClient);
-		requireNonNull(icClient);
 		requireNonNull(providerServiceProvider);
 		requireNonNull(accountServiceProvider);
 		requireNonNull(groupEventServiceProvider);
 		requireNonNull(acuitySyncManagerProvider);
 		requireNonNull(auditLogServiceProvider);
 		requireNonNull(clinicServiceProvider);
+		requireNonNull(institutionServiceProvider);
 		requireNonNull(emailMessageManager);
 		requireNonNull(formatter);
 		requireNonNull(normalizer);
@@ -262,7 +258,6 @@ public class AppointmentService {
 		this.acuitySchedulingClient = acuitySchedulingClient;
 		this.acuitySchedulingCache = acuitySchedulingCache;
 		this.bluejeansClient = bluejeansClient;
-		this.icClient = icClient;
 		this.providerServiceProvider = providerServiceProvider;
 		this.accountServiceProvider = accountServiceProvider;
 		this.groupEventServiceProvider = groupEventServiceProvider;
@@ -270,6 +265,7 @@ public class AppointmentService {
 		this.acuitySyncManagerProvider = acuitySyncManagerProvider;
 		this.auditLogServiceProvider = auditLogServiceProvider;
 		this.clinicServiceProvider = clinicServiceProvider;
+		this.institutionServiceProvider = institutionServiceProvider;
 		this.assessmentScoringServiceProvider = assessmentScoringServiceProvider;
 		this.formatter = formatter;
 		this.normalizer = normalizer;
@@ -623,17 +619,6 @@ public class AppointmentService {
 									}})
 									.messageContext(messageContext)
 									.build());
-						}
-					}
-
-					// Special behavior for IC accounts - let IC know we booked an appointment
-					Account patientAccount = getAccountService().findAccountById(accountId).orElse(null);
-
-					if (patientAccount != null && patientAccount.getSourceSystemId().equals(SourceSystemId.IC)) {
-						try {
-							getIcClient().notifyOfAppointmentCreation(new IcAppointmentCreatedRequest(patientAccount.getAccountId(), appointmentId));
-						} catch (IcException e) {
-							getLogger().error(format("Unable to inform IC that appointment ID %s was created for account ID %s", appointmentId, patientAccount.getAccountId()), e);
 						}
 					}
 
@@ -1061,7 +1046,7 @@ public class AppointmentService {
 					// Hack: phone number is encoded as the URL in the provider sheet.
 					// The real URL is the webapp - we have a `GET /appointments/{appointmentId}`
 					appointmentPhoneNumber = provider.getVideoconferenceUrl();
-					videoconferenceUrl = format("%s/appointments/%s", getConfiguration().getWebappBaseUrl(provider.getInstitutionId()), appointmentId);
+					videoconferenceUrl = format("%s/appointments/%s", getInstitutionService().findWebappBaseUrlByInstitutionId(provider.getInstitutionId()).get(), appointmentId);
 
 				} else if (videoconferencePlatformId == VideoconferencePlatformId.EXTERNAL) {
 					videoconferenceUrl = provider.getVideoconferenceUrl();
@@ -1287,8 +1272,7 @@ public class AppointmentService {
 				EmailMessage emailMessage = new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_CREATED_CTSA_PATIENT, pinnedPatientAccount.getLocale())
 						.toAddresses(Collections.singletonList(pinnedEmailAddress))
 						.messageContext(new HashMap<String, Object>() {{
-
-							String webappBaseUrl = getConfiguration().getWebappBaseUrl(pinnedProvider.getInstitutionId());
+							String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionId(pinnedProvider.getInstitutionId()).get();
 
 							String providerNameAndCredentials = pinnedProvider.getName();
 
@@ -1311,15 +1295,6 @@ public class AppointmentService {
 						.build();
 
 				getEmailMessageManager().enqueueMessage(emailMessage);
-			}
-
-			// Special behavior for IC accounts - let IC know we booked an appointment
-			if (pinnedPatientAccount.getSourceSystemId().equals(SourceSystemId.IC)) {
-				try {
-					getIcClient().notifyOfAppointmentCreation(new IcAppointmentCreatedRequest(pinnedPatientAccount.getAccountId(), appointmentId));
-				} catch (IcException e) {
-					getLogger().error(format("Unable to inform IC that appointment ID %s was created for account ID %s", appointmentId, pinnedPatientAccount.getAccountId()), e);
-				}
 			}
 		});
 
@@ -1760,7 +1735,7 @@ public class AppointmentService {
 		String providerName = provider.getName();
 		String videoconferenceUrl = appointment.getVideoconferenceUrl();
 
-		String webappBaseUrl = account.getSourceSystemId() == SourceSystemId.IC ? getConfiguration().getIcWebappBaseUrl() : getConfiguration().getWebappBaseUrl(provider.getInstitutionId());
+		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionId(provider.getInstitutionId()).get();
 		String providerNameAndCredentials = provider.getName();
 
 		if (provider.getLicense() != null)
@@ -1990,15 +1965,6 @@ public class AppointmentService {
 			} else if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.COBALT) {
 				sendPatientAndProviderCobaltAppointmentCanceledEmails(appointmentId);
 			}
-
-			// Special behavior for IC accounts - let IC know we canceled an appointment
-			if (appointmentAccount != null && appointmentAccount.getSourceSystemId().equals(SourceSystemId.IC)) {
-				try {
-					getIcClient().notifyOfAppointmentCancelation(new IcAppointmentCanceledRequest(appointmentAccount.getAccountId(), appointmentId));
-				} catch (IcException e) {
-					getLogger().error(format("Unable to inform IC that appointment ID %s was canceled for account ID %s", appointmentId, appointmentAccount.getAccountId()), e);
-				}
-			}
 		});
 
 		return canceled;
@@ -2091,7 +2057,7 @@ public class AppointmentService {
 
 			if (assessment != null && assessment.getAnswersMayContainPii())
 				intakeAssessmentAnswerString = format("Please sign in to Cobalt and then click this link to view intake responses: %s/account-sessions/%s/text",
-						getConfiguration().getWebappBaseUrl(provider.getInstitutionId()), intakeSession.getAccountSessionId());
+						getInstitutionService().findWebappBaseUrlByInstitutionId(provider.getInstitutionId()).get(), intakeSession.getAccountSessionId());
 		}
 
 		String accountScoreString;
@@ -2308,11 +2274,6 @@ public class AppointmentService {
 	}
 
 	@Nonnull
-	protected IcClient getIcClient() {
-		return this.icClient;
-	}
-
-	@Nonnull
 	protected AcuitySchedulingCache getAcuitySchedulingCache() {
 		return this.acuitySchedulingCache;
 	}
@@ -2340,6 +2301,11 @@ public class AppointmentService {
 	@Nonnull
 	protected ClinicService getClinicService() {
 		return this.clinicServiceProvider.get();
+	}
+
+	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return this.institutionServiceProvider.get();
 	}
 
 	@Nonnull
