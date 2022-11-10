@@ -104,6 +104,8 @@ public class Institution {
 	@Deprecated
 	private Boolean anonymousEnabled;
 	@Nullable
+	private Boolean integratedCareEnabled;
+	@Nullable
 	private String metadata;
 	@Nonnull
 	private Long accessTokenExpirationInMinutes;
@@ -490,6 +492,15 @@ public class Institution {
 	@Deprecated
 	public void setAnonymousEnabled(@Nullable Boolean anonymousEnabled) {
 		this.anonymousEnabled = anonymousEnabled;
+	}
+
+	@Nullable
+	public Boolean getIntegratedCareEnabled() {
+		return this.integratedCareEnabled;
+	}
+
+	public void setIntegratedCareEnabled(@Nullable Boolean integratedCareEnabled) {
+		this.integratedCareEnabled = integratedCareEnabled;
 	}
 
 	@Nonnull
