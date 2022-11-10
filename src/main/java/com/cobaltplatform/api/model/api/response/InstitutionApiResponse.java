@@ -87,6 +87,8 @@ public class InstitutionApiResponse {
 	@Deprecated
 	private final Boolean anonymousEnabled;
 	@Nonnull
+	private final Boolean integratedCareEnabled;
+	@Nonnull
 	private final String supportEmailAddress;
 	@Nonnull
 	private final Boolean immediateAccessEnabled;
@@ -139,6 +141,7 @@ public class InstitutionApiResponse {
 		this.supportEmailAddress = institution.getSupportEmailAddress();
 		this.immediateAccessEnabled = institution.getImmediateAccessEnabled();
 		this.contactUsEnabled = institution.getContactUsEnabled();
+		this.integratedCareEnabled = institution.getIntegratedCareEnabled();
 		this.ga4MeasurementId = institution.getGa4MeasurementId();
 		this.additionalNavigationItems = topicCenterService.findTopicCenterNavigationItemsByInstitutionId(institutionId);
 	}
@@ -254,6 +257,11 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public Boolean getContactUsEnabled() {
 		return this.contactUsEnabled;
+	}
+
+	@Nonnull
+	public Boolean getIntegratedCareEnabled() {
+		return this.integratedCareEnabled;
 	}
 
 	@Nonnull
