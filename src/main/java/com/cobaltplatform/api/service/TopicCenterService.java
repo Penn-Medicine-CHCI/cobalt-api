@@ -130,8 +130,9 @@ public class TopicCenterService {
 				FROM institution_topic_center itc, topic_center tc
 				WHERE itc.topic_center_id=tc.topic_center_id
 				AND itc.navigation_item_enabled=TRUE
+				AND itc.institution_id=?
 				ORDER BY itc.navigation_display_order
-				""", NavigationItem.class);
+				""", NavigationItem.class, institutionId);
 	}
 
 	@Nonnull
