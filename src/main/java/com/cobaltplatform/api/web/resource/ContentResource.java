@@ -24,8 +24,10 @@ import com.cobaltplatform.api.model.api.response.ContentApiResponse;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Content;
+import com.cobaltplatform.api.model.db.ContentTypeLabel;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.ContentService;
+import com.cobaltplatform.api.service.TagService;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.PathParameter;
@@ -56,9 +58,10 @@ import static java.util.Objects.requireNonNull;
 @Singleton
 @ThreadSafe
 public class ContentResource {
-
 	@Nonnull
 	private final ContentService contentService;
+	@Nonnull
+	private final TagService tagService;
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
 	@Nonnull
@@ -68,10 +71,18 @@ public class ContentResource {
 
 	@Inject
 	public ContentResource(@Nonnull ContentService contentService,
+												 @Nonnull TagService tagService,
 												 @Nonnull RequestBodyParser requestBodyParser,
 												 @Nonnull Provider<CurrentContext> currentContextProvider,
 												 @Nonnull ContentApiResponse.ContentApiResponseFactory contentApiResponseFactory) {
+		requireNonNull(contentService);
+		requireNonNull(tagService);
+		requireNonNull(requestBodyParser);
+		requireNonNull(currentContextProvider);
+		requireNonNull(contentApiResponseFactory);
+
 		this.contentService = contentService;
+		this.tagService = tagService;
 		this.requestBodyParser = requestBodyParser;
 		this.currentContextProvider = currentContextProvider;
 		this.contentApiResponseFactory = contentApiResponseFactory;
@@ -79,6 +90,7 @@ public class ContentResource {
 
 	@GET("/content")
 	@AuthenticationRequired
+	@Deprecated
 	public ApiResponse getContent(@Nonnull @QueryParameter Optional<String> format,
 																@Nonnull @QueryParameter Optional<Integer> maxLengthMinutes,
 																@Nonnull @QueryParameter Optional<String> searchQuery) {
@@ -131,23 +143,55 @@ public class ContentResource {
 		}});
 	}
 
-	@Nonnull
-	public ContentService getContentService() {
-		return contentService;
+	@GET("/content/resource-library")
+	@AuthenticationRequired
+	public ApiResponse resourceLibraryContent() {
+		Account account = getCurrentContext().getAccount().get();
+
+		getCurrentContext().getMy
+
+		List<ContentTypeLabel> contentTypeLabels = getContentService().findContentTypeLabelsForAccount(account);
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("contentTypeLabels", contentTypeLabels);
+		}});
+	}
+
+	@GET("/content/resource-library/search")
+	@AuthenticationRequired
+	public ApiResponse resourceLibrarySearchContent(@Nonnull @QueryParameter Optional<String> searchQuery) {
+		Account account = getCurrentContext().getAccount().get();
+		List<Content> contents = getContentService().findContentForAccount()
+
+
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("contentTypeLabels", contentTypeLabels);
+		}});
 	}
 
 	@Nonnull
-	public RequestBodyParser getRequestBodyParser() {
-		return requestBodyParser;
+	protected ContentService getContentService() {
+		return this.contentService;
 	}
 
 	@Nonnull
-	public ContentApiResponseFactory getContentApiResponseFactory() {
-		return contentApiResponseFactory;
+	protected TagService getTagService() {
+		return this.tagService;
 	}
 
 	@Nonnull
-	public CurrentContext getCurrentContext() {
-		return currentContextProvider.get();
+	protected RequestBodyParser getRequestBodyParser() {
+		return this.requestBodyParser;
+	}
+
+	@Nonnull
+	protected ContentApiResponseFactory getContentApiResponseFactory() {
+		return this.contentApiResponseFactory;
+	}
+
+	@Nonnull
+	protected CurrentContext getCurrentContext() {
+		return this.currentContextProvider.get();
 	}
 }

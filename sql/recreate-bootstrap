@@ -46,6 +46,7 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/039-topi
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/040-content-search.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/041-screening-enhancements.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/042-epic-mychart-refactor.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/043-tagging.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
