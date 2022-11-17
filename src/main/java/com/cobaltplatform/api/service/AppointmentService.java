@@ -35,6 +35,7 @@ import com.cobaltplatform.api.integration.bluejeans.BluejeansClient;
 import com.cobaltplatform.api.integration.bluejeans.MeetingResponse;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
+import com.cobaltplatform.api.integration.epic.EpicApplicationAudience;
 import com.cobaltplatform.api.integration.epic.EpicClient;
 import com.cobaltplatform.api.integration.epic.EpicSyncManager;
 import com.cobaltplatform.api.integration.epic.request.GetPatientAppointmentsRequest;
@@ -339,7 +340,7 @@ public class AppointmentService {
 
 		// If you're an Epic account, pull the schedule from Epic so we can reconcile data
 		if (account.getEpicPatientId() != null && getConfiguration().getShouldUseRealEpic()) {
-			EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(account.getInstitutionId()).epicClient().get();
+			EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(account.getInstitutionId()).epicClientForApplicationAudience(EpicApplicationAudience.BACKEND_SYSTEMS).get();
 
 			LocalDate startDate = LocalDate.now(account.getTimeZone());
 			LocalDate endDate = startDate.plusDays(50L); // Arbitrary number of days in the future for now...
@@ -1113,7 +1114,7 @@ public class AppointmentService {
 		} else if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.EPIC) {
 			try {
 				EnterprisePlugin enterprisePlugin = enterprisePluginProvider.enterprisePluginForInstitutionId(account.getInstitutionId());
-				EpicClient epicClient = enterprisePlugin.epicClient().get();
+				EpicClient epicClient = enterprisePlugin.epicClientForApplicationAudience(EpicApplicationAudience.BACKEND_SYSTEMS).get();
 
 				// SYNC ACCOUNT UID
 				String uid = epicClient.determineLatestUIDForPatientIdentifier(account.getEpicPatientId(), account.getEpicPatientIdType()).get();
@@ -1890,7 +1891,7 @@ public class AppointmentService {
 					getLogger().warn("Unable to cancel appointment via Acuity, continuing on...", e);
 				}
 			} else if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.EPIC) {
-				EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(account.getInstitutionId()).epicClient().get();
+				EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(account.getInstitutionId()).epicClientForApplicationAudience(EpicApplicationAudience.BACKEND_SYSTEMS).get();
 
 				// SYNC ACCOUNT UID
 				String uid = epicClient.determineLatestUIDForPatientIdentifier(account.getEpicPatientId(), account.getEpicPatientIdType()).get();
