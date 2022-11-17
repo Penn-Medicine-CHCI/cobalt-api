@@ -97,11 +97,18 @@ public class DefaultMyChartAuthenticator implements MyChartAuthenticator {
 	@Override
 	@Nonnull
 	public String generateAuthenticationRedirectUrl(@Nullable String state) {
+		state = trimToNull(state);
+
 		List<String> queryParameters = new ArrayList<>();
 		queryParameters.add(format("response_type=%s", urlEncode(getMyChartConfiguration().getResponseType())));
 		queryParameters.add(format("client_id=%s", urlEncode(getMyChartConfiguration().getClientId())));
 		queryParameters.add(format("redirect_uri=%s", urlEncode(getMyChartConfiguration().getCallbackUrl())));
 		queryParameters.add(format("scope=%s", urlEncode(getMyChartConfiguration().getScope())));
+
+		String aud = trimToNull(getMyChartConfiguration().getAud());
+
+		if (aud != null)
+			queryParameters.add(format("aud=%s", urlEncode(aud)));
 
 		if (state != null)
 			queryParameters.add(format("state=%s", urlEncode(state)));
@@ -116,11 +123,18 @@ public class DefaultMyChartAuthenticator implements MyChartAuthenticator {
 																											@Nullable String state) throws MyChartException {
 		requireNonNull(code);
 
+		state = trimToNull(state);
+
 		List<String> requestBodyComponents = new ArrayList<>(5);
 		requestBodyComponents.add("grant_type=authorization_code");
 		requestBodyComponents.add(format("code=%s", code.trim()));
 		requestBodyComponents.add(format("redirect_uri=%s", urlEncode(getMyChartConfiguration().getCallbackUrl())));
 		requestBodyComponents.add(format("client_id=%s", urlEncode(getMyChartConfiguration().getClientId())));
+
+		String aud = trimToNull(getMyChartConfiguration().getAud());
+
+		if (aud != null)
+			requestBodyComponents.add(format("aud=%s", urlEncode(aud)));
 
 		if (state != null)
 			requestBodyComponents.add(format("state=%s", state));

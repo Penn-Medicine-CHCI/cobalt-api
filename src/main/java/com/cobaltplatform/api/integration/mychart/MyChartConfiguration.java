@@ -34,6 +34,8 @@ public class MyChartConfiguration {
 	@Nullable
 	private String scope; // e.g. "patient/*.* user/*.*"
 	@Nullable
+	private String aud; // e.g. "https://EPIC_BASE_URL/FHIRProxy/api/FHIR/DSTU2/"
+	@Nullable
 	private String tokenUrl; // e.g. https://EPIC_BASE_URL/ENV-FHIR/oauth2/token";
 	@Nullable
 	private String authorizeUrl; // e.g. https://EPIC_BASE_URL/ENV-FHIR/oauth2/authorize";
@@ -65,6 +67,15 @@ public class MyChartConfiguration {
 
 	public void setScope(@Nullable String scope) {
 		this.scope = scope;
+	}
+
+	@Nullable
+	public String getAud() {
+		return this.aud;
+	}
+
+	public void setAud(@Nullable String aud) {
+		this.aud = aud;
 	}
 
 	@Nullable
