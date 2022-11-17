@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.integration.enterprise;
 
 import com.cobaltplatform.api.integration.epic.DefaultEpicClient;
+import com.cobaltplatform.api.integration.epic.EpicApplicationAudience;
 import com.cobaltplatform.api.integration.epic.EpicClient;
 import com.cobaltplatform.api.integration.epic.EpicConfiguration;
 import com.cobaltplatform.api.integration.mychart.DefaultMyChartAuthenticator;
@@ -62,7 +63,9 @@ public class CobaltIcEnterprisePlugin implements EnterprisePlugin {
 
 	@Nonnull
 	@Override
-	public Optional<EpicClient> epicClient() {
+	public Optional<EpicClient> epicClientForApplicationAudience(@Nonnull EpicApplicationAudience epicApplicationAudience) {
+		requireNonNull(epicApplicationAudience);
+
 		Institution institution = getInstitutionService().findInstitutionById(getInstitutionId()).get();
 
 		EpicConfiguration epicConfiguration = new EpicConfiguration.Builder(institution.getEpicClientId(), institution.getEpicBaseUrl())

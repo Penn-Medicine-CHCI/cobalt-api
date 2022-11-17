@@ -224,7 +224,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 			return false;
 		}
 
-		EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(provider.getInstitutionId()).epicClient().get();
+		EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(provider.getInstitutionId()).epicClientForApplicationAudience(EpicApplicationAudience.BACKEND_SYSTEMS).get();
 
 		getLogger().info("Syncing availabilty for provider {} on {}...", provider.getName(), date);
 
@@ -482,7 +482,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 						.filter(provider -> provider.getSchedulingSystemId().equals(SchedulingSystemId.EPIC))
 						.collect(Collectors.toList());
 
-				EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(InstitutionId.COBALT).epicClient().get();
+				EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(InstitutionId.COBALT).epicClientForApplicationAudience(EpicApplicationAudience.BACKEND_SYSTEMS).get();
 
 				getLogger().info("Running EPIC availability sync for {} providers...", providers.size());
 				int providerSuccessCount = 0;

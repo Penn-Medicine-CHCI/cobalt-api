@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.integration.enterprise;
 
+import com.cobaltplatform.api.integration.epic.EpicApplicationAudience;
 import com.cobaltplatform.api.integration.epic.EpicClient;
 import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
 import com.cobaltplatform.api.integration.mychart.MyChartAuthenticator;
@@ -62,7 +63,7 @@ public interface EnterprisePlugin {
 	}
 
 	@Nonnull
-	default Optional<EpicClient> epicClient() {
+	default Optional<EpicClient> epicClientForApplicationAudience(@Nonnull EpicApplicationAudience epicApplicationAudience) {
 		return Optional.empty();
 	}
 
@@ -75,7 +76,7 @@ public interface EnterprisePlugin {
 	default Optional<String> extractPatientIdFromMyChartAccessToken(@Nullable MyChartAccessToken myChartAccessToken) {
 		if (myChartAccessToken == null)
 			return Optional.empty();
-		
+
 		return Optional.ofNullable((String) myChartAccessToken.getMetadata().get("patient"));
 	}
 
