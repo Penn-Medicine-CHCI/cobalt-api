@@ -148,6 +148,9 @@ public class Institution {
 	@DatabaseColumn("mychart_scope")
 	private String myChartScope;
 	@Nullable
+	@DatabaseColumn("mychart_aud")
+	private String myChartAud;
+	@Nullable
 	@DatabaseColumn("mychart_response_type")
 	private String myChartResponseType;
 	@Nullable
@@ -654,6 +657,15 @@ public class Institution {
 
 	public void setMyChartScope(@Nullable String myChartScope) {
 		this.myChartScope = myChartScope;
+	}
+
+	@Nullable
+	public String getMyChartAud() {
+		return this.myChartAud;
+	}
+
+	public void setMyChartAud(@Nullable String myChartAud) {
+		this.myChartAud = myChartAud;
 	}
 
 	@Nullable
