@@ -22,6 +22,7 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
+import com.cobaltplatform.api.integration.epic.EpicApplicationAudience;
 import com.cobaltplatform.api.integration.epic.EpicClient;
 import com.cobaltplatform.api.integration.epic.code.AddressUseCode;
 import com.cobaltplatform.api.integration.epic.code.NameUseCode;
@@ -258,7 +259,7 @@ public class MyChartService {
 		MyChartAccessToken myChartAccessToken = request.getMyChartAccessToken();
 		InstitutionId institutionId = request.getInstitutionId();
 		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId);
-		EpicClient epicClient = enterprisePlugin.epicClient().get();
+		EpicClient epicClient = enterprisePlugin.epicClientForApplicationAudience(EpicApplicationAudience.PATIENTS).get();
 		ValidationException validationException = new ValidationException();
 
 		if (institutionId == null)
