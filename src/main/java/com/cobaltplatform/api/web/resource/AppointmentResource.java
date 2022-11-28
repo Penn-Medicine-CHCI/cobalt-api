@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.InviteMethod;
 import com.cobaltplatform.api.model.api.request.CancelAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.ChangeAppointmentAttendanceStatusRequest;
 import com.cobaltplatform.api.model.api.request.CreateActivityTrackingRequest;
@@ -524,7 +525,7 @@ public class AppointmentResource {
 		if (appointment == null)
 			throw new NotFoundException();
 
-		String icalInvite = getAppointmentService().generateICalInvite(appointment);
+		String icalInvite = getAppointmentService().generateICalInvite(appointment, InviteMethod.REQUEST);
 
 		httpServletResponse.setContentType("text/calendar; charset=UTF-8");
 		httpServletResponse.setHeader("Content-Disposition", "attachment; filename=\"invite.ics\"");
