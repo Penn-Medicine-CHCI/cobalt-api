@@ -46,6 +46,10 @@ import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleRespo
 import com.cobaltplatform.api.integration.epic.response.ScheduleAppointmentWithInsuranceResponse;
 import com.cobaltplatform.api.integration.gcal.GoogleCalendarUrlGenerator;
 import com.cobaltplatform.api.integration.ical.ICalInviteGenerator;
+import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.InviteAttendee;
+import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.InviteMethod;
+import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.InviteOrganizer;
+import com.cobaltplatform.api.messaging.email.EmailAttachment;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
@@ -109,6 +113,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -1761,6 +1766,7 @@ public class AppointmentService {
 			EmailMessage patientEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_CREATED_PATIENT, account.getLocale())
 					.toAddresses(Collections.singletonList(account.getEmailAddress()))
 					.messageContext(cobaltPatientEmailMessageContext)
+					.emailAttachments(List.of(generateICalInviteAsEmailAttachment(appointment, InviteMethod.REQUEST)))
 					.build();
 
 			getEmailMessageManager().enqueueMessage(patientEmailMessage);
@@ -1786,6 +1792,7 @@ public class AppointmentService {
 		EmailMessage providerEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_CREATED_PROVIDER, provider.getLocale())
 				.toAddresses(List.of(provider.getEmailAddress()))
 				.messageContext(cobaltProviderEmailMessageContext)
+				.emailAttachments(List.of(generateICalInviteAsEmailAttachment(appointment, InviteMethod.REQUEST)))
 				.build();
 
 		getEmailMessageManager().enqueueMessage(providerEmailMessage);
@@ -1830,6 +1837,7 @@ public class AppointmentService {
 			EmailMessage patientEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_CANCELED_PATIENT, account.getLocale())
 					.toAddresses(Collections.singletonList(account.getEmailAddress()))
 					.messageContext(cobaltPatientEmailMessageContext)
+					.emailAttachments(List.of(generateICalInviteAsEmailAttachment(appointment, InviteMethod.CANCEL)))
 					.build();
 
 			getEmailMessageManager().enqueueMessage(patientEmailMessage);
@@ -1848,6 +1856,7 @@ public class AppointmentService {
 		EmailMessage providerEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_CANCELED_PROVIDER, provider.getLocale())
 				.toAddresses(List.of(provider.getEmailAddress()))
 				.messageContext(cobaltProviderEmailMessageContext)
+				.emailAttachments(List.of(generateICalInviteAsEmailAttachment(appointment, InviteMethod.CANCEL)))
 				.build();
 
 		getEmailMessageManager().enqueueMessage(providerEmailMessage);
@@ -2206,8 +2215,10 @@ public class AppointmentService {
 	}
 
 	@Nonnull
-	public String generateICalInvite(@Nonnull Appointment appointment) {
+	public String generateICalInvite(@Nonnull Appointment appointment,
+																	 @Nonnull InviteMethod inviteMethod) {
 		requireNonNull(appointment);
+		requireNonNull(inviteMethod);
 
 		String title = calendarTitleForAppointment(appointment);
 
@@ -2215,9 +2226,30 @@ public class AppointmentService {
 			put("videoconferenceUrl", appointment.getVideoconferenceUrl());
 		}}));
 
+		Account patient = getAccountService().findAccountById(appointment.getAccountId()).get();
+		Provider provider = getProviderService().findProviderById(appointment.getProviderId()).get();
+
+		InviteOrganizer inviteOrganizer = InviteOrganizer.forEmailAddress(provider.getEmailAddress());
+		InviteAttendee inviteAttendee = InviteAttendee.forEmailAddress(patient.getEmailAddress());
+
 		return getiCalInviteGenerator().generateInvite(appointment.getAppointmentId().toString(), title,
 				extendedDescription, appointment.getStartTime(), appointment.getEndTime(),
-				appointment.getTimeZone(), appointment.getVideoconferenceUrl());
+				appointment.getTimeZone(), appointment.getVideoconferenceUrl(), inviteMethod, inviteOrganizer, inviteAttendee);
+	}
+
+	@Nonnull
+	public EmailAttachment generateICalInviteAsEmailAttachment(@Nonnull Appointment appointment,
+																														 @Nonnull InviteMethod inviteMethod) {
+		requireNonNull(appointment);
+		requireNonNull(inviteMethod);
+
+		String iCalInvite = generateICalInvite(appointment, inviteMethod);
+
+		String filename = "invite.ics";
+		String method = inviteMethod == InviteMethod.CANCEL ? "CANCEL" : "REQUEST";
+		String contentType = format("text/calendar; charset=utf-8; method=%s; name=%s", method, filename);
+
+		return new EmailAttachment(filename, contentType, iCalInvite.getBytes(StandardCharsets.UTF_8));
 	}
 
 	@Nonnull

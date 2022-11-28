@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.InviteMethod;
 import com.cobaltplatform.api.model.api.request.CancelGroupSessionReservationRequest;
 import com.cobaltplatform.api.model.api.request.CreateGroupSessionReservationRequest;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
@@ -240,7 +241,7 @@ public class GroupSessionReservationResource {
 		if (groupSessionReservationPair == null)
 			throw new NotFoundException();
 
-		String icalInvite = getGroupSessionService().generateICalInvite(groupSessionReservationPair.getLeft());
+		String icalInvite = getGroupSessionService().generateICalInvite(groupSessionReservationPair.getLeft(), groupSessionReservationPair.getRight(), InviteMethod.REQUEST);
 
 		httpServletResponse.setContentType("text/calendar; charset=UTF-8");
 		httpServletResponse.setHeader("Content-Disposition", "attachment; filename=\"invite.ics\"");

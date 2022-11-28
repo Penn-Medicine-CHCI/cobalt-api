@@ -25,6 +25,10 @@ import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.gcal.GoogleCalendarUrlGenerator;
 import com.cobaltplatform.api.integration.ical.ICalInviteGenerator;
+import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.InviteAttendee;
+import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.InviteMethod;
+import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.InviteOrganizer;
+import com.cobaltplatform.api.messaging.email.EmailAttachment;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
@@ -85,6 +89,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -1114,6 +1119,7 @@ public class GroupSessionService implements AutoCloseable {
 						put("groupSessionStartTimeDescription", getFormatter().formatTime(groupSession.getStartDateTime().toLocalTime(), FormatStyle.SHORT));
 						put("anotherTimeUrl", format("%s/in-the-studio", getInstitutionService().findWebappBaseUrlByInstitutionId(institution.getInstitutionId()).get()));
 					}})
+					.emailAttachments(List.of(generateICalInviteAsEmailAttachment(groupSession, groupSessionReservation, InviteMethod.CANCEL)))
 					.build();
 
 			getEmailMessageManager().enqueueMessage(attendeeEmailMessage);
@@ -1609,16 +1615,40 @@ public class GroupSessionService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public String generateICalInvite(@Nonnull GroupSession groupSession) {
+	public String generateICalInvite(@Nonnull GroupSession groupSession,
+																	 @Nonnull GroupSessionReservation groupSessionReservation,
+																	 @Nonnull InviteMethod inviteMethod) {
 		requireNonNull(groupSession);
+		requireNonNull(groupSessionReservation);
+		requireNonNull(inviteMethod);
 
 		String extendedDescription = format("%s\n\n%s", groupSession.getDescription(), getStrings().get("Join videoconference: {{videoconferenceUrl}}", new HashMap<String, Object>() {{
 			put("videoconferenceUrl", groupSession.getVideoconferenceUrl());
 		}}));
 
+		InviteAttendee inviteAttendee = InviteAttendee.forEmailAddress(groupSessionReservation.getEmailAddress());
+		InviteOrganizer inviteOrganizer = InviteOrganizer.forEmailAddress(groupSession.getFacilitatorEmailAddress());
+
 		return getiCalInviteGenerator().generateInvite(groupSession.getGroupSessionId().toString(), groupSession.getTitle(),
 				extendedDescription, groupSession.getStartDateTime(), groupSession.getEndDateTime(),
-				groupSession.getTimeZone(), groupSession.getVideoconferenceUrl());
+				groupSession.getTimeZone(), groupSession.getVideoconferenceUrl(), inviteMethod, inviteOrganizer, inviteAttendee);
+	}
+
+	@Nonnull
+	public EmailAttachment generateICalInviteAsEmailAttachment(@Nonnull GroupSession groupSession,
+																														 @Nonnull GroupSessionReservation groupSessionReservation,
+																														 @Nonnull InviteMethod inviteMethod) {
+		requireNonNull(groupSession);
+		requireNonNull(groupSessionReservation);
+		requireNonNull(inviteMethod);
+
+		String iCalInvite = generateICalInvite(groupSession, groupSessionReservation, inviteMethod);
+
+		String filename = "invite.ics";
+		String method = inviteMethod == InviteMethod.CANCEL ? "CANCEL" : "REQUEST";
+		String contentType = format("text/calendar; charset=utf-8; method=%s; name=%s", method, filename);
+
+		return new EmailAttachment(filename, contentType, iCalInvite.getBytes(StandardCharsets.UTF_8));
 	}
 
 	@Nonnull
