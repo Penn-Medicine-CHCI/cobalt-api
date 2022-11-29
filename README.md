@@ -74,7 +74,7 @@ Here is how to generate your own keypair for testing, if needed (one has already
 
 The private key generated is `cobalt.test.pem` and the public key is `cobalt.test.crt`.  
 
-```shell script
+```shell
 $ openssl req -new -x509 -days 3650 -nodes -sha256 -out cobalt.test.crt -keyout cobalt.test.pem
 ```
 
@@ -88,4 +88,12 @@ Organization Name (eg, company) []:Transmogrify
 Organizational Unit Name (eg, section) []:
 Common Name (eg, fully qualified host name) []:com.cobaltplatform
 Email Address []:maa@xmog.com
+```
+
+### EPIC Key Generation
+
+```shell
+$ openssl genrsa -out cobalt.epic.nonprod.orig.pem 2048
+$ openssl req -days 3650 -new -x509 -key cobalt.epic.nonprod.orig.pem -out cobalt.epic.nonprod.crt -subj '/CN=cobalt'
+$ openssl pkcs8 -topk8 -inform PEM -in cobalt.epic.nonprod.orig.pem -out cobalt.epic.nonprod.pem -nocrypt
 ```

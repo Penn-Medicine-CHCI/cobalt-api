@@ -99,7 +99,7 @@ public class CobaltIcEnterprisePlugin implements EnterprisePlugin {
 		if (institution.getEpicBackendServiceAuthTypeId() == EpicBackendServiceAuthTypeId.OAUTH_20) {
 			String clientId = institution.getEpicClientId();
 			String jwksKeyId = institution.getEpicJwksKeyId().toString();
-			KeyPair keyPair = null; // TODO: load this
+			KeyPair keyPair = getConfiguration().getEpicPreferredKeyPair();
 			String tokenUrl = institution.getEpicTokenUrl();
 			String jwksUrl = format("%s/epic/fhir/jwks", getConfiguration().getBaseUrl());
 

@@ -21,6 +21,7 @@ package com.cobaltplatform.api.util;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
@@ -42,6 +43,8 @@ import java.security.SecureRandom;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
+import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.RSAPublicKeySpec;
@@ -306,5 +309,83 @@ public final class CryptoUtility {
 			throw new IllegalArgumentException("Unable to read value.");
 
 		return new BigInteger(valueArray);
+	}
+
+	@Immutable
+	public static class PublicKeyExponentModulus {
+		@Nonnull
+		private final PublicKey publicKey;
+		@Nonnull
+		private final BigInteger exponent;
+		@Nonnull
+		private final BigInteger modulus;
+		@Nonnull
+		private final String exponentInBase64;
+		@Nonnull
+		private final String modulusInBase64;
+
+		public PublicKeyExponentModulus(@Nonnull String publicKeyAsString) {
+			X509Certificate certificate;
+
+			try (ByteArrayInputStream is = new ByteArrayInputStream(publicKeyAsString.getBytes(StandardCharsets.UTF_8))) {
+				CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
+				certificate = (X509Certificate) certificateFactory.generateCertificate(is);
+			} catch (IOException e) {
+				throw new UncheckedIOException(e);
+			} catch (CertificateException e) {
+				throw new RuntimeException(e);
+			}
+
+			PublicKey publicKey = certificate.getPublicKey();
+
+			if (!(publicKey instanceof RSAPublicKey))
+				throw new IllegalArgumentException(format("Public key is not an instance of %s", RSAPublicKey.class.getSimpleName()));
+
+			RSAPublicKey rsaPublicKey = (RSAPublicKey) (publicKey);
+
+			this.publicKey = publicKey;
+			this.exponent = rsaPublicKey.getPublicExponent();
+			this.modulus = rsaPublicKey.getModulus();
+			this.exponentInBase64 = Base64.getUrlEncoder().encodeToString(this.exponent.toByteArray());
+			this.modulusInBase64 = Base64.getUrlEncoder().encodeToString(this.modulus.toByteArray());
+		}
+
+		public PublicKeyExponentModulus(@Nonnull PublicKey publicKey) {
+			if (!(publicKey instanceof RSAPublicKey))
+				throw new IllegalArgumentException(format("Public key is not an instance of %s", RSAPublicKey.class.getSimpleName()));
+
+			RSAPublicKey rsaPublicKey = (RSAPublicKey) (publicKey);
+
+			this.publicKey = publicKey;
+			this.exponent = rsaPublicKey.getPublicExponent();
+			this.modulus = rsaPublicKey.getModulus();
+			this.exponentInBase64 = Base64.getUrlEncoder().encodeToString(this.exponent.toByteArray());
+			this.modulusInBase64 = Base64.getUrlEncoder().encodeToString(this.modulus.toByteArray());
+		}
+
+		@Nonnull
+		public PublicKey getPublicKey() {
+			return this.publicKey;
+		}
+
+		@Nonnull
+		public BigInteger getExponent() {
+			return this.exponent;
+		}
+
+		@Nonnull
+		public BigInteger getModulus() {
+			return this.modulus;
+		}
+
+		@Nonnull
+		public String getExponentInBase64() {
+			return this.exponentInBase64;
+		}
+
+		@Nonnull
+		public String getModulusInBase64() {
+			return this.modulusInBase64;
+		}
 	}
 }
