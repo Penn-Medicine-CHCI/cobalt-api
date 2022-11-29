@@ -261,7 +261,20 @@ public class Configuration {
 	private final Way2HealthEnvironment way2HealthEnvironment;
 
 	@Nonnull
+	private final String epicNonProdKeyId;
+	@Nonnull
+	private final String epicProdKeyId;
+	@Nonnull
+	private final String epicCurrentEnvironmentKeyId;
+
+	@Nonnull
 	private final KeyPair keyPair;
+	@Nonnull
+	private final KeyPair epicNonProdKeyPair;
+	@Nonnull
+	private final KeyPair epicProdKeyPair;
+	@Nonnull
+	private final KeyPair epicCurrentEnvironmentKeyPair;
 
 	@Nonnull
 	private final Map<SamlIdentityProvider, Map<String, Object>> samlSettingsByIdentityProvider;
@@ -401,9 +414,19 @@ public class Configuration {
 		this.way2HealthAccessToken = valueFor("com.cobaltplatform.api.way2health.accessToken", String.class);
 		this.way2HealthEnvironment = valueFor("com.cobaltplatform.api.way2health.environment", Way2HealthEnvironment.class);
 
-		RawKeypair rawKeypair = loadRawKeypair();
+		// TODO: data-drive, institution-specific
+		this.epicNonProdKeyId = "e8c96880-4a36-4dbd-9a32-1f1009cc507c";
+		this.epicProdKeyId = "e40560fb-4a47-43ea-949f-bc0b3ad7bd50";
+		this.epicCurrentEnvironmentKeyId = isProduction() ? getEpicProdKeyId() : getEpicNonProdKeyId();
+
+		RawKeypair rawKeypair = loadRawKeypair("cobalt");
+		RawKeypair epicNonProdRawKeypair = loadRawKeypair("cobalt.epic.nonprod");
+		RawKeypair epicProdRawKeypair = loadRawKeypair("cobalt.epic.prod");
 
 		this.keyPair = CryptoUtility.keyPairFromStringRepresentation(rawKeypair.getCert(), rawKeypair.getPrivateKey(), PublicKeyFormat.X509);
+		this.epicNonProdKeyPair = CryptoUtility.keyPairFromStringRepresentation(epicNonProdRawKeypair.getCert(), epicNonProdRawKeypair.getPrivateKey(), PublicKeyFormat.X509);
+		this.epicProdKeyPair = CryptoUtility.keyPairFromStringRepresentation(epicProdRawKeypair.getCert(), epicProdRawKeypair.getPrivateKey(), PublicKeyFormat.X509);
+		this.epicCurrentEnvironmentKeyPair = isProduction() ? getEpicProdKeyPair() : getEpicNonProdKeyPair();
 		this.samlSettingsByIdentityProvider = Collections.emptyMap();
 
 		if (getAmazonUseLocalstack()) {
@@ -763,20 +786,22 @@ public class Configuration {
 	}
 
 	@Nonnull
-	protected RawKeypair loadRawKeypair() {
+	protected RawKeypair loadRawKeypair(@Nonnull String namePrefix) {
+		requireNonNull(namePrefix);
+
 		String cert;
 		String privateKey;
 
 		if (sensitiveDataStorageLocation == SensitiveDataStorageLocation.FILESYSTEM) {
-			Path certFile = Paths.get(format("config/%s/cobalt.crt", getEnvironment()));
+			Path certFile = Paths.get(format("config/%s/%s.crt", getEnvironment(), namePrefix));
 
 			if (!Files.isRegularFile(certFile))
-				throw new IllegalStateException(format("Could not find SAML cert file at %s", certFile.toAbsolutePath()));
+				throw new IllegalStateException(format("Could not find cert file at %s", certFile.toAbsolutePath()));
 
-			Path privateKeyFile = Paths.get(format("config/%s/cobalt.pem", getEnvironment()));
+			Path privateKeyFile = Paths.get(format("config/%s/%s.pem", getEnvironment(), namePrefix));
 
 			if (!Files.isRegularFile(privateKeyFile))
-				throw new IllegalStateException(format("Could not find SAML private key file at %s", privateKeyFile.toAbsolutePath()));
+				throw new IllegalStateException(format("Could not find private key file at %s", privateKeyFile.toAbsolutePath()));
 
 			try {
 				cert = new String(Files.readAllBytes(certFile), StandardCharsets.UTF_8);
@@ -793,10 +818,10 @@ public class Configuration {
 
 			S3Client amazonS3 = builder.build();
 
-			// e.g. https://cobaltplatform.s3.us-east-2.amazonaws.com/prod/cobalt.crt
+			// e.g. https://cobaltplatform.s3.us-east-2.amazonaws.com/prod/{namePrefix}.crt
 			GetObjectRequest certObjectRequest = GetObjectRequest.builder()
 					.bucket(getAmazonS3BucketName())
-					.key(format("%s/cobalt.crt", getEnvironment()))
+					.key(format("%s/%s.crt", getEnvironment(), namePrefix))
 					.build();
 
 			try (InputStream inputStream = amazonS3.getObject(certObjectRequest)) {
@@ -805,10 +830,10 @@ public class Configuration {
 				throw new UncheckedIOException(e);
 			}
 
-			// e.g. https://cobaltplatform.s3.us-east-2.amazonaws.com/prod/cobaltplatform.pem
+			// e.g. https://cobaltplatform.s3.us-east-2.amazonaws.com/prod/{namePrefix}.pem
 			GetObjectRequest privateKeyObjectRequest = GetObjectRequest.builder()
 					.bucket(getAmazonS3BucketName())
-					.key(format("%s/cobalt.pem", getEnvironment()))
+					.key(format("%s/%s.pem", getEnvironment(), namePrefix))
 					.build();
 
 			try (InputStream inputStream = amazonS3.getObject(privateKeyObjectRequest)) {
@@ -1377,8 +1402,38 @@ public class Configuration {
 	}
 
 	@Nonnull
+	public String getEpicNonProdKeyId() {
+		return this.epicNonProdKeyId;
+	}
+
+	@Nonnull
+	public String getEpicProdKeyId() {
+		return this.epicProdKeyId;
+	}
+
+	@Nonnull
+	public String getEpicCurrentEnvironmentKeyId() {
+		return this.epicCurrentEnvironmentKeyId;
+	}
+
+	@Nonnull
 	public KeyPair getKeyPair() {
 		return keyPair;
+	}
+
+	@Nonnull
+	public KeyPair getEpicNonProdKeyPair() {
+		return this.epicNonProdKeyPair;
+	}
+
+	@Nonnull
+	public KeyPair getEpicProdKeyPair() {
+		return this.epicProdKeyPair;
+	}
+
+	@Nonnull
+	public KeyPair getEpicCurrentEnvironmentKeyPair() {
+		return this.epicCurrentEnvironmentKeyPair;
 	}
 
 	@Nonnull

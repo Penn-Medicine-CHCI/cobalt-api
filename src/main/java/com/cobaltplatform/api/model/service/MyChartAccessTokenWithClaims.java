@@ -19,7 +19,7 @@
 
 package com.cobaltplatform.api.model.service;
 
-import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
+import com.cobaltplatform.api.integration.epic.MyChartAccessToken;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;

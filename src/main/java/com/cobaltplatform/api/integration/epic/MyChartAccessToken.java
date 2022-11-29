@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.integration.mychart;
+package com.cobaltplatform.api.integration.epic;
 
 import com.cobaltplatform.api.util.GsonUtility;
 import com.google.gson.Gson;

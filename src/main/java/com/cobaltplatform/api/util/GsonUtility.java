@@ -19,7 +19,7 @@
 
 package com.cobaltplatform.api.util;
 
-import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
+import com.cobaltplatform.api.integration.epic.MyChartAccessToken;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializationContext;

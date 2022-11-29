@@ -22,14 +22,13 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
-import com.cobaltplatform.api.integration.epic.EpicApplicationAudience;
 import com.cobaltplatform.api.integration.epic.EpicClient;
+import com.cobaltplatform.api.integration.epic.MyChartAccessToken;
+import com.cobaltplatform.api.integration.epic.MyChartAuthenticator;
 import com.cobaltplatform.api.integration.epic.code.AddressUseCode;
 import com.cobaltplatform.api.integration.epic.code.NameUseCode;
 import com.cobaltplatform.api.integration.epic.code.TelecomUseCode;
 import com.cobaltplatform.api.integration.epic.response.PatientFhirR4Response;
-import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
-import com.cobaltplatform.api.integration.mychart.MyChartAuthenticator;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreateMyChartAccountRequest;
@@ -259,7 +258,7 @@ public class MyChartService {
 		MyChartAccessToken myChartAccessToken = request.getMyChartAccessToken();
 		InstitutionId institutionId = request.getInstitutionId();
 		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId);
-		EpicClient epicClient = enterprisePlugin.epicClientForApplicationAudience(EpicApplicationAudience.PATIENTS).get();
+		EpicClient epicClient = enterprisePlugin.epicClientForPatient(myChartAccessToken).get();
 		ValidationException validationException = new ValidationException();
 
 		if (institutionId == null)
@@ -285,7 +284,7 @@ public class MyChartService {
 			return existingAccount.getAccountId();
 
 		try {
-			patient = epicClient.findPatientFhirR4(myChartAccessToken, patientId).orElse(null);
+			patient = epicClient.findPatientFhirR4(patientId).orElse(null);
 
 			if (patient == null) {
 				getLogger().warn("Unable to find record in EPIC for patient ID {}", patientId);

@@ -24,7 +24,7 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.context.CurrentContextExecutor.CurrentContextOperation;
 import com.cobaltplatform.api.error.ErrorReporter;
-import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
+import com.cobaltplatform.api.integration.epic.MyChartAccessToken;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.Institution;

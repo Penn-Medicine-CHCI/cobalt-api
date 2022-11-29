@@ -34,7 +34,6 @@ import com.cobaltplatform.api.integration.epic.response.PatientCreateResponse;
 import com.cobaltplatform.api.integration.epic.response.PatientFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse;
 import com.cobaltplatform.api.integration.epic.response.ScheduleAppointmentWithInsuranceResponse;
-import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -51,18 +50,8 @@ import java.util.Optional;
 public class MockEpicClient implements EpicClient {
 	@Nonnull
 	@Override
-	public Optional<PatientFhirR4Response> findPatientFhirR4(@Nonnull MyChartAccessToken myChartAccessToken,
-																													 @Nonnull String patientId) {
+	public Optional<PatientFhirR4Response> findPatientFhirR4(@Nonnull String patientId) {
 		return Optional.empty();
-	}
-
-	@Nonnull
-	@Override
-	public EpicConfiguration getEpicConfiguration() {
-		return new EpicConfiguration.Builder(
-				"fake-client-id",
-				"https://www.example.com"
-		).build();
 	}
 
 	@Nonnull

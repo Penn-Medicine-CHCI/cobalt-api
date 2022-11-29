@@ -20,7 +20,7 @@
 package com.cobaltplatform.api.context;
 
 
-import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
+import com.cobaltplatform.api.integration.epic.MyChartAccessToken;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
