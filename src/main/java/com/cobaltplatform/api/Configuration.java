@@ -264,6 +264,8 @@ public class Configuration {
 	private final String epicNonProdKeyId;
 	@Nonnull
 	private final String epicProdKeyId;
+	@Nonnull
+	private final String epicCurrentEnvironmentKeyId;
 
 	@Nonnull
 	private final KeyPair keyPair;
@@ -272,7 +274,7 @@ public class Configuration {
 	@Nonnull
 	private final KeyPair epicProdKeyPair;
 	@Nonnull
-	private final KeyPair epicPreferredKeyPair;
+	private final KeyPair epicCurrentEnvironmentKeyPair;
 
 	@Nonnull
 	private final Map<SamlIdentityProvider, Map<String, Object>> samlSettingsByIdentityProvider;
@@ -415,6 +417,7 @@ public class Configuration {
 		// TODO: data-drive, institution-specific
 		this.epicNonProdKeyId = "e8c96880-4a36-4dbd-9a32-1f1009cc507c";
 		this.epicProdKeyId = "e40560fb-4a47-43ea-949f-bc0b3ad7bd50";
+		this.epicCurrentEnvironmentKeyId = isProduction() ? getEpicProdKeyId() : getEpicNonProdKeyId();
 
 		RawKeypair rawKeypair = loadRawKeypair("cobalt");
 		RawKeypair epicNonProdRawKeypair = loadRawKeypair("cobalt.epic.nonprod");
@@ -423,7 +426,7 @@ public class Configuration {
 		this.keyPair = CryptoUtility.keyPairFromStringRepresentation(rawKeypair.getCert(), rawKeypair.getPrivateKey(), PublicKeyFormat.X509);
 		this.epicNonProdKeyPair = CryptoUtility.keyPairFromStringRepresentation(epicNonProdRawKeypair.getCert(), epicNonProdRawKeypair.getPrivateKey(), PublicKeyFormat.X509);
 		this.epicProdKeyPair = CryptoUtility.keyPairFromStringRepresentation(epicProdRawKeypair.getCert(), epicProdRawKeypair.getPrivateKey(), PublicKeyFormat.X509);
-		this.epicPreferredKeyPair = isProduction() ? getEpicProdKeyPair() : getEpicNonProdKeyPair();
+		this.epicCurrentEnvironmentKeyPair = isProduction() ? getEpicProdKeyPair() : getEpicNonProdKeyPair();
 		this.samlSettingsByIdentityProvider = Collections.emptyMap();
 
 		if (getAmazonUseLocalstack()) {
@@ -1409,6 +1412,11 @@ public class Configuration {
 	}
 
 	@Nonnull
+	public String getEpicCurrentEnvironmentKeyId() {
+		return this.epicCurrentEnvironmentKeyId;
+	}
+
+	@Nonnull
 	public KeyPair getKeyPair() {
 		return keyPair;
 	}
@@ -1424,8 +1432,8 @@ public class Configuration {
 	}
 
 	@Nonnull
-	public KeyPair getEpicPreferredKeyPair() {
-		return this.epicPreferredKeyPair;
+	public KeyPair getEpicCurrentEnvironmentKeyPair() {
+		return this.epicCurrentEnvironmentKeyPair;
 	}
 
 	@Nonnull

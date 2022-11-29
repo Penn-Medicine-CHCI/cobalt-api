@@ -98,15 +98,15 @@ public class CobaltIcEnterprisePlugin implements EnterprisePlugin {
 
 		if (institution.getEpicBackendServiceAuthTypeId() == EpicBackendServiceAuthTypeId.OAUTH_20) {
 			String clientId = institution.getEpicClientId();
-			String jwksKeyId = institution.getEpicJwksKeyId().toString();
-			KeyPair keyPair = getConfiguration().getEpicPreferredKeyPair();
+			String jwksKeyId = getConfiguration().getEpicCurrentEnvironmentKeyId();
+			KeyPair keyPair = getConfiguration().getEpicCurrentEnvironmentKeyPair();
 			String tokenUrl = institution.getEpicTokenUrl();
 			String jwksUrl = format("%s/epic/fhir/jwks", getConfiguration().getBaseUrl());
 
 			EpicBackendServiceConfiguration epicBackendServiceConfiguration = new EpicBackendServiceConfiguration(clientId, jwksKeyId, keyPair, tokenUrl, jwksUrl);
 			EpicBackendServiceAuthenticator epicBackendServiceAuthenticator = new DefaultEpicBackendServiceAuthenticator(epicBackendServiceConfiguration);
 
-			// TODO: we should cache this access token/EPIC client off
+			// Real implementations would cache this off, this is just an example for our fake institution
 			EpicBackendServiceAccessToken epicBackendServiceAccessToken = epicBackendServiceAuthenticator.obtainAccessTokenFromBackendServiceJwt();
 			EpicConfiguration epicConfiguration = new EpicConfiguration.Builder(epicBackendServiceAccessToken, institution.getEpicClientId(), institution.getEpicBaseUrl())
 					.build();

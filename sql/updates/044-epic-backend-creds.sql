@@ -14,6 +14,5 @@ ALTER TABLE institution ADD COLUMN epic_backend_service_auth_type_id TEXT NOT NU
 
 ALTER TABLE institution RENAME COLUMN mychart_token_url TO epic_token_url;
 ALTER TABLE institution RENAME COLUMN mychart_authorize_url TO epic_authorize_url;
-ALTER TABLE institution ADD COLUMN epic_jwks_key_id UUID;
 
 COMMIT;

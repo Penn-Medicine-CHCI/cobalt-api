@@ -147,8 +147,6 @@ public class Institution {
 	@Nullable
 	private String epicAuthorizeUrl;
 	@Nullable
-	private UUID epicJwksKeyId;
-	@Nullable
 	@DatabaseColumn("mychart_client_id") // In DB, it's "mychart", in code, it's "MyChart"
 	private String myChartClientId;
 	@Nullable
@@ -696,15 +694,6 @@ public class Institution {
 
 	public void setEpicAuthorizeUrl(@Nullable String epicAuthorizeUrl) {
 		this.epicAuthorizeUrl = epicAuthorizeUrl;
-	}
-
-	@Nullable
-	public UUID getEpicJwksKeyId() {
-		return this.epicJwksKeyId;
-	}
-
-	public void setEpicJwksKeyId(@Nullable UUID epicJwksKeyId) {
-		this.epicJwksKeyId = epicJwksKeyId;
 	}
 
 	@Nullable
