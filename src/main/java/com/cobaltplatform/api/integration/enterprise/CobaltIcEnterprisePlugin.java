@@ -36,7 +36,6 @@ import com.cobaltplatform.api.model.db.EpicBackendServiceAuthType.EpicBackendSer
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.service.InstitutionService;
-import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -75,7 +74,7 @@ public class CobaltIcEnterprisePlugin implements EnterprisePlugin {
 		return InstitutionId.COBALT_IC;
 	}
 
-	@NotNull
+	@Nonnull
 	@Override
 	public Optional<EpicClient> epicClientForPatient(@Nonnull MyChartAccessToken myChartAccessToken) {
 		requireNonNull(myChartAccessToken);
@@ -90,7 +89,7 @@ public class CobaltIcEnterprisePlugin implements EnterprisePlugin {
 		return Optional.of(new DefaultEpicClient(epicConfiguration));
 	}
 
-	@NotNull
+	@Nonnull
 	@Override
 	public Optional<EpicClient> epicClientForBackendService() {
 		Institution institution = getInstitutionService().findInstitutionById(getInstitutionId()).get();
