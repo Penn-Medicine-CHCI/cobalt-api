@@ -17,39 +17,49 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.api.request;
-
-import com.cobaltplatform.api.integration.epic.MyChartAccessToken;
-import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+package com.cobaltplatform.api.model.db;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+
+import static java.lang.String.format;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreateMyChartAccountRequest {
+public class EpicBackendServiceAuthType {
 	@Nullable
-	private InstitutionId institutionId;
+	private EpicBackendServiceAuthTypeId epicBackendServiceAuthTypeId;
 	@Nullable
-	private MyChartAccessToken myChartAccessToken;
+	private String description;
 
-	@Nullable
-	public InstitutionId getInstitutionId() {
-		return this.institutionId;
+	public enum EpicBackendServiceAuthTypeId {
+		UNSUPPORTED,
+		OAUTH_20,
+		EMP_CREDENTIALS
 	}
 
-	public void setInstitutionId(@Nullable InstitutionId institutionId) {
-		this.institutionId = institutionId;
+	@Override
+	public String toString() {
+		return format("%s{epicBackendServiceAuthTypeId=%s, description=%s}", getClass().getSimpleName(), getEpicBackendServiceAuthTypeId(), getDescription());
 	}
 
 	@Nullable
-	public MyChartAccessToken getMyChartAccessToken() {
-		return this.myChartAccessToken;
+	public EpicBackendServiceAuthTypeId getEpicBackendServiceAuthTypeId() {
+		return this.epicBackendServiceAuthTypeId;
 	}
 
-	public void setMyChartAccessToken(@Nullable MyChartAccessToken myChartAccessToken) {
-		this.myChartAccessToken = myChartAccessToken;
+	public void setEpicBackendServiceAuthTypeId(@Nullable EpicBackendServiceAuthTypeId epicBackendServiceAuthTypeId) {
+		this.epicBackendServiceAuthTypeId = epicBackendServiceAuthTypeId;
+	}
+
+	@Nullable
+	public String getDescription() {
+		return this.description;
+	}
+
+	public void setDescription(@Nullable String description) {
+		this.description = description;
 	}
 }

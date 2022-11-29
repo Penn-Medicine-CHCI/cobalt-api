@@ -19,23 +19,33 @@
 
 package com.cobaltplatform.api.integration.enterprise;
 
+import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.integration.epic.DefaultEpicBackendServiceAuthenticator;
 import com.cobaltplatform.api.integration.epic.DefaultEpicClient;
-import com.cobaltplatform.api.integration.epic.EpicApplicationAudience;
+import com.cobaltplatform.api.integration.epic.DefaultMyChartAuthenticator;
+import com.cobaltplatform.api.integration.epic.EpicBackendServiceAccessToken;
+import com.cobaltplatform.api.integration.epic.EpicBackendServiceAuthenticator;
+import com.cobaltplatform.api.integration.epic.EpicBackendServiceConfiguration;
 import com.cobaltplatform.api.integration.epic.EpicClient;
 import com.cobaltplatform.api.integration.epic.EpicConfiguration;
-import com.cobaltplatform.api.integration.mychart.DefaultMyChartAuthenticator;
-import com.cobaltplatform.api.integration.mychart.MyChartAuthenticator;
-import com.cobaltplatform.api.integration.mychart.MyChartConfiguration;
+import com.cobaltplatform.api.integration.epic.EpicEmpCredentials;
+import com.cobaltplatform.api.integration.epic.MyChartAccessToken;
+import com.cobaltplatform.api.integration.epic.MyChartAuthenticator;
+import com.cobaltplatform.api.integration.epic.MyChartConfiguration;
+import com.cobaltplatform.api.model.db.EpicBackendServiceAuthType.EpicBackendServiceAuthTypeId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.service.InstitutionService;
+import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.security.KeyPair;
 import java.util.Optional;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -46,11 +56,17 @@ import static java.util.Objects.requireNonNull;
 public class CobaltIcEnterprisePlugin implements EnterprisePlugin {
 	@Nonnull
 	private final InstitutionService institutionService;
+	@Nonnull
+	private final Configuration configuration;
 
 	@Inject
-	public CobaltIcEnterprisePlugin(@Nonnull InstitutionService institutionService) {
+	public CobaltIcEnterprisePlugin(@Nonnull InstitutionService institutionService,
+																	@Nonnull Configuration configuration) {
 		requireNonNull(institutionService);
+		requireNonNull(configuration);
+
 		this.institutionService = institutionService;
+		this.configuration = configuration;
 	}
 
 	@Nonnull
@@ -59,23 +75,58 @@ public class CobaltIcEnterprisePlugin implements EnterprisePlugin {
 		return InstitutionId.COBALT_IC;
 	}
 
-	// No custom behavior for this institution
-
-	@Nonnull
+	@NotNull
 	@Override
-	public Optional<EpicClient> epicClientForApplicationAudience(@Nonnull EpicApplicationAudience epicApplicationAudience) {
-		requireNonNull(epicApplicationAudience);
+	public Optional<EpicClient> epicClientForPatient(@Nonnull MyChartAccessToken myChartAccessToken) {
+		requireNonNull(myChartAccessToken);
 
 		Institution institution = getInstitutionService().findInstitutionById(getInstitutionId()).get();
 
-		EpicConfiguration epicConfiguration = new EpicConfiguration.Builder(institution.getEpicClientId(), institution.getEpicBaseUrl())
-				.userId(institution.getEpicUserId())
-				.userIdType(institution.getEpicUserIdType())
-				.username(institution.getEpicUsername())
-				.password(institution.getEpicPassword())
-				.build();
+		String clientId = institution.getEpicClientId();
+		String baseUrl = institution.getEpicBaseUrl();
+
+		EpicConfiguration epicConfiguration = new EpicConfiguration.Builder(myChartAccessToken, clientId, baseUrl).build();
 
 		return Optional.of(new DefaultEpicClient(epicConfiguration));
+	}
+
+	@NotNull
+	@Override
+	public Optional<EpicClient> epicClientForBackendService() {
+		Institution institution = getInstitutionService().findInstitutionById(getInstitutionId()).get();
+		EpicClient epicClient = null;
+
+		if (institution.getEpicBackendServiceAuthTypeId() == EpicBackendServiceAuthTypeId.OAUTH_20) {
+			String clientId = institution.getEpicClientId();
+			String jwksKeyId = institution.getEpicJwksKeyId().toString();
+			KeyPair keyPair = null; // TODO: load this
+			String tokenUrl = institution.getEpicTokenUrl();
+			String jwksUrl = format("%s/epic/fhir/jwks", getConfiguration().getBaseUrl());
+
+			EpicBackendServiceConfiguration epicBackendServiceConfiguration = new EpicBackendServiceConfiguration(clientId, jwksKeyId, keyPair, tokenUrl, jwksUrl);
+			EpicBackendServiceAuthenticator epicBackendServiceAuthenticator = new DefaultEpicBackendServiceAuthenticator(epicBackendServiceConfiguration);
+
+			// TODO: we should cache this access token/EPIC client off
+			EpicBackendServiceAccessToken epicBackendServiceAccessToken = epicBackendServiceAuthenticator.obtainAccessTokenFromBackendServiceJwt();
+			EpicConfiguration epicConfiguration = new EpicConfiguration.Builder(epicBackendServiceAccessToken, institution.getEpicClientId(), institution.getEpicBaseUrl())
+					.build();
+
+			epicClient = new DefaultEpicClient(epicConfiguration);
+		} else if (institution.getEpicBackendServiceAuthTypeId() == EpicBackendServiceAuthTypeId.EMP_CREDENTIALS) {
+			String clientId = institution.getEpicClientId();
+			String userId = institution.getEpicUserId();
+			String userIdType = institution.getEpicUserIdType();
+			String username = institution.getEpicUsername();
+			String password = institution.getEpicPassword();
+
+			EpicEmpCredentials epicEmpCredentials = new EpicEmpCredentials(clientId, userId, userIdType, username, password);
+			EpicConfiguration epicConfiguration = new EpicConfiguration.Builder(epicEmpCredentials, institution.getEpicClientId(), institution.getEpicBaseUrl())
+					.build();
+
+			epicClient = new DefaultEpicClient(epicConfiguration);
+		}
+
+		return Optional.ofNullable(epicClient);
 	}
 
 	@Nonnull
@@ -88,8 +139,8 @@ public class CobaltIcEnterprisePlugin implements EnterprisePlugin {
 		myChartConfiguration.setScope(institution.getMyChartScope());
 		myChartConfiguration.setResponseType(institution.getMyChartResponseType());
 		myChartConfiguration.setCallbackUrl(institution.getMyChartCallbackUrl());
-		myChartConfiguration.setAuthorizeUrl(institution.getMyChartAuthorizeUrl());
-		myChartConfiguration.setTokenUrl(institution.getMyChartTokenUrl());
+		myChartConfiguration.setAuthorizeUrl(institution.getEpicAuthorizeUrl());
+		myChartConfiguration.setTokenUrl(institution.getEpicTokenUrl());
 
 		return Optional.of(new DefaultMyChartAuthenticator(myChartConfiguration));
 	}
@@ -97,5 +148,10 @@ public class CobaltIcEnterprisePlugin implements EnterprisePlugin {
 	@Nonnull
 	protected InstitutionService getInstitutionService() {
 		return this.institutionService;
+	}
+
+	@Nonnull
+	protected Configuration getConfiguration() {
+		return this.configuration;
 	}
 }

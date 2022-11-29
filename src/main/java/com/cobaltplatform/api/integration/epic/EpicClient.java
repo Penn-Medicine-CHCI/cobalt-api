@@ -34,7 +34,6 @@ import com.cobaltplatform.api.integration.epic.response.PatientCreateResponse;
 import com.cobaltplatform.api.integration.epic.response.PatientFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse;
 import com.cobaltplatform.api.integration.epic.response.ScheduleAppointmentWithInsuranceResponse;
-import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -51,11 +50,7 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public interface EpicClient {
 	@Nonnull
-	EpicConfiguration getEpicConfiguration();
-
-	@Nonnull
-	Optional<PatientFhirR4Response> findPatientFhirR4(@Nonnull MyChartAccessToken myChartAccessToken,
-																										@Nullable String patientId);
+	Optional<PatientFhirR4Response> findPatientFhirR4(@Nullable String patientId);
 
 	@Nonnull
 	PatientSearchResponse performPatientSearch(@Nonnull PatientSearchRequest request);
@@ -120,6 +115,7 @@ public interface EpicClient {
 
 		return extractUIDFromPatientEntry(response.getEntry().get(0));
 	}
+
 
 	@Nonnull
 	default Optional<String> extractUIDFromPatientEntry(@Nonnull PatientSearchResponse.Entry patientEntry) {

@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.EpicBackendServiceAuthType.EpicBackendServiceAuthTypeId;
 import com.cobaltplatform.api.model.db.GroupSessionSystem.GroupSessionSystemId;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -142,6 +143,12 @@ public class Institution {
 	@Nullable
 	private String epicBaseUrl;
 	@Nullable
+	private String epicTokenUrl;
+	@Nullable
+	private String epicAuthorizeUrl;
+	@Nullable
+	private UUID epicJwksKeyId;
+	@Nullable
 	@DatabaseColumn("mychart_client_id") // In DB, it's "mychart", in code, it's "MyChart"
 	private String myChartClientId;
 	@Nullable
@@ -154,14 +161,10 @@ public class Institution {
 	@DatabaseColumn("mychart_response_type")
 	private String myChartResponseType;
 	@Nullable
-	@DatabaseColumn("mychart_token_url")
-	private String myChartTokenUrl;
-	@Nullable
-	@DatabaseColumn("mychart_authorize_url")
-	private String myChartAuthorizeUrl;
-	@Nullable
 	@DatabaseColumn("mychart_callback_url")
 	private String myChartCallbackUrl;
+	@Nullable
+	private EpicBackendServiceAuthTypeId epicBackendServiceAuthTypeId;
 
 	public enum InstitutionId {
 		COBALT,
@@ -678,21 +681,30 @@ public class Institution {
 	}
 
 	@Nullable
-	public String getMyChartTokenUrl() {
-		return this.myChartTokenUrl;
+	public String getEpicTokenUrl() {
+		return this.epicTokenUrl;
 	}
 
-	public void setMyChartTokenUrl(@Nullable String myChartTokenUrl) {
-		this.myChartTokenUrl = myChartTokenUrl;
+	public void setEpicTokenUrl(@Nullable String epicTokenUrl) {
+		this.epicTokenUrl = epicTokenUrl;
 	}
 
 	@Nullable
-	public String getMyChartAuthorizeUrl() {
-		return this.myChartAuthorizeUrl;
+	public String getEpicAuthorizeUrl() {
+		return this.epicAuthorizeUrl;
 	}
 
-	public void setMyChartAuthorizeUrl(@Nullable String myChartAuthorizeUrl) {
-		this.myChartAuthorizeUrl = myChartAuthorizeUrl;
+	public void setEpicAuthorizeUrl(@Nullable String epicAuthorizeUrl) {
+		this.epicAuthorizeUrl = epicAuthorizeUrl;
+	}
+
+	@Nullable
+	public UUID getEpicJwksKeyId() {
+		return this.epicJwksKeyId;
+	}
+
+	public void setEpicJwksKeyId(@Nullable UUID epicJwksKeyId) {
+		this.epicJwksKeyId = epicJwksKeyId;
 	}
 
 	@Nullable
@@ -702,5 +714,14 @@ public class Institution {
 
 	public void setMyChartCallbackUrl(@Nullable String myChartCallbackUrl) {
 		this.myChartCallbackUrl = myChartCallbackUrl;
+	}
+
+	@Nullable
+	public EpicBackendServiceAuthTypeId getEpicBackendServiceAuthTypeId() {
+		return this.epicBackendServiceAuthTypeId;
+	}
+
+	public void setEpicBackendServiceAuthTypeId(@Nullable EpicBackendServiceAuthTypeId epicBackendServiceAuthTypeId) {
+		this.epicBackendServiceAuthTypeId = epicBackendServiceAuthTypeId;
 	}
 }

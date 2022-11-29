@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.integration.mychart;
+package com.cobaltplatform.api.integration.epic;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -27,12 +27,12 @@ import javax.annotation.Nullable;
  */
 public interface MyChartAuthenticator {
 	@Nonnull
-	default MyChartAccessToken obtainAccessTokenFromCode(@Nonnull String code) throws MyChartException {
+	default MyChartAccessToken obtainAccessTokenFromCode(@Nonnull String code) throws EpicException {
 		return obtainAccessTokenFromCode(code, null);
 	}
 
 	MyChartAccessToken obtainAccessTokenFromCode(@Nonnull String code,
-																							 @Nullable String state) throws MyChartException;
+																							 @Nullable String state) throws EpicException;
 
 	@Nonnull
 	default String generateAuthenticationRedirectUrl() {

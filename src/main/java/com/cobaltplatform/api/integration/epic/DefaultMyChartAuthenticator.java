@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.integration.mychart;
+package com.cobaltplatform.api.integration.epic;
 
 import com.cobaltplatform.api.http.DefaultHttpClient;
 import com.cobaltplatform.api.http.HttpClient;
@@ -120,7 +120,7 @@ public class DefaultMyChartAuthenticator implements MyChartAuthenticator {
 	@Nonnull
 	@Override
 	public MyChartAccessToken obtainAccessTokenFromCode(@Nonnull String code,
-																											@Nullable String state) throws MyChartException {
+																											@Nullable String state) throws EpicException {
 		requireNonNull(code);
 
 		state = trimToNull(state);
@@ -150,7 +150,7 @@ public class DefaultMyChartAuthenticator implements MyChartAuthenticator {
 			HttpResponse httpResponse = getHttpClient().execute(httpRequest);
 
 			if (httpResponse.getStatus() >= 400)
-				throw new MyChartException(format("Unable to exchange MyChart code for access token. HTTP status %d, Response Body:\n%s",
+				throw new EpicException(format("Unable to exchange MyChart code for access token. HTTP status %d, Response Body:\n%s",
 						httpResponse.getStatus(), httpResponse.getBody().isPresent() ? new String(httpResponse.getBody().get(), StandardCharsets.UTF_8) : "[no response body]"));
 
 			String json = new String(httpResponse.getBody().get(), StandardCharsets.UTF_8);
@@ -191,10 +191,10 @@ public class DefaultMyChartAuthenticator implements MyChartAuthenticator {
 					.state(tokenState)
 					.metadata(metadata)
 					.build();
-		} catch (MyChartException e) {
+		} catch (EpicException e) {
 			throw e;
 		} catch (Exception e) {
-			throw new MyChartException("Unable to acquire access token for code", e);
+			throw new EpicException("Unable to acquire access token for code", e);
 		}
 	}
 

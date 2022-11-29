@@ -35,7 +35,6 @@ import com.cobaltplatform.api.integration.bluejeans.BluejeansClient;
 import com.cobaltplatform.api.integration.bluejeans.MeetingResponse;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
-import com.cobaltplatform.api.integration.epic.EpicApplicationAudience;
 import com.cobaltplatform.api.integration.epic.EpicClient;
 import com.cobaltplatform.api.integration.epic.EpicSyncManager;
 import com.cobaltplatform.api.integration.epic.request.GetPatientAppointmentsRequest;
@@ -345,8 +344,8 @@ public class AppointmentService {
 
 		// If you're an Epic account, pull the schedule from Epic so we can reconcile data
 		if (account.getEpicPatientId() != null && getConfiguration().getShouldUseRealEpic()) {
-			EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(account.getInstitutionId()).epicClientForApplicationAudience(EpicApplicationAudience.BACKEND_SYSTEMS).get();
-
+			EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(account.getInstitutionId()).epicClientForBackendService().get();
+			Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
 			LocalDate startDate = LocalDate.now(account.getTimeZone());
 			LocalDate endDate = startDate.plusDays(50L); // Arbitrary number of days in the future for now...
 
@@ -361,13 +360,13 @@ public class AppointmentService {
 			GetPatientAppointmentsRequest request = new GetPatientAppointmentsRequest();
 			request.setPatientID(account.getEpicPatientId());
 			request.setPatientIDType(account.getEpicPatientIdType());
-			request.setUserID(epicClient.getEpicConfiguration().getUserId().orElse(null));
-			request.setUserIDType(epicClient.getEpicConfiguration().getUserIdType().orElse(null));
+			request.setUserID(institution.getEpicUserId());
+			request.setUserIDType(institution.getEpicUserIdType());
 			request.setIncludeAllStatuses("1");
 			request.setIncludeOutsideAppointments("1");
 			request.setStartDate(epicClient.formatDateWithSlashes(startDate));
 			request.setEndDate(epicClient.formatDateWithSlashes(endDate));
-			request.setExtraItems(List.of("7040", "7050", "28006"));
+			request.setExtraItems(List.of("7040", "7050", "28006")); // TODO: pull into plugin/data-drive
 
 			GetPatientAppointmentsResponse response = epicClient.performGetPatientAppointments(request);
 
@@ -1119,7 +1118,8 @@ public class AppointmentService {
 		} else if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.EPIC) {
 			try {
 				EnterprisePlugin enterprisePlugin = enterprisePluginProvider.enterprisePluginForInstitutionId(account.getInstitutionId());
-				EpicClient epicClient = enterprisePlugin.epicClientForApplicationAudience(EpicApplicationAudience.BACKEND_SYSTEMS).get();
+				Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
+				EpicClient epicClient = enterprisePlugin.epicClientForBackendService().get();
 
 				// SYNC ACCOUNT UID
 				String uid = epicClient.determineLatestUIDForPatientIdentifier(account.getEpicPatientId(), account.getEpicPatientIdType()).get();
@@ -1142,8 +1142,8 @@ public class AppointmentService {
 				scheduleRequest.setProviderIDType(provider.getEpicProviderIdType());
 				scheduleRequest.setDepartmentID(epicDepartment.getDepartmentId());
 				scheduleRequest.setDepartmentIDType(epicDepartment.getDepartmentIdType());
-				scheduleRequest.setUserID(epicClient.getEpicConfiguration().getUserId().orElse(null));
-				scheduleRequest.setUserIDType(epicClient.getEpicConfiguration().getUserIdType().orElse(null));
+				scheduleRequest.setUserID(institution.getEpicUserId());
+				scheduleRequest.setUserIDType(institution.getEpicUserIdType());
 				scheduleRequest.setDate(date);
 
 				GetProviderScheduleResponse scheduleResponse = epicClient.performGetProviderSchedule(scheduleRequest);
@@ -1900,7 +1900,7 @@ public class AppointmentService {
 					getLogger().warn("Unable to cancel appointment via Acuity, continuing on...", e);
 				}
 			} else if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.EPIC) {
-				EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(account.getInstitutionId()).epicClientForApplicationAudience(EpicApplicationAudience.BACKEND_SYSTEMS).get();
+				EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(account.getInstitutionId()).epicClientForBackendService().get();
 
 				// SYNC ACCOUNT UID
 				String uid = epicClient.determineLatestUIDForPatientIdentifier(account.getEpicPatientId(), account.getEpicPatientIdType()).get();

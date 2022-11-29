@@ -22,9 +22,7 @@ package com.cobaltplatform.api.integration.epic;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.util.Map;
 import java.util.Optional;
-import java.util.function.Consumer;
 
 import static java.util.Objects.requireNonNull;
 
@@ -32,36 +30,43 @@ import static java.util.Objects.requireNonNull;
  * @author Transmogrify, LLC.
  */
 public class EpicConfiguration {
+	@Nullable
+	private final MyChartAccessToken myChartAccessToken;
+	@Nullable
+	private final EpicBackendServiceAccessToken epicBackendServiceAccessToken;
+	@Nullable
+	private final EpicEmpCredentials epicEmpCredentials;
 	@Nonnull
 	private final String clientId;
 	@Nonnull
 	private final String baseUrl;
 	@Nonnull
 	private final Boolean permitUnsafeCerts;
-	@Nullable
-	private final String userId;
-	@Nullable
-	private final String userIdType;
-	@Nullable
-	private final String username;
-	@Nullable
-	private final String password;
-	@Nonnull
-	private final Consumer<Map<String, String>> requestHeaderCustomizer;
 
 	protected EpicConfiguration(@Nonnull EpicConfiguration.Builder builder) {
 		requireNonNull(builder);
 
+		this.myChartAccessToken = builder.myChartAccessToken;
+		this.epicEmpCredentials = builder.epicEmpCredentials;
+		this.epicBackendServiceAccessToken = builder.epicBackendServiceAccessToken;
 		this.clientId = builder.clientId;
 		this.baseUrl = builder.baseUrl;
 		this.permitUnsafeCerts = builder.permitUnsafeCerts == null ? false : builder.permitUnsafeCerts;
-		this.userId = builder.userId;
-		this.userIdType = builder.userIdType;
-		this.username = builder.username;
-		this.password = builder.password;
-		this.requestHeaderCustomizer = builder.requestHeaderCustomizer == null ? (requestHeaders -> {
-			// no-op
-		}) : builder.requestHeaderCustomizer;
+	}
+
+	@Nonnull
+	public Optional<MyChartAccessToken> getMyChartAccessToken() {
+		return Optional.ofNullable(this.myChartAccessToken);
+	}
+
+	@Nonnull
+	public Optional<EpicBackendServiceAccessToken> getEpicBackendServiceAccessToken() {
+		return Optional.ofNullable(this.epicBackendServiceAccessToken);
+	}
+
+	@Nonnull
+	public Optional<EpicEmpCredentials> getEpicEmpCredentials() {
+		return Optional.ofNullable(this.epicEmpCredentials);
 	}
 
 	@Nonnull
@@ -79,56 +84,56 @@ public class EpicConfiguration {
 		return this.permitUnsafeCerts;
 	}
 
-	@Nonnull
-	public Optional<String> getUserId() {
-		return Optional.ofNullable(this.userId);
-	}
-
-	@Nonnull
-	public Optional<String> getUserIdType() {
-		return Optional.ofNullable(this.userIdType);
-	}
-
-	@Nonnull
-	public Optional<String> getUsername() {
-		return Optional.ofNullable(this.username);
-	}
-
-	@Nonnull
-	public Optional<String> getPassword() {
-		return Optional.ofNullable(this.password);
-	}
-
-	@Nonnull
-	public Consumer<Map<String, String>> getRequestHeaderCustomizer() {
-		return this.requestHeaderCustomizer;
-	}
-
 	@NotThreadSafe
 	public static class Builder {
+		@Nullable
+		private MyChartAccessToken myChartAccessToken;
+		@Nullable
+		private EpicBackendServiceAccessToken epicBackendServiceAccessToken;
+		@Nullable
+		private EpicEmpCredentials epicEmpCredentials;
 		@Nonnull
 		private final String clientId;
 		@Nonnull
 		private final String baseUrl;
 		@Nullable
 		private Boolean permitUnsafeCerts;
-		@Nullable
-		private String userId;
-		@Nullable
-		private String userIdType;
-		@Nullable
-		private String username;
-		@Nullable
-		private String password;
-		@Nullable
-		private Consumer<Map<String, String>> requestHeaderCustomizer;
 
 		@Nonnull
-		public Builder(@Nonnull String clientId,
+		public Builder(@Nonnull EpicBackendServiceAccessToken epicBackendServiceAccessToken,
+									 @Nonnull String clientId,
 									 @Nonnull String baseUrl) {
+			requireNonNull(epicBackendServiceAccessToken);
 			requireNonNull(clientId);
 			requireNonNull(baseUrl);
 
+			this.epicBackendServiceAccessToken = epicBackendServiceAccessToken;
+			this.clientId = clientId;
+			this.baseUrl = baseUrl;
+		}
+
+		@Nonnull
+		public Builder(@Nonnull EpicEmpCredentials epicEmpCredentials,
+									 @Nonnull String clientId,
+									 @Nonnull String baseUrl) {
+			requireNonNull(epicEmpCredentials);
+			requireNonNull(clientId);
+			requireNonNull(baseUrl);
+
+			this.epicEmpCredentials = epicEmpCredentials;
+			this.clientId = clientId;
+			this.baseUrl = baseUrl;
+		}
+
+		@Nonnull
+		public Builder(@Nonnull MyChartAccessToken myChartAccessToken,
+									 @Nonnull String clientId,
+									 @Nonnull String baseUrl) {
+			requireNonNull(myChartAccessToken);
+			requireNonNull(clientId);
+			requireNonNull(baseUrl);
+
+			this.myChartAccessToken = myChartAccessToken;
 			this.clientId = clientId;
 			this.baseUrl = baseUrl;
 		}
@@ -136,36 +141,6 @@ public class EpicConfiguration {
 		@Nonnull
 		public Builder permitUnsafeCerts(@Nullable Boolean permitUnsafeCerts) {
 			this.permitUnsafeCerts = permitUnsafeCerts;
-			return this;
-		}
-
-		@Nonnull
-		public Builder userId(@Nullable String userId) {
-			this.userId = userId;
-			return this;
-		}
-
-		@Nonnull
-		public Builder userIdType(@Nullable String userIdType) {
-			this.userIdType = userIdType;
-			return this;
-		}
-
-		@Nonnull
-		public Builder username(@Nullable String username) {
-			this.username = username;
-			return this;
-		}
-
-		@Nonnull
-		public Builder password(@Nullable String password) {
-			this.password = password;
-			return this;
-		}
-
-		@Nonnull
-		public Builder requestHeaderCustomizer(@Nullable Consumer<Map<String, String>> requestHeaderCustomizer) {
-			this.requestHeaderCustomizer = requestHeaderCustomizer;
 			return this;
 		}
 

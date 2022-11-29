@@ -39,7 +39,6 @@ import com.cobaltplatform.api.integration.epic.response.PatientCreateResponse;
 import com.cobaltplatform.api.integration.epic.response.PatientFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse;
 import com.cobaltplatform.api.integration.epic.response.ScheduleAppointmentWithInsuranceResponse;
-import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
 import com.cobaltplatform.api.util.Normalizer;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -65,6 +64,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
@@ -106,18 +106,12 @@ public class DefaultEpicClient implements EpicClient {
 	private final Logger logger;
 
 	public DefaultEpicClient(@Nonnull EpicConfiguration epicConfiguration) {
-		this(epicConfiguration, null, null);
-	}
-
-	public DefaultEpicClient(@Nonnull EpicConfiguration epicConfiguration,
-													 @Nullable Normalizer normalizer,
-													 @Nullable String httpLoggingBaseName) {
 		requireNonNull(epicConfiguration);
 
 		this.epicConfiguration = epicConfiguration;
-		this.httpClient = createHttpClient(epicConfiguration, httpLoggingBaseName);
+		this.httpClient = createHttpClient(epicConfiguration);
 		this.gson = createGson();
-		this.normalizer = normalizer == null ? new Normalizer() : normalizer;
+		this.normalizer = new Normalizer();
 		this.dateFormatterHyphens = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.US); // e.g. 1987-04-21
 		this.dateFormatterSlashes = DateTimeFormatter.ofPattern("M/d/yyyy", Locale.US); // e.g. 6/8/2020
 		this.amPmTimeFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.US); // e.g. "8:00 AM"
@@ -128,10 +122,7 @@ public class DefaultEpicClient implements EpicClient {
 
 	@Nonnull
 	@Override
-	public Optional<PatientFhirR4Response> findPatientFhirR4(@Nonnull MyChartAccessToken myChartAccessToken,
-																													 @Nullable String patientId) {
-		requireNonNull(myChartAccessToken);
-
+	public Optional<PatientFhirR4Response> findPatientFhirR4(@Nullable String patientId) {
 		patientId = trimToNull(patientId);
 
 		if (patientId == null)
@@ -175,7 +166,6 @@ public class DefaultEpicClient implements EpicClient {
 		};
 
 		ApiCall<Optional<PatientFhirR4Response>> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
-				.myChartAccessToken(myChartAccessToken)
 				.build();
 
 		return makeApiCall(apiCall);
@@ -250,6 +240,7 @@ public class DefaultEpicClient implements EpicClient {
 		HttpMethod httpMethod = HttpMethod.POST;
 		String url = "api/epic/2012/Scheduling/Provider/GETPROVIDERSCHEDULE/Schedule";
 		Function<String, GetProviderScheduleResponse> responseBodyMapper = (responseBody) -> getGson().fromJson(responseBody, GetProviderScheduleResponse.class);
+
 		Map<String, Object> queryParameters = new HashMap<String, Object>() {{
 			put("ProviderID", request.getProviderID());
 			put("ProviderIDType", request.getProviderIDType());
@@ -400,20 +391,31 @@ public class DefaultEpicClient implements EpicClient {
 
 		String finalUrl = format("%s/%s", getEpicConfiguration().getBaseUrl(), apiCall.getUrl());
 
-		Map<String, String> headers = new HashMap<>();
+		Map<String, Object> headers = new HashMap<>();
 		headers.put("Content-Type", "application/json");
 		headers.put("Accept", "application/json");
 
-		MyChartAccessToken myChartAccessToken = apiCall.getMyChartAccessToken().orElse(null);
+		// 3 different flavors of EPIC authentication are supported
+		MyChartAccessToken myChartAccessToken = getEpicConfiguration().getMyChartAccessToken().orElse(null);
+		EpicBackendServiceAccessToken epicBackendServiceAccessToken = getEpicConfiguration().getEpicBackendServiceAccessToken().orElse(null);
+		EpicEmpCredentials epicEmpCredentials = getEpicConfiguration().getEpicEmpCredentials().orElse(null);
 
-		if (myChartAccessToken != null)
+		if (myChartAccessToken != null) {
 			headers.put("Authorization", format("Bearer %s", myChartAccessToken.getAccessToken()));
+		} else if (epicBackendServiceAccessToken != null) {
+			headers.put("Authorization", format("Bearer %s", epicBackendServiceAccessToken.getAccessToken()));
+		} else if (epicEmpCredentials != null) {
+			String basicAuthCredentials = format("emp$%s:%s", epicEmpCredentials.getUsername(), epicEmpCredentials.getPassword());
+			String encodedBasicAuthCredentials = Base64.getEncoder().encodeToString(basicAuthCredentials.getBytes(StandardCharsets.UTF_8));
 
-		// Allow configuration to modify headers
-		getEpicConfiguration().getRequestHeaderCustomizer().accept(headers);
+			headers.put("Authorization", format("Basic %s", encodedBasicAuthCredentials));
+			headers.put("Epic-Client-ID", epicEmpCredentials.getClientId());
+			headers.put("Epic-User-ID", epicEmpCredentials.getUserId());
+			headers.put("Epic-User-IDType", epicEmpCredentials.getUserIdType());
+		}
 
 		HttpRequest.Builder httpRequestBuilder = new HttpRequest.Builder(apiCall.getHttpMethod(), finalUrl)
-				.headers(Collections.<String, Object>unmodifiableMap(headers));
+				.headers(headers);
 
 		if (apiCall.getQueryParameters().size() > 0)
 			httpRequestBuilder.queryParameters(apiCall.getQueryParameters());
@@ -465,12 +467,9 @@ public class DefaultEpicClient implements EpicClient {
 	}
 
 	@Nonnull
-	protected HttpClient createHttpClient(@Nonnull EpicConfiguration epicConfiguration,
-																				@Nullable String httpLoggingBaseName) {
+	protected HttpClient createHttpClient(@Nonnull EpicConfiguration epicConfiguration) {
 		requireNonNull(epicConfiguration);
-
-		httpLoggingBaseName = httpLoggingBaseName == null ? "com.cobaltplatform.api.integration.epic" : httpLoggingBaseName;
-		return new DefaultHttpClient(httpLoggingBaseName, epicConfiguration.getPermitUnsafeCerts());
+		return new DefaultHttpClient("com.cobaltplatform.api.integration.epic", epicConfiguration.getPermitUnsafeCerts());
 	}
 
 	@Nonnull
@@ -524,8 +523,7 @@ public class DefaultEpicClient implements EpicClient {
 	}
 
 	@Nonnull
-	@Override
-	public EpicConfiguration getEpicConfiguration() {
+	protected EpicConfiguration getEpicConfiguration() {
 		return this.epicConfiguration;
 	}
 
@@ -586,8 +584,6 @@ public class DefaultEpicClient implements EpicClient {
 		private final Map<String, Object> queryParameters;
 		@Nullable
 		private final String requestBody;
-		@Nullable
-		private final MyChartAccessToken myChartAccessToken;
 
 		protected ApiCall(@Nonnull Builder<T> builder) {
 			requireNonNull(builder);
@@ -597,7 +593,6 @@ public class DefaultEpicClient implements EpicClient {
 			this.responseBodyMapper = builder.responseBodyMapper == null ? (responseBody) -> (T) responseBody : builder.responseBodyMapper;
 			this.queryParameters = builder.queryParameters == null ? Collections.emptyMap() : builder.queryParameters;
 			this.requestBody = builder.requestBody;
-			this.myChartAccessToken = builder.myChartAccessToken;
 		}
 
 		@Nonnull
@@ -625,11 +620,6 @@ public class DefaultEpicClient implements EpicClient {
 			return Optional.ofNullable(this.requestBody);
 		}
 
-		@Nonnull
-		public Optional<MyChartAccessToken> getMyChartAccessToken() {
-			return Optional.ofNullable(this.myChartAccessToken);
-		}
-
 		@NotThreadSafe
 		protected static class Builder<T> {
 			@Nonnull
@@ -642,8 +632,6 @@ public class DefaultEpicClient implements EpicClient {
 			private Map<String, Object> queryParameters;
 			@Nullable
 			private String requestBody;
-			@Nullable
-			private MyChartAccessToken myChartAccessToken;
 
 			public Builder(@Nonnull HttpMethod httpMethod,
 										 @Nonnull String url,
@@ -666,12 +654,6 @@ public class DefaultEpicClient implements EpicClient {
 			@Nonnull
 			public Builder requestBody(@Nullable String requestBody) {
 				this.requestBody = requestBody;
-				return this;
-			}
-
-			@Nonnull
-			public Builder myChartAccessToken(@Nullable MyChartAccessToken myChartAccessToken) {
-				this.myChartAccessToken = myChartAccessToken;
 				return this;
 			}
 
