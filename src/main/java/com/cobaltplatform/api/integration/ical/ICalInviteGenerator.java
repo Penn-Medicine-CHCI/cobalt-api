@@ -157,7 +157,7 @@ public class ICalInviteGenerator {
 			attendee.getParameters().add(new Cn(attendeeName));
 
 		attendee.getParameters().add(Role.REQ_PARTICIPANT);
-		attendee.getParameters().add(PartStat.DELEGATED);
+		attendee.getParameters().add(PartStat.ACCEPTED);
 		meeting.getProperties().add(attendee);
 
 		net.fortuna.ical4j.model.Calendar icsCalendar = new net.fortuna.ical4j.model.Calendar();
