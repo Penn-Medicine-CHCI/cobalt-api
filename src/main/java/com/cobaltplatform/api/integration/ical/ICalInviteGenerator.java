@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.integration.ical;
 
+import com.cobaltplatform.api.Configuration;
 import net.fortuna.ical4j.model.DateTime;
 import net.fortuna.ical4j.model.TimeZone;
 import net.fortuna.ical4j.model.TimeZoneRegistry;
@@ -28,6 +29,7 @@ import net.fortuna.ical4j.model.component.VTimeZone;
 import net.fortuna.ical4j.model.parameter.Cn;
 import net.fortuna.ical4j.model.parameter.PartStat;
 import net.fortuna.ical4j.model.parameter.Role;
+import net.fortuna.ical4j.model.parameter.SentBy;
 import net.fortuna.ical4j.model.property.Attendee;
 import net.fortuna.ical4j.model.property.CalScale;
 import net.fortuna.ical4j.model.property.Description;
@@ -43,6 +45,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import java.net.URI;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -56,6 +60,7 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
  * @author Transmogrify, LLC.
  */
 @ThreadSafe
+@Singleton
 public class ICalInviteGenerator {
 	static {
 		// If we don't specify, fails at runtime with this:
@@ -105,6 +110,15 @@ public class ICalInviteGenerator {
 	// END:VCALENDAR
 
 	@Nonnull
+	private final Configuration configuration;
+
+	@Inject
+	public ICalInviteGenerator(@Nonnull Configuration configuration) {
+		requireNonNull(configuration);
+		this.configuration = configuration;
+	}
+
+	@Nonnull
 	public String generateInvite(@Nonnull String uniqueIdentifier,
 															 @Nonnull String title,
 															 @Nonnull String description,
@@ -141,15 +155,15 @@ public class ICalInviteGenerator {
 		meeting.getProperties().add(new Location(location));
 		meeting.getProperties().add(new Description(description));
 
-		Organizer organizer = new Organizer(URI.create(format("mailto:%s", inviteOrganizer.getEmailAddress())));
-		organizer.getParameters().add(PartStat.ACCEPTED);
-
-		String organizerName = trimToNull(inviteOrganizer.getName().orElse(null));
-
-		if (organizerName != null)
-			organizer.getParameters().add(new Cn(organizerName));
-
-		meeting.getProperties().add(organizer);
+//		Organizer organizer = new Organizer(URI.create(format("mailto:%s", inviteOrganizer.getEmailAddress())));
+//		organizer.getParameters().add(new SentBy(URI.create(format("mailto:%s", getConfiguration().getEmailDefaultFromAddress()))));
+//
+//		String organizerName = trimToNull(inviteOrganizer.getName().orElse(null));
+//
+//		if (organizerName != null)
+//			organizer.getParameters().add(new Cn(organizerName));
+//
+//		meeting.getProperties().add(organizer);
 
 		Attendee attendee = new Attendee(URI.create(format("mailto:%s", inviteAttendee.getEmailAddress())));
 
@@ -161,15 +175,26 @@ public class ICalInviteGenerator {
 		attendee.getParameters().add(PartStat.ACCEPTED);
 		meeting.getProperties().add(attendee);
 
+		// Both provider and patient are attendees, no official organizer...
+		Attendee organizerAttendee = new Attendee(URI.create(format("mailto:%s", inviteOrganizer.getEmailAddress())));
+
+		String organizerAttendeeName = trimToNull(inviteOrganizer.getName().orElse(null));
+		if (organizerAttendeeName != null)
+			organizerAttendee.getParameters().add(new Cn(organizerAttendeeName));
+
+		organizerAttendee.getParameters().add(Role.REQ_PARTICIPANT);
+		organizerAttendee.getParameters().add(PartStat.ACCEPTED);
+		meeting.getProperties().add(organizerAttendee);
+
 		net.fortuna.ical4j.model.Calendar icsCalendar = new net.fortuna.ical4j.model.Calendar();
 		icsCalendar.getProperties().add(new ProdId("-//Events Calendar//iCal4j 1.0//EN"));
 		icsCalendar.getProperties().add(CalScale.GREGORIAN);
 
 		if (inviteMethod == InviteMethod.CANCEL) {
-			icsCalendar.getProperties().add(new Method("CANCEL"));
+			icsCalendar.getProperties().add(Method.CANCEL);
 			icsCalendar.getProperties().add(new Sequence(1));
 		} else {
-			icsCalendar.getProperties().add(new Method("REQUEST"));
+			icsCalendar.getProperties().add(Method.REQUEST);
 			icsCalendar.getProperties().add(new Sequence(0));
 		}
 
@@ -257,5 +282,10 @@ public class ICalInviteGenerator {
 		public Optional<String> getName() {
 			return Optional.ofNullable(this.name);
 		}
+	}
+
+	@Nonnull
+	protected Configuration getConfiguration() {
+		return this.configuration;
 	}
 }
