@@ -142,6 +142,7 @@ public class ICalInviteGenerator {
 		meeting.getProperties().add(new Description(description));
 
 		Organizer organizer = new Organizer(URI.create(format("mailto:%s", inviteOrganizer.getEmailAddress())));
+		organizer.getParameters().add(PartStat.ACCEPTED);
 
 		String organizerName = trimToNull(inviteOrganizer.getName().orElse(null));
 
