@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.integration.mychart;
+package com.cobaltplatform.api.integration.epic;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;

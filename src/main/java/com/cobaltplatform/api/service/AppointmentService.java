@@ -35,7 +35,6 @@ import com.cobaltplatform.api.integration.bluejeans.BluejeansClient;
 import com.cobaltplatform.api.integration.bluejeans.MeetingResponse;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
-import com.cobaltplatform.api.integration.epic.EpicApplicationAudience;
 import com.cobaltplatform.api.integration.epic.EpicClient;
 import com.cobaltplatform.api.integration.epic.EpicSyncManager;
 import com.cobaltplatform.api.integration.epic.request.GetPatientAppointmentsRequest;
@@ -46,6 +45,10 @@ import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleRespo
 import com.cobaltplatform.api.integration.epic.response.ScheduleAppointmentWithInsuranceResponse;
 import com.cobaltplatform.api.integration.gcal.GoogleCalendarUrlGenerator;
 import com.cobaltplatform.api.integration.ical.ICalInviteGenerator;
+import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.InviteAttendee;
+import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.InviteMethod;
+import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.InviteOrganizer;
+import com.cobaltplatform.api.messaging.email.EmailAttachment;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
@@ -109,6 +112,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -340,8 +344,8 @@ public class AppointmentService {
 
 		// If you're an Epic account, pull the schedule from Epic so we can reconcile data
 		if (account.getEpicPatientId() != null && getConfiguration().getShouldUseRealEpic()) {
-			EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(account.getInstitutionId()).epicClientForApplicationAudience(EpicApplicationAudience.BACKEND_SYSTEMS).get();
-
+			EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(account.getInstitutionId()).epicClientForBackendService().get();
+			Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
 			LocalDate startDate = LocalDate.now(account.getTimeZone());
 			LocalDate endDate = startDate.plusDays(50L); // Arbitrary number of days in the future for now...
 
@@ -356,13 +360,13 @@ public class AppointmentService {
 			GetPatientAppointmentsRequest request = new GetPatientAppointmentsRequest();
 			request.setPatientID(account.getEpicPatientId());
 			request.setPatientIDType(account.getEpicPatientIdType());
-			request.setUserID(epicClient.getEpicConfiguration().getUserId().orElse(null));
-			request.setUserIDType(epicClient.getEpicConfiguration().getUserIdType().orElse(null));
+			request.setUserID(institution.getEpicUserId());
+			request.setUserIDType(institution.getEpicUserIdType());
 			request.setIncludeAllStatuses("1");
 			request.setIncludeOutsideAppointments("1");
 			request.setStartDate(epicClient.formatDateWithSlashes(startDate));
 			request.setEndDate(epicClient.formatDateWithSlashes(endDate));
-			request.setExtraItems(List.of("7040", "7050", "28006"));
+			request.setExtraItems(List.of("7040", "7050", "28006")); // TODO: pull into plugin/data-drive
 
 			GetPatientAppointmentsResponse response = epicClient.performGetPatientAppointments(request);
 
@@ -1114,7 +1118,8 @@ public class AppointmentService {
 		} else if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.EPIC) {
 			try {
 				EnterprisePlugin enterprisePlugin = enterprisePluginProvider.enterprisePluginForInstitutionId(account.getInstitutionId());
-				EpicClient epicClient = enterprisePlugin.epicClientForApplicationAudience(EpicApplicationAudience.BACKEND_SYSTEMS).get();
+				Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
+				EpicClient epicClient = enterprisePlugin.epicClientForBackendService().get();
 
 				// SYNC ACCOUNT UID
 				String uid = epicClient.determineLatestUIDForPatientIdentifier(account.getEpicPatientId(), account.getEpicPatientIdType()).get();
@@ -1137,8 +1142,8 @@ public class AppointmentService {
 				scheduleRequest.setProviderIDType(provider.getEpicProviderIdType());
 				scheduleRequest.setDepartmentID(epicDepartment.getDepartmentId());
 				scheduleRequest.setDepartmentIDType(epicDepartment.getDepartmentIdType());
-				scheduleRequest.setUserID(epicClient.getEpicConfiguration().getUserId().orElse(null));
-				scheduleRequest.setUserIDType(epicClient.getEpicConfiguration().getUserIdType().orElse(null));
+				scheduleRequest.setUserID(institution.getEpicUserId());
+				scheduleRequest.setUserIDType(institution.getEpicUserIdType());
 				scheduleRequest.setDate(date);
 
 				GetProviderScheduleResponse scheduleResponse = epicClient.performGetProviderSchedule(scheduleRequest);
@@ -1761,6 +1766,7 @@ public class AppointmentService {
 			EmailMessage patientEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_CREATED_PATIENT, account.getLocale())
 					.toAddresses(Collections.singletonList(account.getEmailAddress()))
 					.messageContext(cobaltPatientEmailMessageContext)
+					.emailAttachments(List.of(generateICalInviteAsEmailAttachment(appointment, InviteMethod.REQUEST)))
 					.build();
 
 			getEmailMessageManager().enqueueMessage(patientEmailMessage);
@@ -1786,6 +1792,7 @@ public class AppointmentService {
 		EmailMessage providerEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_CREATED_PROVIDER, provider.getLocale())
 				.toAddresses(List.of(provider.getEmailAddress()))
 				.messageContext(cobaltProviderEmailMessageContext)
+				.emailAttachments(List.of(generateICalInviteAsEmailAttachment(appointment, InviteMethod.REQUEST)))
 				.build();
 
 		getEmailMessageManager().enqueueMessage(providerEmailMessage);
@@ -1830,6 +1837,7 @@ public class AppointmentService {
 			EmailMessage patientEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_CANCELED_PATIENT, account.getLocale())
 					.toAddresses(Collections.singletonList(account.getEmailAddress()))
 					.messageContext(cobaltPatientEmailMessageContext)
+					.emailAttachments(List.of(generateICalInviteAsEmailAttachment(appointment, InviteMethod.CANCEL)))
 					.build();
 
 			getEmailMessageManager().enqueueMessage(patientEmailMessage);
@@ -1848,6 +1856,7 @@ public class AppointmentService {
 		EmailMessage providerEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_CANCELED_PROVIDER, provider.getLocale())
 				.toAddresses(List.of(provider.getEmailAddress()))
 				.messageContext(cobaltProviderEmailMessageContext)
+				.emailAttachments(List.of(generateICalInviteAsEmailAttachment(appointment, InviteMethod.CANCEL)))
 				.build();
 
 		getEmailMessageManager().enqueueMessage(providerEmailMessage);
@@ -1891,7 +1900,7 @@ public class AppointmentService {
 					getLogger().warn("Unable to cancel appointment via Acuity, continuing on...", e);
 				}
 			} else if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.EPIC) {
-				EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(account.getInstitutionId()).epicClientForApplicationAudience(EpicApplicationAudience.BACKEND_SYSTEMS).get();
+				EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(account.getInstitutionId()).epicClientForBackendService().get();
 
 				// SYNC ACCOUNT UID
 				String uid = epicClient.determineLatestUIDForPatientIdentifier(account.getEpicPatientId(), account.getEpicPatientIdType()).get();
@@ -2206,8 +2215,10 @@ public class AppointmentService {
 	}
 
 	@Nonnull
-	public String generateICalInvite(@Nonnull Appointment appointment) {
+	public String generateICalInvite(@Nonnull Appointment appointment,
+																	 @Nonnull InviteMethod inviteMethod) {
 		requireNonNull(appointment);
+		requireNonNull(inviteMethod);
 
 		String title = calendarTitleForAppointment(appointment);
 
@@ -2215,9 +2226,30 @@ public class AppointmentService {
 			put("videoconferenceUrl", appointment.getVideoconferenceUrl());
 		}}));
 
+		Account patient = getAccountService().findAccountById(appointment.getAccountId()).get();
+		Provider provider = getProviderService().findProviderById(appointment.getProviderId()).get();
+
+		InviteOrganizer inviteOrganizer = InviteOrganizer.forEmailAddress(provider.getEmailAddress());
+		InviteAttendee inviteAttendee = InviteAttendee.forEmailAddress(patient.getEmailAddress());
+
 		return getiCalInviteGenerator().generateInvite(appointment.getAppointmentId().toString(), title,
 				extendedDescription, appointment.getStartTime(), appointment.getEndTime(),
-				appointment.getTimeZone(), appointment.getVideoconferenceUrl());
+				appointment.getTimeZone(), appointment.getVideoconferenceUrl(), inviteMethod, inviteOrganizer, inviteAttendee);
+	}
+
+	@Nonnull
+	public EmailAttachment generateICalInviteAsEmailAttachment(@Nonnull Appointment appointment,
+																														 @Nonnull InviteMethod inviteMethod) {
+		requireNonNull(appointment);
+		requireNonNull(inviteMethod);
+
+		String iCalInvite = generateICalInvite(appointment, inviteMethod);
+
+		String filename = "invite.ics";
+		String method = inviteMethod == InviteMethod.CANCEL ? "CANCEL" : "REQUEST";
+		String contentType = format("text/calendar; charset=utf-8; method=%s; name=%s", method, filename);
+
+		return new EmailAttachment(filename, contentType, iCalInvite.getBytes(StandardCharsets.UTF_8));
 	}
 
 	@Nonnull

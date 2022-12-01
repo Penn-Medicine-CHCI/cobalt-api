@@ -24,7 +24,6 @@ import com.cobaltplatform.api.model.api.response.ContentApiResponse;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Content;
-import com.cobaltplatform.api.model.db.ContentTypeLabel;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.TagService;
@@ -140,33 +139,6 @@ public class ContentResource {
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("content", getContentApiResponseFactory().create(content));
-		}});
-	}
-
-	@GET("/content/resource-library")
-	@AuthenticationRequired
-	public ApiResponse resourceLibraryContent() {
-		Account account = getCurrentContext().getAccount().get();
-
-		getCurrentContext().getMy
-
-		List<ContentTypeLabel> contentTypeLabels = getContentService().findContentTypeLabelsForAccount(account);
-
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("contentTypeLabels", contentTypeLabels);
-		}});
-	}
-
-	@GET("/content/resource-library/search")
-	@AuthenticationRequired
-	public ApiResponse resourceLibrarySearchContent(@Nonnull @QueryParameter Optional<String> searchQuery) {
-		Account account = getCurrentContext().getAccount().get();
-		List<Content> contents = getContentService().findContentForAccount()
-
-
-
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("contentTypeLabels", contentTypeLabels);
 		}});
 	}
 

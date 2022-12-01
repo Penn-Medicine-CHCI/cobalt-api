@@ -29,11 +29,13 @@ import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleRespo
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.EpicAppointmentFilter.EpicAppointmentFilterId;
 import com.cobaltplatform.api.model.db.EpicDepartment;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.service.AppointmentService;
 import com.cobaltplatform.api.service.AuditLogService;
+import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
@@ -88,6 +90,8 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 	@Nonnull
 	private final javax.inject.Provider<AppointmentService> appointmentServiceProvider;
 	@Nonnull
+	private final javax.inject.Provider<InstitutionService> institutionServiceProvider;
+	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
 	@Nonnull
 	private final Database database;
@@ -115,6 +119,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 	public EpicSyncManager(@Nonnull javax.inject.Provider<AvailabilitySyncTask> availabilitySyncTaskProvider,
 												 @Nonnull javax.inject.Provider<ProviderService> providerServiceProvider,
 												 @Nonnull javax.inject.Provider<AppointmentService> appointmentServiceProvider,
+												 @Nonnull javax.inject.Provider<InstitutionService> institutionServiceProvider,
 												 @Nonnull javax.inject.Provider<AuditLogService> auditLogServiceProvider,
 												 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
 												 @Nonnull Database database,
@@ -132,6 +137,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 		this.availabilitySyncTaskProvider = availabilitySyncTaskProvider;
 		this.providerServiceProvider = providerServiceProvider;
 		this.appointmentServiceProvider = appointmentServiceProvider;
+		this.institutionServiceProvider = institutionServiceProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.database = database;
 		this.configuration = configuration;
@@ -224,11 +230,12 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 			return false;
 		}
 
-		EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(provider.getInstitutionId()).epicClientForApplicationAudience(EpicApplicationAudience.BACKEND_SYSTEMS).get();
+		Institution institution = getInstitutionService().findInstitutionById(provider.getInstitutionId()).get();
+		EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(provider.getInstitutionId()).epicClientForBackendService().get();
 
-		getLogger().info("Syncing availabilty for provider {} on {}...", provider.getName(), date);
+		getLogger().info("Syncing availabilty for {} provider {} on {}...", institution.getInstitutionId().name(), provider.getName(), date);
 
-		ProviderAvailabilityDateInsert insert = generateProviderAvailabilityDateInsert(epicClient, provider, date);
+		ProviderAvailabilityDateInsert insert = generateProviderAvailabilityDateInsert(epicClient, institution, provider, date);
 
 		if (performInOwnTransaction)
 			getDatabase().transaction(() -> {
@@ -242,8 +249,11 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 
 	@Nonnull
 	protected ProviderAvailabilityDateInsert generateProviderAvailabilityDateInsert(@Nonnull EpicClient epicClient,
+																																									@Nonnull Institution institution,
 																																									@Nonnull Provider provider,
 																																									@Nonnull LocalDate date) {
+		requireNonNull(epicClient);
+		requireNonNull(institution);
 		requireNonNull(provider);
 		requireNonNull(date);
 
@@ -266,8 +276,8 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 					request.setDepartmentIDType(epicDepartment.getDepartmentIdType());
 					request.setVisitTypeID(appointmentType.getEpicVisitTypeId());
 					request.setVisitTypeIDType(appointmentType.getEpicVisitTypeIdType());
-					request.setUserID(epicClient.getEpicConfiguration().getUserId().orElse(null));
-					request.setUserIDType(epicClient.getEpicConfiguration().getUserIdType().orElse(null));
+					request.setUserID(institution.getEpicUserId());
+					request.setUserIDType(institution.getEpicUserIdType());
 
 					GetProviderScheduleResponse response = epicClient.performGetProviderSchedule(request);
 
@@ -313,8 +323,8 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 				request.setProviderIDType(provider.getEpicProviderIdType());
 				request.setDepartmentID(epicDepartment.getDepartmentId());
 				request.setDepartmentIDType(epicDepartment.getDepartmentIdType());
-				request.setUserID(epicClient.getEpicConfiguration().getUserId().orElse(null));
-				request.setUserIDType(epicClient.getEpicConfiguration().getUserIdType().orElse(null));
+				request.setUserID(institution.getEpicUserId());
+				request.setUserIDType(institution.getEpicUserIdType());
 
 				GetProviderScheduleResponse response = epicClient.performGetProviderSchedule(request);
 
@@ -438,6 +448,8 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 		@Nonnull
 		private final javax.inject.Provider<ProviderService> providerServiceProvider;
 		@Nonnull
+		private final javax.inject.Provider<InstitutionService> institutionServiceProvider;
+		@Nonnull
 		private final EnterprisePluginProvider enterprisePluginProvider;
 		@Nonnull
 		private final CurrentContextExecutor currentContextExecutor;
@@ -451,12 +463,14 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 		@Inject
 		public AvailabilitySyncTask(@Nonnull javax.inject.Provider<EpicSyncManager> epicSyncManager,
 																@Nonnull javax.inject.Provider<ProviderService> providerServiceProvider,
+																@Nonnull javax.inject.Provider<InstitutionService> institutionServiceProvider,
 																@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 																@Nonnull CurrentContextExecutor currentContextExecutor,
 																@Nonnull Database database,
 																@Nonnull Configuration configuration) {
 			requireNonNull(epicSyncManager);
 			requireNonNull(providerServiceProvider);
+			requireNonNull(institutionServiceProvider);
 			requireNonNull(enterprisePluginProvider);
 			requireNonNull(currentContextExecutor);
 			requireNonNull(database);
@@ -464,6 +478,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 
 			this.epicSyncManager = epicSyncManager;
 			this.providerServiceProvider = providerServiceProvider;
+			this.institutionServiceProvider = institutionServiceProvider;
 			this.currentContextExecutor = currentContextExecutor;
 			this.enterprisePluginProvider = enterprisePluginProvider;
 			this.database = database;
@@ -473,18 +488,21 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 
 		@Override
 		public void run() {
-			CurrentContext currentContext = new CurrentContext.Builder(InstitutionId.COBALT,
+			InstitutionId institutionId = InstitutionId.COBALT;
+			Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+
+			CurrentContext currentContext = new CurrentContext.Builder(institutionId,
 					getConfiguration().getDefaultLocale(), getConfiguration().getDefaultTimeZone()).build();
 
 			getCurrentContextExecutor().execute(currentContext, () -> {
 				// Pick out all EPIC-scheduled providers
-				List<Provider> providers = getProviderService().findProvidersByInstitutionId(InstitutionId.COBALT).stream()
+				List<Provider> providers = getProviderService().findProvidersByInstitutionId(institutionId).stream()
 						.filter(provider -> provider.getSchedulingSystemId().equals(SchedulingSystemId.EPIC))
 						.collect(Collectors.toList());
 
-				EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(InstitutionId.COBALT).epicClientForApplicationAudience(EpicApplicationAudience.BACKEND_SYSTEMS).get();
+				EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId).epicClientForBackendService().get();
 
-				getLogger().info("Running EPIC availability sync for {} providers...", providers.size());
+				getLogger().info("Running EPIC availability sync for {} providers in {}...", providers.size(), institutionId.name());
 				int providerSuccessCount = 0;
 
 				for (Provider provider : providers) {
@@ -494,7 +512,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 						List<ProviderAvailabilityDateInsert> inserts = new ArrayList<>(getEpicSyncManager().getAvailabilitySyncNumberOfDaysAhead());
 
 						for (int i = 0; i < getEpicSyncManager().getAvailabilitySyncNumberOfDaysAhead(); ++i) {
-							ProviderAvailabilityDateInsert insert = getEpicSyncManager().generateProviderAvailabilityDateInsert(epicClient, provider, syncDate);
+							ProviderAvailabilityDateInsert insert = getEpicSyncManager().generateProviderAvailabilityDateInsert(epicClient, institution, provider, syncDate);
 							inserts.add(insert);
 							syncDate = syncDate.plusDays(1);
 						}
@@ -531,6 +549,11 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 		@Nonnull
 		protected ProviderService getProviderService() {
 			return providerServiceProvider.get();
+		}
+
+		@Nonnull
+		protected InstitutionService getInstitutionService() {
+			return this.institutionServiceProvider.get();
 		}
 
 		@Nonnull
@@ -683,6 +706,11 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 	@Nonnull
 	protected AppointmentService getAppointmentService() {
 		return appointmentServiceProvider.get();
+	}
+
+	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return this.institutionServiceProvider.get();
 	}
 
 	@Nonnull

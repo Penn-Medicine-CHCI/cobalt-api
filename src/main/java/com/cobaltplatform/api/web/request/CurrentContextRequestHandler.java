@@ -24,7 +24,7 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.context.CurrentContextExecutor.CurrentContextOperation;
 import com.cobaltplatform.api.error.ErrorReporter;
-import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
+import com.cobaltplatform.api.integration.epic.MyChartAccessToken;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.Institution;
@@ -213,7 +213,7 @@ public class CurrentContextRequestHandler {
 				institution = getInstitutionService().findInstitutionById(InstitutionId.COBALT).get();
 			} else if (account != null && institution == null) {
 				getLogger().debug("This request did not specify its institution via {}, so current context will default to {}, " +
-						"which is associated with account ID {}", getWebappBaseUrlPropertyName(), account.getAccountId());
+						"which is associated with account ID {}", getWebappBaseUrlPropertyName(), account.getInstitutionId().name(), account.getAccountId());
 			} else if (account != null && institution != null && !Objects.equals(account.getInstitutionId(), institution.getInstitutionId())) {
 				// It's illegal to access an account outside of its own institution's context
 				throw new IllegalStateException(format("Account ID %s is associated with %s but is being accessed in the context of %s",

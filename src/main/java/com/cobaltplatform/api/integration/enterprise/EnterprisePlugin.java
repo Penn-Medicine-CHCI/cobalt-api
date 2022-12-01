@@ -19,10 +19,9 @@
 
 package com.cobaltplatform.api.integration.enterprise;
 
-import com.cobaltplatform.api.integration.epic.EpicApplicationAudience;
 import com.cobaltplatform.api.integration.epic.EpicClient;
-import com.cobaltplatform.api.integration.mychart.MyChartAccessToken;
-import com.cobaltplatform.api.integration.mychart.MyChartAuthenticator;
+import com.cobaltplatform.api.integration.epic.MyChartAccessToken;
+import com.cobaltplatform.api.integration.epic.MyChartAuthenticator;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -63,7 +62,12 @@ public interface EnterprisePlugin {
 	}
 
 	@Nonnull
-	default Optional<EpicClient> epicClientForApplicationAudience(@Nonnull EpicApplicationAudience epicApplicationAudience) {
+	default Optional<EpicClient> epicClientForPatient(@Nonnull MyChartAccessToken myChartAccessToken) {
+		return Optional.empty();
+	}
+
+	@Nonnull
+	default Optional<EpicClient> epicClientForBackendService() {
 		return Optional.empty();
 	}
 

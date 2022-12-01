@@ -17,26 +17,22 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.integration.mychart;
+package com.cobaltplatform.api.integration.epic;
 
-import javax.annotation.Nullable;
-import javax.annotation.concurrent.NotThreadSafe;
+import javax.annotation.Nonnull;
 
 /**
  * @author Transmogrify, LLC.
  */
-@NotThreadSafe
-public class MyChartException extends Exception {
-	public MyChartException(@Nullable String message) {
-		super(message);
+public interface EpicBackendServiceAuthenticator {
+	@Nonnull
+	String generateBackendServiceJwt();
+
+	@Nonnull
+	default EpicBackendServiceAccessToken obtainAccessTokenFromBackendServiceJwt() throws EpicException {
+		return obtainAccessTokenFromBackendServiceJwt(generateBackendServiceJwt());
 	}
 
-	public MyChartException(@Nullable Throwable cause) {
-		super(cause);
-	}
-
-	public MyChartException(@Nullable String message,
-													@Nullable Throwable cause) {
-		super(message, cause);
-	}
+	@Nonnull
+	EpicBackendServiceAccessToken obtainAccessTokenFromBackendServiceJwt(@Nonnull String backendServiceJwt) throws EpicException;
 }

@@ -39,7 +39,8 @@ public class CallToAction {
 	@Nonnull
 	public enum ActionLinkTypeId {
 		INTERNAL,
-		EXTERNAL
+		EXTERNAL,
+		CRISIS
 	}
 
 	@NotThreadSafe
