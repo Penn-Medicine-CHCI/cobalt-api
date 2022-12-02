@@ -401,7 +401,36 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
-	public boolean canUpdateAppointment(@Nonnull Account account,
+	public Boolean canCancelAppointment(@Nonnull Appointment appointment,
+																			@Nonnull Account account,
+																			@Nonnull Account appointmentAccount) {
+		requireNonNull(appointment);
+		requireNonNull(account);
+		requireNonNull(appointmentAccount);
+
+		// Some users can cancel appointments on behalf of other users
+		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR) {
+			// Superadmin can cancel any appointment
+			return true;
+		} else if (account.getRoleId() == RoleId.ADMINISTRATOR) {
+			// "Normal" admins can cancel anything within the same institution
+			if (account.getInstitutionId().equals(appointmentAccount.getInstitutionId()))
+				return true;
+		} else {
+			// If the canceling account is the provider for the appointment, canceling is OK
+			if (Objects.equals(account.getProviderId(), appointment.getProviderId()))
+				return true;
+
+			// You can cancel your own appointments
+			if (appointmentAccount.getAccountId().equals(account.getAccountId()))
+				return true;
+		}
+
+		return false;
+	}
+
+	@Nonnull
+	public Boolean canUpdateAppointment(@Nonnull Account account,
 																			@Nonnull Account appointmentAccount) {
 		requireNonNull(account);
 		requireNonNull(appointmentAccount);
