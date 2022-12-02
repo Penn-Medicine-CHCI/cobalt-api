@@ -20,10 +20,13 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.db.TagGroup;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.TagService;
+import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.Resource;
+import com.soklet.web.response.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +35,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
@@ -68,6 +72,17 @@ public class ResourceLibraryResource {
 		this.authorizationService = authorizationService;
 		this.currentContextProvider = currentContextProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
+	}
+
+	@Nonnull
+	@GET("/resource-library")
+	public ApiResponse getResourceLibrary() {
+		CurrentContext currentContext = getCurrentContext();
+
+		// TODO: handle case where user has recommended content, filter down data
+		List<TagGroup> tagGroups = getTagService().findTagGroupsByInstitutionId(currentContext.getInstitutionId());
+
+		return new ApiResponse();
 	}
 
 	@Nonnull

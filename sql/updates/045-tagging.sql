@@ -5,6 +5,7 @@ SELECT _v.register_patch('045-tagging', NULL, NULL);
 CREATE TABLE tag_group (
 	tag_group_id VARCHAR PRIMARY KEY,
 	name VARCHAR NOT NULL,
+	url_name VARCHAR NOT NULL,
 	description VARCHAR NOT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -12,11 +13,13 @@ CREATE TABLE tag_group (
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON tag_group FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 CREATE UNIQUE INDEX tag_group_unique_idx ON tag_group USING btree (LOWER(name));
+CREATE UNIQUE INDEX tag_group_url_name_unique_idx ON tag_group USING btree (LOWER(url_name));
 
 -- Tags can be associated to content and group sessions and then used for recommendations in screening logic
 CREATE TABLE tag (
 	tag_id VARCHAR PRIMARY KEY,
 	name VARCHAR NOT NULL,
+	url_name VARCHAR NOT NULL,
 	description VARCHAR NOT NULL,
 	tag_group_id VARCHAR NOT NULL REFERENCES tag_group,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -25,6 +28,7 @@ CREATE TABLE tag (
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON tag FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 CREATE UNIQUE INDEX tag_unique_idx ON tag USING btree (LOWER(name));
+CREATE UNIQUE INDEX tag_url_name_unique_idx ON tag USING btree (LOWER(url_name));
 
 -- Relates tags to content
 CREATE TABLE tag_content (

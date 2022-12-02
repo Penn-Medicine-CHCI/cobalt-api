@@ -35,6 +35,8 @@ public class Tag {
 	@Nullable
 	private String name;
 	@Nullable
+	private String urlName;
+	@Nullable
 	private String description;
 	@Nullable
 	private Instant created;
@@ -66,6 +68,15 @@ public class Tag {
 
 	public void setName(@Nullable String name) {
 		this.name = name;
+	}
+
+	@Nullable
+	public String getUrlName() {
+		return this.urlName;
+	}
+
+	public void setUrlName(@Nullable String urlName) {
+		this.urlName = urlName;
 	}
 
 	@Nullable
