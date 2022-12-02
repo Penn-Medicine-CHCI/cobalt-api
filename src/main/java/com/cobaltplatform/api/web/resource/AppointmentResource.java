@@ -431,18 +431,8 @@ public class AppointmentResource {
 
 		Account appointmentAccount = getAccountService().findAccountById(appointment.getAccountId()).get();
 
-		// Some users can cancel appointments on behalf of other users
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR) {
-			// Superadmin can cancel any appointment
-		} else if (account.getRoleId() == RoleId.MHIC || account.getRoleId() == RoleId.ADMINISTRATOR) {
-			// "Normal" admins can cancel anything within the same institution
-			if (!account.getInstitutionId().equals(appointmentAccount.getInstitutionId()))
-				throw new AuthorizationException();
-		} else {
-			// If you are not a special role, you can only cancel for yourself
-			if (!appointmentAccount.getAccountId().equals(account.getAccountId()))
-				throw new AuthorizationException();
-		}
+		if (!getAuthorizationService().canCancelAppointment(appointment, account, appointmentAccount))
+			throw new AuthorizationException();
 
 		CancelAppointmentRequest request = getRequestBodyParser().parse(requestBody, CancelAppointmentRequest.class);
 		request.setAccountId(appointmentAccount.getAccountId());
