@@ -19,10 +19,14 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -33,7 +37,7 @@ public class Content {
 	@Nonnull
 	private UUID contentId;
 	@Nonnull
-	private ContentType.ContentTypeId contentTypeId;
+	private ContentTypeId contentTypeId;
 	@Nonnull
 	private String title;
 	@Nullable
@@ -59,7 +63,7 @@ public class Content {
 	@Nullable
 	private String contentTypeLabel;
 	@Nonnull
-	private Institution.InstitutionId ownerInstitutionId;
+	private InstitutionId ownerInstitutionId;
 	@Nonnull
 	private Integer durationInMinutes;
 
@@ -75,6 +79,10 @@ public class Content {
 	@Nullable
 	private Boolean newFlag;
 
+	// This is stored separately in the DB, but in practice it's needed everywhere we see content in the UI
+	@Nullable
+	private List<Tag> tags;
+
 
 	@Nonnull
 	public UUID getContentId() {
@@ -86,11 +94,11 @@ public class Content {
 	}
 
 	@Nonnull
-	public ContentType.ContentTypeId getContentTypeId() {
+	public ContentTypeId getContentTypeId() {
 		return contentTypeId;
 	}
 
-	public void setContentTypeId(@Nonnull ContentType.ContentTypeId contentTypeId) {
+	public void setContentTypeId(@Nonnull ContentTypeId contentTypeId) {
 		this.contentTypeId = contentTypeId;
 	}
 
@@ -230,11 +238,11 @@ public class Content {
 	}
 
 	@Nonnull
-	public Institution.InstitutionId getOwnerInstitutionId() {
+	public InstitutionId getOwnerInstitutionId() {
 		return ownerInstitutionId;
 	}
 
-	public void setOwnerInstitutionId(@Nonnull Institution.InstitutionId ownerInstitutionId) {
+	public void setOwnerInstitutionId(@Nonnull InstitutionId ownerInstitutionId) {
 		this.ownerInstitutionId = ownerInstitutionId;
 	}
 
@@ -245,5 +253,14 @@ public class Content {
 
 	public void setDurationInMinutes(@Nonnull Integer durationInMinutes) {
 		this.durationInMinutes = durationInMinutes;
+	}
+
+	@Nullable
+	public List<Tag> getTags() {
+		return this.tags;
+	}
+
+	public void setTags(@Nullable List<Tag> tags) {
+		this.tags = tags;
 	}
 }

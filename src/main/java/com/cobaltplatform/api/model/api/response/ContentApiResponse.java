@@ -19,17 +19,23 @@
 
 package com.cobaltplatform.api.model.api.response;
 
-import com.google.inject.assistedinject.Assisted;
-import com.google.inject.assistedinject.AssistedInject;
+import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
 import com.cobaltplatform.api.util.Formatter;
+import com.google.inject.assistedinject.Assisted;
+import com.google.inject.assistedinject.AssistedInject;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -74,19 +80,42 @@ public class ContentApiResponse {
 	private String contentTypeLabel;
 	@Nullable
 	private String duration;
+	@Nonnull
+	private final List<String> tagIds;
+	@Nullable
+	private final List<TagApiResponse> tags;
+
+	public enum ContentApiResponseSupplement {
+		TAGS
+	}
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface ContentApiResponseFactory {
 		@Nonnull
 		ContentApiResponse create(@Nonnull Content content);
+
+		@Nonnull
+		ContentApiResponse create(@Nonnull Content content,
+															@Nonnull Set<ContentApiResponseSupplement> supplements);
 	}
 
 	@AssistedInject
-	public ContentApiResponse(@Nonnull Formatter formatter,
+	public ContentApiResponse(@Nonnull TagApiResponseFactory tagApiResponseFactory,
+														@Nonnull Formatter formatter,
 														@Assisted @Nonnull Content content) {
+		this(tagApiResponseFactory, formatter, content, Set.of());
+	}
+
+	@AssistedInject
+	public ContentApiResponse(@Nonnull TagApiResponseFactory tagApiResponseFactory,
+														@Nonnull Formatter formatter,
+														@Assisted @Nonnull Content content,
+														@Assisted @Nonnull Set<ContentApiResponseSupplement> supplements) {
+		requireNonNull(tagApiResponseFactory);
 		requireNonNull(formatter);
 		requireNonNull(content);
+		requireNonNull(supplements);
 
 		this.contentId = content.getContentId();
 		this.contentTypeId = content.getContentTypeId();
@@ -107,6 +136,18 @@ public class ContentApiResponse {
 		this.contentTypeLabel = content.getContentTypeLabel();
 		this.duration = content.getDurationInMinutes() != null ?
 				String.format("%s min", content.getDurationInMinutes().toString()) : null;
+		this.tagIds = content.getTags() == null ? Collections.emptyList() : content.getTags().stream()
+				.map(tag -> tag.getTagId())
+				.collect(Collectors.toList());
+
+		List<TagApiResponse> tags = null;
+
+		if (supplements.contains(ContentApiResponseSupplement.TAGS))
+			tags = content.getTags() == null ? Collections.emptyList() : content.getTags().stream()
+					.map(tag -> tagApiResponseFactory.create(tag))
+					.collect(Collectors.toList());
+
+		this.tags = tags;
 	}
 
 	@Nonnull
@@ -201,5 +242,15 @@ public class ContentApiResponse {
 
 	public void setDuration(@Nullable String duration) {
 		this.duration = duration;
+	}
+
+	@Nonnull
+	public List<String> getTagIds() {
+		return this.tagIds;
+	}
+
+	@Nullable
+	public Optional<List<TagApiResponse>> getTags() {
+		return Optional.ofNullable(this.tags);
 	}
 }

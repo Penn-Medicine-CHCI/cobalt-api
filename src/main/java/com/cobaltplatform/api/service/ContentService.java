@@ -36,12 +36,15 @@ import com.cobaltplatform.api.model.db.ApprovalStatus;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
 import com.cobaltplatform.api.model.db.AvailableStatus;
+import com.cobaltplatform.api.model.db.AvailableStatus.AvailableStatusId;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.ContentType;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
 import com.cobaltplatform.api.model.db.ContentTypeLabel;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.Tag;
+import com.cobaltplatform.api.model.db.TagContent;
 import com.cobaltplatform.api.model.db.Visibility;
 import com.cobaltplatform.api.model.service.AdminContent;
 import com.cobaltplatform.api.model.service.FindResult;
@@ -65,10 +68,12 @@ import java.time.LocalDate;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.model.db.ApprovalStatus.ApprovalStatusId;
@@ -104,6 +109,8 @@ public class ContentService {
 	@Nonnull
 	private final Provider<AssessmentService> assessmentServiceProvider;
 	@Nonnull
+	private final Provider<TagService> tagServiceProvider;
+	@Nonnull
 	private final Provider<EmailMessageManager> emailMessageManagerProvider;
 	@Nonnull
 	private final Provider<AccountService> accountServiceProvider;
@@ -116,6 +123,7 @@ public class ContentService {
 	@Inject
 	public ContentService(@Nonnull Provider<CurrentContext> currentContextProvider,
 												@Nonnull Provider<AssessmentService> assessmentServiceProvider,
+												@Nonnull Provider<TagService> tagServiceProvider,
 												@Nonnull Provider<EmailMessageManager> emailMessageManagerProvider,
 												@Nonnull Provider<AccountService> accountServiceProvider,
 												@Nonnull Provider<Formatter> formatterProvider,
@@ -125,6 +133,12 @@ public class ContentService {
 												@Nonnull InstitutionService institutionService,
 												@Nonnull Strings strings) {
 		requireNonNull(currentContextProvider);
+		requireNonNull(assessmentServiceProvider);
+		requireNonNull(tagServiceProvider);
+		requireNonNull(emailMessageManagerProvider);
+		requireNonNull(accountServiceProvider);
+		requireNonNull(formatterProvider);
+		requireNonNull(linkGeneratorProvider);
 		requireNonNull(database);
 		requireNonNull(sessionService);
 		requireNonNull(institutionService);
@@ -133,6 +147,7 @@ public class ContentService {
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.database = database;
 		this.sessionService = sessionService;
+		this.tagServiceProvider = tagServiceProvider;
 		this.currentContextProvider = currentContextProvider;
 		this.institutionService = institutionService;
 		this.strings = strings;
@@ -167,6 +182,8 @@ public class ContentService {
 		if (content == null)
 			return Optional.empty();
 
+		applyTags(content, account.getInstitutionId());
+
 		return Optional.of(content);
 	}
 
@@ -179,7 +196,7 @@ public class ContentService {
 																													 @Nonnull Optional<VisibilityId> visibilityId,
 																													 @Nonnull Optional<ApprovalStatusId> myApprovalStatusId,
 																													 @Nonnull Optional<ApprovalStatusId> otherApprovalStatusId,
-																													 @Nonnull Optional<AvailableStatus.AvailableStatusId> availableStatusId,
+																													 @Nonnull Optional<AvailableStatusId> availableStatusId,
 																													 @Nonnull Optional<String> search) {
 		requireNonNull(myContent);
 		requireNonNull(account);
@@ -231,7 +248,7 @@ public class ContentService {
 				parameters.add(account.getInstitutionId());
 				if (availableStatusId.isPresent()) {
 					whereClause.append(" AND approved_flag = ? ");
-					parameters.add(availableStatusId.get() == AvailableStatus.AvailableStatusId.ADDED);
+					parameters.add(availableStatusId.get() == AvailableStatusId.ADDED);
 				}
 			} else {
 				whereClause.append("AND va.owner_institution_id != ? ");
@@ -242,7 +259,7 @@ public class ContentService {
 				parameters.add(account.getInstitutionId());
 				if (availableStatusId.isPresent()) {
 					whereClause.append("AND va.approved_flag = ? ");
-					parameters.add(availableStatusId.get() == AvailableStatus.AvailableStatusId.ADDED);
+					parameters.add(availableStatusId.get() == AvailableStatusId.ADDED);
 				}
 			}
 		}
@@ -823,7 +840,9 @@ public class ContentService {
 		List<Content> unfilteredContent = getDatabase().queryForList(unfilteredQuery.toString(),
 				Content.class, unfilteredParameters.toArray());
 
-		return (unfilteredContent);
+		applyTags(unfilteredContent, account.getInstitutionId());
+
+		return unfilteredContent;
 	}
 
 	@Nonnull
@@ -913,6 +932,8 @@ public class ContentService {
 
 		content = getDatabase().queryForList(query.toString(), Content.class, parameters.toArray());
 
+		applyTags(content, account.getInstitutionId());
+
 		return content;
 	}
 
@@ -930,6 +951,66 @@ public class ContentService {
 				return false;
 		} else
 			return false;
+	}
+
+	@Nonnull
+	public List<Content> findVisibleContentByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return Collections.emptyList();
+
+		// Currently we don't have institution-specific tag groups.
+		// But this method accepts an institution ID in case we do in the future...
+		List<Content> contents = getDatabase().queryForList("""
+				SELECT c.*		    
+				FROM content c, institution_content ic
+				WHERE c.content_id=ic.content_id
+				AND ic.approved_flag=TRUE
+				AND ic.institution_id=?
+								""", Content.class, institutionId);
+
+		applyTags(contents, institutionId);
+
+		return contents;
+	}
+
+	/**
+	 * Note: modifies {@code contents} parameter in-place.
+	 */
+	@Nonnull
+	protected void applyTags(@Nonnull List<Content> contents,
+													 @Nonnull InstitutionId institutionId) {
+		requireNonNull(contents);
+		requireNonNull(institutionId);
+
+		// Pull back all data up-front to avoid N+1 selects
+		Map<UUID, List<TagContent>> tagContentsByContentId = getTagService().findTagContentsByInstitutionId(institutionId).stream()
+				.collect(Collectors.groupingBy(TagContent::getContentId));
+		Map<String, Tag> tagsByTagId = getTagService().findTagsByInstitutionId(institutionId).stream()
+				.collect(Collectors.toMap(Tag::getTagId, Function.identity()));
+
+		for (Content content : contents) {
+			List<Tag> tags = Collections.emptyList();
+			List<TagContent> tagContents = tagContentsByContentId.get(content.getContentId());
+
+			if (tagContents != null)
+				tags = tagContents.stream()
+						.map(tagContent -> tagsByTagId.get(tagContent.getTagId()))
+						.collect(Collectors.toList());
+
+			content.setTags(tags);
+		}
+	}
+
+	/**
+	 * Note: modifies {@code content} parameter in-place.
+	 */
+	@Nonnull
+	protected void applyTags(@Nonnull Content content,
+													 @Nonnull InstitutionId institutionId) {
+		requireNonNull(content);
+		requireNonNull(institutionId);
+
+		content.setTags(getTagService().findTagsByContentIdAndInstitutionId(content.getContentId(), institutionId));
 	}
 
 	@Nonnull
@@ -955,6 +1036,11 @@ public class ContentService {
 	@Nonnull
 	protected AssessmentService getAssessmentService() {
 		return assessmentServiceProvider.get();
+	}
+
+	@Nonnull
+	protected TagService getTagService() {
+		return this.tagServiceProvider.get();
 	}
 
 	@Nonnull
