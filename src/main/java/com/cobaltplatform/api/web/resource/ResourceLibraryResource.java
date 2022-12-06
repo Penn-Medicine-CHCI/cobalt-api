@@ -36,6 +36,7 @@ import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.TagService;
 import com.soklet.web.annotation.GET;
+import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.Resource;
 import com.soklet.web.response.ApiResponse;
 import org.slf4j.Logger;
@@ -124,20 +125,22 @@ public class ResourceLibraryResource {
 		List<Content> contents = enterprisePlugin.recommendedContentForAccountId(account.getAccountId());
 
 		// Pick out tags in the content
-		Set<String> tagIds = new HashSet<>();
-		List<TagApiResponse> tags = new ArrayList<>();
+		Set<String> tagGroupIds = new HashSet<>();
+		Map<String, TagApiResponse> tagsByTagId = new HashMap<>();
 
 		for (Content content : contents) {
 			for (Tag tag : content.getTags()) {
-				if (tagIds.contains(tag.getTagId()))
+				if (tagsByTagId.containsKey(tag.getTagId()))
 					continue;
-
-				tagIds.add(tag.getTagId());
-				tags.add(getTagApiResponseFactory().create(tag));
+				
+				tagGroupIds.add(tag.getTagGroupId());
+				tagsByTagId.put(tag.getTagId(), getTagApiResponseFactory().create(tag));
 			}
 		}
 
+		// Only those tag groups associated with the tags in the content
 		List<TagGroupApiResponse> tagGroups = getTagService().findTagGroupsByInstitutionId(currentContext.getInstitutionId()).stream()
+				.filter(tagGroup -> tagGroupIds.contains(tagGroup.getTagGroupId()))
 				.map(tagGroup -> getTagGroupApiResponseFactory().create(tagGroup))
 				.collect(Collectors.toList());
 
@@ -173,25 +176,17 @@ public class ResourceLibraryResource {
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("contentsByTagGroupId", contentsByTagGroupId);
 			put("tagGroups", tagGroups);
-			put("tags", tags);
+			put("tagsByTagId", tagsByTagId);
 		}});
 	}
 
-//	@Nonnull
-//	@GET("/resource-library/search")
-//	@AuthenticationRequired
-//	public ApiResponse searchResourceLibrary() {
-//		// TODO
-//		return new ApiResponse();
-//	}
-
-//	@Nonnull
-//	@GET("/resource-library/search")
-//	@AuthenticationRequired
-//	public ApiResponse searchResourceLibrary() {
-//		// TODO
-//		return new ApiResponse();
-//	}
+	@Nonnull
+	@GET("/resource-library/search")
+	@AuthenticationRequired
+	public ApiResponse searchResourceLibrary(@Nonnull @QueryParameter String searchQuery) {
+		requireNonNull(searchQuery);
+		throw new UnsupportedOperationException();
+	}
 
 	@Nonnull
 	protected ContentService getContentService() {
