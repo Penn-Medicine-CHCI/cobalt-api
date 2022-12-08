@@ -22,7 +22,6 @@ package com.cobaltplatform.api.web.resource;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
-import com.cobaltplatform.api.model.api.request.AcceptAccountConsentFormRequest;
 import com.cobaltplatform.api.model.api.request.AccessTokenRequest;
 import com.cobaltplatform.api.model.api.request.AccountRoleRequest;
 import com.cobaltplatform.api.model.api.request.ApplyAccountEmailVerificationCodeRequest;
@@ -38,6 +37,7 @@ import com.cobaltplatform.api.model.api.request.PatchAccountRequest;
 import com.cobaltplatform.api.model.api.request.ResetPasswordRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountAccessTokenExpiration;
 import com.cobaltplatform.api.model.api.request.UpdateAccountBetaStatusRequest;
+import com.cobaltplatform.api.model.api.request.UpdateAccountConsentFormAcceptedRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountEmailAddressRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountPhoneNumberRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountRoleRequest;
@@ -701,6 +701,22 @@ public class AccountResource {
 	@AuthenticationRequired
 	public ApiResponse updateAccountConsentFormAccepted(@Nonnull @PathParameter UUID accountId) {
 		requireNonNull(accountId);
+		return updateAccountConsentFormAcceptance(accountId, true);
+	}
+
+	@Nonnull
+	@PUT("/accounts/{accountId}/consent-form-rejected")
+	@AuthenticationRequired
+	public ApiResponse updateAccountConsentFormRejected(@Nonnull @PathParameter UUID accountId) {
+		requireNonNull(accountId);
+		return updateAccountConsentFormAcceptance(accountId, false);
+	}
+
+	@Nonnull
+	protected ApiResponse updateAccountConsentFormAcceptance(@Nonnull UUID accountId,
+																													 @Nonnull Boolean accepted) {
+		requireNonNull(accountId);
+		requireNonNull(accepted);
 
 		Account currentAccount = getCurrentContext().getAccount().get();
 
@@ -712,8 +728,9 @@ public class AccountResource {
 		if (account == null)
 			throw new NotFoundException();
 
-		AcceptAccountConsentFormRequest request = new AcceptAccountConsentFormRequest();
+		UpdateAccountConsentFormAcceptedRequest request = new UpdateAccountConsentFormAcceptedRequest();
 		request.setAccountId(accountId);
+		request.setAccepted(accepted);
 
 		getAccountService().updateAccountConsentFormAccepted(request);
 
