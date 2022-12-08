@@ -27,9 +27,11 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class AcceptAccountConsentFormRequest {
+public class UpdateAccountConsentFormAcceptedRequest {
 	@Nullable
 	private UUID accountId;
+	@Nullable
+	private Boolean accepted;
 
 	@Nullable
 	public UUID getAccountId() {
@@ -38,5 +40,14 @@ public class AcceptAccountConsentFormRequest {
 
 	public void setAccountId(@Nullable UUID accountId) {
 		this.accountId = accountId;
+	}
+
+	@Nullable
+	public Boolean getAccepted() {
+		return this.accepted;
+	}
+
+	public void setAccepted(@Nullable Boolean accepted) {
+		this.accepted = accepted;
 	}
 }

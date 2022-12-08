@@ -118,6 +118,8 @@ public class Account {
 	private Boolean consentFormAccepted;
 	@Nullable
 	private Instant consentFormAcceptedDate;
+	@Nullable
+	private Instant consentFormRejectedDate;
 	@Nonnull
 	private Long accessTokenExpirationInMinutes;
 	@Nonnull
@@ -351,6 +353,15 @@ public class Account {
 
 	public void setConsentFormAcceptedDate(@Nullable Instant consentFormAcceptedDate) {
 		this.consentFormAcceptedDate = consentFormAcceptedDate;
+	}
+
+	@Nullable
+	public Instant getConsentFormRejectedDate() {
+		return this.consentFormRejectedDate;
+	}
+
+	public void setConsentFormRejectedDate(@Nullable Instant consentFormRejectedDate) {
+		this.consentFormRejectedDate = consentFormRejectedDate;
 	}
 
 	@Nullable
