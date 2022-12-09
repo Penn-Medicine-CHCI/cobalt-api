@@ -27,7 +27,6 @@ import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
-import com.cobaltplatform.api.model.api.request.AcceptAccountConsentFormRequest;
 import com.cobaltplatform.api.model.api.request.AccessTokenRequest;
 import com.cobaltplatform.api.model.api.request.AccountRoleRequest;
 import com.cobaltplatform.api.model.api.request.ApplyAccountEmailVerificationCodeRequest;
@@ -41,6 +40,7 @@ import com.cobaltplatform.api.model.api.request.PatchAccountRequest;
 import com.cobaltplatform.api.model.api.request.ResetPasswordRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountAccessTokenExpiration;
 import com.cobaltplatform.api.model.api.request.UpdateAccountBetaStatusRequest;
+import com.cobaltplatform.api.model.api.request.UpdateAccountConsentFormAcceptedRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountEmailAddressRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountPhoneNumberRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountRoleRequest;
@@ -828,20 +828,28 @@ public class AccountService {
 	}
 
 	@Nonnull
-	public void updateAccountConsentFormAccepted(@Nonnull AcceptAccountConsentFormRequest request) {
+	public void updateAccountConsentFormAccepted(@Nonnull UpdateAccountConsentFormAcceptedRequest request) {
 		requireNonNull(request);
 
 		UUID accountId = request.getAccountId();
+		Boolean accepted = request.getAccepted();
 		ValidationException validationException = new ValidationException();
 
 		if (accountId == null)
 			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
 
+		if (accepted == null)
+			validationException.add(new FieldError("accepted", getStrings().get("'Accepted' flag is required.")));
+
 		if (validationException.hasErrors())
 			throw validationException;
 
-		getDatabase().execute("UPDATE account SET consent_form_accepted = true, consent_form_accepted_date = now() " +
-				" WHERE account_id = ?", accountId);
+		if (accepted)
+			getDatabase().execute("UPDATE account SET consent_form_accepted = true, consent_form_accepted_date = now() " +
+					" WHERE account_id = ?", accountId);
+		else
+			getDatabase().execute("UPDATE account SET consent_form_accepted = false, consent_form_rejected_date = now() " +
+					" WHERE account_id = ?", accountId);
 	}
 
 	public void updateAccountEpicPatient(@Nullable UUID accountId,

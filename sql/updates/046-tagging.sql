@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('045-tagging', NULL, NULL);
+SELECT _v.register_patch('046-tagging', NULL, NULL);
 
 -- Groups tags for display purposes
 CREATE TABLE tag_group (

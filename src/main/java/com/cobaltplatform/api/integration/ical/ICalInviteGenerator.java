@@ -144,8 +144,10 @@ public class ICalInviteGenerator {
 		TimeZone icalTimeZone = timeZoneRegistry.getTimeZone(timeZone.getId());
 		VTimeZone icalVTimeZone = icalTimeZone.getVTimeZone();
 
-		DateTime start = new DateTime(startDateTime.atZone(ZoneId.of("UTC")).toInstant().toEpochMilli());
-		DateTime end = new DateTime(endDateTime.atZone(ZoneId.of("UTC")).toInstant().toEpochMilli());
+		DateTime start = new DateTime(startDateTime.atZone(timeZone).toInstant().toEpochMilli());
+		start.setTimeZone(icalTimeZone);
+		DateTime end = new DateTime(endDateTime.atZone(timeZone).toInstant().toEpochMilli());
+		end.setTimeZone(icalTimeZone);
 		VEvent meeting = new VEvent(start, end, title);
 		meeting.getProperties().add(icalVTimeZone.getTimeZoneId());
 
