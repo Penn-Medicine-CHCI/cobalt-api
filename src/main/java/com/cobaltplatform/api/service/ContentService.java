@@ -184,7 +184,7 @@ public class ContentService {
 		if (content == null)
 			return Optional.empty();
 
-		applyTags(content, account.getInstitutionId());
+		applyTagsToContents(content, account.getInstitutionId());
 
 		return Optional.of(content);
 	}
@@ -289,6 +289,9 @@ public class ContentService {
 		parameters.add(offset);
 		List<AdminContent> content = getDatabase().queryForList(query, AdminContent.class, sqlVaragsParameters(parameters));
 		Integer totalCount = content.stream().filter(it -> it.getTotalCount() != null).mapToInt(AdminContent::getTotalCount).findFirst().orElse(0);
+
+		applyTagsToAdminContents(content, account.getInstitutionId());
+
 		return new FindResult<>(content, totalCount);
 	}
 
@@ -355,7 +358,7 @@ public class ContentService {
 
 		List<ContentWithTotalCount> contents = getDatabase().queryForList(sql, ContentWithTotalCount.class, sqlVaragsParameters(parameters));
 
-		applyTags(contents, institutionId);
+		applyTagsToContents(contents, institutionId);
 
 		Integer totalCount = contents.stream()
 				.filter(content -> content.getTotalCount() != null)
@@ -392,7 +395,7 @@ public class ContentService {
 		requireNonNull(institutionId);
 		requireNonNull(contentId);
 
-		return getDatabase().queryForObject("SELECT va.*, " +
+		AdminContent adminContent = getDatabase().queryForObject("SELECT va.*, " +
 						"(select COUNT(*) FROM " +
 						" activity_tracking a WHERE " +
 						" va.content_id = CAST (a.context ->> 'contentId' AS UUID) AND " +
@@ -401,7 +404,12 @@ public class ContentService {
 						"FROM v_admin_content va " +
 						"WHERE va.content_id = ? " +
 						"AND va.institution_id = ? ",
-				AdminContent.class, contentId, institutionId);
+				AdminContent.class, contentId, institutionId).orElse(null);
+
+		if(adminContent != null)
+			applyTagsToAdminContent(adminContent, institutionId);
+
+		return Optional.ofNullable(adminContent);
 	}
 
 	@Nonnull
@@ -647,6 +655,7 @@ public class ContentService {
 		}
 
 		AdminContent adminContent = findAdminContentByIdForInstitution(account.getInstitutionId(), contentId).get();
+		applyTagsToAdminContent(adminContent, account.getInstitutionId());
 		sendAdminNotification(account, adminContent);
 		return adminContent;
 	}
@@ -847,6 +856,8 @@ public class ContentService {
 			}
 		}
 
+		applyTagsToAdminContent(adminContent, account.getInstitutionId());
+
 		if (shouldNotify) {
 			sendAdminNotification(account, adminContent);
 		}
@@ -932,7 +943,7 @@ public class ContentService {
 		List<Content> unfilteredContent = getDatabase().queryForList(unfilteredQuery.toString(),
 				Content.class, unfilteredParameters.toArray());
 
-		applyTags(unfilteredContent, account.getInstitutionId());
+		applyTagsToContents(unfilteredContent, account.getInstitutionId());
 
 		return unfilteredContent;
 	}
@@ -1024,7 +1035,7 @@ public class ContentService {
 
 		content = getDatabase().queryForList(query.toString(), Content.class, parameters.toArray());
 
-		applyTags(content, account.getInstitutionId());
+		applyTagsToContents(content, account.getInstitutionId());
 
 		return content;
 	}
@@ -1060,7 +1071,7 @@ public class ContentService {
 				AND ic.institution_id=?
 								""", Content.class, institutionId);
 
-		applyTags(contents, institutionId);
+		applyTagsToContents(contents, institutionId);
 
 		return contents;
 	}
@@ -1069,8 +1080,8 @@ public class ContentService {
 	 * Note: modifies {@code contents} parameter in-place.
 	 */
 	@Nonnull
-	protected void applyTags(@Nonnull List<? extends Content> contents,
-													 @Nonnull InstitutionId institutionId) {
+	protected void applyTagsToContents(@Nonnull List<? extends Content> contents,
+																		 @Nonnull InstitutionId institutionId) {
 		requireNonNull(contents);
 		requireNonNull(institutionId);
 
@@ -1097,12 +1108,52 @@ public class ContentService {
 	 * Note: modifies {@code content} parameter in-place.
 	 */
 	@Nonnull
-	protected <T extends Content> void applyTags(@Nonnull T content,
-																							 @Nonnull InstitutionId institutionId) {
+	protected <T extends Content> void applyTagsToContents(@Nonnull T content,
+																												 @Nonnull InstitutionId institutionId) {
 		requireNonNull(content);
 		requireNonNull(institutionId);
 
 		content.setTags(getTagService().findTagsByContentIdAndInstitutionId(content.getContentId(), institutionId));
+	}
+
+	/**
+	 * Note: modifies {@code contents} parameter in-place.
+	 */
+	@Nonnull
+	protected void applyTagsToAdminContents(@Nonnull List<? extends AdminContent> adminContents,
+																					@Nonnull InstitutionId institutionId) {
+		requireNonNull(adminContents);
+		requireNonNull(institutionId);
+
+		// Pull back all data up-front to avoid N+1 selects
+		Map<UUID, List<TagContent>> tagContentsByContentId = getTagService().findTagContentsByInstitutionId(institutionId).stream()
+				.collect(Collectors.groupingBy(TagContent::getContentId));
+		Map<String, Tag> tagsByTagId = getTagService().findTagsByInstitutionId(institutionId).stream()
+				.collect(Collectors.toMap(Tag::getTagId, Function.identity()));
+
+		for (AdminContent adminContent : adminContents) {
+			List<Tag> tags = Collections.emptyList();
+			List<TagContent> tagContents = tagContentsByContentId.get(adminContent.getContentId());
+
+			if (tagContents != null)
+				tags = tagContents.stream()
+						.map(tagContent -> tagsByTagId.get(tagContent.getTagId()))
+						.collect(Collectors.toList());
+
+			adminContent.setTags(tags);
+		}
+	}
+
+	/**
+	 * Note: modifies {@code content} parameter in-place.
+	 */
+	@Nonnull
+	protected <T extends AdminContent> void applyTagsToAdminContent(@Nonnull T adminContent,
+																																	@Nonnull InstitutionId institutionId) {
+		requireNonNull(adminContent);
+		requireNonNull(institutionId);
+
+		adminContent.setTags(getTagService().findTagsByContentIdAndInstitutionId(adminContent.getContentId(), institutionId));
 	}
 
 	@Nonnull

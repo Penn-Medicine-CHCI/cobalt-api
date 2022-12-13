@@ -19,8 +19,6 @@
 
 package com.cobaltplatform.api.model.api.response;
 
-import com.google.inject.assistedinject.Assisted;
-import com.google.inject.assistedinject.AssistedInject;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ApprovalStatus;
 import com.cobaltplatform.api.model.db.AvailableStatus.AvailableStatusId;
@@ -32,6 +30,8 @@ import com.cobaltplatform.api.model.service.AdminContent;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.Formatter;
+import com.google.inject.assistedinject.Assisted;
+import com.google.inject.assistedinject.AssistedInject;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -39,11 +39,13 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.time.LocalDate;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
-import static com.cobaltplatform.api.model.db.ContentAction.*;
-import static com.cobaltplatform.api.model.db.Visibility.*;
+import static com.cobaltplatform.api.model.db.ContentAction.ContentActionId;
+import static com.cobaltplatform.api.model.db.Visibility.VisibilityId;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -95,13 +97,14 @@ public class AdminContentApiResponse {
 	private ApprovalStatus ownerInstitutionApprovalStatus;
 	@Nullable
 	private ApprovalStatus otherInstitutionApprovalStatus;
+	@Nonnull
+	private final List<String> tagIds;
 
-	public enum AdminContentDisplayType{
+	public enum AdminContentDisplayType {
 		DETAIL,
 		AVAILABLE_CONTENT,
 		MY_CONTENT
 	}
-
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -145,26 +148,26 @@ public class AdminContentApiResponse {
 		this.visibleToOtherInstitutions = this.visibilityId == VisibilityId.NETWORK || this.visibilityId == VisibilityId.PUBLIC;
 		this.ownerInstitutionApprovalStatus = contentService.findApprovalStatusById(adminContent.getOwnerInstitutionApprovalStatusId());
 
-		if(visibleToOtherInstitutions) {
+		if (visibleToOtherInstitutions) {
 			this.otherInstitutionApprovalStatus = contentService.findApprovalStatusById(adminContent.getOtherInstitutionApprovalStatusId());
 		} else {
 			this.otherInstitutionApprovalStatus = contentService.findApprovalStatusById(ApprovalStatus.ApprovalStatusId.NOT_APPLICABLE);
 		}
 
-		if(adminContent.getArchivedFlag()){
+		if (adminContent.getArchivedFlag()) {
 			this.ownerInstitutionApprovalStatus = contentService.findApprovalStatusById(ApprovalStatus.ApprovalStatusId.ARCHIVED);
 			this.otherInstitutionApprovalStatus = contentService.findApprovalStatusById(ApprovalStatus.ApprovalStatusId.ARCHIVED);
 		}
 
 
-		if(adminContentDisplayType == AdminContentDisplayType.DETAIL) {
+		if (adminContentDisplayType == AdminContentDisplayType.DETAIL) {
 			this.contentTagIds = contentService.findTagsForContent(adminContent.getContentId());
-			if (this.visibilityId == VisibilityId.NETWORK ) {
+			if (this.visibilityId == VisibilityId.NETWORK) {
 				this.selectedNetworkInstitutions = institutionService.findSelectedNetworkInstitutionsForContentId(adminContent.getOwnerInstitutionId(), contentId);
 			}
 		}
 
-		if(adminContentDisplayType == AdminContentDisplayType.MY_CONTENT) {
+		if (adminContentDisplayType == AdminContentDisplayType.MY_CONTENT) {
 			contentActionIdList.add(ContentActionId.EDIT);
 		}
 
@@ -208,8 +211,8 @@ public class AdminContentApiResponse {
 							case ARCHIVED:
 								break;
 						}
-					} else if (this.visibilityId == VisibilityId.PRIVATE){
-						switch(adminContent.getOwnerInstitutionApprovalStatusId()){
+					} else if (this.visibilityId == VisibilityId.PRIVATE) {
+						switch (adminContent.getOwnerInstitutionApprovalStatusId()) {
 
 							case PENDING:
 								contentActionIdList.add(ContentActionId.APPROVE);
@@ -231,8 +234,8 @@ public class AdminContentApiResponse {
 							contentActionIdList.add(ContentActionId.ARCHIVE);
 					}
 				}
-			} else if(adminContentDisplayType == AdminContentDisplayType.AVAILABLE_CONTENT) {
-				if(adminContent.getApprovedFlag()){
+			} else if (adminContentDisplayType == AdminContentDisplayType.AVAILABLE_CONTENT) {
+				if (adminContent.getApprovedFlag()) {
 					contentActionIdList.add(ContentActionId.REMOVE);
 					availableStatusId = AvailableStatusId.ADDED;
 				} else {
@@ -243,6 +246,9 @@ public class AdminContentApiResponse {
 		}
 		this.actions = contentActionIdList;
 
+		this.tagIds = adminContent.getTags() == null ? Collections.emptyList() : adminContent.getTags().stream()
+				.map(tag -> tag.getTagId())
+				.collect(Collectors.toList());
 	}
 
 	@Nonnull
@@ -333,5 +339,10 @@ public class AdminContentApiResponse {
 	@Nullable
 	public ApprovalStatus getOtherInstitutionApprovalStatus() {
 		return otherInstitutionApprovalStatus;
+	}
+
+	@Nonnull
+	public List<String> getTagIds() {
+		return this.tagIds;
 	}
 }
