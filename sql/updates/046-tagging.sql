@@ -1,9 +1,22 @@
 BEGIN;
 SELECT _v.register_patch('046-tagging', NULL, NULL);
 
+CREATE TABLE color (
+  color_id VARCHAR PRIMARY KEY,
+  description VARCHAR NOT NULL
+);
+
+INSERT INTO color VALUES ('BRAND_PRIMARY', 'Brand Primary');
+INSERT INTO color VALUES ('BRAND_ACCENT', 'Brand Accent');
+INSERT INTO color VALUES ('SEMANTIC_DANGER', 'Semantic Danger');
+INSERT INTO color VALUES ('SEMANTIC_WARNING', 'Semantic Warning');
+INSERT INTO color VALUES ('SEMANTIC_SUCCESS', 'Semantic Success');
+INSERT INTO color VALUES ('SEMANTIC_INFO', 'Semantic Info');
+
 -- Groups tags for display purposes
 CREATE TABLE tag_group (
 	tag_group_id VARCHAR PRIMARY KEY,
+	color_id VARCHAR NOT NULL REFERENCES color DEFAULT 'BRAND_PRIMARY',
 	name VARCHAR NOT NULL,
 	url_name VARCHAR NOT NULL,
 	description VARCHAR NOT NULL,

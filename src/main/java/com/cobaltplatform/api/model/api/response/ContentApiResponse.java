@@ -25,12 +25,14 @@ import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
+import com.lokalized.Strings;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -103,17 +105,20 @@ public class ContentApiResponse {
 	@AssistedInject
 	public ContentApiResponse(@Nonnull TagApiResponseFactory tagApiResponseFactory,
 														@Nonnull Formatter formatter,
+														@Nonnull Strings strings,
 														@Assisted @Nonnull Content content) {
-		this(tagApiResponseFactory, formatter, content, Set.of());
+		this(tagApiResponseFactory, formatter, strings, content, Set.of());
 	}
 
 	@AssistedInject
 	public ContentApiResponse(@Nonnull TagApiResponseFactory tagApiResponseFactory,
 														@Nonnull Formatter formatter,
+														@Nonnull Strings strings,
 														@Assisted @Nonnull Content content,
 														@Assisted @Nonnull Set<ContentApiResponseSupplement> supplements) {
 		requireNonNull(tagApiResponseFactory);
 		requireNonNull(formatter);
+		requireNonNull(strings);
 		requireNonNull(content);
 		requireNonNull(supplements);
 
@@ -135,7 +140,9 @@ public class ContentApiResponse {
 		this.newFlag = content.getNewFlag();
 		this.contentTypeLabel = content.getContentTypeLabel();
 		this.duration = content.getDurationInMinutes() != null ?
-				String.format("%s min", content.getDurationInMinutes().toString()) : null;
+				strings.get("{{minutes}} min", new HashMap<>() {{
+					put("minutes", formatter.formatNumber(content.getDurationInMinutes()));
+				}}) : null;
 		this.tagIds = content.getTags() == null ? Collections.emptyList() : content.getTags().stream()
 				.map(tag -> tag.getTagId())
 				.collect(Collectors.toList());

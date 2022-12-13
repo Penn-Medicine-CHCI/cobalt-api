@@ -30,14 +30,17 @@ import com.cobaltplatform.api.model.api.response.AdminContentApiResponse.AdminCo
 import com.cobaltplatform.api.model.api.response.AdminInstitutionApiResponse.AdminInstitutionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.TagApiResponse;
+import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.TagGroupApiResponse;
+import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ApprovalStatus;
 import com.cobaltplatform.api.model.db.AvailableStatus;
 import com.cobaltplatform.api.model.db.ContentType;
 import com.cobaltplatform.api.model.db.Institution;
-import com.cobaltplatform.api.model.db.Role;
+import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Visibility;
-import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.AdminContent;
 import com.cobaltplatform.api.model.service.FindResult;
@@ -45,6 +48,7 @@ import com.cobaltplatform.api.service.AssessmentService;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.ImageUploadService;
 import com.cobaltplatform.api.service.InstitutionService;
+import com.cobaltplatform.api.service.TagService;
 import com.cobaltplatform.api.util.UploadManager.PresignedUpload;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.DELETE;
@@ -65,6 +69,7 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -72,10 +77,7 @@ import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.model.api.response.AdminContentApiResponse.AdminContentDisplayType;
 import static com.cobaltplatform.api.model.api.response.AssessmentFormApiResponse.AssessmentFormApiResponseFactory;
-import static com.cobaltplatform.api.model.api.response.AssessmentFormApiResponse.AssessmentFormApiResponseType;
-import static com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId.INTRO;
 import static java.util.Collections.emptyList;
-import static java.util.Collections.emptyMap;
 import static java.util.Objects.requireNonNull;
 
 
@@ -87,9 +89,10 @@ import static java.util.Objects.requireNonNull;
 @Singleton
 @ThreadSafe
 public class AdminResource {
-
 	@Nonnull
 	private final ContentService contentService;
+	@Nonnull
+	private final TagService tagService;
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
 	@Nonnull
@@ -112,10 +115,15 @@ public class AdminResource {
 	private final InstitutionService institutionService;
 	@Nonnull
 	private final AdminInstitutionApiResponseFactory adminInstitutionApiResponseFactory;
+	@Nonnull
+	private final TagApiResponseFactory tagApiResponseFactory;
+	@Nonnull
+	private final TagGroupApiResponseFactory tagGroupApiResponseFactory;
 
 
 	@Inject
 	public AdminResource(@Nonnull ContentService contentService,
+											 @Nonnull TagService tagService,
 											 @Nonnull RequestBodyParser requestBodyParser,
 											 @Nonnull Provider<CurrentContext> currentContextProvider,
 											 @Nonnull ContentApiResponseFactory contentApiResponseFactory,
@@ -126,8 +134,11 @@ public class AdminResource {
 											 @Nonnull Provider<ImageUploadService> imageUploadServiceProvider,
 											 @Nonnull Provider<PresignedUploadApiResponseFactory> presignedUploadApiResponseFactoryProvider,
 											 @Nonnull Provider<AssessmentService> assessmentServiceProvider,
-											 @Nonnull Provider<AssessmentFormApiResponseFactory> assessmentFormApiResponseFactoryProvider) {
+											 @Nonnull Provider<AssessmentFormApiResponseFactory> assessmentFormApiResponseFactoryProvider,
+											 @Nonnull TagApiResponseFactory tagApiResponseFactory,
+											 @Nonnull TagGroupApiResponseFactory tagGroupApiResponseFactory) {
 		this.contentService = contentService;
+		this.tagService = tagService;
 		this.requestBodyParser = requestBodyParser;
 		this.currentContextProvider = currentContextProvider;
 		this.contentApiResponseFactory = contentApiResponseFactory;
@@ -139,6 +150,8 @@ public class AdminResource {
 		this.presignedUploadApiResponseFactoryProvider = presignedUploadApiResponseFactoryProvider;
 		this.assessmentServiceProvider = assessmentServiceProvider;
 		this.assessmentFormApiResponseFactoryProvider = assessmentFormApiResponseFactoryProvider;
+		this.tagApiResponseFactory = tagApiResponseFactory;
+		this.tagGroupApiResponseFactory = tagGroupApiResponseFactory;
 	}
 
 	@GET("/admin/my-content/filter")
@@ -190,7 +203,7 @@ public class AdminResource {
 																				 @QueryParameter Optional<AvailableStatus.AvailableStatusId> availableStatusId,
 																				 @QueryParameter Optional<String> search) {
 		Account account = getCurrentContext().getAccount().get();
-		if (account.getRoleId() == Role.RoleId.SUPER_ADMINISTRATOR)
+		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
 			throw new AuthorizationException();
 
 		FindResult<AdminContent> content = getContentService()
@@ -202,29 +215,34 @@ public class AdminResource {
 		}});
 	}
 
+	@Nonnull
 	@GET("/admin/content-tags")
 	@AuthenticationRequired
 	public ApiResponse tagsForContent() {
 		Account account = getCurrentContext().getAccount().get();
-		if (account.getRoleId() == Role.RoleId.ADMINISTRATOR) {
 
-			Assessment assessment = getAssessmentService().findAssessmentByTypeForUser(INTRO, account).orElseThrow();
-			return new ApiResponse(Map.of(
-					"contentTags", getAssessmentFormApiResponseFactory().create(assessment, Optional.empty(), AssessmentFormApiResponseType.CMS)
-			));
-		} else {
-			return new ApiResponse(Map.of(
-					"contentTags", emptyMap()
-			));
-		}
+		if (account.getRoleId() != RoleId.ADMINISTRATOR)
+			throw new AuthorizationException();
 
+		List<TagGroupApiResponse> tagGroups = getTagService().findTagGroupsByInstitutionId(account.getInstitutionId()).stream()
+				.map(tagGroup -> getTagGroupApiResponseFactory().create(tagGroup))
+				.collect(Collectors.toList());
+
+		List<TagApiResponse> tags = getTagService().findTagsByInstitutionId(account.getInstitutionId()).stream()
+				.map(tag -> getTagApiResponseFactory().create(tag))
+				.collect(Collectors.toList());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("tagGroups", tagGroups);
+			put("tags", tags);
+		}});
 	}
 
 	@GET("/admin/content-institutions")
 	@AuthenticationRequired
 	public ApiResponse getInNetworkInstitutions() {
 		Account account = getCurrentContext().getAccount().get();
-		if (account.getRoleId() == Role.RoleId.SUPER_ADMINISTRATOR || account.getRoleId() == Role.RoleId.ADMINISTRATOR) {
+		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR || account.getRoleId() == RoleId.ADMINISTRATOR) {
 			return new ApiResponse(Map.of(
 					"institutions", getInstitutionService().findNetworkInstitutions(account.getInstitutionId()).stream().
 							map(it -> getAdminInstitutionApiResponseFactory().create(it)).collect(Collectors.toList())
@@ -450,5 +468,18 @@ public class AdminResource {
 		return assessmentFormApiResponseFactoryProvider.get();
 	}
 
-}
+	@Nonnull
+	protected TagService getTagService() {
+		return this.tagService;
+	}
 
+	@Nonnull
+	protected TagApiResponseFactory getTagApiResponseFactory() {
+		return this.tagApiResponseFactory;
+	}
+
+	@Nonnull
+	protected TagGroupApiResponseFactory getTagGroupApiResponseFactory() {
+		return this.tagGroupApiResponseFactory;
+	}
+}

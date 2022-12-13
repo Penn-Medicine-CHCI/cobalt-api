@@ -32,9 +32,11 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.TagService;
+import com.cobaltplatform.api.util.Formatter;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.Resource;
@@ -52,6 +54,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -74,6 +77,8 @@ public class ResourceLibraryResource {
 	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
 	@Nonnull
+	private final Formatter formatter;
+	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final ContentApiResponseFactory contentApiResponseFactory;
@@ -89,6 +94,7 @@ public class ResourceLibraryResource {
 																 @Nonnull TagService tagService,
 																 @Nonnull AuthorizationService authorizationService,
 																 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
+																 @Nonnull Formatter formatter,
 																 @Nonnull Provider<CurrentContext> currentContextProvider,
 																 @Nonnull ContentApiResponseFactory contentApiResponseFactory,
 																 @Nonnull TagApiResponseFactory tagApiResponseFactory,
@@ -97,6 +103,7 @@ public class ResourceLibraryResource {
 		requireNonNull(tagService);
 		requireNonNull(authorizationService);
 		requireNonNull(enterprisePluginProvider);
+		requireNonNull(formatter);
 		requireNonNull(currentContextProvider);
 		requireNonNull(contentApiResponseFactory);
 		requireNonNull(tagApiResponseFactory);
@@ -106,6 +113,7 @@ public class ResourceLibraryResource {
 		this.tagService = tagService;
 		this.authorizationService = authorizationService;
 		this.enterprisePluginProvider = enterprisePluginProvider;
+		this.formatter = formatter;
 		this.currentContextProvider = currentContextProvider;
 		this.contentApiResponseFactory = contentApiResponseFactory;
 		this.tagApiResponseFactory = tagApiResponseFactory;
@@ -132,7 +140,7 @@ public class ResourceLibraryResource {
 			for (Tag tag : content.getTags()) {
 				if (tagsByTagId.containsKey(tag.getTagId()))
 					continue;
-				
+
 				tagGroupIds.add(tag.getTagGroupId());
 				tagsByTagId.put(tag.getTagId(), getTagApiResponseFactory().create(tag));
 			}
@@ -183,9 +191,38 @@ public class ResourceLibraryResource {
 	@Nonnull
 	@GET("/resource-library/search")
 	@AuthenticationRequired
-	public ApiResponse searchResourceLibrary(@Nonnull @QueryParameter String searchQuery) {
+	public ApiResponse searchResourceLibrary(@Nonnull @QueryParameter Optional<String> searchQuery,
+																					 @Nonnull @QueryParameter Optional<Integer> pageNumber,
+																					 @Nonnull @QueryParameter Optional<Integer> pageSize) {
 		requireNonNull(searchQuery);
-		throw new UnsupportedOperationException();
+
+		CurrentContext currentContext = getCurrentContext();
+		Account account = currentContext.getAccount().get();
+
+		FindResult<Content> contentFindResult = getContentService().searchResourceLibraryContent(
+				account.getInstitutionId(),
+				searchQuery.orElse(null),
+				pageNumber.orElse(0),
+				pageSize.orElse(0));
+
+		List<ContentApiResponse> contents = new ArrayList<>();
+		Map<String, TagApiResponse> tagsByTagId = new HashMap<>();
+
+		for (Tag tag : getTagService().findTagsByInstitutionId(account.getInstitutionId()))
+			tagsByTagId.put(tag.getTagId(), getTagApiResponseFactory().create(tag));
+
+		for (Content content : contentFindResult.getResults())
+			contents.add(getContentApiResponseFactory().create(content));
+
+		Map<String, Object> searchResult = new HashMap<>();
+		searchResult.put("contents", contents);
+		searchResult.put("totalCount", contentFindResult.getTotalCount());
+		searchResult.put("totalCountDescription", getFormatter().formatNumber(contentFindResult.getTotalCount()));
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("searchResult", searchResult);
+			put("tagsByTagId", tagsByTagId);
+		}});
 	}
 
 	@Nonnull
@@ -206,6 +243,11 @@ public class ResourceLibraryResource {
 	@Nonnull
 	protected EnterprisePluginProvider getEnterprisePluginProvider() {
 		return this.enterprisePluginProvider;
+	}
+
+	@Nonnull
+	protected Formatter getFormatter() {
+		return this.formatter;
 	}
 
 	@Nonnull

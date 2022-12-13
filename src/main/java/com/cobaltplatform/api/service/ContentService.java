@@ -61,6 +61,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
@@ -92,7 +93,9 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
  */
 @Singleton
 public class ContentService {
-	private final int DEFAULT_PAGE_SIZE = 15;
+	@Nonnull
+	private static final int DEFAULT_PAGE_SIZE = 15;
+	private static final int MAXIMUM_PAGE_SIZE = 50;
 
 	@Nonnull
 	private final Database database;
@@ -118,7 +121,6 @@ public class ContentService {
 	private final Provider<Formatter> formatterProvider;
 	@Nonnull
 	private final Provider<LinkGenerator> linkGeneratorProvider;
-
 
 	@Inject
 	public ContentService(@Nonnull Provider<CurrentContext> currentContextProvider,
@@ -288,6 +290,96 @@ public class ContentService {
 		List<AdminContent> content = getDatabase().queryForList(query, AdminContent.class, sqlVaragsParameters(parameters));
 		Integer totalCount = content.stream().filter(it -> it.getTotalCount() != null).mapToInt(AdminContent::getTotalCount).findFirst().orElse(0);
 		return new FindResult<>(content, totalCount);
+	}
+
+	@Nonnull
+	public FindResult<Content> searchResourceLibraryContent(@Nonnull InstitutionId institutionId,
+																													@Nullable String searchQuery,
+																													@Nullable Integer pageNumber,
+																													@Nullable Integer pageSize) {
+		requireNonNull(institutionId);
+
+		searchQuery = trimToNull(searchQuery);
+
+		if (pageNumber == null || pageNumber < 0)
+			pageNumber = 0;
+
+		if (pageSize == null || pageSize <= 0)
+			pageSize = DEFAULT_PAGE_SIZE;
+		else if (pageSize > MAXIMUM_PAGE_SIZE)
+			pageSize = MAXIMUM_PAGE_SIZE;
+
+		Integer offset = pageNumber * pageSize;
+		Integer limit = pageSize;
+		StringBuilder whereClause = new StringBuilder("1=1 ");
+		List<Object> parameters = new ArrayList<>();
+
+		// TODO: search over tag names (?)
+		if (searchQuery != null) {
+			whereClause.append("AND ((c.en_search_vector @@ websearch_to_tsquery('english', ?)) OR (c.title ILIKE CONCAT('%',?,'%') OR c.description ILIKE CONCAT('%',?,'%'))) ");
+			parameters.add(searchQuery);
+			parameters.add(searchQuery);
+			parameters.add(searchQuery);
+			whereClause.append("AND (c.en_search_vector @@ websearch_to_tsquery('english', ?)) ");
+			parameters.add(searchQuery);
+		}
+
+		parameters.add(institutionId);
+		parameters.add(limit);
+		parameters.add(offset);
+
+		String sql = """
+				      SELECT 
+				      	c.*,
+				      	ct.call_to_action,
+				      	ctl.description AS content_type_label,
+								ct.description AS content_type_description,
+								count(*) over() AS total_count
+				      FROM
+				      	content c,
+				      	content_type ct,
+				      	content_type_label ctl,
+				      	institution_content ic	      	
+				      WHERE {{whereClause}}
+				      AND c.content_type_id=ct.content_type_id
+				      AND c.content_type_label_id=ctl.content_type_label_id
+				      AND ic.content_id=c.content_id
+				      AND ic.institution_id=?
+				      AND ic.approved_flag = TRUE
+				      AND c.deleted_flag = FALSE
+				      AND c.archived_flag = FALSE
+				      ORDER BY c.last_updated DESC 
+				      LIMIT ? 
+				      OFFSET ?
+				""".replace("{{whereClause}}", whereClause.toString());
+
+		List<ContentWithTotalCount> contents = getDatabase().queryForList(sql, ContentWithTotalCount.class, sqlVaragsParameters(parameters));
+
+		applyTags(contents, institutionId);
+
+		Integer totalCount = contents.stream()
+				.filter(content -> content.getTotalCount() != null)
+				.mapToInt(ContentWithTotalCount::getTotalCount)
+				.findFirst()
+				.orElse(0);
+
+		FindResult<? extends Content> findResult = new FindResult<>(contents, totalCount);
+		return (FindResult<Content>) findResult;
+	}
+
+	@NotThreadSafe
+	protected static class ContentWithTotalCount extends Content {
+		@Nullable
+		private Integer totalCount;
+
+		@Nullable
+		public Integer getTotalCount() {
+			return this.totalCount;
+		}
+
+		public void setTotalCount(@Nullable Integer totalCount) {
+			this.totalCount = totalCount;
+		}
 	}
 
 	@Nonnull
@@ -977,7 +1069,7 @@ public class ContentService {
 	 * Note: modifies {@code contents} parameter in-place.
 	 */
 	@Nonnull
-	protected void applyTags(@Nonnull List<Content> contents,
+	protected void applyTags(@Nonnull List<? extends Content> contents,
 													 @Nonnull InstitutionId institutionId) {
 		requireNonNull(contents);
 		requireNonNull(institutionId);
@@ -1005,8 +1097,8 @@ public class ContentService {
 	 * Note: modifies {@code content} parameter in-place.
 	 */
 	@Nonnull
-	protected void applyTags(@Nonnull Content content,
-													 @Nonnull InstitutionId institutionId) {
+	protected <T extends Content> void applyTags(@Nonnull T content,
+																							 @Nonnull InstitutionId institutionId) {
 		requireNonNull(content);
 		requireNonNull(institutionId);
 

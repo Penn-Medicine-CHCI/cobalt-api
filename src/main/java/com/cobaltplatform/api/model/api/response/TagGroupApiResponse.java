@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.db.Color.ColorId;
 import com.cobaltplatform.api.model.db.TagGroup;
 import com.google.inject.Provider;
 import com.google.inject.assistedinject.Assisted;
@@ -38,6 +39,8 @@ import static java.util.Objects.requireNonNull;
 public class TagGroupApiResponse {
 	@Nonnull
 	private final String tagGroupId;
+	@Nonnull
+	private final ColorId colorId;
 	@Nonnull
 	private final String name;
 	@Nonnull
@@ -59,6 +62,7 @@ public class TagGroupApiResponse {
 		requireNonNull(tagGroup);
 
 		this.tagGroupId = tagGroup.getTagGroupId();
+		this.colorId = tagGroup.getColorId();
 		this.name = tagGroup.getName();
 		this.urlName = tagGroup.getUrlName();
 		this.description = tagGroup.getDescription();
@@ -67,6 +71,11 @@ public class TagGroupApiResponse {
 	@Nonnull
 	public String getTagGroupId() {
 		return this.tagGroupId;
+	}
+
+	@Nonnull
+	public ColorId getColorId() {
+		return this.colorId;
 	}
 
 	@Nonnull

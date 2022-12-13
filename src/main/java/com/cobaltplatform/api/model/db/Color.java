@@ -19,39 +19,33 @@
 
 package com.cobaltplatform.api.model.db;
 
-import com.cobaltplatform.api.model.db.Color.ColorId;
-
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.time.Instant;
+
+import static java.lang.String.format;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class TagGroup {
-	@Nullable
-	private String tagGroupId;
+public class Color {
 	@Nullable
 	private ColorId colorId;
 	@Nullable
-	private String name;
-	@Nullable
-	private String urlName;
-	@Nullable
 	private String description;
-	@Nullable
-	private Instant created;
-	@Nullable
-	private Instant lastUpdated;
 
-	@Nullable
-	public String getTagGroupId() {
-		return this.tagGroupId;
+	public enum ColorId {
+		BRAND_PRIMARY,
+				BRAND_ACCENT,
+				SEMANTIC_DANGER,
+				SEMANTIC_WARNING,
+				SEMANTIC_SUCCESS,
+				SEMANTIC_INFO
 	}
 
-	public void setTagGroupId(@Nullable String tagGroupId) {
-		this.tagGroupId = tagGroupId;
+	@Override
+	public String toString() {
+		return format("%s{colorId=%s, description=%s}", getClass().getSimpleName(), getColorId(), getDescription());
 	}
 
 	@Nullable
@@ -64,47 +58,11 @@ public class TagGroup {
 	}
 
 	@Nullable
-	public String getName() {
-		return this.name;
-	}
-
-	public void setName(@Nullable String name) {
-		this.name = name;
-	}
-
-	@Nullable
-	public String getUrlName() {
-		return this.urlName;
-	}
-
-	public void setUrlName(@Nullable String urlName) {
-		this.urlName = urlName;
-	}
-
-	@Nullable
 	public String getDescription() {
-		return this.description;
+		return description;
 	}
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
-	}
-
-	@Nullable
-	public Instant getCreated() {
-		return this.created;
-	}
-
-	public void setCreated(@Nullable Instant created) {
-		this.created = created;
-	}
-
-	@Nullable
-	public Instant getLastUpdated() {
-		return this.lastUpdated;
-	}
-
-	public void setLastUpdated(@Nullable Instant lastUpdated) {
-		this.lastUpdated = lastUpdated;
 	}
 }
