@@ -359,30 +359,45 @@ public class ContentService {
 		parameters.add(offset);
 
 		String sql = """
-				      SELECT 
-				      	c.*,
-				      	ct.call_to_action,
-				      	ctl.description AS content_type_label,
-								ct.description AS content_type_description,
-								count(*) over() AS total_count
-				      FROM
-				      	content c,
-				      	content_type ct,
-				      	content_type_label ctl,
-				      	institution_content ic
-				      	{{fromClause}}   	
-				      WHERE {{whereClause}}
-				      AND c.content_type_id=ct.content_type_id
-				      AND c.content_type_label_id=ctl.content_type_label_id
-				      AND ic.content_id=c.content_id
-				      AND ic.institution_id=?
-				      AND ic.approved_flag = TRUE
-				      AND c.deleted_flag = FALSE
-				      AND c.archived_flag = FALSE
-				      ORDER BY c.last_updated DESC 
-				      LIMIT ? 
-				      OFFSET ?
-				"""
+				WITH base_query AS (
+				    SELECT DISTINCT
+				        c.*,
+				        ct.call_to_action,
+				        ctl.description AS content_type_label,
+				        ct.description AS content_type_description
+				    FROM
+				        content c,
+				        content_type ct,
+				        content_type_label ctl,
+				        institution_content ic
+				        {{fromClause}}
+				    WHERE
+				        {{whereClause}}
+				        AND c.content_type_id = ct.content_type_id
+				        AND c.content_type_label_id = ctl.content_type_label_id
+				        AND ic.content_id = c.content_id
+				        AND ic.institution_id = ?
+				        AND ic.approved_flag = TRUE
+				        AND c.deleted_flag = FALSE
+				        AND c.archived_flag = FALSE
+				),
+				total_count_query AS (
+				    SELECT
+				        COUNT(DISTINCT bq.content_id) AS total_count
+				    FROM
+				        base_query bq
+				)
+				SELECT
+				    bq.*,
+				    tcq.total_count
+				FROM
+				    base_query bq,
+				    total_count_query tcq
+				ORDER BY
+				    bq.last_updated DESC
+				LIMIT ?
+				OFFSET ?
+								"""
 				.replace("{{fromClause}}", fromClauseSupplements.size() == 0 ? "" : ",\n" + fromClauseSupplements.stream().collect(Collectors.joining(",\n")))
 				.replace("{{whereClause}}", whereClause.toString());
 
