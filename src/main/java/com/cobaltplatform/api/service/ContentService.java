@@ -322,33 +322,37 @@ public class ContentService {
 
 		Integer offset = pageNumber * pageSize;
 		Integer limit = pageSize;
-		List<String> fromClauseSupplements = new ArrayList<>();
-		StringBuilder whereClause = new StringBuilder("1=1 ");
+		List<String> fromClauseComponents = new ArrayList<>();
+		List<String> whereClauseComponents = new ArrayList<>();
 		List<Object> parameters = new ArrayList<>();
 
 		if (tagGroupId != null) {
-			fromClauseSupplements.add("tag_content tc");
-			fromClauseSupplements.add("tag t");
-			whereClause.append("AND tc.content_id=c.content_id ");
-			whereClause.append("AND tc.institution_id=? ");
-			whereClause.append("AND tc.tag_id=t.tag_id ");
-			whereClause.append("AND t.tag_group_id=? ");
+			fromClauseComponents.add("tag_content tc");
+			fromClauseComponents.add("tag t");
+
+			whereClauseComponents.add("AND tc.content_id=c.content_id");
+			whereClauseComponents.add("AND tc.institution_id=?");
+			whereClauseComponents.add("AND tc.tag_id=t.tag_id");
+			whereClauseComponents.add("AND t.tag_group_id=?");
+
 			parameters.add(institutionId);
 			parameters.add(tagGroupId);
 		}
 
 		if (tagId != null) {
-			fromClauseSupplements.add("tag_content tc");
-			whereClause.append("AND tc.content_id=c.content_id ");
-			whereClause.append("AND tc.institution_id=? ");
-			whereClause.append("AND tc.tag_id=? ");
+			fromClauseComponents.add("tag_content tc");
+
+			whereClauseComponents.add("AND tc.content_id=c.content_id");
+			whereClauseComponents.add("AND tc.institution_id=?");
+			whereClauseComponents.add("AND tc.tag_id=?");
+
 			parameters.add(institutionId);
 			parameters.add(tagId);
 		}
 
 		// TODO: search over tag names (?)
 		if (searchQuery != null) {
-			whereClause.append("AND ((c.en_search_vector @@ websearch_to_tsquery('english', ?)) OR (c.title ILIKE CONCAT('%',?,'%') OR c.description ILIKE CONCAT('%',?,'%'))) ");
+			whereClauseComponents.add("AND ((c.en_search_vector @@ websearch_to_tsquery('english', ?)) OR (c.title ILIKE CONCAT('%',?,'%') OR c.description ILIKE CONCAT('%',?,'%')))");
 			parameters.add(searchQuery);
 			parameters.add(searchQuery);
 			parameters.add(searchQuery);
@@ -371,7 +375,7 @@ public class ContentService {
 				        content_type_label ctl,
 				        institution_content ic
 				        {{fromClause}}
-				    WHERE
+				    WHERE 1=1
 				        {{whereClause}}
 				        AND c.content_type_id = ct.content_type_id
 				        AND c.content_type_label_id = ctl.content_type_label_id
@@ -379,7 +383,7 @@ public class ContentService {
 				        AND ic.institution_id = ?
 				        AND ic.approved_flag = TRUE
 				        AND c.deleted_flag = FALSE
-				        AND c.archived_flag = FALSE
+				        AND c.archived_flag = FALSE				        
 				),
 				total_count_query AS (
 				    SELECT
@@ -398,8 +402,8 @@ public class ContentService {
 				LIMIT ?
 				OFFSET ?
 								"""
-				.replace("{{fromClause}}", fromClauseSupplements.size() == 0 ? "" : ",\n" + fromClauseSupplements.stream().collect(Collectors.joining(",\n")))
-				.replace("{{whereClause}}", whereClause.toString());
+				.replace("{{fromClause}}", fromClauseComponents.size() == 0 ? "" : ",\n" + fromClauseComponents.stream().collect(Collectors.joining(",\n")))
+				.replace("{{whereClause}}", whereClauseComponents.size() == 0 ? "" : "\n" + whereClauseComponents.stream().collect(Collectors.joining("\n")));
 
 		List<ContentWithTotalCount> contents = getDatabase().queryForList(sql, ContentWithTotalCount.class, sqlVaragsParameters(parameters));
 
