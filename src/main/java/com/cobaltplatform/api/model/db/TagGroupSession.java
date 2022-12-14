@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -32,8 +34,10 @@ import java.util.UUID;
 public class TagGroupSession {
 	@Nullable
 	private UUID tagGroupSessionId;
-	@Nonnull
+	@Nullable
 	private String tagId;
+	@Nullable
+	private InstitutionId institutionId;
 	@Nullable
 	private UUID groupSessionId;
 	@Nullable
@@ -50,13 +54,22 @@ public class TagGroupSession {
 		this.tagGroupSessionId = tagGroupSessionId;
 	}
 
-	@Nonnull
+	@Nullable
 	public String getTagId() {
 		return this.tagId;
 	}
 
-	public void setTagId(@Nonnull String tagId) {
+	public void setTagId(@Nullable String tagId) {
 		this.tagId = tagId;
+	}
+
+	@Nullable
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
+	}
+
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
 	}
 
 	@Nullable

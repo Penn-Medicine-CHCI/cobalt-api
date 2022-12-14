@@ -24,6 +24,7 @@ import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.CreateContentRequest;
+import com.cobaltplatform.api.model.api.request.FindResourceLibraryContentRequest;
 import com.cobaltplatform.api.model.api.request.PersonalizeAssessmentChoicesCommand;
 import com.cobaltplatform.api.model.api.request.PersonalizeAssessmentChoicesCommand.SubmissionAnswer;
 import com.cobaltplatform.api.model.api.request.UpdateContentApprovalStatusRequest;
@@ -95,7 +96,7 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 public class ContentService {
 	@Nonnull
 	private static final int DEFAULT_PAGE_SIZE = 15;
-	private static final int MAXIMUM_PAGE_SIZE = 50;
+	private static final int MAXIMUM_PAGE_SIZE = 100;
 
 	@Nonnull
 	private final Database database;
@@ -296,11 +297,18 @@ public class ContentService {
 	}
 
 	@Nonnull
-	public FindResult<Content> searchResourceLibraryContent(@Nonnull InstitutionId institutionId,
-																													@Nullable String searchQuery,
-																													@Nullable Integer pageNumber,
-																													@Nullable Integer pageSize) {
-		requireNonNull(institutionId);
+	public FindResult<Content> findResourceLibraryContent(@Nonnull FindResourceLibraryContentRequest request) {
+		requireNonNull(request);
+
+		InstitutionId institutionId = request.getInstitutionId();
+		String searchQuery = trimToNull(request.getSearchQuery());
+		Integer pageNumber = request.getPageNumber();
+		Integer pageSize = request.getPageSize();
+		String tagGroupId = trimToNull(request.getTagGroupId());
+		String tagId = trimToNull(request.getTagId());
+
+		if (tagGroupId != null && tagId != null)
+			throw new IllegalArgumentException("Cannot specify both 'tagGroupId' and 'tagId'");
 
 		searchQuery = trimToNull(searchQuery);
 
@@ -314,16 +322,35 @@ public class ContentService {
 
 		Integer offset = pageNumber * pageSize;
 		Integer limit = pageSize;
+		List<String> fromClauseSupplements = new ArrayList<>();
 		StringBuilder whereClause = new StringBuilder("1=1 ");
 		List<Object> parameters = new ArrayList<>();
+
+		if (tagGroupId != null) {
+			fromClauseSupplements.add("tag_content tc");
+			fromClauseSupplements.add("tag t");
+			whereClause.append("AND tc.content_id=c.content_id ");
+			whereClause.append("AND tc.institution_id=? ");
+			whereClause.append("AND tc.tag_id=t.tag_id ");
+			whereClause.append("AND t.tag_group_id=? ");
+			parameters.add(institutionId);
+			parameters.add(tagGroupId);
+		}
+
+		if (tagId != null) {
+			fromClauseSupplements.add("tag_content tc");
+			whereClause.append("AND tc.content_id=c.content_id ");
+			whereClause.append("AND tc.institution_id=? ");
+			whereClause.append("AND tc.tag_id=? ");
+			parameters.add(institutionId);
+			parameters.add(tagId);
+		}
 
 		// TODO: search over tag names (?)
 		if (searchQuery != null) {
 			whereClause.append("AND ((c.en_search_vector @@ websearch_to_tsquery('english', ?)) OR (c.title ILIKE CONCAT('%',?,'%') OR c.description ILIKE CONCAT('%',?,'%'))) ");
 			parameters.add(searchQuery);
 			parameters.add(searchQuery);
-			parameters.add(searchQuery);
-			whereClause.append("AND (c.en_search_vector @@ websearch_to_tsquery('english', ?)) ");
 			parameters.add(searchQuery);
 		}
 
@@ -342,7 +369,8 @@ public class ContentService {
 				      	content c,
 				      	content_type ct,
 				      	content_type_label ctl,
-				      	institution_content ic	      	
+				      	institution_content ic
+				      	{{fromClause}}   	
 				      WHERE {{whereClause}}
 				      AND c.content_type_id=ct.content_type_id
 				      AND c.content_type_label_id=ctl.content_type_label_id
@@ -354,7 +382,9 @@ public class ContentService {
 				      ORDER BY c.last_updated DESC 
 				      LIMIT ? 
 				      OFFSET ?
-				""".replace("{{whereClause}}", whereClause.toString());
+				"""
+				.replace("{{fromClause}}", fromClauseSupplements.size() == 0 ? "" : ",\n" + fromClauseSupplements.stream().collect(Collectors.joining(",\n")))
+				.replace("{{whereClause}}", whereClause.toString());
 
 		List<ContentWithTotalCount> contents = getDatabase().queryForList(sql, ContentWithTotalCount.class, sqlVaragsParameters(parameters));
 
@@ -406,7 +436,7 @@ public class ContentService {
 						"AND va.institution_id = ? ",
 				AdminContent.class, contentId, institutionId).orElse(null);
 
-		if(adminContent != null)
+		if (adminContent != null)
 			applyTagsToAdminContent(adminContent, institutionId);
 
 		return Optional.ofNullable(adminContent);

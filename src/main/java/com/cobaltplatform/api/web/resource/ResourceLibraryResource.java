@@ -22,6 +22,7 @@ package com.cobaltplatform.api.web.resource;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
+import com.cobaltplatform.api.model.api.request.FindResourceLibraryContentRequest;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TagApiResponse;
@@ -31,6 +32,7 @@ import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApi
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.Tag;
+import com.cobaltplatform.api.model.db.TagGroup;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.service.AuthorizationService;
@@ -38,8 +40,10 @@ import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.TagService;
 import com.cobaltplatform.api.util.Formatter;
 import com.soklet.web.annotation.GET;
+import com.soklet.web.annotation.PathParameter;
 import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.Resource;
+import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -195,15 +199,20 @@ public class ResourceLibraryResource {
 																					 @Nonnull @QueryParameter Optional<Integer> pageNumber,
 																					 @Nonnull @QueryParameter Optional<Integer> pageSize) {
 		requireNonNull(searchQuery);
+		requireNonNull(pageNumber);
+		requireNonNull(pageSize);
 
 		CurrentContext currentContext = getCurrentContext();
 		Account account = currentContext.getAccount().get();
 
-		FindResult<Content> contentFindResult = getContentService().searchResourceLibraryContent(
-				account.getInstitutionId(),
-				searchQuery.orElse(null),
-				pageNumber.orElse(0),
-				pageSize.orElse(0));
+		FindResult<Content> findResult = getContentService().findResourceLibraryContent(new FindResourceLibraryContentRequest() {
+			{
+				setInstitutionId(account.getInstitutionId());
+				setSearchQuery(searchQuery.orElse(null));
+				setPageNumber(pageNumber.orElse(0));
+				setPageSize(pageSize.orElse(0));
+			}
+		});
 
 		List<ContentApiResponse> contents = new ArrayList<>();
 		Map<String, TagApiResponse> tagsByTagId = new HashMap<>();
@@ -211,17 +220,135 @@ public class ResourceLibraryResource {
 		for (Tag tag : getTagService().findTagsByInstitutionId(account.getInstitutionId()))
 			tagsByTagId.put(tag.getTagId(), getTagApiResponseFactory().create(tag));
 
-		for (Content content : contentFindResult.getResults())
+		for (Content content : findResult.getResults())
 			contents.add(getContentApiResponseFactory().create(content));
 
-		Map<String, Object> searchResult = new HashMap<>();
-		searchResult.put("contents", contents);
-		searchResult.put("totalCount", contentFindResult.getTotalCount());
-		searchResult.put("totalCountDescription", getFormatter().formatNumber(contentFindResult.getTotalCount()));
+		Map<String, Object> findResultJson = new HashMap<>();
+		findResultJson.put("contents", contents);
+		findResultJson.put("totalCount", findResult.getTotalCount());
+		findResultJson.put("totalCountDescription", getFormatter().formatNumber(findResult.getTotalCount()));
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("searchResult", searchResult);
+			put("findResult", findResultJson);
 			put("tagsByTagId", tagsByTagId);
+		}});
+	}
+
+	@Nonnull
+	@GET("/resource-library/tag-groups/{tagGroupId}")
+	@AuthenticationRequired
+	public ApiResponse resourceLibraryTagGroup(@Nonnull @PathParameter String tagGroupId,
+																						 @Nonnull @QueryParameter Optional<String> searchQuery,
+																						 @Nonnull @QueryParameter Optional<Integer> pageNumber,
+																						 @Nonnull @QueryParameter Optional<Integer> pageSize) {
+		requireNonNull(tagGroupId);
+		requireNonNull(searchQuery);
+		requireNonNull(pageNumber);
+		requireNonNull(pageSize);
+
+		CurrentContext currentContext = getCurrentContext();
+		Account account = currentContext.getAccount().get();
+
+		// Support both tag group ID and URL name
+		TagGroup tagGroup = getTagService().findTagGroupsByInstitutionId(account.getInstitutionId()).stream()
+				.filter(potentialTagGroup -> potentialTagGroup.getTagGroupId().equals(tagGroupId)
+						|| potentialTagGroup.getUrlName().equals(tagGroupId))
+				.findFirst()
+				.orElse(null);
+
+		if (tagGroup == null)
+			throw new NotFoundException();
+
+		FindResult<Content> findResult = getContentService().findResourceLibraryContent(new FindResourceLibraryContentRequest() {
+			{
+				setInstitutionId(account.getInstitutionId());
+				setSearchQuery(searchQuery.orElse(null));
+				setPageNumber(pageNumber.orElse(0));
+				setPageSize(pageSize.orElse(0));
+				setTagGroupId(tagGroup.getTagGroupId());
+			}
+		});
+
+		List<ContentApiResponse> contents = new ArrayList<>();
+		Map<String, TagApiResponse> tagsByTagId = new HashMap<>();
+
+		for (Tag tag : getTagService().findTagsByInstitutionId(account.getInstitutionId()))
+			tagsByTagId.put(tag.getTagId(), getTagApiResponseFactory().create(tag));
+
+		for (Content content : findResult.getResults())
+			contents.add(getContentApiResponseFactory().create(content));
+
+		Map<String, Object> findResultJson = new HashMap<>();
+		findResultJson.put("contents", contents);
+		findResultJson.put("totalCount", findResult.getTotalCount());
+		findResultJson.put("totalCountDescription", getFormatter().formatNumber(findResult.getTotalCount()));
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("findResult", findResultJson);
+			put("tagsByTagId", tagsByTagId);
+			put("tagGroup", getTagGroupApiResponseFactory().create(tagGroup));
+		}});
+	}
+
+	@Nonnull
+	@GET("/resource-library/tags/{tagId}")
+	@AuthenticationRequired
+	public ApiResponse resourceLibraryTag(@Nonnull @PathParameter String tagId,
+																				@Nonnull @QueryParameter Optional<String> searchQuery,
+																				@Nonnull @QueryParameter Optional<Integer> pageNumber,
+																				@Nonnull @QueryParameter Optional<Integer> pageSize) {
+		requireNonNull(tagId);
+		requireNonNull(searchQuery);
+		requireNonNull(pageNumber);
+		requireNonNull(pageSize);
+
+		CurrentContext currentContext = getCurrentContext();
+		Account account = currentContext.getAccount().get();
+
+		// Support both tag ID and URL name
+		Tag tag = getTagService().findTagsByInstitutionId(account.getInstitutionId()).stream()
+				.filter(potentialTag -> potentialTag.getTagId().equals(tagId)
+						|| potentialTag.getUrlName().equals(tagId))
+				.findFirst()
+				.orElse(null);
+
+		if (tag == null)
+			throw new NotFoundException();
+
+		TagGroup tagGroup = getTagService().findTagGroupsByInstitutionId(account.getInstitutionId()).stream()
+				.filter(potentialTagGroup -> potentialTagGroup.getTagGroupId().equals(tag.getTagGroupId()))
+				.findFirst()
+				.get();
+
+		FindResult<Content> findResult = getContentService().findResourceLibraryContent(new FindResourceLibraryContentRequest() {
+			{
+				setInstitutionId(account.getInstitutionId());
+				setSearchQuery(searchQuery.orElse(null));
+				setPageNumber(pageNumber.orElse(0));
+				setPageSize(pageSize.orElse(0));
+				setTagId(tag.getTagId());
+			}
+		});
+
+		List<ContentApiResponse> contents = new ArrayList<>();
+		Map<String, TagApiResponse> tagsByTagId = new HashMap<>();
+
+		for (Tag currentTag : getTagService().findTagsByInstitutionId(account.getInstitutionId()))
+			tagsByTagId.put(currentTag.getTagId(), getTagApiResponseFactory().create(currentTag));
+
+		for (Content content : findResult.getResults())
+			contents.add(getContentApiResponseFactory().create(content));
+
+		Map<String, Object> findResultJson = new HashMap<>();
+		findResultJson.put("contents", contents);
+		findResultJson.put("totalCount", findResult.getTotalCount());
+		findResultJson.put("totalCountDescription", getFormatter().formatNumber(findResult.getTotalCount()));
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("findResult", findResultJson);
+			put("tagsByTagId", tagsByTagId);
+			put("tagGroup", getTagGroupApiResponseFactory().create(tagGroup));
+			put("tag", getTagApiResponseFactory().create(tag));
 		}});
 	}
 

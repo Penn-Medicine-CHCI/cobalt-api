@@ -17,50 +17,30 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db;
+package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.time.Instant;
-import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class TagContent {
-	@Nullable
-	private UUID tagContentId;
-	@Nullable
-	private String tagId;
+public class FindResourceLibraryContentRequest {
 	@Nullable
 	private InstitutionId institutionId;
 	@Nullable
-	private UUID contentId;
+	private String searchQuery;
 	@Nullable
-	private Instant created;
+	private Integer pageNumber;
 	@Nullable
-	private Instant lastUpdated;
-
+	private Integer pageSize;
 	@Nullable
-	public UUID getTagContentId() {
-		return this.tagContentId;
-	}
-
-	public void setTagContentId(@Nullable UUID tagContentId) {
-		this.tagContentId = tagContentId;
-	}
-
+	private String tagGroupId;
 	@Nullable
-	public String getTagId() {
-		return this.tagId;
-	}
-
-	public void setTagId(@Nullable String tagId) {
-		this.tagId = tagId;
-	}
+	private String tagId;
 
 	@Nullable
 	public InstitutionId getInstitutionId() {
@@ -72,29 +52,47 @@ public class TagContent {
 	}
 
 	@Nullable
-	public UUID getContentId() {
-		return this.contentId;
+	public String getSearchQuery() {
+		return this.searchQuery;
 	}
 
-	public void setContentId(@Nullable UUID contentId) {
-		this.contentId = contentId;
-	}
-
-	@Nullable
-	public Instant getCreated() {
-		return this.created;
-	}
-
-	public void setCreated(@Nullable Instant created) {
-		this.created = created;
+	public void setSearchQuery(@Nullable String searchQuery) {
+		this.searchQuery = searchQuery;
 	}
 
 	@Nullable
-	public Instant getLastUpdated() {
-		return this.lastUpdated;
+	public Integer getPageNumber() {
+		return this.pageNumber;
 	}
 
-	public void setLastUpdated(@Nullable Instant lastUpdated) {
-		this.lastUpdated = lastUpdated;
+	public void setPageNumber(@Nullable Integer pageNumber) {
+		this.pageNumber = pageNumber;
+	}
+
+	@Nullable
+	public Integer getPageSize() {
+		return this.pageSize;
+	}
+
+	public void setPageSize(@Nullable Integer pageSize) {
+		this.pageSize = pageSize;
+	}
+
+	@Nullable
+	public String getTagGroupId() {
+		return this.tagGroupId;
+	}
+
+	public void setTagGroupId(@Nullable String tagGroupId) {
+		this.tagGroupId = tagGroupId;
+	}
+
+	@Nullable
+	public String getTagId() {
+		return this.tagId;
+	}
+
+	public void setTagId(@Nullable String tagId) {
+		this.tagId = tagId;
 	}
 }

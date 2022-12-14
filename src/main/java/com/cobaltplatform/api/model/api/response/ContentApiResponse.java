@@ -81,7 +81,12 @@ public class ContentApiResponse {
 	@Nullable
 	private String contentTypeLabel;
 	@Nullable
+	@Deprecated // prefer "durationInMinutesDescription"
 	private String duration;
+	@Nullable
+	private Integer durationInMinutes;
+	@Nullable
+	private String durationInMinutesDescription;
 	@Nonnull
 	private final List<String> tagIds;
 	@Nullable
@@ -139,10 +144,19 @@ public class ContentApiResponse {
 		this.callToAction = content.getCallToAction();
 		this.newFlag = content.getNewFlag();
 		this.contentTypeLabel = content.getContentTypeLabel();
+
+		// Deprecated field
 		this.duration = content.getDurationInMinutes() != null ?
 				strings.get("{{minutes}} min", new HashMap<>() {{
 					put("minutes", formatter.formatNumber(content.getDurationInMinutes()));
 				}}) : null;
+
+		this.durationInMinutes = content.getDurationInMinutes();
+		this.durationInMinutesDescription = content.getDurationInMinutes() != null ?
+				strings.get("{{minutes}} min", new HashMap<>() {{
+					put("minutes", formatter.formatNumber(content.getDurationInMinutes()));
+				}}) : null;
+
 		this.tagIds = content.getTags() == null ? Collections.emptyList() : content.getTags().stream()
 				.map(tag -> tag.getTagId())
 				.collect(Collectors.toList());
@@ -245,6 +259,16 @@ public class ContentApiResponse {
 	@Nullable
 	public String getDuration() {
 		return duration;
+	}
+
+	@Nullable
+	public Integer getDurationInMinutes() {
+		return this.durationInMinutes;
+	}
+
+	@Nullable
+	public String getDurationInMinutesDescription() {
+		return this.durationInMinutesDescription;
 	}
 
 	public void setDuration(@Nullable String duration) {

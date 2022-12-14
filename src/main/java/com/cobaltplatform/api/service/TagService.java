@@ -151,15 +151,14 @@ public class TagService {
 		if (contentId == null || institutionId == null)
 			return Collections.emptyList();
 
-		// Currently we don't have institution-specific tag groups.
-		// But this method accepts an institution ID in case we do in the future...
 		return getDatabase().queryForList("""
 				    SELECT t.*
 				    FROM tag t, tag_content tc
 				    WHERE tc.tag_id=t.tag_id
 				    AND tc.content_id=?
+				    AND tc.institution_id=?
 				    ORDER BY t.name
-				""", Tag.class, contentId);
+				""", Tag.class, contentId, institutionId);
 	}
 
 	@Nonnull
@@ -167,9 +166,11 @@ public class TagService {
 		if (institutionId == null)
 			return Collections.emptyList();
 
-		// Currently we don't have institution-specific tag groups.
-		// But this method accepts an institution ID in case we do in the future...
-		return getDatabase().queryForList("SELECT * FROM tag_content", TagContent.class);
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM tag_content
+				WHERE institution_id=?
+				""", TagContent.class, institutionId);
 	}
 
 	@Nonnull
