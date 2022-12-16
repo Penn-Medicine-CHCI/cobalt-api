@@ -303,6 +303,10 @@ public final class CryptoUtility {
 		try (InputStream is = new ByteArrayInputStream(x509CertificateAsString.getBytes(StandardCharsets.UTF_8))) {
 			CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
 			X509Certificate x509Certificate = (X509Certificate) certificateFactory.generateCertificate(is);
+
+			// Output should match this openssl command (not including : characters)
+			// % openssl x509 -in cobalt.epic.nonprod.crt -noout -fingerprint
+			// SHA1 Fingerprint=F8:99:26:90:36:B9:B4:D8:2A:DA:EE:DA:34:91:2F:EC:C2:93:11:65
 			return DigestUtils.sha1Hex(x509Certificate.getEncoded());
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
