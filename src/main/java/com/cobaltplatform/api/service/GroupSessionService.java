@@ -1035,6 +1035,8 @@ public class GroupSessionService implements AutoCloseable {
 		Institution institution = getInstitutionService().findInstitutionById(groupSession.getInstitutionId()).get();
 
 		getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
+			GroupSessionReservation groupSessionReservation = findGroupSessionReservationPairById(groupSessionReservationId).get().getRight();
+
 			EmailMessage attendeeEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.GROUP_SESSION_RESERVATION_CREATED_ATTENDEE, pinnedAttendeeAccount.getLocale())
 					.toAddresses(new ArrayList<>() {{
 						add(attendeeEmailAddress);
@@ -1050,6 +1052,7 @@ public class GroupSessionService implements AutoCloseable {
 						put("googleCalendarUrl", format("%s/group-session-reservations/%s/google-calendar", getInstitutionService().findWebappBaseUrlByInstitutionId(institution.getInstitutionId()).get(), groupSessionReservationId));
 						put("anotherTimeUrl", format("%s/in-the-studio", getInstitutionService().findWebappBaseUrlByInstitutionId(institution.getInstitutionId()).get()));
 					}})
+					.emailAttachments(List.of(generateICalInviteAsEmailAttachment(groupSession, groupSessionReservation, InviteMethod.REQUEST)))
 					.build();
 
 			getEmailMessageManager().enqueueMessage(attendeeEmailMessage);
