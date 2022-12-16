@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.util;
 
+import org.apache.commons.codec.digest.DigestUtils;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
@@ -290,6 +292,55 @@ public final class CryptoUtility {
 		} catch (Exception e) {
 			throw new IllegalArgumentException("Failed to read SSH RSA certificate from string", e);
 		}
+	}
+
+	@Nonnull
+	public static String extractThumbprintFromX509Certificate(@Nonnull String x509CertificateAsString) {
+		requireNonNull(x509CertificateAsString);
+
+		x509CertificateAsString = x509CertificateAsString.trim();
+
+		try (InputStream is = new ByteArrayInputStream(x509CertificateAsString.getBytes(StandardCharsets.UTF_8))) {
+			CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
+			X509Certificate x509Certificate = (X509Certificate) certificateFactory.generateCertificate(is);
+
+			// Output should match this openssl command (not including : characters)
+			// % openssl x509 -in cobalt.epic.nonprod.crt -noout -fingerprint
+			// SHA1 Fingerprint=F8:99:26:90:36:B9:B4:D8:2A:DA:EE:DA:34:91:2F:EC:C2:93:11:65
+			return DigestUtils.sha1Hex(x509Certificate.getEncoded());
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		} catch (CertificateException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	@Nonnull
+	public static String normalizeCertificate(@Nonnull String certificateAsString) {
+		requireNonNull(certificateAsString);
+
+		// Remove header/footer
+		certificateAsString = certificateAsString.replace("-----BEGIN CERTIFICATE-----", "");
+		certificateAsString = certificateAsString.replace("-----END CERTIFICATE-----", "");
+
+		// Remove all whitespace
+		certificateAsString = certificateAsString.replaceAll("\\s", "");
+
+		return certificateAsString;
+	}
+
+	@Nonnull
+	public static String normalizePrivateKey(@Nonnull String privateKeyAsString) {
+		requireNonNull(privateKeyAsString);
+
+		// Remove header/footer
+		privateKeyAsString = privateKeyAsString.replace("-----BEGIN PRIVATE KEY-----", "");
+		privateKeyAsString = privateKeyAsString.replace("-----END PRIVATE KEY-----", "");
+
+		// Remove all whitespace
+		privateKeyAsString = privateKeyAsString.replaceAll("\\s", "");
+
+		return privateKeyAsString;
 	}
 
 	@Nonnull
