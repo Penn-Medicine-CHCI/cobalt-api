@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.util.CryptoUtility;
 import com.cobaltplatform.api.util.CryptoUtility.PublicKeyExponentModulus;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.Resource;
@@ -73,6 +74,8 @@ public class EpicResource {
 		nonProdKey.put("kid", getConfiguration().getEpicNonProdKeyId());
 		nonProdKey.put("e", nonProdPublicKeyExponentModulus.getExponentInBase64());
 		nonProdKey.put("n", nonProdPublicKeyExponentModulus.getModulusInBase64());
+		nonProdKey.put("x5t", CryptoUtility.extractThumbprintFromX509Certificate(getConfiguration().getEpicNonProdPublicKeyAsString()));
+		nonProdKey.put("x5c", List.of(CryptoUtility.normalizeCertificate(getConfiguration().getEpicNonProdPublicKeyAsString())));
 
 		PublicKeyExponentModulus prodPublicKeyExponentModulus = new PublicKeyExponentModulus(getConfiguration().getEpicProdKeyPair().getPublic());
 
@@ -81,6 +84,8 @@ public class EpicResource {
 		prodKey.put("kid", getConfiguration().getEpicProdKeyId());
 		prodKey.put("e", prodPublicKeyExponentModulus.getExponentInBase64());
 		prodKey.put("n", prodPublicKeyExponentModulus.getModulusInBase64());
+		prodKey.put("x5t", CryptoUtility.extractThumbprintFromX509Certificate(getConfiguration().getEpicProdPublicKeyAsString()));
+		prodKey.put("x5c", List.of(CryptoUtility.normalizeCertificate(getConfiguration().getEpicProdPublicKeyAsString())));
 
 		httpServletResponse.setHeader("Cache-Control", "max-age=3600");
 

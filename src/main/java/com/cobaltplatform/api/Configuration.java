@@ -81,6 +81,8 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
+import static com.cobaltplatform.api.util.CryptoUtility.normalizeCertificate;
+import static com.cobaltplatform.api.util.CryptoUtility.normalizePrivateKey;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -272,7 +274,11 @@ public class Configuration {
 	@Nonnull
 	private final KeyPair epicNonProdKeyPair;
 	@Nonnull
+	private final String epicNonProdPublicKeyAsString;
+	@Nonnull
 	private final KeyPair epicProdKeyPair;
+	@Nonnull
+	private final String epicProdPublicKeyAsString;
 	@Nonnull
 	private final KeyPair epicCurrentEnvironmentKeyPair;
 
@@ -425,7 +431,9 @@ public class Configuration {
 
 		this.keyPair = CryptoUtility.keyPairFromStringRepresentation(rawKeypair.getCert(), rawKeypair.getPrivateKey(), PublicKeyFormat.X509);
 		this.epicNonProdKeyPair = CryptoUtility.keyPairFromStringRepresentation(epicNonProdRawKeypair.getCert(), epicNonProdRawKeypair.getPrivateKey(), PublicKeyFormat.X509);
+		this.epicNonProdPublicKeyAsString = epicNonProdRawKeypair.getCert();
 		this.epicProdKeyPair = CryptoUtility.keyPairFromStringRepresentation(epicProdRawKeypair.getCert(), epicProdRawKeypair.getPrivateKey(), PublicKeyFormat.X509);
+		this.epicProdPublicKeyAsString = epicProdRawKeypair.getCert();
 		this.epicCurrentEnvironmentKeyPair = isProduction() ? getEpicProdKeyPair() : getEpicNonProdKeyPair();
 		this.samlSettingsByIdentityProvider = Collections.emptyMap();
 
@@ -845,7 +853,7 @@ public class Configuration {
 			throw new IllegalStateException(format("Unknown value for %s: %s", SensitiveDataStorageLocation.class.getSimpleName(), sensitiveDataStorageLocation.name()));
 		}
 
-		return new RawKeypair(cert, privateKey);
+		return new RawKeypair(cert.trim(), privateKey.trim());
 	}
 
 	@Immutable
@@ -901,28 +909,13 @@ public class Configuration {
 				)
 		);
 
-		String cert = normalizeCert(rawKeypair.getCert());
+		String cert = normalizeCertificate(rawKeypair.getCert());
 		propertiesAsMap.put("onelogin.saml2.sp.x509cert", cert);
 
-		String privateKey = normalizeCert(rawKeypair.getPrivateKey());
+		String privateKey = normalizePrivateKey(rawKeypair.getPrivateKey());
 		propertiesAsMap.put("onelogin.saml2.sp.privatekey", privateKey);
 
 		return Collections.unmodifiableMap(propertiesAsMap);
-	}
-
-	protected String normalizeCert(@Nonnull String certAsText) {
-		requireNonNull(certAsText);
-
-		// Remove header/footer
-		certAsText = certAsText.replace("-----BEGIN CERTIFICATE-----", "");
-		certAsText = certAsText.replace("-----END CERTIFICATE-----", "");
-		certAsText = certAsText.replace("-----BEGIN PRIVATE KEY-----", "");
-		certAsText = certAsText.replace("-----END PRIVATE KEY-----", "");
-
-		// Remove all whitespace
-		certAsText = certAsText.replaceAll("\\s", "");
-
-		return certAsText;
 	}
 
 	@NotThreadSafe
@@ -1454,6 +1447,16 @@ public class Configuration {
 	@Nonnull
 	public Boolean getShouldPollWay2Health() {
 		return shouldPollWay2Health;
+	}
+
+	@Nonnull
+	public String getEpicNonProdPublicKeyAsString() {
+		return this.epicNonProdPublicKeyAsString;
+	}
+
+	@Nonnull
+	public String getEpicProdPublicKeyAsString() {
+		return this.epicProdPublicKeyAsString;
 	}
 
 	@Nonnull
