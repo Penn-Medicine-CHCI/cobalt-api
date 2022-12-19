@@ -35,11 +35,16 @@ public class ContentType {
 	private String description;
 	@Nullable
 	private String callToAction;
+	@Nullable
+	private Boolean deleted;
 
 	public enum ContentTypeId {
+		@Deprecated
 		INT_BLOG,
+		@Deprecated
 		EXT_BLOG,
 		VIDEO,
+		@Deprecated
 		AUDIO,
 		ARTICLE,
 		WORKSHEET,
@@ -77,5 +82,14 @@ public class ContentType {
 
 	public void setCallToAction(@Nullable String callToAction) {
 		this.callToAction = callToAction;
+	}
+
+	@Nullable
+	public Boolean getDeleted() {
+		return this.deleted;
+	}
+
+	public void setDeleted(@Nullable Boolean deleted) {
+		this.deleted = deleted;
 	}
 }

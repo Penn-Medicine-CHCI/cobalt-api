@@ -48,6 +48,7 @@ import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.db.TagContent;
 import com.cobaltplatform.api.model.db.Visibility;
 import com.cobaltplatform.api.model.service.AdminContent;
+import com.cobaltplatform.api.model.service.ContentDurationId;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.LinkGenerator;
@@ -74,6 +75,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -81,6 +83,7 @@ import java.util.stream.Collectors;
 import static com.cobaltplatform.api.model.db.ApprovalStatus.ApprovalStatusId;
 import static com.cobaltplatform.api.model.db.Role.RoleId;
 import static com.cobaltplatform.api.model.db.Visibility.VisibilityId;
+import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
 import static java.lang.String.format;
 import static java.util.Collections.emptyList;
@@ -302,6 +305,8 @@ public class ContentService {
 
 		InstitutionId institutionId = request.getInstitutionId();
 		String searchQuery = trimToNull(request.getSearchQuery());
+		Set<ContentTypeId> contentTypeIds = request.getContentTypeIds() == null ? Set.of() : request.getContentTypeIds();
+		Set<ContentDurationId> contentDurationIds = request.getContentDurationIds() == null ? Set.of() : request.getContentDurationIds();
 		Integer pageNumber = request.getPageNumber();
 		Integer pageSize = request.getPageSize();
 		String tagGroupId = trimToNull(request.getTagGroupId());
@@ -356,6 +361,26 @@ public class ContentService {
 			parameters.add(searchQuery);
 			parameters.add(searchQuery);
 			parameters.add(searchQuery);
+		}
+
+		if (contentTypeIds.size() > 0) {
+			whereClauseComponents.add(format("AND c.content_type_id IN %s", sqlInListPlaceholders(contentTypeIds)));
+			parameters.addAll(contentTypeIds);
+		}
+
+		if (contentDurationIds.size() > 0) {
+			List<String> durationClauses = new ArrayList<>(contentDurationIds.size());
+
+			if (contentDurationIds.contains(ContentDurationId.UNDER_FIVE_MINUTES))
+				durationClauses.add("(c.duration_in_minutes < 5)");
+			else if (contentDurationIds.contains(ContentDurationId.BETWEEN_FIVE_AND_TEN_MINUTES))
+				durationClauses.add("(c.duration_in_minutes >= 5 AND c.duration_in_minutes <= 10)");
+			else if (contentDurationIds.contains(ContentDurationId.BETWEEN_TEN_AND_THIRTY_MINUTES))
+				durationClauses.add("(c.duration_in_minutes >= 10 AND c.duration_in_minutes <= 30)");
+			else if (contentDurationIds.contains(ContentDurationId.OVER_THIRTY_MINUTES))
+				durationClauses.add("(c.duration_in_minutes >= 31)");
+
+			whereClauseComponents.add(format("AND (%s)", durationClauses.stream().collect(Collectors.joining(" OR "))));
 		}
 
 		parameters.add(institutionId);
@@ -494,7 +519,7 @@ public class ContentService {
 
 	@Nonnull
 	public List<ContentType> findContentTypes() {
-		return getDatabase().queryForList("SELECT * FROM content_type ORDER BY description", ContentType.class);
+		return getDatabase().queryForList("SELECT * FROM content_type WHERE deleted=FALSE ORDER BY description", ContentType.class);
 	}
 
 	@Nonnull

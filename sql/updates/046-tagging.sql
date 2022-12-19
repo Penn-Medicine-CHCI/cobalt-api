@@ -1,6 +1,46 @@
 BEGIN;
 SELECT _v.register_patch('046-tagging', NULL, NULL);
 
+-- cobalt=> select * from content_type;
+--  content_type_id |    description     |     call_to_action
+-- -----------------+--------------------+------------------------
+--  VIDEO           | Video              | Watch the Video
+--  AUDIO           | Audio              | Listen
+--  PODCAST         | Podcast            | Listen
+--  ARTICLE         | Article            | Read the Article
+--  WORKSHEET       | Worksheet          | Complete the Worksheet
+--  INT_BLOG        | Internal Blog Post | Read Blog Post
+--  EXT_BLOG        | External Blog Post | Read Blog Post
+--  APP             | App                | Get the App
+-- (8 rows)
+--
+-- cobalt=> select * from content_type_label;
+--            content_type_label_id            |                description
+-- --------------------------------------------+--------------------------------------------
+--  ACTION_GUIDE                               | Action Guide
+--  EXTERNAL_BLOG_POST                         | External Blog Post
+--  WORKSHEET                                  | Worksheet
+--  WEBINAR_SERIES                             | Webinar Series
+--  FACT_SHEET                                 | Fact Sheet
+--  INTERNAL_BLOG_POST                         | Internal Blog Post
+--  PODCAST                                    | Podcast
+--  ARTICLE                                    | Article
+--  INFORMATIONAL_HANDOUT                      | Informational Handout
+--  HANDS_ON_ACTIVITIES_FOR_YOU_AND_YOUR_CHILD | Hands on Activities for you and your child
+--  VIDEO                                      | Video
+--  RESOURCE_GUIDE                             | Resource Guide
+--  APP                                        | App
+-- (13 rows)
+
+-- Final content list: App, Article, Podcast, Video, Worksheet
+ALTER TABLE content_type ADD COLUMN deleted BOOLEAN NOT NULL DEFAULT FALSE;
+UPDATE content_type SET deleted=TRUE WHERE content_type_id IN ('INT_BLOG', 'EXT_BLOG', 'AUDIO');
+
+-- Migrate over old content to new types
+UPDATE content SET content_type_id='PODCAST' WHERE content_type_id='AUDIO';
+UPDATE content SET content_type_id='ARTICLE' WHERE content_type_id='INT_BLOG';
+UPDATE content SET content_type_id='ARTICLE' WHERE content_type_id='EXT_BLOG';
+
 CREATE TABLE color (
   color_id VARCHAR PRIMARY KEY,
   description VARCHAR NOT NULL

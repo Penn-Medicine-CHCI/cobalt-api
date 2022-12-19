@@ -19,10 +19,13 @@
 
 package com.cobaltplatform.api.model.api.request;
 
+import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.service.ContentDurationId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.Set;
 
 /**
  * @author Transmogrify, LLC.
@@ -41,6 +44,10 @@ public class FindResourceLibraryContentRequest {
 	private String tagGroupId;
 	@Nullable
 	private String tagId;
+	@Nullable
+	private Set<ContentTypeId> contentTypeIds;
+	@Nullable
+	private Set<ContentDurationId> contentDurationIds;
 
 	@Nullable
 	public InstitutionId getInstitutionId() {
@@ -94,5 +101,23 @@ public class FindResourceLibraryContentRequest {
 
 	public void setTagId(@Nullable String tagId) {
 		this.tagId = tagId;
+	}
+
+	@Nullable
+	public Set<ContentTypeId> getContentTypeIds() {
+		return this.contentTypeIds;
+	}
+
+	public void setContentTypeIds(@Nullable Set<ContentTypeId> contentTypeIds) {
+		this.contentTypeIds = contentTypeIds;
+	}
+
+	@Nullable
+	public Set<ContentDurationId> getContentDurationIds() {
+		return this.contentDurationIds;
+	}
+
+	public void setContentDurationIds(@Nullable Set<ContentDurationId> contentDurationIds) {
+		this.contentDurationIds = contentDurationIds;
 	}
 }

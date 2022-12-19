@@ -31,14 +31,17 @@ import com.cobaltplatform.api.model.api.response.TagGroupApiResponse;
 import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Content;
+import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.db.TagGroup;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.service.ContentDurationId;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.TagService;
 import com.cobaltplatform.api.util.Formatter;
+import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.PathParameter;
 import com.soklet.web.annotation.QueryParameter;
@@ -54,6 +57,7 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -83,6 +87,8 @@ public class ResourceLibraryResource {
 	@Nonnull
 	private final Formatter formatter;
 	@Nonnull
+	private final Strings strings;
+	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final ContentApiResponseFactory contentApiResponseFactory;
@@ -99,6 +105,7 @@ public class ResourceLibraryResource {
 																 @Nonnull AuthorizationService authorizationService,
 																 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
 																 @Nonnull Formatter formatter,
+																 @Nonnull Strings strings,
 																 @Nonnull Provider<CurrentContext> currentContextProvider,
 																 @Nonnull ContentApiResponseFactory contentApiResponseFactory,
 																 @Nonnull TagApiResponseFactory tagApiResponseFactory,
@@ -108,6 +115,7 @@ public class ResourceLibraryResource {
 		requireNonNull(authorizationService);
 		requireNonNull(enterprisePluginProvider);
 		requireNonNull(formatter);
+		requireNonNull(strings);
 		requireNonNull(currentContextProvider);
 		requireNonNull(contentApiResponseFactory);
 		requireNonNull(tagApiResponseFactory);
@@ -118,6 +126,7 @@ public class ResourceLibraryResource {
 		this.authorizationService = authorizationService;
 		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.formatter = formatter;
+		this.strings = strings;
 		this.currentContextProvider = currentContextProvider;
 		this.contentApiResponseFactory = contentApiResponseFactory;
 		this.tagApiResponseFactory = tagApiResponseFactory;
@@ -196,9 +205,13 @@ public class ResourceLibraryResource {
 	@GET("/resource-library/search")
 	@AuthenticationRequired
 	public ApiResponse searchResourceLibrary(@Nonnull @QueryParameter Optional<String> searchQuery,
+																					 @Nonnull @QueryParameter("contentTypeId") Optional<List<ContentTypeId>> contentTypeIds,
+																					 @Nonnull @QueryParameter("contentDurationId") Optional<List<ContentDurationId>> contentDurationIds,
 																					 @Nonnull @QueryParameter Optional<Integer> pageNumber,
 																					 @Nonnull @QueryParameter Optional<Integer> pageSize) {
 		requireNonNull(searchQuery);
+		requireNonNull(contentTypeIds);
+		requireNonNull(contentDurationIds);
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
 
@@ -209,6 +222,8 @@ public class ResourceLibraryResource {
 			{
 				setInstitutionId(account.getInstitutionId());
 				setSearchQuery(searchQuery.orElse(null));
+				setContentTypeIds(new HashSet<>(contentTypeIds.orElse(List.of())));
+				setContentDurationIds(new HashSet<>(contentDurationIds.orElse(List.of())));
 				setPageNumber(pageNumber.orElse(0));
 				setPageSize(pageSize.orElse(0));
 			}
@@ -239,10 +254,14 @@ public class ResourceLibraryResource {
 	@AuthenticationRequired
 	public ApiResponse resourceLibraryTagGroup(@Nonnull @PathParameter String tagGroupId,
 																						 @Nonnull @QueryParameter Optional<String> searchQuery,
+																						 @Nonnull @QueryParameter("contentTypeId") Optional<List<ContentTypeId>> contentTypeIds,
+																						 @Nonnull @QueryParameter("contentDurationId") Optional<List<ContentDurationId>> contentDurationIds,
 																						 @Nonnull @QueryParameter Optional<Integer> pageNumber,
 																						 @Nonnull @QueryParameter Optional<Integer> pageSize) {
 		requireNonNull(tagGroupId);
 		requireNonNull(searchQuery);
+		requireNonNull(contentTypeIds);
+		requireNonNull(contentDurationIds);
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
 
@@ -263,6 +282,8 @@ public class ResourceLibraryResource {
 			{
 				setInstitutionId(account.getInstitutionId());
 				setSearchQuery(searchQuery.orElse(null));
+				setContentTypeIds(new HashSet<>(contentTypeIds.orElse(List.of())));
+				setContentDurationIds(new HashSet<>(contentDurationIds.orElse(List.of())));
 				setPageNumber(pageNumber.orElse(0));
 				setPageSize(pageSize.orElse(0));
 				setTagGroupId(tagGroup.getTagGroupId());
@@ -295,10 +316,14 @@ public class ResourceLibraryResource {
 	@AuthenticationRequired
 	public ApiResponse resourceLibraryTag(@Nonnull @PathParameter String tagId,
 																				@Nonnull @QueryParameter Optional<String> searchQuery,
+																				@Nonnull @QueryParameter("contentTypeId") Optional<List<ContentTypeId>> contentTypeIds,
+																				@Nonnull @QueryParameter("contentDurationId") Optional<List<ContentDurationId>> contentDurationIds,
 																				@Nonnull @QueryParameter Optional<Integer> pageNumber,
 																				@Nonnull @QueryParameter Optional<Integer> pageSize) {
 		requireNonNull(tagId);
 		requireNonNull(searchQuery);
+		requireNonNull(contentTypeIds);
+		requireNonNull(contentDurationIds);
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
 
@@ -324,6 +349,8 @@ public class ResourceLibraryResource {
 			{
 				setInstitutionId(account.getInstitutionId());
 				setSearchQuery(searchQuery.orElse(null));
+				setContentTypeIds(new HashSet<>(contentTypeIds.orElse(List.of())));
+				setContentDurationIds(new HashSet<>(contentDurationIds.orElse(List.of())));
 				setPageNumber(pageNumber.orElse(0));
 				setPageSize(pageSize.orElse(0));
 				setTagId(tag.getTagId());
@@ -353,6 +380,80 @@ public class ResourceLibraryResource {
 	}
 
 	@Nonnull
+	@GET("/resource-library/tag-group-filters/{tagGroupId}")
+	@AuthenticationRequired
+	public ApiResponse tagGroupFilters(@Nonnull @PathParameter String tagGroupId) {
+		requireNonNull(tagGroupId);
+
+		CurrentContext currentContext = getCurrentContext();
+		Account account = currentContext.getAccount().get();
+
+		// Support both tag group ID and URL name
+		TagGroup tagGroup = getTagService().findTagGroupsByInstitutionId(account.getInstitutionId()).stream()
+				.filter(potentialTagGroup -> potentialTagGroup.getTagGroupId().equals(tagGroupId)
+						|| potentialTagGroup.getUrlName().equals(tagGroupId))
+				.findFirst()
+				.orElse(null);
+
+		if (tagGroup == null)
+			throw new NotFoundException();
+
+		List<TagApiResponse> tags = getTagService().findTagsByInstitutionId(account.getInstitutionId()).stream()
+				.filter(tag -> tag.getTagGroupId().equals(tagGroup.getTagGroupId()))
+				.map(tag -> getTagApiResponseFactory().create(tag))
+				.collect(Collectors.toList());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("contentDurations", availableContentDurations());
+			put("contentTypes", availableContentTypes());
+			put("tags", tags);
+		}});
+	}
+
+	@Nonnull
+	@GET("/resource-library/tag-filters/{tagId}")
+	@AuthenticationRequired
+	public ApiResponse tagFilters(@Nonnull @PathParameter String tagId) {
+		requireNonNull(tagId);
+
+		CurrentContext currentContext = getCurrentContext();
+		Account account = currentContext.getAccount().get();
+
+		// Support both tag ID and URL name
+		Tag tag = getTagService().findTagsByInstitutionId(account.getInstitutionId()).stream()
+				.filter(potentialTag -> potentialTag.getTagId().equals(tagId)
+						|| potentialTag.getUrlName().equals(tagId))
+				.findFirst()
+				.orElse(null);
+
+		if (tag == null)
+			throw new NotFoundException();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("contentDurations", availableContentDurations());
+			put("contentTypes", availableContentTypes());
+		}});
+	}
+
+	@Nonnull
+	protected List<Map<String, Object>> availableContentDurations() {
+		List<Map<String, Object>> contentDurations = new ArrayList<>();
+		contentDurations.add(Map.of("contentDurationId", ContentDurationId.UNDER_FIVE_MINUTES, "description", getStrings().get("< 5 Minutes")));
+		contentDurations.add(Map.of("contentDurationId", ContentDurationId.BETWEEN_FIVE_AND_TEN_MINUTES, "description", getStrings().get("5-10 Minutes")));
+		contentDurations.add(Map.of("contentDurationId", ContentDurationId.BETWEEN_TEN_AND_THIRTY_MINUTES, "description", getStrings().get("10-30 Minutes")));
+		contentDurations.add(Map.of("contentDurationId", ContentDurationId.OVER_THIRTY_MINUTES, "description", getStrings().get("> 30 Minutes")));
+
+		return Collections.unmodifiableList(contentDurations);
+	}
+
+	@Nonnull
+	protected List<Map<String, Object>> availableContentTypes() {
+		return getContentService().findContentTypes().stream()
+				.map(contentType -> Map.<String, Object>of("contentTypeId", contentType.getContentTypeId(), "description", contentType.getDescription()))
+				.collect(Collectors.toList());
+	}
+
+	@Nonnull
 	protected ContentService getContentService() {
 		return this.contentService;
 	}
@@ -375,6 +476,11 @@ public class ResourceLibraryResource {
 	@Nonnull
 	protected Formatter getFormatter() {
 		return this.formatter;
+	}
+
+	@Nonnull
+	protected Strings getStrings() {
+		return this.strings;
 	}
 
 	@Nonnull
