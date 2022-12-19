@@ -74,6 +74,7 @@ CREATE TABLE tag (
 	name VARCHAR NOT NULL,
 	url_name VARCHAR NOT NULL,
 	description VARCHAR NOT NULL,
+	en_search_vector TSVECTOR, -- Cannot use TSVECTOR GENERATED ALWAYS in RDS (yet...)
 	tag_group_id VARCHAR NOT NULL REFERENCES tag_group,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -82,6 +83,17 @@ CREATE TABLE tag (
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON tag FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 CREATE UNIQUE INDEX tag_unique_idx ON tag USING btree (LOWER(name));
 CREATE UNIQUE INDEX tag_url_name_unique_idx ON tag USING btree (LOWER(url_name));
+CREATE INDEX tag_en_search_vector_idx ON tag USING GIN (en_search_vector);
+
+CREATE FUNCTION tag_en_search_vector_update() RETURNS TRIGGER AS $$
+BEGIN
+    NEW.en_search_vector = TO_TSVECTOR('pg_catalog.english', COALESCE(NEW.name, '') || ' ' || COALESCE(NEW.description, '') || ' ' || COALESCE(NEW.url_name, ''));
+    RETURN NEW;
+END
+$$ LANGUAGE 'plpgsql';
+
+CREATE TRIGGER tag_en_search_vector_update_tg BEFORE INSERT OR UPDATE ON tag
+FOR EACH ROW EXECUTE PROCEDURE tag_en_search_vector_update();
 
 -- Relates tags to content
 CREATE TABLE tag_content (
