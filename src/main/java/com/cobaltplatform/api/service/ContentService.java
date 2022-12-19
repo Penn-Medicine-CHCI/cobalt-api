@@ -373,11 +373,11 @@ public class ContentService {
 
 			if (contentDurationIds.contains(ContentDurationId.UNDER_FIVE_MINUTES))
 				durationClauses.add("(c.duration_in_minutes < 5)");
-			else if (contentDurationIds.contains(ContentDurationId.BETWEEN_FIVE_AND_TEN_MINUTES))
+			if (contentDurationIds.contains(ContentDurationId.BETWEEN_FIVE_AND_TEN_MINUTES))
 				durationClauses.add("(c.duration_in_minutes >= 5 AND c.duration_in_minutes <= 10)");
-			else if (contentDurationIds.contains(ContentDurationId.BETWEEN_TEN_AND_THIRTY_MINUTES))
+			if (contentDurationIds.contains(ContentDurationId.BETWEEN_TEN_AND_THIRTY_MINUTES))
 				durationClauses.add("(c.duration_in_minutes >= 10 AND c.duration_in_minutes <= 30)");
-			else if (contentDurationIds.contains(ContentDurationId.OVER_THIRTY_MINUTES))
+			if (contentDurationIds.contains(ContentDurationId.OVER_THIRTY_MINUTES))
 				durationClauses.add("(c.duration_in_minutes >= 31)");
 
 			whereClauseComponents.add(format("AND (%s)", durationClauses.stream().collect(Collectors.joining(" OR "))));
