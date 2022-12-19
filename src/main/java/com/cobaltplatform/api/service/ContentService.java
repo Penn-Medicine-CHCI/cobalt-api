@@ -305,15 +305,12 @@ public class ContentService {
 
 		InstitutionId institutionId = request.getInstitutionId();
 		String searchQuery = trimToNull(request.getSearchQuery());
+		Set<String> tagIds = request.getTagIds() == null ? Set.of() : request.getTagIds();
 		Set<ContentTypeId> contentTypeIds = request.getContentTypeIds() == null ? Set.of() : request.getContentTypeIds();
 		Set<ContentDurationId> contentDurationIds = request.getContentDurationIds() == null ? Set.of() : request.getContentDurationIds();
 		Integer pageNumber = request.getPageNumber();
 		Integer pageSize = request.getPageSize();
 		String tagGroupId = trimToNull(request.getTagGroupId());
-		String tagId = trimToNull(request.getTagId());
-
-		if (tagGroupId != null && tagId != null)
-			throw new IllegalArgumentException("Cannot specify both 'tagGroupId' and 'tagId'");
 
 		searchQuery = trimToNull(searchQuery);
 
@@ -342,17 +339,20 @@ public class ContentService {
 
 			parameters.add(institutionId);
 			parameters.add(tagGroupId);
-		}
 
-		if (tagId != null) {
+			if (tagIds.size() > 0) {
+				whereClauseComponents.add(format("AND tc.tag_id IN %s", sqlInListPlaceholders(tagIds)));
+				parameters.addAll(tagIds);
+			}
+		} else if (tagIds.size() > 0) {
 			fromClauseComponents.add("tag_content tc");
 
 			whereClauseComponents.add("AND tc.content_id=c.content_id");
 			whereClauseComponents.add("AND tc.institution_id=?");
-			whereClauseComponents.add("AND tc.tag_id=?");
+			whereClauseComponents.add(format("AND tc.tag_id IN %s", sqlInListPlaceholders(tagIds)));
 
 			parameters.add(institutionId);
-			parameters.add(tagId);
+			parameters.addAll(tagIds);
 		}
 
 		// TODO: search over tag names (?)

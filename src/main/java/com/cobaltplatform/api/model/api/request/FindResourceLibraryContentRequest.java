@@ -43,7 +43,7 @@ public class FindResourceLibraryContentRequest {
 	@Nullable
 	private String tagGroupId;
 	@Nullable
-	private String tagId;
+	private Set<String> tagIds;
 	@Nullable
 	private Set<ContentTypeId> contentTypeIds;
 	@Nullable
@@ -95,12 +95,12 @@ public class FindResourceLibraryContentRequest {
 	}
 
 	@Nullable
-	public String getTagId() {
-		return this.tagId;
+	public Set<String> getTagIds() {
+		return this.tagIds;
 	}
 
-	public void setTagId(@Nullable String tagId) {
-		this.tagId = tagId;
+	public void setTagIds(@Nullable Set<String> tagIds) {
+		this.tagIds = tagIds;
 	}
 
 	@Nullable

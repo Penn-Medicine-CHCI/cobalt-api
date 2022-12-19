@@ -254,12 +254,14 @@ public class ResourceLibraryResource {
 	@AuthenticationRequired
 	public ApiResponse resourceLibraryTagGroup(@Nonnull @PathParameter String tagGroupId,
 																						 @Nonnull @QueryParameter Optional<String> searchQuery,
+																						 @Nonnull @QueryParameter("tagId") Optional<List<String>> tagIds,
 																						 @Nonnull @QueryParameter("contentTypeId") Optional<List<ContentTypeId>> contentTypeIds,
 																						 @Nonnull @QueryParameter("contentDurationId") Optional<List<ContentDurationId>> contentDurationIds,
 																						 @Nonnull @QueryParameter Optional<Integer> pageNumber,
 																						 @Nonnull @QueryParameter Optional<Integer> pageSize) {
 		requireNonNull(tagGroupId);
 		requireNonNull(searchQuery);
+		requireNonNull(tagIds);
 		requireNonNull(contentTypeIds);
 		requireNonNull(contentDurationIds);
 		requireNonNull(pageNumber);
@@ -282,6 +284,7 @@ public class ResourceLibraryResource {
 			{
 				setInstitutionId(account.getInstitutionId());
 				setSearchQuery(searchQuery.orElse(null));
+				setTagIds(new HashSet<>(tagIds.orElse(List.of())));
 				setContentTypeIds(new HashSet<>(contentTypeIds.orElse(List.of())));
 				setContentDurationIds(new HashSet<>(contentDurationIds.orElse(List.of())));
 				setPageNumber(pageNumber.orElse(0));
@@ -349,11 +352,11 @@ public class ResourceLibraryResource {
 			{
 				setInstitutionId(account.getInstitutionId());
 				setSearchQuery(searchQuery.orElse(null));
+				setTagIds(Set.of(tag.getTagId()));
 				setContentTypeIds(new HashSet<>(contentTypeIds.orElse(List.of())));
 				setContentDurationIds(new HashSet<>(contentDurationIds.orElse(List.of())));
 				setPageNumber(pageNumber.orElse(0));
 				setPageSize(pageSize.orElse(0));
-				setTagId(tag.getTagId());
 			}
 		});
 
