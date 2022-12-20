@@ -629,6 +629,7 @@ public class ContentService {
 		VisibilityId visibilityCommand = command.getVisibilityId();
 		ContentTypeId contentTypeId = command.getContentTypeId();
 		String durationInMinutesString = trimToNull(command.getDurationInMinutes());
+		Set<String> tagIds = command.getTagIds() == null ? Set.of() : command.getTagIds();
 		ApprovalStatusId otherInstitutionsApprovalStatusId = ApprovalStatusId.PENDING;
 
 		PersonalizeAssessmentChoicesCommand contentTagCommand = command.getContentTags();
@@ -728,6 +729,18 @@ public class ContentService {
 			tagContent(contentId, contentTagChoices, false);
 		}
 
+		for (String tagId : tagIds) {
+			tagId = trimToNull(tagId);
+
+			if (tagId == null)
+				continue;
+
+			getDatabase().execute("""
+					INSERT INTO tag_content(tag_id, institution_id, content_id) 
+					VALUES (?,?,?)
+					""", tagId, account.getInstitutionId(), contentId);
+		}
+
 		AdminContent adminContent = findAdminContentByIdForInstitution(account.getInstitutionId(), contentId).get();
 		applyTagsToAdminContent(adminContent, account.getInstitutionId());
 		sendAdminNotification(account, adminContent);
@@ -790,6 +803,7 @@ public class ContentService {
 		Boolean addToInstitution = command.getAddToInstitution() == null ? false : command.getAddToInstitution();
 		Boolean removeFromInstitution = command.getRemoveFromInstitution() == null ? false : command.getRemoveFromInstitution();
 		String durationInMinutesString = trimToNull(command.getDurationInMinutes());
+		Set<String> tagIds = command.getTagIds() == null ? Set.of() : command.getTagIds();
 		ApprovalStatusId otherInstitutionsApprovalStatusId = ApprovalStatusId.PENDING;
 		ApprovalStatusId ownerInstitutionsApprovalStatusId = ApprovalStatusId.APPROVED;
 
@@ -931,6 +945,24 @@ public class ContentService {
 		}
 
 		applyTagsToAdminContent(adminContent, account.getInstitutionId());
+
+		getDatabase().execute("""
+				DELETE FROM tag_content
+				WHERE content_id=?
+				AND institution_id=? 
+				""", command.getContentId(), account.getInstitutionId());
+
+		for (String tagId : tagIds) {
+			tagId = trimToNull(tagId);
+
+			if (tagId == null)
+				continue;
+			
+			getDatabase().execute("""
+					INSERT INTO tag_content(tag_id, institution_id, content_id) 
+					VALUES (?,?,?)
+					""", tagId, account.getInstitutionId(), command.getContentId());
+		}
 
 		if (shouldNotify) {
 			sendAdminNotification(account, adminContent);

@@ -439,6 +439,15 @@ public class ResourceLibraryResource {
 	}
 
 	@Nonnull
+	@GET("/resource-library/content-types")
+	@AuthenticationRequired
+	public ApiResponse contentTypes() {
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("contentTypes", availableContentTypes());
+		}});
+	}
+
+	@Nonnull
 	protected List<Map<String, Object>> availableContentDurations() {
 		List<Map<String, Object>> contentDurations = new ArrayList<>();
 		contentDurations.add(Map.of("contentDurationId", ContentDurationId.UNDER_FIVE_MINUTES, "description", getStrings().get("< 5 Minutes")));

@@ -19,15 +19,16 @@
 
 package com.cobaltplatform.api.model.api.request;
 
-import com.cobaltplatform.api.model.db.ContentType;
-import com.cobaltplatform.api.model.db.Visibility;
+import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.Visibility.VisibilityId;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 
 /**
  * @author Transmogrify, LLC.
@@ -35,7 +36,7 @@ import java.util.List;
 @NotThreadSafe
 public class CreateContentRequest {
 	@Nullable
-	private ContentType.ContentTypeId contentTypeId;
+	private ContentTypeId contentTypeId;
 	@Nonnull
 	private String title;
 	@Nullable
@@ -53,18 +54,20 @@ public class CreateContentRequest {
 	@Nullable
 	private LocalDate dateCreated;
 	@Nullable
-	private Visibility.VisibilityId visibilityId;
+	private VisibilityId visibilityId;
 	@Nullable
 	private List<InstitutionId> institutionIdList;
 	@Nullable
 	private PersonalizeAssessmentChoicesCommand contentTags;
+	@Nullable
+	private Set<String> tagIds;
 
 	@Nullable
-	public ContentType.ContentTypeId getContentTypeId() {
+	public ContentTypeId getContentTypeId() {
 		return contentTypeId;
 	}
 
-	public void setContentTypeId(@Nullable ContentType.ContentTypeId contentTypeId) {
+	public void setContentTypeId(@Nullable ContentTypeId contentTypeId) {
 		this.contentTypeId = contentTypeId;
 	}
 
@@ -132,11 +135,11 @@ public class CreateContentRequest {
 	}
 
 	@Nullable
-	public Visibility.VisibilityId getVisibilityId() {
+	public VisibilityId getVisibilityId() {
 		return visibilityId;
 	}
 
-	public void setVisibilityId(@Nullable Visibility.VisibilityId visibilityId) {
+	public void setVisibilityId(@Nullable VisibilityId visibilityId) {
 		this.visibilityId = visibilityId;
 	}
 
@@ -165,5 +168,14 @@ public class CreateContentRequest {
 
 	public void setContentTags(@Nullable PersonalizeAssessmentChoicesCommand contentTags) {
 		this.contentTags = contentTags;
+	}
+
+	@Nullable
+	public Set<String> getTagIds() {
+		return this.tagIds;
+	}
+
+	public void setTagIds(@Nullable Set<String> tagIds) {
+		this.tagIds = tagIds;
 	}
 }
