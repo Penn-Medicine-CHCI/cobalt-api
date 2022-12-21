@@ -957,7 +957,7 @@ public class ContentService {
 
 			if (tagId == null)
 				continue;
-			
+
 			getDatabase().execute("""
 					INSERT INTO tag_content(tag_id, institution_id, content_id) 
 					VALUES (?,?,?)
@@ -1166,9 +1166,7 @@ public class ContentService {
 	public List<Content> findVisibleContentByInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return Collections.emptyList();
-
-		// Currently we don't have institution-specific tag groups.
-		// But this method accepts an institution ID in case we do in the future...
+		
 		List<Content> contents = getDatabase().queryForList("""
 				SELECT c.*		    
 				FROM content c, institution_content ic
