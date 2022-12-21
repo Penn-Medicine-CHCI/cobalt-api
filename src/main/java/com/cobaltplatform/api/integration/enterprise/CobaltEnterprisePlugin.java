@@ -19,13 +19,21 @@
 
 package com.cobaltplatform.api.integration.enterprise;
 
+import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.InstitutionService;
+import com.cobaltplatform.api.service.TagService;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
 
@@ -37,11 +45,22 @@ import static java.util.Objects.requireNonNull;
 public class CobaltEnterprisePlugin implements EnterprisePlugin {
 	@Nonnull
 	private final InstitutionService institutionService;
+	@Nonnull
+	private final ContentService contentService;
+	@Nonnull
+	private final TagService tagService;
 
 	@Inject
-	public CobaltEnterprisePlugin(@Nonnull InstitutionService institutionService) {
+	public CobaltEnterprisePlugin(@Nonnull InstitutionService institutionService,
+																@Nonnull ContentService contentService,
+																@Nonnull TagService tagService) {
 		requireNonNull(institutionService);
+		requireNonNull(contentService);
+		requireNonNull(tagService);
+
 		this.institutionService = institutionService;
+		this.contentService = contentService;
+		this.tagService = tagService;
 	}
 
 	@Nonnull
@@ -50,10 +69,28 @@ public class CobaltEnterprisePlugin implements EnterprisePlugin {
 		return InstitutionId.COBALT;
 	}
 
-	// No custom behavior for this institution
+	@NotNull
+	@Override
+	public List<Content> recommendedContentForAccountId(@Nullable UUID accountId) {
+		if (accountId == null)
+			return Collections.emptyList();
+
+		// Naive implementation for our COBALT institution - return all the content
+		return getContentService().findVisibleContentByInstitutionId(getInstitutionId());
+	}
 
 	@Nonnull
 	protected InstitutionService getInstitutionService() {
 		return this.institutionService;
+	}
+
+	@Nonnull
+	protected ContentService getContentService() {
+		return this.contentService;
+	}
+
+	@Nonnull
+	protected TagService getTagService() {
+		return this.tagService;
 	}
 }

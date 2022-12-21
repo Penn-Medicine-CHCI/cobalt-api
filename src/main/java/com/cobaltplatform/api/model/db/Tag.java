@@ -21,54 +21,67 @@ package com.cobaltplatform.api.model.db;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-
-import static java.lang.String.format;
+import java.time.Instant;
 
 /**
- * @author Transmogrify LLC.
+ * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class ContentType {
+public class Tag {
 	@Nullable
-	private ContentTypeId contentTypeId;
+	private String tagId;
+	@Nullable
+	private String tagGroupId;
+	@Nullable
+	private String name;
+	@Nullable
+	private String urlName;
 	@Nullable
 	private String description;
 	@Nullable
-	private String callToAction;
+	private Instant created;
 	@Nullable
-	private Boolean deleted;
+	private Instant lastUpdated;
 
-	public enum ContentTypeId {
-		@Deprecated
-		INT_BLOG,
-		@Deprecated
-		EXT_BLOG,
-		VIDEO,
-		@Deprecated
-		AUDIO,
-		ARTICLE,
-		WORKSHEET,
-		PODCAST,
-		APP
+	@Nullable
+	public String getTagId() {
+		return this.tagId;
 	}
 
-	@Override
-	public String toString() {
-		return format("%s{contentTypeId=%s, description=%s}", getClass().getSimpleName(), getContentTypeId(), getDescription());
+	public void setTagId(@Nullable String tagId) {
+		this.tagId = tagId;
 	}
 
 	@Nullable
-	public ContentTypeId getContentTypeId() {
-		return contentTypeId;
+	public String getTagGroupId() {
+		return this.tagGroupId;
 	}
 
-	public void setContentTypeId(@Nullable ContentTypeId contentTypeId) {
-		this.contentTypeId = contentTypeId;
+	public void setTagGroupId(@Nullable String tagGroupId) {
+		this.tagGroupId = tagGroupId;
+	}
+
+	@Nullable
+	public String getName() {
+		return this.name;
+	}
+
+	public void setName(@Nullable String name) {
+		this.name = name;
+	}
+
+	@Nullable
+	public String getUrlName() {
+		return this.urlName;
+	}
+
+	public void setUrlName(@Nullable String urlName) {
+		this.urlName = urlName;
 	}
 
 	@Nullable
 	public String getDescription() {
-		return description;
+		return this.description;
 	}
 
 	public void setDescription(@Nullable String description) {
@@ -76,20 +89,20 @@ public class ContentType {
 	}
 
 	@Nullable
-	public String getCallToAction() {
-		return callToAction;
+	public Instant getCreated() {
+		return this.created;
 	}
 
-	public void setCallToAction(@Nullable String callToAction) {
-		this.callToAction = callToAction;
+	public void setCreated(@Nullable Instant created) {
+		this.created = created;
 	}
 
 	@Nullable
-	public Boolean getDeleted() {
-		return this.deleted;
+	public Instant getLastUpdated() {
+		return this.lastUpdated;
 	}
 
-	public void setDeleted(@Nullable Boolean deleted) {
-		this.deleted = deleted;
+	public void setLastUpdated(@Nullable Instant lastUpdated) {
+		this.lastUpdated = lastUpdated;
 	}
 }

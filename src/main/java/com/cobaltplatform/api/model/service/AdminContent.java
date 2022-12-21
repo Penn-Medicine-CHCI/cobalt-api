@@ -22,12 +22,14 @@ package com.cobaltplatform.api.model.service;
 import com.cobaltplatform.api.model.db.ApprovalStatus;
 import com.cobaltplatform.api.model.db.ContentType;
 import com.cobaltplatform.api.model.db.Institution;
+import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.db.Visibility;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -75,6 +77,10 @@ public class AdminContent{
 	private ApprovalStatus.ApprovalStatusId ownerInstitutionApprovalStatusId;
 	@Nullable
 	private ApprovalStatus.ApprovalStatusId otherInstitutionApprovalStatusId;
+
+	// This is stored separately in the DB, but in practice it's needed everywhere we see content in the UI
+	@Nullable
+	private List<Tag> tags;
 
 	@Nonnull
 	public UUID getContentId() {
@@ -254,5 +260,14 @@ public class AdminContent{
 
 	public void setOtherInstitutionApprovalStatusId(@Nullable ApprovalStatus.ApprovalStatusId otherInstitutionApprovalStatusId) {
 		this.otherInstitutionApprovalStatusId = otherInstitutionApprovalStatusId;
+	}
+
+	@Nullable
+	public List<Tag> getTags() {
+		return this.tags;
+	}
+
+	public void setTags(@Nullable List<Tag> tags) {
+		this.tags = tags;
 	}
 }

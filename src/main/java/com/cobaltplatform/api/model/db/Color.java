@@ -25,45 +25,36 @@ import javax.annotation.concurrent.NotThreadSafe;
 import static java.lang.String.format;
 
 /**
- * @author Transmogrify LLC.
+ * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class ContentType {
+public class Color {
 	@Nullable
-	private ContentTypeId contentTypeId;
+	private ColorId colorId;
 	@Nullable
 	private String description;
-	@Nullable
-	private String callToAction;
-	@Nullable
-	private Boolean deleted;
 
-	public enum ContentTypeId {
-		@Deprecated
-		INT_BLOG,
-		@Deprecated
-		EXT_BLOG,
-		VIDEO,
-		@Deprecated
-		AUDIO,
-		ARTICLE,
-		WORKSHEET,
-		PODCAST,
-		APP
+	public enum ColorId {
+		BRAND_PRIMARY,
+		BRAND_ACCENT,
+		SEMANTIC_DANGER,
+		SEMANTIC_WARNING,
+		SEMANTIC_SUCCESS,
+		SEMANTIC_INFO
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{contentTypeId=%s, description=%s}", getClass().getSimpleName(), getContentTypeId(), getDescription());
+		return format("%s{colorId=%s, description=%s}", getClass().getSimpleName(), getColorId(), getDescription());
 	}
 
 	@Nullable
-	public ContentTypeId getContentTypeId() {
-		return contentTypeId;
+	public ColorId getColorId() {
+		return this.colorId;
 	}
 
-	public void setContentTypeId(@Nullable ContentTypeId contentTypeId) {
-		this.contentTypeId = contentTypeId;
+	public void setColorId(@Nullable ColorId colorId) {
+		this.colorId = colorId;
 	}
 
 	@Nullable
@@ -73,23 +64,5 @@ public class ContentType {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
-	}
-
-	@Nullable
-	public String getCallToAction() {
-		return callToAction;
-	}
-
-	public void setCallToAction(@Nullable String callToAction) {
-		this.callToAction = callToAction;
-	}
-
-	@Nullable
-	public Boolean getDeleted() {
-		return this.deleted;
-	}
-
-	public void setDeleted(@Nullable Boolean deleted) {
-		this.deleted = deleted;
 	}
 }

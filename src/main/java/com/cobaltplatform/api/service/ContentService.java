@@ -24,6 +24,7 @@ import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.CreateContentRequest;
+import com.cobaltplatform.api.model.api.request.FindResourceLibraryContentRequest;
 import com.cobaltplatform.api.model.api.request.PersonalizeAssessmentChoicesCommand;
 import com.cobaltplatform.api.model.api.request.PersonalizeAssessmentChoicesCommand.SubmissionAnswer;
 import com.cobaltplatform.api.model.api.request.UpdateContentApprovalStatusRequest;
@@ -36,14 +37,18 @@ import com.cobaltplatform.api.model.db.ApprovalStatus;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
 import com.cobaltplatform.api.model.db.AvailableStatus;
+import com.cobaltplatform.api.model.db.AvailableStatus.AvailableStatusId;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.ContentType;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
 import com.cobaltplatform.api.model.db.ContentTypeLabel;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.Tag;
+import com.cobaltplatform.api.model.db.TagContent;
 import com.cobaltplatform.api.model.db.Visibility;
 import com.cobaltplatform.api.model.service.AdminContent;
+import com.cobaltplatform.api.model.service.ContentDurationId;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.LinkGenerator;
@@ -58,6 +63,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
@@ -65,15 +71,19 @@ import java.time.LocalDate;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.model.db.ApprovalStatus.ApprovalStatusId;
 import static com.cobaltplatform.api.model.db.Role.RoleId;
 import static com.cobaltplatform.api.model.db.Visibility.VisibilityId;
+import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
 import static java.lang.String.format;
 import static java.util.Collections.emptyList;
@@ -87,7 +97,9 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
  */
 @Singleton
 public class ContentService {
-	private final int DEFAULT_PAGE_SIZE = 15;
+	@Nonnull
+	private static final int DEFAULT_PAGE_SIZE = 15;
+	private static final int MAXIMUM_PAGE_SIZE = 100;
 
 	@Nonnull
 	private final Database database;
@@ -104,6 +116,8 @@ public class ContentService {
 	@Nonnull
 	private final Provider<AssessmentService> assessmentServiceProvider;
 	@Nonnull
+	private final Provider<TagService> tagServiceProvider;
+	@Nonnull
 	private final Provider<EmailMessageManager> emailMessageManagerProvider;
 	@Nonnull
 	private final Provider<AccountService> accountServiceProvider;
@@ -112,10 +126,10 @@ public class ContentService {
 	@Nonnull
 	private final Provider<LinkGenerator> linkGeneratorProvider;
 
-
 	@Inject
 	public ContentService(@Nonnull Provider<CurrentContext> currentContextProvider,
 												@Nonnull Provider<AssessmentService> assessmentServiceProvider,
+												@Nonnull Provider<TagService> tagServiceProvider,
 												@Nonnull Provider<EmailMessageManager> emailMessageManagerProvider,
 												@Nonnull Provider<AccountService> accountServiceProvider,
 												@Nonnull Provider<Formatter> formatterProvider,
@@ -125,6 +139,12 @@ public class ContentService {
 												@Nonnull InstitutionService institutionService,
 												@Nonnull Strings strings) {
 		requireNonNull(currentContextProvider);
+		requireNonNull(assessmentServiceProvider);
+		requireNonNull(tagServiceProvider);
+		requireNonNull(emailMessageManagerProvider);
+		requireNonNull(accountServiceProvider);
+		requireNonNull(formatterProvider);
+		requireNonNull(linkGeneratorProvider);
 		requireNonNull(database);
 		requireNonNull(sessionService);
 		requireNonNull(institutionService);
@@ -133,6 +153,7 @@ public class ContentService {
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.database = database;
 		this.sessionService = sessionService;
+		this.tagServiceProvider = tagServiceProvider;
 		this.currentContextProvider = currentContextProvider;
 		this.institutionService = institutionService;
 		this.strings = strings;
@@ -167,6 +188,8 @@ public class ContentService {
 		if (content == null)
 			return Optional.empty();
 
+		applyTagsToContents(content, account.getInstitutionId());
+
 		return Optional.of(content);
 	}
 
@@ -179,7 +202,7 @@ public class ContentService {
 																													 @Nonnull Optional<VisibilityId> visibilityId,
 																													 @Nonnull Optional<ApprovalStatusId> myApprovalStatusId,
 																													 @Nonnull Optional<ApprovalStatusId> otherApprovalStatusId,
-																													 @Nonnull Optional<AvailableStatus.AvailableStatusId> availableStatusId,
+																													 @Nonnull Optional<AvailableStatusId> availableStatusId,
 																													 @Nonnull Optional<String> search) {
 		requireNonNull(myContent);
 		requireNonNull(account);
@@ -231,7 +254,7 @@ public class ContentService {
 				parameters.add(account.getInstitutionId());
 				if (availableStatusId.isPresent()) {
 					whereClause.append(" AND approved_flag = ? ");
-					parameters.add(availableStatusId.get() == AvailableStatus.AvailableStatusId.ADDED);
+					parameters.add(availableStatusId.get() == AvailableStatusId.ADDED);
 				}
 			} else {
 				whereClause.append("AND va.owner_institution_id != ? ");
@@ -242,7 +265,7 @@ public class ContentService {
 				parameters.add(account.getInstitutionId());
 				if (availableStatusId.isPresent()) {
 					whereClause.append("AND va.approved_flag = ? ");
-					parameters.add(availableStatusId.get() == AvailableStatus.AvailableStatusId.ADDED);
+					parameters.add(availableStatusId.get() == AvailableStatusId.ADDED);
 				}
 			}
 		}
@@ -270,7 +293,170 @@ public class ContentService {
 		parameters.add(offset);
 		List<AdminContent> content = getDatabase().queryForList(query, AdminContent.class, sqlVaragsParameters(parameters));
 		Integer totalCount = content.stream().filter(it -> it.getTotalCount() != null).mapToInt(AdminContent::getTotalCount).findFirst().orElse(0);
+
+		applyTagsToAdminContents(content, account.getInstitutionId());
+
 		return new FindResult<>(content, totalCount);
+	}
+
+	@Nonnull
+	public FindResult<Content> findResourceLibraryContent(@Nonnull FindResourceLibraryContentRequest request) {
+		requireNonNull(request);
+
+		InstitutionId institutionId = request.getInstitutionId();
+		String searchQuery = trimToNull(request.getSearchQuery());
+		Set<String> tagIds = request.getTagIds() == null ? Set.of() : request.getTagIds();
+		Set<ContentTypeId> contentTypeIds = request.getContentTypeIds() == null ? Set.of() : request.getContentTypeIds();
+		Set<ContentDurationId> contentDurationIds = request.getContentDurationIds() == null ? Set.of() : request.getContentDurationIds();
+		Integer pageNumber = request.getPageNumber();
+		Integer pageSize = request.getPageSize();
+		String tagGroupId = trimToNull(request.getTagGroupId());
+
+		searchQuery = trimToNull(searchQuery);
+
+		if (pageNumber == null || pageNumber < 0)
+			pageNumber = 0;
+
+		if (pageSize == null || pageSize <= 0)
+			pageSize = DEFAULT_PAGE_SIZE;
+		else if (pageSize > MAXIMUM_PAGE_SIZE)
+			pageSize = MAXIMUM_PAGE_SIZE;
+
+		Integer offset = pageNumber * pageSize;
+		Integer limit = pageSize;
+		List<String> fromClauseComponents = new ArrayList<>();
+		List<String> whereClauseComponents = new ArrayList<>();
+		List<Object> parameters = new ArrayList<>();
+
+		if (tagGroupId != null) {
+			fromClauseComponents.add("tag_content tc");
+			fromClauseComponents.add("tag t");
+
+			whereClauseComponents.add("AND tc.content_id=c.content_id");
+			whereClauseComponents.add("AND tc.institution_id=?");
+			whereClauseComponents.add("AND tc.tag_id=t.tag_id");
+			whereClauseComponents.add("AND t.tag_group_id=?");
+
+			parameters.add(institutionId);
+			parameters.add(tagGroupId);
+
+			if (tagIds.size() > 0) {
+				whereClauseComponents.add(format("AND tc.tag_id IN %s", sqlInListPlaceholders(tagIds)));
+				parameters.addAll(tagIds);
+			}
+		} else if (tagIds.size() > 0) {
+			fromClauseComponents.add("tag_content tc");
+
+			whereClauseComponents.add("AND tc.content_id=c.content_id");
+			whereClauseComponents.add("AND tc.institution_id=?");
+			whereClauseComponents.add(format("AND tc.tag_id IN %s", sqlInListPlaceholders(tagIds)));
+
+			parameters.add(institutionId);
+			parameters.addAll(tagIds);
+		}
+
+		// TODO: search over tag names (?)
+		if (searchQuery != null) {
+			whereClauseComponents.add("AND ((c.en_search_vector @@ websearch_to_tsquery('english', ?)) OR (c.title ILIKE CONCAT('%',?,'%') OR c.description ILIKE CONCAT('%',?,'%')))");
+			parameters.add(searchQuery);
+			parameters.add(searchQuery);
+			parameters.add(searchQuery);
+		}
+
+		if (contentTypeIds.size() > 0) {
+			whereClauseComponents.add(format("AND c.content_type_id IN %s", sqlInListPlaceholders(contentTypeIds)));
+			parameters.addAll(contentTypeIds);
+		}
+
+		if (contentDurationIds.size() > 0) {
+			List<String> durationClauses = new ArrayList<>(contentDurationIds.size());
+
+			if (contentDurationIds.contains(ContentDurationId.UNDER_FIVE_MINUTES))
+				durationClauses.add("(c.duration_in_minutes < 5)");
+			if (contentDurationIds.contains(ContentDurationId.BETWEEN_FIVE_AND_TEN_MINUTES))
+				durationClauses.add("(c.duration_in_minutes >= 5 AND c.duration_in_minutes <= 10)");
+			if (contentDurationIds.contains(ContentDurationId.BETWEEN_TEN_AND_THIRTY_MINUTES))
+				durationClauses.add("(c.duration_in_minutes >= 10 AND c.duration_in_minutes <= 30)");
+			if (contentDurationIds.contains(ContentDurationId.OVER_THIRTY_MINUTES))
+				durationClauses.add("(c.duration_in_minutes >= 31)");
+
+			whereClauseComponents.add(format("AND (%s)", durationClauses.stream().collect(Collectors.joining(" OR "))));
+		}
+
+		parameters.add(institutionId);
+		parameters.add(limit);
+		parameters.add(offset);
+
+		String sql = """
+				WITH base_query AS (
+				    SELECT DISTINCT
+				        c.*,
+				        ct.call_to_action,
+				        ctl.description AS content_type_label,
+				        ct.description AS content_type_description
+				    FROM
+				        content c,
+				        content_type ct,
+				        content_type_label ctl,
+				        institution_content ic
+				        {{fromClause}}
+				    WHERE 1=1
+				        {{whereClause}}
+				        AND c.content_type_id = ct.content_type_id
+				        AND c.content_type_label_id = ctl.content_type_label_id
+				        AND ic.content_id = c.content_id
+				        AND ic.institution_id = ?
+				        AND ic.approved_flag = TRUE
+				        AND c.deleted_flag = FALSE
+				        AND c.archived_flag = FALSE				        
+				),
+				total_count_query AS (
+				    SELECT
+				        COUNT(DISTINCT bq.content_id) AS total_count
+				    FROM
+				        base_query bq
+				)
+				SELECT
+				    bq.*,
+				    tcq.total_count
+				FROM
+				    base_query bq,
+				    total_count_query tcq
+				ORDER BY
+				    bq.last_updated DESC
+				LIMIT ?
+				OFFSET ?
+								"""
+				.replace("{{fromClause}}", fromClauseComponents.size() == 0 ? "" : ",\n" + fromClauseComponents.stream().collect(Collectors.joining(",\n")))
+				.replace("{{whereClause}}", whereClauseComponents.size() == 0 ? "" : "\n" + whereClauseComponents.stream().collect(Collectors.joining("\n")));
+
+		List<ContentWithTotalCount> contents = getDatabase().queryForList(sql, ContentWithTotalCount.class, sqlVaragsParameters(parameters));
+
+		applyTagsToContents(contents, institutionId);
+
+		Integer totalCount = contents.stream()
+				.filter(content -> content.getTotalCount() != null)
+				.mapToInt(ContentWithTotalCount::getTotalCount)
+				.findFirst()
+				.orElse(0);
+
+		FindResult<? extends Content> findResult = new FindResult<>(contents, totalCount);
+		return (FindResult<Content>) findResult;
+	}
+
+	@NotThreadSafe
+	protected static class ContentWithTotalCount extends Content {
+		@Nullable
+		private Integer totalCount;
+
+		@Nullable
+		public Integer getTotalCount() {
+			return this.totalCount;
+		}
+
+		public void setTotalCount(@Nullable Integer totalCount) {
+			this.totalCount = totalCount;
+		}
 	}
 
 	@Nonnull
@@ -283,7 +469,7 @@ public class ContentService {
 		requireNonNull(institutionId);
 		requireNonNull(contentId);
 
-		return getDatabase().queryForObject("SELECT va.*, " +
+		AdminContent adminContent = getDatabase().queryForObject("SELECT va.*, " +
 						"(select COUNT(*) FROM " +
 						" activity_tracking a WHERE " +
 						" va.content_id = CAST (a.context ->> 'contentId' AS UUID) AND " +
@@ -292,7 +478,12 @@ public class ContentService {
 						"FROM v_admin_content va " +
 						"WHERE va.content_id = ? " +
 						"AND va.institution_id = ? ",
-				AdminContent.class, contentId, institutionId);
+				AdminContent.class, contentId, institutionId).orElse(null);
+
+		if (adminContent != null)
+			applyTagsToAdminContent(adminContent, institutionId);
+
+		return Optional.ofNullable(adminContent);
 	}
 
 	@Nonnull
@@ -328,7 +519,7 @@ public class ContentService {
 
 	@Nonnull
 	public List<ContentType> findContentTypes() {
-		return getDatabase().queryForList("SELECT * FROM content_type ORDER BY description", ContentType.class);
+		return getDatabase().queryForList("SELECT * FROM content_type WHERE deleted=FALSE ORDER BY description", ContentType.class);
 	}
 
 	@Nonnull
@@ -438,6 +629,7 @@ public class ContentService {
 		VisibilityId visibilityCommand = command.getVisibilityId();
 		ContentTypeId contentTypeId = command.getContentTypeId();
 		String durationInMinutesString = trimToNull(command.getDurationInMinutes());
+		Set<String> tagIds = command.getTagIds() == null ? Set.of() : command.getTagIds();
 		ApprovalStatusId otherInstitutionsApprovalStatusId = ApprovalStatusId.PENDING;
 
 		PersonalizeAssessmentChoicesCommand contentTagCommand = command.getContentTags();
@@ -537,7 +729,20 @@ public class ContentService {
 			tagContent(contentId, contentTagChoices, false);
 		}
 
+		for (String tagId : tagIds) {
+			tagId = trimToNull(tagId);
+
+			if (tagId == null)
+				continue;
+
+			getDatabase().execute("""
+					INSERT INTO tag_content(tag_id, institution_id, content_id) 
+					VALUES (?,?,?)
+					""", tagId, account.getInstitutionId(), contentId);
+		}
+
 		AdminContent adminContent = findAdminContentByIdForInstitution(account.getInstitutionId(), contentId).get();
+		applyTagsToAdminContent(adminContent, account.getInstitutionId());
 		sendAdminNotification(account, adminContent);
 		return adminContent;
 	}
@@ -598,6 +803,7 @@ public class ContentService {
 		Boolean addToInstitution = command.getAddToInstitution() == null ? false : command.getAddToInstitution();
 		Boolean removeFromInstitution = command.getRemoveFromInstitution() == null ? false : command.getRemoveFromInstitution();
 		String durationInMinutesString = trimToNull(command.getDurationInMinutes());
+		Set<String> tagIds = command.getTagIds() == null ? Set.of() : command.getTagIds();
 		ApprovalStatusId otherInstitutionsApprovalStatusId = ApprovalStatusId.PENDING;
 		ApprovalStatusId ownerInstitutionsApprovalStatusId = ApprovalStatusId.APPROVED;
 
@@ -738,6 +944,26 @@ public class ContentService {
 			}
 		}
 
+		applyTagsToAdminContent(adminContent, account.getInstitutionId());
+
+		getDatabase().execute("""
+				DELETE FROM tag_content
+				WHERE content_id=?
+				AND institution_id=? 
+				""", command.getContentId(), account.getInstitutionId());
+
+		for (String tagId : tagIds) {
+			tagId = trimToNull(tagId);
+
+			if (tagId == null)
+				continue;
+
+			getDatabase().execute("""
+					INSERT INTO tag_content(tag_id, institution_id, content_id) 
+					VALUES (?,?,?)
+					""", tagId, account.getInstitutionId(), command.getContentId());
+		}
+
 		if (shouldNotify) {
 			sendAdminNotification(account, adminContent);
 		}
@@ -823,7 +1049,9 @@ public class ContentService {
 		List<Content> unfilteredContent = getDatabase().queryForList(unfilteredQuery.toString(),
 				Content.class, unfilteredParameters.toArray());
 
-		return (unfilteredContent);
+		applyTagsToContents(unfilteredContent, account.getInstitutionId());
+
+		return unfilteredContent;
 	}
 
 	@Nonnull
@@ -913,6 +1141,8 @@ public class ContentService {
 
 		content = getDatabase().queryForList(query.toString(), Content.class, parameters.toArray());
 
+		applyTagsToContents(content, account.getInstitutionId());
+
 		return content;
 	}
 
@@ -930,6 +1160,104 @@ public class ContentService {
 				return false;
 		} else
 			return false;
+	}
+
+	@Nonnull
+	public List<Content> findVisibleContentByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return Collections.emptyList();
+
+		List<Content> contents = getDatabase().queryForList("""
+				SELECT c.*		    
+				FROM content c, institution_content ic
+				WHERE c.content_id=ic.content_id
+				AND ic.approved_flag=TRUE
+				AND ic.institution_id=?
+								""", Content.class, institutionId);
+
+		applyTagsToContents(contents, institutionId);
+
+		return contents;
+	}
+
+	/**
+	 * Note: modifies {@code contents} parameter in-place.
+	 */
+	@Nonnull
+	protected void applyTagsToContents(@Nonnull List<? extends Content> contents,
+																		 @Nonnull InstitutionId institutionId) {
+		requireNonNull(contents);
+		requireNonNull(institutionId);
+
+		// Pull back all data up-front to avoid N+1 selects
+		Map<UUID, List<TagContent>> tagContentsByContentId = getTagService().findTagContentsByInstitutionId(institutionId).stream()
+				.collect(Collectors.groupingBy(TagContent::getContentId));
+		Map<String, Tag> tagsByTagId = getTagService().findTagsByInstitutionId(institutionId).stream()
+				.collect(Collectors.toMap(Tag::getTagId, Function.identity()));
+
+		for (Content content : contents) {
+			List<Tag> tags = Collections.emptyList();
+			List<TagContent> tagContents = tagContentsByContentId.get(content.getContentId());
+
+			if (tagContents != null)
+				tags = tagContents.stream()
+						.map(tagContent -> tagsByTagId.get(tagContent.getTagId()))
+						.collect(Collectors.toList());
+
+			content.setTags(tags);
+		}
+	}
+
+	/**
+	 * Note: modifies {@code content} parameter in-place.
+	 */
+	@Nonnull
+	protected <T extends Content> void applyTagsToContents(@Nonnull T content,
+																												 @Nonnull InstitutionId institutionId) {
+		requireNonNull(content);
+		requireNonNull(institutionId);
+
+		content.setTags(getTagService().findTagsByContentIdAndInstitutionId(content.getContentId(), institutionId));
+	}
+
+	/**
+	 * Note: modifies {@code contents} parameter in-place.
+	 */
+	@Nonnull
+	protected void applyTagsToAdminContents(@Nonnull List<? extends AdminContent> adminContents,
+																					@Nonnull InstitutionId institutionId) {
+		requireNonNull(adminContents);
+		requireNonNull(institutionId);
+
+		// Pull back all data up-front to avoid N+1 selects
+		Map<UUID, List<TagContent>> tagContentsByContentId = getTagService().findTagContentsByInstitutionId(institutionId).stream()
+				.collect(Collectors.groupingBy(TagContent::getContentId));
+		Map<String, Tag> tagsByTagId = getTagService().findTagsByInstitutionId(institutionId).stream()
+				.collect(Collectors.toMap(Tag::getTagId, Function.identity()));
+
+		for (AdminContent adminContent : adminContents) {
+			List<Tag> tags = Collections.emptyList();
+			List<TagContent> tagContents = tagContentsByContentId.get(adminContent.getContentId());
+
+			if (tagContents != null)
+				tags = tagContents.stream()
+						.map(tagContent -> tagsByTagId.get(tagContent.getTagId()))
+						.collect(Collectors.toList());
+
+			adminContent.setTags(tags);
+		}
+	}
+
+	/**
+	 * Note: modifies {@code content} parameter in-place.
+	 */
+	@Nonnull
+	protected <T extends AdminContent> void applyTagsToAdminContent(@Nonnull T adminContent,
+																																	@Nonnull InstitutionId institutionId) {
+		requireNonNull(adminContent);
+		requireNonNull(institutionId);
+
+		adminContent.setTags(getTagService().findTagsByContentIdAndInstitutionId(adminContent.getContentId(), institutionId));
 	}
 
 	@Nonnull
@@ -955,6 +1283,11 @@ public class ContentService {
 	@Nonnull
 	protected AssessmentService getAssessmentService() {
 		return assessmentServiceProvider.get();
+	}
+
+	@Nonnull
+	protected TagService getTagService() {
+		return this.tagServiceProvider.get();
 	}
 
 	@Nonnull

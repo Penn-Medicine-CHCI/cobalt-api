@@ -108,6 +108,8 @@ import com.cobaltplatform.api.model.api.response.ScreeningQuestionApiResponse.Sc
 import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SpecialtyApiResponse.SpecialtyApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TopicCenterApiResponse.TopicCenterApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TopicCenterRowApiResponse.TopicCenterRowApiResponseFactory;
@@ -255,6 +257,8 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(LanguageApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(InsuranceApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(AddressApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(TagApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(TagGroupApiResponseFactory.class)));
 	}
 
 	@Provides
