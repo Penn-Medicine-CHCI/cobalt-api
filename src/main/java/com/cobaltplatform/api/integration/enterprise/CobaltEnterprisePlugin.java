@@ -24,7 +24,6 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.TagService;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.Nonnull;
@@ -69,7 +68,7 @@ public class CobaltEnterprisePlugin implements EnterprisePlugin {
 		return InstitutionId.COBALT;
 	}
 
-	@NotNull
+	@Nonnull
 	@Override
 	public List<Content> recommendedContentForAccountId(@Nullable UUID accountId) {
 		if (accountId == null)
