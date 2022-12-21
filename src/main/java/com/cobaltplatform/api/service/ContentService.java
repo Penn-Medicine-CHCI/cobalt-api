@@ -1166,7 +1166,7 @@ public class ContentService {
 	public List<Content> findVisibleContentByInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return Collections.emptyList();
-		
+
 		List<Content> contents = getDatabase().queryForList("""
 				SELECT c.*		    
 				FROM content c, institution_content ic
