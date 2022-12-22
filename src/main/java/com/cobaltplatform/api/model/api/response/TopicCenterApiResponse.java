@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TopicCenterRowApiResponse.TopicCenterRowApiResponseFactory;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.db.TopicCenter;
 import com.cobaltplatform.api.model.service.TopicCenterRowDetail;
@@ -88,12 +89,14 @@ public class TopicCenterApiResponse {
 		requireNonNull(strings);
 		requireNonNull(topicCenter);
 
+		InstitutionId institutionId = currentContextProvider.get().getInstitutionId();
+
 		this.topicCenterId = topicCenter.getTopicCenterId();
 		this.name = topicCenter.getName();
 		this.description = topicCenter.getDescription();
 		this.urlName = topicCenter.getUrlName();
 
-		List<TopicCenterRowDetail> topicCenterRows = topicCenterService.findTopicCenterRowsByTopicCenterId(topicCenter.getTopicCenterId());
+		List<TopicCenterRowDetail> topicCenterRows = topicCenterService.findTopicCenterRowsByTopicCenterId(topicCenter.getTopicCenterId(), institutionId);
 
 		this.topicCenterRows = topicCenterRows.stream()
 				.map(topicCenterRowDetail -> topicCenterRowApiResponseFactory.create(topicCenterRowDetail))
@@ -101,7 +104,7 @@ public class TopicCenterApiResponse {
 
 		Map<String, TagApiResponse> tagsByTagId = new HashMap<>();
 
-		for (Tag tag : tagService.findTagsByInstitutionId(currentContextProvider.get().getInstitutionId()))
+		for (Tag tag : tagService.findTagsByInstitutionId(institutionId))
 			tagsByTagId.put(tag.getTagId(), tagApiResponseFactory.create(tag));
 
 		this.tagsByTagId = tagsByTagId;
