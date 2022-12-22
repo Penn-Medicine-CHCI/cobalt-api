@@ -21,6 +21,7 @@ package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.model.api.request.AccessTokenRequest;
 import com.cobaltplatform.api.model.api.request.AccountRoleRequest;
@@ -62,6 +63,8 @@ import com.cobaltplatform.api.model.api.response.InsuranceApiResponse;
 import com.cobaltplatform.api.model.api.response.InsuranceApiResponse.InsuranceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.LanguageApiResponse;
 import com.cobaltplatform.api.model.api.response.LanguageApiResponse.LanguageApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.TagApiResponse;
+import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
@@ -90,6 +93,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.LoginDestination.LoginDestinationId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
+import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
 import com.cobaltplatform.api.model.service.Region;
@@ -223,6 +227,8 @@ public class AccountResource {
 	private final AssessmentFormApiResponseFactory assessmentFormApiResponseFactory;
 	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
+	@Nonnull
+	private final TagApiResponseFactory tagApiResponseFactory;
 
 	@Inject
 	public AccountResource(@Nonnull AccountService accountService,
@@ -256,7 +262,8 @@ public class AccountResource {
 												 @Nonnull SessionService sessionService,
 												 @Nonnull AssessmentService assessmentService,
 												 @Nonnull AssessmentFormApiResponseFactory assessmentFormApiResponseFactory,
-												 @Nonnull EnterprisePluginProvider enterprisePluginProvider) {
+												 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
+												 @Nonnull TagApiResponseFactory tagApiResponseFactory) {
 		requireNonNull(accountService);
 		requireNonNull(groupSessionService);
 		requireNonNull(contentService);
@@ -288,6 +295,7 @@ public class AccountResource {
 		requireNonNull(assessmentService);
 		requireNonNull(assessmentFormApiResponseFactory);
 		requireNonNull(enterprisePluginProvider);
+		requireNonNull(tagApiResponseFactory);
 
 		this.accountService = accountService;
 		this.groupSessionService = groupSessionService;
@@ -322,6 +330,7 @@ public class AccountResource {
 		this.assessmentService = assessmentService;
 		this.assessmentFormApiResponseFactory = assessmentFormApiResponseFactory;
 		this.enterprisePluginProvider = enterprisePluginProvider;
+		this.tagApiResponseFactory = tagApiResponseFactory;
 	}
 
 	@Nonnull
@@ -488,7 +497,9 @@ public class AccountResource {
 
 		final int MAXIMUM_CONTENTS = 12;
 
-		List<Content> contents = getContentService().findContentForAccount(account);
+		// Delegate content recommendations to enterprise plugin
+		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(account.getInstitutionId());
+		List<Content> contents = enterprisePlugin.recommendedContentForAccountId(account.getAccountId());
 
 		// Don't show too many content pieces
 		if (contents.size() > MAXIMUM_CONTENTS)
@@ -496,6 +507,20 @@ public class AccountResource {
 		else if (contents.size() < MAXIMUM_CONTENTS) {
 			contents.addAll(getContentService().findAdditionalContentForAccount(account, contents));
 			contents = contents.subList(0, min(contents.size(), MAXIMUM_CONTENTS));
+		}
+
+		// Pick out tags in the content
+		Set<String> tagGroupIds = new HashSet<>();
+		Map<String, TagApiResponse> tagsByTagId = new HashMap<>();
+
+		for (Content content : contents) {
+			for (Tag tag : content.getTags()) {
+				if (tagsByTagId.containsKey(tag.getTagId()))
+					continue;
+
+				tagGroupIds.add(tag.getTagGroupId());
+				tagsByTagId.put(tag.getTagId(), getTagApiResponseFactory().create(tag));
+			}
 		}
 
 		List<ContentApiResponse> contentApiResponses = contents.stream()
@@ -512,6 +537,7 @@ public class AccountResource {
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("contents", contentApiResponses);
+			put("tagsByTagId", tagsByTagId);
 			put("groupSessions", groupSessionApiResponses);
 			put("groupSessionRequests", groupSessionRequestApiResponses);
 		}});
@@ -1281,5 +1307,10 @@ public class AccountResource {
 	@Nonnull
 	protected EnterprisePluginProvider getEnterprisePluginProvider() {
 		return this.enterprisePluginProvider;
+	}
+
+	@Nonnull
+	protected TagApiResponseFactory getTagApiResponseFactory() {
+		return this.tagApiResponseFactory;
 	}
 }

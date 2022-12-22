@@ -40,6 +40,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
+import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -60,17 +61,22 @@ public class TopicCenterService {
 	@Nonnull
 	private final Database database;
 	@Nonnull
+	private final Provider<ContentService> contentServiceProvider;
+	@Nonnull
 	private final Strings strings;
 	@Nonnull
 	private final Logger logger;
 
 	@Inject
 	public TopicCenterService(@Nonnull Database database,
+														@Nonnull Provider<ContentService> contentServiceProvider,
 														@Nonnull Strings strings) {
 		requireNonNull(database);
+		requireNonNull(contentServiceProvider);
 		requireNonNull(strings);
 
 		this.database = database;
+		this.contentServiceProvider = contentServiceProvider;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
@@ -136,8 +142,9 @@ public class TopicCenterService {
 	}
 
 	@Nonnull
-	public List<TopicCenterRowDetail> findTopicCenterRowsByTopicCenterId(@Nullable UUID topicCenterId) {
-		if (topicCenterId == null)
+	public List<TopicCenterRowDetail> findTopicCenterRowsByTopicCenterId(@Nullable UUID topicCenterId,
+																																			 @Nullable InstitutionId institutionId) {
+		if (topicCenterId == null || institutionId == null)
 			return Collections.emptyList();
 
 		List<TopicCenterRowDetail> topicCenterRows = getDatabase().queryForList("""
@@ -190,6 +197,8 @@ public class TopicCenterService {
 				AND tcrc.content_id=c.content_id
 				ORDER BY tcr.display_order, tcrc.display_order
 				""", ContentTopicCenterRow.class, topicCenterId);
+
+		getContentService().applyTagsToContents(contentTopicCenterRows, institutionId);
 
 		for (TopicCenterRowDetail topicCenterRow : topicCenterRows) {
 			topicCenterRow.setGroupSessions(new ArrayList<>());
@@ -291,6 +300,11 @@ public class TopicCenterService {
 	@Nonnull
 	protected Strings getStrings() {
 		return strings;
+	}
+
+	@Nonnull
+	protected ContentService getContentService() {
+		return this.contentServiceProvider.get();
 	}
 
 	@Nonnull
