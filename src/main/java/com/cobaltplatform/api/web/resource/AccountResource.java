@@ -150,7 +150,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static java.lang.Math.min;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -504,10 +503,6 @@ public class AccountResource {
 		// Don't show too many content pieces
 		if (contents.size() > MAXIMUM_CONTENTS)
 			contents = contents.subList(0, MAXIMUM_CONTENTS /* exclusive */);
-		else if (contents.size() < MAXIMUM_CONTENTS) {
-			contents.addAll(getContentService().findAdditionalContentForAccount(account, contents));
-			contents = contents.subList(0, min(contents.size(), MAXIMUM_CONTENTS));
-		}
 
 		// Pick out tags in the content
 		Set<String> tagGroupIds = new HashSet<>();
