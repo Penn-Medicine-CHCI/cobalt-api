@@ -29,8 +29,11 @@ import javax.annotation.Nonnull;
  */
 public interface MicrosoftAuthenticator {
 	@Nonnull
-	String generateAuthenticationRedirectUrl(@Nonnull AuthenticationRedirectRequest request);
+	String generateAuthenticationUrl(@Nonnull AuthenticationRedirectRequest request);
 
 	@Nonnull
 	MicrosoftAccessToken obtainAccessTokenFromCode(@Nonnull AccessTokenRequest request) throws MicrosoftException;
+
+	@Nonnull
+	String generateClientAssertionJwt();
 }

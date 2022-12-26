@@ -19,7 +19,7 @@
 
 package com.cobaltplatform.api.util;
 
-import org.apache.commons.codec.digest.DigestUtils;
+import com.google.common.io.BaseEncoding;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -38,6 +38,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -304,13 +305,14 @@ public final class CryptoUtility {
 			CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
 			X509Certificate x509Certificate = (X509Certificate) certificateFactory.generateCertificate(is);
 
-			// Output should match this openssl command (not including : characters)
-			// % openssl x509 -in cobalt.epic.nonprod.crt -noout -fingerprint
-			// SHA1 Fingerprint=F8:99:26:90:36:B9:B4:D8:2A:DA:EE:DA:34:91:2F:EC:C2:93:11:65
-			return DigestUtils.sha1Hex(x509Certificate.getEncoded());
+			MessageDigest messageDigest = MessageDigest.getInstance("SHA-1");
+			messageDigest.update(x509Certificate.getEncoded());
+			byte[] sha1Thumbprint = messageDigest.digest();
+
+			return BaseEncoding.base64Url().encode(sha1Thumbprint);
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
-		} catch (CertificateException e) {
+		} catch (CertificateException | NoSuchAlgorithmException e) {
 			throw new RuntimeException(e);
 		}
 	}

@@ -30,10 +30,6 @@ import javax.annotation.concurrent.Immutable;
 @Immutable
 public class AuthenticationRedirectRequest {
 	@Nullable
-	private String tenant;
-	@Nullable
-	private String clientId;
-	@Nullable
 	private String responseType;
 	@Nullable
 	private String redirectUri;
@@ -53,24 +49,6 @@ public class AuthenticationRedirectRequest {
 	private String codeChallenge;
 	@Nullable
 	private String codeChallengeMethod;
-
-	@Nullable
-	public String getTenant() {
-		return this.tenant;
-	}
-
-	public void setTenant(@Nullable String tenant) {
-		this.tenant = tenant;
-	}
-
-	@Nullable
-	public String getClientId() {
-		return this.clientId;
-	}
-
-	public void setClientId(@Nullable String clientId) {
-		this.clientId = clientId;
-	}
 
 	@Nullable
 	public String getResponseType() {

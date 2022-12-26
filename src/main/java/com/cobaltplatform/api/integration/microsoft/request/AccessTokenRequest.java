@@ -30,10 +30,6 @@ import javax.annotation.concurrent.Immutable;
 @Immutable
 public class AccessTokenRequest {
 	@Nullable
-	private String tenant;
-	@Nullable
-	private String clientId;
-	@Nullable
 	private String scope;
 	@Nullable
 	private String code;
@@ -45,24 +41,10 @@ public class AccessTokenRequest {
 	private String codeVerifier;
 	@Nullable
 	private String clientSecret;
-
 	@Nullable
-	public String getTenant() {
-		return this.tenant;
-	}
-
-	public void setTenant(@Nullable String tenant) {
-		this.tenant = tenant;
-	}
-
+	private String clientAssertion;
 	@Nullable
-	public String getClientId() {
-		return this.clientId;
-	}
-
-	public void setClientId(@Nullable String clientId) {
-		this.clientId = clientId;
-	}
+	private String clientAssertionType;
 
 	@Nullable
 	public String getScope() {
@@ -116,5 +98,23 @@ public class AccessTokenRequest {
 
 	public void setClientSecret(@Nullable String clientSecret) {
 		this.clientSecret = clientSecret;
+	}
+
+	@Nullable
+	public String getClientAssertion() {
+		return this.clientAssertion;
+	}
+
+	public void setClientAssertion(@Nullable String clientAssertion) {
+		this.clientAssertion = clientAssertion;
+	}
+
+	@Nullable
+	public String getClientAssertionType() {
+		return this.clientAssertionType;
+	}
+
+	public void setClientAssertionType(@Nullable String clientAssertionType) {
+		this.clientAssertionType = clientAssertionType;
 	}
 }

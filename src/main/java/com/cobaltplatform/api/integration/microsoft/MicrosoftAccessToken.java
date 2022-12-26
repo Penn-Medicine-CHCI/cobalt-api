@@ -30,9 +30,6 @@ import javax.annotation.concurrent.NotThreadSafe;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -55,29 +52,32 @@ public class MicrosoftAccessToken {
 
 	@Nonnull
 	private final String accessToken;
+	@Nullable
+	private final String idToken;
 	@Nonnull
 	private final String tokenType;
 	@Nonnull
 	private final Instant expiresAt;
+	@Nullable
+	private final Instant extExpiresAt;
 	@Nonnull
 	private final String state;
 	@Nullable
 	private final String scope;
 	@Nullable
 	private final String refreshToken;
-	@Nonnull
-	private final Map<String, Object> metadata;
 
 	protected MicrosoftAccessToken(@Nonnull Builder builder) {
 		requireNonNull(builder);
 
 		this.accessToken = builder.accessToken;
+		this.idToken = builder.idToken;
 		this.tokenType = builder.tokenType;
 		this.expiresAt = builder.expiresAt;
+		this.extExpiresAt = builder.extExpiresAt;
 		this.state = builder.state;
 		this.scope = builder.scope;
 		this.refreshToken = builder.refreshToken;
-		this.metadata = builder.metadata == null ? Collections.emptyMap() : Collections.unmodifiableMap(new HashMap<>(builder.metadata));
 	}
 
 	@Nonnull
@@ -87,18 +87,18 @@ public class MicrosoftAccessToken {
 	}
 
 	@Nonnull
-	public static MicrosoftAccessToken deserialize(@Nonnull String serializedMyChartAccessToken) {
-		requireNonNull(serializedMyChartAccessToken);
+	public static MicrosoftAccessToken deserialize(@Nonnull String serializedMicrosoftAccessToken) {
+		requireNonNull(serializedMicrosoftAccessToken);
 
-		String json = new String(Base64.getDecoder().decode(serializedMyChartAccessToken), StandardCharsets.UTF_8);
+		String json = new String(Base64.getDecoder().decode(serializedMicrosoftAccessToken), StandardCharsets.UTF_8);
 		return GSON.fromJson(json, MicrosoftAccessToken.class);
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{accessToken=%s, tokenType=%s, expiresAt=%s, scope=%s, refreshToken=%s, state=%s, metadata=%s}",
-				getClass().getSimpleName(), getAccessToken(), getTokenType(), getExpiresAt(),
-				getScope(), getRefreshToken(), getState(), getMetadata());
+		return format("%s{accessToken=%s, idToken=%s, tokenType=%s, expiresAt=%s, extExpiresAt=%s, scope=%s, refreshToken=%s, state=%s}",
+				getClass().getSimpleName(), getAccessToken(), getIdToken(), getTokenType(), getExpiresAt(), getExtExpiresAt(),
+				getScope(), getRefreshToken(), getState());
 	}
 
 	@Override
@@ -109,23 +109,30 @@ public class MicrosoftAccessToken {
 		if (other == null || !getClass().equals(other.getClass()))
 			return false;
 
-		MicrosoftAccessToken otherMyChartAccessToken = (MicrosoftAccessToken) other;
-		return Objects.equals(this.getAccessToken(), otherMyChartAccessToken.getAccessToken())
-				&& Objects.equals(this.getTokenType(), otherMyChartAccessToken.getTokenType())
-				&& Objects.equals(this.getExpiresAt(), otherMyChartAccessToken.getExpiresAt())
-				&& Objects.equals(this.getState(), otherMyChartAccessToken.getState())
-				&& Objects.equals(this.getScope(), otherMyChartAccessToken.getScope())
-				&& Objects.equals(this.getRefreshToken(), otherMyChartAccessToken.getRefreshToken());
+		MicrosoftAccessToken otherMicrosoftAccessToken = (MicrosoftAccessToken) other;
+		return Objects.equals(this.getAccessToken(), otherMicrosoftAccessToken.getAccessToken())
+				&& Objects.equals(this.getIdToken(), otherMicrosoftAccessToken.getIdToken())
+				&& Objects.equals(this.getTokenType(), otherMicrosoftAccessToken.getTokenType())
+				&& Objects.equals(this.getExpiresAt(), otherMicrosoftAccessToken.getExpiresAt())
+				&& Objects.equals(this.getExtExpiresAt(), otherMicrosoftAccessToken.getExtExpiresAt())
+				&& Objects.equals(this.getState(), otherMicrosoftAccessToken.getState())
+				&& Objects.equals(this.getScope(), otherMicrosoftAccessToken.getScope())
+				&& Objects.equals(this.getRefreshToken(), otherMicrosoftAccessToken.getRefreshToken());
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(getAccessToken(), getTokenType(), getExpiresAt(), getState(), getScope(), getRefreshToken());
+		return Objects.hash(getAccessToken(), getIdToken(), getTokenType(), getExpiresAt(), getExtExpiresAt(), getState(), getScope(), getRefreshToken());
 	}
 
 	@Nonnull
 	public String getAccessToken() {
 		return this.accessToken;
+	}
+
+	@Nonnull
+	public Optional<String> getIdToken() {
+		return Optional.ofNullable(this.idToken);
 	}
 
 	@Nonnull
@@ -136,6 +143,11 @@ public class MicrosoftAccessToken {
 	@Nonnull
 	public Instant getExpiresAt() {
 		return this.expiresAt;
+	}
+
+	@Nonnull
+	public Optional<Instant> getExtExpiresAt() {
+		return Optional.ofNullable(this.extExpiresAt);
 	}
 
 	@Nonnull
@@ -153,11 +165,6 @@ public class MicrosoftAccessToken {
 		return Optional.ofNullable(this.refreshToken);
 	}
 
-	@Nonnull
-	public Map<String, Object> getMetadata() {
-		return this.metadata;
-	}
-
 	@NotThreadSafe
 	public static class Builder {
 		@Nonnull
@@ -167,13 +174,15 @@ public class MicrosoftAccessToken {
 		@Nonnull
 		private final Instant expiresAt;
 		@Nullable
+		private Instant extExpiresAt;
+		@Nullable
 		private String state;
 		@Nullable
 		private String scope;
 		@Nullable
 		private String refreshToken;
 		@Nullable
-		private Map<String, Object> metadata;
+		private String idToken;
 
 		public Builder(@Nonnull String accessToken,
 									 @Nonnull String tokenType,
@@ -206,8 +215,14 @@ public class MicrosoftAccessToken {
 		}
 
 		@Nonnull
-		public Builder metadata(@Nullable Map<String, Object> metadata) {
-			this.metadata = metadata;
+		public Builder idToken(@Nullable String idToken) {
+			this.idToken = idToken;
+			return this;
+		}
+
+		@Nonnull
+		public Builder extExpiresAt(@Nullable Instant extExpiresAt) {
+			this.extExpiresAt = extExpiresAt;
 			return this;
 		}
 

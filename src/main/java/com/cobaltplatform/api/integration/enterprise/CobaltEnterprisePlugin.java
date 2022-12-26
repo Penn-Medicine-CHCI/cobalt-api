@@ -19,7 +19,12 @@
 
 package com.cobaltplatform.api.integration.enterprise;
 
+import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.integration.microsoft.DefaultMicrosoftAuthenticator;
+import com.cobaltplatform.api.integration.microsoft.MicrosoftAuthenticator;
+import com.cobaltplatform.api.integration.microsoft.MicrosoftClient;
 import com.cobaltplatform.api.model.db.Content;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.InstitutionService;
@@ -32,6 +37,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -48,18 +54,23 @@ public class CobaltEnterprisePlugin implements EnterprisePlugin {
 	private final ContentService contentService;
 	@Nonnull
 	private final TagService tagService;
+	@Nonnull
+	private final Configuration configuration;
 
 	@Inject
 	public CobaltEnterprisePlugin(@Nonnull InstitutionService institutionService,
 																@Nonnull ContentService contentService,
-																@Nonnull TagService tagService) {
+																@Nonnull TagService tagService,
+																@Nonnull Configuration configuration) {
 		requireNonNull(institutionService);
 		requireNonNull(contentService);
 		requireNonNull(tagService);
+		requireNonNull(configuration);
 
 		this.institutionService = institutionService;
 		this.contentService = contentService;
 		this.tagService = tagService;
+		this.configuration = configuration;
 	}
 
 	@Nonnull
@@ -79,6 +90,26 @@ public class CobaltEnterprisePlugin implements EnterprisePlugin {
 	}
 
 	@Nonnull
+	@Override
+	public Optional<MicrosoftAuthenticator> microsoftAuthenticator() {
+		Institution institution = getInstitutionService().findInstitutionById(getInstitutionId()).get();
+
+		if (institution.getMicrosoftTenantId() == null || institution.getMicrosoftClientId() == null)
+			return Optional.empty();
+
+		return Optional.of(new DefaultMicrosoftAuthenticator(
+				institution.getMicrosoftTenantId(),
+				institution.getMicrosoftClientId(),
+				getConfiguration().getEpicNonProdKeyPair()));
+	}
+
+	@Nonnull
+	@Override
+	public Optional<MicrosoftClient> microsoftClient() {
+		return Optional.empty();
+	}
+
+	@Nonnull
 	protected InstitutionService getInstitutionService() {
 		return this.institutionService;
 	}
@@ -91,5 +122,10 @@ public class CobaltEnterprisePlugin implements EnterprisePlugin {
 	@Nonnull
 	protected TagService getTagService() {
 		return this.tagService;
+	}
+
+	@Nonnull
+	protected Configuration getConfiguration() {
+		return this.configuration;
 	}
 }
