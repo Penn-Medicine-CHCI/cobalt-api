@@ -19,6 +19,9 @@
 
 package com.cobaltplatform.api.integration.epic;
 
+import com.cobaltplatform.api.integration.epic.request.AppointmentBookFhirStu3Request;
+import com.cobaltplatform.api.integration.epic.request.AppointmentFindFhirStu3Request;
+import com.cobaltplatform.api.integration.epic.request.AppointmentSearchFhirStu3Request;
 import com.cobaltplatform.api.integration.epic.request.CancelAppointmentRequest;
 import com.cobaltplatform.api.integration.epic.request.GetPatientAppointmentsRequest;
 import com.cobaltplatform.api.integration.epic.request.GetPatientDemographicsRequest;
@@ -26,12 +29,15 @@ import com.cobaltplatform.api.integration.epic.request.GetProviderScheduleReques
 import com.cobaltplatform.api.integration.epic.request.PatientCreateRequest;
 import com.cobaltplatform.api.integration.epic.request.PatientSearchRequest;
 import com.cobaltplatform.api.integration.epic.request.ScheduleAppointmentWithInsuranceRequest;
+import com.cobaltplatform.api.integration.epic.response.AppointmentBookFhirStu3Response;
+import com.cobaltplatform.api.integration.epic.response.AppointmentFindFhirStu3Response;
+import com.cobaltplatform.api.integration.epic.response.AppointmentSearchFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.CancelAppointmentResponse;
 import com.cobaltplatform.api.integration.epic.response.GetPatientAppointmentsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetPatientDemographicsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse;
 import com.cobaltplatform.api.integration.epic.response.PatientCreateResponse;
-import com.cobaltplatform.api.integration.epic.response.PatientFhirR4Response;
+import com.cobaltplatform.api.integration.epic.response.PatientReadFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse;
 import com.cobaltplatform.api.integration.epic.response.ScheduleAppointmentWithInsuranceResponse;
 
@@ -49,8 +55,82 @@ import static java.util.Objects.requireNonNull;
  */
 @ThreadSafe
 public interface EpicClient {
+	/**
+	 * <a href="https://fhir.epic.com/Specifications?api=931">FHIR Patient.Read (R4)</a>
+	 * <p>
+	 * The FHIR Patient resource defines demographics, care providers, and other administrative information about a person
+	 * receiving care at a health organization.
+	 * <p>
+	 * A user or staff member accessing this FHIR resource must have appropriate security to have search details,
+	 * demographic details, and/or PCP details included in the Patient resource.
+	 * <p>
+	 * A MyChart user accessing this FHIR resource must be authorized to view patient information in MyChart.
+	 * Additionally, this FHIR resource returns patient identifiers only to MyChart users with security to see patient
+	 * IDs.
+	 * <p>
+	 * Additionally, if an Epic organization has configured service area restrictions, the user accessing this FHIR
+	 * resource must be authorized to view patients in the target service area.
+	 * <p>
+	 * This API may behave differently when used in a patient-facing context. See the
+	 * <a href="https://fhir.epic.com/Documentation?docId=patientfacingfhirapps">Patient-Facing Apps Using FHIR document</a>
+	 * for more information.
+	 *
+	 * @param patientId The patient FHIR ID
+	 * @return the patient, or an empty value if none was found for the given FHIR ID
+	 */
 	@Nonnull
-	Optional<PatientFhirR4Response> findPatientFhirR4(@Nullable String patientId);
+	Optional<PatientReadFhirR4Response> patientReadFhirR4(@Nullable String patientId);
+
+	/**
+	 * <a href="https://fhir.epic.com/Specifications?api=840">FHIR Appointment $find (STU3)</a>
+	 * <p>
+	 * The FHIR Appointment $find operation finds a list of potential appointments slots.
+	 * The Appointment IDs in the returned list can be used by the Appointment $book operation to schedule that
+	 * appointment.
+	 * <p>
+	 * A typical workflow would involve an end user, who is intending to book an appointment for patient, entering in some
+	 * basic criteria, such as when the appointment would occur, what specialty or visit type is desired, and optional
+	 * information about the patient, such as date of birth, sex, or any provider preferences the patient has.
+	 * The user app would then collect those criteria and submit them using the $find operation.
+	 * The scheduling system would use organization-defined rules to identify potential appointments slots, and returns
+	 * those for the user to review. The user would review the possible options, and in collaboration with the patient,
+	 * select the best option. For new patients, the app would perform a Patient.Create interaction.
+	 * The app would then book the appointment using the $book operation.
+	 * <p>
+	 * Note: The $find operation requires pre-coordination with the healthcare organization.
+	 * The organization must build out specific rules in the Cadence scheduling system that accept the provided inputs
+	 * and determine which providers and slots will be returned. The request elements described here are the list of
+	 * *potential* elements that might be used by an organizations scheduling rules. Some organizations may ignore or
+	 * require any of these properties based on their organizational rules.
+	 *
+	 * @param request data to send in the request
+	 * @return the Epic response data
+	 */
+	@Nonnull
+	AppointmentFindFhirStu3Response appointmentFindFhirStu3(@Nonnull AppointmentFindFhirStu3Request request);
+
+	/**
+	 * <a href="https://fhir.epic.com/Specifications?api=839">FHIR Appointment $book (STU3)</a>
+	 * <p>
+	 *
+	 * @param request data to send in the request
+	 * @return the Epic response data
+	 */
+	@Nonnull
+	AppointmentBookFhirStu3Response appointmentBookFhirStu3(@Nonnull AppointmentBookFhirStu3Request request);
+
+	/**
+	 * <a href="https://fhir.epic.com/Specifications?api=10189">FHIR Appointment.Search (STU3)</a>
+	 * <p>
+	 * This web service allows searching for appointments and returns up-to-date appointment information.
+	 * It includes appointments scheduled in Epic using Cadence, OpTime, Cupid, or Radiant workflows, but it does not
+	 * include external appointments, appointment requests, or surgical procedures.
+	 *
+	 * @param request data to send in the request
+	 * @return the Epic response data
+	 */
+	@Nonnull
+	AppointmentSearchFhirStu3Response appointmentSearchFhirStu3(@Nonnull AppointmentSearchFhirStu3Request request);
 
 	@Nonnull
 	PatientSearchResponse performPatientSearch(@Nonnull PatientSearchRequest request);

@@ -24,6 +24,9 @@ import com.cobaltplatform.api.http.HttpClient;
 import com.cobaltplatform.api.http.HttpMethod;
 import com.cobaltplatform.api.http.HttpRequest;
 import com.cobaltplatform.api.http.HttpResponse;
+import com.cobaltplatform.api.integration.epic.request.AppointmentBookFhirStu3Request;
+import com.cobaltplatform.api.integration.epic.request.AppointmentFindFhirStu3Request;
+import com.cobaltplatform.api.integration.epic.request.AppointmentSearchFhirStu3Request;
 import com.cobaltplatform.api.integration.epic.request.CancelAppointmentRequest;
 import com.cobaltplatform.api.integration.epic.request.GetPatientAppointmentsRequest;
 import com.cobaltplatform.api.integration.epic.request.GetPatientDemographicsRequest;
@@ -31,12 +34,15 @@ import com.cobaltplatform.api.integration.epic.request.GetProviderScheduleReques
 import com.cobaltplatform.api.integration.epic.request.PatientCreateRequest;
 import com.cobaltplatform.api.integration.epic.request.PatientSearchRequest;
 import com.cobaltplatform.api.integration.epic.request.ScheduleAppointmentWithInsuranceRequest;
+import com.cobaltplatform.api.integration.epic.response.AppointmentBookFhirStu3Response;
+import com.cobaltplatform.api.integration.epic.response.AppointmentFindFhirStu3Response;
+import com.cobaltplatform.api.integration.epic.response.AppointmentSearchFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.CancelAppointmentResponse;
 import com.cobaltplatform.api.integration.epic.response.GetPatientAppointmentsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetPatientDemographicsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse;
 import com.cobaltplatform.api.integration.epic.response.PatientCreateResponse;
-import com.cobaltplatform.api.integration.epic.response.PatientFhirR4Response;
+import com.cobaltplatform.api.integration.epic.response.PatientReadFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse;
 import com.cobaltplatform.api.integration.epic.response.ScheduleAppointmentWithInsuranceResponse;
 import com.cobaltplatform.api.util.Normalizer;
@@ -62,17 +68,22 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -122,7 +133,7 @@ public class DefaultEpicClient implements EpicClient {
 
 	@Nonnull
 	@Override
-	public Optional<PatientFhirR4Response> findPatientFhirR4(@Nullable String patientId) {
+	public Optional<PatientReadFhirR4Response> patientReadFhirR4(@Nullable String patientId) {
 		patientId = trimToNull(patientId);
 
 		if (patientId == null)
@@ -131,7 +142,8 @@ public class DefaultEpicClient implements EpicClient {
 		HttpMethod httpMethod = HttpMethod.GET;
 		String url = format("api/FHIR/R4/Patient/%s", patientId);
 
-		// TODO: handle "not found" case (HTTP 400, response body below)
+		// TODO: handle "not found" case
+		//
 		// {
 		//    "resourceType": "OperationOutcome",
 		//    "issue": [
@@ -158,14 +170,528 @@ public class DefaultEpicClient implements EpicClient {
 		//        }
 		//    ]
 		// }
-		Function<String, Optional<PatientFhirR4Response>> responseBodyMapper = (responseBody) -> {
-			PatientFhirR4Response response = getGson().fromJson(responseBody, PatientFhirR4Response.class);
+
+		Function<String, Optional<PatientReadFhirR4Response>> responseBodyMapper = (responseBody) -> {
+			PatientReadFhirR4Response response = getGson().fromJson(responseBody, PatientReadFhirR4Response.class);
 			response.setRawJson(responseBody.trim());
 
 			return Optional.of(response);
 		};
 
-		ApiCall<Optional<PatientFhirR4Response>> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+		ApiCall<Optional<PatientReadFhirR4Response>> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+				.build();
+
+		return makeApiCall(apiCall);
+	}
+
+	@Nonnull
+	@Override
+	public AppointmentFindFhirStu3Response appointmentFindFhirStu3(@Nonnull AppointmentFindFhirStu3Request request) {
+		requireNonNull(request);
+
+		HttpMethod httpMethod = HttpMethod.POST;
+		String url = "api/FHIR/STU3/Appointment/$find";
+
+		String patient = trimToNull(request.getPatient());
+		LocalDateTime startTime = request.getStartTime();
+		LocalDateTime endTime = request.getEndTime();
+		List<AppointmentFindFhirStu3Request.Coding> serviceTypes = request.getServiceTypes() == null ? Collections.emptyList() : request.getServiceTypes();
+		String serviceTypesText = trimToNull(request.getServiceTypesText());
+		List<AppointmentFindFhirStu3Request.Coding> indications = request.getIndications() == null ? Collections.emptyList() : request.getIndications();
+		String indicationsText = trimToNull(request.getIndicationsText());
+		List<AppointmentFindFhirStu3Request.Coding> specialities = request.getSpecialities() == null ? Collections.emptyList() : request.getSpecialities();
+		String specialitiesText = trimToNull(request.getSpecialitiesText());
+		String locationReference = trimToNull(request.getLocationReference());
+		List<AppointmentFindFhirStu3Request.ValueTiming> timesOfDay = request.getTimesOfDay() == null ? Collections.emptyList() : request.getTimesOfDay();
+
+		// e.g. 2018-07-30T18:15:50Z
+		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ISO_INSTANT;
+		// e.g. 02:00:00
+		DateTimeFormatter timeOfDayFormatter = DateTimeFormatter.ofPattern("HH:mm:ss", Locale.US);
+
+		List<Map<String, Object>> parameters = new ArrayList<>();
+
+		if (patient != null) {
+			// This call requires the whole patient JSON object to go up in the request body,
+			// so we first load the patient.
+			PatientReadFhirR4Response patientResponse = patientReadFhirR4(patient).get();
+			Map<String, Object> patientJson = getGson().fromJson(patientResponse.getRawJson(), Map.class);
+
+			Map<String, Object> parameter = new HashMap();
+			parameter.put("name", "patient");
+			parameter.put("resource", patientJson);
+			parameters.add(parameter);
+		}
+
+		// {
+		//    "name": "startTime",
+		//    "valueDateTime": "2018-07-30T18:15:50Z"
+		// }
+		if (startTime != null) {
+			Map<String, Object> parameter = new HashMap();
+			parameter.put("name", "startTime");
+			parameter.put("valueDateTime", startTime.atZone(ZoneId.of("UTC")).format(dateTimeFormatter));
+			parameters.add(parameter);
+		}
+
+		// {
+		//    "name": "endTime",
+		//    "valueDateTime": "2018-07-30T18:15:50Z"
+		// }
+		if (endTime != null) {
+			Map<String, Object> parameter = new HashMap();
+			parameter.put("name", "endTime");
+			parameter.put("valueDateTime", endTime.atZone(ZoneId.of("UTC")).format(dateTimeFormatter));
+			parameters.add(parameter);
+		}
+
+		// {
+		//    "name": "serviceType",
+		//    "valueCodeableConcept": {
+		//        "coding": [
+		//            {
+		//                "system": "urn:oid:1.2.840.114350.1.13.861.1.7.3.808267.11",
+		//                "code": "40111223",
+		//                "display": "CDS Office Visit"
+		//            },
+		//            {
+		//                "system": "DNPRC6",
+		//                "code": "159",
+		//                "display": "CDS Office Visit"
+		//            }
+		//        ],
+		//        "text": "CDS Office Visit"
+		//    }
+		// }
+		if (serviceTypesText != null || serviceTypes.size() > 0) {
+			List<AppointmentFindFhirStu3Request.Coding> codings = serviceTypes.stream()
+					.map(serviceType -> {
+						AppointmentFindFhirStu3Request.Coding coding = new AppointmentFindFhirStu3Request.Coding();
+						coding.setDisplay(trimToNull(serviceType.getDisplay()));
+						coding.setCode(trimToNull(serviceType.getCode()));
+						coding.setSystem(trimToNull(serviceType.getSystem()));
+
+						return coding;
+					})
+					.collect(Collectors.toList());
+
+			Map<String, Object> valueCodeableConceptJson = new HashMap<>();
+			valueCodeableConceptJson.put("text", serviceTypesText);
+			valueCodeableConceptJson.put("coding", codings);
+
+			Map<String, Object> parameter = new HashMap<>();
+			parameter.put("name", "serviceType");
+			parameter.put("valueCodeableConcept", valueCodeableConceptJson);
+
+			parameters.add(parameter);
+		}
+
+		// {
+		//    "name": "indications",
+		//    "valueCodeableConcept": {
+		//        "coding": [
+		//            {
+		//                "system": "urn:oid:2.16.840.1.113883.6.96",
+		//                "code": "46866001",
+		//                "display": "Fracture of lower limb (disorder)"
+		//            },
+		//            {
+		//                "system": "urn:oid:2.16.840.1.113883.6.90",
+		//                "code": "S82.90XA",
+		//                "display": "Broken leg"
+		//            },
+		//            {
+		//                "system": "urn:oid:1.2.840.114350.1.13.861.1.7.2.696871",
+		//                "code": "121346631",
+		//                "display": "Broken leg"
+		//            }
+		//        ],
+		//        "text": "Broken leg"
+		//    }
+		// }
+		if (indicationsText != null || indications.size() > 0) {
+			List<AppointmentFindFhirStu3Request.Coding> codings = indications.stream()
+					.map(indication -> {
+						AppointmentFindFhirStu3Request.Coding coding = new AppointmentFindFhirStu3Request.Coding();
+						coding.setDisplay(trimToNull(indication.getDisplay()));
+						coding.setCode(trimToNull(indication.getCode()));
+						coding.setSystem(trimToNull(indication.getSystem()));
+
+						return coding;
+					})
+					.collect(Collectors.toList());
+
+			Map<String, Object> valueCodeableConceptJson = new HashMap<>();
+			valueCodeableConceptJson.put("text", indicationsText);
+			valueCodeableConceptJson.put("coding", codings);
+
+			Map<String, Object> parameter = new HashMap<>();
+			parameter.put("name", "indications");
+			parameter.put("valueCodeableConcept", valueCodeableConceptJson);
+
+			parameters.add(parameter);
+		}
+
+		// {
+		//    "name": "specialties",
+		//    "valueCodeableConcept": {
+		//        "coding": [
+		//            {
+		//                "system": "urn:oid:1.2.840.114350.1.72.1.7.7.10.688867.4150",
+		//                "code": "20",
+		//                "display": "Gastroenterology"
+		//            },
+		//            {
+		//                "system": "urn:oid:1.2.840.114350.1.13.861.1.7.10.686980.110",
+		//                "code": "10",
+		//                "display": "Gastroenterology"
+		//            }
+		//        ],
+		//        "text": "Gastroenterology"
+		//    }
+		// }
+		if (specialitiesText != null || specialities.size() > 0) {
+			List<AppointmentFindFhirStu3Request.Coding> codings = specialities.stream()
+					.map(indication -> {
+						AppointmentFindFhirStu3Request.Coding coding = new AppointmentFindFhirStu3Request.Coding();
+						coding.setDisplay(trimToNull(indication.getDisplay()));
+						coding.setCode(trimToNull(indication.getCode()));
+						coding.setSystem(trimToNull(indication.getSystem()));
+
+						return coding;
+					})
+					.collect(Collectors.toList());
+
+			Map<String, Object> valueCodeableConceptJson = new HashMap<>();
+			valueCodeableConceptJson.put("text", specialitiesText);
+			valueCodeableConceptJson.put("coding", codings);
+
+			Map<String, Object> parameter = new HashMap<>();
+			parameter.put("name", "indications");
+			parameter.put("valueCodeableConcept", valueCodeableConceptJson);
+
+			parameters.add(parameter);
+		}
+
+		// {
+		//    "name": "location-reference",
+		//    "valueReference": {
+		//        "reference": "https://hostname/instance/api/FHIR/STU3/Location/eULujY-VWnFz-tbLqZ39RjA3}"
+		//    }
+		// }
+		if (locationReference != null) {
+			Map<String, Object> parameter = new HashMap<>();
+			parameter.put("name", "location-reference");
+			parameter.put("valueReference", Map.of("reference", locationReference));
+
+			parameters.add(parameter);
+		}
+
+		// {
+		//    "name": "time-of-day",
+		//    "valueTiming": {
+		//        "repeat": {
+		//            "duration": "10",
+		//            "durationUnit": "min",
+		//            "dayOfWeek": [
+		//                "thu",
+		//                "tue"
+		//            ],
+		//            "timeOfDay": [
+		//                "01:00:00"
+		//            ]
+		//        }
+		//    }
+		// }
+		if (timesOfDay.size() > 0) {
+			for (AppointmentFindFhirStu3Request.ValueTiming valueTiming : timesOfDay) {
+				Map<String, Object> valueTimingJson = new HashMap<>();
+
+				if (valueTiming.getRepeat() != null) {
+					List<AppointmentFindFhirStu3Request.DayOfWeek> repeatDaysOfWeek = valueTiming.getRepeat().getDaysOfWeek();
+					List<LocalTime> repeatTimesOfDay = valueTiming.getRepeat().getTimesOfDay();
+					Integer durationInMinutes = valueTiming.getRepeat().getDurationInMinutes();
+
+					Map<String, Object> repeatJson = new HashMap<>();
+
+					if (durationInMinutes != null) {
+						repeatJson.put("duration", String.valueOf(durationInMinutes));
+						repeatJson.put("durationUnit", "min");
+					}
+
+					if (repeatDaysOfWeek != null)
+						repeatJson.put("dayOfWeek", repeatDaysOfWeek.stream()
+								.map(dayOfWeek -> dayOfWeek.getEpicValue())
+								.collect(Collectors.toList()));
+
+
+					if (repeatTimesOfDay != null)
+						repeatJson.put("timeOfDay", repeatTimesOfDay.stream()
+								.map(timeOfDay -> timeOfDay.format(timeOfDayFormatter))
+								.collect(Collectors.toList()));
+
+					valueTimingJson.put("repeat", repeatJson);
+				}
+
+				Map<String, Object> parameter = new HashMap<>();
+				parameter.put("name", "time-of-day");
+				parameter.put("valueTiming", valueTimingJson);
+
+				parameters.add(parameter);
+			}
+		}
+
+		Map<String, Object> requestBodyJson = new HashMap<>();
+		requestBodyJson.put("resourceType", "Parameters");
+		requestBodyJson.put("parameter", parameters);
+
+		String requestBody = getGson().toJson(requestBodyJson);
+
+		// TODO: handle "not found" case
+		//
+		// {
+		//    "resourceType": "Bundle",
+		//    "type": "searchset",
+		//    "total": 0,
+		//    "link": [
+		//        {
+		//            "relation": "self",
+		//            "url": "https://BASE_URL/api/FHIR/STU3/Appointment/$find"
+		//        }
+		//    ],
+		//    "entry": [
+		//        {
+		//            "fullUrl": "urn:uuid:00000000-0196-b030-7276-5ae35f23e392",
+		//            "resource": {
+		//                "resourceType": "OperationOutcome",
+		//                "issue": [
+		//                    {
+		//                        "severity": "warning",
+		//                        "code": "not-found",
+		//                        "details": {
+		//                            "coding": [
+		//                                {
+		//                                    "system": "urn:oid:1.2.840.114350.1.13.236.2.7.2.657369",
+		//                                    "code": "59200",
+		//                                    "display": "The Cadence Decision Tree was unable to determine a Visit Type based on the supplied parameters. Check the request parameters and decision tree build."
+		//                                }
+		//                            ],
+		//                            "text": "The Cadence Decision Tree was unable to determine a Visit Type based on the supplied parameters. Check the request parameters and decision tree build."
+		//                        },
+		//                        "diagnostics": "Unable to determine a Visit Type to use for scheduling."
+		//                    },
+		//                    {
+		//                        "severity": "warning",
+		//                        "code": "processing",
+		//                        "details": {
+		//                            "coding": [
+		//                                {
+		//                                    "system": "urn:oid:1.2.840.114350.1.13.236.2.7.2.657369",
+		//                                    "code": "4101",
+		//                                    "display": "Resource request returns no results."
+		//                                }
+		//                            ],
+		//                            "text": "Resource request returns no results."
+		//                        }
+		//                    }
+		//                ]
+		//            },
+		//            "search": {
+		//                "mode": "outcome"
+		//            }
+		//        }
+		//    ]
+		// }
+
+		Function<String, AppointmentFindFhirStu3Response> responseBodyMapper = (responseBody) -> {
+			AppointmentFindFhirStu3Response response = getGson().fromJson(responseBody, AppointmentFindFhirStu3Response.class);
+			response.setRawJson(responseBody.trim());
+
+			return response;
+		};
+
+		ApiCall<AppointmentFindFhirStu3Response> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+				.requestBody(requestBody)
+				.build();
+
+		return makeApiCall(apiCall);
+	}
+
+	@Nonnull
+	@Override
+	public AppointmentBookFhirStu3Response appointmentBookFhirStu3(@Nonnull AppointmentBookFhirStu3Request request) {
+		requireNonNull(request);
+
+		HttpMethod httpMethod = HttpMethod.POST;
+		String url = "api/FHIR/STU3/Appointment/$book";
+
+		String patient = trimToNull(request.getPatient());
+		String appointment = trimToNull(request.getAppointment());
+		String appointmentNote = trimToNull(request.getAppointmentNote());
+
+		// {
+		//   "resourceType":"Parameters",
+		//   "parameter":[
+		//      {
+		//         "name":"patient",
+		//         "valueIdentifier":{
+		//            "value":"efvHwbc1k1CQ9XjM1zvvefQ3"
+		//         }
+		//      },
+		//      {
+		//         "name":"appointment",
+		//         "valueIdentifier":{
+		//            "value":"ezu6MfS.FpOXrHAn1eJHczv4LlH.fMIwtdkA8rsm-Yfu96eUh91EBd0UN9BZx7kbB3"
+		//         }
+		//      },
+		//      {
+		//         "name":"appointmentNote",
+		//         "valueString":"Note text containing info related to the appointment."
+		//      }
+		//   ]
+		// }
+
+		List<Map<String, Object>> parameters = new ArrayList<>();
+
+		if (patient != null) {
+			Map<String, Object> parameter = new HashMap();
+			parameter.put("name", "patient");
+			parameter.put("valueIdentifier", Map.of("value", patient));
+			parameters.add(parameter);
+		}
+
+		if (appointment != null) {
+			Map<String, Object> parameter = new HashMap();
+			parameter.put("name", "appointment");
+			parameter.put("valueIdentifier", Map.of("value", appointment));
+			parameters.add(parameter);
+		}
+
+		if (appointmentNote != null) {
+			Map<String, Object> parameter = new HashMap();
+			parameter.put("name", "appointmentNote");
+			parameter.put("valueIdentifier", Map.of("value", appointmentNote));
+			parameters.add(parameter);
+		}
+
+		Map<String, Object> requestBodyJson = new HashMap<>();
+		requestBodyJson.put("resourceType", "Parameters");
+		requestBodyJson.put("parameter", parameters);
+
+		String requestBody = getGson().toJson(requestBodyJson);
+
+		// TODO: handle "not found" case
+		//
+		// {
+		//    "resourceType": "OperationOutcome",
+		//    "issue": [
+		//        {
+		//            "severity": "fatal",
+		//            "code": "not-found",
+		//            "details": {
+		//                "coding": [
+		//                    {
+		//                        "system": "urn:oid:1.2.840.114350.1.13.236.2.7.2.657369",
+		//                        "code": "59144",
+		//                        "display": "The reference provided was not found."
+		//                    }
+		//                ],
+		//                "text": "The reference provided was not found."
+		//            },
+		//            "diagnostics": "invalid appointment ID",
+		//            "location": [
+		//                "/f:appointment"
+		//            ],
+		//            "expression": [
+		//                "appointment"
+		//            ]
+		//        }
+		//    ]
+		// }
+
+		Function<String, AppointmentBookFhirStu3Response> responseBodyMapper = (responseBody) -> {
+			AppointmentBookFhirStu3Response response = getGson().fromJson(responseBody, AppointmentBookFhirStu3Response.class);
+			response.setRawJson(responseBody.trim());
+
+			return response;
+		};
+
+		ApiCall<AppointmentBookFhirStu3Response> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+				.requestBody(requestBody)
+				.build();
+
+		return makeApiCall(apiCall);
+	}
+
+	@Nonnull
+	@Override
+	public AppointmentSearchFhirStu3Response appointmentSearchFhirStu3(@Nonnull AppointmentSearchFhirStu3Request request) {
+		requireNonNull(request);
+
+		HttpMethod httpMethod = HttpMethod.GET;
+		String url = "api/FHIR/STU3/Appointment";
+
+		String date = request.getDate() == null ? null : request.getDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.US));
+		String patient = trimToNull(request.getPatient());
+		String identifier = trimToNull(request.getIdentifier());
+		String status = request.getStatus() == null ? null : request.getStatus().getEpicValue();
+
+		Map<String, Object> queryParameters = new HashMap<>();
+		queryParameters.put("date", date);
+		queryParameters.put("patient", patient);
+		queryParameters.put("identifier", identifier);
+		queryParameters.put("status", status);
+
+		// TODO: handle "not found" case:
+		//
+		// {
+		//    "resourceType": "Bundle",
+		//    "type": "searchset",
+		//    "total": 0,
+		//    "link": [
+		//        {
+		//            "relation": "self",
+		//            "url": "https://BASE_URL/api/FHIR/STU3/Appointment?date=2023-03-15&identifier=&patient=XXXXXX&status=booked"
+		//        }
+		//    ],
+		//    "entry": [
+		//        {
+		//            "fullUrl": "urn:uuid:00000000-0196-744b-7276-5ae35f23e392",
+		//            "resource": {
+		//                "resourceType": "OperationOutcome",
+		//                "issue": [
+		//                    {
+		//                        "severity": "warning",
+		//                        "code": "processing",
+		//                        "details": {
+		//                            "coding": [
+		//                                {
+		//                                    "system": "urn:oid:1.2.840.114350.1.13.236.2.7.2.657369",
+		//                                    "code": "4101",
+		//                                    "display": "Resource request returns no results."
+		//                                }
+		//                            ],
+		//                            "text": "Resource request returns no results."
+		//                        }
+		//                    }
+		//                ]
+		//            },
+		//            "search": {
+		//                "mode": "outcome"
+		//            }
+		//        }
+		//    ]
+		// }
+
+		Function<String, AppointmentSearchFhirStu3Response> responseBodyMapper = (responseBody) -> {
+			AppointmentSearchFhirStu3Response response = getGson().fromJson(responseBody, AppointmentSearchFhirStu3Response.class);
+			response.setRawJson(responseBody.trim());
+
+			return response;
+		};
+
+		ApiCall<AppointmentSearchFhirStu3Response> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+				.queryParameters(queryParameters)
 				.build();
 
 		return makeApiCall(apiCall);
