@@ -125,6 +125,12 @@ public class Institution {
 	@Nullable
 	private Boolean contactUsEnabled;
 	@Nullable
+	private Boolean userSubmittedContentEnabled;
+	@Nullable
+	private Boolean userSubmittedGroupSessionEnabled;
+	@Nullable
+	private Boolean userSubmittedGroupSessionRequestEnabled;
+	@Nullable
 	@DatabaseColumn("ga4_measurement_id")
 	private String ga4MeasurementId;
 
@@ -577,6 +583,33 @@ public class Institution {
 
 	public void setContactUsEnabled(@Nullable Boolean contactUsEnabled) {
 		this.contactUsEnabled = contactUsEnabled;
+	}
+
+	@Nullable
+	public Boolean getUserSubmittedContentEnabled() {
+		return this.userSubmittedContentEnabled;
+	}
+
+	public void setUserSubmittedContentEnabled(@Nullable Boolean userSubmittedContentEnabled) {
+		this.userSubmittedContentEnabled = userSubmittedContentEnabled;
+	}
+
+	@Nullable
+	public Boolean getUserSubmittedGroupSessionEnabled() {
+		return this.userSubmittedGroupSessionEnabled;
+	}
+
+	public void setUserSubmittedGroupSessionEnabled(@Nullable Boolean userSubmittedGroupSessionEnabled) {
+		this.userSubmittedGroupSessionEnabled = userSubmittedGroupSessionEnabled;
+	}
+
+	@Nullable
+	public Boolean getUserSubmittedGroupSessionRequestEnabled() {
+		return this.userSubmittedGroupSessionRequestEnabled;
+	}
+
+	public void setUserSubmittedGroupSessionRequestEnabled(@Nullable Boolean userSubmittedGroupSessionRequestEnabled) {
+		this.userSubmittedGroupSessionRequestEnabled = userSubmittedGroupSessionRequestEnabled;
 	}
 
 	@Nullable
