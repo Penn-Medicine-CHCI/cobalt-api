@@ -87,7 +87,6 @@ public class MicrosoftResource {
 		// TODO: data-drive
 		MicrosoftAccessToken microsoftAccessToken = microsoftAuthenticator.obtainAccessTokenFromCode(new AccessTokenRequest() {{
 			setCode(code);
-			setScope("https://graph.microsoft.com/user.read");
 			setRedirectUri("http://localhost:8080/microsoft/oauth/callback");
 			setGrantType("authorization_code");
 			setClientAssertionType("urn:ietf:params:oauth:client-assertion-type:jwt-bearer");

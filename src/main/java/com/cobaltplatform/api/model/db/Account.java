@@ -111,6 +111,8 @@ public class Account {
 	@Nullable
 	private Boolean epicPatientCreatedByCobalt;
 	@Nullable
+	private String microsoftId;
+	@Nullable
 	private ZoneId timeZone;
 	@Nullable
 	private Locale locale;
@@ -395,6 +397,15 @@ public class Account {
 	@Deprecated
 	public void setEpicPatientCreatedByCobalt(@Nullable Boolean epicPatientCreatedByCobalt) {
 		this.epicPatientCreatedByCobalt = epicPatientCreatedByCobalt;
+	}
+
+	@Nullable
+	public String getMicrosoftId() {
+		return this.microsoftId;
+	}
+
+	public void setMicrosoftId(@Nullable String microsoftId) {
+		this.microsoftId = microsoftId;
 	}
 
 	@Nonnull

@@ -170,7 +170,7 @@ public class InstitutionResource {
 			setResponseType("code");
 			setRedirectUri("http://localhost:8080/microsoft/oauth/callback");
 			setResponseMode("query");
-			setScope("profile openid email https://graph.microsoft.com/User.Read");
+			setScope("profile openid email https://graph.microsoft.com/User.Read https://graph.microsoft.com/Calendars.Read");
 			setState("12345");
 		}});
 
