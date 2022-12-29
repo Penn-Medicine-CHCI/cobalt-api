@@ -28,7 +28,7 @@ import com.cobaltplatform.api.integration.epic.MyChartAuthenticator;
 import com.cobaltplatform.api.integration.epic.code.AddressUseCode;
 import com.cobaltplatform.api.integration.epic.code.NameUseCode;
 import com.cobaltplatform.api.integration.epic.code.TelecomUseCode;
-import com.cobaltplatform.api.integration.epic.response.PatientFhirR4Response;
+import com.cobaltplatform.api.integration.epic.response.PatientReadFhirR4Response;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreateMyChartAccountRequest;
@@ -254,7 +254,7 @@ public class MyChartService {
 		requireNonNull(request);
 
 		String patientId = null;
-		PatientFhirR4Response patient = null;
+		PatientReadFhirR4Response patient = null;
 		MyChartAccessToken myChartAccessToken = request.getMyChartAccessToken();
 		InstitutionId institutionId = request.getInstitutionId();
 		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId);
@@ -284,7 +284,7 @@ public class MyChartService {
 			return existingAccount.getAccountId();
 
 		try {
-			patient = epicClient.findPatientFhirR4(patientId).orElse(null);
+			patient = epicClient.patientReadFhirR4(patientId).orElse(null);
 
 			if (patient == null) {
 				getLogger().warn("Unable to find record in EPIC for patient ID {}", patientId);
@@ -302,8 +302,8 @@ public class MyChartService {
 		EthnicityId ethnicityId = patient.extractEthnicityId().orElse(null);
 		BirthSexId birthSexId = patient.extractBirthSexId().orElse(null);
 		LocalDate birthdate = patient.getBirthDate();
-		PatientFhirR4Response.Name name = patient.extractFirstMatchingName(NameUseCode.OFFICIAL, NameUseCode.USUAL).orElse(null);
-		PatientFhirR4Response.Address address = patient.extractFirstMatchingAddress(AddressUseCode.HOME, AddressUseCode.BILLING, AddressUseCode.TEMP).orElse(null);
+		PatientReadFhirR4Response.Name name = patient.extractFirstMatchingName(NameUseCode.OFFICIAL, NameUseCode.USUAL).orElse(null);
+		PatientReadFhirR4Response.Address address = patient.extractFirstMatchingAddress(AddressUseCode.HOME, AddressUseCode.BILLING, AddressUseCode.TEMP).orElse(null);
 		String phoneNumber = patient.extractFirstMatchingPhoneNumber(TelecomUseCode.MOBILE, TelecomUseCode.HOME, TelecomUseCode.WORK).orElse(null);
 		List<String> emailAddresses = patient.extractEmailAddresses();
 		String ssoAttributesAsJson = patient.getRawJson();

@@ -69,7 +69,7 @@ public class MicrosoftResource {
 	@Nonnull
 	@GET("/microsoft/oauth/callback")
 	public ApiResponse microsoftOAuthCallback(@Nonnull @QueryParameter String code,
-																						@Nonnull @QueryParameter Optional<String> state,
+																						@Nonnull @QueryParameter String state,
 																						@Nonnull @QueryParameter("session_state") Optional<String> sessionState,
 																						@Nonnull @QueryParameter Optional<String> error,
 																						@Nonnull @QueryParameter("error_description") Optional<String> errorDescription) {

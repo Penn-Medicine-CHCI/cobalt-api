@@ -19,6 +19,9 @@
 
 package com.cobaltplatform.api.integration.epic;
 
+import com.cobaltplatform.api.integration.epic.request.AppointmentBookFhirStu3Request;
+import com.cobaltplatform.api.integration.epic.request.AppointmentFindFhirStu3Request;
+import com.cobaltplatform.api.integration.epic.request.AppointmentSearchFhirStu3Request;
 import com.cobaltplatform.api.integration.epic.request.CancelAppointmentRequest;
 import com.cobaltplatform.api.integration.epic.request.GetPatientAppointmentsRequest;
 import com.cobaltplatform.api.integration.epic.request.GetPatientDemographicsRequest;
@@ -26,12 +29,15 @@ import com.cobaltplatform.api.integration.epic.request.GetProviderScheduleReques
 import com.cobaltplatform.api.integration.epic.request.PatientCreateRequest;
 import com.cobaltplatform.api.integration.epic.request.PatientSearchRequest;
 import com.cobaltplatform.api.integration.epic.request.ScheduleAppointmentWithInsuranceRequest;
+import com.cobaltplatform.api.integration.epic.response.AppointmentBookFhirStu3Response;
+import com.cobaltplatform.api.integration.epic.response.AppointmentFindFhirStu3Response;
+import com.cobaltplatform.api.integration.epic.response.AppointmentSearchFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.CancelAppointmentResponse;
 import com.cobaltplatform.api.integration.epic.response.GetPatientAppointmentsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetPatientDemographicsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse;
 import com.cobaltplatform.api.integration.epic.response.PatientCreateResponse;
-import com.cobaltplatform.api.integration.epic.response.PatientFhirR4Response;
+import com.cobaltplatform.api.integration.epic.response.PatientReadFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse;
 import com.cobaltplatform.api.integration.epic.response.ScheduleAppointmentWithInsuranceResponse;
 
@@ -43,6 +49,8 @@ import java.time.ZoneId;
 import java.util.Collections;
 import java.util.Optional;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * @author Transmogrify, LLC.
  */
@@ -50,8 +58,29 @@ import java.util.Optional;
 public class MockEpicClient implements EpicClient {
 	@Nonnull
 	@Override
-	public Optional<PatientFhirR4Response> findPatientFhirR4(@Nonnull String patientId) {
+	public Optional<PatientReadFhirR4Response> patientReadFhirR4(@Nonnull String patientId) {
 		return Optional.empty();
+	}
+
+	@Nonnull
+	@Override
+	public AppointmentFindFhirStu3Response appointmentFindFhirStu3(@Nonnull AppointmentFindFhirStu3Request request) {
+		requireNonNull(request);
+		return new AppointmentFindFhirStu3Response();
+	}
+
+	@Nonnull
+	@Override
+	public AppointmentBookFhirStu3Response appointmentBookFhirStu3(@Nonnull AppointmentBookFhirStu3Request request) {
+		requireNonNull(request);
+		return new AppointmentBookFhirStu3Response();
+	}
+
+	@Nonnull
+	@Override
+	public AppointmentSearchFhirStu3Response appointmentSearchFhirStu3(@Nonnull AppointmentSearchFhirStu3Request request) {
+		requireNonNull(request);
+		return new AppointmentSearchFhirStu3Response();
 	}
 
 	@Nonnull

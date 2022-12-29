@@ -26,8 +26,8 @@ import com.cobaltplatform.api.integration.epic.code.GenderIdentityCode;
 import com.cobaltplatform.api.integration.epic.code.NameUseCode;
 import com.cobaltplatform.api.integration.epic.code.RaceCode;
 import com.cobaltplatform.api.integration.epic.code.TelecomUseCode;
-import com.cobaltplatform.api.integration.epic.response.PatientFhirR4Response.Extension.ExtensionInner;
-import com.cobaltplatform.api.integration.epic.response.PatientFhirR4Response.Identifier.Type;
+import com.cobaltplatform.api.integration.epic.response.PatientReadFhirR4Response.Extension.ExtensionInner;
+import com.cobaltplatform.api.integration.epic.response.PatientReadFhirR4Response.Identifier.Type;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
@@ -50,7 +50,7 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class PatientFhirR4Response {
+public class PatientReadFhirR4Response {
 	@Nullable
 	private String rawJson;
 
