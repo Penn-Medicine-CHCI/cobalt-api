@@ -94,6 +94,12 @@ public class InstitutionApiResponse {
 	private final Boolean immediateAccessEnabled;
 	@Nonnull
 	private final Boolean contactUsEnabled;
+	@Nonnull
+	private final Boolean userSubmittedContentEnabled;
+	@Nonnull
+	private final Boolean userSubmittedGroupSessionEnabled;
+	@Nonnull
+	private final Boolean userSubmittedGroupSessionRequestEnabled;
 	@Nullable
 	private final String ga4MeasurementId;
 	@Nonnull
@@ -141,6 +147,9 @@ public class InstitutionApiResponse {
 		this.supportEmailAddress = institution.getSupportEmailAddress();
 		this.immediateAccessEnabled = institution.getImmediateAccessEnabled();
 		this.contactUsEnabled = institution.getContactUsEnabled();
+		this.userSubmittedContentEnabled = institution.getUserSubmittedContentEnabled();
+		this.userSubmittedGroupSessionEnabled = institution.getUserSubmittedGroupSessionEnabled();
+		this.userSubmittedGroupSessionRequestEnabled = institution.getUserSubmittedGroupSessionRequestEnabled();
 		this.integratedCareEnabled = institution.getIntegratedCareEnabled();
 		this.ga4MeasurementId = institution.getGa4MeasurementId();
 		this.additionalNavigationItems = topicCenterService.findTopicCenterNavigationItemsByInstitutionId(institutionId);
@@ -257,6 +266,21 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public Boolean getContactUsEnabled() {
 		return this.contactUsEnabled;
+	}
+
+	@Nonnull
+	public Boolean getUserSubmittedContentEnabled() {
+		return this.userSubmittedContentEnabled;
+	}
+
+	@Nonnull
+	public Boolean getUserSubmittedGroupSessionEnabled() {
+		return this.userSubmittedGroupSessionEnabled;
+	}
+
+	@Nonnull
+	public Boolean getUserSubmittedGroupSessionRequestEnabled() {
+		return this.userSubmittedGroupSessionRequestEnabled;
 	}
 
 	@Nonnull

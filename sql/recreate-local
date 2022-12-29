@@ -50,6 +50,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/043-mychart-au
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/044-epic-backend-creds.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/045-consent-form-rejected.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/046-tagging.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/047-user-submitted-flags.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
