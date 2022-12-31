@@ -21,7 +21,6 @@ package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.util.CryptoUtility;
-import com.cobaltplatform.api.util.CryptoUtility.PublicKeyExponentModulus;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.Resource;
 import com.soklet.web.response.ApiResponse;
@@ -33,6 +32,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.servlet.http.HttpServletResponse;
+import java.security.cert.X509Certificate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -67,25 +67,25 @@ public class EpicResource {
 		// Applications using JSON Web Token (JWT) authentication can provide their public keys to Epic as a JSON Web Key (JWK) Set.
 		// Each key in the set should be of type RSA and have the kty, n, e, and kid fields present.
 
-		PublicKeyExponentModulus nonProdPublicKeyExponentModulus = new PublicKeyExponentModulus(getConfiguration().getEpicNonProdKeyPair().getPublic());
+		X509Certificate epicNonProdX509Certificate = getConfiguration().getEpicProdSigningCredentials().getX509Certificate();
 
 		Map<String, Object> nonProdKey = new HashMap<>();
 		nonProdKey.put("kty", "RSA");
 		nonProdKey.put("kid", getConfiguration().getEpicNonProdKeyId());
-		nonProdKey.put("e", nonProdPublicKeyExponentModulus.getExponentInBase64());
-		nonProdKey.put("n", nonProdPublicKeyExponentModulus.getModulusInBase64());
-		nonProdKey.put("x5t", CryptoUtility.extractThumbprintFromX509Certificate(getConfiguration().getEpicNonProdPublicKeyAsString()));
-		nonProdKey.put("x5c", List.of(CryptoUtility.normalizeCertificate(getConfiguration().getEpicNonProdPublicKeyAsString())));
+		nonProdKey.put("e", CryptoUtility.exponentBase64UrlRepresentation(epicNonProdX509Certificate.getPublicKey()));
+		nonProdKey.put("n", CryptoUtility.modulusBase64UrlRepresentation(epicNonProdX509Certificate.getPublicKey()));
+		nonProdKey.put("x5t", CryptoUtility.sha1ThumbprintBase64UrlRepresentation(epicNonProdX509Certificate));
+		nonProdKey.put("x5c", List.of(CryptoUtility.base64Representation(epicNonProdX509Certificate)));
 
-		PublicKeyExponentModulus prodPublicKeyExponentModulus = new PublicKeyExponentModulus(getConfiguration().getEpicProdKeyPair().getPublic());
+		X509Certificate epicProdX509Certificate = getConfiguration().getEpicProdSigningCredentials().getX509Certificate();
 
 		Map<String, Object> prodKey = new HashMap<>();
 		prodKey.put("kty", "RSA");
 		prodKey.put("kid", getConfiguration().getEpicProdKeyId());
-		prodKey.put("e", prodPublicKeyExponentModulus.getExponentInBase64());
-		prodKey.put("n", prodPublicKeyExponentModulus.getModulusInBase64());
-		prodKey.put("x5t", CryptoUtility.extractThumbprintFromX509Certificate(getConfiguration().getEpicProdPublicKeyAsString()));
-		prodKey.put("x5c", List.of(CryptoUtility.normalizeCertificate(getConfiguration().getEpicProdPublicKeyAsString())));
+		prodKey.put("e", CryptoUtility.exponentBase64UrlRepresentation(epicProdX509Certificate.getPublicKey()));
+		prodKey.put("n", CryptoUtility.modulusBase64UrlRepresentation(epicProdX509Certificate.getPublicKey()));
+		prodKey.put("x5t", CryptoUtility.sha1ThumbprintBase64UrlRepresentation(epicProdX509Certificate));
+		prodKey.put("x5c", List.of(CryptoUtility.base64Representation(epicProdX509Certificate)));
 
 		httpServletResponse.setHeader("Cache-Control", "max-age=3600");
 

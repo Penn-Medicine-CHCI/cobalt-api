@@ -100,7 +100,7 @@ public class CobaltEnterprisePlugin implements EnterprisePlugin {
 		return Optional.of(new DefaultMicrosoftAuthenticator(
 				institution.getMicrosoftTenantId(),
 				institution.getMicrosoftClientId(),
-				getConfiguration().getEpicNonProdKeyPair()));
+				getConfiguration().getMicrosoftSigningCredentials()));
 	}
 
 	@Nonnull

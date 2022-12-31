@@ -19,14 +19,16 @@
 
 package com.cobaltplatform.api.integration.microsoft;
 
-import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.http.DefaultHttpClient;
 import com.cobaltplatform.api.http.HttpClient;
 import com.cobaltplatform.api.http.HttpMethod;
 import com.cobaltplatform.api.http.HttpRequest;
 import com.cobaltplatform.api.http.HttpResponse;
+import com.cobaltplatform.api.integration.jwt.JwksVerifier;
+import com.cobaltplatform.api.integration.jwt.JwtVerifier;
 import com.cobaltplatform.api.integration.microsoft.request.AccessTokenRequest;
 import com.cobaltplatform.api.integration.microsoft.request.AuthenticationRedirectRequest;
+import com.cobaltplatform.api.model.security.SigningCredentials;
 import com.cobaltplatform.api.util.CryptoUtility;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -37,7 +39,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.nio.charset.StandardCharsets;
-import java.security.KeyPair;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -62,7 +63,9 @@ public class DefaultMicrosoftAuthenticator implements MicrosoftAuthenticator {
 	@Nonnull
 	private final String clientId;
 	@Nonnull
-	private final KeyPair keyPair;
+	private final SigningCredentials signingCredentials;
+	@Nonnull
+	private final JwtVerifier jwtVerifier;
 	@Nonnull
 	private final HttpClient httpClient;
 	@Nonnull
@@ -70,21 +73,22 @@ public class DefaultMicrosoftAuthenticator implements MicrosoftAuthenticator {
 
 	public DefaultMicrosoftAuthenticator(@Nonnull String tenantId,
 																			 @Nonnull String clientId,
-																			 @Nonnull KeyPair keyPair) {
-		this(tenantId, clientId, keyPair, null);
+																			 @Nonnull SigningCredentials signingCredentials) {
+		this(tenantId, clientId, signingCredentials, null);
 	}
 
 	public DefaultMicrosoftAuthenticator(@Nonnull String tenantId,
 																			 @Nonnull String clientId,
-																			 @Nonnull KeyPair keyPair,
+																			 @Nonnull SigningCredentials signingCredentials,
 																			 @Nullable HttpClient httpClient) {
 		requireNonNull(tenantId);
 		requireNonNull(clientId);
-		requireNonNull(keyPair);
+		requireNonNull(signingCredentials);
 
 		this.tenantId = tenantId;
 		this.clientId = clientId;
-		this.keyPair = keyPair;
+		this.signingCredentials = signingCredentials;
+		this.jwtVerifier = createJwtVerifier();
 		this.httpClient = httpClient == null ? new DefaultHttpClient("microsoft-authenticator") : httpClient;
 		this.gson = new Gson();
 	}
@@ -272,8 +276,7 @@ public class DefaultMicrosoftAuthenticator implements MicrosoftAuthenticator {
 		// Should be JWT
 		String typ = "JWT";
 		// Base64url-encoded SHA-1 thumbprint of the X.509 certificate's DER encoding.
-		// TODO: fix this to really data-drive
-		String x5t = CryptoUtility.extractThumbprintFromX509Certificate(new Configuration().getEpicNonProdPublicKeyAsString());
+		String x5t = CryptoUtility.sha1ThumbprintBase64UrlRepresentation(getSigningCredentials().getX509Certificate());
 
 		// JWT Claims
 
@@ -317,8 +320,15 @@ public class DefaultMicrosoftAuthenticator implements MicrosoftAuthenticator {
 		return Jwts.builder()
 				.setHeader(header)
 				.setClaims(claims)
-				.signWith(new Configuration().getEpicNonProdKeyPair().getPrivate(), SignatureAlgorithm.RS256)
+				.signWith(getSigningCredentials().getPrivateKey(), SignatureAlgorithm.RS256)
 				.compact();
+	}
+
+	@Nonnull
+	protected JwtVerifier createJwtVerifier() {
+		// Can find this URL by using https://login.microsoftonline.com/{tenantId}/v2.0/.well-known/openid-configuration
+		String jwksUrl = format("https://login.microsoftonline.com/%s/discovery/v2.0/keys", getClientId());
+		return new JwksVerifier(jwksUrl);
 	}
 
 	@Nonnull
@@ -332,13 +342,18 @@ public class DefaultMicrosoftAuthenticator implements MicrosoftAuthenticator {
 	}
 
 	@Nonnull
-	protected KeyPair getKeyPair() {
-		return this.keyPair;
+	protected SigningCredentials getSigningCredentials() {
+		return this.signingCredentials;
 	}
 
 	@Nonnull
 	protected HttpClient getHttpClient() {
 		return this.httpClient;
+	}
+
+	@Nonnull
+	protected JwtVerifier getJwtVerifier() {
+		return this.jwtVerifier;
 	}
 
 	@Nonnull

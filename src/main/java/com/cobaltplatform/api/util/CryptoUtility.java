@@ -33,7 +33,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.math.BigInteger;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.KeyPair;
@@ -43,27 +42,20 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
-import java.security.cert.Certificate;
+import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.RSAPublicKeySpec;
-import java.security.spec.X509EncodedKeySpec;
 import java.time.Instant;
 import java.util.Base64;
-import java.util.Objects;
+import java.util.HexFormat;
 import java.util.UUID;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
-import static org.apache.commons.codec.binary.Base64.decodeBase64;
-import static org.apache.commons.lang3.StringUtils.trimToEmpty;
-import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -76,6 +68,7 @@ public final class CryptoUtility {
 
 	@Nonnull
 	public static String generateNonce() {
+		// Include timestamp for sanity checking
 		return format("%s-%s", Instant.now().toEpochMilli(), UUID.randomUUID());
 	}
 
@@ -102,7 +95,8 @@ public final class CryptoUtility {
 	 * @param algorithm         For example, {@code HmacSHA512}
 	 */
 	@Nonnull
-	public static SecretKey loadSecretKeyInBase64(@Nonnull String secretKeyInBase64, @Nonnull String algorithm) {
+	public static SecretKey loadSecretKeyInBase64(@Nonnull String secretKeyInBase64,
+																								@Nonnull String algorithm) {
 		requireNonNull(secretKeyInBase64);
 		requireNonNull(algorithm);
 
@@ -130,209 +124,24 @@ public final class CryptoUtility {
 		}
 	}
 
-	public enum KeyFormat {
-		BASE64,
-		BASE64_WITH_HEADER_AND_FOOTER
-	}
-
 	@Nonnull
-	public static String stringRepresentation(@Nonnull PublicKey publicKey,
-																						@Nonnull KeyFormat keyFormat) {
-		requireNonNull(publicKey);
-		requireNonNull(keyFormat);
-
-		if (keyFormat == KeyFormat.BASE64_WITH_HEADER_AND_FOOTER) {
-			StringBuilder stringBuilder = new StringBuilder();
-			stringBuilder.append("-----BEGIN RSA PUBLIC KEY-----\n");
-			stringBuilder.append(Base64.getEncoder().encodeToString(publicKey.getEncoded()));
-			stringBuilder.append("\n-----END RSA PUBLIC KEY-----\n");
-
-			return stringBuilder.toString();
-		} else if (keyFormat == KeyFormat.BASE64) {
-			return Base64.getEncoder().encodeToString(publicKey.getEncoded());
-		}
-
-		throw new IllegalStateException(format("Unexpected value %s.%s", KeyFormat.class.getSimpleName(), keyFormat.name()));
-	}
-
-	@Nonnull
-	public static String stringRepresentation(@Nonnull PrivateKey privateKey,
-																						@Nonnull KeyFormat keyFormat) {
-		requireNonNull(privateKey);
-		requireNonNull(keyFormat);
-
-		if (keyFormat == KeyFormat.BASE64_WITH_HEADER_AND_FOOTER) {
-			StringBuilder stringBuilder = new StringBuilder();
-			stringBuilder.append("-----BEGIN RSA PRIVATE KEY-----\n");
-			// Private key format: PKCS#8
-			stringBuilder.append(Base64.getEncoder().encodeToString(privateKey.getEncoded()));
-			stringBuilder.append("\n-----END RSA PRIVATE KEY-----\n");
-
-			return stringBuilder.toString();
-		} else if (keyFormat == KeyFormat.BASE64) {
-			return Base64.getEncoder().encodeToString(privateKey.getEncoded());
-		}
-
-		throw new IllegalStateException(format("Unexpected value %s.%s", KeyFormat.class.getSimpleName(), keyFormat.name()));
-	}
-
-	@Nonnull
-	public static KeyPair keyPairFromStringRepresentation(@Nonnull String publicKeyAsString,
-																												@Nonnull String privateKeyAsString,
-																												@Nonnull PublicKeyFormat publicKeyFormat) {
-		requireNonNull(publicKeyAsString);
-		requireNonNull(privateKeyAsString);
-		requireNonNull(publicKeyFormat);
-
-		publicKeyAsString = trimToEmpty(publicKeyAsString);
-		privateKeyAsString = trimToEmpty(privateKeyAsString
-				.replace("-----BEGIN RSA PRIVATE KEY-----", "")
-				.replace("-----END RSA PRIVATE KEY-----", "")
-				.replace("-----BEGIN PRIVATE KEY-----", "")
-				.replace("-----END PRIVATE KEY-----", ""));
-
-		try {
-			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-			PublicKey publicKey;
-
-			if (publicKeyFormat == PublicKeyFormat.SSH) {
-				publicKey = convertPublicKeyFromSshRsaToX509(publicKeyAsString);
-			} else if (publicKeyFormat == PublicKeyFormat.X509) {
-				try (InputStream inputStream = new ByteArrayInputStream(publicKeyAsString.getBytes(StandardCharsets.UTF_8))) {
-					Certificate certificate = CertificateFactory.getInstance("X.509").generateCertificate(inputStream);
-					publicKey = certificate.getPublicKey();
-				} catch (IOException e) {
-					throw new UncheckedIOException(e);
-				}
-			} else {
-				throw new IllegalArgumentException(format("Not sure how to handle %s.%s", PublicKeyFormat.class.getSimpleName(), publicKeyFormat.name()));
-			}
-
-			PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(decodeBase64(privateKeyAsString));
-			PrivateKey privateKey = keyFactory.generatePrivate(privateKeySpec);
-
-			return new KeyPair(publicKey, privateKey);
-		} catch (NoSuchAlgorithmException | InvalidKeySpecException | CertificateException e) {
-			throw new IllegalStateException(e);
-		}
-	}
-
-	@Nonnull
-	public static PublicKey publicKeyFromStringRepresentation(@Nonnull String publicKeyAsString) {
-		requireNonNull(publicKeyAsString);
-
-		publicKeyAsString = trimToNull(publicKeyAsString);
-
-		if (publicKeyAsString == null)
-			throw new IllegalArgumentException("Public key is blank");
-
-		publicKeyAsString = publicKeyAsString
-				.replace("-----BEGIN RSA PUBLIC KEY-----", "")
-				.replace("-----END RSA PUBLIC KEY-----", "");
-
-		// Remove all whitespace
-		publicKeyAsString = publicKeyAsString.replaceAll("\\s", "");
-
-		byte[] keyBytes = Base64.getDecoder().decode(publicKeyAsString);
-
-		X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
-
-		try {
-			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-			return keyFactory.generatePublic(spec);
-		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-			throw new IllegalStateException(e);
-		}
-	}
-
-	public enum PublicKeyFormat {
-		X509,
-		SSH
-	}
-
-	/**
-	 * // SSH-RSA key format
-	 * //
-	 * //        00 00 00 07             The length in bytes of the next field
-	 * //        73 73 68 2d 72 73 61    The key type (ASCII encoding of "ssh-rsa")
-	 * //        00 00 00 03             The length in bytes of the public exponent
-	 * //        01 00 01                The public exponent (usually 65537, as here)
-	 * //        00 00 01 01             The length in bytes of the modulus (here, 257)
-	 * //        00 c3 a3...             The modulus
-	 * <p>
-	 * See https://stackoverflow.com/a/54600720
-	 */
-	@Nonnull
-	public static PublicKey convertPublicKeyFromSshRsaToX509(@Nonnull String sshRsaPublicKey) {
-		requireNonNull(sshRsaPublicKey);
-
-		sshRsaPublicKey = sshRsaPublicKey.trim();
-
-		final byte[] INITIAL_PREFIX = new byte[]{0x00, 0x00, 0x00, 0x07, 0x73, 0x73, 0x68, 0x2d, 0x72, 0x73, 0x61};
-		final Pattern SSH_RSA_PATTERN = Pattern.compile("ssh-rsa[\\s]+([A-Za-z0-9/+]+=*)[\\s]+.*");
-
-		Matcher matcher = SSH_RSA_PATTERN.matcher(sshRsaPublicKey);
-
-		if (!matcher.matches())
-			throw new IllegalArgumentException("Key format is invalid for SSH RSA.");
-
-		String keyStr = matcher.group(1);
-
-		ByteArrayInputStream is = new ByteArrayInputStream(Base64.getDecoder().decode(keyStr));
-
-		byte[] prefix = new byte[INITIAL_PREFIX.length];
-
-		try {
-			if (INITIAL_PREFIX.length != is.read(prefix) || !Objects.deepEquals(INITIAL_PREFIX, prefix))
-				throw new IllegalArgumentException("Initial [ssh-rsa] key prefix missed.");
-
-			BigInteger exponent = getValue(is);
-			BigInteger modulus = getValue(is);
-
-			return KeyFactory.getInstance("RSA").generatePublic(new RSAPublicKeySpec(modulus, exponent));
-		} catch (Exception e) {
-			throw new IllegalArgumentException("Failed to read SSH RSA certificate from string", e);
-		}
-	}
-
-	@Nonnull
-	public static String extractThumbprintFromX509Certificate(@Nonnull String x509CertificateAsString) {
+	public static X509Certificate toX509Certificate(@Nonnull String x509CertificateAsString) {
 		requireNonNull(x509CertificateAsString);
 
 		x509CertificateAsString = x509CertificateAsString.trim();
 
 		try (InputStream is = new ByteArrayInputStream(x509CertificateAsString.getBytes(StandardCharsets.UTF_8))) {
 			CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
-			X509Certificate x509Certificate = (X509Certificate) certificateFactory.generateCertificate(is);
-
-			MessageDigest messageDigest = MessageDigest.getInstance("SHA-1");
-			messageDigest.update(x509Certificate.getEncoded());
-			byte[] sha1Thumbprint = messageDigest.digest();
-
-			return BaseEncoding.base64Url().encode(sha1Thumbprint);
+			return (X509Certificate) certificateFactory.generateCertificate(is);
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
-		} catch (CertificateException | NoSuchAlgorithmException e) {
+		} catch (CertificateException e) {
 			throw new RuntimeException(e);
 		}
 	}
 
 	@Nonnull
-	public static String normalizeCertificate(@Nonnull String certificateAsString) {
-		requireNonNull(certificateAsString);
-
-		// Remove header/footer
-		certificateAsString = certificateAsString.replace("-----BEGIN CERTIFICATE-----", "");
-		certificateAsString = certificateAsString.replace("-----END CERTIFICATE-----", "");
-
-		// Remove all whitespace
-		certificateAsString = certificateAsString.replaceAll("\\s", "");
-
-		return certificateAsString;
-	}
-
-	@Nonnull
-	public static String normalizePrivateKey(@Nonnull String privateKeyAsString) {
+	public static PrivateKey toPrivateKey(@Nonnull String privateKeyAsString) {
 		requireNonNull(privateKeyAsString);
 
 		// Remove header/footer
@@ -340,28 +149,89 @@ public final class CryptoUtility {
 		privateKeyAsString = privateKeyAsString.replace("-----END PRIVATE KEY-----", "");
 
 		// Remove all whitespace
-		privateKeyAsString = privateKeyAsString.replaceAll("\\s", "");
+		privateKeyAsString = privateKeyAsString.replaceAll("\\s", "").trim();
 
-		return privateKeyAsString;
+		PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(Base64.getDecoder().decode(privateKeyAsString));
+
+		try {
+			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+			return keyFactory.generatePrivate(privateKeySpec);
+		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	@Nonnull
-	private static BigInteger getValue(@Nonnull InputStream is) throws IOException {
-		requireNonNull(is);
+	public static byte[] sha1Thumbprint(@Nonnull X509Certificate x509Certificate) {
+		requireNonNull(x509Certificate);
 
-		final int VALUE_LENGTH = 4;
+		try {
+			MessageDigest messageDigest = MessageDigest.getInstance("SHA-1");
+			messageDigest.update(x509Certificate.getEncoded());
+			return messageDigest.digest();
+		} catch (CertificateException | NoSuchAlgorithmException e) {
+			throw new RuntimeException(e);
+		}
+	}
 
-		byte[] lenBuff = new byte[VALUE_LENGTH];
-		if (VALUE_LENGTH != is.read(lenBuff))
-			throw new IllegalArgumentException("Unable to read value length.");
+	@Nonnull
+	public static String sha1ThumbprintHexRepresentation(@Nonnull X509Certificate x509Certificate) {
+		requireNonNull(x509Certificate);
+		// Output should match this openssl command (not including ':' characters)
+		// % openssl x509 -in cobalt.epic.nonprod.crt -noout -fingerprint
+		// SHA1 Fingerprint=F8:99:26:90:36:B9:B4:D8:2A:DA:EE:DA:34:91:2F:EC:C2:93:11:65
+		return HexFormat.of().formatHex(sha1Thumbprint(x509Certificate));
+	}
 
-		int len = ByteBuffer.wrap(lenBuff).getInt();
-		byte[] valueArray = new byte[len];
+	@Nonnull
+	public static String sha1ThumbprintBase64UrlRepresentation(@Nonnull X509Certificate x509Certificate) {
+		requireNonNull(x509Certificate);
+		return BaseEncoding.base64Url().encode(sha1Thumbprint(x509Certificate));
+	}
 
-		if (len != is.read(valueArray))
-			throw new IllegalArgumentException("Unable to read value.");
+	@Nonnull
+	public static String base64Representation(@Nonnull X509Certificate x509Certificate) {
+		requireNonNull(x509Certificate);
 
-		return new BigInteger(valueArray);
+		try {
+			return Base64.getEncoder().encodeToString(x509Certificate.getEncoded());
+		} catch (CertificateEncodingException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	@Nonnull
+	public static String base64Representation(@Nonnull PublicKey publicKey) {
+		requireNonNull(publicKey);
+		return Base64.getEncoder().encodeToString(publicKey.getEncoded());
+	}
+
+	@Nonnull
+	public static String base64Representation(@Nonnull PrivateKey privateKey) {
+		requireNonNull(privateKey);
+		return Base64.getEncoder().encodeToString(privateKey.getEncoded());
+	}
+
+	@Nonnull
+	public static String exponentBase64UrlRepresentation(@Nonnull PublicKey publicKey) {
+		requireNonNull(publicKey);
+		return Base64.getUrlEncoder().encodeToString(toRSAPublicKey(publicKey).getPublicExponent().toByteArray());
+	}
+
+	@Nonnull
+	public static String modulusBase64UrlRepresentation(@Nonnull PublicKey publicKey) {
+		requireNonNull(publicKey);
+		return Base64.getUrlEncoder().encodeToString(toRSAPublicKey(publicKey).getModulus().toByteArray());
+	}
+
+	@Nonnull
+	private static RSAPublicKey toRSAPublicKey(@Nonnull PublicKey publicKey) {
+		requireNonNull(publicKey);
+
+		if (!(publicKey instanceof RSAPublicKey))
+			throw new IllegalArgumentException(format("Public key is not an instance of %s", RSAPublicKey.class.getSimpleName()));
+
+		return (RSAPublicKey) publicKey;
 	}
 
 	@Immutable
@@ -377,33 +247,13 @@ public final class CryptoUtility {
 		@Nonnull
 		private final String modulusInBase64;
 
-		public PublicKeyExponentModulus(@Nonnull String publicKeyAsString) {
-			X509Certificate certificate;
-
-			try (ByteArrayInputStream is = new ByteArrayInputStream(publicKeyAsString.getBytes(StandardCharsets.UTF_8))) {
-				CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
-				certificate = (X509Certificate) certificateFactory.generateCertificate(is);
-			} catch (IOException e) {
-				throw new UncheckedIOException(e);
-			} catch (CertificateException e) {
-				throw new RuntimeException(e);
-			}
-
-			PublicKey publicKey = certificate.getPublicKey();
-
-			if (!(publicKey instanceof RSAPublicKey))
-				throw new IllegalArgumentException(format("Public key is not an instance of %s", RSAPublicKey.class.getSimpleName()));
-
-			RSAPublicKey rsaPublicKey = (RSAPublicKey) (publicKey);
-
-			this.publicKey = publicKey;
-			this.exponent = rsaPublicKey.getPublicExponent();
-			this.modulus = rsaPublicKey.getModulus();
-			this.exponentInBase64 = Base64.getUrlEncoder().encodeToString(this.exponent.toByteArray());
-			this.modulusInBase64 = Base64.getUrlEncoder().encodeToString(this.modulus.toByteArray());
+		public PublicKeyExponentModulus(@Nonnull X509Certificate x509Certificate) {
+			this(requireNonNull(x509Certificate).getPublicKey());
 		}
 
 		public PublicKeyExponentModulus(@Nonnull PublicKey publicKey) {
+			requireNonNull(publicKey);
+
 			if (!(publicKey instanceof RSAPublicKey))
 				throw new IllegalArgumentException(format("Public key is not an instance of %s", RSAPublicKey.class.getSimpleName()));
 

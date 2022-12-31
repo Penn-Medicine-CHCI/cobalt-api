@@ -35,13 +35,13 @@ import com.cobaltplatform.api.integration.epic.MyChartConfiguration;
 import com.cobaltplatform.api.model.db.EpicBackendServiceAuthType.EpicBackendServiceAuthTypeId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.security.SigningCredentials;
 import com.cobaltplatform.api.service.InstitutionService;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.security.KeyPair;
 import java.util.Optional;
 
 import static java.lang.String.format;
@@ -98,11 +98,11 @@ public class CobaltIcEnterprisePlugin implements EnterprisePlugin {
 		if (institution.getEpicBackendServiceAuthTypeId() == EpicBackendServiceAuthTypeId.OAUTH_20) {
 			String clientId = institution.getEpicClientId();
 			String jwksKeyId = getConfiguration().getEpicCurrentEnvironmentKeyId();
-			KeyPair keyPair = getConfiguration().getEpicCurrentEnvironmentKeyPair();
+			SigningCredentials signingCredentials = getConfiguration().getEpicCurrentEnvironmentSigningCredentials();
 			String tokenUrl = institution.getEpicTokenUrl();
 			String jwksUrl = format("%s/epic/fhir/jwks", getConfiguration().getBaseUrl());
 
-			EpicBackendServiceConfiguration epicBackendServiceConfiguration = new EpicBackendServiceConfiguration(clientId, jwksKeyId, keyPair, tokenUrl, jwksUrl);
+			EpicBackendServiceConfiguration epicBackendServiceConfiguration = new EpicBackendServiceConfiguration(clientId, jwksKeyId, signingCredentials, tokenUrl, jwksUrl);
 			EpicBackendServiceAuthenticator epicBackendServiceAuthenticator = new DefaultEpicBackendServiceAuthenticator(epicBackendServiceConfiguration);
 
 			// Real implementations would cache this off, this is just an example for our fake institution
