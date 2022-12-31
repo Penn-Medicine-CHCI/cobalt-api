@@ -23,7 +23,6 @@ import com.google.common.io.BaseEncoding;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
@@ -32,7 +31,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.KeyPair;
@@ -232,63 +230,5 @@ public final class CryptoUtility {
 			throw new IllegalArgumentException(format("Public key is not an instance of %s", RSAPublicKey.class.getSimpleName()));
 
 		return (RSAPublicKey) publicKey;
-	}
-
-	@Immutable
-	public static class PublicKeyExponentModulus {
-		@Nonnull
-		private final PublicKey publicKey;
-		@Nonnull
-		private final BigInteger exponent;
-		@Nonnull
-		private final BigInteger modulus;
-		@Nonnull
-		private final String exponentInBase64;
-		@Nonnull
-		private final String modulusInBase64;
-
-		public PublicKeyExponentModulus(@Nonnull X509Certificate x509Certificate) {
-			this(requireNonNull(x509Certificate).getPublicKey());
-		}
-
-		public PublicKeyExponentModulus(@Nonnull PublicKey publicKey) {
-			requireNonNull(publicKey);
-
-			if (!(publicKey instanceof RSAPublicKey))
-				throw new IllegalArgumentException(format("Public key is not an instance of %s", RSAPublicKey.class.getSimpleName()));
-
-			RSAPublicKey rsaPublicKey = (RSAPublicKey) (publicKey);
-
-			this.publicKey = publicKey;
-			this.exponent = rsaPublicKey.getPublicExponent();
-			this.modulus = rsaPublicKey.getModulus();
-			this.exponentInBase64 = Base64.getUrlEncoder().encodeToString(this.exponent.toByteArray());
-			this.modulusInBase64 = Base64.getUrlEncoder().encodeToString(this.modulus.toByteArray());
-		}
-
-		@Nonnull
-		public PublicKey getPublicKey() {
-			return this.publicKey;
-		}
-
-		@Nonnull
-		public BigInteger getExponent() {
-			return this.exponent;
-		}
-
-		@Nonnull
-		public BigInteger getModulus() {
-			return this.modulus;
-		}
-
-		@Nonnull
-		public String getExponentInBase64() {
-			return this.exponentInBase64;
-		}
-
-		@Nonnull
-		public String getModulusInBase64() {
-			return this.modulusInBase64;
-		}
 	}
 }
