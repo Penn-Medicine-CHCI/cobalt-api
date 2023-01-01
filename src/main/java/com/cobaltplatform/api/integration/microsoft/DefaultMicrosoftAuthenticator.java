@@ -151,7 +151,7 @@ public class DefaultMicrosoftAuthenticator implements MicrosoftAuthenticator {
 
 	@Nonnull
 	@Override
-	public MicrosoftAccessToken obtainAccessTokenFromCode(@Nonnull AccessTokenRequest request) throws MicrosoftException {
+	public MicrosoftAccessToken obtainAccessToken(@Nonnull AccessTokenRequest request) throws MicrosoftException {
 		requireNonNull(request);
 
 		String tenantId = getTenantId();
@@ -221,7 +221,7 @@ public class DefaultMicrosoftAuthenticator implements MicrosoftAuthenticator {
 			// }
 
 			if (httpResponse.getStatus() >= 400)
-				throw new MicrosoftException(format("Unable to exchange Microsoft code for access token. HTTP status %d, Response Body:\n%s",
+				throw new MicrosoftException(format("Unable to acquire Microsoft access token. HTTP status %d, Response Body:\n%s",
 						httpResponse.getStatus(), httpResponse.getBody().isPresent() ? new String(httpResponse.getBody().get(), StandardCharsets.UTF_8) : "[no response body]"));
 
 			String json = new String(httpResponse.getBody().get(), StandardCharsets.UTF_8);
@@ -242,7 +242,7 @@ public class DefaultMicrosoftAuthenticator implements MicrosoftAuthenticator {
 			String tokenState = jsonObject.get("state") != null ? jsonObject.get("state").toString() : null;  // In theory should be identical to "state" passed in to this method
 			Integer expiresIn = ((Number) jsonObject.get("expires_in")).intValue();
 			Integer extExpiresIn = jsonObject.get("ext_expires_in") == null ? null : ((Number) jsonObject.get("ext_expires_in")).intValue();
-			String returnedScope = jsonObject.get("scope").toString() == null ? null : jsonObject.get("scope").toString();
+			String returnedScope = jsonObject.get("scope") == null ? null : jsonObject.get("scope").toString();
 			String refreshToken = jsonObject.get("refresh_token") == null ? null : jsonObject.get("refresh_token").toString();
 
 			Instant expiresAt = Instant.now().plus(expiresIn, ChronoUnit.SECONDS);
@@ -258,7 +258,7 @@ public class DefaultMicrosoftAuthenticator implements MicrosoftAuthenticator {
 		} catch (MicrosoftException e) {
 			throw e;
 		} catch (Exception e) {
-			throw new MicrosoftException("Unable to acquire access token for code", e);
+			throw new MicrosoftException("Unable to acquire Microsoft access token", e);
 		}
 	}
 

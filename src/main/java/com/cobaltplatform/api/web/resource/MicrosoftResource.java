@@ -85,7 +85,7 @@ public class MicrosoftResource {
 		String clientAssertion = microsoftAuthenticator.generateClientAssertionJwt();
 
 		// TODO: data-drive
-		MicrosoftAccessToken microsoftAccessToken = microsoftAuthenticator.obtainAccessTokenFromCode(new AccessTokenRequest() {{
+		MicrosoftAccessToken microsoftAccessToken = microsoftAuthenticator.obtainAccessToken(new AccessTokenRequest() {{
 			setCode(code);
 			setRedirectUri("http://localhost:8080/microsoft/oauth/callback");
 			setGrantType("authorization_code");

@@ -32,7 +32,7 @@ public interface MicrosoftAuthenticator {
 	String generateAuthenticationUrl(@Nonnull AuthenticationRedirectRequest request);
 
 	@Nonnull
-	MicrosoftAccessToken obtainAccessTokenFromCode(@Nonnull AccessTokenRequest request) throws MicrosoftException;
+	MicrosoftAccessToken obtainAccessToken(@Nonnull AccessTokenRequest request) throws MicrosoftException;
 
 	@Nonnull
 	String generateClientAssertionJwt();
