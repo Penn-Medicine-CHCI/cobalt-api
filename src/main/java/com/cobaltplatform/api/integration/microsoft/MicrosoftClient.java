@@ -19,12 +19,21 @@
 
 package com.cobaltplatform.api.integration.microsoft;
 
+import com.cobaltplatform.api.integration.microsoft.model.User;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.Optional;
 
 /**
  * @author Transmogrify, LLC.
  */
 @ThreadSafe
 public interface MicrosoftClient {
-	// TODO: implement
+	/**
+	 * Requires {@code User.ReadBasic.All} for Daemon apps.
+	 */
+	@Nonnull
+	Optional<User> getUser(@Nullable String id) throws MicrosoftException;
 }
