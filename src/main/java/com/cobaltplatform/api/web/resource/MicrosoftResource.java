@@ -25,10 +25,14 @@ import com.cobaltplatform.api.integration.microsoft.MicrosoftAccessToken;
 import com.cobaltplatform.api.integration.microsoft.MicrosoftAuthenticator;
 import com.cobaltplatform.api.integration.microsoft.request.AccessTokenRequest;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.web.response.ResponseGenerator;
 import com.soklet.web.annotation.GET;
+import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.QueryParameter;
+import com.soklet.web.annotation.RequestBody;
 import com.soklet.web.annotation.Resource;
 import com.soklet.web.response.ApiResponse;
+import com.soklet.web.response.BinaryResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -96,6 +100,24 @@ public class MicrosoftResource {
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("microsoftAccessToken", microsoftAccessToken);
 		}});
+	}
+
+	@Nonnull
+	@POST("/microsoft/subscription/callback")
+	public BinaryResponse subscriptionCallback(@Nonnull @QueryParameter Optional<String> validationToken,
+																						 @Nonnull @RequestBody Optional<String> requestBody) {
+		if (validationToken.isPresent()) {
+			getLogger().debug("Performing subscription callback validation flow. Validation token is '{}'", validationToken.get());
+			return ResponseGenerator.utf8Response(validationToken.get(), "text/plain");
+		} else if (requestBody.isPresent()) {
+			getLogger().debug("Performing subscription callback notification flow. Request body is:\n{}", requestBody.get());
+			// TODO: business logic
+			// TODO: validate request by examining `clientState` and ensuring it's a JWT (or whatever) that we signed
+			// TODO: enqueue callback event for later processing; return HTTP 202 Accepted to indicate it will be processed
+			return ResponseGenerator.utf8Response("OK", "text/plain");
+		} else {
+			throw new RuntimeException("Not sure how to handle this request; no validation token or request body");
+		}
 	}
 
 	@Nonnull

@@ -24,7 +24,9 @@ import com.cobaltplatform.api.http.HttpClient;
 import com.cobaltplatform.api.http.HttpMethod;
 import com.cobaltplatform.api.http.HttpRequest;
 import com.cobaltplatform.api.http.HttpResponse;
+import com.cobaltplatform.api.integration.microsoft.model.Subscription;
 import com.cobaltplatform.api.integration.microsoft.model.User;
+import com.cobaltplatform.api.integration.microsoft.request.SubscriptionCreateRequest;
 import com.google.gson.Gson;
 
 import javax.annotation.Nonnull;
@@ -33,6 +35,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -89,6 +92,54 @@ public class DefaultMicrosoftClient implements MicrosoftClient {
 				.build();
 
 		return makeApiCall(apiCall);
+	}
+
+	@Nonnull
+	@Override
+	public Subscription createSubscription(@Nonnull SubscriptionCreateRequest request) throws MicrosoftException {
+		requireNonNull(request);
+
+		HttpMethod httpMethod = HttpMethod.POST;
+		String url = "subscriptions";
+
+		Map<String, Object> requestBodyJson = new HashMap<>();
+		requestBodyJson.put("changeType", request.getChangeType());
+		requestBodyJson.put("notificationUrl", request.getNotificationUrl());
+		requestBodyJson.put("resource", request.getResource());
+		requestBodyJson.put("expirationDateTime", DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(request.getExpirationDateTime()));
+		requestBodyJson.put("clientState", request.getClientState());
+
+		String requestBody = getGson().toJson(requestBodyJson);
+
+		Function<String, Subscription> responseBodyMapper = (responseBody) -> {
+			return getGson().fromJson(responseBody, Subscription.class);
+		};
+
+		ApiCall<Subscription> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+				.requestBody(requestBody)
+				.build();
+
+		return makeApiCall(apiCall);
+	}
+
+	@Override
+	public void deleteSubscription(@Nullable String id) throws MicrosoftException {
+		id = trimToNull(id);
+
+		if (id == null)
+			return;
+
+		HttpMethod httpMethod = HttpMethod.DELETE;
+		String url = format("subscriptions/%s", id);
+
+		Function<String, Optional<String>> responseBodyMapper = (responseBody) -> {
+			return Optional.empty();
+		};
+
+		ApiCall<Optional<String>> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+				.build();
+
+		makeApiCall(apiCall);
 	}
 
 	@Nonnull

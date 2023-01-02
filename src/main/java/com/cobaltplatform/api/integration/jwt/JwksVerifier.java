@@ -177,6 +177,8 @@ public class JwksVerifier implements JwtVerifier {
 		} catch (NoSuchAlgorithmException | InvalidKeyException | SignatureException e) {
 			throw new JwtVerificationException(format("Unable to perform signature verification for JWT %s", jwt), e);
 		}
+
+		// TODO: validate JWT isn't expired, etc.
 	}
 
 	@Nonnull

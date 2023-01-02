@@ -19,7 +19,9 @@
 
 package com.cobaltplatform.api.integration.microsoft;
 
+import com.cobaltplatform.api.integration.microsoft.model.Subscription;
 import com.cobaltplatform.api.integration.microsoft.model.User;
+import com.cobaltplatform.api.integration.microsoft.request.SubscriptionCreateRequest;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -36,4 +38,24 @@ public interface MicrosoftClient {
 	 */
 	@Nonnull
 	Optional<User> getUser(@Nullable String id) throws MicrosoftException;
+
+	/**
+	 * List of legal subscription resource paths is available here:
+	 * https://learn.microsoft.com/en-us/graph/api/resources/webhooks?view=graph-rest-1.0
+	 * <p>
+	 * TODO: incorporate `clientState` generator - signed JWT timeboxed to maximum subscription refresh window?
+	 */
+	@Nonnull
+	Subscription createSubscription(@Nonnull SubscriptionCreateRequest request) throws MicrosoftException;
+
+	@Nonnull
+	void deleteSubscription(@Nullable String id) throws MicrosoftException;
+
+	// TODO: implement PATCH for subscriptions to support renewing (for example)
+	// PATCH https://graph.microsoft.com/v1.0/subscriptions/{id}
+	// Content-Type: application/json
+	//
+	// {
+	//  "expirationDateTime": "2022-10-22T11:00:00.0000000Z"
+	// }
 }
