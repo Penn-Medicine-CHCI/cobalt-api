@@ -614,7 +614,8 @@ public class ContentService {
 	}
 
 	@Nonnull
-	public AdminContent createContent(@Nonnull Account account, @Nonnull CreateContentRequest command) {
+	public AdminContent createContent(@Nonnull Account account,
+																		@Nonnull CreateContentRequest command) {
 		requireNonNull(account);
 		requireNonNull(command);
 
@@ -625,6 +626,7 @@ public class ContentService {
 		String imageUrl = trimToNull(command.getImageUrl());
 		String description = trimToNull(command.getDescription());
 		String author = trimToNull(command.getAuthor());
+		@Deprecated
 		String contentTypeLabelId = trimToNull(command.getContentTypeLabelId());
 		VisibilityId visibilityCommand = command.getVisibilityId();
 		ContentTypeId contentTypeId = command.getContentTypeId();
@@ -636,6 +638,10 @@ public class ContentService {
 		List<InstitutionId> visibleInstitutionIds = command.getInstitutionIdList() == null ? emptyList() : command.getInstitutionIdList();
 
 		LocalDate createdDate = command.getDateCreated();
+
+		// Temporary until we phase out contentTypeLabelId entirely
+		if (contentTypeLabelId == null && contentTypeId != null)
+			contentTypeLabelId = contentTypeId.name();
 
 		ValidationException validationException = new ValidationException();
 
