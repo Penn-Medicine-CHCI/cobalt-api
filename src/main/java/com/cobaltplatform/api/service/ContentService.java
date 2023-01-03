@@ -709,7 +709,7 @@ public class ContentService {
 						"owner_institution_approval_status_id, other_institution_approval_status_id, visibility_id) " +
 						"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
 				contentId, command.getContentTypeId(), title, url, imageUrl, createdDate, durationInMinutes,
-				description, author, account.getInstitutionId(), command.getContentTypeLabelId(),
+				description, author, account.getInstitutionId(), contentTypeLabelId,
 				initialApprovalStatus, otherInstitutionsApprovalStatusId, visibilityCommand);
 
 
