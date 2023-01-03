@@ -50,6 +50,7 @@ public class CreateContentRequest {
 	@Nullable
 	private String description;
 	@Nullable
+	@Deprecated
 	private String contentTypeLabelId;
 	@Nullable
 	private LocalDate dateCreated;
@@ -126,10 +127,12 @@ public class CreateContentRequest {
 	}
 
 	@Nullable
+	@Deprecated
 	public String getContentTypeLabelId() {
 		return contentTypeLabelId;
 	}
 
+	@Deprecated
 	public void setContentTypeLabelId(@Nullable String contentTypeLabelId) {
 		this.contentTypeLabelId = contentTypeLabelId;
 	}
