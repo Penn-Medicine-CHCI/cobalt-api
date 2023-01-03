@@ -106,6 +106,9 @@ public class MicrosoftResource {
 	@POST("/microsoft/subscription/callback")
 	public BinaryResponse subscriptionCallback(@Nonnull @QueryParameter Optional<String> validationToken,
 																						 @Nonnull @RequestBody Optional<String> requestBody) {
+		requireNonNull(validationToken);
+		requireNonNull(requestBody);
+
 		if (validationToken.isPresent()) {
 			getLogger().debug("Performing subscription callback validation flow. Validation token is '{}'", validationToken.get());
 			return ResponseGenerator.utf8Response(validationToken.get(), "text/plain");
