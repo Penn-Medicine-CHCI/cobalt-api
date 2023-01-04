@@ -19,9 +19,10 @@
 
 package com.cobaltplatform.api.integration.epic;
 
+import com.cobaltplatform.api.model.security.SigningCredentials;
+
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.Immutable;
-import java.security.KeyPair;
 
 import static java.util.Objects.requireNonNull;
 
@@ -35,7 +36,7 @@ public class EpicBackendServiceConfiguration {
 	@Nonnull
 	private final String jwksKeyId;
 	@Nonnull
-	private final KeyPair keyPair;
+	private final SigningCredentials signingCredentials;
 	@Nonnull
 	private final String tokenUrl; // e.g. https://EPIC_BASE_URL/ENV-FHIR/oauth2/token";
 	@Nonnull
@@ -43,18 +44,18 @@ public class EpicBackendServiceConfiguration {
 
 	public EpicBackendServiceConfiguration(@Nonnull String clientId,
 																				 @Nonnull String jwksKeyId,
-																				 @Nonnull KeyPair keyPair,
+																				 @Nonnull SigningCredentials signingCredentials,
 																				 @Nonnull String tokenUrl,
 																				 @Nonnull String jwksUrl) {
 		requireNonNull(clientId);
 		requireNonNull(jwksKeyId);
-		requireNonNull(keyPair);
+		requireNonNull(signingCredentials);
 		requireNonNull(tokenUrl);
 		requireNonNull(jwksUrl);
 
 		this.clientId = clientId;
 		this.jwksKeyId = jwksKeyId;
-		this.keyPair = keyPair;
+		this.signingCredentials = signingCredentials;
 		this.tokenUrl = tokenUrl;
 		this.jwksUrl = jwksUrl;
 	}
@@ -70,8 +71,8 @@ public class EpicBackendServiceConfiguration {
 	}
 
 	@Nonnull
-	public KeyPair getKeyPair() {
-		return this.keyPair;
+	public SigningCredentials getSigningCredentials() {
+		return this.signingCredentials;
 	}
 
 	@Nonnull

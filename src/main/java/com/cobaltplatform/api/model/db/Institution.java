@@ -169,6 +169,10 @@ public class Institution {
 	private String myChartCallbackUrl;
 	@Nullable
 	private EpicBackendServiceAuthTypeId epicBackendServiceAuthTypeId;
+	@Nullable
+	private String microsoftTenantId;
+	@Nullable
+	private String microsoftClientId;
 
 	public enum InstitutionId {
 		COBALT,
@@ -745,5 +749,23 @@ public class Institution {
 
 	public void setEpicBackendServiceAuthTypeId(@Nullable EpicBackendServiceAuthTypeId epicBackendServiceAuthTypeId) {
 		this.epicBackendServiceAuthTypeId = epicBackendServiceAuthTypeId;
+	}
+
+	@Nullable
+	public String getMicrosoftTenantId() {
+		return this.microsoftTenantId;
+	}
+
+	public void setMicrosoftTenantId(@Nullable String microsoftTenantId) {
+		this.microsoftTenantId = microsoftTenantId;
+	}
+
+	@Nullable
+	public String getMicrosoftClientId() {
+		return this.microsoftClientId;
+	}
+
+	public void setMicrosoftClientId(@Nullable String microsoftClientId) {
+		this.microsoftClientId = microsoftClientId;
 	}
 }

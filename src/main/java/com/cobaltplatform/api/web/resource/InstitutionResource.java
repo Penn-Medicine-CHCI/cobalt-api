@@ -21,6 +21,9 @@ package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
+import com.cobaltplatform.api.integration.microsoft.MicrosoftAuthenticator;
+import com.cobaltplatform.api.integration.microsoft.request.AuthenticationRedirectRequest;
 import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse.AccountSourceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
@@ -48,6 +51,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -62,6 +66,8 @@ public class InstitutionResource {
 	@Nonnull
 	private final AccountSourceApiResponseFactory accountSourceApiResponseFactory;
 	@Nonnull
+	private final EnterprisePluginProvider enterprisePluginProvider;
+	@Nonnull
 	private final InstitutionService institutionService;
 	@Nonnull
 	private final MyChartService myChartService;
@@ -75,6 +81,7 @@ public class InstitutionResource {
 	@Inject
 	public InstitutionResource(@Nonnull InstitutionApiResponseFactory institutionApiResponseFactory,
 														 @Nonnull AccountSourceApiResponseFactory accountSourceApiResponseFactory,
+														 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
 														 @Nonnull InstitutionService institutionService,
 														 @Nonnull MyChartService myChartService,
 														 @Nonnull Provider<CurrentContext> currentContextProvider,
@@ -82,6 +89,7 @@ public class InstitutionResource {
 														 @Nonnull Strings strings) {
 		requireNonNull(institutionApiResponseFactory);
 		requireNonNull(accountSourceApiResponseFactory);
+		requireNonNull(enterprisePluginProvider);
 		requireNonNull(institutionService);
 		requireNonNull(myChartService);
 		requireNonNull(currentContextProvider);
@@ -90,6 +98,7 @@ public class InstitutionResource {
 
 		this.institutionApiResponseFactory = institutionApiResponseFactory;
 		this.accountSourceApiResponseFactory = accountSourceApiResponseFactory;
+		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.institutionService = institutionService;
 		this.myChartService = myChartService;
 		this.currentContextProvider = currentContextProvider;
@@ -137,8 +146,34 @@ public class InstitutionResource {
 	public Object myChartAuthenticationUrl(@Nonnull @PathParameter InstitutionId institutionId,
 																				 @Nonnull @QueryParameter Optional<Boolean> redirectImmediately) {
 		requireNonNull(institutionId);
+		requireNonNull(redirectImmediately);
 
 		String authenticationUrl = getMyChartService().generateAuthenticationUrlForInstitutionId(institutionId);
+
+		if (redirectImmediately.isPresent() && redirectImmediately.get())
+			return new RedirectResponse(authenticationUrl, Type.TEMPORARY);
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("authenticationUrl", authenticationUrl);
+		}});
+	}
+
+	@GET("/institutions/{institutionId}/microsoft-authentication-url")
+	public Object microsoftAuthenticationUrl(@Nonnull @PathParameter InstitutionId institutionId,
+																					 @Nonnull @QueryParameter Optional<Boolean> redirectImmediately) {
+		requireNonNull(institutionId);
+		requireNonNull(redirectImmediately);
+
+		MicrosoftAuthenticator microsoftAuthenticator = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId).microsoftAuthenticator().get();
+
+		// TODO: data-drive, use real state
+		String authenticationUrl = microsoftAuthenticator.generateAuthenticationUrl(new AuthenticationRedirectRequest() {{
+			setResponseType("code");
+			setRedirectUri(format("%s/microsoft/oauth/callback", getConfiguration().getBaseUrl()));
+			setResponseMode("query");
+			setScope("profile openid email https://graph.microsoft.com/User.Read https://graph.microsoft.com/Calendars.Read");
+			setState("12345");
+		}});
 
 		if (redirectImmediately.isPresent() && redirectImmediately.get())
 			return new RedirectResponse(authenticationUrl, Type.TEMPORARY);
@@ -171,6 +206,11 @@ public class InstitutionResource {
 	@Nonnull
 	protected AccountSourceApiResponseFactory getAccountSourceApiResponseFactory() {
 		return this.accountSourceApiResponseFactory;
+	}
+
+	@Nonnull
+	protected EnterprisePluginProvider getEnterprisePluginProvider() {
+		return this.enterprisePluginProvider;
 	}
 
 	@Nonnull

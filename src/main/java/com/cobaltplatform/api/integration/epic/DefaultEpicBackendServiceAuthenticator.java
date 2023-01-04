@@ -131,7 +131,7 @@ public class DefaultEpicBackendServiceAuthenticator implements EpicBackendServic
 				.setHeader(header)
 				.setClaims(claims)
 				// Currently only RSA signing algorithms are supported so RSA 384 should be used and this should be set to RS384
-				.signWith(getEpicBackendServiceConfiguration().getKeyPair().getPrivate(), SignatureAlgorithm.RS384)
+				.signWith(getEpicBackendServiceConfiguration().getSigningCredentials().getPrivateKey(), SignatureAlgorithm.RS384)
 				.compact();
 	}
 

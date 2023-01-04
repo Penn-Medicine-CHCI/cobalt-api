@@ -35,7 +35,6 @@ import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.service.Way2HealthService;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.CryptoUtility;
-import com.cobaltplatform.api.util.CryptoUtility.KeyFormat;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.web.response.ResponseGenerator;
 import com.lokalized.Strings;
@@ -284,13 +283,13 @@ public class SystemResource {
 	@Nonnull
 	@GET("/system/public-key")
 	public ApiResponse publicKey() {
-		PublicKey publicKey = getConfiguration().getKeyPair().getPublic();
+		PublicKey publicKey = getConfiguration().getSigningCredentials().getX509Certificate().getPublicKey();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("algorithm", publicKey.getAlgorithm());
 			put("jcaAlgorithm", getAuthenticator().getJcaSignatureAlgorithm());
 			put("format", publicKey.getFormat());
-			put("publicKey", CryptoUtility.stringRepresentation(publicKey, KeyFormat.BASE64));
+			put("publicKey", CryptoUtility.base64Representation(publicKey));
 		}});
 	}
 

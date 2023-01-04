@@ -27,8 +27,8 @@ import com.cobaltplatform.api.http.HttpResponse;
 import com.cobaltplatform.api.integration.way2health.Way2HealthEnvironment;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.security.SamlIdentityProvider;
+import com.cobaltplatform.api.model.security.SigningCredentials;
 import com.cobaltplatform.api.util.CryptoUtility;
-import com.cobaltplatform.api.util.CryptoUtility.PublicKeyFormat;
 import com.cobaltplatform.api.util.DeploymentTarget;
 import com.cobaltplatform.api.util.GitUtility;
 import com.cobaltplatform.api.util.JsonMapper;
@@ -68,7 +68,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.KeyPair;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -81,8 +80,6 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
-import static com.cobaltplatform.api.util.CryptoUtility.normalizeCertificate;
-import static com.cobaltplatform.api.util.CryptoUtility.normalizePrivateKey;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -270,17 +267,15 @@ public class Configuration {
 	private final String epicCurrentEnvironmentKeyId;
 
 	@Nonnull
-	private final KeyPair keyPair;
+	private final SigningCredentials signingCredentials;
 	@Nonnull
-	private final KeyPair epicNonProdKeyPair;
+	private final SigningCredentials epicNonProdSigningCredentials;
 	@Nonnull
-	private final String epicNonProdPublicKeyAsString;
+	private final SigningCredentials epicProdSigningCredentials;
 	@Nonnull
-	private final KeyPair epicProdKeyPair;
+	private final SigningCredentials epicCurrentEnvironmentSigningCredentials;
 	@Nonnull
-	private final String epicProdPublicKeyAsString;
-	@Nonnull
-	private final KeyPair epicCurrentEnvironmentKeyPair;
+	private final SigningCredentials microsoftSigningCredentials;
 
 	@Nonnull
 	private final Map<SamlIdentityProvider, Map<String, Object>> samlSettingsByIdentityProvider;
@@ -425,16 +420,11 @@ public class Configuration {
 		this.epicProdKeyId = "e40560fb-4a47-43ea-949f-bc0b3ad7bd50";
 		this.epicCurrentEnvironmentKeyId = isProduction() ? getEpicProdKeyId() : getEpicNonProdKeyId();
 
-		RawKeypair rawKeypair = loadRawKeypair("cobalt");
-		RawKeypair epicNonProdRawKeypair = loadRawKeypair("cobalt.epic.nonprod");
-		RawKeypair epicProdRawKeypair = loadRawKeypair("cobalt.epic.prod");
-
-		this.keyPair = CryptoUtility.keyPairFromStringRepresentation(rawKeypair.getCert(), rawKeypair.getPrivateKey(), PublicKeyFormat.X509);
-		this.epicNonProdKeyPair = CryptoUtility.keyPairFromStringRepresentation(epicNonProdRawKeypair.getCert(), epicNonProdRawKeypair.getPrivateKey(), PublicKeyFormat.X509);
-		this.epicNonProdPublicKeyAsString = epicNonProdRawKeypair.getCert();
-		this.epicProdKeyPair = CryptoUtility.keyPairFromStringRepresentation(epicProdRawKeypair.getCert(), epicProdRawKeypair.getPrivateKey(), PublicKeyFormat.X509);
-		this.epicProdPublicKeyAsString = epicProdRawKeypair.getCert();
-		this.epicCurrentEnvironmentKeyPair = isProduction() ? getEpicProdKeyPair() : getEpicNonProdKeyPair();
+		this.signingCredentials = loadSigningCredentials("cobalt");
+		this.epicNonProdSigningCredentials = loadSigningCredentials("cobalt.epic.nonprod");
+		this.epicProdSigningCredentials = loadSigningCredentials("cobalt.epic.prod");
+		this.epicCurrentEnvironmentSigningCredentials = isProduction() ? getEpicProdSigningCredentials() : getEpicNonProdSigningCredentials();
+		this.microsoftSigningCredentials = loadSigningCredentials("cobalt.microsoft");
 		this.samlSettingsByIdentityProvider = Collections.emptyMap();
 
 		if (getAmazonUseLocalstack()) {
@@ -794,11 +784,11 @@ public class Configuration {
 	}
 
 	@Nonnull
-	protected RawKeypair loadRawKeypair(@Nonnull String namePrefix) {
+	protected SigningCredentials loadSigningCredentials(@Nonnull String namePrefix) {
 		requireNonNull(namePrefix);
 
-		String cert;
-		String privateKey;
+		String certificateAsString;
+		String privateKeyAsString;
 
 		if (sensitiveDataStorageLocation == SensitiveDataStorageLocation.FILESYSTEM) {
 			Path certFile = Paths.get(format("config/%s/%s.crt", getEnvironment(), namePrefix));
@@ -812,8 +802,8 @@ public class Configuration {
 				throw new IllegalStateException(format("Could not find private key file at %s", privateKeyFile.toAbsolutePath()));
 
 			try {
-				cert = new String(Files.readAllBytes(certFile), StandardCharsets.UTF_8);
-				privateKey = new String(Files.readAllBytes(privateKeyFile), StandardCharsets.UTF_8);
+				certificateAsString = new String(Files.readAllBytes(certFile), StandardCharsets.UTF_8);
+				privateKeyAsString = new String(Files.readAllBytes(privateKeyFile), StandardCharsets.UTF_8);
 			} catch (IOException e) {
 				throw new UncheckedIOException(e);
 			}
@@ -833,7 +823,7 @@ public class Configuration {
 					.build();
 
 			try (InputStream inputStream = amazonS3.getObject(certObjectRequest)) {
-				cert = IOUtils.toString(inputStream, StandardCharsets.UTF_8.name());
+				certificateAsString = IOUtils.toString(inputStream, StandardCharsets.UTF_8.name());
 			} catch (IOException e) {
 				throw new UncheckedIOException(e);
 			}
@@ -845,7 +835,7 @@ public class Configuration {
 					.build();
 
 			try (InputStream inputStream = amazonS3.getObject(privateKeyObjectRequest)) {
-				privateKey = IOUtils.toString(inputStream, StandardCharsets.UTF_8.name());
+				privateKeyAsString = IOUtils.toString(inputStream, StandardCharsets.UTF_8.name());
 			} catch (IOException e) {
 				throw new UncheckedIOException(e);
 			}
@@ -853,41 +843,14 @@ public class Configuration {
 			throw new IllegalStateException(format("Unknown value for %s: %s", SensitiveDataStorageLocation.class.getSimpleName(), sensitiveDataStorageLocation.name()));
 		}
 
-		return new RawKeypair(cert.trim(), privateKey.trim());
-	}
-
-	@Immutable
-	protected static class RawKeypair {
-		@Nonnull
-		private final String cert;
-		@Nonnull
-		private final String privateKey;
-
-		public RawKeypair(@Nonnull String cert,
-											@Nonnull String privateKey) {
-			requireNonNull(cert);
-			requireNonNull(privateKey);
-
-			this.cert = cert;
-			this.privateKey = privateKey;
-		}
-
-		@Nonnull
-		public String getCert() {
-			return cert;
-		}
-
-		@Nonnull
-		public String getPrivateKey() {
-			return privateKey;
-		}
+		return new SigningCredentials(certificateAsString.trim(), privateKeyAsString.trim());
 	}
 
 	@Nonnull
 	protected Map<String, Object> determineSamlSettings(@Nonnull SamlIdentityProvider samlIdentityProvider,
-																											@Nonnull RawKeypair rawKeypair) {
+																											@Nonnull SigningCredentials signingCredentials) {
 		requireNonNull(samlIdentityProvider);
-		requireNonNull(rawKeypair);
+		requireNonNull(signingCredentials);
 
 		Path samlPropertiesFile = Paths.get(format("config/%s/saml/%s.properties", getEnvironment(), samlIdentityProvider.name()));
 
@@ -909,10 +872,10 @@ public class Configuration {
 				)
 		);
 
-		String cert = normalizeCertificate(rawKeypair.getCert());
-		propertiesAsMap.put("onelogin.saml2.sp.x509cert", cert);
+		String certificateAsString = CryptoUtility.base64Representation(signingCredentials.getX509Certificate());
+		propertiesAsMap.put("onelogin.saml2.sp.x509cert", certificateAsString);
 
-		String privateKey = normalizePrivateKey(rawKeypair.getPrivateKey());
+		String privateKey = CryptoUtility.base64Representation(signingCredentials.getPrivateKey());
 		propertiesAsMap.put("onelogin.saml2.sp.privatekey", privateKey);
 
 		return Collections.unmodifiableMap(propertiesAsMap);
@@ -1410,23 +1373,28 @@ public class Configuration {
 	}
 
 	@Nonnull
-	public KeyPair getKeyPair() {
-		return keyPair;
+	public SigningCredentials getSigningCredentials() {
+		return this.signingCredentials;
 	}
 
 	@Nonnull
-	public KeyPair getEpicNonProdKeyPair() {
-		return this.epicNonProdKeyPair;
+	public SigningCredentials getEpicNonProdSigningCredentials() {
+		return this.epicNonProdSigningCredentials;
 	}
 
 	@Nonnull
-	public KeyPair getEpicProdKeyPair() {
-		return this.epicProdKeyPair;
+	public SigningCredentials getEpicProdSigningCredentials() {
+		return this.epicProdSigningCredentials;
 	}
 
 	@Nonnull
-	public KeyPair getEpicCurrentEnvironmentKeyPair() {
-		return this.epicCurrentEnvironmentKeyPair;
+	public SigningCredentials getEpicCurrentEnvironmentSigningCredentials() {
+		return this.epicCurrentEnvironmentSigningCredentials;
+	}
+
+	@Nonnull
+	public SigningCredentials getMicrosoftSigningCredentials() {
+		return this.microsoftSigningCredentials;
 	}
 
 	@Nonnull
@@ -1447,16 +1415,6 @@ public class Configuration {
 	@Nonnull
 	public Boolean getShouldPollWay2Health() {
 		return shouldPollWay2Health;
-	}
-
-	@Nonnull
-	public String getEpicNonProdPublicKeyAsString() {
-		return this.epicNonProdPublicKeyAsString;
-	}
-
-	@Nonnull
-	public String getEpicProdPublicKeyAsString() {
-		return this.epicProdPublicKeyAsString;
 	}
 
 	@Nonnull

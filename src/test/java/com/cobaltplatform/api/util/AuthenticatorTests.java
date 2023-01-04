@@ -26,13 +26,11 @@ import com.cobaltplatform.api.model.security.AccessTokenClaims;
 import com.cobaltplatform.api.model.security.SigningTokenClaims;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.util.Authenticator.SigningTokenValidationException;
-import com.cobaltplatform.api.util.CryptoUtility.KeyFormat;
 import io.jsonwebtoken.Jwts;
 import org.junit.Assert;
 import org.junit.Test;
 
 import javax.annotation.concurrent.ThreadSafe;
-import java.security.PublicKey;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -69,7 +67,7 @@ public class AuthenticatorTests {
 			String accessToken = authenticator.generateAccessToken(ACCOUNT_ID, ROLE_ID);
 
 			// This should succeed
-			Jwts.parserBuilder().setSigningKey(configuration.getKeyPair().getPublic()).build().parseClaimsJws(accessToken);
+			Jwts.parserBuilder().setSigningKey(configuration.getSigningCredentials().getX509Certificate().getPublicKey()).build().parseClaimsJws(accessToken);
 
 			// This should fail, since it's some random key generated at runtime and not the key we used to sign the JWT with
 			try {
@@ -77,12 +75,6 @@ public class AuthenticatorTests {
 			} catch (Exception e) {
 				// Expected behavior
 			}
-
-			// Ensure we can serialize and deserialize the public key and it still works for verification
-			String publicKeyAsString = CryptoUtility.stringRepresentation(configuration.getKeyPair().getPublic(), KeyFormat.BASE64);
-			PublicKey publicKey = CryptoUtility.publicKeyFromStringRepresentation(publicKeyAsString);
-
-			Jwts.parserBuilder().setSigningKey(publicKey).build().parseClaimsJws(accessToken);
 		});
 	}
 

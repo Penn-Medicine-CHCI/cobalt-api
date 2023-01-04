@@ -155,7 +155,7 @@ public class Authenticator {
 					if (myChartAccessToken != null)
 						put(getMyChartAccessTokenClaimName(), myChartAccessToken.serialize());
 				}})
-				.signWith(getConfiguration().getKeyPair().getPrivate(), getSignatureAlgorithm())
+				.signWith(getConfiguration().getSigningCredentials().getPrivateKey(), getSignatureAlgorithm())
 				.compact();
 	}
 
@@ -219,7 +219,7 @@ public class Authenticator {
 				.setSubject(subject)
 				.setExpiration(Date.from(now.plus(expirationInSeconds, SECONDS)))
 				.setIssuedAt(Date.from(now))
-				.signWith(getConfiguration().getKeyPair().getPrivate(), getSignatureAlgorithm())
+				.signWith(getConfiguration().getSigningCredentials().getPrivateKey(), getSignatureAlgorithm())
 				.compact();
 	}
 
@@ -228,7 +228,7 @@ public class Authenticator {
 		requireNonNull(signingToken);
 
 		try {
-			Jws<Claims> claims = Jwts.parserBuilder().setSigningKey(getConfiguration().getKeyPair().getPublic()).build().parseClaimsJws(signingToken);
+			Jws<Claims> claims = Jwts.parserBuilder().setSigningKey(getConfiguration().getSigningCredentials().getX509Certificate().getPublicKey()).build().parseClaimsJws(signingToken);
 			Map<String, Object> claimsAsMap = claims.getBody();
 			Instant expiration = claims.getBody().getExpiration().toInstant();
 
@@ -282,7 +282,7 @@ public class Authenticator {
 
 		// Use public key of keypair to validate claims
 		try {
-			claims = Jwts.parserBuilder().setSigningKey(getConfiguration().getKeyPair().getPublic()).build().parseClaimsJws(accessToken);
+			claims = Jwts.parserBuilder().setSigningKey(getConfiguration().getSigningCredentials().getX509Certificate().getPublicKey()).build().parseClaimsJws(accessToken);
 		} catch (UnsupportedJwtException e) {
 			getLogger().trace("Very likely this access token is a legacy token, continuing on...", e);
 		} catch (ExpiredJwtException e) {
