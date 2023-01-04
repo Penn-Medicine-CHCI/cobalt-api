@@ -67,7 +67,7 @@ public class AuthenticatorTests {
 			String accessToken = authenticator.generateAccessToken(ACCOUNT_ID, ROLE_ID);
 
 			// This should succeed
-			Jwts.parserBuilder().setSigningKey(configuration.getKeyPair().getPublic()).build().parseClaimsJws(accessToken);
+			Jwts.parserBuilder().setSigningKey(configuration.getSigningCredentials().getX509Certificate().getPublicKey()).build().parseClaimsJws(accessToken);
 
 			// This should fail, since it's some random key generated at runtime and not the key we used to sign the JWT with
 			try {

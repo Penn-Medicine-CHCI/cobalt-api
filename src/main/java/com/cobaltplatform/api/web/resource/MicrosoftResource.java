@@ -43,6 +43,7 @@ import javax.inject.Singleton;
 import java.util.HashMap;
 import java.util.Optional;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -91,7 +92,7 @@ public class MicrosoftResource {
 		// TODO: data-drive
 		MicrosoftAccessToken microsoftAccessToken = microsoftAuthenticator.obtainAccessToken(new AccessTokenRequest() {{
 			setCode(code);
-			setRedirectUri("http://localhost:8080/microsoft/oauth/callback");
+			setRedirectUri(format("%s/microsoft/oauth/callback", getConfiguration().getBaseUrl()));
 			setGrantType("authorization_code");
 			setClientAssertionType("urn:ietf:params:oauth:client-assertion-type:jwt-bearer");
 			setClientAssertion(clientAssertion);

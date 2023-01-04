@@ -22,7 +22,6 @@ package com.cobaltplatform.api.integration.enterprise;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.integration.microsoft.DefaultMicrosoftAuthenticator;
 import com.cobaltplatform.api.integration.microsoft.MicrosoftAuthenticator;
-import com.cobaltplatform.api.integration.microsoft.MicrosoftClient;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -101,12 +100,6 @@ public class CobaltEnterprisePlugin implements EnterprisePlugin {
 				institution.getMicrosoftTenantId(),
 				institution.getMicrosoftClientId(),
 				getConfiguration().getMicrosoftSigningCredentials()));
-	}
-
-	@Nonnull
-	@Override
-	public Optional<MicrosoftClient> microsoftClient() {
-		return Optional.empty();
 	}
 
 	@Nonnull

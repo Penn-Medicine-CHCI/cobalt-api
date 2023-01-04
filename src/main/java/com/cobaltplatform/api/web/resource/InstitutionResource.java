@@ -51,6 +51,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -168,7 +169,7 @@ public class InstitutionResource {
 		// TODO: data-drive, use real state
 		String authenticationUrl = microsoftAuthenticator.generateAuthenticationUrl(new AuthenticationRedirectRequest() {{
 			setResponseType("code");
-			setRedirectUri("http://localhost:8080/microsoft/oauth/callback");
+			setRedirectUri(format("%s/microsoft/oauth/callback", getConfiguration().getBaseUrl()));
 			setResponseMode("query");
 			setScope("profile openid email https://graph.microsoft.com/User.Read https://graph.microsoft.com/Calendars.Read");
 			setState("12345");

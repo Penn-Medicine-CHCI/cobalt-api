@@ -22,6 +22,7 @@ package com.cobaltplatform.api.integration.enterprise;
 import com.cobaltplatform.api.integration.epic.EpicClient;
 import com.cobaltplatform.api.integration.epic.MyChartAccessToken;
 import com.cobaltplatform.api.integration.epic.MyChartAuthenticator;
+import com.cobaltplatform.api.integration.microsoft.MicrosoftAccessToken;
 import com.cobaltplatform.api.integration.microsoft.MicrosoftAuthenticator;
 import com.cobaltplatform.api.integration.microsoft.MicrosoftClient;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
@@ -81,7 +82,12 @@ public interface EnterprisePlugin {
 	}
 
 	@Nonnull
-	default Optional<MicrosoftClient> microsoftClient() {
+	default Optional<MicrosoftClient> microsoftClientForDaemon() {
+		return Optional.empty();
+	}
+
+	@Nonnull
+	default Optional<MicrosoftClient> microsoftClientForUser(@Nonnull MicrosoftAccessToken microsoftAccessToken) {
 		return Optional.empty();
 	}
 
