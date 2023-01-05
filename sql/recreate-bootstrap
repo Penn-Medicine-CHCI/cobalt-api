@@ -52,6 +52,7 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/045-cons
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/046-tagging.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/047-user-submitted-flags.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/048-microsoft.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/049-account-capabilities.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

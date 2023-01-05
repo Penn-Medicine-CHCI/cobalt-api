@@ -60,6 +60,7 @@ import com.cobaltplatform.api.model.db.BetaFeatureAlert.BetaFeatureAlertStatusId
 import com.cobaltplatform.api.model.db.BetaStatus.BetaStatusId;
 import com.cobaltplatform.api.model.db.BirthSex;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.Capability;
 import com.cobaltplatform.api.model.db.ClientDeviceType;
 import com.cobaltplatform.api.model.db.Ethnicity;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
@@ -250,6 +251,19 @@ public class AccountService {
 	@Nonnull
 	public List<Account> findAdminAccountsForInstitution(InstitutionId institutionId) {
 		return getDatabase().queryForList("SELECT * FROM account WHERE role_id = ? AND institution_id = ?", Account.class, RoleId.ADMINISTRATOR, institutionId.name());
+	}
+
+	@Nonnull
+	public List<Capability> findCapabilitiesByAccountId(@Nullable UUID accountId) {
+		if (accountId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+				SELECT c.* 
+				FROM capability c, account_capability ac
+				WHERE ac.account_id=?
+				AND ac.capability_id=c.capability_id
+				""", Capability.class, accountId);
 	}
 
 	@Nonnull
