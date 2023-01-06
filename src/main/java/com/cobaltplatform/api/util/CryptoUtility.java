@@ -19,8 +19,6 @@
 
 package com.cobaltplatform.api.util;
 
-import com.google.common.io.BaseEncoding;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
@@ -185,7 +183,7 @@ public final class CryptoUtility {
 	@Nonnull
 	public static String sha1ThumbprintBase64UrlRepresentation(@Nonnull X509Certificate x509Certificate) {
 		requireNonNull(x509Certificate);
-		return BaseEncoding.base64Url().encode(sha1Thumbprint(x509Certificate));
+		return Base64.getUrlEncoder().withoutPadding().encodeToString(sha1Thumbprint(x509Certificate));
 	}
 
 	@Nonnull
@@ -214,13 +212,13 @@ public final class CryptoUtility {
 	@Nonnull
 	public static String exponentBase64UrlRepresentation(@Nonnull PublicKey publicKey) {
 		requireNonNull(publicKey);
-		return Base64.getUrlEncoder().encodeToString(toBytesUnsigned(toRSAPublicKey(publicKey).getPublicExponent()));
+		return Base64.getUrlEncoder().withoutPadding().encodeToString(toBytesUnsigned(toRSAPublicKey(publicKey).getPublicExponent()));
 	}
 
 	@Nonnull
 	public static String modulusBase64UrlRepresentation(@Nonnull PublicKey publicKey) {
 		requireNonNull(publicKey);
-		return Base64.getUrlEncoder().encodeToString(toBytesUnsigned(toRSAPublicKey(publicKey).getModulus()));
+		return Base64.getUrlEncoder().withoutPadding().encodeToString(toBytesUnsigned(toRSAPublicKey(publicKey).getModulus()));
 	}
 
 	@Nonnull
