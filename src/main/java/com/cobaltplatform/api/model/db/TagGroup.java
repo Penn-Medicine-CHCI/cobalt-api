@@ -41,6 +41,8 @@ public class TagGroup {
 	@Nullable
 	private String description;
 	@Nullable
+	private Integer displayOrder;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -88,6 +90,15 @@ public class TagGroup {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
+	}
+
+	@Nullable
+	public Integer getDisplayOrder() {
+		return this.displayOrder;
+	}
+
+	public void setDisplayOrder(@Nullable Integer displayOrder) {
+		this.displayOrder = displayOrder;
 	}
 
 	@Nullable

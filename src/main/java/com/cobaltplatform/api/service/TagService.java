@@ -142,7 +142,7 @@ public class TagService {
 
 		// Currently we don't have institution-specific tag groups.
 		// But this method accepts an institution ID in case we do in the future...
-		return getDatabase().queryForList("SELECT * FROM tag_group ORDER BY name", TagGroup.class);
+		return getDatabase().queryForList("SELECT * FROM tag_group ORDER BY display_order", TagGroup.class);
 	}
 
 	@Nonnull
