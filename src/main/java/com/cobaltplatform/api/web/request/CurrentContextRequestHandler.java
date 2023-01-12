@@ -73,6 +73,8 @@ public class CurrentContextRequestHandler {
 	private static final String FINGERPRINT_ID_PROPERTY_NAME;
 	@Nonnull
 	private static final String WEBAPP_BASE_URL_PROPERTY_NAME;
+	@Nonnull
+	private static final String WEBAPP_CURRENT_URL_PROPERTY_NAME;
 
 	@Nonnull
 	private static final String CURRENT_CONTEXT_LOGGING_KEY;
@@ -101,6 +103,7 @@ public class CurrentContextRequestHandler {
 		SESSION_TRACKING_ID_PROPERTY_NAME = "X-Session-Tracking-Id";
 		FINGERPRINT_ID_PROPERTY_NAME = "X-Cobalt-Fingerprint-Id";
 		WEBAPP_BASE_URL_PROPERTY_NAME = "X-Cobalt-Webapp-Base-Url";
+		WEBAPP_CURRENT_URL_PROPERTY_NAME = "X-Cobalt-Webapp-Current-Url";
 
 		CURRENT_CONTEXT_LOGGING_KEY = "CURRENT_CONTEXT";
 	}
@@ -202,6 +205,8 @@ public class CurrentContextRequestHandler {
 
 			// We use webappBaseUrl to derive the institution context for this request (IOW - the URL the user sees in their browser drives the institution)
 			String webappBaseUrl = extractValueFromRequest(httpServletRequest, getWebappBaseUrlPropertyName()).orElse(null);
+			// TODO: this new property should replace the old webappBaseUrl above since that can be calculated from this
+			String webappCurrentUrl = extractValueFromRequest(httpServletRequest, getWebappCurrentUrlPropertyName()).orElse(null);
 
 			// In general, webappBaseUrl is usually non-null (clients should always include the X-Cobalt-Webapp-Base-Url header).
 			// However, in special cases like an OAuth callback, we won't get that header because we can't control how we're called.
@@ -229,6 +234,7 @@ public class CurrentContextRequestHandler {
 					.accessTokenStatus(accessTokenStatus)
 					.remoteClient(remoteClient)
 					.webappBaseUrl(webappBaseUrl)
+					.webappCurrentUrl(webappCurrentUrl)
 					.sessionTrackingId(sessionTrackingId)
 					.accountSource(accountSource)
 					.fingerprintId(fingerprintIdValue)
@@ -294,6 +300,11 @@ public class CurrentContextRequestHandler {
 	@Nonnull
 	public static String getWebappBaseUrlPropertyName() {
 		return WEBAPP_BASE_URL_PROPERTY_NAME;
+	}
+
+	@Nonnull
+	public static String getWebappCurrentUrlPropertyName() {
+		return WEBAPP_CURRENT_URL_PROPERTY_NAME;
 	}
 
 	@Nonnull
