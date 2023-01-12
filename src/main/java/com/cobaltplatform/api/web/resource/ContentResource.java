@@ -27,6 +27,7 @@ import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.TagService;
+import com.cobaltplatform.api.util.ValidationUtility;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.PathParameter;
@@ -40,6 +41,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
@@ -136,6 +138,27 @@ public class ContentResource {
 
 		if (content == null)
 			throw new NotFoundException();
+
+		// Temporary hack: if webapp is viewing the detail page when this call is made,
+		// massage newlines into HTML.
+		// TODO: we are moving to a rich text editor that will eliminate the need for this.
+		// But for the moment, simplest to just override this one spot
+		boolean webappViewingPatientDetailPage = false;
+		URL webappCurrentUrl = getCurrentContext().getWebappCurrentUrl().orElse(null);
+
+		if (webappCurrentUrl != null) {
+			// e.g. /resource-library/0f33f0b4-e022-4fde-80ac-12151afa4f1c
+			String[] components = webappCurrentUrl.getPath().split("/");
+
+			if (components.length == 3
+					&& components[0].length() == 0
+					&& components[1].equals("resource-library")
+					&& ValidationUtility.isValidUUID(components[2]))
+				webappViewingPatientDetailPage = true;
+		}
+
+		if (webappViewingPatientDetailPage)
+			content.setDescription(content.getDescription().replace("\n", "<br/>"));
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("content", getContentApiResponseFactory().create(content));
