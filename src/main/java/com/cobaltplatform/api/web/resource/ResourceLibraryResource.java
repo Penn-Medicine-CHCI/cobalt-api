@@ -319,10 +319,12 @@ public class ResourceLibraryResource {
 
 		int normalizedPageSize = pageSize.orElse(MAXIMUM_PAGE_SIZE);
 
-		if (normalizedPageSize > MAXIMUM_PAGE_SIZE)
+		if (normalizedPageSize < 0)
+			normalizedPageSize = 0;
+		else if (normalizedPageSize > MAXIMUM_PAGE_SIZE)
 			normalizedPageSize = MAXIMUM_PAGE_SIZE;
 
-		List<List<ContentApiResponse>> contentPages = Lists.partition(contents, normalizedPageSize);
+		List<List<ContentApiResponse>> contentPages = normalizedPageSize == 0 ? List.of() : Lists.partition(contents, normalizedPageSize);
 		List<ContentApiResponse> contentPage = List.of();
 
 		if (contentPages.size() > normalizedPageNumber)
