@@ -267,44 +267,48 @@ public class ResourceLibraryResource {
 		Account account = currentContext.getAccount().get();
 		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(account.getInstitutionId());
 
-		Set<String> mustMatchTagIds = new HashSet<>(tagIds.orElse(List.of()));
-		Set<ContentTypeId> mustMatchContentTypeIds = new HashSet<>(contentTypeIds.orElse(List.of()));
-		Set<ContentDurationId> mustMatchContentDurationIds = new HashSet<>(contentDurationIds.orElse(List.of()));
+		Set<String> tagIdsToMatch = new HashSet<>(tagIds.orElse(List.of()));
+		Set<ContentTypeId> contentTypeIdsToMatch = new HashSet<>(contentTypeIds.orElse(List.of()));
+		Set<ContentDurationId> contentDurationIdsToMatch = new HashSet<>(contentDurationIds.orElse(List.of()));
 
 		// Delegate to enterprise plugin to determine what an institution's "recommended" content is.
 		// For now, recommended content size is relatively small, so we do our filtering here in-memory.
 		List<ContentApiResponse> contents = enterprisePlugin.recommendedContentForAccountId(account.getAccountId()).stream()
 				.filter(content -> {
-					// Include content if no filters specified
-					if (mustMatchTagIds.size() == 0 && mustMatchContentTypeIds.size() == 0 && mustMatchContentDurationIds.size() == 0)
-						return true;
+					boolean tagIdFilterSucceeded = false;
 
 					// Include content if tag filter succeeds
-					if (mustMatchTagIds.size() > 0) {
+					if (tagIdsToMatch.size() == 0) {
+						tagIdFilterSucceeded = true;
+					} else {
 						Set<String> contentTagIds = content.getTags().stream().map(tag -> tag.getTagId()).collect(Collectors.toSet());
 
-						if (Sets.intersection(mustMatchTagIds, contentTagIds).size() > 0)
-							return true;
+						if (Sets.intersection(tagIdsToMatch, contentTagIds).size() > 0)
+							tagIdFilterSucceeded = true;
 					}
+
+					boolean contentTypeIdFilterSucceeded = false;
 
 					// Include content if content type filter succeeds
-					if (mustMatchContentTypeIds.size() > 0)
-						if (mustMatchContentTypeIds.contains(content.getContentTypeId()))
-							return true;
+					if (contentTypeIdsToMatch.size() == 0)
+						contentTypeIdFilterSucceeded = true;
+					else if (contentTypeIdsToMatch.contains(content.getContentTypeId()))
+						contentTypeIdFilterSucceeded = true;
+
+					boolean contentDurationIdFilterSucceeded = false;
 
 					// Include content if content duration filter succeeds
-					if (mustMatchContentDurationIds.size() > 0) {
-						// Some content has no duration, discard it
-						if (content.getDurationInMinutes() == null)
-							return false;
-
-						for (ContentDurationId contentDurationId : mustMatchContentDurationIds)
-							if (content.getDurationInMinutes() >= contentDurationId.getLowerBoundInclusive()
-									&& content.getDurationInMinutes() <= contentDurationId.getUpperBoundInclusive())
-								return true;
+					if (contentDurationIdsToMatch.size() == 0) {
+						contentDurationIdFilterSucceeded = true;
+					} else {
+						if (content.getDurationInMinutes() != null)
+							for (ContentDurationId contentDurationId : contentDurationIdsToMatch)
+								if (content.getDurationInMinutes() >= contentDurationId.getLowerBoundInclusive()
+										&& content.getDurationInMinutes() <= contentDurationId.getUpperBoundInclusive())
+									contentDurationIdFilterSucceeded = true;
 					}
 
-					return false;
+					return tagIdFilterSucceeded && contentTypeIdFilterSucceeded && contentDurationIdFilterSucceeded;
 				})
 				.map(content -> getContentApiResponseFactory().create(content))
 				.collect(Collectors.toList());
