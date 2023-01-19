@@ -66,6 +66,7 @@ import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -412,6 +413,49 @@ public class ScreeningResource {
 			put("nextScreeningQuestionContextId", nextScreeningQuestionContext == null ? null : nextScreeningQuestionContext.getScreeningQuestionContextId());
 			put("screeningSessionDestination", screeningSessionDestination);
 		}});
+	}
+
+	@Nonnull
+	@GET("/screening-flows/{screeningFlowId}/session-fully-completed")
+	@AuthenticationRequired
+	public ApiResponse screeningFlowSessionFullyCompleted(@Nonnull @PathParameter UUID screeningFlowId,
+																												@Nonnull @QueryParameter Optional<UUID> targetAccountId) {
+		requireNonNull(screeningFlowId);
+		requireNonNull(targetAccountId);
+
+		// Logic: You are the target account unless a valid targetAccountId is passed in
+		Account currentAccount = getCurrentContext().getAccount().get();
+		Account targetAccount = targetAccountId.isPresent() ? getAccountService().findAccountById(targetAccountId.get()).orElse(null) : null;
+
+		if (targetAccountId.isPresent() && targetAccount == null)
+			throw new NotFoundException();
+
+		if (targetAccount == null)
+			targetAccount = currentAccount;
+
+		if (!getAuthorizationService().canPerformScreening(currentAccount, targetAccount))
+			throw new AuthorizationException();
+
+		ScreeningFlow screeningFlow = getScreeningService().findScreeningFlowById(screeningFlowId).orElse(null);
+
+		if (screeningFlow == null)
+			throw new NotFoundException();
+
+		// Screening sessions for whatever the latest version of the flow is
+		List<ScreeningSession> screeningSessions = getScreeningService().findScreeningSessionsByScreeningFlowVersionIdAndTargetAccountId(
+				screeningFlow.getActiveScreeningFlowVersionId(), targetAccount.getAccountId());
+
+		boolean sessionFullyCompleted = false;
+
+		// We are looking for any session that's "completed" but not "skipped"
+		for (ScreeningSession screeningSession : screeningSessions) {
+			if (screeningSession.getCompleted() && screeningSession.getSkipped()) {
+				sessionFullyCompleted = true;
+				break;
+			}
+		}
+
+		return new ApiResponse(Map.of("sessionFullyCompleted", sessionFullyCompleted));
 	}
 
 	@Nonnull

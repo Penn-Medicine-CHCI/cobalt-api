@@ -348,6 +348,21 @@ public class ScreeningService {
 	}
 
 	@Nonnull
+	public List<ScreeningSession> findScreeningSessionsByScreeningFlowVersionIdAndTargetAccountId(@Nullable UUID screeningFlowVersionId,
+																																																@Nullable UUID targetAccountId) {
+		if (screeningFlowVersionId == null || targetAccountId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+						SELECT * FROM screening_session
+						WHERE screening_flow_version_id=?
+						AND target_account_id=?
+						ORDER BY created DESC
+						""",
+				ScreeningSession.class, screeningFlowVersionId, targetAccountId);
+	}
+
+	@Nonnull
 	public Optional<ScreeningSession> findMostRecentlyCompletedScreeningSessionByScreeningFlowAndTargetAccountId(@Nullable UUID screeningFlowId,
 																																																							 @Nullable UUID targetAccountId) {
 		if (screeningFlowId == null || targetAccountId == null)
