@@ -59,6 +59,7 @@ import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 @Resource
 @Singleton
 @ThreadSafe
+@Deprecated
 public class GroupEventResource {
 	@Nonnull
 	private final GroupEventService groupEventService;
@@ -72,6 +73,7 @@ public class GroupEventResource {
 	private final Logger logger;
 
 	@Inject
+	@Deprecated
 	public GroupEventResource(@Nonnull GroupEventService groupEventService,
 														@Nonnull AppointmentService appointmentService,
 														@Nonnull GroupEventApiResponseFactory groupEventApiResponseFactory,
@@ -91,6 +93,7 @@ public class GroupEventResource {
 	@Nonnull
 	@GET("/group-events")
 	@AuthenticationRequired
+	@Deprecated
 	public ApiResponse groupEvents(@Nonnull @QueryParameter("class") Optional<String> groupEventTypeUrlName) {
 		requireNonNull(groupEventTypeUrlName);
 
@@ -125,6 +128,7 @@ public class GroupEventResource {
 	@Nonnull
 	@GET("/group-events/{groupEventId}")
 	@AuthenticationRequired
+	@Deprecated
 	public ApiResponse groupEvent(@Nonnull @PathParameter String groupEventId) {
 		requireNonNull(groupEventId);
 

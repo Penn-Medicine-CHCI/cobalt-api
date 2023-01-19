@@ -17,20 +17,18 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db;
+package com.cobaltplatform.api.model.api.request;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.time.Instant;
+import java.util.Set;
 import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class GroupRequest {
-	@Nullable
-	private UUID groupRequestId;
+public class CreateGroupRequestRequest {
 	@Nullable
 	private UUID requestorAccountId;
 	@Nullable
@@ -50,18 +48,7 @@ public class GroupRequest {
 	@Nullable
 	private Integer maximumAttendeeCount;
 	@Nullable
-	private Instant created;
-	@Nullable
-	private Instant lastUpdated;
-
-	@Nullable
-	public UUID getGroupRequestId() {
-		return this.groupRequestId;
-	}
-
-	public void setGroupRequestId(@Nullable UUID groupRequestId) {
-		this.groupRequestId = groupRequestId;
-	}
+	private Set<UUID> groupTopicIds;
 
 	@Nullable
 	public UUID getRequestorAccountId() {
@@ -145,20 +132,11 @@ public class GroupRequest {
 	}
 
 	@Nullable
-	public Instant getCreated() {
-		return this.created;
+	public Set<UUID> getGroupTopicIds() {
+		return this.groupTopicIds;
 	}
 
-	public void setCreated(@Nullable Instant created) {
-		this.created = created;
-	}
-
-	@Nullable
-	public Instant getLastUpdated() {
-		return this.lastUpdated;
-	}
-
-	public void setLastUpdated(@Nullable Instant lastUpdated) {
-		this.lastUpdated = lastUpdated;
+	public void setGroupTopicIds(@Nullable Set<UUID> groupTopicIds) {
+		this.groupTopicIds = groupTopicIds;
 	}
 }

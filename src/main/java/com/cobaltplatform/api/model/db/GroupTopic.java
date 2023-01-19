@@ -40,7 +40,7 @@ public class GroupTopic {
 	@Nullable
 	private String description;
 	@Nullable
-	private Boolean displayOrder;
+	private Integer displayOrder;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -83,11 +83,11 @@ public class GroupTopic {
 	}
 
 	@Nullable
-	public Boolean getDisplayOrder() {
+	public Integer getDisplayOrder() {
 		return this.displayOrder;
 	}
 
-	public void setDisplayOrder(@Nullable Boolean displayOrder) {
+	public void setDisplayOrder(@Nullable Integer displayOrder) {
 		this.displayOrder = displayOrder;
 	}
 

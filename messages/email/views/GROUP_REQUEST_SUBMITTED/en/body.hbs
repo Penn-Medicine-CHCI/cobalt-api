@@ -1,0 +1,43 @@
+{{#partial "header"}}
+	<tr>
+		<td align="center" class="em_white" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:36px; line-height:40px; color:#ffffff; font-weight:bold;">Group Session requested</td>
+	</tr>
+{{/partial}}
+
+{{#partial "body"}}
+	<tr>
+		<td align="left" class="em_blue" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:18px; line-height:24px; color:#000;">
+			<p>
+				<b>Requestor Name:</b> {{requestorName}}
+			</p>
+			<p>
+				<b>Requestor Email Address:</b> {{requestorEmailAddress}}
+			</p>
+			<p>
+				<b>Preferred Date:</b> {{preferredDateDescription}}
+			</p>
+			<p>
+				<b>Preferred Time:</b> {{preferredTimeDescription}}
+			</p>
+			<p>
+				<b>Additional Description:</b> {{additionalDescription}}
+			</p>
+			<p>
+				<b>Minimum Attendee Count:</b> {{minimumAttendeeCount}}
+			</p>
+			<p>
+				<b>Maximum Attendee Count:</b> {{maximumAttendeeCount}}
+			</p>
+			<p>
+				<b>Group Topics:</b>
+				<ul>
+					{{#each groupTopicNames}}
+						<li>{{this}}</li>
+					{{/each}}
+				</ul>
+			</p>
+		</td>
+	</tr>
+{{/partial}}
+
+{{> layouts/en/default}}

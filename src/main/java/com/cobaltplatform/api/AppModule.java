@@ -80,10 +80,12 @@ import com.cobaltplatform.api.model.api.response.CountryApiResponse.CountryApiRe
 import com.cobaltplatform.api.model.api.response.ExternalGroupEventTypeApiResponse.ExternalGroupEventTypeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupEventApiResponse.GroupEventApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.GroupRequestApiResponse.GroupRequestApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionRequestApiResponse.GroupSessionRequestApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionReservationApiResponse.GroupSessionReservationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionResponseApiResponse.GroupSessionResponseApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.GroupTopicApiResponse.GroupTopicApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InsuranceApiResponse.InsuranceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InteractionInstanceApiResponse.InteractionInstanceApiResponseFactory;
@@ -259,6 +261,8 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(AddressApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(TagApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(TagGroupApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(GroupRequestApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(GroupTopicApiResponseFactory.class)));
 	}
 
 	@Provides

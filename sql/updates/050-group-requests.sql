@@ -21,6 +21,7 @@ CREATE TABLE group_request (
 	preferred_date_description TEXT,
 	preferred_time_description TEXT,
 	additional_description TEXT,
+	other_group_topics_description TEXT,
 	minimum_attendee_count INTEGER NOT NULL,
 	maximum_attendee_count INTEGER,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -47,6 +48,6 @@ CREATE TABLE group_request_institution_contact (
 	PRIMARY KEY (institution_id, email_address)
 );
 
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON group_request_topic FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON group_request_institution_contact FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 COMMIT;
