@@ -449,7 +449,7 @@ public class ScreeningResource {
 
 		// We are looking for any session that's "completed" but not "skipped"
 		for (ScreeningSession screeningSession : screeningSessions) {
-			if (screeningSession.getCompleted() && screeningSession.getSkipped()) {
+			if (screeningSession.getCompleted() && !screeningSession.getSkipped()) {
 				sessionFullyCompleted = true;
 				break;
 			}
