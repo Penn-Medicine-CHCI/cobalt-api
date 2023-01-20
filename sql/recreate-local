@@ -54,7 +54,8 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/047-user-submi
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/048-microsoft.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/049-tag-group-display-order.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/050-group-requests.sql
-PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/051-account-capabilities.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/051-institution-recommended-content.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/052-account-capabilities.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

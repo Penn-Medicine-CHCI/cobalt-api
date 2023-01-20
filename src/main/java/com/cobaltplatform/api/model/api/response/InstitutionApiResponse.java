@@ -95,6 +95,8 @@ public class InstitutionApiResponse {
 	@Nonnull
 	private final Boolean contactUsEnabled;
 	@Nonnull
+	private final Boolean recommendedContentEnabled;
+	@Nonnull
 	private final Boolean userSubmittedContentEnabled;
 	@Nonnull
 	private final Boolean userSubmittedGroupSessionEnabled;
@@ -147,6 +149,7 @@ public class InstitutionApiResponse {
 		this.supportEmailAddress = institution.getSupportEmailAddress();
 		this.immediateAccessEnabled = institution.getImmediateAccessEnabled();
 		this.contactUsEnabled = institution.getContactUsEnabled();
+		this.recommendedContentEnabled = institution.getRecommendedContentEnabled();
 		this.userSubmittedContentEnabled = institution.getUserSubmittedContentEnabled();
 		this.userSubmittedGroupSessionEnabled = institution.getUserSubmittedGroupSessionEnabled();
 		this.userSubmittedGroupSessionRequestEnabled = institution.getUserSubmittedGroupSessionRequestEnabled();
@@ -266,6 +269,11 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public Boolean getContactUsEnabled() {
 		return this.contactUsEnabled;
+	}
+
+	@Nonnull
+	public Boolean getRecommendedContentEnabled() {
+		return this.recommendedContentEnabled;
 	}
 
 	@Nonnull
