@@ -70,7 +70,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PasswordResetRequest;
 import com.cobaltplatform.api.model.db.Race;
 import com.cobaltplatform.api.model.db.Race.RaceId;
-import com.cobaltplatform.api.model.db.Report;
+import com.cobaltplatform.api.model.db.ReportType;
 import com.cobaltplatform.api.model.db.Role;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
@@ -249,7 +249,7 @@ public class AccountService {
 	}
 
 	@Nonnull
-	public List<Report> findReportsAvailableForAccountId(@Nullable UUID accountId) {
+	public List<ReportType> findReportTypesAvailableForAccount(@Nullable UUID accountId) {
 		if (accountId == null)
 			return List.of();
 
@@ -258,26 +258,26 @@ public class AccountService {
 		if (account == null)
 			return List.of();
 
-		return findReportsAvailableForAccount(account);
+		return findReportTypesAvailableForAccount(account);
 	}
 
 	@Nonnull
-	public List<Report> findReportsAvailableForAccount(@Nullable Account account) {
+	public List<ReportType> findReportTypesAvailableForAccount(@Nullable Account account) {
 		if (account == null)
 			return List.of();
 
 		// All reports are available to admins
 		if (account.getRoleId() == RoleId.ADMINISTRATOR)
-			return getDatabase().queryForList("SELECT * FROM report ORDER BY display_order", Report.class);
+			return getDatabase().queryForList("SELECT * FROM report ORDER BY display_order", ReportType.class);
 
 		// For other users, only pick reports to which they are explicitly granted access
 		return getDatabase().queryForList("""
-				SELECT r.* 
-				FROM report r, account_report_permission arp
-				WHERE arp.account_id=?
-				AND arp.report_id=r.report_id
-				ORDER BY r.display_order
-				""", Report.class, account.getAccountId());
+				SELECT rt.* 
+				FROM report_type rt, account_report_type art
+				WHERE art.account_id=?
+				AND art.report_type_id=rt.report_type_id
+				ORDER BY rt.display_order
+				""", ReportType.class, account.getAccountId());
 	}
 
 	@Nonnull

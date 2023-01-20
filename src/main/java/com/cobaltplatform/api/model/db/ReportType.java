@@ -28,32 +28,32 @@ import static java.lang.String.format;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class Report {
+public class ReportType {
 	@Nullable
-	private ReportId reportId;
+	private ReportTypeId reportTypeId;
 	@Nullable
 	private String description;
 	@Nullable
 	private Integer displayOrder;
 
-	public enum ReportId {
+	public enum ReportTypeId {
 		PROVIDER_AVAILABILITY,
 		PROVIDER_APPOINTMENTS
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{reportId=%s, description=%s, displayOrder=%s}", getClass().getSimpleName(), getReportId(),
+		return format("%s{reportTypeId=%s, description=%s, displayOrder=%s}", getClass().getSimpleName(), getReportTypeId(),
 				getDescription(), getDisplayOrder());
 	}
 
 	@Nullable
-	public ReportId getReportId() {
-		return this.reportId;
+	public ReportTypeId getReportTypeId() {
+		return this.reportTypeId;
 	}
 
-	public void setReportId(@Nullable ReportId reportId) {
-		this.reportId = reportId;
+	public void setReportTypeId(@Nullable ReportTypeId reportTypeId) {
+		this.reportTypeId = reportTypeId;
 	}
 
 	@Nullable

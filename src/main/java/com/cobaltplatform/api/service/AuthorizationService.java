@@ -109,7 +109,7 @@ public class AuthorizationService {
 			accountCapabilities.setViewNavAdminGroupSessionRequest(getGroupSessionService().canTakeActionOnGroupSessionRequests(account));
 		}
 
-		accountCapabilities.setViewNavAdminReports(getAccountService().findReportsAvailableForAccount(account).size() > 0);
+		accountCapabilities.setViewNavAdminReports(getAccountService().findReportTypesAvailableForAccount(account).size() > 0);
 
 		return accountCapabilities;
 	}
