@@ -60,7 +60,6 @@ import com.cobaltplatform.api.model.db.BetaFeatureAlert.BetaFeatureAlertStatusId
 import com.cobaltplatform.api.model.db.BetaStatus.BetaStatusId;
 import com.cobaltplatform.api.model.db.BirthSex;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
-import com.cobaltplatform.api.model.db.Capability;
 import com.cobaltplatform.api.model.db.ClientDeviceType;
 import com.cobaltplatform.api.model.db.Ethnicity;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
@@ -71,6 +70,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PasswordResetRequest;
 import com.cobaltplatform.api.model.db.Race;
 import com.cobaltplatform.api.model.db.Race.RaceId;
+import com.cobaltplatform.api.model.db.Report;
 import com.cobaltplatform.api.model.db.Role;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
@@ -249,16 +249,35 @@ public class AccountService {
 	}
 
 	@Nonnull
-	public List<Capability> findCapabilitiesByAccountId(@Nullable UUID accountId) {
+	public List<Report> findReportsAvailableForAccountId(@Nullable UUID accountId) {
 		if (accountId == null)
-			return Collections.emptyList();
+			return List.of();
 
+		Account account = findAccountById(accountId).orElse(null);
+
+		if (account == null)
+			return List.of();
+
+		return findReportsAvailableForAccount(account);
+	}
+
+	@Nonnull
+	public List<Report> findReportsAvailableForAccount(@Nullable Account account) {
+		if (account == null)
+			return List.of();
+
+		// All reports are available to admins
+		if (account.getRoleId() == RoleId.ADMINISTRATOR)
+			return getDatabase().queryForList("SELECT * FROM report ORDER BY display_order", Report.class);
+
+		// For other users, only pick reports to which they are explicitly granted access
 		return getDatabase().queryForList("""
-				SELECT c.* 
-				FROM capability c, account_capability ac
-				WHERE ac.account_id=?
-				AND ac.capability_id=c.capability_id
-				""", Capability.class, accountId);
+				SELECT r.* 
+				FROM report r, account_report_permission arp
+				WHERE arp.account_id=?
+				AND arp.report_id=r.report_id
+				ORDER BY r.display_order
+				""", Report.class, account.getAccountId());
 	}
 
 	@Nonnull

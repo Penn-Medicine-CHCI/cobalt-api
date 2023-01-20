@@ -64,6 +64,8 @@ public class AuthorizationService {
 	@Nonnull
 	private final javax.inject.Provider<TopicCenterService> topicCenterServiceProvider;
 	@Nonnull
+	private final javax.inject.Provider<AccountService> accountServiceProvider;
+	@Nonnull
 	private final Normalizer normalizer;
 
 	@Inject
@@ -72,12 +74,14 @@ public class AuthorizationService {
 															@Nonnull javax.inject.Provider<InteractionService> interactionServiceProvider,
 															@Nonnull javax.inject.Provider<AppointmentService> appointmentServiceProvider,
 															@Nonnull javax.inject.Provider<TopicCenterService> topicCenterServiceProvider,
+															@Nonnull javax.inject.Provider<AccountService> accountServiceProvider,
 															@Nonnull Normalizer normalizer) {
 		requireNonNull(availabilityServiceProvider);
 		requireNonNull(groupSessionServiceProvider);
 		requireNonNull(interactionServiceProvider);
 		requireNonNull(appointmentServiceProvider);
 		requireNonNull(topicCenterServiceProvider);
+		requireNonNull(accountServiceProvider);
 		requireNonNull(normalizer);
 
 		this.availabilityServiceProvider = availabilityServiceProvider;
@@ -85,6 +89,7 @@ public class AuthorizationService {
 		this.interactionServiceProvider = interactionServiceProvider;
 		this.appointmentServiceProvider = appointmentServiceProvider;
 		this.topicCenterServiceProvider = topicCenterServiceProvider;
+		this.accountServiceProvider = accountServiceProvider;
 		this.normalizer = normalizer;
 	}
 
@@ -103,6 +108,8 @@ public class AuthorizationService {
 			accountCapabilities.setViewNavAdminGroupSession(getGroupSessionService().canTakeActionOnGroupSessions(account));
 			accountCapabilities.setViewNavAdminGroupSessionRequest(getGroupSessionService().canTakeActionOnGroupSessionRequests(account));
 		}
+
+		accountCapabilities.setViewNavAdminReports(getAccountService().findReportsAvailableForAccount(account).size() > 0);
 
 		return accountCapabilities;
 	}
@@ -460,6 +467,11 @@ public class AuthorizationService {
 	@Nonnull
 	protected TopicCenterService getTopicCenterService() {
 		return this.topicCenterServiceProvider.get();
+	}
+
+	@Nonnull
+	protected AccountService getAccountService() {
+		return this.accountServiceProvider.get();
 	}
 
 	@Nonnull

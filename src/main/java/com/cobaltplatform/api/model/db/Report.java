@@ -25,33 +25,35 @@ import javax.annotation.concurrent.NotThreadSafe;
 import static java.lang.String.format;
 
 /**
- * @author Transmogrify, LLC.
+ * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class Capability {
+public class Report {
 	@Nullable
-	private CapabilityId capabilityId;
+	private ReportId reportId;
 	@Nullable
 	private String description;
+	@Nullable
+	private Integer displayOrder;
 
-	public enum CapabilityId {
-		CONTENT_EDITOR,
-		CONTENT_APPROVER,
-		REPORT_PROVIDER_SLOT
+	public enum ReportId {
+		PROVIDER_AVAILABILITY,
+		PROVIDER_APPOINTMENTS
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{capabilityId=%s, description=%s}", getClass().getSimpleName(), getCapabilityId(), getDescription());
+		return format("%s{reportId=%s, description=%s, displayOrder=%s}", getClass().getSimpleName(), getReportId(),
+				getDescription(), getDisplayOrder());
 	}
 
 	@Nullable
-	public CapabilityId getCapabilityId() {
-		return this.capabilityId;
+	public ReportId getReportId() {
+		return this.reportId;
 	}
 
-	public void setCapabilityId(@Nullable CapabilityId capabilityId) {
-		this.capabilityId = capabilityId;
+	public void setReportId(@Nullable ReportId reportId) {
+		this.reportId = reportId;
 	}
 
 	@Nullable
@@ -61,5 +63,14 @@ public class Capability {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
+	}
+
+	@Nullable
+	public Integer getDisplayOrder() {
+		return this.displayOrder;
+	}
+
+	public void setDisplayOrder(@Nullable Integer displayOrder) {
+		this.displayOrder = displayOrder;
 	}
 }

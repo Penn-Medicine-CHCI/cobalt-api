@@ -1,0 +1,28 @@
+BEGIN;
+SELECT _v.register_patch('052-account-capabilities', NULL, NULL);
+
+-- No longer have the concept of "super administrator"
+UPDATE account SET role_id='ADMINISTRATOR' WHERE role_id='SUPER_ADMINISTRATOR';
+DELETE FROM role WHERE role_id IN ('SUPER_ADMINISTRATOR', 'BHS');
+
+CREATE TABLE report (
+  report_id VARCHAR PRIMARY KEY,
+  description VARCHAR NOT NULL,
+  display_order INTEGER NOT NULL
+);
+
+INSERT INTO report VALUES ('PROVIDER_AVAILABILITY', 'Provider Availability', 1);
+INSERT INTO report VALUES ('PROVIDER_APPOINTMENTS', 'Provider Appointments', 2);
+
+-- What reports an account is permitted to see (administrators can implicitly see all reports)
+CREATE TABLE account_report_permission (
+	account_id UUID NOT NULL REFERENCES account,
+	report_id VARCHAR NOT NULL REFERENCES report,
+	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	PRIMARY KEY (account_id, report_id)
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON account_report_permission FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+COMMIT;

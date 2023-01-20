@@ -32,6 +32,7 @@ public class AccountCapabilities {
 	private boolean viewNavAdminGroupSessionRequest;
 	private boolean viewNavAdminMyContent;
 	private boolean viewNavAdminAvailableContent;
+	private boolean viewNavAdminReports;
 
 	public boolean isViewNavAdminGroupSession() {
 		return viewNavAdminGroupSession;
@@ -63,5 +64,13 @@ public class AccountCapabilities {
 
 	public void setViewNavAdminAvailableContent(boolean viewNavAdminAvailableContent) {
 		this.viewNavAdminAvailableContent = viewNavAdminAvailableContent;
+	}
+
+	public boolean isViewNavAdminReports() {
+		return this.viewNavAdminReports;
+	}
+
+	public void setViewNavAdminReports(boolean viewNavAdminReports) {
+		this.viewNavAdminReports = viewNavAdminReports;
 	}
 }
