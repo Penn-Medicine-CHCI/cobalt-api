@@ -19,25 +19,24 @@
 
 package com.cobaltplatform.api.model.db;
 
-import com.cobaltplatform.api.model.db.Color.ColorId;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class TagGroup {
+public class GroupTopic {
 	@Nullable
-	private String tagGroupId;
+	private UUID groupTopicId;
 	@Nullable
-	private ColorId colorId;
+	private InstitutionId institutionId;
 	@Nullable
 	private String name;
-	@Nullable
-	private String urlName;
 	@Nullable
 	private String description;
 	@Nullable
@@ -48,21 +47,21 @@ public class TagGroup {
 	private Instant lastUpdated;
 
 	@Nullable
-	public String getTagGroupId() {
-		return this.tagGroupId;
+	public UUID getGroupTopicId() {
+		return this.groupTopicId;
 	}
 
-	public void setTagGroupId(@Nullable String tagGroupId) {
-		this.tagGroupId = tagGroupId;
+	public void setGroupTopicId(@Nullable UUID groupTopicId) {
+		this.groupTopicId = groupTopicId;
 	}
 
 	@Nullable
-	public ColorId getColorId() {
-		return this.colorId;
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
 	}
 
-	public void setColorId(@Nullable ColorId colorId) {
-		this.colorId = colorId;
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
 	}
 
 	@Nullable
@@ -72,15 +71,6 @@ public class TagGroup {
 
 	public void setName(@Nullable String name) {
 		this.name = name;
-	}
-
-	@Nullable
-	public String getUrlName() {
-		return this.urlName;
-	}
-
-	public void setUrlName(@Nullable String urlName) {
-		this.urlName = urlName;
 	}
 
 	@Nullable

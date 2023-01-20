@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('049-account-capabilities', NULL, NULL);
+SELECT _v.register_patch('051-account-capabilities', NULL, NULL);
 
 CREATE TABLE capability (
   capability_id VARCHAR PRIMARY KEY,

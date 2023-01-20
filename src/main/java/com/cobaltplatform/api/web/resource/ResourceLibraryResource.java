@@ -41,6 +41,8 @@ import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.TagService;
 import com.cobaltplatform.api.util.Formatter;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.PathParameter;
@@ -140,10 +142,8 @@ public class ResourceLibraryResource {
 	public ApiResponse resourceLibrary() {
 		CurrentContext currentContext = getCurrentContext();
 		Account account = currentContext.getAccount().get();
-		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(account.getInstitutionId());
 
-		// Delegate content recommendations to enterprise plugin
-		List<Content> contents = enterprisePlugin.recommendedContentForAccountId(account.getAccountId());
+		List<Content> contents = getContentService().findVisibleContentByInstitutionId(account.getInstitutionId());
 
 		// Pick out tags in the content
 		Set<String> tagGroupIds = new HashSet<>();
@@ -246,6 +246,115 @@ public class ResourceLibraryResource {
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("findResult", findResultJson);
 			put("tagsByTagId", tagsByTagId);
+		}});
+	}
+
+	@Nonnull
+	@GET("/resource-library/recommended")
+	@AuthenticationRequired
+	public ApiResponse recommendedResourceLibrary(@Nonnull @QueryParameter("tagId") Optional<List<String>> tagIds,
+																								@Nonnull @QueryParameter("contentTypeId") Optional<List<ContentTypeId>> contentTypeIds,
+																								@Nonnull @QueryParameter("contentDurationId") Optional<List<ContentDurationId>> contentDurationIds,
+																								@Nonnull @QueryParameter Optional<Integer> pageNumber,
+																								@Nonnull @QueryParameter Optional<Integer> pageSize) {
+		requireNonNull(tagIds);
+		requireNonNull(contentTypeIds);
+		requireNonNull(contentDurationIds);
+		requireNonNull(pageNumber);
+		requireNonNull(pageSize);
+
+		CurrentContext currentContext = getCurrentContext();
+		Account account = currentContext.getAccount().get();
+		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(account.getInstitutionId());
+
+		Set<String> tagIdsToMatch = new HashSet<>(tagIds.orElse(List.of()));
+		Set<ContentTypeId> contentTypeIdsToMatch = new HashSet<>(contentTypeIds.orElse(List.of()));
+		Set<ContentDurationId> contentDurationIdsToMatch = new HashSet<>(contentDurationIds.orElse(List.of()));
+
+		// Delegate to enterprise plugin to determine what an institution's "recommended" content is.
+		// For now, recommended content size is relatively small, so we do our filtering here in-memory.
+		List<ContentApiResponse> contents = enterprisePlugin.recommendedContentForAccountId(account.getAccountId()).stream()
+				.filter(content -> {
+					boolean tagIdFilterSucceeded = false;
+
+					// Include content if tag filter succeeds
+					if (tagIdsToMatch.size() == 0) {
+						tagIdFilterSucceeded = true;
+					} else {
+						Set<String> contentTagIds = content.getTags().stream().map(tag -> tag.getTagId()).collect(Collectors.toSet());
+
+						if (Sets.intersection(tagIdsToMatch, contentTagIds).size() > 0)
+							tagIdFilterSucceeded = true;
+					}
+
+					boolean contentTypeIdFilterSucceeded = false;
+
+					// Include content if content type filter succeeds
+					if (contentTypeIdsToMatch.size() == 0)
+						contentTypeIdFilterSucceeded = true;
+					else if (contentTypeIdsToMatch.contains(content.getContentTypeId()))
+						contentTypeIdFilterSucceeded = true;
+
+					boolean contentDurationIdFilterSucceeded = false;
+
+					// Include content if content duration filter succeeds
+					if (contentDurationIdsToMatch.size() == 0) {
+						contentDurationIdFilterSucceeded = true;
+					} else {
+						if (content.getDurationInMinutes() != null)
+							for (ContentDurationId contentDurationId : contentDurationIdsToMatch)
+								if (content.getDurationInMinutes() >= contentDurationId.getLowerBoundInclusive()
+										&& content.getDurationInMinutes() <= contentDurationId.getUpperBoundInclusive())
+									contentDurationIdFilterSucceeded = true;
+					}
+
+					return tagIdFilterSucceeded && contentTypeIdFilterSucceeded && contentDurationIdFilterSucceeded;
+				})
+				.map(content -> getContentApiResponseFactory().create(content))
+				.collect(Collectors.toList());
+
+		// Chunk results into pages
+		final int MAXIMUM_PAGE_SIZE = 50;
+
+		int normalizedPageNumber = pageNumber.orElse(0);
+
+		if (normalizedPageNumber < 0)
+			normalizedPageNumber = 0;
+
+		int normalizedPageSize = pageSize.orElse(MAXIMUM_PAGE_SIZE);
+
+		if (normalizedPageSize < 0)
+			normalizedPageSize = 0;
+		else if (normalizedPageSize > MAXIMUM_PAGE_SIZE)
+			normalizedPageSize = MAXIMUM_PAGE_SIZE;
+
+		List<List<ContentApiResponse>> contentPages = normalizedPageSize == 0 ? List.of() : Lists.partition(contents, normalizedPageSize);
+		List<ContentApiResponse> contentPage = List.of();
+
+		if (contentPages.size() > normalizedPageNumber)
+			contentPage = contentPages.get(normalizedPageNumber);
+
+		// Pull supporting data (tags, tag groups)
+		Map<String, TagApiResponse> tagsByTagId = new HashMap<>();
+
+		for (Tag tag : getTagService().findTagsByInstitutionId(account.getInstitutionId()))
+			tagsByTagId.put(tag.getTagId(), getTagApiResponseFactory().create(tag));
+
+		List<TagGroupApiResponse> tagGroups = getTagService().findTagGroupsByInstitutionId(currentContext.getInstitutionId()).stream()
+				.map(tagGroup -> getTagGroupApiResponseFactory().create(tagGroup))
+				.collect(Collectors.toList());
+
+		Map<String, Object> findResultJson = new HashMap<>();
+		findResultJson.put("contents", contentPage);
+		findResultJson.put("totalCount", contents.size());
+		findResultJson.put("totalCountDescription", getFormatter().formatNumber(contents.size()));
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("findResult", findResultJson);
+			put("tagsByTagId", tagsByTagId);
+			put("tagGroups", tagGroups);
+			put("contentDurations", availableContentDurations());
+			put("contentTypes", availableContentTypes());
 		}});
 	}
 

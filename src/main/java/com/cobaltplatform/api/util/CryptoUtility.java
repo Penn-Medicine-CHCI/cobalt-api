@@ -19,8 +19,6 @@
 
 package com.cobaltplatform.api.util;
 
-import com.google.common.io.BaseEncoding;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
@@ -31,6 +29,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.KeyPair;
@@ -184,7 +183,7 @@ public final class CryptoUtility {
 	@Nonnull
 	public static String sha1ThumbprintBase64UrlRepresentation(@Nonnull X509Certificate x509Certificate) {
 		requireNonNull(x509Certificate);
-		return BaseEncoding.base64Url().encode(sha1Thumbprint(x509Certificate));
+		return Base64.getUrlEncoder().withoutPadding().encodeToString(sha1Thumbprint(x509Certificate));
 	}
 
 	@Nonnull
@@ -213,13 +212,13 @@ public final class CryptoUtility {
 	@Nonnull
 	public static String exponentBase64UrlRepresentation(@Nonnull PublicKey publicKey) {
 		requireNonNull(publicKey);
-		return Base64.getUrlEncoder().encodeToString(toRSAPublicKey(publicKey).getPublicExponent().toByteArray());
+		return Base64.getUrlEncoder().withoutPadding().encodeToString(toBytesUnsigned(toRSAPublicKey(publicKey).getPublicExponent()));
 	}
 
 	@Nonnull
 	public static String modulusBase64UrlRepresentation(@Nonnull PublicKey publicKey) {
 		requireNonNull(publicKey);
-		return Base64.getUrlEncoder().encodeToString(toRSAPublicKey(publicKey).getModulus().toByteArray());
+		return Base64.getUrlEncoder().withoutPadding().encodeToString(toBytesUnsigned(toRSAPublicKey(publicKey).getModulus()));
 	}
 
 	@Nonnull
@@ -230,5 +229,37 @@ public final class CryptoUtility {
 			throw new IllegalArgumentException(format("Public key is not an instance of %s", RSAPublicKey.class.getSimpleName()));
 
 		return (RSAPublicKey) publicKey;
+	}
+
+	@Nonnull
+	private static byte[] toBytesUnsigned(@Nonnull BigInteger bigInteger) {
+		requireNonNull(bigInteger);
+
+		// Copied from Apache Commons Codec 1.8
+
+		int bitlen = bigInteger.bitLength();
+
+		// round bitlen
+		bitlen = ((bitlen + 7) >> 3) << 3;
+		final byte[] bigBytes = bigInteger.toByteArray();
+
+		if (((bigInteger.bitLength() % 8) != 0) && (((bigInteger.bitLength() / 8) + 1) == (bitlen / 8))) {
+			return bigBytes;
+		}
+
+		// set up params for copying everything but sign bit
+		int startSrc = 0;
+		int len = bigBytes.length;
+
+		// if bigInt is exactly byte-aligned, just skip signbit in copy
+		if ((bigInteger.bitLength() % 8) == 0) {
+			startSrc = 1;
+			len--;
+		}
+
+		final int startDst = bitlen / 8 - len; // to pad w/ nulls as per spec
+		final byte[] resizedBytes = new byte[bitlen / 8];
+		System.arraycopy(bigBytes, startSrc, resizedBytes, startDst, len);
+		return resizedBytes;
 	}
 }

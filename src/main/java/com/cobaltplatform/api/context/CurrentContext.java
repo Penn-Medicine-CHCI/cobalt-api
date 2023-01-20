@@ -31,6 +31,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.time.ZoneId;
 import java.util.Locale;
 import java.util.Optional;
@@ -52,6 +54,8 @@ public class CurrentContext {
 	private final RemoteClient remoteClient;
 	@Nullable
 	private final String webappBaseUrl;
+	@Nullable
+	private final URL webappCurrentUrl;
 	@Nullable
 	private final String accessToken;
 	@Nullable
@@ -89,6 +93,19 @@ public class CurrentContext {
 		this.accountSource = builder.accountSource;
 		this.fingerprintId = builder.fingerprintId;
 		this.myChartAccessToken = builder.myChartAccessToken;
+
+		String webappCurrentUrl = trimToNull(builder.webappCurrentUrl);
+		URL webappCurrentUrlAsUrl = null;
+
+		if (webappCurrentUrl != null) {
+			try {
+				webappCurrentUrlAsUrl = new URL(webappCurrentUrl);
+			} catch (MalformedURLException e) {
+				// If we don't have a legal URL, just ignore it
+			}
+		}
+
+		this.webappCurrentUrl = webappCurrentUrlAsUrl;
 	}
 
 	@Nonnull
@@ -132,6 +149,11 @@ public class CurrentContext {
 	}
 
 	@Nonnull
+	public Optional<URL> getWebappCurrentUrl() {
+		return Optional.ofNullable(this.webappCurrentUrl);
+	}
+
+	@Nonnull
 	public Optional<UUID> getSessionTrackingId() {
 		return Optional.ofNullable(this.sessionTrackingId);
 	}
@@ -169,6 +191,8 @@ public class CurrentContext {
 		private RemoteClient remoteClient;
 		@Nullable
 		private String webappBaseUrl;
+		@Nullable
+		private String webappCurrentUrl;
 		@Nullable
 		private UUID sessionTrackingId;
 		@Nullable
@@ -243,6 +267,12 @@ public class CurrentContext {
 		@Nonnull
 		public Builder webappBaseUrl(@Nullable String webappBaseUrl) {
 			this.webappBaseUrl = webappBaseUrl;
+			return this;
+		}
+
+		@Nonnull
+		public Builder webappCurrentUrl(@Nullable String webappCurrentUrl) {
+			this.webappCurrentUrl = webappCurrentUrl;
 			return this;
 		}
 
