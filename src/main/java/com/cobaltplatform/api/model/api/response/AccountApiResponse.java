@@ -136,6 +136,7 @@ public class AccountApiResponse {
 	@Nullable
 	private final AddressApiResponse address;
 	@Nullable
+	@Deprecated
 	private final Map<InstitutionId, AccountCapabilities> capabilities;
 
 	public enum AccountApiResponseSupplement {

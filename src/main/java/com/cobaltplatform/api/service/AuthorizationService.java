@@ -42,7 +42,6 @@ import com.cobaltplatform.api.util.Normalizer;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -90,38 +89,32 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
-	public AccountCapabilities determineAccountCapabilities(@Nonnull Account account,
-																													@Nonnull InstitutionId institutionId) {
+	public AccountCapabilities determineAccountCapabilities(@Nonnull Account account) {
 		requireNonNull(account);
-		requireNonNull(institutionId);
 
 		AccountCapabilities accountCapabilities = new AccountCapabilities();
 
-		if (account.getRoleId() == RoleId.ADMINISTRATOR && account.getInstitutionId() == institutionId) {
+		if (account.getRoleId() == RoleId.ADMINISTRATOR) {
 			accountCapabilities.setViewNavAdminGroupSession(true);
 			accountCapabilities.setViewNavAdminGroupSessionRequest(true);
 			accountCapabilities.setViewNavAdminMyContent(true);
 			accountCapabilities.setViewNavAdminAvailableContent(true);
-			accountCapabilities.setViewNavAdminCalendar(true);
-		} else if (account.getInstitutionId() == institutionId) {
-			accountCapabilities.setViewNavAdminGroupSession(getGroupSessionService().canTakeActionOnGroupSessions(account, institutionId));
-			accountCapabilities.setViewNavAdminGroupSessionRequest(getGroupSessionService().canTakeActionOnGroupSessionRequests(account, institutionId));
-			accountCapabilities.setViewNavAdminCalendar(getAvailabilityService().canTakeActionOnCalendars(account, institutionId));
+		} else {
+			accountCapabilities.setViewNavAdminGroupSession(getGroupSessionService().canTakeActionOnGroupSessions(account));
+			accountCapabilities.setViewNavAdminGroupSessionRequest(getGroupSessionService().canTakeActionOnGroupSessionRequests(account));
 		}
 
 		return accountCapabilities;
 	}
 
 	@Nonnull
+	@Deprecated
+	// This should be removed - with the removal of super admin role, there is no longer the concept of accounts who can
+	// cross institution boundaries.
+	// Once FE is updated to no longer rely on this structure, we can remove it
 	public Map<InstitutionId, AccountCapabilities> determineAccountCapabilitiesByInstitutionId(@Nonnull Account account) {
 		requireNonNull(account);
-
-		Map<InstitutionId, AccountCapabilities> accountCapabilitiesByInstitutionId = new HashMap<>(InstitutionId.values().length);
-
-		for (InstitutionId institutionId : InstitutionId.values())
-			accountCapabilitiesByInstitutionId.put(institutionId, determineAccountCapabilities(account, institutionId));
-
-		return accountCapabilitiesByInstitutionId;
+		return Map.of(account.getInstitutionId(), determineAccountCapabilities(account));
 	}
 
 	@Nonnull
