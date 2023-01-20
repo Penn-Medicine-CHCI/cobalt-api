@@ -212,7 +212,6 @@ public class ContentService {
 		Integer limit = DEFAULT_PAGE_SIZE;
 		Integer offset = pageNumber * DEFAULT_PAGE_SIZE;
 		StringBuilder whereClause = new StringBuilder(" 1=1 ");
-		Boolean isSuperAdmin = account.getRoleId() == RoleId.SUPER_ADMINISTRATOR;
 
 		if (contentTypeId.isPresent()) {
 			whereClause.append("AND va.content_type_id = ? ");
@@ -247,33 +246,26 @@ public class ContentService {
 			parameters.add('%' + lowerSearch + '%');
 		}
 
-		if (!isSuperAdmin) {
-			if (myContent) {
-				whereClause.append("AND va.owner_institution_id = ? AND institution_id = ? ");
-				parameters.add(account.getInstitutionId());
-				parameters.add(account.getInstitutionId());
-				if (availableStatusId.isPresent()) {
-					whereClause.append(" AND approved_flag = ? ");
-					parameters.add(availableStatusId.get() == AvailableStatusId.ADDED);
-				}
-			} else {
-				whereClause.append("AND va.owner_institution_id != ? ");
-				parameters.add(account.getInstitutionId());
-				whereClause.append("AND va.owner_institution_approval_status_id = ?");
-				parameters.add(ApprovalStatusId.APPROVED);
-				whereClause.append("AND va.institution_id = ? ");
-				parameters.add(account.getInstitutionId());
-				if (availableStatusId.isPresent()) {
-					whereClause.append("AND va.approved_flag = ? ");
-					parameters.add(availableStatusId.get() == AvailableStatusId.ADDED);
-				}
-			}
-		}
 
-		if (isSuperAdmin) {
-			whereClause.append("AND va.deleted_flag = FALSE ");
+		if (myContent) {
+			whereClause.append("AND va.owner_institution_id = ? AND institution_id = ? ");
+			parameters.add(account.getInstitutionId());
+			parameters.add(account.getInstitutionId());
+			if (availableStatusId.isPresent()) {
+				whereClause.append(" AND approved_flag = ? ");
+				parameters.add(availableStatusId.get() == AvailableStatusId.ADDED);
+			}
+		} else {
+			whereClause.append("AND va.owner_institution_id != ? ");
+			parameters.add(account.getInstitutionId());
+			whereClause.append("AND va.owner_institution_approval_status_id = ?");
+			parameters.add(ApprovalStatusId.APPROVED);
 			whereClause.append("AND va.institution_id = ? ");
-			parameters.add(InstitutionId.COBALT);
+			parameters.add(account.getInstitutionId());
+			if (availableStatusId.isPresent()) {
+				whereClause.append("AND va.approved_flag = ? ");
+				parameters.add(availableStatusId.get() == AvailableStatusId.ADDED);
+			}
 		}
 
 		String query =
@@ -569,17 +561,7 @@ public class ContentService {
 		AdminContent content = findAdminContentByIdForInstitution(account.getInstitutionId(), request.getContentId())
 				.orElseThrow();
 
-		//Super Administrators only control public visibility
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR) {
-			updateContentVisibilityApprovalStatus(request.getContentId(), request.getApprovalStatusId(), VisibilityId.PUBLIC);
-
-			if (request.getApprovalStatusId() == ApprovalStatusId.APPROVED) {
-				addContentToInstitutionsForPublic(request.getContentId());
-			} else if (request.getApprovalStatusId() == ApprovalStatusId.REJECTED) {
-				removeContentFromInstitutionsForPublic(request.getContentId());
-			}
-
-		} else if (account.getRoleId() == RoleId.ADMINISTRATOR) {
+		if (account.getRoleId() == RoleId.ADMINISTRATOR) {
 			//Administrators control network and private visibility
 			if (content.getVisibilityId() == VisibilityId.NETWORK) {
 				updateContentVisibilityApprovalStatus(request.getContentId(), request.getApprovalStatusId(), VisibilityId.NETWORK);
@@ -666,7 +648,7 @@ public class ContentService {
 			validationException.add(new FieldError("contentTypeLabel", getStrings().get("Content type label is required")));
 		}
 
-		if (account.getRoleId() != RoleId.ADMINISTRATOR && account.getRoleId() != RoleId.SUPER_ADMINISTRATOR) {
+		if (account.getRoleId() != RoleId.ADMINISTRATOR) {
 			visibilityCommand = VisibilityId.PRIVATE;
 		} else if (visibilityCommand == null) {
 			validationException.add(new FieldError("visiblityId", getStrings().get("Visibility is required")));
@@ -698,7 +680,7 @@ public class ContentService {
 			url = String.format("https://%s", url);
 
 		ApprovalStatusId initialApprovalStatus;
-		if (account.getRoleId() == RoleId.ADMINISTRATOR || account.getRoleId() == RoleId.SUPER_ADMINISTRATOR) {
+		if (account.getRoleId() == RoleId.ADMINISTRATOR) {
 			initialApprovalStatus = ApprovalStatusId.APPROVED;
 		} else {
 			initialApprovalStatus = ApprovalStatusId.PENDING;
@@ -722,7 +704,7 @@ public class ContentService {
 				addContentToInstitution(contentId, institutionId, false);
 			}
 		} else if (visibilityCommand == VisibilityId.PUBLIC) {
-			ApprovalStatusId publicApprovalStatusId = account.getRoleId() == RoleId.SUPER_ADMINISTRATOR ? ApprovalStatusId.APPROVED : ApprovalStatusId.PENDING;
+			ApprovalStatusId publicApprovalStatusId = ApprovalStatusId.PENDING;
 			otherInstitutionsApprovalStatusId = publicApprovalStatusId;
 			for (Institution institution : getInstitutionService().findInstitutionsWithoutSpecifiedContentId(contentId))
 				addContentToInstitution(contentId, institution.getInstitutionId(), otherInstitutionsApprovalStatusId == ApprovalStatusId.APPROVED);
@@ -756,14 +738,8 @@ public class ContentService {
 	@Nonnull
 	private void sendAdminNotification(@Nonnull Account accountAddingContent,
 																		 @Nonnull AdminContent adminContent) {
-		List<Account> accountsToNotify;
-		if (accountAddingContent.getRoleId() == RoleId.SUPER_ADMINISTRATOR) {
-			return;
-		} else if (accountAddingContent.getRoleId() == RoleId.ADMINISTRATOR) {
-			accountsToNotify = getAccountService().findSuperAdminAccounts();
-		} else {
-			accountsToNotify = getAccountService().findAdminAccountsForInstitution(accountAddingContent.getInstitutionId());
-		}
+		List<Account> accountsToNotify = accountAddingContent.getRoleId() == RoleId.ADMINISTRATOR
+				? List.of() : getAccountService().findAdminAccountsForInstitution(accountAddingContent.getInstitutionId());
 
 		String date = adminContent.getDateCreated() == null ? getFormatter().formatDate(LocalDate.now(), FormatStyle.SHORT) : getFormatter().formatDate(adminContent.getDateCreated(), FormatStyle.SHORT);
 
@@ -911,7 +887,7 @@ public class ContentService {
 				}
 
 			} else if (visibilityIdCommand == VisibilityId.PUBLIC) {
-				ApprovalStatusId publicApprovalStatusId = account.getRoleId() == RoleId.SUPER_ADMINISTRATOR ? ApprovalStatusId.APPROVED : ApprovalStatusId.PENDING;
+				ApprovalStatusId publicApprovalStatusId = ApprovalStatusId.PENDING;
 				otherInstitutionsApprovalStatusId = publicApprovalStatusId;
 				if (existingContent.getVisibilityId() != VisibilityId.PUBLIC) {
 					shouldNotify = true;
@@ -1153,19 +1129,12 @@ public class ContentService {
 	}
 
 	@Nonnull
-	public Boolean hasAdminAccessToContent(@Nonnull Account account, @Nonnull AdminContent content) {
+	public Boolean hasAdminAccessToContent(@Nonnull Account account,
+																				 @Nonnull AdminContent content) {
 		requireNonNull(account);
 		requireNonNull(content);
 
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
-			return true;
-		else if (account.getRoleId() == RoleId.ADMINISTRATOR) {
-			if (account.getInstitutionId() == content.getOwnerInstitutionId())
-				return true;
-			else
-				return false;
-		} else
-			return false;
+		return account.getRoleId() == RoleId.ADMINISTRATOR && account.getInstitutionId() == content.getOwnerInstitutionId();
 	}
 
 	@Nonnull

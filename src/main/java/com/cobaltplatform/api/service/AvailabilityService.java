@@ -501,9 +501,6 @@ public class AvailabilityService implements AutoCloseable {
 		if (account == null || institutionId == null)
 			return false;
 
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
-			return true;
-
 		if (account.getRoleId() == RoleId.ADMINISTRATOR && account.getInstitutionId() == institutionId)
 			return true;
 

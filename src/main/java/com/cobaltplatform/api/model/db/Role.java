@@ -38,9 +38,7 @@ public class Role {
 		PATIENT,
 		PROVIDER,
 		ADMINISTRATOR,
-		SUPER_ADMINISTRATOR,
-		MHIC,
-		BHS
+		MHIC
 	}
 
 	@Override

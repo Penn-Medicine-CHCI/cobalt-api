@@ -31,7 +31,7 @@ import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.Pres
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.GroupSessionRequest;
 import com.cobaltplatform.api.model.db.GroupSessionRequestStatus.GroupSessionRequestStatusId;
-import com.cobaltplatform.api.model.db.Role;
+import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.service.AuditLogService;
@@ -166,8 +166,7 @@ public class GroupSessionRequestResource {
 
 		// For admin views, real admins can see everything.  But patients can only see their own
 		if (finalViewType == GroupSessionRequestViewType.ADMINISTRATOR) {
-			if (account.getRoleId() != Role.RoleId.ADMINISTRATOR
-					&& account.getRoleId() != Role.RoleId.SUPER_ADMINISTRATOR) {
+			if (account.getRoleId() != RoleId.ADMINISTRATOR) {
 				request.setFilterBehavior(FilterBehavior.ONLY_MY_SESSIONS);
 				request.setAccount(account);
 			}

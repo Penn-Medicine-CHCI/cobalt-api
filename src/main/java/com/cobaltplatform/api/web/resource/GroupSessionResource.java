@@ -19,7 +19,6 @@
 
 package com.cobaltplatform.api.web.resource;
 
-import com.lokalized.Strings;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateGroupSessionRequest;
 import com.cobaltplatform.api.model.api.request.CreatePresignedUploadRequest;
@@ -46,6 +45,7 @@ import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.UploadManager.PresignedUpload;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
+import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.PUT;
@@ -183,9 +183,8 @@ public class GroupSessionResource {
 		GroupSessionViewType finalViewType = viewType.orElse(GroupSessionViewType.PATIENT);
 
 		// For admin views, real admins can see everything.  But patients can only see their own
-		if(finalViewType == GroupSessionViewType.ADMINISTRATOR) {
-			if (account.getRoleId() != RoleId.ADMINISTRATOR
-					&& account.getRoleId() != RoleId.SUPER_ADMINISTRATOR) {
+		if (finalViewType == GroupSessionViewType.ADMINISTRATOR) {
+			if (account.getRoleId() != RoleId.ADMINISTRATOR) {
 				request.setFilterBehavior(FilterBehavior.ONLY_MY_SESSIONS);
 				request.setAccount(account);
 			}
@@ -310,7 +309,7 @@ public class GroupSessionResource {
 		if (groupSession == null)
 			throw new NotFoundException();
 
-		if(!getAuthorizationService().canEditGroupSession(groupSession, account))
+		if (!getAuthorizationService().canEditGroupSession(groupSession, account))
 			throw new AuthorizationException();
 
 		UpdateGroupSessionStatusRequest request = getRequestBodyParser().parse(requestBody, UpdateGroupSessionStatusRequest.class);
@@ -344,7 +343,7 @@ public class GroupSessionResource {
 		if (groupSession == null)
 			throw new NotFoundException();
 
-		if(!getAuthorizationService().canEditGroupSession(groupSession, account))
+		if (!getAuthorizationService().canEditGroupSession(groupSession, account))
 			throw new AuthorizationException();
 
 		UpdateGroupSessionRequest request = getRequestBodyParser().parse(requestBody, UpdateGroupSessionRequest.class);

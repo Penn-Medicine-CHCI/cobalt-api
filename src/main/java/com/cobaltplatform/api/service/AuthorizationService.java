@@ -97,13 +97,7 @@ public class AuthorizationService {
 
 		AccountCapabilities accountCapabilities = new AccountCapabilities();
 
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR) {
-			accountCapabilities.setViewNavAdminGroupSession(true);
-			accountCapabilities.setViewNavAdminGroupSessionRequest(true);
-			accountCapabilities.setViewNavAdminMyContent(true);
-			accountCapabilities.setViewNavAdminAvailableContent(true);
-			accountCapabilities.setViewNavAdminCalendar(true);
-		} else if (account.getRoleId() == RoleId.ADMINISTRATOR && account.getInstitutionId() == institutionId) {
+		if (account.getRoleId() == RoleId.ADMINISTRATOR && account.getInstitutionId() == institutionId) {
 			accountCapabilities.setViewNavAdminGroupSession(true);
 			accountCapabilities.setViewNavAdminGroupSessionRequest(true);
 			accountCapabilities.setViewNavAdminMyContent(true);
@@ -136,9 +130,6 @@ public class AuthorizationService {
 		requireNonNull(groupSession);
 		requireNonNull(account);
 
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
-			return true;
-
 		if (account.getRoleId() == RoleId.ADMINISTRATOR && groupSession.getInstitutionId() == account.getInstitutionId())
 			return true;
 
@@ -162,9 +153,6 @@ public class AuthorizationService {
 		requireNonNull(groupSession);
 		requireNonNull(account);
 
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
-			return true;
-
 		if (account.getRoleId() == RoleId.ADMINISTRATOR && groupSession.getInstitutionId() == account.getInstitutionId())
 			return true;
 
@@ -176,9 +164,6 @@ public class AuthorizationService {
 																						@Nonnull Account account) {
 		requireNonNull(groupSessionRequest);
 		requireNonNull(account);
-
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
-			return true;
 
 		if (account.getRoleId() == RoleId.ADMINISTRATOR && groupSessionRequest.getInstitutionId() == account.getInstitutionId())
 			return true;
@@ -203,9 +188,6 @@ public class AuthorizationService {
 		requireNonNull(groupSessionRequest);
 		requireNonNull(account);
 
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
-			return true;
-
 		if (account.getRoleId() == RoleId.ADMINISTRATOR && groupSessionRequest.getInstitutionId() == account.getInstitutionId())
 			return true;
 
@@ -218,9 +200,6 @@ public class AuthorizationService {
 		requireNonNull(provider);
 		requireNonNull(account);
 
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
-			return true;
-
 		return provider.getInstitutionId() == account.getInstitutionId();
 	}
 
@@ -229,9 +208,6 @@ public class AuthorizationService {
 																 @Nonnull Account account) {
 		requireNonNull(provider);
 		requireNonNull(account);
-
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
-			return true;
 
 		if (account.getRoleId() == RoleId.ADMINISTRATOR && provider.getInstitutionId() == account.getInstitutionId())
 			return true;
@@ -244,9 +220,6 @@ public class AuthorizationService {
 																				 @Nonnull Account account) {
 		requireNonNull(provider);
 		requireNonNull(account);
-
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
-			return true;
 
 		if (account.getRoleId() == RoleId.ADMINISTRATOR && provider.getInstitutionId() == account.getInstitutionId())
 			return true;
@@ -266,9 +239,6 @@ public class AuthorizationService {
 		requireNonNull(provider);
 		requireNonNull(account);
 
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
-			return true;
-
 		if (account.getRoleId() == RoleId.ADMINISTRATOR && provider.getInstitutionId() == account.getInstitutionId())
 			return true;
 
@@ -287,9 +257,6 @@ public class AuthorizationService {
 		requireNonNull(interaction);
 		requireNonNull(account);
 
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
-			return true;
-
 		if (!Objects.equals(interaction.getInstitutionId(), account.getInstitutionId()))
 			return false;
 
@@ -307,9 +274,6 @@ public class AuthorizationService {
 
 		if (interaction == null)
 			return false;
-
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
-			return true;
 
 		if (!Objects.equals(interaction.getInstitutionId(), account.getInstitutionId()))
 			return false;
@@ -333,9 +297,6 @@ public class AuthorizationService {
 		requireNonNull(appointmentType);
 		requireNonNull(account);
 
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
-			return true;
-
 		Institution institution = getAppointmentService().findInstitutionForAppointmentTypeId(appointmentType.getAppointmentTypeId()).get();
 
 		return Objects.equals(institution.getInstitutionId(), account.getInstitutionId());
@@ -346,9 +307,6 @@ public class AuthorizationService {
 																										@Nonnull Account account) {
 		requireNonNull(provider);
 		requireNonNull(account);
-
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
-			return true;
 
 		return Objects.equals(provider.getInstitutionId(), account.getInstitutionId());
 	}
@@ -368,9 +326,6 @@ public class AuthorizationService {
 		requireNonNull(appointmentType);
 		requireNonNull(account);
 
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
-			return true;
-
 		// You can only delete your own appointment types
 		List<AppointmentType> appointmentTypes = getAppointmentService().findAppointmentTypesByProviderId(account.getProviderId());
 
@@ -386,9 +341,6 @@ public class AuthorizationService {
 																		@Nonnull Account account) {
 		requireNonNull(appointment);
 		requireNonNull(account);
-
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
-			return true;
 
 		if (Objects.equals(appointment.getAccountId(), account.getAccountId()))
 			return true;
@@ -409,10 +361,7 @@ public class AuthorizationService {
 		requireNonNull(appointmentAccount);
 
 		// Some users can cancel appointments on behalf of other users
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR) {
-			// Superadmin can cancel any appointment
-			return true;
-		} else if (account.getRoleId() == RoleId.ADMINISTRATOR) {
+		if (account.getRoleId() == RoleId.ADMINISTRATOR) {
 			// "Normal" admins can cancel anything within the same institution
 			if (account.getInstitutionId().equals(appointmentAccount.getInstitutionId()))
 				return true;
@@ -436,9 +385,7 @@ public class AuthorizationService {
 		requireNonNull(appointmentAccount);
 
 		// Some users can update appointments on behalf of other users
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR) {
-			return true;
-		} else if (account.getRoleId() == RoleId.MHIC || account.getRoleId() == RoleId.ADMINISTRATOR || account.getRoleId() == RoleId.PROVIDER) {
+		if (account.getRoleId() == RoleId.MHIC || account.getRoleId() == RoleId.ADMINISTRATOR || account.getRoleId() == RoleId.PROVIDER) {
 			// "Normal" admins can update anything within the same institution
 			// TODO: Should we include the PROVIDER role in this?
 			if (!account.getInstitutionId().equals(appointmentAccount.getInstitutionId()))
@@ -472,10 +419,6 @@ public class AuthorizationService {
 																		 @Nonnull Account targetAccount) {
 		requireNonNull(performingAccount);
 		requireNonNull(targetAccount);
-
-		// If you are a super admin, you can screen anyone
-		if (performingAccount.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
-			return true;
 
 		// You can always screen yourself
 		if (Objects.equals(performingAccount.getAccountId(), targetAccount.getAccountId()))

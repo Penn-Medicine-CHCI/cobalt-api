@@ -361,9 +361,6 @@ public class GroupSessionService implements AutoCloseable {
 		if (account == null || institutionId == null)
 			return false;
 
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
-			return true;
-
 		if (account.getRoleId() == RoleId.ADMINISTRATOR && account.getInstitutionId() == institutionId)
 			return true;
 
@@ -376,9 +373,6 @@ public class GroupSessionService implements AutoCloseable {
 																										 @Nullable InstitutionId institutionId) {
 		if (account == null || institutionId == null)
 			return false;
-
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
-			return true;
 
 		if (account.getRoleId() == RoleId.ADMINISTRATOR && account.getInstitutionId() == institutionId)
 			return true;
@@ -1554,8 +1548,7 @@ public class GroupSessionService implements AutoCloseable {
 		requireNonNull(accountAddingGroupSession);
 		requireNonNull(groupSession);
 
-		if (accountAddingGroupSession.getRoleId() == RoleId.SUPER_ADMINISTRATOR
-				|| accountAddingGroupSession.getRoleId() == RoleId.ADMINISTRATOR)
+		if (accountAddingGroupSession.getRoleId() == RoleId.ADMINISTRATOR)
 			return;
 
 		List<Account> accountsToNotify = getAccountService().findAdminAccountsForInstitution(accountAddingGroupSession.getInstitutionId());

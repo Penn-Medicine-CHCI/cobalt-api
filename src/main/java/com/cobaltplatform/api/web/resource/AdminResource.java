@@ -203,8 +203,6 @@ public class AdminResource {
 																				 @QueryParameter Optional<AvailableStatus.AvailableStatusId> availableStatusId,
 																				 @QueryParameter Optional<String> search) {
 		Account account = getCurrentContext().getAccount().get();
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
-			throw new AuthorizationException();
 
 		FindResult<AdminContent> content = getContentService()
 				.findAllContentForAccount(false, account, page, contentTypeId, Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), availableStatusId, search);
@@ -242,7 +240,7 @@ public class AdminResource {
 	@AuthenticationRequired
 	public ApiResponse getInNetworkInstitutions() {
 		Account account = getCurrentContext().getAccount().get();
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR || account.getRoleId() == RoleId.ADMINISTRATOR) {
+		if (account.getRoleId() == RoleId.ADMINISTRATOR) {
 			return new ApiResponse(Map.of(
 					"institutions", getInstitutionService().findNetworkInstitutions(account.getInstitutionId()).stream().
 							map(it -> getAdminInstitutionApiResponseFactory().create(it)).collect(Collectors.toList())
