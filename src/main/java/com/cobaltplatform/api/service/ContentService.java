@@ -32,7 +32,6 @@ import com.cobaltplatform.api.model.api.request.UpdateContentArchivedStatus;
 import com.cobaltplatform.api.model.api.request.UpdateContentRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
-import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.ApprovalStatus;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
@@ -630,7 +629,7 @@ public class ContentService {
 		if (title == null)
 			validationException.add(new FieldError("title", getStrings().get("Title is required.")));
 
-		if (url == null && contentTypeId != null && contentTypeId != ContentTypeId.INT_BLOG)
+		if (url == null && contentTypeId != null && contentTypeId != ContentTypeId.ARTICLE)
 			validationException.add(new FieldError("url", getStrings().get("URL is required.")));
 
 		if (author == null)
@@ -995,12 +994,6 @@ public class ContentService {
 		unfilteredParameters.add(account.getAccountId());
 		unfilteredParameters.add(account.getInstitutionId());
 
-		//Do not show internal blog posts to anon users
-		if (account.getAccountSourceId().compareTo(AccountSource.AccountSourceId.ANONYMOUS) == 0) {
-			unfilteredQuery.append("AND content_type_id != ? ");
-			unfilteredParameters.add(ContentTypeId.INT_BLOG);
-		}
-
 		if (format != null) {
 			String formatList = Arrays.asList(format.split(","))
 					.stream().map(c -> String.format("'%s'", c))
@@ -1098,12 +1091,6 @@ public class ContentService {
 			parameters.add(searchQuery);
 			parameters.add(searchQuery);
 			parameters.add(searchQuery);
-		}
-
-		// Do not show internal blog posts to anon users
-		if (account.getAccountSourceId().compareTo(AccountSource.AccountSourceId.ANONYMOUS) == 0) {
-			query.append("AND content_type_id != ? ");
-			parameters.add(ContentTypeId.INT_BLOG);
 		}
 
 		if (format != null) {

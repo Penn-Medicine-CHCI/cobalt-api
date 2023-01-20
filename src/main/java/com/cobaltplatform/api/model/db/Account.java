@@ -101,10 +101,8 @@ public class Account {
 	private String ssoId;
 	@Nullable
 	private String ssoAttributes; // JSONB
-	@Deprecated
 	@Nullable
 	private String epicPatientId;
-	@Deprecated
 	@Nullable
 	private String epicPatientIdType;
 	@Deprecated
@@ -367,23 +365,19 @@ public class Account {
 	}
 
 	@Nullable
-	@Deprecated
 	public String getEpicPatientId() {
 		return epicPatientId;
 	}
 
-	@Deprecated
 	public void setEpicPatientId(@Nullable String epicPatientId) {
 		this.epicPatientId = epicPatientId;
 	}
 
 	@Nullable
-	@Deprecated
 	public String getEpicPatientIdType() {
 		return epicPatientIdType;
 	}
 
-	@Deprecated
 	public void setEpicPatientIdType(@Nullable String epicPatientIdType) {
 		this.epicPatientIdType = epicPatientIdType;
 	}

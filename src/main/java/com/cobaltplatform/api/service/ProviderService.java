@@ -41,7 +41,6 @@ import com.cobaltplatform.api.model.db.PaymentFunding.PaymentFundingId;
 import com.cobaltplatform.api.model.db.PaymentType;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.ProviderAvailability;
-import com.cobaltplatform.api.model.db.RecommendationLevel.RecommendationLevelId;
 import com.cobaltplatform.api.model.db.RecurrenceType.RecurrenceTypeId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.Specialty;
@@ -1705,15 +1704,6 @@ public class ProviderService {
 
 		// For now - we don't care about institution.  We might later on
 		return getDatabase().queryForList("SELECT * FROM support_role ORDER BY display_order", SupportRole.class);
-	}
-
-	@Nonnull
-	public List<SupportRole> findRecommendedSupportRolesByRecommendationLevelId(@Nullable RecommendationLevelId recommendationLevelId) {
-		if (recommendationLevelId == null)
-			return Collections.emptyList();
-
-		return getDatabase().queryForList("SELECT sr.* FROM support_role sr, recommendation_level_to_support_role rlsr " +
-				"WHERE sr.support_role_id=rlsr.support_role_id AND rlsr.recommendation_level_id=?", SupportRole.class, recommendationLevelId);
 	}
 
 	@Nonnull
