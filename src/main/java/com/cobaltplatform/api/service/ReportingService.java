@@ -19,8 +19,11 @@
 
 package com.cobaltplatform.api.service;
 
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.ReportType;
 import com.cobaltplatform.api.model.db.ReportingRollup;
+import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.service.ReportingChart;
 import com.cobaltplatform.api.model.service.ReportingChartColor;
 import com.cobaltplatform.api.model.service.ReportingChartDisplayPreferenceId;
@@ -41,6 +44,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
+import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -53,6 +57,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -66,6 +71,8 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class ReportingService {
 	@Nonnull
+	private final Provider<AccountService> accountServiceProvider;
+	@Nonnull
 	private final Database database;
 	@Nonnull
 	private final Strings strings;
@@ -73,14 +80,49 @@ public class ReportingService {
 	private final Logger logger;
 
 	@Inject
-	public ReportingService(@Nonnull Database database,
+	public ReportingService(@Nonnull Provider<AccountService> accountServiceProvider,
+													@Nonnull Database database,
 													@Nonnull Strings strings) {
+		requireNonNull(accountServiceProvider);
 		requireNonNull(database);
 		requireNonNull(strings);
 
+		this.accountServiceProvider = accountServiceProvider;
 		this.database = database;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
+	}
+
+	@Nonnull
+	public List<ReportType> findReportTypesAvailableForAccount(@Nullable UUID accountId) {
+		if (accountId == null)
+			return List.of();
+
+		Account account = getAccountService().findAccountById(accountId).orElse(null);
+
+		if (account == null)
+			return List.of();
+
+		return findReportTypesAvailableForAccount(account);
+	}
+
+	@Nonnull
+	public List<ReportType> findReportTypesAvailableForAccount(@Nullable Account account) {
+		if (account == null)
+			return List.of();
+
+		// All reports are available to admins
+		if (account.getRoleId() == RoleId.ADMINISTRATOR)
+			return getDatabase().queryForList("SELECT * FROM report ORDER BY display_order", ReportType.class);
+
+		// For other users, only pick reports to which they are explicitly granted access
+		return getDatabase().queryForList("""
+				SELECT rt.* 
+				FROM report_type rt, account_report_type art
+				WHERE art.account_id=?
+				AND art.report_type_id=rt.report_type_id
+				ORDER BY rt.display_order
+				""", ReportType.class, account.getAccountId());
 	}
 
 	@Nonnull
@@ -319,17 +361,22 @@ public class ReportingService {
 	}
 
 	@Nonnull
+	protected AccountService getAccountService() {
+		return this.accountServiceProvider.get();
+	}
+
+	@Nonnull
 	protected Database getDatabase() {
-		return database;
+		return this.database;
 	}
 
 	@Nonnull
 	protected Strings getStrings() {
-		return strings;
+		return this.strings;
 	}
 
 	@Nonnull
 	protected Logger getLogger() {
-		return logger;
+		return this.logger;
 	}
 }

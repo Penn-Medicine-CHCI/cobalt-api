@@ -19,9 +19,9 @@
 
 package com.cobaltplatform.api.web.resource;
 
-import com.lokalized.Strings;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.response.ReportTypeApiResponse.ReportTypeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ReportingChartApiResponse.ReportingChartApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution;
@@ -32,6 +32,7 @@ import com.cobaltplatform.api.model.service.ReportingChart;
 import com.cobaltplatform.api.model.service.ReportingWindowId;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ReportingService;
+import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.Resource;
@@ -73,6 +74,8 @@ public class ReportingResource {
 	@Nonnull
 	private final ReportingChartApiResponseFactory reportingChartApiResponseFactory;
 	@Nonnull
+	private final ReportTypeApiResponseFactory reportTypeApiResponseFactory;
+	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
@@ -83,12 +86,14 @@ public class ReportingResource {
 	public ReportingResource(@Nonnull ReportingService reportingService,
 													 @Nonnull InstitutionService institutionService,
 													 @Nonnull ReportingChartApiResponseFactory reportingChartApiResponseFactory,
+													 @Nonnull ReportTypeApiResponseFactory reportTypeApiResponseFactory,
 													 @Nonnull Configuration configuration,
 													 @Nonnull Provider<CurrentContext> currentContextProvider,
 													 @Nonnull Strings strings) {
 		requireNonNull(reportingService);
 		requireNonNull(institutionService);
 		requireNonNull(reportingChartApiResponseFactory);
+		requireNonNull(reportTypeApiResponseFactory);
 		requireNonNull(configuration);
 		requireNonNull(currentContextProvider);
 		requireNonNull(strings);
@@ -96,6 +101,7 @@ public class ReportingResource {
 		this.reportingService = reportingService;
 		this.institutionService = institutionService;
 		this.reportingChartApiResponseFactory = reportingChartApiResponseFactory;
+		this.reportTypeApiResponseFactory = reportTypeApiResponseFactory;
 		this.configuration = configuration;
 		this.currentContextProvider = currentContextProvider;
 		this.strings = strings;
@@ -159,31 +165,36 @@ public class ReportingResource {
 
 	@Nonnull
 	protected ReportingService getReportingService() {
-		return reportingService;
+		return this.reportingService;
 	}
 
 	@Nonnull
 	protected InstitutionService getInstitutionService() {
-		return institutionService;
+		return this.institutionService;
 	}
 
 	@Nonnull
 	protected ReportingChartApiResponseFactory getReportingChartApiResponseFactory() {
-		return reportingChartApiResponseFactory;
+		return this.reportingChartApiResponseFactory;
+	}
+
+	@Nonnull
+	protected ReportTypeApiResponseFactory getReportTypeApiResponseFactory() {
+		return this.reportTypeApiResponseFactory;
 	}
 
 	@Nonnull
 	protected Configuration getConfiguration() {
-		return configuration;
+		return this.configuration;
 	}
 
 	@Nonnull
 	protected Strings getStrings() {
-		return strings;
+		return this.strings;
 	}
 
 	@Nonnull
 	protected CurrentContext getCurrentContext() {
-		return currentContextProvider.get();
+		return this.currentContextProvider.get();
 	}
 }

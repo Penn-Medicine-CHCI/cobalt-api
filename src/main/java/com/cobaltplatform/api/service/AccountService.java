@@ -249,38 +249,6 @@ public class AccountService {
 	}
 
 	@Nonnull
-	public List<ReportType> findReportTypesAvailableForAccount(@Nullable UUID accountId) {
-		if (accountId == null)
-			return List.of();
-
-		Account account = findAccountById(accountId).orElse(null);
-
-		if (account == null)
-			return List.of();
-
-		return findReportTypesAvailableForAccount(account);
-	}
-
-	@Nonnull
-	public List<ReportType> findReportTypesAvailableForAccount(@Nullable Account account) {
-		if (account == null)
-			return List.of();
-
-		// All reports are available to admins
-		if (account.getRoleId() == RoleId.ADMINISTRATOR)
-			return getDatabase().queryForList("SELECT * FROM report ORDER BY display_order", ReportType.class);
-
-		// For other users, only pick reports to which they are explicitly granted access
-		return getDatabase().queryForList("""
-				SELECT rt.* 
-				FROM report_type rt, account_report_type art
-				WHERE art.account_id=?
-				AND art.report_type_id=rt.report_type_id
-				ORDER BY rt.display_order
-				""", ReportType.class, account.getAccountId());
-	}
-
-	@Nonnull
 	@SuppressWarnings("unchecked")
 	public Optional<Role> findRoleById(@Nullable RoleId roleId) {
 		if (roleId == null)
