@@ -125,6 +125,8 @@ public class Institution {
 	@Nullable
 	private Boolean contactUsEnabled;
 	@Nullable
+	private Boolean recommendedContentEnabled;
+	@Nullable
 	private Boolean userSubmittedContentEnabled;
 	@Nullable
 	private Boolean userSubmittedGroupSessionEnabled;
@@ -587,6 +589,15 @@ public class Institution {
 
 	public void setContactUsEnabled(@Nullable Boolean contactUsEnabled) {
 		this.contactUsEnabled = contactUsEnabled;
+	}
+
+	@Nullable
+	public Boolean getRecommendedContentEnabled() {
+		return this.recommendedContentEnabled;
+	}
+
+	public void setRecommendedContentEnabled(@Nullable Boolean recommendedContentEnabled) {
+		this.recommendedContentEnabled = recommendedContentEnabled;
 	}
 
 	@Nullable
