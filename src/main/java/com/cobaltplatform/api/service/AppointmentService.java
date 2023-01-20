@@ -27,7 +27,6 @@ import com.cobaltplatform.api.integration.acuity.AcuitySchedulingNotAvailableExc
 import com.cobaltplatform.api.integration.acuity.AcuitySyncManager;
 import com.cobaltplatform.api.integration.acuity.model.AcuityAppointment;
 import com.cobaltplatform.api.integration.acuity.model.AcuityAppointmentType;
-import com.cobaltplatform.api.integration.acuity.model.AcuityCalendar;
 import com.cobaltplatform.api.integration.acuity.model.AcuityError;
 import com.cobaltplatform.api.integration.acuity.model.request.AcuityAppointmentCreateRequest;
 import com.cobaltplatform.api.integration.acuity.model.request.AcuityAppointmentCreateRequest.AcuityAppointmentFieldCreateRequest;
@@ -80,7 +79,6 @@ import com.cobaltplatform.api.model.db.AuditLog;
 import com.cobaltplatform.api.model.db.AuditLogEvent.AuditLogEventId;
 import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.FontSize.FontSizeId;
-import com.cobaltplatform.api.model.db.GroupEventType;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Interaction;
@@ -172,8 +170,6 @@ public class AppointmentService {
 	@Nonnull
 	private final javax.inject.Provider<AccountService> accountServiceProvider;
 	@Nonnull
-	private final javax.inject.Provider<GroupEventService> groupEventServiceProvider;
-	@Nonnull
 	private final javax.inject.Provider<AuditLogService> auditLogServiceProvider;
 	@Nonnull
 	private final javax.inject.Provider<ClinicService> clinicServiceProvider;
@@ -215,7 +211,6 @@ public class AppointmentService {
 														@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 														@Nonnull javax.inject.Provider<ProviderService> providerServiceProvider,
 														@Nonnull javax.inject.Provider<AccountService> accountServiceProvider,
-														@Nonnull javax.inject.Provider<GroupEventService> groupEventServiceProvider,
 														@Nonnull javax.inject.Provider<AssessmentScoringService> assessmentScoringServiceProvider,
 														@Nonnull javax.inject.Provider<AcuitySyncManager> acuitySyncManagerProvider,
 														@Nonnull javax.inject.Provider<AuditLogService> auditLogServiceProvider,
@@ -240,7 +235,6 @@ public class AppointmentService {
 		requireNonNull(bluejeansClient);
 		requireNonNull(providerServiceProvider);
 		requireNonNull(accountServiceProvider);
-		requireNonNull(groupEventServiceProvider);
 		requireNonNull(acuitySyncManagerProvider);
 		requireNonNull(auditLogServiceProvider);
 		requireNonNull(clinicServiceProvider);
@@ -265,7 +259,6 @@ public class AppointmentService {
 		this.bluejeansClient = bluejeansClient;
 		this.providerServiceProvider = providerServiceProvider;
 		this.accountServiceProvider = accountServiceProvider;
-		this.groupEventServiceProvider = groupEventServiceProvider;
 		this.emailMessageManager = emailMessageManager;
 		this.acuitySyncManagerProvider = acuitySyncManagerProvider;
 		this.auditLogServiceProvider = auditLogServiceProvider;
@@ -989,24 +982,6 @@ public class AppointmentService {
 			if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.ACUITY)
 				// TODO: use cache here
 				acuityAppointmentType = getAcuitySchedulingClient().findAppointmentTypeById(appointmentType.getAcuityAppointmentTypeId()).get();
-		} else {
-			// Note: currently group events are assumed to be Acuity-only
-			acuityClassId = Long.valueOf(groupEventId);
-			GroupEventType groupEventType = getGroupEventService().findGroupEventTypeById(groupEventTypeId, account.getInstitutionId()).get();
-			acuityCalendarId = groupEventType.getAcuityCalendarId();
-			// TODO: use cache here
-			AcuityCalendar acuityCalendar = getAcuitySchedulingClient().findCalendarById(acuityCalendarId).get();
-			timeZone = ZoneId.of(acuityCalendar.getTimezone());
-			// TODO: use cache here
-			acuityAppointmentType = getAcuitySchedulingClient().findAppointmentTypeById(groupEventType.getAcuityAppointmentTypeId()).orElse(null);
-			videoconferenceUrl = groupEventType.getVideoconferenceUrl();
-
-			appointmentType = findAppointmentTypeByAcuityAppointmentTypeId(groupEventType.getAcuityAppointmentTypeId()).orElse(null);
-
-			if (appointmentType == null)
-				throw new ValidationException(getStrings().get("Sorry, this class is currently unavailable."));
-
-			appointmentTypeId = appointmentType.getAppointmentTypeId();
 		}
 
 		Long durationInMinutes = null;
@@ -2320,12 +2295,7 @@ public class AppointmentService {
 	protected AccountService getAccountService() {
 		return this.accountServiceProvider.get();
 	}
-
-	@Nonnull
-	protected GroupEventService getGroupEventService() {
-		return this.groupEventServiceProvider.get();
-	}
-
+	
 	@Nonnull
 	protected AuditLogService getAuditLogService() {
 		return this.auditLogServiceProvider.get();
