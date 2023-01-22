@@ -33,6 +33,7 @@ import com.cobaltplatform.api.model.db.InstitutionTopicCenter;
 import com.cobaltplatform.api.model.db.Interaction;
 import com.cobaltplatform.api.model.db.InteractionInstance;
 import com.cobaltplatform.api.model.db.Provider;
+import com.cobaltplatform.api.model.db.ReportType.ReportTypeId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.TopicCenter;
@@ -45,6 +46,7 @@ import javax.inject.Inject;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -112,6 +114,18 @@ public class AuthorizationService {
 		accountCapabilities.setViewNavAdminReports(getReportingService().findReportTypesAvailableForAccount(account).size() > 0);
 
 		return accountCapabilities;
+	}
+
+	@Nonnull
+	public Boolean canViewReportTypeId(@Nonnull Account account,
+																		 @Nonnull ReportTypeId reportTypeId) {
+		requireNonNull(account);
+		requireNonNull(reportTypeId);
+
+		return getReportingService().findReportTypesAvailableForAccount(account).stream()
+				.map(reportType -> reportType.getReportTypeId())
+				.collect(Collectors.toSet())
+				.contains(reportTypeId);
 	}
 
 	@Nonnull

@@ -11,8 +11,9 @@ CREATE TABLE report_type (
   display_order INTEGER NOT NULL
 );
 
-INSERT INTO report_type VALUES ('PROVIDER_AVAILABILITY', 'Provider Availability', 1);
+INSERT INTO report_type VALUES ('PROVIDER_UNUSED_AVAILABILITY', 'Provider Availability', 1);
 INSERT INTO report_type VALUES ('PROVIDER_APPOINTMENTS', 'Provider Appointments', 2);
+INSERT INTO report_type VALUES ('PROVIDER_APPOINTMENT_CANCELATIONS', 'Provider Appointment Cancelations', 3);
 
 -- What reports an account is permitted to see (administrators can implicitly see all reports)
 CREATE TABLE account_report_type (

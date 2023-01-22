@@ -37,8 +37,9 @@ public class ReportType {
 	private Integer displayOrder;
 
 	public enum ReportTypeId {
-		PROVIDER_AVAILABILITY,
-		PROVIDER_APPOINTMENTS
+		PROVIDER_UNUSED_AVAILABILITY,
+		PROVIDER_APPOINTMENTS,
+		PROVIDER_APPOINTMENT_CANCELATIONS
 	}
 
 	@Override
