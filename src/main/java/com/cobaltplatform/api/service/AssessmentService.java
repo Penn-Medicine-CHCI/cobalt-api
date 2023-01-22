@@ -562,14 +562,6 @@ public class AssessmentService {
 		return new AssessmentQuestionAnswers(assessment, questionAnswers, accountSession);
 	}
 
-	//TODO: cleanup
-	@Nonnull
-	public Optional<com.cobaltplatform.api.model.db.RecommendationLevel> findRecommendationLevelById(String
-																																																			 recommendationLevelId) {
-		return database.queryForObject("SELECT * from recommendation_level WHERE recommendation_level_id = ?",
-				com.cobaltplatform.api.model.db.RecommendationLevel.class, recommendationLevelId);
-	}
-
 	public Map<UUID, List<SubmissionAnswer>> validateIntroAssessmentSubmissionCommand(@Nonnull PersonalizeAssessmentChoicesCommand command,
 																																										@Nonnull Assessment assessment,
 																																										@Nonnull ValidationException validationException) {

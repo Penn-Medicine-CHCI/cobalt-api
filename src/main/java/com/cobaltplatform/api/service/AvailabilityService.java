@@ -37,7 +37,6 @@ import com.cobaltplatform.api.model.db.LogicalAvailability;
 import com.cobaltplatform.api.model.db.LogicalAvailabilityType.LogicalAvailabilityTypeId;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.RecurrenceType.RecurrenceTypeId;
-import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.cobaltplatform.api.model.service.AppointmentTypeWithLogicalAvailabilityId;
@@ -494,25 +493,6 @@ public class AvailabilityService implements AutoCloseable {
 		return getDatabase().queryForObject("SELECT calendar_permission_id " +
 						"FROM account_calendar_permission WHERE provider_id=? AND granted_to_account_id=?",
 				CalendarPermissionId.class, providerId, grantedToAccountId);
-	}
-
-	public boolean canTakeActionOnCalendars(@Nullable Account account,
-																					@Nullable InstitutionId institutionId) {
-		if (account == null || institutionId == null)
-			return false;
-
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
-			return true;
-
-		if (account.getRoleId() == RoleId.ADMINISTRATOR && account.getInstitutionId() == institutionId)
-			return true;
-
-		// If you are a provider with COBALT scheduling type, you can take action.
-		// Or if you have permission to do something to anyone else's calendar, you can take action
-		return getDatabase().queryForObject("SELECT (" +
-				"EXISTS(SELECT 1 FROM provider WHERE provider_id=? AND scheduling_system_id=?) " +
-				"OR EXISTS(SELECT 1 FROM account_calendar_permission WHERE granted_to_account_id=?) " +
-				")", Boolean.class, account.getProviderId(), SchedulingSystemId.COBALT, account.getAccountId()).get();
 	}
 
 	@Nonnull

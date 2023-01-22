@@ -77,9 +77,7 @@ import com.cobaltplatform.api.model.api.response.CallToActionApiResponse.CallToA
 import com.cobaltplatform.api.model.api.response.ClinicApiResponse.ClinicApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse.CountryApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.ExternalGroupEventTypeApiResponse.ExternalGroupEventTypeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.GroupEventApiResponse.GroupEventApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupRequestApiResponse.GroupRequestApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionRequestApiResponse.GroupSessionRequestApiResponseFactory;
@@ -99,6 +97,7 @@ import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.Pres
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderCalendarApiResponse.ProviderCalendarApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.QuestionApiResponse.QuestionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ReportTypeApiResponse.ReportTypeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ReportingChartApiResponse.ReportingChartApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ReportingChartApiResponse.ReportingChartElementApiResponse.ReportingChartElementApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ReportingChartApiResponse.ReportingChartMetricApiResponse.ReportingChartMetricApiResponseFactory;
@@ -210,13 +209,11 @@ public class AppModule extends AbstractModule {
 		install(new FactoryModuleBuilder().build(AccountApiResponseFactory.class));
 		install((new FactoryModuleBuilder().build(ContentApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ProviderApiResponseFactory.class)));
-		install((new FactoryModuleBuilder().build(GroupEventApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(AvailabilityTimeApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(AppointmentApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ActivityTrackingApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(IntroAssessmentApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(SupportRoleApiResponseFactory.class)));
-		install((new FactoryModuleBuilder().build(ExternalGroupEventTypeApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ClinicApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(InstitutionApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(AccountSourceApiResponseFactory.class)));
@@ -263,6 +260,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(TagGroupApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(GroupRequestApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(GroupTopicApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(ReportTypeApiResponseFactory.class)));
 	}
 
 	@Provides

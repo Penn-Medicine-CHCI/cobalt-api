@@ -70,6 +70,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PasswordResetRequest;
 import com.cobaltplatform.api.model.db.Race;
 import com.cobaltplatform.api.model.db.Race.RaceId;
+import com.cobaltplatform.api.model.db.ReportType;
 import com.cobaltplatform.api.model.db.Role;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
@@ -240,11 +241,6 @@ public class AccountService {
 		}
 
 		return Optional.empty();
-	}
-
-	@Nonnull
-	public List<Account> findSuperAdminAccounts() {
-		return getDatabase().queryForList("SELECT * FROM account WHERE role_id = ?", Account.class, RoleId.SUPER_ADMINISTRATOR);
 	}
 
 	@Nonnull
@@ -817,9 +813,9 @@ public class AccountService {
 
 		if (roleId == null)
 			validationException.add(new FieldError("roleId", getStrings().get("Role ID is required.")));
-		else if (roleId == RoleId.SUPER_ADMINISTRATOR)
+		else if (roleId == RoleId.ADMINISTRATOR)
 			// Only allow this if done manually in the DB in special cases.  Very few of these users exist
-			validationException.add(new FieldError("roleId", getStrings().get("You cannot update an account to be a super administrator.")));
+			validationException.add(new FieldError("roleId", getStrings().get("You cannot update an account to be an administrator.")));
 
 		if (validationException.hasErrors())
 			throw validationException;

@@ -22,35 +22,39 @@ package com.cobaltplatform.api.model.db;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
+import static java.lang.String.format;
+
 /**
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-@Deprecated
-public class RecommendationLevel {
+public class ReportType {
 	@Nullable
-	private RecommendationLevelId recommendationLevelId;
+	private ReportTypeId reportTypeId;
 	@Nullable
 	private String description;
+	@Nullable
+	private Integer displayOrder;
 
-	@Deprecated
-	public enum RecommendationLevelId {
-		PEER,
-		PEER_COACH,
-		COACH,
-		COACH_CLINICIAN,
-		CLINICIAN,
-		CLINICIAN_PSYCHIATRIST,
-		PSYCHIATRIST
+	public enum ReportTypeId {
+		PROVIDER_UNUSED_AVAILABILITY,
+		PROVIDER_APPOINTMENTS,
+		PROVIDER_APPOINTMENT_CANCELATIONS
+	}
+
+	@Override
+	public String toString() {
+		return format("%s{reportTypeId=%s, description=%s, displayOrder=%s}", getClass().getSimpleName(), getReportTypeId(),
+				getDescription(), getDisplayOrder());
 	}
 
 	@Nullable
-	public RecommendationLevelId getRecommendationLevelId() {
-		return recommendationLevelId;
+	public ReportTypeId getReportTypeId() {
+		return this.reportTypeId;
 	}
 
-	public void setRecommendationLevelId(@Nullable RecommendationLevelId recommendationLevelId) {
-		this.recommendationLevelId = recommendationLevelId;
+	public void setReportTypeId(@Nullable ReportTypeId reportTypeId) {
+		this.reportTypeId = reportTypeId;
 	}
 
 	@Nullable
@@ -60,5 +64,14 @@ public class RecommendationLevel {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
+	}
+
+	@Nullable
+	public Integer getDisplayOrder() {
+		return this.displayOrder;
+	}
+
+	public void setDisplayOrder(@Nullable Integer displayOrder) {
+		this.displayOrder = displayOrder;
 	}
 }

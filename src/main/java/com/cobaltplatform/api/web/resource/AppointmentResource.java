@@ -243,14 +243,12 @@ public class AppointmentResource {
 						.map((appointment) -> getAppointmentApiResponseFactory().create(appointment, null))
 						.collect(Collectors.toList()));
 			}});
-
 		}
 
 		// Some users can book on behalf of other users
 		// TODO: this checking should be more strict and institution-specific
 		if (account.getRoleId() == RoleId.MHIC
-				|| account.getRoleId() == RoleId.ADMINISTRATOR
-				|| account.getRoleId() == RoleId.SUPER_ADMINISTRATOR) {
+				|| account.getRoleId() == RoleId.ADMINISTRATOR) {
 			// If an account ID was passed in, use it if we can
 			if (!accountId.isEmpty())
 				account = getAccountService().findAccountById(accountId.get()).orElse(null);
@@ -373,8 +371,7 @@ public class AppointmentResource {
 		// Some users can book on behalf of other users
 		// TODO: this checking should be more strict and institution-specific
 		if (account.getRoleId() == RoleId.MHIC
-				|| account.getRoleId() == RoleId.ADMINISTRATOR
-				|| account.getRoleId() == RoleId.SUPER_ADMINISTRATOR) {
+				|| account.getRoleId() == RoleId.ADMINISTRATOR) {
 			// If an account ID was passed in, use it as-is, otherwise default to "me"
 			if (request.getAccountId() == null)
 				request.setAccountId(account.getAccountId());

@@ -71,39 +71,15 @@ public class Institution {
 	@Nullable
 	private Locale locale;
 	@Nullable
-	@Deprecated
-	private String crisisContent;
-	@Nullable
-	@Deprecated
-	private String privacyContent;
-	@Nullable
-	@Deprecated
-	private String covidContent;
-	@Nullable
 	private Boolean requireConsentForm;
-	@Nullable
-	@Deprecated
-	private String consentFormContent;
 	@Nullable
 	private String calendarDescription;
 	@Nullable
 	private Boolean supportEnabled;
 	@Nullable
-	@Deprecated
-	private String wellBeingContent;
-	@Nullable
 	private String name;
 	@Nullable
-	@Deprecated
-	private Boolean ssoEnabled;
-	@Nullable
-	@Deprecated
-	private Boolean emailEnabled;
-	@Nullable
 	private Boolean emailSignupEnabled;
-	@Nullable
-	@Deprecated
-	private Boolean anonymousEnabled;
 	@Nullable
 	private Boolean integratedCareEnabled;
 	@Nullable
@@ -369,56 +345,12 @@ public class Institution {
 	}
 
 	@Nullable
-	@Deprecated
-	public String getCrisisContent() {
-		return crisisContent;
-	}
-
-	@Deprecated
-	public void setCrisisContent(@Nullable String crisisContent) {
-		this.crisisContent = crisisContent;
-	}
-
-	@Nullable
-	@Deprecated
-	public String getPrivacyContent() {
-		return privacyContent;
-	}
-
-	@Deprecated
-	public void setPrivacyContent(@Nullable String privacyContent) {
-		this.privacyContent = privacyContent;
-	}
-
-	@Nullable
-	@Deprecated
-	public String getCovidContent() {
-		return covidContent;
-	}
-
-	@Deprecated
-	public void setCovidContent(@Nullable String covidContent) {
-		this.covidContent = covidContent;
-	}
-
-	@Nullable
 	public Boolean getRequireConsentForm() {
 		return requireConsentForm;
 	}
 
 	public void setRequireConsentForm(@Nullable Boolean requireConsentForm) {
 		this.requireConsentForm = requireConsentForm;
-	}
-
-	@Nullable
-	@Deprecated
-	public String getConsentFormContent() {
-		return consentFormContent;
-	}
-
-	@Deprecated
-	public void setConsentFormContent(@Nullable String consentFormContent) {
-		this.consentFormContent = consentFormContent;
 	}
 
 	@Nullable
@@ -440,17 +372,6 @@ public class Institution {
 	}
 
 	@Nullable
-	@Deprecated
-	public String getWellBeingContent() {
-		return wellBeingContent;
-	}
-
-	@Deprecated
-	public void setWellBeingContent(@Nullable String wellBeingContent) {
-		this.wellBeingContent = wellBeingContent;
-	}
-
-	@Nullable
 	public String getName() {
 		return name;
 	}
@@ -469,45 +390,12 @@ public class Institution {
 	}
 
 	@Nullable
-	@Deprecated
-	public Boolean getSsoEnabled() {
-		return ssoEnabled;
-	}
-
-	@Deprecated
-	public void setSsoEnabled(@Nullable Boolean ssoEnabled) {
-		this.ssoEnabled = ssoEnabled;
-	}
-
-	@Nullable
-	@Deprecated
-	public Boolean getEmailEnabled() {
-		return emailEnabled;
-	}
-
-	@Deprecated
-	public void setEmailEnabled(@Nullable Boolean emailEnabled) {
-		this.emailEnabled = emailEnabled;
-	}
-
-	@Nullable
 	public Boolean getEmailSignupEnabled() {
 		return this.emailSignupEnabled;
 	}
 
 	public void setEmailSignupEnabled(@Nullable Boolean emailSignupEnabled) {
 		this.emailSignupEnabled = emailSignupEnabled;
-	}
-
-	@Nullable
-	@Deprecated
-	public Boolean getAnonymousEnabled() {
-		return anonymousEnabled;
-	}
-
-	@Deprecated
-	public void setAnonymousEnabled(@Nullable Boolean anonymousEnabled) {
-		this.anonymousEnabled = anonymousEnabled;
 	}
 
 	@Nullable

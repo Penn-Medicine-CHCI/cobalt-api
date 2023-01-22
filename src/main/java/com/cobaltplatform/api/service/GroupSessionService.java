@@ -356,36 +356,28 @@ public class GroupSessionService implements AutoCloseable {
 		return 100;
 	}
 
-	public boolean canTakeActionOnGroupSessions(@Nullable Account account,
-																							@Nullable InstitutionId institutionId) {
-		if (account == null || institutionId == null)
+	public boolean canTakeActionOnGroupSessions(@Nullable Account account) {
+		if (account == null)
 			return false;
 
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
-			return true;
-
-		if (account.getRoleId() == RoleId.ADMINISTRATOR && account.getInstitutionId() == institutionId)
-			return true;
+		if (account.getRoleId() == RoleId.ADMINISTRATOR)
+			return getDatabase().queryForObject("SELECT COUNT(*) > 0 FROM group_session WHERE institution_id=?", Boolean.class, account.getInstitutionId()).get();
 
 		return getDatabase().queryForObject("SELECT COUNT(*) > 0 FROM group_session " +
 						"WHERE institution_id=? AND group_session_status_id=? AND (submitter_account_id=? OR (facilitator_account_id=? OR LOWER(?)=LOWER(facilitator_email_address)))", Boolean.class,
-				institutionId, GroupSessionStatusId.NEW, account.getAccountId(), account.getAccountId(), account.getEmailAddress()).get();
+				account.getInstitutionId(), GroupSessionStatusId.NEW, account.getAccountId(), account.getAccountId(), account.getEmailAddress()).get();
 	}
 
-	public boolean canTakeActionOnGroupSessionRequests(@Nullable Account account,
-																										 @Nullable InstitutionId institutionId) {
-		if (account == null || institutionId == null)
+	public boolean canTakeActionOnGroupSessionRequests(@Nullable Account account) {
+		if (account == null)
 			return false;
 
-		if (account.getRoleId() == RoleId.SUPER_ADMINISTRATOR)
-			return true;
-
-		if (account.getRoleId() == RoleId.ADMINISTRATOR && account.getInstitutionId() == institutionId)
-			return true;
+		if (account.getRoleId() == RoleId.ADMINISTRATOR)
+			return getDatabase().queryForObject("SELECT COUNT(*) > 0 FROM group_session_request WHERE institution_id=?", Boolean.class, account.getInstitutionId()).get();
 
 		return getDatabase().queryForObject("SELECT COUNT(*) > 0 FROM group_session_request " +
 						"WHERE institution_id=? AND group_session_request_status_id=? AND (submitter_account_id=? OR (facilitator_account_id=? OR LOWER(?)=LOWER(facilitator_email_address)))", Boolean.class,
-				institutionId, GroupSessionRequestStatusId.NEW, account.getAccountId(), account.getAccountId(), account.getEmailAddress()).get();
+				account.getInstitutionId(), GroupSessionRequestStatusId.NEW, account.getAccountId(), account.getAccountId(), account.getEmailAddress()).get();
 	}
 
 	@Nonnull
@@ -1554,8 +1546,7 @@ public class GroupSessionService implements AutoCloseable {
 		requireNonNull(accountAddingGroupSession);
 		requireNonNull(groupSession);
 
-		if (accountAddingGroupSession.getRoleId() == RoleId.SUPER_ADMINISTRATOR
-				|| accountAddingGroupSession.getRoleId() == RoleId.ADMINISTRATOR)
+		if (accountAddingGroupSession.getRoleId() == RoleId.ADMINISTRATOR)
 			return;
 
 		List<Account> accountsToNotify = getAccountService().findAdminAccountsForInstitution(accountAddingGroupSession.getInstitutionId());

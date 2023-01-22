@@ -27,7 +27,6 @@ import com.cobaltplatform.api.integration.acuity.model.AcuityAppointment;
 import com.cobaltplatform.api.model.api.request.CancelAppointmentRequest;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.service.AppointmentService;
-import com.cobaltplatform.api.service.GroupEventService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.soklet.web.annotation.FormParameter;
 import com.soklet.web.annotation.POST;
@@ -63,8 +62,6 @@ public class AcuityResource {
 	@Nonnull
 	private final AcuitySyncManager acuitySyncManager;
 	@Nonnull
-	private final GroupEventService groupEventService;
-	@Nonnull
 	private final AcuitySchedulingClient acuitySchedulingClient;
 	@Nonnull
 	private final AcuitySchedulingCache acuitySchedulingCache;
@@ -77,21 +74,18 @@ public class AcuityResource {
 	public AcuityResource(@Nonnull ProviderService providerService,
 												@Nonnull AppointmentService appointmentService,
 												@Nonnull AcuitySyncManager acuitySyncManager,
-												@Nonnull GroupEventService groupEventService,
 												@Nonnull AcuitySchedulingClient acuitySchedulingClient,
 												@Nonnull AcuitySchedulingCache acuitySchedulingCache,
 												@Nonnull Configuration configuration) {
 		requireNonNull(providerService);
 		requireNonNull(appointmentService);
 		requireNonNull(acuitySyncManager);
-		requireNonNull(groupEventService);
 		requireNonNull(acuitySchedulingClient);
 		requireNonNull(configuration);
 
 		this.providerService = providerService;
 		this.appointmentService = appointmentService;
 		this.acuitySyncManager = acuitySyncManager;
-		this.groupEventService = groupEventService;
 		this.acuitySchedulingClient = acuitySchedulingClient;
 		this.acuitySchedulingCache = acuitySchedulingCache;
 		this.configuration = configuration;
@@ -262,11 +256,6 @@ public class AcuityResource {
 	@Nonnull
 	protected AcuitySyncManager getAcuitySyncManager() {
 		return acuitySyncManager;
-	}
-
-	@Nonnull
-	protected GroupEventService getGroupEventService() {
-		return groupEventService;
 	}
 
 	@Nonnull

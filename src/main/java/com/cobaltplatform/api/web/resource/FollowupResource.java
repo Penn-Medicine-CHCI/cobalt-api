@@ -30,7 +30,7 @@ import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApi
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Followup;
-import com.cobaltplatform.api.model.db.Role;
+import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AppointmentService;
@@ -216,10 +216,8 @@ public class FollowupResource {
 
 		if (followupAccount != null) {
 			// Some users can find followups on behalf of other patients
-			if (account.getRoleId() == Role.RoleId.SUPER_ADMINISTRATOR) {
-				// Superadmin can find any followups
-			} else if (account.getRoleId() == Role.RoleId.MHIC || account.getRoleId() == Role.RoleId.ADMINISTRATOR) {
-				// "Normal" admins can find followups within the same institution
+			if (account.getRoleId() == RoleId.MHIC || account.getRoleId() == RoleId.ADMINISTRATOR) {
+				// "Normal" admins and MHICs can find followups within the same institution
 				if (!account.getInstitutionId().equals(followupAccount.getInstitutionId()))
 					throw new AuthorizationException();
 			} else {

@@ -25,7 +25,6 @@ import com.cobaltplatform.api.model.db.AvailableStatus.AvailableStatusId;
 import com.cobaltplatform.api.model.db.ContentType;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
 import com.cobaltplatform.api.model.db.Institution;
-import com.cobaltplatform.api.model.db.Role;
 import com.cobaltplatform.api.model.service.AdminContent;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.InstitutionService;
@@ -176,63 +175,43 @@ public class AdminContentApiResponse {
 			contentActionIdList.add(ContentActionId.DELETE);
 		} else {
 			if (adminContentDisplayType == AdminContentDisplayType.MY_CONTENT) {
-				if (account.getRoleId() == Role.RoleId.SUPER_ADMINISTRATOR) {
-					if (this.visibilityId == VisibilityId.PUBLIC) {
-						switch (adminContent.getOtherInstitutionApprovalStatusId()) {
-							case PENDING:
-								contentActionIdList.add(ContentActionId.APPROVE);
-								contentActionIdList.add(ContentActionId.REJECT);
-								break;
-							case APPROVED:
-								contentActionIdList.add(ContentActionId.ARCHIVE);
-								break;
-							case REJECTED:
-								contentActionIdList.add(ContentActionId.APPROVE);
-								contentActionIdList.add(ContentActionId.DELETE);
-								break;
-							case ARCHIVED:
-								break;
-						}
+				if (this.visibilityId == VisibilityId.PUBLIC) {
+					switch (adminContent.getOtherInstitutionApprovalStatusId()) {
+						case PENDING:
+							contentActionIdList.add(ContentActionId.REJECT);
+							contentActionIdList.add(ContentActionId.ARCHIVE);
+							break;
+						case APPROVED:
+							contentActionIdList.add(ContentActionId.ARCHIVE);
+							break;
+						case REJECTED:
+							contentActionIdList.add(ContentActionId.APPROVE);
+							contentActionIdList.add(ContentActionId.DELETE);
+							break;
+						case ARCHIVED:
+							break;
+					}
+				} else if (this.visibilityId == VisibilityId.PRIVATE) {
+					switch (adminContent.getOwnerInstitutionApprovalStatusId()) {
+
+						case PENDING:
+							contentActionIdList.add(ContentActionId.APPROVE);
+							contentActionIdList.add(ContentActionId.REJECT);
+							break;
+						case APPROVED:
+							contentActionIdList.add(ContentActionId.ARCHIVE);
+							break;
+						case REJECTED:
+							contentActionIdList.add(ContentActionId.APPROVE);
+							contentActionIdList.add(ContentActionId.DELETE);
+							break;
+						case ARCHIVED:
+							contentActionIdList.add(ContentActionId.APPROVE);
+							break;
 					}
 				} else {
-					if (this.visibilityId == VisibilityId.PUBLIC) {
-						switch (adminContent.getOtherInstitutionApprovalStatusId()) {
-							case PENDING:
-								contentActionIdList.add(ContentActionId.REJECT);
-								contentActionIdList.add(ContentActionId.ARCHIVE);
-								break;
-							case APPROVED:
-								contentActionIdList.add(ContentActionId.ARCHIVE);
-								break;
-							case REJECTED:
-								contentActionIdList.add(ContentActionId.APPROVE);
-								contentActionIdList.add(ContentActionId.DELETE);
-								break;
-							case ARCHIVED:
-								break;
-						}
-					} else if (this.visibilityId == VisibilityId.PRIVATE) {
-						switch (adminContent.getOwnerInstitutionApprovalStatusId()) {
-
-							case PENDING:
-								contentActionIdList.add(ContentActionId.APPROVE);
-								contentActionIdList.add(ContentActionId.REJECT);
-								break;
-							case APPROVED:
-								contentActionIdList.add(ContentActionId.ARCHIVE);
-								break;
-							case REJECTED:
-								contentActionIdList.add(ContentActionId.APPROVE);
-								contentActionIdList.add(ContentActionId.DELETE);
-								break;
-							case ARCHIVED:
-								contentActionIdList.add(ContentActionId.APPROVE);
-								break;
-						}
-					} else {
-						if (!adminContent.getArchivedFlag())
-							contentActionIdList.add(ContentActionId.ARCHIVE);
-					}
+					if (!adminContent.getArchivedFlag())
+						contentActionIdList.add(ContentActionId.ARCHIVE);
 				}
 			} else if (adminContentDisplayType == AdminContentDisplayType.AVAILABLE_CONTENT) {
 				if (adminContent.getApprovedFlag()) {

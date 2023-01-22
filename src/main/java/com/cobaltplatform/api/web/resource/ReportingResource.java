@@ -19,19 +19,23 @@
 
 package com.cobaltplatform.api.web.resource;
 
-import com.lokalized.Strings;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.response.ReportTypeApiResponse;
+import com.cobaltplatform.api.model.api.response.ReportTypeApiResponse.ReportTypeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ReportingChartApiResponse.ReportingChartApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution;
+import com.cobaltplatform.api.model.db.ReportType.ReportTypeId;
 import com.cobaltplatform.api.model.db.ReportingRollup;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.ReportingChart;
 import com.cobaltplatform.api.model.service.ReportingWindowId;
+import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ReportingService;
+import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.Resource;
@@ -48,6 +52,8 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
@@ -71,7 +77,11 @@ public class ReportingResource {
 	@Nonnull
 	private final InstitutionService institutionService;
 	@Nonnull
+	private final AuthorizationService authorizationService;
+	@Nonnull
 	private final ReportingChartApiResponseFactory reportingChartApiResponseFactory;
+	@Nonnull
+	private final ReportTypeApiResponseFactory reportTypeApiResponseFactory;
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
@@ -82,28 +92,100 @@ public class ReportingResource {
 	@Inject
 	public ReportingResource(@Nonnull ReportingService reportingService,
 													 @Nonnull InstitutionService institutionService,
+													 @Nonnull AuthorizationService authorizationService,
 													 @Nonnull ReportingChartApiResponseFactory reportingChartApiResponseFactory,
+													 @Nonnull ReportTypeApiResponseFactory reportTypeApiResponseFactory,
 													 @Nonnull Configuration configuration,
 													 @Nonnull Provider<CurrentContext> currentContextProvider,
 													 @Nonnull Strings strings) {
 		requireNonNull(reportingService);
 		requireNonNull(institutionService);
+		requireNonNull(authorizationService);
 		requireNonNull(reportingChartApiResponseFactory);
+		requireNonNull(reportTypeApiResponseFactory);
 		requireNonNull(configuration);
 		requireNonNull(currentContextProvider);
 		requireNonNull(strings);
 
 		this.reportingService = reportingService;
 		this.institutionService = institutionService;
+		this.authorizationService = authorizationService;
 		this.reportingChartApiResponseFactory = reportingChartApiResponseFactory;
+		this.reportTypeApiResponseFactory = reportTypeApiResponseFactory;
 		this.configuration = configuration;
 		this.currentContextProvider = currentContextProvider;
 		this.strings = strings;
 	}
 
 	@Nonnull
+	@GET("/reporting/report-types")
+	@AuthenticationRequired
+	public ApiResponse reportTypes() {
+		Account account = getCurrentContext().getAccount().get();
+		List<ReportTypeApiResponse> reportTypes = getReportingService().findReportTypesAvailableForAccount(account).stream()
+				.map(reportType -> getReportTypeApiResponseFactory().create(reportType))
+				.collect(Collectors.toList());
+
+		return new ApiResponse(new HashMap<>() {{
+			put("reportTypes", reportTypes);
+		}});
+	}
+
+	@Nonnull
+	@GET("/reporting/run-report")
+	@AuthenticationRequired
+	public Object runReport(@Nonnull @QueryParameter ReportTypeId reportTypeId,
+													@Nonnull @QueryParameter ReportFormatId reportFormatId,
+													@Nonnull @QueryParameter LocalDateTime startDateTime, // inclusive
+													@Nonnull @QueryParameter LocalDateTime endDateTime, // inclusive
+													@Nonnull @QueryParameter Optional<ZoneId> timeZone,
+													@Nonnull @QueryParameter Optional<Locale> locale,
+													@Nonnull HttpServletResponse httpServletResponse) throws IOException {
+		requireNonNull(reportTypeId);
+		requireNonNull(reportFormatId);
+		requireNonNull(startDateTime);
+		requireNonNull(endDateTime);
+		requireNonNull(timeZone);
+		requireNonNull(locale);
+		requireNonNull(httpServletResponse);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		if (!getAuthorizationService().canViewReportTypeId(account, reportTypeId))
+			throw new AuthorizationException();
+
+		if (reportFormatId != ReportFormatId.CSV)
+			throw new IllegalStateException(format("We don't support %s.%s yet",
+					ReportFormatId.class.getSimpleName(), reportFormatId.name()));
+
+		ZoneId reportTimeZone = timeZone.orElse(account.getTimeZone());
+		Locale reportLocale = locale.orElse(account.getLocale());
+
+		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", reportLocale);
+		String filename = format("Cobalt %s %s to %s.csv", reportTypeId.name(), dateTimeFormatter.format(startDateTime), dateTimeFormatter.format(endDateTime));
+
+		httpServletResponse.setContentType("text/csv");
+		httpServletResponse.setHeader("Content-Encoding", "gzip");
+		httpServletResponse.setHeader("Content-Disposition", format("attachment; filename=\"%s\"", filename));
+
+		try (PrintWriter printWriter = new PrintWriter(new GZIPOutputStream(httpServletResponse.getOutputStream()))) {
+			if (reportTypeId == ReportTypeId.PROVIDER_UNUSED_AVAILABILITY)
+				getReportingService().runProviderUnusedAvailabilityReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
+			else if (reportTypeId == ReportTypeId.PROVIDER_APPOINTMENTS)
+				getReportingService().runProviderAppointmentsReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
+			else if (reportTypeId == ReportTypeId.PROVIDER_APPOINTMENT_CANCELATIONS)
+				getReportingService().runProviderAppointmentCancelationsReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
+			else
+				throw new IllegalStateException(format("We don't support %s.%s yet", ReportTypeId.class.getSimpleName(), reportTypeId.name()));
+		}
+
+		return CustomResponse.instance();
+	}
+
+	@Nonnull
 	@GET("/reporting/charts")
 	@AuthenticationRequired
+	@Deprecated
 	public ApiResponse charts(@Nonnull @QueryParameter Optional<ReportingWindowId> reportingWindowId) {
 		requireNonNull(reportingWindowId);
 
@@ -123,6 +205,7 @@ public class ReportingResource {
 	@Nonnull
 	@GET("/reporting/csv")
 	@AuthenticationRequired
+	@Deprecated
 	public CustomResponse csv(@Nonnull @QueryParameter Optional<ReportingWindowId> reportingWindowId,
 														@Nonnull HttpServletResponse httpServletResponse) throws IOException {
 		requireNonNull(reportingWindowId);
@@ -148,6 +231,7 @@ public class ReportingResource {
 	}
 
 	@Nonnull
+	@Deprecated
 	protected Account authorizedAccount() {
 		Account account = getCurrentContext().getAccount().get();
 
@@ -157,33 +241,48 @@ public class ReportingResource {
 		return account;
 	}
 
+	public enum ReportFormatId {
+		JSON,
+		CSV
+	}
+
 	@Nonnull
 	protected ReportingService getReportingService() {
-		return reportingService;
+		return this.reportingService;
 	}
 
 	@Nonnull
 	protected InstitutionService getInstitutionService() {
-		return institutionService;
+		return this.institutionService;
+	}
+
+	@Nonnull
+	protected AuthorizationService getAuthorizationService() {
+		return this.authorizationService;
 	}
 
 	@Nonnull
 	protected ReportingChartApiResponseFactory getReportingChartApiResponseFactory() {
-		return reportingChartApiResponseFactory;
+		return this.reportingChartApiResponseFactory;
+	}
+
+	@Nonnull
+	protected ReportTypeApiResponseFactory getReportTypeApiResponseFactory() {
+		return this.reportTypeApiResponseFactory;
 	}
 
 	@Nonnull
 	protected Configuration getConfiguration() {
-		return configuration;
+		return this.configuration;
 	}
 
 	@Nonnull
 	protected Strings getStrings() {
-		return strings;
+		return this.strings;
 	}
 
 	@Nonnull
 	protected CurrentContext getCurrentContext() {
-		return currentContextProvider.get();
+		return this.currentContextProvider.get();
 	}
 }
