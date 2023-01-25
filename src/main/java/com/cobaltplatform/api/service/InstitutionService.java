@@ -22,6 +22,9 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.InstitutionBlurb;
+import com.cobaltplatform.api.model.db.InstitutionBlurbTeamMember;
+import com.cobaltplatform.api.model.db.InstitutionTeamMember;
 import com.cobaltplatform.api.model.db.InstitutionUrl;
 import com.cobaltplatform.api.model.db.Insurance;
 import com.cobaltplatform.api.model.db.InsuranceType.InsuranceTypeId;
@@ -37,7 +40,9 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -247,6 +252,66 @@ public class InstitutionService {
 		}
 
 		return insurances;
+	}
+
+	@Nonnull
+	public List<InstitutionBlurb> findInstitutionBlurbsByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM institution_blurb
+				WHERE institution_id=?
+				""", InstitutionBlurb.class, institutionId);
+	}
+
+	@Nonnull
+	public List<InstitutionTeamMember> findInstitutionTeamMembersByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM institution_team_member
+				WHERE institution_id=?
+				ORDER BY name
+				""", InstitutionTeamMember.class, institutionId);
+	}
+
+	@Nonnull
+	public Map<UUID, List<InstitutionTeamMember>> findInstitutionTeamMembersByInstitutionBlurbIdForInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return Map.of();
+
+		List<InstitutionBlurbTeamMember> institutionBlurbTeamMembers = getDatabase().queryForList("""
+				SELECT ibtm.*
+				FROM institution_blurb_team_member ibtm, institution_blurb ib
+				WHERE ibtm.institution_blurb_id=ib.institution_blurb_id
+				AND ib.institution_id=?
+				ORDER BY ibtm.display_order    
+				""", InstitutionBlurbTeamMember.class, institutionId);
+
+		Map<UUID, InstitutionTeamMember> institutionTeamMembersById = new HashMap();
+
+		for (InstitutionTeamMember institutionTeamMember : findInstitutionTeamMembersByInstitutionId(institutionId))
+			institutionTeamMembersById.put(institutionTeamMember.getInstitutionTeamMemberId(), institutionTeamMember);
+
+		Map<UUID, List<InstitutionTeamMember>> institutionTeamMembersByInstitutionBlurbId = new HashMap<>();
+
+		for (InstitutionBlurbTeamMember institutionBlurbTeamMember : institutionBlurbTeamMembers) {
+			InstitutionTeamMember institutionTeamMember = institutionTeamMembersById.get(institutionBlurbTeamMember.getInstitutionTeamMemberId());
+			List<InstitutionTeamMember> institutionTeamMembers = institutionTeamMembersByInstitutionBlurbId.get(institutionBlurbTeamMember.getInstitutionBlurbId());
+
+			if (institutionTeamMembers == null) {
+				institutionTeamMembers = new ArrayList<>();
+				institutionTeamMembersByInstitutionBlurbId.put(institutionBlurbTeamMember.getInstitutionBlurbId(), institutionTeamMembers);
+			}
+
+			institutionTeamMembers.add(institutionTeamMember);
+		}
+
+		return institutionTeamMembersByInstitutionBlurbId;
 	}
 
 	@Nonnull
