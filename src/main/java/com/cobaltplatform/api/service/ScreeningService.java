@@ -1105,11 +1105,12 @@ public class ScreeningService {
 								UUID.randomUUID(), newAccountSessionId, legacyContentAnswerId);
 					}
 				}
-			} else {
-				for (String tagId : resultsFunctionOutput.getRecommendedTagIds()) {
-					getDatabase().execute("INSERT INTO tag_screening_session (tag_id, screening_session_id) VALUES (?,?)",
-							tagId, screeningSession.getScreeningSessionId());
-				}
+			}
+
+			// Store off recommended tags per this screening session's answers, if any
+			for (String tagId : resultsFunctionOutput.getRecommendedTagIds()) {
+				getDatabase().execute("INSERT INTO tag_screening_session (tag_id, screening_session_id) VALUES (?,?)",
+						tagId, screeningSession.getScreeningSessionId());
 			}
 		}
 

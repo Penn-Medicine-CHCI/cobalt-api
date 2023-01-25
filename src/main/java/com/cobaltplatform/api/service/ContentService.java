@@ -1135,6 +1135,7 @@ public class ContentService {
 				WHERE c.content_id=ic.content_id
 				AND ic.approved_flag=TRUE
 				AND ic.institution_id=?
+				ORDER BY c.created DESC
 								""", Content.class, institutionId);
 
 		applyTagsToContents(contents, institutionId);
