@@ -496,9 +496,8 @@ public class AccountResource {
 
 		final int MAXIMUM_CONTENTS = 12;
 
-		// Delegate content recommendations to enterprise plugin
-		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(account.getInstitutionId());
-		List<Content> contents = enterprisePlugin.recommendedContentForAccountId(account.getAccountId());
+		// Show the latest and greatest visible content
+		List<Content> contents = getContentService().findVisibleContentByInstitutionId(institution.getInstitutionId());
 
 		// Don't show too many content pieces
 		if (contents.size() > MAXIMUM_CONTENTS)
