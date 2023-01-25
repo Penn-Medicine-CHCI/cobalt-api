@@ -171,11 +171,12 @@ public class ResourceLibraryResource {
 		// Group content by tag group
 		Map<String, List<ContentApiResponse>> contentsByTagGroupId = new HashMap<>(tagGroups.size());
 
+		// Don't have too many pieces of content per tag group
+		final int MAXIMUM_CONTENT_COUNT_PER_TAG_GROUP = 20;
+
 		for (Content content : contents) {
 			if (contentIds.contains(content.getContentId()))
 				continue;
-
-			contentIds.add(content.getContentId());
 
 			String tagGroupId = content.getTags().stream()
 					.map(tag -> tag.getTagGroupId())
@@ -190,7 +191,10 @@ public class ResourceLibraryResource {
 					contentsByTagGroupId.put(tagGroupId, tagGroupContents);
 				}
 
-				tagGroupContents.add(getContentApiResponseFactory().create(content));
+				if (tagGroupContents.size() < MAXIMUM_CONTENT_COUNT_PER_TAG_GROUP) {
+					contentIds.add(content.getContentId());
+					tagGroupContents.add(getContentApiResponseFactory().create(content));
+				}
 			}
 		}
 

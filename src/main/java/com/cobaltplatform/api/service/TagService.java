@@ -174,6 +174,19 @@ public class TagService {
 	}
 
 	@Nonnull
+	public List<Tag> findRecommendedTagsByScreeningSessionId(@Nullable UUID screeningSessionId) {
+		if (screeningSessionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				    SELECT t.*
+				    FROM tag t, tag_screening_session tss
+				    WHERE tss.tag_id=t.tag_id
+				    AND tss.screening_session_id=?
+				""", Tag.class, screeningSessionId);
+	}
+
+	@Nonnull
 	protected Database getDatabase() {
 		return database;
 	}

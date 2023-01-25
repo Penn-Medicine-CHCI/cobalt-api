@@ -1105,6 +1105,11 @@ public class ScreeningService {
 								UUID.randomUUID(), newAccountSessionId, legacyContentAnswerId);
 					}
 				}
+			} else {
+				for (String tagId : resultsFunctionOutput.getRecommendedTagIds()) {
+					getDatabase().execute("INSERT INTO tag_screening_session (tag_id, screening_session_id) VALUES (?,?)",
+							tagId, screeningSession.getScreeningSessionId());
+				}
 			}
 		}
 
@@ -1228,6 +1233,9 @@ public class ScreeningService {
 
 		if (resultsFunctionOutput.getLegacyContentAnswerIds() == null)
 			resultsFunctionOutput.setLegacyContentAnswerIds(Collections.emptySet());
+
+		if (resultsFunctionOutput.getRecommendedTagIds() == null)
+			resultsFunctionOutput.setRecommendedTagIds(Set.of());
 
 		return Optional.of(resultsFunctionOutput);
 	}
@@ -1485,13 +1493,24 @@ public class ScreeningService {
 	@NotThreadSafe
 	protected static class ResultsFunctionOutput {
 		@Nullable
+		private Set<String> recommendedTagIds;
+		@Nullable
 		private Set<SupportRoleRecommendation> supportRoleRecommendations;
 		@Nullable
+		@Deprecated
 		private Set<UUID> legacyContentAnswerIds;
 		@Nullable
+		@Deprecated
 		private Boolean recommendLegacyContentAnswerIds;
 
-		// TODO: new tagging recommendations
+		@Nullable
+		public Set<String> getRecommendedTagIds() {
+			return this.recommendedTagIds;
+		}
+
+		public void setRecommendedTagIds(@Nullable Set<String> recommendedTagIds) {
+			this.recommendedTagIds = recommendedTagIds;
+		}
 
 		@Nullable
 		public Set<SupportRoleRecommendation> getSupportRoleRecommendations() {
@@ -1503,23 +1522,24 @@ public class ScreeningService {
 			return this.legacyContentAnswerIds;
 		}
 
+		@Deprecated
 		public void setLegacyContentAnswerIds(@Nullable Set<UUID> legacyContentAnswerIds) {
 			this.legacyContentAnswerIds = legacyContentAnswerIds;
 		}
 
+		@Deprecated
 		@Nullable
 		public Boolean getRecommendLegacyContentAnswerIds() {
 			return this.recommendLegacyContentAnswerIds;
 		}
 
+		@Deprecated
 		public void setRecommendLegacyContentAnswerIds(@Nullable Boolean recommendLegacyContentAnswerIds) {
 			this.recommendLegacyContentAnswerIds = recommendLegacyContentAnswerIds;
 		}
 
 		public void setSupportRoleRecommendations(@Nullable Set<SupportRoleRecommendation> supportRoleRecommendations) {
 			this.supportRoleRecommendations = supportRoleRecommendations;
-
-
 		}
 
 		@NotThreadSafe
