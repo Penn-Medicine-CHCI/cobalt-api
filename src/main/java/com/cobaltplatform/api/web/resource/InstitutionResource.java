@@ -27,9 +27,14 @@ import com.cobaltplatform.api.integration.microsoft.request.AuthenticationRedire
 import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse.AccountSourceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.InstitutionBlurbApiResponse;
+import com.cobaltplatform.api.model.api.response.InstitutionBlurbApiResponse.InstitutionBlurbApiResponseFactory;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.InstitutionBlurb;
+import com.cobaltplatform.api.model.db.InstitutionBlurbType.InstitutionBlurbTypeId;
+import com.cobaltplatform.api.model.db.InstitutionTeamMember;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.MyChartService;
 import com.lokalized.Strings;
@@ -48,7 +53,9 @@ import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -66,6 +73,8 @@ public class InstitutionResource {
 	@Nonnull
 	private final AccountSourceApiResponseFactory accountSourceApiResponseFactory;
 	@Nonnull
+	private final InstitutionBlurbApiResponseFactory institutionBlurbApiResponseFactory;
+	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
 	@Nonnull
 	private final InstitutionService institutionService;
@@ -81,6 +90,7 @@ public class InstitutionResource {
 	@Inject
 	public InstitutionResource(@Nonnull InstitutionApiResponseFactory institutionApiResponseFactory,
 														 @Nonnull AccountSourceApiResponseFactory accountSourceApiResponseFactory,
+														 @Nonnull InstitutionBlurbApiResponseFactory institutionBlurbApiResponseFactory,
 														 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
 														 @Nonnull InstitutionService institutionService,
 														 @Nonnull MyChartService myChartService,
@@ -89,6 +99,7 @@ public class InstitutionResource {
 														 @Nonnull Strings strings) {
 		requireNonNull(institutionApiResponseFactory);
 		requireNonNull(accountSourceApiResponseFactory);
+		requireNonNull(institutionBlurbApiResponseFactory);
 		requireNonNull(enterprisePluginProvider);
 		requireNonNull(institutionService);
 		requireNonNull(myChartService);
@@ -98,6 +109,7 @@ public class InstitutionResource {
 
 		this.institutionApiResponseFactory = institutionApiResponseFactory;
 		this.accountSourceApiResponseFactory = accountSourceApiResponseFactory;
+		this.institutionBlurbApiResponseFactory = institutionBlurbApiResponseFactory;
 		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.institutionService = institutionService;
 		this.myChartService = myChartService;
@@ -141,6 +153,29 @@ public class InstitutionResource {
 			put("accountSources", accountSources);
 		}});
 	}
+
+	@GET("/institution-blurbs")
+	public ApiResponse getInstitutionBlurbs() {
+		Institution institution = getInstitutionService().findInstitutionById(getCurrentContext().getInstitutionId()).get();
+
+		List<InstitutionBlurb> institutionBlurbs = getInstitutionService().findInstitutionBlurbsByInstitutionId(institution.getInstitutionId());
+		Map<UUID, List<InstitutionTeamMember>> institutionTeamMembersByInstitutionBlurbId = getInstitutionService().findInstitutionTeamMembersByInstitutionBlurbIdForInstitutionId(institution.getInstitutionId());
+
+		Map<InstitutionBlurbTypeId, InstitutionBlurbApiResponse> institutionBlurbsByInstitutionBlurbTypeId = new HashMap<>();
+		for (InstitutionBlurb institutionBlurb : institutionBlurbs) {
+			List<InstitutionTeamMember> institutionTeamMembers = institutionTeamMembersByInstitutionBlurbId.get(institutionBlurb.getInstitutionBlurbId());
+
+			if (institutionTeamMembers == null)
+				institutionTeamMembers = List.of();
+
+			institutionBlurbsByInstitutionBlurbTypeId.put(institutionBlurb.getInstitutionBlurbTypeId(), getInstitutionBlurbApiResponseFactory().create(institutionBlurb, institutionTeamMembers));
+		}
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("institutionBlurbsByInstitutionBlurbTypeId", institutionBlurbsByInstitutionBlurbTypeId);
+		}});
+	}
+
 
 	@GET("/institutions/{institutionId}/mychart-authentication-url")
 	public Object myChartAuthenticationUrl(@Nonnull @PathParameter InstitutionId institutionId,
@@ -186,6 +221,11 @@ public class InstitutionResource {
 	@Nonnull
 	protected InstitutionApiResponseFactory getInstitutionApiResponseFactory() {
 		return this.institutionApiResponseFactory;
+	}
+
+	@Nonnull
+	protected InstitutionBlurbApiResponseFactory getInstitutionBlurbApiResponseFactory() {
+		return this.institutionBlurbApiResponseFactory;
 	}
 
 	@Nonnull

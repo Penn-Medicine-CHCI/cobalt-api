@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('053-account-tags', NULL, NULL);
+SELECT _v.register_patch('054-account-tags', NULL, NULL);
 
 -- Relates tags directly to an account.
 --
