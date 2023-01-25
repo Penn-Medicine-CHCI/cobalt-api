@@ -26,6 +26,8 @@ import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.request.SkipScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.response.ScreeningConfirmationPromptApiResponse.ScreeningConfirmationPromptApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AccountSession;
+import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Screening;
 import com.cobaltplatform.api.model.db.ScreeningAnswer;
@@ -1065,6 +1067,45 @@ public class ScreeningService {
 			for (SupportRoleRecommendation supportRoleRecommendation : resultsFunctionOutput.getSupportRoleRecommendations())
 				getDatabase().execute("INSERT INTO screening_session_support_role_recommendation(screening_session_id, support_role_id, weight) " +
 						"VALUES (?,?,?)", screeningSession.getScreeningSessionId(), supportRoleRecommendation.getSupportRoleId(), supportRoleRecommendation.getWeight());
+
+			// Legacy content check-off support
+			// TODO: remove this once we have new tagging infrastructure
+			if (resultsFunctionOutput.getRecommendLegacyContentAnswerIds()) {
+				Assessment introAssessment = getDatabase().queryForObject("""
+						SELECT a.* FROM assessment a, institution_assessment ia
+						WHERE a.assessment_id=ia.assessment_id
+						AND ia.institution_id=?
+						""", Assessment.class, createdByAccount.getInstitutionId()).get();
+
+				if (introAssessment != null) {
+					// Clear out any existing account sessions for this user
+					List<AccountSession> introAssessmentAccountSessions = getDatabase().queryForList("""
+							SELECT * FROM account_session
+							WHERE account_id=? AND assessment_id=?
+							""", AccountSession.class, screeningSession.getTargetAccountId(), introAssessment.getAssessmentId());
+
+					for (AccountSession introAssessmentAccountSession : introAssessmentAccountSessions) {
+						getDatabase().execute("""
+										UPDATE account_session
+										SET current_flag=FALSE
+										WHERE account_session_id=?
+										""",
+								introAssessmentAccountSession.getAccountSessionId());
+					}
+
+					// Create a new account session with these recommended answers
+					UUID newAccountSessionId = UUID.randomUUID();
+					getDatabase().execute("""
+							INSERT INTO account_session (account_session_id, account_id, assessment_id, 
+							current_flag, complete_flag) VALUES (?,?,?,TRUE,TRUE)
+							""", newAccountSessionId, screeningSession.getTargetAccountId(), introAssessment.getAssessmentId());
+
+					for (UUID legacyContentAnswerId : resultsFunctionOutput.getLegacyContentAnswerIds()) {
+						getDatabase().execute("INSERT INTO account_session_answer (account_session_answer_id, account_session_id, answer_id) VALUES (?,?,?)",
+								UUID.randomUUID(), newAccountSessionId, legacyContentAnswerId);
+					}
+				}
+			}
 		}
 
 		return screeningAnswerIds;
@@ -1180,6 +1221,13 @@ public class ScreeningService {
 
 		if (resultsFunctionOutput.getSupportRoleRecommendations() == null)
 			throw new IllegalStateException("Screening flow results function must provide a 'supportRoleRecommendations' value in output");
+
+		// Normalize data a bit
+		if (resultsFunctionOutput.getRecommendLegacyContentAnswerIds() == null)
+			resultsFunctionOutput.setRecommendLegacyContentAnswerIds(false);
+
+		if (resultsFunctionOutput.getLegacyContentAnswerIds() == null)
+			resultsFunctionOutput.setLegacyContentAnswerIds(Collections.emptySet());
 
 		return Optional.of(resultsFunctionOutput);
 	}
@@ -1438,17 +1486,40 @@ public class ScreeningService {
 	protected static class ResultsFunctionOutput {
 		@Nullable
 		private Set<SupportRoleRecommendation> supportRoleRecommendations;
+		@Nullable
+		private Set<UUID> legacyContentAnswerIds;
+		@Nullable
+		private Boolean recommendLegacyContentAnswerIds;
 
-		// TODO: recommended Content tags
-
+		// TODO: new tagging recommendations
 
 		@Nullable
 		public Set<SupportRoleRecommendation> getSupportRoleRecommendations() {
 			return this.supportRoleRecommendations;
 		}
 
+		@Nullable
+		public Set<UUID> getLegacyContentAnswerIds() {
+			return this.legacyContentAnswerIds;
+		}
+
+		public void setLegacyContentAnswerIds(@Nullable Set<UUID> legacyContentAnswerIds) {
+			this.legacyContentAnswerIds = legacyContentAnswerIds;
+		}
+
+		@Nullable
+		public Boolean getRecommendLegacyContentAnswerIds() {
+			return this.recommendLegacyContentAnswerIds;
+		}
+
+		public void setRecommendLegacyContentAnswerIds(@Nullable Boolean recommendLegacyContentAnswerIds) {
+			this.recommendLegacyContentAnswerIds = recommendLegacyContentAnswerIds;
+		}
+
 		public void setSupportRoleRecommendations(@Nullable Set<SupportRoleRecommendation> supportRoleRecommendations) {
 			this.supportRoleRecommendations = supportRoleRecommendations;
+
+
 		}
 
 		@NotThreadSafe

@@ -187,7 +187,6 @@ public class InstitutionResource {
 		}});
 	}
 
-
 	@GET("/institutions/{institutionId}/mychart-authentication-url")
 	public Object myChartAuthenticationUrl(@Nonnull @PathParameter InstitutionId institutionId,
 																				 @Nonnull @QueryParameter Optional<Boolean> redirectImmediately) {
