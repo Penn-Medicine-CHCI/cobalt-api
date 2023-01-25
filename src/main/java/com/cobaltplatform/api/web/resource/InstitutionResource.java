@@ -29,6 +29,7 @@ import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse.Accoun
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionBlurbApiResponse;
 import com.cobaltplatform.api.model.api.response.InstitutionBlurbApiResponse.InstitutionBlurbApiResponseFactory;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -42,6 +43,7 @@ import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.PathParameter;
 import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.Resource;
+import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.response.ApiResponse;
 import com.soklet.web.response.RedirectResponse;
 import com.soklet.web.response.RedirectResponse.Type;
@@ -157,12 +159,21 @@ public class InstitutionResource {
 	@GET("/institution-blurbs")
 	public ApiResponse getInstitutionBlurbs() {
 		Institution institution = getInstitutionService().findInstitutionById(getCurrentContext().getInstitutionId()).get();
+		Account account = getCurrentContext().getAccount().orElse(null);
+
+		// If you're signed in, can't view other institution data
+		if (account != null && account.getInstitutionId() != institution.getInstitutionId())
+			throw new AuthorizationException();
 
 		List<InstitutionBlurb> institutionBlurbs = getInstitutionService().findInstitutionBlurbsByInstitutionId(institution.getInstitutionId());
 		Map<UUID, List<InstitutionTeamMember>> institutionTeamMembersByInstitutionBlurbId = getInstitutionService().findInstitutionTeamMembersByInstitutionBlurbIdForInstitutionId(institution.getInstitutionId());
 
 		Map<InstitutionBlurbTypeId, InstitutionBlurbApiResponse> institutionBlurbsByInstitutionBlurbTypeId = new HashMap<>();
 		for (InstitutionBlurb institutionBlurb : institutionBlurbs) {
+			// If you're not signed in, can't see anything other than INTRO blurb (the only publicly-visible one)
+			if (account == null && institutionBlurb.getInstitutionBlurbTypeId() != InstitutionBlurbTypeId.INTRO)
+				continue;
+
 			List<InstitutionTeamMember> institutionTeamMembers = institutionTeamMembersByInstitutionBlurbId.get(institutionBlurb.getInstitutionBlurbId());
 
 			if (institutionTeamMembers == null)
