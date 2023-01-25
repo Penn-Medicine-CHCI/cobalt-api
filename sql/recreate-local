@@ -56,6 +56,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/049-tag-group-
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/050-group-requests.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/051-institution-recommended-content.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/052-reporting.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/053-account-tags.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
