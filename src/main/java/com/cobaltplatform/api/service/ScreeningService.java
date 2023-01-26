@@ -28,6 +28,7 @@ import com.cobaltplatform.api.model.api.response.ScreeningConfirmationPromptApiR
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.Assessment;
+import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Screening;
 import com.cobaltplatform.api.model.db.ScreeningAnswer;
@@ -1072,10 +1073,14 @@ public class ScreeningService {
 			// TODO: remove this once we have new tagging infrastructure
 			if (resultsFunctionOutput.getRecommendLegacyContentAnswerIds()) {
 				Assessment introAssessment = getDatabase().queryForObject("""
-						SELECT a.* FROM assessment a, institution_assessment ia
+						SELECT a.* 
+						FROM assessment a, institution_assessment ia
 						WHERE a.assessment_id=ia.assessment_id
 						AND ia.institution_id=?
-						""", Assessment.class, createdByAccount.getInstitutionId()).get();
+						AND a.assessment_type_id=?
+						ORDER BY a.created DESC
+						LIMIT 1
+						""", Assessment.class, createdByAccount.getInstitutionId(), AssessmentTypeId.INTRO).orElse(null);
 
 				if (introAssessment != null) {
 					// Clear out any existing account sessions for this user
