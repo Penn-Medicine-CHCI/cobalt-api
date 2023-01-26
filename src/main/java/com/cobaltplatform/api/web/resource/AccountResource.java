@@ -21,7 +21,6 @@ package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
-import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.model.api.request.AccessTokenRequest;
 import com.cobaltplatform.api.model.api.request.AccountRoleRequest;
@@ -497,7 +496,7 @@ public class AccountResource {
 		final int MAXIMUM_CONTENTS = 12;
 
 		// Show the latest and greatest visible content
-		List<Content> contents = getContentService().findVisibleContentByInstitutionId(institution.getInstitutionId());
+		List<Content> contents = getContentService().findVisibleContentByAccountId(accountId);
 
 		// Don't show too many content pieces
 		if (contents.size() > MAXIMUM_CONTENTS)
