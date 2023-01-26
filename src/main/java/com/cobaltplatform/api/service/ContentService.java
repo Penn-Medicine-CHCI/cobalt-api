@@ -32,6 +32,8 @@ import com.cobaltplatform.api.model.api.request.UpdateContentArchivedStatus;
 import com.cobaltplatform.api.model.api.request.UpdateContentRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
+import com.cobaltplatform.api.model.db.ActivityAction.ActivityActionId;
+import com.cobaltplatform.api.model.db.ActivityType.ActivityTypeId;
 import com.cobaltplatform.api.model.db.ApprovalStatus;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
@@ -66,6 +68,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
@@ -302,6 +305,7 @@ public class ContentService {
 		Integer pageNumber = request.getPageNumber();
 		Integer pageSize = request.getPageSize();
 		String tagGroupId = trimToNull(request.getTagGroupId());
+		UUID prioritizeUnviewedForAccountId = request.getPrioritizeUnviewedForAccountId();
 
 		searchQuery = trimToNull(searchQuery);
 
@@ -317,6 +321,10 @@ public class ContentService {
 		Integer limit = pageSize;
 		List<String> fromClauseComponents = new ArrayList<>();
 		List<String> whereClauseComponents = new ArrayList<>();
+		String contentViewedQuery = null;
+		String contentViewedSelect = null;
+		String contentViewedJoin = null;
+		String contentViewedOrderBy = null;
 		List<Object> parameters = new ArrayList<>();
 
 		if (tagGroupId != null) {
@@ -375,6 +383,28 @@ public class ContentService {
 		}
 
 		parameters.add(institutionId);
+
+		if (prioritizeUnviewedForAccountId != null) {
+			contentViewedQuery = """
+					                         , content_viewed_query AS (
+					                         SELECT CAST (context ->> 'contentId' AS UUID) AS content_id, MAX(created) AS last_viewed_at
+					                         FROM activity_tracking
+					                         WHERE activity_action_id=? 
+					                         AND activity_type_id=?
+					                         AND account_id=?
+					                         GROUP BY content_id
+					                       )
+					""";
+
+			parameters.add(ActivityActionId.VIEW);
+			parameters.add(ActivityTypeId.CONTENT);
+			parameters.add(prioritizeUnviewedForAccountId);
+
+			contentViewedJoin = "LEFT OUTER JOIN content_viewed_query as cvq ON bq.content_id=cvq.content_id";
+			contentViewedSelect = ", cvq.last_viewed_at";
+			contentViewedOrderBy = "cvq.last_viewed_at ASC NULLS FIRST,";
+		}
+
 		parameters.add(limit);
 		parameters.add(offset);
 
@@ -407,19 +437,27 @@ public class ContentService {
 				    FROM
 				        base_query bq
 				)
+				{{contentViewedQuery}}
 				SELECT
 				    bq.*,
 				    tcq.total_count
-				FROM
-				    base_query bq,
-				    total_count_query tcq
+				    {{contentViewedSelect}}
+				FROM				    
+				    total_count_query tcq,
+				    base_query bq
+				    {{contentViewedJoin}}
 				ORDER BY
+						{{contentViewedOrderBy}}
 				    bq.last_updated DESC
 				LIMIT ?
 				OFFSET ?
 								"""
 				.replace("{{fromClause}}", fromClauseComponents.size() == 0 ? "" : ",\n" + fromClauseComponents.stream().collect(Collectors.joining(",\n")))
-				.replace("{{whereClause}}", whereClauseComponents.size() == 0 ? "" : "\n" + whereClauseComponents.stream().collect(Collectors.joining("\n")));
+				.replace("{{whereClause}}", whereClauseComponents.size() == 0 ? "" : "\n" + whereClauseComponents.stream().collect(Collectors.joining("\n")))
+				.replace("{{contentViewedQuery}}", contentViewedQuery == null ? "" : contentViewedQuery)
+				.replace("{{contentViewedSelect}}", contentViewedSelect == null ? "" : contentViewedSelect)
+				.replace("{{contentViewedJoin}}", contentViewedJoin == null ? "" : contentViewedJoin)
+				.replace("{{contentViewedOrderBy}}", contentViewedOrderBy == null ? "" : contentViewedOrderBy);
 
 		List<ContentWithTotalCount> contents = getDatabase().queryForList(sql, ContentWithTotalCount.class, sqlVaragsParameters(parameters));
 
@@ -439,6 +477,8 @@ public class ContentService {
 	protected static class ContentWithTotalCount extends Content {
 		@Nullable
 		private Integer totalCount;
+		@Nullable
+		private Instant lastViewedAt;
 
 		@Nullable
 		public Integer getTotalCount() {
@@ -447,6 +487,15 @@ public class ContentService {
 
 		public void setTotalCount(@Nullable Integer totalCount) {
 			this.totalCount = totalCount;
+		}
+
+		@Nullable
+		public Instant getLastViewedAt() {
+			return this.lastViewedAt;
+		}
+
+		public void setLastViewedAt(@Nullable Instant lastViewedAt) {
+			this.lastViewedAt = lastViewedAt;
 		}
 	}
 
@@ -1125,20 +1174,42 @@ public class ContentService {
 	}
 
 	@Nonnull
-	public List<Content> findVisibleContentByInstitutionId(@Nullable InstitutionId institutionId) {
-		if (institutionId == null)
-			return Collections.emptyList();
+	public List<Content> findVisibleContentByAccountId(@Nullable UUID accountId) {
+		if (accountId == null)
+			return List.of();
+
+		Account account = getAccountService().findAccountById(accountId).orElse(null);
+
+		if (account == null)
+			return List.of();
+
+		return findVisibleContentByAccount(account);
+	}
+
+	@Nonnull
+	public List<Content> findVisibleContentByAccount(@Nullable Account account) {
+		if (account == null)
+			return List.of();
 
 		List<Content> contents = getDatabase().queryForList("""
-				SELECT c.*		    
-				FROM content c, institution_content ic
+				WITH content_viewed_query as (
+				       SELECT CAST (context ->> 'contentId' AS UUID) AS content_id, MAX(created) AS last_viewed_at
+				       FROM activity_tracking
+				       WHERE activity_action_id=?
+				       AND activity_type_id=?
+				       AND account_id=?
+				       GROUP BY content_id
+				     )
+				SELECT cvq.last_viewed_at, c.*    
+				FROM institution_content ic, content c
+				LEFT OUTER JOIN content_viewed_query as cvq ON c.content_id=cvq.content_id
 				WHERE c.content_id=ic.content_id
 				AND ic.approved_flag=TRUE
 				AND ic.institution_id=?
-				ORDER BY c.created DESC
-								""", Content.class, institutionId);
+				ORDER BY cvq.last_viewed_at ASC NULLS FIRST, c.created DESC
+								""", Content.class, ActivityActionId.VIEW, ActivityTypeId.CONTENT, account.getAccountId(), account.getInstitutionId());
 
-		applyTagsToContents(contents, institutionId);
+		applyTagsToContents(contents, account.getInstitutionId());
 
 		return contents;
 	}

@@ -142,8 +142,7 @@ public class ResourceLibraryResource {
 	public ApiResponse resourceLibrary() {
 		CurrentContext currentContext = getCurrentContext();
 		Account account = currentContext.getAccount().get();
-
-		List<Content> contents = getContentService().findVisibleContentByInstitutionId(account.getInstitutionId());
+		List<Content> contents = getContentService().findVisibleContentByAccount(account);
 
 		// Pick out tags in the content
 		Set<String> tagGroupIds = new HashSet<>();
@@ -403,6 +402,7 @@ public class ResourceLibraryResource {
 				setPageNumber(pageNumber.orElse(0));
 				setPageSize(pageSize.orElse(0));
 				setTagGroupId(tagGroup.getTagGroupId());
+				setPrioritizeUnviewedForAccountId(account.getAccountId());
 			}
 		});
 
@@ -470,6 +470,7 @@ public class ResourceLibraryResource {
 				setContentDurationIds(new HashSet<>(contentDurationIds.orElse(List.of())));
 				setPageNumber(pageNumber.orElse(0));
 				setPageSize(pageSize.orElse(0));
+				setPrioritizeUnviewedForAccountId(account.getAccountId());
 			}
 		});
 

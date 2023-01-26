@@ -26,6 +26,7 @@ import com.cobaltplatform.api.model.service.ContentDurationId;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
@@ -48,6 +49,8 @@ public class FindResourceLibraryContentRequest {
 	private Set<ContentTypeId> contentTypeIds;
 	@Nullable
 	private Set<ContentDurationId> contentDurationIds;
+	@Nullable
+	private UUID prioritizeUnviewedForAccountId;
 
 	@Nullable
 	public InstitutionId getInstitutionId() {
@@ -119,5 +122,14 @@ public class FindResourceLibraryContentRequest {
 
 	public void setContentDurationIds(@Nullable Set<ContentDurationId> contentDurationIds) {
 		this.contentDurationIds = contentDurationIds;
+	}
+
+	@Nullable
+	public UUID getPrioritizeUnviewedForAccountId() {
+		return this.prioritizeUnviewedForAccountId;
+	}
+
+	public void setPrioritizeUnviewedForAccountId(@Nullable UUID prioritizeUnviewedForAccountId) {
+		this.prioritizeUnviewedForAccountId = prioritizeUnviewedForAccountId;
 	}
 }

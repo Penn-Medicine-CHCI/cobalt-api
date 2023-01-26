@@ -85,7 +85,7 @@ public class CobaltEnterprisePlugin implements EnterprisePlugin {
 			return Collections.emptyList();
 
 		// Naive implementation for our COBALT institution - return all the content
-		return getContentService().findVisibleContentByInstitutionId(getInstitutionId());
+		return getContentService().findVisibleContentByAccountId(accountId);
 	}
 
 	@Nonnull
