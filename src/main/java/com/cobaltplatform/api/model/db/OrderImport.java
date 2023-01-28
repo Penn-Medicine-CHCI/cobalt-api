@@ -41,6 +41,8 @@ public class OrderImport {
 	@Nullable
 	private UUID accountId;
 	@Nullable
+	private String rawOrder;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -79,6 +81,15 @@ public class OrderImport {
 
 	public void setAccountId(@Nullable UUID accountId) {
 		this.accountId = accountId;
+	}
+
+	@Nullable
+	public String getRawOrder() {
+		return this.rawOrder;
+	}
+
+	public void setRawOrder(@Nullable String rawOrder) {
+		this.rawOrder = rawOrder;
 	}
 
 	@Nullable
