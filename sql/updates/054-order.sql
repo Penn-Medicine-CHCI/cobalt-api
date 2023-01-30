@@ -23,8 +23,23 @@ CREATE TABLE order_import (
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON order_import FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
+CREATE TABLE patient_order_status (
+  patient_order_status_id VARCHAR PRIMARY KEY,
+  description VARCHAR NOT NULL,
+  terminal BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+-- Initial state
+INSERT INTO patient_order_status VALUES ('ORDER_IMPORTED', 'Order Imported');
+-- A patient has attached herself to the order (she has signed in and linked her chart to her account + her account to the order)
+INSERT INTO patient_order_status VALUES ('PATIENT_ATTACHED', 'Patient Attached');
+INSERT INTO patient_order_status VALUES ('GRADUATED', 'Graduated', TRUE);
+
+-- The actual order, can be modified over time.
+-- We keep track of changes by writing to the patient_order_tracking table
 CREATE TABLE patient_order (
   patient_order_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  patient_order_status_id VARCHAR NOT NULL REFERENCES patient_order_status,
   order_import_id UUID NOT NULL REFERENCES order_import,
   patient_account_id UUID REFERENCES account,
   encounter_department_id VARCHAR,
@@ -79,10 +94,8 @@ CREATE TABLE patient_order_tracking_type (
   description VARCHAR NOT NULL
 );
 
--- Data to include: order import ID
-INSERT INTO patient_order_tracking_type VALUES ('IMPORTED_INTO_COBALT', 'Imported Into Cobalt');
--- Data to include: account ID
-INSERT INTO patient_order_tracking_type VALUES ('PATIENT_ACCOUNT_ASSOCIATED', 'Account Associated');
+-- Data to include: old patient order status ID, new patient order status ID
+INSERT INTO patient_order_tracking_type VALUES ('STATUS_CHANGED', 'Status Changed');
 -- Data to include: screening session ID
 INSERT INTO patient_order_tracking_type VALUES ('SELF_ADMINISTERED_SCREENING_SESSION_STARTED', 'Self-Administered Screening Session Started');
 -- Data to include: screening session ID, triage ID
