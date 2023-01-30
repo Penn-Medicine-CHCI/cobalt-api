@@ -950,7 +950,7 @@ public class GroupSessionService implements AutoCloseable {
 		requireNonNull(request);
 
 		UUID accountId = request.getAccountId();
-		String emailAddress = trimToNull(request.getEmailAddress());
+		String emailAddress = getNormalizer().normalizeEmailAddress(request.getEmailAddress()).orElse(null);
 		UUID groupSessionId = request.getGroupSessionId();
 		UUID groupSessionReservationId = UUID.randomUUID();
 		Account attendeeAccount = null;

@@ -337,7 +337,7 @@ public class AccountService {
 		UUID accountInviteId = UUID.randomUUID();
 		ValidationException validationException = new ValidationException();
 		InstitutionId institutionId = request.getInstitutionId();
-		String emailAddress = trimToNull(request.getEmailAddress());
+		String emailAddress = getNormalizer().normalizeEmailAddress(request.getEmailAddress()).orElse(null);
 		String password = trimToNull(request.getPassword());
 		UUID accountInviteCode = UUID.randomUUID();
 
@@ -419,7 +419,7 @@ public class AccountService {
 		String firstName = trimToNull(request.getFirstName());
 		String lastName = trimToNull(request.getLastName());
 		String displayName = trimToNull(request.getDisplayName());
-		String emailAddress = trimToNull(request.getEmailAddress());
+		String emailAddress = getNormalizer().normalizeEmailAddress(request.getEmailAddress()).orElse(null);
 		String phoneNumber = trimToNull(request.getPhoneNumber());
 		String password = null;
 		Map<String, ?> ssoAttributes = request.getSsoAttributes();
@@ -644,7 +644,7 @@ public class AccountService {
 		String firstName = trimToNull(request.getFirstName());
 		String lastName = trimToNull(request.getLastName());
 		String displayName = trimToNull(request.getDisplayName());
-		String emailAddress = trimToNull(request.getEmailAddress());
+		String emailAddress = getNormalizer().normalizeEmailAddress(request.getEmailAddress()).orElse(null);
 		String phoneNumber = trimToNull(request.getPhoneNumber());
 		GenderIdentityId genderIdentityId = request.getGenderIdentityId();
 		EthnicityId ethnicityId = request.getEthnicityId();
@@ -713,7 +713,7 @@ public class AccountService {
 		requireNonNull(request);
 
 		UUID accountId = request.getAccountId();
-		String emailAddress = trimToNull(request.getEmailAddress());
+		String emailAddress = getNormalizer().normalizeEmailAddress(request.getEmailAddress()).orElse(null);
 		ValidationException validationException = new ValidationException();
 
 		if (accountId == null) {
@@ -867,7 +867,7 @@ public class AccountService {
 		requireNonNull(request);
 
 		ValidationException validationException = new ValidationException();
-		String emailAddress = trimToNull(request.getEmailAddress());
+		String emailAddress = getNormalizer().normalizeEmailAddress(request.getEmailAddress()).orElse(null);
 
 		if (emailAddress == null)
 			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is required.")));
@@ -1217,7 +1217,7 @@ public class AccountService {
 
 		ValidationException validationException = new ValidationException();
 		UUID accountId = request.getAccountId();
-		String emailAddress = trimToNull(request.getEmailAddress());
+		String emailAddress = getNormalizer().normalizeEmailAddress(request.getEmailAddress()).orElse(null);
 		AccountEmailVerificationFlowTypeId accountEmailVerificationFlowTypeId = request.getAccountEmailVerificationFlowTypeId();
 		Account account = null;
 
