@@ -29,17 +29,20 @@ CREATE TABLE patient_order_status (
   terminal BOOLEAN NOT NULL DEFAULT FALSE
 );
 
--- Initial state
-INSERT INTO patient_order_status VALUES ('ORDER_IMPORTED', 'Order Imported');
--- A patient has attached herself to the order (she has signed in and linked her chart to her account + her account to the order)
-INSERT INTO patient_order_status VALUES ('PATIENT_ATTACHED', 'Patient Attached');
+INSERT INTO patient_order_status VALUES ('NEW', 'New');
+INSERT INTO patient_order_status VALUES ('AWAITING_SCREENING', 'Awaiting Screening');
+INSERT INTO patient_order_status VALUES ('SCREENING_IN_PROGRESS', 'Screening In Progress');
+INSERT INTO patient_order_status VALUES ('SCHEDULED_WITH_PROVIDER', 'Scheduled With Provider');
+INSERT INTO patient_order_status VALUES ('NEEDS_FURTHER_ASSESSMENT', 'Needs Further Assessment');
 INSERT INTO patient_order_status VALUES ('GRADUATED', 'Graduated', TRUE);
+INSERT INTO patient_order_status VALUES ('CONNECTED_TO_CARE', 'Connected To Care', TRUE);
+INSERT INTO patient_order_status VALUES ('LOST_CONTACT', 'Lost Contact', TRUE);
 
 -- The actual order, can be modified over time.
 -- We keep track of changes by writing to the patient_order_tracking table
 CREATE TABLE patient_order (
   patient_order_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  patient_order_status_id VARCHAR NOT NULL REFERENCES patient_order_status,
+  patient_order_status_id VARCHAR NOT NULL REFERENCES patient_order_status DEFAULT 'NEW',
   order_import_id UUID NOT NULL REFERENCES order_import,
   patient_account_id UUID REFERENCES account,
   encounter_department_id VARCHAR,
