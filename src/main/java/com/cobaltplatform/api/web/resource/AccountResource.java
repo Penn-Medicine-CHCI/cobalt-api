@@ -496,7 +496,9 @@ public class AccountResource {
 		final int MAXIMUM_CONTENTS = 12;
 
 		// Show the latest and greatest visible content
-		List<Content> contents = getContentService().findVisibleContentByAccountId(accountId);
+		List<Content> contents = getContentService().findVisibleContentByAccountId(accountId).stream()
+				.filter(content -> content.getImageUrl() != null)
+				.collect(Collectors.toList());
 
 		// Don't show too many content pieces
 		if (contents.size() > MAXIMUM_CONTENTS)
