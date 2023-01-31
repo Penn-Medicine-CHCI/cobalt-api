@@ -34,6 +34,12 @@ public class CallToAction {
 	@Nullable
 	private String messageAsHtml;
 	@Nullable
+	private String modalButtonText;
+	@Nullable
+	private String modalMessage;
+	@Nullable
+	private String modalMessageAsHtml;
+	@Nullable
 	private List<ActionLink> actionLinks;
 
 	@Nonnull
@@ -129,6 +135,33 @@ public class CallToAction {
 
 	public void setMessageAsHtml(@Nullable String messageAsHtml) {
 		this.messageAsHtml = messageAsHtml;
+	}
+
+	@Nullable
+	public String getModalButtonText() {
+		return this.modalButtonText;
+	}
+
+	public void setModalButtonText(@Nullable String modalButtonText) {
+		this.modalButtonText = modalButtonText;
+	}
+
+	@Nullable
+	public String getModalMessage() {
+		return this.modalMessage;
+	}
+
+	public void setModalMessage(@Nullable String modalMessage) {
+		this.modalMessage = modalMessage;
+	}
+
+	@Nullable
+	public String getModalMessageAsHtml() {
+		return this.modalMessageAsHtml;
+	}
+
+	public void setModalMessageAsHtml(@Nullable String modalMessageAsHtml) {
+		this.modalMessageAsHtml = modalMessageAsHtml;
 	}
 
 	@Nullable

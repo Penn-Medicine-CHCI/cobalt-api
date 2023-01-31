@@ -27,6 +27,7 @@ import com.google.inject.assistedinject.AssistedInject;
 import com.lokalized.Strings;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -44,6 +45,12 @@ public class CallToActionApiResponse {
 	private final String message;
 	@Nonnull
 	private final String messageAsHtml;
+	@Nullable
+	private final String modalButtonText;
+	@Nullable
+	private final String modalMessage;
+	@Nullable
+	private final String modalMessageAsHtml;
 	@Nonnull
 	private final List<Map<String, Object>> actionLinks;
 
@@ -80,6 +87,9 @@ public class CallToActionApiResponse {
 
 		this.message = callToAction.getMessage();
 		this.messageAsHtml = callToAction.getMessageAsHtml();
+		this.modalButtonText = callToAction.getModalButtonText();
+		this.modalMessage = callToAction.getModalMessage();
+		this.modalMessageAsHtml = callToAction.getModalMessageAsHtml();
 		this.actionLinks = actionLinkJsons;
 	}
 
@@ -91,6 +101,21 @@ public class CallToActionApiResponse {
 	@Nonnull
 	public String getMessageAsHtml() {
 		return this.messageAsHtml;
+	}
+
+	@Nullable
+	public String getModalButtonText() {
+		return this.modalButtonText;
+	}
+
+	@Nullable
+	public String getModalMessage() {
+		return this.modalMessage;
+	}
+
+	@Nullable
+	public String getModalMessageAsHtml() {
+		return this.modalMessageAsHtml;
 	}
 
 	@Nonnull
