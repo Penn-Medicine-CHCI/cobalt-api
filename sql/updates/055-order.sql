@@ -92,6 +92,17 @@ CREATE TABLE patient_order (
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
+CREATE TABLE patient_order_disposition (
+  patient_order_disposition_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  patient_order_id UUID NOT NULL REFERENCES patient_order,
+  patient_order_care_type_id TEXT NOT NULL REFERENCES patient_order_care_type,
+  patient_order_care_focus_id TEXT NOT NULL REFERENCES patient_order_care_focus,
+  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_disposition FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
 CREATE TABLE patient_order_tracking_type (
   patient_order_tracking_id VARCHAR PRIMARY KEY,
   description VARCHAR NOT NULL
