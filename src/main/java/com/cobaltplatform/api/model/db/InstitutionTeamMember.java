@@ -38,6 +38,8 @@ public class InstitutionTeamMember {
 	@Nullable
 	private String title;
 	@Nullable
+	private String subtitle;
+	@Nullable
 	private String name;
 	@Nullable
 	private String imageUrl;
@@ -71,6 +73,15 @@ public class InstitutionTeamMember {
 
 	public void setTitle(@Nullable String title) {
 		this.title = title;
+	}
+
+	@Nullable
+	public String getSubtitle() {
+		return this.subtitle;
+	}
+
+	public void setSubtitle(@Nullable String subtitle) {
+		this.subtitle = subtitle;
 	}
 
 	@Nullable

@@ -28,6 +28,7 @@ import com.google.inject.assistedinject.AssistedInject;
 import com.lokalized.Strings;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Provider;
 import java.util.UUID;
@@ -45,6 +46,8 @@ public class InstitutionTeamMemberApiResponse {
 	private final InstitutionId institutionId;
 	@Nonnull
 	private final String title;
+	@Nullable
+	private final String subtitle;
 	@Nonnull
 	private final String name;
 	@Nonnull
@@ -70,6 +73,7 @@ public class InstitutionTeamMemberApiResponse {
 		this.institutionTeamMemberId = institutionTeamMember.getInstitutionTeamMemberId();
 		this.institutionId = institutionTeamMember.getInstitutionId();
 		this.title = institutionTeamMember.getTitle();
+		this.subtitle = institutionTeamMember.getSubtitle();
 		this.name = institutionTeamMember.getName();
 		this.imageUrl = institutionTeamMember.getImageUrl();
 	}
@@ -87,6 +91,11 @@ public class InstitutionTeamMemberApiResponse {
 	@Nonnull
 	public String getTitle() {
 		return this.title;
+	}
+
+	@Nullable
+	public String getSubtitle() {
+		return this.subtitle;
 	}
 
 	@Nonnull
