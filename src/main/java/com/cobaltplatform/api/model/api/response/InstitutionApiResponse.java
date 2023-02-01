@@ -97,6 +97,8 @@ public class InstitutionApiResponse {
 	@Nonnull
 	private final Boolean recommendedContentEnabled;
 	@Nonnull
+	private final Boolean groupSessionRequestsEnabled;
+	@Nonnull
 	private final Boolean userSubmittedContentEnabled;
 	@Nonnull
 	private final Boolean userSubmittedGroupSessionEnabled;
@@ -154,6 +156,7 @@ public class InstitutionApiResponse {
 		this.userSubmittedGroupSessionEnabled = institution.getUserSubmittedGroupSessionEnabled();
 		this.userSubmittedGroupSessionRequestEnabled = institution.getUserSubmittedGroupSessionRequestEnabled();
 		this.integratedCareEnabled = institution.getIntegratedCareEnabled();
+		this.groupSessionRequestsEnabled = institution.getGroupSessionRequestsEnabled();
 		this.ga4MeasurementId = institution.getGa4MeasurementId();
 		this.additionalNavigationItems = topicCenterService.findTopicCenterNavigationItemsByInstitutionId(institutionId);
 	}
@@ -294,6 +297,11 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public Boolean getIntegratedCareEnabled() {
 		return this.integratedCareEnabled;
+	}
+
+	@Nonnull
+	public Boolean getGroupSessionRequestsEnabled() {
+		return this.groupSessionRequestsEnabled;
 	}
 
 	@Nonnull

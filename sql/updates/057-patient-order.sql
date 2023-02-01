@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('056-patient-order', NULL, NULL);
+SELECT _v.register_patch('057-patient-order', NULL, NULL);
 
 -- We might import orders via an EHR like Epic or via manual CSV upload
 CREATE TABLE patient_order_import_type (
