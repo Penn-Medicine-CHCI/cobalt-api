@@ -197,9 +197,18 @@ public class ResourceLibraryResource {
 			}
 		}
 
+		// It's possible some of the tag groups don't have any content.  If so,
+		// discard them from the list of tag groups
+		List<TagGroupApiResponse> populatedTagGroups = tagGroups.stream()
+				.filter(tagGroup -> {
+					List<ContentApiResponse> tagGroupContents = contentsByTagGroupId.get(tagGroup.getTagGroupId());
+					return tagGroupContents != null && tagGroupContents.size() > 0;
+				})
+				.collect(Collectors.toList());
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("contentsByTagGroupId", contentsByTagGroupId);
-			put("tagGroups", tagGroups);
+			put("tagGroups", populatedTagGroups);
 			put("tagsByTagId", tagsByTagId);
 		}});
 	}
