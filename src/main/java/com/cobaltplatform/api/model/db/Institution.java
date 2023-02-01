@@ -97,6 +97,8 @@ public class Institution {
 	@Nullable
 	private Boolean recommendGroupSessionRequests;
 	@Nullable
+	private Boolean groupSessionRequestsEnabled;
+	@Nullable
 	private Boolean immediateAccessEnabled;
 	@Nullable
 	private Boolean contactUsEnabled;
@@ -459,6 +461,15 @@ public class Institution {
 
 	public void setRecommendGroupSessionRequests(@Nullable Boolean recommendGroupSessionRequests) {
 		this.recommendGroupSessionRequests = recommendGroupSessionRequests;
+	}
+
+	@Nullable
+	public Boolean getGroupSessionRequestsEnabled() {
+		return this.groupSessionRequestsEnabled;
+	}
+
+	public void setGroupSessionRequestsEnabled(@Nullable Boolean groupSessionRequestsEnabled) {
+		this.groupSessionRequestsEnabled = groupSessionRequestsEnabled;
 	}
 
 	@Nullable
