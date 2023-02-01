@@ -1,27 +1,27 @@
 BEGIN;
-SELECT _v.register_patch('056-order', NULL, NULL);
+SELECT _v.register_patch('056-patient-order', NULL, NULL);
 
 -- We might import orders via an EHR like Epic or via manual CSV upload
-CREATE TABLE order_import_type (
-  order_import_type_id VARCHAR PRIMARY KEY,
+CREATE TABLE patient_order_import_type (
+  patient_order_import_type_id VARCHAR PRIMARY KEY,
   description VARCHAR NOT NULL
 );
 
-INSERT INTO order_import_type VALUES ('CSV', 'CSV');
-INSERT INTO order_import_type VALUES ('EPIC', 'Epic');
+INSERT INTO patient_order_import_type VALUES ('CSV', 'CSV');
+INSERT INTO patient_order_import_type VALUES ('EPIC', 'Epic');
 
 -- Keep track of who imports, and how they import
-CREATE TABLE order_import (
-  order_import_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  order_import_type_id VARCHAR NOT NULL REFERENCES order_import_type,
+CREATE TABLE patient_order_import (
+  patient_order_import_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  patient_order_import_type_id VARCHAR NOT NULL REFERENCES patient_order_import_type,
   institution_id VARCHAR NOT NULL REFERENCES institution,
-  account_id UUID REFERENCES account,
+  account_id UUID REFERENCES account, -- might be NULL if imported by an EHR background sync task, for example
   raw_order TEXT NOT NULL, -- permanent record of the CSV or EHR import data
   created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON order_import FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_import FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 CREATE TABLE patient_order_status (
   patient_order_status_id VARCHAR PRIMARY KEY,
@@ -43,7 +43,7 @@ INSERT INTO patient_order_status VALUES ('LOST_CONTACT', 'Lost Contact', TRUE);
 CREATE TABLE patient_order (
   patient_order_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_order_status_id VARCHAR NOT NULL REFERENCES patient_order_status DEFAULT 'NEW',
-  order_import_id UUID NOT NULL REFERENCES order_import,
+  patient_order_import_id UUID NOT NULL REFERENCES patient_order_import,
   patient_account_id UUID REFERENCES account,
   encounter_department_id VARCHAR,
   encounter_department_id_type VARCHAR, -- not currently provided
@@ -91,6 +91,22 @@ CREATE TABLE patient_order (
 );
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+CREATE TABLE patient_order_care_type (
+  patient_order_care_type_id VARCHAR PRIMARY KEY,
+  description VARCHAR NOT NULL
+);
+
+INSERT INTO patient_order_care_type VALUES ('SUBCLINICAL', 'Subclinical');
+INSERT INTO patient_order_care_type VALUES ('SPECIALTY', 'Specialty');
+INSERT INTO patient_order_care_type VALUES ('COLLABORATIVE', 'Collaborative');
+
+CREATE TABLE patient_order_care_focus (
+  patient_order_care_focus_id VARCHAR PRIMARY KEY,
+  description VARCHAR NOT NULL
+);
+
+INSERT INTO patient_order_care_focus VALUES ('XXX', 'XXX');
 
 CREATE TABLE patient_order_disposition (
   patient_order_disposition_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

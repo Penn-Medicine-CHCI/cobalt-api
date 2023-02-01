@@ -28,29 +28,28 @@ import static java.lang.String.format;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class OrderImportType {
+public class PatientOrderFocusType {
 	@Nullable
-	private OrderImportTypeId orderImportTypeId;
+	private PatientOrderFocusTypeId patientOrderFocusTypeId;
 	@Nullable
 	private String description;
 
-	public enum OrderImportTypeId {
-		CSV,
-		EPIC
+	public enum PatientOrderFocusTypeId {
+
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{orderImportTypeId=%s, description=%s}", getClass().getSimpleName(), getOrderImportTypeId(), getDescription());
+		return format("%s{patientOrderFocusTypeId=%s, description=%s}", getClass().getSimpleName(), getPatientOrderFocusTypeId(), getDescription());
 	}
 
 	@Nullable
-	public OrderImportTypeId getOrderImportTypeId() {
-		return this.orderImportTypeId;
+	public PatientOrderFocusTypeId getPatientOrderFocusTypeId() {
+		return this.patientOrderFocusTypeId;
 	}
 
-	public void setOrderImportTypeId(@Nullable OrderImportTypeId orderImportTypeId) {
-		this.orderImportTypeId = orderImportTypeId;
+	public void setPatientOrderFocusTypeId(@Nullable PatientOrderFocusTypeId patientOrderFocusTypeId) {
+		this.patientOrderFocusTypeId = patientOrderFocusTypeId;
 	}
 
 	@Nullable

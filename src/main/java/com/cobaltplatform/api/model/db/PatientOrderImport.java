@@ -20,7 +20,7 @@
 package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.OrderImportType.OrderImportTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -31,11 +31,11 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class OrderImport {
+public class PatientOrderImport {
 	@Nullable
-	private UUID orderImportId;
+	private UUID patientOrderImportId;
 	@Nullable
-	private OrderImportTypeId orderImportTypeId;
+	private PatientOrderImportTypeId patientOrderImportTypeId;
 	@Nullable
 	private InstitutionId institutionId;
 	@Nullable
@@ -48,21 +48,21 @@ public class OrderImport {
 	private Instant lastUpdated;
 
 	@Nullable
-	public UUID getOrderImportId() {
-		return this.orderImportId;
+	public UUID getPatientOrderImportId() {
+		return this.patientOrderImportId;
 	}
 
-	public void setOrderImportId(@Nullable UUID orderImportId) {
-		this.orderImportId = orderImportId;
+	public void setPatientOrderImportId(@Nullable UUID patientOrderImportId) {
+		this.patientOrderImportId = patientOrderImportId;
 	}
 
 	@Nullable
-	public OrderImportTypeId getOrderImportTypeId() {
-		return this.orderImportTypeId;
+	public PatientOrderImportTypeId getPatientOrderImportTypeId() {
+		return this.patientOrderImportTypeId;
 	}
 
-	public void setOrderImportTypeId(@Nullable OrderImportTypeId orderImportTypeId) {
-		this.orderImportTypeId = orderImportTypeId;
+	public void setPatientOrderImportTypeId(@Nullable PatientOrderImportTypeId patientOrderImportTypeId) {
+		this.patientOrderImportTypeId = patientOrderImportTypeId;
 	}
 
 	@Nullable
