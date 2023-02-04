@@ -32,6 +32,9 @@ CREATE TABLE patient_order_status (
 INSERT INTO patient_order_status VALUES ('NEW', 'New');
 INSERT INTO patient_order_status VALUES ('AWAITING_SCREENING', 'Awaiting Screening');
 INSERT INTO patient_order_status VALUES ('SCREENING_IN_PROGRESS', 'Screening In Progress');
+INSERT INTO patient_order_status VALUES ('AWAITING_MHIC_SCHEDULING', 'Awaiting MHIC Scheduling');
+INSERT INTO patient_order_status VALUES ('AWAITING_PROVIDER_SCHEDULING', 'Awaiting Provider Scheduling');
+INSERT INTO patient_order_status VALUES ('SCHEDULED_WITH_MHIC', 'Scheduled With MHIC');
 INSERT INTO patient_order_status VALUES ('SCHEDULED_WITH_PROVIDER', 'Scheduled With Provider');
 INSERT INTO patient_order_status VALUES ('NEEDS_FURTHER_ASSESSMENT', 'Needs Further Assessment');
 INSERT INTO patient_order_status VALUES ('GRADUATED', 'Graduated', TRUE);
@@ -45,6 +48,7 @@ CREATE TABLE patient_order (
   patient_order_status_id VARCHAR NOT NULL REFERENCES patient_order_status DEFAULT 'NEW',
   patient_order_import_id UUID NOT NULL REFERENCES patient_order_import,
   patient_account_id UUID REFERENCES account,
+  provider_account_id UUID REFERENCES account, -- which provider account is handling this order, if any
   encounter_department_id VARCHAR,
   encounter_department_id_type VARCHAR, -- not currently provided
   encounter_department_name VARCHAR,
@@ -101,23 +105,58 @@ INSERT INTO patient_order_care_type VALUES ('SUBCLINICAL', 'Subclinical');
 INSERT INTO patient_order_care_type VALUES ('SPECIALTY', 'Specialty');
 INSERT INTO patient_order_care_type VALUES ('COLLABORATIVE', 'Collaborative');
 
-CREATE TABLE patient_order_care_focus (
-  patient_order_care_focus_id VARCHAR PRIMARY KEY,
+CREATE TABLE patient_order_focus_type (
+  patient_order_focus_type_id VARCHAR PRIMARY KEY,
   description VARCHAR NOT NULL
 );
 
-INSERT INTO patient_order_care_focus VALUES ('XXX', 'XXX');
+INSERT INTO patient_order_focus_type VALUES ('SELF_DIRECTED', 'Self-Directed');
+INSERT INTO patient_order_focus_type VALUES ('GENERAL', 'General');
+INSERT INTO patient_order_focus_type VALUES ('GRIEF', 'Grief');
+INSERT INTO patient_order_focus_type VALUES ('INSOMNIA', 'Insomnia');
+INSERT INTO patient_order_focus_type VALUES ('PSYCHOTHERAPY', 'Psychotherapy');
+INSERT INTO patient_order_focus_type VALUES ('ALCOHOL_USE_DISORDER', 'Alcohol Use Disorder');
+INSERT INTO patient_order_focus_type VALUES ('SUBSTANCE_USE_DISORDER', 'Substance Use Disorder');
+INSERT INTO patient_order_focus_type VALUES ('EVALUATION', 'Evaluation');
+INSERT INTO patient_order_focus_type VALUES ('ADHD', 'ADHD');
+INSERT INTO patient_order_focus_type VALUES ('TRAUMA', 'Trauma');
+INSERT INTO patient_order_focus_type VALUES ('LCSW_CAPACITY', 'LCSW Capacity');
+INSERT INTO patient_order_focus_type VALUES ('CRISIS_CARE', 'Crisis Care');
 
-CREATE TABLE patient_order_disposition (
-  patient_order_disposition_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE TABLE patient_order_triage_source (
+  patient_order_triage_source_id VARCHAR PRIMARY KEY,
+  description VARCHAR NOT NULL
+);
+
+INSERT INTO patient_order_triage_source VALUES ('COBALT', 'Cobalt');
+INSERT INTO patient_order_triage_source VALUES ('MANUALLY_SET', 'Manually Set');
+
+-- Orders can have 0..n triages
+CREATE TABLE patient_order_triage (
+  patient_order_triage_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_order_id UUID NOT NULL REFERENCES patient_order,
+  patient_order_triage_source_id TEXT NOT NULL REFERENCES patient_order_triage_source,
   patient_order_care_type_id TEXT NOT NULL REFERENCES patient_order_care_type,
-  patient_order_care_focus_id TEXT NOT NULL REFERENCES patient_order_care_focus,
+  patient_order_focus_type_id TEXT NOT NULL REFERENCES patient_order_focus_type,
+  reason TEXT,
+  active BOOLEAN NOT NULL DEFAULT TRUE,
   created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_disposition FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_triage FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+CREATE TABLE patient_order_note (
+  patient_order_note_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  patient_order_id UUID NOT NULL REFERENCES patient_order,
+  account_id UUID NOT NULL REFERENCES account,
+  note TEXT NOT NULL,
+  deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_note FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 CREATE TABLE patient_order_tracking_type (
   patient_order_tracking_id VARCHAR PRIMARY KEY,
@@ -128,7 +167,7 @@ CREATE TABLE patient_order_tracking_type (
 INSERT INTO patient_order_tracking_type VALUES ('STATUS_CHANGED', 'Status Changed');
 -- Data to include: screening session ID
 INSERT INTO patient_order_tracking_type VALUES ('SELF_ADMINISTERED_SCREENING_SESSION_STARTED', 'Self-Administered Screening Session Started');
--- Data to include: screening session ID, triage ID
+-- Data to include: screening session ID, triage IDs
 INSERT INTO patient_order_tracking_type VALUES ('SELF_ADMINISTERED_SCREENING_SESSION_COMPLETED', 'Self-Administered Screening Session Completed');
 -- Data to include: screening session ID
 INSERT INTO patient_order_tracking_type VALUES ('MHIC_ADMINISTERED_SCREENING_SESSION_STARTED', 'MHIC-Administered Screening Session Started');

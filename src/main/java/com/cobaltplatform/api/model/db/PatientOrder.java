@@ -37,6 +37,8 @@ public class PatientOrder {
 	@Nullable
 	private UUID patientAccountId;
 	@Nullable
+	private UUID providerAccountId;
+	@Nullable
 	private String encounterDepartmentId;
 	@Nullable
 	private String encounterDepartmentIdType;
@@ -148,6 +150,15 @@ public class PatientOrder {
 
 	public void setPatientAccountId(@Nullable UUID patientAccountId) {
 		this.patientAccountId = patientAccountId;
+	}
+
+	@Nullable
+	public UUID getProviderAccountId() {
+		return this.providerAccountId;
+	}
+
+	public void setProviderAccountId(@Nullable UUID providerAccountId) {
+		this.providerAccountId = providerAccountId;
 	}
 
 	@Nullable
