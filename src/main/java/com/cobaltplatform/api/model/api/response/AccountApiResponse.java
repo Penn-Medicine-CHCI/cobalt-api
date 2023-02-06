@@ -34,6 +34,7 @@ import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
 import com.cobaltplatform.api.model.security.AccountCapabilities;
 import com.cobaltplatform.api.service.AccountService;
+import com.cobaltplatform.api.service.AddressService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.SessionService;
 import com.cobaltplatform.api.util.Formatter;
@@ -158,6 +159,7 @@ public class AccountApiResponse {
 
 	@AssistedInject
 	public AccountApiResponse(@Nonnull AccountService accountService,
+														@Nonnull AddressService addressService,
 														@Nonnull SessionService sessionService,
 														@Nonnull AuthorizationService authorizationService,
 														@Nonnull Formatter formatter,
@@ -165,11 +167,12 @@ public class AccountApiResponse {
 														@Nonnull Provider<CurrentContext> currentContextProvider,
 														@Nonnull AddressApiResponseFactory addressApiResponseFactory,
 														@Assisted @Nonnull Account account) {
-		this(accountService, sessionService, authorizationService, formatter, strings, currentContextProvider, addressApiResponseFactory, account, Collections.emptySet());
+		this(accountService, addressService, sessionService, authorizationService, formatter, strings, currentContextProvider, addressApiResponseFactory, account, Collections.emptySet());
 	}
 
 	@AssistedInject
 	public AccountApiResponse(@Nonnull AccountService accountService,
+														@Nonnull AddressService addressService,
 														@Nonnull SessionService sessionService,
 														@Nonnull AuthorizationService authorizationService,
 														@Nonnull Formatter formatter,
@@ -179,6 +182,7 @@ public class AccountApiResponse {
 														@Assisted @Nonnull Account account,
 														@Assisted @Nonnull Set<AccountApiResponseSupplement> supplements) {
 		requireNonNull(accountService);
+		requireNonNull(addressService);
 		requireNonNull(sessionService);
 		requireNonNull(authorizationService);
 		requireNonNull(formatter);
@@ -229,7 +233,7 @@ public class AccountApiResponse {
 			this.birthdate = account.getBirthdate();
 			this.birthdateDescription = account.getBirthdate() == null ? null : formatter.formatDate(account.getBirthdate(), FormatStyle.MEDIUM);
 
-			Address address = accountService.findActiveAddressByAccountId(accountId).orElse(null);
+			Address address = addressService.findActiveAddressByAccountId(accountId).orElse(null);
 			this.address = address == null ? null : addressApiResponseFactory.create(address);
 		} else {
 			this.consentFormAccepted = null;

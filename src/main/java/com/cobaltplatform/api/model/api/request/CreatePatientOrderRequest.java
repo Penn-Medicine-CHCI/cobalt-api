@@ -17,34 +17,23 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db;
+package com.cobaltplatform.api.model.api.request;
 
-import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.time.Instant;
-import java.time.LocalDate;
 import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class PatientOrder {
-	@Nullable
-	private UUID patientOrderId;
+public class CreatePatientOrderRequest {
 	@Nullable
 	private UUID patientOrderImportId;
 	@Nullable
 	private InstitutionId institutionId;
-	@Nullable
-	private UUID patientAccountId;
-	@Nullable
-	private UUID patientAddressId;
-	@Nullable
-	private UUID providerAccountId;
 	@Nullable
 	private String encounterDepartmentId;
 	@Nullable
@@ -80,17 +69,29 @@ public class PatientOrder {
 	@Nullable
 	private String patientIdType;
 	@Nullable
-	private BirthSexId patientBirthSexId;
+	private String patientBirthSexId;
 	@Nullable
-	private LocalDate patientBirthdate;
+	private String patientBirthdate;
+	@Nullable
+	private String patientAddressLine1;
+	@Nullable
+	private String patientAddressLine2;
+	@Nullable
+	private String patientLocality;
+	@Nullable
+	private String patientPostalCode;
+	@Nullable
+	private String patientRegion;
+	@Nullable
+	private String patientCountryCode;
 	@Nullable
 	private String primaryPayor;
 	@Nullable
 	private String primaryPlan;
 	@Nullable
-	private LocalDate orderDate;
+	private String orderDate;
 	@Nullable
-	private Integer orderAgeInMinutes;
+	private String orderAge;
 	@Nullable
 	private String orderId;
 	@Nullable
@@ -115,19 +116,6 @@ public class PatientOrder {
 	private String medications;
 	@Nullable
 	private String recentPsychotherapeuticMedications;
-	@Nullable
-	private Instant created;
-	@Nullable
-	private Instant lastUpdated;
-
-	@Nullable
-	public UUID getPatientOrderId() {
-		return this.patientOrderId;
-	}
-
-	public void setPatientOrderId(@Nullable UUID patientOrderId) {
-		this.patientOrderId = patientOrderId;
-	}
 
 	@Nullable
 	public UUID getPatientOrderImportId() {
@@ -145,33 +133,6 @@ public class PatientOrder {
 
 	public void setInstitutionId(@Nullable InstitutionId institutionId) {
 		this.institutionId = institutionId;
-	}
-
-	@Nullable
-	public UUID getPatientAccountId() {
-		return this.patientAccountId;
-	}
-
-	public void setPatientAccountId(@Nullable UUID patientAccountId) {
-		this.patientAccountId = patientAccountId;
-	}
-
-	@Nullable
-	public UUID getPatientAddressId() {
-		return this.patientAddressId;
-	}
-
-	public void setPatientAddressId(@Nullable UUID patientAddressId) {
-		this.patientAddressId = patientAddressId;
-	}
-
-	@Nullable
-	public UUID getProviderAccountId() {
-		return this.providerAccountId;
-	}
-
-	public void setProviderAccountId(@Nullable UUID providerAccountId) {
-		this.providerAccountId = providerAccountId;
 	}
 
 	@Nullable
@@ -328,21 +289,75 @@ public class PatientOrder {
 	}
 
 	@Nullable
-	public BirthSexId getPatientBirthSexId() {
+	public String getPatientBirthSexId() {
 		return this.patientBirthSexId;
 	}
 
-	public void setPatientBirthSexId(@Nullable BirthSexId patientBirthSexId) {
+	public void setPatientBirthSexId(@Nullable String patientBirthSexId) {
 		this.patientBirthSexId = patientBirthSexId;
 	}
 
 	@Nullable
-	public LocalDate getPatientBirthdate() {
+	public String getPatientBirthdate() {
 		return this.patientBirthdate;
 	}
 
-	public void setPatientBirthdate(@Nullable LocalDate patientBirthdate) {
+	public void setPatientBirthdate(@Nullable String patientBirthdate) {
 		this.patientBirthdate = patientBirthdate;
+	}
+
+	@Nullable
+	public String getPatientAddressLine1() {
+		return this.patientAddressLine1;
+	}
+
+	public void setPatientAddressLine1(@Nullable String patientAddressLine1) {
+		this.patientAddressLine1 = patientAddressLine1;
+	}
+
+	@Nullable
+	public String getPatientAddressLine2() {
+		return this.patientAddressLine2;
+	}
+
+	public void setPatientAddressLine2(@Nullable String patientAddressLine2) {
+		this.patientAddressLine2 = patientAddressLine2;
+	}
+
+	@Nullable
+	public String getPatientLocality() {
+		return this.patientLocality;
+	}
+
+	public void setPatientLocality(@Nullable String patientLocality) {
+		this.patientLocality = patientLocality;
+	}
+
+	@Nullable
+	public String getPatientPostalCode() {
+		return this.patientPostalCode;
+	}
+
+	public void setPatientPostalCode(@Nullable String patientPostalCode) {
+		this.patientPostalCode = patientPostalCode;
+	}
+
+	@Nullable
+	public String getPatientRegion() {
+		return this.patientRegion;
+	}
+
+	public void setPatientRegion(@Nullable String patientRegion) {
+		this.patientRegion = patientRegion;
+	}
+
+	@Nullable
+	public String getPatientCountryCode() {
+		return this.patientCountryCode;
+	}
+
+	public void setPatientCountryCode(@Nullable String patientCountryCode) {
+		this.patientCountryCode = patientCountryCode;
 	}
 
 	@Nullable
@@ -364,21 +379,21 @@ public class PatientOrder {
 	}
 
 	@Nullable
-	public LocalDate getOrderDate() {
+	public String getOrderDate() {
 		return this.orderDate;
 	}
 
-	public void setOrderDate(@Nullable LocalDate orderDate) {
+	public void setOrderDate(@Nullable String orderDate) {
 		this.orderDate = orderDate;
 	}
 
 	@Nullable
-	public Integer getOrderAgeInMinutes() {
-		return this.orderAgeInMinutes;
+	public String getOrderAge() {
+		return this.orderAge;
 	}
 
-	public void setOrderAgeInMinutes(@Nullable Integer orderAgeInMinutes) {
-		this.orderAgeInMinutes = orderAgeInMinutes;
+	public void setOrderAge(@Nullable String orderAge) {
+		this.orderAge = orderAge;
 	}
 
 	@Nullable
@@ -487,23 +502,5 @@ public class PatientOrder {
 
 	public void setRecentPsychotherapeuticMedications(@Nullable String recentPsychotherapeuticMedications) {
 		this.recentPsychotherapeuticMedications = recentPsychotherapeuticMedications;
-	}
-
-	@Nullable
-	public Instant getCreated() {
-		return this.created;
-	}
-
-	public void setCreated(@Nullable Instant created) {
-		this.created = created;
-	}
-
-	@Nullable
-	public Instant getLastUpdated() {
-		return this.lastUpdated;
-	}
-
-	public void setLastUpdated(@Nullable Instant lastUpdated) {
-		this.lastUpdated = lastUpdated;
 	}
 }

@@ -92,7 +92,7 @@ public class MockWay2HealthClient implements Way2HealthClient {
 		}
 
 		try {
-			String json = Files.readString(Path.of("resources/way2health-incidents-fetch-response.json"), StandardCharsets.UTF_8);
+			String json = Files.readString(Path.of("resources/mock/way2health-incidents-fetch-response.json"), StandardCharsets.UTF_8);
 			PagedResponse<Incident> incidentResponse = getGson().fromJson(json, new TypeToken<PagedResponse<Incident>>() {
 			}.getType());
 			incidentResponse.setRawResponseBody(json);

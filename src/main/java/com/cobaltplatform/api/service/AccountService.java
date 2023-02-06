@@ -51,7 +51,6 @@ import com.cobaltplatform.api.model.db.AccountInvite;
 import com.cobaltplatform.api.model.db.AccountLoginRule;
 import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
-import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.AuditLog;
 import com.cobaltplatform.api.model.db.AuditLogEvent.AuditLogEventId;
 import com.cobaltplatform.api.model.db.BetaFeature.BetaFeatureId;
@@ -70,13 +69,11 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PasswordResetRequest;
 import com.cobaltplatform.api.model.db.Race;
 import com.cobaltplatform.api.model.db.Race.RaceId;
-import com.cobaltplatform.api.model.db.ReportType;
 import com.cobaltplatform.api.model.db.Role;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
 import com.cobaltplatform.api.model.security.AccessTokenClaims;
 import com.cobaltplatform.api.model.service.AccountEmailVerificationFlowTypeId;
-import com.cobaltplatform.api.model.service.Region;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
@@ -114,8 +111,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.util.ValidationUtility.isValidEmailAddress;
-import static com.cobaltplatform.api.util.ValidationUtility.isValidIso3166CountryCode;
-import static com.cobaltplatform.api.util.ValidationUtility.isValidUsPostalCode;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -132,6 +127,8 @@ public class AccountService {
 	private final Provider<AuditLogService> auditLogServiceProvider;
 	@Nonnull
 	private final Provider<InteractionService> interactionServiceProvider;
+	@Nonnull
+	private final Provider<AddressService> addressServiceProvider;
 	@Nonnull
 	private final Database database;
 	@Nonnull
@@ -169,6 +166,7 @@ public class AccountService {
 	public AccountService(@Nonnull Provider<CurrentContext> currentContextProvider,
 												@Nonnull Provider<AuditLogService> auditLogServiceProvider,
 												@Nonnull Provider<InteractionService> interactionServiceProvider,
+												@Nonnull Provider<AddressService> addressServiceProvider,
 												@Nonnull Database database,
 												@Nonnull @DistributedCache Cache distributedCache,
 												@Nonnull Authenticator authenticator,
@@ -184,6 +182,7 @@ public class AccountService {
 		requireNonNull(currentContextProvider);
 		requireNonNull(auditLogServiceProvider);
 		requireNonNull(interactionServiceProvider);
+		requireNonNull(addressServiceProvider);
 		requireNonNull(database);
 		requireNonNull(distributedCache);
 		requireNonNull(authenticator);
@@ -200,6 +199,7 @@ public class AccountService {
 		this.currentContextProvider = currentContextProvider;
 		this.auditLogServiceProvider = auditLogServiceProvider;
 		this.interactionServiceProvider = interactionServiceProvider;
+		this.addressServiceProvider = addressServiceProvider;
 		this.database = database;
 		this.distributedCache = distributedCache;
 		this.authenticator = authenticator;
@@ -489,7 +489,7 @@ public class AccountService {
 
 		if (request.getAddress() != null) {
 			try {
-				addressId = createAddress(request.getAddress());
+				addressId = getAddressService().createAddress(request.getAddress());
 			} catch (ValidationException e) {
 				validationException.add(e);
 			}
@@ -545,95 +545,6 @@ public class AccountService {
 		}
 
 		return accountId;
-	}
-
-	@Nonnull
-	public Optional<Address> findActiveAddressByAccountId(@Nullable UUID accountId) {
-		if (accountId == null)
-			return Optional.empty();
-
-		return getDatabase().queryForObject("""
-				SELECT a.*
-				FROM address a, account_address aa
-				WHERE aa.account_id=?
-				AND aa.address_id=a.address_id
-				AND aa.active=TRUE
-				""", Address.class, accountId);
-	}
-
-	@Nonnull
-	public UUID createAddress(@Nonnull CreateAddressRequest request) {
-		requireNonNull(request);
-
-		UUID addressId = UUID.randomUUID();
-		String postalName = trimToNull(request.getPostalName());
-		String streetAddress1 = trimToNull(request.getStreetAddress1());
-		String streetAddress2 = trimToNull(request.getStreetAddress2());
-		String streetAddress3 = trimToNull(request.getStreetAddress3());
-		String streetAddress4 = trimToNull(request.getStreetAddress4());
-		String postOfficeBoxNumber = trimToNull(request.getPostOfficeBoxNumber());
-		String crossStreet = trimToNull(request.getCrossStreet());
-		String suburb = trimToNull(request.getSuburb());
-		String locality = trimToNull(request.getLocality());
-		String region = trimToNull(request.getRegion());
-		String postalCode = trimToNull(request.getPostalCode());
-		String countrySubdivisionCode = trimToNull(request.getCountrySubdivisionCode());
-		String countryCode = trimToNull(request.getCountryCode());
-		ValidationException validationException = new ValidationException();
-
-		if (postalName == null)
-			validationException.add(new FieldError("postalName", getStrings().get("Postal name is required.")));
-
-		if (streetAddress1 == null)
-			validationException.add(new FieldError("streetAddress1", getStrings().get("Street address is required.")));
-
-		// Currently we only support US addresses.
-		// Once we have international rollout, build out more rigorous support for non-US address validation
-		if (countryCode == null) {
-			validationException.add(new FieldError("countryCode", getStrings().get("Country code is required.")));
-		} else if (!isValidIso3166CountryCode(countryCode)) {
-			validationException.add(new FieldError("countryCode", getStrings().get("Country code must be a valid ISO-3166 (2 or 3 letter) value.")));
-		} else {
-			countryCode = getNormalizer().normalizeCountryCodeToIso3166TwoLetter(countryCode).get();
-
-			// US address validation
-			if ("US".equals(countryCode)) {
-				if (locality == null)
-					validationException.add(new FieldError("locality", getStrings().get("City name is required.")));
-
-				// Normalize state abbreviation
-				if (region != null)
-					region = region.toUpperCase(Locale.US);
-
-				if (region == null)
-					validationException.add(new FieldError("region", getStrings().get("State abbreviation is required.")));
-				else if (Region.forAbbreviationAndCountryCode(region, "US").isEmpty())
-					validationException.add(new FieldError("region", getStrings().get("A valid state abbreviation is required.")));
-
-				if (postalCode == null)
-					validationException.add(new FieldError("postalCode", getStrings().get("ZIP code is required.")));
-				else if (!isValidUsPostalCode(postalCode))
-					validationException.add(new FieldError("postalCode", getStrings().get("ZIP code is invalid.")));
-			} else {
-				// TODO: remove once we go international
-				validationException.add(new FieldError("countryCode", getStrings().get("Sorry, only US addresses are supported at this time.")));
-			}
-		}
-
-		if (validationException.hasErrors())
-			throw validationException;
-
-		getDatabase().execute("""
-						INSERT INTO address (
-						address_id, postal_name, street_address_1, street_address_2, street_address_3, street_address_4,
-						post_office_box_number, cross_street, suburb,	locality, region, postal_code, country_subdivision_code,
-						country_code
-						)
-						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-						""", addressId, postalName, streetAddress1, streetAddress2, streetAddress3, streetAddress4,
-				postOfficeBoxNumber, crossStreet, suburb, locality, region, postalCode, countrySubdivisionCode, countryCode);
-
-		return addressId;
 	}
 
 	@Nonnull
@@ -1433,6 +1344,11 @@ public class AccountService {
 	@Nonnull
 	protected InteractionService getInteractionService() {
 		return interactionServiceProvider.get();
+	}
+
+	@Nonnull
+	protected AddressService getAddressService() {
+		return this.addressServiceProvider.get();
 	}
 
 	@Nonnull

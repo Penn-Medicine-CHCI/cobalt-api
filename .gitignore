@@ -36,6 +36,9 @@ server.pid
 .project
 .settings
 
+# Mirror repo does not include test data
+resources/test/
+
 # Node
 node_modules
 .DS_Store

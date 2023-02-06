@@ -32,6 +32,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionTopicCenter;
 import com.cobaltplatform.api.model.db.Interaction;
 import com.cobaltplatform.api.model.db.InteractionInstance;
+import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.ReportType.ReportTypeId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
@@ -68,6 +69,8 @@ public class AuthorizationService {
 	@Nonnull
 	private final javax.inject.Provider<ReportingService> reportingServiceProvider;
 	@Nonnull
+	private final javax.inject.Provider<PatientOrderService> patientOrderServiceProvider;
+	@Nonnull
 	private final Normalizer normalizer;
 
 	@Inject
@@ -77,6 +80,7 @@ public class AuthorizationService {
 															@Nonnull javax.inject.Provider<AppointmentService> appointmentServiceProvider,
 															@Nonnull javax.inject.Provider<TopicCenterService> topicCenterServiceProvider,
 															@Nonnull javax.inject.Provider<ReportingService> reportingServiceProvider,
+															@Nonnull javax.inject.Provider<PatientOrderService> patientOrderServiceProvider,
 															@Nonnull Normalizer normalizer) {
 		requireNonNull(availabilityServiceProvider);
 		requireNonNull(groupSessionServiceProvider);
@@ -84,6 +88,7 @@ public class AuthorizationService {
 		requireNonNull(appointmentServiceProvider);
 		requireNonNull(topicCenterServiceProvider);
 		requireNonNull(reportingServiceProvider);
+		requireNonNull(patientOrderServiceProvider);
 		requireNonNull(normalizer);
 
 		this.availabilityServiceProvider = availabilityServiceProvider;
@@ -92,6 +97,7 @@ public class AuthorizationService {
 		this.appointmentServiceProvider = appointmentServiceProvider;
 		this.topicCenterServiceProvider = topicCenterServiceProvider;
 		this.reportingServiceProvider = reportingServiceProvider;
+		this.patientOrderServiceProvider = patientOrderServiceProvider;
 		this.normalizer = normalizer;
 	}
 
@@ -459,6 +465,34 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
+	public Boolean canViewPatientOrder(@Nonnull PatientOrder patientOrder,
+																		 @Nonnull Account account) {
+		requireNonNull(patientOrder);
+		requireNonNull(account);
+
+		// An admin or MHIC at the same institution is able to view patient orders others at that institution
+		if (Objects.equals(account.getInstitutionId(), patientOrder.getInstitutionId())
+				&& (account.getRoleId() == RoleId.ADMINISTRATOR || account.getRoleId() == RoleId.MHIC))
+			return true;
+
+		return false;
+	}
+
+	@Nonnull
+	public Boolean canImportPatientOrders(@Nonnull InstitutionId institutionId,
+																				@Nonnull Account account) {
+		requireNonNull(institutionId);
+		requireNonNull(account);
+
+		// An admin or MHIC at the same institution is able to view patient orders others at that institution
+		if (Objects.equals(account.getInstitutionId(), institutionId)
+				&& (account.getRoleId() == RoleId.ADMINISTRATOR || account.getRoleId() == RoleId.MHIC))
+			return true;
+
+		return false;
+	}
+
+	@Nonnull
 	protected GroupSessionService getGroupSessionService() {
 		return this.groupSessionServiceProvider.get();
 	}
@@ -486,6 +520,11 @@ public class AuthorizationService {
 	@Nonnull
 	protected ReportingService getReportingService() {
 		return this.reportingServiceProvider.get();
+	}
+
+	@Nonnull
+	protected PatientOrderService getPatientOrderService() {
+		return this.patientOrderServiceProvider.get();
 	}
 
 	@Nonnull

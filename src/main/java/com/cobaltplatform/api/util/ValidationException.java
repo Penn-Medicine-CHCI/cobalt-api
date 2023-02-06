@@ -69,7 +69,7 @@ public class ValidationException extends RuntimeException {
 		this.fieldErrors.addAll(fieldErrors);
 	}
 
-	protected ValidationException(@Nonnull List<String> globalErrors, @Nonnull List<FieldError> fieldErrors) {
+	public ValidationException(@Nonnull List<String> globalErrors, @Nonnull List<FieldError> fieldErrors) {
 		this();
 		requireNonNull(globalErrors);
 		requireNonNull(fieldErrors);
