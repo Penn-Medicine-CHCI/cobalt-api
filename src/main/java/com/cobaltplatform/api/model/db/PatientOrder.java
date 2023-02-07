@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -35,6 +36,8 @@ import java.util.UUID;
 public class PatientOrder {
 	@Nullable
 	private UUID patientOrderId;
+	@Nullable
+	private PatientOrderStatusId patientOrderStatusId;
 	@Nullable
 	private UUID patientOrderImportId;
 	@Nullable
@@ -125,6 +128,15 @@ public class PatientOrder {
 
 	public void setPatientOrderId(@Nullable UUID patientOrderId) {
 		this.patientOrderId = patientOrderId;
+	}
+
+	@Nullable
+	public PatientOrderStatusId getPatientOrderStatusId() {
+		return this.patientOrderStatusId;
+	}
+
+	public void setPatientOrderStatusId(@Nullable PatientOrderStatusId patientOrderStatusId) {
+		this.patientOrderStatusId = patientOrderStatusId;
 	}
 
 	@Nullable

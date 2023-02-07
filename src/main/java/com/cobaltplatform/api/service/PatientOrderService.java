@@ -19,11 +19,13 @@
 
 package com.cobaltplatform.api.service;
 
+import com.cobaltplatform.api.integration.epic.response.PatientReadFhirR4Response;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderEventRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderDiagnosisRequest;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
@@ -36,6 +38,14 @@ import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.apache.commons.csv.CSVFormat;
@@ -53,6 +63,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 import java.io.UncheckedIOException;
+import java.lang.reflect.Type;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -80,6 +91,8 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @ThreadSafe
 public class PatientOrderService {
 	@Nonnull
+	private final Provider<AccountService> accountServiceProvider;
+	@Nonnull
 	private final Provider<AddressService> addressServiceProvider;
 	@Nonnull
 	private final Database database;
@@ -94,18 +107,21 @@ public class PatientOrderService {
 
 	@Inject
 	public PatientOrderService(@Nonnull Provider<AddressService> addressServiceProvider,
+														 @Nonnull Provider<AccountService> accountServiceProvider,
 														 @Nonnull Database database,
 														 @Nonnull Normalizer normalizer,
 														 @Nonnull Strings strings) {
 		requireNonNull(addressServiceProvider);
+		requireNonNull(accountServiceProvider);
 		requireNonNull(database);
 		requireNonNull(normalizer);
 		requireNonNull(strings);
 
 		this.addressServiceProvider = addressServiceProvider;
+		this.accountServiceProvider = accountServiceProvider;
 		this.database = database;
 		this.normalizer = normalizer;
-		this.gson = new Gson();
+		this.gson = createGson();
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
@@ -141,9 +157,9 @@ public class PatientOrderService {
 
 		return getDatabase().queryForList("""
 				SELECT * 
-				FROM patient_order_import
+				FROM patient_order
 				WHERE patient_account_id=?
-				ORDER BY order_date DESC, order_age_in_minutes DESC
+				ORDER BY order_date DESC, order_age_in_minutes
 				""", PatientOrder.class, accountId);
 	}
 
@@ -156,7 +172,7 @@ public class PatientOrderService {
 				SELECT * 
 				FROM patient_order
 				WHERE patient_order_import_id=?
-				ORDER BY order_date DESC, order_age_in_minutes DESC
+				ORDER BY order_date DESC, order_age_in_minutes
 				""", PatientOrder.class, patientOrderImportId);
 	}
 
@@ -171,6 +187,70 @@ public class PatientOrderService {
 				WHERE patient_order_id=?
 				ORDER BY display_order
 				""", PatientOrderDiagnosis.class, patientOrderId);
+	}
+
+	@Nonnull
+	public Set<UUID> associatePatientAccountWithPatientOrders(@Nullable UUID accountId) {
+		if (accountId == null)
+			return Set.of();
+
+		// Examine the account's SSO metadata...
+		Account account = getAccountService().findAccountById(accountId).orElse(null);
+
+		if (account == null || account.getSsoAttributes() == null)
+			return Set.of();
+
+		// ...if it looks like an Epic Patient Record, then...
+		PatientReadFhirR4Response patientRecord;
+
+		try {
+			patientRecord = getGson().fromJson(account.getSsoAttributes(), PatientReadFhirR4Response.class);
+		} catch (Exception ignored) {
+			return Set.of();
+		}
+
+		// ...pull out the Epic identifier to use to cross-reference with the imported orders in this institution
+		// that are currently unassigned.
+		// For now, we always use UID to identify.  But we might use other types in different institutions.
+		String patientIdType = "UID";
+		String patientId = patientRecord.extractIdentifierByType(patientIdType).orElse(null);
+
+		if (patientId == null)
+			return Set.of();
+
+		List<PatientOrder> unassignedMatchingPatientOrders = getDatabase().queryForList("""
+				SELECT * 
+				FROM patient_order
+				WHERE patient_id=?
+				AND patient_id_type=?				
+				AND institution_id=?
+				AND patient_account_id IS NULL
+				""", PatientOrder.class, patientId, patientIdType, account.getInstitutionId());
+
+		for (PatientOrder unassignedMatchingPatientOrder : unassignedMatchingPatientOrders) {
+			getLogger().info("Assigning account ID {} to patient order ID {}...", accountId, unassignedMatchingPatientOrder.getPatientOrderId());
+
+			getDatabase().execute("""
+					UPDATE patient_order
+					SET patient_order_status_id=?, 
+					patient_account_id=?
+					WHERE patient_order_id=?
+					""", PatientOrderStatusId.AWAITING_SCREENING, accountId, unassignedMatchingPatientOrder.getPatientOrderId());
+
+			createPatientOrderEvent(new CreatePatientOrderEventRequest() {{
+				setPatientOrderEventTypeId(PatientOrderEventTypeId.STATUS_CHANGED);
+				setPatientOrderId(unassignedMatchingPatientOrder.getPatientOrderId());
+				setAccountId(accountId);
+				setMessage("Transitioned to 'awaiting screening' status."); // Not localized on the way in
+				setMetadata(Map.of(
+						"oldPatientOrderStatusId", unassignedMatchingPatientOrder.getPatientOrderStatusId(),
+						"newPatientOrderStatusId", PatientOrderStatusId.AWAITING_SCREENING));
+			}});
+		}
+
+		return unassignedMatchingPatientOrders.stream()
+				.map(patientOrder -> patientOrder.getPatientOrderId())
+				.collect(Collectors.toSet());
 	}
 
 	@Nonnull
@@ -335,6 +415,8 @@ public class PatientOrderService {
 				throw new ValidationException(globalErrors, List.of());
 			}
 		}
+
+		// TODO: call associatePatientAccountWithPatientOrders (or a variant) to tie orders to existing accounts
 
 		return patientOrderImportId;
 	}
@@ -662,6 +744,49 @@ public class PatientOrderService {
 		return patientOrderEventId;
 	}
 
+	@Nonnull
+	protected Gson createGson() {
+		GsonBuilder gsonBuilder = new GsonBuilder().setPrettyPrinting();
+
+		gsonBuilder.registerTypeAdapter(LocalDate.class, new JsonDeserializer<LocalDate>() {
+			@Override
+			@Nullable
+			public LocalDate deserialize(@Nullable JsonElement json,
+																	 @Nonnull Type type,
+																	 @Nonnull JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
+				requireNonNull(type);
+				requireNonNull(jsonDeserializationContext);
+
+				if (json == null)
+					return null;
+
+				JsonPrimitive jsonPrimitive = json.getAsJsonPrimitive();
+
+				if (jsonPrimitive.isString()) {
+					String string = trimToNull(json.getAsString());
+					return string == null ? null : LocalDate.parse(string);
+				}
+
+				throw new IllegalArgumentException(format("Unable to convert JSON value '%s' to %s", json, type));
+			}
+		});
+
+		gsonBuilder.registerTypeAdapter(LocalDate.class, new JsonSerializer<LocalDate>() {
+			@Override
+			@Nullable
+			public JsonElement serialize(@Nullable LocalDate localDate,
+																	 @Nonnull Type type,
+																	 @Nonnull JsonSerializationContext jsonSerializationContext) {
+				requireNonNull(type);
+				requireNonNull(jsonSerializationContext);
+
+				return localDate == null ? null : new JsonPrimitive(localDate.toString());
+			}
+		});
+
+		return gsonBuilder.create();
+	}
+
 	/**
 	 * Breaks an order import name/ID string encoding into its component parts.
 	 * <p>
@@ -727,6 +852,11 @@ public class PatientOrderService {
 	@Nonnull
 	protected AddressService getAddressService() {
 		return this.addressServiceProvider.get();
+	}
+
+	@Nonnull
+	protected AccountService getAccountService() {
+		return this.accountServiceProvider.get();
 	}
 
 	@Nonnull

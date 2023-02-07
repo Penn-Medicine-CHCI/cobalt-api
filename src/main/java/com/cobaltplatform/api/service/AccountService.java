@@ -130,6 +130,8 @@ public class AccountService {
 	@Nonnull
 	private final Provider<AddressService> addressServiceProvider;
 	@Nonnull
+	private final Provider<PatientOrderService> patientOrderServiceProvider;
+	@Nonnull
 	private final Database database;
 	@Nonnull
 	private final Cache distributedCache;
@@ -167,6 +169,7 @@ public class AccountService {
 												@Nonnull Provider<AuditLogService> auditLogServiceProvider,
 												@Nonnull Provider<InteractionService> interactionServiceProvider,
 												@Nonnull Provider<AddressService> addressServiceProvider,
+												@Nonnull Provider<PatientOrderService> patientOrderServiceProvider,
 												@Nonnull Database database,
 												@Nonnull @DistributedCache Cache distributedCache,
 												@Nonnull Authenticator authenticator,
@@ -183,6 +186,7 @@ public class AccountService {
 		requireNonNull(auditLogServiceProvider);
 		requireNonNull(interactionServiceProvider);
 		requireNonNull(addressServiceProvider);
+		requireNonNull(patientOrderServiceProvider);
 		requireNonNull(database);
 		requireNonNull(distributedCache);
 		requireNonNull(authenticator);
@@ -200,6 +204,7 @@ public class AccountService {
 		this.auditLogServiceProvider = auditLogServiceProvider;
 		this.interactionServiceProvider = interactionServiceProvider;
 		this.addressServiceProvider = addressServiceProvider;
+		this.patientOrderServiceProvider = patientOrderServiceProvider;
 		this.database = database;
 		this.distributedCache = distributedCache;
 		this.authenticator = authenticator;
@@ -543,6 +548,9 @@ public class AccountService {
 					VALUES (?,?,?)
 					""", accountId, addressId, true);
 		}
+
+		// If there are any patient orders to associate this account with, do it now
+		getPatientOrderService().associatePatientAccountWithPatientOrders(accountId);
 
 		return accountId;
 	}
@@ -1349,6 +1357,11 @@ public class AccountService {
 	@Nonnull
 	protected AddressService getAddressService() {
 		return this.addressServiceProvider.get();
+	}
+
+	@Nonnull
+	protected PatientOrderService getPatientOrderService() {
+		return this.patientOrderServiceProvider.get();
 	}
 
 	@Nonnull
