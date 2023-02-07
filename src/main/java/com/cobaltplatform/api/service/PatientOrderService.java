@@ -48,10 +48,13 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 import java.io.UncheckedIOException;
+import java.time.Duration;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -335,20 +338,106 @@ public class PatientOrderService {
 		UUID patientOrderId = UUID.randomUUID();
 		ValidationException validationException = new ValidationException();
 
-		// TODO: validation
+		// TODO: revisit when we support non-US institutions
+		// Example: "2/25/21"
+		DateTimeFormatter twoDigitYearDateFormatter = DateTimeFormatter.ofPattern("M/d/yy", Locale.US);
+		// Example: "2/25/2021"
+		DateTimeFormatter fourDigitYearDateFormatter = DateTimeFormatter.ofPattern("M/d/yyyy", Locale.US);
 
-		String postalName = Normalizer.normalizeName(patientFirstName, patientLastName).get();
+		if (patientOrderImportId == null)
+			validationException.add(new FieldError("patientOrderImportId", getStrings().get("Patient Order Import ID is required.")));
 
-		patientAddressId = getAddressService().createAddress(new CreateAddressRequest() {{
-			setPostalName(postalName);
-			setStreetAddress1(patientAddressLine1);
-			setStreetAddress2(patientAddressLine2);
-			setLocality(patientLocality);
-			setRegion(patientRegion);
-			setPostalCode(patientPostalCode);
-			// TODO: revisit when we support non-US institutions
-			setCountryCode(patientCountryCode == null ? "US" : patientCountryCode);
-		}});
+		if (institutionId == null)
+			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
+
+		if (patientMrn == null)
+			validationException.add(new FieldError("patientMrn", getStrings().get("Patient MRN is required.")));
+
+		if (patientId == null)
+			validationException.add(new FieldError("patientId", getStrings().get("Patient ID is required.")));
+
+		if (patientIdType == null)
+			validationException.add(new FieldError("patientIdType", getStrings().get("Patient ID Type is required.")));
+
+		if (orderId == null)
+			validationException.add(new FieldError("orderId", getStrings().get("Order ID is required.")));
+
+		if (orderDateAsString == null) {
+			validationException.add(new FieldError("orderDate", getStrings().get("Order date is required.")));
+		} else {
+			try {
+				orderDate = LocalDate.parse(orderDateAsString, twoDigitYearDateFormatter);
+			} catch (Exception e) {
+				validationException.add(new FieldError("orderDate", getStrings().get("Unrecognized order date format: {{orderDate}}",
+						Map.of("orderDate", orderDateAsString))));
+			}
+		}
+
+		if (orderAge == null) {
+			validationException.add(new FieldError("orderAge", getStrings().get("Order age is required.")));
+		} else {
+			// Order Age example: "5d 05h 43m"
+			int days = 0;
+			int hours = 0;
+			int minutes = 0;
+
+			try {
+				for (String orderAgeComponent : orderAge.split(" ")) {
+					if (orderAgeComponent.endsWith("d")) {
+						days = Integer.parseInt(orderAgeComponent.replace("d", ""), 10);
+					} else if (orderAgeComponent.endsWith("h")) {
+						hours = Integer.parseInt(orderAgeComponent.replace("h", ""), 10);
+					} else if (orderAgeComponent.endsWith("m")) {
+						minutes = Integer.parseInt(orderAgeComponent.replace("m", ""), 10);
+					} else if (orderAgeComponent.length() > 0) {
+						throw new IllegalArgumentException(format("Unexpected format for order age component '%s'", orderAgeComponent));
+					}
+				}
+
+				orderAgeInMinutes = Duration.ofDays(days).plus(Duration.ofHours(hours)).plus(Duration.ofMinutes(minutes)).toMinutes();
+			} catch (Exception e) {
+				getLogger().warn(format("Unable to process order age string %s", orderAge), e);
+			}
+		}
+
+		if (patientBirthdateAsString != null) {
+			try {
+				patientBirthdate = LocalDate.parse(patientBirthdateAsString, fourDigitYearDateFormatter);
+			} catch (Exception e) {
+				validationException.add(new FieldError("patientBirthdate", getStrings().get("Unrecognized patient birthdate format: {{patientBirthdate}}",
+						Map.of("patientBirthdate", patientBirthdateAsString))));
+			}
+		}
+
+		if (patientBirthSexIdAsString != null) {
+			String normalizedPatientBirthSexIdAsString = patientBirthSexIdAsString.toUpperCase(Locale.US);
+
+			if ("MALE".equals(normalizedPatientBirthSexIdAsString))
+				patientBirthSexId = BirthSexId.MALE;
+			else if ("FEMALE".equals(normalizedPatientBirthSexIdAsString))
+				patientBirthSexId = BirthSexId.FEMALE;
+		}
+
+		// Fall back to UNKNOWN if we're not sure
+		if (patientBirthSexId == null)
+			patientBirthSexId = BirthSexId.UNKNOWN;
+
+		try {
+			String postalName = Normalizer.normalizeName(patientFirstName, patientLastName).get();
+			
+			patientAddressId = getAddressService().createAddress(new CreateAddressRequest() {{
+				setPostalName(postalName);
+				setStreetAddress1(patientAddressLine1);
+				setStreetAddress2(patientAddressLine2);
+				setLocality(patientLocality);
+				setRegion(patientRegion);
+				setPostalCode(patientPostalCode);
+				// TODO: revisit when we support non-US institutions
+				setCountryCode(patientCountryCode == null ? "US" : patientCountryCode);
+			}});
+		} catch (ValidationException addressValidationException) {
+			validationException.add(addressValidationException);
+		}
 
 		if (validationException.hasErrors())
 			throw validationException;
