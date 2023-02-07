@@ -19,7 +19,7 @@
 
 package com.cobaltplatform.api.model.db;
 
-import com.cobaltplatform.api.model.db.PatientOrderTrackingType.PatientOrderTrackingTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderEventType.PatientOrderEventTypeId;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -38,7 +38,7 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class PatientOrderTracking {
+public class PatientOrderEvent {
 	@Nonnull
 	private static final Gson GSON;
 
@@ -50,9 +50,9 @@ public class PatientOrderTracking {
 	}
 
 	@Nullable
-	private UUID patientOrderTrackingId;
+	private UUID patientOrderEventId;
 	@Nullable
-	private PatientOrderTrackingTypeId patientOrderTrackingTypeId;
+	private PatientOrderEventTypeId patientOrderEventTypeId;
 	@Nullable
 	private UUID patientOrderId;
 	@Nullable
@@ -69,7 +69,7 @@ public class PatientOrderTracking {
 	@Nullable
 	private Instant lastUpdated;
 
-	public PatientOrderTracking() {
+	public PatientOrderEvent() {
 		this.metadata = Map.of();
 	}
 
@@ -97,21 +97,21 @@ public class PatientOrderTracking {
 	}
 
 	@Nullable
-	public UUID getPatientOrderTrackingId() {
-		return this.patientOrderTrackingId;
+	public UUID getPatientOrderEventId() {
+		return this.patientOrderEventId;
 	}
 
-	public void setPatientOrderTrackingId(@Nullable UUID patientOrderTrackingId) {
-		this.patientOrderTrackingId = patientOrderTrackingId;
+	public void setPatientOrderEventId(@Nullable UUID patientOrderEventId) {
+		this.patientOrderEventId = patientOrderEventId;
 	}
 
 	@Nullable
-	public PatientOrderTrackingTypeId getPatientOrderTrackingTypeId() {
-		return this.patientOrderTrackingTypeId;
+	public PatientOrderEventTypeId getPatientOrderEventTypeId() {
+		return this.patientOrderEventTypeId;
 	}
 
-	public void setPatientOrderTrackingTypeId(@Nullable PatientOrderTrackingTypeId patientOrderTrackingTypeId) {
-		this.patientOrderTrackingTypeId = patientOrderTrackingTypeId;
+	public void setPatientOrderEventTypeId(@Nullable PatientOrderEventTypeId patientOrderEventTypeId) {
+		this.patientOrderEventTypeId = patientOrderEventTypeId;
 	}
 
 	@Nullable

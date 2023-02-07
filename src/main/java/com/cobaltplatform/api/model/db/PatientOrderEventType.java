@@ -28,13 +28,13 @@ import static java.lang.String.format;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class PatientOrderTrackingType {
+public class PatientOrderEventType {
 	@Nullable
-	private PatientOrderTrackingTypeId patientOrderTrackingTypeId;
+	private PatientOrderEventTypeId patientOrderEventTypeId;
 	@Nullable
 	private String description;
 
-	public enum PatientOrderTrackingTypeId {
+	public enum PatientOrderEventTypeId {
 		IMPORTED,
 		STATUS_CHANGED,
 		PATIENT_ACCOUNT_ASSOCIATED,
@@ -46,16 +46,16 @@ public class PatientOrderTrackingType {
 
 	@Override
 	public String toString() {
-		return format("%s{patientOrderTrackingTypeId=%s, description=%s}", getClass().getSimpleName(), getPatientOrderTrackingTypeId(), getDescription());
+		return format("%s{patientOrderEventTypeId=%s, description=%s}", getClass().getSimpleName(), getPatientOrderEventTypeId(), getDescription());
 	}
 
 	@Nullable
-	public PatientOrderTrackingTypeId getPatientOrderTrackingTypeId() {
-		return this.patientOrderTrackingTypeId;
+	public PatientOrderEventTypeId getPatientOrderEventTypeId() {
+		return this.patientOrderEventTypeId;
 	}
 
-	public void setPatientOrderTrackingTypeId(@Nullable PatientOrderTrackingTypeId patientOrderTrackingTypeId) {
-		this.patientOrderTrackingTypeId = patientOrderTrackingTypeId;
+	public void setPatientOrderEventTypeId(@Nullable PatientOrderEventTypeId patientOrderEventTypeId) {
+		this.patientOrderEventTypeId = patientOrderEventTypeId;
 	}
 
 	@Nullable

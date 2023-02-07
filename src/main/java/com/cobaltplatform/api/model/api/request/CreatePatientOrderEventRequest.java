@@ -19,7 +19,7 @@
 
 package com.cobaltplatform.api.model.api.request;
 
-import com.cobaltplatform.api.model.db.PatientOrderTrackingType.PatientOrderTrackingTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderEventType.PatientOrderEventTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -30,9 +30,9 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreatePatientOrderTrackingRequest {
+public class CreatePatientOrderEventRequest {
 	@Nullable
-	private PatientOrderTrackingTypeId patientOrderTrackingTypeId;
+	private PatientOrderEventTypeId patientOrderEventTypeId;
 	@Nullable
 	private UUID patientOrderId;
 	@Nullable
@@ -43,12 +43,12 @@ public class CreatePatientOrderTrackingRequest {
 	private Map<String, Object> metadata;
 
 	@Nullable
-	public PatientOrderTrackingTypeId getPatientOrderTrackingTypeId() {
-		return this.patientOrderTrackingTypeId;
+	public PatientOrderEventTypeId getPatientOrderEventTypeId() {
+		return this.patientOrderEventTypeId;
 	}
 
-	public void setPatientOrderTrackingTypeId(@Nullable PatientOrderTrackingTypeId patientOrderTrackingTypeId) {
-		this.patientOrderTrackingTypeId = patientOrderTrackingTypeId;
+	public void setPatientOrderEventTypeId(@Nullable PatientOrderEventTypeId patientOrderEventTypeId) {
+		this.patientOrderEventTypeId = patientOrderEventTypeId;
 	}
 
 	@Nullable

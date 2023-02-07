@@ -167,30 +167,30 @@ CREATE TABLE patient_order_note (
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_note FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
-CREATE TABLE patient_order_tracking_type (
-  patient_order_tracking_id VARCHAR PRIMARY KEY,
+CREATE TABLE patient_order_event_type (
+  patient_order_event_id VARCHAR PRIMARY KEY,
   description VARCHAR NOT NULL
 );
 
 -- Data to include: patient order import ID
-INSERT INTO patient_order_tracking_type VALUES ('IMPORTED', 'Imported');
+INSERT INTO patient_order_event_type VALUES ('IMPORTED', 'Imported');
 -- Data to include: old patient order status ID, new patient order status ID
-INSERT INTO patient_order_tracking_type VALUES ('STATUS_CHANGED', 'Status Changed');
+INSERT INTO patient_order_event_type VALUES ('STATUS_CHANGED', 'Status Changed');
 -- Data to include: screening session ID
-INSERT INTO patient_order_tracking_type VALUES ('SELF_ADMINISTERED_SCREENING_SESSION_STARTED', 'Self-Administered Screening Session Started');
+INSERT INTO patient_order_event_type VALUES ('SELF_ADMINISTERED_SCREENING_SESSION_STARTED', 'Self-Administered Screening Session Started');
 -- Data to include: screening session ID, triage IDs
-INSERT INTO patient_order_tracking_type VALUES ('SELF_ADMINISTERED_SCREENING_SESSION_COMPLETED', 'Self-Administered Screening Session Completed');
+INSERT INTO patient_order_event_type VALUES ('SELF_ADMINISTERED_SCREENING_SESSION_COMPLETED', 'Self-Administered Screening Session Completed');
 -- Data to include: screening session ID
-INSERT INTO patient_order_tracking_type VALUES ('MHIC_ADMINISTERED_SCREENING_SESSION_STARTED', 'MHIC-Administered Screening Session Started');
+INSERT INTO patient_order_event_type VALUES ('MHIC_ADMINISTERED_SCREENING_SESSION_STARTED', 'MHIC-Administered Screening Session Started');
 -- Data to include: screening session ID, triage ID
-INSERT INTO patient_order_tracking_type VALUES ('MHIC_ADMINISTERED_SCREENING_SESSION_COMPLETED', 'MHIC-Administered Screening Session Completed');
+INSERT INTO patient_order_event_type VALUES ('MHIC_ADMINISTERED_SCREENING_SESSION_COMPLETED', 'MHIC-Administered Screening Session Completed');
 
 -- TODO: add other types, e.g. name/info changed
 
 -- Keep an internal immutable history of any changes made to the patient order record over time
-CREATE TABLE patient_order_tracking (
-  patient_order_tracking_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  patient_order_tracking_type_id VARCHAR NOT NULL REFERENCES patient_order_tracking_type,
+CREATE TABLE patient_order_event (
+  patient_order_event_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  patient_order_event_type_id VARCHAR NOT NULL REFERENCES patient_order_event_type,
   patient_order_id UUID NOT NULL REFERENCES patient_order,
   account_id UUID REFERENCES account,
   message TEXT NOT NULL,
@@ -199,6 +199,6 @@ CREATE TABLE patient_order_tracking (
   last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_tracking FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_event FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 COMMIT;
