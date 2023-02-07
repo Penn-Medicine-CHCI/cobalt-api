@@ -17,37 +17,30 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db;
+package com.cobaltplatform.api.model.api.request;
+
+import com.cobaltplatform.api.model.db.PatientOrderTrackingType.PatientOrderTrackingTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-
-import static java.lang.String.format;
+import java.util.Map;
+import java.util.UUID;
 
 /**
- * @author Transmogrify LLC.
+ * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class PatientOrderTrackingType {
+public class CreatePatientOrderTrackingRequest {
 	@Nullable
 	private PatientOrderTrackingTypeId patientOrderTrackingTypeId;
 	@Nullable
-	private String description;
-
-	public enum PatientOrderTrackingTypeId {
-		IMPORTED,
-		STATUS_CHANGED,
-		PATIENT_ACCOUNT_ASSOCIATED,
-		SELF_ADMINISTERED_SCREENING_SESSION_STARTED,
-		SELF_ADMINISTERED_SCREENING_SESSION_COMPLETED,
-		MHIC_ADMINISTERED_SCREENING_SESSION_STARTED,
-		MHIC_ADMINISTERED_SCREENING_SESSION_COMPLETED,
-	}
-
-	@Override
-	public String toString() {
-		return format("%s{patientOrderTrackingTypeId=%s, description=%s}", getClass().getSimpleName(), getPatientOrderTrackingTypeId(), getDescription());
-	}
+	private UUID patientOrderId;
+	@Nullable
+	private UUID accountId;
+	@Nullable
+	private String message;
+	@Nullable
+	private Map<String, Object> metadata;
 
 	@Nullable
 	public PatientOrderTrackingTypeId getPatientOrderTrackingTypeId() {
@@ -59,11 +52,38 @@ public class PatientOrderTrackingType {
 	}
 
 	@Nullable
-	public String getDescription() {
-		return this.description;
+	public UUID getPatientOrderId() {
+		return this.patientOrderId;
 	}
 
-	public void setDescription(@Nullable String description) {
-		this.description = description;
+	public void setPatientOrderId(@Nullable UUID patientOrderId) {
+		this.patientOrderId = patientOrderId;
+	}
+
+	@Nullable
+	public UUID getAccountId() {
+		return this.accountId;
+	}
+
+	public void setAccountId(@Nullable UUID accountId) {
+		this.accountId = accountId;
+	}
+
+	@Nullable
+	public String getMessage() {
+		return this.message;
+	}
+
+	public void setMessage(@Nullable String message) {
+		this.message = message;
+	}
+
+	@Nullable
+	public Map<String, Object> getMetadata() {
+		return this.metadata;
+	}
+
+	public void setMetadata(@Nullable Map<String, Object> metadata) {
+		this.metadata = metadata;
 	}
 }

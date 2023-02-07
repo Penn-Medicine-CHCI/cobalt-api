@@ -23,6 +23,7 @@ import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderDiagnosisRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderTrackingRequest;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
@@ -30,9 +31,11 @@ import com.cobaltplatform.api.model.db.PatientOrderDiagnosis;
 import com.cobaltplatform.api.model.db.PatientOrderImport;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderTrackingType.PatientOrderTrackingTypeId;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.google.gson.Gson;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.apache.commons.csv.CSVFormat;
@@ -83,6 +86,8 @@ public class PatientOrderService {
 	@Nonnull
 	private final Normalizer normalizer;
 	@Nonnull
+	private final Gson gson;
+	@Nonnull
 	private final Strings strings;
 	@Nonnull
 	private final Logger logger;
@@ -100,6 +105,7 @@ public class PatientOrderService {
 		this.addressServiceProvider = addressServiceProvider;
 		this.database = database;
 		this.normalizer = normalizer;
+		this.gson = new Gson();
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
@@ -218,6 +224,7 @@ public class PatientOrderService {
 					CreatePatientOrderRequest patientOrderRequest = new CreatePatientOrderRequest();
 					patientOrderRequest.setPatientOrderImportId(patientOrderImportId);
 					patientOrderRequest.setInstitutionId(institutionId);
+					patientOrderRequest.setAccountId(accountId);
 					patientOrderRequest.setEncounterDepartmentName(trimToNull(record.get("Encounter Dept Name")));
 					patientOrderRequest.setEncounterDepartmentId(trimToNull(record.get("Encounter Dept ID")));
 
@@ -339,6 +346,7 @@ public class PatientOrderService {
 		PatientOrderStatusId patientOrderStatusId = PatientOrderStatusId.NEW;
 		UUID patientOrderImportId = request.getPatientOrderImportId();
 		InstitutionId institutionId = request.getInstitutionId();
+		UUID accountId = request.getAccountId();
 		String encounterDepartmentId = trimToNull(request.getEncounterDepartmentId());
 		String encounterDepartmentIdType = trimToNull(request.getEncounterDepartmentIdType());
 		String encounterDepartmentName = trimToNull(request.getEncounterDepartmentName());
@@ -603,7 +611,55 @@ public class PatientOrderService {
 			++diagnosisDisplayOrder;
 		}
 
+		createPatientOrderTracking(new CreatePatientOrderTrackingRequest() {{
+			setPatientOrderTrackingTypeId(PatientOrderTrackingTypeId.IMPORTED);
+			setPatientOrderId(patientOrderId);
+			setAccountId(accountId);
+			setMessage("Order imported."); // Not localized on the way in
+			setMetadata(Map.of("patientOrderImportId", patientOrderImportId));
+		}});
+
 		return patientOrderId;
+	}
+
+	@Nonnull
+	public UUID createPatientOrderTracking(@Nonnull CreatePatientOrderTrackingRequest request) {
+		requireNonNull(request);
+
+		PatientOrderTrackingTypeId patientOrderTrackingTypeId = request.getPatientOrderTrackingTypeId();
+		UUID patientOrderId = request.getPatientOrderId();
+		UUID accountId = request.getAccountId();
+		String message = request.getMessage();
+		Map<String, Object> metadata = request.getMetadata() == null ? Map.of() : request.getMetadata();
+		UUID patientOrderTrackingId = UUID.randomUUID();
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderTrackingTypeId == null)
+			validationException.add(new FieldError("patientOrderTrackingTypeId", getStrings().get("Patient Order Tracking Type ID is required.")));
+
+		if (patientOrderId == null)
+			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+
+		if (message == null)
+			validationException.add(new FieldError("message", getStrings().get("Message is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		String metadataJson = getGson().toJson(metadata);
+
+		getDatabase().execute("""
+				INSERT INTO patient_order_tracking (
+				patient_order_tracking_id, 
+				patient_order_tracking_type_id,
+				patient_order_id,
+				account_id,
+				message,
+				metadata
+				) VALUES (?,?,?,?,?,CAST(? AS JSONB))
+				""", patientOrderTrackingId, patientOrderTrackingTypeId, patientOrderId, accountId, message, metadataJson);
+
+		return patientOrderTrackingId;
 	}
 
 	/**
@@ -681,6 +737,11 @@ public class PatientOrderService {
 	@Nonnull
 	protected Normalizer getNormalizer() {
 		return this.normalizer;
+	}
+
+	@Nonnull
+	protected Gson getGson() {
+		return this.gson;
 	}
 
 	@Nonnull

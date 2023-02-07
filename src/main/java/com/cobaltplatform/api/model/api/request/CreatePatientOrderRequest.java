@@ -36,6 +36,8 @@ public class CreatePatientOrderRequest {
 	@Nullable
 	private InstitutionId institutionId;
 	@Nullable
+	private UUID accountId;
+	@Nullable
 	private String encounterDepartmentId;
 	@Nullable
 	private String encounterDepartmentIdType;
@@ -118,43 +120,6 @@ public class CreatePatientOrderRequest {
 	@Nullable
 	private String recentPsychotherapeuticMedications;
 
-	@NotThreadSafe
-	public static class CreatePatientOrderDiagnosisRequest {
-		@Nullable
-		private String diagnosisId;
-		@Nullable
-		private String diagnosisIdType;
-		@Nullable
-		private String diagnosisName;
-
-		@Nullable
-		public String getDiagnosisId() {
-			return this.diagnosisId;
-		}
-
-		public void setDiagnosisId(@Nullable String diagnosisId) {
-			this.diagnosisId = diagnosisId;
-		}
-
-		@Nullable
-		public String getDiagnosisIdType() {
-			return this.diagnosisIdType;
-		}
-
-		public void setDiagnosisIdType(@Nullable String diagnosisIdType) {
-			this.diagnosisIdType = diagnosisIdType;
-		}
-
-		@Nullable
-		public String getDiagnosisName() {
-			return this.diagnosisName;
-		}
-
-		public void setDiagnosisName(@Nullable String diagnosisName) {
-			this.diagnosisName = diagnosisName;
-		}
-	}
-
 	@Nullable
 	public UUID getPatientOrderImportId() {
 		return this.patientOrderImportId;
@@ -171,6 +136,15 @@ public class CreatePatientOrderRequest {
 
 	public void setInstitutionId(@Nullable InstitutionId institutionId) {
 		this.institutionId = institutionId;
+	}
+
+	@Nullable
+	public UUID getAccountId() {
+		return this.accountId;
+	}
+
+	public void setAccountId(@Nullable UUID accountId) {
+		this.accountId = accountId;
 	}
 
 	@Nullable
@@ -540,5 +514,43 @@ public class CreatePatientOrderRequest {
 
 	public void setRecentPsychotherapeuticMedications(@Nullable String recentPsychotherapeuticMedications) {
 		this.recentPsychotherapeuticMedications = recentPsychotherapeuticMedications;
+	}
+
+
+	@NotThreadSafe
+	public static class CreatePatientOrderDiagnosisRequest {
+		@Nullable
+		private String diagnosisId;
+		@Nullable
+		private String diagnosisIdType;
+		@Nullable
+		private String diagnosisName;
+
+		@Nullable
+		public String getDiagnosisId() {
+			return this.diagnosisId;
+		}
+
+		public void setDiagnosisId(@Nullable String diagnosisId) {
+			this.diagnosisId = diagnosisId;
+		}
+
+		@Nullable
+		public String getDiagnosisIdType() {
+			return this.diagnosisIdType;
+		}
+
+		public void setDiagnosisIdType(@Nullable String diagnosisIdType) {
+			this.diagnosisIdType = diagnosisIdType;
+		}
+
+		@Nullable
+		public String getDiagnosisName() {
+			return this.diagnosisName;
+		}
+
+		public void setDiagnosisName(@Nullable String diagnosisName) {
+			this.diagnosisName = diagnosisName;
+		}
 	}
 }

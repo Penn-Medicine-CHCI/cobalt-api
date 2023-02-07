@@ -58,6 +58,8 @@ public class PatientOrderTracking {
 	@Nullable
 	private UUID accountId;
 	@Nullable
+	private String message;
+	@Nullable
 	@DatabaseColumn("metadata")
 	private String metadataAsString;
 	@Nullable
@@ -128,6 +130,15 @@ public class PatientOrderTracking {
 
 	public void setAccountId(@Nullable UUID accountId) {
 		this.accountId = accountId;
+	}
+
+	@Nullable
+	public String getMessage() {
+		return this.message;
+	}
+
+	public void setMessage(@Nullable String message) {
+		this.message = message;
 	}
 
 	@Nullable

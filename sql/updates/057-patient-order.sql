@@ -172,6 +172,8 @@ CREATE TABLE patient_order_tracking_type (
   description VARCHAR NOT NULL
 );
 
+-- Data to include: patient order import ID
+INSERT INTO patient_order_tracking_type VALUES ('IMPORTED', 'Imported');
 -- Data to include: old patient order status ID, new patient order status ID
 INSERT INTO patient_order_tracking_type VALUES ('STATUS_CHANGED', 'Status Changed');
 -- Data to include: screening session ID
@@ -191,6 +193,7 @@ CREATE TABLE patient_order_tracking (
   patient_order_tracking_type_id VARCHAR NOT NULL REFERENCES patient_order_tracking_type,
   patient_order_id UUID NOT NULL REFERENCES patient_order,
   account_id UUID REFERENCES account,
+  message TEXT NOT NULL,
   metadata JSONB NOT NULL DEFAULT '{}'::JSONB, -- Bag for holding whatever data might be needed for this footprint
   created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
