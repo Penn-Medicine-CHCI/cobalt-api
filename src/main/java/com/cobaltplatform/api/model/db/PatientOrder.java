@@ -98,8 +98,6 @@ public class PatientOrder {
 	@Nullable
 	private String reasonForReferral;
 	@Nullable
-	private String diagnosis;
-	@Nullable
 	private String associatedDiagnosis;
 	@Nullable
 	private String callbackPhoneNumber;
@@ -406,15 +404,6 @@ public class PatientOrder {
 
 	public void setReasonForReferral(@Nullable String reasonForReferral) {
 		this.reasonForReferral = reasonForReferral;
-	}
-
-	@Nullable
-	public String getDiagnosis() {
-		return this.diagnosis;
-	}
-
-	public void setDiagnosis(@Nullable String diagnosis) {
-		this.diagnosis = diagnosis;
 	}
 
 	@Nullable

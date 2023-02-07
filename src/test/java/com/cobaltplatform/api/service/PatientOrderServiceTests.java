@@ -24,6 +24,7 @@ import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
+import com.cobaltplatform.api.model.db.PatientOrderDiagnosis;
 import com.cobaltplatform.api.model.db.PatientOrderImport;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 import org.junit.Assert;
@@ -65,6 +66,13 @@ public class PatientOrderServiceTests {
 			List<PatientOrder> patientOrders = patientOrderService.findPatientOrdersByPatientOrderImportId(patientOrderImportId);
 
 			Assert.assertEquals("Unexpected number of patient orders created for import", 8, patientOrders.size());
+
+			for (PatientOrder patientOrder : patientOrders) {
+				if (patientOrder.getOrderId().equals("1014")) {
+					List<PatientOrderDiagnosis> patientOrderDiagnoses = patientOrderService.findPatientOrderDiagnosesByPatientOrderId(patientOrder.getPatientOrderId());
+					Assert.assertEquals("Unexpected number of patient diagnoses for order 1014", 3, patientOrderDiagnoses.size());
+				}
+			}
 		});
 	}
 }

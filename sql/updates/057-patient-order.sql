@@ -77,7 +77,6 @@ CREATE TABLE patient_order (
   order_id VARCHAR NOT NULL,
   routing VARCHAR,
   reason_for_referral VARCHAR,
-  diagnosis VARCHAR,
   associated_diagnosis VARCHAR,
   callback_phone_number VARCHAR,
   preferred_contact_hours VARCHAR,
@@ -91,6 +90,20 @@ CREATE TABLE patient_order (
 );
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+CREATE TABLE patient_order_diagnosis (
+  patient_order_diagnosis_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  patient_order_id UUID NOT NULL REFERENCES patient_order,
+  diagnosis_id VARCHAR NOT NULL,
+  diagnosis_id_type VARCHAR,
+  diagnosis_name VARCHAR NOT NULL,
+  display_order INTEGER NOT NULL,
+  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (patient_order_id, display_order)
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_diagnosis FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 CREATE TABLE patient_order_care_type (
   patient_order_care_type_id VARCHAR PRIMARY KEY,

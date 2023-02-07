@@ -22,9 +22,11 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderDiagnosisRequest;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
+import com.cobaltplatform.api.model.db.PatientOrderDiagnosis;
 import com.cobaltplatform.api.model.db.PatientOrderImport;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
@@ -53,11 +55,15 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -149,6 +155,19 @@ public class PatientOrderService {
 	}
 
 	@Nonnull
+	public List<PatientOrderDiagnosis> findPatientOrderDiagnosesByPatientOrderId(@Nullable UUID patientOrderId) {
+		if (patientOrderId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT * 
+				FROM patient_order_diagnosis
+				WHERE patient_order_id=?
+				ORDER BY display_order
+				""", PatientOrderDiagnosis.class, patientOrderId);
+	}
+
+	@Nonnull
 	public UUID createPatientOrderImport(@Nonnull CreatePatientOrderImportRequest request) {
 		requireNonNull(request);
 
@@ -225,7 +244,38 @@ public class PatientOrderService {
 					patientOrderRequest.setOrderAge(trimToNull(record.get("Age of Order")));
 					patientOrderRequest.setRouting(trimToNull(record.get("CCBH Order Routing")));
 					patientOrderRequest.setReasonForReferral(trimToNull(record.get("Reasons for Referral")));
-					patientOrderRequest.setDiagnosis(trimToNull(record.get("DX")));
+
+					// Might be encoded as names + bracketed IDs in CSV like this (a single field with newlines)
+					// "GAD (generalized anxiety disorder) [213881]
+					// Smoker [283397]
+					// Alcohol abuse [155739]"
+					String diagnosesAsString = trimToNull(record.get("DX"));
+					List<CreatePatientOrderDiagnosisRequest> diagnoses = new ArrayList<>();
+
+					if (diagnosesAsString != null) {
+						if (diagnosesAsString.contains("\n")) {
+							for (String diagnosis : diagnosesAsString.split("\n")) {
+								diagnosis = diagnosis.trim();
+
+								if (diagnosis.length() > 0) {
+									NameWithEmbeddedId nameWithEmbeddedId = new NameWithEmbeddedId(diagnosis);
+									CreatePatientOrderDiagnosisRequest diagnosisRequest = new CreatePatientOrderDiagnosisRequest();
+									diagnosisRequest.setDiagnosisId(nameWithEmbeddedId.getId().orElse(null));
+									diagnosisRequest.setDiagnosisName(nameWithEmbeddedId.getName());
+									diagnoses.add(diagnosisRequest);
+								}
+							}
+						} else {
+							NameWithEmbeddedId nameWithEmbeddedId = new NameWithEmbeddedId(diagnosesAsString);
+							CreatePatientOrderDiagnosisRequest diagnosisRequest = new CreatePatientOrderDiagnosisRequest();
+							diagnosisRequest.setDiagnosisId(nameWithEmbeddedId.getId().orElse(null));
+							diagnosisRequest.setDiagnosisName(nameWithEmbeddedId.getName());
+							diagnoses.add(diagnosisRequest);
+						}
+					}
+
+					patientOrderRequest.setDiagnoses(diagnoses);
+
 					patientOrderRequest.setAssociatedDiagnosis(trimToNull(record.get("Order Associated Diagnosis (ICD-10)")));
 					patientOrderRequest.setCallbackPhoneNumber(trimToNull(record.get("Call Back Number")));
 					patientOrderRequest.setPreferredContactHours(trimToNull(record.get("Preferred Contact Hours")));
@@ -326,7 +376,9 @@ public class PatientOrderService {
 		String orderId = trimToNull(request.getOrderId());
 		String routing = trimToNull(request.getRouting());
 		String reasonForReferral = trimToNull(request.getReasonForReferral());
-		String diagnosis = trimToNull(request.getDiagnosis());
+		List<CreatePatientOrderDiagnosisRequest> diagnoses = request.getDiagnoses() == null ? List.of() : request.getDiagnoses().stream()
+				.filter(diagnosis -> diagnosis != null)
+				.collect(Collectors.toList());
 		String associatedDiagnosis = trimToNull(request.getAssociatedDiagnosis());
 		String callbackPhoneNumber = trimToNull(request.getCallbackPhoneNumber());
 		String preferredContactHours = trimToNull(request.getPreferredContactHours());
@@ -371,6 +423,17 @@ public class PatientOrderService {
 				validationException.add(new FieldError("orderDate", getStrings().get("Unrecognized order date format: {{orderDate}}",
 						Map.of("orderDate", orderDateAsString))));
 			}
+		}
+
+		if (diagnoses.size() > 0) {
+			Set<String> diagnosisErrors = new HashSet<>();
+
+			for (CreatePatientOrderDiagnosisRequest diagnosis : diagnoses)
+				if (trimToNull(diagnosis.getDiagnosisName()) == null)
+					diagnosisErrors.add(getStrings().get("Diagnosis name is required."));
+
+			for (String diagnosisError : diagnosisErrors)
+				validationException.add(new FieldError("diagnoses", diagnosisError));
 		}
 
 		if (orderAge == null) {
@@ -424,7 +487,7 @@ public class PatientOrderService {
 
 		try {
 			String postalName = Normalizer.normalizeName(patientFirstName, patientLastName).get();
-			
+
 			patientAddressId = getAddressService().createAddress(new CreateAddressRequest() {{
 				setPostalName(postalName);
 				setStreetAddress1(patientAddressLine1);
@@ -438,6 +501,32 @@ public class PatientOrderService {
 		} catch (ValidationException addressValidationException) {
 			validationException.add(addressValidationException);
 		}
+
+		if (callbackPhoneNumber != null) {
+			String originalCallbackPhoneNumber = callbackPhoneNumber;
+			callbackPhoneNumber = getNormalizer().normalizePhoneNumberToE164(callbackPhoneNumber, Locale.US).orElse(null);
+
+			if (callbackPhoneNumber == null)
+				validationException.add(new FieldError("callbackPhoneNumber", getStrings().get("Invalid callback phone number: {{callbackPhoneNumber}}.",
+						Map.of("callbackPhoneNumber", originalCallbackPhoneNumber))));
+		}
+
+		// Normalizes some names and also extracts IDs.
+		//
+		// Examples:
+		// billingProviderName="ROBINSON, LAURA E [R11853]" -> "ROBINSON, LAURA E" (name), "R11853" (id)
+
+		NameWithEmbeddedId billingProvider = new NameWithEmbeddedId(billingProviderName);
+		billingProviderName = billingProvider.getName();
+
+		if (billingProviderId == null)
+			billingProviderId = billingProvider.getId().orElse(null);
+
+		NameWithEmbeddedId referringPractice = new NameWithEmbeddedId(referringPracticeName);
+		referringPracticeName = referringPractice.getName();
+
+		if (referringPracticeId == null)
+			referringPracticeId = referringPractice.getId().orElse(null);
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -475,7 +564,6 @@ public class PatientOrderService {
 						  order_id,
 						  routing,
 						  reason_for_referral,
-						  diagnosis,
 						  associated_diagnosis,
 						  callback_phone_number,
 						  preferred_contact_hours,
@@ -484,18 +572,100 @@ public class PatientOrderService {
 						  last_active_medication_order_summary,
 						  medications,
 						  recent_psychotherapeutic_medications
-						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				patientOrderId, patientOrderStatusId, patientOrderImportId, institutionId, encounterDepartmentId,
 				encounterDepartmentIdType, encounterDepartmentName, referringPracticeId, referringPracticeIdType,
 				referringPracticeName, orderingProviderId, orderingProviderIdType, orderingProviderName, billingProviderId,
 				billingProviderIdType, billingProviderName, patientLastName, patientFirstName, patientMrn, patientId,
 				patientIdType, patientBirthSexId, patientBirthdate, patientAddressId, primaryPayor, primaryPlan,
-				orderDate, orderAgeInMinutes, orderId, routing, reasonForReferral, diagnosis, associatedDiagnosis,
-				callbackPhoneNumber, preferredContactHours, comments, ccRecipients, lastActiveMedicationOrderSummary,
-				medications, recentPsychotherapeuticMedications);
+				orderDate, orderAgeInMinutes, orderId, routing, reasonForReferral, associatedDiagnosis, callbackPhoneNumber,
+				preferredContactHours, comments, ccRecipients, lastActiveMedicationOrderSummary, medications,
+				recentPsychotherapeuticMedications);
+
+		int diagnosisDisplayOrder = 0;
+
+		for (CreatePatientOrderDiagnosisRequest diagnosis : diagnoses) {
+			String diagnosisId = trimToNull(diagnosis.getDiagnosisId());
+			String diagnosisIdType = trimToNull(diagnosis.getDiagnosisIdType());
+			String diagnosisName = trimToNull(diagnosis.getDiagnosisName());
+
+			getDatabase().execute("""
+					INSERT INTO patient_order_diagnosis (
+					patient_order_id, 
+					diagnosis_id,
+					diagnosis_id_type,
+					diagnosis_name,
+					display_order
+					) VALUES (?,?,?,?,?)
+					""", patientOrderId, diagnosisId, diagnosisIdType, diagnosisName, diagnosisDisplayOrder);
+
+			++diagnosisDisplayOrder;
+		}
 
 		return patientOrderId;
+	}
+
+	/**
+	 * Breaks an order import name/ID string encoding into its component parts.
+	 * <p>
+	 * Examples:
+	 * <p>
+	 * billingProviderName="ROBINSON, LAURA E [R11853]" -> "ROBINSON, LAURA E", "R11853"
+	 * diagnosis="Anxiety state [208252]" -> "Anxiety state", "208252"
+	 */
+	@ThreadSafe
+	protected static class NameWithEmbeddedId {
+		@Nonnull
+		private static final Pattern PATTERN;
+
+		@Nonnull
+		private final String originalName;
+		@Nonnull
+		private final String name;
+		@Nullable
+		private final String id;
+
+		static {
+			// Finds "[...]" at the end of the string
+			PATTERN = Pattern.compile("\\[(.*?)\\]$", Pattern.CASE_INSENSITIVE);
+		}
+
+		public NameWithEmbeddedId(@Nonnull String originalName) {
+			requireNonNull(originalName);
+
+			originalName = originalName.trim();
+
+			String name = originalName;
+			String id = null;
+
+			Matcher matcher = PATTERN.matcher(originalName);
+			boolean matchFound = matcher.find();
+
+			if (matchFound) {
+				name = name.replaceAll("\\[(.*?)\\]$", "").trim();
+				id = matcher.group().replace("[", "").replace("]", "");
+			}
+
+			this.originalName = originalName;
+			this.name = name;
+			this.id = id;
+		}
+
+		@Nonnull
+		public String getOriginalName() {
+			return this.originalName;
+		}
+
+		@Nonnull
+		public String getName() {
+			return this.name;
+		}
+
+		@Nonnull
+		public Optional<String> getId() {
+			return Optional.ofNullable(this.id);
+		}
 	}
 
 	@Nonnull

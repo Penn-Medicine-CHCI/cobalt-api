@@ -23,6 +23,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -99,7 +100,7 @@ public class CreatePatientOrderRequest {
 	@Nullable
 	private String reasonForReferral;
 	@Nullable
-	private String diagnosis;
+	private List<CreatePatientOrderDiagnosisRequest> diagnoses;
 	@Nullable
 	private String associatedDiagnosis;
 	@Nullable
@@ -116,6 +117,43 @@ public class CreatePatientOrderRequest {
 	private String medications;
 	@Nullable
 	private String recentPsychotherapeuticMedications;
+
+	@NotThreadSafe
+	public static class CreatePatientOrderDiagnosisRequest {
+		@Nullable
+		private String diagnosisId;
+		@Nullable
+		private String diagnosisIdType;
+		@Nullable
+		private String diagnosisName;
+
+		@Nullable
+		public String getDiagnosisId() {
+			return this.diagnosisId;
+		}
+
+		public void setDiagnosisId(@Nullable String diagnosisId) {
+			this.diagnosisId = diagnosisId;
+		}
+
+		@Nullable
+		public String getDiagnosisIdType() {
+			return this.diagnosisIdType;
+		}
+
+		public void setDiagnosisIdType(@Nullable String diagnosisIdType) {
+			this.diagnosisIdType = diagnosisIdType;
+		}
+
+		@Nullable
+		public String getDiagnosisName() {
+			return this.diagnosisName;
+		}
+
+		public void setDiagnosisName(@Nullable String diagnosisName) {
+			this.diagnosisName = diagnosisName;
+		}
+	}
 
 	@Nullable
 	public UUID getPatientOrderImportId() {
@@ -424,12 +462,12 @@ public class CreatePatientOrderRequest {
 	}
 
 	@Nullable
-	public String getDiagnosis() {
-		return this.diagnosis;
+	public List<CreatePatientOrderDiagnosisRequest> getDiagnoses() {
+		return this.diagnoses;
 	}
 
-	public void setDiagnosis(@Nullable String diagnosis) {
-		this.diagnosis = diagnosis;
+	public void setDiagnoses(@Nullable List<CreatePatientOrderDiagnosisRequest> diagnoses) {
+		this.diagnoses = diagnoses;
 	}
 
 	@Nullable
