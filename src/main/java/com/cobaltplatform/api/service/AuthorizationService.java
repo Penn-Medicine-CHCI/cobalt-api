@@ -518,6 +518,20 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
+	public Boolean canEditPatientOrder(@Nonnull PatientOrder patientOrder,
+																		 @Nonnull Account account) {
+		requireNonNull(patientOrder);
+		requireNonNull(account);
+
+		// An admin or MHIC at the same institution is able to view patient orders at that institution
+		if (Objects.equals(account.getInstitutionId(), patientOrder.getInstitutionId())
+				&& (account.getRoleId() == RoleId.ADMINISTRATOR || account.getRoleId() == RoleId.MHIC))
+			return true;
+
+		return false;
+	}
+
+	@Nonnull
 	protected GroupSessionService getGroupSessionService() {
 		return this.groupSessionServiceProvider.get();
 	}
