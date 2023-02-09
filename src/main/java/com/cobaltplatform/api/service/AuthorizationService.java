@@ -470,9 +470,34 @@ public class AuthorizationService {
 		requireNonNull(patientOrder);
 		requireNonNull(account);
 
-		// An admin or MHIC at the same institution is able to view patient orders others at that institution
+		// An admin or MHIC at the same institution is able to view patient orders at that institution
 		if (Objects.equals(account.getInstitutionId(), patientOrder.getInstitutionId())
 				&& (account.getRoleId() == RoleId.ADMINISTRATOR || account.getRoleId() == RoleId.MHIC))
+			return true;
+
+		return false;
+	}
+
+	@Nonnull
+	public Boolean canViewPatientOrders(@Nonnull InstitutionId institutionId,
+																			@Nonnull Account account) {
+		requireNonNull(institutionId);
+		requireNonNull(account);
+
+		// Re-use existing logic
+		return canImportPatientOrders(institutionId, account);
+	}
+
+	@Nonnull
+	public Boolean canViewPatientOrdersForPanelAccount(@Nonnull Account viewingAccount,
+																										 @Nonnull Account panelAccount) {
+		requireNonNull(viewingAccount);
+		requireNonNull(panelAccount);
+
+		// Both viewing and panel "owner" accounts must be of correct role and in the same institution
+		if ((viewingAccount.getRoleId() == RoleId.ADMINISTRATOR || viewingAccount.getRoleId() == RoleId.MHIC)
+				&& (panelAccount.getRoleId() == RoleId.ADMINISTRATOR || panelAccount.getRoleId() == RoleId.MHIC)
+				&& Objects.equals(viewingAccount.getInstitutionId(), panelAccount.getInstitutionId()))
 			return true;
 
 		return false;
@@ -484,7 +509,7 @@ public class AuthorizationService {
 		requireNonNull(institutionId);
 		requireNonNull(account);
 
-		// An admin or MHIC at the same institution is able to view patient orders others at that institution
+		// An admin or MHIC at the same institution is able to view patient orders at that institution
 		if (Objects.equals(account.getInstitutionId(), institutionId)
 				&& (account.getRoleId() == RoleId.ADMINISTRATOR || account.getRoleId() == RoleId.MHIC))
 			return true;

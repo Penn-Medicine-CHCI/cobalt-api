@@ -47,7 +47,7 @@ public class PatientOrder {
 	@Nullable
 	private UUID patientAddressId;
 	@Nullable
-	private UUID providerAccountId;
+	private UUID mhicAccountId;
 	@Nullable
 	private String encounterDepartmentId;
 	@Nullable
@@ -176,12 +176,12 @@ public class PatientOrder {
 	}
 
 	@Nullable
-	public UUID getProviderAccountId() {
-		return this.providerAccountId;
+	public UUID getMhicAccountId() {
+		return this.mhicAccountId;
 	}
 
-	public void setProviderAccountId(@Nullable UUID providerAccountId) {
-		this.providerAccountId = providerAccountId;
+	public void setMhicAccountId(@Nullable UUID mhicAccountId) {
+		this.mhicAccountId = mhicAccountId;
 	}
 
 	@Nullable

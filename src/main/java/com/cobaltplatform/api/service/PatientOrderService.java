@@ -25,6 +25,7 @@ import com.cobaltplatform.api.model.api.request.CreatePatientOrderEventRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderDiagnosisRequest;
+import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -34,6 +35,8 @@ import com.cobaltplatform.api.model.db.PatientOrderEventType.PatientOrderEventTy
 import com.cobaltplatform.api.model.db.PatientOrderImport;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
+import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.model.service.PatientOrderPanelTypeId;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
@@ -55,6 +58,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -80,6 +84,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -187,6 +192,73 @@ public class PatientOrderService {
 				WHERE patient_order_id=?
 				ORDER BY display_order
 				""", PatientOrderDiagnosis.class, patientOrderId);
+	}
+
+	@Nonnull
+	public FindResult<PatientOrder> findPatientOrders(@Nonnull FindPatientOrdersRequest request) {
+		requireNonNull(request);
+
+		InstitutionId institutionId = request.getInstitutionId();
+		PatientOrderPanelTypeId patientOrderPanelTypeId = request.getPatientOrderPanelTypeId();
+		UUID panelAccountId = request.getPanelAccountId();
+		String searchQuery = trimToNull(request.getSearchQuery());
+		Integer pageNumber = request.getPageNumber();
+		Integer pageSize = request.getPageSize();
+
+		final int DEFAULT_PAGE_SIZE = 50;
+		final int MAXIMUM_PAGE_SIZE = 100;
+
+		if (pageNumber == null || pageNumber < 0)
+			pageNumber = 0;
+
+		if (pageSize == null || pageSize <= 0)
+			pageSize = DEFAULT_PAGE_SIZE;
+		else if (pageSize > MAXIMUM_PAGE_SIZE)
+			pageSize = MAXIMUM_PAGE_SIZE;
+
+		Integer offset = pageNumber * pageSize;
+		Integer limit = pageSize;
+		List<Object> parameters = new ArrayList<>();
+
+		parameters.add(institutionId);
+
+		// TODO: finish adding other parameters/filters
+
+		parameters.add(limit);
+		parameters.add(offset);
+
+		// TODO: handle rest of query criteria
+
+		String sql = """
+				  WITH base_query AS (
+				  SELECT po.*
+				  FROM patient_order po
+				  WHERE po.institution_id=?
+				  ),
+				  total_count_query AS (
+				  SELECT COUNT(bq.*) AS total_count
+				  FROM base_query bq
+				  )
+				  SELECT
+				  bq.*,
+				  tcq.total_count
+				  FROM
+				  total_count_query tcq,
+				  base_query bq
+				  LIMIT ?
+				  OFFSET ?
+				""";
+
+		List<PatientOrderWithTotalCount> patientOrders = getDatabase().queryForList(sql, PatientOrderWithTotalCount.class, sqlVaragsParameters(parameters));
+
+		Integer totalCount = patientOrders.stream()
+				.filter(patientOrder -> patientOrder.getTotalCount() != null)
+				.mapToInt(PatientOrderWithTotalCount::getTotalCount)
+				.findFirst()
+				.orElse(0);
+
+		FindResult<? extends PatientOrder> findResult = new FindResult<>(patientOrders, totalCount);
+		return (FindResult<PatientOrder>) findResult;
 	}
 
 	@Nonnull
@@ -846,6 +918,21 @@ public class PatientOrderService {
 		@Nonnull
 		public Optional<String> getId() {
 			return Optional.ofNullable(this.id);
+		}
+	}
+
+	@NotThreadSafe
+	protected static class PatientOrderWithTotalCount extends PatientOrder {
+		@Nullable
+		private Integer totalCount;
+
+		@Nullable
+		public Integer getTotalCount() {
+			return this.totalCount;
+		}
+
+		public void setTotalCount(@Nullable Integer totalCount) {
+			this.totalCount = totalCount;
 		}
 	}
 

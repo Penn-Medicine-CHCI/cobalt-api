@@ -21,17 +21,25 @@ package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
+import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
+import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.model.service.PatientOrderPanelTypeId;
+import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.PatientOrderService;
+import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.PathParameter;
+import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.RequestBody;
 import com.soklet.web.annotation.Resource;
 import com.soklet.web.exception.AuthorizationException;
@@ -46,7 +54,11 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -60,11 +72,15 @@ public class PatientOrderResource {
 	@Nonnull
 	private final PatientOrderService patientOrderService;
 	@Nonnull
+	private final AccountService accountService;
+	@Nonnull
 	private final AuthorizationService authorizationService;
 	@Nonnull
 	private final PatientOrderApiResponseFactory patientOrderApiResponseFactory;
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
+	@Nonnull
+	private final Formatter formatter;
 	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
@@ -72,20 +88,26 @@ public class PatientOrderResource {
 
 	@Inject
 	public PatientOrderResource(@Nonnull PatientOrderService patientOrderService,
+															@Nonnull AccountService accountService,
 															@Nonnull AuthorizationService authorizationService,
 															@Nonnull PatientOrderApiResponseFactory patientOrderApiResponseFactory,
 															@Nonnull RequestBodyParser requestBodyParser,
+															@Nonnull Formatter formatter,
 															@Nonnull Provider<CurrentContext> currentContextProvider) {
 		requireNonNull(patientOrderService);
+		requireNonNull(accountService);
 		requireNonNull(authorizationService);
 		requireNonNull(patientOrderApiResponseFactory);
 		requireNonNull(requestBodyParser);
+		requireNonNull(formatter);
 		requireNonNull(currentContextProvider);
 
 		this.patientOrderService = patientOrderService;
+		this.accountService = accountService;
 		this.authorizationService = authorizationService;
 		this.patientOrderApiResponseFactory = patientOrderApiResponseFactory;
 		this.requestBodyParser = requestBodyParser;
+		this.formatter = formatter;
 		this.currentContextProvider = currentContextProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
@@ -107,6 +129,60 @@ public class PatientOrderResource {
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("patientOrder", getPatientOrderApiResponseFactory().create(patientOrder));
+		}});
+	}
+
+	@Nonnull
+	@GET("/patient-orders")
+	@AuthenticationRequired
+	public ApiResponse findPatientOrders(@Nonnull @QueryParameter Optional<PatientOrderPanelTypeId> patientOrderPanelTypeId,
+																			 @Nonnull @QueryParameter Optional<UUID> panelAccountId,
+																			 @Nonnull @QueryParameter Optional<String> searchQuery,
+																			 @Nonnull @QueryParameter Optional<Integer> pageNumber,
+																			 @Nonnull @QueryParameter Optional<Integer> pageSize) {
+		requireNonNull(patientOrderPanelTypeId);
+		requireNonNull(panelAccountId);
+		requireNonNull(searchQuery);
+		requireNonNull(pageNumber);
+		requireNonNull(pageSize);
+
+		CurrentContext currentContext = getCurrentContext();
+		Account account = currentContext.getAccount().get();
+		InstitutionId institutionId = account.getInstitutionId();
+
+		if (!getAuthorizationService().canViewPatientOrders(institutionId, account))
+			throw new AuthorizationException();
+
+		// If you want to look at another account's panel, make sure you're authorized to do so
+		if (panelAccountId.isPresent()) {
+			Account panelAccount = getAccountService().findAccountById(panelAccountId.orElse(null)).orElse(null);
+
+			if (!getAuthorizationService().canViewPatientOrdersForPanelAccount(account, panelAccount))
+				throw new AuthorizationException();
+		}
+		
+		FindResult<PatientOrder> findResult = getPatientOrderService().findPatientOrders(new FindPatientOrdersRequest() {
+			{
+				setInstitutionId(account.getInstitutionId());
+				setPatientOrderPanelTypeId(patientOrderPanelTypeId.orElse(null));
+				setPanelAccountId(panelAccountId.orElse(null));
+				setSearchQuery(searchQuery.orElse(null));
+				setPageNumber(pageNumber.orElse(0));
+				setPageSize(pageSize.orElse(0));
+			}
+		});
+
+		List<PatientOrderApiResponse> patientOrders = findResult.getResults().stream()
+				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder))
+				.collect(Collectors.toList());
+
+		Map<String, Object> findResultJson = new HashMap<>();
+		findResultJson.put("patientOrders", patientOrders);
+		findResultJson.put("totalCount", findResult.getTotalCount());
+		findResultJson.put("totalCountDescription", getFormatter().formatNumber(findResult.getTotalCount()));
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("findResult", findResultJson);
 		}});
 	}
 
@@ -134,6 +210,11 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
+	protected AccountService getAccountService() {
+		return this.accountService;
+	}
+
+	@Nonnull
 	protected AuthorizationService getAuthorizationService() {
 		return this.authorizationService;
 	}
@@ -146,6 +227,11 @@ public class PatientOrderResource {
 	@Nonnull
 	protected RequestBodyParser getRequestBodyParser() {
 		return this.requestBodyParser;
+	}
+
+	@Nonnull
+	protected Formatter getFormatter() {
+		return this.formatter;
 	}
 
 	@Nonnull

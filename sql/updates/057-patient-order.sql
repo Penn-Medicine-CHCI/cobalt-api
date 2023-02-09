@@ -42,6 +42,7 @@ INSERT INTO patient_order_status VALUES ('NEEDS_FURTHER_ASSESSMENT', 'Needs Furt
 INSERT INTO patient_order_status VALUES ('GRADUATED', 'Graduated', TRUE);
 INSERT INTO patient_order_status VALUES ('CONNECTED_TO_CARE', 'Connected To Care', TRUE);
 INSERT INTO patient_order_status VALUES ('LOST_CONTACT', 'Lost Contact', TRUE);
+INSERT INTO patient_order_status VALUES ('ARCHIVED', 'Archived', TRUE);
 
 -- The actual order, can be modified over time.
 -- We keep track of changes by writing to the patient_order_tracking table
@@ -51,7 +52,7 @@ CREATE TABLE patient_order (
   patient_order_import_id UUID NOT NULL REFERENCES patient_order_import,
   institution_id VARCHAR NOT NULL REFERENCES institution,
   patient_account_id UUID REFERENCES account,
-  provider_account_id UUID REFERENCES account, -- which provider account is handling this order, if any
+  mhic_account_id UUID REFERENCES account, -- which MHIC account is handling this order, if any
   encounter_department_id VARCHAR,
   encounter_department_id_type VARCHAR, -- not currently provided
   encounter_department_name VARCHAR,
@@ -93,6 +94,19 @@ CREATE TABLE patient_order (
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
+-- Keep track of screening sessions for this order.
+-- Keyed off of the flow specfied on institution.integrated_care_screening_flow_id
+CREATE TABLE patient_order_screening_session (
+  patient_order_id UUID NOT NULL REFERENCES patient_order,
+  screening_session_id UUID NOT NULL REFERENCES screening_session,
+  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (patient_order_id, screening_session_id)
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_screening_session FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+-- EHR diagnoses that come in as part of the order import.  Can be multiple per order
 CREATE TABLE patient_order_diagnosis (
   patient_order_diagnosis_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_order_id UUID NOT NULL REFERENCES patient_order,
@@ -107,11 +121,13 @@ CREATE TABLE patient_order_diagnosis (
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_diagnosis FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
+-- Recommended care type for order
 CREATE TABLE patient_order_care_type (
   patient_order_care_type_id VARCHAR PRIMARY KEY,
   description VARCHAR NOT NULL
 );
 
+INSERT INTO patient_order_care_type VALUES ('UNSPECIFIED', 'Unspecified');
 INSERT INTO patient_order_care_type VALUES ('SUBCLINICAL', 'Subclinical');
 INSERT INTO patient_order_care_type VALUES ('SPECIALTY', 'Specialty');
 INSERT INTO patient_order_care_type VALUES ('COLLABORATIVE', 'Collaborative');
@@ -121,6 +137,7 @@ CREATE TABLE patient_order_focus_type (
   description VARCHAR NOT NULL
 );
 
+INSERT INTO patient_order_focus_type VALUES ('UNSPECIFIED', 'Unspecified');
 INSERT INTO patient_order_focus_type VALUES ('SELF_DIRECTED', 'Self-Directed');
 INSERT INTO patient_order_focus_type VALUES ('GENERAL', 'General');
 INSERT INTO patient_order_focus_type VALUES ('GRIEF', 'Grief');
@@ -134,6 +151,7 @@ INSERT INTO patient_order_focus_type VALUES ('TRAUMA', 'Trauma');
 INSERT INTO patient_order_focus_type VALUES ('LCSW_CAPACITY', 'LCSW Capacity');
 INSERT INTO patient_order_focus_type VALUES ('CRISIS_CARE', 'Crisis Care');
 
+-- How was a triage assigned to the order?  e.g. via Cobalt screening result scoring or manually set by MHIC
 CREATE TABLE patient_order_triage_source (
   patient_order_triage_source_id VARCHAR PRIMARY KEY,
   description VARCHAR NOT NULL

@@ -35,6 +35,7 @@ public class PatientOrderCareType {
 	private String description;
 
 	public enum PatientOrderCareTypeId {
+		UNSPECIFIED,
 		SUBCLINICAL,
 		SPECIALTY,
 		COLLABORATIVE

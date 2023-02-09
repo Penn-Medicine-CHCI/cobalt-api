@@ -35,6 +35,7 @@ public class PatientOrderFocusType {
 	private String description;
 
 	public enum PatientOrderFocusTypeId {
+		UNSPECIFIED,
 		SELF_DIRECTED,
 		GENERAL,
 		GRIEF,

@@ -47,7 +47,8 @@ public class PatientOrderStatus {
 		NEEDS_FURTHER_ASSESSMENT,
 		GRADUATED,
 		CONNECTED_TO_CARE,
-		LOST_CONTACT
+		LOST_CONTACT,
+		ARCHIVED
 	}
 
 	@Override

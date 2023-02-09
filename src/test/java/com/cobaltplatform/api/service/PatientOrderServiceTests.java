@@ -22,6 +22,7 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.IntegrationTestExecutor;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
+import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -30,32 +31,16 @@ import com.cobaltplatform.api.model.db.PatientOrderDiagnosis;
 import com.cobaltplatform.api.model.db.PatientOrderImport;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonPrimitive;
-import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
+import com.cobaltplatform.api.model.service.FindResult;
 import org.junit.Assert;
 import org.junit.Test;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
-import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
-
-import static java.lang.String.format;
-import static java.util.Objects.requireNonNull;
-import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -109,50 +94,13 @@ public class PatientOrderServiceTests {
 			List<PatientOrder> patientOrdersForTestPatientAccount = patientOrderService.findPatientOrdersByAccountId(patientAccountId);
 
 			Assert.assertEquals("Patient was not automatically associated with imported order", 1, patientOrdersForTestPatientAccount.size());
+
+			FindResult<PatientOrder> patientOrderFindResult = patientOrderService.findPatientOrders(new FindPatientOrdersRequest() {{
+				setInstitutionId(institutionId);
+			}});
+
+			Assert.assertEquals("Patient order find didn't return expected results", 8, patientOrderFindResult.getResults().size());
+			Assert.assertEquals("Patient order find didn't return expected results", 8L, (long) patientOrderFindResult.getTotalCount());
 		});
 	}
-
-	@Nonnull
-	protected Gson createGson() {
-		GsonBuilder gsonBuilder = new GsonBuilder().setPrettyPrinting();
-
-		gsonBuilder.registerTypeAdapter(LocalDate.class, new JsonDeserializer<LocalDate>() {
-			@Override
-			@Nullable
-			public LocalDate deserialize(@Nullable JsonElement json,
-																	 @Nonnull Type type,
-																	 @Nonnull JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
-				requireNonNull(type);
-				requireNonNull(jsonDeserializationContext);
-
-				if (json == null)
-					return null;
-
-				JsonPrimitive jsonPrimitive = json.getAsJsonPrimitive();
-
-				if (jsonPrimitive.isString()) {
-					String string = trimToNull(json.getAsString());
-					return string == null ? null : LocalDate.parse(string);
-				}
-
-				throw new IllegalArgumentException(format("Unable to convert JSON value '%s' to %s", json, type));
-			}
-		});
-
-		gsonBuilder.registerTypeAdapter(LocalDate.class, new JsonSerializer<LocalDate>() {
-			@Override
-			@Nullable
-			public JsonElement serialize(@Nullable LocalDate localDate,
-																	 @Nonnull Type type,
-																	 @Nonnull JsonSerializationContext jsonSerializationContext) {
-				requireNonNull(type);
-				requireNonNull(jsonSerializationContext);
-
-				return localDate == null ? null : new JsonPrimitive(localDate.toString());
-			}
-		});
-
-		return gsonBuilder.create();
-	}
-
 }
