@@ -69,6 +69,8 @@ public class CreateAccountRequest {
 	@Nullable
 	private String epicPatientIdType;
 	@Nullable
+	private String epicPatientMrn;
+	@Nullable
 	private GenderIdentityId genderIdentityId;
 	@Nullable
 	private EthnicityId ethnicityId;
@@ -214,6 +216,15 @@ public class CreateAccountRequest {
 
 	public void setEpicPatientIdType(@Nullable String epicPatientIdType) {
 		this.epicPatientIdType = epicPatientIdType;
+	}
+
+	@Nullable
+	public String getEpicPatientMrn() {
+		return this.epicPatientMrn;
+	}
+
+	public void setEpicPatientMrn(@Nullable String epicPatientMrn) {
+		this.epicPatientMrn = epicPatientMrn;
 	}
 
 	@Nullable

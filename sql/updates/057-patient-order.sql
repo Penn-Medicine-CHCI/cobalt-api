@@ -1,6 +1,8 @@
 BEGIN;
 SELECT _v.register_patch('057-patient-order', NULL, NULL);
 
+ALTER TABLE account ADD COLUMN epic_patient_mrn TEXT;
+
 -- We might import orders via an EHR like Epic or via manual CSV upload
 CREATE TABLE patient_order_import_type (
   patient_order_import_type_id VARCHAR PRIMARY KEY,

@@ -105,6 +105,8 @@ public class Account {
 	private String epicPatientId;
 	@Nullable
 	private String epicPatientIdType;
+	@Nullable
+	private String epicPatientMrn;
 	@Deprecated
 	@Nullable
 	private Boolean epicPatientCreatedByCobalt;
@@ -380,6 +382,15 @@ public class Account {
 
 	public void setEpicPatientIdType(@Nullable String epicPatientIdType) {
 		this.epicPatientIdType = epicPatientIdType;
+	}
+
+	@Nullable
+	public String getEpicPatientMrn() {
+		return this.epicPatientMrn;
+	}
+
+	public void setEpicPatientMrn(@Nullable String epicPatientMrn) {
+		this.epicPatientMrn = epicPatientMrn;
 	}
 
 	@Nullable
