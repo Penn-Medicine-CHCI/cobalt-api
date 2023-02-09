@@ -23,9 +23,12 @@ import com.cobaltplatform.api.integration.epic.response.PatientReadFhirR4Respons
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderEventRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderDiagnosisRequest;
+import com.cobaltplatform.api.model.api.request.DeletePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -34,6 +37,7 @@ import com.cobaltplatform.api.model.db.PatientOrderDiagnosis;
 import com.cobaltplatform.api.model.db.PatientOrderEventType.PatientOrderEventTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderImport;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.PatientOrderPanelTypeId;
@@ -195,6 +199,32 @@ public class PatientOrderService {
 	}
 
 	@Nonnull
+	public Optional<PatientOrderNote> findPatientOrderNoteById(@Nullable UUID patientOrderNoteId) {
+		if (patientOrderNoteId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT * 
+				FROM patient_order_note
+				WHERE patient_order_note_id=?
+				""", PatientOrderNote.class, patientOrderNoteId);
+	}
+
+	@Nonnull
+	public List<PatientOrderNote> findPatientOrderNotesByPatientOrderId(@Nullable UUID patientOrderId) {
+		if (patientOrderId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT * 
+				FROM patient_order_note
+				WHERE patient_order_id=?
+				AND deleted=FALSE
+				ORDER BY created DESC
+				""", PatientOrderNote.class, patientOrderId);
+	}
+
+	@Nonnull
 	public FindResult<PatientOrder> findPatientOrders(@Nonnull FindPatientOrdersRequest request) {
 		requireNonNull(request);
 
@@ -259,6 +289,152 @@ public class PatientOrderService {
 
 		FindResult<? extends PatientOrder> findResult = new FindResult<>(patientOrders, totalCount);
 		return (FindResult<PatientOrder>) findResult;
+	}
+
+	@Nonnull
+	public UUID createPatientOrderNote(@Nonnull CreatePatientOrderNoteRequest request) {
+		requireNonNull(request);
+
+		UUID accountId = request.getAccountId();
+		UUID patientOrderId = request.getPatientOrderId();
+		String note = trimToNull(request.getNote());
+		PatientOrder patientOrder;
+		UUID patientOrderNoteId = UUID.randomUUID();
+		ValidationException validationException = new ValidationException();
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (patientOrderId == null) {
+			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+		} else {
+			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+
+			if (patientOrder == null)
+				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+				INSERT INTO patient_order_note (
+				patient_order_note_id, patient_order_id, account_id, note
+				) VALUES (?,?,?,?)
+				""", patientOrderNoteId, patientOrderId, accountId, note);
+
+		createPatientOrderEvent(new CreatePatientOrderEventRequest() {{
+			setPatientOrderEventTypeId(PatientOrderEventTypeId.NOTE_UPDATED);
+			setPatientOrderId(patientOrderId);
+			setAccountId(accountId);
+			setMessage("Created note."); // Not localized on the way in
+			setMetadata(Map.of(
+					"patientOrderNoteId", patientOrderNoteId,
+					"accountId", accountId,
+					"note", note));
+		}});
+
+		return patientOrderNoteId;
+	}
+
+	@Nonnull
+	public Boolean updatePatientOrderNote(@Nonnull UpdatePatientOrderNoteRequest request) {
+		requireNonNull(request);
+
+		UUID accountId = request.getAccountId();
+		UUID patientOrderNoteId = request.getPatientOrderNoteId();
+		String note = trimToNull(request.getNote());
+		PatientOrderNote patientOrderNote = null;
+		ValidationException validationException = new ValidationException();
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (patientOrderNoteId == null) {
+			validationException.add(new FieldError("patientOrderNoteId", getStrings().get("Patient Order Note ID is required.")));
+		} else {
+			patientOrderNote = findPatientOrderNoteById(patientOrderNoteId).orElse(null);
+
+			if (patientOrderNote == null)
+				validationException.add(new FieldError("patientOrderNoteId", getStrings().get("Patient Order Note ID is invalid.")));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		boolean updated = getDatabase().execute("""
+				UPDATE patient_order_note
+				SET note=?
+				WHERE patient_order_note_id=?
+				""", note, patientOrderNoteId) > 0;
+
+		if (updated) {
+			UUID patientOrderId = patientOrderNote.getPatientOrderId();
+			String oldNote = patientOrderNote.getNote();
+
+			createPatientOrderEvent(new CreatePatientOrderEventRequest() {{
+				setPatientOrderEventTypeId(PatientOrderEventTypeId.NOTE_UPDATED);
+				setPatientOrderId(patientOrderId);
+				setAccountId(accountId);
+				setMessage("Updated note."); // Not localized on the way in
+				setMetadata(Map.of(
+						"patientOrderNoteId", patientOrderNoteId,
+						"accountId", accountId,
+						"oldNote", oldNote,
+						"newNote", note));
+			}});
+		}
+
+		return updated;
+	}
+
+	@Nonnull
+	public Boolean deletePatientOrderNote(@Nonnull DeletePatientOrderNoteRequest request) {
+		requireNonNull(request);
+
+		UUID accountId = request.getAccountId();
+		UUID patientOrderNoteId = request.getPatientOrderNoteId();
+		PatientOrderNote patientOrderNote = null;
+		ValidationException validationException = new ValidationException();
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (patientOrderNoteId == null) {
+			validationException.add(new FieldError("patientOrderNoteId", getStrings().get("Patient Order Note ID is required.")));
+		} else {
+			patientOrderNote = findPatientOrderNoteById(patientOrderNoteId).orElse(null);
+
+			if (patientOrderNote == null)
+				validationException.add(new FieldError("patientOrderNoteId", getStrings().get("Patient Order Note ID is invalid.")));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		boolean deleted = getDatabase().execute("""
+				UPDATE patient_order_note
+				SET deleted=TRUE
+				WHERE patient_order_note_id=?
+				""", patientOrderNoteId) > 0;
+
+		if (deleted) {
+			UUID patientOrderId = patientOrderNote.getPatientOrderId();
+			String note = patientOrderNote.getNote();
+
+			createPatientOrderEvent(new CreatePatientOrderEventRequest() {{
+				setPatientOrderEventTypeId(PatientOrderEventTypeId.NOTE_DELETED);
+				setPatientOrderId(patientOrderId);
+				setAccountId(accountId);
+				setMessage("Deleted note."); // Not localized on the way in
+				setMetadata(Map.of(
+						"patientOrderNoteId", patientOrderNoteId,
+						"accountId", accountId,
+						"note", note));
+			}});
+		}
+
+		return deleted;
 	}
 
 	@Nonnull

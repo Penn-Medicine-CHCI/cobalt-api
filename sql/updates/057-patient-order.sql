@@ -204,6 +204,12 @@ INSERT INTO patient_order_event_type VALUES ('SELF_ADMINISTERED_SCREENING_SESSIO
 INSERT INTO patient_order_event_type VALUES ('MHIC_ADMINISTERED_SCREENING_SESSION_STARTED', 'MHIC-Administered Screening Session Started');
 -- Data to include: screening session ID, triage ID
 INSERT INTO patient_order_event_type VALUES ('MHIC_ADMINISTERED_SCREENING_SESSION_COMPLETED', 'MHIC-Administered Screening Session Completed');
+-- Data to include: patient order note ID, account ID, note
+INSERT INTO patient_order_event_type VALUES ('NOTE_CREATED', 'Note Created');
+-- Data to include: patient order note ID, account ID, old note, new note
+INSERT INTO patient_order_event_type VALUES ('NOTE_UPDATED', 'Note Updated');
+-- Data to include: patient order note ID, account ID, note
+INSERT INTO patient_order_event_type VALUES ('NOTE_DELETED', 'Note Deleted');
 
 -- TODO: add other types, e.g. name/info changed
 

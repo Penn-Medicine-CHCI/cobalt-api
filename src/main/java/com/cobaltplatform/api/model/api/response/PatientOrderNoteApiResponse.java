@@ -20,8 +20,7 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.context.CurrentContext;
-import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
-import com.cobaltplatform.api.model.db.PatientOrder;
+import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.google.inject.Provider;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -37,32 +36,30 @@ import static java.util.Objects.requireNonNull;
  * @author Transmogrify, LLC.
  */
 @Immutable
-public class PatientOrderApiResponse {
+public class PatientOrderNoteApiResponse {
 	@Nonnull
-	private final UUID patientOrderId;
+	private final UUID patientOrderNoteId;
 
 	// TODO: other fields...
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
-	public interface PatientOrderApiResponseFactory {
+	public interface PatientOrderNoteApiResponseFactory {
 		@Nonnull
-		PatientOrderApiResponse create(@Nonnull PatientOrder patientOrder);
+		PatientOrderNoteApiResponse create(@Nonnull PatientOrderNote patientOrderNote);
 	}
 
 	@AssistedInject
-	public PatientOrderApiResponse(@Nonnull PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory,
-																 @Nonnull Provider<CurrentContext> currentContextProvider,
-																 @Assisted @Nonnull PatientOrder patientOrder) {
-		requireNonNull(patientOrderNoteApiResponseFactory);
+	public PatientOrderNoteApiResponse(@Nonnull Provider<CurrentContext> currentContextProvider,
+																		 @Assisted @Nonnull PatientOrderNote patientOrderNote) {
 		requireNonNull(currentContextProvider);
-		requireNonNull(patientOrder);
+		requireNonNull(patientOrderNote);
 
-		this.patientOrderId = patientOrder.getPatientOrderId();
+		this.patientOrderNoteId = patientOrderNote.getPatientOrderNoteId();
 	}
 
 	@Nonnull
-	public UUID getPatientOrderId() {
-		return this.patientOrderId;
+	public UUID getPatientOrderNoteId() {
+		return this.patientOrderNoteId;
 	}
 }

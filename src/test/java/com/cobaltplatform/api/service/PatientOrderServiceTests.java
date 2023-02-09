@@ -22,7 +22,10 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.IntegrationTestExecutor;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderNoteRequest;
+import com.cobaltplatform.api.model.api.request.DeletePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -30,6 +33,7 @@ import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderDiagnosis;
 import com.cobaltplatform.api.model.db.PatientOrderImport;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.service.FindResult;
 import org.junit.Assert;
@@ -80,7 +84,8 @@ public class PatientOrderServiceTests {
 				}
 			}
 
-			// Create a patient record, which has patient record SSO attributes that contain a UID that matches one of the imported orders...
+			// Simulate MyChart authentication flow -
+			// create a patient record, which has patient record SSO attributes that contain a UID that matches one of the imported orders...
 			UUID patientAccountId = accountService.createAccount(new CreateAccountRequest() {{
 				setEpicPatientId("junk");
 				setEpicPatientIdType("junk");
@@ -95,12 +100,50 @@ public class PatientOrderServiceTests {
 
 			Assert.assertEquals("Patient was not automatically associated with imported order", 1, patientOrdersForTestPatientAccount.size());
 
+			// Pull back the orders in the system...
 			FindResult<PatientOrder> patientOrderFindResult = patientOrderService.findPatientOrders(new FindPatientOrdersRequest() {{
 				setInstitutionId(institutionId);
 			}});
 
 			Assert.assertEquals("Patient order find didn't return expected results", 8, patientOrderFindResult.getResults().size());
 			Assert.assertEquals("Patient order find didn't return expected results", 8L, (long) patientOrderFindResult.getTotalCount());
+
+			// ...pick the first one, and add a note to it.
+			PatientOrder patientOrder = patientOrderFindResult.getResults().get(0);
+
+			UUID patientOrderNoteId = patientOrderService.createPatientOrderNote(new CreatePatientOrderNoteRequest() {{
+				setPatientOrderId(patientOrder.getPatientOrderId());
+				setNote("This is a test note");
+				setAccountId(account.getAccountId());
+			}});
+
+			PatientOrderNote patientOrderNote = patientOrderService.findPatientOrderNoteById(patientOrderNoteId).get();
+
+			Assert.assertEquals("Patient order note content mismatch after create", "This is a test note", patientOrderNote.getNote());
+
+			patientOrderService.updatePatientOrderNote(new UpdatePatientOrderNoteRequest() {{
+				setPatientOrderNoteId(patientOrderNoteId);
+				setNote("This is a test note 2");
+				setAccountId(account.getAccountId());
+			}});
+
+			patientOrderNote = patientOrderService.findPatientOrderNoteById(patientOrderNoteId).get();
+
+			Assert.assertEquals("Patient order note content mismatch after update", "This is a test note 2", patientOrderNote.getNote());
+
+			// Confirm note exists for the order before deleting, and that it's gone after deleting
+			List<PatientOrderNote> patientOrderNotes = patientOrderService.findPatientOrderNotesByPatientOrderId(patientOrder.getPatientOrderId());
+
+			Assert.assertEquals("Patient order note was not associated with patient order", 1, patientOrderNotes.size());
+
+			patientOrderService.deletePatientOrderNote(new DeletePatientOrderNoteRequest() {{
+				setPatientOrderNoteId(patientOrderNoteId);
+				setAccountId(account.getAccountId());
+			}});
+
+			patientOrderNotes = patientOrderService.findPatientOrderNotesByPatientOrderId(patientOrder.getPatientOrderId());
+
+			Assert.assertEquals("Patient order note was not deleted correctly", 0, patientOrderNotes.size());
 		});
 	}
 }
