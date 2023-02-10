@@ -39,6 +39,7 @@ import com.cobaltplatform.api.model.db.PatientOrderImport;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
+import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.PatientOrderPanelTypeId;
 import com.cobaltplatform.api.util.Normalizer;
@@ -222,6 +223,65 @@ public class PatientOrderService {
 				AND deleted=FALSE
 				ORDER BY created DESC
 				""", PatientOrderNote.class, patientOrderId);
+	}
+
+	@Nonnull
+	public List<Account> findMhicAccountsByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM account
+				WHERE role_id=?
+				AND institution_id=?
+				ORDER BY first_name, last_name, account_id
+				""", Account.class, RoleId.MHIC, institutionId);
+	}
+
+	@Nonnull
+	public Map<UUID, Integer> findActivePatientOrderCountsByMhicAccountIdForInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return Map.of();
+
+		List<AccountIdWithCount> accountIdsWithCount = getDatabase().queryForList("""
+				SELECT a.account_id, COUNT(po.*)
+				FROM account a, patient_order po
+				WHERE a.account_id=po.mhic_account_id
+				AND a.role_id=?
+				AND po.institution_id=?
+				AND po.patient_order_status_id != ?
+				GROUP BY a.account_id
+				""", AccountIdWithCount.class, RoleId.MHIC, institutionId, PatientOrderStatusId.ARCHIVED);
+
+		return accountIdsWithCount.stream()
+				.collect(Collectors.toMap(AccountIdWithCount::getAccountId, AccountIdWithCount::getCount));
+	}
+
+	@NotThreadSafe
+	protected static class AccountIdWithCount {
+		@Nullable
+		private UUID accountId;
+		@Nullable
+		private Integer count;
+
+		@Nullable
+		public UUID getAccountId() {
+			return this.accountId;
+		}
+
+		public void setAccountId(@Nullable UUID accountId) {
+			this.accountId = accountId;
+		}
+
+		@Nullable
+		public Integer getCount() {
+			return this.count;
+		}
+
+		public void setCount(@Nullable Integer count) {
+			this.count = count;
+		}
 	}
 
 	@Nonnull

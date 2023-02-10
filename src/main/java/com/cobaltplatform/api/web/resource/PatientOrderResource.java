@@ -25,6 +25,8 @@ import com.cobaltplatform.api.model.api.request.CreatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
+import com.cobaltplatform.api.model.api.response.AccountApiResponse;
+import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
@@ -87,6 +89,8 @@ public class PatientOrderResource {
 	@Nonnull
 	private final PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory;
 	@Nonnull
+	private final AccountApiResponseFactory accountApiResponseFactory;
+	@Nonnull
 	private final RequestBodyParser requestBodyParser;
 	@Nonnull
 	private final Formatter formatter;
@@ -101,6 +105,7 @@ public class PatientOrderResource {
 															@Nonnull AuthorizationService authorizationService,
 															@Nonnull PatientOrderApiResponseFactory patientOrderApiResponseFactory,
 															@Nonnull PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory,
+															@Nonnull AccountApiResponseFactory accountApiResponseFactory,
 															@Nonnull RequestBodyParser requestBodyParser,
 															@Nonnull Formatter formatter,
 															@Nonnull Provider<CurrentContext> currentContextProvider) {
@@ -109,6 +114,7 @@ public class PatientOrderResource {
 		requireNonNull(authorizationService);
 		requireNonNull(patientOrderApiResponseFactory);
 		requireNonNull(patientOrderNoteApiResponseFactory);
+		requireNonNull(accountApiResponseFactory);
 		requireNonNull(requestBodyParser);
 		requireNonNull(formatter);
 		requireNonNull(currentContextProvider);
@@ -118,6 +124,7 @@ public class PatientOrderResource {
 		this.authorizationService = authorizationService;
 		this.patientOrderApiResponseFactory = patientOrderApiResponseFactory;
 		this.patientOrderNoteApiResponseFactory = patientOrderNoteApiResponseFactory;
+		this.accountApiResponseFactory = accountApiResponseFactory;
 		this.requestBodyParser = requestBodyParser;
 		this.formatter = formatter;
 		this.currentContextProvider = currentContextProvider;
@@ -293,6 +300,30 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
+	@GET("/integrated-care/mhic-accounts")
+	@AuthenticationRequired
+	public ApiResponse mhicAccounts() {
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = account.getInstitutionId();
+
+		if (!getAuthorizationService().canViewMhicAccounts(institutionId, account))
+			throw new AuthorizationException();
+
+		List<AccountApiResponse> mhicAccounts = getPatientOrderService().findMhicAccountsByInstitutionId(institutionId).stream()
+				.map(mhicAccount -> getAccountApiResponseFactory().create(mhicAccount))
+				.collect(Collectors.toList());
+
+		Map<UUID, Integer> activePatientOrderCountsByMhicAccountId = getPatientOrderService().findActivePatientOrderCountsByMhicAccountIdForInstitutionId(institutionId);
+		Map<UUID, Map<String, Object>> activePatientOrderCountsByMhicAccountIdJson = new HashMap<>(activePatientOrderCountsByMhicAccountId.size());
+
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("mhicAccounts", mhicAccounts);
+			put("activePatientOrderCountsByMhicAccountId", activePatientOrderCountsByMhicAccountIdJson);
+		}});
+	}
+
+	@Nonnull
 	protected PatientOrderService getPatientOrderService() {
 		return this.patientOrderService;
 	}
@@ -315,6 +346,11 @@ public class PatientOrderResource {
 	@Nonnull
 	protected PatientOrderNoteApiResponseFactory getPatientOrderNoteApiResponseFactory() {
 		return this.patientOrderNoteApiResponseFactory;
+	}
+
+	@Nonnull
+	protected AccountApiResponseFactory getAccountApiResponseFactory() {
+		return this.accountApiResponseFactory;
 	}
 
 	@Nonnull

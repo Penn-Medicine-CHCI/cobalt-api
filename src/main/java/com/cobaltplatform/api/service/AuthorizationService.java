@@ -479,6 +479,16 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
+	public Boolean canViewMhicAccounts(@Nonnull InstitutionId institutionId,
+																		 @Nonnull Account account) {
+		requireNonNull(institutionId);
+		requireNonNull(account);
+
+		// Re-use existing logic
+		return canImportPatientOrders(institutionId, account);
+	}
+
+	@Nonnull
 	public Boolean canViewPatientOrders(@Nonnull InstitutionId institutionId,
 																			@Nonnull Account account) {
 		requireNonNull(institutionId);
