@@ -1205,6 +1205,8 @@ public class ContentService {
 				LEFT OUTER JOIN content_viewed_query as cvq ON c.content_id=cvq.content_id
 				WHERE c.content_id=ic.content_id
 				AND ic.approved_flag=TRUE
+				AND c.deleted_flag=FALSE
+				AND c.archived_flag=FALSE
 				AND ic.institution_id=?
 				ORDER BY cvq.last_viewed_at ASC NULLS FIRST, c.created DESC
 								""", Content.class, ActivityActionId.VIEW, ActivityTypeId.CONTENT, account.getAccountId(), account.getInstitutionId());
