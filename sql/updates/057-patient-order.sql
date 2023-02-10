@@ -1,6 +1,10 @@
 BEGIN;
 SELECT _v.register_patch('057-patient-order', NULL, NULL);
 
+INSERT INTO support_role (support_role_id, description, display_order) VALUES ('PSYCHOLOGIST', 'Psychologist', 8);
+INSERT INTO support_role (support_role_id, description, display_order) VALUES ('BHP', 'Behavioral Health Professional', 9);
+INSERT INTO support_role (support_role_id, description, display_order) VALUES ('LCSW', 'Licensed Clinical Social Worker', 10);
+
 ALTER TABLE account ADD COLUMN epic_patient_mrn TEXT;
 
 -- We might import orders via an EHR like Epic or via manual CSV upload
@@ -52,7 +56,7 @@ CREATE TABLE patient_order (
   patient_order_import_id UUID NOT NULL REFERENCES patient_order_import,
   institution_id VARCHAR NOT NULL REFERENCES institution,
   patient_account_id UUID REFERENCES account,
-  mhic_account_id UUID REFERENCES account, -- which MHIC account is handling this order, if any
+  panel_account_id UUID REFERENCES account, -- which account's panel is holding this order, if any
   encounter_department_id VARCHAR,
   encounter_department_id_type VARCHAR, -- not currently provided
   encounter_department_name VARCHAR,
@@ -194,6 +198,8 @@ CREATE TABLE patient_order_event_type (
 
 -- Data to include: patient order import ID
 INSERT INTO patient_order_event_type VALUES ('IMPORTED', 'Imported');
+-- Data to include: old panel account ID, new panel account ID
+INSERT INTO patient_order_event_type VALUES ('PANEL_CHANGED', 'Panel Changed');
 -- Data to include: old patient order status ID, new patient order status ID
 INSERT INTO patient_order_event_type VALUES ('STATUS_CHANGED', 'Status Changed');
 -- Data to include: screening session ID

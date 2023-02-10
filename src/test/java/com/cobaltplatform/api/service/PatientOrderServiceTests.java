@@ -57,7 +57,7 @@ public class PatientOrderServiceTests {
 			InstitutionId institutionId = InstitutionId.COBALT_IC;
 			PatientOrderService patientOrderService = app.getInjector().getInstance(PatientOrderService.class);
 			AccountService accountService = app.getInjector().getInstance(AccountService.class);
-			Account account = accountService.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			Account adminAccount = accountService.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
 
 			String csvContent = Files.readString(Path.of("resources/test/ic-order-report.csv"), StandardCharsets.UTF_8);
 			String epicPatientJson = Files.readString(Path.of("resources/test/epic-patient.json"), StandardCharsets.UTF_8);
@@ -66,7 +66,7 @@ public class PatientOrderServiceTests {
 				setCsvContent(csvContent);
 				setInstitutionId(institutionId);
 				setPatientOrderImportTypeId(PatientOrderImportTypeId.CSV);
-				setAccountId(account.getAccountId());
+				setAccountId(adminAccount.getAccountId());
 			}});
 
 			PatientOrderImport patientOrderImport = patientOrderService.findPatientOrderImportById(patientOrderImportId).orElse(null);
@@ -110,11 +110,12 @@ public class PatientOrderServiceTests {
 
 			// ...pick the first one, and add a note to it.
 			PatientOrder patientOrder = patientOrderFindResult.getResults().get(0);
+			UUID patientOrderId = patientOrder.getPatientOrderId();
 
 			UUID patientOrderNoteId = patientOrderService.createPatientOrderNote(new CreatePatientOrderNoteRequest() {{
-				setPatientOrderId(patientOrder.getPatientOrderId());
+				setPatientOrderId(patientOrderId);
 				setNote("This is a test note");
-				setAccountId(account.getAccountId());
+				setAccountId(adminAccount.getAccountId());
 			}});
 
 			PatientOrderNote patientOrderNote = patientOrderService.findPatientOrderNoteById(patientOrderNoteId).get();
@@ -124,7 +125,7 @@ public class PatientOrderServiceTests {
 			patientOrderService.updatePatientOrderNote(new UpdatePatientOrderNoteRequest() {{
 				setPatientOrderNoteId(patientOrderNoteId);
 				setNote("This is a test note 2");
-				setAccountId(account.getAccountId());
+				setAccountId(adminAccount.getAccountId());
 			}});
 
 			patientOrderNote = patientOrderService.findPatientOrderNoteById(patientOrderNoteId).get();
@@ -138,12 +139,31 @@ public class PatientOrderServiceTests {
 
 			patientOrderService.deletePatientOrderNote(new DeletePatientOrderNoteRequest() {{
 				setPatientOrderNoteId(patientOrderNoteId);
-				setAccountId(account.getAccountId());
+				setAccountId(adminAccount.getAccountId());
 			}});
 
 			patientOrderNotes = patientOrderService.findPatientOrderNotesByPatientOrderId(patientOrder.getPatientOrderId());
 
 			Assert.assertEquals("Patient order note was not deleted correctly", 0, patientOrderNotes.size());
+
+			// Assign the patient order to a panel account (normally this is an MHIC)
+			List<Account> panelAccounts = patientOrderService.findPanelAccountsByInstitutionId(institutionId);
+
+			Assert.assertEquals("Unexpected number of panel accounts", 4, panelAccounts.size());
+
+			// Confirm the order is not assigned yet
+			Assert.assertNull("Patient order was already assigned to a panel account", patientOrder.getPanelAccountId());
+
+			// Pick an arbitrary account to assign to
+			Account panelAccount = panelAccounts.get(0);
+
+			patientOrderService.assignPatientOrderToPanelAccount(patientOrder.getPatientOrderId(),
+					panelAccount.getAccountId(), adminAccount.getAccountId());
+
+			// Re-read patient order to confirm update worked as expected
+			patientOrder = patientOrderService.findPatientOrderById(patientOrder.getPatientOrderId()).get();
+
+			Assert.assertEquals("Patient order panel account assignment failed", panelAccount.getAccountId(), patientOrder.getPanelAccountId());
 		});
 	}
 }

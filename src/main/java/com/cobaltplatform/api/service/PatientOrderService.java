@@ -226,62 +226,79 @@ public class PatientOrderService {
 	}
 
 	@Nonnull
-	public List<Account> findMhicAccountsByInstitutionId(@Nullable InstitutionId institutionId) {
+	public List<Account> findPanelAccountsByInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return List.of();
 
+		// Panel accounts are either MHICs or any account that has been assigned to manage a panel
+		// (this might be some kind of administrator, for example)
 		return getDatabase().queryForList("""
 				SELECT *
 				FROM account
-				WHERE role_id=?
-				AND institution_id=?
+				WHERE institution_id=?
+				AND (role_id=? OR account_id IN (SELECT panel_account_id FROM patient_order WHERE institution_id=?))
 				ORDER BY first_name, last_name, account_id
-				""", Account.class, RoleId.MHIC, institutionId);
+				""", Account.class, institutionId, RoleId.MHIC, institutionId);
 	}
 
 	@Nonnull
-	public Map<UUID, Integer> findActivePatientOrderCountsByMhicAccountIdForInstitutionId(@Nullable InstitutionId institutionId) {
+	public Map<UUID, Integer> findActivePatientOrderCountsByPanelAccountIdForInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return Map.of();
 
 		List<AccountIdWithCount> accountIdsWithCount = getDatabase().queryForList("""
 				SELECT a.account_id, COUNT(po.*)
 				FROM account a, patient_order po
-				WHERE a.account_id=po.mhic_account_id
-				AND a.role_id=?
+				WHERE a.account_id=po.panel_account_id
 				AND po.institution_id=?
 				AND po.patient_order_status_id != ?
 				GROUP BY a.account_id
-				""", AccountIdWithCount.class, RoleId.MHIC, institutionId, PatientOrderStatusId.ARCHIVED);
+				""", AccountIdWithCount.class, institutionId, PatientOrderStatusId.ARCHIVED);
 
 		return accountIdsWithCount.stream()
 				.collect(Collectors.toMap(AccountIdWithCount::getAccountId, AccountIdWithCount::getCount));
 	}
 
-	@NotThreadSafe
-	protected static class AccountIdWithCount {
-		@Nullable
-		private UUID accountId;
-		@Nullable
-		private Integer count;
+	@Nonnull
+	public Boolean assignPatientOrderToPanelAccount(@Nonnull UUID patientOrderId,
+																									@Nullable UUID panelAccountId, // Null panel account removes the order from the panel
+																									@Nullable UUID assigningAccountId) {
+		requireNonNull(patientOrderId);
 
-		@Nullable
-		public UUID getAccountId() {
-			return this.accountId;
+		PatientOrder patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+
+		if (patientOrder == null)
+			return false;
+
+		boolean assigned = getDatabase().execute("""
+				UPDATE patient_order
+				SET panel_account_id=?
+				WHERE patient_order_id=?
+				""", panelAccountId, patientOrderId) > 0;
+
+		if (assigned) {
+			if (panelAccountId == null)
+				getLogger().info("Patient order ID {} was removed from panel account ID {}", patientOrderId, patientOrder.getPanelAccountId());
+			else
+				getLogger().info("Patient order ID {} was added to panel account ID {}", patientOrderId, panelAccountId);
+
+			Map<String, Object> metadata = new HashMap<>();
+			metadata.put("oldPanelAccountId", patientOrder.getPanelAccountId());
+			metadata.put("newPanelAccountId", panelAccountId);
+
+			createPatientOrderEvent(new CreatePatientOrderEventRequest() {
+				{
+					setPatientOrderEventTypeId(PatientOrderEventTypeId.PANEL_CHANGED);
+					setPatientOrderId(patientOrderId);
+					setAccountId(assigningAccountId);
+					setMessage(panelAccountId == null ? "Removed from panel." : "Assigned to panel."); // Not localized on the way in
+					setMetadata(metadata);
+				}
+			});
+			// TODO: any other action?  Send a notification?
 		}
 
-		public void setAccountId(@Nullable UUID accountId) {
-			this.accountId = accountId;
-		}
-
-		@Nullable
-		public Integer getCount() {
-			return this.count;
-		}
-
-		public void setCount(@Nullable Integer count) {
-			this.count = count;
-		}
+		return assigned;
 	}
 
 	@Nonnull
@@ -498,21 +515,21 @@ public class PatientOrderService {
 	}
 
 	@Nonnull
-	public Set<UUID> associatePatientAccountWithPatientOrders(@Nullable UUID accountId) {
-		if (accountId == null)
+	public Set<UUID> associatePatientAccountWithPatientOrders(@Nullable UUID patientAccountId) {
+		if (patientAccountId == null)
 			return Set.of();
 
 		// Examine the account's SSO metadata...
-		Account account = getAccountService().findAccountById(accountId).orElse(null);
+		Account patientAccount = getAccountService().findAccountById(patientAccountId).orElse(null);
 
-		if (account == null || account.getSsoAttributes() == null)
+		if (patientAccount == null || patientAccount.getSsoAttributes() == null)
 			return Set.of();
 
 		// ...if it looks like an Epic Patient Record, then...
 		PatientReadFhirR4Response patientRecord;
 
 		try {
-			patientRecord = getGson().fromJson(account.getSsoAttributes(), PatientReadFhirR4Response.class);
+			patientRecord = getGson().fromJson(patientAccount.getSsoAttributes(), PatientReadFhirR4Response.class);
 		} catch (Exception ignored) {
 			return Set.of();
 		}
@@ -533,22 +550,22 @@ public class PatientOrderService {
 				AND patient_id_type=?				
 				AND institution_id=?
 				AND patient_account_id IS NULL
-				""", PatientOrder.class, patientId, patientIdType, account.getInstitutionId());
+				""", PatientOrder.class, patientId, patientIdType, patientAccount.getInstitutionId());
 
 		for (PatientOrder unassignedMatchingPatientOrder : unassignedMatchingPatientOrders) {
-			getLogger().info("Assigning account ID {} to patient order ID {}...", accountId, unassignedMatchingPatientOrder.getPatientOrderId());
+			getLogger().info("Assigning patient account ID {} to patient order ID {}...", patientAccountId, unassignedMatchingPatientOrder.getPatientOrderId());
 
 			getDatabase().execute("""
 					UPDATE patient_order
 					SET patient_order_status_id=?, 
 					patient_account_id=?
 					WHERE patient_order_id=?
-					""", PatientOrderStatusId.AWAITING_SCREENING, accountId, unassignedMatchingPatientOrder.getPatientOrderId());
+					""", PatientOrderStatusId.AWAITING_SCREENING, patientAccountId, unassignedMatchingPatientOrder.getPatientOrderId());
 
 			createPatientOrderEvent(new CreatePatientOrderEventRequest() {{
 				setPatientOrderEventTypeId(PatientOrderEventTypeId.STATUS_CHANGED);
 				setPatientOrderId(unassignedMatchingPatientOrder.getPatientOrderId());
-				setAccountId(accountId);
+				setAccountId(patientAccountId);
 				setMessage("Transitioned to 'awaiting screening' status."); // Not localized on the way in
 				setMetadata(Map.of(
 						"oldPatientOrderStatusId", unassignedMatchingPatientOrder.getPatientOrderStatusId(),
@@ -1169,6 +1186,32 @@ public class PatientOrderService {
 
 		public void setTotalCount(@Nullable Integer totalCount) {
 			this.totalCount = totalCount;
+		}
+	}
+
+	@NotThreadSafe
+	protected static class AccountIdWithCount {
+		@Nullable
+		private UUID accountId;
+		@Nullable
+		private Integer count;
+
+		@Nullable
+		public UUID getAccountId() {
+			return this.accountId;
+		}
+
+		public void setAccountId(@Nullable UUID accountId) {
+			this.accountId = accountId;
+		}
+
+		@Nullable
+		public Integer getCount() {
+			return this.count;
+		}
+
+		public void setCount(@Nullable Integer count) {
+			this.count = count;
 		}
 	}
 

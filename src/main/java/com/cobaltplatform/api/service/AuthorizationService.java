@@ -479,8 +479,8 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
-	public Boolean canViewMhicAccounts(@Nonnull InstitutionId institutionId,
-																		 @Nonnull Account account) {
+	public Boolean canViewPanelAccounts(@Nonnull InstitutionId institutionId,
+																			@Nonnull Account account) {
 		requireNonNull(institutionId);
 		requireNonNull(account);
 

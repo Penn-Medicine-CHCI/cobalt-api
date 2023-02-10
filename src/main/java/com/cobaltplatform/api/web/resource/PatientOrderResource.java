@@ -65,6 +65,7 @@ import javax.inject.Singleton;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -156,11 +157,13 @@ public class PatientOrderResource {
 	@AuthenticationRequired
 	public ApiResponse findPatientOrders(@Nonnull @QueryParameter Optional<PatientOrderPanelTypeId> patientOrderPanelTypeId,
 																			 @Nonnull @QueryParameter Optional<UUID> panelAccountId,
+																			 @Nonnull @QueryParameter Optional<UUID> mhicAccountId,
 																			 @Nonnull @QueryParameter Optional<String> searchQuery,
 																			 @Nonnull @QueryParameter Optional<Integer> pageNumber,
 																			 @Nonnull @QueryParameter Optional<Integer> pageSize) {
 		requireNonNull(patientOrderPanelTypeId);
 		requireNonNull(panelAccountId);
+		requireNonNull(mhicAccountId);
 		requireNonNull(searchQuery);
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
@@ -300,26 +303,41 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
-	@GET("/integrated-care/mhic-accounts")
+	@GET("/integrated-care/panel-accounts")
 	@AuthenticationRequired
-	public ApiResponse mhicAccounts() {
+	public ApiResponse panelAccounts() {
 		Account account = getCurrentContext().getAccount().get();
 		InstitutionId institutionId = account.getInstitutionId();
 
-		if (!getAuthorizationService().canViewMhicAccounts(institutionId, account))
+		if (!getAuthorizationService().canViewPanelAccounts(institutionId, account))
 			throw new AuthorizationException();
 
-		List<AccountApiResponse> mhicAccounts = getPatientOrderService().findMhicAccountsByInstitutionId(institutionId).stream()
+		List<AccountApiResponse> mhicAccounts = getPatientOrderService().findPanelAccountsByInstitutionId(institutionId).stream()
 				.map(mhicAccount -> getAccountApiResponseFactory().create(mhicAccount))
 				.collect(Collectors.toList());
 
-		Map<UUID, Integer> activePatientOrderCountsByMhicAccountId = getPatientOrderService().findActivePatientOrderCountsByMhicAccountIdForInstitutionId(institutionId);
-		Map<UUID, Map<String, Object>> activePatientOrderCountsByMhicAccountIdJson = new HashMap<>(activePatientOrderCountsByMhicAccountId.size());
+		Map<UUID, Integer> activePatientOrderCountsByPanelAccountId = getPatientOrderService().findActivePatientOrderCountsByPanelAccountIdForInstitutionId(institutionId);
 
+		// If there are any "holes" in the mapping of panel account IDs -> active order counts,
+		// fill in the holes with 0-counts.
+		for (AccountApiResponse mhicAccount : mhicAccounts)
+			if (!activePatientOrderCountsByPanelAccountId.containsKey(mhicAccount.getAccountId()))
+				activePatientOrderCountsByPanelAccountId.put(mhicAccount.getAccountId(), 0);
+
+		Map<UUID, Map<String, Object>> activePatientOrderCountsByPanelAccountIdJson = new HashMap<>(activePatientOrderCountsByPanelAccountId.size());
+
+		for (Entry<UUID, Integer> entry : activePatientOrderCountsByPanelAccountId.entrySet()) {
+			UUID mhicAccountId = entry.getKey();
+			Integer activePatientOrderCount = entry.getValue();
+			activePatientOrderCountsByPanelAccountIdJson.put(mhicAccountId, Map.of(
+					"activePatientOrderCount", activePatientOrderCount,
+					"activePatientOrderCountDescription", getFormatter().formatNumber(activePatientOrderCount)
+			));
+		}
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("mhicAccounts", mhicAccounts);
-			put("activePatientOrderCountsByMhicAccountId", activePatientOrderCountsByMhicAccountIdJson);
+			put("activePatientOrderCountsByPanelAccountId", activePatientOrderCountsByPanelAccountIdJson);
 		}});
 	}
 
