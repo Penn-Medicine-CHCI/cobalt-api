@@ -1022,9 +1022,12 @@ public class AccountResource {
 		request.setAccountId(accountId);
 
 		Account currentAccount = getCurrentContext().getAccount().get();
+		Account accountToEdit = getAccountService().findAccountById(accountId).orElse(null);
 
-		// You can only PATCH yourself for now
-		if (!currentAccount.getAccountId().equals(accountId))
+		if (accountToEdit == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canEditAccount(accountToEdit, currentAccount))
 			throw new AuthorizationException();
 
 		// Only patch fields specified in the request

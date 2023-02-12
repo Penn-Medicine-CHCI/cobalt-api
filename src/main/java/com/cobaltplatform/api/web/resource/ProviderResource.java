@@ -572,10 +572,8 @@ public class ProviderResource {
 
 		Account account = getCurrentContext().getAccount().get();
 		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
-
-		// For now - don't expose MHIC role to UI
+		
 		List<SupportRole> allSupportRoles = getProviderService().findSupportRolesByInstitutionId(institutionId).stream()
-				.filter(supportRole -> supportRole.getSupportRoleId() != SupportRoleId.MHIC)
 				.collect(Collectors.toList());
 
 		List<SupportRole> recommendedSupportRoles = getScreeningService().findRecommendedSupportRolesByAccountId(account.getAccountId(), institution.getProviderTriageScreeningFlowId());

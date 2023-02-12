@@ -542,6 +542,26 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
+	public Boolean canEditAccount(@Nonnull Account accountToEdit,
+																@Nonnull Account accountMakingEdit) {
+		requireNonNull(accountToEdit);
+		requireNonNull(accountMakingEdit);
+
+		// An account can edit itself
+		// TODO: additional restrictions here?  e.g. for an integrated care institution,
+		//  patient cannot edit herself after an associated order is in a particular state?
+		if (Objects.equals(accountMakingEdit.getAccountId(), accountToEdit.getAccountId()))
+			return true;
+
+		// An admin or MHIC at the same institution is able to edit patients at that institution
+		if (Objects.equals(accountMakingEdit.getInstitutionId(), accountToEdit.getInstitutionId())
+				&& (accountMakingEdit.getRoleId() == RoleId.ADMINISTRATOR || accountMakingEdit.getRoleId() == RoleId.MHIC))
+			return true;
+
+		return false;
+	}
+
+	@Nonnull
 	protected GroupSessionService getGroupSessionService() {
 		return this.groupSessionServiceProvider.get();
 	}
