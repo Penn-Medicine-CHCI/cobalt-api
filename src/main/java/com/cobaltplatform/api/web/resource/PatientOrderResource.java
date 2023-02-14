@@ -157,13 +157,11 @@ public class PatientOrderResource {
 	@AuthenticationRequired
 	public ApiResponse findPatientOrders(@Nonnull @QueryParameter Optional<PatientOrderPanelTypeId> patientOrderPanelTypeId,
 																			 @Nonnull @QueryParameter Optional<UUID> panelAccountId,
-																			 @Nonnull @QueryParameter Optional<UUID> mhicAccountId,
 																			 @Nonnull @QueryParameter Optional<String> searchQuery,
 																			 @Nonnull @QueryParameter Optional<Integer> pageNumber,
 																			 @Nonnull @QueryParameter Optional<Integer> pageSize) {
 		requireNonNull(patientOrderPanelTypeId);
 		requireNonNull(panelAccountId);
-		requireNonNull(mhicAccountId);
 		requireNonNull(searchQuery);
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
@@ -312,31 +310,31 @@ public class PatientOrderResource {
 		if (!getAuthorizationService().canViewPanelAccounts(institutionId, account))
 			throw new AuthorizationException();
 
-		List<AccountApiResponse> mhicAccounts = getPatientOrderService().findPanelAccountsByInstitutionId(institutionId).stream()
-				.map(mhicAccount -> getAccountApiResponseFactory().create(mhicAccount))
+		List<AccountApiResponse> panelAccounts = getPatientOrderService().findPanelAccountsByInstitutionId(institutionId).stream()
+				.map(panelAccount -> getAccountApiResponseFactory().create(panelAccount))
 				.collect(Collectors.toList());
 
 		Map<UUID, Integer> activePatientOrderCountsByPanelAccountId = getPatientOrderService().findActivePatientOrderCountsByPanelAccountIdForInstitutionId(institutionId);
 
 		// If there are any "holes" in the mapping of panel account IDs -> active order counts,
 		// fill in the holes with 0-counts.
-		for (AccountApiResponse mhicAccount : mhicAccounts)
-			if (!activePatientOrderCountsByPanelAccountId.containsKey(mhicAccount.getAccountId()))
-				activePatientOrderCountsByPanelAccountId.put(mhicAccount.getAccountId(), 0);
+		for (AccountApiResponse panelAccount : panelAccounts)
+			if (!activePatientOrderCountsByPanelAccountId.containsKey(panelAccount.getAccountId()))
+				activePatientOrderCountsByPanelAccountId.put(panelAccount.getAccountId(), 0);
 
 		Map<UUID, Map<String, Object>> activePatientOrderCountsByPanelAccountIdJson = new HashMap<>(activePatientOrderCountsByPanelAccountId.size());
 
 		for (Entry<UUID, Integer> entry : activePatientOrderCountsByPanelAccountId.entrySet()) {
-			UUID mhicAccountId = entry.getKey();
+			UUID panelAccountId = entry.getKey();
 			Integer activePatientOrderCount = entry.getValue();
-			activePatientOrderCountsByPanelAccountIdJson.put(mhicAccountId, Map.of(
+			activePatientOrderCountsByPanelAccountIdJson.put(panelAccountId, Map.of(
 					"activePatientOrderCount", activePatientOrderCount,
 					"activePatientOrderCountDescription", getFormatter().formatNumber(activePatientOrderCount)
 			));
 		}
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("mhicAccounts", mhicAccounts);
+			put("panelAccounts", panelAccounts);
 			put("activePatientOrderCountsByPanelAccountId", activePatientOrderCountsByPanelAccountIdJson);
 		}});
 	}
