@@ -7,6 +7,8 @@ INSERT INTO support_role (support_role_id, description, display_order) VALUES ('
 
 ALTER TABLE account ADD COLUMN epic_patient_mrn TEXT;
 
+INSERT INTO login_destination (login_destination_id, description) VALUES ('IC_PATIENT', 'IC Patient');
+
 -- We might import orders via an EHR like Epic or via manual CSV upload
 CREATE TABLE patient_order_import_type (
   patient_order_import_type_id VARCHAR PRIMARY KEY,

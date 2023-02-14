@@ -115,6 +115,7 @@ public class LinkGenerator {
 
 		return constructUrl(baseUrl, urlPath, new HashMap<String, Object>() {{
 			put("accessToken", accessToken);
+			put("loginDestinationId", loginDestinationId);
 		}});
 	}
 

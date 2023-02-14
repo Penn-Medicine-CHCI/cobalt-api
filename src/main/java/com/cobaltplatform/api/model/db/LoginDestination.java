@@ -36,6 +36,7 @@ public class LoginDestination {
 
 	public enum LoginDestinationId {
 		COBALT_PATIENT,
+		IC_PATIENT,
 		IC_PANEL
 	}
 
