@@ -142,11 +142,13 @@ public class AddressService {
 				if (region != null)
 					region = region.toUpperCase(Locale.US);
 
+				// TODO: don't use US-specific wording once we go international
 				if (region == null)
 					validationException.add(new ValidationException.FieldError("region", getStrings().get("State abbreviation is required.")));
 				else if (Region.forAbbreviationAndCountryCode(region, "US").isEmpty())
 					validationException.add(new ValidationException.FieldError("region", getStrings().get("A valid state abbreviation is required.")));
 
+				// TODO: don't use US-specific wording once we go international
 				if (postalCode == null)
 					validationException.add(new ValidationException.FieldError("postalCode", getStrings().get("ZIP code is required.")));
 				else if (!isValidUsPostalCode(postalCode))

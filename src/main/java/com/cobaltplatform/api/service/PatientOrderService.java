@@ -248,12 +248,13 @@ public class PatientOrderService {
 
 		List<AccountIdWithCount> accountIdsWithCount = getDatabase().queryForList("""
 				SELECT a.account_id, COUNT(po.*)
-				FROM account a, patient_order po
+				FROM account a, patient_order po, patient_order_status pos
 				WHERE a.account_id=po.panel_account_id
 				AND po.institution_id=?
-				AND po.patient_order_status_id != ?
+				AND po.patient_order_status_id = pos.patient_order_status_id
+				AND pos.terminal=FALSE
 				GROUP BY a.account_id
-				""", AccountIdWithCount.class, institutionId, PatientOrderStatusId.ARCHIVED);
+				""", AccountIdWithCount.class, institutionId);
 
 		return accountIdsWithCount.stream()
 				.collect(Collectors.toMap(AccountIdWithCount::getAccountId, AccountIdWithCount::getCount));
@@ -625,6 +626,7 @@ public class PatientOrderService {
 
 			// Pull data from the CSV
 			try (Reader reader = new StringReader(csvContent)) {
+
 				for (CSVRecord record : CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(reader)) {
 					CreatePatientOrderRequest patientOrderRequest = new CreatePatientOrderRequest();
 					patientOrderRequest.setPatientOrderImportId(patientOrderImportId);
@@ -713,6 +715,9 @@ public class PatientOrderService {
 			} catch (IOException e) {
 				// In practice, we should never hit IOException because the Reader is operating over an in-memory String
 				throw new UncheckedIOException("Unable to read CSV string", e);
+			} catch (IllegalArgumentException e) {
+				getLogger().warn("Unable to read CSV order import file", e);
+				throw new ValidationException(getStrings().get("Unable to read the CSV patient order import file. Please double-check that the format is correct."));
 			}
 
 			// If any row-level validation exceptions, group all the errors per row into a single line.

@@ -42,13 +42,13 @@ INSERT INTO patient_order_status VALUES ('AWAITING_SCREENING', 'Awaiting Screeni
 INSERT INTO patient_order_status VALUES ('SCREENING_IN_PROGRESS', 'Screening In Progress');
 INSERT INTO patient_order_status VALUES ('AWAITING_MHIC_SCHEDULING', 'Awaiting MHIC Scheduling');
 INSERT INTO patient_order_status VALUES ('AWAITING_PROVIDER_SCHEDULING', 'Awaiting Provider Scheduling');
+INSERT INTO patient_order_status VALUES ('AWAITING_SAFETY_PLANNING', 'Awaiting Safety Planning');
 INSERT INTO patient_order_status VALUES ('SCHEDULED_WITH_MHIC', 'Scheduled With MHIC');
 INSERT INTO patient_order_status VALUES ('SCHEDULED_WITH_PROVIDER', 'Scheduled With Provider');
 INSERT INTO patient_order_status VALUES ('NEEDS_FURTHER_ASSESSMENT', 'Needs Further Assessment');
-INSERT INTO patient_order_status VALUES ('GRADUATED', 'Graduated', TRUE);
 INSERT INTO patient_order_status VALUES ('CONNECTED_TO_CARE', 'Connected To Care', TRUE);
 INSERT INTO patient_order_status VALUES ('LOST_CONTACT', 'Lost Contact', TRUE);
-INSERT INTO patient_order_status VALUES ('ARCHIVED', 'Archived', TRUE);
+INSERT INTO patient_order_status VALUES ('CLOSED', 'Closed', TRUE);
 
 -- The actual order, can be modified over time.
 -- We keep track of changes by writing to the patient_order_tracking table
@@ -210,7 +210,7 @@ INSERT INTO patient_order_event_type VALUES ('SELF_ADMINISTERED_SCREENING_SESSIO
 INSERT INTO patient_order_event_type VALUES ('SELF_ADMINISTERED_SCREENING_SESSION_COMPLETED', 'Self-Administered Screening Session Completed');
 -- Data to include: screening session ID
 INSERT INTO patient_order_event_type VALUES ('MHIC_ADMINISTERED_SCREENING_SESSION_STARTED', 'MHIC-Administered Screening Session Started');
--- Data to include: screening session ID, triage ID
+-- Data to include: screening session ID, triage IDs
 INSERT INTO patient_order_event_type VALUES ('MHIC_ADMINISTERED_SCREENING_SESSION_COMPLETED', 'MHIC-Administered Screening Session Completed');
 -- Data to include: patient order note ID, account ID, note
 INSERT INTO patient_order_event_type VALUES ('NOTE_CREATED', 'Note Created');
