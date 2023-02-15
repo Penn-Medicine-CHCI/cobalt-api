@@ -32,7 +32,7 @@ public class PatientOrderDiagnosis {
 	@Nullable
 	private UUID patientOrderDiagnosisId;
 	@Nullable
-	private UUID patientImportId;
+	private UUID patientOrderId;
 	@Nullable
 	private String diagnosisId;
 	@Nullable
@@ -56,12 +56,12 @@ public class PatientOrderDiagnosis {
 	}
 
 	@Nullable
-	public UUID getPatientImportId() {
-		return this.patientImportId;
+	public UUID getPatientOrderId() {
+		return this.patientOrderId;
 	}
 
-	public void setPatientImportId(@Nullable UUID patientImportId) {
-		this.patientImportId = patientImportId;
+	public void setPatientOrderId(@Nullable UUID patientOrderId) {
+		this.patientOrderId = patientOrderId;
 	}
 
 	@Nullable
