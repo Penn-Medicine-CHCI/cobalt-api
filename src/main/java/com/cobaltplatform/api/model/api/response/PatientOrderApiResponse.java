@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.PatientOrderDiagnosisApiResponse.PatientOrderDiagnosisApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderMedicationApiResponse.PatientOrderMedicationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.PatientOrder;
@@ -160,6 +161,8 @@ public class PatientOrderApiResponse {
 
 	@Nullable
 	private final List<PatientOrderDiagnosisApiResponse> patientOrderDiagnoses;
+	@Nullable
+	private final List<PatientOrderMedicationApiResponse> patientOrderMedications;
 
 	public enum PatientOrderApiResponseSupplement {
 		PANEL,
@@ -181,6 +184,7 @@ public class PatientOrderApiResponse {
 	public PatientOrderApiResponse(@Nonnull PatientOrderService patientOrderService,
 																 @Nonnull PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory,
 																 @Nonnull PatientOrderDiagnosisApiResponseFactory patientOrderDiagnosisApiResponseFactory,
+																 @Nonnull PatientOrderMedicationApiResponseFactory patientOrderMedicationApiResponseFactory,
 																 @Nonnull Formatter formatter,
 																 @Nonnull Strings strings,
 																 @Nonnull Provider<CurrentContext> currentContextProvider,
@@ -188,6 +192,7 @@ public class PatientOrderApiResponse {
 		this(patientOrderService,
 				patientOrderNoteApiResponseFactory,
 				patientOrderDiagnosisApiResponseFactory,
+				patientOrderMedicationApiResponseFactory,
 				formatter,
 				strings,
 				currentContextProvider,
@@ -199,6 +204,7 @@ public class PatientOrderApiResponse {
 	public PatientOrderApiResponse(@Nonnull PatientOrderService patientOrderService,
 																 @Nonnull PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory,
 																 @Nonnull PatientOrderDiagnosisApiResponseFactory patientOrderDiagnosisApiResponseFactory,
+																 @Nonnull PatientOrderMedicationApiResponseFactory patientOrderMedicationApiResponseFactory,
 																 @Nonnull Formatter formatter,
 																 @Nonnull Strings strings,
 																 @Nonnull Provider<CurrentContext> currentContextProvider,
@@ -207,6 +213,7 @@ public class PatientOrderApiResponse {
 		requireNonNull(patientOrderService);
 		requireNonNull(patientOrderNoteApiResponseFactory);
 		requireNonNull(patientOrderDiagnosisApiResponseFactory);
+		requireNonNull(patientOrderMedicationApiResponseFactory);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(currentContextProvider);
@@ -269,14 +276,20 @@ public class PatientOrderApiResponse {
 		this.recentPsychotherapeuticMedications = patientOrder.getRecentPsychotherapeuticMedications();
 
 		List<PatientOrderDiagnosisApiResponse> patientOrderDiagnoses = null;
+		List<PatientOrderMedicationApiResponse> patientOrderMedications = null;
 
 		if (supplements.contains(PatientOrderApiResponseSupplement.EVERYTHING)) {
 			patientOrderDiagnoses = patientOrderService.findPatientOrderDiagnosesByPatientOrderId(getPatientOrderId()).stream()
 					.map(patientOrderDiagnosis -> patientOrderDiagnosisApiResponseFactory.create(patientOrderDiagnosis))
 					.collect(Collectors.toList());
+
+			patientOrderMedications = patientOrderService.findPatientOrderMedicationsByPatientOrderId(getPatientOrderId()).stream()
+					.map(patientOrderMedication -> patientOrderMedicationApiResponseFactory.create(patientOrderMedication))
+					.collect(Collectors.toList());
 		}
 
 		this.patientOrderDiagnoses = patientOrderDiagnoses;
+		this.patientOrderMedications = patientOrderMedications;
 	}
 
 	@Nonnull
@@ -571,5 +584,10 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public List<PatientOrderDiagnosisApiResponse> getPatientOrderDiagnoses() {
 		return this.patientOrderDiagnoses;
+	}
+
+	@Nullable
+	public List<PatientOrderMedicationApiResponse> getPatientOrderMedications() {
+		return this.patientOrderMedications;
 	}
 }

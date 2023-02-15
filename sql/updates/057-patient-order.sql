@@ -133,6 +133,21 @@ CREATE TABLE patient_order_diagnosis (
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_diagnosis FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
+-- EHR medications that come in as part of the order import.  Can be multiple per order
+CREATE TABLE patient_order_medication (
+  patient_order_medication_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  patient_order_id UUID NOT NULL REFERENCES patient_order,
+  medication_id VARCHAR NOT NULL,
+  medication_id_type VARCHAR,
+  medication_name VARCHAR NOT NULL,
+  display_order INTEGER NOT NULL,
+  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (patient_order_id, display_order)
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_medication FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
 -- Recommended care type for order
 CREATE TABLE patient_order_care_type (
   patient_order_care_type_id VARCHAR PRIMARY KEY,

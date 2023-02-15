@@ -26,6 +26,7 @@ import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderDiagnosisRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderMedicationRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
@@ -37,6 +38,7 @@ import com.cobaltplatform.api.model.db.PatientOrderDiagnosis;
 import com.cobaltplatform.api.model.db.PatientOrderEventType.PatientOrderEventTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderImport;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderMedication;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
@@ -58,6 +60,7 @@ import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -198,6 +201,19 @@ public class PatientOrderService {
 				WHERE patient_order_id=?
 				ORDER BY display_order
 				""", PatientOrderDiagnosis.class, patientOrderId);
+	}
+
+	@Nonnull
+	public List<PatientOrderMedication> findPatientOrderMedicationsByPatientOrderId(@Nullable UUID patientOrderId) {
+		if (patientOrderId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT * 
+				FROM patient_order_medication
+				WHERE patient_order_id=?
+				ORDER BY display_order
+				""", PatientOrderMedication.class, patientOrderId);
 	}
 
 	@Nonnull
@@ -738,29 +754,14 @@ public class PatientOrderService {
 					// Smoker [283397]
 					// Alcohol abuse [155739]"
 					String diagnosesAsString = trimToNull(record.get("DX"));
-					List<CreatePatientOrderDiagnosisRequest> diagnoses = new ArrayList<>();
-
-					if (diagnosesAsString != null) {
-						if (diagnosesAsString.contains("\n")) {
-							for (String diagnosis : diagnosesAsString.split("\n")) {
-								diagnosis = diagnosis.trim();
-
-								if (diagnosis.length() > 0) {
-									NameWithEmbeddedId nameWithEmbeddedId = new NameWithEmbeddedId(diagnosis);
-									CreatePatientOrderDiagnosisRequest diagnosisRequest = new CreatePatientOrderDiagnosisRequest();
-									diagnosisRequest.setDiagnosisId(nameWithEmbeddedId.getId().orElse(null));
-									diagnosisRequest.setDiagnosisName(nameWithEmbeddedId.getName());
-									diagnoses.add(diagnosisRequest);
-								}
-							}
-						} else {
-							NameWithEmbeddedId nameWithEmbeddedId = new NameWithEmbeddedId(diagnosesAsString);
-							CreatePatientOrderDiagnosisRequest diagnosisRequest = new CreatePatientOrderDiagnosisRequest();
-							diagnosisRequest.setDiagnosisId(nameWithEmbeddedId.getId().orElse(null));
-							diagnosisRequest.setDiagnosisName(nameWithEmbeddedId.getName());
-							diagnoses.add(diagnosisRequest);
-						}
-					}
+					List<CreatePatientOrderDiagnosisRequest> diagnoses = parseNamesWithEmbeddedIds(diagnosesAsString).stream()
+							.map(nameWithEmbeddedId -> {
+								CreatePatientOrderDiagnosisRequest diagnosisRequest = new CreatePatientOrderDiagnosisRequest();
+								diagnosisRequest.setDiagnosisId(nameWithEmbeddedId.getId().orElse(null));
+								diagnosisRequest.setDiagnosisName(nameWithEmbeddedId.getName());
+								return diagnosisRequest;
+							})
+							.collect(Collectors.toList());
 
 					patientOrderRequest.setDiagnoses(diagnoses);
 
@@ -774,8 +775,37 @@ public class PatientOrderService {
 					patientOrderRequest.setPatientLocality(trimToNull(record.get("City")));
 					patientOrderRequest.setPatientRegion(trimToNull(record.get("Patient State")));
 					patientOrderRequest.setPatientPostalCode(trimToNull(record.get("ZIP Code")));
-					patientOrderRequest.setLastActiveMedicationOrderSummary(trimToNull(record.get("CCBH Last Active Med Order Summary")));
-					patientOrderRequest.setMedications(trimToNull(record.get("CCBH Medications List")));
+
+					// e.g. "Take 1 tablet by mouth daily.<br>E-Prescribe, Disp-60 tablet, R-1"
+					String lastActiveMedicationOrderSummary = trimToNull(record.get("CCBH Last Active Med Order Summary"));
+
+					if (lastActiveMedicationOrderSummary != null)
+						// Replacing just <br> for now - any others?
+						lastActiveMedicationOrderSummary = lastActiveMedicationOrderSummary.replace("<br>", "\n");
+
+					patientOrderRequest.setLastActiveMedicationOrderSummary(lastActiveMedicationOrderSummary);
+
+					// e.g. "escitalopram 10 mg tablet [517587114]"
+					// Might have multiple lines...
+					String medicationsAsString = trimToNull(record.get("CCBH Medications List"));
+
+					List<CreatePatientOrderMedicationRequest> medications = parseNamesWithEmbeddedIds(medicationsAsString).stream()
+							.map(nameWithEmbeddedId -> {
+								CreatePatientOrderMedicationRequest medicationRequest = new CreatePatientOrderMedicationRequest();
+								medicationRequest.setMedicationId(nameWithEmbeddedId.getId().orElse(null));
+
+								String medicationName = nameWithEmbeddedId.getName();
+
+								// e.g. "escitalopram 10 mg tablet" -> "Escitalopram 10 mg tablet"
+								if (medicationName != null)
+									medicationName = StringUtils.capitalize(medicationName);
+
+								medicationRequest.setMedicationName(medicationName);
+								return medicationRequest;
+							})
+							.collect(Collectors.toList());
+
+					patientOrderRequest.setMedications(medications);
 					patientOrderRequest.setRecentPsychotherapeuticMedications(trimToNull(record.get("Psychotherapeutic Med Lst 2 Weeks")));
 
 					try {
@@ -885,7 +915,9 @@ public class PatientOrderService {
 		String comments = trimToNull(request.getComments());
 		String ccRecipients = trimToNull(request.getCcRecipients());
 		String lastActiveMedicationOrderSummary = trimToNull(request.getLastActiveMedicationOrderSummary());
-		String medications = trimToNull(request.getMedications());
+		List<CreatePatientOrderMedicationRequest> medications = request.getMedications() == null ? List.of() : request.getMedications().stream()
+				.filter(medication -> medication != null)
+				.collect(Collectors.toList());
 		String recentPsychotherapeuticMedications = trimToNull(request.getRecentPsychotherapeuticMedications());
 		UUID patientOrderId = UUID.randomUUID();
 		ValidationException validationException = new ValidationException();
@@ -934,6 +966,17 @@ public class PatientOrderService {
 
 			for (String diagnosisError : diagnosisErrors)
 				validationException.add(new FieldError("diagnoses", diagnosisError));
+		}
+
+		if (medications.size() > 0) {
+			Set<String> medicationErrors = new HashSet<>();
+
+			for (CreatePatientOrderMedicationRequest medication : medications)
+				if (trimToNull(medication.getMedicationName()) == null)
+					medicationErrors.add(getStrings().get("Medication name is required."));
+
+			for (String medicationError : medicationErrors)
+				validationException.add(new FieldError("medications", medicationError));
 		}
 
 		if (orderAge == null) {
@@ -1058,10 +1101,9 @@ public class PatientOrderService {
 						  preferred_contact_hours,
 						  comments,
 						  cc_recipients,
-						  last_active_medication_order_summary,
-						  medications,
+						  last_active_medication_order_summary,						  
 						  recent_psychotherapeutic_medications
-						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				patientOrderId, patientOrderStatusId, patientOrderImportId, institutionId, encounterDepartmentId,
 				encounterDepartmentIdType, encounterDepartmentName, referringPracticeId, referringPracticeIdType,
@@ -1071,7 +1113,7 @@ public class PatientOrderService {
 				patientMrn, patientId, patientIdType, patientBirthSexId, patientBirthdate, patientAddressId, primaryPayorId,
 				primaryPayorName, primaryPlanId, primaryPlanName, orderDate, orderAgeInMinutes, orderId, routing,
 				reasonForReferral, associatedDiagnosis, callbackPhoneNumber, preferredContactHours, comments, ccRecipients,
-				lastActiveMedicationOrderSummary, medications, recentPsychotherapeuticMedications);
+				lastActiveMedicationOrderSummary, recentPsychotherapeuticMedications);
 
 		int diagnosisDisplayOrder = 0;
 
@@ -1091,6 +1133,26 @@ public class PatientOrderService {
 					""", patientOrderId, diagnosisId, diagnosisIdType, diagnosisName, diagnosisDisplayOrder);
 
 			++diagnosisDisplayOrder;
+		}
+
+		int medicationDisplayOrder = 0;
+
+		for (CreatePatientOrderMedicationRequest medication : medications) {
+			String medicationId = trimToNull(medication.getMedicationId());
+			String medicationIdType = trimToNull(medication.getMedicationIdType());
+			String medicationName = trimToNull(medication.getMedicationName());
+
+			getDatabase().execute("""
+					INSERT INTO patient_order_medication (
+					patient_order_id, 
+					medication_id,
+					medication_id_type,
+					medication_name,
+					display_order
+					) VALUES (?,?,?,?,?)
+					""", patientOrderId, medicationId, medicationIdType, medicationName, diagnosisDisplayOrder);
+
+			++medicationDisplayOrder;
 		}
 
 		createPatientOrderEvent(new CreatePatientOrderEventRequest() {{
@@ -1247,6 +1309,36 @@ public class PatientOrderService {
 		public Optional<String> getId() {
 			return Optional.ofNullable(this.id);
 		}
+	}
+
+	/**
+	 * Might be encoded as names + bracketed IDs in CSV like this (a single field with newlines):
+	 * "GAD (generalized anxiety disorder) [213881]
+	 * Smoker [283397]
+	 * Alcohol abuse [155739]"
+	 */
+	@Nonnull
+	protected List<NameWithEmbeddedId> parseNamesWithEmbeddedIds(@Nullable String csvRecord) {
+		csvRecord = trimToNull(csvRecord);
+
+		if (csvRecord == null)
+			return List.of();
+
+		List<NameWithEmbeddedId> namesWithEmbeddedIds = new ArrayList<>();
+
+
+		if (csvRecord.contains("\n")) {
+			for (String csvRecordLine : csvRecord.split("\n")) {
+				csvRecordLine = csvRecordLine.trim();
+
+				if (csvRecordLine.length() > 0)
+					namesWithEmbeddedIds.add(new NameWithEmbeddedId(csvRecordLine));
+			}
+		} else {
+			namesWithEmbeddedIds.add(new NameWithEmbeddedId(csvRecord));
+		}
+
+		return namesWithEmbeddedIds;
 	}
 
 	@NotThreadSafe

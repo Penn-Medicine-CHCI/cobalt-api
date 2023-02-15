@@ -128,7 +128,7 @@ public class CreatePatientOrderRequest {
 	@Nullable
 	private String lastActiveMedicationOrderSummary;
 	@Nullable
-	private String medications;
+	private List<CreatePatientOrderMedicationRequest> medications;
 	@Nullable
 	private String recentPsychotherapeuticMedications;
 
@@ -565,11 +565,11 @@ public class CreatePatientOrderRequest {
 	}
 
 	@Nullable
-	public String getMedications() {
+	public List<CreatePatientOrderMedicationRequest> getMedications() {
 		return this.medications;
 	}
 
-	public void setMedications(@Nullable String medications) {
+	public void setMedications(@Nullable List<CreatePatientOrderMedicationRequest> medications) {
 		this.medications = medications;
 	}
 
@@ -617,6 +617,43 @@ public class CreatePatientOrderRequest {
 
 		public void setDiagnosisName(@Nullable String diagnosisName) {
 			this.diagnosisName = diagnosisName;
+		}
+	}
+
+	@NotThreadSafe
+	public static class CreatePatientOrderMedicationRequest {
+		@Nullable
+		private String medicationId;
+		@Nullable
+		private String medicationIdType;
+		@Nullable
+		private String medicationName;
+
+		@Nullable
+		public String getMedicationId() {
+			return this.medicationId;
+		}
+
+		public void setMedicationId(@Nullable String medicationId) {
+			this.medicationId = medicationId;
+		}
+
+		@Nullable
+		public String getMedicationIdType() {
+			return this.medicationIdType;
+		}
+
+		public void setMedicationIdType(@Nullable String medicationIdType) {
+			this.medicationIdType = medicationIdType;
+		}
+
+		@Nullable
+		public String getMedicationName() {
+			return this.medicationName;
+		}
+
+		public void setMedicationName(@Nullable String medicationName) {
+			this.medicationName = medicationName;
 		}
 	}
 }
