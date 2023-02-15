@@ -684,8 +684,49 @@ public class PatientOrderService {
 					patientOrderRequest.setPatientIdType("UID");
 					patientOrderRequest.setPatientBirthSexId(trimToNull(record.get("Sex")));
 					patientOrderRequest.setPatientBirthdate(trimToNull(record.get("DOB")));
-					patientOrderRequest.setPrimaryPayor(trimToNull(record.get("Primary Payor")));
-					patientOrderRequest.setPrimaryPlan(trimToNull(record.get("Primary Plan")));
+
+					// e.g. 128000-IBC
+					String primaryPayor = trimToNull(record.get("Primary Payor"));
+					String primaryPayorId = null;
+					String primaryPayorName = null;
+
+					if (primaryPayor != null) {
+						int primaryPayorSeparatorIndex = primaryPayor.indexOf("-");
+
+						if (primaryPayorSeparatorIndex == -1) {
+							primaryPayorName = primaryPayor;
+						} else {
+							primaryPayorId = primaryPayor.substring(0, primaryPayorSeparatorIndex);
+							primaryPayorName = primaryPayor.length() > primaryPayorId.length() + 1
+									? primaryPayor.substring(primaryPayorSeparatorIndex + 1)
+									: null;
+						}
+					}
+
+					patientOrderRequest.setPrimaryPayorId(primaryPayorId);
+					patientOrderRequest.setPrimaryPayorName(primaryPayorName);
+
+					// e.g. 128002-KEYSTONE HEALTH PLAN EAST
+					String primaryPlan = trimToNull(record.get("Primary Plan"));
+					String primaryPlanId = null;
+					String primaryPlanName = null;
+
+					if (primaryPlan != null) {
+						int primaryPlanSeparatorIndex = primaryPlan.indexOf("-");
+
+						if (primaryPlanSeparatorIndex == -1) {
+							primaryPlanName = primaryPayor;
+						} else {
+							primaryPlanId = primaryPlan.substring(0, primaryPlanSeparatorIndex);
+							primaryPlanName = primaryPlan.length() > primaryPlanId.length() + 1
+									? primaryPlan.substring(primaryPlanSeparatorIndex + 1)
+									: null;
+						}
+					}
+
+					patientOrderRequest.setPrimaryPlanId(primaryPlanId);
+					patientOrderRequest.setPrimaryPlanName(primaryPlanName);
+
 					patientOrderRequest.setOrderDate(trimToNull(record.get("Order Date")));
 					patientOrderRequest.setOrderId(trimToNull(record.get("Order ID")));
 					patientOrderRequest.setOrderAge(trimToNull(record.get("Age of Order")));
@@ -824,8 +865,10 @@ public class PatientOrderService {
 		String patientPostalCode = trimToNull(request.getPatientPostalCode());
 		String patientCountryCode = trimToNull(request.getPatientCountryCode());
 		UUID patientAddressId = null;
-		String primaryPayor = trimToNull(request.getPrimaryPayor());
-		String primaryPlan = trimToNull(request.getPrimaryPlan());
+		String primaryPayorId = trimToNull(request.getPrimaryPayorId());
+		String primaryPayorName = trimToNull(request.getPrimaryPayorName());
+		String primaryPlanId = trimToNull(request.getPrimaryPlanId());
+		String primaryPlanName = trimToNull(request.getPrimaryPlanName());
 		String orderDateAsString = trimToNull(request.getOrderDate());
 		LocalDate orderDate = null;
 		String orderAge = trimToNull(request.getOrderAge());
@@ -1001,8 +1044,10 @@ public class PatientOrderService {
 						  patient_birth_sex_id,
 						  patient_birthdate,
 						  patient_address_id,
-						  primary_payor,
-						  primary_plan,
+						  primary_payor_id,
+						  primary_payor_name,
+						  primary_plan_id,
+						  primary_plan_name,
 						  order_date,
 						  order_age_in_minutes,
 						  order_id,
@@ -1016,17 +1061,17 @@ public class PatientOrderService {
 						  last_active_medication_order_summary,
 						  medications,
 						  recent_psychotherapeutic_medications
-						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				patientOrderId, patientOrderStatusId, patientOrderImportId, institutionId, encounterDepartmentId,
 				encounterDepartmentIdType, encounterDepartmentName, referringPracticeId, referringPracticeIdType,
 				referringPracticeName, orderingProviderId, orderingProviderIdType, orderingProviderLastName,
 				orderingProviderFirstName, orderingProviderMiddleName, billingProviderId, billingProviderIdType,
 				billingProviderLastName, billingProviderFirstName, billingProviderMiddleName, patientLastName, patientFirstName,
-				patientMrn, patientId, patientIdType, patientBirthSexId, patientBirthdate, patientAddressId, primaryPayor,
-				primaryPlan, orderDate, orderAgeInMinutes, orderId, routing, reasonForReferral, associatedDiagnosis,
-				callbackPhoneNumber, preferredContactHours, comments, ccRecipients, lastActiveMedicationOrderSummary,
-				medications, recentPsychotherapeuticMedications);
+				patientMrn, patientId, patientIdType, patientBirthSexId, patientBirthdate, patientAddressId, primaryPayorId,
+				primaryPayorName, primaryPlanId, primaryPlanName, orderDate, orderAgeInMinutes, orderId, routing,
+				reasonForReferral, associatedDiagnosis, callbackPhoneNumber, preferredContactHours, comments, ccRecipients,
+				lastActiveMedicationOrderSummary, medications, recentPsychotherapeuticMedications);
 
 		int diagnosisDisplayOrder = 0;
 

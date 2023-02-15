@@ -95,9 +95,13 @@ public class PatientOrder {
 	@Nullable
 	private LocalDate patientBirthdate;
 	@Nullable
-	private String primaryPayor;
+	private String primaryPayorId;
 	@Nullable
-	private String primaryPlan;
+	private String primaryPayorName;
+	@Nullable
+	private String primaryPlanId;
+	@Nullable
+	private String primaryPlanName;
 	@Nullable
 	private LocalDate orderDate;
 	@Nullable
@@ -400,21 +404,39 @@ public class PatientOrder {
 	}
 
 	@Nullable
-	public String getPrimaryPayor() {
-		return this.primaryPayor;
+	public String getPrimaryPayorId() {
+		return this.primaryPayorId;
 	}
 
-	public void setPrimaryPayor(@Nullable String primaryPayor) {
-		this.primaryPayor = primaryPayor;
+	public void setPrimaryPayorId(@Nullable String primaryPayorId) {
+		this.primaryPayorId = primaryPayorId;
 	}
 
 	@Nullable
-	public String getPrimaryPlan() {
-		return this.primaryPlan;
+	public String getPrimaryPayorName() {
+		return this.primaryPayorName;
 	}
 
-	public void setPrimaryPlan(@Nullable String primaryPlan) {
-		this.primaryPlan = primaryPlan;
+	public void setPrimaryPayorName(@Nullable String primaryPayorName) {
+		this.primaryPayorName = primaryPayorName;
+	}
+
+	@Nullable
+	public String getPrimaryPlanId() {
+		return this.primaryPlanId;
+	}
+
+	public void setPrimaryPlanId(@Nullable String primaryPlanId) {
+		this.primaryPlanId = primaryPlanId;
+	}
+
+	@Nullable
+	public String getPrimaryPlanName() {
+		return this.primaryPlanName;
+	}
+
+	public void setPrimaryPlanName(@Nullable String primaryPlanName) {
+		this.primaryPlanName = primaryPlanName;
 	}
 
 	@Nullable
