@@ -65,13 +65,21 @@ public class PatientOrder {
 	@Nullable
 	private String orderingProviderIdType;
 	@Nullable
-	private String orderingProviderName;
+	private String orderingProviderLastName;
+	@Nullable
+	private String orderingProviderFirstName;
+	@Nullable
+	private String orderingProviderMiddleName;
 	@Nullable
 	private String billingProviderId;
 	@Nullable
 	private String billingProviderIdType;
 	@Nullable
-	private String billingProviderName;
+	private String billingProviderLastName;
+	@Nullable
+	private String billingProviderFirstName;
+	@Nullable
+	private String billingProviderMiddleName;
 	@Nullable
 	private String patientLastName;
 	@Nullable
@@ -257,12 +265,30 @@ public class PatientOrder {
 	}
 
 	@Nullable
-	public String getOrderingProviderName() {
-		return this.orderingProviderName;
+	public String getOrderingProviderLastName() {
+		return this.orderingProviderLastName;
 	}
 
-	public void setOrderingProviderName(@Nullable String orderingProviderName) {
-		this.orderingProviderName = orderingProviderName;
+	public void setOrderingProviderLastName(@Nullable String orderingProviderLastName) {
+		this.orderingProviderLastName = orderingProviderLastName;
+	}
+
+	@Nullable
+	public String getOrderingProviderFirstName() {
+		return this.orderingProviderFirstName;
+	}
+
+	public void setOrderingProviderFirstName(@Nullable String orderingProviderFirstName) {
+		this.orderingProviderFirstName = orderingProviderFirstName;
+	}
+
+	@Nullable
+	public String getOrderingProviderMiddleName() {
+		return this.orderingProviderMiddleName;
+	}
+
+	public void setOrderingProviderMiddleName(@Nullable String orderingProviderMiddleName) {
+		this.orderingProviderMiddleName = orderingProviderMiddleName;
 	}
 
 	@Nullable
@@ -284,12 +310,30 @@ public class PatientOrder {
 	}
 
 	@Nullable
-	public String getBillingProviderName() {
-		return this.billingProviderName;
+	public String getBillingProviderLastName() {
+		return this.billingProviderLastName;
 	}
 
-	public void setBillingProviderName(@Nullable String billingProviderName) {
-		this.billingProviderName = billingProviderName;
+	public void setBillingProviderLastName(@Nullable String billingProviderLastName) {
+		this.billingProviderLastName = billingProviderLastName;
+	}
+
+	@Nullable
+	public String getBillingProviderFirstName() {
+		return this.billingProviderFirstName;
+	}
+
+	public void setBillingProviderFirstName(@Nullable String billingProviderFirstName) {
+		this.billingProviderFirstName = billingProviderFirstName;
+	}
+
+	@Nullable
+	public String getBillingProviderMiddleName() {
+		return this.billingProviderMiddleName;
+	}
+
+	public void setBillingProviderMiddleName(@Nullable String billingProviderMiddleName) {
+		this.billingProviderMiddleName = billingProviderMiddleName;
 	}
 
 	@Nullable

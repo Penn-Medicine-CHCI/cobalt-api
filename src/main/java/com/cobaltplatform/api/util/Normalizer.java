@@ -220,8 +220,8 @@ public class Normalizer {
 	 * "LOREN SANDERS" -> "Loren Sanders"
 	 */
 	@Nonnull
-	public Optional<String> normalizeNameCasing(@Nullable String name,
-																							@Nonnull Locale locale) {
+	public static Optional<String> normalizeNameCasing(@Nullable String name,
+																										 @Nonnull Locale locale) {
 		requireNonNull(locale);
 
 		name = trimToNull(name);

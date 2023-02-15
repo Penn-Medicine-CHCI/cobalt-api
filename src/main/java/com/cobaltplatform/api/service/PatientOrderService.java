@@ -77,6 +77,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -637,13 +638,45 @@ public class PatientOrderService {
 
 					// Referring Practice has 2 fields with the same name (currently...)
 					// So we try the first one, and if it's null, we try the second
-					patientOrderRequest.setReferringPracticeName(trimToNull(record.get(2)));
+					String rawReferringPracticeName = trimToNull(record.get(2));
 
-					if (patientOrderRequest.getReferringPracticeName() == null)
-						patientOrderRequest.setReferringPracticeName(trimToNull(record.get(3)));
+					if (rawReferringPracticeName == null)
+						rawReferringPracticeName = trimToNull(record.get(3));
 
-					patientOrderRequest.setOrderingProviderName(trimToNull(record.get("Ordering Provider")));
-					patientOrderRequest.setBillingProviderName(trimToNull(record.get("Billing Provider")));
+					if (rawReferringPracticeName != null) {
+						NameWithEmbeddedId referringPractice = new NameWithEmbeddedId(rawReferringPracticeName);
+						String referringPracticeId = referringPractice.getId().orElse(null);
+
+						if (referringPracticeId != null)
+							patientOrderRequest.setReferringPracticeId(referringPracticeId);
+
+						patientOrderRequest.setReferringPracticeName(referringPractice.getName());
+					}
+
+					CsvName orderingProviderName = new CsvName(trimToNull(record.get("Ordering Provider")));
+					patientOrderRequest.setOrderingProviderLastName(orderingProviderName.getLastName().orElse(null));
+					patientOrderRequest.setOrderingProviderFirstName(orderingProviderName.getFirstName().orElse(null));
+					patientOrderRequest.setOrderingProviderMiddleName(orderingProviderName.getMiddleName().orElse(null));
+
+					// Normalizes some names and also extracts IDs.
+					//
+					// Examples:
+					// billingProviderName="ROBINSON, LAURA E [R11853]" -> "ROBINSON, LAURA E" (name), "R11853" (id)
+					String rawBillingProviderName = trimToNull(record.get("Billing Provider"));
+
+					if (rawBillingProviderName != null) {
+						NameWithEmbeddedId billingProviderName = new NameWithEmbeddedId(rawBillingProviderName);
+						String billingProviderId = billingProviderName.getId().orElse(null);
+
+						if (billingProviderId != null)
+							patientOrderRequest.setBillingProviderId(billingProviderId);
+
+						CsvName csvBillingProviderName = new CsvName(billingProviderName.getName());
+						patientOrderRequest.setBillingProviderLastName(csvBillingProviderName.getLastName().orElse(null));
+						patientOrderRequest.setBillingProviderFirstName(csvBillingProviderName.getFirstName().orElse(null));
+						patientOrderRequest.setBillingProviderMiddleName(csvBillingProviderName.getMiddleName().orElse(null));
+					}
+
 					patientOrderRequest.setPatientLastName(trimToNull(record.get("Last Name")));
 					patientOrderRequest.setPatientFirstName(trimToNull(record.get("First Name")));
 					patientOrderRequest.setPatientMrn(trimToNull(record.get("MRN")));
@@ -767,10 +800,14 @@ public class PatientOrderService {
 		String referringPracticeName = trimToNull(request.getReferringPracticeName());
 		String orderingProviderId = trimToNull(request.getOrderingProviderId());
 		String orderingProviderIdType = trimToNull(request.getOrderingProviderIdType());
-		String orderingProviderName = trimToNull(request.getOrderingProviderName());
+		String orderingProviderLastName = trimToNull(request.getOrderingProviderLastName());
+		String orderingProviderFirstName = trimToNull(request.getOrderingProviderFirstName());
+		String orderingProviderMiddleName = trimToNull(request.getOrderingProviderMiddleName());
 		String billingProviderId = trimToNull(request.getBillingProviderId());
 		String billingProviderIdType = trimToNull(request.getBillingProviderIdType());
-		String billingProviderName = trimToNull(request.getBillingProviderName());
+		String billingProviderLastName = trimToNull(request.getBillingProviderLastName());
+		String billingProviderFirstName = trimToNull(request.getBillingProviderFirstName());
+		String billingProviderMiddleName = trimToNull(request.getBillingProviderMiddleName());
 		String patientLastName = trimToNull(request.getPatientLastName());
 		String patientFirstName = trimToNull(request.getPatientFirstName());
 		String patientMrn = trimToNull(request.getPatientMrn());
@@ -931,23 +968,6 @@ public class PatientOrderService {
 						Map.of("callbackPhoneNumber", originalCallbackPhoneNumber))));
 		}
 
-		// Normalizes some names and also extracts IDs.
-		//
-		// Examples:
-		// billingProviderName="ROBINSON, LAURA E [R11853]" -> "ROBINSON, LAURA E" (name), "R11853" (id)
-
-		NameWithEmbeddedId billingProvider = new NameWithEmbeddedId(billingProviderName);
-		billingProviderName = billingProvider.getName();
-
-		if (billingProviderId == null)
-			billingProviderId = billingProvider.getId().orElse(null);
-
-		NameWithEmbeddedId referringPractice = new NameWithEmbeddedId(referringPracticeName);
-		referringPracticeName = referringPractice.getName();
-
-		if (referringPracticeId == null)
-			referringPracticeId = referringPractice.getId().orElse(null);
-
 		if (validationException.hasErrors())
 			throw validationException;
 
@@ -965,10 +985,14 @@ public class PatientOrderService {
 						  referring_practice_name,
 						  ordering_provider_id,
 						  ordering_provider_id_type,
-						  ordering_provider_name,
+						  ordering_provider_last_name,
+						  ordering_provider_first_name,
+						  ordering_provider_middle_name,
 						  billing_provider_id,
 						  billing_provider_id_type,
-						  billing_provider_name,
+						  billing_provider_last_name,
+						  billing_provider_first_name,
+						  billing_provider_middle_name,
 						  patient_last_name,
 						  patient_first_name,
 						  patient_mrn,
@@ -992,16 +1016,17 @@ public class PatientOrderService {
 						  last_active_medication_order_summary,
 						  medications,
 						  recent_psychotherapeutic_medications
-						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				patientOrderId, patientOrderStatusId, patientOrderImportId, institutionId, encounterDepartmentId,
 				encounterDepartmentIdType, encounterDepartmentName, referringPracticeId, referringPracticeIdType,
-				referringPracticeName, orderingProviderId, orderingProviderIdType, orderingProviderName, billingProviderId,
-				billingProviderIdType, billingProviderName, patientLastName, patientFirstName, patientMrn, patientId,
-				patientIdType, patientBirthSexId, patientBirthdate, patientAddressId, primaryPayor, primaryPlan,
-				orderDate, orderAgeInMinutes, orderId, routing, reasonForReferral, associatedDiagnosis, callbackPhoneNumber,
-				preferredContactHours, comments, ccRecipients, lastActiveMedicationOrderSummary, medications,
-				recentPsychotherapeuticMedications);
+				referringPracticeName, orderingProviderId, orderingProviderIdType, orderingProviderLastName,
+				orderingProviderFirstName, orderingProviderMiddleName, billingProviderId, billingProviderIdType,
+				billingProviderLastName, billingProviderFirstName, billingProviderMiddleName, patientLastName, patientFirstName,
+				patientMrn, patientId, patientIdType, patientBirthSexId, patientBirthdate, patientAddressId, primaryPayor,
+				primaryPlan, orderDate, orderAgeInMinutes, orderId, routing, reasonForReferral, associatedDiagnosis,
+				callbackPhoneNumber, preferredContactHours, comments, ccRecipients, lastActiveMedicationOrderSummary,
+				medications, recentPsychotherapeuticMedications);
 
 		int diagnosisDisplayOrder = 0;
 
@@ -1191,6 +1216,86 @@ public class PatientOrderService {
 
 		public void setTotalCount(@Nullable Integer totalCount) {
 			this.totalCount = totalCount;
+		}
+	}
+
+	@NotThreadSafe
+	protected static class CsvName {
+		@Nullable
+		private final String lastName;
+		@Nullable
+		private final String firstName;
+		@Nullable
+		private final String middleName;
+
+		public CsvName(@Nullable String name) {
+			this(name, null);
+		}
+
+		public CsvName(@Nullable String name,
+									 @Nullable Locale locale) {
+			if (locale == null)
+				locale = Locale.US;
+
+			name = trimToNull(name);
+
+			String lastName = null;
+			String firstName = null;
+			String middleName = null;
+
+			if (name != null) {
+				// Names should look like "Lastname, Firstname [optional middle initial]"...
+				// but in case there is no comma, assume it's Firstname Lastname
+				int commaIndex = name.indexOf(",");
+				if (commaIndex != -1) {
+					lastName = name.substring(0, commaIndex).trim();
+					String remainder = name.substring(commaIndex + 1).trim();
+
+					List<String> remainingNameComponents = Arrays.stream(remainder.replaceAll("\\s{2,}", " ").split(" ")).toList();
+
+					if (remainingNameComponents.size() == 1) {
+						firstName = remainingNameComponents.get(0);
+					} else if (remainingNameComponents.size() > 1) {
+						firstName = remainingNameComponents.subList(0, remainingNameComponents.size() - 1).stream().collect(Collectors.joining(" "));
+						middleName = remainingNameComponents.get(remainingNameComponents.size() - 1);
+					}
+				} else {
+					List<String> nameComponents = Arrays.stream(name.replaceAll("\\s{2,}", " ").split(" ")).toList();
+
+					if (nameComponents.size() > 0) {
+						firstName = nameComponents.get(0);
+						lastName = nameComponents.subList(1, nameComponents.size()).stream().collect(Collectors.joining(" "));
+					}
+				}
+			}
+
+			if (firstName != null && firstName.equals(firstName.toUpperCase(locale)))
+				firstName = Normalizer.normalizeNameCasing(firstName, locale).orElse(null);
+
+			if (lastName != null && lastName.equals(lastName.toUpperCase(locale)))
+				lastName = Normalizer.normalizeNameCasing(lastName, locale).orElse(null);
+
+			if (middleName != null)
+				middleName = Normalizer.normalizeNameCasing(middleName, locale).orElse(null);
+
+			this.lastName = lastName;
+			this.firstName = firstName;
+			this.middleName = middleName;
+		}
+
+		@Nonnull
+		public Optional<String> getLastName() {
+			return Optional.ofNullable(this.lastName);
+		}
+
+		@Nonnull
+		public Optional<String> getFirstName() {
+			return Optional.ofNullable(this.firstName);
+		}
+
+		@Nonnull
+		public Optional<String> getMiddleName() {
+			return Optional.ofNullable(this.middleName);
 		}
 	}
 

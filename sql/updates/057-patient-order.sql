@@ -67,10 +67,14 @@ CREATE TABLE patient_order (
   referring_practice_name VARCHAR,
   ordering_provider_id VARCHAR, -- not currently provided
   ordering_provider_id_type VARCHAR, -- not currently provided
-  ordering_provider_name VARCHAR,
+  ordering_provider_last_name VARCHAR,
+  ordering_provider_first_name VARCHAR,
+  ordering_provider_middle_name VARCHAR,
   billing_provider_id VARCHAR, -- not currently provided
   billing_provider_id_type VARCHAR, -- not currently provided
-  billing_provider_name VARCHAR,
+  billing_provider_last_name VARCHAR,
+  billing_provider_first_name VARCHAR,
+  billing_provider_middle_name VARCHAR,
   patient_last_name VARCHAR NOT NULL,
   patient_first_name VARCHAR NOT NULL,
   patient_mrn VARCHAR NOT NULL,
