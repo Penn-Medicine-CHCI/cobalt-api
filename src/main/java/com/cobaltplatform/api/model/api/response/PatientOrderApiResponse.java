@@ -20,12 +20,15 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.response.AddressApiResponse.AddressApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderDiagnosisApiResponse.PatientOrderDiagnosisApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderMedicationApiResponse.PatientOrderMedicationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
+import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
+import com.cobaltplatform.api.service.AddressService;
 import com.cobaltplatform.api.service.PatientOrderService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.Provider;
@@ -160,6 +163,8 @@ public class PatientOrderApiResponse {
 	private final String recentPsychotherapeuticMedications;
 
 	@Nullable
+	private final AddressApiResponse patientAddress;
+	@Nullable
 	private final List<PatientOrderDiagnosisApiResponse> patientOrderDiagnoses;
 	@Nullable
 	private final List<PatientOrderMedicationApiResponse> patientOrderMedications;
@@ -182,17 +187,21 @@ public class PatientOrderApiResponse {
 
 	@AssistedInject
 	public PatientOrderApiResponse(@Nonnull PatientOrderService patientOrderService,
+																 @Nonnull AddressService addressService,
 																 @Nonnull PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory,
 																 @Nonnull PatientOrderDiagnosisApiResponseFactory patientOrderDiagnosisApiResponseFactory,
 																 @Nonnull PatientOrderMedicationApiResponseFactory patientOrderMedicationApiResponseFactory,
+																 @Nonnull AddressApiResponseFactory addressApiResponseFactory,
 																 @Nonnull Formatter formatter,
 																 @Nonnull Strings strings,
 																 @Nonnull Provider<CurrentContext> currentContextProvider,
 																 @Assisted @Nonnull PatientOrder patientOrder) {
 		this(patientOrderService,
+				addressService,
 				patientOrderNoteApiResponseFactory,
 				patientOrderDiagnosisApiResponseFactory,
 				patientOrderMedicationApiResponseFactory,
+				addressApiResponseFactory,
 				formatter,
 				strings,
 				currentContextProvider,
@@ -202,18 +211,22 @@ public class PatientOrderApiResponse {
 
 	@AssistedInject
 	public PatientOrderApiResponse(@Nonnull PatientOrderService patientOrderService,
+																 @Nonnull AddressService addressService,
 																 @Nonnull PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory,
 																 @Nonnull PatientOrderDiagnosisApiResponseFactory patientOrderDiagnosisApiResponseFactory,
 																 @Nonnull PatientOrderMedicationApiResponseFactory patientOrderMedicationApiResponseFactory,
+																 @Nonnull AddressApiResponseFactory addressApiResponseFactory,
 																 @Nonnull Formatter formatter,
 																 @Nonnull Strings strings,
 																 @Nonnull Provider<CurrentContext> currentContextProvider,
 																 @Assisted @Nonnull PatientOrder patientOrder,
 																 @Assisted @Nonnull Set<PatientOrderApiResponseSupplement> supplements) {
 		requireNonNull(patientOrderService);
+		requireNonNull(addressService);
 		requireNonNull(patientOrderNoteApiResponseFactory);
 		requireNonNull(patientOrderDiagnosisApiResponseFactory);
 		requireNonNull(patientOrderMedicationApiResponseFactory);
+		requireNonNull(addressApiResponseFactory);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(currentContextProvider);
@@ -275,10 +288,14 @@ public class PatientOrderApiResponse {
 		this.medications = patientOrder.getMedications();
 		this.recentPsychotherapeuticMedications = patientOrder.getRecentPsychotherapeuticMedications();
 
+		AddressApiResponse patientAddress = null;
 		List<PatientOrderDiagnosisApiResponse> patientOrderDiagnoses = null;
 		List<PatientOrderMedicationApiResponse> patientOrderMedications = null;
 
 		if (supplements.contains(PatientOrderApiResponseSupplement.EVERYTHING)) {
+			Address address = addressService.findAddressById(patientOrder.getPatientAddressId()).orElse(null);
+			patientAddress = address == null ? null : addressApiResponseFactory.create(address);
+
 			patientOrderDiagnoses = patientOrderService.findPatientOrderDiagnosesByPatientOrderId(getPatientOrderId()).stream()
 					.map(patientOrderDiagnosis -> patientOrderDiagnosisApiResponseFactory.create(patientOrderDiagnosis))
 					.collect(Collectors.toList());
@@ -288,6 +305,7 @@ public class PatientOrderApiResponse {
 					.collect(Collectors.toList());
 		}
 
+		this.patientAddress = patientAddress;
 		this.patientOrderDiagnoses = patientOrderDiagnoses;
 		this.patientOrderMedications = patientOrderMedications;
 	}
