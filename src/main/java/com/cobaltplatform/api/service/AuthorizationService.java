@@ -475,6 +475,10 @@ public class AuthorizationService {
 				&& (account.getRoleId() == RoleId.ADMINISTRATOR || account.getRoleId() == RoleId.MHIC))
 			return true;
 
+		// You can view your own order
+		if (Objects.equals(account.getAccountId(), patientOrder.getPatientAccountId()))
+			return true;
+
 		return false;
 	}
 

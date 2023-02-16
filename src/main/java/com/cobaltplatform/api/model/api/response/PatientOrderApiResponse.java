@@ -28,6 +28,7 @@ import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
+import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.service.AddressService;
 import com.cobaltplatform.api.service.PatientOrderService;
 import com.cobaltplatform.api.util.Formatter;
@@ -58,130 +59,147 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @Immutable
 public class PatientOrderApiResponse {
 	@Nonnull
-	private final UUID patientOrderId;
+	private UUID patientOrderId;
 	@Nullable
-	private final PatientOrderStatusId patientOrderStatusId;
+	private PatientOrderStatusId patientOrderStatusId;
 	@Nullable
-	private final UUID patientAccountId;
+	private UUID patientAccountId;
 	@Nullable
-	private final UUID patientAddressId;
+	private UUID patientAddressId;
 	@Nullable
-	private final UUID panelAccountId;
+	private UUID panelAccountId;
 	@Nullable
-	private final String encounterDepartmentId;
+	private String encounterDepartmentId;
 	@Nullable
-	private final String encounterDepartmentIdType;
+	private String encounterDepartmentIdType;
 	@Nullable
-	private final String encounterDepartmentName;
+	private String encounterDepartmentName;
 	@Nullable
-	private final String referringPracticeId;
+	private String referringPracticeId;
 	@Nullable
-	private final String referringPracticeIdType;
+	private String referringPracticeIdType;
 	@Nullable
-	private final String referringPracticeName;
+	private String referringPracticeName;
 	@Nullable
-	private final String orderingProviderId;
+	private String orderingProviderId;
 	@Nullable
-	private final String orderingProviderIdType;
+	private String orderingProviderIdType;
 	@Nullable
-	private final String orderingProviderLastName;
+	private String orderingProviderLastName;
 	@Nullable
-	private final String orderingProviderFirstName;
+	private String orderingProviderFirstName;
 	@Nullable
-	private final String orderingProviderMiddleName;
+	private String orderingProviderMiddleName;
 	@Nullable
-	private final String orderingProviderDisplayName;
+	private String orderingProviderDisplayName;
 	@Nullable
-	private final String billingProviderId;
+	private String billingProviderId;
 	@Nullable
-	private final String billingProviderIdType;
+	private String billingProviderIdType;
 	@Nullable
-	private final String billingProviderLastName;
+	private String billingProviderLastName;
 	@Nullable
-	private final String billingProviderFirstName;
+	private String billingProviderFirstName;
 	@Nullable
-	private final String billingProviderMiddleName;
+	private String billingProviderMiddleName;
 	@Nullable
-	private final String billingProviderDisplayName;
+	private String billingProviderDisplayName;
 	@Nullable
-	private final String patientLastName;
+	private String patientLastName;
 	@Nullable
-	private final String patientFirstName;
+	private String patientFirstName;
 	@Nullable
-	private final String patientDisplayName;
+	private String patientDisplayName;
 	@Nullable
-	private final String patientMrn;
+	private String patientMrn;
 	@Nullable
-	private final String patientId;
+	private String patientId;
 	@Nullable
-	private final String patientIdType;
+	private String patientIdType;
 	@Nullable
-	private final BirthSexId patientBirthSexId;
+	private BirthSexId patientBirthSexId;
 	@Nullable
-	private final LocalDate patientBirthdate;
+	private LocalDate patientBirthdate;
 	@Nullable
-	private final String patientBirthdateDescription;
+	private String patientBirthdateDescription;
 	@Nullable
-	private final String primaryPayorId;
+	private String primaryPayorId;
 	@Nullable
-	private final String primaryPayorName;
+	private String primaryPayorName;
 	@Nullable
-	private final String primaryPlanId;
+	private String primaryPlanId;
 	@Nullable
-	private final String primaryPlanName;
+	private String primaryPlanName;
 	@Nullable
-	private final LocalDate orderDate;
+	private LocalDate orderDate;
 	@Nullable
-	private final String orderDateDescription;
+	private String orderDateDescription;
 	@Nullable
-	private final Integer orderAgeInMinutes;
+	private Integer orderAgeInMinutes;
 	@Nullable
-	private final String orderAgeInMinutesDescription;
+	private String orderAgeInMinutesDescription;
 	@Nullable
-	private final String orderId;
+	private String orderId;
 	@Nullable
-	private final String routing;
+	private String routing;
 	@Nullable
-	private final String reasonForReferral;
+	private String reasonForReferral;
 	@Nullable
-	private final String associatedDiagnosis;
+	private String associatedDiagnosis;
 	@Nullable
-	private final String callbackPhoneNumber;
+	private String callbackPhoneNumber;
 	@Nullable
-	private final String callbackPhoneNumberDescription;
+	private String callbackPhoneNumberDescription;
 	@Nullable
-	private final String preferredContactHours;
+	private String preferredContactHours;
 	@Nullable
-	private final String comments;
+	private String comments;
 	@Nullable
-	private final String ccRecipients;
+	private String ccRecipients;
 	@Nullable
-	private final String lastActiveMedicationOrderSummary;
+	private String lastActiveMedicationOrderSummary;
 	@Nullable
-	private final String medications;
+	private String medications;
 	@Nullable
-	private final String recentPsychotherapeuticMedications;
+	private String recentPsychotherapeuticMedications;
 
 	@Nullable
-	private final AddressApiResponse patientAddress;
+	private AddressApiResponse patientAddress;
 	@Nullable
-	private final List<PatientOrderDiagnosisApiResponse> patientOrderDiagnoses;
+	private List<PatientOrderDiagnosisApiResponse> patientOrderDiagnoses;
 	@Nullable
-	private final List<PatientOrderMedicationApiResponse> patientOrderMedications;
+	private List<PatientOrderMedicationApiResponse> patientOrderMedications;
 
 	public enum PatientOrderApiResponseSupplement {
 		PANEL,
 		EVERYTHING
 	}
 
+	public enum PatientOrderApiResponseFormat {
+		MHIC,
+		PATIENT;
+
+		@Nonnull
+		public static PatientOrderApiResponseFormat fromRoleId(@Nonnull RoleId roleId) {
+			requireNonNull(roleId);
+
+			if (roleId == RoleId.MHIC || roleId == RoleId.ADMINISTRATOR || roleId == RoleId.PROVIDER)
+				return MHIC;
+
+			return PATIENT;
+		}
+	}
+
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface PatientOrderApiResponseFactory {
 		@Nonnull
-		PatientOrderApiResponse create(@Nonnull PatientOrder patientOrder);
+		PatientOrderApiResponse create(@Nonnull PatientOrder patientOrder,
+																	 @Nonnull PatientOrderApiResponseFormat format);
 
 		@Nonnull
 		PatientOrderApiResponse create(@Nonnull PatientOrder patientOrder,
+																	 @Nonnull PatientOrderApiResponseFormat format,
 																	 @Nonnull Set<PatientOrderApiResponseSupplement> supplements);
 	}
 
@@ -195,7 +213,8 @@ public class PatientOrderApiResponse {
 																 @Nonnull Formatter formatter,
 																 @Nonnull Strings strings,
 																 @Nonnull Provider<CurrentContext> currentContextProvider,
-																 @Assisted @Nonnull PatientOrder patientOrder) {
+																 @Assisted @Nonnull PatientOrder patientOrder,
+																 @Assisted @Nonnull PatientOrderApiResponseFormat format) {
 		this(patientOrderService,
 				addressService,
 				patientOrderNoteApiResponseFactory,
@@ -206,6 +225,7 @@ public class PatientOrderApiResponse {
 				strings,
 				currentContextProvider,
 				patientOrder,
+				format,
 				Set.of());
 	}
 
@@ -220,6 +240,7 @@ public class PatientOrderApiResponse {
 																 @Nonnull Strings strings,
 																 @Nonnull Provider<CurrentContext> currentContextProvider,
 																 @Assisted @Nonnull PatientOrder patientOrder,
+																 @Assisted @Nonnull PatientOrderApiResponseFormat format,
 																 @Assisted @Nonnull Set<PatientOrderApiResponseSupplement> supplements) {
 		requireNonNull(patientOrderService);
 		requireNonNull(addressService);
@@ -231,62 +252,10 @@ public class PatientOrderApiResponse {
 		requireNonNull(strings);
 		requireNonNull(currentContextProvider);
 		requireNonNull(patientOrder);
+		requireNonNull(format);
 		requireNonNull(supplements);
 
 		CurrentContext currentContext = currentContextProvider.get();
-
-		this.patientOrderId = patientOrder.getPatientOrderId();
-		this.patientOrderStatusId = patientOrder.getPatientOrderStatusId();
-		this.patientAccountId = patientOrder.getPatientAccountId();
-		this.patientAddressId = patientOrder.getPatientAddressId();
-		this.panelAccountId = patientOrder.getPanelAccountId();
-		this.encounterDepartmentId = patientOrder.getEncounterDepartmentId();
-		this.encounterDepartmentIdType = patientOrder.getEncounterDepartmentIdType();
-		this.encounterDepartmentName = patientOrder.getEncounterDepartmentName();
-		this.referringPracticeId = patientOrder.getReferringPracticeId();
-		this.referringPracticeIdType = patientOrder.getReferringPracticeIdType();
-		this.referringPracticeName = patientOrder.getReferringPracticeName();
-		this.orderingProviderId = patientOrder.getOrderingProviderId();
-		this.orderingProviderIdType = patientOrder.getOrderingProviderIdType();
-		this.orderingProviderLastName = patientOrder.getOrderingProviderLastName();
-		this.orderingProviderFirstName = patientOrder.getOrderingProviderFirstName();
-		this.orderingProviderMiddleName = patientOrder.getOrderingProviderMiddleName();
-		this.orderingProviderDisplayName = formatDisplayName(patientOrder.getOrderingProviderFirstName(), patientOrder.getOrderingProviderMiddleName(), patientOrder.getOrderingProviderLastName()).orElse(null);
-		this.billingProviderId = patientOrder.getBillingProviderId();
-		this.billingProviderIdType = patientOrder.getBillingProviderIdType();
-		this.billingProviderLastName = patientOrder.getBillingProviderLastName();
-		this.billingProviderFirstName = patientOrder.getBillingProviderFirstName();
-		this.billingProviderMiddleName = patientOrder.getBillingProviderMiddleName();
-		this.billingProviderDisplayName = formatDisplayName(patientOrder.getBillingProviderFirstName(), patientOrder.getBillingProviderMiddleName(), patientOrder.getBillingProviderLastName()).orElse(null);
-		this.patientLastName = patientOrder.getPatientLastName();
-		this.patientFirstName = patientOrder.getPatientFirstName();
-		this.patientDisplayName = formatDisplayName(patientOrder.getPatientFirstName(), null, patientOrder.getPatientLastName()).orElse(null);
-		this.patientMrn = patientOrder.getPatientMrn();
-		this.patientId = patientOrder.getPatientId();
-		this.patientIdType = patientOrder.getPatientIdType();
-		this.patientBirthSexId = patientOrder.getPatientBirthSexId();
-		this.patientBirthdate = patientOrder.getPatientBirthdate();
-		this.patientBirthdateDescription = patientOrder.getPatientBirthdate() == null ? null : formatter.formatDate(patientOrder.getPatientBirthdate(), FormatStyle.MEDIUM);
-		this.primaryPayorId = patientOrder.getPrimaryPayorId();
-		this.primaryPayorName = patientOrder.getPrimaryPayorName();
-		this.primaryPlanId = patientOrder.getPrimaryPlanId();
-		this.primaryPlanName = patientOrder.getPrimaryPlanName();
-		this.orderDate = patientOrder.getOrderDate();
-		this.orderDateDescription = patientOrder.getOrderDate() == null ? null : formatter.formatDate(patientOrder.getOrderDate(), FormatStyle.MEDIUM);
-		this.orderAgeInMinutes = patientOrder.getOrderAgeInMinutes();
-		this.orderAgeInMinutesDescription = patientOrder.getOrderAgeInMinutes() == null ? null : formatter.formatNumber(patientOrder.getOrderAgeInMinutes());
-		this.orderId = patientOrder.getOrderId();
-		this.routing = patientOrder.getRouting();
-		this.reasonForReferral = patientOrder.getReasonForReferral();
-		this.associatedDiagnosis = patientOrder.getAssociatedDiagnosis();
-		this.callbackPhoneNumber = patientOrder.getCallbackPhoneNumber();
-		this.callbackPhoneNumberDescription = patientOrder.getCallbackPhoneNumber() == null ? null : formatter.formatPhoneNumber(patientOrder.getCallbackPhoneNumber(), currentContext.getLocale());
-		this.preferredContactHours = patientOrder.getPreferredContactHours();
-		this.comments = patientOrder.getComments();
-		this.ccRecipients = patientOrder.getCcRecipients();
-		this.lastActiveMedicationOrderSummary = patientOrder.getLastActiveMedicationOrderSummary();
-		this.medications = patientOrder.getMedications();
-		this.recentPsychotherapeuticMedications = patientOrder.getRecentPsychotherapeuticMedications();
 
 		AddressApiResponse patientAddress = null;
 		List<PatientOrderDiagnosisApiResponse> patientOrderDiagnoses = null;
@@ -305,9 +274,66 @@ public class PatientOrderApiResponse {
 					.collect(Collectors.toList());
 		}
 
+		// Always available to both patients and MHICs
+		this.patientOrderId = patientOrder.getPatientOrderId();
+		this.patientOrderStatusId = patientOrder.getPatientOrderStatusId();
+		this.patientAccountId = patientOrder.getPatientAccountId();
+		this.patientAddressId = patientOrder.getPatientAddressId();
+		this.patientLastName = patientOrder.getPatientLastName();
+		this.patientFirstName = patientOrder.getPatientFirstName();
+		this.patientDisplayName = formatDisplayName(patientOrder.getPatientFirstName(), null, patientOrder.getPatientLastName()).orElse(null);
+		this.patientMrn = patientOrder.getPatientMrn();
+		this.patientId = patientOrder.getPatientId();
+		this.patientIdType = patientOrder.getPatientIdType();
+		this.patientBirthSexId = patientOrder.getPatientBirthSexId();
+		this.patientBirthdate = patientOrder.getPatientBirthdate();
+		this.patientBirthdateDescription = patientOrder.getPatientBirthdate() == null ? null : formatter.formatDate(patientOrder.getPatientBirthdate(), FormatStyle.MEDIUM);
 		this.patientAddress = patientAddress;
-		this.patientOrderDiagnoses = patientOrderDiagnoses;
-		this.patientOrderMedications = patientOrderMedications;
+
+		// MHIC-only view of the data
+		if (format == PatientOrderApiResponseFormat.MHIC) {
+			this.panelAccountId = patientOrder.getPanelAccountId();
+			this.encounterDepartmentId = patientOrder.getEncounterDepartmentId();
+			this.encounterDepartmentIdType = patientOrder.getEncounterDepartmentIdType();
+			this.encounterDepartmentName = patientOrder.getEncounterDepartmentName();
+			this.referringPracticeId = patientOrder.getReferringPracticeId();
+			this.referringPracticeIdType = patientOrder.getReferringPracticeIdType();
+			this.referringPracticeName = patientOrder.getReferringPracticeName();
+			this.orderingProviderId = patientOrder.getOrderingProviderId();
+			this.orderingProviderIdType = patientOrder.getOrderingProviderIdType();
+			this.orderingProviderLastName = patientOrder.getOrderingProviderLastName();
+			this.orderingProviderFirstName = patientOrder.getOrderingProviderFirstName();
+			this.orderingProviderMiddleName = patientOrder.getOrderingProviderMiddleName();
+			this.orderingProviderDisplayName = formatDisplayName(patientOrder.getOrderingProviderFirstName(), patientOrder.getOrderingProviderMiddleName(), patientOrder.getOrderingProviderLastName()).orElse(null);
+			this.billingProviderId = patientOrder.getBillingProviderId();
+			this.billingProviderIdType = patientOrder.getBillingProviderIdType();
+			this.billingProviderLastName = patientOrder.getBillingProviderLastName();
+			this.billingProviderFirstName = patientOrder.getBillingProviderFirstName();
+			this.billingProviderMiddleName = patientOrder.getBillingProviderMiddleName();
+			this.billingProviderDisplayName = formatDisplayName(patientOrder.getBillingProviderFirstName(), patientOrder.getBillingProviderMiddleName(), patientOrder.getBillingProviderLastName()).orElse(null);
+			this.primaryPayorId = patientOrder.getPrimaryPayorId();
+			this.primaryPayorName = patientOrder.getPrimaryPayorName();
+			this.primaryPlanId = patientOrder.getPrimaryPlanId();
+			this.primaryPlanName = patientOrder.getPrimaryPlanName();
+			this.orderDate = patientOrder.getOrderDate();
+			this.orderDateDescription = patientOrder.getOrderDate() == null ? null : formatter.formatDate(patientOrder.getOrderDate(), FormatStyle.MEDIUM);
+			this.orderAgeInMinutes = patientOrder.getOrderAgeInMinutes();
+			this.orderAgeInMinutesDescription = patientOrder.getOrderAgeInMinutes() == null ? null : formatter.formatNumber(patientOrder.getOrderAgeInMinutes());
+			this.orderId = patientOrder.getOrderId();
+			this.routing = patientOrder.getRouting();
+			this.reasonForReferral = patientOrder.getReasonForReferral();
+			this.associatedDiagnosis = patientOrder.getAssociatedDiagnosis();
+			this.callbackPhoneNumber = patientOrder.getCallbackPhoneNumber();
+			this.callbackPhoneNumberDescription = patientOrder.getCallbackPhoneNumber() == null ? null : formatter.formatPhoneNumber(patientOrder.getCallbackPhoneNumber(), currentContext.getLocale());
+			this.preferredContactHours = patientOrder.getPreferredContactHours();
+			this.comments = patientOrder.getComments();
+			this.ccRecipients = patientOrder.getCcRecipients();
+			this.lastActiveMedicationOrderSummary = patientOrder.getLastActiveMedicationOrderSummary();
+			this.medications = patientOrder.getMedications();
+			this.recentPsychotherapeuticMedications = patientOrder.getRecentPsychotherapeuticMedications();
+			this.patientOrderDiagnoses = patientOrderDiagnoses;
+			this.patientOrderMedications = patientOrderMedications;
+		}
 	}
 
 	@Nonnull

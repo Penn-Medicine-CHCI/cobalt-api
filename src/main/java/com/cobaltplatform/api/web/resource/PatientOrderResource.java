@@ -29,6 +29,7 @@ import com.cobaltplatform.api.model.api.response.AccountApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFormat;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
@@ -150,7 +151,9 @@ public class PatientOrderResource {
 			throw new AuthorizationException();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("patientOrder", getPatientOrderApiResponseFactory().create(patientOrder, Set.of(PatientOrderApiResponseSupplement.EVERYTHING)));
+			put("patientOrder", getPatientOrderApiResponseFactory().create(patientOrder,
+					PatientOrderApiResponseFormat.fromRoleId(account.getRoleId()),
+					Set.of(PatientOrderApiResponseSupplement.EVERYTHING)));
 		}});
 	}
 
@@ -195,7 +198,9 @@ public class PatientOrderResource {
 		});
 
 		List<PatientOrderApiResponse> patientOrders = findResult.getResults().stream()
-				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, Set.of(PatientOrderApiResponseSupplement.PANEL)))
+				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder,
+						PatientOrderApiResponseFormat.fromRoleId(account.getRoleId()),
+						Set.of(PatientOrderApiResponseSupplement.PANEL)))
 				.collect(Collectors.toList());
 
 		Map<String, Object> findResultJson = new HashMap<>();
