@@ -96,7 +96,7 @@ public class PatientOrderServiceTests {
 			}});
 
 			// ...then confirm the patient was automatically associated with the imported order.
-			List<PatientOrder> patientOrdersForTestPatientAccount = patientOrderService.findPatientOrdersByAccountId(patientAccountId);
+			List<PatientOrder> patientOrdersForTestPatientAccount = patientOrderService.findPatientOrdersByPatientAccountId(patientAccountId);
 
 			Assert.assertEquals("Patient was not automatically associated with imported order", 1, patientOrdersForTestPatientAccount.size());
 

@@ -165,7 +165,7 @@ public class PatientOrderService {
 	}
 
 	@Nonnull
-	public List<PatientOrder> findPatientOrdersByAccountId(@Nullable UUID accountId) {
+	public List<PatientOrder> findPatientOrdersByPatientAccountId(@Nullable UUID accountId) {
 		if (accountId == null)
 			return List.of();
 
@@ -174,6 +174,20 @@ public class PatientOrderService {
 				FROM patient_order
 				WHERE patient_account_id=?
 				ORDER BY order_date DESC, order_age_in_minutes
+				""", PatientOrder.class, accountId);
+	}
+
+	@Nonnull
+	public Optional<PatientOrder> findActivePatientOrderByPatientAccountId(@Nullable UUID accountId) {
+		if (accountId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT po.* 
+				FROM patient_order po, patient_order_status pos
+				WHERE po.patient_order_status_id=pos.patient_order_status_id
+				AND po.patient_account_id=?
+				AND pos.terminal=FALSE
 				""", PatientOrder.class, accountId);
 	}
 
