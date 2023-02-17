@@ -129,6 +129,8 @@ public class PatientOrder {
 	@Nullable
 	private String recentPsychotherapeuticMedications;
 	@Nullable
+	private Instant episodeEndedAt;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -554,6 +556,15 @@ public class PatientOrder {
 
 	public void setRecentPsychotherapeuticMedications(@Nullable String recentPsychotherapeuticMedications) {
 		this.recentPsychotherapeuticMedications = recentPsychotherapeuticMedications;
+	}
+
+	@Nullable
+	public Instant getEpisodeEndedAt() {
+		return this.episodeEndedAt;
+	}
+
+	public void setEpisodeEndedAt(@Nullable Instant episodeEndedAt) {
+		this.episodeEndedAt = episodeEndedAt;
 	}
 
 	@Nullable

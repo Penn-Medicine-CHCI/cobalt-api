@@ -100,6 +100,7 @@ CREATE TABLE patient_order (
   last_active_medication_order_summary VARCHAR,
   medications VARCHAR,
   recent_psychotherapeutic_medications VARCHAR,
+  episode_ended_at TIMESTAMPTZ,
   created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

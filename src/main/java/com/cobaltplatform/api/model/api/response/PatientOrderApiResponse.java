@@ -26,10 +26,12 @@ import com.cobaltplatform.api.model.api.response.PatientOrderMedicationApiRespon
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.service.AddressService;
+import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.PatientOrderService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.Provider;
@@ -41,9 +43,14 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.format.FormatStyle;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -162,6 +169,14 @@ public class PatientOrderApiResponse {
 	private String medications;
 	@Nullable
 	private String recentPsychotherapeuticMedications;
+	@Nullable
+	private Instant episodeEndedAt;
+	@Nullable
+	private String episodeEndedAtDescription;
+	@Nullable
+	private Integer episodeDurationInDays;
+	@Nullable
+	private String episodeDurationInDaysDescription;
 
 	@Nullable
 	private AddressApiResponse patientAddress;
@@ -206,6 +221,7 @@ public class PatientOrderApiResponse {
 	@AssistedInject
 	public PatientOrderApiResponse(@Nonnull PatientOrderService patientOrderService,
 																 @Nonnull AddressService addressService,
+																 @Nonnull InstitutionService institutionService,
 																 @Nonnull PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory,
 																 @Nonnull PatientOrderDiagnosisApiResponseFactory patientOrderDiagnosisApiResponseFactory,
 																 @Nonnull PatientOrderMedicationApiResponseFactory patientOrderMedicationApiResponseFactory,
@@ -217,6 +233,7 @@ public class PatientOrderApiResponse {
 																 @Assisted @Nonnull PatientOrderApiResponseFormat format) {
 		this(patientOrderService,
 				addressService,
+				institutionService,
 				patientOrderNoteApiResponseFactory,
 				patientOrderDiagnosisApiResponseFactory,
 				patientOrderMedicationApiResponseFactory,
@@ -232,6 +249,7 @@ public class PatientOrderApiResponse {
 	@AssistedInject
 	public PatientOrderApiResponse(@Nonnull PatientOrderService patientOrderService,
 																 @Nonnull AddressService addressService,
+																 @Nonnull InstitutionService institutionService,
 																 @Nonnull PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory,
 																 @Nonnull PatientOrderDiagnosisApiResponseFactory patientOrderDiagnosisApiResponseFactory,
 																 @Nonnull PatientOrderMedicationApiResponseFactory patientOrderMedicationApiResponseFactory,
@@ -244,6 +262,7 @@ public class PatientOrderApiResponse {
 																 @Assisted @Nonnull Set<PatientOrderApiResponseSupplement> supplements) {
 		requireNonNull(patientOrderService);
 		requireNonNull(addressService);
+		requireNonNull(institutionService);
 		requireNonNull(patientOrderNoteApiResponseFactory);
 		requireNonNull(patientOrderDiagnosisApiResponseFactory);
 		requireNonNull(patientOrderMedicationApiResponseFactory);
@@ -331,6 +350,26 @@ public class PatientOrderApiResponse {
 			this.lastActiveMedicationOrderSummary = patientOrder.getLastActiveMedicationOrderSummary();
 			this.medications = patientOrder.getMedications();
 			this.recentPsychotherapeuticMedications = patientOrder.getRecentPsychotherapeuticMedications();
+			this.episodeEndedAt = patientOrder.getEpisodeEndedAt();
+			this.episodeEndedAtDescription = patientOrder.getEpisodeEndedAt() == null
+					? null
+					: formatter.formatTimestamp(patientOrder.getEpisodeEndedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+
+			Institution institution = institutionService.findInstitutionById(patientOrder.getInstitutionId()).get();
+
+			Instant orderDateTime = patientOrder.getOrderDate()
+					.atTime(LocalTime.MIDNIGHT)
+					.plus(patientOrder.getOrderAgeInMinutes(), ChronoUnit.MINUTES)
+					.atZone(institution.getTimeZone())
+					.toInstant();
+
+			Instant endDateTime = patientOrder.getEpisodeEndedAt() == null ? Instant.now() : patientOrder.getEpisodeEndedAt();
+			Duration orderDuration = Duration.between(orderDateTime, endDateTime);
+
+			// Safe cast, int can always hold enough
+			this.episodeDurationInDays = (int) orderDuration.toDays();
+			this.episodeDurationInDaysDescription = strings.get("{{episodeDurationInDays}} days", Map.of("episodeDurationInDays", this.episodeDurationInDays));
+
 			this.patientOrderDiagnoses = patientOrderDiagnoses;
 			this.patientOrderMedications = patientOrderMedications;
 		}
@@ -623,6 +662,31 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public String getRecentPsychotherapeuticMedications() {
 		return this.recentPsychotherapeuticMedications;
+	}
+
+	@Nullable
+	public Instant getEpisodeEndedAt() {
+		return this.episodeEndedAt;
+	}
+
+	@Nullable
+	public String getEpisodeEndedAtDescription() {
+		return this.episodeEndedAtDescription;
+	}
+
+	@Nullable
+	public Integer getEpisodeDurationInDays() {
+		return this.episodeDurationInDays;
+	}
+
+	@Nullable
+	public String getEpisodeDurationInDaysDescription() {
+		return this.episodeDurationInDaysDescription;
+	}
+
+	@Nullable
+	public AddressApiResponse getPatientAddress() {
+		return this.patientAddress;
 	}
 
 	@Nullable
