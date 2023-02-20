@@ -205,6 +205,23 @@ public class PatientOrderService {
 	}
 
 	@Nonnull
+	public List<PatientOrder> findPatientOrdersByMrnAndInstitutionId(@Nullable String patientMrn,
+																																	 @Nullable InstitutionId institutionId) {
+		patientMrn = trimToNull(patientMrn);
+
+		if (patientMrn == null || institutionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT * 
+				FROM patient_order
+				WHERE UPPER(?)=UPPER(patient_mrn) 
+				AND institution_id=?
+				ORDER BY order_date DESC, order_age_in_minutes    
+				""", PatientOrder.class, patientMrn, institutionId);
+	}
+
+	@Nonnull
 	public List<PatientOrderDiagnosis> findPatientOrderDiagnosesByPatientOrderId(@Nullable UUID patientOrderId) {
 		if (patientOrderId == null)
 			return List.of();
@@ -950,6 +967,8 @@ public class PatientOrderService {
 
 		if (patientMrn == null)
 			validationException.add(new FieldError("patientMrn", getStrings().get("Patient MRN is required.")));
+		else
+			patientMrn = patientMrn.toUpperCase(Locale.US); // TODO: revisit when we support non-US institutions
 
 		if (patientId == null)
 			validationException.add(new FieldError("patientId", getStrings().get("Patient ID is required.")));

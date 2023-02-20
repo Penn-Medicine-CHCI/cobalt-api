@@ -27,32 +27,24 @@ import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.CountryApiResponse;
+import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse.CountryApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.InsuranceApiResponse;
 import com.cobaltplatform.api.model.api.response.InsuranceApiResponse.InsuranceApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.LanguageApiResponse;
 import com.cobaltplatform.api.model.api.response.LanguageApiResponse.LanguageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFormat;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
-import com.cobaltplatform.api.model.db.BirthSex;
-import com.cobaltplatform.api.model.db.Ethnicity;
-import com.cobaltplatform.api.model.db.GenderIdentity;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
-import com.cobaltplatform.api.model.db.Race;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.PatientOrderPanelTypeId;
-import com.cobaltplatform.api.model.service.Region;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.InstitutionService;
@@ -78,11 +70,8 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -200,89 +189,6 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
-	@GET("/patient-orders/reference-data")
-	@AuthenticationRequired
-	public ApiResponse patientOrderReferenceData() {
-		InstitutionId institutionId = getCurrentContext().getInstitutionId();
-
-		// Time zones
-		List<TimeZoneApiResponse> timeZones = getAccountService().getAccountTimeZones().stream()
-				.map(timeZone -> getTimeZoneApiResponseFactory().create(timeZone))
-				.collect(Collectors.toList());
-
-		Collections.sort(timeZones, (tz1, tz2) -> {
-			return tz1.getDescription().compareTo(tz2.getDescription());
-		});
-
-		// Countries
-		Set<Locale> countryLocales = getAccountService().getAccountCountries();
-		List<CountryApiResponse> countries = new ArrayList<>(countryLocales.size());
-
-		for (Locale locale : countryLocales)
-			countries.add(getCountryApiResponseFactory().create(locale));
-
-		Collections.sort(countries, (country1, country2) -> {
-			return country1.getDescription().compareTo(country2.getDescription());
-		});
-
-		// Languages
-		List<LanguageApiResponse> languages = getAccountService().getAccountLanguages().stream()
-				.map(language -> getLanguageApiResponseFactory().create(language))
-				.collect(Collectors.toList());
-
-		Collections.sort(languages, (language1, language2) -> {
-			return language1.getDescription().compareTo(language2.getDescription());
-		});
-
-		// Insurances
-		List<InsuranceApiResponse> insurances = getInstitutionService().findInsurancesByInstitutionId(institutionId).stream()
-				.map(insurance -> getInsuranceApiResponseFactory().create(insurance))
-				.collect(Collectors.toList());
-
-		// Regions
-		Map<String, List<Region>> regionsByCountryCode = Region.getRegionsByCountryCode();
-		Map<String, List<Map<String, Object>>> normalizedRegionsByCountryCode = new HashMap<>(regionsByCountryCode.size());
-
-		for (Entry<String, List<Region>> entry : regionsByCountryCode.entrySet())
-			normalizedRegionsByCountryCode.put(entry.getKey(), entry.getValue().stream()
-					.map(region -> Map.of("name", (Object) region.getName(), "abbreviation", region.getAbbreviation()))
-					.collect(Collectors.toList()));
-
-		// Demographics
-		List<Map<String, Object>> genderIdentities = getAccountService().findGenderIdentities().stream()
-				.filter(genderIdentity -> genderIdentity.getGenderIdentityId() != GenderIdentity.GenderIdentityId.NOT_ASKED)
-				.map(genderIdentity -> Map.<String, Object>of("genderIdentityId", genderIdentity.getGenderIdentityId(), "description", genderIdentity.getDescription()))
-				.collect(Collectors.toList());
-
-		List<Map<String, Object>> races = getAccountService().findRaces().stream()
-				.filter(race -> race.getRaceId() != Race.RaceId.NOT_ASKED)
-				.map(race -> Map.<String, Object>of("raceId", race.getRaceId(), "description", race.getDescription()))
-				.collect(Collectors.toList());
-
-		List<Map<String, Object>> birthSexes = getAccountService().findBirthSexes().stream()
-				.filter(birthSex -> birthSex.getBirthSexId() != BirthSex.BirthSexId.NOT_ASKED)
-				.map(birthSex -> Map.<String, Object>of("birthSexId", birthSex.getBirthSexId(), "description", birthSex.getDescription()))
-				.collect(Collectors.toList());
-
-		List<Map<String, Object>> ethnicities = getAccountService().findEthnicities().stream()
-				.filter(ethnicity -> ethnicity.getEthnicityId() != Ethnicity.EthnicityId.NOT_ASKED)
-				.map(ethnicity -> Map.<String, Object>of("ethnicityId", ethnicity.getEthnicityId(), "description", ethnicity.getDescription()))
-				.collect(Collectors.toList());
-
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("timeZones", timeZones);
-			put("countries", countries);
-			put("languages", languages);
-			put("insurances", insurances);
-			put("genderIdentities", genderIdentities);
-			put("races", races);
-			put("birthSexes", birthSexes);
-			put("ethnicities", ethnicities);
-			put("regionsByCountryCode", normalizedRegionsByCountryCode);
-		}});
-	}
-
-	@Nonnull
 	@GET("/patient-orders")
 	@AuthenticationRequired
 	public ApiResponse findPatientOrders(@Nonnull @QueryParameter Optional<PatientOrderPanelTypeId> patientOrderPanelTypeId,
@@ -335,6 +241,48 @@ public class PatientOrderResource {
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("findResult", findResultJson);
+		}});
+	}
+
+	@Nonnull
+	@GET("/patients/{patientMrn}/overview")
+	@AuthenticationRequired
+	public ApiResponse patientOverview(@Nonnull @PathParameter String patientMrn) {
+		requireNonNull(patientMrn);
+
+		Account account = getCurrentContext().getAccount().get();
+		List<PatientOrder> patientOrders = getPatientOrderService().findPatientOrdersByMrnAndInstitutionId(patientMrn, account.getInstitutionId());
+
+		if (patientOrders.size() == 0)
+			throw new NotFoundException();
+
+		// Arbitrarily pick the first order to confirm we are able to view orders for this patient
+		if (!getAuthorizationService().canViewPatientOrder(patientOrders.get(0), account))
+			throw new AuthorizationException();
+
+		Account patientAccount = getAccountService().findAccountByMrnAndInstitutionId(patientMrn, account.getInstitutionId()).orElse(null);
+
+		List<PatientOrder> sortedPatientOrders = patientOrders.stream()
+				.sorted((patientOrder1, patientOrder2) -> patientOrder2.getOrderDate().compareTo(patientOrder1.getOrderDate()))
+				.collect(Collectors.toList());
+
+		PatientOrder currentPatientOrder = sortedPatientOrders.get(0);
+		List<PatientOrder> pastPatientOrders = sortedPatientOrders.size() == 1
+				? List.of()
+				: sortedPatientOrders.subList(1, sortedPatientOrders.size());
+
+		PatientOrderApiResponseFormat responseFormat = PatientOrderApiResponseFormat.fromRoleId(account.getRoleId());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("currentPatientOrder", getPatientOrderApiResponseFactory().create(currentPatientOrder,
+					responseFormat, Set.of(PatientOrderApiResponseSupplement.EVERYTHING)));
+
+			put("pastPatientOrders", pastPatientOrders.stream()
+					.map(pastPatientOrder -> getPatientOrderApiResponseFactory().create(pastPatientOrder,
+							responseFormat, Set.of(PatientOrderApiResponseSupplement.PANEL)))
+					.collect(Collectors.toList()));
+
+			put("patientAccount", patientAccount == null ? null : getAccountApiResponseFactory().create(patientAccount, Set.of(AccountApiResponseSupplement.EVERYTHING)));
 		}});
 	}
 

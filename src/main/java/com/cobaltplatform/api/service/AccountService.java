@@ -280,11 +280,28 @@ public class AccountService {
 			return Optional.empty();
 
 		return getDatabase().queryForObject("""
-				SELECT * FROM account 
+				SELECT *
+				FROM account 
 				WHERE account_source_id=? 
 				AND sso_id=?
 				AND institution_id=?
 				""", Account.class, accountSourceId, ssoId, institutionId);
+	}
+
+	@Nonnull
+	public Optional<Account> findAccountByMrnAndInstitutionId(@Nullable String epicPatientMrn,
+																														@Nullable InstitutionId institutionId) {
+		epicPatientMrn = trimToNull(epicPatientMrn);
+
+		if (epicPatientMrn == null || institutionId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM account
+				WHERE UPPER(?)=UPPER(epic_patient_mrn)
+				AND institution_id=?
+				""", Account.class, epicPatientMrn, institutionId);
 	}
 
 	@Nonnull
@@ -515,6 +532,9 @@ public class AccountService {
 				validationException.add(new FieldError("ssoAttributesAsJson", getStrings().get("Provided SSO attributes are invalid.")));
 			}
 		}
+
+		if (epicPatientMrn != null)
+			epicPatientMrn = epicPatientMrn.toUpperCase(Locale.US); // TODO: revisit when we support non-US institutions
 
 		if (validationException.hasErrors())
 			throw validationException;
