@@ -21,7 +21,6 @@ package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.LoginDestination.LoginDestinationId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 
 import javax.annotation.Nonnull;
@@ -41,8 +40,6 @@ public class AccountLoginRule {
 	private InstitutionId institutionId;
 	@Nullable
 	private AccountSourceId accountSourceId;
-	@Nullable
-	private LoginDestinationId loginDestinationId;
 	@Nullable
 	private RoleId roleId;
 	@Nullable
@@ -83,15 +80,6 @@ public class AccountLoginRule {
 
 	public void setAccountSourceId(@Nullable AccountSourceId accountSourceId) {
 		this.accountSourceId = accountSourceId;
-	}
-
-	@Nullable
-	public LoginDestinationId getLoginDestinationId() {
-		return loginDestinationId;
-	}
-
-	public void setLoginDestinationId(@Nullable LoginDestinationId loginDestinationId) {
-		this.loginDestinationId = loginDestinationId;
 	}
 
 	@Nullable

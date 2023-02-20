@@ -89,7 +89,6 @@ import com.cobaltplatform.api.model.db.GroupSessionRequestStatus.GroupSessionReq
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.LoginDestination.LoginDestinationId;
 import com.cobaltplatform.api.model.db.Race;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Tag;
@@ -405,22 +404,8 @@ public class AccountResource {
 			account = getAccountService().findAccountById(account.getAccountId()).get();
 		}
 
-		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
-		LoginDestinationId loginDestinationId;
-
-		if (institution.getIntegratedCareEnabled()) {
-			if (account.getRoleId() == RoleId.MHIC
-					|| account.getRoleId() == RoleId.ADMINISTRATOR
-					|| account.getRoleId() == RoleId.PROVIDER)
-				loginDestinationId = LoginDestinationId.IC_PANEL;
-			else
-				loginDestinationId = LoginDestinationId.IC_PATIENT;
-		} else {
-			loginDestinationId = LoginDestinationId.COBALT_PATIENT;
-		}
-
 		Account pinnedAccount = account;
-		String destinationUrl = getLinkGenerator().generateAuthenticationLink(account.getInstitutionId(), loginDestinationId, ClientDeviceTypeId.WEB_BROWSER, accessToken);
+		String destinationUrl = getLinkGenerator().generateAuthenticationLink(account.getInstitutionId(), ClientDeviceTypeId.WEB_BROWSER, accessToken);
 
 		UUID sessionTrackingId = getCurrentContext().getSessionTrackingId().orElse(null);
 

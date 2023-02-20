@@ -9,6 +9,9 @@ ALTER TABLE account ADD COLUMN epic_patient_mrn TEXT;
 
 INSERT INTO login_destination (login_destination_id, description) VALUES ('IC_PATIENT', 'IC Patient');
 
+-- No longer need that, we calculate based on institution/role data insterad
+ALTER TABLE account_login_rule DROP COLUMN login_destination_id;
+
 -- We might import orders via an EHR like Epic or via manual CSV upload
 CREATE TABLE patient_order_import_type (
   patient_order_import_type_id VARCHAR PRIMARY KEY,
