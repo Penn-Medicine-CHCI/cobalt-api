@@ -290,6 +290,39 @@ public class PatientOrderService {
 	}
 
 	@Nonnull
+	public Integer findActivePatientOrderCountByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return 0;
+
+		return getDatabase().queryForObject("""
+				SELECT COUNT(po.*)
+				FROM patient_order po, patient_order_status pos
+				WHERE po.institution_id=?
+				AND po.patient_order_status_id = pos.patient_order_status_id
+				AND pos.terminal=FALSE
+				""", Integer.class, institutionId).get();
+	}
+
+	@Nonnull
+	public Integer findActivePatientOrderCountByPanelAccountIdForInstitutionId(@Nullable UUID panelAccountId,
+																																						 @Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return 0;
+
+		if (panelAccountId == null)
+			return findActivePatientOrderCountByInstitutionId(institutionId);
+
+		return getDatabase().queryForObject("""
+				SELECT COUNT(po.*)
+				FROM patient_order po, patient_order_status pos
+				WHERE po.panel_account_id=?
+				AND po.institution_id=?
+				AND po.patient_order_status_id = pos.patient_order_status_id
+				AND pos.terminal=FALSE
+				""", Integer.class, panelAccountId, institutionId).get();
+	}
+
+	@Nonnull
 	public Map<UUID, Integer> findActivePatientOrderCountsByPanelAccountIdForInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return Map.of();
@@ -306,6 +339,48 @@ public class PatientOrderService {
 
 		return accountIdsWithCount.stream()
 				.collect(Collectors.toMap(AccountIdWithCount::getAccountId, AccountIdWithCount::getCount));
+	}
+
+	@Nonnull
+	public Map<PatientOrderStatusId, Integer> findActivePatientOrderCountsByPatientOrderStatusIdForPanelAccountIdAndInstitutionId(@Nullable UUID panelAccountId,
+																																																																@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return Map.of();
+
+		Map<PatientOrderStatusId, Integer> activePatientOrderCountsByPatientOrderStatusId = new HashMap<>();
+
+		// Prime the map with zeroes
+		for (PatientOrderStatusId patientOrderStatusId : PatientOrderStatusId.values())
+			activePatientOrderCountsByPatientOrderStatusId.put(patientOrderStatusId, 0);
+
+		List<PatientOrderWithTotalCount> patientOrders = List.of();
+
+		if (panelAccountId == null) {
+			patientOrders = getDatabase().queryForList("""
+					SELECT po.patient_order_status_id, COUNT(po.*) as total_count
+					FROM patient_order po, patient_order_status pos
+					WHERE po.institution_id=?
+					AND po.patient_order_status_id = pos.patient_order_status_id
+					AND pos.terminal=FALSE
+					GROUP BY po.patient_order_status_id        
+					""", PatientOrderWithTotalCount.class, institutionId);
+		} else {
+			patientOrders = getDatabase().queryForList("""
+					SELECT po.patient_order_status_id, COUNT(po.*) as total_count
+					FROM patient_order po, patient_order_status pos
+					WHERE po.panel_account_id=?
+					AND po.institution_id=?
+					AND po.patient_order_status_id = pos.patient_order_status_id
+					AND pos.terminal=FALSE
+					GROUP BY po.patient_order_status_id     
+						""", PatientOrderWithTotalCount.class, panelAccountId, institutionId);
+		}
+
+		// Add on counts
+		for (PatientOrderWithTotalCount patientOrder : patientOrders)
+			activePatientOrderCountsByPatientOrderStatusId.put(patientOrder.getPatientOrderStatusId(), patientOrder.getTotalCount());
+
+		return activePatientOrderCountsByPatientOrderStatusId;
 	}
 
 	@Nonnull

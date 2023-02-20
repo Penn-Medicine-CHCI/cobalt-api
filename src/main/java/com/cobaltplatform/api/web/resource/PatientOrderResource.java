@@ -42,6 +42,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
+import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.PatientOrderPanelTypeId;
@@ -239,8 +240,37 @@ public class PatientOrderResource {
 		findResultJson.put("totalCount", findResult.getTotalCount());
 		findResultJson.put("totalCountDescription", getFormatter().formatNumber(findResult.getTotalCount()));
 
+		Account panelAccount = getAccountService().findAccountById(panelAccountId.orElse(null)).orElse(null);
+
+		// Total active orders for this panel
+		Integer activePatientOrdersCount = panelAccount == null
+				? getPatientOrderService().findActivePatientOrderCountByInstitutionId(institutionId)
+				: getPatientOrderService().findActivePatientOrderCountByPanelAccountIdForInstitutionId(panelAccount.getAccountId(), institutionId);
+
+		String activePatientOrdersCountDescription = getFormatter().formatNumber(activePatientOrdersCount);
+
+		// Order counts by status
+		Map<PatientOrderStatusId, Integer> activePatientOrderCountsByPatientOrderStatusId = getPatientOrderService().findActivePatientOrderCountsByPatientOrderStatusIdForPanelAccountIdAndInstitutionId(panelAccountId.orElse(null), institutionId);
+
+		Map<PatientOrderStatusId, Map<String, Object>> activePatientOrderCountsByPatientOrderStatusIdJson = new HashMap<>();
+
+		for (Entry<PatientOrderStatusId, Integer> entry : activePatientOrderCountsByPatientOrderStatusId.entrySet()) {
+			PatientOrderStatusId patientOrderStatusId = entry.getKey();
+			Integer count = entry.getValue();
+
+			Map<String, Object> countJson = new HashMap<>();
+			countJson.put("count", count);
+			countJson.put("countDescription", getFormatter().formatNumber(count));
+
+			activePatientOrderCountsByPatientOrderStatusIdJson.put(patientOrderStatusId, countJson);
+		}
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("findResult", findResultJson);
+			put("panelAccount", panelAccount == null ? null : getAccountApiResponseFactory().create(panelAccount));
+			put("activePatientOrdersCount", activePatientOrdersCount);
+			put("activePatientOrdersCountDescription", activePatientOrdersCountDescription);
+			put("activePatientOrderCountsByPatientOrderStatusId", activePatientOrderCountsByPatientOrderStatusIdJson);
 		}});
 	}
 
@@ -413,9 +443,14 @@ public class PatientOrderResource {
 			));
 		}
 
+		int overallActivePatientOrderCount = getPatientOrderService().findActivePatientOrderCountByInstitutionId(account.getInstitutionId());
+		String overallActivePatientOrderCountDescription = getFormatter().formatNumber(overallActivePatientOrderCount);
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("panelAccounts", panelAccounts);
 			put("activePatientOrderCountsByPanelAccountId", activePatientOrderCountsByPanelAccountIdJson);
+			put("overallActivePatientOrderCount", overallActivePatientOrderCount);
+			put("overallActivePatientOrderCountDescription", overallActivePatientOrderCountDescription);
 		}});
 	}
 
