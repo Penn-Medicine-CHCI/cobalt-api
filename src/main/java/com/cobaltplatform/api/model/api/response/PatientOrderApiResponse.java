@@ -284,11 +284,11 @@ public class PatientOrderApiResponse {
 			Address address = addressService.findAddressById(patientOrder.getPatientAddressId()).orElse(null);
 			patientAddress = address == null ? null : addressApiResponseFactory.create(address);
 
-			patientOrderDiagnoses = patientOrderService.findPatientOrderDiagnosesByPatientOrderId(getPatientOrderId()).stream()
+			patientOrderDiagnoses = patientOrderService.findPatientOrderDiagnosesByPatientOrderId(patientOrder.getPatientOrderId()).stream()
 					.map(patientOrderDiagnosis -> patientOrderDiagnosisApiResponseFactory.create(patientOrderDiagnosis))
 					.collect(Collectors.toList());
 
-			patientOrderMedications = patientOrderService.findPatientOrderMedicationsByPatientOrderId(getPatientOrderId()).stream()
+			patientOrderMedications = patientOrderService.findPatientOrderMedicationsByPatientOrderId(patientOrder.getPatientOrderId()).stream()
 					.map(patientOrderMedication -> patientOrderMedicationApiResponseFactory.create(patientOrderMedication))
 					.collect(Collectors.toList());
 		}
