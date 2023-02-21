@@ -338,6 +338,31 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
+	@GET("/patient-order-notes")
+	@AuthenticationRequired
+	public ApiResponse patientOrderNotes(@Nonnull @QueryParameter UUID patientOrderId) {
+		requireNonNull(patientOrderId);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+
+		if (patientOrder == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canViewPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		List<PatientOrderNote> patientOrderNotes = getPatientOrderService().findPatientOrderNotesByPatientOrderId(patientOrderId);
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrderNotes", patientOrderNotes.stream()
+					.map(patientOrderNote -> getPatientOrderNoteApiResponseFactory().create(patientOrderNote))
+					.collect(Collectors.toList()));
+		}});
+	}
+
+	@Nonnull
 	@POST("/patient-order-notes")
 	@AuthenticationRequired
 	public ApiResponse createPatientOrderNote(@Nonnull @RequestBody String requestBody) {

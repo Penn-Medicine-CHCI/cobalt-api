@@ -184,6 +184,8 @@ public class PatientOrderApiResponse {
 	private List<PatientOrderDiagnosisApiResponse> patientOrderDiagnoses;
 	@Nullable
 	private List<PatientOrderMedicationApiResponse> patientOrderMedications;
+	@Nullable
+	private List<PatientOrderNoteApiResponse> patientOrderNotes;
 
 	public enum PatientOrderApiResponseSupplement {
 		PANEL,
@@ -279,6 +281,7 @@ public class PatientOrderApiResponse {
 		AddressApiResponse patientAddress = null;
 		List<PatientOrderDiagnosisApiResponse> patientOrderDiagnoses = null;
 		List<PatientOrderMedicationApiResponse> patientOrderMedications = null;
+		List<PatientOrderNoteApiResponse> patientOrderNotes = null;
 
 		if (supplements.contains(PatientOrderApiResponseSupplement.EVERYTHING)) {
 			Address address = addressService.findAddressById(patientOrder.getPatientAddressId()).orElse(null);
@@ -290,6 +293,10 @@ public class PatientOrderApiResponse {
 
 			patientOrderMedications = patientOrderService.findPatientOrderMedicationsByPatientOrderId(patientOrder.getPatientOrderId()).stream()
 					.map(patientOrderMedication -> patientOrderMedicationApiResponseFactory.create(patientOrderMedication))
+					.collect(Collectors.toList());
+
+			patientOrderNotes = patientOrderService.findPatientOrderNotesByPatientOrderId(patientOrderId).stream()
+					.map(patientOrderNote -> patientOrderNoteApiResponseFactory.create(patientOrderNote))
 					.collect(Collectors.toList());
 		}
 
@@ -372,6 +379,7 @@ public class PatientOrderApiResponse {
 
 			this.patientOrderDiagnoses = patientOrderDiagnoses;
 			this.patientOrderMedications = patientOrderMedications;
+			this.patientOrderNotes = patientOrderNotes;
 		}
 	}
 
@@ -697,5 +705,10 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public List<PatientOrderMedicationApiResponse> getPatientOrderMedications() {
 		return this.patientOrderMedications;
+	}
+
+	@Nullable
+	public List<PatientOrderNoteApiResponse> getPatientOrderNotes() {
+		return this.patientOrderNotes;
 	}
 }
