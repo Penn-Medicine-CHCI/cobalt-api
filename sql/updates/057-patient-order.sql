@@ -36,28 +36,42 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_import 
 
 CREATE TABLE patient_order_status (
   patient_order_status_id VARCHAR PRIMARY KEY,
-  description VARCHAR NOT NULL,
-  terminal BOOLEAN NOT NULL DEFAULT FALSE
+  description VARCHAR NOT NULL
 );
 
-INSERT INTO patient_order_status VALUES ('NEW', 'New');
-INSERT INTO patient_order_status VALUES ('AWAITING_SCREENING', 'Awaiting Screening');
-INSERT INTO patient_order_status VALUES ('SCREENING_IN_PROGRESS', 'Screening In Progress');
-INSERT INTO patient_order_status VALUES ('AWAITING_MHIC_SCHEDULING', 'Awaiting MHIC Scheduling');
-INSERT INTO patient_order_status VALUES ('AWAITING_PROVIDER_SCHEDULING', 'Awaiting Provider Scheduling');
-INSERT INTO patient_order_status VALUES ('AWAITING_SAFETY_PLANNING', 'Awaiting Safety Planning');
-INSERT INTO patient_order_status VALUES ('SCHEDULED_WITH_MHIC', 'Scheduled With MHIC');
-INSERT INTO patient_order_status VALUES ('SCHEDULED_WITH_PROVIDER', 'Scheduled With Provider');
-INSERT INTO patient_order_status VALUES ('NEEDS_FURTHER_ASSESSMENT', 'Needs Further Assessment');
-INSERT INTO patient_order_status VALUES ('CONNECTED_TO_CARE', 'Connected To Care', TRUE);
-INSERT INTO patient_order_status VALUES ('LOST_CONTACT', 'Lost Contact', TRUE);
-INSERT INTO patient_order_status VALUES ('CLOSED', 'Closed', TRUE);
+-- Order is current and active
+INSERT INTO patient_order_status VALUES ('OPEN', 'Open');
+-- Order has been closed (by MHIC or automatically based on…)
+INSERT INTO patient_order_status VALUES ('CLOSED', 'Closed');
+-- Automatic transition after order has been closed for 30 days
+INSERT INTO patient_order_status VALUES ('ARCHIVED', 'Archived');
+-- Order has been deleted and is no longer visible in the system (either manual or automatic based on double entries)
+INSERT INTO patient_order_status VALUES ('DELETED', 'Deleted');
+
+CREATE TABLE patient_order_screening_status (
+  patient_order_screening_status_id VARCHAR PRIMARY KEY,
+  description VARCHAR NOT NULL
+);
+
+-- Patient has not taken the assessment and has not been scheduled to take the assessment
+-- Panel = Needs Assessment
+INSERT INTO patient_order_screening_status VALUES ('NOT_SCREENED', 'Not Screened');
+-- Patient or MHIC is currently taking the assessment
+-- Panel = Needs Assessment
+INSERT INTO patient_order_screening_status VALUES ('IN_PROGRESS', 'In Progress');
+-- Patient is scheduled to take the assessment with an MHIC
+-- Panel = Needs Assessment
+INSERT INTO patient_order_screening_status VALUES ('SCHEDULED', 'Scheduled');
+-- Patient or MHIC has completed the assessment.
+-- Panel = Safety Planning, BHP, or Specialty Care
+INSERT INTO patient_order_screening_status VALUES ('COMPLETE', 'Complete');
 
 -- The actual order, can be modified over time.
 -- We keep track of changes by writing to the patient_order_tracking table
 CREATE TABLE patient_order (
   patient_order_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  patient_order_status_id VARCHAR NOT NULL REFERENCES patient_order_status DEFAULT 'NEW',
+  patient_order_status_id VARCHAR NOT NULL REFERENCES patient_order_status,
+  patient_order_screening_status_id VARCHAR NOT NULL REFERENCES patient_order_screening_status DEFAULT 'NOT_SCREENED',
   patient_order_import_id UUID NOT NULL REFERENCES patient_order_import,
   institution_id VARCHAR NOT NULL REFERENCES institution,
   patient_account_id UUID REFERENCES account,
@@ -218,8 +232,8 @@ CREATE TABLE patient_order_note (
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_note FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
-CREATE TABLE patient_order_outreach_attempt (
-  patient_order_outreach_attempt_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE TABLE patient_order_outreach (
+  patient_order_outreach_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_order_id UUID NOT NULL REFERENCES patient_order,
   account_id UUID NOT NULL REFERENCES account,
   note TEXT NOT NULL,
@@ -229,7 +243,7 @@ CREATE TABLE patient_order_outreach_attempt (
   last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_outreach_attempt FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_outreach FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 CREATE TABLE patient_order_event_type (
   patient_order_event_id VARCHAR PRIMARY KEY,
@@ -238,24 +252,27 @@ CREATE TABLE patient_order_event_type (
 
 -- Data to include: patient order import ID
 INSERT INTO patient_order_event_type VALUES ('IMPORTED', 'Imported');
--- Data to include: old panel account ID, new panel account ID
-INSERT INTO patient_order_event_type VALUES ('PANEL_CHANGED', 'Panel Changed');
 -- Data to include: old patient order status ID, new patient order status ID
 INSERT INTO patient_order_event_type VALUES ('STATUS_CHANGED', 'Status Changed');
--- Data to include: screening session ID
-INSERT INTO patient_order_event_type VALUES ('SELF_ADMINISTERED_SCREENING_SESSION_STARTED', 'Self-Administered Screening Session Started');
--- Data to include: screening session ID, triage IDs
-INSERT INTO patient_order_event_type VALUES ('SELF_ADMINISTERED_SCREENING_SESSION_COMPLETED', 'Self-Administered Screening Session Completed');
--- Data to include: screening session ID
-INSERT INTO patient_order_event_type VALUES ('MHIC_ADMINISTERED_SCREENING_SESSION_STARTED', 'MHIC-Administered Screening Session Started');
--- Data to include: screening session ID, triage IDs
-INSERT INTO patient_order_event_type VALUES ('MHIC_ADMINISTERED_SCREENING_SESSION_COMPLETED', 'MHIC-Administered Screening Session Completed');
+-- Data to include: old patient order screening status ID, new patient order screening status ID,
+--   patient account ID (if applicable), screener_account_id (if applicable)
+INSERT INTO patient_order_event_type VALUES ('SCREENING_STATUS_CHANGED', 'Screening Status Changed');
+-- Data to include: old panel account ID, new panel account ID
+INSERT INTO patient_order_event_type VALUES ('PANEL_ACCOUNT_CHANGED', 'Panel Account Changed');
+-- Data to include: patient account ID
+INSERT INTO patient_order_event_type VALUES ('PATIENT_ACCOUNT_ASSIGNED', 'Patient Account Assigned');
 -- Data to include: patient order note ID, account ID, note
 INSERT INTO patient_order_event_type VALUES ('NOTE_CREATED', 'Note Created');
 -- Data to include: patient order note ID, account ID, old note, new note
 INSERT INTO patient_order_event_type VALUES ('NOTE_UPDATED', 'Note Updated');
 -- Data to include: patient order note ID, account ID, note
 INSERT INTO patient_order_event_type VALUES ('NOTE_DELETED', 'Note Deleted');
+-- Data to include: patient order note ID, account ID, note
+INSERT INTO patient_order_event_type VALUES ('OUTREACH_CREATED', 'Outreach Created');
+-- Data to include: patient order note ID, account ID, old note, new note
+INSERT INTO patient_order_event_type VALUES ('OUTREACH_UPDATED', 'Outreach Updated');
+-- Data to include: patient order note ID, account ID, note
+INSERT INTO patient_order_event_type VALUES ('OUTREACH_DELETED', 'Outreach Deleted');
 
 -- TODO: add other types, e.g. name/info changed
 

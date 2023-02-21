@@ -40,6 +40,7 @@ import com.cobaltplatform.api.model.db.PatientOrderImport;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderMedication;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
+import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.service.FindResult;
@@ -173,22 +174,9 @@ public class PatientOrderService {
 				SELECT * 
 				FROM patient_order
 				WHERE patient_account_id=?
+				AND patient_order_status_id != ?
 				ORDER BY order_date DESC, order_age_in_minutes
-				""", PatientOrder.class, accountId);
-	}
-
-	@Nonnull
-	public Optional<PatientOrder> findActivePatientOrderByPatientAccountId(@Nullable UUID accountId) {
-		if (accountId == null)
-			return Optional.empty();
-
-		return getDatabase().queryForObject("""
-				SELECT po.* 
-				FROM patient_order po, patient_order_status pos
-				WHERE po.patient_order_status_id=pos.patient_order_status_id
-				AND po.patient_account_id=?
-				AND pos.terminal=FALSE
-				""", PatientOrder.class, accountId);
+				""", PatientOrder.class, accountId, PatientOrderStatusId.DELETED);
 	}
 
 	@Nonnull
@@ -200,8 +188,9 @@ public class PatientOrderService {
 				SELECT * 
 				FROM patient_order
 				WHERE patient_order_import_id=?
+				AND patient_order_status_id != ?
 				ORDER BY order_date DESC, order_age_in_minutes
-				""", PatientOrder.class, patientOrderImportId);
+				""", PatientOrder.class, patientOrderImportId, PatientOrderStatusId.DELETED);
 	}
 
 	@Nonnull
@@ -217,8 +206,9 @@ public class PatientOrderService {
 				FROM patient_order
 				WHERE UPPER(?)=UPPER(patient_mrn) 
 				AND institution_id=?
+				AND patient_order_status_id != ?
 				ORDER BY order_date DESC, order_age_in_minutes    
-				""", PatientOrder.class, patientMrn, institutionId);
+				""", PatientOrder.class, patientMrn, institutionId, PatientOrderStatusId.DELETED);
 	}
 
 	@Nonnull
@@ -227,7 +217,7 @@ public class PatientOrderService {
 			return List.of();
 
 		return getDatabase().queryForList("""
-				SELECT * 
+				SELECT *
 				FROM patient_order_diagnosis
 				WHERE patient_order_id=?
 				ORDER BY display_order
@@ -295,12 +285,11 @@ public class PatientOrderService {
 			return 0;
 
 		return getDatabase().queryForObject("""
-				SELECT COUNT(po.*)
-				FROM patient_order po, patient_order_status pos
-				WHERE po.institution_id=?
-				AND po.patient_order_status_id = pos.patient_order_status_id
-				AND pos.terminal=FALSE
-				""", Integer.class, institutionId).get();
+				SELECT COUNT(*)
+				FROM patient_order
+				WHERE institution_id=?
+				AND patient_order_status_id NOT IN (?,?)
+				""", Integer.class, institutionId, PatientOrderStatusId.ARCHIVED, PatientOrderStatusId.DELETED).get();
 	}
 
 	@Nonnull
@@ -313,13 +302,12 @@ public class PatientOrderService {
 			return findActivePatientOrderCountByInstitutionId(institutionId);
 
 		return getDatabase().queryForObject("""
-				SELECT COUNT(po.*)
-				FROM patient_order po, patient_order_status pos
-				WHERE po.panel_account_id=?
-				AND po.institution_id=?
-				AND po.patient_order_status_id = pos.patient_order_status_id
-				AND pos.terminal=FALSE
-				""", Integer.class, panelAccountId, institutionId).get();
+				SELECT COUNT(*)
+				FROM patient_order
+				WHERE panel_account_id=?
+				AND institution_id=?		
+				AND patient_order_status_id NOT IN (?,?)
+				""", Integer.class, panelAccountId, institutionId, PatientOrderStatusId.ARCHIVED, PatientOrderStatusId.DELETED).get();
 	}
 
 	@Nonnull
@@ -329,13 +317,12 @@ public class PatientOrderService {
 
 		List<AccountIdWithCount> accountIdsWithCount = getDatabase().queryForList("""
 				SELECT a.account_id, COUNT(po.*)
-				FROM account a, patient_order po, patient_order_status pos
+				FROM account a, patient_order po
 				WHERE a.account_id=po.panel_account_id
-				AND po.institution_id=?
-				AND po.patient_order_status_id = pos.patient_order_status_id
-				AND pos.terminal=FALSE
+				AND po.institution_id=?		
+				AND po.patient_order_status_id NOT IN (?,?)
 				GROUP BY a.account_id
-				""", AccountIdWithCount.class, institutionId);
+				""", AccountIdWithCount.class, institutionId, PatientOrderStatusId.ARCHIVED, PatientOrderStatusId.DELETED);
 
 		return accountIdsWithCount.stream()
 				.collect(Collectors.toMap(AccountIdWithCount::getAccountId, AccountIdWithCount::getCount));
@@ -357,23 +344,21 @@ public class PatientOrderService {
 
 		if (panelAccountId == null) {
 			patientOrders = getDatabase().queryForList("""
-					SELECT po.patient_order_status_id, COUNT(po.*) as total_count
-					FROM patient_order po, patient_order_status pos
-					WHERE po.institution_id=?
-					AND po.patient_order_status_id = pos.patient_order_status_id
-					AND pos.terminal=FALSE
-					GROUP BY po.patient_order_status_id        
-					""", PatientOrderWithTotalCount.class, institutionId);
+					SELECT patient_order_status_id, COUNT(*) as total_count
+					FROM patient_order
+					WHERE institution_id=?
+					AND patient_order_status_id NOT IN (?,?)
+					GROUP BY patient_order_status_id        
+					""", PatientOrderWithTotalCount.class, institutionId, PatientOrderStatusId.ARCHIVED, PatientOrderStatusId.DELETED);
 		} else {
 			patientOrders = getDatabase().queryForList("""
-					SELECT po.patient_order_status_id, COUNT(po.*) as total_count
-					FROM patient_order po, patient_order_status pos
-					WHERE po.panel_account_id=?
-					AND po.institution_id=?
-					AND po.patient_order_status_id = pos.patient_order_status_id
-					AND pos.terminal=FALSE
-					GROUP BY po.patient_order_status_id     
-						""", PatientOrderWithTotalCount.class, panelAccountId, institutionId);
+					SELECT patient_order_status_id, COUNT(*) as total_count
+					FROM patient_order
+					WHERE panel_account_id=?
+					AND institution_id=?
+					AND patient_order_status_id NOT IN (?,?)
+					GROUP BY patient_order_status_id
+						""", PatientOrderWithTotalCount.class, panelAccountId, institutionId, PatientOrderStatusId.ARCHIVED, PatientOrderStatusId.DELETED);
 		}
 
 		// Add on counts
@@ -412,7 +397,7 @@ public class PatientOrderService {
 
 			createPatientOrderEvent(new CreatePatientOrderEventRequest() {
 				{
-					setPatientOrderEventTypeId(PatientOrderEventTypeId.PANEL_CHANGED);
+					setPatientOrderEventTypeId(PatientOrderEventTypeId.PANEL_ACCOUNT_CHANGED);
 					setPatientOrderId(patientOrderId);
 					setAccountId(assigningAccountId);
 					setMessage(panelAccountId == null ? "Removed from panel." : "Assigned to panel."); // Not localized on the way in
@@ -452,6 +437,7 @@ public class PatientOrderService {
 		List<Object> parameters = new ArrayList<>();
 
 		parameters.add(institutionId);
+		parameters.add(PatientOrderStatusId.DELETED);
 
 		// TODO: finish adding other parameters/filters
 
@@ -465,6 +451,7 @@ public class PatientOrderService {
 				  SELECT po.*
 				  FROM patient_order po
 				  WHERE po.institution_id=?
+				  AND po.patient_order_status_id != ?
 				  ),
 				  total_count_query AS (
 				  SELECT COUNT(bq.*) AS total_count
@@ -681,19 +668,16 @@ public class PatientOrderService {
 
 			getDatabase().execute("""
 					UPDATE patient_order
-					SET patient_order_status_id=?, 
-					patient_account_id=?
+					SET patient_account_id=?
 					WHERE patient_order_id=?
-					""", PatientOrderStatusId.AWAITING_SCREENING, patientAccountId, unassignedMatchingPatientOrder.getPatientOrderId());
+					""", patientAccountId, unassignedMatchingPatientOrder.getPatientOrderId());
 
 			createPatientOrderEvent(new CreatePatientOrderEventRequest() {{
-				setPatientOrderEventTypeId(PatientOrderEventTypeId.STATUS_CHANGED);
+				setPatientOrderEventTypeId(PatientOrderEventTypeId.PATIENT_ACCOUNT_ASSIGNED);
 				setPatientOrderId(unassignedMatchingPatientOrder.getPatientOrderId());
 				setAccountId(patientAccountId);
-				setMessage("Transitioned to 'awaiting screening' status."); // Not localized on the way in
-				setMetadata(Map.of(
-						"oldPatientOrderStatusId", unassignedMatchingPatientOrder.getPatientOrderStatusId(),
-						"newPatientOrderStatusId", PatientOrderStatusId.AWAITING_SCREENING));
+				setMessage("Assigned patient account to order."); // Not localized on the way in
+				setMetadata(Map.of("patientAccountId", patientAccountId));
 			}});
 		}
 
@@ -965,7 +949,8 @@ public class PatientOrderService {
 	public UUID createPatientOrder(@Nonnull CreatePatientOrderRequest request) {
 		requireNonNull(request);
 
-		PatientOrderStatusId patientOrderStatusId = PatientOrderStatusId.NEW;
+		PatientOrderStatusId patientOrderStatusId = PatientOrderStatusId.OPEN;
+		PatientOrderScreeningStatusId patientOrderScreeningStatusId = PatientOrderScreeningStatusId.NOT_SCREENED;
 		UUID patientOrderImportId = request.getPatientOrderImportId();
 		InstitutionId institutionId = request.getInstitutionId();
 		UUID accountId = request.getAccountId();
@@ -1169,6 +1154,7 @@ public class PatientOrderService {
 						  INSERT INTO patient_order (
 						  patient_order_id,
 						  patient_order_status_id,
+						  patient_order_screening_status_id,
 						  patient_order_import_id,
 						  institution_id,
 						  encounter_department_id,
@@ -1211,9 +1197,9 @@ public class PatientOrderService {
 						  cc_recipients,
 						  last_active_medication_order_summary,						  
 						  recent_psychotherapeutic_medications
-						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
-				patientOrderId, patientOrderStatusId, patientOrderImportId, institutionId, encounterDepartmentId,
+				patientOrderId, patientOrderStatusId, patientOrderScreeningStatusId, patientOrderImportId, institutionId, encounterDepartmentId,
 				encounterDepartmentIdType, encounterDepartmentName, referringPracticeId, referringPracticeIdType,
 				referringPracticeName, orderingProviderId, orderingProviderIdType, orderingProviderLastName,
 				orderingProviderFirstName, orderingProviderMiddleName, billingProviderId, billingProviderIdType,

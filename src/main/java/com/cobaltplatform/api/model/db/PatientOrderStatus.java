@@ -33,28 +33,18 @@ public class PatientOrderStatus {
 	private PatientOrderStatusId patientOrderStatusId;
 	@Nullable
 	private String description;
-	@Nullable
-	private Boolean terminal;
 
 	public enum PatientOrderStatusId {
-		NEW,
-		AWAITING_SCREENING,
-		SCREENING_IN_PROGRESS,
-		AWAITING_MHIC_SCHEDULING,
-		AWAITING_PROVIDER_SCHEDULING,
-		AWAITING_SAFETY_PLANNING,
-		SCHEDULED_WITH_MHIC,
-		SCHEDULED_WITH_PROVIDER,
-		NEEDS_FURTHER_ASSESSMENT,
-		CONNECTED_TO_CARE,
-		LOST_CONTACT,
-		CLOSED
+		OPEN,
+		CLOSED,
+		ARCHIVED,
+		DELETED
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{patientOrderStatusId=%s, description=%s, terminal=%s}", getClass().getSimpleName(),
-				getPatientOrderStatusId(), getDescription(), getTerminal());
+		return format("%s{patientOrderStatusId=%s, description=%s}", getClass().getSimpleName(),
+				getPatientOrderStatusId(), getDescription());
 	}
 
 	@Nullable
@@ -73,14 +63,5 @@ public class PatientOrderStatus {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
-	}
-
-	@Nullable
-	public Boolean getTerminal() {
-		return this.terminal;
-	}
-
-	public void setTerminal(@Nullable Boolean terminal) {
-		this.terminal = terminal;
 	}
 }

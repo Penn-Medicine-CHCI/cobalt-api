@@ -17,11 +17,10 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db;
+package com.cobaltplatform.api.model.api.request;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -29,32 +28,15 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class PatientOrderOutreachAttempt {
-	@Nullable
-	private UUID patientOrderOutreachAttemptId;
+public class CreatePatientOrderOutreachRequest {
 	@Nullable
 	private UUID patientOrderId;
 	@Nullable
 	private UUID accountId;
 	@Nullable
-	private String note;
-	@Nullable
 	private LocalDateTime outreachDateTime;
 	@Nullable
-	private Boolean deleted;
-	@Nullable
-	private Instant created;
-	@Nullable
-	private Instant lastUpdated;
-
-	@Nullable
-	public UUID getPatientOrderOutreachAttemptId() {
-		return this.patientOrderOutreachAttemptId;
-	}
-
-	public void setPatientOrderOutreachAttemptId(@Nullable UUID patientOrderOutreachAttemptId) {
-		this.patientOrderOutreachAttemptId = patientOrderOutreachAttemptId;
-	}
+	private String note;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -75,15 +57,6 @@ public class PatientOrderOutreachAttempt {
 	}
 
 	@Nullable
-	public String getNote() {
-		return this.note;
-	}
-
-	public void setNote(@Nullable String note) {
-		this.note = note;
-	}
-
-	@Nullable
 	public LocalDateTime getOutreachDateTime() {
 		return this.outreachDateTime;
 	}
@@ -93,29 +66,11 @@ public class PatientOrderOutreachAttempt {
 	}
 
 	@Nullable
-	public Boolean getDeleted() {
-		return this.deleted;
+	public String getNote() {
+		return this.note;
 	}
 
-	public void setDeleted(@Nullable Boolean deleted) {
-		this.deleted = deleted;
-	}
-
-	@Nullable
-	public Instant getCreated() {
-		return this.created;
-	}
-
-	public void setCreated(@Nullable Instant created) {
-		this.created = created;
-	}
-
-	@Nullable
-	public Instant getLastUpdated() {
-		return this.lastUpdated;
-	}
-
-	public void setLastUpdated(@Nullable Instant lastUpdated) {
-		this.lastUpdated = lastUpdated;
+	public void setNote(@Nullable String note) {
+		this.note = note;
 	}
 }

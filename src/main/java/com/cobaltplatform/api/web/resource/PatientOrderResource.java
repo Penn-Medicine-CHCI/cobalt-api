@@ -27,7 +27,6 @@ import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse.CountryApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InsuranceApiResponse.InsuranceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.LanguageApiResponse.LanguageApiResponseFactory;
@@ -182,10 +181,20 @@ public class PatientOrderResource {
 		if (!getAuthorizationService().canViewPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
 
+		List<PatientOrder> associatedPatientOrders = getPatientOrderService().findPatientOrdersByMrnAndInstitutionId(patientOrder.getPatientMrn(), account.getInstitutionId()).stream()
+				.filter(associatedPatientOrder -> !associatedPatientOrder.getPatientOrderId().equals(patientOrderId))
+				.sorted((patientOrder1, patientOrder2) -> patientOrder2.getOrderDate().compareTo(patientOrder1.getOrderDate()))
+				.collect(Collectors.toList());
+
+		PatientOrderApiResponseFormat responseFormat = PatientOrderApiResponseFormat.fromRoleId(account.getRoleId());
+
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("patientOrder", getPatientOrderApiResponseFactory().create(patientOrder,
-					PatientOrderApiResponseFormat.fromRoleId(account.getRoleId()),
+			put("patientOrder", getPatientOrderApiResponseFactory().create(patientOrder, responseFormat,
 					Set.of(PatientOrderApiResponseSupplement.EVERYTHING)));
+			put("associatedPatientOrders", associatedPatientOrders.stream()
+					.map(associatedPatientOrder -> getPatientOrderApiResponseFactory().create(associatedPatientOrder,
+							responseFormat, Set.of(PatientOrderApiResponseSupplement.PANEL)))
+					.collect(Collectors.toList()));
 		}});
 	}
 
@@ -271,48 +280,6 @@ public class PatientOrderResource {
 			put("activePatientOrdersCount", activePatientOrdersCount);
 			put("activePatientOrdersCountDescription", activePatientOrdersCountDescription);
 			put("activePatientOrderCountsByPatientOrderStatusId", activePatientOrderCountsByPatientOrderStatusIdJson);
-		}});
-	}
-
-	@Nonnull
-	@GET("/patients/{patientMrn}/overview")
-	@AuthenticationRequired
-	public ApiResponse patientOverview(@Nonnull @PathParameter String patientMrn) {
-		requireNonNull(patientMrn);
-
-		Account account = getCurrentContext().getAccount().get();
-		List<PatientOrder> patientOrders = getPatientOrderService().findPatientOrdersByMrnAndInstitutionId(patientMrn, account.getInstitutionId());
-
-		if (patientOrders.size() == 0)
-			throw new NotFoundException();
-
-		// Arbitrarily pick the first order to confirm we are able to view orders for this patient
-		if (!getAuthorizationService().canViewPatientOrder(patientOrders.get(0), account))
-			throw new AuthorizationException();
-
-		Account patientAccount = getAccountService().findAccountByMrnAndInstitutionId(patientMrn, account.getInstitutionId()).orElse(null);
-
-		List<PatientOrder> sortedPatientOrders = patientOrders.stream()
-				.sorted((patientOrder1, patientOrder2) -> patientOrder2.getOrderDate().compareTo(patientOrder1.getOrderDate()))
-				.collect(Collectors.toList());
-
-		PatientOrder currentPatientOrder = sortedPatientOrders.get(0);
-		List<PatientOrder> pastPatientOrders = sortedPatientOrders.size() == 1
-				? List.of()
-				: sortedPatientOrders.subList(1, sortedPatientOrders.size());
-
-		PatientOrderApiResponseFormat responseFormat = PatientOrderApiResponseFormat.fromRoleId(account.getRoleId());
-
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("currentPatientOrder", getPatientOrderApiResponseFactory().create(currentPatientOrder,
-					responseFormat, Set.of(PatientOrderApiResponseSupplement.EVERYTHING)));
-
-			put("pastPatientOrders", pastPatientOrders.stream()
-					.map(pastPatientOrder -> getPatientOrderApiResponseFactory().create(pastPatientOrder,
-							responseFormat, Set.of(PatientOrderApiResponseSupplement.PANEL)))
-					.collect(Collectors.toList()));
-
-			put("patientAccount", patientAccount == null ? null : getAccountApiResponseFactory().create(patientAccount, Set.of(AccountApiResponseSupplement.EVERYTHING)));
 		}});
 	}
 

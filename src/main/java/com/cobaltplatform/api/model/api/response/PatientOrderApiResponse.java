@@ -20,16 +20,20 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AddressApiResponse.AddressApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderDiagnosisApiResponse.PatientOrderDiagnosisApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderMedicationApiResponse.PatientOrderMedicationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.PatientOrder;
+import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
+import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AddressService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.PatientOrderService;
@@ -69,6 +73,8 @@ public class PatientOrderApiResponse {
 	private UUID patientOrderId;
 	@Nullable
 	private PatientOrderStatusId patientOrderStatusId;
+	@Nullable
+	private PatientOrderScreeningStatusId patientOrderScreeningStatusId;
 	@Nullable
 	private UUID patientAccountId;
 	@Nullable
@@ -181,6 +187,8 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private AddressApiResponse patientAddress;
 	@Nullable
+	private AccountApiResponse patientAccount;
+	@Nullable
 	private List<PatientOrderDiagnosisApiResponse> patientOrderDiagnoses;
 	@Nullable
 	private List<PatientOrderMedicationApiResponse> patientOrderMedications;
@@ -222,8 +230,10 @@ public class PatientOrderApiResponse {
 
 	@AssistedInject
 	public PatientOrderApiResponse(@Nonnull PatientOrderService patientOrderService,
+																 @Nonnull AccountService accountService,
 																 @Nonnull AddressService addressService,
 																 @Nonnull InstitutionService institutionService,
+																 @Nonnull AccountApiResponseFactory accountApiResponseFactory,
 																 @Nonnull PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory,
 																 @Nonnull PatientOrderDiagnosisApiResponseFactory patientOrderDiagnosisApiResponseFactory,
 																 @Nonnull PatientOrderMedicationApiResponseFactory patientOrderMedicationApiResponseFactory,
@@ -234,8 +244,10 @@ public class PatientOrderApiResponse {
 																 @Assisted @Nonnull PatientOrder patientOrder,
 																 @Assisted @Nonnull PatientOrderApiResponseFormat format) {
 		this(patientOrderService,
+				accountService,
 				addressService,
 				institutionService,
+				accountApiResponseFactory,
 				patientOrderNoteApiResponseFactory,
 				patientOrderDiagnosisApiResponseFactory,
 				patientOrderMedicationApiResponseFactory,
@@ -250,8 +262,10 @@ public class PatientOrderApiResponse {
 
 	@AssistedInject
 	public PatientOrderApiResponse(@Nonnull PatientOrderService patientOrderService,
+																 @Nonnull AccountService accountService,
 																 @Nonnull AddressService addressService,
 																 @Nonnull InstitutionService institutionService,
+																 @Nonnull AccountApiResponseFactory accountApiResponseFactory,
 																 @Nonnull PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory,
 																 @Nonnull PatientOrderDiagnosisApiResponseFactory patientOrderDiagnosisApiResponseFactory,
 																 @Nonnull PatientOrderMedicationApiResponseFactory patientOrderMedicationApiResponseFactory,
@@ -263,8 +277,10 @@ public class PatientOrderApiResponse {
 																 @Assisted @Nonnull PatientOrderApiResponseFormat format,
 																 @Assisted @Nonnull Set<PatientOrderApiResponseSupplement> supplements) {
 		requireNonNull(patientOrderService);
+		requireNonNull(accountService);
 		requireNonNull(addressService);
 		requireNonNull(institutionService);
+		requireNonNull(accountApiResponseFactory);
 		requireNonNull(patientOrderNoteApiResponseFactory);
 		requireNonNull(patientOrderDiagnosisApiResponseFactory);
 		requireNonNull(patientOrderMedicationApiResponseFactory);
@@ -279,6 +295,7 @@ public class PatientOrderApiResponse {
 		CurrentContext currentContext = currentContextProvider.get();
 
 		AddressApiResponse patientAddress = null;
+		AccountApiResponse patientAccount = null;
 		List<PatientOrderDiagnosisApiResponse> patientOrderDiagnoses = null;
 		List<PatientOrderMedicationApiResponse> patientOrderMedications = null;
 		List<PatientOrderNoteApiResponse> patientOrderNotes = null;
@@ -286,6 +303,9 @@ public class PatientOrderApiResponse {
 		if (supplements.contains(PatientOrderApiResponseSupplement.EVERYTHING)) {
 			Address address = addressService.findAddressById(patientOrder.getPatientAddressId()).orElse(null);
 			patientAddress = address == null ? null : addressApiResponseFactory.create(address);
+
+			Account account = accountService.findAccountById(patientOrder.getPatientAccountId()).orElse(null);
+			patientAccount = patientOrder.getPatientAccountId() == null ? null : accountApiResponseFactory.create(account);
 
 			patientOrderDiagnoses = patientOrderService.findPatientOrderDiagnosesByPatientOrderId(patientOrder.getPatientOrderId()).stream()
 					.map(patientOrderDiagnosis -> patientOrderDiagnosisApiResponseFactory.create(patientOrderDiagnosis))
@@ -303,6 +323,7 @@ public class PatientOrderApiResponse {
 		// Always available to both patients and MHICs
 		this.patientOrderId = patientOrder.getPatientOrderId();
 		this.patientOrderStatusId = patientOrder.getPatientOrderStatusId();
+		this.patientOrderScreeningStatusId = patientOrder.getPatientOrderScreeningStatusId();
 		this.patientAccountId = patientOrder.getPatientAccountId();
 		this.patientAddressId = patientOrder.getPatientAddressId();
 		this.patientLastName = patientOrder.getPatientLastName();
@@ -315,6 +336,7 @@ public class PatientOrderApiResponse {
 		this.patientBirthdate = patientOrder.getPatientBirthdate();
 		this.patientBirthdateDescription = patientOrder.getPatientBirthdate() == null ? null : formatter.formatDate(patientOrder.getPatientBirthdate(), FormatStyle.MEDIUM);
 		this.patientAddress = patientAddress;
+		this.patientAccount = patientAccount;
 
 		// MHIC-only view of the data
 		if (format == PatientOrderApiResponseFormat.MHIC) {
@@ -420,6 +442,11 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public PatientOrderStatusId getPatientOrderStatusId() {
 		return this.patientOrderStatusId;
+	}
+
+	@Nullable
+	public PatientOrderScreeningStatusId getPatientOrderScreeningStatusId() {
+		return this.patientOrderScreeningStatusId;
 	}
 
 	@Nullable
@@ -695,6 +722,11 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public AddressApiResponse getPatientAddress() {
 		return this.patientAddress;
+	}
+
+	@Nullable
+	public AccountApiResponse getPatientAccount() {
+		return this.patientAccount;
 	}
 
 	@Nullable

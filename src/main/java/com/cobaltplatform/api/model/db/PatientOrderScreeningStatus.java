@@ -25,41 +25,35 @@ import javax.annotation.concurrent.NotThreadSafe;
 import static java.lang.String.format;
 
 /**
- * @author Transmogrify LLC.
+ * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class PatientOrderEventType {
+public class PatientOrderScreeningStatus {
 	@Nullable
-	private PatientOrderEventTypeId patientOrderEventTypeId;
+	private PatientOrderScreeningStatusId patientOrderScreeningStatusId;
 	@Nullable
 	private String description;
 
-	public enum PatientOrderEventTypeId {
-		IMPORTED,
-		STATUS_CHANGED,
-		SCREENING_STATUS_CHANGED,
-		PANEL_ACCOUNT_CHANGED,
-		PATIENT_ACCOUNT_ASSIGNED,
-		NOTE_CREATED,
-		NOTE_UPDATED,
-		NOTE_DELETED,
-		OUTREACH_CREATED,
-		OUTREACH_UPDATED,
-		OUTREACH_DELETED,
+	public enum PatientOrderScreeningStatusId {
+		NOT_SCREENED,
+		IN_PROGRESS,
+		SCHEDULED,
+		COMPLETE
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{patientOrderEventTypeId=%s, description=%s}", getClass().getSimpleName(), getPatientOrderEventTypeId(), getDescription());
+		return format("%s{patientOrderScreeningStatusId=%s, description=%s}", getClass().getSimpleName(),
+				getPatientOrderScreeningStatusId(), getDescription());
 	}
 
 	@Nullable
-	public PatientOrderEventTypeId getPatientOrderEventTypeId() {
-		return this.patientOrderEventTypeId;
+	public PatientOrderScreeningStatusId getPatientOrderScreeningStatusId() {
+		return this.patientOrderScreeningStatusId;
 	}
 
-	public void setPatientOrderEventTypeId(@Nullable PatientOrderEventTypeId patientOrderEventTypeId) {
-		this.patientOrderEventTypeId = patientOrderEventTypeId;
+	public void setPatientOrderScreeningStatusId(@Nullable PatientOrderScreeningStatusId patientOrderScreeningStatusId) {
+		this.patientOrderScreeningStatusId = patientOrderScreeningStatusId;
 	}
 
 	@Nullable
