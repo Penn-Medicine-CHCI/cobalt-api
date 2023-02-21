@@ -295,7 +295,7 @@ public class PatientOrderApiResponse {
 					.map(patientOrderMedication -> patientOrderMedicationApiResponseFactory.create(patientOrderMedication))
 					.collect(Collectors.toList());
 
-			patientOrderNotes = patientOrderService.findPatientOrderNotesByPatientOrderId(patientOrderId).stream()
+			patientOrderNotes = patientOrderService.findPatientOrderNotesByPatientOrderId(patientOrder.getPatientOrderId()).stream()
 					.map(patientOrderNote -> patientOrderNoteApiResponseFactory.create(patientOrderNote))
 					.collect(Collectors.toList());
 		}
