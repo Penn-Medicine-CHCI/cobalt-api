@@ -22,9 +22,12 @@ package com.cobaltplatform.api.web.resource;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderNoteRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderNoteRequest;
+import com.cobaltplatform.api.model.api.request.DeletePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse.CountryApiResponseFactory;
@@ -35,12 +38,14 @@ import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.Patient
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFormat;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
+import com.cobaltplatform.api.model.db.PatientOrderOutreach;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
@@ -101,6 +106,8 @@ public class PatientOrderResource {
 	@Nonnull
 	private final PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory;
 	@Nonnull
+	private final PatientOrderOutreachApiResponseFactory patientOrderOutreachApiResponseFactory;
+	@Nonnull
 	private final AccountApiResponseFactory accountApiResponseFactory;
 	@Nonnull
 	private final TimeZoneApiResponseFactory timeZoneApiResponseFactory;
@@ -126,6 +133,7 @@ public class PatientOrderResource {
 															@Nonnull AuthorizationService authorizationService,
 															@Nonnull PatientOrderApiResponseFactory patientOrderApiResponseFactory,
 															@Nonnull PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory,
+															@Nonnull PatientOrderOutreachApiResponseFactory patientOrderOutreachApiResponseFactory,
 															@Nonnull AccountApiResponseFactory accountApiResponseFactory,
 															@Nonnull TimeZoneApiResponseFactory timeZoneApiResponseFactory,
 															@Nonnull LanguageApiResponseFactory languageApiResponseFactory,
@@ -140,6 +148,7 @@ public class PatientOrderResource {
 		requireNonNull(authorizationService);
 		requireNonNull(patientOrderApiResponseFactory);
 		requireNonNull(patientOrderNoteApiResponseFactory);
+		requireNonNull(patientOrderOutreachApiResponseFactory);
 		requireNonNull(accountApiResponseFactory);
 		requireNonNull(timeZoneApiResponseFactory);
 		requireNonNull(languageApiResponseFactory);
@@ -155,6 +164,7 @@ public class PatientOrderResource {
 		this.authorizationService = authorizationService;
 		this.patientOrderApiResponseFactory = patientOrderApiResponseFactory;
 		this.patientOrderNoteApiResponseFactory = patientOrderNoteApiResponseFactory;
+		this.patientOrderOutreachApiResponseFactory = patientOrderOutreachApiResponseFactory;
 		this.accountApiResponseFactory = accountApiResponseFactory;
 		this.timeZoneApiResponseFactory = timeZoneApiResponseFactory;
 		this.languageApiResponseFactory = languageApiResponseFactory;
@@ -367,16 +377,21 @@ public class PatientOrderResource {
 		request.setAccountId(account.getAccountId());
 		request.setPatientOrderNoteId(patientOrderNoteId);
 
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderNoteId).orElse(null);
+		PatientOrderNote patientOrderNote = getPatientOrderService().findPatientOrderNoteById(patientOrderNoteId).orElse(null);
 
-		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
+		if (patientOrderNote == null)
+			throw new NotFoundException();
+
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderNote.getPatientOrderId()).get();
+
+		if (!getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
 
 		getPatientOrderService().updatePatientOrderNote(request);
-		PatientOrderNote patientOrderNote = getPatientOrderService().findPatientOrderNoteById(patientOrderNoteId).get();
+		PatientOrderNote updatedPatientOrderNote = getPatientOrderService().findPatientOrderNoteById(patientOrderNoteId).get();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("patientOrderNote", getPatientOrderNoteApiResponseFactory().create(patientOrderNote));
+			put("patientOrderNote", getPatientOrderNoteApiResponseFactory().create(updatedPatientOrderNote));
 		}});
 	}
 
@@ -392,12 +407,126 @@ public class PatientOrderResource {
 		request.setAccountId(account.getAccountId());
 		request.setPatientOrderNoteId(patientOrderNoteId);
 
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderNoteId).orElse(null);
+		PatientOrderNote patientOrderNote = getPatientOrderService().findPatientOrderNoteById(patientOrderNoteId).orElse(null);
+
+		if (patientOrderNote == null)
+			throw new NotFoundException();
+
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderNote.getPatientOrderId()).orElse(null);
+
+		if (!getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		getPatientOrderService().deletePatientOrderNote(request);
+
+		return new ApiResponse(); // 204
+	}
+
+
+	@Nonnull
+	@GET("/patient-order-outreaches")
+	@AuthenticationRequired
+	public ApiResponse patientOrderOutreaches(@Nonnull @QueryParameter UUID patientOrderId) {
+		requireNonNull(patientOrderId);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+
+		if (patientOrder == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canViewPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		List<PatientOrderOutreach> patientOrderOutreaches = getPatientOrderService().findPatientOrderOutreachesByPatientOrderId(patientOrderId);
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrderOutreaches", patientOrderOutreaches.stream()
+					.map(patientOrderOutreach -> getPatientOrderOutreachApiResponseFactory().create(patientOrderOutreach))
+					.collect(Collectors.toList()));
+		}});
+	}
+
+	@Nonnull
+	@POST("/patient-order-outreaches")
+	@AuthenticationRequired
+	public ApiResponse createPatientOrderOutreach(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		CreatePatientOrderOutreachRequest request = getRequestBodyParser().parse(requestBody, CreatePatientOrderOutreachRequest.class);
+		request.setAccountId(account.getAccountId());
+
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(request.getPatientOrderId()).orElse(null);
 
 		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
 
-		getPatientOrderService().deletePatientOrderNote(request);
+		UUID patientOrderOutreachId = getPatientOrderService().createPatientOrderOutreach(request);
+		PatientOrderOutreach patientOrderOutreach = getPatientOrderService().findPatientOrderOutreachById(patientOrderOutreachId).get();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrderOutreach", getPatientOrderOutreachApiResponseFactory().create(patientOrderOutreach));
+		}});
+	}
+
+	@Nonnull
+	@PUT("/patient-order-outreaches/{patientOrderNoteId}")
+	@AuthenticationRequired
+	public ApiResponse updatePatientOrderOutreach(@Nonnull @PathParameter UUID patientOrderOutreachId,
+																								@Nonnull @RequestBody String requestBody) {
+		requireNonNull(patientOrderOutreachId);
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		UpdatePatientOrderOutreachRequest request = getRequestBodyParser().parse(requestBody, UpdatePatientOrderOutreachRequest.class);
+		request.setAccountId(account.getAccountId());
+		request.setPatientOrderOutreachId(patientOrderOutreachId);
+
+		PatientOrderOutreach patientOrderOutreach = getPatientOrderService().findPatientOrderOutreachById(patientOrderOutreachId).orElse(null);
+
+		if (patientOrderOutreach == null)
+			throw new NotFoundException();
+
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderOutreach.getPatientOrderId()).get();
+
+		if (!getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		getPatientOrderService().updatePatientOrderOutreach(request);
+		PatientOrderOutreach updatedPatientOrderOutreach = getPatientOrderService().findPatientOrderOutreachById(patientOrderOutreachId).get();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrderOutreach", getPatientOrderOutreachApiResponseFactory().create(updatedPatientOrderOutreach));
+		}});
+	}
+
+	@Nonnull
+	@DELETE("/patient-order-outreaches/{patientOrderOutreachId}")
+	@AuthenticationRequired
+	public ApiResponse deletePatientOrderOutreach(@Nonnull @PathParameter UUID patientOrderOutreachId) {
+		requireNonNull(patientOrderOutreachId);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		DeletePatientOrderOutreachRequest request = new DeletePatientOrderOutreachRequest();
+		request.setAccountId(account.getAccountId());
+		request.setPatientOrderOutreachId(patientOrderOutreachId);
+
+		PatientOrderOutreach patientOrderOutreach = getPatientOrderService().findPatientOrderOutreachById(patientOrderOutreachId).orElse(null);
+
+		if (patientOrderOutreach == null)
+			throw new NotFoundException();
+
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderOutreach.getPatientOrderId()).get();
+
+		if (!getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		getPatientOrderService().deletePatientOrderOutreach(request);
 
 		return new ApiResponse(); // 204
 	}
@@ -474,6 +603,11 @@ public class PatientOrderResource {
 	@Nonnull
 	protected PatientOrderNoteApiResponseFactory getPatientOrderNoteApiResponseFactory() {
 		return this.patientOrderNoteApiResponseFactory;
+	}
+
+	@Nonnull
+	protected PatientOrderOutreachApiResponseFactory getPatientOrderOutreachApiResponseFactory() {
+		return this.patientOrderOutreachApiResponseFactory;
 	}
 
 	@Nonnull

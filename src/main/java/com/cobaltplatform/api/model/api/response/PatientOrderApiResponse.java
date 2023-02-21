@@ -25,6 +25,7 @@ import com.cobaltplatform.api.model.api.response.AddressApiResponse.AddressApiRe
 import com.cobaltplatform.api.model.api.response.PatientOrderDiagnosisApiResponse.PatientOrderDiagnosisApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderMedicationApiResponse.PatientOrderMedicationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
@@ -194,6 +195,8 @@ public class PatientOrderApiResponse {
 	private List<PatientOrderMedicationApiResponse> patientOrderMedications;
 	@Nullable
 	private List<PatientOrderNoteApiResponse> patientOrderNotes;
+	@Nullable
+	private List<PatientOrderOutreachApiResponse> patientOrderOutreaches;
 
 	public enum PatientOrderApiResponseSupplement {
 		PANEL,
@@ -235,6 +238,7 @@ public class PatientOrderApiResponse {
 																 @Nonnull InstitutionService institutionService,
 																 @Nonnull AccountApiResponseFactory accountApiResponseFactory,
 																 @Nonnull PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory,
+																 @Nonnull PatientOrderOutreachApiResponseFactory patientOrderOutreachApiResponseFactory,
 																 @Nonnull PatientOrderDiagnosisApiResponseFactory patientOrderDiagnosisApiResponseFactory,
 																 @Nonnull PatientOrderMedicationApiResponseFactory patientOrderMedicationApiResponseFactory,
 																 @Nonnull AddressApiResponseFactory addressApiResponseFactory,
@@ -249,6 +253,7 @@ public class PatientOrderApiResponse {
 				institutionService,
 				accountApiResponseFactory,
 				patientOrderNoteApiResponseFactory,
+				patientOrderOutreachApiResponseFactory,
 				patientOrderDiagnosisApiResponseFactory,
 				patientOrderMedicationApiResponseFactory,
 				addressApiResponseFactory,
@@ -267,6 +272,7 @@ public class PatientOrderApiResponse {
 																 @Nonnull InstitutionService institutionService,
 																 @Nonnull AccountApiResponseFactory accountApiResponseFactory,
 																 @Nonnull PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory,
+																 @Nonnull PatientOrderOutreachApiResponseFactory patientOrderOutreachApiResponseFactory,
 																 @Nonnull PatientOrderDiagnosisApiResponseFactory patientOrderDiagnosisApiResponseFactory,
 																 @Nonnull PatientOrderMedicationApiResponseFactory patientOrderMedicationApiResponseFactory,
 																 @Nonnull AddressApiResponseFactory addressApiResponseFactory,
@@ -282,6 +288,7 @@ public class PatientOrderApiResponse {
 		requireNonNull(institutionService);
 		requireNonNull(accountApiResponseFactory);
 		requireNonNull(patientOrderNoteApiResponseFactory);
+		requireNonNull(patientOrderOutreachApiResponseFactory);
 		requireNonNull(patientOrderDiagnosisApiResponseFactory);
 		requireNonNull(patientOrderMedicationApiResponseFactory);
 		requireNonNull(addressApiResponseFactory);
@@ -299,6 +306,7 @@ public class PatientOrderApiResponse {
 		List<PatientOrderDiagnosisApiResponse> patientOrderDiagnoses = null;
 		List<PatientOrderMedicationApiResponse> patientOrderMedications = null;
 		List<PatientOrderNoteApiResponse> patientOrderNotes = null;
+		List<PatientOrderOutreachApiResponse> patientOrderOutreaches = null;
 
 		if (supplements.contains(PatientOrderApiResponseSupplement.EVERYTHING)) {
 			Address address = addressService.findAddressById(patientOrder.getPatientAddressId()).orElse(null);
@@ -317,6 +325,10 @@ public class PatientOrderApiResponse {
 
 			patientOrderNotes = patientOrderService.findPatientOrderNotesByPatientOrderId(patientOrder.getPatientOrderId()).stream()
 					.map(patientOrderNote -> patientOrderNoteApiResponseFactory.create(patientOrderNote))
+					.collect(Collectors.toList());
+
+			patientOrderOutreaches = patientOrderService.findPatientOrderOutreachesByPatientOrderId(patientOrder.getPatientOrderId()).stream()
+					.map(patientOrderOutreach -> patientOrderOutreachApiResponseFactory.create(patientOrderOutreach))
 					.collect(Collectors.toList());
 		}
 
@@ -402,6 +414,7 @@ public class PatientOrderApiResponse {
 			this.patientOrderDiagnoses = patientOrderDiagnoses;
 			this.patientOrderMedications = patientOrderMedications;
 			this.patientOrderNotes = patientOrderNotes;
+			this.patientOrderOutreaches = patientOrderOutreaches;
 		}
 	}
 
@@ -742,5 +755,10 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public List<PatientOrderNoteApiResponse> getPatientOrderNotes() {
 		return this.patientOrderNotes;
+	}
+
+	@Nullable
+	public List<PatientOrderOutreachApiResponse> getPatientOrderOutreaches() {
+		return this.patientOrderOutreaches;
 	}
 }

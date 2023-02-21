@@ -24,12 +24,15 @@ import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderEventRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderNoteRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderDiagnosisRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderMedicationRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderNoteRequest;
+import com.cobaltplatform.api.model.api.request.DeletePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -40,6 +43,7 @@ import com.cobaltplatform.api.model.db.PatientOrderImport;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderMedication;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
+import com.cobaltplatform.api.model.db.PatientOrderOutreach;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
@@ -79,6 +83,7 @@ import java.io.UncheckedIOException;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -261,6 +266,32 @@ public class PatientOrderService {
 				AND deleted=FALSE
 				ORDER BY created DESC
 				""", PatientOrderNote.class, patientOrderId);
+	}
+
+	@Nonnull
+	public Optional<PatientOrderOutreach> findPatientOrderOutreachById(@Nullable UUID patientOrderOutreachId) {
+		if (patientOrderOutreachId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT * 
+				FROM patient_order_outreach
+				WHERE patient_order_outreach_id=?
+				""", PatientOrderOutreach.class, patientOrderOutreachId);
+	}
+
+	@Nonnull
+	public List<PatientOrderOutreach> findPatientOrderOutreachesByPatientOrderId(@Nullable UUID patientOrderId) {
+		if (patientOrderId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT * 
+				FROM patient_order_outreach
+				WHERE patient_order_id=?
+				AND deleted=FALSE
+				ORDER BY created DESC
+				""", PatientOrderOutreach.class, patientOrderId);
 	}
 
 	@Nonnull
@@ -512,7 +543,7 @@ public class PatientOrderService {
 				""", patientOrderNoteId, patientOrderId, accountId, note);
 
 		createPatientOrderEvent(new CreatePatientOrderEventRequest() {{
-			setPatientOrderEventTypeId(PatientOrderEventTypeId.NOTE_UPDATED);
+			setPatientOrderEventTypeId(PatientOrderEventTypeId.NOTE_CREATED);
 			setPatientOrderId(patientOrderId);
 			setAccountId(accountId);
 			setMessage("Created note."); // Not localized on the way in
@@ -619,6 +650,166 @@ public class PatientOrderService {
 						"patientOrderNoteId", patientOrderNoteId,
 						"accountId", accountId,
 						"note", note));
+			}});
+		}
+
+		return deleted;
+	}
+
+	@Nonnull
+	public UUID createPatientOrderOutreach(@Nonnull CreatePatientOrderOutreachRequest request) {
+		requireNonNull(request);
+
+		UUID accountId = request.getAccountId();
+		UUID patientOrderId = request.getPatientOrderId();
+		String note = trimToNull(request.getNote());
+		LocalDateTime outreachDateTime = request.getOutreachDateTime();
+		PatientOrder patientOrder;
+		UUID patientOrderOutreachId = UUID.randomUUID();
+		ValidationException validationException = new ValidationException();
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (patientOrderId == null) {
+			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+		} else {
+			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+
+			if (patientOrder == null)
+				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+		}
+
+		if (outreachDateTime == null)
+			validationException.add(new FieldError("outreachDateTime", getStrings().get("Outreach date and time are required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+				INSERT INTO patient_order_outreach (
+				patient_order_note_id, patient_order_id, account_id, note, outreach_date_time
+				) VALUES (?,?,?,?,?)
+				""", patientOrderOutreachId, patientOrderId, accountId, note, outreachDateTime);
+
+		createPatientOrderEvent(new CreatePatientOrderEventRequest() {{
+			setPatientOrderEventTypeId(PatientOrderEventTypeId.OUTREACH_CREATED);
+			setPatientOrderId(patientOrderId);
+			setAccountId(accountId);
+			setMessage("Created outreach."); // Not localized on the way in
+			setMetadata(Map.of(
+					"patientOrderOutreachId", patientOrderOutreachId,
+					"accountId", accountId,
+					"outreachDateTime", outreachDateTime,
+					"note", note));
+		}});
+
+		return patientOrderOutreachId;
+	}
+
+	@Nonnull
+	public Boolean updatePatientOrderOutreach(@Nonnull UpdatePatientOrderOutreachRequest request) {
+		requireNonNull(request);
+
+		UUID accountId = request.getAccountId();
+		UUID patientOrderOutreachId = request.getPatientOrderOutreachId();
+		String note = trimToNull(request.getNote());
+		LocalDateTime outreachDateTime = request.getOutreachDateTime();
+		PatientOrderOutreach patientOrderOutreach = null;
+		ValidationException validationException = new ValidationException();
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (patientOrderOutreachId == null) {
+			validationException.add(new FieldError("patientOrderOutreachId", getStrings().get("Patient Order Outreach ID is required.")));
+		} else {
+			patientOrderOutreach = findPatientOrderOutreachById(patientOrderOutreachId).orElse(null);
+
+			if (patientOrderOutreach == null)
+				validationException.add(new FieldError("patientOrderOutreachId", getStrings().get("Patient Order Outreach ID is invalid.")));
+		}
+
+		if (outreachDateTime == null)
+			validationException.add(new FieldError("outreachDateTime", getStrings().get("Outreach date and time are required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		boolean updated = getDatabase().execute("""
+				UPDATE patient_order_outreach
+				SET note=?, outreach_date_time=?
+				WHERE patient_order_outreach_id=?
+				""", note, outreachDateTime, patientOrderOutreachId) > 0;
+
+		if (updated) {
+			UUID patientOrderId = patientOrderOutreach.getPatientOrderId();
+			String oldNote = patientOrderOutreach.getNote();
+			LocalDateTime oldOutreachDateTime = patientOrderOutreach.getOutreachDateTime();
+
+			createPatientOrderEvent(new CreatePatientOrderEventRequest() {{
+				setPatientOrderEventTypeId(PatientOrderEventTypeId.OUTREACH_UPDATED);
+				setPatientOrderId(patientOrderId);
+				setAccountId(accountId);
+				setMessage("Updated outreach."); // Not localized on the way in
+				setMetadata(Map.of(
+						"patientOrderOutreachId", patientOrderOutreachId,
+						"accountId", accountId,
+						"oldNote", oldNote,
+						"newNote", note,
+						"oldOutreachDateTime", oldOutreachDateTime,
+						"newOutreachDateTime", outreachDateTime));
+			}});
+		}
+
+		return updated;
+	}
+
+	@Nonnull
+	public Boolean deletePatientOrderOutreach(@Nonnull DeletePatientOrderOutreachRequest request) {
+		requireNonNull(request);
+
+		UUID accountId = request.getAccountId();
+		UUID patientOrderOutreachId = request.getPatientOrderOutreachId();
+		PatientOrderOutreach patientOrderOutreach = null;
+		ValidationException validationException = new ValidationException();
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (patientOrderOutreachId == null) {
+			validationException.add(new FieldError("patientOrderOutreachId", getStrings().get("Patient Order Outreach ID is required.")));
+		} else {
+			patientOrderOutreach = findPatientOrderOutreachById(patientOrderOutreachId).orElse(null);
+
+			if (patientOrderOutreach == null)
+				validationException.add(new FieldError("patientOrderOutreachId", getStrings().get("Patient Order Outreach ID is invalid.")));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		boolean deleted = getDatabase().execute("""
+				UPDATE patient_order_outreach
+				SET deleted=TRUE
+				WHERE patient_order_outreach_id=?
+				""", patientOrderOutreachId) > 0;
+
+		if (deleted) {
+			UUID patientOrderId = patientOrderOutreach.getPatientOrderId();
+			String note = patientOrderOutreach.getNote();
+			LocalDateTime outreachDateTime = patientOrderOutreach.getOutreachDateTime();
+
+			createPatientOrderEvent(new CreatePatientOrderEventRequest() {{
+				setPatientOrderEventTypeId(PatientOrderEventTypeId.NOTE_DELETED);
+				setPatientOrderId(patientOrderId);
+				setAccountId(accountId);
+				setMessage("Deleted outreach."); // Not localized on the way in
+				setMetadata(Map.of(
+						"patientOrderOutreachId", patientOrderOutreachId,
+						"accountId", accountId,
+						"note", note,
+						"outreachDateTime", outreachDateTime));
 			}});
 		}
 
