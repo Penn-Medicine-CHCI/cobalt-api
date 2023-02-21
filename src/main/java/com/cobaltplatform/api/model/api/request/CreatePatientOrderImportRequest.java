@@ -39,6 +39,8 @@ public class CreatePatientOrderImportRequest {
 	private UUID accountId;
 	@Nullable
 	private String csvContent;
+	@Nullable
+	private Boolean automaticallyAssignToPanelAccounts;
 
 	@Nullable
 	public InstitutionId getInstitutionId() {
@@ -74,5 +76,14 @@ public class CreatePatientOrderImportRequest {
 
 	public void setCsvContent(@Nullable String csvContent) {
 		this.csvContent = csvContent;
+	}
+
+	@Nullable
+	public Boolean getAutomaticallyAssignToPanelAccounts() {
+		return this.automaticallyAssignToPanelAccounts;
+	}
+
+	public void setAutomaticallyAssignToPanelAccounts(@Nullable Boolean automaticallyAssignToPanelAccounts) {
+		this.automaticallyAssignToPanelAccounts = automaticallyAssignToPanelAccounts;
 	}
 }

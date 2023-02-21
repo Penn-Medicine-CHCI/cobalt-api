@@ -885,7 +885,9 @@ public class PatientOrderService {
 		PatientOrderImportTypeId patientOrderImportTypeId = request.getPatientOrderImportTypeId();
 		UUID accountId = request.getAccountId();
 		String csvContent = trimToNull(request.getCsvContent());
+		boolean automaticallyAssignToPanelAccounts = request.getAutomaticallyAssignToPanelAccounts() == null ? false : request.getAutomaticallyAssignToPanelAccounts();
 		UUID patientOrderImportId = UUID.randomUUID();
+		List<UUID> patientOrderIds = new ArrayList<>();
 		ValidationException validationException = new ValidationException();
 
 		if (institutionId == null)
@@ -1090,7 +1092,8 @@ public class PatientOrderService {
 					patientOrderRequest.setRecentPsychotherapeuticMedications(trimToNull(record.get("Psychotherapeutic Med Lst 2 Weeks")));
 
 					try {
-						createPatientOrder(patientOrderRequest);
+						UUID patientOrderId = createPatientOrder(patientOrderRequest);
+						patientOrderIds.add(patientOrderId);
 					} catch (ValidationException e) {
 						validationExceptionsByRowNumber.put(rowNumber, e);
 					}
@@ -1131,7 +1134,23 @@ public class PatientOrderService {
 			}
 		}
 
-		// TODO: call associatePatientAccountWithPatientOrders (or a variant) to tie orders to existing accounts
+		if (automaticallyAssignToPanelAccounts) {
+			List<Account> panelAccounts = findPanelAccountsByInstitutionId(institutionId);
+
+			if (panelAccounts.size() > 0) {
+				int i = 0;
+
+				// TODO: more details on criteria for how to assign?  For now we're distributing evenly
+				for (UUID patientOrderId : patientOrderIds) {
+					int panelAccountIndex = i % panelAccounts.size();
+					Account panelAccount = panelAccounts.get(panelAccountIndex);
+
+					assignPatientOrderToPanelAccount(patientOrderId, panelAccount.getAccountId(), accountId);
+
+					++i;
+				}
+			}
+		}
 
 		return patientOrderImportId;
 	}

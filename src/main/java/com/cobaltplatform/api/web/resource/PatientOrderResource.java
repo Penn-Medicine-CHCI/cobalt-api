@@ -308,6 +308,7 @@ public class PatientOrderResource {
 		request.setInstitutionId(account.getInstitutionId());
 		request.setAccountId(account.getAccountId());
 		request.setPatientOrderImportTypeId(PatientOrderImportTypeId.CSV);
+		request.setAutomaticallyAssignToPanelAccounts(true);
 
 		getPatientOrderService().createPatientOrderImport(request);
 

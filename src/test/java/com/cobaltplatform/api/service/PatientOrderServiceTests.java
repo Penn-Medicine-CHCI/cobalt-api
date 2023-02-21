@@ -67,6 +67,7 @@ public class PatientOrderServiceTests {
 				setInstitutionId(institutionId);
 				setPatientOrderImportTypeId(PatientOrderImportTypeId.CSV);
 				setAccountId(adminAccount.getAccountId());
+				setAutomaticallyAssignToPanelAccounts(false);
 			}});
 
 			PatientOrderImport patientOrderImport = patientOrderService.findPatientOrderImportById(patientOrderImportId).orElse(null);
