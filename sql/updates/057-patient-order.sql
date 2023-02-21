@@ -218,6 +218,19 @@ CREATE TABLE patient_order_note (
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_note FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
+CREATE TABLE patient_order_outreach_attempt (
+  patient_order_outreach_attempt_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  patient_order_id UUID NOT NULL REFERENCES patient_order,
+  account_id UUID NOT NULL REFERENCES account,
+  note TEXT NOT NULL,
+  outreach_date_time TIMESTAMP NOT NULL,
+  deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_outreach_attempt FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
 CREATE TABLE patient_order_event_type (
   patient_order_event_id VARCHAR PRIMARY KEY,
   description VARCHAR NOT NULL
