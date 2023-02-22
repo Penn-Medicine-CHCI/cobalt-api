@@ -703,7 +703,7 @@ public class PatientOrderService {
 
 		getDatabase().execute("""
 				INSERT INTO patient_order_outreach (
-				patient_order_note_id, patient_order_id, account_id, note, outreach_date_time
+				patient_order_outreach_id, patient_order_id, account_id, note, outreach_date_time
 				) VALUES (?,?,?,?,?)
 				""", patientOrderOutreachId, patientOrderId, accountId, note, outreachDateTime);
 
