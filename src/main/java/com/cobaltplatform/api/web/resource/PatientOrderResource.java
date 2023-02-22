@@ -55,6 +55,7 @@ import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.PatientOrderService;
 import com.cobaltplatform.api.util.Formatter;
+import com.cobaltplatform.api.util.PatientOrderCsvGenerator;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.DELETE;
 import com.soklet.web.annotation.GET;
@@ -67,6 +68,7 @@ import com.soklet.web.annotation.Resource;
 import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
+import com.soklet.web.response.CustomResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,6 +77,11 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -83,7 +90,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPOutputStream;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -118,6 +127,8 @@ public class PatientOrderResource {
 	@Nonnull
 	private final InsuranceApiResponseFactory insuranceApiResponseFactory;
 	@Nonnull
+	private final PatientOrderCsvGenerator patientOrderCsvGenerator;
+	@Nonnull
 	private final RequestBodyParser requestBodyParser;
 	@Nonnull
 	private final Formatter formatter;
@@ -139,6 +150,7 @@ public class PatientOrderResource {
 															@Nonnull LanguageApiResponseFactory languageApiResponseFactory,
 															@Nonnull CountryApiResponseFactory countryApiResponseFactory,
 															@Nonnull InsuranceApiResponseFactory insuranceApiResponseFactory,
+															@Nonnull PatientOrderCsvGenerator patientOrderCsvGenerator,
 															@Nonnull RequestBodyParser requestBodyParser,
 															@Nonnull Formatter formatter,
 															@Nonnull Provider<CurrentContext> currentContextProvider) {
@@ -154,6 +166,7 @@ public class PatientOrderResource {
 		requireNonNull(languageApiResponseFactory);
 		requireNonNull(countryApiResponseFactory);
 		requireNonNull(insuranceApiResponseFactory);
+		requireNonNull(patientOrderCsvGenerator);
 		requireNonNull(requestBodyParser);
 		requireNonNull(formatter);
 		requireNonNull(currentContextProvider);
@@ -170,6 +183,7 @@ public class PatientOrderResource {
 		this.languageApiResponseFactory = languageApiResponseFactory;
 		this.countryApiResponseFactory = countryApiResponseFactory;
 		this.insuranceApiResponseFactory = insuranceApiResponseFactory;
+		this.patientOrderCsvGenerator = patientOrderCsvGenerator;
 		this.requestBodyParser = requestBodyParser;
 		this.formatter = formatter;
 		this.currentContextProvider = currentContextProvider;
@@ -577,6 +591,38 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
+	@GET("/patient-order-csv-generator")
+	@AuthenticationRequired
+	public CustomResponse patientOrderCsvGenerator(@Nonnull @QueryParameter Optional<Integer> orderCount,
+																								 @Nonnull HttpServletResponse httpServletResponse) throws IOException {
+		requireNonNull(orderCount);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		// TODO: need additional check to prevent this in non-local/test envs
+		if (!getAuthorizationService().canImportPatientOrders(account.getInstitutionId(), account))
+			throw new AuthorizationException();
+
+		int finalOrderCount = orderCount.orElse(100);
+
+		if (finalOrderCount < 1 || finalOrderCount > 10_000)
+			finalOrderCount = 100;
+
+		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HHmmss", account.getLocale()).withZone(account.getTimeZone());
+		String filename = format("Cobalt Test Order Report - %s - %d Rows.csv", dateTimeFormatter.format(Instant.now()), finalOrderCount);
+
+		httpServletResponse.setContentType("text/csv");
+		httpServletResponse.setHeader("Content-Encoding", "gzip");
+		httpServletResponse.setHeader("Content-Disposition", format("attachment; filename=\"%s\"", filename));
+
+		try (PrintWriter printWriter = new PrintWriter(new GZIPOutputStream(httpServletResponse.getOutputStream()))) {
+			getPatientOrderCsvGenerator().generateCsv(finalOrderCount, printWriter);
+		}
+
+		return CustomResponse.instance();
+	}
+
+	@Nonnull
 	protected PatientOrderService getPatientOrderService() {
 		return this.patientOrderService;
 	}
@@ -634,6 +680,11 @@ public class PatientOrderResource {
 	@Nonnull
 	protected InsuranceApiResponseFactory getInsuranceApiResponseFactory() {
 		return this.insuranceApiResponseFactory;
+	}
+
+	@Nonnull
+	protected PatientOrderCsvGenerator getPatientOrderCsvGenerator() {
+		return this.patientOrderCsvGenerator;
 	}
 
 	@Nonnull

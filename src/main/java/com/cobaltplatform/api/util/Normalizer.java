@@ -203,8 +203,6 @@ public class Normalizer {
 		// Remove all whitespace
 		timeAsString = timeAsString.replaceAll("\\s", "").toUpperCase(Locale.US);
 
-		System.out.println(timeAsString);
-
 		try {
 			// Valid string looks like "1:05AM"
 			return Optional.of(LocalTime.parse(timeAsString, US_TIME_PARSING_FORMATTER));
