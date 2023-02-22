@@ -84,6 +84,7 @@ import java.lang.reflect.Type;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -663,8 +664,10 @@ public class PatientOrderService {
 		UUID accountId = request.getAccountId();
 		UUID patientOrderId = request.getPatientOrderId();
 		String note = trimToNull(request.getNote());
-		LocalDateTime outreachDateTime = request.getOutreachDateTime();
+		LocalDate outreachDate = request.getOutreachDate();
+		String outreachTimeAsString = trimToNull(request.getOutreachTime());
 		PatientOrder patientOrder;
+		LocalTime outreachTime = null;
 		UUID patientOrderOutreachId = UUID.randomUUID();
 		ValidationException validationException = new ValidationException();
 
@@ -680,11 +683,23 @@ public class PatientOrderService {
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
 		}
 
-		if (outreachDateTime == null)
-			validationException.add(new FieldError("outreachDateTime", getStrings().get("Outreach date and time are required.")));
+		if (outreachDate == null)
+			validationException.add(new FieldError("outreachDate", getStrings().get("Outreach date is required.")));
+
+		if (outreachTimeAsString == null) {
+			validationException.add(new FieldError("outreachTime", getStrings().get("Outreach time is required.")));
+		} else {
+			// TODO: support other locales
+			outreachTime = getNormalizer().normalizeTime(outreachTimeAsString, Locale.US).orElse(null);
+
+			if (outreachTime == null)
+				validationException.add(new FieldError("outreachTime", getStrings().get("Outreach time is invalid.")));
+		}
 
 		if (validationException.hasErrors())
 			throw validationException;
+
+		LocalDateTime outreachDateTime = LocalDateTime.of(outreachDate, outreachTime);
 
 		getDatabase().execute("""
 				INSERT INTO patient_order_outreach (
@@ -714,8 +729,10 @@ public class PatientOrderService {
 		UUID accountId = request.getAccountId();
 		UUID patientOrderOutreachId = request.getPatientOrderOutreachId();
 		String note = trimToNull(request.getNote());
-		LocalDateTime outreachDateTime = request.getOutreachDateTime();
+		LocalDate outreachDate = request.getOutreachDate();
+		String outreachTimeAsString = trimToNull(request.getOutreachTime());
 		PatientOrderOutreach patientOrderOutreach = null;
+		LocalTime outreachTime = null;
 		ValidationException validationException = new ValidationException();
 
 		if (accountId == null)
@@ -730,11 +747,23 @@ public class PatientOrderService {
 				validationException.add(new FieldError("patientOrderOutreachId", getStrings().get("Patient Order Outreach ID is invalid.")));
 		}
 
-		if (outreachDateTime == null)
-			validationException.add(new FieldError("outreachDateTime", getStrings().get("Outreach date and time are required.")));
+		if (outreachDate == null)
+			validationException.add(new FieldError("outreachDate", getStrings().get("Outreach date is required.")));
+
+		if (outreachTimeAsString == null) {
+			validationException.add(new FieldError("outreachTime", getStrings().get("Outreach time is required.")));
+		} else {
+			// TODO: support other locales
+			outreachTime = getNormalizer().normalizeTime(outreachTimeAsString, Locale.US).orElse(null);
+
+			if (outreachTime == null)
+				validationException.add(new FieldError("outreachTime", getStrings().get("Outreach time is invalid.")));
+		}
 
 		if (validationException.hasErrors())
 			throw validationException;
+
+		LocalDateTime outreachDateTime = LocalDateTime.of(outreachDate, outreachTime);
 
 		boolean updated = getDatabase().execute("""
 				UPDATE patient_order_outreach

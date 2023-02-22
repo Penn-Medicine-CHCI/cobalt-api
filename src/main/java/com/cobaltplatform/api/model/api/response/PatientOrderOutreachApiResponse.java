@@ -32,7 +32,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.FormatStyle;
 import java.util.UUID;
 
@@ -51,6 +53,14 @@ public class PatientOrderOutreachApiResponse {
 	private final UUID accountId;
 	@Nonnull
 	private final String note;
+	@Nonnull
+	private final LocalDate outreachDate;
+	@Nonnull
+	private final String outreachDateDescription;
+	@Nonnull
+	private final LocalTime outreachTime;
+	@Nonnull
+	private final String outreachTimeDescription;
 	@Nonnull
 	private final LocalDateTime outreachDateTime;
 	@Nonnull
@@ -90,6 +100,10 @@ public class PatientOrderOutreachApiResponse {
 		this.patientOrderId = patientOrderOutreach.getPatientOrderId();
 		this.accountId = patientOrderOutreach.getAccountId();
 		this.note = patientOrderOutreach.getNote();
+		this.outreachDate = patientOrderOutreach.getOutreachDateTime().toLocalDate();
+		this.outreachDateDescription = formatter.formatDate(getOutreachDate(), FormatStyle.MEDIUM);
+		this.outreachTime = patientOrderOutreach.getOutreachDateTime().toLocalTime();
+		this.outreachTimeDescription = formatter.formatTime(getOutreachTime(), FormatStyle.SHORT);
 		this.outreachDateTime = patientOrderOutreach.getOutreachDateTime();
 		this.outreachDateTimeDescription = formatter.formatDateTime(patientOrderOutreach.getOutreachDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 		this.created = patientOrderOutreach.getCreated();
@@ -117,6 +131,26 @@ public class PatientOrderOutreachApiResponse {
 	@Nonnull
 	public String getNote() {
 		return this.note;
+	}
+
+	@Nonnull
+	public LocalDate getOutreachDate() {
+		return this.outreachDate;
+	}
+
+	@Nonnull
+	public String getOutreachDateDescription() {
+		return this.outreachDateDescription;
+	}
+
+	@Nonnull
+	public LocalTime getOutreachTime() {
+		return this.outreachTime;
+	}
+
+	@Nonnull
+	public String getOutreachTimeDescription() {
+		return this.outreachTimeDescription;
 	}
 
 	@Nonnull

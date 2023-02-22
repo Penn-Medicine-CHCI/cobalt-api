@@ -32,6 +32,8 @@ import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -55,6 +57,8 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 public class Normalizer {
 	@Nonnull
 	private static final Map<String, String> ISO_3166_THREE_TO_TWO_LETTER_COUNTRY_CODES;
+	@Nonnull
+	private static final DateTimeFormatter US_TIME_PARSING_FORMATTER;
 
 	@Nullable
 	private final Provider<CurrentContext> currentContextProvider;
@@ -70,6 +74,9 @@ public class Normalizer {
 		}
 
 		ISO_3166_THREE_TO_TWO_LETTER_COUNTRY_CODES = Collections.unmodifiableMap(iso3166ThreeToTwoLetterCountryCodes);
+
+		// Valid string looks like "1:05am"
+		US_TIME_PARSING_FORMATTER = DateTimeFormatter.ofPattern("h:ma", Locale.US);
 	}
 
 	public Normalizer() {
@@ -172,6 +179,36 @@ public class Normalizer {
 			locale = FALLBACK_LOCALE;
 
 		return Optional.of(emailAddress.toLowerCase(locale));
+	}
+
+	@Nonnull
+	public Optional<LocalTime> normalizeTime(@Nullable String timeAsString) {
+		return normalizeTime(timeAsString, getCurrentContext().get().getLocale());
+	}
+
+	@Nonnull
+	public Optional<LocalTime> normalizeTime(@Nullable String timeAsString,
+																					 @Nonnull Locale locale) {
+		requireNonNull(locale);
+
+		timeAsString = trimToNull(timeAsString);
+
+		if (timeAsString == null)
+			return Optional.empty();
+
+		// TODO: support other locales
+		if (!locale.equals(Locale.US))
+			throw new IllegalArgumentException(format("Locale %s is not yet supported for time parsing", locale.toLanguageTag()));
+
+		// Remove all whitespace
+		timeAsString = timeAsString.replaceAll("\\s", "").toLowerCase(Locale.US);
+
+		try {
+			// Valid string looks like "1:05am"
+			return Optional.of(LocalTime.parse(timeAsString, US_TIME_PARSING_FORMATTER));
+		} catch (Exception e) {
+			return Optional.empty();
+		}
 	}
 
 	@Nonnull
