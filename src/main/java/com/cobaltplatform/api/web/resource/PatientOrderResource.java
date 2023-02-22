@@ -474,7 +474,7 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
-	@PUT("/patient-order-outreaches/{patientOrderNoteId}")
+	@PUT("/patient-order-outreaches/{patientOrderOutreachId}")
 	@AuthenticationRequired
 	public ApiResponse updatePatientOrderOutreach(@Nonnull @PathParameter UUID patientOrderOutreachId,
 																								@Nonnull @RequestBody String requestBody) {
