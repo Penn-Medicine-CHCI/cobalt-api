@@ -75,8 +75,8 @@ public class Normalizer {
 
 		ISO_3166_THREE_TO_TWO_LETTER_COUNTRY_CODES = Collections.unmodifiableMap(iso3166ThreeToTwoLetterCountryCodes);
 
-		// Valid string looks like "1:05am"
-		US_TIME_PARSING_FORMATTER = DateTimeFormatter.ofPattern("h:ma", Locale.US);
+		// Valid string looks like "1:05AM"
+		US_TIME_PARSING_FORMATTER = DateTimeFormatter.ofPattern("h:mma", Locale.US);
 	}
 
 	public Normalizer() {
@@ -201,10 +201,12 @@ public class Normalizer {
 			throw new IllegalArgumentException(format("Locale %s is not yet supported for time parsing", locale.toLanguageTag()));
 
 		// Remove all whitespace
-		timeAsString = timeAsString.replaceAll("\\s", "").toLowerCase(Locale.US);
+		timeAsString = timeAsString.replaceAll("\\s", "").toUpperCase(Locale.US);
+
+		System.out.println(timeAsString);
 
 		try {
-			// Valid string looks like "1:05am"
+			// Valid string looks like "1:05AM"
 			return Optional.of(LocalTime.parse(timeAsString, US_TIME_PARSING_FORMATTER));
 		} catch (Exception e) {
 			return Optional.empty();
