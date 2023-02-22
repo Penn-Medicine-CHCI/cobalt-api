@@ -18,6 +18,7 @@
  */
 package com.cobaltplatform.api.util;
 
+import com.google.common.base.Strings;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 
@@ -31,6 +32,9 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -38,6 +42,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -60,6 +65,36 @@ public class PatientOrderCsvGenerator {
 	private final List<String> firstNames;
 	@Nonnull
 	private final List<String> lastNames;
+	@Nonnull
+	private final List<Icd10Code> icd10Codes;
+
+	@ThreadSafe
+	protected static class Icd10Code {
+		@Nonnull
+		private final String code;
+		@Nonnull
+		private final String name;
+
+		@Nonnull
+		public Icd10Code(@Nonnull String code,
+										 @Nonnull String name) {
+			requireNonNull(code);
+			requireNonNull(name);
+
+			this.code = code;
+			this.name = name;
+		}
+
+		@Nonnull
+		public String getCode() {
+			return this.code;
+		}
+
+		@Nonnull
+		public String getName() {
+			return this.name;
+		}
+	}
 
 	@ThreadSafe
 	protected static class FakeInsurance {
@@ -220,14 +255,14 @@ public class PatientOrderCsvGenerator {
 		}
 
 		this.fakeDepartments = List.of(
-				new FakeDepartment("9999901", "Internal Medicine Dept"),
-				new FakeDepartment("9999902", "Pediatrics Dept"),
-				new FakeDepartment("9999903", "Family Medicine Dept"),
-				new FakeDepartment("9999904", "General Internal Medicine Dept"),
-				new FakeDepartment("9999905", "Geriatrics (Gerontology) Dept"),
-				new FakeDepartment("9999906", "General Obstetrics Dept"),
-				new FakeDepartment("9999907", "General Pediatrics Dept"),
-				new FakeDepartment("9999908", "Lifestyle Medicine Dept")
+				new FakeDepartment("9999901", "Internal Medicine"),
+				new FakeDepartment("9999902", "Pediatrics"),
+				new FakeDepartment("9999903", "Family Medicine"),
+				new FakeDepartment("9999904", "General Internal Medicine"),
+				new FakeDepartment("9999905", "Geriatrics (Gerontology)"),
+				new FakeDepartment("9999906", "General Obstetrics"),
+				new FakeDepartment("9999907", "General Pediatrics"),
+				new FakeDepartment("9999908", "Lifestyle Medicine")
 		);
 
 		List<FakeProvider> fakeProviders = new ArrayList<>(getFirstNames().size());
@@ -312,6 +347,31 @@ public class PatientOrderCsvGenerator {
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
+
+		try {
+			List<String> icd10Lines = Files.readAllLines(Paths.get("resources/mock/icd10-codes"), StandardCharsets.UTF_8);
+			List<Icd10Code> icd10Codes = new ArrayList<>(icd10Lines.size());
+
+			for (String icd10Line : icd10Lines) {
+				icd10Line = icd10Line.trim();
+
+				if (icd10Line.length() == 0)
+					continue;
+
+				icd10Line = icd10Line.trim().replaceAll("\\s+", " ");
+
+				// e.g. F18920  Inhalant use, unspecified with intoxication, uncomplicated
+				String code = icd10Line.substring(0, icd10Line.indexOf(" "));
+				String name = icd10Line.substring(code.length()).trim();
+
+				Icd10Code icd10Code = new Icd10Code(code, name);
+				icd10Codes.add(icd10Code);
+			}
+
+			this.icd10Codes = Collections.unmodifiableList(icd10Codes);
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
 	}
 
 	/**
@@ -374,6 +434,8 @@ public class PatientOrderCsvGenerator {
 		);
 
 		try (CSVPrinter csvPrinter = new CSVPrinter(writer, csvFormat)) {
+			long orderIdBase = Instant.now().toEpochMilli() / 1_000;
+
 			for (int i = 0; i < numberOfRows; ++i) {
 				FakeDepartment encounterFakeDepartment = pickRandomElement(getFakeDepartments());
 				FakeDepartment referringPractice = pickRandomElement(getFakeDepartments());
@@ -381,6 +443,20 @@ public class PatientOrderCsvGenerator {
 				FakeProvider billingProvider = pickRandomElement(getFakeProviders());
 				FakePayor primaryPayor = pickRandomElement(getFakePayors());
 				FakeInsurance primaryPlan = pickRandomElement(getFakeInsurances());
+
+				List<Icd10Code> diagnoses = new ArrayList<>();
+				Set<String> icd10Codes = new HashSet<>(diagnoses.size());
+				int diagnosisCount = getRandom().nextInt(1, 5);
+
+				for (int j = 0; j < diagnosisCount; ++j) {
+					Icd10Code icd10Code = getIcd10Codes().get(getRandom().nextInt(getIcd10Codes().size()));
+
+					if (icd10Codes.contains(icd10Code.getCode()))
+						continue;
+
+					diagnoses.add(icd10Code);
+					icd10Codes.add(icd10Code.getCode());
+				}
 
 				csvPrinter.printRecord(
 						encounterFakeDepartment.getName(),
@@ -402,12 +478,20 @@ public class PatientOrderCsvGenerator {
 						format("%s-%s", primaryPayor.getId(), primaryPayor.getName()), // e.g. 128000-IBC
 						format("%s-%s", primaryPlan.getId(), primaryPlan.getName()), // e.g. 128002-KEYSTONE HEALTH PLAN EAST
 						randomOrderDate(),
-						randomOrderId(),
+						String.valueOf(orderIdBase + i),
 						randomAgeOfOrder(),
 						randomCcbhOrderRouting(),
 						randomReasonsForReferral(),
-						randomDx(),
-						randomOrderAssociatedDiagnosisIcd10(),
+						// Multiple lines separated like this:
+						// GAD (generalized anxiety disorder) [213881]
+						//
+						// Smoker [283397]
+						//
+						// Alcohol abuse [155739]
+						diagnoses.stream()
+								.map(icd10Code -> format("%s [%s]", icd10Code.getName(), icd10Code.getCode()))
+								.collect(Collectors.joining("\n")),
+						diagnoses.get(0).getCode(),
 						randomCallBackNumber(),
 						randomPreferredContactHours(),
 						randomOrderComments(),
@@ -450,47 +534,44 @@ public class PatientOrderCsvGenerator {
 	}
 
 	@Nonnull
-	protected String randomPrimaryPayor() {
-		return pickRandomElement(List.of("TBD"));
-	}
-
-	@Nonnull
-	protected String randomPrimaryPlan() {
-		return pickRandomElement(List.of("TBD"));
-	}
-
-	@Nonnull
 	protected String randomOrderDate() {
-		return pickRandomElement(List.of("TBD"));
-	}
-
-	@Nonnull
-	protected String randomOrderId() {
-		return pickRandomElement(List.of("TBD"));
+		LocalDate orderDate = LocalDate.now(ZoneId.of("UTC")).minusDays(1);
+		orderDate = orderDate.minusDays(randomNumberInRange(1, 60));
+		return format("%d/%d/%d", orderDate.getMonthValue(), orderDate.getDayOfMonth(), orderDate.getYear() - 2000);
 	}
 
 	@Nonnull
 	protected String randomAgeOfOrder() {
-		return pickRandomElement(List.of("TBD"));
+		// 5d 05h 43m
+		int day = randomNumberInRange(0, 10);
+		int hour = randomNumberInRange(0, 23);
+		int minute = randomNumberInRange(0, 59);
+
+		return format("%dd %sh %sm",
+				day,
+				Strings.padStart(String.valueOf(hour), 2, '0'),
+				Strings.padStart(String.valueOf(minute), 2, '0')
+		);
 	}
 
 	@Nonnull
 	protected String randomCcbhOrderRouting() {
-		return pickRandomElement(List.of("TBD"));
+		return pickRandomElement(List.of("Phone by Resource Center"));
 	}
 
 	@Nonnull
 	protected String randomReasonsForReferral() {
-		return pickRandomElement(List.of("TBD"));
+		return pickRandomElement(List.of(
+				"Alcohol or drug use or abuse",
+				"Anxiety symptoms",
+				"Alcohol or drug use or abuse, Anxiety symptoms",
+				"Mood or depression symptoms",
+				"Alcohol or drug use or abuse, Mood or depression symptoms"
+		));
 	}
 
 	@Nonnull
 	protected String randomDx() {
-		return pickRandomElement(List.of("TBD"));
-	}
-
-	@Nonnull
-	protected String randomOrderAssociatedDiagnosisIcd10() {
 		return pickRandomElement(List.of("TBD"));
 	}
 
@@ -501,12 +582,12 @@ public class PatientOrderCsvGenerator {
 
 	@Nonnull
 	protected String randomPreferredContactHours() {
-		return pickRandomElement(List.of("TBD"));
+		return pickRandomElement(List.of(""));
 	}
 
 	@Nonnull
 	protected String randomOrderComments() {
-		return pickRandomElement(List.of("TBD"));
+		return pickRandomElement(List.of("Your provider's care team is available to help you with your mental health concerns. These may include thoughts, feelings, or behaviors that you would like to change, such as sadness, worry, stress, difficulty sleeping, or substance use.  Your provider recommended that you call the Cobalt Integrated Care Resource Center for a brief assessment and to be connected to care that is right for you. Please call 215-555-1212 today or at your earliest convenience. The Resource Center is available Monday through Friday between the hours of 8:30 AM and 5:00 PM, or you may leave a message after hours. The Resource Center will also be reaching out to you to ensure you get connected to care."));
 	}
 
 	@Nonnull
@@ -605,5 +686,10 @@ public class PatientOrderCsvGenerator {
 	@Nonnull
 	protected List<FakePayor> getFakePayors() {
 		return this.fakePayors;
+	}
+
+	@Nonnull
+	public List<Icd10Code> getIcd10Codes() {
+		return this.icd10Codes;
 	}
 }
