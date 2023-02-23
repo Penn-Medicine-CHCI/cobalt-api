@@ -175,6 +175,8 @@ public class Configuration {
 	@Nonnull
 	private final Boolean shouldEnableCacheDebugging;
 	@Nonnull
+	private final Boolean shouldEnableIcDebugging;
+	@Nonnull
 	private final String corsEnabledDomains;
 	@Nonnull
 	private final String emailDefaultFromAddress;
@@ -359,6 +361,7 @@ public class Configuration {
 		this.shouldUseRealWay2Health = valueFor("com.cobaltplatform.api.shouldUseRealWay2Health", Boolean.class);
 		this.shouldPollWay2Health = valueFor("com.cobaltplatform.api.shouldPollWay2Health", Boolean.class);
 		this.shouldEnableCacheDebugging = valueFor("com.cobaltplatform.api.shouldEnableCacheDebugging", Boolean.class);
+		this.shouldEnableIcDebugging = valueFor("com.cobaltplatform.api.shouldEnableIcDebugging", Boolean.class);
 		this.corsEnabledDomains = valueFor("com.cobaltplatform.api.corsEnabledDomains", String.class);
 		this.emailDefaultFromAddress = valueFor("com.cobaltplatform.api.emailDefaultFromAddress", String.class);
 		this.downForMaintenance = valueFor("com.cobaltplatform.api.downForMaintenance", Boolean.class);
@@ -1108,6 +1111,11 @@ public class Configuration {
 	@Nonnull
 	public Boolean getShouldEnableCacheDebugging() {
 		return shouldEnableCacheDebugging;
+	}
+
+	@Nonnull
+	public Boolean getShouldEnableIcDebugging() {
+		return this.shouldEnableIcDebugging;
 	}
 
 	@Nonnull

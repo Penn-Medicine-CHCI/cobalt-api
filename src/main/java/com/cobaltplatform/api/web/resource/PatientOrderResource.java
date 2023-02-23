@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.web.resource;
 
+import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderNoteRequest;
@@ -133,6 +134,8 @@ public class PatientOrderResource {
 	@Nonnull
 	private final Formatter formatter;
 	@Nonnull
+	private final Configuration configuration;
+	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final Logger logger;
@@ -153,6 +156,7 @@ public class PatientOrderResource {
 															@Nonnull PatientOrderCsvGenerator patientOrderCsvGenerator,
 															@Nonnull RequestBodyParser requestBodyParser,
 															@Nonnull Formatter formatter,
+															@Nonnull Configuration configuration,
 															@Nonnull Provider<CurrentContext> currentContextProvider) {
 		requireNonNull(patientOrderService);
 		requireNonNull(accountService);
@@ -169,6 +173,7 @@ public class PatientOrderResource {
 		requireNonNull(patientOrderCsvGenerator);
 		requireNonNull(requestBodyParser);
 		requireNonNull(formatter);
+		requireNonNull(configuration);
 		requireNonNull(currentContextProvider);
 
 		this.patientOrderService = patientOrderService;
@@ -186,6 +191,7 @@ public class PatientOrderResource {
 		this.patientOrderCsvGenerator = patientOrderCsvGenerator;
 		this.requestBodyParser = requestBodyParser;
 		this.formatter = formatter;
+		this.configuration = configuration;
 		this.currentContextProvider = currentContextProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
@@ -597,16 +603,20 @@ public class PatientOrderResource {
 																								 @Nonnull HttpServletResponse httpServletResponse) throws IOException {
 		requireNonNull(orderCount);
 
+		if (!getConfiguration().getShouldEnableIcDebugging())
+			throw new IllegalStateException("Cannot call this unless IC debugging is enabled");
+
 		Account account = getCurrentContext().getAccount().get();
 
-		// TODO: need additional check to prevent this in non-local/test envs
 		if (!getAuthorizationService().canImportPatientOrders(account.getInstitutionId(), account))
 			throw new AuthorizationException();
 
 		int finalOrderCount = orderCount.orElse(100);
 
-		if (finalOrderCount < 1 || finalOrderCount > 10_000)
+		if (finalOrderCount < 1)
 			finalOrderCount = 100;
+		else if (finalOrderCount > 5_000)
+			finalOrderCount = 5_000;
 
 		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HHmmss", account.getLocale()).withZone(account.getTimeZone());
 		String filename = format("Cobalt Test Order Report - %s - %d Rows.csv", dateTimeFormatter.format(Instant.now()), finalOrderCount);
@@ -695,6 +705,11 @@ public class PatientOrderResource {
 	@Nonnull
 	protected Formatter getFormatter() {
 		return this.formatter;
+	}
+
+	@Nonnull
+	protected Configuration getConfiguration() {
+		return this.configuration;
 	}
 
 	@Nonnull
