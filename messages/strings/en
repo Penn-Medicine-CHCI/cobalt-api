@@ -95,7 +95,7 @@
     "translation" : "{{episodeDurationInDays}} {{daysPlaceholder}}",
     "placeholders" : {
       "daysPlaceholder" : {
-        "value" : "duration",
+        "value" : "episodeDurationInDays",
         "translations" : {
           "CARDINALITY_ONE" : "day",
           "CARDINALITY_OTHER" : "days"

@@ -69,6 +69,35 @@ public class PatientOrderCsvGenerator {
 	private final List<Icd10Code> icd10Codes;
 	@Nonnull
 	private final List<FakeUsAddress> fakeUsAddresses;
+	@Nonnull
+	private final List<FakeMedication> fakeMedications;
+
+	@ThreadSafe
+	protected static class FakeMedication {
+		@Nonnull
+		private final String id;
+		@Nonnull
+		private final String name;
+
+		public FakeMedication(@Nonnull String id,
+													@Nonnull String name) {
+			requireNonNull(id);
+			requireNonNull(name);
+
+			this.id = id;
+			this.name = name;
+		}
+
+		@Nonnull
+		public String getId() {
+			return this.id;
+		}
+
+		@Nonnull
+		public String getName() {
+			return this.name;
+		}
+	}
 
 	@ThreadSafe
 	protected static class FakeUsAddress {
@@ -256,7 +285,8 @@ public class PatientOrderCsvGenerator {
 		@Nonnull
 		private final String name;
 
-		public FakeDepartment(@Nonnull String id, @Nonnull String name) {
+		public FakeDepartment(@Nonnull String id,
+													@Nonnull String name) {
 			requireNonNull(id);
 			requireNonNull(name);
 
@@ -451,6 +481,31 @@ public class PatientOrderCsvGenerator {
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
+
+		try {
+			List<String> medicationLines = Files.readAllLines(Paths.get("resources/mock/fake-medications"), StandardCharsets.UTF_8);
+			List<FakeMedication> fakeMedications = new ArrayList<>(medicationLines.size());
+
+			for (String medicationLine : medicationLines) {
+				medicationLine = medicationLine.trim();
+
+				if (medicationLine.length() == 0)
+					continue;
+
+				medicationLine = medicationLine.trim().replaceAll("\\s+", " ");
+
+				// e.g. 853790683 Paxil (paroxetine)
+				String id = medicationLine.substring(0, medicationLine.indexOf(" "));
+				String name = medicationLine.substring(id.length() + 1).trim();
+
+				FakeMedication fakeMedication = new FakeMedication(id, name);
+				fakeMedications.add(fakeMedication);
+			}
+
+			this.fakeMedications = Collections.unmodifiableList(fakeMedications);
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
 	}
 
 	/**
@@ -539,6 +594,10 @@ public class PatientOrderCsvGenerator {
 
 				FakeUsAddress fakeUsAddress = pickRandomElement(getFakeUsAddresses());
 
+				FakeMedication fakeMedication = getRandom().nextInt(100) < 30 ? pickRandomElement(getFakeMedications()) : null;
+				Integer tabletSize = fakeMedication == null ? null : pickRandomElement(List.of(10, 20, 30, 40, 50));
+				Integer tabletAmount = fakeMedication == null ? null : pickRandomElement(List.of(10, 20, 30, 40, 50));
+
 				csvPrinter.printRecord(
 						encounterFakeDepartment.getName(),
 						encounterFakeDepartment.getId(),
@@ -582,9 +641,10 @@ public class PatientOrderCsvGenerator {
 						fakeUsAddress.getCity(),
 						fakeUsAddress.getStateAbbreviation(),
 						fakeUsAddress.getZipCode(),
-						randomCcbhLastActiveMedOrderSummary(),
-						randomCcbhMedicationsList(),
-						randomPsychotherapeuticMedLst2Weeks()
+						fakeMedication == null ? "" : format("Take 1 tablet by mouth daily.<br>E-Prescribe, Disp-%d tablet, R-1", tabletAmount),
+						// Escitalopram 10 mg tablet [517587114]
+						fakeMedication == null ? "" : format("%s %dmg tablet [%s]", fakeMedication.getName(), tabletSize, fakeMedication.getId()),
+						fakeMedication == null ? "" : "Yes"
 				);
 			}
 
@@ -765,5 +825,10 @@ public class PatientOrderCsvGenerator {
 	@Nonnull
 	protected List<FakeUsAddress> getFakeUsAddresses() {
 		return this.fakeUsAddresses;
+	}
+
+	@Nonnull
+	protected List<FakeMedication> getFakeMedications() {
+		return this.fakeMedications;
 	}
 }
