@@ -67,6 +67,56 @@ public class PatientOrderCsvGenerator {
 	private final List<String> lastNames;
 	@Nonnull
 	private final List<Icd10Code> icd10Codes;
+	@Nonnull
+	private final List<FakeUsAddress> fakeUsAddresses;
+
+	@ThreadSafe
+	protected static class FakeUsAddress {
+		@Nonnull
+		private final String street;
+		@Nonnull
+		private final String city;
+		@Nonnull
+		private final String stateAbbreviation;
+		@Nonnull
+		private final String zipCode;
+
+		@Nonnull
+		public FakeUsAddress(@Nonnull String street,
+												 @Nonnull String city,
+												 @Nonnull String stateAbbreviation,
+												 @Nonnull String zipCode) {
+			requireNonNull(street);
+			requireNonNull(city);
+			requireNonNull(stateAbbreviation);
+			requireNonNull(zipCode);
+
+			this.street = street;
+			this.city = city;
+			this.stateAbbreviation = stateAbbreviation;
+			this.zipCode = zipCode;
+		}
+
+		@Nonnull
+		public String getStreet() {
+			return this.street;
+		}
+
+		@Nonnull
+		public String getCity() {
+			return this.city;
+		}
+
+		@Nonnull
+		public String getStateAbbreviation() {
+			return this.stateAbbreviation;
+		}
+
+		@Nonnull
+		public String getZipCode() {
+			return this.zipCode;
+		}
+	}
 
 	@ThreadSafe
 	protected static class Icd10Code {
@@ -372,6 +422,35 @@ public class PatientOrderCsvGenerator {
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
+
+		try {
+			List<String> addressLines = Files.readAllLines(Paths.get("resources/mock/fake-addresses-us"), StandardCharsets.UTF_8);
+			List<FakeUsAddress> fakeUsAddresses = new ArrayList<>(addressLines.size());
+
+			for (String addressLine : addressLines) {
+				addressLine = addressLine.trim();
+
+				if (addressLine.length() == 0)
+					continue;
+
+				addressLine = addressLine.trim().replaceAll("\\s+", " ");
+
+				// e.g. 3365 South Cato Springs Road, Fayetteville AR 72701
+				String street = addressLine.substring(0, addressLine.indexOf(","));
+				String remainder = addressLine.substring(addressLine.indexOf(",") + 1).trim();
+				String zipCode = remainder.substring(remainder.length() - 5);
+				remainder = remainder.substring(0, remainder.length() - 5).trim();
+				String state = remainder.substring(remainder.length() - 2);
+				String city = remainder.substring(0, remainder.length() - 2).trim();
+
+				FakeUsAddress fakeUsAddress = new FakeUsAddress(street, city, state, zipCode);
+				fakeUsAddresses.add(fakeUsAddress);
+			}
+
+			this.fakeUsAddresses = Collections.unmodifiableList(fakeUsAddresses);
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
 	}
 
 	/**
@@ -458,6 +537,8 @@ public class PatientOrderCsvGenerator {
 					icd10Codes.add(icd10Code.getCode());
 				}
 
+				FakeUsAddress fakeUsAddress = pickRandomElement(getFakeUsAddresses());
+
 				csvPrinter.printRecord(
 						encounterFakeDepartment.getName(),
 						encounterFakeDepartment.getId(),
@@ -490,17 +571,17 @@ public class PatientOrderCsvGenerator {
 						// Alcohol abuse [155739]
 						diagnoses.stream()
 								.map(icd10Code -> format("%s [%s]", icd10Code.getName(), icd10Code.getCode()))
-								.collect(Collectors.joining("\n")),
+								.collect(Collectors.joining("\n\n")),
 						diagnoses.get(0).getCode(),
 						randomCallBackNumber(),
 						randomPreferredContactHours(),
 						randomOrderComments(),
 						randomImgCcRecipients(),
-						randomPatientAddressLine1(),
+						fakeUsAddress.getStreet(),
 						randomPatientAddressLine2(),
-						randomCity(),
-						randomPatientState(),
-						randomZipCode(),
+						fakeUsAddress.getCity(),
+						fakeUsAddress.getStateAbbreviation(),
+						fakeUsAddress.getZipCode(),
 						randomCcbhLastActiveMedOrderSummary(),
 						randomCcbhMedicationsList(),
 						randomPsychotherapeuticMedLst2Weeks()
@@ -577,7 +658,7 @@ public class PatientOrderCsvGenerator {
 
 	@Nonnull
 	protected String randomCallBackNumber() {
-		return pickRandomElement(List.of("TBD"));
+		return format("215-555-1212");
 	}
 
 	@Nonnull
@@ -596,28 +677,16 @@ public class PatientOrderCsvGenerator {
 	}
 
 	@Nonnull
-	protected String randomPatientAddressLine1() {
-		return pickRandomElement(List.of("TBD"));
-	}
-
-	@Nonnull
 	protected String randomPatientAddressLine2() {
-		return pickRandomElement(List.of("TBD"));
-	}
+		int randomValue = getRandom().nextInt(10);
 
-	@Nonnull
-	protected String randomCity() {
-		return pickRandomElement(List.of("TBD"));
-	}
+		if (randomValue > 8)
+			return format("PO Box %s", randomNumberInRange(100, 5_000));
 
-	@Nonnull
-	protected String randomPatientState() {
-		return pickRandomElement(List.of("TBD"));
-	}
+		if (randomValue > 5)
+			return "2nd Fl";
 
-	@Nonnull
-	protected String randomZipCode() {
-		return pickRandomElement(List.of("TBD"));
+		return "";
 	}
 
 	@Nonnull
@@ -689,7 +758,12 @@ public class PatientOrderCsvGenerator {
 	}
 
 	@Nonnull
-	public List<Icd10Code> getIcd10Codes() {
+	protected List<Icd10Code> getIcd10Codes() {
 		return this.icd10Codes;
+	}
+
+	@Nonnull
+	protected List<FakeUsAddress> getFakeUsAddresses() {
+		return this.fakeUsAddresses;
 	}
 }
