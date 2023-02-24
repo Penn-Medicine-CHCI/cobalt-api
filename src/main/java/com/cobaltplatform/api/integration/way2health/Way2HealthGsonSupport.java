@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.integration.way2health;
 
+import com.cobaltplatform.api.integration.way2health.model.entity.Attachment;
+import com.cobaltplatform.api.integration.way2health.model.entity.Attachment.Details;
 import com.cobaltplatform.api.integration.way2health.model.response.PagedResponse.Meta.Pagination;
 import com.cobaltplatform.api.integration.way2health.model.response.PagedResponse.Meta.Pagination.Links;
 import com.google.gson.FieldNamingPolicy;
@@ -67,12 +69,43 @@ public class Way2HealthGsonSupport {
 				.registerTypeAdapter(Instant.class, new InstantConverter())
 				.registerTypeAdapter(Pagination.class, new PaginationDeserializer())
 				.registerTypeAdapter(Links.class, new LinksDeserializer())
+				.registerTypeAdapter(Attachment.class, new AttachmentDeserializer())
 				.create();
 	}
 
 	@Nonnull
 	public static Gson sharedGson() {
 		return SHARED_GSON;
+	}
+
+	@ThreadSafe
+	public static class AttachmentDeserializer implements JsonDeserializer<Attachment> {
+		@Override
+		public Attachment deserialize(@Nullable JsonElement jsonElement,
+																	@Nonnull Type typeOfJson,
+																	@Nonnull JsonDeserializationContext context) throws JsonParseException {
+			requireNonNull(typeOfJson);
+			requireNonNull(context);
+
+			JsonObject jsonObject = jsonElement.getAsJsonObject();
+
+			Attachment attachment = new Attachment();
+			attachment.setAttachmentId(extractLongFieldValue(jsonObject, "attachmentId").orElse(null));
+			attachment.setObjectId(extractLongFieldValue(jsonObject, "objectId").orElse(null));
+			attachment.setObjectType(extractStringFieldValue(jsonObject, "objectType").orElse(null));
+
+			// Details is supposed to be an object.
+			// W2H made this field nullable on 2023-02-23.
+			// However, likely a consequence of PHP JSON handling, on the W2H side the null details field is instead sent as
+			// the empty array [] (therefore this field has 2 possible types).
+			// To work around - if this field is anything but an object, deserialize as null
+			JsonElement detailsElement = jsonObject.get("details");
+
+			if (detailsElement.isJsonObject())
+				attachment.setDetails(context.deserialize(detailsElement, Details.class));
+
+			return attachment;
+		}
 	}
 
 	@ThreadSafe
@@ -348,6 +381,23 @@ public class Way2HealthGsonSupport {
 			return Optional.empty();
 
 		return Optional.of(jsonElement.getAsInt());
+	}
+
+	@Nonnull
+	private static Optional<Long> extractLongFieldValue(@Nonnull JsonObject jsonObject,
+																											@Nonnull String fieldName) {
+		requireNonNull(jsonObject);
+		requireNonNull(fieldName);
+
+		if (!jsonObject.has(fieldName))
+			return Optional.empty();
+
+		JsonElement jsonElement = jsonObject.get(fieldName);
+
+		if (jsonElement == null || jsonElement.isJsonNull())
+			return Optional.empty();
+
+		return Optional.of(jsonElement.getAsLong());
 	}
 
 	@Nonnull
