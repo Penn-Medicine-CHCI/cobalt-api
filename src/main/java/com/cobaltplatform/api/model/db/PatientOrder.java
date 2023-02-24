@@ -134,6 +134,10 @@ public class PatientOrder {
 	@Nullable
 	private Instant episodeEndedAt;
 	@Nullable
+	private String testPatientEmailAddress;
+	@Nullable
+	private String testPatientPassword;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -577,6 +581,24 @@ public class PatientOrder {
 
 	public void setEpisodeEndedAt(@Nullable Instant episodeEndedAt) {
 		this.episodeEndedAt = episodeEndedAt;
+	}
+
+	@Nullable
+	public String getTestPatientEmailAddress() {
+		return this.testPatientEmailAddress;
+	}
+
+	public void setTestPatientEmailAddress(@Nullable String testPatientEmailAddress) {
+		this.testPatientEmailAddress = testPatientEmailAddress;
+	}
+
+	@Nullable
+	public String getTestPatientPassword() {
+		return this.testPatientPassword;
+	}
+
+	public void setTestPatientPassword(@Nullable String testPatientPassword) {
+		this.testPatientPassword = testPatientPassword;
 	}
 
 	@Nullable

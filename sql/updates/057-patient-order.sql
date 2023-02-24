@@ -118,6 +118,8 @@ CREATE TABLE patient_order (
   medications VARCHAR,
   recent_psychotherapeutic_medications VARCHAR,
   episode_ended_at TIMESTAMPTZ,
+  test_patient_email_address VARCHAR,
+  test_patient_password VARCHAR,
   created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

@@ -18,6 +18,7 @@
  */
 package com.cobaltplatform.api.util;
 
+import com.cobaltplatform.api.model.service.IcTestPatientEmailAddress;
 import com.google.common.base.Strings;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
@@ -309,7 +310,7 @@ public class PatientOrderCsvGenerator {
 		this.random = new Random();
 
 		try {
-			List<String> names = Files.readAllLines(Paths.get("resources/mock/fake-names"), StandardCharsets.UTF_8);
+			List<String> names = Files.readAllLines(Paths.get("resources/mock/ic/fake-names"), StandardCharsets.UTF_8);
 			List<String> firstNames = new ArrayList<>();
 			List<String> lastNames = new ArrayList<>();
 
@@ -366,7 +367,7 @@ public class PatientOrderCsvGenerator {
 		this.fakeProviders = Collections.unmodifiableList(fakeProviders);
 
 		try {
-			List<String> fakeInsuranceLines = Files.readAllLines(Paths.get("resources/mock/fake-insurances"), StandardCharsets.UTF_8);
+			List<String> fakeInsuranceLines = Files.readAllLines(Paths.get("resources/mock/ic/fake-insurances"), StandardCharsets.UTF_8);
 			List<FakeInsurance> fakeInsurances = new ArrayList<>(fakeInsuranceLines.size());
 			Set<String> insuranceIds = new HashSet<>();
 
@@ -398,7 +399,7 @@ public class PatientOrderCsvGenerator {
 		}
 
 		try {
-			List<String> fakePayorLines = Files.readAllLines(Paths.get("resources/mock/fake-payors"), StandardCharsets.UTF_8);
+			List<String> fakePayorLines = Files.readAllLines(Paths.get("resources/mock/ic/fake-payors"), StandardCharsets.UTF_8);
 			List<FakePayor> fakePayors = new ArrayList<>(fakePayorLines.size());
 			Set<String> payorIds = new HashSet<>();
 
@@ -429,7 +430,7 @@ public class PatientOrderCsvGenerator {
 		}
 
 		try {
-			List<String> icd10Lines = Files.readAllLines(Paths.get("resources/mock/icd10-codes"), StandardCharsets.UTF_8);
+			List<String> icd10Lines = Files.readAllLines(Paths.get("resources/mock/ic/icd10-codes"), StandardCharsets.UTF_8);
 			List<Icd10Code> icd10Codes = new ArrayList<>(icd10Lines.size());
 
 			for (String icd10Line : icd10Lines) {
@@ -454,7 +455,7 @@ public class PatientOrderCsvGenerator {
 		}
 
 		try {
-			List<String> addressLines = Files.readAllLines(Paths.get("resources/mock/fake-addresses-us"), StandardCharsets.UTF_8);
+			List<String> addressLines = Files.readAllLines(Paths.get("resources/mock/ic/fake-addresses-us"), StandardCharsets.UTF_8);
 			List<FakeUsAddress> fakeUsAddresses = new ArrayList<>(addressLines.size());
 
 			for (String addressLine : addressLines) {
@@ -483,7 +484,7 @@ public class PatientOrderCsvGenerator {
 		}
 
 		try {
-			List<String> medicationLines = Files.readAllLines(Paths.get("resources/mock/fake-medications"), StandardCharsets.UTF_8);
+			List<String> medicationLines = Files.readAllLines(Paths.get("resources/mock/ic/fake-medications"), StandardCharsets.UTF_8);
 			List<FakeMedication> fakeMedications = new ArrayList<>(medicationLines.size());
 
 			for (String medicationLine : medicationLines) {
@@ -532,6 +533,8 @@ public class PatientOrderCsvGenerator {
 		requireNonNull(writer);
 
 		CSVFormat csvFormat = CSVFormat.DEFAULT.withHeader(
+				"Test Patient Email Address",
+				"Test Patient Password",
 				"Encounter Dept Name",
 				"Encounter Dept ID",
 				"Referring Practice",
@@ -598,7 +601,20 @@ public class PatientOrderCsvGenerator {
 				Integer tabletSize = fakeMedication == null ? null : pickRandomElement(List.of(10, 20, 30, 40, 50));
 				Integer tabletAmount = fakeMedication == null ? null : pickRandomElement(List.of(10, 20, 30, 40, 50));
 
+				String firstName = pickRandomElement(getFirstNames());
+				String lastName = pickRandomElement(getLastNames());
+				String uid = randomUid();
+				String mrn = randomMrn();
+				String testPatientEmail = new IcTestPatientEmailAddress(firstName, lastName, uid, mrn).getEmailAddress();
+
+				// Hat tip to engilyin, see https://stackoverflow.com/a/53349505
+				String testPatientPassword = new Random().ints(10, 97, 122)
+						.collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
+						.toString();
+
 				csvPrinter.printRecord(
+						testPatientEmail,
+						testPatientPassword,
 						encounterFakeDepartment.getName(),
 						encounterFakeDepartment.getId(),
 						format("%s [%s]", referringPractice.getName(), referringPractice.getId()),
@@ -609,10 +625,10 @@ public class PatientOrderCsvGenerator {
 						billingProvider.getMiddleInitial().isPresent()
 								? format("%s, %s %s [%s]", billingProvider.getLastName(), billingProvider.getFirstName(), billingProvider.getMiddleInitial().get(), billingProvider.getId()) // Robinson, Laura E [R12345]
 								: format("%s, %s [%s]", billingProvider.getLastName(), billingProvider.getFirstName(), billingProvider.getId()), // Robinson, Laura [R12345]
-						pickRandomElement(getFirstNames()),
-						pickRandomElement(getLastNames()),
-						randomMrn(),
-						randomUid(),
+						firstName,
+						lastName,
+						mrn,
+						uid,
 						randomSex(),
 						randomDob(),
 						format("%s-%s", primaryPayor.getId(), primaryPayor.getName()), // e.g. 128000-IBC
@@ -676,7 +692,7 @@ public class PatientOrderCsvGenerator {
 
 	@Nonnull
 	protected String randomOrderDate() {
-		LocalDate orderDate = LocalDate.now(ZoneId.of("UTC")).minusDays(1);
+		LocalDate orderDate = LocalDate.now(ZoneId.of("UTC")).minusDays(10);
 		orderDate = orderDate.minusDays(randomNumberInRange(1, 60));
 		return format("%d/%d/%d", orderDate.getMonthValue(), orderDate.getDayOfMonth(), orderDate.getYear() - 2000);
 	}
@@ -684,7 +700,7 @@ public class PatientOrderCsvGenerator {
 	@Nonnull
 	protected String randomAgeOfOrder() {
 		// 5d 05h 43m
-		int day = randomNumberInRange(0, 10);
+		int day = randomNumberInRange(0, 5);
 		int hour = randomNumberInRange(0, 23);
 		int minute = randomNumberInRange(0, 59);
 

@@ -131,6 +131,10 @@ public class CreatePatientOrderRequest {
 	private List<CreatePatientOrderMedicationRequest> medications;
 	@Nullable
 	private String recentPsychotherapeuticMedications;
+	@Nullable
+	private String testPatientEmailAddress;
+	@Nullable
+	private String testPatientPassword;
 
 	@Nullable
 	public UUID getPatientOrderImportId() {
@@ -582,6 +586,23 @@ public class CreatePatientOrderRequest {
 		this.recentPsychotherapeuticMedications = recentPsychotherapeuticMedications;
 	}
 
+	@Nullable
+	public String getTestPatientEmailAddress() {
+		return this.testPatientEmailAddress;
+	}
+
+	public void setTestPatientEmailAddress(@Nullable String testPatientEmailAddress) {
+		this.testPatientEmailAddress = testPatientEmailAddress;
+	}
+
+	@Nullable
+	public String getTestPatientPassword() {
+		return this.testPatientPassword;
+	}
+
+	public void setTestPatientPassword(@Nullable String testPatientPassword) {
+		this.testPatientPassword = testPatientPassword;
+	}
 
 	@NotThreadSafe
 	public static class CreatePatientOrderDiagnosisRequest {

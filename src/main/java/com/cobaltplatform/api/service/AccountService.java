@@ -27,7 +27,6 @@ import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
-import com.cobaltplatform.api.model.api.request.AccessTokenRequest;
 import com.cobaltplatform.api.model.api.request.AccountRoleRequest;
 import com.cobaltplatform.api.model.api.request.ApplyAccountEmailVerificationCodeRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountEmailVerificationRequest;
@@ -35,6 +34,7 @@ import com.cobaltplatform.api.model.api.request.CreateAccountInviteRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreateInteractionInstanceRequest;
+import com.cobaltplatform.api.model.api.request.EmailPasswordAccessTokenRequest;
 import com.cobaltplatform.api.model.api.request.ForgotPasswordRequest;
 import com.cobaltplatform.api.model.api.request.PatchAccountRequest;
 import com.cobaltplatform.api.model.api.request.ResetPasswordRequest;
@@ -67,6 +67,7 @@ import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PasswordResetRequest;
+import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.Race;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role;
@@ -74,6 +75,7 @@ import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
 import com.cobaltplatform.api.model.security.AccessTokenClaims;
 import com.cobaltplatform.api.model.service.AccountEmailVerificationFlowTypeId;
+import com.cobaltplatform.api.model.service.IcTestPatientEmailAddress;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
@@ -692,11 +694,13 @@ public class AccountService {
 	}
 
 	@Nonnull
-	public String obtainAccessToken(@Nonnull AccessTokenRequest request) {
+	public String obtainEmailPasswordAccessToken(@Nonnull EmailPasswordAccessTokenRequest request) {
 		ValidationException validationException = new ValidationException();
 
 		String emailAddress = getNormalizer().normalizeEmailAddress(request.getEmailAddress()).orElse(null);
 		String password = trimToNull(request.getPassword());
+		InstitutionId institutionId = request.getInstitutionId();
+		Institution institution = null;
 
 		if (emailAddress == null)
 			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is required")));
@@ -704,7 +708,47 @@ public class AccountService {
 		if (password == null)
 			validationException.add(new FieldError("password", getStrings().get("Password is required")));
 
+		if (institutionId == null) {
+			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required")));
+		} else {
+			institution = getInstitutionService().findInstitutionById(institutionId).get();
+		}
+
 		Account account = findAccountByEmailAddressAndAccountSourceId(emailAddress, AccountSourceId.EMAIL_PASSWORD).orElse(null);
+
+		// Special behavior: if this is an IC institution and debugging is enabled and this looks like a test patient account email
+		// but no account exists for it yet, create the test patient account.
+		if (account == null
+				&& institution.getIntegratedCareEnabled()
+				&& getConfiguration().getShouldEnableIcDebugging()
+				&& IcTestPatientEmailAddress.isTestEmailAddress(emailAddress)) {
+			IcTestPatientEmailAddress icTestPatientEmailAddress = IcTestPatientEmailAddress.fromEmailAddress(emailAddress).get();
+			List<PatientOrder> patientOrders = getPatientOrderService().findPatientOrdersByTestPatientEmailAddressAndInstitutionId(icTestPatientEmailAddress, institutionId);
+
+			if (patientOrders.size() > 0) {
+				getLogger().info("Creating test IC patient account for email address '{}'...", emailAddress);
+
+				String testPassword = patientOrders.get(0).getTestPatientPassword();
+
+				UUID accountId = createAccount(new CreateAccountRequest() {{
+					setEpicPatientId(icTestPatientEmailAddress.getUid());
+					setEpicPatientIdType("UID");
+					setEpicPatientMrn(icTestPatientEmailAddress.getMrn());
+					setAccountSourceId(AccountSourceId.EMAIL_PASSWORD);
+					setRoleId(RoleId.PATIENT);
+					setInstitutionId(institutionId);
+					setEmailAddress(icTestPatientEmailAddress.getEmailAddress());
+					setPassword(testPassword);
+				}});
+
+				account = findAccountById(accountId).get();
+
+				// Associate our new account with any orders we might have in the system that match
+				getPatientOrderService().associatePatientAccountWithPatientOrders(accountId);
+			} else {
+				getLogger().warn("No test patient order records were found for email address '{}'", emailAddress);
+			}
+		}
 
 		if (account == null) {
 			validationException.add(new FieldError("emailAddress", getStrings().get("You have entered an invalid email address or password")));

@@ -22,7 +22,6 @@ package com.cobaltplatform.api.web.resource;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
-import com.cobaltplatform.api.model.api.request.AccessTokenRequest;
 import com.cobaltplatform.api.model.api.request.AccountRoleRequest;
 import com.cobaltplatform.api.model.api.request.ApplyAccountEmailVerificationCodeRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountEmailVerificationRequest;
@@ -30,6 +29,7 @@ import com.cobaltplatform.api.model.api.request.CreateAccountInviteRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateActivityTrackingRequest;
 import com.cobaltplatform.api.model.api.request.CreateMyChartAccountRequest;
+import com.cobaltplatform.api.model.api.request.EmailPasswordAccessTokenRequest;
 import com.cobaltplatform.api.model.api.request.FindGroupSessionRequestsRequest;
 import com.cobaltplatform.api.model.api.request.FindGroupSessionsRequest;
 import com.cobaltplatform.api.model.api.request.ForgotPasswordRequest;
@@ -369,14 +369,18 @@ public class AccountResource {
 	}
 
 	@Nonnull
-	@POST("/accounts/access-token")
-	public ApiResponse accountAccessToken(@Nonnull @RequestBody String requestBody,
-																				@Nonnull HttpServletResponse httpServletResponse) {
+	@POST("/accounts/email-password-access-token")
+	public ApiResponse accountEmailPasswordAccessToken(@Nonnull @RequestBody String requestBody,
+																										 @Nonnull HttpServletResponse httpServletResponse) {
 		requireNonNull(requestBody);
 		requireNonNull(httpServletResponse);
 
-		AccessTokenRequest request = getRequestBodyParser().parse(requestBody, AccessTokenRequest.class);
-		String accessToken = getAccountService().obtainAccessToken(request);
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		EmailPasswordAccessTokenRequest request = getRequestBodyParser().parse(requestBody, EmailPasswordAccessTokenRequest.class);
+		request.setInstitutionId(institutionId);
+
+		String accessToken = getAccountService().obtainEmailPasswordAccessToken(request);
 		Account account = getAccountService().findAccountByAccessToken(accessToken).get();
 
 		AccountLoginRule accountLoginRule = getAccountService().findAccountLoginRuleByEmailAddress(account.getEmailAddress(), AccountSourceId.EMAIL_PASSWORD, account.getInstitutionId()).orElse(null);

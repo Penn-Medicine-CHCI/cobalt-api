@@ -19,6 +19,9 @@
 
 package com.cobaltplatform.api.model.api.request;
 
+import com.cobaltplatform.api.model.db.Institution;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -26,11 +29,13 @@ import javax.annotation.concurrent.NotThreadSafe;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class AccessTokenRequest {
+public class EmailPasswordAccessTokenRequest {
 	@Nullable
 	private String emailAddress;
 	@Nullable
 	private String password;
+	@Nullable
+	private InstitutionId institutionId;
 
 	@Nullable
 	public String getEmailAddress() {
@@ -48,5 +53,14 @@ public class AccessTokenRequest {
 
 	public void setPassword(@Nullable String password) {
 		this.password = password;
+	}
+
+	@Nullable
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
+	}
+
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
 	}
 }

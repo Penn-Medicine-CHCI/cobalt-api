@@ -19,7 +19,7 @@
 
 package com.cobaltplatform.api.service;
 
-import com.cobaltplatform.api.integration.epic.response.PatientReadFhirR4Response;
+import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderEventRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
@@ -48,7 +48,9 @@ import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderS
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.model.service.IcTestPatientEmailAddress;
 import com.cobaltplatform.api.model.service.PatientOrderPanelTypeId;
+import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
@@ -120,6 +122,10 @@ public class PatientOrderService {
 	@Nonnull
 	private final Normalizer normalizer;
 	@Nonnull
+	private final Authenticator authenticator;
+	@Nonnull
+	private final Configuration configuration;
+	@Nonnull
 	private final Gson gson;
 	@Nonnull
 	private final Strings strings;
@@ -131,17 +137,23 @@ public class PatientOrderService {
 														 @Nonnull Provider<AccountService> accountServiceProvider,
 														 @Nonnull Database database,
 														 @Nonnull Normalizer normalizer,
+														 @Nonnull Authenticator authenticator,
+														 @Nonnull Configuration configuration,
 														 @Nonnull Strings strings) {
 		requireNonNull(addressServiceProvider);
 		requireNonNull(accountServiceProvider);
 		requireNonNull(database);
 		requireNonNull(normalizer);
+		requireNonNull(authenticator);
+		requireNonNull(configuration);
 		requireNonNull(strings);
 
 		this.addressServiceProvider = addressServiceProvider;
 		this.accountServiceProvider = accountServiceProvider;
 		this.database = database;
 		this.normalizer = normalizer;
+		this.authenticator = authenticator;
+		this.configuration = configuration;
 		this.gson = createGson();
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -215,6 +227,22 @@ public class PatientOrderService {
 				AND patient_order_status_id != ?
 				ORDER BY order_date DESC, order_age_in_minutes    
 				""", PatientOrder.class, patientMrn, institutionId, PatientOrderStatusId.DELETED);
+	}
+
+	@Nonnull
+	public List<PatientOrder> findPatientOrdersByTestPatientEmailAddressAndInstitutionId(@Nullable IcTestPatientEmailAddress icTestPatientEmailAddress,
+																																											 @Nullable InstitutionId institutionId) {
+		if (icTestPatientEmailAddress == null || institutionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM patient_order
+				WHERE UPPER(?)=UPPER(test_patient_email_address) 
+				AND institution_id=?
+				AND patient_order_status_id != ?
+				ORDER BY order_date DESC, order_age_in_minutes    
+				""", PatientOrder.class, icTestPatientEmailAddress.getEmailAddress(), institutionId, PatientOrderStatusId.DELETED);
 	}
 
 	@Nonnull
@@ -850,28 +878,9 @@ public class PatientOrderService {
 		if (patientAccountId == null)
 			return Set.of();
 
-		// Examine the account's SSO metadata...
 		Account patientAccount = getAccountService().findAccountById(patientAccountId).orElse(null);
 
-		if (patientAccount == null || patientAccount.getSsoAttributes() == null)
-			return Set.of();
-
-		// ...if it looks like an Epic Patient Record, then...
-		PatientReadFhirR4Response patientRecord;
-
-		try {
-			patientRecord = getGson().fromJson(patientAccount.getSsoAttributes(), PatientReadFhirR4Response.class);
-		} catch (Exception ignored) {
-			return Set.of();
-		}
-
-		// ...pull out the Epic identifier to use to cross-reference with the imported orders in this institution
-		// that are currently unassigned.
-		// For now, we always use UID to identify.  But we might use other types in different institutions.
-		String patientIdType = "UID";
-		String patientId = patientRecord.extractIdentifierByType(patientIdType).orElse(null);
-
-		if (patientId == null)
+		if (patientAccount == null)
 			return Set.of();
 
 		List<PatientOrder> unassignedMatchingPatientOrders = getDatabase().queryForList("""
@@ -881,7 +890,7 @@ public class PatientOrderService {
 				AND patient_id_type=?				
 				AND institution_id=?
 				AND patient_account_id IS NULL
-				""", PatientOrder.class, patientId, patientIdType, patientAccount.getInstitutionId());
+				""", PatientOrder.class, patientAccount.getEpicPatientId(), patientAccount.getEpicPatientIdType(), patientAccount.getInstitutionId());
 
 		for (PatientOrder unassignedMatchingPatientOrder : unassignedMatchingPatientOrders) {
 			getLogger().info("Assigning patient account ID {} to patient order ID {}...", patientAccountId, unassignedMatchingPatientOrder.getPatientOrderId());
@@ -953,23 +962,37 @@ public class PatientOrderService {
 			Map<Integer, ValidationException> validationExceptionsByRowNumber = new HashMap<>();
 			int rowNumber = 0;
 
+			// If first column header is "Test Patient Email Address", then this is a test file
+			boolean containsTestPatientData = csvContent.startsWith("Test Patient Email Address");
+
+			if (containsTestPatientData && !getConfiguration().getShouldEnableIcDebugging())
+				throw new IllegalStateException("Cannot upload test patient data in this environment.");
+
 			// Pull data from the CSV
 			try (Reader reader = new StringReader(csvContent)) {
-
 				for (CSVRecord record : CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(reader)) {
 					CreatePatientOrderRequest patientOrderRequest = new CreatePatientOrderRequest();
 					patientOrderRequest.setPatientOrderImportId(patientOrderImportId);
 					patientOrderRequest.setInstitutionId(institutionId);
 					patientOrderRequest.setAccountId(accountId);
+
+					int columnOffset = 0;
+
+					if (containsTestPatientData) {
+						patientOrderRequest.setTestPatientEmailAddress(trimToNull(record.get("Test Patient Email Address")));
+						patientOrderRequest.setTestPatientPassword(trimToNull(record.get("Test Patient Password")));
+						columnOffset = 2;
+					}
+
 					patientOrderRequest.setEncounterDepartmentName(trimToNull(record.get("Encounter Dept Name")));
 					patientOrderRequest.setEncounterDepartmentId(trimToNull(record.get("Encounter Dept ID")));
 
 					// Referring Practice has 2 fields with the same name (currently...)
 					// So we try the first one, and if it's null, we try the second
-					String rawReferringPracticeName = trimToNull(record.get(2));
+					String rawReferringPracticeName = trimToNull(record.get(columnOffset + 2));
 
 					if (rawReferringPracticeName == null)
-						rawReferringPracticeName = trimToNull(record.get(3));
+						rawReferringPracticeName = trimToNull(record.get(columnOffset + 3));
 
 					if (rawReferringPracticeName != null) {
 						NameWithEmbeddedId referringPractice = new NameWithEmbeddedId(rawReferringPracticeName);
@@ -1249,6 +1272,8 @@ public class PatientOrderService {
 				.filter(medication -> medication != null)
 				.collect(Collectors.toList());
 		String recentPsychotherapeuticMedications = trimToNull(request.getRecentPsychotherapeuticMedications());
+		String testPatientEmailAddress = trimToNull(request.getTestPatientEmailAddress());
+		String testPatientPassword = trimToNull(request.getTestPatientPassword());
 		UUID patientOrderId = UUID.randomUUID();
 		ValidationException validationException = new ValidationException();
 
@@ -1386,8 +1411,22 @@ public class PatientOrderService {
 						Map.of("callbackPhoneNumber", originalCallbackPhoneNumber))));
 		}
 
+		if (testPatientEmailAddress == null && testPatientPassword != null)
+			validationException.add(getStrings().get("If you specify a test patient password, you must also specify a test email address."));
+		else if (testPatientEmailAddress != null && testPatientPassword == null)
+			validationException.add(getStrings().get("If you specify a test patient email address, you must also specify a test password."));
+
+		if (testPatientEmailAddress != null) {
+			testPatientEmailAddress = getNormalizer().normalizeEmailAddress(testPatientEmailAddress).orElse(null);
+
+			if (testPatientEmailAddress == null)
+				validationException.add(new FieldError("testPatientEmailAddress", getStrings().get("Test patient email address is invalid.")));
+		}
+
 		if (validationException.hasErrors())
 			throw validationException;
+
+		String hashedTestPatientPassword = testPatientPassword == null ? null : getAuthenticator().hashPassword(testPatientPassword);
 
 		getDatabase().execute("""
 						  INSERT INTO patient_order (
@@ -1435,8 +1474,10 @@ public class PatientOrderService {
 						  comments,
 						  cc_recipients,
 						  last_active_medication_order_summary,						  
-						  recent_psychotherapeutic_medications
-						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						  recent_psychotherapeutic_medications,
+						  test_patient_email_address,
+						  test_patient_password
+						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				patientOrderId, patientOrderStatusId, patientOrderScreeningStatusId, patientOrderImportId, institutionId, encounterDepartmentId,
 				encounterDepartmentIdType, encounterDepartmentName, referringPracticeId, referringPracticeIdType,
@@ -1446,7 +1487,7 @@ public class PatientOrderService {
 				patientMrn, patientId, patientIdType, patientBirthSexId, patientBirthdate, patientAddressId, primaryPayorId,
 				primaryPayorName, primaryPlanId, primaryPlanName, orderDate, orderAgeInMinutes, orderId, routing,
 				reasonForReferral, associatedDiagnosis, callbackPhoneNumber, preferredContactHours, comments, ccRecipients,
-				lastActiveMedicationOrderSummary, recentPsychotherapeuticMedications);
+				lastActiveMedicationOrderSummary, recentPsychotherapeuticMedications, testPatientEmailAddress, hashedTestPatientPassword);
 
 		int diagnosisDisplayOrder = 0;
 
@@ -1813,6 +1854,16 @@ public class PatientOrderService {
 	@Nonnull
 	protected Normalizer getNormalizer() {
 		return this.normalizer;
+	}
+
+	@Nonnull
+	protected Authenticator getAuthenticator() {
+		return this.authenticator;
+	}
+
+	@Nonnull
+	protected Configuration getConfiguration() {
+		return this.configuration;
 	}
 
 	@Nonnull
