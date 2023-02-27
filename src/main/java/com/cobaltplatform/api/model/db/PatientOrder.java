@@ -134,6 +134,12 @@ public class PatientOrder {
 	@Nullable
 	private Instant episodeEndedAt;
 	@Nullable
+	private Boolean safetyPlanningNeeded;
+	@Nullable
+	private Boolean outreachNeeded;
+	@Nullable
+	private Boolean followupNeeded;
+	@Nullable
 	private String testPatientEmailAddress;
 	@Nullable
 	private String testPatientPassword;
@@ -581,6 +587,33 @@ public class PatientOrder {
 
 	public void setEpisodeEndedAt(@Nullable Instant episodeEndedAt) {
 		this.episodeEndedAt = episodeEndedAt;
+	}
+
+	@Nullable
+	public Boolean getSafetyPlanningNeeded() {
+		return this.safetyPlanningNeeded;
+	}
+
+	public void setSafetyPlanningNeeded(@Nullable Boolean safetyPlanningNeeded) {
+		this.safetyPlanningNeeded = safetyPlanningNeeded;
+	}
+
+	@Nullable
+	public Boolean getOutreachNeeded() {
+		return this.outreachNeeded;
+	}
+
+	public void setOutreachNeeded(@Nullable Boolean outreachNeeded) {
+		this.outreachNeeded = outreachNeeded;
+	}
+
+	@Nullable
+	public Boolean getFollowupNeeded() {
+		return this.followupNeeded;
+	}
+
+	public void setFollowupNeeded(@Nullable Boolean followupNeeded) {
+		this.followupNeeded = followupNeeded;
 	}
 
 	@Nullable

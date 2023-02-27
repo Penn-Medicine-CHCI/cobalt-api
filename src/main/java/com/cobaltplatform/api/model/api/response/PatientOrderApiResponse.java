@@ -184,6 +184,12 @@ public class PatientOrderApiResponse {
 	private Integer episodeDurationInDays;
 	@Nullable
 	private String episodeDurationInDaysDescription;
+	@Nullable
+	private Boolean safetyPlanningNeeded;
+	@Nullable
+	private Boolean outreachNeeded;
+	@Nullable
+	private Boolean followupNeeded;
 
 	@Nullable
 	private AddressApiResponse patientAddress;
@@ -410,6 +416,10 @@ public class PatientOrderApiResponse {
 			// Safe cast, int can always hold enough
 			this.episodeDurationInDays = (int) orderDuration.toDays();
 			this.episodeDurationInDaysDescription = strings.get("{{episodeDurationInDays}} days", Map.of("episodeDurationInDays", this.episodeDurationInDays));
+
+			this.safetyPlanningNeeded = patientOrder.getSafetyPlanningNeeded();
+			this.outreachNeeded = patientOrder.getOutreachNeeded();
+			this.followupNeeded = patientOrder.getFollowupNeeded();
 
 			this.patientOrderDiagnoses = patientOrderDiagnoses;
 			this.patientOrderMedications = patientOrderMedications;
@@ -730,6 +740,21 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public String getEpisodeDurationInDaysDescription() {
 		return this.episodeDurationInDaysDescription;
+	}
+
+	@Nullable
+	public Boolean getSafetyPlanningNeeded() {
+		return this.safetyPlanningNeeded;
+	}
+
+	@Nullable
+	public Boolean getOutreachNeeded() {
+		return this.outreachNeeded;
+	}
+
+	@Nullable
+	public Boolean getFollowupNeeded() {
+		return this.followupNeeded;
 	}
 
 	@Nullable
