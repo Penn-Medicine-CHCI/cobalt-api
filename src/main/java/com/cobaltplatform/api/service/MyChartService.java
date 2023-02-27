@@ -297,6 +297,7 @@ public class MyChartService {
 
 		String epicPatientId = patientId;
 		String epicPatientIdType = patient.extractTypeByIdentifier(epicPatientId).orElse(null);
+		String epicPatientMrn = patient.extractIdentifierByType("MRN").orElse(null);
 		GenderIdentityId genderIdentityId = patient.extractGenderIdentityId().orElse(null);
 		RaceId raceId = patient.extractRaceId().orElse(null);
 		EthnicityId ethnicityId = patient.extractEthnicityId().orElse(null);
@@ -362,6 +363,7 @@ public class MyChartService {
 		return getAccountService().createAccount(new CreateAccountRequest() {{
 			setEpicPatientId(epicPatientId);
 			setEpicPatientIdType(epicPatientIdType);
+			setEpicPatientMrn(epicPatientMrn);
 			setAccountSourceId(AccountSourceId.MYCHART);
 			setRoleId(RoleId.PATIENT);
 			setSsoId(ssoId);

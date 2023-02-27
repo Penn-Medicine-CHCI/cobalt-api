@@ -22,7 +22,6 @@ package com.cobaltplatform.api.web.resource;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
-import com.cobaltplatform.api.model.api.request.AccessTokenRequest;
 import com.cobaltplatform.api.model.api.request.AccountRoleRequest;
 import com.cobaltplatform.api.model.api.request.ApplyAccountEmailVerificationCodeRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountEmailVerificationRequest;
@@ -30,6 +29,7 @@ import com.cobaltplatform.api.model.api.request.CreateAccountInviteRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateActivityTrackingRequest;
 import com.cobaltplatform.api.model.api.request.CreateMyChartAccountRequest;
+import com.cobaltplatform.api.model.api.request.EmailPasswordAccessTokenRequest;
 import com.cobaltplatform.api.model.api.request.FindGroupSessionRequestsRequest;
 import com.cobaltplatform.api.model.api.request.FindGroupSessionsRequest;
 import com.cobaltplatform.api.model.api.request.ForgotPasswordRequest;
@@ -78,19 +78,18 @@ import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.AuditLog;
 import com.cobaltplatform.api.model.db.AuditLogEvent.AuditLogEventId;
 import com.cobaltplatform.api.model.db.BetaFeatureAlert;
-import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.BirthSex;
 import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.model.db.Content;
-import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
-import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
+import com.cobaltplatform.api.model.db.Ethnicity;
+import com.cobaltplatform.api.model.db.GenderIdentity;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionRequest;
 import com.cobaltplatform.api.model.db.GroupSessionRequestStatus.GroupSessionRequestStatusId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.LoginDestination.LoginDestinationId;
-import com.cobaltplatform.api.model.db.Race.RaceId;
+import com.cobaltplatform.api.model.db.Race;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
@@ -142,7 +141,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -371,23 +369,24 @@ public class AccountResource {
 	}
 
 	@Nonnull
-	@POST("/accounts/access-token")
-	public ApiResponse accountAccessToken(@Nonnull @RequestBody String requestBody,
-																				@Nonnull HttpServletResponse httpServletResponse) {
+	@POST("/accounts/email-password-access-token")
+	public ApiResponse accountEmailPasswordAccessToken(@Nonnull @RequestBody String requestBody,
+																										 @Nonnull HttpServletResponse httpServletResponse) {
 		requireNonNull(requestBody);
 		requireNonNull(httpServletResponse);
 
-		AccessTokenRequest request = getRequestBodyParser().parse(requestBody, AccessTokenRequest.class);
-		String accessToken = getAccountService().obtainAccessToken(request);
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		EmailPasswordAccessTokenRequest request = getRequestBodyParser().parse(requestBody, EmailPasswordAccessTokenRequest.class);
+		request.setInstitutionId(institutionId);
+
+		String accessToken = getAccountService().obtainEmailPasswordAccessToken(request);
 		Account account = getAccountService().findAccountByAccessToken(accessToken).get();
 
 		AccountLoginRule accountLoginRule = getAccountService().findAccountLoginRuleByEmailAddress(account.getEmailAddress(), AccountSourceId.EMAIL_PASSWORD, account.getInstitutionId()).orElse(null);
-		LoginDestinationId loginDestinationId = LoginDestinationId.COBALT_PATIENT;
 		UUID pinnedAccountId = account.getAccountId();
 
 		if (accountLoginRule != null) {
-			loginDestinationId = accountLoginRule.getLoginDestinationId();
-
 			// Update role to what's been specified in the DB
 			getAccountService().updateAccountRole(new UpdateAccountRoleRequest() {{
 				setAccountId(pinnedAccountId);
@@ -410,7 +409,7 @@ public class AccountResource {
 		}
 
 		Account pinnedAccount = account;
-		String destinationUrl = getLinkGenerator().generateAuthenticationLink(account.getInstitutionId(), loginDestinationId, ClientDeviceTypeId.WEB_BROWSER, accessToken);
+		String destinationUrl = getLinkGenerator().generateAuthenticationLink(account.getInstitutionId(), ClientDeviceTypeId.WEB_BROWSER, accessToken);
 
 		UUID sessionTrackingId = getCurrentContext().getSessionTrackingId().orElse(null);
 
@@ -1022,9 +1021,12 @@ public class AccountResource {
 		request.setAccountId(accountId);
 
 		Account currentAccount = getCurrentContext().getAccount().get();
+		Account accountToEdit = getAccountService().findAccountById(accountId).orElse(null);
 
-		// You can only PATCH yourself for now
-		if (!currentAccount.getAccountId().equals(accountId))
+		if (accountToEdit == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canEditAccount(accountToEdit, currentAccount))
 			throw new AuthorizationException();
 
 		// Only patch fields specified in the request
@@ -1057,10 +1059,9 @@ public class AccountResource {
 
 	@Nonnull
 	@GET("/accounts/reference-data")
-	public ApiResponse accountReferenceData(@Nonnull @QueryParameter Optional<InstitutionId> institutionId) {
-		requireNonNull(institutionId);
-
-		InstitutionId finalInstitutionId = institutionId.orElse(getCurrentContext().getInstitutionId());
+	@AuthenticationRequired
+	public ApiResponse patientOrderReferenceData() {
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
 
 		// Time zones
 		List<TimeZoneApiResponse> timeZones = getAccountService().getAccountTimeZones().stream()
@@ -1092,7 +1093,7 @@ public class AccountResource {
 		});
 
 		// Insurances
-		List<InsuranceApiResponse> insurances = getInstitutionService().findInsurancesByInstitutionId(finalInstitutionId).stream()
+		List<InsuranceApiResponse> insurances = getInstitutionService().findInsurancesByInstitutionId(institutionId).stream()
 				.map(insurance -> getInsuranceApiResponseFactory().create(insurance))
 				.collect(Collectors.toList());
 
@@ -1100,29 +1101,29 @@ public class AccountResource {
 		Map<String, List<Region>> regionsByCountryCode = Region.getRegionsByCountryCode();
 		Map<String, List<Map<String, Object>>> normalizedRegionsByCountryCode = new HashMap<>(regionsByCountryCode.size());
 
-		for (Entry<String, List<Region>> entry : regionsByCountryCode.entrySet())
+		for (Map.Entry<String, List<Region>> entry : regionsByCountryCode.entrySet())
 			normalizedRegionsByCountryCode.put(entry.getKey(), entry.getValue().stream()
 					.map(region -> Map.of("name", (Object) region.getName(), "abbreviation", region.getAbbreviation()))
 					.collect(Collectors.toList()));
 
 		// Demographics
 		List<Map<String, Object>> genderIdentities = getAccountService().findGenderIdentities().stream()
-				.filter(genderIdentity -> genderIdentity.getGenderIdentityId() != GenderIdentityId.NOT_ASKED)
+				.filter(genderIdentity -> genderIdentity.getGenderIdentityId() != GenderIdentity.GenderIdentityId.NOT_ASKED)
 				.map(genderIdentity -> Map.<String, Object>of("genderIdentityId", genderIdentity.getGenderIdentityId(), "description", genderIdentity.getDescription()))
 				.collect(Collectors.toList());
 
 		List<Map<String, Object>> races = getAccountService().findRaces().stream()
-				.filter(race -> race.getRaceId() != RaceId.NOT_ASKED)
+				.filter(race -> race.getRaceId() != Race.RaceId.NOT_ASKED)
 				.map(race -> Map.<String, Object>of("raceId", race.getRaceId(), "description", race.getDescription()))
 				.collect(Collectors.toList());
 
 		List<Map<String, Object>> birthSexes = getAccountService().findBirthSexes().stream()
-				.filter(birthSex -> birthSex.getBirthSexId() != BirthSexId.NOT_ASKED)
+				.filter(birthSex -> birthSex.getBirthSexId() != BirthSex.BirthSexId.NOT_ASKED)
 				.map(birthSex -> Map.<String, Object>of("birthSexId", birthSex.getBirthSexId(), "description", birthSex.getDescription()))
 				.collect(Collectors.toList());
 
 		List<Map<String, Object>> ethnicities = getAccountService().findEthnicities().stream()
-				.filter(ethnicity -> ethnicity.getEthnicityId() != EthnicityId.NOT_ASKED)
+				.filter(ethnicity -> ethnicity.getEthnicityId() != Ethnicity.EthnicityId.NOT_ASKED)
 				.map(ethnicity -> Map.<String, Object>of("ethnicityId", ethnicity.getEthnicityId(), "description", ethnicity.getDescription()))
 				.collect(Collectors.toList());
 

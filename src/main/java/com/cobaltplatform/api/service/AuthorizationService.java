@@ -32,6 +32,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionTopicCenter;
 import com.cobaltplatform.api.model.db.Interaction;
 import com.cobaltplatform.api.model.db.InteractionInstance;
+import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.ReportType.ReportTypeId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
@@ -68,6 +69,8 @@ public class AuthorizationService {
 	@Nonnull
 	private final javax.inject.Provider<ReportingService> reportingServiceProvider;
 	@Nonnull
+	private final javax.inject.Provider<PatientOrderService> patientOrderServiceProvider;
+	@Nonnull
 	private final Normalizer normalizer;
 
 	@Inject
@@ -77,6 +80,7 @@ public class AuthorizationService {
 															@Nonnull javax.inject.Provider<AppointmentService> appointmentServiceProvider,
 															@Nonnull javax.inject.Provider<TopicCenterService> topicCenterServiceProvider,
 															@Nonnull javax.inject.Provider<ReportingService> reportingServiceProvider,
+															@Nonnull javax.inject.Provider<PatientOrderService> patientOrderServiceProvider,
 															@Nonnull Normalizer normalizer) {
 		requireNonNull(availabilityServiceProvider);
 		requireNonNull(groupSessionServiceProvider);
@@ -84,6 +88,7 @@ public class AuthorizationService {
 		requireNonNull(appointmentServiceProvider);
 		requireNonNull(topicCenterServiceProvider);
 		requireNonNull(reportingServiceProvider);
+		requireNonNull(patientOrderServiceProvider);
 		requireNonNull(normalizer);
 
 		this.availabilityServiceProvider = availabilityServiceProvider;
@@ -92,6 +97,7 @@ public class AuthorizationService {
 		this.appointmentServiceProvider = appointmentServiceProvider;
 		this.topicCenterServiceProvider = topicCenterServiceProvider;
 		this.reportingServiceProvider = reportingServiceProvider;
+		this.patientOrderServiceProvider = patientOrderServiceProvider;
 		this.normalizer = normalizer;
 	}
 
@@ -459,6 +465,107 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
+	public Boolean canViewPatientOrder(@Nonnull PatientOrder patientOrder,
+																		 @Nonnull Account account) {
+		requireNonNull(patientOrder);
+		requireNonNull(account);
+
+		// An admin or MHIC at the same institution is able to view patient orders at that institution
+		if (Objects.equals(account.getInstitutionId(), patientOrder.getInstitutionId())
+				&& (account.getRoleId() == RoleId.ADMINISTRATOR || account.getRoleId() == RoleId.MHIC))
+			return true;
+
+		// You can view your own order
+		if (Objects.equals(account.getAccountId(), patientOrder.getPatientAccountId()))
+			return true;
+
+		return false;
+	}
+
+	@Nonnull
+	public Boolean canViewPanelAccounts(@Nonnull InstitutionId institutionId,
+																			@Nonnull Account account) {
+		requireNonNull(institutionId);
+		requireNonNull(account);
+
+		// Re-use existing logic
+		return canImportPatientOrders(institutionId, account);
+	}
+
+	@Nonnull
+	public Boolean canViewPatientOrders(@Nonnull InstitutionId institutionId,
+																			@Nonnull Account account) {
+		requireNonNull(institutionId);
+		requireNonNull(account);
+
+		// Re-use existing logic
+		return canImportPatientOrders(institutionId, account);
+	}
+
+	@Nonnull
+	public Boolean canViewPatientOrdersForPanelAccount(@Nonnull Account viewingAccount,
+																										 @Nonnull Account panelAccount) {
+		requireNonNull(viewingAccount);
+		requireNonNull(panelAccount);
+
+		// Both viewing and panel "owner" accounts must be of correct role and in the same institution
+		if ((viewingAccount.getRoleId() == RoleId.ADMINISTRATOR || viewingAccount.getRoleId() == RoleId.MHIC)
+				&& (panelAccount.getRoleId() == RoleId.ADMINISTRATOR || panelAccount.getRoleId() == RoleId.MHIC)
+				&& Objects.equals(viewingAccount.getInstitutionId(), panelAccount.getInstitutionId()))
+			return true;
+
+		return false;
+	}
+
+	@Nonnull
+	public Boolean canImportPatientOrders(@Nonnull InstitutionId institutionId,
+																				@Nonnull Account account) {
+		requireNonNull(institutionId);
+		requireNonNull(account);
+
+		// An admin or MHIC at the same institution is able to view patient orders at that institution
+		if (Objects.equals(account.getInstitutionId(), institutionId)
+				&& (account.getRoleId() == RoleId.ADMINISTRATOR || account.getRoleId() == RoleId.MHIC))
+			return true;
+
+		return false;
+	}
+
+	@Nonnull
+	public Boolean canEditPatientOrder(@Nonnull PatientOrder patientOrder,
+																		 @Nonnull Account account) {
+		requireNonNull(patientOrder);
+		requireNonNull(account);
+
+		// An admin or MHIC at the same institution is able to view patient orders at that institution
+		if (Objects.equals(account.getInstitutionId(), patientOrder.getInstitutionId())
+				&& (account.getRoleId() == RoleId.ADMINISTRATOR || account.getRoleId() == RoleId.MHIC))
+			return true;
+
+		return false;
+	}
+
+	@Nonnull
+	public Boolean canEditAccount(@Nonnull Account accountToEdit,
+																@Nonnull Account accountMakingEdit) {
+		requireNonNull(accountToEdit);
+		requireNonNull(accountMakingEdit);
+
+		// An account can edit itself
+		// TODO: additional restrictions here?  e.g. for an integrated care institution,
+		//  patient cannot edit herself after an associated order is in a particular state?
+		if (Objects.equals(accountMakingEdit.getAccountId(), accountToEdit.getAccountId()))
+			return true;
+
+		// An admin or MHIC at the same institution is able to edit patients at that institution
+		if (Objects.equals(accountMakingEdit.getInstitutionId(), accountToEdit.getInstitutionId())
+				&& (accountMakingEdit.getRoleId() == RoleId.ADMINISTRATOR || accountMakingEdit.getRoleId() == RoleId.MHIC))
+			return true;
+
+		return false;
+	}
+
+	@Nonnull
 	protected GroupSessionService getGroupSessionService() {
 		return this.groupSessionServiceProvider.get();
 	}
@@ -486,6 +593,11 @@ public class AuthorizationService {
 	@Nonnull
 	protected ReportingService getReportingService() {
 		return this.reportingServiceProvider.get();
+	}
+
+	@Nonnull
+	protected PatientOrderService getPatientOrderService() {
+		return this.patientOrderServiceProvider.get();
 	}
 
 	@Nonnull

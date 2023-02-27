@@ -94,6 +94,11 @@ import com.cobaltplatform.api.model.api.response.InteractionOptionApiResponse.In
 import com.cobaltplatform.api.model.api.response.IntroAssessmentApiResponse.IntroAssessmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.LanguageApiResponse.LanguageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.LogicalAvailabilityApiResponse.LogicalAvailabilityApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderDiagnosisApiResponse.PatientOrderDiagnosisApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderMedicationApiResponse.PatientOrderMedicationApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PinboardNoteApiResponse.PinboardNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseFactory;
@@ -265,6 +270,11 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(ReportTypeApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(InstitutionBlurbApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(InstitutionTeamMemberApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PatientOrderApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PatientOrderNoteApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PatientOrderDiagnosisApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PatientOrderMedicationApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PatientOrderOutreachApiResponseFactory.class)));
 	}
 
 	@Provides

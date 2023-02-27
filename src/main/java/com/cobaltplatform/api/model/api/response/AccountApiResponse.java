@@ -28,13 +28,17 @@ import com.cobaltplatform.api.model.db.BetaStatus.BetaStatusId;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.LoginDestination.LoginDestinationId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
 import com.cobaltplatform.api.model.security.AccountCapabilities;
 import com.cobaltplatform.api.service.AccountService;
+import com.cobaltplatform.api.service.AddressService;
 import com.cobaltplatform.api.service.AuthorizationService;
+import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.SessionService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
@@ -134,6 +138,8 @@ public class AccountApiResponse {
 	@Nullable
 	private final String lastUpdatedDescription;
 	@Nullable
+	private final LoginDestinationId loginDestinationId;
+	@Nullable
 	private final AddressApiResponse address;
 	@Nullable
 	@Deprecated
@@ -158,19 +164,23 @@ public class AccountApiResponse {
 
 	@AssistedInject
 	public AccountApiResponse(@Nonnull AccountService accountService,
+														@Nonnull AddressService addressService,
 														@Nonnull SessionService sessionService,
+														@Nonnull InstitutionService institutionService,
 														@Nonnull AuthorizationService authorizationService,
 														@Nonnull Formatter formatter,
 														@Nonnull Strings strings,
 														@Nonnull Provider<CurrentContext> currentContextProvider,
 														@Nonnull AddressApiResponseFactory addressApiResponseFactory,
 														@Assisted @Nonnull Account account) {
-		this(accountService, sessionService, authorizationService, formatter, strings, currentContextProvider, addressApiResponseFactory, account, Collections.emptySet());
+		this(accountService, addressService, sessionService, institutionService, authorizationService, formatter, strings, currentContextProvider, addressApiResponseFactory, account, Collections.emptySet());
 	}
 
 	@AssistedInject
 	public AccountApiResponse(@Nonnull AccountService accountService,
+														@Nonnull AddressService addressService,
 														@Nonnull SessionService sessionService,
+														@Nonnull InstitutionService institutionService,
 														@Nonnull AuthorizationService authorizationService,
 														@Nonnull Formatter formatter,
 														@Nonnull Strings strings,
@@ -179,7 +189,9 @@ public class AccountApiResponse {
 														@Assisted @Nonnull Account account,
 														@Assisted @Nonnull Set<AccountApiResponseSupplement> supplements) {
 		requireNonNull(accountService);
+		requireNonNull(addressService);
 		requireNonNull(sessionService);
+		requireNonNull(institutionService);
 		requireNonNull(authorizationService);
 		requireNonNull(formatter);
 		requireNonNull(strings);
@@ -229,8 +241,25 @@ public class AccountApiResponse {
 			this.birthdate = account.getBirthdate();
 			this.birthdateDescription = account.getBirthdate() == null ? null : formatter.formatDate(account.getBirthdate(), FormatStyle.MEDIUM);
 
-			Address address = accountService.findActiveAddressByAccountId(accountId).orElse(null);
+			Address address = addressService.findActiveAddressByAccountId(accountId).orElse(null);
 			this.address = address == null ? null : addressApiResponseFactory.create(address);
+
+
+			Institution institution = institutionService.findInstitutionById(account.getInstitutionId()).get();
+			LoginDestinationId loginDestinationId;
+
+			if (institution.getIntegratedCareEnabled()) {
+				if (account.getRoleId() == RoleId.MHIC
+						|| account.getRoleId() == RoleId.ADMINISTRATOR
+						|| account.getRoleId() == RoleId.PROVIDER)
+					loginDestinationId = LoginDestinationId.IC_PANEL;
+				else
+					loginDestinationId = LoginDestinationId.IC_PATIENT;
+			} else {
+				loginDestinationId = LoginDestinationId.COBALT_PATIENT;
+			}
+
+			this.loginDestinationId = loginDestinationId;
 		} else {
 			this.consentFormAccepted = null;
 			this.consentFormAcceptedDate = null;
@@ -251,6 +280,7 @@ public class AccountApiResponse {
 			this.birthdate = null;
 			this.birthdateDescription = null;
 			this.address = null;
+			this.loginDestinationId = null;
 		}
 
 		if (supplements.contains(AccountApiResponseSupplement.EVERYTHING)
@@ -452,5 +482,10 @@ public class AccountApiResponse {
 	@Nullable
 	public AddressApiResponse getAddress() {
 		return this.address;
+	}
+
+	@Nullable
+	public LoginDestinationId getLoginDestinationId() {
+		return this.loginDestinationId;
 	}
 }

@@ -32,6 +32,8 @@ import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -55,6 +57,8 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 public class Normalizer {
 	@Nonnull
 	private static final Map<String, String> ISO_3166_THREE_TO_TWO_LETTER_COUNTRY_CODES;
+	@Nonnull
+	private static final DateTimeFormatter US_TIME_PARSING_FORMATTER;
 
 	@Nullable
 	private final Provider<CurrentContext> currentContextProvider;
@@ -70,6 +74,9 @@ public class Normalizer {
 		}
 
 		ISO_3166_THREE_TO_TWO_LETTER_COUNTRY_CODES = Collections.unmodifiableMap(iso3166ThreeToTwoLetterCountryCodes);
+
+		// Valid string looks like "1:05AM"
+		US_TIME_PARSING_FORMATTER = DateTimeFormatter.ofPattern("h:mma", Locale.US);
 	}
 
 	public Normalizer() {
@@ -175,6 +182,36 @@ public class Normalizer {
 	}
 
 	@Nonnull
+	public Optional<LocalTime> normalizeTime(@Nullable String timeAsString) {
+		return normalizeTime(timeAsString, getCurrentContext().get().getLocale());
+	}
+
+	@Nonnull
+	public Optional<LocalTime> normalizeTime(@Nullable String timeAsString,
+																					 @Nonnull Locale locale) {
+		requireNonNull(locale);
+
+		timeAsString = trimToNull(timeAsString);
+
+		if (timeAsString == null)
+			return Optional.empty();
+
+		// TODO: support other locales
+		if (!locale.equals(Locale.US))
+			throw new IllegalArgumentException(format("Locale %s is not yet supported for time parsing", locale.toLanguageTag()));
+
+		// Remove all whitespace
+		timeAsString = timeAsString.replaceAll("\\s", "").toUpperCase(Locale.US);
+
+		try {
+			// Valid string looks like "1:05AM"
+			return Optional.of(LocalTime.parse(timeAsString, US_TIME_PARSING_FORMATTER));
+		} catch (Exception e) {
+			return Optional.empty();
+		}
+	}
+
+	@Nonnull
 	public static Optional<String> normalizeName(@Nullable String firstName,
 																							 @Nullable String lastName) {
 		firstName = trimToNull(firstName);
@@ -220,8 +257,8 @@ public class Normalizer {
 	 * "LOREN SANDERS" -> "Loren Sanders"
 	 */
 	@Nonnull
-	public Optional<String> normalizeNameCasing(@Nullable String name,
-																							@Nonnull Locale locale) {
+	public static Optional<String> normalizeNameCasing(@Nullable String name,
+																										 @Nonnull Locale locale) {
 		requireNonNull(locale);
 
 		name = trimToNull(name);

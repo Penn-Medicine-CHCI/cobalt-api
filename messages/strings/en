@@ -90,5 +90,22 @@
         }
       }
     }
+  },
+  "{{episodeDurationInDays}} days": {
+    "translation" : "{{episodeDurationInDays}} {{daysPlaceholder}}",
+    "placeholders" : {
+      "daysPlaceholder" : {
+        "value" : "episodeDurationInDays",
+        "translations" : {
+          "CARDINALITY_ONE" : "day",
+          "CARDINALITY_OTHER" : "days"
+        }
+      }
+    },
+    "alternatives" : [
+      {
+        "duration < 1" : "<1 day"
+      }
+    ]
   }
 }

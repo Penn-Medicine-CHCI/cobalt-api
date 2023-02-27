@@ -25,7 +25,6 @@ import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InteractionInstance;
 import com.cobaltplatform.api.model.db.InteractionOption;
-import com.cobaltplatform.api.model.db.LoginDestination.LoginDestinationId;
 import com.cobaltplatform.api.service.InstitutionService;
 
 import javax.annotation.Nonnull;
@@ -94,19 +93,6 @@ public class LinkGenerator {
 																					 @Nonnull ClientDeviceTypeId clientDeviceTypeId,
 																					 @Nonnull String accessToken) {
 		requireNonNull(institutionId);
-		requireNonNull(clientDeviceTypeId);
-		requireNonNull(accessToken);
-
-		return generateAuthenticationLink(institutionId, LoginDestinationId.COBALT_PATIENT, clientDeviceTypeId, accessToken);
-	}
-
-	@Nonnull
-	public String generateAuthenticationLink(@Nonnull InstitutionId institutionId,
-																					 @Nonnull LoginDestinationId loginDestinationId,
-																					 @Nonnull ClientDeviceTypeId clientDeviceTypeId,
-																					 @Nonnull String accessToken) {
-		requireNonNull(institutionId);
-		requireNonNull(loginDestinationId);
 		requireNonNull(clientDeviceTypeId);
 		requireNonNull(accessToken);
 

@@ -1699,11 +1699,18 @@ public class ProviderService {
 	}
 
 	@Nonnull
-	public List<SupportRole> findSupportRolesByInstitutionId(@Nonnull InstitutionId institutionId) {
-		requireNonNull(institutionId);
+	public List<SupportRole> findSupportRolesByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
 
-		// For now - we don't care about institution.  We might later on
-		return getDatabase().queryForList("SELECT * FROM support_role ORDER BY display_order", SupportRole.class);
+		return getDatabase().queryForList("""
+				SELECT sr.*
+				FROM support_role sr, provider_support_role psr, provider p
+				WHERE sr.support_role_id=psr.support_role_id
+				AND psr.provider_id=p.provider_id
+				AND p.institution_id=?
+				ORDER BY sr.description
+				""", SupportRole.class, institutionId);
 	}
 
 	@Nonnull

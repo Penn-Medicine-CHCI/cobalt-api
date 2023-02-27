@@ -40,8 +40,11 @@ public class SupportRole {
 		CARE_MANAGER,
 		CLINICIAN,
 		PSYCHIATRIST,
+		PSYCHOLOGIST,
 		CHAPLAIN,
 		MHIC,
+		BHP,
+		LCSW,
 		OTHER
 	}
 

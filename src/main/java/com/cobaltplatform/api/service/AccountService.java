@@ -27,7 +27,6 @@ import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
-import com.cobaltplatform.api.model.api.request.AccessTokenRequest;
 import com.cobaltplatform.api.model.api.request.AccountRoleRequest;
 import com.cobaltplatform.api.model.api.request.ApplyAccountEmailVerificationCodeRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountEmailVerificationRequest;
@@ -35,6 +34,7 @@ import com.cobaltplatform.api.model.api.request.CreateAccountInviteRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreateInteractionInstanceRequest;
+import com.cobaltplatform.api.model.api.request.EmailPasswordAccessTokenRequest;
 import com.cobaltplatform.api.model.api.request.ForgotPasswordRequest;
 import com.cobaltplatform.api.model.api.request.PatchAccountRequest;
 import com.cobaltplatform.api.model.api.request.ResetPasswordRequest;
@@ -51,7 +51,6 @@ import com.cobaltplatform.api.model.db.AccountInvite;
 import com.cobaltplatform.api.model.db.AccountLoginRule;
 import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
-import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.AuditLog;
 import com.cobaltplatform.api.model.db.AuditLogEvent.AuditLogEventId;
 import com.cobaltplatform.api.model.db.BetaFeature.BetaFeatureId;
@@ -68,15 +67,15 @@ import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PasswordResetRequest;
+import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.Race;
 import com.cobaltplatform.api.model.db.Race.RaceId;
-import com.cobaltplatform.api.model.db.ReportType;
 import com.cobaltplatform.api.model.db.Role;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
 import com.cobaltplatform.api.model.security.AccessTokenClaims;
 import com.cobaltplatform.api.model.service.AccountEmailVerificationFlowTypeId;
-import com.cobaltplatform.api.model.service.Region;
+import com.cobaltplatform.api.model.service.IcTestPatientEmailAddress;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
@@ -114,8 +113,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.util.ValidationUtility.isValidEmailAddress;
-import static com.cobaltplatform.api.util.ValidationUtility.isValidIso3166CountryCode;
-import static com.cobaltplatform.api.util.ValidationUtility.isValidUsPostalCode;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -132,6 +129,10 @@ public class AccountService {
 	private final Provider<AuditLogService> auditLogServiceProvider;
 	@Nonnull
 	private final Provider<InteractionService> interactionServiceProvider;
+	@Nonnull
+	private final Provider<AddressService> addressServiceProvider;
+	@Nonnull
+	private final Provider<PatientOrderService> patientOrderServiceProvider;
 	@Nonnull
 	private final Database database;
 	@Nonnull
@@ -169,6 +170,8 @@ public class AccountService {
 	public AccountService(@Nonnull Provider<CurrentContext> currentContextProvider,
 												@Nonnull Provider<AuditLogService> auditLogServiceProvider,
 												@Nonnull Provider<InteractionService> interactionServiceProvider,
+												@Nonnull Provider<AddressService> addressServiceProvider,
+												@Nonnull Provider<PatientOrderService> patientOrderServiceProvider,
 												@Nonnull Database database,
 												@Nonnull @DistributedCache Cache distributedCache,
 												@Nonnull Authenticator authenticator,
@@ -184,6 +187,8 @@ public class AccountService {
 		requireNonNull(currentContextProvider);
 		requireNonNull(auditLogServiceProvider);
 		requireNonNull(interactionServiceProvider);
+		requireNonNull(addressServiceProvider);
+		requireNonNull(patientOrderServiceProvider);
 		requireNonNull(database);
 		requireNonNull(distributedCache);
 		requireNonNull(authenticator);
@@ -200,6 +205,8 @@ public class AccountService {
 		this.currentContextProvider = currentContextProvider;
 		this.auditLogServiceProvider = auditLogServiceProvider;
 		this.interactionServiceProvider = interactionServiceProvider;
+		this.addressServiceProvider = addressServiceProvider;
+		this.patientOrderServiceProvider = patientOrderServiceProvider;
 		this.database = database;
 		this.distributedCache = distributedCache;
 		this.authenticator = authenticator;
@@ -275,11 +282,28 @@ public class AccountService {
 			return Optional.empty();
 
 		return getDatabase().queryForObject("""
-				SELECT * FROM account 
+				SELECT *
+				FROM account 
 				WHERE account_source_id=? 
 				AND sso_id=?
 				AND institution_id=?
 				""", Account.class, accountSourceId, ssoId, institutionId);
+	}
+
+	@Nonnull
+	public Optional<Account> findAccountByMrnAndInstitutionId(@Nullable String epicPatientMrn,
+																														@Nullable InstitutionId institutionId) {
+		epicPatientMrn = trimToNull(epicPatientMrn);
+
+		if (epicPatientMrn == null || institutionId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM account
+				WHERE UPPER(?)=UPPER(epic_patient_mrn)
+				AND institution_id=?
+				""", Account.class, epicPatientMrn, institutionId);
 	}
 
 	@Nonnull
@@ -426,6 +450,7 @@ public class AccountService {
 		String ssoAttributesAsJson = trimToNull(request.getSsoAttributesAsJson());
 		String epicPatientId = trimToNull(request.getEpicPatientId());
 		String epicPatientIdType = trimToNull(request.getEpicPatientIdType());
+		String epicPatientMrn = trimToNull(request.getEpicPatientMrn());
 		GenderIdentityId genderIdentityId = request.getGenderIdentityId() == null ? GenderIdentityId.NOT_ASKED : request.getGenderIdentityId();
 		EthnicityId ethnicityId = request.getEthnicityId() == null ? EthnicityId.NOT_ASKED : request.getEthnicityId();
 		BirthSexId birthSexId = request.getBirthSexId() == null ? BirthSexId.NOT_ASKED : request.getBirthSexId();
@@ -489,7 +514,7 @@ public class AccountService {
 
 		if (request.getAddress() != null) {
 			try {
-				addressId = createAddress(request.getAddress());
+				addressId = getAddressService().createAddress(request.getAddress());
 			} catch (ValidationException e) {
 				validationException.add(e);
 			}
@@ -510,6 +535,9 @@ public class AccountService {
 			}
 		}
 
+		if (epicPatientMrn != null)
+			epicPatientMrn = epicPatientMrn.toUpperCase(Locale.US); // TODO: revisit when we support non-US institutions
+
 		if (validationException.hasErrors())
 			throw validationException;
 
@@ -529,13 +557,13 @@ public class AccountService {
 						INSERT INTO account (
 						account_id, role_id, institution_id, account_source_id, source_system_id, sso_id, 
 						first_name, last_name, display_name, email_address, phone_number, sso_attributes, password, epic_patient_id, 
-						epic_patient_id_type, time_zone, gender_identity_id, ethnicity_id, birth_sex_id, race_id, birthdate
+						epic_patient_id_type, epic_patient_mrn, time_zone, gender_identity_id, ethnicity_id, birth_sex_id, race_id, birthdate
 						) 
-						VALUES (?,?,?,?,?,?,?,?,?,?,?,CAST(? AS JSONB),?,?,?,?,?,?,?,?,?)
+						VALUES (?,?,?,?,?,?,?,?,?,?,?,CAST(? AS JSONB),?,?,?,?,?,?,?,?,?,?)
 						""",
 				accountId, roleId, institutionId, accountSourceId, sourceSystemId, ssoId, firstName, lastName, displayName,
-				emailAddress, phoneNumber, finalSsoAttributesAsJson, password, epicPatientId, epicPatientIdType, timeZone,
-				genderIdentityId, ethnicityId, birthSexId, raceId, birthdate);
+				emailAddress, phoneNumber, finalSsoAttributesAsJson, password, epicPatientId, epicPatientIdType, epicPatientMrn,
+				timeZone, genderIdentityId, ethnicityId, birthSexId, raceId, birthdate);
 
 		if (addressId != null) {
 			getDatabase().execute("""
@@ -544,96 +572,10 @@ public class AccountService {
 					""", accountId, addressId, true);
 		}
 
+		// If there are any patient orders to associate this account with, do it now
+		getPatientOrderService().associatePatientAccountWithPatientOrders(accountId);
+
 		return accountId;
-	}
-
-	@Nonnull
-	public Optional<Address> findActiveAddressByAccountId(@Nullable UUID accountId) {
-		if (accountId == null)
-			return Optional.empty();
-
-		return getDatabase().queryForObject("""
-				SELECT a.*
-				FROM address a, account_address aa
-				WHERE aa.account_id=?
-				AND aa.address_id=a.address_id
-				AND aa.active=TRUE
-				""", Address.class, accountId);
-	}
-
-	@Nonnull
-	public UUID createAddress(@Nonnull CreateAddressRequest request) {
-		requireNonNull(request);
-
-		UUID addressId = UUID.randomUUID();
-		String postalName = trimToNull(request.getPostalName());
-		String streetAddress1 = trimToNull(request.getStreetAddress1());
-		String streetAddress2 = trimToNull(request.getStreetAddress2());
-		String streetAddress3 = trimToNull(request.getStreetAddress3());
-		String streetAddress4 = trimToNull(request.getStreetAddress4());
-		String postOfficeBoxNumber = trimToNull(request.getPostOfficeBoxNumber());
-		String crossStreet = trimToNull(request.getCrossStreet());
-		String suburb = trimToNull(request.getSuburb());
-		String locality = trimToNull(request.getLocality());
-		String region = trimToNull(request.getRegion());
-		String postalCode = trimToNull(request.getPostalCode());
-		String countrySubdivisionCode = trimToNull(request.getCountrySubdivisionCode());
-		String countryCode = trimToNull(request.getCountryCode());
-		ValidationException validationException = new ValidationException();
-
-		if (postalName == null)
-			validationException.add(new FieldError("postalName", getStrings().get("Postal name is required.")));
-
-		if (streetAddress1 == null)
-			validationException.add(new FieldError("streetAddress1", getStrings().get("Street address is required.")));
-
-		// Currently we only support US addresses.
-		// Once we have international rollout, build out more rigorous support for non-US address validation
-		if (countryCode == null) {
-			validationException.add(new FieldError("countryCode", getStrings().get("Country code is required.")));
-		} else if (!isValidIso3166CountryCode(countryCode)) {
-			validationException.add(new FieldError("countryCode", getStrings().get("Country code must be a valid ISO-3166 (2 or 3 letter) value.")));
-		} else {
-			countryCode = getNormalizer().normalizeCountryCodeToIso3166TwoLetter(countryCode).get();
-
-			// US address validation
-			if ("US".equals(countryCode)) {
-				if (locality == null)
-					validationException.add(new FieldError("locality", getStrings().get("City name is required.")));
-
-				// Normalize state abbreviation
-				if (region != null)
-					region = region.toUpperCase(Locale.US);
-
-				if (region == null)
-					validationException.add(new FieldError("region", getStrings().get("State abbreviation is required.")));
-				else if (Region.forAbbreviationAndCountryCode(region, "US").isEmpty())
-					validationException.add(new FieldError("region", getStrings().get("A valid state abbreviation is required.")));
-
-				if (postalCode == null)
-					validationException.add(new FieldError("postalCode", getStrings().get("ZIP code is required.")));
-				else if (!isValidUsPostalCode(postalCode))
-					validationException.add(new FieldError("postalCode", getStrings().get("ZIP code is invalid.")));
-			} else {
-				// TODO: remove once we go international
-				validationException.add(new FieldError("countryCode", getStrings().get("Sorry, only US addresses are supported at this time.")));
-			}
-		}
-
-		if (validationException.hasErrors())
-			throw validationException;
-
-		getDatabase().execute("""
-						INSERT INTO address (
-						address_id, postal_name, street_address_1, street_address_2, street_address_3, street_address_4,
-						post_office_box_number, cross_street, suburb,	locality, region, postal_code, country_subdivision_code,
-						country_code
-						)
-						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-						""", addressId, postalName, streetAddress1, streetAddress2, streetAddress3, streetAddress4,
-				postOfficeBoxNumber, crossStreet, suburb, locality, region, postalCode, countrySubdivisionCode, countryCode);
-
-		return addressId;
 	}
 
 	@Nonnull
@@ -656,20 +598,109 @@ public class AccountService {
 		String languageCode = trimToNull(request.getLanguageCode());
 		ZoneId timeZone = request.getTimeZone();
 		CreateAddressRequest address = request.getAddress();
+		ZoneId validationTimeZone = timeZone == null ? getCurrentContext().getTimeZone() : timeZone;
+		Account account = null;
 		ValidationException validationException = new ValidationException();
+
+		if (accountId == null) {
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+		} else {
+			account = findAccountById(accountId).orElse(null);
+
+			if (account == null)
+				validationException.add(new FieldError("accountId", getStrings().get("Account ID is invalid.")));
+		}
+
+		if (request.isShouldUpdateFirstName() && firstName == null)
+			validationException.add(new FieldError("firstName", getStrings().get("First name is required.")));
+
+		if (request.isShouldUpdateLastName() && lastName == null)
+			validationException.add(new FieldError("lastName", getStrings().get("Last name is required.")));
+
+		if (request.isShouldUpdateDisplayName() && displayName == null)
+			validationException.add(new FieldError("displayName", getStrings().get("Name is required.")));
+
+		if (request.isShouldUpdateEmailAddress()) {
+			if (emailAddress == null)
+				validationException.add(new FieldError("emailAddress", getStrings().get("Email address is required.")));
+			else if (!isValidEmailAddress(emailAddress))
+				validationException.add(new FieldError("emailAddress", getStrings().get("Email address is invalid.")));
+		}
+
+		if (request.isShouldUpdatePhoneNumber()) {
+			if (phoneNumber == null) {
+				validationException.add(new FieldError("phoneNumber", getStrings().get("Email address is required.")));
+			} else {
+				// TODO: revisit when we support non-US institutions
+				phoneNumber = getNormalizer().normalizePhoneNumberToE164(request.getPhoneNumber(), Locale.US).orElse(null);
+
+				if (phoneNumber == null)
+					validationException.add(new FieldError("phoneNumber", getStrings().get("Phone number is invalid.")));
+			}
+		}
+
+		if (request.isShouldUpdateGenderIdentityId() && genderIdentityId == null)
+			validationException.add(new FieldError("genderIdentityId", getStrings().get("Gender identity is required.")));
+
+		if (request.isShouldUpdateEthnicityId() && ethnicityId == null)
+			validationException.add(new FieldError("ethnicityId", getStrings().get("Ethnicity is required.")));
+
+		if (request.isShouldUpdateBirthSexId() && birthSexId == null)
+			validationException.add(new FieldError("birthSexId", getStrings().get("Birth sex is required.")));
+
+		if (request.isShouldUpdateRaceId() && raceId == null)
+			validationException.add(new FieldError("raceId", getStrings().get("Race is required.")));
+
+		if (request.isShouldUpdateBirthdate()) {
+			if (birthdate == null)
+				validationException.add(new FieldError("birthdate", getStrings().get("Birthdate is required.")));
+			else if (birthdate.isAfter(LocalDate.now(validationTimeZone)))
+				validationException.add(new FieldError("birthdate", getStrings().get("Birthdate cannot be in the future.")));
+		}
+
+		if (request.isShouldUpdateInsuranceId() && insuranceId == null)
+			validationException.add(new FieldError("insuranceId", getStrings().get("Insurance is required.")));
+
+		// TODO: verify valid country code
+		if (request.isShouldUpdateCountryCode() && countryCode == null)
+			validationException.add(new FieldError("countryCode", getStrings().get("Country is required.")));
+
+		// TODO: verify valid language code
+		if (request.isShouldUpdateLanguageCode() && languageCode == null)
+			validationException.add(new FieldError("languageCode", getStrings().get("Language is required.")));
+
+		if (request.isShouldUpdateTimeZone() && timeZone == null)
+			validationException.add(new FieldError("timeZone", getStrings().get("Time zone is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
 
-		throw new UnsupportedOperationException("TODO: implement PATCH");
+		if (request.isShouldUpdateAddress()) {
+			UUID addressId = getAddressService().createAddress(address);
+
+			getDatabase().execute("""
+					UPDATE account_address
+					SET active=FALSE
+					WHERE account_id=?
+					""", accountId);
+
+			getDatabase().execute("""
+					INSERT INTO account_address (account_id, address_id, active)
+					VALUES (?,?,?)
+					""", accountId, addressId, true);
+		}
+
+		throw new UnsupportedOperationException();
 	}
 
 	@Nonnull
-	public String obtainAccessToken(@Nonnull AccessTokenRequest request) {
+	public String obtainEmailPasswordAccessToken(@Nonnull EmailPasswordAccessTokenRequest request) {
 		ValidationException validationException = new ValidationException();
 
 		String emailAddress = getNormalizer().normalizeEmailAddress(request.getEmailAddress()).orElse(null);
 		String password = trimToNull(request.getPassword());
+		InstitutionId institutionId = request.getInstitutionId();
+		Institution institution = null;
 
 		if (emailAddress == null)
 			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is required")));
@@ -677,7 +708,47 @@ public class AccountService {
 		if (password == null)
 			validationException.add(new FieldError("password", getStrings().get("Password is required")));
 
+		if (institutionId == null) {
+			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required")));
+		} else {
+			institution = getInstitutionService().findInstitutionById(institutionId).get();
+		}
+
 		Account account = findAccountByEmailAddressAndAccountSourceId(emailAddress, AccountSourceId.EMAIL_PASSWORD).orElse(null);
+
+		// Special behavior: if this is an IC institution and debugging is enabled and this looks like a test patient account email
+		// but no account exists for it yet, create the test patient account.
+		if (account == null
+				&& institution.getIntegratedCareEnabled()
+				&& getConfiguration().getShouldEnableIcDebugging()
+				&& IcTestPatientEmailAddress.isTestEmailAddress(emailAddress)) {
+			IcTestPatientEmailAddress icTestPatientEmailAddress = IcTestPatientEmailAddress.fromEmailAddress(emailAddress).get();
+			List<PatientOrder> patientOrders = getPatientOrderService().findPatientOrdersByTestPatientEmailAddressAndInstitutionId(icTestPatientEmailAddress, institutionId);
+
+			if (patientOrders.size() > 0) {
+				getLogger().info("Creating test IC patient account for email address '{}'...", emailAddress);
+
+				String testPassword = patientOrders.get(0).getTestPatientPassword();
+
+				UUID accountId = createAccount(new CreateAccountRequest() {{
+					setEpicPatientId(icTestPatientEmailAddress.getUid());
+					setEpicPatientIdType("UID");
+					setEpicPatientMrn(icTestPatientEmailAddress.getMrn());
+					setAccountSourceId(AccountSourceId.EMAIL_PASSWORD);
+					setRoleId(RoleId.PATIENT);
+					setInstitutionId(institutionId);
+					setEmailAddress(icTestPatientEmailAddress.getEmailAddress());
+					setPassword(testPassword);
+				}});
+
+				account = findAccountById(accountId).get();
+
+				// Associate our new account with any orders we might have in the system that match
+				getPatientOrderService().associatePatientAccountWithPatientOrders(accountId);
+			} else {
+				getLogger().warn("No test patient order records were found for email address '{}'", emailAddress);
+			}
+		}
 
 		if (account == null) {
 			validationException.add(new FieldError("emailAddress", getStrings().get("You have entered an invalid email address or password")));
@@ -1433,6 +1504,16 @@ public class AccountService {
 	@Nonnull
 	protected InteractionService getInteractionService() {
 		return interactionServiceProvider.get();
+	}
+
+	@Nonnull
+	protected AddressService getAddressService() {
+		return this.addressServiceProvider.get();
+	}
+
+	@Nonnull
+	protected PatientOrderService getPatientOrderService() {
+		return this.patientOrderServiceProvider.get();
 	}
 
 	@Nonnull
