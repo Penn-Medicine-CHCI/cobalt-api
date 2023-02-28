@@ -49,6 +49,7 @@ import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.IcTestPatientEmailAddress;
+import com.cobaltplatform.api.model.service.PatientOrderImportResult;
 import com.cobaltplatform.api.model.service.PatientOrderPanelTypeId;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.Normalizer;
@@ -227,6 +228,24 @@ public class PatientOrderService {
 				AND patient_order_status_id != ?
 				ORDER BY order_date DESC, order_age_in_minutes    
 				""", PatientOrder.class, patientMrn, institutionId, PatientOrderStatusId.DELETED);
+	}
+
+	@Nonnull
+	public Optional<PatientOrder> findOpenPatientOrderByMrnAndInstitutionId(@Nullable String patientMrn,
+																																					@Nullable InstitutionId institutionId) {
+		patientMrn = trimToNull(patientMrn);
+
+		if (patientMrn == null || institutionId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT * 
+				FROM patient_order
+				WHERE UPPER(?)=UPPER(patient_mrn) 
+				AND institution_id=?
+				AND patient_order_status_id=?
+				ORDER BY order_date DESC, order_age_in_minutes    
+				""", PatientOrder.class, patientMrn, institutionId, PatientOrderStatusId.OPEN);
 	}
 
 	@Nonnull
@@ -916,7 +935,7 @@ public class PatientOrderService {
 	}
 
 	@Nonnull
-	public UUID createPatientOrderImport(@Nonnull CreatePatientOrderImportRequest request) {
+	public PatientOrderImportResult createPatientOrderImport(@Nonnull CreatePatientOrderImportRequest request) {
 		requireNonNull(request);
 
 		InstitutionId institutionId = request.getInstitutionId();
@@ -1212,7 +1231,7 @@ public class PatientOrderService {
 			}
 		}
 
-		return patientOrderImportId;
+		return new PatientOrderImportResult(patientOrderImportId, patientOrderIds);
 	}
 
 	@Nonnull
@@ -1430,6 +1449,15 @@ public class PatientOrderService {
 			if (testPatientEmailAddress == null)
 				validationException.add(new FieldError("testPatientEmailAddress", getStrings().get("Test patient email address is invalid.")));
 		}
+
+		PatientOrder openPatientOrder = findOpenPatientOrderByMrnAndInstitutionId(patientMrn, institutionId).orElse(null);
+
+		if (openPatientOrder != null)
+			validationException.add(getStrings().get("Patient {{firstName}} {{lastName}} with MRN {{mrn}} already has an open order.", Map.of(
+					"firstName", openPatientOrder.getPatientFirstName(),
+					"lastName", openPatientOrder.getPatientLastName(),
+					"mrn", openPatientOrder.getPatientMrn()
+			)));
 
 		if (validationException.hasErrors())
 			throw validationException;

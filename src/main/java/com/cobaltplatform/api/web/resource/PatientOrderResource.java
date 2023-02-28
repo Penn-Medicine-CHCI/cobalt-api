@@ -50,6 +50,7 @@ import com.cobaltplatform.api.model.db.PatientOrderOutreach;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.model.service.PatientOrderImportResult;
 import com.cobaltplatform.api.model.service.PatientOrderPanelTypeId;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AuthorizationService;
@@ -330,9 +331,9 @@ public class PatientOrderResource {
 		request.setPatientOrderImportTypeId(PatientOrderImportTypeId.CSV);
 		request.setAutomaticallyAssignToPanelAccounts(true);
 
-		getPatientOrderService().createPatientOrderImport(request);
+		PatientOrderImportResult patientOrderImportResult = getPatientOrderService().createPatientOrderImport(request);
 
-		return new ApiResponse();
+		return new ApiResponse(patientOrderImportResult);
 	}
 
 	@Nonnull
