@@ -984,7 +984,15 @@ public class PatientOrderService {
 						columnOffset = 2;
 					}
 
-					patientOrderRequest.setEncounterDepartmentName(trimToNull(record.get("Encounter Dept Name")));
+					String encounterDepartmentName = null;
+
+					// Support alternate names for this field
+					if (record.isMapped("Encounter Dept"))
+						encounterDepartmentName = trimToNull(record.get("Encounter Dept"));
+					else if (record.isMapped("Encounter Dept Name"))
+						encounterDepartmentName = trimToNull(record.get("Encounter Dept Name"));
+
+					patientOrderRequest.setEncounterDepartmentName(encounterDepartmentName);
 					patientOrderRequest.setEncounterDepartmentId(trimToNull(record.get("Encounter Dept ID")));
 
 					// Referring Practice has 2 fields with the same name (currently...)
