@@ -166,7 +166,7 @@ public class PatientOrderService {
 			return Optional.empty();
 
 		return getDatabase().queryForObject("""
-				SELECT * 
+				SELECT *
 				FROM patient_order 
 				WHERE patient_order_id=?
 				""", PatientOrder.class, patientOrderId);
@@ -178,7 +178,7 @@ public class PatientOrderService {
 			return Optional.empty();
 
 		return getDatabase().queryForObject("""
-				SELECT * 
+				SELECT *
 				FROM patient_order_import
 				WHERE patient_order_import_id=?
 				""", PatientOrderImport.class, patientOrderImportId);
@@ -190,7 +190,7 @@ public class PatientOrderService {
 			return List.of();
 
 		return getDatabase().queryForList("""
-				SELECT * 
+				SELECT *
 				FROM patient_order
 				WHERE patient_account_id=?
 				AND patient_order_status_id != ?
@@ -204,7 +204,7 @@ public class PatientOrderService {
 			return List.of();
 
 		return getDatabase().queryForList("""
-				SELECT * 
+				SELECT *
 				FROM patient_order
 				WHERE patient_order_import_id=?
 				AND patient_order_status_id != ?
@@ -221,7 +221,7 @@ public class PatientOrderService {
 			return List.of();
 
 		return getDatabase().queryForList("""
-				SELECT * 
+				SELECT *
 				FROM patient_order
 				WHERE UPPER(?)=UPPER(patient_mrn) 
 				AND institution_id=?
@@ -239,12 +239,11 @@ public class PatientOrderService {
 			return Optional.empty();
 
 		return getDatabase().queryForObject("""
-				SELECT * 
+				SELECT *
 				FROM patient_order
-				WHERE UPPER(?)=UPPER(patient_mrn) 
+				WHERE UPPER(?)=UPPER(patient_mrn)
 				AND institution_id=?
 				AND patient_order_status_id=?
-				ORDER BY order_date DESC, order_age_in_minutes    
 				""", PatientOrder.class, patientMrn, institutionId, PatientOrderStatusId.OPEN);
 	}
 
@@ -257,7 +256,7 @@ public class PatientOrderService {
 		return getDatabase().queryForList("""
 				SELECT *
 				FROM patient_order
-				WHERE UPPER(?)=UPPER(test_patient_email_address) 
+				WHERE UPPER(?)=UPPER(test_patient_email_address)
 				AND institution_id=?
 				AND patient_order_status_id != ?
 				ORDER BY order_date DESC, order_age_in_minutes    
@@ -308,7 +307,7 @@ public class PatientOrderService {
 			return List.of();
 
 		return getDatabase().queryForList("""
-				SELECT * 
+				SELECT *
 				FROM patient_order_note
 				WHERE patient_order_id=?
 				AND deleted=FALSE
@@ -322,7 +321,7 @@ public class PatientOrderService {
 			return Optional.empty();
 
 		return getDatabase().queryForObject("""
-				SELECT * 
+				SELECT *
 				FROM patient_order_outreach
 				WHERE patient_order_outreach_id=?
 				""", PatientOrderOutreach.class, patientOrderOutreachId);
@@ -334,7 +333,7 @@ public class PatientOrderService {
 			return List.of();
 
 		return getDatabase().queryForList("""
-				SELECT * 
+				SELECT *
 				FROM patient_order_outreach
 				WHERE patient_order_id=?
 				AND deleted=FALSE
@@ -398,7 +397,7 @@ public class PatientOrderService {
 				SELECT a.account_id, COUNT(po.*)
 				FROM account a, patient_order po
 				WHERE a.account_id=po.panel_account_id
-				AND po.institution_id=?		
+				AND po.institution_id=?
 				AND po.patient_order_status_id NOT IN (?,?)
 				GROUP BY a.account_id
 				""", AccountIdWithCount.class, institutionId, PatientOrderStatusId.ARCHIVED, PatientOrderStatusId.DELETED);
@@ -427,7 +426,7 @@ public class PatientOrderService {
 					FROM patient_order
 					WHERE institution_id=?
 					AND patient_order_status_id NOT IN (?,?)
-					GROUP BY patient_order_status_id        
+					GROUP BY patient_order_status_id
 					""", PatientOrderWithTotalCount.class, institutionId, PatientOrderStatusId.ARCHIVED, PatientOrderStatusId.DELETED);
 		} else {
 			patientOrders = getDatabase().queryForList("""
