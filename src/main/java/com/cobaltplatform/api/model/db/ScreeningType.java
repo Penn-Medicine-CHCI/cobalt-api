@@ -52,7 +52,10 @@ public class ScreeningType {
 		DAST_10,
 		BPI,
 		AUDIT_C,
-		MBI_9
+		MBI_9,
+		IC_INTRO,
+		BPI_1,
+		PRIME_5
 	}
 
 	@Override

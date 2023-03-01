@@ -30,6 +30,8 @@ import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
 import com.cobaltplatform.api.model.db.Screening;
 import com.cobaltplatform.api.model.db.ScreeningAnswer;
 import com.cobaltplatform.api.model.db.ScreeningAnswerFormat.ScreeningAnswerFormatId;
@@ -52,6 +54,7 @@ import com.cobaltplatform.api.model.service.ScreeningQuestionWithAnswerOptions;
 import com.cobaltplatform.api.model.service.ScreeningScore;
 import com.cobaltplatform.api.model.service.ScreeningSessionDestination;
 import com.cobaltplatform.api.model.service.ScreeningSessionDestination.ScreeningSessionDestinationId;
+import com.cobaltplatform.api.service.ScreeningService.ResultsFunctionOutput.IntegratedCareTriage;
 import com.cobaltplatform.api.service.ScreeningService.ResultsFunctionOutput.SupportRoleRecommendation;
 import com.cobaltplatform.api.util.JavascriptExecutionException;
 import com.cobaltplatform.api.util.JavascriptExecutor;
@@ -986,8 +989,15 @@ public class ScreeningService {
 				findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreeningId);
 		List<ScreeningAnswer> screeningAnswers = findScreeningAnswersAcrossAllQuestionsByScreeningSessionScreeningId(screeningSessionScreeningId);
 
+		Integer answeredScreeningQuestionCount = getDatabase().queryForObject("""
+				SELECT COUNT(*)
+				FROM screening_session_answered_screening_question
+				WHERE screening_session_screening_id=?
+				AND valid=TRUE
+				""", Integer.class, screeningSessionScreeningId).get();
+
 		ScreeningScoringFunctionOutput screeningScoringFunctionOutput = executeScreeningScoringFunction(
-				screeningVersion.getScoringFunction(), screeningQuestionsWithAnswerOptions, screeningAnswers);
+				screeningVersion.getScoringFunction(), screeningQuestionsWithAnswerOptions, screeningAnswers, answeredScreeningQuestionCount);
 
 		getLogger().info("Screening session screening ID {} ({}) was scored {} with completed flag={}.", screeningSessionScreeningId,
 				screeningVersion.getScreeningTypeId().name(), screeningScoringFunctionOutput.getScore(), screeningScoringFunctionOutput.getCompleted());
@@ -1036,8 +1046,6 @@ public class ScreeningService {
 				getInteractionService().createCrisisInteraction(screeningSession.getScreeningSessionId());
 			}
 		}
-
-		// TODO: should we handle un-marking as crisis (? - need futher clinical input)
 
 		if (orchestrationFunctionOutput.getCompleted()) {
 			getLogger().info("Orchestration function for screening session screening ID {} ({}) indicated that screening session ID {} is now complete.", screeningSessionScreeningId,
@@ -1117,6 +1125,26 @@ public class ScreeningService {
 				getDatabase().execute("INSERT INTO tag_screening_session (tag_id, screening_session_id) VALUES (?,?)",
 						tagId, screeningSession.getScreeningSessionId());
 			}
+
+			// TODO: load corresponding patient order, if available
+			// TODO: store off triages
+			// UPDATE patient_order_triage SET active=FALSE WHERE patient_order_id=?
+			//
+			// CREATE TABLE patient_order_triage (
+			//  patient_order_triage_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+			//  patient_order_id UUID NOT NULL REFERENCES patient_order,
+			//  patient_order_triage_source_id TEXT NOT NULL REFERENCES patient_order_triage_source,
+			//  patient_order_care_type_id TEXT NOT NULL REFERENCES patient_order_care_type,
+			//  patient_order_focus_type_id TEXT NOT NULL REFERENCES patient_order_focus_type,
+			//  reason TEXT,
+			//  active BOOLEAN NOT NULL DEFAULT TRUE,
+			//  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			//  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			//);
+
+			for (IntegratedCareTriage integratedCareTriage : resultsFunctionOutput.getIntegratedCareTriages()) {
+				// TODO: store off triages
+			}
 		}
 
 		return screeningAnswerIds;
@@ -1148,10 +1176,12 @@ public class ScreeningService {
 	@Nonnull
 	protected ScreeningScoringFunctionOutput executeScreeningScoringFunction(@Nonnull String screeningScoringFunctionJavascript,
 																																					 @Nonnull List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions,
-																																					 @Nonnull List<ScreeningAnswer> screeningAnswers) {
+																																					 @Nonnull List<ScreeningAnswer> screeningAnswers,
+																																					 @Nonnull Integer answeredScreeningQuestionCount) {
 		requireNonNull(screeningScoringFunctionJavascript);
 		requireNonNull(screeningQuestionsWithAnswerOptions);
 		requireNonNull(screeningAnswers);
+		requireNonNull(answeredScreeningQuestionCount);
 
 		ScreeningScoringFunctionOutput screeningScoringFunctionOutput;
 
@@ -1171,6 +1201,7 @@ public class ScreeningService {
 		context.put("screeningQuestionsWithAnswerOptions", screeningQuestionsWithAnswerOptions);
 		context.put("screeningAnswers", screeningAnswers);
 		context.put("screeningAnswerOptionsByScreeningAnswerId", screeningAnswerOptionsByScreeningAnswerId);
+		context.put("answeredScreeningQuestionCount", answeredScreeningQuestionCount);
 
 		try {
 			screeningScoringFunctionOutput = getJavascriptExecutor().execute(screeningScoringFunctionJavascript, context, ScreeningScoringFunctionOutput.class);
@@ -1242,6 +1273,9 @@ public class ScreeningService {
 
 		if (resultsFunctionOutput.getRecommendedTagIds() == null)
 			resultsFunctionOutput.setRecommendedTagIds(Set.of());
+
+		if (resultsFunctionOutput.getIntegratedCareTriages() == null)
+			resultsFunctionOutput.setIntegratedCareTriages(List.of());
 
 		return Optional.of(resultsFunctionOutput);
 	}
@@ -1503,6 +1537,8 @@ public class ScreeningService {
 		@Nullable
 		private Set<SupportRoleRecommendation> supportRoleRecommendations;
 		@Nullable
+		private List<IntegratedCareTriage> integratedCareTriages;
+		@Nullable
 		@Deprecated
 		private Set<UUID> legacyContentAnswerIds;
 		@Nullable
@@ -1548,6 +1584,15 @@ public class ScreeningService {
 			this.supportRoleRecommendations = supportRoleRecommendations;
 		}
 
+		@Nullable
+		public List<IntegratedCareTriage> getIntegratedCareTriages() {
+			return this.integratedCareTriages;
+		}
+
+		public void setIntegratedCareTriages(@Nullable List<IntegratedCareTriage> integratedCareTriages) {
+			this.integratedCareTriages = integratedCareTriages;
+		}
+
 		@NotThreadSafe
 		public static class SupportRoleRecommendation {
 			@Nullable
@@ -1571,6 +1616,43 @@ public class ScreeningService {
 
 			public void setWeight(@Nullable Double weight) {
 				this.weight = weight;
+			}
+		}
+
+		@NotThreadSafe
+		public static class IntegratedCareTriage {
+			@Nullable
+			private PatientOrderFocusTypeId patientOrderFocusTypeId;
+			@Nullable
+			private PatientOrderCareTypeId patientOrderCareTypeId;
+			@Nullable
+			private String reason;
+
+			@Nullable
+			public PatientOrderFocusTypeId getPatientOrderFocusTypeId() {
+				return this.patientOrderFocusTypeId;
+			}
+
+			public void setPatientOrderFocusTypeId(@Nullable PatientOrderFocusTypeId patientOrderFocusTypeId) {
+				this.patientOrderFocusTypeId = patientOrderFocusTypeId;
+			}
+
+			@Nullable
+			public PatientOrderCareTypeId getPatientOrderCareTypeId() {
+				return this.patientOrderCareTypeId;
+			}
+
+			public void setPatientOrderCareTypeId(@Nullable PatientOrderCareTypeId patientOrderCareTypeId) {
+				this.patientOrderCareTypeId = patientOrderCareTypeId;
+			}
+
+			@Nullable
+			public String getReason() {
+				return this.reason;
+			}
+
+			public void setReason(@Nullable String reason) {
+				this.reason = reason;
 			}
 		}
 	}
