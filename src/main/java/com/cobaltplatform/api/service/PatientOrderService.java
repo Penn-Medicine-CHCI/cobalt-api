@@ -512,10 +512,16 @@ public class PatientOrderService {
 
 		Integer offset = pageNumber * pageSize;
 		Integer limit = pageSize;
+		List<String> whereClauseLines = new ArrayList<>();
 		List<Object> parameters = new ArrayList<>();
 
 		parameters.add(institutionId);
 		parameters.add(PatientOrderStatusId.DELETED);
+
+		if (panelAccountId != null) {
+			whereClauseLines.add("AND po.panel_account_id=?");
+			parameters.add(panelAccountId);
+		}
 
 		// TODO: finish adding other parameters/filters
 
@@ -530,6 +536,7 @@ public class PatientOrderService {
 				  FROM patient_order po
 				  WHERE po.institution_id=?
 				  AND po.patient_order_status_id != ?
+				  {{whereClauseLines}}
 				  ),
 				  total_count_query AS (
 				  SELECT COUNT(bq.*) AS total_count
@@ -543,7 +550,8 @@ public class PatientOrderService {
 				  base_query bq
 				  LIMIT ?
 				  OFFSET ?
-				""";
+				""".trim()
+				.replace("{{whereClauseLines}}", whereClauseLines.stream().collect(Collectors.joining("\n")));
 
 		List<PatientOrderWithTotalCount> patientOrders = getDatabase().queryForList(sql, PatientOrderWithTotalCount.class, sqlVaragsParameters(parameters));
 

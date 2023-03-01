@@ -23,9 +23,11 @@ package com.cobaltplatform.api.model.service;
  * @author Transmogrify, LLC.
  */
 public enum PatientOrderPanelTypeId {
+	ALL,
+	NEW,
 	NEED_ASSESSMENT,
+	SCHEDULED,
 	SAFETY_PLANNING,
 	SPECIALTY_CARE,
-	BHP,
 	CLOSED
 }
