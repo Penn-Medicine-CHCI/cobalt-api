@@ -33,6 +33,8 @@ import com.cobaltplatform.api.model.api.request.DeletePatientOrderOutreachReques
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest.CreatePatientOrderTriageRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -46,6 +48,7 @@ import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderOutreach;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.IcTestPatientEmailAddress;
@@ -96,6 +99,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -245,6 +249,32 @@ public class PatientOrderService {
 				AND institution_id=?
 				AND patient_order_status_id=?
 				""", PatientOrder.class, patientMrn, institutionId, PatientOrderStatusId.OPEN);
+	}
+
+	@Nonnull
+	public Optional<PatientOrder> findOpenPatientOrderByPatientAccountId(@Nullable UUID patientAccountId) {
+		if (patientAccountId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM patient_order
+				WHERE patient_account_id=?
+				AND patient_order_status_id=?
+				""", PatientOrder.class, patientAccountId, PatientOrderStatusId.OPEN);
+	}
+
+	@Nonnull
+	public Optional<PatientOrder> findPatientOrderByScreeningSessionId(@Nullable UUID screeningSessionId) {
+		if (screeningSessionId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT po.*
+				FROM patient_order po, patient_order_screening_session poss
+				WHERE po.patient_order_id=poss.patient_order_id
+				AND poss.screening_session_id=?
+				""", PatientOrder.class, screeningSessionId);
 	}
 
 	@Nonnull
@@ -563,6 +593,100 @@ public class PatientOrderService {
 
 		FindResult<? extends PatientOrder> findResult = new FindResult<>(patientOrders, totalCount);
 		return (FindResult<PatientOrder>) findResult;
+	}
+
+	@Nonnull
+	public List<UUID> updatePatientOrderTriages(@Nonnull UpdatePatientOrderTriagesRequest request) {
+		requireNonNull(request);
+
+		UUID accountId = request.getAccountId();
+		UUID patientOrderId = request.getPatientOrderId();
+		PatientOrderTriageSourceId patientOrderTriageSourceId = request.getPatientOrderTriageSourceId();
+		UUID screeningSessionId = request.getScreeningSessionId();
+		List<CreatePatientOrderTriageRequest> patientOrderTriages = request.getPatientOrderTriages() == null
+				? List.of() : request.getPatientOrderTriages();
+		Account account = null;
+		PatientOrder patientOrder = null;
+		List<UUID> patientOrderTriageIds = new ArrayList<>();
+		ValidationException validationException = new ValidationException();
+
+		if (accountId == null) {
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+		} else {
+			account = getAccountService().findAccountById(accountId).orElse(null);
+
+			if (account == null)
+				validationException.add(new FieldError("accountId", getStrings().get("Account ID is invalid.")));
+		}
+
+		if (patientOrderId == null) {
+			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+		} else {
+			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+
+			if (account == null)
+				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+		}
+
+		if (patientOrderTriageSourceId == null) {
+			validationException.add(new FieldError("patientOrderTriageSourceId", getStrings().get("Patient Order Triage Source ID is required.")));
+		} else {
+			if (patientOrderTriageSourceId == PatientOrderTriageSourceId.COBALT && screeningSessionId == null)
+				validationException.add(new FieldError("screeningSessionId", getStrings().get("Screening session ID is required.")));
+		}
+
+		for (int i = 0; i < patientOrderTriages.size(); ++i) {
+			CreatePatientOrderTriageRequest patientOrderTriage = patientOrderTriages.get(i);
+
+			if (patientOrderTriage == null) {
+				validationException.add(new FieldError(format("patientOrderTriage[%d]", i), getStrings().get("Patient Order Triage is required.")));
+			} else {
+				if (patientOrderTriage.getPatientOrderCareTypeId() == null)
+					validationException.add(new FieldError(format("patientOrderTriage[%d].patientOrderCareTypeId", i),
+							getStrings().get("Patient Order Care Type ID is required.")));
+
+				if (patientOrderTriage.getPatientOrderFocusTypeId() == null)
+					validationException.add(new FieldError(format("patientOrderTriage[%d].patientOrderFocusTypeId", i),
+							getStrings().get("Patient Order Focus Type ID is required.")));
+			}
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		if (!Objects.equals(patientOrder.getInstitutionId(), account.getInstitutionId()))
+			throw new IllegalStateException(format("Unexpected institution mismatch between patient order ID %s and account ID %s",
+					patientOrder.getPatientOrderId(), account.getAccountId()));
+
+		getDatabase().execute("""
+				UPDATE patient_order_triage
+				SET active=FALSE
+				WHERE patient_order_id=?
+				""", patientOrder.getPatientOrderId());
+
+		for (CreatePatientOrderTriageRequest patientOrderTriage : patientOrderTriages) {
+			UUID patientOrderTriageId = UUID.randomUUID();
+			String reason = trimToNull(patientOrderTriage.getReason());
+
+			getDatabase().execute("""
+							INSERT INTO patient_order_triage (
+							     patient_order_triage_id,
+							     patient_order_id,
+							     patient_order_triage_source_id,
+							     patient_order_care_type_id,
+							     patient_order_focus_type_id,
+							     screening_session_id,
+							     reason,
+							     active
+							) VALUES (?,?,?,?,?,?,?,?)
+							""", patientOrderTriageId, patientOrderId, patientOrderTriageSourceId,
+					patientOrderTriage.getPatientOrderCareTypeId(), patientOrderTriage.getPatientOrderFocusTypeId(),
+					screeningSessionId, reason, true);
+
+			patientOrderTriageIds.add(patientOrderTriageId);
+		}
+
+		return patientOrderTriageIds;
 	}
 
 	@Nonnull

@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db;
+package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
@@ -25,32 +25,70 @@ import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTria
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class PatientOrderTriage {
+public class UpdatePatientOrderTriagesRequest {
+	@Nullable
+	private UUID accountId;
 	@Nullable
 	private UUID patientOrderId;
-	@Nullable
-	private PatientOrderFocusTypeId patientOrderFocusTypeId;
-	@Nullable
-	private PatientOrderCareTypeId patientOrderCareTypeId;
 	@Nullable
 	private PatientOrderTriageSourceId patientOrderTriageSourceId;
 	@Nullable
 	private UUID screeningSessionId;
 	@Nullable
-	private String reason;
+	private List<CreatePatientOrderTriageRequest> patientOrderTriages;
+
+	@NotThreadSafe
+	public static class CreatePatientOrderTriageRequest {
+		@Nullable
+		private PatientOrderFocusTypeId patientOrderFocusTypeId;
+		@Nullable
+		private PatientOrderCareTypeId patientOrderCareTypeId;
+		@Nullable
+		private String reason;
+
+		@Nullable
+		public PatientOrderFocusTypeId getPatientOrderFocusTypeId() {
+			return this.patientOrderFocusTypeId;
+		}
+
+		public void setPatientOrderFocusTypeId(@Nullable PatientOrderFocusTypeId patientOrderFocusTypeId) {
+			this.patientOrderFocusTypeId = patientOrderFocusTypeId;
+		}
+
+		@Nullable
+		public PatientOrderCareTypeId getPatientOrderCareTypeId() {
+			return this.patientOrderCareTypeId;
+		}
+
+		public void setPatientOrderCareTypeId(@Nullable PatientOrderCareTypeId patientOrderCareTypeId) {
+			this.patientOrderCareTypeId = patientOrderCareTypeId;
+		}
+
+		@Nullable
+		public String getReason() {
+			return this.reason;
+		}
+
+		public void setReason(@Nullable String reason) {
+			this.reason = reason;
+		}
+	}
+
 	@Nullable
-	private Boolean active;
-	@Nullable
-	private Instant created;
-	@Nullable
-	private Instant lastUpdated;
+	public UUID getAccountId() {
+		return this.accountId;
+	}
+
+	public void setAccountId(@Nullable UUID accountId) {
+		this.accountId = accountId;
+	}
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -59,24 +97,6 @@ public class PatientOrderTriage {
 
 	public void setPatientOrderId(@Nullable UUID patientOrderId) {
 		this.patientOrderId = patientOrderId;
-	}
-
-	@Nullable
-	public PatientOrderFocusTypeId getPatientOrderFocusTypeId() {
-		return this.patientOrderFocusTypeId;
-	}
-
-	public void setPatientOrderFocusTypeId(@Nullable PatientOrderFocusTypeId patientOrderFocusTypeId) {
-		this.patientOrderFocusTypeId = patientOrderFocusTypeId;
-	}
-
-	@Nullable
-	public PatientOrderCareTypeId getPatientOrderCareTypeId() {
-		return this.patientOrderCareTypeId;
-	}
-
-	public void setPatientOrderCareTypeId(@Nullable PatientOrderCareTypeId patientOrderCareTypeId) {
-		this.patientOrderCareTypeId = patientOrderCareTypeId;
 	}
 
 	@Nullable
@@ -98,38 +118,11 @@ public class PatientOrderTriage {
 	}
 
 	@Nullable
-	public String getReason() {
-		return this.reason;
+	public List<CreatePatientOrderTriageRequest> getPatientOrderTriages() {
+		return this.patientOrderTriages;
 	}
 
-	public void setReason(@Nullable String reason) {
-		this.reason = reason;
-	}
-
-	@Nullable
-	public Boolean getActive() {
-		return this.active;
-	}
-
-	public void setActive(@Nullable Boolean active) {
-		this.active = active;
-	}
-
-	@Nullable
-	public Instant getCreated() {
-		return this.created;
-	}
-
-	public void setCreated(@Nullable Instant created) {
-		this.created = created;
-	}
-
-	@Nullable
-	public Instant getLastUpdated() {
-		return this.lastUpdated;
-	}
-
-	public void setLastUpdated(@Nullable Instant lastUpdated) {
-		this.lastUpdated = lastUpdated;
+	public void setPatientOrderTriages(@Nullable List<CreatePatientOrderTriageRequest> patientOrderTriages) {
+		this.patientOrderTriages = patientOrderTriages;
 	}
 }

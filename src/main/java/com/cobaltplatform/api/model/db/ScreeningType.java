@@ -54,6 +54,8 @@ public class ScreeningType {
 		AUDIT_C,
 		MBI_9,
 		IC_INTRO,
+		IC_INTRO_CONDITIONS,
+		IC_INTRO_SYMPTOMS,
 		BPI_1,
 		PRIME_5
 	}
