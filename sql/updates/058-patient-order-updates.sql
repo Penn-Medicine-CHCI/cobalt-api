@@ -20,9 +20,11 @@ ALTER TABLE patient_order ADD COLUMN resources_sent BOOLEAN NOT NULL DEFAULT FAL
 ALTER TABLE patient_order ADD COLUMN resources_sent_at TIMESTAMPTZ;
 
 -- To support IC
-INSERT INTO screening_type (screening_type_id, description) VALUES ('IC_INTRO', 'IC Intro');
-INSERT INTO screening_type (screening_type_id, description) VALUES ('IC_INTRO_CONDITIONS', 'IC Intro Conditions');
-INSERT INTO screening_type (screening_type_id, description) VALUES ('IC_INTRO_SYMPTOMS', 'IC Intro Symptoms');
+INSERT INTO screening_type (screening_type_id, description) VALUES ('IC_INTRO', 'Intro');
+INSERT INTO screening_type (screening_type_id, description) VALUES ('IC_INTRO_CONDITIONS', 'Conditions');
+INSERT INTO screening_type (screening_type_id, description) VALUES ('IC_INTRO_SYMPTOMS', 'Symptoms');
+INSERT INTO screening_type (screening_type_id, description) VALUES ('IC_DRUG_USE_FREQUENCY', 'Drug Use - Frequency');
+INSERT INTO screening_type (screening_type_id, description) VALUES ('IC_DRUG_USE_OPIOID', 'Drug Use - Opioid');
 INSERT INTO screening_type (screening_type_id, description) VALUES ('BPI_1', 'BPI-1');
 INSERT INTO screening_type (screening_type_id, description) VALUES ('PRIME_5', 'PRIME-5');
 

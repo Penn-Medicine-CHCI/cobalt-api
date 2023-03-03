@@ -56,6 +56,8 @@ public class ScreeningType {
 		IC_INTRO,
 		IC_INTRO_CONDITIONS,
 		IC_INTRO_SYMPTOMS,
+		IC_DRUG_USE_FREQUENCY,
+		IC_DRUG_USE_OPIOID,
 		BPI_1,
 		PRIME_5
 	}
