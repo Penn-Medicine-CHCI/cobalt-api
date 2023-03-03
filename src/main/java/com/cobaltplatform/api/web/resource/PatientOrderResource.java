@@ -31,16 +31,13 @@ import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.CountryApiResponse.CountryApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.InsuranceApiResponse.InsuranceApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.LanguageApiResponse.LanguageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFormat;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderTriageApiResponse.PatientOrderTriageApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
@@ -48,6 +45,7 @@ import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImport
 import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderOutreach;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.PatientOrderImportResult;
@@ -121,13 +119,7 @@ public class PatientOrderResource {
 	@Nonnull
 	private final AccountApiResponseFactory accountApiResponseFactory;
 	@Nonnull
-	private final TimeZoneApiResponseFactory timeZoneApiResponseFactory;
-	@Nonnull
-	private final LanguageApiResponseFactory languageApiResponseFactory;
-	@Nonnull
-	private final CountryApiResponseFactory countryApiResponseFactory;
-	@Nonnull
-	private final InsuranceApiResponseFactory insuranceApiResponseFactory;
+	private final PatientOrderTriageApiResponseFactory patientOrderTriageApiResponseFactory;
 	@Nonnull
 	private final PatientOrderCsvGenerator patientOrderCsvGenerator;
 	@Nonnull
@@ -150,10 +142,7 @@ public class PatientOrderResource {
 															@Nonnull PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory,
 															@Nonnull PatientOrderOutreachApiResponseFactory patientOrderOutreachApiResponseFactory,
 															@Nonnull AccountApiResponseFactory accountApiResponseFactory,
-															@Nonnull TimeZoneApiResponseFactory timeZoneApiResponseFactory,
-															@Nonnull LanguageApiResponseFactory languageApiResponseFactory,
-															@Nonnull CountryApiResponseFactory countryApiResponseFactory,
-															@Nonnull InsuranceApiResponseFactory insuranceApiResponseFactory,
+															@Nonnull PatientOrderTriageApiResponseFactory patientOrderTriageApiResponseFactory,
 															@Nonnull PatientOrderCsvGenerator patientOrderCsvGenerator,
 															@Nonnull RequestBodyParser requestBodyParser,
 															@Nonnull Formatter formatter,
@@ -167,10 +156,7 @@ public class PatientOrderResource {
 		requireNonNull(patientOrderNoteApiResponseFactory);
 		requireNonNull(patientOrderOutreachApiResponseFactory);
 		requireNonNull(accountApiResponseFactory);
-		requireNonNull(timeZoneApiResponseFactory);
-		requireNonNull(languageApiResponseFactory);
-		requireNonNull(countryApiResponseFactory);
-		requireNonNull(insuranceApiResponseFactory);
+		requireNonNull(patientOrderTriageApiResponseFactory);
 		requireNonNull(patientOrderCsvGenerator);
 		requireNonNull(requestBodyParser);
 		requireNonNull(formatter);
@@ -185,10 +171,7 @@ public class PatientOrderResource {
 		this.patientOrderNoteApiResponseFactory = patientOrderNoteApiResponseFactory;
 		this.patientOrderOutreachApiResponseFactory = patientOrderOutreachApiResponseFactory;
 		this.accountApiResponseFactory = accountApiResponseFactory;
-		this.timeZoneApiResponseFactory = timeZoneApiResponseFactory;
-		this.languageApiResponseFactory = languageApiResponseFactory;
-		this.countryApiResponseFactory = countryApiResponseFactory;
-		this.insuranceApiResponseFactory = insuranceApiResponseFactory;
+		this.patientOrderTriageApiResponseFactory = patientOrderTriageApiResponseFactory;
 		this.patientOrderCsvGenerator = patientOrderCsvGenerator;
 		this.requestBodyParser = requestBodyParser;
 		this.formatter = formatter;
@@ -366,8 +349,13 @@ public class PatientOrderResource {
 		if (!getAuthorizationService().canViewPatientOrderTriages(patientOrder, account))
 			throw new AuthorizationException();
 
-		// TODO: finish
-		throw new UnsupportedOperationException();
+		List<PatientOrderTriage> patientOrderTriages = getPatientOrderService().findPatientOrderTriagesByPatientOrderId(patientOrderId, screeningSessionId.orElse(null));
+
+		return new ApiResponse(new HashMap<>() {{
+			put("patientOrderTriages", patientOrderTriages.stream()
+					.map(patientOrderTriage -> getPatientOrderTriageApiResponseFactory().create(patientOrderTriage))
+					.collect(Collectors.toList()));
+		}});
 	}
 
 	@Nonnull
@@ -499,7 +487,6 @@ public class PatientOrderResource {
 
 		return new ApiResponse(); // 204
 	}
-
 
 	@Nonnull
 	@GET("/patient-order-outreaches")
@@ -730,23 +717,8 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
-	protected TimeZoneApiResponseFactory getTimeZoneApiResponseFactory() {
-		return this.timeZoneApiResponseFactory;
-	}
-
-	@Nonnull
-	protected LanguageApiResponseFactory getLanguageApiResponseFactory() {
-		return this.languageApiResponseFactory;
-	}
-
-	@Nonnull
-	protected CountryApiResponseFactory getCountryApiResponseFactory() {
-		return this.countryApiResponseFactory;
-	}
-
-	@Nonnull
-	protected InsuranceApiResponseFactory getInsuranceApiResponseFactory() {
-		return this.insuranceApiResponseFactory;
+	protected PatientOrderTriageApiResponseFactory getPatientOrderTriageApiResponseFactory() {
+		return this.patientOrderTriageApiResponseFactory;
 	}
 
 	@Nonnull

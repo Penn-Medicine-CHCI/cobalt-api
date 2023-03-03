@@ -99,6 +99,7 @@ import com.cobaltplatform.api.model.api.response.PatientOrderDiagnosisApiRespons
 import com.cobaltplatform.api.model.api.response.PatientOrderMedicationApiResponse.PatientOrderMedicationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderTriageApiResponse.PatientOrderTriageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PinboardNoteApiResponse.PinboardNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseFactory;
@@ -275,6 +276,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(PatientOrderDiagnosisApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PatientOrderMedicationApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PatientOrderOutreachApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PatientOrderTriageApiResponseFactory.class)));
 	}
 
 	@Provides

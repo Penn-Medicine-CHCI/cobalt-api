@@ -29,6 +29,8 @@ INSERT INTO screening_type (screening_type_id, description) VALUES ('PRIME_5', '
 INSERT INTO screening_flow_type (screening_flow_type_id, description) VALUES ('INTEGRATED_CARE', 'Integrated Care');
 
 ALTER TABLE patient_order_triage ADD COLUMN screening_session_id UUID REFERENCES screening_session;
+ALTER TABLE patient_order_triage ADD COLUMN account_id UUID REFERENCES account;
+ALTER TABLE patient_order_triage ADD COLUMN display_order INTEGER NOT NULL;
 
 INSERT INTO patient_order_care_type VALUES ('SAFETY_PLANNING', 'Safety Planning');
 

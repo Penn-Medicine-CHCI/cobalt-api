@@ -48,6 +48,7 @@ import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderOutreach;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.service.FindResult;
@@ -596,6 +597,32 @@ public class PatientOrderService {
 	}
 
 	@Nonnull
+	public List<PatientOrderTriage> findPatientOrderTriagesByPatientOrderId(@Nullable UUID patientOrderId,
+																																					@Nullable UUID screeningSessionId) {
+		if (patientOrderId == null)
+			return List.of();
+
+		List<Object> parameters = new ArrayList<>();
+
+		String sql = """
+				SELECT *
+				FROM patient_order_triage
+				WHERE patient_order_id=?
+				""";
+
+		parameters.add(patientOrderId);
+
+		if (screeningSessionId != null) {
+			sql += " AND screening_session_id=?";
+			parameters.add(screeningSessionId);
+		}
+
+		sql += "ORDER BY display_order";
+
+		return getDatabase().queryForList(sql, PatientOrderTriage.class, parameters.toArray(new Object[]{}));
+	}
+
+	@Nonnull
 	public List<UUID> updatePatientOrderTriages(@Nonnull UpdatePatientOrderTriagesRequest request) {
 		requireNonNull(request);
 
@@ -664,9 +691,12 @@ public class PatientOrderService {
 				WHERE patient_order_id=?
 				""", patientOrder.getPatientOrderId());
 
+		int displayOrder = 0;
+
 		for (CreatePatientOrderTriageRequest patientOrderTriage : patientOrderTriages) {
 			UUID patientOrderTriageId = UUID.randomUUID();
 			String reason = trimToNull(patientOrderTriage.getReason());
+			++displayOrder;
 
 			getDatabase().execute("""
 							INSERT INTO patient_order_triage (
@@ -676,12 +706,14 @@ public class PatientOrderService {
 							     patient_order_care_type_id,
 							     patient_order_focus_type_id,
 							     screening_session_id,
+							     account_id,
 							     reason,
-							     active
-							) VALUES (?,?,?,?,?,?,?,?)
+							     active,
+							     display_order
+							) VALUES (?,?,?,?,?,?,?,?,?,?)
 							""", patientOrderTriageId, patientOrderId, patientOrderTriageSourceId,
 					patientOrderTriage.getPatientOrderCareTypeId(), patientOrderTriage.getPatientOrderFocusTypeId(),
-					screeningSessionId, reason, true);
+					screeningSessionId, accountId, reason, true, displayOrder);
 
 			patientOrderTriageIds.add(patientOrderTriageId);
 		}

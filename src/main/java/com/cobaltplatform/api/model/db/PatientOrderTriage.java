@@ -34,6 +34,8 @@ import java.util.UUID;
 @NotThreadSafe
 public class PatientOrderTriage {
 	@Nullable
+	private UUID patientOrderTriageId;
+	@Nullable
 	private UUID patientOrderId;
 	@Nullable
 	private PatientOrderFocusTypeId patientOrderFocusTypeId;
@@ -44,13 +46,26 @@ public class PatientOrderTriage {
 	@Nullable
 	private UUID screeningSessionId;
 	@Nullable
+	private UUID accountId;
+	@Nullable
 	private String reason;
 	@Nullable
 	private Boolean active;
 	@Nullable
+	private Integer displayOrder;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
+
+	@Nullable
+	public UUID getPatientOrderTriageId() {
+		return this.patientOrderTriageId;
+	}
+
+	public void setPatientOrderTriageId(@Nullable UUID patientOrderTriageId) {
+		this.patientOrderTriageId = patientOrderTriageId;
+	}
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -98,6 +113,15 @@ public class PatientOrderTriage {
 	}
 
 	@Nullable
+	public UUID getAccountId() {
+		return this.accountId;
+	}
+
+	public void setAccountId(@Nullable UUID accountId) {
+		this.accountId = accountId;
+	}
+
+	@Nullable
 	public String getReason() {
 		return this.reason;
 	}
@@ -113,6 +137,15 @@ public class PatientOrderTriage {
 
 	public void setActive(@Nullable Boolean active) {
 		this.active = active;
+	}
+
+	@Nullable
+	public Integer getDisplayOrder() {
+		return this.displayOrder;
+	}
+
+	public void setDisplayOrder(@Nullable Integer displayOrder) {
+		this.displayOrder = displayOrder;
 	}
 
 	@Nullable
