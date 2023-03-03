@@ -38,7 +38,8 @@ public class PatientOrderCareType {
 		UNSPECIFIED,
 		SUBCLINICAL,
 		SPECIALTY,
-		COLLABORATIVE
+		COLLABORATIVE,
+		SAFETY_PLANNING
 	}
 
 	@Override

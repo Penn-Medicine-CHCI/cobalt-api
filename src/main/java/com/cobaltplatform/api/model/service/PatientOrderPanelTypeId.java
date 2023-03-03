@@ -29,5 +29,6 @@ public enum PatientOrderPanelTypeId {
 	SCHEDULED,
 	SAFETY_PLANNING,
 	SPECIALTY_CARE,
+	BHP,
 	CLOSED
 }

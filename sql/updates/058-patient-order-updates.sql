@@ -30,4 +30,6 @@ INSERT INTO screening_flow_type (screening_flow_type_id, description) VALUES ('I
 
 ALTER TABLE patient_order_triage ADD COLUMN screening_session_id UUID REFERENCES screening_session;
 
+INSERT INTO patient_order_care_type VALUES ('SAFETY_PLANNING', 'Safety Planning');
+
 COMMIT;

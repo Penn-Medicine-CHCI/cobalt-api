@@ -350,6 +350,27 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
+	@GET("/patient-order-triages")
+	@AuthenticationRequired
+	public ApiResponse patientOrderTriages(@Nonnull @QueryParameter UUID patientOrderId,
+																				 @Nonnull @QueryParameter Optional<UUID> screeningSessionId) {
+		requireNonNull(patientOrderId);
+		requireNonNull(screeningSessionId);
+
+		Account account = getCurrentContext().getAccount().get();
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+
+		if (patientOrder == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canViewPatientOrderTriages(patientOrder, account))
+			throw new AuthorizationException();
+
+		// TODO: finish
+		throw new UnsupportedOperationException();
+	}
+
+	@Nonnull
 	@POST("/patient-order-imports")
 	@AuthenticationRequired
 	public ApiResponse createPatientOrderImport(@Nonnull @RequestBody String requestBody) {
