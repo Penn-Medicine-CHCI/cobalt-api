@@ -486,7 +486,7 @@ public class InteractionService {
 		UUID defaultCrisisInteractionId = institution.getStandardMetadata().getDefaultCrisisInteractionId();
 
 		if (defaultCrisisInteractionId == null) {
-			getErrorReporter().report(format("No default crisis interaction ID is available for institution %s", institution.getInstitutionId()));
+			getLogger().warn("Not creating crisis interaction because no default crisis interaction ID is available for institution {}", institution.getInstitutionId());
 			return;
 		}
 

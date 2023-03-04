@@ -31,6 +31,7 @@ import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.PatientOrder;
+import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
@@ -82,6 +83,8 @@ public class PatientOrderApiResponse {
 	private UUID patientAddressId;
 	@Nullable
 	private UUID panelAccountId;
+	@Nullable
+	private PatientOrderClosureReasonId patientOrderClosureReasonId;
 	@Nullable
 	private String encounterDepartmentId;
 	@Nullable
@@ -190,6 +193,12 @@ public class PatientOrderApiResponse {
 	private Boolean outreachNeeded;
 	@Nullable
 	private Boolean followupNeeded;
+	@Nullable
+	private Boolean resourcesSent;
+	@Nullable
+	private Instant resourcesSentAt;
+	@Nullable
+	private String resourcesSentAtDescription;
 
 	@Nullable
 	private AddressApiResponse patientAddress;
@@ -359,6 +368,7 @@ public class PatientOrderApiResponse {
 		// MHIC-only view of the data
 		if (format == PatientOrderApiResponseFormat.MHIC) {
 			this.panelAccountId = patientOrder.getPanelAccountId();
+			this.patientOrderClosureReasonId = patientOrder.getPatientOrderClosureReasonId();
 			this.encounterDepartmentId = patientOrder.getEncounterDepartmentId();
 			this.encounterDepartmentIdType = patientOrder.getEncounterDepartmentIdType();
 			this.encounterDepartmentName = patientOrder.getEncounterDepartmentName();
@@ -420,6 +430,12 @@ public class PatientOrderApiResponse {
 			this.safetyPlanningNeeded = patientOrder.getSafetyPlanningNeeded();
 			this.outreachNeeded = patientOrder.getOutreachNeeded();
 			this.followupNeeded = patientOrder.getFollowupNeeded();
+
+			this.resourcesSent = patientOrder.getResourcesSent();
+			this.resourcesSentAt = patientOrder.getResourcesSentAt();
+			this.resourcesSentAtDescription = patientOrder.getResourcesSentAt() == null
+					? null
+					: formatter.formatTimestamp(patientOrder.getResourcesSentAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 
 			this.patientOrderDiagnoses = patientOrderDiagnoses;
 			this.patientOrderMedications = patientOrderMedications;
@@ -723,6 +739,11 @@ public class PatientOrderApiResponse {
 	}
 
 	@Nullable
+	public PatientOrderClosureReasonId getPatientOrderClosureReasonId() {
+		return this.patientOrderClosureReasonId;
+	}
+
+	@Nullable
 	public Instant getEpisodeEndedAt() {
 		return this.episodeEndedAt;
 	}
@@ -755,6 +776,21 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public Boolean getFollowupNeeded() {
 		return this.followupNeeded;
+	}
+
+	@Nullable
+	public Boolean getResourcesSent() {
+		return this.resourcesSent;
+	}
+
+	@Nullable
+	public Instant getResourcesSentAt() {
+		return this.resourcesSentAt;
+	}
+
+	@Nullable
+	public String getResourcesSentAtDescription() {
+		return this.resourcesSentAtDescription;
 	}
 
 	@Nullable

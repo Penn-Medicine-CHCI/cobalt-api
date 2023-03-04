@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 
@@ -51,6 +52,8 @@ public class PatientOrder {
 	private UUID patientAddressId;
 	@Nullable
 	private UUID panelAccountId;
+	@Nullable
+	private PatientOrderClosureReasonId patientOrderClosureReasonId;
 	@Nullable
 	private String encounterDepartmentId;
 	@Nullable
@@ -139,6 +142,9 @@ public class PatientOrder {
 	private Boolean outreachNeeded;
 	@Nullable
 	private Boolean followupNeeded;
+	@Nullable
+	private Boolean resourcesSent;
+	private Instant resourcesSentAt;
 	@Nullable
 	private String testPatientEmailAddress;
 	@Nullable
@@ -581,6 +587,15 @@ public class PatientOrder {
 	}
 
 	@Nullable
+	public PatientOrderClosureReasonId getPatientOrderClosureReasonId() {
+		return this.patientOrderClosureReasonId;
+	}
+
+	public void setPatientOrderClosureReasonId(@Nullable PatientOrderClosureReasonId patientOrderClosureReasonId) {
+		this.patientOrderClosureReasonId = patientOrderClosureReasonId;
+	}
+
+	@Nullable
 	public Instant getEpisodeEndedAt() {
 		return this.episodeEndedAt;
 	}
@@ -614,6 +629,23 @@ public class PatientOrder {
 
 	public void setFollowupNeeded(@Nullable Boolean followupNeeded) {
 		this.followupNeeded = followupNeeded;
+	}
+
+	@Nullable
+	public Boolean getResourcesSent() {
+		return this.resourcesSent;
+	}
+
+	public void setResourcesSent(@Nullable Boolean resourcesSent) {
+		this.resourcesSent = resourcesSent;
+	}
+
+	public Instant getResourcesSentAt() {
+		return this.resourcesSentAt;
+	}
+
+	public void setResourcesSentAt(Instant resourcesSentAt) {
+		this.resourcesSentAt = resourcesSentAt;
 	}
 
 	@Nullable

@@ -19,16 +19,39 @@
 
 package com.cobaltplatform.api.model.service;
 
+import javax.annotation.Nonnull;
+import javax.annotation.concurrent.ThreadSafe;
+import java.util.List;
+import java.util.UUID;
+
+import static java.util.Objects.requireNonNull;
+
 /**
  * @author Transmogrify, LLC.
  */
-public enum PatientOrderPanelTypeId {
-	ALL,
-	NEW,
-	NEED_ASSESSMENT,
-	SCHEDULED,
-	SAFETY_PLANNING,
-	SPECIALTY_CARE,
-	BHP,
-	CLOSED
+@ThreadSafe
+public class PatientOrderImportResult {
+	@Nonnull
+	private final UUID patientOrderImportId;
+	@Nonnull
+	private final List<UUID> patientOrderIds;
+
+	public PatientOrderImportResult(@Nonnull UUID patientOrderImportId,
+																	@Nonnull List<UUID> patientOrderIds) {
+		requireNonNull(patientOrderImportId);
+		requireNonNull(patientOrderIds);
+
+		this.patientOrderImportId = patientOrderImportId;
+		this.patientOrderIds = patientOrderIds;
+	}
+
+	@Nonnull
+	public UUID getPatientOrderImportId() {
+		return this.patientOrderImportId;
+	}
+
+	@Nonnull
+	public List<UUID> getPatientOrderIds() {
+		return this.patientOrderIds;
+	}
 }

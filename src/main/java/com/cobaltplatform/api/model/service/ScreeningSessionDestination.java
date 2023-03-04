@@ -43,7 +43,9 @@ public class ScreeningSessionDestination {
 		CRISIS,
 		ONE_ON_ONE_PROVIDER_LIST,
 		CONTENT_LIST,
-		GROUP_SESSION_LIST
+		GROUP_SESSION_LIST,
+		IC_PATIENT_SCREENING_SESSION_RESULTS,
+		IC_MHIC_SCREENING_SESSION_RESULTS
 	}
 
 	public ScreeningSessionDestination(@Nonnull ScreeningSessionDestinationId screeningSessionDestinationId) {

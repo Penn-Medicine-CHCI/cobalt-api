@@ -24,12 +24,19 @@ import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest.CreateAnswerRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.request.SkipScreeningSessionRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest.CreatePatientOrderTriageRequest;
 import com.cobaltplatform.api.model.api.response.ScreeningConfirmationPromptApiResponse.ScreeningConfirmationPromptApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.PatientOrder;
+import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 import com.cobaltplatform.api.model.db.Screening;
 import com.cobaltplatform.api.model.db.ScreeningAnswer;
 import com.cobaltplatform.api.model.db.ScreeningAnswerFormat.ScreeningAnswerFormatId;
@@ -76,11 +83,13 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidEmailAddress;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -98,6 +107,8 @@ public class ScreeningService {
 	private final Provider<InteractionService> interactionServiceProvider;
 	@Nonnull
 	private final Provider<AccountService> accountServiceProvider;
+	@Nonnull
+	private final Provider<PatientOrderService> patientOrderServiceProvider;
 	@Nonnull
 	private final Provider<AuthorizationService> authorizationServiceProvider;
 	@Nonnull
@@ -119,6 +130,7 @@ public class ScreeningService {
 	public ScreeningService(@Nonnull Provider<InstitutionService> institutionServiceProvider,
 													@Nonnull Provider<InteractionService> interactionServiceProvider,
 													@Nonnull Provider<AccountService> accountServiceProvider,
+													@Nonnull Provider<PatientOrderService> patientOrderServiceProvider,
 													@Nonnull Provider<AuthorizationService> authorizationServiceProvider,
 													@Nonnull ScreeningConfirmationPromptApiResponseFactory screeningConfirmationPromptApiResponseFactory,
 													@Nonnull JavascriptExecutor javascriptExecutor,
@@ -129,6 +141,7 @@ public class ScreeningService {
 		requireNonNull(institutionServiceProvider);
 		requireNonNull(interactionServiceProvider);
 		requireNonNull(accountServiceProvider);
+		requireNonNull(patientOrderServiceProvider);
 		requireNonNull(authorizationServiceProvider);
 		requireNonNull(screeningConfirmationPromptApiResponseFactory);
 		requireNonNull(javascriptExecutor);
@@ -140,6 +153,7 @@ public class ScreeningService {
 		this.institutionServiceProvider = institutionServiceProvider;
 		this.interactionServiceProvider = interactionServiceProvider;
 		this.accountServiceProvider = accountServiceProvider;
+		this.patientOrderServiceProvider = patientOrderServiceProvider;
 		this.authorizationServiceProvider = authorizationServiceProvider;
 		this.screeningConfirmationPromptApiResponseFactory = screeningConfirmationPromptApiResponseFactory;
 		this.javascriptExecutor = javascriptExecutor;
@@ -452,6 +466,22 @@ public class ScreeningService {
 				INSERT INTO screening_session(screening_session_id, screening_flow_version_id, target_account_id, created_by_account_id)
 				VALUES (?,?,?,?)
 				""", screeningSessionId, screeningFlowVersion.getScreeningFlowVersionId(), targetAccountId, createdByAccountId);
+
+		Institution institution = getInstitutionService().findInstitutionById(targetAccount.getInstitutionId()).get();
+
+		// If we're IC and this is the special IC screening flow, keep track of this screening session specially
+		if (institution.getIntegratedCareEnabled()
+				&& Objects.equals(screeningFlowVersion.getScreeningFlowId(), institution.getIntegratedCareScreeningFlowId())) {
+			PatientOrder patientOrder = getPatientOrderService().findOpenPatientOrderByPatientAccountId(targetAccountId).orElse(null);
+
+			if (patientOrder == null)
+				throw new ValidationException(getStrings().get("Unable to create a screening session because there is no open patient order."));
+
+			getDatabase().execute("""
+					INSERT INTO patient_order_screening_session (patient_order_id, screening_session_id)     
+					VALUES (?,?)
+					""", patientOrder.getPatientOrderId(), screeningSessionId);
+		}
 
 		// If we're immediately skipping, mark this session as completed/skipped and do nothing else.
 		// If we're not immediately skipping, create an initial screening session screening
@@ -911,6 +941,7 @@ public class ScreeningService {
 		ScreeningSession screeningSession = findScreeningSessionById(screeningSessionScreening.getScreeningSessionId()).get();
 		ScreeningVersion screeningVersion = findScreeningVersionById(screeningSessionScreening.getScreeningVersionId()).get();
 		ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
+		Institution institution = getInstitutionService().findInstitutionById(createdByAccount.getInstitutionId()).get();
 
 		// See if this question was already answered for this session...
 		ScreeningSessionAnsweredScreeningQuestion screeningSessionAnsweredScreeningQuestion = getDatabase().queryForObject("""
@@ -986,8 +1017,15 @@ public class ScreeningService {
 				findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreeningId);
 		List<ScreeningAnswer> screeningAnswers = findScreeningAnswersAcrossAllQuestionsByScreeningSessionScreeningId(screeningSessionScreeningId);
 
+		Integer answeredScreeningQuestionCount = getDatabase().queryForObject("""
+				SELECT COUNT(*)
+				FROM screening_session_answered_screening_question
+				WHERE screening_session_screening_id=?
+				AND valid=TRUE
+				""", Integer.class, screeningSessionScreeningId).get();
+
 		ScreeningScoringFunctionOutput screeningScoringFunctionOutput = executeScreeningScoringFunction(
-				screeningVersion.getScoringFunction(), screeningQuestionsWithAnswerOptions, screeningAnswers);
+				screeningVersion.getScoringFunction(), screeningQuestionsWithAnswerOptions, screeningAnswers, answeredScreeningQuestionCount);
 
 		getLogger().info("Screening session screening ID {} ({}) was scored {} with completed flag={}.", screeningSessionScreeningId,
 				screeningVersion.getScreeningTypeId().name(), screeningScoringFunctionOutput.getScore(), screeningScoringFunctionOutput.getCompleted());
@@ -1001,7 +1039,7 @@ public class ScreeningService {
 				screeningScoringFunctionOutput.getScore().toJsonRepresentation(),
 				screeningSessionScreening.getScreeningSessionScreeningId());
 
-		OrchestrationFunctionOutput orchestrationFunctionOutput = executeScreeningFlowOrchestrationFunction(screeningFlowVersion.getOrchestrationFunction(), screeningSession.getScreeningSessionId(), createdByAccount.getInstitutionId()).get();
+		OrchestrationFunctionOutput orchestrationFunctionOutput = executeScreeningFlowOrchestrationFunction(screeningFlowVersion.getOrchestrationFunction(), screeningSession.getScreeningSessionId(), createdByAccount.getInstitutionId(), Map.of()).get();
 
 		if (orchestrationFunctionOutput.getNextScreeningId() != null) {
 			Integer nextScreeningOrder = getDatabase().queryForObject("""
@@ -1036,8 +1074,6 @@ public class ScreeningService {
 				getInteractionService().createCrisisInteraction(screeningSession.getScreeningSessionId());
 			}
 		}
-
-		// TODO: should we handle un-marking as crisis (? - need futher clinical input)
 
 		if (orchestrationFunctionOutput.getCompleted()) {
 			getLogger().info("Orchestration function for screening session screening ID {} ({}) indicated that screening session ID {} is now complete.", screeningSessionScreeningId,
@@ -1117,6 +1153,33 @@ public class ScreeningService {
 				getDatabase().execute("INSERT INTO tag_screening_session (tag_id, screening_session_id) VALUES (?,?)",
 						tagId, screeningSession.getScreeningSessionId());
 			}
+
+			if (institution.getIntegratedCareEnabled()
+					&& Objects.equals(institution.getIntegratedCareScreeningFlowId(), screeningFlowVersion.getScreeningFlowId())) {
+				PatientOrder patientOrder = getPatientOrderService().findPatientOrderByScreeningSessionId(screeningSession.getScreeningSessionId()).orElse(null);
+
+				if (patientOrder == null) {
+					getLogger().warn("No patient order for target account ID {} and screening session ID {}, ignoring triage results...", screeningSession.getTargetAccountId(), screeningSession.getScreeningSessionId());
+				} else {
+					UpdatePatientOrderTriagesRequest patientOrderTriagesRequest = new UpdatePatientOrderTriagesRequest();
+					patientOrderTriagesRequest.setAccountId(screeningSession.getTargetAccountId());
+					patientOrderTriagesRequest.setPatientOrderId(patientOrder.getPatientOrderId());
+					patientOrderTriagesRequest.setPatientOrderTriageSourceId(PatientOrderTriageSourceId.COBALT);
+					patientOrderTriagesRequest.setScreeningSessionId(screeningSession.getScreeningSessionId());
+					patientOrderTriagesRequest.setPatientOrderTriages(resultsFunctionOutput.getIntegratedCareTriages().stream()
+							.map(integratedCareTriage -> {
+								CreatePatientOrderTriageRequest createRequest = new CreatePatientOrderTriageRequest();
+								createRequest.setPatientOrderFocusTypeId(integratedCareTriage.getPatientOrderFocusTypeId());
+								createRequest.setPatientOrderCareTypeId(integratedCareTriage.getPatientOrderCareTypeId());
+								createRequest.setReason(integratedCareTriage.getReason());
+
+								return createRequest;
+							})
+							.collect(Collectors.toList()));
+
+					getPatientOrderService().updatePatientOrderTriages(patientOrderTriagesRequest);
+				}
+			}
 		}
 
 		return screeningAnswerIds;
@@ -1134,9 +1197,23 @@ public class ScreeningService {
 
 		ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
 		Account targetAccount = getAccountService().findAccountById(screeningSession.getTargetAccountId()).get();
+		Institution institution = getInstitutionService().findInstitutionById(targetAccount.getInstitutionId()).get();
+
+		UUID patientOrderId = null;
+
+		// Extra data gets sent for special IC screening flow
+		if (institution.getIntegratedCareEnabled()
+				&& Objects.equals(screeningFlowVersion.getScreeningFlowId(), institution.getIntegratedCareScreeningFlowId())) {
+			PatientOrder patientOrder = getPatientOrderService().findPatientOrderByScreeningSessionId(screeningSessionId).get();
+			patientOrderId = patientOrder.getPatientOrderId();
+		}
+
+		Map<String, Object> additionalContext = Map.of(
+				"patientOrderId", patientOrderId
+		);
 
 		DestinationFunctionOutput destinationFunctionOutput = executeScreeningFlowDestinationFunction(screeningFlowVersion.getDestinationFunction(),
-				screeningSessionId, targetAccount.getInstitutionId()).get();
+				screeningSessionId, targetAccount.getInstitutionId(), additionalContext).get();
 
 		if (destinationFunctionOutput.getScreeningSessionDestinationId() == null)
 			return Optional.empty();
@@ -1148,10 +1225,12 @@ public class ScreeningService {
 	@Nonnull
 	protected ScreeningScoringFunctionOutput executeScreeningScoringFunction(@Nonnull String screeningScoringFunctionJavascript,
 																																					 @Nonnull List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions,
-																																					 @Nonnull List<ScreeningAnswer> screeningAnswers) {
+																																					 @Nonnull List<ScreeningAnswer> screeningAnswers,
+																																					 @Nonnull Integer answeredScreeningQuestionCount) {
 		requireNonNull(screeningScoringFunctionJavascript);
 		requireNonNull(screeningQuestionsWithAnswerOptions);
 		requireNonNull(screeningAnswers);
+		requireNonNull(answeredScreeningQuestionCount);
 
 		ScreeningScoringFunctionOutput screeningScoringFunctionOutput;
 
@@ -1171,6 +1250,7 @@ public class ScreeningService {
 		context.put("screeningQuestionsWithAnswerOptions", screeningQuestionsWithAnswerOptions);
 		context.put("screeningAnswers", screeningAnswers);
 		context.put("screeningAnswerOptionsByScreeningAnswerId", screeningAnswerOptionsByScreeningAnswerId);
+		context.put("answeredScreeningQuestionCount", answeredScreeningQuestionCount);
 
 		try {
 			screeningScoringFunctionOutput = getJavascriptExecutor().execute(screeningScoringFunctionJavascript, context, ScreeningScoringFunctionOutput.class);
@@ -1191,14 +1271,15 @@ public class ScreeningService {
 	@Nonnull
 	protected Optional<OrchestrationFunctionOutput> executeScreeningFlowOrchestrationFunction(@Nonnull String screeningFlowOrchestrationFunctionJavascript,
 																																														@Nullable UUID screeningSessionId,
-																																														@Nullable InstitutionId institutionId) {
+																																														@Nullable InstitutionId institutionId,
+																																														@Nullable Map<String, Object> additionalContext) {
 		requireNonNull(screeningFlowOrchestrationFunctionJavascript);
 
 		if (screeningSessionId == null || institutionId == null)
 			return Optional.empty();
 
 		OrchestrationFunctionOutput orchestrationFunctionOutput = executeScreeningFlowFunction(screeningFlowOrchestrationFunctionJavascript,
-				OrchestrationFunctionOutput.class, screeningSessionId, institutionId).orElse(null);
+				OrchestrationFunctionOutput.class, screeningSessionId, institutionId, additionalContext).orElse(null);
 
 		if (orchestrationFunctionOutput == null)
 			return Optional.empty();
@@ -1225,7 +1306,7 @@ public class ScreeningService {
 			return Optional.empty();
 
 		ResultsFunctionOutput resultsFunctionOutput = executeScreeningFlowFunction(screeningFlowResultsFunctionJavascript,
-				ResultsFunctionOutput.class, screeningSessionId, institutionId).orElse(null);
+				ResultsFunctionOutput.class, screeningSessionId, institutionId, Map.of()).orElse(null);
 
 		if (resultsFunctionOutput == null)
 			return Optional.empty();
@@ -1243,20 +1324,24 @@ public class ScreeningService {
 		if (resultsFunctionOutput.getRecommendedTagIds() == null)
 			resultsFunctionOutput.setRecommendedTagIds(Set.of());
 
+		if (resultsFunctionOutput.getIntegratedCareTriages() == null)
+			resultsFunctionOutput.setIntegratedCareTriages(List.of());
+
 		return Optional.of(resultsFunctionOutput);
 	}
 
 	@Nonnull
 	protected Optional<DestinationFunctionOutput> executeScreeningFlowDestinationFunction(@Nonnull String screeningFlowDestinationFunctionJavascript,
 																																												@Nullable UUID screeningSessionId,
-																																												@Nullable InstitutionId institutionId) {
+																																												@Nullable InstitutionId institutionId,
+																																												@Nullable Map<String, Object> additionalContext) {
 		requireNonNull(screeningFlowDestinationFunctionJavascript);
 
 		if (screeningSessionId == null || institutionId == null)
 			return Optional.empty();
 
 		DestinationFunctionOutput destinationFunctionOutput = executeScreeningFlowFunction(screeningFlowDestinationFunctionJavascript,
-				DestinationFunctionOutput.class, screeningSessionId, institutionId).orElse(null);
+				DestinationFunctionOutput.class, screeningSessionId, institutionId, additionalContext).orElse(null);
 
 		if (destinationFunctionOutput == null)
 			return Optional.empty();
@@ -1268,7 +1353,8 @@ public class ScreeningService {
 	protected <T> Optional<T> executeScreeningFlowFunction(@Nonnull String screeningFlowFunctionJavascript,
 																												 @Nonnull Class<T> screeningFlowFunctionResultType,
 																												 @Nullable UUID screeningSessionId,
-																												 @Nullable InstitutionId institutionId) {
+																												 @Nullable InstitutionId institutionId,
+																												 @Nullable Map<String, Object> additionalContext) {
 		requireNonNull(screeningFlowFunctionJavascript);
 
 		if (screeningSessionId == null || institutionId == null)
@@ -1365,12 +1451,41 @@ public class ScreeningService {
 			screeningResultsByScreeningSessionScreeningId.put(screeningSessionScreening.getScreeningSessionScreeningId(), screeningResults);
 		}
 
+		// Pulls screening name and corresponding screening version ID for all screening session screenings in this context.
+		// Useful for JS to get a handle to screening version IDs in a human-readable way
+		List<UUID> screeningVersionIds = screeningSessionScreenings.stream()
+				.map(screeningSessionScreening -> screeningSessionScreening.getScreeningVersionId())
+				.collect(Collectors.toList());
+
+		List<ScreeningVersionName> screeningVersionNames = getDatabase().queryForList(format("""
+				SELECT s.name, sv.screening_version_id
+				FROM screening s, screening_version sv
+				WHERE s.screening_id=sv.screening_id
+				AND sv.screening_version_id IN %s
+				""", sqlInListPlaceholders(screeningVersionIds)), ScreeningVersionName.class, screeningVersionIds.toArray(new Object[]{}));
+
+		Map<String, UUID> screeningVersionIdsByName = new HashMap<>(screeningVersionNames.size());
+
+		for (ScreeningVersionName screeningVersionName : screeningVersionNames) {
+			if (screeningVersionIdsByName.containsKey(screeningVersionName.getName()))
+				throw new IllegalStateException(format("""
+						There are multiple versions of the same screening name within a screening session.\n
+						Name: %s\n
+						Versions: %s, %s
+						""", screeningVersionName.getName(), screeningVersionName.getScreeningVersionId(), screeningVersionIdsByName.get(screeningVersionName.getName())).trim());
+
+			screeningVersionIdsByName.put(screeningVersionName.getName(), screeningVersionName.getScreeningVersionId());
+		}
+
 		Map<String, Object> context = new HashMap<>();
 		context.put("screenings", screenings);
 		context.put("screeningsByName", screeningsByName);
 		context.put("screeningSession", screeningSession);
 		context.put("screeningSessionScreenings", screeningSessionScreenings);
+		context.put("screeningVersionIdsByName", screeningVersionIdsByName);
 		context.put("screeningResultsByScreeningSessionScreeningId", screeningResultsByScreeningSessionScreeningId);
+		context.put("selfAdministered", Objects.equals(screeningSession.getCreatedByAccountId(), screeningSession.getTargetAccountId()));
+		context.put("additionalContext", additionalContext == null ? Map.of() : additionalContext);
 
 		try {
 			screeningFlowFunctionResult = getJavascriptExecutor().execute(screeningFlowFunctionJavascript, context, screeningFlowFunctionResultType);
@@ -1379,6 +1494,32 @@ public class ScreeningService {
 		}
 
 		return Optional.ofNullable(screeningFlowFunctionResult);
+	}
+
+	@NotThreadSafe
+	protected static class ScreeningVersionName {
+		@Nullable
+		private UUID screeningVersionId;
+		@Nullable
+		private String name;
+
+		@Nullable
+		public UUID getScreeningVersionId() {
+			return this.screeningVersionId;
+		}
+
+		public void setScreeningVersionId(@Nullable UUID screeningVersionId) {
+			this.screeningVersionId = screeningVersionId;
+		}
+
+		@Nullable
+		public String getName() {
+			return this.name;
+		}
+
+		public void setName(@Nullable String name) {
+			this.name = name;
+		}
 	}
 
 	protected void debugScreeningSession(@Nonnull UUID screeningSessionId) {
@@ -1503,6 +1644,8 @@ public class ScreeningService {
 		@Nullable
 		private Set<SupportRoleRecommendation> supportRoleRecommendations;
 		@Nullable
+		private List<IntegratedCareTriage> integratedCareTriages;
+		@Nullable
 		@Deprecated
 		private Set<UUID> legacyContentAnswerIds;
 		@Nullable
@@ -1548,6 +1691,15 @@ public class ScreeningService {
 			this.supportRoleRecommendations = supportRoleRecommendations;
 		}
 
+		@Nullable
+		public List<IntegratedCareTriage> getIntegratedCareTriages() {
+			return this.integratedCareTriages;
+		}
+
+		public void setIntegratedCareTriages(@Nullable List<IntegratedCareTriage> integratedCareTriages) {
+			this.integratedCareTriages = integratedCareTriages;
+		}
+
 		@NotThreadSafe
 		public static class SupportRoleRecommendation {
 			@Nullable
@@ -1571,6 +1723,43 @@ public class ScreeningService {
 
 			public void setWeight(@Nullable Double weight) {
 				this.weight = weight;
+			}
+		}
+
+		@NotThreadSafe
+		public static class IntegratedCareTriage {
+			@Nullable
+			private PatientOrderFocusTypeId patientOrderFocusTypeId;
+			@Nullable
+			private PatientOrderCareTypeId patientOrderCareTypeId;
+			@Nullable
+			private String reason;
+
+			@Nullable
+			public PatientOrderFocusTypeId getPatientOrderFocusTypeId() {
+				return this.patientOrderFocusTypeId;
+			}
+
+			public void setPatientOrderFocusTypeId(@Nullable PatientOrderFocusTypeId patientOrderFocusTypeId) {
+				this.patientOrderFocusTypeId = patientOrderFocusTypeId;
+			}
+
+			@Nullable
+			public PatientOrderCareTypeId getPatientOrderCareTypeId() {
+				return this.patientOrderCareTypeId;
+			}
+
+			public void setPatientOrderCareTypeId(@Nullable PatientOrderCareTypeId patientOrderCareTypeId) {
+				this.patientOrderCareTypeId = patientOrderCareTypeId;
+			}
+
+			@Nullable
+			public String getReason() {
+				return this.reason;
+			}
+
+			public void setReason(@Nullable String reason) {
+				this.reason = reason;
 			}
 		}
 	}
@@ -1614,6 +1803,11 @@ public class ScreeningService {
 	@Nonnull
 	protected AccountService getAccountService() {
 		return this.accountServiceProvider.get();
+	}
+
+	@Nonnull
+	protected PatientOrderService getPatientOrderService() {
+		return this.patientOrderServiceProvider.get();
 	}
 
 	@Nonnull

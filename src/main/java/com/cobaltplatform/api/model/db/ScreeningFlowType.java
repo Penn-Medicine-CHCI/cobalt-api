@@ -38,7 +38,8 @@ public class ScreeningFlowType {
 		CUSTOM,
 		PROVIDER_TRIAGE,
 		CONTENT_TRIAGE,
-		PROVIDER_INTAKE
+		PROVIDER_INTAKE,
+		INTEGRATED_CARE
 	}
 
 	@Override

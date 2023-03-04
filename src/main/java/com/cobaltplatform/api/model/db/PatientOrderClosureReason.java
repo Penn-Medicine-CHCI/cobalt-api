@@ -28,52 +28,34 @@ import static java.lang.String.format;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class ScreeningType {
+public class PatientOrderClosureReason {
 	@Nullable
-	private ScreeningTypeId screeningTypeId;
+	private PatientOrderClosureReasonId patientOrderClosureReasonId;
 	@Nullable
 	private String description;
 
-	public enum ScreeningTypeId {
-		CUSTOM,
-		GAD_2,
-		GAD_7,
-		PHQ_4,
-		PHQ_8,
-		PHQ_9,
-		WHO_5,
-		PC_PTSD_5,
-		AUDIT_C_ALCOHOL,
-		CAGE_ALCOHOL,
-		TICS,
-		ISI,
-		ASRM,
-		C_SSRS,
-		DAST_10,
-		BPI,
-		AUDIT_C,
-		MBI_9,
-		IC_INTRO,
-		IC_INTRO_CONDITIONS,
-		IC_INTRO_SYMPTOMS,
-		IC_DRUG_USE_FREQUENCY,
-		IC_DRUG_USE_OPIOID,
-		BPI_1,
-		PRIME_5
+	public enum PatientOrderClosureReasonId {
+		NOT_CLOSED,
+		INELIGIBLE_DUE_TO_INSURANCE,
+		REFUSED_CARE,
+		TRANSFERRED_TO_SAFETY_PLANNING,
+		SCHEDULED_WITH_SPECIALTY_CARE,
+		SCHEDULED_WITH_BHP
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{screeningTypeId=%s, description=%s}", getClass().getSimpleName(), getScreeningTypeId().name(), getDescription());
+		return format("%s{patientOrderClosureReasonId=%s, description=%s}", getClass().getSimpleName(),
+				getPatientOrderClosureReasonId(), getDescription());
 	}
 
 	@Nullable
-	public ScreeningTypeId getScreeningTypeId() {
-		return this.screeningTypeId;
+	public PatientOrderClosureReasonId getPatientOrderClosureReasonId() {
+		return this.patientOrderClosureReasonId;
 	}
 
-	public void setScreeningTypeId(@Nullable ScreeningTypeId screeningTypeId) {
-		this.screeningTypeId = screeningTypeId;
+	public void setPatientOrderClosureReasonId(@Nullable PatientOrderClosureReasonId patientOrderClosureReasonId) {
+		this.patientOrderClosureReasonId = patientOrderClosureReasonId;
 	}
 
 	@Nullable
