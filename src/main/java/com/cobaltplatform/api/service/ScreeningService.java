@@ -1208,9 +1208,8 @@ public class ScreeningService {
 			patientOrderId = patientOrder.getPatientOrderId();
 		}
 
-		Map<String, Object> additionalContext = Map.of(
-				"patientOrderId", patientOrderId
-		);
+		Map<String, Object> additionalContext = new HashMap<>();
+		additionalContext.put("patientOrderId", patientOrderId);
 
 		DestinationFunctionOutput destinationFunctionOutput = executeScreeningFlowDestinationFunction(screeningFlowVersion.getDestinationFunction(),
 				screeningSessionId, targetAccount.getInstitutionId(), additionalContext).get();
@@ -1457,7 +1456,7 @@ public class ScreeningService {
 				.map(screeningSessionScreening -> screeningSessionScreening.getScreeningVersionId())
 				.collect(Collectors.toList());
 
-		List<ScreeningVersionName> screeningVersionNames = getDatabase().queryForList(format("""
+		List<ScreeningVersionName> screeningVersionNames = screeningSessionScreenings.size() == 0 ? List.of() : getDatabase().queryForList(format("""
 				SELECT s.name, sv.screening_version_id
 				FROM screening s, screening_version sv
 				WHERE s.screening_id=sv.screening_id

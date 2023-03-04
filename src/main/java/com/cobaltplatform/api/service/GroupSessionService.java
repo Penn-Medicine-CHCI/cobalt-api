@@ -743,11 +743,34 @@ public class GroupSessionService implements AutoCloseable {
 			}
 		}
 
+		cancelAndResendAllScheduledMessagesForGroupSessionId(groupSessionId);
+
+		return groupSessionId;
+	}
+
+	protected void cancelAllScheduledMessagesForGroupSessionId(@Nullable UUID groupSessionId) {
+		if (groupSessionId == null)
+			return;
+
+		List<GroupSessionReservation> groupSessionReservations = findGroupSessionReservationsByGroupSessionId(groupSessionId);
+
+		getLogger().info("Canceling scheduled messages for {} group session reservations for group session ID {}...", groupSessionReservations.size(), groupSessionId);
+
+		for (GroupSessionReservation groupSessionReservation : groupSessionReservations) {
+			getMessageService().cancelScheduledMessage(groupSessionReservation.getAttendeeReminderScheduledMessageId());
+			getMessageService().cancelScheduledMessage(groupSessionReservation.getAttendeeFollowupScheduledMessageId());
+		}
+	}
+
+	protected void cancelAndResendAllScheduledMessagesForGroupSessionId(@Nullable UUID groupSessionId) {
+		if (groupSessionId == null)
+			return;
+
 		// After an update to the group session, rework all the scheduled messages to take any changes into account
 		List<GroupSessionReservation> groupSessionReservations = findGroupSessionReservationsByGroupSessionId(groupSessionId);
-		GroupSession updatedGroupSession = findGroupSessionById(groupSessionId).get();
+		GroupSession groupSession = findGroupSessionById(groupSessionId).get();
 
-		getLogger().info("Updating scheduled messages for {} group session reservations for group session ID {}...", groupSessionReservations.size(), groupSessionId);
+		getLogger().info("Re-sending scheduled messages for {} group session reservations for group session ID {}...", groupSessionReservations.size(), groupSessionId);
 
 		for (GroupSessionReservation groupSessionReservation : groupSessionReservations) {
 			// First, cancel anything that might have already been scheduled
@@ -755,13 +778,11 @@ public class GroupSessionService implements AutoCloseable {
 			getMessageService().cancelScheduledMessage(groupSessionReservation.getAttendeeFollowupScheduledMessageId());
 
 			// Next, reschedule as needed
-			scheduleGroupSessionReservationReminderMessage(updatedGroupSession, groupSessionReservation);
+			scheduleGroupSessionReservationReminderMessage(groupSession, groupSessionReservation);
 
-			if (sendFollowupEmail)
-				scheduleGroupSessionReservationFollowupMessage(updatedGroupSession, groupSessionReservation);
+			if (groupSession.getSendFollowupEmail())
+				scheduleGroupSessionReservationFollowupMessage(groupSession, groupSessionReservation);
 		}
-
-		return groupSessionId;
 	}
 
 	@Nonnull
@@ -878,6 +899,8 @@ public class GroupSessionService implements AutoCloseable {
 		if (groupSessionStatusId == GroupSessionStatusId.CANCELED) {
 			GroupSession pinnedGroupSession = groupSession;
 			List<GroupSessionReservation> reservations = findGroupSessionReservationsByGroupSessionId(groupSessionId);
+
+			cancelAllScheduledMessagesForGroupSessionId(groupSessionId);
 
 			// Cancel all the reservations...
 			getDatabase().execute("UPDATE group_session_reservation SET canceled=TRUE WHERE group_session_id=?", groupSessionId);
@@ -1200,7 +1223,7 @@ public class GroupSessionService implements AutoCloseable {
 		requireNonNull(groupSession);
 		requireNonNull(groupSessionReservation);
 
-		if (groupSession.getSendFollowupEmail())
+		if (!groupSession.getSendFollowupEmail())
 			return false;
 
 		Account account = getAccountService().findAccountById(groupSessionReservation.getAccountId()).get();
