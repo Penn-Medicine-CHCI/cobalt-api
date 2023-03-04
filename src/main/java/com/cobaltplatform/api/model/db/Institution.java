@@ -29,6 +29,7 @@ import com.pyranid.DatabaseColumn;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Collections;
 import java.util.List;
@@ -153,6 +154,14 @@ public class Institution {
 	private String microsoftTenantId;
 	@Nullable
 	private String microsoftClientId;
+	@Nullable
+	private LocalTime groupSessionReservationDefaultReminderTimeOfDay;
+	@Nullable
+	private Integer groupSessionReservationDefaultReminderDayOffset;
+	@Nullable
+	private LocalTime appointmentReservationDefaultReminderTimeOfDay;
+	@Nullable
+	private Integer appointmentReservationDefaultReminderDayOffset;
 
 	public enum InstitutionId {
 		COBALT,
@@ -677,5 +686,41 @@ public class Institution {
 
 	public void setMicrosoftClientId(@Nullable String microsoftClientId) {
 		this.microsoftClientId = microsoftClientId;
+	}
+
+	@Nullable
+	public LocalTime getGroupSessionReservationDefaultReminderTimeOfDay() {
+		return this.groupSessionReservationDefaultReminderTimeOfDay;
+	}
+
+	public void setGroupSessionReservationDefaultReminderTimeOfDay(@Nullable LocalTime groupSessionReservationDefaultReminderTimeOfDay) {
+		this.groupSessionReservationDefaultReminderTimeOfDay = groupSessionReservationDefaultReminderTimeOfDay;
+	}
+
+	@Nullable
+	public Integer getGroupSessionReservationDefaultReminderDayOffset() {
+		return this.groupSessionReservationDefaultReminderDayOffset;
+	}
+
+	public void setGroupSessionReservationDefaultReminderDayOffset(@Nullable Integer groupSessionReservationDefaultReminderDayOffset) {
+		this.groupSessionReservationDefaultReminderDayOffset = groupSessionReservationDefaultReminderDayOffset;
+	}
+
+	@Nullable
+	public LocalTime getAppointmentReservationDefaultReminderTimeOfDay() {
+		return this.appointmentReservationDefaultReminderTimeOfDay;
+	}
+
+	public void setAppointmentReservationDefaultReminderTimeOfDay(@Nullable LocalTime appointmentReservationDefaultReminderTimeOfDay) {
+		this.appointmentReservationDefaultReminderTimeOfDay = appointmentReservationDefaultReminderTimeOfDay;
+	}
+
+	@Nullable
+	public Integer getAppointmentReservationDefaultReminderDayOffset() {
+		return this.appointmentReservationDefaultReminderDayOffset;
+	}
+
+	public void setAppointmentReservationDefaultReminderDayOffset(@Nullable Integer appointmentReservationDefaultReminderDayOffset) {
+		this.appointmentReservationDefaultReminderDayOffset = appointmentReservationDefaultReminderDayOffset;
 	}
 }

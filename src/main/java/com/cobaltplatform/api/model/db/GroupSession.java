@@ -48,6 +48,10 @@ public class GroupSession {
 	@Nullable
 	private UUID submitterAccountId;
 	@Nullable
+	private String submitterName;
+	@Nullable
+	private String submitterEmailAddress;
+	@Nullable
 	private String title;
 	@Nullable
 	private String description;
@@ -162,6 +166,24 @@ public class GroupSession {
 
 	public void setFacilitatorAccountId(@Nullable UUID facilitatorAccountId) {
 		this.facilitatorAccountId = facilitatorAccountId;
+	}
+
+	@Nullable
+	public String getSubmitterName() {
+		return this.submitterName;
+	}
+
+	public void setSubmitterName(@Nullable String submitterName) {
+		this.submitterName = submitterName;
+	}
+
+	@Nullable
+	public String getSubmitterEmailAddress() {
+		return this.submitterEmailAddress;
+	}
+
+	public void setSubmitterEmailAddress(@Nullable String submitterEmailAddress) {
+		this.submitterEmailAddress = submitterEmailAddress;
 	}
 
 	@Nullable

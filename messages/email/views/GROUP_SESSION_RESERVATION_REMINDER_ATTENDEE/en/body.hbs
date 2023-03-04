@@ -1,0 +1,48 @@
+{{#partial "header"}}
+	<tr>
+		<td valign="top" align="center"><img src="{{{imageUrl}}}" width="512" height="288" alt="{{groupSession.title}}" style="display:block; max-width:512px; border-radius: 0px;" border="0" class="em_img" /></td>
+	</tr>
+	<tr>
+		<td height="30" style="height:30px;" class="em_h20">&nbsp;</td>
+	</tr>
+{{/partial}}
+
+{{#partial "body"}}
+	<tr>
+		<td align="left" class="em_blk" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:20px; line-height:24px; color:#000000; font-weight:bold;">Hello,</td>
+	</tr>
+	<tr>
+		<td height="20" style="height:20px; line-height:0px; font-size:0px;" class="em_h20">&nbsp;</td>
+	</tr>
+	<tr>
+		<td align="left" class="em_blue" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:18px; line-height:24px; color:#000;">
+			<p>
+				You have registered to attend <b>{{groupSessionTitle}}</b> happening today from <b>{{groupSessionStartTimeDescription}}</b> - <b>{{groupSessionEndTimeDescription}}</b>. We look forward to seeing you there!
+			</p>
+			<br />
+			<table width="100%" border="0" cellspacing="0" cellpadding="0" align="center">
+				<tr>
+					<td height="5" bgcolor="#ffffff" width="50%" colspan="2"></td>
+				</tr>
+				<tr>
+					<td align="left" width="50%">
+						<a href="{{{groupSession.videoconferenceUrl}}}" target="_blank">
+							<img src="{{{staticFileUrlPrefix}}}/button-start-appointment@2x.jpg" width="155" height="54" alt="Join Now" />
+						</a>
+					</td>
+					<td align="right" width="50%">
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td height="30" bgcolor="#ffffff" width="50%" colspan="2"></td>
+				</tr>
+				<tr>
+					<td height="1" bgcolor="#ccc" width="50%" colspan="2"></td>
+				</tr>
+			</table>
+		</td>
+	</tr>
+{{/partial}}
+
+{{> layouts/en/default}}

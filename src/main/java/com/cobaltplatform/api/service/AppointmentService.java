@@ -1714,6 +1714,7 @@ public class AppointmentService {
 		String appointmentStartTimeDescription = getFormatter().formatTime(appointment.getStartTime().toLocalTime(), FormatStyle.SHORT);
 		String accountName = getAccountService().determineDisplayName(account);
 		String providerName = provider.getName();
+		String providerEmailAddress = provider.getEmailAddress();
 		String videoconferenceUrl = appointment.getVideoconferenceUrl();
 
 		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionId(provider.getInstitutionId()).get();
@@ -1727,6 +1728,7 @@ public class AppointmentService {
 			Map<String, Object> cobaltPatientEmailMessageContext = new HashMap<>();
 			cobaltPatientEmailMessageContext.put("appointmentId", appointmentId);
 			cobaltPatientEmailMessageContext.put("providerName", provider.getName());
+			cobaltPatientEmailMessageContext.put("providerEmailAddress", provider.getEmailAddress());
 			cobaltPatientEmailMessageContext.put("providerNameAndCredentials", providerNameAndCredentials);
 			cobaltPatientEmailMessageContext.put("videoconferenceUrl", appointment.getVideoconferenceUrl());
 			cobaltPatientEmailMessageContext.put("imageUrl", firstNonNull(provider.getImageUrl(), getConfiguration().getDefaultProviderImageUrlForEmail()));
@@ -1745,6 +1747,8 @@ public class AppointmentService {
 					.build();
 
 			getEmailMessageManager().enqueueMessage(patientEmailMessage);
+
+			// TODO: create scheduled reminder message
 		}
 
 		// Provider email
@@ -1933,6 +1937,8 @@ public class AppointmentService {
 
 		Appointment pinnedAppointment = appointment;
 		Account appointmentAccount = getAccountService().findAccountById(pinnedAppointment.getAccountId()).orElse(null);
+
+		// TODO: cancel any scheduled reminder message for the patient
 
 		getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
 			if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.ACUITY) {
