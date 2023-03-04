@@ -1,0 +1,34 @@
+{{#partial "header"}}
+	<tr>
+		<td valign="top" align="center"><img src="{{{imageUrl}}}" width="288" height="288" alt="{{providerName}}" style="display:block; max-width:512px; border-radius: 0px;" border="0" class="em_img" /></td>
+	</tr>
+	<tr>
+		<td height="30" style="height:30px;" class="em_h20">&nbsp;</td>
+	</tr>
+{{/partial}}
+
+{{#partial "body"}}
+	<tr>
+		<td align="left" class="em_blk" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:20px; line-height:24px; color:#000000; font-weight:bold;">Hello,</td>
+	</tr>
+	<tr>
+		<td height="20" style="height:20px; line-height:0px; font-size:0px;" class="em_h20">&nbsp;</td>
+	</tr>
+	<tr>
+		<td align="left" class="em_blue" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:18px; line-height:24px; color:#000;">
+			<p>
+				This is a reminder that you have scheduled a 1:1 Support Session with <b>{{providerName}}</b> tomorrow, <b>{{appointmentStartDateDescription}}</b> at <b>{{appointmentStartTimeDescription}}</b>.
+			</p>
+			<br />
+			<p>
+				If you have any questions about the appointment, please email your provider at <b><a href="mailto:{{providerEmailAddress}}">{{providerEmailAddress}}</a></b>.
+			</p>
+			<br/>
+			<p>
+				Warmly, The Cobalt Team
+			</p>
+		</td>
+	</tr>
+{{/partial}}
+
+{{> layouts/en/default}}

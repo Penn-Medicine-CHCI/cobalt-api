@@ -59,6 +59,8 @@ public class Appointment implements Comparable<Appointment> {
 	@Nullable
 	private UUID intakeAssessmentId;
 	@Nullable
+	private UUID patientReminderScheduledMessageId;
+	@Nullable
 	private Long acuityAppointmentId;
 	@Nullable
 	private Long acuityClassId;
@@ -371,6 +373,15 @@ public class Appointment implements Comparable<Appointment> {
 
 	public void setIntakeAssessmentId(@Nullable UUID intakeAssessmentId) {
 		this.intakeAssessmentId = intakeAssessmentId;
+	}
+
+	@Nullable
+	public UUID getPatientReminderScheduledMessageId() {
+		return this.patientReminderScheduledMessageId;
+	}
+
+	public void setPatientReminderScheduledMessageId(@Nullable UUID patientReminderScheduledMessageId) {
+		this.patientReminderScheduledMessageId = patientReminderScheduledMessageId;
 	}
 
 	@Nullable

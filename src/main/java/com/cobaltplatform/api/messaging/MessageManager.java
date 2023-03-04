@@ -172,11 +172,9 @@ public class MessageManager<T extends Message> implements AutoCloseable {
 		requireNonNull(sqsMessage);
 
 		T deserializedMessage = getMessageSerializer().deserializeMessage(sqsMessage.body());
-		boolean sent = false;
 
 		try {
 			getMessageSender().sendMessage(deserializedMessage);
-			sent = true;
 
 			try {
 				getDatabase().execute("UPDATE message_log SET message_status_id=?, processed=NOW() WHERE message_id=?",
@@ -197,8 +195,10 @@ public class MessageManager<T extends Message> implements AutoCloseable {
 
 			throw e;
 		} finally {
-			if (sent)
-				getAmazonSqsManager().get().deleteMessage(sqsMessage.receiptHandle());
+			// Always delete from the SQS queue regardless of whether the message was sent, no retry logic atm.
+			// This avoids scenarios where we erroneously retry forever in a tight loop.
+			// TODO: add in capped number of retries with exponential backoff
+			getAmazonSqsManager().get().deleteMessage(sqsMessage.receiptHandle());
 		}
 	}
 

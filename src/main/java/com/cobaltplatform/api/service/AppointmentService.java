@@ -58,6 +58,7 @@ import com.cobaltplatform.api.model.api.request.CreateAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.CreateAppointmentTypeRequest;
 import com.cobaltplatform.api.model.api.request.CreateInteractionInstanceRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientIntakeQuestionRequest;
+import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningQuestionRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountEmailAddressRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountPhoneNumberRequest;
@@ -176,6 +177,8 @@ public class AppointmentService {
 	@Nonnull
 	private final javax.inject.Provider<InstitutionService> institutionServiceProvider;
 	@Nonnull
+	private final javax.inject.Provider<MessageService> messageServiceProvider;
+	@Nonnull
 	private final Logger logger;
 	@Nonnull
 	private final EmailMessageManager emailMessageManager;
@@ -216,6 +219,7 @@ public class AppointmentService {
 														@Nonnull javax.inject.Provider<AuditLogService> auditLogServiceProvider,
 														@Nonnull javax.inject.Provider<ClinicService> clinicServiceProvider,
 														@Nonnull javax.inject.Provider<InstitutionService> institutionServiceProvider,
+														@Nonnull javax.inject.Provider<MessageService> messageServiceProvider,
 														@Nonnull EmailMessageManager emailMessageManager,
 														@Nonnull Formatter formatter,
 														@Nonnull Normalizer normalizer,
@@ -239,6 +243,7 @@ public class AppointmentService {
 		requireNonNull(auditLogServiceProvider);
 		requireNonNull(clinicServiceProvider);
 		requireNonNull(institutionServiceProvider);
+		requireNonNull(messageServiceProvider);
 		requireNonNull(emailMessageManager);
 		requireNonNull(formatter);
 		requireNonNull(normalizer);
@@ -265,6 +270,7 @@ public class AppointmentService {
 		this.clinicServiceProvider = clinicServiceProvider;
 		this.institutionServiceProvider = institutionServiceProvider;
 		this.assessmentScoringServiceProvider = assessmentScoringServiceProvider;
+		this.messageServiceProvider = messageServiceProvider;
 		this.formatter = formatter;
 		this.normalizer = normalizer;
 		this.sessionService = sessionService;
@@ -1708,12 +1714,14 @@ public class AppointmentService {
 
 		Account account = getAccountService().findAccountById(appointment.getAccountId()).get();
 		Provider provider = getProviderService().findProviderById(appointment.getProviderId()).get();
+		Institution institution = getInstitutionService().findInstitutionById(provider.getInstitutionId()).get();
 
 		String appointmentStartDateTimeDescription = getFormatter().formatDateTime(appointment.getStartTime(), FormatStyle.LONG, FormatStyle.SHORT);
 		String appointmentStartDateDescription = getFormatter().formatDate(appointment.getStartTime().toLocalDate());
 		String appointmentStartTimeDescription = getFormatter().formatTime(appointment.getStartTime().toLocalTime(), FormatStyle.SHORT);
 		String accountName = getAccountService().determineDisplayName(account);
 		String providerName = provider.getName();
+		String providerEmailAddress = provider.getEmailAddress();
 		String videoconferenceUrl = appointment.getVideoconferenceUrl();
 
 		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionId(provider.getInstitutionId()).get();
@@ -1727,6 +1735,7 @@ public class AppointmentService {
 			Map<String, Object> cobaltPatientEmailMessageContext = new HashMap<>();
 			cobaltPatientEmailMessageContext.put("appointmentId", appointmentId);
 			cobaltPatientEmailMessageContext.put("providerName", provider.getName());
+			cobaltPatientEmailMessageContext.put("providerEmailAddress", provider.getEmailAddress());
 			cobaltPatientEmailMessageContext.put("providerNameAndCredentials", providerNameAndCredentials);
 			cobaltPatientEmailMessageContext.put("videoconferenceUrl", appointment.getVideoconferenceUrl());
 			cobaltPatientEmailMessageContext.put("imageUrl", firstNonNull(provider.getImageUrl(), getConfiguration().getDefaultProviderImageUrlForEmail()));
@@ -1745,6 +1754,28 @@ public class AppointmentService {
 					.build();
 
 			getEmailMessageManager().enqueueMessage(patientEmailMessage);
+
+			// Schedule a reminder message for this booking based on institution rules
+			LocalDate reminderMessageDate = appointment.getStartTime().toLocalDate().minusDays(institution.getAppointmentReservationDefaultReminderDayOffset());
+			LocalTime reminderMessageTimeOfDay = institution.getAppointmentReservationDefaultReminderTimeOfDay();
+
+			EmailMessage patientReminderEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_REMINDER_PATIENT, account.getLocale())
+					.toAddresses(Collections.singletonList(account.getEmailAddress()))
+					.messageContext(cobaltPatientEmailMessageContext)
+					.build();
+
+			UUID patientReminderScheduledMessageId = getMessageService().createScheduledMessage(new CreateScheduledMessageRequest<>() {{
+				setMetadata(Map.of("appointmentId", appointmentId));
+				setMessage(patientReminderEmailMessage);
+				setTimeZone(provider.getTimeZone());
+				setScheduledAt(LocalDateTime.of(reminderMessageDate, reminderMessageTimeOfDay));
+			}});
+
+			getDatabase().execute("""
+					UPDATE appointment
+					SET patient_reminder_scheduled_message_id=? 
+					WHERE appointment_id=?
+					""", patientReminderScheduledMessageId, appointmentId);
 		}
 
 		// Provider email
@@ -1933,6 +1964,9 @@ public class AppointmentService {
 
 		Appointment pinnedAppointment = appointment;
 		Account appointmentAccount = getAccountService().findAccountById(pinnedAppointment.getAccountId()).orElse(null);
+
+		// Cancel any scheduled reminder message for the patient
+		getMessageService().cancelScheduledMessage(appointment.getPatientReminderScheduledMessageId());
 
 		getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
 			if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.ACUITY) {
@@ -2295,7 +2329,7 @@ public class AppointmentService {
 	protected AccountService getAccountService() {
 		return this.accountServiceProvider.get();
 	}
-	
+
 	@Nonnull
 	protected AuditLogService getAuditLogService() {
 		return this.auditLogServiceProvider.get();
@@ -2309,6 +2343,11 @@ public class AppointmentService {
 	@Nonnull
 	protected InstitutionService getInstitutionService() {
 		return this.institutionServiceProvider.get();
+	}
+
+	@Nonnull
+	protected MessageService getMessageService() {
+		return this.messageServiceProvider.get();
 	}
 
 	@Nonnull
