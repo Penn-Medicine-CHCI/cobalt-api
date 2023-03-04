@@ -159,6 +159,10 @@ public class Institution {
 	@Nullable
 	private Integer groupSessionReservationDefaultReminderDayOffset;
 	@Nullable
+	private LocalTime groupSessionReservationDefaultFollowupTimeOfDay;
+	@Nullable
+	private Integer groupSessionReservationDefaultFollowupDayOffset;
+	@Nullable
 	private LocalTime appointmentReservationDefaultReminderTimeOfDay;
 	@Nullable
 	private Integer appointmentReservationDefaultReminderDayOffset;
@@ -704,6 +708,24 @@ public class Institution {
 
 	public void setGroupSessionReservationDefaultReminderDayOffset(@Nullable Integer groupSessionReservationDefaultReminderDayOffset) {
 		this.groupSessionReservationDefaultReminderDayOffset = groupSessionReservationDefaultReminderDayOffset;
+	}
+
+	@Nullable
+	public LocalTime getGroupSessionReservationDefaultFollowupTimeOfDay() {
+		return this.groupSessionReservationDefaultFollowupTimeOfDay;
+	}
+
+	public void setGroupSessionReservationDefaultFollowupTimeOfDay(@Nullable LocalTime groupSessionReservationDefaultFollowupTimeOfDay) {
+		this.groupSessionReservationDefaultFollowupTimeOfDay = groupSessionReservationDefaultFollowupTimeOfDay;
+	}
+
+	@Nullable
+	public Integer getGroupSessionReservationDefaultFollowupDayOffset() {
+		return this.groupSessionReservationDefaultFollowupDayOffset;
+	}
+
+	public void setGroupSessionReservationDefaultFollowupDayOffset(@Nullable Integer groupSessionReservationDefaultFollowupDayOffset) {
+		this.groupSessionReservationDefaultFollowupDayOffset = groupSessionReservationDefaultFollowupDayOffset;
 	}
 
 	@Nullable
