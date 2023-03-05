@@ -93,12 +93,16 @@ public class AmazonSesEmailMessageSender implements MessageSender<EmailMessage> 
 
 		Map<String, Object> messageContext = emailMessage.getMessageContext();
 		String fromAddress = emailMessage.getFromAddress().isPresent() ? emailMessage.getFromAddress().get() : getDefaultFromAddress();
+		String replyToAddress = emailMessage.getReplyToAddress().orElse(null);
 		String subject = getHandlebarsTemplater().mergeTemplate(emailMessage.getMessageTemplate().name(), "subject", emailMessage.getLocale(), messageContext).get();
 		String body = getHandlebarsTemplater().mergeTemplate(emailMessage.getMessageTemplate().name(), "body", emailMessage.getLocale(), messageContext).get();
 
 		List<String> logMessages = new ArrayList<>(7);
 		logMessages.add(format("Sending '%s' email using Amazon SES...", emailMessage.getMessageTemplate()));
 		logMessages.add(format("From: %s", fromAddress));
+
+		if (replyToAddress != null)
+			logMessages.add(format("Reply-To: %s", replyToAddress));
 
 		if (emailMessage.getToAddresses().size() > 0)
 			logMessages.add(format("To: %s", emailMessage.getToAddresses().stream().collect(Collectors.joining(", "))));
@@ -122,6 +126,10 @@ public class AmazonSesEmailMessageSender implements MessageSender<EmailMessage> 
 			Session session = Session.getDefaultInstance(new Properties());
 			MimeMessage mimeMessage = new MimeMessage(session);
 			mimeMessage.addFrom(new Address[]{normalizedFromAddress});
+
+			if (replyToAddress != null)
+				mimeMessage.setReplyTo(new Address[]{new InternetAddress(replyToAddress)});
+
 			mimeMessage.addRecipients(Message.RecipientType.TO, toAddresses(emailMessage.getToAddresses()));
 			mimeMessage.addRecipients(Message.RecipientType.CC, toAddresses(emailMessage.getCcAddresses()));
 			mimeMessage.addRecipients(Message.RecipientType.BCC, toAddresses(emailMessage.getBccAddresses()));
