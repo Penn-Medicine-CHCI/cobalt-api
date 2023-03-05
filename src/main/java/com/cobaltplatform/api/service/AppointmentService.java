@@ -605,6 +605,8 @@ public class AppointmentService {
 
 				boolean sendEmails = provider.getVideoconferencePlatformId() != VideoconferencePlatformId.SWITCHBOARD && duplicateAppointmentForOtherAccount == null;
 
+				Provider pinnedProvider = provider;
+
 				getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
 					// Only send out "appointment was updated" email for non-duplicate appointments
 					if (sendEmails) {
@@ -613,6 +615,7 @@ public class AppointmentService {
 								.toAddresses(new ArrayList<>() {{
 									add(providerEmailAddress);
 								}})
+								.replyToAddress(replyToAddressForEmailsTargetingProvider(pinnedProvider))
 								.messageContext(messageContext)
 								.build());
 
@@ -621,6 +624,7 @@ public class AppointmentService {
 									.toAddresses(new ArrayList<>() {{
 										add(patientEmailAddress);
 									}})
+									.replyToAddress(providerEmailAddress)
 									.messageContext(messageContext)
 									.build());
 						}
@@ -1253,36 +1257,6 @@ public class AppointmentService {
 				// For native appointments, we are responsible for sending emails out
 				sendPatientAndProviderCobaltAppointmentCreatedEmails(appointmentId);
 			}
-
-			if (isCalmingAnAnxiousMindIntakeAppointment && pinnedEmailAddress != null && videoconferencePlatformId != VideoconferencePlatformId.SWITCHBOARD) {
-				// Send custom email to CTSA intake patients
-				EmailMessage emailMessage = new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_CREATED_CTSA_PATIENT, pinnedPatientAccount.getLocale())
-						.toAddresses(Collections.singletonList(pinnedEmailAddress))
-						.messageContext(new HashMap<String, Object>() {{
-							String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionId(pinnedProvider.getInstitutionId()).get();
-
-							String providerNameAndCredentials = pinnedProvider.getName();
-
-							if (pinnedProvider.getLicense() != null)
-								providerNameAndCredentials = format("%s, %s", pinnedProvider.getName(), pinnedProvider.getLicense());
-
-							put("appointmentId", appointmentId);
-							put("providerName", pinnedProvider.getName());
-							put("providerNameAndCredentials", providerNameAndCredentials);
-							put("videoconferenceUrl", pinnedVideoconferenceUrl);
-							put("imageUrl", firstNonNull(pinnedProvider.getImageUrl(), getConfiguration().getDefaultProviderImageUrlForEmail()));
-							put("patientName", Normalizer.normalizeName(pinnedPatientAccount.getFirstName(), pinnedPatientAccount.getLastName()).orElse(getStrings().get("Anonymous User")));
-							put("appointmentStartDateDescription", getFormatter().formatDate(meetingStartTime.toLocalDate()));
-							put("appointmentStartTimeDescription", getFormatter().formatTime(meetingStartTime.toLocalTime(), FormatStyle.SHORT));
-							put("cancelUrl", format("%s/my-calendar?appointmentId=%s&action=cancel", webappBaseUrl, appointmentId));
-							put("icalUrl", format("%s/appointments/%s/ical", webappBaseUrl, appointmentId));
-							put("googleCalendarUrl", format("%s/appointments/%s/google-calendar", webappBaseUrl, appointmentId));
-							put("anotherTimeUrl", format("%s/connect-with-support", webappBaseUrl));
-						}})
-						.build();
-
-				getEmailMessageManager().enqueueMessage(emailMessage);
-			}
 		});
 
 		//Send any patient appointment interactions that might be defined for the provider being scheduled with
@@ -1749,6 +1723,7 @@ public class AppointmentService {
 
 			EmailMessage patientEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_CREATED_PATIENT, account.getLocale())
 					.toAddresses(Collections.singletonList(account.getEmailAddress()))
+					.replyToAddress(provider.getEmailAddress())
 					.messageContext(cobaltPatientEmailMessageContext)
 					.emailAttachments(List.of(generateICalInviteAsEmailAttachment(appointment, InviteMethod.REQUEST)))
 					.build();
@@ -1761,6 +1736,7 @@ public class AppointmentService {
 
 			EmailMessage patientReminderEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_REMINDER_PATIENT, account.getLocale())
 					.toAddresses(Collections.singletonList(account.getEmailAddress()))
+					.replyToAddress(provider.getEmailAddress())
 					.messageContext(cobaltPatientEmailMessageContext)
 					.build();
 
@@ -1797,6 +1773,7 @@ public class AppointmentService {
 
 		EmailMessage providerEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_CREATED_PROVIDER, provider.getLocale())
 				.toAddresses(List.of(provider.getEmailAddress()))
+				.replyToAddress(replyToAddressForEmailsTargetingProvider(provider))
 				.messageContext(cobaltProviderEmailMessageContext)
 				.emailAttachments(List.of(generateICalInviteAsEmailAttachment(appointment, InviteMethod.REQUEST)))
 				.build();
@@ -1842,6 +1819,7 @@ public class AppointmentService {
 
 			EmailMessage patientEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_CANCELED_PATIENT, account.getLocale())
 					.toAddresses(Collections.singletonList(account.getEmailAddress()))
+					.replyToAddress(provider.getEmailAddress())
 					.messageContext(cobaltPatientEmailMessageContext)
 					.emailAttachments(List.of(generateICalInviteAsEmailAttachment(appointment, InviteMethod.CANCEL)))
 					.build();
@@ -1861,11 +1839,19 @@ public class AppointmentService {
 
 		EmailMessage providerEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_CANCELED_PROVIDER, provider.getLocale())
 				.toAddresses(List.of(provider.getEmailAddress()))
+				.replyToAddress(replyToAddressForEmailsTargetingProvider(provider))
 				.messageContext(cobaltProviderEmailMessageContext)
 				.emailAttachments(List.of(generateICalInviteAsEmailAttachment(appointment, InviteMethod.CANCEL)))
 				.build();
 
 		getEmailMessageManager().enqueueMessage(providerEmailMessage);
+	}
+
+	@Nonnull
+	protected String replyToAddressForEmailsTargetingProvider(@Nonnull Provider provider) {
+		requireNonNull(provider);
+		// TODO: institution-specific support once we see how this goes
+		return "support@cobaltinnovations.org";
 	}
 
 	@Nonnull
@@ -2147,6 +2133,7 @@ public class AppointmentService {
 				.toAddresses(new ArrayList<>() {{
 					add(provider.getEmailAddress());
 				}})
+				.replyToAddress(replyToAddressForEmailsTargetingProvider(provider))
 				.messageContext(messageContext)
 				.build());
 	}

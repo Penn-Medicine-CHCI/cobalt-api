@@ -915,6 +915,7 @@ public class GroupSessionService implements AutoCloseable {
 							.toAddresses(new ArrayList<>() {{
 								add(attendeeAccount.getEmailAddress());
 							}})
+							.replyToAddress(pinnedGroupSession.getFacilitatorEmailAddress())
 							.messageContext(new HashMap<String, Object>() {{
 								put("groupSession", pinnedGroupSession);
 								put("imageUrl", firstNonNull(pinnedGroupSession.getImageUrl(), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
@@ -940,6 +941,7 @@ public class GroupSessionService implements AutoCloseable {
 							.toAddresses(new ArrayList<>() {{
 								add(submitterAccount.getEmailAddress());
 							}})
+							.replyToAddress(pinnedGroupSession.getFacilitatorEmailAddress())
 							.messageContext(new HashMap<String, Object>() {{
 								put("groupSession", pinnedGroupSession);
 								put("imageUrl", firstNonNull(pinnedGroupSession.getImageUrl(), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
@@ -1131,6 +1133,7 @@ public class GroupSessionService implements AutoCloseable {
 					.toAddresses(new ArrayList<>() {{
 						add(attendeeEmailAddress);
 					}})
+					.replyToAddress(groupSession.getFacilitatorEmailAddress())
 					.messageContext(attendeeMessageContext)
 					.emailAttachments(List.of(generateICalInviteAsEmailAttachment(groupSession, groupSessionReservation, InviteMethod.REQUEST)))
 					.build();
@@ -1148,6 +1151,7 @@ public class GroupSessionService implements AutoCloseable {
 					.toAddresses(new ArrayList<>() {{
 						add(groupSession.getFacilitatorEmailAddress());
 					}})
+					.replyToAddress(replyToAddressForEmailsTargetingFacilitator(groupSession))
 					.messageContext(new HashMap<String, Object>() {{
 						put("groupSession", groupSession);
 						put("imageUrl", firstNonNull(groupSession.getImageUrl(), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
@@ -1164,6 +1168,20 @@ public class GroupSessionService implements AutoCloseable {
 		});
 
 		return groupSessionReservationId;
+	}
+
+	@Nonnull
+	protected String replyToAddressForEmailsTargetingFacilitator(@Nonnull GroupSession groupSession) {
+		requireNonNull(groupSession);
+		// TODO: institution-specific support once we see how this goes
+		return "support@cobaltinnovations.org";
+	}
+
+	@Nonnull
+	protected String replyToAddressForEmailsTargetingFacilitator(@Nonnull GroupSessionRequest groupSessionRequest) {
+		requireNonNull(groupSessionRequest);
+		// TODO: institution-specific support once we see how this goes
+		return "support@cobaltinnovations.org";
 	}
 
 	@Nonnull
@@ -1200,6 +1218,7 @@ public class GroupSessionService implements AutoCloseable {
 
 		EmailMessage attendeeReminderEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.GROUP_SESSION_RESERVATION_REMINDER_ATTENDEE, pinnedAttendeeAccount.getLocale())
 				.toAddresses(Collections.singletonList(attendeeEmailAddress))
+				.replyToAddress(groupSession.getFacilitatorEmailAddress())
 				.messageContext(attendeeMessageContext)
 				.build();
 
@@ -1237,6 +1256,7 @@ public class GroupSessionService implements AutoCloseable {
 				.toAddresses(new ArrayList<>() {{
 					add(account.getEmailAddress());
 				}})
+				.replyToAddress(groupSession.getFacilitatorEmailAddress())
 				.messageContext(messageContext)
 				.build();
 
@@ -1299,6 +1319,7 @@ public class GroupSessionService implements AutoCloseable {
 					.toAddresses(new ArrayList<>() {{
 						add(attendeeEmailAddress);
 					}})
+					.replyToAddress(groupSession.getFacilitatorEmailAddress())
 					.messageContext(new HashMap<String, Object>() {{
 						put("groupSession", groupSession);
 						put("imageUrl", firstNonNull(groupSession.getImageUrl(), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
@@ -1316,6 +1337,7 @@ public class GroupSessionService implements AutoCloseable {
 					.toAddresses(new ArrayList<>() {{
 						add(groupSession.getFacilitatorEmailAddress());
 					}})
+					.replyToAddress(replyToAddressForEmailsTargetingFacilitator(groupSession))
 					.messageContext(new HashMap<String, Object>() {{
 						put("groupSession", groupSession);
 						put("imageUrl", firstNonNull(groupSession.getImageUrl(), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
@@ -1616,6 +1638,7 @@ public class GroupSessionService implements AutoCloseable {
 							.toAddresses(new ArrayList<>() {{
 								add(submitterAccount.getEmailAddress());
 							}})
+							.replyToAddress(replyToAddressForEmailsTargetingFacilitator(pinnedGroupSessionRequest))
 							.messageContext(new HashMap<String, Object>() {{
 								put("groupSessionRequest", pinnedGroupSessionRequest);
 								put("imageUrl", firstNonNull(pinnedGroupSessionRequest.getImageUrl(), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
@@ -1709,6 +1732,7 @@ public class GroupSessionService implements AutoCloseable {
 					.toAddresses(new ArrayList<>() {{
 						add(pinnedGroupSessionRequest.getFacilitatorEmailAddress());
 					}})
+					.replyToAddress(replyToAddressForEmailsTargetingFacilitator(pinnedGroupSessionRequest))
 					.messageContext(new HashMap<String, Object>() {{
 						put("groupSessionRequestTitle", pinnedGroupSessionRequest.getTitle());
 						put("facilitatorName", pinnedGroupSessionRequest.getFacilitatorName());
@@ -1749,6 +1773,7 @@ public class GroupSessionService implements AutoCloseable {
 				if (accountToNotify.getEmailAddress() != null) {
 					EmailMessage emailMessage = new EmailMessage.Builder(EmailMessageTemplate.ADMIN_GROUP_SESSION_ADDED, accountToNotify.getLocale())
 							.toAddresses(List.of(accountToNotify.getEmailAddress()))
+							.replyToAddress(replyToAddressForEmailsTargetingFacilitator(groupSession))
 							.messageContext(Map.of(
 									"adminAccountName", Normalizer.normalizeName(accountToNotify.getFirstName(), accountToNotify.getLastName()).orElse(getStrings().get("Anonymous User")),
 									"submittingAccountName", Normalizer.normalizeName(accountAddingGroupSession.getFirstName(), accountAddingGroupSession.getLastName()).orElse(getStrings().get("Anonymous User")),
