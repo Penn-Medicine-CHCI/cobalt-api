@@ -36,6 +36,7 @@ import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImport
 import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.model.service.PatientOrderImportResult;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -62,13 +63,15 @@ public class PatientOrderServiceTests {
 			String csvContent = Files.readString(Path.of("resources/test/ic-order-report.csv"), StandardCharsets.UTF_8);
 			String epicPatientJson = Files.readString(Path.of("resources/test/epic-patient.json"), StandardCharsets.UTF_8);
 
-			UUID patientOrderImportId = patientOrderService.createPatientOrderImport(new CreatePatientOrderImportRequest() {{
+			PatientOrderImportResult patientOrderImportResult = patientOrderService.createPatientOrderImport(new CreatePatientOrderImportRequest() {{
 				setCsvContent(csvContent);
 				setInstitutionId(institutionId);
 				setPatientOrderImportTypeId(PatientOrderImportTypeId.CSV);
 				setAccountId(adminAccount.getAccountId());
 				setAutomaticallyAssignToPanelAccounts(false);
 			}});
+
+			UUID patientOrderImportId = patientOrderImportResult.getPatientOrderImportId();
 
 			PatientOrderImport patientOrderImport = patientOrderService.findPatientOrderImportById(patientOrderImportId).orElse(null);
 
