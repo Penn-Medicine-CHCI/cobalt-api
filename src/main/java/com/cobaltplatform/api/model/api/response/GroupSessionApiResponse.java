@@ -21,10 +21,12 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.QuestionApiResponse.QuestionApiResponseFactory;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.service.GroupSessionService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.AppointmentTimeFormatter;
@@ -168,6 +170,9 @@ public class GroupSessionApiResponse {
 		requireNonNull(currentContextProvider);
 		requireNonNull(groupSession);
 
+		CurrentContext currentContext = currentContextProvider.get();
+		Account account = currentContext.getAccount().get();
+
 		this.groupSessionId = groupSession.getGroupSessionId();
 		this.institutionId = groupSession.getInstitutionId();
 		this.institutionDescription = institutionService.findInstitutionById(institutionId).get().getName();
@@ -176,8 +181,15 @@ public class GroupSessionApiResponse {
 		this.groupSessionSchedulingSystemId = groupSession.getGroupSessionSchedulingSystemId();
 		this.assessmentId = groupSession.getAssessmentId();
 		this.submitterAccountId = groupSession.getSubmitterAccountId();
-		this.submitterName = groupSession.getSubmitterName();
-		this.submitterEmailAddress = groupSession.getSubmitterEmailAddress();
+
+		if (account.getRoleId() == RoleId.ADMINISTRATOR) {
+			this.submitterName = groupSession.getSubmitterName();
+			this.submitterEmailAddress = groupSession.getSubmitterEmailAddress();
+		} else {
+			this.submitterName = null;
+			this.submitterEmailAddress = null;
+		}
+
 		this.title = groupSession.getTitle();
 		this.description = groupSession.getDescription();
 		this.urlName = groupSession.getUrlName();
@@ -189,10 +201,14 @@ public class GroupSessionApiResponse {
 		this.startDateTimeDescription = formatter.formatDateTime(groupSession.getStartDateTime(), FormatStyle.LONG, FormatStyle.SHORT);
 		this.endDateTime = groupSession.getEndDateTime();
 		this.endDateTimeDescription = formatter.formatDateTime(groupSession.getEndDateTime(), FormatStyle.LONG, FormatStyle.SHORT);
-		this.durationInMinutes = (int) Duration.between(startDateTime, endDateTime).toMinutes();
-		this.durationInMinutesDescription = strings.get("{{duration}} minutes", new HashMap<String, Object>() {{
-			put("duration", durationInMinutes);
-		}});
+		this.durationInMinutes = (int) Duration.between(startDateTime, endDateTime).
+
+				toMinutes();
+		this.durationInMinutesDescription = strings.get("{{duration}} minutes", new HashMap<String, Object>() {
+			{
+				put("duration", durationInMinutes);
+			}
+		});
 
 		if (groupSession.getGroupSessionSchedulingSystemId() == GroupSessionSchedulingSystemId.COBALT) {
 			this.seats = groupSession.getSeats();
@@ -225,12 +241,24 @@ public class GroupSessionApiResponse {
 		this.imageUrl = groupSession.getImageUrl();
 		this.videoconferenceUrl = groupSession.getVideoconferenceUrl();
 		this.scheduleUrl = groupSession.getScheduleUrl();
-		this.screeningQuestionsV2 = groupSessionService.findScreeningQuestionsByGroupSessionId(groupSession.getGroupSessionId()).stream()
-				.map(question -> questionApiResponseFactory.create(question))
-				.collect(Collectors.toList());
+		this.screeningQuestionsV2 = groupSessionService.findScreeningQuestionsByGroupSessionId(groupSession.getGroupSessionId()).
+
+				stream()
+						.
+
+				map(question -> questionApiResponseFactory.create(question))
+						.
+
+				collect(Collectors.toList());
 		this.screeningQuestions = this.screeningQuestionsV2.stream()
-				.map(question -> question.getQuestion().orElse(null))
-				.collect(Collectors.toList());
+						.
+
+				map(question -> question.getQuestion().
+
+						orElse(null))
+						.
+
+				collect(Collectors.toList());
 
 		this.confirmationEmailContent = groupSession.getConfirmationEmailContent();
 		this.sendFollowupEmail = groupSession.getSendFollowupEmail();
