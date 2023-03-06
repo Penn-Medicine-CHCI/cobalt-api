@@ -20,12 +20,11 @@
 package com.cobaltplatform.api.messaging.email;
 
 import com.cobaltplatform.api.Configuration;
-import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.messaging.MessageSerializer;
+import com.cobaltplatform.api.util.JsonMapper;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -33,7 +32,6 @@ import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-import software.amazon.awssdk.services.s3.model.S3Object;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -85,6 +83,7 @@ public class EmailMessageSerializer implements MessageSerializer<EmailMessage> {
 		serializableEmailMessage.setBccAddresses(emailMessage.getBccAddresses());
 		serializableEmailMessage.setCcAddresses(emailMessage.getCcAddresses());
 		serializableEmailMessage.setFromAddress(emailMessage.getFromAddress().orElse(null));
+		serializableEmailMessage.setReplyToAddress(emailMessage.getReplyToAddress().orElse(null));
 		serializableEmailMessage.setMessageContext(emailMessage.getMessageContext());
 		serializableEmailMessage.setMessageTemplate(emailMessage.getMessageTemplate());
 		serializableEmailMessage.setLocale(emailMessage.getLocale());
@@ -114,6 +113,7 @@ public class EmailMessageSerializer implements MessageSerializer<EmailMessage> {
 				.bccAddresses(serializableEmailMessage.getBccAddresses())
 				.ccAddresses(serializableEmailMessage.getCcAddresses())
 				.fromAddress(serializableEmailMessage.getFromAddress())
+				.replyToAddress(serializableEmailMessage.getReplyToAddress())
 				.messageContext(serializableEmailMessage.getMessageContext())
 				.toAddresses(serializableEmailMessage.getToAddresses())
 				.emailAttachments(serializableEmailMessage.getEmailAttachments().stream()
@@ -127,7 +127,7 @@ public class EmailMessageSerializer implements MessageSerializer<EmailMessage> {
 
 	@Nonnull
 	protected S3Client createAmazonS3() {
-		S3ClientBuilder builder = S3Client.builder()	.region(getConfiguration().getAmazonS3Region());
+		S3ClientBuilder builder = S3Client.builder().region(getConfiguration().getAmazonS3Region());
 
 		if (getConfiguration().getAmazonUseLocalstack()) {
 			builder.endpointOverride(URI.create(getConfiguration().getAmazonS3BaseUrl()));

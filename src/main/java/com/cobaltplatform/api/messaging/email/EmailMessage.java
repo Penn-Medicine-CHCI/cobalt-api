@@ -53,6 +53,8 @@ public class EmailMessage implements Message {
 	private final Locale locale;
 	@Nullable
 	private final String fromAddress;
+	@Nullable
+	private final String replyToAddress;
 	@Nonnull
 	private final List<String> toAddresses;
 	@Nonnull
@@ -70,6 +72,7 @@ public class EmailMessage implements Message {
 		this.messageContext = builder.messageContext == null ? Collections.emptyMap() : Collections.unmodifiableMap(new HashMap<>(builder.messageContext));
 		this.locale = builder.locale;
 		this.fromAddress = builder.fromAddress;
+		this.replyToAddress = builder.replyToAddress;
 		this.toAddresses = builder.toAddresses == null ? Collections.emptyList() : Collections.unmodifiableList(new ArrayList<>(builder.toAddresses));
 		this.ccAddresses = builder.ccAddresses == null ? Collections.emptyList() : Collections.unmodifiableList(new ArrayList<>(builder.ccAddresses));
 		this.bccAddresses = builder.bccAddresses == null ? Collections.emptyList() : Collections.unmodifiableList(new ArrayList<>(builder.bccAddresses));
@@ -78,6 +81,7 @@ public class EmailMessage implements Message {
 
 	/**
 	 * Turns this immutable email back into a mutable builder so we can effectively clone it.
+	 *
 	 * @return a mutable builder prefilled with this email's data.
 	 */
 	@Nonnull
@@ -85,6 +89,7 @@ public class EmailMessage implements Message {
 		return new Builder(getMessageId(), getMessageTemplate(), getLocale())
 				.messageContext(getMessageContext())
 				.fromAddress(getFromAddress().orElse(null))
+				.replyToAddress(getReplyToAddress().orElse(null))
 				.toAddresses(getToAddresses())
 				.ccAddresses(getCcAddresses())
 				.bccAddresses(getBccAddresses())
@@ -94,9 +99,9 @@ public class EmailMessage implements Message {
 	@Override
 	@Nonnull
 	public String toString() {
-		return format("%s{messageId=%s, messageTemplate=%s, messageContext=%s, locale=%s, fromAddress=%s, toAddresses=%s, ccAddresses=%s, bccAddresses=%s, emailAttachments=%s}",
-				getClass().getSimpleName(), getMessageId(), getMessageTemplate(), getMessageContext(), getLocale(), getFromAddress().orElse(null), getToAddresses(),
-				getCcAddresses(), getBccAddresses(), getEmailAttachments());
+		return format("%s{messageId=%s, messageTemplate=%s, messageContext=%s, locale=%s, fromAddress=%s, replyToAddress=%s, toAddresses=%s, ccAddresses=%s, bccAddresses=%s, emailAttachments=%s}",
+				getClass().getSimpleName(), getMessageId(), getMessageTemplate(), getMessageContext(), getLocale(), getFromAddress().orElse(null),
+				getReplyToAddress().orElse(null), getToAddresses(), getCcAddresses(), getBccAddresses(), getEmailAttachments());
 	}
 
 	@Override
@@ -115,6 +120,7 @@ public class EmailMessage implements Message {
 				&& Objects.equals(getMessageContext(), emailMessage.getMessageContext())
 				&& Objects.equals(getLocale(), emailMessage.getLocale())
 				&& Objects.equals(getFromAddress(), emailMessage.getFromAddress())
+				&& Objects.equals(getReplyToAddress(), emailMessage.getReplyToAddress())
 				&& Objects.equals(getToAddresses(), emailMessage.getToAddresses())
 				&& Objects.equals(getCcAddresses(), emailMessage.getCcAddresses())
 				&& Objects.equals(getBccAddresses(), emailMessage.getBccAddresses())
@@ -124,7 +130,7 @@ public class EmailMessage implements Message {
 	@Override
 	public int hashCode() {
 		return Objects.hash(getMessageId(), getMessageTypeId(), getMessageTemplate(), getMessageContext(),
-				getLocale(), getFromAddress(), getToAddresses(), getCcAddresses(), getBccAddresses(), getEmailAttachments());
+				getLocale(), getFromAddress(), getReplyToAddress(), getToAddresses(), getCcAddresses(), getBccAddresses(), getEmailAttachments());
 	}
 
 	public static class Builder {
@@ -138,6 +144,8 @@ public class EmailMessage implements Message {
 		private Map<String, Object> messageContext;
 		@Nullable
 		private String fromAddress;
+		@Nullable
+		private String replyToAddress;
 		@Nullable
 		private List<String> toAddresses;
 		@Nullable
@@ -177,6 +185,12 @@ public class EmailMessage implements Message {
 		}
 
 		@Nonnull
+		public Builder replyToAddress(@Nullable String replyToAddress) {
+			this.replyToAddress = replyToAddress;
+			return this;
+		}
+
+		@Nonnull
 		public Builder toAddresses(@Nullable List<String> toAddresses) {
 			this.toAddresses = toAddresses;
 			return this;
@@ -209,7 +223,7 @@ public class EmailMessage implements Message {
 	@Nonnull
 	@Override
 	public UUID getMessageId() {
-		return messageId;
+		return this.messageId;
 	}
 
 	@Nonnull
@@ -220,32 +234,37 @@ public class EmailMessage implements Message {
 
 	@Nonnull
 	public EmailMessageTemplate getMessageTemplate() {
-		return messageTemplate;
+		return this.messageTemplate;
 	}
 
 	@Nonnull
 	public Map<String, Object> getMessageContext() {
-		return messageContext;
+		return this.messageContext;
 	}
 
 	@Nonnull
 	public Locale getLocale() {
-		return locale;
+		return this.locale;
 	}
 
 	@Nonnull
 	public Optional<String> getFromAddress() {
-		return Optional.ofNullable(fromAddress);
+		return Optional.ofNullable(this.fromAddress);
+	}
+
+	@Nonnull
+	public Optional<String> getReplyToAddress() {
+		return Optional.ofNullable(this.replyToAddress);
 	}
 
 	@Nonnull
 	public List<String> getToAddresses() {
-		return toAddresses;
+		return this.toAddresses;
 	}
 
 	@Nonnull
 	public List<String> getCcAddresses() {
-		return ccAddresses;
+		return this.ccAddresses;
 	}
 
 	@Nonnull

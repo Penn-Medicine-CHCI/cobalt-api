@@ -48,6 +48,8 @@ public class SerializableEmailMessage {
 	@Nullable
 	private String fromAddress;
 	@Nullable
+	private String replyToAddress;
+	@Nullable
 	private List<String> toAddresses;
 	@Nullable
 	private List<String> ccAddresses;
@@ -108,6 +110,15 @@ public class SerializableEmailMessage {
 
 	public void setFromAddress(@Nullable String fromAddress) {
 		this.fromAddress = fromAddress;
+	}
+
+	@Nullable
+	public String getReplyToAddress() {
+		return this.replyToAddress;
+	}
+
+	public void setReplyToAddress(@Nullable String replyToAddress) {
+		this.replyToAddress = replyToAddress;
 	}
 
 	@Nullable
