@@ -46,6 +46,7 @@ import java.time.ZoneId;
 import java.time.format.FormatStyle;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -182,7 +183,10 @@ public class GroupSessionApiResponse {
 		this.assessmentId = groupSession.getAssessmentId();
 		this.submitterAccountId = groupSession.getSubmitterAccountId();
 
-		if (account.getRoleId() == RoleId.ADMINISTRATOR) {
+		// Can only see submitter info if you're an admin or you're the submitter/facilitator
+		if (account.getRoleId() == RoleId.ADMINISTRATOR
+				|| Objects.equals(account.getAccountId(), groupSession.getSubmitterAccountId())
+				|| Objects.equals(account.getAccountId(), groupSession.getFacilitatorAccountId())) {
 			this.submitterName = groupSession.getSubmitterName();
 			this.submitterEmailAddress = groupSession.getSubmitterEmailAddress();
 		} else {
