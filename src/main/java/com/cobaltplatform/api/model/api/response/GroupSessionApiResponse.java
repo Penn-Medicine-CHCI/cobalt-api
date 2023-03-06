@@ -71,6 +71,10 @@ public class GroupSessionApiResponse {
 	private final UUID assessmentId;
 	@Nonnull
 	private final UUID submitterAccountId;
+	@Nonnull
+	private final String submitterName;
+	@Nonnull
+	private final String submitterEmailAddress;
 	@Nullable
 	private final String title;
 	@Nullable
@@ -172,6 +176,8 @@ public class GroupSessionApiResponse {
 		this.groupSessionSchedulingSystemId = groupSession.getGroupSessionSchedulingSystemId();
 		this.assessmentId = groupSession.getAssessmentId();
 		this.submitterAccountId = groupSession.getSubmitterAccountId();
+		this.submitterName = groupSession.getSubmitterName();
+		this.submitterEmailAddress = groupSession.getSubmitterEmailAddress();
 		this.title = groupSession.getTitle();
 		this.description = groupSession.getDescription();
 		this.urlName = groupSession.getUrlName();
@@ -283,6 +289,16 @@ public class GroupSessionApiResponse {
 	@Nonnull
 	public UUID getSubmitterAccountId() {
 		return submitterAccountId;
+	}
+
+	@Nonnull
+	public String getSubmitterName() {
+		return this.submitterName;
+	}
+
+	@Nonnull
+	public String getSubmitterEmailAddress() {
+		return this.submitterEmailAddress;
 	}
 
 	@Nullable
