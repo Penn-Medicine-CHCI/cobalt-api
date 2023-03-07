@@ -1704,11 +1704,12 @@ public class ProviderService {
 			return List.of();
 
 		return getDatabase().queryForList("""
-				SELECT sr.*
+				SELECT DISTINCT sr.*
 				FROM support_role sr, provider_support_role psr, provider p
 				WHERE sr.support_role_id=psr.support_role_id
 				AND psr.provider_id=p.provider_id
 				AND p.institution_id=?
+				AND p.active=TRUE
 				ORDER BY sr.description
 				""", SupportRole.class, institutionId);
 	}
