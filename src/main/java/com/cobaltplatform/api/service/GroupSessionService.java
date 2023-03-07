@@ -28,6 +28,7 @@ import com.cobaltplatform.api.integration.ical.ICalInviteGenerator;
 import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.InviteAttendee;
 import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.InviteMethod;
 import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.InviteOrganizer;
+import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.OrganizerAttendeeStrategy;
 import com.cobaltplatform.api.messaging.email.EmailAttachment;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageManager;
@@ -1202,6 +1203,7 @@ public class GroupSessionService implements AutoCloseable {
 			put("groupSession", groupSession);
 			put("imageUrl", firstNonNull(groupSession.getImageUrl(), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
 			put("attendeeName", attendeeName);
+			put("groupSessionTitle", groupSession.getTitle());
 			put("groupSessionStartDateDescription", getFormatter().formatDate(groupSession.getStartDateTime().toLocalDate()));
 			put("groupSessionStartTimeDescription", getFormatter().formatTime(groupSession.getStartDateTime().toLocalTime(), FormatStyle.SHORT));
 			put("groupSessionEndDateDescription", getFormatter().formatDate(groupSession.getEndDateTime().toLocalDate()));
@@ -1843,7 +1845,7 @@ public class GroupSessionService implements AutoCloseable {
 
 		return getiCalInviteGenerator().generateInvite(groupSession.getGroupSessionId().toString(), groupSession.getTitle(),
 				extendedDescription, groupSession.getStartDateTime(), groupSession.getEndDateTime(),
-				groupSession.getTimeZone(), groupSession.getVideoconferenceUrl(), inviteMethod, inviteOrganizer, inviteAttendee);
+				groupSession.getTimeZone(), groupSession.getVideoconferenceUrl(), inviteMethod, inviteOrganizer, inviteAttendee, OrganizerAttendeeStrategy.BOTH_ATTENDEES);
 	}
 
 	@Nonnull
