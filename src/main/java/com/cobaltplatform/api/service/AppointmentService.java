@@ -47,6 +47,7 @@ import com.cobaltplatform.api.integration.ical.ICalInviteGenerator;
 import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.InviteAttendee;
 import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.InviteMethod;
 import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.InviteOrganizer;
+import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.OrganizerAttendeeStrategy;
 import com.cobaltplatform.api.messaging.email.EmailAttachment;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageManager;
@@ -2230,7 +2231,7 @@ public class AppointmentService {
 
 		return getiCalInviteGenerator().generateInvite(appointment.getAppointmentId().toString(), title,
 				extendedDescription, appointment.getStartTime(), appointment.getEndTime(),
-				appointment.getTimeZone(), appointment.getVideoconferenceUrl(), inviteMethod, inviteOrganizer, inviteAttendee);
+				appointment.getTimeZone(), appointment.getVideoconferenceUrl(), inviteMethod, inviteOrganizer, inviteAttendee, OrganizerAttendeeStrategy.ORGANIZER_AND_ATTENDEE);
 	}
 
 	@Nonnull

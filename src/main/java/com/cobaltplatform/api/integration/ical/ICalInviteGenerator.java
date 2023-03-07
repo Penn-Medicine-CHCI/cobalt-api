@@ -128,7 +128,8 @@ public class ICalInviteGenerator {
 															 @Nonnull String location,
 															 @Nonnull InviteMethod inviteMethod,
 															 @Nonnull InviteOrganizer inviteOrganizer,
-															 @Nonnull InviteAttendee inviteAttendee) {
+															 @Nonnull InviteAttendee inviteAttendee,
+															 @Nonnull OrganizerAttendeeStrategy organizerAttendeeStrategy) {
 		requireNonNull(uniqueIdentifier);
 		requireNonNull(title);
 		requireNonNull(description);
@@ -139,6 +140,7 @@ public class ICalInviteGenerator {
 		requireNonNull(inviteMethod);
 		requireNonNull(inviteOrganizer);
 		requireNonNull(inviteAttendee);
+		requireNonNull(organizerAttendeeStrategy);
 
 		TimeZoneRegistry timeZoneRegistry = TimeZoneRegistryFactory.getInstance().createRegistry();
 		TimeZone icalTimeZone = timeZoneRegistry.getTimeZone(timeZone.getId());
@@ -157,15 +159,18 @@ public class ICalInviteGenerator {
 		meeting.getProperties().add(new Location(location));
 		meeting.getProperties().add(new Description(description));
 
-		Organizer organizer = new Organizer(URI.create(format("mailto:%s", inviteOrganizer.getEmailAddress())));
-		organizer.getParameters().add(new SentBy(URI.create(format("mailto:%s", getConfiguration().getEmailDefaultFromAddress()))));
+		if (organizerAttendeeStrategy == OrganizerAttendeeStrategy.ORGANIZER_AND_ATTENDEE) {
+			// Have an explicit organizer as opposed to having 2 attendees with unknown organizer
+			Organizer organizer = new Organizer(URI.create(format("mailto:%s", inviteOrganizer.getEmailAddress())));
+			organizer.getParameters().add(new SentBy(URI.create(format("mailto:%s", getConfiguration().getEmailDefaultFromAddress()))));
 
-		String organizerName = trimToNull(inviteOrganizer.getName().orElse(null));
+			String organizerName = trimToNull(inviteOrganizer.getName().orElse(null));
 
-		if (organizerName != null)
-			organizer.getParameters().add(new Cn(organizerName));
+			if (organizerName != null)
+				organizer.getParameters().add(new Cn(organizerName));
 
-		meeting.getProperties().add(organizer);
+			meeting.getProperties().add(organizer);
+		}
 
 		Attendee attendee = new Attendee(URI.create(format("mailto:%s", inviteAttendee.getEmailAddress())));
 
@@ -177,16 +182,18 @@ public class ICalInviteGenerator {
 		attendee.getParameters().add(PartStat.ACCEPTED);
 		meeting.getProperties().add(attendee);
 
-		// Both provider and patient are attendees, no official organizer...
-//		Attendee organizerAttendee = new Attendee(URI.create(format("mailto:%s", inviteOrganizer.getEmailAddress())));
-//
-//		String organizerAttendeeName = trimToNull(inviteOrganizer.getName().orElse(null));
-//		if (organizerAttendeeName != null)
-//			organizerAttendee.getParameters().add(new Cn(organizerAttendeeName));
-//
-//		organizerAttendee.getParameters().add(Role.REQ_PARTICIPANT);
-//		organizerAttendee.getParameters().add(PartStat.ACCEPTED);
-//		meeting.getProperties().add(organizerAttendee);
+		if (organizerAttendeeStrategy == OrganizerAttendeeStrategy.BOTH_ATTENDEES) {
+			// Both provider and patient are attendees, no official organizer...
+			Attendee organizerAttendee = new Attendee(URI.create(format("mailto:%s", inviteOrganizer.getEmailAddress())));
+
+			String organizerAttendeeName = trimToNull(inviteOrganizer.getName().orElse(null));
+			if (organizerAttendeeName != null)
+				organizerAttendee.getParameters().add(new Cn(organizerAttendeeName));
+
+			organizerAttendee.getParameters().add(Role.REQ_PARTICIPANT);
+			organizerAttendee.getParameters().add(PartStat.ACCEPTED);
+			meeting.getProperties().add(organizerAttendee);
+		}
 
 		net.fortuna.ical4j.model.Calendar icsCalendar = new net.fortuna.ical4j.model.Calendar();
 		icsCalendar.getProperties().add(new ProdId("-//Events Calendar//iCal4j 1.0//EN"));
@@ -208,6 +215,11 @@ public class ICalInviteGenerator {
 	public enum InviteMethod {
 		REQUEST,
 		CANCEL
+	}
+
+	public enum OrganizerAttendeeStrategy {
+		ORGANIZER_AND_ATTENDEE,
+		BOTH_ATTENDEES
 	}
 
 	@Immutable
