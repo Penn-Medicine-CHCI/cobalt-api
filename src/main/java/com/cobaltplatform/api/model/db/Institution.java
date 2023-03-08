@@ -155,9 +155,7 @@ public class Institution {
 	@Nullable
 	private String microsoftClientId;
 	@Nullable
-	private LocalTime groupSessionReservationDefaultReminderTimeOfDay;
-	@Nullable
-	private Integer groupSessionReservationDefaultReminderDayOffset;
+	private Integer groupSessionReservationDefaultReminderMinutesOffset;
 	@Nullable
 	private LocalTime groupSessionReservationDefaultFollowupTimeOfDay;
 	@Nullable
@@ -693,21 +691,12 @@ public class Institution {
 	}
 
 	@Nullable
-	public LocalTime getGroupSessionReservationDefaultReminderTimeOfDay() {
-		return this.groupSessionReservationDefaultReminderTimeOfDay;
+	public Integer getGroupSessionReservationDefaultReminderMinutesOffset() {
+		return this.groupSessionReservationDefaultReminderMinutesOffset;
 	}
 
-	public void setGroupSessionReservationDefaultReminderTimeOfDay(@Nullable LocalTime groupSessionReservationDefaultReminderTimeOfDay) {
-		this.groupSessionReservationDefaultReminderTimeOfDay = groupSessionReservationDefaultReminderTimeOfDay;
-	}
-
-	@Nullable
-	public Integer getGroupSessionReservationDefaultReminderDayOffset() {
-		return this.groupSessionReservationDefaultReminderDayOffset;
-	}
-
-	public void setGroupSessionReservationDefaultReminderDayOffset(@Nullable Integer groupSessionReservationDefaultReminderDayOffset) {
-		this.groupSessionReservationDefaultReminderDayOffset = groupSessionReservationDefaultReminderDayOffset;
+	public void setGroupSessionReservationDefaultReminderMinutesOffset(@Nullable Integer groupSessionReservationDefaultReminderMinutesOffset) {
+		this.groupSessionReservationDefaultReminderMinutesOffset = groupSessionReservationDefaultReminderMinutesOffset;
 	}
 
 	@Nullable

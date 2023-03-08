@@ -1236,8 +1236,7 @@ public class GroupSessionService implements AutoCloseable {
 		}};
 
 		// Schedule a reminder message for this reservation based on institution rules
-		LocalDate reminderMessageDate = groupSession.getStartDateTime().toLocalDate().minusDays(institution.getGroupSessionReservationDefaultReminderDayOffset());
-		LocalTime reminderMessageTimeOfDay = institution.getGroupSessionReservationDefaultReminderTimeOfDay();
+		LocalDateTime reminderMessageDateTime = groupSession.getStartDateTime().minusMinutes(institution.getGroupSessionReservationDefaultReminderMinutesOffset());
 
 		EmailMessage attendeeReminderEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.GROUP_SESSION_RESERVATION_REMINDER_ATTENDEE, pinnedAttendeeAccount.getLocale())
 				.toAddresses(Collections.singletonList(attendeeEmailAddress))
@@ -1249,7 +1248,7 @@ public class GroupSessionService implements AutoCloseable {
 			setMetadata(Map.of("groupSessionReservationId", groupSessionReservation.getGroupSessionReservationId()));
 			setMessage(attendeeReminderEmailMessage);
 			setTimeZone(institution.getTimeZone());
-			setScheduledAt(LocalDateTime.of(reminderMessageDate, reminderMessageTimeOfDay));
+			setScheduledAt(reminderMessageDateTime);
 		}});
 
 		getDatabase().execute("""
