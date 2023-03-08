@@ -1222,6 +1222,20 @@ public class ScreeningService {
 	}
 
 	@Nonnull
+	public List<ScreeningSession> findScreeningSessionsByPatientOrderId(@Nullable UUID patientOrderId) {
+		if (patientOrderId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT ss.*
+				FROM screening_session ss, patient_order_screening_session poss
+				WHERE ss.screening_session_id=poss.screening_session_id
+				AND poss.patient_order_id=?
+				ORDER BY ss.created DESC
+				""", ScreeningSession.class, patientOrderId);
+	}
+
+	@Nonnull
 	protected ScreeningScoringFunctionOutput executeScreeningScoringFunction(@Nonnull String screeningScoringFunctionJavascript,
 																																					 @Nonnull List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions,
 																																					 @Nonnull List<ScreeningAnswer> screeningAnswers,
