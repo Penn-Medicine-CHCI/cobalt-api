@@ -44,6 +44,8 @@ public class CreateGroupSessionRequest {
 	@Nullable
 	private String submitterEmailAddress;
 	@Nullable
+	private String targetEmailAddress;
+	@Nullable
 	private String title;
 	@Nullable
 	private String description;
@@ -124,6 +126,15 @@ public class CreateGroupSessionRequest {
 
 	public void setSubmitterEmailAddress(@Nullable String submitterEmailAddress) {
 		this.submitterEmailAddress = submitterEmailAddress;
+	}
+
+	@Nullable
+	public String getTargetEmailAddress() {
+		return this.targetEmailAddress;
+	}
+
+	public void setTargetEmailAddress(@Nullable String targetEmailAddress) {
+		this.targetEmailAddress = targetEmailAddress;
 	}
 
 	@Nullable
