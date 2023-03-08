@@ -53,6 +53,8 @@ public class UpdateGroupSessionRequest {
 	@Nullable
 	private String submitterEmailAddress;
 	@Nullable
+	private String targetEmailAddress;
+	@Nullable
 	private LocalDateTime startDateTime;
 	@Nullable
 	private LocalDateTime endDateTime;
@@ -166,6 +168,15 @@ public class UpdateGroupSessionRequest {
 
 	public void setSubmitterEmailAddress(@Nullable String submitterEmailAddress) {
 		this.submitterEmailAddress = submitterEmailAddress;
+	}
+
+	@Nullable
+	public String getTargetEmailAddress() {
+		return this.targetEmailAddress;
+	}
+
+	public void setTargetEmailAddress(@Nullable String targetEmailAddress) {
+		this.targetEmailAddress = targetEmailAddress;
 	}
 
 	@Nullable

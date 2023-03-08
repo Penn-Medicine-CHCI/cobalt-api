@@ -91,6 +91,19 @@ public final class ValidationUtility {
 	}
 
 	@Nonnull
+	public static Boolean isValidUrl(@Nullable String value) {
+		value = trimToNull(value);
+
+		if (value == null)
+			return false;
+
+		value = value.toLowerCase(Locale.US);
+
+		// Loose but "good enough" for most cases...
+		return value.startsWith("https://") || value.startsWith("http://");
+	}
+
+	@Nonnull
 	public static Boolean isValidHexColor(@Nullable String value) {
 		value = trimToNull(value);
 
