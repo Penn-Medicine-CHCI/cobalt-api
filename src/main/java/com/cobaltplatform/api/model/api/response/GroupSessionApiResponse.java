@@ -78,6 +78,8 @@ public class GroupSessionApiResponse {
 	private final String submitterName;
 	@Nonnull
 	private final String submitterEmailAddress;
+	@Nonnull
+	private final String targetEmailAddress;
 	@Nullable
 	private final String title;
 	@Nullable
@@ -189,9 +191,11 @@ public class GroupSessionApiResponse {
 				|| Objects.equals(account.getAccountId(), groupSession.getFacilitatorAccountId())) {
 			this.submitterName = groupSession.getSubmitterName();
 			this.submitterEmailAddress = groupSession.getSubmitterEmailAddress();
+			this.targetEmailAddress = groupSession.getTargetEmailAddress();
 		} else {
 			this.submitterName = null;
 			this.submitterEmailAddress = null;
+			this.targetEmailAddress = null;
 		}
 
 		this.title = groupSession.getTitle();
@@ -331,6 +335,11 @@ public class GroupSessionApiResponse {
 	@Nonnull
 	public String getSubmitterEmailAddress() {
 		return this.submitterEmailAddress;
+	}
+
+	@Nonnull
+	public String getTargetEmailAddress() {
+		return this.targetEmailAddress;
 	}
 
 	@Nullable
