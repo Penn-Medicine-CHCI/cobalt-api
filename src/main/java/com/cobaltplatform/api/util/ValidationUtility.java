@@ -97,7 +97,7 @@ public final class ValidationUtility {
 		if (value == null)
 			return false;
 
-		value = value.toUpperCase(Locale.US);
+		value = value.toLowerCase(Locale.US);
 
 		// Loose but "good enough" for most cases...
 		return value.startsWith("https://") || value.startsWith("http://");
