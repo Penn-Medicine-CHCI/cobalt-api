@@ -113,6 +113,7 @@ import java.util.stream.Collectors;
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidEmailAddress;
+import static com.cobaltplatform.api.util.ValidationUtility.isValidUrl;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
@@ -557,6 +558,9 @@ public class GroupSessionService implements AutoCloseable {
 			throw new UnsupportedOperationException(format("Not sure what to do with %s.%s", GroupSessionSchedulingSystemId.class.getSimpleName(), groupSessionSchedulingSystemId.name()));
 		}
 
+		if (videoconferenceUrl != null && !isValidUrl(videoconferenceUrl))
+			validationException.add(new FieldError("videoconferenceUrl", getStrings().get("Videoconference URL is invalid.")));
+
 		if (validationException.hasErrors())
 			throw validationException;
 
@@ -700,6 +704,9 @@ public class GroupSessionService implements AutoCloseable {
 		} else {
 			throw new UnsupportedOperationException(format("Not sure what to do with %s.%s", GroupSessionSchedulingSystemId.class.getSimpleName(), groupSessionSchedulingSystemId.name()));
 		}
+
+		if (videoconferenceUrl != null && !isValidUrl(videoconferenceUrl))
+			validationException.add(new FieldError("videoconferenceUrl", getStrings().get("Videoconference URL is invalid.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
