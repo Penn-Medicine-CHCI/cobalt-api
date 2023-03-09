@@ -26,6 +26,7 @@ import com.cobaltplatform.api.model.api.response.PatientOrderDiagnosisApiRespons
 import com.cobaltplatform.api.model.api.response.PatientOrderMedicationApiResponse.PatientOrderMedicationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
@@ -35,10 +36,12 @@ import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClo
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
+import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AddressService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.PatientOrderService;
+import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.Provider;
 import com.google.inject.assistedinject.Assisted;
@@ -251,11 +254,13 @@ public class PatientOrderApiResponse {
 																 @Nonnull AccountService accountService,
 																 @Nonnull AddressService addressService,
 																 @Nonnull InstitutionService institutionService,
+																 @Nonnull ScreeningService screeningService,
 																 @Nonnull AccountApiResponseFactory accountApiResponseFactory,
 																 @Nonnull PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory,
 																 @Nonnull PatientOrderOutreachApiResponseFactory patientOrderOutreachApiResponseFactory,
 																 @Nonnull PatientOrderDiagnosisApiResponseFactory patientOrderDiagnosisApiResponseFactory,
 																 @Nonnull PatientOrderMedicationApiResponseFactory patientOrderMedicationApiResponseFactory,
+																 @Nonnull ScreeningSessionApiResponseFactory screeningSessionApiResponseFactory,
 																 @Nonnull AddressApiResponseFactory addressApiResponseFactory,
 																 @Nonnull Formatter formatter,
 																 @Nonnull Strings strings,
@@ -266,11 +271,13 @@ public class PatientOrderApiResponse {
 				accountService,
 				addressService,
 				institutionService,
+				screeningService,
 				accountApiResponseFactory,
 				patientOrderNoteApiResponseFactory,
 				patientOrderOutreachApiResponseFactory,
 				patientOrderDiagnosisApiResponseFactory,
 				patientOrderMedicationApiResponseFactory,
+				screeningSessionApiResponseFactory,
 				addressApiResponseFactory,
 				formatter,
 				strings,
@@ -285,11 +292,13 @@ public class PatientOrderApiResponse {
 																 @Nonnull AccountService accountService,
 																 @Nonnull AddressService addressService,
 																 @Nonnull InstitutionService institutionService,
+																 @Nonnull ScreeningService screeningService,
 																 @Nonnull AccountApiResponseFactory accountApiResponseFactory,
 																 @Nonnull PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory,
 																 @Nonnull PatientOrderOutreachApiResponseFactory patientOrderOutreachApiResponseFactory,
 																 @Nonnull PatientOrderDiagnosisApiResponseFactory patientOrderDiagnosisApiResponseFactory,
 																 @Nonnull PatientOrderMedicationApiResponseFactory patientOrderMedicationApiResponseFactory,
+																 @Nonnull ScreeningSessionApiResponseFactory screeningSessionApiResponseFactory,
 																 @Nonnull AddressApiResponseFactory addressApiResponseFactory,
 																 @Nonnull Formatter formatter,
 																 @Nonnull Strings strings,
@@ -301,11 +310,13 @@ public class PatientOrderApiResponse {
 		requireNonNull(accountService);
 		requireNonNull(addressService);
 		requireNonNull(institutionService);
+		requireNonNull(screeningService);
 		requireNonNull(accountApiResponseFactory);
 		requireNonNull(patientOrderNoteApiResponseFactory);
 		requireNonNull(patientOrderOutreachApiResponseFactory);
 		requireNonNull(patientOrderDiagnosisApiResponseFactory);
 		requireNonNull(patientOrderMedicationApiResponseFactory);
+		requireNonNull(screeningSessionApiResponseFactory);
 		requireNonNull(addressApiResponseFactory);
 		requireNonNull(formatter);
 		requireNonNull(strings);
@@ -345,6 +356,10 @@ public class PatientOrderApiResponse {
 			patientOrderOutreaches = patientOrderService.findPatientOrderOutreachesByPatientOrderId(patientOrder.getPatientOrderId()).stream()
 					.map(patientOrderOutreach -> patientOrderOutreachApiResponseFactory.create(patientOrderOutreach))
 					.collect(Collectors.toList());
+
+			List<ScreeningSession> screeningSessions = screeningService.findScreeningSessionsByPatientOrderId(patientOrder.getPatientOrderId());
+
+			// TODO: return most recent session (?)
 		}
 
 		// Always available to both patients and MHICs

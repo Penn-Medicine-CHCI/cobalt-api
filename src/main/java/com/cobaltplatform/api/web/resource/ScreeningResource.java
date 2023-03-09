@@ -30,6 +30,7 @@ import com.cobaltplatform.api.model.api.response.ScreeningConfirmationPromptApiR
 import com.cobaltplatform.api.model.api.response.ScreeningFlowVersionApiResponse.ScreeningFlowVersionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningQuestionApiResponse.ScreeningQuestionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseSupplement;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ScreeningAnswer;
 import com.cobaltplatform.api.model.db.ScreeningAnswerOption;
@@ -68,6 +69,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -172,7 +174,7 @@ public class ScreeningResource {
 		Account pinnedTargetAccount = targetAccount;
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("screeningSession", getScreeningSessionApiResponseFactory().create(screeningSession, pinnedTargetAccount));
+			put("screeningSession", getScreeningSessionApiResponseFactory().create(screeningSession, pinnedTargetAccount, Set.of(ScreeningSessionApiResponseSupplement.NEXT_QUESTION)));
 		}});
 	}
 
@@ -195,7 +197,7 @@ public class ScreeningResource {
 			put("screeningSessions", screeningSessions.stream()
 					.map(screeningSession -> {
 						Account targetAccount = getAccountService().findAccountById(screeningSession.getTargetAccountId()).get();
-						return getScreeningSessionApiResponseFactory().create(screeningSession, targetAccount);
+						return getScreeningSessionApiResponseFactory().create(screeningSession, targetAccount, Set.of(ScreeningSessionApiResponseSupplement.NEXT_QUESTION));
 					}).collect(Collectors.toList()));
 		}});
 	}
@@ -247,7 +249,7 @@ public class ScreeningResource {
 
 		ScreeningSession screeningSession = getScreeningService().findScreeningSessionById(screeningSessionId).get();
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("screeningSession", getScreeningSessionApiResponseFactory().create(screeningSession, account));
+			put("screeningSession", getScreeningSessionApiResponseFactory().create(screeningSession, account, Set.of(ScreeningSessionApiResponseSupplement.NEXT_QUESTION)));
 		}});
 	}
 
@@ -300,7 +302,7 @@ public class ScreeningResource {
 
 		ScreeningSession skippedScreeningSession = getScreeningService().findScreeningSessionById(screeningSessionId).get();
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("screeningSession", getScreeningSessionApiResponseFactory().create(skippedScreeningSession, account));
+			put("screeningSession", getScreeningSessionApiResponseFactory().create(skippedScreeningSession, account, Set.of(ScreeningSessionApiResponseSupplement.NEXT_QUESTION)));
 		}});
 	}
 

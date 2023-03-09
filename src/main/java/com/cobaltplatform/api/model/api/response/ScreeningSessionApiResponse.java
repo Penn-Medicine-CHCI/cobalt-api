@@ -34,6 +34,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
+import java.util.Set;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -77,14 +78,20 @@ public class ScreeningSessionApiResponse {
 	@Nullable
 	private ScreeningQuestionContextId nextScreeningQuestionContextId;
 	@Nullable
-	private final ScreeningSessionDestination screeningSessionDestination;
+	private ScreeningSessionDestination screeningSessionDestination;
+
+	public enum ScreeningSessionApiResponseSupplement {
+		NEXT_QUESTION,
+		RESULTS
+	}
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface ScreeningSessionApiResponseFactory {
 		@Nonnull
 		ScreeningSessionApiResponse create(@Nonnull ScreeningSession screeningSession,
-																			 @Nonnull Account targetAccount);
+																			 @Nonnull Account targetAccount,
+																			 @Nonnull Set<ScreeningSessionApiResponseSupplement> supplements);
 	}
 
 	@AssistedInject
@@ -92,12 +99,14 @@ public class ScreeningSessionApiResponse {
 																		 @Nonnull Formatter formatter,
 																		 @Nonnull Strings strings,
 																		 @Assisted @Nonnull ScreeningSession screeningSession,
-																		 @Assisted @Nonnull Account targetAccount) {
+																		 @Assisted @Nonnull Account targetAccount,
+																		 @Assisted @Nonnull Set<ScreeningSessionApiResponseSupplement> supplements) {
 		requireNonNull(screeningService);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(screeningSession);
 		requireNonNull(targetAccount);
+		requireNonNull(supplements);
 
 		this.screeningSessionId = screeningSession.getScreeningSessionId();
 		this.screeningFlowVersionId = screeningSession.getScreeningFlowVersionId();
@@ -115,13 +124,19 @@ public class ScreeningSessionApiResponse {
 		this.created = screeningSession.getCreated();
 		this.createdDescription = formatter.formatTimestamp(screeningSession.getCreated());
 
-		ScreeningQuestionContext nextScreeningQuestionContext =
-				screeningService.findNextUnansweredScreeningQuestionContextByScreeningSessionId(screeningSessionId).orElse(null);
+		if (supplements.contains(ScreeningSessionApiResponseSupplement.NEXT_QUESTION)) {
+			ScreeningQuestionContext nextScreeningQuestionContext =
+					screeningService.findNextUnansweredScreeningQuestionContextByScreeningSessionId(screeningSessionId).orElse(null);
 
-		this.nextScreeningQuestionContextId = nextScreeningQuestionContext == null ? null
-				: nextScreeningQuestionContext.getScreeningQuestionContextId();
+			this.nextScreeningQuestionContextId = nextScreeningQuestionContext == null ? null
+					: nextScreeningQuestionContext.getScreeningQuestionContextId();
 
-		this.screeningSessionDestination = screeningService.determineDestinationForScreeningSessionId(screeningSessionId).orElse(null);
+			this.screeningSessionDestination = screeningService.determineDestinationForScreeningSessionId(screeningSessionId).orElse(null);
+		}
+
+		if (supplements.contains(ScreeningSessionApiResponseSupplement.RESULTS)) {
+			// TODO
+		}
 	}
 
 	@Nonnull

@@ -21,12 +21,14 @@ package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
+import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse;
@@ -41,6 +43,7 @@ import com.cobaltplatform.api.model.api.response.PatientOrderTriageApiResponse.P
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
+import com.cobaltplatform.api.model.db.PatientOrderClosureReason;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderOutreach;
@@ -243,6 +246,66 @@ public class PatientOrderResource {
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("patientOrder", getPatientOrderApiResponseFactory().create(patientOrder, responseFormat,
+					Set.of(PatientOrderApiResponseSupplement.EVERYTHING)));
+		}});
+	}
+
+	@Nonnull
+	@PUT("/patient-orders/{patientOrderId}/close")
+	@AuthenticationRequired
+	public ApiResponse closePatientOrder(@Nonnull @PathParameter UUID patientOrderId,
+																			 @Nonnull @RequestBody String requestBody) {
+		requireNonNull(patientOrderId);
+
+		Account account = getCurrentContext().getAccount().get();
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+
+		if (patientOrder == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		ClosePatientOrderRequest request = getRequestBodyParser().parse(requestBody, ClosePatientOrderRequest.class);
+		request.setPatientOrderId(patientOrder.getPatientOrderId());
+		request.setAccountId(account.getAccountId());
+
+		getPatientOrderService().closePatientOrder(request);
+
+		PatientOrder updatedPatientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).get();
+		PatientOrderApiResponseFormat responseFormat = PatientOrderApiResponseFormat.fromRoleId(account.getRoleId());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrder", getPatientOrderApiResponseFactory().create(updatedPatientOrder, responseFormat,
+					Set.of(PatientOrderApiResponseSupplement.EVERYTHING)));
+		}});
+	}
+
+	@Nonnull
+	@PUT("/patient-orders/{patientOrderId}/open")
+	@AuthenticationRequired
+	public ApiResponse openPatientOrder(@Nonnull @PathParameter UUID patientOrderId) {
+		requireNonNull(patientOrderId);
+
+		Account account = getCurrentContext().getAccount().get();
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+
+		if (patientOrder == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		getPatientOrderService().openPatientOrder(new OpenPatientOrderRequest() {{
+			setPatientOrderId(patientOrder.getPatientOrderId());
+			setAccountId(account.getAccountId());
+		}});
+
+		PatientOrder updatedPatientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).get();
+		PatientOrderApiResponseFormat responseFormat = PatientOrderApiResponseFormat.fromRoleId(account.getRoleId());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrder", getPatientOrderApiResponseFactory().create(updatedPatientOrder, responseFormat,
 					Set.of(PatientOrderApiResponseSupplement.EVERYTHING)));
 		}});
 	}
@@ -486,6 +549,21 @@ public class PatientOrderResource {
 		getPatientOrderService().deletePatientOrderNote(request);
 
 		return new ApiResponse(); // 204
+	}
+
+	@Nonnull
+	@GET("/patient-order-closure-reasons")
+	@AuthenticationRequired
+	public ApiResponse patientOrderClosureReasons() {
+		List<PatientOrderClosureReason> patientOrderClosureReasons = getPatientOrderService().findPatientOrderClosureReasons();
+
+		return new ApiResponse(new HashMap<>() {{
+			put("patientOrderClosureReasons", patientOrderClosureReasons.stream()
+					.map(patientOrderClosureReason -> Map.of(
+							"patientOrderClosureReasonId", patientOrderClosureReason.getPatientOrderClosureReasonId(),
+							"description", patientOrderClosureReason.getDescription()))
+					.collect(Collectors.toList()));
+		}});
 	}
 
 	@Nonnull

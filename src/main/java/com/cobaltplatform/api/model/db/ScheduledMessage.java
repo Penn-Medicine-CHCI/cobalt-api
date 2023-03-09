@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
+import com.cobaltplatform.api.model.db.ScheduledMessageSource.ScheduledMessageSourceId;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
 
 import javax.annotation.Nullable;
@@ -39,7 +40,11 @@ public class ScheduledMessage {
 	@Nullable
 	private ScheduledMessageStatusId scheduledMessageStatusId;
 	@Nullable
+	private ScheduledMessageSourceId scheduledMessageSourceId;
+	@Nullable
 	private UUID messageId;
+	@Nullable
+	private UUID scheduledByAccountId;
 	@Nullable
 	private MessageTypeId messageTypeId;
 	@Nullable
@@ -95,6 +100,24 @@ public class ScheduledMessage {
 
 	public void setMessageTypeId(@Nullable MessageTypeId messageTypeId) {
 		this.messageTypeId = messageTypeId;
+	}
+
+	@Nullable
+	public ScheduledMessageSourceId getScheduledMessageSourceId() {
+		return this.scheduledMessageSourceId;
+	}
+
+	public void setScheduledMessageSourceId(@Nullable ScheduledMessageSourceId scheduledMessageSourceId) {
+		this.scheduledMessageSourceId = scheduledMessageSourceId;
+	}
+
+	@Nullable
+	public UUID getScheduledByAccountId() {
+		return this.scheduledByAccountId;
+	}
+
+	public void setScheduledByAccountId(@Nullable UUID scheduledByAccountId) {
+		this.scheduledByAccountId = scheduledByAccountId;
 	}
 
 	@Nullable
