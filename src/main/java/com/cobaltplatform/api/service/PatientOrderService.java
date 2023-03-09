@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderEventRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
@@ -31,6 +32,7 @@ import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.Create
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
+import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest;
@@ -39,6 +41,8 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
+import com.cobaltplatform.api.model.db.PatientOrderClosureReason;
+import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderDiagnosis;
 import com.cobaltplatform.api.model.db.PatientOrderEventType.PatientOrderEventTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderImport;
@@ -292,6 +296,16 @@ public class PatientOrderService {
 				AND patient_order_status_id != ?
 				ORDER BY order_date DESC, order_age_in_minutes    
 				""", PatientOrder.class, icTestPatientEmailAddress.getEmailAddress(), institutionId, PatientOrderStatusId.DELETED);
+	}
+
+	@Nonnull
+	public List<PatientOrderClosureReason> findPatientOrderClosureReasons() {
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM patient_order_closure_reason
+				WHERE patient_order_closure_reason_id != ?
+				ORDER BY display_order
+				""", PatientOrderClosureReason.class, PatientOrderClosureReasonId.NOT_CLOSED);
 	}
 
 	@Nonnull
@@ -620,6 +634,116 @@ public class PatientOrderService {
 		sql += "ORDER BY display_order";
 
 		return getDatabase().queryForList(sql, PatientOrderTriage.class, parameters.toArray(new Object[]{}));
+	}
+
+	@Nonnull
+	public Boolean openPatientOrder(@Nonnull OpenPatientOrderRequest request) {
+		requireNonNull(request);
+
+		UUID accountId = request.getAccountId();
+		UUID patientOrderId = request.getPatientOrderId();
+		PatientOrder patientOrder = null;
+		ValidationException validationException = new ValidationException();
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (patientOrderId == null) {
+			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+		} else {
+			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+
+			if (patientOrder == null)
+				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		// If we're already open, nothing to do
+		if (patientOrder.getPatientOrderStatusId() == PatientOrderStatusId.OPEN)
+			return false;
+
+		getDatabase().execute("""
+				UPDATE patient_order
+				SET patient_order_status_id=?, patient_order_closure_reason_id=?
+				WHERE patient_order_id=?
+				""", PatientOrderStatusId.OPEN, PatientOrderClosureReasonId.NOT_CLOSED, patientOrderId);
+
+		Map<String, Object> metadata = new HashMap<>();
+		metadata.put("oldPatientOrderStatusId", patientOrder.getPatientOrderStatusId());
+		metadata.put("newPatientOrderStatusId", PatientOrderStatusId.OPEN);
+
+		createPatientOrderEvent(new CreatePatientOrderEventRequest() {
+			{
+				setPatientOrderEventTypeId(PatientOrderEventTypeId.STATUS_CHANGED);
+				setPatientOrderId(patientOrderId);
+				setAccountId(accountId);
+				setMessage("Order opened."); // Not localized on the way in
+				setMetadata(metadata);
+			}
+		});
+
+		return true;
+	}
+
+	@Nonnull
+	public Boolean closePatientOrder(@Nonnull ClosePatientOrderRequest request) {
+		requireNonNull(request);
+
+		UUID accountId = request.getAccountId();
+		UUID patientOrderId = request.getPatientOrderId();
+		PatientOrderClosureReasonId patientOrderClosureReasonId = request.getPatientOrderClosureReasonId();
+		PatientOrder patientOrder = null;
+		ValidationException validationException = new ValidationException();
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (patientOrderId == null) {
+			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+		} else {
+			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+
+			if (patientOrder == null)
+				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+		}
+
+		if (patientOrderClosureReasonId == null)
+			validationException.add(new FieldError("patientOrderClosureReasonId", getStrings().get("Patient Order Closure Reason ID is required.")));
+		// Illegal to say "I'm closing with NOT_CLOSED reason"
+		else if (patientOrderClosureReasonId == PatientOrderClosureReasonId.NOT_CLOSED)
+			validationException.add(new FieldError("patientOrderClosureReasonId", getStrings().get("Patient Order Closure Reason ID is invalid.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		// If we're already not open, nothing to do
+		if (patientOrder.getPatientOrderStatusId() != PatientOrderStatusId.OPEN)
+			return false;
+
+		getDatabase().execute("""
+				UPDATE patient_order
+				SET patient_order_status_id=?, patient_order_closure_reason_id=?
+				WHERE patient_order_id=?
+				""", PatientOrderStatusId.CLOSED, patientOrderClosureReasonId, patientOrderId);
+
+		Map<String, Object> metadata = new HashMap<>();
+		metadata.put("oldPatientOrderStatusId", patientOrder.getPatientOrderStatusId());
+		metadata.put("newPatientOrderStatusId", PatientOrderStatusId.CLOSED);
+		metadata.put("patientOrderClosureReasonId", patientOrderClosureReasonId);
+
+		createPatientOrderEvent(new CreatePatientOrderEventRequest() {
+			{
+				setPatientOrderEventTypeId(PatientOrderEventTypeId.STATUS_CHANGED);
+				setPatientOrderId(patientOrderId);
+				setAccountId(accountId);
+				setMessage("Order closed."); // Not localized on the way in
+				setMetadata(metadata);
+			}
+		});
+
+		return true;
 	}
 
 	@Nonnull
