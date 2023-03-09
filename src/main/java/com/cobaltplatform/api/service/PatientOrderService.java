@@ -664,6 +664,16 @@ public class PatientOrderService {
 		if (patientOrder.getPatientOrderStatusId() == PatientOrderStatusId.OPEN)
 			return false;
 
+		PatientOrder otherAlreadyOpenPatientOrder = findOpenPatientOrderByMrnAndInstitutionId(patientOrder.getPatientMrn(), patientOrder.getInstitutionId()).orElse(null);
+
+		if (otherAlreadyOpenPatientOrder != null)
+			throw new ValidationException(getStrings().get("Order ID {{orderId}} is already open for patient {{firstName}} {{lastName}} with MRN {{mrn}}. You must close that order before opening this one.",
+					Map.of(
+							"orderId", otherAlreadyOpenPatientOrder.getOrderId(),
+							"firstName", otherAlreadyOpenPatientOrder.getPatientFirstName(),
+							"lastName", otherAlreadyOpenPatientOrder.getPatientLastName(),
+							"mrn", otherAlreadyOpenPatientOrder.getPatientMrn())));
+
 		getDatabase().execute("""
 				UPDATE patient_order
 				SET patient_order_status_id=?, patient_order_closure_reason_id=?
@@ -709,11 +719,12 @@ public class PatientOrderService {
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
 		}
 
-		if (patientOrderClosureReasonId == null)
+		if (patientOrderClosureReasonId == null) {
 			validationException.add(new FieldError("patientOrderClosureReasonId", getStrings().get("Patient Order Closure Reason ID is required.")));
-		// Illegal to say "I'm closing with NOT_CLOSED reason"
-		else if (patientOrderClosureReasonId == PatientOrderClosureReasonId.NOT_CLOSED)
+		} else if (patientOrderClosureReasonId == PatientOrderClosureReasonId.NOT_CLOSED) {
+			// Illegal to say "I'm closing with NOT_CLOSED reason"
 			validationException.add(new FieldError("patientOrderClosureReasonId", getStrings().get("Patient Order Closure Reason ID is invalid.")));
+		}
 
 		if (validationException.hasErrors())
 			throw validationException;
