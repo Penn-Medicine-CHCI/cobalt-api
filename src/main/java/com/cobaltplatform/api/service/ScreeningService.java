@@ -59,6 +59,10 @@ import com.cobaltplatform.api.model.service.ScreeningQuestionWithAnswerOptions;
 import com.cobaltplatform.api.model.service.ScreeningScore;
 import com.cobaltplatform.api.model.service.ScreeningSessionDestination;
 import com.cobaltplatform.api.model.service.ScreeningSessionDestination.ScreeningSessionDestinationId;
+import com.cobaltplatform.api.model.service.ScreeningSessionResult;
+import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningAnswerResult;
+import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningQuestionResult;
+import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningSessionScreeningResult;
 import com.cobaltplatform.api.service.ScreeningService.ResultsFunctionOutput.SupportRoleRecommendation;
 import com.cobaltplatform.api.util.JavascriptExecutionException;
 import com.cobaltplatform.api.util.JavascriptExecutor;
@@ -1535,7 +1539,92 @@ public class ScreeningService {
 		}
 	}
 
-	protected void debugScreeningSession(@Nonnull UUID screeningSessionId) {
+	@Nonnull
+	public Optional<ScreeningSessionResult> findScreeningSessionResult(@Nullable UUID screeningSessionId) {
+		ScreeningSession screeningSession = findScreeningSessionById(screeningSessionId).orElse(null);
+
+		if (screeningSession == null)
+			return Optional.empty();
+
+		return findScreeningSessionResult(screeningSession);
+	}
+
+	@Nonnull
+	public Optional<ScreeningSessionResult> findScreeningSessionResult(@Nullable ScreeningSession screeningSession) {
+		if (screeningSession == null)
+			return Optional.empty();
+
+		ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
+		ScreeningFlow screeningFlow = findScreeningFlowById(screeningFlowVersion.getScreeningFlowId()).get();
+		List<ScreeningSessionScreening> screeningSessionScreenings = findCurrentScreeningSessionScreeningsByScreeningSessionId(screeningSession.getScreeningSessionId());
+		List<ScreeningSessionScreeningResult> screeningSessionScreeningResults = new ArrayList<>();
+
+		for (ScreeningSessionScreening screeningSessionScreening : screeningSessionScreenings) {
+			ScreeningVersion screeningVersion = findScreeningVersionById(screeningSessionScreening.getScreeningVersionId()).get();
+			Screening screening = findScreeningById(screeningVersion.getScreeningId()).get();
+			ScreeningScore screeningScore = screeningSessionScreening.getScoreAsObject().get();
+			List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions = findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
+			List<ScreeningSessionAnsweredScreeningQuestion> screeningSessionAnsweredScreeningQuestions = findScreeningSessionAnsweredScreeningQuestionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
+			List<ScreeningQuestionResult> screeningQuestionResults = new ArrayList<>();
+
+			for (ScreeningSessionAnsweredScreeningQuestion screeningSessionAnsweredScreeningQuestion : screeningSessionAnsweredScreeningQuestions) {
+				for (ScreeningQuestionWithAnswerOptions screeningQuestionWithAnswerOptions : screeningQuestionsWithAnswerOptions) {
+					ScreeningQuestion screeningQuestion = screeningQuestionWithAnswerOptions.getScreeningQuestion();
+					List<ScreeningAnswerOption> screeningAnswerOptions = screeningQuestionWithAnswerOptions.getScreeningAnswerOptions();
+					List<ScreeningAnswerResult> screeningAnswerResults = new ArrayList<>();
+
+					if (screeningQuestion.getScreeningQuestionId().equals(screeningSessionAnsweredScreeningQuestion.getScreeningQuestionId())) {
+						//logLines.add(format("\t\tQuestion: %s", screeningQuestionWithAnswerOptions.getScreeningQuestion().getQuestionText()));
+
+						List<ScreeningAnswer> screeningAnswers = findScreeningAnswersByScreeningQuestionContextId(
+								new ScreeningQuestionContextId(screeningSessionScreening.getScreeningSessionScreeningId(), screeningQuestionWithAnswerOptions.getScreeningQuestion().getScreeningQuestionId()));
+
+						for (ScreeningAnswerOption potentialScreeningAnswerOption : screeningAnswerOptions) {
+							for (ScreeningAnswer screeningAnswer : screeningAnswers) {
+								if (screeningAnswer.getScreeningAnswerOptionId().equals(potentialScreeningAnswerOption.getScreeningAnswerOptionId())) {
+									ScreeningAnswerResult screeningAnswerResult = new ScreeningAnswerResult();
+									screeningAnswerResult.setScreeningAnswerId(screeningAnswer.getScreeningAnswerId());
+									screeningAnswerResult.setScreeningAnswerOptionId(screeningAnswer.getScreeningAnswerOptionId());
+									screeningAnswerResult.setAnswerOptionText(potentialScreeningAnswerOption.getAnswerOptionText());
+									screeningAnswerResult.setText(screeningAnswer.getText());
+									screeningAnswerResult.setScore(potentialScreeningAnswerOption.getScore());
+									screeningAnswerResults.add(screeningAnswerResult);
+								}
+							}
+						}
+
+						ScreeningQuestionResult screeningQuestionResult = new ScreeningQuestionResult();
+						screeningQuestionResult.setScreeningQuestionId(screeningQuestion.getScreeningQuestionId());
+						screeningQuestionResult.setScreeningQuestionText(screeningQuestion.getQuestionText());
+						screeningQuestionResult.setScreeningAnswerResults(screeningAnswerResults);
+						screeningQuestionResults.add(screeningQuestionResult);
+					}
+				}
+			}
+
+			ScreeningSessionScreeningResult screeningSessionScreeningResult = new ScreeningSessionScreeningResult();
+			screeningSessionScreeningResult.setScreeningId(screening.getScreeningId());
+			screeningSessionScreeningResult.setScreeningName(screening.getName());
+			screeningSessionScreeningResult.setScreeningScore(screeningScore);
+			screeningSessionScreeningResult.setScreeningVersionNumber(screeningVersion.getVersionNumber());
+			screeningSessionScreeningResult.setScreeningTypeId(screeningVersion.getScreeningTypeId());
+			screeningSessionScreeningResult.setScreeningVersionId(screeningVersion.getScreeningVersionId());
+			screeningSessionScreeningResult.setScreeningQuestionResults(screeningQuestionResults);
+
+			screeningSessionScreeningResults.add(screeningSessionScreeningResult);
+		}
+
+		ScreeningSessionResult screeningSessionResult = new ScreeningSessionResult();
+		screeningSessionResult.setScreeningFlowId(screeningFlow.getScreeningFlowId());
+		screeningSessionResult.setScreeningFlowName(screeningFlow.getName());
+		screeningSessionResult.setScreeningFlowVersionId(screeningFlowVersion.getScreeningFlowVersionId());
+		screeningSessionResult.setScreeningFlowVersionNumber(screeningFlowVersion.getVersionNumber());
+		screeningSessionResult.setScreeningSessionScreeningResults(screeningSessionScreeningResults);
+
+		return Optional.of(screeningSessionResult);
+	}
+
+	public void debugScreeningSession(@Nonnull UUID screeningSessionId) {
 		requireNonNull(screeningSessionId);
 
 		if (!getLogger().isDebugEnabled())
@@ -1554,8 +1643,9 @@ public class ScreeningService {
 		for (ScreeningSessionScreening screeningSessionScreening : screeningSessionScreenings) {
 			ScreeningVersion screeningVersion = findScreeningVersionById(screeningSessionScreening.getScreeningVersionId()).get();
 			Screening screening = findScreeningById(screeningVersion.getScreeningId()).get();
+			ScreeningScore screeningScore = screeningSessionScreening.getScoreAsObject().get();
 
-			logLines.add(format("\tScreening '%s', version %d", screening.getName(), screeningVersion.getVersionNumber()));
+			logLines.add(format("\tScreening '%s', version %d, score %d", screening.getName(), screeningVersion.getVersionNumber(), screeningScore.getOverallScore()));
 
 			List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions = findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
 			List<ScreeningSessionAnsweredScreeningQuestion> screeningSessionAnsweredScreeningQuestions = findScreeningSessionAnsweredScreeningQuestionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
@@ -1568,17 +1658,23 @@ public class ScreeningService {
 						List<ScreeningAnswer> screeningAnswers = findScreeningAnswersByScreeningQuestionContextId(
 								new ScreeningQuestionContextId(screeningSessionScreening.getScreeningSessionScreeningId(), screeningQuestionWithAnswerOptions.getScreeningQuestion().getScreeningQuestionId()));
 
-						logLines.add(format("\t\tAnswer[s]: %s", screeningAnswers.stream().map(screeningAnswer -> {
-							ScreeningAnswerOption screeningAnswerOption = null;
+						for (ScreeningAnswerOption potentialScreeningAnswerOption : screeningQuestionWithAnswerOptions.getScreeningAnswerOptions()) {
+							String answers = screeningAnswers.stream().map(screeningAnswer -> {
+										if (screeningAnswer.getScreeningAnswerOptionId().equals(potentialScreeningAnswerOption.getScreeningAnswerOptionId())) {
+											if (potentialScreeningAnswerOption.getFreeformSupplement())
+												return format("%s (answer: %s) (score %d)", potentialScreeningAnswerOption.getAnswerOptionText(), screeningAnswer.getText(), potentialScreeningAnswerOption.getScore());
+											else
+												return format("%s (score %d)", potentialScreeningAnswerOption.getAnswerOptionText(), potentialScreeningAnswerOption.getScore());
+										}
 
-							for (ScreeningAnswerOption potentialScreeningAnswerOption : screeningQuestionWithAnswerOptions.getScreeningAnswerOptions()) {
-								if (screeningAnswer.getScreeningAnswerOptionId().equals(potentialScreeningAnswerOption.getScreeningAnswerOptionId())) {
-									return potentialScreeningAnswerOption.getAnswerOptionText();
-								}
-							}
+										return null;
+									})
+									.filter(answer -> answer != null)
+									.collect(Collectors.joining(", "));
 
-							throw new IllegalStateException("Answer w/o matching option, should never happen");
-						}).collect(Collectors.joining(", "))));
+							if (answers.length() > 0)
+								logLines.add(format("\t\tAnswer: %s", answers));
+						}
 					}
 				}
 			}

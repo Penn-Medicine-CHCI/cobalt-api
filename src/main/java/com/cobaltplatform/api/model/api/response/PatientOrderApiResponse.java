@@ -37,6 +37,7 @@ import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderS
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
+import com.cobaltplatform.api.model.service.ScreeningSessionResult;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AddressService;
 import com.cobaltplatform.api.service.InstitutionService;
@@ -215,6 +216,10 @@ public class PatientOrderApiResponse {
 	private List<PatientOrderNoteApiResponse> patientOrderNotes;
 	@Nullable
 	private List<PatientOrderOutreachApiResponse> patientOrderOutreaches;
+	@Nullable
+	private ScreeningSessionApiResponse screeningSession;
+	@Nullable
+	private ScreeningSessionResult screeningSessionResult;
 
 	public enum PatientOrderApiResponseSupplement {
 		PANEL,
@@ -359,7 +364,24 @@ public class PatientOrderApiResponse {
 
 			List<ScreeningSession> screeningSessions = screeningService.findScreeningSessionsByPatientOrderId(patientOrder.getPatientOrderId());
 
-			// TODO: return most recent session (?)
+			// Look for a completed screening session...
+			ScreeningSession currentScreeningSession = null;
+			ScreeningSession completedScreeningSession = screeningSessions.stream()
+					.filter(screeningSession -> screeningSession.getCompleted())
+					.findFirst()
+					.orElse(null);
+
+			// ...if no completed screening session, pick the first one in the list
+			if (completedScreeningSession != null)
+				currentScreeningSession = completedScreeningSession;
+			else
+				currentScreeningSession = screeningSessions.size() == 0 ? null : screeningSessions.get(0);
+
+			if (currentScreeningSession != null)
+				screeningService.debugScreeningSession(currentScreeningSession.getScreeningSessionId());
+
+			this.screeningSession = screeningSessionApiResponseFactory.create(currentScreeningSession);
+			this.screeningSessionResult = completedScreeningSession == null ? null : screeningService.findScreeningSessionResult(completedScreeningSession).get();
 		}
 
 		// Always available to both patients and MHICs
@@ -836,5 +858,15 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public List<PatientOrderOutreachApiResponse> getPatientOrderOutreaches() {
 		return this.patientOrderOutreaches;
+	}
+
+	@Nullable
+	public ScreeningSessionApiResponse getScreeningSession() {
+		return this.screeningSession;
+	}
+
+	@Nullable
+	public ScreeningSessionResult getScreeningSessionResult() {
+		return this.screeningSessionResult;
 	}
 }

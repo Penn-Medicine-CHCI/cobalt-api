@@ -171,10 +171,9 @@ public class ScreeningResource {
 
 		UUID screeningSessionId = getScreeningService().createScreeningSession(request);
 		ScreeningSession screeningSession = getScreeningService().findScreeningSessionById(screeningSessionId).get();
-		Account pinnedTargetAccount = targetAccount;
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("screeningSession", getScreeningSessionApiResponseFactory().create(screeningSession, pinnedTargetAccount, Set.of(ScreeningSessionApiResponseSupplement.NEXT_QUESTION)));
+			put("screeningSession", getScreeningSessionApiResponseFactory().create(screeningSession, Set.of(ScreeningSessionApiResponseSupplement.NEXT_QUESTION)));
 		}});
 	}
 
@@ -196,8 +195,7 @@ public class ScreeningResource {
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("screeningSessions", screeningSessions.stream()
 					.map(screeningSession -> {
-						Account targetAccount = getAccountService().findAccountById(screeningSession.getTargetAccountId()).get();
-						return getScreeningSessionApiResponseFactory().create(screeningSession, targetAccount, Set.of(ScreeningSessionApiResponseSupplement.NEXT_QUESTION));
+						return getScreeningSessionApiResponseFactory().create(screeningSession, Set.of(ScreeningSessionApiResponseSupplement.NEXT_QUESTION));
 					}).collect(Collectors.toList()));
 		}});
 	}
@@ -249,7 +247,7 @@ public class ScreeningResource {
 
 		ScreeningSession screeningSession = getScreeningService().findScreeningSessionById(screeningSessionId).get();
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("screeningSession", getScreeningSessionApiResponseFactory().create(screeningSession, account, Set.of(ScreeningSessionApiResponseSupplement.NEXT_QUESTION)));
+			put("screeningSession", getScreeningSessionApiResponseFactory().create(screeningSession, Set.of(ScreeningSessionApiResponseSupplement.NEXT_QUESTION)));
 		}});
 	}
 
@@ -301,8 +299,9 @@ public class ScreeningResource {
 		}});
 
 		ScreeningSession skippedScreeningSession = getScreeningService().findScreeningSessionById(screeningSessionId).get();
+
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("screeningSession", getScreeningSessionApiResponseFactory().create(skippedScreeningSession, account, Set.of(ScreeningSessionApiResponseSupplement.NEXT_QUESTION)));
+			put("screeningSession", getScreeningSessionApiResponseFactory().create(skippedScreeningSession, Set.of(ScreeningSessionApiResponseSupplement.NEXT_QUESTION)));
 		}});
 	}
 
