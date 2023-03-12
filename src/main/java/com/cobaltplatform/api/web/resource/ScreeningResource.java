@@ -32,6 +32,7 @@ import com.cobaltplatform.api.model.api.response.ScreeningQuestionApiResponse.Sc
 import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseSupplement;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.ScreeningAnswer;
 import com.cobaltplatform.api.model.db.ScreeningAnswerOption;
 import com.cobaltplatform.api.model.db.ScreeningConfirmationPrompt;
@@ -46,6 +47,7 @@ import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.cobaltplatform.api.model.service.ScreeningSessionDestination;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AuthorizationService;
+import com.cobaltplatform.api.service.PatientOrderService;
 import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.GET;
@@ -85,6 +87,8 @@ public class ScreeningResource {
 	@Nonnull
 	private final ScreeningService screeningService;
 	@Nonnull
+	private final PatientOrderService patientOrderService;
+	@Nonnull
 	private final AccountService accountService;
 	@Nonnull
 	private final AuthorizationService authorizationService;
@@ -109,6 +113,7 @@ public class ScreeningResource {
 
 	@Inject
 	public ScreeningResource(@Nonnull ScreeningService screeningService,
+													 @Nonnull PatientOrderService patientOrderService,
 													 @Nonnull AccountService accountService,
 													 @Nonnull AuthorizationService authorizationService,
 													 @Nonnull RequestBodyParser requestBodyParser,
@@ -120,6 +125,7 @@ public class ScreeningResource {
 													 @Nonnull ScreeningConfirmationPromptApiResponseFactory screeningConfirmationPromptApiResponseFactory,
 													 @Nonnull Provider<CurrentContext> currentContextProvider) {
 		requireNonNull(screeningService);
+		requireNonNull(patientOrderService);
 		requireNonNull(accountService);
 		requireNonNull(authorizationService);
 		requireNonNull(requestBodyParser);
@@ -132,6 +138,7 @@ public class ScreeningResource {
 		requireNonNull(currentContextProvider);
 
 		this.screeningService = screeningService;
+		this.patientOrderService = patientOrderService;
 		this.accountService = accountService;
 		this.authorizationService = authorizationService;
 		this.requestBodyParser = requestBodyParser;
@@ -152,20 +159,24 @@ public class ScreeningResource {
 		requireNonNull(requestBody);
 
 		Account account = getCurrentContext().getAccount().get();
-		Account targetAccount = null;
 
 		CreateScreeningSessionRequest request = getRequestBodyParser().parse(requestBody, CreateScreeningSessionRequest.class);
 		request.setCreatedByAccountId(account.getAccountId());
 
-		// If you don't supply a target account, we assume you are starting a session for yourself
-		if (request.getTargetAccountId() == null)
-			request.setTargetAccountId(account.getAccountId());
+		if (request.getPatientOrderId() != null) {
+			PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(request.getPatientOrderId()).orElse(null);
 
-		// Ensure you are permitted to start a screening session for the specified account
-		if (request.getTargetAccountId() != null) {
-			targetAccount = getAccountService().findAccountById(request.getTargetAccountId()).orElse(null);
+			if (patientOrder == null || !getAuthorizationService().canPerformScreening(account, patientOrder))
+				throw new AuthorizationException();
+		} else {
+			// If you don't supply a target account, we assume you are starting a session for yourself
+			if (request.getTargetAccountId() == null)
+				request.setTargetAccountId(account.getAccountId());
 
-			if (!getAuthorizationService().canPerformScreening(account, targetAccount))
+			// Ensure you are permitted to start a screening session for the specified account
+			Account targetAccount = getAccountService().findAccountById(request.getTargetAccountId()).orElse(null);
+
+			if (targetAccount == null || !getAuthorizationService().canPerformScreening(account, targetAccount))
 				throw new AuthorizationException();
 		}
 
@@ -246,6 +257,7 @@ public class ScreeningResource {
 		}});
 
 		ScreeningSession screeningSession = getScreeningService().findScreeningSessionById(screeningSessionId).get();
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("screeningSession", getScreeningSessionApiResponseFactory().create(screeningSession, Set.of(ScreeningSessionApiResponseSupplement.NEXT_QUESTION)));
 		}});
@@ -288,11 +300,19 @@ public class ScreeningResource {
 			throw new NotFoundException();
 
 		Account account = getCurrentContext().getAccount().get();
-		Account targetAccount = getAccountService().findAccountById(screeningSession.getTargetAccountId()).orElse(null);
 
 		// Ensure you have permission to skip for this screening session
-		if (!getAuthorizationService().canPerformScreening(account, targetAccount))
-			throw new AuthorizationException();
+		if (screeningSession.getPatientOrderId() != null) {
+			PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(screeningSession.getPatientOrderId()).orElse(null);
+
+			if (patientOrder == null || !getAuthorizationService().canPerformScreening(account, patientOrder))
+				throw new AuthorizationException();
+		} else {
+			Account targetAccount = getAccountService().findAccountById(screeningSession.getTargetAccountId()).orElse(null);
+
+			if (!getAuthorizationService().canPerformScreening(account, targetAccount))
+				throw new AuthorizationException();
+		}
 
 		getScreeningService().skipScreeningSession(new SkipScreeningSessionRequest() {{
 			setScreeningSessionId(screeningSessionId);
@@ -319,11 +339,19 @@ public class ScreeningResource {
 
 		ScreeningSession screeningSession = getScreeningService().findScreeningSessionById(screeningQuestionContext.getScreeningSessionScreening().getScreeningSessionId()).get();
 		Account account = getCurrentContext().getAccount().get();
-		Account targetAccount = getAccountService().findAccountById(screeningSession.getTargetAccountId()).get();
 
 		// Ensure you have permission to pull data for this screening session
-		if (!getAuthorizationService().canPerformScreening(account, targetAccount))
-			throw new AuthorizationException();
+		if (screeningSession.getPatientOrderId() != null) {
+			PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(screeningSession.getPatientOrderId()).orElse(null);
+
+			if (patientOrder == null || !getAuthorizationService().canPerformScreening(account, patientOrder))
+				throw new AuthorizationException();
+		} else {
+			Account targetAccount = getAccountService().findAccountById(screeningSession.getTargetAccountId()).get();
+
+			if (!getAuthorizationService().canPerformScreening(account, targetAccount))
+				throw new AuthorizationException();
+		}
 
 		// Questions, answer options, and any answers already given for this screening session screening
 		ScreeningQuestion screeningQuestion = screeningQuestionContext.getScreeningQuestion();
@@ -393,11 +421,19 @@ public class ScreeningResource {
 			throw new NotFoundException();
 
 		ScreeningSession screeningSession = getScreeningService().findScreeningSessionById(screeningSessionScreening.getScreeningSessionId()).get();
-		Account targetAccount = getAccountService().findAccountById(screeningSession.getTargetAccountId()).orElse(null);
 
-		// Ensure you have permission to answer for this screening session
-		if (!getAuthorizationService().canPerformScreening(account, targetAccount))
-			throw new AuthorizationException();
+		// Ensure you have permission to pull data for this screening session
+		if (screeningSession.getPatientOrderId() != null) {
+			PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(screeningSession.getPatientOrderId()).orElse(null);
+
+			if (patientOrder == null || !getAuthorizationService().canPerformScreening(account, patientOrder))
+				throw new AuthorizationException();
+		} else {
+			Account targetAccount = getAccountService().findAccountById(screeningSession.getTargetAccountId()).get();
+
+			if (!getAuthorizationService().canPerformScreening(account, targetAccount))
+				throw new AuthorizationException();
+		}
 
 		List<UUID> screeningAnswerIds = getScreeningService().createScreeningAnswers(request);
 		List<ScreeningAnswer> screeningAnswers = screeningAnswerIds.stream()
@@ -425,6 +461,9 @@ public class ScreeningResource {
 																												@Nonnull @QueryParameter Optional<UUID> targetAccountId) {
 		requireNonNull(screeningFlowId);
 		requireNonNull(targetAccountId);
+
+		// TODO: this does not yet handle the case for integrated care, where an MHIC might screen a patient order
+		// with no target account (i.e. if the patient has not yet signed in).
 
 		// Logic: You are the target account unless a valid targetAccountId is passed in
 		Account currentAccount = getCurrentContext().getAccount().get();
@@ -464,6 +503,11 @@ public class ScreeningResource {
 	@Nonnull
 	protected ScreeningService getScreeningService() {
 		return this.screeningService;
+	}
+
+	@Nonnull
+	protected PatientOrderService getPatientOrderService() {
+		return this.patientOrderService;
 	}
 
 	@Nonnull
