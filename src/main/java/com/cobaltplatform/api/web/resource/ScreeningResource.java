@@ -343,8 +343,10 @@ public class ScreeningResource {
 		UUID preQuestionScreeningConfirmationPromptId = screeningQuestion.getPreQuestionScreeningConfirmationPromptId();
 		ScreeningConfirmationPrompt preQuestionScreeningConfirmationPrompt = null;
 
-		if (preQuestionScreeningConfirmationPromptId != null)
+		if (preQuestionScreeningConfirmationPromptId != null) {
 			preQuestionScreeningConfirmationPrompt = getScreeningService().findScreeningConfirmationPromptById(preQuestionScreeningConfirmationPromptId).get();
+			getScreeningService().applyTemplatingToScreeningConfirmationPromptForScreeningSession(preQuestionScreeningConfirmationPrompt, screeningSession);
+		}
 
 		ScreeningConfirmationPromptApiResponse preQuestionScreeningConfirmationPromptApiResponse = preQuestionScreeningConfirmationPrompt == null ? null
 				: getScreeningConfirmationPromptApiResponseFactory().create(preQuestionScreeningConfirmationPrompt);

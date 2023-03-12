@@ -245,6 +245,64 @@ public class ScreeningService {
 	}
 
 	@Nonnull
+	public Boolean applyTemplatingToScreeningConfirmationPromptForScreeningSession(@Nullable ScreeningConfirmationPrompt screeningConfirmationPrompt,
+																																								 @Nullable UUID screeningSessionId) {
+		if (screeningConfirmationPrompt == null || screeningSessionId == null)
+			return false;
+
+		ScreeningSession screeningSession = findScreeningSessionById(screeningSessionId).orElse(null);
+
+		if (screeningSession == null)
+			return false;
+
+		return applyTemplatingToScreeningConfirmationPromptForScreeningSession(screeningConfirmationPrompt, screeningSession);
+	}
+
+	/**
+	 * For example, turns:
+	 * <pre>
+	 * Thank you, {{patientFirstName}}
+	 * </pre>
+	 * into
+	 * <pre>
+	 * Thank you, Eleanor
+	 * </pre>
+	 */
+	@Nonnull
+	public Boolean applyTemplatingToScreeningConfirmationPromptForScreeningSession(@Nullable ScreeningConfirmationPrompt screeningConfirmationPrompt,
+																																								 @Nullable ScreeningSession screeningSession) {
+		if (screeningConfirmationPrompt == null || screeningSession == null)
+			return false;
+
+		// For now, templating data is only used for scenarios where this screening is tied to a patient order.
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(screeningSession.getPatientOrderId()).orElse(null);
+
+		if (patientOrder == null)
+			return false;
+
+		Map<String, String> placeholderValuesByName = new HashMap<>();
+		placeholderValuesByName.put("patientFirstName", patientOrder.getPatientFirstName() == null
+				? getStrings().get("Patient")
+				: patientOrder.getPatientFirstName());
+
+		// Really quick-and-dirty replacement using {{handlebars}} kind of syntax.
+		// This has a number of drawbacks but it's simple and good enough for the very basic scenarios we need to support.
+		// A more robust solution would actually use Handlebars or a similar templating system.
+		String text = screeningConfirmationPrompt.getText();
+
+		for (Map.Entry<String, String> entry : placeholderValuesByName.entrySet()) {
+			String placeholderName = entry.getKey();
+			String placeholderValue = entry.getValue();
+
+			text = text.replace(format("{{%s}}", placeholderName), placeholderValue);
+		}
+
+		screeningConfirmationPrompt.setText(text);
+
+		return true;
+	}
+
+	@Nonnull
 	public List<SupportRole> findRecommendedSupportRolesByAccountId(@Nullable UUID accountId,
 																																	@Nullable UUID triageScreeningFlowId) {
 		if (accountId == null || triageScreeningFlowId == null)
