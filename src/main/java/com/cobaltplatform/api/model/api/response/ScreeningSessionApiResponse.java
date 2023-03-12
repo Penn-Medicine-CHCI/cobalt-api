@@ -47,8 +47,10 @@ public class ScreeningSessionApiResponse {
 	private final UUID screeningSessionId;
 	@Nonnull
 	private final UUID screeningFlowVersionId;
-	@Nonnull
+	@Nullable
 	private final UUID targetAccountId;
+	@Nullable
+	private final UUID patientOrderId;
 	@Nonnull
 	private final UUID createdByAccountId;
 	@Nonnull
@@ -121,6 +123,7 @@ public class ScreeningSessionApiResponse {
 		this.screeningFlowVersionId = screeningSession.getScreeningFlowVersionId();
 		this.createdByAccountId = screeningSession.getCreatedByAccountId();
 		this.targetAccountId = screeningSession.getTargetAccountId();
+		this.patientOrderId = screeningSession.getPatientOrderId();
 		this.completed = screeningSession.getCompleted();
 		this.completedAt = screeningSession.getCompletedAt();
 		this.completedAtDescription = screeningSession.getCompletedAt() == null ? null : formatter.formatTimestamp(screeningSession.getCompletedAt());
@@ -158,9 +161,14 @@ public class ScreeningSessionApiResponse {
 		return this.screeningFlowVersionId;
 	}
 
-	@Nonnull
+	@Nullable
 	public UUID getTargetAccountId() {
 		return this.targetAccountId;
+	}
+
+	@Nullable
+	public UUID getPatientOrderId() {
+		return this.patientOrderId;
 	}
 
 	@Nonnull

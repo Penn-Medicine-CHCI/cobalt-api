@@ -377,10 +377,7 @@ public class PatientOrderApiResponse {
 			else
 				currentScreeningSession = screeningSessions.size() == 0 ? null : screeningSessions.get(0);
 
-			if (currentScreeningSession != null)
-				screeningService.debugScreeningSession(currentScreeningSession.getScreeningSessionId());
-
-			this.screeningSession = screeningSessionApiResponseFactory.create(currentScreeningSession);
+			this.screeningSession = currentScreeningSession == null ? null : screeningSessionApiResponseFactory.create(currentScreeningSession);
 			this.screeningSessionResult = completedScreeningSession == null ? null : screeningService.findScreeningSessionResult(completedScreeningSession).get();
 		}
 

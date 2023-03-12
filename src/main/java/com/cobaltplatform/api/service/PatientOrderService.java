@@ -276,9 +276,9 @@ public class PatientOrderService {
 
 		return getDatabase().queryForObject("""
 				SELECT po.*
-				FROM patient_order po, patient_order_screening_session poss
-				WHERE po.patient_order_id=poss.patient_order_id
-				AND poss.screening_session_id=?
+				FROM patient_order po, screening_session ss
+				WHERE ss.screening_session_id=?
+				AND ss.patient_order_id=po.patient_order_id
 				""", PatientOrder.class, screeningSessionId);
 	}
 

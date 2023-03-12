@@ -82,6 +82,10 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.Period;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -420,6 +424,7 @@ public class ScreeningService {
 		UUID createdByAccountId = request.getCreatedByAccountId();
 		UUID screeningFlowId = request.getScreeningFlowId();
 		UUID screeningFlowVersionId = request.getScreeningFlowVersionId();
+		UUID patientOrderId = request.getPatientOrderId();
 		ScreeningFlowVersion screeningFlowVersion = null;
 		Account targetAccount = null;
 		Account createdByAccount = null;
@@ -427,23 +432,7 @@ public class ScreeningService {
 		UUID screeningSessionId = UUID.randomUUID();
 		ValidationException validationException = new ValidationException();
 
-		if (createdByAccountId == null) {
-			validationException.add(new FieldError("createdByAccountId", getStrings().get("Created-by account ID is required.")));
-		} else {
-			createdByAccount = getAccountService().findAccountById(createdByAccountId).orElse(null);
-
-			if (createdByAccount == null)
-				validationException.add(new FieldError("createdByAccountId", getStrings().get("Created-by account ID is invalid.")));
-		}
-
-		if (targetAccountId == null) {
-			validationException.add(new FieldError("targetAccountId", getStrings().get("Target account ID is required.")));
-		} else {
-			targetAccount = getAccountService().findAccountById(targetAccountId).orElse(null);
-
-			if (targetAccount == null)
-				validationException.add(new FieldError("targetAccountId", getStrings().get("Target account ID is invalid.")));
-		}
+		boolean creatingIntegratedCareScreeningSession = false;
 
 		if (screeningFlowId == null && screeningFlowVersionId == null) {
 			validationException.add(getStrings().get("Either a screening flow ID or screening flow version ID is required."));
@@ -463,29 +452,65 @@ public class ScreeningService {
 				screeningFlowVersion = findScreeningFlowVersionById(screeningFlow.getActiveScreeningFlowVersionId()).get();
 		}
 
+		if (createdByAccountId == null) {
+			validationException.add(new FieldError("createdByAccountId", getStrings().get("Created-by account ID is required.")));
+		} else {
+			createdByAccount = getAccountService().findAccountById(createdByAccountId).orElse(null);
+
+			if (createdByAccount == null) {
+				validationException.add(new FieldError("createdByAccountId", getStrings().get("Created-by account ID is invalid.")));
+			} else {
+				Institution institution = getInstitutionService().findInstitutionById(createdByAccount.getInstitutionId()).get();
+
+				// Special behavior if we're IC and this is the special IC screening flow
+				creatingIntegratedCareScreeningSession = institution.getIntegratedCareEnabled()
+						&& Objects.equals(screeningFlowVersion.getScreeningFlowId(), institution.getIntegratedCareScreeningFlowId());
+			}
+		}
+
+		// Integrated care screening sessions require a patient order.  Target account is optional (maybe patient has not signed in yet)
+		// Otherwise, target account is required.
+		if (creatingIntegratedCareScreeningSession) {
+			// TODO: remove this temporary hack once FE passes in `patientOrderId`
+			patientOrderId = getPatientOrderService().findOpenPatientOrderByPatientAccountId(createdByAccountId).get().getPatientOrderId();
+			// END HACK
+
+			if (patientOrderId == null) {
+				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+			} else {
+				PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+
+				if (patientOrder == null)
+					validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+			}
+
+			if (targetAccountId != null) {
+				targetAccount = getAccountService().findAccountById(targetAccountId).orElse(null);
+
+				if (targetAccount == null)
+					validationException.add(new FieldError("targetAccountId", getStrings().get("Target account ID is invalid.")));
+			}
+		} else {
+			if (targetAccountId == null) {
+				validationException.add(new FieldError("targetAccountId", getStrings().get("Target account ID is required.")));
+			} else {
+				targetAccount = getAccountService().findAccountById(targetAccountId).orElse(null);
+
+				if (targetAccount == null)
+					validationException.add(new FieldError("targetAccountId", getStrings().get("Target account ID is invalid.")));
+			}
+
+			// It's illegal to specify a patient order for non-IC screenings, so make sure it's nulled out
+			patientOrderId = null;
+		}
+
 		if (validationException.hasErrors())
 			throw validationException;
 
 		getDatabase().execute("""
-				INSERT INTO screening_session(screening_session_id, screening_flow_version_id, target_account_id, created_by_account_id)
-				VALUES (?,?,?,?)
-				""", screeningSessionId, screeningFlowVersion.getScreeningFlowVersionId(), targetAccountId, createdByAccountId);
-
-		Institution institution = getInstitutionService().findInstitutionById(targetAccount.getInstitutionId()).get();
-
-		// If we're IC and this is the special IC screening flow, keep track of this screening session specially
-		if (institution.getIntegratedCareEnabled()
-				&& Objects.equals(screeningFlowVersion.getScreeningFlowId(), institution.getIntegratedCareScreeningFlowId())) {
-			PatientOrder patientOrder = getPatientOrderService().findOpenPatientOrderByPatientAccountId(targetAccountId).orElse(null);
-
-			if (patientOrder == null)
-				throw new ValidationException(getStrings().get("Unable to create a screening session because there is no open patient order."));
-
-			getDatabase().execute("""
-					INSERT INTO patient_order_screening_session (patient_order_id, screening_session_id)     
-					VALUES (?,?)
-					""", patientOrder.getPatientOrderId(), screeningSessionId);
-		}
+				INSERT INTO screening_session(screening_session_id, screening_flow_version_id, target_account_id, created_by_account_id, patient_order_id)
+				VALUES (?,?,?,?,?)
+				""", screeningSessionId, screeningFlowVersion.getScreeningFlowVersionId(), targetAccountId, createdByAccountId, patientOrderId);
 
 		// If we're immediately skipping, mark this session as completed/skipped and do nothing else.
 		// If we're not immediately skipping, create an initial screening session screening
@@ -1231,11 +1256,10 @@ public class ScreeningService {
 			return List.of();
 
 		return getDatabase().queryForList("""
-				SELECT ss.*
-				FROM screening_session ss, patient_order_screening_session poss
-				WHERE ss.screening_session_id=poss.screening_session_id
-				AND poss.patient_order_id=?
-				ORDER BY ss.created DESC
+				SELECT *
+				FROM screening_session
+				WHERE patient_order_id=?
+				ORDER BY created DESC
 				""", ScreeningSession.class, patientOrderId);
 	}
 
@@ -1503,6 +1527,19 @@ public class ScreeningService {
 		context.put("screeningResultsByScreeningSessionScreeningId", screeningResultsByScreeningSessionScreeningId);
 		context.put("selfAdministered", Objects.equals(screeningSession.getCreatedByAccountId(), screeningSession.getTargetAccountId()));
 		context.put("additionalContext", additionalContext == null ? Map.of() : additionalContext);
+
+		// Patient age can help determine how to orchestrate, e.g. only perform a particular screening if
+		// patient is below a certain age
+		if (screeningSession.getPatientOrderId() != null) {
+			Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+			PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(screeningSession.getPatientOrderId()).get();
+			LocalDate currentDate = LocalDateTime.ofInstant(Instant.now(), institution.getTimeZone()).toLocalDate();
+
+			Long patientAgeInYears = Period.between(patientOrder.getPatientBirthdate(), currentDate)
+					.get(ChronoUnit.YEARS);
+
+			context.put("patientAgeInYears", patientAgeInYears);
+		}
 
 		try {
 			screeningFlowFunctionResult = getJavascriptExecutor().execute(screeningFlowFunctionJavascript, context, screeningFlowFunctionResultType);
