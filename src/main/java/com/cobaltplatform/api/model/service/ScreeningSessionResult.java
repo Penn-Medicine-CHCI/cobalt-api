@@ -47,6 +47,8 @@ public class ScreeningSessionResult {
 		@Nullable
 		private UUID screeningQuestionId;
 		@Nullable
+		private String screeningQuestionIntroText;
+		@Nullable
 		private String screeningQuestionText;
 		@Nullable
 		private List<ScreeningAnswerResult> screeningAnswerResults;
@@ -58,6 +60,15 @@ public class ScreeningSessionResult {
 
 		public void setScreeningQuestionId(@Nullable UUID screeningQuestionId) {
 			this.screeningQuestionId = screeningQuestionId;
+		}
+
+		@Nullable
+		public String getScreeningQuestionIntroText() {
+			return this.screeningQuestionIntroText;
+		}
+
+		public void setScreeningQuestionIntroText(@Nullable String screeningQuestionIntroText) {
+			this.screeningQuestionIntroText = screeningQuestionIntroText;
 		}
 
 		@Nullable

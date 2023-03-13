@@ -1690,6 +1690,7 @@ public class ScreeningService {
 
 						ScreeningQuestionResult screeningQuestionResult = new ScreeningQuestionResult();
 						screeningQuestionResult.setScreeningQuestionId(screeningQuestion.getScreeningQuestionId());
+						screeningQuestionResult.setScreeningQuestionIntroText(screeningQuestion.getIntroText());
 						screeningQuestionResult.setScreeningQuestionText(screeningQuestion.getQuestionText());
 						screeningQuestionResult.setScreeningAnswerResults(screeningAnswerResults);
 						screeningQuestionResults.add(screeningQuestionResult);
