@@ -28,7 +28,7 @@ cobalt-api$ ./stop-localstack
 
 This script creates and runs transient Docker containers that stand up Localstack resources and create + seed our Postgres DB.
 
-To get the full seed dataset, you'll want to download the latest `bootstrap.sql` file from [Google Drive](https://drive.google.com/file/d/18zHLr6PEo1dN-xN7SHgizdqNsQ59AJ7R/view?usp=share_link) and place it in `sql/initial/bootstrap.sql`.  This is helpful but not strictly required to run the backend.
+To get the full seed dataset, you'll want to download the latest `bootstrap.sql` file from [Google Drive](https://drive.google.com/file/d/1TvRN6P2W-eFsVvcaYlFks7VR8_qzrEUo/view?usp=share_link) and place it in `sql/initial/bootstrap.sql`.  This is helpful but not strictly required to run the backend.
 
 ```
 cobalt-api$ ./bootstrap
