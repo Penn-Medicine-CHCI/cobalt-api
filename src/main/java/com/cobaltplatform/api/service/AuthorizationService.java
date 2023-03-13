@@ -453,6 +453,24 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
+	public Boolean canPerformScreening(@Nonnull Account performingAccount,
+																		 @Nonnull PatientOrder patientOrder) {
+		requireNonNull(performingAccount);
+		requireNonNull(patientOrder);
+
+		// You can always screen yourself
+		if (Objects.equals(performingAccount.getAccountId(), patientOrder.getPatientAccountId()))
+			return true;
+
+		// An admin or MHIC at the same institution is able to screen others at that institution
+		if (Objects.equals(performingAccount.getInstitutionId(), patientOrder.getInstitutionId())
+				&& (performingAccount.getRoleId() == RoleId.ADMINISTRATOR || performingAccount.getRoleId() == RoleId.MHIC))
+			return true;
+
+		return false;
+	}
+
+	@Nonnull
 	public Boolean canViewTopicCenter(@Nonnull TopicCenter topicCenter,
 																		@Nonnull Account account) {
 		requireNonNull(topicCenter);

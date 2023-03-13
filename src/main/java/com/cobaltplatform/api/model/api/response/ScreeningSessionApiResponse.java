@@ -19,7 +19,6 @@
 
 package com.cobaltplatform.api.model.api.response;
 
-import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContext;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
@@ -48,8 +47,10 @@ public class ScreeningSessionApiResponse {
 	private final UUID screeningSessionId;
 	@Nonnull
 	private final UUID screeningFlowVersionId;
-	@Nonnull
+	@Nullable
 	private final UUID targetAccountId;
+	@Nullable
+	private final UUID patientOrderId;
 	@Nonnull
 	private final UUID createdByAccountId;
 	@Nonnull
@@ -89,9 +90,19 @@ public class ScreeningSessionApiResponse {
 	@ThreadSafe
 	public interface ScreeningSessionApiResponseFactory {
 		@Nonnull
+		ScreeningSessionApiResponse create(@Nonnull ScreeningSession screeningSession);
+
+		@Nonnull
 		ScreeningSessionApiResponse create(@Nonnull ScreeningSession screeningSession,
-																			 @Nonnull Account targetAccount,
-																			 @Nonnull Set<ScreeningSessionApiResponseSupplement> supplements);
+																			 @Nullable Set<ScreeningSessionApiResponseSupplement> supplements);
+	}
+
+	@AssistedInject
+	public ScreeningSessionApiResponse(@Nonnull ScreeningService screeningService,
+																		 @Nonnull Formatter formatter,
+																		 @Nonnull Strings strings,
+																		 @Assisted @Nonnull ScreeningSession screeningSession) {
+		this(screeningService, formatter, strings, screeningSession, null);
 	}
 
 	@AssistedInject
@@ -99,19 +110,20 @@ public class ScreeningSessionApiResponse {
 																		 @Nonnull Formatter formatter,
 																		 @Nonnull Strings strings,
 																		 @Assisted @Nonnull ScreeningSession screeningSession,
-																		 @Assisted @Nonnull Account targetAccount,
-																		 @Assisted @Nonnull Set<ScreeningSessionApiResponseSupplement> supplements) {
+																		 @Assisted @Nullable Set<ScreeningSessionApiResponseSupplement> supplements) {
 		requireNonNull(screeningService);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(screeningSession);
-		requireNonNull(targetAccount);
-		requireNonNull(supplements);
+
+		if (supplements == null)
+			supplements = Set.of();
 
 		this.screeningSessionId = screeningSession.getScreeningSessionId();
 		this.screeningFlowVersionId = screeningSession.getScreeningFlowVersionId();
 		this.createdByAccountId = screeningSession.getCreatedByAccountId();
 		this.targetAccountId = screeningSession.getTargetAccountId();
+		this.patientOrderId = screeningSession.getPatientOrderId();
 		this.completed = screeningSession.getCompleted();
 		this.completedAt = screeningSession.getCompletedAt();
 		this.completedAtDescription = screeningSession.getCompletedAt() == null ? null : formatter.formatTimestamp(screeningSession.getCompletedAt());
@@ -149,9 +161,14 @@ public class ScreeningSessionApiResponse {
 		return this.screeningFlowVersionId;
 	}
 
-	@Nonnull
+	@Nullable
 	public UUID getTargetAccountId() {
 		return this.targetAccountId;
+	}
+
+	@Nullable
+	public UUID getPatientOrderId() {
+		return this.patientOrderId;
 	}
 
 	@Nonnull

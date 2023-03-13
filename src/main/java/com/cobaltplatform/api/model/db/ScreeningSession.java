@@ -36,6 +36,8 @@ public class ScreeningSession {
 	@Nullable
 	private UUID targetAccountId;
 	@Nullable
+	private UUID patientOrderId;
+	@Nullable
 	private UUID createdByAccountId;
 	@Nullable
 	private Boolean completed;
@@ -79,6 +81,15 @@ public class ScreeningSession {
 
 	public void setTargetAccountId(@Nullable UUID targetAccountId) {
 		this.targetAccountId = targetAccountId;
+	}
+
+	@Nullable
+	public UUID getPatientOrderId() {
+		return this.patientOrderId;
+	}
+
+	public void setPatientOrderId(@Nullable UUID patientOrderId) {
+		this.patientOrderId = patientOrderId;
 	}
 
 	@Nullable

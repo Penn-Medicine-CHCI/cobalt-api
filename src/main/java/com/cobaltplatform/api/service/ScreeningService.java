@@ -59,6 +59,10 @@ import com.cobaltplatform.api.model.service.ScreeningQuestionWithAnswerOptions;
 import com.cobaltplatform.api.model.service.ScreeningScore;
 import com.cobaltplatform.api.model.service.ScreeningSessionDestination;
 import com.cobaltplatform.api.model.service.ScreeningSessionDestination.ScreeningSessionDestinationId;
+import com.cobaltplatform.api.model.service.ScreeningSessionResult;
+import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningAnswerResult;
+import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningQuestionResult;
+import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningSessionScreeningResult;
 import com.cobaltplatform.api.service.ScreeningService.ResultsFunctionOutput.SupportRoleRecommendation;
 import com.cobaltplatform.api.util.JavascriptExecutionException;
 import com.cobaltplatform.api.util.JavascriptExecutor;
@@ -78,6 +82,10 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.Period;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -234,6 +242,64 @@ public class ScreeningService {
 
 		return getDatabase().queryForObject("SELECT * FROM screening_confirmation_prompt WHERE screening_confirmation_prompt_id=?",
 				ScreeningConfirmationPrompt.class, screeningConfirmationPromptId);
+	}
+
+	@Nonnull
+	public Boolean applyTemplatingToScreeningConfirmationPromptForScreeningSession(@Nullable ScreeningConfirmationPrompt screeningConfirmationPrompt,
+																																								 @Nullable UUID screeningSessionId) {
+		if (screeningConfirmationPrompt == null || screeningSessionId == null)
+			return false;
+
+		ScreeningSession screeningSession = findScreeningSessionById(screeningSessionId).orElse(null);
+
+		if (screeningSession == null)
+			return false;
+
+		return applyTemplatingToScreeningConfirmationPromptForScreeningSession(screeningConfirmationPrompt, screeningSession);
+	}
+
+	/**
+	 * For example, turns:
+	 * <pre>
+	 * Thank you, {{patientFirstName}}
+	 * </pre>
+	 * into
+	 * <pre>
+	 * Thank you, Eleanor
+	 * </pre>
+	 */
+	@Nonnull
+	public Boolean applyTemplatingToScreeningConfirmationPromptForScreeningSession(@Nullable ScreeningConfirmationPrompt screeningConfirmationPrompt,
+																																								 @Nullable ScreeningSession screeningSession) {
+		if (screeningConfirmationPrompt == null || screeningSession == null)
+			return false;
+
+		// For now, templating data is only used for scenarios where this screening is tied to a patient order.
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(screeningSession.getPatientOrderId()).orElse(null);
+
+		if (patientOrder == null)
+			return false;
+
+		Map<String, String> placeholderValuesByName = new HashMap<>();
+		placeholderValuesByName.put("patientFirstName", patientOrder.getPatientFirstName() == null
+				? getStrings().get("Patient")
+				: patientOrder.getPatientFirstName());
+
+		// Really quick-and-dirty replacement using {{handlebars}} kind of syntax.
+		// This has a number of drawbacks but it's simple and good enough for the very basic scenarios we need to support.
+		// A more robust solution would actually use Handlebars or a similar templating system.
+		String text = screeningConfirmationPrompt.getText();
+
+		for (Map.Entry<String, String> entry : placeholderValuesByName.entrySet()) {
+			String placeholderName = entry.getKey();
+			String placeholderValue = entry.getValue();
+
+			text = text.replace(format("{{%s}}", placeholderName), placeholderValue);
+		}
+
+		screeningConfirmationPrompt.setText(text);
+
+		return true;
 	}
 
 	@Nonnull
@@ -416,6 +482,7 @@ public class ScreeningService {
 		UUID createdByAccountId = request.getCreatedByAccountId();
 		UUID screeningFlowId = request.getScreeningFlowId();
 		UUID screeningFlowVersionId = request.getScreeningFlowVersionId();
+		UUID patientOrderId = request.getPatientOrderId();
 		ScreeningFlowVersion screeningFlowVersion = null;
 		Account targetAccount = null;
 		Account createdByAccount = null;
@@ -423,23 +490,7 @@ public class ScreeningService {
 		UUID screeningSessionId = UUID.randomUUID();
 		ValidationException validationException = new ValidationException();
 
-		if (createdByAccountId == null) {
-			validationException.add(new FieldError("createdByAccountId", getStrings().get("Created-by account ID is required.")));
-		} else {
-			createdByAccount = getAccountService().findAccountById(createdByAccountId).orElse(null);
-
-			if (createdByAccount == null)
-				validationException.add(new FieldError("createdByAccountId", getStrings().get("Created-by account ID is invalid.")));
-		}
-
-		if (targetAccountId == null) {
-			validationException.add(new FieldError("targetAccountId", getStrings().get("Target account ID is required.")));
-		} else {
-			targetAccount = getAccountService().findAccountById(targetAccountId).orElse(null);
-
-			if (targetAccount == null)
-				validationException.add(new FieldError("targetAccountId", getStrings().get("Target account ID is invalid.")));
-		}
+		boolean creatingIntegratedCareScreeningSession = false;
 
 		if (screeningFlowId == null && screeningFlowVersionId == null) {
 			validationException.add(getStrings().get("Either a screening flow ID or screening flow version ID is required."));
@@ -459,29 +510,65 @@ public class ScreeningService {
 				screeningFlowVersion = findScreeningFlowVersionById(screeningFlow.getActiveScreeningFlowVersionId()).get();
 		}
 
+		if (createdByAccountId == null) {
+			validationException.add(new FieldError("createdByAccountId", getStrings().get("Created-by account ID is required.")));
+		} else {
+			createdByAccount = getAccountService().findAccountById(createdByAccountId).orElse(null);
+
+			if (createdByAccount == null) {
+				validationException.add(new FieldError("createdByAccountId", getStrings().get("Created-by account ID is invalid.")));
+			} else {
+				Institution institution = getInstitutionService().findInstitutionById(createdByAccount.getInstitutionId()).get();
+
+				// Special behavior if we're IC and this is the special IC screening flow
+				creatingIntegratedCareScreeningSession = institution.getIntegratedCareEnabled()
+						&& Objects.equals(screeningFlowVersion.getScreeningFlowId(), institution.getIntegratedCareScreeningFlowId());
+			}
+		}
+
+		// Integrated care screening sessions require a patient order.  Target account is optional (maybe patient has not signed in yet)
+		// Otherwise, target account is required.
+		if (creatingIntegratedCareScreeningSession) {
+			// TODO: remove this temporary hack once FE passes in `patientOrderId`
+			patientOrderId = getPatientOrderService().findOpenPatientOrderByPatientAccountId(createdByAccountId).get().getPatientOrderId();
+			// END HACK
+
+			if (patientOrderId == null) {
+				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+			} else {
+				PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+
+				if (patientOrder == null)
+					validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+			}
+
+			if (targetAccountId != null) {
+				targetAccount = getAccountService().findAccountById(targetAccountId).orElse(null);
+
+				if (targetAccount == null)
+					validationException.add(new FieldError("targetAccountId", getStrings().get("Target account ID is invalid.")));
+			}
+		} else {
+			if (targetAccountId == null) {
+				validationException.add(new FieldError("targetAccountId", getStrings().get("Target account ID is required.")));
+			} else {
+				targetAccount = getAccountService().findAccountById(targetAccountId).orElse(null);
+
+				if (targetAccount == null)
+					validationException.add(new FieldError("targetAccountId", getStrings().get("Target account ID is invalid.")));
+			}
+
+			// It's illegal to specify a patient order for non-IC screenings, so make sure it's nulled out
+			patientOrderId = null;
+		}
+
 		if (validationException.hasErrors())
 			throw validationException;
 
 		getDatabase().execute("""
-				INSERT INTO screening_session(screening_session_id, screening_flow_version_id, target_account_id, created_by_account_id)
-				VALUES (?,?,?,?)
-				""", screeningSessionId, screeningFlowVersion.getScreeningFlowVersionId(), targetAccountId, createdByAccountId);
-
-		Institution institution = getInstitutionService().findInstitutionById(targetAccount.getInstitutionId()).get();
-
-		// If we're IC and this is the special IC screening flow, keep track of this screening session specially
-		if (institution.getIntegratedCareEnabled()
-				&& Objects.equals(screeningFlowVersion.getScreeningFlowId(), institution.getIntegratedCareScreeningFlowId())) {
-			PatientOrder patientOrder = getPatientOrderService().findOpenPatientOrderByPatientAccountId(targetAccountId).orElse(null);
-
-			if (patientOrder == null)
-				throw new ValidationException(getStrings().get("Unable to create a screening session because there is no open patient order."));
-
-			getDatabase().execute("""
-					INSERT INTO patient_order_screening_session (patient_order_id, screening_session_id)     
-					VALUES (?,?)
-					""", patientOrder.getPatientOrderId(), screeningSessionId);
-		}
+				INSERT INTO screening_session(screening_session_id, screening_flow_version_id, target_account_id, created_by_account_id, patient_order_id)
+				VALUES (?,?,?,?,?)
+				""", screeningSessionId, screeningFlowVersion.getScreeningFlowVersionId(), targetAccountId, createdByAccountId, patientOrderId);
 
 		// If we're immediately skipping, mark this session as completed/skipped and do nothing else.
 		// If we're not immediately skipping, create an initial screening session screening
@@ -1227,11 +1314,10 @@ public class ScreeningService {
 			return List.of();
 
 		return getDatabase().queryForList("""
-				SELECT ss.*
-				FROM screening_session ss, patient_order_screening_session poss
-				WHERE ss.screening_session_id=poss.screening_session_id
-				AND poss.patient_order_id=?
-				ORDER BY ss.created DESC
+				SELECT *
+				FROM screening_session
+				WHERE patient_order_id=?
+				ORDER BY created DESC
 				""", ScreeningSession.class, patientOrderId);
 	}
 
@@ -1500,6 +1586,19 @@ public class ScreeningService {
 		context.put("selfAdministered", Objects.equals(screeningSession.getCreatedByAccountId(), screeningSession.getTargetAccountId()));
 		context.put("additionalContext", additionalContext == null ? Map.of() : additionalContext);
 
+		// Patient age can help determine how to orchestrate, e.g. only perform a particular screening if
+		// patient is below a certain age
+		if (screeningSession.getPatientOrderId() != null) {
+			Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+			PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(screeningSession.getPatientOrderId()).get();
+			LocalDate currentDate = LocalDateTime.ofInstant(Instant.now(), institution.getTimeZone()).toLocalDate();
+
+			Long patientAgeInYears = Period.between(patientOrder.getPatientBirthdate(), currentDate)
+					.get(ChronoUnit.YEARS);
+
+			context.put("patientAgeInYears", patientAgeInYears);
+		}
+
 		try {
 			screeningFlowFunctionResult = getJavascriptExecutor().execute(screeningFlowFunctionJavascript, context, screeningFlowFunctionResultType);
 		} catch (JavascriptExecutionException e) {
@@ -1535,7 +1634,92 @@ public class ScreeningService {
 		}
 	}
 
-	protected void debugScreeningSession(@Nonnull UUID screeningSessionId) {
+	@Nonnull
+	public Optional<ScreeningSessionResult> findScreeningSessionResult(@Nullable UUID screeningSessionId) {
+		ScreeningSession screeningSession = findScreeningSessionById(screeningSessionId).orElse(null);
+
+		if (screeningSession == null)
+			return Optional.empty();
+
+		return findScreeningSessionResult(screeningSession);
+	}
+
+	@Nonnull
+	public Optional<ScreeningSessionResult> findScreeningSessionResult(@Nullable ScreeningSession screeningSession) {
+		if (screeningSession == null)
+			return Optional.empty();
+
+		ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
+		ScreeningFlow screeningFlow = findScreeningFlowById(screeningFlowVersion.getScreeningFlowId()).get();
+		List<ScreeningSessionScreening> screeningSessionScreenings = findCurrentScreeningSessionScreeningsByScreeningSessionId(screeningSession.getScreeningSessionId());
+		List<ScreeningSessionScreeningResult> screeningSessionScreeningResults = new ArrayList<>();
+
+		for (ScreeningSessionScreening screeningSessionScreening : screeningSessionScreenings) {
+			ScreeningVersion screeningVersion = findScreeningVersionById(screeningSessionScreening.getScreeningVersionId()).get();
+			Screening screening = findScreeningById(screeningVersion.getScreeningId()).get();
+			ScreeningScore screeningScore = screeningSessionScreening.getScoreAsObject().get();
+			List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions = findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
+			List<ScreeningSessionAnsweredScreeningQuestion> screeningSessionAnsweredScreeningQuestions = findScreeningSessionAnsweredScreeningQuestionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
+			List<ScreeningQuestionResult> screeningQuestionResults = new ArrayList<>();
+
+			for (ScreeningSessionAnsweredScreeningQuestion screeningSessionAnsweredScreeningQuestion : screeningSessionAnsweredScreeningQuestions) {
+				for (ScreeningQuestionWithAnswerOptions screeningQuestionWithAnswerOptions : screeningQuestionsWithAnswerOptions) {
+					ScreeningQuestion screeningQuestion = screeningQuestionWithAnswerOptions.getScreeningQuestion();
+					List<ScreeningAnswerOption> screeningAnswerOptions = screeningQuestionWithAnswerOptions.getScreeningAnswerOptions();
+					List<ScreeningAnswerResult> screeningAnswerResults = new ArrayList<>();
+
+					if (screeningQuestion.getScreeningQuestionId().equals(screeningSessionAnsweredScreeningQuestion.getScreeningQuestionId())) {
+						//logLines.add(format("\t\tQuestion: %s", screeningQuestionWithAnswerOptions.getScreeningQuestion().getQuestionText()));
+
+						List<ScreeningAnswer> screeningAnswers = findScreeningAnswersByScreeningQuestionContextId(
+								new ScreeningQuestionContextId(screeningSessionScreening.getScreeningSessionScreeningId(), screeningQuestionWithAnswerOptions.getScreeningQuestion().getScreeningQuestionId()));
+
+						for (ScreeningAnswerOption potentialScreeningAnswerOption : screeningAnswerOptions) {
+							for (ScreeningAnswer screeningAnswer : screeningAnswers) {
+								if (screeningAnswer.getScreeningAnswerOptionId().equals(potentialScreeningAnswerOption.getScreeningAnswerOptionId())) {
+									ScreeningAnswerResult screeningAnswerResult = new ScreeningAnswerResult();
+									screeningAnswerResult.setScreeningAnswerId(screeningAnswer.getScreeningAnswerId());
+									screeningAnswerResult.setScreeningAnswerOptionId(screeningAnswer.getScreeningAnswerOptionId());
+									screeningAnswerResult.setAnswerOptionText(potentialScreeningAnswerOption.getAnswerOptionText());
+									screeningAnswerResult.setText(screeningAnswer.getText());
+									screeningAnswerResult.setScore(potentialScreeningAnswerOption.getScore());
+									screeningAnswerResults.add(screeningAnswerResult);
+								}
+							}
+						}
+
+						ScreeningQuestionResult screeningQuestionResult = new ScreeningQuestionResult();
+						screeningQuestionResult.setScreeningQuestionId(screeningQuestion.getScreeningQuestionId());
+						screeningQuestionResult.setScreeningQuestionText(screeningQuestion.getQuestionText());
+						screeningQuestionResult.setScreeningAnswerResults(screeningAnswerResults);
+						screeningQuestionResults.add(screeningQuestionResult);
+					}
+				}
+			}
+
+			ScreeningSessionScreeningResult screeningSessionScreeningResult = new ScreeningSessionScreeningResult();
+			screeningSessionScreeningResult.setScreeningId(screening.getScreeningId());
+			screeningSessionScreeningResult.setScreeningName(screening.getName());
+			screeningSessionScreeningResult.setScreeningScore(screeningScore);
+			screeningSessionScreeningResult.setScreeningVersionNumber(screeningVersion.getVersionNumber());
+			screeningSessionScreeningResult.setScreeningTypeId(screeningVersion.getScreeningTypeId());
+			screeningSessionScreeningResult.setScreeningVersionId(screeningVersion.getScreeningVersionId());
+			screeningSessionScreeningResult.setScreeningQuestionResults(screeningQuestionResults);
+
+			screeningSessionScreeningResults.add(screeningSessionScreeningResult);
+		}
+
+		ScreeningSessionResult screeningSessionResult = new ScreeningSessionResult();
+		screeningSessionResult.setScreeningFlowId(screeningFlow.getScreeningFlowId());
+		screeningSessionResult.setScreeningFlowName(screeningFlow.getName());
+		screeningSessionResult.setScreeningFlowVersionId(screeningFlowVersion.getScreeningFlowVersionId());
+		screeningSessionResult.setScreeningFlowVersionNumber(screeningFlowVersion.getVersionNumber());
+		screeningSessionResult.setScreeningSessionScreeningResults(screeningSessionScreeningResults);
+
+		return Optional.of(screeningSessionResult);
+	}
+
+	public void debugScreeningSession(@Nonnull UUID screeningSessionId) {
 		requireNonNull(screeningSessionId);
 
 		if (!getLogger().isDebugEnabled())
@@ -1554,8 +1738,9 @@ public class ScreeningService {
 		for (ScreeningSessionScreening screeningSessionScreening : screeningSessionScreenings) {
 			ScreeningVersion screeningVersion = findScreeningVersionById(screeningSessionScreening.getScreeningVersionId()).get();
 			Screening screening = findScreeningById(screeningVersion.getScreeningId()).get();
+			ScreeningScore screeningScore = screeningSessionScreening.getScoreAsObject().get();
 
-			logLines.add(format("\tScreening '%s', version %d", screening.getName(), screeningVersion.getVersionNumber()));
+			logLines.add(format("\tScreening '%s', version %d, score %d", screening.getName(), screeningVersion.getVersionNumber(), screeningScore.getOverallScore()));
 
 			List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions = findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
 			List<ScreeningSessionAnsweredScreeningQuestion> screeningSessionAnsweredScreeningQuestions = findScreeningSessionAnsweredScreeningQuestionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
@@ -1568,17 +1753,23 @@ public class ScreeningService {
 						List<ScreeningAnswer> screeningAnswers = findScreeningAnswersByScreeningQuestionContextId(
 								new ScreeningQuestionContextId(screeningSessionScreening.getScreeningSessionScreeningId(), screeningQuestionWithAnswerOptions.getScreeningQuestion().getScreeningQuestionId()));
 
-						logLines.add(format("\t\tAnswer[s]: %s", screeningAnswers.stream().map(screeningAnswer -> {
-							ScreeningAnswerOption screeningAnswerOption = null;
+						for (ScreeningAnswerOption potentialScreeningAnswerOption : screeningQuestionWithAnswerOptions.getScreeningAnswerOptions()) {
+							String answers = screeningAnswers.stream().map(screeningAnswer -> {
+										if (screeningAnswer.getScreeningAnswerOptionId().equals(potentialScreeningAnswerOption.getScreeningAnswerOptionId())) {
+											if (potentialScreeningAnswerOption.getFreeformSupplement())
+												return format("%s (answer: %s) (score %d)", potentialScreeningAnswerOption.getAnswerOptionText(), screeningAnswer.getText(), potentialScreeningAnswerOption.getScore());
+											else
+												return format("%s (score %d)", potentialScreeningAnswerOption.getAnswerOptionText(), potentialScreeningAnswerOption.getScore());
+										}
 
-							for (ScreeningAnswerOption potentialScreeningAnswerOption : screeningQuestionWithAnswerOptions.getScreeningAnswerOptions()) {
-								if (screeningAnswer.getScreeningAnswerOptionId().equals(potentialScreeningAnswerOption.getScreeningAnswerOptionId())) {
-									return potentialScreeningAnswerOption.getAnswerOptionText();
-								}
-							}
+										return null;
+									})
+									.filter(answer -> answer != null)
+									.collect(Collectors.joining(", "));
 
-							throw new IllegalStateException("Answer w/o matching option, should never happen");
-						}).collect(Collectors.joining(", "))));
+							if (answers.length() > 0)
+								logLines.add(format("\t\tAnswer: %s", answers));
+						}
 					}
 				}
 			}
