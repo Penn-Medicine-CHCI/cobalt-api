@@ -222,6 +222,7 @@ public class PatientOrderApiResponse {
 	private ScreeningSessionResult screeningSessionResult;
 
 	public enum PatientOrderApiResponseSupplement {
+		MINIMAL,
 		PANEL,
 		EVERYTHING
 	}

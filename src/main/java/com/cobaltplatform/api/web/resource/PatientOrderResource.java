@@ -62,6 +62,7 @@ import com.cobaltplatform.api.util.PatientOrderCsvGenerator;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.DELETE;
 import com.soklet.web.annotation.GET;
+import com.soklet.web.annotation.PATCH;
 import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.PUT;
 import com.soklet.web.annotation.PathParameter;
@@ -86,6 +87,7 @@ import java.io.PrintWriter;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -186,11 +188,15 @@ public class PatientOrderResource {
 	@Nonnull
 	@GET("/patient-orders/{patientOrderId}")
 	@AuthenticationRequired
-	public ApiResponse patientOrder(@Nonnull @PathParameter UUID patientOrderId) {
+	public ApiResponse patientOrder(@Nonnull @PathParameter UUID patientOrderId,
+																	@Nonnull @QueryParameter("responseSupplement") Optional<List<PatientOrderApiResponseSupplement>> responseSupplements) {
 		requireNonNull(patientOrderId);
+		requireNonNull(responseSupplements);
 
 		Account account = getCurrentContext().getAccount().get();
 		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+		Set<PatientOrderApiResponseSupplement> finalResponseSupplements = new HashSet<>();
+		finalResponseSupplements.addAll(responseSupplements.orElse(List.of(PatientOrderApiResponseSupplement.EVERYTHING)));
 
 		if (patientOrder == null)
 			throw new NotFoundException();
@@ -198,20 +204,48 @@ public class PatientOrderResource {
 		if (!getAuthorizationService().canViewPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
 
-		List<PatientOrder> associatedPatientOrders = getPatientOrderService().findPatientOrdersByMrnAndInstitutionId(patientOrder.getPatientMrn(), account.getInstitutionId()).stream()
+		List<PatientOrder> associatedPatientOrders = finalResponseSupplements.contains(PatientOrderApiResponseSupplement.EVERYTHING)
+				? getPatientOrderService().findPatientOrdersByMrnAndInstitutionId(patientOrder.getPatientMrn(), account.getInstitutionId()).stream()
 				.filter(associatedPatientOrder -> !associatedPatientOrder.getPatientOrderId().equals(patientOrderId))
 				.sorted((patientOrder1, patientOrder2) -> patientOrder2.getOrderDate().compareTo(patientOrder1.getOrderDate()))
-				.collect(Collectors.toList());
+				.collect(Collectors.toList())
+				: List.of();
+
+		PatientOrderApiResponseFormat responseFormat = PatientOrderApiResponseFormat.fromRoleId(account.getRoleId());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrder", getPatientOrderApiResponseFactory().create(patientOrder, responseFormat, finalResponseSupplements));
+			put("associatedPatientOrders", associatedPatientOrders.stream()
+					.map(associatedPatientOrder -> getPatientOrderApiResponseFactory().create(associatedPatientOrder,
+							responseFormat, Set.of(PatientOrderApiResponseSupplement.PANEL)))
+					.collect(Collectors.toList()));
+		}});
+	}
+
+	@Nonnull
+	@PATCH("/patient-orders/{patientOrderId}")
+	@AuthenticationRequired
+	public ApiResponse patchPatientOrder(@Nonnull @PathParameter UUID patientOrderId,
+																			 @Nonnull @RequestBody String requestBody) {
+		requireNonNull(patientOrderId);
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+
+		if (patientOrder == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		// TODO: actually patch...
 
 		PatientOrderApiResponseFormat responseFormat = PatientOrderApiResponseFormat.fromRoleId(account.getRoleId());
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("patientOrder", getPatientOrderApiResponseFactory().create(patientOrder, responseFormat,
 					Set.of(PatientOrderApiResponseSupplement.EVERYTHING)));
-			put("associatedPatientOrders", associatedPatientOrders.stream()
-					.map(associatedPatientOrder -> getPatientOrderApiResponseFactory().create(associatedPatientOrder,
-							responseFormat, Set.of(PatientOrderApiResponseSupplement.PANEL)))
-					.collect(Collectors.toList()));
 		}});
 	}
 
