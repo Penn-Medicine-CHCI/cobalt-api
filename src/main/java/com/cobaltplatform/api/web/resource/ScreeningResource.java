@@ -389,6 +389,7 @@ public class ScreeningResource {
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("previousScreeningQuestionContextId", previousScreeningQuestionContext == null ? null
 					: previousScreeningQuestionContext.getScreeningQuestionContextId());
+			put("screeningSession", getScreeningSessionApiResponseFactory().create(screeningSession));
 			put("screeningQuestion", getScreeningQuestionApiResponseFactory().create(screeningQuestion));
 			put("screeningAnswerOptions", screeningAnswerOptions.stream()
 					.map(screeningAnswerOption -> getScreeningAnswerOptionApiResponseFactory().create(screeningAnswerOption))
