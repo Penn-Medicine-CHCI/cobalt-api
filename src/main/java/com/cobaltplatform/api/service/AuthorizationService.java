@@ -569,9 +569,13 @@ public class AuthorizationService {
 		requireNonNull(patientOrder);
 		requireNonNull(account);
 
-		// An admin or MHIC at the same institution is able to view patient orders at that institution
+		// An admin or MHIC at the same institution is able to edit patient orders at that institution.
 		if (Objects.equals(account.getInstitutionId(), patientOrder.getInstitutionId())
 				&& (account.getRoleId() == RoleId.ADMINISTRATOR || account.getRoleId() == RoleId.MHIC))
+			return true;
+
+		// You can also edit your own, to an extent, if you are the patient who's tied to it...
+		if (Objects.equals(patientOrder.getPatientAccountId(), account.getAccountId()))
 			return true;
 
 		return false;
