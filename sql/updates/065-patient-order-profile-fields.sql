@@ -8,4 +8,6 @@ ALTER TABLE patient_order ADD COLUMN patient_language_code VARCHAR NOT NULL DEFA
 ALTER TABLE patient_order ADD COLUMN patient_email_address VARCHAR;
 ALTER TABLE patient_order RENAME COLUMN callback_phone_number TO patient_phone_number;
 
+INSERT INTO patient_order_focus_type (patient_order_focus_type_id, description) VALUES ('EATING_DISORDER', 'Eating Disorder');
+
 COMMIT;
