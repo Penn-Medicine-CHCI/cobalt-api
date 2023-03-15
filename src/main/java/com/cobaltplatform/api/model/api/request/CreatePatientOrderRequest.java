@@ -19,7 +19,10 @@
 
 package com.cobaltplatform.api.model.api.request;
 
+import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
+import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.Race.RaceId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -80,6 +83,18 @@ public class CreatePatientOrderRequest {
 	@Nullable
 	private String patientIdType;
 	@Nullable
+	private String patientPhoneNumber;
+	@Nullable
+	private String patientLanguageCode;
+	@Nullable
+	private String patientEmailAddress;
+	@Nullable
+	private EthnicityId patientEthnicityId;
+	@Nullable
+	private RaceId patientRaceId;
+	@Nullable
+	private GenderIdentityId patientGenderIdentityId;
+	@Nullable
 	private String patientBirthSexId;
 	@Nullable
 	private String patientBirthdate;
@@ -117,8 +132,6 @@ public class CreatePatientOrderRequest {
 	private List<CreatePatientOrderDiagnosisRequest> diagnoses;
 	@Nullable
 	private String associatedDiagnosis;
-	@Nullable
-	private String callbackPhoneNumber;
 	@Nullable
 	private String preferredContactHours;
 	@Nullable
@@ -524,12 +537,57 @@ public class CreatePatientOrderRequest {
 	}
 
 	@Nullable
-	public String getCallbackPhoneNumber() {
-		return this.callbackPhoneNumber;
+	public String getPatientPhoneNumber() {
+		return this.patientPhoneNumber;
 	}
 
-	public void setCallbackPhoneNumber(@Nullable String callbackPhoneNumber) {
-		this.callbackPhoneNumber = callbackPhoneNumber;
+	public void setPatientPhoneNumber(@Nullable String patientPhoneNumber) {
+		this.patientPhoneNumber = patientPhoneNumber;
+	}
+
+	@Nullable
+	public String getPatientLanguageCode() {
+		return this.patientLanguageCode;
+	}
+
+	public void setPatientLanguageCode(@Nullable String patientLanguageCode) {
+		this.patientLanguageCode = patientLanguageCode;
+	}
+
+	@Nullable
+	public String getPatientEmailAddress() {
+		return this.patientEmailAddress;
+	}
+
+	public void setPatientEmailAddress(@Nullable String patientEmailAddress) {
+		this.patientEmailAddress = patientEmailAddress;
+	}
+
+	@Nullable
+	public EthnicityId getPatientEthnicityId() {
+		return this.patientEthnicityId;
+	}
+
+	public void setPatientEthnicityId(@Nullable EthnicityId patientEthnicityId) {
+		this.patientEthnicityId = patientEthnicityId;
+	}
+
+	@Nullable
+	public RaceId getPatientRaceId() {
+		return this.patientRaceId;
+	}
+
+	public void setPatientRaceId(@Nullable RaceId patientRaceId) {
+		this.patientRaceId = patientRaceId;
+	}
+
+	@Nullable
+	public GenderIdentityId getPatientGenderIdentityId() {
+		return this.patientGenderIdentityId;
+	}
+
+	public void setPatientGenderIdentityId(@Nullable GenderIdentityId patientGenderIdentityId) {
+		this.patientGenderIdentityId = patientGenderIdentityId;
 	}
 
 	@Nullable

@@ -625,8 +625,8 @@ public class PatientOrderCsvGenerator {
 						billingProvider.getMiddleInitial().isPresent()
 								? format("%s, %s %s [%s]", billingProvider.getLastName(), billingProvider.getFirstName(), billingProvider.getMiddleInitial().get(), billingProvider.getId()) // Robinson, Laura E [R12345]
 								: format("%s, %s [%s]", billingProvider.getLastName(), billingProvider.getFirstName(), billingProvider.getId()), // Robinson, Laura [R12345]
-						firstName,
 						lastName,
+						firstName,
 						mrn,
 						uid,
 						randomSex(),

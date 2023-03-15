@@ -30,11 +30,14 @@ import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.Scr
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
+import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
+import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.service.ScreeningSessionResult;
@@ -168,9 +171,19 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String associatedDiagnosis;
 	@Nullable
-	private String callbackPhoneNumber;
+	private String patientPhoneNumber;
 	@Nullable
-	private String callbackPhoneNumberDescription;
+	private String patientPhoneNumberDescription;
+	@Nullable
+	private EthnicityId patientEthnicityId;
+	@Nullable
+	private RaceId patientRaceId;
+	@Nullable
+	private GenderIdentityId patientGenderIdentityId;
+	@Nullable
+	private String patientLanguageCode;
+	@Nullable
+	private String patientEmailEddress;
 	@Nullable
 	private String preferredContactHours;
 	@Nullable
@@ -395,8 +408,15 @@ public class PatientOrderApiResponse {
 		this.patientId = patientOrder.getPatientId();
 		this.patientIdType = patientOrder.getPatientIdType();
 		this.patientBirthSexId = patientOrder.getPatientBirthSexId();
+		this.patientEthnicityId = patientOrder.getPatientEthnicityId();
+		this.patientRaceId = patientOrder.getPatientRaceId();
+		this.patientGenderIdentityId = patientOrder.getPatientGenderIdentityId();
+		this.patientLanguageCode = patientOrder.getPatientLanguageCode();
+		this.patientEmailEddress = patientOrder.getPatientEmailAddress();
 		this.patientBirthdate = patientOrder.getPatientBirthdate();
 		this.patientBirthdateDescription = patientOrder.getPatientBirthdate() == null ? null : formatter.formatDate(patientOrder.getPatientBirthdate(), FormatStyle.MEDIUM);
+		this.patientPhoneNumber = patientOrder.getPatientPhoneNumber();
+		this.patientPhoneNumberDescription = patientOrder.getPatientPhoneNumber() == null ? null : formatter.formatPhoneNumber(patientOrder.getPatientPhoneNumber(), currentContext.getLocale());
 		this.patientAddress = patientAddress;
 		this.patientAccount = patientAccount;
 
@@ -434,8 +454,6 @@ public class PatientOrderApiResponse {
 			this.routing = patientOrder.getRouting();
 			this.reasonForReferral = patientOrder.getReasonForReferral();
 			this.associatedDiagnosis = patientOrder.getAssociatedDiagnosis();
-			this.callbackPhoneNumber = patientOrder.getCallbackPhoneNumber();
-			this.callbackPhoneNumberDescription = patientOrder.getCallbackPhoneNumber() == null ? null : formatter.formatPhoneNumber(patientOrder.getCallbackPhoneNumber(), currentContext.getLocale());
 			this.preferredContactHours = patientOrder.getPreferredContactHours();
 			this.comments = patientOrder.getComments();
 			this.ccRecipients = patientOrder.getCcRecipients();
@@ -734,13 +752,38 @@ public class PatientOrderApiResponse {
 	}
 
 	@Nullable
-	public String getCallbackPhoneNumber() {
-		return this.callbackPhoneNumber;
+	public String getPatientPhoneNumber() {
+		return this.patientPhoneNumber;
 	}
 
 	@Nullable
-	public String getCallbackPhoneNumberDescription() {
-		return this.callbackPhoneNumberDescription;
+	public String getPatientPhoneNumberDescription() {
+		return this.patientPhoneNumberDescription;
+	}
+
+	@Nullable
+	public EthnicityId getPatientEthnicityId() {
+		return this.patientEthnicityId;
+	}
+
+	@Nullable
+	public RaceId getPatientRaceId() {
+		return this.patientRaceId;
+	}
+
+	@Nullable
+	public GenderIdentityId getPatientGenderIdentityId() {
+		return this.patientGenderIdentityId;
+	}
+
+	@Nullable
+	public String getPatientLanguageCode() {
+		return this.patientLanguageCode;
+	}
+
+	@Nullable
+	public String getPatientEmailEddress() {
+		return this.patientEmailEddress;
 	}
 
 	@Nullable

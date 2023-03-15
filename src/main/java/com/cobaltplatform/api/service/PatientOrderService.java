@@ -33,12 +33,15 @@ import com.cobaltplatform.api.model.api.request.DeletePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
+import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest.CreatePatientOrderTriageRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
+import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason;
@@ -54,6 +57,7 @@ import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderS
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
+import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.IcTestPatientEmailAddress;
@@ -77,6 +81,7 @@ import com.pyranid.Database;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -113,6 +118,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
+import static com.cobaltplatform.api.util.ValidationUtility.isValidEmailAddress;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -1426,7 +1432,7 @@ public class PatientOrderService {
 					patientOrderRequest.setDiagnoses(diagnoses);
 
 					patientOrderRequest.setAssociatedDiagnosis(trimToNull(record.get("Order Associated Diagnosis (ICD-10)")));
-					patientOrderRequest.setCallbackPhoneNumber(trimToNull(record.get("Call Back Number")));
+					patientOrderRequest.setPatientPhoneNumber(trimToNull(record.get("Call Back Number")));
 					patientOrderRequest.setPreferredContactHours(trimToNull(record.get("Preferred Contact Hours")));
 					patientOrderRequest.setComments(trimToNull(record.get("Order Comments")));
 					patientOrderRequest.setCcRecipients(trimToNull(record.get("IMG CC Recipients")));
@@ -1588,7 +1594,7 @@ public class PatientOrderService {
 				.filter(diagnosis -> diagnosis != null)
 				.collect(Collectors.toList());
 		String associatedDiagnosis = trimToNull(request.getAssociatedDiagnosis());
-		String callbackPhoneNumber = trimToNull(request.getCallbackPhoneNumber());
+		String patientPhoneNumber = trimToNull(request.getPatientPhoneNumber());
 		String preferredContactHours = trimToNull(request.getPreferredContactHours());
 		String comments = trimToNull(request.getComments());
 		String ccRecipients = trimToNull(request.getCcRecipients());
@@ -1727,13 +1733,13 @@ public class PatientOrderService {
 			validationException.add(addressValidationException);
 		}
 
-		if (callbackPhoneNumber != null) {
-			String originalCallbackPhoneNumber = callbackPhoneNumber;
-			callbackPhoneNumber = getNormalizer().normalizePhoneNumberToE164(callbackPhoneNumber, Locale.US).orElse(null);
+		if (patientPhoneNumber != null) {
+			String originalPatientPhoneNumber = patientPhoneNumber;
+			patientPhoneNumber = getNormalizer().normalizePhoneNumberToE164(patientPhoneNumber, Locale.US).orElse(null);
 
-			if (callbackPhoneNumber == null)
-				validationException.add(new FieldError("callbackPhoneNumber", getStrings().get("Invalid callback phone number: {{callbackPhoneNumber}}.",
-						Map.of("callbackPhoneNumber", originalCallbackPhoneNumber))));
+			if (patientPhoneNumber == null)
+				validationException.add(new FieldError("patientPhoneNumber", getStrings().get("Invalid patient phone number: {{patientPhoneNumber}}.",
+						Map.of("patientPhoneNumber", originalPatientPhoneNumber))));
 		}
 
 		if (testPatientEmailAddress == null && testPatientPassword != null)
@@ -1803,11 +1809,11 @@ public class PatientOrderService {
 						  routing,
 						  reason_for_referral,
 						  associated_diagnosis,
-						  callback_phone_number,
+						  patient_phone_number,
 						  preferred_contact_hours,
 						  comments,
 						  cc_recipients,
-						  last_active_medication_order_summary,						  
+						  last_active_medication_order_summary,  
 						  recent_psychotherapeutic_medications,
 						  test_patient_email_address,
 						  test_patient_password
@@ -1820,7 +1826,7 @@ public class PatientOrderService {
 				billingProviderLastName, billingProviderFirstName, billingProviderMiddleName, patientLastName, patientFirstName,
 				patientMrn, patientId, patientIdType, patientBirthSexId, patientBirthdate, patientAddressId, primaryPayorId,
 				primaryPayorName, primaryPlanId, primaryPlanName, orderDate, orderAgeInMinutes, orderId, routing,
-				reasonForReferral, associatedDiagnosis, callbackPhoneNumber, preferredContactHours, comments, ccRecipients,
+				reasonForReferral, associatedDiagnosis, patientPhoneNumber, preferredContactHours, comments, ccRecipients,
 				lastActiveMedicationOrderSummary, recentPsychotherapeuticMedications, testPatientEmailAddress, hashedTestPatientPassword);
 
 		int diagnosisDisplayOrder = 0;
@@ -1832,7 +1838,7 @@ public class PatientOrderService {
 
 			getDatabase().execute("""
 					INSERT INTO patient_order_diagnosis (
-					patient_order_id, 
+					patient_order_id,
 					diagnosis_id,
 					diagnosis_id_type,
 					diagnosis_name,
@@ -1858,7 +1864,7 @@ public class PatientOrderService {
 					medication_name,
 					display_order
 					) VALUES (?,?,?,?,?)
-					""", patientOrderId, medicationId, medicationIdType, medicationName, diagnosisDisplayOrder);
+					""", patientOrderId, medicationId, medicationIdType, medicationName, medicationDisplayOrder);
 
 			++medicationDisplayOrder;
 		}
@@ -1872,6 +1878,164 @@ public class PatientOrderService {
 		}});
 
 		return patientOrderId;
+	}
+
+	@Nonnull
+	public Boolean patchPatientOrder(@Nonnull PatchPatientOrderRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderId = request.getPatientOrderId();
+		UUID accountId = request.getAccountId();
+		String patientFirstName = trimToNull(request.getPatientFirstName());
+		String patientLastName = trimToNull(request.getPatientLastName());
+		String patientEmailAddress = getNormalizer().normalizeEmailAddress(request.getPatientEmailAddress()).orElse(null);
+		String patientPhoneNumber = trimToNull(request.getPatientPhoneNumber());
+		GenderIdentityId patientGenderIdentityId = request.getPatientGenderIdentityId();
+		EthnicityId patientEthnicityId = request.getPatientEthnicityId();
+		BirthSexId patientBirthSexId = request.getPatientBirthSexId();
+		RaceId patientRaceId = request.getPatientRaceId();
+		LocalDate patientBirthdate = request.getPatientBirthdate();
+		String patientLanguageCode = trimToNull(request.getPatientLanguageCode());
+		CreateAddressRequest patientAddress = request.getPatientAddress();
+		PatientOrder patientOrder = null;
+		Account account = null;
+		List<Pair<String, Object>> columnNamesAndValues = new ArrayList<>();
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderId == null) {
+			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+		} else {
+			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+
+			if (patientOrder == null)
+				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+		}
+
+		if (accountId == null) {
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+		} else {
+			account = getAccountService().findAccountById(accountId).orElse(null);
+
+			if (account == null)
+				validationException.add(new FieldError("accountId", getStrings().get("Account ID is invalid.")));
+		}
+
+		if (request.isShouldUpdatePatientFirstName()) {
+			if (patientFirstName == null)
+				validationException.add(new FieldError("patientFirstName", getStrings().get("First name is required.")));
+			else
+				columnNamesAndValues.add(Pair.of("patient_first_name", patientFirstName));
+		}
+
+		if (request.isShouldUpdatePatientLastName()) {
+			if (patientLastName == null)
+				validationException.add(new FieldError("patientLastName", getStrings().get("Last name is required.")));
+			else
+				columnNamesAndValues.add(Pair.of("patient_last_name", patientLastName));
+		}
+
+		if (request.isShouldUpdatePatientEmailAddress()) {
+			if (patientEmailAddress == null)
+				validationException.add(new FieldError("patientEmailAddress", getStrings().get("Email address is required.")));
+			else if (!isValidEmailAddress(patientEmailAddress))
+				validationException.add(new FieldError("patientEmailAddress", getStrings().get("Email address is invalid.")));
+			else
+				columnNamesAndValues.add(Pair.of("patient_email_address", getNormalizer().normalizeEmailAddress(patientEmailAddress).get()));
+		}
+
+		if (request.isShouldUpdatePatientPhoneNumber()) {
+			if (patientPhoneNumber == null) {
+				validationException.add(new FieldError("patientPhoneNumber", getStrings().get("Phone number is required.")));
+			} else {
+				// TODO: revisit when we support non-US institutions
+				patientPhoneNumber = getNormalizer().normalizePhoneNumberToE164(request.getPatientPhoneNumber(), Locale.US).orElse(null);
+
+				if (patientPhoneNumber == null)
+					validationException.add(new FieldError("patientPhoneNumber", getStrings().get("Phone number is invalid.")));
+				else
+					columnNamesAndValues.add(Pair.of("patient_phone_number", patientPhoneNumber));
+			}
+		}
+
+		if (request.isShouldUpdatePatientGenderIdentityId()) {
+			if (patientGenderIdentityId == null)
+				validationException.add(new FieldError("patientGenderIdentityId", getStrings().get("Gender identity is required.")));
+			else
+				columnNamesAndValues.add(Pair.of("patient_gender_identity_id", patientGenderIdentityId));
+		}
+
+		if (request.isShouldUpdatePatientEthnicityId()) {
+			if (patientEthnicityId == null)
+				validationException.add(new FieldError("patientEthnicityId", getStrings().get("Ethnicity is required.")));
+			else
+				columnNamesAndValues.add(Pair.of("patient_ethnicity_id", patientEthnicityId));
+		}
+
+		if (request.isShouldUpdatePatientBirthSexId()) {
+			if (patientBirthSexId == null)
+				validationException.add(new FieldError("patientBirthSexId", getStrings().get("Birth sex is required.")));
+			else
+				columnNamesAndValues.add(Pair.of("patient_birth_sex_id", patientBirthSexId));
+		}
+
+		if (request.isShouldUpdatePatientRaceId()) {
+			if (patientRaceId == null)
+				validationException.add(new FieldError("patientRaceId", getStrings().get("Race is required.")));
+			else
+				columnNamesAndValues.add(Pair.of("patient_race_id", patientRaceId));
+		}
+
+		if (request.isShouldUpdatePatientBirthdate()) {
+			if (patientBirthdate == null)
+				validationException.add(new FieldError("patientBirthdate", getStrings().get("Birthdate is required.")));
+			else if (account != null && patientBirthdate.isAfter(LocalDate.now(account.getTimeZone())))
+				validationException.add(new FieldError("patientBirthdate", getStrings().get("Birthdate cannot be in the future.")));
+			else if (account != null)
+				columnNamesAndValues.add(Pair.of("patient_birthdate", patientBirthdate));
+		}
+
+		if (request.isShouldUpdatePatientLanguageCode()) {
+			if (patientLanguageCode == null)
+				validationException.add(new FieldError("patientLanguageCode", getStrings().get("Language is required.")));
+			else if (!Arrays.asList(Locale.getISOLanguages()).contains(patientLanguageCode))
+				validationException.add(new FieldError("patientLanguageCode", getStrings().get("Language is invalid.")));
+			else
+				columnNamesAndValues.add(Pair.of("patient_language_code", patientLanguageCode));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		if (request.isShouldUpdatePatientAddress()) {
+			UUID patientAddressId = getAddressService().createAddress(patientAddress);
+			columnNamesAndValues.add(Pair.of("patient_address_id", patientAddressId));
+		}
+
+		String setClause = columnNamesAndValues.stream()
+				.map(columnNameAndValue -> format("%s=?", columnNameAndValue.getLeft()))
+				.collect(Collectors.joining(", "));
+
+		// Nothing to update? Bail
+		if (setClause == null || setClause.length() == 0)
+			return false;
+
+		List<Object> parameters = columnNamesAndValues.stream()
+				.map(columNameAndValue -> columNameAndValue.getRight())
+				.collect(Collectors.toList());
+
+		parameters.add(patientOrderId);
+
+		boolean patched = getDatabase().execute(format("""
+				UPDATE patient_order
+				SET %s
+				WHERE patient_order_id=?
+				""", setClause), parameters.toArray(new Object[]{})) > 0;
+
+		if (patched) {
+			// TODO: record fields that were patched in our event log
+		}
+
+		return patched;
 	}
 
 	@Nonnull
