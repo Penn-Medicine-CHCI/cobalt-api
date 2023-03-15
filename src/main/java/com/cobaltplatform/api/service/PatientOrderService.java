@@ -44,10 +44,12 @@ import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
+import com.cobaltplatform.api.model.db.PatientOrderCareType;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderDiagnosis;
 import com.cobaltplatform.api.model.db.PatientOrderEventType.PatientOrderEventTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderFocusType;
 import com.cobaltplatform.api.model.db.PatientOrderImport;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderMedication;
@@ -614,6 +616,24 @@ public class PatientOrderService {
 
 		FindResult<? extends PatientOrder> findResult = new FindResult<>(patientOrders, totalCount);
 		return (FindResult<PatientOrder>) findResult;
+	}
+
+	@Nonnull
+	public List<PatientOrderFocusType> findPatientOrderFocusTypes() {
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM patient_order_focus_type
+				ORDER BY description
+				""", PatientOrderFocusType.class);
+	}
+
+	@Nonnull
+	public List<PatientOrderCareType> findPatientOrderCareTypes() {
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM patient_order_care_type
+				ORDER BY description
+				""", PatientOrderCareType.class);
 	}
 
 	@Nonnull

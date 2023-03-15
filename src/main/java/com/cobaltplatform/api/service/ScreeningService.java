@@ -1597,6 +1597,7 @@ public class ScreeningService {
 					.get(ChronoUnit.YEARS);
 
 			context.put("patientAgeInYears", patientAgeInYears);
+			context.put("patientBirthSexId", patientOrder.getPatientBirthSexId());
 		}
 
 		try {
