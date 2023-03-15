@@ -29,10 +29,17 @@ import com.cobaltplatform.api.model.api.request.DeletePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
+import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.CountryApiResponse;
+import com.cobaltplatform.api.model.api.response.CountryApiResponse.CountryApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.InsuranceApiResponse;
+import com.cobaltplatform.api.model.api.response.InsuranceApiResponse.InsuranceApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.LanguageApiResponse;
+import com.cobaltplatform.api.model.api.response.LanguageApiResponse.LanguageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFormat;
@@ -40,7 +47,12 @@ import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.Patient
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderTriageApiResponse.PatientOrderTriageApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse;
+import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.BirthSex;
+import com.cobaltplatform.api.model.db.Ethnicity;
+import com.cobaltplatform.api.model.db.GenderIdentity;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason;
@@ -49,15 +61,18 @@ import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderOutreach;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
+import com.cobaltplatform.api.model.db.Race;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.PatientOrderImportResult;
 import com.cobaltplatform.api.model.service.PatientOrderPanelTypeId;
+import com.cobaltplatform.api.model.service.Region;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.PatientOrderService;
 import com.cobaltplatform.api.util.Formatter;
+import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.PatientOrderCsvGenerator;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.DELETE;
@@ -86,9 +101,12 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -126,9 +144,19 @@ public class PatientOrderResource {
 	@Nonnull
 	private final PatientOrderTriageApiResponseFactory patientOrderTriageApiResponseFactory;
 	@Nonnull
+	private final TimeZoneApiResponseFactory timeZoneApiResponseFactory;
+	@Nonnull
+	private final LanguageApiResponseFactory languageApiResponseFactory;
+	@Nonnull
+	private final CountryApiResponseFactory countryApiResponseFactory;
+	@Nonnull
+	private final InsuranceApiResponseFactory insuranceApiResponseFactory;
+	@Nonnull
 	private final PatientOrderCsvGenerator patientOrderCsvGenerator;
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
+	@Nonnull
+	private final JsonMapper jsonMapper;
 	@Nonnull
 	private final Formatter formatter;
 	@Nonnull
@@ -148,8 +176,13 @@ public class PatientOrderResource {
 															@Nonnull PatientOrderOutreachApiResponseFactory patientOrderOutreachApiResponseFactory,
 															@Nonnull AccountApiResponseFactory accountApiResponseFactory,
 															@Nonnull PatientOrderTriageApiResponseFactory patientOrderTriageApiResponseFactory,
+															@Nonnull TimeZoneApiResponseFactory timeZoneApiResponseFactory,
+															@Nonnull LanguageApiResponseFactory languageApiResponseFactory,
+															@Nonnull CountryApiResponseFactory countryApiResponseFactory,
+															@Nonnull InsuranceApiResponseFactory insuranceApiResponseFactory,
 															@Nonnull PatientOrderCsvGenerator patientOrderCsvGenerator,
 															@Nonnull RequestBodyParser requestBodyParser,
+															@Nonnull JsonMapper jsonMapper,
 															@Nonnull Formatter formatter,
 															@Nonnull Configuration configuration,
 															@Nonnull Provider<CurrentContext> currentContextProvider) {
@@ -162,8 +195,13 @@ public class PatientOrderResource {
 		requireNonNull(patientOrderOutreachApiResponseFactory);
 		requireNonNull(accountApiResponseFactory);
 		requireNonNull(patientOrderTriageApiResponseFactory);
+		requireNonNull(timeZoneApiResponseFactory);
+		requireNonNull(languageApiResponseFactory);
+		requireNonNull(countryApiResponseFactory);
+		requireNonNull(insuranceApiResponseFactory);
 		requireNonNull(patientOrderCsvGenerator);
 		requireNonNull(requestBodyParser);
+		requireNonNull(jsonMapper);
 		requireNonNull(formatter);
 		requireNonNull(configuration);
 		requireNonNull(currentContextProvider);
@@ -177,8 +215,13 @@ public class PatientOrderResource {
 		this.patientOrderOutreachApiResponseFactory = patientOrderOutreachApiResponseFactory;
 		this.accountApiResponseFactory = accountApiResponseFactory;
 		this.patientOrderTriageApiResponseFactory = patientOrderTriageApiResponseFactory;
+		this.timeZoneApiResponseFactory = timeZoneApiResponseFactory;
+		this.languageApiResponseFactory = languageApiResponseFactory;
+		this.countryApiResponseFactory = countryApiResponseFactory;
+		this.insuranceApiResponseFactory = insuranceApiResponseFactory;
 		this.patientOrderCsvGenerator = patientOrderCsvGenerator;
 		this.requestBodyParser = requestBodyParser;
+		this.jsonMapper = jsonMapper;
 		this.formatter = formatter;
 		this.configuration = configuration;
 		this.currentContextProvider = currentContextProvider;
@@ -239,12 +282,31 @@ public class PatientOrderResource {
 		if (!getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
 
-		// TODO: actually patch...
+		// Only patch fields specified in the request
+		Map<String, Object> requestBodyAsJson = getJsonMapper().fromJson(requestBody);
 
+		PatchPatientOrderRequest request = getRequestBodyParser().parse(requestBody, PatchPatientOrderRequest.class);
+		request.setPatientOrderId(patientOrderId);
+		request.setAccountId(account.getAccountId());
+		request.setShouldUpdatePatientFirstName(requestBodyAsJson.containsKey("patientFirstName"));
+		request.setShouldUpdatePatientLastName(requestBodyAsJson.containsKey("patientLastName"));
+		request.setShouldUpdatePatientEmailAddress(requestBodyAsJson.containsKey("patientEmailAddress"));
+		request.setShouldUpdatePatientPhoneNumber(requestBodyAsJson.containsKey("patientPhoneNumber"));
+		request.setShouldUpdatePatientLanguageCode(requestBodyAsJson.containsKey("patientLanguageCode"));
+		request.setShouldUpdatePatientBirthdate(requestBodyAsJson.containsKey("patientBirthdate"));
+		request.setShouldUpdatePatientEthnicityId(requestBodyAsJson.containsKey("patientEthnicityId"));
+		request.setShouldUpdatePatientGenderIdentityId(requestBodyAsJson.containsKey("patientGenderIdentityId"));
+		request.setShouldUpdatePatientBirthSexId(requestBodyAsJson.containsKey("patientBirthSexId"));
+		request.setShouldUpdatePatientRaceId(requestBodyAsJson.containsKey("patientRaceId"));
+		request.setShouldUpdatePatientAddress(requestBodyAsJson.containsKey("patientAddress"));
+
+		getPatientOrderService().patchPatientOrder(request);
+
+		PatientOrder updatedPatientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).get();
 		PatientOrderApiResponseFormat responseFormat = PatientOrderApiResponseFormat.fromRoleId(account.getRoleId());
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("patientOrder", getPatientOrderApiResponseFactory().create(patientOrder, responseFormat,
+			put("patientOrder", getPatientOrderApiResponseFactory().create(updatedPatientOrder, responseFormat,
 					Set.of(PatientOrderApiResponseSupplement.EVERYTHING)));
 		}});
 	}
@@ -753,6 +815,97 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
+	@GET("/accounts/reference-data")
+	@AuthenticationRequired
+	@Deprecated // temporary until FE can transition to GET /patient-orders/reference-data
+	public ApiResponse accountReferenceData() {
+		return patientOrderReferenceData();
+	}
+
+	@Nonnull
+	@GET("/patient-orders/reference-data")
+	@AuthenticationRequired
+	public ApiResponse patientOrderReferenceData() {
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		// Time zones
+		List<TimeZoneApiResponse> timeZones = getAccountService().getAccountTimeZones().stream()
+				.map(timeZone -> getTimeZoneApiResponseFactory().create(timeZone))
+				.collect(Collectors.toList());
+
+		Collections.sort(timeZones, (tz1, tz2) -> {
+			return tz1.getDescription().compareTo(tz2.getDescription());
+		});
+
+		// Countries
+		Set<Locale> countryLocales = getAccountService().getAccountCountries();
+		List<CountryApiResponse> countries = new ArrayList<>(countryLocales.size());
+
+		for (Locale locale : countryLocales)
+			countries.add(getCountryApiResponseFactory().create(locale));
+
+		Collections.sort(countries, (country1, country2) -> {
+			return country1.getDescription().compareTo(country2.getDescription());
+		});
+
+		// Languages
+		List<LanguageApiResponse> languages = getAccountService().getAccountLanguages().stream()
+				.map(language -> getLanguageApiResponseFactory().create(language))
+				.collect(Collectors.toList());
+
+		Collections.sort(languages, (language1, language2) -> {
+			return language1.getDescription().compareTo(language2.getDescription());
+		});
+
+		// Insurances
+		List<InsuranceApiResponse> insurances = getInstitutionService().findInsurancesByInstitutionId(institutionId).stream()
+				.map(insurance -> getInsuranceApiResponseFactory().create(insurance))
+				.collect(Collectors.toList());
+
+		// Regions
+		Map<String, List<Region>> regionsByCountryCode = Region.getRegionsByCountryCode();
+		Map<String, List<Map<String, Object>>> normalizedRegionsByCountryCode = new HashMap<>(regionsByCountryCode.size());
+
+		for (Map.Entry<String, List<Region>> entry : regionsByCountryCode.entrySet())
+			normalizedRegionsByCountryCode.put(entry.getKey(), entry.getValue().stream()
+					.map(region -> Map.of("name", (Object) region.getName(), "abbreviation", region.getAbbreviation()))
+					.collect(Collectors.toList()));
+
+		// Demographics
+		List<Map<String, Object>> genderIdentities = getAccountService().findGenderIdentities().stream()
+				.filter(genderIdentity -> genderIdentity.getGenderIdentityId() != GenderIdentity.GenderIdentityId.NOT_ASKED)
+				.map(genderIdentity -> Map.<String, Object>of("genderIdentityId", genderIdentity.getGenderIdentityId(), "description", genderIdentity.getDescription()))
+				.collect(Collectors.toList());
+
+		List<Map<String, Object>> races = getAccountService().findRaces().stream()
+				.filter(race -> race.getRaceId() != Race.RaceId.NOT_ASKED)
+				.map(race -> Map.<String, Object>of("raceId", race.getRaceId(), "description", race.getDescription()))
+				.collect(Collectors.toList());
+
+		List<Map<String, Object>> birthSexes = getAccountService().findBirthSexes().stream()
+				.filter(birthSex -> birthSex.getBirthSexId() != BirthSex.BirthSexId.NOT_ASKED)
+				.map(birthSex -> Map.<String, Object>of("birthSexId", birthSex.getBirthSexId(), "description", birthSex.getDescription()))
+				.collect(Collectors.toList());
+
+		List<Map<String, Object>> ethnicities = getAccountService().findEthnicities().stream()
+				.filter(ethnicity -> ethnicity.getEthnicityId() != Ethnicity.EthnicityId.NOT_ASKED)
+				.map(ethnicity -> Map.<String, Object>of("ethnicityId", ethnicity.getEthnicityId(), "description", ethnicity.getDescription()))
+				.collect(Collectors.toList());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("timeZones", timeZones);
+			put("countries", countries);
+			put("languages", languages);
+			put("insurances", insurances);
+			put("genderIdentities", genderIdentities);
+			put("races", races);
+			put("birthSexes", birthSexes);
+			put("ethnicities", ethnicities);
+			put("regionsByCountryCode", normalizedRegionsByCountryCode);
+		}});
+	}
+
+	@Nonnull
 	@GET("/patient-order-csv-generator")
 	@AuthenticationRequired
 	public CustomResponse patientOrderCsvGenerator(@Nonnull @QueryParameter Optional<Integer> orderCount,
@@ -834,6 +987,26 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
+	protected TimeZoneApiResponseFactory getTimeZoneApiResponseFactory() {
+		return this.timeZoneApiResponseFactory;
+	}
+
+	@Nonnull
+	protected LanguageApiResponseFactory getLanguageApiResponseFactory() {
+		return this.languageApiResponseFactory;
+	}
+
+	@Nonnull
+	protected CountryApiResponseFactory getCountryApiResponseFactory() {
+		return this.countryApiResponseFactory;
+	}
+
+	@Nonnull
+	protected InsuranceApiResponseFactory getInsuranceApiResponseFactory() {
+		return this.insuranceApiResponseFactory;
+	}
+
+	@Nonnull
 	protected PatientOrderCsvGenerator getPatientOrderCsvGenerator() {
 		return this.patientOrderCsvGenerator;
 	}
@@ -841,6 +1014,11 @@ public class PatientOrderResource {
 	@Nonnull
 	protected RequestBodyParser getRequestBodyParser() {
 		return this.requestBodyParser;
+	}
+
+	@Nonnull
+	protected JsonMapper getJsonMapper() {
+		return this.jsonMapper;
 	}
 
 	@Nonnull

@@ -32,11 +32,9 @@ import com.cobaltplatform.api.model.api.request.ApplyAccountEmailVerificationCod
 import com.cobaltplatform.api.model.api.request.CreateAccountEmailVerificationRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountInviteRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
-import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreateInteractionInstanceRequest;
 import com.cobaltplatform.api.model.api.request.EmailPasswordAccessTokenRequest;
 import com.cobaltplatform.api.model.api.request.ForgotPasswordRequest;
-import com.cobaltplatform.api.model.api.request.PatchAccountRequest;
 import com.cobaltplatform.api.model.api.request.ResetPasswordRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountAccessTokenExpiration;
 import com.cobaltplatform.api.model.api.request.UpdateAccountBetaStatusRequest;
@@ -576,121 +574,6 @@ public class AccountService {
 		getPatientOrderService().associatePatientAccountWithPatientOrders(accountId);
 
 		return accountId;
-	}
-
-	@Nonnull
-	public void patchAccount(@Nonnull PatchAccountRequest request) {
-		requireNonNull(request);
-
-		UUID accountId = request.getAccountId();
-		String firstName = trimToNull(request.getFirstName());
-		String lastName = trimToNull(request.getLastName());
-		String displayName = trimToNull(request.getDisplayName());
-		String emailAddress = getNormalizer().normalizeEmailAddress(request.getEmailAddress()).orElse(null);
-		String phoneNumber = trimToNull(request.getPhoneNumber());
-		GenderIdentityId genderIdentityId = request.getGenderIdentityId();
-		EthnicityId ethnicityId = request.getEthnicityId();
-		BirthSexId birthSexId = request.getBirthSexId();
-		RaceId raceId = request.getRaceId();
-		LocalDate birthdate = request.getBirthdate();
-		UUID insuranceId = request.getInsuranceId();
-		String countryCode = trimToNull(request.getCountryCode());
-		String languageCode = trimToNull(request.getLanguageCode());
-		ZoneId timeZone = request.getTimeZone();
-		CreateAddressRequest address = request.getAddress();
-		ZoneId validationTimeZone = timeZone == null ? getCurrentContext().getTimeZone() : timeZone;
-		Account account = null;
-		ValidationException validationException = new ValidationException();
-
-		if (accountId == null) {
-			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
-		} else {
-			account = findAccountById(accountId).orElse(null);
-
-			if (account == null)
-				validationException.add(new FieldError("accountId", getStrings().get("Account ID is invalid.")));
-		}
-
-		if (request.isShouldUpdateFirstName() && firstName == null)
-			validationException.add(new FieldError("firstName", getStrings().get("First name is required.")));
-
-		if (request.isShouldUpdateLastName() && lastName == null)
-			validationException.add(new FieldError("lastName", getStrings().get("Last name is required.")));
-
-		if (request.isShouldUpdateDisplayName() && displayName == null)
-			validationException.add(new FieldError("displayName", getStrings().get("Name is required.")));
-
-		if (request.isShouldUpdateEmailAddress()) {
-			if (emailAddress == null)
-				validationException.add(new FieldError("emailAddress", getStrings().get("Email address is required.")));
-			else if (!isValidEmailAddress(emailAddress))
-				validationException.add(new FieldError("emailAddress", getStrings().get("Email address is invalid.")));
-		}
-
-		if (request.isShouldUpdatePhoneNumber()) {
-			if (phoneNumber == null) {
-				validationException.add(new FieldError("phoneNumber", getStrings().get("Email address is required.")));
-			} else {
-				// TODO: revisit when we support non-US institutions
-				phoneNumber = getNormalizer().normalizePhoneNumberToE164(request.getPhoneNumber(), Locale.US).orElse(null);
-
-				if (phoneNumber == null)
-					validationException.add(new FieldError("phoneNumber", getStrings().get("Phone number is invalid.")));
-			}
-		}
-
-		if (request.isShouldUpdateGenderIdentityId() && genderIdentityId == null)
-			validationException.add(new FieldError("genderIdentityId", getStrings().get("Gender identity is required.")));
-
-		if (request.isShouldUpdateEthnicityId() && ethnicityId == null)
-			validationException.add(new FieldError("ethnicityId", getStrings().get("Ethnicity is required.")));
-
-		if (request.isShouldUpdateBirthSexId() && birthSexId == null)
-			validationException.add(new FieldError("birthSexId", getStrings().get("Birth sex is required.")));
-
-		if (request.isShouldUpdateRaceId() && raceId == null)
-			validationException.add(new FieldError("raceId", getStrings().get("Race is required.")));
-
-		if (request.isShouldUpdateBirthdate()) {
-			if (birthdate == null)
-				validationException.add(new FieldError("birthdate", getStrings().get("Birthdate is required.")));
-			else if (birthdate.isAfter(LocalDate.now(validationTimeZone)))
-				validationException.add(new FieldError("birthdate", getStrings().get("Birthdate cannot be in the future.")));
-		}
-
-		if (request.isShouldUpdateInsuranceId() && insuranceId == null)
-			validationException.add(new FieldError("insuranceId", getStrings().get("Insurance is required.")));
-
-		// TODO: verify valid country code
-		if (request.isShouldUpdateCountryCode() && countryCode == null)
-			validationException.add(new FieldError("countryCode", getStrings().get("Country is required.")));
-
-		// TODO: verify valid language code
-		if (request.isShouldUpdateLanguageCode() && languageCode == null)
-			validationException.add(new FieldError("languageCode", getStrings().get("Language is required.")));
-
-		if (request.isShouldUpdateTimeZone() && timeZone == null)
-			validationException.add(new FieldError("timeZone", getStrings().get("Time zone is required.")));
-
-		if (validationException.hasErrors())
-			throw validationException;
-
-		if (request.isShouldUpdateAddress()) {
-			UUID addressId = getAddressService().createAddress(address);
-
-			getDatabase().execute("""
-					UPDATE account_address
-					SET active=FALSE
-					WHERE account_id=?
-					""", accountId);
-
-			getDatabase().execute("""
-					INSERT INTO account_address (account_id, address_id, active)
-					VALUES (?,?,?)
-					""", accountId, addressId, true);
-		}
-
-		//throw new UnsupportedOperationException();
 	}
 
 	@Nonnull

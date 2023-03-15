@@ -20,10 +20,13 @@
 package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
+import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
+import com.cobaltplatform.api.model.db.Race.RaceId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -97,9 +100,21 @@ public class PatientOrder {
 	@Nullable
 	private String patientIdType;
 	@Nullable
-	private BirthSexId patientBirthSexId;
+	private String patientLanguageCode;
 	@Nullable
 	private LocalDate patientBirthdate;
+	@Nullable
+	private String patientPhoneNumber;
+	@Nullable
+	private String patientEmailAddress;
+	@Nullable
+	private EthnicityId patientEthnicityId;
+	@Nullable
+	private RaceId patientRaceId;
+	@Nullable
+	private GenderIdentityId patientGenderIdentityId;
+	@Nullable
+	private BirthSexId patientBirthSexId;
 	@Nullable
 	private String primaryPayorId;
 	@Nullable
@@ -120,8 +135,6 @@ public class PatientOrder {
 	private String reasonForReferral;
 	@Nullable
 	private String associatedDiagnosis;
-	@Nullable
-	private String callbackPhoneNumber;
 	@Nullable
 	private String preferredContactHours;
 	@Nullable
@@ -224,6 +237,51 @@ public class PatientOrder {
 
 	public void setPanelAccountId(@Nullable UUID panelAccountId) {
 		this.panelAccountId = panelAccountId;
+	}
+
+	@Nullable
+	public PatientOrderClosureReasonId getPatientOrderClosureReasonId() {
+		return this.patientOrderClosureReasonId;
+	}
+
+	public void setPatientOrderClosureReasonId(@Nullable PatientOrderClosureReasonId patientOrderClosureReasonId) {
+		this.patientOrderClosureReasonId = patientOrderClosureReasonId;
+	}
+
+	@Nullable
+	public EthnicityId getPatientEthnicityId() {
+		return this.patientEthnicityId;
+	}
+
+	public void setPatientEthnicityId(@Nullable EthnicityId patientEthnicityId) {
+		this.patientEthnicityId = patientEthnicityId;
+	}
+
+	@Nullable
+	public RaceId getPatientRaceId() {
+		return this.patientRaceId;
+	}
+
+	public void setPatientRaceId(@Nullable RaceId patientRaceId) {
+		this.patientRaceId = patientRaceId;
+	}
+
+	@Nullable
+	public GenderIdentityId getPatientGenderIdentityId() {
+		return this.patientGenderIdentityId;
+	}
+
+	public void setPatientGenderIdentityId(@Nullable GenderIdentityId patientGenderIdentityId) {
+		this.patientGenderIdentityId = patientGenderIdentityId;
+	}
+
+	@Nullable
+	public BirthSexId getPatientBirthSexId() {
+		return this.patientBirthSexId;
+	}
+
+	public void setPatientBirthSexId(@Nullable BirthSexId patientBirthSexId) {
+		this.patientBirthSexId = patientBirthSexId;
 	}
 
 	@Nullable
@@ -416,12 +474,12 @@ public class PatientOrder {
 	}
 
 	@Nullable
-	public BirthSexId getPatientBirthSexId() {
-		return this.patientBirthSexId;
+	public String getPatientLanguageCode() {
+		return this.patientLanguageCode;
 	}
 
-	public void setPatientBirthSexId(@Nullable BirthSexId patientBirthSexId) {
-		this.patientBirthSexId = patientBirthSexId;
+	public void setPatientLanguageCode(@Nullable String patientLanguageCode) {
+		this.patientLanguageCode = patientLanguageCode;
 	}
 
 	@Nullable
@@ -524,12 +582,21 @@ public class PatientOrder {
 	}
 
 	@Nullable
-	public String getCallbackPhoneNumber() {
-		return this.callbackPhoneNumber;
+	public String getPatientPhoneNumber() {
+		return this.patientPhoneNumber;
 	}
 
-	public void setCallbackPhoneNumber(@Nullable String callbackPhoneNumber) {
-		this.callbackPhoneNumber = callbackPhoneNumber;
+	public void setPatientPhoneNumber(@Nullable String patientPhoneNumber) {
+		this.patientPhoneNumber = patientPhoneNumber;
+	}
+
+	@Nullable
+	public String getPatientEmailAddress() {
+		return this.patientEmailAddress;
+	}
+
+	public void setPatientEmailAddress(@Nullable String patientEmailAddress) {
+		this.patientEmailAddress = patientEmailAddress;
 	}
 
 	@Nullable
@@ -584,15 +651,6 @@ public class PatientOrder {
 
 	public void setRecentPsychotherapeuticMedications(@Nullable String recentPsychotherapeuticMedications) {
 		this.recentPsychotherapeuticMedications = recentPsychotherapeuticMedications;
-	}
-
-	@Nullable
-	public PatientOrderClosureReasonId getPatientOrderClosureReasonId() {
-		return this.patientOrderClosureReasonId;
-	}
-
-	public void setPatientOrderClosureReasonId(@Nullable PatientOrderClosureReasonId patientOrderClosureReasonId) {
-		this.patientOrderClosureReasonId = patientOrderClosureReasonId;
 	}
 
 	@Nullable

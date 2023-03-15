@@ -219,9 +219,6 @@ public class AdminResource {
 	public ApiResponse tagsForContent() {
 		Account account = getCurrentContext().getAccount().get();
 
-		if (account.getRoleId() != RoleId.ADMINISTRATOR)
-			throw new AuthorizationException();
-
 		List<TagGroupApiResponse> tagGroups = getTagService().findTagGroupsByInstitutionId(account.getInstitutionId()).stream()
 				.map(tagGroup -> getTagGroupApiResponseFactory().create(tagGroup))
 				.collect(Collectors.toList());

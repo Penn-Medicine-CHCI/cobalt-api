@@ -33,7 +33,6 @@ import com.cobaltplatform.api.model.api.request.EmailPasswordAccessTokenRequest;
 import com.cobaltplatform.api.model.api.request.FindGroupSessionRequestsRequest;
 import com.cobaltplatform.api.model.api.request.FindGroupSessionsRequest;
 import com.cobaltplatform.api.model.api.request.ForgotPasswordRequest;
-import com.cobaltplatform.api.model.api.request.PatchAccountRequest;
 import com.cobaltplatform.api.model.api.request.ResetPasswordRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountAccessTokenExpiration;
 import com.cobaltplatform.api.model.api.request.UpdateAccountBetaStatusRequest;
@@ -51,21 +50,13 @@ import com.cobaltplatform.api.model.api.response.AssessmentFormApiResponse.Asses
 import com.cobaltplatform.api.model.api.response.BetaFeatureAlertApiResponse.BetaFeatureAlertApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.CountryApiResponse;
-import com.cobaltplatform.api.model.api.response.CountryApiResponse.CountryApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionRequestApiResponse;
 import com.cobaltplatform.api.model.api.response.GroupSessionRequestApiResponse.GroupSessionRequestApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.InsuranceApiResponse;
-import com.cobaltplatform.api.model.api.response.InsuranceApiResponse.InsuranceApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.LanguageApiResponse;
-import com.cobaltplatform.api.model.api.response.LanguageApiResponse.LanguageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TagApiResponse;
 import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse;
-import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountInvite;
 import com.cobaltplatform.api.model.db.AccountLoginRule;
@@ -78,23 +69,18 @@ import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.AuditLog;
 import com.cobaltplatform.api.model.db.AuditLogEvent.AuditLogEventId;
 import com.cobaltplatform.api.model.db.BetaFeatureAlert;
-import com.cobaltplatform.api.model.db.BirthSex;
 import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.model.db.Content;
-import com.cobaltplatform.api.model.db.Ethnicity;
-import com.cobaltplatform.api.model.db.GenderIdentity;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionRequest;
 import com.cobaltplatform.api.model.db.GroupSessionRequestStatus.GroupSessionRequestStatusId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.Race;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
-import com.cobaltplatform.api.model.service.Region;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.ActivityTrackingService;
 import com.cobaltplatform.api.service.AppointmentService;
@@ -108,14 +94,12 @@ import com.cobaltplatform.api.service.MyChartService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.service.SessionService;
 import com.cobaltplatform.api.util.Authenticator;
-import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.LinkGenerator;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.lokalized.Strings;
 import com.soklet.json.JSONObject;
 import com.soklet.web.annotation.GET;
-import com.soklet.web.annotation.PATCH;
 import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.PUT;
 import com.soklet.web.annotation.PathParameter;
@@ -139,7 +123,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -176,21 +159,11 @@ public class AccountResource {
 	@Nonnull
 	private final ContentApiResponseFactory contentApiResponseFactory;
 	@Nonnull
-	private final TimeZoneApiResponseFactory timeZoneApiResponseFactory;
-	@Nonnull
-	private final LanguageApiResponseFactory languageApiResponseFactory;
-	@Nonnull
-	private final CountryApiResponseFactory countryApiResponseFactory;
-	@Nonnull
-	private final InsuranceApiResponseFactory insuranceApiResponseFactory;
-	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
-	@Nonnull
-	private final JsonMapper jsonMapper;
 	@Nonnull
 	private final Authenticator authenticator;
 	@Nonnull
@@ -236,13 +209,8 @@ public class AccountResource {
 												 @Nonnull GroupSessionApiResponseFactory groupSessionApiResponseFactory,
 												 @Nonnull GroupSessionRequestApiResponseFactory groupSessionRequestApiResponseFactory,
 												 @Nonnull ContentApiResponseFactory contentApiResponseFactory,
-												 @Nonnull TimeZoneApiResponseFactory timeZoneApiResponseFactory,
-												 @Nonnull LanguageApiResponseFactory languageApiResponseFactory,
-												 @Nonnull CountryApiResponseFactory countryApiResponseFactory,
-												 @Nonnull InsuranceApiResponseFactory insuranceApiResponseFactory,
 												 @Nonnull Configuration configuration,
 												 @Nonnull RequestBodyParser requestBodyParser,
-												 @Nonnull JsonMapper jsonMapper,
 												 @Nonnull Authenticator authenticator,
 												 @Nonnull LinkGenerator linkGenerator,
 												 @Nonnull Provider<CurrentContext> currentContextProvider,
@@ -269,16 +237,11 @@ public class AccountResource {
 		requireNonNull(groupSessionApiResponseFactory);
 		requireNonNull(groupSessionRequestApiResponseFactory);
 		requireNonNull(contentApiResponseFactory);
-		requireNonNull(timeZoneApiResponseFactory);
-		requireNonNull(languageApiResponseFactory);
-		requireNonNull(countryApiResponseFactory);
-		requireNonNull(insuranceApiResponseFactory);
 		requireNonNull(configuration);
 		requireNonNull(currentContextProvider);
 		requireNonNull(authenticator);
 		requireNonNull(linkGenerator);
 		requireNonNull(requestBodyParser);
-		requireNonNull(jsonMapper);
 		requireNonNull(auditLogService);
 		requireNonNull(institutionService);
 		requireNonNull(institutionApiResponseFactory);
@@ -302,14 +265,9 @@ public class AccountResource {
 		this.groupSessionApiResponseFactory = groupSessionApiResponseFactory;
 		this.groupSessionRequestApiResponseFactory = groupSessionRequestApiResponseFactory;
 		this.contentApiResponseFactory = contentApiResponseFactory;
-		this.timeZoneApiResponseFactory = timeZoneApiResponseFactory;
-		this.languageApiResponseFactory = languageApiResponseFactory;
-		this.countryApiResponseFactory = countryApiResponseFactory;
-		this.insuranceApiResponseFactory = insuranceApiResponseFactory;
 		this.configuration = configuration;
 		this.currentContextProvider = currentContextProvider;
 		this.requestBodyParser = requestBodyParser;
-		this.jsonMapper = jsonMapper;
 		this.authenticator = authenticator;
 		this.linkGenerator = linkGenerator;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -1010,137 +968,6 @@ public class AccountResource {
 	}
 
 	@Nonnull
-	@AuthenticationRequired
-	@PATCH("/accounts/{accountId}")
-	public ApiResponse patchAccount(@Nonnull @PathParameter UUID accountId,
-																	@Nonnull @RequestBody String requestBody) {
-		requireNonNull(accountId);
-		requireNonNull(requestBody);
-
-		PatchAccountRequest request = getRequestBodyParser().parse(requestBody, PatchAccountRequest.class);
-		request.setAccountId(accountId);
-
-		Account currentAccount = getCurrentContext().getAccount().get();
-		Account accountToEdit = getAccountService().findAccountById(accountId).orElse(null);
-
-		if (accountToEdit == null)
-			throw new NotFoundException();
-
-		if (!getAuthorizationService().canEditAccount(accountToEdit, currentAccount))
-			throw new AuthorizationException();
-
-		// Only patch fields specified in the request
-		Map<String, Object> requestBodyAsJson = getJsonMapper().fromJson(requestBody);
-
-		request.setShouldUpdateAddress(requestBodyAsJson.containsKey("address"));
-		request.setShouldUpdateBirthdate(requestBodyAsJson.containsKey("birthdate"));
-		request.setShouldUpdateBirthSexId(requestBodyAsJson.containsKey("birthSexId"));
-		request.setShouldUpdateCountryCode(requestBodyAsJson.containsKey("countryCode"));
-		request.setShouldUpdateDisplayName(requestBodyAsJson.containsKey("displayName"));
-		request.setShouldUpdateEmailAddress(requestBodyAsJson.containsKey("emailAddress"));
-		request.setShouldUpdateEthnicityId(requestBodyAsJson.containsKey("ethnicityId"));
-		request.setShouldUpdateFirstName(requestBodyAsJson.containsKey("firstName"));
-		request.setShouldUpdateLanguageCode(requestBodyAsJson.containsKey("languageCode"));
-		request.setShouldUpdateInsuranceId(requestBodyAsJson.containsKey("insuranceId"));
-		request.setShouldUpdateGenderIdentityId(requestBodyAsJson.containsKey("genderIdentityId"));
-		request.setShouldUpdateLastName(requestBodyAsJson.containsKey("lastName"));
-		request.setShouldUpdatePhoneNumber(requestBodyAsJson.containsKey("phoneNumber"));
-		request.setShouldUpdateRaceId(requestBodyAsJson.containsKey("raceId"));
-		request.setShouldUpdateTimeZone(requestBodyAsJson.containsKey("timeZone"));
-
-		getAccountService().patchAccount(request);
-
-		Account updatedAccount = getAccountService().findAccountById(accountId).get();
-
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("account", getAccountApiResponseFactory().create(updatedAccount));
-		}});
-	}
-
-	@Nonnull
-	@GET("/accounts/reference-data")
-	@AuthenticationRequired
-	public ApiResponse patientOrderReferenceData() {
-		InstitutionId institutionId = getCurrentContext().getInstitutionId();
-
-		// Time zones
-		List<TimeZoneApiResponse> timeZones = getAccountService().getAccountTimeZones().stream()
-				.map(timeZone -> getTimeZoneApiResponseFactory().create(timeZone))
-				.collect(Collectors.toList());
-
-		Collections.sort(timeZones, (tz1, tz2) -> {
-			return tz1.getDescription().compareTo(tz2.getDescription());
-		});
-
-		// Countries
-		Set<Locale> countryLocales = getAccountService().getAccountCountries();
-		List<CountryApiResponse> countries = new ArrayList<>(countryLocales.size());
-
-		for (Locale locale : countryLocales)
-			countries.add(getCountryApiResponseFactory().create(locale));
-
-		Collections.sort(countries, (country1, country2) -> {
-			return country1.getDescription().compareTo(country2.getDescription());
-		});
-
-		// Languages
-		List<LanguageApiResponse> languages = getAccountService().getAccountLanguages().stream()
-				.map(language -> getLanguageApiResponseFactory().create(language))
-				.collect(Collectors.toList());
-
-		Collections.sort(languages, (language1, language2) -> {
-			return language1.getDescription().compareTo(language2.getDescription());
-		});
-
-		// Insurances
-		List<InsuranceApiResponse> insurances = getInstitutionService().findInsurancesByInstitutionId(institutionId).stream()
-				.map(insurance -> getInsuranceApiResponseFactory().create(insurance))
-				.collect(Collectors.toList());
-
-		// Regions
-		Map<String, List<Region>> regionsByCountryCode = Region.getRegionsByCountryCode();
-		Map<String, List<Map<String, Object>>> normalizedRegionsByCountryCode = new HashMap<>(regionsByCountryCode.size());
-
-		for (Map.Entry<String, List<Region>> entry : regionsByCountryCode.entrySet())
-			normalizedRegionsByCountryCode.put(entry.getKey(), entry.getValue().stream()
-					.map(region -> Map.of("name", (Object) region.getName(), "abbreviation", region.getAbbreviation()))
-					.collect(Collectors.toList()));
-
-		// Demographics
-		List<Map<String, Object>> genderIdentities = getAccountService().findGenderIdentities().stream()
-				.filter(genderIdentity -> genderIdentity.getGenderIdentityId() != GenderIdentity.GenderIdentityId.NOT_ASKED)
-				.map(genderIdentity -> Map.<String, Object>of("genderIdentityId", genderIdentity.getGenderIdentityId(), "description", genderIdentity.getDescription()))
-				.collect(Collectors.toList());
-
-		List<Map<String, Object>> races = getAccountService().findRaces().stream()
-				.filter(race -> race.getRaceId() != Race.RaceId.NOT_ASKED)
-				.map(race -> Map.<String, Object>of("raceId", race.getRaceId(), "description", race.getDescription()))
-				.collect(Collectors.toList());
-
-		List<Map<String, Object>> birthSexes = getAccountService().findBirthSexes().stream()
-				.filter(birthSex -> birthSex.getBirthSexId() != BirthSex.BirthSexId.NOT_ASKED)
-				.map(birthSex -> Map.<String, Object>of("birthSexId", birthSex.getBirthSexId(), "description", birthSex.getDescription()))
-				.collect(Collectors.toList());
-
-		List<Map<String, Object>> ethnicities = getAccountService().findEthnicities().stream()
-				.filter(ethnicity -> ethnicity.getEthnicityId() != Ethnicity.EthnicityId.NOT_ASKED)
-				.map(ethnicity -> Map.<String, Object>of("ethnicityId", ethnicity.getEthnicityId(), "description", ethnicity.getDescription()))
-				.collect(Collectors.toList());
-
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("timeZones", timeZones);
-			put("countries", countries);
-			put("languages", languages);
-			put("insurances", insurances);
-			put("genderIdentities", genderIdentities);
-			put("races", races);
-			put("birthSexes", birthSexes);
-			put("ethnicities", ethnicities);
-			put("regionsByCountryCode", normalizedRegionsByCountryCode);
-		}});
-	}
-
-	@Nonnull
 	protected AccountService getAccountService() {
 		return this.accountService;
 	}
@@ -1163,11 +990,6 @@ public class AccountResource {
 	@Nonnull
 	protected RequestBodyParser getRequestBodyParser() {
 		return this.requestBodyParser;
-	}
-
-	@Nonnull
-	protected JsonMapper getJsonMapper() {
-		return this.jsonMapper;
 	}
 
 	@Nonnull
@@ -1213,26 +1035,6 @@ public class AccountResource {
 	@Nonnull
 	protected ContentApiResponseFactory getContentApiResponseFactory() {
 		return this.contentApiResponseFactory;
-	}
-
-	@Nonnull
-	protected TimeZoneApiResponseFactory getTimeZoneApiResponseFactory() {
-		return this.timeZoneApiResponseFactory;
-	}
-
-	@Nonnull
-	protected LanguageApiResponseFactory getLanguageApiResponseFactory() {
-		return this.languageApiResponseFactory;
-	}
-
-	@Nonnull
-	protected CountryApiResponseFactory getCountryApiResponseFactory() {
-		return this.countryApiResponseFactory;
-	}
-
-	@Nonnull
-	protected InsuranceApiResponseFactory getInsuranceApiResponseFactory() {
-		return this.insuranceApiResponseFactory;
 	}
 
 	@Nonnull

@@ -30,11 +30,19 @@ import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.Scr
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
+import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.PatientOrder;
+import com.cobaltplatform.api.model.db.PatientOrderCareType;
+import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
+import com.cobaltplatform.api.model.db.PatientOrderFocusType;
+import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderTriage;
+import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.service.ScreeningSessionResult;
@@ -48,6 +56,7 @@ import com.google.inject.Provider;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import com.lokalized.Strings;
+import org.apache.commons.lang3.tuple.Pair;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -59,8 +68,11 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.FormatStyle;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -168,9 +180,19 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String associatedDiagnosis;
 	@Nullable
-	private String callbackPhoneNumber;
+	private String patientPhoneNumber;
 	@Nullable
-	private String callbackPhoneNumberDescription;
+	private String patientPhoneNumberDescription;
+	@Nullable
+	private EthnicityId patientEthnicityId;
+	@Nullable
+	private RaceId patientRaceId;
+	@Nullable
+	private GenderIdentityId patientGenderIdentityId;
+	@Nullable
+	private String patientLanguageCode;
+	@Nullable
+	private String patientEmailEddress;
 	@Nullable
 	private String preferredContactHours;
 	@Nullable
@@ -216,6 +238,8 @@ public class PatientOrderApiResponse {
 	private List<PatientOrderNoteApiResponse> patientOrderNotes;
 	@Nullable
 	private List<PatientOrderOutreachApiResponse> patientOrderOutreaches;
+	@Nullable
+	private List<PatientOrderTriageGroupApiResponse> patientOrderTriageGroups;
 	@Nullable
 	private ScreeningSessionApiResponse screeningSession;
 	@Nullable
@@ -380,6 +404,50 @@ public class PatientOrderApiResponse {
 
 			this.screeningSession = currentScreeningSession == null ? null : screeningSessionApiResponseFactory.create(currentScreeningSession);
 			this.screeningSessionResult = completedScreeningSession == null ? null : screeningService.findScreeningSessionResult(completedScreeningSession).get();
+
+			// TODO: this doesn't take manual overrides into account...
+			if (completedScreeningSession != null) {
+				List<PatientOrderFocusType> patientOrderFocusTypes = patientOrderService.findPatientOrderFocusTypes();
+				Map<PatientOrderFocusTypeId, PatientOrderFocusType> patientOrderFocusTypesById = patientOrderFocusTypes.stream()
+						.collect(Collectors.toMap(PatientOrderFocusType::getPatientOrderFocusTypeId, patientOrderFocusType -> patientOrderFocusType));
+				List<PatientOrderCareType> patientOrderCareTypes = patientOrderService.findPatientOrderCareTypes();
+				Map<PatientOrderCareTypeId, PatientOrderCareType> patientOrderCareTypesById = patientOrderCareTypes.stream()
+						.collect(Collectors.toMap(PatientOrderCareType::getPatientOrderCareTypeId, patientOrderCareType -> patientOrderCareType));
+				List<PatientOrderTriage> patientOrderTriages = patientOrderService.findPatientOrderTriagesByPatientOrderId(patientOrder.getPatientOrderId(), completedScreeningSession.getScreeningSessionId());
+
+				Map<Pair<PatientOrderFocusTypeId, PatientOrderCareTypeId>, List<PatientOrderTriage>> patientOrderTriagesByFocusAndCareTypeIds = new LinkedHashMap<>();
+
+				for (PatientOrderTriage patientOrderTriage : patientOrderTriages) {
+					Pair<PatientOrderFocusTypeId, PatientOrderCareTypeId> key = Pair.of(patientOrderTriage.getPatientOrderFocusTypeId(), patientOrderTriage.getPatientOrderCareTypeId());
+					List<PatientOrderTriage> groupedPatientOrderTriages = patientOrderTriagesByFocusAndCareTypeIds.get(key);
+
+					if (groupedPatientOrderTriages == null) {
+						groupedPatientOrderTriages = new ArrayList<>();
+						patientOrderTriagesByFocusAndCareTypeIds.put(key, groupedPatientOrderTriages);
+					}
+
+					groupedPatientOrderTriages.add(patientOrderTriage);
+				}
+
+				List<PatientOrderTriageGroupApiResponse> patientOrderTriageGroups = new ArrayList<>();
+
+				for (Entry<Pair<PatientOrderFocusTypeId, PatientOrderCareTypeId>, List<PatientOrderTriage>> entry : patientOrderTriagesByFocusAndCareTypeIds.entrySet()) {
+					Pair<PatientOrderFocusTypeId, PatientOrderCareTypeId> key = entry.getKey();
+					List<PatientOrderTriage> value = entry.getValue();
+
+					PatientOrderFocusType patientOrderFocusType = patientOrderFocusTypesById.get(key.getLeft());
+					PatientOrderCareType patientOrderCareType = patientOrderCareTypesById.get(key.getRight());
+
+					List<String> reasons = value.stream()
+							.map(patientOrderTriage -> patientOrderTriage.getReason())
+							.distinct()
+							.collect(Collectors.toList());
+
+					patientOrderTriageGroups.add(new PatientOrderTriageGroupApiResponse(patientOrderFocusType, patientOrderCareType, reasons));
+				}
+
+				this.patientOrderTriageGroups = patientOrderTriageGroups;
+			}
 		}
 
 		// Always available to both patients and MHICs
@@ -395,8 +463,15 @@ public class PatientOrderApiResponse {
 		this.patientId = patientOrder.getPatientId();
 		this.patientIdType = patientOrder.getPatientIdType();
 		this.patientBirthSexId = patientOrder.getPatientBirthSexId();
+		this.patientEthnicityId = patientOrder.getPatientEthnicityId();
+		this.patientRaceId = patientOrder.getPatientRaceId();
+		this.patientGenderIdentityId = patientOrder.getPatientGenderIdentityId();
+		this.patientLanguageCode = patientOrder.getPatientLanguageCode();
+		this.patientEmailEddress = patientOrder.getPatientEmailAddress();
 		this.patientBirthdate = patientOrder.getPatientBirthdate();
 		this.patientBirthdateDescription = patientOrder.getPatientBirthdate() == null ? null : formatter.formatDate(patientOrder.getPatientBirthdate(), FormatStyle.MEDIUM);
+		this.patientPhoneNumber = patientOrder.getPatientPhoneNumber();
+		this.patientPhoneNumberDescription = patientOrder.getPatientPhoneNumber() == null ? null : formatter.formatPhoneNumber(patientOrder.getPatientPhoneNumber(), currentContext.getLocale());
 		this.patientAddress = patientAddress;
 		this.patientAccount = patientAccount;
 
@@ -434,8 +509,6 @@ public class PatientOrderApiResponse {
 			this.routing = patientOrder.getRouting();
 			this.reasonForReferral = patientOrder.getReasonForReferral();
 			this.associatedDiagnosis = patientOrder.getAssociatedDiagnosis();
-			this.callbackPhoneNumber = patientOrder.getCallbackPhoneNumber();
-			this.callbackPhoneNumberDescription = patientOrder.getCallbackPhoneNumber() == null ? null : formatter.formatPhoneNumber(patientOrder.getCallbackPhoneNumber(), currentContext.getLocale());
 			this.preferredContactHours = patientOrder.getPreferredContactHours();
 			this.comments = patientOrder.getComments();
 			this.ccRecipients = patientOrder.getCcRecipients();
@@ -734,13 +807,38 @@ public class PatientOrderApiResponse {
 	}
 
 	@Nullable
-	public String getCallbackPhoneNumber() {
-		return this.callbackPhoneNumber;
+	public String getPatientPhoneNumber() {
+		return this.patientPhoneNumber;
 	}
 
 	@Nullable
-	public String getCallbackPhoneNumberDescription() {
-		return this.callbackPhoneNumberDescription;
+	public String getPatientPhoneNumberDescription() {
+		return this.patientPhoneNumberDescription;
+	}
+
+	@Nullable
+	public EthnicityId getPatientEthnicityId() {
+		return this.patientEthnicityId;
+	}
+
+	@Nullable
+	public RaceId getPatientRaceId() {
+		return this.patientRaceId;
+	}
+
+	@Nullable
+	public GenderIdentityId getPatientGenderIdentityId() {
+		return this.patientGenderIdentityId;
+	}
+
+	@Nullable
+	public String getPatientLanguageCode() {
+		return this.patientLanguageCode;
+	}
+
+	@Nullable
+	public String getPatientEmailEddress() {
+		return this.patientEmailEddress;
 	}
 
 	@Nullable
@@ -856,6 +954,11 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public List<PatientOrderOutreachApiResponse> getPatientOrderOutreaches() {
 		return this.patientOrderOutreaches;
+	}
+
+	@Nullable
+	public List<PatientOrderTriageGroupApiResponse> getPatientOrderTriageGroups() {
+		return this.patientOrderTriageGroups;
 	}
 
 	@Nullable
