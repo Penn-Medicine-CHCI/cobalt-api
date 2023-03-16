@@ -1294,8 +1294,8 @@ public class ScreeningService {
 			return Optional.empty();
 
 		ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
-		Account targetAccount = getAccountService().findAccountById(screeningSession.getTargetAccountId()).get();
-		Institution institution = getInstitutionService().findInstitutionById(targetAccount.getInstitutionId()).get();
+		Account createdByAccount = getAccountService().findAccountById(screeningSession.getCreatedByAccountId()).get();
+		Institution institution = getInstitutionService().findInstitutionById(createdByAccount.getInstitutionId()).get();
 
 		UUID patientOrderId = null;
 
@@ -1310,7 +1310,7 @@ public class ScreeningService {
 		additionalContext.put("patientOrderId", patientOrderId);
 
 		DestinationFunctionOutput destinationFunctionOutput = executeScreeningFlowDestinationFunction(screeningFlowVersion.getDestinationFunction(),
-				screeningSessionId, targetAccount.getInstitutionId(), additionalContext).get();
+				screeningSessionId, institution.getInstitutionId(), additionalContext).get();
 
 		if (destinationFunctionOutput.getScreeningSessionDestinationId() == null)
 			return Optional.empty();
