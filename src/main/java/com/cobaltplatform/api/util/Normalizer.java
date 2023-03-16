@@ -247,6 +247,63 @@ public class Normalizer {
 		return Optional.empty();
 	}
 
+	@Nonnull
+	public static Optional<String> normalizeNameWithLastFirst(@Nullable String firstName,
+																														@Nullable String middleName,
+																														@Nullable String lastName) {
+		firstName = trimToNull(firstName);
+		middleName = trimToNull(middleName);
+		lastName = trimToNull(lastName);
+
+		if (firstName != null && middleName != null && lastName != null)
+			return Optional.of(format("%s, %s %s", lastName, firstName, middleName));
+
+		if (firstName != null && lastName != null)
+			return Optional.of(format("%s, %s", lastName, firstName));
+
+		if (middleName != null && lastName != null)
+			return Optional.of(format("%s, %s", lastName, middleName));
+
+		if (middleName != null && firstName != null)
+			return Optional.of(format("%s %s", firstName, middleName));
+
+		if (lastName != null)
+			return Optional.of(lastName);
+
+		if (firstName != null)
+			return Optional.of(firstName);
+
+		return Optional.empty();
+	}
+
+	@Nonnull
+	public static Optional<String> normalizeName(@Nullable String firstName,
+																							 @Nullable String middleName,
+																							 @Nullable String lastName) {
+		firstName = trimToNull(firstName);
+		middleName = trimToNull(middleName);
+		lastName = trimToNull(lastName);
+
+		if (firstName != null && middleName != null && lastName != null)
+			return Optional.of(format("%s %s %s", firstName, middleName, lastName));
+
+		if (firstName != null && lastName != null)
+			return Optional.of(format("%s, %s", firstName, lastName));
+
+		if (middleName != null && lastName != null)
+			return Optional.of(format("%s %s", middleName, lastName));
+
+		if (middleName != null && firstName != null)
+			return Optional.of(format("%s %s", firstName, middleName));
+
+		if (lastName != null)
+			return Optional.of(lastName);
+
+		if (firstName != null)
+			return Optional.of(firstName);
+
+		return Optional.empty();
+	}
 
 	@Nonnull
 	public Optional<String> normalizeNameCasing(@Nullable String name) {
