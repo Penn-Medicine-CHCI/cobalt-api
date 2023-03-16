@@ -288,7 +288,7 @@ public class Normalizer {
 			return Optional.of(format("%s %s %s", firstName, middleName, lastName));
 
 		if (firstName != null && lastName != null)
-			return Optional.of(format("%s, %s", firstName, lastName));
+			return Optional.of(format("%s %s", firstName, lastName));
 
 		if (middleName != null && lastName != null)
 			return Optional.of(format("%s %s", middleName, lastName));

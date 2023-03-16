@@ -33,6 +33,8 @@ public class PatientOrderCareType {
 	private PatientOrderCareTypeId patientOrderCareTypeId;
 	@Nullable
 	private String description;
+	@Nullable
+	private Integer severity;
 
 	public enum PatientOrderCareTypeId {
 		UNSPECIFIED,
@@ -63,5 +65,14 @@ public class PatientOrderCareType {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
+	}
+
+	@Nullable
+	public Integer getSeverity() {
+		return this.severity;
+	}
+
+	public void setSeverity(@Nullable Integer severity) {
+		this.severity = severity;
 	}
 }
