@@ -1260,7 +1260,7 @@ public class ScreeningService {
 					getLogger().warn("No patient order for target account ID {} and screening session ID {}, ignoring triage results...", screeningSession.getTargetAccountId(), screeningSession.getScreeningSessionId());
 				} else {
 					UpdatePatientOrderTriagesRequest patientOrderTriagesRequest = new UpdatePatientOrderTriagesRequest();
-					patientOrderTriagesRequest.setAccountId(screeningSession.getTargetAccountId());
+					patientOrderTriagesRequest.setAccountId(screeningSession.getCreatedByAccountId());
 					patientOrderTriagesRequest.setPatientOrderId(patientOrder.getPatientOrderId());
 					patientOrderTriagesRequest.setPatientOrderTriageSourceId(PatientOrderTriageSourceId.COBALT);
 					patientOrderTriagesRequest.setScreeningSessionId(screeningSession.getScreeningSessionId());
