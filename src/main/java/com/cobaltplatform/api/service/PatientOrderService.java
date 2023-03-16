@@ -576,6 +576,20 @@ public class PatientOrderService {
 			parameters.add(panelAccountId);
 		}
 
+		if (searchQuery != null) {
+			whereClauseLines.add("""
+					AND (
+					  po.patient_first_name ILIKE CONCAT('%',?,'%')
+					  OR po.patient_last_name ILIKE CONCAT('%',?,'%')
+					  OR po.patient_mrn ILIKE CONCAT('%',?,'%')
+					)
+					""");
+
+			parameters.add(searchQuery);
+			parameters.add(searchQuery);
+			parameters.add(searchQuery);
+		}
+
 		// TODO: finish adding other parameters/filters
 
 		parameters.add(limit);
