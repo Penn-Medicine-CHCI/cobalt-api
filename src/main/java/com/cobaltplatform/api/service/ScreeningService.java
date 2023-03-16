@@ -529,10 +529,6 @@ public class ScreeningService {
 		// Integrated care screening sessions require a patient order.  Target account is optional (maybe patient has not signed in yet)
 		// Otherwise, target account is required.
 		if (creatingIntegratedCareScreeningSession) {
-			// TODO: remove this temporary hack once FE passes in `patientOrderId`
-			patientOrderId = getPatientOrderService().findOpenPatientOrderByPatientAccountId(createdByAccountId).get().getPatientOrderId();
-			// END HACK
-
 			if (patientOrderId == null) {
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
 			} else {
