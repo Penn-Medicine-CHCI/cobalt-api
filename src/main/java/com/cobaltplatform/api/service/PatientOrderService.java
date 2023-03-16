@@ -812,7 +812,7 @@ public class PatientOrderService {
 		} else {
 			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
 
-			if (account == null)
+			if (patientOrder == null)
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
 		}
 
