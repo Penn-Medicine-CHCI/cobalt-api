@@ -184,7 +184,7 @@ public class PatientOrderService {
 
 		return getDatabase().queryForObject("""
 				SELECT *
-				FROM patient_order 
+				FROM v_patient_order 
 				WHERE patient_order_id=?
 				""", PatientOrder.class, patientOrderId);
 	}
@@ -208,7 +208,7 @@ public class PatientOrderService {
 
 		return getDatabase().queryForList("""
 				SELECT *
-				FROM patient_order
+				FROM v_patient_order
 				WHERE patient_account_id=?
 				AND patient_order_status_id != ?
 				ORDER BY order_date DESC, order_age_in_minutes
@@ -222,7 +222,7 @@ public class PatientOrderService {
 
 		return getDatabase().queryForList("""
 				SELECT *
-				FROM patient_order
+				FROM v_patient_order
 				WHERE patient_order_import_id=?
 				AND patient_order_status_id != ?
 				ORDER BY order_date DESC, order_age_in_minutes
@@ -239,7 +239,7 @@ public class PatientOrderService {
 
 		return getDatabase().queryForList("""
 				SELECT *
-				FROM patient_order
+				FROM v_patient_order
 				WHERE UPPER(?)=UPPER(patient_mrn) 
 				AND institution_id=?
 				AND patient_order_status_id != ?
@@ -257,7 +257,7 @@ public class PatientOrderService {
 
 		return getDatabase().queryForObject("""
 				SELECT *
-				FROM patient_order
+				FROM v_patient_order
 				WHERE UPPER(?)=UPPER(patient_mrn)
 				AND institution_id=?
 				AND patient_order_status_id=?
@@ -271,7 +271,7 @@ public class PatientOrderService {
 
 		return getDatabase().queryForObject("""
 				SELECT *
-				FROM patient_order
+				FROM v_patient_order
 				WHERE patient_account_id=?
 				AND patient_order_status_id=?
 				""", PatientOrder.class, patientAccountId, PatientOrderStatusId.OPEN);
@@ -284,7 +284,7 @@ public class PatientOrderService {
 
 		return getDatabase().queryForObject("""
 				SELECT po.*
-				FROM patient_order po, screening_session ss
+				FROM v_patient_order po, screening_session ss
 				WHERE ss.screening_session_id=?
 				AND ss.patient_order_id=po.patient_order_id
 				""", PatientOrder.class, screeningSessionId);
@@ -298,7 +298,7 @@ public class PatientOrderService {
 
 		return getDatabase().queryForList("""
 				SELECT *
-				FROM patient_order
+				FROM v_patient_order
 				WHERE UPPER(?)=UPPER(test_patient_email_address)
 				AND institution_id=?
 				AND patient_order_status_id != ?
@@ -600,7 +600,7 @@ public class PatientOrderService {
 		String sql = """
 				  WITH base_query AS (
 				  SELECT po.*
-				  FROM patient_order po
+				  FROM v_patient_order po
 				  WHERE po.institution_id=?
 				  AND po.patient_order_status_id != ?
 				  {{whereClauseLines}}

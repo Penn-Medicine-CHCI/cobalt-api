@@ -66,6 +66,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.FormatStyle;
 import java.time.temporal.ChronoUnit;
@@ -248,6 +249,47 @@ public class PatientOrderApiResponse {
 	private ScreeningSessionApiResponse screeningSession;
 	@Nullable
 	private ScreeningSessionResult screeningSessionResult;
+
+	// Included in v_patient_order
+
+	@Nullable
+	private PatientOrderCareTypeId patientOrderCareTypeId;
+	@Nullable
+	private String patientOrderCareTypeDescription;
+	@Nullable
+	private Integer outreachCount;
+	@Nullable
+	private String outreachCountDescription;
+	@Nullable
+	private LocalDateTime mostRecentOutreachDateTime;
+	@Nullable
+	private String mostRecentOutreachDateTimeDescription;
+	@Nullable
+	private UUID mostRecentScreeningSessionId;
+	@Nullable
+	private UUID mostRecentScreeningSessionCreatedByAccountId;
+	@Nullable
+	private String mostRecentScreeningSessionCreatedByAccountFirstName;
+	@Nullable
+	private String mostRecentScreeningSessionCreatedByAccountLastName;
+	@Nullable
+	private String mostRecentScreeningSessionCreatedByAccountDisplayName;
+	@Nullable
+	private String mostRecentScreeningSessionCreatedByAccountDisplayNameWithLastFirst;
+	@Nullable
+	private Boolean mostRecentScreeningSessionCompleted;
+	@Nullable
+	private Instant mostRecentScreeningSessionCompletedAt;
+	@Nullable
+	private String mostRecentScreeningSessionCompletedAtDescription;
+	@Nullable
+	private String panelAccountFirstName;
+	@Nullable
+	private String panelAccountLastName;
+	@Nullable
+	private String panelAccountDisplayName;
+	@Nullable
+	private String panelAccountDisplayNameWithLastFirst;
 
 	public enum PatientOrderApiResponseSupplement {
 		MINIMAL,
@@ -556,6 +598,27 @@ public class PatientOrderApiResponse {
 			this.patientOrderMedications = patientOrderMedications;
 			this.patientOrderNotes = patientOrderNotes;
 			this.patientOrderOutreaches = patientOrderOutreaches;
+
+
+			this.patientOrderCareTypeId = patientOrder.getPatientOrderCareTypeId();
+			this.patientOrderCareTypeDescription = patientOrder.getPatientOrderCareTypeDescription();
+			this.outreachCount = patientOrder.getOutreachCount();
+			this.outreachCountDescription = formatter.formatNumber(patientOrder.getOutreachCount() == null ? 0 : patientOrder.getOutreachCount());
+			this.mostRecentOutreachDateTime = patientOrder.getMostRecentOutreachDateTime();
+			this.mostRecentOutreachDateTimeDescription = patientOrder.getMostRecentOutreachDateTime() == null ? null : formatter.formatDateTime(patientOrder.getMostRecentOutreachDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+			this.mostRecentScreeningSessionId = patientOrder.getMostRecentScreeningSessionId();
+			this.mostRecentScreeningSessionCreatedByAccountId = patientOrder.getMostRecentScreeningSessionCreatedByAccountId();
+			this.mostRecentScreeningSessionCreatedByAccountFirstName = patientOrder.getMostRecentScreeningSessionCreatedByAccountFirstName();
+			this.mostRecentScreeningSessionCreatedByAccountLastName = patientOrder.getMostRecentScreeningSessionCreatedByAccountLastName();
+			this.mostRecentScreeningSessionCreatedByAccountDisplayName = Normalizer.normalizeName(patientOrder.getMostRecentScreeningSessionCreatedByAccountFirstName(), patientOrder.getMostRecentScreeningSessionCreatedByAccountLastName()).orElse(null);
+			this.mostRecentScreeningSessionCreatedByAccountDisplayNameWithLastFirst = Normalizer.normalizeNameWithLastFirst(patientOrder.getMostRecentScreeningSessionCreatedByAccountFirstName(), patientOrder.getMostRecentScreeningSessionCreatedByAccountLastName()).orElse(null);
+			this.mostRecentScreeningSessionCompleted = patientOrder.getMostRecentScreeningSessionCompleted();
+			this.mostRecentScreeningSessionCompletedAt = patientOrder.getMostRecentScreeningSessionCompletedAt();
+			this.mostRecentScreeningSessionCompletedAtDescription = patientOrder.getMostRecentScreeningSessionCompletedAt() == null ? null : formatter.formatTimestamp(patientOrder.getMostRecentScreeningSessionCompletedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+			this.panelAccountFirstName = patientOrder.getPanelAccountFirstName();
+			this.panelAccountLastName = patientOrder.getPanelAccountLastName();
+			this.panelAccountDisplayName = Normalizer.normalizeName(patientOrder.getPanelAccountFirstName(), patientOrder.getPanelAccountLastName()).orElse(null);
+			this.panelAccountDisplayNameWithLastFirst = Normalizer.normalizeNameWithLastFirst(patientOrder.getPanelAccountFirstName(), patientOrder.getPanelAccountLastName()).orElse(null);
 		}
 	}
 
@@ -962,5 +1025,100 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public ScreeningSessionResult getScreeningSessionResult() {
 		return this.screeningSessionResult;
+	}
+
+	@Nullable
+	public PatientOrderCareTypeId getPatientOrderCareTypeId() {
+		return this.patientOrderCareTypeId;
+	}
+
+	@Nullable
+	public String getPatientOrderCareTypeDescription() {
+		return this.patientOrderCareTypeDescription;
+	}
+
+	@Nullable
+	public Integer getOutreachCount() {
+		return this.outreachCount;
+	}
+
+	@Nullable
+	public String getOutreachCountDescription() {
+		return this.outreachCountDescription;
+	}
+
+	@Nullable
+	public LocalDateTime getMostRecentOutreachDateTime() {
+		return this.mostRecentOutreachDateTime;
+	}
+
+	@Nullable
+	public String getMostRecentOutreachDateTimeDescription() {
+		return this.mostRecentOutreachDateTimeDescription;
+	}
+
+	@Nullable
+	public UUID getMostRecentScreeningSessionId() {
+		return this.mostRecentScreeningSessionId;
+	}
+
+	@Nullable
+	public UUID getMostRecentScreeningSessionCreatedByAccountId() {
+		return this.mostRecentScreeningSessionCreatedByAccountId;
+	}
+
+	@Nullable
+	public String getMostRecentScreeningSessionCreatedByAccountFirstName() {
+		return this.mostRecentScreeningSessionCreatedByAccountFirstName;
+	}
+
+	@Nullable
+	public String getMostRecentScreeningSessionCreatedByAccountLastName() {
+		return this.mostRecentScreeningSessionCreatedByAccountLastName;
+	}
+
+	@Nullable
+	public String getMostRecentScreeningSessionCreatedByAccountDisplayName() {
+		return this.mostRecentScreeningSessionCreatedByAccountDisplayName;
+	}
+
+	@Nullable
+	public String getMostRecentScreeningSessionCreatedByAccountDisplayNameWithLastFirst() {
+		return this.mostRecentScreeningSessionCreatedByAccountDisplayNameWithLastFirst;
+	}
+
+	@Nullable
+	public Boolean getMostRecentScreeningSessionCompleted() {
+		return this.mostRecentScreeningSessionCompleted;
+	}
+
+	@Nullable
+	public Instant getMostRecentScreeningSessionCompletedAt() {
+		return this.mostRecentScreeningSessionCompletedAt;
+	}
+
+	@Nullable
+	public String getMostRecentScreeningSessionCompletedAtDescription() {
+		return this.mostRecentScreeningSessionCompletedAtDescription;
+	}
+
+	@Nullable
+	public String getPanelAccountFirstName() {
+		return this.panelAccountFirstName;
+	}
+
+	@Nullable
+	public String getPanelAccountLastName() {
+		return this.panelAccountLastName;
+	}
+
+	@Nullable
+	public String getPanelAccountDisplayName() {
+		return this.panelAccountDisplayName;
+	}
+
+	@Nullable
+	public String getPanelAccountDisplayNameWithLastFirst() {
+		return this.panelAccountDisplayNameWithLastFirst;
 	}
 }
