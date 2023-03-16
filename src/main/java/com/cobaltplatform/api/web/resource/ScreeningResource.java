@@ -67,6 +67,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -192,16 +193,30 @@ public class ScreeningResource {
 	@GET("/screening-sessions")
 	@AuthenticationRequired
 	public ApiResponse screeningSessions(@Nonnull @QueryParameter UUID screeningFlowId,
-																			 @Nonnull @QueryParameter Optional<UUID> targetAccountId) {
+																			 @Nonnull @QueryParameter Optional<UUID> targetAccountId,
+																			 @Nonnull @QueryParameter Optional<UUID> patientOrderId) {
 		requireNonNull(screeningFlowId);
 		requireNonNull(targetAccountId);
+		requireNonNull(patientOrderId);
 
 		Account account = getCurrentContext().getAccount().get();
 
-		List<ScreeningSession> screeningSessions = getScreeningService().findScreeningSessionsByScreeningFlowId(screeningFlowId, account.getAccountId()).stream()
-				.filter(screeningSession -> targetAccountId.isEmpty() ? true : screeningSession.getTargetAccountId().equals(targetAccountId.get()))
-				.filter(screeningSession -> getAuthorizationService().canViewScreeningSession(screeningSession, account, getAccountService().findAccountById(screeningSession.getTargetAccountId()).get()))
-				.collect(Collectors.toList());
+		List<ScreeningSession> screeningSessions = new ArrayList<>();
+
+		if (patientOrderId.isPresent()) {
+			PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId.get()).orElse(null);
+
+			if (patientOrder != null) {
+				screeningSessions.addAll(getScreeningService().findScreeningSessionsByScreeningFlowIdAndPatientOrderId(screeningFlowId, patientOrderId.get()).stream()
+						.filter(screeningSession -> getAuthorizationService().canViewPatientOrder(patientOrder, account))
+						.collect(Collectors.toList()));
+			}
+		} else {
+			screeningSessions.addAll(getScreeningService().findScreeningSessionsByScreeningFlowId(screeningFlowId, account.getAccountId()).stream()
+					.filter(screeningSession -> targetAccountId.isEmpty() ? true : screeningSession.getTargetAccountId().equals(targetAccountId.get()))
+					.filter(screeningSession -> getAuthorizationService().canViewScreeningSession(screeningSession, account, getAccountService().findAccountById(screeningSession.getTargetAccountId()).get()))
+					.collect(Collectors.toList()));
+		}
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("screeningSessions", screeningSessions.stream()
