@@ -29,10 +29,12 @@ import com.cobaltplatform.api.model.api.request.CreateInteractionOptionActionReq
 import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Interaction;
 import com.cobaltplatform.api.model.db.InteractionInstance;
 import com.cobaltplatform.api.model.db.InteractionOption;
 import com.cobaltplatform.api.model.db.InteractionOptionAction;
+import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.ScheduledMessage;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus;
 import com.cobaltplatform.api.model.db.ScreeningAnswer;
@@ -46,6 +48,7 @@ import com.cobaltplatform.api.model.db.ScreeningVersion;
 import com.cobaltplatform.api.model.service.ScreeningQuestionWithAnswerOptions;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
+import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.lokalized.Strings;
@@ -56,6 +59,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.time.LocalDateTime;
@@ -97,6 +101,8 @@ public class InteractionService {
 	@Nonnull
 	private final javax.inject.Provider<ScreeningService> screeningServiceProvider;
 	@Nonnull
+	private final javax.inject.Provider<PatientOrderService> patientOrderServiceProvider;
+	@Nonnull
 	private final Formatter formatter;
 	@Nonnull
 	private final ErrorReporter errorReporter;
@@ -112,6 +118,7 @@ public class InteractionService {
 														@Nonnull javax.inject.Provider<MessageService> messageServiceProvider,
 														@Nonnull javax.inject.Provider<InstitutionService> institutionServiceProvider,
 														@Nonnull javax.inject.Provider<ScreeningService> screeningServiceProvider,
+														@Nonnull javax.inject.Provider<PatientOrderService> patientOrderServiceProvider,
 														@Nonnull Formatter formatter,
 														@Nonnull ErrorReporter errorReporter,
 														@Nonnull Configuration configuration,
@@ -122,6 +129,7 @@ public class InteractionService {
 		requireNonNull(messageServiceProvider);
 		requireNonNull(institutionServiceProvider);
 		requireNonNull(screeningServiceProvider);
+		requireNonNull(patientOrderServiceProvider);
 		requireNonNull(formatter);
 		requireNonNull(errorReporter);
 		requireNonNull(configuration);
@@ -134,6 +142,7 @@ public class InteractionService {
 		this.messageServiceProvider = messageServiceProvider;
 		this.institutionServiceProvider = institutionServiceProvider;
 		this.screeningServiceProvider = screeningServiceProvider;
+		this.patientOrderServiceProvider = patientOrderServiceProvider;
 		this.formatter = formatter;
 		this.errorReporter = errorReporter;
 		this.configuration = configuration;
@@ -479,10 +488,18 @@ public class InteractionService {
 		requireNonNull(screeningSessionId);
 
 		ScreeningSession screeningSession = getScreeningService().findScreeningSessionById(screeningSessionId).get();
-		Account crisisAccount = getAccountService().findAccountById(screeningSession.getTargetAccountId()).get();
+		CrisisDataProvider crisisDataProvider;
 
-		// Find the crisis interaction ID for this account's institution
-		Institution institution = getInstitutionService().findInstitutionById(crisisAccount.getInstitutionId()).get();
+		if (screeningSession.getPatientOrderId() != null) {
+			PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(screeningSession.getPatientOrderId()).get();
+			crisisDataProvider = new PatientOrderCrisisDataProvider(patientOrder);
+		} else {
+			Account targetAccount = getAccountService().findAccountById(screeningSession.getTargetAccountId()).get();
+			crisisDataProvider = new AccountCrisisDataProvider(targetAccount);
+		}
+
+		// Find the crisis interaction ID for this screening's institution
+		Institution institution = getInstitutionService().findInstitutionById(crisisDataProvider.getInstitutionId()).get();
 		UUID defaultCrisisInteractionId = institution.getStandardMetadata().getDefaultCrisisInteractionId();
 
 		if (defaultCrisisInteractionId == null) {
@@ -538,8 +555,8 @@ public class InteractionService {
 			screeningSessionScreeningResults.add(screeningSessionScreeningResult);
 		}
 
-		Map<String, Object> metadata = createCrisisInteractionMetadata(screeningSessionScreeningResults, crisisAccount, locale);
-		Map<String, Object> hipaaCompliantMetadata = createCrisisInteractionHipaaCompliantMetadata(screeningSessionScreeningResults, crisisAccount, locale);
+		Map<String, Object> metadata = createCrisisInteractionMetadata(screeningSessionScreeningResults, crisisDataProvider, locale);
+		Map<String, Object> hipaaCompliantMetadata = createCrisisInteractionHipaaCompliantMetadata(screeningSessionScreeningResults, crisisDataProvider, locale);
 
 		// Record an interaction for this incident, which might send off some email messages (for example)
 		createInteractionInstance(new CreateInteractionInstanceRequest() {{
@@ -553,35 +570,35 @@ public class InteractionService {
 
 	@Nonnull
 	protected Map<String, Object> createCrisisInteractionHipaaCompliantMetadata(@Nonnull List<ScreeningSessionScreeningResult> screeningSessionScreeningResults,
-																																							@Nonnull Account crisisAccount,
+																																							@Nonnull CrisisDataProvider crisisDataProvider,
 																																							@Nonnull Locale locale) {
 		requireNonNull(screeningSessionScreeningResults);
-		requireNonNull(crisisAccount);
+		requireNonNull(crisisDataProvider);
 		requireNonNull(locale);
 
 		List<String> htmlListItems = new ArrayList<>(2);
 
-		if (crisisAccount.getFirstName() != null)
-			htmlListItems.add(createHtmlListItem(getStrings().get("First Name", locale), crisisAccount.getFirstName()));
+		if (crisisDataProvider.getFirstName() != null)
+			htmlListItems.add(createHtmlListItem(getStrings().get("First Name", locale), crisisDataProvider.getFirstName()));
 
-		if (crisisAccount.getPhoneNumber() != null)
-			htmlListItems.add(createHtmlListItem(getStrings().get("Phone Number", locale), format("<a href='tel:%s'>%s</a>", crisisAccount.getPhoneNumber(), getFormatter().formatPhoneNumber(crisisAccount.getPhoneNumber(), locale)), false));
-		else if (crisisAccount.getEmailAddress() != null)
-			htmlListItems.add(createHtmlListItem(getStrings().get("Email Address", locale), format("<a href='mailto:%s'>%s</a>", crisisAccount.getEmailAddress(), crisisAccount.getEmailAddress()), false));
+		if (crisisDataProvider.getPhoneNumber() != null)
+			htmlListItems.add(createHtmlListItem(getStrings().get("Phone Number", locale), format("<a href='tel:%s'>%s</a>", crisisDataProvider.getPhoneNumber(), getFormatter().formatPhoneNumber(crisisDataProvider.getPhoneNumber(), locale)), false));
+		else if (crisisDataProvider.getEmailAddress() != null)
+			htmlListItems.add(createHtmlListItem(getStrings().get("Email Address", locale), format("<a href='mailto:%s'>%s</a>", crisisDataProvider.getEmailAddress(), crisisDataProvider.getEmailAddress()), false));
 		else
 			htmlListItems.add(createHtmlListItem(getStrings().get("Contact Information", locale), getStrings().get("None Available", locale)));
 
 		String endUserHtmlRepresentation = format("<ul>%s</ul>", htmlListItems.stream().collect(Collectors.joining("")));
 
 		return new HashMap<String, Object>() {{
-			if (crisisAccount.getFirstName() != null)
-				put("firstName", crisisAccount.getFirstName());
+			if (crisisDataProvider.getFirstName() != null)
+				put("firstName", crisisDataProvider.getFirstName());
 
-			if (crisisAccount.getPhoneNumber() != null) {
-				put("phoneNumber", crisisAccount.getPhoneNumber());
-				put("phoneNumberForDisplay", getFormatter().formatPhoneNumber(crisisAccount.getPhoneNumber(), locale));
-			} else if (crisisAccount.getEmailAddress() != null) {
-				put("emailAddress", crisisAccount.getEmailAddress());
+			if (crisisDataProvider.getPhoneNumber() != null) {
+				put("phoneNumber", crisisDataProvider.getPhoneNumber());
+				put("phoneNumberForDisplay", getFormatter().formatPhoneNumber(crisisDataProvider.getPhoneNumber(), locale));
+			} else if (crisisDataProvider.getEmailAddress() != null) {
+				put("emailAddress", crisisDataProvider.getEmailAddress());
 			}
 
 			put("endUserHtmlRepresentation", endUserHtmlRepresentation);
@@ -590,20 +607,20 @@ public class InteractionService {
 
 	@Nonnull
 	protected Map<String, Object> createCrisisInteractionMetadata(@Nonnull List<ScreeningSessionScreeningResult> screeningSessionScreeningResults,
-																																@Nonnull Account crisisAccount,
+																																@Nonnull CrisisDataProvider crisisDataProvider,
 																																@Nonnull Locale locale) {
 		requireNonNull(screeningSessionScreeningResults);
-		requireNonNull(crisisAccount);
+		requireNonNull(crisisDataProvider);
 		requireNonNull(locale);
 
 		List<String> htmlListItems = new ArrayList<>();
 
-		if (crisisAccount.getDisplayName() != null)
-			htmlListItems.add(createHtmlListItem(getStrings().get("Name", locale), crisisAccount.getDisplayName()));
-		if (crisisAccount.getPhoneNumber() != null)
-			htmlListItems.add(createHtmlListItem(getStrings().get("Phone Number", locale), format("<a href='tel:%s'>%s</a>", crisisAccount.getPhoneNumber(), getFormatter().formatPhoneNumber(crisisAccount.getPhoneNumber(), locale)), false));
-		if (crisisAccount.getEmailAddress() != null)
-			htmlListItems.add(createHtmlListItem(getStrings().get("Email Address", locale), format("<a href='mailto:%s'>%s</a>", crisisAccount.getEmailAddress(), crisisAccount.getEmailAddress()), false));
+		if (crisisDataProvider.getDisplayName() != null)
+			htmlListItems.add(createHtmlListItem(getStrings().get("Name", locale), crisisDataProvider.getDisplayName()));
+		if (crisisDataProvider.getPhoneNumber() != null)
+			htmlListItems.add(createHtmlListItem(getStrings().get("Phone Number", locale), format("<a href='tel:%s'>%s</a>", crisisDataProvider.getPhoneNumber(), getFormatter().formatPhoneNumber(crisisDataProvider.getPhoneNumber(), locale)), false));
+		if (crisisDataProvider.getEmailAddress() != null)
+			htmlListItems.add(createHtmlListItem(getStrings().get("Email Address", locale), format("<a href='mailto:%s'>%s</a>", crisisDataProvider.getEmailAddress(), crisisDataProvider.getEmailAddress()), false));
 
 		for (ScreeningSessionScreeningResult screeningSessionScreeningResult : screeningSessionScreeningResults) {
 			ScreeningVersion screeningVersion = screeningSessionScreeningResult.getScreeningVersion();
@@ -638,16 +655,16 @@ public class InteractionService {
 		String endUserHtmlRepresentation = format("<ul>%s</ul>", htmlListItems.stream().collect(Collectors.joining("")));
 
 		return new HashMap<String, Object>() {{
-			if (crisisAccount.getDisplayName() != null)
-				put("name", crisisAccount.getDisplayName());
+			if (crisisDataProvider.getDisplayName() != null)
+				put("name", crisisDataProvider.getDisplayName());
 
-			if (crisisAccount.getPhoneNumber() != null) {
-				put("phoneNumber", crisisAccount.getPhoneNumber());
-				put("phoneNumberForDisplay", getFormatter().formatPhoneNumber(crisisAccount.getPhoneNumber(), locale));
+			if (crisisDataProvider.getPhoneNumber() != null) {
+				put("phoneNumber", crisisDataProvider.getPhoneNumber());
+				put("phoneNumberForDisplay", getFormatter().formatPhoneNumber(crisisDataProvider.getPhoneNumber(), locale));
 			}
 
-			if (crisisAccount.getEmailAddress() != null)
-				put("emailAddress", crisisAccount.getEmailAddress());
+			if (crisisDataProvider.getEmailAddress() != null)
+				put("emailAddress", crisisDataProvider.getEmailAddress());
 
 			put("endUserHtmlRepresentation", endUserHtmlRepresentation);
 		}};
@@ -674,59 +691,113 @@ public class InteractionService {
 				escapeHtml ? escapeHtml4(fieldValue) : fieldValue);
 	}
 
-	@Nonnull
-	protected Database getDatabase() {
-		return database;
+	protected interface CrisisDataProvider {
+		@Nonnull
+		InstitutionId getInstitutionId();
+
+		@Nullable
+		String getEmailAddress();
+
+		@Nullable
+		String getPhoneNumber();
+
+		@Nullable
+		String getDisplayName();
+
+		@Nullable
+		String getFirstName();
 	}
 
-	@Nonnull
-	protected AccountService getAccountService() {
-		return accountServiceProvider.get();
+	@ThreadSafe
+	protected static class AccountCrisisDataProvider implements CrisisDataProvider {
+		@Nonnull
+		private final Account account;
+
+		public AccountCrisisDataProvider(@Nonnull Account account) {
+			requireNonNull(account);
+			this.account = account;
+		}
+
+		@Nonnull
+		@Override
+		public InstitutionId getInstitutionId() {
+			return getAccount().getInstitutionId();
+		}
+
+		@Nullable
+		@Override
+		public String getEmailAddress() {
+			return getAccount().getEmailAddress();
+		}
+
+		@Nullable
+		@Override
+		public String getPhoneNumber() {
+			return getAccount().getPhoneNumber();
+		}
+
+		@Nullable
+		@Override
+		public String getDisplayName() {
+			return getAccount().getDisplayName();
+		}
+
+		@Nullable
+		@Override
+		public String getFirstName() {
+			return getAccount().getFirstName();
+		}
+
+		@Nonnull
+		protected Account getAccount() {
+			return this.account;
+		}
 	}
 
-	@Nonnull
-	protected Strings getStrings() {
-		return strings;
-	}
+	@ThreadSafe
+	protected static class PatientOrderCrisisDataProvider implements CrisisDataProvider {
+		@Nonnull
+		private final PatientOrder patientOrder;
 
-	@Nonnull
-	protected MessageService getMessageService() {
-		return messageServiceProvider.get();
-	}
+		public PatientOrderCrisisDataProvider(@Nonnull PatientOrder patientOrder) {
+			requireNonNull(patientOrder);
+			this.patientOrder = patientOrder;
+		}
 
-	@Nonnull
-	protected InstitutionService getInstitutionService() {
-		return institutionServiceProvider.get();
-	}
+		@Nonnull
+		@Override
+		public InstitutionId getInstitutionId() {
+			return getPatientOrder().getInstitutionId();
+		}
 
-	@Nonnull
-	protected ScreeningService getScreeningService() {
-		return this.screeningServiceProvider.get();
-	}
+		@Nullable
+		@Override
+		public String getEmailAddress() {
+			return getPatientOrder().getPatientEmailAddress();
+		}
 
-	@Nonnull
-	protected Configuration getConfiguration() {
-		return configuration;
-	}
+		@Nullable
+		@Override
+		public String getPhoneNumber() {
+			return getPatientOrder().getPatientPhoneNumber();
+		}
 
-	@Nonnull
-	protected Logger getLogger() {
-		return logger;
-	}
+		@Nullable
+		@Override
+		public String getDisplayName() {
+			return Normalizer.normalizeName(getPatientOrder().getPatientFirstName(), getPatientOrder().getPatientLastName()).orElse(null);
+		}
 
-	@Nonnull
-	protected Formatter getFormatter() {
-		return formatter;
-	}
+		@Nullable
+		@Override
+		public String getFirstName() {
+			return getPatientOrder().getPatientFirstName();
+		}
 
-	@Nonnull
-	protected ErrorReporter getErrorReporter() {
-		return this.errorReporter;
-	}
-
-	@Nonnull
-	protected JsonMapper getJsonMapper() {
-		return jsonMapper;
+		@Nonnull
+		protected PatientOrder getPatientOrder() {
+			return this.patientOrder;
+		}
 	}
 
 	@NotThreadSafe
@@ -801,5 +872,65 @@ public class InteractionService {
 		public void setScreeningAnswers(@Nullable List<ScreeningAnswer> screeningAnswers) {
 			this.screeningAnswers = screeningAnswers;
 		}
+	}
+
+	@Nonnull
+	protected Database getDatabase() {
+		return this.database;
+	}
+
+	@Nonnull
+	protected AccountService getAccountService() {
+		return this.accountServiceProvider.get();
+	}
+
+	@Nonnull
+	protected Strings getStrings() {
+		return this.strings;
+	}
+
+	@Nonnull
+	protected MessageService getMessageService() {
+		return this.messageServiceProvider.get();
+	}
+
+	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return this.institutionServiceProvider.get();
+	}
+
+	@Nonnull
+	protected ScreeningService getScreeningService() {
+		return this.screeningServiceProvider.get();
+	}
+
+	@Nonnull
+	protected PatientOrderService getPatientOrderService() {
+		return this.patientOrderServiceProvider.get();
+	}
+
+	@Nonnull
+	protected Configuration getConfiguration() {
+		return this.configuration;
+	}
+
+	@Nonnull
+	protected Logger getLogger() {
+		return this.logger;
+	}
+
+	@Nonnull
+	protected Formatter getFormatter() {
+		return this.formatter;
+	}
+
+	@Nonnull
+	protected ErrorReporter getErrorReporter() {
+		return this.errorReporter;
+	}
+
+	@Nonnull
+	protected JsonMapper getJsonMapper() {
+		return this.jsonMapper;
 	}
 }

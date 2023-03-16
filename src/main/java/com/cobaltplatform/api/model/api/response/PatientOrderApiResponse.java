@@ -52,6 +52,7 @@ import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.PatientOrderService;
 import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.util.Formatter;
+import com.cobaltplatform.api.util.Normalizer;
 import com.google.inject.Provider;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -73,14 +74,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
-import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -126,6 +124,8 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String orderingProviderDisplayName;
 	@Nullable
+	private String orderingProviderDisplayNameWithLastFirst;
+	@Nullable
 	private String billingProviderId;
 	@Nullable
 	private String billingProviderIdType;
@@ -138,11 +138,15 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String billingProviderDisplayName;
 	@Nullable
+	private String billingProviderDisplayNameWithLastFirst;
+	@Nullable
 	private String patientLastName;
 	@Nullable
 	private String patientFirstName;
 	@Nullable
 	private String patientDisplayName;
+	@Nullable
+	private String patientDisplayNameWithLastFirst;
 	@Nullable
 	private String patientMrn;
 	@Nullable
@@ -458,7 +462,8 @@ public class PatientOrderApiResponse {
 		this.patientAddressId = patientOrder.getPatientAddressId();
 		this.patientLastName = patientOrder.getPatientLastName();
 		this.patientFirstName = patientOrder.getPatientFirstName();
-		this.patientDisplayName = formatDisplayName(patientOrder.getPatientFirstName(), null, patientOrder.getPatientLastName()).orElse(null);
+		this.patientDisplayName = Normalizer.normalizeName(patientOrder.getPatientFirstName(), null, patientOrder.getPatientLastName()).orElse(null);
+		this.patientDisplayNameWithLastFirst = Normalizer.normalizeNameWithLastFirst(patientOrder.getPatientFirstName(), null, patientOrder.getPatientLastName()).orElse(null);
 		this.patientMrn = patientOrder.getPatientMrn();
 		this.patientId = patientOrder.getPatientId();
 		this.patientIdType = patientOrder.getPatientIdType();
@@ -490,13 +495,15 @@ public class PatientOrderApiResponse {
 			this.orderingProviderLastName = patientOrder.getOrderingProviderLastName();
 			this.orderingProviderFirstName = patientOrder.getOrderingProviderFirstName();
 			this.orderingProviderMiddleName = patientOrder.getOrderingProviderMiddleName();
-			this.orderingProviderDisplayName = formatDisplayName(patientOrder.getOrderingProviderFirstName(), patientOrder.getOrderingProviderMiddleName(), patientOrder.getOrderingProviderLastName()).orElse(null);
+			this.orderingProviderDisplayName = Normalizer.normalizeName(patientOrder.getOrderingProviderFirstName(), patientOrder.getOrderingProviderMiddleName(), patientOrder.getOrderingProviderLastName()).orElse(null);
+			this.orderingProviderDisplayNameWithLastFirst = Normalizer.normalizeNameWithLastFirst(patientOrder.getOrderingProviderFirstName(), patientOrder.getOrderingProviderMiddleName(), patientOrder.getOrderingProviderLastName()).orElse(null);
 			this.billingProviderId = patientOrder.getBillingProviderId();
 			this.billingProviderIdType = patientOrder.getBillingProviderIdType();
 			this.billingProviderLastName = patientOrder.getBillingProviderLastName();
 			this.billingProviderFirstName = patientOrder.getBillingProviderFirstName();
 			this.billingProviderMiddleName = patientOrder.getBillingProviderMiddleName();
-			this.billingProviderDisplayName = formatDisplayName(patientOrder.getBillingProviderFirstName(), patientOrder.getBillingProviderMiddleName(), patientOrder.getBillingProviderLastName()).orElse(null);
+			this.billingProviderDisplayName = Normalizer.normalizeName(patientOrder.getBillingProviderFirstName(), patientOrder.getBillingProviderMiddleName(), patientOrder.getBillingProviderLastName()).orElse(null);
+			this.billingProviderDisplayNameWithLastFirst = Normalizer.normalizeNameWithLastFirst(patientOrder.getBillingProviderFirstName(), patientOrder.getBillingProviderMiddleName(), patientOrder.getBillingProviderLastName()).orElse(null);
 			this.primaryPayorId = patientOrder.getPrimaryPayorId();
 			this.primaryPayorName = patientOrder.getPrimaryPayorName();
 			this.primaryPlanId = patientOrder.getPrimaryPlanId();
@@ -553,35 +560,6 @@ public class PatientOrderApiResponse {
 	}
 
 	@Nonnull
-	protected Optional<String> formatDisplayName(@Nullable String firstName,
-																							 @Nullable String middleName,
-																							 @Nullable String lastName) {
-		firstName = trimToNull(firstName);
-		middleName = trimToNull(middleName);
-		lastName = trimToNull(lastName);
-
-		if (firstName != null && middleName != null && lastName != null)
-			return Optional.of(format("%s, %s %s", lastName, firstName, middleName));
-
-		if (firstName != null && lastName != null)
-			return Optional.of(format("%s, %s", lastName, firstName));
-
-		if (middleName != null && lastName != null)
-			return Optional.of(format("%s, %s", lastName, middleName));
-
-		if (middleName != null && firstName != null)
-			return Optional.of(format("%s %s", firstName, middleName));
-
-		if (lastName != null)
-			return Optional.of(lastName);
-
-		if (firstName != null)
-			return Optional.of(firstName);
-
-		return Optional.empty();
-	}
-
-	@Nonnull
 	public UUID getPatientOrderId() {
 		return this.patientOrderId;
 	}
@@ -609,6 +587,11 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public UUID getPanelAccountId() {
 		return this.panelAccountId;
+	}
+
+	@Nullable
+	public PatientOrderClosureReasonId getPatientOrderClosureReasonId() {
+		return this.patientOrderClosureReasonId;
 	}
 
 	@Nullable
@@ -672,6 +655,11 @@ public class PatientOrderApiResponse {
 	}
 
 	@Nullable
+	public String getOrderingProviderDisplayNameWithLastFirst() {
+		return this.orderingProviderDisplayNameWithLastFirst;
+	}
+
+	@Nullable
 	public String getBillingProviderId() {
 		return this.billingProviderId;
 	}
@@ -702,6 +690,11 @@ public class PatientOrderApiResponse {
 	}
 
 	@Nullable
+	public String getBillingProviderDisplayNameWithLastFirst() {
+		return this.billingProviderDisplayNameWithLastFirst;
+	}
+
+	@Nullable
 	public String getPatientLastName() {
 		return this.patientLastName;
 	}
@@ -714,6 +707,11 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public String getPatientDisplayName() {
 		return this.patientDisplayName;
+	}
+
+	@Nullable
+	public String getPatientDisplayNameWithLastFirst() {
+		return this.patientDisplayNameWithLastFirst;
 	}
 
 	@Nullable
@@ -869,11 +867,6 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public String getRecentPsychotherapeuticMedications() {
 		return this.recentPsychotherapeuticMedications;
-	}
-
-	@Nullable
-	public PatientOrderClosureReasonId getPatientOrderClosureReasonId() {
-		return this.patientOrderClosureReasonId;
 	}
 
 	@Nullable
