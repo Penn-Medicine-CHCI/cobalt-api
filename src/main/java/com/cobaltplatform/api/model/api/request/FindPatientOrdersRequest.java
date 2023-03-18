@@ -20,10 +20,12 @@
 package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderPanelTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -35,6 +37,8 @@ public class FindPatientOrdersRequest {
 	private InstitutionId institutionId;
 	@Nullable
 	private PatientOrderPanelTypeId patientOrderPanelTypeId;
+	@Nullable
+	private Set<PatientOrderStatusId> patientOrderStatusIds;
 	@Nullable
 	private UUID panelAccountId;
 	@Nullable
@@ -60,6 +64,15 @@ public class FindPatientOrdersRequest {
 
 	public void setPatientOrderPanelTypeId(@Nullable PatientOrderPanelTypeId patientOrderPanelTypeId) {
 		this.patientOrderPanelTypeId = patientOrderPanelTypeId;
+	}
+
+	@Nullable
+	public Set<PatientOrderStatusId> getPatientOrderStatusIds() {
+		return this.patientOrderStatusIds;
+	}
+
+	public void setPatientOrderStatusIds(@Nullable Set<PatientOrderStatusId> patientOrderStatusIds) {
+		this.patientOrderStatusIds = patientOrderStatusIds;
 	}
 
 	@Nullable

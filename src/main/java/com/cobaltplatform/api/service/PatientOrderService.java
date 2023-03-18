@@ -119,6 +119,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidEmailAddress;
 import static java.lang.String.format;
@@ -419,8 +420,8 @@ public class PatientOrderService {
 				SELECT COUNT(*)
 				FROM patient_order
 				WHERE institution_id=?
-				AND patient_order_status_id NOT IN (?,?)
-				""", Integer.class, institutionId, PatientOrderStatusId.ARCHIVED, PatientOrderStatusId.DELETED).get();
+				AND patient_order_status_id NOT IN (?,?,?)
+				""", Integer.class, institutionId, PatientOrderStatusId.CLOSED, PatientOrderStatusId.ARCHIVED, PatientOrderStatusId.DELETED).get();
 	}
 
 	@Nonnull
@@ -437,8 +438,8 @@ public class PatientOrderService {
 				FROM patient_order
 				WHERE panel_account_id=?
 				AND institution_id=?		
-				AND patient_order_status_id NOT IN (?,?)
-				""", Integer.class, panelAccountId, institutionId, PatientOrderStatusId.ARCHIVED, PatientOrderStatusId.DELETED).get();
+				AND patient_order_status_id NOT IN (?,?,?)
+				""", Integer.class, panelAccountId, institutionId, PatientOrderStatusId.CLOSED, PatientOrderStatusId.ARCHIVED, PatientOrderStatusId.DELETED).get();
 	}
 
 	@Nonnull
@@ -451,9 +452,9 @@ public class PatientOrderService {
 				FROM account a, patient_order po
 				WHERE a.account_id=po.panel_account_id
 				AND po.institution_id=?
-				AND po.patient_order_status_id NOT IN (?,?)
+				AND po.patient_order_status_id NOT IN (?,?,?)
 				GROUP BY a.account_id
-				""", AccountIdWithCount.class, institutionId, PatientOrderStatusId.ARCHIVED, PatientOrderStatusId.DELETED);
+				""", AccountIdWithCount.class, institutionId, PatientOrderStatusId.CLOSED, PatientOrderStatusId.ARCHIVED, PatientOrderStatusId.DELETED);
 
 		return accountIdsWithCount.stream()
 				.collect(Collectors.toMap(AccountIdWithCount::getAccountId, AccountIdWithCount::getCount));
@@ -547,6 +548,8 @@ public class PatientOrderService {
 
 		InstitutionId institutionId = request.getInstitutionId();
 		PatientOrderPanelTypeId patientOrderPanelTypeId = request.getPatientOrderPanelTypeId();
+		Set<PatientOrderStatusId> patientOrderStatusIds = request.getPatientOrderStatusIds() == null || request.getPatientOrderStatusIds().size() == 0
+				? Set.of(PatientOrderStatusId.OPEN) : request.getPatientOrderStatusIds();
 		UUID panelAccountId = request.getPanelAccountId();
 		String searchQuery = trimToNull(request.getSearchQuery());
 		Integer pageNumber = request.getPageNumber();
@@ -569,7 +572,20 @@ public class PatientOrderService {
 		List<Object> parameters = new ArrayList<>();
 
 		parameters.add(institutionId);
-		parameters.add(PatientOrderStatusId.DELETED);
+
+		boolean ignorePatientOrderStatusFilter = false;
+
+		// Specifing CLOSED panel type "wins" vs. being able to specify status filters, because CLOSED is a status
+		if (patientOrderPanelTypeId == PatientOrderPanelTypeId.CLOSED) {
+			whereClauseLines.add("AND po.patient_order_status_id=?");
+			parameters.add(PatientOrderStatusId.CLOSED);
+			ignorePatientOrderStatusFilter = true;
+		}
+
+		if (!ignorePatientOrderStatusFilter && patientOrderStatusIds.size() > 0) {
+			whereClauseLines.add(format("AND po.patient_order_status_id IN %s", sqlInListPlaceholders(patientOrderStatusIds)));
+			parameters.addAll(patientOrderStatusIds);
+		}
 
 		if (panelAccountId != null) {
 			whereClauseLines.add("AND po.panel_account_id=?");
@@ -601,8 +617,7 @@ public class PatientOrderService {
 				  WITH base_query AS (
 				  SELECT po.*
 				  FROM v_patient_order po
-				  WHERE po.institution_id=?
-				  AND po.patient_order_status_id != ?
+				  WHERE po.institution_id=?				  
 				  {{whereClauseLines}}
 				  ),
 				  total_count_query AS (

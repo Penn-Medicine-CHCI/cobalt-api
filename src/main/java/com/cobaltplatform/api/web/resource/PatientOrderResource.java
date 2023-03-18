@@ -410,11 +410,13 @@ public class PatientOrderResource {
 	@GET("/patient-orders")
 	@AuthenticationRequired
 	public ApiResponse findPatientOrders(@Nonnull @QueryParameter Optional<PatientOrderPanelTypeId> patientOrderPanelTypeId,
+																			 @Nonnull @QueryParameter("patientOrderStatusId") Optional<List<PatientOrderStatusId>> patientOrderStatusIds,
 																			 @Nonnull @QueryParameter Optional<UUID> panelAccountId,
 																			 @Nonnull @QueryParameter Optional<String> searchQuery,
 																			 @Nonnull @QueryParameter Optional<Integer> pageNumber,
 																			 @Nonnull @QueryParameter Optional<Integer> pageSize) {
 		requireNonNull(patientOrderPanelTypeId);
+		requireNonNull(patientOrderStatusIds);
 		requireNonNull(panelAccountId);
 		requireNonNull(searchQuery);
 		requireNonNull(pageNumber);
@@ -439,6 +441,7 @@ public class PatientOrderResource {
 			{
 				setInstitutionId(account.getInstitutionId());
 				setPatientOrderPanelTypeId(patientOrderPanelTypeId.orElse(null));
+				setPatientOrderStatusIds(new HashSet<>(patientOrderStatusIds.orElse(List.of())));
 				setPanelAccountId(panelAccountId.orElse(null));
 				setSearchQuery(searchQuery.orElse(null));
 				setPageNumber(pageNumber.orElse(0));
