@@ -149,6 +149,9 @@ public class Institution {
 	@DatabaseColumn("mychart_callback_url")
 	private String myChartCallbackUrl;
 	@Nullable
+	@DatabaseColumn("mychart_name")
+	private String myChartName;
+	@Nullable
 	private EpicBackendServiceAuthTypeId epicBackendServiceAuthTypeId;
 	@Nullable
 	private String microsoftTenantId;
@@ -164,6 +167,8 @@ public class Institution {
 	private LocalTime appointmentReservationDefaultReminderTimeOfDay;
 	@Nullable
 	private Integer appointmentReservationDefaultReminderDayOffset;
+	@Nullable
+	private Integer integratedCareSentResourcesFollowupDayOffset;
 
 	public enum InstitutionId {
 		COBALT,
@@ -664,6 +669,15 @@ public class Institution {
 	}
 
 	@Nullable
+	public String getMyChartName() {
+		return this.myChartName;
+	}
+
+	public void setMyChartName(@Nullable String myChartName) {
+		this.myChartName = myChartName;
+	}
+
+	@Nullable
 	public EpicBackendServiceAuthTypeId getEpicBackendServiceAuthTypeId() {
 		return this.epicBackendServiceAuthTypeId;
 	}
@@ -733,5 +747,14 @@ public class Institution {
 
 	public void setAppointmentReservationDefaultReminderDayOffset(@Nullable Integer appointmentReservationDefaultReminderDayOffset) {
 		this.appointmentReservationDefaultReminderDayOffset = appointmentReservationDefaultReminderDayOffset;
+	}
+
+	@Nullable
+	public Integer getIntegratedCareSentResourcesFollowupDayOffset() {
+		return this.integratedCareSentResourcesFollowupDayOffset;
+	}
+
+	public void setIntegratedCareSentResourcesFollowupDayOffset(@Nullable Integer integratedCareSentResourcesFollowupDayOffset) {
+		this.integratedCareSentResourcesFollowupDayOffset = integratedCareSentResourcesFollowupDayOffset;
 	}
 }
