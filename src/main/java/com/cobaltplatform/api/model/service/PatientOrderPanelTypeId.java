@@ -30,5 +30,6 @@ public enum PatientOrderPanelTypeId {
 	SAFETY_PLANNING,
 	SPECIALTY_CARE,
 	BHP,
-	CLOSED
+	CLOSED,
+	ARCHIVED
 }

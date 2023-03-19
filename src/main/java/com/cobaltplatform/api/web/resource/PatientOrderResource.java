@@ -71,6 +71,7 @@ import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.PatientOrderService;
+import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.PatientOrderCsvGenerator;
@@ -134,6 +135,8 @@ public class PatientOrderResource {
 	@Nonnull
 	private final AuthorizationService authorizationService;
 	@Nonnull
+	private final ScreeningService screeningService;
+	@Nonnull
 	private final PatientOrderApiResponseFactory patientOrderApiResponseFactory;
 	@Nonnull
 	private final PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory;
@@ -171,6 +174,7 @@ public class PatientOrderResource {
 															@Nonnull AccountService accountService,
 															@Nonnull InstitutionService institutionService,
 															@Nonnull AuthorizationService authorizationService,
+															@Nonnull ScreeningService screeningService,
 															@Nonnull PatientOrderApiResponseFactory patientOrderApiResponseFactory,
 															@Nonnull PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory,
 															@Nonnull PatientOrderOutreachApiResponseFactory patientOrderOutreachApiResponseFactory,
@@ -190,6 +194,7 @@ public class PatientOrderResource {
 		requireNonNull(accountService);
 		requireNonNull(institutionService);
 		requireNonNull(authorizationService);
+		requireNonNull(screeningService);
 		requireNonNull(patientOrderApiResponseFactory);
 		requireNonNull(patientOrderNoteApiResponseFactory);
 		requireNonNull(patientOrderOutreachApiResponseFactory);
@@ -210,6 +215,7 @@ public class PatientOrderResource {
 		this.accountService = accountService;
 		this.institutionService = institutionService;
 		this.authorizationService = authorizationService;
+		this.screeningService = screeningService;
 		this.patientOrderApiResponseFactory = patientOrderApiResponseFactory;
 		this.patientOrderNoteApiResponseFactory = patientOrderNoteApiResponseFactory;
 		this.patientOrderOutreachApiResponseFactory = patientOrderOutreachApiResponseFactory;
@@ -895,6 +901,17 @@ public class PatientOrderResource {
 				.map(ethnicity -> Map.<String, Object>of("ethnicityId", ethnicity.getEthnicityId(), "description", ethnicity.getDescription()))
 				.collect(Collectors.toList());
 
+		// Screening data
+		List<Map<String, Object>> screeningTypes = getScreeningService().findScreeningTypes().stream()
+				.map(screeningType -> {
+					Map<String, Object> screeningTypeJson = new HashMap<>();
+					screeningTypeJson.put("screeningTypeId", screeningType.getScreeningTypeId());
+					screeningTypeJson.put("description", screeningType.getDescription());
+					screeningTypeJson.put("overallScoreMaximum", screeningType.getOverallScoreMaximum());
+					return screeningTypeJson;
+				})
+				.collect(Collectors.toList());
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("timeZones", timeZones);
 			put("countries", countries);
@@ -905,6 +922,7 @@ public class PatientOrderResource {
 			put("birthSexes", birthSexes);
 			put("ethnicities", ethnicities);
 			put("regionsByCountryCode", normalizedRegionsByCountryCode);
+			put("screeningTypes", screeningTypes);
 		}});
 	}
 
@@ -962,6 +980,11 @@ public class PatientOrderResource {
 	@Nonnull
 	protected AuthorizationService getAuthorizationService() {
 		return this.authorizationService;
+	}
+
+	@Nonnull
+	protected ScreeningService getScreeningService() {
+		return this.screeningService;
 	}
 
 	@Nonnull

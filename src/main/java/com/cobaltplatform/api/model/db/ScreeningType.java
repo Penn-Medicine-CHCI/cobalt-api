@@ -33,6 +33,8 @@ public class ScreeningType {
 	private ScreeningTypeId screeningTypeId;
 	@Nullable
 	private String description;
+	@Nullable
+	private Integer overallScoreMaximum;
 
 	public enum ScreeningTypeId {
 		CUSTOM,
@@ -43,7 +45,6 @@ public class ScreeningType {
 		PHQ_9,
 		WHO_5,
 		PC_PTSD_5,
-		AUDIT_C_ALCOHOL,
 		CAGE_ALCOHOL,
 		TICS,
 		ISI,
@@ -83,5 +84,14 @@ public class ScreeningType {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
+	}
+
+	@Nullable
+	public Integer getOverallScoreMaximum() {
+		return this.overallScoreMaximum;
+	}
+
+	public void setOverallScoreMaximum(@Nullable Integer overallScoreMaximum) {
+		this.overallScoreMaximum = overallScoreMaximum;
 	}
 }
