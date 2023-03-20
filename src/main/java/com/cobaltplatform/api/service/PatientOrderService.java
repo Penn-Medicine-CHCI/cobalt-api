@@ -552,7 +552,7 @@ public class PatientOrderService {
 		Set<PatientOrderStatusId> patientOrderStatusIds = request.getPatientOrderStatusIds() == null || request.getPatientOrderStatusIds().size() == 0
 				? Set.of(PatientOrderStatusId.OPEN) : request.getPatientOrderStatusIds();
 		UUID panelAccountId = request.getPanelAccountId();
-		String searchQuery = trimToNull(request.getSearchQuery());
+		String patientMrn = trimToNull(request.getPatientMrn());
 		Integer pageNumber = request.getPageNumber();
 		Integer pageSize = request.getPageSize();
 
@@ -593,18 +593,9 @@ public class PatientOrderService {
 			parameters.add(panelAccountId);
 		}
 
-		if (searchQuery != null) {
-			whereClauseLines.add("""
-					AND (
-					  po.patient_first_name ILIKE CONCAT('%',?,'%')
-					  OR po.patient_last_name ILIKE CONCAT('%',?,'%')
-					  OR po.patient_mrn ILIKE CONCAT('%',?,'%')
-					)
-					""");
-
-			parameters.add(searchQuery);
-			parameters.add(searchQuery);
-			parameters.add(searchQuery);
+		if (patientMrn != null) {
+			whereClauseLines.add("AND LOWER(po.patient_mrn)=LOWER(?)");
+			parameters.add(patientMrn);
 		}
 
 		// TODO: finish adding other parameters/filters

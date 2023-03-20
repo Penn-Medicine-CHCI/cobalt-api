@@ -42,7 +42,7 @@ public class FindPatientOrdersRequest {
 	@Nullable
 	private UUID panelAccountId;
 	@Nullable
-	private String searchQuery;
+	private String patientMrn;
 	@Nullable
 	private Integer pageNumber;
 	@Nullable
@@ -85,12 +85,12 @@ public class FindPatientOrdersRequest {
 	}
 
 	@Nullable
-	public String getSearchQuery() {
-		return this.searchQuery;
+	public String getPatientMrn() {
+		return this.patientMrn;
 	}
 
-	public void setSearchQuery(@Nullable String searchQuery) {
-		this.searchQuery = searchQuery;
+	public void setPatientMrn(@Nullable String patientMrn) {
+		this.patientMrn = patientMrn;
 	}
 
 	@Nullable
