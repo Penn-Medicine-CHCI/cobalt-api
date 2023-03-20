@@ -95,6 +95,7 @@ import com.cobaltplatform.api.model.api.response.IntroAssessmentApiResponse.Intr
 import com.cobaltplatform.api.model.api.response.LanguageApiResponse.LanguageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.LogicalAvailabilityApiResponse.LogicalAvailabilityApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderAutocompleteResultApiResponse.PatientOrderAutocompleteResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderDiagnosisApiResponse.PatientOrderDiagnosisApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderMedicationApiResponse.PatientOrderMedicationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
@@ -277,6 +278,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(PatientOrderMedicationApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PatientOrderOutreachApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PatientOrderTriageApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PatientOrderAutocompleteResultApiResponseFactory.class)));
 	}
 
 	@Provides

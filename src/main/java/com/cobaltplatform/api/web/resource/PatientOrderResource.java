@@ -44,6 +44,7 @@ import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFormat;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseSupplement;
+import com.cobaltplatform.api.model.api.response.PatientOrderAutocompleteResultApiResponse.PatientOrderAutocompleteResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderTriageApiResponse.PatientOrderTriageApiResponseFactory;
@@ -64,6 +65,7 @@ import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.Race;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.model.service.PatientOrderAutocompleteResult;
 import com.cobaltplatform.api.model.service.PatientOrderImportResult;
 import com.cobaltplatform.api.model.service.PatientOrderPanelTypeId;
 import com.cobaltplatform.api.model.service.Region;
@@ -155,6 +157,8 @@ public class PatientOrderResource {
 	@Nonnull
 	private final InsuranceApiResponseFactory insuranceApiResponseFactory;
 	@Nonnull
+	private final PatientOrderAutocompleteResultApiResponseFactory patientOrderAutocompleteResultApiResponseFactory;
+	@Nonnull
 	private final PatientOrderCsvGenerator patientOrderCsvGenerator;
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
@@ -184,6 +188,7 @@ public class PatientOrderResource {
 															@Nonnull LanguageApiResponseFactory languageApiResponseFactory,
 															@Nonnull CountryApiResponseFactory countryApiResponseFactory,
 															@Nonnull InsuranceApiResponseFactory insuranceApiResponseFactory,
+															@Nonnull PatientOrderAutocompleteResultApiResponseFactory patientOrderAutocompleteResultApiResponseFactory,
 															@Nonnull PatientOrderCsvGenerator patientOrderCsvGenerator,
 															@Nonnull RequestBodyParser requestBodyParser,
 															@Nonnull JsonMapper jsonMapper,
@@ -204,6 +209,7 @@ public class PatientOrderResource {
 		requireNonNull(languageApiResponseFactory);
 		requireNonNull(countryApiResponseFactory);
 		requireNonNull(insuranceApiResponseFactory);
+		requireNonNull(patientOrderAutocompleteResultApiResponseFactory);
 		requireNonNull(patientOrderCsvGenerator);
 		requireNonNull(requestBodyParser);
 		requireNonNull(jsonMapper);
@@ -225,6 +231,7 @@ public class PatientOrderResource {
 		this.languageApiResponseFactory = languageApiResponseFactory;
 		this.countryApiResponseFactory = countryApiResponseFactory;
 		this.insuranceApiResponseFactory = insuranceApiResponseFactory;
+		this.patientOrderAutocompleteResultApiResponseFactory = patientOrderAutocompleteResultApiResponseFactory;
 		this.patientOrderCsvGenerator = patientOrderCsvGenerator;
 		this.requestBodyParser = requestBodyParser;
 		this.jsonMapper = jsonMapper;
@@ -497,6 +504,27 @@ public class PatientOrderResource {
 			put("activePatientOrdersCount", activePatientOrdersCount);
 			put("activePatientOrdersCountDescription", activePatientOrdersCountDescription);
 			put("activePatientOrderCountsByPatientOrderStatusId", activePatientOrderCountsByPatientOrderStatusIdJson);
+		}});
+	}
+
+	@Nonnull
+	@GET("/patient-orders/autocomplete")
+	@AuthenticationRequired
+	public ApiResponse patientOrderAutocomplete(@Nonnull @QueryParameter Optional<String> searchQuery) {
+		requireNonNull(searchQuery);
+
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = account.getInstitutionId();
+
+		if (!getAuthorizationService().canViewPatientOrders(institutionId, account))
+			throw new AuthorizationException();
+
+		List<PatientOrderAutocompleteResult> results = getPatientOrderService().findPatientOrderAutocompleteResults(searchQuery.orElse(null), institutionId);
+
+		return new ApiResponse(new HashMap<>() {{
+			put("patientOrderAutocompleteResults", results.stream()
+					.map(result -> getPatientOrderAutocompleteResultApiResponseFactory().create(result))
+					.collect(Collectors.toList()));
 		}});
 	}
 
@@ -1030,6 +1058,11 @@ public class PatientOrderResource {
 	@Nonnull
 	protected InsuranceApiResponseFactory getInsuranceApiResponseFactory() {
 		return this.insuranceApiResponseFactory;
+	}
+
+	@Nonnull
+	protected PatientOrderAutocompleteResultApiResponseFactory getPatientOrderAutocompleteResultApiResponseFactory() {
+		return this.patientOrderAutocompleteResultApiResponseFactory;
 	}
 
 	@Nonnull

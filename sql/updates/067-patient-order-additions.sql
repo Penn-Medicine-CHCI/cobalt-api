@@ -203,12 +203,27 @@ WHERE
   AND posm.patient_order_scheduled_message_type_id=posmt.patient_order_scheduled_message_type_id
   AND sm.message_type_id=mt.message_type_id;
 
+
+CREATE TABLE patient_order_scheduled_screening (
+  patient_order_scheduled_screening_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  patient_order_id UUID NOT NULL REFERENCES patient_order,
+  account_id UUID NOT NULL REFERENCES account,
+  note TEXT NOT NULL,
+  outreach_date_time TIMESTAMP NOT NULL,
+  deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_scheduled_screening FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
 -- TODO: finish up
 
--- v_patient_order needs:
+-- v_patient_order needs patient_order_panel_type_id (a synthetic ID with below values, recalculated and stored after patient order state changes
+--   as opposed to being calculated on-the-fly by a view or similar)
 -- 	  NEW,
---   	NEED_ASSESSMENT,
---   	SCHEDULED -- Unscreened. Has a call scheduled with an MHIC to
+--   	NEEDS_ASSESSMENT,
+--   	SCHEDULED -- Unscreened. Has a call scheduled with an MHIC to take the screening
 --   	SAFETY_PLANNING -- Screened. Most severe triage is SAFETY_PLANNING
 --   	SPECIALTY_CARE -- Screened. Most severe triage is SPECIALTY_CARE
 --   	BHP -- Screened. Associated patient has a non-canceled appointment scheduled with a provider that has support role BHP
@@ -217,6 +232,7 @@ WHERE
 --
 -- patient_order_screening_session_status_id (NEEDS_ASSESSMENT, SCHEDULED, IN_PROGRESS, COMPLETE)
 -- patient_order_closure_reason_description (plain English, e.g. "Refused Care")
---
+-- patient_under_18 (boolean, use timezone from institution related to order to determine this)
+-- patient_has_recent_episode (boolean, has there been another episode for the same patient MRN/institution closed <= 30 days ago?)
 
 COMMIT;

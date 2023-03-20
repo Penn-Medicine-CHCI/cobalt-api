@@ -63,6 +63,7 @@ import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.IcTestPatientEmailAddress;
+import com.cobaltplatform.api.model.service.PatientOrderAutocompleteResult;
 import com.cobaltplatform.api.model.service.PatientOrderImportResult;
 import com.cobaltplatform.api.model.service.PatientOrderPanelTypeId;
 import com.cobaltplatform.api.util.Authenticator;
@@ -645,6 +646,40 @@ public class PatientOrderService {
 
 		FindResult<? extends PatientOrder> findResult = new FindResult<>(patientOrders, totalCount);
 		return (FindResult<PatientOrder>) findResult;
+	}
+
+	@Nonnull
+	public List<PatientOrderAutocompleteResult> findPatientOrderAutocompleteResults(@Nullable String searchQuery,
+																																									@Nullable InstitutionId institutionId) {
+		searchQuery = trimToNull(searchQuery);
+
+		if (searchQuery == null || institutionId == null)
+			return List.of();
+
+		// For phone numbers, remove anything that's not a digit
+		String searchQueryPhoneNumber = searchQuery.replaceAll("[^0-9]", "");
+
+		if (searchQueryPhoneNumber.length() == 0)
+			searchQueryPhoneNumber = "invalid";
+
+		// TODO: this is quick and dirty so FE can build.  Need to significantly improve matching
+
+		return getDatabase().queryForList("""
+						SELECT *
+						FROM patient_order
+						WHERE institution_id=?
+						AND patient_order_status_id != ?
+						AND (
+						patient_first_name ILIKE CONCAT('%',?,'%')
+						OR patient_last_name ILIKE CONCAT('%',?,'%')
+						OR patient_mrn ILIKE CONCAT('%',?,'%')
+						OR (patient_phone_number IS NOT NULL AND patient_phone_number ILIKE CONCAT('%',?,'%'))
+						OR (patient_email_address IS NOT NULL AND patient_email_address ILIKE CONCAT('%',?,'%'))
+						)
+						ORDER BY patient_last_name, patient_first_name
+						LIMIT 10
+						""", PatientOrderAutocompleteResult.class, institutionId, PatientOrderStatusId.DELETED,
+				searchQuery, searchQuery, searchQuery, searchQueryPhoneNumber, searchQuery);
 	}
 
 	@Nonnull
