@@ -108,6 +108,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -500,6 +501,32 @@ public class PatientOrderService {
 			activePatientOrderCountsByPatientOrderStatusId.put(patientOrder.getPatientOrderStatusId(), patientOrder.getTotalCount());
 
 		return activePatientOrderCountsByPatientOrderStatusId;
+	}
+
+	@Nonnull
+	public Boolean arePatientOrderIdsAssociatedWithInstitutionId(@Nullable Collection<UUID> patientOrderIds,
+																															 @Nonnull InstitutionId institutionId) {
+		requireNonNull(institutionId);
+
+		if (patientOrderIds == null)
+			return true;
+
+		Set<UUID> uniquePatientOrderIds = patientOrderIds.stream()
+				.filter(patientOrderId -> patientOrderId != null)
+				.collect(Collectors.toSet());
+
+		List<Object> parameters = new ArrayList<>(uniquePatientOrderIds);
+		parameters.add(institutionId);
+
+		int orderCount = getDatabase().queryForObject(format("""
+						SELECT COUNT(*)
+						FROM patient_order
+						WHERE patient_order_id IN %s
+						AND institution_id=?
+						""",
+				sqlInListPlaceholders(uniquePatientOrderIds)), Integer.class, uniquePatientOrderIds.toArray(new Object[]{})).get();
+
+		return uniquePatientOrderIds.size() == orderCount;
 	}
 
 	@Nonnull

@@ -532,7 +532,7 @@ public class PatientOrderResource {
 	@Nonnull
 	@POST("/patient-orders/assign")
 	@AuthenticationRequired
-	public ApiResponse patientOrdersAssign(@Nonnull @RequestBody String requestBody) {
+	public ApiResponse assignPatientOrders(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
 
 		Account account = getCurrentContext().getAccount().get();
@@ -543,6 +543,9 @@ public class PatientOrderResource {
 
 		AssignPatientOrdersRequest request = getRequestBodyParser().parse(requestBody, AssignPatientOrdersRequest.class);
 		request.setAssignedByAccountId(account.getAccountId());
+
+		if (!getPatientOrderService().arePatientOrderIdsAssociatedWithInstitutionId(request.getPatientOrderIds(), institutionId))
+			throw new AuthorizationException();
 
 		int assignedCount = getPatientOrderService().assignPatientOrdersToPanelAccount(request);
 
