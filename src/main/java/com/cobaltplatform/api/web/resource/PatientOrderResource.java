@@ -21,6 +21,7 @@ package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.request.AssignPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderNoteRequest;
@@ -529,6 +530,29 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
+	@POST("/patient-orders/assign")
+	@AuthenticationRequired
+	public ApiResponse patientOrdersAssign(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = account.getInstitutionId();
+
+		if (!getAuthorizationService().canViewPatientOrders(institutionId, account))
+			throw new AuthorizationException();
+
+		AssignPatientOrdersRequest request = getRequestBodyParser().parse(requestBody, AssignPatientOrdersRequest.class);
+		request.setAssignedByAccountId(account.getAccountId());
+
+		int assignedCount = getPatientOrderService().assignPatientOrdersToPanelAccount(request);
+
+		return new ApiResponse(new HashMap<>() {{
+			put("assignedCount", assignedCount);
+			put("assignedCountDescription", getFormatter().formatNumber(assignedCount));
+		}});
+	}
+
+	@Nonnull
 	@GET("/patient-order-triages")
 	@AuthenticationRequired
 	public ApiResponse patientOrderTriages(@Nonnull @QueryParameter UUID patientOrderId,
@@ -569,7 +593,7 @@ public class PatientOrderResource {
 		request.setInstitutionId(account.getInstitutionId());
 		request.setAccountId(account.getAccountId());
 		request.setPatientOrderImportTypeId(PatientOrderImportTypeId.CSV);
-		request.setAutomaticallyAssignToPanelAccounts(true);
+		request.setAutomaticallyAssignToPanelAccounts(false);
 
 		PatientOrderImportResult patientOrderImportResult = getPatientOrderService().createPatientOrderImport(request);
 

@@ -208,9 +208,10 @@ CREATE TABLE patient_order_scheduled_screening (
   patient_order_scheduled_screening_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_order_id UUID NOT NULL REFERENCES patient_order,
   account_id UUID NOT NULL REFERENCES account,
-  note TEXT NOT NULL,
-  outreach_date_time TIMESTAMP NOT NULL,
-  deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  scheduled_date_time TIMESTAMP NOT NULL,
+  calendar_url TEXT,
+  canceled BOOLEAN NOT NULL DEFAULT FALSE,
+  canceled_at TIMESTAMPTZ,
   created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

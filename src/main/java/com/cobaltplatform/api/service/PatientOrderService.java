@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.model.api.request.AssignPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderEventRequest;
@@ -502,9 +503,41 @@ public class PatientOrderService {
 	}
 
 	@Nonnull
-	public Boolean assignPatientOrderToPanelAccount(@Nonnull UUID patientOrderId,
-																									@Nullable UUID panelAccountId, // Null panel account removes the order from the panel
-																									@Nullable UUID assigningAccountId) {
+	public Integer assignPatientOrdersToPanelAccount(@Nonnull AssignPatientOrdersRequest request) {
+		requireNonNull(request);
+
+		UUID assignedByAccountId = request.getAssignedByAccountId();
+		UUID panelAccountId = request.getPanelAccountId();
+		Set<UUID> patientOrderIds = request.getPatientOrderIds() == null ? Set.of() : request.getPatientOrderIds().stream()
+				.filter(patientOrderId -> patientOrderId != null)
+				.collect(Collectors.toSet());
+		ValidationException validationException = new ValidationException();
+
+		if (assignedByAccountId == null)
+			validationException.add(new FieldError("assignedByAccountId", getStrings().get("Assigned-by Account ID is required.")));
+
+		if (panelAccountId == null)
+			validationException.add(new FieldError("panelAccountId", getStrings().get("Panel Account ID is required.")));
+
+		if (patientOrderIds.size() == 0)
+			validationException.add(new FieldError("patientOrderIds", getStrings().get("Please select at least one order to assign.")));
+
+		int assignedCount = 0;
+
+		for (UUID patientOrderId : patientOrderIds) {
+			boolean assigned = assignPatientOrderToPanelAccount(patientOrderId, panelAccountId, assignedByAccountId);
+
+			if (assigned)
+				++assignedCount;
+		}
+
+		return assignedCount;
+	}
+
+	@Nonnull
+	protected Boolean assignPatientOrderToPanelAccount(@Nonnull UUID patientOrderId,
+																										 @Nullable UUID panelAccountId, // Null panel account removes the order from the panel
+																										 @Nullable UUID assignedByAccountId) {
 		requireNonNull(patientOrderId);
 
 		PatientOrder patientOrder = findPatientOrderById(patientOrderId).orElse(null);
@@ -532,7 +565,7 @@ public class PatientOrderService {
 				{
 					setPatientOrderEventTypeId(PatientOrderEventTypeId.PANEL_ACCOUNT_CHANGED);
 					setPatientOrderId(patientOrderId);
-					setAccountId(assigningAccountId);
+					setAccountId(assignedByAccountId);
 					setMessage(panelAccountId == null ? "Removed from panel." : "Assigned to panel."); // Not localized on the way in
 					setMetadata(metadata);
 				}
