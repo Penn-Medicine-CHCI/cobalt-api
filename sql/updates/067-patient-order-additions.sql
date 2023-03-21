@@ -271,25 +271,19 @@ INSERT INTO patient_order_disposition VALUES ('ARCHIVED', 'Archived', 3);
 
 ALTER TABLE patient_order ADD COLUMN patient_order_disposition_id VARCHAR NOT NULL REFERENCES patient_order_disposition DEFAULT 'OPEN';
 
+ALTER TABLE patient_order ADD COLUMN crisis_indicated BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE patient_order ADD COLUMN crisis_indicated_at TIMESTAMPTZ;
 
--- TODO: patient order should have "active triage" or something along those lines, which is a mutable form of what's on the screening
-
--- TODO: finish up
-
--- v_patient_order needs:
---
--- patient_order_screening_session_status_id (NEEDS_ASSESSMENT, SCHEDULED, IN_PROGRESS, COMPLETE)
--- patient_order_closure_reason_description (plain English, e.g. "Refused Care")
--- patient_under_18 (boolean, use timezone from institution related to order to determine this)
--- patient_has_recent_episode (boolean, has there been another episode for the same patient MRN/institution closed <= 30 days ago?)
+ALTER TABLE patient_order RENAME COLUMN episode_ended_at TO episode_closed_at;
 
 DROP VIEW v_patient_order;
 
-CREATE VIEW v_patient_order AS
+create or REPLACE VIEW v_patient_order AS
 WITH
 po_query AS (
   select *
   from patient_order
+  where patient_order_status_id != 'ARCHIVED'
 ),
 poo_query AS (
   -- Count up the patient outreach attempts for each patient order
@@ -314,6 +308,16 @@ ss_query as (
   join account a on ss.created_by_account_id=a.account_id
   left join screening_session ss2 on ss.patient_order_id = ss2.patient_order_id and ss.created < ss2.created
   where ss2.screening_session_id is null
+),
+recent_po_query as (
+  -- Pick the most recently-closed patient order for the same MRN/institution combination
+  select poq.patient_order_id, po2.episode_closed_at as most_recent_episode_closed_at
+  from po_query poq
+  left join patient_order po2 on LOWER(poq.patient_mrn) = LOWER(po2.patient_mrn) and poq.institution_id = po2.institution_id
+  where po2.episode_closed_at is not null
+  and po2.created < poq.created
+  order by po2.created desc
+  limit 1
 ),
 triage_query as (
   -- Pick the most-severe triage for each patient order.
@@ -346,12 +350,25 @@ select distinct
 	ssq.completed_at as most_recent_screening_session_completed_at,
 	panel_account.first_name as panel_account_first_name,
 	panel_account.last_name as panel_account_last_name,
+	poss.description as patient_order_screening_status_description,
+	pod.description as patient_order_disposition_description,
+	pos.description as patient_order_status_description,
+	pocr.description as patient_order_closure_reason_description,
+	date_part('year', age(poq.patient_birthdate at time zone i.time_zone))::int < 18 as patient_below_age_threshold,
+	rpq.most_recent_episode_closed_at,
+	date_part('day', now() - rpq.most_recent_episode_closed_at)::int < 30 as most_recent_episode_closed_within_date_threshold,
 	poq.*
 from po_query poq
+left join patient_order_screening_status poss on poq.patient_order_screening_status_id = poss.patient_order_screening_status_id
+left join patient_order_disposition pod on poq.patient_order_disposition_id = pod.patient_order_disposition_id
+left join patient_order_status pos on poq.patient_order_status_id = pos.patient_order_status_id
+left join patient_order_closure_reason pocr on poq.patient_order_closure_reason_id = pocr.patient_order_closure_reason_id
+left join institution i on poq.institution_id=i.institution_id
 left outer join poo_query pooq ON poq.patient_order_id = pooq.patient_order_id
 left outer join poomax_query poomaxq ON poq.patient_order_id = poomaxq.patient_order_id
 left outer join ss_query ssq ON poq.patient_order_id = ssq.patient_order_id
 left outer join triage_query tq ON poq.patient_order_id = tq.patient_order_id
-left outer join account panel_account ON poq.panel_account_id = panel_account.account_id;
+left outer join account panel_account ON poq.panel_account_id = panel_account.account_id
+left outer join recent_po_query rpq on poq.patient_order_id = rpq.patient_order_id;
 
 COMMIT;

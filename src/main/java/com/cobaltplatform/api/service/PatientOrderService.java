@@ -810,7 +810,8 @@ public class PatientOrderService {
 
 		getDatabase().execute("""
 				UPDATE patient_order
-				SET patient_order_disposition_id=?, patient_order_closure_reason_id=?
+				SET patient_order_disposition_id=?, patient_order_closure_reason_id=?,
+				episode_closed_at=NULL, episode_closed_by_account_id=NULL
 				WHERE patient_order_id=?
 				""", PatientOrderDispositionId.OPEN, PatientOrderClosureReasonId.NOT_CLOSED, patientOrderId);
 
@@ -865,9 +866,10 @@ public class PatientOrderService {
 
 		getDatabase().execute("""
 				UPDATE patient_order
-				SET patient_order_disposition_id=?, patient_order_closure_reason_id=?
+				SET patient_order_disposition_id=?, patient_order_closure_reason_id=?,
+				episode_closed_at=NOW(), episode_closed_by_account_id=?
 				WHERE patient_order_id=?
-				""", PatientOrderDispositionId.CLOSED, patientOrderClosureReasonId, patientOrderId);
+				""", PatientOrderDispositionId.CLOSED, patientOrderClosureReasonId, accountId, patientOrderId);
 
 		Map<String, Object> metadata = new HashMap<>();
 		metadata.put("patientOrderClosureReasonId", patientOrderClosureReasonId);

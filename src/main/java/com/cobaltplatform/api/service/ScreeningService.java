@@ -1176,6 +1176,20 @@ public class ScreeningService {
 
 				getInteractionService().createCrisisInteraction(screeningSession.getScreeningSessionId());
 			}
+
+			// If this screening session is done for a patient order, mark the order as "crisis indicated"
+			if (screeningSession.getPatientOrderId() != null) {
+				PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(screeningSession.getPatientOrderId()).get();
+
+				if (!patientOrder.getCrisisIndicated()) {
+					getLogger().info("Patient order ID {} will be marked as 'crisis indicated'.", patientOrder.getPatientOrderId());
+					getDatabase().execute("""
+							UPDATE patient_order 
+							SET crisis_indicated=TRUE, crisis_indicated_at=NOW()
+							WHERE patient_order_id=?
+							""", patientOrder.getPatientOrderId());
+				}
+			}
 		}
 
 		if (orchestrationFunctionOutput.getCompleted()) {

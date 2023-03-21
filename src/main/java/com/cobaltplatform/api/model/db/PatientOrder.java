@@ -153,7 +153,9 @@ public class PatientOrder {
 	@Nullable
 	private String recentPsychotherapeuticMedications;
 	@Nullable
-	private Instant episodeEndedAt;
+	private Instant episodeClosedAt;
+	@Nullable
+	private UUID episodeClosedByAccountId;
 	@Nullable
 	private Boolean safetyPlanningNeeded;
 	@Nullable
@@ -162,7 +164,12 @@ public class PatientOrder {
 	private Boolean followupNeeded;
 	@Nullable
 	private Boolean resourcesSent;
+	@Nullable
 	private Instant resourcesSentAt;
+	@Nullable
+	private Boolean crisisIndicated;
+	@Nullable
+	private Instant crisisIndicatedAt;
 	@Nullable
 	private String testPatientEmailAddress;
 	@Nullable
@@ -198,6 +205,20 @@ public class PatientOrder {
 	private String panelAccountFirstName;
 	@Nullable
 	private String panelAccountLastName;
+	@Nullable
+	private String patientOrderScreeningStatusDescription;
+	@Nullable
+	private String patientOrderDispositionDescription;
+	@Nullable
+	private String patientOrderStatusDescription;
+	@Nullable
+	private String patientOrderClosureReasonDescription;
+	@Nullable
+	private Boolean patientBelowAgeThreshold;
+	@Nullable
+	private Instant mostRecentEpisodeClosedAt;
+	@Nullable
+	private Boolean mostRecentEpisodeClosedWithinDateThreshold;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -695,12 +716,21 @@ public class PatientOrder {
 	}
 
 	@Nullable
-	public Instant getEpisodeEndedAt() {
-		return this.episodeEndedAt;
+	public Instant getEpisodeClosedAt() {
+		return this.episodeClosedAt;
 	}
 
-	public void setEpisodeEndedAt(@Nullable Instant episodeEndedAt) {
-		this.episodeEndedAt = episodeEndedAt;
+	public void setEpisodeClosedAt(@Nullable Instant episodeClosedAt) {
+		this.episodeClosedAt = episodeClosedAt;
+	}
+
+	@Nullable
+	public UUID getEpisodeClosedByAccountId() {
+		return this.episodeClosedByAccountId;
+	}
+
+	public void setEpisodeClosedByAccountId(@Nullable UUID episodeClosedByAccountId) {
+		this.episodeClosedByAccountId = episodeClosedByAccountId;
 	}
 
 	@Nullable
@@ -739,12 +769,31 @@ public class PatientOrder {
 		this.resourcesSent = resourcesSent;
 	}
 
+	@Nullable
 	public Instant getResourcesSentAt() {
 		return this.resourcesSentAt;
 	}
 
-	public void setResourcesSentAt(Instant resourcesSentAt) {
+	public void setResourcesSentAt(@Nullable Instant resourcesSentAt) {
 		this.resourcesSentAt = resourcesSentAt;
+	}
+
+	@Nullable
+	public Boolean getCrisisIndicated() {
+		return this.crisisIndicated;
+	}
+
+	public void setCrisisIndicated(@Nullable Boolean crisisIndicated) {
+		this.crisisIndicated = crisisIndicated;
+	}
+
+	@Nullable
+	public Instant getCrisisIndicatedAt() {
+		return this.crisisIndicatedAt;
+	}
+
+	public void setCrisisIndicatedAt(@Nullable Instant crisisIndicatedAt) {
+		this.crisisIndicatedAt = crisisIndicatedAt;
 	}
 
 	@Nullable
@@ -889,5 +938,68 @@ public class PatientOrder {
 
 	public void setPanelAccountLastName(@Nullable String panelAccountLastName) {
 		this.panelAccountLastName = panelAccountLastName;
+	}
+
+	@Nullable
+	public String getPatientOrderScreeningStatusDescription() {
+		return this.patientOrderScreeningStatusDescription;
+	}
+
+	public void setPatientOrderScreeningStatusDescription(@Nullable String patientOrderScreeningStatusDescription) {
+		this.patientOrderScreeningStatusDescription = patientOrderScreeningStatusDescription;
+	}
+
+	@Nullable
+	public String getPatientOrderDispositionDescription() {
+		return this.patientOrderDispositionDescription;
+	}
+
+	public void setPatientOrderDispositionDescription(@Nullable String patientOrderDispositionDescription) {
+		this.patientOrderDispositionDescription = patientOrderDispositionDescription;
+	}
+
+	@Nullable
+	public String getPatientOrderStatusDescription() {
+		return this.patientOrderStatusDescription;
+	}
+
+	public void setPatientOrderStatusDescription(@Nullable String patientOrderStatusDescription) {
+		this.patientOrderStatusDescription = patientOrderStatusDescription;
+	}
+
+	@Nullable
+	public String getPatientOrderClosureReasonDescription() {
+		return this.patientOrderClosureReasonDescription;
+	}
+
+	public void setPatientOrderClosureReasonDescription(@Nullable String patientOrderClosureReasonDescription) {
+		this.patientOrderClosureReasonDescription = patientOrderClosureReasonDescription;
+	}
+
+	@Nullable
+	public Boolean getPatientBelowAgeThreshold() {
+		return this.patientBelowAgeThreshold;
+	}
+
+	public void setPatientBelowAgeThreshold(@Nullable Boolean patientBelowAgeThreshold) {
+		this.patientBelowAgeThreshold = patientBelowAgeThreshold;
+	}
+
+	@Nullable
+	public Instant getMostRecentEpisodeClosedAt() {
+		return this.mostRecentEpisodeClosedAt;
+	}
+
+	public void setMostRecentEpisodeClosedAt(@Nullable Instant mostRecentEpisodeClosedAt) {
+		this.mostRecentEpisodeClosedAt = mostRecentEpisodeClosedAt;
+	}
+
+	@Nullable
+	public Boolean getMostRecentEpisodeClosedWithinDateThreshold() {
+		return this.mostRecentEpisodeClosedWithinDateThreshold;
+	}
+
+	public void setMostRecentEpisodeClosedWithinDateThreshold(@Nullable Boolean mostRecentEpisodeClosedWithinDateThreshold) {
+		this.mostRecentEpisodeClosedWithinDateThreshold = mostRecentEpisodeClosedWithinDateThreshold;
 	}
 }

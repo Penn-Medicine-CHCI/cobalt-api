@@ -828,33 +828,33 @@ public class PatientOrderResource {
 				.map(panelAccount -> getAccountApiResponseFactory().create(panelAccount))
 				.collect(Collectors.toList());
 
-		Map<UUID, Integer> activePatientOrderCountsByPanelAccountId = getPatientOrderService().findOpenPatientOrderCountsByPanelAccountIdForInstitutionId(institutionId);
+		Map<UUID, Integer> openPatientOrderCountsByPanelAccountId = getPatientOrderService().findOpenPatientOrderCountsByPanelAccountIdForInstitutionId(institutionId);
 
-		// If there are any "holes" in the mapping of panel account IDs -> active order counts,
+		// If there are any "holes" in the mapping of panel account IDs -> open order counts,
 		// fill in the holes with 0-counts.
 		for (AccountApiResponse panelAccount : panelAccounts)
-			if (!activePatientOrderCountsByPanelAccountId.containsKey(panelAccount.getAccountId()))
-				activePatientOrderCountsByPanelAccountId.put(panelAccount.getAccountId(), 0);
+			if (!openPatientOrderCountsByPanelAccountId.containsKey(panelAccount.getAccountId()))
+				openPatientOrderCountsByPanelAccountId.put(panelAccount.getAccountId(), 0);
 
-		Map<UUID, Map<String, Object>> activePatientOrderCountsByPanelAccountIdJson = new HashMap<>(activePatientOrderCountsByPanelAccountId.size());
+		Map<UUID, Map<String, Object>> openPatientOrderCountsByPanelAccountIdJson = new HashMap<>(openPatientOrderCountsByPanelAccountId.size());
 
-		for (Entry<UUID, Integer> entry : activePatientOrderCountsByPanelAccountId.entrySet()) {
+		for (Entry<UUID, Integer> entry : openPatientOrderCountsByPanelAccountId.entrySet()) {
 			UUID panelAccountId = entry.getKey();
-			Integer activePatientOrderCount = entry.getValue();
-			activePatientOrderCountsByPanelAccountIdJson.put(panelAccountId, Map.of(
-					"activePatientOrderCount", activePatientOrderCount,
-					"activePatientOrderCountDescription", getFormatter().formatNumber(activePatientOrderCount)
+			Integer openPatientOrderCount = entry.getValue();
+			openPatientOrderCountsByPanelAccountIdJson.put(panelAccountId, Map.of(
+					"openPatientOrderCount", openPatientOrderCount,
+					"openPatientOrderCountDescription", getFormatter().formatNumber(openPatientOrderCount)
 			));
 		}
 
-		int overallActivePatientOrderCount = getPatientOrderService().findOpenPatientOrderCountByInstitutionId(account.getInstitutionId());
-		String overallActivePatientOrderCountDescription = getFormatter().formatNumber(overallActivePatientOrderCount);
+		int overallOpenPatientOrderCount = getPatientOrderService().findOpenPatientOrderCountByInstitutionId(account.getInstitutionId());
+		String overallOpenPatientOrderCountDescription = getFormatter().formatNumber(overallOpenPatientOrderCount);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("panelAccounts", panelAccounts);
-			put("activePatientOrderCountsByPanelAccountId", activePatientOrderCountsByPanelAccountIdJson);
-			put("overallActivePatientOrderCount", overallActivePatientOrderCount);
-			put("overallActivePatientOrderCountDescription", overallActivePatientOrderCountDescription);
+			put("openPatientOrderCountsByPanelAccountId", openPatientOrderCountsByPanelAccountIdJson);
+			put("overallOpenPatientOrderCount", overallOpenPatientOrderCount);
+			put("overallOpenPatientOrderCountDescription", overallOpenPatientOrderCountDescription);
 		}});
 	}
 
