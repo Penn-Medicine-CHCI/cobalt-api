@@ -303,6 +303,24 @@ public class ScreeningService {
 	}
 
 	@Nonnull
+	public Optional<ScreeningSession> findMostRecentCompletedTriageScreeningSession (@Nullable UUID accountId,
+																																									 @Nullable UUID triageScreeningFlowId){
+		if (accountId == null || triageScreeningFlowId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT ss.*
+				FROM screening_session ss, screening_flow_version sfv
+				WHERE sfv.screening_flow_version_id=ss.screening_flow_version_id
+				AND sfv.screening_flow_id=? 
+				AND ss.completed = TRUE
+				AND ss.target_account_id=?
+				ORDER BY ss.last_updated DESC
+				LIMIT 1
+				""", ScreeningSession.class, triageScreeningFlowId, accountId);
+	}
+
+	@Nonnull
 	public List<SupportRole> findRecommendedSupportRolesByAccountId(@Nullable UUID accountId,
 																																	@Nullable UUID triageScreeningFlowId) {
 		if (accountId == null || triageScreeningFlowId == null)
@@ -313,16 +331,8 @@ public class ScreeningService {
 		if (account == null)
 			return Collections.emptyList();
 
-		ScreeningSession mostRecentCompletedTriageScreeningSession = getDatabase().queryForObject("""
-				SELECT ss.*
-				FROM screening_session ss, screening_flow_version sfv
-				WHERE sfv.screening_flow_version_id=ss.screening_flow_version_id
-				AND sfv.screening_flow_id=? 
-				AND ss.completed = TRUE
-				AND ss.target_account_id=?
-				ORDER BY ss.last_updated DESC
-				LIMIT 1
-				""", ScreeningSession.class, triageScreeningFlowId, accountId).orElse(null);
+		ScreeningSession mostRecentCompletedTriageScreeningSession =
+				findMostRecentCompletedTriageScreeningSession(triageScreeningFlowId, accountId).orElse(null);
 
 		if (mostRecentCompletedTriageScreeningSession == null)
 			return Collections.emptyList();

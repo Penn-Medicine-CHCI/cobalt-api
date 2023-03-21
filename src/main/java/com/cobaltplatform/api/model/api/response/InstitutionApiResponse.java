@@ -19,9 +19,13 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.service.Feature;
 import com.cobaltplatform.api.model.service.NavigationItem;
+import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.TopicCenterService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
@@ -31,6 +35,7 @@ import com.lokalized.Strings;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import javax.inject.Provider;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -108,23 +113,35 @@ public class InstitutionApiResponse {
 	private final String ga4MeasurementId;
 	@Nonnull
 	private final List<NavigationItem> additionalNavigationItems;
+	@Nonnull
+	private final List<Feature> features;
+	@Nonnull
+	private final Boolean displayFeatures;
+
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface InstitutionApiResponseFactory {
 		@Nonnull
-		InstitutionApiResponse create(@Nonnull Institution institution);
+		InstitutionApiResponse create(@Nonnull Institution institution,
+																	@Nonnull CurrentContext currentContext);
 	}
 
 	@AssistedInject
 	public InstitutionApiResponse(@Nonnull TopicCenterService topicCenterService,
+																@Nonnull InstitutionService institutionService,
 																@Nonnull Formatter formatter,
 																@Nonnull Strings strings,
-																@Assisted @Nonnull Institution institution) {
+																@Assisted @Nonnull Institution institution,
+																@Assisted @Nonnull CurrentContext currentContext) {
 		requireNonNull(topicCenterService);
+		requireNonNull(institutionService);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(institution);
+		requireNonNull(currentContext);
+
+		Account account = currentContext.getAccount().orElse(null);
 
 		// TODO: we are "blanking out" some fields until FE can transition away from using them.
 		// This is to provide backwards compatibility for JS clients, so they don't blow up when BE is updated.
@@ -159,6 +176,8 @@ public class InstitutionApiResponse {
 		this.groupSessionRequestsEnabled = institution.getGroupSessionRequestsEnabled();
 		this.ga4MeasurementId = institution.getGa4MeasurementId();
 		this.additionalNavigationItems = topicCenterService.findTopicCenterNavigationItemsByInstitutionId(institutionId);
+		this.features = institutionService.findFeaturesByInstitutionId(institutionId, account);
+		this.displayFeatures = this.features.size() > 0;
 	}
 
 	@Nonnull
@@ -312,5 +331,15 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public List<NavigationItem> getAdditionalNavigationItems() {
 		return this.additionalNavigationItems;
+	}
+
+	@Nonnull
+	public List<Feature> getFeatures() {
+		return features;
+	}
+
+	@Nonnull
+	public Boolean getDisplayFeatures() {
+		return displayFeatures;
 	}
 }

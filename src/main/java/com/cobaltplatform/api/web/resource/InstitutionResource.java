@@ -151,7 +151,7 @@ public class InstitutionResource {
 				.collect(Collectors.toList());
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("institution", getInstitutionApiResponseFactory().create(institution));
+			put("institution", getInstitutionApiResponseFactory().create(institution, getCurrentContext()));
 			put("accountSources", accountSources);
 		}});
 	}

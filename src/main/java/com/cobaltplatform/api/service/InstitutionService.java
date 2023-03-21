@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionBlurb;
@@ -28,7 +29,9 @@ import com.cobaltplatform.api.model.db.InstitutionTeamMember;
 import com.cobaltplatform.api.model.db.InstitutionUrl;
 import com.cobaltplatform.api.model.db.Insurance;
 import com.cobaltplatform.api.model.db.InsuranceType.InsuranceTypeId;
+import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
+import com.cobaltplatform.api.model.service.Feature;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -39,6 +42,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
+import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -68,22 +72,27 @@ public class InstitutionService {
 	private final Strings strings;
 	@Nonnull
 	private final Logger logger;
+	@Nonnull
+	private final Provider<ScreeningService> screeningServiceProvider;
 
 	@Inject
 	public InstitutionService(@Nonnull Database database,
 														@Nonnull JsonMapper jsonMapper,
 														@Nonnull Configuration configuration,
-														@Nonnull Strings strings) {
+														@Nonnull Strings strings,
+														@Nonnull Provider<ScreeningService> screeningServiceProvider) {
 		requireNonNull(database);
 		requireNonNull(jsonMapper);
 		requireNonNull(configuration);
 		requireNonNull(strings);
+		requireNonNull(screeningServiceProvider);
 
 		this.database = database;
 		this.jsonMapper = jsonMapper;
 		this.configuration = configuration;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
+		this.screeningServiceProvider = screeningServiceProvider;
 	}
 
 	@Nonnull
@@ -315,6 +324,24 @@ public class InstitutionService {
 	}
 
 	@Nonnull
+	public List<Feature> findFeaturesByInstitutionId(@Nullable InstitutionId institutionId, @Nullable Account account) {
+		if (institutionId == null || account == null)
+			return List.of();
+		
+		Institution institution = findInstitutionById(institutionId).get();
+		Optional<ScreeningSession> mostRecentCompletedTriageScreeningSession =
+				getScreeningServiceProvider().get().findMostRecentCompletedTriageScreeningSession(account.getAccountId(), institution.getProviderTriageScreeningFlowId());
+
+		UUID screeningSessionId = mostRecentCompletedTriageScreeningSession.isPresent() ? mostRecentCompletedTriageScreeningSession.get().getScreeningSessionId() : null;
+		return getDatabase().queryForList("SELECT f.feature_id, f.url_name, f.name, if.description, CASE WHEN ss.screening_session_id IS NOT NULL THEN true ELSE false END AS recommended " +
+				"FROM feature f, institution_feature if  " +
+				"LEFT OUTER JOIN screening_session_feature_recommendation ss " +
+				"ON if.institution_feature_id = ss.institution_feature_id " +
+				"AND ss.screening_session_id = ? " +
+				"WHERE f.feature_id = if.feature_id AND if.institution_id = ? ORDER BY if.display_order", Feature.class, screeningSessionId, institutionId);
+	}
+
+	@Nonnull
 	protected Database getDatabase() {
 		return database;
 	}
@@ -337,5 +364,10 @@ public class InstitutionService {
 	@Nonnull
 	protected Logger getLogger() {
 		return logger;
+	}
+
+	@Nonnull
+	public Provider<ScreeningService> getScreeningServiceProvider() {
+		return screeningServiceProvider;
 	}
 }
