@@ -21,6 +21,7 @@ package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.request.AssignPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderNoteRequest;
@@ -44,6 +45,7 @@ import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFormat;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseSupplement;
+import com.cobaltplatform.api.model.api.response.PatientOrderAutocompleteResultApiResponse.PatientOrderAutocompleteResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderTriageApiResponse.PatientOrderTriageApiResponseFactory;
@@ -56,6 +58,7 @@ import com.cobaltplatform.api.model.db.GenderIdentity;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason;
+import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderOutreach;
@@ -64,13 +67,14 @@ import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.Race;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.model.service.PatientOrderAutocompleteResult;
 import com.cobaltplatform.api.model.service.PatientOrderImportResult;
-import com.cobaltplatform.api.model.service.PatientOrderPanelTypeId;
 import com.cobaltplatform.api.model.service.Region;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.PatientOrderService;
+import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.PatientOrderCsvGenerator;
@@ -134,6 +138,8 @@ public class PatientOrderResource {
 	@Nonnull
 	private final AuthorizationService authorizationService;
 	@Nonnull
+	private final ScreeningService screeningService;
+	@Nonnull
 	private final PatientOrderApiResponseFactory patientOrderApiResponseFactory;
 	@Nonnull
 	private final PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory;
@@ -151,6 +157,8 @@ public class PatientOrderResource {
 	private final CountryApiResponseFactory countryApiResponseFactory;
 	@Nonnull
 	private final InsuranceApiResponseFactory insuranceApiResponseFactory;
+	@Nonnull
+	private final PatientOrderAutocompleteResultApiResponseFactory patientOrderAutocompleteResultApiResponseFactory;
 	@Nonnull
 	private final PatientOrderCsvGenerator patientOrderCsvGenerator;
 	@Nonnull
@@ -171,6 +179,7 @@ public class PatientOrderResource {
 															@Nonnull AccountService accountService,
 															@Nonnull InstitutionService institutionService,
 															@Nonnull AuthorizationService authorizationService,
+															@Nonnull ScreeningService screeningService,
 															@Nonnull PatientOrderApiResponseFactory patientOrderApiResponseFactory,
 															@Nonnull PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory,
 															@Nonnull PatientOrderOutreachApiResponseFactory patientOrderOutreachApiResponseFactory,
@@ -180,6 +189,7 @@ public class PatientOrderResource {
 															@Nonnull LanguageApiResponseFactory languageApiResponseFactory,
 															@Nonnull CountryApiResponseFactory countryApiResponseFactory,
 															@Nonnull InsuranceApiResponseFactory insuranceApiResponseFactory,
+															@Nonnull PatientOrderAutocompleteResultApiResponseFactory patientOrderAutocompleteResultApiResponseFactory,
 															@Nonnull PatientOrderCsvGenerator patientOrderCsvGenerator,
 															@Nonnull RequestBodyParser requestBodyParser,
 															@Nonnull JsonMapper jsonMapper,
@@ -190,6 +200,7 @@ public class PatientOrderResource {
 		requireNonNull(accountService);
 		requireNonNull(institutionService);
 		requireNonNull(authorizationService);
+		requireNonNull(screeningService);
 		requireNonNull(patientOrderApiResponseFactory);
 		requireNonNull(patientOrderNoteApiResponseFactory);
 		requireNonNull(patientOrderOutreachApiResponseFactory);
@@ -199,6 +210,7 @@ public class PatientOrderResource {
 		requireNonNull(languageApiResponseFactory);
 		requireNonNull(countryApiResponseFactory);
 		requireNonNull(insuranceApiResponseFactory);
+		requireNonNull(patientOrderAutocompleteResultApiResponseFactory);
 		requireNonNull(patientOrderCsvGenerator);
 		requireNonNull(requestBodyParser);
 		requireNonNull(jsonMapper);
@@ -210,6 +222,7 @@ public class PatientOrderResource {
 		this.accountService = accountService;
 		this.institutionService = institutionService;
 		this.authorizationService = authorizationService;
+		this.screeningService = screeningService;
 		this.patientOrderApiResponseFactory = patientOrderApiResponseFactory;
 		this.patientOrderNoteApiResponseFactory = patientOrderNoteApiResponseFactory;
 		this.patientOrderOutreachApiResponseFactory = patientOrderOutreachApiResponseFactory;
@@ -219,6 +232,7 @@ public class PatientOrderResource {
 		this.languageApiResponseFactory = languageApiResponseFactory;
 		this.countryApiResponseFactory = countryApiResponseFactory;
 		this.insuranceApiResponseFactory = insuranceApiResponseFactory;
+		this.patientOrderAutocompleteResultApiResponseFactory = patientOrderAutocompleteResultApiResponseFactory;
 		this.patientOrderCsvGenerator = patientOrderCsvGenerator;
 		this.requestBodyParser = requestBodyParser;
 		this.jsonMapper = jsonMapper;
@@ -409,14 +423,16 @@ public class PatientOrderResource {
 	@Nonnull
 	@GET("/patient-orders")
 	@AuthenticationRequired
-	public ApiResponse findPatientOrders(@Nonnull @QueryParameter Optional<PatientOrderPanelTypeId> patientOrderPanelTypeId,
+	public ApiResponse findPatientOrders(@Nonnull @QueryParameter Optional<PatientOrderDispositionId> patientOrderDispositionId,
+																			 @Nonnull @QueryParameter("patientOrderStatusId") Optional<List<PatientOrderStatusId>> patientOrderStatusIds,
 																			 @Nonnull @QueryParameter Optional<UUID> panelAccountId,
-																			 @Nonnull @QueryParameter Optional<String> searchQuery,
+																			 @Nonnull @QueryParameter Optional<String> patientMrn,
 																			 @Nonnull @QueryParameter Optional<Integer> pageNumber,
 																			 @Nonnull @QueryParameter Optional<Integer> pageSize) {
-		requireNonNull(patientOrderPanelTypeId);
+		requireNonNull(patientOrderDispositionId);
+		requireNonNull(patientOrderStatusIds);
 		requireNonNull(panelAccountId);
-		requireNonNull(searchQuery);
+		requireNonNull(patientMrn);
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
 
@@ -438,9 +454,10 @@ public class PatientOrderResource {
 		FindResult<PatientOrder> findResult = getPatientOrderService().findPatientOrders(new FindPatientOrdersRequest() {
 			{
 				setInstitutionId(account.getInstitutionId());
-				setPatientOrderPanelTypeId(patientOrderPanelTypeId.orElse(null));
+				setPatientOrderDispositionId(patientOrderDispositionId.orElse(null));
+				setPatientOrderStatusIds(new HashSet<>(patientOrderStatusIds.orElse(List.of())));
 				setPanelAccountId(panelAccountId.orElse(null));
-				setSearchQuery(searchQuery.orElse(null));
+				setPatientMrn(patientMrn.orElse(null));
 				setPageNumber(pageNumber.orElse(0));
 				setPageSize(pageSize.orElse(0));
 			}
@@ -457,37 +474,64 @@ public class PatientOrderResource {
 		findResultJson.put("totalCount", findResult.getTotalCount());
 		findResultJson.put("totalCountDescription", getFormatter().formatNumber(findResult.getTotalCount()));
 
+		// If there's a panel account provided, return it
 		Account panelAccount = getAccountService().findAccountById(panelAccountId.orElse(null)).orElse(null);
 
-		// Total active orders for this panel
-		Integer activePatientOrdersCount = panelAccount == null
-				? getPatientOrderService().findActivePatientOrderCountByInstitutionId(institutionId)
-				: getPatientOrderService().findActivePatientOrderCountByPanelAccountIdForInstitutionId(panelAccount.getAccountId(), institutionId);
-
-		String activePatientOrdersCountDescription = getFormatter().formatNumber(activePatientOrdersCount);
-
-		// Order counts by status
-		Map<PatientOrderStatusId, Integer> activePatientOrderCountsByPatientOrderStatusId = getPatientOrderService().findActivePatientOrderCountsByPatientOrderStatusIdForPanelAccountIdAndInstitutionId(panelAccountId.orElse(null), institutionId);
-
-		Map<PatientOrderStatusId, Map<String, Object>> activePatientOrderCountsByPatientOrderStatusIdJson = new HashMap<>();
-
-		for (Entry<PatientOrderStatusId, Integer> entry : activePatientOrderCountsByPatientOrderStatusId.entrySet()) {
-			PatientOrderStatusId patientOrderStatusId = entry.getKey();
-			Integer count = entry.getValue();
-
-			Map<String, Object> countJson = new HashMap<>();
-			countJson.put("count", count);
-			countJson.put("countDescription", getFormatter().formatNumber(count));
-
-			activePatientOrderCountsByPatientOrderStatusIdJson.put(patientOrderStatusId, countJson);
-		}
+		// If there's a patient MRN provided, return it in the form of an autocomplete result.
+		// We assume this one is just whatever the first result is...
+		PatientOrderAutocompleteResult patientOrderAutocompleteResult = patientMrn.isPresent() ? getPatientOrderService().findPatientOrderAutocompleteResultByMrn(patientMrn.get(), institutionId).orElse(null) : null;
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("findResult", findResultJson);
 			put("panelAccount", panelAccount == null ? null : getAccountApiResponseFactory().create(panelAccount));
-			put("activePatientOrdersCount", activePatientOrdersCount);
-			put("activePatientOrdersCountDescription", activePatientOrdersCountDescription);
-			put("activePatientOrderCountsByPatientOrderStatusId", activePatientOrderCountsByPatientOrderStatusIdJson);
+			put("patientOrderAutocompleteResult", patientOrderAutocompleteResult == null ? null : getPatientOrderAutocompleteResultApiResponseFactory().create(patientOrderAutocompleteResult));
+		}});
+	}
+
+	@Nonnull
+	@GET("/patient-orders/autocomplete")
+	@AuthenticationRequired
+	public ApiResponse patientOrderAutocomplete(@Nonnull @QueryParameter Optional<String> searchQuery) {
+		requireNonNull(searchQuery);
+
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = account.getInstitutionId();
+
+		if (!getAuthorizationService().canViewPatientOrders(institutionId, account))
+			throw new AuthorizationException();
+
+		List<PatientOrderAutocompleteResult> results = getPatientOrderService().findPatientOrderAutocompleteResults(searchQuery.orElse(null), institutionId);
+
+		return new ApiResponse(new HashMap<>() {{
+			put("patientOrderAutocompleteResults", results.stream()
+					.map(result -> getPatientOrderAutocompleteResultApiResponseFactory().create(result))
+					.collect(Collectors.toList()));
+		}});
+	}
+
+	@Nonnull
+	@POST("/patient-orders/assign")
+	@AuthenticationRequired
+	public ApiResponse assignPatientOrders(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = account.getInstitutionId();
+
+		if (!getAuthorizationService().canViewPatientOrders(institutionId, account))
+			throw new AuthorizationException();
+
+		AssignPatientOrdersRequest request = getRequestBodyParser().parse(requestBody, AssignPatientOrdersRequest.class);
+		request.setAssignedByAccountId(account.getAccountId());
+
+		if (!getPatientOrderService().arePatientOrderIdsAssociatedWithInstitutionId(request.getPatientOrderIds(), institutionId))
+			throw new AuthorizationException();
+
+		int assignedCount = getPatientOrderService().assignPatientOrdersToPanelAccount(request);
+
+		return new ApiResponse(new HashMap<>() {{
+			put("assignedCount", assignedCount);
+			put("assignedCountDescription", getFormatter().formatNumber(assignedCount));
 		}});
 	}
 
@@ -532,7 +576,7 @@ public class PatientOrderResource {
 		request.setInstitutionId(account.getInstitutionId());
 		request.setAccountId(account.getAccountId());
 		request.setPatientOrderImportTypeId(PatientOrderImportTypeId.CSV);
-		request.setAutomaticallyAssignToPanelAccounts(true);
+		request.setAutomaticallyAssignToPanelAccounts(false);
 
 		PatientOrderImportResult patientOrderImportResult = getPatientOrderService().createPatientOrderImport(request);
 
@@ -784,33 +828,33 @@ public class PatientOrderResource {
 				.map(panelAccount -> getAccountApiResponseFactory().create(panelAccount))
 				.collect(Collectors.toList());
 
-		Map<UUID, Integer> activePatientOrderCountsByPanelAccountId = getPatientOrderService().findActivePatientOrderCountsByPanelAccountIdForInstitutionId(institutionId);
+		Map<UUID, Integer> openPatientOrderCountsByPanelAccountId = getPatientOrderService().findOpenPatientOrderCountsByPanelAccountIdForInstitutionId(institutionId);
 
-		// If there are any "holes" in the mapping of panel account IDs -> active order counts,
+		// If there are any "holes" in the mapping of panel account IDs -> open order counts,
 		// fill in the holes with 0-counts.
 		for (AccountApiResponse panelAccount : panelAccounts)
-			if (!activePatientOrderCountsByPanelAccountId.containsKey(panelAccount.getAccountId()))
-				activePatientOrderCountsByPanelAccountId.put(panelAccount.getAccountId(), 0);
+			if (!openPatientOrderCountsByPanelAccountId.containsKey(panelAccount.getAccountId()))
+				openPatientOrderCountsByPanelAccountId.put(panelAccount.getAccountId(), 0);
 
-		Map<UUID, Map<String, Object>> activePatientOrderCountsByPanelAccountIdJson = new HashMap<>(activePatientOrderCountsByPanelAccountId.size());
+		Map<UUID, Map<String, Object>> openPatientOrderCountsByPanelAccountIdJson = new HashMap<>(openPatientOrderCountsByPanelAccountId.size());
 
-		for (Entry<UUID, Integer> entry : activePatientOrderCountsByPanelAccountId.entrySet()) {
+		for (Entry<UUID, Integer> entry : openPatientOrderCountsByPanelAccountId.entrySet()) {
 			UUID panelAccountId = entry.getKey();
-			Integer activePatientOrderCount = entry.getValue();
-			activePatientOrderCountsByPanelAccountIdJson.put(panelAccountId, Map.of(
-					"activePatientOrderCount", activePatientOrderCount,
-					"activePatientOrderCountDescription", getFormatter().formatNumber(activePatientOrderCount)
+			Integer openPatientOrderCount = entry.getValue();
+			openPatientOrderCountsByPanelAccountIdJson.put(panelAccountId, Map.of(
+					"openPatientOrderCount", openPatientOrderCount,
+					"openPatientOrderCountDescription", getFormatter().formatNumber(openPatientOrderCount)
 			));
 		}
 
-		int overallActivePatientOrderCount = getPatientOrderService().findActivePatientOrderCountByInstitutionId(account.getInstitutionId());
-		String overallActivePatientOrderCountDescription = getFormatter().formatNumber(overallActivePatientOrderCount);
+		int overallOpenPatientOrderCount = getPatientOrderService().findOpenPatientOrderCountByInstitutionId(account.getInstitutionId());
+		String overallOpenPatientOrderCountDescription = getFormatter().formatNumber(overallOpenPatientOrderCount);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("panelAccounts", panelAccounts);
-			put("activePatientOrderCountsByPanelAccountId", activePatientOrderCountsByPanelAccountIdJson);
-			put("overallActivePatientOrderCount", overallActivePatientOrderCount);
-			put("overallActivePatientOrderCountDescription", overallActivePatientOrderCountDescription);
+			put("openPatientOrderCountsByPanelAccountId", openPatientOrderCountsByPanelAccountIdJson);
+			put("overallOpenPatientOrderCount", overallOpenPatientOrderCount);
+			put("overallOpenPatientOrderCountDescription", overallOpenPatientOrderCountDescription);
 		}});
 	}
 
@@ -892,6 +936,35 @@ public class PatientOrderResource {
 				.map(ethnicity -> Map.<String, Object>of("ethnicityId", ethnicity.getEthnicityId(), "description", ethnicity.getDescription()))
 				.collect(Collectors.toList());
 
+		// Screening data
+		List<Map<String, Object>> screeningTypes = getScreeningService().findScreeningTypes().stream()
+				.map(screeningType -> {
+					Map<String, Object> screeningTypeJson = new HashMap<>();
+					screeningTypeJson.put("screeningTypeId", screeningType.getScreeningTypeId());
+					screeningTypeJson.put("description", screeningType.getDescription());
+					screeningTypeJson.put("overallScoreMaximum", screeningType.getOverallScoreMaximum());
+					return screeningTypeJson;
+				})
+				.collect(Collectors.toList());
+
+		List<Map<String, Object>> patientOrderStatuses = getPatientOrderService().findPatientOrderStatuses().stream()
+				.map(patientOrderStatus -> {
+					Map<String, Object> patientOrderStatusJson = new HashMap<>();
+					patientOrderStatusJson.put("patientOrderStatusId", patientOrderStatus.getPatientOrderStatusId());
+					patientOrderStatusJson.put("description", patientOrderStatus.getDescription());
+					return patientOrderStatusJson;
+				})
+				.collect(Collectors.toList());
+
+		List<Map<String, Object>> patientOrderDispositions = getPatientOrderService().findPatientOrderDispositions().stream()
+				.map(patientOrderDisposition -> {
+					Map<String, Object> patientOrderDispositionJson = new HashMap<>();
+					patientOrderDispositionJson.put("patientOrderDispositionId", patientOrderDisposition.getPatientOrderDispositionId());
+					patientOrderDispositionJson.put("description", patientOrderDisposition.getDescription());
+					return patientOrderDispositionJson;
+				})
+				.collect(Collectors.toList());
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("timeZones", timeZones);
 			put("countries", countries);
@@ -902,6 +975,9 @@ public class PatientOrderResource {
 			put("birthSexes", birthSexes);
 			put("ethnicities", ethnicities);
 			put("regionsByCountryCode", normalizedRegionsByCountryCode);
+			put("screeningTypes", screeningTypes);
+			put("patientOrderStatuses", patientOrderStatuses);
+			put("patientOrderDispositions", patientOrderDispositions);
 		}});
 	}
 
@@ -962,6 +1038,11 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
+	protected ScreeningService getScreeningService() {
+		return this.screeningService;
+	}
+
+	@Nonnull
 	protected PatientOrderApiResponseFactory getPatientOrderApiResponseFactory() {
 		return this.patientOrderApiResponseFactory;
 	}
@@ -1004,6 +1085,11 @@ public class PatientOrderResource {
 	@Nonnull
 	protected InsuranceApiResponseFactory getInsuranceApiResponseFactory() {
 		return this.insuranceApiResponseFactory;
+	}
+
+	@Nonnull
+	protected PatientOrderAutocompleteResultApiResponseFactory getPatientOrderAutocompleteResultApiResponseFactory() {
+		return this.patientOrderAutocompleteResultApiResponseFactory;
 	}
 
 	@Nonnull
