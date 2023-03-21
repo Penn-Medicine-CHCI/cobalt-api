@@ -38,6 +38,7 @@ import com.cobaltplatform.api.model.api.request.UpdateAccountAccessTokenExpirati
 import com.cobaltplatform.api.model.api.request.UpdateAccountBetaStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountConsentFormAcceptedRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountEmailAddressRequest;
+import com.cobaltplatform.api.model.api.request.UpdateAccountLocationRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountPhoneNumberRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountRoleRequest;
 import com.cobaltplatform.api.model.api.request.UpdateBetaFeatureAlertRequest;
@@ -965,6 +966,36 @@ public class AccountResource {
 		response.put("emailAddress", currentAccount.getEmailAddress());
 
 		return new ApiResponse(response);
+	}
+
+	@Nonnull
+	@PUT("/accounts/{accountId}/location")
+	@AuthenticationRequired
+	public ApiResponse updateAccountLocation(@Nonnull @PathParameter UUID accountId,
+																					 @Nonnull @RequestBody String body) {
+		requireNonNull(accountId);
+		requireNonNull(body);
+
+		Account currentAccount = getCurrentContext().getAccount().get();
+
+		if (!currentAccount.getAccountId().equals(accountId))
+			throw new AuthorizationException();
+
+		Account account = getAccountService().findAccountById(accountId).orElse(null);
+
+		if (account == null)
+			throw new NotFoundException();
+
+		UpdateAccountLocationRequest request = getRequestBodyParser().parse(body, UpdateAccountLocationRequest.class);
+		request.setAccountId(accountId);
+
+		getAccountService().updateAccountLocation(request);
+
+		Account updatedAccount = getAccountService().findAccountById(accountId).get();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("account", getAccountApiResponseFactory().create(updatedAccount));
+		}});
 	}
 
 	@Nonnull

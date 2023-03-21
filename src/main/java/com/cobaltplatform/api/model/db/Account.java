@@ -136,6 +136,8 @@ public class Account {
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
+	@Nullable
+	private UUID institutionLocationId;
 
 	@Nonnull
 	public Map<String, Object> getMetadataAsMap() {
@@ -510,5 +512,14 @@ public class Account {
 
 	public void setBirthdate(@Nullable LocalDate birthdate) {
 		this.birthdate = birthdate;
+	}
+
+	@Nullable
+	public UUID getInstitutionLocationId() {
+		return institutionLocationId;
+	}
+
+	public void setInstitutionLocationId(@Nullable UUID institutionLocationId) {
+		this.institutionLocationId = institutionLocationId;
 	}
 }

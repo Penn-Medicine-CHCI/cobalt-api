@@ -25,6 +25,7 @@ import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionBlurb;
 import com.cobaltplatform.api.model.db.InstitutionBlurbTeamMember;
+import com.cobaltplatform.api.model.db.InstitutionLocation;
 import com.cobaltplatform.api.model.db.InstitutionTeamMember;
 import com.cobaltplatform.api.model.db.InstitutionUrl;
 import com.cobaltplatform.api.model.db.Insurance;
@@ -355,6 +356,14 @@ public class InstitutionService {
 				"WHERE f.feature_id = if.feature_id AND if.institution_id = ? ORDER BY if.display_order", Feature.class, screeningSessionId, institution.getInstitutionId());
 	}
 
+
+	@Nonnull
+	public List<InstitutionLocation> findLocationsInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("SELECT * FROM institution_location WHERE institution_id = ?", InstitutionLocation.class, institutionId);
+	}
 	@Nonnull
 	protected Database getDatabase() {
 		return database;

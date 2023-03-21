@@ -86,6 +86,7 @@ import com.cobaltplatform.api.model.api.response.GroupSessionResponseApiResponse
 import com.cobaltplatform.api.model.api.response.GroupTopicApiResponse.GroupTopicApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionBlurbApiResponse.InstitutionBlurbApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.InstitutionLocationApiResponse;
 import com.cobaltplatform.api.model.api.response.InstitutionTeamMemberApiResponse.InstitutionTeamMemberApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InsuranceApiResponse.InsuranceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InteractionInstanceApiResponse.InteractionInstanceApiResponseFactory;
@@ -123,6 +124,7 @@ import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApi
 import com.cobaltplatform.api.model.api.response.TopicCenterApiResponse.TopicCenterApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TopicCenterRowApiResponse.TopicCenterRowApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.VisitTypeApiResponse.VisitTypeApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.InstitutionLocationApiResponse.InstitutionLocationApiResponseFactory;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.InstitutionService;
@@ -277,6 +279,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(PatientOrderMedicationApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PatientOrderOutreachApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PatientOrderTriageApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(InstitutionLocationApiResponseFactory.class)));
 	}
 
 	@Provides
