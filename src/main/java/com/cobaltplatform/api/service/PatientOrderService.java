@@ -1415,9 +1415,14 @@ public class PatientOrderService {
 			if (containsTestPatientData && !getConfiguration().getShouldEnableIcDebugging())
 				throw new IllegalStateException("Cannot upload test patient data in this environment.");
 
+			getLogger().info("Importing patient orders from CSV...");
+			int i = 0;
+
 			// Pull data from the CSV
 			try (Reader reader = new StringReader(csvContent)) {
 				for (CSVRecord record : CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(reader)) {
+					getLogger().info("Importing patient order {}...", ++i);
+
 					CreatePatientOrderRequest patientOrderRequest = new CreatePatientOrderRequest();
 					patientOrderRequest.setPatientOrderImportId(patientOrderImportId);
 					patientOrderRequest.setInstitutionId(institutionId);

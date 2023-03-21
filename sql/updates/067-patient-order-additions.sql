@@ -275,6 +275,7 @@ ALTER TABLE patient_order ADD COLUMN crisis_indicated BOOLEAN NOT NULL DEFAULT F
 ALTER TABLE patient_order ADD COLUMN crisis_indicated_at TIMESTAMPTZ;
 
 ALTER TABLE patient_order RENAME COLUMN episode_ended_at TO episode_closed_at;
+ALTER TABLE patient_order ADD COLUMN episode_closed_by_account_id UUID REFERENCES account(account_id);
 
 DROP VIEW v_patient_order;
 
