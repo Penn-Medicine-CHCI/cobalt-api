@@ -81,6 +81,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -318,6 +319,34 @@ public class ScreeningService {
 				ORDER BY ss.last_updated DESC
 				LIMIT 1
 				""", ScreeningSession.class, triageScreeningFlowId, accountId);
+	}
+
+	@Nonnull
+	public Boolean triageSessionAvailable (@Nullable UUID accountId,
+																				 @Nullable UUID triageScreeningFlowId){
+		if (accountId == null || triageScreeningFlowId == null)
+			return false;
+
+		Optional<ScreeningSession> screeningSession = findMostRecentCompletedTriageScreeningSession(accountId, triageScreeningFlowId);
+
+		//If there is no screeening session then return true because this user has not taken a screeening
+		if (!screeningSession.isPresent())
+			return true;
+
+		Optional<ScreeningFlow> screeningFlow = findScreeningFlowById(triageScreeningFlowId);
+
+		if (!screeningFlow.isPresent())
+			return false;
+
+		Optional<ScreeningFlowVersion> screeningFlowVersion = findScreeningFlowVersionById(screeningFlow.get().getActiveScreeningFlowVersionId());
+
+		if (!screeningFlowVersion.isPresent())
+			return false;
+
+		if (Duration.between(screeningSession.get().getCompletedAt(), Instant.now()).toMinutes() > screeningFlowVersion.get().getMinutesUntilRetake())
+			return true;
+		else
+			return false;
 	}
 
 	@Nonnull

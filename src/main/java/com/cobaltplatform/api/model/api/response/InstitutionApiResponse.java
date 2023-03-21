@@ -26,6 +26,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.service.Feature;
 import com.cobaltplatform.api.model.service.NavigationItem;
 import com.cobaltplatform.api.service.InstitutionService;
+import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.service.TopicCenterService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
@@ -117,7 +118,8 @@ public class InstitutionApiResponse {
 	private final List<Feature> features;
 	@Nonnull
 	private final Boolean displayFeatures;
-
+	@Nonnull
+	private final Boolean takeTriageScreening;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -133,13 +135,15 @@ public class InstitutionApiResponse {
 																@Nonnull Formatter formatter,
 																@Nonnull Strings strings,
 																@Assisted @Nonnull Institution institution,
-																@Assisted @Nonnull CurrentContext currentContext) {
+																@Assisted @Nonnull CurrentContext currentContext,
+																@Nonnull ScreeningService screeningService) {
 		requireNonNull(topicCenterService);
 		requireNonNull(institutionService);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(institution);
 		requireNonNull(currentContext);
+		requireNonNull(screeningService);
 
 		Account account = currentContext.getAccount().orElse(null);
 
@@ -178,6 +182,7 @@ public class InstitutionApiResponse {
 		this.additionalNavigationItems = topicCenterService.findTopicCenterNavigationItemsByInstitutionId(institutionId);
 		this.features = institutionService.findFeaturesByInstitutionId(institutionId, account);
 		this.displayFeatures = this.features.size() > 0;
+		this.takeTriageScreening = screeningService.triageSessionAvailable(account.getAccountId(), institution.getProviderTriageScreeningFlowId());
 	}
 
 	@Nonnull
@@ -341,5 +346,10 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public Boolean getDisplayFeatures() {
 		return displayFeatures;
+	}
+
+	@Nonnull
+	public Boolean getTakeTriageScreening() {
+		return takeTriageScreening;
 	}
 }
