@@ -25,40 +25,35 @@ import javax.annotation.concurrent.NotThreadSafe;
 import static java.lang.String.format;
 
 /**
- * @author Transmogrify, LLC.
+ * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class PatientOrderStatus {
+public class PatientOrderDisposition {
 	@Nullable
-	private PatientOrderStatusId patientOrderStatusId;
+	private PatientOrderDispositionId patientOrderDispositionId;
 	@Nullable
 	private String description;
 	@Nullable
 	private Integer displayOrder;
 
-	public enum PatientOrderStatusId {
-		PENDING, // Unassigned
-		NEEDS_ASSESSMENT, // Assigned, but none of the below apply.  Also note, we are in this state if unscheduled but "screening in progress"
-		SCHEDULED, // Unscreened, but has a call scheduled with an MHIC to take the screening (uncanceled patient_order_scheduled_screening)
-		SAFETY_PLANNING, // Screening completed, most severe level of care type triage is SAFETY_PLANNING
-		SPECIALTY_CARE, // Screening completed, most severe level of care type triage is SPECIALTY
-		SUBCLINICAL, // Screening completed, most severe level of care type triage is SUBCLINICAL
-		BHP // Screening completed, most severe level of care type triage is COLLABORATIVE.  Patient or MHIC can schedule with a provider
+	public enum PatientOrderDispositionId {
+		OPEN,
+		CLOSED,
+		ARCHIVED
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{patientOrderStatusId=%s, description=%s}", getClass().getSimpleName(),
-				getPatientOrderStatusId(), getDescription());
+		return format("%s{patientOrderDispositionId=%s, description=%s}", getClass().getSimpleName(), getPatientOrderDispositionId(), getDescription());
 	}
 
 	@Nullable
-	public PatientOrderStatusId getPatientOrderStatusId() {
-		return this.patientOrderStatusId;
+	public PatientOrderDispositionId getPatientOrderDispositionId() {
+		return this.patientOrderDispositionId;
 	}
 
-	public void setPatientOrderStatusId(@Nullable PatientOrderStatusId patientOrderStatusId) {
-		this.patientOrderStatusId = patientOrderStatusId;
+	public void setPatientOrderDispositionId(@Nullable PatientOrderDispositionId patientOrderDispositionId) {
+		this.patientOrderDispositionId = patientOrderDispositionId;
 	}
 
 	@Nullable

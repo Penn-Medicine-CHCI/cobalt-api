@@ -37,6 +37,7 @@ import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderCareType;
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
+import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
@@ -90,6 +91,8 @@ public class PatientOrderApiResponse {
 	private UUID patientOrderId;
 	@Nullable
 	private PatientOrderStatusId patientOrderStatusId;
+	@Nullable
+	private PatientOrderDispositionId patientOrderDispositionId;
 	@Nullable
 	private PatientOrderScreeningStatusId patientOrderScreeningStatusId;
 	@Nullable
@@ -499,6 +502,7 @@ public class PatientOrderApiResponse {
 		// Always available to both patients and MHICs
 		this.patientOrderId = patientOrder.getPatientOrderId();
 		this.patientOrderStatusId = patientOrder.getPatientOrderStatusId();
+		this.patientOrderDispositionId = patientOrder.getPatientOrderDispositionId();
 		this.patientOrderScreeningStatusId = patientOrder.getPatientOrderScreeningStatusId();
 		this.patientAccountId = patientOrder.getPatientAccountId();
 		this.patientAddressId = patientOrder.getPatientAddressId();

@@ -218,22 +218,140 @@ CREATE TABLE patient_order_scheduled_screening (
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_scheduled_screening FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
+-- *** FOR TUESDAY Instead of the below, what we actually want is two separate things.
+--
+-- 1. patient_order_status should be all the open statuses
+-- 2. patient_order_disposition should be OPEN, CLOSED, ARCHIVED
+-- 3. patient_order_panel_type_id should be union of values from patient_order_status and patient_order_disposition (except OPEN?  idk...)
+--
+-- The reason for this is reporting - we would be able to answer questions like "how many SPECIALTY_CARE orders closed in the last month?"
+-- And we'd back able to "flip back" to OPEN without needing to re-figure-out what the previously-OPEN state was to reconstitute it
+
+-- TODO: update the below per the above.
+
+ALTER TABLE patient_order_status ADD COLUMN display_order INTEGER;
+
+-- Add correct statuses
+
+-- Default for new imports; unassigned
+INSERT INTO patient_order_status VALUES ('PENDING', 'Pending', 1);
+-- Assigned, but none of the below apply.  Also note, we are in this state if unscheduled but "screening in progress"
+INSERT INTO patient_order_status VALUES ('NEEDS_ASSESSMENT', 'Needs Assessment', 2);
+-- Unscreened, but has a call scheduled with an MHIC to take the screening (uncanceled patient_order_scheduled_screening)
+INSERT INTO patient_order_status VALUES ('SCHEDULED', 'Scheduled', 3);
+-- Screening completed, most severe level of care type triage is SAFETY_PLANNING
+INSERT INTO patient_order_status VALUES ('SAFETY_PLANNING', 'Safety Planning', 4);
+-- Screening completed, most severe level of care type triage is SPECIALTY
+INSERT INTO patient_order_status VALUES ('SPECIALTY_CARE', 'Specialty Care', 5);
+-- Screening completed, most severe level of care type triage is SUBCLINICAL
+INSERT INTO patient_order_status VALUES ('SUBCLINICAL', 'Subclinical', 6);
+-- Screening completed, most severe level of care type triage is COLLABORATIVE.  Patient or MHIC can schedule with a provider
+INSERT INTO patient_order_status VALUES ('BHP', 'BHP', 7);
+
+-- Clean up now that we have correct data in patient_order_status.
+-- It's OK to set all existing orders to PENDING instead of correctly migrating because we're not live yet.
+UPDATE patient_order SET patient_order_status_id='PENDING';
+ALTER TABLE patient_order ALTER COLUMN patient_order_status_id SET DEFAULT 'PENDING';
+
+-- Get rid of unused statuses
+DELETE FROM patient_order_status WHERE patient_order_status_id IN ('OPEN', 'CLOSED', 'ARCHIVED', 'DELETED');
+
+ALTER TABLE patient_order_status ALTER COLUMN display_order SET NOT NULL;
+
+-- Disposition says if we're currently open, closed, or archived.
+CREATE TABLE patient_order_disposition (
+  patient_order_disposition_id VARCHAR PRIMARY KEY,
+  description VARCHAR NOT NULL,
+  display_order INTEGER NOT NULL
+);
+
+INSERT INTO patient_order_disposition VALUES ('OPEN', 'Open', 1);
+INSERT INTO patient_order_disposition VALUES ('CLOSED', 'Closed', 2);
+INSERT INTO patient_order_disposition VALUES ('ARCHIVED', 'Archived', 3);
+
+ALTER TABLE patient_order ADD COLUMN patient_order_disposition_id VARCHAR NOT NULL REFERENCES patient_order_disposition DEFAULT 'OPEN';
+
+
+-- TODO: patient order should have "active triage" or something along those lines, which is a mutable form of what's on the screening
+
 -- TODO: finish up
 
--- v_patient_order needs patient_order_panel_type_id (a synthetic ID with below values, recalculated and stored after patient order state changes
---   as opposed to being calculated on-the-fly by a view or similar)
--- 	  NEW,
---   	NEEDS_ASSESSMENT,
---   	SCHEDULED -- Unscreened. Has a call scheduled with an MHIC to take the screening
---   	SAFETY_PLANNING -- Screened. Most severe triage is SAFETY_PLANNING
---   	SPECIALTY_CARE -- Screened. Most severe triage is SPECIALTY_CARE
---   	BHP -- Screened. Associated patient has a non-canceled appointment scheduled with a provider that has support role BHP
---   	CLOSED -- PatientOrderStatusId=CLOSED
---    ARCHIVED -- PatientOrderStatusId=ARCHIVED
+-- v_patient_order needs:
 --
 -- patient_order_screening_session_status_id (NEEDS_ASSESSMENT, SCHEDULED, IN_PROGRESS, COMPLETE)
 -- patient_order_closure_reason_description (plain English, e.g. "Refused Care")
 -- patient_under_18 (boolean, use timezone from institution related to order to determine this)
 -- patient_has_recent_episode (boolean, has there been another episode for the same patient MRN/institution closed <= 30 days ago?)
+
+DROP VIEW v_patient_order;
+
+CREATE VIEW v_patient_order AS
+WITH
+po_query AS (
+  select *
+  from patient_order
+),
+poo_query AS (
+  -- Count up the patient outreach attempts for each patient order
+  select poq.patient_order_id, count(poo.*) as outreach_count
+  from patient_order_outreach poo, po_query poq
+  where poq.patient_order_id=poo.patient_order_id
+  group by poq.patient_order_id
+),
+poomax_query AS (
+  -- Pick the most recent patient outreach attempt for each patient order
+  select poo.*
+  from po_query poq
+  join patient_order_outreach poo on poq.patient_order_id=poo.patient_order_id
+  left join patient_order_outreach poo2 on poo.patient_order_id = poo2.patient_order_id and poo.outreach_date_time < poo2.outreach_date_time
+  where poo2.patient_order_outreach_id is null
+),
+ss_query as (
+  -- Pick the most recently-created screening session for the patient order
+  select ss.*, a.first_name, a.last_name
+  from po_query poq
+  join screening_session ss on poq.patient_order_id=ss.patient_order_id
+  join account a on ss.created_by_account_id=a.account_id
+  left join screening_session ss2 on ss.patient_order_id = ss2.patient_order_id and ss.created < ss2.created
+  where ss2.screening_session_id is null
+),
+triage_query as (
+  -- Pick the most-severe triage for each patient order.
+  -- Use a window function because it's easier to handle the join needed to order by severity
+	WITH poct_cte AS (
+	   SELECT poq.patient_order_id, poct.patient_order_care_type_id, poct.description as patient_order_care_type_description, pot.patient_order_triage_id,
+	            RANK() OVER (PARTITION BY poq.patient_order_id
+	            ORDER BY poct.severity DESC
+	            ) AS r
+	      from po_query poq, patient_order_triage pot, patient_order_care_type poct
+	      where poq.patient_order_id=pot.patient_order_id
+		  and pot.patient_order_care_type_id=poct.patient_order_care_type_id
+		  and pot.active=true
+	)
+	SELECT patient_order_care_type_id, patient_order_care_type_description, patient_order_id
+	FROM poct_cte
+	WHERE r = 1
+)
+-- We need the DISTINCT here because patient outreach attempts with identical "most recent" times will cause duplicate rows
+select distinct
+  tq.patient_order_care_type_id,
+  tq.patient_order_care_type_description,
+	coalesce(pooq.outreach_count, 0) as outreach_count,
+	poomaxq.outreach_date_time as most_recent_outreach_date_time,
+	ssq.screening_session_id as most_recent_screening_session_id,
+	ssq.created_by_account_id as most_recent_screening_session_created_by_account_id,
+	ssq.first_name as most_recent_screening_session_created_by_account_first_name,
+	ssq.last_name as most_recent_screening_session_created_by_account_last_name,
+	ssq.completed as most_recent_screening_session_completed,
+	ssq.completed_at as most_recent_screening_session_completed_at,
+	panel_account.first_name as panel_account_first_name,
+	panel_account.last_name as panel_account_last_name,
+	poq.*
+from po_query poq
+left outer join poo_query pooq ON poq.patient_order_id = pooq.patient_order_id
+left outer join poomax_query poomaxq ON poq.patient_order_id = poomaxq.patient_order_id
+left outer join ss_query ssq ON poq.patient_order_id = ssq.patient_order_id
+left outer join triage_query tq ON poq.patient_order_id = tq.patient_order_id
+left outer join account panel_account ON poq.panel_account_id = panel_account.account_id;
 
 COMMIT;

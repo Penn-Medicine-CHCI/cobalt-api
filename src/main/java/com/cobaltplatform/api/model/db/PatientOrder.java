@@ -25,6 +25,7 @@ import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
+import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
@@ -45,6 +46,8 @@ public class PatientOrder {
 	private UUID patientOrderId;
 	@Nullable
 	private PatientOrderStatusId patientOrderStatusId;
+	@Nullable
+	private PatientOrderDispositionId patientOrderDispositionId;
 	@Nullable
 	private PatientOrderScreeningStatusId patientOrderScreeningStatusId;
 	@Nullable
@@ -212,6 +215,15 @@ public class PatientOrder {
 
 	public void setPatientOrderStatusId(@Nullable PatientOrderStatusId patientOrderStatusId) {
 		this.patientOrderStatusId = patientOrderStatusId;
+	}
+
+	@Nullable
+	public PatientOrderDispositionId getPatientOrderDispositionId() {
+		return this.patientOrderDispositionId;
+	}
+
+	public void setPatientOrderDispositionId(@Nullable PatientOrderDispositionId patientOrderDispositionId) {
+		this.patientOrderDispositionId = patientOrderDispositionId;
 	}
 
 	@Nullable
