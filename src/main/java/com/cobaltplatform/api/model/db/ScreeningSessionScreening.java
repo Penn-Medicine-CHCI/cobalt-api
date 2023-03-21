@@ -52,6 +52,8 @@ public class ScreeningSessionScreening {
 	@Nullable
 	private ScreeningScore scoreAsObject;
 	@Nullable
+	private Boolean belowScoringThreshold;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -123,6 +125,19 @@ public class ScreeningSessionScreening {
 	public void setScore(@Nullable String score) {
 		this.score = score;
 		this.scoreAsObject = trimToNull(score) == null ? null : ScreeningScore.fromJsonRepresentation(score);
+	}
+
+	public void setScoreAsObject(@Nullable ScreeningScore scoreAsObject) {
+		this.scoreAsObject = scoreAsObject;
+	}
+
+	@Nullable
+	public Boolean getBelowScoringThreshold() {
+		return this.belowScoringThreshold;
+	}
+
+	public void setBelowScoringThreshold(@Nullable Boolean belowScoringThreshold) {
+		this.belowScoringThreshold = belowScoringThreshold;
 	}
 
 	@Nullable

@@ -28,53 +28,30 @@ import static java.lang.String.format;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class ScreeningType {
+public class PatientOrderOutreachResultStatus {
 	@Nullable
-	private ScreeningTypeId screeningTypeId;
+	private PatientOrderOutreachResultStatusId patientOrderOutreachResultStatusId;
 	@Nullable
 	private String description;
-	@Nullable
-	private Integer overallScoreMaximum;
 
-	public enum ScreeningTypeId {
-		CUSTOM,
-		GAD_2,
-		GAD_7,
-		PHQ_4,
-		PHQ_8,
-		PHQ_9,
-		WHO_5,
-		PC_PTSD_5,
-		CAGE_ALCOHOL,
-		TICS,
-		ISI,
-		ASRM,
-		C_SSRS,
-		DAST_10,
-		BPI,
-		AUDIT_C,
-		MBI_9,
-		IC_INTRO,
-		IC_INTRO_CONDITIONS,
-		IC_INTRO_SYMPTOMS,
-		IC_DRUG_USE_FREQUENCY,
-		IC_DRUG_USE_OPIOID,
-		BPI_1,
-		PRIME_5
+	public enum PatientOrderOutreachResultStatusId {
+		UNKNOWN,
+		CONNECTED,
+		NOT_CONNECTED
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{screeningTypeId=%s, description=%s}", getClass().getSimpleName(), getScreeningTypeId().name(), getDescription());
+		return format("%s{patientOrderOutreachResultStatusId=%s, description=%s}", getClass().getSimpleName(), getPatientOrderOutreachResultStatusId(), getDescription());
 	}
 
 	@Nullable
-	public ScreeningTypeId getScreeningTypeId() {
-		return this.screeningTypeId;
+	public PatientOrderOutreachResultStatusId getPatientOrderOutreachResultStatusId() {
+		return this.patientOrderOutreachResultStatusId;
 	}
 
-	public void setScreeningTypeId(@Nullable ScreeningTypeId screeningTypeId) {
-		this.screeningTypeId = screeningTypeId;
+	public void setPatientOrderOutreachResultStatusId(@Nullable PatientOrderOutreachResultStatusId patientOrderOutreachResultStatusId) {
+		this.patientOrderOutreachResultStatusId = patientOrderOutreachResultStatusId;
 	}
 
 	@Nullable
@@ -84,14 +61,5 @@ public class ScreeningType {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
-	}
-
-	@Nullable
-	public Integer getOverallScoreMaximum() {
-		return this.overallScoreMaximum;
-	}
-
-	public void setOverallScoreMaximum(@Nullable Integer overallScoreMaximum) {
-		this.overallScoreMaximum = overallScoreMaximum;
 	}
 }

@@ -37,6 +37,7 @@ import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderCareType;
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
+import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
@@ -90,6 +91,8 @@ public class PatientOrderApiResponse {
 	private UUID patientOrderId;
 	@Nullable
 	private PatientOrderStatusId patientOrderStatusId;
+	@Nullable
+	private PatientOrderDispositionId patientOrderDispositionId;
 	@Nullable
 	private PatientOrderScreeningStatusId patientOrderScreeningStatusId;
 	@Nullable
@@ -211,10 +214,6 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String recentPsychotherapeuticMedications;
 	@Nullable
-	private Instant episodeEndedAt;
-	@Nullable
-	private String episodeEndedAtDescription;
-	@Nullable
 	private Integer episodeDurationInDays;
 	@Nullable
 	private String episodeDurationInDaysDescription;
@@ -290,6 +289,32 @@ public class PatientOrderApiResponse {
 	private String panelAccountDisplayName;
 	@Nullable
 	private String panelAccountDisplayNameWithLastFirst;
+	@Nullable
+	private String patientOrderScreeningStatusDescription;
+	@Nullable
+	private String patientOrderDispositionDescription;
+	@Nullable
+	private String patientOrderStatusDescription;
+	@Nullable
+	private String patientOrderClosureReasonDescription;
+	@Nullable
+	private Boolean crisisIndicated;
+	@Nullable
+	private Instant crisisIndicatedAt;
+	@Nullable
+	private String crisisIndicatedAtDescription;
+	@Nullable
+	private Instant episodeClosedAt;
+	@Nullable
+	private String episodeClosedAtDescription;
+	@Nullable
+	private UUID episodeClosedByAccountId;
+	@Nullable
+	private Instant mostRecentEpisodeClosedAt;
+	@Nullable
+	private String mostRecentEpisodeClosedAtDescription;
+	@Nullable
+	private Boolean mostRecentEpisodeClosedWithinDateThreshold;
 
 	public enum PatientOrderApiResponseSupplement {
 		MINIMAL,
@@ -499,6 +524,7 @@ public class PatientOrderApiResponse {
 		// Always available to both patients and MHICs
 		this.patientOrderId = patientOrder.getPatientOrderId();
 		this.patientOrderStatusId = patientOrder.getPatientOrderStatusId();
+		this.patientOrderDispositionId = patientOrder.getPatientOrderDispositionId();
 		this.patientOrderScreeningStatusId = patientOrder.getPatientOrderScreeningStatusId();
 		this.patientAccountId = patientOrder.getPatientAccountId();
 		this.patientAddressId = patientOrder.getPatientAddressId();
@@ -564,10 +590,11 @@ public class PatientOrderApiResponse {
 			this.lastActiveMedicationOrderSummary = patientOrder.getLastActiveMedicationOrderSummary();
 			this.medications = patientOrder.getMedications();
 			this.recentPsychotherapeuticMedications = patientOrder.getRecentPsychotherapeuticMedications();
-			this.episodeEndedAt = patientOrder.getEpisodeEndedAt();
-			this.episodeEndedAtDescription = patientOrder.getEpisodeEndedAt() == null
+			this.episodeClosedAt = patientOrder.getEpisodeClosedAt();
+			this.episodeClosedAtDescription = patientOrder.getEpisodeClosedAt() == null
 					? null
-					: formatter.formatTimestamp(patientOrder.getEpisodeEndedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+					: formatter.formatTimestamp(patientOrder.getEpisodeClosedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+			this.episodeClosedByAccountId = patientOrder.getEpisodeClosedByAccountId();
 
 			Institution institution = institutionService.findInstitutionById(patientOrder.getInstitutionId()).get();
 
@@ -577,7 +604,7 @@ public class PatientOrderApiResponse {
 					.atZone(institution.getTimeZone())
 					.toInstant();
 
-			Instant endDateTime = patientOrder.getEpisodeEndedAt() == null ? Instant.now() : patientOrder.getEpisodeEndedAt();
+			Instant endDateTime = patientOrder.getEpisodeClosedAt() == null ? Instant.now() : patientOrder.getEpisodeClosedAt();
 			Duration orderDuration = Duration.between(orderDateTime, endDateTime);
 
 			// Safe cast, int can always hold enough
@@ -599,7 +626,6 @@ public class PatientOrderApiResponse {
 			this.patientOrderNotes = patientOrderNotes;
 			this.patientOrderOutreaches = patientOrderOutreaches;
 
-
 			this.patientOrderCareTypeId = patientOrder.getPatientOrderCareTypeId();
 			this.patientOrderCareTypeDescription = patientOrder.getPatientOrderCareTypeDescription();
 			this.outreachCount = patientOrder.getOutreachCount();
@@ -619,6 +645,16 @@ public class PatientOrderApiResponse {
 			this.panelAccountLastName = patientOrder.getPanelAccountLastName();
 			this.panelAccountDisplayName = Normalizer.normalizeName(patientOrder.getPanelAccountFirstName(), patientOrder.getPanelAccountLastName()).orElse(null);
 			this.panelAccountDisplayNameWithLastFirst = Normalizer.normalizeNameWithLastFirst(patientOrder.getPanelAccountFirstName(), patientOrder.getPanelAccountLastName()).orElse(null);
+			this.patientOrderScreeningStatusDescription = patientOrder.getPatientOrderScreeningStatusDescription();
+			this.patientOrderDispositionDescription = patientOrder.getPatientOrderDispositionDescription();
+			this.patientOrderStatusDescription = patientOrder.getPatientOrderStatusDescription();
+			this.patientOrderClosureReasonDescription = patientOrder.getPatientOrderClosureReasonDescription();
+			this.crisisIndicated = patientOrder.getCrisisIndicated();
+			this.crisisIndicatedAt = patientOrder.getCrisisIndicatedAt();
+			this.crisisIndicatedAtDescription = patientOrder.getCrisisIndicatedAt() == null ? null : formatter.formatTimestamp(patientOrder.getCrisisIndicatedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+			this.mostRecentEpisodeClosedAt = patientOrder.getMostRecentEpisodeClosedAt();
+			this.mostRecentEpisodeClosedAtDescription = patientOrder.getMostRecentEpisodeClosedAt() == null ? null : formatter.formatTimestamp(patientOrder.getMostRecentEpisodeClosedAt());
+			this.mostRecentEpisodeClosedWithinDateThreshold = patientOrder.getMostRecentEpisodeClosedWithinDateThreshold();
 		}
 	}
 
@@ -933,16 +969,6 @@ public class PatientOrderApiResponse {
 	}
 
 	@Nullable
-	public Instant getEpisodeEndedAt() {
-		return this.episodeEndedAt;
-	}
-
-	@Nullable
-	public String getEpisodeEndedAtDescription() {
-		return this.episodeEndedAtDescription;
-	}
-
-	@Nullable
 	public Integer getEpisodeDurationInDays() {
 		return this.episodeDurationInDays;
 	}
@@ -1120,5 +1146,60 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public String getPanelAccountDisplayNameWithLastFirst() {
 		return this.panelAccountDisplayNameWithLastFirst;
+	}
+
+	@Nullable
+	public PatientOrderDispositionId getPatientOrderDispositionId() {
+		return this.patientOrderDispositionId;
+	}
+
+	@Nullable
+	public String getPatientOrderScreeningStatusDescription() {
+		return this.patientOrderScreeningStatusDescription;
+	}
+
+	@Nullable
+	public String getPatientOrderDispositionDescription() {
+		return this.patientOrderDispositionDescription;
+	}
+
+	@Nullable
+	public String getPatientOrderStatusDescription() {
+		return this.patientOrderStatusDescription;
+	}
+
+	@Nullable
+	public String getPatientOrderClosureReasonDescription() {
+		return this.patientOrderClosureReasonDescription;
+	}
+
+	@Nullable
+	public Boolean getCrisisIndicated() {
+		return this.crisisIndicated;
+	}
+
+	@Nullable
+	public Instant getCrisisIndicatedAt() {
+		return this.crisisIndicatedAt;
+	}
+
+	@Nullable
+	public String getCrisisIndicatedAtDescription() {
+		return this.crisisIndicatedAtDescription;
+	}
+
+	@Nullable
+	public Instant getEpisodeClosedAt() {
+		return this.episodeClosedAt;
+	}
+
+	@Nullable
+	public String getEpisodeClosedAtDescription() {
+		return this.episodeClosedAtDescription;
+	}
+
+	@Nullable
+	public UUID getEpisodeClosedByAccountId() {
+		return this.episodeClosedByAccountId;
 	}
 }
