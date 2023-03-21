@@ -164,6 +164,8 @@ public class ScreeningSessionResult {
 		@Nullable
 		private ScreeningScore screeningScore;
 		@Nullable
+		private Boolean belowScoringThreshold;
+		@Nullable
 		private List<ScreeningQuestionResult> screeningQuestionResults;
 
 		@Nullable
@@ -218,6 +220,15 @@ public class ScreeningSessionResult {
 
 		public void setScreeningScore(@Nullable ScreeningScore screeningScore) {
 			this.screeningScore = screeningScore;
+		}
+
+		@Nullable
+		public Boolean getBelowScoringThreshold() {
+			return this.belowScoringThreshold;
+		}
+
+		public void setBelowScoringThreshold(@Nullable Boolean belowScoringThreshold) {
+			this.belowScoringThreshold = belowScoringThreshold;
 		}
 
 		@Nullable

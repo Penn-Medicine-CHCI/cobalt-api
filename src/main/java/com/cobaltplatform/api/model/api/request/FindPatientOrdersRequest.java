@@ -20,10 +20,12 @@
 package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.service.PatientOrderPanelTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
+import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -34,11 +36,13 @@ public class FindPatientOrdersRequest {
 	@Nullable
 	private InstitutionId institutionId;
 	@Nullable
-	private PatientOrderPanelTypeId patientOrderPanelTypeId;
+	private PatientOrderDispositionId patientOrderDispositionId;
+	@Nullable
+	private Set<PatientOrderStatusId> patientOrderStatusIds;
 	@Nullable
 	private UUID panelAccountId;
 	@Nullable
-	private String searchQuery;
+	private String patientMrn;
 	@Nullable
 	private Integer pageNumber;
 	@Nullable
@@ -54,12 +58,21 @@ public class FindPatientOrdersRequest {
 	}
 
 	@Nullable
-	public PatientOrderPanelTypeId getPatientOrderPanelTypeId() {
-		return this.patientOrderPanelTypeId;
+	public PatientOrderDispositionId getPatientOrderDispositionId() {
+		return this.patientOrderDispositionId;
 	}
 
-	public void setPatientOrderPanelTypeId(@Nullable PatientOrderPanelTypeId patientOrderPanelTypeId) {
-		this.patientOrderPanelTypeId = patientOrderPanelTypeId;
+	public void setPatientOrderDispositionId(@Nullable PatientOrderDispositionId patientOrderDispositionId) {
+		this.patientOrderDispositionId = patientOrderDispositionId;
+	}
+
+	@Nullable
+	public Set<PatientOrderStatusId> getPatientOrderStatusIds() {
+		return this.patientOrderStatusIds;
+	}
+
+	public void setPatientOrderStatusIds(@Nullable Set<PatientOrderStatusId> patientOrderStatusIds) {
+		this.patientOrderStatusIds = patientOrderStatusIds;
 	}
 
 	@Nullable
@@ -72,12 +85,12 @@ public class FindPatientOrdersRequest {
 	}
 
 	@Nullable
-	public String getSearchQuery() {
-		return this.searchQuery;
+	public String getPatientMrn() {
+		return this.patientMrn;
 	}
 
-	public void setSearchQuery(@Nullable String searchQuery) {
-		this.searchQuery = searchQuery;
+	public void setPatientMrn(@Nullable String patientMrn) {
+		this.patientMrn = patientMrn;
 	}
 
 	@Nullable

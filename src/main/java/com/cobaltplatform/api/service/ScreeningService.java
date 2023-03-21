@@ -400,6 +400,11 @@ public class ScreeningService {
 	}
 
 	@Nonnull
+	public List<ScreeningType> findScreeningTypes() {
+		return getDatabase().queryForList("SELECT * FROM screening_type ORDER BY description", ScreeningType.class);
+	}
+
+	@Nonnull
 	public Optional<ScreeningAnswerOption> findScreeningAnswerOptionById(@Nullable UUID screeningAnswerOptionId) {
 		if (screeningAnswerOptionId == null)
 			return Optional.empty();
@@ -1170,10 +1175,10 @@ public class ScreeningService {
 		// Based on screening scoring function output, set score/completed flags
 		getDatabase().execute("""
 						UPDATE screening_session_screening
-						SET completed=?, score=CAST(? AS JSONB)
+						SET completed=?, score=CAST(? AS JSONB), below_scoring_threshold=?
 						WHERE screening_session_screening_id=?
 						""", screeningScoringFunctionOutput.getCompleted(),
-				screeningScoringFunctionOutput.getScore().toJsonRepresentation(),
+				screeningScoringFunctionOutput.getScore().toJsonRepresentation(), screeningScoringFunctionOutput.getBelowScoringThreshold(),
 				screeningSessionScreening.getScreeningSessionScreeningId());
 
 		OrchestrationFunctionOutput orchestrationFunctionOutput = executeScreeningFlowOrchestrationFunction(screeningFlowVersion.getOrchestrationFunction(), screeningSession.getScreeningSessionId(), createdByAccount.getInstitutionId(), Map.of()).get();
@@ -1209,6 +1214,20 @@ public class ScreeningService {
 				getDatabase().execute("UPDATE screening_session SET crisis_indicated=TRUE, crisis_indicated_at=NOW() WHERE screening_session_id=?", screeningSession.getScreeningSessionId());
 
 				getInteractionService().createCrisisInteraction(screeningSession.getScreeningSessionId());
+			}
+
+			// If this screening session is done for a patient order, mark the order as "crisis indicated"
+			if (screeningSession.getPatientOrderId() != null) {
+				PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(screeningSession.getPatientOrderId()).get();
+
+				if (!patientOrder.getCrisisIndicated()) {
+					getLogger().info("Patient order ID {} will be marked as 'crisis indicated'.", patientOrder.getPatientOrderId());
+					getDatabase().execute("""
+							UPDATE patient_order 
+							SET crisis_indicated=TRUE, crisis_indicated_at=NOW()
+							WHERE patient_order_id=?
+							""", patientOrder.getPatientOrderId());
+				}
 			}
 		}
 
@@ -1720,8 +1739,6 @@ public class ScreeningService {
 					List<ScreeningAnswerResult> screeningAnswerResults = new ArrayList<>();
 
 					if (screeningQuestion.getScreeningQuestionId().equals(screeningSessionAnsweredScreeningQuestion.getScreeningQuestionId())) {
-						//logLines.add(format("\t\tQuestion: %s", screeningQuestionWithAnswerOptions.getScreeningQuestion().getQuestionText()));
-
 						List<ScreeningAnswer> screeningAnswers = findScreeningAnswersByScreeningQuestionContextId(
 								new ScreeningQuestionContextId(screeningSessionScreening.getScreeningSessionScreeningId(), screeningQuestionWithAnswerOptions.getScreeningQuestion().getScreeningQuestionId()));
 
@@ -1756,6 +1773,7 @@ public class ScreeningService {
 			screeningSessionScreeningResult.setScreeningVersionNumber(screeningVersion.getVersionNumber());
 			screeningSessionScreeningResult.setScreeningTypeId(screeningVersion.getScreeningTypeId());
 			screeningSessionScreeningResult.setScreeningVersionId(screeningVersion.getScreeningVersionId());
+			screeningSessionScreeningResult.setBelowScoringThreshold(screeningSessionScreening.getBelowScoringThreshold());
 			screeningSessionScreeningResult.setScreeningQuestionResults(screeningQuestionResults);
 
 			screeningSessionScreeningResults.add(screeningSessionScreeningResult);
@@ -1836,6 +1854,8 @@ public class ScreeningService {
 		private Boolean completed;
 		@Nullable
 		private ScreeningScore score;
+		@Nullable
+		private Boolean belowScoringThreshold;
 
 		@Nullable
 		public Boolean getCompleted() {
@@ -1853,6 +1873,15 @@ public class ScreeningService {
 
 		public void setScore(@Nullable ScreeningScore score) {
 			this.score = score;
+		}
+
+		@Nullable
+		public Boolean getBelowScoringThreshold() {
+			return this.belowScoringThreshold;
+		}
+
+		public void setBelowScoringThreshold(@Nullable Boolean belowScoringThreshold) {
+			this.belowScoringThreshold = belowScoringThreshold;
 		}
 	}
 

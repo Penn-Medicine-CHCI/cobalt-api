@@ -23,5 +23,7 @@ package com.cobaltplatform.api.messaging.sms;
  * @author Transmogrify, LLC.
  */
 public enum SmsMessageTemplate {
-	FREEFORM
+	FREEFORM,
+	IC_WELCOME,
+	IC_RESOURCE_CHECK_IN
 }

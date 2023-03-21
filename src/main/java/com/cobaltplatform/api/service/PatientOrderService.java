@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.model.api.request.AssignPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderEventRequest;
@@ -48,6 +49,8 @@ import com.cobaltplatform.api.model.db.PatientOrderCareType;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderDiagnosis;
+import com.cobaltplatform.api.model.db.PatientOrderDisposition;
+import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
 import com.cobaltplatform.api.model.db.PatientOrderEventType.PatientOrderEventTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType;
 import com.cobaltplatform.api.model.db.PatientOrderImport;
@@ -56,6 +59,7 @@ import com.cobaltplatform.api.model.db.PatientOrderMedication;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderOutreach;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderStatus;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
@@ -63,8 +67,8 @@ import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.IcTestPatientEmailAddress;
+import com.cobaltplatform.api.model.service.PatientOrderAutocompleteResult;
 import com.cobaltplatform.api.model.service.PatientOrderImportResult;
-import com.cobaltplatform.api.model.service.PatientOrderPanelTypeId;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
@@ -106,6 +110,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -119,6 +124,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidEmailAddress;
 import static java.lang.String.format;
@@ -210,9 +216,9 @@ public class PatientOrderService {
 				SELECT *
 				FROM v_patient_order
 				WHERE patient_account_id=?
-				AND patient_order_status_id != ?
+				AND patient_order_disposition_id != ?
 				ORDER BY order_date DESC, order_age_in_minutes
-				""", PatientOrder.class, accountId, PatientOrderStatusId.DELETED);
+				""", PatientOrder.class, accountId, PatientOrderDispositionId.ARCHIVED);
 	}
 
 	@Nonnull
@@ -224,9 +230,9 @@ public class PatientOrderService {
 				SELECT *
 				FROM v_patient_order
 				WHERE patient_order_import_id=?
-				AND patient_order_status_id != ?
+				AND patient_order_disposition_id != ?
 				ORDER BY order_date DESC, order_age_in_minutes
-				""", PatientOrder.class, patientOrderImportId, PatientOrderStatusId.DELETED);
+				""", PatientOrder.class, patientOrderImportId, PatientOrderDispositionId.ARCHIVED);
 	}
 
 	@Nonnull
@@ -240,11 +246,11 @@ public class PatientOrderService {
 		return getDatabase().queryForList("""
 				SELECT *
 				FROM v_patient_order
-				WHERE UPPER(?)=UPPER(patient_mrn) 
+				WHERE UPPER(?)=UPPER(patient_mrn)
 				AND institution_id=?
-				AND patient_order_status_id != ?
-				ORDER BY order_date DESC, order_age_in_minutes    
-				""", PatientOrder.class, patientMrn, institutionId, PatientOrderStatusId.DELETED);
+				AND patient_order_disposition_id != ?
+				ORDER BY order_date DESC, order_age_in_minutes
+				""", PatientOrder.class, patientMrn, institutionId, PatientOrderDispositionId.ARCHIVED);
 	}
 
 	@Nonnull
@@ -260,8 +266,8 @@ public class PatientOrderService {
 				FROM v_patient_order
 				WHERE UPPER(?)=UPPER(patient_mrn)
 				AND institution_id=?
-				AND patient_order_status_id=?
-				""", PatientOrder.class, patientMrn, institutionId, PatientOrderStatusId.OPEN);
+				AND patient_order_disposition_id=?
+				""", PatientOrder.class, patientMrn, institutionId, PatientOrderDispositionId.OPEN);
 	}
 
 	@Nonnull
@@ -273,8 +279,8 @@ public class PatientOrderService {
 				SELECT *
 				FROM v_patient_order
 				WHERE patient_account_id=?
-				AND patient_order_status_id=?
-				""", PatientOrder.class, patientAccountId, PatientOrderStatusId.OPEN);
+				AND patient_order_disposition_id=?
+				""", PatientOrder.class, patientAccountId, PatientOrderDispositionId.OPEN);
 	}
 
 	@Nonnull
@@ -301,9 +307,9 @@ public class PatientOrderService {
 				FROM v_patient_order
 				WHERE UPPER(?)=UPPER(test_patient_email_address)
 				AND institution_id=?
-				AND patient_order_status_id != ?
+				AND patient_order_disposition_id != ?
 				ORDER BY order_date DESC, order_age_in_minutes    
-				""", PatientOrder.class, icTestPatientEmailAddress.getEmailAddress(), institutionId, PatientOrderStatusId.DELETED);
+				""", PatientOrder.class, icTestPatientEmailAddress.getEmailAddress(), institutionId, PatientOrderDispositionId.ARCHIVED);
 	}
 
 	@Nonnull
@@ -411,7 +417,7 @@ public class PatientOrderService {
 	}
 
 	@Nonnull
-	public Integer findActivePatientOrderCountByInstitutionId(@Nullable InstitutionId institutionId) {
+	public Integer findOpenPatientOrderCountByInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return 0;
 
@@ -419,30 +425,30 @@ public class PatientOrderService {
 				SELECT COUNT(*)
 				FROM patient_order
 				WHERE institution_id=?
-				AND patient_order_status_id NOT IN (?,?)
-				""", Integer.class, institutionId, PatientOrderStatusId.ARCHIVED, PatientOrderStatusId.DELETED).get();
+				AND patient_order_disposition_id=?
+				""", Integer.class, institutionId, PatientOrderDispositionId.OPEN).get();
 	}
 
 	@Nonnull
-	public Integer findActivePatientOrderCountByPanelAccountIdForInstitutionId(@Nullable UUID panelAccountId,
-																																						 @Nullable InstitutionId institutionId) {
+	public Integer findOpenPatientOrderCountByPanelAccountIdForInstitutionId(@Nullable UUID panelAccountId,
+																																					 @Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return 0;
 
 		if (panelAccountId == null)
-			return findActivePatientOrderCountByInstitutionId(institutionId);
+			return findOpenPatientOrderCountByInstitutionId(institutionId);
 
 		return getDatabase().queryForObject("""
 				SELECT COUNT(*)
 				FROM patient_order
 				WHERE panel_account_id=?
 				AND institution_id=?		
-				AND patient_order_status_id NOT IN (?,?)
-				""", Integer.class, panelAccountId, institutionId, PatientOrderStatusId.ARCHIVED, PatientOrderStatusId.DELETED).get();
+				AND patient_order_disposition_id=?
+				""", Integer.class, panelAccountId, institutionId, PatientOrderDispositionId.OPEN).get();
 	}
 
 	@Nonnull
-	public Map<UUID, Integer> findActivePatientOrderCountsByPanelAccountIdForInstitutionId(@Nullable InstitutionId institutionId) {
+	public Map<UUID, Integer> findOpenPatientOrderCountsByPanelAccountIdForInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return Map.of();
 
@@ -451,58 +457,76 @@ public class PatientOrderService {
 				FROM account a, patient_order po
 				WHERE a.account_id=po.panel_account_id
 				AND po.institution_id=?
-				AND po.patient_order_status_id NOT IN (?,?)
+				AND po.patient_order_disposition_id=?
 				GROUP BY a.account_id
-				""", AccountIdWithCount.class, institutionId, PatientOrderStatusId.ARCHIVED, PatientOrderStatusId.DELETED);
+				""", AccountIdWithCount.class, institutionId, PatientOrderDispositionId.OPEN);
 
 		return accountIdsWithCount.stream()
 				.collect(Collectors.toMap(AccountIdWithCount::getAccountId, AccountIdWithCount::getCount));
 	}
 
 	@Nonnull
-	public Map<PatientOrderStatusId, Integer> findActivePatientOrderCountsByPatientOrderStatusIdForPanelAccountIdAndInstitutionId(@Nullable UUID panelAccountId,
-																																																																@Nullable InstitutionId institutionId) {
-		if (institutionId == null)
-			return Map.of();
+	public Boolean arePatientOrderIdsAssociatedWithInstitutionId(@Nullable Collection<UUID> patientOrderIds,
+																															 @Nonnull InstitutionId institutionId) {
+		requireNonNull(institutionId);
 
-		Map<PatientOrderStatusId, Integer> activePatientOrderCountsByPatientOrderStatusId = new HashMap<>();
+		if (patientOrderIds == null)
+			return true;
 
-		// Prime the map with zeroes
-		for (PatientOrderStatusId patientOrderStatusId : PatientOrderStatusId.values())
-			activePatientOrderCountsByPatientOrderStatusId.put(patientOrderStatusId, 0);
+		Set<UUID> uniquePatientOrderIds = patientOrderIds.stream()
+				.filter(patientOrderId -> patientOrderId != null)
+				.collect(Collectors.toSet());
 
-		List<PatientOrderWithTotalCount> patientOrders = List.of();
+		List<Object> parameters = new ArrayList<>(uniquePatientOrderIds);
+		parameters.add(institutionId);
 
-		if (panelAccountId == null) {
-			patientOrders = getDatabase().queryForList("""
-					SELECT patient_order_status_id, COUNT(*) as total_count
-					FROM patient_order
-					WHERE institution_id=?
-					AND patient_order_status_id NOT IN (?,?)
-					GROUP BY patient_order_status_id
-					""", PatientOrderWithTotalCount.class, institutionId, PatientOrderStatusId.ARCHIVED, PatientOrderStatusId.DELETED);
-		} else {
-			patientOrders = getDatabase().queryForList("""
-					SELECT patient_order_status_id, COUNT(*) as total_count
-					FROM patient_order
-					WHERE panel_account_id=?
-					AND institution_id=?
-					AND patient_order_status_id NOT IN (?,?)
-					GROUP BY patient_order_status_id
-						""", PatientOrderWithTotalCount.class, panelAccountId, institutionId, PatientOrderStatusId.ARCHIVED, PatientOrderStatusId.DELETED);
-		}
+		int orderCount = getDatabase().queryForObject(format("""
+						SELECT COUNT(*)
+						FROM patient_order
+						WHERE patient_order_id IN %s
+						AND institution_id=?
+						""",
+				sqlInListPlaceholders(uniquePatientOrderIds)), Integer.class, parameters.toArray(new Object[]{})).get();
 
-		// Add on counts
-		for (PatientOrderWithTotalCount patientOrder : patientOrders)
-			activePatientOrderCountsByPatientOrderStatusId.put(patientOrder.getPatientOrderStatusId(), patientOrder.getTotalCount());
-
-		return activePatientOrderCountsByPatientOrderStatusId;
+		return uniquePatientOrderIds.size() == orderCount;
 	}
 
 	@Nonnull
-	public Boolean assignPatientOrderToPanelAccount(@Nonnull UUID patientOrderId,
-																									@Nullable UUID panelAccountId, // Null panel account removes the order from the panel
-																									@Nullable UUID assigningAccountId) {
+	public Integer assignPatientOrdersToPanelAccount(@Nonnull AssignPatientOrdersRequest request) {
+		requireNonNull(request);
+
+		UUID assignedByAccountId = request.getAssignedByAccountId();
+		UUID panelAccountId = request.getPanelAccountId();
+		Set<UUID> patientOrderIds = request.getPatientOrderIds() == null ? Set.of() : request.getPatientOrderIds().stream()
+				.filter(patientOrderId -> patientOrderId != null)
+				.collect(Collectors.toSet());
+		ValidationException validationException = new ValidationException();
+
+		if (assignedByAccountId == null)
+			validationException.add(new FieldError("assignedByAccountId", getStrings().get("Assigned-by Account ID is required.")));
+
+		if (panelAccountId == null)
+			validationException.add(new FieldError("panelAccountId", getStrings().get("Panel Account ID is required.")));
+
+		if (patientOrderIds.size() == 0)
+			validationException.add(new FieldError("patientOrderIds", getStrings().get("Please select at least one order to assign.")));
+
+		int assignedCount = 0;
+
+		for (UUID patientOrderId : patientOrderIds) {
+			boolean assigned = assignPatientOrderToPanelAccount(patientOrderId, panelAccountId, assignedByAccountId);
+
+			if (assigned)
+				++assignedCount;
+		}
+
+		return assignedCount;
+	}
+
+	@Nonnull
+	protected Boolean assignPatientOrderToPanelAccount(@Nonnull UUID patientOrderId,
+																										 @Nullable UUID panelAccountId, // Null panel account removes the order from the panel
+																										 @Nullable UUID assignedByAccountId) {
 		requireNonNull(patientOrderId);
 
 		PatientOrder patientOrder = findPatientOrderById(patientOrderId).orElse(null);
@@ -530,7 +554,7 @@ public class PatientOrderService {
 				{
 					setPatientOrderEventTypeId(PatientOrderEventTypeId.PANEL_ACCOUNT_CHANGED);
 					setPatientOrderId(patientOrderId);
-					setAccountId(assigningAccountId);
+					setAccountId(assignedByAccountId);
 					setMessage(panelAccountId == null ? "Removed from panel." : "Assigned to panel."); // Not localized on the way in
 					setMetadata(metadata);
 				}
@@ -546,9 +570,10 @@ public class PatientOrderService {
 		requireNonNull(request);
 
 		InstitutionId institutionId = request.getInstitutionId();
-		PatientOrderPanelTypeId patientOrderPanelTypeId = request.getPatientOrderPanelTypeId();
+		PatientOrderDispositionId patientOrderDispositionId = request.getPatientOrderDispositionId();
+		Set<PatientOrderStatusId> patientOrderStatusIds = request.getPatientOrderStatusIds() == null ? Set.of() : request.getPatientOrderStatusIds();
 		UUID panelAccountId = request.getPanelAccountId();
-		String searchQuery = trimToNull(request.getSearchQuery());
+		String patientMrn = trimToNull(request.getPatientMrn());
 		Integer pageNumber = request.getPageNumber();
 		Integer pageSize = request.getPageSize();
 
@@ -569,25 +594,27 @@ public class PatientOrderService {
 		List<Object> parameters = new ArrayList<>();
 
 		parameters.add(institutionId);
-		parameters.add(PatientOrderStatusId.DELETED);
+
+		// Default to OPEN orders unless specified otherwise
+		if (patientOrderDispositionId == null)
+			patientOrderDispositionId = PatientOrderDispositionId.OPEN;
+
+		whereClauseLines.add("AND po.patient_order_disposition_id=?");
+		parameters.add(patientOrderDispositionId);
+
+		if (patientOrderStatusIds.size() > 0) {
+			whereClauseLines.add(format("AND po.patient_order_status_id IN %s", sqlInListPlaceholders(patientOrderStatusIds)));
+			parameters.addAll(patientOrderStatusIds);
+		}
 
 		if (panelAccountId != null) {
 			whereClauseLines.add("AND po.panel_account_id=?");
 			parameters.add(panelAccountId);
 		}
 
-		if (searchQuery != null) {
-			whereClauseLines.add("""
-					AND (
-					  po.patient_first_name ILIKE CONCAT('%',?,'%')
-					  OR po.patient_last_name ILIKE CONCAT('%',?,'%')
-					  OR po.patient_mrn ILIKE CONCAT('%',?,'%')
-					)
-					""");
-
-			parameters.add(searchQuery);
-			parameters.add(searchQuery);
-			parameters.add(searchQuery);
+		if (patientMrn != null) {
+			whereClauseLines.add("AND LOWER(po.patient_mrn)=LOWER(?)");
+			parameters.add(patientMrn);
 		}
 
 		// TODO: finish adding other parameters/filters
@@ -601,8 +628,7 @@ public class PatientOrderService {
 				  WITH base_query AS (
 				  SELECT po.*
 				  FROM v_patient_order po
-				  WHERE po.institution_id=?
-				  AND po.patient_order_status_id != ?
+				  WHERE po.institution_id=?				  
 				  {{whereClauseLines}}
 				  ),
 				  total_count_query AS (
@@ -630,6 +656,74 @@ public class PatientOrderService {
 
 		FindResult<? extends PatientOrder> findResult = new FindResult<>(patientOrders, totalCount);
 		return (FindResult<PatientOrder>) findResult;
+	}
+
+	@Nonnull
+	public Optional<PatientOrderAutocompleteResult> findPatientOrderAutocompleteResultByMrn(@Nullable String patientMrn,
+																																													@Nullable InstitutionId institutionId) {
+		patientMrn = trimToNull(patientMrn);
+
+		if (patientMrn == null || institutionId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM patient_order
+				WHERE institution_id=?
+				AND patient_mrn=?
+				LIMIT 1
+				""", PatientOrderAutocompleteResult.class, institutionId, patientMrn);
+	}
+
+	@Nonnull
+	public List<PatientOrderAutocompleteResult> findPatientOrderAutocompleteResults(@Nullable String searchQuery,
+																																									@Nullable InstitutionId institutionId) {
+		searchQuery = trimToNull(searchQuery);
+
+		if (searchQuery == null || institutionId == null)
+			return List.of();
+
+		// For phone numbers, remove anything that's not a digit
+		String searchQueryPhoneNumber = searchQuery.replaceAll("[^0-9]", "");
+
+		if (searchQueryPhoneNumber.length() == 0)
+			searchQueryPhoneNumber = "invalid";
+
+		// TODO: this is quick and dirty so FE can build.  Need to significantly improve matching
+
+		return getDatabase().queryForList("""
+						SELECT *
+						FROM patient_order
+						WHERE institution_id=?
+						AND (
+						patient_first_name ILIKE CONCAT('%',?,'%')
+						OR patient_last_name ILIKE CONCAT('%',?,'%')
+						OR patient_mrn ILIKE CONCAT('%',?,'%')
+						OR (patient_phone_number IS NOT NULL AND patient_phone_number ILIKE CONCAT('%',?,'%'))
+						OR (patient_email_address IS NOT NULL AND patient_email_address ILIKE CONCAT('%',?,'%'))
+						)
+						ORDER BY patient_last_name, patient_first_name
+						LIMIT 10
+						""", PatientOrderAutocompleteResult.class, institutionId,
+				searchQuery, searchQuery, searchQuery, searchQueryPhoneNumber, searchQuery);
+	}
+
+	@Nonnull
+	public List<PatientOrderStatus> findPatientOrderStatuses() {
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM patient_order_status
+				ORDER BY display_order
+				""", PatientOrderStatus.class);
+	}
+
+	@Nonnull
+	public List<PatientOrderDisposition> findPatientOrderDispositions() {
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM patient_order_disposition
+				ORDER BY display_order
+				""", PatientOrderDisposition.class);
 	}
 
 	@Nonnull
@@ -701,7 +795,7 @@ public class PatientOrderService {
 			throw validationException;
 
 		// If we're already open, nothing to do
-		if (patientOrder.getPatientOrderStatusId() == PatientOrderStatusId.OPEN)
+		if (patientOrder.getPatientOrderDispositionId() == PatientOrderDispositionId.OPEN)
 			return false;
 
 		PatientOrder otherAlreadyOpenPatientOrder = findOpenPatientOrderByMrnAndInstitutionId(patientOrder.getPatientMrn(), patientOrder.getInstitutionId()).orElse(null);
@@ -716,13 +810,10 @@ public class PatientOrderService {
 
 		getDatabase().execute("""
 				UPDATE patient_order
-				SET patient_order_status_id=?, patient_order_closure_reason_id=?
+				SET patient_order_disposition_id=?, patient_order_closure_reason_id=?,
+				episode_closed_at=NULL, episode_closed_by_account_id=NULL
 				WHERE patient_order_id=?
-				""", PatientOrderStatusId.OPEN, PatientOrderClosureReasonId.NOT_CLOSED, patientOrderId);
-
-		Map<String, Object> metadata = new HashMap<>();
-		metadata.put("oldPatientOrderStatusId", patientOrder.getPatientOrderStatusId());
-		metadata.put("newPatientOrderStatusId", PatientOrderStatusId.OPEN);
+				""", PatientOrderDispositionId.OPEN, PatientOrderClosureReasonId.NOT_CLOSED, patientOrderId);
 
 		createPatientOrderEvent(new CreatePatientOrderEventRequest() {
 			{
@@ -730,7 +821,7 @@ public class PatientOrderService {
 				setPatientOrderId(patientOrderId);
 				setAccountId(accountId);
 				setMessage("Order opened."); // Not localized on the way in
-				setMetadata(metadata);
+				setMetadata(Map.of());
 			}
 		});
 
@@ -769,19 +860,18 @@ public class PatientOrderService {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		// If we're already not open, nothing to do
-		if (patientOrder.getPatientOrderStatusId() != PatientOrderStatusId.OPEN)
+		// If we're already closed, nothing to do
+		if (patientOrder.getPatientOrderDispositionId() == PatientOrderDispositionId.CLOSED)
 			return false;
 
 		getDatabase().execute("""
 				UPDATE patient_order
-				SET patient_order_status_id=?, patient_order_closure_reason_id=?
+				SET patient_order_disposition_id=?, patient_order_closure_reason_id=?,
+				episode_closed_at=NOW(), episode_closed_by_account_id=?
 				WHERE patient_order_id=?
-				""", PatientOrderStatusId.CLOSED, patientOrderClosureReasonId, patientOrderId);
+				""", PatientOrderDispositionId.CLOSED, patientOrderClosureReasonId, accountId, patientOrderId);
 
 		Map<String, Object> metadata = new HashMap<>();
-		metadata.put("oldPatientOrderStatusId", patientOrder.getPatientOrderStatusId());
-		metadata.put("newPatientOrderStatusId", PatientOrderStatusId.CLOSED);
 		metadata.put("patientOrderClosureReasonId", patientOrderClosureReasonId);
 
 		createPatientOrderEvent(new CreatePatientOrderEventRequest() {
@@ -1325,9 +1415,14 @@ public class PatientOrderService {
 			if (containsTestPatientData && !getConfiguration().getShouldEnableIcDebugging())
 				throw new IllegalStateException("Cannot upload test patient data in this environment.");
 
+			getLogger().info("Importing patient orders from CSV...");
+			int i = 0;
+
 			// Pull data from the CSV
 			try (Reader reader = new StringReader(csvContent)) {
 				for (CSVRecord record : CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(reader)) {
+					getLogger().info("Importing patient order {}...", ++i);
+
 					CreatePatientOrderRequest patientOrderRequest = new CreatePatientOrderRequest();
 					patientOrderRequest.setPatientOrderImportId(patientOrderImportId);
 					patientOrderRequest.setInstitutionId(institutionId);
@@ -1576,7 +1671,8 @@ public class PatientOrderService {
 	public UUID createPatientOrder(@Nonnull CreatePatientOrderRequest request) {
 		requireNonNull(request);
 
-		PatientOrderStatusId patientOrderStatusId = PatientOrderStatusId.OPEN;
+		PatientOrderStatusId patientOrderStatusId = PatientOrderStatusId.PENDING;
+		PatientOrderDispositionId patientOrderDispositionId = PatientOrderDispositionId.OPEN;
 		PatientOrderScreeningStatusId patientOrderScreeningStatusId = PatientOrderScreeningStatusId.NOT_SCREENED;
 		UUID patientOrderImportId = request.getPatientOrderImportId();
 		InstitutionId institutionId = request.getInstitutionId();
@@ -1806,6 +1902,7 @@ public class PatientOrderService {
 						  INSERT INTO patient_order (
 						  patient_order_id,
 						  patient_order_status_id,
+						  patient_order_disposition_id,
 						  patient_order_screening_status_id,
 						  patient_order_import_id,
 						  institution_id,
@@ -1851,11 +1948,11 @@ public class PatientOrderService {
 						  recent_psychotherapeutic_medications,
 						  test_patient_email_address,
 						  test_patient_password
-						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
-				patientOrderId, patientOrderStatusId, patientOrderScreeningStatusId, patientOrderImportId, institutionId, encounterDepartmentId,
-				encounterDepartmentIdType, encounterDepartmentName, referringPracticeId, referringPracticeIdType,
-				referringPracticeName, orderingProviderId, orderingProviderIdType, orderingProviderLastName,
+				patientOrderId, patientOrderStatusId, patientOrderDispositionId, patientOrderScreeningStatusId, patientOrderImportId,
+				institutionId, encounterDepartmentId, encounterDepartmentIdType, encounterDepartmentName, referringPracticeId,
+				referringPracticeIdType, referringPracticeName, orderingProviderId, orderingProviderIdType, orderingProviderLastName,
 				orderingProviderFirstName, orderingProviderMiddleName, billingProviderId, billingProviderIdType,
 				billingProviderLastName, billingProviderFirstName, billingProviderMiddleName, patientLastName, patientFirstName,
 				patientMrn, patientId, patientIdType, patientBirthSexId, patientBirthdate, patientAddressId, primaryPayorId,
