@@ -36,6 +36,8 @@ public class Feature {
 	@Nullable
 	private String description;
 	@Nullable
+	private String navDescription;
+	@Nullable
 	private Boolean recommended;
 
 	@Nullable
@@ -81,5 +83,14 @@ public class Feature {
 
 	public void setRecommended(@Nullable Boolean recommended) {
 		this.recommended = recommended;
+	}
+
+	@Nullable
+	public String getNavDescription() {
+		return navDescription;
+	}
+
+	public void setNavDescription(@Nullable String navDescription) {
+		this.navDescription = navDescription;
 	}
 }

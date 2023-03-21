@@ -327,13 +327,13 @@ public class InstitutionService {
 	public List<Feature> findFeaturesByInstitutionId(@Nullable InstitutionId institutionId, @Nullable Account account) {
 		if (institutionId == null || account == null)
 			return List.of();
-		
+
 		Institution institution = findInstitutionById(institutionId).get();
 		Optional<ScreeningSession> mostRecentCompletedTriageScreeningSession =
 				getScreeningServiceProvider().get().findMostRecentCompletedTriageScreeningSession(account.getAccountId(), institution.getProviderTriageScreeningFlowId());
 
 		UUID screeningSessionId = mostRecentCompletedTriageScreeningSession.isPresent() ? mostRecentCompletedTriageScreeningSession.get().getScreeningSessionId() : null;
-		return getDatabase().queryForList("SELECT f.feature_id, f.url_name, f.name, if.description, CASE WHEN ss.screening_session_id IS NOT NULL THEN true ELSE false END AS recommended " +
+		return getDatabase().queryForList("SELECT f.feature_id, f.url_name, f.name, if.description, if.nav_description, CASE WHEN ss.screening_session_id IS NOT NULL THEN true ELSE false END AS recommended " +
 				"FROM feature f, institution_feature if  " +
 				"LEFT OUTER JOIN screening_session_feature_recommendation ss " +
 				"ON if.institution_feature_id = ss.institution_feature_id " +
