@@ -180,9 +180,9 @@ public class InstitutionApiResponse {
 		this.groupSessionRequestsEnabled = institution.getGroupSessionRequestsEnabled();
 		this.ga4MeasurementId = institution.getGa4MeasurementId();
 		this.additionalNavigationItems = topicCenterService.findTopicCenterNavigationItemsByInstitutionId(institutionId);
-		this.features = institutionService.findFeaturesByInstitutionId(institutionId, account);
+		this.features = institutionService.findFeaturesByInstitutionId(institution, account);
 		this.displayFeatures = this.features.size() > 0;
-		this.takeTriageScreening = screeningService.triageSessionAvailable(account.getAccountId(), institution.getProviderTriageScreeningFlowId());
+		this.takeTriageScreening = screeningService.triageSessionAvailable(account, institution.getProviderTriageScreeningFlowId());
 	}
 
 	@Nonnull

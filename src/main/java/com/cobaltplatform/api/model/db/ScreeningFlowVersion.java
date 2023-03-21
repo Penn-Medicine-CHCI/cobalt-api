@@ -57,6 +57,8 @@ public class ScreeningFlowVersion {
 	private Instant lastUpdated;
 	@Nullable
 	private Integer minutesUntilRetake;
+	@Nullable
+	private Integer recommendationExpirationMinutes;
 
 	@Nullable
 	public UUID getScreeningFlowVersionId() {
@@ -182,5 +184,14 @@ public class ScreeningFlowVersion {
 
 	public void setMinutesUntilRetake(@Nullable Integer minutesUntilRetake) {
 		this.minutesUntilRetake = minutesUntilRetake;
+	}
+
+	@Nullable
+	public Integer getRecommendationExpirationMinutes() {
+		return recommendationExpirationMinutes;
+	}
+
+	public void setRecommendationExpirationMinutes(@Nullable Integer recommendationExpirationMinutes) {
+		this.recommendationExpirationMinutes = recommendationExpirationMinutes;
 	}
 }

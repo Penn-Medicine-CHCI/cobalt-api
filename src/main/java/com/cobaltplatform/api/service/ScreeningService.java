@@ -322,12 +322,12 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	public Boolean triageSessionAvailable (@Nullable UUID accountId,
+	public Boolean triageSessionAvailable (@Nullable Account account,
 																				 @Nullable UUID triageScreeningFlowId){
-		if (accountId == null || triageScreeningFlowId == null)
+		if (account == null || triageScreeningFlowId == null)
 			return false;
 
-		Optional<ScreeningSession> screeningSession = findMostRecentCompletedTriageScreeningSession(accountId, triageScreeningFlowId);
+		Optional<ScreeningSession> screeningSession = findMostRecentCompletedTriageScreeningSession(account.getAccountId(), triageScreeningFlowId);
 
 		//If there is no screeening session then return true because this user has not taken a screeening
 		if (!screeningSession.isPresent())

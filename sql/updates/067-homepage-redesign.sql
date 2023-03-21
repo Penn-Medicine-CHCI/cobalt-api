@@ -96,6 +96,7 @@ CREATE TABLE provider_institution_location (
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON provider_institution_location FOR EACH ROW EXECUTE PROCEDURE set_last_updated(); 
 
 ALTER TABLE screening_flow_version ADD COLUMN minutes_until_retake INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE screening_flow_version ADD COLUMN recommendation_expiration_minutes INTEGER NOT NULL DEFAULT 0;
 
 INSERT INTO feature 
   (feature_id, name, url_name)
