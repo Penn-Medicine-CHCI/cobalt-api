@@ -965,6 +965,20 @@ public class PatientOrderResource {
 				})
 				.collect(Collectors.toList());
 
+		List<Map<String, Object>> patientOrderOutreachResults = getPatientOrderService().findPatientOrderOutreachResults().stream()
+				.map(patientOrderOutreachResult -> {
+					Map<String, Object> patientOrderOutreachResultJson = new HashMap<>();
+					patientOrderOutreachResultJson.put("patientOrderOutreachResultId", patientOrderOutreachResult.getPatientOrderOutreachResultId());
+					patientOrderOutreachResultJson.put("patientOrderOutreachTypeId", patientOrderOutreachResult.getPatientOrderOutreachTypeId());
+					patientOrderOutreachResultJson.put("patientOrderOutreachTypeDescription", patientOrderOutreachResult.getPatientOrderOutreachTypeDescription());
+					patientOrderOutreachResultJson.put("patientOrderOutreachResultTypeId", patientOrderOutreachResult.getPatientOrderOutreachResultTypeId());
+					patientOrderOutreachResultJson.put("patientOrderOutreachResultTypeDescription", patientOrderOutreachResult.getPatientOrderOutreachResultTypeDescription());
+					patientOrderOutreachResultJson.put("patientOrderOutreachResultStatusId", patientOrderOutreachResult.getPatientOrderOutreachResultStatusId());
+					patientOrderOutreachResultJson.put("patientOrderOutreachResultStatusDescription", patientOrderOutreachResult.getPatientOrderOutreachResultStatusDescription());
+					return patientOrderOutreachResultJson;
+				})
+				.collect(Collectors.toList());
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("timeZones", timeZones);
 			put("countries", countries);
@@ -978,6 +992,7 @@ public class PatientOrderResource {
 			put("screeningTypes", screeningTypes);
 			put("patientOrderStatuses", patientOrderStatuses);
 			put("patientOrderDispositions", patientOrderDispositions);
+			put("patientOrderOutreachResults", patientOrderOutreachResults);
 		}});
 	}
 
