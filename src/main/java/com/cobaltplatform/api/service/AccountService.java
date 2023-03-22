@@ -1334,7 +1334,7 @@ public class AccountService {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		getDatabase().execute("UPDATE account SET institution_location_id = ? WHERE account_id = ?", institutionLocationId, accountId);
+		getDatabase().execute("UPDATE account SET institution_location_id = ?, prompted_for_institution_location = true WHERE account_id = ?", institutionLocationId, accountId);
 	}
 
 	@Nonnull

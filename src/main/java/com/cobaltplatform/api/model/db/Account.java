@@ -138,6 +138,8 @@ public class Account {
 	private Instant lastUpdated;
 	@Nullable
 	private UUID institutionLocationId;
+	@Nullable
+	private Boolean promptedForInstitutionLocation;
 
 	@Nonnull
 	public Map<String, Object> getMetadataAsMap() {
@@ -521,5 +523,14 @@ public class Account {
 
 	public void setInstitutionLocationId(@Nullable UUID institutionLocationId) {
 		this.institutionLocationId = institutionLocationId;
+	}
+
+	@Nullable
+	public Boolean getPromptedForInstitutionLocation() {
+		return promptedForInstitutionLocation;
+	}
+
+	public void setPromptedForInstitutionLocation(@Nullable Boolean promptedForInstitutionLocation) {
+		this.promptedForInstitutionLocation = promptedForInstitutionLocation;
 	}
 }

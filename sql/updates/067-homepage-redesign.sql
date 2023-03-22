@@ -82,6 +82,7 @@ CREATE TABLE institution_location (
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON institution_location FOR EACH ROW EXECUTE PROCEDURE set_last_updated(); 
 
 ALTER TABLE account ADD COLUMN institution_location_id UUID REFERENCES institution_location;
+ALTER TABLE account ADD COLUMN prompted_for_institution_location BOOLEAN NOT NULL DEFAULT false;
 
 --Available appointment time ranges
 CREATE TABLE appointment_time (
@@ -117,13 +118,13 @@ VALUES
 INSERT INTO feature 
   (feature_id, name, url_name, navigation_header_id)
 VALUES
-  ('THERAPY', 'Therapy', 'connect-with-support/therapy', 'CONNECT_WITH_SUPPORT'),
-  ('MEDICATION_SUBSCRIBER', 'Medication Subscriber', 'connect-with-support/medication-subscriber', 'CONNECT_WITH_SUPPORT'),
-  ('GROUP_SESSIONS', 'Group Sessions', 'group-sessions', 'CONNECT_WITH_SUPPORT'),
-  ('COACHING', 'Coaching', 'connect-with-support/coaching', 'CONNECT_WITH_SUPPORT'),
-  ('SELF_HELP_RESOURCES', 'Self-Help Resources', 'resource-library', 'BROWSE_RESOURCES'),
-  ('SPIRITUAL_SUPPORT', 'Spiritual Support', 'connect-with-support/spiritual-support', 'CONNECT_WITH_SUPPORT'),
-  ('CRISIS_SUPPORT', 'Crisis Support', 'in-crisis', 'CONNECT_WITH_SUPPORT');
+  ('THERAPY', 'Therapy', '/connect-with-support/therapy', 'CONNECT_WITH_SUPPORT'),
+  ('MEDICATION_SUBSCRIBER', 'Medication Subscriber', '/connect-with-support/medication-subscriber', 'CONNECT_WITH_SUPPORT'),
+  ('GROUP_SESSIONS', 'Group Sessions', '/group-sessions', 'CONNECT_WITH_SUPPORT'),
+  ('COACHING', 'Coaching', '/connect-with-support/coaching', 'CONNECT_WITH_SUPPORT'),
+  ('SELF_HELP_RESOURCES', 'Self-Help Resources', '/resource-library', 'BROWSE_RESOURCES'),
+  ('SPIRITUAL_SUPPORT', 'Spiritual Support', '/connect-with-support/spiritual-support', 'CONNECT_WITH_SUPPORT'),
+  ('CRISIS_SUPPORT', 'Crisis Support', '/in-crisis', 'CONNECT_WITH_SUPPORT');
 
 INSERT INTO filter
   (filter_id, name)

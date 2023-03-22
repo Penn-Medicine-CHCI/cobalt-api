@@ -146,6 +146,8 @@ public class AccountApiResponse {
 	private final Map<InstitutionId, AccountCapabilities> capabilities;
 	@Nullable
 	private final UUID institutionLocationId;
+	@Nullable
+	private final Boolean promptedForInstitutionLocation;
 
 	public enum AccountApiResponseSupplement {
 		EVERYTHING,
@@ -223,6 +225,7 @@ public class AccountApiResponse {
 		this.createdDescription = formatter.formatTimestamp(account.getCreated());
 		this.providerId = account.getProviderId();
 		this.institutionLocationId = account.getInstitutionLocationId();
+		this.promptedForInstitutionLocation = account.getPromptedForInstitutionLocation();
 
 		if (showPrivateDetails) {
 			this.emailAddress = account.getEmailAddress();
@@ -495,5 +498,10 @@ public class AccountApiResponse {
 	@Nullable
 	public UUID getInstitutionLocationId() {
 		return institutionLocationId;
+	}
+
+	@Nullable
+	public Boolean getPromptedForInstitutionLocation() {
+		return promptedForInstitutionLocation;
 	}
 }
