@@ -32,7 +32,7 @@ INSERT INTO patient_order_outreach_result_type VALUES ('LEFT_MESSAGE', 'NOT_CONN
 INSERT INTO patient_order_outreach_result_type VALUES ('DISCONNECTED', 'NOT_CONNECTED', 'Disconnected');
 INSERT INTO patient_order_outreach_result_type VALUES ('WRONG_NUMBER', 'NOT_CONNECTED', 'Wrong Number');
 INSERT INTO patient_order_outreach_result_type VALUES ('DISCUSSED_APPOINTMENT', 'CONNECTED', 'Discussed Appointment');
-INSERT INTO patient_order_outreach_result_type VALUES ('DISCUSSED_DIGITAL_SCREENING_REMINDER', 'CONNECTED', 'Discussed Digital Screening Reminder');
+INSERT INTO patient_order_outreach_result_type VALUES ('DISCUSSED_DIGITAL_SCREENING', 'CONNECTED', 'Discussed Digital Screening');
 INSERT INTO patient_order_outreach_result_type VALUES ('DISCUSSED_RESOURCES', 'CONNECTED', 'Discussed Resources');
 INSERT INTO patient_order_outreach_result_type VALUES ('DISCUSSED_OTHER', 'CONNECTED', 'Discussed Other');
 INSERT INTO patient_order_outreach_result_type VALUES ('SENT_RESOURCES', 'CONNECTED', 'Sent Resources');
@@ -64,7 +64,7 @@ VALUES ('PHONE_CALL', 'WRONG_NUMBER', 6);
 INSERT INTO patient_order_outreach_result(patient_order_outreach_type_id, patient_order_outreach_result_type_id, display_order)
 VALUES ('PHONE_CALL', 'DISCUSSED_APPOINTMENT', 7);
 INSERT INTO patient_order_outreach_result(patient_order_outreach_type_id, patient_order_outreach_result_type_id, display_order)
-VALUES ('PHONE_CALL', 'DISCUSSED_DIGITAL_SCREENING_REMINDER', 8);
+VALUES ('PHONE_CALL', 'DISCUSSED_DIGITAL_SCREENING', 8);
 INSERT INTO patient_order_outreach_result(patient_order_outreach_type_id, patient_order_outreach_result_type_id, display_order)
 VALUES ('PHONE_CALL', 'DISCUSSED_RESOURCES', 9);
 INSERT INTO patient_order_outreach_result(patient_order_outreach_type_id, patient_order_outreach_result_type_id, display_order)
@@ -422,5 +422,22 @@ left outer join triage_query tq ON poq.patient_order_id = tq.patient_order_id
 left outer join account panel_account ON poq.panel_account_id = panel_account.account_id
 left outer join recent_po_query rpq on poq.patient_order_id = rpq.patient_order_id
 left outer join recent_scheduled_screening_query rssq on poq.patient_order_id = rssq.patient_order_id;
+
+CREATE VIEW v_patient_order_outreach_result AS
+SELECT
+	poor.*,
+	poot.description AS patient_order_outreach_type_description,
+	poort.description AS patient_order_outreach_result_type_description,
+	poors.patient_order_outreach_result_status_id,
+	poors.description AS patient_order_outreach_result_status_description
+FROM
+	patient_order_outreach_result poor,
+	patient_order_outreach_type poot,
+	patient_order_outreach_result_type poort,
+	patient_order_outreach_result_status poors
+WHERE
+  poor.patient_order_outreach_type_id=poot.patient_order_outreach_type_id
+  AND poor.patient_order_outreach_result_type_id=poort.patient_order_outreach_result_type_id
+  AND poort.patient_order_outreach_result_status_id=poors.patient_order_outreach_result_status_id;
 
 COMMIT;

@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.PatientOrderOutreachResultStatus.PatientOrderOutreachResultStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderOutreachResultType.PatientOrderOutreachResultTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderOutreachType.PatientOrderOutreachTypeId;
 
@@ -39,6 +40,17 @@ public class PatientOrderOutreachResult {
 	private PatientOrderOutreachResultTypeId patientOrderOutreachResultTypeId;
 	@Nullable
 	private Integer displayOrder;
+
+	// Joined in by v_patient_order_outreach_result
+
+	@Nullable
+	private String patientOrderOutreachTypeDescription;
+	@Nullable
+	private String patientOrderOutreachResultTypeDescription;
+	@Nullable
+	private PatientOrderOutreachResultStatusId patientOrderOutreachResultStatusId;
+	@Nullable
+	private String patientOrderOutreachResultStatusDescription;
 
 	@Nullable
 	public UUID getPatientOrderOutreachResultId() {
@@ -74,5 +86,41 @@ public class PatientOrderOutreachResult {
 
 	public void setDisplayOrder(@Nullable Integer displayOrder) {
 		this.displayOrder = displayOrder;
+	}
+
+	@Nullable
+	public String getPatientOrderOutreachTypeDescription() {
+		return this.patientOrderOutreachTypeDescription;
+	}
+
+	public void setPatientOrderOutreachTypeDescription(@Nullable String patientOrderOutreachTypeDescription) {
+		this.patientOrderOutreachTypeDescription = patientOrderOutreachTypeDescription;
+	}
+
+	@Nullable
+	public String getPatientOrderOutreachResultTypeDescription() {
+		return this.patientOrderOutreachResultTypeDescription;
+	}
+
+	public void setPatientOrderOutreachResultTypeDescription(@Nullable String patientOrderOutreachResultTypeDescription) {
+		this.patientOrderOutreachResultTypeDescription = patientOrderOutreachResultTypeDescription;
+	}
+
+	@Nullable
+	public PatientOrderOutreachResultStatusId getPatientOrderOutreachResultStatusId() {
+		return this.patientOrderOutreachResultStatusId;
+	}
+
+	public void setPatientOrderOutreachResultStatusId(@Nullable PatientOrderOutreachResultStatusId patientOrderOutreachResultStatusId) {
+		this.patientOrderOutreachResultStatusId = patientOrderOutreachResultStatusId;
+	}
+
+	@Nullable
+	public String getPatientOrderOutreachResultStatusDescription() {
+		return this.patientOrderOutreachResultStatusDescription;
+	}
+
+	public void setPatientOrderOutreachResultStatusDescription(@Nullable String patientOrderOutreachResultStatusDescription) {
+		this.patientOrderOutreachResultStatusDescription = patientOrderOutreachResultStatusDescription;
 	}
 }
