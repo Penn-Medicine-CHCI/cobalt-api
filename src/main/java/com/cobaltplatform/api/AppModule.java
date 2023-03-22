@@ -68,6 +68,7 @@ import com.cobaltplatform.api.model.api.response.AdminAvailableContentApiRespons
 import com.cobaltplatform.api.model.api.response.AdminContentApiResponse.AdminContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AdminInstitutionApiResponse.AdminInstitutionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.AppointmentTimeApiResponse.AppointmentTimeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AppointmentTypeApiResponse.AppointmentTypeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AssessmentApiResponse.AssessmentQuestionAnswerApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AssessmentFormApiResponse.AssessmentFormApiResponseFactory;
@@ -77,6 +78,8 @@ import com.cobaltplatform.api.model.api.response.CallToActionApiResponse.CallToA
 import com.cobaltplatform.api.model.api.response.ClinicApiResponse.ClinicApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse.CountryApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.FeatureApiResponse.FeatureApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.FilterApiResponse.FilterApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupRequestApiResponse.GroupRequestApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
@@ -86,7 +89,6 @@ import com.cobaltplatform.api.model.api.response.GroupSessionResponseApiResponse
 import com.cobaltplatform.api.model.api.response.GroupTopicApiResponse.GroupTopicApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionBlurbApiResponse.InstitutionBlurbApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.InstitutionLocationApiResponse;
 import com.cobaltplatform.api.model.api.response.InstitutionTeamMemberApiResponse.InstitutionTeamMemberApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InsuranceApiResponse.InsuranceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InteractionInstanceApiResponse.InteractionInstanceApiResponseFactory;
@@ -282,6 +284,9 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(PatientOrderTriageApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(InstitutionLocationApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PatientOrderAutocompleteResultApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(FilterApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(AppointmentTimeApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(FeatureApiResponseFactory.class)));
 	}
 
 	@Provides

@@ -25,8 +25,11 @@ import com.cobaltplatform.api.model.api.request.ProviderFindRequest.ProviderFind
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest.ProviderFindSupplement;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseSupplement;
+import com.cobaltplatform.api.model.api.response.AppointmentTimeApiResponse.AppointmentTimeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AvailabilityTimeApiResponse.AvailabilityTimeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ClinicApiResponse.ClinicApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.FeatureApiResponse.FeatureApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.FilterApiResponse.FilterApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseFactory;
@@ -40,6 +43,8 @@ import com.cobaltplatform.api.model.api.response.VisitTypeApiResponse.VisitTypeA
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.Clinic;
+import com.cobaltplatform.api.model.db.Feature;
+import com.cobaltplatform.api.model.db.Filter;
 import com.cobaltplatform.api.model.db.Followup;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -59,6 +64,7 @@ import com.cobaltplatform.api.service.AssessmentService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.AvailabilityService;
 import com.cobaltplatform.api.service.ClinicService;
+import com.cobaltplatform.api.service.FeatureService;
 import com.cobaltplatform.api.service.FollowupService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ProviderService;
@@ -165,6 +171,14 @@ public class ProviderResource {
 	private final Strings strings;
 	@Nonnull
 	private final Logger logger;
+	@Nonnull
+	private final FeatureService featureService;
+	@Nonnull
+	private final FilterApiResponseFactory filterApiResponseFactory;
+	@Nonnull
+	private final AppointmentTimeApiResponseFactory appointmentTimeApiResponseFactory;
+	@Nonnull
+	private final FeatureApiResponseFactory featureApiResponseFactory;
 
 	@Inject
 	public ProviderResource(@Nonnull AssessmentService assessmentService,
@@ -190,7 +204,11 @@ public class ProviderResource {
 													@Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
 													@Nonnull RequestBodyParser requestBodyParser,
 													@Nonnull Formatter formatter,
-													@Nonnull Strings strings) {
+													@Nonnull Strings strings,
+													@Nonnull FeatureService featureService,
+													@Nonnull FilterApiResponseFactory filterApiResponseFactory,
+													@Nonnull AppointmentTimeApiResponseFactory appointmentTimeApiResponseFactory,
+													@Nonnull FeatureApiResponseFactory featureApiResponseFactory) {
 		requireNonNull(assessmentService);
 		requireNonNull(assessmentScoringService);
 		requireNonNull(providerService);
@@ -215,6 +233,10 @@ public class ProviderResource {
 		requireNonNull(requestBodyParser);
 		requireNonNull(formatter);
 		requireNonNull(strings);
+		requireNonNull(featureService);
+		requireNonNull(filterApiResponseFactory);
+		requireNonNull(appointmentTimeApiResponseFactory);
+		requireNonNull(featureApiResponseFactory);
 
 		this.assessmentService = assessmentService;
 		this.assessmentScoringService = assessmentScoringService;
@@ -241,6 +263,10 @@ public class ProviderResource {
 		this.formatter = formatter;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
+		this.featureService = featureService;
+		this.filterApiResponseFactory = filterApiResponseFactory;
+		this.appointmentTimeApiResponseFactory = appointmentTimeApiResponseFactory;
+		this.featureApiResponseFactory = featureApiResponseFactory;
 	}
 
 	@Nonnull
@@ -579,6 +605,14 @@ public class ProviderResource {
 		List<SupportRole> recommendedSupportRoles = getScreeningService().findRecommendedSupportRolesByAccountId(account.getAccountId(), institution.getProviderTriageScreeningFlowId());
 		List<SupportRole> defaultSupportRoles = new ArrayList<>(recommendedSupportRoles);
 
+		Optional<Feature> feature = Optional.empty();
+		List<Filter> filters = null;
+		if (supportRoleIdOverride != null) {
+			feature = getFeatureService().findFeatureBySupportRoleIdAndInstitutionId(supportRoleIdOverride, institutionId);
+			if (feature.isPresent())
+				filters = getFeatureService().findFiltersByFeatureId(feature.get().getFeatureId());
+		}
+
 		if (defaultSupportRoles.size() == 0)
 			defaultSupportRoles = allSupportRoles;
 
@@ -683,6 +717,16 @@ public class ProviderResource {
 		response.put("specialties", specialties.stream()
 				.map(specialty -> getSpecialtyApiResponseFactory().create(specialty))
 				.collect(Collectors.toList()));
+		response.put("appointmentTimes", getAppointmentService().findAppointmentTimes().stream()
+				.map(appointmentTime -> getAppointmentTimeApiResponseFactory().create(appointmentTime))
+				.collect(Collectors.toList()));
+		if (feature.isPresent()) {
+			response.put("feature", getFeatureApiResponseFactory().create(feature.get()));
+			if (filters != null)
+				response.put("filters", filters.stream()
+					.map(filter -> getFilterApiResponseFactory().create(filter))
+					.collect(Collectors.toList()));
+		}
 
 		return new ApiResponse(response);
 	}
@@ -889,4 +933,16 @@ public class ProviderResource {
 	protected Logger getLogger() {
 		return logger;
 	}
+
+	@Nonnull
+	protected FeatureService getFeatureService() { return this.featureService; }
+
+	@Nonnull
+	protected FilterApiResponseFactory getFilterApiResponseFactory() { return filterApiResponseFactory; }
+
+	@Nonnull
+	protected AppointmentTimeApiResponseFactory getAppointmentTimeApiResponseFactory() { return  appointmentTimeApiResponseFactory; }
+
+	@Nonnull
+	protected FeatureApiResponseFactory getFeatureApiResponseFactory() { return featureApiResponseFactory; }
 }

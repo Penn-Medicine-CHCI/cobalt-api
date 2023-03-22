@@ -16,10 +16,12 @@ CREATE TABLE feature (
   navigation_header_id VARCHAR REFERENCES navigation_header,
   name VARCHAR NOT NULL,
   url_name VARCHAR NOT NULL,
+  support_role_id VARCHAR REFERENCES support_role,
   created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE UNIQUE INDEX feature_support_role_id_unique_idx ON feature USING btree (support_role_id);
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON feature FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 --Filters available when filtering feature options
@@ -89,8 +91,8 @@ CREATE TABLE appointment_time (
 	appointment_time_id VARCHAR PRIMARY KEY,
 	name VARCHAR NOT NULL,
 	description VARCHAR NOT NULL,
-	start_time VARCHAR NOT NULL,
-	end_time VARCHAR NOT NULL,
+	start_time TIMETZ NOT NULL,
+	end_time TIMETZ NOT NULL,
 	display_order INTEGER NOT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW());
@@ -116,15 +118,15 @@ VALUES
   ('BROWSE_RESOURCES', 'Browse Resources');
 
 INSERT INTO feature 
-  (feature_id, name, url_name, navigation_header_id)
+  (feature_id, name, url_name, navigation_header_id,support_role_id)
 VALUES
-  ('THERAPY', 'Therapy', '/connect-with-support/therapy', 'CONNECT_WITH_SUPPORT'),
-  ('MEDICATION_SUBSCRIBER', 'Medication Subscriber', '/connect-with-support/medication-subscriber', 'CONNECT_WITH_SUPPORT'),
-  ('GROUP_SESSIONS', 'Group Sessions', '/group-sessions', 'CONNECT_WITH_SUPPORT'),
-  ('COACHING', 'Coaching', '/connect-with-support/coaching', 'CONNECT_WITH_SUPPORT'),
-  ('SELF_HELP_RESOURCES', 'Self-Help Resources', '/resource-library', 'BROWSE_RESOURCES'),
-  ('SPIRITUAL_SUPPORT', 'Spiritual Support', '/connect-with-support/spiritual-support', 'CONNECT_WITH_SUPPORT'),
-  ('CRISIS_SUPPORT', 'Crisis Support', '/in-crisis', 'CONNECT_WITH_SUPPORT');
+  ('THERAPY', 'Therapy', '/connect-with-support/therapy', 'CONNECT_WITH_SUPPORT','CLINICIAN'),
+  ('MEDICATION_SUBSCRIBER', 'Medication Subscriber', '/connect-with-support/medication-subscriber', 'CONNECT_WITH_SUPPORT', null),
+  ('GROUP_SESSIONS', 'Group Sessions', '/group-sessions', 'CONNECT_WITH_SUPPORT', null),
+  ('COACHING', 'Coaching', '/connect-with-support/coaching', 'CONNECT_WITH_SUPPORT', 'COACH'),
+  ('SELF_HELP_RESOURCES', 'Self-Help Resources', '/resource-library', 'BROWSE_RESOURCES', null),
+  ('SPIRITUAL_SUPPORT', 'Spiritual Support', '/connect-with-support/spiritual-support', 'CONNECT_WITH_SUPPORT','CHAPLAIN'),
+  ('CRISIS_SUPPORT', 'Crisis Support', '/in-crisis', 'CONNECT_WITH_SUPPORT', null);
 
 INSERT INTO filter
   (filter_id, name)

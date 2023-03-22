@@ -34,7 +34,7 @@ import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
-import com.cobaltplatform.api.model.service.Feature;
+import com.cobaltplatform.api.model.service.FeaturesForInstitution;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -329,7 +329,7 @@ public class InstitutionService {
 	}
 
 	@Nonnull
-	public List<Feature> findFeaturesByInstitutionId(@Nullable Institution institution, @Nullable Account account) {
+	public List<FeaturesForInstitution> findFeaturesByInstitutionId(@Nullable Institution institution, @Nullable Account account) {
 		Optional<ScreeningFlow> screeningFlow = getScreeningServiceProvider().get().findScreeningFlowById(institution.getProviderTriageScreeningFlowId());
 		if (institution == null || account == null || !screeningFlow.isPresent())
 			return List.of();
@@ -349,12 +349,12 @@ public class InstitutionService {
 				screeningSessionId = mostRecentCompletedTriageScreeningSession.get().getScreeningSessionId();
 
 		return getDatabase().queryForList("SELECT f.feature_id, f.url_name, f.name, if.description, if.nav_description, "+
-				"CASE WHEN ss.screening_session_id IS NOT NULL THEN true ELSE false END AS recommended, f.navigation_header_id " +
+				"CASE WHEN ss.screening_session_id IS NOT NULL THEN true ELSE false END AS recommended, f.navigation_header_id, f.support_role_id " +
 				"FROM feature f, institution_feature if  " +
 				"LEFT OUTER JOIN screening_session_feature_recommendation ss " +
 				"ON if.institution_feature_id = ss.institution_feature_id " +
 				"AND ss.screening_session_id = ? " +
-				"WHERE f.feature_id = if.feature_id AND if.institution_id = ? ORDER BY if.display_order", Feature.class, screeningSessionId, institution.getInstitutionId());
+				"WHERE f.feature_id = if.feature_id AND if.institution_id = ? ORDER BY if.display_order", FeaturesForInstitution.class, screeningSessionId, institution.getInstitutionId());
 	}
 
 

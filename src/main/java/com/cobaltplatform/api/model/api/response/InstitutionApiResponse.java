@@ -23,7 +23,7 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.service.Feature;
+import com.cobaltplatform.api.model.service.FeaturesForInstitution;
 import com.cobaltplatform.api.model.service.NavigationItem;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ScreeningService;
@@ -36,7 +36,6 @@ import com.lokalized.Strings;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
-import javax.inject.Provider;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -115,7 +114,7 @@ public class InstitutionApiResponse {
 	@Nonnull
 	private final List<NavigationItem> additionalNavigationItems;
 	@Nonnull
-	private final List<Feature> features;
+	private final List<FeaturesForInstitution> features;
 	@Nonnull
 	private final Boolean displayFeatures;
 	@Nonnull
@@ -339,7 +338,7 @@ public class InstitutionApiResponse {
 	}
 
 	@Nonnull
-	public List<Feature> getFeatures() {
+	public List<FeaturesForInstitution> getFeatures() {
 		return features;
 	}
 

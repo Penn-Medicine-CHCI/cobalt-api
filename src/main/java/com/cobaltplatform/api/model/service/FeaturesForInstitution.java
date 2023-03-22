@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.service;
 
 import com.cobaltplatform.api.model.db.NavigationHeader.NavigationHeaderId;
+import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -28,7 +29,7 @@ import javax.annotation.concurrent.NotThreadSafe;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class Feature {
+public class FeaturesForInstitution {
 	@Nullable
 	private String featureId;
 	@Nullable
@@ -43,6 +44,8 @@ public class Feature {
 	private Boolean recommended;
 	@Nullable
 	private NavigationHeaderId navigationHeaderId;
+	@Nullable
+	private SupportRoleId supportRoleId;
 
 	@Nullable
 	public String getFeatureId() {
@@ -105,5 +108,14 @@ public class Feature {
 
 	public void setNavigationHeaderId(@Nullable NavigationHeaderId navigationHeaderId) {
 		this.navigationHeaderId = navigationHeaderId;
+	}
+
+	@Nullable
+	public SupportRoleId getSupportRoleId() {
+		return supportRoleId;
+	}
+
+	public void setSupportRoleId(@Nullable SupportRoleId supportRoleId) {
+		this.supportRoleId = supportRoleId;
 	}
 }

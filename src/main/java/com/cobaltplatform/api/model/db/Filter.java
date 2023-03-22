@@ -22,44 +22,34 @@ package com.cobaltplatform.api.model.db;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
-import java.time.LocalTime;
 
 /**
- * @author Transmogrify, LLC.
+ * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class AppointmentTime {
+public class Filter {
 	@Nullable
-	private AppointmentTimeId appointmentTimeId;
+	private FilterId filterId;
 	@Nullable
 	private String name;
-	@Nullable
-	private String description;
-	@Nullable
-	private LocalTime startTime;
-	@Nullable
-	private LocalTime endTime;
-	@Nullable
-	private Integer displayOrder;
 	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
 
-	public enum AppointmentTimeId {
-		EARLY_MORNING,
-		MORNING,
-		AFTERNOON,
-		EVENING
+	public enum FilterId {
+		DATE,
+		TIME_OF_DAY,
+		LOCATION
 	}
 
 	@Nullable
-	public AppointmentTimeId getAppointmentTimeId() {
-		return appointmentTimeId;
+	public FilterId getFilterId() {
+		return filterId;
 	}
 
-	public void setAppointmentTimeId(@Nullable AppointmentTimeId appointmentTimeId) {
-		this.appointmentTimeId = appointmentTimeId;
+	public void setFilterId(@Nullable FilterId filterId) {
+		this.filterId = filterId;
 	}
 
 	@Nullable
@@ -69,42 +59,6 @@ public class AppointmentTime {
 
 	public void setName(@Nullable String name) {
 		this.name = name;
-	}
-
-	@Nullable
-	public String getDescription() {
-		return description;
-	}
-
-	public void setDescription(@Nullable String description) {
-		this.description = description;
-	}
-
-	@Nullable
-	public LocalTime getStartTime() {
-		return startTime;
-	}
-
-	public void setStartTime(@Nullable LocalTime startTime) {
-		this.startTime = startTime;
-	}
-
-	@Nullable
-	public LocalTime getEndTime() {
-		return endTime;
-	}
-
-	public void setEndTime(@Nullable LocalTime endTime) {
-		this.endTime = endTime;
-	}
-
-	@Nullable
-	public Integer getDisplayOrder() {
-		return displayOrder;
-	}
-
-	public void setDisplayOrder(@Nullable Integer displayOrder) {
-		this.displayOrder = displayOrder;
 	}
 
 	@Nullable
