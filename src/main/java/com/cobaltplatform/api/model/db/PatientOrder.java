@@ -219,6 +219,12 @@ public class PatientOrder {
 	private Instant mostRecentEpisodeClosedAt;
 	@Nullable
 	private Boolean mostRecentEpisodeClosedWithinDateThreshold;
+	@Nullable
+	private UUID patientOrderScheduledScreeningId;
+	@Nullable
+	private LocalDateTime patientOrderScheduledScreeningScheduledDateTime;
+	@Nullable
+	private String patientOrderScheduledScreeningCalendarUrl;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -1001,5 +1007,32 @@ public class PatientOrder {
 
 	public void setMostRecentEpisodeClosedWithinDateThreshold(@Nullable Boolean mostRecentEpisodeClosedWithinDateThreshold) {
 		this.mostRecentEpisodeClosedWithinDateThreshold = mostRecentEpisodeClosedWithinDateThreshold;
+	}
+
+	@Nullable
+	public UUID getPatientOrderScheduledScreeningId() {
+		return this.patientOrderScheduledScreeningId;
+	}
+
+	public void setPatientOrderScheduledScreeningId(@Nullable UUID patientOrderScheduledScreeningId) {
+		this.patientOrderScheduledScreeningId = patientOrderScheduledScreeningId;
+	}
+
+	@Nullable
+	public LocalDateTime getPatientOrderScheduledScreeningScheduledDateTime() {
+		return this.patientOrderScheduledScreeningScheduledDateTime;
+	}
+
+	public void setPatientOrderScheduledScreeningScheduledDateTime(@Nullable LocalDateTime patientOrderScheduledScreeningScheduledDateTime) {
+		this.patientOrderScheduledScreeningScheduledDateTime = patientOrderScheduledScreeningScheduledDateTime;
+	}
+
+	@Nullable
+	public String getPatientOrderScheduledScreeningCalendarUrl() {
+		return this.patientOrderScheduledScreeningCalendarUrl;
+	}
+
+	public void setPatientOrderScheduledScreeningCalendarUrl(@Nullable String patientOrderScheduledScreeningCalendarUrl) {
+		this.patientOrderScheduledScreeningCalendarUrl = patientOrderScheduledScreeningCalendarUrl;
 	}
 }

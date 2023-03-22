@@ -315,6 +315,14 @@ public class PatientOrderApiResponse {
 	private String mostRecentEpisodeClosedAtDescription;
 	@Nullable
 	private Boolean mostRecentEpisodeClosedWithinDateThreshold;
+	@Nullable
+	private UUID patientOrderScheduledScreeningId;
+	@Nullable
+	private LocalDateTime patientOrderScheduledScreeningScheduledDateTime;
+	@Nullable
+	private String patientOrderScheduledScreeningScheduledDateTimeDescription;
+	@Nullable
+	private String patientOrderScheduledScreeningCalendarUrl;
 
 	public enum PatientOrderApiResponseSupplement {
 		MINIMAL,
@@ -655,6 +663,10 @@ public class PatientOrderApiResponse {
 			this.mostRecentEpisodeClosedAt = patientOrder.getMostRecentEpisodeClosedAt();
 			this.mostRecentEpisodeClosedAtDescription = patientOrder.getMostRecentEpisodeClosedAt() == null ? null : formatter.formatTimestamp(patientOrder.getMostRecentEpisodeClosedAt());
 			this.mostRecentEpisodeClosedWithinDateThreshold = patientOrder.getMostRecentEpisodeClosedWithinDateThreshold();
+			this.patientOrderScheduledScreeningId = patientOrder.getPatientOrderScheduledScreeningId();
+			this.patientOrderScheduledScreeningScheduledDateTime = patientOrder.getPatientOrderScheduledScreeningScheduledDateTime();
+			this.patientOrderScheduledScreeningScheduledDateTimeDescription = patientOrder.getPatientOrderScheduledScreeningScheduledDateTime() == null ? null : formatter.formatDateTime(patientOrder.getPatientOrderScheduledScreeningScheduledDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+			this.patientOrderScheduledScreeningCalendarUrl = patientOrder.getPatientOrderScheduledScreeningCalendarUrl();
 		}
 	}
 
@@ -1201,5 +1213,40 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public UUID getEpisodeClosedByAccountId() {
 		return this.episodeClosedByAccountId;
+	}
+
+	@Nullable
+	public Instant getMostRecentEpisodeClosedAt() {
+		return this.mostRecentEpisodeClosedAt;
+	}
+
+	@Nullable
+	public String getMostRecentEpisodeClosedAtDescription() {
+		return this.mostRecentEpisodeClosedAtDescription;
+	}
+
+	@Nullable
+	public Boolean getMostRecentEpisodeClosedWithinDateThreshold() {
+		return this.mostRecentEpisodeClosedWithinDateThreshold;
+	}
+
+	@Nullable
+	public UUID getPatientOrderScheduledScreeningId() {
+		return this.patientOrderScheduledScreeningId;
+	}
+
+	@Nullable
+	public LocalDateTime getPatientOrderScheduledScreeningScheduledDateTime() {
+		return this.patientOrderScheduledScreeningScheduledDateTime;
+	}
+
+	@Nullable
+	public String getPatientOrderScheduledScreeningScheduledDateTimeDescription() {
+		return this.patientOrderScheduledScreeningScheduledDateTimeDescription;
+	}
+
+	@Nullable
+	public String getPatientOrderScheduledScreeningCalendarUrl() {
+		return this.patientOrderScheduledScreeningCalendarUrl;
 	}
 }

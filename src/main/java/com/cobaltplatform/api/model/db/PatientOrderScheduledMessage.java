@@ -19,9 +19,15 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
+import com.cobaltplatform.api.model.db.ScheduledMessageSource.ScheduledMessageSourceId;
+import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.UUID;
 
 /**
@@ -39,6 +45,29 @@ public class PatientOrderScheduledMessage {
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
+
+	@Nullable
+	private String patientOrderScheduledMessageTypeDescription;
+	@Nullable
+	private ScheduledMessageStatusId scheduledMessageStatusId;
+	@Nullable
+	private UUID scheduledByAccountId;
+	@Nullable
+	private ScheduledMessageSourceId scheduledMessageSourceId;
+	@Nullable
+	private MessageTypeId messageTypeId;
+	@Nullable
+	private String messageTypeDescription;
+	@Nullable
+	private LocalDateTime scheduledAt;
+	@Nullable
+	private ZoneId timeZone;
+	@Nullable
+	private Instant processedAt;
+	@Nullable
+	private Instant canceledAt;
+	@Nullable
+	private Instant erroredAt;
 
 	@Nullable
 	public UUID getPatientOrderScheduledMessageId() {
@@ -83,5 +112,104 @@ public class PatientOrderScheduledMessage {
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
+	}
+
+	@Nullable
+	public String getPatientOrderScheduledMessageTypeDescription() {
+		return this.patientOrderScheduledMessageTypeDescription;
+	}
+
+	public void setPatientOrderScheduledMessageTypeDescription(@Nullable String patientOrderScheduledMessageTypeDescription) {
+		this.patientOrderScheduledMessageTypeDescription = patientOrderScheduledMessageTypeDescription;
+	}
+
+	@Nullable
+	public ScheduledMessageStatusId getScheduledMessageStatusId() {
+		return this.scheduledMessageStatusId;
+	}
+
+	public void setScheduledMessageStatusId(@Nullable ScheduledMessageStatusId scheduledMessageStatusId) {
+		this.scheduledMessageStatusId = scheduledMessageStatusId;
+	}
+
+	@Nullable
+	public UUID getScheduledByAccountId() {
+		return this.scheduledByAccountId;
+	}
+
+	public void setScheduledByAccountId(@Nullable UUID scheduledByAccountId) {
+		this.scheduledByAccountId = scheduledByAccountId;
+	}
+
+	@Nullable
+	public ScheduledMessageSourceId getScheduledMessageSourceId() {
+		return this.scheduledMessageSourceId;
+	}
+
+	public void setScheduledMessageSourceId(@Nullable ScheduledMessageSourceId scheduledMessageSourceId) {
+		this.scheduledMessageSourceId = scheduledMessageSourceId;
+	}
+
+	@Nullable
+	public MessageTypeId getMessageTypeId() {
+		return this.messageTypeId;
+	}
+
+	public void setMessageTypeId(@Nullable MessageTypeId messageTypeId) {
+		this.messageTypeId = messageTypeId;
+	}
+
+	@Nullable
+	public String getMessageTypeDescription() {
+		return this.messageTypeDescription;
+	}
+
+	public void setMessageTypeDescription(@Nullable String messageTypeDescription) {
+		this.messageTypeDescription = messageTypeDescription;
+	}
+
+	@Nullable
+	public LocalDateTime getScheduledAt() {
+		return this.scheduledAt;
+	}
+
+	public void setScheduledAt(@Nullable LocalDateTime scheduledAt) {
+		this.scheduledAt = scheduledAt;
+	}
+
+	@Nullable
+	public ZoneId getTimeZone() {
+		return this.timeZone;
+	}
+
+	public void setTimeZone(@Nullable ZoneId timeZone) {
+		this.timeZone = timeZone;
+	}
+
+	@Nullable
+	public Instant getProcessedAt() {
+		return this.processedAt;
+	}
+
+	public void setProcessedAt(@Nullable Instant processedAt) {
+		this.processedAt = processedAt;
+	}
+
+	@Nullable
+	public Instant getCanceledAt() {
+		return this.canceledAt;
+	}
+
+	public void setCanceledAt(@Nullable Instant canceledAt) {
+		this.canceledAt = canceledAt;
+	}
+
+	@Nullable
+	public Instant getErroredAt() {
+		return this.erroredAt;
+	}
+
+	public void setErroredAt(@Nullable Instant erroredAt) {
+		this.erroredAt = erroredAt;
 	}
 }
