@@ -22,7 +22,6 @@ package com.cobaltplatform.api.model.api.request;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
@@ -34,6 +33,8 @@ public class CreatePatientOrderOutreachRequest {
 	private UUID patientOrderId;
 	@Nullable
 	private UUID accountId;
+	@Nullable
+	private UUID patientOrderOutreachResultId;
 	@Nullable
 	private LocalDate outreachDate;
 	@Nullable
@@ -57,6 +58,15 @@ public class CreatePatientOrderOutreachRequest {
 
 	public void setAccountId(@Nullable UUID accountId) {
 		this.accountId = accountId;
+	}
+
+	@Nullable
+	public UUID getPatientOrderOutreachResultId() {
+		return this.patientOrderOutreachResultId;
+	}
+
+	public void setPatientOrderOutreachResultId(@Nullable UUID patientOrderOutreachResultId) {
+		this.patientOrderOutreachResultId = patientOrderOutreachResultId;
 	}
 
 	@Nullable

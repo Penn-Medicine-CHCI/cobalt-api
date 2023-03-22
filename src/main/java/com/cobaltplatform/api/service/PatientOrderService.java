@@ -58,7 +58,7 @@ import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImport
 import com.cobaltplatform.api.model.db.PatientOrderMedication;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderOutreach;
-import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderOutreachResult;
 import com.cobaltplatform.api.model.db.PatientOrderStatus;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
@@ -1133,11 +1133,21 @@ public class PatientOrderService {
 	}
 
 	@Nonnull
+	public List<PatientOrderOutreachResult> findPatientOrderOutreachResults() {
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM v_patient_order_outreach_result
+				ORDER BY display_order
+				""", PatientOrderOutreachResult.class);
+	}
+
+	@Nonnull
 	public UUID createPatientOrderOutreach(@Nonnull CreatePatientOrderOutreachRequest request) {
 		requireNonNull(request);
 
 		UUID accountId = request.getAccountId();
 		UUID patientOrderId = request.getPatientOrderId();
+		UUID patientOrderOutreachResultId = request.getPatientOrderOutreachResultId();
 		String note = trimToNull(request.getNote());
 		LocalDate outreachDate = request.getOutreachDate();
 		String outreachTimeAsString = trimToNull(request.getOutreachTime());
@@ -1157,6 +1167,9 @@ public class PatientOrderService {
 			if (patientOrder == null)
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
 		}
+
+		if (patientOrderOutreachResultId == null)
+			validationException.add(new FieldError("patientOrderOutreachResultId", getStrings().get("Patient Order Outreach Result ID is required.")));
 
 		if (outreachDate == null)
 			validationException.add(new FieldError("outreachDate", getStrings().get("Outreach date is required.")));
@@ -1178,9 +1191,9 @@ public class PatientOrderService {
 
 		getDatabase().execute("""
 				INSERT INTO patient_order_outreach (
-				patient_order_outreach_id, patient_order_id, account_id, note, outreach_date_time
-				) VALUES (?,?,?,?,?)
-				""", patientOrderOutreachId, patientOrderId, accountId, note, outreachDateTime);
+				patient_order_outreach_id, patient_order_id, account_id, patient_order_outreach_result_id, note, outreach_date_time
+				) VALUES (?,?,?,?,?,?)
+				""", patientOrderOutreachId, patientOrderId, accountId, patientOrderOutreachResultId, note, outreachDateTime);
 
 		createPatientOrderEvent(new CreatePatientOrderEventRequest() {{
 			setPatientOrderEventTypeId(PatientOrderEventTypeId.OUTREACH_CREATED);
@@ -1188,10 +1201,8 @@ public class PatientOrderService {
 			setAccountId(accountId);
 			setMessage("Created outreach."); // Not localized on the way in
 			setMetadata(Map.of(
-					"patientOrderOutreachId", patientOrderOutreachId,
-					"accountId", accountId,
-					"outreachDateTime", outreachDateTime,
-					"note", note));
+					"patientOrderOutreachId", patientOrderOutreachId
+			));
 		}});
 
 		return patientOrderOutreachId;
@@ -1671,9 +1682,7 @@ public class PatientOrderService {
 	public UUID createPatientOrder(@Nonnull CreatePatientOrderRequest request) {
 		requireNonNull(request);
 
-		PatientOrderStatusId patientOrderStatusId = PatientOrderStatusId.PENDING;
 		PatientOrderDispositionId patientOrderDispositionId = PatientOrderDispositionId.OPEN;
-		PatientOrderScreeningStatusId patientOrderScreeningStatusId = PatientOrderScreeningStatusId.NOT_SCREENED;
 		UUID patientOrderImportId = request.getPatientOrderImportId();
 		InstitutionId institutionId = request.getInstitutionId();
 		UUID accountId = request.getAccountId();
@@ -1901,9 +1910,7 @@ public class PatientOrderService {
 		getDatabase().execute("""
 						  INSERT INTO patient_order (
 						  patient_order_id,
-						  patient_order_status_id,
 						  patient_order_disposition_id,
-						  patient_order_screening_status_id,
 						  patient_order_import_id,
 						  institution_id,
 						  encounter_department_id,
@@ -1948,9 +1955,9 @@ public class PatientOrderService {
 						  recent_psychotherapeutic_medications,
 						  test_patient_email_address,
 						  test_patient_password
-						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
-				patientOrderId, patientOrderStatusId, patientOrderDispositionId, patientOrderScreeningStatusId, patientOrderImportId,
+				patientOrderId, patientOrderDispositionId, patientOrderImportId,
 				institutionId, encounterDepartmentId, encounterDepartmentIdType, encounterDepartmentName, referringPracticeId,
 				referringPracticeIdType, referringPracticeName, orderingProviderId, orderingProviderIdType, orderingProviderLastName,
 				orderingProviderFirstName, orderingProviderMiddleName, billingProviderId, billingProviderIdType,
