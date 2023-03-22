@@ -1670,7 +1670,6 @@ public class PatientOrderService {
 	public UUID createPatientOrder(@Nonnull CreatePatientOrderRequest request) {
 		requireNonNull(request);
 
-		PatientOrderStatusId patientOrderStatusId = PatientOrderStatusId.PENDING;
 		PatientOrderDispositionId patientOrderDispositionId = PatientOrderDispositionId.OPEN;
 		UUID patientOrderImportId = request.getPatientOrderImportId();
 		InstitutionId institutionId = request.getInstitutionId();
@@ -1899,7 +1898,6 @@ public class PatientOrderService {
 		getDatabase().execute("""
 						  INSERT INTO patient_order (
 						  patient_order_id,
-						  patient_order_status_id,
 						  patient_order_disposition_id,
 						  patient_order_import_id,
 						  institution_id,
@@ -1945,9 +1943,9 @@ public class PatientOrderService {
 						  recent_psychotherapeutic_medications,
 						  test_patient_email_address,
 						  test_patient_password
-						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
-				patientOrderId, patientOrderStatusId, patientOrderDispositionId, patientOrderImportId,
+				patientOrderId, patientOrderDispositionId, patientOrderImportId,
 				institutionId, encounterDepartmentId, encounterDepartmentIdType, encounterDepartmentName, referringPracticeId,
 				referringPracticeIdType, referringPracticeName, orderingProviderId, orderingProviderIdType, orderingProviderLastName,
 				orderingProviderFirstName, orderingProviderMiddleName, billingProviderId, billingProviderIdType,
