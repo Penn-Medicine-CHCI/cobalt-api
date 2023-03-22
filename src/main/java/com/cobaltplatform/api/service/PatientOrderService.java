@@ -58,7 +58,6 @@ import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImport
 import com.cobaltplatform.api.model.db.PatientOrderMedication;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderOutreach;
-import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderStatus;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
@@ -1673,7 +1672,6 @@ public class PatientOrderService {
 
 		PatientOrderStatusId patientOrderStatusId = PatientOrderStatusId.PENDING;
 		PatientOrderDispositionId patientOrderDispositionId = PatientOrderDispositionId.OPEN;
-		PatientOrderScreeningStatusId patientOrderScreeningStatusId = PatientOrderScreeningStatusId.NOT_SCREENED;
 		UUID patientOrderImportId = request.getPatientOrderImportId();
 		InstitutionId institutionId = request.getInstitutionId();
 		UUID accountId = request.getAccountId();
@@ -1903,7 +1901,6 @@ public class PatientOrderService {
 						  patient_order_id,
 						  patient_order_status_id,
 						  patient_order_disposition_id,
-						  patient_order_screening_status_id,
 						  patient_order_import_id,
 						  institution_id,
 						  encounter_department_id,
@@ -1948,9 +1945,9 @@ public class PatientOrderService {
 						  recent_psychotherapeutic_medications,
 						  test_patient_email_address,
 						  test_patient_password
-						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
-				patientOrderId, patientOrderStatusId, patientOrderDispositionId, patientOrderScreeningStatusId, patientOrderImportId,
+				patientOrderId, patientOrderStatusId, patientOrderDispositionId, patientOrderImportId,
 				institutionId, encounterDepartmentId, encounterDepartmentIdType, encounterDepartmentName, referringPracticeId,
 				referringPracticeIdType, referringPracticeName, orderingProviderId, orderingProviderIdType, orderingProviderLastName,
 				orderingProviderFirstName, orderingProviderMiddleName, billingProviderId, billingProviderIdType,

@@ -46,6 +46,8 @@ CREATE TABLE patient_order_outreach_result (
   display_order INTEGER NOT NULL
 );
 
+CREATE UNIQUE INDEX patient_order_outreach_result_type_result_type_unique_idx ON patient_order_outreach_result USING btree (patient_order_outreach_type_id, patient_order_outreach_result_type_id);
+
 -- Phone Call
 INSERT INTO patient_order_outreach_result(patient_order_outreach_type_id, patient_order_outreach_result_type_id, display_order)
 VALUES ('PHONE_CALL', 'NO_ANSWER', 1);
@@ -203,7 +205,6 @@ WHERE
   AND posm.patient_order_scheduled_message_type_id=posmt.patient_order_scheduled_message_type_id
   AND sm.message_type_id=mt.message_type_id;
 
-
 CREATE TABLE patient_order_scheduled_screening (
   patient_order_scheduled_screening_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_order_id UUID NOT NULL REFERENCES patient_order,
@@ -218,16 +219,9 @@ CREATE TABLE patient_order_scheduled_screening (
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_scheduled_screening FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
--- *** FOR TUESDAY Instead of the below, what we actually want is two separate things.
---
--- 1. patient_order_status should be all the open statuses
--- 2. patient_order_disposition should be OPEN, CLOSED, ARCHIVED
--- 3. patient_order_panel_type_id should be union of values from patient_order_status and patient_order_disposition (except OPEN?  idk...)
---
+-- Have OPEN/CLOSED/ARCHIVED distinct from actual order status (these are now "dispositions").
 -- The reason for this is reporting - we would be able to answer questions like "how many SPECIALTY_CARE orders closed in the last month?"
 -- And we'd back able to "flip back" to OPEN without needing to re-figure-out what the previously-OPEN state was to reconstitute it
-
--- TODO: update the below per the above.
 
 ALTER TABLE patient_order_status ADD COLUMN display_order INTEGER;
 
@@ -279,12 +273,16 @@ ALTER TABLE patient_order ADD COLUMN episode_closed_by_account_id UUID REFERENCE
 
 DROP VIEW v_patient_order;
 
+-- We now calculate these ourselves in v_patient_order based on status of screening
+ALTER TABLE patient_order DROP COLUMN patient_order_screening_status_id;
+ALTER TABLE patient_order DROP COLUMN patient_order_status_id;
+
 create or REPLACE VIEW v_patient_order AS
 WITH
 po_query AS (
   select *
   from patient_order
-  where patient_order_status_id != 'ARCHIVED'
+--  where patient_order_disposition_id != 'ARCHIVED'
 ),
 poo_query AS (
   -- Count up the patient outreach attempts for each patient order
@@ -309,6 +307,15 @@ ss_query as (
   join account a on ss.created_by_account_id=a.account_id
   left join screening_session ss2 on ss.patient_order_id = ss2.patient_order_id and ss.created < ss2.created
   where ss2.screening_session_id is null
+),
+recent_scheduled_screening_query as (
+  -- Pick the most recently-scheduled screening for the patient order
+  select poss.*
+  from po_query poq, patient_order_scheduled_screening poss
+  where poq.patient_order_id=poss.patient_order_id
+  and poss.canceled=false
+  order by poss.scheduled_date_time
+  limit 1
 ),
 recent_po_query as (
   -- Pick the most recently-closed patient order for the same MRN/institution combination
@@ -349,20 +356,63 @@ select distinct
 	ssq.last_name as most_recent_screening_session_created_by_account_last_name,
 	ssq.completed as most_recent_screening_session_completed,
 	ssq.completed_at as most_recent_screening_session_completed_at,
+	CASE
+	    WHEN ssq.completed=TRUE THEN 'COMPLETE'
+		WHEN ssq.screening_session_id IS NOT NULL THEN 'IN_PROGRESS'
+		WHEN rssq.scheduled_date_time IS NOT NULL THEN 'SCHEDULED'
+  		ELSE 'NOT_SCREENED'
+  	END patient_order_screening_status_id,
+	CASE
+	    WHEN ssq.completed=TRUE THEN 'Complete'
+		WHEN ssq.screening_session_id IS NOT NULL THEN 'In Progress'
+		WHEN rssq.scheduled_date_time IS NOT NULL THEN 'Scheduled'
+  		ELSE 'Not Screened'
+	  END patient_order_screening_status_description,
 	panel_account.first_name as panel_account_first_name,
 	panel_account.last_name as panel_account_last_name,
-	poss.description as patient_order_screening_status_description,
 	pod.description as patient_order_disposition_description,
-	pos.description as patient_order_status_description,
+	case
+		-- Unassigned
+	    WHEN poq.panel_account_id is null THEN 'PENDING'
+		-- Screening completed, most severe level of care type triage is SAFETY_PLANNING
+		WHEN tq.patient_order_care_type_id='SAFETY_PLANNING' THEN 'SAFETY_PLANNING'
+		-- Screening completed, most severe level of care type triage is SPECIALTY
+		WHEN tq.patient_order_care_type_id='SPECIALTY_CARE' THEN 'SPECIALTY_CARE'
+		-- Screening completed, most severe level of care type triage is SUBCLINICAL
+		WHEN tq.patient_order_care_type_id='SUBCLINICAL' THEN 'SUBCLINICAL'
+		-- Screening completed, most severe level of care type triage is COLLABORATIVE.  Patient or MHIC can schedule with a provider
+  		WHEN tq.patient_order_care_type_id='COLLABORATIVE' THEN 'BHP'
+		--  Unscreened, but has a call scheduled with an MHIC to take the screening (uncanceled patient_order_scheduled_screening)
+		WHEN rssq.scheduled_date_time is not null THEN 'SCHEDULED'
+		-- Assigned, but none of the above apply.  Also note, we are in this state if unscheduled but "screening in progress"
+		ELSE 'NEEDS_ASSESSMENT'
+	END patient_order_status_id,
+	CASE
+		-- Unassigned
+	    WHEN poq.panel_account_id is null THEN 'Pending'
+		-- Screening completed, most severe level of care type triage is SAFETY_PLANNING
+		WHEN tq.patient_order_care_type_id='SAFETY_PLANNING' THEN 'Safety Planning'
+		-- Screening completed, most severe level of care type triage is SPECIALTY
+		WHEN tq.patient_order_care_type_id='SPECIALTY_CARE' THEN 'Specialty Care'
+		-- Screening completed, most severe level of care type triage is SUBCLINICAL
+		WHEN tq.patient_order_care_type_id='SUBCLINICAL' THEN 'Subclinical'
+		-- Screening completed, most severe level of care type triage is COLLABORATIVE.  Patient or MHIC can schedule with a provider
+  		WHEN tq.patient_order_care_type_id='COLLABORATIVE' THEN 'BHP'
+		--  Unscreened, but has a call scheduled with an MHIC to take the screening (uncanceled patient_order_scheduled_screening)
+		WHEN rssq.scheduled_date_time is not null THEN 'Scheduled'
+	    -- Assigned, but none of the above apply.  Also note, we are in this state if unscheduled but "screening in progress"
+		else 'Needs Assessment'
+	END patient_order_status_description,
 	pocr.description as patient_order_closure_reason_description,
 	date_part('year', age(poq.patient_birthdate at time zone i.time_zone))::int < 18 as patient_below_age_threshold,
 	rpq.most_recent_episode_closed_at,
 	date_part('day', now() - rpq.most_recent_episode_closed_at)::int < 30 as most_recent_episode_closed_within_date_threshold,
+	rssq.patient_order_scheduled_screening_id,
+  rssq.scheduled_date_time as patient_order_scheduled_screening_scheduled_date_time,
+  rssq.calendar_url as patient_order_scheduled_screening_calendar_url,
 	poq.*
 from po_query poq
-left join patient_order_screening_status poss on poq.patient_order_screening_status_id = poss.patient_order_screening_status_id
 left join patient_order_disposition pod on poq.patient_order_disposition_id = pod.patient_order_disposition_id
-left join patient_order_status pos on poq.patient_order_status_id = pos.patient_order_status_id
 left join patient_order_closure_reason pocr on poq.patient_order_closure_reason_id = pocr.patient_order_closure_reason_id
 left join institution i on poq.institution_id=i.institution_id
 left outer join poo_query pooq ON poq.patient_order_id = pooq.patient_order_id
@@ -370,6 +420,7 @@ left outer join poomax_query poomaxq ON poq.patient_order_id = poomaxq.patient_o
 left outer join ss_query ssq ON poq.patient_order_id = ssq.patient_order_id
 left outer join triage_query tq ON poq.patient_order_id = tq.patient_order_id
 left outer join account panel_account ON poq.panel_account_id = panel_account.account_id
-left outer join recent_po_query rpq on poq.patient_order_id = rpq.patient_order_id;
+left outer join recent_po_query rpq on poq.patient_order_id = rpq.patient_order_id
+left outer join recent_scheduled_screening_query rssq on poq.patient_order_id = rssq.patient_order_id;
 
 COMMIT;
