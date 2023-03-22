@@ -108,8 +108,8 @@ CREATE TABLE provider_institution_location (
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON provider_institution_location FOR EACH ROW EXECUTE PROCEDURE set_last_updated(); 
 
-ALTER TABLE screening_flow_version ADD COLUMN minutes_until_retake INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE screening_flow_version ADD COLUMN recommendation_expiration_minutes INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE screening_flow_version ADD COLUMN minutes_until_retake INTEGER NOT NULL DEFAULT 1440;
+ALTER TABLE screening_flow_version ADD COLUMN recommendation_expiration_minutes INTEGER NOT NULL DEFAULT 8760;
 
 CREATE TABLE clinic_institution_location (
   clinic_institution_location_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
