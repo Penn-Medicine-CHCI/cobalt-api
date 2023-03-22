@@ -71,6 +71,8 @@ public class ProviderFindRequest {
 	private Set<UUID> specialtyIds; // Empty means "any"
 	@Nullable
 	private Boolean includePastAvailability; // Provide availability for date ranges that are in the past, e.g. for reporting. Null means "don't provide"
+	@Nullable
+	private UUID institutionLocationId;
 
 	public enum ProviderFindAvailability {
 		ALL,
@@ -237,5 +239,14 @@ public class ProviderFindRequest {
 
 	public void setIncludePastAvailability(@Nullable Boolean includePastAvailability) {
 		this.includePastAvailability = includePastAvailability;
+	}
+
+	@Nullable
+	public UUID getInstitutionLocationId() {
+		return institutionLocationId;
+	}
+
+	public void setInstitutionLocationId(@Nullable UUID institutionLocationId) {
+		this.institutionLocationId = institutionLocationId;
 	}
 }

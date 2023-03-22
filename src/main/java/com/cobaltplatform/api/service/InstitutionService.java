@@ -350,9 +350,9 @@ public class InstitutionService {
 
 		return getDatabase().queryForList("SELECT f.feature_id, f.url_name, f.name, if.description, if.nav_description, "+
 				"CASE WHEN ss.screening_session_id IS NOT NULL THEN true ELSE false END AS recommended, f.navigation_header_id, f.support_role_id " +
-				"FROM feature f, institution_feature if  " +
+				"FROM institution_feature if, feature f  " +
 				"LEFT OUTER JOIN screening_session_feature_recommendation ss " +
-				"ON if.institution_feature_id = ss.institution_feature_id " +
+				"ON f.feature_id = ss.feature_id " +
 				"AND ss.screening_session_id = ? " +
 				"WHERE f.feature_id = if.feature_id AND if.institution_id = ? ORDER BY if.display_order", FeaturesForInstitution.class, screeningSessionId, institution.getInstitutionId());
 	}

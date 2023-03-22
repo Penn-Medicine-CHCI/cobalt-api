@@ -24,6 +24,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.UUID;
 
 /**
@@ -43,6 +44,12 @@ public class Clinic {
 	private String treatmentDescription;
 	@Nullable
 	private Boolean showIntakeAssessmentPrompt;
+	@Nullable
+	private String imageUrl;
+	@Nullable
+	private String phoneNumber;
+	@Nullable
+	private Locale locale;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -100,6 +107,33 @@ public class Clinic {
 
 	public void setShowIntakeAssessmentPrompt(@Nullable Boolean showIntakeAssessmentPrompt) {
 		this.showIntakeAssessmentPrompt = showIntakeAssessmentPrompt;
+	}
+
+	@Nullable
+	public String getImageUrl() {
+		return imageUrl;
+	}
+
+	public void setImageUrl(@Nullable String imageUrl) {
+		this.imageUrl = imageUrl;
+	}
+
+	@Nullable
+	public String getPhoneNumber() {
+		return phoneNumber;
+	}
+
+	public void setPhoneNumber(@Nullable String phoneNumber) {
+		this.phoneNumber = phoneNumber;
+	}
+
+	@Nullable
+	public Locale getLocale() {
+		return locale;
+	}
+
+	public void setLocale(@Nullable Locale locale) {
+		this.locale = locale;
 	}
 
 	@Nullable

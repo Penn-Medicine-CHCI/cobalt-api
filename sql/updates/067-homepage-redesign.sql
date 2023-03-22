@@ -65,12 +65,12 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON institution_feature F
 CREATE TABLE screening_session_feature_recommendation (
 	screening_session_feature_recommendation_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	screening_session_id UUID NOT NULL REFERENCES screening_session,
-	institution_feature_id UUID NOT NULL REFERENCES institution_feature,
+	feature_id VARCHAR NOT NULL REFERENCES feature,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
  );
 
-CREATE UNIQUE INDEX screening_session_feature_recommendation_unique_idx ON screening_session_feature_recommendation USING btree (screening_session_id, institution_feature_id);
+CREATE UNIQUE INDEX screening_session_feature_recommendation_unique_idx ON screening_session_feature_recommendation USING btree (screening_session_id, feature_id);
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON screening_session_feature_recommendation FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 --Stores the locations for an institution
@@ -110,6 +110,19 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON provider_institution_
 
 ALTER TABLE screening_flow_version ADD COLUMN minutes_until_retake INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE screening_flow_version ADD COLUMN recommendation_expiration_minutes INTEGER NOT NULL DEFAULT 0;
+
+CREATE TABLE clinic_institution_location (
+  clinic_institution_location_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  clinic_id UUID NOT NULL REFERENCES clinic,
+  institution_location_id UUID NOT NULL REFERENCES institution_location,
+  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW());
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON clinic_institution_location FOR EACH ROW EXECUTE PROCEDURE set_last_updated(); 
+
+ALTER TABLE clinic ADD COLUMN image_url VARCHAR;
+ALTER TABLE clinic ADD COLUMN phone_number VARCHAR;
+ALTER TABLE clinic ADD COLUMN locale VARCHAR NOT NULL DEFAULT 'en-US'::character varying;
 
 INSERT INTO navigation_header
   (navigation_header_id, name)
@@ -160,8 +173,7 @@ INSERT INTO institution_location
   (institution_id, name)
 VALUES
   ('COBALT', 'Cobalt Health System'),
-  ('COBALT', 'Cobalt General'),
-  ('COBALT', 'I''m not sure/I''d rather not say');
+  ('COBALT', 'Cobalt General');
 
 
 INSERT INTO appointment_time
