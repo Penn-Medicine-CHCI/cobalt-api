@@ -17,49 +17,47 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.service;
+package com.cobaltplatform.api.model.db;
 
-import com.cobaltplatform.api.model.db.NavigationHeader.NavigationHeaderId;
+import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
+import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.time.Instant;
+import java.util.UUID;
+
+import static java.lang.String.format;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class Feature {
+public class AppointmentTime {
 	@Nullable
-	private String featureId;
-	@Nullable
-	private String urlName;
+	private String appointmentTimeId;
 	@Nullable
 	private String name;
 	@Nullable
 	private String description;
 	@Nullable
-	private String navDescription;
+	private String startTime;
 	@Nullable
-	private Boolean recommended;
+	private String endTime;
 	@Nullable
-	private NavigationHeaderId navigationHeaderId;
+	private String displayOrder;
+	@Nullable
+	private Instant created;
+	@Nullable
+	private Instant lastUpdated;
 
 	@Nullable
-	public String getFeatureId() {
-		return featureId;
+	public String getAppointmentTimeId() {
+		return appointmentTimeId;
 	}
 
-	public void setFeatureId(@Nullable String featureId) {
-		this.featureId = featureId;
-	}
-
-	@Nullable
-	public String getUrlName() {
-		return urlName;
-	}
-
-	public void setUrlName(@Nullable String urlName) {
-		this.urlName = urlName;
+	public void setAppointmentTimeId(@Nullable String appointmentTimeId) {
+		this.appointmentTimeId = appointmentTimeId;
 	}
 
 	@Nullable
@@ -81,29 +79,47 @@ public class Feature {
 	}
 
 	@Nullable
-	public Boolean getRecommended() {
-		return recommended;
+	public String getStartTime() {
+		return startTime;
 	}
 
-	public void setRecommended(@Nullable Boolean recommended) {
-		this.recommended = recommended;
-	}
-
-	@Nullable
-	public String getNavDescription() {
-		return navDescription;
-	}
-
-	public void setNavDescription(@Nullable String navDescription) {
-		this.navDescription = navDescription;
+	public void setStartTime(@Nullable String startTime) {
+		this.startTime = startTime;
 	}
 
 	@Nullable
-	public NavigationHeaderId getNavigationHeaderId() {
-		return navigationHeaderId;
+	public String getEndTime() {
+		return endTime;
 	}
 
-	public void setNavigationHeaderId(@Nullable NavigationHeaderId navigationHeaderId) {
-		this.navigationHeaderId = navigationHeaderId;
+	public void setEndTime(@Nullable String endTime) {
+		this.endTime = endTime;
+	}
+
+	@Nullable
+	public String getDisplayOrder() {
+		return displayOrder;
+	}
+
+	public void setDisplayOrder(@Nullable String displayOrder) {
+		this.displayOrder = displayOrder;
+	}
+
+	@Nullable
+	public Instant getCreated() {
+		return created;
+	}
+
+	public void setCreated(@Nullable Instant created) {
+		this.created = created;
+	}
+
+	@Nullable
+	public Instant getLastUpdated() {
+		return lastUpdated;
+	}
+
+	public void setLastUpdated(@Nullable Instant lastUpdated) {
+		this.lastUpdated = lastUpdated;
 	}
 }

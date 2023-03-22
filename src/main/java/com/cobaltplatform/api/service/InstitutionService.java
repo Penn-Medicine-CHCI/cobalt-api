@@ -348,7 +348,8 @@ public class InstitutionService {
 					< screeningFlowVersion.get().getRecommendationExpirationMinutes())
 				screeningSessionId = mostRecentCompletedTriageScreeningSession.get().getScreeningSessionId();
 
-		return getDatabase().queryForList("SELECT f.feature_id, f.url_name, f.name, if.description, if.nav_description, CASE WHEN ss.screening_session_id IS NOT NULL THEN true ELSE false END AS recommended " +
+		return getDatabase().queryForList("SELECT f.feature_id, f.url_name, f.name, if.description, if.nav_description, "+
+				"CASE WHEN ss.screening_session_id IS NOT NULL THEN true ELSE false END AS recommended, f.navigation_header_id " +
 				"FROM feature f, institution_feature if  " +
 				"LEFT OUTER JOIN screening_session_feature_recommendation ss " +
 				"ON if.institution_feature_id = ss.institution_feature_id " +
