@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.api.request;
 
+import com.cobaltplatform.api.model.db.AppointmentTime.AppointmentTimeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.db.SystemAffinity.SystemAffinityId;
@@ -73,6 +74,8 @@ public class ProviderFindRequest {
 	private Boolean includePastAvailability; // Provide availability for date ranges that are in the past, e.g. for reporting. Null means "don't provide"
 	@Nullable
 	private UUID institutionLocationId;
+	@Nullable
+	private Set<AppointmentTimeId> appointmentTimeIds; // Empty means no appointment time restrictions
 
 	public enum ProviderFindAvailability {
 		ALL,
@@ -248,5 +251,14 @@ public class ProviderFindRequest {
 
 	public void setInstitutionLocationId(@Nullable UUID institutionLocationId) {
 		this.institutionLocationId = institutionLocationId;
+	}
+
+	@Nullable
+	public Set<AppointmentTimeId> getAppointmentTimeIds() {
+		return appointmentTimeIds;
+	}
+
+	public void setAppointmentTimeIds(@Nullable Set<AppointmentTimeId> appointmentTimeIds) {
+		this.appointmentTimeIds = appointmentTimeIds;
 	}
 }
