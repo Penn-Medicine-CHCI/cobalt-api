@@ -19,11 +19,13 @@
 
 package com.cobaltplatform.api.model.service;
 
+import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.NavigationHeader.NavigationHeaderId;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.List;
 
 /**
  * @author Transmogrify, LLC.
@@ -31,7 +33,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 @NotThreadSafe
 public class FeaturesForInstitution {
 	@Nullable
-	private String featureId;
+	private FeatureId featureId;
 	@Nullable
 	private String urlName;
 	@Nullable
@@ -45,14 +47,15 @@ public class FeaturesForInstitution {
 	@Nullable
 	private NavigationHeaderId navigationHeaderId;
 	@Nullable
-	private SupportRoleId supportRoleId;
+	private List<SupportRoleId> supportRoleIds;
+
 
 	@Nullable
-	public String getFeatureId() {
+	public FeatureId getFeatureId() {
 		return featureId;
 	}
 
-	public void setFeatureId(@Nullable String featureId) {
+	public void setFeatureId(@Nullable FeatureId featureId) {
 		this.featureId = featureId;
 	}
 
@@ -111,11 +114,11 @@ public class FeaturesForInstitution {
 	}
 
 	@Nullable
-	public SupportRoleId getSupportRoleId() {
-		return supportRoleId;
+	public List<SupportRoleId> getSupportRoleIds() {
+		return supportRoleIds;
 	}
 
-	public void setSupportRoleId(@Nullable SupportRoleId supportRoleId) {
-		this.supportRoleId = supportRoleId;
+	public void setSupportRoleIds(@Nullable List<SupportRoleId> supportRoleIds) {
+		this.supportRoleIds = supportRoleIds;
 	}
 }

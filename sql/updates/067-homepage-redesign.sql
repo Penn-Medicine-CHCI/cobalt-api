@@ -16,13 +16,22 @@ CREATE TABLE feature (
   navigation_header_id VARCHAR REFERENCES navigation_header,
   name VARCHAR NOT NULL,
   url_name VARCHAR NOT NULL,
+  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON feature FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+CREATE TABLE feature_support_role (
+  feature_support_role_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  feature_id VARCHAR NOT NULL REFERENCES feature,
   support_role_id VARCHAR REFERENCES support_role,
   created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE UNIQUE INDEX feature_support_role_id_unique_idx ON feature USING btree (support_role_id);
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON feature FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE UNIQUE INDEX feature_support_role_id_unique_idx ON feature_support_role USING btree (feature_id, support_role_id);
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON feature_support_role FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 --Filters available when filtering feature options
 CREATE TABLE filter (
@@ -111,18 +120,12 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON provider_institution_
 ALTER TABLE screening_flow_version ADD COLUMN minutes_until_retake INTEGER NOT NULL DEFAULT 1440;
 ALTER TABLE screening_flow_version ADD COLUMN recommendation_expiration_minutes INTEGER NOT NULL DEFAULT 8760;
 
-CREATE TABLE clinic_institution_location (
-  clinic_institution_location_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  clinic_id UUID NOT NULL REFERENCES clinic,
-  institution_location_id UUID NOT NULL REFERENCES institution_location,
-  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW());
-
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON clinic_institution_location FOR EACH ROW EXECUTE PROCEDURE set_last_updated(); 
 
 ALTER TABLE clinic ADD COLUMN image_url VARCHAR;
 ALTER TABLE clinic ADD COLUMN phone_number VARCHAR;
 ALTER TABLE clinic ADD COLUMN locale VARCHAR NOT NULL DEFAULT 'en-US'::character varying;
+
+ALTER TABLE provider ADD COLUMN phone_number VARCHAR;
 
 INSERT INTO navigation_header
   (navigation_header_id, name)
@@ -131,15 +134,15 @@ VALUES
   ('BROWSE_RESOURCES', 'Browse Resources');
 
 INSERT INTO feature 
-  (feature_id, name, url_name, navigation_header_id,support_role_id)
+  (feature_id, name, url_name, navigation_header_id)
 VALUES
-  ('THERAPY', 'Therapy', '/connect-with-support/therapy', 'CONNECT_WITH_SUPPORT','CLINICIAN'),
-  ('MEDICATION_SUBSCRIBER', 'Medication Subscriber', '/connect-with-support/medication-subscriber', 'CONNECT_WITH_SUPPORT', null),
-  ('GROUP_SESSIONS', 'Group Sessions', '/group-sessions', 'CONNECT_WITH_SUPPORT', null),
-  ('COACHING', 'Coaching', '/connect-with-support/coaching', 'CONNECT_WITH_SUPPORT', 'COACH'),
-  ('SELF_HELP_RESOURCES', 'Self-Help Resources', '/resource-library', 'BROWSE_RESOURCES', null),
-  ('SPIRITUAL_SUPPORT', 'Spiritual Support', '/connect-with-support/spiritual-support', 'CONNECT_WITH_SUPPORT','CHAPLAIN'),
-  ('CRISIS_SUPPORT', 'Crisis Support', '/in-crisis', 'CONNECT_WITH_SUPPORT', null);
+  ('THERAPY', 'Therapy', '/connect-with-support/therapy', 'CONNECT_WITH_SUPPORT'),
+  ('MEDICATION_SUBSCRIBER', 'Medication Subscriber', '/connect-with-support/medication-subscriber', 'CONNECT_WITH_SUPPORT'),
+  ('GROUP_SESSIONS', 'Group Sessions', '/group-sessions', 'CONNECT_WITH_SUPPORT'),
+  ('COACHING', 'Coaching', '/connect-with-support/coaching', 'CONNECT_WITH_SUPPORT'),
+  ('SELF_HELP_RESOURCES', 'Self-Help Resources', '/resource-library', 'BROWSE_RESOURCES'),
+  ('SPIRITUAL_SUPPORT', 'Spiritual Support', '/connect-with-support/spiritual-support', 'CONNECT_WITH_SUPPORT'),
+  ('CRISIS_SUPPORT', 'Crisis Support', '/in-crisis', 'CONNECT_WITH_SUPPORT');
 
 INSERT INTO filter
   (filter_id, name)
@@ -175,7 +178,6 @@ VALUES
   ('COBALT', 'Cobalt Health System'),
   ('COBALT', 'Cobalt General');
 
-
 INSERT INTO appointment_time
   (appointment_time_id, name, description, start_time, end_time, display_order)
 VALUES
@@ -183,7 +185,6 @@ VALUES
   ('MORNING', 'Morning', 'Starts before 12pm', '10:00', '12:00', 2),
   ('AFTERNOON', 'Afternoon', 'Starts after 12pm', '12:00', '17:00', 3),
   ('EVENING', 'Evening', 'Starts after 5pm', '17:00', '24:00', 4);
-
 
 COMMIT;
 

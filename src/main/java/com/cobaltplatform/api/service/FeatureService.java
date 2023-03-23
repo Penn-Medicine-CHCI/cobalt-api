@@ -92,6 +92,14 @@ public class FeatureService {
 	}
 
 	@Nonnull
+	public List<SupportRoleId> findSupportRoleByFeatureId(FeatureId featureId) {
+		return getDatabase().queryForList("""
+				SELECT support_role_id
+				FROM feature_support_role
+				WHERE feature_id = ?""", SupportRoleId.class, featureId);
+	}
+
+	@Nonnull
 	protected Database getDatabase() {
 		return this.database;
 	}

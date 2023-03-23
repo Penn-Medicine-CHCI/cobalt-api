@@ -33,6 +33,7 @@ import com.cobaltplatform.api.model.db.InsuranceType.InsuranceTypeId;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
 import com.cobaltplatform.api.model.db.ScreeningSession;
+import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
 import com.cobaltplatform.api.model.service.FeaturesForInstitution;
 import com.cobaltplatform.api.util.JsonMapper;
@@ -79,18 +80,22 @@ public class InstitutionService {
 	private final Logger logger;
 	@Nonnull
 	private final Provider<ScreeningService> screeningServiceProvider;
+	@Nonnull
+	private final FeatureService featureService;
 
 	@Inject
 	public InstitutionService(@Nonnull Database database,
 														@Nonnull JsonMapper jsonMapper,
 														@Nonnull Configuration configuration,
 														@Nonnull Strings strings,
-														@Nonnull Provider<ScreeningService> screeningServiceProvider) {
+														@Nonnull Provider<ScreeningService> screeningServiceProvider,
+														@Nonnull FeatureService featureService) {
 		requireNonNull(database);
 		requireNonNull(jsonMapper);
 		requireNonNull(configuration);
 		requireNonNull(strings);
 		requireNonNull(screeningServiceProvider);
+		requireNonNull(featureService);
 
 		this.database = database;
 		this.jsonMapper = jsonMapper;
@@ -98,6 +103,7 @@ public class InstitutionService {
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.screeningServiceProvider = screeningServiceProvider;
+		this.featureService = featureService;
 	}
 
 	@Nonnull
@@ -348,13 +354,21 @@ public class InstitutionService {
 					< screeningFlowVersion.get().getRecommendationExpirationMinutes())
 				screeningSessionId = mostRecentCompletedTriageScreeningSession.get().getScreeningSessionId();
 
-		return getDatabase().queryForList("SELECT f.feature_id, f.url_name, f.name, if.description, if.nav_description, "+
-				"CASE WHEN ss.screening_session_id IS NOT NULL THEN true ELSE false END AS recommended, f.navigation_header_id, f.support_role_id " +
+		List<FeaturesForInstitution> features = getDatabase().queryForList("SELECT f.feature_id, f.url_name, f.name, if.description, if.nav_description, "+
+				"CASE WHEN ss.screening_session_id IS NOT NULL THEN true ELSE false END AS recommended, f.navigation_header_id " +
 				"FROM institution_feature if, feature f  " +
 				"LEFT OUTER JOIN screening_session_feature_recommendation ss " +
 				"ON f.feature_id = ss.feature_id " +
 				"AND ss.screening_session_id = ? " +
 				"WHERE f.feature_id = if.feature_id AND if.institution_id = ? ORDER BY if.display_order", FeaturesForInstitution.class, screeningSessionId, institution.getInstitutionId());
+
+		features.stream().map(feature -> {
+			List<SupportRole.SupportRoleId> supportRoleIds = getFeatureService().findSupportRoleByFeatureId(feature.getFeatureId());
+			feature.setSupportRoleIds(supportRoleIds);
+			return true;
+			}).collect(Collectors.toList());
+
+		return features;
 	}
 
 
@@ -394,4 +408,7 @@ public class InstitutionService {
 	public Provider<ScreeningService> getScreeningServiceProvider() {
 		return screeningServiceProvider;
 	}
+
+	@Nonnull
+	protected FeatureService getFeatureService() { return featureService; }
 }

@@ -25,8 +25,8 @@ import com.cobaltplatform.api.model.db.NavigationHeader.NavigationHeaderId;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 
 import java.time.Instant;
+import java.util.List;
 
-import static java.lang.String.format;
 
 /**
  * @author Transmogrify LLC.
@@ -42,7 +42,7 @@ public class Feature {
 	@Nullable
 	private String urlName;
 	@Nullable
-	private SupportRoleId supportRoleId;
+	private List<SupportRoleId> supportRoleIds;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -108,12 +108,12 @@ public class Feature {
 	}
 
 	@Nullable
-	public SupportRoleId getSupportRoleId() {
-		return supportRoleId;
+	public List<SupportRoleId> getSupportRoleIds() {
+		return supportRoleIds;
 	}
 
-	public void setSupportRoleId(@Nullable SupportRoleId supportRoleId) {
-		this.supportRoleId = supportRoleId;
+	public void setSupportRoleIds(@Nullable List<SupportRoleId> supportRoleIds) {
+		this.supportRoleIds = supportRoleIds;
 	}
 
 	@Nullable
