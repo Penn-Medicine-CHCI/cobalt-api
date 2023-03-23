@@ -54,7 +54,7 @@ public class Feature {
 
 	public enum FeatureId {
 		THERAPY,
-		MEDICATION_SUBSCRIBER,
+		MEDICATION_PRESCRIBER,
 		GROUP_SESSIONS,
 		COACHING,
 		SELF_HELP_RESOURCES,

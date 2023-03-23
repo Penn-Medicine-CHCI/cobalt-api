@@ -138,7 +138,7 @@ INSERT INTO feature
   (feature_id, name, url_name, navigation_header_id)
 VALUES
   ('THERAPY', 'Therapy', '/connect-with-support/therapy', 'CONNECT_WITH_SUPPORT'),
-  ('MEDICATION_SUBSCRIBER', 'Medication Subscriber', '/connect-with-support/medication-subscriber', 'CONNECT_WITH_SUPPORT'),
+  ('MEDICATION_PRESCRIBER', 'Medication Prescriber', '/connect-with-support/medication-prescriber', 'CONNECT_WITH_SUPPORT'),
   ('GROUP_SESSIONS', 'Group Sessions', '/group-sessions', 'CONNECT_WITH_SUPPORT'),
   ('COACHING', 'Coaching', '/connect-with-support/coaching', 'CONNECT_WITH_SUPPORT'),
   ('SELF_HELP_RESOURCES', 'Self-Help Resources', '/resource-library', 'BROWSE_RESOURCES'),
@@ -166,7 +166,7 @@ INSERT INTO institution_feature
   (institution_id, feature_id, nav_description, description, display_order)
 VALUES
   ('COBALT', 'THERAPY', 'Connect to a therapist through your Employee Assistance Program or TEAM Clinic','If you''d like to talk to a therapist, you can schedule with your Employee Assistance Program (EAP) or the TEAM Clinic. EAP offers 8 free and confidential counseling sessions and visits are not documented in electronic medical records (EMR). TEAM Clinic is based in Cobalt Psychiatry and diagnoses and treats patients as part of a 4-month long, outpatient program. TEAM clinic bills insurance for your visits.', 1),
-  ('COBALT', 'MEDICATION_SUBSCRIBER', 'Discuss medication prescription options through the TEAM Clinic', 'If you’re looking to find a provider to discuss medication options to address mental health symptoms, please connect with the TEAM Clinic. Based in Cobalt Psychiatry, the Time Efficient, Accessible, Multidisciplinary (TEAM) Clinic uses an evidence-based and collaborative approach to diagnose and treat mental health conditions as part of a 4-month long, outpatient program.',2),
+  ('COBALT', 'MEDICATION_PRESCRIBER', 'Discuss medication prescription options through the TEAM Clinic', 'If you’re looking to find a provider to discuss medication options to address mental health symptoms, please connect with the TEAM Clinic. Based in Cobalt Psychiatry, the Time Efficient, Accessible, Multidisciplinary (TEAM) Clinic uses an evidence-based and collaborative approach to diagnose and treat mental health conditions as part of a 4-month long, outpatient program.',2),
   ('COBALT', 'GROUP_SESSIONS', 'Register for topical group sessions led by experts', 'Virtual sessions led by experts and designed to foster connection and provide support for people experiencing similar issues or concerns. Topics range from managing anxiety to healthy living and mindfulness.', 3),
   ('COBALT', 'COACHING', 'Get 1:1 confidential emotional support from trained volunteers', 'If you’d like to connect with a coach, Coping First Aid is a free resource for you. Flexible appointments are available now with lay health coaches supervised by licensed mental health professionals. You can receive one-to-one support with a trained coach to work with you on coping and resilience strategies.', 4),
   ('COBALT', 'SELF_HELP_RESOURCES', 'Digital articles, podcasts, apps, videos, worksheets, and more', 'A variety of self-directed digital resources, including articles, podcasts, apps, videos, worksheets and more, that help support general wellness and mental health education.', 5),
@@ -200,6 +200,9 @@ VALUES
     ('FEATURE', 'Feature');
 
 ALTER TABLE institution ADD COLUMN feature_screening_flow_id UUID REFERENCES screening_flow(screening_flow_id);
+ALTER TABLE institution ADD COLUMN features_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+
+UPDATE institution SET features_enabled=TRUE WHERE institution_id='COBALT';
 
 COMMIT;
 

@@ -101,6 +101,8 @@ public class InstitutionApiResponse {
 	private final Boolean immediateAccessEnabled;
 	@Nonnull
 	private final Boolean contactUsEnabled;
+	@Nullable
+	private final Boolean featuresEnabled;
 	@Nonnull
 	private final Boolean recommendedContentEnabled;
 	@Nonnull
@@ -117,8 +119,6 @@ public class InstitutionApiResponse {
 	private final List<NavigationItem> additionalNavigationItems;
 	@Nonnull
 	private final List<FeaturesForInstitution> features;
-	@Nonnull
-	private final Boolean displayFeatures;
 	@Nonnull
 	private final Boolean takeTriageScreening;
 
@@ -174,6 +174,7 @@ public class InstitutionApiResponse {
 		this.supportEmailAddress = institution.getSupportEmailAddress();
 		this.immediateAccessEnabled = institution.getImmediateAccessEnabled();
 		this.contactUsEnabled = institution.getContactUsEnabled();
+		this.featuresEnabled = institution.getFeaturesEnabled();
 		this.recommendedContentEnabled = institution.getRecommendedContentEnabled();
 		this.userSubmittedContentEnabled = institution.getUserSubmittedContentEnabled();
 		this.userSubmittedGroupSessionEnabled = institution.getUserSubmittedGroupSessionEnabled();
@@ -183,7 +184,6 @@ public class InstitutionApiResponse {
 		this.ga4MeasurementId = institution.getGa4MeasurementId();
 		this.additionalNavigationItems = topicCenterService.findTopicCenterNavigationItemsByInstitutionId(institutionId);
 		this.features = institutionService.findFeaturesByInstitutionId(institution, account);
-		this.displayFeatures = this.features.size() > 0;
 		this.takeTriageScreening = screeningService.shouldAccountIdTakeScreeningFlowId(account, institution.getFeatureScreeningFlowId());
 	}
 
@@ -305,6 +305,11 @@ public class InstitutionApiResponse {
 		return this.contactUsEnabled;
 	}
 
+	@Nullable
+	public Boolean getFeaturesEnabled() {
+		return this.featuresEnabled;
+	}
+
 	@Nonnull
 	public Boolean getRecommendedContentEnabled() {
 		return this.recommendedContentEnabled;
@@ -348,11 +353,6 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public List<FeaturesForInstitution> getFeatures() {
 		return features;
-	}
-
-	@Nonnull
-	public Boolean getDisplayFeatures() {
-		return displayFeatures;
 	}
 
 	@Nonnull

@@ -106,6 +106,8 @@ public class Institution {
 	@Nullable
 	private Boolean contactUsEnabled;
 	@Nullable
+	private Boolean featuresEnabled;
+	@Nullable
 	private Boolean recommendedContentEnabled;
 	@Nullable
 	private Boolean userSubmittedContentEnabled;
@@ -515,6 +517,15 @@ public class Institution {
 
 	public void setContactUsEnabled(@Nullable Boolean contactUsEnabled) {
 		this.contactUsEnabled = contactUsEnabled;
+	}
+
+	@Nullable
+	public Boolean getFeaturesEnabled() {
+		return this.featuresEnabled;
+	}
+
+	public void setFeaturesEnabled(@Nullable Boolean featuresEnabled) {
+		this.featuresEnabled = featuresEnabled;
 	}
 
 	@Nullable
