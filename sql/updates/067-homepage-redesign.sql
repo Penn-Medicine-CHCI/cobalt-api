@@ -195,6 +195,7 @@ VALUES
    ('SPIRITUAL_SUPPORT', 'CHAPLAIN');
 
 
+ALTER TABLE institution ADD COLUMN feature_screening_flow_id UUID REFERENCES screening_flow(screening_flow_id);
 
 COMMIT;
 

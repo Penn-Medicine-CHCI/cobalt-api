@@ -610,7 +610,7 @@ public class ProviderResource {
 		List<SupportRole> allSupportRoles = getProviderService().findSupportRolesByInstitutionId(institutionId).stream()
 				.collect(Collectors.toList());
 
-		List<SupportRole> recommendedSupportRoles = getScreeningService().findRecommendedSupportRolesByAccountId(account.getAccountId(), institution.getProviderTriageScreeningFlowId());
+		List<SupportRole> recommendedSupportRoles = getScreeningService().findRecommendedSupportRolesByAccountId(account.getAccountId(), institution.getFeatureScreeningFlowId());
 		List<SupportRole> defaultSupportRoles = new ArrayList<>(recommendedSupportRoles);
 
 		Optional<Feature> feature = Optional.empty();

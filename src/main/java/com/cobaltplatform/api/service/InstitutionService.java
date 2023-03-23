@@ -83,7 +83,7 @@ public class InstitutionService {
 	@Nonnull
 	private final Provider<ScreeningService> screeningServiceProvider;
 	@Nonnull
-	private final FeatureService featureService;
+	private final Provider<FeatureService> featureServiceProvider;
 
 	@Inject
 	public InstitutionService(@Nonnull Database database,
@@ -91,13 +91,13 @@ public class InstitutionService {
 														@Nonnull Configuration configuration,
 														@Nonnull Strings strings,
 														@Nonnull Provider<ScreeningService> screeningServiceProvider,
-														@Nonnull FeatureService featureService) {
+														@Nonnull Provider<FeatureService> featureServiceProvider) {
 		requireNonNull(database);
 		requireNonNull(jsonMapper);
 		requireNonNull(configuration);
 		requireNonNull(strings);
 		requireNonNull(screeningServiceProvider);
-		requireNonNull(featureService);
+		requireNonNull(featureServiceProvider);
 
 		this.database = database;
 		this.jsonMapper = jsonMapper;
@@ -105,7 +105,7 @@ public class InstitutionService {
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.screeningServiceProvider = screeningServiceProvider;
-		this.featureService = featureService;
+		this.featureServiceProvider = featureServiceProvider;
 	}
 
 	@Nonnull
@@ -337,24 +337,28 @@ public class InstitutionService {
 	}
 
 	@Nonnull
-	public List<FeaturesForInstitution> findFeaturesByInstitutionId(@Nullable Institution institution, @Nullable Account account) {
-		Optional<ScreeningFlow> screeningFlow = getScreeningServiceProvider().get().findScreeningFlowById(institution.getProviderTriageScreeningFlowId());
-		if (institution == null || account == null || !screeningFlow.isPresent())
+	public List<FeaturesForInstitution> findFeaturesByInstitutionId(@Nullable Institution institution,
+																																	@Nullable Account account) {
+		ScreeningFlow screeningFlow = getScreeningService().findScreeningFlowById(institution.getFeatureScreeningFlowId()).orElse(null);
+
+		if (institution == null || account == null || screeningFlow == null)
 			return List.of();
 
-		Optional<ScreeningFlowVersion> screeningFlowVersion = getScreeningServiceProvider().get().findScreeningFlowVersionById(screeningFlow.get().getActiveScreeningFlowVersionId());
-		if (!screeningFlowVersion.isPresent())
+		ScreeningFlowVersion screeningFlowVersion = getScreeningService().findScreeningFlowVersionById(screeningFlow.getActiveScreeningFlowVersionId()).orElse(null);
+
+		if (screeningFlowVersion == null)
 			return List.of();
 
-		Optional<ScreeningSession> mostRecentCompletedTriageScreeningSession =
-				getScreeningServiceProvider().get().findMostRecentCompletedTriageScreeningSession(account.getAccountId(), institution.getProviderTriageScreeningFlowId());
+		ScreeningSession mostRecentCompletedFeatureScreeningSession =
+				getScreeningService().findMostRecentCompletedScreeningSession(account.getAccountId(), institution.getFeatureScreeningFlowId()).orElse(null);
 
 		UUID screeningSessionId = null;
 
-		if (mostRecentCompletedTriageScreeningSession.isPresent())
-			if (Duration.between(mostRecentCompletedTriageScreeningSession.get().getCompletedAt(), Instant.now()).toMinutes()
-					< screeningFlowVersion.get().getRecommendationExpirationMinutes())
-				screeningSessionId = mostRecentCompletedTriageScreeningSession.get().getScreeningSessionId();
+		if (mostRecentCompletedFeatureScreeningSession != null)
+			if (screeningFlowVersion.getRecommendationExpirationMinutes() == null
+					|| (Duration.between(mostRecentCompletedFeatureScreeningSession.getCompletedAt(), Instant.now()).toMinutes()
+					< screeningFlowVersion.getRecommendationExpirationMinutes()))
+				screeningSessionId = mostRecentCompletedFeatureScreeningSession.getScreeningSessionId();
 
 		List<FeaturesForInstitution> features = getDatabase().queryForList("SELECT f.feature_id, f.url_name, f.name, if.description, if.nav_description, " +
 				"CASE WHEN ss.screening_session_id IS NOT NULL THEN true ELSE false END AS recommended, f.navigation_header_id " +
@@ -391,36 +395,36 @@ public class InstitutionService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return database;
+		return this.database;
 	}
 
 	@Nonnull
 	protected JsonMapper getJsonMapper() {
-		return jsonMapper;
+		return this.jsonMapper;
 	}
 
 	@Nonnull
 	protected Configuration getConfiguration() {
-		return configuration;
+		return this.configuration;
 	}
 
 	@Nonnull
 	protected Strings getStrings() {
-		return strings;
+		return this.strings;
 	}
 
 	@Nonnull
 	protected Logger getLogger() {
-		return logger;
+		return this.logger;
 	}
 
 	@Nonnull
-	public Provider<ScreeningService> getScreeningServiceProvider() {
-		return screeningServiceProvider;
+	protected ScreeningService getScreeningService() {
+		return this.screeningServiceProvider.get();
 	}
 
 	@Nonnull
 	protected FeatureService getFeatureService() {
-		return featureService;
+		return this.featureServiceProvider.get();
 	}
 }

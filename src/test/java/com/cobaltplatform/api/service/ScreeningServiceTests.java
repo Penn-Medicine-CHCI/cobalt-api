@@ -63,7 +63,7 @@ public class ScreeningServiceTests {
 			}});
 
 			// Find the provider triage flow for the account's institution
-			ScreeningFlow providerTriageScreeningFlow = screeningService.findScreeningFlowById(institution.getProviderTriageScreeningFlowId()).get();
+			ScreeningFlow providerTriageScreeningFlow = screeningService.findScreeningFlowById(institution.getFeatureScreeningFlowId()).get();
 
 			// Confirm there are no existing screening sessions for that flow
 			List<ScreeningSession> screeningSessions = screeningService.findScreeningSessionsByScreeningFlowId(

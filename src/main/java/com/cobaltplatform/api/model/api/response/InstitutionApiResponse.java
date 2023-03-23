@@ -57,6 +57,8 @@ public class InstitutionApiResponse {
 	private final UUID groupSessionsScreeningFlowId;
 	@Nullable
 	private final UUID integratedCareScreeningFlowId;
+	@Nullable
+	private final UUID featureScreeningFlowId;
 	@Nonnull
 	private final String name;
 	@Nullable
@@ -155,6 +157,7 @@ public class InstitutionApiResponse {
 		this.contentScreeningFlowId = institution.getContentScreeningFlowId();
 		this.groupSessionsScreeningFlowId = institution.getGroupSessionsScreeningFlowId();
 		this.integratedCareScreeningFlowId = institution.getIntegratedCareScreeningFlowId();
+		this.featureScreeningFlowId = institution.getFeatureScreeningFlowId();
 		this.name = institution.getName();
 		this.crisisContent = ""; // institution.getCrisisContent();
 		this.privacyContent = ""; // institution.getPrivacyContent();
@@ -181,7 +184,7 @@ public class InstitutionApiResponse {
 		this.additionalNavigationItems = topicCenterService.findTopicCenterNavigationItemsByInstitutionId(institutionId);
 		this.features = institutionService.findFeaturesByInstitutionId(institution, account);
 		this.displayFeatures = this.features.size() > 0;
-		this.takeTriageScreening = screeningService.triageSessionAvailable(account, institution.getProviderTriageScreeningFlowId());
+		this.takeTriageScreening = screeningService.shouldAccountIdTakeScreeningFlowId(account, institution.getFeatureScreeningFlowId());
 	}
 
 	@Nonnull
@@ -207,6 +210,11 @@ public class InstitutionApiResponse {
 	@Nullable
 	public UUID getIntegratedCareScreeningFlowId() {
 		return this.integratedCareScreeningFlowId;
+	}
+
+	@Nullable
+	public UUID getFeatureScreeningFlowId() {
+		return this.featureScreeningFlowId;
 	}
 
 	@Nonnull
