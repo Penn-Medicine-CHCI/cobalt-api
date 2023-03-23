@@ -366,6 +366,9 @@ public class ProviderResource {
 						.map(specialty -> specialty.getSpecialtyId())
 						.collect(Collectors.toList());
 				normalizedProviderFind.put("specialtyIds", specialtyIds);
+				normalizedProviderFind.put("displayPhoneNumberOnlyForBooking", providerFind.getDisplayPhoneNumberOnlyForBooking());
+				normalizedProviderFind.put("phoneNumber", providerFind.getPhoneNumber());
+				normalizedProviderFind.put("formattedPhoneNumber", getFormatter().formatPhoneNumber(providerFind.getPhoneNumber()));
 
 				normalizedProviderFinds.add(normalizedProviderFind);
 			}

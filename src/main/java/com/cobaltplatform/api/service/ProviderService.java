@@ -665,6 +665,8 @@ public class ProviderService {
 
 			providerFind.setAppointmentTypeIds(appointmentTypeIdsByProviderId.get(provider.getProviderId()));
 			providerFind.setEpicDepartmentIds(epicDepartmentIdsByProviderId.get(provider.getProviderId()));
+			providerFind.setPhoneNumber(provider.getPhoneNumber());
+			providerFind.setDisplayPhoneNumberOnlyForBooking(provider.getDisplayPhoneNumberOnlyForBooking());
 
 			providerFinds.add(providerFind);
 		}
