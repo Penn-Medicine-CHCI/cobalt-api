@@ -98,6 +98,12 @@ public class ProviderApiResponse {
 	private final String bioUrl;
 	@Nullable
 	private final String bio;
+	@Nullable
+	private final String phoneNumber;
+	@Nullable
+	private final String formattedPhoneNumber;
+	@Nullable
+	private Boolean displayPhoneNumberOnlyForBooking;
 
 	public enum ProviderApiResponseSupplement {
 		EVERYTHING,
@@ -168,6 +174,9 @@ public class ProviderApiResponse {
 		this.locale = provider.getLocale();
 		this.tags = provider.getTags() == null ? Collections.emptyList() : jsonMapper.toList(provider.getTags(), String.class);
 		this.bioUrl = trimToNull(provider.getBioUrl());
+		this.phoneNumber = provider.getPhoneNumber();
+		this.displayPhoneNumberOnlyForBooking = provider.getDisplayPhoneNumberOnlyForBooking();
+		this.formattedPhoneNumber = formatter.formatPhoneNumber(provider.getPhoneNumber(), provider.getLocale());
 
 		String bio = trimToNull(provider.getBio());
 

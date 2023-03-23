@@ -70,19 +70,6 @@ public class FeatureService {
 	}
 
 	@Nonnull
-	public Optional<Feature> findFeatureBySupportRoleIdAndInstitutionId(@Nullable SupportRoleId supportRoleId,
-																																			@Nullable 	InstitutionId institutionId) {
-		if (supportRoleId == null)
-			return Optional.empty();
-
-		return getDatabase().queryForObject("""
-				SELECT f.*, if.description
-				FROM feature f, institution_feature if
-				WHERE f.feature_id = if.feature_id AND f.support_role_id=?
-				AND if.institution_id = ?""", Feature.class, supportRoleId, institutionId);
-	}
-
-	@Nonnull
 	public List<Filter> findFiltersByFeatureId(@Nullable FeatureId featureId) {
 
 		return getDatabase().queryForList("""

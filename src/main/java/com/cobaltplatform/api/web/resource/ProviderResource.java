@@ -44,6 +44,7 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.Clinic;
 import com.cobaltplatform.api.model.db.Feature;
+import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Filter;
 import com.cobaltplatform.api.model.db.Followup;
 import com.cobaltplatform.api.model.db.Institution;
@@ -589,7 +590,8 @@ public class ProviderResource {
 																				 @Nonnull @QueryParameter("startDate") Optional<LocalDate> startDateOverride,
 																				 @Nonnull @QueryParameter("endDate") Optional<LocalDate> endDateOverride,
 																				 @Nonnull @QueryParameter("clinicId") Optional<List<UUID>> clinicIdsOverride,
-																				 @Nonnull @QueryParameter("visitTypeId") Optional<List<VisitTypeId>> visitTypeIdsOverride) {
+																				 @Nonnull @QueryParameter("visitTypeId") Optional<List<VisitTypeId>> visitTypeIdsOverride,
+																				 @Nonnull @QueryParameter("featureId") Optional<FeatureId> featureId) {
 		requireNonNull(supportRoleId);
 
 		// You can force a psychiatrist (for example) - this is useful for "immediate links"
@@ -607,8 +609,8 @@ public class ProviderResource {
 
 		Optional<Feature> feature = Optional.empty();
 		List<Filter> filters = null;
-		if (supportRoleIdOverride != null) {
-			feature = getFeatureService().findFeatureBySupportRoleIdAndInstitutionId(supportRoleIdOverride, institutionId);
+		if (featureId.isPresent()) {
+			feature = getFeatureService().findFeatureById(featureId.get());
 			if (feature.isPresent())
 				filters = getFeatureService().findFiltersByFeatureId(feature.get().getFeatureId());
 		}

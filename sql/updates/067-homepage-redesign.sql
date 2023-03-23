@@ -126,6 +126,7 @@ ALTER TABLE clinic ADD COLUMN phone_number VARCHAR;
 ALTER TABLE clinic ADD COLUMN locale VARCHAR NOT NULL DEFAULT 'en-US'::character varying;
 
 ALTER TABLE provider ADD COLUMN phone_number VARCHAR;
+ALTER TABLE provider ADD COLUMN diplay_phone_numbner_only BOOLEAN DEFAULT false;
 
 INSERT INTO navigation_header
   (navigation_header_id, name)
@@ -185,6 +186,15 @@ VALUES
   ('MORNING', 'Morning', 'Starts before 12pm', '10:00', '12:00', 2),
   ('AFTERNOON', 'Afternoon', 'Starts after 12pm', '12:00', '17:00', 3),
   ('EVENING', 'Evening', 'Starts after 5pm', '17:00', '24:00', 4);
+
+ INSERT INTO feature_support_role
+   (feature_id, support_role_id)
+ VALUES
+   ('THERAPY', 'CLINICIAN'),
+   ('COACHING', 'COACH'),
+   ('SPIRITUAL_SUPPORT', 'CHAPLAIN');
+
+
 
 COMMIT;
 
