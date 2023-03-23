@@ -282,7 +282,7 @@ public class ProviderResource {
 		request.setInstitutionId(institutionId);
 		request.setIncludePastAvailability(false);
 
-		if (request.getEndDate() == null)
+		if (request.getStartDate() != null && request.getEndDate() == null)
 			request.setEndDate(request.getStartDate().plusWeeks(4));
 
 		Set<UUID> providerIds = new HashSet<>();
