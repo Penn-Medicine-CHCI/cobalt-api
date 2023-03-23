@@ -194,6 +194,10 @@ VALUES
    ('COACHING', 'COACH'),
    ('SPIRITUAL_SUPPORT', 'CHAPLAIN');
 
+INSERT INTO screening_flow_type
+    (screening_flow_type_id, description)
+VALUES
+    ('FEATURE', 'Feature');
 
 ALTER TABLE institution ADD COLUMN feature_screening_flow_id UUID REFERENCES screening_flow(screening_flow_id);
 
