@@ -282,6 +282,9 @@ public class ProviderResource {
 		request.setInstitutionId(institutionId);
 		request.setIncludePastAvailability(false);
 
+		if (request.getEndDate() == null)
+			request.setEndDate(request.getStartDate().plusWeeks(4));
+
 		Set<UUID> providerIds = new HashSet<>();
 		Set<ProviderFindSupplement> supplements = request.getSupplements() == null ? Collections.emptySet() : request.getSupplements();
 
