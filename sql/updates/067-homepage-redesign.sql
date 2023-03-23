@@ -126,7 +126,7 @@ ALTER TABLE clinic ADD COLUMN phone_number VARCHAR;
 ALTER TABLE clinic ADD COLUMN locale VARCHAR NOT NULL DEFAULT 'en-US'::character varying;
 
 ALTER TABLE provider ADD COLUMN phone_number VARCHAR;
-ALTER TABLE provider ADD COLUMN diplay_phone_numbner_only BOOLEAN DEFAULT false;
+ALTER TABLE provider ADD COLUMN display_phone_number_only_for_booking BOOLEAN DEFAULT false;
 
 INSERT INTO navigation_header
   (navigation_header_id, name)
