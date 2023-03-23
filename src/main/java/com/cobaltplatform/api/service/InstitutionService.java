@@ -21,6 +21,7 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.Feature;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionBlurb;
@@ -60,6 +61,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.util.WebUtility.normalizedHostnameForUrl;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -354,7 +356,7 @@ public class InstitutionService {
 					< screeningFlowVersion.get().getRecommendationExpirationMinutes())
 				screeningSessionId = mostRecentCompletedTriageScreeningSession.get().getScreeningSessionId();
 
-		List<FeaturesForInstitution> features = getDatabase().queryForList("SELECT f.feature_id, f.url_name, f.name, if.description, if.nav_description, "+
+		List<FeaturesForInstitution> features = getDatabase().queryForList("SELECT f.feature_id, f.url_name, f.name, if.description, if.nav_description, " +
 				"CASE WHEN ss.screening_session_id IS NOT NULL THEN true ELSE false END AS recommended, f.navigation_header_id " +
 				"FROM institution_feature if, feature f  " +
 				"LEFT OUTER JOIN screening_session_feature_recommendation ss " +
@@ -369,12 +371,15 @@ public class InstitutionService {
 				feature.setLocationPromptRequired(true);
 			else
 				feature.setLocationPromptRequired(false);
+
+			if (feature.getFeatureId().equals(Feature.FeatureId.SELF_HELP_RESOURCES) && feature.getRecommended())
+				feature.setUrlName(format("%s?recommended=true",feature.getUrlName()));
+
 			return true;
-			}).collect(Collectors.toList());
+		}).collect(Collectors.toList());
 
 		return features;
 	}
-
 
 	@Nonnull
 	public List<InstitutionLocation> findLocationsInstitutionId(@Nullable InstitutionId institutionId) {
@@ -383,6 +388,7 @@ public class InstitutionService {
 
 		return getDatabase().queryForList("SELECT * FROM institution_location WHERE institution_id = ?", InstitutionLocation.class, institutionId);
 	}
+
 	@Nonnull
 	protected Database getDatabase() {
 		return database;
@@ -414,5 +420,7 @@ public class InstitutionService {
 	}
 
 	@Nonnull
-	protected FeatureService getFeatureService() { return featureService; }
+	protected FeatureService getFeatureService() {
+		return featureService;
+	}
 }
