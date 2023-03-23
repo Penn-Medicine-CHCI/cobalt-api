@@ -365,6 +365,10 @@ public class InstitutionService {
 		features.stream().map(feature -> {
 			List<SupportRole.SupportRoleId> supportRoleIds = getFeatureService().findSupportRoleByFeatureId(feature.getFeatureId());
 			feature.setSupportRoleIds(supportRoleIds);
+			if (!account.getPromptedForInstitutionLocation() && getFeatureService().featureSupportsLocation(feature.getFeatureId()))
+				feature.setLocationPromptRequired(true);
+			else
+				feature.setLocationPromptRequired(false);
 			return true;
 			}).collect(Collectors.toList());
 

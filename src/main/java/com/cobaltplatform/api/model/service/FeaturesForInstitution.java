@@ -48,6 +48,8 @@ public class FeaturesForInstitution {
 	private NavigationHeaderId navigationHeaderId;
 	@Nullable
 	private List<SupportRoleId> supportRoleIds;
+	@Nullable
+	private Boolean locationPromptRequired;
 
 
 	@Nullable
@@ -120,5 +122,14 @@ public class FeaturesForInstitution {
 
 	public void setSupportRoleIds(@Nullable List<SupportRoleId> supportRoleIds) {
 		this.supportRoleIds = supportRoleIds;
+	}
+
+	@Nullable
+	public Boolean getLocationPromptRequired() {
+		return locationPromptRequired;
+	}
+
+	public void setLocationPromptRequired(@Nullable Boolean locationPromptRequired) {
+		this.locationPromptRequired = locationPromptRequired;
 	}
 }

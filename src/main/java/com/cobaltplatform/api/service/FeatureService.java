@@ -87,6 +87,14 @@ public class FeatureService {
 	}
 
 	@Nonnull
+	public Boolean featureSupportsLocation(FeatureId featureId) {
+		return getDatabase().queryForObject("""
+				SELECT count(*) > 0
+				FROM feature_filter 
+				WHERE feature_id = ? AND filter_id = ?""", Boolean.class, featureId, Filter.FilterId.LOCATION).get();
+	}
+
+	@Nonnull
 	protected Database getDatabase() {
 		return this.database;
 	}
