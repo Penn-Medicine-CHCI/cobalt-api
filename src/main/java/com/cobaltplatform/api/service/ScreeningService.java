@@ -323,6 +323,25 @@ public class ScreeningService {
 	}
 
 	@Nonnull
+	public Boolean hasAccountIdTakenScreeningFlowId(@Nullable Account account,
+																									@Nullable UUID screeningFlowId) {
+		if (account == null || screeningFlowId == null)
+			return false;
+
+		ScreeningFlow screeningFlow = findScreeningFlowById(screeningFlowId).orElse(null);
+
+		if (screeningFlow == null)
+			return false;
+
+		ScreeningSession screeningSession = findMostRecentCompletedScreeningSession(account.getAccountId(), screeningFlowId).orElse(null);
+
+		if (screeningSession == null)
+			return false;
+		else
+			return true;
+	}
+
+	@Nonnull
 	public Boolean shouldAccountIdTakeScreeningFlowId(@Nullable Account account,
 																										@Nullable UUID screeningFlowId) {
 		if (account == null || screeningFlowId == null)
@@ -335,7 +354,7 @@ public class ScreeningService {
 
 		ScreeningSession screeningSession = findMostRecentCompletedScreeningSession(account.getAccountId(), screeningFlowId).orElse(null);
 
-		// If there is no screening session then return true because this user has not taken a screeening
+		// If there is no screening session then return true because this user has not taken a screening
 		if (screeningSession == null)
 			return true;
 

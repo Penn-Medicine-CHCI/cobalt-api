@@ -120,7 +120,10 @@ public class InstitutionApiResponse {
 	@Nonnull
 	private final List<FeaturesForInstitution> features;
 	@Nonnull
-	private final Boolean takeTriageScreening;
+	private final Boolean takeFeatureScreening;
+	@Nonnull
+	private final Boolean hasTakenFeatureScreening;
+
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -184,7 +187,8 @@ public class InstitutionApiResponse {
 		this.ga4MeasurementId = institution.getGa4MeasurementId();
 		this.additionalNavigationItems = topicCenterService.findTopicCenterNavigationItemsByInstitutionId(institutionId);
 		this.features = institutionService.findFeaturesByInstitutionId(institution, account);
-		this.takeTriageScreening = screeningService.shouldAccountIdTakeScreeningFlowId(account, institution.getFeatureScreeningFlowId());
+		this.takeFeatureScreening = screeningService.shouldAccountIdTakeScreeningFlowId(account, institution.getFeatureScreeningFlowId());
+		this.hasTakenFeatureScreening = screeningService.hasAccountIdTakenScreeningFlowId(account, institution.getFeatureScreeningFlowId());
 	}
 
 	@Nonnull
@@ -356,7 +360,12 @@ public class InstitutionApiResponse {
 	}
 
 	@Nonnull
-	public Boolean getTakeTriageScreening() {
-		return takeTriageScreening;
+	public Boolean getTakeFeatureScreening() {
+		return takeFeatureScreening;
+	}
+
+	@Nonnull
+	public Boolean getHasTakenFeatureScreening() {
+		return hasTakenFeatureScreening;
 	}
 }
