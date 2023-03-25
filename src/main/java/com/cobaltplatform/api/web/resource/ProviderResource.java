@@ -277,13 +277,14 @@ public class ProviderResource {
 		Account account = getCurrentContext().getAccount().get();
 		Locale locale = getCurrentContext().getLocale();
 		InstitutionId institutionId = account.getInstitutionId();
+		int defaultNumberOfWeeksToSearch = 4;
 
 		ProviderFindRequest request = getRequestBodyParser().parse(requestBody, ProviderFindRequest.class);
 		request.setInstitutionId(institutionId);
 		request.setIncludePastAvailability(false);
 
 		if (request.getStartDate() != null && request.getEndDate() == null)
-			request.setEndDate(request.getStartDate().plusWeeks(4));
+			request.setEndDate(request.getStartDate().plusWeeks(defaultNumberOfWeeksToSearch));
 
 		Set<UUID> providerIds = new HashSet<>();
 		Set<ProviderFindSupplement> supplements = request.getSupplements() == null ? Collections.emptySet() : request.getSupplements();
@@ -309,7 +310,19 @@ public class ProviderResource {
 			}
 		}
 
-		// 3. Walk grouped dates to prepare for response
+		// 3. Insert empty lists for each missing date to fill in "holes" where there are no
+		// results for that date (UI prefers to show "no providers available for this date" kind of message in that scenario)
+		LocalDate startDate = request.getStartDate() == null ? LocalDate.now(account.getTimeZone()) : request.getStartDate();
+		LocalDate endDate = request.getEndDate() == null ? startDate.plusWeeks(defaultNumberOfWeeksToSearch) : request.getEndDate();
+
+		for (LocalDate currentDate = startDate;
+				 currentDate.isBefore(endDate) || currentDate.isEqual(endDate);
+				 currentDate = currentDate.plusDays(1)) {
+			if (!providerFindsByDate.containsKey(currentDate))
+				providerFindsByDate.put(currentDate, List.of());
+		}
+
+		// 4. Walk grouped dates to prepare for response
 		List<Object> sections = new ArrayList<>(providerFindsByDate.size());
 
 		for (Entry<LocalDate, List<ProviderFind>> entry : providerFindsByDate.entrySet()) {
@@ -606,7 +619,7 @@ public class ProviderResource {
 
 		Account account = getCurrentContext().getAccount().get();
 		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
-		
+
 		List<SupportRole> allSupportRoles = getProviderService().findSupportRolesByInstitutionId(institutionId).stream()
 				.collect(Collectors.toList());
 
@@ -732,8 +745,8 @@ public class ProviderResource {
 			response.put("feature", getFeatureApiResponseFactory().create(feature.get()));
 			if (filters != null)
 				response.put("filters", filters.stream()
-					.map(filter -> getFilterApiResponseFactory().create(filter))
-					.collect(Collectors.toList()));
+						.map(filter -> getFilterApiResponseFactory().create(filter))
+						.collect(Collectors.toList()));
 		}
 
 		return new ApiResponse(response);
@@ -819,32 +832,32 @@ public class ProviderResource {
 
 	@Nonnull
 	protected AssessmentService getAssessmentService() {
-		return assessmentService;
+		return this.assessmentService;
 	}
 
 	@Nonnull
 	protected AssessmentScoringService getAssessmentScoringService() {
-		return assessmentScoringService;
+		return this.assessmentScoringService;
 	}
 
 	@Nonnull
 	protected ProviderService getProviderService() {
-		return providerService;
+		return this.providerService;
 	}
 
 	@Nonnull
 	protected ClinicService getClinicService() {
-		return clinicService;
+		return this.clinicService;
 	}
 
 	@Nonnull
 	protected AppointmentService getAppointmentService() {
-		return appointmentService;
+		return this.appointmentService;
 	}
 
 	@Nonnull
 	protected AvailabilityService getAvailabilityService() {
-		return availabilityService;
+		return this.availabilityService;
 	}
 
 	@Nonnull
@@ -859,57 +872,57 @@ public class ProviderResource {
 
 	@Nonnull
 	protected ProviderApiResponseFactory getProviderApiResponseFactory() {
-		return providerApiResponseFactory;
+		return this.providerApiResponseFactory;
 	}
 
 	@Nonnull
 	protected ClinicApiResponseFactory getClinicApiResponseFactory() {
-		return clinicApiResponseFactory;
+		return this.clinicApiResponseFactory;
 	}
 
 	@Nonnull
 	protected AppointmentApiResponseFactory getAppointmentApiResponseFactory() {
-		return appointmentApiResponseFactory;
+		return this.appointmentApiResponseFactory;
 	}
 
 	@Nonnull
 	protected AvailabilityTimeApiResponseFactory getAvailabilityTimeApiResponseFactory() {
-		return availabilityTimeApiResponseFactory;
+		return this.availabilityTimeApiResponseFactory;
 	}
 
 	@Nonnull
 	protected TimeZoneApiResponseFactory getTimeZoneApiResponseFactory() {
-		return timeZoneApiResponseFactory;
+		return this.timeZoneApiResponseFactory;
 	}
 
 	@Nonnull
 	protected FollowupService getFollowupService() {
-		return followupService;
+		return this.followupService;
 	}
 
 	@Nonnull
 	protected AuthorizationService getAuthorizationService() {
-		return authorizationService;
+		return this.authorizationService;
 	}
 
 	@Nonnull
 	protected FollowupApiResponseFactory getFollowupApiResponseFactory() {
-		return followupApiResponseFactory;
+		return this.followupApiResponseFactory;
 	}
 
 	@Nonnull
 	protected SupportRoleApiResponseFactory getSupportRoleApiResponseFactory() {
-		return supportRoleApiResponseFactory;
+		return this.supportRoleApiResponseFactory;
 	}
 
 	@Nonnull
 	protected SpecialtyApiResponseFactory getSpecialtyApiResponseFactory() {
-		return specialtyApiResponseFactory;
+		return this.specialtyApiResponseFactory;
 	}
 
 	@Nonnull
 	protected ProviderCalendarApiResponseFactory getProviderCalendarApiResponseFactory() {
-		return providerCalendarApiResponseFactory;
+		return this.providerCalendarApiResponseFactory;
 	}
 
 	@Nonnull
@@ -919,38 +932,46 @@ public class ProviderResource {
 
 	@Nonnull
 	protected CurrentContext getCurrentContext() {
-		return currentContextProvider.get();
+		return this.currentContextProvider.get();
 	}
 
 	@Nonnull
 	protected RequestBodyParser getRequestBodyParser() {
-		return requestBodyParser;
+		return this.requestBodyParser;
 	}
 
 	@Nonnull
 	protected Formatter getFormatter() {
-		return formatter;
+		return this.formatter;
 	}
 
 	@Nonnull
 	protected Strings getStrings() {
-		return strings;
+		return this.strings;
 	}
 
 	@Nonnull
 	protected Logger getLogger() {
-		return logger;
+		return this.logger;
 	}
 
 	@Nonnull
-	protected FeatureService getFeatureService() { return this.featureService; }
+	protected FeatureService getFeatureService() {
+		return this.featureService;
+	}
 
 	@Nonnull
-	protected FilterApiResponseFactory getFilterApiResponseFactory() { return filterApiResponseFactory; }
+	protected FilterApiResponseFactory getFilterApiResponseFactory() {
+		return this.filterApiResponseFactory;
+	}
 
 	@Nonnull
-	protected AppointmentTimeApiResponseFactory getAppointmentTimeApiResponseFactory() { return  appointmentTimeApiResponseFactory; }
+	protected AppointmentTimeApiResponseFactory getAppointmentTimeApiResponseFactory() {
+		return this.appointmentTimeApiResponseFactory;
+	}
 
 	@Nonnull
-	protected FeatureApiResponseFactory getFeatureApiResponseFactory() { return featureApiResponseFactory; }
+	protected FeatureApiResponseFactory getFeatureApiResponseFactory() {
+		return this.featureApiResponseFactory;
+	}
 }
