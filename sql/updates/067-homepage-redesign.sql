@@ -185,7 +185,7 @@ VALUES
   ('EARLY_MORNING', 'Early Morning', 'Starts before 10am', '00:00', '10:00', 1),
   ('MORNING', 'Morning', 'Starts before 12pm', '10:00', '12:00', 2),
   ('AFTERNOON', 'Afternoon', 'Starts after 12pm', '12:00', '17:00', 3),
-  ('EVENING', 'Evening', 'Starts after 5pm', '17:00', '24:00', 4);
+  ('EVENING', 'Evening', 'Starts after 5pm', '17:00', '23:59:59', 4);
 
  INSERT INTO feature_support_role
    (feature_id, support_role_id)

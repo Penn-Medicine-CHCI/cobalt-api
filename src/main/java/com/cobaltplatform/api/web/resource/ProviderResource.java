@@ -42,6 +42,8 @@ import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApi
 import com.cobaltplatform.api.model.api.response.VisitTypeApiResponse.VisitTypeApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Appointment;
+import com.cobaltplatform.api.model.db.AppointmentTime;
+import com.cobaltplatform.api.model.db.AppointmentTime.AppointmentTimeId;
 import com.cobaltplatform.api.model.db.Clinic;
 import com.cobaltplatform.api.model.db.Feature;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
@@ -59,6 +61,8 @@ import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.ProviderCalendar;
 import com.cobaltplatform.api.model.service.ProviderFind;
+import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
+import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityTime;
 import com.cobaltplatform.api.service.AppointmentService;
 import com.cobaltplatform.api.service.AssessmentScoringService;
 import com.cobaltplatform.api.service.AssessmentService;
@@ -276,11 +280,11 @@ public class ProviderResource {
 	public ApiResponse findProviders(@Nonnull @RequestBody String requestBody) {
 		Account account = getCurrentContext().getAccount().get();
 		Locale locale = getCurrentContext().getLocale();
-		InstitutionId institutionId = account.getInstitutionId();
+		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
 		int defaultNumberOfWeeksToSearch = 4;
 
 		ProviderFindRequest request = getRequestBodyParser().parse(requestBody, ProviderFindRequest.class);
-		request.setInstitutionId(institutionId);
+		request.setInstitutionId(institution.getInstitutionId());
 		request.setIncludePastAvailability(false);
 
 		if (request.getStartDate() != null && request.getEndDate() == null)
@@ -292,13 +296,64 @@ public class ProviderResource {
 		// 1. Pull raw data
 		List<ProviderFind> providerFinds = getProviderService().findProviders(request, account);
 
-		// 2. Group by date
+		// 2. Throw out results that don't fall within specified appointment time windows
+		if (institution.getFeaturesEnabled()) {
+			// Reference data
+			Map<AppointmentTimeId, AppointmentTime> appointmentTimesById = getAppointmentService().findAppointmentTimes().stream()
+					.collect(Collectors.toMap(AppointmentTime::getAppointmentTimeId, Function.identity()));
+
+			// Get a list of provided appointment times
+			List<AppointmentTime> appointmentTimes = request.getAppointmentTimeIds() == null ? List.of() : request.getAppointmentTimeIds().stream()
+					.filter(appointmentTimeId -> appointmentTimeId != null)
+					.map(appointmentTimeId -> appointmentTimesById.get(appointmentTimeId))
+					.collect(Collectors.toList());
+
+			boolean noAppointmentTimesSpecified = appointmentTimes.size() == 0;
+			boolean allAppointmentTimesSpecified = appointmentTimes.size() == appointmentTimesById.size();
+			boolean needToTakeAppointmentTimesIntoAccount = !(noAppointmentTimesSpecified || allAppointmentTimesSpecified);
+
+			if (needToTakeAppointmentTimesIntoAccount) {
+				for (ProviderFind providerFind : providerFinds) {
+					List<AvailabilityDate> emptyDates = new ArrayList<>(providerFind.getDates().size());
+
+					for (AvailabilityDate date : providerFind.getDates()) {
+						List<AvailabilityTime> timesWithinRange = new ArrayList<>(date.getTimes().size());
+
+						for (AvailabilityTime time : date.getTimes()) {
+							boolean withinRange = false;
+
+							for (AppointmentTime appointmentTime : appointmentTimes) {
+								// If a slot's time is within range, keep it (start inclusive, end exclusive)
+								if ((appointmentTime.getStartTime().isBefore(time.getTime()) || appointmentTime.getStartTime().equals(time.getTime()))
+										&& appointmentTime.getEndTime().isAfter(time.getTime())) {
+									withinRange = true;
+									break;
+								}
+							}
+
+							if (withinRange)
+								timesWithinRange.add(time);
+						}
+
+						date.setTimes(timesWithinRange);
+
+						if (timesWithinRange.size() == 0)
+							emptyDates.add(date);
+					}
+
+					// If the filter resulted in any empty dates (no slots available), remove those dates entirely
+					providerFind.getDates().removeAll(emptyDates);
+				}
+			}
+		}
+
+		// 3. Group by date
 		SortedMap<LocalDate, List<ProviderFind>> providerFindsByDate = new TreeMap<>();
 
 		for (ProviderFind providerFind : providerFinds) {
 			providerIds.add(providerFind.getProviderId());
 
-			for (ProviderFind.AvailabilityDate availabilityDate : providerFind.getDates()) {
+			for (AvailabilityDate availabilityDate : providerFind.getDates()) {
 				List<ProviderFind> providerFindsForDate = providerFindsByDate.get(availabilityDate.getDate());
 
 				if (providerFindsForDate == null) {
@@ -310,19 +365,21 @@ public class ProviderResource {
 			}
 		}
 
-		// 3. Insert empty lists for each missing date to fill in "holes" where there are no
+		// 4. Insert empty lists for each missing date to fill in "holes" where there are no
 		// results for that date (UI prefers to show "no providers available for this date" kind of message in that scenario)
-		LocalDate startDate = request.getStartDate() == null ? LocalDate.now(account.getTimeZone()) : request.getStartDate();
-		LocalDate endDate = request.getEndDate() == null ? startDate.plusWeeks(defaultNumberOfWeeksToSearch) : request.getEndDate();
+		if (institution.getFeaturesEnabled()) {
+			LocalDate startDate = request.getStartDate() == null ? LocalDate.now(account.getTimeZone()) : request.getStartDate();
+			LocalDate endDate = request.getEndDate() == null ? startDate.plusWeeks(defaultNumberOfWeeksToSearch) : request.getEndDate();
 
-		for (LocalDate currentDate = startDate;
-				 currentDate.isBefore(endDate) || currentDate.isEqual(endDate);
-				 currentDate = currentDate.plusDays(1)) {
-			if (!providerFindsByDate.containsKey(currentDate))
-				providerFindsByDate.put(currentDate, List.of());
+			for (LocalDate currentDate = startDate;
+					 currentDate.isBefore(endDate) || currentDate.isEqual(endDate);
+					 currentDate = currentDate.plusDays(1)) {
+				if (!providerFindsByDate.containsKey(currentDate))
+					providerFindsByDate.put(currentDate, List.of());
+			}
 		}
 
-		// 4. Walk grouped dates to prepare for response
+		// 5. Walk grouped dates to prepare for response
 		List<Object> sections = new ArrayList<>(providerFindsByDate.size());
 
 		for (Entry<LocalDate, List<ProviderFind>> entry : providerFindsByDate.entrySet()) {
@@ -337,9 +394,9 @@ public class ProviderResource {
 
 				boolean providerFullyBooked = false;
 
-				for (ProviderFind.AvailabilityDate availabilityDate : providerFind.getDates()) {
+				for (AvailabilityDate availabilityDate : providerFind.getDates()) {
 					if (availabilityDate.getDate().equals(date)) {
-						for (ProviderFind.AvailabilityTime availabilityTime : availabilityDate.getTimes()) {
+						for (AvailabilityTime availabilityTime : availabilityDate.getTimes()) {
 							Map<String, Object> normalizedTime = new LinkedHashMap<>();
 							normalizedTime.put("time", availabilityTime.getTime());
 							normalizedTime.put("timeDescription", normalizeTimeFormat(formatter.formatTime(availabilityTime.getTime(), FormatStyle.SHORT), locale));
@@ -403,7 +460,7 @@ public class ProviderResource {
 			if (providerFind.getAppointmentTypeIds() != null)
 				appointmentTypeIds.addAll(providerFind.getAppointmentTypeIds());
 
-		List<Map<String, Object>> appointmentTypesJson = getAppointmentService().findAppointmentTypesByInstitutionId(institutionId).stream()
+		List<Map<String, Object>> appointmentTypesJson = getAppointmentService().findAppointmentTypesByInstitutionId(institution.getInstitutionId()).stream()
 				.filter((appointmentType -> appointmentTypeIds.contains(appointmentType.getAppointmentTypeId())))
 				.map((appointmentType -> {
 					Map<String, Object> appointmentTypeJson = new LinkedHashMap<>();
@@ -429,7 +486,7 @@ public class ProviderResource {
 			if (providerFind.getEpicDepartmentIds() != null)
 				epicDepartmentIds.addAll(providerFind.getEpicDepartmentIds());
 
-		List<Map<String, Object>> epicDepartmentsJson = getAppointmentService().findEpicDepartmentsByInstitutionId(institutionId).stream()
+		List<Map<String, Object>> epicDepartmentsJson = getAppointmentService().findEpicDepartmentsByInstitutionId(institution.getInstitutionId()).stream()
 				.filter((epicDepartment -> epicDepartmentIds.contains(epicDepartment.getEpicDepartmentId())))
 				.map((epicDepartment -> {
 					Map<String, Object> epicDepartmentJson = new LinkedHashMap<>();
@@ -455,7 +512,7 @@ public class ProviderResource {
 		List<Clinic> clinics = new ArrayList<>();
 
 		if (request.getClinicIds() != null && request.getClinicIds().size() > 0)
-			clinics.addAll(getClinicService().findClinicsByInstitutionId(institutionId).stream()
+			clinics.addAll(getClinicService().findClinicsByInstitutionId(institution.getInstitutionId()).stream()
 					.filter(clinic -> request.getClinicIds().contains(clinic.getClinicId()))
 					.collect(Collectors.toList()));
 
