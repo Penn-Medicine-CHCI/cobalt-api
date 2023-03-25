@@ -40,6 +40,7 @@ import com.cobaltplatform.api.model.api.request.UpdateAccountAccessTokenExpirati
 import com.cobaltplatform.api.model.api.request.UpdateAccountBetaStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountConsentFormAcceptedRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountEmailAddressRequest;
+import com.cobaltplatform.api.model.api.request.UpdateAccountLocationRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountPhoneNumberRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountRoleRequest;
 import com.cobaltplatform.api.model.api.request.UpdateBetaFeatureAlertRequest;
@@ -81,6 +82,7 @@ import com.cobaltplatform.api.util.LinkGenerator;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.cobaltplatform.api.util.ValidationUtility;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -1304,6 +1306,35 @@ public class AccountService {
 				AND email_address=?
 				AND account_id=?
 				""", Boolean.class, emailAddress, accountId).get();
+	}
+
+	@Nonnull
+	public void updateAccountLocation(@Nonnull UpdateAccountLocationRequest request) {
+		requireNonNull(request);
+
+		UUID accountId = request.getAccountId();
+		String institutionLocationIdString = trimToNull(request.getInstitutionLocationId());
+		UUID institutionLocationId = null;
+		ValidationException validationException = new ValidationException();
+
+		if (accountId == null) {
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+		} else {
+			Account account = findAccountById(accountId).orElse(null);
+
+			if (account == null)
+				validationException.add(new FieldError("accountId", getStrings().get("Account ID is invalid.")));
+		}
+
+		if (institutionLocationIdString != null && !ValidationUtility.isValidUUID(institutionLocationIdString))
+			validationException.add(new FieldError("location", getStrings().get("Location ID is invalid.")));
+		else if (institutionLocationIdString != null)
+			institutionLocationId = UUID.fromString(institutionLocationIdString);
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("UPDATE account SET institution_location_id = ?, prompted_for_institution_location = true WHERE account_id = ?", institutionLocationId, accountId);
 	}
 
 	@Nonnull

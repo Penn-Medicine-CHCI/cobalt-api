@@ -89,6 +89,10 @@ public class Provider {
 	@Nullable
 	private Integer schedulingLeadTimeInHours;
 	@Nullable
+	private String phoneNumber;
+	@Nullable
+	private Boolean displayPhoneNumberOnlyForBooking;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -343,5 +347,23 @@ public class Provider {
 
 	public void setBio(@Nullable String bio) {
 		this.bio = bio;
+	}
+
+	@Nullable
+	public String getPhoneNumber() {
+		return phoneNumber;
+	}
+
+	public void setPhoneNumber(@Nullable String phoneNumber) {
+		this.phoneNumber = phoneNumber;
+	}
+
+	@Nullable
+	public Boolean getDisplayPhoneNumberOnlyForBooking() {
+		return displayPhoneNumberOnlyForBooking;
+	}
+
+	public void setDisplayPhoneNumberOnlyForBooking(@Nullable Boolean displayPhoneNumberOnlyForBooking) {
+		this.displayPhoneNumberOnlyForBooking = displayPhoneNumberOnlyForBooking;
 	}
 }

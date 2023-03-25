@@ -73,6 +73,7 @@ import com.cobaltplatform.api.model.db.Answer;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentReason;
 import com.cobaltplatform.api.model.db.AppointmentReasonType.AppointmentReasonTypeId;
+import com.cobaltplatform.api.model.db.AppointmentTime;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.AssessmentType;
@@ -2266,6 +2267,11 @@ public class AppointmentService {
 	@Nonnull
 	public List<VisitType> findVisitTypes() {
 		return getDatabase().queryForList("SELECT * FROM visit_type ORDER BY display_order", VisitType.class);
+	}
+
+	@Nonnull
+	public List<AppointmentTime> findAppointmentTimes() {
+		return getDatabase().queryForList("SELECT * FROM appointment_time ORDER BY display_order", AppointmentTime.class);
 	}
 
 	@Nonnull

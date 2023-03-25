@@ -289,6 +289,7 @@ public class ProviderService {
 		LocalDateTime currentDateTime = includePastAvailability ? LocalDateTime.of(startDate, startTime) : LocalDateTime.now(account.getTimeZone());
 		LocalDate currentDate = currentDateTime.toLocalDate();
 		ValidationException validationException = new ValidationException();
+		UUID institutionLocationId = request.getInstitutionLocationId();
 
 		if (institutionId == null)
 			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
@@ -356,6 +357,12 @@ public class ProviderService {
 				// Special case: don't show "calming an anxious mind" providers unless that clinic is explicitly asked for via clinicId
 				query.append(" AND NOT EXISTS (SELECT * FROM provider_clinic WHERE p.provider_id=provider_clinic.provider_id AND provider_clinic.clinic_id=?)");
 				parameters.add(getClinicService().getCalmingAnAnxiousMindClinicId());
+			}
+
+			if (institutionLocationId != null) {
+				query.append(" AND (p.provider_id IN (SELECT pil1.provider_id FROM provider_institution_location pil1 WHERE pil1.institution_location_id = ?)");
+				query.append(" OR p.provider_id NOT IN (SELECT pil2.provider_id FROM provider_institution_location pil2))");
+				parameters.add(institutionLocationId);
 			}
 
 			if (visitTypeIds.size() > 0) {
@@ -658,6 +665,8 @@ public class ProviderService {
 
 			providerFind.setAppointmentTypeIds(appointmentTypeIdsByProviderId.get(provider.getProviderId()));
 			providerFind.setEpicDepartmentIds(epicDepartmentIdsByProviderId.get(provider.getProviderId()));
+			providerFind.setPhoneNumber(provider.getPhoneNumber());
+			providerFind.setDisplayPhoneNumberOnlyForBooking(provider.getDisplayPhoneNumberOnlyForBooking());
 
 			providerFinds.add(providerFind);
 		}

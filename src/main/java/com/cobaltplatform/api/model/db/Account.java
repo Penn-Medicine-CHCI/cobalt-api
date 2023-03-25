@@ -136,6 +136,10 @@ public class Account {
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
+	@Nullable
+	private UUID institutionLocationId;
+	@Nullable
+	private Boolean promptedForInstitutionLocation;
 
 	@Nonnull
 	public Map<String, Object> getMetadataAsMap() {
@@ -510,5 +514,23 @@ public class Account {
 
 	public void setBirthdate(@Nullable LocalDate birthdate) {
 		this.birthdate = birthdate;
+	}
+
+	@Nullable
+	public UUID getInstitutionLocationId() {
+		return institutionLocationId;
+	}
+
+	public void setInstitutionLocationId(@Nullable UUID institutionLocationId) {
+		this.institutionLocationId = institutionLocationId;
+	}
+
+	@Nullable
+	public Boolean getPromptedForInstitutionLocation() {
+		return promptedForInstitutionLocation;
+	}
+
+	public void setPromptedForInstitutionLocation(@Nullable Boolean promptedForInstitutionLocation) {
+		this.promptedForInstitutionLocation = promptedForInstitutionLocation;
 	}
 }

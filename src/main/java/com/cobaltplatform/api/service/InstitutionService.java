@@ -20,15 +20,23 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.Feature;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionBlurb;
 import com.cobaltplatform.api.model.db.InstitutionBlurbTeamMember;
+import com.cobaltplatform.api.model.db.InstitutionLocation;
 import com.cobaltplatform.api.model.db.InstitutionTeamMember;
 import com.cobaltplatform.api.model.db.InstitutionUrl;
 import com.cobaltplatform.api.model.db.Insurance;
 import com.cobaltplatform.api.model.db.InsuranceType.InsuranceTypeId;
+import com.cobaltplatform.api.model.db.ScreeningFlow;
+import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
+import com.cobaltplatform.api.model.db.ScreeningSession;
+import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
+import com.cobaltplatform.api.model.service.FeaturesForInstitution;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -39,7 +47,10 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
+import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -50,6 +61,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.util.WebUtility.normalizedHostnameForUrl;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -68,22 +80,32 @@ public class InstitutionService {
 	private final Strings strings;
 	@Nonnull
 	private final Logger logger;
+	@Nonnull
+	private final Provider<ScreeningService> screeningServiceProvider;
+	@Nonnull
+	private final Provider<FeatureService> featureServiceProvider;
 
 	@Inject
 	public InstitutionService(@Nonnull Database database,
 														@Nonnull JsonMapper jsonMapper,
 														@Nonnull Configuration configuration,
-														@Nonnull Strings strings) {
+														@Nonnull Strings strings,
+														@Nonnull Provider<ScreeningService> screeningServiceProvider,
+														@Nonnull Provider<FeatureService> featureServiceProvider) {
 		requireNonNull(database);
 		requireNonNull(jsonMapper);
 		requireNonNull(configuration);
 		requireNonNull(strings);
+		requireNonNull(screeningServiceProvider);
+		requireNonNull(featureServiceProvider);
 
 		this.database = database;
 		this.jsonMapper = jsonMapper;
 		this.configuration = configuration;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
+		this.screeningServiceProvider = screeningServiceProvider;
+		this.featureServiceProvider = featureServiceProvider;
 	}
 
 	@Nonnull
@@ -315,27 +337,94 @@ public class InstitutionService {
 	}
 
 	@Nonnull
+	public List<FeaturesForInstitution> findFeaturesByInstitutionId(@Nullable Institution institution,
+																																	@Nullable Account account) {
+		ScreeningFlow screeningFlow = getScreeningService().findScreeningFlowById(institution.getFeatureScreeningFlowId()).orElse(null);
+
+		if (institution == null || account == null || screeningFlow == null)
+			return List.of();
+
+		ScreeningFlowVersion screeningFlowVersion = getScreeningService().findScreeningFlowVersionById(screeningFlow.getActiveScreeningFlowVersionId()).orElse(null);
+
+		if (screeningFlowVersion == null)
+			return List.of();
+
+		ScreeningSession mostRecentCompletedFeatureScreeningSession =
+				getScreeningService().findMostRecentCompletedScreeningSession(account.getAccountId(), institution.getFeatureScreeningFlowId()).orElse(null);
+
+		UUID screeningSessionId = null;
+
+		if (mostRecentCompletedFeatureScreeningSession != null)
+			if (screeningFlowVersion.getRecommendationExpirationMinutes() == null
+					|| (Duration.between(mostRecentCompletedFeatureScreeningSession.getCompletedAt(), Instant.now()).toMinutes()
+					< screeningFlowVersion.getRecommendationExpirationMinutes()))
+				screeningSessionId = mostRecentCompletedFeatureScreeningSession.getScreeningSessionId();
+
+		List<FeaturesForInstitution> features = getDatabase().queryForList("SELECT f.feature_id, f.url_name, f.name, if.description, if.nav_description, " +
+				"CASE WHEN ss.screening_session_id IS NOT NULL THEN true ELSE false END AS recommended, f.navigation_header_id " +
+				"FROM institution_feature if, feature f  " +
+				"LEFT OUTER JOIN screening_session_feature_recommendation ss " +
+				"ON f.feature_id = ss.feature_id " +
+				"AND ss.screening_session_id = ? " +
+				"WHERE f.feature_id = if.feature_id AND if.institution_id = ? ORDER BY if.display_order", FeaturesForInstitution.class, screeningSessionId, institution.getInstitutionId());
+
+		features.stream().map(feature -> {
+			List<SupportRole.SupportRoleId> supportRoleIds = getFeatureService().findSupportRoleByFeatureId(feature.getFeatureId());
+			feature.setSupportRoleIds(supportRoleIds);
+			if (!account.getPromptedForInstitutionLocation() && getFeatureService().featureSupportsLocation(feature.getFeatureId()))
+				feature.setLocationPromptRequired(true);
+			else
+				feature.setLocationPromptRequired(false);
+
+			if (feature.getFeatureId().equals(Feature.FeatureId.SELF_HELP_RESOURCES) && feature.getRecommended())
+				feature.setUrlName(format("%s?recommended=true",feature.getUrlName()));
+
+			return true;
+		}).collect(Collectors.toList());
+
+		return features;
+	}
+
+	@Nonnull
+	public List<InstitutionLocation> findLocationsInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("SELECT * FROM institution_location WHERE institution_id = ?", InstitutionLocation.class, institutionId);
+	}
+
+	@Nonnull
 	protected Database getDatabase() {
-		return database;
+		return this.database;
 	}
 
 	@Nonnull
 	protected JsonMapper getJsonMapper() {
-		return jsonMapper;
+		return this.jsonMapper;
 	}
 
 	@Nonnull
 	protected Configuration getConfiguration() {
-		return configuration;
+		return this.configuration;
 	}
 
 	@Nonnull
 	protected Strings getStrings() {
-		return strings;
+		return this.strings;
 	}
 
 	@Nonnull
 	protected Logger getLogger() {
-		return logger;
+		return this.logger;
+	}
+
+	@Nonnull
+	protected ScreeningService getScreeningService() {
+		return this.screeningServiceProvider.get();
+	}
+
+	@Nonnull
+	protected FeatureService getFeatureService() {
+		return this.featureServiceProvider.get();
 	}
 }

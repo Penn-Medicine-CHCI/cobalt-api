@@ -19,9 +19,14 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.service.FeaturesForInstitution;
 import com.cobaltplatform.api.model.service.NavigationItem;
+import com.cobaltplatform.api.service.InstitutionService;
+import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.service.TopicCenterService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
@@ -52,6 +57,8 @@ public class InstitutionApiResponse {
 	private final UUID groupSessionsScreeningFlowId;
 	@Nullable
 	private final UUID integratedCareScreeningFlowId;
+	@Nullable
+	private final UUID featureScreeningFlowId;
 	@Nonnull
 	private final String name;
 	@Nullable
@@ -94,6 +101,8 @@ public class InstitutionApiResponse {
 	private final Boolean immediateAccessEnabled;
 	@Nonnull
 	private final Boolean contactUsEnabled;
+	@Nullable
+	private final Boolean featuresEnabled;
 	@Nonnull
 	private final Boolean recommendedContentEnabled;
 	@Nonnull
@@ -108,23 +117,39 @@ public class InstitutionApiResponse {
 	private final String ga4MeasurementId;
 	@Nonnull
 	private final List<NavigationItem> additionalNavigationItems;
+	@Nonnull
+	private final List<FeaturesForInstitution> features;
+	@Nonnull
+	private final Boolean takeFeatureScreening;
+	@Nonnull
+	private final Boolean hasTakenFeatureScreening;
+
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface InstitutionApiResponseFactory {
 		@Nonnull
-		InstitutionApiResponse create(@Nonnull Institution institution);
+		InstitutionApiResponse create(@Nonnull Institution institution,
+																	@Nonnull CurrentContext currentContext);
 	}
 
 	@AssistedInject
 	public InstitutionApiResponse(@Nonnull TopicCenterService topicCenterService,
+																@Nonnull InstitutionService institutionService,
 																@Nonnull Formatter formatter,
 																@Nonnull Strings strings,
-																@Assisted @Nonnull Institution institution) {
+																@Assisted @Nonnull Institution institution,
+																@Assisted @Nonnull CurrentContext currentContext,
+																@Nonnull ScreeningService screeningService) {
 		requireNonNull(topicCenterService);
+		requireNonNull(institutionService);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(institution);
+		requireNonNull(currentContext);
+		requireNonNull(screeningService);
+
+		Account account = currentContext.getAccount().orElse(null);
 
 		// TODO: we are "blanking out" some fields until FE can transition away from using them.
 		// This is to provide backwards compatibility for JS clients, so they don't blow up when BE is updated.
@@ -135,6 +160,7 @@ public class InstitutionApiResponse {
 		this.contentScreeningFlowId = institution.getContentScreeningFlowId();
 		this.groupSessionsScreeningFlowId = institution.getGroupSessionsScreeningFlowId();
 		this.integratedCareScreeningFlowId = institution.getIntegratedCareScreeningFlowId();
+		this.featureScreeningFlowId = institution.getFeatureScreeningFlowId();
 		this.name = institution.getName();
 		this.crisisContent = ""; // institution.getCrisisContent();
 		this.privacyContent = ""; // institution.getPrivacyContent();
@@ -151,6 +177,7 @@ public class InstitutionApiResponse {
 		this.supportEmailAddress = institution.getSupportEmailAddress();
 		this.immediateAccessEnabled = institution.getImmediateAccessEnabled();
 		this.contactUsEnabled = institution.getContactUsEnabled();
+		this.featuresEnabled = institution.getFeaturesEnabled();
 		this.recommendedContentEnabled = institution.getRecommendedContentEnabled();
 		this.userSubmittedContentEnabled = institution.getUserSubmittedContentEnabled();
 		this.userSubmittedGroupSessionEnabled = institution.getUserSubmittedGroupSessionEnabled();
@@ -159,6 +186,9 @@ public class InstitutionApiResponse {
 		this.groupSessionRequestsEnabled = institution.getGroupSessionRequestsEnabled();
 		this.ga4MeasurementId = institution.getGa4MeasurementId();
 		this.additionalNavigationItems = topicCenterService.findTopicCenterNavigationItemsByInstitutionId(institutionId);
+		this.features = institutionService.findFeaturesByInstitutionId(institution, account);
+		this.takeFeatureScreening = screeningService.shouldAccountIdTakeScreeningFlowId(account, institution.getFeatureScreeningFlowId());
+		this.hasTakenFeatureScreening = screeningService.hasAccountIdTakenScreeningFlowId(account, institution.getFeatureScreeningFlowId());
 	}
 
 	@Nonnull
@@ -184,6 +214,11 @@ public class InstitutionApiResponse {
 	@Nullable
 	public UUID getIntegratedCareScreeningFlowId() {
 		return this.integratedCareScreeningFlowId;
+	}
+
+	@Nullable
+	public UUID getFeatureScreeningFlowId() {
+		return this.featureScreeningFlowId;
 	}
 
 	@Nonnull
@@ -274,6 +309,11 @@ public class InstitutionApiResponse {
 		return this.contactUsEnabled;
 	}
 
+	@Nullable
+	public Boolean getFeaturesEnabled() {
+		return this.featuresEnabled;
+	}
+
 	@Nonnull
 	public Boolean getRecommendedContentEnabled() {
 		return this.recommendedContentEnabled;
@@ -312,5 +352,20 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public List<NavigationItem> getAdditionalNavigationItems() {
 		return this.additionalNavigationItems;
+	}
+
+	@Nonnull
+	public List<FeaturesForInstitution> getFeatures() {
+		return features;
+	}
+
+	@Nonnull
+	public Boolean getTakeFeatureScreening() {
+		return takeFeatureScreening;
+	}
+
+	@Nonnull
+	public Boolean getHasTakenFeatureScreening() {
+		return hasTakenFeatureScreening;
 	}
 }

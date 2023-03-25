@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('067-patient-order-additions', NULL, NULL);
+SELECT _v.register_patch('068-patient-order-additions', NULL, NULL);
 
 CREATE TABLE patient_order_outreach_type (
   patient_order_outreach_type_id VARCHAR PRIMARY KEY,

@@ -79,6 +79,9 @@ public class ProviderFind {
 	private String treatmentDescription;
 	@Nullable
 	private List<Specialty> specialties;
+	private String phoneNumber;
+	@Nullable
+	private Boolean displayPhoneNumberOnlyForBooking;
 
 	@Override
 	public String toString() {
@@ -372,5 +375,22 @@ public class ProviderFind {
 
 	public void setSpecialties(@Nullable List<Specialty> specialties) {
 		this.specialties = specialties;
+	}
+
+	public String getPhoneNumber() {
+		return phoneNumber;
+	}
+
+	public void setPhoneNumber(String phoneNumber) {
+		this.phoneNumber = phoneNumber;
+	}
+
+	@Nullable
+	public Boolean getDisplayPhoneNumberOnlyForBooking() {
+		return displayPhoneNumberOnlyForBooking;
+	}
+
+	public void setDisplayPhoneNumberOnlyForBooking(@Nullable Boolean displayPhoneNumberOnlyForBooking) {
+		this.displayPhoneNumberOnlyForBooking = displayPhoneNumberOnlyForBooking;
 	}
 }

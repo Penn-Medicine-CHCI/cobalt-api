@@ -31,6 +31,7 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
+import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
@@ -81,6 +82,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -303,6 +305,69 @@ public class ScreeningService {
 	}
 
 	@Nonnull
+	public Optional<ScreeningSession> findMostRecentCompletedScreeningSession(@Nullable UUID accountId,
+																																						@Nullable UUID screeningFlowId) {
+		if (accountId == null || screeningFlowId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT ss.*
+				FROM screening_session ss, screening_flow_version sfv
+				WHERE sfv.screening_flow_version_id=ss.screening_flow_version_id
+				AND sfv.screening_flow_id=? 
+				AND ss.completed = TRUE
+				AND ss.target_account_id=?
+				ORDER BY ss.last_updated DESC
+				LIMIT 1
+				""", ScreeningSession.class, screeningFlowId, accountId);
+	}
+
+	@Nonnull
+	public Boolean hasAccountIdTakenScreeningFlowId(@Nullable Account account,
+																									@Nullable UUID screeningFlowId) {
+		if (account == null || screeningFlowId == null)
+			return false;
+
+		ScreeningFlow screeningFlow = findScreeningFlowById(screeningFlowId).orElse(null);
+
+		if (screeningFlow == null)
+			return false;
+
+		ScreeningSession screeningSession = findMostRecentCompletedScreeningSession(account.getAccountId(), screeningFlowId).orElse(null);
+
+		if (screeningSession == null)
+			return false;
+		else
+			return true;
+	}
+
+	@Nonnull
+	public Boolean shouldAccountIdTakeScreeningFlowId(@Nullable Account account,
+																										@Nullable UUID screeningFlowId) {
+		if (account == null || screeningFlowId == null)
+			return false;
+
+		ScreeningFlow screeningFlow = findScreeningFlowById(screeningFlowId).orElse(null);
+
+		if (screeningFlow == null)
+			return false;
+
+		ScreeningSession screeningSession = findMostRecentCompletedScreeningSession(account.getAccountId(), screeningFlowId).orElse(null);
+
+		// If there is no screening session then return true because this user has not taken a screening
+		if (screeningSession == null)
+			return true;
+
+		ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningFlow.getActiveScreeningFlowVersionId()).get();
+
+		// If there is no minutes until retake specified, assume not retakeable
+		if (screeningFlowVersion.getMinutesUntilRetake() == null)
+			return false;
+
+		return Duration.between(screeningSession.getCompletedAt(), Instant.now()).toMinutes() > screeningFlowVersion.getMinutesUntilRetake();
+	}
+
+	@Nonnull
 	public List<SupportRole> findRecommendedSupportRolesByAccountId(@Nullable UUID accountId,
 																																	@Nullable UUID triageScreeningFlowId) {
 		if (accountId == null || triageScreeningFlowId == null)
@@ -313,18 +378,10 @@ public class ScreeningService {
 		if (account == null)
 			return Collections.emptyList();
 
-		ScreeningSession mostRecentCompletedTriageScreeningSession = getDatabase().queryForObject("""
-				SELECT ss.*
-				FROM screening_session ss, screening_flow_version sfv
-				WHERE sfv.screening_flow_version_id=ss.screening_flow_version_id
-				AND sfv.screening_flow_id=? 
-				AND ss.completed = TRUE
-				AND ss.target_account_id=?
-				ORDER BY ss.last_updated DESC
-				LIMIT 1
-				""", ScreeningSession.class, triageScreeningFlowId, accountId).orElse(null);
+		ScreeningSession mostRecentCompletedScreeningSession =
+				findMostRecentCompletedScreeningSession(triageScreeningFlowId, accountId).orElse(null);
 
-		if (mostRecentCompletedTriageScreeningSession == null)
+		if (mostRecentCompletedScreeningSession == null)
 			return Collections.emptyList();
 
 		List<SupportRole> recommendedSupportRoles = getDatabase().queryForList("""
@@ -333,7 +390,7 @@ public class ScreeningService {
 				WHERE sr.support_role_id=sssrr.support_role_id
 				AND sssrr.screening_session_id=?
 				ORDER BY sssrr.weight DESC
-				""", SupportRole.class, mostRecentCompletedTriageScreeningSession.getScreeningSessionId());
+				""", SupportRole.class, mostRecentCompletedScreeningSession.getScreeningSessionId());
 
 		return recommendedSupportRoles;
 	}
@@ -1215,9 +1272,6 @@ public class ScreeningService {
 			ResultsFunctionOutput resultsFunctionOutput = executeScreeningFlowResultsFunction(screeningFlowVersion.getResultsFunction(),
 					screeningSession.getScreeningSessionId(), createdByAccount.getInstitutionId()).get();
 
-			getDatabase().execute("DELETE FROM screening_session_support_role_recommendation WHERE screening_session_id=?",
-					screeningSession.getScreeningSessionId());
-
 			for (SupportRoleRecommendation supportRoleRecommendation : resultsFunctionOutput.getSupportRoleRecommendations())
 				getDatabase().execute("INSERT INTO screening_session_support_role_recommendation(screening_session_id, support_role_id, weight) " +
 						"VALUES (?,?,?)", screeningSession.getScreeningSessionId(), supportRoleRecommendation.getSupportRoleId(), supportRoleRecommendation.getWeight());
@@ -1269,6 +1323,12 @@ public class ScreeningService {
 			for (String tagId : resultsFunctionOutput.getRecommendedTagIds()) {
 				getDatabase().execute("INSERT INTO tag_screening_session (tag_id, screening_session_id) VALUES (?,?)",
 						tagId, screeningSession.getScreeningSessionId());
+			}
+
+			// Store off recommended features per this screening session's answers, if any
+			for (FeatureId featureId : resultsFunctionOutput.getRecommendedFeatureIds()) {
+				getDatabase().execute("INSERT INTO screening_session_feature_recommendation(screening_session_id, feature_id) " +
+						"VALUES (?,?)", screeningSession.getScreeningSessionId(), featureId);
 			}
 
 			if (institution.getIntegratedCareEnabled()
@@ -1452,6 +1512,9 @@ public class ScreeningService {
 
 		if (resultsFunctionOutput.getRecommendedTagIds() == null)
 			resultsFunctionOutput.setRecommendedTagIds(Set.of());
+
+		if (resultsFunctionOutput.getRecommendedFeatureIds() == null)
+			resultsFunctionOutput.setRecommendedFeatureIds(Set.of());
 
 		if (resultsFunctionOutput.getIntegratedCareTriages() == null)
 			resultsFunctionOutput.setIntegratedCareTriages(List.of());
@@ -1892,6 +1955,8 @@ public class ScreeningService {
 		@Nullable
 		private List<IntegratedCareTriage> integratedCareTriages;
 		@Nullable
+		private Set<FeatureId> recommendedFeatureIds;
+		@Nullable
 		@Deprecated
 		private Set<UUID> legacyContentAnswerIds;
 		@Nullable
@@ -1944,6 +2009,15 @@ public class ScreeningService {
 
 		public void setIntegratedCareTriages(@Nullable List<IntegratedCareTriage> integratedCareTriages) {
 			this.integratedCareTriages = integratedCareTriages;
+		}
+
+		@Nullable
+		public Set<FeatureId> getRecommendedFeatureIds() {
+			return this.recommendedFeatureIds;
+		}
+
+		public void setRecommendedFeatureIds(@Nullable Set<FeatureId> recommendedFeatureIds) {
+			this.recommendedFeatureIds = recommendedFeatureIds;
 		}
 
 		@NotThreadSafe

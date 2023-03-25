@@ -21,48 +21,61 @@ package com.cobaltplatform.api.model.db;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-
-import static java.lang.String.format;
+import java.time.Instant;
 
 /**
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class ScreeningFlowType {
+public class Filter {
 	@Nullable
-	private ScreeningFlowTypeId screeningFlowTypeId;
+	private FilterId filterId;
 	@Nullable
-	private String description;
+	private String name;
+	@Nullable
+	private Instant created;
+	@Nullable
+	private Instant lastUpdated;
 
-	public enum ScreeningFlowTypeId {
-		CUSTOM,
-		PROVIDER_TRIAGE,
-		CONTENT_TRIAGE,
-		PROVIDER_INTAKE,
-		INTEGRATED_CARE,
-		FEATURE
-	}
-
-	@Override
-	public String toString() {
-		return format("%s{screeningFlowTypeId=%s, description=%s}", getClass().getSimpleName(), getScreeningFlowTypeId().name(), getDescription());
+	public enum FilterId {
+		DATE,
+		TIME_OF_DAY,
+		LOCATION
 	}
 
 	@Nullable
-	public ScreeningFlowTypeId getScreeningFlowTypeId() {
-		return this.screeningFlowTypeId;
+	public FilterId getFilterId() {
+		return filterId;
 	}
 
-	public void setScreeningFlowTypeId(@Nullable ScreeningFlowTypeId screeningFlowTypeId) {
-		this.screeningFlowTypeId = screeningFlowTypeId;
+	public void setFilterId(@Nullable FilterId filterId) {
+		this.filterId = filterId;
 	}
 
 	@Nullable
-	public String getDescription() {
-		return this.description;
+	public String getName() {
+		return name;
 	}
 
-	public void setDescription(@Nullable String description) {
-		this.description = description;
+	public void setName(@Nullable String name) {
+		this.name = name;
+	}
+
+	@Nullable
+	public Instant getCreated() {
+		return created;
+	}
+
+	public void setCreated(@Nullable Instant created) {
+		this.created = created;
+	}
+
+	@Nullable
+	public Instant getLastUpdated() {
+		return lastUpdated;
+	}
+
+	public void setLastUpdated(@Nullable Instant lastUpdated) {
+		this.lastUpdated = lastUpdated;
 	}
 }

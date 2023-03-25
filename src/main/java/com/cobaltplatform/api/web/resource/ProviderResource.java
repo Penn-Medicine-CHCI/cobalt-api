@@ -25,8 +25,11 @@ import com.cobaltplatform.api.model.api.request.ProviderFindRequest.ProviderFind
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest.ProviderFindSupplement;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseSupplement;
+import com.cobaltplatform.api.model.api.response.AppointmentTimeApiResponse.AppointmentTimeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AvailabilityTimeApiResponse.AvailabilityTimeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ClinicApiResponse.ClinicApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.FeatureApiResponse.FeatureApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.FilterApiResponse.FilterApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseFactory;
@@ -39,7 +42,12 @@ import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApi
 import com.cobaltplatform.api.model.api.response.VisitTypeApiResponse.VisitTypeApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Appointment;
+import com.cobaltplatform.api.model.db.AppointmentTime;
+import com.cobaltplatform.api.model.db.AppointmentTime.AppointmentTimeId;
 import com.cobaltplatform.api.model.db.Clinic;
+import com.cobaltplatform.api.model.db.Feature;
+import com.cobaltplatform.api.model.db.Feature.FeatureId;
+import com.cobaltplatform.api.model.db.Filter;
 import com.cobaltplatform.api.model.db.Followup;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -53,12 +61,15 @@ import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.ProviderCalendar;
 import com.cobaltplatform.api.model.service.ProviderFind;
+import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
+import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityTime;
 import com.cobaltplatform.api.service.AppointmentService;
 import com.cobaltplatform.api.service.AssessmentScoringService;
 import com.cobaltplatform.api.service.AssessmentService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.AvailabilityService;
 import com.cobaltplatform.api.service.ClinicService;
+import com.cobaltplatform.api.service.FeatureService;
 import com.cobaltplatform.api.service.FollowupService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ProviderService;
@@ -165,6 +176,14 @@ public class ProviderResource {
 	private final Strings strings;
 	@Nonnull
 	private final Logger logger;
+	@Nonnull
+	private final FeatureService featureService;
+	@Nonnull
+	private final FilterApiResponseFactory filterApiResponseFactory;
+	@Nonnull
+	private final AppointmentTimeApiResponseFactory appointmentTimeApiResponseFactory;
+	@Nonnull
+	private final FeatureApiResponseFactory featureApiResponseFactory;
 
 	@Inject
 	public ProviderResource(@Nonnull AssessmentService assessmentService,
@@ -190,7 +209,11 @@ public class ProviderResource {
 													@Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
 													@Nonnull RequestBodyParser requestBodyParser,
 													@Nonnull Formatter formatter,
-													@Nonnull Strings strings) {
+													@Nonnull Strings strings,
+													@Nonnull FeatureService featureService,
+													@Nonnull FilterApiResponseFactory filterApiResponseFactory,
+													@Nonnull AppointmentTimeApiResponseFactory appointmentTimeApiResponseFactory,
+													@Nonnull FeatureApiResponseFactory featureApiResponseFactory) {
 		requireNonNull(assessmentService);
 		requireNonNull(assessmentScoringService);
 		requireNonNull(providerService);
@@ -215,6 +238,10 @@ public class ProviderResource {
 		requireNonNull(requestBodyParser);
 		requireNonNull(formatter);
 		requireNonNull(strings);
+		requireNonNull(featureService);
+		requireNonNull(filterApiResponseFactory);
+		requireNonNull(appointmentTimeApiResponseFactory);
+		requireNonNull(featureApiResponseFactory);
 
 		this.assessmentService = assessmentService;
 		this.assessmentScoringService = assessmentScoringService;
@@ -241,6 +268,10 @@ public class ProviderResource {
 		this.formatter = formatter;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
+		this.featureService = featureService;
+		this.filterApiResponseFactory = filterApiResponseFactory;
+		this.appointmentTimeApiResponseFactory = appointmentTimeApiResponseFactory;
+		this.featureApiResponseFactory = featureApiResponseFactory;
 	}
 
 	@Nonnull
@@ -249,11 +280,15 @@ public class ProviderResource {
 	public ApiResponse findProviders(@Nonnull @RequestBody String requestBody) {
 		Account account = getCurrentContext().getAccount().get();
 		Locale locale = getCurrentContext().getLocale();
-		InstitutionId institutionId = account.getInstitutionId();
+		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
+		int defaultNumberOfWeeksToSearch = 4;
 
 		ProviderFindRequest request = getRequestBodyParser().parse(requestBody, ProviderFindRequest.class);
-		request.setInstitutionId(institutionId);
+		request.setInstitutionId(institution.getInstitutionId());
 		request.setIncludePastAvailability(false);
+
+		if (request.getStartDate() != null && request.getEndDate() == null)
+			request.setEndDate(request.getStartDate().plusWeeks(defaultNumberOfWeeksToSearch));
 
 		Set<UUID> providerIds = new HashSet<>();
 		Set<ProviderFindSupplement> supplements = request.getSupplements() == null ? Collections.emptySet() : request.getSupplements();
@@ -261,13 +296,64 @@ public class ProviderResource {
 		// 1. Pull raw data
 		List<ProviderFind> providerFinds = getProviderService().findProviders(request, account);
 
-		// 2. Group by date
+		// 2. Throw out results that don't fall within specified appointment time windows
+		if (institution.getFeaturesEnabled()) {
+			// Reference data
+			Map<AppointmentTimeId, AppointmentTime> appointmentTimesById = getAppointmentService().findAppointmentTimes().stream()
+					.collect(Collectors.toMap(AppointmentTime::getAppointmentTimeId, Function.identity()));
+
+			// Get a list of provided appointment times
+			List<AppointmentTime> appointmentTimes = request.getAppointmentTimeIds() == null ? List.of() : request.getAppointmentTimeIds().stream()
+					.filter(appointmentTimeId -> appointmentTimeId != null)
+					.map(appointmentTimeId -> appointmentTimesById.get(appointmentTimeId))
+					.collect(Collectors.toList());
+
+			boolean noAppointmentTimesSpecified = appointmentTimes.size() == 0;
+			boolean allAppointmentTimesSpecified = appointmentTimes.size() == appointmentTimesById.size();
+			boolean needToTakeAppointmentTimesIntoAccount = !(noAppointmentTimesSpecified || allAppointmentTimesSpecified);
+
+			if (needToTakeAppointmentTimesIntoAccount) {
+				for (ProviderFind providerFind : providerFinds) {
+					List<AvailabilityDate> emptyDates = new ArrayList<>(providerFind.getDates().size());
+
+					for (AvailabilityDate date : providerFind.getDates()) {
+						List<AvailabilityTime> timesWithinRange = new ArrayList<>(date.getTimes().size());
+
+						for (AvailabilityTime time : date.getTimes()) {
+							boolean withinRange = false;
+
+							for (AppointmentTime appointmentTime : appointmentTimes) {
+								// If a slot's time is within range, keep it (start inclusive, end exclusive)
+								if ((appointmentTime.getStartTime().isBefore(time.getTime()) || appointmentTime.getStartTime().equals(time.getTime()))
+										&& appointmentTime.getEndTime().isAfter(time.getTime())) {
+									withinRange = true;
+									break;
+								}
+							}
+
+							if (withinRange)
+								timesWithinRange.add(time);
+						}
+
+						date.setTimes(timesWithinRange);
+
+						if (timesWithinRange.size() == 0)
+							emptyDates.add(date);
+					}
+
+					// If the filter resulted in any empty dates (no slots available), remove those dates entirely
+					providerFind.getDates().removeAll(emptyDates);
+				}
+			}
+		}
+
+		// 3. Group by date
 		SortedMap<LocalDate, List<ProviderFind>> providerFindsByDate = new TreeMap<>();
 
 		for (ProviderFind providerFind : providerFinds) {
 			providerIds.add(providerFind.getProviderId());
 
-			for (ProviderFind.AvailabilityDate availabilityDate : providerFind.getDates()) {
+			for (AvailabilityDate availabilityDate : providerFind.getDates()) {
 				List<ProviderFind> providerFindsForDate = providerFindsByDate.get(availabilityDate.getDate());
 
 				if (providerFindsForDate == null) {
@@ -279,7 +365,21 @@ public class ProviderResource {
 			}
 		}
 
-		// 3. Walk grouped dates to prepare for response
+		// 4. Insert empty lists for each missing date to fill in "holes" where there are no
+		// results for that date (UI prefers to show "no providers available for this date" kind of message in that scenario)
+		if (institution.getFeaturesEnabled()) {
+			LocalDate startDate = request.getStartDate() == null ? LocalDate.now(account.getTimeZone()) : request.getStartDate();
+			LocalDate endDate = request.getEndDate() == null ? startDate.plusWeeks(defaultNumberOfWeeksToSearch) : request.getEndDate();
+
+			for (LocalDate currentDate = startDate;
+					 currentDate.isBefore(endDate) || currentDate.isEqual(endDate);
+					 currentDate = currentDate.plusDays(1)) {
+				if (!providerFindsByDate.containsKey(currentDate))
+					providerFindsByDate.put(currentDate, List.of());
+			}
+		}
+
+		// 5. Walk grouped dates to prepare for response
 		List<Object> sections = new ArrayList<>(providerFindsByDate.size());
 
 		for (Entry<LocalDate, List<ProviderFind>> entry : providerFindsByDate.entrySet()) {
@@ -294,9 +394,9 @@ public class ProviderResource {
 
 				boolean providerFullyBooked = false;
 
-				for (ProviderFind.AvailabilityDate availabilityDate : providerFind.getDates()) {
+				for (AvailabilityDate availabilityDate : providerFind.getDates()) {
 					if (availabilityDate.getDate().equals(date)) {
-						for (ProviderFind.AvailabilityTime availabilityTime : availabilityDate.getTimes()) {
+						for (AvailabilityTime availabilityTime : availabilityDate.getTimes()) {
 							Map<String, Object> normalizedTime = new LinkedHashMap<>();
 							normalizedTime.put("time", availabilityTime.getTime());
 							normalizedTime.put("timeDescription", normalizeTimeFormat(formatter.formatTime(availabilityTime.getTime(), FormatStyle.SHORT), locale));
@@ -336,6 +436,9 @@ public class ProviderResource {
 						.map(specialty -> specialty.getSpecialtyId())
 						.collect(Collectors.toList());
 				normalizedProviderFind.put("specialtyIds", specialtyIds);
+				normalizedProviderFind.put("displayPhoneNumberOnlyForBooking", providerFind.getDisplayPhoneNumberOnlyForBooking());
+				normalizedProviderFind.put("phoneNumber", providerFind.getPhoneNumber());
+				normalizedProviderFind.put("formattedPhoneNumber", getFormatter().formatPhoneNumber(providerFind.getPhoneNumber()));
 
 				normalizedProviderFinds.add(normalizedProviderFind);
 			}
@@ -357,7 +460,7 @@ public class ProviderResource {
 			if (providerFind.getAppointmentTypeIds() != null)
 				appointmentTypeIds.addAll(providerFind.getAppointmentTypeIds());
 
-		List<Map<String, Object>> appointmentTypesJson = getAppointmentService().findAppointmentTypesByInstitutionId(institutionId).stream()
+		List<Map<String, Object>> appointmentTypesJson = getAppointmentService().findAppointmentTypesByInstitutionId(institution.getInstitutionId()).stream()
 				.filter((appointmentType -> appointmentTypeIds.contains(appointmentType.getAppointmentTypeId())))
 				.map((appointmentType -> {
 					Map<String, Object> appointmentTypeJson = new LinkedHashMap<>();
@@ -383,7 +486,7 @@ public class ProviderResource {
 			if (providerFind.getEpicDepartmentIds() != null)
 				epicDepartmentIds.addAll(providerFind.getEpicDepartmentIds());
 
-		List<Map<String, Object>> epicDepartmentsJson = getAppointmentService().findEpicDepartmentsByInstitutionId(institutionId).stream()
+		List<Map<String, Object>> epicDepartmentsJson = getAppointmentService().findEpicDepartmentsByInstitutionId(institution.getInstitutionId()).stream()
 				.filter((epicDepartment -> epicDepartmentIds.contains(epicDepartment.getEpicDepartmentId())))
 				.map((epicDepartment -> {
 					Map<String, Object> epicDepartmentJson = new LinkedHashMap<>();
@@ -409,7 +512,7 @@ public class ProviderResource {
 		List<Clinic> clinics = new ArrayList<>();
 
 		if (request.getClinicIds() != null && request.getClinicIds().size() > 0)
-			clinics.addAll(getClinicService().findClinicsByInstitutionId(institutionId).stream()
+			clinics.addAll(getClinicService().findClinicsByInstitutionId(institution.getInstitutionId()).stream()
 					.filter(clinic -> request.getClinicIds().contains(clinic.getClinicId()))
 					.collect(Collectors.toList()));
 
@@ -563,7 +666,8 @@ public class ProviderResource {
 																				 @Nonnull @QueryParameter("startDate") Optional<LocalDate> startDateOverride,
 																				 @Nonnull @QueryParameter("endDate") Optional<LocalDate> endDateOverride,
 																				 @Nonnull @QueryParameter("clinicId") Optional<List<UUID>> clinicIdsOverride,
-																				 @Nonnull @QueryParameter("visitTypeId") Optional<List<VisitTypeId>> visitTypeIdsOverride) {
+																				 @Nonnull @QueryParameter("visitTypeId") Optional<List<VisitTypeId>> visitTypeIdsOverride,
+																				 @Nonnull @QueryParameter("featureId") Optional<FeatureId> featureId) {
 		requireNonNull(supportRoleId);
 
 		// You can force a psychiatrist (for example) - this is useful for "immediate links"
@@ -572,12 +676,20 @@ public class ProviderResource {
 
 		Account account = getCurrentContext().getAccount().get();
 		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
-		
+
 		List<SupportRole> allSupportRoles = getProviderService().findSupportRolesByInstitutionId(institutionId).stream()
 				.collect(Collectors.toList());
 
-		List<SupportRole> recommendedSupportRoles = getScreeningService().findRecommendedSupportRolesByAccountId(account.getAccountId(), institution.getProviderTriageScreeningFlowId());
+		List<SupportRole> recommendedSupportRoles = getScreeningService().findRecommendedSupportRolesByAccountId(account.getAccountId(), institution.getFeatureScreeningFlowId());
 		List<SupportRole> defaultSupportRoles = new ArrayList<>(recommendedSupportRoles);
+
+		Optional<Feature> feature = Optional.empty();
+		List<Filter> filters = null;
+		if (featureId.isPresent()) {
+			feature = getFeatureService().findFeatureById(featureId.get());
+			if (feature.isPresent())
+				filters = getFeatureService().findFiltersByFeatureId(feature.get().getFeatureId());
+		}
 
 		if (defaultSupportRoles.size() == 0)
 			defaultSupportRoles = allSupportRoles;
@@ -683,6 +795,16 @@ public class ProviderResource {
 		response.put("specialties", specialties.stream()
 				.map(specialty -> getSpecialtyApiResponseFactory().create(specialty))
 				.collect(Collectors.toList()));
+		response.put("appointmentTimes", getAppointmentService().findAppointmentTimes().stream()
+				.map(appointmentTime -> getAppointmentTimeApiResponseFactory().create(appointmentTime))
+				.collect(Collectors.toList()));
+		if (feature.isPresent()) {
+			response.put("feature", getFeatureApiResponseFactory().create(feature.get()));
+			if (filters != null)
+				response.put("filters", filters.stream()
+						.map(filter -> getFilterApiResponseFactory().create(filter))
+						.collect(Collectors.toList()));
+		}
 
 		return new ApiResponse(response);
 	}
@@ -767,32 +889,32 @@ public class ProviderResource {
 
 	@Nonnull
 	protected AssessmentService getAssessmentService() {
-		return assessmentService;
+		return this.assessmentService;
 	}
 
 	@Nonnull
 	protected AssessmentScoringService getAssessmentScoringService() {
-		return assessmentScoringService;
+		return this.assessmentScoringService;
 	}
 
 	@Nonnull
 	protected ProviderService getProviderService() {
-		return providerService;
+		return this.providerService;
 	}
 
 	@Nonnull
 	protected ClinicService getClinicService() {
-		return clinicService;
+		return this.clinicService;
 	}
 
 	@Nonnull
 	protected AppointmentService getAppointmentService() {
-		return appointmentService;
+		return this.appointmentService;
 	}
 
 	@Nonnull
 	protected AvailabilityService getAvailabilityService() {
-		return availabilityService;
+		return this.availabilityService;
 	}
 
 	@Nonnull
@@ -807,57 +929,57 @@ public class ProviderResource {
 
 	@Nonnull
 	protected ProviderApiResponseFactory getProviderApiResponseFactory() {
-		return providerApiResponseFactory;
+		return this.providerApiResponseFactory;
 	}
 
 	@Nonnull
 	protected ClinicApiResponseFactory getClinicApiResponseFactory() {
-		return clinicApiResponseFactory;
+		return this.clinicApiResponseFactory;
 	}
 
 	@Nonnull
 	protected AppointmentApiResponseFactory getAppointmentApiResponseFactory() {
-		return appointmentApiResponseFactory;
+		return this.appointmentApiResponseFactory;
 	}
 
 	@Nonnull
 	protected AvailabilityTimeApiResponseFactory getAvailabilityTimeApiResponseFactory() {
-		return availabilityTimeApiResponseFactory;
+		return this.availabilityTimeApiResponseFactory;
 	}
 
 	@Nonnull
 	protected TimeZoneApiResponseFactory getTimeZoneApiResponseFactory() {
-		return timeZoneApiResponseFactory;
+		return this.timeZoneApiResponseFactory;
 	}
 
 	@Nonnull
 	protected FollowupService getFollowupService() {
-		return followupService;
+		return this.followupService;
 	}
 
 	@Nonnull
 	protected AuthorizationService getAuthorizationService() {
-		return authorizationService;
+		return this.authorizationService;
 	}
 
 	@Nonnull
 	protected FollowupApiResponseFactory getFollowupApiResponseFactory() {
-		return followupApiResponseFactory;
+		return this.followupApiResponseFactory;
 	}
 
 	@Nonnull
 	protected SupportRoleApiResponseFactory getSupportRoleApiResponseFactory() {
-		return supportRoleApiResponseFactory;
+		return this.supportRoleApiResponseFactory;
 	}
 
 	@Nonnull
 	protected SpecialtyApiResponseFactory getSpecialtyApiResponseFactory() {
-		return specialtyApiResponseFactory;
+		return this.specialtyApiResponseFactory;
 	}
 
 	@Nonnull
 	protected ProviderCalendarApiResponseFactory getProviderCalendarApiResponseFactory() {
-		return providerCalendarApiResponseFactory;
+		return this.providerCalendarApiResponseFactory;
 	}
 
 	@Nonnull
@@ -867,26 +989,46 @@ public class ProviderResource {
 
 	@Nonnull
 	protected CurrentContext getCurrentContext() {
-		return currentContextProvider.get();
+		return this.currentContextProvider.get();
 	}
 
 	@Nonnull
 	protected RequestBodyParser getRequestBodyParser() {
-		return requestBodyParser;
+		return this.requestBodyParser;
 	}
 
 	@Nonnull
 	protected Formatter getFormatter() {
-		return formatter;
+		return this.formatter;
 	}
 
 	@Nonnull
 	protected Strings getStrings() {
-		return strings;
+		return this.strings;
 	}
 
 	@Nonnull
 	protected Logger getLogger() {
-		return logger;
+		return this.logger;
+	}
+
+	@Nonnull
+	protected FeatureService getFeatureService() {
+		return this.featureService;
+	}
+
+	@Nonnull
+	protected FilterApiResponseFactory getFilterApiResponseFactory() {
+		return this.filterApiResponseFactory;
+	}
+
+	@Nonnull
+	protected AppointmentTimeApiResponseFactory getAppointmentTimeApiResponseFactory() {
+		return this.appointmentTimeApiResponseFactory;
+	}
+
+	@Nonnull
+	protected FeatureApiResponseFactory getFeatureApiResponseFactory() {
+		return this.featureApiResponseFactory;
 	}
 }

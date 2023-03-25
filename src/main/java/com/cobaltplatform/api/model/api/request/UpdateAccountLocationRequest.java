@@ -17,52 +17,37 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db;
+package com.cobaltplatform.api.model.api.request;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-
-import static java.lang.String.format;
+import java.util.UUID;
 
 /**
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class ScreeningFlowType {
+public class UpdateAccountLocationRequest {
 	@Nullable
-	private ScreeningFlowTypeId screeningFlowTypeId;
+	private String institutionLocationId;
 	@Nullable
-	private String description;
+	private UUID accountId;
 
-	public enum ScreeningFlowTypeId {
-		CUSTOM,
-		PROVIDER_TRIAGE,
-		CONTENT_TRIAGE,
-		PROVIDER_INTAKE,
-		INTEGRATED_CARE,
-		FEATURE
+	@Nullable
+	public String getInstitutionLocationId() {
+		return institutionLocationId;
 	}
 
-	@Override
-	public String toString() {
-		return format("%s{screeningFlowTypeId=%s, description=%s}", getClass().getSimpleName(), getScreeningFlowTypeId().name(), getDescription());
+	public void setInstitutionLocationId(@Nullable String institutionLocationId) {
+		this.institutionLocationId = institutionLocationId;
 	}
 
 	@Nullable
-	public ScreeningFlowTypeId getScreeningFlowTypeId() {
-		return this.screeningFlowTypeId;
+	public UUID getAccountId() {
+		return accountId;
 	}
 
-	public void setScreeningFlowTypeId(@Nullable ScreeningFlowTypeId screeningFlowTypeId) {
-		this.screeningFlowTypeId = screeningFlowTypeId;
-	}
-
-	@Nullable
-	public String getDescription() {
-		return this.description;
-	}
-
-	public void setDescription(@Nullable String description) {
-		this.description = description;
+	public void setAccountId(@Nullable UUID accountId) {
+		this.accountId = accountId;
 	}
 }

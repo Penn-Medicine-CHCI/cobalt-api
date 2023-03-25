@@ -68,6 +68,8 @@ public class Institution {
 	@Nullable
 	private UUID integratedCareScreeningFlowId;
 	@Nullable
+	private UUID featureScreeningFlowId;
+	@Nullable
 	private ZoneId timeZone;
 	@Nullable
 	private Locale locale;
@@ -103,6 +105,8 @@ public class Institution {
 	private Boolean immediateAccessEnabled;
 	@Nullable
 	private Boolean contactUsEnabled;
+	@Nullable
+	private Boolean featuresEnabled;
 	@Nullable
 	private Boolean recommendedContentEnabled;
 	@Nullable
@@ -345,6 +349,15 @@ public class Institution {
 	}
 
 	@Nullable
+	public UUID getFeatureScreeningFlowId() {
+		return this.featureScreeningFlowId;
+	}
+
+	public void setFeatureScreeningFlowId(@Nullable UUID featureScreeningFlowId) {
+		this.featureScreeningFlowId = featureScreeningFlowId;
+	}
+
+	@Nullable
 	public ZoneId getTimeZone() {
 		return timeZone;
 	}
@@ -504,6 +517,15 @@ public class Institution {
 
 	public void setContactUsEnabled(@Nullable Boolean contactUsEnabled) {
 		this.contactUsEnabled = contactUsEnabled;
+	}
+
+	@Nullable
+	public Boolean getFeaturesEnabled() {
+		return this.featuresEnabled;
+	}
+
+	public void setFeaturesEnabled(@Nullable Boolean featuresEnabled) {
+		this.featuresEnabled = featuresEnabled;
 	}
 
 	@Nullable

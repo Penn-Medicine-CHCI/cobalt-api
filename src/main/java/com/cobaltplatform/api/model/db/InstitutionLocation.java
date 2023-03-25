@@ -20,48 +20,36 @@
 package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.InstitutionBlurbType.InstitutionBlurbTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
-import java.util.Locale;
 import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class Clinic {
+public class InstitutionLocation {
 	@Nullable
-	private UUID clinicId;
+	private UUID institutionLocationId;
 	@Nullable
 	private InstitutionId institutionId;
 	@Nullable
-	private UUID intakeAssessmentId;
-	@Nullable
-	private String description;
-	@Nullable
-	private String treatmentDescription;
-	@Nullable
-	private Boolean showIntakeAssessmentPrompt;
-	@Nullable
-	private String imageUrl;
-	@Nullable
-	private String phoneNumber;
-	@Nullable
-	private Locale locale;
+	private String name;
 	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
 
 	@Nullable
-	public UUID getClinicId() {
-		return clinicId;
+	public UUID getInstitutionLocationId() {
+		return institutionLocationId;
 	}
 
-	public void setClinicId(@Nullable UUID clinicId) {
-		this.clinicId = clinicId;
+	public void setInstitutionLocationId(@Nullable UUID institutionLocationId) {
+		this.institutionLocationId = institutionLocationId;
 	}
 
 	@Nullable
@@ -74,66 +62,12 @@ public class Clinic {
 	}
 
 	@Nullable
-	public UUID getIntakeAssessmentId() {
-		return intakeAssessmentId;
+	public String getName() {
+		return name;
 	}
 
-	public void setIntakeAssessmentId(@Nullable UUID intakeAssessmentId) {
-		this.intakeAssessmentId = intakeAssessmentId;
-	}
-
-	@Nullable
-	public String getDescription() {
-		return description;
-	}
-
-	public void setDescription(@Nullable String description) {
-		this.description = description;
-	}
-
-	@Nullable
-	public String getTreatmentDescription() {
-		return treatmentDescription;
-	}
-
-	public void setTreatmentDescription(@Nullable String treatmentDescription) {
-		this.treatmentDescription = treatmentDescription;
-	}
-
-	@Nullable
-	public Boolean getShowIntakeAssessmentPrompt() {
-		return showIntakeAssessmentPrompt;
-	}
-
-	public void setShowIntakeAssessmentPrompt(@Nullable Boolean showIntakeAssessmentPrompt) {
-		this.showIntakeAssessmentPrompt = showIntakeAssessmentPrompt;
-	}
-
-	@Nullable
-	public String getImageUrl() {
-		return imageUrl;
-	}
-
-	public void setImageUrl(@Nullable String imageUrl) {
-		this.imageUrl = imageUrl;
-	}
-
-	@Nullable
-	public String getPhoneNumber() {
-		return phoneNumber;
-	}
-
-	public void setPhoneNumber(@Nullable String phoneNumber) {
-		this.phoneNumber = phoneNumber;
-	}
-
-	@Nullable
-	public Locale getLocale() {
-		return locale;
-	}
-
-	public void setLocale(@Nullable Locale locale) {
-		this.locale = locale;
+	public void setName(@Nullable String name) {
+		this.name = name;
 	}
 
 	@Nullable

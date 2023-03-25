@@ -51,6 +51,10 @@ public class ClinicApiResponse {
 	private final String treatmentDescription;
 	@Nullable
 	private final Boolean showIntakeAssessmentPrompt;
+	@Nullable
+	private final String formattedPhoneNumber;
+	@Nullable
+	private final String imageUrl;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -75,6 +79,8 @@ public class ClinicApiResponse {
 		this.description = clinic.getDescription();
 		this.treatmentDescription = clinic.getTreatmentDescription();
 		this.showIntakeAssessmentPrompt = clinic.getShowIntakeAssessmentPrompt();
+		this.formattedPhoneNumber = formatter.formatPhoneNumber(clinic.getPhoneNumber(), clinic.getLocale());
+		this.imageUrl = clinic.getImageUrl();
 	}
 
 	@Nonnull
@@ -105,5 +111,15 @@ public class ClinicApiResponse {
 	@Nullable
 	public Boolean getShowIntakeAssessmentPrompt() {
 		return showIntakeAssessmentPrompt;
+	}
+
+	@Nullable
+	public String getFormattedPhoneNumber() {
+		return formattedPhoneNumber;
+	}
+
+	@Nullable
+	public String getImageUrl() {
+		return imageUrl;
 	}
 }

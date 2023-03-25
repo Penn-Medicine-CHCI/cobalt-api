@@ -27,8 +27,10 @@ import com.cobaltplatform.api.integration.microsoft.request.AuthenticationRedire
 import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse.AccountSourceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.InstitutionLocationApiResponse.InstitutionLocationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionBlurbApiResponse;
 import com.cobaltplatform.api.model.api.response.InstitutionBlurbApiResponse.InstitutionBlurbApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.InstitutionLocationApiResponse;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Institution;
@@ -88,6 +90,8 @@ public class InstitutionResource {
 	private final Configuration configuration;
 	@Nonnull
 	private final Strings strings;
+	@Nonnull
+	private final InstitutionLocationApiResponseFactory institutionLocationApiResponseFactory;
 
 	@Inject
 	public InstitutionResource(@Nonnull InstitutionApiResponseFactory institutionApiResponseFactory,
@@ -98,7 +102,8 @@ public class InstitutionResource {
 														 @Nonnull MyChartService myChartService,
 														 @Nonnull Provider<CurrentContext> currentContextProvider,
 														 @Nonnull Configuration configuration,
-														 @Nonnull Strings strings) {
+														 @Nonnull Strings strings,
+														 @Nonnull InstitutionLocationApiResponseFactory institutionLocationApiResponseFactory) {
 		requireNonNull(institutionApiResponseFactory);
 		requireNonNull(accountSourceApiResponseFactory);
 		requireNonNull(institutionBlurbApiResponseFactory);
@@ -108,6 +113,7 @@ public class InstitutionResource {
 		requireNonNull(currentContextProvider);
 		requireNonNull(configuration);
 		requireNonNull(strings);
+		requireNonNull(institutionLocationApiResponseFactory);
 
 		this.institutionApiResponseFactory = institutionApiResponseFactory;
 		this.accountSourceApiResponseFactory = accountSourceApiResponseFactory;
@@ -118,6 +124,7 @@ public class InstitutionResource {
 		this.currentContextProvider = currentContextProvider;
 		this.configuration = configuration;
 		this.strings = strings;
+		this.institutionLocationApiResponseFactory = institutionLocationApiResponseFactory;
 	}
 
 	@GET("/institution/account-sources")
@@ -151,7 +158,7 @@ public class InstitutionResource {
 				.collect(Collectors.toList());
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("institution", getInstitutionApiResponseFactory().create(institution));
+			put("institution", getInstitutionApiResponseFactory().create(institution, getCurrentContext()));
 			put("accountSources", accountSources);
 		}});
 	}
@@ -228,6 +235,19 @@ public class InstitutionResource {
 		}});
 	}
 
+	@GET("/institution/locations")
+	public ApiResponse geLocations() {
+		Institution institution = getInstitutionService().findInstitutionById(getCurrentContext().getInstitutionId()).get();
+
+		List<InstitutionLocationApiResponse> institutionLocations = getInstitutionService().findLocationsInstitutionId(institution.getInstitutionId()).stream()
+				.map(institutionLocation -> getInstitutionLocationApiResponseFactory().create(institutionLocation))
+				.collect(Collectors.toList());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("locations", institutionLocations);
+		}});
+	}
+
 	@Nonnull
 	protected InstitutionApiResponseFactory getInstitutionApiResponseFactory() {
 		return this.institutionApiResponseFactory;
@@ -259,6 +279,10 @@ public class InstitutionResource {
 	}
 
 	@Nonnull
+	protected InstitutionLocationApiResponseFactory getInstitutionLocationApiResponseFactory() {
+		return this.institutionLocationApiResponseFactory;
+	}
+	@Nonnull
 	protected EnterprisePluginProvider getEnterprisePluginProvider() {
 		return this.enterprisePluginProvider;
 	}
@@ -272,4 +296,6 @@ public class InstitutionResource {
 	protected Strings getStrings() {
 		return this.strings;
 	}
+
+
 }

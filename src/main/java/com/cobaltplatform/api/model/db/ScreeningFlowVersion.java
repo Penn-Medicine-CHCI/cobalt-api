@@ -55,6 +55,10 @@ public class ScreeningFlowVersion {
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
+	@Nullable
+	private Integer minutesUntilRetake;
+	@Nullable
+	private Integer recommendationExpirationMinutes;
 
 	@Nullable
 	public UUID getScreeningFlowVersionId() {
@@ -171,5 +175,23 @@ public class ScreeningFlowVersion {
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
+	}
+
+	@Nullable
+	public Integer getMinutesUntilRetake() {
+		return minutesUntilRetake;
+	}
+
+	public void setMinutesUntilRetake(@Nullable Integer minutesUntilRetake) {
+		this.minutesUntilRetake = minutesUntilRetake;
+	}
+
+	@Nullable
+	public Integer getRecommendationExpirationMinutes() {
+		return recommendationExpirationMinutes;
+	}
+
+	public void setRecommendationExpirationMinutes(@Nullable Integer recommendationExpirationMinutes) {
+		this.recommendationExpirationMinutes = recommendationExpirationMinutes;
 	}
 }
