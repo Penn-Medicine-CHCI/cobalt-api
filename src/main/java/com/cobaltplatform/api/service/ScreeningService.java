@@ -316,6 +316,7 @@ public class ScreeningService {
 				WHERE sfv.screening_flow_version_id=ss.screening_flow_version_id
 				AND sfv.screening_flow_id=? 
 				AND ss.completed = TRUE
+				AND ss.skipped = FALSE
 				AND ss.target_account_id=?
 				ORDER BY ss.last_updated DESC
 				LIMIT 1
@@ -335,10 +336,7 @@ public class ScreeningService {
 
 		ScreeningSession screeningSession = findMostRecentCompletedScreeningSession(account.getAccountId(), screeningFlowId).orElse(null);
 
-		if (screeningSession == null)
-			return false;
-		else
-			return true;
+		return screeningSession != null;
 	}
 
 	@Nonnull
