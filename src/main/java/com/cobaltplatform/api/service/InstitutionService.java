@@ -377,7 +377,7 @@ public class InstitutionService {
 				feature.setLocationPromptRequired(false);
 
 			if (feature.getFeatureId().equals(Feature.FeatureId.SELF_HELP_RESOURCES) && feature.getRecommended())
-				feature.setUrlName(format("%s?recommended=true",feature.getUrlName()));
+				feature.setUrlName(format("%s?recommended=true", feature.getUrlName()));
 
 			return true;
 		}).collect(Collectors.toList());
@@ -386,11 +386,16 @@ public class InstitutionService {
 	}
 
 	@Nonnull
-	public List<InstitutionLocation> findLocationsInstitutionId(@Nullable InstitutionId institutionId) {
+	public List<InstitutionLocation> findLocationsByInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return Collections.emptyList();
 
-		return getDatabase().queryForList("SELECT * FROM institution_location WHERE institution_id = ?", InstitutionLocation.class, institutionId);
+		return getDatabase().queryForList("""
+				SELECT * 
+				FROM institution_location 
+				WHERE institution_id = ?
+				ORDER BY display_order
+				""", InstitutionLocation.class, institutionId);
 	}
 
 	@Nonnull
