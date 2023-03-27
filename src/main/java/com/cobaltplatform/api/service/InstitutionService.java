@@ -21,7 +21,7 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.db.Account;
-import com.cobaltplatform.api.model.db.Feature;
+import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionBlurb;
@@ -376,8 +376,12 @@ public class InstitutionService {
 			else
 				feature.setLocationPromptRequired(false);
 
-			if (feature.getFeatureId().equals(Feature.FeatureId.SELF_HELP_RESOURCES) && feature.getRecommended())
-				feature.setUrlName(format("%s?recommended=true", feature.getUrlName()));
+			if (feature.getFeatureId().equals(FeatureId.SELF_HELP_RESOURCES) && feature.getRecommended()) {
+				if (institution.getRecommendedContentEnabled())
+					feature.setUrlName(format("%s?recommended=true", feature.getUrlName()));
+				else
+					feature.setUrlName(format("%s?recommended", feature.getUrlName()));
+			}
 
 			return true;
 		}).collect(Collectors.toList());
