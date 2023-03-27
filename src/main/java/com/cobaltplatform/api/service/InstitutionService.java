@@ -376,11 +376,13 @@ public class InstitutionService {
 			else
 				feature.setLocationPromptRequired(false);
 
-			if (feature.getFeatureId().equals(FeatureId.SELF_HELP_RESOURCES) && feature.getRecommended()) {
-				if (institution.getRecommendedContentEnabled())
-					feature.setUrlName(format("%s?recommended=true", feature.getUrlName()));
-				else
-					feature.setUrlName(format("%s?recommended", feature.getUrlName()));
+			// Special case for recommended content - only some institutions support content screening/reqs,
+			// so only include the query param for those institutions.
+			// If no query param, user is sent to regular content landing page
+			if (feature.getFeatureId().equals(FeatureId.SELF_HELP_RESOURCES)
+					&& feature.getRecommended()
+					&& institution.getRecommendedContentEnabled()) {
+				feature.setUrlName(format("%s?recommended=true", feature.getUrlName()));
 			}
 
 			return true;
