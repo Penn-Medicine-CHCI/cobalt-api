@@ -20,7 +20,6 @@
 package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.InstitutionBlurbType.InstitutionBlurbTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -38,6 +37,8 @@ public class InstitutionLocation {
 	private InstitutionId institutionId;
 	@Nullable
 	private String name;
+	@Nullable
+	private Integer displayOrder;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -68,6 +69,15 @@ public class InstitutionLocation {
 
 	public void setName(@Nullable String name) {
 		this.name = name;
+	}
+
+	@Nullable
+	public Integer getDisplayOrder() {
+		return this.displayOrder;
+	}
+
+	public void setDisplayOrder(@Nullable Integer displayOrder) {
+		this.displayOrder = displayOrder;
 	}
 
 	@Nullable

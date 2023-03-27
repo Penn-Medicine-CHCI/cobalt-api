@@ -239,7 +239,7 @@ public class InstitutionResource {
 	public ApiResponse geLocations() {
 		Institution institution = getInstitutionService().findInstitutionById(getCurrentContext().getInstitutionId()).get();
 
-		List<InstitutionLocationApiResponse> institutionLocations = getInstitutionService().findLocationsInstitutionId(institution.getInstitutionId()).stream()
+		List<InstitutionLocationApiResponse> institutionLocations = getInstitutionService().findLocationsByInstitutionId(institution.getInstitutionId()).stream()
 				.map(institutionLocation -> getInstitutionLocationApiResponseFactory().create(institutionLocation))
 				.collect(Collectors.toList());
 
