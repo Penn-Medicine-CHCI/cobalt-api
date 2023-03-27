@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.ScreeningFlowSkipType.ScreeningFlowSkipTypeId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
@@ -37,6 +39,8 @@ public class ScreeningFlowVersion {
 	private UUID initialScreeningId;
 	@Nullable
 	private UUID preCompletionScreeningConfirmationPromptId;
+	@Nullable
+	private ScreeningFlowSkipTypeId screeningFlowSkipTypeId;
 	@Nullable
 	private Boolean phoneNumberRequired;
 	@Nullable
@@ -94,6 +98,15 @@ public class ScreeningFlowVersion {
 
 	public void setPreCompletionScreeningConfirmationPromptId(@Nullable UUID preCompletionScreeningConfirmationPromptId) {
 		this.preCompletionScreeningConfirmationPromptId = preCompletionScreeningConfirmationPromptId;
+	}
+
+	@Nullable
+	public ScreeningFlowSkipTypeId getScreeningFlowSkipTypeId() {
+		return this.screeningFlowSkipTypeId;
+	}
+
+	public void setScreeningFlowSkipTypeId(@Nullable ScreeningFlowSkipTypeId screeningFlowSkipTypeId) {
+		this.screeningFlowSkipTypeId = screeningFlowSkipTypeId;
 	}
 
 	@Nullable
