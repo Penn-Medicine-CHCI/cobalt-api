@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.db.ScreeningFlowSkipType.ScreeningFlowSkipTypeId;
 import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
@@ -42,6 +43,8 @@ public class ScreeningFlowVersionApiResponse {
 	private final UUID screeningFlowId;
 	@Nonnull
 	private final UUID initialScreeningId;
+	@Nonnull
+	private final ScreeningFlowSkipTypeId screeningFlowSkipTypeId;
 	@Nonnull
 	private final Boolean phoneNumberRequired;
 	@Nonnull
@@ -67,6 +70,7 @@ public class ScreeningFlowVersionApiResponse {
 		this.screeningFlowVersionId = screeningFlowVersion.getScreeningFlowVersionId();
 		this.screeningFlowId = screeningFlowVersion.getScreeningFlowId();
 		this.initialScreeningId = screeningFlowVersion.getInitialScreeningId();
+		this.screeningFlowSkipTypeId = screeningFlowVersion.getScreeningFlowSkipTypeId();
 		this.phoneNumberRequired = screeningFlowVersion.getPhoneNumberRequired();
 		this.skippable = screeningFlowVersion.getSkippable();
 		this.versionNumber = screeningFlowVersion.getVersionNumber();
@@ -86,7 +90,12 @@ public class ScreeningFlowVersionApiResponse {
 	public UUID getInitialScreeningId() {
 		return this.initialScreeningId;
 	}
-	
+
+	@Nonnull
+	public ScreeningFlowSkipTypeId getScreeningFlowSkipTypeId() {
+		return this.screeningFlowSkipTypeId;
+	}
+
 	@Nonnull
 	public Boolean getPhoneNumberRequired() {
 		return this.phoneNumberRequired;
