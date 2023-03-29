@@ -46,6 +46,8 @@ public class PatientOrderScheduledMessage {
 	@Nullable
 	private Instant lastUpdated;
 
+	// From v_patient_order_scheduled_message
+
 	@Nullable
 	private String patientOrderScheduledMessageTypeDescription;
 	@Nullable

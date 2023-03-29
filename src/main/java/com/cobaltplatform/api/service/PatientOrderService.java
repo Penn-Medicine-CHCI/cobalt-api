@@ -20,6 +20,8 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.messaging.email.EmailMessage;
+import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.AssignPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
@@ -30,6 +32,8 @@ import com.cobaltplatform.api.model.api.request.CreatePatientOrderOutreachReques
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderDiagnosisRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderMedicationRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledMessageRequest;
+import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
@@ -37,6 +41,8 @@ import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderSafetyPlanningStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest.CreatePatientOrderTriageRequest;
 import com.cobaltplatform.api.model.db.Account;
@@ -44,6 +50,7 @@ import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderCareType;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason;
@@ -59,6 +66,11 @@ import com.cobaltplatform.api.model.db.PatientOrderMedication;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderOutreach;
 import com.cobaltplatform.api.model.db.PatientOrderOutreachResult;
+import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType.PatientOrderScheduledMessageTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderStatus;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
@@ -104,6 +116,7 @@ import java.io.StringReader;
 import java.io.UncheckedIOException;
 import java.lang.reflect.Type;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -142,6 +155,8 @@ public class PatientOrderService {
 	@Nonnull
 	private final Provider<AddressService> addressServiceProvider;
 	@Nonnull
+	private final Provider<MessageService> messageServiceProvider;
+	@Nonnull
 	private final Database database;
 	@Nonnull
 	private final Normalizer normalizer;
@@ -159,6 +174,7 @@ public class PatientOrderService {
 	@Inject
 	public PatientOrderService(@Nonnull Provider<AddressService> addressServiceProvider,
 														 @Nonnull Provider<AccountService> accountServiceProvider,
+														 @Nonnull Provider<MessageService> messageServiceProvider,
 														 @Nonnull Database database,
 														 @Nonnull Normalizer normalizer,
 														 @Nonnull Authenticator authenticator,
@@ -166,6 +182,7 @@ public class PatientOrderService {
 														 @Nonnull Strings strings) {
 		requireNonNull(addressServiceProvider);
 		requireNonNull(accountServiceProvider);
+		requireNonNull(messageServiceProvider);
 		requireNonNull(database);
 		requireNonNull(normalizer);
 		requireNonNull(authenticator);
@@ -174,6 +191,7 @@ public class PatientOrderService {
 
 		this.addressServiceProvider = addressServiceProvider;
 		this.accountServiceProvider = accountServiceProvider;
+		this.messageServiceProvider = messageServiceProvider;
 		this.database = database;
 		this.normalizer = normalizer;
 		this.authenticator = authenticator;
@@ -1374,6 +1392,225 @@ public class PatientOrderService {
 	}
 
 	@Nonnull
+	public Boolean updatePatientOrderSafetyPlanningStatus(@Nonnull UpdatePatientOrderSafetyPlanningStatusRequest request) {
+		UUID accountId = request.getAccountId();
+		UUID patientOrderId = request.getPatientOrderId();
+		PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId = request.getPatientOrderSafetyPlanningStatusId();
+		PatientOrder patientOrder = null;
+		ValidationException validationException = new ValidationException();
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (patientOrderId == null) {
+			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+		} else {
+			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+
+			if (patientOrder == null)
+				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+		}
+
+		if (patientOrderSafetyPlanningStatusId == null)
+			validationException.add(new FieldError("patientOrderSafetyPlanningStatusId", getStrings().get("Patient Order Safety Planning Status ID is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		// Nothing to do if we're already in the requested state
+		if (patientOrder.getPatientOrderSafetyPlanningStatusId() == patientOrderSafetyPlanningStatusId)
+			return false;
+
+		// TODO: track changes in event history table
+
+		return getDatabase().execute("""
+				UPDATE patient_order
+				SET patient_order_safety_planning_status_id=?
+				WHERE patient_order_id=?
+				""", patientOrderSafetyPlanningStatusId, patientOrderId) > 0;
+	}
+
+	@Nonnull
+	public Boolean updatePatientOrderResourcingStatus(@Nonnull UpdatePatientOrderResourcingStatusRequest request) {
+		UUID accountId = request.getAccountId();
+		UUID patientOrderId = request.getPatientOrderId();
+		PatientOrderResourcingStatusId patientOrderResourcingStatusId = request.getPatientOrderResourcingStatusId();
+		LocalDate resourcesSentAtDate = request.getResourcesSentAtDate();
+		String resourcesSentAtTimeAsString = request.getResourcesSentAtTime();
+		String resourcesSentNote = trimToNull(request.getResourcesSentNote());
+		LocalTime resourcesSentAtTime = null;
+		PatientOrder patientOrder = null;
+		Account account = null;
+		ValidationException validationException = new ValidationException();
+
+		if (accountId == null) {
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+		} else {
+			account = getAccountService().findAccountById(accountId).orElse(null);
+
+			if (account == null)
+				validationException.add(new FieldError("accountId", getStrings().get("Account ID is invalid.")));
+		}
+
+		if (patientOrderId == null) {
+			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+		} else {
+			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+
+			if (patientOrder == null)
+				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+		}
+
+		if (patientOrderResourcingStatusId == null)
+			validationException.add(new FieldError("patientOrderResourcingStatusId", getStrings().get("Patient Order Resourcing Status ID is required.")));
+
+		if (resourcesSentAtTimeAsString != null) {
+			// TODO: support other locales
+			resourcesSentAtTime = getNormalizer().normalizeTime(resourcesSentAtTimeAsString, Locale.US).orElse(null);
+
+			if (resourcesSentAtTime == null)
+				validationException.add(new FieldError("resourcesSentAtTime", getStrings().get("Resources Sent At Time is invalid.")));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		// Nothing to do if we're already in the requested state
+		if (patientOrder.getPatientOrderResourcingStatusId() == patientOrderResourcingStatusId)
+			return false;
+
+		Instant resourcesSentAt = null;
+
+		if (patientOrder.getPatientOrderResourcingStatusId() == PatientOrderResourcingStatusId.SENT_RESOURCES) {
+			// If provided a sent-at date/time, use them.
+			// Otherwise, assuming "now"
+			if (resourcesSentAtDate != null && resourcesSentAtTime != null) {
+				LocalDateTime resourcesSentAtDateTime = LocalDateTime.of(resourcesSentAtDate, resourcesSentAtTime);
+				resourcesSentAt = resourcesSentAtDateTime.atZone(account.getTimeZone()).toInstant();
+			} else {
+				resourcesSentAt = Instant.now();
+			}
+
+			// Schedule a message to be sent to the patient regarding these resources
+
+		} else {
+			resourcesSentNote = null;
+
+			// Cancel scheduled check-in messages to this patient for this order
+		}
+
+		// TODO: track changes in event history table
+
+		return getDatabase().execute("""
+				UPDATE patient_order
+				SET patient_order_resourcing_status_id=?, resources_sent_at=?, resources_sent_note=?
+				WHERE patient_order_id=?
+				""", patientOrderResourcingStatusId, resourcesSentAt, resourcesSentNote, patientOrderId) > 0;
+	}
+
+	@Nonnull
+	public List<PatientOrderScheduledMessage> findPatientOrderScheduledMessagesByPatientOrderId(@Nullable UUID patientOrderId) {
+		if (patientOrderId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM v_patient_order_scheduled_message
+				ORDER BY scheduled_at at time zone time_zone DESC;
+				""", PatientOrderScheduledMessage.class, patientOrderId);
+	}
+
+	@Nonnull
+	public Optional<PatientOrderScheduledMessageType> findPatientOrderScheduledMessageTypeById(@Nullable PatientOrderScheduledMessageTypeId patientOrderScheduledMessageTypeId) {
+		if (patientOrderScheduledMessageTypeId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM patient_order_scheduled_message_type
+				WHERE patient_order_scheduled_message_type_id=?
+				""", PatientOrderScheduledMessageType.class, patientOrderScheduledMessageTypeId);
+	}
+
+	@Nonnull
+	public UUID createPatientOrderScheduledMessage(@Nonnull CreatePatientOrderScheduledMessageRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderId = request.getPatientOrderId();
+		UUID accountId = request.getAccountId();
+		PatientOrderScheduledMessageTypeId patientOrderScheduledMessageTypeId = request.getPatientOrderScheduledMessageTypeId();
+		Set<MessageTypeId> messageTypeIds = request.getMessageTypeIds() == null ? Set.of() : request.getMessageTypeIds();
+		PatientOrder patientOrder = null;
+		PatientOrderScheduledMessageType patientOrderScheduledMessageType = null;
+		boolean shouldSendEmail = false;
+		boolean shouldSendSms = false;
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderId == null) {
+			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+		} else {
+			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+
+			if (patientOrder == null)
+				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+		}
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (patientOrderScheduledMessageTypeId == null) {
+			validationException.add(new FieldError("patientOrderScheduledMessageTypeId", getStrings().get("Account ID is required.")));
+		} else {
+			// Use .get() here b/c if this is not present, it's a programmer error and should 500
+			patientOrderScheduledMessageType = findPatientOrderScheduledMessageTypeById(patientOrderScheduledMessageTypeId).get();
+		}
+
+		if (patientOrder != null) {
+			shouldSendEmail = messageTypeIds.contains(MessageTypeId.EMAIL) || messageTypeIds.size() == 0;
+			shouldSendSms = messageTypeIds.contains(MessageTypeId.SMS) || messageTypeIds.size() == 0;
+
+			if (shouldSendEmail && patientOrder.getPatientEmailAddress() == null)
+				validationException.add(new FieldError("messageTypeId", getStrings().get("Cannot schedule an email because this patient's order does not have an email address.")));
+
+			if (shouldSendSms && patientOrder.getPatientPhoneNumber() == null)
+				validationException.add(new FieldError("messageTypeId", getStrings().get("Cannot schedule an SMS message because this patient's order does not have a phone number.")));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		if (shouldSendEmail) {
+
+		}
+
+
+		new EmailMessage.Builder(EmailMessageTemplate.IC_RESOURCE_CHECK_IN, Locale.US)
+				.toAddresses(List.of("fake@example.com"))
+				.fromAddress("alsofake@example.com")
+				.messageContext(new HashMap<String, Object>() {{
+					put("number", 1);
+					put("string", "2");
+				}})
+				.build();
+
+		UUID scheduledMessageId = getMessageService().createScheduledMessage(new CreateScheduledMessageRequest<>() {{
+			setMetadata(Map.of("appointmentId", appointmentId));
+			setMessage(patientReminderEmailMessage);
+			setTimeZone(provider.getTimeZone());
+			setScheduledAt(LocalDateTime.of(reminderMessageDate, reminderMessageTimeOfDay));
+		}});
+
+
+		// public class PatientOrderScheduledMessage {
+		//	@Nullable
+		//	private UUID patientOrderScheduledMessageId;
+		//	@Nullable
+		//	private UUID patientOrderId;
+		//	@Nullable
+		//	private UUID scheduledMessageId;
+	}
+
+	@Nonnull
 	public PatientOrderImportResult createPatientOrderImport(@Nonnull CreatePatientOrderImportRequest request) {
 		requireNonNull(request);
 
@@ -2480,6 +2717,11 @@ public class PatientOrderService {
 	@Nonnull
 	protected AccountService getAccountService() {
 		return this.accountServiceProvider.get();
+	}
+
+	@Nonnull
+	protected MessageService getMessageService() {
+		return this.messageServiceProvider.get();
 	}
 
 	@Nonnull

@@ -33,6 +33,8 @@ import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderSafetyPlanningStatusRequest;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse;
@@ -855,6 +857,70 @@ public class PatientOrderResource {
 			put("openPatientOrderCountsByPanelAccountId", openPatientOrderCountsByPanelAccountIdJson);
 			put("overallOpenPatientOrderCount", overallOpenPatientOrderCount);
 			put("overallOpenPatientOrderCountDescription", overallOpenPatientOrderCountDescription);
+		}});
+	}
+
+	@Nonnull
+	@PUT("/patient-orders/{patientOrderId}/patient-order-resourcing-status")
+	@AuthenticationRequired
+	public ApiResponse updatePatientOrderResourcingStatus(@Nonnull @PathParameter UUID patientOrderId,
+																												@Nonnull @RequestBody String requestBody) {
+		requireNonNull(patientOrderId);
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+
+		if (patientOrder == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		UpdatePatientOrderResourcingStatusRequest request = getRequestBodyParser().parse(requestBody, UpdatePatientOrderResourcingStatusRequest.class);
+		request.setPatientOrderId(patientOrder.getPatientOrderId());
+		request.setAccountId(account.getAccountId());
+
+		getPatientOrderService().updatePatientOrderResourcingStatus(request);
+
+		PatientOrder updatedPatientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).get();
+		PatientOrderApiResponseFormat responseFormat = PatientOrderApiResponseFormat.fromRoleId(account.getRoleId());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrder", getPatientOrderApiResponseFactory().create(updatedPatientOrder, responseFormat,
+					Set.of(PatientOrderApiResponseSupplement.EVERYTHING)));
+		}});
+	}
+
+	@Nonnull
+	@PUT("/patient-orders/{patientOrderId}/patient-order-safety-planning-status")
+	@AuthenticationRequired
+	public ApiResponse updatePatientOrderSafetyPlanningStatus(@Nonnull @PathParameter UUID patientOrderId,
+																														@Nonnull @RequestBody String requestBody) {
+		requireNonNull(patientOrderId);
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+
+		if (patientOrder == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		UpdatePatientOrderSafetyPlanningStatusRequest request = getRequestBodyParser().parse(requestBody, UpdatePatientOrderSafetyPlanningStatusRequest.class);
+		request.setPatientOrderId(patientOrder.getPatientOrderId());
+		request.setAccountId(account.getAccountId());
+
+		getPatientOrderService().updatePatientOrderSafetyPlanningStatus(request);
+
+		PatientOrder updatedPatientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).get();
+		PatientOrderApiResponseFormat responseFormat = PatientOrderApiResponseFormat.fromRoleId(account.getRoleId());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrder", getPatientOrderApiResponseFactory().create(updatedPatientOrder, responseFormat,
+					Set.of(PatientOrderApiResponseSupplement.EVERYTHING)));
 		}});
 	}
 

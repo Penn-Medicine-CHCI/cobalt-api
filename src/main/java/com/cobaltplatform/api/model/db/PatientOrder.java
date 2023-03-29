@@ -26,6 +26,8 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
+import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
@@ -50,6 +52,10 @@ public class PatientOrder {
 	private PatientOrderDispositionId patientOrderDispositionId;
 	@Nullable
 	private PatientOrderScreeningStatusId patientOrderScreeningStatusId;
+	@Nullable
+	private PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId;
+	@Nullable
+	private PatientOrderResourcingStatusId patientOrderResourcingStatusId;
 	@Nullable
 	private UUID patientOrderImportId;
 	@Nullable
@@ -157,19 +163,15 @@ public class PatientOrder {
 	@Nullable
 	private UUID episodeClosedByAccountId;
 	@Nullable
-	private Boolean safetyPlanningNeeded;
-	@Nullable
 	private Boolean outreachNeeded;
 	@Nullable
 	private Boolean followupNeeded;
 	@Nullable
-	private Boolean resourcesSent;
-	@Nullable
 	private Instant resourcesSentAt;
 	@Nullable
-	private Boolean crisisIndicated;
+	private String resourcesSentNote;
 	@Nullable
-	private Instant crisisIndicatedAt;
+	private Instant connectedToSafetyPlanningAt;
 	@Nullable
 	private String testPatientEmailAddress;
 	@Nullable
@@ -740,15 +742,6 @@ public class PatientOrder {
 	}
 
 	@Nullable
-	public Boolean getSafetyPlanningNeeded() {
-		return this.safetyPlanningNeeded;
-	}
-
-	public void setSafetyPlanningNeeded(@Nullable Boolean safetyPlanningNeeded) {
-		this.safetyPlanningNeeded = safetyPlanningNeeded;
-	}
-
-	@Nullable
 	public Boolean getOutreachNeeded() {
 		return this.outreachNeeded;
 	}
@@ -767,15 +760,6 @@ public class PatientOrder {
 	}
 
 	@Nullable
-	public Boolean getResourcesSent() {
-		return this.resourcesSent;
-	}
-
-	public void setResourcesSent(@Nullable Boolean resourcesSent) {
-		this.resourcesSent = resourcesSent;
-	}
-
-	@Nullable
 	public Instant getResourcesSentAt() {
 		return this.resourcesSentAt;
 	}
@@ -785,21 +769,39 @@ public class PatientOrder {
 	}
 
 	@Nullable
-	public Boolean getCrisisIndicated() {
-		return this.crisisIndicated;
+	public String getResourcesSentNote() {
+		return this.resourcesSentNote;
 	}
 
-	public void setCrisisIndicated(@Nullable Boolean crisisIndicated) {
-		this.crisisIndicated = crisisIndicated;
+	public void setResourcesSentNote(@Nullable String resourcesSentNote) {
+		this.resourcesSentNote = resourcesSentNote;
 	}
 
 	@Nullable
-	public Instant getCrisisIndicatedAt() {
-		return this.crisisIndicatedAt;
+	public PatientOrderSafetyPlanningStatusId getPatientOrderSafetyPlanningStatusId() {
+		return this.patientOrderSafetyPlanningStatusId;
 	}
 
-	public void setCrisisIndicatedAt(@Nullable Instant crisisIndicatedAt) {
-		this.crisisIndicatedAt = crisisIndicatedAt;
+	public void setPatientOrderSafetyPlanningStatusId(@Nullable PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId) {
+		this.patientOrderSafetyPlanningStatusId = patientOrderSafetyPlanningStatusId;
+	}
+
+	@Nullable
+	public PatientOrderResourcingStatusId getPatientOrderResourcingStatusId() {
+		return this.patientOrderResourcingStatusId;
+	}
+
+	public void setPatientOrderResourcingStatusId(@Nullable PatientOrderResourcingStatusId patientOrderResourcingStatusId) {
+		this.patientOrderResourcingStatusId = patientOrderResourcingStatusId;
+	}
+
+	@Nullable
+	public Instant getConnectedToSafetyPlanningAt() {
+		return this.connectedToSafetyPlanningAt;
+	}
+
+	public void setConnectedToSafetyPlanningAt(@Nullable Instant connectedToSafetyPlanningAt) {
+		this.connectedToSafetyPlanningAt = connectedToSafetyPlanningAt;
 	}
 
 	@Nullable
