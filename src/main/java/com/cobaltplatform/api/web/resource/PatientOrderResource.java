@@ -26,6 +26,7 @@ import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderOutreachRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
@@ -33,6 +34,8 @@ import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderSafetyPlanningStatusRequest;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse;
@@ -48,6 +51,7 @@ import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.Patient
 import com.cobaltplatform.api.model.api.response.PatientOrderAutocompleteResultApiResponse.PatientOrderAutocompleteResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderTriageApiResponse.PatientOrderTriageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
@@ -62,6 +66,7 @@ import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispo
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderOutreach;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.Race;
@@ -815,6 +820,37 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
+	@POST("/patient-order-scheduled-message-groups")
+	@AuthenticationRequired
+	public ApiResponse createPatientOrderScheduledMessageGroup(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		CreatePatientOrderScheduledMessageGroupRequest request = getRequestBodyParser().parse(requestBody, CreatePatientOrderScheduledMessageGroupRequest.class);
+		request.setAccountId(account.getAccountId());
+
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(request.getPatientOrderId()).orElse(null);
+
+		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		UUID patientOrderScheduledMessageGroupId = getPatientOrderService().createPatientOrderScheduledMessageGroup(request);
+
+		List<PatientOrderScheduledMessage> patientOrderScheduledMessages = getPatientOrderService().findPatientOrderScheduledMessagesByPatientOrderId(request.getPatientOrderId()).stream()
+				.filter(patientOrderScheduledMessage -> patientOrderScheduledMessage.getPatientOrderScheduledMessageGroupId().equals(patientOrderScheduledMessageGroupId))
+				.collect(Collectors.toList());
+
+		PatientOrderScheduledMessageGroupApiResponse patientOrderScheduledMessageGroupApiResponse = getPatientOrderService().generatePatientOrderScheduledMessageGroupApiResponses(patientOrderScheduledMessages).stream()
+				.findFirst()
+				.get();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrderScheduledMessageGroup", patientOrderScheduledMessageGroupApiResponse);
+		}});
+	}
+
+	@Nonnull
 	@GET("/integrated-care/panel-accounts")
 	@AuthenticationRequired
 	public ApiResponse panelAccounts() {
@@ -855,6 +891,70 @@ public class PatientOrderResource {
 			put("openPatientOrderCountsByPanelAccountId", openPatientOrderCountsByPanelAccountIdJson);
 			put("overallOpenPatientOrderCount", overallOpenPatientOrderCount);
 			put("overallOpenPatientOrderCountDescription", overallOpenPatientOrderCountDescription);
+		}});
+	}
+
+	@Nonnull
+	@PUT("/patient-orders/{patientOrderId}/patient-order-resourcing-status")
+	@AuthenticationRequired
+	public ApiResponse updatePatientOrderResourcingStatus(@Nonnull @PathParameter UUID patientOrderId,
+																												@Nonnull @RequestBody String requestBody) {
+		requireNonNull(patientOrderId);
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+
+		if (patientOrder == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		UpdatePatientOrderResourcingStatusRequest request = getRequestBodyParser().parse(requestBody, UpdatePatientOrderResourcingStatusRequest.class);
+		request.setPatientOrderId(patientOrder.getPatientOrderId());
+		request.setAccountId(account.getAccountId());
+
+		getPatientOrderService().updatePatientOrderResourcingStatus(request);
+
+		PatientOrder updatedPatientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).get();
+		PatientOrderApiResponseFormat responseFormat = PatientOrderApiResponseFormat.fromRoleId(account.getRoleId());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrder", getPatientOrderApiResponseFactory().create(updatedPatientOrder, responseFormat,
+					Set.of(PatientOrderApiResponseSupplement.EVERYTHING)));
+		}});
+	}
+
+	@Nonnull
+	@PUT("/patient-orders/{patientOrderId}/patient-order-safety-planning-status")
+	@AuthenticationRequired
+	public ApiResponse updatePatientOrderSafetyPlanningStatus(@Nonnull @PathParameter UUID patientOrderId,
+																														@Nonnull @RequestBody String requestBody) {
+		requireNonNull(patientOrderId);
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+
+		if (patientOrder == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		UpdatePatientOrderSafetyPlanningStatusRequest request = getRequestBodyParser().parse(requestBody, UpdatePatientOrderSafetyPlanningStatusRequest.class);
+		request.setPatientOrderId(patientOrder.getPatientOrderId());
+		request.setAccountId(account.getAccountId());
+
+		getPatientOrderService().updatePatientOrderSafetyPlanningStatus(request);
+
+		PatientOrder updatedPatientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).get();
+		PatientOrderApiResponseFormat responseFormat = PatientOrderApiResponseFormat.fromRoleId(account.getRoleId());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrder", getPatientOrderApiResponseFactory().create(updatedPatientOrder, responseFormat,
+					Set.of(PatientOrderApiResponseSupplement.EVERYTHING)));
 		}});
 	}
 
@@ -979,6 +1079,15 @@ public class PatientOrderResource {
 				})
 				.collect(Collectors.toList());
 
+		List<Map<String, Object>> patientOrderScheduledMessageTypes = getPatientOrderService().findPatientOrderScheduledMessageTypes().stream()
+				.map(patientOrderScheduledMessageType -> {
+					Map<String, Object> patientOrderScheduledMessageTypeJson = new HashMap<>();
+					patientOrderScheduledMessageTypeJson.put("patientOrderScheduledMessageTypeId", patientOrderScheduledMessageType.getPatientOrderScheduledMessageTypeId());
+					patientOrderScheduledMessageTypeJson.put("description", patientOrderScheduledMessageType.getDescription());
+					return patientOrderScheduledMessageTypeJson;
+				})
+				.collect(Collectors.toList());
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("timeZones", timeZones);
 			put("countries", countries);
@@ -993,6 +1102,7 @@ public class PatientOrderResource {
 			put("patientOrderStatuses", patientOrderStatuses);
 			put("patientOrderDispositions", patientOrderDispositions);
 			put("patientOrderOutreachResults", patientOrderOutreachResults);
+			put("patientOrderScheduledMessageTypes", patientOrderScheduledMessageTypes);
 		}});
 	}
 

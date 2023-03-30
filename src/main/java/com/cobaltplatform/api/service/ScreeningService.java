@@ -24,6 +24,7 @@ import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest.CreateAnswerRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.request.SkipScreeningSessionRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest.CreatePatientOrderTriageRequest;
 import com.cobaltplatform.api.model.api.response.ScreeningConfirmationPromptApiResponse.ScreeningConfirmationPromptApiResponseFactory;
@@ -37,6 +38,8 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 import com.cobaltplatform.api.model.db.Screening;
 import com.cobaltplatform.api.model.db.ScreeningAnswer;
@@ -1236,13 +1239,15 @@ public class ScreeningService {
 			if (screeningSession.getPatientOrderId() != null) {
 				PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(screeningSession.getPatientOrderId()).get();
 
-				if (!patientOrder.getCrisisIndicated()) {
-					getLogger().info("Patient order ID {} will be marked as 'crisis indicated'.", patientOrder.getPatientOrderId());
+				if (patientOrder.getPatientOrderSafetyPlanningStatusId() != PatientOrderSafetyPlanningStatusId.NEEDS_SAFETY_PLANNING) {
+					getLogger().info("Patient order ID {} will be marked as 'needs safety planning'.", patientOrder.getPatientOrderId());
 					getDatabase().execute("""
 							UPDATE patient_order 
-							SET crisis_indicated=TRUE, crisis_indicated_at=NOW()
+							SET patient_order_safety_planning_status_id=?
 							WHERE patient_order_id=?
-							""", patientOrder.getPatientOrderId());
+							""", PatientOrderSafetyPlanningStatusId.NEEDS_SAFETY_PLANNING, patientOrder.getPatientOrderId());
+
+					// TODO: write to patient order event table to keep track of when this happened
 				}
 			}
 		}
@@ -1353,6 +1358,19 @@ public class ScreeningService {
 							.collect(Collectors.toList()));
 
 					getPatientOrderService().updatePatientOrderTriages(patientOrderTriagesRequest);
+
+					// If topmost triage is specialty care, then mark the order as "needs resources"
+					PatientOrder updatedPatientOrder = getPatientOrderService().findPatientOrderById(patientOrder.getPatientOrderId()).get();
+
+					if (updatedPatientOrder.getPatientOrderCareTypeId() == PatientOrderCareTypeId.SPECIALTY) {
+						getLogger().info("Triage results indicated specialty care, so marking order as 'needs resources'...");
+
+						getPatientOrderService().updatePatientOrderResourcingStatus(new UpdatePatientOrderResourcingStatusRequest() {{
+							setAccountId(screeningSession.getCreatedByAccountId());
+							setPatientOrderId(patientOrder.getPatientOrderId());
+							setPatientOrderResourcingStatusId(PatientOrderResourcingStatusId.NEEDS_RESOURCES);
+						}});
+					}
 				}
 			}
 		}

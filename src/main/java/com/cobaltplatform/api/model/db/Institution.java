@@ -172,6 +172,8 @@ public class Institution {
 	@Nullable
 	private Integer appointmentReservationDefaultReminderDayOffset;
 	@Nullable
+	private Integer integratedCareSentResourcesFollowupWeekOffset;
+	@Nullable
 	private Integer integratedCareSentResourcesFollowupDayOffset;
 
 	public enum InstitutionId {
@@ -778,5 +780,14 @@ public class Institution {
 
 	public void setIntegratedCareSentResourcesFollowupDayOffset(@Nullable Integer integratedCareSentResourcesFollowupDayOffset) {
 		this.integratedCareSentResourcesFollowupDayOffset = integratedCareSentResourcesFollowupDayOffset;
+	}
+
+	@Nullable
+	public Integer getIntegratedCareSentResourcesFollowupWeekOffset() {
+		return this.integratedCareSentResourcesFollowupWeekOffset;
+	}
+
+	public void setIntegratedCareSentResourcesFollowupWeekOffset(@Nullable Integer integratedCareSentResourcesFollowupWeekOffset) {
+		this.integratedCareSentResourcesFollowupWeekOffset = integratedCareSentResourcesFollowupWeekOffset;
 	}
 }

@@ -26,6 +26,7 @@ import com.cobaltplatform.api.model.api.response.PatientOrderDiagnosisApiRespons
 import com.cobaltplatform.api.model.api.response.PatientOrderMedicationApiResponse.PatientOrderMedicationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse.PatientOrderScheduledMessageGroupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Address;
@@ -40,6 +41,9 @@ import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClo
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
@@ -96,6 +100,8 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private PatientOrderScreeningStatusId patientOrderScreeningStatusId;
 	@Nullable
+	private PatientOrderResourcingStatusId patientOrderResourcingStatusId;
+	@Nullable
 	private UUID patientAccountId;
 	@Nullable
 	private UUID patientAddressId;
@@ -103,6 +109,8 @@ public class PatientOrderApiResponse {
 	private UUID panelAccountId;
 	@Nullable
 	private PatientOrderClosureReasonId patientOrderClosureReasonId;
+	@Nullable
+	private PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId;
 	@Nullable
 	private String encounterDepartmentId;
 	@Nullable
@@ -218,17 +226,15 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String episodeDurationInDaysDescription;
 	@Nullable
-	private Boolean safetyPlanningNeeded;
-	@Nullable
 	private Boolean outreachNeeded;
 	@Nullable
 	private Boolean followupNeeded;
 	@Nullable
-	private Boolean resourcesSent;
-	@Nullable
 	private Instant resourcesSentAt;
 	@Nullable
 	private String resourcesSentAtDescription;
+	@Nullable
+	private String resourcesSentNote;
 
 	@Nullable
 	private AddressApiResponse patientAddress;
@@ -244,6 +250,8 @@ public class PatientOrderApiResponse {
 	private List<PatientOrderOutreachApiResponse> patientOrderOutreaches;
 	@Nullable
 	private List<PatientOrderTriageGroupApiResponse> patientOrderTriageGroups;
+	@Nullable
+	private List<PatientOrderScheduledMessageGroupApiResponse> patientOrderScheduledMessageGroups;
 	@Nullable
 	private ScreeningSessionApiResponse screeningSession;
 	@Nullable
@@ -298,11 +306,9 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String patientOrderClosureReasonDescription;
 	@Nullable
-	private Boolean crisisIndicated;
+	private Instant connectedToSafetyPlanningAt;
 	@Nullable
-	private Instant crisisIndicatedAt;
-	@Nullable
-	private String crisisIndicatedAtDescription;
+	private String connectedToSafetyPlanningAtDescription;
 	@Nullable
 	private Instant episodeClosedAt;
 	@Nullable
@@ -369,6 +375,7 @@ public class PatientOrderApiResponse {
 																 @Nonnull PatientOrderOutreachApiResponseFactory patientOrderOutreachApiResponseFactory,
 																 @Nonnull PatientOrderDiagnosisApiResponseFactory patientOrderDiagnosisApiResponseFactory,
 																 @Nonnull PatientOrderMedicationApiResponseFactory patientOrderMedicationApiResponseFactory,
+																 @Nonnull PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory,
 																 @Nonnull ScreeningSessionApiResponseFactory screeningSessionApiResponseFactory,
 																 @Nonnull AddressApiResponseFactory addressApiResponseFactory,
 																 @Nonnull Formatter formatter,
@@ -386,6 +393,7 @@ public class PatientOrderApiResponse {
 				patientOrderOutreachApiResponseFactory,
 				patientOrderDiagnosisApiResponseFactory,
 				patientOrderMedicationApiResponseFactory,
+				patientOrderScheduledMessageGroupApiResponseFactory,
 				screeningSessionApiResponseFactory,
 				addressApiResponseFactory,
 				formatter,
@@ -407,6 +415,7 @@ public class PatientOrderApiResponse {
 																 @Nonnull PatientOrderOutreachApiResponseFactory patientOrderOutreachApiResponseFactory,
 																 @Nonnull PatientOrderDiagnosisApiResponseFactory patientOrderDiagnosisApiResponseFactory,
 																 @Nonnull PatientOrderMedicationApiResponseFactory patientOrderMedicationApiResponseFactory,
+																 @Nonnull PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory,
 																 @Nonnull ScreeningSessionApiResponseFactory screeningSessionApiResponseFactory,
 																 @Nonnull AddressApiResponseFactory addressApiResponseFactory,
 																 @Nonnull Formatter formatter,
@@ -425,6 +434,7 @@ public class PatientOrderApiResponse {
 		requireNonNull(patientOrderOutreachApiResponseFactory);
 		requireNonNull(patientOrderDiagnosisApiResponseFactory);
 		requireNonNull(patientOrderMedicationApiResponseFactory);
+		requireNonNull(patientOrderScheduledMessageGroupApiResponseFactory);
 		requireNonNull(screeningSessionApiResponseFactory);
 		requireNonNull(addressApiResponseFactory);
 		requireNonNull(formatter);
@@ -619,15 +629,15 @@ public class PatientOrderApiResponse {
 			this.episodeDurationInDays = (int) orderDuration.toDays();
 			this.episodeDurationInDaysDescription = strings.get("{{episodeDurationInDays}} days", Map.of("episodeDurationInDays", this.episodeDurationInDays));
 
-			this.safetyPlanningNeeded = patientOrder.getSafetyPlanningNeeded();
 			this.outreachNeeded = patientOrder.getOutreachNeeded();
 			this.followupNeeded = patientOrder.getFollowupNeeded();
 
-			this.resourcesSent = patientOrder.getResourcesSent();
+			this.patientOrderResourcingStatusId = patientOrder.getPatientOrderResourcingStatusId();
 			this.resourcesSentAt = patientOrder.getResourcesSentAt();
 			this.resourcesSentAtDescription = patientOrder.getResourcesSentAt() == null
 					? null
 					: formatter.formatTimestamp(patientOrder.getResourcesSentAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+			this.resourcesSentNote = patientOrder.getResourcesSentNote();
 
 			this.patientOrderDiagnoses = patientOrderDiagnoses;
 			this.patientOrderMedications = patientOrderMedications;
@@ -657,9 +667,9 @@ public class PatientOrderApiResponse {
 			this.patientOrderDispositionDescription = patientOrder.getPatientOrderDispositionDescription();
 			this.patientOrderStatusDescription = patientOrder.getPatientOrderStatusDescription();
 			this.patientOrderClosureReasonDescription = patientOrder.getPatientOrderClosureReasonDescription();
-			this.crisisIndicated = patientOrder.getCrisisIndicated();
-			this.crisisIndicatedAt = patientOrder.getCrisisIndicatedAt();
-			this.crisisIndicatedAtDescription = patientOrder.getCrisisIndicatedAt() == null ? null : formatter.formatTimestamp(patientOrder.getCrisisIndicatedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+			this.patientOrderSafetyPlanningStatusId = patientOrder.getPatientOrderSafetyPlanningStatusId();
+			this.connectedToSafetyPlanningAt = patientOrder.getConnectedToSafetyPlanningAt();
+			this.connectedToSafetyPlanningAtDescription = patientOrder.getConnectedToSafetyPlanningAt() == null ? null : formatter.formatTimestamp(patientOrder.getConnectedToSafetyPlanningAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 			this.mostRecentEpisodeClosedAt = patientOrder.getMostRecentEpisodeClosedAt();
 			this.mostRecentEpisodeClosedAtDescription = patientOrder.getMostRecentEpisodeClosedAt() == null ? null : formatter.formatTimestamp(patientOrder.getMostRecentEpisodeClosedAt());
 			this.mostRecentEpisodeClosedWithinDateThreshold = patientOrder.getMostRecentEpisodeClosedWithinDateThreshold();
@@ -667,6 +677,9 @@ public class PatientOrderApiResponse {
 			this.patientOrderScheduledScreeningScheduledDateTime = patientOrder.getPatientOrderScheduledScreeningScheduledDateTime();
 			this.patientOrderScheduledScreeningScheduledDateTimeDescription = patientOrder.getPatientOrderScheduledScreeningScheduledDateTime() == null ? null : formatter.formatDateTime(patientOrder.getPatientOrderScheduledScreeningScheduledDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 			this.patientOrderScheduledScreeningCalendarUrl = patientOrder.getPatientOrderScheduledScreeningCalendarUrl();
+
+			List<PatientOrderScheduledMessage> patientOrderScheduledMessages = patientOrderService.findPatientOrderScheduledMessagesByPatientOrderId(patientOrder.getPatientOrderId());
+			this.patientOrderScheduledMessageGroups = patientOrderService.generatePatientOrderScheduledMessageGroupApiResponses(patientOrderScheduledMessages);
 		}
 	}
 
@@ -991,11 +1004,6 @@ public class PatientOrderApiResponse {
 	}
 
 	@Nullable
-	public Boolean getSafetyPlanningNeeded() {
-		return this.safetyPlanningNeeded;
-	}
-
-	@Nullable
 	public Boolean getOutreachNeeded() {
 		return this.outreachNeeded;
 	}
@@ -1006,8 +1014,8 @@ public class PatientOrderApiResponse {
 	}
 
 	@Nullable
-	public Boolean getResourcesSent() {
-		return this.resourcesSent;
+	public PatientOrderResourcingStatusId getPatientOrderResourcingStatusId() {
+		return this.patientOrderResourcingStatusId;
 	}
 
 	@Nullable
@@ -1018,6 +1026,11 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public String getResourcesSentAtDescription() {
 		return this.resourcesSentAtDescription;
+	}
+
+	@Nullable
+	public String getResourcesSentNote() {
+		return this.resourcesSentNote;
 	}
 
 	@Nullable
@@ -1186,18 +1199,18 @@ public class PatientOrderApiResponse {
 	}
 
 	@Nullable
-	public Boolean getCrisisIndicated() {
-		return this.crisisIndicated;
+	public PatientOrderSafetyPlanningStatusId getPatientOrderSafetyPlanningStatusId() {
+		return this.patientOrderSafetyPlanningStatusId;
 	}
 
 	@Nullable
-	public Instant getCrisisIndicatedAt() {
-		return this.crisisIndicatedAt;
+	public Instant getConnectedToSafetyPlanningAt() {
+		return this.connectedToSafetyPlanningAt;
 	}
 
 	@Nullable
-	public String getCrisisIndicatedAtDescription() {
-		return this.crisisIndicatedAtDescription;
+	public String getConnectedToSafetyPlanningAtDescription() {
+		return this.connectedToSafetyPlanningAtDescription;
 	}
 
 	@Nullable
@@ -1248,5 +1261,10 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public String getPatientOrderScheduledScreeningCalendarUrl() {
 		return this.patientOrderScheduledScreeningCalendarUrl;
+	}
+
+	@Nullable
+	public List<PatientOrderScheduledMessageGroupApiResponse> getPatientOrderScheduledMessageGroups() {
+		return this.patientOrderScheduledMessageGroups;
 	}
 }
