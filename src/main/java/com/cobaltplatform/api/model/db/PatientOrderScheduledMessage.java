@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType.PatientOrderScheduledMessageTypeId;
 import com.cobaltplatform.api.model.db.ScheduledMessageSource.ScheduledMessageSourceId;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
 
@@ -38,7 +39,7 @@ public class PatientOrderScheduledMessage {
 	@Nullable
 	private UUID patientOrderScheduledMessageId;
 	@Nullable
-	private UUID patientOrderId;
+	private UUID patientOrderScheduledMessageGroupId;
 	@Nullable
 	private UUID scheduledMessageId;
 	@Nullable
@@ -48,6 +49,10 @@ public class PatientOrderScheduledMessage {
 
 	// From v_patient_order_scheduled_message
 
+	@Nullable
+	private PatientOrderScheduledMessageTypeId patientOrderScheduledMessageTypeId;
+	@Nullable
+	private UUID patientOrderId;
 	@Nullable
 	private String patientOrderScheduledMessageTypeDescription;
 	@Nullable
@@ -81,21 +86,21 @@ public class PatientOrderScheduledMessage {
 	}
 
 	@Nullable
-	public UUID getPatientOrderId() {
-		return this.patientOrderId;
-	}
-
-	public void setPatientOrderId(@Nullable UUID patientOrderId) {
-		this.patientOrderId = patientOrderId;
-	}
-
-	@Nullable
 	public UUID getScheduledMessageId() {
 		return this.scheduledMessageId;
 	}
 
 	public void setScheduledMessageId(@Nullable UUID scheduledMessageId) {
 		this.scheduledMessageId = scheduledMessageId;
+	}
+
+	@Nullable
+	public UUID getPatientOrderScheduledMessageGroupId() {
+		return this.patientOrderScheduledMessageGroupId;
+	}
+
+	public void setPatientOrderScheduledMessageGroupId(@Nullable UUID patientOrderScheduledMessageGroupId) {
+		this.patientOrderScheduledMessageGroupId = patientOrderScheduledMessageGroupId;
 	}
 
 	@Nullable
@@ -114,6 +119,24 @@ public class PatientOrderScheduledMessage {
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
+	}
+
+	@Nullable
+	public PatientOrderScheduledMessageTypeId getPatientOrderScheduledMessageTypeId() {
+		return this.patientOrderScheduledMessageTypeId;
+	}
+
+	public void setPatientOrderScheduledMessageTypeId(@Nullable PatientOrderScheduledMessageTypeId patientOrderScheduledMessageTypeId) {
+		this.patientOrderScheduledMessageTypeId = patientOrderScheduledMessageTypeId;
+	}
+
+	@Nullable
+	public UUID getPatientOrderId() {
+		return this.patientOrderId;
+	}
+
+	public void setPatientOrderId(@Nullable UUID patientOrderId) {
+		this.patientOrderId = patientOrderId;
 	}
 
 	@Nullable

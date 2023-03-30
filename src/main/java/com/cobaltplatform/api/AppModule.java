@@ -89,6 +89,7 @@ import com.cobaltplatform.api.model.api.response.GroupSessionResponseApiResponse
 import com.cobaltplatform.api.model.api.response.GroupTopicApiResponse.GroupTopicApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionBlurbApiResponse.InstitutionBlurbApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.InstitutionLocationApiResponse.InstitutionLocationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionTeamMemberApiResponse.InstitutionTeamMemberApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InsuranceApiResponse.InsuranceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InteractionInstanceApiResponse.InteractionInstanceApiResponseFactory;
@@ -103,6 +104,8 @@ import com.cobaltplatform.api.model.api.response.PatientOrderDiagnosisApiRespons
 import com.cobaltplatform.api.model.api.response.PatientOrderMedicationApiResponse.PatientOrderMedicationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageApiResponse.PatientOrderScheduledMessageApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse.PatientOrderScheduledMessageGroupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderTriageApiResponse.PatientOrderTriageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PinboardNoteApiResponse.PinboardNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
@@ -127,7 +130,6 @@ import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApi
 import com.cobaltplatform.api.model.api.response.TopicCenterApiResponse.TopicCenterApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TopicCenterRowApiResponse.TopicCenterRowApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.VisitTypeApiResponse.VisitTypeApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.InstitutionLocationApiResponse.InstitutionLocationApiResponseFactory;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.InstitutionService;
@@ -287,6 +289,9 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(FilterApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(AppointmentTimeApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(FeatureApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(FeatureApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PatientOrderScheduledMessageApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PatientOrderScheduledMessageGroupApiResponseFactory.class)));
 	}
 
 	@Provides

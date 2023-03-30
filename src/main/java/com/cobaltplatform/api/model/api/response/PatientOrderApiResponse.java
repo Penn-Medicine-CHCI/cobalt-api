@@ -26,6 +26,7 @@ import com.cobaltplatform.api.model.api.response.PatientOrderDiagnosisApiRespons
 import com.cobaltplatform.api.model.api.response.PatientOrderMedicationApiResponse.PatientOrderMedicationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse.PatientOrderScheduledMessageGroupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Address;
@@ -42,6 +43,7 @@ import com.cobaltplatform.api.model.db.PatientOrderFocusType;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
@@ -249,6 +251,8 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private List<PatientOrderTriageGroupApiResponse> patientOrderTriageGroups;
 	@Nullable
+	private List<PatientOrderScheduledMessageGroupApiResponse> patientOrderScheduledMessageGroups;
+	@Nullable
 	private ScreeningSessionApiResponse screeningSession;
 	@Nullable
 	private ScreeningSessionResult screeningSessionResult;
@@ -371,6 +375,7 @@ public class PatientOrderApiResponse {
 																 @Nonnull PatientOrderOutreachApiResponseFactory patientOrderOutreachApiResponseFactory,
 																 @Nonnull PatientOrderDiagnosisApiResponseFactory patientOrderDiagnosisApiResponseFactory,
 																 @Nonnull PatientOrderMedicationApiResponseFactory patientOrderMedicationApiResponseFactory,
+																 @Nonnull PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory,
 																 @Nonnull ScreeningSessionApiResponseFactory screeningSessionApiResponseFactory,
 																 @Nonnull AddressApiResponseFactory addressApiResponseFactory,
 																 @Nonnull Formatter formatter,
@@ -388,6 +393,7 @@ public class PatientOrderApiResponse {
 				patientOrderOutreachApiResponseFactory,
 				patientOrderDiagnosisApiResponseFactory,
 				patientOrderMedicationApiResponseFactory,
+				patientOrderScheduledMessageGroupApiResponseFactory,
 				screeningSessionApiResponseFactory,
 				addressApiResponseFactory,
 				formatter,
@@ -409,6 +415,7 @@ public class PatientOrderApiResponse {
 																 @Nonnull PatientOrderOutreachApiResponseFactory patientOrderOutreachApiResponseFactory,
 																 @Nonnull PatientOrderDiagnosisApiResponseFactory patientOrderDiagnosisApiResponseFactory,
 																 @Nonnull PatientOrderMedicationApiResponseFactory patientOrderMedicationApiResponseFactory,
+																 @Nonnull PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory,
 																 @Nonnull ScreeningSessionApiResponseFactory screeningSessionApiResponseFactory,
 																 @Nonnull AddressApiResponseFactory addressApiResponseFactory,
 																 @Nonnull Formatter formatter,
@@ -427,6 +434,7 @@ public class PatientOrderApiResponse {
 		requireNonNull(patientOrderOutreachApiResponseFactory);
 		requireNonNull(patientOrderDiagnosisApiResponseFactory);
 		requireNonNull(patientOrderMedicationApiResponseFactory);
+		requireNonNull(patientOrderScheduledMessageGroupApiResponseFactory);
 		requireNonNull(screeningSessionApiResponseFactory);
 		requireNonNull(addressApiResponseFactory);
 		requireNonNull(formatter);
@@ -669,6 +677,9 @@ public class PatientOrderApiResponse {
 			this.patientOrderScheduledScreeningScheduledDateTime = patientOrder.getPatientOrderScheduledScreeningScheduledDateTime();
 			this.patientOrderScheduledScreeningScheduledDateTimeDescription = patientOrder.getPatientOrderScheduledScreeningScheduledDateTime() == null ? null : formatter.formatDateTime(patientOrder.getPatientOrderScheduledScreeningScheduledDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 			this.patientOrderScheduledScreeningCalendarUrl = patientOrder.getPatientOrderScheduledScreeningCalendarUrl();
+
+			List<PatientOrderScheduledMessage> patientOrderScheduledMessages = patientOrderService.findPatientOrderScheduledMessagesByPatientOrderId(patientOrder.getPatientOrderId());
+			this.patientOrderScheduledMessageGroups = patientOrderService.generatePatientOrderScheduledMessageGroupApiResponses(patientOrderScheduledMessages);
 		}
 	}
 
@@ -1250,5 +1261,10 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public String getPatientOrderScheduledScreeningCalendarUrl() {
 		return this.patientOrderScheduledScreeningCalendarUrl;
+	}
+
+	@Nullable
+	public List<PatientOrderScheduledMessageGroupApiResponse> getPatientOrderScheduledMessageGroups() {
+		return this.patientOrderScheduledMessageGroups;
 	}
 }

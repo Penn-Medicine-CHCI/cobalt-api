@@ -19,35 +19,27 @@
 
 package com.cobaltplatform.api.model.api.request;
 
-import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
-import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType.PatientOrderScheduledMessageTypeId;
-
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.util.Set;
 import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreatePatientOrderScheduledMessageRequest {
+public class CancelPatientOrderScheduledMessageGroupRequest {
 	@Nullable
-	private UUID patientOrderId;
+	private UUID patientOrderScheduledMessageGroupId;
 	@Nullable
 	private UUID accountId;
-	@Nullable
-	private PatientOrderScheduledMessageTypeId patientOrderScheduledMessageTypeId;
-	@Nullable
-	private Set<MessageTypeId> messageTypeIds;
 
 	@Nullable
-	public UUID getPatientOrderId() {
-		return this.patientOrderId;
+	public UUID getPatientOrderScheduledMessageGroupId() {
+		return this.patientOrderScheduledMessageGroupId;
 	}
 
-	public void setPatientOrderId(@Nullable UUID patientOrderId) {
-		this.patientOrderId = patientOrderId;
+	public void setPatientOrderScheduledMessageGroupId(@Nullable UUID patientOrderScheduledMessageGroupId) {
+		this.patientOrderScheduledMessageGroupId = patientOrderScheduledMessageGroupId;
 	}
 
 	@Nullable
@@ -57,23 +49,5 @@ public class CreatePatientOrderScheduledMessageRequest {
 
 	public void setAccountId(@Nullable UUID accountId) {
 		this.accountId = accountId;
-	}
-
-	@Nullable
-	public PatientOrderScheduledMessageTypeId getPatientOrderScheduledMessageTypeId() {
-		return this.patientOrderScheduledMessageTypeId;
-	}
-
-	public void setPatientOrderScheduledMessageTypeId(@Nullable PatientOrderScheduledMessageTypeId patientOrderScheduledMessageTypeId) {
-		this.patientOrderScheduledMessageTypeId = patientOrderScheduledMessageTypeId;
-	}
-
-	@Nullable
-	public Set<MessageTypeId> getMessageTypeIds() {
-		return this.messageTypeIds;
-	}
-
-	public void setMessageTypeIds(@Nullable Set<MessageTypeId> messageTypeIds) {
-		this.messageTypeIds = messageTypeIds;
 	}
 }

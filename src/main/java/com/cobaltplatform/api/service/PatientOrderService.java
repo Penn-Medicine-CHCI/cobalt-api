@@ -22,6 +22,8 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
+import com.cobaltplatform.api.messaging.sms.SmsMessage;
+import com.cobaltplatform.api.messaging.sms.SmsMessageTemplate;
 import com.cobaltplatform.api.model.api.request.AssignPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
@@ -32,7 +34,7 @@ import com.cobaltplatform.api.model.api.request.CreatePatientOrderOutreachReques
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderDiagnosisRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderMedicationRequest;
-import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledMessageRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderOutreachRequest;
@@ -45,10 +47,13 @@ import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStat
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderSafetyPlanningStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest.CreatePatientOrderTriageRequest;
+import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse;
+import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse.PatientOrderScheduledMessageGroupApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
 import com.cobaltplatform.api.model.db.PatientOrder;
@@ -69,6 +74,7 @@ import com.cobaltplatform.api.model.db.PatientOrderOutreachResult;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageGroup;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType.PatientOrderScheduledMessageTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderStatus;
@@ -77,6 +83,7 @@ import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
+import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.IcTestPatientEmailAddress;
 import com.cobaltplatform.api.model.service.PatientOrderAutocompleteResult;
@@ -126,13 +133,16 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -157,6 +167,10 @@ public class PatientOrderService {
 	@Nonnull
 	private final Provider<MessageService> messageServiceProvider;
 	@Nonnull
+	private final Provider<InstitutionService> institutionServiceProvider;
+	@Nonnull
+	private final PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory;
+	@Nonnull
 	private final Database database;
 	@Nonnull
 	private final Normalizer normalizer;
@@ -175,6 +189,8 @@ public class PatientOrderService {
 	public PatientOrderService(@Nonnull Provider<AddressService> addressServiceProvider,
 														 @Nonnull Provider<AccountService> accountServiceProvider,
 														 @Nonnull Provider<MessageService> messageServiceProvider,
+														 @Nonnull Provider<InstitutionService> institutionServiceProvider,
+														 @Nonnull PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory,
 														 @Nonnull Database database,
 														 @Nonnull Normalizer normalizer,
 														 @Nonnull Authenticator authenticator,
@@ -183,6 +199,8 @@ public class PatientOrderService {
 		requireNonNull(addressServiceProvider);
 		requireNonNull(accountServiceProvider);
 		requireNonNull(messageServiceProvider);
+		requireNonNull(institutionServiceProvider);
+		requireNonNull(patientOrderScheduledMessageGroupApiResponseFactory);
 		requireNonNull(database);
 		requireNonNull(normalizer);
 		requireNonNull(authenticator);
@@ -192,6 +210,8 @@ public class PatientOrderService {
 		this.addressServiceProvider = addressServiceProvider;
 		this.accountServiceProvider = accountServiceProvider;
 		this.messageServiceProvider = messageServiceProvider;
+		this.institutionServiceProvider = institutionServiceProvider;
+		this.patientOrderScheduledMessageGroupApiResponseFactory = patientOrderScheduledMessageGroupApiResponseFactory;
 		this.database = database;
 		this.normalizer = normalizer;
 		this.authenticator = authenticator;
@@ -1516,8 +1536,64 @@ public class PatientOrderService {
 		return getDatabase().queryForList("""
 				SELECT *
 				FROM v_patient_order_scheduled_message
+				WHERE patient_order_id=?
+				AND scheduled_message_status_id != ?
 				ORDER BY scheduled_at at time zone time_zone DESC;
-				""", PatientOrderScheduledMessage.class, patientOrderId);
+				""", PatientOrderScheduledMessage.class, patientOrderId, ScheduledMessageStatusId.CANCELED);
+	}
+
+	// Do some gymnastics to "unflatten" messages into group API responses.
+	@Nonnull
+	public List<PatientOrderScheduledMessageGroupApiResponse> generatePatientOrderScheduledMessageGroupApiResponses(@Nullable List<PatientOrderScheduledMessage> patientOrderScheduledMessages) {
+		if (patientOrderScheduledMessages == null || patientOrderScheduledMessages.size() == 0)
+			return List.of();
+
+		Map<UUID, List<PatientOrderScheduledMessage>> messagesByPatientOrderScheduledMessageGroupId = new LinkedHashMap<>();
+
+		for (PatientOrderScheduledMessage patientOrderScheduledMessage : patientOrderScheduledMessages) {
+			List<PatientOrderScheduledMessage> messages = messagesByPatientOrderScheduledMessageGroupId.get(patientOrderScheduledMessage.getPatientOrderScheduledMessageGroupId());
+
+			if (messages == null) {
+				messages = new ArrayList<>();
+				messagesByPatientOrderScheduledMessageGroupId.put(patientOrderScheduledMessage.getPatientOrderScheduledMessageGroupId(), messages);
+			}
+
+			messages.add(patientOrderScheduledMessage);
+		}
+
+		if (messagesByPatientOrderScheduledMessageGroupId.size() == 0)
+			return List.of();
+
+		List<PatientOrderScheduledMessageGroup> groups = getDatabase().queryForList(format("""
+						SELECT *
+						FROM patient_order_scheduled_message_group
+						WHERE patient_order_scheduled_message_group_id IN %s
+						""", sqlInListPlaceholders(messagesByPatientOrderScheduledMessageGroupId.keySet())),
+				PatientOrderScheduledMessageGroup.class, messagesByPatientOrderScheduledMessageGroupId.keySet().toArray(new Object[0]));
+
+		Map<UUID, PatientOrderScheduledMessageGroup> groupsByGroupId = groups.stream()
+				.collect(Collectors.toMap(PatientOrderScheduledMessageGroup::getPatientOrderScheduledMessageGroupId, Function.identity()));
+
+		List<PatientOrderScheduledMessageGroupApiResponse> groupApiResponses = new ArrayList<>(groupsByGroupId.size());
+
+		for (Entry<UUID, List<PatientOrderScheduledMessage>> entry : messagesByPatientOrderScheduledMessageGroupId.entrySet()) {
+			UUID patientOrderScheduledMessageGroupId = entry.getKey();
+			List<PatientOrderScheduledMessage> messages = entry.getValue();
+
+			PatientOrderScheduledMessageGroup patientOrderScheduledMessageGroup = groupsByGroupId.get(patientOrderScheduledMessageGroupId);
+			groupApiResponses.add(getPatientOrderScheduledMessageGroupApiResponseFactory().create(patientOrderScheduledMessageGroup, messages));
+		}
+
+		return groupApiResponses;
+	}
+
+	@Nonnull
+	public List<PatientOrderScheduledMessageType> findPatientOrderScheduledMessageTypes() {
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM patient_order_scheduled_message_type
+				ORDER BY display_order
+				""", PatientOrderScheduledMessageType.class);
 	}
 
 	@Nonnull
@@ -1533,17 +1609,19 @@ public class PatientOrderService {
 	}
 
 	@Nonnull
-	public UUID createPatientOrderScheduledMessage(@Nonnull CreatePatientOrderScheduledMessageRequest request) {
+	public UUID createPatientOrderScheduledMessageGroup(@Nonnull CreatePatientOrderScheduledMessageGroupRequest request) {
 		requireNonNull(request);
 
 		UUID patientOrderId = request.getPatientOrderId();
 		UUID accountId = request.getAccountId();
 		PatientOrderScheduledMessageTypeId patientOrderScheduledMessageTypeId = request.getPatientOrderScheduledMessageTypeId();
 		Set<MessageTypeId> messageTypeIds = request.getMessageTypeIds() == null ? Set.of() : request.getMessageTypeIds();
+		LocalDate scheduledAtDate = request.getScheduledAtDate();
+		String scheduledAtTimeAsString = trimToNull(request.getScheduledAtTime());
+		LocalTime scheduledAtTime = null;
 		PatientOrder patientOrder = null;
 		PatientOrderScheduledMessageType patientOrderScheduledMessageType = null;
-		boolean shouldSendEmail = false;
-		boolean shouldSendSms = false;
+		UUID patientOrderScheduledMessageGroupId = UUID.randomUUID();
 		ValidationException validationException = new ValidationException();
 
 		if (patientOrderId == null) {
@@ -1559,55 +1637,91 @@ public class PatientOrderService {
 			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
 
 		if (patientOrderScheduledMessageTypeId == null) {
-			validationException.add(new FieldError("patientOrderScheduledMessageTypeId", getStrings().get("Account ID is required.")));
+			validationException.add(new FieldError("patientOrderScheduledMessageTypeId", getStrings().get("Patient Order Scheduled Message Type ID is required.")));
 		} else {
 			// Use .get() here b/c if this is not present, it's a programmer error and should 500
 			patientOrderScheduledMessageType = findPatientOrderScheduledMessageTypeById(patientOrderScheduledMessageTypeId).get();
 		}
 
 		if (patientOrder != null) {
-			shouldSendEmail = messageTypeIds.contains(MessageTypeId.EMAIL) || messageTypeIds.size() == 0;
-			shouldSendSms = messageTypeIds.contains(MessageTypeId.SMS) || messageTypeIds.size() == 0;
-
-			if (shouldSendEmail && patientOrder.getPatientEmailAddress() == null)
+			if (messageTypeIds.contains(MessageTypeId.EMAIL) && patientOrder.getPatientEmailAddress() == null)
 				validationException.add(new FieldError("messageTypeId", getStrings().get("Cannot schedule an email because this patient's order does not have an email address.")));
 
-			if (shouldSendSms && patientOrder.getPatientPhoneNumber() == null)
+			if (messageTypeIds.contains(MessageTypeId.SMS) && patientOrder.getPatientPhoneNumber() == null)
 				validationException.add(new FieldError("messageTypeId", getStrings().get("Cannot schedule an SMS message because this patient's order does not have a phone number.")));
 		}
+
+		if (scheduledAtDate == null)
+			validationException.add(new FieldError("scheduledAtDate", getStrings().get("Scheduled-At Date is required.")));
+
+		if (scheduledAtTimeAsString == null) {
+			validationException.add(new FieldError("scheduledAtTime", getStrings().get("Scheduled-At Time is required.")));
+		} else {
+			// TODO: support other locales
+			scheduledAtTime = getNormalizer().normalizeTime(scheduledAtTimeAsString, Locale.US).orElse(null);
+
+			if (scheduledAtTime == null)
+				validationException.add(new FieldError("scheduledAtTime", getStrings().get("Scheduled-At Time is invalid.")));
+		}
+
+		if (messageTypeIds.size() == 0)
+			validationException.add(getStrings().get("You must specify at least one type of message to send."));
 
 		if (validationException.hasErrors())
 			throw validationException;
 
-		if (shouldSendEmail) {
+		Institution institution = getInstitutionService().findInstitutionById(patientOrder.getInstitutionId()).get();
+		LocalTime pinnedScheduledAtTime = scheduledAtTime;
 
+		getDatabase().execute("""
+				INSERT INTO patient_order_scheduled_message_group (
+					patient_order_scheduled_message_group_id,
+					patient_order_id,
+					patient_order_scheduled_message_type_id
+				) VALUES (?,?,?)
+				""", patientOrderScheduledMessageGroupId, patientOrderId, patientOrderScheduledMessageTypeId);
+
+		Set<UUID> scheduledMessageIds = new HashSet<>();
+
+		if (messageTypeIds.contains(MessageTypeId.EMAIL)) {
+			EmailMessage emailMessage = new EmailMessage.Builder(EmailMessageTemplate.valueOf(patientOrderScheduledMessageType.getTemplateName()), Locale.US)
+					.toAddresses(List.of(patientOrder.getPatientEmailAddress()))
+					// TODO: introduce institution-level "default from" address
+					.fromAddress("todo@cobaltinnovations.org")
+					.messageContext(Map.of())
+					.build();
+
+			scheduledMessageIds.add(getMessageService().createScheduledMessage(new CreateScheduledMessageRequest<>() {{
+				setMetadata(Map.of("patientOrderScheduledMessageGroupId", patientOrderScheduledMessageGroupId));
+				setMessage(emailMessage);
+				setTimeZone(institution.getTimeZone());
+				setScheduledAt(LocalDateTime.of(scheduledAtDate, pinnedScheduledAtTime));
+			}}));
 		}
 
+		if (messageTypeIds.contains(MessageTypeId.SMS)) {
+			SmsMessage smsMessage = new SmsMessage.Builder(SmsMessageTemplate.valueOf(patientOrderScheduledMessageType.getTemplateName()), patientOrder.getPatientPhoneNumber(), Locale.US)
+					.messageContext(Map.of())
+					.build();
 
-		new EmailMessage.Builder(EmailMessageTemplate.IC_RESOURCE_CHECK_IN, Locale.US)
-				.toAddresses(List.of("fake@example.com"))
-				.fromAddress("alsofake@example.com")
-				.messageContext(new HashMap<String, Object>() {{
-					put("number", 1);
-					put("string", "2");
-				}})
-				.build();
+			scheduledMessageIds.add(getMessageService().createScheduledMessage(new CreateScheduledMessageRequest<>() {{
+				setMetadata(Map.of("patientOrderScheduledMessageGroupId", patientOrderScheduledMessageGroupId));
+				setMessage(smsMessage);
+				setTimeZone(institution.getTimeZone());
+				setScheduledAt(LocalDateTime.of(scheduledAtDate, pinnedScheduledAtTime));
+			}}));
+		}
 
-		UUID scheduledMessageId = getMessageService().createScheduledMessage(new CreateScheduledMessageRequest<>() {{
-			setMetadata(Map.of("appointmentId", appointmentId));
-			setMessage(patientReminderEmailMessage);
-			setTimeZone(provider.getTimeZone());
-			setScheduledAt(LocalDateTime.of(reminderMessageDate, reminderMessageTimeOfDay));
-		}});
+		for (UUID scheduledMessageId : scheduledMessageIds) {
+			getDatabase().execute("""
+					INSERT INTO patient_order_scheduled_message (
+						patient_order_scheduled_message_group_id,
+						scheduled_message_id
+					) VALUES (?,?)
+					""", patientOrderScheduledMessageGroupId, scheduledMessageId);
+		}
 
-
-		// public class PatientOrderScheduledMessage {
-		//	@Nullable
-		//	private UUID patientOrderScheduledMessageId;
-		//	@Nullable
-		//	private UUID patientOrderId;
-		//	@Nullable
-		//	private UUID scheduledMessageId;
+		return patientOrderScheduledMessageGroupId;
 	}
 
 	@Nonnull
@@ -2722,6 +2836,16 @@ public class PatientOrderService {
 	@Nonnull
 	protected MessageService getMessageService() {
 		return this.messageServiceProvider.get();
+	}
+
+	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return this.institutionServiceProvider.get();
+	}
+
+	@Nonnull
+	protected PatientOrderScheduledMessageGroupApiResponseFactory getPatientOrderScheduledMessageGroupApiResponseFactory() {
+		return this.patientOrderScheduledMessageGroupApiResponseFactory;
 	}
 
 	@Nonnull

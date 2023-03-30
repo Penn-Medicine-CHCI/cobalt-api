@@ -41,6 +41,60 @@ ALTER TABLE patient_order ADD COLUMN resources_sent_note VARCHAR;
 ALTER TABLE institution ADD COLUMN integrated_care_sent_resources_followup_week_offset INTEGER DEFAULT 4;
 ALTER TABLE institution ALTER COLUMN integrated_care_sent_resources_followup_day_offset SET DEFAULT 5;
 
+DROP VIEW v_patient_order_scheduled_message;
+
+-- To drive IC UI, conceptually we have _groups_ of scheduled messages (that is, a single logical message sent over e.g. SMS, email, ...)
+-- So we modify existing model to support that via message groups
+CREATE TABLE patient_order_scheduled_message_group (
+  patient_order_scheduled_message_group_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  patient_order_id UUID NOT NULL REFERENCES patient_order,
+  patient_order_scheduled_message_type_id VARCHAR NOT NULL REFERENCES patient_order_scheduled_message_type,
+  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_scheduled_message_group FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+ALTER TABLE patient_order_scheduled_message DROP COLUMN patient_order_id;
+ALTER TABLE patient_order_scheduled_message DROP COLUMN patient_order_scheduled_message_type_id;
+ALTER TABLE patient_order_scheduled_message ADD COLUMN patient_order_scheduled_message_group_id UUID NOT NULL REFERENCES patient_order_scheduled_message_group;
+
+-- Recreate view with latest columns
+CREATE VIEW v_patient_order_scheduled_message AS
+SELECT
+  posmg.patient_order_scheduled_message_group_id,
+  posmg.patient_order_id,
+  posmg.patient_order_scheduled_message_type_id,
+  posm.patient_order_scheduled_message_id,
+  posm.scheduled_message_id,
+  posmt.description AS patient_order_scheduled_message_type_description,
+  posm.created,
+  posm.last_updated,
+  sm.scheduled_message_status_id,
+  sm.scheduled_by_account_id,
+  sm.scheduled_message_source_id,
+  sm.message_type_id,
+  mt.description AS message_type_description,
+  sm.scheduled_at,
+  sm.time_zone,
+  sm.processed_at,
+  sm.canceled_at,
+  sm.errored_at
+FROM
+  patient_order_scheduled_message posm,
+  patient_order_scheduled_message_type posmt,
+  patient_order_scheduled_message_group posmg,
+  scheduled_message sm,
+  message_type mt
+WHERE
+  posm.scheduled_message_id=sm.scheduled_message_id
+  AND posmg.patient_order_scheduled_message_type_id=posmt.patient_order_scheduled_message_type_id
+  AND posmg.patient_order_scheduled_message_group_id=posm.patient_order_scheduled_message_group_id
+  AND sm.message_type_id=mt.message_type_id;
+
+
+-- Recreate view with latest columns
+
 CREATE VIEW v_patient_order AS WITH po_query AS (
     select
         *

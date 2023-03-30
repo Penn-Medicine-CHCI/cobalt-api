@@ -26,6 +26,7 @@ import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderOutreachRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
@@ -50,6 +51,7 @@ import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.Patient
 import com.cobaltplatform.api.model.api.response.PatientOrderAutocompleteResultApiResponse.PatientOrderAutocompleteResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderTriageApiResponse.PatientOrderTriageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
@@ -64,6 +66,7 @@ import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispo
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderOutreach;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.Race;
@@ -817,6 +820,37 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
+	@POST("/patient-order-scheduled-message-groups")
+	@AuthenticationRequired
+	public ApiResponse createPatientOrderScheduledMessageGroup(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		CreatePatientOrderScheduledMessageGroupRequest request = getRequestBodyParser().parse(requestBody, CreatePatientOrderScheduledMessageGroupRequest.class);
+		request.setAccountId(account.getAccountId());
+
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(request.getPatientOrderId()).orElse(null);
+
+		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		UUID patientOrderScheduledMessageGroupId = getPatientOrderService().createPatientOrderScheduledMessageGroup(request);
+
+		List<PatientOrderScheduledMessage> patientOrderScheduledMessages = getPatientOrderService().findPatientOrderScheduledMessagesByPatientOrderId(request.getPatientOrderId()).stream()
+				.filter(patientOrderScheduledMessage -> patientOrderScheduledMessage.getPatientOrderScheduledMessageGroupId().equals(patientOrderScheduledMessageGroupId))
+				.collect(Collectors.toList());
+
+		PatientOrderScheduledMessageGroupApiResponse patientOrderScheduledMessageGroupApiResponse = getPatientOrderService().generatePatientOrderScheduledMessageGroupApiResponses(patientOrderScheduledMessages).stream()
+				.findFirst()
+				.get();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrderScheduledMessageGroup", patientOrderScheduledMessageGroupApiResponse);
+		}});
+	}
+
+	@Nonnull
 	@GET("/integrated-care/panel-accounts")
 	@AuthenticationRequired
 	public ApiResponse panelAccounts() {
@@ -1045,6 +1079,15 @@ public class PatientOrderResource {
 				})
 				.collect(Collectors.toList());
 
+		List<Map<String, Object>> patientOrderScheduledMessageTypes = getPatientOrderService().findPatientOrderScheduledMessageTypes().stream()
+				.map(patientOrderScheduledMessageType -> {
+					Map<String, Object> patientOrderScheduledMessageTypeJson = new HashMap<>();
+					patientOrderScheduledMessageTypeJson.put("patientOrderScheduledMessageTypeId", patientOrderScheduledMessageType.getPatientOrderScheduledMessageTypeId());
+					patientOrderScheduledMessageTypeJson.put("description", patientOrderScheduledMessageType.getDescription());
+					return patientOrderScheduledMessageTypeJson;
+				})
+				.collect(Collectors.toList());
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("timeZones", timeZones);
 			put("countries", countries);
@@ -1059,6 +1102,7 @@ public class PatientOrderResource {
 			put("patientOrderStatuses", patientOrderStatuses);
 			put("patientOrderDispositions", patientOrderDispositions);
 			put("patientOrderOutreachResults", patientOrderOutreachResults);
+			put("patientOrderScheduledMessageTypes", patientOrderScheduledMessageTypes);
 		}});
 	}
 
