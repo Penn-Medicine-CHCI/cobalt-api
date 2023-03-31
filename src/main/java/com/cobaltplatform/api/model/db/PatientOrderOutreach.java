@@ -33,6 +33,8 @@ public class PatientOrderOutreach {
 	@Nullable
 	private UUID patientOrderOutreachId;
 	@Nullable
+	private UUID patientOrderOutreachResultId;
+	@Nullable
 	private UUID patientOrderId;
 	@Nullable
 	private UUID accountId;
@@ -54,6 +56,15 @@ public class PatientOrderOutreach {
 
 	public void setPatientOrderOutreachId(@Nullable UUID patientOrderOutreachId) {
 		this.patientOrderOutreachId = patientOrderOutreachId;
+	}
+
+	@Nullable
+	public UUID getPatientOrderOutreachResultId() {
+		return this.patientOrderOutreachResultId;
+	}
+
+	public void setPatientOrderOutreachResultId(@Nullable UUID patientOrderOutreachResultId) {
+		this.patientOrderOutreachResultId = patientOrderOutreachResultId;
 	}
 
 	@Nullable
