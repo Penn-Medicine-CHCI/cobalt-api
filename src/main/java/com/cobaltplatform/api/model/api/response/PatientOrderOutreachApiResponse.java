@@ -48,6 +48,8 @@ public class PatientOrderOutreachApiResponse {
 	@Nonnull
 	private final UUID patientOrderOutreachId;
 	@Nonnull
+	private final UUID patientOrderOutreachResultId;
+	@Nonnull
 	private final UUID patientOrderId;
 	@Nonnull
 	private final UUID accountId;
@@ -97,6 +99,7 @@ public class PatientOrderOutreachApiResponse {
 		requireNonNull(patientOrderOutreach);
 
 		this.patientOrderOutreachId = patientOrderOutreach.getPatientOrderOutreachId();
+		this.patientOrderOutreachResultId = patientOrderOutreach.getPatientOrderOutreachResultId();
 		this.patientOrderId = patientOrderOutreach.getPatientOrderId();
 		this.accountId = patientOrderOutreach.getAccountId();
 		this.note = patientOrderOutreach.getNote();
@@ -116,6 +119,11 @@ public class PatientOrderOutreachApiResponse {
 	@Nonnull
 	public UUID getPatientOrderOutreachId() {
 		return this.patientOrderOutreachId;
+	}
+
+	@Nonnull
+	public UUID getPatientOrderOutreachResultId() {
+		return this.patientOrderOutreachResultId;
 	}
 
 	@Nonnull
