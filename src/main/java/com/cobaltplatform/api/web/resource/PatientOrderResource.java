@@ -29,6 +29,7 @@ import com.cobaltplatform.api.model.api.request.CreatePatientOrderOutreachReques
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderOutreachRequest;
+import com.cobaltplatform.api.model.api.request.DeletePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
@@ -873,7 +874,7 @@ public class PatientOrderResource {
 
 		UpdatePatientOrderScheduledMessageGroupRequest request = getRequestBodyParser().parse(requestBody, UpdatePatientOrderScheduledMessageGroupRequest.class);
 		request.setAccountId(account.getAccountId());
-		request.setPatientOrderScheduledMessageGroupRequestId(patientOrderScheduledMessageGroupId);
+		request.setPatientOrderScheduledMessageGroupId(patientOrderScheduledMessageGroupId);
 
 		getPatientOrderService().updatePatientOrderScheduledMessageGroup(request);
 
@@ -909,7 +910,7 @@ public class PatientOrderResource {
 
 		DeletePatientOrderScheduledMessageGroupRequest request = new DeletePatientOrderScheduledMessageGroupRequest();
 		request.setAccountId(account.getAccountId());
-		request.setPatientOrderScheduledMessageGroupRequestId(patientOrderScheduledMessageGroupId);
+		request.setPatientOrderScheduledMessageGroupId(patientOrderScheduledMessageGroupId);
 
 		getPatientOrderService().deletePatientOrderScheduledMessageGroup(request);
 

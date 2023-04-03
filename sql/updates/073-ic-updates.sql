@@ -1,9 +1,44 @@
 BEGIN;
 SELECT _v.register_patch('073-ic-updates', NULL, NULL);
 
--- Recreate view with latest columns
+ALTER TABLE patient_order_scheduled_message_group ADD COLUMN deleted BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE patient_order_scheduled_message_group ADD COLUMN deleted_at TIMESTAMP WITH TIME ZONE;
 
-CREATE VIEW v_patient_order AS WITH po_query AS (
+-- Recreate view to filter out deleted message groups
+CREATE OR REPLACE VIEW v_patient_order_scheduled_message AS
+SELECT
+  posmg.patient_order_scheduled_message_group_id,
+  posmg.patient_order_id,
+  posmg.patient_order_scheduled_message_type_id,
+  posm.patient_order_scheduled_message_id,
+  posm.scheduled_message_id,
+  posmt.description AS patient_order_scheduled_message_type_description,
+  posm.created,
+  posm.last_updated,
+  sm.scheduled_message_status_id,
+  sm.scheduled_by_account_id,
+  sm.scheduled_message_source_id,
+  sm.message_type_id,
+  mt.description AS message_type_description,
+  sm.scheduled_at,
+  sm.time_zone,
+  sm.processed_at,
+  sm.canceled_at,
+  sm.errored_at
+FROM
+  patient_order_scheduled_message posm,
+  patient_order_scheduled_message_type posmt,
+  patient_order_scheduled_message_group posmg,
+  scheduled_message sm,
+  message_type mt
+WHERE
+  posm.scheduled_message_id=sm.scheduled_message_id
+  AND posmg.patient_order_scheduled_message_type_id=posmt.patient_order_scheduled_message_type_id
+  AND posmg.patient_order_scheduled_message_group_id=posm.patient_order_scheduled_message_group_id
+  AND posmg.deleted = FALSE
+  AND sm.message_type_id=mt.message_type_id;
+
+CREATE OR REPLACE VIEW v_patient_order AS WITH po_query AS (
     select
         *
     from
