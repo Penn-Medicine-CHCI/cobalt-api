@@ -506,6 +506,46 @@ public class PatientOrderService {
 	}
 
 	@Nonnull
+	public Map<PatientOrderStatusId, Integer> findPatientOrderCountsByPatientOrderStatusIdForInstitutionId(@Nullable InstitutionId institutionId,
+																																																				 @Nullable UUID panelAccountId) {
+		Map<PatientOrderStatusId, Integer> patientOrderCountsByPatientOrderStatusId = new HashMap<>(PatientOrderStatusId.values().length);
+
+		// Seed the map with zeroes for all possible statuses
+		for (PatientOrderStatusId patientOrderStatusId : PatientOrderStatusId.values())
+			patientOrderCountsByPatientOrderStatusId.put(patientOrderStatusId, 0);
+
+		if (institutionId == null)
+			return patientOrderCountsByPatientOrderStatusId;
+
+
+		List<String> whereClauseLines = new ArrayList<>();
+		List<Object> parameters = new ArrayList<>();
+
+		parameters.add(institutionId);
+
+		if (panelAccountId != null) {
+			whereClauseLines.add("AND panel_account_id=?");
+			parameters.add(panelAccountId);
+		}
+
+		String sql = """
+				  SELECT patient_order_status_id, COUNT(patient_order_status_id) AS total_count
+				  FROM v_patient_order
+				  WHERE institution_id=?
+				  {{whereClauseLines}}
+				  GROUP BY patient_order_status_id			  
+				""".trim()
+				.replace("{{whereClauseLines}}", whereClauseLines.stream().collect(Collectors.joining("\n")));
+
+		List<PatientOrderWithTotalCount> patientOrders = getDatabase().queryForList(sql, PatientOrderWithTotalCount.class, sqlVaragsParameters(parameters));
+
+		for (PatientOrderWithTotalCount patientOrder : patientOrders)
+			patientOrderCountsByPatientOrderStatusId.put(patientOrder.getPatientOrderStatusId(), patientOrder.getTotalCount());
+
+		return patientOrderCountsByPatientOrderStatusId;
+	}
+
+	@Nonnull
 	public Boolean arePatientOrderIdsAssociatedWithInstitutionId(@Nullable Collection<UUID> patientOrderIds,
 																															 @Nonnull InstitutionId institutionId) {
 		requireNonNull(institutionId);
