@@ -191,7 +191,7 @@ select
         -- Unassigned
         WHEN poq.panel_account_id IS NULL THEN 'PENDING' -- Screening completed, most severe level of care type triage is SAFETY_PLANNING
         WHEN tq.patient_order_care_type_id = 'SAFETY_PLANNING' THEN 'SAFETY_PLANNING' -- Screening completed, most severe level of care type triage is SPECIALTY
-        WHEN tq.patient_order_care_type_id = 'SPECIALTY_CARE' THEN 'SPECIALTY_CARE' -- Screening completed, most severe level of care type triage is SUBCLINICAL
+        WHEN tq.patient_order_care_type_id = 'SPECIALTY' THEN 'SPECIALTY_CARE' -- Screening completed, most severe level of care type triage is SUBCLINICAL
         WHEN tq.patient_order_care_type_id = 'SUBCLINICAL' THEN 'SUBCLINICAL' -- Screening completed, most severe level of care type triage is COLLABORATIVE.  Patient or MHIC can schedule with a provider
         WHEN tq.patient_order_care_type_id = 'COLLABORATIVE' THEN 'BHP' --  Unscreened, but has a call scheduled with an MHIC to take the screening (uncanceled patient_order_scheduled_screening)
         WHEN rssq.scheduled_date_time is not null THEN 'SCHEDULED' -- Assigned, but none of the above apply.  Also note, we are in this state if unscheduled but "screening in progress"
@@ -201,7 +201,7 @@ select
         -- Unassigned
         WHEN poq.panel_account_id IS NULL THEN 'Pending' -- Screening completed, most severe level of care type triage is SAFETY_PLANNING
         WHEN tq.patient_order_care_type_id = 'SAFETY_PLANNING' THEN 'Safety Planning' -- Screening completed, most severe level of care type triage is SPECIALTY
-        WHEN tq.patient_order_care_type_id = 'SPECIALTY_CARE' THEN 'Specialty Care' -- Screening completed, most severe level of care type triage is SUBCLINICAL
+        WHEN tq.patient_order_care_type_id = 'SPECIALTY' THEN 'Specialty Care' -- Screening completed, most severe level of care type triage is SUBCLINICAL
         WHEN tq.patient_order_care_type_id = 'SUBCLINICAL' THEN 'Subclinical' -- Screening completed, most severe level of care type triage is COLLABORATIVE.  Patient or MHIC can schedule with a provider
         WHEN tq.patient_order_care_type_id = 'COLLABORATIVE' THEN 'BHP' --  Unscreened, but has a call scheduled with an MHIC to take the screening (uncanceled patient_order_scheduled_screening)
         WHEN rssq.scheduled_date_time is not null THEN 'Scheduled' -- Assigned, but none of the above apply.  Also note, we are in this state if unscheduled but "screening in progress"
