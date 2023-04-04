@@ -918,6 +918,35 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
+	@GET("/integrated-care/panel-counts")
+	@AuthenticationRequired
+	public ApiResponse panelCounts(@Nonnull @QueryParameter Optional<UUID> panelAccountId) {
+		requireNonNull(panelAccountId);
+
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = account.getInstitutionId();
+
+		if (!getAuthorizationService().canViewPanelAccounts(institutionId, account))
+			throw new AuthorizationException();
+
+		Map<PatientOrderStatusId, Integer> patientOrderCountsByPatientOrderStatusId = getPatientOrderService().findPatientOrderCountsByPatientOrderStatusIdForInstitutionId(institutionId, panelAccountId.orElse(null));
+		Map<PatientOrderStatusId, Map<String, Object>> patientOrderCountsByPatientOrderStatusIdJson = new HashMap<>(patientOrderCountsByPatientOrderStatusId.size());
+
+		for (Entry<PatientOrderStatusId, Integer> entry : patientOrderCountsByPatientOrderStatusId.entrySet()) {
+			PatientOrderStatusId patientOrderStatusId = entry.getKey();
+			Integer count = entry.getValue();
+			patientOrderCountsByPatientOrderStatusIdJson.put(patientOrderStatusId, Map.of(
+					"patientOrderCount", count,
+					"patientOrderCountDescription", getFormatter().formatNumber(count)
+			));
+		}
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrderCountsByPatientOrderStatusId", patientOrderCountsByPatientOrderStatusIdJson);
+		}});
+	}
+
+	@Nonnull
 	@GET("/integrated-care/panel-accounts")
 	@AuthenticationRequired
 	public ApiResponse panelAccounts() {
