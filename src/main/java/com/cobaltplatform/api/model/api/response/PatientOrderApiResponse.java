@@ -310,6 +310,8 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String connectedToSafetyPlanningAtDescription;
 	@Nullable
+	private Boolean patientBelowAgeThreshold;
+	@Nullable
 	private Instant episodeClosedAt;
 	@Nullable
 	private String episodeClosedAtDescription;
@@ -670,6 +672,7 @@ public class PatientOrderApiResponse {
 			this.patientOrderSafetyPlanningStatusId = patientOrder.getPatientOrderSafetyPlanningStatusId();
 			this.connectedToSafetyPlanningAt = patientOrder.getConnectedToSafetyPlanningAt();
 			this.connectedToSafetyPlanningAtDescription = patientOrder.getConnectedToSafetyPlanningAt() == null ? null : formatter.formatTimestamp(patientOrder.getConnectedToSafetyPlanningAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+			this.patientBelowAgeThreshold = patientOrder.getPatientBelowAgeThreshold();
 			this.mostRecentEpisodeClosedAt = patientOrder.getMostRecentEpisodeClosedAt();
 			this.mostRecentEpisodeClosedAtDescription = patientOrder.getMostRecentEpisodeClosedAt() == null ? null : formatter.formatTimestamp(patientOrder.getMostRecentEpisodeClosedAt());
 			this.mostRecentEpisodeClosedWithinDateThreshold = patientOrder.getMostRecentEpisodeClosedWithinDateThreshold();
@@ -1196,6 +1199,11 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public String getPatientOrderClosureReasonDescription() {
 		return this.patientOrderClosureReasonDescription;
+	}
+
+	@Nullable
+	public Boolean getPatientBelowAgeThreshold() {
+		return this.patientBelowAgeThreshold;
 	}
 
 	@Nullable
