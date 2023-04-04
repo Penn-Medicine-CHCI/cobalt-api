@@ -368,7 +368,7 @@ public class AccountResource {
 		}
 
 		Account pinnedAccount = account;
-		String destinationUrl = getLinkGenerator().generateAuthenticationLink(account.getInstitutionId(), ClientDeviceTypeId.WEB_BROWSER, accessToken);
+		String destinationUrl = getLinkGenerator().generateAuthenticationLink(account.getInstitutionId(), getCurrentContext().getUserExperienceTypeId().get(), ClientDeviceTypeId.WEB_BROWSER, accessToken);
 
 		UUID sessionTrackingId = getCurrentContext().getSessionTrackingId().orElse(null);
 
@@ -503,6 +503,7 @@ public class AccountResource {
 
 		CreateAccountInviteRequest request = getRequestBodyParser().parse(body, CreateAccountInviteRequest.class);
 		request.setInstitutionId(getCurrentContext().getInstitutionId());
+		request.setUserExperienceTypeId(getCurrentContext().getUserExperienceTypeId().get());
 
 		UUID accountInviteId = getAccountService().createAccountInvite(request);
 
@@ -542,7 +543,7 @@ public class AccountResource {
 	public ApiResponse resendAccountClaimInvite(@Nonnull @PathParameter UUID accountInviteId) {
 		requireNonNull(accountInviteId);
 
-		getAccountService().resendAccountVerificationEmail(accountInviteId);
+		getAccountService().resendAccountVerificationEmail(accountInviteId, getCurrentContext().getUserExperienceTypeId().get());
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("accountInviteId", accountInviteId);
@@ -725,6 +726,8 @@ public class AccountResource {
 		requireNonNull(body);
 
 		ForgotPasswordRequest request = getRequestBodyParser().parse(body, ForgotPasswordRequest.class);
+		request.setUserExperienceTypeId(getCurrentContext().getUserExperienceTypeId().get());
+
 		getAccountService().forgotPassword(request);
 
 		return new ApiResponse();

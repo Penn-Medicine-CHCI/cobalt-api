@@ -24,6 +24,7 @@ import com.cobaltplatform.api.integration.epic.MyChartAccessToken;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.security.AccessTokenStatus;
 import com.cobaltplatform.api.model.service.RemoteClient;
 
@@ -63,6 +64,8 @@ public class CurrentContext {
 	@Nonnull
 	private final InstitutionId institutionId;
 	@Nullable
+	private final UserExperienceTypeId userExperienceTypeId;
+	@Nullable
 	private final Account account;
 	@Nullable
 	private final UUID sessionTrackingId;
@@ -85,6 +88,7 @@ public class CurrentContext {
 		this.timeZone = builder.timeZone;
 		this.account = builder.account;
 		this.institutionId = builder.institutionId;
+		this.userExperienceTypeId = builder.userExperienceTypeId;
 		this.accessToken = trimToNull(builder.accessToken);
 		this.accessTokenStatus = builder.accessTokenStatus;
 		this.remoteClient = builder.remoteClient;
@@ -139,6 +143,11 @@ public class CurrentContext {
 	}
 
 	@Nonnull
+	public Optional<UserExperienceTypeId> getUserExperienceTypeId() {
+		return Optional.ofNullable(this.userExperienceTypeId);
+	}
+
+	@Nonnull
 	public Optional<RemoteClient> getRemoteClient() {
 		return Optional.ofNullable(this.remoteClient);
 	}
@@ -184,6 +193,8 @@ public class CurrentContext {
 		@Nullable
 		private final InstitutionId institutionId;
 		@Nullable
+		private UserExperienceTypeId userExperienceTypeId;
+		@Nullable
 		private String accessToken;
 		@Nullable
 		private AccessTokenStatus accessTokenStatus;
@@ -226,6 +237,12 @@ public class CurrentContext {
 			this.institutionId = institutionId;
 			this.locale = locale;
 			this.timeZone = timeZone;
+		}
+
+		@Nonnull
+		public Builder userExperienceTypeId(@Nullable UserExperienceTypeId userExperienceTypeId) {
+			this.userExperienceTypeId = userExperienceTypeId;
+			return this;
 		}
 
 		@Nonnull

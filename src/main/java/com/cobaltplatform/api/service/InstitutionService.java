@@ -35,6 +35,7 @@ import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.SupportRole;
+import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
 import com.cobaltplatform.api.model.service.FeaturesForInstitution;
 import com.cobaltplatform.api.util.JsonMapper;
@@ -118,16 +119,29 @@ public class InstitutionService {
 	}
 
 	@Nonnull
-	public Optional<String> findWebappBaseUrlByInstitutionId(@Nullable InstitutionId institutionId) {
-		if (institutionId == null)
+	public Optional<String> findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(@Nullable InstitutionId institutionId,
+																																									@Nullable UserExperienceTypeId userExperienceTypeId) {
+		if (institutionId == null || userExperienceTypeId == null)
 			return Optional.empty();
 
+		// First, see if we have a URL matching the user experience type for the institution
 		InstitutionUrl institutionUrl = getDatabase().queryForObject("""
 				    SELECT *
 				    FROM institution_url
 				    WHERE institution_id=?
 				    AND preferred=TRUE
-				""", InstitutionUrl.class, institutionId).orElse(null);
+				    AND user_experience_type_id=?
+				""", InstitutionUrl.class, institutionId, userExperienceTypeId).orElse(null);
+
+		// ...if not, just pick the URL regardless of user experience type (perhaps institution does not have
+		// multiple user experience types)
+		if (institutionUrl == null)
+			institutionUrl = getDatabase().queryForObject("""
+					    SELECT *
+					    FROM institution_url
+					    WHERE institution_id=?
+					    AND preferred=TRUE
+					""", InstitutionUrl.class, institutionId).orElse(null);
 
 		if (institutionUrl == null)
 			return Optional.empty();

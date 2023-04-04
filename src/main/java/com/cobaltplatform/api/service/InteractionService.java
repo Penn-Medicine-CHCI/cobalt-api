@@ -45,6 +45,7 @@ import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.ScreeningSessionScreening;
 import com.cobaltplatform.api.model.db.ScreeningType;
 import com.cobaltplatform.api.model.db.ScreeningVersion;
+import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.ScreeningQuestionWithAnswerOptions;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
@@ -310,7 +311,7 @@ public class InteractionService {
 						put("metadata", metadata);
 						put("endUserHtmlRepresentation", endUserHtmlRepresentation);
 						put("interactionInstanceUrl", format("%s/interaction-instances/%s",
-								getInstitutionService().findWebappBaseUrlByInstitutionId(institution.getInstitutionId()).get(), interactionInstanceId));
+								getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institution.getInstitutionId(), UserExperienceTypeId.STAFF).get(), interactionInstanceId));
 						put("messageTemplateBodyHtml", interaction.getMessageTemplateBody());
 					}})
 					.build();

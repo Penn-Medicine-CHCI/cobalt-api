@@ -58,7 +58,7 @@ import com.cobaltplatform.api.model.db.BetaFeatureAlert.BetaFeatureAlertStatusId
 import com.cobaltplatform.api.model.db.BetaStatus.BetaStatusId;
 import com.cobaltplatform.api.model.db.BirthSex;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
-import com.cobaltplatform.api.model.db.ClientDeviceType;
+import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.model.db.Ethnicity;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity;
@@ -72,6 +72,7 @@ import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
+import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.security.AccessTokenClaims;
 import com.cobaltplatform.api.model.service.AccountEmailVerificationFlowTypeId;
 import com.cobaltplatform.api.model.service.IcTestPatientEmailAddress;
@@ -363,6 +364,7 @@ public class AccountService {
 		InstitutionId institutionId = request.getInstitutionId();
 		String emailAddress = getNormalizer().normalizeEmailAddress(request.getEmailAddress()).orElse(null);
 		String password = trimToNull(request.getPassword());
+		UserExperienceTypeId userExperienceTypeId = request.getUserExperienceTypeId();
 		UUID accountInviteCode = UUID.randomUUID();
 
 		if (institutionId == null)
@@ -382,6 +384,9 @@ public class AccountService {
 		else if (!getAuthenticator().validatePasswordRules(password))
 			validationException.add(new FieldError("password", getStrings().get("Password must be at least 8 characters long and contain at least one letter, one number")));
 
+		if (userExperienceTypeId == null)
+			validationException.add(new FieldError("userExperienceTypeId", getStrings().get("User Experience Type ID is required.")));
+
 		if (validationException.hasErrors())
 			throw validationException;
 
@@ -390,29 +395,33 @@ public class AccountService {
 				emailAddress, getAuthenticator().hashPassword(password), accountInviteCode);
 
 		AccountInvite accountInvite = findAccountInviteById(accountInviteId).get();
-		sendAccountVerificationEmail(accountInvite);
+		sendAccountVerificationEmail(accountInvite, userExperienceTypeId);
 
 		return accountInviteId;
 	}
 
 	@Nonnull
-	public void resendAccountVerificationEmail(UUID accountInviteId) {
+	public void resendAccountVerificationEmail(@Nullable UUID accountInviteId,
+																						 @Nonnull UserExperienceTypeId userExperienceTypeId) {
+		requireNonNull(userExperienceTypeId);
+
 		ValidationException validationException = new ValidationException();
+		AccountInvite accountInvite = findAccountInviteById(accountInviteId).orElse(null);
 
-		Optional<AccountInvite> accountInvite = findAccountInviteById(accountInviteId);
-
-		if (!accountInvite.isPresent())
+		if (accountInvite == null)
 			validationException.add(new FieldError("accountInvite", getStrings().get("This is not a valid account invite.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
 
-		sendAccountVerificationEmail(accountInvite.get());
+		sendAccountVerificationEmail(accountInvite, userExperienceTypeId);
 	}
 
 	@Nonnull
-	private void sendAccountVerificationEmail(AccountInvite accountInvite) {
+	protected void sendAccountVerificationEmail(@Nonnull AccountInvite accountInvite,
+																							@Nonnull UserExperienceTypeId userExperienceTypeId) {
 		requireNonNull(accountInvite);
+		requireNonNull(userExperienceTypeId);
 
 		Institution institution = getInstitutionService().findInstitutionById(accountInvite.getInstitutionId()).get();
 
@@ -423,7 +432,7 @@ public class AccountService {
 				}})
 				.messageContext(new HashMap<String, Object>() {{
 					put("verificationUrl", getLinkGenerator().generateAccountInviteLink(institution.getInstitutionId(),
-							ClientDeviceType.ClientDeviceTypeId.WEB_BROWSER, accountInvite.getAccountInviteCode()));
+							userExperienceTypeId, ClientDeviceTypeId.WEB_BROWSER, accountInvite.getAccountInviteCode()));
 				}})
 				.build();
 
@@ -822,11 +831,15 @@ public class AccountService {
 	public void forgotPassword(@Nullable ForgotPasswordRequest request) {
 		requireNonNull(request);
 
-		ValidationException validationException = new ValidationException();
 		String emailAddress = getNormalizer().normalizeEmailAddress(request.getEmailAddress()).orElse(null);
+		UserExperienceTypeId userExperienceTypeId = request.getUserExperienceTypeId();
+		ValidationException validationException = new ValidationException();
 
 		if (emailAddress == null)
-			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is required.")));
+			validationException.add(new FieldError("emailAddress", getStrings().get("A valid email address is required.")));
+
+		if (userExperienceTypeId == null)
+			validationException.add(new FieldError("userExperienceTypeId", getStrings().get("User Experience Type ID is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -847,7 +860,7 @@ public class AccountService {
 					}})
 					.messageContext(new HashMap<String, Object>() {{
 						put("passwordResetLink", getLinkGenerator().generatePasswordResetLink(account.get().getInstitutionId(),
-								ClientDeviceType.ClientDeviceTypeId.WEB_BROWSER, passwordResetToken));
+								userExperienceTypeId, ClientDeviceTypeId.WEB_BROWSER, passwordResetToken));
 					}})
 					.build();
 

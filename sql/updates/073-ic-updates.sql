@@ -1,6 +1,16 @@
 BEGIN;
 SELECT _v.register_patch('073-ic-updates', NULL, NULL);
 
+CREATE TABLE user_experience_type (
+  user_experience_type_id VARCHAR PRIMARY KEY,
+  description VARCHAR NOT NULL
+);
+
+INSERT INTO user_experience_type VALUES ('STAFF', 'Staff'); -- Internal support staff, e.g. admins/healthcare providers
+INSERT INTO user_experience_type VALUES ('PATIENT', 'Patient'); -- "Consumers" of care, e.g. employees or actual external patients
+
+ALTER TABLE institution_url ADD COLUMN user_experience_type_id VARCHAR NOT NULL REFERENCES user_experience_type DEFAULT 'PATIENT';
+
 ALTER TABLE patient_order_scheduled_message_group ADD COLUMN deleted BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE patient_order_scheduled_message_group ADD COLUMN deleted_at TIMESTAMP WITH TIME ZONE;
 

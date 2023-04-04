@@ -19,35 +19,29 @@
 
 package com.cobaltplatform.api.model.db;
 
-import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
-
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
+import static java.lang.String.format;
+
 /**
- * @author Transmogrify, LLC.
+ * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class InstitutionUrl {
-	@Nullable
-	private InstitutionId institutionId;
+public class UserExperienceType {
 	@Nullable
 	private UserExperienceTypeId userExperienceTypeId;
 	@Nullable
-	private String url;
-	@Nullable
-	private String hostname;
-	@Nullable
-	private Boolean preferred;
+	private String description;
 
-	@Nullable
-	public InstitutionId getInstitutionId() {
-		return this.institutionId;
+	public enum UserExperienceTypeId {
+		PATIENT,
+		STAFF
 	}
 
-	public void setInstitutionId(@Nullable InstitutionId institutionId) {
-		this.institutionId = institutionId;
+	@Override
+	public String toString() {
+		return format("%s{userExperienceTypeId=%s, description=%s}", getClass().getSimpleName(), getUserExperienceTypeId(), getDescription());
 	}
 
 	@Nullable
@@ -60,29 +54,11 @@ public class InstitutionUrl {
 	}
 
 	@Nullable
-	public String getUrl() {
-		return this.url;
+	public String getDescription() {
+		return description;
 	}
 
-	public void setUrl(@Nullable String url) {
-		this.url = url;
-	}
-
-	@Nullable
-	public String getHostname() {
-		return this.hostname;
-	}
-
-	public void setHostname(@Nullable String hostname) {
-		this.hostname = hostname;
-	}
-
-	@Nullable
-	public Boolean getPreferred() {
-		return this.preferred;
-	}
-
-	public void setPreferred(@Nullable Boolean preferred) {
-		this.preferred = preferred;
+	public void setDescription(@Nullable String description) {
+		this.description = description;
 	}
 }
