@@ -20,6 +20,9 @@
 package com.cobaltplatform.api.model.api.request;
 
 
+import com.cobaltplatform.api.model.db.UserExperienceType;
+import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -29,7 +32,18 @@ import javax.annotation.concurrent.NotThreadSafe;
 @NotThreadSafe
 public class ForgotPasswordRequest {
 	@Nullable
+	private UserExperienceTypeId userExperienceTypeId;
+	@Nullable
 	private String emailAddress;
+
+	@Nullable
+	public UserExperienceTypeId getUserExperienceTypeId() {
+		return this.userExperienceTypeId;
+	}
+
+	public void setUserExperienceTypeId(@Nullable UserExperienceTypeId userExperienceTypeId) {
+		this.userExperienceTypeId = userExperienceTypeId;
+	}
 
 	@Nullable
 	public String getEmailAddress() {

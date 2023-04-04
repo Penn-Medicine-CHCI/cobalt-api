@@ -23,6 +23,7 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.FeaturesForInstitution;
 import com.cobaltplatform.api.model.service.NavigationItem;
 import com.cobaltplatform.api.service.InstitutionService;
@@ -123,6 +124,8 @@ public class InstitutionApiResponse {
 	private final Boolean takeFeatureScreening;
 	@Nonnull
 	private final Boolean hasTakenFeatureScreening;
+	@Nonnull
+	private final UserExperienceTypeId userExperienceTypeId;
 
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
@@ -189,6 +192,7 @@ public class InstitutionApiResponse {
 		this.features = institutionService.findFeaturesByInstitutionId(institution, account);
 		this.takeFeatureScreening = screeningService.shouldAccountIdTakeScreeningFlowId(account, institution.getFeatureScreeningFlowId());
 		this.hasTakenFeatureScreening = screeningService.hasAccountIdTakenScreeningFlowId(account, institution.getFeatureScreeningFlowId());
+		this.userExperienceTypeId = currentContext.getUserExperienceTypeId().get();
 	}
 
 	@Nonnull
@@ -367,5 +371,10 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public Boolean getHasTakenFeatureScreening() {
 		return hasTakenFeatureScreening;
+	}
+
+	@Nonnull
+	public UserExperienceTypeId getUserExperienceTypeId() {
+		return this.userExperienceTypeId;
 	}
 }

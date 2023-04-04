@@ -47,6 +47,7 @@ import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.db.TagContent;
+import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.db.Visibility;
 import com.cobaltplatform.api.model.service.AdminContent;
 import com.cobaltplatform.api.model.service.ContentDurationId;
@@ -803,7 +804,7 @@ public class ContentService {
 									"contentTitle", adminContent.getTitle(),
 									"contentAuthor", adminContent.getAuthor(),
 									"submissionDate", date,
-									"cmsListUrl", getLinkGenerator().generateCmsMyContentLink(accountToNotify.getInstitutionId())
+									"cmsListUrl", getLinkGenerator().generateCmsMyContentLink(accountToNotify.getInstitutionId(), UserExperienceTypeId.STAFF)
 							))
 							.build();
 

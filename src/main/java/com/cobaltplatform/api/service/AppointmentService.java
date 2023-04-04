@@ -93,6 +93,7 @@ import com.cobaltplatform.api.model.db.QuestionType.QuestionTypeId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
+import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.db.VideoconferencePlatform.VideoconferencePlatformId;
 import com.cobaltplatform.api.model.db.VisitType;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
@@ -1038,8 +1039,9 @@ public class AppointmentService {
 					// Hack: phone number is encoded as the URL in the provider sheet.
 					// The real URL is the webapp - we have a `GET /appointments/{appointmentId}`
 					appointmentPhoneNumber = provider.getVideoconferenceUrl();
-					videoconferenceUrl = format("%s/appointments/%s", getInstitutionService().findWebappBaseUrlByInstitutionId(provider.getInstitutionId()).get(), appointmentId);
-
+					// TODO: this defaults to "patient" experience type but is also used by staff.
+					// Doesn't matter atm, and this concept of TELEPHONE should be removed/reworked, but just noting here for posterity...
+					videoconferenceUrl = format("%s/appointments/%s", getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(provider.getInstitutionId(), UserExperienceTypeId.PATIENT).get(), appointmentId);
 				} else if (videoconferencePlatformId == VideoconferencePlatformId.EXTERNAL) {
 					videoconferenceUrl = provider.getVideoconferenceUrl();
 				}
@@ -1700,7 +1702,8 @@ public class AppointmentService {
 		String providerEmailAddress = provider.getEmailAddress();
 		String videoconferenceUrl = appointment.getVideoconferenceUrl();
 
-		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionId(provider.getInstitutionId()).get();
+		String webappBaseUrlForPatient = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(provider.getInstitutionId(), UserExperienceTypeId.PATIENT).get();
+		String webappBaseUrlForStaff = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(provider.getInstitutionId(), UserExperienceTypeId.STAFF).get();
 		String providerNameAndCredentials = provider.getName();
 
 		if (provider.getLicense() != null)
@@ -1718,10 +1721,10 @@ public class AppointmentService {
 			cobaltPatientEmailMessageContext.put("patientName", accountName);
 			cobaltPatientEmailMessageContext.put("appointmentStartDateDescription", appointmentStartDateDescription);
 			cobaltPatientEmailMessageContext.put("appointmentStartTimeDescription", appointmentStartTimeDescription);
-			cobaltPatientEmailMessageContext.put("cancelUrl", format("%s/my-calendar?appointmentId=%s&action=cancel", webappBaseUrl, appointmentId));
-			cobaltPatientEmailMessageContext.put("icalUrl", format("%s/appointments/%s/ical", webappBaseUrl, appointmentId));
-			cobaltPatientEmailMessageContext.put("googleCalendarUrl", format("%s/appointments/%s/google-calendar", webappBaseUrl, appointmentId));
-			cobaltPatientEmailMessageContext.put("anotherTimeUrl", format("%s/connect-with-support", webappBaseUrl));
+			cobaltPatientEmailMessageContext.put("cancelUrl", format("%s/my-calendar?appointmentId=%s&action=cancel", webappBaseUrlForPatient, appointmentId));
+			cobaltPatientEmailMessageContext.put("icalUrl", format("%s/appointments/%s/ical", webappBaseUrlForPatient, appointmentId));
+			cobaltPatientEmailMessageContext.put("googleCalendarUrl", format("%s/appointments/%s/google-calendar", webappBaseUrlForPatient, appointmentId));
+			cobaltPatientEmailMessageContext.put("anotherTimeUrl", format("%s/connect-with-support", webappBaseUrlForPatient));
 
 			EmailMessage patientEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_CREATED_PATIENT, account.getLocale())
 					.toAddresses(Collections.singletonList(account.getEmailAddress()))
@@ -1766,12 +1769,12 @@ public class AppointmentService {
 		cobaltProviderEmailMessageContext.put("accountName", accountName);
 		cobaltProviderEmailMessageContext.put("accountEmailAddress", account.getEmailAddress());
 		cobaltProviderEmailMessageContext.put("videoconferenceUrl", videoconferenceUrl);
-		cobaltProviderEmailMessageContext.put("icalUrl", format("%s/appointments/%s/ical", webappBaseUrl, appointmentId));
-		cobaltProviderEmailMessageContext.put("googleCalendarUrl", format("%s/appointments/%s/google-calendar", webappBaseUrl, appointmentId));
+		cobaltProviderEmailMessageContext.put("icalUrl", format("%s/appointments/%s/ical", webappBaseUrlForStaff, appointmentId));
+		cobaltProviderEmailMessageContext.put("googleCalendarUrl", format("%s/appointments/%s/google-calendar", webappBaseUrlForStaff, appointmentId));
 
 		// With native scheduling, providers can deeplink right to the appointment on their calendar
 		if (appointment.getSchedulingSystemId() == SchedulingSystemId.COBALT)
-			cobaltProviderEmailMessageContext.put("providerSchedulingUrl", format("%s/scheduling/appointments/%s", webappBaseUrl, appointmentId));
+			cobaltProviderEmailMessageContext.put("providerSchedulingUrl", format("%s/scheduling/appointments/%s", webappBaseUrlForStaff, appointmentId));
 
 		EmailMessage providerEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_CREATED_PROVIDER, provider.getLocale())
 				.toAddresses(List.of(provider.getEmailAddress()))
@@ -2032,6 +2035,8 @@ public class AppointmentService {
 		return getDatabase().execute("UPDATE appointment SET attendance_status_id=? WHERE appointment_id=?", attendanceStatusId, appointmentId) > 0;
 	}
 
+	// TODO: this is replaced by native scheduling, should remove...
+	@Deprecated
 	private void sendProviderScoreEmail(@Nonnull Provider provider,
 																			@Nonnull Account account,
 																			@Nullable String accountEmailAddress,
@@ -2064,7 +2069,7 @@ public class AppointmentService {
 
 			if (assessment != null && assessment.getAnswersMayContainPii())
 				intakeAssessmentAnswerString = format("Please sign in to Cobalt and then click this link to view intake responses: %s/account-sessions/%s/text",
-						getInstitutionService().findWebappBaseUrlByInstitutionId(provider.getInstitutionId()).get(), intakeSession.getAccountSessionId());
+						getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(provider.getInstitutionId(), UserExperienceTypeId.STAFF).get(), intakeSession.getAccountSessionId());
 		}
 
 		String accountScoreString;

@@ -25,6 +25,7 @@ import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InteractionInstance;
 import com.cobaltplatform.api.model.db.InteractionOption;
+import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.service.InstitutionService;
 
 import javax.annotation.Nonnull;
@@ -73,8 +74,13 @@ public class LinkGenerator {
 
 	@Nonnull
 	public String generateAuthenticationLink(@Nonnull InstitutionId institutionId,
+																					 @Nonnull UserExperienceTypeId userExperienceTypeId,
 																					 @Nonnull String accessToken) {
-		return generateAuthenticationLink(institutionId, determineCurrentClientDeviceTypeId(), accessToken);
+		requireNonNull(institutionId);
+		requireNonNull(userExperienceTypeId);
+		requireNonNull(accessToken);
+
+		return generateAuthenticationLink(institutionId, userExperienceTypeId, determineCurrentClientDeviceTypeId(), accessToken);
 	}
 
 	@Nonnull
@@ -90,13 +96,15 @@ public class LinkGenerator {
 
 	@Nonnull
 	public String generateAuthenticationLink(@Nonnull InstitutionId institutionId,
+																					 @Nonnull UserExperienceTypeId userExperienceTypeId,
 																					 @Nonnull ClientDeviceTypeId clientDeviceTypeId,
 																					 @Nonnull String accessToken) {
 		requireNonNull(institutionId);
+		requireNonNull(userExperienceTypeId);
 		requireNonNull(clientDeviceTypeId);
 		requireNonNull(accessToken);
 
-		String baseUrl = determineBaseUrl(institutionId, clientDeviceTypeId);
+		String baseUrl = determineBaseUrl(institutionId, userExperienceTypeId, clientDeviceTypeId);
 		String urlPath = "auth";
 
 		return constructUrl(baseUrl, urlPath, new HashMap<String, Object>() {{
@@ -106,37 +114,49 @@ public class LinkGenerator {
 
 	@Nonnull
 	public String generateAccountInviteLink(@Nonnull InstitutionId institutionId,
+																					@Nonnull UserExperienceTypeId userExperienceTypeId,
 																					@Nonnull ClientDeviceTypeId clientDeviceTypeId,
 																					@Nonnull UUID accountInviteCode) {
 		requireNonNull(institutionId);
+		requireNonNull(userExperienceTypeId);
 		requireNonNull(clientDeviceTypeId);
 		requireNonNull(accountInviteCode);
 
-		return constructUrl(determineBaseUrl(institutionId, clientDeviceTypeId),
+		return constructUrl(determineBaseUrl(institutionId, userExperienceTypeId, clientDeviceTypeId),
 				format("accounts/claim-invite/%s", accountInviteCode), new HashMap<String, Object>());
 	}
 
 	@Nonnull
 	public String generatePasswordResetLink(@Nonnull InstitutionId institutionId,
+																					@Nonnull UserExperienceTypeId userExperienceTypeId,
 																					@Nonnull ClientDeviceTypeId clientDeviceTypeId,
 																					@Nonnull UUID passwordResetToken) {
 		requireNonNull(institutionId);
+		requireNonNull(userExperienceTypeId);
 		requireNonNull(clientDeviceTypeId);
 		requireNonNull(passwordResetToken);
 
-		return constructUrl(determineBaseUrl(institutionId, clientDeviceTypeId),
+		return constructUrl(determineBaseUrl(institutionId, userExperienceTypeId, clientDeviceTypeId),
 				format("accounts/reset-password/%s", passwordResetToken), new HashMap<String, Object>());
 	}
 
 	@Nonnull
-	public String generateCmsMyContentLink(@Nonnull InstitutionId institutionId) {
-		return constructUrl(determineBaseUrl(institutionId, ClientDeviceTypeId.WEB_BROWSER),
-				"cms/on-your-time/");
+	public String generateCmsMyContentLink(@Nonnull InstitutionId institutionId,
+																				 @Nonnull UserExperienceTypeId userExperienceTypeId) {
+		requireNonNull(institutionId);
+		requireNonNull(userExperienceTypeId);
+
+		return constructUrl(determineBaseUrl(institutionId, userExperienceTypeId, ClientDeviceTypeId.WEB_BROWSER),
+				"cms/on-your-time");
 	}
 
 	@Nonnull
-	public String generateGroupSessionsAdminListLink(@Nonnull InstitutionId institutionId) {
-		return constructUrl(determineBaseUrl(institutionId, ClientDeviceTypeId.WEB_BROWSER),
+	public String generateGroupSessionsAdminListLink(@Nonnull InstitutionId institutionId,
+																									 @Nonnull UserExperienceTypeId userExperienceTypeId) {
+		requireNonNull(institutionId);
+		requireNonNull(userExperienceTypeId);
+
+		return constructUrl(determineBaseUrl(institutionId, userExperienceTypeId, ClientDeviceTypeId.WEB_BROWSER),
 				"group-sessions/scheduled");
 	}
 
@@ -144,19 +164,21 @@ public class LinkGenerator {
 	public String generateInteractionOptionLink(@Nonnull InstitutionId institutionId,
 																							@Nonnull InteractionOption interactionOption,
 																							@Nonnull InteractionInstance interactionInstance) {
-		return constructUrl(determineBaseUrl(institutionId, ClientDeviceTypeId.WEB_BROWSER),
+		return constructUrl(determineBaseUrl(institutionId, UserExperienceTypeId.STAFF, ClientDeviceTypeId.WEB_BROWSER),
 				format("interaction/%s/option/%s", interactionInstance.getInteractionInstanceId(), interactionOption.getInteractionOptionId()),
 				new HashMap<String, Object>());
 	}
 
 	@Nonnull
 	protected String determineBaseUrl(@Nonnull InstitutionId institutionId,
+																		@Nonnull UserExperienceTypeId userExperienceTypeId,
 																		@Nonnull ClientDeviceTypeId clientDeviceTypeId) {
 		requireNonNull(institutionId);
+		requireNonNull(userExperienceTypeId);
 		requireNonNull(clientDeviceTypeId);
 
 		if (clientDeviceTypeId == ClientDeviceTypeId.WEB_BROWSER)
-			return getInstitutionService().findWebappBaseUrlByInstitutionId(institutionId).get();
+			return getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, userExperienceTypeId).get();
 
 		throw new IllegalStateException(format("Unexpected %s value %s encountered", ClientDeviceTypeId.class.getSimpleName(), clientDeviceTypeId.name()));
 	}

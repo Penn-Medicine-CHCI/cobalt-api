@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -35,6 +36,8 @@ public class CreateAccountInviteRequest {
 	private String emailAddress;
 	@Nullable
 	private String password;
+	@Nullable
+	private UserExperienceTypeId userExperienceTypeId;
 
 	@Nullable
 	public InstitutionId getInstitutionId() {
@@ -61,5 +64,14 @@ public class CreateAccountInviteRequest {
 
 	public void setPassword(@Nullable String password) {
 		this.password = password;
+	}
+
+	@Nullable
+	public UserExperienceTypeId getUserExperienceTypeId() {
+		return this.userExperienceTypeId;
+	}
+
+	public void setUserExperienceTypeId(@Nullable UserExperienceTypeId userExperienceTypeId) {
+		this.userExperienceTypeId = userExperienceTypeId;
 	}
 }

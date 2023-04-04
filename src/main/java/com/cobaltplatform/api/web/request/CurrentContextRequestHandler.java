@@ -29,6 +29,8 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.InstitutionUrl;
+import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.security.AccessTokenClaims;
 import com.cobaltplatform.api.model.security.AccessTokenStatus;
 import com.cobaltplatform.api.model.service.RemoteClient;
@@ -225,6 +227,9 @@ public class CurrentContextRequestHandler {
 						account.getAccountId(), account.getInstitutionId().name(), institution.getInstitutionId().name()));
 			}
 
+			InstitutionUrl institutionUrl = getInstitutionService().findInstitutionUrlByWebappBaseUrl(webappBaseUrl).orElse(null);
+			UserExperienceTypeId userExperienceTypeId = institutionUrl == null ? null : institutionUrl.getUserExperienceTypeId();
+
 			CurrentContext.Builder currentContextBuilder = account == null
 					? new CurrentContext.Builder(institution.getInstitutionId(), locale, timeZone)
 					: new CurrentContext.Builder(account, locale, timeZone);
@@ -235,6 +240,7 @@ public class CurrentContextRequestHandler {
 					.remoteClient(remoteClient)
 					.webappBaseUrl(webappBaseUrl)
 					.webappCurrentUrl(webappCurrentUrl)
+					.userExperienceTypeId(userExperienceTypeId)
 					.sessionTrackingId(sessionTrackingId)
 					.accountSource(accountSource)
 					.fingerprintId(fingerprintIdValue)

@@ -25,6 +25,7 @@ import com.cobaltplatform.api.model.db.AuditLog;
 import com.cobaltplatform.api.model.db.AuditLogEvent.AuditLogEventId;
 import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.security.SamlIdentityProvider;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AuditLogService;
@@ -115,6 +116,7 @@ public class SamlResource {
 	@Nonnull
 	@GET("/saml/login")
 	public Object samlLogin(@Nonnull @QueryParameter("redirectBaseUrl") Optional<String> providedRedirectBaseUrl,
+													@Nonnull @QueryParameter Optional<UserExperienceTypeId> userExperienceTypeId,
 													@Nonnull HttpServletRequest httpServletRequest,
 													@Nonnull HttpServletResponse httpServletResponse) throws IOException {
 		requireNonNull(providedRedirectBaseUrl);
@@ -126,7 +128,7 @@ public class SamlResource {
 			throw new IllegalStateException();
 
 		// Default if not specified...
-		String redirectBaseUrl = providedRedirectBaseUrl.orElse(getInstitutionService().findWebappBaseUrlByInstitutionId(InstitutionId.COBALT).get());
+		String redirectBaseUrl = providedRedirectBaseUrl.orElse(getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(InstitutionId.COBALT, userExperienceTypeId.orElse(UserExperienceTypeId.PATIENT)).get());
 
 		// Fake login page for testing
 		String html = Files.readString(Paths.get("web/pages/saml-login.html"), StandardCharsets.UTF_8);
@@ -184,7 +186,13 @@ public class SamlResource {
 		if (redirectBaseUrl != null)
 			destinationUrl = getLinkGenerator().generateAuthenticationLink(redirectBaseUrl, accessToken);
 		else
-			destinationUrl = getLinkGenerator().generateAuthenticationLink(InstitutionId.COBALT, ClientDeviceTypeId.WEB_BROWSER, accessToken);
+			// TODO: provide a way to say "default to X user experience type" if we don't have contextual information yet
+			// (normally this is derived from the URL, e.g. a subdomain indicates STAFF or PATIENT, but in a SAML Assertion,
+			// when an IdP does not support relay state, we might not know our context.
+			// But - because we have the account, we could have a default stored at the account level, or at the institution-role level.
+			// Or alternatively - and probably better - a cookie could be dropped prior to SAML flow that says what the user experience type should be.
+			// For the moment, hardcode here.
+			destinationUrl = getLinkGenerator().generateAuthenticationLink(InstitutionId.COBALT, UserExperienceTypeId.PATIENT, ClientDeviceTypeId.WEB_BROWSER, accessToken);
 
 		return new RedirectResponse(destinationUrl, RedirectResponse.Type.TEMPORARY);
 	}

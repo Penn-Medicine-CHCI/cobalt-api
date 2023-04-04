@@ -38,6 +38,7 @@ import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledMessa
 import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderOutreachRequest;
+import com.cobaltplatform.api.model.api.request.DeletePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
@@ -45,6 +46,7 @@ import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderSafetyPlanningStatusRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest.CreatePatientOrderTriageRequest;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse;
@@ -1252,6 +1254,7 @@ public class PatientOrderService {
 
 		UUID accountId = request.getAccountId();
 		UUID patientOrderOutreachId = request.getPatientOrderOutreachId();
+		UUID patientOrderOutreachResultId = request.getPatientOrderOutreachResultId();
 		String note = trimToNull(request.getNote());
 		LocalDate outreachDate = request.getOutreachDate();
 		String outreachTimeAsString = trimToNull(request.getOutreachTime());
@@ -1270,6 +1273,9 @@ public class PatientOrderService {
 			if (patientOrderOutreach == null)
 				validationException.add(new FieldError("patientOrderOutreachId", getStrings().get("Patient Order Outreach ID is invalid.")));
 		}
+
+		if (patientOrderOutreachResultId == null)
+			validationException.add(new FieldError("patientOrderOutreachResultId", getStrings().get("Patient Order Outreach Result ID is required.")));
 
 		if (outreachDate == null)
 			validationException.add(new FieldError("outreachDate", getStrings().get("Outreach date is required.")));
@@ -1291,27 +1297,32 @@ public class PatientOrderService {
 
 		boolean updated = getDatabase().execute("""
 				UPDATE patient_order_outreach
-				SET note=?, outreach_date_time=?
+				SET patient_order_outreach_result_id=?, note=?, outreach_date_time=?
 				WHERE patient_order_outreach_id=?
-				""", note, outreachDateTime, patientOrderOutreachId) > 0;
+				""", patientOrderOutreachResultId, note, outreachDateTime, patientOrderOutreachId) > 0;
 
 		if (updated) {
 			UUID patientOrderId = patientOrderOutreach.getPatientOrderId();
+			UUID oldPatientOrderOutreachResultId = patientOrderOutreach.getPatientOrderOutreachResultId();
 			String oldNote = patientOrderOutreach.getNote();
 			LocalDateTime oldOutreachDateTime = patientOrderOutreach.getOutreachDateTime();
+
+			Map<String, Object> metadata = new HashMap<>();
+			metadata.put("patientOrderOutreachId", patientOrderOutreachId);
+			metadata.put("accountId", accountId);
+			metadata.put("oldPatientOrderOutreachResultId", oldPatientOrderOutreachResultId);
+			metadata.put("newPatientOrderOutreachResultId", patientOrderOutreachResultId);
+			metadata.put("oldNote", oldNote);
+			metadata.put("newNote", note);
+			metadata.put("oldOutreachDateTime", oldOutreachDateTime);
+			metadata.put("newOutreachDateTime", outreachDateTime);
 
 			createPatientOrderEvent(new CreatePatientOrderEventRequest() {{
 				setPatientOrderEventTypeId(PatientOrderEventTypeId.OUTREACH_UPDATED);
 				setPatientOrderId(patientOrderId);
 				setAccountId(accountId);
 				setMessage("Updated outreach."); // Not localized on the way in
-				setMetadata(Map.of(
-						"patientOrderOutreachId", patientOrderOutreachId,
-						"accountId", accountId,
-						"oldNote", oldNote,
-						"newNote", note,
-						"oldOutreachDateTime", oldOutreachDateTime,
-						"newOutreachDateTime", outreachDateTime));
+				setMetadata(metadata);
 			}});
 		}
 
@@ -1609,6 +1620,18 @@ public class PatientOrderService {
 	}
 
 	@Nonnull
+	public Optional<PatientOrderScheduledMessageGroup> findPatientOrderScheduledMessageGroupById(@Nullable UUID patientOrderScheduledMessageGroupId) {
+		if (patientOrderScheduledMessageGroupId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM patient_order_scheduled_message_group
+				WHERE patient_order_scheduled_message_group_id=?
+				""", PatientOrderScheduledMessageGroup.class, patientOrderScheduledMessageGroupId);
+	}
+
+	@Nonnull
 	public UUID createPatientOrderScheduledMessageGroup(@Nonnull CreatePatientOrderScheduledMessageGroupRequest request) {
 		requireNonNull(request);
 
@@ -1670,9 +1693,6 @@ public class PatientOrderService {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		Institution institution = getInstitutionService().findInstitutionById(patientOrder.getInstitutionId()).get();
-		LocalTime pinnedScheduledAtTime = scheduledAtTime;
-
 		getDatabase().execute("""
 				INSERT INTO patient_order_scheduled_message_group (
 					patient_order_scheduled_message_group_id,
@@ -1680,6 +1700,153 @@ public class PatientOrderService {
 					patient_order_scheduled_message_type_id
 				) VALUES (?,?,?)
 				""", patientOrderScheduledMessageGroupId, patientOrderId, patientOrderScheduledMessageTypeId);
+
+		createScheduledMessagesForPatientOrderScheduledMessageGroup(patientOrderScheduledMessageGroupId, patientOrder,
+				patientOrderScheduledMessageType, messageTypeIds, scheduledAtDate, scheduledAtTime);
+
+		// TODO: track in event log
+
+		return patientOrderScheduledMessageGroupId;
+	}
+
+	@Nonnull
+	public Boolean updatePatientOrderScheduledMessageGroup(@Nonnull UpdatePatientOrderScheduledMessageGroupRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderScheduledMessageGroupId = request.getPatientOrderScheduledMessageGroupId();
+		PatientOrderScheduledMessageTypeId patientOrderScheduledMessageTypeId = request.getPatientOrderScheduledMessageTypeId();
+		UUID accountId = request.getAccountId();
+		Set<MessageTypeId> messageTypeIds = request.getMessageTypeIds() == null ? Set.of() : request.getMessageTypeIds();
+		LocalDate scheduledAtDate = request.getScheduledAtDate();
+		String scheduledAtTimeAsString = trimToNull(request.getScheduledAtTime());
+		LocalTime scheduledAtTime = null;
+		PatientOrder patientOrder = null;
+		PatientOrderScheduledMessageGroup patientOrderScheduledMessageGroup = null;
+		PatientOrderScheduledMessageType patientOrderScheduledMessageType = null;
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderScheduledMessageGroupId == null) {
+			validationException.add(new FieldError("patientOrderScheduledMessageGroupId", getStrings().get("Patient Order Scheduled Message Group ID is required.")));
+		} else {
+			patientOrderScheduledMessageGroup = findPatientOrderScheduledMessageGroupById(patientOrderScheduledMessageGroupId).orElse(null);
+
+			if (patientOrderScheduledMessageGroup == null) {
+				validationException.add(new FieldError("patientOrderScheduledMessageGroupId", getStrings().get("Patient Order Scheduled Message Group ID is invalid.")));
+			} else {
+				patientOrder = findPatientOrderById(patientOrderScheduledMessageGroup.getPatientOrderId()).get();
+
+				if (messageTypeIds.contains(MessageTypeId.EMAIL) && patientOrder.getPatientEmailAddress() == null)
+					validationException.add(new FieldError("messageTypeId", getStrings().get("Cannot schedule an email because this patient's order does not have an email address.")));
+
+				if (messageTypeIds.contains(MessageTypeId.SMS) && patientOrder.getPatientPhoneNumber() == null)
+					validationException.add(new FieldError("messageTypeId", getStrings().get("Cannot schedule an SMS message because this patient's order does not have a phone number.")));
+			}
+		}
+
+		if (patientOrderScheduledMessageTypeId == null) {
+			validationException.add(new FieldError("patientOrderScheduledMessageTypeId", getStrings().get("Patient Order Scheduled Message Type ID is required.")));
+		} else {
+			// Use .get() here b/c if this is not present, it's a programmer error and should 500
+			patientOrderScheduledMessageType = findPatientOrderScheduledMessageTypeById(patientOrderScheduledMessageTypeId).get();
+		}
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (scheduledAtDate == null)
+			validationException.add(new FieldError("scheduledAtDate", getStrings().get("Scheduled-At Date is required.")));
+
+		if (scheduledAtTimeAsString == null) {
+			validationException.add(new FieldError("scheduledAtTime", getStrings().get("Scheduled-At Time is required.")));
+		} else {
+			// TODO: support other locales
+			scheduledAtTime = getNormalizer().normalizeTime(scheduledAtTimeAsString, Locale.US).orElse(null);
+
+			if (scheduledAtTime == null)
+				validationException.add(new FieldError("scheduledAtTime", getStrings().get("Scheduled-At Time is invalid.")));
+		}
+
+		if (messageTypeIds.size() == 0)
+			validationException.add(getStrings().get("You must specify at least one type of message to send."));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		boolean updated = getDatabase().execute("""
+				UPDATE patient_order_scheduled_message_group
+				SET patient_order_scheduled_message_type_id=?
+				WHERE patient_order_scheduled_message_group_id=?
+				""", patientOrderScheduledMessageTypeId, patientOrderScheduledMessageGroupId) > 0;
+
+		// Cancel existing messages in this group...
+		cancelScheduledMessagesForPatientOrderScheduledMessageGroup(patientOrderScheduledMessageGroupId);
+
+		// ...then create new scheduled messages.
+		createScheduledMessagesForPatientOrderScheduledMessageGroup(patientOrderScheduledMessageGroupId, patientOrder,
+				patientOrderScheduledMessageType, messageTypeIds, scheduledAtDate, scheduledAtTime);
+
+		// TODO: track changes in event log
+
+		return updated;
+	}
+
+	@Nonnull
+	public Boolean deletePatientOrderScheduledMessageGroup(@Nonnull DeletePatientOrderScheduledMessageGroupRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderScheduledMessageGroupId = request.getPatientOrderScheduledMessageGroupId();
+		UUID accountId = request.getAccountId();
+		ValidationException validationException = new ValidationException();
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		boolean deleted = getDatabase().execute("""
+				UPDATE patient_order_scheduled_message_group
+				SET deleted=TRUE, deleted_at=NOW()
+				WHERE patient_order_scheduled_message_group_id=?
+				AND deleted=FALSE
+				""", patientOrderScheduledMessageGroupId) > 0;
+
+		cancelScheduledMessagesForPatientOrderScheduledMessageGroup(patientOrderScheduledMessageGroupId);
+
+		// TODO: track changes in event log
+
+		return deleted;
+	}
+
+	protected void cancelScheduledMessagesForPatientOrderScheduledMessageGroup(@Nonnull UUID patientOrderScheduledMessageGroupId) {
+		requireNonNull(patientOrderScheduledMessageGroupId);
+
+		List<UUID> cancelableScheduledMessageIds = getDatabase().queryForList("""
+				SELECT sm.scheduled_message_id
+				FROM scheduled_message sm, patient_order_scheduled_message posm
+				WHERE sm.scheduled_message_id=posm.scheduled_message_id
+				AND posm.patient_order_scheduled_message_group_id=?
+				AND sm.scheduled_message_status_id=?
+				""", UUID.class, patientOrderScheduledMessageGroupId, ScheduledMessageStatusId.PENDING);
+
+		getLogger().info("Canceling {} pending scheduled message[s] for patientOrderScheduledMessageGroupId {}...",
+				cancelableScheduledMessageIds.size(), patientOrderScheduledMessageGroupId);
+
+		for (UUID cancelableScheduledMessageId : cancelableScheduledMessageIds)
+			getMessageService().cancelScheduledMessage(cancelableScheduledMessageId);
+	}
+
+	protected void createScheduledMessagesForPatientOrderScheduledMessageGroup(@Nonnull UUID patientOrderScheduledMessageGroupId,
+																																						 @Nonnull PatientOrder patientOrder,
+																																						 @Nonnull PatientOrderScheduledMessageType patientOrderScheduledMessageType,
+																																						 @Nonnull Set<MessageTypeId> messageTypeIds,
+																																						 @Nonnull LocalDate scheduledAtDate,
+																																						 @Nonnull LocalTime scheduledAtTime) {
+		requireNonNull(patientOrderScheduledMessageGroupId);
+		requireNonNull(patientOrder);
+		requireNonNull(patientOrderScheduledMessageType);
+		requireNonNull(messageTypeIds);
+		requireNonNull(scheduledAtDate);
+		requireNonNull(scheduledAtTime);
+
+		Institution institution = getInstitutionService().findInstitutionById(patientOrder.getInstitutionId()).get();
 
 		Set<UUID> scheduledMessageIds = new HashSet<>();
 
@@ -1695,7 +1862,7 @@ public class PatientOrderService {
 				setMetadata(Map.of("patientOrderScheduledMessageGroupId", patientOrderScheduledMessageGroupId));
 				setMessage(emailMessage);
 				setTimeZone(institution.getTimeZone());
-				setScheduledAt(LocalDateTime.of(scheduledAtDate, pinnedScheduledAtTime));
+				setScheduledAt(LocalDateTime.of(scheduledAtDate, scheduledAtTime));
 			}}));
 		}
 
@@ -1708,7 +1875,7 @@ public class PatientOrderService {
 				setMetadata(Map.of("patientOrderScheduledMessageGroupId", patientOrderScheduledMessageGroupId));
 				setMessage(smsMessage);
 				setTimeZone(institution.getTimeZone());
-				setScheduledAt(LocalDateTime.of(scheduledAtDate, pinnedScheduledAtTime));
+				setScheduledAt(LocalDateTime.of(scheduledAtDate, scheduledAtTime));
 			}}));
 		}
 
@@ -1720,8 +1887,6 @@ public class PatientOrderService {
 					) VALUES (?,?)
 					""", patientOrderScheduledMessageGroupId, scheduledMessageId);
 		}
-
-		return patientOrderScheduledMessageGroupId;
 	}
 
 	@Nonnull

@@ -19,32 +19,19 @@
 
 package com.cobaltplatform.api.model.api.request;
 
-import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
-import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType.PatientOrderScheduledMessageTypeId;
-
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.time.LocalDate;
-import java.util.Set;
 import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class UpdatePatientOrderScheduledMessageGroupRequest {
+public class DeletePatientOrderScheduledMessageGroupRequest {
 	@Nullable
 	private UUID patientOrderScheduledMessageGroupId;
 	@Nullable
-	private PatientOrderScheduledMessageTypeId patientOrderScheduledMessageTypeId;
-	@Nullable
 	private UUID accountId;
-	@Nullable
-	private Set<MessageTypeId> messageTypeIds;
-	@Nullable
-	private LocalDate scheduledAtDate;
-	@Nullable
-	private String scheduledAtTime; // Manually parse string from the UI
 
 	@Nullable
 	public UUID getPatientOrderScheduledMessageGroupId() {
@@ -56,47 +43,11 @@ public class UpdatePatientOrderScheduledMessageGroupRequest {
 	}
 
 	@Nullable
-	public PatientOrderScheduledMessageTypeId getPatientOrderScheduledMessageTypeId() {
-		return this.patientOrderScheduledMessageTypeId;
-	}
-
-	public void setPatientOrderScheduledMessageTypeId(@Nullable PatientOrderScheduledMessageTypeId patientOrderScheduledMessageTypeId) {
-		this.patientOrderScheduledMessageTypeId = patientOrderScheduledMessageTypeId;
-	}
-
-	@Nullable
 	public UUID getAccountId() {
 		return this.accountId;
 	}
 
 	public void setAccountId(@Nullable UUID accountId) {
 		this.accountId = accountId;
-	}
-
-	@Nullable
-	public Set<MessageTypeId> getMessageTypeIds() {
-		return this.messageTypeIds;
-	}
-
-	public void setMessageTypeIds(@Nullable Set<MessageTypeId> messageTypeIds) {
-		this.messageTypeIds = messageTypeIds;
-	}
-
-	@Nullable
-	public LocalDate getScheduledAtDate() {
-		return this.scheduledAtDate;
-	}
-
-	public void setScheduledAtDate(@Nullable LocalDate scheduledAtDate) {
-		this.scheduledAtDate = scheduledAtDate;
-	}
-
-	@Nullable
-	public String getScheduledAtTime() {
-		return this.scheduledAtTime;
-	}
-
-	public void setScheduledAtTime(@Nullable String scheduledAtTime) {
-		this.scheduledAtTime = scheduledAtTime;
 	}
 }

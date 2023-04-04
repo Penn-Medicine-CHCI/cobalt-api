@@ -38,6 +38,10 @@ public class PatientOrderScheduledMessageGroup {
 	@Nullable
 	private UUID patientOrderId;
 	@Nullable
+	private Boolean deleted;
+	@Nullable
+	private Instant deletedAt;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -67,6 +71,24 @@ public class PatientOrderScheduledMessageGroup {
 
 	public void setPatientOrderId(@Nullable UUID patientOrderId) {
 		this.patientOrderId = patientOrderId;
+	}
+
+	@Nullable
+	public Boolean getDeleted() {
+		return this.deleted;
+	}
+
+	public void setDeleted(@Nullable Boolean deleted) {
+		this.deleted = deleted;
+	}
+
+	@Nullable
+	public Instant getDeletedAt() {
+		return this.deletedAt;
+	}
+
+	public void setDeletedAt(@Nullable Instant deletedAt) {
+		this.deletedAt = deletedAt;
 	}
 
 	@Nullable
