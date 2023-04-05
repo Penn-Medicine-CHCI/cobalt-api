@@ -812,6 +812,11 @@ public class AvailabilityService implements AutoCloseable {
 					if (providerFind.getSchedulingSystemId() != SchedulingSystemId.COBALT)
 						continue;
 
+					// Don't write records if these are special "phone number required for appointment" providers
+					// because they don't have visible appointment slots
+					if (providerFind.getPhoneNumberRequiredForAppointment() != null && providerFind.getPhoneNumberRequiredForAppointment())
+						continue;
+
 					for (AvailabilityDate availabilityDate : providerFind.getDates()) {
 						for (ProviderFind.AvailabilityTime availabilityTime : availabilityDate.getTimes()) {
 							// Throw out any slots that already have appointments booked

@@ -382,7 +382,8 @@ public class ReportingService {
 				SELECT pah.provider_id, pah.name AS provider_name, pah.slot_date_time
 				FROM provider_availability_history pah, provider p
 				WHERE pah.provider_id=p.provider_id
-				AND p.institution_id = ? 
+				AND p.display_phone_number_only_for_booking != TRUE
+				AND p.institution_id = ?
 				AND slot_date_time >= ?
 				AND slot_date_time <= ?
 				ORDER BY pah.name, pah.slot_date_time
