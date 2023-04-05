@@ -67,6 +67,7 @@ import com.cobaltplatform.api.model.api.response.AddressApiResponse.AddressApiRe
 import com.cobaltplatform.api.model.api.response.AdminAvailableContentApiResponse.AdminAvailableContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AdminContentApiResponse.AdminContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AdminInstitutionApiResponse.AdminInstitutionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.AlertApiResponse.AlertApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AppointmentTimeApiResponse.AppointmentTimeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AppointmentTypeApiResponse.AppointmentTypeApiResponseFactory;
@@ -292,6 +293,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(FeatureApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PatientOrderScheduledMessageApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PatientOrderScheduledMessageGroupApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(AlertApiResponseFactory.class)));
 	}
 
 	@Provides

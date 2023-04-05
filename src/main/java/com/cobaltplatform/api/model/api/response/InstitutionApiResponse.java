@@ -20,12 +20,14 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.response.AlertApiResponse.AlertApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.FeaturesForInstitution;
 import com.cobaltplatform.api.model.service.NavigationItem;
+import com.cobaltplatform.api.service.AlertService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.service.TopicCenterService;
@@ -40,6 +42,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -126,6 +129,8 @@ public class InstitutionApiResponse {
 	private final Boolean hasTakenFeatureScreening;
 	@Nonnull
 	private final UserExperienceTypeId userExperienceTypeId;
+	@Nonnull
+	private final List<AlertApiResponse> alerts;
 
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
@@ -137,20 +142,24 @@ public class InstitutionApiResponse {
 	}
 
 	@AssistedInject
-	public InstitutionApiResponse(@Nonnull TopicCenterService topicCenterService,
+	public InstitutionApiResponse(@Nonnull AlertApiResponseFactory alertApiResponseFactory,
+																@Nonnull AlertService alertService,
+																@Nonnull TopicCenterService topicCenterService,
 																@Nonnull InstitutionService institutionService,
+																@Nonnull ScreeningService screeningService,
 																@Nonnull Formatter formatter,
 																@Nonnull Strings strings,
 																@Assisted @Nonnull Institution institution,
-																@Assisted @Nonnull CurrentContext currentContext,
-																@Nonnull ScreeningService screeningService) {
+																@Assisted @Nonnull CurrentContext currentContext) {
+		requireNonNull(alertApiResponseFactory);
+		requireNonNull(alertService);
 		requireNonNull(topicCenterService);
 		requireNonNull(institutionService);
+		requireNonNull(screeningService);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(institution);
 		requireNonNull(currentContext);
-		requireNonNull(screeningService);
 
 		Account account = currentContext.getAccount().orElse(null);
 
@@ -193,6 +202,16 @@ public class InstitutionApiResponse {
 		this.takeFeatureScreening = screeningService.shouldAccountIdTakeScreeningFlowId(account, institution.getFeatureScreeningFlowId());
 		this.hasTakenFeatureScreening = screeningService.hasAccountIdTakenScreeningFlowId(account, institution.getFeatureScreeningFlowId());
 		this.userExperienceTypeId = currentContext.getUserExperienceTypeId().get();
+
+		if (account == null) {
+			this.alerts = alertService.findAlertsByInstitutionId(institution.getInstitutionId()).stream()
+					.map(alert -> alertApiResponseFactory.create(alert))
+					.collect(Collectors.toList());
+		} else {
+			this.alerts = alertService.findUndismissedInstitutionAlertsByAccountId(account.getAccountId()).stream()
+					.map(alert -> alertApiResponseFactory.create(alert))
+					.collect(Collectors.toList());
+		}
 	}
 
 	@Nonnull
@@ -376,5 +395,10 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public UserExperienceTypeId getUserExperienceTypeId() {
 		return this.userExperienceTypeId;
+	}
+
+	@Nonnull
+	public List<AlertApiResponse> getAlerts() {
+		return this.alerts;
 	}
 }
