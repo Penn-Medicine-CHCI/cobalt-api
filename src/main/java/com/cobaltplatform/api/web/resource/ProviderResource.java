@@ -415,6 +415,7 @@ public class ProviderResource {
 				normalizedProviderFind.put("providerId", providerFind.getProviderId());
 				normalizedProviderFind.put("name", providerFind.getName());
 				normalizedProviderFind.put("title", providerFind.getTitle());
+				normalizedProviderFind.put("description", providerFind.getDescription());
 				normalizedProviderFind.put("entity", providerFind.getEntity());
 				normalizedProviderFind.put("clinic", providerFind.getClinic());
 				normalizedProviderFind.put("license", providerFind.getLicense());

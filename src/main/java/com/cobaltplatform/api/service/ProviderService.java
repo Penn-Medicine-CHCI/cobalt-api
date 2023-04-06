@@ -610,6 +610,7 @@ public class ProviderService {
 			providerFind.setProviderId(provider.getProviderId());
 			providerFind.setName(provider.getName());
 			providerFind.setTitle(provider.getTitle());
+			providerFind.setDescription(provider.getDescription());
 			providerFind.setLicense(provider.getLicense());
 			providerFind.setSpecialty(provider.getSpecialty());
 			providerFind.setClinic(provider.getClinic());
