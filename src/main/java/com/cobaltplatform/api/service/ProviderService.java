@@ -1086,7 +1086,15 @@ public class ProviderService {
 						}
 					}
 
+					LocalTime currentSlotTime = slotTime;
+
 					slotTime = slotTime.plusMinutes(slotSizeInMinutes);
+
+					// If we hit this case, that means we wrapped to the next day.
+					// If we don't break, then we can get into an infinite loop.
+					// TODO: should we support handling of slots that cross date boundaries?  Probably not, but leaving a note here...
+					if(currentSlotTime.isAfter(slotTime))
+						break;
 				}
 			}
 
