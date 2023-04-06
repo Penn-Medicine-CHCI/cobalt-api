@@ -60,6 +60,8 @@ public class ProviderFind {
 	@Nullable
 	private String bioUrl;
 	@Nullable
+	private String description;
+	@Nullable
 	private SchedulingSystemId schedulingSystemId;
 	@Nullable
 	private List<String> paymentFundingDescriptions;
@@ -285,6 +287,15 @@ public class ProviderFind {
 
 	public void setBioUrl(@Nullable String bioUrl) {
 		this.bioUrl = bioUrl;
+	}
+
+	@Nullable
+	public String getDescription() {
+		return this.description;
+	}
+
+	public void setDescription(@Nullable String description) {
+		this.description = description;
 	}
 
 	@Nullable

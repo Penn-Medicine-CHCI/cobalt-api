@@ -93,6 +93,8 @@ public class Provider {
 	@Nullable
 	private Boolean displayPhoneNumberOnlyForBooking;
 	@Nullable
+	private String description;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -365,5 +367,14 @@ public class Provider {
 
 	public void setDisplayPhoneNumberOnlyForBooking(@Nullable Boolean displayPhoneNumberOnlyForBooking) {
 		this.displayPhoneNumberOnlyForBooking = displayPhoneNumberOnlyForBooking;
+	}
+
+	@Nullable
+	public String getDescription() {
+		return this.description;
+	}
+
+	public void setDescription(@Nullable String description) {
+		this.description = description;
 	}
 }
