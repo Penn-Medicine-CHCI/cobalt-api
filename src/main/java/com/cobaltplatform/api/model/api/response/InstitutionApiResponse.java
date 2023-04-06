@@ -201,7 +201,11 @@ public class InstitutionApiResponse {
 		this.features = institutionService.findFeaturesByInstitutionId(institution, account);
 		this.takeFeatureScreening = screeningService.shouldAccountIdTakeScreeningFlowId(account, institution.getFeatureScreeningFlowId());
 		this.hasTakenFeatureScreening = screeningService.hasAccountIdTakenScreeningFlowId(account, institution.getFeatureScreeningFlowId());
-		this.userExperienceTypeId = currentContext.getUserExperienceTypeId().get();
+		
+		// TODO: would be better to error out here if no value, providing a failsafe temporarily.
+		// to handle cases in prod where we have currently unused domain[s] that can be used to access the FE,
+		// but crawlers will attempt to crawl and BE doesn't know what kind of experience type to serve for the domain
+		this.userExperienceTypeId = currentContext.getUserExperienceTypeId().orElse(UserExperienceTypeId.PATIENT);
 
 		if (account == null) {
 			this.alerts = alertService.findAlertsByInstitutionId(institution.getInstitutionId()).stream()
