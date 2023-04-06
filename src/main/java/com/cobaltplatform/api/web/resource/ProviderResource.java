@@ -293,6 +293,13 @@ public class ProviderResource {
 		Set<UUID> providerIds = new HashSet<>();
 		Set<ProviderFindSupplement> supplements = request.getSupplements() == null ? Collections.emptySet() : request.getSupplements();
 
+		// There is no longer a UI for this, so ignore legacy data
+		// TODO: remove legacy time filtering options
+		if (institution.getFeaturesEnabled()) {
+			request.setStartTime(null);
+			request.setEndTime(null);
+		}
+
 		// 1. Pull raw data
 		List<ProviderFind> providerFinds = getProviderService().findProviders(request, account);
 
