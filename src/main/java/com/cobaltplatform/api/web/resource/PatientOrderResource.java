@@ -27,6 +27,7 @@ import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledMessageGroupRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderScheduledMessageGroupRequest;
@@ -70,6 +71,7 @@ import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderOutreach;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageGroup;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledScreening;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.Race;
@@ -915,6 +917,30 @@ public class PatientOrderResource {
 		getPatientOrderService().deletePatientOrderScheduledMessageGroup(request);
 
 		return new ApiResponse(); // 204
+	}
+
+	@Nonnull
+	@POST("/patient-order-scheduled-screening")
+	@AuthenticationRequired
+	public ApiResponse createPatientOrderScheduledScreening(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		CreatePatientOrderScheduledScreeningRequest request = getRequestBodyParser().parse(requestBody, CreatePatientOrderScheduledScreeningRequest.class);
+		request.setAccountId(account.getAccountId());
+
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(request.getPatientOrderId()).orElse(null);
+
+		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		UUID patientOrderScheduledScreeningId = getPatientOrderService().createPatientOrderScheduledScreening(request);
+		PatientOrderScheduledScreening patientOrderScheduledScreening = getPatientOrderService().findPatientOrderScheduledScreeningById(patientOrderScheduledScreeningId).get();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrderScheduledScreening", getPatientOrderScheduledScreeningApiResponseFactory().create(patientOrderScheduledScreening));
+		}});
 	}
 
 	@Nonnull
