@@ -19,18 +19,19 @@
 
 package com.cobaltplatform.api.web.response;
 
+import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.security.AccessTokenStatus;
 import com.cobaltplatform.api.util.AccessTokenException;
-import com.lokalized.Strings;
-import com.cobaltplatform.api.Configuration;
-import com.soklet.web.response.ApiResponse;
-import com.soklet.web.response.writer.ApiResponseWriter;
-import com.soklet.web.routing.Route;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.web.request.RequestBodyParsingException;
+import com.google.common.hash.Hashing;
+import com.lokalized.Strings;
+import com.soklet.web.response.ApiResponse;
+import com.soklet.web.response.writer.ApiResponseWriter;
+import com.soklet.web.routing.Route;
 import org.eclipse.jetty.io.EofException;
 
 import javax.annotation.Nonnull;
@@ -40,6 +41,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -167,6 +169,14 @@ public class JsonApiResponseWriter implements ApiResponseWriter {
 			// Write to a string first instead of directly to OutputStream.
 			// This way if an error occurs, we can render a correct error response instead of terminating the write midstream
 			String json = getJsonMapper().toJson(model);
+
+			// Create a checksum of the JSON content and pass back in response headers.
+			// Useful for clients to see if response body has changed
+			String checksum = Hashing.sha256()
+					.hashString(json, StandardCharsets.UTF_8)
+					.toString();
+
+			httpServletResponse.setHeader("X-Cobalt-Checksum", checksum);
 
 			try {
 				copyStreamCloseAfterwards(new ByteArrayInputStream(json.getBytes(UTF_8)),
