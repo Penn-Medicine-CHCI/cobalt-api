@@ -308,10 +308,6 @@ public class AppointmentService {
 		if (providerId == null || startDate == null || endDate == null)
 			return Collections.emptyList();
 
-		// Special case, for same start/end date ensure we pull back data
-		if (startDate.equals(endDate))
-			endDate = startDate.plusDays(1);
-
 		return getDatabase().queryForList("SELECT * FROM appointment WHERE provider_id=? AND canceled=FALSE " +
 				"AND start_time >= ? AND start_time <= ? ORDER BY start_time DESC", Appointment.class, providerId, startDate, endDate);
 	}
@@ -999,20 +995,25 @@ public class AppointmentService {
 		}
 
 		// Ensure we can't double-book the same time
-		List<Appointment> existingAppointmentsForDate = findAppointmentsByProviderId(providerId, date, date);
+		List<Appointment> existingAppointmentsForDate = findAppointmentsByProviderId(providerId, date, date.plusDays(1));
 		LocalDateTime appointmentStartTime = LocalDateTime.of(date, time);
 
-		for (Appointment existingAppointmentForDate : existingAppointmentsForDate)
-			if (existingAppointmentForDate.getStartTime().equals(appointmentStartTime))
+		for (Appointment existingAppointmentForDate : existingAppointmentsForDate) {
+			if (existingAppointmentForDate.getStartTime().equals(appointmentStartTime)) {
+				getLogger().info("Attempted to book an appointment with provider ID {} at {} but existing appointment ID {} already is at that time", provider.getProviderId(), appointmentStartTime, existingAppointmentForDate.getAppointmentId());
 				throw new ValidationException(getStrings().get("Sorry, this appointment time is no longer available. Please pick a different time."));
+			}
+		}
 
 		// Ensure we are not booking within the provider's lead time
 		if (provider.getSchedulingLeadTimeInHours() != null) {
 			LocalDateTime now = LocalDateTime.now(provider.getTimeZone());
 			long hoursUntilAppointment = ChronoUnit.HOURS.between(now, appointmentStartTime);
 
-			if (hoursUntilAppointment < provider.getSchedulingLeadTimeInHours())
+			if (hoursUntilAppointment < provider.getSchedulingLeadTimeInHours()) {
+				getLogger().info("Attempted to book an appointment {} hours away, but provider ID {} lead time in hours is {}", hoursUntilAppointment, provider.getProviderId(), provider.getSchedulingLeadTimeInHours());
 				throw new ValidationException(getStrings().get("Sorry, this appointment time is no longer available. Please pick a different time."));
+			}
 		}
 
 		Long durationInMinutes = null;
