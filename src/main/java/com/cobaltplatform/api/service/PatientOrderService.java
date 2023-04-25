@@ -474,24 +474,6 @@ public class PatientOrderService {
 	}
 
 	@Nonnull
-	public Integer findOpenPatientOrderCountByPanelAccountIdForInstitutionId(@Nullable UUID panelAccountId,
-																																					 @Nullable InstitutionId institutionId) {
-		if (institutionId == null)
-			return 0;
-
-		if (panelAccountId == null)
-			return findOpenPatientOrderCountByInstitutionId(institutionId);
-
-		return getDatabase().queryForObject("""
-				SELECT COUNT(*)
-				FROM patient_order
-				WHERE panel_account_id=?
-				AND institution_id=?		
-				AND patient_order_disposition_id=?
-				""", Integer.class, panelAccountId, institutionId, PatientOrderDispositionId.OPEN).get();
-	}
-
-	@Nonnull
 	public Map<UUID, Integer> findOpenPatientOrderCountsByPanelAccountIdForInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return Map.of();
@@ -521,11 +503,14 @@ public class PatientOrderService {
 		if (institutionId == null)
 			return patientOrderCountsByPatientOrderStatusId;
 
-
 		List<String> whereClauseLines = new ArrayList<>();
 		List<Object> parameters = new ArrayList<>();
 
 		parameters.add(institutionId);
+
+		// Default to OPEN orders
+		whereClauseLines.add("AND patient_order_disposition_id=?");
+		parameters.add(PatientOrderDispositionId.OPEN);
 
 		if (panelAccountId != null) {
 			whereClauseLines.add("AND panel_account_id=?");
@@ -643,6 +628,7 @@ public class PatientOrderService {
 					setMetadata(metadata);
 				}
 			});
+
 			// TODO: any other action?  Send a notification?
 		}
 
@@ -658,6 +644,7 @@ public class PatientOrderService {
 		Set<PatientOrderStatusId> patientOrderStatusIds = request.getPatientOrderStatusIds() == null ? Set.of() : request.getPatientOrderStatusIds();
 		UUID panelAccountId = request.getPanelAccountId();
 		String patientMrn = trimToNull(request.getPatientMrn());
+		String searchQuery = trimToNull(request.getSearchQuery());
 		Integer pageNumber = request.getPageNumber();
 		Integer pageSize = request.getPageSize();
 
@@ -696,9 +683,12 @@ public class PatientOrderService {
 			parameters.add(panelAccountId);
 		}
 
+		// Search query is trumped by Patient MRN
 		if (patientMrn != null) {
 			whereClauseLines.add("AND LOWER(po.patient_mrn)=LOWER(?)");
 			parameters.add(patientMrn);
+		} else if (searchQuery != null) {
+			// TODO: finalize what fields we should search over
 		}
 
 		// TODO: finish adding other parameters/filters
