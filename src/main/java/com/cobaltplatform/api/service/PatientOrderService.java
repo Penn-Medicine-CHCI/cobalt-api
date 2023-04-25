@@ -1083,6 +1083,9 @@ public class PatientOrderService {
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
 		}
 
+		if (note == null)
+			validationException.add(new FieldError("note", getStrings().get("Comment cannot be blank.")));
+
 		if (validationException.hasErrors())
 			throw validationException;
 
@@ -1127,6 +1130,9 @@ public class PatientOrderService {
 			if (patientOrderNote == null)
 				validationException.add(new FieldError("patientOrderNoteId", getStrings().get("Patient Order Note ID is invalid.")));
 		}
+
+		if (note == null)
+			validationException.add(new FieldError("note", getStrings().get("Comment cannot be blank.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
