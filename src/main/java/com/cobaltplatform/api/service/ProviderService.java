@@ -353,10 +353,6 @@ public class ProviderService {
 				query.append(sqlInListPlaceholders(clinicIds));
 
 				parameters.addAll(clinicIds);
-			} else {
-				// Special case: don't show "calming an anxious mind" providers unless that clinic is explicitly asked for via clinicId
-				query.append(" AND NOT EXISTS (SELECT * FROM provider_clinic WHERE p.provider_id=provider_clinic.provider_id AND provider_clinic.clinic_id=?)");
-				parameters.add(getClinicService().getCalmingAnAnxiousMindClinicId());
 			}
 
 			if (institutionLocationId != null) {

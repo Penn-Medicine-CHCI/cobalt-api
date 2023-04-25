@@ -977,9 +977,6 @@ public class AppointmentService {
 			phoneNumber = account.getPhoneNumber();
 		}
 
-		// Special handling for special clinic
-		boolean isCalmingAnAnxiousMindIntakeAppointment = oneOnOne && providerId != null && getClinicService().isProviderPartOfCalmingAnAnxiousMindClinic(providerId);
-
 		AcuityAppointmentType acuityAppointmentType = null;
 		Long acuityClassId = null;
 		Long acuityCalendarId = null;
@@ -995,6 +992,28 @@ public class AppointmentService {
 			if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.ACUITY)
 				// TODO: use cache here
 				acuityAppointmentType = getAcuitySchedulingClient().findAppointmentTypeById(appointmentType.getAcuityAppointmentTypeId()).get();
+		}
+
+		// Ensure we can't double-book the same time
+		List<Appointment> existingAppointmentsForDate = findAppointmentsByProviderId(providerId, date, date.plusDays(1));
+		LocalDateTime appointmentStartTime = LocalDateTime.of(date, time);
+
+		for (Appointment existingAppointmentForDate : existingAppointmentsForDate) {
+			if (existingAppointmentForDate.getStartTime().equals(appointmentStartTime)) {
+				getLogger().info("Attempted to book an appointment with provider ID {} at {} but existing appointment ID {} already is at that time", provider.getProviderId(), appointmentStartTime, existingAppointmentForDate.getAppointmentId());
+				throw new ValidationException(getStrings().get("Sorry, this appointment time is no longer available. Please pick a different time."));
+			}
+		}
+
+		// Ensure we are not booking within the provider's lead time
+		if (provider.getSchedulingLeadTimeInHours() != null) {
+			LocalDateTime now = LocalDateTime.now(provider.getTimeZone());
+			long hoursUntilAppointment = ChronoUnit.HOURS.between(now, appointmentStartTime);
+
+			if (hoursUntilAppointment < provider.getSchedulingLeadTimeInHours()) {
+				getLogger().info("Attempted to book an appointment {} hours away, but provider ID {} lead time in hours is {}", hoursUntilAppointment, provider.getProviderId(), provider.getSchedulingLeadTimeInHours());
+				throw new ValidationException(getStrings().get("Sorry, this appointment time is no longer available. Please pick a different time."));
+			}
 		}
 
 		Long durationInMinutes = null;

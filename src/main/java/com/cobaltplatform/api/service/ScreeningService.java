@@ -93,7 +93,9 @@ import java.time.Period;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -1275,9 +1277,22 @@ public class ScreeningService {
 			ResultsFunctionOutput resultsFunctionOutput = executeScreeningFlowResultsFunction(screeningFlowVersion.getResultsFunction(),
 					screeningSession.getScreeningSessionId(), createdByAccount.getInstitutionId()).get();
 
-			for (SupportRoleRecommendation supportRoleRecommendation : resultsFunctionOutput.getSupportRoleRecommendations())
+			// Ensure highest-weighted are first, so if we see duplicate support roles returned, we picked the highest-weight to persist
+			Set<SupportRoleId> recommendedSupportRoleIds = new HashSet<>();
+			List<SupportRoleRecommendation> sortedSupportRoleRecommendations = new ArrayList<>(resultsFunctionOutput.getSupportRoleRecommendations());
+			sortedSupportRoleRecommendations.sort(Comparator.comparing(SupportRoleRecommendation::getSupportRoleId)
+					.thenComparing(SupportRoleRecommendation::getWeight, Comparator.reverseOrder()));
+
+			for (SupportRoleRecommendation supportRoleRecommendation : sortedSupportRoleRecommendations) {
+				// If we see a duplicate support role, ignore it
+				if (recommendedSupportRoleIds.contains(supportRoleRecommendation.getSupportRoleId()))
+					continue;
+
+				recommendedSupportRoleIds.add(supportRoleRecommendation.getSupportRoleId());
+
 				getDatabase().execute("INSERT INTO screening_session_support_role_recommendation(screening_session_id, support_role_id, weight) " +
 						"VALUES (?,?,?)", screeningSession.getScreeningSessionId(), supportRoleRecommendation.getSupportRoleId(), supportRoleRecommendation.getWeight());
+			}
 
 			// Legacy content check-off support
 			// TODO: remove this once we have new tagging infrastructure
@@ -1967,7 +1982,7 @@ public class ScreeningService {
 		@Nullable
 		private Set<String> recommendedTagIds;
 		@Nullable
-		private Set<SupportRoleRecommendation> supportRoleRecommendations;
+		private List<SupportRoleRecommendation> supportRoleRecommendations;
 		@Nullable
 		private List<IntegratedCareTriage> integratedCareTriages;
 		@Nullable
@@ -1989,8 +2004,12 @@ public class ScreeningService {
 		}
 
 		@Nullable
-		public Set<SupportRoleRecommendation> getSupportRoleRecommendations() {
+		public List<SupportRoleRecommendation> getSupportRoleRecommendations() {
 			return this.supportRoleRecommendations;
+		}
+
+		public void setSupportRoleRecommendations(@Nullable List<SupportRoleRecommendation> supportRoleRecommendations) {
+			this.supportRoleRecommendations = supportRoleRecommendations;
 		}
 
 		@Nullable
@@ -2012,10 +2031,6 @@ public class ScreeningService {
 		@Deprecated
 		public void setRecommendLegacyContentAnswerIds(@Nullable Boolean recommendLegacyContentAnswerIds) {
 			this.recommendLegacyContentAnswerIds = recommendLegacyContentAnswerIds;
-		}
-
-		public void setSupportRoleRecommendations(@Nullable Set<SupportRoleRecommendation> supportRoleRecommendations) {
-			this.supportRoleRecommendations = supportRoleRecommendations;
 		}
 
 		@Nullable

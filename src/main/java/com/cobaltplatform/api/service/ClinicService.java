@@ -19,10 +19,10 @@
 
 package com.cobaltplatform.api.service;
 
-import com.lokalized.Strings;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.db.Clinic;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,9 +48,6 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @ThreadSafe
 public class ClinicService {
 	@Nonnull
-	private static final UUID CALMING_AN_ANXIOUS_MIND_CLINIC_ID;
-
-	@Nonnull
 	private final Database database;
 	@Nonnull
 	private final Configuration configuration;
@@ -58,10 +55,6 @@ public class ClinicService {
 	private final Strings strings;
 	@Nonnull
 	private final Logger logger;
-
-	static {
-		CALMING_AN_ANXIOUS_MIND_CLINIC_ID = UUID.fromString("5e2d782b-d127-49a5-9512-f1cb9b924ab2");
-	}
 
 	@Inject
 	public ClinicService(@Nonnull Database database,
@@ -104,16 +97,6 @@ public class ClinicService {
 	}
 
 	@Nonnull
-	public Boolean isProviderPartOfCalmingAnAnxiousMindClinic(@Nullable UUID providerId) {
-		if (providerId == null)
-			return false;
-
-		return findClinicsByProviderId(providerId).stream()
-				.map(clinic -> clinic.getClinicId())
-				.collect(Collectors.toSet()).contains(getCalmingAnAnxiousMindClinicId());
-	}
-
-	@Nonnull
 	public List<Clinic> findClinicsForAutocomplete(@Nullable String query,
 																								 @Nullable InstitutionId institutionId) {
 		query = trimToNull(query);
@@ -126,11 +109,6 @@ public class ClinicService {
 
 		return getDatabase().queryForList("SELECT * FROM clinic WHERE institution_id=? " +
 				"AND UPPER(description) LIKE UPPER(?) ORDER BY description", Clinic.class, institutionId, "%" + query + "%");
-	}
-
-	@Nonnull
-	public UUID getCalmingAnAnxiousMindClinicId() {
-		return CALMING_AN_ANXIOUS_MIND_CLINIC_ID;
 	}
 
 	@Nonnull
