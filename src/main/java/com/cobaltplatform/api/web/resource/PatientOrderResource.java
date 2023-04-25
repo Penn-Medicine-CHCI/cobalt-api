@@ -22,6 +22,7 @@ package com.cobaltplatform.api.web.resource;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.AssignPatientOrdersRequest;
+import com.cobaltplatform.api.model.api.request.CancelPatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderNoteRequest;
@@ -39,6 +40,7 @@ import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachReques
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderSafetyPlanningStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledMessageGroupRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse;
@@ -55,6 +57,7 @@ import com.cobaltplatform.api.model.api.response.PatientOrderAutocompleteResultA
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse;
+import com.cobaltplatform.api.model.api.response.PatientOrderScheduledScreeningApiResponse.PatientOrderScheduledScreeningApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderTriageApiResponse.PatientOrderTriageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
@@ -170,6 +173,8 @@ public class PatientOrderResource {
 	@Nonnull
 	private final PatientOrderAutocompleteResultApiResponseFactory patientOrderAutocompleteResultApiResponseFactory;
 	@Nonnull
+	private final PatientOrderScheduledScreeningApiResponseFactory patientOrderScheduledScreeningApiResponseFactory;
+	@Nonnull
 	private final PatientOrderCsvGenerator patientOrderCsvGenerator;
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
@@ -200,6 +205,7 @@ public class PatientOrderResource {
 															@Nonnull CountryApiResponseFactory countryApiResponseFactory,
 															@Nonnull InsuranceApiResponseFactory insuranceApiResponseFactory,
 															@Nonnull PatientOrderAutocompleteResultApiResponseFactory patientOrderAutocompleteResultApiResponseFactory,
+															@Nonnull PatientOrderScheduledScreeningApiResponseFactory patientOrderScheduledScreeningApiResponseFactory,
 															@Nonnull PatientOrderCsvGenerator patientOrderCsvGenerator,
 															@Nonnull RequestBodyParser requestBodyParser,
 															@Nonnull JsonMapper jsonMapper,
@@ -221,6 +227,7 @@ public class PatientOrderResource {
 		requireNonNull(countryApiResponseFactory);
 		requireNonNull(insuranceApiResponseFactory);
 		requireNonNull(patientOrderAutocompleteResultApiResponseFactory);
+		requireNonNull(patientOrderScheduledScreeningApiResponseFactory);
 		requireNonNull(patientOrderCsvGenerator);
 		requireNonNull(requestBodyParser);
 		requireNonNull(jsonMapper);
@@ -243,6 +250,7 @@ public class PatientOrderResource {
 		this.countryApiResponseFactory = countryApiResponseFactory;
 		this.insuranceApiResponseFactory = insuranceApiResponseFactory;
 		this.patientOrderAutocompleteResultApiResponseFactory = patientOrderAutocompleteResultApiResponseFactory;
+		this.patientOrderScheduledScreeningApiResponseFactory = patientOrderScheduledScreeningApiResponseFactory;
 		this.patientOrderCsvGenerator = patientOrderCsvGenerator;
 		this.requestBodyParser = requestBodyParser;
 		this.jsonMapper = jsonMapper;
@@ -920,7 +928,7 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
-	@POST("/patient-order-scheduled-screening")
+	@POST("/patient-order-scheduled-screenings")
 	@AuthenticationRequired
 	public ApiResponse createPatientOrderScheduledScreening(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
@@ -941,6 +949,64 @@ public class PatientOrderResource {
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("patientOrderScheduledScreening", getPatientOrderScheduledScreeningApiResponseFactory().create(patientOrderScheduledScreening));
 		}});
+	}
+
+	@Nonnull
+	@PUT("/patient-order-scheduled-screenings/{patientOrderScheduledScreeningId}")
+	@AuthenticationRequired
+	public ApiResponse updatePatientOrderScheduledScreening(@Nonnull @PathParameter UUID patientOrderScheduledScreeningId,
+																													@Nonnull @RequestBody String requestBody) {
+		requireNonNull(patientOrderScheduledScreeningId);
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		UpdatePatientOrderScheduledScreeningRequest request = getRequestBodyParser().parse(requestBody, UpdatePatientOrderScheduledScreeningRequest.class);
+		request.setPatientOrderScheduledScreeningId(patientOrderScheduledScreeningId);
+		request.setAccountId(account.getAccountId());
+
+		PatientOrderScheduledScreening patientOrderScheduledScreening = getPatientOrderService().findPatientOrderScheduledScreeningById(patientOrderScheduledScreeningId).orElse(null);
+
+		if (patientOrderScheduledScreening == null)
+			throw new NotFoundException();
+
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderScheduledScreening.getPatientOrderId()).orElse(null);
+
+		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		getPatientOrderService().updatePatientOrderScheduledScreening(request);
+		PatientOrderScheduledScreening updatedPatientOrderScheduledScreening = getPatientOrderService().findPatientOrderScheduledScreeningById(patientOrderScheduledScreeningId).get();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrderScheduledScreening", getPatientOrderScheduledScreeningApiResponseFactory().create(updatedPatientOrderScheduledScreening));
+		}});
+	}
+
+	@Nonnull
+	@DELETE("/patient-order-scheduled-screenings/{patientOrderScheduledScreeningId}")
+	@AuthenticationRequired
+	public ApiResponse cancelPatientOrderScheduledScreening(@Nonnull @PathParameter UUID patientOrderScheduledScreeningId) {
+		requireNonNull(patientOrderScheduledScreeningId);
+
+		Account account = getCurrentContext().getAccount().get();
+		PatientOrderScheduledScreening patientOrderScheduledScreening = getPatientOrderService().findPatientOrderScheduledScreeningById(patientOrderScheduledScreeningId).orElse(null);
+
+		if (patientOrderScheduledScreening == null)
+			throw new NotFoundException();
+
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderScheduledScreening.getPatientOrderId()).orElse(null);
+
+		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		CancelPatientOrderScheduledScreeningRequest request = new CancelPatientOrderScheduledScreeningRequest();
+		request.setPatientOrderScheduledScreeningId(patientOrderScheduledScreeningId);
+		request.setAccountId(account.getAccountId());
+
+		getPatientOrderService().cancelPatientOrderScheduledScreening(request);
+
+		return new ApiResponse();
 	}
 
 	@Nonnull
@@ -1337,6 +1403,11 @@ public class PatientOrderResource {
 	@Nonnull
 	protected PatientOrderAutocompleteResultApiResponseFactory getPatientOrderAutocompleteResultApiResponseFactory() {
 		return this.patientOrderAutocompleteResultApiResponseFactory;
+	}
+
+	@Nonnull
+	protected PatientOrderScheduledScreeningApiResponseFactory getPatientOrderScheduledScreeningApiResponseFactory() {
+		return this.patientOrderScheduledScreeningApiResponseFactory;
 	}
 
 	@Nonnull

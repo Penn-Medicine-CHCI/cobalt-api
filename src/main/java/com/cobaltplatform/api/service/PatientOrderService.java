@@ -25,6 +25,7 @@ import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.messaging.sms.SmsMessage;
 import com.cobaltplatform.api.messaging.sms.SmsMessageTemplate;
 import com.cobaltplatform.api.model.api.request.AssignPatientOrdersRequest;
+import com.cobaltplatform.api.model.api.request.CancelPatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderEventRequest;
@@ -35,6 +36,7 @@ import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderDiagnosisRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderMedicationRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledMessageGroupRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderOutreachRequest;
@@ -47,6 +49,7 @@ import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachReques
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderSafetyPlanningStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledMessageGroupRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest.CreatePatientOrderTriageRequest;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse;
@@ -79,6 +82,7 @@ import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageGroup;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType.PatientOrderScheduledMessageTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledScreening;
 import com.cobaltplatform.api.model.db.PatientOrderStatus;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
@@ -1577,6 +1581,188 @@ public class PatientOrderService {
 				SET patient_order_resourcing_status_id=?, resources_sent_at=?, resources_sent_note=?
 				WHERE patient_order_id=?
 				""", patientOrderResourcingStatusId, resourcesSentAt, resourcesSentNote, patientOrderId) > 0;
+	}
+
+	@Nonnull
+	public Optional<PatientOrderScheduledScreening> findPatientOrderScheduledScreeningById(@Nullable UUID patientOrderScheduledScreeningId) {
+		if (patientOrderScheduledScreeningId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				    SELECT *
+				    FROM patient_order_scheduled_screening
+				    WHERE patient_order_scheduled_screening_id=?
+				""", PatientOrderScheduledScreening.class, patientOrderScheduledScreeningId);
+	}
+
+	@Nonnull
+	public Optional<PatientOrderScheduledScreening> findActivePatientOrderScheduledScreeningByPatientOrderId(@Nullable UUID patientOrderId) {
+		if (patientOrderId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				    SELECT *
+				    FROM patient_order_scheduled_screening
+				    WHERE patient_order_id=?
+				    AND canceled=FALSE
+				""", PatientOrderScheduledScreening.class, patientOrderId);
+	}
+
+	@Nonnull
+	public UUID createPatientOrderScheduledScreening(@Nonnull CreatePatientOrderScheduledScreeningRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderId = request.getPatientOrderId();
+		UUID accountId = request.getAccountId();
+		LocalDate scheduledDate = request.getScheduledDate();
+		String calendarUrl = trimToNull(request.getCalendarUrl());
+		String scheduledTimeAsString = trimToNull(request.getScheduledTime());
+		LocalTime scheduledTime = null;
+		UUID patientOrderScheduledScreeningId = UUID.randomUUID();
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderId == null) {
+			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+		} else {
+			PatientOrder patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+
+			if (patientOrder == null) {
+				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+			} else {
+				PatientOrderScheduledScreening patientOrderScheduledScreening = findActivePatientOrderScheduledScreeningByPatientOrderId(patientOrderId).orElse(null);
+
+				if (patientOrderScheduledScreening != null)
+					validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order already has a scheduled screening.")));
+			}
+		}
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (scheduledDate == null)
+			validationException.add(new FieldError("scheduledDate", getStrings().get("Scheduled Date is required.")));
+
+		if (scheduledTimeAsString == null) {
+			validationException.add(new FieldError("scheduledTime", getStrings().get("Scheduled Time is required.")));
+		} else {
+			// TODO: support other locales
+			scheduledTime = getNormalizer().normalizeTime(scheduledTimeAsString, Locale.US).orElse(null);
+
+			if (scheduledTime == null)
+				validationException.add(new FieldError("scheduledTime", getStrings().get("Scheduled Time is invalid.")));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		LocalDateTime scheduledDateTime = LocalDateTime.of(scheduledDate, scheduledTime);
+
+		getDatabase().execute("""
+				INSERT INTO patient_order_scheduled_screening (
+				    patient_order_scheduled_screening_id,
+				    patient_order_id,
+				    account_id,
+				    scheduled_date_time,
+				    calendar_url   
+				) VALUES (?,?,?,?,?)
+				""", patientOrderScheduledScreeningId, patientOrderId, accountId, scheduledDateTime, calendarUrl);
+
+		// TODO: track changes
+
+		return patientOrderScheduledScreeningId;
+	}
+
+	@Nonnull
+	public Boolean updatePatientOrderScheduledScreening(@Nonnull UpdatePatientOrderScheduledScreeningRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderScheduledScreeningId = request.getPatientOrderScheduledScreeningId();
+		UUID accountId = request.getAccountId();
+		LocalDate scheduledDate = request.getScheduledDate();
+		String calendarUrl = trimToNull(request.getCalendarUrl());
+		String scheduledTimeAsString = trimToNull(request.getScheduledTime());
+		LocalTime scheduledTime = null;
+		PatientOrderScheduledScreening patientOrderScheduledScreening = null;
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderScheduledScreeningId == null) {
+			validationException.add(new FieldError("patientOrderScheduledScreeningId", getStrings().get("Patient Order Scheduled Screening ID is required.")));
+		} else {
+			patientOrderScheduledScreening = findPatientOrderScheduledScreeningById(patientOrderScheduledScreeningId).orElse(null);
+
+			if (patientOrderScheduledScreening == null)
+				validationException.add(new FieldError("patientOrderScheduledScreeningId", getStrings().get("Patient Order Scheduled Screening ID is invalid.")));
+		}
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (scheduledDate == null)
+			validationException.add(new FieldError("scheduledDate", getStrings().get("Scheduled Date is required.")));
+
+		if (scheduledTimeAsString == null) {
+			validationException.add(new FieldError("scheduledTime", getStrings().get("Scheduled Time is required.")));
+		} else {
+			// TODO: support other locales
+			scheduledTime = getNormalizer().normalizeTime(scheduledTimeAsString, Locale.US).orElse(null);
+
+			if (scheduledTime == null)
+				validationException.add(new FieldError("scheduledTime", getStrings().get("Scheduled Time is invalid.")));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		LocalDateTime scheduledDateTime = LocalDateTime.of(scheduledDate, scheduledTime);
+
+		boolean updated = getDatabase().execute("""
+				UPDATE patient_order_scheduled_screening SET
+				account_id=?,
+				scheduled_date_time=?,
+				calendar_url=?
+				WHERE patient_order_scheduled_screening_id=?
+				""", accountId, scheduledDateTime, calendarUrl, patientOrderScheduledScreeningId) > 0;
+
+		// TODO: track changes
+
+		return updated;
+	}
+
+	@Nonnull
+	public Boolean cancelPatientOrderScheduledScreening(@Nonnull CancelPatientOrderScheduledScreeningRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderScheduledScreeningId = request.getPatientOrderScheduledScreeningId();
+		UUID accountId = request.getAccountId();
+		PatientOrderScheduledScreening patientOrderScheduledScreening = null;
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderScheduledScreeningId == null) {
+			validationException.add(new FieldError("patientOrderScheduledScreeningId", getStrings().get("Patient Order Scheduled Screening ID is required.")));
+		} else {
+			patientOrderScheduledScreening = findPatientOrderScheduledScreeningById(patientOrderScheduledScreeningId).orElse(null);
+
+			if (patientOrderScheduledScreening == null)
+				validationException.add(new FieldError("patientOrderScheduledScreeningId", getStrings().get("Patient Order Scheduled Screening ID is invalid.")));
+		}
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		boolean updated = getDatabase().execute("""
+				UPDATE patient_order_scheduled_screening SET
+				account_id=?,
+				canceled=TRUE,
+				canceled_at=NOW()
+				WHERE patient_order_scheduled_screening_id=?
+				""", accountId, patientOrderScheduledScreeningId) > 0;
+
+		// TODO: track changes
+
+		return updated;
 	}
 
 	@Nonnull
