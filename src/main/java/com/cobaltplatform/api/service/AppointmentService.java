@@ -308,6 +308,10 @@ public class AppointmentService {
 		if (providerId == null || startDate == null || endDate == null)
 			return Collections.emptyList();
 
+		// Special case, for same start/end date ensure we pull back data
+		if (startDate.equals(endDate))
+			endDate = startDate.plusDays(1);
+
 		return getDatabase().queryForList("SELECT * FROM appointment WHERE provider_id=? AND canceled=FALSE " +
 				"AND start_time >= ? AND start_time <= ? ORDER BY start_time DESC", Appointment.class, providerId, startDate, endDate);
 	}
@@ -977,9 +981,6 @@ public class AppointmentService {
 			phoneNumber = account.getPhoneNumber();
 		}
 
-		// Special handling for special clinic
-		boolean isCalmingAnAnxiousMindIntakeAppointment = oneOnOne && providerId != null && getClinicService().isProviderPartOfCalmingAnAnxiousMindClinic(providerId);
-
 		AcuityAppointmentType acuityAppointmentType = null;
 		Long acuityClassId = null;
 		Long acuityCalendarId = null;
@@ -995,6 +996,23 @@ public class AppointmentService {
 			if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.ACUITY)
 				// TODO: use cache here
 				acuityAppointmentType = getAcuitySchedulingClient().findAppointmentTypeById(appointmentType.getAcuityAppointmentTypeId()).get();
+		}
+
+		// Ensure we can't double-book the same time
+		List<Appointment> existingAppointmentsForDate = findAppointmentsByProviderId(providerId, date, date);
+		LocalDateTime appointmentStartTime = LocalDateTime.of(date, time);
+
+		for (Appointment existingAppointmentForDate : existingAppointmentsForDate)
+			if (existingAppointmentForDate.getStartTime().equals(appointmentStartTime))
+				throw new ValidationException(getStrings().get("Sorry, this appointment time is no longer available. Please pick a different time."));
+
+		// Ensure we are not booking within the provider's lead time
+		if (provider.getSchedulingLeadTimeInHours() != null) {
+			LocalDateTime now = LocalDateTime.now(provider.getTimeZone());
+			long hoursUntilAppointment = ChronoUnit.HOURS.between(now, appointmentStartTime);
+
+			if (hoursUntilAppointment < provider.getSchedulingLeadTimeInHours())
+				throw new ValidationException(getStrings().get("Sorry, this appointment time is no longer available. Please pick a different time."));
 		}
 
 		Long durationInMinutes = null;
