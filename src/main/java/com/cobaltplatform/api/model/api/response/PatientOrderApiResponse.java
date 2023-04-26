@@ -245,6 +245,14 @@ public class PatientOrderApiResponse {
 	private UUID providerId;
 	@Nullable
 	private String providerName;
+	@Nullable
+	private Boolean patientConsented;
+	@Nullable
+	private UUID patientConsentedByAccountId;
+	@Nullable
+	private Instant patientConsentedAt;
+	@Nullable
+	private String patientConsentedAtDescription;
 
 	@Nullable
 	private AddressApiResponse patientAddress;
@@ -582,6 +590,10 @@ public class PatientOrderApiResponse {
 		this.appointmentStartTimeDescription = patientOrder.getAppointmentStartTime() == null ? null : formatter.formatDateTime(patientOrder.getAppointmentStartTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 		this.providerId = patientOrder.getProviderId();
 		this.providerName = patientOrder.getProviderName();
+		this.patientConsented = patientOrder.getPatientConsented();
+		this.patientConsentedByAccountId = patientOrder.getPatientConsentedByAccountId();
+		this.patientConsentedAt = patientOrder.getPatientConsentedAt();
+		this.patientConsentedAtDescription = patientOrder.getPatientConsentedAt() == null ? null : formatter.formatTimestamp(patientOrder.getPatientConsentedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 
 		// MHIC-only view of the data
 		if (format == PatientOrderApiResponseFormat.MHIC) {
@@ -1289,5 +1301,50 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public List<PatientOrderScheduledMessageGroupApiResponse> getPatientOrderScheduledMessageGroups() {
 		return this.patientOrderScheduledMessageGroups;
+	}
+
+	@Nullable
+	public UUID getAppointmentId() {
+		return this.appointmentId;
+	}
+
+	@Nullable
+	public LocalDateTime getAppointmentStartTime() {
+		return this.appointmentStartTime;
+	}
+
+	@Nullable
+	public String getAppointmentStartTimeDescription() {
+		return this.appointmentStartTimeDescription;
+	}
+
+	@Nullable
+	public UUID getProviderId() {
+		return this.providerId;
+	}
+
+	@Nullable
+	public String getProviderName() {
+		return this.providerName;
+	}
+
+	@Nullable
+	public Boolean getPatientConsented() {
+		return this.patientConsented;
+	}
+
+	@Nullable
+	public UUID getPatientConsentedByAccountId() {
+		return this.patientConsentedByAccountId;
+	}
+
+	@Nullable
+	public Instant getPatientConsentedAt() {
+		return this.patientConsentedAt;
+	}
+
+	@Nullable
+	public String getPatientConsentedAtDescription() {
+		return this.patientConsentedAtDescription;
 	}
 }

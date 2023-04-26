@@ -173,6 +173,12 @@ public class PatientOrder {
 	@Nullable
 	private Instant connectedToSafetyPlanningAt;
 	@Nullable
+	private Boolean patientConsented;
+	@Nullable
+	private UUID patientConsentedByAccountId;
+	@Nullable
+	private Instant patientConsentedAt;
+	@Nullable
 	private String testPatientEmailAddress;
 	@Nullable
 	private String testPatientPassword;
@@ -810,6 +816,33 @@ public class PatientOrder {
 
 	public void setConnectedToSafetyPlanningAt(@Nullable Instant connectedToSafetyPlanningAt) {
 		this.connectedToSafetyPlanningAt = connectedToSafetyPlanningAt;
+	}
+
+	@Nullable
+	public Boolean getPatientConsented() {
+		return this.patientConsented;
+	}
+
+	public void setPatientConsented(@Nullable Boolean patientConsented) {
+		this.patientConsented = patientConsented;
+	}
+
+	@Nullable
+	public UUID getPatientConsentedByAccountId() {
+		return this.patientConsentedByAccountId;
+	}
+
+	public void setPatientConsentedByAccountId(@Nullable UUID patientConsentedByAccountId) {
+		this.patientConsentedByAccountId = patientConsentedByAccountId;
+	}
+
+	@Nullable
+	public Instant getPatientConsentedAt() {
+		return this.patientConsentedAt;
+	}
+
+	public void setPatientConsentedAt(@Nullable Instant patientConsentedAt) {
+		this.patientConsentedAt = patientConsentedAt;
 	}
 
 	@Nullable

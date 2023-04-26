@@ -27,6 +27,7 @@ import com.cobaltplatform.api.messaging.sms.SmsMessageTemplate;
 import com.cobaltplatform.api.model.api.request.AssignPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.CancelPatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
+import com.cobaltplatform.api.model.api.request.ConsentPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderEventRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
@@ -957,6 +958,45 @@ public class PatientOrderService {
 				setMetadata(metadata);
 			}
 		});
+
+		return true;
+	}
+
+	@Nonnull
+	public Boolean consentPatientOrder(@Nonnull ConsentPatientOrderRequest request) {
+		requireNonNull(request);
+
+		UUID accountId = request.getAccountId();
+		UUID patientOrderId = request.getPatientOrderId();
+		PatientOrder patientOrder = null;
+		ValidationException validationException = new ValidationException();
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (patientOrderId == null) {
+			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+		} else {
+			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+
+			if (patientOrder == null)
+				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		// If we're already consented, nothing to do
+		if (patientOrder.getPatientConsented())
+			return false;
+
+		getDatabase().execute("""
+				UPDATE patient_order
+				SET patient_consented=TRUE, patient_consented_at=NOW(), patient_consented_by_account_id=?
+				WHERE patient_order_id=?
+				""", accountId, patientOrderId);
+
+		// TODO: track event
 
 		return true;
 	}
