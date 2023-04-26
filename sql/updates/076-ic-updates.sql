@@ -1,8 +1,13 @@
 BEGIN;
 SELECT _v.register_patch('076-ic-updates', NULL, NULL);
 
--- Recreate view to fix most_recent_outreach_date_time
-CREATE OR REPLACE VIEW v_patient_order AS WITH po_query AS (
+-- Support for tying appointments to IC orders
+ALTER TABLE appointment ADD COLUMN patient_order_id UUID REFERENCES patient_order;
+
+DROP VIEW v_patient_order;
+
+-- Recreate view to fix most_recent_outreach_date_time and add recent appointment info
+CREATE VIEW v_patient_order AS WITH po_query AS (
     select
         *
     from
@@ -36,6 +41,23 @@ poomax_query AS (
         and poo.deleted = false
     group by
         poo.patient_order_id
+),
+recent_appt_query AS (
+    -- Pick the most recent appointment for each patient order
+    select
+        app.patient_order_id,
+        app.appointment_id,
+        p.provider_id,
+        p.name as provider_name,
+        app.start_time as appointment_start_time
+    from
+        po_query poq
+        join appointment app ON poq.patient_order_id = app.patient_order_id
+        join provider p ON app.provider_id  = p.provider_id
+        left join appointment app2 ON app.patient_order_id = app2.patient_order_id
+        and app.start_time > app2.start_time
+    where
+        app2.appointment_id  IS NULL
 ),
 ss_query AS (
     -- Pick the most recently-created screening session for the patient order
@@ -172,6 +194,10 @@ select
     rssq.patient_order_scheduled_screening_id,
     rssq.scheduled_date_time AS patient_order_scheduled_screening_scheduled_date_time,
     rssq.calendar_url AS patient_order_scheduled_screening_calendar_url,
+    raq.appointment_start_time,
+    raq.provider_id,
+    raq.provider_name,
+    raq.appointment_id,
     poq.*
 from
     po_query poq
@@ -184,6 +210,7 @@ from
     left outer join triage_query tq ON poq.patient_order_id = tq.patient_order_id
     left outer join account panel_account ON poq.panel_account_id = panel_account.account_id
     left outer join recent_po_query rpq ON poq.patient_order_id = rpq.patient_order_id
-    left outer join recent_scheduled_screening_query rssq ON poq.patient_order_id = rssq.patient_order_id;
+    left outer join recent_scheduled_screening_query rssq ON poq.patient_order_id = rssq.patient_order_id
+   left outer join recent_appt_query raq on poq.patient_order_id=raq.patient_order_id;
 
 COMMIT;

@@ -864,6 +864,7 @@ public class AppointmentService {
 		UUID groupEventTypeId = request.getGroupEventTypeId();
 		UUID appointmentTypeId = request.getAppointmentTypeId();
 		UUID intakeAssessmentId = request.getIntakeAssessmentId();
+		UUID patientOrderId = request.getPatientOrderId();
 		String emailAddress = getNormalizer().normalizeEmailAddress(request.getEmailAddress()).orElse(null);
 		String phoneNumber = trimToNull(request.getPhoneNumber());
 		String comment = trimToNull(request.getComment());
@@ -987,6 +988,19 @@ public class AppointmentService {
 			provider = getProviderService().findProviderById(providerId).get();
 			timeZone = provider.getTimeZone();
 			acuityCalendarId = provider.getAcuityCalendarId();
+
+			Institution institution = getInstitutionService().findInstitutionById(provider.getInstitutionId()).get();
+
+			// Integrated care handling.  If the institution is an IC institution, require appointments be tied to orders.
+			// Otherwise, it's not permitted to tie to orders.
+			if (institution.getIntegratedCareEnabled()) {
+				if (patientOrderId == null)
+					throw new ValidationException(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+
+				// TODO: track event
+			} else {
+				patientOrderId = null;
+			}
 
 			// Special handling for Acuity - read the latest value for appointment type
 			if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.ACUITY)
@@ -1244,10 +1258,10 @@ public class AppointmentService {
 		getDatabase().execute("INSERT INTO appointment (appointment_id, provider_id, account_id, created_by_account_id, " +
 						"appointment_type_id, acuity_appointment_id, acuity_class_id, bluejeans_meeting_id, bluejeans_participant_passcode, title, start_time, end_time, " +
 						"duration_in_minutes, time_zone, videoconference_url, epic_contact_id, epic_contact_id_type, videoconference_platform_id, " +
-						"phone_number, appointment_reason_id, comment, intake_assessment_id, scheduling_system_id, intake_account_session_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", appointmentId, providerId,
+						"phone_number, appointment_reason_id, comment, intake_assessment_id, scheduling_system_id, intake_account_session_id, patient_order_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", appointmentId, providerId,
 				accountId, createdByAccountId, appointmentTypeId, acuityAppointmentId, acuityClassId, bluejeansMeetingId, bluejeansParticipantPasscode,
 				title, meetingStartTime, meetingEndTime, durationInMinutes, timeZone, videoconferenceUrl, epicContactId,
-				epicContactIdType, videoconferencePlatformId, appointmentPhoneNumber, appointmentReasonId, comment, intakeAssessmentId, appointmentType.getSchedulingSystemId(), intakeAccountSessionId);
+				epicContactIdType, videoconferencePlatformId, appointmentPhoneNumber, appointmentReasonId, comment, intakeAssessmentId, appointmentType.getSchedulingSystemId(), intakeAccountSessionId, patientOrderId);
 
 		if (provider != null) {
 			sendProviderScoreEmail(provider, account, emailAddress, phoneNumber, videoconferenceUrl,
@@ -1256,11 +1270,7 @@ public class AppointmentService {
 					getFormatter().formatTime(meetingEndTime.toLocalTime()), intakeSession);
 		}
 
-		Provider pinnedProvider = provider;
-		Account pinnedPatientAccount = account;
-		String pinnedEmailAddress = emailAddress;
 		ZoneId pinnedTimeZone = timeZone;
-		String pinnedVideoconferenceUrl = videoconferenceUrl;
 		SchedulingSystemId schedulingSystemId = appointmentType.getSchedulingSystemId();
 
 		getDatabase().currentTransaction().get().addPostCommitOperation(() -> {

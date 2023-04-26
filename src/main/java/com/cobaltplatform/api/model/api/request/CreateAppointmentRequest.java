@@ -39,6 +39,8 @@ public class CreateAppointmentRequest {
 	@Nullable
 	private UUID appointmentReasonId;
 	@Nullable
+	private UUID patientOrderId;
+	@Nullable
 	private LocalDate date;
 	@Nullable
 	private LocalTime time;
@@ -73,6 +75,15 @@ public class CreateAppointmentRequest {
 
 	public void setCreatedByAcountId(@Nullable UUID createdByAcountId) {
 		this.createdByAcountId = createdByAcountId;
+	}
+
+	@Nullable
+	public UUID getPatientOrderId() {
+		return this.patientOrderId;
+	}
+
+	public void setPatientOrderId(@Nullable UUID patientOrderId) {
+		this.patientOrderId = patientOrderId;
 	}
 
 	@Nullable

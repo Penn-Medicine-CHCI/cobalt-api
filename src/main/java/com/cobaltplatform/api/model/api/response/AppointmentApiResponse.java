@@ -73,6 +73,8 @@ public class AppointmentApiResponse {
 	@Nullable
 	private final UUID intakeAssessmentId;
 	@Nullable
+	private final UUID patientOrderId;
+	@Nullable
 	private final Long acuityAppointmentId;
 	@Nonnull
 	private final Long bluejeansMeetingId;
@@ -207,6 +209,7 @@ public class AppointmentApiResponse {
 		this.createdByAccountId = appointment.getCreatedByAccountId();
 		this.acuityAppointmentId = appointment.getAcuityAppointmentId();
 		this.intakeAssessmentId = appointment.getIntakeAssessmentId();
+		this.patientOrderId = appointment.getPatientOrderId();
 		this.appointmentTypeId = appointment.getAppointmentTypeId();
 		this.bluejeansMeetingId = appointment.getBluejeansMeetingId();
 		this.groupEventId = appointment.getAcuityClassId() == null ? null : String.valueOf(appointment.getAcuityClassId());
@@ -303,6 +306,11 @@ public class AppointmentApiResponse {
 	@Nullable
 	public UUID getIntakeAssessmentId() {
 		return intakeAssessmentId;
+	}
+
+	@Nullable
+	public UUID getPatientOrderId() {
+		return this.patientOrderId;
 	}
 
 	@Nullable
