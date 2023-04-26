@@ -208,7 +208,7 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String patientLanguageCode;
 	@Nullable
-	private String patientEmailEddress;
+	private String patientEmailAddress;
 	@Nullable
 	private String preferredContactHours;
 	@Nullable
@@ -235,6 +235,16 @@ public class PatientOrderApiResponse {
 	private String resourcesSentAtDescription;
 	@Nullable
 	private String resourcesSentNote;
+	@Nullable
+	private UUID appointmentId;
+	@Nullable
+	private LocalDateTime appointmentStartTime;
+	@Nullable
+	private String appointmentStartTimeDescription;
+	@Nullable
+	private UUID providerId;
+	@Nullable
+	private String providerName;
 
 	@Nullable
 	private AddressApiResponse patientAddress;
@@ -560,13 +570,18 @@ public class PatientOrderApiResponse {
 		this.patientRaceId = patientOrder.getPatientRaceId();
 		this.patientGenderIdentityId = patientOrder.getPatientGenderIdentityId();
 		this.patientLanguageCode = patientOrder.getPatientLanguageCode();
-		this.patientEmailEddress = patientOrder.getPatientEmailAddress();
+		this.patientEmailAddress = patientOrder.getPatientEmailAddress();
 		this.patientBirthdate = patientOrder.getPatientBirthdate();
 		this.patientBirthdateDescription = patientOrder.getPatientBirthdate() == null ? null : formatter.formatDate(patientOrder.getPatientBirthdate(), FormatStyle.MEDIUM);
 		this.patientPhoneNumber = patientOrder.getPatientPhoneNumber();
 		this.patientPhoneNumberDescription = patientOrder.getPatientPhoneNumber() == null ? null : formatter.formatPhoneNumber(patientOrder.getPatientPhoneNumber(), currentContext.getLocale());
 		this.patientAddress = patientAddress;
 		this.patientAccount = patientAccount;
+		this.appointmentId = patientOrder.getAppointmentId();
+		this.appointmentStartTime = patientOrder.getAppointmentStartTime();
+		this.appointmentStartTimeDescription = patientOrder.getAppointmentStartTime() == null ? null : formatter.formatDateTime(patientOrder.getAppointmentStartTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.providerId = patientOrder.getProviderId();
+		this.providerName = patientOrder.getProviderName();
 
 		// MHIC-only view of the data
 		if (format == PatientOrderApiResponseFormat.MHIC) {
@@ -962,8 +977,8 @@ public class PatientOrderApiResponse {
 	}
 
 	@Nullable
-	public String getPatientEmailEddress() {
-		return this.patientEmailEddress;
+	public String getPatientEmailAddress() {
+		return this.patientEmailAddress;
 	}
 
 	@Nullable

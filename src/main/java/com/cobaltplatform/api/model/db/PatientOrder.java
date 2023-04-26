@@ -227,6 +227,14 @@ public class PatientOrder {
 	private LocalDateTime patientOrderScheduledScreeningScheduledDateTime;
 	@Nullable
 	private String patientOrderScheduledScreeningCalendarUrl;
+	@Nullable
+	private UUID appointmentId;
+	@Nullable
+	private LocalDateTime appointmentStartTime;
+	@Nullable
+	private UUID providerId;
+	@Nullable
+	private String providerName;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -1036,5 +1044,41 @@ public class PatientOrder {
 
 	public void setPatientOrderScheduledScreeningCalendarUrl(@Nullable String patientOrderScheduledScreeningCalendarUrl) {
 		this.patientOrderScheduledScreeningCalendarUrl = patientOrderScheduledScreeningCalendarUrl;
+	}
+
+	@Nullable
+	public UUID getAppointmentId() {
+		return this.appointmentId;
+	}
+
+	public void setAppointmentId(@Nullable UUID appointmentId) {
+		this.appointmentId = appointmentId;
+	}
+
+	@Nullable
+	public LocalDateTime getAppointmentStartTime() {
+		return this.appointmentStartTime;
+	}
+
+	public void setAppointmentStartTime(@Nullable LocalDateTime appointmentStartTime) {
+		this.appointmentStartTime = appointmentStartTime;
+	}
+
+	@Nullable
+	public UUID getProviderId() {
+		return this.providerId;
+	}
+
+	public void setProviderId(@Nullable UUID providerId) {
+		this.providerId = providerId;
+	}
+
+	@Nullable
+	public String getProviderName() {
+		return this.providerName;
+	}
+
+	public void setProviderName(@Nullable String providerName) {
+		this.providerName = providerName;
 	}
 }

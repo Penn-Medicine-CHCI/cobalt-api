@@ -44,6 +44,8 @@ public class FindPatientOrdersRequest {
 	@Nullable
 	private String patientMrn;
 	@Nullable
+	private String searchQuery;
+	@Nullable
 	private Integer pageNumber;
 	@Nullable
 	private Integer pageSize;
@@ -91,6 +93,15 @@ public class FindPatientOrdersRequest {
 
 	public void setPatientMrn(@Nullable String patientMrn) {
 		this.patientMrn = patientMrn;
+	}
+
+	@Nullable
+	public String getSearchQuery() {
+		return this.searchQuery;
+	}
+
+	public void setSearchQuery(@Nullable String searchQuery) {
+		this.searchQuery = searchQuery;
 	}
 
 	@Nullable

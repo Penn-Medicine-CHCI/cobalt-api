@@ -445,12 +445,14 @@ public class PatientOrderResource {
 																			 @Nonnull @QueryParameter("patientOrderStatusId") Optional<List<PatientOrderStatusId>> patientOrderStatusIds,
 																			 @Nonnull @QueryParameter Optional<UUID> panelAccountId,
 																			 @Nonnull @QueryParameter Optional<String> patientMrn,
+																			 @Nonnull @QueryParameter Optional<String> searchQuery,
 																			 @Nonnull @QueryParameter Optional<Integer> pageNumber,
 																			 @Nonnull @QueryParameter Optional<Integer> pageSize) {
 		requireNonNull(patientOrderDispositionId);
 		requireNonNull(patientOrderStatusIds);
 		requireNonNull(panelAccountId);
 		requireNonNull(patientMrn);
+		requireNonNull(searchQuery);
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
 
@@ -476,6 +478,7 @@ public class PatientOrderResource {
 				setPatientOrderStatusIds(new HashSet<>(patientOrderStatusIds.orElse(List.of())));
 				setPanelAccountId(panelAccountId.orElse(null));
 				setPatientMrn(patientMrn.orElse(null));
+				setSearchQuery(searchQuery.orElse(null));
 				setPageNumber(pageNumber.orElse(0));
 				setPageSize(pageSize.orElse(0));
 			}
