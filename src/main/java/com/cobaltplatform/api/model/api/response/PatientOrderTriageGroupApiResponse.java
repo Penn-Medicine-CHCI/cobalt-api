@@ -28,6 +28,7 @@ import com.google.inject.assistedinject.AssistedInject;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.Immutable;
+import javax.annotation.concurrent.ThreadSafe;
 import java.util.List;
 
 import static java.util.Objects.requireNonNull;
@@ -40,47 +41,64 @@ public class PatientOrderTriageGroupApiResponse {
 	@Nonnull
 	private final PatientOrderTriageSourceId patientOrderTriageSourceId;
 	@Nonnull
-	private final PatientOrderFocusTypeId patientOrderFocusTypeId;
-	@Nonnull
-	private final String patientOrderFocusTypeDescription;
-	@Nonnull
 	private final PatientOrderCareTypeId patientOrderCareTypeId;
 	@Nonnull
 	private final String patientOrderCareTypeDescription;
 	@Nonnull
-	private final List<String> reasons;
+	private final List<PatientOrderTriageGroupFocusApiResponse> patientOrderFocusTypes;
 
 	@AssistedInject
 	public PatientOrderTriageGroupApiResponse(@Nonnull PatientOrderTriageSourceId patientOrderTriageSourceId,
-																						@Nonnull PatientOrderFocusType patientOrderFocusType,
 																						@Nonnull PatientOrderCareType patientOrderCareType,
-																						@Nonnull List<String> reasons) {
+																						@Nonnull List<PatientOrderTriageGroupFocusApiResponse> patientOrderFocusTypes) {
 		requireNonNull(patientOrderTriageSourceId);
-		requireNonNull(patientOrderFocusType);
 		requireNonNull(patientOrderCareType);
-		requireNonNull(reasons);
+		requireNonNull(patientOrderFocusTypes);
 
 		this.patientOrderTriageSourceId = patientOrderTriageSourceId;
-		this.patientOrderFocusTypeId = patientOrderFocusType.getPatientOrderFocusTypeId();
-		this.patientOrderFocusTypeDescription = patientOrderFocusType.getDescription();
 		this.patientOrderCareTypeId = patientOrderCareType.getPatientOrderCareTypeId();
 		this.patientOrderCareTypeDescription = patientOrderCareType.getDescription();
-		this.reasons = reasons;
+		this.patientOrderFocusTypes = patientOrderFocusTypes;
+	}
+
+	@ThreadSafe
+	public static class PatientOrderTriageGroupFocusApiResponse {
+		@Nonnull
+		private final PatientOrderFocusTypeId patientOrderFocusTypeId;
+		@Nonnull
+		private final String patientOrderFocusTypeDescription;
+		@Nonnull
+		private final List<String> reasons;
+
+		public PatientOrderTriageGroupFocusApiResponse(@Nonnull PatientOrderFocusType patientOrderFocusType,
+																									 @Nonnull List<String> reasons) {
+			requireNonNull(patientOrderFocusType);
+			requireNonNull(reasons);
+
+			this.patientOrderFocusTypeId = patientOrderFocusType.getPatientOrderFocusTypeId();
+			this.patientOrderFocusTypeDescription = patientOrderFocusType.getDescription();
+			this.reasons = reasons;
+		}
+
+		@Nonnull
+		public PatientOrderFocusTypeId getPatientOrderFocusTypeId() {
+			return this.patientOrderFocusTypeId;
+		}
+
+		@Nonnull
+		public String getPatientOrderFocusTypeDescription() {
+			return this.patientOrderFocusTypeDescription;
+		}
+
+		@Nonnull
+		public List<String> getReasons() {
+			return this.reasons;
+		}
 	}
 
 	@Nonnull
 	public PatientOrderTriageSourceId getPatientOrderTriageSourceId() {
 		return this.patientOrderTriageSourceId;
-	}
-
-	@Nonnull
-	public PatientOrderFocusTypeId getPatientOrderFocusTypeId() {
-		return this.patientOrderFocusTypeId;
-	}
-
-	@Nonnull
-	public String getPatientOrderFocusTypeDescription() {
-		return this.patientOrderFocusTypeDescription;
 	}
 
 	@Nonnull
@@ -94,7 +112,7 @@ public class PatientOrderTriageGroupApiResponse {
 	}
 
 	@Nonnull
-	public List<String> getReasons() {
-		return this.reasons;
+	public List<PatientOrderTriageGroupFocusApiResponse> getPatientOrderFocusTypes() {
+		return this.patientOrderFocusTypes;
 	}
 }
