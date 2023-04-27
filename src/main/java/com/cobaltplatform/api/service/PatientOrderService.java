@@ -91,6 +91,7 @@ import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTria
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
+import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.IcTestPatientEmailAddress;
 import com.cobaltplatform.api.model.service.PatientOrderAutocompleteResult;
@@ -2109,15 +2110,15 @@ public class PatientOrderService {
 		requireNonNull(scheduledAtTime);
 
 		Institution institution = getInstitutionService().findInstitutionById(patientOrder.getInstitutionId()).get();
+		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institution.getInstitutionId(), UserExperienceTypeId.PATIENT).get();
 
 		Set<UUID> scheduledMessageIds = new HashSet<>();
 
 		if (messageTypeIds.contains(MessageTypeId.EMAIL)) {
 			EmailMessage emailMessage = new EmailMessage.Builder(EmailMessageTemplate.valueOf(patientOrderScheduledMessageType.getTemplateName()), Locale.US)
 					.toAddresses(List.of(patientOrder.getPatientEmailAddress()))
-					// TODO: introduce institution-level "default from" address
-					.fromAddress("todo@cobaltinnovations.org")
-					.messageContext(Map.of())
+					.fromAddress(institution.getDefaultFromEmailAddress())
+					.messageContext(Map.of("webappBaseUrl", webappBaseUrl))
 					.build();
 
 			scheduledMessageIds.add(getMessageService().createScheduledMessage(new CreateScheduledMessageRequest<>() {{
@@ -2130,7 +2131,7 @@ public class PatientOrderService {
 
 		if (messageTypeIds.contains(MessageTypeId.SMS)) {
 			SmsMessage smsMessage = new SmsMessage.Builder(SmsMessageTemplate.valueOf(patientOrderScheduledMessageType.getTemplateName()), patientOrder.getPatientPhoneNumber(), Locale.US)
-					.messageContext(Map.of())
+					.messageContext(Map.of("webappBaseUrl", webappBaseUrl))
 					.build();
 
 			scheduledMessageIds.add(getMessageService().createScheduledMessage(new CreateScheduledMessageRequest<>() {{

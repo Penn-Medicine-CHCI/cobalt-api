@@ -63,8 +63,8 @@ import com.cobaltplatform.api.model.api.response.PatientOrderTriageApiResponse.P
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
-import com.cobaltplatform.api.model.db.BirthSex;
-import com.cobaltplatform.api.model.db.Ethnicity;
+import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
@@ -78,7 +78,7 @@ import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageGroup;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledScreening;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
-import com.cobaltplatform.api.model.db.Race;
+import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.PatientOrderAutocompleteResult;
@@ -1244,17 +1244,17 @@ public class PatientOrderResource {
 				.collect(Collectors.toList());
 
 		List<Map<String, Object>> races = getAccountService().findRaces().stream()
-				.filter(race -> race.getRaceId() != Race.RaceId.NOT_ASKED)
+				.filter(race -> race.getRaceId() != RaceId.NOT_ASKED)
 				.map(race -> Map.<String, Object>of("raceId", race.getRaceId(), "description", race.getDescription()))
 				.collect(Collectors.toList());
 
 		List<Map<String, Object>> birthSexes = getAccountService().findBirthSexes().stream()
-				.filter(birthSex -> birthSex.getBirthSexId() != BirthSex.BirthSexId.NOT_ASKED)
+				.filter(birthSex -> birthSex.getBirthSexId() != BirthSexId.NOT_ASKED)
 				.map(birthSex -> Map.<String, Object>of("birthSexId", birthSex.getBirthSexId(), "description", birthSex.getDescription()))
 				.collect(Collectors.toList());
 
 		List<Map<String, Object>> ethnicities = getAccountService().findEthnicities().stream()
-				.filter(ethnicity -> ethnicity.getEthnicityId() != Ethnicity.EthnicityId.NOT_ASKED)
+				.filter(ethnicity -> ethnicity.getEthnicityId() != EthnicityId.NOT_ASKED)
 				.map(ethnicity -> Map.<String, Object>of("ethnicityId", ethnicity.getEthnicityId(), "description", ethnicity.getDescription()))
 				.collect(Collectors.toList());
 
