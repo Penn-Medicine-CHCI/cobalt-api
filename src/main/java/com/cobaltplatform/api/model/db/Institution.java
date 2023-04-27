@@ -175,6 +175,8 @@ public class Institution {
 	private Integer integratedCareSentResourcesFollowupWeekOffset;
 	@Nullable
 	private Integer integratedCareSentResourcesFollowupDayOffset;
+	@Nullable
+	private String defaultFromEmailAddress;
 
 	public enum InstitutionId {
 		COBALT,
@@ -789,5 +791,14 @@ public class Institution {
 
 	public void setIntegratedCareSentResourcesFollowupWeekOffset(@Nullable Integer integratedCareSentResourcesFollowupWeekOffset) {
 		this.integratedCareSentResourcesFollowupWeekOffset = integratedCareSentResourcesFollowupWeekOffset;
+	}
+
+	@Nullable
+	public String getDefaultFromEmailAddress() {
+		return this.defaultFromEmailAddress;
+	}
+
+	public void setDefaultFromEmailAddress(@Nullable String defaultFromEmailAddress) {
+		this.defaultFromEmailAddress = defaultFromEmailAddress;
 	}
 }

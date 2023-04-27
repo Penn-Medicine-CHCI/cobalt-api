@@ -91,6 +91,7 @@ import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTria
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
+import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.IcTestPatientEmailAddress;
 import com.cobaltplatform.api.model.service.PatientOrderAutocompleteResult;
@@ -820,6 +821,11 @@ public class PatientOrderService {
 	}
 
 	@Nonnull
+	public List<PatientOrderTriage> findPatientOrderTriagesByPatientOrderId(@Nullable UUID patientOrderId) {
+		return findPatientOrderTriagesByPatientOrderId(patientOrderId, null);
+	}
+
+	@Nonnull
 	public List<PatientOrderTriage> findPatientOrderTriagesByPatientOrderId(@Nullable UUID patientOrderId,
 																																					@Nullable UUID screeningSessionId) {
 		if (patientOrderId == null)
@@ -835,12 +841,16 @@ public class PatientOrderService {
 
 		parameters.add(patientOrderId);
 
+		// If a screening session is specified, pull triages regardless of whether they're still active.
+		// If not specified, only pull active triages
 		if (screeningSessionId != null) {
 			sql += " AND screening_session_id=?";
 			parameters.add(screeningSessionId);
+		} else {
+			sql += " AND active=TRUE";
 		}
 
-		sql += "ORDER BY display_order";
+		sql += " ORDER BY display_order";
 
 		return getDatabase().queryForList(sql, PatientOrderTriage.class, parameters.toArray(new Object[]{}));
 	}
@@ -1096,6 +1106,8 @@ public class PatientOrderService {
 
 			patientOrderTriageIds.add(patientOrderTriageId);
 		}
+
+		// TODO: track events
 
 		return patientOrderTriageIds;
 	}
@@ -1592,7 +1604,7 @@ public class PatientOrderService {
 
 		Instant resourcesSentAt = null;
 
-		if (patientOrder.getPatientOrderResourcingStatusId() == PatientOrderResourcingStatusId.SENT_RESOURCES) {
+		if (patientOrderResourcingStatusId == PatientOrderResourcingStatusId.SENT_RESOURCES) {
 			// If provided a sent-at date/time, use them.
 			// Otherwise, assuming "now"
 			if (resourcesSentAtDate != null && resourcesSentAtTime != null) {
@@ -1602,12 +1614,12 @@ public class PatientOrderService {
 				resourcesSentAt = Instant.now();
 			}
 
-			// Schedule a message to be sent to the patient regarding these resources
+			// TODO: Schedule a message to be sent to the patient regarding these resources
 
 		} else {
-			resourcesSentNote = null;
+			resourcesSentAt = null;
 
-			// Cancel scheduled check-in messages to this patient for this order
+			// TODO: Cancel scheduled check-in messages to this patient for this order
 		}
 
 		// TODO: track changes in event history table
@@ -2109,15 +2121,15 @@ public class PatientOrderService {
 		requireNonNull(scheduledAtTime);
 
 		Institution institution = getInstitutionService().findInstitutionById(patientOrder.getInstitutionId()).get();
+		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institution.getInstitutionId(), UserExperienceTypeId.PATIENT).get();
 
 		Set<UUID> scheduledMessageIds = new HashSet<>();
 
 		if (messageTypeIds.contains(MessageTypeId.EMAIL)) {
 			EmailMessage emailMessage = new EmailMessage.Builder(EmailMessageTemplate.valueOf(patientOrderScheduledMessageType.getTemplateName()), Locale.US)
 					.toAddresses(List.of(patientOrder.getPatientEmailAddress()))
-					// TODO: introduce institution-level "default from" address
-					.fromAddress("todo@cobaltinnovations.org")
-					.messageContext(Map.of())
+					.fromAddress(institution.getDefaultFromEmailAddress())
+					.messageContext(Map.of("webappBaseUrl", webappBaseUrl))
 					.build();
 
 			scheduledMessageIds.add(getMessageService().createScheduledMessage(new CreateScheduledMessageRequest<>() {{
@@ -2130,7 +2142,7 @@ public class PatientOrderService {
 
 		if (messageTypeIds.contains(MessageTypeId.SMS)) {
 			SmsMessage smsMessage = new SmsMessage.Builder(SmsMessageTemplate.valueOf(patientOrderScheduledMessageType.getTemplateName()), patientOrder.getPatientPhoneNumber(), Locale.US)
-					.messageContext(Map.of())
+					.messageContext(Map.of("webappBaseUrl", webappBaseUrl))
 					.build();
 
 			scheduledMessageIds.add(getMessageService().createScheduledMessage(new CreateScheduledMessageRequest<>() {{

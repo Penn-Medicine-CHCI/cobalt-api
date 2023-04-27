@@ -23,6 +23,7 @@ import com.cobaltplatform.api.model.db.PatientOrderCareType;
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 import com.google.inject.assistedinject.AssistedInject;
 
 import javax.annotation.Nonnull;
@@ -37,6 +38,8 @@ import static java.util.Objects.requireNonNull;
 @Immutable
 public class PatientOrderTriageGroupApiResponse {
 	@Nonnull
+	private final PatientOrderTriageSourceId patientOrderTriageSourceId;
+	@Nonnull
 	private final PatientOrderFocusTypeId patientOrderFocusTypeId;
 	@Nonnull
 	private final String patientOrderFocusTypeDescription;
@@ -48,18 +51,26 @@ public class PatientOrderTriageGroupApiResponse {
 	private final List<String> reasons;
 
 	@AssistedInject
-	public PatientOrderTriageGroupApiResponse(@Nonnull PatientOrderFocusType patientOrderFocusType,
+	public PatientOrderTriageGroupApiResponse(@Nonnull PatientOrderTriageSourceId patientOrderTriageSourceId,
+																						@Nonnull PatientOrderFocusType patientOrderFocusType,
 																						@Nonnull PatientOrderCareType patientOrderCareType,
 																						@Nonnull List<String> reasons) {
+		requireNonNull(patientOrderTriageSourceId);
 		requireNonNull(patientOrderFocusType);
 		requireNonNull(patientOrderCareType);
 		requireNonNull(reasons);
 
+		this.patientOrderTriageSourceId = patientOrderTriageSourceId;
 		this.patientOrderFocusTypeId = patientOrderFocusType.getPatientOrderFocusTypeId();
 		this.patientOrderFocusTypeDescription = patientOrderFocusType.getDescription();
 		this.patientOrderCareTypeId = patientOrderCareType.getPatientOrderCareTypeId();
 		this.patientOrderCareTypeDescription = patientOrderCareType.getDescription();
 		this.reasons = reasons;
+	}
+
+	@Nonnull
+	public PatientOrderTriageSourceId getPatientOrderTriageSourceId() {
+		return this.patientOrderTriageSourceId;
 	}
 
 	@Nonnull

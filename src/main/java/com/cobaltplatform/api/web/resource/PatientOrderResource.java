@@ -42,6 +42,7 @@ import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStat
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderSafetyPlanningStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledScreeningRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse;
@@ -63,8 +64,8 @@ import com.cobaltplatform.api.model.api.response.PatientOrderTriageApiResponse.P
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
-import com.cobaltplatform.api.model.db.BirthSex;
-import com.cobaltplatform.api.model.db.Ethnicity;
+import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
@@ -78,7 +79,8 @@ import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageGroup;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledScreening;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
-import com.cobaltplatform.api.model.db.Race;
+import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
+import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.PatientOrderAutocompleteResult;
@@ -459,6 +461,40 @@ public class PatientOrderResource {
 			setPatientOrderId(patientOrder.getPatientOrderId());
 			setAccountId(account.getAccountId());
 		}});
+
+		PatientOrder updatedPatientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).get();
+		PatientOrderApiResponseFormat responseFormat = PatientOrderApiResponseFormat.fromRoleId(account.getRoleId());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrder", getPatientOrderApiResponseFactory().create(updatedPatientOrder, responseFormat,
+					Set.of(PatientOrderApiResponseSupplement.EVERYTHING)));
+		}});
+	}
+
+	@Nonnull
+	@PUT("/patient-orders/{patientOrderId}/patient-order-triages")
+	@AuthenticationRequired
+	public ApiResponse updatePatientOrderTriages(@Nonnull @PathParameter UUID patientOrderId,
+																							 @Nonnull @RequestBody String requestBody) {
+		requireNonNull(patientOrderId);
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+
+		if (patientOrder == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canUpdatePatientOrderTriages(patientOrder, account))
+			throw new AuthorizationException();
+
+		UpdatePatientOrderTriagesRequest request = getRequestBodyParser().parse(requestBody, UpdatePatientOrderTriagesRequest.class);
+		request.setPatientOrderId(patientOrderId);
+		request.setAccountId(account.getAccountId());
+		request.setPatientOrderTriageSourceId(PatientOrderTriageSourceId.MANUALLY_SET);
+		request.setScreeningSessionId(null);
+
+		getPatientOrderService().updatePatientOrderTriages(request);
 
 		PatientOrder updatedPatientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).get();
 		PatientOrderApiResponseFormat responseFormat = PatientOrderApiResponseFormat.fromRoleId(account.getRoleId());
@@ -1244,17 +1280,17 @@ public class PatientOrderResource {
 				.collect(Collectors.toList());
 
 		List<Map<String, Object>> races = getAccountService().findRaces().stream()
-				.filter(race -> race.getRaceId() != Race.RaceId.NOT_ASKED)
+				.filter(race -> race.getRaceId() != RaceId.NOT_ASKED)
 				.map(race -> Map.<String, Object>of("raceId", race.getRaceId(), "description", race.getDescription()))
 				.collect(Collectors.toList());
 
 		List<Map<String, Object>> birthSexes = getAccountService().findBirthSexes().stream()
-				.filter(birthSex -> birthSex.getBirthSexId() != BirthSex.BirthSexId.NOT_ASKED)
+				.filter(birthSex -> birthSex.getBirthSexId() != BirthSexId.NOT_ASKED)
 				.map(birthSex -> Map.<String, Object>of("birthSexId", birthSex.getBirthSexId(), "description", birthSex.getDescription()))
 				.collect(Collectors.toList());
 
 		List<Map<String, Object>> ethnicities = getAccountService().findEthnicities().stream()
-				.filter(ethnicity -> ethnicity.getEthnicityId() != Ethnicity.EthnicityId.NOT_ASKED)
+				.filter(ethnicity -> ethnicity.getEthnicityId() != EthnicityId.NOT_ASKED)
 				.map(ethnicity -> Map.<String, Object>of("ethnicityId", ethnicity.getEthnicityId(), "description", ethnicity.getDescription()))
 				.collect(Collectors.toList());
 

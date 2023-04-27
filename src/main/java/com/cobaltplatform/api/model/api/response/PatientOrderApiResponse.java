@@ -47,6 +47,7 @@ import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
+import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
@@ -514,15 +515,15 @@ public class PatientOrderApiResponse {
 			this.screeningSession = currentScreeningSession == null ? null : screeningSessionApiResponseFactory.create(currentScreeningSession);
 			this.screeningSessionResult = completedScreeningSession == null ? null : screeningService.findScreeningSessionResult(completedScreeningSession).get();
 
-			// TODO: this doesn't take manual overrides into account...
-			if (completedScreeningSession != null) {
+			List<PatientOrderTriage> patientOrderTriages = patientOrderService.findPatientOrderTriagesByPatientOrderId(patientOrder.getPatientOrderId());
+
+			if (patientOrderTriages.size() > 0) {
 				List<PatientOrderFocusType> patientOrderFocusTypes = patientOrderService.findPatientOrderFocusTypes();
 				Map<PatientOrderFocusTypeId, PatientOrderFocusType> patientOrderFocusTypesById = patientOrderFocusTypes.stream()
 						.collect(Collectors.toMap(PatientOrderFocusType::getPatientOrderFocusTypeId, patientOrderFocusType -> patientOrderFocusType));
 				List<PatientOrderCareType> patientOrderCareTypes = patientOrderService.findPatientOrderCareTypes();
 				Map<PatientOrderCareTypeId, PatientOrderCareType> patientOrderCareTypesById = patientOrderCareTypes.stream()
 						.collect(Collectors.toMap(PatientOrderCareType::getPatientOrderCareTypeId, patientOrderCareType -> patientOrderCareType));
-				List<PatientOrderTriage> patientOrderTriages = patientOrderService.findPatientOrderTriagesByPatientOrderId(patientOrder.getPatientOrderId(), completedScreeningSession.getScreeningSessionId());
 
 				Map<Pair<PatientOrderFocusTypeId, PatientOrderCareTypeId>, List<PatientOrderTriage>> patientOrderTriagesByFocusAndCareTypeIds = new LinkedHashMap<>();
 
@@ -552,7 +553,10 @@ public class PatientOrderApiResponse {
 							.distinct()
 							.collect(Collectors.toList());
 
-					patientOrderTriageGroups.add(new PatientOrderTriageGroupApiResponse(patientOrderFocusType, patientOrderCareType, reasons));
+					// Triage source should be the same across all triages in the group, so just pick the first one
+					PatientOrderTriageSourceId patientOrderTriageSourceId = value.get(0).getPatientOrderTriageSourceId();
+
+					patientOrderTriageGroups.add(new PatientOrderTriageGroupApiResponse(patientOrderTriageSourceId, patientOrderFocusType, patientOrderCareType, reasons));
 				}
 
 				this.patientOrderTriageGroups = patientOrderTriageGroups;
