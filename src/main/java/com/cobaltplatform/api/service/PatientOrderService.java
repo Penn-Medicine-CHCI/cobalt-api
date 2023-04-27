@@ -1051,19 +1051,23 @@ public class PatientOrderService {
 				validationException.add(new FieldError("screeningSessionId", getStrings().get("Screening session ID is required.")));
 		}
 
-		for (int i = 0; i < patientOrderTriages.size(); ++i) {
-			CreatePatientOrderTriageRequest patientOrderTriage = patientOrderTriages.get(i);
+		if (patientOrderTriages.size() == 0) {
+			validationException.add(new FieldError("patientOrderTriages", getStrings().get("You must specify at least one triage.")));
+		} else {
+			for (int i = 0; i < patientOrderTriages.size(); ++i) {
+				CreatePatientOrderTriageRequest patientOrderTriage = patientOrderTriages.get(i);
 
-			if (patientOrderTriage == null) {
-				validationException.add(new FieldError(format("patientOrderTriage[%d]", i), getStrings().get("Patient Order Triage is required.")));
-			} else {
-				if (patientOrderTriage.getPatientOrderCareTypeId() == null)
-					validationException.add(new FieldError(format("patientOrderTriage[%d].patientOrderCareTypeId", i),
-							getStrings().get("Patient Order Care Type ID is required.")));
+				if (patientOrderTriage == null) {
+					validationException.add(new FieldError(format("patientOrderTriage[%d]", i), getStrings().get("Patient Order Triage is required.")));
+				} else {
+					if (patientOrderTriage.getPatientOrderCareTypeId() == null)
+						validationException.add(new FieldError(format("patientOrderTriage[%d].patientOrderCareTypeId", i),
+								getStrings().get("Patient Order Care Type ID is required.")));
 
-				if (patientOrderTriage.getPatientOrderFocusTypeId() == null)
-					validationException.add(new FieldError(format("patientOrderTriage[%d].patientOrderFocusTypeId", i),
-							getStrings().get("Patient Order Focus Type ID is required.")));
+					if (patientOrderTriage.getPatientOrderFocusTypeId() == null)
+						validationException.add(new FieldError(format("patientOrderTriage[%d].patientOrderFocusTypeId", i),
+								getStrings().get("Patient Order Focus Type ID is required.")));
+				}
 			}
 		}
 

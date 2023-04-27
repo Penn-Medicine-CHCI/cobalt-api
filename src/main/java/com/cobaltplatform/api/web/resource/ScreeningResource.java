@@ -31,6 +31,8 @@ import com.cobaltplatform.api.model.api.response.ScreeningFlowVersionApiResponse
 import com.cobaltplatform.api.model.api.response.ScreeningQuestionApiResponse.ScreeningQuestionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseSupplement;
+import com.cobaltplatform.api.model.api.response.ScreeningTypeApiResponse;
+import com.cobaltplatform.api.model.api.response.ScreeningTypeApiResponse.ScreeningTypeApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.ScreeningAnswer;
@@ -108,6 +110,8 @@ public class ScreeningResource {
 	@Nonnull
 	private final ScreeningConfirmationPromptApiResponseFactory screeningConfirmationPromptApiResponseFactory;
 	@Nonnull
+	private final ScreeningTypeApiResponseFactory screeningTypeApiResponseFactory;
+	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final Logger logger;
@@ -124,6 +128,7 @@ public class ScreeningResource {
 													 @Nonnull ScreeningAnswerApiResponseFactory screeningAnswerApiResponseFactory,
 													 @Nonnull ScreeningFlowVersionApiResponseFactory screeningFlowVersionApiResponseFactory,
 													 @Nonnull ScreeningConfirmationPromptApiResponseFactory screeningConfirmationPromptApiResponseFactory,
+													 @Nonnull ScreeningTypeApiResponseFactory screeningTypeApiResponseFactory,
 													 @Nonnull Provider<CurrentContext> currentContextProvider) {
 		requireNonNull(screeningService);
 		requireNonNull(patientOrderService);
@@ -136,6 +141,7 @@ public class ScreeningResource {
 		requireNonNull(screeningAnswerApiResponseFactory);
 		requireNonNull(screeningFlowVersionApiResponseFactory);
 		requireNonNull(screeningConfirmationPromptApiResponseFactory);
+		requireNonNull(screeningTypeApiResponseFactory);
 		requireNonNull(currentContextProvider);
 
 		this.screeningService = screeningService;
@@ -149,6 +155,7 @@ public class ScreeningResource {
 		this.screeningAnswerApiResponseFactory = screeningAnswerApiResponseFactory;
 		this.screeningFlowVersionApiResponseFactory = screeningFlowVersionApiResponseFactory;
 		this.screeningConfirmationPromptApiResponseFactory = screeningConfirmationPromptApiResponseFactory;
+		this.screeningTypeApiResponseFactory = screeningTypeApiResponseFactory;
 		this.currentContextProvider = currentContextProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
@@ -517,6 +524,24 @@ public class ScreeningResource {
 	}
 
 	@Nonnull
+	@GET("/screening-flow-versions/{screeningFlowVersionId}/screening-types")
+	@AuthenticationRequired
+	public ApiResponse screeningTypesForScreeningFlowVersionId(@Nonnull @PathParameter UUID screeningFlowVersionId) {
+		requireNonNull(screeningFlowVersionId);
+
+		ScreeningFlowVersion screeningFlowVersion = getScreeningService().findScreeningFlowVersionById(screeningFlowVersionId).orElse(null);
+
+		if (screeningFlowVersion == null)
+			throw new NotFoundException();
+
+		List<ScreeningTypeApiResponse> screeningTypes = getScreeningService().findScreeningTypesByScreeningFlowVersionId(screeningFlowVersionId).stream()
+				.map(screeningType -> getScreeningTypeApiResponseFactory().create(screeningType))
+				.collect(Collectors.toList());
+
+		return new ApiResponse(Map.of("screeningType", screeningTypes));
+	}
+
+	@Nonnull
 	protected ScreeningService getScreeningService() {
 		return this.screeningService;
 	}
@@ -569,6 +594,11 @@ public class ScreeningResource {
 	@Nonnull
 	protected ScreeningConfirmationPromptApiResponseFactory getScreeningConfirmationPromptApiResponseFactory() {
 		return this.screeningConfirmationPromptApiResponseFactory;
+	}
+
+	@Nonnull
+	protected ScreeningTypeApiResponseFactory getScreeningTypeApiResponseFactory() {
+		return this.screeningTypeApiResponseFactory;
 	}
 
 	@Nonnull

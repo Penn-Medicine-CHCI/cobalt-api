@@ -426,6 +426,20 @@ public class ScreeningService {
 	}
 
 	@Nonnull
+	public List<ScreeningType> findScreeningTypesByScreeningFlowVersionId(@Nullable UUID screeningFlowVersionId) {
+		if (screeningFlowVersionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT st.*
+				FROM screening_type st, screening_flow_version_screening_type sfvst
+				WHERE sfvst.screening_type_id=st.screening_type_id
+				AND sfvst.screening_flow_version_id=?
+				ORDER BY st.description
+				""", ScreeningType.class, screeningFlowVersionId);
+	}
+
+	@Nonnull
 	public Optional<ScreeningAnswerOption> findScreeningAnswerOptionById(@Nullable UUID screeningAnswerOptionId) {
 		if (screeningAnswerOptionId == null)
 			return Optional.empty();
