@@ -1546,11 +1546,16 @@ public class PatientOrderService {
 
 		// TODO: track changes in event history table
 
-		return getDatabase().execute("""
+		Instant connectedToSafetyPlanningAt = patientOrderSafetyPlanningStatusId == PatientOrderSafetyPlanningStatusId.CONNECTED_TO_SAFETY_PLANNING
+				? Instant.now() : null;
+
+		boolean updated = getDatabase().execute("""
 				UPDATE patient_order
-				SET patient_order_safety_planning_status_id=?
+				SET patient_order_safety_planning_status_id=?, connected_to_safety_planning_at=?
 				WHERE patient_order_id=?
-				""", patientOrderSafetyPlanningStatusId, patientOrderId) > 0;
+				""", patientOrderSafetyPlanningStatusId, connectedToSafetyPlanningAt, patientOrderId) > 0;
+
+		return updated;
 	}
 
 	@Nonnull
