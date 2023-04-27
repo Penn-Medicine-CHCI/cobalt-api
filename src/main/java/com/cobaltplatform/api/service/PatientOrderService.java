@@ -1117,6 +1117,45 @@ public class PatientOrderService {
 	}
 
 	@Nonnull
+	public Boolean resetPatientOrderTriages(@Nonnull UUID patientOrderId,
+																					@Nonnull UUID accountId) {
+		requireNonNull(patientOrderId);
+		requireNonNull(accountId);
+
+		// "Resettable" means inactive triages that were initially sourced by Cobalt, e.g.
+		// via automated analysis of screening session answers
+		List<PatientOrderTriage> resettablePatientOrderTriages = getDatabase().queryForList("""
+				SELECT *
+				FROM patient_order_triage
+				WHERE patient_order_id=?
+				AND patient_order_triage_source_id=?
+				AND active=FALSE
+				""", PatientOrderTriage.class, patientOrderId, PatientOrderTriageSourceId.COBALT);
+
+		if (resettablePatientOrderTriages.size() == 0)
+			return false;
+
+		// Disable all triages for this order
+		getDatabase().execute("""
+				UPDATE patient_order_triage
+				SET active=FALSE
+				WHERE patient_order_id=?
+				""", patientOrderId);
+
+		// Enable just the original triages
+		boolean updated = getDatabase().execute("""
+				UPDATE patient_order_triage
+				SET active=TRUE
+				WHERE patient_order_id=?
+				AND patient_order_triage_source_id=?
+				""", patientOrderId, PatientOrderTriageSourceId.COBALT) > 0;
+
+		// TODO: track events
+
+		return updated;
+	}
+
+	@Nonnull
 	public UUID createPatientOrderNote(@Nonnull CreatePatientOrderNoteRequest request) {
 		requireNonNull(request);
 
