@@ -61,6 +61,8 @@ import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledScreeningApiResponse.PatientOrderScheduledScreeningApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderTriageApiResponse.PatientOrderTriageApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ScreeningTypeApiResponse;
+import com.cobaltplatform.api.model.api.response.ScreeningTypeApiResponse.ScreeningTypeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
@@ -178,6 +180,8 @@ public class PatientOrderResource {
 	@Nonnull
 	private final PatientOrderScheduledScreeningApiResponseFactory patientOrderScheduledScreeningApiResponseFactory;
 	@Nonnull
+	private final ScreeningTypeApiResponseFactory screeningTypeApiResponseFactory;
+	@Nonnull
 	private final PatientOrderCsvGenerator patientOrderCsvGenerator;
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
@@ -209,6 +213,7 @@ public class PatientOrderResource {
 															@Nonnull InsuranceApiResponseFactory insuranceApiResponseFactory,
 															@Nonnull PatientOrderAutocompleteResultApiResponseFactory patientOrderAutocompleteResultApiResponseFactory,
 															@Nonnull PatientOrderScheduledScreeningApiResponseFactory patientOrderScheduledScreeningApiResponseFactory,
+															@Nonnull ScreeningTypeApiResponseFactory screeningTypeApiResponseFactory,
 															@Nonnull PatientOrderCsvGenerator patientOrderCsvGenerator,
 															@Nonnull RequestBodyParser requestBodyParser,
 															@Nonnull JsonMapper jsonMapper,
@@ -231,6 +236,7 @@ public class PatientOrderResource {
 		requireNonNull(insuranceApiResponseFactory);
 		requireNonNull(patientOrderAutocompleteResultApiResponseFactory);
 		requireNonNull(patientOrderScheduledScreeningApiResponseFactory);
+		requireNonNull(screeningTypeApiResponseFactory);
 		requireNonNull(patientOrderCsvGenerator);
 		requireNonNull(requestBodyParser);
 		requireNonNull(jsonMapper);
@@ -254,6 +260,7 @@ public class PatientOrderResource {
 		this.insuranceApiResponseFactory = insuranceApiResponseFactory;
 		this.patientOrderAutocompleteResultApiResponseFactory = patientOrderAutocompleteResultApiResponseFactory;
 		this.patientOrderScheduledScreeningApiResponseFactory = patientOrderScheduledScreeningApiResponseFactory;
+		this.screeningTypeApiResponseFactory = screeningTypeApiResponseFactory;
 		this.patientOrderCsvGenerator = patientOrderCsvGenerator;
 		this.requestBodyParser = requestBodyParser;
 		this.jsonMapper = jsonMapper;
@@ -1295,14 +1302,8 @@ public class PatientOrderResource {
 				.collect(Collectors.toList());
 
 		// Screening data
-		List<Map<String, Object>> screeningTypes = getScreeningService().findScreeningTypes().stream()
-				.map(screeningType -> {
-					Map<String, Object> screeningTypeJson = new HashMap<>();
-					screeningTypeJson.put("screeningTypeId", screeningType.getScreeningTypeId());
-					screeningTypeJson.put("description", screeningType.getDescription());
-					screeningTypeJson.put("overallScoreMaximum", screeningType.getOverallScoreMaximum());
-					return screeningTypeJson;
-				})
+		List<ScreeningTypeApiResponse> screeningTypes = getScreeningService().findScreeningTypes().stream()
+				.map(screeningType -> getScreeningTypeApiResponseFactory().create(screeningType))
 				.collect(Collectors.toList());
 
 		List<Map<String, Object>> patientOrderStatuses = getPatientOrderService().findPatientOrderStatuses().stream()
@@ -1498,6 +1499,11 @@ public class PatientOrderResource {
 	@Nonnull
 	protected PatientOrderScheduledScreeningApiResponseFactory getPatientOrderScheduledScreeningApiResponseFactory() {
 		return this.patientOrderScheduledScreeningApiResponseFactory;
+	}
+
+	@Nonnull
+	protected ScreeningTypeApiResponseFactory getScreeningTypeApiResponseFactory() {
+		return this.screeningTypeApiResponseFactory;
 	}
 
 	@Nonnull
