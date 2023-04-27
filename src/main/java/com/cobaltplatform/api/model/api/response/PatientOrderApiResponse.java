@@ -27,6 +27,7 @@ import com.cobaltplatform.api.model.api.response.PatientOrderMedicationApiRespon
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse.PatientOrderScheduledMessageGroupApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderTriageGroupApiResponse.PatientOrderTriageGroupFocusApiResponse;
 import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Address;
@@ -63,7 +64,6 @@ import com.google.inject.Provider;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import com.lokalized.Strings;
-import org.apache.commons.lang3.tuple.Pair;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -525,15 +525,17 @@ public class PatientOrderApiResponse {
 				Map<PatientOrderCareTypeId, PatientOrderCareType> patientOrderCareTypesById = patientOrderCareTypes.stream()
 						.collect(Collectors.toMap(PatientOrderCareType::getPatientOrderCareTypeId, patientOrderCareType -> patientOrderCareType));
 
-				Map<Pair<PatientOrderFocusTypeId, PatientOrderCareTypeId>, List<PatientOrderTriage>> patientOrderTriagesByFocusAndCareTypeIds = new LinkedHashMap<>();
+				Map<PatientOrderCareTypeId, List<PatientOrderTriage>> patientOrderTriagesByCareTypeIds = new LinkedHashMap<>();
+
+				// Triage source should be the same across all triages, so just pick the first one
+				PatientOrderTriageSourceId patientOrderTriageSourceId = patientOrderTriages.get(0).getPatientOrderTriageSourceId();
 
 				for (PatientOrderTriage patientOrderTriage : patientOrderTriages) {
-					Pair<PatientOrderFocusTypeId, PatientOrderCareTypeId> key = Pair.of(patientOrderTriage.getPatientOrderFocusTypeId(), patientOrderTriage.getPatientOrderCareTypeId());
-					List<PatientOrderTriage> groupedPatientOrderTriages = patientOrderTriagesByFocusAndCareTypeIds.get(key);
+					List<PatientOrderTriage> groupedPatientOrderTriages = patientOrderTriagesByCareTypeIds.get(patientOrderTriage.getPatientOrderCareTypeId());
 
 					if (groupedPatientOrderTriages == null) {
 						groupedPatientOrderTriages = new ArrayList<>();
-						patientOrderTriagesByFocusAndCareTypeIds.put(key, groupedPatientOrderTriages);
+						patientOrderTriagesByCareTypeIds.put(patientOrderTriage.getPatientOrderCareTypeId(), groupedPatientOrderTriages);
 					}
 
 					groupedPatientOrderTriages.add(patientOrderTriage);
@@ -541,22 +543,39 @@ public class PatientOrderApiResponse {
 
 				List<PatientOrderTriageGroupApiResponse> patientOrderTriageGroups = new ArrayList<>();
 
-				for (Entry<Pair<PatientOrderFocusTypeId, PatientOrderCareTypeId>, List<PatientOrderTriage>> entry : patientOrderTriagesByFocusAndCareTypeIds.entrySet()) {
-					Pair<PatientOrderFocusTypeId, PatientOrderCareTypeId> key = entry.getKey();
-					List<PatientOrderTriage> value = entry.getValue();
+				for (Entry<PatientOrderCareTypeId, List<PatientOrderTriage>> entry : patientOrderTriagesByCareTypeIds.entrySet()) {
+					PatientOrderCareTypeId patientOrderCareTypeId = entry.getKey();
+					PatientOrderCareType patientOrderCareType = patientOrderCareTypesById.get(patientOrderCareTypeId);
+					List<PatientOrderTriage> careTypePatientOrderTriages = entry.getValue();
 
-					PatientOrderFocusType patientOrderFocusType = patientOrderFocusTypesById.get(key.getLeft());
-					PatientOrderCareType patientOrderCareType = patientOrderCareTypesById.get(key.getRight());
+					// Within this care type, further group by focus type
+					Map<PatientOrderFocusTypeId, List<PatientOrderTriage>> patientOrderTriagesByFocusTypeIds = new LinkedHashMap<>();
 
-					List<String> reasons = value.stream()
-							.map(patientOrderTriage -> patientOrderTriage.getReason())
-							.distinct()
-							.collect(Collectors.toList());
+					for (PatientOrderTriage patientOrderTriage : careTypePatientOrderTriages) {
+						List<PatientOrderTriage> focusTypePatientOrderTriages = patientOrderTriagesByFocusTypeIds.get(patientOrderTriage.getPatientOrderFocusTypeId());
 
-					// Triage source should be the same across all triages in the group, so just pick the first one
-					PatientOrderTriageSourceId patientOrderTriageSourceId = value.get(0).getPatientOrderTriageSourceId();
+						if (focusTypePatientOrderTriages == null) {
+							focusTypePatientOrderTriages = new ArrayList<>();
+							patientOrderTriagesByFocusTypeIds.put(patientOrderTriage.getPatientOrderFocusTypeId(), focusTypePatientOrderTriages);
+						}
 
-					patientOrderTriageGroups.add(new PatientOrderTriageGroupApiResponse(patientOrderTriageSourceId, patientOrderFocusType, patientOrderCareType, reasons));
+						focusTypePatientOrderTriages.add(patientOrderTriage);
+					}
+
+					List<PatientOrderTriageGroupFocusApiResponse> focusTypePatientOrderTriages = new ArrayList<>();
+
+					for (Entry<PatientOrderFocusTypeId, List<PatientOrderTriage>> focusEntry : patientOrderTriagesByFocusTypeIds.entrySet()) {
+						List<String> focusReasons = focusEntry.getValue().stream()
+								.map(focusPatientOrderTriage -> focusPatientOrderTriage.getReason())
+								.distinct()
+								.collect(Collectors.toList());
+
+						focusTypePatientOrderTriages.addAll(focusEntry.getValue().stream()
+								.map(focusTypePatientOrderTriage -> new PatientOrderTriageGroupFocusApiResponse(patientOrderFocusTypesById.get(focusEntry.getKey()), focusReasons))
+								.collect(Collectors.toList()));
+					}
+
+					patientOrderTriageGroups.add(new PatientOrderTriageGroupApiResponse(patientOrderTriageSourceId, patientOrderCareType, focusTypePatientOrderTriages));
 				}
 
 				this.patientOrderTriageGroups = patientOrderTriageGroups;
