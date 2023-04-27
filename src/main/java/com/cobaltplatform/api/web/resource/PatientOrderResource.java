@@ -513,6 +513,32 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
+	@PUT("/patient-orders/{patientOrderId}/reset-patient-order-triages")
+	@AuthenticationRequired
+	public ApiResponse resetPatientOrderTriages(@Nonnull @PathParameter UUID patientOrderId) {
+		requireNonNull(patientOrderId);
+
+		Account account = getCurrentContext().getAccount().get();
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+
+		if (patientOrder == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canUpdatePatientOrderTriages(patientOrder, account))
+			throw new AuthorizationException();
+
+		getPatientOrderService().resetPatientOrderTriages(patientOrderId, account.getAccountId());
+
+		PatientOrder updatedPatientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).get();
+		PatientOrderApiResponseFormat responseFormat = PatientOrderApiResponseFormat.fromRoleId(account.getRoleId());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrder", getPatientOrderApiResponseFactory().create(updatedPatientOrder, responseFormat,
+					Set.of(PatientOrderApiResponseSupplement.EVERYTHING)));
+		}});
+	}
+
+	@Nonnull
 	@GET("/patient-orders")
 	@AuthenticationRequired
 	public ApiResponse findPatientOrders(@Nonnull @QueryParameter Optional<PatientOrderDispositionId> patientOrderDispositionId,
