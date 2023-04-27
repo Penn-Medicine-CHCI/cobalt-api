@@ -1346,6 +1346,24 @@ public class PatientOrderResource {
 				})
 				.collect(Collectors.toList());
 
+		List<Map<String, Object>> patientOrderCareTypes = getPatientOrderService().findPatientOrderCareTypes().stream()
+				.map(patientOrderCareType -> {
+					Map<String, Object> patientOrderCareTypeJson = new HashMap<>();
+					patientOrderCareTypeJson.put("patientOrderCareTypeId", patientOrderCareType.getPatientOrderCareTypeId());
+					patientOrderCareTypeJson.put("description", patientOrderCareType.getDescription());
+					return patientOrderCareTypeJson;
+				})
+				.collect(Collectors.toList());
+
+		List<Map<String, Object>> patientOrderFocusTypes = getPatientOrderService().findPatientOrderFocusTypes().stream()
+				.map(patientOrderFocusType -> {
+					Map<String, Object> patientOrderFocusTypeJson = new HashMap<>();
+					patientOrderFocusTypeJson.put("patientOrderFocusTypeId", patientOrderFocusType.getPatientOrderFocusTypeId());
+					patientOrderFocusTypeJson.put("description", patientOrderFocusType.getDescription());
+					return patientOrderFocusTypeJson;
+				})
+				.collect(Collectors.toList());
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("timeZones", timeZones);
 			put("countries", countries);
@@ -1361,6 +1379,8 @@ public class PatientOrderResource {
 			put("patientOrderDispositions", patientOrderDispositions);
 			put("patientOrderOutreachResults", patientOrderOutreachResults);
 			put("patientOrderScheduledMessageTypes", patientOrderScheduledMessageTypes);
+			put("patientOrderCareTypes", patientOrderCareTypes);
+			put("patientOrderFocusTypes", patientOrderFocusTypes);
 		}});
 	}
 

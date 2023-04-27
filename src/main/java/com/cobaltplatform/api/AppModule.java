@@ -124,6 +124,7 @@ import com.cobaltplatform.api.model.api.response.ScreeningConfirmationPromptApiR
 import com.cobaltplatform.api.model.api.response.ScreeningFlowVersionApiResponse.ScreeningFlowVersionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningQuestionApiResponse.ScreeningQuestionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ScreeningTypeApiResponse.ScreeningTypeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SpecialtyApiResponse.SpecialtyApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
@@ -296,6 +297,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(PatientOrderScheduledMessageGroupApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(AlertApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PatientOrderScheduledScreeningApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(ScreeningTypeApiResponseFactory.class)));
 	}
 
 	@Provides
