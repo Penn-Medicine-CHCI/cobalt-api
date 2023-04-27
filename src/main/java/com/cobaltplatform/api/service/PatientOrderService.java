@@ -821,6 +821,11 @@ public class PatientOrderService {
 	}
 
 	@Nonnull
+	public List<PatientOrderTriage> findPatientOrderTriagesByPatientOrderId(@Nullable UUID patientOrderId) {
+		return findPatientOrderTriagesByPatientOrderId(patientOrderId, null);
+	}
+
+	@Nonnull
 	public List<PatientOrderTriage> findPatientOrderTriagesByPatientOrderId(@Nullable UUID patientOrderId,
 																																					@Nullable UUID screeningSessionId) {
 		if (patientOrderId == null)
@@ -836,12 +841,16 @@ public class PatientOrderService {
 
 		parameters.add(patientOrderId);
 
+		// If a screening session is specified, pull triages regardless of whether they're still active.
+		// If not specified, only pull active triages
 		if (screeningSessionId != null) {
 			sql += " AND screening_session_id=?";
 			parameters.add(screeningSessionId);
+		} else {
+			sql += " AND active=TRUE";
 		}
 
-		sql += "ORDER BY display_order";
+		sql += " ORDER BY display_order";
 
 		return getDatabase().queryForList(sql, PatientOrderTriage.class, parameters.toArray(new Object[]{}));
 	}
@@ -1097,6 +1106,8 @@ public class PatientOrderService {
 
 			patientOrderTriageIds.add(patientOrderTriageId);
 		}
+
+		// TODO: track events
 
 		return patientOrderTriageIds;
 	}
@@ -1593,7 +1604,7 @@ public class PatientOrderService {
 
 		Instant resourcesSentAt = null;
 
-		if (patientOrder.getPatientOrderResourcingStatusId() == PatientOrderResourcingStatusId.SENT_RESOURCES) {
+		if (patientOrderResourcingStatusId == PatientOrderResourcingStatusId.SENT_RESOURCES) {
 			// If provided a sent-at date/time, use them.
 			// Otherwise, assuming "now"
 			if (resourcesSentAtDate != null && resourcesSentAtTime != null) {
@@ -1603,12 +1614,12 @@ public class PatientOrderService {
 				resourcesSentAt = Instant.now();
 			}
 
-			// Schedule a message to be sent to the patient regarding these resources
+			// TODO: Schedule a message to be sent to the patient regarding these resources
 
 		} else {
-			resourcesSentNote = null;
+			resourcesSentAt = null;
 
-			// Cancel scheduled check-in messages to this patient for this order
+			// TODO: Cancel scheduled check-in messages to this patient for this order
 		}
 
 		// TODO: track changes in event history table
