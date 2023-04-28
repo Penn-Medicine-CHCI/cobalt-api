@@ -39,7 +39,6 @@ public class PatientOrderStatus {
 	public enum PatientOrderStatusId {
 		PENDING, // Unassigned
 		NEEDS_ASSESSMENT, // Assigned, but none of the below apply.  Also note, we are in this state if unscheduled but "screening in progress"
-		SCHEDULED, // Unscreened, but has a call scheduled with an MHIC to take the screening (uncanceled patient_order_scheduled_screening)
 		SAFETY_PLANNING, // Screening completed, most severe level of care type triage is SAFETY_PLANNING
 		SPECIALTY_CARE, // Screening completed, most severe level of care type triage is SPECIALTY
 		SUBCLINICAL, // Screening completed, most severe level of care type triage is SUBCLINICAL
