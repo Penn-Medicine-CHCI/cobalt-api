@@ -1113,6 +1113,38 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
+	@GET("/integrated-care/panel-today")
+	@AuthenticationRequired
+	public ApiResponse panelToday(@Nonnull @QueryParameter Optional<UUID> panelAccountId) {
+		requireNonNull(panelAccountId);
+
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = account.getInstitutionId();
+
+		if (panelAccountId.isPresent()) {
+			account = getAccountService().findAccountById(panelAccountId.get()).orElse(null);
+
+			if (account == null)
+				throw new NotFoundException();
+		}
+
+		if (!getAuthorizationService().canViewPanelAccounts(institutionId, account))
+			throw new AuthorizationException();
+
+		// TODO: finish implementation
+
+		// Orders where panel account ID == provided account ID and...
+		//
+		// "New Patients": outreach_count == 0
+		// "Voicemails": voicemail_task_count == 0 (need new field in v_patient_order)
+		// "Follow Up": status == NEEDS_ASSESSMENT && most_recent_outreach_date_time >= institution.outreach_interval_in_days (new field?)
+		// "Assessments": patient_order_scheduled_screening_scheduled_date_time == TODAY
+		// "Resources": patient_order_resourcing_status_id == NEEDS_RESOURCES
+
+		return new ApiResponse();
+	}
+
+	@Nonnull
 	@GET("/integrated-care/panel-counts")
 	@AuthenticationRequired
 	public ApiResponse panelCounts(@Nonnull @QueryParameter Optional<UUID> panelAccountId) {
@@ -1121,10 +1153,17 @@ public class PatientOrderResource {
 		Account account = getCurrentContext().getAccount().get();
 		InstitutionId institutionId = account.getInstitutionId();
 
+		if (panelAccountId.isPresent()) {
+			account = getAccountService().findAccountById(panelAccountId.get()).orElse(null);
+
+			if (account == null)
+				throw new NotFoundException();
+		}
+
 		if (!getAuthorizationService().canViewPanelAccounts(institutionId, account))
 			throw new AuthorizationException();
 
-		Map<PatientOrderStatusId, Integer> patientOrderCountsByPatientOrderStatusId = getPatientOrderService().findPatientOrderCountsByPatientOrderStatusIdForInstitutionId(institutionId, panelAccountId.orElse(null));
+		Map<PatientOrderStatusId, Integer> patientOrderCountsByPatientOrderStatusId = getPatientOrderService().findPatientOrderCountsByPatientOrderStatusIdForInstitutionId(institutionId, account.getAccountId());
 		Map<PatientOrderStatusId, Map<String, Object>> patientOrderCountsByPatientOrderStatusIdJson = new HashMap<>(patientOrderCountsByPatientOrderStatusId.size());
 
 		for (Entry<PatientOrderStatusId, Integer> entry : patientOrderCountsByPatientOrderStatusId.entrySet()) {
