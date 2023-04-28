@@ -120,6 +120,16 @@ public class InstitutionApiResponse {
 	@Nullable
 	private final String ga4MeasurementId;
 	@Nonnull
+	private final String patientUserExperienceBaseUrl;
+	@Nonnull
+	private final String staffUserExperienceBaseUrl;
+	@Nullable
+	private final String integratedCarePhoneNumber;
+	@Nullable
+	private final String integratedCarePhoneNumberDescription;
+	@Nullable
+	private final String integratedCareAvailabilityDescription;
+	@Nonnull
 	private final List<NavigationItem> additionalNavigationItems;
 	@Nonnull
 	private final List<FeaturesForInstitution> features;
@@ -201,11 +211,17 @@ public class InstitutionApiResponse {
 		this.features = institutionService.findFeaturesByInstitutionId(institution, account);
 		this.takeFeatureScreening = screeningService.shouldAccountIdTakeScreeningFlowId(account, institution.getFeatureScreeningFlowId());
 		this.hasTakenFeatureScreening = screeningService.hasAccountIdTakenScreeningFlowId(account, institution.getFeatureScreeningFlowId());
-		
+
 		// TODO: would be better to error out here if no value, providing a failsafe temporarily.
 		// to handle cases in prod where we have currently unused domain[s] that can be used to access the FE,
 		// but crawlers will attempt to crawl and BE doesn't know what kind of experience type to serve for the domain
 		this.userExperienceTypeId = currentContext.getUserExperienceTypeId().orElse(UserExperienceTypeId.PATIENT);
+
+		this.patientUserExperienceBaseUrl = institutionService.findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.PATIENT).get();
+		this.staffUserExperienceBaseUrl = institutionService.findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.STAFF).get();
+		this.integratedCarePhoneNumber = institution.getIntegratedCarePhoneNumber();
+		this.integratedCarePhoneNumberDescription = institution.getIntegratedCarePhoneNumber() == null ? null : formatter.formatPhoneNumber(institution.getIntegratedCarePhoneNumber());
+		this.integratedCareAvailabilityDescription = institution.getIntegratedCareAvailabilityDescription();
 
 		if (account == null) {
 			this.alerts = alertService.findAlertsByInstitutionId(institution.getInstitutionId()).stream()
@@ -404,5 +420,30 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public List<AlertApiResponse> getAlerts() {
 		return this.alerts;
+	}
+
+	@Nonnull
+	public String getPatientUserExperienceBaseUrl() {
+		return this.patientUserExperienceBaseUrl;
+	}
+
+	@Nonnull
+	public String getStaffUserExperienceBaseUrl() {
+		return this.staffUserExperienceBaseUrl;
+	}
+
+	@Nullable
+	public String getIntegratedCarePhoneNumber() {
+		return this.integratedCarePhoneNumber;
+	}
+
+	@Nullable
+	public String getIntegratedCarePhoneNumberDescription() {
+		return this.integratedCarePhoneNumberDescription;
+	}
+
+	@Nullable
+	public String getIntegratedCareAvailabilityDescription() {
+		return this.integratedCareAvailabilityDescription;
 	}
 }

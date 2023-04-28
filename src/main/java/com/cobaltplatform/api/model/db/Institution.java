@@ -177,6 +177,10 @@ public class Institution {
 	private Integer integratedCareSentResourcesFollowupDayOffset;
 	@Nullable
 	private String defaultFromEmailAddress;
+	@Nullable
+	private String integratedCarePhoneNumber;
+	@Nullable
+	private String integratedCareAvailabilityDescription;
 
 	public enum InstitutionId {
 		COBALT,
@@ -800,5 +804,23 @@ public class Institution {
 
 	public void setDefaultFromEmailAddress(@Nullable String defaultFromEmailAddress) {
 		this.defaultFromEmailAddress = defaultFromEmailAddress;
+	}
+
+	@Nullable
+	public String getIntegratedCarePhoneNumber() {
+		return this.integratedCarePhoneNumber;
+	}
+
+	public void setIntegratedCarePhoneNumber(@Nullable String integratedCarePhoneNumber) {
+		this.integratedCarePhoneNumber = integratedCarePhoneNumber;
+	}
+
+	@Nullable
+	public String getIntegratedCareAvailabilityDescription() {
+		return this.integratedCareAvailabilityDescription;
+	}
+
+	public void setIntegratedCareAvailabilityDescription(@Nullable String integratedCareAvailabilityDescription) {
+		this.integratedCareAvailabilityDescription = integratedCareAvailabilityDescription;
 	}
 }
