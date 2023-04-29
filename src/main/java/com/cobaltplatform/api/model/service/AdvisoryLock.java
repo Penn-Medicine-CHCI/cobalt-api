@@ -28,7 +28,8 @@ import static java.util.Objects.requireNonNull;
  */
 public enum AdvisoryLock {
 	WAY2HEALTH_INCIDENT_SYNCING(100),
-	PROVIDER_AVAILABILITY_HISTORY_STORAGE(101);
+	PROVIDER_AVAILABILITY_HISTORY_STORAGE(101),
+	PATIENT_ORDER_BACKGROUND_TASK(102);
 
 	@Nonnull
 	private final Integer key;

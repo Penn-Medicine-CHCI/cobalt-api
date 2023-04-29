@@ -20,6 +20,9 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.context.CurrentContextExecutor;
+import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.messaging.sms.SmsMessage;
@@ -92,6 +95,7 @@ import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
+import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.IcTestPatientEmailAddress;
 import com.cobaltplatform.api.model.service.PatientOrderAutocompleteResult;
@@ -100,6 +104,7 @@ import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializationContext;
@@ -150,6 +155,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -167,7 +176,17 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
  */
 @Singleton
 @ThreadSafe
-public class PatientOrderService {
+public class PatientOrderService implements AutoCloseable {
+	@Nonnull
+	private static final Long BACKGROUND_TASK_INTERVAL_IN_SECONDS;
+	@Nonnull
+	private static final Long BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS;
+
+	static {
+		BACKGROUND_TASK_INTERVAL_IN_SECONDS = 60L * 1L;
+		BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS = 10L;
+	}
+
 	@Nonnull
 	private final Provider<AccountService> accountServiceProvider;
 	@Nonnull
@@ -176,6 +195,8 @@ public class PatientOrderService {
 	private final Provider<MessageService> messageServiceProvider;
 	@Nonnull
 	private final Provider<InstitutionService> institutionServiceProvider;
+	@Nonnull
+	private final Provider<BackgroundTask> backgroundTaskProvider;
 	@Nonnull
 	private final PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory;
 	@Nonnull
@@ -193,11 +214,19 @@ public class PatientOrderService {
 	@Nonnull
 	private final Logger logger;
 
+	@Nonnull
+	private final ReentrantLock backgroundTaskLock;
+	@Nonnull
+	private Boolean backgroundTaskStarted;
+	@Nullable
+	private ScheduledExecutorService backgroundTaskExecutorService;
+
 	@Inject
 	public PatientOrderService(@Nonnull Provider<AddressService> addressServiceProvider,
 														 @Nonnull Provider<AccountService> accountServiceProvider,
 														 @Nonnull Provider<MessageService> messageServiceProvider,
 														 @Nonnull Provider<InstitutionService> institutionServiceProvider,
+														 @Nonnull Provider<BackgroundTask> backgroundTaskProvider,
 														 @Nonnull PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory,
 														 @Nonnull Database database,
 														 @Nonnull Normalizer normalizer,
@@ -208,6 +237,7 @@ public class PatientOrderService {
 		requireNonNull(accountServiceProvider);
 		requireNonNull(messageServiceProvider);
 		requireNonNull(institutionServiceProvider);
+		requireNonNull(backgroundTaskProvider);
 		requireNonNull(patientOrderScheduledMessageGroupApiResponseFactory);
 		requireNonNull(database);
 		requireNonNull(normalizer);
@@ -219,6 +249,7 @@ public class PatientOrderService {
 		this.accountServiceProvider = accountServiceProvider;
 		this.messageServiceProvider = messageServiceProvider;
 		this.institutionServiceProvider = institutionServiceProvider;
+		this.backgroundTaskProvider = backgroundTaskProvider;
 		this.patientOrderScheduledMessageGroupApiResponseFactory = patientOrderScheduledMessageGroupApiResponseFactory;
 		this.database = database;
 		this.normalizer = normalizer;
@@ -227,6 +258,68 @@ public class PatientOrderService {
 		this.gson = createGson();
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
+
+		this.backgroundTaskLock = new ReentrantLock();
+		this.backgroundTaskStarted = false;
+	}
+
+	@Override
+	public void close() throws Exception {
+		stopBackgroundTasks();
+	}
+
+	@Nonnull
+	public Boolean startBackgroundTasks() {
+		getBackgroundTaskLock().lock();
+
+		try {
+			if (isBackgroundTaskStarted())
+				return false;
+
+			getLogger().trace("Starting Patient Order background tasks...");
+
+			this.backgroundTaskExecutorService = Executors.newScheduledThreadPool(1, new ThreadFactoryBuilder().setNameFormat("patient-order-background-task").build());
+			this.backgroundTaskStarted = true;
+
+			getBackgroundTaskExecutorService().get().scheduleWithFixedDelay(new Runnable() {
+				@Override
+				public void run() {
+					try {
+						getBackgroundTaskProvider().get().run();
+					} catch (Exception e) {
+						getLogger().warn(format("Unable to complete Patient Order background task - will retry in %s seconds", String.valueOf(getBackgroundTaskIntervalInSeconds())), e);
+					}
+				}
+			}, getBackgroundTaskInitialDelayInSeconds(), getBackgroundTaskIntervalInSeconds(), TimeUnit.SECONDS);
+
+			getLogger().trace("Patient Order background tasks started.");
+
+			return true;
+		} finally {
+			getBackgroundTaskLock().unlock();
+		}
+	}
+
+	@Nonnull
+	public Boolean stopBackgroundTasks() {
+		getBackgroundTaskLock().lock();
+
+		try {
+			if (!isBackgroundTaskStarted())
+				return false;
+
+			getLogger().trace("Stopping Patient Order background tasks...");
+
+			getBackgroundTaskExecutorService().get().shutdownNow();
+			this.backgroundTaskExecutorService = null;
+			this.backgroundTaskStarted = false;
+
+			getLogger().trace("Patient Order background tasks stopped.");
+
+			return true;
+		} finally {
+			getBackgroundTaskLock().unlock();
+		}
 	}
 
 	@Nonnull
@@ -664,6 +757,7 @@ public class PatientOrderService {
 		Integer offset = pageNumber * pageSize;
 		Integer limit = pageSize;
 		List<String> whereClauseLines = new ArrayList<>();
+		List<String> orderByColumns = new ArrayList<>();
 		List<Object> parameters = new ArrayList<>();
 
 		parameters.add(institutionId);
@@ -695,6 +789,10 @@ public class PatientOrderService {
 
 		// TODO: finish adding other parameters/filters
 
+		orderByColumns.add("bq.last_modified DESC");
+		orderByColumns.add("bq.patient_first_name");
+		orderByColumns.add("bq.patient_last_name");
+
 		parameters.add(limit);
 		parameters.add(offset);
 
@@ -717,10 +815,13 @@ public class PatientOrderService {
 				  FROM
 				  total_count_query tcq,
 				  base_query bq
+				  ORDER BY {{orderByColumns}}
 				  LIMIT ?
 				  OFFSET ?
 				""".trim()
-				.replace("{{whereClauseLines}}", whereClauseLines.stream().collect(Collectors.joining("\n")));
+				.replace("{{whereClauseLines}}", whereClauseLines.stream().collect(Collectors.joining("\n")))
+				.replace("{{orderByColumns}}", orderByColumns.stream().collect(Collectors.joining(", ")))
+				.trim();
 
 		List<PatientOrderWithTotalCount> patientOrders = getDatabase().queryForList(sql, PatientOrderWithTotalCount.class, sqlVaragsParameters(parameters));
 
@@ -749,6 +850,19 @@ public class PatientOrderService {
 				AND patient_mrn=?
 				LIMIT 1
 				""", PatientOrderAutocompleteResult.class, institutionId, patientMrn);
+	}
+
+	@Nonnull
+	public List<PatientOrder> findTodayPatientOrdersForPanelAccountId(@Nullable UUID panelAccountId) {
+		if (panelAccountId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+					SELECT po.*
+				  FROM v_patient_order po
+				  WHERE po.panel_account_id=?
+				  ORDER BY po.last_modified DESC, po.patient_first_name, po.patient_last_name
+				""", PatientOrder.class, panelAccountId);
 	}
 
 	@Nonnull
@@ -3189,6 +3303,117 @@ public class PatientOrderService {
 		return namesWithEmbeddedIds;
 	}
 
+	@ThreadSafe
+	protected static class BackgroundTask implements Runnable {
+		@Nonnull
+		private final InstitutionService institutionService;
+		@Nonnull
+		private final SystemService systemService;
+		@Nonnull
+		private final CurrentContextExecutor currentContextExecutor;
+		@Nonnull
+		private final ErrorReporter errorReporter;
+		@Nonnull
+		private final Database database;
+		@Nonnull
+		private final Logger logger;
+
+		@Inject
+		public BackgroundTask(@Nonnull InstitutionService institutionService,
+													@Nonnull SystemService systemService,
+													@Nonnull CurrentContextExecutor currentContextExecutor,
+													@Nonnull ErrorReporter errorReporter,
+													@Nonnull Database database) {
+			requireNonNull(institutionService);
+			requireNonNull(systemService);
+			requireNonNull(currentContextExecutor);
+			requireNonNull(errorReporter);
+			requireNonNull(database);
+
+			this.institutionService = institutionService;
+			this.systemService = systemService;
+			this.currentContextExecutor = currentContextExecutor;
+			this.errorReporter = errorReporter;
+			this.database = database;
+			this.logger = LoggerFactory.getLogger(getClass());
+		}
+
+		@Override
+		public void run() {
+			List<Institution> integratedCareInstitutions = getInstitutionService().findInstitutions().stream()
+					.filter(institution -> institution.getIntegratedCareEnabled())
+					.collect(Collectors.toList());
+
+			for (Institution institution : integratedCareInstitutions) {
+				CurrentContext currentContext = new CurrentContext.Builder(institution.getInstitutionId(), institution.getLocale(), institution.getTimeZone()).build();
+
+				getCurrentContextExecutor().execute(currentContext, () -> {
+					try {
+						getDatabase().transaction(() -> {
+							getSystemService().performAdvisoryLockOperationIfAvailable(AdvisoryLock.PATIENT_ORDER_BACKGROUND_TASK, () -> {
+								performBackgroundProcessingForInstitution(institution);
+							});
+						});
+					} catch (Exception e) {
+						getLogger().error(format("An error occurred while performing patient order background task for institution ID %s", institution.getInstitutionId()), e);
+						getErrorReporter().report(e);
+					}
+				});
+			}
+		}
+
+		protected void performBackgroundProcessingForInstitution(@Nonnull Institution institution) {
+			requireNonNull(institution);
+
+			// "closed" -> "archived": if an order was closed 30 days ago, it's moved to ARCHIVED disposition
+			//
+			// "outreach needed": need another outreach to patient because it's been
+			//   institution.integrated_care_outreach_followup_day_offset days since last outreach and order is still in NEEDS_ASSESSMENT state
+			//
+			// "followup needed": need to follow up with patient because it's been
+			//   institution.integrated_care_sent_resources_followup_week_offset + institution.integrated_care_sent_resources_followup_day_offset
+			//   since resources were sent
+			// TODO: how do we mark "followup no longer needed", is there a UI to flip back to false?
+
+			// TODO: actual query and associated work to update as needed
+			List<PatientOrder> patientOrders = getDatabase().queryForList("""
+					     SELECT *
+					     FROM v_patient_order
+					     WHERE institution_id=?
+					""", PatientOrder.class, institution.getInstitutionId());
+		}
+
+		@Nonnull
+		protected InstitutionService getInstitutionService() {
+			return this.institutionService;
+		}
+
+		@Nonnull
+		protected SystemService getSystemService() {
+			return this.systemService;
+		}
+
+		@Nonnull
+		protected CurrentContextExecutor getCurrentContextExecutor() {
+			return this.currentContextExecutor;
+		}
+
+		@Nonnull
+		protected ErrorReporter getErrorReporter() {
+			return this.errorReporter;
+		}
+
+		@Nonnull
+		protected Database getDatabase() {
+			return this.database;
+		}
+
+		@Nonnull
+		protected Logger getLogger() {
+			return this.logger;
+		}
+	}
+
 	@NotThreadSafe
 	protected static class PatientOrderWithTotalCount extends PatientOrder {
 		@Nullable
@@ -3311,6 +3536,16 @@ public class PatientOrderService {
 	}
 
 	@Nonnull
+	protected Long getBackgroundTaskInitialDelayInSeconds() {
+		return BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS;
+	}
+
+	@Nonnull
+	protected Long getBackgroundTaskIntervalInSeconds() {
+		return BACKGROUND_TASK_INTERVAL_IN_SECONDS;
+	}
+
+	@Nonnull
 	protected AddressService getAddressService() {
 		return this.addressServiceProvider.get();
 	}
@@ -3333,6 +3568,33 @@ public class PatientOrderService {
 	@Nonnull
 	protected PatientOrderScheduledMessageGroupApiResponseFactory getPatientOrderScheduledMessageGroupApiResponseFactory() {
 		return this.patientOrderScheduledMessageGroupApiResponseFactory;
+	}
+
+
+	@Nonnull
+	protected Provider<BackgroundTask> getBackgroundTaskProvider() {
+		return this.backgroundTaskProvider;
+	}
+
+	@Nonnull
+	protected ReentrantLock getBackgroundTaskLock() {
+		return this.backgroundTaskLock;
+	}
+
+	@Nonnull
+	public Boolean isBackgroundTaskStarted() {
+		getBackgroundTaskLock().lock();
+
+		try {
+			return this.backgroundTaskStarted;
+		} finally {
+			getBackgroundTaskLock().unlock();
+		}
+	}
+
+	@Nonnull
+	protected Optional<ScheduledExecutorService> getBackgroundTaskExecutorService() {
+		return Optional.ofNullable(this.backgroundTaskExecutorService);
 	}
 
 	@Nonnull

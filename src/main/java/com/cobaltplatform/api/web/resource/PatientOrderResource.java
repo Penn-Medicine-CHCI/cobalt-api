@@ -76,6 +76,8 @@ import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispo
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderOutreach;
+import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageGroup;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledScreening;
@@ -122,6 +124,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -1131,17 +1134,58 @@ public class PatientOrderResource {
 		if (!getAuthorizationService().canViewPanelAccounts(institutionId, account))
 			throw new AuthorizationException();
 
-		// TODO: finish implementation
+		LocalDateTime today = LocalDateTime.now(account.getTimeZone());
 
-		// Orders where panel account ID == provided account ID and...
-		//
+		// Pull all the orders for the "today" view and chunk them up into the sections needed for the UI
+		List<PatientOrder> patientOrders = getPatientOrderService().findTodayPatientOrdersForPanelAccountId(account.getAccountId());
+
+		// "Safety Planning": patient_order_safety_planning_status_id == NEEDS_SAFETY_PLANNING
+		List<PatientOrderApiResponse> safetyPlanningPatientOrders = patientOrders.stream()
+				.filter(patientOrder -> patientOrder.getPatientOrderSafetyPlanningStatusId() == PatientOrderSafetyPlanningStatusId.NEEDS_SAFETY_PLANNING)
+				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
+				.collect(Collectors.toList());
+
 		// "New Patients": outreach_count == 0
-		// "Voicemails": voicemail_task_count == 0 (need new field in v_patient_order)
-		// "Follow Up": status == NEEDS_ASSESSMENT && most_recent_outreach_date_time >= institution.outreach_interval_in_days (new field?)
-		// "Assessments": patient_order_scheduled_screening_scheduled_date_time == TODAY
-		// "Resources": patient_order_resourcing_status_id == NEEDS_RESOURCES
+		List<PatientOrderApiResponse> newPatientPatientOrders = patientOrders.stream()
+				.filter(patientOrder -> patientOrder.getOutreachCount() == 0)
+				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
+				.collect(Collectors.toList());
 
-		return new ApiResponse();
+		// "Voicemails": voicemail_task_count == 0
+		List<PatientOrderApiResponse> voicemailTaskPatientOrders = patientOrders.stream()
+				// TODO: need this field added
+				// .filter(patientOrder -> patientOrder.getVoicemailTaskCount() == 0)
+				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
+				.collect(Collectors.toList());
+
+		// "Follow Up": status == NEEDS_ASSESSMENT && most_recent_outreach_date_time >= institution.outreach_interval_in_days (new field?)
+		List<PatientOrderApiResponse> followupPatientOrders = patientOrders.stream()
+				.filter(patientOrder -> patientOrder.getFollowupNeeded())
+				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
+				.collect(Collectors.toList());
+
+		// "Assessments": status == NEEDS_ASSESSMENT && patient_order_scheduled_screening_scheduled_date_time == TODAY
+		List<PatientOrderApiResponse> scheduledAssessmentPatientOrders = patientOrders.stream()
+				.filter(patientOrder -> patientOrder.getPatientOrderStatusId() == PatientOrderStatusId.NEEDS_ASSESSMENT
+						&& patientOrder.getPatientOrderScheduledScreeningScheduledDateTime() != null
+						&& patientOrder.getPatientOrderScheduledScreeningScheduledDateTime().toLocalDate().equals(today.toLocalDate()))
+				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
+				.collect(Collectors.toList());
+
+		// "Resources": patient_order_resourcing_status_id == NEEDS_RESOURCES
+		List<PatientOrderApiResponse> needResourcesPatientOrders = patientOrders.stream()
+				.filter(patientOrder -> patientOrder.getPatientOrderResourcingStatusId() == PatientOrderResourcingStatusId.NEEDS_RESOURCES)
+				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
+				.collect(Collectors.toList());
+
+		return new ApiResponse(new HashMap<>() {{
+			put("safetyPlanningPatientOrders", safetyPlanningPatientOrders);
+			put("newPatientPatientOrders", newPatientPatientOrders);
+			put("voicemailTaskPatientOrders", voicemailTaskPatientOrders);
+			put("followupPatientOrders", followupPatientOrders);
+			put("scheduledAssessmentPatientOrders", scheduledAssessmentPatientOrders);
+			put("needResourcesPatientOrders", needResourcesPatientOrders);
+		}});
 	}
 
 	@Nonnull

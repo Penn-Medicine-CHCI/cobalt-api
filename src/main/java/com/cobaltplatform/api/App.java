@@ -28,6 +28,7 @@ import com.cobaltplatform.api.messaging.sms.SmsMessageManager;
 import com.cobaltplatform.api.service.AvailabilityService;
 import com.cobaltplatform.api.service.GroupSessionService;
 import com.cobaltplatform.api.service.MessageService;
+import com.cobaltplatform.api.service.PatientOrderService;
 import com.cobaltplatform.api.service.Way2HealthService;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -207,9 +208,23 @@ public class App implements AutoCloseable {
 		} catch (Exception e) {
 			getLogger().warn("Failed to start Availability Service history background task", e);
 		}
+
+		try {
+			PatientOrderService patientOrderService = getInjector().getInstance(PatientOrderService.class);
+			patientOrderService.startBackgroundTasks();
+		} catch (Exception e) {
+			getLogger().warn("Failed to start Patient Order Service background tasks", e);
+		}
 	}
 
 	public void performShutdownTasks() {
+		try {
+			PatientOrderService patientOrderService = getInjector().getInstance(PatientOrderService.class);
+			patientOrderService.stopBackgroundTasks();
+		} catch (Exception e) {
+			getLogger().warn("Failed to stop Patient Order Service background tasks", e);
+		}
+
 		try {
 			AvailabilityService availabilityService = getInjector().getInstance(AvailabilityService.class);
 			availabilityService.stopHistoryBackgroundTask();
