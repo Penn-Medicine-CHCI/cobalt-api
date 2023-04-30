@@ -94,6 +94,7 @@ import com.cobaltplatform.api.model.db.PatientOrderStatus;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
+import com.cobaltplatform.api.model.db.PatientOrderVoicemailTask;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
@@ -2104,6 +2105,21 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
+	public List<PatientOrderVoicemailTask> findPatientOrderVoicemailTasksByPatientOrderId(@Nullable UUID patientOrderId) {
+		if (patientOrderId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM patient_order_voicemail_task
+				WHERE patient_order_id=?
+				ORDER BY last_updated DESC
+				""", PatientOrderVoicemailTask.class, patientOrderId);
+	}
+
+	// TODO: CRUD for voicemail tasks, API response, add field to PatientOrder API response for details
+
+	@Nonnull
 	public List<PatientOrderScheduledMessage> findPatientOrderScheduledMessagesByPatientOrderId(@Nullable UUID patientOrderId) {
 		if (patientOrderId == null)
 			return List.of();
@@ -2113,7 +2129,7 @@ public class PatientOrderService implements AutoCloseable {
 				FROM v_patient_order_scheduled_message
 				WHERE patient_order_id=?
 				AND scheduled_message_status_id != ?
-				ORDER BY scheduled_at at time zone time_zone DESC;
+				ORDER BY scheduled_at at time zone time_zone DESC
 				""", PatientOrderScheduledMessage.class, patientOrderId, ScheduledMessageStatusId.CANCELED);
 	}
 

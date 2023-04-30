@@ -32,9 +32,11 @@ CREATE TRIGGER set_last_modified BEFORE INSERT OR UPDATE ON patient_order FOR EA
 CREATE TABLE patient_order_voicemail_task (
   patient_order_voicemail_task_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_order_id UUID NOT NULL REFERENCES patient_order,
-  account_id UUID NOT NULL REFERENCES account,
+  created_by_account_id UUID NOT NULL REFERENCES account(account_id),
+  completed_by_account_id UUID REFERENCES account(account_id),
   message VARCHAR NOT NULL,
   completed BOOLEAN NOT NULL DEFAULT FALSE,
+  completed_at TIMESTAMPTZ,
   created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
