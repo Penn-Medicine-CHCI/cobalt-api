@@ -27,6 +27,7 @@ import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.messaging.sms.SmsMessage;
 import com.cobaltplatform.api.messaging.sms.SmsMessageTemplate;
+import com.cobaltplatform.api.model.api.request.ArchivePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.AssignPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.CancelPatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
@@ -48,7 +49,9 @@ import com.cobaltplatform.api.model.api.request.DeletePatientOrderScheduledMessa
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderFollowupNeededRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachNeededRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderSafetyPlanningStatusRequest;
@@ -789,7 +792,8 @@ public class PatientOrderService implements AutoCloseable {
 
 		// TODO: finish adding other parameters/filters
 
-		orderByColumns.add("bq.last_modified DESC");
+		orderByColumns.add("bq.order_date DESC");
+		orderByColumns.add("bq.order_age_in_minutes");
 		orderByColumns.add("bq.patient_first_name");
 		orderByColumns.add("bq.patient_last_name");
 
@@ -861,7 +865,7 @@ public class PatientOrderService implements AutoCloseable {
 					SELECT po.*
 				  FROM v_patient_order po
 				  WHERE po.panel_account_id=?
-				  ORDER BY po.last_modified DESC, po.patient_first_name, po.patient_last_name
+				  ORDER BY po.order_date DESC, po.order_age_in_minutes, po.patient_first_name, po.patient_last_name
 				""", PatientOrder.class, panelAccountId);
 	}
 
@@ -1791,6 +1795,128 @@ public class PatientOrderService implements AutoCloseable {
 				SET patient_order_resourcing_status_id=?, resources_sent_at=?, resources_sent_note=?
 				WHERE patient_order_id=?
 				""", patientOrderResourcingStatusId, resourcesSentAt, resourcesSentNote, patientOrderId) > 0;
+	}
+
+	@Nonnull
+	public Boolean archivePatientOrder(@Nonnull ArchivePatientOrderRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderId = request.getPatientOrderId();
+		@SuppressWarnings("unused")
+		// Currently unused; would be the account flipping the flag (understood to be 'system' if not specified)
+		UUID accountId = request.getAccountId();
+		PatientOrder patientOrder = null;
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderId == null) {
+			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+		} else {
+			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+
+			if (patientOrder == null)
+				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		// Not changing anything, no action to take
+		if (patientOrder.getPatientOrderDispositionId() == PatientOrderDispositionId.ARCHIVED)
+			return false;
+
+		boolean updated = getDatabase().execute("""
+				UPDATE patient_order
+				SET patient_order_disposition_id=?
+				WHERE patient_order_id=?
+				""", PatientOrderDispositionId.ARCHIVED, patientOrderId) > 0;
+
+		// TODO: track event
+
+		return updated;
+	}
+
+	@Nonnull
+	public Boolean updatePatientOrderOutreachNeeded(@Nonnull UpdatePatientOrderOutreachNeededRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderId = request.getPatientOrderId();
+		Boolean outreachNeeded = request.getOutreachNeeded();
+		@SuppressWarnings("unused")
+		// Currently unused; would be the account flipping the flag (understood to be 'system' if not specified)
+		UUID accountId = request.getAccountId();
+		PatientOrder patientOrder = null;
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderId == null) {
+			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+		} else {
+			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+
+			if (patientOrder == null)
+				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+		}
+
+		if (outreachNeeded == null)
+			validationException.add(new FieldError("outreachNeeded", getStrings().get("Outreach Needed is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		// Not changing anything, no action to take
+		if (patientOrder.getOutreachNeeded().equals(outreachNeeded))
+			return false;
+
+		boolean updated = getDatabase().execute("""
+				UPDATE patient_order
+				SET outreach_needed=?
+				WHERE patient_order_id=?
+				""", outreachNeeded, patientOrderId) > 0;
+
+		// TODO: track event
+
+		return updated;
+	}
+
+	@Nonnull
+	public Boolean updatePatientOrderFollowupNeeded(@Nonnull UpdatePatientOrderFollowupNeededRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderId = request.getPatientOrderId();
+		Boolean followupNeeded = request.getFollowupNeeded();
+		@SuppressWarnings("unused")
+		// Currently unused; would be the account flipping the flag (understood to be 'system' if not specified)
+		UUID accountId = request.getAccountId();
+		PatientOrder patientOrder = null;
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderId == null) {
+			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+		} else {
+			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+
+			if (patientOrder == null)
+				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+		}
+
+		if (followupNeeded == null)
+			validationException.add(new FieldError("followupNeeded", getStrings().get("Followup Needed is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		// Not changing anything, no action to take
+		if (patientOrder.getFollowupNeeded().equals(followupNeeded))
+			return false;
+
+		boolean updated = getDatabase().execute("""
+				UPDATE patient_order
+				SET followup_needed=?
+				WHERE patient_order_id=?
+				""", followupNeeded, patientOrderId) > 0;
+
+		// TODO: track event
+
+		return updated;
 	}
 
 	@Nonnull
@@ -3308,6 +3434,8 @@ public class PatientOrderService implements AutoCloseable {
 		@Nonnull
 		private final InstitutionService institutionService;
 		@Nonnull
+		private final PatientOrderService patientOrderService;
+		@Nonnull
 		private final SystemService systemService;
 		@Nonnull
 		private final CurrentContextExecutor currentContextExecutor;
@@ -3320,17 +3448,20 @@ public class PatientOrderService implements AutoCloseable {
 
 		@Inject
 		public BackgroundTask(@Nonnull InstitutionService institutionService,
+													@Nonnull PatientOrderService patientOrderService,
 													@Nonnull SystemService systemService,
 													@Nonnull CurrentContextExecutor currentContextExecutor,
 													@Nonnull ErrorReporter errorReporter,
 													@Nonnull Database database) {
 			requireNonNull(institutionService);
+			requireNonNull(patientOrderService);
 			requireNonNull(systemService);
 			requireNonNull(currentContextExecutor);
 			requireNonNull(errorReporter);
 			requireNonNull(database);
 
 			this.institutionService = institutionService;
+			this.patientOrderService = patientOrderService;
 			this.systemService = systemService;
 			this.currentContextExecutor = currentContextExecutor;
 			this.errorReporter = errorReporter;
@@ -3365,27 +3496,85 @@ public class PatientOrderService implements AutoCloseable {
 		protected void performBackgroundProcessingForInstitution(@Nonnull Institution institution) {
 			requireNonNull(institution);
 
-			// "closed" -> "archived": if an order was closed 30 days ago, it's moved to ARCHIVED disposition
-			//
-			// "outreach needed": need another outreach to patient because it's been
-			//   institution.integrated_care_outreach_followup_day_offset days since last outreach and order is still in NEEDS_ASSESSMENT state
-			//
-			// "followup needed": need to follow up with patient because it's been
-			//   institution.integrated_care_sent_resources_followup_week_offset + institution.integrated_care_sent_resources_followup_day_offset
-			//   since resources were sent
-			// TODO: how do we mark "followup no longer needed", is there a UI to flip back to false?
+			LocalDateTime now = LocalDateTime.now(institution.getTimeZone());
 
-			// TODO: actual query and associated work to update as needed
-			List<PatientOrder> patientOrders = getDatabase().queryForList("""
+			// 1. "closed" -> "archived": if episode_closed_at >= 30 days ago, it's moved to ARCHIVED disposition
+			LocalDateTime archivedThreshold = now.minusDays(30);
+
+			List<PatientOrder> archivablePatientOrders = getDatabase().queryForList("""
 					     SELECT *
 					     FROM v_patient_order
 					     WHERE institution_id=?
-					""", PatientOrder.class, institution.getInstitutionId());
+					     AND patient_order_disposition_id=?
+					     AND episode_closed_at <= ?
+					""", PatientOrder.class, institution.getInstitutionId(), PatientOrderDispositionId.CLOSED, archivedThreshold);
+
+			for (PatientOrder archivablePatientOrder : archivablePatientOrders) {
+				getLogger().info("Detected that patient order ID {} was closed on {} - archiving...",
+						archivablePatientOrder.getPatientOrderId(), archivablePatientOrder.getEpisodeClosedAt());
+				getPatientOrderService().archivePatientOrder(new ArchivePatientOrderRequest() {{
+					setPatientOrderId(archivablePatientOrder.getPatientOrderId());
+				}});
+			}
+
+			// 2. "outreach needed": need another outreach to patient because it's been
+			//   institution.integrated_care_outreach_followup_day_offset days since most_recent_outreach_date_time and order is still in NEEDS_ASSESSMENT state
+			List<PatientOrder> outreachNeededPatientOrders = getDatabase().queryForList("""
+							     SELECT *
+							     FROM v_patient_order
+							     WHERE institution_id=?
+							     AND patient_order_disposition_id=?
+							     AND patient_order_status_id=?
+							     AND outreach_needed=FALSE
+							     AND most_recent_outreach_date_time IS NOT NULL
+							     AND most_recent_outreach_date_time <= (? - make_interval(days => ?))
+							""", PatientOrder.class, institution.getInstitutionId(), PatientOrderDispositionId.OPEN, PatientOrderStatusId.NEEDS_ASSESSMENT,
+					now, institution.getIntegratedCareOutreachFollowupDayOffset());
+
+			// Syntax reference:
+			// make_interval(years int DEFAULT 0, months int DEFAULT 0, weeks int DEFAULT 0, days int DEFAULT 0, hours int DEFAULT 0, mins int DEFAULT 0, secs double precision DEFAULT 0.0)
+
+			for (PatientOrder outreachNeededPatientOrder : outreachNeededPatientOrders) {
+				getLogger().info("Detected that patient order ID {} needs outreach, since unassessed and last outreach was {}...",
+						outreachNeededPatientOrder.getPatientOrderId(), outreachNeededPatientOrder.getMostRecentOutreachDateTime());
+				getPatientOrderService().updatePatientOrderOutreachNeeded(new UpdatePatientOrderOutreachNeededRequest() {{
+					setPatientOrderId(outreachNeededPatientOrder.getPatientOrderId());
+					setOutreachNeeded(true);
+				}});
+			}
+
+			// 3. "followup needed": need to follow up with patient because it's been
+			//   institution.integrated_care_sent_resources_followup_week_offset + institution.integrated_care_sent_resources_followup_day_offset
+			//   since resources_sent_at.  This applies to both open and closed orders, but not archived.
+			// TODO: how do we mark "followup no longer needed", is there a UI to flip back to false?
+			List<PatientOrder> followupNeededPatientOrders = getDatabase().queryForList("""
+							     SELECT *
+							     FROM v_patient_order
+							     WHERE institution_id=?
+							     AND followup_needed=FALSE
+							     AND resources_sent_at IS NOT NULL
+							     AND resources_sent_at <= (? - make_interval(weeks => ?, days => ?))
+							""", PatientOrder.class, institution.getInstitutionId(),
+					now, institution.getIntegratedCareSentResourcesFollowupWeekOffset(), institution.getIntegratedCareSentResourcesFollowupDayOffset());
+
+			for (PatientOrder followupNeededPatientOrder : followupNeededPatientOrders) {
+				getLogger().info("Detected that patient order ID {} needs followup, since resources were sent at {}...",
+						followupNeededPatientOrder.getPatientOrderId(), followupNeededPatientOrder.getResourcesSentAt());
+				getPatientOrderService().updatePatientOrderFollowupNeeded(new UpdatePatientOrderFollowupNeededRequest() {{
+					setPatientOrderId(followupNeededPatientOrder.getPatientOrderId());
+					setFollowupNeeded(true);
+				}});
+			}
 		}
 
 		@Nonnull
 		protected InstitutionService getInstitutionService() {
 			return this.institutionService;
+		}
+
+		@Nonnull
+		protected PatientOrderService getPatientOrderService() {
+			return this.patientOrderService;
 		}
 
 		@Nonnull

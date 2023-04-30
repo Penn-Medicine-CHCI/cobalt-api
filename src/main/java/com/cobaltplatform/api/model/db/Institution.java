@@ -176,6 +176,8 @@ public class Institution {
 	@Nullable
 	private Integer integratedCareSentResourcesFollowupDayOffset;
 	@Nullable
+	private Integer integratedCareOutreachFollowupDayOffset;
+	@Nullable
 	private String defaultFromEmailAddress;
 	@Nullable
 	private String integratedCarePhoneNumber;
@@ -795,6 +797,15 @@ public class Institution {
 
 	public void setIntegratedCareSentResourcesFollowupWeekOffset(@Nullable Integer integratedCareSentResourcesFollowupWeekOffset) {
 		this.integratedCareSentResourcesFollowupWeekOffset = integratedCareSentResourcesFollowupWeekOffset;
+	}
+
+	@Nullable
+	public Integer getIntegratedCareOutreachFollowupDayOffset() {
+		return this.integratedCareOutreachFollowupDayOffset;
+	}
+
+	public void setIntegratedCareOutreachFollowupDayOffset(@Nullable Integer integratedCareOutreachFollowupDayOffset) {
+		this.integratedCareOutreachFollowupDayOffset = integratedCareOutreachFollowupDayOffset;
 	}
 
 	@Nullable

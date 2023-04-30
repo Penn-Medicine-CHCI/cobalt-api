@@ -1158,9 +1158,15 @@ public class PatientOrderResource {
 				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
 				.collect(Collectors.toList());
 
-		// "Follow Up": status == NEEDS_ASSESSMENT && most_recent_outreach_date_time >= institution.outreach_interval_in_days (new field?)
+		// "Follow Up"
 		List<PatientOrderApiResponse> followupPatientOrders = patientOrders.stream()
 				.filter(patientOrder -> patientOrder.getFollowupNeeded())
+				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
+				.collect(Collectors.toList());
+
+		// "Outreach Needed"
+		List<PatientOrderApiResponse> outreachNeededPatientOrders = patientOrders.stream()
+				.filter(patientOrder -> patientOrder.getOutreachNeeded())
 				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
 				.collect(Collectors.toList());
 
@@ -1183,6 +1189,7 @@ public class PatientOrderResource {
 			put("newPatientPatientOrders", newPatientPatientOrders);
 			put("voicemailTaskPatientOrders", voicemailTaskPatientOrders);
 			put("followupPatientOrders", followupPatientOrders);
+			put("outreachNeededPatientOrders", outreachNeededPatientOrders);
 			put("scheduledAssessmentPatientOrders", scheduledAssessmentPatientOrders);
 			put("needResourcesPatientOrders", needResourcesPatientOrders);
 		}});
