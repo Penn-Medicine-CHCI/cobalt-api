@@ -1,6 +1,9 @@
 BEGIN;
 SELECT _v.register_patch('083-ic-updates', NULL, NULL);
 
+-- Optional field to store off SHA-256 checksum of raw order data to simplify duplicate import detection
+ALTER TABLE patient_order_import ADD COLUMN raw_order_checksum VARCHAR;
+
 -- These are whitelisted regions (i.e. states in the US) where patients must reside in order to use IC functionality.
 -- Regions are implicitly located in the country indicated by the institution's locale
 CREATE TABLE institution_integrated_care_region (
@@ -26,7 +29,20 @@ $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER set_last_modified BEFORE INSERT OR UPDATE ON patient_order FOR EACH ROW EXECUTE PROCEDURE set_last_modified();
 
--- Recreate view to add "last_modified" column
+CREATE TABLE patient_order_voicemail_task (
+  patient_order_voicemail_task_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  patient_order_id UUID NOT NULL REFERENCES patient_order,
+  account_id UUID NOT NULL REFERENCES account,
+  message VARCHAR NOT NULL,
+  completed BOOLEAN NOT NULL DEFAULT FALSE,
+  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_voicemail_task FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+
+-- Recreate view to add "last_modified" column and support voicemail tasks
 DROP VIEW v_patient_order;
 CREATE VIEW v_patient_order AS WITH po_query AS (
     select
@@ -80,6 +96,20 @@ recent_appt_query AS (
     where
         app2.appointment_id  IS NULL
 ),
+recent_voicemail_task_query AS (
+    -- Pick the most recent voicemail task for each patient order
+    select
+        povt.patient_order_id,
+        povt.patient_order_voicemail_task_id,
+        povt.completed as patient_order_voicemail_task_completed
+    from
+        po_query poq
+        join patient_order_voicemail_task povt ON poq.patient_order_id = povt.patient_order_id
+        left join patient_order_voicemail_task povt2 ON povt.patient_order_id = povt2.patient_order_id
+        and povt.created > povt2.created
+    where
+        povt2.patient_order_voicemail_task_id IS NULL
+),
 ss_query AS (
     -- Pick the most recently-created screening session for the patient order
     select
@@ -109,6 +139,7 @@ recent_scheduled_screening_query AS (
         poss2.patient_order_scheduled_screening_id is NULL
 ), recent_po_query AS (
     -- Pick the most recently-closed patient order for the same MRN/institution combination
+    -- TODO: this query needs to be fixed, should work similarly to recent_appt_query and others
     select
         poq.patient_order_id,
         po2.episode_closed_at AS most_recent_episode_closed_at
@@ -162,6 +193,7 @@ select
     tq.patient_order_care_type_description,
     coalesce(pooq.outreach_count, 0) AS outreach_count,
     poomaxq.max_outreach_date_time AS most_recent_outreach_date_time,
+
     ssq.screening_session_id AS most_recent_screening_session_id,
     ssq.created_by_account_id AS most_recent_screening_session_created_by_account_id,
     ssq.first_name AS most_recent_screening_session_created_by_account_first_name,
@@ -225,6 +257,8 @@ select
     raq.provider_id,
     raq.provider_name,
     raq.appointment_id,
+    rvtq.patient_order_voicemail_task_id AS most_recent_patient_order_voicemail_task_id,
+    rvtq.patient_order_voicemail_task_completed AS most_recent_patient_order_voicemail_task_completed,
     poq.*
 from
     po_query poq
@@ -238,6 +272,7 @@ from
     left outer join account panel_account ON poq.panel_account_id = panel_account.account_id
     left outer join recent_po_query rpq ON poq.patient_order_id = rpq.patient_order_id
     left outer join recent_scheduled_screening_query rssq ON poq.patient_order_id = rssq.patient_order_id
-    left outer join recent_appt_query raq on poq.patient_order_id=raq.patient_order_id;
+    left outer join recent_appt_query raq on poq.patient_order_id=raq.patient_order_id
+    left outer join recent_voicemail_task_query rvtq on poq.patient_order_id=rvtq.patient_order_id;
 
 COMMIT;

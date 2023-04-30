@@ -43,6 +43,8 @@ public class PatientOrderImport {
 	@Nullable
 	private String rawOrder;
 	@Nullable
+	private String rawOrderChecksum;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -90,6 +92,15 @@ public class PatientOrderImport {
 
 	public void setRawOrder(@Nullable String rawOrder) {
 		this.rawOrder = rawOrder;
+	}
+
+	@Nullable
+	public String getRawOrderChecksum() {
+		return this.rawOrderChecksum;
+	}
+
+	public void setRawOrderChecksum(@Nullable String rawOrderChecksum) {
+		this.rawOrderChecksum = rawOrderChecksum;
 	}
 
 	@Nullable

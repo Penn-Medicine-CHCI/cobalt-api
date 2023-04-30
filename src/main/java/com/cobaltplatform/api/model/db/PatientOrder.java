@@ -241,6 +241,10 @@ public class PatientOrder {
 	private UUID providerId;
 	@Nullable
 	private String providerName;
+	@Nullable
+	private UUID mostRecentPatientOrderVoicemailTaskId;
+	@Nullable
+	private Boolean mostRecentPatientOrderVoicemailTaskCompleted;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -1113,5 +1117,23 @@ public class PatientOrder {
 
 	public void setProviderName(@Nullable String providerName) {
 		this.providerName = providerName;
+	}
+
+	@Nullable
+	public UUID getMostRecentPatientOrderVoicemailTaskId() {
+		return this.mostRecentPatientOrderVoicemailTaskId;
+	}
+
+	public void setMostRecentPatientOrderVoicemailTaskId(@Nullable UUID mostRecentPatientOrderVoicemailTaskId) {
+		this.mostRecentPatientOrderVoicemailTaskId = mostRecentPatientOrderVoicemailTaskId;
+	}
+
+	@Nullable
+	public Boolean getMostRecentPatientOrderVoicemailTaskCompleted() {
+		return this.mostRecentPatientOrderVoicemailTaskCompleted;
+	}
+
+	public void setMostRecentPatientOrderVoicemailTaskCompleted(@Nullable Boolean mostRecentPatientOrderVoicemailTaskCompleted) {
+		this.mostRecentPatientOrderVoicemailTaskCompleted = mostRecentPatientOrderVoicemailTaskCompleted;
 	}
 }

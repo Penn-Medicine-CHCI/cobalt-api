@@ -1151,10 +1151,10 @@ public class PatientOrderResource {
 				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
 				.collect(Collectors.toList());
 
-		// "Voicemails": voicemail_task_count == 0
+		// "Voicemails": most recent voicemail task exists, but is incomplete == 0
 		List<PatientOrderApiResponse> voicemailTaskPatientOrders = patientOrders.stream()
-				// TODO: need this field added
-				// .filter(patientOrder -> patientOrder.getVoicemailTaskCount() == 0)
+				.filter(patientOrder -> patientOrder.getMostRecentPatientOrderVoicemailTaskId() != null
+						&& !patientOrder.getMostRecentPatientOrderVoicemailTaskCompleted())
 				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
 				.collect(Collectors.toList());
 

@@ -107,6 +107,7 @@ import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.google.common.hash.Hashing;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -138,6 +139,7 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.io.UncheckedIOException;
 import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -2459,6 +2461,7 @@ public class PatientOrderService implements AutoCloseable {
 		PatientOrderImportTypeId patientOrderImportTypeId = request.getPatientOrderImportTypeId();
 		UUID accountId = request.getAccountId();
 		String csvContent = trimToNull(request.getCsvContent());
+		String rawOrderChecksum = null;
 		boolean automaticallyAssignToPanelAccounts = request.getAutomaticallyAssignToPanelAccounts() == null ? false : request.getAutomaticallyAssignToPanelAccounts();
 		UUID patientOrderImportId = UUID.randomUUID();
 		List<UUID> patientOrderIds = new ArrayList<>();
@@ -2467,19 +2470,35 @@ public class PatientOrderService implements AutoCloseable {
 		if (institutionId == null)
 			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
 
-		if (patientOrderImportTypeId == null)
+		if (patientOrderImportTypeId == null) {
 			validationException.add(new FieldError("patientOrderImportTypeId", getStrings().get("Patient Order Import Type ID is required.")));
+		} else if (patientOrderImportTypeId == PatientOrderImportTypeId.CSV) {
 
-		if (patientOrderImportTypeId == PatientOrderImportTypeId.CSV && csvContent == null)
-			validationException.add(new FieldError("csvContent", getStrings().get("CSV file is required.")));
+			if (csvContent == null) {
+				validationException.add(new FieldError("csvContent", getStrings().get("CSV file is required.")));
+			} else {
+				rawOrderChecksum = Hashing.sha256()
+						.hashString(csvContent, StandardCharsets.UTF_8)
+						.toString();
 
-		if (patientOrderImportTypeId == PatientOrderImportTypeId.CSV && accountId == null)
-			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+				PatientOrderImport existingPatientOrderImportMatchingChecksum = getDatabase().queryForObject("""
+						SELECT *
+						FROM patient_order_import
+						WHERE raw_order_checksum=?
+						AND institution_id=?
+						""", PatientOrderImport.class, rawOrderChecksum, institutionId).orElse(null);
 
-		// TODO: revisit when we support EPIC imports directly
-		if (patientOrderImportTypeId != PatientOrderImportTypeId.CSV)
+				if (existingPatientOrderImportMatchingChecksum != null)
+					validationException.add(new FieldError("csvContent", getStrings().get("This file has already been imported.")));
+			}
+
+			if (accountId == null)
+				validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+		} else {
+			// TODO: revisit when we support EPIC imports directly
 			throw new IllegalArgumentException(format("We do not yet support %s.%s", PatientOrderImportTypeId.class.getSimpleName(),
 					patientOrderImportTypeId.name()));
+		}
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -2490,9 +2509,10 @@ public class PatientOrderService implements AutoCloseable {
 				patient_order_import_type_id,
 				institution_id,
 				account_id,
-				raw_order
-				) VALUES (?,?,?,?,?)
-				""", patientOrderImportId, patientOrderImportTypeId, institutionId, accountId, csvContent);
+				raw_order,
+				raw_order_checksum
+				) VALUES (?,?,?,?,?,?)
+				""", patientOrderImportId, patientOrderImportTypeId, institutionId, accountId, csvContent, rawOrderChecksum);
 
 		if (patientOrderImportTypeId == PatientOrderImportTypeId.CSV) {
 			Map<Integer, ValidationException> validationExceptionsByRowNumber = new HashMap<>();

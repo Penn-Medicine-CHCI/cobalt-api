@@ -343,6 +343,10 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private Boolean mostRecentEpisodeClosedWithinDateThreshold;
 	@Nullable
+	private UUID mostRecentPatientOrderVoicemailTaskId;
+	@Nullable
+	private Boolean mostRecentPatientOrderVoicemailTaskCompleted;
+	@Nullable
 	private UUID patientOrderScheduledScreeningId;
 	@Nullable
 	private LocalDateTime patientOrderScheduledScreeningScheduledDateTime;
@@ -726,6 +730,8 @@ public class PatientOrderApiResponse {
 			this.mostRecentEpisodeClosedAt = patientOrder.getMostRecentEpisodeClosedAt();
 			this.mostRecentEpisodeClosedAtDescription = patientOrder.getMostRecentEpisodeClosedAt() == null ? null : formatter.formatTimestamp(patientOrder.getMostRecentEpisodeClosedAt());
 			this.mostRecentEpisodeClosedWithinDateThreshold = patientOrder.getMostRecentEpisodeClosedWithinDateThreshold();
+			this.mostRecentPatientOrderVoicemailTaskId = patientOrder.getMostRecentPatientOrderVoicemailTaskId();
+			this.mostRecentPatientOrderVoicemailTaskCompleted = patientOrder.getMostRecentPatientOrderVoicemailTaskCompleted();
 			this.patientOrderScheduledScreeningId = patientOrder.getPatientOrderScheduledScreeningId();
 			this.patientOrderScheduledScreeningScheduledDateTime = patientOrder.getPatientOrderScheduledScreeningScheduledDateTime();
 			this.patientOrderScheduledScreeningScheduledDateTimeDescription = patientOrder.getPatientOrderScheduledScreeningScheduledDateTime() == null ? null : formatter.formatDateTime(patientOrder.getPatientOrderScheduledScreeningScheduledDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
@@ -1369,5 +1375,15 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public String getPatientConsentedAtDescription() {
 		return this.patientConsentedAtDescription;
+	}
+
+	@Nullable
+	public UUID getMostRecentPatientOrderVoicemailTaskId() {
+		return this.mostRecentPatientOrderVoicemailTaskId;
+	}
+
+	@Nullable
+	public Boolean getMostRecentPatientOrderVoicemailTaskCompleted() {
+		return this.mostRecentPatientOrderVoicemailTaskCompleted;
 	}
 }
