@@ -219,9 +219,18 @@ public class ScreeningResource {
 						.collect(Collectors.toList()));
 			}
 		} else {
+			// TODO: should optimize this, it's way too heavy to pull back all sessions, e.g. in a case where an MHIC screens hundreds of people
 			screeningSessions.addAll(getScreeningService().findScreeningSessionsByScreeningFlowId(screeningFlowId, account.getAccountId()).stream()
-					.filter(screeningSession -> targetAccountId.isEmpty() ? true : screeningSession.getTargetAccountId().equals(targetAccountId.get()))
-					.filter(screeningSession -> getAuthorizationService().canViewScreeningSession(screeningSession, account, getAccountService().findAccountById(screeningSession.getTargetAccountId()).get()))
+					.filter(screeningSession -> {
+						if (targetAccountId.isEmpty()) {
+							return screeningSession.getCreatedByAccountId().equals(account.getAccountId());
+						} else {
+							if (!screeningSession.getTargetAccountId().equals(targetAccountId.get()))
+								return false;
+
+							return getAuthorizationService().canViewScreeningSession(screeningSession, account, getAccountService().findAccountById(screeningSession.getTargetAccountId()).get());
+						}
+					})
 					.collect(Collectors.toList()));
 		}
 
@@ -468,12 +477,15 @@ public class ScreeningResource {
 
 		ScreeningSessionDestination screeningSessionDestination = getScreeningService().determineDestinationForScreeningSessionId(screeningSession.getScreeningSessionId()).orElse(null);
 
+		ScreeningSession updatedScreeningSession = getScreeningService().findScreeningSessionById(screeningSessionScreening.getScreeningSessionId()).get();
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("screeningAnswers", screeningAnswers.stream()
 					.map(screeningAnswer -> getScreeningAnswerApiResponseFactory().create(screeningAnswer))
 					.collect(Collectors.toList()));
 			put("nextScreeningQuestionContextId", nextScreeningQuestionContext == null ? null : nextScreeningQuestionContext.getScreeningQuestionContextId());
 			put("screeningSessionDestination", screeningSessionDestination);
+			put("screeningSession", getScreeningSessionApiResponseFactory().create(updatedScreeningSession));
 		}});
 	}
 

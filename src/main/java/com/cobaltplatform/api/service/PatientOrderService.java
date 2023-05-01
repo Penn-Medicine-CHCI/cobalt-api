@@ -20,13 +20,18 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.context.CurrentContextExecutor;
+import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.messaging.sms.SmsMessage;
 import com.cobaltplatform.api.messaging.sms.SmsMessageTemplate;
+import com.cobaltplatform.api.model.api.request.ArchivePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.AssignPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.CancelPatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
+import com.cobaltplatform.api.model.api.request.CompletePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.request.ConsentPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderEventRequest;
@@ -38,14 +43,18 @@ import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.Create
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderMedicationRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledScreeningRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderScheduledMessageGroupRequest;
+import com.cobaltplatform.api.model.api.request.DeletePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderFollowupNeededRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachNeededRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderSafetyPlanningStatusRequest;
@@ -53,6 +62,7 @@ import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledMessa
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest.CreatePatientOrderTriageRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse.PatientOrderScheduledMessageGroupApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
@@ -88,10 +98,12 @@ import com.cobaltplatform.api.model.db.PatientOrderStatus;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
+import com.cobaltplatform.api.model.db.PatientOrderVoicemailTask;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
+import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.IcTestPatientEmailAddress;
 import com.cobaltplatform.api.model.service.PatientOrderAutocompleteResult;
@@ -100,6 +112,8 @@ import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.google.common.hash.Hashing;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializationContext;
@@ -130,6 +144,7 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.io.UncheckedIOException;
 import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -150,6 +165,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -167,7 +186,17 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
  */
 @Singleton
 @ThreadSafe
-public class PatientOrderService {
+public class PatientOrderService implements AutoCloseable {
+	@Nonnull
+	private static final Long BACKGROUND_TASK_INTERVAL_IN_SECONDS;
+	@Nonnull
+	private static final Long BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS;
+
+	static {
+		BACKGROUND_TASK_INTERVAL_IN_SECONDS = 60L * 1L;
+		BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS = 10L;
+	}
+
 	@Nonnull
 	private final Provider<AccountService> accountServiceProvider;
 	@Nonnull
@@ -176,6 +205,8 @@ public class PatientOrderService {
 	private final Provider<MessageService> messageServiceProvider;
 	@Nonnull
 	private final Provider<InstitutionService> institutionServiceProvider;
+	@Nonnull
+	private final Provider<BackgroundTask> backgroundTaskProvider;
 	@Nonnull
 	private final PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory;
 	@Nonnull
@@ -193,11 +224,19 @@ public class PatientOrderService {
 	@Nonnull
 	private final Logger logger;
 
+	@Nonnull
+	private final ReentrantLock backgroundTaskLock;
+	@Nonnull
+	private Boolean backgroundTaskStarted;
+	@Nullable
+	private ScheduledExecutorService backgroundTaskExecutorService;
+
 	@Inject
 	public PatientOrderService(@Nonnull Provider<AddressService> addressServiceProvider,
 														 @Nonnull Provider<AccountService> accountServiceProvider,
 														 @Nonnull Provider<MessageService> messageServiceProvider,
 														 @Nonnull Provider<InstitutionService> institutionServiceProvider,
+														 @Nonnull Provider<BackgroundTask> backgroundTaskProvider,
 														 @Nonnull PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory,
 														 @Nonnull Database database,
 														 @Nonnull Normalizer normalizer,
@@ -208,6 +247,7 @@ public class PatientOrderService {
 		requireNonNull(accountServiceProvider);
 		requireNonNull(messageServiceProvider);
 		requireNonNull(institutionServiceProvider);
+		requireNonNull(backgroundTaskProvider);
 		requireNonNull(patientOrderScheduledMessageGroupApiResponseFactory);
 		requireNonNull(database);
 		requireNonNull(normalizer);
@@ -219,6 +259,7 @@ public class PatientOrderService {
 		this.accountServiceProvider = accountServiceProvider;
 		this.messageServiceProvider = messageServiceProvider;
 		this.institutionServiceProvider = institutionServiceProvider;
+		this.backgroundTaskProvider = backgroundTaskProvider;
 		this.patientOrderScheduledMessageGroupApiResponseFactory = patientOrderScheduledMessageGroupApiResponseFactory;
 		this.database = database;
 		this.normalizer = normalizer;
@@ -227,6 +268,68 @@ public class PatientOrderService {
 		this.gson = createGson();
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
+
+		this.backgroundTaskLock = new ReentrantLock();
+		this.backgroundTaskStarted = false;
+	}
+
+	@Override
+	public void close() throws Exception {
+		stopBackgroundTasks();
+	}
+
+	@Nonnull
+	public Boolean startBackgroundTasks() {
+		getBackgroundTaskLock().lock();
+
+		try {
+			if (isBackgroundTaskStarted())
+				return false;
+
+			getLogger().trace("Starting Patient Order background tasks...");
+
+			this.backgroundTaskExecutorService = Executors.newScheduledThreadPool(1, new ThreadFactoryBuilder().setNameFormat("patient-order-background-task").build());
+			this.backgroundTaskStarted = true;
+
+			getBackgroundTaskExecutorService().get().scheduleWithFixedDelay(new Runnable() {
+				@Override
+				public void run() {
+					try {
+						getBackgroundTaskProvider().get().run();
+					} catch (Exception e) {
+						getLogger().warn(format("Unable to complete Patient Order background task - will retry in %s seconds", String.valueOf(getBackgroundTaskIntervalInSeconds())), e);
+					}
+				}
+			}, getBackgroundTaskInitialDelayInSeconds(), getBackgroundTaskIntervalInSeconds(), TimeUnit.SECONDS);
+
+			getLogger().trace("Patient Order background tasks started.");
+
+			return true;
+		} finally {
+			getBackgroundTaskLock().unlock();
+		}
+	}
+
+	@Nonnull
+	public Boolean stopBackgroundTasks() {
+		getBackgroundTaskLock().lock();
+
+		try {
+			if (!isBackgroundTaskStarted())
+				return false;
+
+			getLogger().trace("Stopping Patient Order background tasks...");
+
+			getBackgroundTaskExecutorService().get().shutdownNow();
+			this.backgroundTaskExecutorService = null;
+			this.backgroundTaskStarted = false;
+
+			getLogger().trace("Patient Order background tasks stopped.");
+
+			return true;
+		} finally {
+			getBackgroundTaskLock().unlock();
+		}
 	}
 
 	@Nonnull
@@ -664,6 +767,7 @@ public class PatientOrderService {
 		Integer offset = pageNumber * pageSize;
 		Integer limit = pageSize;
 		List<String> whereClauseLines = new ArrayList<>();
+		List<String> orderByColumns = new ArrayList<>();
 		List<Object> parameters = new ArrayList<>();
 
 		parameters.add(institutionId);
@@ -695,6 +799,11 @@ public class PatientOrderService {
 
 		// TODO: finish adding other parameters/filters
 
+		orderByColumns.add("bq.order_date DESC");
+		orderByColumns.add("bq.order_age_in_minutes");
+		orderByColumns.add("bq.patient_first_name");
+		orderByColumns.add("bq.patient_last_name");
+
 		parameters.add(limit);
 		parameters.add(offset);
 
@@ -717,10 +826,13 @@ public class PatientOrderService {
 				  FROM
 				  total_count_query tcq,
 				  base_query bq
+				  ORDER BY {{orderByColumns}}
 				  LIMIT ?
 				  OFFSET ?
 				""".trim()
-				.replace("{{whereClauseLines}}", whereClauseLines.stream().collect(Collectors.joining("\n")));
+				.replace("{{whereClauseLines}}", whereClauseLines.stream().collect(Collectors.joining("\n")))
+				.replace("{{orderByColumns}}", orderByColumns.stream().collect(Collectors.joining(", ")))
+				.trim();
 
 		List<PatientOrderWithTotalCount> patientOrders = getDatabase().queryForList(sql, PatientOrderWithTotalCount.class, sqlVaragsParameters(parameters));
 
@@ -749,6 +861,19 @@ public class PatientOrderService {
 				AND patient_mrn=?
 				LIMIT 1
 				""", PatientOrderAutocompleteResult.class, institutionId, patientMrn);
+	}
+
+	@Nonnull
+	public List<PatientOrder> findTodayPatientOrdersForPanelAccountId(@Nullable UUID panelAccountId) {
+		if (panelAccountId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+					SELECT po.*
+				  FROM v_patient_order po
+				  WHERE po.panel_account_id=?
+				  ORDER BY po.order_date DESC, po.order_age_in_minutes, po.patient_first_name, po.patient_last_name
+				""", PatientOrder.class, panelAccountId);
 	}
 
 	@Nonnull
@@ -1680,6 +1805,128 @@ public class PatientOrderService {
 	}
 
 	@Nonnull
+	public Boolean archivePatientOrder(@Nonnull ArchivePatientOrderRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderId = request.getPatientOrderId();
+		@SuppressWarnings("unused")
+		// Currently unused; would be the account flipping the flag (understood to be 'system' if not specified)
+		UUID accountId = request.getAccountId();
+		PatientOrder patientOrder = null;
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderId == null) {
+			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+		} else {
+			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+
+			if (patientOrder == null)
+				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		// Not changing anything, no action to take
+		if (patientOrder.getPatientOrderDispositionId() == PatientOrderDispositionId.ARCHIVED)
+			return false;
+
+		boolean updated = getDatabase().execute("""
+				UPDATE patient_order
+				SET patient_order_disposition_id=?
+				WHERE patient_order_id=?
+				""", PatientOrderDispositionId.ARCHIVED, patientOrderId) > 0;
+
+		// TODO: track event
+
+		return updated;
+	}
+
+	@Nonnull
+	public Boolean updatePatientOrderOutreachNeeded(@Nonnull UpdatePatientOrderOutreachNeededRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderId = request.getPatientOrderId();
+		Boolean outreachNeeded = request.getOutreachNeeded();
+		@SuppressWarnings("unused")
+		// Currently unused; would be the account flipping the flag (understood to be 'system' if not specified)
+		UUID accountId = request.getAccountId();
+		PatientOrder patientOrder = null;
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderId == null) {
+			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+		} else {
+			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+
+			if (patientOrder == null)
+				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+		}
+
+		if (outreachNeeded == null)
+			validationException.add(new FieldError("outreachNeeded", getStrings().get("Outreach Needed is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		// Not changing anything, no action to take
+		if (patientOrder.getOutreachNeeded().equals(outreachNeeded))
+			return false;
+
+		boolean updated = getDatabase().execute("""
+				UPDATE patient_order
+				SET outreach_needed=?
+				WHERE patient_order_id=?
+				""", outreachNeeded, patientOrderId) > 0;
+
+		// TODO: track event
+
+		return updated;
+	}
+
+	@Nonnull
+	public Boolean updatePatientOrderFollowupNeeded(@Nonnull UpdatePatientOrderFollowupNeededRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderId = request.getPatientOrderId();
+		Boolean followupNeeded = request.getFollowupNeeded();
+		@SuppressWarnings("unused")
+		// Currently unused; would be the account flipping the flag (understood to be 'system' if not specified)
+		UUID accountId = request.getAccountId();
+		PatientOrder patientOrder = null;
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderId == null) {
+			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+		} else {
+			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+
+			if (patientOrder == null)
+				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+		}
+
+		if (followupNeeded == null)
+			validationException.add(new FieldError("followupNeeded", getStrings().get("Followup Needed is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		// Not changing anything, no action to take
+		if (patientOrder.getFollowupNeeded().equals(followupNeeded))
+			return false;
+
+		boolean updated = getDatabase().execute("""
+				UPDATE patient_order
+				SET followup_needed=?
+				WHERE patient_order_id=?
+				""", followupNeeded, patientOrderId) > 0;
+
+		// TODO: track event
+
+		return updated;
+	}
+
+	@Nonnull
 	public Optional<PatientOrderScheduledScreening> findPatientOrderScheduledScreeningById(@Nullable UUID patientOrderScheduledScreeningId) {
 		if (patientOrderScheduledScreeningId == null)
 			return Optional.empty();
@@ -1862,6 +2109,224 @@ public class PatientOrderService {
 	}
 
 	@Nonnull
+	public Optional<PatientOrderVoicemailTask> findPatientOrderVoicemailTaskById(@Nullable UUID patientOrderVoicemailTaskId) {
+		if (patientOrderVoicemailTaskId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM patient_order_voicemail_task
+				WHERE patient_order_voicemail_task_id=?
+				AND deleted=false
+				""", PatientOrderVoicemailTask.class, patientOrderVoicemailTaskId);
+	}
+
+	@Nonnull
+	public List<PatientOrderVoicemailTask> findPatientOrderVoicemailTasksByPatientOrderId(@Nullable UUID patientOrderId) {
+		if (patientOrderId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM patient_order_voicemail_task
+				WHERE patient_order_id=?
+				ORDER BY last_updated DESC
+				""", PatientOrderVoicemailTask.class, patientOrderId);
+	}
+
+	@Nonnull
+	public UUID createPatientOrderVoicemailTask(@Nonnull CreatePatientOrderVoicemailTaskRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderId = request.getPatientOrderId();
+		UUID createdByAccountId = request.getCreatedByAccountId();
+		UUID panelAccountId = request.getPanelAccountId();
+		String message = trimToNull(request.getMessage());
+		PatientOrder patientOrder = null;
+		UUID patientOrderVoicemailTaskId = UUID.randomUUID();
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderId == null) {
+			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+		} else {
+			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+
+			if (patientOrder == null) {
+				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+			} else {
+				List<PatientOrderVoicemailTask> patientOrderVoicemailTasks = findPatientOrderVoicemailTasksByPatientOrderId(patientOrderId);
+
+				for (PatientOrderVoicemailTask patientOrderVoicemailTask : patientOrderVoicemailTasks) {
+					if (!patientOrderVoicemailTask.getCompleted()) {
+						validationException.add(new FieldError("patientOrderId", getStrings().get("You may only have one active voicemail task per patient order.")));
+						break;
+					}
+				}
+			}
+		}
+
+		if (createdByAccountId == null)
+			validationException.add(new FieldError("createdByAccountId", getStrings().get("Created-By Account ID is required.")));
+
+		if (panelAccountId == null)
+			validationException.add(new FieldError("panelAccountId", getStrings().get("Panel Account ID is required.")));
+
+		if (message == null)
+			validationException.add(new FieldError("message", getStrings().get("Message is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+				INSERT INTO patient_order_voicemail_task (
+				    patient_order_voicemail_task_id,
+				    patient_order_id,
+				    created_by_account_id,
+				    message
+				) VALUES (?,?,?,?)
+				""", patientOrderVoicemailTaskId, patientOrderId, createdByAccountId, message);
+
+		if (!Objects.equals(patientOrder.getPanelAccountId(), panelAccountId)) {
+			getLogger().debug("As a side effect of creating a voicemail task, assigning Patient Order ID {} to Panel Account ID {}...",
+					patientOrderId, panelAccountId);
+
+			assignPatientOrderToPanelAccount(patientOrderId, panelAccountId, createdByAccountId);
+		}
+
+		// TODO: track changes
+
+		return patientOrderVoicemailTaskId;
+	}
+
+	@Nonnull
+	public Boolean updatePatientOrderVoicemailTask(@Nonnull UpdatePatientOrderVoicemailTaskRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderVoicemailTaskId = request.getPatientOrderVoicemailTaskId();
+		UUID updatedByAccountId = request.getUpdatedByAccountId();
+		UUID panelAccountId = request.getPanelAccountId();
+		String message = trimToNull(request.getMessage());
+		PatientOrderVoicemailTask patientOrderVoicemailTask = null;
+		PatientOrder patientOrder = null;
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderVoicemailTaskId == null) {
+			validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Patient Order Voicemail Task ID is required.")));
+		} else {
+			patientOrderVoicemailTask = findPatientOrderVoicemailTaskById(patientOrderVoicemailTaskId).orElse(null);
+
+			if (patientOrderVoicemailTask == null) {
+				validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Patient Order Voicemail Task ID is invalid.")));
+			} else {
+				patientOrder = findPatientOrderById(patientOrderVoicemailTask.getPatientOrderId()).get();
+
+				if (patientOrderVoicemailTask.getCompleted() || patientOrderVoicemailTask.getDeleted())
+					validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Cannot update past Patient Order Voicemail Tasks.")));
+			}
+		}
+
+		if (updatedByAccountId == null)
+			validationException.add(new FieldError("updatedByAccountId", getStrings().get("Updated-By Account ID is required.")));
+
+		if (panelAccountId == null)
+			validationException.add(new FieldError("panelAccountId", getStrings().get("Panel Account ID is required.")));
+
+		if (message == null)
+			validationException.add(new FieldError("message", getStrings().get("Message is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		boolean updated = getDatabase().execute("""
+				UPDATE patient_order_voicemail_task
+				SET message=?
+				WHERE patient_order_voicemail_task_id=?
+				""", message, patientOrderVoicemailTaskId) > 0;
+
+		if (!Objects.equals(patientOrder.getPanelAccountId(), panelAccountId)) {
+			getLogger().debug("As a side effect of updating a voicemail task, assigning Patient Order ID {} to Panel Account ID {}...",
+					patientOrderVoicemailTask.getPatientOrderId(), panelAccountId);
+
+			assignPatientOrderToPanelAccount(patientOrderVoicemailTask.getPatientOrderId(), panelAccountId, updatedByAccountId);
+		}
+
+		// TODO: track changes
+
+		return updated;
+	}
+
+	@Nonnull
+	public Boolean deletePatientOrderVoicemailTask(@Nonnull DeletePatientOrderVoicemailTaskRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderVoicemailTaskId = request.getPatientOrderVoicemailTaskId();
+		UUID deletedByAccountId = request.getDeletedByAccountId();
+		PatientOrderVoicemailTask patientOrderVoicemailTask = null;
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderVoicemailTaskId == null) {
+			validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Patient Order Voicemail Task ID is required.")));
+		} else {
+			patientOrderVoicemailTask = findPatientOrderVoicemailTaskById(patientOrderVoicemailTaskId).orElse(null);
+
+			if (patientOrderVoicemailTask == null)
+				validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Patient Order Voicemail Task ID is invalid.")));
+			else if (patientOrderVoicemailTask.getCompleted() || patientOrderVoicemailTask.getDeleted())
+				validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Cannot delete past Patient Order Voicemail Tasks.")));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		boolean deleted = getDatabase().execute("""
+				UPDATE patient_order_voicemail_task
+				SET deleted=TRUE,
+				deleted_by_account_id=?
+				WHERE patient_order_voicemail_task_id=?
+				""", deletedByAccountId, patientOrderVoicemailTaskId) > 0;
+
+		// TODO: track changes
+
+		return deleted;
+	}
+
+	@Nonnull
+	public void completePatientOrderVoicemailTask(@Nonnull CompletePatientOrderVoicemailTaskRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderVoicemailTaskId = request.getPatientOrderVoicemailTaskId();
+		UUID completedByAccountId = request.getCompletedByAccountId();
+		PatientOrderVoicemailTask patientOrderVoicemailTask = null;
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderVoicemailTaskId == null) {
+			validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Patient Order Voicemail Task ID is required.")));
+		} else {
+			patientOrderVoicemailTask = findPatientOrderVoicemailTaskById(patientOrderVoicemailTaskId).orElse(null);
+
+			if (patientOrderVoicemailTask == null)
+				validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Patient Order Voicemail Task ID is invalid.")));
+			else if (patientOrderVoicemailTask.getCompleted() || patientOrderVoicemailTask.getDeleted())
+				validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Cannot complete past Patient Order Voicemail Tasks.")));
+		}
+
+		if (completedByAccountId == null)
+			validationException.add(new FieldError("completedByAccountId", getStrings().get("Completed-By Account ID is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+				UPDATE patient_order_voicemail_task
+				SET completed=TRUE,
+				completed_by_account_id=?
+				WHERE patient_order_voicemail_task_id=?
+				""", completedByAccountId, patientOrderVoicemailTaskId);
+
+		// TODO: track changes
+	}
+
+	@Nonnull
 	public List<PatientOrderScheduledMessage> findPatientOrderScheduledMessagesByPatientOrderId(@Nullable UUID patientOrderId) {
 		if (patientOrderId == null)
 			return List.of();
@@ -1871,7 +2336,7 @@ public class PatientOrderService {
 				FROM v_patient_order_scheduled_message
 				WHERE patient_order_id=?
 				AND scheduled_message_status_id != ?
-				ORDER BY scheduled_at at time zone time_zone DESC;
+				ORDER BY scheduled_at at time zone time_zone DESC
 				""", PatientOrderScheduledMessage.class, patientOrderId, ScheduledMessageStatusId.CANCELED);
 	}
 
@@ -2219,6 +2684,7 @@ public class PatientOrderService {
 		PatientOrderImportTypeId patientOrderImportTypeId = request.getPatientOrderImportTypeId();
 		UUID accountId = request.getAccountId();
 		String csvContent = trimToNull(request.getCsvContent());
+		String rawOrderChecksum = null;
 		boolean automaticallyAssignToPanelAccounts = request.getAutomaticallyAssignToPanelAccounts() == null ? false : request.getAutomaticallyAssignToPanelAccounts();
 		UUID patientOrderImportId = UUID.randomUUID();
 		List<UUID> patientOrderIds = new ArrayList<>();
@@ -2227,19 +2693,35 @@ public class PatientOrderService {
 		if (institutionId == null)
 			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
 
-		if (patientOrderImportTypeId == null)
+		if (patientOrderImportTypeId == null) {
 			validationException.add(new FieldError("patientOrderImportTypeId", getStrings().get("Patient Order Import Type ID is required.")));
+		} else if (patientOrderImportTypeId == PatientOrderImportTypeId.CSV) {
 
-		if (patientOrderImportTypeId == PatientOrderImportTypeId.CSV && csvContent == null)
-			validationException.add(new FieldError("csvContent", getStrings().get("CSV file is required.")));
+			if (csvContent == null) {
+				validationException.add(new FieldError("csvContent", getStrings().get("CSV file is required.")));
+			} else {
+				rawOrderChecksum = Hashing.sha256()
+						.hashString(csvContent, StandardCharsets.UTF_8)
+						.toString();
 
-		if (patientOrderImportTypeId == PatientOrderImportTypeId.CSV && accountId == null)
-			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+				PatientOrderImport existingPatientOrderImportMatchingChecksum = getDatabase().queryForObject("""
+						SELECT *
+						FROM patient_order_import
+						WHERE raw_order_checksum=?
+						AND institution_id=?
+						""", PatientOrderImport.class, rawOrderChecksum, institutionId).orElse(null);
 
-		// TODO: revisit when we support EPIC imports directly
-		if (patientOrderImportTypeId != PatientOrderImportTypeId.CSV)
+				if (existingPatientOrderImportMatchingChecksum != null)
+					validationException.add(new FieldError("csvContent", getStrings().get("This file has already been imported.")));
+			}
+
+			if (accountId == null)
+				validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+		} else {
+			// TODO: revisit when we support EPIC imports directly
 			throw new IllegalArgumentException(format("We do not yet support %s.%s", PatientOrderImportTypeId.class.getSimpleName(),
 					patientOrderImportTypeId.name()));
+		}
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -2250,9 +2732,10 @@ public class PatientOrderService {
 				patient_order_import_type_id,
 				institution_id,
 				account_id,
-				raw_order
-				) VALUES (?,?,?,?,?)
-				""", patientOrderImportId, patientOrderImportTypeId, institutionId, accountId, csvContent);
+				raw_order,
+				raw_order_checksum
+				) VALUES (?,?,?,?,?,?)
+				""", patientOrderImportId, patientOrderImportTypeId, institutionId, accountId, csvContent, rawOrderChecksum);
 
 		if (patientOrderImportTypeId == PatientOrderImportTypeId.CSV) {
 			Map<Integer, ValidationException> validationExceptionsByRowNumber = new HashMap<>();
@@ -3189,6 +3672,180 @@ public class PatientOrderService {
 		return namesWithEmbeddedIds;
 	}
 
+	@ThreadSafe
+	protected static class BackgroundTask implements Runnable {
+		@Nonnull
+		private final InstitutionService institutionService;
+		@Nonnull
+		private final PatientOrderService patientOrderService;
+		@Nonnull
+		private final SystemService systemService;
+		@Nonnull
+		private final CurrentContextExecutor currentContextExecutor;
+		@Nonnull
+		private final ErrorReporter errorReporter;
+		@Nonnull
+		private final Database database;
+		@Nonnull
+		private final Logger logger;
+
+		@Inject
+		public BackgroundTask(@Nonnull InstitutionService institutionService,
+													@Nonnull PatientOrderService patientOrderService,
+													@Nonnull SystemService systemService,
+													@Nonnull CurrentContextExecutor currentContextExecutor,
+													@Nonnull ErrorReporter errorReporter,
+													@Nonnull Database database) {
+			requireNonNull(institutionService);
+			requireNonNull(patientOrderService);
+			requireNonNull(systemService);
+			requireNonNull(currentContextExecutor);
+			requireNonNull(errorReporter);
+			requireNonNull(database);
+
+			this.institutionService = institutionService;
+			this.patientOrderService = patientOrderService;
+			this.systemService = systemService;
+			this.currentContextExecutor = currentContextExecutor;
+			this.errorReporter = errorReporter;
+			this.database = database;
+			this.logger = LoggerFactory.getLogger(getClass());
+		}
+
+		@Override
+		public void run() {
+			List<Institution> integratedCareInstitutions = getInstitutionService().findInstitutions().stream()
+					.filter(institution -> institution.getIntegratedCareEnabled())
+					.collect(Collectors.toList());
+
+			for (Institution institution : integratedCareInstitutions) {
+				CurrentContext currentContext = new CurrentContext.Builder(institution.getInstitutionId(), institution.getLocale(), institution.getTimeZone()).build();
+
+				getCurrentContextExecutor().execute(currentContext, () -> {
+					try {
+						getDatabase().transaction(() -> {
+							getSystemService().performAdvisoryLockOperationIfAvailable(AdvisoryLock.PATIENT_ORDER_BACKGROUND_TASK, () -> {
+								performBackgroundProcessingForInstitution(institution);
+							});
+						});
+					} catch (Exception e) {
+						getLogger().error(format("An error occurred while performing patient order background task for institution ID %s", institution.getInstitutionId()), e);
+						getErrorReporter().report(e);
+					}
+				});
+			}
+		}
+
+		protected void performBackgroundProcessingForInstitution(@Nonnull Institution institution) {
+			requireNonNull(institution);
+
+			LocalDateTime now = LocalDateTime.now(institution.getTimeZone());
+
+			// 1. "closed" -> "archived": if episode_closed_at >= 30 days ago, it's moved to ARCHIVED disposition
+			LocalDateTime archivedThreshold = now.minusDays(30);
+
+			List<PatientOrder> archivablePatientOrders = getDatabase().queryForList("""
+					     SELECT *
+					     FROM v_patient_order
+					     WHERE institution_id=?
+					     AND patient_order_disposition_id=?
+					     AND episode_closed_at <= ?
+					""", PatientOrder.class, institution.getInstitutionId(), PatientOrderDispositionId.CLOSED, archivedThreshold);
+
+			for (PatientOrder archivablePatientOrder : archivablePatientOrders) {
+				getLogger().info("Detected that patient order ID {} was closed on {} - archiving...",
+						archivablePatientOrder.getPatientOrderId(), archivablePatientOrder.getEpisodeClosedAt());
+				getPatientOrderService().archivePatientOrder(new ArchivePatientOrderRequest() {{
+					setPatientOrderId(archivablePatientOrder.getPatientOrderId());
+				}});
+			}
+
+			// 2. "outreach needed": need another outreach to patient because it's been
+			//   institution.integrated_care_outreach_followup_day_offset days since most_recent_outreach_date_time and order is still in NEEDS_ASSESSMENT state
+			List<PatientOrder> outreachNeededPatientOrders = getDatabase().queryForList("""
+							     SELECT *
+							     FROM v_patient_order
+							     WHERE institution_id=?
+							     AND patient_order_disposition_id=?
+							     AND patient_order_status_id=?
+							     AND outreach_needed=FALSE
+							     AND most_recent_outreach_date_time IS NOT NULL
+							     AND most_recent_outreach_date_time <= (? - make_interval(days => ?))
+							""", PatientOrder.class, institution.getInstitutionId(), PatientOrderDispositionId.OPEN, PatientOrderStatusId.NEEDS_ASSESSMENT,
+					now, institution.getIntegratedCareOutreachFollowupDayOffset());
+
+			// Syntax reference:
+			// make_interval(years int DEFAULT 0, months int DEFAULT 0, weeks int DEFAULT 0, days int DEFAULT 0, hours int DEFAULT 0, mins int DEFAULT 0, secs double precision DEFAULT 0.0)
+
+			for (PatientOrder outreachNeededPatientOrder : outreachNeededPatientOrders) {
+				getLogger().info("Detected that patient order ID {} needs outreach, since unassessed and last outreach was {}...",
+						outreachNeededPatientOrder.getPatientOrderId(), outreachNeededPatientOrder.getMostRecentOutreachDateTime());
+				getPatientOrderService().updatePatientOrderOutreachNeeded(new UpdatePatientOrderOutreachNeededRequest() {{
+					setPatientOrderId(outreachNeededPatientOrder.getPatientOrderId());
+					setOutreachNeeded(true);
+				}});
+			}
+
+			// 3. "followup needed": need to follow up with patient because it's been
+			//   institution.integrated_care_sent_resources_followup_week_offset + institution.integrated_care_sent_resources_followup_day_offset
+			//   since resources_sent_at.  This applies to both open and closed orders, but not archived.
+			// TODO: how do we mark "followup no longer needed", is there a UI to flip back to false?
+			List<PatientOrder> followupNeededPatientOrders = getDatabase().queryForList("""
+							     SELECT *
+							     FROM v_patient_order
+							     WHERE institution_id=?
+							     AND followup_needed=FALSE
+							     AND resources_sent_at IS NOT NULL
+							     AND resources_sent_at <= (? - make_interval(weeks => ?, days => ?))
+							""", PatientOrder.class, institution.getInstitutionId(),
+					now, institution.getIntegratedCareSentResourcesFollowupWeekOffset(), institution.getIntegratedCareSentResourcesFollowupDayOffset());
+
+			for (PatientOrder followupNeededPatientOrder : followupNeededPatientOrders) {
+				getLogger().info("Detected that patient order ID {} needs followup, since resources were sent at {}...",
+						followupNeededPatientOrder.getPatientOrderId(), followupNeededPatientOrder.getResourcesSentAt());
+				getPatientOrderService().updatePatientOrderFollowupNeeded(new UpdatePatientOrderFollowupNeededRequest() {{
+					setPatientOrderId(followupNeededPatientOrder.getPatientOrderId());
+					setFollowupNeeded(true);
+				}});
+			}
+		}
+
+		@Nonnull
+		protected InstitutionService getInstitutionService() {
+			return this.institutionService;
+		}
+
+		@Nonnull
+		protected PatientOrderService getPatientOrderService() {
+			return this.patientOrderService;
+		}
+
+		@Nonnull
+		protected SystemService getSystemService() {
+			return this.systemService;
+		}
+
+		@Nonnull
+		protected CurrentContextExecutor getCurrentContextExecutor() {
+			return this.currentContextExecutor;
+		}
+
+		@Nonnull
+		protected ErrorReporter getErrorReporter() {
+			return this.errorReporter;
+		}
+
+		@Nonnull
+		protected Database getDatabase() {
+			return this.database;
+		}
+
+		@Nonnull
+		protected Logger getLogger() {
+			return this.logger;
+		}
+	}
+
 	@NotThreadSafe
 	protected static class PatientOrderWithTotalCount extends PatientOrder {
 		@Nullable
@@ -3311,6 +3968,16 @@ public class PatientOrderService {
 	}
 
 	@Nonnull
+	protected Long getBackgroundTaskInitialDelayInSeconds() {
+		return BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS;
+	}
+
+	@Nonnull
+	protected Long getBackgroundTaskIntervalInSeconds() {
+		return BACKGROUND_TASK_INTERVAL_IN_SECONDS;
+	}
+
+	@Nonnull
 	protected AddressService getAddressService() {
 		return this.addressServiceProvider.get();
 	}
@@ -3333,6 +4000,33 @@ public class PatientOrderService {
 	@Nonnull
 	protected PatientOrderScheduledMessageGroupApiResponseFactory getPatientOrderScheduledMessageGroupApiResponseFactory() {
 		return this.patientOrderScheduledMessageGroupApiResponseFactory;
+	}
+
+
+	@Nonnull
+	protected Provider<BackgroundTask> getBackgroundTaskProvider() {
+		return this.backgroundTaskProvider;
+	}
+
+	@Nonnull
+	protected ReentrantLock getBackgroundTaskLock() {
+		return this.backgroundTaskLock;
+	}
+
+	@Nonnull
+	public Boolean isBackgroundTaskStarted() {
+		getBackgroundTaskLock().lock();
+
+		try {
+			return this.backgroundTaskStarted;
+		} finally {
+			getBackgroundTaskLock().unlock();
+		}
+	}
+
+	@Nonnull
+	protected Optional<ScheduledExecutorService> getBackgroundTaskExecutorService() {
+		return Optional.ofNullable(this.backgroundTaskExecutorService);
 	}
 
 	@Nonnull

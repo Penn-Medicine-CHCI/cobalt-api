@@ -17,30 +17,37 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.service;
+package com.cobaltplatform.api.model.api.request;
 
-import javax.annotation.Nonnull;
-
-import static java.util.Objects.requireNonNull;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
-public enum AdvisoryLock {
-	WAY2HEALTH_INCIDENT_SYNCING(100),
-	PROVIDER_AVAILABILITY_HISTORY_STORAGE(101),
-	PATIENT_ORDER_BACKGROUND_TASK(102);
+@NotThreadSafe
+public class DeletePatientOrderVoicemailTaskRequest {
+	@Nullable
+	private UUID patientOrderVoicemailTaskId;
+	@Nullable
+	private UUID deletedByAccountId;
 
-	@Nonnull
-	private final Integer key;
-
-	AdvisoryLock(@Nonnull Integer key) {
-		requireNonNull(key);
-		this.key = key;
+	@Nullable
+	public UUID getPatientOrderVoicemailTaskId() {
+		return this.patientOrderVoicemailTaskId;
 	}
 
-	@Nonnull
-	public Integer getKey() {
-		return key;
+	public void setPatientOrderVoicemailTaskId(@Nullable UUID patientOrderVoicemailTaskId) {
+		this.patientOrderVoicemailTaskId = patientOrderVoicemailTaskId;
+	}
+
+	@Nullable
+	public UUID getDeletedByAccountId() {
+		return this.deletedByAccountId;
+	}
+
+	public void setDeletedByAccountId(@Nullable UUID deletedByAccountId) {
+		this.deletedByAccountId = deletedByAccountId;
 	}
 }

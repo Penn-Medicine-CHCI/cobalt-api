@@ -17,30 +17,37 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.service;
+package com.cobaltplatform.api.model.api.request;
 
-import javax.annotation.Nonnull;
-
-import static java.util.Objects.requireNonNull;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
-public enum AdvisoryLock {
-	WAY2HEALTH_INCIDENT_SYNCING(100),
-	PROVIDER_AVAILABILITY_HISTORY_STORAGE(101),
-	PATIENT_ORDER_BACKGROUND_TASK(102);
+@NotThreadSafe
+public class ArchivePatientOrderRequest {
+	@Nullable
+	private UUID patientOrderId;
+	@Nullable
+	private UUID accountId;
 
-	@Nonnull
-	private final Integer key;
-
-	AdvisoryLock(@Nonnull Integer key) {
-		requireNonNull(key);
-		this.key = key;
+	@Nullable
+	public UUID getPatientOrderId() {
+		return this.patientOrderId;
 	}
 
-	@Nonnull
-	public Integer getKey() {
-		return key;
+	public void setPatientOrderId(@Nullable UUID patientOrderId) {
+		this.patientOrderId = patientOrderId;
+	}
+
+	@Nullable
+	public UUID getAccountId() {
+		return this.accountId;
+	}
+
+	public void setAccountId(@Nullable UUID accountId) {
+		this.accountId = accountId;
 	}
 }
