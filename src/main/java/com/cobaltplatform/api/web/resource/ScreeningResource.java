@@ -220,8 +220,16 @@ public class ScreeningResource {
 			}
 		} else {
 			screeningSessions.addAll(getScreeningService().findScreeningSessionsByScreeningFlowId(screeningFlowId, account.getAccountId()).stream()
-					.filter(screeningSession -> targetAccountId.isEmpty() ? true : screeningSession.getTargetAccountId().equals(targetAccountId.get()))
-					.filter(screeningSession -> getAuthorizationService().canViewScreeningSession(screeningSession, account, getAccountService().findAccountById(screeningSession.getTargetAccountId()).get()))
+					.filter(screeningSession -> {
+						if (targetAccountId.isEmpty()) {
+							return screeningSession.getCreatedByAccountId().equals(account.getAccountId());
+						} else {
+							if (!screeningSession.getTargetAccountId().equals(targetAccountId.get()))
+								return false;
+
+							return getAuthorizationService().canViewScreeningSession(screeningSession, account, getAccountService().findAccountById(screeningSession.getTargetAccountId()).get());
+						}
+					})
 					.collect(Collectors.toList()));
 		}
 
