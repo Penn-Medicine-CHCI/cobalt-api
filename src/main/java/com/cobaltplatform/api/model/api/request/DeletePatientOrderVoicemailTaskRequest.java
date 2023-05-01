@@ -27,49 +27,27 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreatePatientOrderVoicemailTaskRequest {
+public class DeletePatientOrderVoicemailTaskRequest {
 	@Nullable
-	private UUID patientOrderId;
+	private UUID patientOrderVoicemailTaskId;
 	@Nullable
-	private UUID createdByAccountId;
-	@Nullable
-	private UUID panelAccountId;
-	@Nullable
-	private String message;
+	private UUID deletedByAccountId;
 
 	@Nullable
-	public UUID getPatientOrderId() {
-		return this.patientOrderId;
+	public UUID getPatientOrderVoicemailTaskId() {
+		return this.patientOrderVoicemailTaskId;
 	}
 
-	public void setPatientOrderId(@Nullable UUID patientOrderId) {
-		this.patientOrderId = patientOrderId;
+	public void setPatientOrderVoicemailTaskId(@Nullable UUID patientOrderVoicemailTaskId) {
+		this.patientOrderVoicemailTaskId = patientOrderVoicemailTaskId;
 	}
 
 	@Nullable
-	public UUID getCreatedByAccountId() {
-		return this.createdByAccountId;
+	public UUID getDeletedByAccountId() {
+		return this.deletedByAccountId;
 	}
 
-	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
-		this.createdByAccountId = createdByAccountId;
-	}
-
-	@Nullable
-	public UUID getPanelAccountId() {
-		return this.panelAccountId;
-	}
-
-	public void setPanelAccountId(@Nullable UUID panelAccountId) {
-		this.panelAccountId = panelAccountId;
-	}
-
-	@Nullable
-	public String getMessage() {
-		return this.message;
-	}
-
-	public void setMessage(@Nullable String message) {
-		this.message = message;
+	public void setDeletedByAccountId(@Nullable UUID deletedByAccountId) {
+		this.deletedByAccountId = deletedByAccountId;
 	}
 }

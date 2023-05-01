@@ -28,6 +28,7 @@ import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.Pat
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse.PatientOrderScheduledMessageGroupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderTriageGroupApiResponse.PatientOrderTriageGroupFocusApiResponse;
+import com.cobaltplatform.api.model.api.response.PatientOrderVoicemailTaskApiResponse.PatientOrderVoicemailTaskApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Address;
@@ -49,6 +50,7 @@ import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderS
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
+import com.cobaltplatform.api.model.db.PatientOrderVoicemailTask;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
@@ -272,6 +274,8 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private List<PatientOrderScheduledMessageGroupApiResponse> patientOrderScheduledMessageGroups;
 	@Nullable
+	private List<PatientOrderVoicemailTaskApiResponse> patientOrderVoicemailTasks;
+	@Nullable
 	private ScreeningSessionApiResponse screeningSession;
 	@Nullable
 	private ScreeningSessionResult screeningSessionResult;
@@ -403,6 +407,7 @@ public class PatientOrderApiResponse {
 																 @Nonnull PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory,
 																 @Nonnull ScreeningSessionApiResponseFactory screeningSessionApiResponseFactory,
 																 @Nonnull AddressApiResponseFactory addressApiResponseFactory,
+																 @Nonnull PatientOrderVoicemailTaskApiResponseFactory patientOrderVoicemailTaskApiResponseFactory,
 																 @Nonnull Formatter formatter,
 																 @Nonnull Strings strings,
 																 @Nonnull Provider<CurrentContext> currentContextProvider,
@@ -421,6 +426,7 @@ public class PatientOrderApiResponse {
 				patientOrderScheduledMessageGroupApiResponseFactory,
 				screeningSessionApiResponseFactory,
 				addressApiResponseFactory,
+				patientOrderVoicemailTaskApiResponseFactory,
 				formatter,
 				strings,
 				currentContextProvider,
@@ -443,6 +449,7 @@ public class PatientOrderApiResponse {
 																 @Nonnull PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory,
 																 @Nonnull ScreeningSessionApiResponseFactory screeningSessionApiResponseFactory,
 																 @Nonnull AddressApiResponseFactory addressApiResponseFactory,
+																 @Nonnull PatientOrderVoicemailTaskApiResponseFactory patientOrderVoicemailTaskApiResponseFactory,
 																 @Nonnull Formatter formatter,
 																 @Nonnull Strings strings,
 																 @Nonnull Provider<CurrentContext> currentContextProvider,
@@ -462,6 +469,7 @@ public class PatientOrderApiResponse {
 		requireNonNull(patientOrderScheduledMessageGroupApiResponseFactory);
 		requireNonNull(screeningSessionApiResponseFactory);
 		requireNonNull(addressApiResponseFactory);
+		requireNonNull(patientOrderVoicemailTaskApiResponseFactory);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(currentContextProvider);
@@ -477,6 +485,7 @@ public class PatientOrderApiResponse {
 		List<PatientOrderMedicationApiResponse> patientOrderMedications = null;
 		List<PatientOrderNoteApiResponse> patientOrderNotes = null;
 		List<PatientOrderOutreachApiResponse> patientOrderOutreaches = null;
+		List<PatientOrderVoicemailTaskApiResponse> patientOrderVoicemailTasks = null;
 
 		if (supplements.contains(PatientOrderApiResponseSupplement.EVERYTHING)) {
 			Address address = addressService.findAddressById(patientOrder.getPatientAddressId()).orElse(null);
@@ -499,6 +508,10 @@ public class PatientOrderApiResponse {
 
 			patientOrderOutreaches = patientOrderService.findPatientOrderOutreachesByPatientOrderId(patientOrder.getPatientOrderId()).stream()
 					.map(patientOrderOutreach -> patientOrderOutreachApiResponseFactory.create(patientOrderOutreach))
+					.collect(Collectors.toList());
+
+			patientOrderVoicemailTasks = patientOrderService.findPatientOrderVoicemailTasksByPatientOrderId(patientOrder.getPatientOrderId()).stream()
+					.map(patientOrderVoicemailTask -> patientOrderVoicemailTaskApiResponseFactory.create(patientOrderVoicemailTask))
 					.collect(Collectors.toList());
 
 			List<ScreeningSession> screeningSessions = screeningService.findScreeningSessionsByPatientOrderId(patientOrder.getPatientOrderId());
@@ -739,6 +752,8 @@ public class PatientOrderApiResponse {
 
 			List<PatientOrderScheduledMessage> patientOrderScheduledMessages = patientOrderService.findPatientOrderScheduledMessagesByPatientOrderId(patientOrder.getPatientOrderId());
 			this.patientOrderScheduledMessageGroups = patientOrderService.generatePatientOrderScheduledMessageGroupApiResponses(patientOrderScheduledMessages);
+
+			this.patientOrderVoicemailTasks = patientOrderVoicemailTasks;
 		}
 	}
 
@@ -1330,6 +1345,11 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public List<PatientOrderScheduledMessageGroupApiResponse> getPatientOrderScheduledMessageGroups() {
 		return this.patientOrderScheduledMessageGroups;
+	}
+
+	@Nullable
+	public List<PatientOrderVoicemailTaskApiResponse> getPatientOrderVoicemailTasks() {
+		return this.patientOrderVoicemailTasks;
 	}
 
 	@Nullable

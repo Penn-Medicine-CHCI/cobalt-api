@@ -34,9 +34,12 @@ CREATE TABLE patient_order_voicemail_task (
   patient_order_id UUID NOT NULL REFERENCES patient_order,
   created_by_account_id UUID NOT NULL REFERENCES account(account_id),
   completed_by_account_id UUID REFERENCES account(account_id),
+  deleted_by_account_id UUID REFERENCES account(account_id),
   message VARCHAR NOT NULL,
   completed BOOLEAN NOT NULL DEFAULT FALSE,
   completed_at TIMESTAMPTZ,
+  deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  deleted_at TIMESTAMPTZ,
   created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

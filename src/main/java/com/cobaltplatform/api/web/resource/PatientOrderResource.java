@@ -24,15 +24,18 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.AssignPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.CancelPatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
+import com.cobaltplatform.api.model.api.request.CompletePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.request.ConsentPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledScreeningRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderScheduledMessageGroupRequest;
+import com.cobaltplatform.api.model.api.request.DeletePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
@@ -43,6 +46,7 @@ import com.cobaltplatform.api.model.api.request.UpdatePatientOrderSafetyPlanning
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse;
@@ -61,6 +65,7 @@ import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledScreeningApiResponse.PatientOrderScheduledScreeningApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderTriageApiResponse.PatientOrderTriageApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderVoicemailTaskApiResponse.PatientOrderVoicemailTaskApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningTypeApiResponse;
 import com.cobaltplatform.api.model.api.response.ScreeningTypeApiResponse.ScreeningTypeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse;
@@ -84,6 +89,7 @@ import com.cobaltplatform.api.model.db.PatientOrderScheduledScreening;
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
+import com.cobaltplatform.api.model.db.PatientOrderVoicemailTask;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
@@ -185,6 +191,8 @@ public class PatientOrderResource {
 	@Nonnull
 	private final ScreeningTypeApiResponseFactory screeningTypeApiResponseFactory;
 	@Nonnull
+	private final PatientOrderVoicemailTaskApiResponseFactory patientOrderVoicemailTaskApiResponseFactory;
+	@Nonnull
 	private final PatientOrderCsvGenerator patientOrderCsvGenerator;
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
@@ -217,6 +225,7 @@ public class PatientOrderResource {
 															@Nonnull PatientOrderAutocompleteResultApiResponseFactory patientOrderAutocompleteResultApiResponseFactory,
 															@Nonnull PatientOrderScheduledScreeningApiResponseFactory patientOrderScheduledScreeningApiResponseFactory,
 															@Nonnull ScreeningTypeApiResponseFactory screeningTypeApiResponseFactory,
+															@Nonnull PatientOrderVoicemailTaskApiResponseFactory patientOrderVoicemailTaskApiResponseFactory,
 															@Nonnull PatientOrderCsvGenerator patientOrderCsvGenerator,
 															@Nonnull RequestBodyParser requestBodyParser,
 															@Nonnull JsonMapper jsonMapper,
@@ -240,6 +249,7 @@ public class PatientOrderResource {
 		requireNonNull(patientOrderAutocompleteResultApiResponseFactory);
 		requireNonNull(patientOrderScheduledScreeningApiResponseFactory);
 		requireNonNull(screeningTypeApiResponseFactory);
+		requireNonNull(patientOrderVoicemailTaskApiResponseFactory);
 		requireNonNull(patientOrderCsvGenerator);
 		requireNonNull(requestBodyParser);
 		requireNonNull(jsonMapper);
@@ -264,6 +274,7 @@ public class PatientOrderResource {
 		this.patientOrderAutocompleteResultApiResponseFactory = patientOrderAutocompleteResultApiResponseFactory;
 		this.patientOrderScheduledScreeningApiResponseFactory = patientOrderScheduledScreeningApiResponseFactory;
 		this.screeningTypeApiResponseFactory = screeningTypeApiResponseFactory;
+		this.patientOrderVoicemailTaskApiResponseFactory = patientOrderVoicemailTaskApiResponseFactory;
 		this.patientOrderCsvGenerator = patientOrderCsvGenerator;
 		this.requestBodyParser = requestBodyParser;
 		this.jsonMapper = jsonMapper;
@@ -827,6 +838,121 @@ public class PatientOrderResource {
 							"patientOrderClosureReasonId", patientOrderClosureReason.getPatientOrderClosureReasonId(),
 							"description", patientOrderClosureReason.getDescription()))
 					.collect(Collectors.toList()));
+		}});
+	}
+
+	@Nonnull
+	@POST("/patient-order-voicemail-tasks")
+	@AuthenticationRequired
+	public ApiResponse createPatientOrderVoicemailTask(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		CreatePatientOrderVoicemailTaskRequest request = getRequestBodyParser().parse(requestBody, CreatePatientOrderVoicemailTaskRequest.class);
+		request.setCreatedByAccountId(account.getAccountId());
+
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(request.getPatientOrderId()).orElse(null);
+
+		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		UUID patientOrderVoicemailTaskId = getPatientOrderService().createPatientOrderVoicemailTask(request);
+		PatientOrderVoicemailTask patientOrderVoicemailTask = getPatientOrderService().findPatientOrderVoicemailTaskById(patientOrderVoicemailTaskId).get();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrderVoicemailTask", getPatientOrderVoicemailTaskApiResponseFactory().create(patientOrderVoicemailTask));
+		}});
+	}
+
+	@Nonnull
+	@PUT("/patient-order-voicemail-tasks/{patientOrderVoicemailTaskId}")
+	@AuthenticationRequired
+	public ApiResponse updatePatientOrderVoicemailTask(@Nonnull @RequestBody String requestBody,
+																										 @Nonnull @PathParameter UUID patientOrderVoicemailTaskId) {
+		requireNonNull(requestBody);
+		requireNonNull(patientOrderVoicemailTaskId);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		PatientOrderVoicemailTask patientOrderVoicemailTask = getPatientOrderService().findPatientOrderVoicemailTaskById(patientOrderVoicemailTaskId).orElse(null);
+
+		if (patientOrderVoicemailTask == null)
+			throw new NotFoundException();
+
+		UpdatePatientOrderVoicemailTaskRequest request = getRequestBodyParser().parse(requestBody, UpdatePatientOrderVoicemailTaskRequest.class);
+		request.setUpdatedByAccountId(account.getAccountId());
+		request.setPatientOrderVoicemailTaskId(patientOrderVoicemailTaskId);
+
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderVoicemailTaskId).orElse(null);
+
+		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		getPatientOrderService().updatePatientOrderVoicemailTask(request);
+		PatientOrderVoicemailTask updatedPatientOrderVoicemailTask = getPatientOrderService().findPatientOrderVoicemailTaskById(patientOrderVoicemailTaskId).get();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrderVoicemailTask", getPatientOrderVoicemailTaskApiResponseFactory().create(updatedPatientOrderVoicemailTask));
+		}});
+	}
+
+	@Nonnull
+	@DELETE("/patient-order-voicemail-tasks/{patientOrderVoicemailTaskId}")
+	@AuthenticationRequired
+	public ApiResponse deletePatientOrderVoicemailTask(@Nonnull @RequestBody String requestBody,
+																										 @Nonnull @PathParameter UUID patientOrderVoicemailTaskId) {
+		requireNonNull(requestBody);
+		requireNonNull(patientOrderVoicemailTaskId);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		PatientOrderVoicemailTask patientOrderVoicemailTask = getPatientOrderService().findPatientOrderVoicemailTaskById(patientOrderVoicemailTaskId).orElse(null);
+
+		if (patientOrderVoicemailTask == null)
+			throw new NotFoundException();
+
+		DeletePatientOrderVoicemailTaskRequest request = getRequestBodyParser().parse(requestBody, DeletePatientOrderVoicemailTaskRequest.class);
+		request.setDeletedByAccountId(account.getAccountId());
+		request.setPatientOrderVoicemailTaskId(patientOrderVoicemailTaskId);
+
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderVoicemailTaskId).orElse(null);
+
+		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		getPatientOrderService().deletePatientOrderVoicemailTask(request);
+
+		return new ApiResponse();
+	}
+
+	@Nonnull
+	@POST("/patient-order-voicemail-tasks/{patientOrderVoicemailTaskId}/complete")
+	@AuthenticationRequired
+	public ApiResponse completePatientOrderVoicemailTask(@Nonnull @PathParameter UUID patientOrderVoicemailTaskId) {
+		requireNonNull(patientOrderVoicemailTaskId);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		PatientOrderVoicemailTask patientOrderVoicemailTask = getPatientOrderService().findPatientOrderVoicemailTaskById(patientOrderVoicemailTaskId).orElse(null);
+
+		if (patientOrderVoicemailTask == null)
+			throw new NotFoundException();
+
+		CompletePatientOrderVoicemailTaskRequest request = new CompletePatientOrderVoicemailTaskRequest();
+		request.setCompletedByAccountId(account.getAccountId());
+		request.setPatientOrderVoicemailTaskId(patientOrderVoicemailTaskId);
+
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderVoicemailTaskId).orElse(null);
+
+		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		getPatientOrderService().completePatientOrderVoicemailTask(request);
+		PatientOrderVoicemailTask completedPatientOrderVoicemailTask = getPatientOrderService().findPatientOrderVoicemailTaskById(patientOrderVoicemailTaskId).get();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrderVoicemailTask", getPatientOrderVoicemailTaskApiResponseFactory().create(completedPatientOrderVoicemailTask));
 		}});
 	}
 
@@ -1620,6 +1746,11 @@ public class PatientOrderResource {
 	@Nonnull
 	protected ScreeningTypeApiResponseFactory getScreeningTypeApiResponseFactory() {
 		return this.screeningTypeApiResponseFactory;
+	}
+
+	@Nonnull
+	protected PatientOrderVoicemailTaskApiResponseFactory getPatientOrderVoicemailTaskApiResponseFactory() {
+		return this.patientOrderVoicemailTaskApiResponseFactory;
 	}
 
 	@Nonnull

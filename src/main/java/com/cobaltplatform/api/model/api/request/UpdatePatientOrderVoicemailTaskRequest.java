@@ -27,32 +27,32 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreatePatientOrderVoicemailTaskRequest {
+public class UpdatePatientOrderVoicemailTaskRequest {
 	@Nullable
-	private UUID patientOrderId;
+	private UUID patientOrderVoicemailTaskId;
 	@Nullable
-	private UUID createdByAccountId;
+	private UUID updatedByAccountId;
 	@Nullable
 	private UUID panelAccountId;
 	@Nullable
 	private String message;
 
 	@Nullable
-	public UUID getPatientOrderId() {
-		return this.patientOrderId;
+	public UUID getPatientOrderVoicemailTaskId() {
+		return this.patientOrderVoicemailTaskId;
 	}
 
-	public void setPatientOrderId(@Nullable UUID patientOrderId) {
-		this.patientOrderId = patientOrderId;
+	public void setPatientOrderVoicemailTaskId(@Nullable UUID patientOrderVoicemailTaskId) {
+		this.patientOrderVoicemailTaskId = patientOrderVoicemailTaskId;
 	}
 
 	@Nullable
-	public UUID getCreatedByAccountId() {
-		return this.createdByAccountId;
+	public UUID getUpdatedByAccountId() {
+		return this.updatedByAccountId;
 	}
 
-	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
-		this.createdByAccountId = createdByAccountId;
+	public void setUpdatedByAccountId(@Nullable UUID updatedByAccountId) {
+		this.updatedByAccountId = updatedByAccountId;
 	}
 
 	@Nullable

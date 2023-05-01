@@ -38,11 +38,17 @@ public class PatientOrderVoicemailTask {
 	@Nullable
 	private UUID completedByAccountId;
 	@Nullable
+	private UUID deletedByAccountId;
+	@Nullable
 	private String message;
 	@Nullable
 	private Boolean completed;
 	@Nullable
 	private Instant completedAt;
+	@Nullable
+	private Boolean deleted;
+	@Nullable
+	private Instant deletedAt;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -85,6 +91,15 @@ public class PatientOrderVoicemailTask {
 	}
 
 	@Nullable
+	public UUID getDeletedByAccountId() {
+		return this.deletedByAccountId;
+	}
+
+	public void setDeletedByAccountId(@Nullable UUID deletedByAccountId) {
+		this.deletedByAccountId = deletedByAccountId;
+	}
+
+	@Nullable
 	public String getMessage() {
 		return this.message;
 	}
@@ -109,6 +124,24 @@ public class PatientOrderVoicemailTask {
 
 	public void setCompletedAt(@Nullable Instant completedAt) {
 		this.completedAt = completedAt;
+	}
+
+	@Nullable
+	public Boolean getDeleted() {
+		return this.deleted;
+	}
+
+	public void setDeleted(@Nullable Boolean deleted) {
+		this.deleted = deleted;
+	}
+
+	@Nullable
+	public Instant getDeletedAt() {
+		return this.deletedAt;
+	}
+
+	public void setDeletedAt(@Nullable Instant deletedAt) {
+		this.deletedAt = deletedAt;
 	}
 
 	@Nullable

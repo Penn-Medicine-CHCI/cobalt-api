@@ -31,6 +31,7 @@ import com.cobaltplatform.api.model.api.request.ArchivePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.AssignPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.CancelPatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
+import com.cobaltplatform.api.model.api.request.CompletePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.request.ConsentPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderEventRequest;
@@ -42,10 +43,12 @@ import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.Create
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderMedicationRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledScreeningRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderScheduledMessageGroupRequest;
+import com.cobaltplatform.api.model.api.request.DeletePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
@@ -59,6 +62,7 @@ import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledMessa
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest.CreatePatientOrderTriageRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse.PatientOrderScheduledMessageGroupApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
@@ -2105,6 +2109,19 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
+	public Optional<PatientOrderVoicemailTask> findPatientOrderVoicemailTaskById(@Nullable UUID patientOrderVoicemailTaskId) {
+		if (patientOrderVoicemailTaskId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM patient_order_voicemail_task
+				WHERE patient_order_voicemail_task_id=?
+				AND deleted=false
+				""", PatientOrderVoicemailTask.class, patientOrderVoicemailTaskId);
+	}
+
+	@Nonnull
 	public List<PatientOrderVoicemailTask> findPatientOrderVoicemailTasksByPatientOrderId(@Nullable UUID patientOrderId) {
 		if (patientOrderId == null)
 			return List.of();
@@ -2117,7 +2134,197 @@ public class PatientOrderService implements AutoCloseable {
 				""", PatientOrderVoicemailTask.class, patientOrderId);
 	}
 
-	// TODO: CRUD for voicemail tasks, API response, add field to PatientOrder API response for details
+	@Nonnull
+	public UUID createPatientOrderVoicemailTask(@Nonnull CreatePatientOrderVoicemailTaskRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderId = request.getPatientOrderId();
+		UUID createdByAccountId = request.getCreatedByAccountId();
+		UUID panelAccountId = request.getPanelAccountId();
+		String message = trimToNull(request.getMessage());
+		PatientOrder patientOrder = null;
+		UUID patientOrderVoicemailTaskId = UUID.randomUUID();
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderId == null) {
+			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+		} else {
+			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+
+			if (patientOrder == null) {
+				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+			} else {
+				List<PatientOrderVoicemailTask> patientOrderVoicemailTasks = findPatientOrderVoicemailTasksByPatientOrderId(patientOrderId);
+
+				for (PatientOrderVoicemailTask patientOrderVoicemailTask : patientOrderVoicemailTasks) {
+					if (!patientOrderVoicemailTask.getCompleted()) {
+						validationException.add(new FieldError("patientOrderId", getStrings().get("You may only have one active voicemail task per patient order.")));
+						break;
+					}
+				}
+			}
+		}
+
+		if (createdByAccountId == null)
+			validationException.add(new FieldError("createdByAccountId", getStrings().get("Created-By Account ID is required.")));
+
+		if (panelAccountId == null)
+			validationException.add(new FieldError("panelAccountId", getStrings().get("Panel Account ID is required.")));
+
+		if (message == null)
+			validationException.add(new FieldError("message", getStrings().get("Message is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+				INSERT INTO patient_order_voicemail_task (
+				    patient_order_voicemail_task_id,
+				    patient_order_id,
+				    created_by_account_id,
+				    message
+				) VALUES (?,?,?,?)
+				""", patientOrderVoicemailTaskId, patientOrderId, createdByAccountId, message);
+
+		if (!Objects.equals(patientOrder.getPanelAccountId(), panelAccountId)) {
+			getLogger().debug("As a side effect of creating a voicemail task, assigning Patient Order ID {} to Panel Account ID {}...",
+					patientOrderId, panelAccountId);
+
+			assignPatientOrderToPanelAccount(patientOrderId, panelAccountId, createdByAccountId);
+		}
+
+		// TODO: track changes
+
+		return patientOrderVoicemailTaskId;
+	}
+
+	@Nonnull
+	public Boolean updatePatientOrderVoicemailTask(@Nonnull UpdatePatientOrderVoicemailTaskRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderVoicemailTaskId = request.getPatientOrderVoicemailTaskId();
+		UUID updatedByAccountId = request.getUpdatedByAccountId();
+		UUID panelAccountId = request.getPanelAccountId();
+		String message = trimToNull(request.getMessage());
+		PatientOrderVoicemailTask patientOrderVoicemailTask = null;
+		PatientOrder patientOrder = null;
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderVoicemailTaskId == null) {
+			validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Patient Order Voicemail Task ID is required.")));
+		} else {
+			patientOrderVoicemailTask = findPatientOrderVoicemailTaskById(patientOrderVoicemailTaskId).orElse(null);
+
+			if (patientOrderVoicemailTask == null) {
+				validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Patient Order Voicemail Task ID is invalid.")));
+			} else {
+				patientOrder = findPatientOrderById(patientOrderVoicemailTask.getPatientOrderId()).get();
+
+				if (patientOrderVoicemailTask.getCompleted() || patientOrderVoicemailTask.getDeleted())
+					validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Cannot update past Patient Order Voicemail Tasks.")));
+			}
+		}
+
+		if (updatedByAccountId == null)
+			validationException.add(new FieldError("updatedByAccountId", getStrings().get("Updated-By Account ID is required.")));
+
+		if (panelAccountId == null)
+			validationException.add(new FieldError("panelAccountId", getStrings().get("Panel Account ID is required.")));
+
+		if (message == null)
+			validationException.add(new FieldError("message", getStrings().get("Message is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		boolean updated = getDatabase().execute("""
+				UPDATE patient_order_voicemail_task
+				SET message=?
+				WHERE patient_order_voicemail_task_id=?
+				""", message, patientOrderVoicemailTaskId) > 0;
+
+		if (!Objects.equals(patientOrder.getPanelAccountId(), panelAccountId)) {
+			getLogger().debug("As a side effect of updating a voicemail task, assigning Patient Order ID {} to Panel Account ID {}...",
+					patientOrderVoicemailTask.getPatientOrderId(), panelAccountId);
+
+			assignPatientOrderToPanelAccount(patientOrderVoicemailTask.getPatientOrderId(), panelAccountId, updatedByAccountId);
+		}
+
+		// TODO: track changes
+
+		return updated;
+	}
+
+	@Nonnull
+	public Boolean deletePatientOrderVoicemailTask(@Nonnull DeletePatientOrderVoicemailTaskRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderVoicemailTaskId = request.getPatientOrderVoicemailTaskId();
+		UUID deletedByAccountId = request.getDeletedByAccountId();
+		PatientOrderVoicemailTask patientOrderVoicemailTask = null;
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderVoicemailTaskId == null) {
+			validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Patient Order Voicemail Task ID is required.")));
+		} else {
+			patientOrderVoicemailTask = findPatientOrderVoicemailTaskById(patientOrderVoicemailTaskId).orElse(null);
+
+			if (patientOrderVoicemailTask == null)
+				validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Patient Order Voicemail Task ID is invalid.")));
+			else if (patientOrderVoicemailTask.getCompleted() || patientOrderVoicemailTask.getDeleted())
+				validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Cannot delete past Patient Order Voicemail Tasks.")));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		boolean deleted = getDatabase().execute("""
+				UPDATE patient_order_voicemail_task
+				SET deleted=TRUE,
+				deleted_by_account_id=?
+				WHERE patient_order_voicemail_task_id=?
+				""", deletedByAccountId, patientOrderVoicemailTaskId) > 0;
+
+		// TODO: track changes
+
+		return deleted;
+	}
+
+	@Nonnull
+	public void completePatientOrderVoicemailTask(@Nonnull CompletePatientOrderVoicemailTaskRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderVoicemailTaskId = request.getPatientOrderVoicemailTaskId();
+		UUID completedByAccountId = request.getCompletedByAccountId();
+		PatientOrderVoicemailTask patientOrderVoicemailTask = null;
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderVoicemailTaskId == null) {
+			validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Patient Order Voicemail Task ID is required.")));
+		} else {
+			patientOrderVoicemailTask = findPatientOrderVoicemailTaskById(patientOrderVoicemailTaskId).orElse(null);
+
+			if (patientOrderVoicemailTask == null)
+				validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Patient Order Voicemail Task ID is invalid.")));
+			else if (patientOrderVoicemailTask.getCompleted() || patientOrderVoicemailTask.getDeleted())
+				validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Cannot complete past Patient Order Voicemail Tasks.")));
+		}
+
+		if (completedByAccountId == null)
+			validationException.add(new FieldError("completedByAccountId", getStrings().get("Completed-By Account ID is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+				UPDATE patient_order_voicemail_task
+				SET completed=TRUE,
+				completed_by_account_id=?
+				WHERE patient_order_voicemail_task_id=?
+				""", completedByAccountId, patientOrderVoicemailTaskId);
+
+		// TODO: track changes
+	}
 
 	@Nonnull
 	public List<PatientOrderScheduledMessage> findPatientOrderScheduledMessagesByPatientOrderId(@Nullable UUID patientOrderId) {
