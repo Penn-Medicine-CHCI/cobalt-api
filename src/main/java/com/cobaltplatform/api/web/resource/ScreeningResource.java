@@ -219,6 +219,7 @@ public class ScreeningResource {
 						.collect(Collectors.toList()));
 			}
 		} else {
+			// TODO: should optimize this, it's way too heavy to pull back all sessions, e.g. in a case where an MHIC screens hundreds of people
 			screeningSessions.addAll(getScreeningService().findScreeningSessionsByScreeningFlowId(screeningFlowId, account.getAccountId()).stream()
 					.filter(screeningSession -> {
 						if (targetAccountId.isEmpty()) {
