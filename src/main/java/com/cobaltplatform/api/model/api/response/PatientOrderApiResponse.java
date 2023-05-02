@@ -50,7 +50,6 @@ import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderS
 import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
-import com.cobaltplatform.api.model.db.PatientOrderVoicemailTask;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
@@ -582,14 +581,15 @@ public class PatientOrderApiResponse {
 					List<PatientOrderTriageGroupFocusApiResponse> focusTypePatientOrderTriages = new ArrayList<>();
 
 					for (Entry<PatientOrderFocusTypeId, List<PatientOrderTriage>> focusEntry : patientOrderTriagesByFocusTypeIds.entrySet()) {
-						List<String> focusReasons = focusEntry.getValue().stream()
+						PatientOrderFocusTypeId patientOrderFocusTypeId = focusEntry.getKey();
+						List<PatientOrderTriage> focusPatientOrderTriages = focusEntry.getValue();
+
+						List<String> focusReasons = focusPatientOrderTriages.stream()
 								.map(focusPatientOrderTriage -> focusPatientOrderTriage.getReason())
 								.distinct()
 								.collect(Collectors.toList());
 
-						focusTypePatientOrderTriages.addAll(focusEntry.getValue().stream()
-								.map(focusTypePatientOrderTriage -> new PatientOrderTriageGroupFocusApiResponse(patientOrderFocusTypesById.get(focusEntry.getKey()), focusReasons))
-								.collect(Collectors.toList()));
+						focusTypePatientOrderTriages.add(new PatientOrderTriageGroupFocusApiResponse(patientOrderFocusTypesById.get(patientOrderFocusTypeId), focusReasons));
 					}
 
 					patientOrderTriageGroups.add(new PatientOrderTriageGroupApiResponse(patientOrderTriageSourceId, patientOrderCareType, focusTypePatientOrderTriages));
