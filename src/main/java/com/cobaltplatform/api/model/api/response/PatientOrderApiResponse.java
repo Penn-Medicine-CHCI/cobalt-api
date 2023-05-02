@@ -47,9 +47,9 @@ import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrder
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
-import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
+import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
@@ -96,7 +96,7 @@ public class PatientOrderApiResponse {
 	@Nonnull
 	private UUID patientOrderId;
 	@Nullable
-	private PatientOrderStatusId patientOrderStatusId;
+	private PatientOrderTriageStatusId patientOrderTriageStatusId;
 	@Nullable
 	private PatientOrderDispositionId patientOrderDispositionId;
 	@Nullable
@@ -324,7 +324,7 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String patientOrderDispositionDescription;
 	@Nullable
-	private String patientOrderStatusDescription;
+	private String patientOrderTriageStatusDescription;
 	@Nullable
 	private String patientOrderClosureReasonDescription;
 	@Nullable
@@ -601,7 +601,7 @@ public class PatientOrderApiResponse {
 
 		// Always available to both patients and MHICs
 		this.patientOrderId = patientOrder.getPatientOrderId();
-		this.patientOrderStatusId = patientOrder.getPatientOrderStatusId();
+		this.patientOrderTriageStatusId = patientOrder.getPatientOrderTriageStatusId();
 		this.patientOrderDispositionId = patientOrder.getPatientOrderDispositionId();
 		this.patientOrderScreeningStatusId = patientOrder.getPatientOrderScreeningStatusId();
 		this.patientAccountId = patientOrder.getPatientAccountId();
@@ -734,7 +734,7 @@ public class PatientOrderApiResponse {
 			this.panelAccountDisplayNameWithLastFirst = Normalizer.normalizeNameWithLastFirst(patientOrder.getPanelAccountFirstName(), patientOrder.getPanelAccountLastName()).orElse(null);
 			this.patientOrderScreeningStatusDescription = patientOrder.getPatientOrderScreeningStatusDescription();
 			this.patientOrderDispositionDescription = patientOrder.getPatientOrderDispositionDescription();
-			this.patientOrderStatusDescription = patientOrder.getPatientOrderStatusDescription();
+			this.patientOrderTriageStatusDescription = patientOrder.getPatientOrderTriageStatusDescription();
 			this.patientOrderClosureReasonDescription = patientOrder.getPatientOrderClosureReasonDescription();
 			this.patientOrderSafetyPlanningStatusId = patientOrder.getPatientOrderSafetyPlanningStatusId();
 			this.connectedToSafetyPlanningAt = patientOrder.getConnectedToSafetyPlanningAt();
@@ -760,11 +760,6 @@ public class PatientOrderApiResponse {
 	@Nonnull
 	public UUID getPatientOrderId() {
 		return this.patientOrderId;
-	}
-
-	@Nullable
-	public PatientOrderStatusId getPatientOrderStatusId() {
-		return this.patientOrderStatusId;
 	}
 
 	@Nullable
@@ -1263,8 +1258,13 @@ public class PatientOrderApiResponse {
 	}
 
 	@Nullable
-	public String getPatientOrderStatusDescription() {
-		return this.patientOrderStatusDescription;
+	public PatientOrderTriageStatusId getPatientOrderTriageStatusId() {
+		return this.patientOrderTriageStatusId;
+	}
+
+	@Nullable
+	public String getPatientOrderTriageStatusDescription() {
+		return this.patientOrderTriageStatusDescription;
 	}
 
 	@Nullable

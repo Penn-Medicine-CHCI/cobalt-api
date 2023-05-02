@@ -86,9 +86,9 @@ import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientO
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageGroup;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledScreening;
-import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
+import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderVoicemailTask;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
@@ -105,6 +105,7 @@ import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.PatientOrderCsvGenerator;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
+import com.lokalized.Strings;
 import com.soklet.web.annotation.DELETE;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.PATCH;
@@ -205,6 +206,8 @@ public class PatientOrderResource {
 	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
+	private final Strings strings;
+	@Nonnull
 	private final Logger logger;
 
 	@Inject
@@ -231,7 +234,8 @@ public class PatientOrderResource {
 															@Nonnull JsonMapper jsonMapper,
 															@Nonnull Formatter formatter,
 															@Nonnull Configuration configuration,
-															@Nonnull Provider<CurrentContext> currentContextProvider) {
+															@Nonnull Provider<CurrentContext> currentContextProvider,
+															@Nonnull Strings strings) {
 		requireNonNull(patientOrderService);
 		requireNonNull(accountService);
 		requireNonNull(institutionService);
@@ -256,6 +260,7 @@ public class PatientOrderResource {
 		requireNonNull(formatter);
 		requireNonNull(configuration);
 		requireNonNull(currentContextProvider);
+		requireNonNull(strings);
 
 		this.patientOrderService = patientOrderService;
 		this.accountService = accountService;
@@ -281,6 +286,7 @@ public class PatientOrderResource {
 		this.formatter = formatter;
 		this.configuration = configuration;
 		this.currentContextProvider = currentContextProvider;
+		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
@@ -556,14 +562,14 @@ public class PatientOrderResource {
 	@GET("/patient-orders")
 	@AuthenticationRequired
 	public ApiResponse findPatientOrders(@Nonnull @QueryParameter Optional<PatientOrderDispositionId> patientOrderDispositionId,
-																			 @Nonnull @QueryParameter("patientOrderStatusId") Optional<List<PatientOrderStatusId>> patientOrderStatusIds,
+																			 @Nonnull @QueryParameter("patientOrderTriageStatusId") Optional<List<PatientOrderTriageStatusId>> patientOrderTriageStatusIds,
 																			 @Nonnull @QueryParameter Optional<UUID> panelAccountId,
 																			 @Nonnull @QueryParameter Optional<String> patientMrn,
 																			 @Nonnull @QueryParameter Optional<String> searchQuery,
 																			 @Nonnull @QueryParameter Optional<Integer> pageNumber,
 																			 @Nonnull @QueryParameter Optional<Integer> pageSize) {
 		requireNonNull(patientOrderDispositionId);
-		requireNonNull(patientOrderStatusIds);
+		requireNonNull(patientOrderTriageStatusIds);
 		requireNonNull(panelAccountId);
 		requireNonNull(patientMrn);
 		requireNonNull(searchQuery);
@@ -589,7 +595,7 @@ public class PatientOrderResource {
 			{
 				setInstitutionId(account.getInstitutionId());
 				setPatientOrderDispositionId(patientOrderDispositionId.orElse(null));
-				setPatientOrderStatusIds(new HashSet<>(patientOrderStatusIds.orElse(List.of())));
+				setPatientOrderTriageStatusIds(new HashSet<>(patientOrderTriageStatusIds.orElse(List.of())));
 				setPanelAccountId(panelAccountId.orElse(null));
 				setPatientMrn(patientMrn.orElse(null));
 				setSearchQuery(searchQuery.orElse(null));
@@ -1298,7 +1304,7 @@ public class PatientOrderResource {
 
 		// "Assessments": status == NEEDS_ASSESSMENT && patient_order_scheduled_screening_scheduled_date_time == TODAY
 		List<PatientOrderApiResponse> scheduledAssessmentPatientOrders = patientOrders.stream()
-				.filter(patientOrder -> patientOrder.getPatientOrderStatusId() == PatientOrderStatusId.NEEDS_ASSESSMENT
+				.filter(patientOrder -> patientOrder.getPatientOrderTriageStatusId() == PatientOrderTriageStatusId.NEEDS_ASSESSMENT
 						&& patientOrder.getPatientOrderScheduledScreeningScheduledDateTime() != null
 						&& patientOrder.getPatientOrderScheduledScreeningScheduledDateTime().toLocalDate().equals(today.toLocalDate()))
 				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
@@ -1340,20 +1346,24 @@ public class PatientOrderResource {
 		if (!getAuthorizationService().canViewPanelAccounts(institutionId, account))
 			throw new AuthorizationException();
 
-		Map<PatientOrderStatusId, Integer> patientOrderCountsByPatientOrderStatusId = getPatientOrderService().findPatientOrderCountsByPatientOrderStatusIdForInstitutionId(institutionId, account.getAccountId());
-		Map<PatientOrderStatusId, Map<String, Object>> patientOrderCountsByPatientOrderStatusIdJson = new HashMap<>(patientOrderCountsByPatientOrderStatusId.size());
+		Map<PatientOrderTriageStatusId, Integer> patientOrderCountsByPatientOrderTriageStatusId = getPatientOrderService().findPatientOrderCountsByPatientOrderTriageStatusIdForInstitutionId(institutionId, account.getAccountId());
+		Map<PatientOrderTriageStatusId, Map<String, Object>> patientOrderCountsByPatientOrderTriageStatusIdJson = new HashMap<>(patientOrderCountsByPatientOrderTriageStatusId.size());
 
-		for (Entry<PatientOrderStatusId, Integer> entry : patientOrderCountsByPatientOrderStatusId.entrySet()) {
-			PatientOrderStatusId patientOrderStatusId = entry.getKey();
+		for (Entry<PatientOrderTriageStatusId, Integer> entry : patientOrderCountsByPatientOrderTriageStatusId.entrySet()) {
+			PatientOrderTriageStatusId patientOrderTriageStatusId = entry.getKey();
 			Integer count = entry.getValue();
-			patientOrderCountsByPatientOrderStatusIdJson.put(patientOrderStatusId, Map.of(
+			patientOrderCountsByPatientOrderTriageStatusIdJson.put(patientOrderTriageStatusId, Map.of(
 					"patientOrderCount", count,
 					"patientOrderCountDescription", getFormatter().formatNumber(count)
 			));
 		}
 
+		int safetyPlanningPatientOrderCount = getPatientOrderService().findSafetyPlanningPatientOrderCountForInstitutionId(institutionId, account.getAccountId());
+
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("patientOrderCountsByPatientOrderStatusId", patientOrderCountsByPatientOrderStatusIdJson);
+			put("patientOrderCountsByPatientOrderTriageStatusId", patientOrderCountsByPatientOrderTriageStatusIdJson);
+			put("safetyPlanningPatientOrderCount", safetyPlanningPatientOrderCount);
+			put("safetyPlanningPatientOrderCountDescription", getFormatter().formatNumber(safetyPlanningPatientOrderCount));
 		}});
 	}
 
@@ -1548,14 +1558,12 @@ public class PatientOrderResource {
 				.map(screeningType -> getScreeningTypeApiResponseFactory().create(screeningType))
 				.collect(Collectors.toList());
 
-		List<Map<String, Object>> patientOrderStatuses = getPatientOrderService().findPatientOrderStatuses().stream()
-				.map(patientOrderStatus -> {
-					Map<String, Object> patientOrderStatusJson = new HashMap<>();
-					patientOrderStatusJson.put("patientOrderStatusId", patientOrderStatus.getPatientOrderStatusId());
-					patientOrderStatusJson.put("description", patientOrderStatus.getDescription());
-					return patientOrderStatusJson;
-				})
-				.collect(Collectors.toList());
+		List<Map<PatientOrderTriageStatusId, Object>> patientOrderTriageStatuses = List.of(
+				Map.of(PatientOrderTriageStatusId.NEEDS_ASSESSMENT, getStrings().get("Needs Assessment")),
+				Map.of(PatientOrderTriageStatusId.SPECIALTY_CARE, getStrings().get("Specialty Care")),
+				Map.of(PatientOrderTriageStatusId.BHP, getStrings().get("BHP")),
+				Map.of(PatientOrderTriageStatusId.SUBCLINICAL, getStrings().get("Subclinical"))
+		);
 
 		List<Map<String, Object>> patientOrderDispositions = getPatientOrderService().findPatientOrderDispositions().stream()
 				.map(patientOrderDisposition -> {
@@ -1618,7 +1626,7 @@ public class PatientOrderResource {
 			put("ethnicities", ethnicities);
 			put("regionsByCountryCode", normalizedRegionsByCountryCode);
 			put("screeningTypes", screeningTypes);
-			put("patientOrderStatuses", patientOrderStatuses);
+			put("patientOrderTriageStatuses", patientOrderTriageStatuses);
 			put("patientOrderDispositions", patientOrderDispositions);
 			put("patientOrderOutreachResults", patientOrderOutreachResults);
 			put("patientOrderScheduledMessageTypes", patientOrderScheduledMessageTypes);
@@ -1781,6 +1789,11 @@ public class PatientOrderResource {
 	@Nonnull
 	protected CurrentContext getCurrentContext() {
 		return this.currentContextProvider.get();
+	}
+
+	@Nonnull
+	protected Strings getStrings() {
+		return this.strings;
 	}
 
 	@Nonnull

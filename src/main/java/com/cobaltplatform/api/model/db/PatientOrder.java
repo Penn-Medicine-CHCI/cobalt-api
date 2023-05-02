@@ -29,7 +29,7 @@ import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispo
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
-import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 
 import javax.annotation.Nullable;
@@ -47,7 +47,7 @@ public class PatientOrder {
 	@Nullable
 	private UUID patientOrderId;
 	@Nullable
-	private PatientOrderStatusId patientOrderStatusId;
+	private PatientOrderTriageStatusId patientOrderTriageStatusId;
 	@Nullable
 	private PatientOrderDispositionId patientOrderDispositionId;
 	@Nullable
@@ -218,7 +218,7 @@ public class PatientOrder {
 	@Nullable
 	private String patientOrderDispositionDescription;
 	@Nullable
-	private String patientOrderStatusDescription;
+	private String patientOrderTriageStatusDescription;
 	@Nullable
 	private String patientOrderClosureReasonDescription;
 	@Nullable
@@ -256,12 +256,12 @@ public class PatientOrder {
 	}
 
 	@Nullable
-	public PatientOrderStatusId getPatientOrderStatusId() {
-		return this.patientOrderStatusId;
+	public PatientOrderTriageStatusId getPatientOrderTriageStatusId() {
+		return this.patientOrderTriageStatusId;
 	}
 
-	public void setPatientOrderStatusId(@Nullable PatientOrderStatusId patientOrderStatusId) {
-		this.patientOrderStatusId = patientOrderStatusId;
+	public void setPatientOrderTriageStatusId(@Nullable PatientOrderTriageStatusId patientOrderTriageStatusId) {
+		this.patientOrderTriageStatusId = patientOrderTriageStatusId;
 	}
 
 	@Nullable
@@ -1012,12 +1012,12 @@ public class PatientOrder {
 	}
 
 	@Nullable
-	public String getPatientOrderStatusDescription() {
-		return this.patientOrderStatusDescription;
+	public String getPatientOrderTriageStatusDescription() {
+		return this.patientOrderTriageStatusDescription;
 	}
 
-	public void setPatientOrderStatusDescription(@Nullable String patientOrderStatusDescription) {
-		this.patientOrderStatusDescription = patientOrderStatusDescription;
+	public void setPatientOrderTriageStatusDescription(@Nullable String patientOrderTriageStatusDescription) {
+		this.patientOrderTriageStatusDescription = patientOrderTriageStatusDescription;
 	}
 
 	@Nullable

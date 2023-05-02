@@ -28,18 +28,16 @@ import static java.lang.String.format;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class PatientOrderStatus {
+public class PatientOrderTriageStatus {
 	@Nullable
-	private PatientOrderStatusId patientOrderStatusId;
+	private PatientOrderTriageStatusId patientOrderTriageStatusId;
 	@Nullable
 	private String description;
 	@Nullable
 	private Integer displayOrder;
 
-	public enum PatientOrderStatusId {
-		PENDING, // Unassigned
+	public enum PatientOrderTriageStatusId {
 		NEEDS_ASSESSMENT, // Assigned, but none of the below apply.  Also note, we are in this state if unscheduled but "screening in progress"
-		SAFETY_PLANNING, // Screening completed, most severe level of care type triage is SAFETY_PLANNING
 		SPECIALTY_CARE, // Screening completed, most severe level of care type triage is SPECIALTY
 		SUBCLINICAL, // Screening completed, most severe level of care type triage is SUBCLINICAL
 		BHP // Screening completed, most severe level of care type triage is COLLABORATIVE.  Patient or MHIC can schedule with a provider
@@ -47,17 +45,17 @@ public class PatientOrderStatus {
 
 	@Override
 	public String toString() {
-		return format("%s{patientOrderStatusId=%s, description=%s}", getClass().getSimpleName(),
-				getPatientOrderStatusId(), getDescription());
+		return format("%s{patientOrderTriageStatusId=%s, description=%s}", getClass().getSimpleName(),
+				getPatientOrderTriageStatusId(), getDescription());
 	}
 
 	@Nullable
-	public PatientOrderStatusId getPatientOrderStatusId() {
-		return this.patientOrderStatusId;
+	public PatientOrderTriageStatusId getPatientOrderTriageStatusId() {
+		return this.patientOrderTriageStatusId;
 	}
 
-	public void setPatientOrderStatusId(@Nullable PatientOrderStatusId patientOrderStatusId) {
-		this.patientOrderStatusId = patientOrderStatusId;
+	public void setPatientOrderTriageStatusId(@Nullable PatientOrderTriageStatusId patientOrderTriageStatusId) {
+		this.patientOrderTriageStatusId = patientOrderTriageStatusId;
 	}
 
 	@Nullable

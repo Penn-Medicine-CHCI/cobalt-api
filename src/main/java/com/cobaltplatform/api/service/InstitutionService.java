@@ -353,15 +353,11 @@ public class InstitutionService {
 	@Nonnull
 	public List<FeaturesForInstitution> findFeaturesByInstitutionId(@Nullable Institution institution,
 																																	@Nullable Account account) {
+		if (institution == null || account == null)
+			return List.of();
+
 		ScreeningFlow screeningFlow = getScreeningService().findScreeningFlowById(institution.getFeatureScreeningFlowId()).orElse(null);
-
-		if (institution == null || account == null || screeningFlow == null)
-			return List.of();
-
-		ScreeningFlowVersion screeningFlowVersion = getScreeningService().findScreeningFlowVersionById(screeningFlow.getActiveScreeningFlowVersionId()).orElse(null);
-
-		if (screeningFlowVersion == null)
-			return List.of();
+		ScreeningFlowVersion screeningFlowVersion = screeningFlow == null ? null : getScreeningService().findScreeningFlowVersionById(screeningFlow.getActiveScreeningFlowVersionId()).orElse(null);
 
 		ScreeningSession mostRecentCompletedFeatureScreeningSession =
 				getScreeningService().findMostRecentCompletedScreeningSession(account.getAccountId(), institution.getFeatureScreeningFlowId()).orElse(null);

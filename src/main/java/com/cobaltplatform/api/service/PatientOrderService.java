@@ -94,10 +94,9 @@ import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageGroup;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType.PatientOrderScheduledMessageTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledScreening;
-import com.cobaltplatform.api.model.db.PatientOrderStatus;
-import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
+import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderVoicemailTask;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
@@ -597,16 +596,16 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public Map<PatientOrderStatusId, Integer> findPatientOrderCountsByPatientOrderStatusIdForInstitutionId(@Nullable InstitutionId institutionId,
-																																																				 @Nullable UUID panelAccountId) {
-		Map<PatientOrderStatusId, Integer> patientOrderCountsByPatientOrderStatusId = new HashMap<>(PatientOrderStatusId.values().length);
+	public Map<PatientOrderTriageStatusId, Integer> findPatientOrderCountsByPatientOrderTriageStatusIdForInstitutionId(@Nullable InstitutionId institutionId,
+																																																										 @Nullable UUID panelAccountId) {
+		Map<PatientOrderTriageStatusId, Integer> patientOrderCountsByPatientOrderTriageStatusId = new HashMap<>(PatientOrderTriageStatusId.values().length);
 
-		// Seed the map with zeroes for all possible statuses
-		for (PatientOrderStatusId patientOrderStatusId : PatientOrderStatusId.values())
-			patientOrderCountsByPatientOrderStatusId.put(patientOrderStatusId, 0);
+		// Seed the map with zeroes for all possible triage statuses
+		for (PatientOrderTriageStatusId patientOrderTriageStatusId : PatientOrderTriageStatusId.values())
+			patientOrderCountsByPatientOrderTriageStatusId.put(patientOrderTriageStatusId, 0);
 
 		if (institutionId == null)
-			return patientOrderCountsByPatientOrderStatusId;
+			return patientOrderCountsByPatientOrderTriageStatusId;
 
 		List<String> whereClauseLines = new ArrayList<>();
 		List<Object> parameters = new ArrayList<>();
@@ -623,20 +622,54 @@ public class PatientOrderService implements AutoCloseable {
 		}
 
 		String sql = """
-				  SELECT patient_order_status_id, COUNT(patient_order_status_id) AS total_count
+				  SELECT patient_order_triage_status_id, COUNT(patient_order_triage_status_id) AS total_count
 				  FROM v_patient_order
 				  WHERE institution_id=?
 				  {{whereClauseLines}}
-				  GROUP BY patient_order_status_id			  
+				  GROUP BY patient_order_triage_status_id			  
 				""".trim()
 				.replace("{{whereClauseLines}}", whereClauseLines.stream().collect(Collectors.joining("\n")));
 
 		List<PatientOrderWithTotalCount> patientOrders = getDatabase().queryForList(sql, PatientOrderWithTotalCount.class, sqlVaragsParameters(parameters));
 
 		for (PatientOrderWithTotalCount patientOrder : patientOrders)
-			patientOrderCountsByPatientOrderStatusId.put(patientOrder.getPatientOrderStatusId(), patientOrder.getTotalCount());
+			patientOrderCountsByPatientOrderTriageStatusId.put(patientOrder.getPatientOrderTriageStatusId(), patientOrder.getTotalCount());
 
-		return patientOrderCountsByPatientOrderStatusId;
+		return patientOrderCountsByPatientOrderTriageStatusId;
+	}
+
+	@Nonnull
+	public Integer findSafetyPlanningPatientOrderCountForInstitutionId(@Nullable InstitutionId institutionId,
+																																		 @Nullable UUID panelAccountId) {
+		if (institutionId == null)
+			return 0;
+
+		List<String> whereClauseLines = new ArrayList<>();
+		List<Object> parameters = new ArrayList<>();
+
+		parameters.add(institutionId);
+
+		// Default to OPEN orders
+		whereClauseLines.add("AND patient_order_disposition_id=?");
+		parameters.add(PatientOrderDispositionId.OPEN);
+
+		whereClauseLines.add("AND patient_order_safety_planning_status_id=?");
+		parameters.add(PatientOrderSafetyPlanningStatusId.NEEDS_SAFETY_PLANNING);
+
+		if (panelAccountId != null) {
+			whereClauseLines.add("AND panel_account_id=?");
+			parameters.add(panelAccountId);
+		}
+
+		String sql = """
+				  SELECT COUNT(*)
+				  FROM v_patient_order
+				  WHERE institution_id=?
+				  {{whereClauseLines}}
+				""".trim()
+				.replace("{{whereClauseLines}}", whereClauseLines.stream().collect(Collectors.joining("\n")));
+
+		return getDatabase().queryForObject(sql, Integer.class, sqlVaragsParameters(parameters)).get();
 	}
 
 	@Nonnull
@@ -746,7 +779,7 @@ public class PatientOrderService implements AutoCloseable {
 
 		InstitutionId institutionId = request.getInstitutionId();
 		PatientOrderDispositionId patientOrderDispositionId = request.getPatientOrderDispositionId();
-		Set<PatientOrderStatusId> patientOrderStatusIds = request.getPatientOrderStatusIds() == null ? Set.of() : request.getPatientOrderStatusIds();
+		Set<PatientOrderTriageStatusId> patientOrderTriageStatusIds = request.getPatientOrderTriageStatusIds() == null ? Set.of() : request.getPatientOrderTriageStatusIds();
 		UUID panelAccountId = request.getPanelAccountId();
 		String patientMrn = trimToNull(request.getPatientMrn());
 		String searchQuery = trimToNull(request.getSearchQuery());
@@ -779,9 +812,9 @@ public class PatientOrderService implements AutoCloseable {
 		whereClauseLines.add("AND po.patient_order_disposition_id=?");
 		parameters.add(patientOrderDispositionId);
 
-		if (patientOrderStatusIds.size() > 0) {
-			whereClauseLines.add(format("AND po.patient_order_status_id IN %s", sqlInListPlaceholders(patientOrderStatusIds)));
-			parameters.addAll(patientOrderStatusIds);
+		if (patientOrderTriageStatusIds.size() > 0) {
+			whereClauseLines.add(format("AND po.patient_order_triage_status_id IN %s", sqlInListPlaceholders(patientOrderTriageStatusIds)));
+			parameters.addAll(patientOrderTriageStatusIds);
 		}
 
 		if (panelAccountId != null) {
@@ -813,7 +846,7 @@ public class PatientOrderService implements AutoCloseable {
 				  WITH base_query AS (
 				  SELECT po.*
 				  FROM v_patient_order po
-				  WHERE po.institution_id=?				  
+				  WHERE po.institution_id=? 
 				  {{whereClauseLines}}
 				  ),
 				  total_count_query AS (
@@ -907,15 +940,6 @@ public class PatientOrderService implements AutoCloseable {
 						LIMIT 10
 						""", PatientOrderAutocompleteResult.class, institutionId,
 				searchQuery, searchQuery, searchQuery, searchQueryPhoneNumber, searchQuery);
-	}
-
-	@Nonnull
-	public List<PatientOrderStatus> findPatientOrderStatuses() {
-		return getDatabase().queryForList("""
-				SELECT *
-				FROM patient_order_status
-				ORDER BY display_order
-				""", PatientOrderStatus.class);
 	}
 
 	@Nonnull
@@ -3767,11 +3791,11 @@ public class PatientOrderService implements AutoCloseable {
 							     FROM v_patient_order
 							     WHERE institution_id=?
 							     AND patient_order_disposition_id=?
-							     AND patient_order_status_id=?
+							     AND patient_order_triage_status_id=?
 							     AND outreach_needed=FALSE
 							     AND most_recent_outreach_date_time IS NOT NULL
 							     AND most_recent_outreach_date_time <= (? - make_interval(days => ?))
-							""", PatientOrder.class, institution.getInstitutionId(), PatientOrderDispositionId.OPEN, PatientOrderStatusId.NEEDS_ASSESSMENT,
+							""", PatientOrder.class, institution.getInstitutionId(), PatientOrderDispositionId.OPEN, PatientOrderTriageStatusId.NEEDS_ASSESSMENT,
 					now, institution.getIntegratedCareOutreachFollowupDayOffset());
 
 			// Syntax reference:

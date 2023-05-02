@@ -21,7 +21,7 @@ package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
-import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -38,7 +38,7 @@ public class FindPatientOrdersRequest {
 	@Nullable
 	private PatientOrderDispositionId patientOrderDispositionId;
 	@Nullable
-	private Set<PatientOrderStatusId> patientOrderStatusIds;
+	private Set<PatientOrderTriageStatusId> patientOrderTriageStatusIds;
 	@Nullable
 	private UUID panelAccountId;
 	@Nullable
@@ -69,12 +69,12 @@ public class FindPatientOrdersRequest {
 	}
 
 	@Nullable
-	public Set<PatientOrderStatusId> getPatientOrderStatusIds() {
-		return this.patientOrderStatusIds;
+	public Set<PatientOrderTriageStatusId> getPatientOrderTriageStatusIds() {
+		return this.patientOrderTriageStatusIds;
 	}
 
-	public void setPatientOrderStatusIds(@Nullable Set<PatientOrderStatusId> patientOrderStatusIds) {
-		this.patientOrderStatusIds = patientOrderStatusIds;
+	public void setPatientOrderTriageStatusIds(@Nullable Set<PatientOrderTriageStatusId> patientOrderTriageStatusIds) {
+		this.patientOrderTriageStatusIds = patientOrderTriageStatusIds;
 	}
 
 	@Nullable
