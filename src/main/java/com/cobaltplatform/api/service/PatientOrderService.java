@@ -111,6 +111,7 @@ import com.cobaltplatform.api.model.service.PatientOrderImportResult;
 import com.cobaltplatform.api.model.service.PatientOrderOutreachStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderResponseStatusId;
 import com.cobaltplatform.api.util.Authenticator;
+import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
@@ -216,6 +217,8 @@ public class PatientOrderService implements AutoCloseable {
 	@Nonnull
 	private final Normalizer normalizer;
 	@Nonnull
+	private final Formatter formatter;
+	@Nonnull
 	private final Authenticator authenticator;
 	@Nonnull
 	private final Configuration configuration;
@@ -242,6 +245,7 @@ public class PatientOrderService implements AutoCloseable {
 														 @Nonnull PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory,
 														 @Nonnull Database database,
 														 @Nonnull Normalizer normalizer,
+														 @Nonnull Formatter formatter,
 														 @Nonnull Authenticator authenticator,
 														 @Nonnull Configuration configuration,
 														 @Nonnull Strings strings) {
@@ -253,6 +257,7 @@ public class PatientOrderService implements AutoCloseable {
 		requireNonNull(patientOrderScheduledMessageGroupApiResponseFactory);
 		requireNonNull(database);
 		requireNonNull(normalizer);
+		requireNonNull(formatter);
 		requireNonNull(authenticator);
 		requireNonNull(configuration);
 		requireNonNull(strings);
@@ -265,6 +270,7 @@ public class PatientOrderService implements AutoCloseable {
 		this.patientOrderScheduledMessageGroupApiResponseFactory = patientOrderScheduledMessageGroupApiResponseFactory;
 		this.database = database;
 		this.normalizer = normalizer;
+		this.formatter = formatter;
 		this.authenticator = authenticator;
 		this.configuration = configuration;
 		this.gson = createGson();
@@ -2697,11 +2703,21 @@ public class PatientOrderService implements AutoCloseable {
 
 		Set<UUID> scheduledMessageIds = new HashSet<>();
 
+		Map<String, Object> standardMessageContext = new HashMap<>();
+		standardMessageContext.put("webappBaseUrl", webappBaseUrl);
+		standardMessageContext.put("integratedCarePhoneNumber", institution.getIntegratedCarePhoneNumber());
+		standardMessageContext.put("integratedCarePhoneNumberDescription", getFormatter().formatPhoneNumber(institution.getIntegratedCarePhoneNumber(), institution.getLocale()));
+		standardMessageContext.put("integratedCareAvailabilityDescription", institution.getIntegratedCareAvailabilityDescription());
+		standardMessageContext.put("integratedCareProgramName", institution.getIntegratedCareProgramName());
+		standardMessageContext.put("integratedCarePrimaryCareName", institution.getIntegratedCarePrimaryCareName());
+
+		// For now, all messages get the same standard context.  We might have custom contexts per-message/message type as we introduce more
+
 		if (messageTypeIds.contains(MessageTypeId.EMAIL)) {
 			EmailMessage emailMessage = new EmailMessage.Builder(EmailMessageTemplate.valueOf(patientOrderScheduledMessageType.getTemplateName()), Locale.US)
 					.toAddresses(List.of(patientOrder.getPatientEmailAddress()))
 					.fromAddress(institution.getDefaultFromEmailAddress())
-					.messageContext(Map.of("webappBaseUrl", webappBaseUrl))
+					.messageContext(standardMessageContext)
 					.build();
 
 			scheduledMessageIds.add(getMessageService().createScheduledMessage(new CreateScheduledMessageRequest<>() {{
@@ -2714,7 +2730,7 @@ public class PatientOrderService implements AutoCloseable {
 
 		if (messageTypeIds.contains(MessageTypeId.SMS)) {
 			SmsMessage smsMessage = new SmsMessage.Builder(SmsMessageTemplate.valueOf(patientOrderScheduledMessageType.getTemplateName()), patientOrder.getPatientPhoneNumber(), Locale.US)
-					.messageContext(Map.of("webappBaseUrl", webappBaseUrl))
+					.messageContext(standardMessageContext)
 					.build();
 
 			scheduledMessageIds.add(getMessageService().createScheduledMessage(new CreateScheduledMessageRequest<>() {{
@@ -4096,6 +4112,11 @@ public class PatientOrderService implements AutoCloseable {
 	@Nonnull
 	protected Normalizer getNormalizer() {
 		return this.normalizer;
+	}
+
+	@Nonnull
+	protected Formatter getFormatter() {
+		return this.formatter;
 	}
 
 	@Nonnull
