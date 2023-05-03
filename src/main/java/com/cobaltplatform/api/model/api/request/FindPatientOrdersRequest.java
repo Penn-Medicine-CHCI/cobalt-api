@@ -21,7 +21,11 @@ package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
+import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
+import com.cobaltplatform.api.model.service.PatientOrderAssignmentStatusId;
+import com.cobaltplatform.api.model.service.PatientOrderOutreachStatusId;
+import com.cobaltplatform.api.model.service.PatientOrderResponseStatusId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -39,6 +43,14 @@ public class FindPatientOrdersRequest {
 	private PatientOrderDispositionId patientOrderDispositionId;
 	@Nullable
 	private Set<PatientOrderTriageStatusId> patientOrderTriageStatusIds;
+	@Nullable
+	private PatientOrderAssignmentStatusId patientOrderAssignmentStatusId;
+	@Nullable
+	private PatientOrderOutreachStatusId patientOrderOutreachStatusId;
+	@Nullable
+	private PatientOrderResponseStatusId patientOrderResponseStatusId;
+	@Nullable
+	private PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId;
 	@Nullable
 	private UUID panelAccountId;
 	@Nullable
@@ -75,6 +87,42 @@ public class FindPatientOrdersRequest {
 
 	public void setPatientOrderTriageStatusIds(@Nullable Set<PatientOrderTriageStatusId> patientOrderTriageStatusIds) {
 		this.patientOrderTriageStatusIds = patientOrderTriageStatusIds;
+	}
+
+	@Nullable
+	public PatientOrderAssignmentStatusId getPatientOrderAssignmentStatusId() {
+		return this.patientOrderAssignmentStatusId;
+	}
+
+	public void setPatientOrderAssignmentStatusId(@Nullable PatientOrderAssignmentStatusId patientOrderAssignmentStatusId) {
+		this.patientOrderAssignmentStatusId = patientOrderAssignmentStatusId;
+	}
+
+	@Nullable
+	public PatientOrderOutreachStatusId getPatientOrderOutreachStatusId() {
+		return this.patientOrderOutreachStatusId;
+	}
+
+	public void setPatientOrderOutreachStatusId(@Nullable PatientOrderOutreachStatusId patientOrderOutreachStatusId) {
+		this.patientOrderOutreachStatusId = patientOrderOutreachStatusId;
+	}
+
+	@Nullable
+	public PatientOrderResponseStatusId getPatientOrderResponseStatusId() {
+		return this.patientOrderResponseStatusId;
+	}
+
+	public void setPatientOrderResponseStatusId(@Nullable PatientOrderResponseStatusId patientOrderResponseStatusId) {
+		this.patientOrderResponseStatusId = patientOrderResponseStatusId;
+	}
+
+	@Nullable
+	public PatientOrderSafetyPlanningStatusId getPatientOrderSafetyPlanningStatusId() {
+		return this.patientOrderSafetyPlanningStatusId;
+	}
+
+	public void setPatientOrderSafetyPlanningStatusId(@Nullable PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId) {
+		this.patientOrderSafetyPlanningStatusId = patientOrderSafetyPlanningStatusId;
 	}
 
 	@Nullable

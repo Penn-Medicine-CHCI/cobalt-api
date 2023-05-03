@@ -105,8 +105,11 @@ import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.IcTestPatientEmailAddress;
+import com.cobaltplatform.api.model.service.PatientOrderAssignmentStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderAutocompleteResult;
 import com.cobaltplatform.api.model.service.PatientOrderImportResult;
+import com.cobaltplatform.api.model.service.PatientOrderOutreachStatusId;
+import com.cobaltplatform.api.model.service.PatientOrderResponseStatusId;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
@@ -780,6 +783,10 @@ public class PatientOrderService implements AutoCloseable {
 		InstitutionId institutionId = request.getInstitutionId();
 		PatientOrderDispositionId patientOrderDispositionId = request.getPatientOrderDispositionId();
 		Set<PatientOrderTriageStatusId> patientOrderTriageStatusIds = request.getPatientOrderTriageStatusIds() == null ? Set.of() : request.getPatientOrderTriageStatusIds();
+		PatientOrderAssignmentStatusId patientOrderAssignmentStatusId = request.getPatientOrderAssignmentStatusId();
+		PatientOrderOutreachStatusId patientOrderOutreachStatusId = request.getPatientOrderOutreachStatusId();
+		PatientOrderResponseStatusId patientOrderResponseStatusId = request.getPatientOrderResponseStatusId();
+		PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId = request.getPatientOrderSafetyPlanningStatusId();
 		UUID panelAccountId = request.getPanelAccountId();
 		String patientMrn = trimToNull(request.getPatientMrn());
 		String searchQuery = trimToNull(request.getSearchQuery());
@@ -817,6 +824,32 @@ public class PatientOrderService implements AutoCloseable {
 			parameters.addAll(patientOrderTriageStatusIds);
 		}
 
+		if (patientOrderAssignmentStatusId != null) {
+			if (patientOrderAssignmentStatusId == PatientOrderAssignmentStatusId.UNASSIGNED)
+				whereClauseLines.add("AND po.panel_account_id IS NULL");
+			else if (patientOrderAssignmentStatusId == PatientOrderAssignmentStatusId.ASSIGNED)
+				whereClauseLines.add("AND po.panel_account_id IS NOT NULL");
+		}
+
+		if (patientOrderOutreachStatusId != null) {
+			if (patientOrderOutreachStatusId == PatientOrderOutreachStatusId.HAS_OUTREACH)
+				whereClauseLines.add("AND po.outreach_count > 0");
+			else if (patientOrderOutreachStatusId == PatientOrderOutreachStatusId.NO_OUTREACH)
+				whereClauseLines.add("AND po.outreach_count = 0");
+		}
+
+		if (patientOrderResponseStatusId != null) {
+//			if (patientOrderResponseStatusId == PatientOrderResponseStatusId.WAITING_FOR_RESPONSE)
+//				whereClauseLines.add("TODO");
+//			else if (patientOrderResponseStatusId == PatientOrderResponseStatusId.NOT_WAITING_FOR_RESPONSE)
+//				whereClauseLines.add("TODO");
+		}
+
+		if (patientOrderSafetyPlanningStatusId != null) {
+			whereClauseLines.add("AND po.patient_order_safety_planning_status_id=?");
+			parameters.add(patientOrderSafetyPlanningStatusId);
+		}
+
 		if (panelAccountId != null) {
 			whereClauseLines.add("AND po.panel_account_id=?");
 			parameters.add(panelAccountId);
@@ -830,8 +863,6 @@ public class PatientOrderService implements AutoCloseable {
 			// TODO: finalize what fields we should search over
 		}
 
-		// TODO: finish adding other parameters/filters
-
 		orderByColumns.add("bq.order_date DESC");
 		orderByColumns.add("bq.order_age_in_minutes");
 		orderByColumns.add("bq.patient_first_name");
@@ -840,13 +871,11 @@ public class PatientOrderService implements AutoCloseable {
 		parameters.add(limit);
 		parameters.add(offset);
 
-		// TODO: handle rest of query criteria
-
 		String sql = """
 				  WITH base_query AS (
 				  SELECT po.*
 				  FROM v_patient_order po
-				  WHERE po.institution_id=? 
+				  WHERE po.institution_id=?
 				  {{whereClauseLines}}
 				  ),
 				  total_count_query AS (

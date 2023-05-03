@@ -93,8 +93,11 @@ import com.cobaltplatform.api.model.db.PatientOrderVoicemailTask;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.model.service.PatientOrderAssignmentStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderAutocompleteResult;
 import com.cobaltplatform.api.model.service.PatientOrderImportResult;
+import com.cobaltplatform.api.model.service.PatientOrderOutreachStatusId;
+import com.cobaltplatform.api.model.service.PatientOrderResponseStatusId;
 import com.cobaltplatform.api.model.service.Region;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AuthorizationService;
@@ -563,6 +566,10 @@ public class PatientOrderResource {
 	@AuthenticationRequired
 	public ApiResponse findPatientOrders(@Nonnull @QueryParameter Optional<PatientOrderDispositionId> patientOrderDispositionId,
 																			 @Nonnull @QueryParameter("patientOrderTriageStatusId") Optional<List<PatientOrderTriageStatusId>> patientOrderTriageStatusIds,
+																			 @Nonnull @QueryParameter Optional<PatientOrderAssignmentStatusId> patientOrderAssignmentStatusId,
+																			 @Nonnull @QueryParameter Optional<PatientOrderOutreachStatusId> patientOrderOutreachStatusId,
+																			 @Nonnull @QueryParameter Optional<PatientOrderResponseStatusId> patientOrderResponseStatusId,
+																			 @Nonnull @QueryParameter Optional<PatientOrderSafetyPlanningStatusId> patientOrderSafetyPlanningStatusId,
 																			 @Nonnull @QueryParameter Optional<UUID> panelAccountId,
 																			 @Nonnull @QueryParameter Optional<String> patientMrn,
 																			 @Nonnull @QueryParameter Optional<String> searchQuery,
@@ -596,6 +603,10 @@ public class PatientOrderResource {
 				setInstitutionId(account.getInstitutionId());
 				setPatientOrderDispositionId(patientOrderDispositionId.orElse(null));
 				setPatientOrderTriageStatusIds(new HashSet<>(patientOrderTriageStatusIds.orElse(List.of())));
+				setPatientOrderAssignmentStatusId(patientOrderAssignmentStatusId.orElse(null));
+				setPatientOrderOutreachStatusId(patientOrderOutreachStatusId.orElse(null));
+				setPatientOrderResponseStatusId(patientOrderResponseStatusId.orElse(null));
+				setPatientOrderSafetyPlanningStatusId(patientOrderSafetyPlanningStatusId.orElse(null));
 				setPanelAccountId(panelAccountId.orElse(null));
 				setPatientMrn(patientMrn.orElse(null));
 				setSearchQuery(searchQuery.orElse(null));
