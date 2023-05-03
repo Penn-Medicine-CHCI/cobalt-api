@@ -21,6 +21,8 @@ package com.cobaltplatform.api.model.service;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.AccountSourceDisplayStyle.AccountSourceDisplayStyleId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.UserExperienceType;
+import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -36,6 +38,8 @@ public class AccountSourceForInstitution {
 	private AccountSourceId accountSourceId;
 	@Nullable
 	private AccountSourceDisplayStyleId accountSourceDisplayStyleId;
+	@Nullable
+	private UserExperienceTypeId requiresUserExperienceTypeId;
 	@Nullable
 	private String description;
 	@Nullable
@@ -74,6 +78,15 @@ public class AccountSourceForInstitution {
 
 	public void setAccountSourceDisplayStyleId(@Nullable AccountSourceDisplayStyleId accountSourceDisplayStyleId) {
 		this.accountSourceDisplayStyleId = accountSourceDisplayStyleId;
+	}
+
+	@Nullable
+	public UserExperienceTypeId getRequiresUserExperienceTypeId() {
+		return this.requiresUserExperienceTypeId;
+	}
+
+	public void setRequiresUserExperienceTypeId(@Nullable UserExperienceTypeId requiresUserExperienceTypeId) {
+		this.requiresUserExperienceTypeId = requiresUserExperienceTypeId;
 	}
 
 	@Nullable

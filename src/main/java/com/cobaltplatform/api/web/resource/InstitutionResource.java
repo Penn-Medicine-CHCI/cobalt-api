@@ -27,10 +27,10 @@ import com.cobaltplatform.api.integration.microsoft.request.AuthenticationRedire
 import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse.AccountSourceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.InstitutionLocationApiResponse.InstitutionLocationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionBlurbApiResponse;
 import com.cobaltplatform.api.model.api.response.InstitutionBlurbApiResponse.InstitutionBlurbApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionLocationApiResponse;
+import com.cobaltplatform.api.model.api.response.InstitutionLocationApiResponse.InstitutionLocationApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Institution;
@@ -38,6 +38,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionBlurb;
 import com.cobaltplatform.api.model.db.InstitutionBlurbType.InstitutionBlurbTypeId;
 import com.cobaltplatform.api.model.db.InstitutionTeamMember;
+import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.MyChartService;
 import com.lokalized.Strings;
@@ -51,6 +52,7 @@ import com.soklet.web.response.RedirectResponse;
 import com.soklet.web.response.RedirectResponse.Type;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -58,6 +60,7 @@ import javax.inject.Singleton;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -133,11 +136,7 @@ public class InstitutionResource {
 
 		AccountSourceId requestAccountSourceId = accountSourceId.orElse(null);
 		Institution institution = getInstitutionService().findInstitutionById(getCurrentContext().getInstitutionId()).get();
-
-		List<AccountSourceApiResponse> accountSources = getInstitutionService().findAccountSourcesByInstitutionId(institution.getInstitutionId()).stream()
-				.filter(accountSource -> requestAccountSourceId == null ? true : accountSource.getAccountSourceId().equals(requestAccountSourceId))
-				.map(accountSource -> getAccountSourceApiResponseFactory().create(accountSource, getConfiguration().getEnvironment()))
-				.collect(Collectors.toList());
+		List<AccountSourceApiResponse> accountSources = availableAccountSourcesForInstitutionId(institution.getInstitutionId(), requestAccountSourceId, getCurrentContext().getUserExperienceTypeId().orElse(null));
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("accountSources", accountSources);
@@ -149,18 +148,39 @@ public class InstitutionResource {
 		requireNonNull(accountSourceId);
 
 		AccountSourceId requestAccountSourceId = accountSourceId.orElse(null);
-
 		Institution institution = getInstitutionService().findInstitutionById(getCurrentContext().getInstitutionId()).get();
-
-		List<AccountSourceApiResponse> accountSources = getInstitutionService().findAccountSourcesByInstitutionId(institution.getInstitutionId()).stream()
-				.filter(accountSource -> requestAccountSourceId == null ? true : accountSource.getAccountSourceId().equals(requestAccountSourceId))
-				.map(accountSource -> getAccountSourceApiResponseFactory().create(accountSource, getConfiguration().getEnvironment()))
-				.collect(Collectors.toList());
+		List<AccountSourceApiResponse> accountSources = availableAccountSourcesForInstitutionId(institution.getInstitutionId(), requestAccountSourceId, getCurrentContext().getUserExperienceTypeId().orElse(null));
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("institution", getInstitutionApiResponseFactory().create(institution, getCurrentContext()));
 			put("accountSources", accountSources);
 		}});
+	}
+
+	@Nonnull
+	protected List<AccountSourceApiResponse> availableAccountSourcesForInstitutionId(@Nullable InstitutionId institutionId,
+																																									 @Nullable AccountSourceId filterOnAccountSourceId,
+																																									 @Nullable UserExperienceTypeId userExperienceTypeId) {
+		if (institutionId == null)
+			return List.of();
+
+		List<AccountSourceApiResponse> accountSources = getInstitutionService().findAccountSourcesByInstitutionId(institutionId).stream()
+				.filter(accountSource -> {
+					if (userExperienceTypeId != null && filterOnAccountSourceId != null) {
+						return (accountSource.getRequiresUserExperienceTypeId() == null || Objects.equals(accountSource.getRequiresUserExperienceTypeId(), userExperienceTypeId))
+								&& Objects.equals(accountSource.getAccountSourceId(), filterOnAccountSourceId);
+					} else if (userExperienceTypeId != null) {
+						return accountSource.getRequiresUserExperienceTypeId() == null || Objects.equals(accountSource.getRequiresUserExperienceTypeId(), userExperienceTypeId);
+					} else if (filterOnAccountSourceId != null) {
+						return Objects.equals(accountSource.getAccountSourceId(), filterOnAccountSourceId);
+					}
+
+					return true;
+				})
+				.map(accountSource -> getAccountSourceApiResponseFactory().create(accountSource, getConfiguration().getEnvironment()))
+				.collect(Collectors.toList());
+
+		return accountSources;
 	}
 
 	@GET("/institution-blurbs")
@@ -282,6 +302,7 @@ public class InstitutionResource {
 	protected InstitutionLocationApiResponseFactory getInstitutionLocationApiResponseFactory() {
 		return this.institutionLocationApiResponseFactory;
 	}
+
 	@Nonnull
 	protected EnterprisePluginProvider getEnterprisePluginProvider() {
 		return this.enterprisePluginProvider;

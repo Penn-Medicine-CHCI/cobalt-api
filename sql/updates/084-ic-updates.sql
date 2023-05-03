@@ -19,6 +19,8 @@ VALUES
 
 DROP TABLE patient_order_status;
 
+ALTER TABLE institution_account_source ADD COLUMN requires_user_experience_type_id VARCHAR REFERENCES user_experience_type(user_experience_type_id);
+
 CREATE VIEW v_patient_order_voicemail_task AS
 SELECT
   povt.*,
