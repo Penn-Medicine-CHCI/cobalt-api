@@ -866,7 +866,22 @@ public class PatientOrderService implements AutoCloseable {
 			whereClauseLines.add("AND LOWER(po.patient_mrn)=LOWER(?)");
 			parameters.add(patientMrn);
 		} else if (searchQuery != null) {
-			// TODO: finalize what fields we should search over
+			// TODO: this is quick and dirty so FE can build.  Need to significantly improve matching
+			whereClauseLines.add("""
+					      AND (
+					      patient_first_name ILIKE CONCAT('%',?,'%')
+					      OR patient_last_name ILIKE CONCAT('%',?,'%')
+					      OR patient_mrn ILIKE CONCAT('%',?,'%')
+					      OR (patient_phone_number IS NOT NULL AND patient_phone_number ILIKE CONCAT('%',?,'%'))
+					      OR (patient_email_address IS NOT NULL AND patient_email_address ILIKE CONCAT('%',?,'%'))
+					      )
+					""");
+
+			parameters.add(searchQuery);
+			parameters.add(searchQuery);
+			parameters.add(searchQuery);
+			parameters.add(searchQuery);
+			parameters.add(searchQuery);
 		}
 
 		orderByColumns.add("bq.order_date DESC");
