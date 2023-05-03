@@ -905,8 +905,9 @@ public class PatientOrderService implements AutoCloseable {
 					SELECT po.*
 				  FROM v_patient_order po
 				  WHERE po.panel_account_id=?
+				  AND po.patient_order_disposition_id=?
 				  ORDER BY po.order_date DESC, po.order_age_in_minutes, po.patient_first_name, po.patient_last_name
-				""", PatientOrder.class, panelAccountId);
+				""", PatientOrder.class, panelAccountId, PatientOrderDispositionId.OPEN);
 	}
 
 	@Nonnull
