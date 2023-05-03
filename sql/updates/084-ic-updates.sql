@@ -212,10 +212,7 @@ select
         else 'Needs Assessment'
     END patient_order_triage_status_description,
     pocr.description AS patient_order_closure_reason_description,
-    date_part(
-        'year',
-        age(poq.patient_birthdate AT TIME ZONE i.time_zone)
-    ) :: INT < 18 AS patient_below_age_threshold,
+    (date_part('year', poq.order_date) - date_part('year', poq.patient_birthdate)::INT) < 18 AS patient_below_age_threshold,
     rpq.most_recent_episode_closed_at,
     date_part('day', NOW() - rpq.most_recent_episode_closed_at) :: INT < 30 AS most_recent_episode_closed_within_date_threshold,
     rssq.patient_order_scheduled_screening_id,
