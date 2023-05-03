@@ -3852,6 +3852,7 @@ public class PatientOrderService implements AutoCloseable {
 
 			// 2. "outreach needed": need another outreach to patient because it's been
 			//   institution.integrated_care_outreach_followup_day_offset days since most_recent_outreach_date_time and order is still in NEEDS_ASSESSMENT state
+			// TODO: revisit this, do we need to take scheduled messages into account?
 			List<PatientOrder> outreachNeededPatientOrders = getDatabase().queryForList("""
 							     SELECT *
 							     FROM v_patient_order
