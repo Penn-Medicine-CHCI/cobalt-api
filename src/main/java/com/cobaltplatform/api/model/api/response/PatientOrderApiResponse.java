@@ -634,6 +634,23 @@ public class PatientOrderApiResponse {
 		this.patientConsentedByAccountId = patientOrder.getPatientConsentedByAccountId();
 		this.patientConsentedAt = patientOrder.getPatientConsentedAt();
 		this.patientConsentedAtDescription = patientOrder.getPatientConsentedAt() == null ? null : formatter.formatTimestamp(patientOrder.getPatientConsentedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.referringPracticeId = patientOrder.getReferringPracticeId();
+		this.referringPracticeIdType = patientOrder.getReferringPracticeIdType();
+		this.referringPracticeName = patientOrder.getReferringPracticeName();
+		this.orderingProviderId = patientOrder.getOrderingProviderId();
+		this.orderingProviderIdType = patientOrder.getOrderingProviderIdType();
+		this.orderingProviderLastName = patientOrder.getOrderingProviderLastName();
+		this.orderingProviderFirstName = patientOrder.getOrderingProviderFirstName();
+		this.orderingProviderMiddleName = patientOrder.getOrderingProviderMiddleName();
+		this.orderingProviderDisplayName = Normalizer.normalizeName(patientOrder.getOrderingProviderFirstName(), patientOrder.getOrderingProviderMiddleName(), patientOrder.getOrderingProviderLastName()).orElse(null);
+		this.orderingProviderDisplayNameWithLastFirst = Normalizer.normalizeNameWithLastFirst(patientOrder.getOrderingProviderFirstName(), patientOrder.getOrderingProviderMiddleName(), patientOrder.getOrderingProviderLastName()).orElse(null);
+		this.billingProviderId = patientOrder.getBillingProviderId();
+		this.billingProviderIdType = patientOrder.getBillingProviderIdType();
+		this.billingProviderLastName = patientOrder.getBillingProviderLastName();
+		this.billingProviderFirstName = patientOrder.getBillingProviderFirstName();
+		this.billingProviderMiddleName = patientOrder.getBillingProviderMiddleName();
+		this.billingProviderDisplayName = Normalizer.normalizeName(patientOrder.getBillingProviderFirstName(), patientOrder.getBillingProviderMiddleName(), patientOrder.getBillingProviderLastName()).orElse(null);
+		this.billingProviderDisplayNameWithLastFirst = Normalizer.normalizeNameWithLastFirst(patientOrder.getBillingProviderFirstName(), patientOrder.getBillingProviderMiddleName(), patientOrder.getBillingProviderLastName()).orElse(null);
 
 		// MHIC-only view of the data
 		if (format == PatientOrderApiResponseFormat.MHIC) {
@@ -642,23 +659,6 @@ public class PatientOrderApiResponse {
 			this.encounterDepartmentId = patientOrder.getEncounterDepartmentId();
 			this.encounterDepartmentIdType = patientOrder.getEncounterDepartmentIdType();
 			this.encounterDepartmentName = patientOrder.getEncounterDepartmentName();
-			this.referringPracticeId = patientOrder.getReferringPracticeId();
-			this.referringPracticeIdType = patientOrder.getReferringPracticeIdType();
-			this.referringPracticeName = patientOrder.getReferringPracticeName();
-			this.orderingProviderId = patientOrder.getOrderingProviderId();
-			this.orderingProviderIdType = patientOrder.getOrderingProviderIdType();
-			this.orderingProviderLastName = patientOrder.getOrderingProviderLastName();
-			this.orderingProviderFirstName = patientOrder.getOrderingProviderFirstName();
-			this.orderingProviderMiddleName = patientOrder.getOrderingProviderMiddleName();
-			this.orderingProviderDisplayName = Normalizer.normalizeName(patientOrder.getOrderingProviderFirstName(), patientOrder.getOrderingProviderMiddleName(), patientOrder.getOrderingProviderLastName()).orElse(null);
-			this.orderingProviderDisplayNameWithLastFirst = Normalizer.normalizeNameWithLastFirst(patientOrder.getOrderingProviderFirstName(), patientOrder.getOrderingProviderMiddleName(), patientOrder.getOrderingProviderLastName()).orElse(null);
-			this.billingProviderId = patientOrder.getBillingProviderId();
-			this.billingProviderIdType = patientOrder.getBillingProviderIdType();
-			this.billingProviderLastName = patientOrder.getBillingProviderLastName();
-			this.billingProviderFirstName = patientOrder.getBillingProviderFirstName();
-			this.billingProviderMiddleName = patientOrder.getBillingProviderMiddleName();
-			this.billingProviderDisplayName = Normalizer.normalizeName(patientOrder.getBillingProviderFirstName(), patientOrder.getBillingProviderMiddleName(), patientOrder.getBillingProviderLastName()).orElse(null);
-			this.billingProviderDisplayNameWithLastFirst = Normalizer.normalizeNameWithLastFirst(patientOrder.getBillingProviderFirstName(), patientOrder.getBillingProviderMiddleName(), patientOrder.getBillingProviderLastName()).orElse(null);
 			this.primaryPayorId = patientOrder.getPrimaryPayorId();
 			this.primaryPayorName = patientOrder.getPrimaryPayorName();
 			this.primaryPlanId = patientOrder.getPrimaryPlanId();
