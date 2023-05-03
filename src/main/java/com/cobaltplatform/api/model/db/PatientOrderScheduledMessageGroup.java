@@ -21,9 +21,11 @@ package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType.PatientOrderScheduledMessageTypeId;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
@@ -37,6 +39,8 @@ public class PatientOrderScheduledMessageGroup {
 	private PatientOrderScheduledMessageTypeId patientOrderScheduledMessageTypeId;
 	@Nullable
 	private UUID patientOrderId;
+	@Nonnull
+	private LocalDateTime scheduledAt;
 	@Nullable
 	private Boolean deleted;
 	@Nullable

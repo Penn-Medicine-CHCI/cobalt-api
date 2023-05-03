@@ -1288,9 +1288,9 @@ public class PatientOrderResource {
 				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
 				.collect(Collectors.toList());
 
-		// "New Patients": outreach_count == 0
+		// "New Patients": total_outreach_count == 0
 		List<PatientOrderApiResponse> newPatientPatientOrders = patientOrders.stream()
-				.filter(patientOrder -> patientOrder.getOutreachCount() == 0)
+				.filter(patientOrder -> patientOrder.getTotalOutreachCount() == 0)
 				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
 				.collect(Collectors.toList());
 

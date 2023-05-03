@@ -833,9 +833,9 @@ public class PatientOrderService implements AutoCloseable {
 
 		if (patientOrderOutreachStatusId != null) {
 			if (patientOrderOutreachStatusId == PatientOrderOutreachStatusId.HAS_OUTREACH)
-				whereClauseLines.add("AND po.outreach_count > 0");
+				whereClauseLines.add("AND po.total_outreach_count > 0");
 			else if (patientOrderOutreachStatusId == PatientOrderOutreachStatusId.NO_OUTREACH)
-				whereClauseLines.add("AND po.outreach_count = 0");
+				whereClauseLines.add("AND po.total_outreach_count = 0");
 		}
 
 		if (patientOrderResponseStatusId != null) {
@@ -2534,13 +2534,16 @@ public class PatientOrderService implements AutoCloseable {
 		if (validationException.hasErrors())
 			throw validationException;
 
+		LocalDateTime scheduledAtDateTime = LocalDateTime.of(scheduledAtDate, scheduledAtTime);
+
 		getDatabase().execute("""
 				INSERT INTO patient_order_scheduled_message_group (
 					patient_order_scheduled_message_group_id,
 					patient_order_id,
-					patient_order_scheduled_message_type_id
-				) VALUES (?,?,?)
-				""", patientOrderScheduledMessageGroupId, patientOrderId, patientOrderScheduledMessageTypeId);
+					patient_order_scheduled_message_type_id,
+					scheduled_at_date_time
+				) VALUES (?,?,?,?)
+				""", patientOrderScheduledMessageGroupId, patientOrderId, patientOrderScheduledMessageTypeId, scheduledAtDateTime);
 
 		createScheduledMessagesForPatientOrderScheduledMessageGroup(patientOrderScheduledMessageGroupId, patientOrder,
 				patientOrderScheduledMessageType, messageTypeIds, scheduledAtDate, scheduledAtTime);
@@ -2613,11 +2616,13 @@ public class PatientOrderService implements AutoCloseable {
 		if (validationException.hasErrors())
 			throw validationException;
 
+		LocalDateTime scheduledAtDateTime = LocalDateTime.of(scheduledAtDate, scheduledAtTime);
+
 		boolean updated = getDatabase().execute("""
 				UPDATE patient_order_scheduled_message_group
-				SET patient_order_scheduled_message_type_id=?
+				SET patient_order_scheduled_message_type_id=?, scheduled_at_date_time=?
 				WHERE patient_order_scheduled_message_group_id=?
-				""", patientOrderScheduledMessageTypeId, patientOrderScheduledMessageGroupId) > 0;
+				""", patientOrderScheduledMessageTypeId, scheduledAtDateTime, patientOrderScheduledMessageGroupId) > 0;
 
 		// Cancel existing messages in this group...
 		cancelScheduledMessagesForPatientOrderScheduledMessageGroup(patientOrderScheduledMessageGroupId);

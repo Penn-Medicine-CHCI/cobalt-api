@@ -194,9 +194,15 @@ public class PatientOrder {
 	@Nullable
 	private String patientOrderCareTypeDescription;
 	@Nullable
+	private Integer totalOutreachCount;
+	@Nullable
 	private Integer outreachCount;
 	@Nullable
 	private LocalDateTime mostRecentOutreachDateTime;
+	@Nullable
+	private Integer scheduledMessageGroupCount;
+	@Nullable
+	private LocalDateTime mostRecentScheduledMessageGroupDateTime;
 	@Nullable
 	private UUID mostRecentScreeningSessionId;
 	@Nullable
@@ -904,6 +910,15 @@ public class PatientOrder {
 	}
 
 	@Nullable
+	public Integer getTotalOutreachCount() {
+		return this.totalOutreachCount;
+	}
+
+	public void setTotalOutreachCount(@Nullable Integer totalOutreachCount) {
+		this.totalOutreachCount = totalOutreachCount;
+	}
+
+	@Nullable
 	public Integer getOutreachCount() {
 		return this.outreachCount;
 	}
@@ -919,6 +934,24 @@ public class PatientOrder {
 
 	public void setMostRecentOutreachDateTime(@Nullable LocalDateTime mostRecentOutreachDateTime) {
 		this.mostRecentOutreachDateTime = mostRecentOutreachDateTime;
+	}
+
+	@Nullable
+	public Integer getScheduledMessageGroupCount() {
+		return this.scheduledMessageGroupCount;
+	}
+
+	public void setScheduledMessageGroupCount(@Nullable Integer scheduledMessageGroupCount) {
+		this.scheduledMessageGroupCount = scheduledMessageGroupCount;
+	}
+
+	@Nullable
+	public LocalDateTime getMostRecentScheduledMessageGroupDateTime() {
+		return this.mostRecentScheduledMessageGroupDateTime;
+	}
+
+	public void setMostRecentScheduledMessageGroupDateTime(@Nullable LocalDateTime mostRecentScheduledMessageGroupDateTime) {
+		this.mostRecentScheduledMessageGroupDateTime = mostRecentScheduledMessageGroupDateTime;
 	}
 
 	@Nullable

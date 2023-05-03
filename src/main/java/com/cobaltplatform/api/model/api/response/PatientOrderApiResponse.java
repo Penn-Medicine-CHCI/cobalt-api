@@ -286,6 +286,10 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String patientOrderCareTypeDescription;
 	@Nullable
+	private Integer totalOutreachCount;
+	@Nullable
+	private String totalOutreachCountDescription;
+	@Nullable
 	private Integer outreachCount;
 	@Nullable
 	private String outreachCountDescription;
@@ -293,6 +297,14 @@ public class PatientOrderApiResponse {
 	private LocalDateTime mostRecentOutreachDateTime;
 	@Nullable
 	private String mostRecentOutreachDateTimeDescription;
+	@Nullable
+	private Integer scheduledMessageGroupCount;
+	@Nullable
+	private String scheduledMessageGroupCountDescription;
+	@Nullable
+	private LocalDateTime mostRecentScheduledMessageGroupDateTime;
+	@Nullable
+	private String mostRecentScheduledMessageGroupDateTimeDescription;
 	@Nullable
 	private UUID mostRecentScreeningSessionId;
 	@Nullable
@@ -715,10 +727,16 @@ public class PatientOrderApiResponse {
 
 			this.patientOrderCareTypeId = patientOrder.getPatientOrderCareTypeId();
 			this.patientOrderCareTypeDescription = patientOrder.getPatientOrderCareTypeDescription();
+			this.totalOutreachCount = patientOrder.getTotalOutreachCount();
+			this.totalOutreachCountDescription = formatter.formatNumber(patientOrder.getTotalOutreachCount() == null ? 0 : patientOrder.getTotalOutreachCount());
 			this.outreachCount = patientOrder.getOutreachCount();
 			this.outreachCountDescription = formatter.formatNumber(patientOrder.getOutreachCount() == null ? 0 : patientOrder.getOutreachCount());
 			this.mostRecentOutreachDateTime = patientOrder.getMostRecentOutreachDateTime();
 			this.mostRecentOutreachDateTimeDescription = patientOrder.getMostRecentOutreachDateTime() == null ? null : formatter.formatDateTime(patientOrder.getMostRecentOutreachDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+			this.scheduledMessageGroupCount = patientOrder.getScheduledMessageGroupCount();
+			this.scheduledMessageGroupCountDescription = formatter.formatNumber(patientOrder.getScheduledMessageGroupCount() == null ? 0 : patientOrder.getScheduledMessageGroupCount());
+			this.mostRecentScheduledMessageGroupDateTime = patientOrder.getMostRecentScheduledMessageGroupDateTime();
+			this.mostRecentScheduledMessageGroupDateTimeDescription = patientOrder.getMostRecentScheduledMessageGroupDateTime() == null ? null : formatter.formatDateTime(patientOrder.getMostRecentScheduledMessageGroupDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 			this.mostRecentScreeningSessionId = patientOrder.getMostRecentScreeningSessionId();
 			this.mostRecentScreeningSessionCreatedByAccountId = patientOrder.getMostRecentScreeningSessionCreatedByAccountId();
 			this.mostRecentScreeningSessionCreatedByAccountFirstName = patientOrder.getMostRecentScreeningSessionCreatedByAccountFirstName();
@@ -1155,6 +1173,36 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public String getPatientOrderCareTypeDescription() {
 		return this.patientOrderCareTypeDescription;
+	}
+
+	@Nullable
+	public Integer getTotalOutreachCount() {
+		return this.totalOutreachCount;
+	}
+
+	@Nullable
+	public String getTotalOutreachCountDescription() {
+		return this.totalOutreachCountDescription;
+	}
+
+	@Nullable
+	public Integer getScheduledMessageGroupCount() {
+		return this.scheduledMessageGroupCount;
+	}
+
+	@Nullable
+	public String getScheduledMessageGroupCountDescription() {
+		return this.scheduledMessageGroupCountDescription;
+	}
+
+	@Nullable
+	public LocalDateTime getMostRecentScheduledMessageGroupDateTime() {
+		return this.mostRecentScheduledMessageGroupDateTime;
+	}
+
+	@Nullable
+	public String getMostRecentScheduledMessageGroupDateTimeDescription() {
+		return this.mostRecentScheduledMessageGroupDateTimeDescription;
 	}
 
 	@Nullable

@@ -1,6 +1,8 @@
 BEGIN;
 SELECT _v.register_patch('084-ic-updates', NULL, NULL);
 
+DROP VIEW v_patient_order;
+
 INSERT INTO feature
   (feature_id, name, url_name, navigation_header_id)
 VALUES
@@ -35,9 +37,12 @@ FROM patient_order_voicemail_task povt
 LEFT JOIN account acr ON povt.created_by_account_id = acr.account_id
 LEFT OUTER JOIN account aco ON povt.completed_by_account_id = aco.account_id;
 
+ALTER TABLE patient_order_scheduled_message_group ADD COLUMN scheduled_at_date_time timestamp without time zone;
+UPDATE patient_order_scheduled_message_group SET scheduled_at_date_time=NOW(); -- safe to do because we still only have test data
+ALTER TABLE patient_order_scheduled_message_group ALTER COLUMN scheduled_at_date_time SET NOT NULL;
+
 -- Fix for safety planning, adjust patient order status
-DROP VIEW v_patient_order;
-CREATE VIEW v_patient_order AS WITH po_query AS (
+CREATE or replace VIEW v_patient_order AS WITH po_query AS (
     select
         *
     from
@@ -71,6 +76,33 @@ poomax_query AS (
         and poo.deleted = false
     group by
         poo.patient_order_id
+),
+smg_query AS (
+    -- Count up the scheduled message groups for each patient order
+    select
+        poq.patient_order_id,
+        count(posmg.*) AS scheduled_message_group_count
+    from
+        patient_order_scheduled_message_group posmg,
+        po_query poq
+    where
+        poq.patient_order_id = posmg.patient_order_id
+        AND posmg.deleted=FALSE
+    group by
+        poq.patient_order_id
+),
+smgmax_query AS (
+    -- Pick the most-distant scheduled message group for each patient order
+    select
+        posmg.patient_order_id, MAX(posmg.scheduled_at_date_time) as max_scheduled_message_group_date_time
+    from
+        po_query poq,
+        patient_order_scheduled_message_group posmg
+    where
+        poq.patient_order_id = posmg.patient_order_id
+        and posmg.deleted = false
+    group by
+        posmg.patient_order_id
 ),
 recent_appt_query AS (
     -- Pick the most recent appointment for each patient order
@@ -186,6 +218,9 @@ select
     tq.patient_order_care_type_description,
     coalesce(pooq.outreach_count, 0) AS outreach_count,
     poomaxq.max_outreach_date_time AS most_recent_outreach_date_time,
+    coalesce(smgq.scheduled_message_group_count, 0) AS scheduled_message_group_count,
+    smgmaxq.max_scheduled_message_group_date_time AS most_recent_scheduled_message_group_date_time,
+    coalesce(pooq.outreach_count, 0) + coalesce(smgq.scheduled_message_group_count, 0) as total_outreach_count,
     ssq.screening_session_id AS most_recent_screening_session_id,
     ssq.created_by_account_id AS most_recent_screening_session_created_by_account_id,
     ssq.first_name AS most_recent_screening_session_created_by_account_first_name,
@@ -248,6 +283,8 @@ from
     left join institution i ON poq.institution_id = i.institution_id
     left outer join poo_query pooq ON poq.patient_order_id = pooq.patient_order_id
     left outer join poomax_query poomaxq ON poq.patient_order_id = poomaxq.patient_order_id
+    left outer join smg_query smgq ON poq.patient_order_id = smgq.patient_order_id
+    left outer join smgmax_query smgmaxq ON poq.patient_order_id = smgmaxq.patient_order_id
     left outer join ss_query ssq ON poq.patient_order_id = ssq.patient_order_id
     left outer join triage_query tq ON poq.patient_order_id = tq.patient_order_id
     left outer join account panel_account ON poq.panel_account_id = panel_account.account_id
@@ -255,5 +292,6 @@ from
     left outer join recent_scheduled_screening_query rssq ON poq.patient_order_id = rssq.patient_order_id
     left outer join recent_appt_query raq on poq.patient_order_id=raq.patient_order_id
     left outer join recent_voicemail_task_query rvtq on poq.patient_order_id=rvtq.patient_order_id;
+
 
 COMMIT;
