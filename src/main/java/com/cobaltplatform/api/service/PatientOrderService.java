@@ -2139,7 +2139,7 @@ public class PatientOrderService implements AutoCloseable {
 
 		return getDatabase().queryForObject("""
 				SELECT *
-				FROM patient_order_voicemail_task
+				FROM v_patient_order_voicemail_task
 				WHERE patient_order_voicemail_task_id=?
 				AND deleted=false
 				""", PatientOrderVoicemailTask.class, patientOrderVoicemailTaskId);
@@ -2152,7 +2152,7 @@ public class PatientOrderService implements AutoCloseable {
 
 		return getDatabase().queryForList("""
 				SELECT *
-				FROM patient_order_voicemail_task
+				FROM v_patient_order_voicemail_task
 				WHERE patient_order_id=?
 				ORDER BY last_updated DESC
 				""", PatientOrderVoicemailTask.class, patientOrderId);

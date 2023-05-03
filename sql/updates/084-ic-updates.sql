@@ -19,6 +19,17 @@ VALUES
 
 DROP TABLE patient_order_status;
 
+CREATE VIEW v_patient_order_voicemail_task AS
+SELECT
+  povt.*,
+  acr.first_name as created_by_account_first_name,
+  acr.last_name as created_by_account_last_name,
+  aco.first_name as completed_by_account_first_name,
+  aco.last_name as completed_by_account_last_name
+FROM patient_order_voicemail_task povt
+LEFT JOIN account acr ON povt.created_by_account_id = acr.account_id
+LEFT OUTER JOIN account aco ON povt.completed_by_account_id = aco.account_id;
+
 -- Fix for safety planning, adjust patient order status
 DROP VIEW v_patient_order;
 CREATE VIEW v_patient_order AS WITH po_query AS (
