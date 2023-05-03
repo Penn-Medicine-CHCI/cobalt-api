@@ -130,6 +130,10 @@ public class InstitutionApiResponse {
 	@Nullable
 	private final String integratedCareAvailabilityDescription;
 	@Nullable
+	private final String integratedCareProgramName;
+	@Nullable
+	private final String integratedCarePrimaryCareName;
+	@Nullable
 	private final String myChartName;
 	@Nonnull
 	private final List<NavigationItem> additionalNavigationItems;
@@ -225,6 +229,8 @@ public class InstitutionApiResponse {
 		this.integratedCarePhoneNumber = institution.getIntegratedCarePhoneNumber();
 		this.integratedCarePhoneNumberDescription = institution.getIntegratedCarePhoneNumber() == null ? null : formatter.formatPhoneNumber(institution.getIntegratedCarePhoneNumber());
 		this.integratedCareAvailabilityDescription = institution.getIntegratedCareAvailabilityDescription();
+		this.integratedCareProgramName = institution.getIntegratedCareProgramName();
+		this.integratedCarePrimaryCareName = institution.getIntegratedCarePrimaryCareName();
 
 		if (account == null) {
 			this.alerts = alertService.findAlertsByInstitutionId(institution.getInstitutionId()).stream()
@@ -448,6 +454,16 @@ public class InstitutionApiResponse {
 	@Nullable
 	public String getIntegratedCareAvailabilityDescription() {
 		return this.integratedCareAvailabilityDescription;
+	}
+
+	@Nullable
+	public String getIntegratedCareProgramName() {
+		return this.integratedCareProgramName;
+	}
+
+	@Nullable
+	public String getIntegratedCarePrimaryCareName() {
+		return this.integratedCarePrimaryCareName;
 	}
 
 	@Nullable

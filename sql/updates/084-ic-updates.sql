@@ -21,6 +21,9 @@ DROP TABLE patient_order_status;
 
 ALTER TABLE institution_account_source ADD COLUMN requires_user_experience_type_id VARCHAR REFERENCES user_experience_type(user_experience_type_id);
 
+ALTER TABLE institution ADD COLUMN integrated_care_program_name VARCHAR;
+ALTER TABLE institution ADD COLUMN integrated_care_primary_care_name VARCHAR;
+
 CREATE VIEW v_patient_order_voicemail_task AS
 SELECT
   povt.*,
