@@ -428,6 +428,24 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
+	public Optional<PatientOrder> findLatestPatientOrderByMrnAndInstitutionId(@Nullable String patientMrn,
+																																						@Nullable InstitutionId institutionId) {
+		patientMrn = trimToNull(patientMrn);
+
+		if (patientMrn == null || institutionId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM v_patient_order
+				WHERE UPPER(?)=UPPER(patient_mrn)
+				AND institution_id=?
+				ORDER BY order_date DESC
+				LIMIT 1
+				""", PatientOrder.class, patientMrn, institutionId);
+	}
+
+	@Nonnull
 	public Optional<PatientOrder> findOpenPatientOrderByPatientAccountId(@Nullable UUID patientAccountId) {
 		if (patientAccountId == null)
 			return Optional.empty();

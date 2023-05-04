@@ -377,12 +377,48 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
+	@GET("/patient-orders/latest")
+	@AuthenticationRequired
+	public ApiResponse latestPatientOrder(@Nonnull @QueryParameter Optional<UUID> accountId) {
+		requireNonNull(accountId);
+
+		// Pull the latest order (if it exists) for the current account by default.
+		// Or - if an account ID is provided - pull the current order for that account.
+		// We perform an authorization check below after all data is loaded.
+		Account currentAccount = getCurrentContext().getAccount().get();
+		Account targetAccount = currentAccount;
+
+		if (accountId.isPresent()) {
+			targetAccount = getAccountService().findAccountById(accountId.get()).orElse(null);
+
+			if (targetAccount == null)
+				throw new NotFoundException();
+		}
+
+		PatientOrder patientOrder = getPatientOrderService().findLatestPatientOrderByMrnAndInstitutionId(targetAccount.getEpicPatientMrn(), targetAccount.getInstitutionId()).orElse(null);
+
+		if (patientOrder == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canViewPatientOrder(patientOrder, currentAccount))
+			throw new AuthorizationException();
+
+		PatientOrderApiResponseFormat responseFormat = PatientOrderApiResponseFormat.fromRoleId(currentAccount.getRoleId());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrder", getPatientOrderApiResponseFactory().create(patientOrder, responseFormat,
+					Set.of(PatientOrderApiResponseSupplement.EVERYTHING)));
+		}});
+	}
+
+
+	@Nonnull
 	@GET("/patient-orders/open")
 	@AuthenticationRequired
 	public ApiResponse openPatientOrder(@Nonnull @QueryParameter Optional<UUID> accountId) {
 		requireNonNull(accountId);
 
-		// Pull the open order (if it exists) for the open account by default.
+		// Pull the open order (if it exists) for the current account by default.
 		// Or - if an account ID is provided - pull the open order for that account.
 		// We perform an authorization check below after all data is loaded.
 		Account currentAccount = getCurrentContext().getAccount().get();
