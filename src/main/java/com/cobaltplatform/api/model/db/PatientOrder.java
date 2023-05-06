@@ -25,7 +25,9 @@ import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
+import com.cobaltplatform.api.model.db.PatientOrderConsentStatus.PatientOrderConsentStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
+import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
@@ -173,11 +175,17 @@ public class PatientOrder {
 	@Nullable
 	private Instant connectedToSafetyPlanningAt;
 	@Nullable
-	private Boolean patientConsented;
+	private PatientOrderConsentStatusId patientOrderConsentStatusId;
 	@Nullable
-	private UUID patientConsentedByAccountId;
+	private UUID consentStatusUpdatedByByAccountId;
 	@Nullable
-	private Instant patientConsentedAt;
+	private Instant consentStatusUpdatedAt;
+	@Nullable
+	private PatientOrderResourceCheckInResponseStatusId patientOrderResourceCheckInResponseStatusId;
+	@Nullable
+	private UUID resourceCheckInResponseStatusUpdatedByByAccountId;
+	@Nullable
+	private Instant resourceCheckInResponseStatusUpdatedAt;
 	@Nullable
 	private String testPatientEmailAddress;
 	@Nullable
@@ -829,30 +837,57 @@ public class PatientOrder {
 	}
 
 	@Nullable
-	public Boolean getPatientConsented() {
-		return this.patientConsented;
+	public PatientOrderConsentStatusId getPatientOrderConsentStatusId() {
+		return this.patientOrderConsentStatusId;
 	}
 
-	public void setPatientConsented(@Nullable Boolean patientConsented) {
-		this.patientConsented = patientConsented;
-	}
-
-	@Nullable
-	public UUID getPatientConsentedByAccountId() {
-		return this.patientConsentedByAccountId;
-	}
-
-	public void setPatientConsentedByAccountId(@Nullable UUID patientConsentedByAccountId) {
-		this.patientConsentedByAccountId = patientConsentedByAccountId;
+	public void setPatientOrderConsentStatusId(@Nullable PatientOrderConsentStatusId patientOrderConsentStatusId) {
+		this.patientOrderConsentStatusId = patientOrderConsentStatusId;
 	}
 
 	@Nullable
-	public Instant getPatientConsentedAt() {
-		return this.patientConsentedAt;
+	public UUID getConsentStatusUpdatedByByAccountId() {
+		return this.consentStatusUpdatedByByAccountId;
 	}
 
-	public void setPatientConsentedAt(@Nullable Instant patientConsentedAt) {
-		this.patientConsentedAt = patientConsentedAt;
+	public void setConsentStatusUpdatedByByAccountId(@Nullable UUID consentStatusUpdatedByByAccountId) {
+		this.consentStatusUpdatedByByAccountId = consentStatusUpdatedByByAccountId;
+	}
+
+	@Nullable
+	public Instant getConsentStatusUpdatedAt() {
+		return this.consentStatusUpdatedAt;
+	}
+
+	public void setConsentStatusUpdatedAt(@Nullable Instant consentStatusUpdatedAt) {
+		this.consentStatusUpdatedAt = consentStatusUpdatedAt;
+	}
+
+	@Nullable
+	public PatientOrderResourceCheckInResponseStatusId getPatientOrderResourceCheckInResponseStatusId() {
+		return this.patientOrderResourceCheckInResponseStatusId;
+	}
+
+	public void setPatientOrderResourceCheckInResponseStatusId(@Nullable PatientOrderResourceCheckInResponseStatusId patientOrderResourceCheckInResponseStatusId) {
+		this.patientOrderResourceCheckInResponseStatusId = patientOrderResourceCheckInResponseStatusId;
+	}
+
+	@Nullable
+	public UUID getResourceCheckInResponseStatusUpdatedByByAccountId() {
+		return this.resourceCheckInResponseStatusUpdatedByByAccountId;
+	}
+
+	public void setResourceCheckInResponseStatusUpdatedByByAccountId(@Nullable UUID resourceCheckInResponseStatusUpdatedByByAccountId) {
+		this.resourceCheckInResponseStatusUpdatedByByAccountId = resourceCheckInResponseStatusUpdatedByByAccountId;
+	}
+
+	@Nullable
+	public Instant getResourceCheckInResponseStatusUpdatedAt() {
+		return this.resourceCheckInResponseStatusUpdatedAt;
+	}
+
+	public void setResourceCheckInResponseStatusUpdatedAt(@Nullable Instant resourceCheckInResponseStatusUpdatedAt) {
+		this.resourceCheckInResponseStatusUpdatedAt = resourceCheckInResponseStatusUpdatedAt;
 	}
 
 	@Nullable

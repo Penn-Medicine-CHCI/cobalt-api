@@ -21,6 +21,8 @@ package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
+import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus;
+import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderAssignmentStatusId;
@@ -51,6 +53,29 @@ public class FindPatientOrdersRequest {
 	private PatientOrderResponseStatusId patientOrderResponseStatusId;
 	@Nullable
 	private PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId;
+
+
+	public enum PatientOrderFilterFlagTypeId {
+		NONE,
+		PATIENT_BELOW_AGE_THRESHOLD,
+		MOST_RECENT_EPISODE_CLOSED_WITHIN_DATE_THRESHOLD
+		// We don't include safety planning here because it's already filterable via PatientOrderSafetyPlanningStatusId
+	}
+
+	@Nullable
+	private Set<PatientOrderFilterFlagTypeId> patientOrderFilterFlagTypeIds;
+	@Nullable
+	private Set<String> referringPracticeNames;
+	@Nullable
+	private Set<String> reasonsForReferral;
+
+	//		SCREENING_STATUS,
+
+	@Nullable
+	private Set<PatientOrderResourcingStatusId> patientOrderResourcingStatusIds;
+
+	//		RESOURCE_CHECK_IN_RESPONSE
+
 	@Nullable
 	private UUID panelAccountId;
 	@Nullable

@@ -40,9 +40,11 @@ import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderCareType;
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
+import com.cobaltplatform.api.model.db.PatientOrderConsentStatus.PatientOrderConsentStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
@@ -248,14 +250,21 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String providerName;
 	@Nullable
-	private Boolean patientConsented;
+	private PatientOrderConsentStatusId patientOrderConsentStatusId;
 	@Nullable
-	private UUID patientConsentedByAccountId;
+	private UUID consentStatusUpdatedByByAccountId;
 	@Nullable
-	private Instant patientConsentedAt;
+	private Instant consentStatusUpdatedAt;
 	@Nullable
-	private String patientConsentedAtDescription;
-
+	private String consentStatusUpdatedAtDescription;
+	@Nullable
+	private PatientOrderResourceCheckInResponseStatusId patientOrderResourceCheckInResponseStatusId;
+	@Nullable
+	private UUID resourceCheckInResponseStatusUpdatedByByAccountId;
+	@Nullable
+	private Instant resourceCheckInResponseStatusUpdatedAt;
+	@Nullable
+	private String resourceCheckInResponseStatusUpdatedAtDescription;
 	@Nullable
 	private AddressApiResponse patientAddress;
 	@Nullable
@@ -642,10 +651,8 @@ public class PatientOrderApiResponse {
 		this.appointmentStartTimeDescription = patientOrder.getAppointmentStartTime() == null ? null : formatter.formatDateTime(patientOrder.getAppointmentStartTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 		this.providerId = patientOrder.getProviderId();
 		this.providerName = patientOrder.getProviderName();
-		this.patientConsented = patientOrder.getPatientConsented();
-		this.patientConsentedByAccountId = patientOrder.getPatientConsentedByAccountId();
-		this.patientConsentedAt = patientOrder.getPatientConsentedAt();
-		this.patientConsentedAtDescription = patientOrder.getPatientConsentedAt() == null ? null : formatter.formatTimestamp(patientOrder.getPatientConsentedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.patientOrderConsentStatusId = patientOrder.getPatientOrderConsentStatusId();
+		this.patientOrderResourceCheckInResponseStatusId = patientOrder.getPatientOrderResourceCheckInResponseStatusId();
 		this.referringPracticeId = patientOrder.getReferringPracticeId();
 		this.referringPracticeIdType = patientOrder.getReferringPracticeIdType();
 		this.referringPracticeName = patientOrder.getReferringPracticeName();
@@ -767,6 +774,12 @@ public class PatientOrderApiResponse {
 			this.patientOrderScheduledScreeningScheduledDateTime = patientOrder.getPatientOrderScheduledScreeningScheduledDateTime();
 			this.patientOrderScheduledScreeningScheduledDateTimeDescription = patientOrder.getPatientOrderScheduledScreeningScheduledDateTime() == null ? null : formatter.formatDateTime(patientOrder.getPatientOrderScheduledScreeningScheduledDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 			this.patientOrderScheduledScreeningCalendarUrl = patientOrder.getPatientOrderScheduledScreeningCalendarUrl();
+			this.consentStatusUpdatedByByAccountId = patientOrder.getConsentStatusUpdatedByByAccountId();
+			this.consentStatusUpdatedAt = patientOrder.getConsentStatusUpdatedAt();
+			this.consentStatusUpdatedAtDescription = patientOrder.getConsentStatusUpdatedAt() == null ? null : formatter.formatTimestamp(patientOrder.getConsentStatusUpdatedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+			this.resourceCheckInResponseStatusUpdatedByByAccountId = patientOrder.getResourceCheckInResponseStatusUpdatedByByAccountId();
+			this.resourceCheckInResponseStatusUpdatedAt = patientOrder.getResourceCheckInResponseStatusUpdatedAt();
+			this.resourceCheckInResponseStatusUpdatedAtDescription = patientOrder.getResourceCheckInResponseStatusUpdatedAt() == null ? null : formatter.formatTimestamp(patientOrder.getResourceCheckInResponseStatusUpdatedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 
 			List<PatientOrderScheduledMessage> patientOrderScheduledMessages = patientOrderService.findPatientOrderScheduledMessagesByPatientOrderId(patientOrder.getPatientOrderId());
 			this.patientOrderScheduledMessageGroups = patientOrderService.generatePatientOrderScheduledMessageGroupApiResponses(patientOrderScheduledMessages);
@@ -1426,23 +1439,43 @@ public class PatientOrderApiResponse {
 	}
 
 	@Nullable
-	public Boolean getPatientConsented() {
-		return this.patientConsented;
+	public PatientOrderConsentStatusId getPatientOrderConsentStatusId() {
+		return this.patientOrderConsentStatusId;
 	}
 
 	@Nullable
-	public UUID getPatientConsentedByAccountId() {
-		return this.patientConsentedByAccountId;
+	public UUID getConsentStatusUpdatedByByAccountId() {
+		return this.consentStatusUpdatedByByAccountId;
 	}
 
 	@Nullable
-	public Instant getPatientConsentedAt() {
-		return this.patientConsentedAt;
+	public Instant getConsentStatusUpdatedAt() {
+		return this.consentStatusUpdatedAt;
 	}
 
 	@Nullable
-	public String getPatientConsentedAtDescription() {
-		return this.patientConsentedAtDescription;
+	public String getConsentStatusUpdatedAtDescription() {
+		return this.consentStatusUpdatedAtDescription;
+	}
+
+	@Nullable
+	public PatientOrderResourceCheckInResponseStatusId getPatientOrderResourceCheckInResponseStatusId() {
+		return this.patientOrderResourceCheckInResponseStatusId;
+	}
+
+	@Nullable
+	public UUID getResourceCheckInResponseStatusUpdatedByByAccountId() {
+		return this.resourceCheckInResponseStatusUpdatedByByAccountId;
+	}
+
+	@Nullable
+	public Instant getResourceCheckInResponseStatusUpdatedAt() {
+		return this.resourceCheckInResponseStatusUpdatedAt;
+	}
+
+	@Nullable
+	public String getResourceCheckInResponseStatusUpdatedAtDescription() {
+		return this.resourceCheckInResponseStatusUpdatedAtDescription;
 	}
 
 	@Nullable

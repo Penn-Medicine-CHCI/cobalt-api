@@ -41,6 +41,40 @@ ALTER TABLE patient_order_scheduled_message_group ADD COLUMN scheduled_at_date_t
 UPDATE patient_order_scheduled_message_group SET scheduled_at_date_time=NOW(); -- safe to do because we still only have test data
 ALTER TABLE patient_order_scheduled_message_group ALTER COLUMN scheduled_at_date_time SET NOT NULL;
 
+-- Rework how we store off consent
+ALTER TABLE patient_order DROP COLUMN	patient_consented;
+ALTER TABLE patient_order DROP COLUMN	patient_consented_by_account_id;
+ALTER TABLE patient_order DROP COLUMN	patient_consented_at;
+
+CREATE TABLE patient_order_consent_status (
+	patient_order_consent_status_id TEXT PRIMARY KEY,
+	description VARCHAR NOT NULL
+);
+
+INSERT INTO patient_order_consent_status VALUES ('UNKNOWN', 'Unknown');
+INSERT INTO patient_order_consent_status VALUES ('CONSENTED', 'Consented');
+INSERT INTO patient_order_consent_status VALUES ('REJECTED', 'Rejected');
+
+ALTER TABLE patient_order ADD COLUMN patient_order_consent_status_id TEXT REFERENCES patient_order_consent_status DEFAULT 'UNKNOWN';
+ALTER TABLE patient_order ADD COLUMN consent_status_updated_at TIMESTAMPTZ;
+ALTER TABLE patient_order ADD COLUMN consent_status_updated_by_account_id UUID REFERENCES account(account_id);
+
+-- Add tracking for resource check-ins
+CREATE TABLE patient_order_resource_check_in_response_status (
+	patient_order_resource_check_in_response_status_id TEXT PRIMARY KEY,
+	description VARCHAR NOT NULL
+);
+
+INSERT INTO patient_order_resource_check_in_response_status VALUES ('NONE', 'None');
+INSERT INTO patient_order_resource_check_in_response_status VALUES ('APPOINTMENT_SCHEDULED', 'Appointment Scheduled');
+INSERT INTO patient_order_resource_check_in_response_status VALUES ('APPOINTMENT_ATTENDED', 'Appointment Attended');
+INSERT INTO patient_order_resource_check_in_response_status VALUES ('NEED_FOLLOWUP', 'Need Followup');
+INSERT INTO patient_order_resource_check_in_response_status VALUES ('NO_LONGER_NEED_CARE', 'No Longer Need Care');
+
+ALTER TABLE patient_order ADD COLUMN patient_order_resource_check_in_response_status_id TEXT REFERENCES patient_order_resource_check_in_response_status DEFAULT 'UNKNOWN';
+ALTER TABLE patient_order ADD COLUMN resource_check_in_response_status_updated_at TIMESTAMPTZ;
+ALTER TABLE patient_order ADD COLUMN resource_check_in_response_status_updated_by_account_id UUID REFERENCES account(account_id);
+
 -- Fix for safety planning, adjust patient order status
 CREATE or replace VIEW v_patient_order AS WITH po_query AS (
     select
