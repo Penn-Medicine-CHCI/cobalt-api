@@ -1523,14 +1523,6 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
-	@GET("/accounts/reference-data")
-	@AuthenticationRequired
-	@Deprecated // temporary until FE can transition to GET /patient-orders/reference-data
-	public ApiResponse accountReferenceData() {
-		return patientOrderReferenceData();
-	}
-
-	@Nonnull
 	@GET("/patient-orders/reference-data")
 	@AuthenticationRequired
 	public ApiResponse patientOrderReferenceData() {
@@ -1662,6 +1654,9 @@ public class PatientOrderResource {
 				})
 				.collect(Collectors.toList());
 
+		List<String> referringPracticeNames = getPatientOrderService().findReferringPracticeNamesByInstitutionId(institutionId);
+		List<String> reasonsForReferral = getPatientOrderService().findReasonsForReferralByInstitutionId(institutionId);
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("timeZones", timeZones);
 			put("countries", countries);
@@ -1679,6 +1674,8 @@ public class PatientOrderResource {
 			put("patientOrderScheduledMessageTypes", patientOrderScheduledMessageTypes);
 			put("patientOrderCareTypes", patientOrderCareTypes);
 			put("patientOrderFocusTypes", patientOrderFocusTypes);
+			put("referringPracticeNames", referringPracticeNames);
+			put("reasonsForReferral", reasonsForReferral);
 		}});
 	}
 
