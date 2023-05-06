@@ -145,8 +145,6 @@ public class PatientOrder {
 	@Nullable
 	private String routing;
 	@Nullable
-	private String reasonForReferral;
-	@Nullable
 	private String associatedDiagnosis;
 	@Nullable
 	private String preferredContactHours;
@@ -259,6 +257,8 @@ public class PatientOrder {
 	private UUID mostRecentPatientOrderVoicemailTaskId;
 	@Nullable
 	private Boolean mostRecentPatientOrderVoicemailTaskCompleted;
+	@Nullable
+	private String reasonForReferral;
 
 	@Nullable
 	public UUID getPatientOrderId() {

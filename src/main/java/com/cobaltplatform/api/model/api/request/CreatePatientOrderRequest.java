@@ -127,7 +127,7 @@ public class CreatePatientOrderRequest {
 	@Nullable
 	private String routing;
 	@Nullable
-	private String reasonForReferral;
+	private List<String> reasonsForReferral;
 	@Nullable
 	private List<CreatePatientOrderDiagnosisRequest> diagnoses;
 	@Nullable
@@ -510,12 +510,12 @@ public class CreatePatientOrderRequest {
 	}
 
 	@Nullable
-	public String getReasonForReferral() {
-		return this.reasonForReferral;
+	public List<String> getReasonsForReferral() {
+		return this.reasonsForReferral;
 	}
 
-	public void setReasonForReferral(@Nullable String reasonForReferral) {
-		this.reasonForReferral = reasonForReferral;
+	public void setReasonsForReferral(@Nullable List<String> reasonsForReferral) {
+		this.reasonsForReferral = reasonsForReferral;
 	}
 
 	@Nullable

@@ -71,9 +71,24 @@ INSERT INTO patient_order_resource_check_in_response_status VALUES ('APPOINTMENT
 INSERT INTO patient_order_resource_check_in_response_status VALUES ('NEED_FOLLOWUP', 'Need Followup');
 INSERT INTO patient_order_resource_check_in_response_status VALUES ('NO_LONGER_NEED_CARE', 'No Longer Need Care');
 
-ALTER TABLE patient_order ADD COLUMN patient_order_resource_check_in_response_status_id TEXT REFERENCES patient_order_resource_check_in_response_status DEFAULT 'UNKNOWN';
+ALTER TABLE patient_order ADD COLUMN patient_order_resource_check_in_response_status_id TEXT REFERENCES patient_order_resource_check_in_response_status DEFAULT 'NONE';
 ALTER TABLE patient_order ADD COLUMN resource_check_in_response_status_updated_at TIMESTAMPTZ;
 ALTER TABLE patient_order ADD COLUMN resource_check_in_response_status_updated_by_account_id UUID REFERENCES account(account_id);
+
+-- This is now synthesized via the DB view
+ALTER TABLE patient_order DROP COLUMN reason_for_referral;
+
+-- We need to track referral reasons as their own entities in order to report/search more effectively
+CREATE TABLE patient_order_reason_for_referral (
+  patient_order_id UUID NOT NULL REFERENCES patient_order,
+  reason_for_referral TEXT NOT NULL,
+  display_order INTEGER NOT NULL,
+  PRIMARY KEY (patient_order_id, reason_for_referral)
+);
+
+-- Performance indices for finding distinct names of practices and referral reasons
+CREATE INDEX patient_order_upper_referring_practice_name_idx ON patient_order (UPPER(referring_practice_name));
+CREATE INDEX patient_order_reason_for_referral_upper_reason_idx ON patient_order_reason_for_referral (UPPER(reason_for_referral));
 
 -- Fix for safety planning, adjust patient order status
 CREATE or replace VIEW v_patient_order AS WITH po_query AS (
@@ -110,6 +125,18 @@ poomax_query AS (
         and poo.deleted = false
     group by
         poo.patient_order_id
+),
+reason_for_referral_query AS (
+    -- Pick reasons for referral for each patient order
+    select
+        poq.patient_order_id, string_agg(porfr.reason_for_referral, ', ' order by porfr.display_order) AS reason_for_referral
+    from
+        po_query poq,
+        patient_order_reason_for_referral porfr
+    where
+        poq.patient_order_id = porfr.patient_order_id
+    group by
+				poq.patient_order_id
 ),
 smg_query AS (
     -- Count up the scheduled message groups for each patient order
@@ -309,6 +336,7 @@ select
     raq.appointment_id,
     rvtq.patient_order_voicemail_task_id AS most_recent_patient_order_voicemail_task_id,
     rvtq.patient_order_voicemail_task_completed AS most_recent_patient_order_voicemail_task_completed,
+		rfrq.reason_for_referral,
     poq.*
 from
     po_query poq
@@ -325,7 +353,8 @@ from
     left outer join recent_po_query rpq ON poq.patient_order_id = rpq.patient_order_id
     left outer join recent_scheduled_screening_query rssq ON poq.patient_order_id = rssq.patient_order_id
     left outer join recent_appt_query raq on poq.patient_order_id=raq.patient_order_id
-    left outer join recent_voicemail_task_query rvtq on poq.patient_order_id=rvtq.patient_order_id;
+    left outer join recent_voicemail_task_query rvtq on poq.patient_order_id=rvtq.patient_order_id
+    left outer join reason_for_referral_query rfrq on poq.patient_order_id=rfrq.patient_order_id;
 
 
 COMMIT;

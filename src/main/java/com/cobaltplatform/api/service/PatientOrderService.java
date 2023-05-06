@@ -32,7 +32,6 @@ import com.cobaltplatform.api.model.api.request.AssignPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.CancelPatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CompletePatientOrderVoicemailTaskRequest;
-import com.cobaltplatform.api.model.api.request.ConsentPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderEventRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
@@ -52,6 +51,7 @@ import com.cobaltplatform.api.model.api.request.DeletePatientOrderVoicemailTaskR
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderConsentStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderFollowupNeededRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachNeededRequest;
@@ -76,6 +76,7 @@ import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderCareType;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
+import com.cobaltplatform.api.model.db.PatientOrderConsentStatus.PatientOrderConsentStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderDiagnosis;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
@@ -485,6 +486,33 @@ public class PatientOrderService implements AutoCloseable {
 				AND patient_order_disposition_id != ?
 				ORDER BY order_date DESC, order_age_in_minutes    
 				""", PatientOrder.class, icTestPatientEmailAddress.getEmailAddress(), institutionId, PatientOrderDispositionId.ARCHIVED);
+	}
+
+	@Nonnull
+	public List<String> findReferringPracticeNamesByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT DISTINCT ON (UPPER(referring_practice_name)) referring_practice_name
+				FROM patient_order
+				WHERE institution_id=?
+				ORDER BY UPPER(referring_practice_name)
+				""", String.class, institutionId);
+	}
+
+	@Nonnull
+	public List<String> findReasonsForReferralByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT DISTINCT ON (UPPER(porfr.reason_for_referral)) reason_for_referral
+				FROM patient_order_reason_for_referral porfr, patient_order p
+				WHERE p.patient_order_id=porfr.patient_order_id
+				AND p.institution_id=?
+				ORDER BY UPPER(porfr.reason_for_referral)
+				""", String.class, institutionId);
 	}
 
 	@Nonnull
@@ -1191,11 +1219,12 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public Boolean consentPatientOrder(@Nonnull ConsentPatientOrderRequest request) {
+	public Boolean updatePatientOrderConsentStatus(@Nonnull UpdatePatientOrderConsentStatusRequest request) {
 		requireNonNull(request);
 
 		UUID accountId = request.getAccountId();
 		UUID patientOrderId = request.getPatientOrderId();
+		PatientOrderConsentStatusId patientOrderConsentStatusId = request.getPatientOrderConsentStatusId();
 		PatientOrder patientOrder = null;
 		ValidationException validationException = new ValidationException();
 
@@ -1211,18 +1240,24 @@ public class PatientOrderService implements AutoCloseable {
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
 		}
 
+		if (patientOrderConsentStatusId == null)
+			validationException.add(new FieldError("patientOrderConsentStatusId", getStrings().get("Patient Order Consent Status ID is required.")));
+		else if (patientOrderConsentStatusId != PatientOrderConsentStatusId.CONSENTED
+				&& patientOrderConsentStatusId != PatientOrderConsentStatusId.REJECTED)
+			validationException.add(new FieldError("patientOrderConsentStatusId", getStrings().get("Patient Order Consent Status ID is invalid.")));
+
 		if (validationException.hasErrors())
 			throw validationException;
 
-		// If we're already consented, nothing to do
-		if (patientOrder.getPatientConsented())
+		// If we're not actually changing the status, nothing to do
+		if (patientOrder.getPatientOrderConsentStatusId() == patientOrderConsentStatusId)
 			return false;
 
 		getDatabase().execute("""
 				UPDATE patient_order
-				SET patient_consented=TRUE, patient_consented_at=NOW(), patient_consented_by_account_id=?
+				SET patient_order_consent_status_id=?, consent_status_updated_at=NOW(), consent_status_updated_by_account_id=?
 				WHERE patient_order_id=?
-				""", accountId, patientOrderId);
+				""", patientOrderConsentStatusId, accountId, patientOrderId);
 
 		// TODO: track event
 
@@ -2982,7 +3017,28 @@ public class PatientOrderService implements AutoCloseable {
 					patientOrderRequest.setOrderId(trimToNull(record.get("Order ID")));
 					patientOrderRequest.setOrderAge(trimToNull(record.get("Age of Order")));
 					patientOrderRequest.setRouting(trimToNull(record.get("CCBH Order Routing")));
-					patientOrderRequest.setReasonForReferral(trimToNull(record.get("Reasons for Referral")));
+
+					// Comma-separated list
+					String reasonsForReferralAsString = trimToNull(record.get("Reasons for Referral"));
+					List<String> reasonsForReferral = new ArrayList<>();
+					Set<String> uniqueReasonsForReferral = new HashSet<>();
+
+					if (reasonsForReferralAsString != null) {
+						for (String reasonForReferral : reasonsForReferralAsString.split(",")) {
+							reasonForReferral = trimToNull(reasonForReferral);
+
+							if (reasonForReferral != null) {
+								// Prevent duplicates for this order
+								if (uniqueReasonsForReferral.contains(reasonsForReferral))
+									continue;
+
+								uniqueReasonsForReferral.add(reasonForReferral);
+								reasonsForReferral.add(reasonForReferral);
+							}
+						}
+					}
+
+					patientOrderRequest.setReasonsForReferral(reasonsForReferral);
 
 					// Might be encoded as names + bracketed IDs in CSV like this (a single field with newlines)
 					// "GAD (generalized anxiety disorder) [213881]
@@ -3157,7 +3213,7 @@ public class PatientOrderService implements AutoCloseable {
 		Long orderAgeInMinutes = null;
 		String orderId = trimToNull(request.getOrderId());
 		String routing = trimToNull(request.getRouting());
-		String reasonForReferral = trimToNull(request.getReasonForReferral());
+		List<String> reasonsForReferral = request.getReasonsForReferral();
 		List<CreatePatientOrderDiagnosisRequest> diagnoses = request.getDiagnoses() == null ? List.of() : request.getDiagnoses().stream()
 				.filter(diagnosis -> diagnosis != null)
 				.collect(Collectors.toList());
@@ -3374,17 +3430,16 @@ public class PatientOrderService implements AutoCloseable {
 						  order_age_in_minutes,
 						  order_id,
 						  routing,
-						  reason_for_referral,
 						  associated_diagnosis,
 						  patient_phone_number,
 						  preferred_contact_hours,
 						  comments,
 						  cc_recipients,
-						  last_active_medication_order_summary,  
+						  last_active_medication_order_summary,
 						  recent_psychotherapeutic_medications,
 						  test_patient_email_address,
 						  test_patient_password
-						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				patientOrderId, patientOrderDispositionId, patientOrderImportId,
 				institutionId, encounterDepartmentId, encounterDepartmentIdType, encounterDepartmentName, referringPracticeId,
@@ -3393,7 +3448,7 @@ public class PatientOrderService implements AutoCloseable {
 				billingProviderLastName, billingProviderFirstName, billingProviderMiddleName, patientLastName, patientFirstName,
 				patientMrn, patientId, patientIdType, patientBirthSexId, patientBirthdate, patientAddressId, primaryPayorId,
 				primaryPayorName, primaryPlanId, primaryPlanName, orderDate, orderAgeInMinutes, orderId, routing,
-				reasonForReferral, associatedDiagnosis, patientPhoneNumber, preferredContactHours, comments, ccRecipients,
+				associatedDiagnosis, patientPhoneNumber, preferredContactHours, comments, ccRecipients,
 				lastActiveMedicationOrderSummary, recentPsychotherapeuticMedications, testPatientEmailAddress, hashedTestPatientPassword);
 
 		int diagnosisDisplayOrder = 0;
@@ -3414,6 +3469,20 @@ public class PatientOrderService implements AutoCloseable {
 					""", patientOrderId, diagnosisId, diagnosisIdType, diagnosisName, diagnosisDisplayOrder);
 
 			++diagnosisDisplayOrder;
+		}
+
+		int reasonForReferralDisplayOrder = 0;
+
+		for (String reasonForReferral : reasonsForReferral) {
+			getDatabase().execute("""
+					INSERT INTO patient_order_reason_for_referral (
+					patient_order_id,
+					reason_for_referral,
+					display_order
+					) VALUES (?,?,?)
+					""", patientOrderId, reasonForReferral, reasonForReferralDisplayOrder);
+
+			++reasonForReferralDisplayOrder;
 		}
 
 		int medicationDisplayOrder = 0;

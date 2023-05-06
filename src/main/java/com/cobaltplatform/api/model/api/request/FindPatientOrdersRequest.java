@@ -21,9 +21,10 @@ package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
-import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus;
+import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderAssignmentStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderOutreachStatusId;
@@ -53,28 +54,18 @@ public class FindPatientOrdersRequest {
 	private PatientOrderResponseStatusId patientOrderResponseStatusId;
 	@Nullable
 	private PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId;
-
-
-	public enum PatientOrderFilterFlagTypeId {
-		NONE,
-		PATIENT_BELOW_AGE_THRESHOLD,
-		MOST_RECENT_EPISODE_CLOSED_WITHIN_DATE_THRESHOLD
-		// We don't include safety planning here because it's already filterable via PatientOrderSafetyPlanningStatusId
-	}
-
 	@Nullable
 	private Set<PatientOrderFilterFlagTypeId> patientOrderFilterFlagTypeIds;
 	@Nullable
 	private Set<String> referringPracticeNames;
 	@Nullable
 	private Set<String> reasonsForReferral;
-
-	//		SCREENING_STATUS,
-
+	@Nullable
+	private Set<PatientOrderScreeningStatusId> patientOrderScreeningStatusIds;
 	@Nullable
 	private Set<PatientOrderResourcingStatusId> patientOrderResourcingStatusIds;
-
-	//		RESOURCE_CHECK_IN_RESPONSE
+	@Nullable
+	private Set<PatientOrderResourceCheckInResponseStatusId> patientOrderResourceCheckInResponseStatusIds;
 
 	@Nullable
 	private UUID panelAccountId;
@@ -86,6 +77,13 @@ public class FindPatientOrdersRequest {
 	private Integer pageNumber;
 	@Nullable
 	private Integer pageSize;
+
+	public enum PatientOrderFilterFlagTypeId {
+		NONE,
+		PATIENT_BELOW_AGE_THRESHOLD,
+		MOST_RECENT_EPISODE_CLOSED_WITHIN_DATE_THRESHOLD
+		// We don't include safety planning here because it's already filterable via PatientOrderSafetyPlanningStatusId
+	}
 
 	@Nullable
 	public InstitutionId getInstitutionId() {
@@ -148,6 +146,60 @@ public class FindPatientOrdersRequest {
 
 	public void setPatientOrderSafetyPlanningStatusId(@Nullable PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId) {
 		this.patientOrderSafetyPlanningStatusId = patientOrderSafetyPlanningStatusId;
+	}
+
+	@Nullable
+	public Set<PatientOrderFilterFlagTypeId> getPatientOrderFilterFlagTypeIds() {
+		return this.patientOrderFilterFlagTypeIds;
+	}
+
+	public void setPatientOrderFilterFlagTypeIds(@Nullable Set<PatientOrderFilterFlagTypeId> patientOrderFilterFlagTypeIds) {
+		this.patientOrderFilterFlagTypeIds = patientOrderFilterFlagTypeIds;
+	}
+
+	@Nullable
+	public Set<String> getReferringPracticeNames() {
+		return this.referringPracticeNames;
+	}
+
+	public void setReferringPracticeNames(@Nullable Set<String> referringPracticeNames) {
+		this.referringPracticeNames = referringPracticeNames;
+	}
+
+	@Nullable
+	public Set<String> getReasonsForReferral() {
+		return this.reasonsForReferral;
+	}
+
+	public void setReasonsForReferral(@Nullable Set<String> reasonsForReferral) {
+		this.reasonsForReferral = reasonsForReferral;
+	}
+
+	@Nullable
+	public Set<PatientOrderScreeningStatusId> getPatientOrderScreeningStatusIds() {
+		return this.patientOrderScreeningStatusIds;
+	}
+
+	public void setPatientOrderScreeningStatusIds(@Nullable Set<PatientOrderScreeningStatusId> patientOrderScreeningStatusIds) {
+		this.patientOrderScreeningStatusIds = patientOrderScreeningStatusIds;
+	}
+
+	@Nullable
+	public Set<PatientOrderResourcingStatusId> getPatientOrderResourcingStatusIds() {
+		return this.patientOrderResourcingStatusIds;
+	}
+
+	public void setPatientOrderResourcingStatusIds(@Nullable Set<PatientOrderResourcingStatusId> patientOrderResourcingStatusIds) {
+		this.patientOrderResourcingStatusIds = patientOrderResourcingStatusIds;
+	}
+
+	@Nullable
+	public Set<PatientOrderResourceCheckInResponseStatusId> getPatientOrderResourceCheckInResponseStatusIds() {
+		return this.patientOrderResourceCheckInResponseStatusIds;
+	}
+
+	public void setPatientOrderResourceCheckInResponseStatusIds(@Nullable Set<PatientOrderResourceCheckInResponseStatusId> patientOrderResourceCheckInResponseStatusIds) {
+		this.patientOrderResourceCheckInResponseStatusIds = patientOrderResourceCheckInResponseStatusIds;
 	}
 
 	@Nullable

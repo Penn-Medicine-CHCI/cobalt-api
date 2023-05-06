@@ -25,7 +25,6 @@ import com.cobaltplatform.api.model.api.request.AssignPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.CancelPatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CompletePatientOrderVoicemailTaskRequest;
-import com.cobaltplatform.api.model.api.request.ConsentPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderOutreachRequest;
@@ -39,6 +38,7 @@ import com.cobaltplatform.api.model.api.request.DeletePatientOrderVoicemailTaskR
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderConsentStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
@@ -479,9 +479,9 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
-	@PUT("/patient-orders/{patientOrderId}/consent")
+	@PUT("/patient-orders/{patientOrderId}/consent-status")
 	@AuthenticationRequired
-	public ApiResponse consentPatientOrder(@Nonnull @PathParameter UUID patientOrderId) {
+	public ApiResponse updatePatientOrderConsentStatus(@Nonnull @PathParameter UUID patientOrderId) {
 		requireNonNull(patientOrderId);
 
 		Account account = getCurrentContext().getAccount().get();
@@ -493,11 +493,11 @@ public class PatientOrderResource {
 		if (!getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
 
-		ConsentPatientOrderRequest request = new ConsentPatientOrderRequest();
+		UpdatePatientOrderConsentStatusRequest request = new UpdatePatientOrderConsentStatusRequest();
 		request.setPatientOrderId(patientOrder.getPatientOrderId());
 		request.setAccountId(account.getAccountId());
 
-		getPatientOrderService().consentPatientOrder(request);
+		getPatientOrderService().updatePatientOrderConsentStatus(request);
 
 		PatientOrder updatedPatientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).get();
 		PatientOrderApiResponseFormat responseFormat = PatientOrderApiResponseFormat.fromRoleId(account.getRoleId());
