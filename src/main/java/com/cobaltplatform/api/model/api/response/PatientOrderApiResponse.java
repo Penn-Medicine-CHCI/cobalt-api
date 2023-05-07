@@ -44,6 +44,8 @@ import com.cobaltplatform.api.model.db.PatientOrderConsentStatus.PatientOrderCon
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderInsurancePayorType.PatientOrderInsurancePayorTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderInsurancePlanType.PatientOrderInsurancePlanTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
@@ -378,6 +380,20 @@ public class PatientOrderApiResponse {
 	private String patientOrderScheduledScreeningScheduledDateTimeDescription;
 	@Nullable
 	private String patientOrderScheduledScreeningCalendarUrl;
+	@Nullable
+	private UUID patientOrderInsurancePayorId;
+	@Nullable
+	private PatientOrderInsurancePayorTypeId patientOrderInsurancePayorTypeId;
+	@Nullable
+	private String patientOrderInsurancePayorName;
+	@Nullable
+	private UUID patientOrderInsurancePlanId;
+	@Nullable
+	private String patientOrderInsurancePlanName;
+	@Nullable
+	private PatientOrderInsurancePlanTypeId patientOrderInsurancePlanTypeId;
+	@Nullable
+	private Boolean patientOrderInsurancePlanAccepted;
 
 	public enum PatientOrderApiResponseSupplement {
 		MINIMAL,
@@ -670,6 +686,13 @@ public class PatientOrderApiResponse {
 		this.billingProviderMiddleName = patientOrder.getBillingProviderMiddleName();
 		this.billingProviderDisplayName = Normalizer.normalizeName(patientOrder.getBillingProviderFirstName(), patientOrder.getBillingProviderMiddleName(), patientOrder.getBillingProviderLastName()).orElse(null);
 		this.billingProviderDisplayNameWithLastFirst = Normalizer.normalizeNameWithLastFirst(patientOrder.getBillingProviderFirstName(), patientOrder.getBillingProviderMiddleName(), patientOrder.getBillingProviderLastName()).orElse(null);
+		this.patientOrderInsurancePayorId = patientOrder.getPatientOrderInsurancePayorId();
+		this.patientOrderInsurancePayorTypeId = patientOrder.getPatientOrderInsurancePayorTypeId();
+		this.patientOrderInsurancePayorName = patientOrder.getPatientOrderInsurancePayorName();
+		this.patientOrderInsurancePlanId = patientOrder.getPatientOrderInsurancePlanId();
+		this.patientOrderInsurancePlanName = patientOrder.getPatientOrderInsurancePlanName();
+		this.patientOrderInsurancePlanTypeId = patientOrder.getPatientOrderInsurancePlanTypeId();
+		this.patientOrderInsurancePlanAccepted = patientOrder.getPatientOrderInsurancePlanAccepted();
 
 		// MHIC-only view of the data
 		if (format == PatientOrderApiResponseFormat.MHIC) {
@@ -1486,5 +1509,40 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public Boolean getMostRecentPatientOrderVoicemailTaskCompleted() {
 		return this.mostRecentPatientOrderVoicemailTaskCompleted;
+	}
+
+	@Nullable
+	public UUID getPatientOrderInsurancePayorId() {
+		return this.patientOrderInsurancePayorId;
+	}
+
+	@Nullable
+	public PatientOrderInsurancePayorTypeId getPatientOrderInsurancePayorTypeId() {
+		return this.patientOrderInsurancePayorTypeId;
+	}
+
+	@Nullable
+	public String getPatientOrderInsurancePayorName() {
+		return this.patientOrderInsurancePayorName;
+	}
+
+	@Nullable
+	public UUID getPatientOrderInsurancePlanId() {
+		return this.patientOrderInsurancePlanId;
+	}
+
+	@Nullable
+	public String getPatientOrderInsurancePlanName() {
+		return this.patientOrderInsurancePlanName;
+	}
+
+	@Nullable
+	public PatientOrderInsurancePlanTypeId getPatientOrderInsurancePlanTypeId() {
+		return this.patientOrderInsurancePlanTypeId;
+	}
+
+	@Nullable
+	public Boolean getPatientOrderInsurancePlanAccepted() {
+		return this.patientOrderInsurancePlanAccepted;
 	}
 }

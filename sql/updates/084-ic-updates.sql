@@ -96,8 +96,18 @@ DROP TABLE institution_insurance;
 DROP TABLE insurance;
 DROP TABLE insurance_type;
 
+CREATE TABLE patient_order_insurance_payor_type (
+  patient_order_insurance_payor_type_id TEXT PRIMARY KEY,
+  description TEXT NOT NULL
+);
+
+INSERT INTO patient_order_insurance_payor_type VALUES ('STANDARD', 'Standard');
+INSERT INTO patient_order_insurance_payor_type VALUES ('OTHER', 'Other');
+INSERT INTO patient_order_insurance_payor_type VALUES ('NONE', 'None');
+
 CREATE TABLE patient_order_insurance_payor (
   patient_order_insurance_payor_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  patient_order_insurance_payor_type_id TEXT NOT NULL REFERENCES patient_order_insurance_payor_type DEFAULT 'STANDARD',
   institution_id TEXT NOT NULL REFERENCES institution,
   name TEXT NOT NULL,
   display_order INTEGER NOT NULL,
@@ -130,6 +140,9 @@ CREATE UNIQUE INDEX patient_order_insurance_plan_unique_display_order_idx ON pat
 -- Performance indices for finding distinct names of insurances payors and plans
 CREATE INDEX patient_order_insurance_payor_upper_name_idx ON patient_order_insurance_payor (UPPER(name));
 CREATE INDEX patient_order_insurance_plan_upper_name_idx ON patient_order_insurance_plan (UPPER(name));
+
+-- Note: need to clean up existing data before this will execute cleanly
+ALTER TABLE patient_order ADD COLUMN patient_order_insurance_plan_id UUID NOT NULL REFERENCES patient_order_insurance_plan;
 
 -- Fix for safety planning, adjust patient order status, add insurance, other adjustments
 CREATE or replace VIEW v_patient_order AS WITH po_query AS (
@@ -377,13 +390,21 @@ select
     raq.appointment_id,
     rvtq.patient_order_voicemail_task_id AS most_recent_patient_order_voicemail_task_id,
     rvtq.patient_order_voicemail_task_completed AS most_recent_patient_order_voicemail_task_completed,
-		rfrq.reason_for_referral,
+	  rfrq.reason_for_referral,
+	  poipl.patient_order_insurance_plan_type_id as patient_order_insurance_plan_type_id,
+	  poipl.name as patient_order_insurance_plan_name,
+	  poipl.accepted as patient_order_insurance_plan_accepted,
+	  poipa.patient_order_insurance_payor_id as patient_order_insurance_payor_id,
+	  poipa.patient_order_insurance_payor_type_id,
+	  poipa.name as patient_order_insurance_payor_name,
     poq.*
 from
     po_query poq
     left join patient_order_disposition pod ON poq.patient_order_disposition_id = pod.patient_order_disposition_id
     left join patient_order_closure_reason pocr ON poq.patient_order_closure_reason_id = pocr.patient_order_closure_reason_id
     left join institution i ON poq.institution_id = i.institution_id
+    left join patient_order_insurance_plan poipl ON poq.patient_order_insurance_plan_id = poipl.patient_order_insurance_plan_id
+    left join patient_order_insurance_payor poipa ON poipl.patient_order_insurance_payor_id = poipa.patient_order_insurance_payor_id
     left outer join poo_query pooq ON poq.patient_order_id = pooq.patient_order_id
     left outer join poomax_query poomaxq ON poq.patient_order_id = poomaxq.patient_order_id
     left outer join smg_query smgq ON poq.patient_order_id = smgq.patient_order_id
@@ -396,6 +417,5 @@ from
     left outer join recent_appt_query raq on poq.patient_order_id=raq.patient_order_id
     left outer join recent_voicemail_task_query rvtq on poq.patient_order_id=rvtq.patient_order_id
     left outer join reason_for_referral_query rfrq on poq.patient_order_id=rfrq.patient_order_id;
-
 
 COMMIT;

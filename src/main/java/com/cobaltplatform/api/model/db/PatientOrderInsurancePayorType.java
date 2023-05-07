@@ -19,38 +19,30 @@
 
 package com.cobaltplatform.api.model.db;
 
-import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.PatientOrderInsurancePayorType.PatientOrderInsurancePayorTypeId;
-
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.util.UUID;
+
+import static java.lang.String.format;
 
 /**
- * @author Transmogrify, LLC.
+ * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class PatientOrderInsurancePayor {
-	@Nullable
-	private UUID patientOrderInsurancePayorId;
+public class PatientOrderInsurancePayorType {
 	@Nullable
 	private PatientOrderInsurancePayorTypeId patientOrderInsurancePayorTypeId;
 	@Nullable
-	private InstitutionId institutionId;
-	@Nullable
-	private String name;
-	@Nullable
-	private Integer displayOrder;
-	@Nullable
-	private Boolean deleted;
+	private String description;
 
-	@Nullable
-	public UUID getPatientOrderInsurancePayorId() {
-		return this.patientOrderInsurancePayorId;
+	public enum PatientOrderInsurancePayorTypeId {
+		STANDARD,
+		OTHER,
+		NONE
 	}
 
-	public void setPatientOrderInsurancePayorId(@Nullable UUID patientOrderInsurancePayorId) {
-		this.patientOrderInsurancePayorId = patientOrderInsurancePayorId;
+	@Override
+	public String toString() {
+		return format("%s{patientOrderInsurancePayorTypeId=%s, description=%s}", getClass().getSimpleName(), getPatientOrderInsurancePayorTypeId(), getDescription());
 	}
 
 	@Nullable
@@ -63,38 +55,11 @@ public class PatientOrderInsurancePayor {
 	}
 
 	@Nullable
-	public InstitutionId getInstitutionId() {
-		return this.institutionId;
+	public String getDescription() {
+		return this.description;
 	}
 
-	public void setInstitutionId(@Nullable InstitutionId institutionId) {
-		this.institutionId = institutionId;
-	}
-
-	@Nullable
-	public String getName() {
-		return this.name;
-	}
-
-	public void setName(@Nullable String name) {
-		this.name = name;
-	}
-
-	@Nullable
-	public Integer getDisplayOrder() {
-		return this.displayOrder;
-	}
-
-	public void setDisplayOrder(@Nullable Integer displayOrder) {
-		this.displayOrder = displayOrder;
-	}
-
-	@Nullable
-	public Boolean getDeleted() {
-		return this.deleted;
-	}
-
-	public void setDeleted(@Nullable Boolean deleted) {
-		this.deleted = deleted;
+	public void setDescription(@Nullable String description) {
+		this.description = description;
 	}
 }
