@@ -100,7 +100,8 @@ CREATE TABLE patient_order_insurance_payor (
   patient_order_insurance_payor_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   institution_id TEXT NOT NULL REFERENCES institution,
   name TEXT NOT NULL,
-  display_order INTEGER NOT NULL
+  display_order INTEGER NOT NULL,
+  deleted BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE UNIQUE INDEX patient_order_insurance_payor_unique_display_order_idx ON patient_order_insurance_payor USING btree (institution_id, display_order);
@@ -120,7 +121,8 @@ CREATE TABLE patient_order_insurance_plan (
   patient_order_insurance_payor_id UUID NOT NULL REFERENCES patient_order_insurance_payor,
   name TEXT NOT NULL,
   accepted BOOLEAN NOT NULL DEFAULT TRUE,
-  display_order INTEGER NOT NULL
+  display_order INTEGER NOT NULL,
+  deleted BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE UNIQUE INDEX patient_order_insurance_plan_unique_display_order_idx ON patient_order_insurance_plan USING btree (patient_order_insurance_payor_id, display_order);
