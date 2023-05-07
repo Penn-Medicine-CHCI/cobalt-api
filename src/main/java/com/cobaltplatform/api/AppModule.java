@@ -92,7 +92,6 @@ import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.Institut
 import com.cobaltplatform.api.model.api.response.InstitutionBlurbApiResponse.InstitutionBlurbApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionLocationApiResponse.InstitutionLocationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionTeamMemberApiResponse.InstitutionTeamMemberApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.InsuranceApiResponse.InsuranceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InteractionInstanceApiResponse.InteractionInstanceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InteractionOptionActionApiResponse.InteractionOptionActionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InteractionOptionApiResponse.InteractionOptionApiResponseFactory;
@@ -273,7 +272,6 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(ScreeningConfirmationPromptApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(CountryApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(LanguageApiResponseFactory.class)));
-		install((new FactoryModuleBuilder().build(InsuranceApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(AddressApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(TagApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(TagGroupApiResponseFactory.class)));

@@ -51,8 +51,6 @@ import com.cobaltplatform.api.model.api.response.AccountApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse.CountryApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.InsuranceApiResponse;
-import com.cobaltplatform.api.model.api.response.InsuranceApiResponse.InsuranceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.LanguageApiResponse;
 import com.cobaltplatform.api.model.api.response.LanguageApiResponse.LanguageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse;
@@ -187,8 +185,6 @@ public class PatientOrderResource {
 	@Nonnull
 	private final CountryApiResponseFactory countryApiResponseFactory;
 	@Nonnull
-	private final InsuranceApiResponseFactory insuranceApiResponseFactory;
-	@Nonnull
 	private final PatientOrderAutocompleteResultApiResponseFactory patientOrderAutocompleteResultApiResponseFactory;
 	@Nonnull
 	private final PatientOrderScheduledScreeningApiResponseFactory patientOrderScheduledScreeningApiResponseFactory;
@@ -227,7 +223,6 @@ public class PatientOrderResource {
 															@Nonnull TimeZoneApiResponseFactory timeZoneApiResponseFactory,
 															@Nonnull LanguageApiResponseFactory languageApiResponseFactory,
 															@Nonnull CountryApiResponseFactory countryApiResponseFactory,
-															@Nonnull InsuranceApiResponseFactory insuranceApiResponseFactory,
 															@Nonnull PatientOrderAutocompleteResultApiResponseFactory patientOrderAutocompleteResultApiResponseFactory,
 															@Nonnull PatientOrderScheduledScreeningApiResponseFactory patientOrderScheduledScreeningApiResponseFactory,
 															@Nonnull ScreeningTypeApiResponseFactory screeningTypeApiResponseFactory,
@@ -252,7 +247,6 @@ public class PatientOrderResource {
 		requireNonNull(timeZoneApiResponseFactory);
 		requireNonNull(languageApiResponseFactory);
 		requireNonNull(countryApiResponseFactory);
-		requireNonNull(insuranceApiResponseFactory);
 		requireNonNull(patientOrderAutocompleteResultApiResponseFactory);
 		requireNonNull(patientOrderScheduledScreeningApiResponseFactory);
 		requireNonNull(screeningTypeApiResponseFactory);
@@ -278,7 +272,6 @@ public class PatientOrderResource {
 		this.timeZoneApiResponseFactory = timeZoneApiResponseFactory;
 		this.languageApiResponseFactory = languageApiResponseFactory;
 		this.countryApiResponseFactory = countryApiResponseFactory;
-		this.insuranceApiResponseFactory = insuranceApiResponseFactory;
 		this.patientOrderAutocompleteResultApiResponseFactory = patientOrderAutocompleteResultApiResponseFactory;
 		this.patientOrderScheduledScreeningApiResponseFactory = patientOrderScheduledScreeningApiResponseFactory;
 		this.screeningTypeApiResponseFactory = screeningTypeApiResponseFactory;
@@ -1557,11 +1550,6 @@ public class PatientOrderResource {
 			return language1.getDescription().compareTo(language2.getDescription());
 		});
 
-		// Insurances
-		List<InsuranceApiResponse> insurances = getInstitutionService().findInsurancesByInstitutionId(institutionId).stream()
-				.map(insurance -> getInsuranceApiResponseFactory().create(insurance))
-				.collect(Collectors.toList());
-
 		// Regions
 		Map<String, List<Region>> regionsByCountryCode = Region.getRegionsByCountryCode();
 		Map<String, List<Map<String, Object>>> normalizedRegionsByCountryCode = new HashMap<>(regionsByCountryCode.size());
@@ -1661,7 +1649,6 @@ public class PatientOrderResource {
 			put("timeZones", timeZones);
 			put("countries", countries);
 			put("languages", languages);
-			put("insurances", insurances);
 			put("genderIdentities", genderIdentities);
 			put("races", races);
 			put("birthSexes", birthSexes);
@@ -1778,11 +1765,6 @@ public class PatientOrderResource {
 	@Nonnull
 	protected CountryApiResponseFactory getCountryApiResponseFactory() {
 		return this.countryApiResponseFactory;
-	}
-
-	@Nonnull
-	protected InsuranceApiResponseFactory getInsuranceApiResponseFactory() {
-		return this.insuranceApiResponseFactory;
 	}
 
 	@Nonnull

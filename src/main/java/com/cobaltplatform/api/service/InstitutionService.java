@@ -29,8 +29,6 @@ import com.cobaltplatform.api.model.db.InstitutionBlurbTeamMember;
 import com.cobaltplatform.api.model.db.InstitutionLocation;
 import com.cobaltplatform.api.model.db.InstitutionTeamMember;
 import com.cobaltplatform.api.model.db.InstitutionUrl;
-import com.cobaltplatform.api.model.db.Insurance;
-import com.cobaltplatform.api.model.db.InsuranceType.InsuranceTypeId;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
 import com.cobaltplatform.api.model.db.ScreeningSession;
@@ -252,42 +250,6 @@ public class InstitutionService {
 
 		return getDatabase().queryForList("SELECT * FROM institution WHERE metadata @> CAST(? AS JSONB)",
 				Institution.class, metadataAsJson);
-	}
-
-	@Nonnull
-	public List<Insurance> findInsurancesByInstitutionId(@Nullable InstitutionId institutionId) {
-		if (institutionId == null)
-			return Collections.emptyList();
-
-		List<Insurance> insurances = getDatabase().queryForList("""
-				    SELECT i.*
-				    FROM insurance i, institution_insurance ii
-				    WHERE ii.institution_id=?
-				    AND ii.insurance_id=i.insurance_id
-				    ORDER BY i.description
-				""", Insurance.class, institutionId);
-
-		Insurance outOfPocket = insurances.stream()
-				.filter(insurance -> insurance.getInsuranceTypeId() == InsuranceTypeId.OUT_OF_POCKET)
-				.findFirst().orElse(null);
-
-		Insurance other = insurances.stream()
-				.filter(insurance -> insurance.getInsuranceTypeId() == InsuranceTypeId.OTHER)
-				.findFirst().orElse(null);
-
-		// If present, put out-of-pocket at the head of the list
-		if (outOfPocket != null) {
-			insurances.remove(outOfPocket);
-			insurances.add(0, outOfPocket);
-		}
-
-		// If present, put 'other' at the tail of the list
-		if (other != null) {
-			insurances.remove(other);
-			insurances.add(other);
-		}
-
-		return insurances;
 	}
 
 	@Nonnull

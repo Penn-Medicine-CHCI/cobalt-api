@@ -90,7 +90,46 @@ CREATE TABLE patient_order_reason_for_referral (
 CREATE INDEX patient_order_upper_referring_practice_name_idx ON patient_order (UPPER(referring_practice_name));
 CREATE INDEX patient_order_reason_for_referral_upper_reason_idx ON patient_order_reason_for_referral (UPPER(reason_for_referral));
 
--- Fix for safety planning, adjust patient order status
+-- New modeling for insurance based on latest information
+ALTER TABLE account DROP COLUMN insurance_id;
+DROP TABLE institution_insurance;
+DROP TABLE insurance;
+DROP TABLE insurance_type;
+
+CREATE TABLE patient_order_insurance_payor (
+  patient_order_insurance_payor_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  institution_id TEXT NOT NULL REFERENCES institution,
+  name TEXT NOT NULL,
+  display_order INTEGER NOT NULL
+);
+
+CREATE UNIQUE INDEX patient_order_insurance_payor_unique_display_order_idx ON patient_order_insurance_payor USING btree (institution_id, display_order);
+
+CREATE TABLE patient_order_insurance_plan_type (
+  patient_order_insurance_plan_type_id TEXT PRIMARY KEY,
+  description TEXT NOT NULL
+);
+
+INSERT INTO patient_order_insurance_plan_type VALUES ('STANDARD', 'Standard');
+INSERT INTO patient_order_insurance_plan_type VALUES ('OTHER', 'Other');
+INSERT INTO patient_order_insurance_plan_type VALUES ('NONE', 'None');
+
+CREATE TABLE patient_order_insurance_plan (
+  patient_order_insurance_plan_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  patient_order_insurance_plan_type_id TEXT NOT NULL REFERENCES patient_order_insurance_plan_type DEFAULT 'STANDARD',
+  patient_order_insurance_payor_id UUID NOT NULL REFERENCES patient_order_insurance_payor,
+  name TEXT NOT NULL,
+  accepted BOOLEAN NOT NULL DEFAULT TRUE,
+  display_order INTEGER NOT NULL
+);
+
+CREATE UNIQUE INDEX patient_order_insurance_plan_unique_display_order_idx ON patient_order_insurance_plan USING btree (patient_order_insurance_payor_id, display_order);
+
+-- Performance indices for finding distinct names of insurances payors and plans
+CREATE INDEX patient_order_insurance_payor_upper_name_idx ON patient_order_insurance_payor (UPPER(name));
+CREATE INDEX patient_order_insurance_plan_upper_name_idx ON patient_order_insurance_plan (UPPER(name));
+
+-- Fix for safety planning, adjust patient order status, add insurance, other adjustments
 CREATE or replace VIEW v_patient_order AS WITH po_query AS (
     select
         *
