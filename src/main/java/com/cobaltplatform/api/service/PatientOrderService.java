@@ -3638,6 +3638,7 @@ public class PatientOrderService implements AutoCloseable {
 		LocalDate patientBirthdate = request.getPatientBirthdate();
 		String patientLanguageCode = trimToNull(request.getPatientLanguageCode());
 		CreateAddressRequest patientAddress = request.getPatientAddress();
+		UUID patientOrderInsurancePlanId = request.getPatientOrderInsurancePlanId();
 		PatientOrder patientOrder = null;
 		Account account = null;
 		List<Pair<String, Object>> columnNamesAndValues = new ArrayList<>();
@@ -3742,6 +3743,13 @@ public class PatientOrderService implements AutoCloseable {
 				validationException.add(new FieldError("patientLanguageCode", getStrings().get("Language is invalid.")));
 			else
 				columnNamesAndValues.add(Pair.of("patient_language_code", patientLanguageCode));
+		}
+
+		if (request.isShouldUpdatePatientOrderInsurancePlanId()) {
+			if (patientOrderInsurancePlanId == null)
+				validationException.add(new FieldError("patientOrderInsurancePlanId", getStrings().get("Insurance Plan is required.")));
+			else
+				columnNamesAndValues.add(Pair.of("patient_order_insurance_plan_id", patientOrderInsurancePlanId));
 		}
 
 		if (validationException.hasErrors())
