@@ -474,8 +474,10 @@ public class PatientOrderResource {
 	@Nonnull
 	@PUT("/patient-orders/{patientOrderId}/consent-status")
 	@AuthenticationRequired
-	public ApiResponse updatePatientOrderConsentStatus(@Nonnull @PathParameter UUID patientOrderId) {
+	public ApiResponse updatePatientOrderConsentStatus(@Nonnull @PathParameter UUID patientOrderId,
+																										 @Nonnull @RequestBody String requestBody) {
 		requireNonNull(patientOrderId);
+		requireNonNull(requestBody);
 
 		Account account = getCurrentContext().getAccount().get();
 		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
@@ -486,7 +488,7 @@ public class PatientOrderResource {
 		if (!getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
 
-		UpdatePatientOrderConsentStatusRequest request = new UpdatePatientOrderConsentStatusRequest();
+		UpdatePatientOrderConsentStatusRequest request = getRequestBodyParser().parse(requestBody, UpdatePatientOrderConsentStatusRequest.class);
 		request.setPatientOrderId(patientOrder.getPatientOrderId());
 		request.setAccountId(account.getAccountId());
 
