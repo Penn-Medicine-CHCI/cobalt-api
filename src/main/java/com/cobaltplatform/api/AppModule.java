@@ -101,6 +101,8 @@ import com.cobaltplatform.api.model.api.response.LogicalAvailabilityApiResponse.
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderAutocompleteResultApiResponse.PatientOrderAutocompleteResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderDiagnosisApiResponse.PatientOrderDiagnosisApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderInsurancePayorApiResponse.PatientOrderInsurancePayorApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderInsurancePlanApiResponse.PatientOrderInsurancePlanApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderMedicationApiResponse.PatientOrderMedicationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
@@ -298,6 +300,8 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(PatientOrderScheduledScreeningApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ScreeningTypeApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PatientOrderVoicemailTaskApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PatientOrderInsurancePayorApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PatientOrderInsurancePlanApiResponseFactory.class)));
 	}
 
 	@Provides
