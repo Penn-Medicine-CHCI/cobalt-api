@@ -43,7 +43,7 @@ public class SupportRole {
 		PSYCHOLOGIST,
 		CHAPLAIN,
 		MHIC,
-		BHP,
+		MHP,
 		LCSW,
 		OTHER
 	}

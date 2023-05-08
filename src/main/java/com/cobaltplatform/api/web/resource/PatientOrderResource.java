@@ -1606,7 +1606,7 @@ public class PatientOrderResource {
 		List<Map<PatientOrderTriageStatusId, Object>> patientOrderTriageStatuses = List.of(
 				Map.of(PatientOrderTriageStatusId.NEEDS_ASSESSMENT, getStrings().get("Needs Assessment")),
 				Map.of(PatientOrderTriageStatusId.SPECIALTY_CARE, getStrings().get("Specialty Care")),
-				Map.of(PatientOrderTriageStatusId.BHP, getStrings().get("BHP")),
+				Map.of(PatientOrderTriageStatusId.MHP, getStrings().get("MHP")),
 				Map.of(PatientOrderTriageStatusId.SUBCLINICAL, getStrings().get("Subclinical"))
 		);
 

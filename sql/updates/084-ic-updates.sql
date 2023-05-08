@@ -3,21 +3,25 @@ SELECT _v.register_patch('084-ic-updates', NULL, NULL);
 
 DROP VIEW v_patient_order;
 
+-- Move over BHP -> MHP
+UPDATE support_role SET support_role_id='MHP', description='Mental Health Provider' WHERE support_role_id='BHP';
+UPDATE patient_order_closure_reason SET patient_order_closure_reason_id='SCHEDULED_WITH_MHP', description='Scheduled with MHP' WHERE patient_order_closure_reason_id='SCHEDULED_WITH_MHP';
+
 INSERT INTO feature
   (feature_id, name, url_name, navigation_header_id)
 VALUES
-  ('BHP', 'Behavioral Health Provider', '/connect-with-support/bhp', 'CONNECT_WITH_SUPPORT');
+  ('MHP', 'Mental Health Provider', '/connect-with-support/mhp', 'CONNECT_WITH_SUPPORT');
 
 INSERT INTO feature_support_role
    (feature_id, support_role_id)
  VALUES
-   ('BHP', 'BHP');
+   ('MHP', 'MHP');
 
 INSERT INTO feature_filter
   (feature_id, filter_id)
 VALUES
-  ('BHP', 'DATE'),
-  ('BHP', 'TIME_OF_DAY');
+  ('MHP', 'DATE'),
+  ('MHP', 'TIME_OF_DAY');
 
 DROP TABLE patient_order_status;
 
@@ -375,7 +379,7 @@ select
         -- Screening completed, most severe level of care type triage is SUBCLINICAL
         WHEN tq.patient_order_care_type_id = 'SUBCLINICAL' THEN 'SUBCLINICAL'
         -- Screening completed, most severe level of care type triage is COLLABORATIVE.  Patient or MHIC can schedule with a provider
-        WHEN tq.patient_order_care_type_id = 'COLLABORATIVE' THEN 'BHP'
+        WHEN tq.patient_order_care_type_id = 'COLLABORATIVE' THEN 'MHP'
         -- None of the above apply
         ELSE 'NEEDS_ASSESSMENT'
     END patient_order_triage_status_id,
@@ -385,7 +389,7 @@ select
         -- Screening completed, most severe level of care type triage is SUBCLINICAL
         WHEN tq.patient_order_care_type_id = 'SUBCLINICAL' THEN 'Subclinical'
         -- Screening completed, most severe level of care type triage is COLLABORATIVE.  Patient or MHIC can schedule with a provider
-        WHEN tq.patient_order_care_type_id = 'COLLABORATIVE' THEN 'BHP'
+        WHEN tq.patient_order_care_type_id = 'COLLABORATIVE' THEN 'MHP'
         -- None of the above apply
         else 'Needs Assessment'
     END patient_order_triage_status_description,

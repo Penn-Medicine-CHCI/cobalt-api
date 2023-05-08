@@ -40,7 +40,7 @@ public class PatientOrderTriageStatus {
 		NEEDS_ASSESSMENT, // Assigned, but none of the below apply.  Also note, we are in this state if unscheduled but "screening in progress"
 		SPECIALTY_CARE, // Screening completed, most severe level of care type triage is SPECIALTY
 		SUBCLINICAL, // Screening completed, most severe level of care type triage is SUBCLINICAL
-		BHP // Screening completed, most severe level of care type triage is COLLABORATIVE.  Patient or MHIC can schedule with a provider
+		MHP // Screening completed, most severe level of care type triage is COLLABORATIVE.  Patient or MHIC can schedule with a provider
 	}
 
 	@Override

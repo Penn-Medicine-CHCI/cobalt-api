@@ -60,7 +60,7 @@ public class Feature {
 		SELF_HELP_RESOURCES,
 		SPIRITUAL_SUPPORT,
 		CRISIS_SUPPORT,
-		BHP
+		MHP
 	}
 
 	@Nullable
