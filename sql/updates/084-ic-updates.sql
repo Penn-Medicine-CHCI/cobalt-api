@@ -144,6 +144,9 @@ CREATE INDEX patient_order_insurance_plan_upper_name_idx ON patient_order_insura
 -- Note: need to clean up existing data before this will execute cleanly
 ALTER TABLE patient_order ADD COLUMN patient_order_insurance_plan_id UUID NOT NULL REFERENCES patient_order_insurance_plan;
 
+ALTER TABLE patient_order ADD COLUMN patient_demographics_confirmed_at TIMESTAMPTZ;
+ALTER TABLE patient_order ADD COLUMN patient_demographics_confirmed_by_account_id UUID REFERENCES account(account_id);
+
 -- Fix for safety planning, adjust patient order status, add insurance, other adjustments
 CREATE or replace VIEW v_patient_order AS WITH po_query AS (
     select

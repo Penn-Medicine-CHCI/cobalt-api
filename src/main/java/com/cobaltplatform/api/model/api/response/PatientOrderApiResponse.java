@@ -268,6 +268,12 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String resourceCheckInResponseStatusUpdatedAtDescription;
 	@Nullable
+	private Instant patientDemographicsConfirmedAt;
+	@Nullable
+	private String patientDemographicsConfirmedAtDescription;
+	@Nullable
+	private UUID patientDemographicsConfirmedByAccountId;
+	@Nullable
 	private AddressApiResponse patientAddress;
 	@Nullable
 	private AccountApiResponse patientAccount;
@@ -717,6 +723,11 @@ public class PatientOrderApiResponse {
 		this.patientAddressRegionAccepted = patientOrder.getPatientAddressRegionAccepted();
 		this.patientDemographicsCompleted = patientOrder.getPatientDemographicsCompleted();
 		this.patientDemographicsAccepted = patientOrder.getPatientDemographicsAccepted();
+		this.patientDemographicsConfirmedAt = patientOrder.getPatientDemographicsConfirmedAt();
+		this.patientDemographicsConfirmedAtDescription = patientOrder.getPatientDemographicsConfirmedAt() == null
+				? null
+				: formatter.formatTimestamp(patientOrder.getPatientDemographicsConfirmedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.patientDemographicsConfirmedByAccountId = patientOrder.getPatientDemographicsConfirmedByAccountId();
 
 		// MHIC-only view of the data
 		if (format == PatientOrderApiResponseFormat.MHIC) {
@@ -1608,5 +1619,20 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public Boolean getPatientDemographicsAccepted() {
 		return this.patientDemographicsAccepted;
+	}
+
+	@Nullable
+	public Instant getPatientDemographicsConfirmedAt() {
+		return this.patientDemographicsConfirmedAt;
+	}
+
+	@Nullable
+	public String getPatientDemographicsConfirmedAtDescription() {
+		return this.patientDemographicsConfirmedAtDescription;
+	}
+
+	@Nullable
+	public UUID getPatientDemographicsConfirmedByAccountId() {
+		return this.patientDemographicsConfirmedByAccountId;
 	}
 }

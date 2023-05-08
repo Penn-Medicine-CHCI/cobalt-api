@@ -3639,6 +3639,7 @@ public class PatientOrderService implements AutoCloseable {
 		String patientLanguageCode = trimToNull(request.getPatientLanguageCode());
 		CreateAddressRequest patientAddress = request.getPatientAddress();
 		UUID patientOrderInsurancePlanId = request.getPatientOrderInsurancePlanId();
+		Boolean patientDemographicsConfirmed = request.getPatientDemographicsConfirmed();
 		PatientOrder patientOrder = null;
 		Account account = null;
 		List<Pair<String, Object>> columnNamesAndValues = new ArrayList<>();
@@ -3750,6 +3751,17 @@ public class PatientOrderService implements AutoCloseable {
 				validationException.add(new FieldError("patientOrderInsurancePlanId", getStrings().get("Insurance Plan is required.")));
 			else
 				columnNamesAndValues.add(Pair.of("patient_order_insurance_plan_id", patientOrderInsurancePlanId));
+		}
+
+		if (request.isShouldUpdatePatientDemographicsConfirmed()) {
+			if (patientDemographicsConfirmed == null) {
+				validationException.add(new FieldError("patientDemographicsConfirmed", getStrings().get("Please confirm this information is accurate.")));
+			} else if (patientDemographicsConfirmed == false) {
+				validationException.add(new FieldError("patientDemographicsConfirmed", getStrings().get("You cannot un-confirm this information.")));
+			} else {
+				columnNamesAndValues.add(Pair.of("patient_demographics_confirmed_at", Instant.now()));
+				columnNamesAndValues.add(Pair.of("patient_demographics_confirmed_by_account_id", accountId));
+			}
 		}
 
 		if (validationException.hasErrors())

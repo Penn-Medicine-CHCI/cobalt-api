@@ -192,6 +192,10 @@ public class PatientOrder {
 	@Nullable
 	private String testPatientPassword;
 	@Nullable
+	private Instant patientDemographicsConfirmedAt;
+	@Nullable
+	private UUID patientDemographicsConfirmedByAccountId;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -940,6 +944,24 @@ public class PatientOrder {
 
 	public void setTestPatientPassword(@Nullable String testPatientPassword) {
 		this.testPatientPassword = testPatientPassword;
+	}
+
+	@Nullable
+	public Instant getPatientDemographicsConfirmedAt() {
+		return this.patientDemographicsConfirmedAt;
+	}
+
+	public void setPatientDemographicsConfirmedAt(@Nullable Instant patientDemographicsConfirmedAt) {
+		this.patientDemographicsConfirmedAt = patientDemographicsConfirmedAt;
+	}
+
+	@Nullable
+	public UUID getPatientDemographicsConfirmedByAccountId() {
+		return this.patientDemographicsConfirmedByAccountId;
+	}
+
+	public void setPatientDemographicsConfirmedByAccountId(@Nullable UUID patientDemographicsConfirmedByAccountId) {
+		this.patientDemographicsConfirmedByAccountId = patientDemographicsConfirmedByAccountId;
 	}
 
 	@Nullable

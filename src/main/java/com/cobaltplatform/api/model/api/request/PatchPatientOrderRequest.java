@@ -86,6 +86,10 @@ public class PatchPatientOrderRequest {
 	private UUID patientOrderInsurancePlanId;
 	@Nullable
 	private boolean shouldUpdatePatientOrderInsurancePlanId;
+	@Nullable
+	private Boolean patientDemographicsConfirmed;
+	@Nullable
+	private boolean shouldUpdatePatientDemographicsConfirmed;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -307,5 +311,22 @@ public class PatchPatientOrderRequest {
 
 	public void setShouldUpdatePatientOrderInsurancePlanId(boolean shouldUpdatePatientOrderInsurancePlanId) {
 		this.shouldUpdatePatientOrderInsurancePlanId = shouldUpdatePatientOrderInsurancePlanId;
+	}
+
+	@Nullable
+	public Boolean getPatientDemographicsConfirmed() {
+		return this.patientDemographicsConfirmed;
+	}
+
+	public void setPatientDemographicsConfirmed(@Nullable Boolean patientDemographicsConfirmed) {
+		this.patientDemographicsConfirmed = patientDemographicsConfirmed;
+	}
+
+	public boolean isShouldUpdatePatientDemographicsConfirmed() {
+		return this.shouldUpdatePatientDemographicsConfirmed;
+	}
+
+	public void setShouldUpdatePatientDemographicsConfirmed(boolean shouldUpdatePatientDemographicsConfirmed) {
+		this.shouldUpdatePatientDemographicsConfirmed = shouldUpdatePatientDemographicsConfirmed;
 	}
 }
