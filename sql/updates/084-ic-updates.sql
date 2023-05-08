@@ -265,6 +265,15 @@ ss_query AS (
     where
         ss2.screening_session_id IS NULL
 ),
+permitted_regions_query AS (
+    -- Pick the permitted set of IC regions (state abbreviations in the US) by institution as an array for easy access
+    select
+        institution_id,
+        array_agg(region_abbreviation) as permitted_region_abbreviations
+    from
+        institution_integrated_care_region
+	group by institution_id
+),
 recent_scheduled_screening_query AS (
     -- Pick the most recently-scheduled screening for the patient order
     select
@@ -397,6 +406,38 @@ select
 	  poipa.patient_order_insurance_payor_id as patient_order_insurance_payor_id,
 	  poipa.patient_order_insurance_payor_type_id,
 	  poipa.name as patient_order_insurance_payor_name,
+	  patient_address.street_address_1 as patient_address_street_address_1,
+	  patient_address.locality as patient_address_locality,
+	  patient_address.region as patient_address_region,
+	  patient_address.postal_code as patient_address_postal_code,
+	  patient_address.country_code as patient_address_country_code,
+      patient_address.region=any(prq.permitted_region_abbreviations) as patient_address_region_accepted,
+      -- "completed" means all fields filled in, but not necessarily valid
+      (
+		poq.patient_first_name IS NOT NULL
+		and poq.patient_last_name IS NOT NULL
+		and poq.patient_phone_number IS NOT NULL
+		and poq.patient_email_address IS NOT NULL
+		and poq.patient_birthdate IS NOT NULL
+		and poipl.patient_order_insurance_plan_id is not NULL
+		and patient_address.street_address_1 IS NOT NULL
+		and patient_address.locality IS NOT NULL
+		and patient_address.region IS NOT NULL
+		and patient_address.postal_code IS NOT NULL
+      ) as patient_demographics_completed,
+      -- "accepted" means all fields filled in AND meet requirements for IC (accepted state and insurance)
+      (
+		poq.patient_first_name IS NOT NULL
+		and poq.patient_last_name IS NOT NULL
+		and poq.patient_phone_number IS NOT NULL
+		and poq.patient_email_address IS NOT NULL
+		and poq.patient_birthdate IS NOT NULL
+		and poipl.accepted -- insurance plan
+		and patient_address.street_address_1 IS NOT NULL
+		and patient_address.locality IS NOT NULL
+		and patient_address.region=any(prq.permitted_region_abbreviations)
+		and patient_address.postal_code IS NOT NULL
+      ) as patient_demographics_accepted,
     poq.*
 from
     po_query poq
@@ -405,6 +446,8 @@ from
     left join institution i ON poq.institution_id = i.institution_id
     left join patient_order_insurance_plan poipl ON poq.patient_order_insurance_plan_id = poipl.patient_order_insurance_plan_id
     left join patient_order_insurance_payor poipa ON poipl.patient_order_insurance_payor_id = poipa.patient_order_insurance_payor_id
+    left join permitted_regions_query prq ON poq.institution_id = prq.institution_id
+    left outer join address patient_address ON poq.patient_address_id = patient_address.address_id
     left outer join poo_query pooq ON poq.patient_order_id = pooq.patient_order_id
     left outer join poomax_query poomaxq ON poq.patient_order_id = poomaxq.patient_order_id
     left outer join smg_query smgq ON poq.patient_order_id = smgq.patient_order_id

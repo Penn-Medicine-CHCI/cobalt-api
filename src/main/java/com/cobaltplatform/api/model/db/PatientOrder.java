@@ -35,6 +35,7 @@ import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientO
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
+import com.pyranid.DatabaseColumn;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -275,6 +276,23 @@ public class PatientOrder {
 	private PatientOrderInsurancePlanTypeId patientOrderInsurancePlanTypeId;
 	@Nullable
 	private Boolean patientOrderInsurancePlanAccepted;
+	@Nullable
+	@DatabaseColumn("patient_address_street_address_1")
+	private String patientAddressStreetAddress1;
+	@Nullable
+	private String patientAddressLocality;
+	@Nullable
+	private String patientAddressRegion;
+	@Nullable
+	private String patientAddressPostalCode;
+	@Nullable
+	private String patientAddressCountryCode;
+	@Nullable
+	private Boolean patientAddressRegionAccepted;
+	@Nullable
+	private Boolean patientDemographicsCompleted;
+	@Nullable
+	private Boolean patientDemographicsAccepted;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -1282,5 +1300,77 @@ public class PatientOrder {
 
 	public void setPatientOrderInsurancePlanAccepted(@Nullable Boolean patientOrderInsurancePlanAccepted) {
 		this.patientOrderInsurancePlanAccepted = patientOrderInsurancePlanAccepted;
+	}
+
+	@Nullable
+	public String getPatientAddressStreetAddress1() {
+		return this.patientAddressStreetAddress1;
+	}
+
+	public void setPatientAddressStreetAddress1(@Nullable String patientAddressStreetAddress1) {
+		this.patientAddressStreetAddress1 = patientAddressStreetAddress1;
+	}
+
+	@Nullable
+	public String getPatientAddressLocality() {
+		return this.patientAddressLocality;
+	}
+
+	public void setPatientAddressLocality(@Nullable String patientAddressLocality) {
+		this.patientAddressLocality = patientAddressLocality;
+	}
+
+	@Nullable
+	public String getPatientAddressRegion() {
+		return this.patientAddressRegion;
+	}
+
+	public void setPatientAddressRegion(@Nullable String patientAddressRegion) {
+		this.patientAddressRegion = patientAddressRegion;
+	}
+
+	@Nullable
+	public String getPatientAddressPostalCode() {
+		return this.patientAddressPostalCode;
+	}
+
+	public void setPatientAddressPostalCode(@Nullable String patientAddressPostalCode) {
+		this.patientAddressPostalCode = patientAddressPostalCode;
+	}
+
+	@Nullable
+	public String getPatientAddressCountryCode() {
+		return this.patientAddressCountryCode;
+	}
+
+	public void setPatientAddressCountryCode(@Nullable String patientAddressCountryCode) {
+		this.patientAddressCountryCode = patientAddressCountryCode;
+	}
+
+	@Nullable
+	public Boolean getPatientAddressRegionAccepted() {
+		return this.patientAddressRegionAccepted;
+	}
+
+	public void setPatientAddressRegionAccepted(@Nullable Boolean patientAddressRegionAccepted) {
+		this.patientAddressRegionAccepted = patientAddressRegionAccepted;
+	}
+
+	@Nullable
+	public Boolean getPatientDemographicsCompleted() {
+		return this.patientDemographicsCompleted;
+	}
+
+	public void setPatientDemographicsCompleted(@Nullable Boolean patientDemographicsCompleted) {
+		this.patientDemographicsCompleted = patientDemographicsCompleted;
+	}
+
+	@Nullable
+	public Boolean getPatientDemographicsAccepted() {
+		return this.patientDemographicsAccepted;
+	}
+
+	public void setPatientDemographicsAccepted(@Nullable Boolean patientDemographicsAccepted) {
+		this.patientDemographicsAccepted = patientDemographicsAccepted;
 	}
 }

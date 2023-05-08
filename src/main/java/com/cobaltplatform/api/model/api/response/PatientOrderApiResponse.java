@@ -394,6 +394,22 @@ public class PatientOrderApiResponse {
 	private PatientOrderInsurancePlanTypeId patientOrderInsurancePlanTypeId;
 	@Nullable
 	private Boolean patientOrderInsurancePlanAccepted;
+	@Nullable
+	private String patientAddressStreetAddress1;
+	@Nullable
+	private String patientAddressLocality;
+	@Nullable
+	private String patientAddressRegion;
+	@Nullable
+	private String patientAddressPostalCode;
+	@Nullable
+	private String patientAddressCountryCode;
+	@Nullable
+	private Boolean patientAddressRegionAccepted;
+	@Nullable
+	private Boolean patientDemographicsCompleted;
+	@Nullable
+	private Boolean patientDemographicsAccepted;
 
 	public enum PatientOrderApiResponseSupplement {
 		MINIMAL,
@@ -693,6 +709,14 @@ public class PatientOrderApiResponse {
 		this.patientOrderInsurancePlanName = patientOrder.getPatientOrderInsurancePlanName();
 		this.patientOrderInsurancePlanTypeId = patientOrder.getPatientOrderInsurancePlanTypeId();
 		this.patientOrderInsurancePlanAccepted = patientOrder.getPatientOrderInsurancePlanAccepted();
+		this.patientAddressStreetAddress1 = patientOrder.getPatientAddressStreetAddress1();
+		this.patientAddressLocality = patientOrder.getPatientAddressLocality();
+		this.patientAddressRegion = patientOrder.getPatientAddressRegion();
+		this.patientAddressPostalCode = patientOrder.getPatientAddressPostalCode();
+		this.patientAddressCountryCode = patientOrder.getPatientAddressCountryCode();
+		this.patientAddressRegionAccepted = patientOrder.getPatientAddressRegionAccepted();
+		this.patientDemographicsCompleted = patientOrder.getPatientDemographicsCompleted();
+		this.patientDemographicsAccepted = patientOrder.getPatientDemographicsAccepted();
 
 		// MHIC-only view of the data
 		if (format == PatientOrderApiResponseFormat.MHIC) {
@@ -1544,5 +1568,45 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public Boolean getPatientOrderInsurancePlanAccepted() {
 		return this.patientOrderInsurancePlanAccepted;
+	}
+
+	@Nullable
+	public String getPatientAddressStreetAddress1() {
+		return this.patientAddressStreetAddress1;
+	}
+
+	@Nullable
+	public String getPatientAddressLocality() {
+		return this.patientAddressLocality;
+	}
+
+	@Nullable
+	public String getPatientAddressRegion() {
+		return this.patientAddressRegion;
+	}
+
+	@Nullable
+	public String getPatientAddressPostalCode() {
+		return this.patientAddressPostalCode;
+	}
+
+	@Nullable
+	public String getPatientAddressCountryCode() {
+		return this.patientAddressCountryCode;
+	}
+
+	@Nullable
+	public Boolean getPatientAddressRegionAccepted() {
+		return this.patientAddressRegionAccepted;
+	}
+
+	@Nullable
+	public Boolean getPatientDemographicsCompleted() {
+		return this.patientDemographicsCompleted;
+	}
+
+	@Nullable
+	public Boolean getPatientDemographicsAccepted() {
+		return this.patientDemographicsAccepted;
 	}
 }
