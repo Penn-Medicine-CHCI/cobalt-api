@@ -29,8 +29,6 @@ import com.cobaltplatform.api.model.db.InstitutionBlurbTeamMember;
 import com.cobaltplatform.api.model.db.InstitutionLocation;
 import com.cobaltplatform.api.model.db.InstitutionTeamMember;
 import com.cobaltplatform.api.model.db.InstitutionUrl;
-import com.cobaltplatform.api.model.db.Insurance;
-import com.cobaltplatform.api.model.db.InsuranceType.InsuranceTypeId;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
 import com.cobaltplatform.api.model.db.ScreeningSession;
@@ -178,7 +176,7 @@ public class InstitutionService {
 			return Optional.empty();
 
 		return getDatabase().queryForObject("""
-				SELECT * 
+				SELECT *
 				FROM institution_url
 				WHERE hostname=?
 				""", InstitutionUrl.class, hostname);
@@ -192,7 +190,7 @@ public class InstitutionService {
 		return getDatabase().queryForList("""
 						SELECT ias.institution_id, a.account_source_id, ias.account_source_display_style_id,
 						a.description, ias.authentication_description, a.local_sso_url, a.dev_sso_url,
-						a.prod_sso_url, ias.display_order 
+						a.prod_sso_url, ias.display_order, ias.requires_user_experience_type_id
 						FROM institution_account_source ias, account_source a
 						WHERE ias.institution_id=?
 						AND ias.account_source_id=a.account_source_id
@@ -252,42 +250,6 @@ public class InstitutionService {
 
 		return getDatabase().queryForList("SELECT * FROM institution WHERE metadata @> CAST(? AS JSONB)",
 				Institution.class, metadataAsJson);
-	}
-
-	@Nonnull
-	public List<Insurance> findInsurancesByInstitutionId(@Nullable InstitutionId institutionId) {
-		if (institutionId == null)
-			return Collections.emptyList();
-
-		List<Insurance> insurances = getDatabase().queryForList("""
-				    SELECT i.*
-				    FROM insurance i, institution_insurance ii
-				    WHERE ii.institution_id=?
-				    AND ii.insurance_id=i.insurance_id
-				    ORDER BY i.description
-				""", Insurance.class, institutionId);
-
-		Insurance outOfPocket = insurances.stream()
-				.filter(insurance -> insurance.getInsuranceTypeId() == InsuranceTypeId.OUT_OF_POCKET)
-				.findFirst().orElse(null);
-
-		Insurance other = insurances.stream()
-				.filter(insurance -> insurance.getInsuranceTypeId() == InsuranceTypeId.OTHER)
-				.findFirst().orElse(null);
-
-		// If present, put out-of-pocket at the head of the list
-		if (outOfPocket != null) {
-			insurances.remove(outOfPocket);
-			insurances.add(0, outOfPocket);
-		}
-
-		// If present, put 'other' at the tail of the list
-		if (other != null) {
-			insurances.remove(other);
-			insurances.add(other);
-		}
-
-		return insurances;
 	}
 
 	@Nonnull
@@ -353,15 +315,11 @@ public class InstitutionService {
 	@Nonnull
 	public List<FeaturesForInstitution> findFeaturesByInstitutionId(@Nullable Institution institution,
 																																	@Nullable Account account) {
+		if (institution == null || account == null)
+			return List.of();
+
 		ScreeningFlow screeningFlow = getScreeningService().findScreeningFlowById(institution.getFeatureScreeningFlowId()).orElse(null);
-
-		if (institution == null || account == null || screeningFlow == null)
-			return List.of();
-
-		ScreeningFlowVersion screeningFlowVersion = getScreeningService().findScreeningFlowVersionById(screeningFlow.getActiveScreeningFlowVersionId()).orElse(null);
-
-		if (screeningFlowVersion == null)
-			return List.of();
+		ScreeningFlowVersion screeningFlowVersion = screeningFlow == null ? null : getScreeningService().findScreeningFlowVersionById(screeningFlow.getActiveScreeningFlowVersionId()).orElse(null);
 
 		ScreeningSession mostRecentCompletedFeatureScreeningSession =
 				getScreeningService().findMostRecentCompletedScreeningSession(account.getAccountId(), institution.getFeatureScreeningFlowId()).orElse(null);

@@ -81,8 +81,6 @@ public class AccountApiResponse {
 	@Nullable
 	private final UUID providerId;
 	@Nullable
-	private final UUID insuranceId;
-	@Nullable
 	private final String firstName;
 	@Nullable
 	private final String lastName;
@@ -243,13 +241,11 @@ public class AccountApiResponse {
 			this.ethnicityId = account.getEthnicityId();
 			this.birthSexId = account.getBirthSexId();
 			this.raceId = account.getRaceId();
-			this.insuranceId = account.getInsuranceId();
 			this.birthdate = account.getBirthdate();
 			this.birthdateDescription = account.getBirthdate() == null ? null : formatter.formatDate(account.getBirthdate(), FormatStyle.MEDIUM);
 
 			Address address = addressService.findActiveAddressByAccountId(accountId).orElse(null);
 			this.address = address == null ? null : addressApiResponseFactory.create(address);
-
 
 			Institution institution = institutionService.findInstitutionById(account.getInstitutionId()).get();
 			LoginDestinationId loginDestinationId;
@@ -282,7 +278,6 @@ public class AccountApiResponse {
 			this.ethnicityId = null;
 			this.birthSexId = null;
 			this.raceId = null;
-			this.insuranceId = null;
 			this.birthdate = null;
 			this.birthdateDescription = null;
 			this.address = null;
@@ -478,11 +473,6 @@ public class AccountApiResponse {
 	@Nullable
 	public String getBirthdateDescription() {
 		return this.birthdateDescription;
-	}
-
-	@Nullable
-	public UUID getInsuranceId() {
-		return this.insuranceId;
 	}
 
 	@Nullable

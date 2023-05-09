@@ -28,34 +28,32 @@ import static java.lang.String.format;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class PatientOrderClosureReason {
+public class PatientOrderResourceCheckInResponseStatus {
 	@Nullable
-	private PatientOrderClosureReasonId patientOrderClosureReasonId;
+	private PatientOrderResourceCheckInResponseStatusId patientOrderResourceCheckInResponseStatusId;
 	@Nullable
 	private String description;
 
-	public enum PatientOrderClosureReasonId {
-		NOT_CLOSED,
-		INELIGIBLE_DUE_TO_INSURANCE,
-		REFUSED_CARE,
-		TRANSFERRED_TO_SAFETY_PLANNING,
-		SCHEDULED_WITH_SPECIALTY_CARE,
-		SCHEDULED_WITH_MHP
+	public enum PatientOrderResourceCheckInResponseStatusId {
+		NONE,
+		APPOINTMENT_SCHEDULED,
+		APPOINTMENT_ATTENDED,
+		NEED_FOLLOWUP,
+		NO_LONGER_NEED_CARE
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{patientOrderClosureReasonId=%s, description=%s}", getClass().getSimpleName(),
-				getPatientOrderClosureReasonId(), getDescription());
+		return format("%s{patientOrderResourceCheckInResponseStatusId=%s, description=%s}", getClass().getSimpleName(), getPatientOrderResourceCheckInResponseStatusId(), getDescription());
 	}
 
 	@Nullable
-	public PatientOrderClosureReasonId getPatientOrderClosureReasonId() {
-		return this.patientOrderClosureReasonId;
+	public PatientOrderResourceCheckInResponseStatusId getPatientOrderResourceCheckInResponseStatusId() {
+		return this.patientOrderResourceCheckInResponseStatusId;
 	}
 
-	public void setPatientOrderClosureReasonId(@Nullable PatientOrderClosureReasonId patientOrderClosureReasonId) {
-		this.patientOrderClosureReasonId = patientOrderClosureReasonId;
+	public void setPatientOrderResourceCheckInResponseStatusId(@Nullable PatientOrderResourceCheckInResponseStatusId patientOrderResourceCheckInResponseStatusId) {
+		this.patientOrderResourceCheckInResponseStatusId = patientOrderResourceCheckInResponseStatusId;
 	}
 
 	@Nullable

@@ -19,11 +19,11 @@
 
 package com.cobaltplatform.api.model.db;
 
-import javax.annotation.Nullable;
-import javax.annotation.concurrent.NotThreadSafe;
 import com.cobaltplatform.api.model.db.NavigationHeader.NavigationHeaderId;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
 import java.util.List;
 
@@ -59,7 +59,8 @@ public class Feature {
 		COACHING,
 		SELF_HELP_RESOURCES,
 		SPIRITUAL_SUPPORT,
-		CRISIS_SUPPORT
+		CRISIS_SUPPORT,
+		MHP
 	}
 
 	@Nullable

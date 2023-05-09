@@ -92,7 +92,6 @@ import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.Institut
 import com.cobaltplatform.api.model.api.response.InstitutionBlurbApiResponse.InstitutionBlurbApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionLocationApiResponse.InstitutionLocationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionTeamMemberApiResponse.InstitutionTeamMemberApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.InsuranceApiResponse.InsuranceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InteractionInstanceApiResponse.InteractionInstanceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InteractionOptionActionApiResponse.InteractionOptionActionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InteractionOptionApiResponse.InteractionOptionApiResponseFactory;
@@ -102,6 +101,8 @@ import com.cobaltplatform.api.model.api.response.LogicalAvailabilityApiResponse.
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderAutocompleteResultApiResponse.PatientOrderAutocompleteResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderDiagnosisApiResponse.PatientOrderDiagnosisApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderInsurancePayorApiResponse.PatientOrderInsurancePayorApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderInsurancePlanApiResponse.PatientOrderInsurancePlanApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderMedicationApiResponse.PatientOrderMedicationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
@@ -273,7 +274,6 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(ScreeningConfirmationPromptApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(CountryApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(LanguageApiResponseFactory.class)));
-		install((new FactoryModuleBuilder().build(InsuranceApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(AddressApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(TagApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(TagGroupApiResponseFactory.class)));
@@ -300,6 +300,8 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(PatientOrderScheduledScreeningApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ScreeningTypeApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PatientOrderVoicemailTaskApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PatientOrderInsurancePayorApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PatientOrderInsurancePlanApiResponseFactory.class)));
 	}
 
 	@Provides

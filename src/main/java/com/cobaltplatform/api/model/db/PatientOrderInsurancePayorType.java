@@ -19,40 +19,39 @@
 
 package com.cobaltplatform.api.model.db;
 
-import com.cobaltplatform.api.model.db.InsuranceType.InsuranceTypeId;
-
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.util.UUID;
+
+import static java.lang.String.format;
 
 /**
- * @author Transmogrify, LLC.
+ * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class Insurance {
+public class PatientOrderInsurancePayorType {
 	@Nullable
-	private UUID insuranceId;
-	@Nullable
-	private InsuranceTypeId insuranceTypeId;
+	private PatientOrderInsurancePayorTypeId patientOrderInsurancePayorTypeId;
 	@Nullable
 	private String description;
 
+	public enum PatientOrderInsurancePayorTypeId {
+		STANDARD,
+		OTHER,
+		NONE
+	}
+
+	@Override
+	public String toString() {
+		return format("%s{patientOrderInsurancePayorTypeId=%s, description=%s}", getClass().getSimpleName(), getPatientOrderInsurancePayorTypeId(), getDescription());
+	}
+
 	@Nullable
-	public UUID getInsuranceId() {
-		return this.insuranceId;
+	public PatientOrderInsurancePayorTypeId getPatientOrderInsurancePayorTypeId() {
+		return this.patientOrderInsurancePayorTypeId;
 	}
 
-	public void setInsuranceId(@Nullable UUID insuranceId) {
-		this.insuranceId = insuranceId;
-	}
-
-	@Nullable
-	public InsuranceTypeId getInsuranceTypeId() {
-		return this.insuranceTypeId;
-	}
-
-	public void setInsuranceTypeId(@Nullable InsuranceTypeId insuranceTypeId) {
-		this.insuranceTypeId = insuranceTypeId;
+	public void setPatientOrderInsurancePayorTypeId(@Nullable PatientOrderInsurancePayorTypeId patientOrderInsurancePayorTypeId) {
+		this.patientOrderInsurancePayorTypeId = patientOrderInsurancePayorTypeId;
 	}
 
 	@Nullable

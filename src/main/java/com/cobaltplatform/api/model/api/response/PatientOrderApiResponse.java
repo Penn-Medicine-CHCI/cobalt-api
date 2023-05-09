@@ -40,17 +40,20 @@ import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderCareType;
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
+import com.cobaltplatform.api.model.db.PatientOrderConsentStatus.PatientOrderConsentStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderInsurancePayorType.PatientOrderInsurancePayorTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderInsurancePlanType.PatientOrderInsurancePlanTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
-import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
-import com.cobaltplatform.api.model.db.PatientOrderVoicemailTask;
+import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
@@ -97,7 +100,7 @@ public class PatientOrderApiResponse {
 	@Nonnull
 	private UUID patientOrderId;
 	@Nullable
-	private PatientOrderStatusId patientOrderStatusId;
+	private PatientOrderTriageStatusId patientOrderTriageStatusId;
 	@Nullable
 	private PatientOrderDispositionId patientOrderDispositionId;
 	@Nullable
@@ -249,14 +252,27 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String providerName;
 	@Nullable
-	private Boolean patientConsented;
+	private PatientOrderConsentStatusId patientOrderConsentStatusId;
 	@Nullable
-	private UUID patientConsentedByAccountId;
+	private UUID consentStatusUpdatedByByAccountId;
 	@Nullable
-	private Instant patientConsentedAt;
+	private Instant consentStatusUpdatedAt;
 	@Nullable
-	private String patientConsentedAtDescription;
-
+	private String consentStatusUpdatedAtDescription;
+	@Nullable
+	private PatientOrderResourceCheckInResponseStatusId patientOrderResourceCheckInResponseStatusId;
+	@Nullable
+	private UUID resourceCheckInResponseStatusUpdatedByByAccountId;
+	@Nullable
+	private Instant resourceCheckInResponseStatusUpdatedAt;
+	@Nullable
+	private String resourceCheckInResponseStatusUpdatedAtDescription;
+	@Nullable
+	private Instant patientDemographicsConfirmedAt;
+	@Nullable
+	private String patientDemographicsConfirmedAtDescription;
+	@Nullable
+	private UUID patientDemographicsConfirmedByAccountId;
 	@Nullable
 	private AddressApiResponse patientAddress;
 	@Nullable
@@ -287,6 +303,10 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String patientOrderCareTypeDescription;
 	@Nullable
+	private Integer totalOutreachCount;
+	@Nullable
+	private String totalOutreachCountDescription;
+	@Nullable
 	private Integer outreachCount;
 	@Nullable
 	private String outreachCountDescription;
@@ -294,6 +314,14 @@ public class PatientOrderApiResponse {
 	private LocalDateTime mostRecentOutreachDateTime;
 	@Nullable
 	private String mostRecentOutreachDateTimeDescription;
+	@Nullable
+	private Integer scheduledMessageGroupCount;
+	@Nullable
+	private String scheduledMessageGroupCountDescription;
+	@Nullable
+	private LocalDateTime mostRecentScheduledMessageGroupDateTime;
+	@Nullable
+	private String mostRecentScheduledMessageGroupDateTimeDescription;
 	@Nullable
 	private UUID mostRecentScreeningSessionId;
 	@Nullable
@@ -325,7 +353,7 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String patientOrderDispositionDescription;
 	@Nullable
-	private String patientOrderStatusDescription;
+	private String patientOrderTriageStatusDescription;
 	@Nullable
 	private String patientOrderClosureReasonDescription;
 	@Nullable
@@ -358,6 +386,36 @@ public class PatientOrderApiResponse {
 	private String patientOrderScheduledScreeningScheduledDateTimeDescription;
 	@Nullable
 	private String patientOrderScheduledScreeningCalendarUrl;
+	@Nullable
+	private UUID patientOrderInsurancePayorId;
+	@Nullable
+	private PatientOrderInsurancePayorTypeId patientOrderInsurancePayorTypeId;
+	@Nullable
+	private String patientOrderInsurancePayorName;
+	@Nullable
+	private UUID patientOrderInsurancePlanId;
+	@Nullable
+	private String patientOrderInsurancePlanName;
+	@Nullable
+	private PatientOrderInsurancePlanTypeId patientOrderInsurancePlanTypeId;
+	@Nullable
+	private Boolean patientOrderInsurancePlanAccepted;
+	@Nullable
+	private String patientAddressStreetAddress1;
+	@Nullable
+	private String patientAddressLocality;
+	@Nullable
+	private String patientAddressRegion;
+	@Nullable
+	private String patientAddressPostalCode;
+	@Nullable
+	private String patientAddressCountryCode;
+	@Nullable
+	private Boolean patientAddressRegionAccepted;
+	@Nullable
+	private Boolean patientDemographicsCompleted;
+	@Nullable
+	private Boolean patientDemographicsAccepted;
 
 	public enum PatientOrderApiResponseSupplement {
 		MINIMAL,
@@ -582,14 +640,15 @@ public class PatientOrderApiResponse {
 					List<PatientOrderTriageGroupFocusApiResponse> focusTypePatientOrderTriages = new ArrayList<>();
 
 					for (Entry<PatientOrderFocusTypeId, List<PatientOrderTriage>> focusEntry : patientOrderTriagesByFocusTypeIds.entrySet()) {
-						List<String> focusReasons = focusEntry.getValue().stream()
+						PatientOrderFocusTypeId patientOrderFocusTypeId = focusEntry.getKey();
+						List<PatientOrderTriage> focusPatientOrderTriages = focusEntry.getValue();
+
+						List<String> focusReasons = focusPatientOrderTriages.stream()
 								.map(focusPatientOrderTriage -> focusPatientOrderTriage.getReason())
 								.distinct()
 								.collect(Collectors.toList());
 
-						focusTypePatientOrderTriages.addAll(focusEntry.getValue().stream()
-								.map(focusTypePatientOrderTriage -> new PatientOrderTriageGroupFocusApiResponse(patientOrderFocusTypesById.get(focusEntry.getKey()), focusReasons))
-								.collect(Collectors.toList()));
+						focusTypePatientOrderTriages.add(new PatientOrderTriageGroupFocusApiResponse(patientOrderFocusTypesById.get(patientOrderFocusTypeId), focusReasons));
 					}
 
 					patientOrderTriageGroups.add(new PatientOrderTriageGroupApiResponse(patientOrderTriageSourceId, patientOrderCareType, focusTypePatientOrderTriages));
@@ -601,7 +660,7 @@ public class PatientOrderApiResponse {
 
 		// Always available to both patients and MHICs
 		this.patientOrderId = patientOrder.getPatientOrderId();
-		this.patientOrderStatusId = patientOrder.getPatientOrderStatusId();
+		this.patientOrderTriageStatusId = patientOrder.getPatientOrderTriageStatusId();
 		this.patientOrderDispositionId = patientOrder.getPatientOrderDispositionId();
 		this.patientOrderScreeningStatusId = patientOrder.getPatientOrderScreeningStatusId();
 		this.patientAccountId = patientOrder.getPatientAccountId();
@@ -630,10 +689,45 @@ public class PatientOrderApiResponse {
 		this.appointmentStartTimeDescription = patientOrder.getAppointmentStartTime() == null ? null : formatter.formatDateTime(patientOrder.getAppointmentStartTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 		this.providerId = patientOrder.getProviderId();
 		this.providerName = patientOrder.getProviderName();
-		this.patientConsented = patientOrder.getPatientConsented();
-		this.patientConsentedByAccountId = patientOrder.getPatientConsentedByAccountId();
-		this.patientConsentedAt = patientOrder.getPatientConsentedAt();
-		this.patientConsentedAtDescription = patientOrder.getPatientConsentedAt() == null ? null : formatter.formatTimestamp(patientOrder.getPatientConsentedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.patientOrderConsentStatusId = patientOrder.getPatientOrderConsentStatusId();
+		this.patientOrderResourceCheckInResponseStatusId = patientOrder.getPatientOrderResourceCheckInResponseStatusId();
+		this.referringPracticeId = patientOrder.getReferringPracticeId();
+		this.referringPracticeIdType = patientOrder.getReferringPracticeIdType();
+		this.referringPracticeName = patientOrder.getReferringPracticeName();
+		this.orderingProviderId = patientOrder.getOrderingProviderId();
+		this.orderingProviderIdType = patientOrder.getOrderingProviderIdType();
+		this.orderingProviderLastName = patientOrder.getOrderingProviderLastName();
+		this.orderingProviderFirstName = patientOrder.getOrderingProviderFirstName();
+		this.orderingProviderMiddleName = patientOrder.getOrderingProviderMiddleName();
+		this.orderingProviderDisplayName = Normalizer.normalizeName(patientOrder.getOrderingProviderFirstName(), patientOrder.getOrderingProviderMiddleName(), patientOrder.getOrderingProviderLastName()).orElse(null);
+		this.orderingProviderDisplayNameWithLastFirst = Normalizer.normalizeNameWithLastFirst(patientOrder.getOrderingProviderFirstName(), patientOrder.getOrderingProviderMiddleName(), patientOrder.getOrderingProviderLastName()).orElse(null);
+		this.billingProviderId = patientOrder.getBillingProviderId();
+		this.billingProviderIdType = patientOrder.getBillingProviderIdType();
+		this.billingProviderLastName = patientOrder.getBillingProviderLastName();
+		this.billingProviderFirstName = patientOrder.getBillingProviderFirstName();
+		this.billingProviderMiddleName = patientOrder.getBillingProviderMiddleName();
+		this.billingProviderDisplayName = Normalizer.normalizeName(patientOrder.getBillingProviderFirstName(), patientOrder.getBillingProviderMiddleName(), patientOrder.getBillingProviderLastName()).orElse(null);
+		this.billingProviderDisplayNameWithLastFirst = Normalizer.normalizeNameWithLastFirst(patientOrder.getBillingProviderFirstName(), patientOrder.getBillingProviderMiddleName(), patientOrder.getBillingProviderLastName()).orElse(null);
+		this.patientOrderInsurancePayorId = patientOrder.getPatientOrderInsurancePayorId();
+		this.patientOrderInsurancePayorTypeId = patientOrder.getPatientOrderInsurancePayorTypeId();
+		this.patientOrderInsurancePayorName = patientOrder.getPatientOrderInsurancePayorName();
+		this.patientOrderInsurancePlanId = patientOrder.getPatientOrderInsurancePlanId();
+		this.patientOrderInsurancePlanName = patientOrder.getPatientOrderInsurancePlanName();
+		this.patientOrderInsurancePlanTypeId = patientOrder.getPatientOrderInsurancePlanTypeId();
+		this.patientOrderInsurancePlanAccepted = patientOrder.getPatientOrderInsurancePlanAccepted();
+		this.patientAddressStreetAddress1 = patientOrder.getPatientAddressStreetAddress1();
+		this.patientAddressLocality = patientOrder.getPatientAddressLocality();
+		this.patientAddressRegion = patientOrder.getPatientAddressRegion();
+		this.patientAddressPostalCode = patientOrder.getPatientAddressPostalCode();
+		this.patientAddressCountryCode = patientOrder.getPatientAddressCountryCode();
+		this.patientAddressRegionAccepted = patientOrder.getPatientAddressRegionAccepted();
+		this.patientDemographicsCompleted = patientOrder.getPatientDemographicsCompleted();
+		this.patientDemographicsAccepted = patientOrder.getPatientDemographicsAccepted();
+		this.patientDemographicsConfirmedAt = patientOrder.getPatientDemographicsConfirmedAt();
+		this.patientDemographicsConfirmedAtDescription = patientOrder.getPatientDemographicsConfirmedAt() == null
+				? null
+				: formatter.formatTimestamp(patientOrder.getPatientDemographicsConfirmedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.patientDemographicsConfirmedByAccountId = patientOrder.getPatientDemographicsConfirmedByAccountId();
 
 		// MHIC-only view of the data
 		if (format == PatientOrderApiResponseFormat.MHIC) {
@@ -642,23 +736,6 @@ public class PatientOrderApiResponse {
 			this.encounterDepartmentId = patientOrder.getEncounterDepartmentId();
 			this.encounterDepartmentIdType = patientOrder.getEncounterDepartmentIdType();
 			this.encounterDepartmentName = patientOrder.getEncounterDepartmentName();
-			this.referringPracticeId = patientOrder.getReferringPracticeId();
-			this.referringPracticeIdType = patientOrder.getReferringPracticeIdType();
-			this.referringPracticeName = patientOrder.getReferringPracticeName();
-			this.orderingProviderId = patientOrder.getOrderingProviderId();
-			this.orderingProviderIdType = patientOrder.getOrderingProviderIdType();
-			this.orderingProviderLastName = patientOrder.getOrderingProviderLastName();
-			this.orderingProviderFirstName = patientOrder.getOrderingProviderFirstName();
-			this.orderingProviderMiddleName = patientOrder.getOrderingProviderMiddleName();
-			this.orderingProviderDisplayName = Normalizer.normalizeName(patientOrder.getOrderingProviderFirstName(), patientOrder.getOrderingProviderMiddleName(), patientOrder.getOrderingProviderLastName()).orElse(null);
-			this.orderingProviderDisplayNameWithLastFirst = Normalizer.normalizeNameWithLastFirst(patientOrder.getOrderingProviderFirstName(), patientOrder.getOrderingProviderMiddleName(), patientOrder.getOrderingProviderLastName()).orElse(null);
-			this.billingProviderId = patientOrder.getBillingProviderId();
-			this.billingProviderIdType = patientOrder.getBillingProviderIdType();
-			this.billingProviderLastName = patientOrder.getBillingProviderLastName();
-			this.billingProviderFirstName = patientOrder.getBillingProviderFirstName();
-			this.billingProviderMiddleName = patientOrder.getBillingProviderMiddleName();
-			this.billingProviderDisplayName = Normalizer.normalizeName(patientOrder.getBillingProviderFirstName(), patientOrder.getBillingProviderMiddleName(), patientOrder.getBillingProviderLastName()).orElse(null);
-			this.billingProviderDisplayNameWithLastFirst = Normalizer.normalizeNameWithLastFirst(patientOrder.getBillingProviderFirstName(), patientOrder.getBillingProviderMiddleName(), patientOrder.getBillingProviderLastName()).orElse(null);
 			this.primaryPayorId = patientOrder.getPrimaryPayorId();
 			this.primaryPayorName = patientOrder.getPrimaryPayorName();
 			this.primaryPlanId = patientOrder.getPrimaryPlanId();
@@ -715,10 +792,16 @@ public class PatientOrderApiResponse {
 
 			this.patientOrderCareTypeId = patientOrder.getPatientOrderCareTypeId();
 			this.patientOrderCareTypeDescription = patientOrder.getPatientOrderCareTypeDescription();
+			this.totalOutreachCount = patientOrder.getTotalOutreachCount();
+			this.totalOutreachCountDescription = formatter.formatNumber(patientOrder.getTotalOutreachCount() == null ? 0 : patientOrder.getTotalOutreachCount());
 			this.outreachCount = patientOrder.getOutreachCount();
 			this.outreachCountDescription = formatter.formatNumber(patientOrder.getOutreachCount() == null ? 0 : patientOrder.getOutreachCount());
 			this.mostRecentOutreachDateTime = patientOrder.getMostRecentOutreachDateTime();
 			this.mostRecentOutreachDateTimeDescription = patientOrder.getMostRecentOutreachDateTime() == null ? null : formatter.formatDateTime(patientOrder.getMostRecentOutreachDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+			this.scheduledMessageGroupCount = patientOrder.getScheduledMessageGroupCount();
+			this.scheduledMessageGroupCountDescription = formatter.formatNumber(patientOrder.getScheduledMessageGroupCount() == null ? 0 : patientOrder.getScheduledMessageGroupCount());
+			this.mostRecentScheduledMessageGroupDateTime = patientOrder.getMostRecentScheduledMessageGroupDateTime();
+			this.mostRecentScheduledMessageGroupDateTimeDescription = patientOrder.getMostRecentScheduledMessageGroupDateTime() == null ? null : formatter.formatDateTime(patientOrder.getMostRecentScheduledMessageGroupDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 			this.mostRecentScreeningSessionId = patientOrder.getMostRecentScreeningSessionId();
 			this.mostRecentScreeningSessionCreatedByAccountId = patientOrder.getMostRecentScreeningSessionCreatedByAccountId();
 			this.mostRecentScreeningSessionCreatedByAccountFirstName = patientOrder.getMostRecentScreeningSessionCreatedByAccountFirstName();
@@ -734,7 +817,7 @@ public class PatientOrderApiResponse {
 			this.panelAccountDisplayNameWithLastFirst = Normalizer.normalizeNameWithLastFirst(patientOrder.getPanelAccountFirstName(), patientOrder.getPanelAccountLastName()).orElse(null);
 			this.patientOrderScreeningStatusDescription = patientOrder.getPatientOrderScreeningStatusDescription();
 			this.patientOrderDispositionDescription = patientOrder.getPatientOrderDispositionDescription();
-			this.patientOrderStatusDescription = patientOrder.getPatientOrderStatusDescription();
+			this.patientOrderTriageStatusDescription = patientOrder.getPatientOrderTriageStatusDescription();
 			this.patientOrderClosureReasonDescription = patientOrder.getPatientOrderClosureReasonDescription();
 			this.patientOrderSafetyPlanningStatusId = patientOrder.getPatientOrderSafetyPlanningStatusId();
 			this.connectedToSafetyPlanningAt = patientOrder.getConnectedToSafetyPlanningAt();
@@ -749,6 +832,12 @@ public class PatientOrderApiResponse {
 			this.patientOrderScheduledScreeningScheduledDateTime = patientOrder.getPatientOrderScheduledScreeningScheduledDateTime();
 			this.patientOrderScheduledScreeningScheduledDateTimeDescription = patientOrder.getPatientOrderScheduledScreeningScheduledDateTime() == null ? null : formatter.formatDateTime(patientOrder.getPatientOrderScheduledScreeningScheduledDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 			this.patientOrderScheduledScreeningCalendarUrl = patientOrder.getPatientOrderScheduledScreeningCalendarUrl();
+			this.consentStatusUpdatedByByAccountId = patientOrder.getConsentStatusUpdatedByByAccountId();
+			this.consentStatusUpdatedAt = patientOrder.getConsentStatusUpdatedAt();
+			this.consentStatusUpdatedAtDescription = patientOrder.getConsentStatusUpdatedAt() == null ? null : formatter.formatTimestamp(patientOrder.getConsentStatusUpdatedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+			this.resourceCheckInResponseStatusUpdatedByByAccountId = patientOrder.getResourceCheckInResponseStatusUpdatedByByAccountId();
+			this.resourceCheckInResponseStatusUpdatedAt = patientOrder.getResourceCheckInResponseStatusUpdatedAt();
+			this.resourceCheckInResponseStatusUpdatedAtDescription = patientOrder.getResourceCheckInResponseStatusUpdatedAt() == null ? null : formatter.formatTimestamp(patientOrder.getResourceCheckInResponseStatusUpdatedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 
 			List<PatientOrderScheduledMessage> patientOrderScheduledMessages = patientOrderService.findPatientOrderScheduledMessagesByPatientOrderId(patientOrder.getPatientOrderId());
 			this.patientOrderScheduledMessageGroups = patientOrderService.generatePatientOrderScheduledMessageGroupApiResponses(patientOrderScheduledMessages);
@@ -760,11 +849,6 @@ public class PatientOrderApiResponse {
 	@Nonnull
 	public UUID getPatientOrderId() {
 		return this.patientOrderId;
-	}
-
-	@Nullable
-	public PatientOrderStatusId getPatientOrderStatusId() {
-		return this.patientOrderStatusId;
 	}
 
 	@Nullable
@@ -1163,6 +1247,36 @@ public class PatientOrderApiResponse {
 	}
 
 	@Nullable
+	public Integer getTotalOutreachCount() {
+		return this.totalOutreachCount;
+	}
+
+	@Nullable
+	public String getTotalOutreachCountDescription() {
+		return this.totalOutreachCountDescription;
+	}
+
+	@Nullable
+	public Integer getScheduledMessageGroupCount() {
+		return this.scheduledMessageGroupCount;
+	}
+
+	@Nullable
+	public String getScheduledMessageGroupCountDescription() {
+		return this.scheduledMessageGroupCountDescription;
+	}
+
+	@Nullable
+	public LocalDateTime getMostRecentScheduledMessageGroupDateTime() {
+		return this.mostRecentScheduledMessageGroupDateTime;
+	}
+
+	@Nullable
+	public String getMostRecentScheduledMessageGroupDateTimeDescription() {
+		return this.mostRecentScheduledMessageGroupDateTimeDescription;
+	}
+
+	@Nullable
 	public Integer getOutreachCount() {
 		return this.outreachCount;
 	}
@@ -1263,8 +1377,13 @@ public class PatientOrderApiResponse {
 	}
 
 	@Nullable
-	public String getPatientOrderStatusDescription() {
-		return this.patientOrderStatusDescription;
+	public PatientOrderTriageStatusId getPatientOrderTriageStatusId() {
+		return this.patientOrderTriageStatusId;
+	}
+
+	@Nullable
+	public String getPatientOrderTriageStatusDescription() {
+		return this.patientOrderTriageStatusDescription;
 	}
 
 	@Nullable
@@ -1378,23 +1497,43 @@ public class PatientOrderApiResponse {
 	}
 
 	@Nullable
-	public Boolean getPatientConsented() {
-		return this.patientConsented;
+	public PatientOrderConsentStatusId getPatientOrderConsentStatusId() {
+		return this.patientOrderConsentStatusId;
 	}
 
 	@Nullable
-	public UUID getPatientConsentedByAccountId() {
-		return this.patientConsentedByAccountId;
+	public UUID getConsentStatusUpdatedByByAccountId() {
+		return this.consentStatusUpdatedByByAccountId;
 	}
 
 	@Nullable
-	public Instant getPatientConsentedAt() {
-		return this.patientConsentedAt;
+	public Instant getConsentStatusUpdatedAt() {
+		return this.consentStatusUpdatedAt;
 	}
 
 	@Nullable
-	public String getPatientConsentedAtDescription() {
-		return this.patientConsentedAtDescription;
+	public String getConsentStatusUpdatedAtDescription() {
+		return this.consentStatusUpdatedAtDescription;
+	}
+
+	@Nullable
+	public PatientOrderResourceCheckInResponseStatusId getPatientOrderResourceCheckInResponseStatusId() {
+		return this.patientOrderResourceCheckInResponseStatusId;
+	}
+
+	@Nullable
+	public UUID getResourceCheckInResponseStatusUpdatedByByAccountId() {
+		return this.resourceCheckInResponseStatusUpdatedByByAccountId;
+	}
+
+	@Nullable
+	public Instant getResourceCheckInResponseStatusUpdatedAt() {
+		return this.resourceCheckInResponseStatusUpdatedAt;
+	}
+
+	@Nullable
+	public String getResourceCheckInResponseStatusUpdatedAtDescription() {
+		return this.resourceCheckInResponseStatusUpdatedAtDescription;
 	}
 
 	@Nullable
@@ -1405,5 +1544,95 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public Boolean getMostRecentPatientOrderVoicemailTaskCompleted() {
 		return this.mostRecentPatientOrderVoicemailTaskCompleted;
+	}
+
+	@Nullable
+	public UUID getPatientOrderInsurancePayorId() {
+		return this.patientOrderInsurancePayorId;
+	}
+
+	@Nullable
+	public PatientOrderInsurancePayorTypeId getPatientOrderInsurancePayorTypeId() {
+		return this.patientOrderInsurancePayorTypeId;
+	}
+
+	@Nullable
+	public String getPatientOrderInsurancePayorName() {
+		return this.patientOrderInsurancePayorName;
+	}
+
+	@Nullable
+	public UUID getPatientOrderInsurancePlanId() {
+		return this.patientOrderInsurancePlanId;
+	}
+
+	@Nullable
+	public String getPatientOrderInsurancePlanName() {
+		return this.patientOrderInsurancePlanName;
+	}
+
+	@Nullable
+	public PatientOrderInsurancePlanTypeId getPatientOrderInsurancePlanTypeId() {
+		return this.patientOrderInsurancePlanTypeId;
+	}
+
+	@Nullable
+	public Boolean getPatientOrderInsurancePlanAccepted() {
+		return this.patientOrderInsurancePlanAccepted;
+	}
+
+	@Nullable
+	public String getPatientAddressStreetAddress1() {
+		return this.patientAddressStreetAddress1;
+	}
+
+	@Nullable
+	public String getPatientAddressLocality() {
+		return this.patientAddressLocality;
+	}
+
+	@Nullable
+	public String getPatientAddressRegion() {
+		return this.patientAddressRegion;
+	}
+
+	@Nullable
+	public String getPatientAddressPostalCode() {
+		return this.patientAddressPostalCode;
+	}
+
+	@Nullable
+	public String getPatientAddressCountryCode() {
+		return this.patientAddressCountryCode;
+	}
+
+	@Nullable
+	public Boolean getPatientAddressRegionAccepted() {
+		return this.patientAddressRegionAccepted;
+	}
+
+	@Nullable
+	public Boolean getPatientDemographicsCompleted() {
+		return this.patientDemographicsCompleted;
+	}
+
+	@Nullable
+	public Boolean getPatientDemographicsAccepted() {
+		return this.patientDemographicsAccepted;
+	}
+
+	@Nullable
+	public Instant getPatientDemographicsConfirmedAt() {
+		return this.patientDemographicsConfirmedAt;
+	}
+
+	@Nullable
+	public String getPatientDemographicsConfirmedAtDescription() {
+		return this.patientDemographicsConfirmedAtDescription;
+	}
+
+	@Nullable
+	public UUID getPatientDemographicsConfirmedByAccountId() {
+		return this.patientDemographicsConfirmedByAccountId;
 	}
 }

@@ -82,6 +82,14 @@ public class PatchPatientOrderRequest {
 	private CreateAddressRequest patientAddress;
 	@Nullable
 	private boolean shouldUpdatePatientAddress;
+	@Nullable
+	private UUID patientOrderInsurancePlanId;
+	@Nullable
+	private boolean shouldUpdatePatientOrderInsurancePlanId;
+	@Nullable
+	private Boolean patientDemographicsConfirmed;
+	@Nullable
+	private boolean shouldUpdatePatientDemographicsConfirmed;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -286,5 +294,39 @@ public class PatchPatientOrderRequest {
 
 	public void setShouldUpdatePatientAddress(boolean shouldUpdatePatientAddress) {
 		this.shouldUpdatePatientAddress = shouldUpdatePatientAddress;
+	}
+
+	@Nullable
+	public UUID getPatientOrderInsurancePlanId() {
+		return this.patientOrderInsurancePlanId;
+	}
+
+	public void setPatientOrderInsurancePlanId(@Nullable UUID patientOrderInsurancePlanId) {
+		this.patientOrderInsurancePlanId = patientOrderInsurancePlanId;
+	}
+
+	public boolean isShouldUpdatePatientOrderInsurancePlanId() {
+		return this.shouldUpdatePatientOrderInsurancePlanId;
+	}
+
+	public void setShouldUpdatePatientOrderInsurancePlanId(boolean shouldUpdatePatientOrderInsurancePlanId) {
+		this.shouldUpdatePatientOrderInsurancePlanId = shouldUpdatePatientOrderInsurancePlanId;
+	}
+
+	@Nullable
+	public Boolean getPatientDemographicsConfirmed() {
+		return this.patientDemographicsConfirmed;
+	}
+
+	public void setPatientDemographicsConfirmed(@Nullable Boolean patientDemographicsConfirmed) {
+		this.patientDemographicsConfirmed = patientDemographicsConfirmed;
+	}
+
+	public boolean isShouldUpdatePatientDemographicsConfirmed() {
+		return this.shouldUpdatePatientDemographicsConfirmed;
+	}
+
+	public void setShouldUpdatePatientDemographicsConfirmed(boolean shouldUpdatePatientDemographicsConfirmed) {
+		this.shouldUpdatePatientDemographicsConfirmed = shouldUpdatePatientDemographicsConfirmed;
 	}
 }

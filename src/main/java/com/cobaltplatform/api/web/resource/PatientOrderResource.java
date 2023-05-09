@@ -25,7 +25,6 @@ import com.cobaltplatform.api.model.api.request.AssignPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.CancelPatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CompletePatientOrderVoicemailTaskRequest;
-import com.cobaltplatform.api.model.api.request.ConsentPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderOutreachRequest;
@@ -39,6 +38,7 @@ import com.cobaltplatform.api.model.api.request.DeletePatientOrderVoicemailTaskR
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
 import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderConsentStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
@@ -51,8 +51,6 @@ import com.cobaltplatform.api.model.api.response.AccountApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse.CountryApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.InsuranceApiResponse;
-import com.cobaltplatform.api.model.api.response.InsuranceApiResponse.InsuranceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.LanguageApiResponse;
 import com.cobaltplatform.api.model.api.response.LanguageApiResponse.LanguageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse;
@@ -60,6 +58,10 @@ import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.Patient
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFormat;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.PatientOrderAutocompleteResultApiResponse.PatientOrderAutocompleteResultApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderInsurancePayorApiResponse;
+import com.cobaltplatform.api.model.api.response.PatientOrderInsurancePayorApiResponse.PatientOrderInsurancePayorApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderInsurancePlanApiResponse;
+import com.cobaltplatform.api.model.api.response.PatientOrderInsurancePlanApiResponse.PatientOrderInsurancePlanApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse;
@@ -77,6 +79,7 @@ import com.cobaltplatform.api.model.db.GenderIdentity;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason;
+import com.cobaltplatform.api.model.db.PatientOrderConsentStatus.PatientOrderConsentStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
@@ -86,15 +89,18 @@ import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientO
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageGroup;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledScreening;
-import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
+import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderVoicemailTask;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.model.service.PatientOrderAssignmentStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderAutocompleteResult;
 import com.cobaltplatform.api.model.service.PatientOrderImportResult;
+import com.cobaltplatform.api.model.service.PatientOrderOutreachStatusId;
+import com.cobaltplatform.api.model.service.PatientOrderResponseStatusId;
 import com.cobaltplatform.api.model.service.Region;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AuthorizationService;
@@ -105,6 +111,7 @@ import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.PatientOrderCsvGenerator;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
+import com.lokalized.Strings;
 import com.soklet.web.annotation.DELETE;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.PATCH;
@@ -183,8 +190,6 @@ public class PatientOrderResource {
 	@Nonnull
 	private final CountryApiResponseFactory countryApiResponseFactory;
 	@Nonnull
-	private final InsuranceApiResponseFactory insuranceApiResponseFactory;
-	@Nonnull
 	private final PatientOrderAutocompleteResultApiResponseFactory patientOrderAutocompleteResultApiResponseFactory;
 	@Nonnull
 	private final PatientOrderScheduledScreeningApiResponseFactory patientOrderScheduledScreeningApiResponseFactory;
@@ -192,6 +197,10 @@ public class PatientOrderResource {
 	private final ScreeningTypeApiResponseFactory screeningTypeApiResponseFactory;
 	@Nonnull
 	private final PatientOrderVoicemailTaskApiResponseFactory patientOrderVoicemailTaskApiResponseFactory;
+	@Nonnull
+	private final PatientOrderInsurancePayorApiResponseFactory patientOrderInsurancePayorApiResponseFactory;
+	@Nonnull
+	private final PatientOrderInsurancePlanApiResponseFactory patientOrderInsurancePlanApiResponseFactory;
 	@Nonnull
 	private final PatientOrderCsvGenerator patientOrderCsvGenerator;
 	@Nonnull
@@ -204,6 +213,8 @@ public class PatientOrderResource {
 	private final Configuration configuration;
 	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
+	@Nonnull
+	private final Strings strings;
 	@Nonnull
 	private final Logger logger;
 
@@ -221,17 +232,19 @@ public class PatientOrderResource {
 															@Nonnull TimeZoneApiResponseFactory timeZoneApiResponseFactory,
 															@Nonnull LanguageApiResponseFactory languageApiResponseFactory,
 															@Nonnull CountryApiResponseFactory countryApiResponseFactory,
-															@Nonnull InsuranceApiResponseFactory insuranceApiResponseFactory,
 															@Nonnull PatientOrderAutocompleteResultApiResponseFactory patientOrderAutocompleteResultApiResponseFactory,
 															@Nonnull PatientOrderScheduledScreeningApiResponseFactory patientOrderScheduledScreeningApiResponseFactory,
 															@Nonnull ScreeningTypeApiResponseFactory screeningTypeApiResponseFactory,
 															@Nonnull PatientOrderVoicemailTaskApiResponseFactory patientOrderVoicemailTaskApiResponseFactory,
+															@Nonnull PatientOrderInsurancePayorApiResponseFactory patientOrderInsurancePayorApiResponseFactory,
+															@Nonnull PatientOrderInsurancePlanApiResponseFactory patientOrderInsurancePlanApiResponseFactory,
 															@Nonnull PatientOrderCsvGenerator patientOrderCsvGenerator,
 															@Nonnull RequestBodyParser requestBodyParser,
 															@Nonnull JsonMapper jsonMapper,
 															@Nonnull Formatter formatter,
 															@Nonnull Configuration configuration,
-															@Nonnull Provider<CurrentContext> currentContextProvider) {
+															@Nonnull Provider<CurrentContext> currentContextProvider,
+															@Nonnull Strings strings) {
 		requireNonNull(patientOrderService);
 		requireNonNull(accountService);
 		requireNonNull(institutionService);
@@ -245,17 +258,19 @@ public class PatientOrderResource {
 		requireNonNull(timeZoneApiResponseFactory);
 		requireNonNull(languageApiResponseFactory);
 		requireNonNull(countryApiResponseFactory);
-		requireNonNull(insuranceApiResponseFactory);
 		requireNonNull(patientOrderAutocompleteResultApiResponseFactory);
 		requireNonNull(patientOrderScheduledScreeningApiResponseFactory);
 		requireNonNull(screeningTypeApiResponseFactory);
 		requireNonNull(patientOrderVoicemailTaskApiResponseFactory);
+		requireNonNull(patientOrderInsurancePayorApiResponseFactory);
+		requireNonNull(patientOrderInsurancePlanApiResponseFactory);
 		requireNonNull(patientOrderCsvGenerator);
 		requireNonNull(requestBodyParser);
 		requireNonNull(jsonMapper);
 		requireNonNull(formatter);
 		requireNonNull(configuration);
 		requireNonNull(currentContextProvider);
+		requireNonNull(strings);
 
 		this.patientOrderService = patientOrderService;
 		this.accountService = accountService;
@@ -270,17 +285,19 @@ public class PatientOrderResource {
 		this.timeZoneApiResponseFactory = timeZoneApiResponseFactory;
 		this.languageApiResponseFactory = languageApiResponseFactory;
 		this.countryApiResponseFactory = countryApiResponseFactory;
-		this.insuranceApiResponseFactory = insuranceApiResponseFactory;
 		this.patientOrderAutocompleteResultApiResponseFactory = patientOrderAutocompleteResultApiResponseFactory;
 		this.patientOrderScheduledScreeningApiResponseFactory = patientOrderScheduledScreeningApiResponseFactory;
 		this.screeningTypeApiResponseFactory = screeningTypeApiResponseFactory;
 		this.patientOrderVoicemailTaskApiResponseFactory = patientOrderVoicemailTaskApiResponseFactory;
+		this.patientOrderInsurancePayorApiResponseFactory = patientOrderInsurancePayorApiResponseFactory;
+		this.patientOrderInsurancePlanApiResponseFactory = patientOrderInsurancePlanApiResponseFactory;
 		this.patientOrderCsvGenerator = patientOrderCsvGenerator;
 		this.requestBodyParser = requestBodyParser;
 		this.jsonMapper = jsonMapper;
 		this.formatter = formatter;
 		this.configuration = configuration;
 		this.currentContextProvider = currentContextProvider;
+		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
@@ -355,6 +372,8 @@ public class PatientOrderResource {
 		request.setShouldUpdatePatientBirthSexId(requestBodyAsJson.containsKey("patientBirthSexId"));
 		request.setShouldUpdatePatientRaceId(requestBodyAsJson.containsKey("patientRaceId"));
 		request.setShouldUpdatePatientAddress(requestBodyAsJson.containsKey("patientAddress"));
+		request.setShouldUpdatePatientOrderInsurancePlanId(requestBodyAsJson.containsKey("patientOrderInsurancePlanId"));
+		request.setShouldUpdatePatientDemographicsConfirmed(requestBodyAsJson.containsKey("patientDemographicsConfirmed"));
 
 		getPatientOrderService().patchPatientOrder(request);
 
@@ -368,12 +387,48 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
+	@GET("/patient-orders/latest")
+	@AuthenticationRequired
+	public ApiResponse latestPatientOrder(@Nonnull @QueryParameter Optional<UUID> accountId) {
+		requireNonNull(accountId);
+
+		// Pull the latest order (if it exists) for the current account by default.
+		// Or - if an account ID is provided - pull the current order for that account.
+		// We perform an authorization check below after all data is loaded.
+		Account currentAccount = getCurrentContext().getAccount().get();
+		Account targetAccount = currentAccount;
+
+		if (accountId.isPresent()) {
+			targetAccount = getAccountService().findAccountById(accountId.get()).orElse(null);
+
+			if (targetAccount == null)
+				throw new NotFoundException();
+		}
+
+		PatientOrder patientOrder = getPatientOrderService().findLatestPatientOrderByMrnAndInstitutionId(targetAccount.getEpicPatientMrn(), targetAccount.getInstitutionId()).orElse(null);
+
+		if (patientOrder == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canViewPatientOrder(patientOrder, currentAccount))
+			throw new AuthorizationException();
+
+		PatientOrderApiResponseFormat responseFormat = PatientOrderApiResponseFormat.fromRoleId(currentAccount.getRoleId());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrder", getPatientOrderApiResponseFactory().create(patientOrder, responseFormat,
+					Set.of(PatientOrderApiResponseSupplement.EVERYTHING)));
+		}});
+	}
+
+
+	@Nonnull
 	@GET("/patient-orders/open")
 	@AuthenticationRequired
 	public ApiResponse openPatientOrder(@Nonnull @QueryParameter Optional<UUID> accountId) {
 		requireNonNull(accountId);
 
-		// Pull the open order (if it exists) for the open account by default.
+		// Pull the open order (if it exists) for the current account by default.
 		// Or - if an account ID is provided - pull the open order for that account.
 		// We perform an authorization check below after all data is loaded.
 		Account currentAccount = getCurrentContext().getAccount().get();
@@ -434,10 +489,12 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
-	@PUT("/patient-orders/{patientOrderId}/consent")
+	@PUT("/patient-orders/{patientOrderId}/consent-status")
 	@AuthenticationRequired
-	public ApiResponse consentPatientOrder(@Nonnull @PathParameter UUID patientOrderId) {
+	public ApiResponse updatePatientOrderConsentStatus(@Nonnull @PathParameter UUID patientOrderId,
+																										 @Nonnull @RequestBody String requestBody) {
 		requireNonNull(patientOrderId);
+		requireNonNull(requestBody);
 
 		Account account = getCurrentContext().getAccount().get();
 		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
@@ -448,11 +505,11 @@ public class PatientOrderResource {
 		if (!getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
 
-		ConsentPatientOrderRequest request = new ConsentPatientOrderRequest();
+		UpdatePatientOrderConsentStatusRequest request = getRequestBodyParser().parse(requestBody, UpdatePatientOrderConsentStatusRequest.class);
 		request.setPatientOrderId(patientOrder.getPatientOrderId());
 		request.setAccountId(account.getAccountId());
 
-		getPatientOrderService().consentPatientOrder(request);
+		getPatientOrderService().updatePatientOrderConsentStatus(request);
 
 		PatientOrder updatedPatientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).get();
 		PatientOrderApiResponseFormat responseFormat = PatientOrderApiResponseFormat.fromRoleId(account.getRoleId());
@@ -556,14 +613,20 @@ public class PatientOrderResource {
 	@GET("/patient-orders")
 	@AuthenticationRequired
 	public ApiResponse findPatientOrders(@Nonnull @QueryParameter Optional<PatientOrderDispositionId> patientOrderDispositionId,
-																			 @Nonnull @QueryParameter("patientOrderStatusId") Optional<List<PatientOrderStatusId>> patientOrderStatusIds,
+																			 @Nonnull @QueryParameter Optional<PatientOrderConsentStatusId> patientOrderConsentStatusId,
+																			 @Nonnull @QueryParameter("patientOrderTriageStatusId") Optional<List<PatientOrderTriageStatusId>> patientOrderTriageStatusIds,
+																			 @Nonnull @QueryParameter Optional<PatientOrderAssignmentStatusId> patientOrderAssignmentStatusId,
+																			 @Nonnull @QueryParameter Optional<PatientOrderOutreachStatusId> patientOrderOutreachStatusId,
+																			 @Nonnull @QueryParameter Optional<PatientOrderResponseStatusId> patientOrderResponseStatusId,
+																			 @Nonnull @QueryParameter Optional<PatientOrderSafetyPlanningStatusId> patientOrderSafetyPlanningStatusId,
 																			 @Nonnull @QueryParameter Optional<UUID> panelAccountId,
 																			 @Nonnull @QueryParameter Optional<String> patientMrn,
 																			 @Nonnull @QueryParameter Optional<String> searchQuery,
 																			 @Nonnull @QueryParameter Optional<Integer> pageNumber,
 																			 @Nonnull @QueryParameter Optional<Integer> pageSize) {
 		requireNonNull(patientOrderDispositionId);
-		requireNonNull(patientOrderStatusIds);
+		requireNonNull(patientOrderConsentStatusId);
+		requireNonNull(patientOrderTriageStatusIds);
 		requireNonNull(panelAccountId);
 		requireNonNull(patientMrn);
 		requireNonNull(searchQuery);
@@ -589,7 +652,11 @@ public class PatientOrderResource {
 			{
 				setInstitutionId(account.getInstitutionId());
 				setPatientOrderDispositionId(patientOrderDispositionId.orElse(null));
-				setPatientOrderStatusIds(new HashSet<>(patientOrderStatusIds.orElse(List.of())));
+				setPatientOrderTriageStatusIds(new HashSet<>(patientOrderTriageStatusIds.orElse(List.of())));
+				setPatientOrderAssignmentStatusId(patientOrderAssignmentStatusId.orElse(null));
+				setPatientOrderOutreachStatusId(patientOrderOutreachStatusId.orElse(null));
+				setPatientOrderResponseStatusId(patientOrderResponseStatusId.orElse(null));
+				setPatientOrderSafetyPlanningStatusId(patientOrderSafetyPlanningStatusId.orElse(null));
 				setPanelAccountId(panelAccountId.orElse(null));
 				setPatientMrn(patientMrn.orElse(null));
 				setSearchQuery(searchQuery.orElse(null));
@@ -1271,9 +1338,9 @@ public class PatientOrderResource {
 				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
 				.collect(Collectors.toList());
 
-		// "New Patients": outreach_count == 0
+		// "New Patients": total_outreach_count == 0
 		List<PatientOrderApiResponse> newPatientPatientOrders = patientOrders.stream()
-				.filter(patientOrder -> patientOrder.getOutreachCount() == 0)
+				.filter(patientOrder -> patientOrder.getTotalOutreachCount() == 0)
 				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
 				.collect(Collectors.toList());
 
@@ -1298,7 +1365,7 @@ public class PatientOrderResource {
 
 		// "Assessments": status == NEEDS_ASSESSMENT && patient_order_scheduled_screening_scheduled_date_time == TODAY
 		List<PatientOrderApiResponse> scheduledAssessmentPatientOrders = patientOrders.stream()
-				.filter(patientOrder -> patientOrder.getPatientOrderStatusId() == PatientOrderStatusId.NEEDS_ASSESSMENT
+				.filter(patientOrder -> patientOrder.getPatientOrderTriageStatusId() == PatientOrderTriageStatusId.NEEDS_ASSESSMENT
 						&& patientOrder.getPatientOrderScheduledScreeningScheduledDateTime() != null
 						&& patientOrder.getPatientOrderScheduledScreeningScheduledDateTime().toLocalDate().equals(today.toLocalDate()))
 				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
@@ -1340,20 +1407,30 @@ public class PatientOrderResource {
 		if (!getAuthorizationService().canViewPanelAccounts(institutionId, account))
 			throw new AuthorizationException();
 
-		Map<PatientOrderStatusId, Integer> patientOrderCountsByPatientOrderStatusId = getPatientOrderService().findPatientOrderCountsByPatientOrderStatusIdForInstitutionId(institutionId, account.getAccountId());
-		Map<PatientOrderStatusId, Map<String, Object>> patientOrderCountsByPatientOrderStatusIdJson = new HashMap<>(patientOrderCountsByPatientOrderStatusId.size());
+		Map<PatientOrderTriageStatusId, Integer> patientOrderCountsByPatientOrderTriageStatusId = getPatientOrderService().findPatientOrderCountsByPatientOrderTriageStatusIdForInstitutionId(institutionId, account.getAccountId());
+		Map<PatientOrderTriageStatusId, Map<String, Object>> patientOrderCountsByPatientOrderTriageStatusIdJson = new HashMap<>(patientOrderCountsByPatientOrderTriageStatusId.size());
 
-		for (Entry<PatientOrderStatusId, Integer> entry : patientOrderCountsByPatientOrderStatusId.entrySet()) {
-			PatientOrderStatusId patientOrderStatusId = entry.getKey();
+		for (Entry<PatientOrderTriageStatusId, Integer> entry : patientOrderCountsByPatientOrderTriageStatusId.entrySet()) {
+			PatientOrderTriageStatusId patientOrderTriageStatusId = entry.getKey();
 			Integer count = entry.getValue();
-			patientOrderCountsByPatientOrderStatusIdJson.put(patientOrderStatusId, Map.of(
+			patientOrderCountsByPatientOrderTriageStatusIdJson.put(patientOrderTriageStatusId, Map.of(
 					"patientOrderCount", count,
 					"patientOrderCountDescription", getFormatter().formatNumber(count)
 			));
 		}
 
+		int safetyPlanningPatientOrderCount = getPatientOrderService().findSafetyPlanningPatientOrderCountForInstitutionId(institutionId, account.getAccountId());
+		int closedPatientOrderCount = getPatientOrderService().findPatientOrderDispositionCountForInstitutionId(institutionId, account.getAccountId(), PatientOrderDispositionId.CLOSED);
+		int waitingForConsentPatientOrderCount = getPatientOrderService().findPatientOrderConsentCountForInstitutionId(institutionId, account.getAccountId(), PatientOrderConsentStatusId.UNKNOWN);
+
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("patientOrderCountsByPatientOrderStatusId", patientOrderCountsByPatientOrderStatusIdJson);
+			put("patientOrderCountsByPatientOrderTriageStatusId", patientOrderCountsByPatientOrderTriageStatusIdJson);
+			put("safetyPlanningPatientOrderCount", safetyPlanningPatientOrderCount);
+			put("safetyPlanningPatientOrderCountDescription", getFormatter().formatNumber(safetyPlanningPatientOrderCount));
+			put("closedPatientOrderCount", closedPatientOrderCount);
+			put("closedPatientOrderCountDescription", getFormatter().formatNumber(closedPatientOrderCount));
+			put("waitingForConsentPatientOrderCount", waitingForConsentPatientOrderCount);
+			put("waitingForConsentPatientOrderCountDescription", getFormatter().formatNumber(waitingForConsentPatientOrderCount));
 		}});
 	}
 
@@ -1466,14 +1543,6 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
-	@GET("/accounts/reference-data")
-	@AuthenticationRequired
-	@Deprecated // temporary until FE can transition to GET /patient-orders/reference-data
-	public ApiResponse accountReferenceData() {
-		return patientOrderReferenceData();
-	}
-
-	@Nonnull
 	@GET("/patient-orders/reference-data")
 	@AuthenticationRequired
 	public ApiResponse patientOrderReferenceData() {
@@ -1507,11 +1576,6 @@ public class PatientOrderResource {
 		Collections.sort(languages, (language1, language2) -> {
 			return language1.getDescription().compareTo(language2.getDescription());
 		});
-
-		// Insurances
-		List<InsuranceApiResponse> insurances = getInstitutionService().findInsurancesByInstitutionId(institutionId).stream()
-				.map(insurance -> getInsuranceApiResponseFactory().create(insurance))
-				.collect(Collectors.toList());
 
 		// Regions
 		Map<String, List<Region>> regionsByCountryCode = Region.getRegionsByCountryCode();
@@ -1548,14 +1612,12 @@ public class PatientOrderResource {
 				.map(screeningType -> getScreeningTypeApiResponseFactory().create(screeningType))
 				.collect(Collectors.toList());
 
-		List<Map<String, Object>> patientOrderStatuses = getPatientOrderService().findPatientOrderStatuses().stream()
-				.map(patientOrderStatus -> {
-					Map<String, Object> patientOrderStatusJson = new HashMap<>();
-					patientOrderStatusJson.put("patientOrderStatusId", patientOrderStatus.getPatientOrderStatusId());
-					patientOrderStatusJson.put("description", patientOrderStatus.getDescription());
-					return patientOrderStatusJson;
-				})
-				.collect(Collectors.toList());
+		List<Map<PatientOrderTriageStatusId, Object>> patientOrderTriageStatuses = List.of(
+				Map.of(PatientOrderTriageStatusId.NEEDS_ASSESSMENT, getStrings().get("Needs Assessment")),
+				Map.of(PatientOrderTriageStatusId.SPECIALTY_CARE, getStrings().get("Specialty Care")),
+				Map.of(PatientOrderTriageStatusId.MHP, getStrings().get("MHP")),
+				Map.of(PatientOrderTriageStatusId.SUBCLINICAL, getStrings().get("Subclinical"))
+		);
 
 		List<Map<String, Object>> patientOrderDispositions = getPatientOrderService().findPatientOrderDispositions().stream()
 				.map(patientOrderDisposition -> {
@@ -1607,23 +1669,37 @@ public class PatientOrderResource {
 				})
 				.collect(Collectors.toList());
 
+		List<String> referringPracticeNames = getPatientOrderService().findReferringPracticeNamesByInstitutionId(institutionId);
+		List<String> reasonsForReferral = getPatientOrderService().findReasonsForReferralByInstitutionId(institutionId);
+
+		List<PatientOrderInsurancePayorApiResponse> patientOrderInsurancePayors = getPatientOrderService().findPatientOrderInsurancePayorsByInstitutionId(institutionId).stream()
+				.map(patientOrderInsurancePayor -> getPatientOrderInsurancePayorApiResponseFactory().create(patientOrderInsurancePayor))
+				.collect(Collectors.toList());
+
+		List<PatientOrderInsurancePlanApiResponse> patientOrderInsurancePlans = getPatientOrderService().findPatientOrderInsurancePlansByInstitutionId(institutionId).stream()
+				.map(patientOrderInsurancePlan -> getPatientOrderInsurancePlanApiResponseFactory().create(patientOrderInsurancePlan))
+				.collect(Collectors.toList());
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("timeZones", timeZones);
 			put("countries", countries);
 			put("languages", languages);
-			put("insurances", insurances);
 			put("genderIdentities", genderIdentities);
 			put("races", races);
 			put("birthSexes", birthSexes);
 			put("ethnicities", ethnicities);
 			put("regionsByCountryCode", normalizedRegionsByCountryCode);
 			put("screeningTypes", screeningTypes);
-			put("patientOrderStatuses", patientOrderStatuses);
+			put("patientOrderTriageStatuses", patientOrderTriageStatuses);
 			put("patientOrderDispositions", patientOrderDispositions);
 			put("patientOrderOutreachResults", patientOrderOutreachResults);
 			put("patientOrderScheduledMessageTypes", patientOrderScheduledMessageTypes);
 			put("patientOrderCareTypes", patientOrderCareTypes);
 			put("patientOrderFocusTypes", patientOrderFocusTypes);
+			put("referringPracticeNames", referringPracticeNames);
+			put("reasonsForReferral", reasonsForReferral);
+			put("patientOrderInsurancePayors", patientOrderInsurancePayors);
+			put("patientOrderInsurancePlans", patientOrderInsurancePlans);
 		}});
 	}
 
@@ -1729,11 +1805,6 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
-	protected InsuranceApiResponseFactory getInsuranceApiResponseFactory() {
-		return this.insuranceApiResponseFactory;
-	}
-
-	@Nonnull
 	protected PatientOrderAutocompleteResultApiResponseFactory getPatientOrderAutocompleteResultApiResponseFactory() {
 		return this.patientOrderAutocompleteResultApiResponseFactory;
 	}
@@ -1751,6 +1822,16 @@ public class PatientOrderResource {
 	@Nonnull
 	protected PatientOrderVoicemailTaskApiResponseFactory getPatientOrderVoicemailTaskApiResponseFactory() {
 		return this.patientOrderVoicemailTaskApiResponseFactory;
+	}
+
+	@Nonnull
+	protected PatientOrderInsurancePayorApiResponseFactory getPatientOrderInsurancePayorApiResponseFactory() {
+		return this.patientOrderInsurancePayorApiResponseFactory;
+	}
+
+	@Nonnull
+	protected PatientOrderInsurancePlanApiResponseFactory getPatientOrderInsurancePlanApiResponseFactory() {
+		return this.patientOrderInsurancePlanApiResponseFactory;
 	}
 
 	@Nonnull
@@ -1781,6 +1862,11 @@ public class PatientOrderResource {
 	@Nonnull
 	protected CurrentContext getCurrentContext() {
 		return this.currentContextProvider.get();
+	}
+
+	@Nonnull
+	protected Strings getStrings() {
+		return this.strings;
 	}
 
 	@Nonnull

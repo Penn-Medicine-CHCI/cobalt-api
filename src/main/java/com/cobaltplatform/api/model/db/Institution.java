@@ -183,6 +183,10 @@ public class Institution {
 	private String integratedCarePhoneNumber;
 	@Nullable
 	private String integratedCareAvailabilityDescription;
+	@Nullable
+	private String integratedCareProgramName;
+	@Nullable
+	private String integratedCarePrimaryCareName;
 
 	public enum InstitutionId {
 		COBALT,
@@ -833,5 +837,23 @@ public class Institution {
 
 	public void setIntegratedCareAvailabilityDescription(@Nullable String integratedCareAvailabilityDescription) {
 		this.integratedCareAvailabilityDescription = integratedCareAvailabilityDescription;
+	}
+
+	@Nullable
+	public String getIntegratedCareProgramName() {
+		return this.integratedCareProgramName;
+	}
+
+	public void setIntegratedCareProgramName(@Nullable String integratedCareProgramName) {
+		this.integratedCareProgramName = integratedCareProgramName;
+	}
+
+	@Nullable
+	public String getIntegratedCarePrimaryCareName() {
+		return this.integratedCarePrimaryCareName;
+	}
+
+	public void setIntegratedCarePrimaryCareName(@Nullable String integratedCarePrimaryCareName) {
+		this.integratedCarePrimaryCareName = integratedCarePrimaryCareName;
 	}
 }

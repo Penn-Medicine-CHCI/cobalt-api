@@ -129,6 +129,12 @@ public class InstitutionApiResponse {
 	private final String integratedCarePhoneNumberDescription;
 	@Nullable
 	private final String integratedCareAvailabilityDescription;
+	@Nullable
+	private final String integratedCareProgramName;
+	@Nullable
+	private final String integratedCarePrimaryCareName;
+	@Nullable
+	private final String myChartName;
 	@Nonnull
 	private final List<NavigationItem> additionalNavigationItems;
 	@Nonnull
@@ -205,6 +211,7 @@ public class InstitutionApiResponse {
 		this.userSubmittedGroupSessionEnabled = institution.getUserSubmittedGroupSessionEnabled();
 		this.userSubmittedGroupSessionRequestEnabled = institution.getUserSubmittedGroupSessionRequestEnabled();
 		this.integratedCareEnabled = institution.getIntegratedCareEnabled();
+		this.myChartName = institution.getMyChartName();
 		this.groupSessionRequestsEnabled = institution.getGroupSessionRequestsEnabled();
 		this.ga4MeasurementId = institution.getGa4MeasurementId();
 		this.additionalNavigationItems = topicCenterService.findTopicCenterNavigationItemsByInstitutionId(institutionId);
@@ -222,6 +229,8 @@ public class InstitutionApiResponse {
 		this.integratedCarePhoneNumber = institution.getIntegratedCarePhoneNumber();
 		this.integratedCarePhoneNumberDescription = institution.getIntegratedCarePhoneNumber() == null ? null : formatter.formatPhoneNumber(institution.getIntegratedCarePhoneNumber());
 		this.integratedCareAvailabilityDescription = institution.getIntegratedCareAvailabilityDescription();
+		this.integratedCareProgramName = institution.getIntegratedCareProgramName();
+		this.integratedCarePrimaryCareName = institution.getIntegratedCarePrimaryCareName();
 
 		if (account == null) {
 			this.alerts = alertService.findAlertsByInstitutionId(institution.getInstitutionId()).stream()
@@ -445,5 +454,20 @@ public class InstitutionApiResponse {
 	@Nullable
 	public String getIntegratedCareAvailabilityDescription() {
 		return this.integratedCareAvailabilityDescription;
+	}
+
+	@Nullable
+	public String getIntegratedCareProgramName() {
+		return this.integratedCareProgramName;
+	}
+
+	@Nullable
+	public String getIntegratedCarePrimaryCareName() {
+		return this.integratedCarePrimaryCareName;
+	}
+
+	@Nullable
+	public String getMyChartName() {
+		return this.myChartName;
 	}
 }

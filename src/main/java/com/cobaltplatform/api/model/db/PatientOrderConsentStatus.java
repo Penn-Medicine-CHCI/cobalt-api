@@ -25,47 +25,38 @@ import javax.annotation.concurrent.NotThreadSafe;
 import static java.lang.String.format;
 
 /**
- * @author Transmogrify, LLC.
+ * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class InsuranceType {
+public class PatientOrderConsentStatus {
 	@Nullable
-	private InsuranceTypeId insuranceTypeId;
+	private PatientOrderConsentStatusId patientOrderConsentStatusId;
 	@Nullable
 	private String description;
 
-	public enum InsuranceTypeId {
+	public enum PatientOrderConsentStatusId {
 		UNKNOWN,
-		OUT_OF_POCKET,
-		OTHER,
-		UNCATEGORIZED,
-		PPO,
-		HMO,
-		POS,
-		EPO,
-		HSA,
-		INDEMNITY,
-		MEDICARE,
-		MEDICAID
+		CONSENTED,
+		REJECTED
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{insuranceTypeId=%s, description=%s}", getClass().getSimpleName(), getInsuranceTypeId(), getDescription());
+		return format("%s{patientOrderConsentStatusId=%s, description=%s}", getClass().getSimpleName(), getPatientOrderConsentStatusId(), getDescription());
 	}
 
 	@Nullable
-	public InsuranceTypeId getInsuranceTypeId() {
-		return this.insuranceTypeId;
+	public PatientOrderConsentStatusId getPatientOrderConsentStatusId() {
+		return this.patientOrderConsentStatusId;
 	}
 
-	public void setInsuranceTypeId(@Nullable InsuranceTypeId insuranceTypeId) {
-		this.insuranceTypeId = insuranceTypeId;
+	public void setPatientOrderConsentStatusId(@Nullable PatientOrderConsentStatusId patientOrderConsentStatusId) {
+		this.patientOrderConsentStatusId = patientOrderConsentStatusId;
 	}
 
 	@Nullable
 	public String getDescription() {
-		return description;
+		return this.description;
 	}
 
 	public void setDescription(@Nullable String description) {

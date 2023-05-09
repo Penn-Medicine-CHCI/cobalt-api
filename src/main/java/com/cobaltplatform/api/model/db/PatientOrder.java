@@ -25,12 +25,17 @@ import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
+import com.cobaltplatform.api.model.db.PatientOrderConsentStatus.PatientOrderConsentStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
+import com.cobaltplatform.api.model.db.PatientOrderInsurancePayorType.PatientOrderInsurancePayorTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderInsurancePlanType.PatientOrderInsurancePlanTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
-import com.cobaltplatform.api.model.db.PatientOrderStatus.PatientOrderStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
+import com.pyranid.DatabaseColumn;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -47,7 +52,7 @@ public class PatientOrder {
 	@Nullable
 	private UUID patientOrderId;
 	@Nullable
-	private PatientOrderStatusId patientOrderStatusId;
+	private PatientOrderTriageStatusId patientOrderTriageStatusId;
 	@Nullable
 	private PatientOrderDispositionId patientOrderDispositionId;
 	@Nullable
@@ -143,8 +148,6 @@ public class PatientOrder {
 	@Nullable
 	private String routing;
 	@Nullable
-	private String reasonForReferral;
-	@Nullable
 	private String associatedDiagnosis;
 	@Nullable
 	private String preferredContactHours;
@@ -173,15 +176,25 @@ public class PatientOrder {
 	@Nullable
 	private Instant connectedToSafetyPlanningAt;
 	@Nullable
-	private Boolean patientConsented;
+	private PatientOrderConsentStatusId patientOrderConsentStatusId;
 	@Nullable
-	private UUID patientConsentedByAccountId;
+	private UUID consentStatusUpdatedByByAccountId;
 	@Nullable
-	private Instant patientConsentedAt;
+	private Instant consentStatusUpdatedAt;
+	@Nullable
+	private PatientOrderResourceCheckInResponseStatusId patientOrderResourceCheckInResponseStatusId;
+	@Nullable
+	private UUID resourceCheckInResponseStatusUpdatedByByAccountId;
+	@Nullable
+	private Instant resourceCheckInResponseStatusUpdatedAt;
 	@Nullable
 	private String testPatientEmailAddress;
 	@Nullable
 	private String testPatientPassword;
+	@Nullable
+	private Instant patientDemographicsConfirmedAt;
+	@Nullable
+	private UUID patientDemographicsConfirmedByAccountId;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -194,9 +207,15 @@ public class PatientOrder {
 	@Nullable
 	private String patientOrderCareTypeDescription;
 	@Nullable
+	private Integer totalOutreachCount;
+	@Nullable
 	private Integer outreachCount;
 	@Nullable
 	private LocalDateTime mostRecentOutreachDateTime;
+	@Nullable
+	private Integer scheduledMessageGroupCount;
+	@Nullable
+	private LocalDateTime mostRecentScheduledMessageGroupDateTime;
 	@Nullable
 	private UUID mostRecentScreeningSessionId;
 	@Nullable
@@ -218,7 +237,7 @@ public class PatientOrder {
 	@Nullable
 	private String patientOrderDispositionDescription;
 	@Nullable
-	private String patientOrderStatusDescription;
+	private String patientOrderTriageStatusDescription;
 	@Nullable
 	private String patientOrderClosureReasonDescription;
 	@Nullable
@@ -245,6 +264,39 @@ public class PatientOrder {
 	private UUID mostRecentPatientOrderVoicemailTaskId;
 	@Nullable
 	private Boolean mostRecentPatientOrderVoicemailTaskCompleted;
+	@Nullable
+	private String reasonForReferral;
+	@Nullable
+	private UUID patientOrderInsurancePayorId;
+	@Nullable
+	private PatientOrderInsurancePayorTypeId patientOrderInsurancePayorTypeId;
+	@Nullable
+	private String patientOrderInsurancePayorName;
+	@Nullable
+	private UUID patientOrderInsurancePlanId;
+	@Nullable
+	private String patientOrderInsurancePlanName;
+	@Nullable
+	private PatientOrderInsurancePlanTypeId patientOrderInsurancePlanTypeId;
+	@Nullable
+	private Boolean patientOrderInsurancePlanAccepted;
+	@Nullable
+	@DatabaseColumn("patient_address_street_address_1")
+	private String patientAddressStreetAddress1;
+	@Nullable
+	private String patientAddressLocality;
+	@Nullable
+	private String patientAddressRegion;
+	@Nullable
+	private String patientAddressPostalCode;
+	@Nullable
+	private String patientAddressCountryCode;
+	@Nullable
+	private Boolean patientAddressRegionAccepted;
+	@Nullable
+	private Boolean patientDemographicsCompleted;
+	@Nullable
+	private Boolean patientDemographicsAccepted;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -256,12 +308,12 @@ public class PatientOrder {
 	}
 
 	@Nullable
-	public PatientOrderStatusId getPatientOrderStatusId() {
-		return this.patientOrderStatusId;
+	public PatientOrderTriageStatusId getPatientOrderTriageStatusId() {
+		return this.patientOrderTriageStatusId;
 	}
 
-	public void setPatientOrderStatusId(@Nullable PatientOrderStatusId patientOrderStatusId) {
-		this.patientOrderStatusId = patientOrderStatusId;
+	public void setPatientOrderTriageStatusId(@Nullable PatientOrderTriageStatusId patientOrderTriageStatusId) {
+		this.patientOrderTriageStatusId = patientOrderTriageStatusId;
 	}
 
 	@Nullable
@@ -823,30 +875,57 @@ public class PatientOrder {
 	}
 
 	@Nullable
-	public Boolean getPatientConsented() {
-		return this.patientConsented;
+	public PatientOrderConsentStatusId getPatientOrderConsentStatusId() {
+		return this.patientOrderConsentStatusId;
 	}
 
-	public void setPatientConsented(@Nullable Boolean patientConsented) {
-		this.patientConsented = patientConsented;
-	}
-
-	@Nullable
-	public UUID getPatientConsentedByAccountId() {
-		return this.patientConsentedByAccountId;
-	}
-
-	public void setPatientConsentedByAccountId(@Nullable UUID patientConsentedByAccountId) {
-		this.patientConsentedByAccountId = patientConsentedByAccountId;
+	public void setPatientOrderConsentStatusId(@Nullable PatientOrderConsentStatusId patientOrderConsentStatusId) {
+		this.patientOrderConsentStatusId = patientOrderConsentStatusId;
 	}
 
 	@Nullable
-	public Instant getPatientConsentedAt() {
-		return this.patientConsentedAt;
+	public UUID getConsentStatusUpdatedByByAccountId() {
+		return this.consentStatusUpdatedByByAccountId;
 	}
 
-	public void setPatientConsentedAt(@Nullable Instant patientConsentedAt) {
-		this.patientConsentedAt = patientConsentedAt;
+	public void setConsentStatusUpdatedByByAccountId(@Nullable UUID consentStatusUpdatedByByAccountId) {
+		this.consentStatusUpdatedByByAccountId = consentStatusUpdatedByByAccountId;
+	}
+
+	@Nullable
+	public Instant getConsentStatusUpdatedAt() {
+		return this.consentStatusUpdatedAt;
+	}
+
+	public void setConsentStatusUpdatedAt(@Nullable Instant consentStatusUpdatedAt) {
+		this.consentStatusUpdatedAt = consentStatusUpdatedAt;
+	}
+
+	@Nullable
+	public PatientOrderResourceCheckInResponseStatusId getPatientOrderResourceCheckInResponseStatusId() {
+		return this.patientOrderResourceCheckInResponseStatusId;
+	}
+
+	public void setPatientOrderResourceCheckInResponseStatusId(@Nullable PatientOrderResourceCheckInResponseStatusId patientOrderResourceCheckInResponseStatusId) {
+		this.patientOrderResourceCheckInResponseStatusId = patientOrderResourceCheckInResponseStatusId;
+	}
+
+	@Nullable
+	public UUID getResourceCheckInResponseStatusUpdatedByByAccountId() {
+		return this.resourceCheckInResponseStatusUpdatedByByAccountId;
+	}
+
+	public void setResourceCheckInResponseStatusUpdatedByByAccountId(@Nullable UUID resourceCheckInResponseStatusUpdatedByByAccountId) {
+		this.resourceCheckInResponseStatusUpdatedByByAccountId = resourceCheckInResponseStatusUpdatedByByAccountId;
+	}
+
+	@Nullable
+	public Instant getResourceCheckInResponseStatusUpdatedAt() {
+		return this.resourceCheckInResponseStatusUpdatedAt;
+	}
+
+	public void setResourceCheckInResponseStatusUpdatedAt(@Nullable Instant resourceCheckInResponseStatusUpdatedAt) {
+		this.resourceCheckInResponseStatusUpdatedAt = resourceCheckInResponseStatusUpdatedAt;
 	}
 
 	@Nullable
@@ -865,6 +944,24 @@ public class PatientOrder {
 
 	public void setTestPatientPassword(@Nullable String testPatientPassword) {
 		this.testPatientPassword = testPatientPassword;
+	}
+
+	@Nullable
+	public Instant getPatientDemographicsConfirmedAt() {
+		return this.patientDemographicsConfirmedAt;
+	}
+
+	public void setPatientDemographicsConfirmedAt(@Nullable Instant patientDemographicsConfirmedAt) {
+		this.patientDemographicsConfirmedAt = patientDemographicsConfirmedAt;
+	}
+
+	@Nullable
+	public UUID getPatientDemographicsConfirmedByAccountId() {
+		return this.patientDemographicsConfirmedByAccountId;
+	}
+
+	public void setPatientDemographicsConfirmedByAccountId(@Nullable UUID patientDemographicsConfirmedByAccountId) {
+		this.patientDemographicsConfirmedByAccountId = patientDemographicsConfirmedByAccountId;
 	}
 
 	@Nullable
@@ -904,6 +1001,15 @@ public class PatientOrder {
 	}
 
 	@Nullable
+	public Integer getTotalOutreachCount() {
+		return this.totalOutreachCount;
+	}
+
+	public void setTotalOutreachCount(@Nullable Integer totalOutreachCount) {
+		this.totalOutreachCount = totalOutreachCount;
+	}
+
+	@Nullable
 	public Integer getOutreachCount() {
 		return this.outreachCount;
 	}
@@ -919,6 +1025,24 @@ public class PatientOrder {
 
 	public void setMostRecentOutreachDateTime(@Nullable LocalDateTime mostRecentOutreachDateTime) {
 		this.mostRecentOutreachDateTime = mostRecentOutreachDateTime;
+	}
+
+	@Nullable
+	public Integer getScheduledMessageGroupCount() {
+		return this.scheduledMessageGroupCount;
+	}
+
+	public void setScheduledMessageGroupCount(@Nullable Integer scheduledMessageGroupCount) {
+		this.scheduledMessageGroupCount = scheduledMessageGroupCount;
+	}
+
+	@Nullable
+	public LocalDateTime getMostRecentScheduledMessageGroupDateTime() {
+		return this.mostRecentScheduledMessageGroupDateTime;
+	}
+
+	public void setMostRecentScheduledMessageGroupDateTime(@Nullable LocalDateTime mostRecentScheduledMessageGroupDateTime) {
+		this.mostRecentScheduledMessageGroupDateTime = mostRecentScheduledMessageGroupDateTime;
 	}
 
 	@Nullable
@@ -1012,12 +1136,12 @@ public class PatientOrder {
 	}
 
 	@Nullable
-	public String getPatientOrderStatusDescription() {
-		return this.patientOrderStatusDescription;
+	public String getPatientOrderTriageStatusDescription() {
+		return this.patientOrderTriageStatusDescription;
 	}
 
-	public void setPatientOrderStatusDescription(@Nullable String patientOrderStatusDescription) {
-		this.patientOrderStatusDescription = patientOrderStatusDescription;
+	public void setPatientOrderTriageStatusDescription(@Nullable String patientOrderTriageStatusDescription) {
+		this.patientOrderTriageStatusDescription = patientOrderTriageStatusDescription;
 	}
 
 	@Nullable
@@ -1135,5 +1259,140 @@ public class PatientOrder {
 
 	public void setMostRecentPatientOrderVoicemailTaskCompleted(@Nullable Boolean mostRecentPatientOrderVoicemailTaskCompleted) {
 		this.mostRecentPatientOrderVoicemailTaskCompleted = mostRecentPatientOrderVoicemailTaskCompleted;
+	}
+
+	@Nullable
+	public UUID getPatientOrderInsurancePayorId() {
+		return this.patientOrderInsurancePayorId;
+	}
+
+	public void setPatientOrderInsurancePayorId(@Nullable UUID patientOrderInsurancePayorId) {
+		this.patientOrderInsurancePayorId = patientOrderInsurancePayorId;
+	}
+
+	@Nullable
+	public PatientOrderInsurancePayorTypeId getPatientOrderInsurancePayorTypeId() {
+		return this.patientOrderInsurancePayorTypeId;
+	}
+
+	public void setPatientOrderInsurancePayorTypeId(@Nullable PatientOrderInsurancePayorTypeId patientOrderInsurancePayorTypeId) {
+		this.patientOrderInsurancePayorTypeId = patientOrderInsurancePayorTypeId;
+	}
+
+	@Nullable
+	public String getPatientOrderInsurancePayorName() {
+		return this.patientOrderInsurancePayorName;
+	}
+
+	public void setPatientOrderInsurancePayorName(@Nullable String patientOrderInsurancePayorName) {
+		this.patientOrderInsurancePayorName = patientOrderInsurancePayorName;
+	}
+
+	@Nullable
+	public UUID getPatientOrderInsurancePlanId() {
+		return this.patientOrderInsurancePlanId;
+	}
+
+	public void setPatientOrderInsurancePlanId(@Nullable UUID patientOrderInsurancePlanId) {
+		this.patientOrderInsurancePlanId = patientOrderInsurancePlanId;
+	}
+
+	@Nullable
+	public String getPatientOrderInsurancePlanName() {
+		return this.patientOrderInsurancePlanName;
+	}
+
+	public void setPatientOrderInsurancePlanName(@Nullable String patientOrderInsurancePlanName) {
+		this.patientOrderInsurancePlanName = patientOrderInsurancePlanName;
+	}
+
+	@Nullable
+	public PatientOrderInsurancePlanTypeId getPatientOrderInsurancePlanTypeId() {
+		return this.patientOrderInsurancePlanTypeId;
+	}
+
+	public void setPatientOrderInsurancePlanTypeId(@Nullable PatientOrderInsurancePlanTypeId patientOrderInsurancePlanTypeId) {
+		this.patientOrderInsurancePlanTypeId = patientOrderInsurancePlanTypeId;
+	}
+
+	@Nullable
+	public Boolean getPatientOrderInsurancePlanAccepted() {
+		return this.patientOrderInsurancePlanAccepted;
+	}
+
+	public void setPatientOrderInsurancePlanAccepted(@Nullable Boolean patientOrderInsurancePlanAccepted) {
+		this.patientOrderInsurancePlanAccepted = patientOrderInsurancePlanAccepted;
+	}
+
+	@Nullable
+	public String getPatientAddressStreetAddress1() {
+		return this.patientAddressStreetAddress1;
+	}
+
+	public void setPatientAddressStreetAddress1(@Nullable String patientAddressStreetAddress1) {
+		this.patientAddressStreetAddress1 = patientAddressStreetAddress1;
+	}
+
+	@Nullable
+	public String getPatientAddressLocality() {
+		return this.patientAddressLocality;
+	}
+
+	public void setPatientAddressLocality(@Nullable String patientAddressLocality) {
+		this.patientAddressLocality = patientAddressLocality;
+	}
+
+	@Nullable
+	public String getPatientAddressRegion() {
+		return this.patientAddressRegion;
+	}
+
+	public void setPatientAddressRegion(@Nullable String patientAddressRegion) {
+		this.patientAddressRegion = patientAddressRegion;
+	}
+
+	@Nullable
+	public String getPatientAddressPostalCode() {
+		return this.patientAddressPostalCode;
+	}
+
+	public void setPatientAddressPostalCode(@Nullable String patientAddressPostalCode) {
+		this.patientAddressPostalCode = patientAddressPostalCode;
+	}
+
+	@Nullable
+	public String getPatientAddressCountryCode() {
+		return this.patientAddressCountryCode;
+	}
+
+	public void setPatientAddressCountryCode(@Nullable String patientAddressCountryCode) {
+		this.patientAddressCountryCode = patientAddressCountryCode;
+	}
+
+	@Nullable
+	public Boolean getPatientAddressRegionAccepted() {
+		return this.patientAddressRegionAccepted;
+	}
+
+	public void setPatientAddressRegionAccepted(@Nullable Boolean patientAddressRegionAccepted) {
+		this.patientAddressRegionAccepted = patientAddressRegionAccepted;
+	}
+
+	@Nullable
+	public Boolean getPatientDemographicsCompleted() {
+		return this.patientDemographicsCompleted;
+	}
+
+	public void setPatientDemographicsCompleted(@Nullable Boolean patientDemographicsCompleted) {
+		this.patientDemographicsCompleted = patientDemographicsCompleted;
+	}
+
+	@Nullable
+	public Boolean getPatientDemographicsAccepted() {
+		return this.patientDemographicsAccepted;
+	}
+
+	public void setPatientDemographicsAccepted(@Nullable Boolean patientDemographicsAccepted) {
+		this.patientDemographicsAccepted = patientDemographicsAccepted;
 	}
 }
