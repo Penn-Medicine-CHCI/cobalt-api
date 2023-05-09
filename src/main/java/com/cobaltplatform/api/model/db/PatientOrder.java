@@ -219,6 +219,8 @@ public class PatientOrder {
 	@Nullable
 	private UUID mostRecentScreeningSessionId;
 	@Nullable
+	private Instant mostRecentScreeningSessionCreatedAt;
+	@Nullable
 	private UUID mostRecentScreeningSessionCreatedByAccountId;
 	@Nullable
 	private String mostRecentScreeningSessionCreatedByAccountFirstName;
@@ -1052,6 +1054,15 @@ public class PatientOrder {
 
 	public void setMostRecentScreeningSessionId(@Nullable UUID mostRecentScreeningSessionId) {
 		this.mostRecentScreeningSessionId = mostRecentScreeningSessionId;
+	}
+
+	@Nullable
+	public Instant getMostRecentScreeningSessionCreatedAt() {
+		return this.mostRecentScreeningSessionCreatedAt;
+	}
+
+	public void setMostRecentScreeningSessionCreatedAt(@Nullable Instant mostRecentScreeningSessionCreatedAt) {
+		this.mostRecentScreeningSessionCreatedAt = mostRecentScreeningSessionCreatedAt;
 	}
 
 	@Nullable

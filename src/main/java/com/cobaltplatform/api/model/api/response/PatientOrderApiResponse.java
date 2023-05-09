@@ -325,6 +325,10 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private UUID mostRecentScreeningSessionId;
 	@Nullable
+	private Instant mostRecentScreeningSessionCreatedAt;
+	@Nullable
+	private String mostRecentScreeningSessionCreatedAtDescription;
+	@Nullable
 	private UUID mostRecentScreeningSessionCreatedByAccountId;
 	@Nullable
 	private String mostRecentScreeningSessionCreatedByAccountFirstName;
@@ -730,10 +734,13 @@ public class PatientOrderApiResponse {
 		this.patientDemographicsConfirmedByAccountId = patientOrder.getPatientDemographicsConfirmedByAccountId();
 
 		this.mostRecentScreeningSessionId = patientOrder.getMostRecentScreeningSessionId();
+		this.mostRecentScreeningSessionCreatedByAccountId = patientOrder.getMostRecentScreeningSessionCreatedByAccountId();
+		this.mostRecentScreeningSessionCreatedAt = patientOrder.getMostRecentScreeningSessionCreatedAt();
+		this.mostRecentScreeningSessionCreatedAtDescription = patientOrder.getMostRecentScreeningSessionCreatedAt() == null ? null : formatter.formatTimestamp(patientOrder.getMostRecentScreeningSessionCreatedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 		this.mostRecentScreeningSessionCompleted = patientOrder.getMostRecentScreeningSessionCompleted();
 		this.mostRecentScreeningSessionCompletedAt = patientOrder.getMostRecentScreeningSessionCompletedAt();
 		this.mostRecentScreeningSessionCompletedAtDescription = patientOrder.getMostRecentScreeningSessionCompletedAt() == null ? null : formatter.formatTimestamp(patientOrder.getMostRecentScreeningSessionCompletedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
-		
+
 		// MHIC-only view of the data
 		if (format == PatientOrderApiResponseFormat.MHIC) {
 			this.panelAccountId = patientOrder.getPanelAccountId();
@@ -807,7 +814,6 @@ public class PatientOrderApiResponse {
 			this.scheduledMessageGroupCountDescription = formatter.formatNumber(patientOrder.getScheduledMessageGroupCount() == null ? 0 : patientOrder.getScheduledMessageGroupCount());
 			this.mostRecentScheduledMessageGroupDateTime = patientOrder.getMostRecentScheduledMessageGroupDateTime();
 			this.mostRecentScheduledMessageGroupDateTimeDescription = patientOrder.getMostRecentScheduledMessageGroupDateTime() == null ? null : formatter.formatDateTime(patientOrder.getMostRecentScheduledMessageGroupDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
-			this.mostRecentScreeningSessionCreatedByAccountId = patientOrder.getMostRecentScreeningSessionCreatedByAccountId();
 			this.mostRecentScreeningSessionCreatedByAccountFirstName = patientOrder.getMostRecentScreeningSessionCreatedByAccountFirstName();
 			this.mostRecentScreeningSessionCreatedByAccountLastName = patientOrder.getMostRecentScreeningSessionCreatedByAccountLastName();
 			this.mostRecentScreeningSessionCreatedByAccountDisplayName = Normalizer.normalizeName(patientOrder.getMostRecentScreeningSessionCreatedByAccountFirstName(), patientOrder.getMostRecentScreeningSessionCreatedByAccountLastName()).orElse(null);
