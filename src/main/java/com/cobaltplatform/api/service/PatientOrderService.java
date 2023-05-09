@@ -776,6 +776,72 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
+	public Integer findPatientOrderConsentCountForInstitutionId(@Nullable InstitutionId institutionId,
+																															@Nullable UUID panelAccountId,
+																															@Nullable PatientOrderConsentStatusId patientOrderConsentStatusId) {
+		if (institutionId == null || patientOrderConsentStatusId == null)
+			return 0;
+
+		List<String> whereClauseLines = new ArrayList<>();
+		List<Object> parameters = new ArrayList<>();
+
+		parameters.add(institutionId);
+
+		// Default to OPEN orders
+		whereClauseLines.add("AND patient_order_disposition_id=?");
+		parameters.add(PatientOrderDispositionId.OPEN);
+
+		whereClauseLines.add("AND patient_order_consent_status_id=?");
+		parameters.add(patientOrderConsentStatusId);
+
+		if (panelAccountId != null) {
+			whereClauseLines.add("AND panel_account_id=?");
+			parameters.add(panelAccountId);
+		}
+
+		String sql = """
+				  SELECT COUNT(*)
+				  FROM v_patient_order
+				  WHERE institution_id=?
+				  {{whereClauseLines}}
+				""".trim()
+				.replace("{{whereClauseLines}}", whereClauseLines.stream().collect(Collectors.joining("\n")));
+
+		return getDatabase().queryForObject(sql, Integer.class, sqlVaragsParameters(parameters)).get();
+	}
+
+	@Nonnull
+	public Integer findPatientOrderDispositionCountForInstitutionId(@Nullable InstitutionId institutionId,
+																																	@Nullable UUID panelAccountId,
+																																	@Nullable PatientOrderDispositionId patientOrderDispositionId) {
+		if (institutionId == null || patientOrderDispositionId == null)
+			return 0;
+
+		List<String> whereClauseLines = new ArrayList<>();
+		List<Object> parameters = new ArrayList<>();
+
+		parameters.add(institutionId);
+
+		whereClauseLines.add("AND patient_order_disposition_id=?");
+		parameters.add(patientOrderDispositionId);
+
+		if (panelAccountId != null) {
+			whereClauseLines.add("AND panel_account_id=?");
+			parameters.add(panelAccountId);
+		}
+
+		String sql = """
+				  SELECT COUNT(*)
+				  FROM v_patient_order
+				  WHERE institution_id=?
+				  {{whereClauseLines}}
+				""".trim()
+				.replace("{{whereClauseLines}}", whereClauseLines.stream().collect(Collectors.joining("\n")));
+
+		return getDatabase().queryForObject(sql, Integer.class, sqlVaragsParameters(parameters)).get();
+	}
+
+	@Nonnull
 	public Boolean arePatientOrderIdsAssociatedWithInstitutionId(@Nullable Collection<UUID> patientOrderIds,
 																															 @Nonnull InstitutionId institutionId) {
 		requireNonNull(institutionId);
@@ -881,6 +947,7 @@ public class PatientOrderService implements AutoCloseable {
 		requireNonNull(request);
 
 		InstitutionId institutionId = request.getInstitutionId();
+		PatientOrderConsentStatusId patientOrderConsentStatusId = request.getPatientOrderConsentStatusId();
 		PatientOrderDispositionId patientOrderDispositionId = request.getPatientOrderDispositionId();
 		Set<PatientOrderTriageStatusId> patientOrderTriageStatusIds = request.getPatientOrderTriageStatusIds() == null ? Set.of() : request.getPatientOrderTriageStatusIds();
 		PatientOrderAssignmentStatusId patientOrderAssignmentStatusId = request.getPatientOrderAssignmentStatusId();
@@ -918,6 +985,11 @@ public class PatientOrderService implements AutoCloseable {
 
 		whereClauseLines.add("AND po.patient_order_disposition_id=?");
 		parameters.add(patientOrderDispositionId);
+
+		if (patientOrderConsentStatusId != null) {
+			whereClauseLines.add("AND po.patient_order_consent_status_id=?");
+			parameters.add(patientOrderConsentStatusId);
+		}
 
 		if (patientOrderTriageStatusIds.size() > 0) {
 			whereClauseLines.add(format("AND po.patient_order_triage_status_id IN %s", sqlInListPlaceholders(patientOrderTriageStatusIds)));

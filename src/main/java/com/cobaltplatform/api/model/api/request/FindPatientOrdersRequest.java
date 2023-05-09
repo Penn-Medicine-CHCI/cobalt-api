@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.PatientOrderConsentStatus.PatientOrderConsentStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
 import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
@@ -42,6 +43,8 @@ import java.util.UUID;
 public class FindPatientOrdersRequest {
 	@Nullable
 	private InstitutionId institutionId;
+	@Nullable
+	private PatientOrderConsentStatusId patientOrderConsentStatusId;
 	@Nullable
 	private PatientOrderDispositionId patientOrderDispositionId;
 	@Nullable
@@ -81,7 +84,9 @@ public class FindPatientOrdersRequest {
 	public enum PatientOrderFilterFlagTypeId {
 		NONE,
 		PATIENT_BELOW_AGE_THRESHOLD,
-		MOST_RECENT_EPISODE_CLOSED_WITHIN_DATE_THRESHOLD
+		MOST_RECENT_EPISODE_CLOSED_WITHIN_DATE_THRESHOLD,
+		ADDRESS_REGION_NOT_ACCEPTED,
+		INSURANCE_NOT_ACCEPTED
 		// We don't include safety planning here because it's already filterable via PatientOrderSafetyPlanningStatusId
 	}
 
@@ -92,6 +97,15 @@ public class FindPatientOrdersRequest {
 
 	public void setInstitutionId(@Nullable InstitutionId institutionId) {
 		this.institutionId = institutionId;
+	}
+
+	@Nullable
+	public PatientOrderConsentStatusId getPatientOrderConsentStatusId() {
+		return this.patientOrderConsentStatusId;
+	}
+
+	public void setPatientOrderConsentStatusId(@Nullable PatientOrderConsentStatusId patientOrderConsentStatusId) {
+		this.patientOrderConsentStatusId = patientOrderConsentStatusId;
 	}
 
 	@Nullable

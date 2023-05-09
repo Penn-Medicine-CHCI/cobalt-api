@@ -79,6 +79,7 @@ import com.cobaltplatform.api.model.db.GenderIdentity;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason;
+import com.cobaltplatform.api.model.db.PatientOrderConsentStatus.PatientOrderConsentStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
@@ -612,6 +613,7 @@ public class PatientOrderResource {
 	@GET("/patient-orders")
 	@AuthenticationRequired
 	public ApiResponse findPatientOrders(@Nonnull @QueryParameter Optional<PatientOrderDispositionId> patientOrderDispositionId,
+																			 @Nonnull @QueryParameter Optional<PatientOrderConsentStatusId> patientOrderConsentStatusId,
 																			 @Nonnull @QueryParameter("patientOrderTriageStatusId") Optional<List<PatientOrderTriageStatusId>> patientOrderTriageStatusIds,
 																			 @Nonnull @QueryParameter Optional<PatientOrderAssignmentStatusId> patientOrderAssignmentStatusId,
 																			 @Nonnull @QueryParameter Optional<PatientOrderOutreachStatusId> patientOrderOutreachStatusId,
@@ -623,6 +625,7 @@ public class PatientOrderResource {
 																			 @Nonnull @QueryParameter Optional<Integer> pageNumber,
 																			 @Nonnull @QueryParameter Optional<Integer> pageSize) {
 		requireNonNull(patientOrderDispositionId);
+		requireNonNull(patientOrderConsentStatusId);
 		requireNonNull(patientOrderTriageStatusIds);
 		requireNonNull(panelAccountId);
 		requireNonNull(patientMrn);
@@ -1417,11 +1420,17 @@ public class PatientOrderResource {
 		}
 
 		int safetyPlanningPatientOrderCount = getPatientOrderService().findSafetyPlanningPatientOrderCountForInstitutionId(institutionId, account.getAccountId());
+		int closedPatientOrderCount = getPatientOrderService().findPatientOrderDispositionCountForInstitutionId(institutionId, account.getAccountId(), PatientOrderDispositionId.CLOSED);
+		int waitingForConsentPatientOrderCount = getPatientOrderService().findPatientOrderConsentCountForInstitutionId(institutionId, account.getAccountId(), PatientOrderConsentStatusId.UNKNOWN);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("patientOrderCountsByPatientOrderTriageStatusId", patientOrderCountsByPatientOrderTriageStatusIdJson);
 			put("safetyPlanningPatientOrderCount", safetyPlanningPatientOrderCount);
 			put("safetyPlanningPatientOrderCountDescription", getFormatter().formatNumber(safetyPlanningPatientOrderCount));
+			put("closedPatientOrderCount", closedPatientOrderCount);
+			put("closedPatientOrderCountDescription", getFormatter().formatNumber(closedPatientOrderCount));
+			put("waitingForConsentPatientOrderCount", waitingForConsentPatientOrderCount);
+			put("waitingForConsentPatientOrderCountDescription", getFormatter().formatNumber(waitingForConsentPatientOrderCount));
 		}});
 	}
 

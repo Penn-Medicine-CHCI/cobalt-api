@@ -5,7 +5,7 @@ DROP VIEW v_patient_order;
 
 -- Move over BHP -> MHP
 UPDATE support_role SET support_role_id='MHP', description='Mental Health Provider' WHERE support_role_id='BHP';
-UPDATE patient_order_closure_reason SET patient_order_closure_reason_id='SCHEDULED_WITH_MHP', description='Scheduled with MHP' WHERE patient_order_closure_reason_id='SCHEDULED_WITH_MHP';
+UPDATE patient_order_closure_reason SET patient_order_closure_reason_id='SCHEDULED_WITH_MHP', description='Scheduled with MHP' WHERE patient_order_closure_reason_id='SCHEDULED_WITH_BHP';
 
 INSERT INTO feature
   (feature_id, name, url_name, navigation_header_id)
