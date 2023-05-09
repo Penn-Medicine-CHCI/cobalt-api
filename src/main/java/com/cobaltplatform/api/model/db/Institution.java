@@ -156,6 +156,9 @@ public class Institution {
 	@DatabaseColumn("mychart_name")
 	private String myChartName;
 	@Nullable
+	@DatabaseColumn("mychart_default_url")
+	private String myChartDefaultUrl;
+	@Nullable
 	private EpicBackendServiceAuthTypeId epicBackendServiceAuthTypeId;
 	@Nullable
 	private String microsoftTenantId;
@@ -675,6 +678,15 @@ public class Institution {
 
 	public void setMyChartResponseType(@Nullable String myChartResponseType) {
 		this.myChartResponseType = myChartResponseType;
+	}
+
+	@Nullable
+	public String getMyChartDefaultUrl() {
+		return this.myChartDefaultUrl;
+	}
+
+	public void setMyChartDefaultUrl(@Nullable String myChartDefaultUrl) {
+		this.myChartDefaultUrl = myChartDefaultUrl;
 	}
 
 	@Nullable
