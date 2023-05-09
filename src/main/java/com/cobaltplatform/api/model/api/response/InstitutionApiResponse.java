@@ -135,6 +135,8 @@ public class InstitutionApiResponse {
 	private final String integratedCarePrimaryCareName;
 	@Nullable
 	private final String myChartName;
+	@Nullable
+	private final String myChartDefaultUrl;
 	@Nonnull
 	private final List<NavigationItem> additionalNavigationItems;
 	@Nonnull
@@ -212,6 +214,7 @@ public class InstitutionApiResponse {
 		this.userSubmittedGroupSessionRequestEnabled = institution.getUserSubmittedGroupSessionRequestEnabled();
 		this.integratedCareEnabled = institution.getIntegratedCareEnabled();
 		this.myChartName = institution.getMyChartName();
+		this.myChartDefaultUrl = institution.getMyChartDefaultUrl();
 		this.groupSessionRequestsEnabled = institution.getGroupSessionRequestsEnabled();
 		this.ga4MeasurementId = institution.getGa4MeasurementId();
 		this.additionalNavigationItems = topicCenterService.findTopicCenterNavigationItemsByInstitutionId(institutionId);
@@ -469,5 +472,10 @@ public class InstitutionApiResponse {
 	@Nullable
 	public String getMyChartName() {
 		return this.myChartName;
+	}
+
+	@Nullable
+	public String getMyChartDefaultUrl() {
+		return this.myChartDefaultUrl;
 	}
 }
