@@ -209,6 +209,8 @@ public class PatientOrder {
 	@Nullable
 	private Integer totalOutreachCount;
 	@Nullable
+	private LocalDateTime mostRecentTotalOutreachDateTime;
+	@Nullable
 	private Integer outreachCount;
 	@Nullable
 	private LocalDateTime mostRecentOutreachDateTime;
@@ -1009,6 +1011,15 @@ public class PatientOrder {
 
 	public void setTotalOutreachCount(@Nullable Integer totalOutreachCount) {
 		this.totalOutreachCount = totalOutreachCount;
+	}
+
+	@Nullable
+	public LocalDateTime getMostRecentTotalOutreachDateTime() {
+		return this.mostRecentTotalOutreachDateTime;
+	}
+
+	public void setMostRecentTotalOutreachDateTime(@Nullable LocalDateTime mostRecentTotalOutreachDateTime) {
+		this.mostRecentTotalOutreachDateTime = mostRecentTotalOutreachDateTime;
 	}
 
 	@Nullable
