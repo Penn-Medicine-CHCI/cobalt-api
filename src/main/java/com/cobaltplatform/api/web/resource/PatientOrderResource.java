@@ -652,6 +652,7 @@ public class PatientOrderResource {
 			{
 				setInstitutionId(account.getInstitutionId());
 				setPatientOrderDispositionId(patientOrderDispositionId.orElse(null));
+				setPatientOrderConsentStatusId(patientOrderConsentStatusId.orElse(null));
 				setPatientOrderTriageStatusIds(new HashSet<>(patientOrderTriageStatusIds.orElse(List.of())));
 				setPatientOrderAssignmentStatusId(patientOrderAssignmentStatusId.orElse(null));
 				setPatientOrderOutreachStatusId(patientOrderOutreachStatusId.orElse(null));
