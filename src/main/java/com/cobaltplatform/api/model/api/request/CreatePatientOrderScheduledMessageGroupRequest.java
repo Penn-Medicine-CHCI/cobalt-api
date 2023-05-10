@@ -25,6 +25,7 @@ import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType.PatientO
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Set;
 import java.util.UUID;
 
@@ -45,6 +46,8 @@ public class CreatePatientOrderScheduledMessageGroupRequest {
 	private LocalDate scheduledAtDate;
 	@Nullable
 	private String scheduledAtTime; // Manually parse string from the UI
+	@Nullable
+	private LocalTime scheduledAtTimeAsLocalTime;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -98,5 +101,14 @@ public class CreatePatientOrderScheduledMessageGroupRequest {
 
 	public void setScheduledAtTime(@Nullable String scheduledAtTime) {
 		this.scheduledAtTime = scheduledAtTime;
+	}
+
+	@Nullable
+	public LocalTime getScheduledAtTimeAsLocalTime() {
+		return this.scheduledAtTimeAsLocalTime;
+	}
+
+	public void setScheduledAtTimeAsLocalTime(@Nullable LocalTime scheduledAtTimeAsLocalTime) {
+		this.scheduledAtTimeAsLocalTime = scheduledAtTimeAsLocalTime;
 	}
 }

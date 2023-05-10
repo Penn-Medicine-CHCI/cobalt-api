@@ -474,6 +474,14 @@ public class PatientOrderCsvGenerator {
 				String state = remainder.substring(remainder.length() - 2);
 				String city = remainder.substring(0, remainder.length() - 2).trim();
 
+				// Hack: if a state is non-PA and non-NJ, force it back to PA 95% of the time.
+				// Reason: default order flagging is configured to be state-dependent, we don't want most orders flagged out of the box
+				if (!state.equals("PA") && !state.equals("NJ")) {
+					if ((Math.random() * 100) <= 95) {
+						state = "PA";
+					}
+				}
+
 				FakeUsAddress fakeUsAddress = new FakeUsAddress(street, city, state, zipCode);
 				fakeUsAddresses.add(fakeUsAddress);
 			}

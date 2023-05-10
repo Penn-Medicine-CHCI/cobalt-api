@@ -175,6 +175,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
@@ -2676,7 +2677,7 @@ public class PatientOrderService implements AutoCloseable {
 		Set<MessageTypeId> messageTypeIds = request.getMessageTypeIds() == null ? Set.of() : request.getMessageTypeIds();
 		LocalDate scheduledAtDate = request.getScheduledAtDate();
 		String scheduledAtTimeAsString = trimToNull(request.getScheduledAtTime());
-		LocalTime scheduledAtTime = null;
+		LocalTime scheduledAtTime = request.getScheduledAtTimeAsLocalTime();
 		PatientOrder patientOrder = null;
 		PatientOrderScheduledMessageType patientOrderScheduledMessageType = null;
 		UUID patientOrderScheduledMessageGroupId = UUID.randomUUID();
@@ -2712,14 +2713,16 @@ public class PatientOrderService implements AutoCloseable {
 		if (scheduledAtDate == null)
 			validationException.add(new FieldError("scheduledAtDate", getStrings().get("Scheduled-At Date is required.")));
 
-		if (scheduledAtTimeAsString == null) {
-			validationException.add(new FieldError("scheduledAtTime", getStrings().get("Scheduled-At Time is required.")));
-		} else {
-			// TODO: support other locales
-			scheduledAtTime = getNormalizer().normalizeTime(scheduledAtTimeAsString, Locale.US).orElse(null);
+		if (scheduledAtTime == null) {
+			if (scheduledAtTimeAsString == null) {
+				validationException.add(new FieldError("scheduledAtTime", getStrings().get("Scheduled-At Time is required.")));
+			} else {
+				// TODO: support other locales
+				scheduledAtTime = getNormalizer().normalizeTime(scheduledAtTimeAsString, Locale.US).orElse(null);
 
-			if (scheduledAtTime == null)
-				validationException.add(new FieldError("scheduledAtTime", getStrings().get("Scheduled-At Time is invalid.")));
+				if (scheduledAtTime == null)
+					validationException.add(new FieldError("scheduledAtTime", getStrings().get("Scheduled-At Time is invalid.")));
+			}
 		}
 
 		if (messageTypeIds.size() == 0)
@@ -3133,6 +3136,21 @@ public class PatientOrderService implements AutoCloseable {
 					patientOrderRequest.setPrimaryPlanId(primaryPlanId);
 					patientOrderRequest.setPrimaryPlanName(primaryPlanName);
 
+					// Hack: if test data, pick random insurance to assign
+					if (containsTestPatientData) {
+						List<PatientOrderInsurancePayor> patientOrderInsurancePayors = findPatientOrderInsurancePayorsByInstitutionId(institutionId);
+						List<PatientOrderInsurancePlan> patientOrderInsurancePlans = findPatientOrderInsurancePlansByInstitutionId(institutionId);
+
+						PatientOrderInsurancePlan randomInsurancePlan = patientOrderInsurancePlans.get(ThreadLocalRandom.current().nextInt(patientOrderInsurancePlans.size()));
+						PatientOrderInsurancePayor insurancePayor = patientOrderInsurancePayors.stream()
+								.filter(patientOrderInsurancePayor -> patientOrderInsurancePayor.getPatientOrderInsurancePayorId().equals(randomInsurancePlan.getPatientOrderInsurancePayorId()))
+								.findAny()
+								.get();
+
+						patientOrderRequest.setPrimaryPayorName(insurancePayor.getName());
+						patientOrderRequest.setPrimaryPlanName(randomInsurancePlan.getName());
+					}
+
 					patientOrderRequest.setOrderDate(trimToNull(record.get("Order Date")));
 					patientOrderRequest.setOrderId(trimToNull(record.get("Order ID")));
 					patientOrderRequest.setOrderAge(trimToNull(record.get("Age of Order")));
@@ -3277,6 +3295,38 @@ public class PatientOrderService implements AutoCloseable {
 
 					++i;
 				}
+			}
+		}
+
+		// For any orders in the import batch that have no flags, send a welcome message automatically
+		List<PatientOrder> importedPatientOrders = findPatientOrdersByPatientOrderImportId(patientOrderImportId);
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		LocalDateTime now = LocalDateTime.now(institution.getTimeZone());
+
+		for (PatientOrder importedPatientOrder : importedPatientOrders) {
+			// If the order's insurance and region (state in US) are OK, then send the welcome message...
+			if (importedPatientOrder.getPatientOrderInsurancePlanAccepted() && importedPatientOrder.getPatientAddressRegionAccepted()) {
+				getLogger().info("Patient Order ID {} has an accepted region and insurance - automatically sending welcome message.", importedPatientOrder.getPatientOrderId());
+
+				Set<MessageTypeId> messageTypeIds = new HashSet<>();
+
+				if (importedPatientOrder.getPatientEmailAddress() != null)
+					messageTypeIds.add(MessageTypeId.EMAIL);
+
+				if (importedPatientOrder.getPatientPhoneNumber() != null)
+					messageTypeIds.add(MessageTypeId.SMS);
+
+				createPatientOrderScheduledMessageGroup(new CreatePatientOrderScheduledMessageGroupRequest() {{
+					setPatientOrderId(importedPatientOrder.getPatientOrderId());
+					setAccountId(accountId);
+					setPatientOrderScheduledMessageTypeId(PatientOrderScheduledMessageTypeId.WELCOME);
+					setMessageTypeIds(messageTypeIds);
+					setScheduledAtDate(now.toLocalDate());
+					setScheduledAtTimeAsLocalTime(now.toLocalTime());
+				}});
+			} else {
+				// ...the order needs review by a human.  Don't send the welcome message.
+				getLogger().info("Patient Order ID {} has either an un-accepted region or insurance - not automatically sending welcome message.", importedPatientOrder.getPatientOrderId());
 			}
 		}
 
