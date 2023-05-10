@@ -175,6 +175,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
@@ -3132,6 +3133,21 @@ public class PatientOrderService implements AutoCloseable {
 
 					patientOrderRequest.setPrimaryPlanId(primaryPlanId);
 					patientOrderRequest.setPrimaryPlanName(primaryPlanName);
+
+					// Hack: if test data, pick random insurance to assign
+					if (containsTestPatientData) {
+						List<PatientOrderInsurancePayor> patientOrderInsurancePayors = findPatientOrderInsurancePayorsByInstitutionId(institutionId);
+						List<PatientOrderInsurancePlan> patientOrderInsurancePlans = findPatientOrderInsurancePlansByInstitutionId(institutionId);
+
+						PatientOrderInsurancePlan randomInsurancePlan = patientOrderInsurancePlans.get(ThreadLocalRandom.current().nextInt(patientOrderInsurancePlans.size()));
+						PatientOrderInsurancePayor insurancePayor = patientOrderInsurancePayors.stream()
+								.filter(patientOrderInsurancePayor -> patientOrderInsurancePayor.getPatientOrderInsurancePayorId().equals(randomInsurancePlan.getPatientOrderInsurancePayorId()))
+								.findAny()
+								.get();
+
+						patientOrderRequest.setPrimaryPayorName(insurancePayor.getName());
+						patientOrderRequest.setPrimaryPlanName(randomInsurancePlan.getName());
+					}
 
 					patientOrderRequest.setOrderDate(trimToNull(record.get("Order Date")));
 					patientOrderRequest.setOrderId(trimToNull(record.get("Order ID")));
