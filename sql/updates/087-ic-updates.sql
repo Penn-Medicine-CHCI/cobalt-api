@@ -204,7 +204,7 @@ select
     coalesce(smgq.scheduled_message_group_count, 0) AS scheduled_message_group_count,
     smgmaxq.max_scheduled_message_group_date_time AS most_recent_scheduled_message_group_date_time,
     coalesce(pooq.outreach_count, 0) + coalesce(smgq.scheduled_message_group_count, 0) as total_outreach_count,
-    MAX(poomaxq.max_outreach_date_time, smgmaxq.max_scheduled_message_group_date_time) AS most_recent_total_outreach_date_time,
+    GREATEST(poomaxq.max_outreach_date_time, smgmaxq.max_scheduled_message_group_date_time) AS most_recent_total_outreach_date_time,
     ssq.screening_session_id AS most_recent_screening_session_id,
     ssq.created AS most_recent_screening_session_created_at,
     ssq.created_by_account_id AS most_recent_screening_session_created_by_account_id,
