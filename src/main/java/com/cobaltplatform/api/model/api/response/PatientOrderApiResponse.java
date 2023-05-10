@@ -307,6 +307,10 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String totalOutreachCountDescription;
 	@Nullable
+	private LocalDateTime mostRecentTotalOutreachDateTime;
+	@Nullable
+	private String mostRecentTotalOutreachDateTimeDescription;
+	@Nullable
 	private Integer outreachCount;
 	@Nullable
 	private String outreachCountDescription;
@@ -806,6 +810,8 @@ public class PatientOrderApiResponse {
 			this.patientOrderCareTypeDescription = patientOrder.getPatientOrderCareTypeDescription();
 			this.totalOutreachCount = patientOrder.getTotalOutreachCount();
 			this.totalOutreachCountDescription = formatter.formatNumber(patientOrder.getTotalOutreachCount() == null ? 0 : patientOrder.getTotalOutreachCount());
+			this.mostRecentTotalOutreachDateTime = patientOrder.getMostRecentTotalOutreachDateTime();
+			this.mostRecentTotalOutreachDateTimeDescription = patientOrder.getMostRecentTotalOutreachDateTime() == null ? null : formatter.formatDateTime(patientOrder.getMostRecentTotalOutreachDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 			this.outreachCount = patientOrder.getOutreachCount();
 			this.outreachCountDescription = formatter.formatNumber(patientOrder.getOutreachCount() == null ? 0 : patientOrder.getOutreachCount());
 			this.mostRecentOutreachDateTime = patientOrder.getMostRecentOutreachDateTime();
@@ -1291,6 +1297,26 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public String getOutreachCountDescription() {
 		return this.outreachCountDescription;
+	}
+
+	@Nullable
+	public LocalDateTime getMostRecentTotalOutreachDateTime() {
+		return this.mostRecentTotalOutreachDateTime;
+	}
+
+	@Nullable
+	public String getMostRecentTotalOutreachDateTimeDescription() {
+		return this.mostRecentTotalOutreachDateTimeDescription;
+	}
+
+	@Nullable
+	public Instant getMostRecentScreeningSessionCreatedAt() {
+		return this.mostRecentScreeningSessionCreatedAt;
+	}
+
+	@Nullable
+	public String getMostRecentScreeningSessionCreatedAtDescription() {
+		return this.mostRecentScreeningSessionCreatedAtDescription;
 	}
 
 	@Nullable
