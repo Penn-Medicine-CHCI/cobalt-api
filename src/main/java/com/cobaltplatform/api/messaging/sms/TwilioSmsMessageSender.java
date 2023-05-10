@@ -83,6 +83,11 @@ public class TwilioSmsMessageSender implements MessageSender<SmsMessage> {
 		String body = getHandlebarsTemplater().mergeTemplate(smsMessage.getMessageTemplate().name(), "body", smsMessage.getLocale(), messageContext).get();
 		String normalizedToNumber = getNormalizer().normalizePhoneNumberToE164(smsMessage.getToNumber(), Locale.US).get();
 
+		if ("+12155551212".equals(normalizedToNumber)) {
+			getLogger().debug("Fake-sending SMS from {} to {} because the destination number is a test number. Message is '{}'...", getConfiguration().getTwilioFromNumber(), normalizedToNumber, smsMessage);
+			return;
+		}
+
 		getLogger().debug("Sending SMS from {} to {} using Twilio. Message is '{}'...", getConfiguration().getTwilioFromNumber(), normalizedToNumber, smsMessage);
 
 		long time = System.currentTimeMillis();
