@@ -1380,6 +1380,17 @@ public class PatientOrderService implements AutoCloseable {
 				WHERE patient_order_id=?
 				""", patientOrderConsentStatusId, accountId, patientOrderId);
 
+		// Side effect of rejection: immediately close out the order
+		if (patientOrderConsentStatusId == PatientOrderConsentStatusId.REJECTED) {
+			getLogger().info("Patient Order ID had its consent rejected, so closing it out...", patientOrderId);
+			
+			closePatientOrder(new ClosePatientOrderRequest() {{
+				setPatientOrderId(patientOrderId);
+				setPatientOrderClosureReasonId(PatientOrderClosureReasonId.REFUSED_CARE);
+				setAccountId(accountId);
+			}});
+		}
+
 		// TODO: track event
 
 		return true;
