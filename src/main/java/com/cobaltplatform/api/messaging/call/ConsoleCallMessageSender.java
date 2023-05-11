@@ -20,6 +20,8 @@
 package com.cobaltplatform.api.messaging.call;
 
 import com.cobaltplatform.api.messaging.MessageSender;
+import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
+import com.cobaltplatform.api.model.db.MessageVendor.MessageVendorId;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -44,5 +46,17 @@ public class ConsoleCallMessageSender implements MessageSender<CallMessage> {
 	public String sendMessage(@Nonnull CallMessage callMessage) {
 		logger.debug("Fake-placing phone call {}", callMessage.toString());
 		return UUID.randomUUID().toString();
+	}
+
+	@Nonnull
+	@Override
+	public MessageVendorId getMessageVendorId() {
+		return MessageVendorId.UNSPECIFIED;
+	}
+
+	@Nonnull
+	@Override
+	public MessageTypeId getMessageTypeId() {
+		return MessageTypeId.CALL;
 	}
 }

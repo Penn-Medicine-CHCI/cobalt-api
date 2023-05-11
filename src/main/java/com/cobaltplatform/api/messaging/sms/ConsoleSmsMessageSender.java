@@ -20,6 +20,8 @@
 package com.cobaltplatform.api.messaging.sms;
 
 import com.cobaltplatform.api.messaging.MessageSender;
+import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
+import com.cobaltplatform.api.model.db.MessageVendor.MessageVendorId;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -44,5 +46,17 @@ public class ConsoleSmsMessageSender implements MessageSender<SmsMessage> {
 	public String sendMessage(@Nonnull SmsMessage message) {
 		logger.debug("Fake-sending SMS message {}", message);
 		return UUID.randomUUID().toString();
+	}
+
+	@Nonnull
+	@Override
+	public MessageVendorId getMessageVendorId() {
+		return MessageVendorId.UNSPECIFIED;
+	}
+
+	@Nonnull
+	@Override
+	public MessageTypeId getMessageTypeId() {
+		return MessageTypeId.SMS;
 	}
 }

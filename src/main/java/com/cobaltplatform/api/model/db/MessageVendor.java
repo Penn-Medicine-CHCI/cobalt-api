@@ -28,32 +28,30 @@ import static java.lang.String.format;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class MessageStatus {
+public class MessageVendor {
 	@Nullable
-	private MessageStatusId messageStatusId;
+	private MessageVendorId messageVendorId;
 	@Nullable
 	private String description;
 
-	public enum MessageStatusId {
-		ENQUEUED, // Waiting to leave Cobalt
-		SENT, // Left Cobalt, turned over to vendor for delivery attempt - not sure if delivered or not yet
-		DELIVERED, // Confirmed with vendor that delivery occurred
-		DELIVERY_FAILED, // Confirmed with vendor that delivery failed
-		ERROR // Failed before ever leaving Cobalt (e.g. vendor rejected send attempt)
+	public enum MessageVendorId {
+		UNSPECIFIED,
+		TWILIO,
+		AMAZON_AWS
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{messageStatusId=%s, description=%s}", getClass().getSimpleName(), getMessageStatusId().name(), getDescription());
+		return format("%s{messageVendorId=%s, description=%s}", getClass().getSimpleName(), getMessageVendorId().name(), getDescription());
 	}
 
 	@Nullable
-	public MessageStatusId getMessageStatusId() {
-		return messageStatusId;
+	public MessageVendorId getMessageVendorId() {
+		return this.messageVendorId;
 	}
 
-	public void setMessageStatusId(@Nullable MessageStatusId messageStatusId) {
-		this.messageStatusId = messageStatusId;
+	public void setMessageVendorId(@Nullable MessageVendorId messageVendorId) {
+		this.messageVendorId = messageVendorId;
 	}
 
 	@Nullable

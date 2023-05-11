@@ -20,6 +20,8 @@
 package com.cobaltplatform.api.messaging.email;
 
 import com.cobaltplatform.api.messaging.MessageSender;
+import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
+import com.cobaltplatform.api.model.db.MessageVendor.MessageVendorId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,6 +48,18 @@ public class ConsoleEmailMessageSender implements MessageSender<EmailMessage> {
 		requireNonNull(emailMessage);
 		getLogger().debug("Fake-sending email message {}", emailMessage);
 		return UUID.randomUUID().toString();
+	}
+
+	@Nonnull
+	@Override
+	public MessageVendorId getMessageVendorId() {
+		return MessageVendorId.UNSPECIFIED;
+	}
+
+	@Nonnull
+	@Override
+	public MessageTypeId getMessageTypeId() {
+		return MessageTypeId.EMAIL;
 	}
 
 	@Nonnull

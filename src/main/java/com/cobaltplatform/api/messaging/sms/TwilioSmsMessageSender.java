@@ -21,6 +21,8 @@ package com.cobaltplatform.api.messaging.sms;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.messaging.MessageSender;
+import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
+import com.cobaltplatform.api.model.db.MessageVendor.MessageVendorId;
 import com.cobaltplatform.api.util.HandlebarsTemplater;
 import com.cobaltplatform.api.util.Normalizer;
 import com.twilio.Twilio;
@@ -108,6 +110,18 @@ public class TwilioSmsMessageSender implements MessageSender<SmsMessage> {
 			getLogger().error(format("Unable to send SMS to %s", normalizedToNumber), e);
 			throw e;
 		}
+	}
+
+	@Nonnull
+	@Override
+	public MessageVendorId getMessageVendorId() {
+		return MessageVendorId.TWILIO;
+	}
+
+	@Nonnull
+	@Override
+	public MessageTypeId getMessageTypeId() {
+		return MessageTypeId.SMS;
 	}
 
 	@Nonnull

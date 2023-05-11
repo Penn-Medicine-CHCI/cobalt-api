@@ -19,6 +19,9 @@
 
 package com.cobaltplatform.api.messaging;
 
+import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
+import com.cobaltplatform.api.model.db.MessageVendor.MessageVendorId;
+
 import javax.annotation.Nonnull;
 
 /**
@@ -27,4 +30,10 @@ import javax.annotation.Nonnull;
 public interface MessageSender<T extends Message> {
 	@Nonnull
 	String sendMessage(@Nonnull T message);
+
+	@Nonnull
+	MessageVendorId getMessageVendorId();
+
+	@Nonnull
+	MessageTypeId getMessageTypeId();
 }
