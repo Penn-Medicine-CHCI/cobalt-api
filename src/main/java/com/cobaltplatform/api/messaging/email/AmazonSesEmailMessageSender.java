@@ -88,7 +88,7 @@ public class AmazonSesEmailMessageSender implements MessageSender<EmailMessage> 
 	}
 
 	@Override
-	public void sendMessage(@Nonnull EmailMessage emailMessage) {
+	public String sendMessage(@Nonnull EmailMessage emailMessage) {
 		requireNonNull(emailMessage);
 
 		Map<String, Object> messageContext = emailMessage.getMessageContext();
@@ -167,6 +167,8 @@ public class AmazonSesEmailMessageSender implements MessageSender<EmailMessage> 
 			SendRawEmailResponse result = getAmazonSimpleEmailService().sendRawEmail(request);
 
 			getLogger().info("Successfully sent email (message ID {}) in {} ms.", result.messageId(), System.currentTimeMillis() - time);
+
+			return result.messageId();
 		} catch (IOException | MessagingException e) {
 			throw new RuntimeException(format("Unable to send %s", emailMessage), e);
 		}

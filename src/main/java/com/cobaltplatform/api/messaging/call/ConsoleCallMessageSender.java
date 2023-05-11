@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.UUID;
 
 import static org.slf4j.LoggerFactory.getLogger;
 
@@ -40,7 +41,8 @@ public class ConsoleCallMessageSender implements MessageSender<CallMessage> {
 	}
 
 	@Override
-	public void sendMessage(@Nonnull CallMessage callMessage) {
+	public String sendMessage(@Nonnull CallMessage callMessage) {
 		logger.debug("Fake-placing phone call {}", callMessage.toString());
+		return UUID.randomUUID().toString();
 	}
 }

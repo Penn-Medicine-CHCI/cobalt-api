@@ -25,5 +25,6 @@ import javax.annotation.Nonnull;
  * @author Transmogrify, LLC.
  */
 public interface MessageSender<T extends Message> {
-	void sendMessage(@Nonnull T message);
+	@Nonnull
+	String sendMessage(@Nonnull T message);
 }

@@ -35,6 +35,7 @@ import javax.inject.Singleton;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -76,7 +77,7 @@ public class TwilioSmsMessageSender implements MessageSender<SmsMessage> {
 	}
 
 	@Override
-	public void sendMessage(@Nonnull SmsMessage smsMessage) {
+	public String sendMessage(@Nonnull SmsMessage smsMessage) {
 		requireNonNull(smsMessage);
 
 		Map<String, Object> messageContext = new HashMap<>(smsMessage.getMessageContext());
@@ -85,7 +86,7 @@ public class TwilioSmsMessageSender implements MessageSender<SmsMessage> {
 
 		if ("+12155551212".equals(normalizedToNumber)) {
 			getLogger().debug("Fake-sending SMS from {} to {} because the destination number is a test number. Message is '{}'...", getConfiguration().getTwilioFromNumber(), normalizedToNumber, smsMessage);
-			return;
+			return UUID.randomUUID().toString();
 		}
 
 		getLogger().debug("Sending SMS from {} to {} using Twilio. Message is '{}'...", getConfiguration().getTwilioFromNumber(), normalizedToNumber, smsMessage);
@@ -101,6 +102,8 @@ public class TwilioSmsMessageSender implements MessageSender<SmsMessage> {
 			).create();
 
 			getLogger().info("Successfully sent SMS (SID {}) in {} ms.", message.getSid(), System.currentTimeMillis() - time);
+
+			return message.getSid();
 		} catch (RuntimeException e) {
 			getLogger().error(format("Unable to send SMS to %s", normalizedToNumber), e);
 			throw e;

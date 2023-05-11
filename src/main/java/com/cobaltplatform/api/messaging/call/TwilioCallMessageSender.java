@@ -77,7 +77,7 @@ public class TwilioCallMessageSender implements MessageSender<CallMessage> {
 	}
 
 	@Override
-	public void sendMessage(@Nonnull CallMessage callMessage) {
+	public String sendMessage(@Nonnull CallMessage callMessage) {
 		requireNonNull(callMessage);
 
 		Map<String, Object> messageContext = new HashMap<>(callMessage.getMessageContext());
@@ -90,14 +90,16 @@ public class TwilioCallMessageSender implements MessageSender<CallMessage> {
 
 		try {
 			Call call = Call.creator(
-					getConfiguration().getTwilioAccountSid(),
-					new PhoneNumber(normalizedToNumber),
-					new PhoneNumber(getConfiguration().getTwilioFromNumber()),
-					new Twiml(format("<Response><Say>%s</Say></Response>", body)))
+							getConfiguration().getTwilioAccountSid(),
+							new PhoneNumber(normalizedToNumber),
+							new PhoneNumber(getConfiguration().getTwilioFromNumber()),
+							new Twiml(format("<Response><Say>%s</Say></Response>", body)))
 					.setMachineDetection("DetectMessageEnd") // Leaves voicemail if no one picks up
 					.create();
 
 			getLogger().info("Successfully placed Twilio phone call (SID {}) in {} ms.", call.getSid(), System.currentTimeMillis() - time);
+
+			return call.getSid();
 		} catch (RuntimeException e) {
 			getLogger().error(format("Unable to place phone call to %s", normalizedToNumber), e);
 			throw e;
