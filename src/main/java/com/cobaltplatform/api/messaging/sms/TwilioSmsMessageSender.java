@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Singleton;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -97,11 +98,12 @@ public class TwilioSmsMessageSender implements MessageSender<SmsMessage> {
 
 		try {
 			Message message = Message.creator(
-					getConfiguration().getTwilioAccountSid(),
-					new PhoneNumber(normalizedToNumber),
-					new PhoneNumber(getConfiguration().getTwilioFromNumber()),
-					body
-			).create();
+							getConfiguration().getTwilioAccountSid(),
+							new PhoneNumber(normalizedToNumber),
+							new PhoneNumber(getConfiguration().getTwilioFromNumber()),
+							body
+					).setStatusCallback(URI.create(format("%s/twilio/sms-status-callback", getConfiguration().getBaseUrl())))
+					.create();
 
 			getLogger().info("Successfully sent SMS (SID {}) in {} ms.", message.getSid(), System.currentTimeMillis() - time);
 

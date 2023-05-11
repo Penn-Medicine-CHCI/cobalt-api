@@ -39,6 +39,8 @@ import com.cobaltplatform.api.integration.bluejeans.BluejeansClient;
 import com.cobaltplatform.api.integration.bluejeans.DefaultBluejeansClient;
 import com.cobaltplatform.api.integration.bluejeans.MockBluejeansClient;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
+import com.cobaltplatform.api.integration.twilio.DefaultTwilioRequestValidator;
+import com.cobaltplatform.api.integration.twilio.TwilioRequestValidator;
 import com.cobaltplatform.api.integration.way2health.DefaultWay2HealthClient;
 import com.cobaltplatform.api.integration.way2health.MockWay2HealthClient;
 import com.cobaltplatform.api.integration.way2health.Way2HealthClient;
@@ -681,6 +683,14 @@ public class AppModule extends AbstractModule {
 			return new DefaultWay2HealthClient(configuration.getWay2HealthEnvironment(), configuration.getWay2HealthAccessToken());
 
 		return new MockWay2HealthClient();
+	}
+
+	@Provides
+	@Singleton
+	@Nonnull
+	public TwilioRequestValidator provideTwilioRequestValidator(@Nonnull Configuration configuration) {
+		requireNonNull(configuration);
+		return new DefaultTwilioRequestValidator(configuration);
 	}
 
 	@Provides
