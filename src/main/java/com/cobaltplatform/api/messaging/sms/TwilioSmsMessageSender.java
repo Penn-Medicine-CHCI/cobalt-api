@@ -21,6 +21,8 @@ package com.cobaltplatform.api.messaging.sms;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.messaging.MessageSender;
+import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
+import com.cobaltplatform.api.model.db.MessageVendor.MessageVendorId;
 import com.cobaltplatform.api.util.HandlebarsTemplater;
 import com.cobaltplatform.api.util.Normalizer;
 import com.twilio.Twilio;
@@ -32,9 +34,11 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Singleton;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -76,7 +80,7 @@ public class TwilioSmsMessageSender implements MessageSender<SmsMessage> {
 	}
 
 	@Override
-	public void sendMessage(@Nonnull SmsMessage smsMessage) {
+	public String sendMessage(@Nonnull SmsMessage smsMessage) {
 		requireNonNull(smsMessage);
 
 		Map<String, Object> messageContext = new HashMap<>(smsMessage.getMessageContext());
@@ -85,7 +89,7 @@ public class TwilioSmsMessageSender implements MessageSender<SmsMessage> {
 
 		if ("+12155551212".equals(normalizedToNumber)) {
 			getLogger().debug("Fake-sending SMS from {} to {} because the destination number is a test number. Message is '{}'...", getConfiguration().getTwilioFromNumber(), normalizedToNumber, smsMessage);
-			return;
+			return UUID.randomUUID().toString();
 		}
 
 		getLogger().debug("Sending SMS from {} to {} using Twilio. Message is '{}'...", getConfiguration().getTwilioFromNumber(), normalizedToNumber, smsMessage);
@@ -94,17 +98,32 @@ public class TwilioSmsMessageSender implements MessageSender<SmsMessage> {
 
 		try {
 			Message message = Message.creator(
-					getConfiguration().getTwilioAccountSid(),
-					new PhoneNumber(normalizedToNumber),
-					new PhoneNumber(getConfiguration().getTwilioFromNumber()),
-					body
-			).create();
+							getConfiguration().getTwilioAccountSid(),
+							new PhoneNumber(normalizedToNumber),
+							new PhoneNumber(getConfiguration().getTwilioFromNumber()),
+							body
+					).setStatusCallback(URI.create(format("%s/twilio/sms-status-callback", getConfiguration().getBaseUrl())))
+					.create();
 
 			getLogger().info("Successfully sent SMS (SID {}) in {} ms.", message.getSid(), System.currentTimeMillis() - time);
+
+			return message.getSid();
 		} catch (RuntimeException e) {
 			getLogger().error(format("Unable to send SMS to %s", normalizedToNumber), e);
 			throw e;
 		}
+	}
+
+	@Nonnull
+	@Override
+	public MessageVendorId getMessageVendorId() {
+		return MessageVendorId.TWILIO;
+	}
+
+	@Nonnull
+	@Override
+	public MessageTypeId getMessageTypeId() {
+		return MessageTypeId.SMS;
 	}
 
 	@Nonnull

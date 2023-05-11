@@ -21,6 +21,8 @@ package com.cobaltplatform.api.messaging.email;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.messaging.MessageSender;
+import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
+import com.cobaltplatform.api.model.db.MessageVendor.MessageVendorId;
 import com.cobaltplatform.api.util.HandlebarsTemplater;
 import jakarta.activation.DataHandler;
 import jakarta.activation.DataSource;
@@ -88,7 +90,7 @@ public class AmazonSesEmailMessageSender implements MessageSender<EmailMessage> 
 	}
 
 	@Override
-	public void sendMessage(@Nonnull EmailMessage emailMessage) {
+	public String sendMessage(@Nonnull EmailMessage emailMessage) {
 		requireNonNull(emailMessage);
 
 		Map<String, Object> messageContext = emailMessage.getMessageContext();
@@ -167,9 +169,23 @@ public class AmazonSesEmailMessageSender implements MessageSender<EmailMessage> 
 			SendRawEmailResponse result = getAmazonSimpleEmailService().sendRawEmail(request);
 
 			getLogger().info("Successfully sent email (message ID {}) in {} ms.", result.messageId(), System.currentTimeMillis() - time);
+
+			return result.messageId();
 		} catch (IOException | MessagingException e) {
 			throw new RuntimeException(format("Unable to send %s", emailMessage), e);
 		}
+	}
+
+	@Nonnull
+	@Override
+	public MessageVendorId getMessageVendorId() {
+		return MessageVendorId.AMAZON_AWS;
+	}
+
+	@Nonnull
+	@Override
+	public MessageTypeId getMessageTypeId() {
+		return MessageTypeId.EMAIL;
 	}
 
 	@Nonnull

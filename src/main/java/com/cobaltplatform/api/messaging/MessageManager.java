@@ -161,8 +161,8 @@ public class MessageManager<T extends Message> implements AutoCloseable {
 					.build();
 		});
 
-		getDatabase().execute("INSERT INTO message_log (message_id, message_type_id, message_status_id, serialized_message, enqueued) VALUES (?,?,?,CAST(? AS JSONB),NOW())",
-				message.getMessageId(), message.getMessageTypeId(), MessageStatusId.ENQUEUED, serializedMessage);
+		getDatabase().execute("INSERT INTO message_log (message_id, message_type_id, message_status_id, message_vendor_id, serialized_message, enqueued) VALUES (?,?,?,CAST(? AS JSONB),NOW())",
+				message.getMessageId(), message.getMessageTypeId(), MessageStatusId.ENQUEUED, getMessageSender().getMessageVendorId(), serializedMessage);
 	}
 
 	/**

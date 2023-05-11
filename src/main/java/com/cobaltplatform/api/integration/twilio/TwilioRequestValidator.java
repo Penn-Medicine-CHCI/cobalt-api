@@ -17,23 +17,16 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.messaging;
-
-import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
-import com.cobaltplatform.api.model.db.MessageVendor.MessageVendorId;
+package com.cobaltplatform.api.integration.twilio;
 
 import javax.annotation.Nonnull;
 
 /**
  * @author Transmogrify, LLC.
  */
-public interface MessageSender<T extends Message> {
+public interface TwilioRequestValidator {
 	@Nonnull
-	String sendMessage(@Nonnull T message);
-
-	@Nonnull
-	MessageVendorId getMessageVendorId();
-
-	@Nonnull
-	MessageTypeId getMessageTypeId();
+	Boolean validateRequest(@Nonnull String requestUrl,
+													@Nonnull String twilioSignature,
+													@Nonnull String requestBody);
 }

@@ -48,6 +48,10 @@ public class MessageLog {
 	private Instant enqueued;
 	@Nullable
 	private Instant processed;
+	@Nullable
+	private Instant delivered;
+	@Nullable
+	private Instant deliveryFailed;
 
 	@Nullable
 	public UUID getMessageId() {
@@ -119,5 +123,23 @@ public class MessageLog {
 
 	public void setProcessed(@Nullable Instant processed) {
 		this.processed = processed;
+	}
+
+	@Nullable
+	public Instant getDelivered() {
+		return this.delivered;
+	}
+
+	public void setDelivered(@Nullable Instant delivered) {
+		this.delivered = delivered;
+	}
+
+	@Nullable
+	public Instant getDeliveryFailed() {
+		return this.deliveryFailed;
+	}
+
+	public void setDeliveryFailed(@Nullable Instant deliveryFailed) {
+		this.deliveryFailed = deliveryFailed;
 	}
 }
