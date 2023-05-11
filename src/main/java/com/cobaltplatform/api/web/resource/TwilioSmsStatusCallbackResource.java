@@ -75,7 +75,7 @@ public class TwilioSmsStatusCallbackResource {
 		requireNonNull(twilioIdempotencyToken);
 		requireNonNull(requestBody);
 
-		String requestUrl = WebUtility.httpServletRequestUrl(httpServletRequest);
+		String requestUrl = getConfiguration().getBaseUrl() + WebUtility.httpServletRequestUrl(httpServletRequest);
 
 		getLogger().info("Received SMS status callback from Twilio. Signature is '{}', idempotency token is '{}', request body is '{}'",
 				twilioSignature, twilioIdempotencyToken.orElse(null), requestBody);
