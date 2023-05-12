@@ -34,6 +34,8 @@ import com.cobaltplatform.api.error.SentryErrorReporter;
 import com.cobaltplatform.api.integration.acuity.AcuitySchedulingClient;
 import com.cobaltplatform.api.integration.acuity.DefaultAcuitySchedulingClient;
 import com.cobaltplatform.api.integration.acuity.MockAcuitySchedulingClient;
+import com.cobaltplatform.api.integration.amazon.AmazonSnsRequestValidator;
+import com.cobaltplatform.api.integration.amazon.DefaultAmazonSnsRequestValidator;
 import com.cobaltplatform.api.integration.bluejeans.BluejeansApi;
 import com.cobaltplatform.api.integration.bluejeans.BluejeansClient;
 import com.cobaltplatform.api.integration.bluejeans.DefaultBluejeansClient;
@@ -691,6 +693,14 @@ public class AppModule extends AbstractModule {
 	public TwilioRequestValidator provideTwilioRequestValidator(@Nonnull Configuration configuration) {
 		requireNonNull(configuration);
 		return new DefaultTwilioRequestValidator(configuration);
+	}
+
+	@Provides
+	@Singleton
+	@Nonnull
+	public AmazonSnsRequestValidator provideAmazonSnsRequestValidator(@Nonnull Configuration configuration) {
+		requireNonNull(configuration);
+		return new DefaultAmazonSnsRequestValidator(configuration);
 	}
 
 	@Provides

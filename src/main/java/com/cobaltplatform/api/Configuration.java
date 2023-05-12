@@ -206,6 +206,8 @@ public class Configuration {
 	private final String amazonLambdaCallbackBaseUrl;
 	@Nonnull
 	private final Region amazonSesRegion;
+	@Nullable
+	private final String amazonSesConfigurationSetName;
 	@Nonnull
 	private final Region amazonS3Region;
 	@Nonnull
@@ -381,6 +383,7 @@ public class Configuration {
 		this.amazonLocalstackPort = valueFor("com.cobaltplatform.api.amazon.localstackPort", Integer.class);
 
 		this.amazonSesRegion = Region.of(valueFor("com.cobaltplatform.api.amazon.ses.region", String.class));
+		this.amazonSesConfigurationSetName = valueFor("com.cobaltplatform.api.amazon.ses.configurationSetName", String.class, false);
 
 		this.amazonS3Region = Region.of(valueFor("com.cobaltplatform.api.amazon.s3.region", String.class));
 		this.amazonS3BucketName = valueFor("com.cobaltplatform.api.amazon.s3.bucketName", String.class);
@@ -538,9 +541,22 @@ public class Configuration {
 
 	@Nonnull
 	@SuppressWarnings("unchecked")
-	protected <T> T valueFor(@Nonnull String key, @Nonnull Class<T> type) {
+	protected <T> T valueFor(@Nonnull String key,
+													 @Nonnull Class<T> type) {
 		requireNonNull(key);
 		requireNonNull(type);
+
+		return valueFor(key, type, true);
+	}
+
+	@Nonnull
+	@SuppressWarnings("unchecked")
+	protected <T> T valueFor(@Nonnull String key,
+													 @Nonnull Class<T> type,
+													 @Nonnull Boolean required) {
+		requireNonNull(key);
+		requireNonNull(type);
+		requireNonNull(required);
 
 		// Example key: com.cobaltplatform.api.google.fcm.projectId
 		// Example environment var: COBALT_API_GOOGLE_FCM_PROJECT_ID
@@ -548,8 +564,13 @@ public class Configuration {
 		String environmentVariableValue = environmentValueFor(environmentVariableName).orElse(null);
 
 		// If no environment variable value, read from properties file
-		if (environmentVariableValue == null)
-			return propertiesFileReader.valueFor(key, type);
+		if (environmentVariableValue == null) {
+			if (required)
+				return propertiesFileReader.valueFor(key, type);
+
+			if (!required)
+				return propertiesFileReader.optionalValueFor(key, type).orElse(null);
+		}
 
 		// Use environment variable value
 		Optional<ValueConverter<Object, Object>> valueConverter = getValueConverterRegistry().get(String.class, type);
@@ -1203,6 +1224,11 @@ public class Configuration {
 	@Nonnull
 	public Region getAmazonSesRegion() {
 		return amazonSesRegion;
+	}
+
+	@Nonnull
+	public Optional<String> getAmazonSesConfigurationSetName() {
+		return Optional.ofNullable(this.amazonSesConfigurationSetName);
 	}
 
 	@Nonnull

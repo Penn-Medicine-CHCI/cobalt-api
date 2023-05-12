@@ -164,6 +164,7 @@ public class AmazonSesEmailMessageSender implements MessageSender<EmailMessage> 
 			SendRawEmailRequest request = SendRawEmailRequest.builder()
 					.source(fromAddress)
 					.rawMessage(rawMessage)
+					.configurationSetName(getConfiguration().getAmazonSesConfigurationSetName().orElse(null))
 					.build();
 
 			SendRawEmailResponse result = getAmazonSimpleEmailService().sendRawEmail(request);
