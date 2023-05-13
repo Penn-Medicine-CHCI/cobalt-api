@@ -108,7 +108,7 @@ public class AmazonSnsCallbackResource {
 		if (amazonSnsRequestBody.getType() == AmazonSnsMessageType.SUBSCRIPTION_CONFIRMATION) {
 			getLogger().info("This is an Amazon SNS subscription confirmation request - attempting to confirm...");
 
-			HttpRequest httpRequest = new HttpRequest.Builder(HttpMethod.GET, amazonSnsRequestBody.getSubscribeUrl().toString()).build();
+			HttpRequest httpRequest = new HttpRequest.Builder(HttpMethod.GET, amazonSnsRequestBody.getSubscribeUrl().get().toString()).build();
 			HttpResponse httpResponse = getHttpClient().execute(httpRequest);
 
 			if (httpResponse.getStatus() >= 400)
