@@ -25,6 +25,7 @@ import com.cobaltplatform.api.http.HttpClient;
 import com.cobaltplatform.api.http.HttpMethod;
 import com.cobaltplatform.api.http.HttpRequest;
 import com.cobaltplatform.api.http.HttpResponse;
+import com.cobaltplatform.api.integration.amazon.AmazonSnsMessageType;
 import com.cobaltplatform.api.integration.amazon.AmazonSnsRequestBody;
 import com.cobaltplatform.api.integration.amazon.AmazonSnsRequestValidator;
 import com.google.gson.Gson;
@@ -32,6 +33,7 @@ import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.RequestBody;
 import com.soklet.web.annotation.RequestHeader;
 import com.soklet.web.annotation.Resource;
+import com.soklet.web.exception.AuthorizationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,28 +97,28 @@ public class AmazonSnsCallbackResource {
 
 		getLogger().info("Received Amazon SNS callback. Request body is '{}'", requestBody);
 
-		for (String headerName : Collections.list(httpServletRequest.getHeaderNames())) {
+		for (String headerName : Collections.list(httpServletRequest.getHeaderNames()))
 			getLogger().info("Request Header: {}={}", headerName, httpServletRequest.getHeader(headerName));
-		}
 
-		AmazonSnsRequestBody amazonSnsRequestBody = getGson().fromJson(requestBody, AmazonSnsRequestBody.class);
+		AmazonSnsRequestBody amazonSnsRequestBody = new AmazonSnsRequestBody(requestBody);
 
-		// TODO: getAmazonSnsRequestValidator().validateRequest()
+		if (!getAmazonSnsRequestValidator().validateRequest(amazonSnsRequestBody))
+			throw new AuthorizationException();
 
-		if ("SubscriptionConfirmation".equals(amazonSnsRequestBody.getType())) {
+		if (amazonSnsRequestBody.getType() == AmazonSnsMessageType.SUBSCRIPTION_CONFIRMATION) {
 			getLogger().info("This is an Amazon SNS subscription confirmation request - attempting to confirm...");
 
-			HttpRequest httpRequest = new HttpRequest.Builder(HttpMethod.GET, amazonSnsRequestBody.getSubscribeUrl()).build();
+			HttpRequest httpRequest = new HttpRequest.Builder(HttpMethod.GET, amazonSnsRequestBody.getSubscribeUrl().toString()).build();
 			HttpResponse httpResponse = getHttpClient().execute(httpRequest);
 
 			if (httpResponse.getStatus() >= 400)
 				throw new IOException(format("Failed to confirm Amazon SNS subscription because subscribe URL HTTP status was %d", httpResponse.getStatus()));
 
 			getLogger().info("Successfully confirmed Amazon SNS subscription.");
-		} else if ("UnsubscribeConfirmation".equals(amazonSnsRequestBody.getType())) {
-
-		} else if ("Notification".equals(amazonSnsRequestBody.getType())) {
-
+		} else if (amazonSnsRequestBody.getType() == AmazonSnsMessageType.UNSUBSCRIBE_CONFIRMATION) {
+			// TODO: handle unsubscribe, if needed
+		} else if (amazonSnsRequestBody.getType() == AmazonSnsMessageType.NOTIFICATION) {
+			// TODO: handle notification
 		} else {
 			throw new IllegalStateException(format("Not sure how to handle SNS request: %s", requestBody));
 		}

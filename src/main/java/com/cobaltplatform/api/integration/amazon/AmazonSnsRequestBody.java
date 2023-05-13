@@ -19,147 +19,165 @@
 
 package com.cobaltplatform.api.integration.amazon;
 
-import com.google.gson.annotations.SerializedName;
+import com.google.gson.Gson;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.annotation.concurrent.NotThreadSafe;
+import javax.annotation.concurrent.ThreadSafe;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.time.Instant;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Optional;
+
+import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
 
 /**
  * @author Transmogrify, LLC.
  */
-@NotThreadSafe
+@ThreadSafe
 public class AmazonSnsRequestBody {
-	// {
-	//  "Type" : "SubscriptionConfirmation",
-	//  "MessageId" : "xxx",
-	//  "Token" : "xxx",
-	//  "TopicArn" : "arn:aws:sns:us-east-1:xxx",
-	//  "Message" : "You have chosen to subscribe to the topic arn:aws:sns:us-east-1:xxx.\nTo confirm the subscription, visit the SubscribeURL included in this message.",
-	//  "SubscribeURL" : "https://sns.us-east-1.amazonaws.com/?Action=ConfirmSubscription&TopicArn=xxx",
-	//  "Timestamp" : "2023-05-12T16:18:27.837Z",
-	//  "SignatureVersion" : "1",
-	//  "Signature" : "xxx",
-	//  "SigningCertURL" : "https://sns.us-east-1.amazonaws.com/SimpleNotificationService-xxx.pem"
-	// }
+	@Nonnull
+	private static final Gson GSON;
 
-	@Nullable
-	@SerializedName("Type")
-	private String type;
-	@Nullable
-	@SerializedName("MessageId")
-	private String messageId;
-	@Nullable
-	@SerializedName("Token")
-	private String token;
-	@Nullable
-	@SerializedName("TopicArn")
-	private String topicArn;
-	@Nullable
-	@SerializedName("Message")
-	private String message;
-	@Nullable
-	@SerializedName("SubscribeURL")
-	private String subscribeUrl;
-	@Nullable
-	@SerializedName("Timestamp")
-	private String timestamp;
-	@Nullable
-	@SerializedName("SignatureVersion")
-	private String signatureVersion;
-	@Nullable
-	@SerializedName("Signature")
-	private String signature;
-	@Nullable
-	@SerializedName("SigningCertURL")
-	private String signingCertUrl;
-
-	@Nullable
-	public String getType() {
-		return this.type;
+	static {
+		GSON = new Gson();
 	}
 
-	public void setType(@Nullable String type) {
-		this.type = type;
+	@Nonnull
+	private final Map<String, String> requestBodyAsMap;
+
+	@Nonnull
+	private final String messageId;
+	@Nonnull
+	private final AmazonSnsMessageType type;
+	@Nullable
+	private final String token;
+	@Nullable
+	private final String topicArn;
+	@Nullable
+	private final String subject;
+	@Nonnull
+	private final String message;
+	@Nonnull
+	private final Instant timestamp;
+	@Nonnull
+	private final String signatureVersion;
+	@Nonnull
+	private final String signature;
+	@Nonnull
+	private final URI signingCertUrl;
+	@Nullable
+	private final URI subscribeUrl;
+	@Nullable
+	private final URI unsubscribeUrl;
+
+	public AmazonSnsRequestBody(@Nonnull String requestBody) {
+		requireNonNull(requestBody);
+
+		Map<String, String> requestBodyAsMap = getGson().fromJson(requestBody, Map.class);
+		this.requestBodyAsMap = Collections.unmodifiableMap(requestBodyAsMap);
+
+		this.messageId = requestBodyAsMap.get("MessageId");
+		this.type = AmazonSnsMessageType.fromType(requestBodyAsMap.get("Type")).get();
+		this.token = requestBodyAsMap.get("Token");
+		this.topicArn = requestBodyAsMap.get("TopicArn");
+		this.subject = requestBodyAsMap.get("Subject");
+		this.message = requestBodyAsMap.get("Message");
+		// e.g. 2023-05-12T18:08:47.059Z
+		this.timestamp = Instant.parse(requestBodyAsMap.get("Timestamp"));
+		this.signatureVersion = requestBodyAsMap.get("SignatureVersion");
+		this.signature = requestBodyAsMap.get("Signature");
+
+		try {
+			String subscribeUrl = requestBodyAsMap.get("SubscribeURL");
+			this.subscribeUrl = subscribeUrl == null ? null : new URI(subscribeUrl);
+
+			String signingCertUrl = requestBodyAsMap.get("SigningCertURL");
+			this.signingCertUrl = signingCertUrl == null ? null : new URI(signingCertUrl);
+
+			String unsubscribeUrl = requestBodyAsMap.get("UnsubscribeURL");
+			this.unsubscribeUrl = unsubscribeUrl == null ? null : new URI(unsubscribeUrl);
+		} catch (URISyntaxException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
-	@Nullable
+	@Override
+	@Nonnull
+	public String toString() {
+		return format("%s{requestBodyAsMap=%s}", getClass().getSimpleName(), getRequestBodyAsMap());
+	}
+
+	@Nonnull
+	protected Gson getGson() {
+		return GSON;
+	}
+
+	@Nonnull
+	public Map<String, String> getRequestBodyAsMap() {
+		return this.requestBodyAsMap;
+	}
+
+	@Nonnull
 	public String getMessageId() {
 		return this.messageId;
 	}
 
-	public void setMessageId(@Nullable String messageId) {
-		this.messageId = messageId;
+	@Nonnull
+	public AmazonSnsMessageType getType() {
+		return this.type;
 	}
 
-	@Nullable
-	public String getToken() {
-		return this.token;
+	@Nonnull
+	public Optional<String> getToken() {
+		return Optional.ofNullable(this.token);
 	}
 
-	public void setToken(@Nullable String token) {
-		this.token = token;
+	@Nonnull
+	public Optional<String> getTopicArn() {
+		return Optional.ofNullable(this.topicArn);
 	}
 
-	@Nullable
-	public String getTopicArn() {
-		return this.topicArn;
+	@Nonnull
+	public Optional<String> getSubject() {
+		return Optional.ofNullable(this.subject);
 	}
 
-	public void setTopicArn(@Nullable String topicArn) {
-		this.topicArn = topicArn;
-	}
-
-	@Nullable
+	@Nonnull
 	public String getMessage() {
 		return this.message;
 	}
 
-	public void setMessage(@Nullable String message) {
-		this.message = message;
-	}
-
-	@Nullable
-	public String getSubscribeUrl() {
-		return this.subscribeUrl;
-	}
-
-	public void setSubscribeUrl(@Nullable String subscribeUrl) {
-		this.subscribeUrl = subscribeUrl;
-	}
-
-	@Nullable
-	public String getTimestamp() {
+	@Nonnull
+	public Instant getTimestamp() {
 		return this.timestamp;
 	}
 
-	public void setTimestamp(@Nullable String timestamp) {
-		this.timestamp = timestamp;
-	}
-
-	@Nullable
+	@Nonnull
 	public String getSignatureVersion() {
 		return this.signatureVersion;
 	}
 
-	public void setSignatureVersion(@Nullable String signatureVersion) {
-		this.signatureVersion = signatureVersion;
-	}
-
-	@Nullable
+	@Nonnull
 	public String getSignature() {
 		return this.signature;
 	}
 
-	public void setSignature(@Nullable String signature) {
-		this.signature = signature;
-	}
-
-	@Nullable
-	public String getSigningCertUrl() {
+	@Nonnull
+	public URI getSigningCertUrl() {
 		return this.signingCertUrl;
 	}
 
-	public void setSigningCertUrl(@Nullable String signingCertUrl) {
-		this.signingCertUrl = signingCertUrl;
+	@Nonnull
+	public Optional<URI> getSubscribeUrl() {
+		return Optional.ofNullable(this.subscribeUrl);
+	}
+
+	@Nonnull
+	public Optional<URI> getUnsubscribeUrl() {
+		return Optional.ofNullable(this.unsubscribeUrl);
 	}
 }

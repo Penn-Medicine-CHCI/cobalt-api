@@ -164,6 +164,11 @@ public class AmazonSesEmailMessageSender implements MessageSender<EmailMessage> 
 			SendRawEmailRequest request = SendRawEmailRequest.builder()
 					.source(fromAddress)
 					.rawMessage(rawMessage)
+					// We specify a configuration set, which has SNS topic[s] attached to it, which allows
+					// AWS to send us webhook notifications on successful deliveries, bounces, etc.
+					// Environment-specific configuration sets are needed because the same SES Verified Identity might be used
+					// across environments and we need a way to route SNS webhooks accordingly
+					// See https://docs.aws.amazon.com/ses/latest/dg/using-configuration-sets-in-email.html
 					.configurationSetName(getConfiguration().getAmazonSesConfigurationSetName().orElse(null))
 					.build();
 

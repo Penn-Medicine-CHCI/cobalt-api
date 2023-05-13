@@ -20,11 +20,29 @@
 package com.cobaltplatform.api.integration.amazon;
 
 import javax.annotation.Nonnull;
+import java.util.Optional;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * @author Transmogrify, LLC.
  */
-public interface AmazonSnsRequestValidator {
+public enum AmazonSnsMessageType {
+	NOTIFICATION,
+	SUBSCRIPTION_CONFIRMATION,
+	UNSUBSCRIBE_CONFIRMATION;
+
 	@Nonnull
-	Boolean validateRequest(@Nonnull AmazonSnsRequestBody amazonSnsRequestBody);
+	public static Optional<AmazonSnsMessageType> fromType(@Nonnull String type) {
+		requireNonNull(type);
+
+		if ("Notification".equals(type))
+			return Optional.of(NOTIFICATION);
+		if ("SubscriptionConfirmation".equals(type))
+			return Optional.of(SUBSCRIPTION_CONFIRMATION);
+		if ("UnsubscribeConfirmation".equals(type))
+			return Optional.of(UNSUBSCRIBE_CONFIRMATION);
+
+		return Optional.empty();
+	}
 }

@@ -21,12 +21,15 @@ package com.cobaltplatform.api.integration.amazon;
 
 import javax.annotation.Nonnull;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * @author Transmogrify, LLC.
  */
 public class MockAmazonSnsRequestValidator implements AmazonSnsRequestValidator {
 	@Nonnull
-	public Boolean validateRequest() {
+	public Boolean validateRequest(@Nonnull AmazonSnsRequestBody amazonSnsRequestBody) {
+		requireNonNull(amazonSnsRequestBody);
 		return true;
 	}
 }
