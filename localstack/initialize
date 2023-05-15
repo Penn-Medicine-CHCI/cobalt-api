@@ -25,6 +25,8 @@ aws --endpoint-url=http://localstack-cobalt:4801 ses verify-email-identity --ema
 
 [ $? == 0 ] || fail 1 "Failed: AWS / ses / verify-email-identity"
 
+# TODO: add SNS topic for listening to email bounces (and configuration set), see https://stackoverflow.com/a/75440135
+
 echo "Creating SQS SMS queue..."
 
 aws --endpoint-url=http://localstack-cobalt:4801 sqs delete-queue --queue-url http://localstack-cobalt:4801/queue/sms-messages-local.fifo --region ${REGION} > /dev/null 2>&1

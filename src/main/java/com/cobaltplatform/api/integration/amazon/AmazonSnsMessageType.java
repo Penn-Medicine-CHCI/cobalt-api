@@ -17,27 +17,32 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.messaging;
-
-import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
-import com.cobaltplatform.api.model.db.MessageVendor.MessageVendorId;
+package com.cobaltplatform.api.integration.amazon;
 
 import javax.annotation.Nonnull;
+import java.util.Optional;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * @author Transmogrify, LLC.
  */
-public interface MessageSender<T extends Message> {
-	/**
-	 * @param message the message to send (not null)
-	 * @return the vendor-assigned message identifier (not null)
-	 */
-	@Nonnull
-	String sendMessage(@Nonnull T message);
+public enum AmazonSnsMessageType {
+	NOTIFICATION,
+	SUBSCRIPTION_CONFIRMATION,
+	UNSUBSCRIBE_CONFIRMATION;
 
 	@Nonnull
-	MessageVendorId getMessageVendorId();
+	public static Optional<AmazonSnsMessageType> fromType(@Nonnull String type) {
+		requireNonNull(type);
 
-	@Nonnull
-	MessageTypeId getMessageTypeId();
+		if ("Notification".equals(type))
+			return Optional.of(NOTIFICATION);
+		if ("SubscriptionConfirmation".equals(type))
+			return Optional.of(SUBSCRIPTION_CONFIRMATION);
+		if ("UnsubscribeConfirmation".equals(type))
+			return Optional.of(UNSUBSCRIBE_CONFIRMATION);
+
+		return Optional.empty();
+	}
 }

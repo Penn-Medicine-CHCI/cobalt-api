@@ -17,27 +17,14 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.messaging;
-
-import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
-import com.cobaltplatform.api.model.db.MessageVendor.MessageVendorId;
+package com.cobaltplatform.api.integration.amazon;
 
 import javax.annotation.Nonnull;
 
 /**
  * @author Transmogrify, LLC.
  */
-public interface MessageSender<T extends Message> {
-	/**
-	 * @param message the message to send (not null)
-	 * @return the vendor-assigned message identifier (not null)
-	 */
+public interface AmazonSnsRequestValidator {
 	@Nonnull
-	String sendMessage(@Nonnull T message);
-
-	@Nonnull
-	MessageVendorId getMessageVendorId();
-
-	@Nonnull
-	MessageTypeId getMessageTypeId();
+	Boolean validateRequest(@Nonnull AmazonSnsRequestBody amazonSnsRequestBody);
 }

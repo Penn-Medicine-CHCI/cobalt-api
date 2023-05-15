@@ -34,12 +34,14 @@ import com.cobaltplatform.api.error.SentryErrorReporter;
 import com.cobaltplatform.api.integration.acuity.AcuitySchedulingClient;
 import com.cobaltplatform.api.integration.acuity.DefaultAcuitySchedulingClient;
 import com.cobaltplatform.api.integration.acuity.MockAcuitySchedulingClient;
+import com.cobaltplatform.api.integration.amazon.AmazonSnsRequestValidator;
+import com.cobaltplatform.api.integration.amazon.DefaultAmazonSnsRequestValidator;
 import com.cobaltplatform.api.integration.bluejeans.BluejeansApi;
 import com.cobaltplatform.api.integration.bluejeans.BluejeansClient;
 import com.cobaltplatform.api.integration.bluejeans.DefaultBluejeansClient;
 import com.cobaltplatform.api.integration.bluejeans.MockBluejeansClient;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
-import com.cobaltplatform.api.integration.twilio.DefaultTwilioRequestValidator;
+import com.cobaltplatform.api.integration.twilio.MockTwilioRequestValidator;
 import com.cobaltplatform.api.integration.twilio.TwilioRequestValidator;
 import com.cobaltplatform.api.integration.way2health.DefaultWay2HealthClient;
 import com.cobaltplatform.api.integration.way2health.MockWay2HealthClient;
@@ -690,7 +692,18 @@ public class AppModule extends AbstractModule {
 	@Nonnull
 	public TwilioRequestValidator provideTwilioRequestValidator(@Nonnull Configuration configuration) {
 		requireNonNull(configuration);
-		return new DefaultTwilioRequestValidator(configuration);
+		// TODO: enable the real validator prior to moving to prod.
+		// Currently disabled during testing because Twilio subaccounts cannot validate webhooks w/o Primary account AuthToken
+		// return new DefaultTwilioRequestValidator(configuration);
+		return new MockTwilioRequestValidator();
+	}
+
+	@Provides
+	@Singleton
+	@Nonnull
+	public AmazonSnsRequestValidator provideAmazonSnsRequestValidator(@Nonnull Configuration configuration) {
+		requireNonNull(configuration);
+		return new DefaultAmazonSnsRequestValidator(configuration);
 	}
 
 	@Provides

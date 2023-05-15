@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.MessageStatus.MessageStatusId;
 import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
+import com.cobaltplatform.api.model.db.MessageVendor.MessageVendorId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -35,9 +36,13 @@ public class MessageLog {
 	@Nullable
 	private UUID messageId;
 	@Nullable
+	private String vendorAssignedId;
+	@Nullable
 	private MessageTypeId messageTypeId;
 	@Nullable
 	private MessageStatusId messageStatusId;
+	@Nullable
+	private MessageVendorId messageVendorId;
 	@Nullable
 	private String serializedMessage;
 	@Nullable
@@ -55,7 +60,7 @@ public class MessageLog {
 
 	@Nullable
 	public UUID getMessageId() {
-		return messageId;
+		return this.messageId;
 	}
 
 	public void setMessageId(@Nullable UUID messageId) {
@@ -63,8 +68,17 @@ public class MessageLog {
 	}
 
 	@Nullable
+	public String getVendorAssignedId() {
+		return this.vendorAssignedId;
+	}
+
+	public void setVendorAssignedId(@Nullable String vendorAssignedId) {
+		this.vendorAssignedId = vendorAssignedId;
+	}
+
+	@Nullable
 	public MessageTypeId getMessageTypeId() {
-		return messageTypeId;
+		return this.messageTypeId;
 	}
 
 	public void setMessageTypeId(@Nullable MessageTypeId messageTypeId) {
@@ -73,7 +87,7 @@ public class MessageLog {
 
 	@Nullable
 	public MessageStatusId getMessageStatusId() {
-		return messageStatusId;
+		return this.messageStatusId;
 	}
 
 	public void setMessageStatusId(@Nullable MessageStatusId messageStatusId) {
@@ -81,8 +95,17 @@ public class MessageLog {
 	}
 
 	@Nullable
+	public MessageVendorId getMessageVendorId() {
+		return this.messageVendorId;
+	}
+
+	public void setMessageVendorId(@Nullable MessageVendorId messageVendorId) {
+		this.messageVendorId = messageVendorId;
+	}
+
+	@Nullable
 	public String getSerializedMessage() {
-		return serializedMessage;
+		return this.serializedMessage;
 	}
 
 	public void setSerializedMessage(@Nullable String serializedMessage) {
@@ -91,7 +114,7 @@ public class MessageLog {
 
 	@Nullable
 	public String getStackTrace() {
-		return stackTrace;
+		return this.stackTrace;
 	}
 
 	public void setStackTrace(@Nullable String stackTrace) {
@@ -100,7 +123,7 @@ public class MessageLog {
 
 	@Nullable
 	public Instant getCreated() {
-		return created;
+		return this.created;
 	}
 
 	public void setCreated(@Nullable Instant created) {
@@ -109,7 +132,7 @@ public class MessageLog {
 
 	@Nullable
 	public Instant getEnqueued() {
-		return enqueued;
+		return this.enqueued;
 	}
 
 	public void setEnqueued(@Nullable Instant enqueued) {
@@ -118,7 +141,7 @@ public class MessageLog {
 
 	@Nullable
 	public Instant getProcessed() {
-		return processed;
+		return this.processed;
 	}
 
 	public void setProcessed(@Nullable Instant processed) {

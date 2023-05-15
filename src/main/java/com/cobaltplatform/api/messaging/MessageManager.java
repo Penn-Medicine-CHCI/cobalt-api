@@ -174,11 +174,11 @@ public class MessageManager<T extends Message> implements AutoCloseable {
 		T deserializedMessage = getMessageSerializer().deserializeMessage(sqsMessage.body());
 
 		try {
-			getMessageSender().sendMessage(deserializedMessage);
+			String vendorAssignedId = getMessageSender().sendMessage(deserializedMessage);
 
 			try {
-				getDatabase().execute("UPDATE message_log SET message_status_id=?, processed=NOW() WHERE message_id=?",
-						MessageStatusId.SENT, deserializedMessage.getMessageId());
+				getDatabase().execute("UPDATE message_log SET message_status_id=?, vendor_assigned_id=?, processed=NOW() WHERE message_id=?",
+						MessageStatusId.SENT, vendorAssignedId, deserializedMessage.getMessageId());
 			} catch (Exception e2) {
 				// Not much we can do, just bail
 				getLogger().warn("Unable to update message log", e2);

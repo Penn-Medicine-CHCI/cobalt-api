@@ -37,7 +37,7 @@ public class MessageVendor {
 	public enum MessageVendorId {
 		UNSPECIFIED,
 		TWILIO,
-		AMAZON_AWS
+		AMAZON_SES
 	}
 
 	@Override

@@ -23,7 +23,6 @@ import com.cobaltplatform.api.Configuration;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import com.google.common.io.BaseEncoding;
-import com.twilio.security.RequestValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,35 +74,19 @@ public class DefaultTwilioRequestValidator implements TwilioRequestValidator {
 		// 4. Sign the resulting string with HMAC-SHA1 using your AuthToken as the key (remember, your AuthToken's case matters!).
 		// 5. Base64 encode the resulting hash value.
 		// 6. Compare your hash to ours, submitted in the X-Twilio-Signature header. If they match, then you're good to go.
-
 		TwilioRequestBody twilioRequestBody = new TwilioRequestBody(requestBody);
 		SortedMap<String, String> sortedRequestBodyParameters = new TreeMap<>(twilioRequestBody.getParameters());
-
-		getLogger().info("Twilio parameters: {}", sortedRequestBodyParameters);
 
 		String hashableString = requestUrl + sortedRequestBodyParameters.entrySet().stream()
 				.map(requestBodyParameter -> requestBodyParameter.getKey() + requestBodyParameter.getValue())
 				.collect(Collectors.joining());
 
-		getLogger().info("Twilio hashable string: {}", hashableString);
-
 		HashCode hashCode = Hashing.hmacSha1(getTwilioAuthToken().getBytes(StandardCharsets.UTF_8)).hashString(hashableString, StandardCharsets.UTF_8);
-
-		getLogger().info("Twilio hashcode: {}", hashCode.toString());
-
 		String calculatedSignature = BaseEncoding.base64().encode(hashCode.asBytes());
 
-		getLogger().info("Calculated signature: {}", calculatedSignature);
-
-		boolean valid = twilioSignature.equals(calculatedSignature);
-
-		getLogger().info("Valid? {}", valid);
-
-		// Temporary check against SDK impl
-		RequestValidator requestValidator = new RequestValidator(twilioAuthToken);
-		getLogger().info("Twilio SDK validity: {}", requestValidator.validate(requestUrl, twilioRequestBody.getParameters(), twilioSignature));
-
-		return valid;
+		// Note: not obvious from the documentation, but it does not appear this can succeed for subaccount AuthTokens -
+		// Twilio appears to sign using primary account AuthToken.
+		return twilioSignature.equals(calculatedSignature);
 	}
 
 	@Nonnull
