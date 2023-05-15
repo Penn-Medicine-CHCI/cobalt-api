@@ -48,6 +48,7 @@ import com.cobaltplatform.api.model.db.PatientOrderInsurancePayorType.PatientOrd
 import com.cobaltplatform.api.model.db.PatientOrderInsurancePlanType.PatientOrderInsurancePlanTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
@@ -107,6 +108,8 @@ public class PatientOrderApiResponse {
 	private PatientOrderScreeningStatusId patientOrderScreeningStatusId;
 	@Nullable
 	private PatientOrderResourcingStatusId patientOrderResourcingStatusId;
+	@Nullable
+	private PatientOrderResourcingTypeId patientOrderResourcingTypeId;
 	@Nullable
 	private UUID patientAccountId;
 	@Nullable
@@ -856,6 +859,7 @@ public class PatientOrderApiResponse {
 			this.patientOrderScheduledMessageGroups = patientOrderService.generatePatientOrderScheduledMessageGroupApiResponses(patientOrderScheduledMessages);
 
 			this.patientOrderVoicemailTasks = patientOrderVoicemailTasks;
+			this.patientOrderResourcingTypeId = patientOrder.getPatientOrderResourcingTypeId();
 		}
 	}
 
@@ -1667,5 +1671,10 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public UUID getPatientDemographicsConfirmedByAccountId() {
 		return this.patientDemographicsConfirmedByAccountId;
+	}
+
+	@Nullable
+	public PatientOrderResourcingTypeId getPatientOrderResourcingTypeId() {
+		return this.patientOrderResourcingTypeId;
 	}
 }

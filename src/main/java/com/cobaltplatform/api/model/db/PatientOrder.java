@@ -31,6 +31,7 @@ import com.cobaltplatform.api.model.db.PatientOrderInsurancePayorType.PatientOrd
 import com.cobaltplatform.api.model.db.PatientOrderInsurancePlanType.PatientOrderInsurancePlanTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
@@ -61,6 +62,8 @@ public class PatientOrder {
 	private PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId;
 	@Nullable
 	private PatientOrderResourcingStatusId patientOrderResourcingStatusId;
+	@Nullable
+	private PatientOrderResourcingTypeId patientOrderResourcingTypeId;
 	@Nullable
 	private UUID patientOrderImportId;
 	@Nullable
@@ -867,6 +870,15 @@ public class PatientOrder {
 
 	public void setPatientOrderResourcingStatusId(@Nullable PatientOrderResourcingStatusId patientOrderResourcingStatusId) {
 		this.patientOrderResourcingStatusId = patientOrderResourcingStatusId;
+	}
+
+	@Nullable
+	public PatientOrderResourcingTypeId getPatientOrderResourcingTypeId() {
+		return this.patientOrderResourcingTypeId;
+	}
+
+	public void setPatientOrderResourcingTypeId(@Nullable PatientOrderResourcingTypeId patientOrderResourcingTypeId) {
+		this.patientOrderResourcingTypeId = patientOrderResourcingTypeId;
 	}
 
 	@Nullable

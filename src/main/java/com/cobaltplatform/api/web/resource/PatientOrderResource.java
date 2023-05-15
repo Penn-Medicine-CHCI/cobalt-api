@@ -1670,6 +1670,15 @@ public class PatientOrderResource {
 				})
 				.collect(Collectors.toList());
 
+		List<Map<String, Object>> patientOrderResourcingTypes = getPatientOrderService().findPatientOrderResourcingTypesByInstitutionId(institutionId).stream()
+				.map(patientOrderResourcingType -> {
+					Map<String, Object> patientOrderResourcingTypeJson = new HashMap<>();
+					patientOrderResourcingTypeJson.put("patientOrderResourcingTypeId", patientOrderResourcingType.getPatientOrderResourcingTypeId());
+					patientOrderResourcingTypeJson.put("description", patientOrderResourcingType.getDescription());
+					return patientOrderResourcingTypeJson;
+				})
+				.collect(Collectors.toList());
+
 		List<String> referringPracticeNames = getPatientOrderService().findReferringPracticeNamesByInstitutionId(institutionId);
 		List<String> reasonsForReferral = getPatientOrderService().findReasonsForReferralByInstitutionId(institutionId);
 
@@ -1701,6 +1710,7 @@ public class PatientOrderResource {
 			put("reasonsForReferral", reasonsForReferral);
 			put("patientOrderInsurancePayors", patientOrderInsurancePayors);
 			put("patientOrderInsurancePlans", patientOrderInsurancePlans);
+			put("patientOrderResourcingTypes", patientOrderResourcingTypes);
 		}});
 	}
 
