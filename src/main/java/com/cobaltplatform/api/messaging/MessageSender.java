@@ -28,6 +28,10 @@ import javax.annotation.Nonnull;
  * @author Transmogrify, LLC.
  */
 public interface MessageSender<T extends Message> {
+	/**
+	 * @param message the message to send (not null)
+	 * @return the vendor-assigned message identifier (not null)
+	 */
 	@Nonnull
 	String sendMessage(@Nonnull T message);
 

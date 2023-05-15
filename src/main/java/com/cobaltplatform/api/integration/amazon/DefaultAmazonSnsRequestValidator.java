@@ -126,6 +126,8 @@ public class DefaultAmazonSnsRequestValidator implements AmazonSnsRequestValidat
 
 		getLogger().info("Amazon SNS signing certificate has issuer '{}'", signingCert.getIssuerX500Principal());
 
+		// TODO: we need a reliable way to confirm that the certificate is actually owned by Amazon and is not some rando
+
 		// Perform verification of the AWS-provided signature using the public key and
 		// the signable string we created from elements of the request body
 		try {

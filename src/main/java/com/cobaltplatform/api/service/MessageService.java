@@ -23,6 +23,8 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.error.ErrorReporter;
+import com.cobaltplatform.api.integration.amazon.AmazonSnsRequestBody;
+import com.cobaltplatform.api.integration.twilio.TwilioRequestBody;
 import com.cobaltplatform.api.messaging.Message;
 import com.cobaltplatform.api.messaging.call.CallMessage;
 import com.cobaltplatform.api.messaging.call.CallMessageManager;
@@ -40,9 +42,11 @@ import com.cobaltplatform.api.model.api.request.SendCallMessagesRequest;
 import com.cobaltplatform.api.model.api.request.SendCallMessagesRequest.SendCallMessageRequest;
 import com.cobaltplatform.api.model.api.request.SendSmsMessagesRequest;
 import com.cobaltplatform.api.model.api.request.SendSmsMessagesRequest.SendSmsMessageRequest;
-import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.MessageLog;
+import com.cobaltplatform.api.model.db.MessageStatus.MessageStatusId;
 import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
+import com.cobaltplatform.api.model.db.MessageVendor.MessageVendorId;
 import com.cobaltplatform.api.model.db.ScheduledMessage;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
 import com.cobaltplatform.api.util.Formatter;
@@ -438,6 +442,110 @@ public class MessageService implements AutoCloseable {
 						put("body", body);
 					}}).build());
 		}
+	}
+
+	public void createTestMessageLog(@Nonnull MessageTypeId messageTypeId,
+																	 @Nonnull MessageVendorId messageVendorId,
+																	 @Nonnull String vendorAssignedId) {
+		requireNonNull(messageTypeId);
+		requireNonNull(messageVendorId);
+		requireNonNull(vendorAssignedId);
+
+		UUID messageId = UUID.randomUUID();
+		MessageStatusId messageStatusId = MessageStatusId.SENT;
+		String serializedMessage = "{}";
+
+		getDatabase().execute("""
+				INSERT INTO message_log (
+				message_id,
+				vendor_assigned_id,
+				message_type_id,
+				message_status_id,
+				message_vendor_id,
+				serialized_message,
+				enqueued,
+				processed
+				) VALUES (?,?,?,?,?,CAST(? AS JSONB),NOW(),NOW())
+				""", messageId, vendorAssignedId, messageTypeId, messageStatusId.SENT, messageVendorId, serializedMessage);
+	}
+
+	@Nonnull
+	public Optional<MessageLog> findMessageLogById(@Nullable UUID messageLogId) {
+		if (messageLogId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM message_log
+				WHERE message_id=?
+				""", MessageLog.class, messageLogId);
+	}
+
+	@Nonnull
+	public Optional<MessageLog> findMessageLogByVendorAssignedId(@Nullable String vendorAssignedId,
+																															 @Nullable MessageVendorId messageVendorId) {
+		if (vendorAssignedId == null || messageVendorId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM message_log
+				WHERE vendor_assigned_id=?
+				AND message_vendor_id=?
+				""", MessageLog.class, vendorAssignedId, messageVendorId);
+	}
+
+	@Nonnull
+	public UUID createMessageLogEvent(@Nonnull UUID messageId,
+																		@Nonnull Map<String, String> webhookHeaders,
+																		@Nonnull String webhookRequestBody) {
+		requireNonNull(messageId);
+		requireNonNull(webhookHeaders);
+		requireNonNull(webhookRequestBody);
+
+		UUID messageLogEventId = UUID.randomUUID();
+		MessageLog messageLog = findMessageLogById(messageId).get();
+
+		// The `webhookPayload` field is designed to be easily queryable.
+		// Therefore, we ensure it's pure JSON (not a string of encoded JSON, or form parameters, or w/e like
+		// the raw request body itself might be) by only putting in "clean" data.
+		// We still persist the raw data in `webhookRequestBody` in case it's needed later
+		Map<String, Object> webhookPayload = new HashMap<>();
+
+		if (messageLog.getMessageVendorId() == MessageVendorId.TWILIO) {
+			TwilioRequestBody twilioRequestBody = new TwilioRequestBody(webhookRequestBody);
+			webhookPayload.putAll(twilioRequestBody.getParameters());
+		} else if (messageLog.getMessageVendorId() == MessageVendorId.AMAZON_SES) {
+			AmazonSnsRequestBody amazonSnsRequestBody = new AmazonSnsRequestBody(webhookRequestBody);
+			Map<String, Object> requestBodyAsMap = new HashMap<>(amazonSnsRequestBody.getRequestBodyAsMap());
+
+			// Tricky: the request body payload of field 'Message' is an encoded JSON string, e.g. "{\"notificationType\":\"Delivery\", ...
+			// We parse the JSON and put it back in so it's a "real" object and easily queryable in our DB
+			Map<String, Object> messageAsJson = getJsonMapper().fromJson(amazonSnsRequestBody.getMessage());
+			requestBodyAsMap.put("Message", messageAsJson);
+
+			webhookPayload.putAll(requestBodyAsMap);
+		} else {
+			throw new IllegalStateException(format("Unsupported %s value '%s'",
+					MessageVendorId.class.getSimpleName(), messageLog.getMessageVendorId().name()));
+		}
+
+		Map<String, Object> eventData = new HashMap<>();
+		eventData.put("webhookHeaders", webhookHeaders);
+		eventData.put("webhookRequestBody", webhookRequestBody);
+		eventData.put("webhookPayload", webhookPayload);
+
+		String eventDataAsJson = getJsonMapper().toJson(eventData);
+
+		getDatabase().execute("""
+				INSERT INTO message_log_event (
+				message_log_event_id,
+				message_id,
+				event_data
+				) VALUES (?,?,CAST(? AS JSONB))
+				""", messageLogEventId, messageId, eventDataAsJson);
+
+		return messageLogEventId;
 	}
 
 	@Nonnull

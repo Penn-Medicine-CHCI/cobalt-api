@@ -28,6 +28,9 @@ import com.cobaltplatform.api.http.HttpResponse;
 import com.cobaltplatform.api.integration.amazon.AmazonSnsMessageType;
 import com.cobaltplatform.api.integration.amazon.AmazonSnsRequestBody;
 import com.cobaltplatform.api.integration.amazon.AmazonSnsRequestValidator;
+import com.cobaltplatform.api.model.db.MessageLog;
+import com.cobaltplatform.api.model.db.MessageVendor.MessageVendorId;
+import com.cobaltplatform.api.service.MessageService;
 import com.google.gson.Gson;
 import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.RequestBody;
@@ -44,6 +47,8 @@ import javax.inject.Singleton;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 import static java.lang.String.format;
@@ -57,6 +62,8 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class AmazonSnsCallbackResource {
 	@Nonnull
+	private final MessageService messageService;
+	@Nonnull
 	private final AmazonSnsRequestValidator amazonSnsRequestValidator;
 	@Nonnull
 	private final HttpClient httpClient;
@@ -68,11 +75,14 @@ public class AmazonSnsCallbackResource {
 	private final Logger logger;
 
 	@Inject
-	public AmazonSnsCallbackResource(@Nonnull AmazonSnsRequestValidator amazonSnsRequestValidator,
+	public AmazonSnsCallbackResource(@Nonnull MessageService messageService,
+																	 @Nonnull AmazonSnsRequestValidator amazonSnsRequestValidator,
 																	 @Nonnull Configuration configuration) {
+		requireNonNull(messageService);
 		requireNonNull(amazonSnsRequestValidator);
 		requireNonNull(configuration);
 
+		this.messageService = messageService;
 		this.amazonSnsRequestValidator = amazonSnsRequestValidator;
 		this.httpClient = new DefaultHttpClient("amazon-sns-callback");
 		this.gson = new Gson();
@@ -97,8 +107,12 @@ public class AmazonSnsCallbackResource {
 
 		getLogger().info("Received Amazon SNS callback. Request body is '{}'", requestBody);
 
-		for (String headerName : Collections.list(httpServletRequest.getHeaderNames()))
+		Map<String, String> requestHeaders = new HashMap<>();
+
+		for (String headerName : Collections.list(httpServletRequest.getHeaderNames())) {
 			getLogger().info("Request Header: {}={}", headerName, httpServletRequest.getHeader(headerName));
+			requestHeaders.put(headerName, httpServletRequest.getHeader(headerName));
+		}
 
 		AmazonSnsRequestBody amazonSnsRequestBody = new AmazonSnsRequestBody(requestBody);
 
@@ -118,10 +132,28 @@ public class AmazonSnsCallbackResource {
 		} else if (amazonSnsRequestBody.getType() == AmazonSnsMessageType.UNSUBSCRIBE_CONFIRMATION) {
 			// TODO: handle unsubscribe, if needed
 		} else if (amazonSnsRequestBody.getType() == AmazonSnsMessageType.NOTIFICATION) {
-			// TODO: handle notification
+			String vendorAssignedId = amazonSnsRequestBody.getMessageId();
+			MessageVendorId messageVendorId = MessageVendorId.AMAZON_SES;
+
+			// Useful for testing via AWS console manually-created messages
+			// getMessageService().createTestMessageLog(MessageTypeId.EMAIL, messageVendorId, vendorAssignedId);
+
+			MessageLog messageLog = getMessageService().findMessageLogByVendorAssignedId(vendorAssignedId, messageVendorId).orElse(null);
+
+			if (messageLog == null) {
+				getLogger().info("We have no record of {} message with vendor-assigned ID {}, ignoring webhook...", messageVendorId.name(), vendorAssignedId);
+			} else {
+				// TODO: based on notification, update message status
+				getMessageService().createMessageLogEvent(messageLog.getMessageId(), requestHeaders, requestBody);
+			}
 		} else {
 			throw new IllegalStateException(format("Not sure how to handle SNS request: %s", requestBody));
 		}
+	}
+
+	@Nonnull
+	protected MessageService getMessageService() {
+		return this.messageService;
 	}
 
 	@Nonnull

@@ -84,6 +84,8 @@ public class DefaultTwilioRequestValidator implements TwilioRequestValidator {
 		HashCode hashCode = Hashing.hmacSha1(getTwilioAuthToken().getBytes(StandardCharsets.UTF_8)).hashString(hashableString, StandardCharsets.UTF_8);
 		String calculatedSignature = BaseEncoding.base64().encode(hashCode.asBytes());
 
+		// Note: not obvious from the documentation, but it does not appear this can succeed for subaccount AuthTokens -
+		// Twilio appears to sign using primary account AuthToken.
 		return twilioSignature.equals(calculatedSignature);
 	}
 

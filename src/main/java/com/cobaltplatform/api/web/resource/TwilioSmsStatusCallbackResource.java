@@ -20,7 +20,11 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.integration.twilio.TwilioRequestBody;
 import com.cobaltplatform.api.integration.twilio.TwilioRequestValidator;
+import com.cobaltplatform.api.model.db.MessageLog;
+import com.cobaltplatform.api.model.db.MessageVendor.MessageVendorId;
+import com.cobaltplatform.api.service.MessageService;
 import com.cobaltplatform.api.util.WebUtility;
 import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.RequestBody;
@@ -35,6 +39,8 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.servlet.http.HttpServletRequest;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
@@ -47,6 +53,8 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class TwilioSmsStatusCallbackResource {
 	@Nonnull
+	private final MessageService messageService;
+	@Nonnull
 	private final TwilioRequestValidator twilioRequestValidator;
 	@Nonnull
 	private final Configuration configuration;
@@ -54,11 +62,14 @@ public class TwilioSmsStatusCallbackResource {
 	private final Logger logger;
 
 	@Inject
-	public TwilioSmsStatusCallbackResource(@Nonnull TwilioRequestValidator twilioRequestValidator,
+	public TwilioSmsStatusCallbackResource(@Nonnull MessageService messageService,
+																				 @Nonnull TwilioRequestValidator twilioRequestValidator,
 																				 @Nonnull Configuration configuration) {
+		requireNonNull(messageService);
 		requireNonNull(twilioRequestValidator);
 		requireNonNull(configuration);
 
+		this.messageService = messageService;
 		this.twilioRequestValidator = twilioRequestValidator;
 		this.configuration = configuration;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -80,13 +91,38 @@ public class TwilioSmsStatusCallbackResource {
 		getLogger().info("Received SMS status callback from Twilio. Signature is '{}', idempotency token is '{}', request body is '{}'",
 				twilioSignature, twilioIdempotencyToken.orElse(null), requestBody);
 
+		Map<String, String> requestHeaders = new HashMap<>();
+
 		for (String headerName : Collections.list(httpServletRequest.getHeaderNames())) {
 			getLogger().info("Request Header: {}={}", headerName, httpServletRequest.getHeader(headerName));
+			requestHeaders.put(headerName, httpServletRequest.getHeader(headerName));
 		}
 
 		boolean valid = getTwilioRequestValidator().validateRequest(requestUrl, twilioSignature, requestBody);
 
 		getLogger().info("Twilio SMS status callback validated: {}", valid);
+
+		TwilioRequestBody twilioRequestBody = new TwilioRequestBody(requestBody);
+
+		String vendorAssignedId = twilioRequestBody.getParameters().get("sid");
+		MessageVendorId messageVendorId = MessageVendorId.TWILIO;
+
+		// Useful for testing via manually-created messages
+		// getMessageService().createTestMessageLog(MessageTypeId.SMS, messageVendorId, vendorAssignedId);
+
+		MessageLog messageLog = getMessageService().findMessageLogByVendorAssignedId(vendorAssignedId, messageVendorId).orElse(null);
+
+		if (messageLog == null) {
+			getLogger().info("We have no record of {} message with vendor-assigned ID {}, ignoring webhook...", messageVendorId.name(), vendorAssignedId);
+		} else {
+			// TODO: based on notification, update message status
+			getMessageService().createMessageLogEvent(messageLog.getMessageId(), requestHeaders, requestBody);
+		}
+	}
+
+	@Nonnull
+	protected MessageService getMessageService() {
+		return this.messageService;
 	}
 
 	@Nonnull

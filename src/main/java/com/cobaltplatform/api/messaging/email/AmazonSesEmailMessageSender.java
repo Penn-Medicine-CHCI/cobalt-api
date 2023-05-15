@@ -185,7 +185,7 @@ public class AmazonSesEmailMessageSender implements MessageSender<EmailMessage> 
 	@Nonnull
 	@Override
 	public MessageVendorId getMessageVendorId() {
-		return MessageVendorId.AMAZON_AWS;
+		return MessageVendorId.AMAZON_SES;
 	}
 
 	@Nonnull
