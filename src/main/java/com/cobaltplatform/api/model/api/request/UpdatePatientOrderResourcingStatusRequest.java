@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -37,6 +38,8 @@ public class UpdatePatientOrderResourcingStatusRequest {
 	private UUID accountId;
 	@Nullable
 	private PatientOrderResourcingStatusId patientOrderResourcingStatusId;
+	@Nullable
+	private PatientOrderResourcingTypeId patientOrderResourcingTypeId;
 	@Nullable
 	private LocalDate resourcesSentAtDate;
 	@Nullable
@@ -69,6 +72,15 @@ public class UpdatePatientOrderResourcingStatusRequest {
 
 	public void setPatientOrderResourcingStatusId(@Nullable PatientOrderResourcingStatusId patientOrderResourcingStatusId) {
 		this.patientOrderResourcingStatusId = patientOrderResourcingStatusId;
+	}
+
+	@Nullable
+	public PatientOrderResourcingTypeId getPatientOrderResourcingTypeId() {
+		return this.patientOrderResourcingTypeId;
+	}
+
+	public void setPatientOrderResourcingTypeId(@Nullable PatientOrderResourcingTypeId patientOrderResourcingTypeId) {
+		this.patientOrderResourcingTypeId = patientOrderResourcingTypeId;
 	}
 
 	@Nullable

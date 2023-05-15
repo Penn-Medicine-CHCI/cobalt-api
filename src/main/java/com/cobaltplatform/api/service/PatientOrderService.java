@@ -93,6 +93,8 @@ import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderOutreach;
 import com.cobaltplatform.api.model.db.PatientOrderOutreachResult;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderResourcingType;
+import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageGroup;
@@ -650,6 +652,20 @@ public class PatientOrderService implements AutoCloseable {
 				AND deleted=FALSE
 				ORDER BY created DESC
 				""", PatientOrderOutreach.class, patientOrderId);
+	}
+
+	@Nonnull
+	public List<PatientOrderResourcingType> findPatientOrderResourcingTypesByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
+
+		// Don't use institutionId currently, but we might in the future
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM patient_order_resourcing_type
+				ORDER BY display_order
+				""", PatientOrderResourcingType.class);
 	}
 
 	@Nonnull
@@ -1383,7 +1399,7 @@ public class PatientOrderService implements AutoCloseable {
 		// Side effect of rejection: immediately close out the order
 		if (patientOrderConsentStatusId == PatientOrderConsentStatusId.REJECTED) {
 			getLogger().info("Patient Order ID had its consent rejected, so closing it out...", patientOrderId);
-			
+
 			closePatientOrder(new ClosePatientOrderRequest() {{
 				setPatientOrderId(patientOrderId);
 				setPatientOrderClosureReasonId(PatientOrderClosureReasonId.REFUSED_CARE);
@@ -1991,6 +2007,7 @@ public class PatientOrderService implements AutoCloseable {
 		UUID accountId = request.getAccountId();
 		UUID patientOrderId = request.getPatientOrderId();
 		PatientOrderResourcingStatusId patientOrderResourcingStatusId = request.getPatientOrderResourcingStatusId();
+		PatientOrderResourcingTypeId patientOrderResourcingTypeId = request.getPatientOrderResourcingTypeId();
 		LocalDate resourcesSentAtDate = request.getResourcesSentAtDate();
 		String resourcesSentAtTimeAsString = request.getResourcesSentAtTime();
 		String resourcesSentNote = trimToNull(request.getResourcesSentNote());
@@ -2038,6 +2055,9 @@ public class PatientOrderService implements AutoCloseable {
 		Instant resourcesSentAt = null;
 
 		if (patientOrderResourcingStatusId == PatientOrderResourcingStatusId.SENT_RESOURCES) {
+			if (patientOrderResourcingTypeId == null || patientOrderResourcingTypeId == PatientOrderResourcingTypeId.NONE)
+				throw new ValidationException(new FieldError("patientOrderResourcingTypeId", getStrings().get("You must specify how the resources were sent.")));
+
 			// If provided a sent-at date/time, use them.
 			// Otherwise, assuming "now"
 			if (resourcesSentAtDate != null && resourcesSentAtTime != null) {
@@ -2051,6 +2071,7 @@ public class PatientOrderService implements AutoCloseable {
 
 		} else {
 			resourcesSentAt = null;
+			patientOrderResourcingTypeId = PatientOrderResourcingTypeId.NONE;
 
 			// TODO: Cancel scheduled check-in messages to this patient for this order
 		}
@@ -2059,9 +2080,9 @@ public class PatientOrderService implements AutoCloseable {
 
 		return getDatabase().execute("""
 				UPDATE patient_order
-				SET patient_order_resourcing_status_id=?, resources_sent_at=?, resources_sent_note=?
+				SET patient_order_resourcing_status_id=?, resources_sent_at=?, resources_sent_note=?, patient_order_resourcing_type_id=?
 				WHERE patient_order_id=?
-				""", patientOrderResourcingStatusId, resourcesSentAt, resourcesSentNote, patientOrderId) > 0;
+				""", patientOrderResourcingStatusId, resourcesSentAt, resourcesSentNote, patientOrderResourcingTypeId, patientOrderId) > 0;
 	}
 
 	@Nonnull
