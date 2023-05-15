@@ -426,7 +426,7 @@ public class AccountService {
 		Institution institution = getInstitutionService().findInstitutionById(accountInvite.getInstitutionId()).get();
 
 		EmailMessage verificationEmail = new EmailMessage.Builder(
-				EmailMessageTemplate.ACCOUNT_VERIFICATION, institution.getLocale())
+				institution.getInstitutionId(), EmailMessageTemplate.ACCOUNT_VERIFICATION, institution.getLocale())
 				.toAddresses(new ArrayList<>() {{
 					add(accountInvite.getEmailAddress());
 				}})
@@ -854,7 +854,7 @@ public class AccountService {
 					account.get().getAccountId(), passwordResetToken, expirationTimestamp);
 
 			EmailMessage passwordResetEmail = new EmailMessage.Builder(
-					EmailMessageTemplate.PASSWORD_RESET, account.get().getLocale())
+					account.get().getInstitutionId(), EmailMessageTemplate.PASSWORD_RESET, account.get().getLocale())
 					.toAddresses(new ArrayList<>() {{
 						add(emailAddress);
 					}})
@@ -1231,7 +1231,7 @@ public class AccountService {
 
 		getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
 			EmailMessage verificationEmail = new EmailMessage.Builder(
-					EmailMessageTemplate.ACCOUNT_EMAIL_VERIFICATION, pinnedAccount.getLocale())
+					pinnedAccount.getInstitutionId(), EmailMessageTemplate.ACCOUNT_EMAIL_VERIFICATION, pinnedAccount.getLocale())
 					.toAddresses(new ArrayList<>() {{
 						add(emailAddress);
 					}})

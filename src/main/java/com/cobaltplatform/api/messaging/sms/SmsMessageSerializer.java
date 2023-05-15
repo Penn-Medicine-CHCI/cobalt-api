@@ -56,6 +56,7 @@ public class SmsMessageSerializer implements MessageSerializer<SmsMessage> {
 
 		SerializableSmsMessage serializableSmsMessage = new SerializableSmsMessage();
 		serializableSmsMessage.setMessageId(smsMessage.getMessageId());
+		serializableSmsMessage.setInstitutionId(smsMessage.getInstitutionId());
 		serializableSmsMessage.setMessageTemplate(smsMessage.getMessageTemplate());
 		serializableSmsMessage.setMessageContext(smsMessage.getMessageContext());
 		serializableSmsMessage.setLocale(smsMessage.getLocale());
@@ -72,6 +73,7 @@ public class SmsMessageSerializer implements MessageSerializer<SmsMessage> {
 		SerializableSmsMessage serializableSmsMessage = getJsonMapper().fromJson(serializedMessage, SerializableSmsMessage.class);
 
 		return new SmsMessage.Builder(serializableSmsMessage.getMessageId(),
+				serializableSmsMessage.getInstitutionId(),
 				serializableSmsMessage.getMessageTemplate(),
 				serializableSmsMessage.getToNumber(),
 				serializableSmsMessage.getLocale())

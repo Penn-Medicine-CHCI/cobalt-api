@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.messaging.call;
 
 import com.cobaltplatform.api.messaging.Message;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
 
 import javax.annotation.Nonnull;
@@ -42,6 +43,8 @@ public class CallMessage implements Message {
 	@Nonnull
 	private final UUID messageId;
 	@Nonnull
+	private final InstitutionId institutionId;
+	@Nonnull
 	private final String toNumber;
 	@Nonnull
 	private final CallMessageTemplate messageTemplate;
@@ -54,6 +57,7 @@ public class CallMessage implements Message {
 		requireNonNull(builder);
 
 		this.messageId = builder.messageId;
+		this.institutionId = builder.institutionId;
 		this.toNumber = builder.toNumber;
 		this.locale = builder.locale;
 		this.messageTemplate = builder.messageTemplate;
@@ -77,6 +81,7 @@ public class CallMessage implements Message {
 		CallMessage that = (CallMessage) other;
 
 		return getMessageId().equals(that.getMessageId()) &&
+				getInstitutionId().equals(that.getInstitutionId()) &&
 				getToNumber().equals(that.getToNumber()) &&
 				getMessageTemplate().equals(that.getMessageTemplate()) &&
 				getLocale().equals(that.getLocale()) &&
@@ -85,7 +90,7 @@ public class CallMessage implements Message {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(messageId, toNumber, messageTemplate, locale, messageContext);
+		return Objects.hash(getMessageId(), getInstitutionId(), getToNumber(), getMessageTemplate(), getLocale(), getMessageContext());
 	}
 
 	@Nonnull
@@ -114,6 +119,12 @@ public class CallMessage implements Message {
 		return messageId;
 	}
 
+	@Override
+	@Nonnull
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
+	}
+
 	@Nonnull
 	@Override
 	public MessageTypeId getMessageTypeId() {
@@ -124,6 +135,8 @@ public class CallMessage implements Message {
 		@Nonnull
 		private final UUID messageId;
 		@Nonnull
+		private final InstitutionId institutionId;
+		@Nonnull
 		private final String toNumber;
 		@Nonnull
 		private final CallMessageTemplate messageTemplate;
@@ -132,22 +145,26 @@ public class CallMessage implements Message {
 		@Nullable
 		private Map<String, Object> messageContext;
 
-		public Builder(@Nonnull CallMessageTemplate messageTemplate,
+		public Builder(@Nonnull InstitutionId institutionId,
+									 @Nonnull CallMessageTemplate messageTemplate,
 									 @Nonnull String toNumber,
 									 @Nonnull Locale locale) {
-			this(UUID.randomUUID(), messageTemplate, toNumber, locale);
+			this(UUID.randomUUID(), institutionId, messageTemplate, toNumber, locale);
 		}
 
 		public Builder(@Nonnull UUID messageId,
+									 @Nonnull InstitutionId institutionId,
 									 @Nonnull CallMessageTemplate messageTemplate,
 									 @Nonnull String toNumber,
 									 @Nonnull Locale locale) {
 			requireNonNull(messageId);
+			requireNonNull(institutionId);
 			requireNonNull(messageTemplate);
 			requireNonNull(toNumber);
 			requireNonNull(locale);
 
 			this.messageId = messageId;
+			this.institutionId = institutionId;
 			this.messageTemplate = messageTemplate;
 			this.toNumber = toNumber;
 			this.locale = locale;

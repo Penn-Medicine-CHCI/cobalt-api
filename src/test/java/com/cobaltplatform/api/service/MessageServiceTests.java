@@ -24,6 +24,7 @@ import com.cobaltplatform.api.messaging.Message;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.ScheduledMessage;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
 import com.google.gson.Gson;
@@ -216,7 +217,7 @@ public class MessageServiceTests {
 
 	@Nonnull
 	protected Message createMessage() {
-		return new EmailMessage.Builder(EmailMessageTemplate.ACCOUNT_VERIFICATION, Locale.US)
+		return new EmailMessage.Builder(InstitutionId.COBALT, EmailMessageTemplate.ACCOUNT_VERIFICATION, Locale.US)
 				.toAddresses(List.of("fake@example.com"))
 				.fromAddress("alsofake@example.com")
 				.messageContext(new HashMap<String, Object>() {{

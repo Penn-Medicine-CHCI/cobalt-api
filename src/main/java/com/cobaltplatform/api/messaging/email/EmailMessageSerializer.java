@@ -80,6 +80,7 @@ public class EmailMessageSerializer implements MessageSerializer<EmailMessage> {
 
 		SerializableEmailMessage serializableEmailMessage = new SerializableEmailMessage();
 		serializableEmailMessage.setMessageId(emailMessage.getMessageId());
+		serializableEmailMessage.setInstitutionId(emailMessage.getInstitutionId());
 		serializableEmailMessage.setBccAddresses(emailMessage.getBccAddresses());
 		serializableEmailMessage.setCcAddresses(emailMessage.getCcAddresses());
 		serializableEmailMessage.setFromAddress(emailMessage.getFromAddress().orElse(null));
@@ -109,7 +110,7 @@ public class EmailMessageSerializer implements MessageSerializer<EmailMessage> {
 
 		SerializableEmailMessage serializableEmailMessage = getJsonMapper().fromJson(serializedMessage, SerializableEmailMessage.class);
 
-		return new EmailMessage.Builder(serializableEmailMessage.getMessageId(), serializableEmailMessage.getMessageTemplate(), serializableEmailMessage.getLocale())
+		return new EmailMessage.Builder(serializableEmailMessage.getMessageId(), serializableEmailMessage.getInstitutionId(), serializableEmailMessage.getMessageTemplate(), serializableEmailMessage.getLocale())
 				.bccAddresses(serializableEmailMessage.getBccAddresses())
 				.ccAddresses(serializableEmailMessage.getCcAddresses())
 				.fromAddress(serializableEmailMessage.getFromAddress())

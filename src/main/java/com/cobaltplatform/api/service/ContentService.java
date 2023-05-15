@@ -795,7 +795,7 @@ public class ContentService {
 		getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
 			for (Account accountToNotify : accountsToNotify) {
 				if (accountToNotify.getEmailAddress() != null) {
-					EmailMessage emailMessage = new EmailMessage.Builder(EmailMessageTemplate.ADMIN_CMS_CONTENT_ADDED, accountToNotify.getLocale())
+					EmailMessage emailMessage = new EmailMessage.Builder(accountToNotify.getInstitutionId(), EmailMessageTemplate.ADMIN_CMS_CONTENT_ADDED, accountToNotify.getLocale())
 							.toAddresses(List.of(accountToNotify.getEmailAddress()))
 							.messageContext(Map.of(
 									"adminAccountName", Normalizer.normalizeName(accountToNotify.getFirstName(), accountToNotify.getLastName()).orElse(getStrings().get("Anonymous User")),

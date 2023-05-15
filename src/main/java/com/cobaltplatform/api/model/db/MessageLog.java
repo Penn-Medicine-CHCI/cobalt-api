@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.MessageStatus.MessageStatusId;
 import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
 import com.cobaltplatform.api.model.db.MessageVendor.MessageVendorId;
@@ -35,6 +36,8 @@ import java.util.UUID;
 public class MessageLog {
 	@Nullable
 	private UUID messageId;
+	@Nullable
+	private InstitutionId institutionId;
 	@Nullable
 	private String vendorAssignedId;
 	@Nullable
@@ -65,6 +68,15 @@ public class MessageLog {
 
 	public void setMessageId(@Nullable UUID messageId) {
 		this.messageId = messageId;
+	}
+
+	@Nullable
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
+	}
+
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
 	}
 
 	@Nullable

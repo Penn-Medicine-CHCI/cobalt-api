@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+
 import javax.annotation.Nonnull;
 import java.time.ZoneId;
 import java.util.Locale;
@@ -32,7 +34,7 @@ public class FeedbackContact {
 	@Nonnull
 	private UUID feedbackContactId;
 	@Nonnull
-	private String institutionID;
+	private InstitutionId institutionId;
 	@Nonnull
 	private String emailAddress;
 	@Nonnull
@@ -52,12 +54,21 @@ public class FeedbackContact {
 	}
 
 	@Nonnull
-	public String getInstitutionID() {
-		return institutionID;
+	public UUID getFeedbackContactId() {
+		return this.feedbackContactId;
 	}
 
-	public void setInstitutionID(@Nonnull String institutionID) {
-		this.institutionID = institutionID;
+	public void setFeedbackContactId(@Nonnull UUID feedbackContactId) {
+		this.feedbackContactId = feedbackContactId;
+	}
+
+	@Nonnull
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
+	}
+
+	public void setInstitutionId(@Nonnull InstitutionId institutionId) {
+		this.institutionId = institutionId;
 	}
 
 	@Nonnull

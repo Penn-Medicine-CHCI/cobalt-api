@@ -26,11 +26,11 @@ import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.CreateInteractionInstanceRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
-import com.cobaltplatform.api.model.db.CrisisContact;
-import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Answer;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
+import com.cobaltplatform.api.model.db.CrisisContact;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.service.EvidenceScores;
 import com.cobaltplatform.api.util.Formatter;
 import com.lokalized.Strings;
@@ -162,7 +162,7 @@ public class AssessmentScoringService {
 		messageContext.put("institutionDescription", institutionDescription);
 
 		for (CrisisContact crisisContact : crisisContacts) {
-			getEmailMessageManager().enqueueMessage(new EmailMessage.Builder(EmailMessageTemplate.SUICIDE_RISK, crisisContact.getLocale())
+			getEmailMessageManager().enqueueMessage(new EmailMessage.Builder(crisisAccount.getInstitutionId(), EmailMessageTemplate.SUICIDE_RISK, crisisContact.getLocale())
 					.toAddresses(new ArrayList<>() {{
 						add(crisisContact.getEmailAddress());
 					}})
@@ -213,7 +213,7 @@ public class AssessmentScoringService {
 
 		List<String> htmlListItems = new ArrayList<>(2);
 
-		if(crisisAccount.getFirstName() != null)
+		if (crisisAccount.getFirstName() != null)
 			htmlListItems.add(createHtmlListItem(getStrings().get("First Name", locale), crisisAccount.getFirstName()));
 
 		if (crisisAccount.getPhoneNumber() != null)
@@ -226,9 +226,9 @@ public class AssessmentScoringService {
 		String endUserHtmlRepresentation = format("<ul>%s</ul>", htmlListItems.stream().collect(Collectors.joining("")));
 
 		return new HashMap<String, Object>() {{
-			if(crisisAccount.getFirstName() != null)
+			if (crisisAccount.getFirstName() != null)
 				put("firstName", crisisAccount.getFirstName());
-			
+
 			if (crisisAccount.getPhoneNumber() != null) {
 				put("phoneNumber", crisisAccount.getPhoneNumber());
 				put("phoneNumberForDisplay", getFormatter().formatPhoneNumber(crisisAccount.getPhoneNumber(), locale));

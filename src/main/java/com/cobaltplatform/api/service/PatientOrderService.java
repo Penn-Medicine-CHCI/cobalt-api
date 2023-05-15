@@ -2935,9 +2935,8 @@ public class PatientOrderService implements AutoCloseable {
 		standardMessageContext.put("integratedCarePrimaryCareName", institution.getIntegratedCarePrimaryCareName());
 
 		// For now, all messages get the same standard context.  We might have custom contexts per-message/message type as we introduce more
-
 		if (messageTypeIds.contains(MessageTypeId.EMAIL)) {
-			EmailMessage emailMessage = new EmailMessage.Builder(EmailMessageTemplate.valueOf(patientOrderScheduledMessageType.getTemplateName()), Locale.US)
+			EmailMessage emailMessage = new EmailMessage.Builder(institution.getInstitutionId(), EmailMessageTemplate.valueOf(patientOrderScheduledMessageType.getTemplateName()), Locale.US)
 					.toAddresses(List.of(patientOrder.getPatientEmailAddress()))
 					.fromAddress(institution.getDefaultFromEmailAddress())
 					.messageContext(standardMessageContext)
@@ -2952,7 +2951,7 @@ public class PatientOrderService implements AutoCloseable {
 		}
 
 		if (messageTypeIds.contains(MessageTypeId.SMS)) {
-			SmsMessage smsMessage = new SmsMessage.Builder(SmsMessageTemplate.valueOf(patientOrderScheduledMessageType.getTemplateName()), patientOrder.getPatientPhoneNumber(), Locale.US)
+			SmsMessage smsMessage = new SmsMessage.Builder(institution.getInstitutionId(), SmsMessageTemplate.valueOf(patientOrderScheduledMessageType.getTemplateName()), patientOrder.getPatientPhoneNumber(), Locale.US)
 					.messageContext(standardMessageContext)
 					.build();
 

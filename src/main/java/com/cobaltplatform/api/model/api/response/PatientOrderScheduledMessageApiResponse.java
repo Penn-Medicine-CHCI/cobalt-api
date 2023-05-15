@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.MessageStatus.MessageStatusId;
 import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
@@ -44,6 +46,8 @@ public class PatientOrderScheduledMessageApiResponse {
 	@Nonnull
 	private final UUID patientOrderScheduledMessageId;
 	@Nonnull
+	private final InstitutionId institutionId;
+	@Nonnull
 	private final UUID scheduledMessageId;
 	@Nonnull
 	private final ScheduledMessageStatusId scheduledMessageStatusId;
@@ -51,6 +55,12 @@ public class PatientOrderScheduledMessageApiResponse {
 	private final MessageTypeId messageTypeId;
 	@Nonnull
 	private final String messageTypeDescription;
+	@Nonnull
+	private final UUID messageId;
+	@Nonnull
+	private final MessageStatusId messageStatusId;
+	@Nonnull
+	private final String messageStatusDescription;
 	@Nullable
 	private final Instant processedAt;
 	@Nullable
@@ -63,6 +73,18 @@ public class PatientOrderScheduledMessageApiResponse {
 	private final Instant erroredAt;
 	@Nullable
 	private final String erroredAtDescription;
+	@Nullable
+	private final Instant sentAt;
+	@Nullable
+	private final String sentAtDescription;
+	@Nullable
+	private final Instant deliveredAt;
+	@Nullable
+	private final String deliveredAtDescription;
+	@Nullable
+	private final Instant deliveryFailedAt;
+	@Nullable
+	private final String deliveryFailedAtDescription;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -80,16 +102,26 @@ public class PatientOrderScheduledMessageApiResponse {
 		requireNonNull(patientOrderScheduledMessage);
 
 		this.patientOrderScheduledMessageId = patientOrderScheduledMessage.getPatientOrderScheduledMessageId();
+		this.institutionId = patientOrderScheduledMessage.getInstitutionId();
 		this.scheduledMessageId = patientOrderScheduledMessage.getScheduledMessageId();
 		this.scheduledMessageStatusId = patientOrderScheduledMessage.getScheduledMessageStatusId();
 		this.messageTypeId = patientOrderScheduledMessage.getMessageTypeId();
 		this.messageTypeDescription = patientOrderScheduledMessage.getMessageTypeDescription();
+		this.messageId = patientOrderScheduledMessage.getMessageId();
+		this.messageStatusId = patientOrderScheduledMessage.getMessageStatusId();
+		this.messageStatusDescription = patientOrderScheduledMessage.getMessageStatusDescription();
 		this.processedAt = patientOrderScheduledMessage.getProcessedAt();
 		this.processedAtDescription = patientOrderScheduledMessage.getProcessedAt() == null ? null : formatter.formatTimestamp(patientOrderScheduledMessage.getProcessedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 		this.canceledAt = patientOrderScheduledMessage.getCanceledAt();
 		this.canceledAtDescription = patientOrderScheduledMessage.getCanceledAt() == null ? null : formatter.formatTimestamp(patientOrderScheduledMessage.getCanceledAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 		this.erroredAt = patientOrderScheduledMessage.getErroredAt();
 		this.erroredAtDescription = patientOrderScheduledMessage.getErroredAt() == null ? null : formatter.formatTimestamp(patientOrderScheduledMessage.getErroredAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.sentAt = patientOrderScheduledMessage.getSentAt();
+		this.sentAtDescription = patientOrderScheduledMessage.getSentAt() == null ? null : formatter.formatTimestamp(patientOrderScheduledMessage.getSentAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.deliveredAt = patientOrderScheduledMessage.getDeliveredAt();
+		this.deliveredAtDescription = patientOrderScheduledMessage.getDeliveredAt() == null ? null : formatter.formatTimestamp(patientOrderScheduledMessage.getDeliveredAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.deliveryFailedAt = patientOrderScheduledMessage.getDeliveryFailedAt();
+		this.deliveryFailedAtDescription = patientOrderScheduledMessage.getDeliveryFailedAt() == null ? null : formatter.formatTimestamp(patientOrderScheduledMessage.getDeliveryFailedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 	}
 
 	@Nonnull
@@ -145,5 +177,55 @@ public class PatientOrderScheduledMessageApiResponse {
 	@Nullable
 	public String getErroredAtDescription() {
 		return this.erroredAtDescription;
+	}
+
+	@Nonnull
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
+	}
+
+	@Nonnull
+	public UUID getMessageId() {
+		return this.messageId;
+	}
+
+	@Nonnull
+	public MessageStatusId getMessageStatusId() {
+		return this.messageStatusId;
+	}
+
+	@Nonnull
+	public String getMessageStatusDescription() {
+		return this.messageStatusDescription;
+	}
+
+	@Nullable
+	public Instant getSentAt() {
+		return this.sentAt;
+	}
+
+	@Nullable
+	public String getSentAtDescription() {
+		return this.sentAtDescription;
+	}
+
+	@Nullable
+	public Instant getDeliveredAt() {
+		return this.deliveredAt;
+	}
+
+	@Nullable
+	public String getDeliveredAtDescription() {
+		return this.deliveredAtDescription;
+	}
+
+	@Nullable
+	public Instant getDeliveryFailedAt() {
+		return this.deliveryFailedAt;
+	}
+
+	@Nullable
+	public String getDeliveryFailedAtDescription() {
+		return this.deliveryFailedAtDescription;
 	}
 }

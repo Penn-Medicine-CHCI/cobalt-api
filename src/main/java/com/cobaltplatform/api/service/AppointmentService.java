@@ -614,7 +614,7 @@ public class AppointmentService {
 					// Only send out "appointment was updated" email for non-duplicate appointments
 					if (sendEmails) {
 						// Notify patient and provider
-						getEmailMessageManager().enqueueMessage(new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_UPDATE, locale)
+						getEmailMessageManager().enqueueMessage(new EmailMessage.Builder(pinnedProvider.getInstitutionId(), EmailMessageTemplate.APPOINTMENT_UPDATE, locale)
 								.toAddresses(new ArrayList<>() {{
 									add(providerEmailAddress);
 								}})
@@ -623,7 +623,7 @@ public class AppointmentService {
 								.build());
 
 						if (patientEmailAddress != null) {
-							getEmailMessageManager().enqueueMessage(new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_UPDATE, locale)
+							getEmailMessageManager().enqueueMessage(new EmailMessage.Builder(pinnedProvider.getInstitutionId(), EmailMessageTemplate.APPOINTMENT_UPDATE, locale)
 									.toAddresses(new ArrayList<>() {{
 										add(patientEmailAddress);
 									}})
@@ -1755,7 +1755,7 @@ public class AppointmentService {
 			cobaltPatientEmailMessageContext.put("googleCalendarUrl", format("%s/appointments/%s/google-calendar", webappBaseUrlForPatient, appointmentId));
 			cobaltPatientEmailMessageContext.put("anotherTimeUrl", format("%s/connect-with-support", webappBaseUrlForPatient));
 
-			EmailMessage patientEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_CREATED_PATIENT, account.getLocale())
+			EmailMessage patientEmailMessage = new EmailMessage.Builder(account.getInstitutionId(), EmailMessageTemplate.APPOINTMENT_CREATED_PATIENT, account.getLocale())
 					.toAddresses(Collections.singletonList(account.getEmailAddress()))
 					.replyToAddress(provider.getEmailAddress())
 					.messageContext(cobaltPatientEmailMessageContext)
@@ -1768,7 +1768,7 @@ public class AppointmentService {
 			LocalDate reminderMessageDate = appointment.getStartTime().toLocalDate().minusDays(institution.getAppointmentReservationDefaultReminderDayOffset());
 			LocalTime reminderMessageTimeOfDay = institution.getAppointmentReservationDefaultReminderTimeOfDay();
 
-			EmailMessage patientReminderEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_REMINDER_PATIENT, account.getLocale())
+			EmailMessage patientReminderEmailMessage = new EmailMessage.Builder(account.getInstitutionId(), EmailMessageTemplate.APPOINTMENT_REMINDER_PATIENT, account.getLocale())
 					.toAddresses(Collections.singletonList(account.getEmailAddress()))
 					.replyToAddress(provider.getEmailAddress())
 					.messageContext(cobaltPatientEmailMessageContext)
@@ -1805,7 +1805,7 @@ public class AppointmentService {
 		if (appointment.getSchedulingSystemId() == SchedulingSystemId.COBALT)
 			cobaltProviderEmailMessageContext.put("providerSchedulingUrl", format("%s/scheduling/appointments/%s", webappBaseUrlForStaff, appointmentId));
 
-		EmailMessage providerEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_CREATED_PROVIDER, provider.getLocale())
+		EmailMessage providerEmailMessage = new EmailMessage.Builder(provider.getInstitutionId(), EmailMessageTemplate.APPOINTMENT_CREATED_PROVIDER, provider.getLocale())
 				.toAddresses(List.of(provider.getEmailAddress()))
 				.replyToAddress(replyToAddressForEmailsTargetingProvider(provider))
 				.messageContext(cobaltProviderEmailMessageContext)
@@ -1851,7 +1851,7 @@ public class AppointmentService {
 			cobaltPatientEmailMessageContext.put("appointmentStartDateDescription", appointmentStartDateDescription);
 			cobaltPatientEmailMessageContext.put("appointmentStartTimeDescription", appointmentStartTimeDescription);
 
-			EmailMessage patientEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_CANCELED_PATIENT, account.getLocale())
+			EmailMessage patientEmailMessage = new EmailMessage.Builder(provider.getInstitutionId(), EmailMessageTemplate.APPOINTMENT_CANCELED_PATIENT, account.getLocale())
 					.toAddresses(Collections.singletonList(account.getEmailAddress()))
 					.replyToAddress(provider.getEmailAddress())
 					.messageContext(cobaltPatientEmailMessageContext)
@@ -1871,7 +1871,7 @@ public class AppointmentService {
 		cobaltProviderEmailMessageContext.put("accountName", accountName);
 		cobaltProviderEmailMessageContext.put("accountEmailAddress", account.getEmailAddress());
 
-		EmailMessage providerEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.APPOINTMENT_CANCELED_PROVIDER, provider.getLocale())
+		EmailMessage providerEmailMessage = new EmailMessage.Builder(provider.getInstitutionId(), EmailMessageTemplate.APPOINTMENT_CANCELED_PROVIDER, provider.getLocale())
 				.toAddresses(List.of(provider.getEmailAddress()))
 				.replyToAddress(replyToAddressForEmailsTargetingProvider(provider))
 				.messageContext(cobaltProviderEmailMessageContext)
@@ -2165,7 +2165,7 @@ public class AppointmentService {
 		messageContext.put("appointmentEndTime", appointmentEndTime);
 		messageContext.put("intakeResults", intakeAssessmentAnswerString);
 
-		getEmailMessageManager().enqueueMessage(new EmailMessage.Builder(EmailMessageTemplate.PROVIDER_ASSESSMENT_SCORES, provider.getLocale() == null ? Locale.US : provider.getLocale())
+		getEmailMessageManager().enqueueMessage(new EmailMessage.Builder(provider.getInstitutionId(), EmailMessageTemplate.PROVIDER_ASSESSMENT_SCORES, provider.getLocale() == null ? Locale.US : provider.getLocale())
 				.toAddresses(new ArrayList<>() {{
 					add(provider.getEmailAddress());
 				}})

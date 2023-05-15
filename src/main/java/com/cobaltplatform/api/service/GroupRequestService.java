@@ -270,7 +270,7 @@ public class GroupRequestService {
 		messageContext.put("groupTopicNames", groupTopicNames);
 
 		getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
-			getEmailMessageManager().enqueueMessage(new EmailMessage.Builder(EmailMessageTemplate.GROUP_REQUEST_SUBMITTED, emailLocale)
+			getEmailMessageManager().enqueueMessage(new EmailMessage.Builder(institution.getInstitutionId(), EmailMessageTemplate.GROUP_REQUEST_SUBMITTED, emailLocale)
 					.toAddresses(groupRequestContactEmailAddresses)
 					.messageContext(messageContext)
 					.build());

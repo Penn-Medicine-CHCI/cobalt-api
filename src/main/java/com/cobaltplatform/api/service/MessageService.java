@@ -29,19 +29,13 @@ import com.cobaltplatform.api.messaging.Message;
 import com.cobaltplatform.api.messaging.call.CallMessage;
 import com.cobaltplatform.api.messaging.call.CallMessageManager;
 import com.cobaltplatform.api.messaging.call.CallMessageSerializer;
-import com.cobaltplatform.api.messaging.call.CallMessageTemplate;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.messaging.email.EmailMessageSerializer;
 import com.cobaltplatform.api.messaging.sms.SmsMessage;
 import com.cobaltplatform.api.messaging.sms.SmsMessageManager;
 import com.cobaltplatform.api.messaging.sms.SmsMessageSerializer;
-import com.cobaltplatform.api.messaging.sms.SmsMessageTemplate;
 import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
-import com.cobaltplatform.api.model.api.request.SendCallMessagesRequest;
-import com.cobaltplatform.api.model.api.request.SendCallMessagesRequest.SendCallMessageRequest;
-import com.cobaltplatform.api.model.api.request.SendSmsMessagesRequest;
-import com.cobaltplatform.api.model.api.request.SendSmsMessagesRequest.SendSmsMessageRequest;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.MessageLog;
 import com.cobaltplatform.api.model.db.MessageStatus.MessageStatusId;
@@ -82,7 +76,6 @@ import java.util.concurrent.TimeUnit;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
-import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -241,8 +234,6 @@ public class MessageService implements AutoCloseable {
 
 		Message message = request.getMessage();
 		UUID scheduledMessageId = UUID.randomUUID();
-		UUID messageId = message == null ? null : message.getMessageId();
-		MessageTypeId messageTypeId = message == null ? null : message.getMessageTypeId();
 		LocalDateTime scheduledAt = message == null ? null : request.getScheduledAt();
 		ZoneId timeZone = message == null ? null : request.getTimeZone();
 		Map<String, Object> metadata = request.getMetadata() == null ? null : request.getMetadata();
@@ -250,11 +241,8 @@ public class MessageService implements AutoCloseable {
 
 		ValidationException validationException = new ValidationException();
 
-		if (messageId == null)
-			validationException.add(new FieldError("messageId", getStrings().get("Message ID is required.")));
-
-		if (messageTypeId == null)
-			validationException.add(new FieldError("messageTypeId", getStrings().get("Message Type ID is required.")));
+		if (message == null)
+			validationException.add(new FieldError("message", getStrings().get("Message is required.")));
 
 		if (scheduledAt == null)
 			validationException.add(new FieldError("scheduledAt", getStrings().get("'Scheduled at' date/time is required.")));
@@ -265,24 +253,24 @@ public class MessageService implements AutoCloseable {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		if (messageTypeId == MessageTypeId.EMAIL)
+		if (message.getMessageTypeId() == MessageTypeId.EMAIL)
 			serializedMessage = getEmailMessageSerializer().serializeMessage((EmailMessage) message);
-		else if (messageTypeId == MessageTypeId.SMS)
+		else if (message.getMessageTypeId() == MessageTypeId.SMS)
 			serializedMessage = getSmsMessageSerializer().serializeMessage((SmsMessage) message);
-		else if (messageTypeId == MessageTypeId.CALL)
+		else if (message.getMessageTypeId() == MessageTypeId.CALL)
 			serializedMessage = getCallMessageSerializer().serializeMessage((CallMessage) message);
 		else
 			throw new IllegalStateException(format("Sorry, %s.%s is not yet supported.",
-					MessageTypeId.class.getSimpleName(), messageTypeId.name()));
+					MessageTypeId.class.getSimpleName(), message.getMessageTypeId().name()));
 
 		String metadataAsJson = metadata == null ? null : getJsonMapper().toJson(metadata);
 
 		getLogger().info("Creating scheduled message of type {}, scheduled for {} {}.\nMetadata:\n{}\nSerialized form:\n{}",
-				messageTypeId.name(), scheduledAt, timeZone.getId(), metadata == null ? "[none]" : metadataAsJson, serializedMessage);
+				message.getMessageTypeId().name(), scheduledAt, timeZone.getId(), metadata == null ? "[none]" : metadataAsJson, serializedMessage);
 
-		getDatabase().execute("INSERT INTO scheduled_message (scheduled_message_id, message_id, message_type_id, " +
-						"serialized_message, scheduled_at, time_zone, metadata) VALUES (?,?,?,CAST(? AS JSONB),?,?,CAST(? AS JSONB))",
-				scheduledMessageId, messageId, messageTypeId, serializedMessage, scheduledAt, timeZone, metadataAsJson);
+		getDatabase().execute("INSERT INTO scheduled_message (scheduled_message_id, institution_id, message_id, message_type_id, " +
+						"serialized_message, scheduled_at, time_zone, metadata) VALUES (?,?,?,?,CAST(? AS JSONB),?,?,CAST(? AS JSONB))",
+				scheduledMessageId, message.getInstitutionId(), message.getMessageId(), message.getMessageTypeId(), serializedMessage, scheduledAt, timeZone, metadataAsJson);
 
 		return scheduledMessageId;
 	}
@@ -346,102 +334,6 @@ public class MessageService implements AutoCloseable {
 		getLogger().info("Scheduled message ID {} was {} canceled.", scheduledMessageId, canceled ? "successfully" : "NOT");
 
 		return canceled;
-	}
-
-	public void sendSmsMessages(@Nonnull SendSmsMessagesRequest request) {
-		requireNonNull(request);
-
-		List<SendSmsMessageRequest> messageRequests = request.getSmsMessages() == null ? Collections.emptyList() : request.getSmsMessages();
-		ValidationException validationException = new ValidationException();
-		int i = 0;
-
-		for (SendSmsMessageRequest messageRequest : messageRequests) {
-			if (messageRequest == null) {
-				validationException.add(new FieldError(format("smsMessages[%s]", i), getStrings().get("SMS message element is missing.")));
-			} else {
-				String toNumber = trimToNull(messageRequest.getToNumber());
-				String body = trimToNull(messageRequest.getBody());
-
-				if (toNumber == null) {
-					validationException.add(new FieldError(format("smsMessages[%s].toNumber", i), getStrings().get("SMS 'to' number is required.")));
-				} else if (getNormalizer().normalizePhoneNumberToE164(toNumber).isEmpty()) {
-					validationException.add(new FieldError(format("smsMessages[%s].toNumber", i), getStrings().get("SMS 'to' number {{toNumber}} is invalid.", new HashMap<String, Object>() {{
-						put("toNumber", toNumber);
-					}})));
-				}
-
-				if (body == null) {
-					validationException.add(new FieldError(format("smsMessages[%s].body", i), getStrings().get("SMS message body is required.")));
-				} else if (body.length() > getMaximumSmsBodyCharacterCount()) {
-					validationException.add(new FieldError(format("smsMessages[%s].body", i), getStrings().get("SMS message body cannot exceed {{limit}} characters.", new HashMap<String, Object>() {{
-						put("limit", getFormatter().formatNumber(getMaximumSmsBodyCharacterCount()));
-					}})));
-				}
-			}
-
-			++i;
-		}
-
-		if (validationException.hasErrors())
-			throw validationException;
-
-		for (SendSmsMessageRequest messageRequest : messageRequests) {
-			String toNumber = trimToNull(messageRequest.getToNumber());
-			String body = trimToNull(messageRequest.getBody());
-
-			getSmsMessageManager().enqueueMessage(new SmsMessage.Builder(SmsMessageTemplate.FREEFORM, toNumber, getFreeformMessageLocale())
-					.messageContext(new HashMap<String, Object>() {{
-						put("body", body);
-					}}).build());
-		}
-	}
-
-	public void sendCallMessages(@Nonnull SendCallMessagesRequest request) {
-		requireNonNull(request);
-
-		List<SendCallMessageRequest> messageRequests = request.getCallMessages() == null ? Collections.emptyList() : request.getCallMessages();
-		ValidationException validationException = new ValidationException();
-		int i = 0;
-
-		for (SendCallMessageRequest messageRequest : messageRequests) {
-			if (messageRequest == null) {
-				validationException.add(new FieldError(format("callMessages[%s]", i), getStrings().get("Call message element is missing.")));
-			} else {
-				String toNumber = trimToNull(messageRequest.getToNumber());
-				String body = trimToNull(messageRequest.getBody());
-
-				if (toNumber == null) {
-					validationException.add(new FieldError(format("callMessages[%s].toNumber", i), getStrings().get("Call message 'to' number is required.")));
-				} else if (getNormalizer().normalizePhoneNumberToE164(toNumber).isEmpty()) {
-					validationException.add(new FieldError(format("callMessages[%s].toNumber", i), getStrings().get("Call message 'to' number {{toNumber}} is invalid.", new HashMap<String, Object>() {{
-						put("toNumber", toNumber);
-					}})));
-				}
-
-				if (body == null) {
-					validationException.add(new FieldError(format("callMessages[%s].body", i), getStrings().get("Call message body is required.")));
-				} else if (body.length() > getMaximumSmsBodyCharacterCount()) {
-					validationException.add(new FieldError(format("callMessages[%s].body", i), getStrings().get("Call message body cannot exceed {{limit}} characters.", new HashMap<String, Object>() {{
-						put("limit", getFormatter().formatNumber(getMaximumSmsBodyCharacterCount()));
-					}})));
-				}
-			}
-
-			++i;
-		}
-
-		if (validationException.hasErrors())
-			throw validationException;
-
-		for (SendCallMessageRequest messageRequest : messageRequests) {
-			String toNumber = trimToNull(messageRequest.getToNumber());
-			String body = trimToNull(messageRequest.getBody());
-
-			getCallMessageManager().enqueueMessage(new CallMessage.Builder(CallMessageTemplate.FREEFORM, toNumber, getFreeformMessageLocale())
-					.messageContext(new HashMap<String, Object>() {{
-						put("body", body);
-					}}).build());
-		}
 	}
 
 	public void createTestMessageLog(@Nonnull MessageTypeId messageTypeId,

@@ -19,7 +19,6 @@
 
 package com.cobaltplatform.api.web.resource;
 
-import com.lokalized.Strings;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageManager;
@@ -33,6 +32,7 @@ import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
+import com.lokalized.Strings;
 import com.pyranid.Database;
 import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.RequestBody;
@@ -123,7 +123,7 @@ public class FeedbackResource {
 		messageContext.put("emailAddress", emailAddress);
 
 		for (FeedbackContact feedbackContact : contacts) {
-			emailMessageManager.enqueueMessage(new EmailMessage.Builder(EmailMessageTemplate.USER_FEEDBACK, feedbackContact.getLocale())
+			emailMessageManager.enqueueMessage(new EmailMessage.Builder(feedbackContact.getInstitutionId(), EmailMessageTemplate.USER_FEEDBACK, feedbackContact.getLocale())
 					.toAddresses(new ArrayList<>() {{
 						add(feedbackContact.getEmailAddress());
 					}})

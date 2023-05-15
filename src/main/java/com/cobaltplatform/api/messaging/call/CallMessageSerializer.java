@@ -56,6 +56,7 @@ public class CallMessageSerializer implements MessageSerializer<CallMessage> {
 
 		SerializableCallMessage serializableCallMessage = new SerializableCallMessage();
 		serializableCallMessage.setMessageId(callMessage.getMessageId());
+		serializableCallMessage.setInstitutionId(callMessage.getInstitutionId());
 		serializableCallMessage.setMessageTemplate(callMessage.getMessageTemplate());
 		serializableCallMessage.setMessageContext(callMessage.getMessageContext());
 		serializableCallMessage.setLocale(callMessage.getLocale());
@@ -72,6 +73,7 @@ public class CallMessageSerializer implements MessageSerializer<CallMessage> {
 		SerializableCallMessage serializableCallMessage = getJsonMapper().fromJson(serializedMessage, SerializableCallMessage.class);
 
 		return new CallMessage.Builder(serializableCallMessage.getMessageId(),
+				serializableCallMessage.getInstitutionId(),
 				serializableCallMessage.getMessageTemplate(),
 				serializableCallMessage.getToNumber(),
 				serializableCallMessage.getLocale())

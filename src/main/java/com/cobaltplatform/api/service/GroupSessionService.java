@@ -934,7 +934,7 @@ public class GroupSessionService implements AutoCloseable {
 					Account attendeeAccount = getAccountService().findAccountById(reservation.getAccountId()).get();
 					String attendeeName = Normalizer.normalizeName(attendeeAccount.getFirstName(), attendeeAccount.getLastName()).orElse(getStrings().get("Anonymous User"));
 
-					EmailMessage attendeeEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.GROUP_SESSION_CANCELED, attendeeAccount.getLocale())
+					EmailMessage attendeeEmailMessage = new EmailMessage.Builder(attendeeAccount.getInstitutionId(), EmailMessageTemplate.GROUP_SESSION_CANCELED, attendeeAccount.getLocale())
 							.toAddresses(new ArrayList<>() {{
 								add(attendeeAccount.getEmailAddress());
 							}})
@@ -960,7 +960,7 @@ public class GroupSessionService implements AutoCloseable {
 				getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
 					Account submitterAccount = getAccountService().findAccountById(pinnedGroupSession.getSubmitterAccountId()).get();
 
-					EmailMessage attendeeEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.GROUP_SESSION_LIVE_SUBMITTER, submitterAccount.getLocale())
+					EmailMessage attendeeEmailMessage = new EmailMessage.Builder(submitterAccount.getInstitutionId(), EmailMessageTemplate.GROUP_SESSION_LIVE_SUBMITTER, submitterAccount.getLocale())
 							.toAddresses(new ArrayList<>() {{
 								add(submitterAccount.getEmailAddress());
 							}})
@@ -1152,7 +1152,7 @@ public class GroupSessionService implements AutoCloseable {
 				put("anotherTimeUrl", format("%s/in-the-studio", getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institution.getInstitutionId(), UserExperienceTypeId.PATIENT).get()));
 			}};
 
-			EmailMessage attendeeEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.GROUP_SESSION_RESERVATION_CREATED_ATTENDEE, pinnedAttendeeAccount.getLocale())
+			EmailMessage attendeeEmailMessage = new EmailMessage.Builder(groupSession.getInstitutionId(), EmailMessageTemplate.GROUP_SESSION_RESERVATION_CREATED_ATTENDEE, pinnedAttendeeAccount.getLocale())
 					.toAddresses(new ArrayList<>() {{
 						add(attendeeEmailAddress);
 					}})
@@ -1170,7 +1170,7 @@ public class GroupSessionService implements AutoCloseable {
 			if (groupSession.getSendFollowupEmail())
 				scheduleGroupSessionReservationFollowupMessage(groupSession, groupSessionReservation);
 
-			EmailMessage facilitatorEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.GROUP_SESSION_RESERVATION_CREATED_FACILITATOR, institution.getLocale())
+			EmailMessage facilitatorEmailMessage = new EmailMessage.Builder(groupSession.getInstitutionId(), EmailMessageTemplate.GROUP_SESSION_RESERVATION_CREATED_FACILITATOR, institution.getLocale())
 					.toAddresses(new ArrayList<>() {{
 						add(groupSession.getTargetEmailAddress());
 					}})
@@ -1239,7 +1239,7 @@ public class GroupSessionService implements AutoCloseable {
 		// Schedule a reminder message for this reservation based on institution rules
 		LocalDateTime reminderMessageDateTime = groupSession.getStartDateTime().minusMinutes(institution.getGroupSessionReservationDefaultReminderMinutesOffset());
 
-		EmailMessage attendeeReminderEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.GROUP_SESSION_RESERVATION_REMINDER_ATTENDEE, pinnedAttendeeAccount.getLocale())
+		EmailMessage attendeeReminderEmailMessage = new EmailMessage.Builder(groupSession.getInstitutionId(), EmailMessageTemplate.GROUP_SESSION_RESERVATION_REMINDER_ATTENDEE, pinnedAttendeeAccount.getLocale())
 				.toAddresses(Collections.singletonList(attendeeEmailAddress))
 				.replyToAddress(groupSession.getTargetEmailAddress())
 				.messageContext(attendeeMessageContext)
@@ -1275,7 +1275,7 @@ public class GroupSessionService implements AutoCloseable {
 		messageContext.put("groupSession", groupSession);
 		messageContext.put("imageUrl", firstNonNull(groupSession.getImageUrl(), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
 
-		EmailMessage followupEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.GROUP_SESSION_RESERVATION_FOLLOWUP_ATTENDEE, account.getLocale())
+		EmailMessage followupEmailMessage = new EmailMessage.Builder(groupSession.getInstitutionId(), EmailMessageTemplate.GROUP_SESSION_RESERVATION_FOLLOWUP_ATTENDEE, account.getLocale())
 				.toAddresses(new ArrayList<>() {{
 					add(account.getEmailAddress());
 				}})
@@ -1338,7 +1338,7 @@ public class GroupSessionService implements AutoCloseable {
 		getMessageService().cancelScheduledMessage(groupSessionReservation.getAttendeeFollowupScheduledMessageId());
 
 		getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
-			EmailMessage attendeeEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.GROUP_SESSION_RESERVATION_CANCELED_ATTENDEE, attendeeAccount.getLocale())
+			EmailMessage attendeeEmailMessage = new EmailMessage.Builder(groupSession.getInstitutionId(), EmailMessageTemplate.GROUP_SESSION_RESERVATION_CANCELED_ATTENDEE, attendeeAccount.getLocale())
 					.toAddresses(new ArrayList<>() {{
 						add(attendeeEmailAddress);
 					}})
@@ -1356,7 +1356,7 @@ public class GroupSessionService implements AutoCloseable {
 
 			getEmailMessageManager().enqueueMessage(attendeeEmailMessage);
 
-			EmailMessage facilitatorEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.GROUP_SESSION_RESERVATION_CANCELED_FACILITATOR, institution.getLocale())
+			EmailMessage facilitatorEmailMessage = new EmailMessage.Builder(groupSession.getInstitutionId(), EmailMessageTemplate.GROUP_SESSION_RESERVATION_CANCELED_FACILITATOR, institution.getLocale())
 					.toAddresses(new ArrayList<>() {{
 						add(groupSession.getTargetEmailAddress());
 					}})
@@ -1657,7 +1657,7 @@ public class GroupSessionService implements AutoCloseable {
 				getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
 					Account submitterAccount = getAccountService().findAccountById(pinnedGroupSessionRequest.getSubmitterAccountId()).get();
 
-					EmailMessage attendeeEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.GROUP_SESSION_LIVE_SUBMITTER, submitterAccount.getLocale())
+					EmailMessage attendeeEmailMessage = new EmailMessage.Builder(submitterAccount.getInstitutionId(), EmailMessageTemplate.GROUP_SESSION_LIVE_SUBMITTER, submitterAccount.getLocale())
 							.toAddresses(new ArrayList<>() {{
 								add(submitterAccount.getEmailAddress());
 							}})
@@ -1751,7 +1751,7 @@ public class GroupSessionService implements AutoCloseable {
 		String formattedRespondentPhoneNumber = getFormatter().formatPhoneNumber(respondentPhoneNumber, facilitatorLocale);
 
 		getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
-			EmailMessage facilitatorEmailMessage = new EmailMessage.Builder(EmailMessageTemplate.GROUP_SESSION_RESPONSE_CREATED_FACILITATOR, facilitatorLocale)
+			EmailMessage facilitatorEmailMessage = new EmailMessage.Builder(pinnedGroupSessionRequest.getInstitutionId(), EmailMessageTemplate.GROUP_SESSION_RESPONSE_CREATED_FACILITATOR, facilitatorLocale)
 					.toAddresses(new ArrayList<>() {{
 						add(pinnedGroupSessionRequest.getFacilitatorEmailAddress());
 					}})
@@ -1794,7 +1794,7 @@ public class GroupSessionService implements AutoCloseable {
 		getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
 			for (Account accountToNotify : accountsToNotify) {
 				if (accountToNotify.getEmailAddress() != null) {
-					EmailMessage emailMessage = new EmailMessage.Builder(EmailMessageTemplate.ADMIN_GROUP_SESSION_ADDED, accountToNotify.getLocale())
+					EmailMessage emailMessage = new EmailMessage.Builder(accountToNotify.getInstitutionId(), EmailMessageTemplate.ADMIN_GROUP_SESSION_ADDED, accountToNotify.getLocale())
 							.toAddresses(List.of(accountToNotify.getEmailAddress()))
 							.replyToAddress(replyToAddressForEmailsTargetingFacilitator(groupSession))
 							.messageContext(Map.of(
