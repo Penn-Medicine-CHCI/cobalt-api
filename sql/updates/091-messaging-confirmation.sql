@@ -9,6 +9,7 @@ ALTER TABLE scheduled_message ADD COLUMN institution_id VARCHAR REFERENCES insti
 -- institution_id
 -- message_id
 -- message_status_id
+-- message_status_description
 -- sent_at
 -- delivered_at
 -- delivery_failed_at
