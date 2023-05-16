@@ -31,7 +31,6 @@ import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.InviteOrganiz
 import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.OrganizerAttendeeStrategy;
 import com.cobaltplatform.api.messaging.email.EmailAttachment;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
-import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.CancelGroupSessionReservationRequest;
 import com.cobaltplatform.api.model.api.request.CreateGroupSessionRequest;
@@ -146,8 +145,6 @@ public class GroupSessionService implements AutoCloseable {
 	@Nonnull
 	private final LinkGenerator linkGenerator;
 	@Nonnull
-	private final EmailMessageManager emailMessageManager;
-	@Nonnull
 	private final Formatter formatter;
 	@Nonnull
 	private final Normalizer normalizer;
@@ -182,7 +179,6 @@ public class GroupSessionService implements AutoCloseable {
 														 @Nonnull Database database,
 														 @Nonnull UploadManager uploadManager,
 														 @Nonnull LinkGenerator linkGenerator,
-														 @Nonnull EmailMessageManager emailMessageManager,
 														 @Nonnull Formatter formatter,
 														 @Nonnull Normalizer normalizer,
 														 @Nonnull GoogleCalendarUrlGenerator googleCalendarUrlGenerator,
@@ -196,10 +192,8 @@ public class GroupSessionService implements AutoCloseable {
 		requireNonNull(database);
 		requireNonNull(uploadManager);
 		requireNonNull(linkGenerator);
-		requireNonNull(emailMessageManager);
 		requireNonNull(formatter);
 		requireNonNull(normalizer);
-		requireNonNull(emailMessageManager);
 		requireNonNull(googleCalendarUrlGenerator);
 		requireNonNull(iCalInviteGenerator);
 		requireNonNull(configuration);
@@ -212,7 +206,6 @@ public class GroupSessionService implements AutoCloseable {
 		this.database = database;
 		this.uploadManager = uploadManager;
 		this.linkGenerator = linkGenerator;
-		this.emailMessageManager = emailMessageManager;
 		this.formatter = formatter;
 		this.normalizer = normalizer;
 		this.googleCalendarUrlGenerator = googleCalendarUrlGenerator;
@@ -949,7 +942,7 @@ public class GroupSessionService implements AutoCloseable {
 							}})
 							.build();
 
-					getEmailMessageManager().enqueueMessage(attendeeEmailMessage);
+					getMessageService().enqueueMessage(attendeeEmailMessage);
 				}
 			});
 		} else if (groupSessionStatusId == GroupSessionStatusId.ADDED) {
@@ -972,7 +965,7 @@ public class GroupSessionService implements AutoCloseable {
 							}})
 							.build();
 
-					getEmailMessageManager().enqueueMessage(attendeeEmailMessage);
+					getMessageService().enqueueMessage(attendeeEmailMessage);
 				});
 			}
 		}
@@ -1161,7 +1154,7 @@ public class GroupSessionService implements AutoCloseable {
 					.emailAttachments(List.of(generateICalInviteAsEmailAttachment(groupSession, groupSessionReservation, InviteMethod.REQUEST)))
 					.build();
 
-			getEmailMessageManager().enqueueMessage(attendeeEmailMessage);
+			getMessageService().enqueueMessage(attendeeEmailMessage);
 
 			// Schedule a reminder message for the group session reservation
 			scheduleGroupSessionReservationReminderMessage(groupSession, groupSessionReservation);
@@ -1187,7 +1180,7 @@ public class GroupSessionService implements AutoCloseable {
 					}})
 					.build();
 
-			getEmailMessageManager().enqueueMessage(facilitatorEmailMessage);
+			getMessageService().enqueueMessage(facilitatorEmailMessage);
 		});
 
 		return groupSessionReservationId;
@@ -1354,7 +1347,7 @@ public class GroupSessionService implements AutoCloseable {
 					.emailAttachments(List.of(generateICalInviteAsEmailAttachment(groupSession, groupSessionReservation, InviteMethod.CANCEL)))
 					.build();
 
-			getEmailMessageManager().enqueueMessage(attendeeEmailMessage);
+			getMessageService().enqueueMessage(attendeeEmailMessage);
 
 			EmailMessage facilitatorEmailMessage = new EmailMessage.Builder(groupSession.getInstitutionId(), EmailMessageTemplate.GROUP_SESSION_RESERVATION_CANCELED_FACILITATOR, institution.getLocale())
 					.toAddresses(new ArrayList<>() {{
@@ -1373,7 +1366,7 @@ public class GroupSessionService implements AutoCloseable {
 					}})
 					.build();
 
-			getEmailMessageManager().enqueueMessage(facilitatorEmailMessage);
+			getMessageService().enqueueMessage(facilitatorEmailMessage);
 		});
 
 		return success;
@@ -1669,7 +1662,7 @@ public class GroupSessionService implements AutoCloseable {
 							}})
 							.build();
 
-					getEmailMessageManager().enqueueMessage(attendeeEmailMessage);
+					getMessageService().enqueueMessage(attendeeEmailMessage);
 				});
 			}
 		}
@@ -1774,7 +1767,7 @@ public class GroupSessionService implements AutoCloseable {
 					}})
 					.build();
 
-			getEmailMessageManager().enqueueMessage(facilitatorEmailMessage);
+			getMessageService().enqueueMessage(facilitatorEmailMessage);
 		});
 
 		return groupSessionResponseId;
@@ -1805,7 +1798,7 @@ public class GroupSessionService implements AutoCloseable {
 							))
 							.build();
 
-					getEmailMessageManager().enqueueMessage(emailMessage);
+					getMessageService().enqueueMessage(emailMessage);
 				}
 			}
 		});
@@ -1896,8 +1889,6 @@ public class GroupSessionService implements AutoCloseable {
 		@Nonnull
 		private final CurrentContextExecutor currentContextExecutor;
 		@Nonnull
-		private final EmailMessageManager emailMessageManager;
-		@Nonnull
 		private final ErrorReporter errorReporter;
 		@Nonnull
 		private final Database database;
@@ -1908,18 +1899,15 @@ public class GroupSessionService implements AutoCloseable {
 
 		@Inject
 		public BackgroundSyncTask(@Nonnull CurrentContextExecutor currentContextExecutor,
-															@Nonnull EmailMessageManager emailMessageManager,
 															@Nonnull ErrorReporter errorReporter,
 															@Nonnull Database database,
 															@Nonnull Configuration configuration) {
 			requireNonNull(currentContextExecutor);
-			requireNonNull(emailMessageManager);
 			requireNonNull(errorReporter);
 			requireNonNull(database);
 			requireNonNull(configuration);
 
 			this.currentContextExecutor = currentContextExecutor;
-			this.emailMessageManager = emailMessageManager;
 			this.errorReporter = errorReporter;
 			this.database = database;
 			this.configuration = configuration;
@@ -1960,11 +1948,6 @@ public class GroupSessionService implements AutoCloseable {
 		@Nonnull
 		protected CurrentContextExecutor getCurrentContextExecutor() {
 			return currentContextExecutor;
-		}
-
-		@Nonnull
-		protected EmailMessageManager getEmailMessageManager() {
-			return emailMessageManager;
 		}
 
 		@Nonnull
@@ -2023,11 +2006,6 @@ public class GroupSessionService implements AutoCloseable {
 	@Nonnull
 	protected LinkGenerator getLinkGenerator() {
 		return linkGenerator;
-	}
-
-	@Nonnull
-	protected EmailMessageManager getEmailMessageManager() {
-		return emailMessageManager;
 	}
 
 	@Nonnull

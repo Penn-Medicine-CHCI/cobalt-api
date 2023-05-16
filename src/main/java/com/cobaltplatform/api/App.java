@@ -22,9 +22,6 @@ package com.cobaltplatform.api;
 import com.cobaltplatform.api.integration.acuity.AcuitySyncManager;
 import com.cobaltplatform.api.integration.bluejeans.BluejeansCredentialsProvider;
 import com.cobaltplatform.api.integration.epic.EpicSyncManager;
-import com.cobaltplatform.api.messaging.call.CallMessageManager;
-import com.cobaltplatform.api.messaging.email.EmailMessageManager;
-import com.cobaltplatform.api.messaging.sms.SmsMessageManager;
 import com.cobaltplatform.api.service.AvailabilityService;
 import com.cobaltplatform.api.service.GroupSessionService;
 import com.cobaltplatform.api.service.MessageService;
@@ -131,27 +128,6 @@ public class App implements AutoCloseable {
 	}
 
 	public void performStartupTasks() {
-		try {
-			SmsMessageManager smsMessageManager = getInjector().getInstance(SmsMessageManager.class);
-			smsMessageManager.start();
-		} catch (Exception e) {
-			getLogger().warn("Failed to start SMS message manager", e);
-		}
-
-		try {
-			CallMessageManager callMessageManager = getInjector().getInstance(CallMessageManager.class);
-			callMessageManager.start();
-		} catch (Exception e) {
-			getLogger().warn("Failed to start call message manager", e);
-		}
-
-		try {
-			EmailMessageManager emailMessageManager = getInjector().getInstance(EmailMessageManager.class);
-			emailMessageManager.start();
-		} catch (Exception e) {
-			getLogger().warn("Failed to start email manager", e);
-		}
-
 		try {
 			MessageService messageService = getInjector().getInstance(MessageService.class);
 			messageService.start();
@@ -271,27 +247,6 @@ public class App implements AutoCloseable {
 			messageService.stop();
 		} catch (Exception e) {
 			getLogger().warn("Failed to stop message service", e);
-		}
-
-		try {
-			EmailMessageManager emailMessageManager = getInjector().getInstance(EmailMessageManager.class);
-			emailMessageManager.stop();
-		} catch (Exception e) {
-			getLogger().warn("Unable to stop email message manager", e);
-		}
-
-		try {
-			SmsMessageManager smsMessageManager = getInjector().getInstance(SmsMessageManager.class);
-			smsMessageManager.stop();
-		} catch (Exception e) {
-			getLogger().warn("Failed to stop SMS message manager", e);
-		}
-
-		try {
-			CallMessageManager callMessageManager = getInjector().getInstance(CallMessageManager.class);
-			callMessageManager.stop();
-		} catch (Exception e) {
-			getLogger().warn("Failed to stop call message manager", e);
 		}
 
 		if (getConfiguration().getShouldPollBluejeans()) {

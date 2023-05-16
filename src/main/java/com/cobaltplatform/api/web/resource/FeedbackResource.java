@@ -21,12 +21,12 @@ package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
-import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.FeedbackRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.FeedbackContact;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.service.MessageService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
@@ -59,11 +59,10 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @Resource
 @ThreadSafe
 public class FeedbackResource {
-
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
 	@Nonnull
-	private final EmailMessageManager emailMessageManager;
+	private final MessageService messageService;
 	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
@@ -75,13 +74,13 @@ public class FeedbackResource {
 
 	@Inject
 	public FeedbackResource(@Nonnull RequestBodyParser requestBodyParser,
-													@Nonnull EmailMessageManager emailMessageManager,
+													@Nonnull MessageService messageService,
 													@Nonnull Provider<CurrentContext> currentContextProvider,
 													@Nonnull Database database,
 													@Nonnull Strings strings,
 													@Nonnull Formatter formatter) {
 		this.requestBodyParser = requestBodyParser;
-		this.emailMessageManager = emailMessageManager;
+		this.messageService = messageService;
 		this.currentContextProvider = currentContextProvider;
 		this.database = database;
 		this.strings = strings;
@@ -91,8 +90,8 @@ public class FeedbackResource {
 	@POST("/feedback")
 	@AuthenticationRequired
 	public ApiResponse submitFeedback(@Nonnull @RequestBody String body) {
-		FeedbackRequest feedbackRequest = requestBodyParser.parse(body, FeedbackRequest.class);
-		Account account = currentContextProvider.get().getAccount().get();
+		FeedbackRequest feedbackRequest = getRequestBodyParser().parse(body, FeedbackRequest.class);
+		Account account = getCurrentContext().getAccount().get();
 
 		String feedback = trimToNull(feedbackRequest.getFeedback());
 		String emailAddress = trimToNull(feedbackRequest.getEmailAddress());
@@ -108,7 +107,7 @@ public class FeedbackResource {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		List<FeedbackContact> contacts = database.queryForList("SELECT * from feedback_contact WHERE institution_id = ? AND active = ?",
+		List<FeedbackContact> contacts = getDatabase().queryForList("SELECT * from feedback_contact WHERE institution_id = ? AND active = ?",
 				FeedbackContact.class, account.getInstitutionId(), true);
 
 		String phoneNumber = getFormatter().formatPhoneNumber(account.getPhoneNumber(), account.getLocale());
@@ -123,7 +122,7 @@ public class FeedbackResource {
 		messageContext.put("emailAddress", emailAddress);
 
 		for (FeedbackContact feedbackContact : contacts) {
-			emailMessageManager.enqueueMessage(new EmailMessage.Builder(feedbackContact.getInstitutionId(), EmailMessageTemplate.USER_FEEDBACK, feedbackContact.getLocale())
+			getMessageService().enqueueMessage(new EmailMessage.Builder(feedbackContact.getInstitutionId(), EmailMessageTemplate.USER_FEEDBACK, feedbackContact.getLocale())
 					.toAddresses(new ArrayList<>() {{
 						add(feedbackContact.getEmailAddress());
 					}})
@@ -135,12 +134,32 @@ public class FeedbackResource {
 	}
 
 	@Nonnull
+	protected RequestBodyParser getRequestBodyParser() {
+		return this.requestBodyParser;
+	}
+
+	@Nonnull
+	protected MessageService getMessageService() {
+		return this.messageService;
+	}
+
+	@Nonnull
+	protected CurrentContext getCurrentContext() {
+		return this.currentContextProvider.get();
+	}
+
+	@Nonnull
+	protected Database getDatabase() {
+		return this.database;
+	}
+
+	@Nonnull
 	protected Strings getStrings() {
-		return strings;
+		return this.strings;
 	}
 
 	@Nonnull
 	protected Formatter getFormatter() {
-		return formatter;
+		return this.formatter;
 	}
 }

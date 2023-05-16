@@ -24,18 +24,19 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.amazon.AmazonSnsRequestBody;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.twilio.TwilioRequestBody;
 import com.cobaltplatform.api.messaging.Message;
+import com.cobaltplatform.api.messaging.MessageSender;
 import com.cobaltplatform.api.messaging.call.CallMessage;
-import com.cobaltplatform.api.messaging.call.CallMessageManager;
 import com.cobaltplatform.api.messaging.call.CallMessageSerializer;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
-import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.messaging.email.EmailMessageSerializer;
 import com.cobaltplatform.api.messaging.sms.SmsMessage;
-import com.cobaltplatform.api.messaging.sms.SmsMessageManager;
 import com.cobaltplatform.api.messaging.sms.SmsMessageSerializer;
 import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.MessageLog;
 import com.cobaltplatform.api.model.db.MessageStatus.MessageStatusId;
@@ -91,27 +92,41 @@ public class MessageService implements AutoCloseable {
 	private static final Long SCHEDULED_MESSAGE_TASK_INTERVAL_IN_SECONDS;
 	@Nonnull
 	private static final Long SCHEDULED_MESSAGE_TASK_INITIAL_DELAY_IN_SECONDS;
+	@Nonnull
+	private static final Long SEND_MESSAGE_TASK_INTERVAL_IN_SECONDS;
+	@Nonnull
+	private static final Long SEND_MESSAGE_TASK_INITIAL_DELAY_IN_SECONDS;
 
+	@Nonnull
+	private final Provider<SendMessageTask> sendMessageTaskProvider;
 	@Nonnull
 	private final Provider<ScheduledMessageTask> scheduledMessageTaskProvider;
 	@Nonnull
+	private final Provider<InstitutionService> institutionServiceProvider;
+	@Nonnull
 	private final EmailMessageSerializer emailMessageSerializer;
 	@Nonnull
-	private final SmsMessageManager smsMessageManager;
+	private final MessageSender<EmailMessage> emailMessageSender;
 	@Nonnull
 	private final SmsMessageSerializer smsMessageSerializer;
 	@Nonnull
-	private final CallMessageManager callMessageManager;
+	private final MessageSender<SmsMessage> smsMessageSender;
 	@Nonnull
 	private final CallMessageSerializer callMessageSerializer;
 	@Nonnull
+	private final MessageSender<CallMessage> callMessageSender;
+	@Nonnull
 	private final Database database;
+	@Nonnull
+	private final Configuration configuration;
 	@Nonnull
 	private final Formatter formatter;
 	@Nonnull
 	private final Normalizer normalizer;
 	@Nonnull
 	private final JsonMapper jsonMapper;
+	@Nonnull
+	private final EnterprisePluginProvider enterprisePluginProvider;
 	@Nonnull
 	private final Strings strings;
 	@Nonnull
@@ -122,49 +137,68 @@ public class MessageService implements AutoCloseable {
 	@Nonnull
 	private Boolean started;
 	@Nullable
+	private ScheduledExecutorService sendMessageTaskExecutorService;
+	@Nullable
 	private ScheduledExecutorService scheduledMessageTaskExecutorService;
 
 	static {
 		MAXIMUM_SMS_BODY_CHARACTER_COUNT = 1_600;
 		FREEFORM_MESSAGE_LOCALE = Locale.forLanguageTag("en-US");
+		SEND_MESSAGE_TASK_INTERVAL_IN_SECONDS = 5L;
+		SEND_MESSAGE_TASK_INITIAL_DELAY_IN_SECONDS = 10L;
 		SCHEDULED_MESSAGE_TASK_INTERVAL_IN_SECONDS = 15L;
-		SCHEDULED_MESSAGE_TASK_INITIAL_DELAY_IN_SECONDS = 1L;
+		SCHEDULED_MESSAGE_TASK_INITIAL_DELAY_IN_SECONDS = 10L;
 	}
 
 	@Inject
-	public MessageService(@Nonnull Provider<ScheduledMessageTask> scheduledMessageTaskProvider,
+	public MessageService(@Nonnull Provider<InstitutionService> institutionServiceProvider,
+												@Nonnull Provider<SendMessageTask> sendMessageTaskProvider,
+												@Nonnull Provider<ScheduledMessageTask> scheduledMessageTaskProvider,
 												@Nonnull EmailMessageSerializer emailMessageSerializer,
-												@Nonnull SmsMessageManager smsMessageManager,
+												@Nonnull MessageSender<EmailMessage> emailMessageSender,
 												@Nonnull SmsMessageSerializer smsMessageSerializer,
-												@Nonnull CallMessageManager callMessageManager,
+												@Nonnull MessageSender<SmsMessage> smsMessageSender,
 												@Nonnull CallMessageSerializer callMessageSerializer,
+												@Nonnull MessageSender<CallMessage> callMessageSender,
 												@Nonnull Database database,
+												@Nonnull Configuration configuration,
 												@Nonnull Formatter formatter,
 												@Nonnull Normalizer normalizer,
 												@Nonnull JsonMapper jsonMapper,
+												@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 												@Nonnull Strings strings) {
+		requireNonNull(institutionServiceProvider);
+		requireNonNull(sendMessageTaskProvider);
 		requireNonNull(scheduledMessageTaskProvider);
 		requireNonNull(emailMessageSerializer);
-		requireNonNull(smsMessageManager);
+		requireNonNull(emailMessageSender);
 		requireNonNull(smsMessageSerializer);
-		requireNonNull(callMessageManager);
+		requireNonNull(smsMessageSender);
 		requireNonNull(callMessageSerializer);
+		requireNonNull(callMessageSender);
 		requireNonNull(database);
+		requireNonNull(configuration);
 		requireNonNull(formatter);
 		requireNonNull(normalizer);
 		requireNonNull(jsonMapper);
+		requireNonNull(enterprisePluginProvider);
 		requireNonNull(strings);
 
+		this.institutionServiceProvider = institutionServiceProvider;
+		this.sendMessageTaskProvider = sendMessageTaskProvider;
 		this.scheduledMessageTaskProvider = scheduledMessageTaskProvider;
 		this.emailMessageSerializer = emailMessageSerializer;
-		this.smsMessageManager = smsMessageManager;
+		this.emailMessageSender = emailMessageSender;
 		this.smsMessageSerializer = smsMessageSerializer;
-		this.callMessageManager = callMessageManager;
+		this.smsMessageSender = smsMessageSender;
 		this.callMessageSerializer = callMessageSerializer;
+		this.callMessageSender = callMessageSender;
 		this.database = database;
+		this.configuration = configuration;
 		this.formatter = formatter;
 		this.normalizer = normalizer;
 		this.jsonMapper = jsonMapper;
+		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.strings = strings;
 		this.lock = new Object();
 		this.started = false;
@@ -185,9 +219,21 @@ public class MessageService implements AutoCloseable {
 
 			getLogger().trace("Starting message service...");
 
+			this.sendMessageTaskExecutorService = Executors.newScheduledThreadPool(1, new ThreadFactoryBuilder().setNameFormat("send-message-task-executor").build());
 			this.scheduledMessageTaskExecutorService = Executors.newScheduledThreadPool(1, new ThreadFactoryBuilder().setNameFormat("scheduled-message-task-executor").build());
 
 			this.started = true;
+
+			getSendMessageTaskExecutorService().get().scheduleWithFixedDelay(new Runnable() {
+				@Override
+				public void run() {
+					try {
+						getSendMessageTaskProvider().get().run();
+					} catch (Exception e) {
+						getLogger().warn(format("Unable to process sending messages - will retry in %s seconds", getSendMessageTaskIntervalInSeconds()), e);
+					}
+				}
+			}, getSendMessageTaskInitialDelayInSeconds(), getSendMessageTaskIntervalInSeconds(), TimeUnit.SECONDS);
 
 			getScheduledMessageTaskExecutorService().get().scheduleWithFixedDelay(new Runnable() {
 				@Override
@@ -213,13 +259,70 @@ public class MessageService implements AutoCloseable {
 
 			getLogger().trace("Stopping message service...");
 
-			getScheduledMessageTaskExecutorService().get().shutdownNow();
+			getScheduledMessageTaskExecutorService().get().shutdown();
 			this.scheduledMessageTaskExecutorService = null;
+
+			getSendMessageTaskExecutorService().get().shutdown();
+			this.sendMessageTaskExecutorService = null;
 
 			started = false;
 
 			getLogger().trace("Message service stopped.");
 		}
+	}
+
+	@Nonnull
+	public <T extends Message> void enqueueMessage(@Nonnull T message) {
+		requireNonNull(message);
+
+		if (!isStarted())
+			throw new IllegalStateException("Message manager is not started, cannot enqueue messages");
+
+		String serializedMessage;
+		MessageVendorId messageVendorId;
+
+		if (message.getMessageTypeId() == MessageTypeId.EMAIL) {
+			EmailMessage customizedEmailMessage = (EmailMessage) message;
+
+			// Customize the message
+			InstitutionId institutionId = message.getInstitutionId();
+			Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+
+			// Add some common global fields to the email before it goes out
+			Map<String, Object> messageContext = new HashMap<>(customizedEmailMessage.getMessageContext()); // Mutable copy
+
+			// e.g. https://cobaltplatform.s3.us-east-2.amazonaws.com/local/emails/button-start-appointment@2x.jpg
+			messageContext.put("staticFileUrlPrefix", format(" https://%s.s3.%s.amazonaws.com/%s/emails",
+					getConfiguration().getAmazonS3BucketName(), getConfiguration().getAmazonS3Region().id(), getConfiguration().getEnvironment()));
+			messageContext.put("copyrightYear", LocalDateTime.now(institution.getTimeZone()).getYear());
+			messageContext.put("supportEmailAddress", institution.getSupportEmailAddress());
+
+			// Create a new email message using the updated email message context
+			customizedEmailMessage = customizedEmailMessage.toBuilder()
+					.messageContext(messageContext)
+					.build();
+
+			// Hook for institutions to further customize outgoing emails
+			EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(message.getInstitutionId());
+			customizedEmailMessage = enterprisePlugin.customizeEmailMessage(customizedEmailMessage);
+
+			message = (T) customizedEmailMessage;
+
+			serializedMessage = getEmailMessageSerializer().serializeMessage((EmailMessage) message);
+			messageVendorId = getEmailMessageSender().getMessageVendorId();
+		} else if (message.getMessageTypeId() == MessageTypeId.SMS) {
+			serializedMessage = getSmsMessageSerializer().serializeMessage((SmsMessage) message);
+			messageVendorId = getSmsMessageSender().getMessageVendorId();
+		} else if (message.getMessageTypeId() == MessageTypeId.CALL) {
+			serializedMessage = getCallMessageSerializer().serializeMessage((CallMessage) message);
+			messageVendorId = getCallMessageSender().getMessageVendorId();
+		} else {
+			throw new IllegalStateException(format("Sorry, %s.%s is not yet supported.",
+					MessageTypeId.class.getSimpleName(), message.getMessageTypeId().name()));
+		}
+
+		getDatabase().execute("INSERT INTO message_log (message_id, message_type_id, message_status_id, message_vendor_id, serialized_message, enqueued) VALUES (?,?,?,?,CAST(? AS JSONB),NOW())",
+				message.getMessageId(), message.getMessageTypeId(), MessageStatusId.ENQUEUED, messageVendorId, serializedMessage);
 	}
 
 	/**
@@ -448,17 +551,19 @@ public class MessageService implements AutoCloseable {
 	}
 
 	@ThreadSafe
-	public static class ScheduledMessageTask implements Runnable {
+	public static class SendMessageTask implements Runnable {
+		@Nonnull
+		private final MessageService messageService;
+		@Nonnull
+		private final MessageSender<EmailMessage> emailMessageSender;
 		@Nonnull
 		private final EmailMessageSerializer emailMessageSerializer;
 		@Nonnull
-		private final EmailMessageManager emailMessageManager;
-		@Nonnull
-		private final SmsMessageManager smsMessageManager;
+		private final MessageSender<SmsMessage> smsMessageSender;
 		@Nonnull
 		private final SmsMessageSerializer smsMessageSerializer;
 		@Nonnull
-		private final CallMessageManager callMessageManager;
+		private final MessageSender<CallMessage> callMessageSender;
 		@Nonnull
 		private final CallMessageSerializer callMessageSerializer;
 		@Nonnull
@@ -475,22 +580,224 @@ public class MessageService implements AutoCloseable {
 		private final Logger logger;
 
 		@Inject
-		public ScheduledMessageTask(@Nonnull EmailMessageManager emailMessageManager,
+		public SendMessageTask(@Nonnull MessageService messageService,
+													 @Nonnull EmailMessageSerializer emailMessageSerializer,
+													 @Nonnull MessageSender<EmailMessage> emailMessageSender,
+													 @Nonnull SmsMessageSerializer smsMessageSerializer,
+													 @Nonnull MessageSender<SmsMessage> smsMessageSender,
+													 @Nonnull CallMessageSerializer callMessageSerializer,
+													 @Nonnull MessageSender<CallMessage> callMessageSender,
+													 @Nonnull Database database,
+													 @Nonnull CurrentContextExecutor currentContextExecutor,
+													 @Nonnull ErrorReporter errorReporter,
+													 @Nonnull Formatter formatter,
+													 @Nonnull Configuration configuration) {
+			requireNonNull(messageService);
+			requireNonNull(emailMessageSerializer);
+			requireNonNull(emailMessageSender);
+			requireNonNull(smsMessageSerializer);
+			requireNonNull(smsMessageSender);
+			requireNonNull(callMessageSerializer);
+			requireNonNull(callMessageSender);
+			requireNonNull(database);
+			requireNonNull(currentContextExecutor);
+			requireNonNull(errorReporter);
+			requireNonNull(formatter);
+			requireNonNull(configuration);
+
+			this.messageService = messageService;
+			this.emailMessageSerializer = emailMessageSerializer;
+			this.emailMessageSender = emailMessageSender;
+			this.smsMessageSerializer = smsMessageSerializer;
+			this.smsMessageSender = smsMessageSender;
+			this.callMessageSerializer = callMessageSerializer;
+			this.callMessageSender = callMessageSender;
+			this.database = database;
+			this.currentContextExecutor = currentContextExecutor;
+			this.errorReporter = errorReporter;
+			this.formatter = formatter;
+			this.configuration = configuration;
+			this.logger = LoggerFactory.getLogger(getClass());
+		}
+
+		protected void dequeueAndSendMessage(@Nonnull MessageLog messageLog) {
+			requireNonNull(messageLog);
+
+			MessageSender messageSender;
+			Message deserializedMessage;
+
+			if (messageLog.getMessageTypeId() == MessageTypeId.EMAIL) {
+				deserializedMessage = getEmailMessageSerializer().deserializeMessage(messageLog.getSerializedMessage());
+				messageSender = getEmailMessageSender();
+			} else if (messageLog.getMessageTypeId() == MessageTypeId.SMS) {
+				deserializedMessage = getSmsMessageSerializer().deserializeMessage(messageLog.getSerializedMessage());
+				messageSender = getSmsMessageSender();
+			} else if (messageLog.getMessageTypeId() == MessageTypeId.CALL) {
+				deserializedMessage = getCallMessageSerializer().deserializeMessage(messageLog.getSerializedMessage());
+				messageSender = getCallMessageSender();
+			} else {
+				throw new IllegalStateException(format("Sorry, %s.%s is not yet supported.",
+						MessageTypeId.class.getSimpleName(), messageLog.getMessageTypeId().name()));
+			}
+
+			try {
+				String vendorAssignedId = messageSender.sendMessage(deserializedMessage);
+
+				try {
+					getDatabase().execute("UPDATE message_log SET message_status_id=?, vendor_assigned_id=?, processed=NOW() WHERE message_id=?",
+							MessageStatusId.SENT, vendorAssignedId, deserializedMessage.getMessageId());
+				} catch (Exception e2) {
+					// Not much we can do, just bail
+					getLogger().warn("Unable to update message log", e2);
+				}
+			} catch (Exception e) {
+				try {
+					String stackTrace = getFormatter().formatStackTrace(e);
+					getDatabase().execute("UPDATE message_log SET message_status_id=?, processed=NOW(), stack_trace=? WHERE message_id=?",
+							MessageStatusId.ERROR, stackTrace, deserializedMessage.getMessageId());
+				} catch (Exception e2) {
+					// Not much we can do, just bail
+					getLogger().warn("Unable to update message log", e2);
+				}
+
+				throw e;
+			}
+		}
+
+		@Override
+		public void run() {
+			CurrentContext currentContext = new CurrentContext.Builder(InstitutionId.COBALT,
+					getConfiguration().getDefaultLocale(), getConfiguration().getDefaultTimeZone()).build();
+
+			getCurrentContextExecutor().execute(currentContext, () -> {
+				getDatabase().transaction(() -> {
+					// Anything scheduled for before this instant and in PENDING status can be sent
+					List<MessageLog> sendableMessages = getDatabase().queryForList("""
+							SELECT *
+							FROM message_log
+							WHERE message_status_id=?
+							FOR UPDATE
+							""", MessageLog.class, MessageStatusId.ENQUEUED);
+
+					if (sendableMessages.size() == 0) {
+						getLogger().trace("No messages need to be sent.");
+						return;
+					}
+
+					getLogger().info("Detected {} message[s] that are ready to send, going to send them now...", sendableMessages.size());
+					int i = 0;
+
+					for (MessageLog sendableMessage : sendableMessages) {
+						getLogger().info("Sending message {} of {}...", i + 1, sendableMessages.size());
+						dequeueAndSendMessage(sendableMessage);
+						++i;
+					}
+				});
+			});
+		}
+
+		@Nonnull
+		protected MessageService getMessageService() {
+			return this.messageService;
+		}
+
+		@Nonnull
+		protected MessageSender<EmailMessage> getEmailMessageSender() {
+			return this.emailMessageSender;
+		}
+
+		@Nonnull
+		protected EmailMessageSerializer getEmailMessageSerializer() {
+			return this.emailMessageSerializer;
+		}
+
+		@Nonnull
+		protected MessageSender<SmsMessage> getSmsMessageSender() {
+			return this.smsMessageSender;
+		}
+
+		@Nonnull
+		protected SmsMessageSerializer getSmsMessageSerializer() {
+			return this.smsMessageSerializer;
+		}
+
+		@Nonnull
+		protected MessageSender<CallMessage> getCallMessageSender() {
+			return this.callMessageSender;
+		}
+
+		@Nonnull
+		protected CallMessageSerializer getCallMessageSerializer() {
+			return this.callMessageSerializer;
+		}
+
+		@Nonnull
+		protected Database getDatabase() {
+			return database;
+		}
+
+		@Nonnull
+		protected CurrentContextExecutor getCurrentContextExecutor() {
+			return currentContextExecutor;
+		}
+
+		@Nonnull
+		protected ErrorReporter getErrorReporter() {
+			return errorReporter;
+		}
+
+		@Nonnull
+		protected Formatter getFormatter() {
+			return formatter;
+		}
+
+		@Nonnull
+		protected Configuration getConfiguration() {
+			return configuration;
+		}
+
+		@Nonnull
+		protected Logger getLogger() {
+			return logger;
+		}
+	}
+
+	@ThreadSafe
+	public static class ScheduledMessageTask implements Runnable {
+		@Nonnull
+		private final MessageService messageService;
+		@Nonnull
+		private final EmailMessageSerializer emailMessageSerializer;
+		@Nonnull
+		private final SmsMessageSerializer smsMessageSerializer;
+		@Nonnull
+		private final CallMessageSerializer callMessageSerializer;
+		@Nonnull
+		private final Database database;
+		@Nonnull
+		private final CurrentContextExecutor currentContextExecutor;
+		@Nonnull
+		private final ErrorReporter errorReporter;
+		@Nonnull
+		private final Formatter formatter;
+		@Nonnull
+		private final Configuration configuration;
+		@Nonnull
+		private final Logger logger;
+
+		@Inject
+		public ScheduledMessageTask(@Nonnull MessageService messageService,
 																@Nonnull EmailMessageSerializer emailMessageSerializer,
-																@Nonnull SmsMessageManager smsMessageManager,
 																@Nonnull SmsMessageSerializer smsMessageSerializer,
-																@Nonnull CallMessageManager callMessageManager,
 																@Nonnull CallMessageSerializer callMessageSerializer,
 																@Nonnull Database database,
 																@Nonnull CurrentContextExecutor currentContextExecutor,
 																@Nonnull ErrorReporter errorReporter,
 																@Nonnull Formatter formatter,
 																@Nonnull Configuration configuration) {
-			requireNonNull(emailMessageManager);
+			requireNonNull(messageService);
 			requireNonNull(emailMessageSerializer);
-			requireNonNull(smsMessageManager);
 			requireNonNull(smsMessageSerializer);
-			requireNonNull(callMessageManager);
 			requireNonNull(callMessageSerializer);
 			requireNonNull(database);
 			requireNonNull(currentContextExecutor);
@@ -498,11 +805,9 @@ public class MessageService implements AutoCloseable {
 			requireNonNull(formatter);
 			requireNonNull(configuration);
 
-			this.emailMessageManager = emailMessageManager;
+			this.messageService = messageService;
 			this.emailMessageSerializer = emailMessageSerializer;
-			this.smsMessageManager = smsMessageManager;
 			this.smsMessageSerializer = smsMessageSerializer;
-			this.callMessageManager = callMessageManager;
 			this.callMessageSerializer = callMessageSerializer;
 			this.database = database;
 			this.currentContextExecutor = currentContextExecutor;
@@ -540,13 +845,13 @@ public class MessageService implements AutoCloseable {
 						try {
 							if (scheduledMessage.getMessageTypeId() == MessageTypeId.EMAIL) {
 								EmailMessage emailMessage = getEmailMessageSerializer().deserializeMessage(scheduledMessage.getSerializedMessage());
-								getEmailMessageManager().enqueueMessage(emailMessage);
+								getMessageService().enqueueMessage(emailMessage);
 							} else if (scheduledMessage.getMessageTypeId() == MessageTypeId.SMS) {
 								SmsMessage smsMessage = getSmsMessageSerializer().deserializeMessage(scheduledMessage.getSerializedMessage());
-								getSmsMessageManager().enqueueMessage(smsMessage);
+								getMessageService().enqueueMessage(smsMessage);
 							} else if (scheduledMessage.getMessageTypeId() == MessageTypeId.CALL) {
 								CallMessage callMessage = getCallMessageSerializer().deserializeMessage(scheduledMessage.getSerializedMessage());
-								getCallMessageManager().enqueueMessage(callMessage);
+								getMessageService().enqueueMessage(callMessage);
 							} else {
 								throw new IllegalStateException(format("Sorry, %s.%s is not yet supported.",
 										MessageTypeId.class.getSimpleName(), scheduledMessage.getMessageTypeId().name()));
@@ -558,7 +863,7 @@ public class MessageService implements AutoCloseable {
 
 							getLogger().info("Successfully enqueued scheduled message {} of {}.", i + 1, sendableScheduledMessages.size());
 						} catch (Exception e) {
-							getLogger().info(format("Unable to enqueued scheduled message %d of %d, sending error report...", i + 1, sendableScheduledMessages.size()), e);
+							getLogger().info(format("Unable to enqueue scheduled message %d of %d, sending error report...", i + 1, sendableScheduledMessages.size()), e);
 							getErrorReporter().report(e);
 
 							String stackTrace = getFormatter().formatStackTrace(e);
@@ -574,28 +879,18 @@ public class MessageService implements AutoCloseable {
 		}
 
 		@Nonnull
-		protected EmailMessageManager getEmailMessageManager() {
-			return emailMessageManager;
+		protected MessageService getMessageService() {
+			return this.messageService;
 		}
 
 		@Nonnull
 		protected EmailMessageSerializer getEmailMessageSerializer() {
-			return emailMessageSerializer;
-		}
-
-		@Nonnull
-		protected SmsMessageManager getSmsMessageManager() {
-			return smsMessageManager;
+			return this.emailMessageSerializer;
 		}
 
 		@Nonnull
 		protected SmsMessageSerializer getSmsMessageSerializer() {
-			return smsMessageSerializer;
-		}
-
-		@Nonnull
-		protected CallMessageManager getCallMessageManager() {
-			return callMessageManager;
+			return this.smsMessageSerializer;
 		}
 
 		@Nonnull
@@ -645,6 +940,16 @@ public class MessageService implements AutoCloseable {
 	}
 
 	@Nonnull
+	protected Long getSendMessageTaskIntervalInSeconds() {
+		return SEND_MESSAGE_TASK_INTERVAL_IN_SECONDS;
+	}
+
+	@Nonnull
+	protected Long getSendMessageTaskInitialDelayInSeconds() {
+		return SEND_MESSAGE_TASK_INITIAL_DELAY_IN_SECONDS;
+	}
+
+	@Nonnull
 	protected Long getScheduledMessageTaskIntervalInSeconds() {
 		return SCHEDULED_MESSAGE_TASK_INTERVAL_IN_SECONDS;
 	}
@@ -655,33 +960,58 @@ public class MessageService implements AutoCloseable {
 	}
 
 	@Nonnull
+	protected Provider<SendMessageTask> getSendMessageTaskProvider() {
+		return this.sendMessageTaskProvider;
+	}
+
+	@Nonnull
 	protected Provider<ScheduledMessageTask> getScheduledMessageTaskProvider() {
 		return scheduledMessageTaskProvider;
 	}
 
 	@Nonnull
-	protected EmailMessageSerializer getEmailMessageSerializer() {
-		return emailMessageSerializer;
+	protected InstitutionService getInstitutionService() {
+		return this.institutionServiceProvider.get();
 	}
 
 	@Nonnull
-	protected SmsMessageManager getSmsMessageManager() {
-		return smsMessageManager;
+	protected Configuration getConfiguration() {
+		return this.configuration;
+	}
+
+	@Nonnull
+	protected EnterprisePluginProvider getEnterprisePluginProvider() {
+		return this.enterprisePluginProvider;
+	}
+
+	@Nonnull
+	protected EmailMessageSerializer getEmailMessageSerializer() {
+		return this.emailMessageSerializer;
+	}
+
+	@Nonnull
+	protected MessageSender<EmailMessage> getEmailMessageSender() {
+		return this.emailMessageSender;
 	}
 
 	@Nonnull
 	protected SmsMessageSerializer getSmsMessageSerializer() {
-		return smsMessageSerializer;
+		return this.smsMessageSerializer;
 	}
 
 	@Nonnull
-	protected CallMessageManager getCallMessageManager() {
-		return callMessageManager;
+	protected MessageSender<SmsMessage> getSmsMessageSender() {
+		return this.smsMessageSender;
 	}
 
 	@Nonnull
 	protected CallMessageSerializer getCallMessageSerializer() {
-		return callMessageSerializer;
+		return this.callMessageSerializer;
+	}
+
+	@Nonnull
+	protected MessageSender<CallMessage> getCallMessageSender() {
+		return this.callMessageSender;
 	}
 
 	@Nonnull
@@ -712,6 +1042,11 @@ public class MessageService implements AutoCloseable {
 	@Nonnull
 	protected Object getLock() {
 		return lock;
+	}
+
+	@Nonnull
+	protected Optional<ScheduledExecutorService> getSendMessageTaskExecutorService() {
+		return Optional.ofNullable(sendMessageTaskExecutorService);
 	}
 
 	@Nonnull

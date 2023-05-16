@@ -1,6 +1,9 @@
 BEGIN;
 SELECT _v.register_patch('091-messaging-confirmation', NULL, NULL);
 
+-- Old "stuck" messages get transitioned to error status
+UPDATE message_log SET message_status_id='ERROR', stack_trace='marked stale enqueued messages as errors', processed = NOW() WHERE message_status_id='ENQUEUED';
+
 -- Explicitly track institution ID for easier reporting
 ALTER TABLE message_log ADD COLUMN institution_id VARCHAR REFERENCES institution NOT NULL DEFAULT 'COBALT';
 ALTER TABLE scheduled_message ADD COLUMN institution_id VARCHAR REFERENCES institution NOT NULL DEFAULT 'COBALT';

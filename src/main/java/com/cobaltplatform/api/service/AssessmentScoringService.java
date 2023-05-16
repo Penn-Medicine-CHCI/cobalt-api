@@ -21,7 +21,6 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
-import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.CreateInteractionInstanceRequest;
 import com.cobaltplatform.api.model.db.Account;
@@ -74,7 +73,7 @@ public class AssessmentScoringService {
 	@Nonnull
 	private final Provider<InstitutionService> institutionServiceProvider;
 	@Nonnull
-	private final EmailMessageManager emailMessageManager;
+	private final Provider<MessageService> messageServiceProvider;
 	@Nonnull
 	private final ErrorReporter errorReporter;
 	@Nonnull
@@ -89,7 +88,7 @@ public class AssessmentScoringService {
 																	@Nonnull Provider<SessionService> sessionServiceProvder,
 																	@Nonnull Provider<InteractionService> interactionServiceProvider,
 																	@Nonnull Provider<InstitutionService> institutionServiceProvider,
-																	@Nonnull EmailMessageManager emailMessageManager,
+																	@Nonnull Provider<MessageService> messageServiceProvider,
 																	@Nonnull ErrorReporter errorReporter,
 																	@Nonnull Database database,
 																	@Nonnull Formatter formatter,
@@ -98,7 +97,7 @@ public class AssessmentScoringService {
 		requireNonNull(sessionServiceProvder);
 		requireNonNull(interactionServiceProvider);
 		requireNonNull(institutionServiceProvider);
-		requireNonNull(emailMessageManager);
+		requireNonNull(messageServiceProvider);
 		requireNonNull(errorReporter);
 		requireNonNull(database);
 		requireNonNull(formatter);
@@ -108,7 +107,7 @@ public class AssessmentScoringService {
 		this.sessionServiceProvider = sessionServiceProvder;
 		this.interactionServiceProvider = interactionServiceProvider;
 		this.institutionServiceProvider = institutionServiceProvider;
-		this.emailMessageManager = emailMessageManager;
+		this.messageServiceProvider = messageServiceProvider;
 		this.errorReporter = errorReporter;
 		this.database = database;
 		this.formatter = formatter;
@@ -162,7 +161,7 @@ public class AssessmentScoringService {
 		messageContext.put("institutionDescription", institutionDescription);
 
 		for (CrisisContact crisisContact : crisisContacts) {
-			getEmailMessageManager().enqueueMessage(new EmailMessage.Builder(crisisAccount.getInstitutionId(), EmailMessageTemplate.SUICIDE_RISK, crisisContact.getLocale())
+			getMessageService().enqueueMessage(new EmailMessage.Builder(crisisAccount.getInstitutionId(), EmailMessageTemplate.SUICIDE_RISK, crisisContact.getLocale())
 					.toAddresses(new ArrayList<>() {{
 						add(crisisContact.getEmailAddress());
 					}})
@@ -430,8 +429,8 @@ public class AssessmentScoringService {
 	}
 
 	@Nonnull
-	protected EmailMessageManager getEmailMessageManager() {
-		return emailMessageManager;
+	protected MessageService getMessageService() {
+		return messageServiceProvider.get();
 	}
 
 	@Nonnull

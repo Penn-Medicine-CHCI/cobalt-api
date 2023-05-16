@@ -217,20 +217,6 @@ public class Configuration {
 	@Nonnull
 	private final String amazonS3BaseUrl;
 	@Nonnull
-	private final Region amazonSqsRegion;
-	@Nonnull
-	private final String amazonSqsEmailMessageQueueName;
-	@Nonnull
-	private final Integer amazonSqsEmailMessageQueueWaitTimeSeconds;
-	@Nonnull
-	private final String amazonSqsSmsMessageQueueName;
-	@Nonnull
-	private final Integer amazonSqsSmsMessageQueueWaitTimeSeconds;
-	@Nonnull
-	private final String amazonSqsCallMessageQueueName;
-	@Nonnull
-	private final Integer amazonSqsCallMessageQueueWaitTimeSeconds;
-	@Nonnull
 	private final String redisHost;
 	@Nonnull
 	private final Integer redisPort;
@@ -390,14 +376,6 @@ public class Configuration {
 		this.amazonS3PresignedUploadExpirationInMinutes = valueFor("com.cobaltplatform.api.amazon.s3.presignedUploadExpirationInMinutes", Integer.class);
 		this.amazonS3BaseUrl = determineAmazonS3BaseUrl();
 		this.amazonLambdaCallbackBaseUrl = determineAmazonLambdaCallbackBaseUrl();
-
-		this.amazonSqsRegion = Region.of(valueFor("com.cobaltplatform.api.amazon.sqs.region", String.class));
-		this.amazonSqsEmailMessageQueueName = valueFor("com.cobaltplatform.api.amazon.sqs.emailMessageQueueName", String.class);
-		this.amazonSqsEmailMessageQueueWaitTimeSeconds = valueFor("com.cobaltplatform.api.amazon.sqs.emailMessageQueueWaitTimeSeconds", Integer.class);
-		this.amazonSqsSmsMessageQueueName = valueFor("com.cobaltplatform.api.amazon.sqs.smsMessageQueueName", String.class);
-		this.amazonSqsSmsMessageQueueWaitTimeSeconds = valueFor("com.cobaltplatform.api.amazon.sqs.smsMessageQueueWaitTimeSeconds", Integer.class);
-		this.amazonSqsCallMessageQueueName = valueFor("com.cobaltplatform.api.amazon.sqs.callMessageQueueName", String.class);
-		this.amazonSqsCallMessageQueueWaitTimeSeconds = valueFor("com.cobaltplatform.api.amazon.sqs.callMessageQueueWaitTimeSeconds", Integer.class);
 
 		this.redisHost = valueFor("com.cobaltplatform.api.redis.host", String.class);
 		this.redisPort = valueFor("com.cobaltplatform.api.redis.port", Integer.class);
@@ -1249,41 +1227,6 @@ public class Configuration {
 	@Nonnull
 	public String getAmazonS3BaseUrl() {
 		return amazonS3BaseUrl;
-	}
-
-	@Nonnull
-	public Region getAmazonSqsRegion() {
-		return amazonSqsRegion;
-	}
-
-	@Nonnull
-	public String getAmazonSqsEmailMessageQueueName() {
-		return amazonSqsEmailMessageQueueName;
-	}
-
-	@Nonnull
-	public Integer getAmazonSqsEmailMessageQueueWaitTimeSeconds() {
-		return amazonSqsEmailMessageQueueWaitTimeSeconds;
-	}
-
-	@Nonnull
-	public String getAmazonSqsSmsMessageQueueName() {
-		return amazonSqsSmsMessageQueueName;
-	}
-
-	@Nonnull
-	public Integer getAmazonSqsSmsMessageQueueWaitTimeSeconds() {
-		return amazonSqsSmsMessageQueueWaitTimeSeconds;
-	}
-
-	@Nonnull
-	public String getAmazonSqsCallMessageQueueName() {
-		return amazonSqsCallMessageQueueName;
-	}
-
-	@Nonnull
-	public Integer getAmazonSqsCallMessageQueueWaitTimeSeconds() {
-		return amazonSqsCallMessageQueueWaitTimeSeconds;
 	}
 
 	@Nonnull

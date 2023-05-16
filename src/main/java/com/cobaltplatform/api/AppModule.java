@@ -40,7 +40,6 @@ import com.cobaltplatform.api.integration.bluejeans.BluejeansApi;
 import com.cobaltplatform.api.integration.bluejeans.BluejeansClient;
 import com.cobaltplatform.api.integration.bluejeans.DefaultBluejeansClient;
 import com.cobaltplatform.api.integration.bluejeans.MockBluejeansClient;
-import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.twilio.MockTwilioRequestValidator;
 import com.cobaltplatform.api.integration.twilio.TwilioRequestValidator;
 import com.cobaltplatform.api.integration.way2health.DefaultWay2HealthClient;
@@ -49,18 +48,15 @@ import com.cobaltplatform.api.integration.way2health.Way2HealthClient;
 import com.cobaltplatform.api.messaging.MessageSender;
 import com.cobaltplatform.api.messaging.MessageSerializer;
 import com.cobaltplatform.api.messaging.call.CallMessage;
-import com.cobaltplatform.api.messaging.call.CallMessageManager;
 import com.cobaltplatform.api.messaging.call.CallMessageSerializer;
 import com.cobaltplatform.api.messaging.call.ConsoleCallMessageSender;
 import com.cobaltplatform.api.messaging.call.TwilioCallMessageSender;
 import com.cobaltplatform.api.messaging.email.AmazonSesEmailMessageSender;
 import com.cobaltplatform.api.messaging.email.ConsoleEmailMessageSender;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
-import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.messaging.email.EmailMessageSerializer;
 import com.cobaltplatform.api.messaging.sms.ConsoleSmsMessageSender;
 import com.cobaltplatform.api.messaging.sms.SmsMessage;
-import com.cobaltplatform.api.messaging.sms.SmsMessageManager;
 import com.cobaltplatform.api.messaging.sms.SmsMessageSerializer;
 import com.cobaltplatform.api.messaging.sms.TwilioSmsMessageSender;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
@@ -140,9 +136,6 @@ import com.cobaltplatform.api.model.api.response.TopicCenterApiResponse.TopicCen
 import com.cobaltplatform.api.model.api.response.TopicCenterRowApiResponse.TopicCenterRowApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.VisitTypeApiResponse.VisitTypeApiResponseFactory;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
-import com.cobaltplatform.api.service.AccountService;
-import com.cobaltplatform.api.service.InstitutionService;
-import com.cobaltplatform.api.util.AmazonSqsManager;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.HandlebarsTemplater;
 import com.cobaltplatform.api.util.HttpLoggingInterceptor;
@@ -156,7 +149,6 @@ import com.cobaltplatform.api.web.filter.MaintenanceFilter;
 import com.cobaltplatform.api.web.request.CurrentContextRequestHandler;
 import com.cobaltplatform.api.web.response.JsonApiResponseWriter;
 import com.cobaltplatform.api.web.response.JsonPageResponseWriter;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.AbstractModule;
 import com.google.inject.Injector;
 import com.google.inject.Provides;
@@ -503,41 +495,6 @@ public class AppModule extends AbstractModule {
 	@Provides
 	@Singleton
 	@Nonnull
-	public EmailMessageManager provideEmailMessageManager(@Nonnull EnterprisePluginProvider enterprisePluginProvider,
-																												@Nonnull Provider<AccountService> accountServiceProvider,
-																												@Nonnull Provider<InstitutionService> institutionServiceProvider,
-																												@Nonnull Provider<CurrentContext> currentContextProvider,
-																												@Nonnull Database database,
-																												@Nonnull Configuration configuration,
-																												@Nonnull Formatter formatter,
-																												@Nonnull MessageSender<EmailMessage> messageSender,
-																												@Nonnull MessageSerializer<EmailMessage> messageSerializer) {
-		requireNonNull(enterprisePluginProvider);
-		requireNonNull(accountServiceProvider);
-		requireNonNull(institutionServiceProvider);
-		requireNonNull(currentContextProvider);
-		requireNonNull(database);
-		requireNonNull(configuration);
-		requireNonNull(formatter);
-		requireNonNull(messageSender);
-		requireNonNull(messageSerializer);
-
-		return new EmailMessageManager(enterprisePluginProvider, accountServiceProvider, institutionServiceProvider, currentContextProvider, database, configuration, formatter, messageSender, messageSerializer, (processingFunction) -> {
-			return new AmazonSqsManager.Builder(getConfiguration().getAmazonSqsEmailMessageQueueName(),
-					getConfiguration().getAmazonSqsRegion())
-					.useLocalstack(getConfiguration().getAmazonUseLocalstack())
-					.localstackPort(getConfiguration().getAmazonLocalstackPort())
-					.queueWaitTimeSeconds(getConfiguration().getAmazonSqsEmailMessageQueueWaitTimeSeconds())
-					.processingThreadCount(3)
-					.processingThreadFactory(new ThreadFactoryBuilder().setNameFormat("sqs-email-processing-task-%d").build())
-					.processingFunction(processingFunction)
-					.build();
-		});
-	}
-
-	@Provides
-	@Singleton
-	@Nonnull
 	public MessageSerializer<EmailMessage> provideEmailMessageSerializer(@Nonnull EmailMessageSerializer emailMessageSerializer) {
 		requireNonNull(emailMessageSerializer);
 		return emailMessageSerializer;
@@ -555,35 +512,6 @@ public class AppModule extends AbstractModule {
 		}
 
 		return new ConsoleEmailMessageSender();
-	}
-
-	@Provides
-	@Singleton
-	@Nonnull
-	public SmsMessageManager provideSmsMessageManager(@Nonnull Provider<AccountService> accountServiceProvider,
-																										@Nonnull Database database,
-																										@Nonnull Configuration configuration,
-																										@Nonnull Formatter formatter,
-																										@Nonnull MessageSender<SmsMessage> messageSender,
-																										@Nonnull MessageSerializer<SmsMessage> messageSerializer) {
-		requireNonNull(accountServiceProvider);
-		requireNonNull(database);
-		requireNonNull(configuration);
-		requireNonNull(formatter);
-		requireNonNull(messageSender);
-		requireNonNull(messageSerializer);
-
-		return new SmsMessageManager(accountServiceProvider, database, configuration, formatter, messageSender, messageSerializer, (processingFunction) -> {
-			return new AmazonSqsManager.Builder(getConfiguration().getAmazonSqsSmsMessageQueueName(),
-					getConfiguration().getAmazonSqsRegion())
-					.useLocalstack(getConfiguration().getAmazonUseLocalstack())
-					.localstackPort(getConfiguration().getAmazonLocalstackPort())
-					.queueWaitTimeSeconds(getConfiguration().getAmazonSqsSmsMessageQueueWaitTimeSeconds())
-					.processingThreadCount(2)
-					.processingThreadFactory(new ThreadFactoryBuilder().setNameFormat("sqs-sms-processing-task-%d").build())
-					.processingFunction(processingFunction)
-					.build();
-		});
 	}
 
 	@Provides
@@ -608,35 +536,6 @@ public class AppModule extends AbstractModule {
 		}
 
 		return new ConsoleSmsMessageSender();
-	}
-
-	@Provides
-	@Singleton
-	@Nonnull
-	public CallMessageManager provideCallMessageManager(@Nonnull Provider<AccountService> accountServiceProvider,
-																											@Nonnull Database database,
-																											@Nonnull Configuration configuration,
-																											@Nonnull Formatter formatter,
-																											@Nonnull MessageSender<CallMessage> messageSender,
-																											@Nonnull MessageSerializer<CallMessage> messageSerializer) {
-		requireNonNull(accountServiceProvider);
-		requireNonNull(database);
-		requireNonNull(configuration);
-		requireNonNull(formatter);
-		requireNonNull(messageSender);
-		requireNonNull(messageSerializer);
-
-		return new CallMessageManager(accountServiceProvider, database, configuration, formatter, messageSender, messageSerializer, (processingFunction) -> {
-			return new AmazonSqsManager.Builder(getConfiguration().getAmazonSqsCallMessageQueueName(),
-					getConfiguration().getAmazonSqsRegion())
-					.useLocalstack(getConfiguration().getAmazonUseLocalstack())
-					.localstackPort(getConfiguration().getAmazonLocalstackPort())
-					.queueWaitTimeSeconds(getConfiguration().getAmazonSqsSmsMessageQueueWaitTimeSeconds())
-					.processingThreadCount(2)
-					.processingThreadFactory(new ThreadFactoryBuilder().setNameFormat("sqs-call-processing-task-%d").build())
-					.processingFunction(processingFunction)
-					.build();
-		});
 	}
 
 	@Provides
