@@ -26,17 +26,22 @@ import com.cobaltplatform.api.http.HttpMethod;
 import com.cobaltplatform.api.http.HttpRequest;
 import com.cobaltplatform.api.http.HttpResponse;
 import com.cobaltplatform.api.util.CryptoUtility;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.security.Signature;
 import java.security.cert.X509Certificate;
+import java.time.Duration;
 import java.util.Base64;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -52,7 +57,11 @@ import static java.util.Objects.requireNonNull;
  */
 public class DefaultAmazonSnsRequestValidator implements AmazonSnsRequestValidator {
 	@Nonnull
+	private final Set<String> trustedSigningCertUriPrefixes;
+	@Nonnull
 	private final Map<AmazonSnsMessageType, Set<String>> signingFieldNamesByAmazonSnsMessageType;
+	@Nonnull
+	private final LoadingCache<URI, X509Certificate> signingCertByUriCache;
 	@Nonnull
 	private final HttpClient httpClient;
 	@Nonnull
@@ -67,12 +76,53 @@ public class DefaultAmazonSnsRequestValidator implements AmazonSnsRequestValidat
 		this.httpClient = new DefaultHttpClient("amazon-sns-request-validator");
 		this.logger = LoggerFactory.getLogger(getClass());
 
+		this.trustedSigningCertUriPrefixes = Set.of(
+				"https://sns.ap-south-1.amazonaws.com/",
+				"https://sns.eu-south-1.amazonaws.com/",
+				"https://sns.us-gov-east-1.amazonaws.com/",
+				"https://sns.ca-central-1.amazonaws.com/",
+				"https://sns.eu-central-1.amazonaws.com/",
+				"https://sns.us-west-1.amazonaws.com/",
+				"https://sns.us-west-2.amazonaws.com/",
+				"https://sns.af-south-1.amazonaws.com/",
+				"https://sns.eu-north-1.amazonaws.com/",
+				"https://sns.eu-west-3.amazonaws.com/",
+				"https://sns.eu-west-2.amazonaws.com/",
+				"https://sns.eu-west-1.amazonaws.com/",
+				"https://sns.ap-northeast-2.amazonaws.com/",
+				"https://sns.ap-northeast-1.amazonaws.com/",
+				"https://sns.me-south-1.amazonaws.com/",
+				"https://sns.sa-east-1.amazonaws.com/",
+				"https://sns.ap-east-1.amazonaws.com/",
+				"https://sns.cn-north-1.amazonaws.com/",
+				"https://sns.us-gov-west-1.amazonaws.com/",
+				"https://sns.ap-southeast-1.amazonaws.com/",
+				"https://sns.ap-southeast-2.amazonaws.com/",
+				"https://sns.us-iso-east-1.amazonaws.com/",
+				"https://sns.us-east-1.amazonaws.com/",
+				"https://sns.us-east-2.amazonaws.com/",
+				"https://sns.cn-northwest-1.amazonaws.com/",
+				"https://sns.us-isob-east-1.amazonaws.com/",
+				"https://sns.aws-global.amazonaws.com/",
+				"https://sns.aws-cn-global.amazonaws.com/",
+				"https://sns.aws-us-gov-global.amazonaws.com/",
+				"https://sns.aws-iso-global.amazonaws.com/",
+				"https://sns.aws-iso-b-global.amazonaws.com/"
+		);
+
 		// See https://docs.aws.amazon.com/sns/latest/dg/sns-verify-signature-of-message.html
 		this.signingFieldNamesByAmazonSnsMessageType = Map.of(
 				AmazonSnsMessageType.NOTIFICATION, Set.of("Message", "MessageId", "Subject", "Timestamp", "TopicArn", "Type"),
 				AmazonSnsMessageType.SUBSCRIPTION_CONFIRMATION, Set.of("Message", "MessageId", "SubscribeURL", "Timestamp", "Token", "TopicArn", "Type"),
 				AmazonSnsMessageType.UNSUBSCRIBE_CONFIRMATION, Set.of("Message", "MessageId", "SubscribeURL", "Timestamp", "Token", "TopicArn", "Type")
 		);
+
+		// We don't want to re-fetch the certificate every single time a webhook comes in - keep it in a cache keyed on URI
+		this.signingCertByUriCache = Caffeine.newBuilder()
+				.maximumSize(10)
+				.refreshAfterWrite(Duration.ofMinutes(60 * 12))
+				.expireAfterWrite(Duration.ofMinutes(60 * 24))
+				.build(uri -> fetchSigningCertForUri(uri));
 	}
 
 	@Nonnull
@@ -103,9 +153,44 @@ public class DefaultAmazonSnsRequestValidator implements AmazonSnsRequestValidat
 		signableString = signableString + "\n";
 
 		// Get the X509 certificate that Amazon SNS used to sign the message.
+		X509Certificate signingCert = getSigningCertByUriCache().get(amazonSnsRequestBody.getSigningCertUrl());
+
+		// Perform verification of the AWS-provided signature using the public key and
+		// the signable string we created from elements of the request body
+		try {
+			Signature signature = signatureForSignatureVersion(amazonSnsRequestBody.getSignatureVersion());
+			byte[] signatureToVerify = Base64.getDecoder().decode(amazonSnsRequestBody.getSignature());
+			signature.initVerify(signingCert.getPublicKey());
+			signature.update(signableString.getBytes());
+			return signature.verify(signatureToVerify);
+		} catch (Exception e) {
+			throw new RuntimeException("Unable to process SNS signature", e);
+		}
+	}
+
+	@Nonnull
+	protected X509Certificate fetchSigningCertForUri(@Nonnull URI uri) {
+		getLogger().info("Fetching signing cert for URI {}...", uri);
+
+		// Prevent spoofing.
+		// Certificate URLs should look like https://sns.us-east-1.amazonaws.com/SimpleNotificationService-xxx.pem
+		String normalizedSigningCertUri = uri.toString().toLowerCase(Locale.US);
+		boolean signingCertUriTrusted = false;
+
+		for (String trustedSigningCertUriPrefix : getTrustedSigningCertUriPrefixes()) {
+			if (normalizedSigningCertUri.startsWith(trustedSigningCertUriPrefix)) {
+				signingCertUriTrusted = true;
+				break;
+			}
+		}
+
+		if (!signingCertUriTrusted)
+			throw new IllegalStateException(format("Signing certificate URI is %s, which does not start with any known trusted prefixes: %s",
+					normalizedSigningCertUri, getTrustedSigningCertUriPrefixes()));
+
 		// The SigningCertURL value points to the location of the X509 certificate used to create the
 		// digital signature for the message. Retrieve the certificate from this location.
-		HttpRequest httpRequest = new HttpRequest.Builder(HttpMethod.GET, amazonSnsRequestBody.getSigningCertUrl().toString()).build();
+		HttpRequest httpRequest = new HttpRequest.Builder(HttpMethod.GET, uri.toString()).build();
 		String signingCertAsString;
 
 		try {
@@ -122,23 +207,7 @@ public class DefaultAmazonSnsRequestValidator implements AmazonSnsRequestValidat
 		// Extract the public key from the certificate.
 		// The public key from the certificate specified by SigningCertURL is used to verify the
 		// authenticity and integrity of the message.
-		X509Certificate signingCert = CryptoUtility.toX509Certificate(signingCertAsString);
-
-		getLogger().info("Amazon SNS signing certificate has issuer '{}'", signingCert.getIssuerX500Principal());
-
-		// TODO: we need a reliable way to confirm that the certificate is actually owned by Amazon and is not some rando
-
-		// Perform verification of the AWS-provided signature using the public key and
-		// the signable string we created from elements of the request body
-		try {
-			Signature signature = signatureForSignatureVersion(amazonSnsRequestBody.getSignatureVersion());
-			byte[] signatureToVerify = Base64.getDecoder().decode(amazonSnsRequestBody.getSignature());
-			signature.initVerify(signingCert.getPublicKey());
-			signature.update(signableString.getBytes());
-			return signature.verify(signatureToVerify);
-		} catch (Exception e) {
-			throw new RuntimeException("Unable to process SNS signature", e);
-		}
+		return CryptoUtility.toX509Certificate(signingCertAsString);
 	}
 
 	@Nonnull
@@ -162,8 +231,18 @@ public class DefaultAmazonSnsRequestValidator implements AmazonSnsRequestValidat
 	}
 
 	@Nonnull
+	protected Set<String> getTrustedSigningCertUriPrefixes() {
+		return this.trustedSigningCertUriPrefixes;
+	}
+
+	@Nonnull
 	protected Map<AmazonSnsMessageType, Set<String>> getSigningFieldNamesByAmazonSnsMessageType() {
 		return this.signingFieldNamesByAmazonSnsMessageType;
+	}
+
+	@Nonnull
+	protected LoadingCache<URI, X509Certificate> getSigningCertByUriCache() {
+		return this.signingCertByUriCache;
 	}
 
 	@Nonnull

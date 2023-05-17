@@ -21,7 +21,6 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
-import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.CreateContentRequest;
 import com.cobaltplatform.api.model.api.request.FindResourceLibraryContentRequest;
@@ -121,7 +120,7 @@ public class ContentService {
 	@Nonnull
 	private final Provider<TagService> tagServiceProvider;
 	@Nonnull
-	private final Provider<EmailMessageManager> emailMessageManagerProvider;
+	private final Provider<MessageService> messageServiceProvider;
 	@Nonnull
 	private final Provider<AccountService> accountServiceProvider;
 	@Nonnull
@@ -133,7 +132,7 @@ public class ContentService {
 	public ContentService(@Nonnull Provider<CurrentContext> currentContextProvider,
 												@Nonnull Provider<AssessmentService> assessmentServiceProvider,
 												@Nonnull Provider<TagService> tagServiceProvider,
-												@Nonnull Provider<EmailMessageManager> emailMessageManagerProvider,
+												@Nonnull Provider<MessageService> messageServiceProvider,
 												@Nonnull Provider<AccountService> accountServiceProvider,
 												@Nonnull Provider<Formatter> formatterProvider,
 												@Nonnull Provider<LinkGenerator> linkGeneratorProvider,
@@ -144,7 +143,7 @@ public class ContentService {
 		requireNonNull(currentContextProvider);
 		requireNonNull(assessmentServiceProvider);
 		requireNonNull(tagServiceProvider);
-		requireNonNull(emailMessageManagerProvider);
+		requireNonNull(messageServiceProvider);
 		requireNonNull(accountServiceProvider);
 		requireNonNull(formatterProvider);
 		requireNonNull(linkGeneratorProvider);
@@ -161,7 +160,7 @@ public class ContentService {
 		this.institutionService = institutionService;
 		this.strings = strings;
 		this.assessmentServiceProvider = assessmentServiceProvider;
-		this.emailMessageManagerProvider = emailMessageManagerProvider;
+		this.messageServiceProvider = messageServiceProvider;
 		this.accountServiceProvider = accountServiceProvider;
 		this.formatterProvider = formatterProvider;
 		this.linkGeneratorProvider = linkGeneratorProvider;
@@ -795,7 +794,7 @@ public class ContentService {
 		getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
 			for (Account accountToNotify : accountsToNotify) {
 				if (accountToNotify.getEmailAddress() != null) {
-					EmailMessage emailMessage = new EmailMessage.Builder(EmailMessageTemplate.ADMIN_CMS_CONTENT_ADDED, accountToNotify.getLocale())
+					EmailMessage emailMessage = new EmailMessage.Builder(accountToNotify.getInstitutionId(), EmailMessageTemplate.ADMIN_CMS_CONTENT_ADDED, accountToNotify.getLocale())
 							.toAddresses(List.of(accountToNotify.getEmailAddress()))
 							.messageContext(Map.of(
 									"adminAccountName", Normalizer.normalizeName(accountToNotify.getFirstName(), accountToNotify.getLastName()).orElse(getStrings().get("Anonymous User")),
@@ -1328,8 +1327,8 @@ public class ContentService {
 	}
 
 	@Nonnull
-	protected EmailMessageManager getEmailMessageManager() {
-		return emailMessageManagerProvider.get();
+	protected MessageService getEmailMessageManager() {
+		return messageServiceProvider.get();
 	}
 
 	@Nonnull

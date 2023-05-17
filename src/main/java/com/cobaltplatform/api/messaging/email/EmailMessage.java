@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.messaging.email;
 
 import com.cobaltplatform.api.messaging.Message;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
 
 import javax.annotation.Nonnull;
@@ -46,6 +47,8 @@ public class EmailMessage implements Message {
 	@Nonnull
 	private final UUID messageId;
 	@Nonnull
+	private final InstitutionId institutionId;
+	@Nonnull
 	private final EmailMessageTemplate messageTemplate;
 	@Nonnull
 	private final Map<String, Object> messageContext;
@@ -68,6 +71,7 @@ public class EmailMessage implements Message {
 		requireNonNull(builder);
 
 		this.messageId = builder.messageId;
+		this.institutionId = builder.institutionId;
 		this.messageTemplate = builder.messageTemplate;
 		this.messageContext = builder.messageContext == null ? Collections.emptyMap() : Collections.unmodifiableMap(new HashMap<>(builder.messageContext));
 		this.locale = builder.locale;
@@ -86,7 +90,7 @@ public class EmailMessage implements Message {
 	 */
 	@Nonnull
 	public Builder toBuilder() {
-		return new Builder(getMessageId(), getMessageTemplate(), getLocale())
+		return new Builder(getMessageId(), getInstitutionId(), getMessageTemplate(), getLocale())
 				.messageContext(getMessageContext())
 				.fromAddress(getFromAddress().orElse(null))
 				.replyToAddress(getReplyToAddress().orElse(null))
@@ -115,6 +119,7 @@ public class EmailMessage implements Message {
 		EmailMessage emailMessage = (EmailMessage) other;
 
 		return Objects.equals(getMessageId(), emailMessage.getMessageId())
+				&& Objects.equals(getInstitutionId(), emailMessage.getInstitutionId())
 				&& Objects.equals(getMessageTypeId(), emailMessage.getMessageTypeId())
 				&& Objects.equals(getMessageTemplate(), emailMessage.getMessageTemplate())
 				&& Objects.equals(getMessageContext(), emailMessage.getMessageContext())
@@ -129,13 +134,15 @@ public class EmailMessage implements Message {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(getMessageId(), getMessageTypeId(), getMessageTemplate(), getMessageContext(),
+		return Objects.hash(getMessageId(), getInstitutionId(), getMessageTypeId(), getMessageTemplate(), getMessageContext(),
 				getLocale(), getFromAddress(), getReplyToAddress(), getToAddresses(), getCcAddresses(), getBccAddresses(), getEmailAttachments());
 	}
 
 	public static class Builder {
 		@Nonnull
 		private final UUID messageId;
+		@Nonnull
+		private final InstitutionId institutionId;
 		@Nonnull
 		private final EmailMessageTemplate messageTemplate;
 		@Nonnull
@@ -155,19 +162,23 @@ public class EmailMessage implements Message {
 		@Nullable
 		private List<EmailAttachment> emailAttachments;
 
-		public Builder(@Nonnull EmailMessageTemplate messageTemplate,
+		public Builder(@Nonnull InstitutionId institutionId,
+									 @Nonnull EmailMessageTemplate messageTemplate,
 									 @Nonnull Locale locale) {
-			this(UUID.randomUUID(), messageTemplate, locale);
+			this(UUID.randomUUID(), institutionId, messageTemplate, locale);
 		}
 
 		public Builder(@Nonnull UUID messageId,
+									 @Nonnull InstitutionId institutionId,
 									 @Nonnull EmailMessageTemplate messageTemplate,
 									 @Nonnull Locale locale) {
 			requireNonNull(messageId);
+			requireNonNull(institutionId);
 			requireNonNull(messageTemplate);
 			requireNonNull(locale);
 
 			this.messageId = messageId;
+			this.institutionId = institutionId;
 			this.messageTemplate = messageTemplate;
 			this.locale = locale;
 		}
@@ -230,6 +241,12 @@ public class EmailMessage implements Message {
 	@Override
 	public MessageTypeId getMessageTypeId() {
 		return MessageTypeId.EMAIL;
+	}
+
+	@Nonnull
+	@Override
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
 	}
 
 	@Nonnull

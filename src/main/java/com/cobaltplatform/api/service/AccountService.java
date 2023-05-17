@@ -25,7 +25,6 @@ import com.cobaltplatform.api.cache.DistributedCache;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
-import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.AccountRoleRequest;
 import com.cobaltplatform.api.model.api.request.ApplyAccountEmailVerificationCodeRequest;
@@ -153,9 +152,9 @@ public class AccountService {
 	@Nonnull
 	private final Logger logger;
 	@Nonnull
-	private final EmailMessageManager emailMessageManager;
+	private final Provider<MessageService> messageServiceProvider;
 	@Nonnull
-	private final InstitutionService institutionService;
+	private final Provider<InstitutionService> institutionServiceProvider;
 	@Nonnull
 	private final LinkGenerator linkGenerator;
 	@Nonnull
@@ -180,8 +179,8 @@ public class AccountService {
 												@Nonnull Formatter formatter,
 												@Nonnull JsonMapper jsonMapper,
 												@Nonnull Configuration configuration,
-												@Nonnull EmailMessageManager emailMessageManager,
-												@Nonnull InstitutionService institutionService,
+												@Nonnull Provider<MessageService> messageServiceProvider,
+												@Nonnull Provider<InstitutionService> institutionServiceProvider,
 												@Nonnull LinkGenerator linkGenerator,
 												@Nonnull ErrorReporter errorReporter,
 												@Nonnull Strings strings) {
@@ -198,8 +197,8 @@ public class AccountService {
 		requireNonNull(jsonMapper);
 		requireNonNull(configuration);
 		requireNonNull(strings);
-		requireNonNull(emailMessageManager);
-		requireNonNull(institutionService);
+		requireNonNull(messageServiceProvider);
+		requireNonNull(institutionServiceProvider);
 		requireNonNull(linkGenerator);
 		requireNonNull(errorReporter);
 
@@ -217,8 +216,8 @@ public class AccountService {
 		this.configuration = configuration;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
-		this.emailMessageManager = emailMessageManager;
-		this.institutionService = institutionService;
+		this.messageServiceProvider = messageServiceProvider;
+		this.institutionServiceProvider = institutionServiceProvider;
 		this.linkGenerator = linkGenerator;
 		this.errorReporter = errorReporter;
 		this.accountTimeZones = Collections.unmodifiableSet(determineAccountTimeZones());
@@ -426,7 +425,7 @@ public class AccountService {
 		Institution institution = getInstitutionService().findInstitutionById(accountInvite.getInstitutionId()).get();
 
 		EmailMessage verificationEmail = new EmailMessage.Builder(
-				EmailMessageTemplate.ACCOUNT_VERIFICATION, institution.getLocale())
+				institution.getInstitutionId(), EmailMessageTemplate.ACCOUNT_VERIFICATION, institution.getLocale())
 				.toAddresses(new ArrayList<>() {{
 					add(accountInvite.getEmailAddress());
 				}})
@@ -436,7 +435,7 @@ public class AccountService {
 				}})
 				.build();
 
-		getEmailMessageManager().enqueueMessage(verificationEmail);
+		getMessageService().enqueueMessage(verificationEmail);
 	}
 
 	@Nonnull
@@ -854,7 +853,7 @@ public class AccountService {
 					account.get().getAccountId(), passwordResetToken, expirationTimestamp);
 
 			EmailMessage passwordResetEmail = new EmailMessage.Builder(
-					EmailMessageTemplate.PASSWORD_RESET, account.get().getLocale())
+					account.get().getInstitutionId(), EmailMessageTemplate.PASSWORD_RESET, account.get().getLocale())
 					.toAddresses(new ArrayList<>() {{
 						add(emailAddress);
 					}})
@@ -864,7 +863,7 @@ public class AccountService {
 					}})
 					.build();
 
-			getEmailMessageManager().enqueueMessage(passwordResetEmail);
+			getMessageService().enqueueMessage(passwordResetEmail);
 		}
 	}
 
@@ -1231,7 +1230,7 @@ public class AccountService {
 
 		getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
 			EmailMessage verificationEmail = new EmailMessage.Builder(
-					EmailMessageTemplate.ACCOUNT_EMAIL_VERIFICATION, pinnedAccount.getLocale())
+					pinnedAccount.getInstitutionId(), EmailMessageTemplate.ACCOUNT_EMAIL_VERIFICATION, pinnedAccount.getLocale())
 					.toAddresses(new ArrayList<>() {{
 						add(emailAddress);
 					}})
@@ -1243,7 +1242,7 @@ public class AccountService {
 					}})
 					.build();
 
-			getEmailMessageManager().enqueueMessage(verificationEmail);
+			getMessageService().enqueueMessage(verificationEmail);
 		});
 
 		return accountEmailVerificationId;
@@ -1489,13 +1488,13 @@ public class AccountService {
 	}
 
 	@Nonnull
-	protected EmailMessageManager getEmailMessageManager() {
-		return emailMessageManager;
+	public MessageService getMessageService() {
+		return this.messageServiceProvider.get();
 	}
 
 	@Nonnull
 	protected InstitutionService getInstitutionService() {
-		return institutionService;
+		return institutionServiceProvider.get();
 	}
 
 	@Nonnull

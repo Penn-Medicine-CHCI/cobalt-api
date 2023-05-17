@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.messaging;
 
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
 
 import javax.annotation.Nonnull;
@@ -35,4 +36,7 @@ public interface Message {
 
 	@Nonnull
 	MessageTypeId getMessageTypeId();
+
+	@Nonnull
+	InstitutionId getInstitutionId();
 }

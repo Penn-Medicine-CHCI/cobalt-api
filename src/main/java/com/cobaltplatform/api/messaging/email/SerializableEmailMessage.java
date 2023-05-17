@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.messaging.email;
 
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
 
 import javax.annotation.Nonnull;
@@ -39,6 +40,8 @@ public class SerializableEmailMessage {
 
 	@Nullable
 	private UUID messageId;
+	@Nullable
+	private InstitutionId institutionId;
 	@Nullable
 	private Locale locale;
 	@Nullable
@@ -69,6 +72,15 @@ public class SerializableEmailMessage {
 
 	public void setMessageId(@Nullable UUID messageId) {
 		this.messageId = messageId;
+	}
+
+	@Nullable
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
+	}
+
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
 	}
 
 	@Nullable

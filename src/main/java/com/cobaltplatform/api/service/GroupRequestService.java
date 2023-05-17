@@ -20,7 +20,6 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.messaging.email.EmailMessage;
-import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.CreateGroupRequestRequest;
 import com.cobaltplatform.api.model.db.Account;
@@ -69,7 +68,7 @@ public class GroupRequestService {
 	@Nonnull
 	private final Provider<InstitutionService> institutionServiceProvider;
 	@Nonnull
-	private final EmailMessageManager emailMessageManager;
+	private final Provider<MessageService> messageServiceProvider;
 	@Nonnull
 	private final Formatter formatter;
 	@Nonnull
@@ -82,20 +81,20 @@ public class GroupRequestService {
 	@Inject
 	public GroupRequestService(@Nonnull Provider<AccountService> accountServiceProvider,
 														 @Nonnull Provider<InstitutionService> institutionServiceProvider,
-														 @Nonnull EmailMessageManager emailMessageManager,
+														 @Nonnull Provider<MessageService> messageServiceProvider,
 														 @Nonnull Formatter formatter,
 														 @Nonnull Database database,
 														 @Nonnull Strings strings) {
 		requireNonNull(accountServiceProvider);
 		requireNonNull(institutionServiceProvider);
-		requireNonNull(emailMessageManager);
+		requireNonNull(messageServiceProvider);
 		requireNonNull(formatter);
 		requireNonNull(database);
 		requireNonNull(strings);
 
 		this.accountServiceProvider = accountServiceProvider;
 		this.institutionServiceProvider = institutionServiceProvider;
-		this.emailMessageManager = emailMessageManager;
+		this.messageServiceProvider = messageServiceProvider;
 		this.formatter = formatter;
 		this.database = database;
 		this.strings = strings;
@@ -270,7 +269,7 @@ public class GroupRequestService {
 		messageContext.put("groupTopicNames", groupTopicNames);
 
 		getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
-			getEmailMessageManager().enqueueMessage(new EmailMessage.Builder(EmailMessageTemplate.GROUP_REQUEST_SUBMITTED, emailLocale)
+			getMessageService().enqueueMessage(new EmailMessage.Builder(institution.getInstitutionId(), EmailMessageTemplate.GROUP_REQUEST_SUBMITTED, emailLocale)
 					.toAddresses(groupRequestContactEmailAddresses)
 					.messageContext(messageContext)
 					.build());
@@ -290,8 +289,8 @@ public class GroupRequestService {
 	}
 
 	@Nonnull
-	protected EmailMessageManager getEmailMessageManager() {
-		return this.emailMessageManager;
+	protected MessageService getMessageService() {
+		return this.messageServiceProvider.get();
 	}
 
 	@Nonnull

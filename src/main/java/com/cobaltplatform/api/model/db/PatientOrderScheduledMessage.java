@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.MessageStatus.MessageStatusId;
 import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType.PatientOrderScheduledMessageTypeId;
 import com.cobaltplatform.api.model.db.ScheduledMessageSource.ScheduledMessageSourceId;
@@ -75,6 +77,24 @@ public class PatientOrderScheduledMessage {
 	private Instant canceledAt;
 	@Nullable
 	private Instant erroredAt;
+	@Nullable
+	private InstitutionId institutionId;
+	@Nullable
+	private UUID messageId;
+	@Nullable
+	private MessageStatusId messageStatusId;
+	@Nullable
+	private String messageStatusDescription;
+	@Nullable
+	private Instant sentAt;
+	@Nullable
+	private Instant deliveredAt;
+	@Nullable
+	private Instant deliveryFailedAt;
+	@Nullable
+	private String deliveryFailedReason;
+	@Nullable
+	private Instant complaintRegisteredAt;
 
 	@Nullable
 	public UUID getPatientOrderScheduledMessageId() {
@@ -236,5 +256,86 @@ public class PatientOrderScheduledMessage {
 
 	public void setErroredAt(@Nullable Instant erroredAt) {
 		this.erroredAt = erroredAt;
+	}
+
+	@Nullable
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
+	}
+
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
+	}
+
+	@Nullable
+	public UUID getMessageId() {
+		return this.messageId;
+	}
+
+	public void setMessageId(@Nullable UUID messageId) {
+		this.messageId = messageId;
+	}
+
+	@Nullable
+	public MessageStatusId getMessageStatusId() {
+		return this.messageStatusId;
+	}
+
+	public void setMessageStatusId(@Nullable MessageStatusId messageStatusId) {
+		this.messageStatusId = messageStatusId;
+	}
+
+	@Nullable
+	public String getMessageStatusDescription() {
+		return this.messageStatusDescription;
+	}
+
+	public void setMessageStatusDescription(@Nullable String messageStatusDescription) {
+		this.messageStatusDescription = messageStatusDescription;
+	}
+
+	@Nullable
+	public Instant getSentAt() {
+		return this.sentAt;
+	}
+
+	public void setSentAt(@Nullable Instant sentAt) {
+		this.sentAt = sentAt;
+	}
+
+	@Nullable
+	public Instant getDeliveredAt() {
+		return this.deliveredAt;
+	}
+
+	public void setDeliveredAt(@Nullable Instant deliveredAt) {
+		this.deliveredAt = deliveredAt;
+	}
+
+	@Nullable
+	public Instant getDeliveryFailedAt() {
+		return this.deliveryFailedAt;
+	}
+
+	public void setDeliveryFailedAt(@Nullable Instant deliveryFailedAt) {
+		this.deliveryFailedAt = deliveryFailedAt;
+	}
+
+	@Nullable
+	public String getDeliveryFailedReason() {
+		return this.deliveryFailedReason;
+	}
+
+	public void setDeliveryFailedReason(@Nullable String deliveryFailedReason) {
+		this.deliveryFailedReason = deliveryFailedReason;
+	}
+
+	@Nullable
+	public Instant getComplaintRegisteredAt() {
+		return this.complaintRegisteredAt;
+	}
+
+	public void setComplaintRegisteredAt(@Nullable Instant complaintRegisteredAt) {
+		this.complaintRegisteredAt = complaintRegisteredAt;
 	}
 }

@@ -27,7 +27,6 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.integration.acuity.AcuitySchedulingCache;
 import com.cobaltplatform.api.integration.acuity.AcuitySchedulingClient;
 import com.cobaltplatform.api.integration.epic.EpicSyncManager;
-import com.cobaltplatform.api.messaging.email.EmailMessageManager;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
@@ -81,8 +80,6 @@ public class SystemResource {
 	@Nonnull
 	private final SystemService systemService;
 	@Nonnull
-	private final EmailMessageManager emailMessageManager;
-	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
 	private final Cache localCache;
@@ -107,7 +104,6 @@ public class SystemResource {
 
 	@Inject
 	public SystemResource(@Nonnull SystemService systemService,
-												@Nonnull EmailMessageManager emailMessageManager,
 												@Nonnull Configuration configuration,
 												@Nonnull @LocalCache Cache localCache,
 												@Nonnull @DistributedCache Cache distributedCache,
@@ -120,7 +116,6 @@ public class SystemResource {
 												@Nonnull Formatter formatter,
 												@Nonnull Strings strings) {
 		requireNonNull(systemService);
-		requireNonNull(emailMessageManager);
 		requireNonNull(configuration);
 		requireNonNull(localCache);
 		requireNonNull(distributedCache);
@@ -134,7 +129,6 @@ public class SystemResource {
 		requireNonNull(strings);
 
 		this.systemService = systemService;
-		this.emailMessageManager = emailMessageManager;
 		this.configuration = configuration;
 		this.localCache = localCache;
 		this.distributedCache = distributedCache;
@@ -360,11 +354,6 @@ public class SystemResource {
 	@Nonnull
 	protected SystemService getSystemService() {
 		return systemService;
-	}
-
-	@Nonnull
-	protected EmailMessageManager getEmailMessageManager() {
-		return emailMessageManager;
 	}
 
 	@Nonnull

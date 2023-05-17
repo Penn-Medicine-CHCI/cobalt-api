@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.messaging.sms;
 
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.Locale;
@@ -32,6 +34,8 @@ import java.util.UUID;
 public class SerializableSmsMessage {
 	@Nonnull
 	private UUID messageId;
+	@Nonnull
+	private InstitutionId institutionId;
 	@Nonnull
 	private String toNumber;
 	@Nonnull
@@ -48,6 +52,15 @@ public class SerializableSmsMessage {
 
 	public void setMessageId(@Nonnull UUID messageId) {
 		this.messageId = messageId;
+	}
+
+	@Nonnull
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
+	}
+
+	public void setInstitutionId(@Nonnull InstitutionId institutionId) {
+		this.institutionId = institutionId;
 	}
 
 	@Nonnull

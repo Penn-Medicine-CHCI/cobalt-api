@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.http.DefaultHttpClient;
 import com.cobaltplatform.api.http.HttpClient;
 import com.cobaltplatform.api.http.HttpMethod;
@@ -64,6 +65,8 @@ public class AmazonSnsCallbackResource {
 	@Nonnull
 	private final MessageService messageService;
 	@Nonnull
+	private final ErrorReporter errorReporter;
+	@Nonnull
 	private final AmazonSnsRequestValidator amazonSnsRequestValidator;
 	@Nonnull
 	private final HttpClient httpClient;
@@ -76,13 +79,16 @@ public class AmazonSnsCallbackResource {
 
 	@Inject
 	public AmazonSnsCallbackResource(@Nonnull MessageService messageService,
+																	 @Nonnull ErrorReporter errorReporter,
 																	 @Nonnull AmazonSnsRequestValidator amazonSnsRequestValidator,
 																	 @Nonnull Configuration configuration) {
 		requireNonNull(messageService);
+		requireNonNull(errorReporter);
 		requireNonNull(amazonSnsRequestValidator);
 		requireNonNull(configuration);
 
 		this.messageService = messageService;
+		this.errorReporter = errorReporter;
 		this.amazonSnsRequestValidator = amazonSnsRequestValidator;
 		this.httpClient = new DefaultHttpClient("amazon-sns-callback");
 		this.gson = new Gson();
@@ -116,8 +122,10 @@ public class AmazonSnsCallbackResource {
 
 		AmazonSnsRequestBody amazonSnsRequestBody = new AmazonSnsRequestBody(requestBody);
 
-		if (!getAmazonSnsRequestValidator().validateRequest(amazonSnsRequestBody))
+		if (!getAmazonSnsRequestValidator().validateRequest(amazonSnsRequestBody)) {
+			getErrorReporter().report(format("Unable to validate Amazon SNS webhook with request body: %s", requestBody));
 			throw new AuthorizationException();
+		}
 
 		if (amazonSnsRequestBody.getType() == AmazonSnsMessageType.SUBSCRIPTION_CONFIRMATION) {
 			getLogger().info("This is an Amazon SNS subscription confirmation request - attempting to confirm...");
@@ -132,19 +140,51 @@ public class AmazonSnsCallbackResource {
 		} else if (amazonSnsRequestBody.getType() == AmazonSnsMessageType.UNSUBSCRIBE_CONFIRMATION) {
 			// TODO: handle unsubscribe, if needed
 		} else if (amazonSnsRequestBody.getType() == AmazonSnsMessageType.NOTIFICATION) {
-			String vendorAssignedId = amazonSnsRequestBody.getMessageId();
+			String vendorAssignedId = (String) amazonSnsRequestBody.getMailAsMap().get("messageId");
 			MessageVendorId messageVendorId = MessageVendorId.AMAZON_SES;
 
-			// Useful for testing via AWS console manually-created messages
-			// getMessageService().createTestMessageLog(MessageTypeId.EMAIL, messageVendorId, vendorAssignedId);
-
 			MessageLog messageLog = getMessageService().findMessageLogByVendorAssignedId(vendorAssignedId, messageVendorId).orElse(null);
+
+			// Useful for testing via AWS console manually-created messages
+//			if (messageLog == null) {
+//				getMessageService().createTestMessageLog(MessageTypeId.EMAIL, messageVendorId, vendorAssignedId);
+//				messageLog = getMessageService().findMessageLogByVendorAssignedId(vendorAssignedId, messageVendorId).orElse(null);
+//			}
 
 			if (messageLog == null) {
 				getLogger().info("We have no record of {} message with vendor-assigned ID {}, ignoring webhook...", messageVendorId.name(), vendorAssignedId);
 			} else {
-				// TODO: based on notification, update message status
+				// Based on notification, update message status
 				getMessageService().createMessageLogEvent(messageLog.getMessageId(), requestHeaders, requestBody);
+
+				String eventType = (String) amazonSnsRequestBody.getMessageAsMap().get("eventType");
+
+				if ("Bounce".equals(eventType)) {
+					getLogger().info("Detected a bounce.");
+
+					Map<String, Object> bounce = amazonSnsRequestBody.getBounceAsMap().get();
+					String bounceType = (String) bounce.get("bounceType");
+
+					if ("Undetermined".equals(bounceType) || "Permanent".equals(bounceType)) {
+						getLogger().info("This bounce is of type {} and indicates delivery failure", bounceType);
+
+						String bounceSubType = (String) bounce.get("bounceSubType");
+						String deliveryFailedReason = format("Bounced (%s/%s)",
+								bounceType, (bounceSubType == null ? "Unspecified" : bounceSubType));
+
+						getMessageService().recordMessageDeliveryFailed(messageLog.getMessageId(), deliveryFailedReason);
+					} else {
+						getLogger().info("This bounce is of type {} and does not indicate delivery failure", bounceType);
+					}
+				} else if ("Delivery".equals(eventType)) {
+					getLogger().info("Detected successful delivery");
+					getMessageService().recordMessageDelivery(messageLog.getMessageId());
+				} else if ("Complaint".equals(eventType)) {
+					getLogger().info("Detected complaint");
+					getMessageService().recordMessageComplaint(messageLog.getMessageId());
+				} else {
+					getLogger().info("Not sure what to do with event type '{}', ignoring...", eventType);
+				}
 			}
 		} else {
 			throw new IllegalStateException(format("Not sure how to handle SNS request: %s", requestBody));
@@ -154,6 +194,11 @@ public class AmazonSnsCallbackResource {
 	@Nonnull
 	protected MessageService getMessageService() {
 		return this.messageService;
+	}
+
+	@Nonnull
+	protected ErrorReporter getErrorReporter() {
+		return this.errorReporter;
 	}
 
 	@Nonnull

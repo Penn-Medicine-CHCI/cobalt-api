@@ -17,52 +17,19 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.api.request;
+package com.cobaltplatform.api.integration.twilio;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.annotation.concurrent.NotThreadSafe;
-import java.util.List;
+import java.util.Optional;
 
 /**
  * @author Transmogrify, LLC.
  */
-@NotThreadSafe
-public class SendSmsMessagesRequest {
-	@Nullable
-	private List<SendSmsMessageRequest> smsMessages;
+public interface TwilioErrorResolver {
+	@Nonnull
+	Optional<TwilioError> resolveTwilioErrorForErrorCode(@Nullable Integer errorCode);
 
-	@NotThreadSafe
-	public static class SendSmsMessageRequest {
-		@Nullable
-		private String toNumber;
-		@Nullable
-		private String body;
-
-		@Nullable
-		public String getToNumber() {
-			return toNumber;
-		}
-
-		public void setToNumber(@Nullable String toNumber) {
-			this.toNumber = toNumber;
-		}
-
-		@Nullable
-		public String getBody() {
-			return body;
-		}
-
-		public void setBody(@Nullable String body) {
-			this.body = body;
-		}
-	}
-
-	@Nullable
-	public List<SendSmsMessageRequest> getSmsMessages() {
-		return smsMessages;
-	}
-
-	public void setSmsMessages(@Nullable List<SendSmsMessageRequest> smsMessages) {
-		this.smsMessages = smsMessages;
-	}
+	@Nonnull
+	Optional<TwilioError> resolveTwilioErrorForErrorCode(@Nullable String errorCode);
 }

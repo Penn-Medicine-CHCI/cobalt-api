@@ -48,6 +48,12 @@ public class AmazonSnsRequestBody {
 
 	@Nonnull
 	private final Map<String, String> requestBodyAsMap;
+	@Nonnull
+	private final Map<String, Object> messageAsMap;
+	@Nonnull
+	private final Map<String, Object> mailAsMap;
+	@Nullable
+	private final Map<String, Object> bounceAsMap;
 
 	@Nonnull
 	private final String messageId;
@@ -85,7 +91,24 @@ public class AmazonSnsRequestBody {
 		this.token = requestBodyAsMap.get("Token");
 		this.topicArn = requestBodyAsMap.get("TopicArn");
 		this.subject = requestBodyAsMap.get("Subject");
+		// This is a JSON string...
 		this.message = requestBodyAsMap.get("Message");
+
+		// ...so provide it as a map for simplified access.
+		Map<String, Object> messageAsMap = getGson().fromJson(this.message, Map.class);
+		this.messageAsMap = Collections.unmodifiableMap(messageAsMap);
+
+		// There will always be a "mail" object.
+		Map<String, Object> mailAsMap = (Map<String, Object>) messageAsMap.get("mail");
+		this.mailAsMap = Collections.unmodifiableMap(mailAsMap);
+
+		if ("Bounce".equals(messageAsMap.get("eventType"))) {
+			Map<String, Object> bounceAsMap = (Map<String, Object>) messageAsMap.get("bounce");
+			this.bounceAsMap = Collections.unmodifiableMap(bounceAsMap);
+		} else {
+			this.bounceAsMap = null;
+		}
+
 		// e.g. 2023-05-12T18:08:47.059Z
 		this.timestamp = Instant.parse(requestBodyAsMap.get("Timestamp"));
 		this.signatureVersion = requestBodyAsMap.get("SignatureVersion");
@@ -149,6 +172,21 @@ public class AmazonSnsRequestBody {
 	@Nonnull
 	public String getMessage() {
 		return this.message;
+	}
+
+	@Nonnull
+	public Map<String, Object> getMessageAsMap() {
+		return this.messageAsMap;
+	}
+
+	@Nonnull
+	public Map<String, Object> getMailAsMap() {
+		return this.mailAsMap;
+	}
+
+	@Nonnull
+	public Optional<Map<String, Object>> getBounceAsMap() {
+		return Optional.ofNullable(this.bounceAsMap);
 	}
 
 	@Nonnull

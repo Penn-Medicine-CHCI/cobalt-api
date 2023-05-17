@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
 import com.cobaltplatform.api.model.db.ScheduledMessageSource.ScheduledMessageSourceId;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
@@ -41,6 +42,8 @@ public class ScheduledMessage {
 	private ScheduledMessageStatusId scheduledMessageStatusId;
 	@Nullable
 	private ScheduledMessageSourceId scheduledMessageSourceId;
+	@Nullable
+	private InstitutionId institutionId;
 	@Nullable
 	private UUID messageId;
 	@Nullable
@@ -73,6 +76,15 @@ public class ScheduledMessage {
 
 	public void setScheduledMessageId(@Nullable UUID scheduledMessageId) {
 		this.scheduledMessageId = scheduledMessageId;
+	}
+
+	@Nullable
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
+	}
+
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
 	}
 
 	@Nullable
