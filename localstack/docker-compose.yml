@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   localstack-cobalt:
-    image: localstack/localstack:0.12.18
+    image: localstack/localstack:2.0.2
     ports:
       - "4801:4801"
       - "${PORT_WEB_UI-9090}:${PORT_WEB_UI-9090}"
