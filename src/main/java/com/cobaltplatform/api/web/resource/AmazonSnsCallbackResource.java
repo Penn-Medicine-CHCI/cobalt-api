@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.http.DefaultHttpClient;
 import com.cobaltplatform.api.http.HttpClient;
 import com.cobaltplatform.api.http.HttpMethod;
@@ -64,6 +65,8 @@ public class AmazonSnsCallbackResource {
 	@Nonnull
 	private final MessageService messageService;
 	@Nonnull
+	private final ErrorReporter errorReporter;
+	@Nonnull
 	private final AmazonSnsRequestValidator amazonSnsRequestValidator;
 	@Nonnull
 	private final HttpClient httpClient;
@@ -76,13 +79,16 @@ public class AmazonSnsCallbackResource {
 
 	@Inject
 	public AmazonSnsCallbackResource(@Nonnull MessageService messageService,
+																	 @Nonnull ErrorReporter errorReporter,
 																	 @Nonnull AmazonSnsRequestValidator amazonSnsRequestValidator,
 																	 @Nonnull Configuration configuration) {
 		requireNonNull(messageService);
+		requireNonNull(errorReporter);
 		requireNonNull(amazonSnsRequestValidator);
 		requireNonNull(configuration);
 
 		this.messageService = messageService;
+		this.errorReporter = errorReporter;
 		this.amazonSnsRequestValidator = amazonSnsRequestValidator;
 		this.httpClient = new DefaultHttpClient("amazon-sns-callback");
 		this.gson = new Gson();
@@ -116,8 +122,10 @@ public class AmazonSnsCallbackResource {
 
 		AmazonSnsRequestBody amazonSnsRequestBody = new AmazonSnsRequestBody(requestBody);
 
-		if (!getAmazonSnsRequestValidator().validateRequest(amazonSnsRequestBody))
+		if (!getAmazonSnsRequestValidator().validateRequest(amazonSnsRequestBody)) {
+			getErrorReporter().report(format("Unable to validate Amazon SNS webhook with request body: %s", requestBody));
 			throw new AuthorizationException();
+		}
 
 		if (amazonSnsRequestBody.getType() == AmazonSnsMessageType.SUBSCRIPTION_CONFIRMATION) {
 			getLogger().info("This is an Amazon SNS subscription confirmation request - attempting to confirm...");
@@ -186,6 +194,11 @@ public class AmazonSnsCallbackResource {
 	@Nonnull
 	protected MessageService getMessageService() {
 		return this.messageService;
+	}
+
+	@Nonnull
+	protected ErrorReporter getErrorReporter() {
+		return this.errorReporter;
 	}
 
 	@Nonnull

@@ -40,7 +40,9 @@ import com.cobaltplatform.api.integration.bluejeans.BluejeansApi;
 import com.cobaltplatform.api.integration.bluejeans.BluejeansClient;
 import com.cobaltplatform.api.integration.bluejeans.DefaultBluejeansClient;
 import com.cobaltplatform.api.integration.bluejeans.MockBluejeansClient;
+import com.cobaltplatform.api.integration.twilio.DefaultTwilioErrorResolver;
 import com.cobaltplatform.api.integration.twilio.MockTwilioRequestValidator;
+import com.cobaltplatform.api.integration.twilio.TwilioErrorResolver;
 import com.cobaltplatform.api.integration.twilio.TwilioRequestValidator;
 import com.cobaltplatform.api.integration.way2health.DefaultWay2HealthClient;
 import com.cobaltplatform.api.integration.way2health.MockWay2HealthClient;
@@ -595,6 +597,13 @@ public class AppModule extends AbstractModule {
 		// Currently disabled during testing because Twilio subaccounts cannot validate webhooks w/o Primary account AuthToken
 		// return new DefaultTwilioRequestValidator(configuration);
 		return new MockTwilioRequestValidator();
+	}
+
+	@Provides
+	@Singleton
+	@Nonnull
+	public TwilioErrorResolver provideTwilioErrorResolver() {
+		return new DefaultTwilioErrorResolver();
 	}
 
 	@Provides
