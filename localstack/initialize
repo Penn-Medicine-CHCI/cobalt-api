@@ -10,7 +10,7 @@ function fail() {
 
 echo "Creating S3 bucket..."
 
-aws --endpoint-url=http://localstack-cobalt:4801 s3api create-bucket --bucket ${BUCKET} --region ${REGION}
+aws --endpoint-url=http://localstack-cobalt:4801 s3api create-bucket --bucket ${BUCKET} --region ${REGION} --create-bucket-configuration LocationConstraint=${REGION}
 aws --endpoint-url=http://localstack-cobalt:4801 s3api put-bucket-acl --bucket ${BUCKET} --region ${REGION} --acl public-read
 aws --endpoint-url=http://localstack-cobalt:4801 s3api put-bucket-cors --bucket ${BUCKET} --region ${REGION} --cors-configuration file://s3-bucket-cors.json
 
