@@ -57,7 +57,7 @@ import static java.util.Objects.requireNonNull;
  */
 public class DefaultAmazonSnsRequestValidator implements AmazonSnsRequestValidator {
 	@Nonnull
-	private final Set<String> trustedSigningCertUrlPrefixes;
+	private final Set<String> trustedSigningCertUriPrefixes;
 	@Nonnull
 	private final Map<AmazonSnsMessageType, Set<String>> signingFieldNamesByAmazonSnsMessageType;
 	@Nonnull
@@ -76,7 +76,7 @@ public class DefaultAmazonSnsRequestValidator implements AmazonSnsRequestValidat
 		this.httpClient = new DefaultHttpClient("amazon-sns-request-validator");
 		this.logger = LoggerFactory.getLogger(getClass());
 
-		this.trustedSigningCertUrlPrefixes = Set.of(
+		this.trustedSigningCertUriPrefixes = Set.of(
 				"https://sns.ap-south-1.amazonaws.com/",
 				"https://sns.eu-south-1.amazonaws.com/",
 				"https://sns.us-gov-east-1.amazonaws.com/",
@@ -174,19 +174,19 @@ public class DefaultAmazonSnsRequestValidator implements AmazonSnsRequestValidat
 
 		// Prevent spoofing.
 		// Certificate URLs should look like https://sns.us-east-1.amazonaws.com/SimpleNotificationService-xxx.pem
-		String normalizedSigningCertUrl = uri.toString().toLowerCase(Locale.US);
-		boolean signingCertUrlTrusted = false;
+		String normalizedSigningCertUri = uri.toString().toLowerCase(Locale.US);
+		boolean signingCertUriTrusted = false;
 
-		for (String trustedSigningCertUrlPrefix : getTrustedSigningCertUrlPrefixes()) {
-			if (normalizedSigningCertUrl.startsWith(trustedSigningCertUrlPrefix)) {
-				signingCertUrlTrusted = true;
+		for (String trustedSigningCertUriPrefix : getTrustedSigningCertUriPrefixes()) {
+			if (normalizedSigningCertUri.startsWith(trustedSigningCertUriPrefix)) {
+				signingCertUriTrusted = true;
 				break;
 			}
 		}
 
-		if (!signingCertUrlTrusted)
-			throw new IllegalStateException(format("Signing certificate URL is %s, which does not start with any known trusted prefixes: %s",
-					normalizedSigningCertUrl, getTrustedSigningCertUrlPrefixes()));
+		if (!signingCertUriTrusted)
+			throw new IllegalStateException(format("Signing certificate URI is %s, which does not start with any known trusted prefixes: %s",
+					normalizedSigningCertUri, getTrustedSigningCertUriPrefixes()));
 
 		// The SigningCertURL value points to the location of the X509 certificate used to create the
 		// digital signature for the message. Retrieve the certificate from this location.
@@ -231,8 +231,8 @@ public class DefaultAmazonSnsRequestValidator implements AmazonSnsRequestValidat
 	}
 
 	@Nonnull
-	protected Set<String> getTrustedSigningCertUrlPrefixes() {
-		return this.trustedSigningCertUrlPrefixes;
+	protected Set<String> getTrustedSigningCertUriPrefixes() {
+		return this.trustedSigningCertUriPrefixes;
 	}
 
 	@Nonnull
