@@ -544,6 +544,39 @@ public class MessageService implements AutoCloseable {
 	}
 
 	@Nonnull
+	public Boolean recordMessageDelivery(@Nonnull UUID messageId) {
+		requireNonNull(messageId);
+
+		return getDatabase().execute("""
+				UPDATE message_log
+				SET message_status_id=?, delivered=NOW()
+				WHERE message_id=?
+				""", MessageStatusId.DELIVERED, messageId) > 0;
+	}
+
+	@Nonnull
+	public Boolean recordMessageComplaint(@Nonnull UUID messageId) {
+		requireNonNull(messageId);
+
+		return getDatabase().execute("""
+				UPDATE message_log
+				SET complaint_registered=NOW()
+				WHERE message_id=?
+				""", messageId) > 0;
+	}
+
+	public void recordMessageDeliveryFailed(@Nonnull UUID messageId,
+																					@Nullable String deliveryFailedReason) {
+		requireNonNull(messageId);
+
+		getDatabase().execute("""
+				UPDATE message_log
+				SET message_status_id=?, delivery_failed_reason=?, delivery_failed=NOW()
+				WHERE message_id=?
+				""", MessageStatusId.DELIVERY_FAILED, deliveryFailedReason, messageId);
+	}
+
+	@Nonnull
 	public Boolean isStarted() {
 		synchronized (getLock()) {
 			return started;
@@ -671,13 +704,17 @@ public class MessageService implements AutoCloseable {
 
 			getCurrentContextExecutor().execute(currentContext, () -> {
 				getDatabase().transaction(() -> {
+					int batchSize = 10;
+
 					// Anything scheduled for before this instant and in PENDING status can be sent
 					List<MessageLog> sendableMessages = getDatabase().queryForList("""
 							SELECT *
 							FROM message_log
 							WHERE message_status_id=?
+							LIMIT ?
 							FOR UPDATE
-							""", MessageLog.class, MessageStatusId.ENQUEUED);
+							SKIP LOCKED
+							""", MessageLog.class, MessageStatusId.ENQUEUED, batchSize);
 
 					if (sendableMessages.size() == 0) {
 						getLogger().trace("No messages need to be sent.");

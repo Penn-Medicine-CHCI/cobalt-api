@@ -60,6 +60,10 @@ public class MessageLog {
 	private Instant delivered;
 	@Nullable
 	private Instant deliveryFailed;
+	@Nullable
+	private String deliveryFailedReason;
+	@Nullable
+	private Instant complaintRegistered;
 
 	@Nullable
 	public UUID getMessageId() {
@@ -176,5 +180,23 @@ public class MessageLog {
 
 	public void setDeliveryFailed(@Nullable Instant deliveryFailed) {
 		this.deliveryFailed = deliveryFailed;
+	}
+
+	@Nullable
+	public String getDeliveryFailedReason() {
+		return this.deliveryFailedReason;
+	}
+
+	public void setDeliveryFailedReason(@Nullable String deliveryFailedReason) {
+		this.deliveryFailedReason = deliveryFailedReason;
+	}
+
+	@Nullable
+	public Instant getComplaintRegistered() {
+		return this.complaintRegistered;
+	}
+
+	public void setComplaintRegistered(@Nullable Instant complaintRegistered) {
+		this.complaintRegistered = complaintRegistered;
 	}
 }

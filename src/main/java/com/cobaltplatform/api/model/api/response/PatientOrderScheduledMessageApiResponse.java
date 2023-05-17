@@ -85,6 +85,12 @@ public class PatientOrderScheduledMessageApiResponse {
 	private final Instant deliveryFailedAt;
 	@Nullable
 	private final String deliveryFailedAtDescription;
+	@Nullable
+	private final String deliveryFailedReason;
+	@Nullable
+	private final Instant complaintRegisteredAt;
+	@Nullable
+	private final String complaintRegisteredAtDescription;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -122,6 +128,9 @@ public class PatientOrderScheduledMessageApiResponse {
 		this.deliveredAtDescription = patientOrderScheduledMessage.getDeliveredAt() == null ? null : formatter.formatTimestamp(patientOrderScheduledMessage.getDeliveredAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 		this.deliveryFailedAt = patientOrderScheduledMessage.getDeliveryFailedAt();
 		this.deliveryFailedAtDescription = patientOrderScheduledMessage.getDeliveryFailedAt() == null ? null : formatter.formatTimestamp(patientOrderScheduledMessage.getDeliveryFailedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.deliveryFailedReason = patientOrderScheduledMessage.getDeliveryFailedReason();
+		this.complaintRegisteredAt = patientOrderScheduledMessage.getComplaintRegisteredAt();
+		this.complaintRegisteredAtDescription = patientOrderScheduledMessage.getComplaintRegisteredAt() == null ? null : formatter.formatTimestamp(patientOrderScheduledMessage.getComplaintRegisteredAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 	}
 
 	@Nonnull
@@ -227,5 +236,20 @@ public class PatientOrderScheduledMessageApiResponse {
 	@Nullable
 	public String getDeliveryFailedAtDescription() {
 		return this.deliveryFailedAtDescription;
+	}
+
+	@Nullable
+	public String getDeliveryFailedReason() {
+		return this.deliveryFailedReason;
+	}
+
+	@Nullable
+	public Instant getComplaintRegisteredAt() {
+		return this.complaintRegisteredAt;
+	}
+
+	@Nullable
+	public String getComplaintRegisteredAtDescription() {
+		return this.complaintRegisteredAtDescription;
 	}
 }

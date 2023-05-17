@@ -91,6 +91,10 @@ public class PatientOrderScheduledMessage {
 	private Instant deliveredAt;
 	@Nullable
 	private Instant deliveryFailedAt;
+	@Nullable
+	private String deliveryFailedReason;
+	@Nullable
+	private Instant complaintRegisteredAt;
 
 	@Nullable
 	public UUID getPatientOrderScheduledMessageId() {
@@ -315,5 +319,23 @@ public class PatientOrderScheduledMessage {
 
 	public void setDeliveryFailedAt(@Nullable Instant deliveryFailedAt) {
 		this.deliveryFailedAt = deliveryFailedAt;
+	}
+
+	@Nullable
+	public String getDeliveryFailedReason() {
+		return this.deliveryFailedReason;
+	}
+
+	public void setDeliveryFailedReason(@Nullable String deliveryFailedReason) {
+		this.deliveryFailedReason = deliveryFailedReason;
+	}
+
+	@Nullable
+	public Instant getComplaintRegisteredAt() {
+		return this.complaintRegisteredAt;
+	}
+
+	public void setComplaintRegisteredAt(@Nullable Instant complaintRegisteredAt) {
+		this.complaintRegisteredAt = complaintRegisteredAt;
 	}
 }

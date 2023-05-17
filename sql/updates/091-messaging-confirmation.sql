@@ -4,6 +4,9 @@ SELECT _v.register_patch('091-messaging-confirmation', NULL, NULL);
 -- Old "stuck" messages get transitioned to error status
 UPDATE message_log SET message_status_id='ERROR', stack_trace='marked stale enqueued messages as errors', processed = NOW() WHERE message_status_id='ENQUEUED';
 
+ALTER TABLE message_log ADD COLUMN delivery_failed_reason VARCHAR;
+ALTER TABLE message_log ADD COLUMN complaint_registered TIMESTAMPTZ;
+
 -- Explicitly track institution ID for easier reporting
 ALTER TABLE message_log ADD COLUMN institution_id VARCHAR REFERENCES institution NOT NULL DEFAULT 'COBALT';
 ALTER TABLE scheduled_message ADD COLUMN institution_id VARCHAR REFERENCES institution NOT NULL DEFAULT 'COBALT';
@@ -16,6 +19,8 @@ ALTER TABLE scheduled_message ADD COLUMN institution_id VARCHAR REFERENCES insti
 -- sent_at
 -- delivered_at
 -- delivery_failed_at
+-- delivery_failed_reason
+-- complaint_registered_at
 DROP VIEW v_patient_order_scheduled_message;
 CREATE VIEW v_patient_order_scheduled_message AS
 SELECT
@@ -43,7 +48,9 @@ SELECT
   COALESCE (ms.description, 'Enqueued') as message_status_description,
   ml.processed AS sent_at,
   ml.delivered AS delivered_at,
-  ml.delivery_failed AS delivery_failed_at
+  ml.delivery_failed AS delivery_failed_at,
+  ml.delivery_failed_reason,
+  ml.complaint_registered AS complaint_registered_at
 FROM
   patient_order_scheduled_message posm,
   patient_order_scheduled_message_type posmt,
