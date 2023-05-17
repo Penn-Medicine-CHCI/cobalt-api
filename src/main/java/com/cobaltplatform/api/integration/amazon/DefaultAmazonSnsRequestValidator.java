@@ -37,6 +37,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.Signature;
 import java.security.cert.X509Certificate;
 import java.util.Base64;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -82,6 +83,15 @@ public class DefaultAmazonSnsRequestValidator implements AmazonSnsRequestValidat
 		// See https://docs.aws.amazon.com/sns/latest/dg/SendMessageToHttp.prepare.html
 		// and https://docs.aws.amazon.com/sns/latest/dg/sns-verify-signature-of-message.html
 
+		// Prevent spoofing.
+		// Certificate URLs should look like https://sns.us-east-1.amazonaws.com/SimpleNotificationService-xxx.pem
+		String trustedSigningCertUrlPrefix = format("https://sns.%s.amazonaws.com/", getConfiguration().getAmazonSesRegion().id());
+		String normalizedSigningCertUrl = amazonSnsRequestBody.getSigningCertUrl().toString().toLowerCase(Locale.US);
+
+		if (!normalizedSigningCertUrl.startsWith(trustedSigningCertUrlPrefix))
+			throw new IllegalStateException(format("Signing certificate URL is %s, which does not start with expected prefix %s",
+					normalizedSigningCertUrl, trustedSigningCertUrlPrefix));
+
 		// Pick out the signing fields for the request type and sort them
 		SortedMap<String, String> signingFieldValuesByFieldName = new TreeMap<>();
 		Set<String> signingFieldNames = getSigningFieldNamesByAmazonSnsMessageType().get(amazonSnsRequestBody.getType());
@@ -123,10 +133,6 @@ public class DefaultAmazonSnsRequestValidator implements AmazonSnsRequestValidat
 		// The public key from the certificate specified by SigningCertURL is used to verify the
 		// authenticity and integrity of the message.
 		X509Certificate signingCert = CryptoUtility.toX509Certificate(signingCertAsString);
-
-		getLogger().info("Amazon SNS signing certificate has issuer '{}'", signingCert.getIssuerX500Principal());
-
-		// TODO: we need a reliable way to confirm that the certificate is actually owned by Amazon and is not some rando
 
 		// Perform verification of the AWS-provided signature using the public key and
 		// the signable string we created from elements of the request body

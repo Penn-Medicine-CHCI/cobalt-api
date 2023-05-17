@@ -47,6 +47,7 @@
 	<logger name="jdk.event.security" level="WARN"/>
 	<logger name="com.onelogin.saml2" level="WARN"/>
 	<logger name="net.fortuna.ical4j" level="WARN"/>
+	<logger name="amazon-sns-request-validator" level="WARN"/>
 
 	<root level="DEBUG">
 		<appender-ref ref="standard" />
