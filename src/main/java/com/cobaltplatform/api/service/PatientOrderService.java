@@ -49,7 +49,6 @@ import com.cobaltplatform.api.model.api.request.DeletePatientOrderOutreachReques
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
-import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest.PatientOrderFilterFlagTypeId;
 import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderConsentStatusRequest;
@@ -115,6 +114,7 @@ import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.IcTestPatientEmailAddress;
 import com.cobaltplatform.api.model.service.PatientOrderAssignmentStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderAutocompleteResult;
+import com.cobaltplatform.api.model.service.PatientOrderFilterFlagTypeId;
 import com.cobaltplatform.api.model.service.PatientOrderImportResult;
 import com.cobaltplatform.api.model.service.PatientOrderOutreachStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderResponseStatusId;
@@ -973,6 +973,7 @@ public class PatientOrderService implements AutoCloseable {
 		PatientOrderResponseStatusId patientOrderResponseStatusId = request.getPatientOrderResponseStatusId();
 		PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId = request.getPatientOrderSafetyPlanningStatusId();
 		Set<PatientOrderFilterFlagTypeId> patientOrderFilterFlagTypeIds = request.getPatientOrderFilterFlagTypeIds() == null ? Set.of() : request.getPatientOrderFilterFlagTypeIds();
+		Set<String> referringPracticeNames = request.getReferringPracticeNames() == null ? Set.of() : request.getReferringPracticeNames();
 		UUID panelAccountId = request.getPanelAccountId();
 		String patientMrn = trimToNull(request.getPatientMrn());
 		String searchQuery = trimToNull(request.getSearchQuery());
@@ -1062,6 +1063,11 @@ public class PatientOrderService implements AutoCloseable {
 			}
 
 			whereClauseLines.add(format("AND (%s)", filterFlagWhereClauseLines.stream().collect(Collectors.joining(" OR "))));
+		}
+
+		if (referringPracticeNames.size() > 0) {
+			whereClauseLines.add(format("AND po.referring_practice_name IN %s", sqlInListPlaceholders(referringPracticeNames)));
+			parameters.addAll(referringPracticeNames);
 		}
 
 		if (panelAccountId != null) {
