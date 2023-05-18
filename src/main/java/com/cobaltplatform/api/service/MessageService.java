@@ -706,7 +706,7 @@ public class MessageService implements AutoCloseable {
 				getDatabase().transaction(() -> {
 					int batchSize = 10;
 
-					// Anything scheduled for before this instant and in PENDING status can be sent
+					// Anything in ENQUEUED status can be sent
 					List<MessageLog> sendableMessages = getDatabase().queryForList("""
 							SELECT *
 							FROM message_log
@@ -721,7 +721,7 @@ public class MessageService implements AutoCloseable {
 						return;
 					}
 
-					getLogger().info("Detected {} message[s] that are ready to send, going to send them now...", sendableMessages.size());
+					getLogger().info("Sending a batch of {} message[s]...", sendableMessages.size());
 					int i = 0;
 
 					for (MessageLog sendableMessage : sendableMessages) {
