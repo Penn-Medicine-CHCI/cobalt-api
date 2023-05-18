@@ -49,6 +49,7 @@ import com.cobaltplatform.api.model.api.request.DeletePatientOrderOutreachReques
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
+import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest.PatientOrderFilterFlagTypeId;
 import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderConsentStatusRequest;
@@ -971,6 +972,7 @@ public class PatientOrderService implements AutoCloseable {
 		PatientOrderOutreachStatusId patientOrderOutreachStatusId = request.getPatientOrderOutreachStatusId();
 		PatientOrderResponseStatusId patientOrderResponseStatusId = request.getPatientOrderResponseStatusId();
 		PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId = request.getPatientOrderSafetyPlanningStatusId();
+		Set<PatientOrderFilterFlagTypeId> patientOrderFilterFlagTypeIds = request.getPatientOrderFilterFlagTypeIds() == null ? Set.of() : request.getPatientOrderFilterFlagTypeIds();
 		UUID panelAccountId = request.getPanelAccountId();
 		String patientMrn = trimToNull(request.getPatientMrn());
 		String searchQuery = trimToNull(request.getSearchQuery());
@@ -1037,6 +1039,29 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientOrderSafetyPlanningStatusId != null) {
 			whereClauseLines.add("AND po.patient_order_safety_planning_status_id=?");
 			parameters.add(patientOrderSafetyPlanningStatusId);
+		}
+
+		if (patientOrderFilterFlagTypeIds.size() > 0) {
+			List<String> filterFlagWhereClauseLines = new ArrayList<>();
+
+			// Note: we are ignoring the NONE flag for now since no UI supports it atm
+			if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.INSURANCE_NOT_ACCEPTED)) {
+				filterFlagWhereClauseLines.add("po.patient_order_insurance_plan_accepted=FALSE");
+			}
+
+			if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.ADDRESS_REGION_NOT_ACCEPTED)) {
+				filterFlagWhereClauseLines.add("po.patient_address_region_accepted=FALSE");
+			}
+
+			if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.MOST_RECENT_EPISODE_CLOSED_WITHIN_DATE_THRESHOLD)) {
+				filterFlagWhereClauseLines.add("po.most_recent_episode_closed_within_date_threshold=TRUE");
+			}
+
+			if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.PATIENT_BELOW_AGE_THRESHOLD)) {
+				filterFlagWhereClauseLines.add("po.patient_below_age_threshold=TRUE");
+			}
+
+			whereClauseLines.add(format("AND (%s)", filterFlagWhereClauseLines.stream().collect(Collectors.joining(" OR "))));
 		}
 
 		if (panelAccountId != null) {

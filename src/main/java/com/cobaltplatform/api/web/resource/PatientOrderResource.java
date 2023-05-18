@@ -36,6 +36,7 @@ import com.cobaltplatform.api.model.api.request.DeletePatientOrderOutreachReques
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
+import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest.PatientOrderFilterFlagTypeId;
 import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderConsentStatusRequest;
@@ -619,6 +620,7 @@ public class PatientOrderResource {
 																			 @Nonnull @QueryParameter Optional<PatientOrderOutreachStatusId> patientOrderOutreachStatusId,
 																			 @Nonnull @QueryParameter Optional<PatientOrderResponseStatusId> patientOrderResponseStatusId,
 																			 @Nonnull @QueryParameter Optional<PatientOrderSafetyPlanningStatusId> patientOrderSafetyPlanningStatusId,
+																			 @Nonnull @QueryParameter("patientOrderFilterFlagTypeId") Optional<List<PatientOrderFilterFlagTypeId>> patientOrderFilterFlagTypeIds,
 																			 @Nonnull @QueryParameter Optional<UUID> panelAccountId,
 																			 @Nonnull @QueryParameter Optional<String> patientMrn,
 																			 @Nonnull @QueryParameter Optional<String> searchQuery,
@@ -627,6 +629,11 @@ public class PatientOrderResource {
 		requireNonNull(patientOrderDispositionId);
 		requireNonNull(patientOrderConsentStatusId);
 		requireNonNull(patientOrderTriageStatusIds);
+		requireNonNull(patientOrderAssignmentStatusId);
+		requireNonNull(patientOrderOutreachStatusId);
+		requireNonNull(patientOrderResponseStatusId);
+		requireNonNull(patientOrderSafetyPlanningStatusId);
+		requireNonNull(patientOrderFilterFlagTypeIds);
 		requireNonNull(panelAccountId);
 		requireNonNull(patientMrn);
 		requireNonNull(searchQuery);
@@ -658,6 +665,7 @@ public class PatientOrderResource {
 				setPatientOrderOutreachStatusId(patientOrderOutreachStatusId.orElse(null));
 				setPatientOrderResponseStatusId(patientOrderResponseStatusId.orElse(null));
 				setPatientOrderSafetyPlanningStatusId(patientOrderSafetyPlanningStatusId.orElse(null));
+				setPatientOrderFilterFlagTypeIds(new HashSet<>(patientOrderFilterFlagTypeIds.orElse(List.of())));
 				setPanelAccountId(panelAccountId.orElse(null));
 				setPatientMrn(patientMrn.orElse(null));
 				setSearchQuery(searchQuery.orElse(null));
