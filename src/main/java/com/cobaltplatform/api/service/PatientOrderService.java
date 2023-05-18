@@ -49,6 +49,8 @@ import com.cobaltplatform.api.model.api.request.DeletePatientOrderOutreachReques
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
+import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest.PatientOrderSortColumnId;
+import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest.PatientOrderSortRule;
 import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderConsentStatusRequest;
@@ -118,6 +120,8 @@ import com.cobaltplatform.api.model.service.PatientOrderFilterFlagTypeId;
 import com.cobaltplatform.api.model.service.PatientOrderImportResult;
 import com.cobaltplatform.api.model.service.PatientOrderOutreachStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderResponseStatusId;
+import com.cobaltplatform.api.model.service.SortDirectionId;
+import com.cobaltplatform.api.model.service.SortNullsId;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.Normalizer;
@@ -979,6 +983,7 @@ public class PatientOrderService implements AutoCloseable {
 		String searchQuery = trimToNull(request.getSearchQuery());
 		Integer pageNumber = request.getPageNumber();
 		Integer pageSize = request.getPageSize();
+		List<PatientOrderSortRule> patientOrderSortRules = request.getPatientOrderSortRules() == null ? List.of() : request.getPatientOrderSortRules();
 
 		final int DEFAULT_PAGE_SIZE = 50;
 		final int MAXIMUM_PAGE_SIZE = 100;
@@ -996,6 +1001,34 @@ public class PatientOrderService implements AutoCloseable {
 		List<String> whereClauseLines = new ArrayList<>();
 		List<String> orderByColumns = new ArrayList<>();
 		List<Object> parameters = new ArrayList<>();
+
+		// Only include complete/valid sort order rules.
+		patientOrderSortRules = patientOrderSortRules.stream()
+				.filter(patientOrderSortRule -> patientOrderSortRule.getPatientOrderSortColumnId() != null
+						&& patientOrderSortRule.getSortDirectionId() != null
+						&& patientOrderSortRule.getSortNullsId() != null)
+				.collect(Collectors.toList());
+
+		// If no rules available, pick a safe default
+		if (patientOrderSortRules.size() == 0)
+			patientOrderSortRules = List.of(
+					new PatientOrderSortRule() {{
+						setPatientOrderSortColumnId(PatientOrderSortColumnId.ORDER_DATE);
+						setSortDirectionId(SortDirectionId.DESCENDING);
+						setSortNullsId(SortNullsId.NULLS_LAST);
+					}},
+					new PatientOrderSortRule() {{
+						setPatientOrderSortColumnId(PatientOrderSortColumnId.PATIENT_FIRST_NAME);
+						setSortDirectionId(SortDirectionId.ASCENDING);
+						setSortNullsId(SortNullsId.NULLS_LAST);
+					}},
+					new PatientOrderSortRule() {{
+						setPatientOrderSortColumnId(PatientOrderSortColumnId.PATIENT_LAST_NAME);
+						setSortDirectionId(SortDirectionId.ASCENDING);
+						setSortNullsId(SortNullsId.NULLS_LAST);
+					}}
+			);
+
 
 		parameters.add(institutionId);
 
@@ -1098,10 +1131,31 @@ public class PatientOrderService implements AutoCloseable {
 			parameters.add(searchQuery);
 		}
 
-		orderByColumns.add("bq.order_date DESC");
-		orderByColumns.add("bq.order_age_in_minutes");
-		orderByColumns.add("bq.patient_first_name");
-		orderByColumns.add("bq.patient_last_name");
+		// Apply ORDER BY rules
+		for (PatientOrderSortRule patientOrderSortRule : patientOrderSortRules) {
+			String sortDirection = patientOrderSortRule.getSortDirectionId() == SortDirectionId.ASCENDING ? "ASC" : "DESC";
+			String nullsFirst = patientOrderSortRule.getSortNullsId() == SortNullsId.NULLS_FIRST ? "NULLS FIRST" : "NULLS LAST";
+			String orderByColumn;
+
+			if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.ORDER_DATE)
+				orderByColumn = "bq.order_date";
+			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.PATIENT_FIRST_NAME)
+				orderByColumn = "bq.patient_first_name";
+			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.PATIENT_LAST_NAME)
+				orderByColumn = "bq.patient_last_name";
+			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.MOST_RECENT_SCREENING_SESSION_COMPLETED_AT)
+				orderByColumn = "bq.most_recent_screening_session_completed_at";
+			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.MOST_RECENT_OUTREACH_DATE_TIME)
+				orderByColumn = "bq.most_recent_outreach_date_time";
+			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.MOST_RECENT_SCHEDULED_SCREENING_SCHEDULED_DATE_TIME)
+				orderByColumn = "bq.most_recent_scheduled_screening_scheduled_date_time";
+			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.EPISODE_CLOSED_AT)
+				orderByColumn = "bq.episode_closed_at";
+			else
+				throw new IllegalStateException(format("Not sure what to do with %s.%s", PatientOrderSortColumnId.class.getSimpleName(), patientOrderSortRule.getPatientOrderSortColumnId().name()));
+
+			orderByColumns.add(format("%s %s %s", orderByColumn, sortDirection, nullsFirst));
+		}
 
 		parameters.add(limit);
 		parameters.add(offset);

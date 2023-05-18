@@ -32,9 +32,12 @@ import com.cobaltplatform.api.model.service.PatientOrderFilterFlagTypeId;
 import com.cobaltplatform.api.model.service.PatientOrderOutreachStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderResponseStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderViewTypeId;
+import com.cobaltplatform.api.model.service.SortDirectionId;
+import com.cobaltplatform.api.model.service.SortNullsId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -73,7 +76,6 @@ public class FindPatientOrdersRequest {
 	private Set<PatientOrderResourcingStatusId> patientOrderResourcingStatusIds;
 	@Nullable
 	private Set<PatientOrderResourceCheckInResponseStatusId> patientOrderResourceCheckInResponseStatusIds;
-
 	@Nullable
 	private UUID panelAccountId;
 	@Nullable
@@ -84,6 +86,55 @@ public class FindPatientOrdersRequest {
 	private Integer pageNumber;
 	@Nullable
 	private Integer pageSize;
+	@Nullable
+	private List<PatientOrderSortRule> patientOrderSortRules;
+
+	public enum PatientOrderSortColumnId {
+		ORDER_DATE,
+		PATIENT_FIRST_NAME,
+		PATIENT_LAST_NAME,
+		MOST_RECENT_SCREENING_SESSION_COMPLETED_AT,
+		MOST_RECENT_OUTREACH_DATE_TIME,
+		MOST_RECENT_SCHEDULED_SCREENING_SCHEDULED_DATE_TIME,
+		EPISODE_CLOSED_AT
+	}
+
+	@NotThreadSafe
+	public static class PatientOrderSortRule {
+		@Nullable
+		private PatientOrderSortColumnId patientOrderSortColumnId;
+		@Nullable
+		private SortDirectionId sortDirectionId;
+		@Nullable
+		private SortNullsId sortNullsId;
+
+		@Nullable
+		public PatientOrderSortColumnId getPatientOrderSortColumnId() {
+			return this.patientOrderSortColumnId;
+		}
+
+		public void setPatientOrderSortColumnId(@Nullable PatientOrderSortColumnId patientOrderSortColumnId) {
+			this.patientOrderSortColumnId = patientOrderSortColumnId;
+		}
+
+		@Nullable
+		public SortDirectionId getSortDirectionId() {
+			return this.sortDirectionId;
+		}
+
+		public void setSortDirectionId(@Nullable SortDirectionId sortDirectionId) {
+			this.sortDirectionId = sortDirectionId;
+		}
+
+		@Nullable
+		public SortNullsId getSortNullsId() {
+			return this.sortNullsId;
+		}
+
+		public void setSortNullsId(@Nullable SortNullsId sortNullsId) {
+			this.sortNullsId = sortNullsId;
+		}
+	}
 
 	@Nullable
 	public InstitutionId getInstitutionId() {
@@ -263,5 +314,14 @@ public class FindPatientOrdersRequest {
 
 	public void setPageSize(@Nullable Integer pageSize) {
 		this.pageSize = pageSize;
+	}
+
+	@Nullable
+	public List<PatientOrderSortRule> getPatientOrderSortRules() {
+		return this.patientOrderSortRules;
+	}
+
+	public void setPatientOrderSortRules(@Nullable List<PatientOrderSortRule> patientOrderSortRules) {
+		this.patientOrderSortRules = patientOrderSortRules;
 	}
 }

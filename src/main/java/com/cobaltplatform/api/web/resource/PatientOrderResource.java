@@ -36,6 +36,8 @@ import com.cobaltplatform.api.model.api.request.DeletePatientOrderOutreachReques
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest;
+import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest.PatientOrderSortColumnId;
+import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest.PatientOrderSortRule;
 import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderConsentStatusRequest;
@@ -104,6 +106,8 @@ import com.cobaltplatform.api.model.service.PatientOrderOutreachStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderResponseStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderViewTypeId;
 import com.cobaltplatform.api.model.service.Region;
+import com.cobaltplatform.api.model.service.SortDirectionId;
+import com.cobaltplatform.api.model.service.SortNullsId;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.InstitutionService;
@@ -628,7 +632,11 @@ public class PatientOrderResource {
 																			 @Nonnull @QueryParameter Optional<String> patientMrn,
 																			 @Nonnull @QueryParameter Optional<String> searchQuery,
 																			 @Nonnull @QueryParameter Optional<Integer> pageNumber,
-																			 @Nonnull @QueryParameter Optional<Integer> pageSize) {
+																			 @Nonnull @QueryParameter Optional<Integer> pageSize,
+																			 // These 3 are used to construct a single sort rule
+																			 @Nonnull @QueryParameter Optional<PatientOrderSortColumnId> patientOrderSortColumnId,
+																			 @Nonnull @QueryParameter Optional<SortDirectionId> sortDirectionId,
+																			 @Nonnull @QueryParameter Optional<SortNullsId> sortNullsId) {
 		requireNonNull(patientOrderViewTypeId);
 		requireNonNull(patientOrderDispositionId);
 		requireNonNull(patientOrderConsentStatusId);
@@ -644,6 +652,9 @@ public class PatientOrderResource {
 		requireNonNull(searchQuery);
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
+		requireNonNull(patientOrderSortColumnId);
+		requireNonNull(sortDirectionId);
+		requireNonNull(sortNullsId);
 
 		CurrentContext currentContext = getCurrentContext();
 		Account account = currentContext.getAccount().get();
@@ -658,6 +669,22 @@ public class PatientOrderResource {
 
 			if (!getAuthorizationService().canViewPatientOrdersForPanelAccount(account, panelAccount))
 				throw new AuthorizationException();
+		}
+
+		// BE technically accepts a list of PatientOrderSortRule, but FE only exposes a single one to the user in the UI.
+		// So we collect the query parameters for the single rule (if all present) into a one-element list.
+		// If we want to support multi-column sorting in the future, FE should introduce a new query parameter
+		// with some kind of JSON encoding for a list of rule objects
+		List<PatientOrderSortRule> patientOrderSortRules = new ArrayList<>();
+
+		if (patientOrderSortColumnId.isPresent()
+				&& sortDirectionId.isPresent()
+				&& sortNullsId.isPresent()) {
+			patientOrderSortRules.add(new PatientOrderSortRule() {{
+				setPatientOrderSortColumnId(patientOrderSortColumnId.get());
+				setSortDirectionId(sortDirectionId.get());
+				setSortNullsId(sortNullsId.get());
+			}});
 		}
 
 		FindResult<PatientOrder> findResult = getPatientOrderService().findPatientOrders(new FindPatientOrdersRequest() {
@@ -678,6 +705,7 @@ public class PatientOrderResource {
 				setSearchQuery(searchQuery.orElse(null));
 				setPageNumber(pageNumber.orElse(0));
 				setPageSize(pageSize.orElse(0));
+				setPatientOrderSortRules(patientOrderSortRules);
 			}
 		});
 
