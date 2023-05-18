@@ -54,7 +54,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.NotThreadSafe;
-import javax.crypto.SecretKey;
 import javax.inject.Singleton;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -182,10 +181,6 @@ public class Configuration {
 	private final String emailDefaultFromAddress;
 	@Nonnull
 	private final Boolean downForMaintenance;
-	@Nonnull
-	private final SecretKey secretKey;
-	@Nonnull
-	private final String secretKeyAlgorithm;
 	@Nonnull
 	private final String nodeIdentifier;
 	@Nonnull
@@ -353,8 +348,6 @@ public class Configuration {
 		this.corsEnabledDomains = valueFor("com.cobaltplatform.api.corsEnabledDomains", String.class);
 		this.emailDefaultFromAddress = valueFor("com.cobaltplatform.api.emailDefaultFromAddress", String.class);
 		this.downForMaintenance = valueFor("com.cobaltplatform.api.downForMaintenance", Boolean.class);
-		this.secretKeyAlgorithm = valueFor("com.cobaltplatform.api.secretKeyAlgorithm", String.class);
-		this.secretKey = CryptoUtility.loadSecretKeyInBase64(valueFor("com.cobaltplatform.api.secretKey", String.class), getSecretKeyAlgorithm());
 
 		// The https://github.com/impossibl/pgjdbc-ng driver uses jdbc:pgsql:// while the regular driver uses jdbc:postgresql://.
 		// Due to limitations of the pgjdbc-ng driver, we force to the normal driver.
@@ -1125,18 +1118,6 @@ public class Configuration {
 	@Nonnull
 	public String getEmailDefaultFromAddress() {
 		return emailDefaultFromAddress;
-	}
-
-	@Nonnull
-	@Deprecated
-	public SecretKey getSecretKey() {
-		return secretKey;
-	}
-
-	@Nonnull
-	@Deprecated
-	public String getSecretKeyAlgorithm() {
-		return secretKeyAlgorithm;
 	}
 
 	@Nonnull
