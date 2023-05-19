@@ -678,12 +678,11 @@ public class PatientOrderResource {
 		List<PatientOrderSortRule> patientOrderSortRules = new ArrayList<>();
 
 		if (patientOrderSortColumnId.isPresent()
-				&& sortDirectionId.isPresent()
-				&& sortNullsId.isPresent()) {
+				&& sortDirectionId.isPresent()) {
 			patientOrderSortRules.add(new PatientOrderSortRule() {{
 				setPatientOrderSortColumnId(patientOrderSortColumnId.get());
 				setSortDirectionId(sortDirectionId.get());
-				setSortNullsId(sortNullsId.get());
+				setSortNullsId(sortNullsId.orElse(SortNullsId.NULLS_LAST));
 			}});
 		}
 
