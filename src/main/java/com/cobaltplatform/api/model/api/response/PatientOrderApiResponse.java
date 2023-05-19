@@ -372,6 +372,10 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String connectedToSafetyPlanningAtDescription;
 	@Nullable
+	private Integer patientAgeOnOrderDate;
+	@Nullable
+	private String patientAgeOnOrderDateDescription;
+	@Nullable
 	private Boolean patientBelowAgeThreshold;
 	@Nullable
 	private Instant episodeClosedAt;
@@ -747,6 +751,9 @@ public class PatientOrderApiResponse {
 		this.mostRecentScreeningSessionCompleted = patientOrder.getMostRecentScreeningSessionCompleted();
 		this.mostRecentScreeningSessionCompletedAt = patientOrder.getMostRecentScreeningSessionCompletedAt();
 		this.mostRecentScreeningSessionCompletedAtDescription = patientOrder.getMostRecentScreeningSessionCompletedAt() == null ? null : formatter.formatTimestamp(patientOrder.getMostRecentScreeningSessionCompletedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+
+		this.patientAgeOnOrderDate = patientOrder.getPatientAgeOnOrderDate();
+		this.patientAgeOnOrderDateDescription = formatter.formatInteger(patientOrder.getPatientAgeOnOrderDate());
 
 		// MHIC-only view of the data
 		if (format == PatientOrderApiResponseFormat.MHIC) {
@@ -1676,5 +1683,15 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public PatientOrderResourcingTypeId getPatientOrderResourcingTypeId() {
 		return this.patientOrderResourcingTypeId;
+	}
+
+	@Nullable
+	public Integer getPatientAgeOnOrderDate() {
+		return this.patientAgeOnOrderDate;
+	}
+
+	@Nullable
+	public String getPatientAgeOnOrderDateDescription() {
+		return this.patientAgeOnOrderDateDescription;
 	}
 }

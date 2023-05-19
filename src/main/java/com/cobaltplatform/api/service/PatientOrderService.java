@@ -120,6 +120,7 @@ import com.cobaltplatform.api.model.service.PatientOrderFilterFlagTypeId;
 import com.cobaltplatform.api.model.service.PatientOrderImportResult;
 import com.cobaltplatform.api.model.service.PatientOrderOutreachStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderResponseStatusId;
+import com.cobaltplatform.api.model.service.PatientOrderViewTypeId;
 import com.cobaltplatform.api.model.service.SortDirectionId;
 import com.cobaltplatform.api.model.service.SortNullsId;
 import com.cobaltplatform.api.util.Authenticator;
@@ -690,19 +691,6 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public Integer findOpenPatientOrderCountByInstitutionId(@Nullable InstitutionId institutionId) {
-		if (institutionId == null)
-			return 0;
-
-		return getDatabase().queryForObject("""
-				SELECT COUNT(*)
-				FROM patient_order
-				WHERE institution_id=?
-				AND patient_order_disposition_id=?
-				""", Integer.class, institutionId, PatientOrderDispositionId.OPEN).get();
-	}
-
-	@Nonnull
 	public Map<UUID, Integer> findOpenPatientOrderCountsByPanelAccountIdForInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return Map.of();
@@ -721,115 +709,181 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public Map<PatientOrderTriageStatusId, Integer> findPatientOrderCountsByPatientOrderTriageStatusIdForInstitutionId(@Nullable InstitutionId institutionId,
-																																																										 @Nullable UUID panelAccountId) {
-		Map<PatientOrderTriageStatusId, Integer> patientOrderCountsByPatientOrderTriageStatusId = new HashMap<>(PatientOrderTriageStatusId.values().length);
+	public Map<PatientOrderViewTypeId, Integer> findPatientOrderCountsByPatientOrderViewTypeIdForInstitutionId(@Nullable InstitutionId institutionId,
+																																																						 @Nullable UUID panelAccountId) {
+		Map<PatientOrderViewTypeId, Integer> patientOrderCountsByPatientOrderViewTypeId = new HashMap<>(PatientOrderViewTypeId.values().length);
 
-		// Seed the map with zeroes for all possible triage statuses
+		// Seed the map with zeroes for all possible view types
+		for (PatientOrderViewTypeId patientOrderViewTypeId : PatientOrderViewTypeId.values())
+			patientOrderCountsByPatientOrderViewTypeId.put(patientOrderViewTypeId, 0);
+
+		if (institutionId == null)
+			return patientOrderCountsByPatientOrderViewTypeId;
+
+		// SCHEDULED
+		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SCHEDULED, findScheduledPatientOrderCountForInstitutionId(institutionId, panelAccountId));
+
+		// NEED_ASSESSMENT
+		// SUBCLINICAL
+		// MHP
+		// SPECIALTY_CARE
+		Map<PatientOrderTriageStatusId, Integer> countsByPatientOrderTriageStatusId = findPatientOrderTriageStatusCountsForInstitutionId(institutionId, panelAccountId);
+		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.NEED_ASSESSMENT, countsByPatientOrderTriageStatusId.get(PatientOrderTriageStatusId.NEEDS_ASSESSMENT));
+		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SPECIALTY_CARE, countsByPatientOrderTriageStatusId.get(PatientOrderTriageStatusId.SPECIALTY_CARE));
+		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SUBCLINICAL, countsByPatientOrderTriageStatusId.get(PatientOrderTriageStatusId.SUBCLINICAL));
+		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.MHP, countsByPatientOrderTriageStatusId.get(PatientOrderTriageStatusId.MHP));
+
+		// CLOSED
+		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.CLOSED, findPatientOrderDispositionCountForInstitutionId(institutionId, panelAccountId, PatientOrderDispositionId.CLOSED));
+
+		return patientOrderCountsByPatientOrderViewTypeId;
+	}
+
+	@Nonnull
+	public Integer findScheduledPatientOrderCountForInstitutionId(@Nullable InstitutionId institutionId,
+																																@Nullable UUID panelAccountId) {
+		if (institutionId == null)
+			return 0;
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		LocalDateTime now = LocalDateTime.now(institution.getTimeZone());
+
+		List<String> whereClauseLines = new ArrayList<>();
+		List<Object> parameters = new ArrayList<>();
+
+		parameters.add(institutionId);
+
+		// Default to OPEN orders
+		whereClauseLines.add("AND patient_order_disposition_id=?");
+		parameters.add(PatientOrderDispositionId.OPEN);
+
+		// Only those orders scheduled for the future
+		// TODO: is this the correct criteria?
+		whereClauseLines.add("AND patient_order_scheduled_screening_scheduled_date_time IS NOT NULL");
+		whereClauseLines.add("AND patient_order_scheduled_screening_scheduled_date_time >= ?");
+		parameters.add(now);
+
+		if (panelAccountId != null) {
+			whereClauseLines.add("AND panel_account_id=?");
+			parameters.add(panelAccountId);
+		}
+
+		String sql = """
+				  SELECT COUNT(*)
+				  FROM v_patient_order
+				  WHERE institution_id=?
+				  {{whereClauseLines}}
+				""".trim()
+				.replace("{{whereClauseLines}}", whereClauseLines.stream().collect(Collectors.joining("\n")));
+
+		return getDatabase().queryForObject(sql, Integer.class, sqlVaragsParameters(parameters)).get();
+	}
+
+	@Nonnull
+	public Map<PatientOrderTriageStatusId, Integer> findPatientOrderTriageStatusCountsForInstitutionId(@Nullable InstitutionId institutionId,
+																																																		 @Nullable UUID panelAccountId) {
+		if (institutionId == null)
+			return Map.of();
+
+		List<String> whereClauseLines = new ArrayList<>();
+		List<Object> parameters = new ArrayList<>();
+
+		// Special parameters in the SELECT for our filter operations
+		parameters.add(PatientOrderTriageStatusId.NEEDS_ASSESSMENT);
+		parameters.add(PatientOrderTriageStatusId.SUBCLINICAL);
+		parameters.add(PatientOrderTriageStatusId.MHP);
+		parameters.add(PatientOrderTriageStatusId.SPECIALTY_CARE);
+
+		parameters.add(institutionId);
+
+		// Default to OPEN orders
+		whereClauseLines.add("AND patient_order_disposition_id=?");
+		parameters.add(PatientOrderDispositionId.OPEN);
+
+		if (panelAccountId != null) {
+			whereClauseLines.add("AND panel_account_id=?");
+			parameters.add(panelAccountId);
+		}
+
+		String sql = """
+				  SELECT institution_id,
+				  COUNT(1) FILTER (where patient_order_triage_status_id = ?) as needs_assessment_count,
+				  COUNT(1) FILTER (where patient_order_triage_status_id = ?) as subclinical_count,
+				  COUNT(1) FILTER (where patient_order_triage_status_id = ?) as mhp_count,
+				  COUNT(1) FILTER (where patient_order_triage_status_id = ?) as specialty_care_count
+				  FROM v_patient_order
+				  WHERE institution_id=?
+				  {{whereClauseLines}}
+				  GROUP BY institution_id
+				""".trim()
+				.replace("{{whereClauseLines}}", whereClauseLines.stream().collect(Collectors.joining("\n")));
+
+		PatientOrderTriageStatusCountsResult patientOrderTriageStatusCountsResult = getDatabase().queryForObject(sql,
+				PatientOrderTriageStatusCountsResult.class, sqlVaragsParameters(parameters)).orElse(null);
+
+		Map<PatientOrderTriageStatusId, Integer> countsByPatientOrderTriageStatusId = new HashMap<>(PatientOrderTriageStatusId.values().length);
+
+		// Initialize each enum count to 0...
 		for (PatientOrderTriageStatusId patientOrderTriageStatusId : PatientOrderTriageStatusId.values())
-			patientOrderCountsByPatientOrderTriageStatusId.put(patientOrderTriageStatusId, 0);
+			countsByPatientOrderTriageStatusId.put(patientOrderTriageStatusId, 0);
 
-		if (institutionId == null)
-			return patientOrderCountsByPatientOrderTriageStatusId;
-
-		List<String> whereClauseLines = new ArrayList<>();
-		List<Object> parameters = new ArrayList<>();
-
-		parameters.add(institutionId);
-
-		// Default to OPEN orders
-		whereClauseLines.add("AND patient_order_disposition_id=?");
-		parameters.add(PatientOrderDispositionId.OPEN);
-
-		if (panelAccountId != null) {
-			whereClauseLines.add("AND panel_account_id=?");
-			parameters.add(panelAccountId);
+		// ...then, overwrite with results (if any) from our query
+		if (patientOrderTriageStatusCountsResult != null) {
+			countsByPatientOrderTriageStatusId.put(PatientOrderTriageStatusId.NEEDS_ASSESSMENT, patientOrderTriageStatusCountsResult.getNeedsAssessmentCount());
+			countsByPatientOrderTriageStatusId.put(PatientOrderTriageStatusId.SUBCLINICAL, patientOrderTriageStatusCountsResult.getSubclinicalCount());
+			countsByPatientOrderTriageStatusId.put(PatientOrderTriageStatusId.MHP, patientOrderTriageStatusCountsResult.getMhpCount());
+			countsByPatientOrderTriageStatusId.put(PatientOrderTriageStatusId.SPECIALTY_CARE, patientOrderTriageStatusCountsResult.getSpecialtyCareCount());
 		}
 
-		String sql = """
-				  SELECT patient_order_triage_status_id, COUNT(patient_order_triage_status_id) AS total_count
-				  FROM v_patient_order
-				  WHERE institution_id=?
-				  {{whereClauseLines}}
-				  GROUP BY patient_order_triage_status_id			  
-				""".trim()
-				.replace("{{whereClauseLines}}", whereClauseLines.stream().collect(Collectors.joining("\n")));
-
-		List<PatientOrderWithTotalCount> patientOrders = getDatabase().queryForList(sql, PatientOrderWithTotalCount.class, sqlVaragsParameters(parameters));
-
-		for (PatientOrderWithTotalCount patientOrder : patientOrders)
-			patientOrderCountsByPatientOrderTriageStatusId.put(patientOrder.getPatientOrderTriageStatusId(), patientOrder.getTotalCount());
-
-		return patientOrderCountsByPatientOrderTriageStatusId;
+		return countsByPatientOrderTriageStatusId;
 	}
 
-	@Nonnull
-	public Integer findSafetyPlanningPatientOrderCountForInstitutionId(@Nullable InstitutionId institutionId,
-																																		 @Nullable UUID panelAccountId) {
-		if (institutionId == null)
-			return 0;
+	@NotThreadSafe
+	protected static class PatientOrderTriageStatusCountsResult {
+		@Nullable
+		private Integer needsAssessmentCount;
+		@Nullable
+		private Integer subclinicalCount;
+		@Nullable
+		private Integer mhpCount;
+		@Nullable
+		private Integer specialtyCareCount;
 
-		List<String> whereClauseLines = new ArrayList<>();
-		List<Object> parameters = new ArrayList<>();
-
-		parameters.add(institutionId);
-
-		// Default to OPEN orders
-		whereClauseLines.add("AND patient_order_disposition_id=?");
-		parameters.add(PatientOrderDispositionId.OPEN);
-
-		whereClauseLines.add("AND patient_order_safety_planning_status_id=?");
-		parameters.add(PatientOrderSafetyPlanningStatusId.NEEDS_SAFETY_PLANNING);
-
-		if (panelAccountId != null) {
-			whereClauseLines.add("AND panel_account_id=?");
-			parameters.add(panelAccountId);
+		@Nullable
+		public Integer getNeedsAssessmentCount() {
+			return this.needsAssessmentCount;
 		}
 
-		String sql = """
-				  SELECT COUNT(*)
-				  FROM v_patient_order
-				  WHERE institution_id=?
-				  {{whereClauseLines}}
-				""".trim()
-				.replace("{{whereClauseLines}}", whereClauseLines.stream().collect(Collectors.joining("\n")));
-
-		return getDatabase().queryForObject(sql, Integer.class, sqlVaragsParameters(parameters)).get();
-	}
-
-	@Nonnull
-	public Integer findPatientOrderConsentCountForInstitutionId(@Nullable InstitutionId institutionId,
-																															@Nullable UUID panelAccountId,
-																															@Nullable PatientOrderConsentStatusId patientOrderConsentStatusId) {
-		if (institutionId == null || patientOrderConsentStatusId == null)
-			return 0;
-
-		List<String> whereClauseLines = new ArrayList<>();
-		List<Object> parameters = new ArrayList<>();
-
-		parameters.add(institutionId);
-
-		// Default to OPEN orders
-		whereClauseLines.add("AND patient_order_disposition_id=?");
-		parameters.add(PatientOrderDispositionId.OPEN);
-
-		whereClauseLines.add("AND patient_order_consent_status_id=?");
-		parameters.add(patientOrderConsentStatusId);
-
-		if (panelAccountId != null) {
-			whereClauseLines.add("AND panel_account_id=?");
-			parameters.add(panelAccountId);
+		public void setNeedsAssessmentCount(@Nullable Integer needsAssessmentCount) {
+			this.needsAssessmentCount = needsAssessmentCount;
 		}
 
-		String sql = """
-				  SELECT COUNT(*)
-				  FROM v_patient_order
-				  WHERE institution_id=?
-				  {{whereClauseLines}}
-				""".trim()
-				.replace("{{whereClauseLines}}", whereClauseLines.stream().collect(Collectors.joining("\n")));
+		@Nullable
+		public Integer getSubclinicalCount() {
+			return this.subclinicalCount;
+		}
 
-		return getDatabase().queryForObject(sql, Integer.class, sqlVaragsParameters(parameters)).get();
+		public void setSubclinicalCount(@Nullable Integer subclinicalCount) {
+			this.subclinicalCount = subclinicalCount;
+		}
+
+		@Nullable
+		public Integer getMhpCount() {
+			return this.mhpCount;
+		}
+
+		public void setMhpCount(@Nullable Integer mhpCount) {
+			this.mhpCount = mhpCount;
+		}
+
+		@Nullable
+		public Integer getSpecialtyCareCount() {
+			return this.specialtyCareCount;
+		}
+
+		public void setSpecialtyCareCount(@Nullable Integer specialtyCareCount) {
+			this.specialtyCareCount = specialtyCareCount;
+		}
 	}
 
 	@Nonnull
@@ -978,7 +1032,7 @@ public class PatientOrderService implements AutoCloseable {
 		PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId = request.getPatientOrderSafetyPlanningStatusId();
 		Set<PatientOrderFilterFlagTypeId> patientOrderFilterFlagTypeIds = request.getPatientOrderFilterFlagTypeIds() == null ? Set.of() : request.getPatientOrderFilterFlagTypeIds();
 		Set<String> referringPracticeNames = request.getReferringPracticeNames() == null ? Set.of() : request.getReferringPracticeNames();
-		UUID panelAccountId = request.getPanelAccountId();
+		Set<UUID> panelAccountIds = request.getPanelAccountIds() == null ? Set.of() : request.getPanelAccountIds();
 		String patientMrn = trimToNull(request.getPatientMrn());
 		String searchQuery = trimToNull(request.getSearchQuery());
 		Integer pageNumber = request.getPageNumber();
@@ -1028,7 +1082,6 @@ public class PatientOrderService implements AutoCloseable {
 						setSortNullsId(SortNullsId.NULLS_LAST);
 					}}
 			);
-
 
 		parameters.add(institutionId);
 
@@ -1103,9 +1156,9 @@ public class PatientOrderService implements AutoCloseable {
 			parameters.addAll(referringPracticeNames);
 		}
 
-		if (panelAccountId != null) {
-			whereClauseLines.add("AND po.panel_account_id=?");
-			parameters.add(panelAccountId);
+		if (panelAccountIds.size() > 0) {
+			whereClauseLines.add(format("AND po.panel_account_id IN %s", sqlInListPlaceholders(panelAccountIds)));
+			parameters.addAll(panelAccountIds);
 		}
 
 		// Search query is trumped by Patient MRN
@@ -1148,7 +1201,7 @@ public class PatientOrderService implements AutoCloseable {
 			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.MOST_RECENT_OUTREACH_DATE_TIME)
 				orderByColumn = "bq.most_recent_outreach_date_time";
 			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.MOST_RECENT_SCHEDULED_SCREENING_SCHEDULED_DATE_TIME)
-				orderByColumn = "bq.most_recent_scheduled_screening_scheduled_date_time";
+				orderByColumn = "bq.patient_order_scheduled_screening_scheduled_date_time";
 			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.EPISODE_CLOSED_AT)
 				orderByColumn = "bq.episode_closed_at";
 			else

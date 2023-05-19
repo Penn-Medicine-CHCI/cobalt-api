@@ -248,6 +248,8 @@ public class PatientOrder {
 	@Nullable
 	private String patientOrderClosureReasonDescription;
 	@Nullable
+	private Integer patientAgeOnOrderDate;
+	@Nullable
 	private Boolean patientBelowAgeThreshold;
 	@Nullable
 	private Instant mostRecentEpisodeClosedAt;
@@ -1185,6 +1187,15 @@ public class PatientOrder {
 
 	public void setPatientOrderClosureReasonDescription(@Nullable String patientOrderClosureReasonDescription) {
 		this.patientOrderClosureReasonDescription = patientOrderClosureReasonDescription;
+	}
+
+	@Nullable
+	public Integer getPatientAgeOnOrderDate() {
+		return this.patientAgeOnOrderDate;
+	}
+
+	public void setPatientAgeOnOrderDate(@Nullable Integer patientAgeOnOrderDate) {
+		this.patientAgeOnOrderDate = patientAgeOnOrderDate;
 	}
 
 	@Nullable

@@ -77,7 +77,7 @@ public class FindPatientOrdersRequest {
 	@Nullable
 	private Set<PatientOrderResourceCheckInResponseStatusId> patientOrderResourceCheckInResponseStatusIds;
 	@Nullable
-	private UUID panelAccountId;
+	private Set<UUID> panelAccountIds;
 	@Nullable
 	private String patientMrn;
 	@Nullable
@@ -272,12 +272,12 @@ public class FindPatientOrdersRequest {
 	}
 
 	@Nullable
-	public UUID getPanelAccountId() {
-		return this.panelAccountId;
+	public Set<UUID> getPanelAccountIds() {
+		return this.panelAccountIds;
 	}
 
-	public void setPanelAccountId(@Nullable UUID panelAccountId) {
-		this.panelAccountId = panelAccountId;
+	public void setPanelAccountIds(@Nullable Set<UUID> panelAccountIds) {
+		this.panelAccountIds = panelAccountIds;
 	}
 
 	@Nullable
