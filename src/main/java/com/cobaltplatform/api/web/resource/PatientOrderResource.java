@@ -686,7 +686,11 @@ public class PatientOrderResource {
 			patientOrderSortRules.add(new PatientOrderSortRule() {{
 				setPatientOrderSortColumnId(patientOrderSortColumnId.get());
 				setSortDirectionId(sortDirectionId.get());
-				setSortNullsId(sortNullsId.orElse(SortNullsId.NULLS_LAST));
+
+				// If not explicitly specified, use NULLS LAST if the sort is ASC, NULLS FIRST if the sort is DESC
+				setSortNullsId(sortNullsId.orElse(
+						sortDirectionId.get() == SortDirectionId.ASCENDING ? SortNullsId.NULLS_LAST : SortNullsId.NULLS_FIRST
+				));
 			}});
 		}
 
@@ -1450,30 +1454,20 @@ public class PatientOrderResource {
 		if (!getAuthorizationService().canViewPanelAccounts(institutionId, account))
 			throw new AuthorizationException();
 
-		Map<PatientOrderTriageStatusId, Integer> patientOrderCountsByPatientOrderTriageStatusId = getPatientOrderService().findPatientOrderCountsByPatientOrderTriageStatusIdForInstitutionId(institutionId, account.getAccountId());
-		Map<PatientOrderTriageStatusId, Map<String, Object>> patientOrderCountsByPatientOrderTriageStatusIdJson = new HashMap<>(patientOrderCountsByPatientOrderTriageStatusId.size());
+		Map<PatientOrderViewTypeId, Integer> patientOrderCountsByPatientOrderViewTypeId = getPatientOrderService().findPatientOrderCountsByPatientOrderViewTypeIdForInstitutionId(institutionId, account.getAccountId());
+		Map<PatientOrderViewTypeId, Map<String, Object>> patientOrderCountsByPatientOrderViewTypeIdJson = new HashMap<>(patientOrderCountsByPatientOrderViewTypeId.size());
 
-		for (Entry<PatientOrderTriageStatusId, Integer> entry : patientOrderCountsByPatientOrderTriageStatusId.entrySet()) {
-			PatientOrderTriageStatusId patientOrderTriageStatusId = entry.getKey();
+		for (Entry<PatientOrderViewTypeId, Integer> entry : patientOrderCountsByPatientOrderViewTypeId.entrySet()) {
+			PatientOrderViewTypeId patientOrderViewTypeId = entry.getKey();
 			Integer count = entry.getValue();
-			patientOrderCountsByPatientOrderTriageStatusIdJson.put(patientOrderTriageStatusId, Map.of(
+			patientOrderCountsByPatientOrderViewTypeIdJson.put(patientOrderViewTypeId, Map.of(
 					"patientOrderCount", count,
 					"patientOrderCountDescription", getFormatter().formatNumber(count)
 			));
 		}
 
-		int safetyPlanningPatientOrderCount = getPatientOrderService().findSafetyPlanningPatientOrderCountForInstitutionId(institutionId, account.getAccountId());
-		int closedPatientOrderCount = getPatientOrderService().findPatientOrderDispositionCountForInstitutionId(institutionId, account.getAccountId(), PatientOrderDispositionId.CLOSED);
-		int waitingForConsentPatientOrderCount = getPatientOrderService().findPatientOrderConsentCountForInstitutionId(institutionId, account.getAccountId(), PatientOrderConsentStatusId.UNKNOWN);
-
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("patientOrderCountsByPatientOrderTriageStatusId", patientOrderCountsByPatientOrderTriageStatusIdJson);
-			put("safetyPlanningPatientOrderCount", safetyPlanningPatientOrderCount);
-			put("safetyPlanningPatientOrderCountDescription", getFormatter().formatNumber(safetyPlanningPatientOrderCount));
-			put("closedPatientOrderCount", closedPatientOrderCount);
-			put("closedPatientOrderCountDescription", getFormatter().formatNumber(closedPatientOrderCount));
-			put("waitingForConsentPatientOrderCount", waitingForConsentPatientOrderCount);
-			put("waitingForConsentPatientOrderCountDescription", getFormatter().formatNumber(waitingForConsentPatientOrderCount));
+			put("patientOrderCountsByPatientOrderViewTypeId", patientOrderCountsByPatientOrderViewTypeIdJson);
 		}});
 	}
 
@@ -1510,7 +1504,7 @@ public class PatientOrderResource {
 			));
 		}
 
-		int overallOpenPatientOrderCount = getPatientOrderService().findOpenPatientOrderCountByInstitutionId(account.getInstitutionId());
+		int overallOpenPatientOrderCount = getPatientOrderService().findPatientOrderDispositionCountForInstitutionId(account.getInstitutionId(), null, PatientOrderDispositionId.OPEN);
 		String overallOpenPatientOrderCountDescription = getFormatter().formatNumber(overallOpenPatientOrderCount);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
