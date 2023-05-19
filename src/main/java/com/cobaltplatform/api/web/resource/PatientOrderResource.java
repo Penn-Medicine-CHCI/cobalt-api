@@ -628,7 +628,7 @@ public class PatientOrderResource {
 																			 @Nonnull @QueryParameter Optional<PatientOrderSafetyPlanningStatusId> patientOrderSafetyPlanningStatusId,
 																			 @Nonnull @QueryParameter("patientOrderFilterFlagTypeId") Optional<List<PatientOrderFilterFlagTypeId>> patientOrderFilterFlagTypeIds,
 																			 @Nonnull @QueryParameter Optional<List<String>> referringPracticeNames,
-																			 @Nonnull @QueryParameter Optional<UUID> panelAccountId,
+																			 @Nonnull @QueryParameter("panelAccountId") Optional<List<UUID>> panelAccountIds,
 																			 @Nonnull @QueryParameter Optional<String> patientMrn,
 																			 @Nonnull @QueryParameter Optional<String> searchQuery,
 																			 @Nonnull @QueryParameter Optional<Integer> pageNumber,
@@ -647,7 +647,7 @@ public class PatientOrderResource {
 		requireNonNull(patientOrderSafetyPlanningStatusId);
 		requireNonNull(patientOrderFilterFlagTypeIds);
 		requireNonNull(referringPracticeNames);
-		requireNonNull(panelAccountId);
+		requireNonNull(panelAccountIds);
 		requireNonNull(patientMrn);
 		requireNonNull(searchQuery);
 		requireNonNull(pageNumber);
@@ -663,12 +663,16 @@ public class PatientOrderResource {
 		if (!getAuthorizationService().canViewPatientOrders(institutionId, account))
 			throw new AuthorizationException();
 
-		// If you want to look at another account's panel, make sure you're authorized to do so
-		if (panelAccountId.isPresent()) {
-			Account panelAccount = getAccountService().findAccountById(panelAccountId.orElse(null)).orElse(null);
+		// If you want to look at another account's panel, make sure you're authorized to do so.
+		// Normally in UI you only check off one person, maybe 2. If users start doing more, we should do this
+		// check more efficiently
+		if (panelAccountIds.isPresent()) {
+			for (UUID panelAccountId : panelAccountIds.get()) {
+				Account panelAccount = getAccountService().findAccountById(panelAccountId).orElse(null);
 
-			if (!getAuthorizationService().canViewPatientOrdersForPanelAccount(account, panelAccount))
-				throw new AuthorizationException();
+				if (!getAuthorizationService().canViewPatientOrdersForPanelAccount(account, panelAccount))
+					throw new AuthorizationException();
+			}
 		}
 
 		// BE technically accepts a list of PatientOrderSortRule, but FE only exposes a single one to the user in the UI.
@@ -699,7 +703,7 @@ public class PatientOrderResource {
 				setPatientOrderSafetyPlanningStatusId(patientOrderSafetyPlanningStatusId.orElse(null));
 				setPatientOrderFilterFlagTypeIds(new HashSet<>(patientOrderFilterFlagTypeIds.orElse(List.of())));
 				setReferringPracticeNames(new HashSet<>(referringPracticeNames.orElse(List.of())));
-				setPanelAccountId(panelAccountId.orElse(null));
+				setPanelAccountIds(new HashSet<>(panelAccountIds.orElse(List.of())));
 				setPatientMrn(patientMrn.orElse(null));
 				setSearchQuery(searchQuery.orElse(null));
 				setPageNumber(pageNumber.orElse(0));
@@ -719,16 +723,12 @@ public class PatientOrderResource {
 		findResultJson.put("totalCount", findResult.getTotalCount());
 		findResultJson.put("totalCountDescription", getFormatter().formatNumber(findResult.getTotalCount()));
 
-		// If there's a panel account provided, return it
-		Account panelAccount = getAccountService().findAccountById(panelAccountId.orElse(null)).orElse(null);
-
 		// If there's a patient MRN provided, return it in the form of an autocomplete result.
 		// We assume this one is just whatever the first result is...
 		PatientOrderAutocompleteResult patientOrderAutocompleteResult = patientMrn.isPresent() ? getPatientOrderService().findPatientOrderAutocompleteResultByMrn(patientMrn.get(), institutionId).orElse(null) : null;
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("findResult", findResultJson);
-			put("panelAccount", panelAccount == null ? null : getAccountApiResponseFactory().create(panelAccount));
 			put("patientOrderAutocompleteResult", patientOrderAutocompleteResult == null ? null : getPatientOrderAutocompleteResultApiResponseFactory().create(patientOrderAutocompleteResult));
 		}});
 	}

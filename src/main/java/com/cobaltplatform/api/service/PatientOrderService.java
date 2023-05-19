@@ -978,7 +978,7 @@ public class PatientOrderService implements AutoCloseable {
 		PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId = request.getPatientOrderSafetyPlanningStatusId();
 		Set<PatientOrderFilterFlagTypeId> patientOrderFilterFlagTypeIds = request.getPatientOrderFilterFlagTypeIds() == null ? Set.of() : request.getPatientOrderFilterFlagTypeIds();
 		Set<String> referringPracticeNames = request.getReferringPracticeNames() == null ? Set.of() : request.getReferringPracticeNames();
-		UUID panelAccountId = request.getPanelAccountId();
+		Set<UUID> panelAccountIds = request.getPanelAccountIds() == null ? Set.of() : request.getPanelAccountIds();
 		String patientMrn = trimToNull(request.getPatientMrn());
 		String searchQuery = trimToNull(request.getSearchQuery());
 		Integer pageNumber = request.getPageNumber();
@@ -1028,7 +1028,6 @@ public class PatientOrderService implements AutoCloseable {
 						setSortNullsId(SortNullsId.NULLS_LAST);
 					}}
 			);
-
 
 		parameters.add(institutionId);
 
@@ -1103,9 +1102,9 @@ public class PatientOrderService implements AutoCloseable {
 			parameters.addAll(referringPracticeNames);
 		}
 
-		if (panelAccountId != null) {
-			whereClauseLines.add("AND po.panel_account_id=?");
-			parameters.add(panelAccountId);
+		if (panelAccountIds.size() > 0) {
+			whereClauseLines.add(format("AND po.panel_account_id IN %s", sqlInListPlaceholders(panelAccountIds)));
+			parameters.addAll(panelAccountIds);
 		}
 
 		// Search query is trumped by Patient MRN
@@ -1148,7 +1147,7 @@ public class PatientOrderService implements AutoCloseable {
 			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.MOST_RECENT_OUTREACH_DATE_TIME)
 				orderByColumn = "bq.most_recent_outreach_date_time";
 			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.MOST_RECENT_SCHEDULED_SCREENING_SCHEDULED_DATE_TIME)
-				orderByColumn = "bq.most_recent_scheduled_screening_scheduled_date_time";
+				orderByColumn = "bq.patient_order_scheduled_screening_scheduled_date_time";
 			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.EPISODE_CLOSED_AT)
 				orderByColumn = "bq.episode_closed_at";
 			else
