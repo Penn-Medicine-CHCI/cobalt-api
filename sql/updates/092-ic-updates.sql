@@ -235,7 +235,7 @@ select
         -- Screening completed, most severe level of care type triage is COLLABORATIVE.  Patient or MHIC can schedule with a provider
         WHEN tq.patient_order_care_type_id = 'COLLABORATIVE' THEN 'MHP'
         -- None of the above apply
-        ELSE 'NEEDS_ASSESSMENT'
+        ELSE 'NOT_TRIAGED'
     END patient_order_triage_status_id,
     CASE
         -- Screening completed, most severe level of care type triage is SPECIALTY
@@ -245,7 +245,7 @@ select
         -- Screening completed, most severe level of care type triage is COLLABORATIVE.  Patient or MHIC can schedule with a provider
         WHEN tq.patient_order_care_type_id = 'COLLABORATIVE' THEN 'MHP'
         -- None of the above apply
-        else 'Needs Assessment'
+        else 'Not Triaged'
     END patient_order_triage_status_description,
     pocr.description AS patient_order_closure_reason_description,
     (date_part('year', poq.order_date) - date_part('year', poq.patient_birthdate)::INT) AS patient_age_on_order_date,

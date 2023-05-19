@@ -37,7 +37,7 @@ public class PatientOrderTriageStatus {
 	private Integer displayOrder;
 
 	public enum PatientOrderTriageStatusId {
-		NEEDS_ASSESSMENT, // Assigned, but none of the below apply.  Also note, we are in this state if unscheduled but "screening in progress"
+		NOT_TRIAGED,
 		SPECIALTY_CARE, // Screening completed, most severe level of care type triage is SPECIALTY
 		SUBCLINICAL, // Screening completed, most severe level of care type triage is SUBCLINICAL
 		MHP // Screening completed, most severe level of care type triage is COLLABORATIVE.  Patient or MHIC can schedule with a provider

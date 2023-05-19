@@ -1410,9 +1410,9 @@ public class PatientOrderResource {
 				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
 				.collect(Collectors.toList());
 
-		// "Assessments": status == NEEDS_ASSESSMENT && patient_order_scheduled_screening_scheduled_date_time == TODAY
+		// "Assessments": status == NOT_TRIAGED && patient_order_scheduled_screening_scheduled_date_time == TODAY
 		List<PatientOrderApiResponse> scheduledAssessmentPatientOrders = patientOrders.stream()
-				.filter(patientOrder -> patientOrder.getPatientOrderTriageStatusId() == PatientOrderTriageStatusId.NEEDS_ASSESSMENT
+				.filter(patientOrder -> patientOrder.getPatientOrderTriageStatusId() == PatientOrderTriageStatusId.NOT_TRIAGED
 						&& patientOrder.getPatientOrderScheduledScreeningScheduledDateTime() != null
 						&& patientOrder.getPatientOrderScheduledScreeningScheduledDateTime().toLocalDate().equals(today.toLocalDate()))
 				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
@@ -1650,7 +1650,7 @@ public class PatientOrderResource {
 				.collect(Collectors.toList());
 
 		List<Map<PatientOrderTriageStatusId, Object>> patientOrderTriageStatuses = List.of(
-				Map.of(PatientOrderTriageStatusId.NEEDS_ASSESSMENT, getStrings().get("Needs Assessment")),
+				Map.of(PatientOrderTriageStatusId.NOT_TRIAGED, getStrings().get("Not Triaged")),
 				Map.of(PatientOrderTriageStatusId.SPECIALTY_CARE, getStrings().get("Specialty Care")),
 				Map.of(PatientOrderTriageStatusId.MHP, getStrings().get("MHP")),
 				Map.of(PatientOrderTriageStatusId.SUBCLINICAL, getStrings().get("Subclinical"))

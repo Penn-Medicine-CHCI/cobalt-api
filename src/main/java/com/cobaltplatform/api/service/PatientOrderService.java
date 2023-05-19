@@ -103,6 +103,7 @@ import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageGroup;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType.PatientOrderScheduledMessageTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledScreening;
+import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
@@ -724,11 +725,12 @@ public class PatientOrderService implements AutoCloseable {
 		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SCHEDULED, findScheduledPatientOrderCountForInstitutionId(institutionId, panelAccountId));
 
 		// NEED_ASSESSMENT
+		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.NEED_ASSESSMENT, findNeedAssessmentPatientOrderCountForInstitutionId(institutionId, panelAccountId));
+
 		// SUBCLINICAL
 		// MHP
 		// SPECIALTY_CARE
 		Map<PatientOrderTriageStatusId, Integer> countsByPatientOrderTriageStatusId = findPatientOrderTriageStatusCountsForInstitutionId(institutionId, panelAccountId);
-		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.NEED_ASSESSMENT, countsByPatientOrderTriageStatusId.get(PatientOrderTriageStatusId.NEEDS_ASSESSMENT));
 		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SPECIALTY_CARE, countsByPatientOrderTriageStatusId.get(PatientOrderTriageStatusId.SPECIALTY_CARE));
 		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SUBCLINICAL, countsByPatientOrderTriageStatusId.get(PatientOrderTriageStatusId.SUBCLINICAL));
 		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.MHP, countsByPatientOrderTriageStatusId.get(PatientOrderTriageStatusId.MHP));
@@ -745,23 +747,62 @@ public class PatientOrderService implements AutoCloseable {
 		if (institutionId == null)
 			return 0;
 
-		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
-		LocalDateTime now = LocalDateTime.now(institution.getTimeZone());
+		List<String> whereClauseLines = new ArrayList<>();
+		List<Object> parameters = new ArrayList<>();
+
+		parameters.add(institutionId);
+
+		// Scheduled: Patients scheduled to take the assessment by phone
+		// Definition:
+		// Order State = Open
+		// Assessment Status = Scheduled
+		whereClauseLines.add("AND patient_order_disposition_id=?");
+		parameters.add(PatientOrderDispositionId.OPEN);
+		whereClauseLines.add("AND patient_order_screening_status_id=?");
+		parameters.add(PatientOrderScreeningStatusId.SCHEDULED);
+
+		if (panelAccountId != null) {
+			whereClauseLines.add("AND panel_account_id=?");
+			parameters.add(panelAccountId);
+		}
+
+		String sql = """
+				  SELECT COUNT(*)
+				  FROM v_patient_order
+				  WHERE institution_id=?
+				  {{whereClauseLines}}
+				""".trim()
+				.replace("{{whereClauseLines}}", whereClauseLines.stream().collect(Collectors.joining("\n")));
+
+		return getDatabase().queryForObject(sql, Integer.class, sqlVaragsParameters(parameters)).get();
+	}
+
+	@Nonnull
+	public Integer findNeedAssessmentPatientOrderCountForInstitutionId(@Nullable InstitutionId institutionId,
+																																		 @Nullable UUID panelAccountId) {
+		if (institutionId == null)
+			return 0;
 
 		List<String> whereClauseLines = new ArrayList<>();
 		List<Object> parameters = new ArrayList<>();
 
 		parameters.add(institutionId);
 
-		// Default to OPEN orders
+		// Need Assessment: Patients that have not started or been scheduled for an assessment
+		// Definition:
+		// Order State = Open
+		// Outreach = 1 or greater
+		// Assessment Status = Not Started
+		// Assessment Status = In Progress
+		// Consent = None
+		// Consent = Yes
 		whereClauseLines.add("AND patient_order_disposition_id=?");
 		parameters.add(PatientOrderDispositionId.OPEN);
-
-		// Only those orders scheduled for the future
-		// TODO: is this the correct criteria?
-		whereClauseLines.add("AND patient_order_scheduled_screening_scheduled_date_time IS NOT NULL");
-		whereClauseLines.add("AND patient_order_scheduled_screening_scheduled_date_time >= ?");
-		parameters.add(now);
+		whereClauseLines.add("AND total_outreach_count > 0");
+		whereClauseLines.add("AND patient_order_screening_status_id=?");
+		parameters.add(PatientOrderScreeningStatusId.NOT_SCREENED);
+		whereClauseLines.add("AND patient_order_consent_status_id IN (?,?)");
+		parameters.addAll(List.of(PatientOrderConsentStatusId.UNKNOWN, PatientOrderConsentStatusId.CONSENTED));
 
 		if (panelAccountId != null) {
 			whereClauseLines.add("AND panel_account_id=?");
@@ -789,7 +830,7 @@ public class PatientOrderService implements AutoCloseable {
 		List<Object> parameters = new ArrayList<>();
 
 		// Special parameters in the SELECT for our filter operations
-		parameters.add(PatientOrderTriageStatusId.NEEDS_ASSESSMENT);
+		parameters.add(PatientOrderTriageStatusId.NOT_TRIAGED);
 		parameters.add(PatientOrderTriageStatusId.SUBCLINICAL);
 		parameters.add(PatientOrderTriageStatusId.MHP);
 		parameters.add(PatientOrderTriageStatusId.SPECIALTY_CARE);
@@ -807,7 +848,7 @@ public class PatientOrderService implements AutoCloseable {
 
 		String sql = """
 				  SELECT institution_id,
-				  COUNT(1) FILTER (where patient_order_triage_status_id = ?) as needs_assessment_count,
+				  COUNT(1) FILTER (where patient_order_triage_status_id = ?) as not_triaged_count,
 				  COUNT(1) FILTER (where patient_order_triage_status_id = ?) as subclinical_count,
 				  COUNT(1) FILTER (where patient_order_triage_status_id = ?) as mhp_count,
 				  COUNT(1) FILTER (where patient_order_triage_status_id = ?) as specialty_care_count
@@ -829,7 +870,7 @@ public class PatientOrderService implements AutoCloseable {
 
 		// ...then, overwrite with results (if any) from our query
 		if (patientOrderTriageStatusCountsResult != null) {
-			countsByPatientOrderTriageStatusId.put(PatientOrderTriageStatusId.NEEDS_ASSESSMENT, patientOrderTriageStatusCountsResult.getNeedsAssessmentCount());
+			countsByPatientOrderTriageStatusId.put(PatientOrderTriageStatusId.NOT_TRIAGED, patientOrderTriageStatusCountsResult.getNotTriagedCount());
 			countsByPatientOrderTriageStatusId.put(PatientOrderTriageStatusId.SUBCLINICAL, patientOrderTriageStatusCountsResult.getSubclinicalCount());
 			countsByPatientOrderTriageStatusId.put(PatientOrderTriageStatusId.MHP, patientOrderTriageStatusCountsResult.getMhpCount());
 			countsByPatientOrderTriageStatusId.put(PatientOrderTriageStatusId.SPECIALTY_CARE, patientOrderTriageStatusCountsResult.getSpecialtyCareCount());
@@ -841,7 +882,7 @@ public class PatientOrderService implements AutoCloseable {
 	@NotThreadSafe
 	protected static class PatientOrderTriageStatusCountsResult {
 		@Nullable
-		private Integer needsAssessmentCount;
+		private Integer notTriagedCount;
 		@Nullable
 		private Integer subclinicalCount;
 		@Nullable
@@ -850,12 +891,12 @@ public class PatientOrderService implements AutoCloseable {
 		private Integer specialtyCareCount;
 
 		@Nullable
-		public Integer getNeedsAssessmentCount() {
-			return this.needsAssessmentCount;
+		public Integer getNotTriagedCount() {
+			return this.notTriagedCount;
 		}
 
-		public void setNeedsAssessmentCount(@Nullable Integer needsAssessmentCount) {
-			this.needsAssessmentCount = needsAssessmentCount;
+		public void setNotTriagedCount(@Nullable Integer notTriagedCount) {
+			this.notTriagedCount = notTriagedCount;
 		}
 
 		@Nullable
@@ -1023,6 +1064,7 @@ public class PatientOrderService implements AutoCloseable {
 		requireNonNull(request);
 
 		InstitutionId institutionId = request.getInstitutionId();
+		PatientOrderViewTypeId patientOrderViewTypeId = request.getPatientOrderViewTypeId();
 		PatientOrderConsentStatusId patientOrderConsentStatusId = request.getPatientOrderConsentStatusId();
 		PatientOrderDispositionId patientOrderDispositionId = request.getPatientOrderDispositionId();
 		Set<PatientOrderTriageStatusId> patientOrderTriageStatusIds = request.getPatientOrderTriageStatusIds() == null ? Set.of() : request.getPatientOrderTriageStatusIds();
@@ -1085,103 +1127,177 @@ public class PatientOrderService implements AutoCloseable {
 
 		parameters.add(institutionId);
 
-		// Default to OPEN orders unless specified otherwise
-		if (patientOrderDispositionId == null)
-			patientOrderDispositionId = PatientOrderDispositionId.OPEN;
-
-		whereClauseLines.add("AND po.patient_order_disposition_id=?");
-		parameters.add(patientOrderDispositionId);
-
-		if (patientOrderConsentStatusId != null) {
-			whereClauseLines.add("AND po.patient_order_consent_status_id=?");
-			parameters.add(patientOrderConsentStatusId);
-		}
-
-		if (patientOrderTriageStatusIds.size() > 0) {
-			whereClauseLines.add(format("AND po.patient_order_triage_status_id IN %s", sqlInListPlaceholders(patientOrderTriageStatusIds)));
-			parameters.addAll(patientOrderTriageStatusIds);
-		}
-
-		if (patientOrderAssignmentStatusId != null) {
-			if (patientOrderAssignmentStatusId == PatientOrderAssignmentStatusId.UNASSIGNED)
-				whereClauseLines.add("AND po.panel_account_id IS NULL");
-			else if (patientOrderAssignmentStatusId == PatientOrderAssignmentStatusId.ASSIGNED)
-				whereClauseLines.add("AND po.panel_account_id IS NOT NULL");
-		}
-
-		if (patientOrderOutreachStatusId != null) {
-			if (patientOrderOutreachStatusId == PatientOrderOutreachStatusId.HAS_OUTREACH)
+		// If patientOrderViewTypeId is specified, it provides "fixed" views, largely ignoring other parameters that might be specified
+		if (patientOrderViewTypeId != null) {
+			if (patientOrderViewTypeId == PatientOrderViewTypeId.SCHEDULED) {
+				// Scheduled: Patients scheduled to take the assessment by phone
+				// Definition:
+				// Order State = Open
+				// Assessment Status = Scheduled
+				whereClauseLines.add("AND po.patient_order_disposition_id=?");
+				parameters.add(PatientOrderDispositionId.OPEN);
+				whereClauseLines.add("AND po.patient_order_screening_status_id=?");
+				parameters.add(PatientOrderScreeningStatusId.SCHEDULED);
+			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.NEED_ASSESSMENT) {
+				// Need Assessment: Patients that have not started or been scheduled for an assessment
+				// Definition:
+				// Order State = Open
+				// Outreach = 1 or greater
+				// Assessment Status = Not Started
+				// Assessment Status = In Progress
+				// Consent = None
+				// Consent = Yes
+				whereClauseLines.add("AND po.patient_order_disposition_id=?");
+				parameters.add(PatientOrderDispositionId.OPEN);
 				whereClauseLines.add("AND po.total_outreach_count > 0");
-			else if (patientOrderOutreachStatusId == PatientOrderOutreachStatusId.NO_OUTREACH)
-				whereClauseLines.add("AND po.total_outreach_count = 0");
-		}
+				whereClauseLines.add("AND po.patient_order_screening_status_id=?");
+				parameters.add(PatientOrderScreeningStatusId.NOT_SCREENED);
+				whereClauseLines.add("AND po.patient_order_consent_status_id IN (?,?)");
+				parameters.addAll(List.of(PatientOrderConsentStatusId.UNKNOWN, PatientOrderConsentStatusId.CONSENTED));
+			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.SUBCLINICAL) {
+				// Subclinical: Patients triaged to subclinical
+				// Definition:
+				// Order State = Open
+				// Triage = Subclinical
+				whereClauseLines.add("AND po.patient_order_disposition_id=?");
+				parameters.add(PatientOrderDispositionId.OPEN);
+				whereClauseLines.add("AND po.patient_order_triage_status_id=?");
+				parameters.add(PatientOrderTriageStatusId.SUBCLINICAL);
+			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.MHP) {
+				// MHP: Patients triaged to MHP
+				// Definition:
+				// Order State = Open
+				// Triage = MHP
+				whereClauseLines.add("AND po.patient_order_disposition_id=?");
+				parameters.add(PatientOrderDispositionId.OPEN);
+				whereClauseLines.add("AND po.patient_order_triage_status_id=?");
+				parameters.add(PatientOrderTriageStatusId.MHP);
+			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.SPECIALTY_CARE) {
+				// Specialty Care: Patients triaged to specialty care
+				// Definition:
+				// Order State = Open
+				// Triage = Specialty Care
+				whereClauseLines.add("AND po.patient_order_disposition_id=?");
+				parameters.add(PatientOrderDispositionId.OPEN);
+				whereClauseLines.add("AND po.patient_order_triage_status_id=?");
+				parameters.add(PatientOrderTriageStatusId.SPECIALTY_CARE);
+			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.CLOSED) {
+				// Closed: Orders that have been closed. Order closed for more than 30 days will be archived.
+				// Definition:
+				// Order State = Closed
+				whereClauseLines.add("AND po.patient_order_disposition_id=?");
+				parameters.add(PatientOrderDispositionId.CLOSED);
+			} else {
+				throw new IllegalStateException(format("Not sure how to handle %s.%s",
+						PatientOrderViewTypeId.class.getSimpleName(), patientOrderViewTypeId.name()));
+			}
 
-		if (patientOrderResponseStatusId != null) {
+			// We still support filtering per-account for PatientOrderViewTypeId requests
+			if (panelAccountIds.size() > 0) {
+				whereClauseLines.add(format("AND po.panel_account_id IN %s", sqlInListPlaceholders(panelAccountIds)));
+				parameters.addAll(panelAccountIds);
+			}
+		} else {
+			// This is not a PatientOrderViewTypeId request - let caller do whatever filtering it likes
+
+			// Default to OPEN orders unless specified otherwise
+			if (patientOrderDispositionId == null)
+				patientOrderDispositionId = PatientOrderDispositionId.OPEN;
+
+			whereClauseLines.add("AND po.patient_order_disposition_id=?");
+			parameters.add(patientOrderDispositionId);
+
+			if (patientOrderConsentStatusId != null) {
+				whereClauseLines.add("AND po.patient_order_consent_status_id=?");
+				parameters.add(patientOrderConsentStatusId);
+			}
+
+			if (patientOrderTriageStatusIds.size() > 0) {
+				whereClauseLines.add(format("AND po.patient_order_triage_status_id IN %s", sqlInListPlaceholders(patientOrderTriageStatusIds)));
+				parameters.addAll(patientOrderTriageStatusIds);
+			}
+
+			if (patientOrderAssignmentStatusId != null) {
+				if (patientOrderAssignmentStatusId == PatientOrderAssignmentStatusId.UNASSIGNED)
+					whereClauseLines.add("AND po.panel_account_id IS NULL");
+				else if (patientOrderAssignmentStatusId == PatientOrderAssignmentStatusId.ASSIGNED)
+					whereClauseLines.add("AND po.panel_account_id IS NOT NULL");
+			}
+
+			if (patientOrderOutreachStatusId != null) {
+				if (patientOrderOutreachStatusId == PatientOrderOutreachStatusId.HAS_OUTREACH)
+					whereClauseLines.add("AND po.total_outreach_count > 0");
+				else if (patientOrderOutreachStatusId == PatientOrderOutreachStatusId.NO_OUTREACH)
+					whereClauseLines.add("AND po.total_outreach_count = 0");
+			}
+
+			if (patientOrderResponseStatusId != null) {
 //			if (patientOrderResponseStatusId == PatientOrderResponseStatusId.WAITING_FOR_RESPONSE)
 //				whereClauseLines.add("TODO");
 //			else if (patientOrderResponseStatusId == PatientOrderResponseStatusId.NOT_WAITING_FOR_RESPONSE)
 //				whereClauseLines.add("TODO");
-		}
-
-		if (patientOrderSafetyPlanningStatusId != null) {
-			whereClauseLines.add("AND po.patient_order_safety_planning_status_id=?");
-			parameters.add(patientOrderSafetyPlanningStatusId);
-		}
-
-		if (patientOrderFilterFlagTypeIds.size() > 0) {
-			List<String> filterFlagWhereClauseLines = new ArrayList<>();
-
-			// Note: we are ignoring the NONE flag for now since no UI supports it atm
-			if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.INSURANCE_NOT_ACCEPTED)) {
-				filterFlagWhereClauseLines.add("po.patient_order_insurance_plan_accepted=FALSE");
 			}
 
-			if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.ADDRESS_REGION_NOT_ACCEPTED)) {
-				filterFlagWhereClauseLines.add("po.patient_address_region_accepted=FALSE");
+			if (patientOrderSafetyPlanningStatusId != null) {
+				whereClauseLines.add("AND po.patient_order_safety_planning_status_id=?");
+				parameters.add(patientOrderSafetyPlanningStatusId);
 			}
 
-			if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.MOST_RECENT_EPISODE_CLOSED_WITHIN_DATE_THRESHOLD)) {
-				filterFlagWhereClauseLines.add("po.most_recent_episode_closed_within_date_threshold=TRUE");
+			if (patientOrderFilterFlagTypeIds.size() > 0) {
+				List<String> filterFlagWhereClauseLines = new ArrayList<>();
+
+				// Note: we are ignoring the NONE flag for now since no UI supports it atm
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.INSURANCE_NOT_ACCEPTED)) {
+					filterFlagWhereClauseLines.add("po.patient_order_insurance_plan_accepted=FALSE");
+				}
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.ADDRESS_REGION_NOT_ACCEPTED)) {
+					filterFlagWhereClauseLines.add("po.patient_address_region_accepted=FALSE");
+				}
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.MOST_RECENT_EPISODE_CLOSED_WITHIN_DATE_THRESHOLD)) {
+					filterFlagWhereClauseLines.add("po.most_recent_episode_closed_within_date_threshold=TRUE");
+				}
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.PATIENT_BELOW_AGE_THRESHOLD)) {
+					filterFlagWhereClauseLines.add("po.patient_below_age_threshold=TRUE");
+				}
+
+				whereClauseLines.add(format("AND (%s)", filterFlagWhereClauseLines.stream().collect(Collectors.joining(" OR "))));
 			}
 
-			if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.PATIENT_BELOW_AGE_THRESHOLD)) {
-				filterFlagWhereClauseLines.add("po.patient_below_age_threshold=TRUE");
+			if (referringPracticeNames.size() > 0) {
+				whereClauseLines.add(format("AND po.referring_practice_name IN %s", sqlInListPlaceholders(referringPracticeNames)));
+				parameters.addAll(referringPracticeNames);
 			}
 
-			whereClauseLines.add(format("AND (%s)", filterFlagWhereClauseLines.stream().collect(Collectors.joining(" OR "))));
-		}
+			if (panelAccountIds.size() > 0) {
+				whereClauseLines.add(format("AND po.panel_account_id IN %s", sqlInListPlaceholders(panelAccountIds)));
+				parameters.addAll(panelAccountIds);
+			}
 
-		if (referringPracticeNames.size() > 0) {
-			whereClauseLines.add(format("AND po.referring_practice_name IN %s", sqlInListPlaceholders(referringPracticeNames)));
-			parameters.addAll(referringPracticeNames);
-		}
+			// Search query is trumped by Patient MRN
+			if (patientMrn != null) {
+				whereClauseLines.add("AND LOWER(po.patient_mrn)=LOWER(?)");
+				parameters.add(patientMrn);
+			} else if (searchQuery != null) {
+				// TODO: this is quick and dirty so FE can build.  Need to significantly improve matching
+				whereClauseLines.add("""
+						      AND (
+						      patient_first_name ILIKE CONCAT('%',?,'%')
+						      OR patient_last_name ILIKE CONCAT('%',?,'%')
+						      OR patient_mrn ILIKE CONCAT('%',?,'%')
+						      OR (patient_phone_number IS NOT NULL AND patient_phone_number ILIKE CONCAT('%',?,'%'))
+						      OR (patient_email_address IS NOT NULL AND patient_email_address ILIKE CONCAT('%',?,'%'))
+						      )
+						""");
 
-		if (panelAccountIds.size() > 0) {
-			whereClauseLines.add(format("AND po.panel_account_id IN %s", sqlInListPlaceholders(panelAccountIds)));
-			parameters.addAll(panelAccountIds);
-		}
-
-		// Search query is trumped by Patient MRN
-		if (patientMrn != null) {
-			whereClauseLines.add("AND LOWER(po.patient_mrn)=LOWER(?)");
-			parameters.add(patientMrn);
-		} else if (searchQuery != null) {
-			// TODO: this is quick and dirty so FE can build.  Need to significantly improve matching
-			whereClauseLines.add("""
-					      AND (
-					      patient_first_name ILIKE CONCAT('%',?,'%')
-					      OR patient_last_name ILIKE CONCAT('%',?,'%')
-					      OR patient_mrn ILIKE CONCAT('%',?,'%')
-					      OR (patient_phone_number IS NOT NULL AND patient_phone_number ILIKE CONCAT('%',?,'%'))
-					      OR (patient_email_address IS NOT NULL AND patient_email_address ILIKE CONCAT('%',?,'%'))
-					      )
-					""");
-
-			parameters.add(searchQuery);
-			parameters.add(searchQuery);
-			parameters.add(searchQuery);
-			parameters.add(searchQuery);
-			parameters.add(searchQuery);
+				parameters.add(searchQuery);
+				parameters.add(searchQuery);
+				parameters.add(searchQuery);
+				parameters.add(searchQuery);
+				parameters.add(searchQuery);
+			}
 		}
 
 		// Apply ORDER BY rules
@@ -4354,7 +4470,7 @@ public class PatientOrderService implements AutoCloseable {
 			}
 
 			// 2. "outreach needed": need another outreach to patient because it's been
-			//   institution.integrated_care_outreach_followup_day_offset days since most_recent_outreach_date_time and order is still in NEEDS_ASSESSMENT state
+			//   institution.integrated_care_outreach_followup_day_offset days since most_recent_outreach_date_time and order is still in NOT_TRIAGED state
 			// TODO: revisit this, do we need to take scheduled messages into account?
 			List<PatientOrder> outreachNeededPatientOrders = getDatabase().queryForList("""
 							     SELECT *
@@ -4365,7 +4481,7 @@ public class PatientOrderService implements AutoCloseable {
 							     AND outreach_needed=FALSE
 							     AND most_recent_outreach_date_time IS NOT NULL
 							     AND most_recent_outreach_date_time <= (? - make_interval(days => ?))
-							""", PatientOrder.class, institution.getInstitutionId(), PatientOrderDispositionId.OPEN, PatientOrderTriageStatusId.NEEDS_ASSESSMENT,
+							""", PatientOrder.class, institution.getInstitutionId(), PatientOrderDispositionId.OPEN, PatientOrderTriageStatusId.NOT_TRIAGED,
 					now, institution.getIntegratedCareOutreachFollowupDayOffset());
 
 			// Syntax reference:
