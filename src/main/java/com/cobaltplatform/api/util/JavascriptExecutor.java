@@ -84,6 +84,9 @@ public class JavascriptExecutor {
 		requireNonNull(input);
 		requireNonNull(outputType);
 
+		// Per https://docs.oracle.com/javase/8/docs/api/javax/script/ScriptEngineFactory.html#getParameter-java.lang.String-
+		// Testing scriptEngineFactory.getParameter("THREADING"), it returns null for graal.js engine, so we know it's not threadsafe...
+		// So for each invocation of this method, we get a fresh ScriptEngine instance to maintain thread safety
 		ScriptEngine scriptEngine = new ScriptEngineManager().getEngineByName("graal.js");
 		ScriptContext scriptContext = new SimpleScriptContext();
 
