@@ -1207,6 +1207,19 @@ public class ScreeningService {
 		getLogger().info("Screening session screening ID {} ({}) was scored {} with completed flag={}.", screeningSessionScreeningId,
 				screeningVersion.getScreeningTypeId().name(), screeningScoringFunctionOutput.getScore(), screeningScoringFunctionOutput.getCompleted());
 
+		// We can branch within a screening if the scoring function returns an explicit "next" screening question ID.
+		// If not provided, we just assume the next question (if any) in the natural display order is next.
+		// But if we do have a "next" screening question ID, we can mark any unanswered TODO - rules
+		if (screeningScoringFunctionOutput.getNextScreeningQuestionId() != null) {
+			getLogger().info("Screening session screening ID {} explicitly set next screening question ID to {}", screeningSessionScreeningId,
+					screeningScoringFunctionOutput.getNextScreeningQuestionId());
+			// TODO: rules for marking other screening_session_inapplicable_screening_question for this screening-session-screening as invalid...
+			// Maybe -
+			// on answer, any "inapplicable" that comes after the current question are invalidated.
+			// Define "inapplicable" here is any question that is between the current question and the "next question"
+			// then, any new "inapplicable" questions are calculated and saved off.
+		}
+
 		// Based on screening scoring function output, set score/completed flags
 		getDatabase().execute("""
 						UPDATE screening_session_screening
@@ -1497,6 +1510,9 @@ public class ScreeningService {
 
 		if (screeningScoringFunctionOutput.getScore() == null)
 			throw new IllegalStateException("Screening scoring function must provide a 'score' value in output");
+
+		if (screeningScoringFunctionOutput.getCompleted() == null && screeningScoringFunctionOutput.getNextScreeningQuestionId() != null)
+			throw new IllegalStateException("Screening scoring function must cannot indicate it is complete and indicate a 'next question' at the same time");
 
 		return screeningScoringFunctionOutput;
 	}
@@ -1925,6 +1941,8 @@ public class ScreeningService {
 		private ScreeningScore score;
 		@Nullable
 		private Boolean belowScoringThreshold;
+		@Nullable
+		private UUID nextScreeningQuestionId; // Entirely optional; if not specified the next question in the progression is picked
 
 		@Nullable
 		public Boolean getCompleted() {
@@ -1951,6 +1969,15 @@ public class ScreeningService {
 
 		public void setBelowScoringThreshold(@Nullable Boolean belowScoringThreshold) {
 			this.belowScoringThreshold = belowScoringThreshold;
+		}
+
+		@Nullable
+		public UUID getNextScreeningQuestionId() {
+			return this.nextScreeningQuestionId;
+		}
+
+		public void setNextScreeningQuestionId(@Nullable UUID nextScreeningQuestionId) {
+			this.nextScreeningQuestionId = nextScreeningQuestionId;
 		}
 	}
 
