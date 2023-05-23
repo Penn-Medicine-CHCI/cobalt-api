@@ -28,7 +28,12 @@ INSERT INTO screening_type (screening_type_id, description) VALUES ('PSYCHOSIS',
 -- Add C-SSRS-8.  Rename old C-SSRS to C-SSRS-3.
 INSERT INTO screening_type (screening_type_id, description) VALUES ('C_SSRS_8', 'C-SSRS-8');
 INSERT INTO screening_type (screening_type_id, description) VALUES ('C_SSRS_3', 'C-SSRS-3');
-UPDATE screening_type SET screening_type_id='C_SSRS_3' WHERE screening_type_id='C_SSRS';
+
+-- Migrate old data to use the new ID
+UPDATE screening_version SET screening_type_id='C_SSRS_3' WHERE screening_type_id='C_SSRS';
+UPDATE screening_flow_version_screening_type SET screening_type_id='C_SSRS_3' WHERE screening_type_id='C_SSRS';
+
+-- Delete the old ID now that no one is using it
 DELETE FROM screening_type WHERE screening_type_id='C_SSRS';
 
 COMMIT;
