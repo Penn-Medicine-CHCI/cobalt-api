@@ -353,6 +353,18 @@
             <version>2.0.0</version>
         </dependency>
 
+        <dependency>
+            <groupId>ca.uhn.hapi</groupId>
+            <artifactId>hapi-base</artifactId>
+            <version>2.3</version>
+        </dependency>
+
+        <dependency>
+            <groupId>ca.uhn.hapi</groupId>
+            <artifactId>hapi-structures-v251</artifactId>
+            <version>2.3</version>
+        </dependency>
+
         <!-- Has a dependency on javax.activation:activation:jar:1.1 that causes issues with other libraries -->
         <dependency>
             <groupId>org.mnode.ical4j</groupId>
