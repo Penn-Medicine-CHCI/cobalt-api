@@ -41,6 +41,7 @@ import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTy
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
+import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Screening;
 import com.cobaltplatform.api.model.db.ScreeningAnswer;
 import com.cobaltplatform.api.model.db.ScreeningAnswerFormat.ScreeningAnswerFormatId;
@@ -1857,15 +1858,10 @@ public class ScreeningService {
 			screeningVersionIdsByName.put(screeningVersionName.getName(), screeningVersionName.getScreeningVersionId());
 		}
 
+		boolean selfAdministered = Objects.equals(screeningSession.getCreatedByAccountId(), screeningSession.getTargetAccountId())
+				|| screeningSession.getTargetAccountId() == null;
+
 		Map<String, Object> context = new HashMap<>();
-		context.put("screenings", screenings);
-		context.put("screeningsByName", screeningsByName);
-		context.put("screeningSession", screeningSession);
-		context.put("screeningSessionScreenings", screeningSessionScreenings);
-		context.put("screeningVersionIdsByName", screeningVersionIdsByName);
-		context.put("screeningResultsByScreeningSessionScreeningId", screeningResultsByScreeningSessionScreeningId);
-		context.put("selfAdministered", Objects.equals(screeningSession.getCreatedByAccountId(), screeningSession.getTargetAccountId()));
-		context.put("additionalContext", additionalContext == null ? Map.of() : additionalContext);
 
 		// Patient age can help determine how to orchestrate, e.g. only perform a particular screening if
 		// patient is below a certain age
@@ -1879,7 +1875,21 @@ public class ScreeningService {
 
 			context.put("patientAgeInYears", patientAgeInYears);
 			context.put("patientBirthSexId", patientOrder.getPatientBirthSexId());
+
+			// Self-administered value should be false in the special case where an MHIC performs a screening
+			// but there is no target account (i.e. patient never signed in/created account).
+			// So we assume self-administered only in the case where the created-by account is a patient
+			selfAdministered = getAccountService().findAccountById(screeningSession.getCreatedByAccountId()).get().getRoleId() == RoleId.PATIENT;
 		}
+
+		context.put("screenings", screenings);
+		context.put("screeningsByName", screeningsByName);
+		context.put("screeningSession", screeningSession);
+		context.put("screeningSessionScreenings", screeningSessionScreenings);
+		context.put("screeningVersionIdsByName", screeningVersionIdsByName);
+		context.put("screeningResultsByScreeningSessionScreeningId", screeningResultsByScreeningSessionScreeningId);
+		context.put("selfAdministered", selfAdministered);
+		context.put("additionalContext", additionalContext == null ? Map.of() : additionalContext);
 
 		try {
 			screeningFlowFunctionResult = getJavascriptExecutor().execute(screeningFlowFunctionJavascript, context, screeningFlowFunctionResultType);
