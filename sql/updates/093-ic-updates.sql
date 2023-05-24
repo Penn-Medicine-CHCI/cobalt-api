@@ -23,11 +23,11 @@ FROM screening_session_inapplicable_screening_question
 WHERE valid=TRUE;
 
 -- Add Psychosis
-INSERT INTO screening_type (screening_type_id, description) VALUES ('PSYCHOSIS', 'Psychosis');
+INSERT INTO screening_type (screening_type_id, description, overall_score_maximum) VALUES ('PSYCHOSIS', 'Psychosis', 4);
 
 -- Add C-SSRS-8.  Rename old C-SSRS to C-SSRS-3.
-INSERT INTO screening_type (screening_type_id, description) VALUES ('C_SSRS_8', 'C-SSRS-8');
-INSERT INTO screening_type (screening_type_id, description) VALUES ('C_SSRS_3', 'C-SSRS-3');
+INSERT INTO screening_type (screening_type_id, description, overall_score_maximum) VALUES ('C_SSRS_8', 'C-SSRS-8', 8);
+INSERT INTO screening_type (screening_type_id, description, overall_score_maximum) VALUES ('C_SSRS_3', 'C-SSRS-3', 3);
 
 -- Migrate old data to use the new ID
 UPDATE screening_version SET screening_type_id='C_SSRS_3' WHERE screening_type_id='C_SSRS';
@@ -35,5 +35,8 @@ UPDATE screening_flow_version_screening_type SET screening_type_id='C_SSRS_3' WH
 
 -- Delete the old ID now that no one is using it
 DELETE FROM screening_type WHERE screening_type_id='C_SSRS';
+
+-- We no longer use this.  Instead, the screening scoring function returns a `belowScoringThreshold` which can be dynamically calculated
+ALTER TABLE screening_type DROP COLUMN overall_score_minimum_threshold;
 
 COMMIT;
