@@ -49,7 +49,8 @@ public class PatientOrderFocusType {
 		ADHD,
 		TRAUMA,
 		LCSW_CAPACITY,
-		CRISIS_CARE
+		CRISIS_CARE,
+		PSYCHOSIS
 	}
 
 	@Override

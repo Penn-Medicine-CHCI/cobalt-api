@@ -1792,6 +1792,7 @@ public class ScreeningService {
 					screeningAnswerOptionsById.put(screeningAnswerOption.getScreeningAnswerOptionId(), screeningAnswerOption);
 
 				screeningResult.put("screeningQuestionId", screeningQuestion.getScreeningQuestionId());
+				screeningResult.put("screeningQuestionDisplayOrder", screeningQuestion.getDisplayOrder());
 				screeningResult.put("screeningAnswerFormatId", screeningQuestion.getScreeningAnswerFormatId());
 				screeningResult.put("screeningAnswerContentHintId", screeningQuestion.getScreeningAnswerContentHintId());
 				screeningResult.put("questionText", screeningQuestion.getQuestionText());

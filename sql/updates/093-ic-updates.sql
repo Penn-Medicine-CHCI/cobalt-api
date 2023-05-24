@@ -39,4 +39,6 @@ DELETE FROM screening_type WHERE screening_type_id='C_SSRS';
 -- We no longer use this.  Instead, the screening scoring function returns a `belowScoringThreshold` which can be dynamically calculated
 ALTER TABLE screening_type DROP COLUMN overall_score_minimum_threshold;
 
+INSERT INTO patient_order_focus_type VALUES ('PSYCHOSIS', 'Psychosis');
+
 COMMIT;
