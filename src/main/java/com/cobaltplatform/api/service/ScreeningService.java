@@ -1147,6 +1147,10 @@ public class ScreeningService {
 			throw validationException;
 
 		ScreeningSession screeningSession = findScreeningSessionById(screeningSessionScreening.getScreeningSessionId()).get();
+
+		if (screeningSession.getCompleted())
+			throw new ValidationException(getStrings().get("This assessment is complete and cannot have its answers changed."));
+
 		ScreeningVersion screeningVersion = findScreeningVersionById(screeningSessionScreening.getScreeningVersionId()).get();
 		ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
 		Institution institution = getInstitutionService().findInstitutionById(createdByAccount.getInstitutionId()).get();
