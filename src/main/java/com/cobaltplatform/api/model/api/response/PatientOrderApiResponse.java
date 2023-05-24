@@ -33,10 +33,12 @@ import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.Scr
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.DistanceUnit.DistanceUnitId;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.PatientOrder;
+import com.cobaltplatform.api.model.db.PatientOrderCarePreference.PatientOrderCarePreferenceId;
 import com.cobaltplatform.api.model.db.PatientOrderCareType;
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
@@ -431,6 +433,16 @@ public class PatientOrderApiResponse {
 	private Boolean patientDemographicsCompleted;
 	@Nullable
 	private Boolean patientDemographicsAccepted;
+	@Nullable
+	private PatientOrderCarePreferenceId patientOrderCarePreferenceId;
+	@Nullable
+	private Integer inPersonCareRadius;
+	@Nullable
+	private String inPersonCareRadiusDescription;
+	@Nullable
+	private DistanceUnitId inPersonCareRadiusDistanceUnitId;
+	@Nullable
+	private String inPersonCareRadiusWithDistanceUnitDescription;
 
 	public enum PatientOrderApiResponseSupplement {
 		MINIMAL,
@@ -755,6 +767,20 @@ public class PatientOrderApiResponse {
 		this.patientAgeOnOrderDate = patientOrder.getPatientAgeOnOrderDate();
 		this.patientAgeOnOrderDateDescription = formatter.formatInteger(patientOrder.getPatientAgeOnOrderDate());
 
+		this.patientOrderCarePreferenceId = patientOrder.getPatientOrderCarePreferenceId();
+		this.inPersonCareRadius = patientOrder.getInPersonCareRadius();
+		this.inPersonCareRadiusDescription = patientOrder.getInPersonCareRadius() == null ? null : formatter.formatInteger(patientOrder.getInPersonCareRadius());
+		this.inPersonCareRadiusDistanceUnitId = patientOrder.getInPersonCareRadiusDistanceUnitId();
+		this.inPersonCareRadiusWithDistanceUnitDescription = patientOrder.getInPersonCareRadius() == null ? strings.get("Unspecified")
+				: strings.get("{{radius}} {{distanceUnit}}", Map.of(
+				"radius", patientOrder.getInPersonCareRadius(),
+				"distanceUnit", patientOrder.getInPersonCareRadiusDistanceUnitId() == DistanceUnitId.MILE ? strings.get("mi") : strings.get("km")
+		));
+		
+		this.patientOrderSafetyPlanningStatusId = patientOrder.getPatientOrderSafetyPlanningStatusId();
+		this.connectedToSafetyPlanningAt = patientOrder.getConnectedToSafetyPlanningAt();
+		this.connectedToSafetyPlanningAtDescription = patientOrder.getConnectedToSafetyPlanningAt() == null ? null : formatter.formatTimestamp(patientOrder.getConnectedToSafetyPlanningAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+
 		// MHIC-only view of the data
 		if (format == PatientOrderApiResponseFormat.MHIC) {
 			this.panelAccountId = patientOrder.getPanelAccountId();
@@ -842,9 +868,6 @@ public class PatientOrderApiResponse {
 			this.patientOrderDispositionDescription = patientOrder.getPatientOrderDispositionDescription();
 			this.patientOrderTriageStatusDescription = patientOrder.getPatientOrderTriageStatusDescription();
 			this.patientOrderClosureReasonDescription = patientOrder.getPatientOrderClosureReasonDescription();
-			this.patientOrderSafetyPlanningStatusId = patientOrder.getPatientOrderSafetyPlanningStatusId();
-			this.connectedToSafetyPlanningAt = patientOrder.getConnectedToSafetyPlanningAt();
-			this.connectedToSafetyPlanningAtDescription = patientOrder.getConnectedToSafetyPlanningAt() == null ? null : formatter.formatTimestamp(patientOrder.getConnectedToSafetyPlanningAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 			this.patientBelowAgeThreshold = patientOrder.getPatientBelowAgeThreshold();
 			this.mostRecentEpisodeClosedAt = patientOrder.getMostRecentEpisodeClosedAt();
 			this.mostRecentEpisodeClosedAtDescription = patientOrder.getMostRecentEpisodeClosedAt() == null ? null : formatter.formatTimestamp(patientOrder.getMostRecentEpisodeClosedAt());
@@ -1693,5 +1716,30 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public String getPatientAgeOnOrderDateDescription() {
 		return this.patientAgeOnOrderDateDescription;
+	}
+
+	@Nullable
+	public PatientOrderCarePreferenceId getPatientOrderCarePreferenceId() {
+		return this.patientOrderCarePreferenceId;
+	}
+
+	@Nullable
+	public Integer getInPersonCareRadius() {
+		return this.inPersonCareRadius;
+	}
+
+	@Nullable
+	public String getInPersonCareRadiusDescription() {
+		return this.inPersonCareRadiusDescription;
+	}
+
+	@Nullable
+	public DistanceUnitId getInPersonCareRadiusDistanceUnitId() {
+		return this.inPersonCareRadiusDistanceUnitId;
+	}
+
+	@Nullable
+	public String getInPersonCareRadiusWithDistanceUnitDescription() {
+		return this.inPersonCareRadiusWithDistanceUnitDescription;
 	}
 }

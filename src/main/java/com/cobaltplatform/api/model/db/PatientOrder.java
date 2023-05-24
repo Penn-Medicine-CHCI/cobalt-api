@@ -20,9 +20,11 @@
 package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.DistanceUnit.DistanceUnitId;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.PatientOrderCarePreference.PatientOrderCarePreferenceId;
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderConsentStatus.PatientOrderConsentStatusId;
@@ -198,6 +200,12 @@ public class PatientOrder {
 	private Instant patientDemographicsConfirmedAt;
 	@Nullable
 	private UUID patientDemographicsConfirmedByAccountId;
+	@Nullable
+	private PatientOrderCarePreferenceId patientOrderCarePreferenceId;
+	@Nullable
+	private Integer inPersonCareRadius;
+	@Nullable
+	private DistanceUnitId inPersonCareRadiusDistanceUnitId;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -1439,5 +1447,32 @@ public class PatientOrder {
 
 	public void setPatientDemographicsAccepted(@Nullable Boolean patientDemographicsAccepted) {
 		this.patientDemographicsAccepted = patientDemographicsAccepted;
+	}
+
+	@Nullable
+	public PatientOrderCarePreferenceId getPatientOrderCarePreferenceId() {
+		return this.patientOrderCarePreferenceId;
+	}
+
+	public void setPatientOrderCarePreferenceId(@Nullable PatientOrderCarePreferenceId patientOrderCarePreferenceId) {
+		this.patientOrderCarePreferenceId = patientOrderCarePreferenceId;
+	}
+
+	@Nullable
+	public Integer getInPersonCareRadius() {
+		return this.inPersonCareRadius;
+	}
+
+	public void setInPersonCareRadius(@Nullable Integer inPersonCareRadius) {
+		this.inPersonCareRadius = inPersonCareRadius;
+	}
+
+	@Nullable
+	public DistanceUnitId getInPersonCareRadiusDistanceUnitId() {
+		return this.inPersonCareRadiusDistanceUnitId;
+	}
+
+	public void setInPersonCareRadiusDistanceUnitId(@Nullable DistanceUnitId inPersonCareRadiusDistanceUnitId) {
+		this.inPersonCareRadiusDistanceUnitId = inPersonCareRadiusDistanceUnitId;
 	}
 }
