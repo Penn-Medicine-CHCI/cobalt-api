@@ -830,8 +830,11 @@ public class ScreeningService {
 			throw new IllegalStateException(format("Screening session ID %s does not have a current screening session screening.",
 					screeningSessionId));
 
-		// Get all the questions + answer options
-		List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions = findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
+		// Get all the questions + answer options, filtering out any inapplicable questions (that is, if we have branching logic to skip over some)
+		Set<UUID> inapplicableScreeningQuestionIds = findScreeningSessionInapplicableScreeningQuestionIdsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
+		List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions = findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId()).stream()
+				.filter(screeningQuestionWithAnswerOptions -> !inapplicableScreeningQuestionIds.contains(screeningQuestionWithAnswerOptions.getScreeningQuestion().getScreeningQuestionId()))
+				.collect(Collectors.toList());
 
 		// Get all the questions that have already been answered for this session
 		List<ScreeningSessionAnsweredScreeningQuestion> screeningSessionAnsweredScreeningQuestions = findScreeningSessionAnsweredScreeningQuestionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
@@ -865,13 +868,27 @@ public class ScreeningService {
 	}
 
 	@Nonnull
+	protected List<ScreeningQuestion> findScreeningQuestionsByScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
+		if (screeningSessionScreeningId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT sq.*
+				FROM screening_question sq, v_screening_session_screening sss
+				WHERE sss.screening_session_screening_id=?
+				AND sss.screening_version_id=sq.screening_version_id
+				ORDER BY sq.display_order
+				""", ScreeningQuestion.class, screeningSessionScreeningId);
+	}
+
+	@Nonnull
 	protected List<ScreeningQuestionWithAnswerOptions> findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(
 			@Nullable UUID screeningSessionScreeningId) {
 		if (screeningSessionScreeningId == null)
 			return Collections.emptyList();
 
 		List<ScreeningQuestion> screeningQuestions = getDatabase().queryForList("""
-				SELECT sq.* 
+				SELECT sq.*
 				FROM screening_question sq, v_screening_session_screening sss 
 				WHERE sss.screening_session_screening_id=?
 				AND sss.screening_version_id=sq.screening_version_id
@@ -899,6 +916,19 @@ public class ScreeningService {
 		}
 
 		return screeningQuestionsWithAnswerOptions;
+	}
+
+	@Nonnull
+	protected Set<UUID> findScreeningSessionInapplicableScreeningQuestionIdsByScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
+		if (screeningSessionScreeningId == null)
+			return Collections.emptySet();
+
+		return new HashSet<>(getDatabase().queryForList("""
+				SELECT ssisq.screening_question_id
+				FROM v_screening_session_inapplicable_screening_question ssisq, screening_question sq
+				WHERE ssisq.screening_session_screening_id=?
+				AND ssisq.screening_question_id=sq.screening_question_id
+				""", UUID.class, screeningSessionScreeningId));
 	}
 
 	@Nonnull
@@ -989,7 +1019,7 @@ public class ScreeningService {
 		UUID screeningSessionScreeningId = null;
 		UUID screeningQuestionId = null;
 		ScreeningSessionScreening screeningSessionScreening = null;
-		ScreeningQuestion screeningQuestion;
+		ScreeningQuestion screeningQuestion = null;
 		List<ScreeningAnswerOption> screeningAnswerOptions = new ArrayList<>();
 		Account createdByAccount = null;
 		boolean force = request.getForce() == null ? false : request.getForce();
@@ -1136,7 +1166,7 @@ public class ScreeningService {
 
 			// Mark downstream answered questions as invalid
 			long downstreamQuestionsInvalidatedCount = getDatabase().execute("""
-					UPDATE screening_session_answered_screening_question AS ssasq 
+					UPDATE screening_session_answered_screening_question AS ssasq
 					SET valid=FALSE
 					FROM screening_session_screening sss
 					WHERE sss.screening_session_id=?
@@ -1157,7 +1187,7 @@ public class ScreeningService {
 
 			// Mark downstream screenings as invalid
 			long downstreamScreeningSessionScreeningsInvalidatedCount = getDatabase().execute("""
-					UPDATE screening_session_screening 
+					UPDATE screening_session_screening
 					SET valid=FALSE
 					WHERE screening_session_id=?
 					AND valid=TRUE
@@ -1176,18 +1206,34 @@ public class ScreeningService {
 				""", screeningSessionAnsweredScreeningQuestionId, screeningSessionScreeningId, screeningQuestionId, Instant.now());
 
 		List<UUID> screeningAnswerIds = new ArrayList<>(answers.size());
+		Instant now = Instant.now();
 
-		// TODO: we can do a batch insert for slightly better performance here
-		for (CreateAnswerRequest answer : answers) {
-			UUID screeningAnswerId = UUID.randomUUID();
-			screeningAnswerIds.add(screeningAnswerId);
+		// Batch up the answers...
+		List<List<Object>> answerParameters = answers.stream()
+				.map(answer -> {
+					// Keep track of generated answer IDs for use later on
+					UUID screeningAnswerId = UUID.randomUUID();
+					screeningAnswerIds.add(screeningAnswerId);
 
-			getDatabase().execute("""
-					INSERT INTO
-					screening_answer(screening_answer_id, screening_answer_option_id, screening_session_answered_screening_question_id, created_by_account_id, text, created)
-					VALUES(?,?,?,?,?,?)
-					""", screeningAnswerId, answer.getScreeningAnswerOptionId(), screeningSessionAnsweredScreeningQuestionId, createdByAccountId, answer.getText(), Instant.now());
-		}
+					// Cannot use List.of(...) construct because answer.getText() can be null
+					List<Object> parameters = new ArrayList<>();
+					parameters.add(screeningAnswerId);
+					parameters.add(answer.getScreeningAnswerOptionId());
+					parameters.add(screeningSessionAnsweredScreeningQuestionId);
+					parameters.add(createdByAccountId);
+					parameters.add(answer.getText());
+					parameters.add(now);
+
+					return parameters;
+				})
+				.collect(Collectors.toList());
+
+		// ...for an efficient INSERT.
+		getDatabase().executeBatch("""
+				INSERT INTO
+				screening_answer(screening_answer_id, screening_answer_option_id, screening_session_answered_screening_question_id, created_by_account_id, text, created)
+				VALUES(?,?,?,?,?,?)
+				""", answerParameters);
 
 		// Score the individual screening by calling its scoring function
 		List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions =
@@ -1201,11 +1247,74 @@ public class ScreeningService {
 				AND valid=TRUE
 				""", Integer.class, screeningSessionScreeningId).get();
 
-		ScreeningScoringFunctionOutput screeningScoringFunctionOutput = executeScreeningScoringFunction(
+		ScreeningScoringFunctionOutput screeningScoringFunctionOutput = executeScreeningScoringFunction(screeningQuestionId,
 				screeningVersion.getScoringFunction(), screeningQuestionsWithAnswerOptions, screeningAnswers, answeredScreeningQuestionCount);
 
 		getLogger().info("Screening session screening ID {} ({}) was scored {} with completed flag={}.", screeningSessionScreeningId,
 				screeningVersion.getScreeningTypeId().name(), screeningScoringFunctionOutput.getScore(), screeningScoringFunctionOutput.getCompleted());
+
+		// Always forget any downstream "inapplicable" questions in this screening to handle the case where
+		// user backs up and answers a potentially-branching question that might lead to another branch.
+		// This is similar to what we do above, where we discard downstream answers
+		long downstreamQuestionsInvalidatedCount = getDatabase().execute("""
+				UPDATE screening_session_inapplicable_screening_question AS ssisq
+				SET valid=FALSE
+				FROM screening_session_screening sss, screening_question sq
+				WHERE sss.screening_session_id=?
+				AND sq.screening_question_id=ssisq.screening_question_id
+				AND sq.display_order > ?
+				AND ssisq.valid=TRUE
+				AND sss.screening_session_screening_id=ssisq.screening_session_screening_id
+				""", screeningSession.getScreeningSessionId(), screeningQuestion.getDisplayOrder());
+
+		if (downstreamQuestionsInvalidatedCount > 0)
+			getLogger().info("Marked {} downstream inapplicable question[s] as invalid.", downstreamQuestionsInvalidatedCount);
+
+		// We can branch within a screening if the scoring function returns an explicit "next" screening question ID.
+		// If not provided, we just assume the next question (if any) in the natural display order is next.
+		if (screeningScoringFunctionOutput.getNextScreeningQuestionId() != null) {
+			getLogger().info("Screening session screening ID {} explicitly set next screening question ID to {}", screeningSessionScreeningId,
+					screeningScoringFunctionOutput.getNextScreeningQuestionId());
+
+			// Walk the screening questions for this screening and find all the questions between the question that was just answered and the
+			// specified "next question".  Mark any question in that range as "inapplicable", because we are skipping over it.
+			List<ScreeningQuestion> screeningQuestions = findScreeningQuestionsByScreeningSessionScreeningId(screeningSessionScreening.getScreeningSessionScreeningId());
+			List<ScreeningQuestion> screeningQuestionsToMarkInapplicable = new ArrayList<>(screeningQuestions.size());
+			boolean canMarkInapplicable = false;
+
+			for (ScreeningQuestion potentiallyInapplicableScreeningQuestion : screeningQuestions) {
+				// We hit the current question - anything after this but before the specified "next question" will be marked inapplicable
+				if (potentiallyInapplicableScreeningQuestion.getScreeningQuestionId().equals(screeningQuestionId)) {
+					canMarkInapplicable = true;
+					continue;
+				}
+
+				// We hit the specified "next question" - we're done looking for questions to mark inapplicable
+				if (potentiallyInapplicableScreeningQuestion.getScreeningQuestionId().equals(screeningScoringFunctionOutput.getNextScreeningQuestionId()))
+					break;
+
+				if (canMarkInapplicable)
+					screeningQuestionsToMarkInapplicable.add(potentiallyInapplicableScreeningQuestion);
+			}
+
+			getLogger().info("Marking {} downstream question[s] as inapplicable...", screeningQuestionsToMarkInapplicable.size());
+
+			if (screeningQuestionsToMarkInapplicable.size() > 0) {
+				// Batch up our parameters into a single INSERT to improve performance
+				UUID pinnedScreeningSessionScreeningId = screeningSessionScreening.getScreeningSessionScreeningId();
+				List<List<Object>> markInapplicableParameters = screeningQuestionsToMarkInapplicable.stream()
+						.map(screeningQuestionToMarkInapplicable -> {
+							return List.<Object>of(pinnedScreeningSessionScreeningId, screeningQuestionToMarkInapplicable.getScreeningQuestionId(), now);
+						})
+						.collect(Collectors.toList());
+
+				getDatabase().executeBatch("""
+						INSERT INTO
+						screening_session_inapplicable_screening_question(screening_session_screening_id, screening_question_id, created)
+						VALUES(?,?,?)
+						""", markInapplicableParameters);
+			}
+		}
 
 		// Based on screening scoring function output, set score/completed flags
 		getDatabase().execute("""
@@ -1457,10 +1566,12 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	protected ScreeningScoringFunctionOutput executeScreeningScoringFunction(@Nonnull String screeningScoringFunctionJavascript,
+	protected ScreeningScoringFunctionOutput executeScreeningScoringFunction(@Nonnull UUID screeningQuestionId,
+																																					 @Nonnull String screeningScoringFunctionJavascript,
 																																					 @Nonnull List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions,
 																																					 @Nonnull List<ScreeningAnswer> screeningAnswers,
 																																					 @Nonnull Integer answeredScreeningQuestionCount) {
+		requireNonNull(screeningQuestionId);
 		requireNonNull(screeningScoringFunctionJavascript);
 		requireNonNull(screeningQuestionsWithAnswerOptions);
 		requireNonNull(screeningAnswers);
@@ -1471,6 +1582,8 @@ public class ScreeningService {
 		// Massage data a bit to make it easier for function to get a screening answer option given a screening answer ID
 		Map<UUID, ScreeningAnswerOption> screeningAnswerOptionsById = new HashMap<>();
 		Map<UUID, ScreeningAnswerOption> screeningAnswerOptionsByScreeningAnswerId = new HashMap<>(screeningAnswers.size());
+		Map<String, UUID> screeningQuestionIdsByQuestionText = new HashMap<>(screeningQuestionsWithAnswerOptions.size());
+		Map<UUID, Set<UUID>> screeningAnswerIdsByScreeningQuestionId = new HashMap<>(screeningQuestionsWithAnswerOptions.size());
 
 		for (ScreeningQuestionWithAnswerOptions screeningQuestionWithAnswerOptions : screeningQuestionsWithAnswerOptions)
 			for (ScreeningAnswerOption screeningAnswerOption : screeningQuestionWithAnswerOptions.getScreeningAnswerOptions())
@@ -1479,12 +1592,38 @@ public class ScreeningService {
 		for (ScreeningAnswer screeningAnswer : screeningAnswers)
 			screeningAnswerOptionsByScreeningAnswerId.put(screeningAnswer.getScreeningAnswerId(), screeningAnswerOptionsById.get(screeningAnswer.getScreeningAnswerOptionId()));
 
-		// TODO: refactor this to be more like the orchestration function, specifically the "screeningResponses" construct
+		for (ScreeningQuestionWithAnswerOptions screeningQuestionWithAnswerOptions : screeningQuestionsWithAnswerOptions)
+			if (screeningQuestionWithAnswerOptions.getScreeningQuestion().getQuestionText() != null)
+				screeningQuestionIdsByQuestionText.put(screeningQuestionWithAnswerOptions.getScreeningQuestion().getQuestionText(), screeningQuestionWithAnswerOptions.getScreeningQuestion().getScreeningQuestionId());
+
+		// Nested loops, but they are generally quite small...
+		for (ScreeningAnswer screeningAnswer : screeningAnswers) {
+			ScreeningAnswerOption screeningAnswerOption = screeningAnswerOptionsByScreeningAnswerId.get(screeningAnswer.getScreeningAnswerId());
+
+			for (ScreeningQuestionWithAnswerOptions screeningQuestionWithAnswerOptions : screeningQuestionsWithAnswerOptions) {
+				for (ScreeningAnswerOption potentialScreeningAnswerOption : screeningQuestionWithAnswerOptions.getScreeningAnswerOptions()) {
+					if (potentialScreeningAnswerOption.getScreeningAnswerOptionId().equals(screeningAnswerOption.getScreeningAnswerOptionId())) {
+						Set<UUID> screeningAnswerIds = screeningAnswerIdsByScreeningQuestionId.get(screeningQuestionWithAnswerOptions.getScreeningQuestion().getScreeningQuestionId());
+
+						if (screeningAnswerIds == null) {
+							screeningAnswerIds = new HashSet<>();
+							screeningAnswerIdsByScreeningQuestionId.put(screeningQuestionWithAnswerOptions.getScreeningQuestion().getScreeningQuestionId(), screeningAnswerIds);
+						}
+
+						screeningAnswerIds.add(screeningAnswer.getScreeningAnswerId());
+					}
+				}
+			}
+		}
+
 		Map<String, Object> context = new HashMap<>();
+		context.put("screeningQuestionId", screeningQuestionId);
 		context.put("screeningQuestionsWithAnswerOptions", screeningQuestionsWithAnswerOptions);
 		context.put("screeningAnswers", screeningAnswers);
 		context.put("screeningAnswerOptionsByScreeningAnswerId", screeningAnswerOptionsByScreeningAnswerId);
 		context.put("answeredScreeningQuestionCount", answeredScreeningQuestionCount);
+		context.put("screeningQuestionIdsByQuestionText", screeningQuestionIdsByQuestionText);
+		context.put("screeningAnswerIdsByScreeningQuestionId", screeningAnswerIdsByScreeningQuestionId);
 
 		try {
 			screeningScoringFunctionOutput = getJavascriptExecutor().execute(screeningScoringFunctionJavascript, context, ScreeningScoringFunctionOutput.class);
@@ -1497,6 +1636,9 @@ public class ScreeningService {
 
 		if (screeningScoringFunctionOutput.getScore() == null)
 			throw new IllegalStateException("Screening scoring function must provide a 'score' value in output");
+
+		if (screeningScoringFunctionOutput.getCompleted() == null && screeningScoringFunctionOutput.getNextScreeningQuestionId() != null)
+			throw new IllegalStateException("Screening scoring function must cannot indicate it is complete and indicate a 'next question' at the same time");
 
 		return screeningScoringFunctionOutput;
 	}
@@ -1650,6 +1792,7 @@ public class ScreeningService {
 					screeningAnswerOptionsById.put(screeningAnswerOption.getScreeningAnswerOptionId(), screeningAnswerOption);
 
 				screeningResult.put("screeningQuestionId", screeningQuestion.getScreeningQuestionId());
+				screeningResult.put("screeningQuestionDisplayOrder", screeningQuestion.getDisplayOrder());
 				screeningResult.put("screeningAnswerFormatId", screeningQuestion.getScreeningAnswerFormatId());
 				screeningResult.put("screeningAnswerContentHintId", screeningQuestion.getScreeningAnswerContentHintId());
 				screeningResult.put("questionText", screeningQuestion.getQuestionText());
@@ -1925,6 +2068,8 @@ public class ScreeningService {
 		private ScreeningScore score;
 		@Nullable
 		private Boolean belowScoringThreshold;
+		@Nullable
+		private UUID nextScreeningQuestionId; // Entirely optional; if not specified the next question in the progression is picked
 
 		@Nullable
 		public Boolean getCompleted() {
@@ -1951,6 +2096,15 @@ public class ScreeningService {
 
 		public void setBelowScoringThreshold(@Nullable Boolean belowScoringThreshold) {
 			this.belowScoringThreshold = belowScoringThreshold;
+		}
+
+		@Nullable
+		public UUID getNextScreeningQuestionId() {
+			return this.nextScreeningQuestionId;
+		}
+
+		public void setNextScreeningQuestionId(@Nullable UUID nextScreeningQuestionId) {
+			this.nextScreeningQuestionId = nextScreeningQuestionId;
 		}
 	}
 

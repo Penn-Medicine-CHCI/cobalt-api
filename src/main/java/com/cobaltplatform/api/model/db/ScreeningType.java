@@ -49,7 +49,8 @@ public class ScreeningType {
 		TICS,
 		ISI,
 		ASRM,
-		C_SSRS,
+		C_SSRS_3,
+		C_SSRS_8,
 		DAST_10,
 		BPI,
 		AUDIT_C,
@@ -60,7 +61,8 @@ public class ScreeningType {
 		IC_DRUG_USE_FREQUENCY,
 		IC_DRUG_USE_OPIOID,
 		BPI_1,
-		PRIME_5
+		PRIME_5,
+		PSYCHOSIS
 	}
 
 	@Override
