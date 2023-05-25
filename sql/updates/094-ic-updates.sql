@@ -33,6 +33,36 @@ ALTER TABLE patient_order ADD COLUMN patient_order_care_preference_id VARCHAR NO
 ALTER TABLE patient_order ADD COLUMN in_person_care_radius INTEGER;
 ALTER TABLE patient_order ADD COLUMN in_person_care_radius_distance_unit_id VARCHAR NOT NULL REFERENCES distance_unit(distance_unit_id) DEFAULT 'MILE';
 
+CREATE TABLE account_capability_type (
+  account_capability_type_id VARCHAR PRIMARY KEY,
+  description VARCHAR NOT NULL
+);
+
+-- Note: we will probably add more to this later, e.g. capabilities for group session editor/approver, that kind of thing
+INSERT INTO account_capability_type VALUES ('MHIC_SAFETY_PLANNING_ADMIN', 'MHIC Safety Planning Administrator');
+INSERT INTO account_capability_type VALUES ('MHIC_ADMIN', 'MHIC Administrator');
+INSERT INTO account_capability_type VALUES ('MHIC_REPORT_VIEWER', 'MHIC Report Viewer');
+
+CREATE TABLE account_capability (
+  account_id UUID NOT NULL REFERENCES account,
+  account_capability_type_id VARCHAR NOT NULL REFERENCES account_capability_type,
+  PRIMARY KEY (account_id, account_capability_type_id)
+);
+
+-- View that exposes all capabilities for an account as a JSONB column for easy access
+CREATE VIEW v_account AS
+WITH account_capabilities_query AS (
+	 -- Collect the capability types for each account
+	 SELECT
+			 account_id,
+			 jsonb_agg(account_capability_type_id) as account_capability_type_ids
+	 FROM
+			 account_capability
+  GROUP BY account_id
+)
+SELECT a.*, acq.account_capability_type_ids
+FROM account a LEFT OUTER JOIN account_capabilities_query acq on a.account_id=acq.account_id;
+
 DROP VIEW v_patient_order;
 
 -- Recreate view to take new columns into account and to ignore canceled appointments

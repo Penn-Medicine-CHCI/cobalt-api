@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.AddressApiResponse.AddressApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AccountCapabilityType.AccountCapabilityTypeId;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.BetaStatus.BetaStatusId;
@@ -35,6 +36,7 @@ import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
 import com.cobaltplatform.api.model.security.AccountCapabilities;
+import com.cobaltplatform.api.model.service.AccountCapabilityFlags;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AddressService;
 import com.cobaltplatform.api.service.AuthorizationService;
@@ -140,12 +142,14 @@ public class AccountApiResponse {
 	@Nullable
 	private final AddressApiResponse address;
 	@Nullable
-	@Deprecated
+	@Deprecated // in favor of accountCapabilityFlags
 	private final Map<InstitutionId, AccountCapabilities> capabilities;
 	@Nullable
 	private final UUID institutionLocationId;
 	@Nullable
 	private final Boolean promptedForInstitutionLocation;
+	@Nullable
+	private final AccountCapabilityFlags accountCapabilityFlags;
 
 	public enum AccountApiResponseSupplement {
 		EVERYTHING,
@@ -262,6 +266,7 @@ public class AccountApiResponse {
 			}
 
 			this.loginDestinationId = loginDestinationId;
+			this.accountCapabilityFlags = authorizationService.determineAccountCapabilityFlagsForAccount(account);
 		} else {
 			this.consentFormAccepted = null;
 			this.consentFormAcceptedDate = null;
@@ -282,8 +287,10 @@ public class AccountApiResponse {
 			this.birthdateDescription = null;
 			this.address = null;
 			this.loginDestinationId = null;
+			this.accountCapabilityFlags = null;
 		}
 
+		// TODO: remove this legacy "capabilities" type in favor of accountCapabilityFlags
 		if (supplements.contains(AccountApiResponseSupplement.EVERYTHING)
 				|| supplements.contains(AccountApiResponseSupplement.CAPABILITIES)) {
 			this.capabilities = authorizationService.determineAccountCapabilitiesByInstitutionId(account);
@@ -493,5 +500,10 @@ public class AccountApiResponse {
 	@Nullable
 	public Boolean getPromptedForInstitutionLocation() {
 		return promptedForInstitutionLocation;
+	}
+
+	@Nullable
+	public AccountCapabilityFlags getAccountCapabilityFlags() {
+		return this.accountCapabilityFlags;
 	}
 }
