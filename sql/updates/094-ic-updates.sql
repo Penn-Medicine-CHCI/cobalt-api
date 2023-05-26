@@ -65,6 +65,10 @@ FROM account a LEFT OUTER JOIN account_capabilities_query acq on a.account_id=ac
 
 DROP VIEW v_patient_order;
 
+-- TODO: in the future, this maximum concept should instead be moved to the screening_version table.
+-- It's certainly possible we could have different intros of different institutions and therefore different max scores.
+UPDATE screening_type SET overall_score_maximum=3 WHERE screening_type_id='IC_INTRO';
+
 -- Recreate view to take new columns into account and to ignore canceled appointments
 CREATE or replace VIEW v_patient_order AS WITH po_query AS (
     select
