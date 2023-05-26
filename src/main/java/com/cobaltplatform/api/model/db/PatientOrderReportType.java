@@ -28,35 +28,32 @@ import static java.lang.String.format;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class PatientOrderClosureReason {
+public class PatientOrderReportType {
 	@Nullable
-	private PatientOrderClosureReasonId patientOrderClosureReasonId;
+	private PatientOrderReportTypeId patientOrderReportTypeId;
 	@Nullable
 	private String description;
+	@Nullable
+	private Integer displayOrder;
 
-	public enum PatientOrderClosureReasonId {
-		NOT_CLOSED,
-		INELIGIBLE_DUE_TO_LOCATION,
-		INELIGIBLE_DUE_TO_INSURANCE,
-		REFUSED_CARE,
-		TRANSFERRED_TO_SAFETY_PLANNING,
-		SCHEDULED_WITH_SPECIALTY_CARE,
-		SCHEDULED_WITH_MHP
+	public enum PatientOrderReportTypeId {
+		PIPELINE,
+		OVERALL_OUTREACH,
+		MHIC_OUTREACH
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{patientOrderClosureReasonId=%s, description=%s}", getClass().getSimpleName(),
-				getPatientOrderClosureReasonId(), getDescription());
+		return format("%s{patientOrderReportTypeId=%s, description=%s}", getClass().getSimpleName(), getPatientOrderReportTypeId(), getDescription());
 	}
 
 	@Nullable
-	public PatientOrderClosureReasonId getPatientOrderClosureReasonId() {
-		return this.patientOrderClosureReasonId;
+	public PatientOrderReportTypeId getPatientOrderReportTypeId() {
+		return this.patientOrderReportTypeId;
 	}
 
-	public void setPatientOrderClosureReasonId(@Nullable PatientOrderClosureReasonId patientOrderClosureReasonId) {
-		this.patientOrderClosureReasonId = patientOrderClosureReasonId;
+	public void setPatientOrderReportTypeId(@Nullable PatientOrderReportTypeId patientOrderReportTypeId) {
+		this.patientOrderReportTypeId = patientOrderReportTypeId;
 	}
 
 	@Nullable
@@ -66,5 +63,14 @@ public class PatientOrderClosureReason {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
+	}
+
+	@Nullable
+	public Integer getDisplayOrder() {
+		return this.displayOrder;
+	}
+
+	public void setDisplayOrder(@Nullable Integer displayOrder) {
+		this.displayOrder = displayOrder;
 	}
 }

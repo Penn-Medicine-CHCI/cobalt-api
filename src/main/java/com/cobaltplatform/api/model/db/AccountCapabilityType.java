@@ -28,35 +28,30 @@ import static java.lang.String.format;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class PatientOrderClosureReason {
+public class AccountCapabilityType {
 	@Nullable
-	private PatientOrderClosureReasonId patientOrderClosureReasonId;
+	private AccountCapabilityTypeId accountCapabilityTypeId;
 	@Nullable
 	private String description;
 
-	public enum PatientOrderClosureReasonId {
-		NOT_CLOSED,
-		INELIGIBLE_DUE_TO_LOCATION,
-		INELIGIBLE_DUE_TO_INSURANCE,
-		REFUSED_CARE,
-		TRANSFERRED_TO_SAFETY_PLANNING,
-		SCHEDULED_WITH_SPECIALTY_CARE,
-		SCHEDULED_WITH_MHP
+	public enum AccountCapabilityTypeId {
+		MHIC_SAFETY_PLANNING_ADMIN,
+		MHIC_ADMIN,
+		MHIC_REPORT_VIEWER
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{patientOrderClosureReasonId=%s, description=%s}", getClass().getSimpleName(),
-				getPatientOrderClosureReasonId(), getDescription());
+		return format("%s{accountCapabilityTypeId=%s, description=%s}", getClass().getSimpleName(), getAccountCapabilityTypeId(), getDescription());
 	}
 
 	@Nullable
-	public PatientOrderClosureReasonId getPatientOrderClosureReasonId() {
-		return this.patientOrderClosureReasonId;
+	public AccountCapabilityTypeId getAccountCapabilityTypeId() {
+		return this.accountCapabilityTypeId;
 	}
 
-	public void setPatientOrderClosureReasonId(@Nullable PatientOrderClosureReasonId patientOrderClosureReasonId) {
-		this.patientOrderClosureReasonId = patientOrderClosureReasonId;
+	public void setAccountCapabilityTypeId(@Nullable AccountCapabilityTypeId accountCapabilityTypeId) {
+		this.accountCapabilityTypeId = accountCapabilityTypeId;
 	}
 
 	@Nullable

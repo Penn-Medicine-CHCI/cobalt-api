@@ -53,6 +53,8 @@ public class FindPatientOrdersRequest {
 	@Nullable
 	private PatientOrderConsentStatusId patientOrderConsentStatusId;
 	@Nullable
+	private PatientOrderScreeningStatusId patientOrderScreeningStatusId;
+	@Nullable
 	private PatientOrderDispositionId patientOrderDispositionId;
 	@Nullable
 	private Set<PatientOrderTriageStatusId> patientOrderTriageStatusIds;
@@ -161,6 +163,15 @@ public class FindPatientOrdersRequest {
 
 	public void setPatientOrderConsentStatusId(@Nullable PatientOrderConsentStatusId patientOrderConsentStatusId) {
 		this.patientOrderConsentStatusId = patientOrderConsentStatusId;
+	}
+
+	@Nullable
+	public PatientOrderScreeningStatusId getPatientOrderScreeningStatusId() {
+		return this.patientOrderScreeningStatusId;
+	}
+
+	public void setPatientOrderScreeningStatusId(@Nullable PatientOrderScreeningStatusId patientOrderScreeningStatusId) {
+		this.patientOrderScreeningStatusId = patientOrderScreeningStatusId;
 	}
 
 	@Nullable

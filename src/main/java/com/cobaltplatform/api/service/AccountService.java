@@ -230,7 +230,7 @@ public class AccountService {
 		if (accountId == null)
 			return Optional.empty();
 
-		return getDatabase().queryForObject("SELECT * FROM account WHERE account_id=?", Account.class, accountId);
+		return getDatabase().queryForObject("SELECT * FROM v_account WHERE account_id=?", Account.class, accountId);
 	}
 
 	@Nonnull
@@ -252,7 +252,7 @@ public class AccountService {
 
 	@Nonnull
 	public List<Account> findAdminAccountsForInstitution(InstitutionId institutionId) {
-		return getDatabase().queryForList("SELECT * FROM account WHERE role_id = ? AND institution_id = ?", Account.class, RoleId.ADMINISTRATOR, institutionId.name());
+		return getDatabase().queryForList("SELECT * FROM v_account WHERE role_id = ? AND institution_id = ?", Account.class, RoleId.ADMINISTRATOR, institutionId.name());
 	}
 
 	@Nonnull
@@ -270,7 +270,7 @@ public class AccountService {
 	public List<Account> findTestSsoAccounts(@Nonnull InstitutionId institutionId) {
 		requireNonNull(institutionId);
 
-		return getDatabase().queryForList("SELECT * FROM account WHERE (email_address LIKE '%@xmog.com' OR email_address LIKE '%@pennmedicine.upenn.edu' OR sso_id='fake-sso-id-lisa.lombard@northwestern.edu' OR sso_id='fake-sso-id-gwen.holtzman@northwestern.edu') " +
+		return getDatabase().queryForList("SELECT * FROM v_account WHERE (email_address LIKE '%@xmog.com' OR email_address LIKE '%@pennmedicine.upenn.edu' OR sso_id='fake-sso-id-lisa.lombard@northwestern.edu' OR sso_id='fake-sso-id-gwen.holtzman@northwestern.edu') " +
 				"AND institution_id IN (?,?) ORDER BY email_address", Account.class, institutionId, InstitutionId.COBALT);
 	}
 
@@ -283,8 +283,8 @@ public class AccountService {
 
 		return getDatabase().queryForObject("""
 				SELECT *
-				FROM account 
-				WHERE account_source_id=? 
+				FROM v_account
+				WHERE account_source_id=?
 				AND sso_id=?
 				AND institution_id=?
 				""", Account.class, accountSourceId, ssoId, institutionId);
@@ -300,7 +300,7 @@ public class AccountService {
 
 		return getDatabase().queryForObject("""
 				SELECT *
-				FROM account
+				FROM v_account
 				WHERE UPPER(?)=UPPER(epic_patient_mrn)
 				AND institution_id=?
 				""", Account.class, epicPatientMrn, institutionId);
@@ -669,7 +669,7 @@ public class AccountService {
 		if (emailAddress == null || accountSourceId == null)
 			return Optional.empty();
 
-		return getDatabase().queryForObject("SELECT * FROM account WHERE email_address=? AND account_source_id=?", Account.class, emailAddress, accountSourceId);
+		return getDatabase().queryForObject("SELECT * FROM v_account WHERE email_address=? AND account_source_id=?", Account.class, emailAddress, accountSourceId);
 	}
 
 	@Nonnull
@@ -1176,7 +1176,7 @@ public class AccountService {
 	public Optional<Account> findAccountByProviderId(@Nonnull UUID accountId) {
 		requireNonNull(accountId);
 
-		return getDatabase().queryForObject("SELECT * FROM account WHERE provider_id=?", Account.class, accountId);
+		return getDatabase().queryForObject("SELECT * FROM v_account WHERE provider_id=?", Account.class, accountId);
 	}
 
 	@Nonnull

@@ -33,10 +33,11 @@ import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
+import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.cobaltplatform.api.service.AppointmentService;
-import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ProviderService;
+import com.cobaltplatform.api.service.SystemService;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -92,6 +93,8 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 	@Nonnull
 	private final javax.inject.Provider<InstitutionService> institutionServiceProvider;
 	@Nonnull
+	private final javax.inject.Provider<SystemService> systemServiceProvider;
+	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
 	@Nonnull
 	private final Database database;
@@ -112,7 +115,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 	static {
 		AVAILABILITY_SYNC_NUMBER_OF_DAYS_AHEAD = 50; // 7 weeks and 1 day
 		AVAILABILITY_SYNC_INTERVAL_IN_SECONDS = 60L * 10;
-		AVAILABILITY_SYNC_INITIAL_DELAY_IN_SECONDS = 5L;
+		AVAILABILITY_SYNC_INITIAL_DELAY_IN_SECONDS = 10L;
 	}
 
 	@Inject
@@ -120,7 +123,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 												 @Nonnull javax.inject.Provider<ProviderService> providerServiceProvider,
 												 @Nonnull javax.inject.Provider<AppointmentService> appointmentServiceProvider,
 												 @Nonnull javax.inject.Provider<InstitutionService> institutionServiceProvider,
-												 @Nonnull javax.inject.Provider<AuditLogService> auditLogServiceProvider,
+												 @Nonnull javax.inject.Provider<SystemService> systemServiceProvider,
 												 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
 												 @Nonnull Database database,
 												 @Nonnull Configuration configuration,
@@ -128,7 +131,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 		requireNonNull(availabilitySyncTaskProvider);
 		requireNonNull(providerServiceProvider);
 		requireNonNull(appointmentServiceProvider);
-		requireNonNull(auditLogServiceProvider);
+		requireNonNull(systemServiceProvider);
 		requireNonNull(enterprisePluginProvider);
 		requireNonNull(database);
 		requireNonNull(configuration);
@@ -138,6 +141,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 		this.providerServiceProvider = providerServiceProvider;
 		this.appointmentServiceProvider = appointmentServiceProvider;
 		this.institutionServiceProvider = institutionServiceProvider;
+		this.systemServiceProvider = systemServiceProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.database = database;
 		this.configuration = configuration;
@@ -168,7 +172,9 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 				@Override
 				public void run() {
 					try {
-						getAvailabilitySyncTaskProvider().get().run();
+						getSystemService().performAdvisoryLockOperationIfAvailable(AdvisoryLock.EPIC_PROVIDER_AVAILABILITY_SYNC, () -> {
+							getAvailabilitySyncTaskProvider().get().run();
+						});
 					} catch (Exception e) {
 						getLogger().warn(format("Unable to sync EPIC provider availability - will retry in %s seconds", String.valueOf(getAvailabilitySyncIntervalInSeconds())), e);
 					}
@@ -711,6 +717,11 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 	@Nonnull
 	protected InstitutionService getInstitutionService() {
 		return this.institutionServiceProvider.get();
+	}
+
+	@Nonnull
+	protected SystemService getSystemService() {
+		return this.systemServiceProvider.get();
 	}
 
 	@Nonnull

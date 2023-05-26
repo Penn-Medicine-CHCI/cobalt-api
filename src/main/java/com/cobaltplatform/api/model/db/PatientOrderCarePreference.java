@@ -28,35 +28,32 @@ import static java.lang.String.format;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class PatientOrderClosureReason {
+public class PatientOrderCarePreference {
 	@Nullable
-	private PatientOrderClosureReasonId patientOrderClosureReasonId;
+	private PatientOrderCarePreferenceId patientOrderCarePreferenceId;
 	@Nullable
 	private String description;
+	@Nullable
+	private Integer displayOrder;
 
-	public enum PatientOrderClosureReasonId {
-		NOT_CLOSED,
-		INELIGIBLE_DUE_TO_LOCATION,
-		INELIGIBLE_DUE_TO_INSURANCE,
-		REFUSED_CARE,
-		TRANSFERRED_TO_SAFETY_PLANNING,
-		SCHEDULED_WITH_SPECIALTY_CARE,
-		SCHEDULED_WITH_MHP
+	public enum PatientOrderCarePreferenceId {
+		IN_PERSON,
+		TELEHEALTH,
+		NO_PREFERENCE
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{patientOrderClosureReasonId=%s, description=%s}", getClass().getSimpleName(),
-				getPatientOrderClosureReasonId(), getDescription());
+		return format("%s{patientOrderCarePreferenceId=%s, description=%s}", getClass().getSimpleName(), getPatientOrderCarePreferenceId(), getDescription());
 	}
 
 	@Nullable
-	public PatientOrderClosureReasonId getPatientOrderClosureReasonId() {
-		return this.patientOrderClosureReasonId;
+	public PatientOrderCarePreferenceId getPatientOrderCarePreferenceId() {
+		return this.patientOrderCarePreferenceId;
 	}
 
-	public void setPatientOrderClosureReasonId(@Nullable PatientOrderClosureReasonId patientOrderClosureReasonId) {
-		this.patientOrderClosureReasonId = patientOrderClosureReasonId;
+	public void setPatientOrderCarePreferenceId(@Nullable PatientOrderCarePreferenceId patientOrderCarePreferenceId) {
+		this.patientOrderCarePreferenceId = patientOrderCarePreferenceId;
 	}
 
 	@Nullable
@@ -66,5 +63,14 @@ public class PatientOrderClosureReason {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
+	}
+
+	@Nullable
+	public Integer getDisplayOrder() {
+		return this.displayOrder;
+	}
+
+	public void setDisplayOrder(@Nullable Integer displayOrder) {
+		this.displayOrder = displayOrder;
 	}
 }

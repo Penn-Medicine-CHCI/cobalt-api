@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AccountCapabilityType.AccountCapabilityTypeId;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.CalendarPermission.CalendarPermissionId;
@@ -39,6 +40,7 @@ import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.TopicCenter;
 import com.cobaltplatform.api.model.security.AccountCapabilities;
+import com.cobaltplatform.api.model.service.AccountCapabilityFlags;
 import com.cobaltplatform.api.util.Normalizer;
 
 import javax.annotation.Nonnull;
@@ -47,6 +49,7 @@ import javax.inject.Inject;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
@@ -138,10 +141,27 @@ public class AuthorizationService {
 	@Deprecated
 	// This should be removed - with the removal of super admin role, there is no longer the concept of accounts who can
 	// cross institution boundaries.
-	// Once FE is updated to no longer rely on this structure, we can remove it
+	// Once FE is updated to no longer rely on this structure, we can remove it.
+	// Should instead use new AccountCapabilityFlags/determineAccountCapabilityFlagsForAccount below
 	public Map<InstitutionId, AccountCapabilities> determineAccountCapabilitiesByInstitutionId(@Nonnull Account account) {
 		requireNonNull(account);
 		return Map.of(account.getInstitutionId(), determineAccountCapabilities(account));
+	}
+
+	@Nonnull
+	public AccountCapabilityFlags determineAccountCapabilityFlagsForAccount(@Nonnull Account account) {
+		requireNonNull(account);
+
+		Set<AccountCapabilityTypeId> accountCapabilityTypeIds = account.getAccountCapabilityTypeIds();
+
+		AccountCapabilityFlags accountCapabilityFlags = new AccountCapabilityFlags();
+		accountCapabilityFlags.setCanEditIcTriages(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_ADMIN));
+		accountCapabilityFlags.setCanEditIcSafetyPlanning(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_ADMIN)
+				|| accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_SAFETY_PLANNING_ADMIN));
+		accountCapabilityFlags.setCanViewIcReports(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_ADMIN));
+		accountCapabilityFlags.setCanImportIcPatientOrders(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_ADMIN));
+
+		return accountCapabilityFlags;
 	}
 
 	@Nonnull

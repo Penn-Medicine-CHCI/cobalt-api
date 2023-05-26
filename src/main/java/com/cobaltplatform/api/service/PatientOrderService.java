@@ -1067,6 +1067,7 @@ public class PatientOrderService implements AutoCloseable {
 		PatientOrderViewTypeId patientOrderViewTypeId = request.getPatientOrderViewTypeId();
 		PatientOrderConsentStatusId patientOrderConsentStatusId = request.getPatientOrderConsentStatusId();
 		PatientOrderDispositionId patientOrderDispositionId = request.getPatientOrderDispositionId();
+		PatientOrderScreeningStatusId patientOrderScreeningStatusId = request.getPatientOrderScreeningStatusId();
 		Set<PatientOrderTriageStatusId> patientOrderTriageStatusIds = request.getPatientOrderTriageStatusIds() == null ? Set.of() : request.getPatientOrderTriageStatusIds();
 		PatientOrderAssignmentStatusId patientOrderAssignmentStatusId = request.getPatientOrderAssignmentStatusId();
 		PatientOrderOutreachStatusId patientOrderOutreachStatusId = request.getPatientOrderOutreachStatusId();
@@ -1210,6 +1211,11 @@ public class PatientOrderService implements AutoCloseable {
 			if (patientOrderConsentStatusId != null) {
 				whereClauseLines.add("AND po.patient_order_consent_status_id=?");
 				parameters.add(patientOrderConsentStatusId);
+			}
+
+			if (patientOrderScreeningStatusId != null) {
+				whereClauseLines.add("AND po.patient_order_screening_status_id=?");
+				parameters.add(patientOrderScreeningStatusId);
 			}
 
 			if (patientOrderTriageStatusIds.size() > 0) {

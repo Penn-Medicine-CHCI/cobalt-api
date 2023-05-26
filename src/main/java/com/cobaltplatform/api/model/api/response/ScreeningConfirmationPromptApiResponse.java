@@ -32,6 +32,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.util.Optional;
 import java.util.UUID;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -67,6 +68,12 @@ public class ScreeningConfirmationPromptApiResponse {
 		this.screeningImageId = screeningConfirmationPrompt.getScreeningImageId();
 		this.text = screeningConfirmationPrompt.getText();
 		this.actionText = screeningConfirmationPrompt.getActionText();
+	}
+
+	@Override
+	public String toString() {
+		return format("%s{text=%s, actionText=%s, screeningImageId=%s}",
+				getClass().getSimpleName(), getText(), getActionText(), getScreeningImageId());
 	}
 
 	@Nonnull

@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.error.ErrorReporter;
+import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest.CreateAnswerRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
@@ -37,10 +38,12 @@ import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
+import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Screening;
 import com.cobaltplatform.api.model.db.ScreeningAnswer;
 import com.cobaltplatform.api.model.db.ScreeningAnswerFormat.ScreeningAnswerFormatId;
@@ -1146,6 +1149,10 @@ public class ScreeningService {
 			throw validationException;
 
 		ScreeningSession screeningSession = findScreeningSessionById(screeningSessionScreening.getScreeningSessionId()).get();
+
+		if (screeningSession.getCompleted())
+			throw new ValidationException(getStrings().get("This assessment is complete and cannot have its answers changed."));
+
 		ScreeningVersion screeningVersion = findScreeningVersionById(screeningSessionScreening.getScreeningVersionId()).get();
 		ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
 		Institution institution = getInstitutionService().findInstitutionById(createdByAccount.getInstitutionId()).get();
@@ -1375,6 +1382,21 @@ public class ScreeningService {
 					// TODO: write to patient order event table to keep track of when this happened
 				}
 			}
+		}
+
+		// If the orchestration function gave us an order closure reason, close out the order
+		if (orchestrationFunctionOutput.getPatientOrderClosureReasonId() != null) {
+			// Sanity check
+			if (screeningSession.getPatientOrderId() == null)
+				throw new IllegalStateException(format("Received %s.%s in orchestration function output, but we are not operating in the context of a patient order",
+						PatientOrderClosureReasonId.class.getSimpleName(), orchestrationFunctionOutput.getPatientOrderClosureReasonId().name()));
+
+			getLogger().info("Orchestrator said to close out patient order ID {} with reason {}", screeningSession.getPatientOrderId(), orchestrationFunctionOutput.getPatientOrderClosureReasonId().name());
+			getPatientOrderService().closePatientOrder(new ClosePatientOrderRequest() {{
+				setPatientOrderId(screeningSession.getPatientOrderId());
+				setPatientOrderClosureReasonId(orchestrationFunctionOutput.getPatientOrderClosureReasonId());
+				setAccountId(createdByAccountId);
+			}});
 		}
 
 		if (orchestrationFunctionOutput.getCompleted()) {
@@ -1857,15 +1879,10 @@ public class ScreeningService {
 			screeningVersionIdsByName.put(screeningVersionName.getName(), screeningVersionName.getScreeningVersionId());
 		}
 
+		boolean selfAdministered = Objects.equals(screeningSession.getCreatedByAccountId(), screeningSession.getTargetAccountId())
+				|| screeningSession.getTargetAccountId() == null;
+
 		Map<String, Object> context = new HashMap<>();
-		context.put("screenings", screenings);
-		context.put("screeningsByName", screeningsByName);
-		context.put("screeningSession", screeningSession);
-		context.put("screeningSessionScreenings", screeningSessionScreenings);
-		context.put("screeningVersionIdsByName", screeningVersionIdsByName);
-		context.put("screeningResultsByScreeningSessionScreeningId", screeningResultsByScreeningSessionScreeningId);
-		context.put("selfAdministered", Objects.equals(screeningSession.getCreatedByAccountId(), screeningSession.getTargetAccountId()));
-		context.put("additionalContext", additionalContext == null ? Map.of() : additionalContext);
 
 		// Patient age can help determine how to orchestrate, e.g. only perform a particular screening if
 		// patient is below a certain age
@@ -1879,7 +1896,21 @@ public class ScreeningService {
 
 			context.put("patientAgeInYears", patientAgeInYears);
 			context.put("patientBirthSexId", patientOrder.getPatientBirthSexId());
+
+			// Self-administered value should be false in the special case where an MHIC performs a screening
+			// but there is no target account (i.e. patient never signed in/created account).
+			// So we assume self-administered only in the case where the created-by account is a patient
+			selfAdministered = getAccountService().findAccountById(screeningSession.getCreatedByAccountId()).get().getRoleId() == RoleId.PATIENT;
 		}
+
+		context.put("screenings", screenings);
+		context.put("screeningsByName", screeningsByName);
+		context.put("screeningSession", screeningSession);
+		context.put("screeningSessionScreenings", screeningSessionScreenings);
+		context.put("screeningVersionIdsByName", screeningVersionIdsByName);
+		context.put("screeningResultsByScreeningSessionScreeningId", screeningResultsByScreeningSessionScreeningId);
+		context.put("selfAdministered", selfAdministered);
+		context.put("additionalContext", additionalContext == null ? Map.of() : additionalContext);
 
 		try {
 			screeningFlowFunctionResult = getJavascriptExecutor().execute(screeningFlowFunctionJavascript, context, screeningFlowFunctionResultType);
@@ -2116,6 +2147,8 @@ public class ScreeningService {
 		private Boolean completed;
 		@Nullable
 		private UUID nextScreeningId;
+		@Nullable
+		private PatientOrderClosureReasonId patientOrderClosureReasonId;
 
 		@Nullable
 		public Boolean getCrisisIndicated() {
@@ -2142,6 +2175,15 @@ public class ScreeningService {
 
 		public void setNextScreeningId(@Nullable UUID nextScreeningId) {
 			this.nextScreeningId = nextScreeningId;
+		}
+
+		@Nullable
+		public PatientOrderClosureReasonId getPatientOrderClosureReasonId() {
+			return this.patientOrderClosureReasonId;
+		}
+
+		public void setPatientOrderClosureReasonId(@Nullable PatientOrderClosureReasonId patientOrderClosureReasonId) {
+			this.patientOrderClosureReasonId = patientOrderClosureReasonId;
 		}
 	}
 

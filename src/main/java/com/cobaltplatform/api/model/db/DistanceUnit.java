@@ -28,35 +28,29 @@ import static java.lang.String.format;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class PatientOrderClosureReason {
+public class DistanceUnit {
 	@Nullable
-	private PatientOrderClosureReasonId patientOrderClosureReasonId;
+	private DistanceUnitId distanceUnitId;
 	@Nullable
 	private String description;
 
-	public enum PatientOrderClosureReasonId {
-		NOT_CLOSED,
-		INELIGIBLE_DUE_TO_LOCATION,
-		INELIGIBLE_DUE_TO_INSURANCE,
-		REFUSED_CARE,
-		TRANSFERRED_TO_SAFETY_PLANNING,
-		SCHEDULED_WITH_SPECIALTY_CARE,
-		SCHEDULED_WITH_MHP
+	public enum DistanceUnitId {
+		MILE,
+		KILOMETER
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{patientOrderClosureReasonId=%s, description=%s}", getClass().getSimpleName(),
-				getPatientOrderClosureReasonId(), getDescription());
+		return format("%s{distanceUnitId=%s, description=%s}", getClass().getSimpleName(), getDistanceUnitId(), getDescription());
 	}
 
 	@Nullable
-	public PatientOrderClosureReasonId getPatientOrderClosureReasonId() {
-		return this.patientOrderClosureReasonId;
+	public DistanceUnitId getDistanceUnitId() {
+		return this.distanceUnitId;
 	}
 
-	public void setPatientOrderClosureReasonId(@Nullable PatientOrderClosureReasonId patientOrderClosureReasonId) {
-		this.patientOrderClosureReasonId = patientOrderClosureReasonId;
+	public void setDistanceUnitId(@Nullable DistanceUnitId distanceUnitId) {
+		this.distanceUnitId = distanceUnitId;
 	}
 
 	@Nullable

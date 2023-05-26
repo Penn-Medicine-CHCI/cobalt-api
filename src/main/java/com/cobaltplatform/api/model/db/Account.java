@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.AccountCapabilityType.AccountCapabilityTypeId;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.BetaStatus.BetaStatusId;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
@@ -31,6 +32,7 @@ import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import com.pyranid.DatabaseColumn;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -139,6 +141,15 @@ public class Account {
 	@Nullable
 	private Boolean promptedForInstitutionLocation;
 
+	// From v_account
+
+	@Nullable
+	@DatabaseColumn("account_capability_type_ids")
+	private String accountCapabilityTypeIdsAsString; // JSONB
+
+	@Nullable
+	private Set<AccountCapabilityTypeId> accountCapabilityTypeIds; // Populated from above string
+
 	@Nonnull
 	public Map<String, Object> getMetadataAsMap() {
 		String metadata = trimToNull(getMetadata());
@@ -150,6 +161,11 @@ public class Account {
 	public StandardMetadata getStandardMetadata() {
 		String metadata = trimToNull(getMetadata());
 		return metadata == null ? StandardMetadata.emptyInstance() : getGson().fromJson(metadata, StandardMetadata.class);
+	}
+
+	@Nonnull
+	public Set<AccountCapabilityTypeId> getAccountCapabilityTypeIds() {
+		return this.accountCapabilityTypeIds == null ? Set.of() : this.accountCapabilityTypeIds;
 	}
 
 	@Nonnull
@@ -521,5 +537,18 @@ public class Account {
 
 	public void setPromptedForInstitutionLocation(@Nullable Boolean promptedForInstitutionLocation) {
 		this.promptedForInstitutionLocation = promptedForInstitutionLocation;
+	}
+
+	@Nullable
+	public String getAccountCapabilityTypeIdsAsString() {
+		return this.accountCapabilityTypeIdsAsString;
+	}
+
+	public void setAccountCapabilityTypeIdsAsString(@Nullable String accountCapabilityTypeIdsAsString) {
+		this.accountCapabilityTypeIdsAsString = accountCapabilityTypeIdsAsString;
+
+		// As a side effect, parse JSON and set our other field
+		this.accountCapabilityTypeIds = accountCapabilityTypeIdsAsString == null ? null : GSON.fromJson(accountCapabilityTypeIdsAsString, new TypeToken<Set<AccountCapabilityTypeId>>() {
+		}.getType());
 	}
 }
