@@ -36,6 +36,7 @@ public class PatientOrderClosureReason {
 
 	public enum PatientOrderClosureReasonId {
 		NOT_CLOSED,
+		INELIGIBLE_DUE_TO_LOCATION,
 		INELIGIBLE_DUE_TO_INSURANCE,
 		REFUSED_CARE,
 		TRANSFERRED_TO_SAFETY_PLANNING,

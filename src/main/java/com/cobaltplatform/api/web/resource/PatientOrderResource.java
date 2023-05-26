@@ -91,6 +91,8 @@ import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientO
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageGroup;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledScreening;
+import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus;
+import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
@@ -621,6 +623,7 @@ public class PatientOrderResource {
 	public ApiResponse findPatientOrders(@Nonnull @QueryParameter Optional<PatientOrderViewTypeId> patientOrderViewTypeId,
 																			 @Nonnull @QueryParameter Optional<PatientOrderDispositionId> patientOrderDispositionId,
 																			 @Nonnull @QueryParameter Optional<PatientOrderConsentStatusId> patientOrderConsentStatusId,
+																			 @Nonnull @QueryParameter Optional<PatientOrderScreeningStatusId> patientOrderScreeningStatusId,
 																			 @Nonnull @QueryParameter("patientOrderTriageStatusId") Optional<List<PatientOrderTriageStatusId>> patientOrderTriageStatusIds,
 																			 @Nonnull @QueryParameter Optional<PatientOrderAssignmentStatusId> patientOrderAssignmentStatusId,
 																			 @Nonnull @QueryParameter Optional<PatientOrderOutreachStatusId> patientOrderOutreachStatusId,
@@ -640,6 +643,7 @@ public class PatientOrderResource {
 		requireNonNull(patientOrderViewTypeId);
 		requireNonNull(patientOrderDispositionId);
 		requireNonNull(patientOrderConsentStatusId);
+		requireNonNull(patientOrderScreeningStatusId);
 		requireNonNull(patientOrderTriageStatusIds);
 		requireNonNull(patientOrderAssignmentStatusId);
 		requireNonNull(patientOrderOutreachStatusId);
@@ -700,6 +704,7 @@ public class PatientOrderResource {
 				setPatientOrderViewTypeId(patientOrderViewTypeId.orElse(null));
 				setPatientOrderDispositionId(patientOrderDispositionId.orElse(null));
 				setPatientOrderConsentStatusId(patientOrderConsentStatusId.orElse(null));
+				setPatientOrderScreeningStatusId(patientOrderScreeningStatusId.orElse(null));
 				setPatientOrderTriageStatusIds(new HashSet<>(patientOrderTriageStatusIds.orElse(List.of())));
 				setPatientOrderAssignmentStatusId(patientOrderAssignmentStatusId.orElse(null));
 				setPatientOrderOutreachStatusId(patientOrderOutreachStatusId.orElse(null));

@@ -33,6 +33,12 @@ ALTER TABLE patient_order ADD COLUMN patient_order_care_preference_id VARCHAR NO
 ALTER TABLE patient_order ADD COLUMN in_person_care_radius INTEGER;
 ALTER TABLE patient_order ADD COLUMN in_person_care_radius_distance_unit_id VARCHAR NOT NULL REFERENCES distance_unit(distance_unit_id) DEFAULT 'MILE';
 
+INSERT INTO patient_order_closure_reason (patient_order_closure_reason_id, description, display_order) VALUES ('INELIGIBLE_DUE_TO_LOCATION', 'Ineligible due to location', 3);
+UPDATE patient_order_closure_reason SET display_order = 4 WHERE patient_order_closure_reason_id='REFUSED_CARE';
+UPDATE patient_order_closure_reason SET display_order = 5 WHERE patient_order_closure_reason_id='TRANSFERRED_TO_SAFETY_PLANNING';
+UPDATE patient_order_closure_reason SET display_order = 6 WHERE patient_order_closure_reason_id='SCHEDULED_WITH_SPECIALTY_CARE';
+UPDATE patient_order_closure_reason SET display_order = 7 WHERE patient_order_closure_reason_id='SCHEDULED_WITH_MHP';
+
 CREATE TABLE account_capability_type (
   account_capability_type_id VARCHAR PRIMARY KEY,
   description VARCHAR NOT NULL
@@ -64,10 +70,6 @@ SELECT a.*, acq.account_capability_type_ids
 FROM account a LEFT OUTER JOIN account_capabilities_query acq on a.account_id=acq.account_id;
 
 DROP VIEW v_patient_order;
-
--- TODO: in the future, this maximum concept should instead be moved to the screening_version table.
--- It's certainly possible we could have different intros of different institutions and therefore different max scores.
-UPDATE screening_type SET overall_score_maximum=3 WHERE screening_type_id='IC_INTRO';
 
 -- Recreate view to take new columns into account and to ignore canceled appointments
 CREATE or replace VIEW v_patient_order AS WITH po_query AS (

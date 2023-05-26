@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.error.ErrorReporter;
+import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest.CreateAnswerRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
@@ -37,6 +38,7 @@ import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
@@ -1382,6 +1384,21 @@ public class ScreeningService {
 			}
 		}
 
+		// If the orchestration function gave us an order closure reason, close out the order
+		if (orchestrationFunctionOutput.getPatientOrderClosureReasonId() != null) {
+			// Sanity check
+			if (screeningSession.getPatientOrderId() == null)
+				throw new IllegalStateException(format("Received %s.%s in orchestration function output, but we are not operating in the context of a patient order",
+						PatientOrderClosureReasonId.class.getSimpleName(), orchestrationFunctionOutput.getPatientOrderClosureReasonId().name()));
+
+			getLogger().info("Orchestrator said to close out patient order ID {} with reason {}", screeningSession.getPatientOrderId(), orchestrationFunctionOutput.getPatientOrderClosureReasonId().name());
+			getPatientOrderService().closePatientOrder(new ClosePatientOrderRequest() {{
+				setPatientOrderId(screeningSession.getPatientOrderId());
+				setPatientOrderClosureReasonId(orchestrationFunctionOutput.getPatientOrderClosureReasonId());
+				setAccountId(createdByAccountId);
+			}});
+		}
+
 		if (orchestrationFunctionOutput.getCompleted()) {
 			getLogger().info("Orchestration function for screening session screening ID {} ({}) indicated that screening session ID {} is now complete.", screeningSessionScreeningId,
 					screeningVersion.getScreeningTypeId().name(), screeningSession.getScreeningSessionId());
@@ -2130,6 +2147,8 @@ public class ScreeningService {
 		private Boolean completed;
 		@Nullable
 		private UUID nextScreeningId;
+		@Nullable
+		private PatientOrderClosureReasonId patientOrderClosureReasonId;
 
 		@Nullable
 		public Boolean getCrisisIndicated() {
@@ -2156,6 +2175,15 @@ public class ScreeningService {
 
 		public void setNextScreeningId(@Nullable UUID nextScreeningId) {
 			this.nextScreeningId = nextScreeningId;
+		}
+
+		@Nullable
+		public PatientOrderClosureReasonId getPatientOrderClosureReasonId() {
+			return this.patientOrderClosureReasonId;
+		}
+
+		public void setPatientOrderClosureReasonId(@Nullable PatientOrderClosureReasonId patientOrderClosureReasonId) {
+			this.patientOrderClosureReasonId = patientOrderClosureReasonId;
 		}
 	}
 
