@@ -20,14 +20,12 @@
 package com.cobaltplatform.api.util;
 
 import com.cobaltplatform.api.util.JsonMapper.MappingFormat;
+import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.Engine;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Singleton;
-import javax.script.ScriptContext;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-import javax.script.SimpleScriptContext;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -45,11 +43,15 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class JavascriptExecutor {
 	@Nonnull
+	private static final Engine SHARED_ENGINE;
+	@Nonnull
 	private final JsonMapper jsonMapper;
 
 	static {
 		// Avoids performance warning log output that is not applicable to our use-case
 		System.setProperty("polyglot.engine.WarnInterpreterOnly", "false");
+		// Appears to be threadsafe (the GraalVM Context instances are not)
+		SHARED_ENGINE = Engine.newBuilder("js").build();
 	}
 
 	public JavascriptExecutor() {
@@ -84,11 +86,7 @@ public class JavascriptExecutor {
 		requireNonNull(input);
 		requireNonNull(outputType);
 
-		// Per https://docs.oracle.com/javase/8/docs/api/javax/script/ScriptEngineFactory.html#getParameter-java.lang.String-
-		// Testing scriptEngineFactory.getParameter("THREADING"), it returns null for graal.js engine, so we know it's not threadsafe...
-		// So for each invocation of this method, we get a fresh ScriptEngine instance to maintain thread safety
-		ScriptEngine scriptEngine = new ScriptEngineManager().getEngineByName("graal.js");
-		ScriptContext scriptContext = new SimpleScriptContext();
+		Context context = Context.newBuilder("js").engine(getEngine()).build();
 
 		// Convert context fields into JSON to embed in the JS
 		List<String> contextDeclarations = new ArrayList<>(input.size());
@@ -113,13 +111,18 @@ public class JavascriptExecutor {
 				""", contextDeclarations.stream().collect(Collectors.joining("\n")), javascript).trim();
 
 		try {
-			Object outputValue = scriptEngine.eval(executedJavascript, scriptContext);
+			Object outputValue = context.eval("js", executedJavascript);
 			T result = getJsonMapper().fromJson(outputValue.toString(), outputType);
 
 			return result;
 		} catch (Exception e) {
 			throw new JavascriptExecutionException(e, new HashMap<>(input) /* defensive copy */, javascript, executedJavascript);
 		}
+	}
+
+	@Nonnull
+	protected Engine getEngine() {
+		return SHARED_ENGINE;
 	}
 
 	@Nonnull
