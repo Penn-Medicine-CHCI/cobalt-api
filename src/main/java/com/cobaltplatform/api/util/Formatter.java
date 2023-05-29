@@ -646,12 +646,12 @@ public final class Formatter {
 	}
 
 	@Nonnull
-	public String formatStackTrace(@Nonnull Exception exception) {
-		requireNonNull(exception);
+	public String formatStackTrace(@Nonnull Throwable throwable) {
+		requireNonNull(throwable);
 
 		StringWriter stringWriter = new StringWriter();
 		PrintWriter printWriter = new PrintWriter(stringWriter);
-		exception.printStackTrace(printWriter);
+		throwable.printStackTrace(printWriter);
 		return stringWriter.toString();
 	}
 
