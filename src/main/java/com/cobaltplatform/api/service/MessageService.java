@@ -52,6 +52,7 @@ import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
+import com.pyranid.Transaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,6 +75,8 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -653,7 +656,47 @@ public class MessageService implements AutoCloseable {
 			this.logger = LoggerFactory.getLogger(getClass());
 		}
 
-		protected void dequeueAndSendMessage(@Nonnull MessageLog messageLog) {
+		protected void forceTransitionMessageToError(@Nonnull Message message) {
+			requireNonNull(message);
+
+			getLogger().warn("Force-transitioning message ID {} to {}...", message.getMessageId(), MessageStatusId.ERROR.name());
+
+			Transaction transaction = getDatabase().currentTransaction().orElse(null);
+
+			if (transaction != null) {
+				getLogger().info("We are currently in a transaction, let's wait until it's complete before forcing...");
+
+				// TODO: once Pyranid supports PostTransactionOperations, use one of them instead of splitting like this
+				transaction.addPostCommitOperation(() -> {
+					getLogger().warn("OK, we are post-commit, now force-transitioning message ID {} to {}...", message.getMessageId(), MessageStatusId.ERROR.name());
+					forceTransitionMessageToErrorInternal(message);
+				});
+
+				transaction.addPostRollbackOperation(() -> {
+					getLogger().warn("OK, we are post-rollback, now force-transitioning message ID {} to {}...", message.getMessageId(), MessageStatusId.ERROR.name());
+					forceTransitionMessageToErrorInternal(message);
+				});
+			} else {
+				forceTransitionMessageToErrorInternal(message);
+			}
+		}
+
+		protected void forceTransitionMessageToErrorInternal(@Nonnull Message message) {
+			requireNonNull(message);
+
+			try {
+				getDatabase().execute("UPDATE message_log SET message_status_id=?, processed=NOW() WHERE message_id=?",
+						MessageStatusId.ERROR, message.getMessageId());
+
+				getLogger().warn("Force-transitioning message ID {} to {} has completed successfully.", message.getMessageId(), MessageStatusId.ERROR.name());
+			} catch (Throwable t) {
+				getLogger().error(format("Unable to force-transition message ID %s to %s", message.getMessageId(), MessageStatusId.ENQUEUED), t);
+				getErrorReporter().report(t);
+			}
+		}
+
+		@Nonnull
+		protected Boolean dequeueAndSendMessage(@Nonnull MessageLog messageLog) {
 			requireNonNull(messageLog);
 
 			MessageSender messageSender;
@@ -679,21 +722,48 @@ public class MessageService implements AutoCloseable {
 				try {
 					getDatabase().execute("UPDATE message_log SET message_status_id=?, vendor_assigned_id=?, processed=NOW() WHERE message_id=?",
 							MessageStatusId.SENT, vendorAssignedId, deserializedMessage.getMessageId());
-				} catch (Exception e2) {
-					// Not much we can do, just bail
-					getLogger().warn("Unable to update message log", e2);
+
+					return true;
+				} catch (Throwable t) {
+					try {
+						// Not much we can do, just bail
+						getLogger().error(format("Unable to update message log for message ID %s", deserializedMessage.getMessageId()), t);
+						getErrorReporter().report(t);
+					} finally {
+						forceTransitionMessageToError(deserializedMessage);
+					}
+
+					return false;
 				}
-			} catch (Exception e) {
+			} catch (Throwable t) {
+				getLogger().warn(format("Unable to send message with message ID %s, going to mark as %s...",
+						deserializedMessage.getMessageId(), MessageStatusId.ERROR.name()), t);
+
+				String stackTrace = null;
+
 				try {
-					String stackTrace = getFormatter().formatStackTrace(e);
-					getDatabase().execute("UPDATE message_log SET message_status_id=?, processed=NOW(), stack_trace=? WHERE message_id=?",
-							MessageStatusId.ERROR, stackTrace, deserializedMessage.getMessageId());
-				} catch (Exception e2) {
-					// Not much we can do, just bail
-					getLogger().warn("Unable to update message log", e2);
+					stackTrace = getFormatter().formatStackTrace(t);
+				} catch (Throwable t2) {
+					getLogger().warn(format("Unable to extract stack trace for failed message send for message ID %s",
+							deserializedMessage.getMessageId()), t);
 				}
 
-				throw e;
+				try {
+					getDatabase().execute("UPDATE message_log SET message_status_id=?, processed=NOW(), stack_trace=? WHERE message_id=?",
+							MessageStatusId.ERROR, stackTrace, deserializedMessage.getMessageId());
+
+					return false;
+				} catch (Throwable t2) {
+					// Not much we can do, just bail
+					try {
+						getLogger().error(format("Unable to update message log for message ID %s", deserializedMessage.getMessageId()), t2);
+						getErrorReporter().report(t2);
+					} finally {
+						forceTransitionMessageToError(deserializedMessage);
+					}
+
+					return false;
+				}
 			}
 		}
 
@@ -703,33 +773,54 @@ public class MessageService implements AutoCloseable {
 					getConfiguration().getDefaultLocale(), getConfiguration().getDefaultTimeZone()).build();
 
 			getCurrentContextExecutor().execute(currentContext, () -> {
-				getDatabase().transaction(() -> {
-					int batchSize = 10;
+				// Not used for thead safety, but rather as a "pinned" reference we can change inside of the closure
+				AtomicBoolean moreMessagesExist = new AtomicBoolean(true);
+				AtomicInteger totalMessagesProcessed = new AtomicInteger(0);
+				AtomicInteger totalMessagesSent = new AtomicInteger(0);
+				AtomicInteger totalMessagesFailed = new AtomicInteger(0);
 
-					// Anything in ENQUEUED status can be sent
-					List<MessageLog> sendableMessages = getDatabase().queryForList("""
-							SELECT *
-							FROM message_log
-							WHERE message_status_id=?
-							LIMIT ?
-							FOR UPDATE
-							SKIP LOCKED
-							""", MessageLog.class, MessageStatusId.ENQUEUED, batchSize);
+				while (moreMessagesExist.get()) {
+					getDatabase().transaction(() -> {
+						// For now, keep batch size at 1 so we insert right away after the send, which
+						// means by the time a confirmation webhook arrives, we'll certainly have the transaction committed/record ready to receive it.
+						// In the future, if we need higher-volume sending, we should revisit this approach
+						int batchSize = 1;
 
-					if (sendableMessages.size() == 0) {
-						getLogger().trace("No messages need to be sent.");
-						return;
-					}
+						// Anything in ENQUEUED status can be sent
+						List<MessageLog> sendableMessages = getDatabase().queryForList("""
+								SELECT *
+								FROM message_log
+								WHERE message_status_id=?
+								LIMIT ?
+								FOR UPDATE
+								SKIP LOCKED
+								""", MessageLog.class, MessageStatusId.ENQUEUED, batchSize);
 
-					getLogger().info("Sending a batch of {} message[s]...", sendableMessages.size());
-					int i = 0;
+						if (sendableMessages.size() == 0) {
+							moreMessagesExist.set(false);
+						} else {
+							getLogger().info("Sending a batch of {} message[s]...", sendableMessages.size());
+							int i = 0;
 
-					for (MessageLog sendableMessage : sendableMessages) {
-						getLogger().info("Sending message {} of {}...", i + 1, sendableMessages.size());
-						dequeueAndSendMessage(sendableMessage);
-						++i;
-					}
-				});
+							for (MessageLog sendableMessage : sendableMessages) {
+								totalMessagesProcessed.incrementAndGet();
+
+								getLogger().info("Sending message {} of {}...", i + 1, sendableMessages.size());
+
+								if (dequeueAndSendMessage(sendableMessage))
+									totalMessagesSent.incrementAndGet();
+								else
+									totalMessagesFailed.incrementAndGet();
+
+								++i;
+							}
+						}
+					});
+				}
+
+				if (totalMessagesProcessed.get() > 0)
+					getLogger().info("Processed a total of {} message[s] in this send-message task invocation: {} sent and {} failed.",
+							totalMessagesProcessed.get(), totalMessagesSent.get(), totalMessagesFailed.get());
 			});
 		}
 
