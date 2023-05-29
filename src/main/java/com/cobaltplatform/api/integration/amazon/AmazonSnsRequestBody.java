@@ -94,18 +94,24 @@ public class AmazonSnsRequestBody {
 		// This is a JSON string...
 		this.message = requestBodyAsMap.get("Message");
 
-		// ...so provide it as a map for simplified access.
-		Map<String, Object> messageAsMap = getGson().fromJson(this.message, Map.class);
-		this.messageAsMap = Collections.unmodifiableMap(messageAsMap);
+		// ...but if it's of NOTIFICATION type, it's a JSON object, so provide it as a map for simplified access
+		if (getType() == AmazonSnsMessageType.NOTIFICATION) {
+			Map<String, Object> messageAsMap = getGson().fromJson(this.message, Map.class);
+			this.messageAsMap = Collections.unmodifiableMap(messageAsMap);
 
-		// There will always be a "mail" object.
-		Map<String, Object> mailAsMap = (Map<String, Object>) messageAsMap.get("mail");
-		this.mailAsMap = Collections.unmodifiableMap(mailAsMap);
+			// There will always be a "mail" object.
+			Map<String, Object> mailAsMap = (Map<String, Object>) messageAsMap.get("mail");
+			this.mailAsMap = Collections.unmodifiableMap(mailAsMap);
 
-		if ("Bounce".equals(messageAsMap.get("eventType"))) {
-			Map<String, Object> bounceAsMap = (Map<String, Object>) messageAsMap.get("bounce");
-			this.bounceAsMap = Collections.unmodifiableMap(bounceAsMap);
+			if ("Bounce".equals(messageAsMap.get("eventType"))) {
+				Map<String, Object> bounceAsMap = (Map<String, Object>) messageAsMap.get("bounce");
+				this.bounceAsMap = Collections.unmodifiableMap(bounceAsMap);
+			} else {
+				this.bounceAsMap = null;
+			}
 		} else {
+			this.messageAsMap = Collections.emptyMap();
+			this.mailAsMap = null;
 			this.bounceAsMap = null;
 		}
 
