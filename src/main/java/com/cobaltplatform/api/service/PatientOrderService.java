@@ -76,6 +76,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderCarePreference;
+import com.cobaltplatform.api.model.db.PatientOrderCarePreference.PatientOrderCarePreferenceId;
 import com.cobaltplatform.api.model.db.PatientOrderCareType;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
@@ -4068,6 +4069,9 @@ public class PatientOrderService implements AutoCloseable {
 		CreateAddressRequest patientAddress = request.getPatientAddress();
 		UUID patientOrderInsurancePlanId = request.getPatientOrderInsurancePlanId();
 		Boolean patientDemographicsConfirmed = request.getPatientDemographicsConfirmed();
+		PatientOrderCarePreferenceId patientOrderCarePreferenceId = request.getPatientOrderCarePreferenceId();
+		Integer inPersonCareRadius = request.getInPersonCareRadius();
+
 		PatientOrder patientOrder = null;
 		Account account = null;
 		List<Pair<String, Object>> columnNamesAndValues = new ArrayList<>();
@@ -4190,6 +4194,18 @@ public class PatientOrderService implements AutoCloseable {
 				columnNamesAndValues.add(Pair.of("patient_demographics_confirmed_at", Instant.now()));
 				columnNamesAndValues.add(Pair.of("patient_demographics_confirmed_by_account_id", accountId));
 			}
+		}
+
+		if (request.isShouldUpdatePatientOrderCarePreferenceId()) {
+			if (patientOrderCarePreferenceId == null) {
+				validationException.add(new FieldError("patientOrderCarePreferenceId", getStrings().get("You must specify a care preference.")));
+			} else {
+				columnNamesAndValues.add(Pair.of("patient_order_care_preference_id", patientOrderCarePreferenceId));
+			}
+		}
+
+		if (request.isShouldUpdateInPersonCareRadius()) {
+			columnNamesAndValues.add(Pair.of("in_person_care_radius", inPersonCareRadius));
 		}
 
 		if (validationException.hasErrors())

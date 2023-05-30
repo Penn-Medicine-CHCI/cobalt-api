@@ -381,6 +381,8 @@ public class PatientOrderResource {
 		request.setShouldUpdatePatientAddress(requestBodyAsJson.containsKey("patientAddress"));
 		request.setShouldUpdatePatientOrderInsurancePlanId(requestBodyAsJson.containsKey("patientOrderInsurancePlanId"));
 		request.setShouldUpdatePatientDemographicsConfirmed(requestBodyAsJson.containsKey("patientDemographicsConfirmed"));
+		request.setShouldUpdatePatientOrderCarePreferenceId(requestBodyAsJson.containsKey("patientOrderCarePreferenceId"));
+		request.setShouldUpdateInPersonCareRadius(requestBodyAsJson.containsKey("inPersonCareRadius"));
 
 		getPatientOrderService().patchPatientOrder(request);
 

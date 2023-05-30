@@ -229,8 +229,10 @@ public class InstitutionApiResponse {
 		// Key GA4 measurement ID off of patient vs. staff user experience type
 		this.ga4MeasurementId = this.userExperienceTypeId == UserExperienceTypeId.STAFF ? institution.getGa4StaffMeasurementId() : institution.getGa4PatientMeasurementId();
 
+		// UI needs both fields available to it because one experience might link to another, e.g. IC staff sign-in screen links to patient experience
 		this.patientUserExperienceBaseUrl = institutionService.findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.PATIENT).get();
 		this.staffUserExperienceBaseUrl = institutionService.findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.STAFF).get();
+
 		this.integratedCarePhoneNumber = institution.getIntegratedCarePhoneNumber();
 		this.integratedCarePhoneNumberDescription = institution.getIntegratedCarePhoneNumber() == null ? null : formatter.formatPhoneNumber(institution.getIntegratedCarePhoneNumber());
 		this.integratedCareAvailabilityDescription = institution.getIntegratedCareAvailabilityDescription();
