@@ -690,6 +690,7 @@ public class PatientOrderApiResponse {
 		this.patientOrderTriageStatusId = patientOrder.getPatientOrderTriageStatusId();
 		this.patientOrderDispositionId = patientOrder.getPatientOrderDispositionId();
 		this.patientOrderScreeningStatusId = patientOrder.getPatientOrderScreeningStatusId();
+		this.patientOrderScreeningStatusDescription = patientOrder.getPatientOrderScreeningStatusDescription();
 		this.patientAccountId = patientOrder.getPatientAccountId();
 		this.patientAddressId = patientOrder.getPatientAddressId();
 		this.patientLastName = patientOrder.getPatientLastName();
@@ -776,13 +777,12 @@ public class PatientOrderApiResponse {
 				"radius", patientOrder.getInPersonCareRadius(),
 				"distanceUnit", patientOrder.getInPersonCareRadiusDistanceUnitId() == DistanceUnitId.MILE ? strings.get("mi") : strings.get("km")
 		));
-		
+
 		this.patientOrderSafetyPlanningStatusId = patientOrder.getPatientOrderSafetyPlanningStatusId();
 		this.connectedToSafetyPlanningAt = patientOrder.getConnectedToSafetyPlanningAt();
 		this.connectedToSafetyPlanningAtDescription = patientOrder.getConnectedToSafetyPlanningAt() == null ? null : formatter.formatTimestamp(patientOrder.getConnectedToSafetyPlanningAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
-
 		this.patientOrderClosureReasonId = patientOrder.getPatientOrderClosureReasonId();
-		this.patientOrderScreeningStatusDescription = patientOrder.getPatientOrderScreeningStatusDescription();
+		this.patientOrderClosureReasonDescription = patientOrder.getPatientOrderClosureReasonDescription();
 
 		// MHIC-only view of the data
 		if (format == PatientOrderApiResponseFormat.MHIC) {
@@ -868,7 +868,6 @@ public class PatientOrderApiResponse {
 			this.panelAccountDisplayNameWithLastFirst = Normalizer.normalizeNameWithLastFirst(patientOrder.getPanelAccountFirstName(), patientOrder.getPanelAccountLastName()).orElse(null);
 			this.patientOrderDispositionDescription = patientOrder.getPatientOrderDispositionDescription();
 			this.patientOrderTriageStatusDescription = patientOrder.getPatientOrderTriageStatusDescription();
-			this.patientOrderClosureReasonDescription = patientOrder.getPatientOrderClosureReasonDescription();
 			this.patientBelowAgeThreshold = patientOrder.getPatientBelowAgeThreshold();
 			this.mostRecentEpisodeClosedAt = patientOrder.getMostRecentEpisodeClosedAt();
 			this.mostRecentEpisodeClosedAtDescription = patientOrder.getMostRecentEpisodeClosedAt() == null ? null : formatter.formatTimestamp(patientOrder.getMostRecentEpisodeClosedAt());
