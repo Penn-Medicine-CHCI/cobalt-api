@@ -781,10 +781,12 @@ public class PatientOrderApiResponse {
 		this.connectedToSafetyPlanningAt = patientOrder.getConnectedToSafetyPlanningAt();
 		this.connectedToSafetyPlanningAtDescription = patientOrder.getConnectedToSafetyPlanningAt() == null ? null : formatter.formatTimestamp(patientOrder.getConnectedToSafetyPlanningAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 
+		this.patientOrderClosureReasonId = patientOrder.getPatientOrderClosureReasonId();
+		this.patientOrderScreeningStatusDescription = patientOrder.getPatientOrderScreeningStatusDescription();
+
 		// MHIC-only view of the data
 		if (format == PatientOrderApiResponseFormat.MHIC) {
 			this.panelAccountId = patientOrder.getPanelAccountId();
-			this.patientOrderClosureReasonId = patientOrder.getPatientOrderClosureReasonId();
 			this.encounterDepartmentId = patientOrder.getEncounterDepartmentId();
 			this.encounterDepartmentIdType = patientOrder.getEncounterDepartmentIdType();
 			this.encounterDepartmentName = patientOrder.getEncounterDepartmentName();
@@ -864,7 +866,6 @@ public class PatientOrderApiResponse {
 			this.panelAccountLastName = patientOrder.getPanelAccountLastName();
 			this.panelAccountDisplayName = Normalizer.normalizeName(patientOrder.getPanelAccountFirstName(), patientOrder.getPanelAccountLastName()).orElse(null);
 			this.panelAccountDisplayNameWithLastFirst = Normalizer.normalizeNameWithLastFirst(patientOrder.getPanelAccountFirstName(), patientOrder.getPanelAccountLastName()).orElse(null);
-			this.patientOrderScreeningStatusDescription = patientOrder.getPatientOrderScreeningStatusDescription();
 			this.patientOrderDispositionDescription = patientOrder.getPatientOrderDispositionDescription();
 			this.patientOrderTriageStatusDescription = patientOrder.getPatientOrderTriageStatusDescription();
 			this.patientOrderClosureReasonDescription = patientOrder.getPatientOrderClosureReasonDescription();
