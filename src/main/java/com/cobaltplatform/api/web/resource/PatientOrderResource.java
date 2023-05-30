@@ -91,7 +91,6 @@ import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientO
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageGroup;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledScreening;
-import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
@@ -1731,6 +1730,15 @@ public class PatientOrderResource {
 				.map(patientOrderInsurancePlan -> getPatientOrderInsurancePlanApiResponseFactory().create(patientOrderInsurancePlan))
 				.collect(Collectors.toList());
 
+		List<Map<String, Object>> patientOrderCarePreferences = getPatientOrderService().findPatientOrderCarePreferencesByInstitutionId(institutionId).stream()
+				.map(patientOrderCarePreference -> {
+					Map<String, Object> patientOrderCarePreferenceJson = new HashMap<>();
+					patientOrderCarePreferenceJson.put("patientOrderCarePreferenceId", patientOrderCarePreference.getPatientOrderCarePreferenceId());
+					patientOrderCarePreferenceJson.put("description", patientOrderCarePreference.getDescription());
+					return patientOrderCarePreferenceJson;
+				})
+				.collect(Collectors.toList());
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("timeZones", timeZones);
 			put("countries", countries);
@@ -1752,6 +1760,7 @@ public class PatientOrderResource {
 			put("patientOrderInsurancePayors", patientOrderInsurancePayors);
 			put("patientOrderInsurancePlans", patientOrderInsurancePlans);
 			put("patientOrderResourcingTypes", patientOrderResourcingTypes);
+			put("patientOrderCarePreferences", patientOrderCarePreferences);
 		}});
 	}
 

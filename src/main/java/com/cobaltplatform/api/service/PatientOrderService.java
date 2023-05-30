@@ -75,6 +75,7 @@ import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
 import com.cobaltplatform.api.model.db.PatientOrder;
+import com.cobaltplatform.api.model.db.PatientOrderCarePreference;
 import com.cobaltplatform.api.model.db.PatientOrderCareType;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
@@ -673,6 +674,20 @@ public class PatientOrderService implements AutoCloseable {
 				FROM patient_order_resourcing_type
 				ORDER BY display_order
 				""", PatientOrderResourcingType.class);
+	}
+
+	@Nonnull
+	public List<PatientOrderCarePreference> findPatientOrderCarePreferencesByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
+
+		// Don't use institutionId currently, but we might in the future
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM patient_order_care_preference
+				ORDER BY display_order
+				""", PatientOrderCarePreference.class);
 	}
 
 	@Nonnull
