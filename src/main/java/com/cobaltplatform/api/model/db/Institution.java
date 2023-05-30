@@ -115,9 +115,16 @@ public class Institution {
 	private Boolean userSubmittedGroupSessionEnabled;
 	@Nullable
 	private Boolean userSubmittedGroupSessionRequestEnabled;
+	@Deprecated // TODO: remove this in favor of ga4PatientMeasurementId and ga4StaffMeasurementId
 	@Nullable
 	@DatabaseColumn("ga4_measurement_id")
 	private String ga4MeasurementId;
+	@Nullable
+	@DatabaseColumn("ga4_patient_measurement_id")
+	private String ga4PatientMeasurementId;
+	@Nullable
+	@DatabaseColumn("ga4_staff_measurement_id")
+	private String ga4StaffMeasurementId;
 
 	// EPIC / MyChart configuration
 
@@ -582,12 +589,32 @@ public class Institution {
 	}
 
 	@Nullable
+	@Deprecated
 	public String getGa4MeasurementId() {
 		return this.ga4MeasurementId;
 	}
 
+	@Deprecated
 	public void setGa4MeasurementId(@Nullable String ga4MeasurementId) {
 		this.ga4MeasurementId = ga4MeasurementId;
+	}
+
+	@Nullable
+	public String getGa4PatientMeasurementId() {
+		return this.ga4PatientMeasurementId;
+	}
+
+	public void setGa4PatientMeasurementId(@Nullable String ga4PatientMeasurementId) {
+		this.ga4PatientMeasurementId = ga4PatientMeasurementId;
+	}
+
+	@Nullable
+	public String getGa4StaffMeasurementId() {
+		return this.ga4StaffMeasurementId;
+	}
+
+	public void setGa4StaffMeasurementId(@Nullable String ga4StaffMeasurementId) {
+		this.ga4StaffMeasurementId = ga4StaffMeasurementId;
 	}
 
 	@Nullable
