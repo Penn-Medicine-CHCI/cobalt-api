@@ -216,7 +216,6 @@ public class InstitutionApiResponse {
 		this.myChartName = institution.getMyChartName();
 		this.myChartDefaultUrl = institution.getMyChartDefaultUrl();
 		this.groupSessionRequestsEnabled = institution.getGroupSessionRequestsEnabled();
-		this.ga4MeasurementId = institution.getGa4MeasurementId();
 		this.additionalNavigationItems = topicCenterService.findTopicCenterNavigationItemsByInstitutionId(institutionId);
 		this.features = institutionService.findFeaturesByInstitutionId(institution, account);
 		this.takeFeatureScreening = screeningService.shouldAccountIdTakeScreeningFlowId(account, institution.getFeatureScreeningFlowId());
@@ -227,8 +226,13 @@ public class InstitutionApiResponse {
 		// but crawlers will attempt to crawl and BE doesn't know what kind of experience type to serve for the domain
 		this.userExperienceTypeId = currentContext.getUserExperienceTypeId().orElse(UserExperienceTypeId.PATIENT);
 
+		// Key GA4 measurement ID off of patient vs. staff user experience type
+		this.ga4MeasurementId = this.userExperienceTypeId == UserExperienceTypeId.STAFF ? institution.getGa4StaffMeasurementId() : institution.getGa4PatientMeasurementId();
+
+		// UI needs both fields available to it because one experience might link to another, e.g. IC staff sign-in screen links to patient experience
 		this.patientUserExperienceBaseUrl = institutionService.findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.PATIENT).get();
 		this.staffUserExperienceBaseUrl = institutionService.findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.STAFF).get();
+
 		this.integratedCarePhoneNumber = institution.getIntegratedCarePhoneNumber();
 		this.integratedCarePhoneNumberDescription = institution.getIntegratedCarePhoneNumber() == null ? null : formatter.formatPhoneNumber(institution.getIntegratedCarePhoneNumber());
 		this.integratedCareAvailabilityDescription = institution.getIntegratedCareAvailabilityDescription();

@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.api.request;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
+import com.cobaltplatform.api.model.db.PatientOrderCarePreference.PatientOrderCarePreferenceId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 
 import javax.annotation.Nullable;
@@ -90,6 +91,14 @@ public class PatchPatientOrderRequest {
 	private Boolean patientDemographicsConfirmed;
 	@Nullable
 	private boolean shouldUpdatePatientDemographicsConfirmed;
+	@Nullable
+	private PatientOrderCarePreferenceId patientOrderCarePreferenceId;
+	@Nullable
+	private boolean shouldUpdatePatientOrderCarePreferenceId;
+	@Nullable
+	private Integer inPersonCareRadius;
+	@Nullable
+	private boolean shouldUpdateInPersonCareRadius;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -328,5 +337,39 @@ public class PatchPatientOrderRequest {
 
 	public void setShouldUpdatePatientDemographicsConfirmed(boolean shouldUpdatePatientDemographicsConfirmed) {
 		this.shouldUpdatePatientDemographicsConfirmed = shouldUpdatePatientDemographicsConfirmed;
+	}
+
+	@Nullable
+	public PatientOrderCarePreferenceId getPatientOrderCarePreferenceId() {
+		return this.patientOrderCarePreferenceId;
+	}
+
+	public void setPatientOrderCarePreferenceId(@Nullable PatientOrderCarePreferenceId patientOrderCarePreferenceId) {
+		this.patientOrderCarePreferenceId = patientOrderCarePreferenceId;
+	}
+
+	public boolean isShouldUpdatePatientOrderCarePreferenceId() {
+		return this.shouldUpdatePatientOrderCarePreferenceId;
+	}
+
+	public void setShouldUpdatePatientOrderCarePreferenceId(boolean shouldUpdatePatientOrderCarePreferenceId) {
+		this.shouldUpdatePatientOrderCarePreferenceId = shouldUpdatePatientOrderCarePreferenceId;
+	}
+
+	@Nullable
+	public Integer getInPersonCareRadius() {
+		return this.inPersonCareRadius;
+	}
+
+	public void setInPersonCareRadius(@Nullable Integer inPersonCareRadius) {
+		this.inPersonCareRadius = inPersonCareRadius;
+	}
+
+	public boolean isShouldUpdateInPersonCareRadius() {
+		return this.shouldUpdateInPersonCareRadius;
+	}
+
+	public void setShouldUpdateInPersonCareRadius(boolean shouldUpdateInPersonCareRadius) {
+		this.shouldUpdateInPersonCareRadius = shouldUpdateInPersonCareRadius;
 	}
 }
