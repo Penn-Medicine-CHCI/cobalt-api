@@ -401,8 +401,8 @@ public class AuthorizationService {
 		requireNonNull(appointmentAccount);
 
 		// Some users can cancel appointments on behalf of other users
-		if (account.getRoleId() == RoleId.ADMINISTRATOR) {
-			// "Normal" admins can cancel anything within the same institution
+		if (account.getRoleId() == RoleId.ADMINISTRATOR || account.getRoleId() == RoleId.MHIC) {
+			// "Normal" admins or MHICs can cancel anything within the same institution
 			if (account.getInstitutionId().equals(appointmentAccount.getInstitutionId()))
 				return true;
 		} else {

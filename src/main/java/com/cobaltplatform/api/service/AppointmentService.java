@@ -1898,8 +1898,14 @@ public class AppointmentService {
 		} else {
 			appointment = findAppointmentById(appointmentId).orElse(null);
 
-			if (appointment == null)
+			if (appointment == null) {
 				validationException.add(new FieldError("appointmentId", getStrings().get("Appointment ID is invalid.")));
+			} else {
+				if(appointment.getCanceled()) {
+					getLogger().info("Appointment is already canceled, not re-canceling.");
+					return false;
+				}
+			}
 		}
 
 		// Account is not necessarily required - for example, cancelation via external source like a webhook
