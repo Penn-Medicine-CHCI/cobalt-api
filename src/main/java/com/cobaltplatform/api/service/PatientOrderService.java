@@ -1552,12 +1552,28 @@ public class PatientOrderService implements AutoCloseable {
 							"lastName", otherAlreadyOpenPatientOrder.getPatientLastName(),
 							"mrn", otherAlreadyOpenPatientOrder.getPatientMrn())));
 
+		// Special case: if we are explicitly re-opening an order that was closed due to "refused care"
+		// then flip its consent status back to UNKNOWN
+		boolean shouldResetConsentStatus = patientOrder.getPatientOrderClosureReasonId() == PatientOrderClosureReasonId.REFUSED_CARE
+				&& patientOrder.getPatientOrderConsentStatusId() == PatientOrderConsentStatusId.REJECTED;
+
 		getDatabase().execute("""
 				UPDATE patient_order
 				SET patient_order_disposition_id=?, patient_order_closure_reason_id=?,
 				episode_closed_at=NULL, episode_closed_by_account_id=NULL
 				WHERE patient_order_id=?
 				""", PatientOrderDispositionId.OPEN, PatientOrderClosureReasonId.NOT_CLOSED, patientOrderId);
+
+		if (shouldResetConsentStatus) {
+			getLogger().debug("As a side effect of reopening, flipping consent status back to {} for patient order ID {}",
+					PatientOrderConsentStatusId.UNKNOWN.name(), patientOrder.getPatientOrderId());
+
+			getDatabase().execute("""
+					UPDATE patient_order
+					SET patient_order_consent_status_id=?
+					WHERE patient_order_id=?
+					""", PatientOrderConsentStatusId.UNKNOWN, patientOrderId);
+		}
 
 		createPatientOrderEvent(new CreatePatientOrderEventRequest() {
 			{
@@ -2202,11 +2218,14 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientAccount == null)
 			return Set.of();
 
+		// This is perhaps better done by pulling from Epic, but since name data is already on our orders, might as well use it
+		boolean shouldSetNameFromOrder = patientAccount.getFirstName() == null || patientAccount.getLastName() == null;
+
 		List<PatientOrder> unassignedMatchingPatientOrders = getDatabase().queryForList("""
-				SELECT * 
+				SELECT *
 				FROM patient_order
 				WHERE patient_id=?
-				AND patient_id_type=?				
+				AND patient_id_type=?
 				AND institution_id=?
 				AND patient_account_id IS NULL
 				""", PatientOrder.class, patientAccount.getEpicPatientId(), patientAccount.getEpicPatientIdType(), patientAccount.getInstitutionId());
@@ -2219,6 +2238,22 @@ public class PatientOrderService implements AutoCloseable {
 					SET patient_account_id=?
 					WHERE patient_order_id=?
 					""", patientAccountId, unassignedMatchingPatientOrder.getPatientOrderId());
+
+			if (shouldSetNameFromOrder) {
+				String firstName = unassignedMatchingPatientOrder.getPatientFirstName();
+				String lastName = unassignedMatchingPatientOrder.getPatientLastName();
+				String displayName = Normalizer.normalizeName(firstName, lastName).orElse(null);
+
+				if (firstName != null && lastName != null) {
+					getDatabase().execute("""
+							UPDATE account
+							SET first_name=?, last_name=?, display_name=?
+							WHERE account_id=?
+							""", firstName, lastName, displayName, patientAccount.getAccountId());
+
+					shouldSetNameFromOrder = false;
+				}
+			}
 
 			createPatientOrderEvent(new CreatePatientOrderEventRequest() {{
 				setPatientOrderEventTypeId(PatientOrderEventTypeId.PATIENT_ACCOUNT_ASSIGNED);
