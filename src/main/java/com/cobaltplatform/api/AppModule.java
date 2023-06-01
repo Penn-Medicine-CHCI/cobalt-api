@@ -200,6 +200,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static java.util.Objects.requireNonNull;
@@ -666,9 +667,36 @@ public class AppModule extends AbstractModule {
 	@Singleton
 	public RequestHandler provideRequestHandler(@Nonnull InstanceProvider instanceProvider) {
 		requireNonNull(instanceProvider);
+		
+		ValueConverterRegistry valueConverterRegistry = new ValueConverterRegistry();
+
+		// Replace default UUID parsing to also discard nonprintable characters.
+		// For example, helps with parsing URLs like /something/ca99837c-6978-461c-97c0-edb506705fed%E2%80%AF
+		valueConverterRegistry.remove(String.class, UUID.class);
+		valueConverterRegistry.add(new AbstractValueConverter<String, UUID>() {
+			@Override
+			public UUID convert(String from) throws ValueConversionException {
+				if (from == null)
+					return null;
+
+				// See https://howtodoinjava.com/java/regex/java-clean-ascii-text-non-printable-chars/
+				from = from.trim()
+						// strips off all non-ASCII characters
+						.replaceAll("[^\\x00-\\x7F]", "")
+						// erases all the ASCII control characters
+						.replaceAll("[\\p{Cntrl}&&[^\r\n\t]]", "")
+						// removes non-printable characters from Unicode
+						.replaceAll("\\p{C}", "");
+
+				// Alternatively, we could have a regex that discards any character other than alphanumeric/hyphens,
+				// but that's not quite the same semantics as "discard erroneous whitespace/nonprintables"
+				// from = from.replaceAll("[^A-Za-z0-9_-]", "");
+
+				return UUID.fromString(from);
+			}
+		});
 
 		// Support for special ScreeningQuestionContextId type
-		ValueConverterRegistry valueConverterRegistry = new ValueConverterRegistry();
 		valueConverterRegistry.add(new AbstractValueConverter<String, ScreeningQuestionContextId>() {
 			@Override
 			public ScreeningQuestionContextId convert(String from) throws ValueConversionException {
