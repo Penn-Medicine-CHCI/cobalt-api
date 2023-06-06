@@ -2361,6 +2361,7 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientOrder.getPatientOrderResourcingStatusId() == patientOrderResourcingStatusId)
 			return false;
 
+		Institution institution = getInstitutionService().findInstitutionById(patientOrder.getInstitutionId()).get();
 		Instant resourcesSentAt = null;
 
 		if (patientOrderResourcingStatusId == PatientOrderResourcingStatusId.SENT_RESOURCES) {
@@ -2371,18 +2372,76 @@ public class PatientOrderService implements AutoCloseable {
 			// Otherwise, assuming "now"
 			if (resourcesSentAtDate != null && resourcesSentAtTime != null) {
 				LocalDateTime resourcesSentAtDateTime = LocalDateTime.of(resourcesSentAtDate, resourcesSentAtTime);
-				resourcesSentAt = resourcesSentAtDateTime.atZone(account.getTimeZone()).toInstant();
+				resourcesSentAt = resourcesSentAtDateTime.atZone(institution.getTimeZone()).toInstant();
 			} else {
 				resourcesSentAt = Instant.now();
 			}
 
-			// TODO: Schedule a message to be sent to the patient regarding these resources
+			// Schedule a message to be sent to the patient regarding these resources
+			Set<MessageTypeId> messageTypeIds = new HashSet<>();
 
+			if (patientOrder.getPatientEmailAddress() != null)
+				messageTypeIds.add(MessageTypeId.EMAIL);
+
+			if (patientOrder.getPatientPhoneNumber() != null)
+				messageTypeIds.add(MessageTypeId.SMS);
+
+			LocalDateTime scheduledAtDateTime = LocalDateTime.ofInstant(resourcesSentAt, institution.getTimeZone());
+
+			scheduledAtDateTime = scheduledAtDateTime.plusWeeks(institution.getIntegratedCareSentResourcesFollowupWeekOffset());
+			scheduledAtDateTime = scheduledAtDateTime.plusDays(institution.getIntegratedCareSentResourcesFollowupDayOffset());
+
+			// Some sanity checking: if it's early in the morning or late at night, adjust the time to be within "safe" bounds
+			LocalTime earliestTime = LocalTime.of(8, 30);
+			LocalTime latestTime = LocalTime.of(20, 30);
+
+			if (scheduledAtDateTime.toLocalTime().isBefore(earliestTime))
+				scheduledAtDateTime = LocalDateTime.of(scheduledAtDateTime.toLocalDate(), earliestTime);
+			else if (scheduledAtDateTime.toLocalTime().isAfter(latestTime))
+				scheduledAtDateTime = LocalDateTime.of(scheduledAtDateTime.toLocalDate(), latestTime);
+
+			LocalDateTime pinnedScheduledAtDateTime = scheduledAtDateTime;
+
+			getLogger().info("Scheduling a {} message for {} for patient order ID {}...",
+					PatientOrderScheduledMessageTypeId.RESOURCE_CHECK_IN.name(), pinnedScheduledAtDateTime,
+					patientOrder.getPatientOrderId());
+
+			UUID resourceCheckInScheduledMessageGroupId = createPatientOrderScheduledMessageGroup(new CreatePatientOrderScheduledMessageGroupRequest() {{
+				setPatientOrderId(patientOrderId);
+				setAccountId(accountId);
+				setPatientOrderScheduledMessageTypeId(PatientOrderScheduledMessageTypeId.RESOURCE_CHECK_IN);
+				setMessageTypeIds(messageTypeIds);
+				setScheduledAtDate(pinnedScheduledAtDateTime.toLocalDate());
+				setScheduledAtTimeAsLocalTime(pinnedScheduledAtDateTime.toLocalTime());
+			}});
+
+			getDatabase().execute("""
+					UPDATE patient_order
+					SET resource_check_in_scheduled_message_group_id=?
+					WHERE patient_order_id=?
+					""", resourceCheckInScheduledMessageGroupId, patientOrderId);
 		} else {
 			resourcesSentAt = null;
 			patientOrderResourcingTypeId = PatientOrderResourcingTypeId.NONE;
 
-			// TODO: Cancel scheduled check-in messages to this patient for this order
+			// If it exists, delete the scheduled check-in message to this patient for this order
+			if (patientOrder.getResourceCheckInScheduledMessageGroupId() != null) {
+				getLogger().info("Deleting the scheduled resource check-in message group with ID {} for patient order ID {}...",
+						patientOrder.getResourceCheckInScheduledMessageGroupId(), patientOrder.getPatientOrderId());
+
+				UUID pinnedResourceCheckInScheduledMessageGroupId = patientOrder.getResourceCheckInScheduledMessageGroupId();
+
+				deletePatientOrderScheduledMessageGroup(new DeletePatientOrderScheduledMessageGroupRequest() {{
+					setAccountId(accountId);
+					setPatientOrderScheduledMessageGroupId(pinnedResourceCheckInScheduledMessageGroupId);
+				}});
+
+				getDatabase().execute("""
+						UPDATE patient_order
+						SET resource_check_in_scheduled_message_group_id=NULL
+						WHERE patient_order_id=?
+						""", patientOrderId);
+			}
 		}
 
 		// TODO: track changes in event history table
