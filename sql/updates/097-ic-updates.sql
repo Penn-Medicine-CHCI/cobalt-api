@@ -3,14 +3,17 @@ SELECT _v.register_patch('097-ic-updates', NULL, NULL);
 
 DROP VIEW v_patient_order;
 
+-- We now calculate this dynamically in the view instead of manually setting it.
+-- The new field is called outreach_followup_needed
+ALTER TABLE patient_order DROP COLUMN outreach_needed;
+
 -- The "followup" is really the idea of "check-in message scheduled after providing resources".
 -- So we don't track it via a boolean, we instead hold a reference to the resource check-in scheduled message.
 ALTER TABLE patient_order DROP COLUMN followup_needed;
 ALTER TABLE patient_order ADD COLUMN resource_check_in_scheduled_message_group_id UUID REFERENCES patient_order_scheduled_message_group(patient_order_scheduled_message_group_id);
 
--- TODO: we should also calculate the value for "outreach_needed" in this view instead of manually tracking it
-
 -- Handle removing followup_needed and adding these:
+-- * outreach_followup_needed
 -- * resource_check_in_scheduled_message_group_id
 -- * resource_check_in_scheduled_at_date_time
 -- * patient_order_resource_check_in_response_status_description
@@ -269,6 +272,25 @@ select
     rssq.patient_order_scheduled_screening_id,
     rssq.scheduled_date_time AS patient_order_scheduled_screening_scheduled_date_time,
     rssq.calendar_url AS patient_order_scheduled_screening_calendar_url,
+
+		-- Figure out "outreach followup needed".
+		-- This means...
+    (
+      -- 1. Order is open
+    	poq.patient_order_disposition_id='OPEN'
+    	-- 2. Screening has not been started or scheduled
+    	-- Basically patient_order_screening_status_id='NOT_SCREENED' above
+    	AND (ssq.screening_session_id IS NULL AND rssq.scheduled_date_time IS NULL)
+    	-- 3. At least one outreach has been performed (either sent or scheduled)
+    	-- Basically total_outreach_count > 0 above
+    	AND (coalesce(pooq.outreach_count, 0) + coalesce(smgq.scheduled_message_group_count, 0)) > 0
+    	-- 4. The most recent outreach plus the institution day offset is on or after "now" (normalized for institution timezone)
+    	-- Basically most_recent_total_outreach_date_time above + [institution offset] >= NOW()
+    	AND (
+    		(GREATEST(poomaxq.max_outreach_date_time, smgmaxq.max_scheduled_message_group_date_time) + make_interval(days => i.integrated_care_outreach_followup_day_offset)) AT TIME ZONE i.time_zone <= NOW()
+    	)
+    ) AS outreach_followup_needed,
+
     raq.appointment_start_time,
     raq.provider_id,
     raq.provider_name,

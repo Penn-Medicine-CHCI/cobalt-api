@@ -55,7 +55,6 @@ import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderConsentStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
-import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachNeededRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderSafetyPlanningStatusRequest;
@@ -2434,48 +2433,6 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public Boolean updatePatientOrderOutreachNeeded(@Nonnull UpdatePatientOrderOutreachNeededRequest request) {
-		requireNonNull(request);
-
-		UUID patientOrderId = request.getPatientOrderId();
-		Boolean outreachNeeded = request.getOutreachNeeded();
-		@SuppressWarnings("unused")
-		// Currently unused; would be the account flipping the flag (understood to be 'system' if not specified)
-		UUID accountId = request.getAccountId();
-		PatientOrder patientOrder = null;
-		ValidationException validationException = new ValidationException();
-
-		if (patientOrderId == null) {
-			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
-		} else {
-			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
-
-			if (patientOrder == null)
-				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
-		}
-
-		if (outreachNeeded == null)
-			validationException.add(new FieldError("outreachNeeded", getStrings().get("Outreach Needed is required.")));
-
-		if (validationException.hasErrors())
-			throw validationException;
-
-		// Not changing anything, no action to take
-		if (patientOrder.getOutreachNeeded().equals(outreachNeeded))
-			return false;
-
-		boolean updated = getDatabase().execute("""
-				UPDATE patient_order
-				SET outreach_needed=?
-				WHERE patient_order_id=?
-				""", outreachNeeded, patientOrderId) > 0;
-
-		// TODO: track event
-
-		return updated;
-	}
-
-	@Nonnull
 	public Optional<PatientOrderScheduledScreening> findPatientOrderScheduledScreeningById(@Nullable UUID patientOrderScheduledScreeningId) {
 		if (patientOrderScheduledScreeningId == null)
 			return Optional.empty();
@@ -4479,7 +4436,7 @@ public class PatientOrderService implements AutoCloseable {
 
 			LocalDateTime now = LocalDateTime.now(institution.getTimeZone());
 
-			// 1. "closed" -> "archived": if episode_closed_at >= 30 days ago, it's moved to ARCHIVED disposition
+			// Transition from "closed" -> "archived": if episode_closed_at >= 30 days ago, it's moved to ARCHIVED disposition
 			LocalDateTime archivedThreshold = now.minusDays(30);
 
 			List<PatientOrder> archivablePatientOrders = getDatabase().queryForList("""
@@ -4495,33 +4452,6 @@ public class PatientOrderService implements AutoCloseable {
 						archivablePatientOrder.getPatientOrderId(), archivablePatientOrder.getEpisodeClosedAt());
 				getPatientOrderService().archivePatientOrder(new ArchivePatientOrderRequest() {{
 					setPatientOrderId(archivablePatientOrder.getPatientOrderId());
-				}});
-			}
-
-			// 2. "outreach needed": need another outreach to patient because it's been
-			//   institution.integrated_care_outreach_followup_day_offset days since most_recent_outreach_date_time and order is still in NOT_TRIAGED state
-			// TODO: revisit this, do we need to take scheduled messages into account?
-			List<PatientOrder> outreachNeededPatientOrders = getDatabase().queryForList("""
-							     SELECT *
-							     FROM v_patient_order
-							     WHERE institution_id=?
-							     AND patient_order_disposition_id=?
-							     AND patient_order_triage_status_id=?
-							     AND outreach_needed=FALSE
-							     AND most_recent_outreach_date_time IS NOT NULL
-							     AND most_recent_outreach_date_time <= (? - make_interval(days => ?))
-							""", PatientOrder.class, institution.getInstitutionId(), PatientOrderDispositionId.OPEN, PatientOrderTriageStatusId.NOT_TRIAGED,
-					now, institution.getIntegratedCareOutreachFollowupDayOffset());
-
-			// Syntax reference:
-			// make_interval(years int DEFAULT 0, months int DEFAULT 0, weeks int DEFAULT 0, days int DEFAULT 0, hours int DEFAULT 0, mins int DEFAULT 0, secs double precision DEFAULT 0.0)
-
-			for (PatientOrder outreachNeededPatientOrder : outreachNeededPatientOrders) {
-				getLogger().info("Detected that patient order ID {} needs outreach, since unassessed and last outreach was {}...",
-						outreachNeededPatientOrder.getPatientOrderId(), outreachNeededPatientOrder.getMostRecentOutreachDateTime());
-				getPatientOrderService().updatePatientOrderOutreachNeeded(new UpdatePatientOrderOutreachNeededRequest() {{
-					setPatientOrderId(outreachNeededPatientOrder.getPatientOrderId());
-					setOutreachNeeded(true);
 				}});
 			}
 		}

@@ -1405,8 +1405,8 @@ public class PatientOrderResource {
 				.collect(Collectors.toList());
 
 		// "Follow Up"
-		List<PatientOrderApiResponse> followupPatientOrders = patientOrders.stream()
-				.filter(patientOrder -> patientOrder.getOutreachNeeded())
+		List<PatientOrderApiResponse> outreachFollowupNeededPatientOrders = patientOrders.stream()
+				.filter(patientOrder -> patientOrder.getOutreachFollowupNeeded())
 				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
 				.collect(Collectors.toList());
 
@@ -1430,7 +1430,7 @@ public class PatientOrderResource {
 			put("voicemailTaskPatientOrders", voicemailTaskPatientOrders);
 			put("scheduledAssessmentPatientOrders", scheduledAssessmentPatientOrders);
 			put("needResourcesPatientOrders", needResourcesPatientOrders);
-			put("followupPatientOrders", followupPatientOrders);
+			put("outreachFollowupNeededPatientOrders", outreachFollowupNeededPatientOrders);
 		}});
 	}
 

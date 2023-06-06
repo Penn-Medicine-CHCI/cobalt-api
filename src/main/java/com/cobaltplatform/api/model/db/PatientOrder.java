@@ -171,7 +171,7 @@ public class PatientOrder {
 	@Nullable
 	private UUID episodeClosedByAccountId;
 	@Nullable
-	private Boolean outreachNeeded;
+	private Boolean outreachFollowupNeeded;
 	@Nullable
 	private Instant resourcesSentAt;
 	@Nullable
@@ -835,12 +835,12 @@ public class PatientOrder {
 	}
 
 	@Nullable
-	public Boolean getOutreachNeeded() {
-		return this.outreachNeeded;
+	public Boolean getOutreachFollowupNeeded() {
+		return this.outreachFollowupNeeded;
 	}
 
-	public void setOutreachNeeded(@Nullable Boolean outreachNeeded) {
-		this.outreachNeeded = outreachNeeded;
+	public void setOutreachFollowupNeeded(@Nullable Boolean outreachFollowupNeeded) {
+		this.outreachFollowupNeeded = outreachFollowupNeeded;
 	}
 
 	@Nullable

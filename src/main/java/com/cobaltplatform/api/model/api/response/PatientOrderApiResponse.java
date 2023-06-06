@@ -237,7 +237,7 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String episodeDurationInDaysDescription;
 	@Nullable
-	private Boolean outreachNeeded;
+	private Boolean outreachFollowupNeeded;
 	@Nullable
 	private Instant resourcesSentAt;
 	@Nullable
@@ -791,7 +791,7 @@ public class PatientOrderApiResponse {
 		this.connectedToSafetyPlanningAtDescription = patientOrder.getConnectedToSafetyPlanningAt() == null ? null : formatter.formatTimestamp(patientOrder.getConnectedToSafetyPlanningAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 		this.patientOrderClosureReasonId = patientOrder.getPatientOrderClosureReasonId();
 		this.patientOrderClosureReasonDescription = patientOrder.getPatientOrderClosureReasonDescription();
-		this.outreachNeeded = patientOrder.getOutreachNeeded();
+		this.outreachFollowupNeeded = patientOrder.getOutreachFollowupNeeded();
 		this.patientOrderResourceCheckInResponseStatusDescription = patientOrder.getPatientOrderResourceCheckInResponseStatusDescription();
 		this.resourceCheckInResponseNeeded = patientOrder.getResourceCheckInResponseNeeded();
 
@@ -1221,8 +1221,8 @@ public class PatientOrderApiResponse {
 	}
 
 	@Nullable
-	public Boolean getOutreachNeeded() {
-		return this.outreachNeeded;
+	public Boolean getOutreachFollowupNeeded() {
+		return this.outreachFollowupNeeded;
 	}
 
 	@Nullable
