@@ -1383,7 +1383,7 @@ public class PatientOrderResource {
 		LocalDateTime today = LocalDateTime.now(account.getTimeZone());
 
 		// Pull all the orders for the "today" view and chunk them up into the sections needed for the UI
-		List<PatientOrder> patientOrders = getPatientOrderService().findTodayPatientOrdersForPanelAccountId(account.getAccountId());
+		List<PatientOrder> patientOrders = getPatientOrderService().findOpenPatientOrdersForPanelAccountId(account.getAccountId());
 
 		// "Safety Planning": patient_order_safety_planning_status_id == NEEDS_SAFETY_PLANNING
 		List<PatientOrderApiResponse> safetyPlanningPatientOrders = patientOrders.stream()
@@ -1391,13 +1391,13 @@ public class PatientOrderResource {
 				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
 				.collect(Collectors.toList());
 
-		// "New Patients": total_outreach_count == 0
-		List<PatientOrderApiResponse> newPatientPatientOrders = patientOrders.stream()
+		// "Outreach Review": total_outreach_count == 0
+		List<PatientOrderApiResponse> outreachReviewPatientOrders = patientOrders.stream()
 				.filter(patientOrder -> patientOrder.getTotalOutreachCount() == 0)
 				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
 				.collect(Collectors.toList());
 
-		// "Voicemails": most recent voicemail task exists, but is incomplete == 0
+		// "Voicemails": most recent voicemail task exists, but is incomplete
 		List<PatientOrderApiResponse> voicemailTaskPatientOrders = patientOrders.stream()
 				.filter(patientOrder -> patientOrder.getMostRecentPatientOrderVoicemailTaskId() != null
 						&& !patientOrder.getMostRecentPatientOrderVoicemailTaskCompleted())
@@ -1406,12 +1406,6 @@ public class PatientOrderResource {
 
 		// "Follow Up"
 		List<PatientOrderApiResponse> followupPatientOrders = patientOrders.stream()
-				.filter(patientOrder -> patientOrder.getFollowupNeeded())
-				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
-				.collect(Collectors.toList());
-
-		// "Outreach Needed"
-		List<PatientOrderApiResponse> outreachNeededPatientOrders = patientOrders.stream()
 				.filter(patientOrder -> patientOrder.getOutreachNeeded())
 				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
 				.collect(Collectors.toList());
@@ -1432,12 +1426,11 @@ public class PatientOrderResource {
 
 		return new ApiResponse(new HashMap<>() {{
 			put("safetyPlanningPatientOrders", safetyPlanningPatientOrders);
-			put("newPatientPatientOrders", newPatientPatientOrders);
+			put("outreachReviewPatientOrders", outreachReviewPatientOrders);
 			put("voicemailTaskPatientOrders", voicemailTaskPatientOrders);
-			put("followupPatientOrders", followupPatientOrders);
-			put("outreachNeededPatientOrders", outreachNeededPatientOrders);
 			put("scheduledAssessmentPatientOrders", scheduledAssessmentPatientOrders);
 			put("needResourcesPatientOrders", needResourcesPatientOrders);
+			put("followupPatientOrders", followupPatientOrders);
 		}});
 	}
 

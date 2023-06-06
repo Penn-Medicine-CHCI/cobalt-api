@@ -239,8 +239,6 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private Boolean outreachNeeded;
 	@Nullable
-	private Boolean followupNeeded;
-	@Nullable
 	private Instant resourcesSentAt;
 	@Nullable
 	private String resourcesSentAtDescription;
@@ -443,6 +441,14 @@ public class PatientOrderApiResponse {
 	private DistanceUnitId inPersonCareRadiusDistanceUnitId;
 	@Nullable
 	private String inPersonCareRadiusWithDistanceUnitDescription;
+	@Nullable
+	private UUID resourceCheckInScheduledMessageGroupId;
+	@Nullable
+	private LocalDateTime resourceCheckInScheduledAtDateTime;
+	@Nullable
+	private String resourceCheckInScheduledAtDateTimeDescription;
+	@Nullable
+	private String patientOrderResourceCheckInResponseStatusDescription;
 
 	public enum PatientOrderApiResponseSupplement {
 		MINIMAL,
@@ -783,6 +789,8 @@ public class PatientOrderApiResponse {
 		this.connectedToSafetyPlanningAtDescription = patientOrder.getConnectedToSafetyPlanningAt() == null ? null : formatter.formatTimestamp(patientOrder.getConnectedToSafetyPlanningAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 		this.patientOrderClosureReasonId = patientOrder.getPatientOrderClosureReasonId();
 		this.patientOrderClosureReasonDescription = patientOrder.getPatientOrderClosureReasonDescription();
+		this.outreachNeeded = patientOrder.getOutreachNeeded();
+		this.patientOrderResourceCheckInResponseStatusDescription = patientOrder.getPatientOrderResourceCheckInResponseStatusDescription();
 
 		// MHIC-only view of the data
 		if (format == PatientOrderApiResponseFormat.MHIC) {
@@ -828,9 +836,6 @@ public class PatientOrderApiResponse {
 			// Safe cast, int can always hold enough
 			this.episodeDurationInDays = (int) orderDuration.toDays();
 			this.episodeDurationInDaysDescription = strings.get("{{episodeDurationInDays}} days", Map.of("episodeDurationInDays", this.episodeDurationInDays));
-
-			this.outreachNeeded = patientOrder.getOutreachNeeded();
-			this.followupNeeded = patientOrder.getFollowupNeeded();
 
 			this.patientOrderResourcingStatusId = patientOrder.getPatientOrderResourcingStatusId();
 			this.resourcesSentAt = patientOrder.getResourcesSentAt();
@@ -890,6 +895,10 @@ public class PatientOrderApiResponse {
 
 			this.patientOrderVoicemailTasks = patientOrderVoicemailTasks;
 			this.patientOrderResourcingTypeId = patientOrder.getPatientOrderResourcingTypeId();
+
+			this.resourceCheckInScheduledMessageGroupId = patientOrder.getResourceCheckInScheduledMessageGroupId();
+			this.resourceCheckInScheduledAtDateTime = patientOrder.getResourceCheckInScheduledAtDateTime();
+			this.resourceCheckInScheduledAtDateTimeDescription = patientOrder.getResourceCheckInScheduledAtDateTime() == null ? null : formatter.formatDateTime(patientOrder.getResourceCheckInScheduledAtDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 		}
 	}
 
@@ -1211,11 +1220,6 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public Boolean getOutreachNeeded() {
 		return this.outreachNeeded;
-	}
-
-	@Nullable
-	public Boolean getFollowupNeeded() {
-		return this.followupNeeded;
 	}
 
 	@Nullable

@@ -54,7 +54,6 @@ import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest.Patient
 import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderConsentStatusRequest;
-import com.cobaltplatform.api.model.api.request.UpdatePatientOrderFollowupNeededRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachNeededRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachRequest;
@@ -1406,7 +1405,7 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public List<PatientOrder> findTodayPatientOrdersForPanelAccountId(@Nullable UUID panelAccountId) {
+	public List<PatientOrder> findOpenPatientOrdersForPanelAccountId(@Nullable UUID panelAccountId) {
 		if (panelAccountId == null)
 			return List.of();
 
@@ -2470,48 +2469,6 @@ public class PatientOrderService implements AutoCloseable {
 				SET outreach_needed=?
 				WHERE patient_order_id=?
 				""", outreachNeeded, patientOrderId) > 0;
-
-		// TODO: track event
-
-		return updated;
-	}
-
-	@Nonnull
-	public Boolean updatePatientOrderFollowupNeeded(@Nonnull UpdatePatientOrderFollowupNeededRequest request) {
-		requireNonNull(request);
-
-		UUID patientOrderId = request.getPatientOrderId();
-		Boolean followupNeeded = request.getFollowupNeeded();
-		@SuppressWarnings("unused")
-		// Currently unused; would be the account flipping the flag (understood to be 'system' if not specified)
-		UUID accountId = request.getAccountId();
-		PatientOrder patientOrder = null;
-		ValidationException validationException = new ValidationException();
-
-		if (patientOrderId == null) {
-			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
-		} else {
-			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
-
-			if (patientOrder == null)
-				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
-		}
-
-		if (followupNeeded == null)
-			validationException.add(new FieldError("followupNeeded", getStrings().get("Followup Needed is required.")));
-
-		if (validationException.hasErrors())
-			throw validationException;
-
-		// Not changing anything, no action to take
-		if (patientOrder.getFollowupNeeded().equals(followupNeeded))
-			return false;
-
-		boolean updated = getDatabase().execute("""
-				UPDATE patient_order
-				SET followup_needed=?
-				WHERE patient_order_id=?
-				""", followupNeeded, patientOrderId) > 0;
 
 		// TODO: track event
 
@@ -4565,29 +4522,6 @@ public class PatientOrderService implements AutoCloseable {
 				getPatientOrderService().updatePatientOrderOutreachNeeded(new UpdatePatientOrderOutreachNeededRequest() {{
 					setPatientOrderId(outreachNeededPatientOrder.getPatientOrderId());
 					setOutreachNeeded(true);
-				}});
-			}
-
-			// 3. "followup needed": need to follow up with patient because it's been
-			//   institution.integrated_care_sent_resources_followup_week_offset + institution.integrated_care_sent_resources_followup_day_offset
-			//   since resources_sent_at.  This applies to both open and closed orders, but not archived.
-			// TODO: how do we mark "followup no longer needed", is there a UI to flip back to false?
-			List<PatientOrder> followupNeededPatientOrders = getDatabase().queryForList("""
-							     SELECT *
-							     FROM v_patient_order
-							     WHERE institution_id=?
-							     AND followup_needed=FALSE
-							     AND resources_sent_at IS NOT NULL
-							     AND resources_sent_at <= (? - make_interval(weeks => ?, days => ?))
-							""", PatientOrder.class, institution.getInstitutionId(),
-					now, institution.getIntegratedCareSentResourcesFollowupWeekOffset(), institution.getIntegratedCareSentResourcesFollowupDayOffset());
-
-			for (PatientOrder followupNeededPatientOrder : followupNeededPatientOrders) {
-				getLogger().info("Detected that patient order ID {} needs followup, since resources were sent at {}...",
-						followupNeededPatientOrder.getPatientOrderId(), followupNeededPatientOrder.getResourcesSentAt());
-				getPatientOrderService().updatePatientOrderFollowupNeeded(new UpdatePatientOrderFollowupNeededRequest() {{
-					setPatientOrderId(followupNeededPatientOrder.getPatientOrderId());
-					setFollowupNeeded(true);
 				}});
 			}
 		}

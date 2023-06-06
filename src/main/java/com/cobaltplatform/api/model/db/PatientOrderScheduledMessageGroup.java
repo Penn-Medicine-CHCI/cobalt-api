@@ -40,7 +40,7 @@ public class PatientOrderScheduledMessageGroup {
 	@Nullable
 	private UUID patientOrderId;
 	@Nonnull
-	private LocalDateTime scheduledAt;
+	private LocalDateTime scheduledAtDateTime;
 	@Nullable
 	private Boolean deleted;
 	@Nullable
@@ -75,6 +75,15 @@ public class PatientOrderScheduledMessageGroup {
 
 	public void setPatientOrderId(@Nullable UUID patientOrderId) {
 		this.patientOrderId = patientOrderId;
+	}
+
+	@Nonnull
+	public LocalDateTime getScheduledAtDateTime() {
+		return this.scheduledAtDateTime;
+	}
+
+	public void setScheduledAtDateTime(@Nonnull LocalDateTime scheduledAtDateTime) {
+		this.scheduledAtDateTime = scheduledAtDateTime;
 	}
 
 	@Nullable
