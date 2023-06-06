@@ -318,6 +318,8 @@ public class PatientOrder {
 	private LocalDateTime resourceCheckInScheduledAtDateTime;
 	@Nullable
 	private String patientOrderResourceCheckInResponseStatusDescription;
+	@Nullable
+	private Boolean resourceCheckInResponseNeeded;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -1496,5 +1498,14 @@ public class PatientOrder {
 
 	public void setPatientOrderResourceCheckInResponseStatusDescription(@Nullable String patientOrderResourceCheckInResponseStatusDescription) {
 		this.patientOrderResourceCheckInResponseStatusDescription = patientOrderResourceCheckInResponseStatusDescription;
+	}
+
+	@Nullable
+	public Boolean getResourceCheckInResponseNeeded() {
+		return this.resourceCheckInResponseNeeded;
+	}
+
+	public void setResourceCheckInResponseNeeded(@Nullable Boolean resourceCheckInResponseNeeded) {
+		this.resourceCheckInResponseNeeded = resourceCheckInResponseNeeded;
 	}
 }

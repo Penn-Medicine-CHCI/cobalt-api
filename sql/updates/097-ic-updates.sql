@@ -14,6 +14,7 @@ ALTER TABLE patient_order ADD COLUMN resource_check_in_scheduled_message_group_i
 -- * resource_check_in_scheduled_message_group_id
 -- * resource_check_in_scheduled_at_date_time
 -- * patient_order_resource_check_in_response_status_description
+-- * resource_check_in_response_needed
 CREATE or replace VIEW v_patient_order AS WITH po_query AS (
     select
         *
@@ -314,6 +315,11 @@ select
 		and patient_address.postal_code IS NOT NULL
       ) as patient_demographics_accepted,
     posmg.scheduled_at_date_time AS resource_check_in_scheduled_at_date_time,
+    (
+    	poq.patient_order_resource_check_in_response_status_id = 'NONE'
+    	AND posmg.scheduled_at_date_time IS NOT NULL
+     	AND (posmg.scheduled_at_date_time AT TIME ZONE i.time_zone) < now()
+    ) AS resource_check_in_response_needed,
     porcirs.description AS patient_order_resource_check_in_response_status_description,
     poq.*
 from

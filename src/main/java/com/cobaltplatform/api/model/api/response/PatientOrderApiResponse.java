@@ -263,6 +263,8 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String consentStatusUpdatedAtDescription;
 	@Nullable
+	private Boolean resourceCheckInResponseNeeded;
+	@Nullable
 	private PatientOrderResourceCheckInResponseStatusId patientOrderResourceCheckInResponseStatusId;
 	@Nullable
 	private UUID resourceCheckInResponseStatusUpdatedByByAccountId;
@@ -791,6 +793,7 @@ public class PatientOrderApiResponse {
 		this.patientOrderClosureReasonDescription = patientOrder.getPatientOrderClosureReasonDescription();
 		this.outreachNeeded = patientOrder.getOutreachNeeded();
 		this.patientOrderResourceCheckInResponseStatusDescription = patientOrder.getPatientOrderResourceCheckInResponseStatusDescription();
+		this.resourceCheckInResponseNeeded = patientOrder.getResourceCheckInResponseNeeded();
 
 		// MHIC-only view of the data
 		if (format == PatientOrderApiResponseFormat.MHIC) {
@@ -1745,5 +1748,30 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public String getInPersonCareRadiusWithDistanceUnitDescription() {
 		return this.inPersonCareRadiusWithDistanceUnitDescription;
+	}
+
+	@Nullable
+	public Boolean getResourceCheckInResponseNeeded() {
+		return this.resourceCheckInResponseNeeded;
+	}
+
+	@Nullable
+	public UUID getResourceCheckInScheduledMessageGroupId() {
+		return this.resourceCheckInScheduledMessageGroupId;
+	}
+
+	@Nullable
+	public LocalDateTime getResourceCheckInScheduledAtDateTime() {
+		return this.resourceCheckInScheduledAtDateTime;
+	}
+
+	@Nullable
+	public String getResourceCheckInScheduledAtDateTimeDescription() {
+		return this.resourceCheckInScheduledAtDateTimeDescription;
+	}
+
+	@Nullable
+	public String getPatientOrderResourceCheckInResponseStatusDescription() {
+		return this.patientOrderResourceCheckInResponseStatusDescription;
 	}
 }
