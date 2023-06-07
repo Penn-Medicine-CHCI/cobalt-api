@@ -75,6 +75,8 @@ public class PatientOrderScheduledMessageGroupApiResponse {
 	@Nonnull
 	private final String scheduledAtDateTimeDescription;
 	@Nonnull
+	private final Boolean scheduledAtDateTimeHasPassed;
+	@Nonnull
 	private final ZoneId timeZone;
 	@Nonnull
 	private final Instant created;
@@ -128,6 +130,7 @@ public class PatientOrderScheduledMessageGroupApiResponse {
 		this.scheduledAtTimeDescription = formatter.formatTime(arbitraryPatientOrderScheduledMessage.getScheduledAt().toLocalTime(), FormatStyle.SHORT);
 		this.scheduledAtDateTime = arbitraryPatientOrderScheduledMessage.getScheduledAt();
 		this.scheduledAtDateTimeDescription = formatter.formatDateTime(arbitraryPatientOrderScheduledMessage.getScheduledAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.scheduledAtDateTimeHasPassed = patientOrderScheduledMessageGroup.getScheduledAtDateTimeHasPassed();
 		this.created = arbitraryPatientOrderScheduledMessage.getCreated();
 		this.createdDescription = formatter.formatTimestamp(arbitraryPatientOrderScheduledMessage.getCreated());
 		this.lastUpdated = arbitraryPatientOrderScheduledMessage.getLastUpdated();
@@ -180,6 +183,11 @@ public class PatientOrderScheduledMessageGroupApiResponse {
 	@Nonnull
 	public String getScheduledAtDateTimeDescription() {
 		return this.scheduledAtDateTimeDescription;
+	}
+
+	@Nonnull
+	public Boolean getScheduledAtDateTimeHasPassed() {
+		return this.scheduledAtDateTimeHasPassed;
 	}
 
 	@Nonnull
