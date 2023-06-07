@@ -50,6 +50,11 @@ public class PatientOrderScheduledMessageGroup {
 	@Nullable
 	private Instant lastUpdated;
 
+	// Joined in from v_patient_order_scheduled_message_group
+
+	@Nullable
+	private Boolean scheduledAtDateTimeHasPassed;
+
 	@Nullable
 	public UUID getPatientOrderScheduledMessageGroupId() {
 		return this.patientOrderScheduledMessageGroupId;
@@ -120,5 +125,14 @@ public class PatientOrderScheduledMessageGroup {
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
+	}
+
+	@Nullable
+	public Boolean getScheduledAtDateTimeHasPassed() {
+		return this.scheduledAtDateTimeHasPassed;
+	}
+
+	public void setScheduledAtDateTimeHasPassed(@Nullable Boolean scheduledAtDateTimeHasPassed) {
+		this.scheduledAtDateTimeHasPassed = scheduledAtDateTimeHasPassed;
 	}
 }

@@ -2471,58 +2471,65 @@ public class PatientOrderService implements AutoCloseable {
 			if (patientOrderResourcingTypeId == null || patientOrderResourcingTypeId == PatientOrderResourcingTypeId.NONE)
 				throw new ValidationException(new FieldError("patientOrderResourcingTypeId", getStrings().get("You must specify how the resources were sent.")));
 
-			// If provided a sent-at date/time, use them.
-			// Otherwise, assuming "now"
-			if (resourcesSentAtDate != null && resourcesSentAtTime != null) {
-				LocalDateTime resourcesSentAtDateTime = LocalDateTime.of(resourcesSentAtDate, resourcesSentAtTime);
-				resourcesSentAt = resourcesSentAtDateTime.atZone(institution.getTimeZone()).toInstant();
+			Map<PatientOrderScheduledMessageTypeId, List<PatientOrderScheduledMessageGroup>> futurePatientOrderScheduledMessageGroupsByTypeId = findFuturePatientOrderScheduledMessageGroupsByTypeIdForPatientOrderId(patientOrderId);
+
+			if (futurePatientOrderScheduledMessageGroupsByTypeId.get(PatientOrderScheduledMessageTypeId.RESOURCE_CHECK_IN).size() > 0) {
+				getLogger().info("There is already a scheduled resource check-in message group with ID {} of type {} for patient order ID {}, so not creating another one.",
+						patientOrder.getResourceCheckInScheduledMessageGroupId(), patientOrder.getPatientOrderId());
 			} else {
-				resourcesSentAt = Instant.now();
+				// If provided a sent-at date/time, use them.
+				// Otherwise, assuming "now"
+				if (resourcesSentAtDate != null && resourcesSentAtTime != null) {
+					LocalDateTime resourcesSentAtDateTime = LocalDateTime.of(resourcesSentAtDate, resourcesSentAtTime);
+					resourcesSentAt = resourcesSentAtDateTime.atZone(institution.getTimeZone()).toInstant();
+				} else {
+					resourcesSentAt = Instant.now();
+				}
+
+				// Schedule a message to be sent to the patient regarding these resources
+				Set<MessageTypeId> messageTypeIds = new HashSet<>();
+
+				if (patientOrder.getPatientEmailAddress() != null)
+					messageTypeIds.add(MessageTypeId.EMAIL);
+
+				if (patientOrder.getPatientPhoneNumber() != null)
+					messageTypeIds.add(MessageTypeId.SMS);
+
+				LocalDateTime scheduledAtDateTime = LocalDateTime.ofInstant(resourcesSentAt, institution.getTimeZone());
+
+				scheduledAtDateTime = scheduledAtDateTime.plusWeeks(institution.getIntegratedCareSentResourcesFollowupWeekOffset());
+				scheduledAtDateTime = scheduledAtDateTime.plusDays(institution.getIntegratedCareSentResourcesFollowupDayOffset());
+
+				// Some sanity checking: if it's early in the morning or late at night, adjust the time to be within "safe" bounds
+				LocalTime earliestTime = LocalTime.of(8, 30);
+				LocalTime latestTime = LocalTime.of(20, 30);
+
+				if (scheduledAtDateTime.toLocalTime().isBefore(earliestTime))
+					scheduledAtDateTime = LocalDateTime.of(scheduledAtDateTime.toLocalDate(), earliestTime);
+				else if (scheduledAtDateTime.toLocalTime().isAfter(latestTime))
+					scheduledAtDateTime = LocalDateTime.of(scheduledAtDateTime.toLocalDate(), latestTime);
+
+				LocalDateTime pinnedScheduledAtDateTime = scheduledAtDateTime;
+
+				getLogger().info("Scheduling a {} message for {} for patient order ID {}...",
+						PatientOrderScheduledMessageTypeId.RESOURCE_CHECK_IN.name(), pinnedScheduledAtDateTime,
+						patientOrder.getPatientOrderId());
+
+				UUID resourceCheckInScheduledMessageGroupId = createPatientOrderScheduledMessageGroup(new CreatePatientOrderScheduledMessageGroupRequest() {{
+					setPatientOrderId(patientOrderId);
+					setAccountId(accountId);
+					setPatientOrderScheduledMessageTypeId(PatientOrderScheduledMessageTypeId.RESOURCE_CHECK_IN);
+					setMessageTypeIds(messageTypeIds);
+					setScheduledAtDate(pinnedScheduledAtDateTime.toLocalDate());
+					setScheduledAtTimeAsLocalTime(pinnedScheduledAtDateTime.toLocalTime());
+				}});
+
+				getDatabase().execute("""
+						UPDATE patient_order
+						SET resource_check_in_scheduled_message_group_id=?
+						WHERE patient_order_id=?
+						""", resourceCheckInScheduledMessageGroupId, patientOrderId);
 			}
-
-			// Schedule a message to be sent to the patient regarding these resources
-			Set<MessageTypeId> messageTypeIds = new HashSet<>();
-
-			if (patientOrder.getPatientEmailAddress() != null)
-				messageTypeIds.add(MessageTypeId.EMAIL);
-
-			if (patientOrder.getPatientPhoneNumber() != null)
-				messageTypeIds.add(MessageTypeId.SMS);
-
-			LocalDateTime scheduledAtDateTime = LocalDateTime.ofInstant(resourcesSentAt, institution.getTimeZone());
-
-			scheduledAtDateTime = scheduledAtDateTime.plusWeeks(institution.getIntegratedCareSentResourcesFollowupWeekOffset());
-			scheduledAtDateTime = scheduledAtDateTime.plusDays(institution.getIntegratedCareSentResourcesFollowupDayOffset());
-
-			// Some sanity checking: if it's early in the morning or late at night, adjust the time to be within "safe" bounds
-			LocalTime earliestTime = LocalTime.of(8, 30);
-			LocalTime latestTime = LocalTime.of(20, 30);
-
-			if (scheduledAtDateTime.toLocalTime().isBefore(earliestTime))
-				scheduledAtDateTime = LocalDateTime.of(scheduledAtDateTime.toLocalDate(), earliestTime);
-			else if (scheduledAtDateTime.toLocalTime().isAfter(latestTime))
-				scheduledAtDateTime = LocalDateTime.of(scheduledAtDateTime.toLocalDate(), latestTime);
-
-			LocalDateTime pinnedScheduledAtDateTime = scheduledAtDateTime;
-
-			getLogger().info("Scheduling a {} message for {} for patient order ID {}...",
-					PatientOrderScheduledMessageTypeId.RESOURCE_CHECK_IN.name(), pinnedScheduledAtDateTime,
-					patientOrder.getPatientOrderId());
-
-			UUID resourceCheckInScheduledMessageGroupId = createPatientOrderScheduledMessageGroup(new CreatePatientOrderScheduledMessageGroupRequest() {{
-				setPatientOrderId(patientOrderId);
-				setAccountId(accountId);
-				setPatientOrderScheduledMessageTypeId(PatientOrderScheduledMessageTypeId.RESOURCE_CHECK_IN);
-				setMessageTypeIds(messageTypeIds);
-				setScheduledAtDate(pinnedScheduledAtDateTime.toLocalDate());
-				setScheduledAtTimeAsLocalTime(pinnedScheduledAtDateTime.toLocalTime());
-			}});
-
-			getDatabase().execute("""
-					UPDATE patient_order
-					SET resource_check_in_scheduled_message_group_id=?
-					WHERE patient_order_id=?
-					""", resourceCheckInScheduledMessageGroupId, patientOrderId);
 		} else {
 			resourcesSentAt = null;
 			patientOrderResourcingTypeId = PatientOrderResourcingTypeId.NONE;
@@ -2538,12 +2545,6 @@ public class PatientOrderService implements AutoCloseable {
 					setAccountId(accountId);
 					setPatientOrderScheduledMessageGroupId(pinnedResourceCheckInScheduledMessageGroupId);
 				}});
-
-				getDatabase().execute("""
-						UPDATE patient_order
-						SET resource_check_in_scheduled_message_group_id=NULL
-						WHERE patient_order_id=?
-						""", patientOrderId);
 			}
 		}
 
@@ -3032,7 +3033,7 @@ public class PatientOrderService implements AutoCloseable {
 
 		List<PatientOrderScheduledMessageGroup> groups = getDatabase().queryForList(format("""
 						SELECT *
-						FROM patient_order_scheduled_message_group
+						FROM v_patient_order_scheduled_message_group
 						WHERE patient_order_scheduled_message_group_id IN %s
 						""", sqlInListPlaceholders(messagesByPatientOrderScheduledMessageGroupId.keySet())),
 				PatientOrderScheduledMessageGroup.class, messagesByPatientOrderScheduledMessageGroupId.keySet().toArray(new Object[0]));
@@ -3081,7 +3082,7 @@ public class PatientOrderService implements AutoCloseable {
 
 		return getDatabase().queryForObject("""
 				SELECT *
-				FROM patient_order_scheduled_message_group
+				FROM v_patient_order_scheduled_message_group
 				WHERE patient_order_scheduled_message_group_id=?
 				""", PatientOrderScheduledMessageGroup.class, patientOrderScheduledMessageGroupId);
 	}
@@ -3150,6 +3151,13 @@ public class PatientOrderService implements AutoCloseable {
 		if (validationException.hasErrors())
 			throw validationException;
 
+		// See if there are any scheduled-in-the-future message groups...
+		Map<PatientOrderScheduledMessageTypeId, List<PatientOrderScheduledMessageGroup>> futurePatientOrderScheduledMessageGroupsByTypeId = findFuturePatientOrderScheduledMessageGroupsByTypeIdForPatientOrderId(patientOrderId);
+
+		// ...if so, we're not allowed to schedule any more.
+		if (futurePatientOrderScheduledMessageGroupsByTypeId.get(patientOrderScheduledMessageTypeId).size() > 0)
+			throw new ValidationException(new FieldError("patientOrderScheduledMessageTypeId", getStrings().get("There is already a message of this type scheduled for this order.")));
+
 		LocalDateTime scheduledAtDateTime = LocalDateTime.of(scheduledAtDate, scheduledAtTime);
 
 		getDatabase().execute("""
@@ -3167,6 +3175,41 @@ public class PatientOrderService implements AutoCloseable {
 		// TODO: track in event log
 
 		return patientOrderScheduledMessageGroupId;
+	}
+
+	@Nonnull
+	public List<PatientOrderScheduledMessageGroup> findPatientOrderScheduledMessageGroupsByPatientOrderId(@Nullable UUID patientOrderId) {
+		if (patientOrderId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				    SELECT *
+				    FROM v_patient_order_scheduled_message_group
+				    WHERE patient_order_id=?
+				    ORDER BY scheduled_at_date_time DESC
+				""", PatientOrderScheduledMessageGroup.class, patientOrderId);
+	}
+
+	/**
+	 * Break out lists of in-the-future scheduled message groups by type for a particular patient order.
+	 * Useful to answer questions like "is there already a welcome message scheduled for some future time?"
+	 */
+	@Nonnull
+	public Map<PatientOrderScheduledMessageTypeId, List<PatientOrderScheduledMessageGroup>> findFuturePatientOrderScheduledMessageGroupsByTypeIdForPatientOrderId(@Nullable UUID patientOrderId) {
+		Map<PatientOrderScheduledMessageTypeId, List<PatientOrderScheduledMessageGroup>> futurePatientOrderScheduledMessageGroupsByTypeId = new HashMap<>(PatientOrderScheduledMessageTypeId.values().length);
+
+		// Prime the map with empty lists for each possible type
+		for (PatientOrderScheduledMessageTypeId patientOrderScheduledMessageTypeId : PatientOrderScheduledMessageTypeId.values())
+			futurePatientOrderScheduledMessageGroupsByTypeId.put(patientOrderScheduledMessageTypeId, new ArrayList<>());
+
+		List<PatientOrderScheduledMessageGroup> futurePatientOrderScheduledMessageGroups = findPatientOrderScheduledMessageGroupsByPatientOrderId(patientOrderId).stream()
+				.filter(patientOrderScheduledMessageGroup -> !patientOrderScheduledMessageGroup.getScheduledAtDateTimeHasPassed())
+				.collect(Collectors.toList());
+
+		for (PatientOrderScheduledMessageGroup futurePatientOrderScheduledMessageGroup : futurePatientOrderScheduledMessageGroups)
+			futurePatientOrderScheduledMessageGroupsByTypeId.get(futurePatientOrderScheduledMessageGroup.getPatientOrderScheduledMessageTypeId()).add(futurePatientOrderScheduledMessageGroup);
+
+		return futurePatientOrderScheduledMessageGroupsByTypeId;
 	}
 
 	@Nonnull
@@ -3193,6 +3236,9 @@ public class PatientOrderService implements AutoCloseable {
 			if (patientOrderScheduledMessageGroup == null) {
 				validationException.add(new FieldError("patientOrderScheduledMessageGroupId", getStrings().get("Patient Order Scheduled Message Group ID is invalid.")));
 			} else {
+				if (patientOrderScheduledMessageGroup.getScheduledAtDateTimeHasPassed())
+					validationException.add(getStrings().get("You cannot modify a scheduled message that has already been sent."));
+
 				patientOrder = findPatientOrderById(patientOrderScheduledMessageGroup.getPatientOrderId()).get();
 
 				if (messageTypeIds.contains(MessageTypeId.EMAIL) && patientOrder.getPatientEmailAddress() == null)
@@ -3260,6 +3306,11 @@ public class PatientOrderService implements AutoCloseable {
 		UUID accountId = request.getAccountId();
 		ValidationException validationException = new ValidationException();
 
+		PatientOrderScheduledMessageGroup patientOrderScheduledMessageGroup = findPatientOrderScheduledMessageGroupById(patientOrderScheduledMessageGroupId).orElse(null);
+
+		if (patientOrderScheduledMessageGroup == null)
+			return false;
+
 		if (validationException.hasErrors())
 			throw validationException;
 
@@ -3269,6 +3320,14 @@ public class PatientOrderService implements AutoCloseable {
 				WHERE patient_order_scheduled_message_group_id=?
 				AND deleted=FALSE
 				""", patientOrderScheduledMessageGroupId) > 0;
+
+		// If we deleted the message group and it was also specified as the "resource check-in scheduled message", then clear that out too.
+		// TODO: would be nice to remove the manually-maintained `resource_check_in_scheduled_message_group_id` in v_patient_order if possible in favor of a calculated version
+		getDatabase().execute("""
+				UPDATE patient_order
+				SET resource_check_in_scheduled_message_group_id=NULL
+				WHERE patient_order_id=? AND resource_check_in_scheduled_message_group_id=?
+				""", patientOrderScheduledMessageGroup.getPatientOrderId(), patientOrderScheduledMessageGroupId);
 
 		cancelScheduledMessagesForPatientOrderScheduledMessageGroup(patientOrderScheduledMessageGroupId);
 
