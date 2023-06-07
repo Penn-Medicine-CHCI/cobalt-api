@@ -19,21 +19,23 @@
 
 package com.cobaltplatform.api.model.api.request;
 
+import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.UUID;
 
 /**
- * @author Transmogrify, LLC.
+ * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class UpdatePatientOrderFollowupNeededRequest {
+public class UpdatePatientOrderResourceCheckInResponseStatusRequest {
 	@Nullable
 	private UUID patientOrderId;
 	@Nullable
 	private UUID accountId;
 	@Nullable
-	private Boolean followupNeeded;
+	private PatientOrderResourceCheckInResponseStatusId patientOrderResourceCheckInResponseStatusId;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -54,11 +56,11 @@ public class UpdatePatientOrderFollowupNeededRequest {
 	}
 
 	@Nullable
-	public Boolean getFollowupNeeded() {
-		return this.followupNeeded;
+	public PatientOrderResourceCheckInResponseStatusId getPatientOrderResourceCheckInResponseStatusId() {
+		return this.patientOrderResourceCheckInResponseStatusId;
 	}
 
-	public void setFollowupNeeded(@Nullable Boolean followupNeeded) {
-		this.followupNeeded = followupNeeded;
+	public void setPatientOrderResourceCheckInResponseStatusId(@Nullable PatientOrderResourceCheckInResponseStatusId patientOrderResourceCheckInResponseStatusId) {
+		this.patientOrderResourceCheckInResponseStatusId = patientOrderResourceCheckInResponseStatusId;
 	}
 }

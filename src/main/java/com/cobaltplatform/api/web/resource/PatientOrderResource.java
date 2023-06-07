@@ -43,6 +43,7 @@ import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderConsentStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourceCheckInResponseStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderSafetyPlanningStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledMessageGroupRequest;
@@ -1383,7 +1384,7 @@ public class PatientOrderResource {
 		LocalDateTime today = LocalDateTime.now(account.getTimeZone());
 
 		// Pull all the orders for the "today" view and chunk them up into the sections needed for the UI
-		List<PatientOrder> patientOrders = getPatientOrderService().findTodayPatientOrdersForPanelAccountId(account.getAccountId());
+		List<PatientOrder> patientOrders = getPatientOrderService().findOpenPatientOrdersForPanelAccountId(account.getAccountId());
 
 		// "Safety Planning": patient_order_safety_planning_status_id == NEEDS_SAFETY_PLANNING
 		List<PatientOrderApiResponse> safetyPlanningPatientOrders = patientOrders.stream()
@@ -1391,13 +1392,13 @@ public class PatientOrderResource {
 				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
 				.collect(Collectors.toList());
 
-		// "New Patients": total_outreach_count == 0
-		List<PatientOrderApiResponse> newPatientPatientOrders = patientOrders.stream()
+		// "Outreach Review": total_outreach_count == 0
+		List<PatientOrderApiResponse> outreachReviewPatientOrders = patientOrders.stream()
 				.filter(patientOrder -> patientOrder.getTotalOutreachCount() == 0)
 				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
 				.collect(Collectors.toList());
 
-		// "Voicemails": most recent voicemail task exists, but is incomplete == 0
+		// "Voicemails": most recent voicemail task exists, but is incomplete
 		List<PatientOrderApiResponse> voicemailTaskPatientOrders = patientOrders.stream()
 				.filter(patientOrder -> patientOrder.getMostRecentPatientOrderVoicemailTaskId() != null
 						&& !patientOrder.getMostRecentPatientOrderVoicemailTaskCompleted())
@@ -1405,14 +1406,8 @@ public class PatientOrderResource {
 				.collect(Collectors.toList());
 
 		// "Follow Up"
-		List<PatientOrderApiResponse> followupPatientOrders = patientOrders.stream()
-				.filter(patientOrder -> patientOrder.getFollowupNeeded())
-				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
-				.collect(Collectors.toList());
-
-		// "Outreach Needed"
-		List<PatientOrderApiResponse> outreachNeededPatientOrders = patientOrders.stream()
-				.filter(patientOrder -> patientOrder.getOutreachNeeded())
+		List<PatientOrderApiResponse> outreachFollowupNeededPatientOrders = patientOrders.stream()
+				.filter(patientOrder -> patientOrder.getOutreachFollowupNeeded())
 				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
 				.collect(Collectors.toList());
 
@@ -1432,12 +1427,11 @@ public class PatientOrderResource {
 
 		return new ApiResponse(new HashMap<>() {{
 			put("safetyPlanningPatientOrders", safetyPlanningPatientOrders);
-			put("newPatientPatientOrders", newPatientPatientOrders);
+			put("outreachReviewPatientOrders", outreachReviewPatientOrders);
 			put("voicemailTaskPatientOrders", voicemailTaskPatientOrders);
-			put("followupPatientOrders", followupPatientOrders);
-			put("outreachNeededPatientOrders", outreachNeededPatientOrders);
 			put("scheduledAssessmentPatientOrders", scheduledAssessmentPatientOrders);
 			put("needResourcesPatientOrders", needResourcesPatientOrders);
+			put("outreachFollowupNeededPatientOrders", outreachFollowupNeededPatientOrders);
 		}});
 	}
 
@@ -1518,6 +1512,38 @@ public class PatientOrderResource {
 			put("openPatientOrderCountsByPanelAccountId", openPatientOrderCountsByPanelAccountIdJson);
 			put("overallOpenPatientOrderCount", overallOpenPatientOrderCount);
 			put("overallOpenPatientOrderCountDescription", overallOpenPatientOrderCountDescription);
+		}});
+	}
+
+	@Nonnull
+	@PUT("/patient-orders/{patientOrderId}/patient-order-resource-check-in-response-status")
+	@AuthenticationRequired
+	public ApiResponse updatePatientOrderResourceCheckInResponseStatus(@Nonnull @PathParameter UUID patientOrderId,
+																																		 @Nonnull @RequestBody String requestBody) {
+		requireNonNull(patientOrderId);
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+
+		if (patientOrder == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		UpdatePatientOrderResourceCheckInResponseStatusRequest request = getRequestBodyParser().parse(requestBody, UpdatePatientOrderResourceCheckInResponseStatusRequest.class);
+		request.setPatientOrderId(patientOrder.getPatientOrderId());
+		request.setAccountId(account.getAccountId());
+
+		getPatientOrderService().updatePatientOrderResourceCheckInResponseStatus(request);
+
+		PatientOrder updatedPatientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).get();
+		PatientOrderApiResponseFormat responseFormat = PatientOrderApiResponseFormat.fromRoleId(account.getRoleId());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrder", getPatientOrderApiResponseFactory().create(updatedPatientOrder, responseFormat,
+					Set.of(PatientOrderApiResponseSupplement.EVERYTHING)));
 		}});
 	}
 

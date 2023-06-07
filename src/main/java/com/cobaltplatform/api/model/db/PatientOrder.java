@@ -171,9 +171,7 @@ public class PatientOrder {
 	@Nullable
 	private UUID episodeClosedByAccountId;
 	@Nullable
-	private Boolean outreachNeeded;
-	@Nullable
-	private Boolean followupNeeded;
+	private Boolean outreachFollowupNeeded;
 	@Nullable
 	private Instant resourcesSentAt;
 	@Nullable
@@ -186,6 +184,8 @@ public class PatientOrder {
 	private UUID consentStatusUpdatedByByAccountId;
 	@Nullable
 	private Instant consentStatusUpdatedAt;
+	@Nullable
+	private UUID resourceCheckInScheduledMessageGroupId;
 	@Nullable
 	private PatientOrderResourceCheckInResponseStatusId patientOrderResourceCheckInResponseStatusId;
 	@Nullable
@@ -314,6 +314,12 @@ public class PatientOrder {
 	private Boolean patientDemographicsCompleted;
 	@Nullable
 	private Boolean patientDemographicsAccepted;
+	@Nullable
+	private LocalDateTime resourceCheckInScheduledAtDateTime;
+	@Nullable
+	private String patientOrderResourceCheckInResponseStatusDescription;
+	@Nullable
+	private Boolean resourceCheckInResponseNeeded;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -829,21 +835,12 @@ public class PatientOrder {
 	}
 
 	@Nullable
-	public Boolean getOutreachNeeded() {
-		return this.outreachNeeded;
+	public Boolean getOutreachFollowupNeeded() {
+		return this.outreachFollowupNeeded;
 	}
 
-	public void setOutreachNeeded(@Nullable Boolean outreachNeeded) {
-		this.outreachNeeded = outreachNeeded;
-	}
-
-	@Nullable
-	public Boolean getFollowupNeeded() {
-		return this.followupNeeded;
-	}
-
-	public void setFollowupNeeded(@Nullable Boolean followupNeeded) {
-		this.followupNeeded = followupNeeded;
+	public void setOutreachFollowupNeeded(@Nullable Boolean outreachFollowupNeeded) {
+		this.outreachFollowupNeeded = outreachFollowupNeeded;
 	}
 
 	@Nullable
@@ -1474,5 +1471,41 @@ public class PatientOrder {
 
 	public void setInPersonCareRadiusDistanceUnitId(@Nullable DistanceUnitId inPersonCareRadiusDistanceUnitId) {
 		this.inPersonCareRadiusDistanceUnitId = inPersonCareRadiusDistanceUnitId;
+	}
+
+	@Nullable
+	public UUID getResourceCheckInScheduledMessageGroupId() {
+		return this.resourceCheckInScheduledMessageGroupId;
+	}
+
+	public void setResourceCheckInScheduledMessageGroupId(@Nullable UUID resourceCheckInScheduledMessageGroupId) {
+		this.resourceCheckInScheduledMessageGroupId = resourceCheckInScheduledMessageGroupId;
+	}
+
+	@Nullable
+	public LocalDateTime getResourceCheckInScheduledAtDateTime() {
+		return this.resourceCheckInScheduledAtDateTime;
+	}
+
+	public void setResourceCheckInScheduledAtDateTime(@Nullable LocalDateTime resourceCheckInScheduledAtDateTime) {
+		this.resourceCheckInScheduledAtDateTime = resourceCheckInScheduledAtDateTime;
+	}
+
+	@Nullable
+	public String getPatientOrderResourceCheckInResponseStatusDescription() {
+		return this.patientOrderResourceCheckInResponseStatusDescription;
+	}
+
+	public void setPatientOrderResourceCheckInResponseStatusDescription(@Nullable String patientOrderResourceCheckInResponseStatusDescription) {
+		this.patientOrderResourceCheckInResponseStatusDescription = patientOrderResourceCheckInResponseStatusDescription;
+	}
+
+	@Nullable
+	public Boolean getResourceCheckInResponseNeeded() {
+		return this.resourceCheckInResponseNeeded;
+	}
+
+	public void setResourceCheckInResponseNeeded(@Nullable Boolean resourceCheckInResponseNeeded) {
+		this.resourceCheckInResponseNeeded = resourceCheckInResponseNeeded;
 	}
 }
