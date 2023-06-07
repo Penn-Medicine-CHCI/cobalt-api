@@ -56,6 +56,7 @@ import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderConsentStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourceCheckInResponseStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderSafetyPlanningStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledMessageGroupRequest;
@@ -94,6 +95,7 @@ import com.cobaltplatform.api.model.db.PatientOrderMedication;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderOutreach;
 import com.cobaltplatform.api.model.db.PatientOrderOutreachResult;
+import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
@@ -2312,7 +2314,108 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
+	public Boolean updatePatientOrderResourceCheckInResponseStatus(@Nonnull UpdatePatientOrderResourceCheckInResponseStatusRequest request) {
+		requireNonNull(request);
+
+		UUID accountId = request.getAccountId();
+		UUID patientOrderId = request.getPatientOrderId();
+		PatientOrderResourceCheckInResponseStatusId patientOrderResourceCheckInResponseStatusId = request.getPatientOrderResourceCheckInResponseStatusId();
+		PatientOrder patientOrder = null;
+		Account account = null;
+		ValidationException validationException = new ValidationException();
+
+		if (accountId == null) {
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+		} else {
+			account = getAccountService().findAccountById(accountId).orElse(null);
+
+			if (account == null)
+				validationException.add(new FieldError("accountId", getStrings().get("Account ID is invalid.")));
+		}
+
+		if (patientOrderId == null) {
+			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+		} else {
+			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+
+			if (patientOrder == null)
+				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+		}
+
+		if (patientOrderResourceCheckInResponseStatusId == null)
+			validationException.add(new FieldError("patientOrderResourceCheckInResponseStatusId", getStrings().get("Patient Order Check-In Response Status ID is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		// Nothing to do if we're already in the requested state
+		if (patientOrder.getPatientOrderResourceCheckInResponseStatusId() == patientOrderResourceCheckInResponseStatusId)
+			return false;
+
+		// If the patient attended or scheduled an appointment, close the order out if it's open
+		if ((patientOrderResourceCheckInResponseStatusId == PatientOrderResourceCheckInResponseStatusId.APPOINTMENT_ATTENDED
+				|| patientOrderResourceCheckInResponseStatusId == PatientOrderResourceCheckInResponseStatusId.APPOINTMENT_SCHEDULED)) {
+
+			if (patientOrder.getPatientOrderDispositionId() == PatientOrderDispositionId.OPEN) {
+				getLogger().info("Changing resource check-in status for patient order ID {} to {}, so closing out...",
+						patientOrderId, patientOrderResourceCheckInResponseStatusId.name());
+				closePatientOrder(new ClosePatientOrderRequest() {{
+					setPatientOrderClosureReasonId(PatientOrderClosureReasonId.SCHEDULED_WITH_SPECIALTY_CARE);
+					setAccountId(accountId);
+					setPatientOrderId(patientOrderId);
+				}});
+			}
+		} else if (patientOrderResourceCheckInResponseStatusId == PatientOrderResourceCheckInResponseStatusId.NEED_FOLLOWUP) {
+			// If the patient indicated "need followup", reopen the order if closed...
+			if (patientOrder.getPatientOrderDispositionId() == PatientOrderDispositionId.CLOSED) {
+				getLogger().info("Changing resource check-in status for patient order ID {} to {}, and the order was closed, so re-opening...",
+						patientOrderId, patientOrderResourceCheckInResponseStatusId.name());
+
+				openPatientOrder(new OpenPatientOrderRequest() {{
+					setAccountId(accountId);
+					setPatientOrderId(patientOrderId);
+				}});
+			}
+
+			// ...and then mark as "needs resources" if order is not already in that state
+			if (patientOrder.getPatientOrderResourcingStatusId() != PatientOrderResourcingStatusId.NEEDS_RESOURCES) {
+				getLogger().info("Because we are updating patient order ID {} to {}, we need to mark the order as needing resources...",
+						patientOrderId, patientOrderResourceCheckInResponseStatusId.name());
+
+				updatePatientOrderResourcingStatus(new UpdatePatientOrderResourcingStatusRequest() {{
+					setAccountId(accountId);
+					setPatientOrderId(patientOrderId);
+					setPatientOrderResourcingStatusId(PatientOrderResourcingStatusId.NEEDS_RESOURCES);
+				}});
+			}
+		} else if (patientOrderResourceCheckInResponseStatusId == PatientOrderResourceCheckInResponseStatusId.NO_LONGER_NEED_CARE) {
+			// If the patient indicated they don't need care and the order is open, close it out
+			if (patientOrder.getPatientOrderDispositionId() == PatientOrderDispositionId.OPEN) {
+				getLogger().info("Changing resource check-in status for patient order ID {} to {}, so closing out...",
+						patientOrderId, patientOrderResourceCheckInResponseStatusId.name());
+				closePatientOrder(new ClosePatientOrderRequest() {{
+					setPatientOrderClosureReasonId(PatientOrderClosureReasonId.REFUSED_CARE);
+					setAccountId(accountId);
+					setPatientOrderId(patientOrderId);
+				}});
+			}
+		}
+
+		// TODO: track changes in event history table
+
+		return getDatabase().execute("""
+				UPDATE patient_order
+				SET patient_order_resource_check_in_response_status_id=?,
+				resource_check_in_response_status_updated_at=NOW(),
+				resource_check_in_response_status_updated_by_account_id=?
+				WHERE patient_order_id=?
+				""", patientOrderResourceCheckInResponseStatusId, accountId, patientOrderId) > 0;
+	}
+
+	@Nonnull
 	public Boolean updatePatientOrderResourcingStatus(@Nonnull UpdatePatientOrderResourcingStatusRequest request) {
+		requireNonNull(request);
+
 		UUID accountId = request.getAccountId();
 		UUID patientOrderId = request.getPatientOrderId();
 		PatientOrderResourcingStatusId patientOrderResourcingStatusId = request.getPatientOrderResourcingStatusId();

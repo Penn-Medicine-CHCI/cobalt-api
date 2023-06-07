@@ -43,6 +43,7 @@ import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderConsentStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourceCheckInResponseStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderSafetyPlanningStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledMessageGroupRequest;
@@ -1511,6 +1512,38 @@ public class PatientOrderResource {
 			put("openPatientOrderCountsByPanelAccountId", openPatientOrderCountsByPanelAccountIdJson);
 			put("overallOpenPatientOrderCount", overallOpenPatientOrderCount);
 			put("overallOpenPatientOrderCountDescription", overallOpenPatientOrderCountDescription);
+		}});
+	}
+
+	@Nonnull
+	@PUT("/patient-orders/{patientOrderId}/patient-order-resource-check-in-response-status")
+	@AuthenticationRequired
+	public ApiResponse updatePatientOrderResourceCheckInResponseStatus(@Nonnull @PathParameter UUID patientOrderId,
+																																		 @Nonnull @RequestBody String requestBody) {
+		requireNonNull(patientOrderId);
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+
+		if (patientOrder == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		UpdatePatientOrderResourceCheckInResponseStatusRequest request = getRequestBodyParser().parse(requestBody, UpdatePatientOrderResourceCheckInResponseStatusRequest.class);
+		request.setPatientOrderId(patientOrder.getPatientOrderId());
+		request.setAccountId(account.getAccountId());
+
+		getPatientOrderService().updatePatientOrderResourceCheckInResponseStatus(request);
+
+		PatientOrder updatedPatientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).get();
+		PatientOrderApiResponseFormat responseFormat = PatientOrderApiResponseFormat.fromRoleId(account.getRoleId());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrder", getPatientOrderApiResponseFactory().create(updatedPatientOrder, responseFormat,
+					Set.of(PatientOrderApiResponseSupplement.EVERYTHING)));
 		}});
 	}
 
