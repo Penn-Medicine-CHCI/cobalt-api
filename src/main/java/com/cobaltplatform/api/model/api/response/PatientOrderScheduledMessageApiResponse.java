@@ -34,6 +34,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
 import java.time.format.FormatStyle;
+import java.util.List;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -91,6 +92,12 @@ public class PatientOrderScheduledMessageApiResponse {
 	private final Instant complaintRegisteredAt;
 	@Nullable
 	private final String complaintRegisteredAtDescription;
+	@Nullable
+	private final String smsToNumber; // Only populated for SMSes
+	@Nullable
+	private final String smsToNumberDescription; // Only populated for SMSes
+	@Nullable
+	private final List<String> emailToAddresses; // Only populated for emails
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -131,6 +138,9 @@ public class PatientOrderScheduledMessageApiResponse {
 		this.deliveryFailedReason = patientOrderScheduledMessage.getDeliveryFailedReason();
 		this.complaintRegisteredAt = patientOrderScheduledMessage.getComplaintRegisteredAt();
 		this.complaintRegisteredAtDescription = patientOrderScheduledMessage.getComplaintRegisteredAt() == null ? null : formatter.formatTimestamp(patientOrderScheduledMessage.getComplaintRegisteredAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.smsToNumber = patientOrderScheduledMessage.getSmsToNumber();
+		this.smsToNumberDescription = patientOrderScheduledMessage.getSmsToNumber() == null ? null : formatter.formatPhoneNumber(patientOrderScheduledMessage.getSmsToNumber());
+		this.emailToAddresses = patientOrderScheduledMessage.getEmailToAddresses() == null ? List.of() : patientOrderScheduledMessage.getEmailToAddressesAsList();
 	}
 
 	@Nonnull
@@ -251,5 +261,20 @@ public class PatientOrderScheduledMessageApiResponse {
 	@Nullable
 	public String getComplaintRegisteredAtDescription() {
 		return this.complaintRegisteredAtDescription;
+	}
+
+	@Nullable
+	public String getSmsToNumber() {
+		return this.smsToNumber;
+	}
+
+	@Nullable
+	public String getSmsToNumberDescription() {
+		return this.smsToNumberDescription;
+	}
+
+	@Nullable
+	public List<String> getEmailToAddresses() {
+		return this.emailToAddresses;
 	}
 }

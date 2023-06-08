@@ -25,19 +25,37 @@ import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType.PatientOrderScheduledMessageTypeId;
 import com.cobaltplatform.api.model.db.ScheduledMessageSource.ScheduledMessageSourceId;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
+import com.pyranid.DatabaseColumn;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.UUID;
+
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
 public class PatientOrderScheduledMessage {
+	@Nonnull
+	private static final Gson GSON;
+
+	static {
+		GSON = new GsonBuilder()
+				.setPrettyPrinting()
+				.disableHtmlEscaping()
+				.create();
+	}
+
 	@Nullable
 	private UUID patientOrderScheduledMessageId;
 	@Nullable
@@ -95,6 +113,36 @@ public class PatientOrderScheduledMessage {
 	private String deliveryFailedReason;
 	@Nullable
 	private Instant complaintRegisteredAt;
+	@Nullable
+	private String smsToNumber;
+	@Nullable
+	@DatabaseColumn("email_to_addresses")
+	private String emailToAddresses;
+	@Nullable
+	private List<String> emailToAddressesAsList;
+
+	@Nonnull
+	protected Gson getGson() {
+		return GSON;
+	}
+
+	public void setEmailToAddresses(@Nullable String emailToAddresses) {
+		this.emailToAddresses = emailToAddresses;
+
+		emailToAddresses = trimToNull(emailToAddresses);
+		this.emailToAddressesAsList = emailToAddresses == null ? List.of() : getGson().fromJson(emailToAddresses, new TypeToken<List<String>>() {
+		}.getType());
+	}
+
+	@Nullable
+	public String getEmailToAddresses() {
+		return this.emailToAddresses;
+	}
+
+	@Nullable
+	public List<String> getEmailToAddressesAsList() {
+		return this.emailToAddressesAsList;
+	}
 
 	@Nullable
 	public UUID getPatientOrderScheduledMessageId() {
@@ -337,5 +385,14 @@ public class PatientOrderScheduledMessage {
 
 	public void setComplaintRegisteredAt(@Nullable Instant complaintRegisteredAt) {
 		this.complaintRegisteredAt = complaintRegisteredAt;
+	}
+
+	@Nullable
+	public String getSmsToNumber() {
+		return this.smsToNumber;
+	}
+
+	public void setSmsToNumber(@Nullable String smsToNumber) {
+		this.smsToNumber = smsToNumber;
 	}
 }
