@@ -3169,6 +3169,15 @@ public class PatientOrderService implements AutoCloseable {
 				) VALUES (?,?,?,?)
 				""", patientOrderScheduledMessageGroupId, patientOrderId, patientOrderScheduledMessageTypeId, scheduledAtDateTime);
 
+		// If this is a resource check-in scheduled message, set the value on the order
+		if (patientOrderScheduledMessageTypeId == PatientOrderScheduledMessageTypeId.RESOURCE_CHECK_IN) {
+			getDatabase().execute("""
+					UPDATE patient_order
+					SET resource_check_in_scheduled_message_group_id=?
+					WHERE patient_order_id=?
+					""", patientOrderScheduledMessageGroupId, patientOrderId);
+		}
+
 		createScheduledMessagesForPatientOrderScheduledMessageGroup(patientOrderScheduledMessageGroupId, patientOrder,
 				patientOrderScheduledMessageType, messageTypeIds, scheduledAtDate, scheduledAtTime);
 
@@ -3277,6 +3286,15 @@ public class PatientOrderService implements AutoCloseable {
 
 		if (validationException.hasErrors())
 			throw validationException;
+
+		// If this is a resource check-in scheduled message, set the value on the order
+		if (patientOrderScheduledMessageTypeId == PatientOrderScheduledMessageTypeId.RESOURCE_CHECK_IN) {
+			getDatabase().execute("""
+					UPDATE patient_order
+					SET resource_check_in_scheduled_message_group_id=?
+					WHERE patient_order_id=?
+					""", patientOrderScheduledMessageGroupId, patientOrderScheduledMessageGroup.getPatientOrderId());
+		}
 
 		LocalDateTime scheduledAtDateTime = LocalDateTime.of(scheduledAtDate, scheduledAtTime);
 
