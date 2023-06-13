@@ -2497,8 +2497,11 @@ public class PatientOrderService implements AutoCloseable {
 
 				LocalDateTime scheduledAtDateTime = LocalDateTime.ofInstant(resourcesSentAt, institution.getTimeZone());
 
-				scheduledAtDateTime = scheduledAtDateTime.plusWeeks(institution.getIntegratedCareSentResourcesFollowupWeekOffset());
-				scheduledAtDateTime = scheduledAtDateTime.plusDays(institution.getIntegratedCareSentResourcesFollowupDayOffset());
+				if (institution.getIntegratedCareSentResourcesFollowupWeekOffset() != null)
+					scheduledAtDateTime = scheduledAtDateTime.plusWeeks(institution.getIntegratedCareSentResourcesFollowupWeekOffset());
+
+				if (institution.getIntegratedCareSentResourcesFollowupDayOffset() != null)
+					scheduledAtDateTime = scheduledAtDateTime.plusDays(institution.getIntegratedCareSentResourcesFollowupDayOffset());
 
 				// Some sanity checking: if it's early in the morning or late at night, adjust the time to be within "safe" bounds
 				LocalTime earliestTime = LocalTime.of(8, 30);
