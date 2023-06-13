@@ -368,7 +368,7 @@ public class AppModule extends AbstractModule {
 								put(CrossOriginFilter.ALLOWED_METHODS_PARAM, "GET,POST,PUT,DELETE,PATCH");
 								put(CrossOriginFilter.ALLOWED_ORIGINS_PARAM, getConfiguration().getCorsEnabledDomains());
 								put(CrossOriginFilter.ALLOWED_HEADERS_PARAM, "*");
-								put(CrossOriginFilter.EXPOSED_HEADERS_PARAM, "Content-Disposition");
+								put(CrossOriginFilter.EXPOSED_HEADERS_PARAM, "Content-Disposition, X-Cobalt-Checksum");
 							}}));
 
 					add(new FilterConfiguration(MaintenanceFilter.class, "/*"));
@@ -667,7 +667,7 @@ public class AppModule extends AbstractModule {
 	@Singleton
 	public RequestHandler provideRequestHandler(@Nonnull InstanceProvider instanceProvider) {
 		requireNonNull(instanceProvider);
-		
+
 		ValueConverterRegistry valueConverterRegistry = new ValueConverterRegistry();
 
 		// Replace default UUID parsing to also discard nonprintable characters.
