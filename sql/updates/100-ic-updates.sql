@@ -19,6 +19,8 @@ INSERT INTO anonymous_account_expiration_strategy VALUES ('SINGLE_SESSION', 'Sin
 
 ALTER TABLE institution ADD COLUMN anonymous_account_expiration_strategy_id TEXT NOT NULL REFERENCES anonymous_account_expiration_strategy DEFAULT 'DEFAULT';
 
+-- New option for Quartet
+INSERT INTO patient_order_resourcing_type VALUES ('QUARTET_REFERRAL', 'Quartet Referral', 4);
 
 -- Performance updates
 DROP VIEW v_patient_order;

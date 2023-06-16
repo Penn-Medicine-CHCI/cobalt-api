@@ -39,7 +39,8 @@ public class PatientOrderResourcingType {
 	public enum PatientOrderResourcingTypeId {
 		NONE,
 		PHONE_CALL,
-		MYCHART_MESSAGE
+		MYCHART_MESSAGE,
+		QUARTET_REFERRAL
 	}
 
 	@Override
