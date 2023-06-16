@@ -397,6 +397,28 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
+	@GET("/patient-orders/{patientOrderId}/clinical-report")
+	@AuthenticationRequired
+	public ApiResponse patientOrderClinicalReport(@Nonnull @PathParameter UUID patientOrderId) {
+		requireNonNull(patientOrderId);
+
+		Account account = getCurrentContext().getAccount().get();
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+
+		if (patientOrder == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canViewPatientOrderClinicalReport(patientOrder, account))
+			throw new AuthorizationException();
+
+		String clinicalReport = "TODO: clinical report content";
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("clinicalReport", clinicalReport);
+		}});
+	}
+
+	@Nonnull
 	@GET("/patient-orders/latest")
 	@AuthenticationRequired
 	public ApiResponse latestPatientOrder(@Nonnull @QueryParameter Optional<UUID> accountId) {
