@@ -211,15 +211,18 @@ public class DefaultEpicClient implements EpicClient {
 
 		List<Map<String, Object>> parameters = new ArrayList<>();
 
+		// The official documentation at https://fhir.epic.com/Specifications?api=840 seems incorrect - trying this instead
 		if (patient != null) {
-			// This call requires the whole patient JSON object to go up in the request body,
-			// so we first load the patient.
-			PatientReadFhirR4Response patientResponse = patientReadFhirR4(patient).get();
-			Map<String, Object> patientJson = getGson().fromJson(patientResponse.getRawJson(), Map.class);
-
 			Map<String, Object> parameter = new HashMap();
 			parameter.put("name", "patient");
-			parameter.put("resource", patientJson);
+			parameter.put("resource", Map.of(
+					"resourceType", "patient",
+					"identifier", List.of(
+							Map.of(
+									"value", patient
+							)
+					)));
+
 			parameters.add(parameter);
 		}
 
