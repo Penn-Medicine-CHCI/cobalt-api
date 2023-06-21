@@ -22,6 +22,21 @@ ALTER TABLE institution ADD COLUMN anonymous_account_expiration_strategy_id TEXT
 -- New option for Quartet
 INSERT INTO patient_order_resourcing_type VALUES ('QUARTET_REFERRAL', 'Quartet Referral', 4);
 
+-- Who gets contacts in the event of an IC crisis.
+-- Currently we only place phone calls, this might change in the future
+CREATE TABLE patient_order_crisis_handler (
+  patient_order_crisis_handler_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  institution_id TEXT REFERENCES institution NOT NULL,
+  phone_number TEXT NOT NULL,
+  name TEXT NOT NULL,
+  enabled BOOLEAN NOT NULL DEFAULT FALSE,
+	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX patient_order_crisis_handler_institution_phone_number_idx ON patient_order_crisis_handler (institution_id, LOWER(TRIM(phone_number)));
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_crisis_handler FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
 -- Performance updates
 DROP VIEW v_patient_order;
 
