@@ -4,9 +4,6 @@ SELECT _v.register_patch('100-ic-updates', NULL, NULL);
 -- To be shown in patient-facing error messages, potentially elsewhere
 ALTER TABLE institution ADD COLUMN clinical_support_phone_number TEXT;
 
--- Set a fake number for example institutions
-UPDATE institution SET clinical_support_phone_number='+12155551234' WHERE institution_id IN ('COBALT', 'COBALT_IC');
-
 CREATE TABLE anonymous_account_expiration_strategy (
   anonymous_account_expiration_strategy_id TEXT PRIMARY KEY,
   description TEXT NOT NULL
