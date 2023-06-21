@@ -28,33 +28,30 @@ import static java.lang.String.format;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class PatientOrderResourcingType {
+public class AnonymousAccountExpirationStrategy {
 	@Nullable
-	private PatientOrderResourcingTypeId patientOrderResourcingTypeId;
+	private AnonymousAccountExpirationStrategyId anonymousAccountExpirationStrategyId;
 	@Nullable
 	private String description;
-	@Nullable
-	private Integer displayOrder;
 
-	public enum PatientOrderResourcingTypeId {
-		NONE,
-		PHONE_CALL,
-		MYCHART_MESSAGE,
-		QUARTET_REFERRAL
+	public enum AnonymousAccountExpirationStrategyId {
+		DEFAULT,
+		SINGLE_SESSION
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{patientOrderResourcingTypeId=%s, description=%s}", getClass().getSimpleName(), getPatientOrderResourcingTypeId(), getDescription());
+		return format("%s{anonymousAccountExpirationStrategyId=%s, description=%s}",
+				getClass().getSimpleName(), getAnonymousAccountExpirationStrategyId(), getDescription());
 	}
 
 	@Nullable
-	public PatientOrderResourcingTypeId getPatientOrderResourcingTypeId() {
-		return this.patientOrderResourcingTypeId;
+	public AnonymousAccountExpirationStrategyId getAnonymousAccountExpirationStrategyId() {
+		return this.anonymousAccountExpirationStrategyId;
 	}
 
-	public void setPatientOrderResourcingTypeId(@Nullable PatientOrderResourcingTypeId patientOrderResourcingTypeId) {
-		this.patientOrderResourcingTypeId = patientOrderResourcingTypeId;
+	public void setAnonymousAccountExpirationStrategyId(@Nullable AnonymousAccountExpirationStrategyId anonymousAccountExpirationStrategyId) {
+		this.anonymousAccountExpirationStrategyId = anonymousAccountExpirationStrategyId;
 	}
 
 	@Nullable
@@ -64,14 +61,5 @@ public class PatientOrderResourcingType {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
-	}
-
-	@Nullable
-	public Integer getDisplayOrder() {
-		return this.displayOrder;
-	}
-
-	public void setDisplayOrder(@Nullable Integer displayOrder) {
-		this.displayOrder = displayOrder;
 	}
 }

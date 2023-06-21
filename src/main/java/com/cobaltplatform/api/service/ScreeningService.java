@@ -19,7 +19,10 @@
 
 package com.cobaltplatform.api.service;
 
+import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.error.ErrorReporter;
+import com.cobaltplatform.api.messaging.call.CallMessage;
+import com.cobaltplatform.api.messaging.call.CallMessageTemplate;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest.CreateAnswerRequest;
@@ -39,6 +42,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
+import com.cobaltplatform.api.model.db.PatientOrderCrisisHandler;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
@@ -130,6 +134,8 @@ public class ScreeningService {
 	@Nonnull
 	private final Provider<AuthorizationService> authorizationServiceProvider;
 	@Nonnull
+	private final Provider<MessageService> messageServiceProvider;
+	@Nonnull
 	private final ScreeningConfirmationPromptApiResponseFactory screeningConfirmationPromptApiResponseFactory;
 	@Nonnull
 	private final JavascriptExecutor javascriptExecutor;
@@ -139,6 +145,8 @@ public class ScreeningService {
 	private final Normalizer normalizer;
 	@Nonnull
 	private final Database database;
+	@Nonnull
+	private final Configuration configuration;
 	@Nonnull
 	private final Strings strings;
 	@Nonnull
@@ -150,22 +158,26 @@ public class ScreeningService {
 													@Nonnull Provider<AccountService> accountServiceProvider,
 													@Nonnull Provider<PatientOrderService> patientOrderServiceProvider,
 													@Nonnull Provider<AuthorizationService> authorizationServiceProvider,
+													@Nonnull Provider<MessageService> messageServiceProvider,
 													@Nonnull ScreeningConfirmationPromptApiResponseFactory screeningConfirmationPromptApiResponseFactory,
 													@Nonnull JavascriptExecutor javascriptExecutor,
 													@Nonnull ErrorReporter errorReporter,
 													@Nonnull Normalizer normalizer,
 													@Nonnull Database database,
+													@Nonnull Configuration configuration,
 													@Nonnull Strings strings) {
 		requireNonNull(institutionServiceProvider);
 		requireNonNull(interactionServiceProvider);
 		requireNonNull(accountServiceProvider);
 		requireNonNull(patientOrderServiceProvider);
 		requireNonNull(authorizationServiceProvider);
+		requireNonNull(messageServiceProvider);
 		requireNonNull(screeningConfirmationPromptApiResponseFactory);
 		requireNonNull(javascriptExecutor);
 		requireNonNull(errorReporter);
 		requireNonNull(normalizer);
 		requireNonNull(database);
+		requireNonNull(configuration);
 		requireNonNull(strings);
 
 		this.institutionServiceProvider = institutionServiceProvider;
@@ -173,11 +185,13 @@ public class ScreeningService {
 		this.accountServiceProvider = accountServiceProvider;
 		this.patientOrderServiceProvider = patientOrderServiceProvider;
 		this.authorizationServiceProvider = authorizationServiceProvider;
+		this.messageServiceProvider = messageServiceProvider;
 		this.screeningConfirmationPromptApiResponseFactory = screeningConfirmationPromptApiResponseFactory;
 		this.javascriptExecutor = javascriptExecutor;
 		this.errorReporter = errorReporter;
 		this.normalizer = normalizer;
 		this.database = database;
+		this.configuration = configuration;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
@@ -1379,6 +1393,27 @@ public class ScreeningService {
 							WHERE patient_order_id=?
 							""", PatientOrderSafetyPlanningStatusId.NEEDS_SAFETY_PLANNING, patientOrder.getPatientOrderId());
 
+					// Notify any "crisis handlers" for this institution if a patient is self-screening and indicated crisis
+					if (isScreeningSessionSelfAdministered(screeningSession)) {
+						List<PatientOrderCrisisHandler> patientOrderCrisisHandlers = getPatientOrderService().findPatientOrderCrisisHandlersByInstitutionId(patientOrder.getInstitutionId());
+
+						getLogger().info("Notifying {} IC crisis handlers for institution ID {}...", patientOrderCrisisHandlers.size(), institution.getInstitutionId());
+
+						for (PatientOrderCrisisHandler patientOrderCrisisHandler : patientOrderCrisisHandlers) {
+							getLogger().info("Enqueuing IC crisis call message for {}...", patientOrderCrisisHandler.getPhoneNumber());
+
+							Map<String, Object> messageContext = new HashMap<>();
+
+							if (!configuration.isProduction())
+								messageContext.put("additionalDetails", getStrings().get("This notification is for a test patient in a nonproduction environment."));
+
+							CallMessage callMessage = new CallMessage.Builder(institution.getInstitutionId(), CallMessageTemplate.IC_CRISIS, patientOrderCrisisHandler.getPhoneNumber(), institution.getLocale())
+									.messageContext(messageContext)
+									.build();
+							getMessageService().enqueueMessage(callMessage);
+						}
+					}
+
 					// TODO: write to patient order event table to keep track of when this happened
 				}
 			}
@@ -1879,8 +1914,7 @@ public class ScreeningService {
 			screeningVersionIdsByName.put(screeningVersionName.getName(), screeningVersionName.getScreeningVersionId());
 		}
 
-		boolean selfAdministered = Objects.equals(screeningSession.getCreatedByAccountId(), screeningSession.getTargetAccountId())
-				|| screeningSession.getTargetAccountId() == null;
+		boolean selfAdministered = isScreeningSessionSelfAdministered(screeningSession);
 
 		Map<String, Object> context = new HashMap<>();
 
@@ -1919,6 +1953,14 @@ public class ScreeningService {
 		}
 
 		return Optional.ofNullable(screeningFlowFunctionResult);
+	}
+
+	@Nonnull
+	public Boolean isScreeningSessionSelfAdministered(@Nonnull ScreeningSession screeningSession) {
+		requireNonNull(screeningSession);
+
+		return Objects.equals(screeningSession.getCreatedByAccountId(), screeningSession.getTargetAccountId())
+				|| screeningSession.getTargetAccountId() == null;
 	}
 
 	@NotThreadSafe
@@ -2377,6 +2419,11 @@ public class ScreeningService {
 	}
 
 	@Nonnull
+	protected MessageService getMessageService() {
+		return this.messageServiceProvider.get();
+	}
+
+	@Nonnull
 	protected ScreeningConfirmationPromptApiResponseFactory getScreeningConfirmationPromptApiResponseFactory() {
 		return this.screeningConfirmationPromptApiResponseFactory;
 	}
@@ -2399,6 +2446,11 @@ public class ScreeningService {
 	@Nonnull
 	protected Database getDatabase() {
 		return this.database;
+	}
+
+	@Nonnull
+	protected Configuration getConfiguration() {
+		return this.configuration;
 	}
 
 	@Nonnull

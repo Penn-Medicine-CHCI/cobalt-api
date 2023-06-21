@@ -23,5 +23,6 @@ package com.cobaltplatform.api.messaging.call;
  * @author Transmogrify, LLC.
  */
 public enum CallMessageTemplate {
-	FREEFORM
+	FREEFORM,
+	IC_CRISIS
 }

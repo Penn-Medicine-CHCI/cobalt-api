@@ -80,6 +80,7 @@ import com.cobaltplatform.api.model.db.PatientOrderCareType;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderConsentStatus.PatientOrderConsentStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderCrisisHandler;
 import com.cobaltplatform.api.model.db.PatientOrderDiagnosis;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
@@ -3438,6 +3439,20 @@ public class PatientOrderService implements AutoCloseable {
 					) VALUES (?,?)
 					""", patientOrderScheduledMessageGroupId, scheduledMessageId);
 		}
+	}
+
+	@Nonnull
+	public List<PatientOrderCrisisHandler> findPatientOrderCrisisHandlersByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM patient_order_crisis_handler
+				WHERE institution_id=?
+				AND enabled=TRUE
+				ORDER BY name, phone_number
+				""", PatientOrderCrisisHandler.class, institutionId);
 	}
 
 	@Nonnull

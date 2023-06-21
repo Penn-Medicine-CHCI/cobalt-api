@@ -22,6 +22,8 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.AlertApiResponse.AlertApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AnonymousAccountExpirationStrategy;
+import com.cobaltplatform.api.model.db.AnonymousAccountExpirationStrategy.AnonymousAccountExpirationStrategyId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
@@ -63,6 +65,8 @@ public class InstitutionApiResponse {
 	private final UUID integratedCareScreeningFlowId;
 	@Nullable
 	private final UUID featureScreeningFlowId;
+	@Nonnull
+	private final AnonymousAccountExpirationStrategyId anonymousAccountExpirationStrategyId;
 	@Nonnull
 	private final String name;
 	@Nullable
@@ -147,6 +151,10 @@ public class InstitutionApiResponse {
 	private final Boolean hasTakenFeatureScreening;
 	@Nonnull
 	private final UserExperienceTypeId userExperienceTypeId;
+	@Nullable
+	private final String clinicalSupportPhoneNumber;
+	@Nullable
+	private final String clinicalSupportPhoneNumberDescription;
 	@Nonnull
 	private final List<AlertApiResponse> alerts;
 
@@ -191,6 +199,7 @@ public class InstitutionApiResponse {
 		this.groupSessionsScreeningFlowId = institution.getGroupSessionsScreeningFlowId();
 		this.integratedCareScreeningFlowId = institution.getIntegratedCareScreeningFlowId();
 		this.featureScreeningFlowId = institution.getFeatureScreeningFlowId();
+		this.anonymousAccountExpirationStrategyId = institution.getAnonymousAccountExpirationStrategyId();
 		this.name = institution.getName();
 		this.crisisContent = ""; // institution.getCrisisContent();
 		this.privacyContent = ""; // institution.getPrivacyContent();
@@ -239,6 +248,9 @@ public class InstitutionApiResponse {
 		this.integratedCareProgramName = institution.getIntegratedCareProgramName();
 		this.integratedCarePrimaryCareName = institution.getIntegratedCarePrimaryCareName();
 
+		this.clinicalSupportPhoneNumber = institution.getClinicalSupportPhoneNumber();
+		this.clinicalSupportPhoneNumberDescription = institution.getClinicalSupportPhoneNumber() == null ? null : formatter.formatPhoneNumber(institution.getClinicalSupportPhoneNumber());
+
 		if (account == null) {
 			this.alerts = alertService.findAlertsByInstitutionId(institution.getInstitutionId()).stream()
 					.map(alert -> alertApiResponseFactory.create(alert))
@@ -278,6 +290,11 @@ public class InstitutionApiResponse {
 	@Nullable
 	public UUID getFeatureScreeningFlowId() {
 		return this.featureScreeningFlowId;
+	}
+
+	@Nonnull
+	public AnonymousAccountExpirationStrategyId getAnonymousAccountExpirationStrategyId() {
+		return this.anonymousAccountExpirationStrategyId;
 	}
 
 	@Nonnull
@@ -481,5 +498,15 @@ public class InstitutionApiResponse {
 	@Nullable
 	public String getMyChartDefaultUrl() {
 		return this.myChartDefaultUrl;
+	}
+
+	@Nullable
+	public String getClinicalSupportPhoneNumber() {
+		return this.clinicalSupportPhoneNumber;
+	}
+
+	@Nullable
+	public String getClinicalSupportPhoneNumberDescription() {
+		return this.clinicalSupportPhoneNumberDescription;
 	}
 }

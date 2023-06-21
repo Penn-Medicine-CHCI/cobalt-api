@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.AnonymousAccountExpirationStrategy.AnonymousAccountExpirationStrategyId;
 import com.cobaltplatform.api.model.db.EpicBackendServiceAuthType.EpicBackendServiceAuthTypeId;
 import com.cobaltplatform.api.model.db.GroupSessionSystem.GroupSessionSystemId;
 import com.google.gson.Gson;
@@ -69,6 +70,8 @@ public class Institution {
 	private UUID integratedCareScreeningFlowId;
 	@Nullable
 	private UUID featureScreeningFlowId;
+	@Nullable
+	private AnonymousAccountExpirationStrategyId anonymousAccountExpirationStrategyId;
 	@Nullable
 	private ZoneId timeZone;
 	@Nullable
@@ -197,6 +200,8 @@ public class Institution {
 	private String integratedCareProgramName;
 	@Nullable
 	private String integratedCarePrimaryCareName;
+	@Nullable
+	private String clinicalSupportPhoneNumber;
 
 	public enum InstitutionId {
 		COBALT,
@@ -379,6 +384,15 @@ public class Institution {
 
 	public void setFeatureScreeningFlowId(@Nullable UUID featureScreeningFlowId) {
 		this.featureScreeningFlowId = featureScreeningFlowId;
+	}
+
+	@Nullable
+	public AnonymousAccountExpirationStrategyId getAnonymousAccountExpirationStrategyId() {
+		return this.anonymousAccountExpirationStrategyId;
+	}
+
+	public void setAnonymousAccountExpirationStrategyId(@Nullable AnonymousAccountExpirationStrategyId anonymousAccountExpirationStrategyId) {
+		this.anonymousAccountExpirationStrategyId = anonymousAccountExpirationStrategyId;
 	}
 
 	@Nullable
@@ -894,5 +908,14 @@ public class Institution {
 
 	public void setIntegratedCarePrimaryCareName(@Nullable String integratedCarePrimaryCareName) {
 		this.integratedCarePrimaryCareName = integratedCarePrimaryCareName;
+	}
+
+	@Nullable
+	public String getClinicalSupportPhoneNumber() {
+		return this.clinicalSupportPhoneNumber;
+	}
+
+	public void setClinicalSupportPhoneNumber(@Nullable String clinicalSupportPhoneNumber) {
+		this.clinicalSupportPhoneNumber = clinicalSupportPhoneNumber;
 	}
 }

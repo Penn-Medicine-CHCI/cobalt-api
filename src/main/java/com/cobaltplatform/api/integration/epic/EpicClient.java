@@ -125,6 +125,18 @@ public interface EpicClient {
 	 * This web service allows searching for appointments and returns up-to-date appointment information.
 	 * It includes appointments scheduled in Epic using Cadence, OpTime, Cupid, or Radiant workflows, but it does not
 	 * include external appointments, appointment requests, or surgical procedures.
+	 * <p>
+	 * Note: the format for {@code identifier} is @{code system|value}.  For example, if an appointment has an identifier
+	 * field like the following:
+	 * <pre>
+	 * "identifier": [
+	 *   {
+	 *      "system": "urn:oid:1.2.840.114350.1.13.861.1.7.3.698084.8",
+	 *      "value": "10001639946"
+	 *   }
+	 * ]
+	 * </pre>
+	 * ...then the value for {@code identifier} would be @{code urn:oid:1.2.840.114350.1.13.861.1.7.3.698084.8|10001639946}.
 	 *
 	 * @param request data to send in the request
 	 * @return the Epic response data
