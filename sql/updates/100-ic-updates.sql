@@ -163,9 +163,10 @@ recent_scheduled_screening_query AS (
         join patient_order_scheduled_screening poss on poq.patient_order_id = poss.patient_order_id
         left join patient_order_scheduled_screening poss2 ON poss.patient_order_id = poss2.patient_order_id
         and poss.scheduled_date_time < poss2.scheduled_date_time
-        and poss.canceled = false
+        and poss2.canceled = false
     where
         poss2.patient_order_scheduled_screening_id is NULL
+        and poss.canceled = false
 ), recent_po_query AS (
     -- Pick the most recently-closed patient order for the same MRN/institution combination
     select
