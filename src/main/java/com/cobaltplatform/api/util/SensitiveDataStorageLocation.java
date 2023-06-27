@@ -25,4 +25,5 @@ package com.cobaltplatform.api.util;
 public enum SensitiveDataStorageLocation {
 	FILESYSTEM, // Stored in source control (for local/dev envs where secrets are disposable)
 	AMAZON_S3, // Stored in S3
+	AMAZON_SECRETS_MANAGER // Stored in Secrets Manager
 }

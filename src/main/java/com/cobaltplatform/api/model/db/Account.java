@@ -133,6 +133,8 @@ public class Account {
 	@Nullable
 	private LocalDate birthdate;
 	@Nullable
+	private Boolean active;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -519,6 +521,15 @@ public class Account {
 
 	public void setBirthdate(@Nullable LocalDate birthdate) {
 		this.birthdate = birthdate;
+	}
+
+	@Nullable
+	public Boolean getActive() {
+		return this.active;
+	}
+
+	public void setActive(@Nullable Boolean active) {
+		this.active = active;
 	}
 
 	@Nullable

@@ -19,12 +19,12 @@
 
 package com.cobaltplatform.api.service;
 
-import com.lokalized.Strings;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.api.request.CreatePresignedUploadRequest;
 import com.cobaltplatform.api.util.UploadManager;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.lokalized.Strings;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -74,8 +74,8 @@ public class ImageUploadService {
 	}
 
 	private UploadManager.PresignedUpload generatePresignedUploadForUseCase(@Nonnull CreatePresignedUploadRequest request,
-																																			@Nonnull String useCase){
-				UUID accountId = request.getAccountId();
+																																					@Nonnull String useCase) {
+		UUID accountId = request.getAccountId();
 		String filename = trimToNull(request.getFilename());
 		String contentType = trimToNull(request.getContentType());
 
@@ -95,7 +95,6 @@ public class ImageUploadService {
 
 		if (validationException.hasErrors())
 			throw validationException;
-
 
 		String key = format("%s/%s/%s/%s", getConfiguration().getEnvironment(), useCase, UUID.randomUUID(), filename);
 

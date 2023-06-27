@@ -1,17 +1,14 @@
-FROM mesosphere/aws-cli:latest
+FROM amazon/aws-cli:2.11.20
 
 ENV AWS_DEFAULT_REGION=us-east-2
 ENV AWS_ACCESS_KEY_ID=FAKE
 ENV AWS_SECRET_ACCESS_KEY=FAKE
 
-RUN apk --update add postgresql-client
+RUN amazon-linux-extras install postgresql12
 
-RUN adduser -D inituser
-WORKDIR /home/inituser
-USER inituser
-
-COPY --chown=inituser:inituser ./sql /home/inituser/sql/
-COPY --chown=inituser:inituser ./localstack /home/inituser/localstack/
+COPY ./sql /sql/
+COPY ./localstack /localstack/
+COPY ./config/local /config
 
 ENTRYPOINT []
-CMD ["sh", "-c", "cd ./localstack && ./initialize && cd ../sql && ./recreate-bootstrap"]
+CMD ["sh", "-c", "cd /localstack && ./initialize && cd /sql && ./recreate-bootstrap"]
