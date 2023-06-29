@@ -29,8 +29,6 @@ import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareType
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderConsentStatus.PatientOrderConsentStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
-import com.cobaltplatform.api.model.db.PatientOrderInsurancePayorType.PatientOrderInsurancePayorTypeId;
-import com.cobaltplatform.api.model.db.PatientOrderInsurancePlanType.PatientOrderInsurancePlanTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
@@ -144,6 +142,8 @@ public class PatientOrder {
 	private String primaryPlanId;
 	@Nullable
 	private String primaryPlanName;
+	@Nullable
+	private Boolean primaryPlanAccepted;
 	@Nullable
 	private LocalDate orderDate;
 	@Nullable
@@ -283,20 +283,6 @@ public class PatientOrder {
 	private Boolean mostRecentPatientOrderVoicemailTaskCompleted;
 	@Nullable
 	private String reasonForReferral;
-	@Nullable
-	private UUID patientOrderInsurancePayorId;
-	@Nullable
-	private PatientOrderInsurancePayorTypeId patientOrderInsurancePayorTypeId;
-	@Nullable
-	private String patientOrderInsurancePayorName;
-	@Nullable
-	private UUID patientOrderInsurancePlanId;
-	@Nullable
-	private String patientOrderInsurancePlanName;
-	@Nullable
-	private PatientOrderInsurancePlanTypeId patientOrderInsurancePlanTypeId;
-	@Nullable
-	private Boolean patientOrderInsurancePlanAccepted;
 	@Nullable
 	@DatabaseColumn("patient_address_street_address_1")
 	private String patientAddressStreetAddress1;
@@ -688,6 +674,15 @@ public class PatientOrder {
 
 	public void setPrimaryPlanName(@Nullable String primaryPlanName) {
 		this.primaryPlanName = primaryPlanName;
+	}
+
+	@Nullable
+	public Boolean getPrimaryPlanAccepted() {
+		return this.primaryPlanAccepted;
+	}
+
+	public void setPrimaryPlanAccepted(@Nullable Boolean primaryPlanAccepted) {
+		this.primaryPlanAccepted = primaryPlanAccepted;
 	}
 
 	@Nullable
@@ -1309,69 +1304,6 @@ public class PatientOrder {
 
 	public void setMostRecentPatientOrderVoicemailTaskCompleted(@Nullable Boolean mostRecentPatientOrderVoicemailTaskCompleted) {
 		this.mostRecentPatientOrderVoicemailTaskCompleted = mostRecentPatientOrderVoicemailTaskCompleted;
-	}
-
-	@Nullable
-	public UUID getPatientOrderInsurancePayorId() {
-		return this.patientOrderInsurancePayorId;
-	}
-
-	public void setPatientOrderInsurancePayorId(@Nullable UUID patientOrderInsurancePayorId) {
-		this.patientOrderInsurancePayorId = patientOrderInsurancePayorId;
-	}
-
-	@Nullable
-	public PatientOrderInsurancePayorTypeId getPatientOrderInsurancePayorTypeId() {
-		return this.patientOrderInsurancePayorTypeId;
-	}
-
-	public void setPatientOrderInsurancePayorTypeId(@Nullable PatientOrderInsurancePayorTypeId patientOrderInsurancePayorTypeId) {
-		this.patientOrderInsurancePayorTypeId = patientOrderInsurancePayorTypeId;
-	}
-
-	@Nullable
-	public String getPatientOrderInsurancePayorName() {
-		return this.patientOrderInsurancePayorName;
-	}
-
-	public void setPatientOrderInsurancePayorName(@Nullable String patientOrderInsurancePayorName) {
-		this.patientOrderInsurancePayorName = patientOrderInsurancePayorName;
-	}
-
-	@Nullable
-	public UUID getPatientOrderInsurancePlanId() {
-		return this.patientOrderInsurancePlanId;
-	}
-
-	public void setPatientOrderInsurancePlanId(@Nullable UUID patientOrderInsurancePlanId) {
-		this.patientOrderInsurancePlanId = patientOrderInsurancePlanId;
-	}
-
-	@Nullable
-	public String getPatientOrderInsurancePlanName() {
-		return this.patientOrderInsurancePlanName;
-	}
-
-	public void setPatientOrderInsurancePlanName(@Nullable String patientOrderInsurancePlanName) {
-		this.patientOrderInsurancePlanName = patientOrderInsurancePlanName;
-	}
-
-	@Nullable
-	public PatientOrderInsurancePlanTypeId getPatientOrderInsurancePlanTypeId() {
-		return this.patientOrderInsurancePlanTypeId;
-	}
-
-	public void setPatientOrderInsurancePlanTypeId(@Nullable PatientOrderInsurancePlanTypeId patientOrderInsurancePlanTypeId) {
-		this.patientOrderInsurancePlanTypeId = patientOrderInsurancePlanTypeId;
-	}
-
-	@Nullable
-	public Boolean getPatientOrderInsurancePlanAccepted() {
-		return this.patientOrderInsurancePlanAccepted;
-	}
-
-	public void setPatientOrderInsurancePlanAccepted(@Nullable Boolean patientOrderInsurancePlanAccepted) {
-		this.patientOrderInsurancePlanAccepted = patientOrderInsurancePlanAccepted;
 	}
 
 	@Nullable

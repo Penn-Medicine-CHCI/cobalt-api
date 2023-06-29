@@ -61,10 +61,6 @@ import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.Patient
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFormat;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.PatientOrderAutocompleteResultApiResponse.PatientOrderAutocompleteResultApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.PatientOrderInsurancePayorApiResponse;
-import com.cobaltplatform.api.model.api.response.PatientOrderInsurancePayorApiResponse.PatientOrderInsurancePayorApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.PatientOrderInsurancePlanApiResponse;
-import com.cobaltplatform.api.model.api.response.PatientOrderInsurancePlanApiResponse.PatientOrderInsurancePlanApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse;
@@ -206,10 +202,6 @@ public class PatientOrderResource {
 	@Nonnull
 	private final PatientOrderVoicemailTaskApiResponseFactory patientOrderVoicemailTaskApiResponseFactory;
 	@Nonnull
-	private final PatientOrderInsurancePayorApiResponseFactory patientOrderInsurancePayorApiResponseFactory;
-	@Nonnull
-	private final PatientOrderInsurancePlanApiResponseFactory patientOrderInsurancePlanApiResponseFactory;
-	@Nonnull
 	private final PatientOrderCsvGenerator patientOrderCsvGenerator;
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
@@ -244,8 +236,6 @@ public class PatientOrderResource {
 															@Nonnull PatientOrderScheduledScreeningApiResponseFactory patientOrderScheduledScreeningApiResponseFactory,
 															@Nonnull ScreeningTypeApiResponseFactory screeningTypeApiResponseFactory,
 															@Nonnull PatientOrderVoicemailTaskApiResponseFactory patientOrderVoicemailTaskApiResponseFactory,
-															@Nonnull PatientOrderInsurancePayorApiResponseFactory patientOrderInsurancePayorApiResponseFactory,
-															@Nonnull PatientOrderInsurancePlanApiResponseFactory patientOrderInsurancePlanApiResponseFactory,
 															@Nonnull PatientOrderCsvGenerator patientOrderCsvGenerator,
 															@Nonnull RequestBodyParser requestBodyParser,
 															@Nonnull JsonMapper jsonMapper,
@@ -270,8 +260,6 @@ public class PatientOrderResource {
 		requireNonNull(patientOrderScheduledScreeningApiResponseFactory);
 		requireNonNull(screeningTypeApiResponseFactory);
 		requireNonNull(patientOrderVoicemailTaskApiResponseFactory);
-		requireNonNull(patientOrderInsurancePayorApiResponseFactory);
-		requireNonNull(patientOrderInsurancePlanApiResponseFactory);
 		requireNonNull(patientOrderCsvGenerator);
 		requireNonNull(requestBodyParser);
 		requireNonNull(jsonMapper);
@@ -297,8 +285,6 @@ public class PatientOrderResource {
 		this.patientOrderScheduledScreeningApiResponseFactory = patientOrderScheduledScreeningApiResponseFactory;
 		this.screeningTypeApiResponseFactory = screeningTypeApiResponseFactory;
 		this.patientOrderVoicemailTaskApiResponseFactory = patientOrderVoicemailTaskApiResponseFactory;
-		this.patientOrderInsurancePayorApiResponseFactory = patientOrderInsurancePayorApiResponseFactory;
-		this.patientOrderInsurancePlanApiResponseFactory = patientOrderInsurancePlanApiResponseFactory;
 		this.patientOrderCsvGenerator = patientOrderCsvGenerator;
 		this.requestBodyParser = requestBodyParser;
 		this.jsonMapper = jsonMapper;
@@ -380,7 +366,6 @@ public class PatientOrderResource {
 		request.setShouldUpdatePatientBirthSexId(requestBodyAsJson.containsKey("patientBirthSexId"));
 		request.setShouldUpdatePatientRaceId(requestBodyAsJson.containsKey("patientRaceId"));
 		request.setShouldUpdatePatientAddress(requestBodyAsJson.containsKey("patientAddress"));
-		request.setShouldUpdatePatientOrderInsurancePlanId(requestBodyAsJson.containsKey("patientOrderInsurancePlanId"));
 		request.setShouldUpdatePatientDemographicsConfirmed(requestBodyAsJson.containsKey("patientDemographicsConfirmed"));
 		request.setShouldUpdatePatientOrderCarePreferenceId(requestBodyAsJson.containsKey("patientOrderCarePreferenceId"));
 		request.setShouldUpdateInPersonCareRadius(requestBodyAsJson.containsKey("inPersonCareRadius"));
@@ -1772,14 +1757,6 @@ public class PatientOrderResource {
 		List<String> referringPracticeNames = getPatientOrderService().findReferringPracticeNamesByInstitutionId(institutionId);
 		List<String> reasonsForReferral = getPatientOrderService().findReasonsForReferralByInstitutionId(institutionId);
 
-		List<PatientOrderInsurancePayorApiResponse> patientOrderInsurancePayors = getPatientOrderService().findPatientOrderInsurancePayorsByInstitutionId(institutionId).stream()
-				.map(patientOrderInsurancePayor -> getPatientOrderInsurancePayorApiResponseFactory().create(patientOrderInsurancePayor))
-				.collect(Collectors.toList());
-
-		List<PatientOrderInsurancePlanApiResponse> patientOrderInsurancePlans = getPatientOrderService().findPatientOrderInsurancePlansByInstitutionId(institutionId).stream()
-				.map(patientOrderInsurancePlan -> getPatientOrderInsurancePlanApiResponseFactory().create(patientOrderInsurancePlan))
-				.collect(Collectors.toList());
-
 		List<Map<String, Object>> patientOrderCarePreferences = getPatientOrderService().findPatientOrderCarePreferencesByInstitutionId(institutionId).stream()
 				.map(patientOrderCarePreference -> {
 					Map<String, Object> patientOrderCarePreferenceJson = new HashMap<>();
@@ -1807,8 +1784,6 @@ public class PatientOrderResource {
 			put("patientOrderFocusTypes", patientOrderFocusTypes);
 			put("referringPracticeNames", referringPracticeNames);
 			put("reasonsForReferral", reasonsForReferral);
-			put("patientOrderInsurancePayors", patientOrderInsurancePayors);
-			put("patientOrderInsurancePlans", patientOrderInsurancePlans);
 			put("patientOrderResourcingTypes", patientOrderResourcingTypes);
 			put("patientOrderCarePreferences", patientOrderCarePreferences);
 		}});
@@ -1933,16 +1908,6 @@ public class PatientOrderResource {
 	@Nonnull
 	protected PatientOrderVoicemailTaskApiResponseFactory getPatientOrderVoicemailTaskApiResponseFactory() {
 		return this.patientOrderVoicemailTaskApiResponseFactory;
-	}
-
-	@Nonnull
-	protected PatientOrderInsurancePayorApiResponseFactory getPatientOrderInsurancePayorApiResponseFactory() {
-		return this.patientOrderInsurancePayorApiResponseFactory;
-	}
-
-	@Nonnull
-	protected PatientOrderInsurancePlanApiResponseFactory getPatientOrderInsurancePlanApiResponseFactory() {
-		return this.patientOrderInsurancePlanApiResponseFactory;
 	}
 
 	@Nonnull
