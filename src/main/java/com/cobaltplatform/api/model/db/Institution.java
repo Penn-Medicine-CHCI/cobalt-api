@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.db;
 import com.cobaltplatform.api.model.db.AnonymousAccountExpirationStrategy.AnonymousAccountExpirationStrategyId;
 import com.cobaltplatform.api.model.db.EpicBackendServiceAuthType.EpicBackendServiceAuthTypeId;
 import com.cobaltplatform.api.model.db.GroupSessionSystem.GroupSessionSystemId;
+import com.cobaltplatform.api.model.db.ProviderSchedulingStrategy.ProviderSchedulingStrategyId;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -202,6 +203,8 @@ public class Institution {
 	private String integratedCarePrimaryCareName;
 	@Nullable
 	private String clinicalSupportPhoneNumber;
+	@Nullable
+	private ProviderSchedulingStrategyId providerSchedulingStrategyId;
 
 	public enum InstitutionId {
 		COBALT,

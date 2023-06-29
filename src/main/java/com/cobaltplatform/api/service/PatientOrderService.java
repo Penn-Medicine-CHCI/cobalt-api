@@ -528,6 +528,19 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
+	public List<String> findPrimaryPayorNamesByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT DISTINCT ON (UPPER(primary_payor_name)) primary_payor_name
+				FROM patient_order p
+				WHERE p.institution_id=?
+				ORDER BY UPPER(primary_payor_name)
+				""", String.class, institutionId);
+	}
+
+	@Nonnull
 	public List<PatientOrderClosureReason> findPatientOrderClosureReasons() {
 		return getDatabase().queryForList("""
 				SELECT *

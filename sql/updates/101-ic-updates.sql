@@ -57,6 +57,9 @@ DROP TABLE patient_order_insurance_payor_type;
 -- We also keep track of whether the primary plan is accepted or not (we assume it is until we are told otherwise)
 ALTER TABLE patient_order ADD COLUMN primary_plan_accepted BOOLEAN NOT NULL DEFAULT TRUE;
 
+-- Performance indices for finding distinct primary payor names
+CREATE INDEX patient_order_primary_payor_name_idx ON patient_order (UPPER(primary_payor_name));
+
 -- No longer have these insurance fields:
 --
 -- patient_order_insurance_plan_type_id
