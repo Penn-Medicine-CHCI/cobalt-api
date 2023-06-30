@@ -774,17 +774,18 @@ public class PatientOrderApiResponse {
 		this.patientOrderResourceCheckInResponseStatusDescription = patientOrder.getPatientOrderResourceCheckInResponseStatusDescription();
 		this.resourceCheckInResponseNeeded = patientOrder.getResourceCheckInResponseNeeded();
 
+		this.primaryPayorId = patientOrder.getPrimaryPayorId();
+		this.primaryPayorName = patientOrder.getPrimaryPayorName();
+		this.primaryPlanId = patientOrder.getPrimaryPlanId();
+		this.primaryPlanName = patientOrder.getPrimaryPlanName();
+		this.primaryPlanAccepted = patientOrder.getPrimaryPlanAccepted();
+
 		// MHIC-only view of the data
 		if (format == PatientOrderApiResponseFormat.MHIC) {
 			this.panelAccountId = patientOrder.getPanelAccountId();
 			this.encounterDepartmentId = patientOrder.getEncounterDepartmentId();
 			this.encounterDepartmentIdType = patientOrder.getEncounterDepartmentIdType();
 			this.encounterDepartmentName = patientOrder.getEncounterDepartmentName();
-			this.primaryPayorId = patientOrder.getPrimaryPayorId();
-			this.primaryPayorName = patientOrder.getPrimaryPayorName();
-			this.primaryPlanId = patientOrder.getPrimaryPlanId();
-			this.primaryPlanName = patientOrder.getPrimaryPlanName();
-			this.primaryPlanAccepted = patientOrder.getPrimaryPlanAccepted();
 			this.orderDate = patientOrder.getOrderDate();
 			this.orderDateDescription = patientOrder.getOrderDate() == null ? null : formatter.formatDate(patientOrder.getOrderDate(), FormatStyle.MEDIUM);
 			this.orderAgeInMinutes = patientOrder.getOrderAgeInMinutes();

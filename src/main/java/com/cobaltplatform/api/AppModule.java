@@ -117,9 +117,6 @@ import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApi
 import com.cobaltplatform.api.model.api.response.ProviderCalendarApiResponse.ProviderCalendarApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.QuestionApiResponse.QuestionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ReportTypeApiResponse.ReportTypeApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.ReportingChartApiResponse.ReportingChartApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.ReportingChartApiResponse.ReportingChartElementApiResponse.ReportingChartElementApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.ReportingChartApiResponse.ReportingChartMetricApiResponse.ReportingChartMetricApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningAnswerApiResponse.ScreeningAnswerApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningAnswerOptionApiResponse.ScreeningAnswerOptionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningConfirmationPromptApiResponse.ScreeningConfirmationPromptApiResponseFactory;
@@ -249,9 +246,6 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(BetaFeatureAlertApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(TimeZoneApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(QuestionApiResponseFactory.class)));
-		install((new FactoryModuleBuilder().build(ReportingChartApiResponseFactory.class)));
-		install((new FactoryModuleBuilder().build(ReportingChartMetricApiResponseFactory.class)));
-		install((new FactoryModuleBuilder().build(ReportingChartElementApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(InteractionInstanceApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(InteractionOptionApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(InteractionOptionActionApiResponseFactory.class)));

@@ -23,15 +23,9 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.ReportTypeApiResponse;
 import com.cobaltplatform.api.model.api.response.ReportTypeApiResponse.ReportTypeApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.ReportingChartApiResponse.ReportingChartApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
-import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.ReportType.ReportTypeId;
-import com.cobaltplatform.api.model.db.ReportingRollup;
-import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
-import com.cobaltplatform.api.model.service.ReportingChart;
-import com.cobaltplatform.api.model.service.ReportingWindowId;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ReportingService;
@@ -51,7 +45,6 @@ import javax.inject.Singleton;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -79,8 +72,6 @@ public class ReportingResource {
 	@Nonnull
 	private final AuthorizationService authorizationService;
 	@Nonnull
-	private final ReportingChartApiResponseFactory reportingChartApiResponseFactory;
-	@Nonnull
 	private final ReportTypeApiResponseFactory reportTypeApiResponseFactory;
 	@Nonnull
 	private final Configuration configuration;
@@ -93,7 +84,6 @@ public class ReportingResource {
 	public ReportingResource(@Nonnull ReportingService reportingService,
 													 @Nonnull InstitutionService institutionService,
 													 @Nonnull AuthorizationService authorizationService,
-													 @Nonnull ReportingChartApiResponseFactory reportingChartApiResponseFactory,
 													 @Nonnull ReportTypeApiResponseFactory reportTypeApiResponseFactory,
 													 @Nonnull Configuration configuration,
 													 @Nonnull Provider<CurrentContext> currentContextProvider,
@@ -101,7 +91,6 @@ public class ReportingResource {
 		requireNonNull(reportingService);
 		requireNonNull(institutionService);
 		requireNonNull(authorizationService);
-		requireNonNull(reportingChartApiResponseFactory);
 		requireNonNull(reportTypeApiResponseFactory);
 		requireNonNull(configuration);
 		requireNonNull(currentContextProvider);
@@ -110,7 +99,6 @@ public class ReportingResource {
 		this.reportingService = reportingService;
 		this.institutionService = institutionService;
 		this.authorizationService = authorizationService;
-		this.reportingChartApiResponseFactory = reportingChartApiResponseFactory;
 		this.reportTypeApiResponseFactory = reportTypeApiResponseFactory;
 		this.configuration = configuration;
 		this.currentContextProvider = currentContextProvider;
@@ -135,14 +123,12 @@ public class ReportingResource {
 	@GET("/reporting/run-report")
 	@AuthenticationRequired
 	public Object runReport(@Nonnull @QueryParameter ReportTypeId reportTypeId,
-													@Nonnull @QueryParameter ReportFormatId reportFormatId,
 													@Nonnull @QueryParameter LocalDateTime startDateTime, // inclusive
 													@Nonnull @QueryParameter LocalDateTime endDateTime, // inclusive
 													@Nonnull @QueryParameter Optional<ZoneId> timeZone,
 													@Nonnull @QueryParameter Optional<Locale> locale,
 													@Nonnull HttpServletResponse httpServletResponse) throws IOException {
 		requireNonNull(reportTypeId);
-		requireNonNull(reportFormatId);
 		requireNonNull(startDateTime);
 		requireNonNull(endDateTime);
 		requireNonNull(timeZone);
@@ -153,10 +139,6 @@ public class ReportingResource {
 
 		if (!getAuthorizationService().canViewReportTypeId(account, reportTypeId))
 			throw new AuthorizationException();
-
-		if (reportFormatId != ReportFormatId.CSV)
-			throw new IllegalStateException(format("We don't support %s.%s yet",
-					ReportFormatId.class.getSimpleName(), reportFormatId.name()));
 
 		ZoneId reportTimeZone = timeZone.orElse(account.getTimeZone());
 		Locale reportLocale = locale.orElse(account.getLocale());
@@ -183,70 +165,6 @@ public class ReportingResource {
 	}
 
 	@Nonnull
-	@GET("/reporting/charts")
-	@AuthenticationRequired
-	@Deprecated
-	public ApiResponse charts(@Nonnull @QueryParameter Optional<ReportingWindowId> reportingWindowId) {
-		requireNonNull(reportingWindowId);
-
-		Account account = authorizedAccount();
-		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
-		ReportingWindowId finalReportingWindowId = reportingWindowId.orElse(ReportingWindowId.MONTHLY_ALL_TIME);
-		List<ReportingRollup> rollups = getReportingService().findRollups(institution.getInstitutionId(), finalReportingWindowId);
-		List<ReportingChart> charts = getReportingService().chartsForRollups(rollups, finalReportingWindowId);
-
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("charts", charts.stream()
-					.map(chart -> getReportingChartApiResponseFactory().create(chart))
-					.collect(Collectors.toList()));
-		}});
-	}
-
-	@Nonnull
-	@GET("/reporting/csv")
-	@AuthenticationRequired
-	@Deprecated
-	public CustomResponse csv(@Nonnull @QueryParameter Optional<ReportingWindowId> reportingWindowId,
-														@Nonnull HttpServletResponse httpServletResponse) throws IOException {
-		requireNonNull(reportingWindowId);
-		requireNonNull(httpServletResponse);
-
-		Account account = authorizedAccount();
-		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
-		ReportingWindowId finalReportingWindowId = reportingWindowId.orElse(ReportingWindowId.MONTHLY_ALL_TIME);
-		List<ReportingRollup> rollups = getReportingService().findRollups(institution.getInstitutionId(), finalReportingWindowId);
-
-		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HHmmss", Locale.US).withZone(account.getTimeZone());
-		String filename = format("%s-cobalt-reports.csv", dateTimeFormatter.format(Instant.now()));
-
-		httpServletResponse.setContentType("text/csv");
-		httpServletResponse.setHeader("Content-Encoding", "gzip");
-		httpServletResponse.setHeader("Content-Disposition", format("attachment; filename=\"%s\"", filename));
-
-		try (PrintWriter printWriter = new PrintWriter(new GZIPOutputStream(httpServletResponse.getOutputStream()))) {
-			getReportingService().writeCsvForRollups(rollups, finalReportingWindowId, account.getTimeZone(), printWriter);
-		}
-
-		return CustomResponse.instance();
-	}
-
-	@Nonnull
-	@Deprecated
-	protected Account authorizedAccount() {
-		Account account = getCurrentContext().getAccount().get();
-
-		if (account.getRoleId() != RoleId.ADMINISTRATOR)
-			throw new AuthorizationException();
-
-		return account;
-	}
-
-	public enum ReportFormatId {
-		JSON,
-		CSV
-	}
-
-	@Nonnull
 	protected ReportingService getReportingService() {
 		return this.reportingService;
 	}
@@ -259,11 +177,6 @@ public class ReportingResource {
 	@Nonnull
 	protected AuthorizationService getAuthorizationService() {
 		return this.authorizationService;
-	}
-
-	@Nonnull
-	protected ReportingChartApiResponseFactory getReportingChartApiResponseFactory() {
-		return this.reportingChartApiResponseFactory;
 	}
 
 	@Nonnull

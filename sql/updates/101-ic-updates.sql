@@ -38,6 +38,17 @@ SELECT a.*, acq.account_capability_type_ids
 FROM account a LEFT OUTER JOIN account_capabilities_query acq on a.account_id=acq.account_id
 WHERE active=TRUE;
 
+-- Remove patient_order_report_type in favor of more rows in report_type
+DROP TABLE patient_order_report_type;
+
+INSERT INTO report_type VALUES ('IC_PIPELINE', 'Pipeline', 4);
+INSERT INTO report_type VALUES ('IC_OVERALL_OUTREACH', 'Overall Outreach', 5);
+INSERT INTO report_type VALUES ('IC_MHIC_OUTREACH', 'MHIC Outreach', 6);
+
+-- ALTER TABLE report_type DROP COLUMN display_order;
+-- CREATE TABLE institution_report_type (institution_id, report_type_id, display_order)
+-- DROP TABLE account_report_type;
+
 -- Get rid of formal modeling of insurance; replace with just text fields.
 -- The text fields already exist as primary_plan_name and primary_payor_name.
 DROP VIEW v_patient_order;
