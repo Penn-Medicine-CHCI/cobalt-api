@@ -22,6 +22,10 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.integration.acuity.AcuitySchedulingCache;
 import com.cobaltplatform.api.integration.acuity.AcuitySchedulingClient;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
+import com.cobaltplatform.api.integration.epic.EpicClient;
+import com.cobaltplatform.api.integration.epic.request.AppointmentFindFhirStu3Request;
+import com.cobaltplatform.api.integration.epic.response.AppointmentFindFhirStu3Response;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest.ProviderFindAvailability;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest.ProviderFindLicenseType;
@@ -116,6 +120,8 @@ public class ProviderService {
 	@Nonnull
 	private final javax.inject.Provider<AvailabilityService> availabilityServiceProvider;
 	@Nonnull
+	private final EnterprisePluginProvider enterprisePluginProvider;
+	@Nonnull
 	private final Database database;
 	@Nonnull
 	private final Configuration configuration;
@@ -136,6 +142,7 @@ public class ProviderService {
 												 @Nonnull javax.inject.Provider<AssessmentScoringService> assessmentScoringServiceProvider,
 												 @Nonnull javax.inject.Provider<ClinicService> clinicServiceProvider,
 												 @Nonnull javax.inject.Provider<AvailabilityService> availabilityServiceProvider,
+												 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
 												 @Nonnull Database database,
 												 @Nonnull Configuration configuration,
 												 @Nonnull AcuitySchedulingClient acuitySchedulingClient,
@@ -146,6 +153,7 @@ public class ProviderService {
 		requireNonNull(assessmentScoringServiceProvider);
 		requireNonNull(clinicServiceProvider);
 		requireNonNull(availabilityServiceProvider);
+		requireNonNull(enterprisePluginProvider);
 		requireNonNull(database);
 		requireNonNull(configuration);
 		requireNonNull(acuitySchedulingClient);
@@ -157,6 +165,7 @@ public class ProviderService {
 		this.assessmentScoringServiceProvider = assessmentScoringServiceProvider;
 		this.clinicServiceProvider = clinicServiceProvider;
 		this.availabilityServiceProvider = availabilityServiceProvider;
+		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.database = database;
 		this.configuration = configuration;
 		this.acuitySchedulingClient = acuitySchedulingClient;
@@ -527,7 +536,61 @@ public class ProviderService {
 		NativeSchedulingAvailabilityData nativeSchedulingAvailabilityData = loadNativeSchedulingAvailabilityData(institutionId,
 				visitTypeIds, nativeSchedulingStartDateTime, nativeSchedulingEndDateTime);
 
-		for (Provider provider : providers) {
+		// The Epic FHIR flow for pulling slots is totally different than our other mechanisms, so we special-case here
+		List<Provider> providersThatUseEpicFhir = providers.stream()
+				.filter(provider -> provider.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR)
+				.collect(Collectors.toList());
+
+		if (providersThatUseEpicFhir.size() > 0) {
+			// If an institution has FHIR providers that match the search criteria and the requesting account doesn't have
+			// a patient FHIR ID, then bubble out an error indicating that via special metadata.
+			// This way FE can take action (route through MyChart flow etc.)
+			if (account.getEpicPatientFhirId() == null) {
+				ValidationException myChartValidationException = new ValidationException();
+				myChartValidationException.add(getStrings().get(""));
+				myChartValidationException.setMetadata(Map.of("patientFhirIdRequired", true));
+				throw myChartValidationException;
+			}
+
+			// Pick out all the Epic FHIR appointment types for this institution
+			List<AppointmentType> epicFhirAppointmentTypes = getDatabase().queryForList("""
+								SELECT DISTINCT at.*
+								FROM appointment_type at, provider_appointment_type pat, provider p
+								WHERE pat.provider_id=p.provider_id
+								AND pat.appointment_type_id=at.appointment_type_id
+								AND p.active=TRUE
+								AND p.institution_id=?
+								AND p.scheduling_system_id=?
+					""", AppointmentType.class, institutionId, SchedulingSystemId.EPIC_FHIR);
+
+			// Ask Epic for potential slots
+			EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId).epicClientForBackendService().get();
+
+			AppointmentFindFhirStu3Request appointmentFindRequest = new AppointmentFindFhirStu3Request();
+			appointmentFindRequest.setPatient(account.getEpicPatientFhirId());
+			appointmentFindRequest.setStartTime(LocalDateTime.of(startDate, startTime));
+			appointmentFindRequest.setStartTime(LocalDateTime.of(endDate, endTime));
+			appointmentFindRequest.setServiceTypes(epicFhirAppointmentTypes.stream()
+					.map(appointmentType -> {
+						AppointmentFindFhirStu3Request.Coding serviceType = new AppointmentFindFhirStu3Request.Coding();
+						serviceType.setCode(appointmentType.getEpicVisitTypeId());
+						serviceType.setSystem(appointmentType.getEpicVisitTypeSystem());
+
+						return serviceType;
+					})
+					.collect(Collectors.toList()));
+
+			AppointmentFindFhirStu3Response appointmentFindResponse = epicClient.appointmentFindFhirStu3(appointmentFindRequest);
+
+			// TODO: filter down slots based on query criteria and add to `ProviderFind` list
+		}
+
+		// "Normal" handling for other providers
+		List<Provider> providersThatDoNotUseEpicFhir = providers.stream()
+				.filter(provider -> provider.getSchedulingSystemId() != SchedulingSystemId.EPIC_FHIR)
+				.collect(Collectors.toList());
+
+		for (Provider provider : providersThatDoNotUseEpicFhir) {
 			boolean intakeAssessmentRequired = false;
 			boolean intakeAssessmentIneligible = false;
 
@@ -1089,7 +1152,7 @@ public class ProviderService {
 					// If we hit this case, that means we wrapped to the next day.
 					// If we don't break, then we can get into an infinite loop.
 					// TODO: should we support handling of slots that cross date boundaries?  Probably not, but leaving a note here...
-					if(currentSlotTime.isAfter(slotTime))
+					if (currentSlotTime.isAfter(slotTime))
 						break;
 				}
 			}
@@ -1867,6 +1930,11 @@ public class ProviderService {
 	@Nonnull
 	protected AvailabilityService getAvailabilityService() {
 		return availabilityServiceProvider.get();
+	}
+
+	@Nonnull
+	protected EnterprisePluginProvider getEnterprisePluginProvider() {
+		return this.enterprisePluginProvider;
 	}
 
 	@Nonnull

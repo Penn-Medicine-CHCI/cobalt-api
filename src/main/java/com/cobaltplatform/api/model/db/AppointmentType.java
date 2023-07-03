@@ -47,6 +47,8 @@ public class AppointmentType {
 	@Nullable
 	private String epicVisitTypeIdType;
 	@Nullable
+	private String epicVisitTypeSystem;
+	@Nullable
 	private String name;
 	@Nullable
 	private String description;
@@ -123,6 +125,15 @@ public class AppointmentType {
 
 	public void setEpicVisitTypeIdType(@Nullable String epicVisitTypeIdType) {
 		this.epicVisitTypeIdType = epicVisitTypeIdType;
+	}
+
+	@Nullable
+	public String getEpicVisitTypeSystem() {
+		return this.epicVisitTypeSystem;
+	}
+
+	public void setEpicVisitTypeSystem(@Nullable String epicVisitTypeSystem) {
+		this.epicVisitTypeSystem = epicVisitTypeSystem;
 	}
 
 	@Nullable

@@ -5,8 +5,11 @@ SELECT _v.register_patch('101-ic-updates', NULL, NULL);
 -- ...as opposed to providers that use private Epic APIs
 INSERT INTO scheduling_system (scheduling_system_id, description) VALUES ('EPIC_FHIR', 'Epic (FHIR)');
 
--- Institutions might have custom names for their MRN field's type as provided by Epic API responses, e.g. "Fake Health Institution' might use 'FHMRN'
+-- Institutions might have custom names for their MRN field's type as provided by Epic API responses, e.g. 'Fake Health Institution' might use 'FHMRN'
 ALTER TABLE institution ADD COLUMN epic_mrn_type_name TEXT NOT NULL DEFAULT 'MRN';
+
+-- "System" visit type value needed for FHIR APIs, e.g. 'urn:oid:1.2.840.114350.1.13.861.1.7.3.808267.11'
+ALTER TABLE appointment_type ADD COLUMN epic_visit_type_system TEXT;
 
 -- Quick reference for patient's FHIR ID, if available
 ALTER TABLE account ADD COLUMN epic_patient_fhir_id TEXT;
