@@ -4,15 +4,15 @@ SELECT _v.register_patch('101-ic-updates', NULL, NULL);
 INSERT INTO scheduling_system (scheduling_system_id, description) VALUES ('EPIC_FHIR', 'Epic (FHIR)');
 
 -- Useful for institutions that want providers gated behind MyChart
-CREATE TABLE provider_scheduling_strategy (
-  provider_scheduling_strategy_id TEXT PRIMARY KEY,
+CREATE TABLE provider_booking_flow_type (
+  provider_booking_flow_type_id TEXT PRIMARY KEY,
   description TEXT NOT NULL
 );
 
-INSERT INTO provider_scheduling_strategy VALUES ('DEFAULT', 'Default');
-INSERT INTO provider_scheduling_strategy VALUES ('MYCHART_ONLY', 'MyChart Only');
+INSERT INTO provider_booking_flow_type VALUES ('DEFAULT', 'Default');
+INSERT INTO provider_booking_flow_type VALUES ('MYCHART_ONLY', 'MyChart Only');
 
-ALTER TABLE institution ADD COLUMN provider_scheduling_strategy_id TEXT NOT NULL REFERENCES provider_scheduling_strategy DEFAULT 'DEFAULT';
+ALTER TABLE institution ADD COLUMN provider_booking_flow_type_id TEXT NOT NULL REFERENCES provider_booking_flow_type DEFAULT 'DEFAULT';
 
 -- Is this account still active in the system?
 ALTER TABLE account ADD COLUMN active BOOLEAN NOT NULL DEFAULT TRUE;

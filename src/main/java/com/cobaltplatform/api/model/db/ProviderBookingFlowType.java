@@ -28,30 +28,30 @@ import static java.lang.String.format;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class ProviderSchedulingStrategy {
+public class ProviderBookingFlowType {
 	@Nullable
-	private ProviderSchedulingStrategyId providerSchedulingStrategyId;
+	private ProviderBookingFlowType providerBookingFlowTypeId;
 	@Nullable
 	private String description;
 
-	public enum ProviderSchedulingStrategyId {
+	public enum ProviderBookingFlowTypeId {
 		DEFAULT,
 		MYCHART_ONLY
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{providerSchedulingStrategyId=%s, description=%s}", getClass().getSimpleName(),
-				getProviderSchedulingStrategyId(), getDescription());
+		return format("%s{providerBookingFlowTypeId=%s, description=%s}", getClass().getSimpleName(),
+				getProviderBookingFlowTypeId(), getDescription());
 	}
 
 	@Nullable
-	public ProviderSchedulingStrategyId getProviderSchedulingStrategyId() {
-		return this.providerSchedulingStrategyId;
+	public ProviderBookingFlowType getProviderBookingFlowTypeId() {
+		return this.providerBookingFlowTypeId;
 	}
 
-	public void setProviderSchedulingStrategyId(@Nullable ProviderSchedulingStrategyId providerSchedulingStrategyId) {
-		this.providerSchedulingStrategyId = providerSchedulingStrategyId;
+	public void setProviderBookingFlowTypeId(@Nullable ProviderBookingFlowType providerBookingFlowTypeId) {
+		this.providerBookingFlowTypeId = providerBookingFlowTypeId;
 	}
 
 	@Nullable
