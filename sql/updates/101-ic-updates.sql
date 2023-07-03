@@ -1,18 +1,9 @@
 BEGIN;
 SELECT _v.register_patch('101-ic-updates', NULL, NULL);
 
+-- Some providers are bookable via public FHIR APIs, e.g. STU3/Appointment/$find
+-- ...as opposed to providers that use private Epic APIs
 INSERT INTO scheduling_system (scheduling_system_id, description) VALUES ('EPIC_FHIR', 'Epic (FHIR)');
-
--- Useful for institutions that want providers gated behind MyChart
-CREATE TABLE provider_booking_flow_type (
-  provider_booking_flow_type_id TEXT PRIMARY KEY,
-  description TEXT NOT NULL
-);
-
-INSERT INTO provider_booking_flow_type VALUES ('DEFAULT', 'Default');
-INSERT INTO provider_booking_flow_type VALUES ('MYCHART_ONLY', 'MyChart Only');
-
-ALTER TABLE institution ADD COLUMN provider_booking_flow_type_id TEXT NOT NULL REFERENCES provider_booking_flow_type DEFAULT 'DEFAULT';
 
 -- Institutions might have custom names for their MRN field's type as provided by Epic API responses, e.g. "Fake Health Institution' might use 'FHMRN'
 ALTER TABLE institution ADD COLUMN epic_mrn_type_name TEXT NOT NULL DEFAULT 'MRN';

@@ -25,7 +25,6 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AnonymousAccountExpirationStrategy.AnonymousAccountExpirationStrategyId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.ProviderBookingFlowType.ProviderBookingFlowTypeId;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.FeaturesForInstitution;
 import com.cobaltplatform.api.model.service.NavigationItem;
@@ -157,8 +156,6 @@ public class InstitutionApiResponse {
 	private final String clinicalSupportPhoneNumberDescription;
 	@Nonnull
 	private final List<AlertApiResponse> alerts;
-	@Nonnull
-	private final ProviderBookingFlowTypeId providerBookingFlowTypeId;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -261,8 +258,6 @@ public class InstitutionApiResponse {
 					.map(alert -> alertApiResponseFactory.create(alert))
 					.collect(Collectors.toList());
 		}
-
-		this.providerBookingFlowTypeId = institution.getProviderBookingFlowTypeId();
 	}
 
 	@Nonnull
@@ -511,10 +506,5 @@ public class InstitutionApiResponse {
 	@Nullable
 	public String getClinicalSupportPhoneNumberDescription() {
 		return this.clinicalSupportPhoneNumberDescription;
-	}
-
-	@Nonnull
-	public ProviderBookingFlowTypeId getProviderBookingFlowTypeId() {
-		return this.providerBookingFlowTypeId;
 	}
 }
