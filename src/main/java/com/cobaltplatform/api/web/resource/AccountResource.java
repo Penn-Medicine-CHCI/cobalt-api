@@ -28,7 +28,7 @@ import com.cobaltplatform.api.model.api.request.CreateAccountEmailVerificationRe
 import com.cobaltplatform.api.model.api.request.CreateAccountInviteRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateActivityTrackingRequest;
-import com.cobaltplatform.api.model.api.request.CreateMyChartAccountRequest;
+import com.cobaltplatform.api.model.api.request.CreateOrUpdateMyChartAccountRequest;
 import com.cobaltplatform.api.model.api.request.EmailPasswordAccessTokenRequest;
 import com.cobaltplatform.api.model.api.request.FindGroupSessionRequestsRequest;
 import com.cobaltplatform.api.model.api.request.FindGroupSessionsRequest;
@@ -638,10 +638,10 @@ public class AccountResource {
 	public ApiResponse createMyChartAccount(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
 
-		CreateMyChartAccountRequest request = getRequestBodyParser().parse(requestBody, CreateMyChartAccountRequest.class);
+		CreateOrUpdateMyChartAccountRequest request = getRequestBodyParser().parse(requestBody, CreateOrUpdateMyChartAccountRequest.class);
 		request.setInstitutionId(getCurrentContext().getInstitutionId());
 
-		UUID accountId = getMyChartService().createAccount(request);
+		UUID accountId = getMyChartService().createOrUpdateAccount(request);
 
 		return generateAccountResponse(accountId);
 	}

@@ -14,6 +14,9 @@ INSERT INTO provider_booking_flow_type VALUES ('MYCHART_ONLY', 'MyChart Only');
 
 ALTER TABLE institution ADD COLUMN provider_booking_flow_type_id TEXT NOT NULL REFERENCES provider_booking_flow_type DEFAULT 'DEFAULT';
 
+-- Institutions might have custom names for their MRN field's type as provided by Epic API responses, e.g. "Fake Health Institution' might use 'FHMRN'
+ALTER TABLE institution ADD COLUMN epic_mrn_type_name TEXT NOT NULL DEFAULT 'MRN';
+
 -- Quick reference for patient's FHIR ID, if available
 ALTER TABLE account ADD COLUMN epic_patient_fhir_id TEXT;
 

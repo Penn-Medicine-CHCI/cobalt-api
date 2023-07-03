@@ -29,7 +29,7 @@ import javax.annotation.concurrent.NotThreadSafe;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreateMyChartAccountRequest {
+public class CreateOrUpdateMyChartAccountRequest {
 	@Nullable
 	private InstitutionId institutionId;
 	@Nullable

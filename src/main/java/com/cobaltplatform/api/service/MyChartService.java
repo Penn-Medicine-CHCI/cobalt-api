@@ -31,13 +31,14 @@ import com.cobaltplatform.api.integration.epic.code.TelecomUseCode;
 import com.cobaltplatform.api.integration.epic.response.PatientReadFhirR4Response;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
-import com.cobaltplatform.api.model.api.request.CreateMyChartAccountRequest;
+import com.cobaltplatform.api.model.api.request.CreateOrUpdateMyChartAccountRequest;
 import com.cobaltplatform.api.model.api.request.ObtainMyChartAccessTokenRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
@@ -87,6 +88,8 @@ public class MyChartService {
 	private static final String INSTITUTION_ID_CLAIMS_NAME;
 
 	@Nonnull
+	private final Provider<InstitutionService> institutionServiceProvider;
+	@Nonnull
 	private final Provider<AccountService> accountServiceProvider;
 	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
@@ -111,13 +114,15 @@ public class MyChartService {
 	}
 
 	@Inject
-	public MyChartService(@Nonnull Provider<AccountService> accountServiceProvider,
+	public MyChartService(@Nonnull Provider<InstitutionService> institutionServiceProvider,
+												@Nonnull Provider<AccountService> accountServiceProvider,
 												@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 												@Nonnull Authenticator authenticator,
 												@Nonnull Normalizer normalizer,
 												@Nonnull Database database,
 												@Nonnull Configuration configuration,
 												@Nonnull Strings strings) {
+		requireNonNull(institutionServiceProvider);
 		requireNonNull(accountServiceProvider);
 		requireNonNull(enterprisePluginProvider);
 		requireNonNull(authenticator);
@@ -126,6 +131,7 @@ public class MyChartService {
 		requireNonNull(configuration);
 		requireNonNull(strings);
 
+		this.institutionServiceProvider = institutionServiceProvider;
 		this.accountServiceProvider = accountServiceProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.authenticator = authenticator;
@@ -250,7 +256,7 @@ public class MyChartService {
 	}
 
 	@Nonnull
-	public UUID createAccount(@Nonnull CreateMyChartAccountRequest request) {
+	public UUID createOrUpdateAccount(@Nonnull CreateOrUpdateMyChartAccountRequest request) {
 		requireNonNull(request);
 
 		String epicPatientFhirId = null;
@@ -276,13 +282,6 @@ public class MyChartService {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		String ssoId = epicPatientFhirId;
-		Account existingAccount = getAccountService().findAccountByAccountSourceIdAndSsoIdAndInstitutionId(AccountSourceId.MYCHART, ssoId, institutionId).orElse(null);
-
-		// Account already exists for this account source/SSO ID/institution, return it instead of creating another
-		if (existingAccount != null)
-			return existingAccount.getAccountId();
-
 		try {
 			patient = epicClient.patientReadFhirR4(epicPatientFhirId).orElse(null);
 
@@ -295,9 +294,26 @@ public class MyChartService {
 			validationException.add(getStrings().get("Unable to load patient data from EPIC."));
 		}
 
+		if (validationException.hasErrors())
+			throw validationException;
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+
 		String epicPatientId = epicPatientFhirId;
 		String epicPatientIdType = patient.extractTypeByIdentifier(epicPatientId).orElse(null);
-		String epicPatientMrn = patient.extractIdentifierByType("MRN").orElse(null);
+		String epicPatientMrn = patient.extractIdentifierByType(institution.getEpicMrnTypeName()).orElse(null);
+
+		// Failsafe; should never occur unless institution is misconfigured
+		if (epicPatientMrn == null)
+			throw new IllegalStateException(format("Unable to determine MRN for patient FHIR ID '%s'", epicPatientFhirId));
+
+		String ssoId = epicPatientMrn;
+		Account existingAccount = getAccountService().findAccountByAccountSourceIdAndSsoIdAndInstitutionId(AccountSourceId.MYCHART, ssoId, institutionId).orElse(null);
+
+		// Account already exists for this account source/SSO ID/institution, return it instead of creating another
+		if (existingAccount != null)
+			return existingAccount.getAccountId();
+
 		GenderIdentityId genderIdentityId = patient.extractGenderIdentityId().orElse(null);
 		RaceId raceId = patient.extractRaceId().orElse(null);
 		EthnicityId ethnicityId = patient.extractEthnicityId().orElse(null);
@@ -403,6 +419,11 @@ public class MyChartService {
 	@Nonnull
 	protected String getInstitutionIdClaimsName() {
 		return INSTITUTION_ID_CLAIMS_NAME;
+	}
+
+	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return this.institutionServiceProvider.get();
 	}
 
 	@Nonnull

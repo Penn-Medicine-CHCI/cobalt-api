@@ -149,6 +149,8 @@ public class Institution {
 	@Nullable
 	private String epicAuthorizeUrl;
 	@Nullable
+	private String epicMrnTypeName;
+	@Nullable
 	@DatabaseColumn("mychart_client_id") // In DB, it's "mychart", in code, it's "MyChart"
 	private String myChartClientId;
 	@Nullable
@@ -749,6 +751,15 @@ public class Institution {
 
 	public void setEpicAuthorizeUrl(@Nullable String epicAuthorizeUrl) {
 		this.epicAuthorizeUrl = epicAuthorizeUrl;
+	}
+
+	@Nullable
+	public String getEpicMrnTypeName() {
+		return this.epicMrnTypeName;
+	}
+
+	public void setEpicMrnTypeName(@Nullable String epicMrnTypeName) {
+		this.epicMrnTypeName = epicMrnTypeName;
 	}
 
 	@Nullable
