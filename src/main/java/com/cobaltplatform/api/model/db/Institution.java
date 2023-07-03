@@ -204,7 +204,7 @@ public class Institution {
 	@Nullable
 	private String clinicalSupportPhoneNumber;
 	@Nullable
-	private ProviderBookingFlowType providerBookingFlowTypeId;
+	private ProviderBookingFlowTypeId providerBookingFlowTypeId;
 
 	public enum InstitutionId {
 		COBALT,
@@ -923,11 +923,11 @@ public class Institution {
 	}
 
 	@Nullable
-	public ProviderBookingFlowType getProviderBookingFlowTypeId() {
+	public ProviderBookingFlowTypeId getProviderBookingFlowTypeId() {
 		return this.providerBookingFlowTypeId;
 	}
 
-	public void setProviderBookingFlowTypeId(@Nullable ProviderBookingFlowType providerBookingFlowTypeId) {
+	public void setProviderBookingFlowTypeId(@Nullable ProviderBookingFlowTypeId providerBookingFlowTypeId) {
 		this.providerBookingFlowTypeId = providerBookingFlowTypeId;
 	}
 }

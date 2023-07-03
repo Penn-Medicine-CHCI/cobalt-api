@@ -25,7 +25,7 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AnonymousAccountExpirationStrategy.AnonymousAccountExpirationStrategyId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.ProviderBookingFlowType;
+import com.cobaltplatform.api.model.db.ProviderBookingFlowType.ProviderBookingFlowTypeId;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.FeaturesForInstitution;
 import com.cobaltplatform.api.model.service.NavigationItem;
@@ -158,7 +158,7 @@ public class InstitutionApiResponse {
 	@Nonnull
 	private final List<AlertApiResponse> alerts;
 	@Nonnull
-	private final ProviderBookingFlowType providerBookingFlowTypeId;
+	private final ProviderBookingFlowTypeId providerBookingFlowTypeId;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -514,7 +514,7 @@ public class InstitutionApiResponse {
 	}
 
 	@Nonnull
-	public ProviderBookingFlowType getProviderBookingFlowTypeId() {
+	public ProviderBookingFlowTypeId getProviderBookingFlowTypeId() {
 		return this.providerBookingFlowTypeId;
 	}
 }
