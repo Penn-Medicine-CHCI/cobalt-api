@@ -253,7 +253,7 @@ public class MyChartService {
 	public UUID createAccount(@Nonnull CreateMyChartAccountRequest request) {
 		requireNonNull(request);
 
-		String patientId = null;
+		String epicPatientFhirId = null;
 		PatientReadFhirR4Response patient = null;
 		MyChartAccessToken myChartAccessToken = request.getMyChartAccessToken();
 		InstitutionId institutionId = request.getInstitutionId();
@@ -267,16 +267,16 @@ public class MyChartService {
 		if (myChartAccessToken == null) {
 			validationException.add(new FieldError("myChartAccessToken", "MyChart access token is required."));
 		} else {
-			patientId = enterprisePlugin.extractPatientIdFromMyChartAccessToken(myChartAccessToken).orElse(null);
+			epicPatientFhirId = enterprisePlugin.extractPatientFhirIdFromMyChartAccessToken(myChartAccessToken).orElse(null);
 
-			if (patientId == null)
-				validationException.add(new FieldError("myChartAccessToken", "Cannot find patient ID in MyChart access token."));
+			if (epicPatientFhirId == null)
+				validationException.add(new FieldError("myChartAccessToken", "Cannot find patient FHIR ID in MyChart access token."));
 		}
 
 		if (validationException.hasErrors())
 			throw validationException;
 
-		String ssoId = patientId;
+		String ssoId = epicPatientFhirId;
 		Account existingAccount = getAccountService().findAccountByAccountSourceIdAndSsoIdAndInstitutionId(AccountSourceId.MYCHART, ssoId, institutionId).orElse(null);
 
 		// Account already exists for this account source/SSO ID/institution, return it instead of creating another
@@ -284,18 +284,18 @@ public class MyChartService {
 			return existingAccount.getAccountId();
 
 		try {
-			patient = epicClient.patientReadFhirR4(patientId).orElse(null);
+			patient = epicClient.patientReadFhirR4(epicPatientFhirId).orElse(null);
 
 			if (patient == null) {
-				getLogger().warn("Unable to find record in EPIC for patient ID {}", patientId);
+				getLogger().warn("Unable to find record in EPIC for patient FHIR ID {}", epicPatientFhirId);
 				validationException.add(getStrings().get("Unable to find patient record in EPIC."));
 			}
 		} catch (Exception e) {
-			getLogger().warn(format("Unable to load patient data from EPIC for patient ID %s", patientId), e);
+			getLogger().warn(format("Unable to load patient data from EPIC for patient FHIR ID %s", epicPatientFhirId), e);
 			validationException.add(getStrings().get("Unable to load patient data from EPIC."));
 		}
 
-		String epicPatientId = patientId;
+		String epicPatientId = epicPatientFhirId;
 		String epicPatientIdType = patient.extractTypeByIdentifier(epicPatientId).orElse(null);
 		String epicPatientMrn = patient.extractIdentifierByType("MRN").orElse(null);
 		GenderIdentityId genderIdentityId = patient.extractGenderIdentityId().orElse(null);
@@ -359,11 +359,13 @@ public class MyChartService {
 		}
 
 		CreateAddressRequest pinnedAddressRequest = addressRequest;
+		String pinnedEpicPatientFhirId = epicPatientFhirId;
 
 		return getAccountService().createAccount(new CreateAccountRequest() {{
 			setEpicPatientId(epicPatientId);
 			setEpicPatientIdType(epicPatientIdType);
 			setEpicPatientMrn(epicPatientMrn);
+			setEpicPatientFhirId(pinnedEpicPatientFhirId);
 			setAccountSourceId(AccountSourceId.MYCHART);
 			setRoleId(RoleId.PATIENT);
 			setSsoId(ssoId);

@@ -14,6 +14,9 @@ INSERT INTO provider_booking_flow_type VALUES ('MYCHART_ONLY', 'MyChart Only');
 
 ALTER TABLE institution ADD COLUMN provider_booking_flow_type_id TEXT NOT NULL REFERENCES provider_booking_flow_type DEFAULT 'DEFAULT';
 
+-- Quick reference for patient's FHIR ID, if available
+ALTER TABLE account ADD COLUMN epic_patient_fhir_id TEXT;
+
 -- Is this account still active in the system?
 ALTER TABLE account ADD COLUMN active BOOLEAN NOT NULL DEFAULT TRUE;
 

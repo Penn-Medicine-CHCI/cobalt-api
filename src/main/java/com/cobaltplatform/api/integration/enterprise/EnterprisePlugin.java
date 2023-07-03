@@ -97,7 +97,7 @@ public interface EnterprisePlugin {
 	}
 
 	@Nonnull
-	default Optional<String> extractPatientIdFromMyChartAccessToken(@Nullable MyChartAccessToken myChartAccessToken) {
+	default Optional<String> extractPatientFhirIdFromMyChartAccessToken(@Nullable MyChartAccessToken myChartAccessToken) {
 		if (myChartAccessToken == null)
 			return Optional.empty();
 

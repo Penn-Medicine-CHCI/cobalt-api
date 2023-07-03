@@ -22,7 +22,6 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.AddressApiResponse.AddressApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
-import com.cobaltplatform.api.model.db.AccountCapabilityType.AccountCapabilityTypeId;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.BetaStatus.BetaStatusId;
@@ -150,6 +149,10 @@ public class AccountApiResponse {
 	private final Boolean promptedForInstitutionLocation;
 	@Nullable
 	private final AccountCapabilityFlags accountCapabilityFlags;
+	@Nullable
+	private final String epicPatientMrn;
+	@Nullable
+	private final String epicPatientFhirId;
 
 	public enum AccountApiResponseSupplement {
 		EVERYTHING,
@@ -241,6 +244,8 @@ public class AccountApiResponse {
 			this.epicPatientId = account.getEpicPatientId();
 			this.epicPatientIdType = account.getEpicPatientIdType();
 			this.epicPatientCreatedByCobalt = account.getEpicPatientCreatedByCobalt();
+			this.epicPatientMrn = account.getEpicPatientMrn();
+			this.epicPatientFhirId = account.getEpicPatientFhirId();
 			this.genderIdentityId = account.getGenderIdentityId();
 			this.ethnicityId = account.getEthnicityId();
 			this.birthSexId = account.getBirthSexId();
@@ -279,6 +284,8 @@ public class AccountApiResponse {
 			this.epicPatientId = null;
 			this.epicPatientIdType = null;
 			this.epicPatientCreatedByCobalt = null;
+			this.epicPatientMrn = null;
+			this.epicPatientFhirId = null;
 			this.genderIdentityId = null;
 			this.ethnicityId = null;
 			this.birthSexId = null;
@@ -505,5 +512,15 @@ public class AccountApiResponse {
 	@Nullable
 	public AccountCapabilityFlags getAccountCapabilityFlags() {
 		return this.accountCapabilityFlags;
+	}
+
+	@Nullable
+	public String getEpicPatientMrn() {
+		return this.epicPatientMrn;
+	}
+
+	@Nullable
+	public String getEpicPatientFhirId() {
+		return this.epicPatientFhirId;
 	}
 }
