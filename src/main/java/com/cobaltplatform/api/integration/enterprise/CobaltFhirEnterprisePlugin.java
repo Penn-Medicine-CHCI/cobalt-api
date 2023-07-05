@@ -71,7 +71,7 @@ public class CobaltFhirEnterprisePlugin implements EnterprisePlugin {
 	@Nonnull
 	@Override
 	public InstitutionId getInstitutionId() {
-		return InstitutionId.COBALT_IC;
+		return InstitutionId.COBALT_FHIR;
 	}
 
 	@Nonnull
