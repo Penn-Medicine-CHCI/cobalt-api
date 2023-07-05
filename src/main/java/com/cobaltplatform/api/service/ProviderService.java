@@ -35,6 +35,7 @@ import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Assessment;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Interaction;
 import com.cobaltplatform.api.model.db.InteractionType;
@@ -110,7 +111,13 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @ThreadSafe
 public class ProviderService {
 	@Nonnull
+	private final javax.inject.Provider<AccountService> accountServiceProvider;
+	@Nonnull
+	private final javax.inject.Provider<InstitutionService> institutionServiceProvider;
+	@Nonnull
 	private final javax.inject.Provider<AssessmentService> assessmentServiceProvider;
+	@Nonnull
+	private final javax.inject.Provider<ScreeningService> screeningServiceProvider;
 	@Nonnull
 	private final javax.inject.Provider<SessionService> sessionServiceProvider;
 	@Nonnull
@@ -137,7 +144,10 @@ public class ProviderService {
 	private final Logger logger;
 
 	@Inject
-	public ProviderService(@Nonnull javax.inject.Provider<AssessmentService> assessmentServiceProvider,
+	public ProviderService(@Nonnull javax.inject.Provider<AccountService> accountServiceProvider,
+												 @Nonnull javax.inject.Provider<InstitutionService> institutionServiceProvider,
+												 @Nonnull javax.inject.Provider<AssessmentService> assessmentServiceProvider,
+												 @Nonnull javax.inject.Provider<ScreeningService> screeningServiceProvider,
 												 @Nonnull javax.inject.Provider<SessionService> sessionServiceProvider,
 												 @Nonnull javax.inject.Provider<AssessmentScoringService> assessmentScoringServiceProvider,
 												 @Nonnull javax.inject.Provider<ClinicService> clinicServiceProvider,
@@ -148,7 +158,10 @@ public class ProviderService {
 												 @Nonnull AcuitySchedulingClient acuitySchedulingClient,
 												 @Nonnull AcuitySchedulingCache acuitySchedulingCache,
 												 @Nonnull Strings strings) {
+		requireNonNull(accountServiceProvider);
+		requireNonNull(institutionServiceProvider);
 		requireNonNull(assessmentServiceProvider);
+		requireNonNull(screeningServiceProvider);
 		requireNonNull(sessionServiceProvider);
 		requireNonNull(assessmentScoringServiceProvider);
 		requireNonNull(clinicServiceProvider);
@@ -160,7 +173,10 @@ public class ProviderService {
 		requireNonNull(acuitySchedulingCache);
 		requireNonNull(strings);
 
+		this.accountServiceProvider = accountServiceProvider;
+		this.institutionServiceProvider = institutionServiceProvider;
 		this.assessmentServiceProvider = assessmentServiceProvider;
+		this.screeningServiceProvider = screeningServiceProvider;
 		this.sessionServiceProvider = sessionServiceProvider;
 		this.assessmentScoringServiceProvider = assessmentScoringServiceProvider;
 		this.clinicServiceProvider = clinicServiceProvider;
@@ -270,6 +286,61 @@ public class ProviderService {
 		sql.append("ORDER BY name");
 
 		return getDatabase().queryForList(sql.toString(), Provider.class, sqlVaragsParameters(parameters));
+	}
+
+	@Nonnull
+	public List<Provider> findProvidersWithSchedulingSystemId(@Nullable InstitutionId institutionId,
+																														@Nullable SchedulingSystemId schedulingSystemId) {
+		if (institutionId == null)
+			return Collections.emptyList();
+
+		if (schedulingSystemId == null)
+			return findProvidersByInstitutionId(institutionId);
+
+		return getDatabase().queryForList("""
+				SELECT * FROM provider
+				WHERE institution_id=?
+				AND scheduling_system_id=?
+				AND active=TRUE
+				ORDER BY name
+				""", Provider.class, institutionId, SchedulingSystemId.EPIC_FHIR);
+	}
+
+	@Nonnull
+	public List<SupportRole> findRecommendedSupportRolesForAccountId(@Nullable UUID accountId) {
+		if (accountId == null)
+			return List.of();
+
+		Account account = getAccountService().findAccountById(accountId).orElse(null);
+
+		if (account == null)
+			return List.of();
+
+		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
+
+		// Check all the screenings that might result in recommended support roles (just feature and provider triage atm).
+		// This list might include duplicates - they will be filtered out before returning
+		List<SupportRole> allRecommendedSupportRoles = new ArrayList<>();
+
+		if (institution.getFeatureScreeningFlowId() != null)
+			allRecommendedSupportRoles.addAll(getScreeningService().findRecommendedSupportRolesByAccountId(accountId, institution.getFeatureScreeningFlowId()));
+
+		if (institution.getProviderTriageScreeningFlowId() != null)
+			allRecommendedSupportRoles.addAll(getScreeningService().findRecommendedSupportRolesByAccountId(accountId, institution.getProviderTriageScreeningFlowId()));
+
+		Set<SupportRoleId> uniqueSupportRoleIds = new HashSet<>(SupportRoleId.values().length);
+		List<SupportRole> uniqueRecommendedSupportRoles = new ArrayList<>(SupportRoleId.values().length);
+
+		for (SupportRole supportRole : allRecommendedSupportRoles) {
+			// If we have already included this support role, skip it
+			if (uniqueSupportRoleIds.contains(supportRole.getSupportRoleId()))
+				continue;
+
+			uniqueRecommendedSupportRoles.add(supportRole);
+			uniqueSupportRoleIds.add(supportRole.getSupportRoleId());
+		}
+
+		return uniqueRecommendedSupportRoles;
 	}
 
 	@Nonnull
@@ -1908,8 +1979,23 @@ public class ProviderService {
 	}
 
 	@Nonnull
+	protected AccountService getAccountService() {
+		return accountServiceProvider.get();
+	}
+
+	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return this.institutionServiceProvider.get();
+	}
+
+	@Nonnull
 	protected AssessmentService getAssessmentService() {
 		return assessmentServiceProvider.get();
+	}
+
+	@Nonnull
+	protected ScreeningService getScreeningService() {
+		return this.screeningServiceProvider.get();
 	}
 
 	@Nonnull

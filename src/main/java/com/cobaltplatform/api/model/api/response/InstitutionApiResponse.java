@@ -69,37 +69,13 @@ public class InstitutionApiResponse {
 	@Nonnull
 	private final String name;
 	@Nullable
-	@Deprecated
-	private final String crisisContent;
-	@Nullable
-	@Deprecated
-	private final String privacyContent;
-	@Nullable
-	@Deprecated
-	private final String covidContent;
-	@Nullable
 	private final Boolean requireConsentForm;
-	@Nullable
-	@Deprecated
-	private final String consentFormContent;
 	@Nullable
 	private final String calendarDescription;
 	@Nullable
 	private final Boolean supportEnabled;
-	@Nullable
-	@Deprecated
-	private final String wellBeingContent;
-	@Nullable
-	@Deprecated
-	private final Boolean ssoEnabled;
-	@Nullable
-	@Deprecated
-	private final Boolean emailEnabled;
 	@Nonnull
 	private final Boolean emailSignupEnabled;
-	@Nullable
-	@Deprecated
-	private final Boolean anonymousEnabled;
 	@Nonnull
 	private final Boolean integratedCareEnabled;
 	@Nonnull
@@ -199,17 +175,9 @@ public class InstitutionApiResponse {
 		this.featureScreeningFlowId = institution.getFeatureScreeningFlowId();
 		this.anonymousAccountExpirationStrategyId = institution.getAnonymousAccountExpirationStrategyId();
 		this.name = institution.getName();
-		this.crisisContent = ""; // institution.getCrisisContent();
-		this.privacyContent = ""; // institution.getPrivacyContent();
-		this.covidContent = ""; // institution.getCovidContent();
 		this.requireConsentForm = institution.getRequireConsentForm();
-		this.consentFormContent = ""; // institution.getConsentFormContent();
 		this.calendarDescription = institution.getCalendarDescription();
 		this.supportEnabled = institution.getSupportEnabled();
-		this.wellBeingContent = ""; // institution.getWellBeingContent();
-		this.ssoEnabled = false; // institution.getSsoEnabled();
-		this.anonymousEnabled = false; // institution.getAnonymousEnabled();
-		this.emailEnabled = false; // institution.getEmailEnabled();
 		this.emailSignupEnabled = institution.getEmailSignupEnabled();
 		this.supportEmailAddress = institution.getSupportEmailAddress();
 		this.immediateAccessEnabled = institution.getImmediateAccessEnabled();
@@ -301,32 +269,8 @@ public class InstitutionApiResponse {
 	}
 
 	@Nullable
-	@Deprecated
-	public String getCrisisContent() {
-		return this.crisisContent;
-	}
-
-	@Nullable
-	@Deprecated
-	public String getPrivacyContent() {
-		return this.privacyContent;
-	}
-
-	@Nullable
-	@Deprecated
-	public String getCovidContent() {
-		return this.covidContent;
-	}
-
-	@Nullable
 	public Boolean getRequireConsentForm() {
 		return this.requireConsentForm;
-	}
-
-	@Nullable
-	@Deprecated
-	public String getConsentFormContent() {
-		return this.consentFormContent;
 	}
 
 	@Nullable
@@ -337,30 +281,6 @@ public class InstitutionApiResponse {
 	@Nullable
 	public Boolean getSupportEnabled() {
 		return this.supportEnabled;
-	}
-
-	@Nullable
-	@Deprecated
-	public String getWellBeingContent() {
-		return this.wellBeingContent;
-	}
-
-	@Nullable
-	@Deprecated
-	public Boolean getSsoEnabled() {
-		return this.ssoEnabled;
-	}
-
-	@Nullable
-	@Deprecated
-	public Boolean getEmailEnabled() {
-		return this.emailEnabled;
-	}
-
-	@Nullable
-	@Deprecated
-	public Boolean getAnonymousEnabled() {
-		return this.anonymousEnabled;
 	}
 
 	@Nonnull

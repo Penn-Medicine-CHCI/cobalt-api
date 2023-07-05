@@ -8,6 +8,27 @@ INSERT INTO scheduling_system (scheduling_system_id, description) VALUES ('EPIC_
 -- Institutions might have custom names for their MRN field's type as provided by Epic API responses, e.g. 'Fake Health Institution' might use 'FHMRN'
 ALTER TABLE institution ADD COLUMN epic_mrn_type_name TEXT NOT NULL DEFAULT 'MRN';
 
+-- Remove some deprecated columns, clean up others
+ALTER TABLE institution DROP COLUMN crisis_content;
+ALTER TABLE institution DROP COLUMN privacy_content;
+ALTER TABLE institution DROP COLUMN covid_content;
+ALTER TABLE institution DROP COLUMN consent_form_content;
+ALTER TABLE institution DROP COLUMN well_being_content;
+ALTER TABLE institution DROP COLUMN subdomain;
+ALTER TABLE institution ALTER COLUMN metadata SET DEFAULT '{}'::jsonb;
+ALTER TABLE institution_account_source ALTER COLUMN authentication_description SET NOT NULL;
+ALTER TABLE institution_account_source ALTER COLUMN display_order SET NOT NULL;
+
+INSERT INTO feature
+  (feature_id, name, url_name, navigation_header_id)
+VALUES
+  ('MENTAL_HEALTH_PROVIDERS', 'Mental Health Providers', '/connect-with-support/mental-health-providers', 'CONNECT_WITH_SUPPORT');
+
+INSERT INTO feature
+	(feature_id, name, url_name, navigation_header_id)
+VALUES
+	('INSTITUTION_RESOURCES', 'Institution Resources', '/institution-resources', 'BROWSE_RESOURCES');
+
 -- "System" visit type value needed for FHIR APIs, e.g. 'urn:oid:1.2.840.114350.1.13.861.1.7.3.808267.11'
 ALTER TABLE appointment_type ADD COLUMN epic_visit_type_system TEXT;
 

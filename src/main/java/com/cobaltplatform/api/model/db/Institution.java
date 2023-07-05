@@ -208,6 +208,7 @@ public class Institution {
 	public enum InstitutionId {
 		COBALT,
 		COBALT_IC,
+		COBALT_FHIR,
 	}
 
 	@Override
