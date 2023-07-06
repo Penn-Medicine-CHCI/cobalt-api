@@ -289,8 +289,8 @@ public class ProviderService {
 	}
 
 	@Nonnull
-	public List<Provider> findProvidersWithSchedulingSystemId(@Nullable InstitutionId institutionId,
-																														@Nullable SchedulingSystemId schedulingSystemId) {
+	public List<Provider> findProvidersForInstitutionWithSchedulingSystemId(@Nullable InstitutionId institutionId,
+																																					@Nullable SchedulingSystemId schedulingSystemId) {
 		if (institutionId == null)
 			return Collections.emptyList();
 
@@ -341,6 +341,23 @@ public class ProviderService {
 		}
 
 		return uniqueRecommendedSupportRoles;
+	}
+
+	@Nonnull
+	public Boolean doesAccountRequireMyChartConnectionForProviderBooking(@Nullable UUID accountId) {
+		if (accountId == null)
+			return false;
+
+		Account account = getAccountService().findAccountById(accountId).orElse(null);
+
+		if (account == null)
+			return false;
+
+		if (account.getEpicPatientFhirId() != null)
+			return false;
+
+		List<Provider> epicFhirProviders = findProvidersForInstitutionWithSchedulingSystemId(account.getInstitutionId(), SchedulingSystemId.EPIC_FHIR);
+		return epicFhirProviders.size() > 0;
 	}
 
 	@Nonnull

@@ -844,6 +844,26 @@ public class AccountResource {
 
 	@Nonnull
 	@AuthenticationRequired
+	@GET("/accounts/{accountId}/provider-booking-requirements")
+	public ApiResponse accountProviderBookingRequirements(@Nonnull @PathParameter UUID accountId) {
+		requireNonNull(accountId);
+
+		Account currentAccount = getCurrentContext().getAccount().get();
+		Account targetAccount = getAccountService().findAccountById(accountId).orElse(null);
+
+		if (targetAccount == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canEditAccount(targetAccount, currentAccount))
+			throw new AuthorizationException();
+
+		boolean myChartConnectionRequired = getProviderService().doesAccountRequireMyChartConnectionForProviderBooking(accountId);
+
+		return new ApiResponse(Map.of("myChartConnectionRequired", myChartConnectionRequired));
+	}
+
+	@Nonnull
+	@AuthenticationRequired
 	@GET("/accounts/{accountId}/appointment-details/{appointmentId}")
 	public ApiResponse accountWithAppointmentDetails(@Nonnull @PathParameter UUID accountId,
 																									 @Nonnull @PathParameter UUID appointmentId) {
