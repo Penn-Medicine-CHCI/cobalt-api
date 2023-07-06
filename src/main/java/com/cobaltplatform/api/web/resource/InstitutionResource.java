@@ -268,6 +268,46 @@ public class InstitutionResource {
 		}});
 	}
 
+	@GET("/institutions/{institutionId}/mock-epic-token")
+	public Object mockEpicToken(@Nonnull @PathParameter InstitutionId institutionId) {
+		requireNonNull(institutionId);
+
+		if (getConfiguration().isProduction())
+			throw new IllegalStateException();
+
+		throw new UnsupportedOperationException();
+	}
+
+	@GET("/institutions/{institutionId}/mock-epic-authorize")
+	public Object mockEpicAuthorize(@Nonnull @PathParameter InstitutionId institutionId) {
+		requireNonNull(institutionId);
+
+		if (getConfiguration().isProduction())
+			throw new IllegalStateException();
+
+		throw new UnsupportedOperationException();
+	}
+
+	@GET("/institutions/{institutionId}/mock-mychart-callback")
+	public Object mockMychartCallback(@Nonnull @PathParameter InstitutionId institutionId) {
+		requireNonNull(institutionId);
+
+		if (getConfiguration().isProduction())
+			throw new IllegalStateException();
+
+		throw new UnsupportedOperationException();
+	}
+
+	@GET("/institutions/{institutionId}/mock-mychart-aud")
+	public Object mockMychartAud(@Nonnull @PathParameter InstitutionId institutionId) {
+		requireNonNull(institutionId);
+
+		if (getConfiguration().isProduction())
+			throw new IllegalStateException();
+
+		throw new UnsupportedOperationException();
+	}
+
 	@Nonnull
 	protected InstitutionApiResponseFactory getInstitutionApiResponseFactory() {
 		return this.institutionApiResponseFactory;
