@@ -47,6 +47,8 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
 
+import static java.lang.String.format;
+
 /**
  * @author Transmogrify, LLC.
  */
@@ -89,10 +91,10 @@ public class PatientOrderServiceTests {
 			}
 
 			// Simulate MyChart authentication flow -
-			// create a patient record, which has patient record SSO attributes that contain a UID that matches one of the imported orders...
+			// create a patient record, which has patient record SSO attributes that contains an MRN that matches one of the imported orders...
 			UUID patientAccountId = accountService.createAccount(new CreateAccountRequest() {{
-				setEpicPatientId("junk");
-				setEpicPatientIdType("junk");
+				setEpicPatientMrn(format("fake-mrn-%s", UUID.randomUUID()));
+				setEpicPatientFhirId(format("fake-fhir-id-%s", UUID.randomUUID()));
 				setAccountSourceId(AccountSourceId.MYCHART);
 				setRoleId(RoleId.PATIENT);
 				setInstitutionId(institutionId);

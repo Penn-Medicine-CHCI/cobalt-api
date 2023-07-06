@@ -45,10 +45,6 @@ public class CreateAppointmentRequest {
 	@Nullable
 	private LocalTime time;
 	@Nullable
-	private String groupEventId;
-	@Nullable
-	private UUID groupEventTypeId;
-	@Nullable
 	private UUID appointmentTypeId;
 	@Nullable
 	private UUID intakeAssessmentId;
@@ -111,24 +107,6 @@ public class CreateAppointmentRequest {
 
 	public void setTime(@Nullable LocalTime time) {
 		this.time = time;
-	}
-
-	@Nullable
-	public String getGroupEventId() {
-		return groupEventId;
-	}
-
-	public void setGroupEventId(@Nullable String groupEventId) {
-		this.groupEventId = groupEventId;
-	}
-
-	@Nullable
-	public UUID getGroupEventTypeId() {
-		return groupEventTypeId;
-	}
-
-	public void setGroupEventTypeId(@Nullable UUID groupEventTypeId) {
-		this.groupEventTypeId = groupEventTypeId;
 	}
 
 	@Nullable

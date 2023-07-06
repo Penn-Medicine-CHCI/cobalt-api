@@ -299,8 +299,6 @@ public class MyChartService {
 
 		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
 
-		String epicPatientId = epicPatientFhirId;
-		String epicPatientIdType = patient.extractTypeByIdentifier(epicPatientId).orElse(null);
 		String epicPatientMrn = patient.extractIdentifierByType(institution.getEpicMrnTypeName()).orElse(null);
 
 		// Failsafe; should never occur unless institution is misconfigured
@@ -378,8 +376,6 @@ public class MyChartService {
 		String pinnedEpicPatientFhirId = epicPatientFhirId;
 
 		return getAccountService().createAccount(new CreateAccountRequest() {{
-			setEpicPatientId(epicPatientId);
-			setEpicPatientIdType(epicPatientIdType);
 			setEpicPatientMrn(epicPatientMrn);
 			setEpicPatientFhirId(pinnedEpicPatientFhirId);
 			setAccountSourceId(AccountSourceId.MYCHART);

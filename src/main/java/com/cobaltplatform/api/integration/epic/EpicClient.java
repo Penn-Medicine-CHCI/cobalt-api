@@ -48,8 +48,6 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Optional;
 
-import static java.util.Objects.requireNonNull;
-
 /**
  * @author Transmogrify, LLC.
  */
@@ -185,39 +183,4 @@ public interface EpicClient {
 
 	@Nonnull
 	String formatPhoneNumber(@Nonnull String phoneNumber);
-
-	@Nonnull
-	@Deprecated
-	default Optional<String> determineLatestUIDForPatientIdentifier(@Nonnull String oldIdentifierId,
-																																	@Nonnull String oldIdentifierTypeId) {
-		requireNonNull(oldIdentifierId);
-		requireNonNull(oldIdentifierTypeId);
-
-		// If we already have a UID, we don't need to requery for it
-		if (oldIdentifierTypeId.equals("UID"))
-			return Optional.of(oldIdentifierId);
-
-		PatientSearchRequest searchRequest = new PatientSearchRequest();
-		searchRequest.setIdentifier(oldIdentifierId);
-
-		PatientSearchResponse response = performPatientSearch(searchRequest);
-
-		if (response.getEntry().size() == 0)
-			return Optional.empty();
-
-		return extractUIDFromPatientEntry(response.getEntry().get(0));
-	}
-
-
-	@Nonnull
-	default Optional<String> extractUIDFromPatientEntry(@Nonnull PatientSearchResponse.Entry patientEntry) {
-		requireNonNull(patientEntry);
-
-		if (patientEntry.getResource().getIdentifier() != null)
-			for (PatientSearchResponse.Entry.Resource.Identifier identifier : patientEntry.getResource().getIdentifier())
-				if ("urn:oid:1.3.6.1.4.1.22812.19.44324.0".equals(identifier.getSystem()))
-					return Optional.of(identifier.getValue());
-
-		return Optional.empty();
-	}
 }
