@@ -103,8 +103,6 @@ import com.cobaltplatform.api.model.api.response.LogicalAvailabilityApiResponse.
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderAutocompleteResultApiResponse.PatientOrderAutocompleteResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderDiagnosisApiResponse.PatientOrderDiagnosisApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.PatientOrderInsurancePayorApiResponse.PatientOrderInsurancePayorApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.PatientOrderInsurancePlanApiResponse.PatientOrderInsurancePlanApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderMedicationApiResponse.PatientOrderMedicationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
@@ -119,9 +117,6 @@ import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApi
 import com.cobaltplatform.api.model.api.response.ProviderCalendarApiResponse.ProviderCalendarApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.QuestionApiResponse.QuestionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ReportTypeApiResponse.ReportTypeApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.ReportingChartApiResponse.ReportingChartApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.ReportingChartApiResponse.ReportingChartElementApiResponse.ReportingChartElementApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.ReportingChartApiResponse.ReportingChartMetricApiResponse.ReportingChartMetricApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningAnswerApiResponse.ScreeningAnswerApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningAnswerOptionApiResponse.ScreeningAnswerOptionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningConfirmationPromptApiResponse.ScreeningConfirmationPromptApiResponseFactory;
@@ -251,9 +246,6 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(BetaFeatureAlertApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(TimeZoneApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(QuestionApiResponseFactory.class)));
-		install((new FactoryModuleBuilder().build(ReportingChartApiResponseFactory.class)));
-		install((new FactoryModuleBuilder().build(ReportingChartMetricApiResponseFactory.class)));
-		install((new FactoryModuleBuilder().build(ReportingChartElementApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(InteractionInstanceApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(InteractionOptionApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(InteractionOptionActionApiResponseFactory.class)));
@@ -299,8 +291,6 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(PatientOrderScheduledScreeningApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ScreeningTypeApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PatientOrderVoicemailTaskApiResponseFactory.class)));
-		install((new FactoryModuleBuilder().build(PatientOrderInsurancePayorApiResponseFactory.class)));
-		install((new FactoryModuleBuilder().build(PatientOrderInsurancePlanApiResponseFactory.class)));
 	}
 
 	@Provides

@@ -459,6 +459,7 @@ public class AccountService {
 		String epicPatientId = trimToNull(request.getEpicPatientId());
 		String epicPatientIdType = trimToNull(request.getEpicPatientIdType());
 		String epicPatientMrn = trimToNull(request.getEpicPatientMrn());
+		String epicPatientFhirId = trimToNull(request.getEpicPatientFhirId());
 		GenderIdentityId genderIdentityId = request.getGenderIdentityId() == null ? GenderIdentityId.NOT_ASKED : request.getGenderIdentityId();
 		EthnicityId ethnicityId = request.getEthnicityId() == null ? EthnicityId.NOT_ASKED : request.getEthnicityId();
 		BirthSexId birthSexId = request.getBirthSexId() == null ? BirthSexId.NOT_ASKED : request.getBirthSexId();
@@ -565,13 +566,14 @@ public class AccountService {
 						INSERT INTO account (
 						account_id, role_id, institution_id, account_source_id, source_system_id, sso_id, 
 						first_name, last_name, display_name, email_address, phone_number, sso_attributes, password, epic_patient_id, 
-						epic_patient_id_type, epic_patient_mrn, time_zone, gender_identity_id, ethnicity_id, birth_sex_id, race_id, birthdate
+						epic_patient_id_type, epic_patient_mrn, epic_patient_fhir_id, time_zone, gender_identity_id, ethnicity_id, 
+						birth_sex_id, race_id, birthdate
 						) 
-						VALUES (?,?,?,?,?,?,?,?,?,?,?,CAST(? AS JSONB),?,?,?,?,?,?,?,?,?,?)
+						VALUES (?,?,?,?,?,?,?,?,?,?,?,CAST(? AS JSONB),?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				accountId, roleId, institutionId, accountSourceId, sourceSystemId, ssoId, firstName, lastName, displayName,
 				emailAddress, phoneNumber, finalSsoAttributesAsJson, password, epicPatientId, epicPatientIdType, epicPatientMrn,
-				timeZone, genderIdentityId, ethnicityId, birthSexId, raceId, birthdate);
+				epicPatientFhirId, timeZone, genderIdentityId, ethnicityId, birthSexId, raceId, birthdate);
 
 		if (addressId != null) {
 			getDatabase().execute("""
@@ -581,7 +583,8 @@ public class AccountService {
 		}
 
 		// If there are any patient orders to associate this account with, do it now
-		getPatientOrderService().associatePatientAccountWithPatientOrders(accountId);
+		if (institution.getIntegratedCareEnabled())
+			getPatientOrderService().associatePatientAccountWithPatientOrders(accountId);
 
 		return accountId;
 	}

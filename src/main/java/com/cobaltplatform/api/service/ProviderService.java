@@ -22,6 +22,10 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.integration.acuity.AcuitySchedulingCache;
 import com.cobaltplatform.api.integration.acuity.AcuitySchedulingClient;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
+import com.cobaltplatform.api.integration.epic.EpicClient;
+import com.cobaltplatform.api.integration.epic.request.AppointmentFindFhirStu3Request;
+import com.cobaltplatform.api.integration.epic.response.AppointmentFindFhirStu3Response;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest.ProviderFindAvailability;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest.ProviderFindLicenseType;
@@ -31,6 +35,7 @@ import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Assessment;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Interaction;
 import com.cobaltplatform.api.model.db.InteractionType;
@@ -106,7 +111,13 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @ThreadSafe
 public class ProviderService {
 	@Nonnull
+	private final javax.inject.Provider<AccountService> accountServiceProvider;
+	@Nonnull
+	private final javax.inject.Provider<InstitutionService> institutionServiceProvider;
+	@Nonnull
 	private final javax.inject.Provider<AssessmentService> assessmentServiceProvider;
+	@Nonnull
+	private final javax.inject.Provider<ScreeningService> screeningServiceProvider;
 	@Nonnull
 	private final javax.inject.Provider<SessionService> sessionServiceProvider;
 	@Nonnull
@@ -115,6 +126,8 @@ public class ProviderService {
 	private final javax.inject.Provider<ClinicService> clinicServiceProvider;
 	@Nonnull
 	private final javax.inject.Provider<AvailabilityService> availabilityServiceProvider;
+	@Nonnull
+	private final EnterprisePluginProvider enterprisePluginProvider;
 	@Nonnull
 	private final Database database;
 	@Nonnull
@@ -131,32 +144,44 @@ public class ProviderService {
 	private final Logger logger;
 
 	@Inject
-	public ProviderService(@Nonnull javax.inject.Provider<AssessmentService> assessmentServiceProvider,
+	public ProviderService(@Nonnull javax.inject.Provider<AccountService> accountServiceProvider,
+												 @Nonnull javax.inject.Provider<InstitutionService> institutionServiceProvider,
+												 @Nonnull javax.inject.Provider<AssessmentService> assessmentServiceProvider,
+												 @Nonnull javax.inject.Provider<ScreeningService> screeningServiceProvider,
 												 @Nonnull javax.inject.Provider<SessionService> sessionServiceProvider,
 												 @Nonnull javax.inject.Provider<AssessmentScoringService> assessmentScoringServiceProvider,
 												 @Nonnull javax.inject.Provider<ClinicService> clinicServiceProvider,
 												 @Nonnull javax.inject.Provider<AvailabilityService> availabilityServiceProvider,
+												 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
 												 @Nonnull Database database,
 												 @Nonnull Configuration configuration,
 												 @Nonnull AcuitySchedulingClient acuitySchedulingClient,
 												 @Nonnull AcuitySchedulingCache acuitySchedulingCache,
 												 @Nonnull Strings strings) {
+		requireNonNull(accountServiceProvider);
+		requireNonNull(institutionServiceProvider);
 		requireNonNull(assessmentServiceProvider);
+		requireNonNull(screeningServiceProvider);
 		requireNonNull(sessionServiceProvider);
 		requireNonNull(assessmentScoringServiceProvider);
 		requireNonNull(clinicServiceProvider);
 		requireNonNull(availabilityServiceProvider);
+		requireNonNull(enterprisePluginProvider);
 		requireNonNull(database);
 		requireNonNull(configuration);
 		requireNonNull(acuitySchedulingClient);
 		requireNonNull(acuitySchedulingCache);
 		requireNonNull(strings);
 
+		this.accountServiceProvider = accountServiceProvider;
+		this.institutionServiceProvider = institutionServiceProvider;
 		this.assessmentServiceProvider = assessmentServiceProvider;
+		this.screeningServiceProvider = screeningServiceProvider;
 		this.sessionServiceProvider = sessionServiceProvider;
 		this.assessmentScoringServiceProvider = assessmentScoringServiceProvider;
 		this.clinicServiceProvider = clinicServiceProvider;
 		this.availabilityServiceProvider = availabilityServiceProvider;
+		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.database = database;
 		this.configuration = configuration;
 		this.acuitySchedulingClient = acuitySchedulingClient;
@@ -261,6 +286,78 @@ public class ProviderService {
 		sql.append("ORDER BY name");
 
 		return getDatabase().queryForList(sql.toString(), Provider.class, sqlVaragsParameters(parameters));
+	}
+
+	@Nonnull
+	public List<Provider> findProvidersForInstitutionWithSchedulingSystemId(@Nullable InstitutionId institutionId,
+																																					@Nullable SchedulingSystemId schedulingSystemId) {
+		if (institutionId == null)
+			return Collections.emptyList();
+
+		if (schedulingSystemId == null)
+			return findProvidersByInstitutionId(institutionId);
+
+		return getDatabase().queryForList("""
+				SELECT * FROM provider
+				WHERE institution_id=?
+				AND scheduling_system_id=?
+				AND active=TRUE
+				ORDER BY name
+				""", Provider.class, institutionId, SchedulingSystemId.EPIC_FHIR);
+	}
+
+	@Nonnull
+	public List<SupportRole> findRecommendedSupportRolesForAccountId(@Nullable UUID accountId) {
+		if (accountId == null)
+			return List.of();
+
+		Account account = getAccountService().findAccountById(accountId).orElse(null);
+
+		if (account == null)
+			return List.of();
+
+		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
+
+		// Check all the screenings that might result in recommended support roles (just feature and provider triage atm).
+		// This list might include duplicates - they will be filtered out before returning
+		List<SupportRole> allRecommendedSupportRoles = new ArrayList<>();
+
+		if (institution.getFeatureScreeningFlowId() != null)
+			allRecommendedSupportRoles.addAll(getScreeningService().findRecommendedSupportRolesByAccountId(accountId, institution.getFeatureScreeningFlowId()));
+
+		if (institution.getProviderTriageScreeningFlowId() != null)
+			allRecommendedSupportRoles.addAll(getScreeningService().findRecommendedSupportRolesByAccountId(accountId, institution.getProviderTriageScreeningFlowId()));
+
+		Set<SupportRoleId> uniqueSupportRoleIds = new HashSet<>(SupportRoleId.values().length);
+		List<SupportRole> uniqueRecommendedSupportRoles = new ArrayList<>(SupportRoleId.values().length);
+
+		for (SupportRole supportRole : allRecommendedSupportRoles) {
+			// If we have already included this support role, skip it
+			if (uniqueSupportRoleIds.contains(supportRole.getSupportRoleId()))
+				continue;
+
+			uniqueRecommendedSupportRoles.add(supportRole);
+			uniqueSupportRoleIds.add(supportRole.getSupportRoleId());
+		}
+
+		return uniqueRecommendedSupportRoles;
+	}
+
+	@Nonnull
+	public Boolean doesAccountRequireMyChartConnectionForProviderBooking(@Nullable UUID accountId) {
+		if (accountId == null)
+			return false;
+
+		Account account = getAccountService().findAccountById(accountId).orElse(null);
+
+		if (account == null)
+			return false;
+
+		if (account.getEpicPatientFhirId() != null)
+			return false;
+
+		List<Provider> epicFhirProviders = findProvidersForInstitutionWithSchedulingSystemId(account.getInstitutionId(), SchedulingSystemId.EPIC_FHIR);
+		return epicFhirProviders.size() > 0;
 	}
 
 	@Nonnull
@@ -527,7 +624,61 @@ public class ProviderService {
 		NativeSchedulingAvailabilityData nativeSchedulingAvailabilityData = loadNativeSchedulingAvailabilityData(institutionId,
 				visitTypeIds, nativeSchedulingStartDateTime, nativeSchedulingEndDateTime);
 
-		for (Provider provider : providers) {
+		// The Epic FHIR flow for pulling slots is totally different than our other mechanisms, so we special-case here
+		List<Provider> providersThatUseEpicFhir = providers.stream()
+				.filter(provider -> provider.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR)
+				.collect(Collectors.toList());
+
+		if (providersThatUseEpicFhir.size() > 0) {
+			// If an institution has FHIR providers that match the search criteria and the requesting account doesn't have
+			// a patient FHIR ID, then bubble out an error indicating that via special metadata.
+			// This way FE can take action (route through MyChart flow etc.)
+			if (account.getEpicPatientFhirId() == null) {
+				ValidationException myChartValidationException = new ValidationException();
+				myChartValidationException.add(getStrings().get(""));
+				myChartValidationException.setMetadata(Map.of("patientFhirIdRequired", true));
+				throw myChartValidationException;
+			}
+
+			// Pick out all the Epic FHIR appointment types for this institution
+			List<AppointmentType> epicFhirAppointmentTypes = getDatabase().queryForList("""
+								SELECT DISTINCT at.*
+								FROM appointment_type at, provider_appointment_type pat, provider p
+								WHERE pat.provider_id=p.provider_id
+								AND pat.appointment_type_id=at.appointment_type_id
+								AND p.active=TRUE
+								AND p.institution_id=?
+								AND p.scheduling_system_id=?
+					""", AppointmentType.class, institutionId, SchedulingSystemId.EPIC_FHIR);
+
+			// Ask Epic for potential slots
+			EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId).epicClientForBackendService().get();
+
+			AppointmentFindFhirStu3Request appointmentFindRequest = new AppointmentFindFhirStu3Request();
+			appointmentFindRequest.setPatient(account.getEpicPatientFhirId());
+			appointmentFindRequest.setStartTime(LocalDateTime.of(startDate, startTime));
+			appointmentFindRequest.setStartTime(LocalDateTime.of(endDate, endTime));
+			appointmentFindRequest.setServiceTypes(epicFhirAppointmentTypes.stream()
+					.map(appointmentType -> {
+						AppointmentFindFhirStu3Request.Coding serviceType = new AppointmentFindFhirStu3Request.Coding();
+						serviceType.setCode(appointmentType.getEpicVisitTypeId());
+						serviceType.setSystem(appointmentType.getEpicVisitTypeSystem());
+
+						return serviceType;
+					})
+					.collect(Collectors.toList()));
+
+			AppointmentFindFhirStu3Response appointmentFindResponse = epicClient.appointmentFindFhirStu3(appointmentFindRequest);
+
+			// TODO: filter down slots based on query criteria and add to `ProviderFind` list
+		}
+
+		// "Normal" handling for other providers
+		List<Provider> providersThatDoNotUseEpicFhir = providers.stream()
+				.filter(provider -> provider.getSchedulingSystemId() != SchedulingSystemId.EPIC_FHIR)
+				.collect(Collectors.toList());
+
+		for (Provider provider : providersThatDoNotUseEpicFhir) {
 			boolean intakeAssessmentRequired = false;
 			boolean intakeAssessmentIneligible = false;
 
@@ -1089,7 +1240,7 @@ public class ProviderService {
 					// If we hit this case, that means we wrapped to the next day.
 					// If we don't break, then we can get into an infinite loop.
 					// TODO: should we support handling of slots that cross date boundaries?  Probably not, but leaving a note here...
-					if(currentSlotTime.isAfter(slotTime))
+					if (currentSlotTime.isAfter(slotTime))
 						break;
 				}
 			}
@@ -1845,8 +1996,23 @@ public class ProviderService {
 	}
 
 	@Nonnull
+	protected AccountService getAccountService() {
+		return accountServiceProvider.get();
+	}
+
+	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return this.institutionServiceProvider.get();
+	}
+
+	@Nonnull
 	protected AssessmentService getAssessmentService() {
 		return assessmentServiceProvider.get();
+	}
+
+	@Nonnull
+	protected ScreeningService getScreeningService() {
+		return this.screeningServiceProvider.get();
 	}
 
 	@Nonnull
@@ -1867,6 +2033,11 @@ public class ProviderService {
 	@Nonnull
 	protected AvailabilityService getAvailabilityService() {
 		return availabilityServiceProvider.get();
+	}
+
+	@Nonnull
+	protected EnterprisePluginProvider getEnterprisePluginProvider() {
+		return this.enterprisePluginProvider;
 	}
 
 	@Nonnull

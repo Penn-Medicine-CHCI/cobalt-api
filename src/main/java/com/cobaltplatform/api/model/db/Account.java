@@ -107,6 +107,8 @@ public class Account {
 	private String epicPatientIdType;
 	@Nullable
 	private String epicPatientMrn;
+	@Nullable
+	private String epicPatientFhirId;
 	@Deprecated
 	@Nullable
 	private Boolean epicPatientCreatedByCobalt;
@@ -132,6 +134,8 @@ public class Account {
 	private Boolean schedulingTutorialViewed;
 	@Nullable
 	private LocalDate birthdate;
+	@Nullable
+	private Boolean active;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -403,6 +407,15 @@ public class Account {
 	}
 
 	@Nullable
+	public String getEpicPatientFhirId() {
+		return this.epicPatientFhirId;
+	}
+
+	public void setEpicPatientFhirId(@Nullable String epicPatientFhirId) {
+		this.epicPatientFhirId = epicPatientFhirId;
+	}
+
+	@Nullable
 	@Deprecated
 	public Boolean getEpicPatientCreatedByCobalt() {
 		return epicPatientCreatedByCobalt;
@@ -519,6 +532,15 @@ public class Account {
 
 	public void setBirthdate(@Nullable LocalDate birthdate) {
 		this.birthdate = birthdate;
+	}
+
+	@Nullable
+	public Boolean getActive() {
+		return this.active;
+	}
+
+	public void setActive(@Nullable Boolean active) {
+		this.active = active;
 	}
 
 	@Nullable

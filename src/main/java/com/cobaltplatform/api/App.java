@@ -83,8 +83,6 @@ public class App implements AutoCloseable {
 		TimeZone.setDefault(TimeZone.getTimeZone(configuration.getDefaultTimeZone()));
 		Locale.setDefault(configuration.getDefaultLocale());
 
-		initializeLogback(Paths.get(format("config/%s/logback.xml", configuration.getEnvironment())));
-
 		Logger logger = LoggerFactory.getLogger(getClass());
 
 		// 1. Override Soklet module with our standard module
@@ -105,7 +103,11 @@ public class App implements AutoCloseable {
 	}
 
 	public static void main(String[] args) throws ServerException {
-		App app = new App(new Configuration());
+		// Initialize logging before we do anything else
+		String environment = Configuration.determineEnvironment();
+		initializeLogback(Paths.get(format("config/%s/logback.xml", environment)));
+
+		App app = new App(new Configuration(environment));
 		app.startServer();
 	}
 

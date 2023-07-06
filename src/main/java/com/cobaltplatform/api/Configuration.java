@@ -28,12 +28,15 @@ import com.cobaltplatform.api.integration.way2health.Way2HealthEnvironment;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.security.SamlIdentityProvider;
 import com.cobaltplatform.api.model.security.SigningCredentials;
+import com.cobaltplatform.api.util.AwsSecretConfigurationManager;
+import com.cobaltplatform.api.util.AwsSecretManagerClient;
 import com.cobaltplatform.api.util.CryptoUtility;
 import com.cobaltplatform.api.util.DeploymentTarget;
 import com.cobaltplatform.api.util.GitUtility;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.JsonMapper.MappingFormat;
 import com.cobaltplatform.api.util.MavenUtility;
+import com.cobaltplatform.api.util.SecretConfigurationManager;
 import com.cobaltplatform.api.util.SensitiveDataStorageLocation;
 import com.google.common.base.CaseFormat;
 import com.google.common.base.Splitter;
@@ -79,6 +82,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
+import static com.cobaltplatform.api.util.SecretConfigurationManager.SECRETS_PREFIX;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -184,6 +188,8 @@ public class Configuration {
 	@Nonnull
 	private final String nodeIdentifier;
 	@Nonnull
+	private final Boolean shouldApplyDatabaseUpdates;
+	@Nonnull
 	private final String jdbcUrl;
 	@Nonnull
 	private final String jdbcUsername;
@@ -191,6 +197,8 @@ public class Configuration {
 	private final String jdbcPassword;
 	@Nonnull
 	private final Integer jdbcMaximumPoolSize;
+	@Nullable
+	private final String amazonAwsSecretsManagerContext;
 	@Nonnull
 	private final String amazonEc2RoleName;
 	@Nonnull
@@ -265,6 +273,11 @@ public class Configuration {
 	@Nonnull
 	private final Map<SamlIdentityProvider, Map<String, Object>> samlSettingsByIdentityProvider;
 
+	@Nullable
+	private final SecretConfigurationManager secretConfigurationManager;
+	@Nullable
+	private final AwsSecretManagerClient secretManagerClient;
+
 	static {
 		ENV_ENV_VARIABLE_NAME = "COBALT_API_ENV";
 		PORT_ENV_VARIABLE_NAME = "COBALT_API_PORT";
@@ -273,8 +286,13 @@ public class Configuration {
 		DEFAULT_PORT = 8080;
 	}
 
+	@Nonnull
+	public static String determineEnvironment() {
+		return environmentValueFor(ENV_ENV_VARIABLE_NAME).isPresent() ? environmentValueFor(ENV_ENV_VARIABLE_NAME).get() : DEFAULT_ENV;
+	}
+
 	public Configuration() {
-		this(environmentValueFor(ENV_ENV_VARIABLE_NAME).isPresent() ? environmentValueFor(ENV_ENV_VARIABLE_NAME).get() : DEFAULT_ENV);
+		this(determineEnvironment());
 	}
 
 	public Configuration(@Nonnull String environment) {
@@ -321,10 +339,30 @@ public class Configuration {
 		this.port = port;
 		this.baseUrl = baseUrl;
 
+		this.amazonUseLocalstack = valueFor("com.cobaltplatform.api.amazon.useLocalstack", Boolean.class);
+		this.amazonLocalstackPort = valueFor("com.cobaltplatform.api.amazon.localstackPort", Integer.class);
+		this.sensitiveDataStorageLocation = valueFor("com.cobaltplatform.api.sensitiveDataStorageLocation", SensitiveDataStorageLocation.class);
+
+		// Only load secrets manager stuff if we're configured to use it
+		if (this.sensitiveDataStorageLocation == SensitiveDataStorageLocation.AMAZON_SECRETS_MANAGER) {
+			Region amazonSecretsRegion = Region.of(propertiesFileReader.valueFor("com.cobaltplatform.api.amazon.secrets.region", String.class));
+
+			if (this.amazonUseLocalstack)
+				this.secretManagerClient = AwsSecretManagerClient.forLocalstackRegion(amazonSecretsRegion, this.amazonLocalstackPort);
+			else
+				this.secretManagerClient = AwsSecretManagerClient.forRegion(amazonSecretsRegion);
+
+			this.amazonAwsSecretsManagerContext = valueFor("com.cobaltplatform.api.amazon.secrets.context", String.class);
+			this.secretConfigurationManager = new AwsSecretConfigurationManager(this.secretManagerClient, amazonAwsSecretsManagerContext);
+		} else {
+			this.amazonAwsSecretsManagerContext = null;
+			this.secretConfigurationManager = null;
+			this.secretManagerClient = null;
+		}
+
 		this.serverStoppingStrategy = valueFor("com.cobaltplatform.api.serverStoppingStrategy", StoppingStrategy.class);
 		this.jsonMappingFormat = valueFor("com.cobaltplatform.api.jsonMappingFormat", MappingFormat.class);
 		this.deploymentTarget = valueFor("com.cobaltplatform.api.deploymentTarget", DeploymentTarget.class);
-		this.sensitiveDataStorageLocation = valueFor("com.cobaltplatform.api.sensitiveDataStorageLocation", SensitiveDataStorageLocation.class);
 		this.nodeIdentifier = determineNodeIdentifierForDeploymentTarget(getDeploymentTarget());
 		this.shouldDisplayStackTraces = valueFor("com.cobaltplatform.api.shouldDisplayStackTraces", Boolean.class);
 		this.shouldCacheHandlebarsTemplates = valueFor("com.cobaltplatform.api.shouldCacheHandlebarsTemplates", Boolean.class);
@@ -348,18 +386,14 @@ public class Configuration {
 		this.corsEnabledDomains = valueFor("com.cobaltplatform.api.corsEnabledDomains", String.class);
 		this.emailDefaultFromAddress = valueFor("com.cobaltplatform.api.emailDefaultFromAddress", String.class);
 		this.downForMaintenance = valueFor("com.cobaltplatform.api.downForMaintenance", Boolean.class);
+		this.shouldApplyDatabaseUpdates = valueFor("com.cobaltplatform.api.shouldApplyDatabaseUpdates", Boolean.class);
 
-		// The https://github.com/impossibl/pgjdbc-ng driver uses jdbc:pgsql:// while the regular driver uses jdbc:postgresql://.
-		// Due to limitations of the pgjdbc-ng driver, we force to the normal driver.
-		// Due to chicken-and-egg issue in AWS deployment, it's simpler to just rewrite the URL here instead of having the AWS environment tweaked...
-		this.jdbcUrl = valueFor("com.cobaltplatform.api.jdbc.url", String.class).replace("jdbc:pgsql://", "jdbc:postgresql://");
+		this.jdbcUrl = valueFor("com.cobaltplatform.api.jdbc.url", String.class);
 		this.jdbcUsername = valueFor("com.cobaltplatform.api.jdbc.username", String.class);
 		this.jdbcPassword = valueFor("com.cobaltplatform.api.jdbc.password", String.class);
 		this.jdbcMaximumPoolSize = valueFor("com.cobaltplatform.api.jdbc.maximumPoolSize", Integer.class);
 
 		this.amazonEc2RoleName = valueFor("com.cobaltplatform.api.amazon.ec2RoleName", String.class);
-		this.amazonUseLocalstack = valueFor("com.cobaltplatform.api.amazon.useLocalstack", Boolean.class);
-		this.amazonLocalstackPort = valueFor("com.cobaltplatform.api.amazon.localstackPort", Integer.class);
 
 		this.amazonSesRegion = Region.of(valueFor("com.cobaltplatform.api.amazon.ses.region", String.class));
 		this.amazonSesConfigurationSetName = valueFor("com.cobaltplatform.api.amazon.ses.configurationSetName", String.class, false);
@@ -398,10 +432,11 @@ public class Configuration {
 		this.epicCurrentEnvironmentKeyId = isProduction() ? getEpicProdKeyId() : getEpicNonProdKeyId();
 
 		this.signingCredentials = loadSigningCredentials("cobalt");
-		this.epicNonProdSigningCredentials = loadSigningCredentials("cobalt.epic.nonprod");
-		this.epicProdSigningCredentials = loadSigningCredentials("cobalt.epic.prod");
+		this.epicNonProdSigningCredentials = loadSigningCredentials("cobalt-epic-nonprod");
+		this.epicProdSigningCredentials = loadSigningCredentials("cobalt-epic-prod");
 		this.epicCurrentEnvironmentSigningCredentials = isProduction() ? getEpicProdSigningCredentials() : getEpicNonProdSigningCredentials();
-		this.microsoftSigningCredentials = loadSigningCredentials("cobalt.microsoft");
+		this.microsoftSigningCredentials = loadSigningCredentials("cobalt-microsoft");
+
 		this.samlSettingsByIdentityProvider = Collections.emptyMap();
 
 		if (getAmazonUseLocalstack()) {
@@ -532,15 +567,28 @@ public class Configuration {
 		// Example key: com.cobaltplatform.api.google.fcm.projectId
 		// Example environment var: COBALT_API_GOOGLE_FCM_PROJECT_ID
 		String environmentVariableName = environmentVariableNameFromKey(key);
-		String environmentVariableValue = environmentValueFor(environmentVariableName).orElse(null);
+		String stringValueToConvert = environmentValueFor(environmentVariableName).orElse(null);
 
 		// If no environment variable value, read from properties file
-		if (environmentVariableValue == null) {
-			if (required)
-				return propertiesFileReader.valueFor(key, type);
+		if (stringValueToConvert == null) {
+			T value;
 
-			if (!required)
-				return propertiesFileReader.optionalValueFor(key, type).orElse(null);
+			if (required)
+				value = propertiesFileReader.valueFor(key, type);
+			else
+				value = propertiesFileReader.optionalValueFor(key, type).orElse(null);
+
+			if (value == null)
+				return null;
+
+			String stringValue = String.valueOf(value);
+
+			// If it's a secret value, extract it by key
+			if (stringValue.equals(SECRETS_PREFIX)) {
+				stringValueToConvert = secretConfigurationManager.valueFor(key);
+			} else {
+				return value;
+			}
 		}
 
 		// Use environment variable value
@@ -548,10 +596,10 @@ public class Configuration {
 
 		if (!valueConverter.isPresent())
 			throw new IllegalArgumentException(format(
-					"Not sure how to convert environment variable '%s=%s' to requested type %s", environmentVariableName, environmentVariableValue, type));
+					"Not sure how to convert environment variable '%s=%s' to requested type %s", environmentVariableName, stringValueToConvert, type));
 
 		try {
-			return (T) valueConverter.get().convert(environmentVariableValue);
+			return (T) valueConverter.get().convert(stringValueToConvert);
 		} catch (ValueConversionException e) {
 			throw new IllegalArgumentException(e);
 		}
@@ -811,6 +859,8 @@ public class Configuration {
 
 			S3Client amazonS3 = builder.build();
 
+			getLogger().info("Requesting bucket {} with key {}", getAmazonS3BucketName(), format("%s/%s.crt", getEnvironment(), namePrefix));
+
 			// e.g. https://cobaltplatform.s3.us-east-2.amazonaws.com/prod/{namePrefix}.crt
 			GetObjectRequest certObjectRequest = GetObjectRequest.builder()
 					.bucket(getAmazonS3BucketName())
@@ -834,6 +884,11 @@ public class Configuration {
 			} catch (IOException e) {
 				throw new UncheckedIOException(e);
 			}
+		} else if (sensitiveDataStorageLocation == SensitiveDataStorageLocation.AMAZON_SECRETS_MANAGER) {
+			byte[] certificate = secretManagerClient.getSecretBinary(getAmazonAwsSecretsManagerContext().get() + "-" + namePrefix + "-crt");
+			certificateAsString = new String(certificate, StandardCharsets.UTF_8);
+			byte[] privateKey = secretManagerClient.getSecretBinary(getAmazonAwsSecretsManagerContext().get() + "-" + namePrefix + "-pem");
+			privateKeyAsString = new String(privateKey, StandardCharsets.UTF_8);
 		} else {
 			throw new IllegalStateException(format("Unknown value for %s: %s", SensitiveDataStorageLocation.class.getSimpleName(), sensitiveDataStorageLocation.name()));
 		}
@@ -1285,6 +1340,7 @@ public class Configuration {
 		return acuityVideoconferenceFormFieldId;
 	}
 
+
 	@Nonnull
 	public String getTwilioFromNumber() {
 		return twilioFromNumber;
@@ -1316,6 +1372,10 @@ public class Configuration {
 	}
 
 	@Nonnull
+	public Boolean getShouldApplyDatabaseUpdates() {
+		return shouldApplyDatabaseUpdates;
+	}
+
 	public String getEpicNonProdKeyId() {
 		return this.epicNonProdKeyId;
 	}
@@ -1373,6 +1433,21 @@ public class Configuration {
 	@Nonnull
 	public Boolean getShouldPollWay2Health() {
 		return shouldPollWay2Health;
+	}
+
+	@Nonnull
+	public Optional<String> getAmazonAwsSecretsManagerContext() {
+		return Optional.ofNullable(this.amazonAwsSecretsManagerContext);
+	}
+
+	@Nonnull
+	public Optional<SecretConfigurationManager> getSecretConfigurationManager() {
+		return Optional.ofNullable(this.secretConfigurationManager);
+	}
+
+	@Nonnull
+	public Optional<AwsSecretManagerClient> getSecretManagerClient() {
+		return Optional.ofNullable(this.secretManagerClient);
 	}
 
 	@Nonnull

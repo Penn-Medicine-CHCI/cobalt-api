@@ -399,7 +399,7 @@ public class ScreeningService {
 			return Collections.emptyList();
 
 		ScreeningSession mostRecentCompletedScreeningSession =
-				findMostRecentCompletedScreeningSession(triageScreeningFlowId, accountId).orElse(null);
+				findMostRecentCompletedScreeningSession(accountId, triageScreeningFlowId).orElse(null);
 
 		if (mostRecentCompletedScreeningSession == null)
 			return Collections.emptyList();

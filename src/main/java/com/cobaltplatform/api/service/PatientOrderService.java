@@ -88,10 +88,6 @@ import com.cobaltplatform.api.model.db.PatientOrderEventType.PatientOrderEventTy
 import com.cobaltplatform.api.model.db.PatientOrderFocusType;
 import com.cobaltplatform.api.model.db.PatientOrderImport;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
-import com.cobaltplatform.api.model.db.PatientOrderInsurancePayor;
-import com.cobaltplatform.api.model.db.PatientOrderInsurancePayorType.PatientOrderInsurancePayorTypeId;
-import com.cobaltplatform.api.model.db.PatientOrderInsurancePlan;
-import com.cobaltplatform.api.model.db.PatientOrderInsurancePlanType.PatientOrderInsurancePlanTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderMedication;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderOutreach;
@@ -187,7 +183,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
@@ -533,47 +528,16 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public List<PatientOrderInsurancePayor> findPatientOrderInsurancePayorsByInstitutionId(@Nullable InstitutionId institutionId) {
+	public List<String> findPrimaryPayorNamesByInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return List.of();
 
 		return getDatabase().queryForList("""
-				SELECT *
-				FROM patient_order_insurance_payor
-				WHERE institution_id=?
-				AND deleted=FALSE
-				ORDER BY display_order
-				""", PatientOrderInsurancePayor.class, institutionId);
-	}
-
-	@Nonnull
-	public List<PatientOrderInsurancePlan> findPatientOrderInsurancePlansByInstitutionId(@Nullable InstitutionId institutionId) {
-		if (institutionId == null)
-			return List.of();
-
-		return getDatabase().queryForList("""
-				SELECT poipl.*
-				FROM patient_order_insurance_plan poipl, patient_order_insurance_payor poipa
-				WHERE poipl.patient_order_insurance_payor_id=poipa.patient_order_insurance_payor_id
-				AND poipa.institution_id=?
-				AND poipl.deleted=FALSE
-				AND poipa.deleted=FALSE
-				ORDER BY poipl.display_order
-				""", PatientOrderInsurancePlan.class, institutionId);
-	}
-
-	@Nonnull
-	public List<PatientOrderInsurancePlan> findPatientOrderInsurancePlansByPatientOrderInsurancePayorId(@Nullable UUID patientOrderInsurancePayorId) {
-		if (patientOrderInsurancePayorId == null)
-			return List.of();
-
-		return getDatabase().queryForList("""
-				SELECT *
-				FROM patient_order_insurance_plan
-				WHERE patient_order_insurance_payor_id=?
-				AND deleted=FALSE
-				ORDER BY display_order
-				""", PatientOrderInsurancePlan.class, patientOrderInsurancePayorId);
+				SELECT DISTINCT ON (UPPER(primary_payor_name)) primary_payor_name
+				FROM patient_order p
+				WHERE p.institution_id=?
+				ORDER BY UPPER(primary_payor_name)
+				""", String.class, institutionId);
 	}
 
 	@Nonnull
@@ -1269,9 +1233,8 @@ public class PatientOrderService implements AutoCloseable {
 			if (patientOrderFilterFlagTypeIds.size() > 0) {
 				List<String> filterFlagWhereClauseLines = new ArrayList<>();
 
-				// Note: we are ignoring the NONE flag for now since no UI supports it atm
 				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.INSURANCE_NOT_ACCEPTED)) {
-					filterFlagWhereClauseLines.add("po.patient_order_insurance_plan_accepted=FALSE");
+					filterFlagWhereClauseLines.add("po.primary_plan_accepted=FALSE");
 				}
 
 				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.ADDRESS_REGION_NOT_ACCEPTED)) {
@@ -3648,22 +3611,6 @@ public class PatientOrderService implements AutoCloseable {
 
 					patientOrderRequest.setPrimaryPlanId(primaryPlanId);
 					patientOrderRequest.setPrimaryPlanName(primaryPlanName);
-
-					// Hack: if test data, pick random insurance to assign
-					if (containsTestPatientData) {
-						List<PatientOrderInsurancePayor> patientOrderInsurancePayors = findPatientOrderInsurancePayorsByInstitutionId(institutionId);
-						List<PatientOrderInsurancePlan> patientOrderInsurancePlans = findPatientOrderInsurancePlansByInstitutionId(institutionId);
-
-						PatientOrderInsurancePlan randomInsurancePlan = patientOrderInsurancePlans.get(ThreadLocalRandom.current().nextInt(patientOrderInsurancePlans.size()));
-						PatientOrderInsurancePayor insurancePayor = patientOrderInsurancePayors.stream()
-								.filter(patientOrderInsurancePayor -> patientOrderInsurancePayor.getPatientOrderInsurancePayorId().equals(randomInsurancePlan.getPatientOrderInsurancePayorId()))
-								.findAny()
-								.get();
-
-						patientOrderRequest.setPrimaryPayorName(insurancePayor.getName());
-						patientOrderRequest.setPrimaryPlanName(randomInsurancePlan.getName());
-					}
-
 					patientOrderRequest.setOrderDate(trimToNull(record.get("Order Date")));
 					patientOrderRequest.setOrderId(trimToNull(record.get("Order ID")));
 					patientOrderRequest.setOrderAge(trimToNull(record.get("Age of Order")));
@@ -3818,7 +3765,7 @@ public class PatientOrderService implements AutoCloseable {
 
 		for (PatientOrder importedPatientOrder : importedPatientOrders) {
 			// If the order's insurance and region (state in US) are OK, then send the welcome message...
-			if (importedPatientOrder.getPatientOrderInsurancePlanAccepted() && importedPatientOrder.getPatientAddressRegionAccepted()) {
+			if (importedPatientOrder.getPrimaryPlanAccepted() && importedPatientOrder.getPatientAddressRegionAccepted()) {
 				getLogger().info("Patient Order ID {} has an accepted region and insurance - automatically sending welcome message.", importedPatientOrder.getPatientOrderId());
 
 				Set<MessageTypeId> messageTypeIds = new HashSet<>();
@@ -3910,7 +3857,6 @@ public class PatientOrderService implements AutoCloseable {
 				.filter(medication -> medication != null)
 				.collect(Collectors.toList());
 		String recentPsychotherapeuticMedications = trimToNull(request.getRecentPsychotherapeuticMedications());
-		UUID patientOrderInsurancePlanId = null;
 		String testPatientEmailAddress = trimToNull(request.getTestPatientEmailAddress());
 		String testPatientPassword = trimToNull(request.getTestPatientPassword());
 		UUID patientOrderId = UUID.randomUUID();
@@ -4081,50 +4027,6 @@ public class PatientOrderService implements AutoCloseable {
 		if (primaryPlanName == null)
 			validationException.add(new FieldError("primaryPlanName", getStrings().get("Primary plan name is required.")));
 
-		// TODO: clean up once we have more clarity on insurance information (will we receive IDs, or match on names?  etc.)
-		// For now, just do our best and fall back to "other" if we don't know
-		if (primaryPayorName != null && primaryPlanName != null) {
-			List<PatientOrderInsurancePayor> patientOrderInsurancePayors = findPatientOrderInsurancePayorsByInstitutionId(institutionId);
-			PatientOrderInsurancePayor matchingPatientOrderInsurancePayor = null;
-			Locale locale = institution == null ? getConfiguration().getDefaultLocale() : institution.getLocale();
-
-			for (PatientOrderInsurancePayor patientOrderInsurancePayor : patientOrderInsurancePayors) {
-				if (Objects.equals(patientOrderInsurancePayor.getName().toUpperCase(locale), primaryPayorName.toUpperCase(locale))) {
-					matchingPatientOrderInsurancePayor = patientOrderInsurancePayor;
-					break;
-				}
-			}
-
-			if (matchingPatientOrderInsurancePayor == null) {
-				getLogger().warn("Unable to find payor named '{}', defaulting Patient Order ID {} to '{}' for Institution ID {}...", primaryPayorName, patientOrderId, PatientOrderInsurancePayorTypeId.OTHER.name(), institutionId);
-				matchingPatientOrderInsurancePayor = findPatientOrderInsurancePayorsByInstitutionId(institutionId).stream()
-						.filter(patientOrderInsurancePayor -> patientOrderInsurancePayor.getPatientOrderInsurancePayorTypeId() == PatientOrderInsurancePayorTypeId.OTHER)
-						.findFirst()
-						.get();
-			}
-
-			List<PatientOrderInsurancePlan> patientOrderInsurancePlans = findPatientOrderInsurancePlansByPatientOrderInsurancePayorId(matchingPatientOrderInsurancePayor.getPatientOrderInsurancePayorId());
-			PatientOrderInsurancePlan matchingPatientOrderInsurancePlan = null;
-
-			for (PatientOrderInsurancePlan patientOrderInsurancePlan : patientOrderInsurancePlans) {
-				if (Objects.equals(patientOrderInsurancePlan.getName().toUpperCase(locale), primaryPlanName.toUpperCase(locale))) {
-					matchingPatientOrderInsurancePlan = patientOrderInsurancePlan;
-					break;
-				}
-			}
-
-			if (matchingPatientOrderInsurancePlan == null) {
-				getLogger().warn("Unable to find plan named '{}', defaulting Patient Order ID {} to '{}' for Institution ID {}...", primaryPlanName, patientOrderId, PatientOrderInsurancePlanTypeId.OTHER.name(), institutionId);
-
-				matchingPatientOrderInsurancePlan = patientOrderInsurancePlans.stream()
-						.filter(patientOrderInsurancePlan -> patientOrderInsurancePlan.getPatientOrderInsurancePlanTypeId() == PatientOrderInsurancePlanTypeId.OTHER)
-						.findFirst()
-						.get();
-			}
-
-			patientOrderInsurancePlanId = matchingPatientOrderInsurancePlan.getPatientOrderInsurancePlanId();
-		}
-
 		if (validationException.hasErrors())
 			throw validationException;
 
@@ -4175,10 +4077,9 @@ public class PatientOrderService implements AutoCloseable {
 						  cc_recipients,
 						  last_active_medication_order_summary,
 						  recent_psychotherapeutic_medications,
-						  patient_order_insurance_plan_id,
 						  test_patient_email_address,
 						  test_patient_password
-						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				patientOrderId, patientOrderDispositionId, patientOrderImportId,
 				institutionId, encounterDepartmentId, encounterDepartmentIdType, encounterDepartmentName, referringPracticeId,
@@ -4188,7 +4089,7 @@ public class PatientOrderService implements AutoCloseable {
 				patientMrn, patientId, patientIdType, patientBirthSexId, patientBirthdate, patientAddressId, primaryPayorId,
 				primaryPayorName, primaryPlanId, primaryPlanName, orderDate, orderAgeInMinutes, orderId, routing,
 				associatedDiagnosis, patientPhoneNumber, preferredContactHours, comments, ccRecipients,
-				lastActiveMedicationOrderSummary, recentPsychotherapeuticMedications, patientOrderInsurancePlanId,
+				lastActiveMedicationOrderSummary, recentPsychotherapeuticMedications,
 				testPatientEmailAddress, hashedTestPatientPassword);
 
 		int diagnosisDisplayOrder = 0;
@@ -4273,7 +4174,6 @@ public class PatientOrderService implements AutoCloseable {
 		LocalDate patientBirthdate = request.getPatientBirthdate();
 		String patientLanguageCode = trimToNull(request.getPatientLanguageCode());
 		CreateAddressRequest patientAddress = request.getPatientAddress();
-		UUID patientOrderInsurancePlanId = request.getPatientOrderInsurancePlanId();
 		Boolean patientDemographicsConfirmed = request.getPatientDemographicsConfirmed();
 		PatientOrderCarePreferenceId patientOrderCarePreferenceId = request.getPatientOrderCarePreferenceId();
 		Integer inPersonCareRadius = request.getInPersonCareRadius();
@@ -4382,13 +4282,6 @@ public class PatientOrderService implements AutoCloseable {
 				validationException.add(new FieldError("patientLanguageCode", getStrings().get("Language is invalid.")));
 			else
 				columnNamesAndValues.add(Pair.of("patient_language_code", patientLanguageCode));
-		}
-
-		if (request.isShouldUpdatePatientOrderInsurancePlanId()) {
-			if (patientOrderInsurancePlanId == null)
-				validationException.add(new FieldError("patientOrderInsurancePlanId", getStrings().get("Insurance Plan is required.")));
-			else
-				columnNamesAndValues.add(Pair.of("patient_order_insurance_plan_id", patientOrderInsurancePlanId));
 		}
 
 		if (request.isShouldUpdatePatientDemographicsConfirmed()) {

@@ -28,7 +28,7 @@ import com.cobaltplatform.api.model.api.request.CreateAccountEmailVerificationRe
 import com.cobaltplatform.api.model.api.request.CreateAccountInviteRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateActivityTrackingRequest;
-import com.cobaltplatform.api.model.api.request.CreateMyChartAccountRequest;
+import com.cobaltplatform.api.model.api.request.CreateOrUpdateMyChartAccountRequest;
 import com.cobaltplatform.api.model.api.request.EmailPasswordAccessTokenRequest;
 import com.cobaltplatform.api.model.api.request.FindGroupSessionRequestsRequest;
 import com.cobaltplatform.api.model.api.request.FindGroupSessionsRequest;
@@ -56,6 +56,7 @@ import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSe
 import com.cobaltplatform.api.model.api.response.GroupSessionRequestApiResponse;
 import com.cobaltplatform.api.model.api.response.GroupSessionRequestApiResponse.GroupSessionRequestApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TagApiResponse;
 import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
@@ -79,6 +80,7 @@ import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
+import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
@@ -199,6 +201,8 @@ public class AccountResource {
 	private final EnterprisePluginProvider enterprisePluginProvider;
 	@Nonnull
 	private final TagApiResponseFactory tagApiResponseFactory;
+	@Nonnull
+	private final SupportRoleApiResponseFactory supportRoleApiResponseFactory;
 
 	@Inject
 	public AccountResource(@Nonnull AccountService accountService,
@@ -228,7 +232,8 @@ public class AccountResource {
 												 @Nonnull AssessmentService assessmentService,
 												 @Nonnull AssessmentFormApiResponseFactory assessmentFormApiResponseFactory,
 												 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
-												 @Nonnull TagApiResponseFactory tagApiResponseFactory) {
+												 @Nonnull TagApiResponseFactory tagApiResponseFactory,
+												 @Nonnull SupportRoleApiResponseFactory supportRoleApiResponseFactory) {
 		requireNonNull(accountService);
 		requireNonNull(groupSessionService);
 		requireNonNull(contentService);
@@ -256,6 +261,7 @@ public class AccountResource {
 		requireNonNull(assessmentFormApiResponseFactory);
 		requireNonNull(enterprisePluginProvider);
 		requireNonNull(tagApiResponseFactory);
+		requireNonNull(supportRoleApiResponseFactory);
 
 		this.accountService = accountService;
 		this.groupSessionService = groupSessionService;
@@ -286,6 +292,7 @@ public class AccountResource {
 		this.assessmentFormApiResponseFactory = assessmentFormApiResponseFactory;
 		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.tagApiResponseFactory = tagApiResponseFactory;
+		this.supportRoleApiResponseFactory = supportRoleApiResponseFactory;
 	}
 
 	@Nonnull
@@ -638,10 +645,10 @@ public class AccountResource {
 	public ApiResponse createMyChartAccount(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
 
-		CreateMyChartAccountRequest request = getRequestBodyParser().parse(requestBody, CreateMyChartAccountRequest.class);
+		CreateOrUpdateMyChartAccountRequest request = getRequestBodyParser().parse(requestBody, CreateOrUpdateMyChartAccountRequest.class);
 		request.setInstitutionId(getCurrentContext().getInstitutionId());
 
-		UUID accountId = getMyChartService().createAccount(request);
+		UUID accountId = getMyChartService().createOrUpdateAccount(request);
 
 		return generateAccountResponse(accountId);
 	}
@@ -789,6 +796,7 @@ public class AccountResource {
 		}});
 	}
 
+	@Nonnull
 	@AuthenticationRequired
 	@PUT("/accounts/{accountId}/beta-status")
 	public ApiResponse updateAccountBetaStatus(@Nonnull @PathParameter UUID accountId,
@@ -812,6 +820,49 @@ public class AccountResource {
 		}});
 	}
 
+	@Nonnull
+	@AuthenticationRequired
+	@GET("/accounts/{accountId}/recommended-support-roles")
+	public ApiResponse accountRecommendedSupportRoles(@Nonnull @PathParameter UUID accountId) {
+		requireNonNull(accountId);
+
+		Account currentAccount = getCurrentContext().getAccount().get();
+		Account targetAccount = getAccountService().findAccountById(accountId).orElse(null);
+
+		if (targetAccount == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canEditAccount(targetAccount, currentAccount))
+			throw new AuthorizationException();
+
+		List<SupportRole> supportRoles = getProviderService().findRecommendedSupportRolesForAccountId(accountId);
+
+		return new ApiResponse(Map.of("supportRoles", supportRoles.stream()
+				.map(supportRole -> getSupportRoleApiResponseFactory().create(supportRole))
+				.collect(Collectors.toList())));
+	}
+
+	@Nonnull
+	@AuthenticationRequired
+	@GET("/accounts/{accountId}/provider-booking-requirements")
+	public ApiResponse accountProviderBookingRequirements(@Nonnull @PathParameter UUID accountId) {
+		requireNonNull(accountId);
+
+		Account currentAccount = getCurrentContext().getAccount().get();
+		Account targetAccount = getAccountService().findAccountById(accountId).orElse(null);
+
+		if (targetAccount == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canEditAccount(targetAccount, currentAccount))
+			throw new AuthorizationException();
+
+		boolean myChartConnectionRequired = getProviderService().doesAccountRequireMyChartConnectionForProviderBooking(accountId);
+
+		return new ApiResponse(Map.of("myChartConnectionRequired", myChartConnectionRequired));
+	}
+
+	@Nonnull
 	@AuthenticationRequired
 	@GET("/accounts/{accountId}/appointment-details/{appointmentId}")
 	public ApiResponse accountWithAppointmentDetails(@Nonnull @PathParameter UUID accountId,
@@ -1144,5 +1195,10 @@ public class AccountResource {
 	@Nonnull
 	protected TagApiResponseFactory getTagApiResponseFactory() {
 		return this.tagApiResponseFactory;
+	}
+
+	@Nonnull
+	protected SupportRoleApiResponseFactory getSupportRoleApiResponseFactory() {
+		return this.supportRoleApiResponseFactory;
 	}
 }

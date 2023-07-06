@@ -38,6 +38,7 @@ public class SchedulingSystem {
 		NONE,
 		ACUITY,
 		EPIC,
+		EPIC_FHIR,
 		COBALT
 	}
 
