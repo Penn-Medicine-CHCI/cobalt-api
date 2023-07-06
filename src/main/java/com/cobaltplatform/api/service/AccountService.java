@@ -816,18 +816,13 @@ public class AccountService {
 	}
 
 	public void updateAccountEpicPatient(@Nullable UUID accountId,
-																			 @Nullable String epicPatientId,
-																			 @Nullable String epicPatientIdType) {
-		getDatabase().execute("UPDATE account SET epic_patient_id=?, epic_patient_id_type=? " +
-				"WHERE account_id = ?", epicPatientId, epicPatientIdType, accountId);
-	}
-
-	public void updateAccountEpicPatient(@Nullable UUID accountId,
-																			 @Nullable String epicPatientId,
-																			 @Nullable String epicPatientIdType,
-																			 @Nullable Boolean epicPatientCreatedByCobalt) {
-		getDatabase().execute("UPDATE account SET epic_patient_id=?, epic_patient_id_type=?, epic_patient_created_by_cobalt=? " +
-				"WHERE account_id = ?", epicPatientId, epicPatientIdType, epicPatientCreatedByCobalt, accountId);
+																			 @Nullable String epicPatientFhirId,
+																			 @Nullable String epicPatientMrn) {
+		getDatabase().execute("""
+				  UPDATE account
+				  SET epic_patient_fhir_id=?, epic_patient_mrn=?
+				  WHERE account_id=?
+				""", epicPatientFhirId, epicPatientMrn, accountId);
 	}
 
 	public void forgotPassword(@Nullable ForgotPasswordRequest request) {

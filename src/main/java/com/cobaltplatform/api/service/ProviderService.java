@@ -654,10 +654,20 @@ public class ProviderService {
 			// Ask Epic for potential slots
 			EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId).epicClientForBackendService().get();
 
+			LocalDateTime startDateTime = LocalDateTime.now(account.getTimeZone());
+
+			if (startDate != null && startTime != null)
+				startDateTime = LocalDateTime.of(startDate, startTime);
+
+			LocalDateTime endDateTime = startDateTime.plusDays(60);
+
+			if (endDate != null && endTime != null)
+				endDateTime = LocalDateTime.of(endDate, endTime);
+
 			AppointmentFindFhirStu3Request appointmentFindRequest = new AppointmentFindFhirStu3Request();
 			appointmentFindRequest.setPatient(account.getEpicPatientFhirId());
-			appointmentFindRequest.setStartTime(LocalDateTime.of(startDate, startTime));
-			appointmentFindRequest.setStartTime(LocalDateTime.of(endDate, endTime));
+			appointmentFindRequest.setStartTime(startDateTime);
+			appointmentFindRequest.setEndTime(endDateTime);
 			appointmentFindRequest.setServiceTypes(epicFhirAppointmentTypes.stream()
 					.map(appointmentType -> {
 						AppointmentFindFhirStu3Request.Coding serviceType = new AppointmentFindFhirStu3Request.Coding();
