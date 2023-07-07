@@ -40,15 +40,23 @@ import com.cobaltplatform.api.integration.epic.response.PatientCreateResponse;
 import com.cobaltplatform.api.integration.epic.response.PatientReadFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse;
 import com.cobaltplatform.api.integration.epic.response.ScheduleAppointmentWithInsuranceResponse;
+import com.google.gson.Gson;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.lang.reflect.InvocationTargetException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Collections;
 import java.util.Optional;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -56,6 +64,13 @@ import static java.util.Objects.requireNonNull;
  */
 @ThreadSafe
 public class MockEpicClient implements EpicClient {
+	@Nonnull
+	private final Gson gson;
+
+	public MockEpicClient() {
+		this.gson = EpicUtilities.defaultGson();
+	}
+
 	@Nonnull
 	@Override
 	public Optional<PatientReadFhirR4Response> patientReadFhirR4(@Nonnull String patientId) {
@@ -66,44 +81,43 @@ public class MockEpicClient implements EpicClient {
 	@Override
 	public AppointmentFindFhirStu3Response appointmentFindFhirStu3(@Nonnull AppointmentFindFhirStu3Request request) {
 		requireNonNull(request);
-		return new AppointmentFindFhirStu3Response();
+		return acquireMockResponseInstance(AppointmentFindFhirStu3Response.class);
 	}
 
 	@Nonnull
 	@Override
 	public AppointmentBookFhirStu3Response appointmentBookFhirStu3(@Nonnull AppointmentBookFhirStu3Request request) {
 		requireNonNull(request);
-		return new AppointmentBookFhirStu3Response();
+		return acquireMockResponseInstance(AppointmentBookFhirStu3Response.class);
 	}
 
 	@Nonnull
 	@Override
 	public AppointmentSearchFhirStu3Response appointmentSearchFhirStu3(@Nonnull AppointmentSearchFhirStu3Request request) {
 		requireNonNull(request);
-		return new AppointmentSearchFhirStu3Response();
+		return acquireMockResponseInstance(AppointmentSearchFhirStu3Response.class);
 	}
 
 	@Nonnull
 	@Override
 	public PatientSearchResponse performPatientSearch(@Nonnull PatientSearchRequest request) {
-		PatientSearchResponse response = new PatientSearchResponse();
-		response.setEntry(Collections.emptyList());
-		response.setLink(Collections.emptyList());
-
-		return response;
+		requireNonNull(request);
+		return acquireMockResponseInstance(PatientSearchResponse.class);
 	}
 
 	@Nonnull
 	@Override
 	public GetPatientDemographicsResponse performGetPatientDemographics(@Nonnull GetPatientDemographicsRequest request) {
-		GetPatientDemographicsResponse response = new GetPatientDemographicsResponse();
-		return response;
+		requireNonNull(request);
+		return acquireMockResponseInstance(GetPatientDemographicsResponse.class);
 	}
 
 	@Nonnull
 	@Override
 	public GetProviderScheduleResponse performGetProviderSchedule(@Nonnull GetProviderScheduleRequest request) {
-		GetProviderScheduleResponse response = new GetProviderScheduleResponse();
+		requireNonNull(request);
+
+		GetProviderScheduleResponse response = acquireMockResponseInstance(GetProviderScheduleResponse.class);
 		response.setScheduleSlots(Collections.emptyList());
 		response.setProviderMessages(Collections.emptyList());
 		response.setProviderIDs(Collections.emptyList());
@@ -115,30 +129,65 @@ public class MockEpicClient implements EpicClient {
 	@Nonnull
 	@Override
 	public GetPatientAppointmentsResponse performGetPatientAppointments(@Nonnull GetPatientAppointmentsRequest request) {
-		GetPatientAppointmentsResponse response = new GetPatientAppointmentsResponse();
+		requireNonNull(request);
+
+		GetPatientAppointmentsResponse response = acquireMockResponseInstance(GetPatientAppointmentsResponse.class);
 		response.setAppointments(Collections.emptyList());
+
 		return response;
 	}
 
 	@Nonnull
 	@Override
 	public PatientCreateResponse performPatientCreate(@Nonnull PatientCreateRequest request) {
-		PatientCreateResponse response = new PatientCreateResponse();
-		return response;
+		requireNonNull(request);
+		return acquireMockResponseInstance(PatientCreateResponse.class);
 	}
 
 	@Nonnull
 	@Override
 	public ScheduleAppointmentWithInsuranceResponse performScheduleAppointmentWithInsurance(@Nonnull ScheduleAppointmentWithInsuranceRequest request) {
-		ScheduleAppointmentWithInsuranceResponse response = new ScheduleAppointmentWithInsuranceResponse();
-		response.setAppointment(new ScheduleAppointmentWithInsuranceResponse.Appointment());
-		return response;
+		requireNonNull(request);
+		return acquireMockResponseInstance(ScheduleAppointmentWithInsuranceResponse.class);
 	}
 
 	@Nonnull
 	@Override
 	public CancelAppointmentResponse performCancelAppointment(@Nonnull CancelAppointmentRequest request) {
-		return new CancelAppointmentResponse();
+		requireNonNull(request);
+		return acquireMockResponseInstance(CancelAppointmentResponse.class);
+	}
+
+	/**
+	 * If there is a response file available on the filesystem, use it.
+	 * Otherwise, make a new "empty" instance and return it.
+	 */
+	@Nonnull
+	protected <T> T acquireMockResponseInstance(@Nonnull Class<T> type) {
+		requireNonNull(type);
+
+		// e.g. AppointmentFindFhirStu3Response -> AppointmentFindFhirStu3
+		String directoryName = type.getSimpleName().replace("Response", "");
+		Path mockJsonFile = Path.of(format("resources/mock/epic/%s/response.json", directoryName));
+
+		if (!Files.exists(mockJsonFile)) {
+			try {
+				return type.getDeclaredConstructor().newInstance();
+			} catch (NoSuchMethodException
+							 | SecurityException
+							 | InstantiationException
+							 | IllegalAccessException
+							 | InvocationTargetException e) {
+				throw new RuntimeException(e);
+			}
+		}
+
+		try {
+			String mockJson = Files.readString(mockJsonFile, StandardCharsets.UTF_8);
+			return getGson().fromJson(mockJson, type);
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
 	}
 
 	@Nonnull
@@ -181,5 +230,10 @@ public class MockEpicClient implements EpicClient {
 	@Override
 	public String formatPhoneNumber(@Nonnull String phoneNumber) {
 		return phoneNumber;
+	}
+
+	@Nonnull
+	protected Gson getGson() {
+		return this.gson;
 	}
 }

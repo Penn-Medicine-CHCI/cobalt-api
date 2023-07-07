@@ -44,4 +44,7 @@ SELECT a.*, acq.account_capability_type_ids
 FROM account a LEFT OUTER JOIN account_capabilities_query acq on a.account_id=acq.account_id
 WHERE active=TRUE;
 
+-- Should be populated for EPIC_FHIR providers
+ALTER TABLE provider ADD COLUMN epic_practitioner_fhir_id TEXT;
+
 COMMIT;

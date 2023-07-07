@@ -96,6 +96,7 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
@@ -394,6 +395,7 @@ public class ProviderService {
 		if (validationException.hasErrors())
 			throw validationException;
 
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
 		List<Provider> providers;
 
 		// If provider ID is specified or clinic IDs are specified, ignore the rest of the filters
@@ -624,71 +626,20 @@ public class ProviderService {
 		NativeSchedulingAvailabilityData nativeSchedulingAvailabilityData = loadNativeSchedulingAvailabilityData(institutionId,
 				visitTypeIds, nativeSchedulingStartDateTime, nativeSchedulingEndDateTime);
 
-		// The Epic FHIR flow for pulling slots is totally different than our other mechanisms, so we special-case here
-		List<Provider> providersThatUseEpicFhir = providers.stream()
-				.filter(provider -> provider.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR)
-				.collect(Collectors.toList());
+		// Slightly different flow to pull availablity if we have Epic FHIR providers
+		Map<UUID, List<AvailabilityDate>> availabilityDatesByEpicFhirProviderId = determineAvailabilityDatesByEpicFhirProviderIds(
+				account, institution, providers, new AvailabilityDatesCommand() {{
+					setVisitTypeIds(visitTypeIds);
+					setStartDate(startDate);
+					setStartTime(startTime);
+					setEndDate(endDate);
+					setEndTime(endTime);
+					setCurrentDate(currentDate);
+					setDaysOfWeek(daysOfWeek);
+					setAvailability(availability);
+				}});
 
-		if (providersThatUseEpicFhir.size() > 0) {
-			// If an institution has FHIR providers that match the search criteria and the requesting account doesn't have
-			// a patient FHIR ID, then bubble out an error indicating that via special metadata.
-			// This way FE can take action (route through MyChart flow etc.)
-			if (account.getEpicPatientFhirId() == null) {
-				ValidationException myChartValidationException = new ValidationException();
-				myChartValidationException.add(getStrings().get(""));
-				myChartValidationException.setMetadata(Map.of("patientFhirIdRequired", true));
-				throw myChartValidationException;
-			}
-
-			// Pick out all the Epic FHIR appointment types for this institution
-			List<AppointmentType> epicFhirAppointmentTypes = getDatabase().queryForList("""
-								SELECT DISTINCT at.*
-								FROM appointment_type at, provider_appointment_type pat, provider p
-								WHERE pat.provider_id=p.provider_id
-								AND pat.appointment_type_id=at.appointment_type_id
-								AND p.active=TRUE
-								AND p.institution_id=?
-								AND p.scheduling_system_id=?
-					""", AppointmentType.class, institutionId, SchedulingSystemId.EPIC_FHIR);
-
-			// Ask Epic for potential slots
-			EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId).epicClientForBackendService().get();
-
-			LocalDateTime startDateTime = LocalDateTime.now(account.getTimeZone());
-
-			if (startDate != null && startTime != null)
-				startDateTime = LocalDateTime.of(startDate, startTime);
-
-			LocalDateTime endDateTime = startDateTime.plusDays(60);
-
-			if (endDate != null && endTime != null)
-				endDateTime = LocalDateTime.of(endDate, endTime);
-
-			AppointmentFindFhirStu3Request appointmentFindRequest = new AppointmentFindFhirStu3Request();
-			appointmentFindRequest.setPatient(account.getEpicPatientFhirId());
-			appointmentFindRequest.setStartTime(startDateTime);
-			appointmentFindRequest.setEndTime(endDateTime);
-			appointmentFindRequest.setServiceTypes(epicFhirAppointmentTypes.stream()
-					.map(appointmentType -> {
-						AppointmentFindFhirStu3Request.Coding serviceType = new AppointmentFindFhirStu3Request.Coding();
-						serviceType.setCode(appointmentType.getEpicVisitTypeId());
-						serviceType.setSystem(appointmentType.getEpicVisitTypeSystem());
-
-						return serviceType;
-					})
-					.collect(Collectors.toList()));
-
-			AppointmentFindFhirStu3Response appointmentFindResponse = epicClient.appointmentFindFhirStu3(appointmentFindRequest);
-
-			// TODO: filter down slots based on query criteria and add to `ProviderFind` list
-		}
-
-		// "Normal" handling for other providers
-		List<Provider> providersThatDoNotUseEpicFhir = providers.stream()
-				.filter(provider -> provider.getSchedulingSystemId() != SchedulingSystemId.EPIC_FHIR)
-				.collect(Collectors.toList());
-
-		for (Provider provider : providersThatDoNotUseEpicFhir) {
+		for (Provider provider : providers) {
 			boolean intakeAssessmentRequired = false;
 			boolean intakeAssessmentIneligible = false;
 
@@ -720,11 +671,16 @@ public class ProviderService {
 
 			// Different code path for Cobalt native scheduling: it creates slots based on logical_availability records.
 			// Non-native scheduling (Acuity, EPIC) will use provider_availability records.
+			// EPIC FHIR uses its own different path.
 			// This is the heavy lifting for creating slots
-			if (provider.getSchedulingSystemId() == SchedulingSystemId.COBALT)
+			if (provider.getSchedulingSystemId() == SchedulingSystemId.COBALT) {
 				dates.addAll(availabilityDatesForNativeScheduling(datesCommand, nativeSchedulingStartDateTime, nativeSchedulingEndDateTime, nativeSchedulingAvailabilityData));
-			else
+			} else if (provider.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR) {
+				List<AvailabilityDate> epicFhirAvailabilityDates = availabilityDatesByEpicFhirProviderId.get(provider.getProviderId());
+				dates.addAll(epicFhirAvailabilityDates == null ? List.of() : epicFhirAvailabilityDates);
+			} else {
 				dates.addAll(availabilityDatesForNonNativeScheduling(datesCommand));
+			}
 
 			// Pick out distinct EPIC department IDs by provider by reviewing the availability data
 			Set<UUID> epicDepartmentIds = new HashSet<>();
@@ -835,6 +791,225 @@ public class ProviderService {
 			filterProviderFindsBySchedulingLeadTime(providerFinds, providers, currentDateTime);
 
 		return providerFinds;
+	}
+
+	@Nonnull
+	protected Map<UUID, List<AvailabilityDate>> determineAvailabilityDatesByEpicFhirProviderIds(@Nonnull Account account,
+																																															@Nonnull Institution institution,
+																																															@Nonnull List<Provider> providers,
+																																															@Nonnull AvailabilityDatesCommand command) {
+		requireNonNull(account);
+		requireNonNull(institution);
+		requireNonNull(providers);
+		requireNonNull(command);
+
+		// The Epic FHIR flow for pulling slots is totally different than our other mechanisms, so we special-case here
+		List<Provider> providersThatUseEpicFhir = providers.stream()
+				.filter(provider -> provider.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR)
+				.collect(Collectors.toList());
+
+		if (providersThatUseEpicFhir.size() == 0)
+			return Map.of();
+
+		Map<UUID, Map<LocalDate, AvailabilityDate>> availabilityDatesByDateByProviderId = new HashMap<>(providersThatUseEpicFhir.size());
+
+		// Prime the map with empty values
+		for (Provider provider : providersThatUseEpicFhir)
+			availabilityDatesByDateByProviderId.put(provider.getProviderId(), new HashMap<>());
+
+		if (providersThatUseEpicFhir.size() > 0) {
+			// If an institution has FHIR providers that match the search criteria and the requesting account doesn't have
+			// a patient FHIR ID, then bubble out an error indicating that via special metadata.
+			// This way FE can take action (route through MyChart flow etc.)
+			if (account.getEpicPatientFhirId() == null) {
+				ValidationException myChartValidationException = new ValidationException();
+				myChartValidationException.add(getStrings().get("You need to connect to {{myChartName}} before accessing these healthcare providers.",
+						Map.of("myChartName", institution.getMyChartName())));
+				myChartValidationException.setMetadata(Map.of("patientFhirIdRequired", true));
+				throw myChartValidationException;
+			}
+
+			Map<String, Provider> providersByEpicPractitionerFhirId = providersThatUseEpicFhir.stream()
+					.collect(Collectors.toMap(Provider::getEpicPractitionerFhirId, Function.identity()));
+
+			// Pick out all the Epic FHIR appointment types for this institution
+			List<AppointmentType> appointmentTypes = getDatabase().queryForList("""
+								SELECT DISTINCT at.*
+								FROM appointment_type at, provider_appointment_type pat, provider p
+								WHERE pat.provider_id=p.provider_id
+								AND pat.appointment_type_id=at.appointment_type_id
+								AND p.active=TRUE
+								AND p.institution_id=?
+								AND p.scheduling_system_id=?
+					""", AppointmentType.class, institution.getInstitutionId(), SchedulingSystemId.EPIC_FHIR);
+
+			Map<UUID, AppointmentType> appointmentTypesById = appointmentTypes.stream()
+					.collect(Collectors.toMap(AppointmentType::getAppointmentTypeId, Function.identity()));
+
+			List<ProviderAppointmentType> providerAppointmentTypes = getDatabase().queryForList("""
+								SELECT pat.*
+								FROM provider_appointment_type pat, provider p
+								WHERE pat.provider_id=p.provider_id
+								AND p.active=TRUE
+								AND p.institution_id=?
+								AND p.scheduling_system_id=?
+					""", ProviderAppointmentType.class, institution.getInstitutionId(), SchedulingSystemId.EPIC_FHIR);
+
+			Map<UUID, List<AppointmentType>> appointmentTypesByProviderId = new HashMap<>(appointmentTypes.size());
+
+			for (ProviderAppointmentType providerAppointmentType : providerAppointmentTypes) {
+				List<AppointmentType> currentAppointmentTypes = appointmentTypesByProviderId.get(providerAppointmentType.getProviderId());
+
+				if (currentAppointmentTypes == null) {
+					currentAppointmentTypes = new ArrayList<>();
+					appointmentTypesByProviderId.put(providerAppointmentType.getProviderId(), currentAppointmentTypes);
+				}
+
+				currentAppointmentTypes.add(appointmentTypesById.get(providerAppointmentType.getAppointmentTypeId()));
+			}
+
+			// Ask Epic for potential slots
+			EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institution.getInstitutionId()).epicClientForBackendService().get();
+
+			LocalDateTime startDateTime = LocalDateTime.now(account.getTimeZone());
+
+			if (command.getStartDate() != null && command.getStartTime() != null)
+				startDateTime = LocalDateTime.of(command.getStartDate(), command.getStartTime());
+
+			LocalDateTime endDateTime = startDateTime.plusDays(60);
+
+			if (command.getEndDate() != null && command.getEndTime() != null)
+				endDateTime = LocalDateTime.of(command.getEndDate(), command.getEndTime());
+
+			AppointmentFindFhirStu3Request appointmentFindRequest = new AppointmentFindFhirStu3Request();
+			appointmentFindRequest.setPatient(account.getEpicPatientFhirId());
+			appointmentFindRequest.setStartTime(startDateTime);
+			appointmentFindRequest.setEndTime(endDateTime);
+			appointmentFindRequest.setServiceTypes(appointmentTypes.stream()
+					.map(appointmentType -> {
+						AppointmentFindFhirStu3Request.Coding serviceType = new AppointmentFindFhirStu3Request.Coding();
+						serviceType.setCode(appointmentType.getEpicVisitTypeId());
+						serviceType.setSystem(appointmentType.getEpicVisitTypeSystem());
+
+						return serviceType;
+					})
+					.collect(Collectors.toList()));
+
+			AppointmentFindFhirStu3Response appointmentFindResponse = epicClient.appointmentFindFhirStu3(appointmentFindRequest);
+
+			for (AppointmentFindFhirStu3Response.Entry entry : appointmentFindResponse.getEntry()) {
+				LocalDateTime slotStartDateTime = entry.getResource().getStart().withZoneSameInstant(institution.getTimeZone()).toLocalDateTime();
+				LocalDateTime slotEndDateTime = entry.getResource().getEnd().withZoneSameInstant(institution.getTimeZone()).toLocalDateTime();
+
+				// Hack for testing...
+				slotStartDateTime = slotStartDateTime.plusMonths(1);
+				slotEndDateTime = slotEndDateTime.plusMonths(1);
+
+				LocalDate slotDate = slotStartDateTime.toLocalDate();
+				LocalTime slotTime = slotStartDateTime.toLocalTime();
+
+				// Assumes single service type and coding
+				if (entry.getResource().getServiceType().size() != 1)
+					throw new IllegalStateException(format("Invalid size of serviceType element for %s", appointmentFindResponse.getRawJson()));
+
+				if (entry.getResource().getServiceType().get(0).getCoding().size() != 1)
+					throw new IllegalStateException(format("Invalid size of serviceType.coding element for %s", appointmentFindResponse.getRawJson()));
+
+				AppointmentFindFhirStu3Response.Entry.Resource.ServiceType.Coding appointmentTypeCoding =
+						entry.getResource().getServiceType().get(0).getCoding().get(0);
+
+				// TODO: filter down slots based on passed-in criteria
+
+				// Find any participant actor URLs that look like this and extract the Practitioner FHIR ID (xxx below):
+				// $BASE_URL/FHIR/STU3/Practitioner/xxx
+				Set<String> epicPractitionerFhirIds = entry.getResource().getParticipant().stream()
+						.map(participant -> participant.getActor().getReference())
+						.filter(actorReference -> actorReference.contains("/FHIR/STU3/Practitioner/"))
+						.map(actorReference -> actorReference.substring(actorReference.lastIndexOf("/FHIR/STU3/Practitioner/") + "/FHIR/STU3/Practitioner/".length()))
+						.collect(Collectors.toSet());
+
+				if (epicPractitionerFhirIds.size() == 0) {
+					getLogger().warn("Unable to find practitioner FHIR IDs for slot in {}", appointmentFindResponse.getRawJson());
+				} else {
+					for (String epicPractitionerFhirId : epicPractitionerFhirIds) {
+						Provider provider = providersByEpicPractitionerFhirId.get(epicPractitionerFhirId);
+
+						if (provider == null) {
+							getLogger().warn("Unable to find a provider with practitioner FHIR ID {}", epicPractitionerFhirId);
+						} else {
+							AppointmentFindFhirStu3Response.Entry.Resource.Participant practitioner = entry.getResource().getParticipant().stream()
+									.filter(participant -> participant.getActor().getReference().endsWith(epicPractitionerFhirId))
+									.findAny()
+									.get();
+
+							Map<LocalDate, AvailabilityDate> availabilityDatesByDate = availabilityDatesByDateByProviderId.get(provider.getProviderId());
+							AvailabilityDate availabilityDate = availabilityDatesByDate.get(slotDate);
+
+							if (availabilityDate == null) {
+								availabilityDate = new AvailabilityDate();
+								availabilityDate.setDate(slotDate);
+								availabilityDate.setTimes(new ArrayList<>());
+								availabilityDatesByDate.put(slotDate, availabilityDate);
+							}
+
+							AvailabilityTime availabilityTime = null;
+
+							for (AvailabilityTime potentialAvailabilityTime : availabilityDate.getTimes()) {
+								if (potentialAvailabilityTime.getTime().equals(slotTime)) {
+									availabilityTime = potentialAvailabilityTime;
+									break;
+								}
+							}
+
+							if (availabilityTime == null) {
+								availabilityTime = new AvailabilityTime();
+								availabilityTime.setTime(slotTime);
+								availabilityTime.setStatus(AvailabilityStatus.AVAILABLE);
+								availabilityTime.setAppointmentTypeIds(new ArrayList<>());
+								availabilityTime.setSlotStatusCodesByAppointmentTypeId(new HashMap<>());
+								availabilityTime.setAppointmentStatusCodesByAppointmentTypeId(new HashMap<>());
+								availabilityTime.setAppointmentParticipantStatusCodesByAppointmentTypeId(new HashMap<>());
+							}
+
+							List<AppointmentType> potentialAppointmentTypes = appointmentTypesByProviderId.get(provider.getProviderId());
+							AppointmentType appointmentType = null;
+
+							for (AppointmentType potentialAppointmentType : potentialAppointmentTypes) {
+								if (potentialAppointmentType.getEpicVisitTypeSystem().equals(appointmentTypeCoding.getSystem())) {
+									appointmentType = potentialAppointmentType;
+									break;
+								}
+							}
+
+							availabilityTime.getAppointmentTypeIds().add(appointmentType.getAppointmentTypeId());
+							// TODO: fix these 2 statuses
+							availabilityTime.getAppointmentStatusCodesByAppointmentTypeId().put(appointmentType.getAppointmentTypeId(), entry.getResource().getStatus());
+							availabilityTime.getAppointmentParticipantStatusCodesByAppointmentTypeId().put(appointmentType.getAppointmentTypeId(), practitioner.getStatus());
+
+							// Assumes there is only one slot
+							if (entry.getResource().getContained().size() != 1)
+								throw new IllegalStateException(format("Invalid size of resource.contained element for %s", appointmentFindResponse.getRawJson()));
+
+							availabilityTime.getSlotStatusCodesByAppointmentTypeId().put(appointmentType.getAppointmentTypeId(), entry.getResource().getContained().get(0).getStatus());
+
+							availabilityDate.getTimes().add(availabilityTime);
+						}
+					}
+				}
+			}
+		}
+
+		// Normalize the data for returning
+		Map<UUID, List<AvailabilityDate>> availabilityDatesByEpicFhirProviderId = new HashMap<>();
+
+		for (Provider provider : providersThatUseEpicFhir) {
+			Map<LocalDate, AvailabilityDate> availabilityDatesByDate = availabilityDatesByDateByProviderId.get(provider.getProviderId());
+			List<AvailabilityDate> availabilityDates = new ArrayList<>(availabilityDatesByDate.values());
+
+			availabilityDatesByEpicFhirProviderId.put(provider.getProviderId(), availabilityDates);
+		}
+
+		return availabilityDatesByEpicFhirProviderId;
 	}
 
 	/**

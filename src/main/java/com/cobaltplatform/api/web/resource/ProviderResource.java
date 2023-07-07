@@ -410,6 +410,10 @@ public class ProviderResource {
 							normalizedTime.put("status", availabilityTime.getStatus());
 							normalizedTime.put("epicDepartmentId", availabilityTime.getEpicDepartmentId());
 							normalizedTime.put("appointmentTypeIds", availabilityTime.getAppointmentTypeIds());
+							normalizedTime.put("slotStatusCodesByAppointmentTypeId", availabilityTime.getSlotStatusCodesByAppointmentTypeId());
+							normalizedTime.put("appointmentStatusCodesByAppointmentTypeId", availabilityTime.getAppointmentStatusCodesByAppointmentTypeId());
+							normalizedTime.put("appointmentParticipantStatusCodesByAppointmentTypeId", availabilityTime.getAppointmentParticipantStatusCodesByAppointmentTypeId());
+
 							normalizedTimes.add(normalizedTime);
 						}
 
