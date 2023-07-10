@@ -91,6 +91,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -117,6 +118,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -387,7 +389,7 @@ public class ProviderResource {
 		}
 
 		// 5. Walk grouped dates to prepare for response
-		List<Object> sections = new ArrayList<>(providerFindsByDate.size());
+		List<ProviderFindSection> sections = new ArrayList<>(providerFindsByDate.size());
 
 		for (Entry<LocalDate, List<ProviderFind>> entry : providerFindsByDate.entrySet()) {
 			LocalDate date = entry.getKey();
@@ -455,11 +457,11 @@ public class ProviderResource {
 				normalizedProviderFinds.add(normalizedProviderFind);
 			}
 
-			Map<String, Object> section = new LinkedHashMap<>();
-			section.put("date", date);
-			section.put("dateDescription", getFormatter().formatDate(date, FormatStyle.FULL));
-			section.put("fullyBooked", allProvidersFullyBooked);
-			section.put("providers", normalizedProviderFinds);
+			ProviderFindSection section = new ProviderFindSection();
+			section.setDate(date);
+			section.setDateDescription(getFormatter().formatDate(date, FormatStyle.FULL));
+			section.setFullyBooked(allProvidersFullyBooked);
+			section.setProviders(normalizedProviderFinds);
 
 			sections.add(section);
 		}
@@ -565,8 +567,62 @@ public class ProviderResource {
 						.thenComparing(Followup::getAccountId))
 				.collect(Collectors.toList());
 
+		// If there are "runs" of sections with no providers, collapse them into a single section
+		List<ProviderFindSection> finalSections = new ArrayList<>(sections.size());
+
+		// If there are not enough to collapse, use as-is
+		if (sections.size() < 2) {
+			finalSections.addAll(sections);
+		} else {
+			// There are enough sections to attempt collapsing empty sections.  Do that here
+			ProviderFindSection firstEmptySectionInRange = null;
+
+			for (ProviderFindSection section : sections) {
+				List<Object> providers = section.getProviders();
+
+				if (providers.size() > 0) {
+					LocalDate previousDay = section.getDate().minusDays(1);
+
+					if (firstEmptySectionInRange != null) {
+						if (firstEmptySectionInRange.getDate().equals(previousDay)) {
+							// Range of 1: put it in as-is
+							finalSections.add(firstEmptySectionInRange);
+						} else {
+							// Range of > 1: make it a range
+							firstEmptySectionInRange.setEndDate(previousDay);
+							firstEmptySectionInRange.setDateDescription(format("%s - %s",
+									getFormatter().formatDate(firstEmptySectionInRange.getDate(), FormatStyle.FULL), getFormatter().formatDate(previousDay, FormatStyle.FULL)));
+							finalSections.add(firstEmptySectionInRange);
+						}
+
+						firstEmptySectionInRange = null;
+					}
+					
+					finalSections.add(section);
+				} else if (firstEmptySectionInRange == null) {
+					firstEmptySectionInRange = section;
+				}
+			}
+
+			// Catch any empty sections at the end of the list
+			if (firstEmptySectionInRange != null) {
+				LocalDate previousDay = sections.get(sections.size() - 1).getDate().minusDays(1);
+
+				if (firstEmptySectionInRange.getDate().equals(previousDay)) {
+					// Range of 1: put it in as-is
+					finalSections.add(firstEmptySectionInRange);
+				} else {
+					// Range of > 1: make it a range
+					firstEmptySectionInRange.setEndDate(previousDay);
+					firstEmptySectionInRange.setDateDescription(format("%s - %s",
+							getFormatter().formatDate(firstEmptySectionInRange.getDate(), FormatStyle.FULL), getFormatter().formatDate(previousDay, FormatStyle.FULL)));
+					finalSections.add(firstEmptySectionInRange);
+				}
+			}
+		}
+
 		return new ApiResponse(new LinkedHashMap<String, Object>() {{
-			put("sections", sections);
+			put("sections", finalSections);
 			put("appointmentTypes", appointmentTypesJson);
 			put("epicDepartments", epicDepartmentsJson);
 
@@ -596,6 +652,64 @@ public class ProviderResource {
 						.map(followup -> getFollowupApiResponseFactory().create(followup, Set.of(FollowupApiResponseSupplement.ALL)))
 						.collect(Collectors.toList()));
 		}});
+	}
+
+	protected static class ProviderFindSection {
+		@Nullable
+		private LocalDate date;
+		@Nullable
+		private LocalDate endDate; // Used for empty ranges
+		@Nullable
+		private String dateDescription;
+		@Nullable
+		private Boolean fullyBooked;
+		@Nullable
+		private List<Object> providers;
+
+		@Nullable
+		public LocalDate getDate() {
+			return this.date;
+		}
+
+		public void setDate(@Nullable LocalDate date) {
+			this.date = date;
+		}
+
+		@Nullable
+		public LocalDate getEndDate() {
+			return this.endDate;
+		}
+
+		public void setEndDate(@Nullable LocalDate endDate) {
+			this.endDate = endDate;
+		}
+
+		@Nullable
+		public String getDateDescription() {
+			return this.dateDescription;
+		}
+
+		public void setDateDescription(@Nullable String dateDescription) {
+			this.dateDescription = dateDescription;
+		}
+
+		@Nullable
+		public Boolean getFullyBooked() {
+			return this.fullyBooked;
+		}
+
+		public void setFullyBooked(@Nullable Boolean fullyBooked) {
+			this.fullyBooked = fullyBooked;
+		}
+
+		@Nullable
+		public List<Object> getProviders() {
+			return this.providers;
+		}
+
+		public void setProviders(@Nullable List<Object> providers) {
+			this.providers = providers;
+		}
 	}
 
 	@Nonnull

@@ -934,9 +934,7 @@ public class ProviderService {
 					for (String epicPractitionerFhirId : epicPractitionerFhirIds) {
 						Provider provider = providersByEpicPractitionerFhirId.get(epicPractitionerFhirId);
 
-						if (provider == null) {
-							getLogger().warn("Unable to find a provider with practitioner FHIR ID {}", epicPractitionerFhirId);
-						} else {
+						if (provider != null) {
 							AppointmentFindFhirStu3Response.Entry.Resource.Participant practitioner = entry.getResource().getParticipant().stream()
 									.filter(participant -> participant.getActor().getReference().endsWith(epicPractitionerFhirId))
 									.findAny()
