@@ -36,8 +36,10 @@ import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.epic.EpicClient;
 import com.cobaltplatform.api.integration.epic.EpicSyncManager;
+import com.cobaltplatform.api.integration.epic.request.AppointmentBookFhirStu3Request;
 import com.cobaltplatform.api.integration.epic.request.GetProviderScheduleRequest;
 import com.cobaltplatform.api.integration.epic.request.ScheduleAppointmentWithInsuranceRequest;
+import com.cobaltplatform.api.integration.epic.response.AppointmentBookFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse;
 import com.cobaltplatform.api.integration.epic.response.ScheduleAppointmentWithInsuranceResponse;
 import com.cobaltplatform.api.integration.gcal.GoogleCalendarUrlGenerator;
@@ -553,6 +555,7 @@ public class AppointmentService {
 		String emailAddress = getNormalizer().normalizeEmailAddress(request.getEmailAddress()).orElse(null);
 		String phoneNumber = trimToNull(request.getPhoneNumber());
 		String comment = trimToNull(request.getComment());
+		String epicAppointmentFhirId = trimToNull(request.getEpicAppointmentFhirId());
 		Account account = null;
 		AppointmentType appointmentType = null;
 		UUID appointmentId = UUID.randomUUID();
@@ -611,6 +614,9 @@ public class AppointmentService {
 
 		Provider provider = getProviderService().findProviderById(providerId).get();
 		Institution institution = getInstitutionService().findInstitutionById(provider.getInstitutionId()).get();
+
+		if (provider.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR && epicAppointmentFhirId == null)
+			throw new ValidationException(new FieldError("epicAppointmentFhirId", getStrings().get("Epic FHIR Appointment ID is required.")));
 
 		if (appointmentReasonId == null)
 			appointmentReasonId = findNotSpecifiedAppointmentReasonByInstitutionId(institution.getInstitutionId()).getAppointmentReasonId();
@@ -857,6 +863,17 @@ public class AppointmentService {
 			}
 		} else if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.COBALT) {
 			// Nothing to do for now
+		} else if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR) {
+			EnterprisePlugin enterprisePlugin = enterprisePluginProvider.enterprisePluginForInstitutionId(account.getInstitutionId());
+			EpicClient epicClient = enterprisePlugin.epicClientForBackendService().get();
+
+			AppointmentBookFhirStu3Request appointmentBookRequest = new AppointmentBookFhirStu3Request();
+			appointmentBookRequest.setAppointment(epicAppointmentFhirId);
+			appointmentBookRequest.setPatient(account.getEpicPatientFhirId());
+			appointmentBookRequest.setAppointmentNote(getStrings().get("Booked via Cobalt"));
+
+			// TODO: examine response, better error handling for Epic FHIR appointment bookings
+			AppointmentBookFhirStu3Response appointmentBookResponse = epicClient.appointmentBookFhirStu3(appointmentBookRequest);
 		} else {
 			throw new RuntimeException(format("Unexpected value %s.%s provided", SchedulingSystemId.class.getSimpleName(), appointmentType.getSchedulingSystemId().name()));
 		}
@@ -894,10 +911,11 @@ public class AppointmentService {
 		getDatabase().execute("INSERT INTO appointment (appointment_id, provider_id, account_id, created_by_account_id, " +
 						"appointment_type_id, acuity_appointment_id, bluejeans_meeting_id, bluejeans_participant_passcode, title, start_time, end_time, " +
 						"duration_in_minutes, time_zone, videoconference_url, epic_contact_id, epic_contact_id_type, videoconference_platform_id, " +
-						"phone_number, appointment_reason_id, comment, intake_assessment_id, scheduling_system_id, intake_account_session_id, patient_order_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", appointmentId, providerId,
+						"phone_number, appointment_reason_id, comment, intake_assessment_id, scheduling_system_id, intake_account_session_id, patient_order_id, epic_appointment_fhir_id) " +
+						"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", appointmentId, providerId,
 				accountId, createdByAccountId, appointmentTypeId, acuityAppointmentId, bluejeansMeetingId, bluejeansParticipantPasscode,
 				title, meetingStartTime, meetingEndTime, durationInMinutes, timeZone, videoconferenceUrl, epicContactId,
-				epicContactIdType, videoconferencePlatformId, appointmentPhoneNumber, appointmentReasonId, comment, intakeAssessmentId, appointmentType.getSchedulingSystemId(), intakeAccountSessionId, patientOrderId);
+				epicContactIdType, videoconferencePlatformId, appointmentPhoneNumber, appointmentReasonId, comment, intakeAssessmentId, appointmentType.getSchedulingSystemId(), intakeAccountSessionId, patientOrderId, epicAppointmentFhirId);
 
 		sendProviderScoreEmail(provider, account, emailAddress, phoneNumber, videoconferenceUrl,
 				getFormatter().formatDate(meetingStartTime.toLocalDate()),
@@ -1545,6 +1563,19 @@ public class AppointmentService {
 					getLogger().info("Appointment is already canceled, not re-canceling.");
 					return false;
 				}
+
+				// Special behavior: you cannot directly cancel an Epic FHIR appointment
+				if (appointment.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR) {
+					Provider provider = getProviderService().findProviderById(appointment.getProviderId()).get();
+					Institution institution = getInstitutionService().findInstitutionById(provider.getInstitutionId()).get();
+					String clinicalSupportPhoneNumber = institution.getClinicalSupportPhoneNumber();
+
+					if (clinicalSupportPhoneNumber == null)
+						validationException.add(getStrings().get("Appointment ID is invalid."));
+					else
+						validationException.add(getStrings().get("In order to cancel this appointment, please call {{phoneNumber}}.",
+								Map.of("phoneNumber", getFormatter().formatPhoneNumber(clinicalSupportPhoneNumber))));
+				}
 			}
 		}
 
@@ -1713,6 +1744,11 @@ public class AppointmentService {
 
 		if (provider.getSchedulingSystemId() == SchedulingSystemId.COBALT) {
 			getLogger().debug("Provider {} uses native scheduling, do not send a provider score email.", provider.getName());
+			return;
+		}
+
+		if (provider.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR) {
+			getLogger().debug("Provider {} uses Epic FHIR scheduling, do not send a provider score email.", provider.getName());
 			return;
 		}
 

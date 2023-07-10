@@ -54,6 +54,8 @@ public class CreateAppointmentRequest {
 	private String phoneNumber;
 	@Nullable
 	private String comment;
+	@Nullable
+	private String epicAppointmentFhirId; // only required for Epic FHIR scheduling system
 
 	@Nullable
 	public UUID getAccountId() {
@@ -161,5 +163,14 @@ public class CreateAppointmentRequest {
 
 	public void setComment(@Nullable String comment) {
 		this.comment = comment;
+	}
+
+	@Nullable
+	public String getEpicAppointmentFhirId() {
+		return this.epicAppointmentFhirId;
+	}
+
+	public void setEpicAppointmentFhirId(@Nullable String epicAppointmentFhirId) {
+		this.epicAppointmentFhirId = epicAppointmentFhirId;
 	}
 }
