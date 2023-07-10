@@ -963,6 +963,7 @@ public class ProviderService {
 								availabilityTime = new AvailabilityTime();
 								availabilityTime.setTime(slotTime);
 								availabilityTime.setStatus(AvailabilityStatus.AVAILABLE);
+								availabilityTime.setEpicAppointmentFhirId(entry.getResource().getId());
 								availabilityTime.setAppointmentTypeIds(new ArrayList<>());
 								availabilityTime.setSlotStatusCodesByAppointmentTypeId(new HashMap<>());
 								availabilityTime.setAppointmentStatusCodesByAppointmentTypeId(new HashMap<>());
@@ -980,7 +981,6 @@ public class ProviderService {
 							}
 
 							availabilityTime.getAppointmentTypeIds().add(appointmentType.getAppointmentTypeId());
-							// TODO: fix these 2 statuses
 							availabilityTime.getAppointmentStatusCodesByAppointmentTypeId().put(appointmentType.getAppointmentTypeId(), entry.getResource().getStatus());
 							availabilityTime.getAppointmentParticipantStatusCodesByAppointmentTypeId().put(appointmentType.getAppointmentTypeId(), practitioner.getStatus());
 

@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.integration.epic;
 
+import com.cobaltplatform.api.integration.epic.code.AppointmentParticipantStatusCode;
+import com.cobaltplatform.api.integration.epic.code.AppointmentStatusCode;
 import com.cobaltplatform.api.integration.epic.code.SlotStatusCode;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -113,6 +115,30 @@ public final class EpicUtilities {
 			@Override
 			public SlotStatusCode read(JsonReader in) throws IOException {
 				return SlotStatusCode.fromFhirValue(in.nextString()).orElse(null);
+			}
+		});
+
+		gsonBuilder.registerTypeAdapter(AppointmentStatusCode.class, new TypeAdapter<AppointmentStatusCode>() {
+			@Override
+			public void write(JsonWriter out, AppointmentStatusCode value) throws IOException {
+				out.value(value.getFhirValue());
+			}
+
+			@Override
+			public AppointmentStatusCode read(JsonReader in) throws IOException {
+				return AppointmentStatusCode.fromFhirValue(in.nextString()).orElse(null);
+			}
+		});
+
+		gsonBuilder.registerTypeAdapter(AppointmentParticipantStatusCode.class, new TypeAdapter<AppointmentParticipantStatusCode>() {
+			@Override
+			public void write(JsonWriter out, AppointmentParticipantStatusCode value) throws IOException {
+				out.value(value.getFhirValue());
+			}
+
+			@Override
+			public AppointmentParticipantStatusCode read(JsonReader in) throws IOException {
+				return AppointmentParticipantStatusCode.fromFhirValue(in.nextString()).orElse(null);
 			}
 		});
 

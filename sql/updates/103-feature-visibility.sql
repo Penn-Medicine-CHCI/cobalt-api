@@ -47,4 +47,7 @@ WHERE active=TRUE;
 -- Should be populated for EPIC_FHIR providers
 ALTER TABLE provider ADD COLUMN epic_practitioner_fhir_id TEXT;
 
+-- Should be populated for bookings with EPIC_FHIR providers
+ALTER TABLE appointment ADD COLUMN epic_appointment_fhir_id TEXT;
+
 COMMIT;

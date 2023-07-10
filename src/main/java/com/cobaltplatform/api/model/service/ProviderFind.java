@@ -152,6 +152,8 @@ public class ProviderFind {
 		@Nullable
 		private UUID epicDepartmentId; // Optional, Epic-only
 		@Nullable
+		private String epicAppointmentFhirId; // Optional, Epic FHIR-only
+		@Nullable
 		private Map<UUID, SlotStatusCode> slotStatusCodesByAppointmentTypeId; // Optional, Epic FHIR-only
 		@Nullable
 		private Map<UUID, AppointmentStatusCode> appointmentStatusCodesByAppointmentTypeId; // Optional, Epic FHIR-only
@@ -197,6 +199,15 @@ public class ProviderFind {
 
 		public void setEpicDepartmentId(@Nullable UUID epicDepartmentId) {
 			this.epicDepartmentId = epicDepartmentId;
+		}
+
+		@Nullable
+		public String getEpicAppointmentFhirId() {
+			return this.epicAppointmentFhirId;
+		}
+
+		public void setEpicAppointmentFhirId(@Nullable String epicAppointmentFhirId) {
+			this.epicAppointmentFhirId = epicAppointmentFhirId;
 		}
 
 		@Nullable

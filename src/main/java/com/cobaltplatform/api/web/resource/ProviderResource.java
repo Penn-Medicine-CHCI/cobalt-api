@@ -20,6 +20,9 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.integration.epic.code.AppointmentParticipantStatusCode;
+import com.cobaltplatform.api.integration.epic.code.AppointmentStatusCode;
+import com.cobaltplatform.api.integration.epic.code.SlotStatusCode;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest.ProviderFindAvailability;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest.ProviderFindSupplement;
@@ -44,6 +47,7 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentTime;
 import com.cobaltplatform.api.model.db.AppointmentTime.AppointmentTimeId;
+import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Clinic;
 import com.cobaltplatform.api.model.db.Feature;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
@@ -53,6 +57,7 @@ import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PaymentType;
 import com.cobaltplatform.api.model.db.Provider;
+import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.Specialty;
 import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
@@ -303,6 +308,10 @@ public class ProviderResource {
 		}
 
 		// 1. Pull raw data
+		List<AppointmentType> appointmentTypes = getAppointmentService().findAppointmentTypesByInstitutionId(institution.getInstitutionId());
+		Map<UUID, AppointmentType> appointmentTypesById = appointmentTypes.stream()
+				.collect(Collectors.toMap(appointmentType -> appointmentType.getAppointmentTypeId(), Function.identity()));
+
 		List<ProviderFind> providerFinds = getProviderService().findProviders(request, account);
 
 		// 2. Throw out results that don't fall within specified appointment time windows
@@ -406,11 +415,36 @@ public class ProviderResource {
 				for (AvailabilityDate availabilityDate : providerFind.getDates()) {
 					if (availabilityDate.getDate().equals(date)) {
 						for (AvailabilityTime availabilityTime : availabilityDate.getTimes()) {
+							String timeDescription = normalizeTimeFormat(formatter.formatTime(availabilityTime.getTime(), FormatStyle.SHORT), locale);
+
+							// TODO: remove this special test handling for Epic FHIR slots
+							if (providerFind.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR) {
+								List<AppointmentType> slotAppointmentTypes = availabilityTime.getAppointmentTypeIds().stream()
+										.map(appointmentTypeId -> appointmentTypesById.get(appointmentTypeId))
+										.collect(Collectors.toList());
+
+								List<String> debugSupplements = new ArrayList<>(slotAppointmentTypes.size());
+
+								for (AppointmentType slotAppointmentType : slotAppointmentTypes) {
+									SlotStatusCode slotStatusCode = availabilityTime.getSlotStatusCodesByAppointmentTypeId().get(slotAppointmentType.getAppointmentTypeId());
+									AppointmentStatusCode appointmentStatusCode = availabilityTime.getAppointmentStatusCodesByAppointmentTypeId().get(slotAppointmentType.getAppointmentTypeId());
+									AppointmentParticipantStatusCode appointmentParticipantStatusCode = availabilityTime.getAppointmentParticipantStatusCodesByAppointmentTypeId().get(slotAppointmentType.getAppointmentTypeId());
+
+									debugSupplements.add(format("(%s: [slot=%s, appointment=%s, participant=%s])", slotAppointmentType.getName(),
+											(slotStatusCode == null ? null : slotStatusCode.getFhirValue()),
+											(appointmentStatusCode == null ? null : appointmentStatusCode.getFhirValue()),
+											(appointmentParticipantStatusCode == null ? null : appointmentParticipantStatusCode.getFhirValue())));
+								}
+
+								timeDescription = timeDescription + " " + debugSupplements.stream().collect(Collectors.joining(", "));
+							}
+
 							Map<String, Object> normalizedTime = new LinkedHashMap<>();
 							normalizedTime.put("time", availabilityTime.getTime());
-							normalizedTime.put("timeDescription", normalizeTimeFormat(formatter.formatTime(availabilityTime.getTime(), FormatStyle.SHORT), locale));
+							normalizedTime.put("timeDescription", timeDescription);
 							normalizedTime.put("status", availabilityTime.getStatus());
 							normalizedTime.put("epicDepartmentId", availabilityTime.getEpicDepartmentId());
+							normalizedTime.put("epicAppointmentFhirId", availabilityTime.getEpicAppointmentFhirId());
 							normalizedTime.put("appointmentTypeIds", availabilityTime.getAppointmentTypeIds());
 							normalizedTime.put("slotStatusCodesByAppointmentTypeId", availabilityTime.getSlotStatusCodesByAppointmentTypeId());
 							normalizedTime.put("appointmentStatusCodesByAppointmentTypeId", availabilityTime.getAppointmentStatusCodesByAppointmentTypeId());
@@ -474,7 +508,7 @@ public class ProviderResource {
 			if (providerFind.getAppointmentTypeIds() != null)
 				appointmentTypeIds.addAll(providerFind.getAppointmentTypeIds());
 
-		List<Map<String, Object>> appointmentTypesJson = getAppointmentService().findAppointmentTypesByInstitutionId(institution.getInstitutionId()).stream()
+		List<Map<String, Object>> appointmentTypesJson = appointmentTypes.stream()
 				.filter((appointmentType -> appointmentTypeIds.contains(appointmentType.getAppointmentTypeId())))
 				.map((appointmentType -> {
 					Map<String, Object> appointmentTypeJson = new LinkedHashMap<>();
@@ -597,7 +631,7 @@ public class ProviderResource {
 
 						firstEmptySectionInRange = null;
 					}
-					
+
 					finalSections.add(section);
 				} else if (firstEmptySectionInRange == null) {
 					firstEmptySectionInRange = section;
