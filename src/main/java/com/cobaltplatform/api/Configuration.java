@@ -448,6 +448,12 @@ public class Configuration {
 	}
 
 	@Nonnull
+	public Boolean isLocal() {
+		String environment = getEnvironment().toLowerCase(Locale.US);
+		return environment.equals("local");
+	}
+
+	@Nonnull
 	public Boolean isProduction() {
 		String environment = getEnvironment().toLowerCase(Locale.US);
 		return environment.equals("prod") || environment.endsWith("-prod");

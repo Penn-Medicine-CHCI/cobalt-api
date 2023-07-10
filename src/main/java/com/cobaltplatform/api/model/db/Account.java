@@ -102,16 +102,9 @@ public class Account {
 	@Nullable
 	private String ssoAttributes; // JSONB
 	@Nullable
-	private String epicPatientId;
-	@Nullable
-	private String epicPatientIdType;
-	@Nullable
 	private String epicPatientMrn;
 	@Nullable
 	private String epicPatientFhirId;
-	@Deprecated
-	@Nullable
-	private Boolean epicPatientCreatedByCobalt;
 	@Nullable
 	private String microsoftId;
 	@Nullable
@@ -380,24 +373,6 @@ public class Account {
 	}
 
 	@Nullable
-	public String getEpicPatientId() {
-		return epicPatientId;
-	}
-
-	public void setEpicPatientId(@Nullable String epicPatientId) {
-		this.epicPatientId = epicPatientId;
-	}
-
-	@Nullable
-	public String getEpicPatientIdType() {
-		return epicPatientIdType;
-	}
-
-	public void setEpicPatientIdType(@Nullable String epicPatientIdType) {
-		this.epicPatientIdType = epicPatientIdType;
-	}
-
-	@Nullable
 	public String getEpicPatientMrn() {
 		return this.epicPatientMrn;
 	}
@@ -413,17 +388,6 @@ public class Account {
 
 	public void setEpicPatientFhirId(@Nullable String epicPatientFhirId) {
 		this.epicPatientFhirId = epicPatientFhirId;
-	}
-
-	@Nullable
-	@Deprecated
-	public Boolean getEpicPatientCreatedByCobalt() {
-		return epicPatientCreatedByCobalt;
-	}
-
-	@Deprecated
-	public void setEpicPatientCreatedByCobalt(@Nullable Boolean epicPatientCreatedByCobalt) {
-		this.epicPatientCreatedByCobalt = epicPatientCreatedByCobalt;
 	}
 
 	@Nullable

@@ -26,7 +26,7 @@ import com.cobaltplatform.api.model.db.AnonymousAccountExpirationStrategy.Anonym
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
-import com.cobaltplatform.api.model.service.FeaturesForInstitution;
+import com.cobaltplatform.api.model.service.FeatureForInstitution;
 import com.cobaltplatform.api.model.service.NavigationItem;
 import com.cobaltplatform.api.service.AlertService;
 import com.cobaltplatform.api.service.InstitutionService;
@@ -119,7 +119,7 @@ public class InstitutionApiResponse {
 	@Nonnull
 	private final List<NavigationItem> additionalNavigationItems;
 	@Nonnull
-	private final List<FeaturesForInstitution> features;
+	private final List<FeatureForInstitution> features;
 	@Nonnull
 	private final Boolean takeFeatureScreening;
 	@Nonnull
@@ -349,7 +349,7 @@ public class InstitutionApiResponse {
 	}
 
 	@Nonnull
-	public List<FeaturesForInstitution> getFeatures() {
+	public List<FeatureForInstitution> getFeatures() {
 		return features;
 	}
 

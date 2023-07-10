@@ -79,6 +79,8 @@ public class Provider {
 	@Nullable
 	private EpicAppointmentFilterId epicAppointmentFilterId;
 	@Nullable
+	private String epicPractitionerFhirId;
+	@Nullable
 	private Boolean active;
 	@Nullable
 	private String tags; // e.g. ["Experienced Coach", "Calming Voice"]
@@ -295,6 +297,15 @@ public class Provider {
 
 	public void setEpicAppointmentFilterId(@Nullable EpicAppointmentFilterId epicAppointmentFilterId) {
 		this.epicAppointmentFilterId = epicAppointmentFilterId;
+	}
+
+	@Nullable
+	public String getEpicPractitionerFhirId() {
+		return this.epicPractitionerFhirId;
+	}
+
+	public void setEpicPractitionerFhirId(@Nullable String epicPractitionerFhirId) {
+		this.epicPractitionerFhirId = epicPractitionerFhirId;
 	}
 
 	@Nullable

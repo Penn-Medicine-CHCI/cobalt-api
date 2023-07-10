@@ -23,7 +23,6 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.model.db.Feature;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Filter;
-import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -36,6 +35,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
 
@@ -93,6 +93,20 @@ public class FeatureService {
 				FROM feature_filter 
 				WHERE feature_id = ? AND filter_id = ?""", Boolean.class, featureId, Filter.FilterId.LOCATION).get();
 	}
+
+	@Nonnull
+	public List<Feature> findFeaturesRecommendedForScreeningSessionId(@Nullable UUID screeningSessionId) {
+		if (screeningSessionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+					SELECT f.*
+					FROM feature f, screening_session_feature_recommendation ssfr
+					WHERE f.feature_id=ssfr.feature_id
+					AND ssfr.screening_session_id=?
+				""", Feature.class, screeningSessionId);
+	}
+
 
 	@Nonnull
 	protected Database getDatabase() {

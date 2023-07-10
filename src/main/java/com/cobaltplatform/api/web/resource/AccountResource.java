@@ -51,6 +51,7 @@ import com.cobaltplatform.api.model.api.response.AssessmentFormApiResponse.Asses
 import com.cobaltplatform.api.model.api.response.BetaFeatureAlertApiResponse.BetaFeatureAlertApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.FeatureApiResponse.FeatureApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionRequestApiResponse;
@@ -73,6 +74,7 @@ import com.cobaltplatform.api.model.db.AuditLogEvent.AuditLogEventId;
 import com.cobaltplatform.api.model.db.BetaFeatureAlert;
 import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.model.db.Content;
+import com.cobaltplatform.api.model.db.Feature;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionRequest;
 import com.cobaltplatform.api.model.db.GroupSessionRequestStatus.GroupSessionRequestStatusId;
@@ -80,7 +82,7 @@ import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
-import com.cobaltplatform.api.model.db.SupportRole;
+import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
@@ -91,10 +93,12 @@ import com.cobaltplatform.api.service.AssessmentService;
 import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.ContentService;
+import com.cobaltplatform.api.service.FeatureService;
 import com.cobaltplatform.api.service.GroupSessionService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.MyChartService;
 import com.cobaltplatform.api.service.ProviderService;
+import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.service.SessionService;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.LinkGenerator;
@@ -152,6 +156,10 @@ public class AccountResource {
 	@Nonnull
 	private final AppointmentService appointmentService;
 	@Nonnull
+	private final ScreeningService screeningService;
+	@Nonnull
+	private final FeatureService featureService;
+	@Nonnull
 	private final MyChartService myChartService;
 	@Nonnull
 	private final AccountApiResponseFactory accountApiResponseFactory;
@@ -161,6 +169,8 @@ public class AccountResource {
 	private final GroupSessionRequestApiResponseFactory groupSessionRequestApiResponseFactory;
 	@Nonnull
 	private final ContentApiResponseFactory contentApiResponseFactory;
+	@Nonnull
+	private final FeatureApiResponseFactory featureApiResponseFactory;
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
@@ -210,10 +220,13 @@ public class AccountResource {
 												 @Nonnull ContentService contentService,
 												 @Nonnull AppointmentService appointmentService,
 												 @Nonnull MyChartService myChartService,
+												 @Nonnull ScreeningService screeningService,
+												 @Nonnull FeatureService featureService,
 												 @Nonnull AccountApiResponseFactory accountApiResponseFactory,
 												 @Nonnull GroupSessionApiResponseFactory groupSessionApiResponseFactory,
 												 @Nonnull GroupSessionRequestApiResponseFactory groupSessionRequestApiResponseFactory,
 												 @Nonnull ContentApiResponseFactory contentApiResponseFactory,
+												 @Nonnull FeatureApiResponseFactory featureApiResponseFactory,
 												 @Nonnull Configuration configuration,
 												 @Nonnull RequestBodyParser requestBodyParser,
 												 @Nonnull Authenticator authenticator,
@@ -239,10 +252,13 @@ public class AccountResource {
 		requireNonNull(contentService);
 		requireNonNull(appointmentService);
 		requireNonNull(myChartService);
+		requireNonNull(screeningService);
+		requireNonNull(featureService);
 		requireNonNull(accountApiResponseFactory);
 		requireNonNull(groupSessionApiResponseFactory);
 		requireNonNull(groupSessionRequestApiResponseFactory);
 		requireNonNull(contentApiResponseFactory);
+		requireNonNull(featureApiResponseFactory);
 		requireNonNull(configuration);
 		requireNonNull(currentContextProvider);
 		requireNonNull(authenticator);
@@ -268,10 +284,13 @@ public class AccountResource {
 		this.contentService = contentService;
 		this.appointmentService = appointmentService;
 		this.myChartService = myChartService;
+		this.screeningService = screeningService;
+		this.featureService = featureService;
 		this.accountApiResponseFactory = accountApiResponseFactory;
 		this.groupSessionApiResponseFactory = groupSessionApiResponseFactory;
 		this.groupSessionRequestApiResponseFactory = groupSessionRequestApiResponseFactory;
 		this.contentApiResponseFactory = contentApiResponseFactory;
+		this.featureApiResponseFactory = featureApiResponseFactory;
 		this.configuration = configuration;
 		this.currentContextProvider = currentContextProvider;
 		this.requestBodyParser = requestBodyParser;
@@ -822,7 +841,7 @@ public class AccountResource {
 
 	@Nonnull
 	@AuthenticationRequired
-	@GET("/accounts/{accountId}/recommended-support-roles")
+	@GET("/accounts/{accountId}/provider-triage-recommended-features")
 	public ApiResponse accountRecommendedSupportRoles(@Nonnull @PathParameter UUID accountId) {
 		requireNonNull(accountId);
 
@@ -835,10 +854,18 @@ public class AccountResource {
 		if (!getAuthorizationService().canEditAccount(targetAccount, currentAccount))
 			throw new AuthorizationException();
 
-		List<SupportRole> supportRoles = getProviderService().findRecommendedSupportRolesForAccountId(accountId);
+		Institution institution = getInstitutionService().findInstitutionById(targetAccount.getInstitutionId()).get();
 
-		return new ApiResponse(Map.of("supportRoles", supportRoles.stream()
-				.map(supportRole -> getSupportRoleApiResponseFactory().create(supportRole))
+		ScreeningSession mostRecentCompletedProviderTriageScreeningSession =
+				getScreeningService().findMostRecentCompletedScreeningSession(targetAccount.getAccountId(), institution.getProviderTriageScreeningFlowId()).orElse(null);
+
+		List<Feature> features = List.of();
+
+		if (mostRecentCompletedProviderTriageScreeningSession != null)
+			features = getFeatureService().findFeaturesRecommendedForScreeningSessionId(mostRecentCompletedProviderTriageScreeningSession.getScreeningSessionId());
+
+		return new ApiResponse(Map.of("features", features.stream()
+				.map(feature -> getFeatureApiResponseFactory().create(feature))
 				.collect(Collectors.toList())));
 	}
 
@@ -1200,5 +1227,20 @@ public class AccountResource {
 	@Nonnull
 	protected SupportRoleApiResponseFactory getSupportRoleApiResponseFactory() {
 		return this.supportRoleApiResponseFactory;
+	}
+
+	@Nonnull
+	protected ScreeningService getScreeningService() {
+		return this.screeningService;
+	}
+
+	@Nonnull
+	protected FeatureService getFeatureService() {
+		return this.featureService;
+	}
+
+	@Nonnull
+	protected FeatureApiResponseFactory getFeatureApiResponseFactory() {
+		return this.featureApiResponseFactory;
 	}
 }

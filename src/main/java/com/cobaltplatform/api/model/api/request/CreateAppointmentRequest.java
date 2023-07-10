@@ -45,10 +45,6 @@ public class CreateAppointmentRequest {
 	@Nullable
 	private LocalTime time;
 	@Nullable
-	private String groupEventId;
-	@Nullable
-	private UUID groupEventTypeId;
-	@Nullable
 	private UUID appointmentTypeId;
 	@Nullable
 	private UUID intakeAssessmentId;
@@ -58,6 +54,8 @@ public class CreateAppointmentRequest {
 	private String phoneNumber;
 	@Nullable
 	private String comment;
+	@Nullable
+	private String epicAppointmentFhirId; // only required for Epic FHIR scheduling system
 
 	@Nullable
 	public UUID getAccountId() {
@@ -114,24 +112,6 @@ public class CreateAppointmentRequest {
 	}
 
 	@Nullable
-	public String getGroupEventId() {
-		return groupEventId;
-	}
-
-	public void setGroupEventId(@Nullable String groupEventId) {
-		this.groupEventId = groupEventId;
-	}
-
-	@Nullable
-	public UUID getGroupEventTypeId() {
-		return groupEventTypeId;
-	}
-
-	public void setGroupEventTypeId(@Nullable UUID groupEventTypeId) {
-		this.groupEventTypeId = groupEventTypeId;
-	}
-
-	@Nullable
 	public UUID getAppointmentTypeId() {
 		return appointmentTypeId;
 	}
@@ -183,5 +163,14 @@ public class CreateAppointmentRequest {
 
 	public void setComment(@Nullable String comment) {
 		this.comment = comment;
+	}
+
+	@Nullable
+	public String getEpicAppointmentFhirId() {
+		return this.epicAppointmentFhirId;
+	}
+
+	public void setEpicAppointmentFhirId(@Nullable String epicAppointmentFhirId) {
+		this.epicAppointmentFhirId = epicAppointmentFhirId;
 	}
 }

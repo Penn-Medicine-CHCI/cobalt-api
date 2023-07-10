@@ -2188,11 +2188,10 @@ public class PatientOrderService implements AutoCloseable {
 		List<PatientOrder> unassignedMatchingPatientOrders = getDatabase().queryForList("""
 				SELECT *
 				FROM patient_order
-				WHERE patient_id=?
-				AND patient_id_type=?
+				WHERE patient_mrn=?
 				AND institution_id=?
 				AND patient_account_id IS NULL
-				""", PatientOrder.class, patientAccount.getEpicPatientId(), patientAccount.getEpicPatientIdType(), patientAccount.getInstitutionId());
+				""", PatientOrder.class, patientAccount.getEpicPatientMrn(), patientAccount.getInstitutionId());
 
 		for (PatientOrder unassignedMatchingPatientOrder : unassignedMatchingPatientOrders) {
 			getLogger().info("Assigning patient account ID {} to patient order ID {}...", patientAccountId, unassignedMatchingPatientOrder.getPatientOrderId());

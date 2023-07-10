@@ -32,10 +32,10 @@ import com.cobaltplatform.api.model.db.InstitutionUrl;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
 import com.cobaltplatform.api.model.db.ScreeningSession;
-import com.cobaltplatform.api.model.db.SupportRole;
+import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
-import com.cobaltplatform.api.model.service.FeaturesForInstitution;
+import com.cobaltplatform.api.model.service.FeatureForInstitution;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -313,8 +313,8 @@ public class InstitutionService {
 	}
 
 	@Nonnull
-	public List<FeaturesForInstitution> findFeaturesByInstitutionId(@Nullable Institution institution,
-																																	@Nullable Account account) {
+	public List<FeatureForInstitution> findFeaturesByInstitutionId(@Nullable Institution institution,
+																																 @Nullable Account account) {
 		if (institution == null || account == null)
 			return List.of();
 
@@ -332,16 +332,16 @@ public class InstitutionService {
 					< screeningFlowVersion.getRecommendationExpirationMinutes()))
 				screeningSessionId = mostRecentCompletedFeatureScreeningSession.getScreeningSessionId();
 
-		List<FeaturesForInstitution> features = getDatabase().queryForList("SELECT f.feature_id, f.url_name, f.name, if.description, if.nav_description, " +
+		List<FeatureForInstitution> features = getDatabase().queryForList("SELECT f.feature_id, f.url_name, f.name, if.description, if.nav_description, if.nav_visible, " +
 				"CASE WHEN ss.screening_session_id IS NOT NULL THEN true ELSE false END AS recommended, f.navigation_header_id " +
 				"FROM institution_feature if, feature f  " +
 				"LEFT OUTER JOIN screening_session_feature_recommendation ss " +
 				"ON f.feature_id = ss.feature_id " +
 				"AND ss.screening_session_id = ? " +
-				"WHERE f.feature_id = if.feature_id AND if.institution_id = ? ORDER BY if.display_order", FeaturesForInstitution.class, screeningSessionId, institution.getInstitutionId());
+				"WHERE f.feature_id = if.feature_id AND if.institution_id = ? ORDER BY if.display_order", FeatureForInstitution.class, screeningSessionId, institution.getInstitutionId());
 
 		features.stream().map(feature -> {
-			List<SupportRole.SupportRoleId> supportRoleIds = getFeatureService().findSupportRoleByFeatureId(feature.getFeatureId());
+			List<SupportRoleId> supportRoleIds = getFeatureService().findSupportRoleByFeatureId(feature.getFeatureId());
 			feature.setSupportRoleIds(supportRoleIds);
 			if (!account.getPromptedForInstitutionLocation() && getFeatureService().featureSupportsLocation(feature.getFeatureId()))
 				feature.setLocationPromptRequired(true);

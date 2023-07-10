@@ -31,7 +31,7 @@ import java.util.List;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class FeaturesForInstitution {
+public class FeatureForInstitution {
 	@Nullable
 	private FeatureId featureId;
 	@Nullable
@@ -42,6 +42,8 @@ public class FeaturesForInstitution {
 	private String description;
 	@Nullable
 	private String navDescription;
+	@Nullable
+	private Boolean navVisible;
 	@Nullable
 	private Boolean recommended;
 	@Nullable
@@ -104,6 +106,15 @@ public class FeaturesForInstitution {
 
 	public void setNavDescription(@Nullable String navDescription) {
 		this.navDescription = navDescription;
+	}
+
+	@Nullable
+	public Boolean getNavVisible() {
+		return this.navVisible;
+	}
+
+	public void setNavVisible(@Nullable Boolean navVisible) {
+		this.navVisible = navVisible;
 	}
 
 	@Nullable

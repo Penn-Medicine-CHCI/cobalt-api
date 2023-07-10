@@ -47,14 +47,6 @@ import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse;
 import com.cobaltplatform.api.integration.epic.response.ScheduleAppointmentWithInsuranceResponse;
 import com.cobaltplatform.api.util.Normalizer;
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonPrimitive;
-import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
 import com.google.gson.reflect.TypeToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,7 +57,6 @@ import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Singleton;
 import java.io.IOException;
-import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -121,7 +112,7 @@ public class DefaultEpicClient implements EpicClient {
 
 		this.epicConfiguration = epicConfiguration;
 		this.httpClient = createHttpClient(epicConfiguration);
-		this.gson = createGson();
+		this.gson = EpicUtilities.defaultGson();
 		this.normalizer = new Normalizer();
 		this.dateFormatterHyphens = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.US); // e.g. 1987-04-21
 		this.dateFormatterSlashes = DateTimeFormatter.ofPattern("M/d/yyyy", Locale.US); // e.g. 6/8/2020
@@ -1006,49 +997,6 @@ public class DefaultEpicClient implements EpicClient {
 		Map<String, Object> map = getGson().fromJson(json, new TypeToken<Map<String, Object>>() {
 		}.getType());
 		return getGson().toJson(map);
-	}
-
-	@Nonnull
-	protected Gson createGson() {
-		GsonBuilder gsonBuilder = new GsonBuilder().setPrettyPrinting();
-
-		gsonBuilder.registerTypeAdapter(LocalDate.class, new JsonDeserializer<LocalDate>() {
-			@Override
-			@Nullable
-			public LocalDate deserialize(@Nullable JsonElement json,
-																	 @Nonnull Type type,
-																	 @Nonnull JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
-				requireNonNull(type);
-				requireNonNull(jsonDeserializationContext);
-
-				if (json == null)
-					return null;
-
-				JsonPrimitive jsonPrimitive = json.getAsJsonPrimitive();
-
-				if (jsonPrimitive.isString()) {
-					String string = trimToNull(json.getAsString());
-					return string == null ? null : LocalDate.parse(string);
-				}
-
-				throw new IllegalArgumentException(format("Unable to convert JSON value '%s' to %s", json, type));
-			}
-		});
-
-		gsonBuilder.registerTypeAdapter(LocalDate.class, new JsonSerializer<LocalDate>() {
-			@Override
-			@Nullable
-			public JsonElement serialize(@Nullable LocalDate localDate,
-																	 @Nonnull Type type,
-																	 @Nonnull JsonSerializationContext jsonSerializationContext) {
-				requireNonNull(type);
-				requireNonNull(jsonSerializationContext);
-
-				return localDate == null ? null : new JsonPrimitive(localDate.toString());
-			}
-		});
-
-		return gsonBuilder.create();
 	}
 
 	@Nonnull
