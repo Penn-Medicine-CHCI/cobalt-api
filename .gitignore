@@ -39,6 +39,7 @@ server.pid
 # Mirror repo does not include test data
 resources/test/
 resources/mock/epic/*/*.json
+resources/mock/hl7/*.txt
 
 # Node
 node_modules
