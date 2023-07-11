@@ -35,6 +35,7 @@ import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderRe
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.pyranid.DatabaseColumn;
 
@@ -306,6 +307,16 @@ public class PatientOrder {
 	private String patientOrderResourceCheckInResponseStatusDescription;
 	@Nullable
 	private Boolean resourceCheckInResponseNeeded;
+	@Nullable
+	private Boolean mostRecentScreeningSessionByPatient;
+	@Nullable
+	private Boolean appointmentScheduledByPatient;
+	@Nullable
+	private PatientOrderTriageSourceId patientOrderTriageSourceId;
+	@Nullable
+	private String patientOrderTriageReason;
+	@Nullable
+	private Boolean appointmentScheduled;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -1439,5 +1450,50 @@ public class PatientOrder {
 
 	public void setResourceCheckInResponseNeeded(@Nullable Boolean resourceCheckInResponseNeeded) {
 		this.resourceCheckInResponseNeeded = resourceCheckInResponseNeeded;
+	}
+
+	@Nullable
+	public Boolean getMostRecentScreeningSessionByPatient() {
+		return mostRecentScreeningSessionByPatient;
+	}
+
+	public void setMostRecentScreeningSessionByPatient(@Nullable Boolean mostRecentScreeningSessionByPatient) {
+		this.mostRecentScreeningSessionByPatient = mostRecentScreeningSessionByPatient;
+	}
+
+	@Nullable
+	public Boolean getAppointmentScheduledByPatient() {
+		return appointmentScheduledByPatient;
+	}
+
+	public void setAppointmentScheduledByPatient(@Nullable Boolean appointmentScheduledByPatient) {
+		this.appointmentScheduledByPatient = appointmentScheduledByPatient;
+	}
+
+	@Nullable
+	public PatientOrderTriageSourceId getPatientOrderTriageSourceId() {
+		return patientOrderTriageSourceId;
+	}
+
+	public void setPatientOrderTriageSourceId(@Nullable PatientOrderTriageSourceId patientOrderTriageSourceId) {
+		this.patientOrderTriageSourceId = patientOrderTriageSourceId;
+	}
+
+	@Nullable
+	public String getPatientOrderTriageReason() {
+		return patientOrderTriageReason;
+	}
+
+	public void setPatientOrderTriageReason(@Nullable String patientOrderTriageReason) {
+		this.patientOrderTriageReason = patientOrderTriageReason;
+	}
+
+	@Nullable
+	public Boolean getAppointmentScheduled() {
+		return appointmentScheduled;
+	}
+
+	public void setAppointmentScheduled(@Nullable Boolean appointmentScheduled) {
+		this.appointmentScheduled = appointmentScheduled;
 	}
 }
