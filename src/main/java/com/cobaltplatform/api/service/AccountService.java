@@ -456,8 +456,6 @@ public class AccountService {
 		String password = null;
 		Map<String, ?> ssoAttributes = request.getSsoAttributes();
 		String ssoAttributesAsJson = trimToNull(request.getSsoAttributesAsJson());
-		String epicPatientId = trimToNull(request.getEpicPatientId());
-		String epicPatientIdType = trimToNull(request.getEpicPatientIdType());
 		String epicPatientMrn = trimToNull(request.getEpicPatientMrn());
 		String epicPatientFhirId = trimToNull(request.getEpicPatientFhirId());
 		GenderIdentityId genderIdentityId = request.getGenderIdentityId() == null ? GenderIdentityId.NOT_ASKED : request.getGenderIdentityId();
@@ -564,15 +562,15 @@ public class AccountService {
 
 		getDatabase().execute("""
 						INSERT INTO account (
-						account_id, role_id, institution_id, account_source_id, source_system_id, sso_id, 
-						first_name, last_name, display_name, email_address, phone_number, sso_attributes, password, epic_patient_id, 
-						epic_patient_id_type, epic_patient_mrn, epic_patient_fhir_id, time_zone, gender_identity_id, ethnicity_id, 
+						account_id, role_id, institution_id, account_source_id, source_system_id, sso_id,
+						first_name, last_name, display_name, email_address, phone_number, sso_attributes, password, 
+						epic_patient_mrn, epic_patient_fhir_id, time_zone, gender_identity_id, ethnicity_id, 
 						birth_sex_id, race_id, birthdate
 						) 
-						VALUES (?,?,?,?,?,?,?,?,?,?,?,CAST(? AS JSONB),?,?,?,?,?,?,?,?,?,?,?)
+						VALUES (?,?,?,?,?,?,?,?,?,?,?,CAST(? AS JSONB),?,?,?,?,?,?,?,?,?)
 						""",
 				accountId, roleId, institutionId, accountSourceId, sourceSystemId, ssoId, firstName, lastName, displayName,
-				emailAddress, phoneNumber, finalSsoAttributesAsJson, password, epicPatientId, epicPatientIdType, epicPatientMrn,
+				emailAddress, phoneNumber, finalSsoAttributesAsJson, password, epicPatientMrn,
 				epicPatientFhirId, timeZone, genderIdentityId, ethnicityId, birthSexId, raceId, birthdate);
 
 		if (addressId != null) {
@@ -627,8 +625,6 @@ public class AccountService {
 				String testPassword = patientOrders.get(0).getTestPatientPassword();
 
 				UUID accountId = createAccount(new CreateAccountRequest() {{
-					setEpicPatientId(icTestPatientEmailAddress.getUid());
-					setEpicPatientIdType("UID");
 					setEpicPatientMrn(icTestPatientEmailAddress.getMrn());
 					setAccountSourceId(AccountSourceId.EMAIL_PASSWORD);
 					setRoleId(RoleId.PATIENT);
@@ -816,18 +812,13 @@ public class AccountService {
 	}
 
 	public void updateAccountEpicPatient(@Nullable UUID accountId,
-																			 @Nullable String epicPatientId,
-																			 @Nullable String epicPatientIdType) {
-		getDatabase().execute("UPDATE account SET epic_patient_id=?, epic_patient_id_type=? " +
-				"WHERE account_id = ?", epicPatientId, epicPatientIdType, accountId);
-	}
-
-	public void updateAccountEpicPatient(@Nullable UUID accountId,
-																			 @Nullable String epicPatientId,
-																			 @Nullable String epicPatientIdType,
-																			 @Nullable Boolean epicPatientCreatedByCobalt) {
-		getDatabase().execute("UPDATE account SET epic_patient_id=?, epic_patient_id_type=?, epic_patient_created_by_cobalt=? " +
-				"WHERE account_id = ?", epicPatientId, epicPatientIdType, epicPatientCreatedByCobalt, accountId);
+																			 @Nullable String epicPatientFhirId,
+																			 @Nullable String epicPatientMrn) {
+		getDatabase().execute("""
+				  UPDATE account
+				  SET epic_patient_fhir_id=?, epic_patient_mrn=?
+				  WHERE account_id=?
+				""", epicPatientFhirId, epicPatientMrn, accountId);
 	}
 
 	public void forgotPassword(@Nullable ForgotPasswordRequest request) {

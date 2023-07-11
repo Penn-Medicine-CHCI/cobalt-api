@@ -39,6 +39,7 @@ import com.cobaltplatform.api.model.db.InstitutionBlurb;
 import com.cobaltplatform.api.model.db.InstitutionBlurbType.InstitutionBlurbTypeId;
 import com.cobaltplatform.api.model.db.InstitutionTeamMember;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
+import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.MyChartService;
 import com.lokalized.Strings;
@@ -86,6 +87,8 @@ public class InstitutionResource {
 	@Nonnull
 	private final InstitutionService institutionService;
 	@Nonnull
+	private final AccountService accountService;
+	@Nonnull
 	private final MyChartService myChartService;
 	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
@@ -103,6 +106,7 @@ public class InstitutionResource {
 														 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
 														 @Nonnull InstitutionService institutionService,
 														 @Nonnull MyChartService myChartService,
+														 @Nonnull AccountService accountService,
 														 @Nonnull Provider<CurrentContext> currentContextProvider,
 														 @Nonnull Configuration configuration,
 														 @Nonnull Strings strings,
@@ -113,6 +117,7 @@ public class InstitutionResource {
 		requireNonNull(enterprisePluginProvider);
 		requireNonNull(institutionService);
 		requireNonNull(myChartService);
+		requireNonNull(accountService);
 		requireNonNull(currentContextProvider);
 		requireNonNull(configuration);
 		requireNonNull(strings);
@@ -124,6 +129,7 @@ public class InstitutionResource {
 		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.institutionService = institutionService;
 		this.myChartService = myChartService;
+		this.accountService = accountService;
 		this.currentContextProvider = currentContextProvider;
 		this.configuration = configuration;
 		this.strings = strings;
@@ -222,11 +228,16 @@ public class InstitutionResource {
 
 		String authenticationUrl = getMyChartService().generateAuthenticationUrlForInstitutionId(institutionId);
 
+		if (getConfiguration().isLocal())
+			authenticationUrl = authenticationUrl + "&accountId=" + getCurrentContext().getAccount().get().getAccountId();
+
 		if (redirectImmediately.isPresent() && redirectImmediately.get())
 			return new RedirectResponse(authenticationUrl, Type.TEMPORARY);
 
+		String pinnedAuthenticationUrl = authenticationUrl;
+
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("authenticationUrl", authenticationUrl);
+			put("authenticationUrl", pinnedAuthenticationUrl);
 		}});
 	}
 
@@ -268,6 +279,55 @@ public class InstitutionResource {
 		}});
 	}
 
+	@GET("/institutions/{institutionId}/mock-epic-token")
+	public Object mockEpicToken(@Nonnull @PathParameter InstitutionId institutionId) {
+		requireNonNull(institutionId);
+
+		if (!getConfiguration().isLocal())
+			throw new IllegalStateException();
+
+		throw new UnsupportedOperationException();
+	}
+
+	@GET("/institutions/{institutionId}/mock-epic-authorize")
+	public Object mockEpicAuthorize(@Nonnull @PathParameter InstitutionId institutionId,
+																	@Nonnull @QueryParameter UUID accountId) {
+		requireNonNull(institutionId);
+		requireNonNull(accountId);
+
+		if (!getConfiguration().isLocal())
+			throw new IllegalStateException();
+
+		return new RedirectResponse(format("/institutions/%s/mock-mychart-callback?accountId=%s", institutionId.name(), accountId), Type.TEMPORARY);
+	}
+
+	@GET("/institutions/{institutionId}/mock-mychart-callback")
+	public Object mockMychartCallback(@Nonnull @PathParameter InstitutionId institutionId,
+																		@Nonnull @QueryParameter UUID accountId) {
+		requireNonNull(institutionId);
+		requireNonNull(accountId);
+
+		if (!getConfiguration().isLocal())
+			throw new IllegalStateException();
+
+		getAccountService().updateAccountEpicPatient(accountId, format("fake-fhir-id-%s", UUID.randomUUID()),
+				format("fake-mrn-%s", UUID.randomUUID()));
+
+		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.PATIENT).get();
+
+		return new RedirectResponse(format("%s/connect-with-support/mental-health-providers", webappBaseUrl), Type.TEMPORARY);
+	}
+
+	@GET("/institutions/{institutionId}/mock-mychart-aud")
+	public Object mockMychartAud(@Nonnull @PathParameter InstitutionId institutionId) {
+		requireNonNull(institutionId);
+
+		if (!getConfiguration().isLocal())
+			throw new IllegalStateException();
+
+		throw new UnsupportedOperationException();
+	}
+
 	@Nonnull
 	protected InstitutionApiResponseFactory getInstitutionApiResponseFactory() {
 		return this.institutionApiResponseFactory;
@@ -286,6 +346,11 @@ public class InstitutionResource {
 	@Nonnull
 	protected MyChartService getMyChartService() {
 		return this.myChartService;
+	}
+
+	@Nonnull
+	protected AccountService getAccountService() {
+		return this.accountService;
 	}
 
 	@Nonnull
@@ -317,6 +382,4 @@ public class InstitutionResource {
 	protected Strings getStrings() {
 		return this.strings;
 	}
-
-
 }

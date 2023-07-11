@@ -51,6 +51,7 @@ import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.PatientOrderService;
 import com.cobaltplatform.api.service.ScreeningService;
+import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
@@ -69,6 +70,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -114,6 +116,8 @@ public class ScreeningResource {
 	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
+	private final Formatter formatter;
+	@Nonnull
 	private final Logger logger;
 
 	@Inject
@@ -129,7 +133,8 @@ public class ScreeningResource {
 													 @Nonnull ScreeningFlowVersionApiResponseFactory screeningFlowVersionApiResponseFactory,
 													 @Nonnull ScreeningConfirmationPromptApiResponseFactory screeningConfirmationPromptApiResponseFactory,
 													 @Nonnull ScreeningTypeApiResponseFactory screeningTypeApiResponseFactory,
-													 @Nonnull Provider<CurrentContext> currentContextProvider) {
+													 @Nonnull Provider<CurrentContext> currentContextProvider,
+													 @Nonnull Formatter formatter) {
 		requireNonNull(screeningService);
 		requireNonNull(patientOrderService);
 		requireNonNull(accountService);
@@ -143,6 +148,7 @@ public class ScreeningResource {
 		requireNonNull(screeningConfirmationPromptApiResponseFactory);
 		requireNonNull(screeningTypeApiResponseFactory);
 		requireNonNull(currentContextProvider);
+		requireNonNull(formatter);
 
 		this.screeningService = screeningService;
 		this.patientOrderService = patientOrderService;
@@ -157,6 +163,7 @@ public class ScreeningResource {
 		this.screeningConfirmationPromptApiResponseFactory = screeningConfirmationPromptApiResponseFactory;
 		this.screeningTypeApiResponseFactory = screeningTypeApiResponseFactory;
 		this.currentContextProvider = currentContextProvider;
+		this.formatter = formatter;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
@@ -523,16 +530,26 @@ public class ScreeningResource {
 				screeningFlow.getActiveScreeningFlowVersionId(), targetAccount.getAccountId());
 
 		boolean sessionFullyCompleted = false;
+		Instant sessionFullyCompletedAt = null;
 
 		// We are looking for any session that's "completed" but not "skipped"
 		for (ScreeningSession screeningSession : screeningSessions) {
 			if (screeningSession.getCompleted() && !screeningSession.getSkipped()) {
 				sessionFullyCompleted = true;
+				sessionFullyCompletedAt = screeningSession.getCompletedAt();
 				break;
 			}
 		}
 
-		return new ApiResponse(Map.of("sessionFullyCompleted", sessionFullyCompleted));
+		Map<String, Object> response = new HashMap<>();
+		response.put("sessionFullyCompleted", sessionFullyCompleted);
+
+		if (sessionFullyCompletedAt != null) {
+			response.put("sessionFullyCompletedAt", sessionFullyCompletedAt);
+			response.put("sessionFullyCompletedAtDescription", getFormatter().formatTimestamp(sessionFullyCompletedAt));
+		}
+
+		return new ApiResponse(response);
 	}
 
 	@Nonnull
@@ -616,6 +633,11 @@ public class ScreeningResource {
 	@Nonnull
 	protected CurrentContext getCurrentContext() {
 		return this.currentContextProvider.get();
+	}
+
+	@Nonnull
+	protected Formatter getFormatter() {
+		return this.formatter;
 	}
 
 	@Nonnull

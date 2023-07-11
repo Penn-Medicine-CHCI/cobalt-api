@@ -65,10 +65,6 @@ public class CreateAccountRequest {
 	@Nullable
 	private String password;
 	@Nullable
-	private String epicPatientId;
-	@Nullable
-	private String epicPatientIdType;
-	@Nullable
 	private String epicPatientMrn;
 	@Nullable
 	private String epicPatientFhirId;
@@ -201,25 +197,7 @@ public class CreateAccountRequest {
 	public void setPassword(@Nullable String password) {
 		this.password = password;
 	}
-
-	@Nullable
-	public String getEpicPatientId() {
-		return epicPatientId;
-	}
-
-	public void setEpicPatientId(@Nullable String epicPatientId) {
-		this.epicPatientId = epicPatientId;
-	}
-
-	@Nullable
-	public String getEpicPatientIdType() {
-		return epicPatientIdType;
-	}
-
-	public void setEpicPatientIdType(@Nullable String epicPatientIdType) {
-		this.epicPatientIdType = epicPatientIdType;
-	}
-
+	
 	@Nullable
 	public String getEpicPatientMrn() {
 		return this.epicPatientMrn;

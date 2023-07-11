@@ -36,10 +36,10 @@ import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.epic.EpicClient;
 import com.cobaltplatform.api.integration.epic.EpicSyncManager;
-import com.cobaltplatform.api.integration.epic.request.GetPatientAppointmentsRequest;
+import com.cobaltplatform.api.integration.epic.request.AppointmentBookFhirStu3Request;
 import com.cobaltplatform.api.integration.epic.request.GetProviderScheduleRequest;
 import com.cobaltplatform.api.integration.epic.request.ScheduleAppointmentWithInsuranceRequest;
-import com.cobaltplatform.api.integration.epic.response.GetPatientAppointmentsResponse;
+import com.cobaltplatform.api.integration.epic.response.AppointmentBookFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse;
 import com.cobaltplatform.api.integration.epic.response.ScheduleAppointmentWithInsuranceResponse;
 import com.cobaltplatform.api.integration.gcal.GoogleCalendarUrlGenerator;
@@ -91,7 +91,6 @@ import com.cobaltplatform.api.model.db.QuestionContentHint.QuestionContentHintId
 import com.cobaltplatform.api.model.db.QuestionType.QuestionTypeId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
-import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.db.VideoconferencePlatform.VideoconferencePlatformId;
 import com.cobaltplatform.api.model.db.VisitType;
@@ -104,7 +103,6 @@ import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.lokalized.Strings;
 import com.pyranid.Database;
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -124,14 +122,11 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
@@ -143,7 +138,6 @@ import static com.cobaltplatform.api.util.ValidationUtility.isValidHexColor;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
-import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
@@ -335,308 +329,9 @@ public class AppointmentService {
 			return Collections.emptyList();
 
 		Account account = getAccountService().findAccountById(accountId).get();
+
 		List<Appointment> appointments = getDatabase().queryForList("SELECT * FROM appointment WHERE account_id=? AND canceled=FALSE " +
 				"AND start_time >= ? ORDER BY start_time", Appointment.class, accountId, LocalDateTime.now(timeZone));
-
-		// If you're an Epic account, pull the schedule from Epic so we can reconcile data
-		if (account.getEpicPatientId() != null && getConfiguration().getShouldUseRealEpic()) {
-			EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(account.getInstitutionId()).epicClientForBackendService().get();
-			Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
-			LocalDate startDate = LocalDate.now(account.getTimeZone());
-			LocalDate endDate = startDate.plusDays(50L); // Arbitrary number of days in the future for now...
-
-			// SYNC ACCOUNT UID
-			String uid = epicClient.determineLatestUIDForPatientIdentifier(account.getEpicPatientId(), account.getEpicPatientIdType()).get();
-
-			if (!uid.equals(account.getEpicPatientId()))
-				getAccountService().updateAccountEpicPatient(account.getAccountId(), uid, "UID");
-
-			account = getAccountService().findAccountById(accountId).get();
-
-			GetPatientAppointmentsRequest request = new GetPatientAppointmentsRequest();
-			request.setPatientID(account.getEpicPatientId());
-			request.setPatientIDType(account.getEpicPatientIdType());
-			request.setUserID(institution.getEpicUserId());
-			request.setUserIDType(institution.getEpicUserIdType());
-			request.setIncludeAllStatuses("1");
-			request.setIncludeOutsideAppointments("1");
-			request.setStartDate(epicClient.formatDateWithSlashes(startDate));
-			request.setEndDate(epicClient.formatDateWithSlashes(endDate));
-			request.setExtraItems(List.of("7040", "7050", "28006")); // TODO: pull into plugin/data-drive
-
-			GetPatientAppointmentsResponse response = epicClient.performGetPatientAppointments(request);
-
-			Map<String, Object> payload = new HashMap<>();
-			payload.put("request", request);
-
-			AuditLog auditLog = new AuditLog();
-			auditLog.setAccountId(account.getAccountId());
-			auditLog.setAuditLogEventId(AuditLogEventId.EPIC_APPOINTMENT_LOOKUP);
-			auditLog.setPayload(getJsonMapper().toJson(payload));
-			getAuditLogService().audit(auditLog);
-
-			// Key EPIC and Local appointments by CSN for quick access
-			Map<String, GetPatientAppointmentsResponse.Appointment> epicAppointmentsByCSN = new HashMap<>(response.getAppointments().size());
-
-			for (GetPatientAppointmentsResponse.Appointment epicAppointment : response.getAppointments())
-				for (GetPatientAppointmentsResponse.Appointment.ContactID contactID : epicAppointment.getContactIDs())
-					if ("CSN".equals(contactID.getType()))
-						epicAppointmentsByCSN.put(contactID.getID(), epicAppointment);
-
-			Map<String, Appointment> localAppointmentsByCSN = new HashMap<>(appointments.size());
-
-			for (Appointment appointment : appointments)
-				if (appointment.getEpicContactId() != null)
-					localAppointmentsByCSN.put(appointment.getEpicContactId(), appointment);
-
-			Set<String> localAppointmentCSNsToCreate = new HashSet<>();
-			Set<String> localAppointmentCSNsToCancel = new HashSet<>();
-
-			for (Entry<String, GetPatientAppointmentsResponse.Appointment> epicAppointmentEntry : epicAppointmentsByCSN.entrySet()) {
-				String csn = epicAppointmentEntry.getKey();
-				Appointment localAppointment = localAppointmentsByCSN.get(csn);
-
-				// No local appointment was found for the EPIC CSN...we need to create this local appointment
-				if (localAppointment == null)
-					localAppointmentCSNsToCreate.add(csn);
-			}
-
-			for (Entry<String, Appointment> localAppointmentEntry : localAppointmentsByCSN.entrySet()) {
-				String csn = localAppointmentEntry.getKey();
-				GetPatientAppointmentsResponse.Appointment epicAppointment = epicAppointmentsByCSN.get(csn);
-
-				// No EPIC appointment was found for the local CSN...we need to cancel this local appointment
-				if (epicAppointment == null)
-					localAppointmentCSNsToCancel.add(csn);
-			}
-
-			// Cancel local appointments for which there is no corresponding EPIC appointment
-			for (String csn : localAppointmentCSNsToCancel) {
-				Appointment localAppointment = localAppointmentsByCSN.get(csn);
-
-				getLogger().info("Unable to find EPIC appointment with CSN {}, canceling local appointment ID {}...", csn, localAppointment.getAppointmentId());
-
-				// Kind of a "manual" cancel here since the appointment is already gone from Epic
-				getDatabase().execute("UPDATE appointment SET canceled=TRUE, attendance_status_id=?, canceled_at=NOW() WHERE appointment_id=?", AttendanceStatusId.CANCELED, localAppointment.getAppointmentId());
-
-				Map<String, Object> cancelPayload = new HashMap<>();
-				cancelPayload.put("csn", csn);
-				cancelPayload.put("appointmentId", localAppointment.getAppointmentId());
-
-				AuditLog cancelAuditLog = new AuditLog();
-				cancelAuditLog.setAccountId(account.getAccountId());
-				cancelAuditLog.setAuditLogEventId(AuditLogEventId.EPIC_APPOINTMENT_IMPLICIT_CANCEL);
-				cancelAuditLog.setMessage(format("Canceling local appointment ID %s because we cannot find CSN %s in EPIC", localAppointment.getAppointmentId(), csn));
-				cancelAuditLog.setPayload(getJsonMapper().toJson(cancelPayload));
-				getAuditLogService().audit(cancelAuditLog);
-
-				getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
-					ForkJoinPool.commonPool().execute(() -> {
-						getEpicSyncManager().syncProviderAvailability(localAppointment.getProviderId(), localAppointment.getStartTime().toLocalDate());
-					});
-				});
-			}
-
-			// Create local appointments for which there is a corresponding EPIC appointment
-			for (String csn : localAppointmentCSNsToCreate) {
-				GetPatientAppointmentsResponse.Appointment epicAppointment = epicAppointmentsByCSN.get(csn);
-
-				getLogger().info("Found EPIC appointment with CSN {}, creating corresponding local appointment...", csn);
-
-				GetPatientAppointmentsResponse.Appointment.Provider epicProvider = epicAppointment.getProviders() == null || epicAppointment.getProviders().size() == 0 ? null : epicAppointment.getProviders().get(0);
-
-				if (epicProvider == null) {
-					getLogger().warn("Unable to find provider data in EPIC appointment with CSN {}, cannot create new appointment.", csn);
-					continue;
-				}
-
-				Provider provider = null;
-
-				for (GetPatientAppointmentsResponse.Appointment.Provider.ProviderID providerID : epicProvider.getProviderIDs()) {
-					String epicProviderId = trimToEmpty(providerID.getID()).toUpperCase(Locale.US);
-					String type = StringUtils.trimToEmpty(providerID.getType()).toUpperCase(Locale.US);
-
-					if ("INTERNAL".equals(type) || "EXTERNAL".equals(type)) {
-						provider = getProviderService().findProviderByInstitutionIdAndEpicProviderId(account.getInstitutionId(), epicProviderId).orElse(null);
-
-						if (provider != null)
-							break;
-					}
-				}
-
-				if (provider == null) {
-					getLogger().warn("Unable to find a matching provider with EPIC appointment with CSN {}, cannot create new appointment.", csn);
-					continue;
-				}
-
-				LocalDate epicAppointmentDate = epicClient.parseDateWithSlashes(epicAppointment.getDate()); // e.g. "7/17/2020"
-				Integer epicAppointmentDuration = Integer.parseInt(epicAppointment.getAppointmentDuration());
-				LocalTime epicAppointmentStartTime = epicClient.parseTimeAmPm(epicAppointment.getAppointmentStartTime());
-				LocalTime epicAppointmentEndTime = epicAppointmentStartTime.plusMinutes(epicAppointmentDuration);
-				LocalDateTime meetingStartTime = LocalDateTime.of(epicAppointmentDate, epicAppointmentStartTime);
-				LocalDateTime meetingEndTime = LocalDateTime.of(epicAppointmentDate, epicAppointmentEndTime);
-
-				LocalDateTime now = LocalDateTime.now(timeZone);
-
-				if (meetingStartTime.isBefore(now)) {
-					getLogger().warn("Meeting start time {} for EPIC appointment with CSN {} is after 'now' ({} in {} time zone), cannot create new appointment.", meetingStartTime, csn, now, timeZone.getId());
-					continue;
-				}
-
-				AppointmentType appointmentType = null;
-
-				List<GetPatientAppointmentsResponse.Appointment.VisitTypeID> visitTypeIDs = epicAppointment.getVisitTypeIDs() == null ? Collections.emptyList() : epicAppointment.getVisitTypeIDs();
-
-				if (visitTypeIDs.size() == 0) {
-					getLogger().warn("Unable to find visit type data in EPIC appointment with CSN {}, cannot create new appointment.", csn);
-					continue;
-				}
-
-				for (GetPatientAppointmentsResponse.Appointment.VisitTypeID visitTypeID : visitTypeIDs) {
-					String epicVisitTypeId = trimToEmpty(visitTypeID.getID()).toUpperCase(Locale.US);
-					String type = StringUtils.trimToEmpty(visitTypeID.getType()).toUpperCase(Locale.US);
-
-					if ("INTERNAL".equals(type) || "EXTERNAL".equals(type)) {
-						appointmentType = getDatabase().queryForObject("SELECT * FROM v_appointment_type WHERE scheduling_system_id=? AND epic_visit_type_id=? AND " +
-										"UPPER(epic_visit_type_id_type) IN ('INTERNAL', 'EXTERNAL') AND duration_in_minutes=?", AppointmentType.class,
-								SchedulingSystemId.EPIC, epicVisitTypeId, epicAppointmentDuration).orElse(null);
-
-						if (appointmentType != null)
-							break;
-					}
-				}
-
-				if (appointmentType == null) {
-					getLogger().warn("Unable to find a matching appointment type for EPIC appointment with CSN {}, cannot create new appointment.", csn);
-					continue;
-				}
-
-				UUID appointmentId = UUID.randomUUID();
-				UUID providerId = provider.getProviderId();
-
-				// It's possible this appointment already exists for other accounts, like in the scenario where
-				// an appointment is initially booked on behalf of a patient by a user who signs in anonymously to "manually" set things up.
-				// And then later the real patient signs in and views her calendar.
-				// We don't want to detect that as an updated appointment and generate new BJ link and send out a confusing "your appointment was updated" email, we want to quietly
-				// duplicate the existing appointment, but for this account.
-				List<Appointment> duplicateAppointmentsForOtherAccounts = getDatabase().queryForList("SELECT * FROM appointment WHERE account_id != ? AND canceled=FALSE " +
-						"AND start_time=? AND epic_contact_id=?", Appointment.class, accountId, meetingStartTime, csn);
-
-				Appointment duplicateAppointmentForOtherAccount = duplicateAppointmentsForOtherAccounts.size() > 0 ? duplicateAppointmentsForOtherAccounts.get(0) : null;
-
-				Long bluejeansMeetingId;
-				String videoconferenceUrl;
-				String bluejeansParticipantPasscode;
-				UUID appointmentReasonId;
-				String comment;
-				UUID createdByAccountId;
-				String phoneNumber;
-				UUID intakeAssessmentId = null;
-
-				if (duplicateAppointmentForOtherAccount == null) {
-					MeetingResponse meetingResponse = null;
-
-					// TODO: this assumes EPIC providers use Bluejeans for now, but if they eventually support other platforms, we'll need to support that here
-					if (provider.getVideoconferencePlatformId() == VideoconferencePlatformId.BLUEJEANS) {
-						meetingResponse = getBluejeansClient().scheduleMeetingForUser(provider.getBluejeansUserId().intValue(),
-								appointmentType.getName(),
-								account.getEmailAddress(),
-								true,
-								false,
-								timeZone,
-								meetingStartTime.atZone(timeZone).toInstant(),
-								meetingEndTime.atZone(timeZone).toInstant()
-						);
-					}
-
-					bluejeansMeetingId = meetingResponse == null ? null : (long) meetingResponse.getId();
-					videoconferenceUrl = meetingResponse == null ? null : meetingResponse.meetingLinkWithAttendeePasscode();
-					bluejeansParticipantPasscode = meetingResponse == null ? null : meetingResponse.getAttendeePasscode();
-					appointmentReasonId = findNotSpecifiedAppointmentReasonByInstitutionId(provider.getInstitutionId()).getAppointmentReasonId();
-					comment = null;
-					createdByAccountId = accountId;
-					phoneNumber = account.getPhoneNumber();
-				} else {
-					bluejeansMeetingId = duplicateAppointmentForOtherAccount.getBluejeansMeetingId();
-					videoconferenceUrl = duplicateAppointmentForOtherAccount.getVideoconferenceUrl();
-					bluejeansParticipantPasscode = duplicateAppointmentForOtherAccount.getBluejeansParticipantPasscode();
-					appointmentReasonId = duplicateAppointmentForOtherAccount.getAppointmentReasonId();
-					comment = duplicateAppointmentForOtherAccount.getComment();
-					createdByAccountId = duplicateAppointmentForOtherAccount.getCreatedByAccountId();
-					phoneNumber = duplicateAppointmentForOtherAccount.getPhoneNumber();
-					intakeAssessmentId = duplicateAppointmentForOtherAccount.getIntakeAssessmentId();
-				}
-
-				getDatabase().execute("INSERT INTO appointment (appointment_id, provider_id, account_id, created_by_account_id, " +
-								"appointment_type_id, acuity_appointment_id, acuity_class_id, bluejeans_meeting_id, bluejeans_participant_passcode, title, start_time, end_time, " +
-								"duration_in_minutes, time_zone, videoconference_url, videoconference_platform_id, epic_contact_id, epic_contact_id_type, " +
-								"phone_number, appointment_reason_id, comment, intake_assessment_id, scheduling_system_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-						appointmentId, providerId, accountId, createdByAccountId, appointmentType.getAppointmentTypeId(), null, null, bluejeansMeetingId, bluejeansParticipantPasscode,
-						appointmentType.getName(), meetingStartTime, meetingEndTime, appointmentType.getDurationInMinutes(), timeZone, videoconferenceUrl, provider.getVideoconferencePlatformId(), csn, "CSN", phoneNumber, appointmentReasonId, comment, intakeAssessmentId, appointmentType.getSchedulingSystemId());
-
-				Map<String, Object> createPayload = new HashMap<>();
-				createPayload.put("csn", csn);
-				createPayload.put("appointmentId", appointmentId);
-
-				AuditLog createAuditLog = new AuditLog();
-				createAuditLog.setAccountId(account.getAccountId());
-				createAuditLog.setAuditLogEventId(AuditLogEventId.EPIC_APPOINTMENT_IMPLICIT_CREATE);
-
-				if (duplicateAppointmentForOtherAccount == null)
-					createAuditLog.setMessage(format("Created local appointment ID %s because we found CSN %s in EPIC", appointmentId, csn));
-				else
-					createAuditLog.setMessage(format("Created local appointment ID %s because we found CSN %s in EPIC. Note: this duplicates appointment ID %s", appointmentId, csn, duplicateAppointmentForOtherAccount.getAppointmentId()));
-
-				createAuditLog.setPayload(getJsonMapper().toJson(createPayload));
-				getAuditLogService().audit(createAuditLog);
-
-				Locale locale = provider.getLocale() == null ? Locale.US : provider.getLocale();
-				String providerEmailAddress = provider.getEmailAddress();
-				String patientEmailAddress = account.getEmailAddress();
-
-				Map<String, Object> messageContext = new HashMap<>();
-				messageContext.put("appointmentId", appointmentId);
-				messageContext.put("appointmentDateDescription", getFormatter().formatDate(epicAppointmentDate, FormatStyle.MEDIUM, locale));
-				messageContext.put("appointmentTimeDescription", getFormatter().formatTime(epicAppointmentStartTime, FormatStyle.MEDIUM, locale));
-				messageContext.put("videoconferenceUrl", videoconferenceUrl);
-
-				boolean sendEmails = provider.getVideoconferencePlatformId() != VideoconferencePlatformId.SWITCHBOARD && duplicateAppointmentForOtherAccount == null;
-
-				Provider pinnedProvider = provider;
-
-				getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
-					// Only send out "appointment was updated" email for non-duplicate appointments
-					if (sendEmails) {
-						// Notify patient and provider
-						getMessageService().enqueueMessage(new EmailMessage.Builder(pinnedProvider.getInstitutionId(), EmailMessageTemplate.APPOINTMENT_UPDATE, locale)
-								.toAddresses(new ArrayList<>() {{
-									add(providerEmailAddress);
-								}})
-								.replyToAddress(replyToAddressForEmailsTargetingProvider(pinnedProvider))
-								.messageContext(messageContext)
-								.build());
-
-						if (patientEmailAddress != null) {
-							getMessageService().enqueueMessage(new EmailMessage.Builder(pinnedProvider.getInstitutionId(), EmailMessageTemplate.APPOINTMENT_UPDATE, locale)
-									.toAddresses(new ArrayList<>() {{
-										add(patientEmailAddress);
-									}})
-									.replyToAddress(providerEmailAddress)
-									.messageContext(messageContext)
-									.build());
-						}
-					}
-
-					ForkJoinPool.commonPool().execute(() -> {
-						getEpicSyncManager().syncProviderAvailability(providerId, epicAppointmentDate);
-					});
-				});
-			}
-
-			// Re-query appointments to pull the latest
-			appointments = getDatabase().queryForList("SELECT * FROM appointment WHERE account_id=? AND canceled=FALSE " +
-					"AND start_time >= ? ORDER BY start_time", Appointment.class, accountId, LocalDateTime.now(timeZone));
-		}
 
 		return appointments;
 	}
@@ -854,16 +549,14 @@ public class AppointmentService {
 		UUID appointmentReasonId = request.getAppointmentReasonId();
 		LocalDate date = request.getDate();
 		LocalTime time = request.getTime();
-		String groupEventId = trimToNull(request.getGroupEventId());
-		UUID groupEventTypeId = request.getGroupEventTypeId();
 		UUID appointmentTypeId = request.getAppointmentTypeId();
 		UUID intakeAssessmentId = request.getIntakeAssessmentId();
 		UUID patientOrderId = request.getPatientOrderId();
 		String emailAddress = getNormalizer().normalizeEmailAddress(request.getEmailAddress()).orElse(null);
 		String phoneNumber = trimToNull(request.getPhoneNumber());
 		String comment = trimToNull(request.getComment());
+		String epicAppointmentFhirId = trimToNull(request.getEpicAppointmentFhirId());
 		Account account = null;
-		Provider provider = null;
 		AppointmentType appointmentType = null;
 		UUID appointmentId = UUID.randomUUID();
 
@@ -894,43 +587,22 @@ public class AppointmentService {
 			validationException.setMetadata(metadata);
 		}
 
-		boolean oneOnOne = groupEventId == null;
+		if (providerId == null)
+			validationException.add(getStrings().get("Provider ID is required."));
 
-		if (phoneNumber == null && account != null && account.getPhoneNumber() == null && oneOnOne) {
-			boolean psychiatrist = getProviderService().findSupportRolesByProviderId(providerId).stream()
-					.anyMatch(role -> role.getSupportRoleId().equals(SupportRoleId.PSYCHIATRIST));
+		if (appointmentTypeId == null) {
+			validationException.add(new FieldError("appointmentTypeId", getStrings().get("Appointment type ID is required for 1:1 appointments.")));
+		} else {
+			appointmentType = findAppointmentTypeById(appointmentTypeId).orElse(null);
 
-			if (psychiatrist) {
-				validationException.add(new FieldError("phoneNumber", getStrings().get("A phone number is required to book an appointment.")));
-
-				Map<String, Object> metadata = new HashMap<>();
-				metadata.put("accountPhoneNumberRequired", true);
-
-				validationException.setMetadata(metadata);
-			}
-		}
-
-		if ((groupEventId == null && groupEventTypeId != null) || (groupEventId != null && groupEventTypeId == null))
-			validationException.add(getStrings().get("You must specify both 'groupEventId' and 'groupEventTypeId' when booking an appointment for a studio session."));
-
-		if (providerId == null && groupEventId == null)
-			validationException.add(getStrings().get("You must specify either 'providerId' (1:1) or 'groupEventId' and 'groupEventTypeId' (studio session) when booking an appointment."));
-
-		if (oneOnOne) {
-			if (appointmentTypeId == null) {
-				validationException.add(new FieldError("appointmentTypeId", getStrings().get("Appointment type ID is required for 1:1 appointments.")));
-			} else {
-				appointmentType = findAppointmentTypeById(appointmentTypeId).orElse(null);
-
-				if (appointmentType == null)
-					validationException.add(new FieldError("appointmentTypeId", getStrings().get("Appointment type ID is invalid.")));
-			}
+			if (appointmentType == null)
+				validationException.add(new FieldError("appointmentTypeId", getStrings().get("Appointment type ID is invalid.")));
 		}
 
 		AccountSession intakeSession = getSessionService().findCurrentIntakeAssessmentForAccountAndProvider(account,
 				providerId, appointmentTypeId, true).orElse(null);
 
-		if (oneOnOne && providerId != null && getAssessmentService().findIntakeAssessmentByProviderId(providerId, appointmentTypeId).isPresent()) {
+		if (providerId != null && getAssessmentService().findIntakeAssessmentByProviderId(providerId, appointmentTypeId).isPresent()) {
 			if (intakeSession != null && !getAssessmentScoringService().isBookingAllowed(intakeSession))
 				validationException.add(getStrings().get("Based on your responses you are not permitted to book with this provider."));
 			else if (intakeSession == null)
@@ -940,12 +612,14 @@ public class AppointmentService {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		if (appointmentReasonId == null) {
-			// TODO: once we are rid of Acuity appointments we can assume provider is always non-null.
-			// Until then, failsafe check against provider
-			InstitutionId institutionId = provider == null ? InstitutionId.COBALT : provider.getInstitutionId();
-			appointmentReasonId = findNotSpecifiedAppointmentReasonByInstitutionId(institutionId).getAppointmentReasonId();
-		}
+		Provider provider = getProviderService().findProviderById(providerId).get();
+		Institution institution = getInstitutionService().findInstitutionById(provider.getInstitutionId()).get();
+
+		if (provider.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR && epicAppointmentFhirId == null)
+			throw new ValidationException(new FieldError("epicAppointmentFhirId", getStrings().get("Epic FHIR Appointment ID is required.")));
+
+		if (appointmentReasonId == null)
+			appointmentReasonId = findNotSpecifiedAppointmentReasonByInstitutionId(institution.getInstitutionId()).getAppointmentReasonId();
 
 		// If email address was provided, update the account's email on file
 		if (emailAddress != null) {
@@ -973,34 +647,25 @@ public class AppointmentService {
 		}
 
 		AcuityAppointmentType acuityAppointmentType = null;
-		Long acuityClassId = null;
-		Long acuityCalendarId = null;
+		Long acuityCalendarId = provider.getAcuityCalendarId();
 		String videoconferenceUrl = null;
-		ZoneId timeZone = null;
+		ZoneId timeZone = provider.getTimeZone();
 
-		if (oneOnOne) {
-			provider = getProviderService().findProviderById(providerId).get();
-			timeZone = provider.getTimeZone();
-			acuityCalendarId = provider.getAcuityCalendarId();
+		// Integrated care handling.  If the institution is an IC institution, require appointments be tied to orders.
+		// Otherwise, it's not permitted to tie to orders.
+		if (institution.getIntegratedCareEnabled()) {
+			if (patientOrderId == null)
+				throw new ValidationException(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
 
-			Institution institution = getInstitutionService().findInstitutionById(provider.getInstitutionId()).get();
-
-			// Integrated care handling.  If the institution is an IC institution, require appointments be tied to orders.
-			// Otherwise, it's not permitted to tie to orders.
-			if (institution.getIntegratedCareEnabled()) {
-				if (patientOrderId == null)
-					throw new ValidationException(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
-
-				// TODO: track event
-			} else {
-				patientOrderId = null;
-			}
-
-			// Special handling for Acuity - read the latest value for appointment type
-			if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.ACUITY)
-				// TODO: use cache here
-				acuityAppointmentType = getAcuitySchedulingClient().findAppointmentTypeById(appointmentType.getAcuityAppointmentTypeId()).get();
+			// TODO: track event
+		} else {
+			patientOrderId = null;
 		}
+
+		// Special handling for Acuity - read the latest value for appointment type
+		if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.ACUITY)
+			// TODO: use cache here
+			acuityAppointmentType = getAcuitySchedulingClient().findAppointmentTypeById(appointmentType.getAcuityAppointmentTypeId()).get();
 
 		// Ensure we can't double-book the same time
 		List<Appointment> existingAppointmentsForDate = findAppointmentsByProviderId(providerId, date, date.plusDays(1));
@@ -1042,37 +707,31 @@ public class AppointmentService {
 		Long bluejeansMeetingId = null;
 		String bluejeansParticipantPasscode = null;
 		String appointmentPhoneNumber = null;
-		VideoconferencePlatformId videoconferencePlatformId = provider == null ? VideoconferencePlatformId.BLUEJEANS : provider.getVideoconferencePlatformId();
+		VideoconferencePlatformId videoconferencePlatformId = provider.getVideoconferencePlatformId();
 
-		// Only create a Bluejeans meeting for 1:1 meetings.
-		// Other types (group events) are created outside of our system
-		if (oneOnOne) {
-			if (provider != null) {
-				if (videoconferencePlatformId == VideoconferencePlatformId.BLUEJEANS) {
-					meetingResponse = getBluejeansClient().scheduleMeetingForUser(provider.getBluejeansUserId().intValue(),
-							title,
-							emailAddress,
-							true,
-							false,
-							timeZone,
-							meetingStartTime.atZone(timeZone).toInstant(),
-							meetingEndTime.atZone(timeZone).toInstant()
-					);
+		if (videoconferencePlatformId == VideoconferencePlatformId.BLUEJEANS) {
+			meetingResponse = getBluejeansClient().scheduleMeetingForUser(provider.getBluejeansUserId().intValue(),
+					title,
+					emailAddress,
+					true,
+					false,
+					timeZone,
+					meetingStartTime.atZone(timeZone).toInstant(),
+					meetingEndTime.atZone(timeZone).toInstant()
+			);
 
-					bluejeansMeetingId = (long) meetingResponse.getId();
-					bluejeansParticipantPasscode = meetingResponse.getAttendeePasscode();
-					videoconferenceUrl = meetingResponse.meetingLinkWithAttendeePasscode();
-				} else if (videoconferencePlatformId == VideoconferencePlatformId.TELEPHONE) {
-					// Hack: phone number is encoded as the URL in the provider sheet.
-					// The real URL is the webapp - we have a `GET /appointments/{appointmentId}`
-					appointmentPhoneNumber = provider.getVideoconferenceUrl();
-					// TODO: this defaults to "patient" experience type but is also used by staff.
-					// Doesn't matter atm, and this concept of TELEPHONE should be removed/reworked, but just noting here for posterity...
-					videoconferenceUrl = format("%s/appointments/%s", getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(provider.getInstitutionId(), UserExperienceTypeId.PATIENT).get(), appointmentId);
-				} else if (videoconferencePlatformId == VideoconferencePlatformId.EXTERNAL) {
-					videoconferenceUrl = provider.getVideoconferenceUrl();
-				}
-			}
+			bluejeansMeetingId = (long) meetingResponse.getId();
+			bluejeansParticipantPasscode = meetingResponse.getAttendeePasscode();
+			videoconferenceUrl = meetingResponse.meetingLinkWithAttendeePasscode();
+		} else if (videoconferencePlatformId == VideoconferencePlatformId.TELEPHONE) {
+			// Hack: phone number is encoded as the URL in the provider sheet.
+			// The real URL is the webapp - we have a `GET /appointments/{appointmentId}`
+			appointmentPhoneNumber = provider.getVideoconferenceUrl();
+			// TODO: this defaults to "patient" experience type but is also used by staff.
+			// Doesn't matter atm, and this concept of TELEPHONE should be removed/reworked, but just noting here for posterity...
+			videoconferenceUrl = format("%s/appointments/%s", getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(provider.getInstitutionId(), UserExperienceTypeId.PATIENT).get(), appointmentId);
+		} else if (videoconferencePlatformId == VideoconferencePlatformId.EXTERNAL) {
+			videoconferenceUrl = provider.getVideoconferenceUrl();
 		}
 
 		String firstName = account.getFirstName();
@@ -1134,15 +793,7 @@ public class AppointmentService {
 		} else if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.EPIC) {
 			try {
 				EnterprisePlugin enterprisePlugin = enterprisePluginProvider.enterprisePluginForInstitutionId(account.getInstitutionId());
-				Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
 				EpicClient epicClient = enterprisePlugin.epicClientForBackendService().get();
-
-				// SYNC ACCOUNT UID
-				String uid = epicClient.determineLatestUIDForPatientIdentifier(account.getEpicPatientId(), account.getEpicPatientIdType()).get();
-
-				if (!uid.equals(account.getEpicPatientId()))
-					getAccountService().updateAccountEpicPatient(account.getAccountId(), uid, "UID");
-
 				account = getAccountService().findAccountById(accountId).get();
 
 				// Figure out the department for this provider and timeslot
@@ -1182,8 +833,7 @@ public class AppointmentService {
 
 				// Now we are ready to book
 				ScheduleAppointmentWithInsuranceRequest appointmentRequest = new ScheduleAppointmentWithInsuranceRequest();
-				appointmentRequest.setPatientID(account.getEpicPatientId());
-				appointmentRequest.setPatientIDType(account.getEpicPatientIdType());
+				appointmentRequest.setPatientID(account.getEpicPatientFhirId());
 				appointmentRequest.setDepartmentID(epicDepartment.getDepartmentId());
 				appointmentRequest.setDepartmentIDType(epicDepartment.getDepartmentIdType());
 				appointmentRequest.setProviderID(provider.getEpicProviderId());
@@ -1193,9 +843,7 @@ public class AppointmentService {
 				appointmentRequest.setDate(epicClient.formatDateWithHyphens(date));
 				appointmentRequest.setTime(epicClient.formatTimeInMilitary(time));
 				appointmentRequest.setIsReviewOnly(false);
-
-				if (videoconferenceUrl != null)
-					appointmentRequest.setComments(List.of(format("Videoconference URL: %s", videoconferenceUrl)));
+				appointmentRequest.setComments(List.of("Booked with Cobalt"));
 
 				appointmentResponse = epicClient.performScheduleAppointmentWithInsurance(appointmentRequest);
 			} catch (Exception e) {
@@ -1215,6 +863,17 @@ public class AppointmentService {
 			}
 		} else if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.COBALT) {
 			// Nothing to do for now
+		} else if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR) {
+			EnterprisePlugin enterprisePlugin = enterprisePluginProvider.enterprisePluginForInstitutionId(account.getInstitutionId());
+			EpicClient epicClient = enterprisePlugin.epicClientForBackendService().get();
+
+			AppointmentBookFhirStu3Request appointmentBookRequest = new AppointmentBookFhirStu3Request();
+			appointmentBookRequest.setAppointment(epicAppointmentFhirId);
+			appointmentBookRequest.setPatient(account.getEpicPatientFhirId());
+			appointmentBookRequest.setAppointmentNote(getStrings().get("Booked via Cobalt"));
+
+			// TODO: examine response, better error handling for Epic FHIR appointment bookings
+			AppointmentBookFhirStu3Response appointmentBookResponse = epicClient.appointmentBookFhirStu3(appointmentBookRequest);
 		} else {
 			throw new RuntimeException(format("Unexpected value %s.%s provided", SchedulingSystemId.class.getSimpleName(), appointmentType.getSchedulingSystemId().name()));
 		}
@@ -1250,19 +909,18 @@ public class AppointmentService {
 			intakeAccountSessionId = getSessionService().findCurrentAccountSessionForAssessment(account, intakeAssessment.get()).get().getAccountSessionId();
 
 		getDatabase().execute("INSERT INTO appointment (appointment_id, provider_id, account_id, created_by_account_id, " +
-						"appointment_type_id, acuity_appointment_id, acuity_class_id, bluejeans_meeting_id, bluejeans_participant_passcode, title, start_time, end_time, " +
+						"appointment_type_id, acuity_appointment_id, bluejeans_meeting_id, bluejeans_participant_passcode, title, start_time, end_time, " +
 						"duration_in_minutes, time_zone, videoconference_url, epic_contact_id, epic_contact_id_type, videoconference_platform_id, " +
-						"phone_number, appointment_reason_id, comment, intake_assessment_id, scheduling_system_id, intake_account_session_id, patient_order_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", appointmentId, providerId,
-				accountId, createdByAccountId, appointmentTypeId, acuityAppointmentId, acuityClassId, bluejeansMeetingId, bluejeansParticipantPasscode,
+						"phone_number, appointment_reason_id, comment, intake_assessment_id, scheduling_system_id, intake_account_session_id, patient_order_id, epic_appointment_fhir_id) " +
+						"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", appointmentId, providerId,
+				accountId, createdByAccountId, appointmentTypeId, acuityAppointmentId, bluejeansMeetingId, bluejeansParticipantPasscode,
 				title, meetingStartTime, meetingEndTime, durationInMinutes, timeZone, videoconferenceUrl, epicContactId,
-				epicContactIdType, videoconferencePlatformId, appointmentPhoneNumber, appointmentReasonId, comment, intakeAssessmentId, appointmentType.getSchedulingSystemId(), intakeAccountSessionId, patientOrderId);
+				epicContactIdType, videoconferencePlatformId, appointmentPhoneNumber, appointmentReasonId, comment, intakeAssessmentId, appointmentType.getSchedulingSystemId(), intakeAccountSessionId, patientOrderId, epicAppointmentFhirId);
 
-		if (provider != null) {
-			sendProviderScoreEmail(provider, account, emailAddress, phoneNumber, videoconferenceUrl,
-					getFormatter().formatDate(meetingStartTime.toLocalDate()),
-					getFormatter().formatTime(meetingStartTime.toLocalTime()),
-					getFormatter().formatTime(meetingEndTime.toLocalTime()), intakeSession);
-		}
+		sendProviderScoreEmail(provider, account, emailAddress, phoneNumber, videoconferenceUrl,
+				getFormatter().formatDate(meetingStartTime.toLocalDate()),
+				getFormatter().formatTime(meetingStartTime.toLocalTime()),
+				getFormatter().formatTime(meetingEndTime.toLocalTime()), intakeSession);
 
 		ZoneId pinnedTimeZone = timeZone;
 		SchedulingSystemId schedulingSystemId = appointmentType.getSchedulingSystemId();
@@ -1901,9 +1559,22 @@ public class AppointmentService {
 			if (appointment == null) {
 				validationException.add(new FieldError("appointmentId", getStrings().get("Appointment ID is invalid.")));
 			} else {
-				if(appointment.getCanceled()) {
+				if (appointment.getCanceled()) {
 					getLogger().info("Appointment is already canceled, not re-canceling.");
 					return false;
+				}
+
+				// Special behavior: you cannot directly cancel an Epic FHIR appointment
+				if (appointment.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR) {
+					Provider provider = getProviderService().findProviderById(appointment.getProviderId()).get();
+					Institution institution = getInstitutionService().findInstitutionById(provider.getInstitutionId()).get();
+					String clinicalSupportPhoneNumber = institution.getClinicalSupportPhoneNumber();
+
+					if (clinicalSupportPhoneNumber == null)
+						validationException.add(getStrings().get("Appointment ID is invalid."));
+					else
+						validationException.add(getStrings().get("In order to cancel this appointment, please call {{phoneNumber}}.",
+								Map.of("phoneNumber", getFormatter().formatPhoneNumber(clinicalSupportPhoneNumber))));
 				}
 			}
 		}
@@ -1928,17 +1599,8 @@ public class AppointmentService {
 			} else if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.EPIC) {
 				EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(account.getInstitutionId()).epicClientForBackendService().get();
 
-				// SYNC ACCOUNT UID
-				String uid = epicClient.determineLatestUIDForPatientIdentifier(account.getEpicPatientId(), account.getEpicPatientIdType()).get();
-
-				if (!uid.equals(account.getEpicPatientId()))
-					getAccountService().updateAccountEpicPatient(account.getAccountId(), uid, "UID");
-
-				account = getAccountService().findAccountById(accountId).get();
-
 				com.cobaltplatform.api.integration.epic.request.CancelAppointmentRequest.Patient patient = new com.cobaltplatform.api.integration.epic.request.CancelAppointmentRequest.Patient();
-				patient.setID(account.getEpicPatientId());
-				patient.setType(account.getEpicPatientIdType());
+				patient.setID(account.getEpicPatientFhirId());
 
 				com.cobaltplatform.api.integration.epic.request.CancelAppointmentRequest.Contact contact = new com.cobaltplatform.api.integration.epic.request.CancelAppointmentRequest.Contact();
 				contact.setID(appointment.getEpicContactId());
@@ -1964,26 +1626,23 @@ public class AppointmentService {
 			}
 		}
 
-		// Only delete Bluejeans if this is a 1:1 meeting
-		if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.EPIC || (appointment.getAcuityClassId() == null && provider != null)) {
-			if (appointment.getBluejeansMeetingId() != null) {
-				try {
-					getBluejeansClient().cancelScheduledMeeting(provider.getBluejeansUserId().intValue(), appointment.getBluejeansMeetingId().intValue(),
-							false, getStrings().get("The patient canceled the meeting."));
-				} catch (Exception e) {
-					getLogger().warn("Unable to cancel Bluejeans meeting, continuing on...", e);
-				}
+		// Delete Bluejeans meeting if necessary
+		if (appointment.getBluejeansMeetingId() != null) {
+			try {
+				getBluejeansClient().cancelScheduledMeeting(provider.getBluejeansUserId().intValue(), appointment.getBluejeansMeetingId().intValue(),
+						false, getStrings().get("The patient canceled the meeting."));
+			} catch (Exception e) {
+				getLogger().warn("Unable to cancel Bluejeans meeting, continuing on...", e);
 			}
 		}
 
 		boolean canceled = getDatabase().execute("UPDATE appointment SET canceled=TRUE, attendance_status_id=?, canceled_at=NOW(), " +
 				"canceled_for_reschedule=?, rescheduled_appointment_id=? WHERE appointment_id=?", AttendanceStatusId.CANCELED, request.getCanceledForReschedule(), request.getRescheduleAppointmentId(), appointmentId) > 0;
 
-		//Cancel any interaction instances that are scheduled for this appointment
+		// Cancel any interaction instances that are scheduled for this appointment
 		getInteractionService().cancelInteractionInstancesForAppointment(appointmentId);
 
 		Appointment pinnedAppointment = appointment;
-		Account appointmentAccount = getAccountService().findAccountById(pinnedAppointment.getAccountId()).orElse(null);
 
 		// Cancel any scheduled reminder message for the patient
 		getMessageService().cancelScheduledMessage(appointment.getPatientReminderScheduledMessageId());
@@ -2085,6 +1744,11 @@ public class AppointmentService {
 
 		if (provider.getSchedulingSystemId() == SchedulingSystemId.COBALT) {
 			getLogger().debug("Provider {} uses native scheduling, do not send a provider score email.", provider.getName());
+			return;
+		}
+
+		if (provider.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR) {
+			getLogger().debug("Provider {} uses Epic FHIR scheduling, do not send a provider score email.", provider.getName());
 			return;
 		}
 

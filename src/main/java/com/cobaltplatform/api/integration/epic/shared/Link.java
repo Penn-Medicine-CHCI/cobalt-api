@@ -17,55 +17,18 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.integration.hl7.model;
+package com.cobaltplatform.api.integration.epic.shared;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-
-import static java.lang.String.format;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class Hl7PatientOrder {
+public class Link {
 	@Nullable
-	private String orderId; // e.g. "881102"
+	private String relation;
 	@Nullable
-	private String patientId; // e.g. "555555555"
-	@Nullable
-	private String patientIdType; // e.g. "UID"
-
-	@Override
-	public String toString() {
-		return format("%s{orderId=%s, patientId=%s, patientIdType=%s}", getClass().getSimpleName(),
-				getOrderId(), getPatientId(), getPatientIdType());
-	}
-
-	@Nullable
-	public String getOrderId() {
-		return this.orderId;
-	}
-
-	public void setOrderId(@Nullable String orderId) {
-		this.orderId = orderId;
-	}
-
-	@Nullable
-	public String getPatientId() {
-		return this.patientId;
-	}
-
-	public void setPatientId(@Nullable String patientId) {
-		this.patientId = patientId;
-	}
-
-	@Nullable
-	public String getPatientIdType() {
-		return this.patientIdType;
-	}
-
-	public void setPatientIdType(@Nullable String patientIdType) {
-		this.patientIdType = patientIdType;
-	}
+	private String url;
 }

@@ -32,6 +32,7 @@ import com.cobaltplatform.api.integration.hl7.model.Hl7PatientOrder;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Singleton;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -53,6 +54,9 @@ public class Hl7Client {
 		Parser parser = hapiContext.getGenericParser();
 
 		Message hapiMessage;
+
+		// Patient order messages must have CRLF endings, otherwise parsing will fail.  Ensure that here.
+		patientOrderMessage = patientOrderMessage.trim().lines().collect(Collectors.joining("\r\n"));
 
 		try {
 			hapiMessage = parser.parse(patientOrderMessage);

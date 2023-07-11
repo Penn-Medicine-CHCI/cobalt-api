@@ -108,15 +108,6 @@ public class AccountApiResponse {
 	@Nullable
 	private final String consentFormAcceptedDateDescription;
 	@Nullable
-	@Deprecated
-	private final String epicPatientId;
-	@Nullable
-	@Deprecated
-	private final String epicPatientIdType;
-	@Nonnull
-	@Deprecated
-	private final Boolean epicPatientCreatedByCobalt;
-	@Nullable
 	private final GenderIdentityId genderIdentityId;
 	@Nullable
 	private final EthnicityId ethnicityId;
@@ -241,9 +232,6 @@ public class AccountApiResponse {
 			this.lastUpdatedDescription = formatter.formatTimestamp(account.getLastUpdated());
 			this.phoneNumber = account.getPhoneNumber();
 			this.phoneNumberDescription = account.getPhoneNumber() == null ? null : formatter.formatPhoneNumber(account.getPhoneNumber());
-			this.epicPatientId = account.getEpicPatientId();
-			this.epicPatientIdType = account.getEpicPatientIdType();
-			this.epicPatientCreatedByCobalt = account.getEpicPatientCreatedByCobalt();
 			this.epicPatientMrn = account.getEpicPatientMrn();
 			this.epicPatientFhirId = account.getEpicPatientFhirId();
 			this.genderIdentityId = account.getGenderIdentityId();
@@ -281,9 +269,6 @@ public class AccountApiResponse {
 			this.phoneNumberDescription = null;
 			this.lastUpdated = null;
 			this.lastUpdatedDescription = null;
-			this.epicPatientId = null;
-			this.epicPatientIdType = null;
-			this.epicPatientCreatedByCobalt = null;
 			this.epicPatientMrn = null;
 			this.epicPatientFhirId = null;
 			this.genderIdentityId = null;
@@ -434,24 +419,6 @@ public class AccountApiResponse {
 	@Nullable
 	public String getLastUpdatedDescription() {
 		return lastUpdatedDescription;
-	}
-
-	@Nullable
-	@Deprecated
-	public String getEpicPatientId() {
-		return epicPatientId;
-	}
-
-	@Nullable
-	@Deprecated
-	public String getEpicPatientIdType() {
-		return epicPatientIdType;
-	}
-
-	@Nonnull
-	@Deprecated
-	public Boolean getEpicPatientCreatedByCobalt() {
-		return epicPatientCreatedByCobalt;
 	}
 
 	@Nullable

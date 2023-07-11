@@ -19,6 +19,9 @@
 
 package com.cobaltplatform.api.model.service;
 
+import com.cobaltplatform.api.integration.epic.code.AppointmentParticipantStatusCode;
+import com.cobaltplatform.api.integration.epic.code.AppointmentStatusCode;
+import com.cobaltplatform.api.integration.epic.code.SlotStatusCode;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.Specialty;
 import org.apache.commons.lang3.builder.ToStringBuilder;
@@ -29,6 +32,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -146,7 +150,15 @@ public class ProviderFind {
 		@Nullable
 		private List<UUID> appointmentTypeIds;
 		@Nullable
-		private UUID epicDepartmentId; // Optional, EPIC-only
+		private UUID epicDepartmentId; // Optional, Epic-only
+		@Nullable
+		private String epicAppointmentFhirId; // Optional, Epic FHIR-only
+		@Nullable
+		private Map<UUID, SlotStatusCode> slotStatusCodesByAppointmentTypeId; // Optional, Epic FHIR-only
+		@Nullable
+		private Map<UUID, AppointmentStatusCode> appointmentStatusCodesByAppointmentTypeId; // Optional, Epic FHIR-only
+		@Nullable
+		private Map<UUID, AppointmentParticipantStatusCode> appointmentParticipantStatusCodesByAppointmentTypeId; // Optional, Epic FHIR-only
 
 		@Override
 		public String toString() {
@@ -187,6 +199,42 @@ public class ProviderFind {
 
 		public void setEpicDepartmentId(@Nullable UUID epicDepartmentId) {
 			this.epicDepartmentId = epicDepartmentId;
+		}
+
+		@Nullable
+		public String getEpicAppointmentFhirId() {
+			return this.epicAppointmentFhirId;
+		}
+
+		public void setEpicAppointmentFhirId(@Nullable String epicAppointmentFhirId) {
+			this.epicAppointmentFhirId = epicAppointmentFhirId;
+		}
+
+		@Nullable
+		public Map<UUID, SlotStatusCode> getSlotStatusCodesByAppointmentTypeId() {
+			return this.slotStatusCodesByAppointmentTypeId;
+		}
+
+		public void setSlotStatusCodesByAppointmentTypeId(@Nullable Map<UUID, SlotStatusCode> slotStatusCodesByAppointmentTypeId) {
+			this.slotStatusCodesByAppointmentTypeId = slotStatusCodesByAppointmentTypeId;
+		}
+
+		@Nullable
+		public Map<UUID, AppointmentStatusCode> getAppointmentStatusCodesByAppointmentTypeId() {
+			return this.appointmentStatusCodesByAppointmentTypeId;
+		}
+
+		public void setAppointmentStatusCodesByAppointmentTypeId(@Nullable Map<UUID, AppointmentStatusCode> appointmentStatusCodesByAppointmentTypeId) {
+			this.appointmentStatusCodesByAppointmentTypeId = appointmentStatusCodesByAppointmentTypeId;
+		}
+
+		@Nullable
+		public Map<UUID, AppointmentParticipantStatusCode> getAppointmentParticipantStatusCodesByAppointmentTypeId() {
+			return this.appointmentParticipantStatusCodesByAppointmentTypeId;
+		}
+
+		public void setAppointmentParticipantStatusCodesByAppointmentTypeId(@Nullable Map<UUID, AppointmentParticipantStatusCode> appointmentParticipantStatusCodesByAppointmentTypeId) {
+			this.appointmentParticipantStatusCodesByAppointmentTypeId = appointmentParticipantStatusCodesByAppointmentTypeId;
 		}
 	}
 

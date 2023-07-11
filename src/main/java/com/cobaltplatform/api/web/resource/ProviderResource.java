@@ -20,6 +20,9 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.integration.epic.code.AppointmentParticipantStatusCode;
+import com.cobaltplatform.api.integration.epic.code.AppointmentStatusCode;
+import com.cobaltplatform.api.integration.epic.code.SlotStatusCode;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest.ProviderFindAvailability;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest.ProviderFindSupplement;
@@ -44,6 +47,7 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentTime;
 import com.cobaltplatform.api.model.db.AppointmentTime.AppointmentTimeId;
+import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Clinic;
 import com.cobaltplatform.api.model.db.Feature;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
@@ -53,6 +57,7 @@ import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PaymentType;
 import com.cobaltplatform.api.model.db.Provider;
+import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.Specialty;
 import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
@@ -91,6 +96,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -117,6 +123,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -301,6 +308,10 @@ public class ProviderResource {
 		}
 
 		// 1. Pull raw data
+		List<AppointmentType> appointmentTypes = getAppointmentService().findAppointmentTypesByInstitutionId(institution.getInstitutionId());
+		Map<UUID, AppointmentType> appointmentTypesById = appointmentTypes.stream()
+				.collect(Collectors.toMap(appointmentType -> appointmentType.getAppointmentTypeId(), Function.identity()));
+
 		List<ProviderFind> providerFinds = getProviderService().findProviders(request, account);
 
 		// 2. Throw out results that don't fall within specified appointment time windows
@@ -387,7 +398,7 @@ public class ProviderResource {
 		}
 
 		// 5. Walk grouped dates to prepare for response
-		List<Object> sections = new ArrayList<>(providerFindsByDate.size());
+		List<ProviderFindSection> sections = new ArrayList<>(providerFindsByDate.size());
 
 		for (Entry<LocalDate, List<ProviderFind>> entry : providerFindsByDate.entrySet()) {
 			LocalDate date = entry.getKey();
@@ -404,12 +415,41 @@ public class ProviderResource {
 				for (AvailabilityDate availabilityDate : providerFind.getDates()) {
 					if (availabilityDate.getDate().equals(date)) {
 						for (AvailabilityTime availabilityTime : availabilityDate.getTimes()) {
+							String timeDescription = normalizeTimeFormat(formatter.formatTime(availabilityTime.getTime(), FormatStyle.SHORT), locale);
+
+							// TODO: remove this special test handling for Epic FHIR slots
+							if (providerFind.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR) {
+								List<AppointmentType> slotAppointmentTypes = availabilityTime.getAppointmentTypeIds().stream()
+										.map(appointmentTypeId -> appointmentTypesById.get(appointmentTypeId))
+										.collect(Collectors.toList());
+
+								List<String> debugSupplements = new ArrayList<>(slotAppointmentTypes.size());
+
+								for (AppointmentType slotAppointmentType : slotAppointmentTypes) {
+									SlotStatusCode slotStatusCode = availabilityTime.getSlotStatusCodesByAppointmentTypeId().get(slotAppointmentType.getAppointmentTypeId());
+									AppointmentStatusCode appointmentStatusCode = availabilityTime.getAppointmentStatusCodesByAppointmentTypeId().get(slotAppointmentType.getAppointmentTypeId());
+									AppointmentParticipantStatusCode appointmentParticipantStatusCode = availabilityTime.getAppointmentParticipantStatusCodesByAppointmentTypeId().get(slotAppointmentType.getAppointmentTypeId());
+
+									debugSupplements.add(format("(%s: [slot=%s, appointment=%s, participant=%s])", slotAppointmentType.getName(),
+											(slotStatusCode == null ? null : slotStatusCode.getFhirValue()),
+											(appointmentStatusCode == null ? null : appointmentStatusCode.getFhirValue()),
+											(appointmentParticipantStatusCode == null ? null : appointmentParticipantStatusCode.getFhirValue())));
+								}
+
+								timeDescription = timeDescription + " " + debugSupplements.stream().collect(Collectors.joining(", "));
+							}
+
 							Map<String, Object> normalizedTime = new LinkedHashMap<>();
 							normalizedTime.put("time", availabilityTime.getTime());
-							normalizedTime.put("timeDescription", normalizeTimeFormat(formatter.formatTime(availabilityTime.getTime(), FormatStyle.SHORT), locale));
+							normalizedTime.put("timeDescription", timeDescription);
 							normalizedTime.put("status", availabilityTime.getStatus());
 							normalizedTime.put("epicDepartmentId", availabilityTime.getEpicDepartmentId());
+							normalizedTime.put("epicAppointmentFhirId", availabilityTime.getEpicAppointmentFhirId());
 							normalizedTime.put("appointmentTypeIds", availabilityTime.getAppointmentTypeIds());
+							normalizedTime.put("slotStatusCodesByAppointmentTypeId", availabilityTime.getSlotStatusCodesByAppointmentTypeId());
+							normalizedTime.put("appointmentStatusCodesByAppointmentTypeId", availabilityTime.getAppointmentStatusCodesByAppointmentTypeId());
+							normalizedTime.put("appointmentParticipantStatusCodesByAppointmentTypeId", availabilityTime.getAppointmentParticipantStatusCodesByAppointmentTypeId());
+
 							normalizedTimes.add(normalizedTime);
 						}
 
@@ -451,11 +491,11 @@ public class ProviderResource {
 				normalizedProviderFinds.add(normalizedProviderFind);
 			}
 
-			Map<String, Object> section = new LinkedHashMap<>();
-			section.put("date", date);
-			section.put("dateDescription", getFormatter().formatDate(date, FormatStyle.FULL));
-			section.put("fullyBooked", allProvidersFullyBooked);
-			section.put("providers", normalizedProviderFinds);
+			ProviderFindSection section = new ProviderFindSection();
+			section.setDate(date);
+			section.setDateDescription(getFormatter().formatDate(date, FormatStyle.FULL));
+			section.setFullyBooked(allProvidersFullyBooked);
+			section.setProviders(normalizedProviderFinds);
 
 			sections.add(section);
 		}
@@ -468,7 +508,7 @@ public class ProviderResource {
 			if (providerFind.getAppointmentTypeIds() != null)
 				appointmentTypeIds.addAll(providerFind.getAppointmentTypeIds());
 
-		List<Map<String, Object>> appointmentTypesJson = getAppointmentService().findAppointmentTypesByInstitutionId(institution.getInstitutionId()).stream()
+		List<Map<String, Object>> appointmentTypesJson = appointmentTypes.stream()
 				.filter((appointmentType -> appointmentTypeIds.contains(appointmentType.getAppointmentTypeId())))
 				.map((appointmentType -> {
 					Map<String, Object> appointmentTypeJson = new LinkedHashMap<>();
@@ -561,8 +601,62 @@ public class ProviderResource {
 						.thenComparing(Followup::getAccountId))
 				.collect(Collectors.toList());
 
+		// If there are "runs" of sections with no providers, collapse them into a single section
+		List<ProviderFindSection> finalSections = new ArrayList<>(sections.size());
+
+		// If there are not enough to collapse, use as-is
+		if (sections.size() < 2) {
+			finalSections.addAll(sections);
+		} else {
+			// There are enough sections to attempt collapsing empty sections.  Do that here
+			ProviderFindSection firstEmptySectionInRange = null;
+
+			for (ProviderFindSection section : sections) {
+				List<Object> providers = section.getProviders();
+
+				if (providers.size() > 0) {
+					LocalDate previousDay = section.getDate().minusDays(1);
+
+					if (firstEmptySectionInRange != null) {
+						if (firstEmptySectionInRange.getDate().equals(previousDay)) {
+							// Range of 1: put it in as-is
+							finalSections.add(firstEmptySectionInRange);
+						} else {
+							// Range of > 1: make it a range
+							firstEmptySectionInRange.setEndDate(previousDay);
+							firstEmptySectionInRange.setDateDescription(format("%s - %s",
+									getFormatter().formatDate(firstEmptySectionInRange.getDate(), FormatStyle.FULL), getFormatter().formatDate(previousDay, FormatStyle.FULL)));
+							finalSections.add(firstEmptySectionInRange);
+						}
+
+						firstEmptySectionInRange = null;
+					}
+
+					finalSections.add(section);
+				} else if (firstEmptySectionInRange == null) {
+					firstEmptySectionInRange = section;
+				}
+			}
+
+			// Catch any empty sections at the end of the list
+			if (firstEmptySectionInRange != null) {
+				LocalDate previousDay = sections.get(sections.size() - 1).getDate().minusDays(1);
+
+				if (firstEmptySectionInRange.getDate().equals(previousDay)) {
+					// Range of 1: put it in as-is
+					finalSections.add(firstEmptySectionInRange);
+				} else {
+					// Range of > 1: make it a range
+					firstEmptySectionInRange.setEndDate(previousDay);
+					firstEmptySectionInRange.setDateDescription(format("%s - %s",
+							getFormatter().formatDate(firstEmptySectionInRange.getDate(), FormatStyle.FULL), getFormatter().formatDate(previousDay, FormatStyle.FULL)));
+					finalSections.add(firstEmptySectionInRange);
+				}
+			}
+		}
+
 		return new ApiResponse(new LinkedHashMap<String, Object>() {{
-			put("sections", sections);
+			put("sections", finalSections);
 			put("appointmentTypes", appointmentTypesJson);
 			put("epicDepartments", epicDepartmentsJson);
 
@@ -592,6 +686,64 @@ public class ProviderResource {
 						.map(followup -> getFollowupApiResponseFactory().create(followup, Set.of(FollowupApiResponseSupplement.ALL)))
 						.collect(Collectors.toList()));
 		}});
+	}
+
+	protected static class ProviderFindSection {
+		@Nullable
+		private LocalDate date;
+		@Nullable
+		private LocalDate endDate; // Used for empty ranges
+		@Nullable
+		private String dateDescription;
+		@Nullable
+		private Boolean fullyBooked;
+		@Nullable
+		private List<Object> providers;
+
+		@Nullable
+		public LocalDate getDate() {
+			return this.date;
+		}
+
+		public void setDate(@Nullable LocalDate date) {
+			this.date = date;
+		}
+
+		@Nullable
+		public LocalDate getEndDate() {
+			return this.endDate;
+		}
+
+		public void setEndDate(@Nullable LocalDate endDate) {
+			this.endDate = endDate;
+		}
+
+		@Nullable
+		public String getDateDescription() {
+			return this.dateDescription;
+		}
+
+		public void setDateDescription(@Nullable String dateDescription) {
+			this.dateDescription = dateDescription;
+		}
+
+		@Nullable
+		public Boolean getFullyBooked() {
+			return this.fullyBooked;
+		}
+
+		public void setFullyBooked(@Nullable Boolean fullyBooked) {
+			this.fullyBooked = fullyBooked;
+		}
+
+		@Nullable
+		public List<Object> getProviders() {
+			return this.providers;
+		}
+
+		public void setProviders(@Nullable List<Object> providers) {
+			this.providers = providers;
+		}
 	}
 
 	@Nonnull
