@@ -22,7 +22,7 @@ package com.cobaltplatform.api.integration.epic.request;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.time.LocalTime;
 import java.util.List;
 
@@ -36,9 +36,9 @@ public class AppointmentFindFhirStu3Request {
 	@Nullable
 	private String patient;
 	@Nullable
-	private LocalDateTime startTime;
+	private Instant startTime;
 	@Nullable
-	private LocalDateTime endTime;
+	private Instant endTime;
 	@Nullable
 	private List<Coding> serviceTypes;
 	@Nullable
@@ -66,20 +66,20 @@ public class AppointmentFindFhirStu3Request {
 	}
 
 	@Nullable
-	public LocalDateTime getStartTime() {
+	public Instant getStartTime() {
 		return this.startTime;
 	}
 
-	public void setStartTime(@Nullable LocalDateTime startTime) {
+	public void setStartTime(@Nullable Instant startTime) {
 		this.startTime = startTime;
 	}
 
 	@Nullable
-	public LocalDateTime getEndTime() {
+	public Instant getEndTime() {
 		return this.endTime;
 	}
 
-	public void setEndTime(@Nullable LocalDateTime endTime) {
+	public void setEndTime(@Nullable Instant endTime) {
 		this.endTime = endTime;
 	}
 

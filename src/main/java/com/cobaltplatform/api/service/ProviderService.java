@@ -883,8 +883,8 @@ public class ProviderService {
 
 			AppointmentFindFhirStu3Request appointmentFindRequest = new AppointmentFindFhirStu3Request();
 			appointmentFindRequest.setPatient(account.getEpicPatientFhirId());
-			appointmentFindRequest.setStartTime(startDateTime);
-			appointmentFindRequest.setEndTime(endDateTime);
+			appointmentFindRequest.setStartTime(startDateTime.atZone(institution.getTimeZone()).toInstant());
+			appointmentFindRequest.setEndTime(endDateTime.atZone(institution.getTimeZone()).toInstant());
 			appointmentFindRequest.setServiceTypes(appointmentTypes.stream()
 					.map(appointmentType -> {
 						AppointmentFindFhirStu3Request.Coding serviceType = new AppointmentFindFhirStu3Request.Coding();
@@ -898,12 +898,14 @@ public class ProviderService {
 			AppointmentFindFhirStu3Response appointmentFindResponse = epicClient.appointmentFindFhirStu3(appointmentFindRequest);
 
 			for (AppointmentFindFhirStu3Response.Entry entry : appointmentFindResponse.getEntry()) {
-				LocalDateTime slotStartDateTime = entry.getResource().getStart().withZoneSameInstant(institution.getTimeZone()).toLocalDateTime();
-				LocalDateTime slotEndDateTime = entry.getResource().getEnd().withZoneSameInstant(institution.getTimeZone()).toLocalDateTime();
+				LocalDateTime slotStartDateTime = LocalDateTime.ofInstant(entry.getResource().getStart(), institution.getTimeZone());
+				LocalDateTime slotEndDateTime = LocalDateTime.ofInstant(entry.getResource().getEnd(), institution.getTimeZone());
 
 				// Hack for testing...
-				slotStartDateTime = slotStartDateTime.plusMonths(1);
-				slotEndDateTime = slotEndDateTime.plusMonths(1);
+				if (getConfiguration().isLocal()) {
+					slotStartDateTime = slotStartDateTime.plusMonths(1);
+					slotEndDateTime = slotEndDateTime.plusMonths(1);
+				}
 
 				LocalDate slotDate = slotStartDateTime.toLocalDate();
 				LocalTime slotTime = slotStartDateTime.toLocalTime();
