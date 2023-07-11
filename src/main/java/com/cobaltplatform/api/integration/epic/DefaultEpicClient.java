@@ -62,6 +62,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
@@ -183,8 +184,8 @@ public class DefaultEpicClient implements EpicClient {
 		String url = "api/FHIR/STU3/Appointment/$find";
 
 		String patient = trimToNull(request.getPatient());
-		Instant startTime = request.getStartTime();
-		Instant endTime = request.getEndTime();
+		Instant startTime = request.getStartTime().truncatedTo(ChronoUnit.SECONDS);
+		Instant endTime = request.getEndTime().truncatedTo(ChronoUnit.SECONDS);
 		List<AppointmentFindFhirStu3Request.Coding> serviceTypes = request.getServiceTypes() == null ? Collections.emptyList() : request.getServiceTypes();
 		String serviceTypesText = trimToNull(request.getServiceTypesText());
 		List<AppointmentFindFhirStu3Request.Coding> indications = request.getIndications() == null ? Collections.emptyList() : request.getIndications();
