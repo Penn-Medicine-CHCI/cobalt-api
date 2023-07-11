@@ -58,10 +58,9 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Singleton;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -184,8 +183,8 @@ public class DefaultEpicClient implements EpicClient {
 		String url = "api/FHIR/STU3/Appointment/$find";
 
 		String patient = trimToNull(request.getPatient());
-		LocalDateTime startTime = request.getStartTime();
-		LocalDateTime endTime = request.getEndTime();
+		Instant startTime = request.getStartTime();
+		Instant endTime = request.getEndTime();
 		List<AppointmentFindFhirStu3Request.Coding> serviceTypes = request.getServiceTypes() == null ? Collections.emptyList() : request.getServiceTypes();
 		String serviceTypesText = trimToNull(request.getServiceTypesText());
 		List<AppointmentFindFhirStu3Request.Coding> indications = request.getIndications() == null ? Collections.emptyList() : request.getIndications();
@@ -195,8 +194,6 @@ public class DefaultEpicClient implements EpicClient {
 		String locationReference = trimToNull(request.getLocationReference());
 		List<AppointmentFindFhirStu3Request.ValueTiming> timesOfDay = request.getTimesOfDay() == null ? Collections.emptyList() : request.getTimesOfDay();
 
-		// e.g. 2018-07-30T18:15:50Z
-		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ISO_INSTANT;
 		// e.g. 02:00:00
 		DateTimeFormatter timeOfDayFormatter = DateTimeFormatter.ofPattern("HH:mm:ss", Locale.US);
 
@@ -224,7 +221,7 @@ public class DefaultEpicClient implements EpicClient {
 		if (startTime != null) {
 			Map<String, Object> parameter = new HashMap();
 			parameter.put("name", "startTime");
-			parameter.put("valueDateTime", startTime.atZone(ZoneId.of("UTC")).format(dateTimeFormatter));
+			parameter.put("valueDateTime", DateTimeFormatter.ISO_INSTANT.format(startTime));
 			parameters.add(parameter);
 		}
 
@@ -235,7 +232,7 @@ public class DefaultEpicClient implements EpicClient {
 		if (endTime != null) {
 			Map<String, Object> parameter = new HashMap();
 			parameter.put("name", "endTime");
-			parameter.put("valueDateTime", endTime.atZone(ZoneId.of("UTC")).format(dateTimeFormatter));
+			parameter.put("valueDateTime", DateTimeFormatter.ISO_INSTANT.format(endTime));
 			parameters.add(parameter);
 		}
 

@@ -40,8 +40,9 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -94,15 +95,15 @@ public final class EpicUtilities {
 			}
 		});
 
-		gsonBuilder.registerTypeAdapter(ZonedDateTime.class, new TypeAdapter<ZonedDateTime>() {
+		gsonBuilder.registerTypeAdapter(Instant.class, new TypeAdapter<Instant>() {
 			@Override
-			public void write(JsonWriter out, ZonedDateTime value) throws IOException {
-				out.value(value.toString());
+			public void write(JsonWriter out, Instant value) throws IOException {
+				out.value(DateTimeFormatter.ISO_INSTANT.format(value).toString());
 			}
 
 			@Override
-			public ZonedDateTime read(JsonReader in) throws IOException {
-				return ZonedDateTime.parse(in.nextString());
+			public Instant read(JsonReader in) throws IOException {
+				return Instant.from(DateTimeFormatter.ISO_INSTANT.parse(in.nextString()));
 			}
 		});
 
