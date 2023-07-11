@@ -226,10 +226,17 @@ public class InstitutionResource {
 		requireNonNull(institutionId);
 		requireNonNull(redirectImmediately);
 
-		String authenticationUrl = getMyChartService().generateAuthenticationUrlForInstitutionId(institutionId);
+		Account account = getCurrentContext().getAccount().orElse(null);
 
-		if (getConfiguration().isLocal())
-			authenticationUrl = authenticationUrl + "&accountId=" + getCurrentContext().getAccount().get().getAccountId();
+		Map<String, Object> claims = new HashMap<>();
+
+		if (account != null)
+			claims.put("accountId", account.getAccountId());
+
+		String authenticationUrl = getMyChartService().generateAuthenticationUrlForInstitutionId(institutionId, claims);
+
+		if (getConfiguration().isLocal() && account != null)
+			authenticationUrl = authenticationUrl + "&accountId=" + account.getAccountId();
 
 		if (redirectImmediately.isPresent() && redirectImmediately.get())
 			return new RedirectResponse(authenticationUrl, Type.TEMPORARY);
