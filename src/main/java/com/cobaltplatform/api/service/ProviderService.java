@@ -898,6 +898,9 @@ public class ProviderService {
 			AppointmentFindFhirStu3Response appointmentFindResponse = epicClient.appointmentFindFhirStu3(appointmentFindRequest);
 
 			for (AppointmentFindFhirStu3Response.Entry entry : appointmentFindResponse.getEntry()) {
+				if (!"Appointment".equals(entry.getResource().getResourceType()))
+					continue;
+
 				LocalDateTime slotStartDateTime = LocalDateTime.ofInstant(entry.getResource().getStart(), institution.getTimeZone());
 				LocalDateTime slotEndDateTime = LocalDateTime.ofInstant(entry.getResource().getEnd(), institution.getTimeZone());
 
