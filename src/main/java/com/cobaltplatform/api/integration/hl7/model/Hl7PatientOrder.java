@@ -22,6 +22,8 @@ package com.cobaltplatform.api.integration.hl7.model;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
+import static java.lang.String.format;
+
 /**
  * @author Transmogrify, LLC.
  */
@@ -33,6 +35,12 @@ public class Hl7PatientOrder {
 	private String patientId; // e.g. "555555555"
 	@Nullable
 	private String patientIdType; // e.g. "UID"
+
+	@Override
+	public String toString() {
+		return format("%s{orderId=%s, patientId=%s, patientIdType=%s}", getClass().getSimpleName(),
+				getOrderId(), getPatientId(), getPatientIdType());
+	}
 
 	@Nullable
 	public String getOrderId() {
