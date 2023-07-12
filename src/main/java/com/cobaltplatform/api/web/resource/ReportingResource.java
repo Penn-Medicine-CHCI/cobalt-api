@@ -127,24 +127,24 @@ public class ReportingResource {
 	public Object runReport(@Nonnull @QueryParameter ReportTypeId reportTypeId,
 													@Nonnull @QueryParameter LocalDateTime startDateTime, // inclusive
 													@Nonnull @QueryParameter LocalDateTime endDateTime, // inclusive
-													@Nonnull @QueryParameter Optional<List<String>> payorName,
-													@Nonnull @QueryParameter Optional<List<String>> practiceName,
-													@Nonnull @QueryParameter Optional<Integer> patientAgeFrom,
-													@Nonnull @QueryParameter Optional<Integer> patientAgeTo,
-													@Nonnull @QueryParameter Optional<List<RaceId>> raceId,
-													@Nonnull @QueryParameter Optional<List<GenderIdentityId>> genderIdentityId,
+													@Nonnull @QueryParameter Optional<List<String>> patientOrderInsurancePayorId,
+													@Nonnull @QueryParameter Optional<List<String>> referringPracticeNames,
+													@Nonnull @QueryParameter Optional<Integer> minimumPatientAge,
+													@Nonnull @QueryParameter Optional<Integer> maximumPatientAge,
+													@Nonnull @QueryParameter Optional<List<RaceId>> patientRaceId,
+													@Nonnull @QueryParameter Optional<List<GenderIdentityId>> patientGenderIdentityId,
 													@Nonnull @QueryParameter Optional<ZoneId> timeZone,
 													@Nonnull @QueryParameter Optional<Locale> locale,
 													@Nonnull HttpServletResponse httpServletResponse) throws IOException {
 		requireNonNull(reportTypeId);
 		requireNonNull(startDateTime);
 		requireNonNull(endDateTime);
-		requireNonNull(payorName);
-		requireNonNull(practiceName);
-		requireNonNull(patientAgeFrom);
-		requireNonNull(patientAgeTo);
-		requireNonNull(raceId);
-		requireNonNull(genderIdentityId);
+		requireNonNull(patientOrderInsurancePayorId);
+		requireNonNull(referringPracticeNames);
+		requireNonNull(minimumPatientAge);
+		requireNonNull(maximumPatientAge);
+		requireNonNull(patientRaceId);
+		requireNonNull(patientGenderIdentityId);
 		requireNonNull(timeZone);
 		requireNonNull(locale);
 		requireNonNull(httpServletResponse);
@@ -172,10 +172,13 @@ public class ReportingResource {
 			else if (reportTypeId == ReportTypeId.PROVIDER_APPOINTMENT_CANCELATIONS)
 				getReportingService().runProviderAppointmentCancelationsReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
 			else if (reportTypeId == ReportTypeId.IC_PIPELINE)
-				getReportingService().runPipelineReportCsv(account.getInstitutionId(), startDateTime, endDateTime, payorName, practiceName, patientAgeFrom, patientAgeTo, raceId, genderIdentityId,
+				getReportingService().runIcPipelineReportCsv(account.getInstitutionId(), startDateTime, endDateTime, patientOrderInsurancePayorId, referringPracticeNames, minimumPatientAge, maximumPatientAge, patientRaceId, patientGenderIdentityId,
 						reportTimeZone, reportLocale, printWriter);
-			else if (reportTypeId == ReportTypeId.IC_MHIC_OUTREACH)
-				getReportingService().runOutreachReportCsv(account.getInstitutionId(), startDateTime, endDateTime, payorName, practiceName, patientAgeFrom, patientAgeTo, raceId, genderIdentityId,
+			else if (reportTypeId == ReportTypeId.IC_OUTREACH)
+				getReportingService().runIcOutreachReportCsv(account.getInstitutionId(), startDateTime, endDateTime, patientOrderInsurancePayorId, referringPracticeNames, minimumPatientAge, maximumPatientAge, patientRaceId, patientGenderIdentityId,
+						reportTimeZone, reportLocale, printWriter);
+			else if (reportTypeId == ReportTypeId.IC_ASSESSMENT)
+				getReportingService().runIcAssessmentReportCsv(account.getInstitutionId(), startDateTime, endDateTime, patientOrderInsurancePayorId, referringPracticeNames, minimumPatientAge, maximumPatientAge, patientRaceId, patientGenderIdentityId,
 						reportTimeZone, reportLocale, printWriter);
 			else
 				throw new IllegalStateException(format("We don't support %s.%s yet", ReportTypeId.class.getSimpleName(), reportTypeId.name()));

@@ -1,12 +1,18 @@
 BEGIN;
 SELECT _v.register_patch('103-ic-updates', NULL, NULL);
 
+UPDATE report_type SET report_type_id='IC_OUTREACH', description = 'Outreach'
+WHERE report_type_id = 'IC_OVERALL_OUTREACH';
+
+UPDATE report_type SET report_type_id='IC_ASSESSMENT', description = 'Assessments'
+WHERE report_type_id = 'IC_MHIC_OUTREACH';
+
 -- Adding 
 --   most_recent_screening_session_by_patient to main select
 --   app.created_by_account_id to recent_appt_query
 --   appointment_scheduled_by_patient to main select
---   appointment_scheduled
---   patient_order_triage_source_id and reason to triage_query and main select
+--   appointment_scheduled to main select
+--   patient_order_triage_source_id to triage_query and main select
 CREATE or replace VIEW v_all_patient_order AS WITH
 poo_query AS (
     -- Count up the patient outreach attempts for each patient order
@@ -167,7 +173,6 @@ recent_scheduled_screening_query AS (
             poct.description AS patient_order_care_type_description,
             pot.patient_order_triage_id,
             pot.patient_order_triage_source_id,
-            pot.reason,
             RANK() OVER (
                 PARTITION BY poq.patient_order_id
                 ORDER BY
@@ -187,8 +192,7 @@ recent_scheduled_screening_query AS (
         patient_order_care_type_id,
         patient_order_care_type_description,
         patient_order_id,
-        patient_order_triage_source_id,
-        reason
+        patient_order_triage_source_id
     FROM
         poct_cte
     WHERE
@@ -198,7 +202,6 @@ select
     tq.patient_order_care_type_id,
     tq.patient_order_care_type_description,
     tq.patient_order_triage_source_id,
-    tq.reason AS patient_order_triage_reason,
     coalesce(pooq.outreach_count, 0) AS outreach_count,
     poomaxq.max_outreach_date_time AS most_recent_outreach_date_time,
     coalesce(smgq.scheduled_message_group_count, 0) AS scheduled_message_group_count,

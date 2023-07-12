@@ -329,7 +329,7 @@ public class ReportingService {
 		requireNonNull(raceId);
 		requireNonNull(genderIdentityId);
 
-		iCWhereClauseWithParameters whereClauseWithParamaters = new iCWhereClauseWithParameters();
+		iCWhereClauseWithParameters whereClauseWithParameters = new iCWhereClauseWithParameters();
 		List<Object> parameters = new ArrayList();
 
 		StringBuilder whereClause = new StringBuilder(""" 
@@ -358,22 +358,22 @@ public class ReportingService {
 		}
 
 		if (raceId.isPresent()) {
-			whereClause.append(format(" AND patient_race_id = ? ", sqlInListPlaceholders(raceId.get())));
+			whereClause.append(format(" AND patient_race_id IN  %s ", sqlInListPlaceholders(raceId.get())));
 			parameters.addAll(raceId.get());
 		}
 
 		if (genderIdentityId.isPresent()) {
-			whereClause.append(format(" AND patient_gender_identity_id = ? ", sqlInListPlaceholders(genderIdentityId.get())));
+			whereClause.append(format(" AND patient_gender_identity_id IN %s ", sqlInListPlaceholders(genderIdentityId.get())));
 			parameters.addAll(genderIdentityId.get());
 		}
 
-		whereClauseWithParamaters.setWhereClause(whereClause.toString());
-		whereClauseWithParamaters.setParameters(parameters);
+		whereClauseWithParameters.setWhereClause(whereClause.toString());
+		whereClauseWithParameters.setParameters(parameters);
 
-		return whereClauseWithParamaters;
+		return whereClauseWithParameters;
 	}
 
-	public void runPipelineReportCsv(@Nonnull InstitutionId institutionId,
+	public void runIcPipelineReportCsv(@Nonnull InstitutionId institutionId,
 																	 @Nonnull LocalDateTime startDateTime,
 																	 @Nonnull LocalDateTime endDateTime,
 																	 @Nonnull Optional<List<String>> payorName,
@@ -480,7 +480,7 @@ public class ReportingService {
 
 	}
 
-	public void runOutreachReportCsv(@Nonnull InstitutionId institutionId,
+	public void runIcOutreachReportCsv(@Nonnull InstitutionId institutionId,
 																	 @Nonnull LocalDateTime startDateTime,
 																	 @Nonnull LocalDateTime endDateTime,
 																	 @Nonnull Optional<List<String>> payorName,
@@ -536,21 +536,33 @@ public class ReportingService {
 			csvPrinter.printRecord("Texts", patientOrders.stream().map(it -> it.getScheduledMessageGroupCount()).reduce(0, Integer::sum));
 			csvPrinter.printRecord("Closed Orders", Integer.toString(patientOrders.stream().filter(it -> it.getPatientOrderDispositionId() !=
 					PatientOrderDispositionId.OPEN).collect(Collectors.toList()).size()));
+			csvPrinter.printRecord("Assessment Overrides", Integer.toString(patientOrders.stream().filter(it -> it.getPatientOrderTriageSourceId() ==
+					PatientOrderTriageSourceId.MANUALLY_SET).collect(Collectors.toList()).size()));
 
-			List<PatientOrder> assessmentOverridePatientOrders = patientOrders.stream().filter(it -> it.getPatientOrderTriageSourceId() ==
-					PatientOrderTriageSourceId.MANUALLY_SET).collect(Collectors.toList());
-			csvPrinter.printRecord("Assessment Overrides", Integer.toString(assessmentOverridePatientOrders.size()));
-
+			List<DescriptionWithCountRecord> assessmentOverridePatientOrders =getDatabase().queryForList(
+					format("""
+									WITH pot_reason AS
+									(SELECT DISTINCT pot.patient_order_id, pot.reason
+									FROM patient_order_triage pot, v_patient_order vpo
+									WHERE pot.patient_order_id = vpo.patient_order_id
+									AND pot.patient_order_triage_source_id = 'MANUALLY_SET'
+									and  pot.patient_order_care_type_id != 'SAFETY_PLANNING'
+									and pot.active = true)
+									SELECT reason as description, count(*) as count
+									FROM pot_reason
+									GROUP BY reason
+									""", whereClauseWithParameters.getWhereClause()), DescriptionWithCountRecord.class, whereClauseWithParameters.getParameters().toArray());
 			csvPrinter.println();
-			csvPrinter.printRecord("Assessment Overrides Reasons");
-			for (PatientOrder assessmentOverridePatientOrder : assessmentOverridePatientOrders) {
+			csvPrinter.printRecord("Assessment Overrides Reason", "Count");
+			for (DescriptionWithCountRecord assessmentOverridePatientOrder : assessmentOverridePatientOrders) {
 				List<String> recordElements = new ArrayList<>();
-				recordElements.add(assessmentOverridePatientOrder.getPatientOrderTriageReason());
+				recordElements.add(assessmentOverridePatientOrder.getDescription());
+				recordElements.add(assessmentOverridePatientOrder.getCount().toString());
 				csvPrinter.printRecord(recordElements.toArray(new Object[0]));
 			}
 
 			csvPrinter.println();
-			csvPrinter.printRecord("Assessment Status", "Count");
+			csvPrinter.printRecord("Patients Requiring Assessment", "Count");
 			for (DescriptionWithCountRecord assessmentStatusCount : assessmentStatusCounts) {
 				List<String> recordElements = new ArrayList<>();
 
@@ -565,6 +577,75 @@ public class ReportingService {
 			throw new UncheckedIOException(e);
 		}
 
+	}
+
+	public void runIcAssessmentReportCsv(@Nonnull InstitutionId institutionId,
+																	 @Nonnull LocalDateTime startDateTime,
+																	 @Nonnull LocalDateTime endDateTime,
+																	 @Nonnull Optional<List<String>> payorName,
+																	 @Nonnull Optional<List<String>> practiceName,
+																	 @Nonnull Optional<Integer> patientAgeFrom,
+																	 @Nonnull Optional<Integer> patientAgeTo,
+																	 @Nonnull Optional<List<RaceId>> raceId,
+																	 @Nonnull Optional<List<GenderIdentityId>> genderIdentityId,
+																	 @Nonnull ZoneId reportTimeZone,
+																	 @Nonnull Locale reportLocale,
+																	 @Nonnull Writer writer) {
+		requireNonNull(institutionId);
+		requireNonNull(startDateTime);
+		requireNonNull(endDateTime);
+		requireNonNull(payorName);
+		requireNonNull(practiceName);
+		requireNonNull(patientAgeFrom);
+		requireNonNull(patientAgeTo);
+		requireNonNull(raceId);
+		requireNonNull(genderIdentityId);
+		requireNonNull(reportTimeZone);
+		requireNonNull(reportLocale);
+		requireNonNull(writer);
+
+		iCWhereClauseWithParameters whereClauseWithParameters = buildIcWhereClauseWithParameters(institutionId, startDateTime, endDateTime, payorName, practiceName, patientAgeFrom,
+				patientAgeTo, raceId, genderIdentityId);
+
+		List<String> assessmentHeaderColumns = List.of(
+				getStrings().get("Assessment"),
+				getStrings().get("Score"),
+				getStrings().get("Count"));
+
+		List<AssessmentScoreRecord> assessmentScores = getDatabase().queryForList(
+				format("""
+						SELECT st.description, sss.score->>'overallScore' as score, count(*) as count
+						FROM screening_session_screening sss, screening_session ss, screening_version sv, screening_type st, patient_order po
+						%s
+						AND sss.screening_version_id = sv.screening_version_id
+						AND sss.screening_session_id = ss.screening_session_id
+						AND sv.screening_type_id  = st.screening_type_id
+						AND ss.patient_order_id = po.patient_order_id
+						AND st.screening_type_id NOT IN  ('IC_INTRO', 'IC_INTRO_SYMPTOMS')
+						AND ss.completed = true
+						GROUP BY st.description, sss.score->>'overallScore'
+						ORDER BY st.description, sss.score->>'overallScore'""", whereClauseWithParameters.getWhereClause()),
+				AssessmentScoreRecord.class, whereClauseWithParameters.getParameters().toArray());
+		String lastDescription = null;
+		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(assessmentHeaderColumns.toArray(new String[0])))) {
+			for (AssessmentScoreRecord assessmentScore : assessmentScores) {
+				List<String> recordElements = new ArrayList<>();
+
+				if (lastDescription!= null && lastDescription.compareTo(assessmentScore.getDescription()) == 0)
+					recordElements.add("");
+				else
+					recordElements.add(assessmentScore.getDescription());
+
+				recordElements.add(assessmentScore.getScore().toString());
+				recordElements.add(assessmentScore.getCount().toString());
+				lastDescription = assessmentScore.getDescription();
+
+				csvPrinter.printRecord(recordElements.toArray(new Object[0]));
+			}
+			csvPrinter.flush();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
 	}
 
 		@NotThreadSafe
@@ -830,6 +911,43 @@ public class ReportingService {
 
 		public void setDescription(@Nullable String description) {
 			this.description = description;
+		}
+
+		@Nullable
+		public Integer getCount() {
+			return count;
+		}
+
+		public void setCount(@Nullable Integer count) {
+			this.count = count;
+		}
+	}
+
+	@NotThreadSafe
+	protected static class AssessmentScoreRecord {
+		@Nullable
+		private String description;
+		@Nullable
+		private String score;
+		@Nullable
+		private Integer count;
+
+		@Nullable
+		public String getDescription() {
+			return description;
+		}
+
+		public void setDescription(@Nullable String description) {
+			this.description = description;
+		}
+
+		@Nullable
+		public String getScore() {
+			return score;
+		}
+
+		public void setScore(@Nullable String score) {
+			this.score = score;
 		}
 
 		@Nullable
