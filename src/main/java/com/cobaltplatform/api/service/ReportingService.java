@@ -544,7 +544,8 @@ public class ReportingService {
 									WITH pot_reason AS
 									(SELECT DISTINCT pot.patient_order_id, pot.reason
 									FROM patient_order_triage pot, v_patient_order vpo
-									WHERE pot.patient_order_id = vpo.patient_order_id
+									%s
+									AND pot.patient_order_id = vpo.patient_order_id
 									AND pot.patient_order_triage_source_id = 'MANUALLY_SET'
 									and  pot.patient_order_care_type_id != 'SAFETY_PLANNING'
 									and pot.active = true)
@@ -553,7 +554,7 @@ public class ReportingService {
 									GROUP BY reason
 									""", whereClauseWithParameters.getWhereClause()), DescriptionWithCountRecord.class, whereClauseWithParameters.getParameters().toArray());
 			csvPrinter.println();
-			csvPrinter.printRecord("Assessment Overrides Reason", "Count");
+			csvPrinter.printRecord("Assessment Override Reason(s)", "Count");
 			for (DescriptionWithCountRecord assessmentOverridePatientOrder : assessmentOverridePatientOrders) {
 				List<String> recordElements = new ArrayList<>();
 				recordElements.add(assessmentOverridePatientOrder.getDescription());
