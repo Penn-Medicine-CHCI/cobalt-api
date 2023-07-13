@@ -91,6 +91,7 @@ public class ProviderApiResponse {
 	@Nullable
 	private final String supportRolesDescription;
 	@Nullable
+	@Deprecated // This is no longer used and always set to false
 	private final Boolean phoneNumberRequiredForAppointment;
 	@Nullable
 	private final List<String> paymentFundingDescriptions;
@@ -211,8 +212,7 @@ public class ProviderApiResponse {
 					: this.supportRoles.stream()
 					.map(supportRole -> supportRole.getDescription())
 					.collect(Collectors.joining(", "));
-			this.phoneNumberRequiredForAppointment = this.supportRoles.stream()
-					.anyMatch(role -> role.getSupportRoleId().equals(SupportRole.SupportRoleId.PSYCHIATRIST));
+			this.phoneNumberRequiredForAppointment = false;
 		} else {
 			this.supportRoles = null;
 			this.supportRolesDescription = null;
@@ -323,6 +323,7 @@ public class ProviderApiResponse {
 	}
 
 	@Nullable
+	@Deprecated // this is no longer used and always false
 	public Boolean getPhoneNumberRequiredForAppointment() {
 		return phoneNumberRequiredForAppointment;
 	}
