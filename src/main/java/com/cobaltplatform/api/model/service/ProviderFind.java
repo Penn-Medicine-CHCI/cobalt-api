@@ -58,6 +58,7 @@ public class ProviderFind {
 	@Nullable
 	private String supportRolesDescription;
 	@Nullable
+	@Deprecated // this is no longer used and always false
 	private Boolean phoneNumberRequiredForAppointment;
 	@Nullable
 	private String imageUrl;
@@ -311,10 +312,12 @@ public class ProviderFind {
 	}
 
 	@Nullable
+	@Deprecated // this is no longer used and always false
 	public Boolean getPhoneNumberRequiredForAppointment() {
 		return phoneNumberRequiredForAppointment;
 	}
 
+	@Deprecated
 	public void setPhoneNumberRequiredForAppointment(@Nullable Boolean phoneNumberRequiredForAppointment) {
 		this.phoneNumberRequiredForAppointment = phoneNumberRequiredForAppointment;
 	}

@@ -739,9 +739,6 @@ public class ProviderService {
 			if (intakeAssessmentRequired)
 				providerFind.setSkipIntakePrompt(!showIntakeAssessmentPromptsByProviderId.get(provider.getProviderId()));
 
-			if (psychiatristProviderIds.contains(provider.getProviderId()))
-				providerFind.setPhoneNumberRequiredForAppointment(true);
-
 			List<ProviderSupportRole> currentProviderSupportRoles = providerSupportRolesByProviderId.get(provider.getProviderId());
 
 			if (currentProviderSupportRoles == null)
