@@ -54,6 +54,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
 
@@ -133,6 +134,7 @@ public class ReportingResource {
 													@Nonnull @QueryParameter Optional<Integer> maximumPatientAge,
 													@Nonnull @QueryParameter Optional<List<RaceId>> patientRaceId,
 													@Nonnull @QueryParameter Optional<List<GenderIdentityId>> patientGenderIdentityId,
+													@Nonnull @QueryParameter Optional<List<UUID>> panelAccountId,
 													@Nonnull @QueryParameter Optional<ZoneId> timeZone,
 													@Nonnull @QueryParameter Optional<Locale> locale,
 													@Nonnull HttpServletResponse httpServletResponse) throws IOException {
@@ -145,6 +147,7 @@ public class ReportingResource {
 		requireNonNull(maximumPatientAge);
 		requireNonNull(patientRaceId);
 		requireNonNull(patientGenderIdentityId);
+		requireNonNull(panelAccountId);
 		requireNonNull(timeZone);
 		requireNonNull(locale);
 		requireNonNull(httpServletResponse);
@@ -176,7 +179,7 @@ public class ReportingResource {
 						reportTimeZone, reportLocale, printWriter);
 			else if (reportTypeId == ReportTypeId.IC_OUTREACH)
 				getReportingService().runIcOutreachReportCsv(account.getInstitutionId(), startDateTime, endDateTime, patientOrderInsurancePayorId, referringPracticeNames, minimumPatientAge, maximumPatientAge, patientRaceId, patientGenderIdentityId,
-						reportTimeZone, reportLocale, printWriter);
+						panelAccountId, reportTimeZone, reportLocale, printWriter);
 			else if (reportTypeId == ReportTypeId.IC_ASSESSMENT)
 				getReportingService().runIcAssessmentReportCsv(account.getInstitutionId(), startDateTime, endDateTime, patientOrderInsurancePayorId, referringPracticeNames, minimumPatientAge, maximumPatientAge, patientRaceId, patientGenderIdentityId,
 						reportTimeZone, reportLocale, printWriter);
