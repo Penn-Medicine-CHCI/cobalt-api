@@ -108,6 +108,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/100-ic-updates
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/101-ic-updates.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/102-ic-updates.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/103-feature-visibility.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/104-ic-updates.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

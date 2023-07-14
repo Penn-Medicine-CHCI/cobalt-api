@@ -24,8 +24,10 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.ReportTypeApiResponse;
 import com.cobaltplatform.api.model.api.response.ReportTypeApiResponse.ReportTypeApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.ReportType.ReportTypeId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ReportingService;
@@ -52,6 +54,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
 
@@ -125,12 +128,26 @@ public class ReportingResource {
 	public Object runReport(@Nonnull @QueryParameter ReportTypeId reportTypeId,
 													@Nonnull @QueryParameter LocalDateTime startDateTime, // inclusive
 													@Nonnull @QueryParameter LocalDateTime endDateTime, // inclusive
+													@Nonnull @QueryParameter Optional<List<String>> patientOrderInsurancePayorId,
+													@Nonnull @QueryParameter Optional<List<String>> referringPracticeNames,
+													@Nonnull @QueryParameter Optional<Integer> minimumPatientAge,
+													@Nonnull @QueryParameter Optional<Integer> maximumPatientAge,
+													@Nonnull @QueryParameter Optional<List<RaceId>> patientRaceId,
+													@Nonnull @QueryParameter Optional<List<GenderIdentityId>> patientGenderIdentityId,
+													@Nonnull @QueryParameter Optional<List<UUID>> panelAccountId,
 													@Nonnull @QueryParameter Optional<ZoneId> timeZone,
 													@Nonnull @QueryParameter Optional<Locale> locale,
 													@Nonnull HttpServletResponse httpServletResponse) throws IOException {
 		requireNonNull(reportTypeId);
 		requireNonNull(startDateTime);
 		requireNonNull(endDateTime);
+		requireNonNull(patientOrderInsurancePayorId);
+		requireNonNull(referringPracticeNames);
+		requireNonNull(minimumPatientAge);
+		requireNonNull(maximumPatientAge);
+		requireNonNull(patientRaceId);
+		requireNonNull(patientGenderIdentityId);
+		requireNonNull(panelAccountId);
 		requireNonNull(timeZone);
 		requireNonNull(locale);
 		requireNonNull(httpServletResponse);
@@ -157,6 +174,15 @@ public class ReportingResource {
 				getReportingService().runProviderAppointmentsReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
 			else if (reportTypeId == ReportTypeId.PROVIDER_APPOINTMENT_CANCELATIONS)
 				getReportingService().runProviderAppointmentCancelationsReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
+			else if (reportTypeId == ReportTypeId.IC_PIPELINE)
+				getReportingService().runIcPipelineReportCsv(account.getInstitutionId(), startDateTime, endDateTime, patientOrderInsurancePayorId, referringPracticeNames, minimumPatientAge, maximumPatientAge, patientRaceId, patientGenderIdentityId,
+						reportTimeZone, reportLocale, printWriter);
+			else if (reportTypeId == ReportTypeId.IC_OUTREACH)
+				getReportingService().runIcOutreachReportCsv(account.getInstitutionId(), startDateTime, endDateTime, patientOrderInsurancePayorId, referringPracticeNames, minimumPatientAge, maximumPatientAge, patientRaceId, patientGenderIdentityId,
+						panelAccountId, reportTimeZone, reportLocale, printWriter);
+			else if (reportTypeId == ReportTypeId.IC_ASSESSMENT)
+				getReportingService().runIcAssessmentReportCsv(account.getInstitutionId(), startDateTime, endDateTime, patientOrderInsurancePayorId, referringPracticeNames, minimumPatientAge, maximumPatientAge, patientRaceId, patientGenderIdentityId,
+						reportTimeZone, reportLocale, printWriter);
 			else
 				throw new IllegalStateException(format("We don't support %s.%s yet", ReportTypeId.class.getSimpleName(), reportTypeId.name()));
 		}
