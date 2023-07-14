@@ -20,7 +20,7 @@
 package com.cobaltplatform.api.model.api.request;
 
 
-import com.cobaltplatform.api.model.db.UserExperienceType;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 
 import javax.annotation.Nullable;
@@ -35,6 +35,8 @@ public class ForgotPasswordRequest {
 	private UserExperienceTypeId userExperienceTypeId;
 	@Nullable
 	private String emailAddress;
+	@Nullable
+	private InstitutionId institutionId;
 
 	@Nullable
 	public UserExperienceTypeId getUserExperienceTypeId() {
@@ -52,5 +54,14 @@ public class ForgotPasswordRequest {
 
 	public void setEmailAddress(@Nullable String emailAddress) {
 		this.emailAddress = emailAddress;
+	}
+
+	@Nullable
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
+	}
+
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
 	}
 }

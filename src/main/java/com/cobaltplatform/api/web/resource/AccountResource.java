@@ -548,7 +548,7 @@ public class AccountResource {
 
 		if (!inviteExpired) {
 			AccountInvite accountInvite = getAccountService().findAccountInviteByCode(accountInviteCode).get();
-			Optional<Account> existingAccount = getAccountService().findAccountByEmailAddressAndAccountSourceId(accountInvite.getEmailAddress(), AccountSourceId.EMAIL_PASSWORD);
+			Optional<Account> existingAccount = getAccountService().findAccountByEmailAddressAndAccountSourceId(accountInvite.getEmailAddress(), AccountSourceId.EMAIL_PASSWORD, accountInvite.getInstitutionId());
 			if (!existingAccount.isPresent()) {
 				UUID accountId = getAccountService().claimAccountInvite(accountInviteCode);
 				account = getAccountApiResponseFactory().create(getAccountService().findAccountById(accountId).get());
@@ -753,6 +753,7 @@ public class AccountResource {
 
 		ForgotPasswordRequest request = getRequestBodyParser().parse(body, ForgotPasswordRequest.class);
 		request.setUserExperienceTypeId(getCurrentContext().getUserExperienceTypeId().get());
+		request.setInstitutionId(request.getInstitutionId());
 
 		getAccountService().forgotPassword(request);
 
