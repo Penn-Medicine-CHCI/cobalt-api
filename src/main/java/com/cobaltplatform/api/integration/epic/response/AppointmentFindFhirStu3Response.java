@@ -26,7 +26,7 @@ import com.cobaltplatform.api.integration.epic.shared.Link;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.time.ZonedDateTime;
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -68,9 +68,9 @@ public class AppointmentFindFhirStu3Response {
 			@Nullable
 			private AppointmentStatusCode status;
 			@Nullable
-			private ZonedDateTime start;
+			private Instant start;
 			@Nullable
-			private ZonedDateTime end;
+			private Instant end;
 			@Nullable
 			private Integer minutesDuration;
 			@Nullable
@@ -93,9 +93,9 @@ public class AppointmentFindFhirStu3Response {
 				@Nullable
 				private SlotStatusCode status;
 				@Nullable
-				private ZonedDateTime start;
+				private Instant start;
 				@Nullable
-				private ZonedDateTime end;
+				private Instant end;
 
 				@NotThreadSafe
 				public static class Schedule {
@@ -149,20 +149,20 @@ public class AppointmentFindFhirStu3Response {
 				}
 
 				@Nullable
-				public ZonedDateTime getStart() {
+				public Instant getStart() {
 					return this.start;
 				}
 
-				public void setStart(@Nullable ZonedDateTime start) {
+				public void setStart(@Nullable Instant start) {
 					this.start = start;
 				}
 
 				@Nullable
-				public ZonedDateTime getEnd() {
+				public Instant getEnd() {
 					return this.end;
 				}
 
-				public void setEnd(@Nullable ZonedDateTime end) {
+				public void setEnd(@Nullable Instant end) {
 					this.end = end;
 				}
 			}
@@ -325,20 +325,20 @@ public class AppointmentFindFhirStu3Response {
 			}
 
 			@Nullable
-			public ZonedDateTime getStart() {
+			public Instant getStart() {
 				return this.start;
 			}
 
-			public void setStart(@Nullable ZonedDateTime start) {
+			public void setStart(@Nullable Instant start) {
 				this.start = start;
 			}
 
 			@Nullable
-			public ZonedDateTime getEnd() {
+			public Instant getEnd() {
 				return this.end;
 			}
 
-			public void setEnd(@Nullable ZonedDateTime end) {
+			public void setEnd(@Nullable Instant end) {
 				this.end = end;
 			}
 
