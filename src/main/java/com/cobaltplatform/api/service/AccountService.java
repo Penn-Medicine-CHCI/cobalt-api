@@ -375,7 +375,7 @@ public class AccountService {
 			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is required.")));
 		else if (emailAddress != null && !isValidEmailAddress(emailAddress))
 			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is invalid.")));
-		else if (findAccountByEmailAddressAndAccountSourceId(emailAddress, AccountSourceId.EMAIL_PASSWORD).isPresent())
+		else if (findAccountByEmailAddressAndAccountSourceId(emailAddress, AccountSourceId.EMAIL_PASSWORD, institutionId).isPresent())
 			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is already in use.")));
 
 		if (password == null)
@@ -608,7 +608,7 @@ public class AccountService {
 			institution = getInstitutionService().findInstitutionById(institutionId).get();
 		}
 
-		Account account = findAccountByEmailAddressAndAccountSourceId(emailAddress, AccountSourceId.EMAIL_PASSWORD).orElse(null);
+		Account account = findAccountByEmailAddressAndAccountSourceId(emailAddress, AccountSourceId.EMAIL_PASSWORD, institutionId).orElse(null);
 
 		// Special behavior: if this is an IC institution and debugging is enabled and this looks like a test patient account email
 		// but no account exists for it yet, create the test patient account.
@@ -662,13 +662,19 @@ public class AccountService {
 
 	@Nonnull
 	public Optional<Account> findAccountByEmailAddressAndAccountSourceId(@Nullable String emailAddress,
-																																			 @Nullable AccountSourceId accountSourceId) {
+																																			 @Nullable AccountSourceId accountSourceId,
+																																			 @Nullable InstitutionId institutionId) {
 		emailAddress = getNormalizer().normalizeEmailAddress(emailAddress).orElse(null);
 
 		if (emailAddress == null || accountSourceId == null)
 			return Optional.empty();
 
-		return getDatabase().queryForObject("SELECT * FROM v_account WHERE email_address=? AND account_source_id=?", Account.class, emailAddress, accountSourceId);
+		return getDatabase().queryForObject("""
+				SELECT * FROM v_account
+				WHERE email_address=?
+				AND account_source_id=?
+				AND institution_id=?
+				""", Account.class, emailAddress, accountSourceId, institutionId);
 	}
 
 	@Nonnull
@@ -826,6 +832,7 @@ public class AccountService {
 
 		String emailAddress = getNormalizer().normalizeEmailAddress(request.getEmailAddress()).orElse(null);
 		UserExperienceTypeId userExperienceTypeId = request.getUserExperienceTypeId();
+		InstitutionId institutionId = request.getInstitutionId();
 		ValidationException validationException = new ValidationException();
 
 		if (emailAddress == null)
@@ -834,10 +841,13 @@ public class AccountService {
 		if (userExperienceTypeId == null)
 			validationException.add(new FieldError("userExperienceTypeId", getStrings().get("User Experience Type ID is required.")));
 
+		if (institutionId == null)
+			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
+
 		if (validationException.hasErrors())
 			throw validationException;
 
-		Optional<Account> account = findAccountByEmailAddressAndAccountSourceId(emailAddress, AccountSourceId.EMAIL_PASSWORD);
+		Optional<Account> account = findAccountByEmailAddressAndAccountSourceId(emailAddress, AccountSourceId.EMAIL_PASSWORD, institutionId);
 
 		if (account.isPresent()) {
 			UUID passwordResetToken = UUID.randomUUID();
