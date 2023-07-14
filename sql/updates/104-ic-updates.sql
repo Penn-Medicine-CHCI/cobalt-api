@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('103-ic-updates', NULL, NULL);
+SELECT _v.register_patch('104-ic-updates', NULL, NULL);
 
 UPDATE report_type SET report_type_id='IC_OUTREACH', description = 'Outreach'
 WHERE report_type_id = 'IC_OVERALL_OUTREACH';
