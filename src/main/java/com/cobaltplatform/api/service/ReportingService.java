@@ -398,6 +398,7 @@ public class ReportingService {
 		Boolean fileterDescriptionAdded = false;
 
 		try {
+			csVPrinter.printRecord("Additional Filters Applied");
 			if (payorName.isPresent()) {
 				csVPrinter.printRecord("Payor Names", payorName.get().toString());
 				fileterDescriptionAdded = true;
@@ -423,8 +424,10 @@ public class ReportingService {
 				fileterDescriptionAdded = true;
 			}
 
-			if (fileterDescriptionAdded)
-				csVPrinter.println();
+			if (!fileterDescriptionAdded)
+				csVPrinter.printRecord("None");
+
+			csVPrinter.println();
 
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
@@ -520,8 +523,10 @@ public class ReportingService {
 			csvPrinter.printRecord("Completed Assessments by MHIC", Integer.toString(patientOrders.stream().filter(it -> it.getPatientOrderScreeningStatusId() ==
 					PatientOrderScreeningStatusId.COMPLETE && it.getMostRecentScreeningSessionByPatient() == false).collect(Collectors.toList()).size()));
 			Integer totalStartedScreenings = inProgressScreeningCount + completedScreeningCount;
-			csvPrinter.printRecord("Abandonment Rate", totalStartedScreenings > 0 ? getFormatter().formatPercent((double) inProgressScreeningCount / totalStartedScreenings) : "0%");
-			csvPrinter.printRecord("Completion Rate", totalStartedScreenings > 0 ? getFormatter().formatPercent((double) completedScreeningCount / totalStartedScreenings) : "0%");
+			csvPrinter.printRecord("Abandonment Rate", getFormatter().formatPercent(totalStartedScreenings > 0 ?
+					((double) inProgressScreeningCount / totalStartedScreenings) : 0));
+			csvPrinter.printRecord("Completion Rate",  getFormatter().formatPercent(totalStartedScreenings > 0 ?
+					((double) completedScreeningCount / totalStartedScreenings) : 0));
 			csvPrinter.printRecord("Triaged to Subclinical", Integer.toString(patientOrders.stream().filter(it -> it.getPatientOrderTriageStatusId() ==
 					PatientOrderTriageStatusId.SUBCLINICAL).collect(Collectors.toList()).size()));
 			csvPrinter.printRecord("Triaged to MHP", Integer.toString(patientOrders.stream().filter(it -> it.getPatientOrderTriageStatusId() ==
@@ -708,6 +713,10 @@ public class ReportingService {
 		IcWhereClauseWithParameters whereClauseWithParameters = buildIcWhereClauseWithParameters(institutionId, startDateTime, endDateTime, payorName, practiceName, patientAgeFrom,
 				patientAgeTo, raceId, genderIdentityId, Optional.empty());
 
+		//All patient orders matching the report filters
+		List<PatientOrder> patientOrders = getDatabase().queryForList(
+				format("SELECT * FROM v_patient_order %s", whereClauseWithParameters.getWhereClause()), PatientOrder.class, whereClauseWithParameters.getParameters().toArray());
+
 		List<AssessmentScoreRecord> assessmentScores = getDatabase().queryForList(
 				format("""
 						SELECT st.description, sss.score->>'overallScore' as score, count(*) as count
@@ -720,13 +729,15 @@ public class ReportingService {
 						AND st.screening_type_id NOT IN  ('IC_INTRO', 'IC_INTRO_SYMPTOMS')
 						AND ss.completed = true
 						GROUP BY st.description, sss.score->>'overallScore'
-						ORDER BY st.description, sss.score->>'overallScore'""", whereClauseWithParameters.getWhereClause()),
+						ORDER BY st.description, (sss.score->>'overallScore')::int""", whereClauseWithParameters.getWhereClause()),
 				AssessmentScoreRecord.class, whereClauseWithParameters.getParameters().toArray());
 		String lastDescription = null;
 		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT)) {
 			addFilterDescription(csvPrinter, payorName, practiceName, patientAgeFrom, patientAgeTo, raceId, genderIdentityId);
-
-			csvPrinter.printRecord("Assessment", "Score", "Count");
+			csvPrinter.printRecord("Number of Patients Completing Assessment", patientOrders.stream().filter(it -> it.getPatientOrderScreeningStatusId() ==
+							PatientOrderScreeningStatusId.COMPLETE).collect(Collectors.toList()).size());
+			csvPrinter.println();
+			csvPrinter.printRecord("Assessment", "Score", "Number of Patients Achieving Score");
 			if (assessmentScores.size() > 0) {
 				for (AssessmentScoreRecord assessmentScore : assessmentScores) {
 					List<String> recordElements = new ArrayList<>();
