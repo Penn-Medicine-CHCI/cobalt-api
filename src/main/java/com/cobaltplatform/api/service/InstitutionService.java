@@ -62,6 +62,7 @@ import java.util.stream.Collectors;
 import static com.cobaltplatform.api.util.WebUtility.normalizedHostnameForUrl;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -187,7 +188,7 @@ public class InstitutionService {
 		if (institutionId == null)
 			return Collections.emptyList();
 
-		return getDatabase().queryForList("""
+		List<AccountSourceForInstitution> accountSources = getDatabase().queryForList("""
 						SELECT ias.institution_id, a.account_source_id, ias.account_source_display_style_id,
 						a.description, ias.authentication_description, a.local_sso_url, a.dev_sso_url,
 						a.prod_sso_url, ias.display_order, ias.requires_user_experience_type_id
@@ -196,6 +197,32 @@ public class InstitutionService {
 						AND ias.account_source_id=a.account_source_id
 						ORDER BY ias.display_order
 				""", AccountSourceForInstitution.class, institutionId);
+
+		// Adjust URLs to include institution ID query parameter to support scenario where the same SSO account source is
+		// used across multiple institutions
+		accountSources.stream().forEach(accountSource -> {
+			accountSource.setLocalSsoUrl(applyInstititutionIdToUrl(accountSource.getLocalSsoUrl(), institutionId).orElse(null));
+			accountSource.setDevSsoUrl(applyInstititutionIdToUrl(accountSource.getDevSsoUrl(), institutionId).orElse(null));
+			accountSource.setProdSsoUrl(applyInstititutionIdToUrl(accountSource.getProdSsoUrl(), institutionId).orElse(null));
+		});
+
+		return accountSources;
+	}
+
+	@Nonnull
+	protected Optional<String> applyInstititutionIdToUrl(@Nullable String url,
+																											 @Nonnull InstitutionId institutionId) {
+		requireNonNull(institutionId);
+
+		url = trimToNull(url);
+
+		if (url == null || !url.startsWith("http"))
+			return Optional.empty();
+
+		if (url.contains("?"))
+			return Optional.of(format("%s&institutionId=%s", url, institutionId.name()));
+
+		return Optional.of(format("%s?institutionId=%s", url, institutionId.name()));
 	}
 
 	@Nonnull

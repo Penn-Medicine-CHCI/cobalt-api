@@ -74,11 +74,11 @@ public class AccountSourceApiResponse {
 
 		String ssoUrl = null;
 
-		if(environment.endsWith("prod"))
+		if (environment.endsWith("prod"))
 			ssoUrl = accountSource.getProdSsoUrl();
-		else if(environment.endsWith("dev"))
+		else if (environment.endsWith("dev"))
 			ssoUrl = accountSource.getDevSsoUrl();
-		else if(environment.equals("local"))
+		else if (environment.equals("local"))
 			ssoUrl = accountSource.getLocalSsoUrl();
 
 		this.ssoUrl = ssoUrl;
