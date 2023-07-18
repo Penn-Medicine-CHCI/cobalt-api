@@ -54,8 +54,10 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -98,6 +100,23 @@ public class AmazonSesEmailMessageSender implements MessageSender<EmailMessage> 
 		String replyToAddress = emailMessage.getReplyToAddress().orElse(null);
 		String subject = getHandlebarsTemplater().mergeTemplate(emailMessage.getMessageTemplate().name(), "subject", emailMessage.getLocale(), messageContext).get();
 		String body = getHandlebarsTemplater().mergeTemplate(emailMessage.getMessageTemplate().name(), "body", emailMessage.getLocale(), messageContext).get();
+
+		boolean containsTestEmailAddress = false;
+
+		for (String toEmailAddress : emailMessage.getToAddresses()) {
+			if (toEmailAddress != null) {
+				toEmailAddress = toEmailAddress.trim().toLowerCase(Locale.US);
+				if (toEmailAddress.endsWith("@test.cobaltintegratedcare.com")) {
+					containsTestEmailAddress = true;
+					break;
+				}
+			}
+		}
+
+		if (containsTestEmailAddress) {
+			getLogger().debug("Fake-sending email because it's to a test address. Message is '{}'...", emailMessage);
+			return format("fake-%s", UUID.randomUUID());
+		}
 
 		List<String> logMessages = new ArrayList<>(7);
 		logMessages.add(format("Sending '%s' email using Amazon SES...", emailMessage.getMessageTemplate()));
