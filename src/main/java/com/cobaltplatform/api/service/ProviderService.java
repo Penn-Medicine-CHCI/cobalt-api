@@ -497,6 +497,12 @@ public class ProviderService {
 			}
 		}
 
+		// If we are pulling previous slots, discard any providers of EPIC_FHIR type because we can't ask Epic for that data
+		if (includePastAvailability)
+			providers = providers.stream()
+					.filter(provider -> provider.getSchedulingSystemId() != SchedulingSystemId.EPIC_FHIR)
+					.collect(Collectors.toList());
+
 		if (providers.size() == 0)
 			return Collections.emptyList();
 
