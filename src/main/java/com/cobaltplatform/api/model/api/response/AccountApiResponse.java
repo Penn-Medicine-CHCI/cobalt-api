@@ -144,6 +144,8 @@ public class AccountApiResponse {
 	private final String epicPatientMrn;
 	@Nullable
 	private final String epicPatientFhirId;
+	@Nullable
+	private final Boolean testAccount;
 
 	public enum AccountApiResponseSupplement {
 		EVERYTHING,
@@ -222,6 +224,7 @@ public class AccountApiResponse {
 		this.providerId = account.getProviderId();
 		this.institutionLocationId = account.getInstitutionLocationId();
 		this.promptedForInstitutionLocation = account.getPromptedForInstitutionLocation();
+		this.testAccount = account.getTestAccount();
 
 		if (showPrivateDetails) {
 			this.emailAddress = account.getEmailAddress();
@@ -489,5 +492,10 @@ public class AccountApiResponse {
 	@Nullable
 	public String getEpicPatientFhirId() {
 		return this.epicPatientFhirId;
+	}
+
+	@Nullable
+	public Boolean getTestAccount() {
+		return this.testAccount;
 	}
 }

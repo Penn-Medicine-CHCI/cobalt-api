@@ -326,7 +326,8 @@ public class PatientOrderCsvGenerator {
 					continue;
 
 				firstNames.add(nameComponents[0]);
-				lastNames.add(nameComponents[1]);
+				// Follow Epic convention of using `ZZZ` to indicate a test user
+				lastNames.add("ZZZ" + nameComponents[1]);
 			}
 
 			this.firstNames = Collections.unmodifiableList(firstNames);

@@ -148,6 +148,8 @@ public class CreatePatientOrderRequest {
 	private String testPatientEmailAddress;
 	@Nullable
 	private String testPatientPassword;
+	@Nullable
+	private Boolean testPatientOrder;
 
 	@Nullable
 	public UUID getPatientOrderImportId() {
@@ -660,6 +662,15 @@ public class CreatePatientOrderRequest {
 
 	public void setTestPatientPassword(@Nullable String testPatientPassword) {
 		this.testPatientPassword = testPatientPassword;
+	}
+
+	@Nullable
+	public Boolean getTestPatientOrder() {
+		return this.testPatientOrder;
+	}
+
+	public void setTestPatientOrder(@Nullable Boolean testPatientOrder) {
+		this.testPatientOrder = testPatientOrder;
 	}
 
 	@NotThreadSafe

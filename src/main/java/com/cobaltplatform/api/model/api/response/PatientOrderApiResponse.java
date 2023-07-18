@@ -437,6 +437,8 @@ public class PatientOrderApiResponse {
 	private String resourceCheckInScheduledAtDateTimeDescription;
 	@Nullable
 	private String patientOrderResourceCheckInResponseStatusDescription;
+	@Nullable
+	private Boolean testPatientOrder;
 
 	public enum PatientOrderApiResponseSupplement {
 		MINIMAL,
@@ -779,6 +781,8 @@ public class PatientOrderApiResponse {
 		this.primaryPlanId = patientOrder.getPrimaryPlanId();
 		this.primaryPlanName = patientOrder.getPrimaryPlanName();
 		this.primaryPlanAccepted = patientOrder.getPrimaryPlanAccepted();
+
+		this.testPatientOrder = patientOrder.getTestPatientOrder();
 
 		// MHIC-only view of the data
 		if (format == PatientOrderApiResponseFormat.MHIC) {
@@ -1724,5 +1728,10 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public String getPatientOrderResourceCheckInResponseStatusDescription() {
 		return this.patientOrderResourceCheckInResponseStatusDescription;
+	}
+
+	@Nullable
+	public Boolean getTestPatientOrder() {
+		return this.testPatientOrder;
 	}
 }

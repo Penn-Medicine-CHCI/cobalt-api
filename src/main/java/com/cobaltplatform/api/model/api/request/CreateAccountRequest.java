@@ -80,6 +80,8 @@ public class CreateAccountRequest {
 	private LocalDate birthdate;
 	@Nullable
 	private CreateAddressRequest address;
+	@Nullable
+	private Boolean testAccount;
 
 	@Nullable
 	public RoleId getRoleId() {
@@ -268,5 +270,14 @@ public class CreateAccountRequest {
 
 	public void setAddress(@Nullable CreateAddressRequest address) {
 		this.address = address;
+	}
+
+	@Nullable
+	public Boolean getTestAccount() {
+		return this.testAccount;
+	}
+
+	public void setTestAccount(@Nullable Boolean testAccount) {
+		this.testAccount = testAccount;
 	}
 }

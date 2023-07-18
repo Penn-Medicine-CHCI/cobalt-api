@@ -3506,6 +3506,7 @@ public class PatientOrderService implements AutoCloseable {
 					if (containsTestPatientData) {
 						patientOrderRequest.setTestPatientEmailAddress(trimToNull(record.get("Test Patient Email Address")));
 						patientOrderRequest.setTestPatientPassword(trimToNull(record.get("Test Patient Password")));
+						patientOrderRequest.setTestPatientOrder(true);
 						columnOffset = 2;
 					}
 
@@ -3566,7 +3567,22 @@ public class PatientOrderService implements AutoCloseable {
 					patientOrderRequest.setPatientMrn(trimToNull(record.get("MRN")));
 					patientOrderRequest.setPatientId(trimToNull(record.get("UID")));
 					patientOrderRequest.setPatientIdType("UID");
-					patientOrderRequest.setPatientBirthSexId(trimToNull(record.get("Sex")));
+
+					// Might be "Sex" or "Legal Sex"
+					String patientBirthSexId = null;
+
+					try {
+						patientBirthSexId = trimToNull(record.get("Legal Sex"));
+					} catch (IllegalArgumentException e) {
+						try {
+							patientBirthSexId = trimToNull(record.get("Sex"));
+						} catch (IllegalArgumentException e2) {
+							getLogger().warn("There is no 'Legal Sex' or 'Sex' column in this order report.");
+						}
+					}
+
+					patientOrderRequest.setPatientBirthSexId(patientBirthSexId);
+
 					patientOrderRequest.setPatientBirthdate(trimToNull(record.get("DOB")));
 
 					// e.g. 128000-IBC
@@ -3775,14 +3791,22 @@ public class PatientOrderService implements AutoCloseable {
 				if (importedPatientOrder.getPatientPhoneNumber() != null)
 					messageTypeIds.add(MessageTypeId.SMS);
 
-				createPatientOrderScheduledMessageGroup(new CreatePatientOrderScheduledMessageGroupRequest() {{
-					setPatientOrderId(importedPatientOrder.getPatientOrderId());
-					setAccountId(accountId);
-					setPatientOrderScheduledMessageTypeId(PatientOrderScheduledMessageTypeId.WELCOME);
-					setMessageTypeIds(messageTypeIds);
-					setScheduledAtDate(now.toLocalDate());
-					setScheduledAtTimeAsLocalTime(now.toLocalTime());
-				}});
+				if (messageTypeIds.size() > 0) {
+					getLogger().info("Going to send welcome message via {} for patient order ID {}...",
+							messageTypeIds, importedPatientOrder.getPatientOrderId());
+
+					createPatientOrderScheduledMessageGroup(new CreatePatientOrderScheduledMessageGroupRequest() {{
+						setPatientOrderId(importedPatientOrder.getPatientOrderId());
+						setAccountId(accountId);
+						setPatientOrderScheduledMessageTypeId(PatientOrderScheduledMessageTypeId.WELCOME);
+						setMessageTypeIds(messageTypeIds);
+						setScheduledAtDate(now.toLocalDate());
+						setScheduledAtTimeAsLocalTime(now.toLocalTime());
+					}});
+				} else {
+					getLogger().info("No email or phone number available for patient order ID {}, not sending welcome message...",
+							importedPatientOrder.getPatientOrderId());
+				}
 			} else {
 				// ...the order needs review by a human.  Don't send the welcome message.
 				getLogger().info("Patient Order ID {} has either an un-accepted region or insurance - not automatically sending welcome message.", importedPatientOrder.getPatientOrderId());
@@ -3858,6 +3882,7 @@ public class PatientOrderService implements AutoCloseable {
 		String recentPsychotherapeuticMedications = trimToNull(request.getRecentPsychotherapeuticMedications());
 		String testPatientEmailAddress = trimToNull(request.getTestPatientEmailAddress());
 		String testPatientPassword = trimToNull(request.getTestPatientPassword());
+		boolean testPatientOrder = request.getTestPatientOrder() != null ? request.getTestPatientOrder() : false;
 		UUID patientOrderId = UUID.randomUUID();
 		Institution institution = null;
 		ValidationException validationException = new ValidationException();
@@ -3897,9 +3922,13 @@ public class PatientOrderService implements AutoCloseable {
 			try {
 				orderDate = LocalDate.parse(orderDateAsString, twoDigitYearDateFormatter);
 			} catch (Exception e) {
+				// Try other format: US month/day/year
+				orderDate = LocalDate.parse(orderDateAsString, fourDigitYearDateFormatter);
+			}
+
+			if (orderDate == null)
 				validationException.add(new FieldError("orderDate", getStrings().get("Unrecognized order date format: {{orderDate}}",
 						Map.of("orderDate", orderDateAsString))));
-			}
 		}
 
 		if (diagnoses.size() > 0) {
@@ -4077,8 +4106,9 @@ public class PatientOrderService implements AutoCloseable {
 						  last_active_medication_order_summary,
 						  recent_psychotherapeutic_medications,
 						  test_patient_email_address,
-						  test_patient_password
-						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						  test_patient_password,
+						  test_patient_order
+						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				patientOrderId, patientOrderDispositionId, patientOrderImportId,
 				institutionId, encounterDepartmentId, encounterDepartmentIdType, encounterDepartmentName, referringPracticeId,
@@ -4089,7 +4119,7 @@ public class PatientOrderService implements AutoCloseable {
 				primaryPayorName, primaryPlanId, primaryPlanName, orderDate, orderAgeInMinutes, orderId, routing,
 				associatedDiagnosis, patientPhoneNumber, preferredContactHours, comments, ccRecipients,
 				lastActiveMedicationOrderSummary, recentPsychotherapeuticMedications,
-				testPatientEmailAddress, hashedTestPatientPassword);
+				testPatientEmailAddress, hashedTestPatientPassword, testPatientOrder);
 
 		int diagnosisDisplayOrder = 0;
 
@@ -4796,7 +4826,6 @@ public class PatientOrderService implements AutoCloseable {
 	protected PatientOrderScheduledMessageGroupApiResponseFactory getPatientOrderScheduledMessageGroupApiResponseFactory() {
 		return this.patientOrderScheduledMessageGroupApiResponseFactory;
 	}
-
 
 	@Nonnull
 	protected Provider<BackgroundTask> getBackgroundTaskProvider() {

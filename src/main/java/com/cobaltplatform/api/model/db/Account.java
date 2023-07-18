@@ -137,6 +137,8 @@ public class Account {
 	private UUID institutionLocationId;
 	@Nullable
 	private Boolean promptedForInstitutionLocation;
+	@Nullable
+	private Boolean testAccount;
 
 	// From v_account
 
@@ -536,5 +538,14 @@ public class Account {
 		// As a side effect, parse JSON and set our other field
 		this.accountCapabilityTypeIds = accountCapabilityTypeIdsAsString == null ? null : GSON.fromJson(accountCapabilityTypeIdsAsString, new TypeToken<Set<AccountCapabilityTypeId>>() {
 		}.getType());
+	}
+
+	@Nullable
+	public Boolean getTestAccount() {
+		return this.testAccount;
+	}
+
+	public void setTestAccount(@Nullable Boolean testAccount) {
+		this.testAccount = testAccount;
 	}
 }
