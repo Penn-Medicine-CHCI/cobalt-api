@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.service;
 
+import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -83,22 +84,27 @@ public class ReportingService {
 	private final Logger logger;
 	@Nonnull
 	private final Formatter formatter;
+	@Nonnull
+	private final Configuration configuration;
 
 	@Inject
 	public ReportingService(@Nonnull Provider<AccountService> accountServiceProvider,
 													@Nonnull Database database,
 													@Nonnull Strings strings,
-													@Nonnull Formatter formatter) {
+													@Nonnull Formatter formatter,
+													@Nonnull Configuration configuration) {
 		requireNonNull(accountServiceProvider);
 		requireNonNull(database);
 		requireNonNull(strings);
 		requireNonNull(formatter);
+		requireNonNull(configuration);
 
 		this.accountServiceProvider = accountServiceProvider;
 		this.database = database;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.formatter = formatter;
+		this.configuration = configuration;
 	}
 
 	@Nonnull
@@ -349,6 +355,9 @@ public class ReportingService {
 		parameters.add(institutionId);
 		parameters.add(startDateTime);
 		parameters.add(endDateTime);
+
+		if (!getConfiguration().getShouldIncludeTestDataInIcReports())
+			whereClause.append(" AND test_patient_order = false ");
 
 		if (payorName.isPresent()) {
 			whereClause.append(format(" AND primary_payor_name IN %s ", sqlInListPlaceholders(payorName.get())));
@@ -1092,6 +1101,11 @@ public class ReportingService {
 	@Nonnull
 	protected Logger getLogger() {
 		return this.logger;
+	}
+
+	@Nonnull
+	protected Configuration getConfiguration() {
+		return this.configuration;
 	}
 
 	@Nonnull

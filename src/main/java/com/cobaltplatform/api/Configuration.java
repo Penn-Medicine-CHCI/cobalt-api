@@ -190,6 +190,8 @@ public class Configuration {
 	@Nonnull
 	private final Boolean shouldApplyDatabaseUpdates;
 	@Nonnull
+	private final Boolean shouldIncludeTestDataInIcReports;
+	@Nonnull
 	private final String jdbcUrl;
 	@Nonnull
 	private final String jdbcUsername;
@@ -438,6 +440,8 @@ public class Configuration {
 		this.microsoftSigningCredentials = loadSigningCredentials("cobalt-microsoft");
 
 		this.samlSettingsByIdentityProvider = Collections.emptyMap();
+
+		this.shouldIncludeTestDataInIcReports = !isProduction();
 
 		if (getAmazonUseLocalstack()) {
 			// Prime the default credential provider chain
@@ -1380,6 +1384,11 @@ public class Configuration {
 	@Nonnull
 	public Boolean getShouldApplyDatabaseUpdates() {
 		return shouldApplyDatabaseUpdates;
+	}
+
+	@Nonnull
+	public Boolean getShouldIncludeTestDataInIcReports() {
+		return shouldIncludeTestDataInIcReports;
 	}
 
 	public String getEpicNonProdKeyId() {
