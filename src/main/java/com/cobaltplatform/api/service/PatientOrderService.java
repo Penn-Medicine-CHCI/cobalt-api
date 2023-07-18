@@ -66,6 +66,8 @@ import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse.PatientOrderScheduledMessageGroupApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderTriageGroupApiResponse;
+import com.cobaltplatform.api.model.api.response.PatientOrderTriageGroupApiResponse.PatientOrderTriageGroupFocusApiResponse;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
@@ -77,6 +79,7 @@ import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderCarePreference;
 import com.cobaltplatform.api.model.db.PatientOrderCarePreference.PatientOrderCarePreferenceId;
 import com.cobaltplatform.api.model.db.PatientOrderCareType;
+import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderConsentStatus.PatientOrderConsentStatusId;
@@ -86,6 +89,7 @@ import com.cobaltplatform.api.model.db.PatientOrderDisposition;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
 import com.cobaltplatform.api.model.db.PatientOrderEventType.PatientOrderEventTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType;
+import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderImport;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderMedication;
@@ -110,6 +114,8 @@ import com.cobaltplatform.api.model.db.PatientOrderVoicemailTask;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
+import com.cobaltplatform.api.model.db.ScreeningSession;
+import com.cobaltplatform.api.model.db.ScreeningType;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.cobaltplatform.api.model.service.FindResult;
@@ -121,6 +127,9 @@ import com.cobaltplatform.api.model.service.PatientOrderImportResult;
 import com.cobaltplatform.api.model.service.PatientOrderOutreachStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderResponseStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderViewTypeId;
+import com.cobaltplatform.api.model.service.ScreeningSessionResult;
+import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningQuestionResult;
+import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningSessionScreeningResult;
 import com.cobaltplatform.api.model.service.SortDirectionId;
 import com.cobaltplatform.api.model.service.SortNullsId;
 import com.cobaltplatform.api.util.Authenticator;
@@ -167,6 +176,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
+import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -222,6 +233,8 @@ public class PatientOrderService implements AutoCloseable {
 	@Nonnull
 	private final Provider<InstitutionService> institutionServiceProvider;
 	@Nonnull
+	private final Provider<ScreeningService> screeningServiceProvider;
+	@Nonnull
 	private final Provider<BackgroundTask> backgroundTaskProvider;
 	@Nonnull
 	private final PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory;
@@ -254,6 +267,7 @@ public class PatientOrderService implements AutoCloseable {
 														 @Nonnull Provider<AccountService> accountServiceProvider,
 														 @Nonnull Provider<MessageService> messageServiceProvider,
 														 @Nonnull Provider<InstitutionService> institutionServiceProvider,
+														 @Nonnull Provider<ScreeningService> screeningServiceProvider,
 														 @Nonnull Provider<BackgroundTask> backgroundTaskProvider,
 														 @Nonnull PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory,
 														 @Nonnull Database database,
@@ -266,6 +280,7 @@ public class PatientOrderService implements AutoCloseable {
 		requireNonNull(accountServiceProvider);
 		requireNonNull(messageServiceProvider);
 		requireNonNull(institutionServiceProvider);
+		requireNonNull(screeningServiceProvider);
 		requireNonNull(backgroundTaskProvider);
 		requireNonNull(patientOrderScheduledMessageGroupApiResponseFactory);
 		requireNonNull(database);
@@ -279,6 +294,7 @@ public class PatientOrderService implements AutoCloseable {
 		this.accountServiceProvider = accountServiceProvider;
 		this.messageServiceProvider = messageServiceProvider;
 		this.institutionServiceProvider = institutionServiceProvider;
+		this.screeningServiceProvider = screeningServiceProvider;
 		this.backgroundTaskProvider = backgroundTaskProvider;
 		this.patientOrderScheduledMessageGroupApiResponseFactory = patientOrderScheduledMessageGroupApiResponseFactory;
 		this.database = database;
@@ -1301,7 +1317,7 @@ public class PatientOrderService implements AutoCloseable {
 			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.MOST_RECENT_SCREENING_SESSION_COMPLETED_AT)
 				orderByColumn = "bq.most_recent_screening_session_completed_at";
 			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.MOST_RECENT_OUTREACH_DATE_TIME)
-				orderByColumn = "bq.most_recent_outreach_date_time";
+				orderByColumn = "bq.most_recent_total_outreach_date_time";
 			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.MOST_RECENT_SCHEDULED_SCREENING_SCHEDULED_DATE_TIME)
 				orderByColumn = "bq.patient_order_scheduled_screening_scheduled_date_time";
 			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.EPISODE_CLOSED_AT)
@@ -3418,6 +3434,192 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
+	public String generateClinicalReport(@Nonnull PatientOrder patientOrder) {
+		requireNonNull(patientOrder);
+
+		Institution institution = getInstitutionService().findInstitutionById(patientOrder.getInstitutionId()).get();
+		List<PatientOrderTriage> patientOrderTriages = findPatientOrderTriagesByPatientOrderId(patientOrder.getPatientOrderId());
+
+		if (patientOrderTriages.size() == 0)
+			throw new ValidationException(getStrings().get("Cannot generate a clinical report; there is no triage information available for this patient order."));
+
+		// Look for a completed screening session...
+		List<ScreeningSession> screeningSessions = getScreeningService().findScreeningSessionsByPatientOrderId(patientOrder.getPatientOrderId());
+		ScreeningSession completedScreeningSession = screeningSessions.stream()
+				.filter(screeningSession -> screeningSession.getCompleted())
+				.findFirst()
+				.orElse(null);
+
+		if (completedScreeningSession == null)
+			throw new ValidationException(getStrings().get("Cannot generate a clinical report; there is no completed screening session for this patient order."));
+
+		ScreeningSessionResult screeningSessionResult = getScreeningService().findScreeningSessionResult(completedScreeningSession).get();
+
+		List<String> lines = new ArrayList<>();
+
+		lines.add(getStrings().get("{{integratedCareProgramName}} RESOURCE CENTER ASSESSMENT",
+				Map.of("integratedCareProgramName", institution.getIntegratedCareProgramName().toUpperCase(Locale.US))));
+		lines.add("-----------------------------------------------");
+		lines.add(getStrings().get("VISIT SUMMARY / TREATMENT PLAN"));
+		lines.add("");
+		lines.add(getStrings().get("PATIENT: {{name}} (MRN {{mrn}})",
+				Map.of("name", Normalizer.normalizeName(patientOrder.getPatientFirstName(), null, patientOrder.getPatientLastName()).orElse(null),
+						"mrn", patientOrder.getPatientMrn()
+				)
+		));
+		lines.add("");
+		lines.add(getStrings().get("ASSESSMENT SUMMARY: {{ageInYears}} year old patient completed the {{integratedCareProgramName}} triage assessment on {{assessmentDate}} {{timeZone}}.",
+				Map.of(
+						"ageInYears", patientOrder.getPatientAgeOnOrderDate(),
+						"integratedCareProgramName", institution.getIntegratedCareProgramName(),
+						"assessmentDate", getFormatter().formatTimestamp(completedScreeningSession.getCompletedAt(), FormatStyle.FULL, FormatStyle.SHORT, institution.getTimeZone()),
+						"timeZone", institution.getTimeZone().getDisplayName(TextStyle.FULL_STANDALONE, institution.getLocale())
+				)
+		));
+
+		// Collect information about triage.  Data looks like this:
+		// [
+		//  {
+		//    "patientOrderTriageSourceId": "COBALT",
+		//    "patientOrderCareTypeId": "SPECIALTY",
+		//    "patientOrderCareTypeDescription": "Specialty",
+		//    "patientOrderFocusTypes": [
+		//      {
+		//        "patientOrderFocusTypeId": "PSYCHOTHERAPY",
+		//        "patientOrderFocusTypeDescription": "Psychotherapy",
+		//        "reasons": [
+		//          "Patient requested help with bipolar disorder"
+		//        ]
+		//      }
+		//    ]
+		//  }
+		// ]
+		List<PatientOrderFocusType> patientOrderFocusTypes = findPatientOrderFocusTypes();
+		Map<PatientOrderFocusTypeId, PatientOrderFocusType> patientOrderFocusTypesById = patientOrderFocusTypes.stream()
+				.collect(Collectors.toMap(PatientOrderFocusType::getPatientOrderFocusTypeId, patientOrderFocusType -> patientOrderFocusType));
+		List<PatientOrderCareType> patientOrderCareTypes = findPatientOrderCareTypes();
+		Map<PatientOrderCareTypeId, PatientOrderCareType> patientOrderCareTypesById = patientOrderCareTypes.stream()
+				.collect(Collectors.toMap(PatientOrderCareType::getPatientOrderCareTypeId, patientOrderCareType -> patientOrderCareType));
+
+		Map<PatientOrderCareTypeId, List<PatientOrderTriage>> patientOrderTriagesByCareTypeIds = new LinkedHashMap<>();
+
+		// Triage source should be the same across all triages, so just pick the first one
+		PatientOrderTriageSourceId patientOrderTriageSourceId = patientOrderTriages.get(0).getPatientOrderTriageSourceId();
+
+		for (PatientOrderTriage patientOrderTriage : patientOrderTriages) {
+			List<PatientOrderTriage> groupedPatientOrderTriages = patientOrderTriagesByCareTypeIds.get(patientOrderTriage.getPatientOrderCareTypeId());
+
+			if (groupedPatientOrderTriages == null) {
+				groupedPatientOrderTriages = new ArrayList<>();
+				patientOrderTriagesByCareTypeIds.put(patientOrderTriage.getPatientOrderCareTypeId(), groupedPatientOrderTriages);
+			}
+
+			groupedPatientOrderTriages.add(patientOrderTriage);
+		}
+
+		List<PatientOrderTriageGroupApiResponse> patientOrderTriageGroups = new ArrayList<>();
+
+		for (Entry<PatientOrderCareTypeId, List<PatientOrderTriage>> entry : patientOrderTriagesByCareTypeIds.entrySet()) {
+			PatientOrderCareTypeId patientOrderCareTypeId = entry.getKey();
+			PatientOrderCareType patientOrderCareType = patientOrderCareTypesById.get(patientOrderCareTypeId);
+			List<PatientOrderTriage> careTypePatientOrderTriages = entry.getValue();
+
+			// Within this care type, further group by focus type
+			Map<PatientOrderFocusTypeId, List<PatientOrderTriage>> patientOrderTriagesByFocusTypeIds = new LinkedHashMap<>();
+
+			for (PatientOrderTriage patientOrderTriage : careTypePatientOrderTriages) {
+				List<PatientOrderTriage> focusTypePatientOrderTriages = patientOrderTriagesByFocusTypeIds.get(patientOrderTriage.getPatientOrderFocusTypeId());
+
+				if (focusTypePatientOrderTriages == null) {
+					focusTypePatientOrderTriages = new ArrayList<>();
+					patientOrderTriagesByFocusTypeIds.put(patientOrderTriage.getPatientOrderFocusTypeId(), focusTypePatientOrderTriages);
+				}
+
+				focusTypePatientOrderTriages.add(patientOrderTriage);
+			}
+
+			List<PatientOrderTriageGroupFocusApiResponse> focusTypePatientOrderTriages = new ArrayList<>();
+
+			for (Entry<PatientOrderFocusTypeId, List<PatientOrderTriage>> focusEntry : patientOrderTriagesByFocusTypeIds.entrySet()) {
+				PatientOrderFocusTypeId patientOrderFocusTypeId = focusEntry.getKey();
+				List<PatientOrderTriage> focusPatientOrderTriages = focusEntry.getValue();
+
+				List<String> focusReasons = focusPatientOrderTriages.stream()
+						.map(focusPatientOrderTriage -> focusPatientOrderTriage.getReason())
+						.distinct()
+						.collect(Collectors.toList());
+
+				focusTypePatientOrderTriages.add(new PatientOrderTriageGroupFocusApiResponse(patientOrderFocusTypesById.get(patientOrderFocusTypeId), focusReasons));
+			}
+
+			patientOrderTriageGroups.add(new PatientOrderTriageGroupApiResponse(patientOrderTriageSourceId, patientOrderCareType, focusTypePatientOrderTriages));
+		}
+
+		// Pick the first non-safety-planning triage group
+		PatientOrderTriageGroupApiResponse applicablePatientOrderTriageGroup = patientOrderTriageGroups.stream()
+				.filter(patientOrderTriageGroup -> patientOrderTriageGroup.getPatientOrderCareTypeId() != PatientOrderCareTypeId.SAFETY_PLANNING
+						&& patientOrderTriageGroup.getPatientOrderCareTypeId() != PatientOrderCareTypeId.UNSPECIFIED)
+				.findFirst().orElse(null);
+
+		lines.add("");
+		lines.add(getStrings().get("ASSESSMENT TRIAGE: {{careType}} Care", Map.of(
+				"careType", applicablePatientOrderTriageGroup.getPatientOrderCareTypeDescription()
+		)));
+
+		for (PatientOrderTriageGroupFocusApiResponse focusType : applicablePatientOrderTriageGroup.getPatientOrderFocusTypes()) {
+			lines.add(getStrings().get("* {{focusType}}: (Reason: {{reasons}})", Map.of(
+					"focusType", focusType.getPatientOrderFocusTypeDescription(),
+					"reasons", focusType.getReasons().stream().collect(Collectors.joining(", "))
+			)));
+		}
+
+		lines.add("");
+		lines.add("SUMMARY SCORES");
+
+		for (ScreeningSessionScreeningResult screeningSessionScreeningResult : screeningSessionResult.getScreeningSessionScreeningResults()) {
+			// We don't care about these scores for the clinical report
+			if (screeningSessionScreeningResult.getScreeningTypeId() == ScreeningType.ScreeningTypeId.IC_INTRO
+					|| screeningSessionScreeningResult.getScreeningTypeId() == ScreeningType.ScreeningTypeId.IC_INTRO_SYMPTOMS
+					|| screeningSessionScreeningResult.getScreeningTypeId() == ScreeningType.ScreeningTypeId.IC_INTRO_CONDITIONS)
+				continue;
+
+			lines.add(getStrings().get("* {{screeningName}} ({{score}})", Map.of(
+					"screeningName", screeningSessionScreeningResult.getScreeningName(),
+					"score", screeningSessionScreeningResult.getScreeningScore().getOverallScore()
+			)));
+		}
+
+		lines.add("");
+		lines.add(getStrings().get("RESULTS FOR INDIVIDUAL ASSESSMENTS"));
+		lines.add("----------------------------------");
+		lines.add("");
+		lines.add(getStrings().get("The remainder of the report includes a synopsis of the questions asked, along with the patient’s responses; results are based on self-report and should be used in context with other available clinical information."));
+
+		for (ScreeningSessionScreeningResult screeningSessionScreeningResult : screeningSessionResult.getScreeningSessionScreeningResults()) {
+			// We don't care about these scores for the clinical report
+			if (screeningSessionScreeningResult.getScreeningTypeId() == ScreeningType.ScreeningTypeId.IC_INTRO)
+				continue;
+
+			lines.add("");
+			String headline = getStrings().get("ASSESSMENT: {{screeningName}}", Map.of(
+					"screeningName", screeningSessionScreeningResult.getScreeningName()
+			));
+
+			lines.add(headline);
+			lines.add(StringUtils.repeat("-", headline.length()));
+
+			for (ScreeningQuestionResult screeningQuestionResult : screeningSessionScreeningResult.getScreeningQuestionResults()) {
+				lines.add(getStrings().get("* Question: {{question}}", Map.of("question", screeningQuestionResult.getScreeningQuestionIntroText() == null ? screeningQuestionResult.getScreeningQuestionText() : format("%s%s", screeningQuestionResult.getScreeningQuestionIntroText(), screeningQuestionResult.getScreeningQuestionText()))));
+				lines.add(getStrings().get("* Answer[s]: {{answers}}", Map.of("answers", screeningQuestionResult.getScreeningAnswerResults().stream()
+						.map(screeningAnswerResult -> screeningAnswerResult.getText() == null ? screeningAnswerResult.getAnswerOptionText() : format("%s (%s)", screeningAnswerResult.getAnswerOptionText(), screeningAnswerResult.getText()))
+						.collect(Collectors.joining(", ")))));
+			}
+		}
+
+		return lines.stream().collect(Collectors.joining("\n"));
+	}
+
+	@Nonnull
 	public PatientOrderImportResult createPatientOrderImport(@Nonnull CreatePatientOrderImportRequest request) {
 		requireNonNull(request);
 
@@ -3506,6 +3708,7 @@ public class PatientOrderService implements AutoCloseable {
 					if (containsTestPatientData) {
 						patientOrderRequest.setTestPatientEmailAddress(trimToNull(record.get("Test Patient Email Address")));
 						patientOrderRequest.setTestPatientPassword(trimToNull(record.get("Test Patient Password")));
+						patientOrderRequest.setTestPatientOrder(true);
 						columnOffset = 2;
 					}
 
@@ -3566,7 +3769,22 @@ public class PatientOrderService implements AutoCloseable {
 					patientOrderRequest.setPatientMrn(trimToNull(record.get("MRN")));
 					patientOrderRequest.setPatientId(trimToNull(record.get("UID")));
 					patientOrderRequest.setPatientIdType("UID");
-					patientOrderRequest.setPatientBirthSexId(trimToNull(record.get("Sex")));
+
+					// Might be "Sex" or "Legal Sex"
+					String patientBirthSexId = null;
+
+					try {
+						patientBirthSexId = trimToNull(record.get("Legal Sex"));
+					} catch (IllegalArgumentException e) {
+						try {
+							patientBirthSexId = trimToNull(record.get("Sex"));
+						} catch (IllegalArgumentException e2) {
+							getLogger().warn("There is no 'Legal Sex' or 'Sex' column in this order report.");
+						}
+					}
+
+					patientOrderRequest.setPatientBirthSexId(patientBirthSexId);
+
 					patientOrderRequest.setPatientBirthdate(trimToNull(record.get("DOB")));
 
 					// e.g. 128000-IBC
@@ -3775,14 +3993,22 @@ public class PatientOrderService implements AutoCloseable {
 				if (importedPatientOrder.getPatientPhoneNumber() != null)
 					messageTypeIds.add(MessageTypeId.SMS);
 
-				createPatientOrderScheduledMessageGroup(new CreatePatientOrderScheduledMessageGroupRequest() {{
-					setPatientOrderId(importedPatientOrder.getPatientOrderId());
-					setAccountId(accountId);
-					setPatientOrderScheduledMessageTypeId(PatientOrderScheduledMessageTypeId.WELCOME);
-					setMessageTypeIds(messageTypeIds);
-					setScheduledAtDate(now.toLocalDate());
-					setScheduledAtTimeAsLocalTime(now.toLocalTime());
-				}});
+				if (messageTypeIds.size() > 0) {
+					getLogger().info("Going to send welcome message via {} for patient order ID {}...",
+							messageTypeIds, importedPatientOrder.getPatientOrderId());
+
+					createPatientOrderScheduledMessageGroup(new CreatePatientOrderScheduledMessageGroupRequest() {{
+						setPatientOrderId(importedPatientOrder.getPatientOrderId());
+						setAccountId(accountId);
+						setPatientOrderScheduledMessageTypeId(PatientOrderScheduledMessageTypeId.WELCOME);
+						setMessageTypeIds(messageTypeIds);
+						setScheduledAtDate(now.toLocalDate());
+						setScheduledAtTimeAsLocalTime(now.toLocalTime());
+					}});
+				} else {
+					getLogger().info("No email or phone number available for patient order ID {}, not sending welcome message...",
+							importedPatientOrder.getPatientOrderId());
+				}
 			} else {
 				// ...the order needs review by a human.  Don't send the welcome message.
 				getLogger().info("Patient Order ID {} has either an un-accepted region or insurance - not automatically sending welcome message.", importedPatientOrder.getPatientOrderId());
@@ -3858,6 +4084,7 @@ public class PatientOrderService implements AutoCloseable {
 		String recentPsychotherapeuticMedications = trimToNull(request.getRecentPsychotherapeuticMedications());
 		String testPatientEmailAddress = trimToNull(request.getTestPatientEmailAddress());
 		String testPatientPassword = trimToNull(request.getTestPatientPassword());
+		boolean testPatientOrder = request.getTestPatientOrder() != null ? request.getTestPatientOrder() : false;
 		UUID patientOrderId = UUID.randomUUID();
 		Institution institution = null;
 		ValidationException validationException = new ValidationException();
@@ -3897,9 +4124,13 @@ public class PatientOrderService implements AutoCloseable {
 			try {
 				orderDate = LocalDate.parse(orderDateAsString, twoDigitYearDateFormatter);
 			} catch (Exception e) {
+				// Try other format: US month/day/year
+				orderDate = LocalDate.parse(orderDateAsString, fourDigitYearDateFormatter);
+			}
+
+			if (orderDate == null)
 				validationException.add(new FieldError("orderDate", getStrings().get("Unrecognized order date format: {{orderDate}}",
 						Map.of("orderDate", orderDateAsString))));
-			}
 		}
 
 		if (diagnoses.size() > 0) {
@@ -4077,8 +4308,9 @@ public class PatientOrderService implements AutoCloseable {
 						  last_active_medication_order_summary,
 						  recent_psychotherapeutic_medications,
 						  test_patient_email_address,
-						  test_patient_password
-						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						  test_patient_password,
+						  test_patient_order
+						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				patientOrderId, patientOrderDispositionId, patientOrderImportId,
 				institutionId, encounterDepartmentId, encounterDepartmentIdType, encounterDepartmentName, referringPracticeId,
@@ -4089,7 +4321,7 @@ public class PatientOrderService implements AutoCloseable {
 				primaryPayorName, primaryPlanId, primaryPlanName, orderDate, orderAgeInMinutes, orderId, routing,
 				associatedDiagnosis, patientPhoneNumber, preferredContactHours, comments, ccRecipients,
 				lastActiveMedicationOrderSummary, recentPsychotherapeuticMedications,
-				testPatientEmailAddress, hashedTestPatientPassword);
+				testPatientEmailAddress, hashedTestPatientPassword, testPatientOrder);
 
 		int diagnosisDisplayOrder = 0;
 
@@ -4793,10 +5025,14 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
+	protected ScreeningService getScreeningService() {
+		return this.screeningServiceProvider.get();
+	}
+
+	@Nonnull
 	protected PatientOrderScheduledMessageGroupApiResponseFactory getPatientOrderScheduledMessageGroupApiResponseFactory() {
 		return this.patientOrderScheduledMessageGroupApiResponseFactory;
 	}
-
 
 	@Nonnull
 	protected Provider<BackgroundTask> getBackgroundTaskProvider() {

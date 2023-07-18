@@ -326,7 +326,8 @@ public class PatientOrderCsvGenerator {
 					continue;
 
 				firstNames.add(nameComponents[0]);
-				lastNames.add(nameComponents[1]);
+				// Follow Epic convention of using `ZZZ` to indicate a test user
+				lastNames.add("ZZZ" + nameComponents[1]);
 			}
 
 			this.firstNames = Collections.unmodifiableList(firstNames);
@@ -336,14 +337,14 @@ public class PatientOrderCsvGenerator {
 		}
 
 		this.fakeDepartments = List.of(
-				new FakeDepartment("9999901", "Internal Medicine"),
-				new FakeDepartment("9999902", "Pediatrics"),
-				new FakeDepartment("9999903", "Family Medicine"),
-				new FakeDepartment("9999904", "General Internal Medicine"),
-				new FakeDepartment("9999905", "Geriatrics (Gerontology)"),
-				new FakeDepartment("9999906", "General Obstetrics"),
-				new FakeDepartment("9999907", "General Pediatrics"),
-				new FakeDepartment("9999908", "Lifestyle Medicine")
+				new FakeDepartment("ZZZ9901", "ZZZInternal Medicine"),
+				new FakeDepartment("ZZZ9902", "ZZZPediatrics"),
+				new FakeDepartment("ZZZ9903", "ZZZFamily Medicine"),
+				new FakeDepartment("ZZZ9904", "ZZZGeneral Internal Medicine"),
+				new FakeDepartment("ZZZ9905", "ZZZGeriatrics (Gerontology)"),
+				new FakeDepartment("ZZZ9906", "ZZZGeneral Obstetrics"),
+				new FakeDepartment("ZZZ9907", "ZZZGeneral Pediatrics"),
+				new FakeDepartment("ZZZ9908", "ZZZLifestyle Medicine")
 		);
 
 		List<FakeProvider> fakeProviders = new ArrayList<>(getFirstNames().size());
@@ -389,7 +390,7 @@ public class PatientOrderCsvGenerator {
 
 				insuranceIds.add(insuranceId);
 
-				FakeInsurance fakeInsurance = new FakeInsurance(insuranceId, insuranceName);
+				FakeInsurance fakeInsurance = new FakeInsurance("ZZZ" + insuranceId, "ZZZ" + insuranceName);
 				fakeInsurances.add(fakeInsurance);
 			}
 
@@ -420,7 +421,7 @@ public class PatientOrderCsvGenerator {
 
 				payorIds.add(payorId);
 
-				FakePayor fakePayor = new FakePayor(payorId, payorName);
+				FakePayor fakePayor = new FakePayor("ZZZ" + payorId, "ZZZ" + payorName);
 				fakePayors.add(fakePayor);
 			}
 
@@ -445,7 +446,7 @@ public class PatientOrderCsvGenerator {
 				String code = icd10Line.substring(0, icd10Line.indexOf(" "));
 				String name = icd10Line.substring(code.length()).trim();
 
-				Icd10Code icd10Code = new Icd10Code(code, name);
+				Icd10Code icd10Code = new Icd10Code("ZZZ" + code, "ZZZ" + name);
 				icd10Codes.add(icd10Code);
 			}
 
@@ -467,7 +468,7 @@ public class PatientOrderCsvGenerator {
 				addressLine = addressLine.trim().replaceAll("\\s+", " ");
 
 				// e.g. 3365 South Cato Springs Road, Fayetteville AR 72701
-				String street = addressLine.substring(0, addressLine.indexOf(","));
+				String street = "ZZZ" + addressLine.substring(0, addressLine.indexOf(","));
 				String remainder = addressLine.substring(addressLine.indexOf(",") + 1).trim();
 				String zipCode = remainder.substring(remainder.length() - 5);
 				remainder = remainder.substring(0, remainder.length() - 5).trim();
@@ -504,8 +505,8 @@ public class PatientOrderCsvGenerator {
 				medicationLine = medicationLine.trim().replaceAll("\\s+", " ");
 
 				// e.g. 853790683 Paxil (paroxetine)
-				String id = medicationLine.substring(0, medicationLine.indexOf(" "));
-				String name = medicationLine.substring(id.length() + 1).trim();
+				String id = "ZZZ" + medicationLine.substring(0, medicationLine.indexOf(" "));
+				String name = "ZZZ" + medicationLine.substring(id.length() + 1).trim();
 
 				FakeMedication fakeMedication = new FakeMedication(id, name);
 				fakeMedications.add(fakeMedication);
@@ -680,12 +681,12 @@ public class PatientOrderCsvGenerator {
 
 	@Nonnull
 	protected String randomMrn() {
-		return String.valueOf(randomNumberInRange(10_000_000, 99_999_999));
+		return "ZZZ" + String.valueOf(randomNumberInRange(10_000_000, 99_999_999));
 	}
 
 	@Nonnull
 	protected String randomUid() {
-		return String.valueOf(randomNumberInRange(10_000_000, 99_999_999));
+		return "ZZZ" + String.valueOf(randomNumberInRange(10_000_000, 99_999_999));
 	}
 
 	@Nonnull

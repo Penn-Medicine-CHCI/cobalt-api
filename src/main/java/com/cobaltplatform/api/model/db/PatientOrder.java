@@ -317,6 +317,8 @@ public class PatientOrder {
 	private String patientOrderTriageReason;
 	@Nullable
 	private Boolean appointmentScheduled;
+	@Nullable
+	private Boolean testPatientOrder;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -1495,5 +1497,14 @@ public class PatientOrder {
 
 	public void setAppointmentScheduled(@Nullable Boolean appointmentScheduled) {
 		this.appointmentScheduled = appointmentScheduled;
+	}
+
+	@Nullable
+	public Boolean getTestPatientOrder() {
+		return this.testPatientOrder;
+	}
+
+	public void setTestPatientOrder(@Nullable Boolean testPatientOrder) {
+		this.testPatientOrder = testPatientOrder;
 	}
 }

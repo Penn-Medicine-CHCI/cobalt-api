@@ -463,6 +463,7 @@ public class AccountService {
 		BirthSexId birthSexId = request.getBirthSexId() == null ? BirthSexId.NOT_ASKED : request.getBirthSexId();
 		RaceId raceId = request.getRaceId() == null ? RaceId.NOT_ASKED : request.getRaceId();
 		LocalDate birthdate = request.getBirthdate();
+		boolean testAccount = request.getTestAccount() != null ? request.getTestAccount() : false;
 		UUID addressId = null;
 		ValidationException validationException = new ValidationException();
 
@@ -565,13 +566,13 @@ public class AccountService {
 						account_id, role_id, institution_id, account_source_id, source_system_id, sso_id,
 						first_name, last_name, display_name, email_address, phone_number, sso_attributes, password, 
 						epic_patient_mrn, epic_patient_fhir_id, time_zone, gender_identity_id, ethnicity_id, 
-						birth_sex_id, race_id, birthdate
+						birth_sex_id, race_id, birthdate, test_account
 						) 
-						VALUES (?,?,?,?,?,?,?,?,?,?,?,CAST(? AS JSONB),?,?,?,?,?,?,?,?,?)
+						VALUES (?,?,?,?,?,?,?,?,?,?,?,CAST(? AS JSONB),?,?,?,?,?,?,?,?,?,?)
 						""",
 				accountId, roleId, institutionId, accountSourceId, sourceSystemId, ssoId, firstName, lastName, displayName,
 				emailAddress, phoneNumber, finalSsoAttributesAsJson, password, epicPatientMrn,
-				epicPatientFhirId, timeZone, genderIdentityId, ethnicityId, birthSexId, raceId, birthdate);
+				epicPatientFhirId, timeZone, genderIdentityId, ethnicityId, birthSexId, raceId, birthdate, testAccount);
 
 		if (addressId != null) {
 			getDatabase().execute("""
@@ -631,6 +632,7 @@ public class AccountService {
 					setInstitutionId(institutionId);
 					setEmailAddress(icTestPatientEmailAddress.getEmailAddress());
 					setPassword(testPassword);
+					setTestAccount(true);
 				}});
 
 				account = findAccountById(accountId).get();

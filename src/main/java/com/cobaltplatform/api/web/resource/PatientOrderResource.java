@@ -396,7 +396,7 @@ public class PatientOrderResource {
 		if (!getAuthorizationService().canViewPatientOrderClinicalReport(patientOrder, account))
 			throw new AuthorizationException();
 
-		String clinicalReport = "TODO: clinical report content";
+		String clinicalReport = getPatientOrderService().generateClinicalReport(patientOrder);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("clinicalReport", clinicalReport);

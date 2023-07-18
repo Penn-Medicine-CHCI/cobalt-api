@@ -89,7 +89,7 @@ public class TwilioSmsMessageSender implements MessageSender<SmsMessage> {
 
 		if ("+12155551212".equals(normalizedToNumber)) {
 			getLogger().debug("Fake-sending SMS from {} to {} because the destination number is a test number. Message is '{}'...", getConfiguration().getTwilioFromNumber(), normalizedToNumber, smsMessage);
-			return UUID.randomUUID().toString();
+			return format("fake-%s", UUID.randomUUID());
 		}
 
 		getLogger().debug("Sending SMS from {} to {} using Twilio. Message is '{}'...", getConfiguration().getTwilioFromNumber(), normalizedToNumber, smsMessage);
