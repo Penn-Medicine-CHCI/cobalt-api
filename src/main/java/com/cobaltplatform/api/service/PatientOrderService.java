@@ -1317,7 +1317,7 @@ public class PatientOrderService implements AutoCloseable {
 			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.MOST_RECENT_SCREENING_SESSION_COMPLETED_AT)
 				orderByColumn = "bq.most_recent_screening_session_completed_at";
 			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.MOST_RECENT_OUTREACH_DATE_TIME)
-				orderByColumn = "bq.most_recent_outreach_date_time";
+				orderByColumn = "bq.most_recent_total_outreach_date_time";
 			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.MOST_RECENT_SCHEDULED_SCREENING_SCHEDULED_DATE_TIME)
 				orderByColumn = "bq.patient_order_scheduled_screening_scheduled_date_time";
 			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.EPISODE_CLOSED_AT)
