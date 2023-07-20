@@ -3609,7 +3609,19 @@ public class PatientOrderService implements AutoCloseable {
 			lines.add(StringUtils.repeat("-", headline.length()));
 
 			for (ScreeningQuestionResult screeningQuestionResult : screeningSessionScreeningResult.getScreeningQuestionResults()) {
-				lines.add(getStrings().get("* Question: {{question}}", Map.of("question", screeningQuestionResult.getScreeningQuestionIntroText() == null ? screeningQuestionResult.getScreeningQuestionText() : format("%s%s", screeningQuestionResult.getScreeningQuestionIntroText(), screeningQuestionResult.getScreeningQuestionText()))));
+				String screeningQuestionText = screeningQuestionResult.getScreeningQuestionText();
+
+				// Temporary hack to deal with lists, e.g.
+				// "Sometimes things happen to people that are unusually or especially frightening, horrible, or traumatic. For example: <ul><li>a serious accident or fire</li><li>a physical or sexual assault or abuse</li><li>an earthquake or flood</li><li>a war</li><li>seeing someone be killed or seriously injured</li><li>having a loved one die through homicide or suicide</li></ul>Have you ever experienced this kind of event?"
+				if (screeningQuestionText.contains("<ul>") || screeningQuestionText.contains("<li>")) {
+					screeningQuestionText = screeningQuestionText.replace("<ul>", "");
+					screeningQuestionText = screeningQuestionText.replace("</ul>", ". ");
+					screeningQuestionText = screeningQuestionText.replace("</li><li>", ", ");
+					screeningQuestionText = screeningQuestionText.replace("<li>", "");
+					screeningQuestionText = screeningQuestionText.replace("</li>", "");
+				}
+
+				lines.add(getStrings().get("* Question: {{question}}", Map.of("question", screeningQuestionResult.getScreeningQuestionIntroText() == null ? screeningQuestionText : format("%s %s", screeningQuestionResult.getScreeningQuestionIntroText(), screeningQuestionText))));
 				lines.add(getStrings().get("* Answer[s]: {{answers}}", Map.of("answers", screeningQuestionResult.getScreeningAnswerResults().stream()
 						.map(screeningAnswerResult -> screeningAnswerResult.getText() == null ? screeningAnswerResult.getAnswerOptionText() : format("%s (%s)", screeningAnswerResult.getAnswerOptionText(), screeningAnswerResult.getText()))
 						.collect(Collectors.joining(", ")))));
