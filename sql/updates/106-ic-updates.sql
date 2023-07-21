@@ -24,7 +24,11 @@ ALTER TABLE patient_order_triage ADD COLUMN patient_order_triage_override_reason
 UPDATE patient_order_triage SET patient_order_triage_override_reason_id='OTHER' WHERE active=TRUE AND patient_order_id IN
 (SELECT patient_order_id FROM patient_order_triage WHERE active = FALSE);
 
+DROP VIEW v_patient_order;
+DROP VIEW v_all_patient_order;
+
 -- Discarding "skipped" screening sessions
+-- changing recent_po_query to use lag to determine last patient order
 CREATE or replace VIEW v_all_patient_order AS WITH
 poo_query AS (
     -- Count up the patient outreach attempts for each patient order
@@ -168,15 +172,13 @@ recent_scheduled_screening_query AS (
         poss2.patient_order_scheduled_screening_id is NULL
         and poss.canceled = false
 ), recent_po_query AS (
-    -- Pick the most recently-closed patient order for the same MRN/institution combination
+    -- Get the last order based on the order date for this patient
     select
         poq.patient_order_id,
-        MAX(po2.episode_closed_at) AS most_recent_episode_closed_at
+        lag(poq.episode_closed_at, 1) OVER
+           (PARTITION BY  patient_mrn ORDER BY poq.order_date) as most_recent_episode_closed_at
     from
         patient_order poq
-        left join patient_order po2 ON LOWER(poq.patient_mrn) = LOWER(po2.patient_mrn)
-        and poq.institution_id = po2.institution_id
-    group by poq.patient_order_id
 ), triage_query AS (
     -- Pick the most-severe triage for each patient order.
     -- Use a window function because it's easier to handle the join needed to order by severity.
@@ -273,10 +275,7 @@ select
     (date_part('year', poq.order_date) - date_part('year', poq.patient_birthdate)::INT) AS patient_age_on_order_date,
     (date_part('year', poq.order_date) - date_part('year', poq.patient_birthdate)::INT) < 18 AS patient_below_age_threshold,
     rpq.most_recent_episode_closed_at,
-    CASE
-        WHEN pod.patient_order_disposition_id = 'CLOSED' THEN false
-        ELSE date_part('day', NOW() - rpq.most_recent_episode_closed_at) :: INT < 30
-    END AS most_recent_episode_closed_within_date_threshold,
+    date_part('day', NOW() - rpq.most_recent_episode_closed_at) :: INT < 30 AS most_recent_episode_closed_within_date_threshold,
     rssq.patient_order_scheduled_screening_id,
     rssq.scheduled_date_time AS patient_order_scheduled_screening_scheduled_date_time,
     rssq.calendar_url AS patient_order_scheduled_screening_calendar_url,
