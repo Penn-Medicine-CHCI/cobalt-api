@@ -26,9 +26,6 @@ import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.epic.EpicClient;
-import com.cobaltplatform.api.integration.epic.code.BirthSexCode;
-import com.cobaltplatform.api.integration.epic.code.EthnicityCode;
-import com.cobaltplatform.api.integration.epic.code.RaceCode;
 import com.cobaltplatform.api.integration.epic.request.PatientSearchRequest;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
@@ -4888,21 +4885,20 @@ public class PatientOrderService implements AutoCloseable {
 							setIdentifier(demographicsImportNeededPatientOrder.getPatientUniqueId());
 						}});
 
-						EthnicityCode ethnicityCode = null;
-						RaceCode raceCode = null;
-						BirthSexCode birthSexCode = null;
-
-						// patient_ethnicity_id
-						// patient_race_id
-						// patient_birth_sex_id
-
-						// TODO: parse out patient information
+						EthnicityId ethnicityId = patientSearchResponse.extractEthnicityId().orElse(EthnicityId.NOT_ASKED);
+						RaceId raceId = patientSearchResponse.extractRaceId().orElse(RaceId.NOT_ASKED);
+						BirthSexId birthSexId = patientSearchResponse.extractBirthSexId().orElse(BirthSexId.NOT_ASKED);
 
 						getDatabase().execute("""
-								UPDATE patient_order
-								SET patient_order_demographics_import_status_id=?, patient_demographics_imported_at=NOW()
-								WHERE patient_order_id=?
-								""", PatientOrderDemographicsImportStatusId.IMPORTED, demographicsImportNeededPatientOrder.getPatientOrderId());
+										UPDATE patient_order
+										SET patient_order_demographics_import_status_id=?,
+										patient_ethnicity_id=?,
+										patient_race_id=?,
+										patient_birth_sex_id=?,
+										patient_demographics_imported_at=NOW()
+										WHERE patient_order_id=?
+										""", PatientOrderDemographicsImportStatusId.IMPORTED,
+								ethnicityId, raceId, birthSexId, demographicsImportNeededPatientOrder.getPatientOrderId());
 					} catch (Exception e) {
 						getLogger().error(format("Unable to import patient demographics information for patient order ID %s",
 								demographicsImportNeededPatientOrder.getPatientOrderId()), e);
