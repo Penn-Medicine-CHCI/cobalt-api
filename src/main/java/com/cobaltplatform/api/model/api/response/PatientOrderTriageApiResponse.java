@@ -23,6 +23,7 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
+import com.cobaltplatform.api.model.db.PatientOrderTriageOverrideReason.PatientOrderTriageOverrideReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.Provider;
@@ -53,6 +54,8 @@ public class PatientOrderTriageApiResponse {
 	private final PatientOrderCareTypeId patientOrderCareTypeId;
 	@Nonnull
 	private final PatientOrderTriageSourceId patientOrderTriageSourceId;
+	@Nonnull
+	private final PatientOrderTriageOverrideReasonId patientOrderTriageOverrideReasonId;
 	@Nullable
 	private final UUID screeningSessionId;
 	@Nullable
@@ -90,6 +93,7 @@ public class PatientOrderTriageApiResponse {
 		this.patientOrderFocusTypeId = patientOrderTriage.getPatientOrderFocusTypeId();
 		this.patientOrderCareTypeId = patientOrderTriage.getPatientOrderCareTypeId();
 		this.patientOrderTriageSourceId = patientOrderTriage.getPatientOrderTriageSourceId();
+		this.patientOrderTriageOverrideReasonId = patientOrderTriage.getPatientOrderTriageOverrideReasonId();
 		this.screeningSessionId = patientOrderTriage.getScreeningSessionId();
 		this.accountId = patientOrderTriage.getAccountId();
 		this.reason = patientOrderTriage.getReason();
@@ -123,6 +127,11 @@ public class PatientOrderTriageApiResponse {
 	@Nonnull
 	public PatientOrderTriageSourceId getPatientOrderTriageSourceId() {
 		return this.patientOrderTriageSourceId;
+	}
+
+	@Nonnull
+	public PatientOrderTriageOverrideReasonId getPatientOrderTriageOverrideReasonId() {
+		return this.patientOrderTriageOverrideReasonId;
 	}
 
 	@Nullable

@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderTriageOverrideReason.PatientOrderTriageOverrideReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 
 import javax.annotation.Nullable;
@@ -43,6 +44,8 @@ public class PatientOrderTriage {
 	private PatientOrderCareTypeId patientOrderCareTypeId;
 	@Nullable
 	private PatientOrderTriageSourceId patientOrderTriageSourceId;
+	@Nullable
+	private PatientOrderTriageOverrideReasonId patientOrderTriageOverrideReasonId;
 	@Nullable
 	private UUID screeningSessionId;
 	@Nullable
@@ -101,6 +104,15 @@ public class PatientOrderTriage {
 
 	public void setPatientOrderTriageSourceId(@Nullable PatientOrderTriageSourceId patientOrderTriageSourceId) {
 		this.patientOrderTriageSourceId = patientOrderTriageSourceId;
+	}
+
+	@Nullable
+	public PatientOrderTriageOverrideReasonId getPatientOrderTriageOverrideReasonId() {
+		return this.patientOrderTriageOverrideReasonId;
+	}
+
+	public void setPatientOrderTriageOverrideReasonId(@Nullable PatientOrderTriageOverrideReasonId patientOrderTriageOverrideReasonId) {
+		this.patientOrderTriageOverrideReasonId = patientOrderTriageOverrideReasonId;
 	}
 
 	@Nullable

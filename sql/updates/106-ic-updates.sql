@@ -1,6 +1,29 @@
 BEGIN;
 SELECT _v.register_patch('106-ic-updates', NULL, NULL);
 
+CREATE TABLE patient_order_triage_override_reason (
+  patient_order_triage_override_reason_id TEXT PRIMARY KEY,
+  description TEXT NOT NULL,
+  display_order INTEGER NOT NULL
+);
+
+INSERT INTO patient_order_triage_override_reason VALUES
+('NOT_OVERRIDDEN', 'Not Overridden', 1),
+('PATIENT_PREFERENCE', 'Patient preference', 2),
+('HIGHER_LEVEL_OF_CARE_REQUIRED', 'Patient''s symptoms require higher level of care', 3),
+('PATIENT_REQUESTED_RESOURCES', 'Patients who score low to no symptoms but patient requests mental health resources', 4),
+('CLINICAL_REVIEW_WITH_BHS', 'Clinical review with behavioral health specialist', 5),
+('CLINICAL_REVIEW_WITH_PSYCHIATRIST', 'Clinical review with psychiatrist', 6),
+('PCP_REQUEST', 'Primary Care Provider request', 7),
+('OTHER', 'Other', 8);
+
+ALTER TABLE patient_order_triage ADD COLUMN patient_order_triage_override_reason_id TEXT NOT NULL REFERENCES patient_order_triage_override_reason DEFAULT 'NOT_OVERRIDDEN';
+
+-- For any existing orders that have triage overrides, update the current override reason to 'OTHER' so it has a reasonable default.
+-- This is test data currently so no harm in picking OTHER...
+UPDATE patient_order_triage SET patient_order_triage_override_reason_id='OTHER' WHERE active=TRUE AND patient_order_id IN
+(SELECT patient_order_id FROM patient_order_triage WHERE active = FALSE);
+
 -- Discarding "skipped" screening sessions
 CREATE or replace VIEW v_all_patient_order AS WITH
 poo_query AS (
