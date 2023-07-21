@@ -28,14 +28,15 @@ import com.cobaltplatform.api.model.db.PatientOrderCarePreference.PatientOrderCa
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderConsentStatus.PatientOrderConsentStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderDemographicsImportStatus.PatientOrderDemographicsImportStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
 import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
-import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
+import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.pyranid.DatabaseColumn;
 
@@ -116,9 +117,9 @@ public class PatientOrder {
 	@Nullable
 	private String patientMrn;
 	@Nullable
-	private String patientId;
+	private String patientUniqueId;
 	@Nullable
-	private String patientIdType;
+	private String patientUniqueIdType;
 	@Nullable
 	private String patientLanguageCode;
 	@Nullable
@@ -135,6 +136,10 @@ public class PatientOrder {
 	private GenderIdentityId patientGenderIdentityId;
 	@Nullable
 	private BirthSexId patientBirthSexId;
+	@Nullable
+	private PatientOrderDemographicsImportStatusId patientOrderDemographicsImportStatusId;
+	@Nullable
+	private Instant patientDemographicsImportedAt;
 	@Nullable
 	private String primaryPayorId;
 	@Nullable
@@ -438,6 +443,24 @@ public class PatientOrder {
 	}
 
 	@Nullable
+	public PatientOrderDemographicsImportStatusId getPatientOrderDemographicsImportStatusId() {
+		return this.patientOrderDemographicsImportStatusId;
+	}
+
+	public void setPatientOrderDemographicsImportStatusId(@Nullable PatientOrderDemographicsImportStatusId patientOrderDemographicsImportStatusId) {
+		this.patientOrderDemographicsImportStatusId = patientOrderDemographicsImportStatusId;
+	}
+
+	@Nullable
+	public Instant getPatientDemographicsImportedAt() {
+		return this.patientDemographicsImportedAt;
+	}
+
+	public void setPatientDemographicsImportedAt(@Nullable Instant patientDemographicsImportedAt) {
+		this.patientDemographicsImportedAt = patientDemographicsImportedAt;
+	}
+
+	@Nullable
 	public BirthSexId getPatientBirthSexId() {
 		return this.patientBirthSexId;
 	}
@@ -618,21 +641,21 @@ public class PatientOrder {
 	}
 
 	@Nullable
-	public String getPatientId() {
-		return this.patientId;
+	public String getPatientUniqueId() {
+		return this.patientUniqueId;
 	}
 
-	public void setPatientId(@Nullable String patientId) {
-		this.patientId = patientId;
+	public void setPatientUniqueId(@Nullable String patientUniqueId) {
+		this.patientUniqueId = patientUniqueId;
 	}
 
 	@Nullable
-	public String getPatientIdType() {
-		return this.patientIdType;
+	public String getPatientUniqueIdType() {
+		return this.patientUniqueIdType;
 	}
 
-	public void setPatientIdType(@Nullable String patientIdType) {
-		this.patientIdType = patientIdType;
+	public void setPatientUniqueIdType(@Nullable String patientUniqueIdType) {
+		this.patientUniqueIdType = patientUniqueIdType;
 	}
 
 	@Nullable

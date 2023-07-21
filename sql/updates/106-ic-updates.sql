@@ -24,8 +24,27 @@ ALTER TABLE patient_order_triage ADD COLUMN patient_order_triage_override_reason
 UPDATE patient_order_triage SET patient_order_triage_override_reason_id='OTHER' WHERE active=TRUE AND patient_order_id IN
 (SELECT patient_order_id FROM patient_order_triage WHERE active = FALSE);
 
+ALTER TABLE institution ADD COLUMN epic_patient_unique_id_type TEXT; -- e.g. 'UID'
+ALTER TABLE institution ADD COLUMN epic_patient_unique_id_system TEXT; -- e.g. 'urn:oid.x.x.x'
+
+CREATE TABLE patient_order_demographics_import_status (
+  patient_order_demographics_import_status_id TEXT PRIMARY KEY,
+  description TEXT NOT NULL
+);
+
+INSERT INTO patient_order_demographics_import_status VALUES
+('PENDING', 'Pending'),
+('IMPORTED', 'Imported'),
+('IMPORT_FAILED', 'Import Failed');
+
 DROP VIEW v_patient_order;
 DROP VIEW v_all_patient_order;
+
+ALTER TABLE patient_order RENAME COLUMN patient_id TO patient_unique_id;
+ALTER TABLE patient_order RENAME COLUMN patient_id_type TO patient_unique_id_type;
+
+ALTER TABLE patient_order ADD COLUMN patient_order_demographics_import_status_id TEXT NOT NULL REFERENCES patient_order_demographics_import_status DEFAULT 'PENDING';
+ALTER TABLE patient_order ADD COLUMN patient_demographics_imported_at TIMESTAMPTZ;
 
 -- Discarding "skipped" screening sessions
 -- changing recent_po_query to use lag to determine last patient order
