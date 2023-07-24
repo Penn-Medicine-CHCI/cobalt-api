@@ -203,6 +203,8 @@ public class PatientOrder {
 	@Nullable
 	private String testPatientPassword;
 	@Nullable
+	private Boolean patientDemographicsConfirmed;
+	@Nullable
 	private Instant patientDemographicsConfirmedAt;
 	@Nullable
 	private UUID patientDemographicsConfirmedByAccountId;
@@ -998,6 +1000,15 @@ public class PatientOrder {
 
 	public void setTestPatientPassword(@Nullable String testPatientPassword) {
 		this.testPatientPassword = testPatientPassword;
+	}
+
+	@Nullable
+	public Boolean getPatientDemographicsConfirmed() {
+		return this.patientDemographicsConfirmed;
+	}
+
+	public void setPatientDemographicsConfirmed(@Nullable Boolean patientDemographicsConfirmed) {
+		this.patientDemographicsConfirmed = patientDemographicsConfirmed;
 	}
 
 	@Nullable

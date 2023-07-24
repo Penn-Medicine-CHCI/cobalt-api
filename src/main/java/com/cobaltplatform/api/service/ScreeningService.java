@@ -1172,6 +1172,12 @@ public class ScreeningService {
 		ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
 		Institution institution = getInstitutionService().findInstitutionById(createdByAccount.getInstitutionId()).get();
 
+		// Special checks for IC
+		if (institution.getIntegratedCareEnabled()) {
+			Account screeningSessionCreatedByAccount = getAccountService().findAccountById(screeningSession.getCreatedByAccountId()).get();
+			// TODO: complete
+		}
+
 		// See if this question was already answered for this session...
 		ScreeningSessionAnsweredScreeningQuestion screeningSessionAnsweredScreeningQuestion = getDatabase().queryForObject("""
 				SELECT *

@@ -278,6 +278,8 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String resourceCheckInResponseStatusUpdatedAtDescription;
 	@Nullable
+	private Boolean patientDemographicsConfirmed;
+	@Nullable
 	private Instant patientDemographicsConfirmedAt;
 	@Nullable
 	private String patientDemographicsConfirmedAtDescription;
@@ -750,6 +752,7 @@ public class PatientOrderApiResponse {
 		this.patientAddressRegionAccepted = patientOrder.getPatientAddressRegionAccepted();
 		this.patientDemographicsCompleted = patientOrder.getPatientDemographicsCompleted();
 		this.patientDemographicsAccepted = patientOrder.getPatientDemographicsAccepted();
+		this.patientDemographicsConfirmed = patientOrder.getPatientDemographicsConfirmed();
 		this.patientDemographicsConfirmedAt = patientOrder.getPatientDemographicsConfirmedAt();
 		this.patientDemographicsConfirmedAtDescription = patientOrder.getPatientDemographicsConfirmedAt() == null
 				? null
@@ -1673,6 +1676,11 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public Boolean getPatientDemographicsAccepted() {
 		return this.patientDemographicsAccepted;
+	}
+
+	@Nullable
+	public Boolean getPatientDemographicsConfirmed() {
+		return this.patientDemographicsConfirmed;
 	}
 
 	@Nullable
