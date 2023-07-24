@@ -57,6 +57,16 @@ public class ValidationException extends RuntimeException {
 		globalErrors.add(globalError);
 	}
 
+	public ValidationException(@Nonnull String globalError,
+														 @Nonnull Map<String, Object> metadata) {
+		this();
+		requireNonNull(globalError);
+		requireNonNull(metadata);
+
+		globalErrors.add(globalError);
+		setMetadata(metadata);
+	}
+
 	public ValidationException(@Nonnull FieldError fieldError) {
 		this();
 		requireNonNull(fieldError);
