@@ -4894,7 +4894,7 @@ public class PatientOrderService implements AutoCloseable {
 						}});
 
 						if (patientSearchResponse.getTotal() == null)
-							throw new IllegalStateException(format("Unable to extract result count for %s patient with ID %s",
+							throw new IllegalStateException(format("Unable to extract total count for %s patient with ID %s",
 									institution.getInstitutionId().name(), demographicsImportNeededPatientOrder.getPatientUniqueId()));
 						else if (patientSearchResponse.getTotal() != 1)
 							throw new IllegalStateException(format("Expected 1 result for %s patient with ID %s but got %s instead",
