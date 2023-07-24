@@ -4863,12 +4863,15 @@ public class PatientOrderService implements AutoCloseable {
 				}});
 			}
 
-			// If any non-test orders haven't had their demographic info pulled in from Epic yet, do so here
+			// If any non-test orders haven't had their demographic info pulled in from Epic yet
+			// AND a patient/MHIC hasn't confirmed the demographic information manually -
+			// make a list of orders to pull demographic info from Epic
 			List<PatientOrder> demographicsImportNeededPatientOrders = getDatabase().queryForList("""
 					SELECT *
 					FROM v_patient_order
 					WHERE institution_id=?
 					AND patient_order_demographics_import_status_id=?
+					AND patient_demographics_confirmed_at IS NULL
 					AND test_patient_order = FALSE
 					""", PatientOrder.class, institution.getInstitutionId(), PatientOrderDemographicsImportStatusId.PENDING);
 
