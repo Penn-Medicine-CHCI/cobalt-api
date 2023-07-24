@@ -4884,9 +4884,21 @@ public class PatientOrderService implements AutoCloseable {
 							demographicsImportNeededPatientOrder.getPatientOrderId());
 
 					try {
+						if (institution.getEpicPatientUniqueIdType() == null)
+							throw new IllegalStateException(format("Institution %s does not have an Epic Patient Unique ID type configured", institution.getInstitutionId().name()));
+
+						// Per https://fhir.epic.com/Specifications?api=30
+						// identifiers are of the format <OID>|<value>
 						PatientSearchResponse patientSearchResponse = epicClient.performPatientSearch(new PatientSearchRequest() {{
-							setIdentifier(demographicsImportNeededPatientOrder.getPatientUniqueId());
+							setIdentifier(format("%s|%s", institution.getEpicPatientUniqueIdType(), demographicsImportNeededPatientOrder.getPatientUniqueId()));
 						}});
+
+						if (patientSearchResponse.getTotal() == null)
+							throw new IllegalStateException(format("Unable to extract result count for %s patient with ID %s",
+									institution.getInstitutionId().name(), demographicsImportNeededPatientOrder.getPatientUniqueId()));
+						else if (patientSearchResponse.getTotal() != 1)
+							throw new IllegalStateException(format("Expected 1 result for %s patient with ID %s but got %s instead",
+									institution.getInstitutionId().name(), demographicsImportNeededPatientOrder.getPatientUniqueId(), patientSearchResponse.getTotal()));
 
 						EthnicityId ethnicityId = patientSearchResponse.extractEthnicityId().orElse(EthnicityId.NOT_ASKED);
 						RaceId raceId = patientSearchResponse.extractRaceId().orElse(RaceId.NOT_ASKED);
