@@ -380,9 +380,20 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientOrderId == null)
 			return Optional.empty();
 
+		// First, try faster view that only has open/closed orders
+		PatientOrder patientOrder = getDatabase().queryForObject("""
+				SELECT *
+				FROM v_patient_order
+				WHERE patient_order_id=?
+				""", PatientOrder.class, patientOrderId).orElse(null);
+
+		if (patientOrder != null)
+			return Optional.of(patientOrder);
+
+		// If we didn't find it in the faster view, try the slower one
 		return getDatabase().queryForObject("""
 				SELECT *
-				FROM v_patient_order 
+				FROM v_all_patient_order
 				WHERE patient_order_id=?
 				""", PatientOrder.class, patientOrderId);
 	}

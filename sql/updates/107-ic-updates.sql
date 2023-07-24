@@ -5,6 +5,7 @@ DROP VIEW v_patient_order;
 DROP VIEW v_all_patient_order;
 
 -- Add computed patient_demographics_confirmed BOOL
+-- Add most_recent_screening_session_created_by_account_role_id TEXT
 CREATE or replace VIEW v_all_patient_order AS WITH
 poo_query AS (
     -- Count up the patient outreach attempts for each patient order
@@ -113,7 +114,8 @@ ss_query AS (
     select
         ss.*,
         a.first_name,
-        a.last_name
+        a.last_name,
+        a.role_id
     from
         patient_order poq
         join screening_session ss ON poq.patient_order_id = ss.patient_order_id
@@ -204,6 +206,7 @@ select
     ssq.screening_session_id AS most_recent_screening_session_id,
     ssq.created AS most_recent_screening_session_created_at,
     ssq.created_by_account_id AS most_recent_screening_session_created_by_account_id,
+    ssq.role_id AS most_recent_screening_session_created_by_account_role_id,
     ssq.first_name AS most_recent_screening_session_created_by_account_first_name,
     ssq.last_name AS most_recent_screening_session_created_by_account_last_name,
     ssq.completed AS most_recent_screening_session_completed,

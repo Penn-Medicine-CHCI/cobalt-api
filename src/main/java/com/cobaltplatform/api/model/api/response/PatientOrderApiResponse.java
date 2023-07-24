@@ -347,6 +347,8 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private UUID mostRecentScreeningSessionCreatedByAccountId;
 	@Nullable
+	private RoleId mostRecentScreeningSessionCreatedByAccountRoleId;
+	@Nullable
 	private String mostRecentScreeningSessionCreatedByAccountFirstName;
 	@Nullable
 	private String mostRecentScreeningSessionCreatedByAccountLastName;
@@ -796,6 +798,7 @@ public class PatientOrderApiResponse {
 		this.primaryPlanAccepted = patientOrder.getPrimaryPlanAccepted();
 
 		this.testPatientOrder = patientOrder.getTestPatientOrder();
+		this.mostRecentScreeningSessionCreatedByAccountRoleId = patientOrder.getMostRecentScreeningSessionCreatedByAccountRoleId();
 
 		// MHIC-only view of the data
 		if (format == PatientOrderApiResponseFormat.MHIC) {
@@ -1396,6 +1399,11 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public UUID getMostRecentScreeningSessionCreatedByAccountId() {
 		return this.mostRecentScreeningSessionCreatedByAccountId;
+	}
+
+	@Nullable
+	public RoleId getMostRecentScreeningSessionCreatedByAccountRoleId() {
+		return this.mostRecentScreeningSessionCreatedByAccountRoleId;
 	}
 
 	@Nullable
