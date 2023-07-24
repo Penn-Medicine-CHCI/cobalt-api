@@ -19,200 +19,26 @@
 
 package com.cobaltplatform.api.integration.epic.response;
 
+import com.cobaltplatform.api.integration.epic.code.BirthSexCode;
+import com.cobaltplatform.api.integration.epic.code.EthnicityCode;
+import com.cobaltplatform.api.integration.epic.code.RaceCode;
+import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse.Entry.Resource.Extension;
+import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
+import com.cobaltplatform.api.model.db.Race.RaceId;
+
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
 public class PatientSearchResponse {
-
-	//{"resourceType":"Bundle","type":"searchset","total":1,"link":[{"relation":"self","url":"https://ssproxy.pennhealth.com/PRD-FHIR/api/FHIR/DSTU2/Patient?given=Mark&birthdate=1%2F23%2F1982&telecom=215-555-1234&family=AllenTestSix"}],"entry":[{"link":[{"relation":"self","url":"https://ssproxy.pennhealth.com/PRD-FHIR/api/FHIR/DSTU2/Patient/TF4PQvzW4UH9eCOGCRKohgwrX.9evt9h0Rzvp6Ys-OGkB"}],"fullUrl":"https://ssproxy.pennhealth.com/PRD-FHIR/api/FHIR/DSTU2/Patient/TF4PQvzW4UH9eCOGCRKohgwrX.9evt9h0Rzvp6Ys-OGkB","resource":{"resourceType":"Patient","id":"TF4PQvzW4UH9eCOGCRKohgwrX.9evt9h0Rzvp6Ys-OGkB","extension":[{"url":"http://hl7.org/fhir/StructureDefinition/us-core-race","valueCodeableConcept":{"coding":[{"system":"urn:oid:2.16.840.1.113883.5.104","code":"UNK","display":"Unknown"}],"text":"Unknown"}},{"url":"http://hl7.org/fhir/StructureDefinition/us-core-ethnicity","valueCodeableConcept":{"coding":[{"system":"urn:oid:2.16.840.1.113883.5.50","code":"UNK","display":"Unknown"}],"text":"Unknown"}},{"url":"http://hl7.org/fhir/StructureDefinition/us-core-birth-sex","valueCodeableConcept":{"coding":[{"system":"http://hl7.org/fhir/v3/AdministrativeGender","code":"M","display":"Male"}],"text":"Male"}}],"identifier":[{"use":"usual","system":"urn:oid:1.2.840.114350.1.13.87.3.7.5.737384.0","value":"18557741"},{"use":"usual","system":"urn:oid:1.2.840.114350.1.13.87.3.7.5.737384.100","value":"467916953"},{"use":"usual","system":"urn:oid:1.2.840.114350.1.13.87.3.7.5.737384.101","value":"467916953"},{"use":"usual","system":"urn:oid:1.2.840.114350.1.13.87.3.7.5.737384.102","value":"467916953"},{"use":"usual","system":"urn:oid:1.2.840.114350.1.13.87.3.7.5.737384.103","value":"467916953"},{"use":"usual","system":"urn:oid:1.2.840.114350.1.13.87.3.7.5.737384.104","value":"467916953"},{"use":"usual","system":"urn:oid:1.3.6.1.4.1.22812.19.44324.0","value":"8467916953"},{"use":"usual","system":"urn:oid:1.2.840.114350.1.13.87.3.7.5.737384.110","value":"467916953"},{"use":"usual","system":"urn:oid:2.16.840.1.113883.3.2023.1.2.4.2.0","value":"467916953"},{"extension":[{"url":"http://hl7.org/fhir/StructureDefinition/rendered-value","valueString":"xxx-xx-1116"}],"use":"usual","system":"urn:oid:2.16.840.1.113883.4.1"}],"active":true,"name":[{"use":"usual","text":"Mark AllenTestSix","family":["AllenTestSix"],"given":["Mark"]}],"telecom":[{"system":"phone","value":"215-555-1234","use":"mobile"},{"system":"email","value":"maa+6@xmog.com.com"}],"gender":"male","birthDate":"1982-01-23","deceasedBoolean":false},"search":{"model":"match"}},{"resource":{"resourceType":"OperationOutcome","id":"532794675","issue":[{"severity":"information","code":"informational","details":{"coding":[{"system":"urn:oid:1.2.840.114350.1.13.87.3.7.2.657369","code":"4100","display":"The resource request contained an invalid parameter."}],"text":"The resource request contained an invalid parameter."},"location":["http.birthdate"]}]},"search":{"model":"outcome"}}]}
-	//{
-	//  "resourceType": "Bundle",
-	//  "type": "searchset",
-	//  "total": 1.0,
-	//  "link": [
-	//    {
-	//      "relation": "self",
-	//      "url": "https://ssproxy.pennhealth.com/PRD-FHIR/api/FHIR/DSTU2/Patient?given\u003dMark\u0026birthdate\u003d1%2F23%2F1982\u0026telecom\u003d215-555-1234\u0026family\u003dAllenTestSix"
-	//    }
-	//  ],
-	//  "entry": [
-	//    {
-	//      "link": [
-	//        {
-	//          "relation": "self",
-	//          "url": "https://ssproxy.pennhealth.com/PRD-FHIR/api/FHIR/DSTU2/Patient/TF4PQvzW4UH9eCOGCRKohgwrX.9evt9h0Rzvp6Ys-OGkB"
-	//        }
-	//      ],
-	//      "fullUrl": "https://ssproxy.pennhealth.com/PRD-FHIR/api/FHIR/DSTU2/Patient/TF4PQvzW4UH9eCOGCRKohgwrX.9evt9h0Rzvp6Ys-OGkB",
-	//      "resource": {
-	//        "resourceType": "Patient",
-	//        "id": "TF4PQvzW4UH9eCOGCRKohgwrX.9evt9h0Rzvp6Ys-OGkB",
-	//        "extension": [
-	//          {
-	//            "url": "http://hl7.org/fhir/StructureDefinition/us-core-race",
-	//            "valueCodeableConcept": {
-	//              "coding": [
-	//                {
-	//                  "system": "urn:oid:2.16.840.1.113883.5.104",
-	//                  "code": "UNK",
-	//                  "display": "Unknown"
-	//                }
-	//              ],
-	//              "text": "Unknown"
-	//            }
-	//          },
-	//          {
-	//            "url": "http://hl7.org/fhir/StructureDefinition/us-core-ethnicity",
-	//            "valueCodeableConcept": {
-	//              "coding": [
-	//                {
-	//                  "system": "urn:oid:2.16.840.1.113883.5.50",
-	//                  "code": "UNK",
-	//                  "display": "Unknown"
-	//                }
-	//              ],
-	//              "text": "Unknown"
-	//            }
-	//          },
-	//          {
-	//            "url": "http://hl7.org/fhir/StructureDefinition/us-core-birth-sex",
-	//            "valueCodeableConcept": {
-	//              "coding": [
-	//                {
-	//                  "system": "http://hl7.org/fhir/v3/AdministrativeGender",
-	//                  "code": "M",
-	//                  "display": "Male"
-	//                }
-	//              ],
-	//              "text": "Male"
-	//            }
-	//          }
-	//        ],
-	//        "identifier": [
-	//          {
-	//            "use": "usual",
-	//            "system": "urn:oid:1.2.840.114350.1.13.87.3.7.5.737384.0",
-	//            "value": "18557741"
-	//          },
-	//          {
-	//            "use": "usual",
-	//            "system": "urn:oid:1.2.840.114350.1.13.87.3.7.5.737384.100",
-	//            "value": "467916953"
-	//          },
-	//          {
-	//            "use": "usual",
-	//            "system": "urn:oid:1.2.840.114350.1.13.87.3.7.5.737384.101",
-	//            "value": "467916953"
-	//          },
-	//          {
-	//            "use": "usual",
-	//            "system": "urn:oid:1.2.840.114350.1.13.87.3.7.5.737384.102",
-	//            "value": "467916953"
-	//          },
-	//          {
-	//            "use": "usual",
-	//            "system": "urn:oid:1.2.840.114350.1.13.87.3.7.5.737384.103",
-	//            "value": "467916953"
-	//          },
-	//          {
-	//            "use": "usual",
-	//            "system": "urn:oid:1.2.840.114350.1.13.87.3.7.5.737384.104",
-	//            "value": "467916953"
-	//          },
-	//          {
-	//            "use": "usual",
-	//            "system": "urn:oid:1.3.6.1.4.1.22812.19.44324.0",
-	//            "value": "8467916953"
-	//          },
-	//          {
-	//            "use": "usual",
-	//            "system": "urn:oid:1.2.840.114350.1.13.87.3.7.5.737384.110",
-	//            "value": "467916953"
-	//          },
-	//          {
-	//            "use": "usual",
-	//            "system": "urn:oid:2.16.840.1.113883.3.2023.1.2.4.2.0",
-	//            "value": "467916953"
-	//          },
-	//          {
-	//            "extension": [
-	//              {
-	//                "url": "http://hl7.org/fhir/StructureDefinition/rendered-value",
-	//                "valueString": "xxx-xx-1116"
-	//              }
-	//            ],
-	//            "use": "usual",
-	//            "system": "urn:oid:2.16.840.1.113883.4.1"
-	//          }
-	//        ],
-	//        "active": true,
-	//        "name": [
-	//          {
-	//            "use": "usual",
-	//            "text": "Mark AllenTestSix",
-	//            "family": [
-	//              "AllenTestSix"
-	//            ],
-	//            "given": [
-	//              "Mark"
-	//            ]
-	//          }
-	//        ],
-	//        "telecom": [
-	//          {
-	//            "system": "phone",
-	//            "value": "215-555-1234",
-	//            "use": "mobile"
-	//          },
-	//          {
-	//            "system": "email",
-	//            "value": "maa+6@xmog.com.com"
-	//          }
-	//        ],
-	//        "gender": "male",
-	//        "birthDate": "1982-01-23",
-	//        "deceasedBoolean": false
-	//      },
-	//      "search": {
-	//        "model": "match"
-	//      }
-	//    },
-	//    {
-	//      "resource": {
-	//        "resourceType": "OperationOutcome",
-	//        "id": "532794675",
-	//        "issue": [
-	//          {
-	//            "severity": "information",
-	//            "code": "informational",
-	//            "details": {
-	//              "coding": [
-	//                {
-	//                  "system": "urn:oid:1.2.840.114350.1.13.87.3.7.2.657369",
-	//                  "code": "4100",
-	//                  "display": "The resource request contained an invalid parameter."
-	//                }
-	//              ],
-	//              "text": "The resource request contained an invalid parameter."
-	//            },
-	//            "location": [
-	//              "http.birthdate"
-	//            ]
-	//          }
-	//        ]
-	//      },
-	//      "search": {
-	//        "model": "outcome"
-	//      }
-	//    }
-	//  ]
-	// }
-
 	@Nullable
 	private String resourceType;
 	@Nullable
@@ -223,6 +49,104 @@ public class PatientSearchResponse {
 	private List<Link> link;
 	@Nullable
 	private List<Entry> entry;
+
+	@Nonnull
+	public Optional<RaceId> extractRaceId() {
+		if (getEntry() == null || getEntry().size() == 0)
+			return Optional.empty();
+
+		if (getEntry().size() > 1)
+			throw new IllegalStateException("Multiple patient results; not sure which one to extract data from");
+
+		Entry entry = getEntry().get(0);
+
+		Extension matchingExtension = entry.getResource().getExtension().stream()
+				.filter(extension -> Objects.equals(RaceCode.DSTU2_EXTENSION_URL, extension.getUrl()))
+				.findFirst().orElse(null);
+
+		if (matchingExtension == null || matchingExtension.getValueCodeableConcept() == null)
+			return Optional.empty();
+
+		RaceCode raceCode = RaceCode.fromDstu2Value(matchingExtension.getValueCodeableConcept().getCoding().get(0).getCode()).orElse(null);
+
+		if (raceCode != null) {
+			if (raceCode == RaceCode.WHITE)
+				return Optional.of(RaceId.WHITE);
+			if (raceCode == RaceCode.AMERICAN_INDIAN_OR_ALASKA_NATIVE)
+				return Optional.of(RaceId.AMERICAN_INDIAN_OR_ALASKA_NATIVE);
+			if (raceCode == RaceCode.ASIAN)
+				return Optional.of(RaceId.ASIAN);
+			if (raceCode == RaceCode.BLACK_OR_AFRICAN_AMERICAN)
+				return Optional.of(RaceId.BLACK_OR_AFRICAN_AMERICAN);
+			if (raceCode == RaceCode.NATIVE_HAWAIIAN_OR_PACIFIC_ISLANDER)
+				return Optional.of(RaceId.HAWAIIAN_OR_PACIFIC_ISLANDER);
+		}
+
+		return Optional.empty();
+	}
+
+	@Nonnull
+	public Optional<EthnicityId> extractEthnicityId() {
+		if (getEntry() == null || getEntry().size() == 0)
+			return Optional.empty();
+
+		if (getEntry().size() > 1)
+			throw new IllegalStateException("Multiple patient results; not sure which one to extract data from");
+
+		Entry entry = getEntry().get(0);
+
+		Extension matchingExtension = entry.getResource().getExtension().stream()
+				.filter(extension -> Objects.equals(EthnicityCode.DSTU2_EXTENSION_URL, extension.getUrl()))
+				.findFirst().orElse(null);
+
+		if (matchingExtension == null || matchingExtension.getValueCodeableConcept() == null)
+			return Optional.empty();
+
+		EthnicityCode ethnicityCode = EthnicityCode.fromDstu2Value(matchingExtension.getValueCodeableConcept().getCoding().get(0).getCode()).orElse(null);
+
+		if (ethnicityCode != null) {
+			if (ethnicityCode == EthnicityCode.HISPANIC_OR_LATINO)
+				return Optional.of(EthnicityId.HISPANIC_OR_LATINO);
+			if (ethnicityCode == EthnicityCode.NOT_HISPANIC_OR_LATINO)
+				return Optional.of(EthnicityId.NOT_HISPANIC_OR_LATINO);
+		}
+
+		return Optional.empty();
+	}
+
+	@Nonnull
+	public Optional<BirthSexId> extractBirthSexId() {
+		if (getEntry() == null || getEntry().size() == 0)
+			return Optional.empty();
+
+		if (getEntry().size() > 1)
+			throw new IllegalStateException("Multiple patient results; not sure which one to extract data from");
+
+		Entry entry = getEntry().get(0);
+
+		Extension matchingExtension = entry.getResource().getExtension().stream()
+				.filter(extension -> Objects.equals(BirthSexCode.DSTU2_EXTENSION_URL, extension.getUrl()))
+				.findFirst().orElse(null);
+
+		if (matchingExtension == null || matchingExtension.getValueCodeableConcept() == null)
+			return Optional.empty();
+
+		BirthSexCode birthSexCode = BirthSexCode.fromDstu2Value(matchingExtension.getValueCodeableConcept().getCoding().get(0).getCode()).orElse(null);
+
+		if (birthSexCode != null) {
+			if (birthSexCode == BirthSexCode.FEMALE)
+				return Optional.of(BirthSexId.FEMALE);
+			if (birthSexCode == BirthSexCode.MALE)
+				return Optional.of(BirthSexId.MALE);
+			if (birthSexCode == BirthSexCode.OTHER)
+				return Optional.of(BirthSexId.OTHER);
+			if (birthSexCode == BirthSexCode.UNKNOWN)
+				return Optional.of(BirthSexId.UNKNOWN);
+		}
+
+		return Optional.empty();
+	}
+
 
 	@NotThreadSafe
 	public static class Link {
@@ -893,6 +817,7 @@ public class PatientSearchResponse {
 		public void setLink(@Nullable List<Link> link) {
 			this.link = link;
 		}
+
 	}
 
 	@Nullable

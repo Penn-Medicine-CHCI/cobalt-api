@@ -41,9 +41,9 @@ public class PatientOrderAutocompleteResultApiResponse {
 	@Nonnull
 	private final String patientMrn;
 	@Nonnull
-	private final String patientId;
+	private final String patientUniqueId;
 	@Nonnull
-	private final String patientIdType;
+	private final String patientUniqueIdType;
 	@Nullable
 	private final UUID patientAccountId;
 	@Nonnull
@@ -77,8 +77,8 @@ public class PatientOrderAutocompleteResultApiResponse {
 		requireNonNull(result);
 
 		this.patientMrn = result.getPatientMrn();
-		this.patientId = result.getPatientId();
-		this.patientIdType = result.getPatientIdType();
+		this.patientUniqueId = result.getPatientUniqueId();
+		this.patientUniqueIdType = result.getPatientUniqueIdType();
 		this.patientAccountId = result.getPatientAccountId();
 		this.patientFirstName = result.getPatientFirstName();
 		this.patientLastName = result.getPatientLastName();
@@ -95,13 +95,13 @@ public class PatientOrderAutocompleteResultApiResponse {
 	}
 
 	@Nonnull
-	public String getPatientId() {
-		return this.patientId;
+	public String getPatientUniqueId() {
+		return this.patientUniqueId;
 	}
 
 	@Nonnull
-	public String getPatientIdType() {
-		return this.patientIdType;
+	public String getPatientUniqueIdType() {
+		return this.patientUniqueIdType;
 	}
 
 	@Nullable

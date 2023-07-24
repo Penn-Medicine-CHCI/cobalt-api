@@ -31,9 +31,9 @@ public class PatientOrderAutocompleteResult {
 	@Nullable
 	private String patientMrn;
 	@Nullable
-	private String patientId;
+	private String patientUniqueId;
 	@Nullable
-	private String patientIdType;
+	private String patientUniqueIdType;
 	@Nullable
 	private UUID patientAccountId;
 	@Nullable
@@ -55,21 +55,21 @@ public class PatientOrderAutocompleteResult {
 	}
 
 	@Nullable
-	public String getPatientId() {
-		return this.patientId;
+	public String getPatientUniqueId() {
+		return this.patientUniqueId;
 	}
 
-	public void setPatientId(@Nullable String patientId) {
-		this.patientId = patientId;
+	public void setPatientUniqueId(@Nullable String patientUniqueId) {
+		this.patientUniqueId = patientUniqueId;
 	}
 
 	@Nullable
-	public String getPatientIdType() {
-		return this.patientIdType;
+	public String getPatientUniqueIdType() {
+		return this.patientUniqueIdType;
 	}
 
-	public void setPatientIdType(@Nullable String patientIdType) {
-		this.patientIdType = patientIdType;
+	public void setPatientUniqueIdType(@Nullable String patientUniqueIdType) {
+		this.patientUniqueIdType = patientUniqueIdType;
 	}
 
 	@Nullable

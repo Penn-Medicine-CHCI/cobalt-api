@@ -43,6 +43,7 @@ import com.cobaltplatform.api.model.db.PatientOrderCareType;
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderConsentStatus.PatientOrderConsentStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderDemographicsImportStatus.PatientOrderDemographicsImportStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
@@ -171,15 +172,21 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String patientMrn;
 	@Nullable
-	private String patientId;
+	private String patientUniqueId;
 	@Nullable
-	private String patientIdType;
+	private String patientUniqueIdType;
 	@Nullable
 	private BirthSexId patientBirthSexId;
 	@Nullable
 	private LocalDate patientBirthdate;
 	@Nullable
 	private String patientBirthdateDescription;
+	@Nullable
+	private PatientOrderDemographicsImportStatusId patientOrderDemographicsImportStatusId;
+	@Nullable
+	private Instant patientDemographicsImportedAt;
+	@Nullable
+	private String patientDemographicsImportedAtDescription;
 	@Nullable
 	private String primaryPayorId;
 	@Nullable
@@ -694,8 +701,8 @@ public class PatientOrderApiResponse {
 		this.patientDisplayName = Normalizer.normalizeName(patientOrder.getPatientFirstName(), null, patientOrder.getPatientLastName()).orElse(null);
 		this.patientDisplayNameWithLastFirst = Normalizer.normalizeNameWithLastFirst(patientOrder.getPatientFirstName(), null, patientOrder.getPatientLastName()).orElse(null);
 		this.patientMrn = patientOrder.getPatientMrn();
-		this.patientId = patientOrder.getPatientId();
-		this.patientIdType = patientOrder.getPatientIdType();
+		this.patientUniqueId = patientOrder.getPatientUniqueId();
+		this.patientUniqueIdType = patientOrder.getPatientUniqueIdType();
 		this.patientBirthSexId = patientOrder.getPatientBirthSexId();
 		this.patientEthnicityId = patientOrder.getPatientEthnicityId();
 		this.patientRaceId = patientOrder.getPatientRaceId();
@@ -704,6 +711,9 @@ public class PatientOrderApiResponse {
 		this.patientEmailAddress = patientOrder.getPatientEmailAddress();
 		this.patientBirthdate = patientOrder.getPatientBirthdate();
 		this.patientBirthdateDescription = patientOrder.getPatientBirthdate() == null ? null : formatter.formatDate(patientOrder.getPatientBirthdate(), FormatStyle.MEDIUM);
+		this.patientOrderDemographicsImportStatusId = patientOrder.getPatientOrderDemographicsImportStatusId();
+		this.patientDemographicsImportedAt = patientOrder.getPatientDemographicsImportedAt();
+		this.patientDemographicsImportedAtDescription = patientOrder.getPatientDemographicsImportedAt() == null ? null : formatter.formatTimestamp(patientOrder.getPatientDemographicsImportedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 		this.patientPhoneNumber = patientOrder.getPatientPhoneNumber();
 		this.patientPhoneNumberDescription = patientOrder.getPatientPhoneNumber() == null ? null : formatter.formatPhoneNumber(patientOrder.getPatientPhoneNumber(), currentContext.getLocale());
 		this.patientAddress = patientAddress;
@@ -1046,13 +1056,13 @@ public class PatientOrderApiResponse {
 	}
 
 	@Nullable
-	public String getPatientId() {
-		return this.patientId;
+	public String getPatientUniqueId() {
+		return this.patientUniqueId;
 	}
 
 	@Nullable
-	public String getPatientIdType() {
-		return this.patientIdType;
+	public String getPatientUniqueIdType() {
+		return this.patientUniqueIdType;
 	}
 
 	@Nullable
@@ -1068,6 +1078,21 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public String getPatientBirthdateDescription() {
 		return this.patientBirthdateDescription;
+	}
+
+	@Nullable
+	public PatientOrderDemographicsImportStatusId getPatientOrderDemographicsImportStatusId() {
+		return this.patientOrderDemographicsImportStatusId;
+	}
+
+	@Nullable
+	public Instant getPatientDemographicsImportedAt() {
+		return this.patientDemographicsImportedAt;
+	}
+
+	@Nullable
+	public String getPatientDemographicsImportedAtDescription() {
+		return this.patientDemographicsImportedAtDescription;
 	}
 
 	@Nullable

@@ -701,6 +701,7 @@ public class ScreeningService {
 		requireNonNull(request);
 
 		UUID screeningSessionId = request.getScreeningSessionId();
+		boolean forceSkip = request.getForceSkip() == null ? false : request.getForceSkip();
 		ValidationException validationException = new ValidationException();
 
 		if (screeningSessionId == null) {
@@ -713,7 +714,7 @@ public class ScreeningService {
 			} else {
 				ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
 
-				if (!screeningFlowVersion.getSkippable())
+				if (!forceSkip && !screeningFlowVersion.getSkippable())
 					validationException.add(getStrings().get("Sorry, you are not permitted to skip this screening."));
 			}
 		}
@@ -1435,6 +1436,8 @@ public class ScreeningService {
 		}
 
 		if (orchestrationFunctionOutput.getCompleted()) {
+			boolean skipped = orchestrationFunctionOutput.getSkipped() != null && orchestrationFunctionOutput.getSkipped();
+
 			getLogger().info("Orchestration function for screening session screening ID {} ({}) indicated that screening session ID {} is now complete.", screeningSessionScreeningId,
 					screeningVersion.getScreeningTypeId().name(), screeningSession.getScreeningSessionId());
 
@@ -1453,118 +1456,131 @@ public class ScreeningService {
 
 			getDatabase().execute("UPDATE screening_session SET completed=TRUE, completed_at=NOW() WHERE screening_session_id=?", screeningSession.getScreeningSessionId());
 
-			// Execute results function and store off results
-			ResultsFunctionOutput resultsFunctionOutput = executeScreeningFlowResultsFunction(screeningFlowVersion.getResultsFunction(),
-					screeningSession.getScreeningSessionId(), createdByAccount.getInstitutionId()).get();
+			if (skipped) {
+				getLogger().info("Orchestration function for screening session screening ID {} ({}) also indicated that screening session ID {} should be marked as 'skipped'.", screeningSessionScreeningId,
+						screeningVersion.getScreeningTypeId().name(), screeningSession.getScreeningSessionId());
 
-			// Ensure highest-weighted are first, so if we see duplicate support roles returned, we picked the highest-weight to persist
-			Set<SupportRoleId> recommendedSupportRoleIds = new HashSet<>();
-			List<SupportRoleRecommendation> sortedSupportRoleRecommendations = new ArrayList<>(resultsFunctionOutput.getSupportRoleRecommendations());
-			sortedSupportRoleRecommendations.sort(Comparator.comparing(SupportRoleRecommendation::getSupportRoleId)
-					.thenComparing(SupportRoleRecommendation::getWeight, Comparator.reverseOrder()));
+				skipScreeningSession(new SkipScreeningSessionRequest() {{
+					setScreeningSessionId(screeningSession.getScreeningSessionId());
+					setForceSkip(true);
+				}});
+			} else {
+				getLogger().info("Now determining screening flow results for screening session screening ID {} ({})...", screeningSessionScreeningId,
+						screeningVersion.getScreeningTypeId().name());
 
-			for (SupportRoleRecommendation supportRoleRecommendation : sortedSupportRoleRecommendations) {
-				// If we see a duplicate support role, ignore it
-				if (recommendedSupportRoleIds.contains(supportRoleRecommendation.getSupportRoleId()))
-					continue;
+				// Execute results function and store off results
+				ResultsFunctionOutput resultsFunctionOutput = executeScreeningFlowResultsFunction(screeningFlowVersion.getResultsFunction(),
+						screeningSession.getScreeningSessionId(), createdByAccount.getInstitutionId()).get();
 
-				recommendedSupportRoleIds.add(supportRoleRecommendation.getSupportRoleId());
+				// Ensure highest-weighted are first, so if we see duplicate support roles returned, we picked the highest-weight to persist
+				Set<SupportRoleId> recommendedSupportRoleIds = new HashSet<>();
+				List<SupportRoleRecommendation> sortedSupportRoleRecommendations = new ArrayList<>(resultsFunctionOutput.getSupportRoleRecommendations());
+				sortedSupportRoleRecommendations.sort(Comparator.comparing(SupportRoleRecommendation::getSupportRoleId)
+						.thenComparing(SupportRoleRecommendation::getWeight, Comparator.reverseOrder()));
 
-				getDatabase().execute("INSERT INTO screening_session_support_role_recommendation(screening_session_id, support_role_id, weight) " +
-						"VALUES (?,?,?)", screeningSession.getScreeningSessionId(), supportRoleRecommendation.getSupportRoleId(), supportRoleRecommendation.getWeight());
-			}
+				for (SupportRoleRecommendation supportRoleRecommendation : sortedSupportRoleRecommendations) {
+					// If we see a duplicate support role, ignore it
+					if (recommendedSupportRoleIds.contains(supportRoleRecommendation.getSupportRoleId()))
+						continue;
 
-			// Legacy content check-off support
-			// TODO: remove this once we have new tagging infrastructure
-			if (resultsFunctionOutput.getRecommendLegacyContentAnswerIds()) {
-				Assessment introAssessment = getDatabase().queryForObject("""
-						SELECT a.* 
-						FROM assessment a, institution_assessment ia
-						WHERE a.assessment_id=ia.assessment_id
-						AND ia.institution_id=?
-						AND a.assessment_type_id=?
-						ORDER BY a.created DESC
-						LIMIT 1
-						""", Assessment.class, createdByAccount.getInstitutionId(), AssessmentTypeId.INTRO).orElse(null);
+					recommendedSupportRoleIds.add(supportRoleRecommendation.getSupportRoleId());
 
-				if (introAssessment != null) {
-					// Clear out any existing account sessions for this user
-					List<AccountSession> introAssessmentAccountSessions = getDatabase().queryForList("""
-							SELECT * FROM account_session
-							WHERE account_id=? AND assessment_id=?
-							""", AccountSession.class, screeningSession.getTargetAccountId(), introAssessment.getAssessmentId());
+					getDatabase().execute("INSERT INTO screening_session_support_role_recommendation(screening_session_id, support_role_id, weight) " +
+							"VALUES (?,?,?)", screeningSession.getScreeningSessionId(), supportRoleRecommendation.getSupportRoleId(), supportRoleRecommendation.getWeight());
+				}
 
-					for (AccountSession introAssessmentAccountSession : introAssessmentAccountSessions) {
+				// Legacy content check-off support
+				// TODO: remove this once we have new tagging infrastructure
+				if (resultsFunctionOutput.getRecommendLegacyContentAnswerIds()) {
+					Assessment introAssessment = getDatabase().queryForObject("""
+							SELECT a.*
+							FROM assessment a, institution_assessment ia
+							WHERE a.assessment_id=ia.assessment_id
+							AND ia.institution_id=?
+							AND a.assessment_type_id=?
+							ORDER BY a.created DESC
+							LIMIT 1
+							""", Assessment.class, createdByAccount.getInstitutionId(), AssessmentTypeId.INTRO).orElse(null);
+
+					if (introAssessment != null) {
+						// Clear out any existing account sessions for this user
+						List<AccountSession> introAssessmentAccountSessions = getDatabase().queryForList("""
+								SELECT * FROM account_session
+								WHERE account_id=? AND assessment_id=?
+								""", AccountSession.class, screeningSession.getTargetAccountId(), introAssessment.getAssessmentId());
+
+						for (AccountSession introAssessmentAccountSession : introAssessmentAccountSessions) {
+							getDatabase().execute("""
+											UPDATE account_session
+											SET current_flag=FALSE
+											WHERE account_session_id=?
+											""",
+									introAssessmentAccountSession.getAccountSessionId());
+						}
+
+						// Create a new account session with these recommended answers
+						UUID newAccountSessionId = UUID.randomUUID();
 						getDatabase().execute("""
-										UPDATE account_session
-										SET current_flag=FALSE
-										WHERE account_session_id=?
-										""",
-								introAssessmentAccountSession.getAccountSessionId());
-					}
+								INSERT INTO account_session (account_session_id, account_id, assessment_id, 
+								current_flag, complete_flag) VALUES (?,?,?,TRUE,TRUE)
+								""", newAccountSessionId, screeningSession.getTargetAccountId(), introAssessment.getAssessmentId());
 
-					// Create a new account session with these recommended answers
-					UUID newAccountSessionId = UUID.randomUUID();
-					getDatabase().execute("""
-							INSERT INTO account_session (account_session_id, account_id, assessment_id, 
-							current_flag, complete_flag) VALUES (?,?,?,TRUE,TRUE)
-							""", newAccountSessionId, screeningSession.getTargetAccountId(), introAssessment.getAssessmentId());
-
-					for (UUID legacyContentAnswerId : resultsFunctionOutput.getLegacyContentAnswerIds()) {
-						getDatabase().execute("INSERT INTO account_session_answer (account_session_answer_id, account_session_id, answer_id) VALUES (?,?,?)",
-								UUID.randomUUID(), newAccountSessionId, legacyContentAnswerId);
+						for (UUID legacyContentAnswerId : resultsFunctionOutput.getLegacyContentAnswerIds()) {
+							getDatabase().execute("INSERT INTO account_session_answer (account_session_answer_id, account_session_id, answer_id) VALUES (?,?,?)",
+									UUID.randomUUID(), newAccountSessionId, legacyContentAnswerId);
+						}
 					}
 				}
-			}
 
-			// Store off recommended tags per this screening session's answers, if any
-			for (String tagId : resultsFunctionOutput.getRecommendedTagIds()) {
-				getDatabase().execute("INSERT INTO tag_screening_session (tag_id, screening_session_id) VALUES (?,?)",
-						tagId, screeningSession.getScreeningSessionId());
-			}
+				// Store off recommended tags per this screening session's answers, if any
+				for (String tagId : resultsFunctionOutput.getRecommendedTagIds()) {
+					getDatabase().execute("INSERT INTO tag_screening_session (tag_id, screening_session_id) VALUES (?,?)",
+							tagId, screeningSession.getScreeningSessionId());
+				}
 
-			// Store off recommended features per this screening session's answers, if any
-			for (FeatureId featureId : resultsFunctionOutput.getRecommendedFeatureIds()) {
-				getDatabase().execute("INSERT INTO screening_session_feature_recommendation(screening_session_id, feature_id) " +
-						"VALUES (?,?)", screeningSession.getScreeningSessionId(), featureId);
-			}
+				// Store off recommended features per this screening session's answers, if any
+				for (FeatureId featureId : resultsFunctionOutput.getRecommendedFeatureIds()) {
+					getDatabase().execute("INSERT INTO screening_session_feature_recommendation(screening_session_id, feature_id) " +
+							"VALUES (?,?)", screeningSession.getScreeningSessionId(), featureId);
+				}
 
-			if (institution.getIntegratedCareEnabled()
-					&& Objects.equals(institution.getIntegratedCareScreeningFlowId(), screeningFlowVersion.getScreeningFlowId())) {
-				PatientOrder patientOrder = getPatientOrderService().findPatientOrderByScreeningSessionId(screeningSession.getScreeningSessionId()).orElse(null);
+				if (institution.getIntegratedCareEnabled()
+						&& Objects.equals(institution.getIntegratedCareScreeningFlowId(), screeningFlowVersion.getScreeningFlowId())) {
+					PatientOrder patientOrder = getPatientOrderService().findPatientOrderByScreeningSessionId(screeningSession.getScreeningSessionId()).orElse(null);
 
-				if (patientOrder == null) {
-					getLogger().warn("No patient order for target account ID {} and screening session ID {}, ignoring triage results...", screeningSession.getTargetAccountId(), screeningSession.getScreeningSessionId());
-				} else {
-					UpdatePatientOrderTriagesRequest patientOrderTriagesRequest = new UpdatePatientOrderTriagesRequest();
-					patientOrderTriagesRequest.setAccountId(screeningSession.getCreatedByAccountId());
-					patientOrderTriagesRequest.setPatientOrderId(patientOrder.getPatientOrderId());
-					patientOrderTriagesRequest.setPatientOrderTriageSourceId(PatientOrderTriageSourceId.COBALT);
-					patientOrderTriagesRequest.setScreeningSessionId(screeningSession.getScreeningSessionId());
-					patientOrderTriagesRequest.setPatientOrderTriages(resultsFunctionOutput.getIntegratedCareTriages().stream()
-							.map(integratedCareTriage -> {
-								CreatePatientOrderTriageRequest createRequest = new CreatePatientOrderTriageRequest();
-								createRequest.setPatientOrderFocusTypeId(integratedCareTriage.getPatientOrderFocusTypeId());
-								createRequest.setPatientOrderCareTypeId(integratedCareTriage.getPatientOrderCareTypeId());
-								createRequest.setReason(integratedCareTriage.getReason());
+					if (patientOrder == null) {
+						getLogger().warn("No patient order for target account ID {} and screening session ID {}, ignoring triage results...", screeningSession.getTargetAccountId(), screeningSession.getScreeningSessionId());
+					} else {
+						UpdatePatientOrderTriagesRequest patientOrderTriagesRequest = new UpdatePatientOrderTriagesRequest();
+						patientOrderTriagesRequest.setAccountId(screeningSession.getCreatedByAccountId());
+						patientOrderTriagesRequest.setPatientOrderId(patientOrder.getPatientOrderId());
+						patientOrderTriagesRequest.setPatientOrderTriageSourceId(PatientOrderTriageSourceId.COBALT);
+						patientOrderTriagesRequest.setScreeningSessionId(screeningSession.getScreeningSessionId());
+						patientOrderTriagesRequest.setPatientOrderTriages(resultsFunctionOutput.getIntegratedCareTriages().stream()
+								.map(integratedCareTriage -> {
+									CreatePatientOrderTriageRequest createRequest = new CreatePatientOrderTriageRequest();
+									createRequest.setPatientOrderFocusTypeId(integratedCareTriage.getPatientOrderFocusTypeId());
+									createRequest.setPatientOrderCareTypeId(integratedCareTriage.getPatientOrderCareTypeId());
+									createRequest.setReason(integratedCareTriage.getReason());
 
-								return createRequest;
-							})
-							.collect(Collectors.toList()));
+									return createRequest;
+								})
+								.collect(Collectors.toList()));
 
-					getPatientOrderService().updatePatientOrderTriages(patientOrderTriagesRequest);
+						getPatientOrderService().updatePatientOrderTriages(patientOrderTriagesRequest);
 
-					// If topmost triage is specialty care, then mark the order as "needs resources"
-					PatientOrder updatedPatientOrder = getPatientOrderService().findPatientOrderById(patientOrder.getPatientOrderId()).get();
+						// If topmost triage is specialty care, then mark the order as "needs resources"
+						PatientOrder updatedPatientOrder = getPatientOrderService().findPatientOrderById(patientOrder.getPatientOrderId()).get();
 
-					if (updatedPatientOrder.getPatientOrderCareTypeId() == PatientOrderCareTypeId.SPECIALTY) {
-						getLogger().info("Triage results indicated specialty care, so marking order as 'needs resources'...");
+						if (updatedPatientOrder.getPatientOrderCareTypeId() == PatientOrderCareTypeId.SPECIALTY) {
+							getLogger().info("Triage results indicated specialty care, so marking order as 'needs resources'...");
 
-						getPatientOrderService().updatePatientOrderResourcingStatus(new UpdatePatientOrderResourcingStatusRequest() {{
-							setAccountId(screeningSession.getCreatedByAccountId());
-							setPatientOrderId(patientOrder.getPatientOrderId());
-							setPatientOrderResourcingStatusId(PatientOrderResourcingStatusId.NEEDS_RESOURCES);
-						}});
+							getPatientOrderService().updatePatientOrderResourcingStatus(new UpdatePatientOrderResourcingStatusRequest() {{
+								setAccountId(screeningSession.getCreatedByAccountId());
+								setPatientOrderId(patientOrder.getPatientOrderId());
+								setPatientOrderResourcingStatusId(PatientOrderResourcingStatusId.NEEDS_RESOURCES);
+							}});
+						}
 					}
 				}
 			}
@@ -2188,6 +2204,8 @@ public class ScreeningService {
 		@Nullable
 		private Boolean completed;
 		@Nullable
+		private Boolean skipped;
+		@Nullable
 		private UUID nextScreeningId;
 		@Nullable
 		private PatientOrderClosureReasonId patientOrderClosureReasonId;
@@ -2208,6 +2226,15 @@ public class ScreeningService {
 
 		public void setCompleted(@Nullable Boolean completed) {
 			this.completed = completed;
+		}
+
+		@Nullable
+		public Boolean getSkipped() {
+			return this.skipped;
+		}
+
+		public void setSkipped(@Nullable Boolean skipped) {
+			this.skipped = skipped;
 		}
 
 		@Nullable

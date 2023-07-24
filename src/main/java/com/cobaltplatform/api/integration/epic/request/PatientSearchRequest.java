@@ -32,6 +32,8 @@ import static java.util.Objects.requireNonNull;
 @NotThreadSafe
 public class PatientSearchRequest {
 	@Nullable
+	private String fhirId;
+	@Nullable
 	private String identifier;
 	@Nullable
 	private String family;
@@ -60,6 +62,15 @@ public class PatientSearchRequest {
 		public String epicValue() {
 			return epicValue;
 		}
+	}
+
+	@Nullable
+	public String getFhirId() {
+		return this.fhirId;
+	}
+
+	public void setFhirId(@Nullable String fhirId) {
+		this.fhirId = fhirId;
 	}
 
 	@Nullable

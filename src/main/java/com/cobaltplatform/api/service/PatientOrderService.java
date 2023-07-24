@@ -23,6 +23,11 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.error.ErrorReporter;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
+import com.cobaltplatform.api.integration.epic.EpicClient;
+import com.cobaltplatform.api.integration.epic.request.PatientSearchRequest;
+import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.messaging.sms.SmsMessage;
@@ -84,6 +89,7 @@ import com.cobaltplatform.api.model.db.PatientOrderClosureReason;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderConsentStatus.PatientOrderConsentStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderCrisisHandler;
+import com.cobaltplatform.api.model.db.PatientOrderDemographicsImportStatus.PatientOrderDemographicsImportStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderDiagnosis;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
@@ -3609,7 +3615,19 @@ public class PatientOrderService implements AutoCloseable {
 			lines.add(StringUtils.repeat("-", headline.length()));
 
 			for (ScreeningQuestionResult screeningQuestionResult : screeningSessionScreeningResult.getScreeningQuestionResults()) {
-				lines.add(getStrings().get("* Question: {{question}}", Map.of("question", screeningQuestionResult.getScreeningQuestionIntroText() == null ? screeningQuestionResult.getScreeningQuestionText() : format("%s%s", screeningQuestionResult.getScreeningQuestionIntroText(), screeningQuestionResult.getScreeningQuestionText()))));
+				String screeningQuestionText = screeningQuestionResult.getScreeningQuestionText();
+
+				// Temporary hack to deal with lists, e.g.
+				// "Sometimes things happen to people that are unusually or especially frightening, horrible, or traumatic. For example: <ul><li>a serious accident or fire</li><li>a physical or sexual assault or abuse</li><li>an earthquake or flood</li><li>a war</li><li>seeing someone be killed or seriously injured</li><li>having a loved one die through homicide or suicide</li></ul>Have you ever experienced this kind of event?"
+				if (screeningQuestionText.contains("<ul>") || screeningQuestionText.contains("<li>")) {
+					screeningQuestionText = screeningQuestionText.replace("<ul>", "");
+					screeningQuestionText = screeningQuestionText.replace("</ul>", ". ");
+					screeningQuestionText = screeningQuestionText.replace("</li><li>", ", ");
+					screeningQuestionText = screeningQuestionText.replace("<li>", "");
+					screeningQuestionText = screeningQuestionText.replace("</li>", "");
+				}
+
+				lines.add(getStrings().get("* Question: {{question}}", Map.of("question", screeningQuestionResult.getScreeningQuestionIntroText() == null ? screeningQuestionText : format("%s %s", screeningQuestionResult.getScreeningQuestionIntroText(), screeningQuestionText))));
 				lines.add(getStrings().get("* Answer[s]: {{answers}}", Map.of("answers", screeningQuestionResult.getScreeningAnswerResults().stream()
 						.map(screeningAnswerResult -> screeningAnswerResult.getText() == null ? screeningAnswerResult.getAnswerOptionText() : format("%s (%s)", screeningAnswerResult.getAnswerOptionText(), screeningAnswerResult.getText()))
 						.collect(Collectors.joining(", ")))));
@@ -3668,6 +3686,11 @@ public class PatientOrderService implements AutoCloseable {
 
 		if (validationException.hasErrors())
 			throw validationException;
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+
+		if (institution.getEpicPatientUniqueIdType() == null)
+			throw new IllegalStateException(format("No Epic Patient Unique ID Type configured for institution ID %s", institution.getName()));
 
 		getDatabase().execute("""
 				INSERT INTO patient_order_import (
@@ -3767,8 +3790,8 @@ public class PatientOrderService implements AutoCloseable {
 					patientOrderRequest.setPatientLastName(trimToNull(record.get("Last Name")));
 					patientOrderRequest.setPatientFirstName(trimToNull(record.get("First Name")));
 					patientOrderRequest.setPatientMrn(trimToNull(record.get("MRN")));
-					patientOrderRequest.setPatientId(trimToNull(record.get("UID")));
-					patientOrderRequest.setPatientIdType("UID");
+					patientOrderRequest.setPatientUniqueId(trimToNull(record.get("UID")));
+					patientOrderRequest.setPatientUniqueIdType(institution.getEpicPatientUniqueIdType());
 
 					// Might be "Sex" or "Legal Sex"
 					String patientBirthSexId = null;
@@ -3977,7 +4000,6 @@ public class PatientOrderService implements AutoCloseable {
 
 		// For any orders in the import batch that have no flags, send a welcome message automatically
 		List<PatientOrder> importedPatientOrders = findPatientOrdersByPatientOrderImportId(patientOrderImportId);
-		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
 		LocalDateTime now = LocalDateTime.now(institution.getTimeZone());
 
 		for (PatientOrder importedPatientOrder : importedPatientOrders) {
@@ -4045,8 +4067,8 @@ public class PatientOrderService implements AutoCloseable {
 		String patientLastName = trimToNull(request.getPatientLastName());
 		String patientFirstName = trimToNull(request.getPatientFirstName());
 		String patientMrn = trimToNull(request.getPatientMrn());
-		String patientId = trimToNull(request.getPatientId());
-		String patientIdType = trimToNull(request.getPatientIdType());
+		String patientUniqueId = trimToNull(request.getPatientUniqueId());
+		String patientUniqueIdType = trimToNull(request.getPatientUniqueIdType());
 		String patientBirthSexIdAsString = trimToNull(request.getPatientBirthSexId());
 		BirthSexId patientBirthSexId = null;
 		String patientBirthdateAsString = trimToNull(request.getPatientBirthdate());
@@ -4109,11 +4131,11 @@ public class PatientOrderService implements AutoCloseable {
 		else
 			patientMrn = patientMrn.toUpperCase(Locale.US); // TODO: revisit when we support non-US institutions
 
-		if (patientId == null)
-			validationException.add(new FieldError("patientId", getStrings().get("Patient ID is required.")));
+		if (patientUniqueId == null)
+			validationException.add(new FieldError("patientUniqueId", getStrings().get("Patient Unique ID is required.")));
 
-		if (patientIdType == null)
-			validationException.add(new FieldError("patientIdType", getStrings().get("Patient ID Type is required.")));
+		if (patientUniqueIdType == null)
+			validationException.add(new FieldError("patientUniqueIdType", getStrings().get("Patient Unique ID Type is required.")));
 
 		if (orderId == null)
 			validationException.add(new FieldError("orderId", getStrings().get("Order ID is required.")));
@@ -4287,8 +4309,8 @@ public class PatientOrderService implements AutoCloseable {
 						  patient_last_name,
 						  patient_first_name,
 						  patient_mrn,
-						  patient_id,
-						  patient_id_type,
+						  patient_unique_id,
+						  patient_unique_id_type,
 						  patient_birth_sex_id,
 						  patient_birthdate,
 						  patient_address_id,
@@ -4317,7 +4339,7 @@ public class PatientOrderService implements AutoCloseable {
 				referringPracticeIdType, referringPracticeName, orderingProviderId, orderingProviderIdType, orderingProviderLastName,
 				orderingProviderFirstName, orderingProviderMiddleName, billingProviderId, billingProviderIdType,
 				billingProviderLastName, billingProviderFirstName, billingProviderMiddleName, patientLastName, patientFirstName,
-				patientMrn, patientId, patientIdType, patientBirthSexId, patientBirthdate, patientAddressId, primaryPayorId,
+				patientMrn, patientUniqueId, patientUniqueIdType, patientBirthSexId, patientBirthdate, patientAddressId, primaryPayorId,
 				primaryPayorName, primaryPlanId, primaryPlanName, orderDate, orderAgeInMinutes, orderId, routing,
 				associatedDiagnosis, patientPhoneNumber, preferredContactHours, comments, ccRecipients,
 				lastActiveMedicationOrderSummary, recentPsychotherapeuticMedications,
@@ -4757,6 +4779,8 @@ public class PatientOrderService implements AutoCloseable {
 		@Nonnull
 		private final SystemService systemService;
 		@Nonnull
+		private final EnterprisePluginProvider enterprisePluginProvider;
+		@Nonnull
 		private final CurrentContextExecutor currentContextExecutor;
 		@Nonnull
 		private final ErrorReporter errorReporter;
@@ -4769,12 +4793,14 @@ public class PatientOrderService implements AutoCloseable {
 		public BackgroundTask(@Nonnull InstitutionService institutionService,
 													@Nonnull PatientOrderService patientOrderService,
 													@Nonnull SystemService systemService,
+													@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 													@Nonnull CurrentContextExecutor currentContextExecutor,
 													@Nonnull ErrorReporter errorReporter,
 													@Nonnull Database database) {
 			requireNonNull(institutionService);
 			requireNonNull(patientOrderService);
 			requireNonNull(systemService);
+			requireNonNull(enterprisePluginProvider);
 			requireNonNull(currentContextExecutor);
 			requireNonNull(errorReporter);
 			requireNonNull(database);
@@ -4782,6 +4808,7 @@ public class PatientOrderService implements AutoCloseable {
 			this.institutionService = institutionService;
 			this.patientOrderService = patientOrderService;
 			this.systemService = systemService;
+			this.enterprisePluginProvider = enterprisePluginProvider;
 			this.currentContextExecutor = currentContextExecutor;
 			this.errorReporter = errorReporter;
 			this.database = database;
@@ -4835,6 +4862,71 @@ public class PatientOrderService implements AutoCloseable {
 					setPatientOrderId(archivablePatientOrder.getPatientOrderId());
 				}});
 			}
+
+			// If any non-test orders haven't had their demographic info pulled in from Epic yet
+			// AND a patient/MHIC hasn't confirmed the demographic information manually -
+			// make a list of orders to pull demographic info from Epic
+			List<PatientOrder> demographicsImportNeededPatientOrders = getDatabase().queryForList("""
+					SELECT *
+					FROM v_patient_order
+					WHERE institution_id=?
+					AND patient_order_demographics_import_status_id=?
+					AND patient_demographics_confirmed_at IS NULL
+					AND test_patient_order = FALSE
+					""", PatientOrder.class, institution.getInstitutionId(), PatientOrderDemographicsImportStatusId.PENDING);
+
+			if (demographicsImportNeededPatientOrders.size() > 0) {
+				EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institution.getInstitutionId());
+				EpicClient epicClient = enterprisePlugin.epicClientForBackendService().get();
+
+				for (PatientOrder demographicsImportNeededPatientOrder : demographicsImportNeededPatientOrders) {
+					getLogger().info("Detected that patient order ID {} needs demographic information, attemping to pull from Epic...",
+							demographicsImportNeededPatientOrder.getPatientOrderId());
+
+					try {
+						if (institution.getEpicPatientUniqueIdType() == null)
+							throw new IllegalStateException(format("Institution %s does not have an Epic Patient Unique ID type configured", institution.getInstitutionId().name()));
+
+						// Per https://fhir.epic.com/Specifications?api=30
+						// identifiers are of the format <OID>|<value>
+						PatientSearchResponse patientSearchResponse = epicClient.performPatientSearch(new PatientSearchRequest() {{
+							setIdentifier(format("%s|%s", institution.getEpicPatientUniqueIdType(), demographicsImportNeededPatientOrder.getPatientUniqueId()));
+						}});
+
+						if (patientSearchResponse.getTotal() == null)
+							throw new IllegalStateException(format("Unable to extract total count for %s patient with ID %s",
+									institution.getInstitutionId().name(), demographicsImportNeededPatientOrder.getPatientUniqueId()));
+						else if (patientSearchResponse.getTotal() != 1)
+							throw new IllegalStateException(format("Expected 1 result for %s patient with ID %s but got %s instead",
+									institution.getInstitutionId().name(), demographicsImportNeededPatientOrder.getPatientUniqueId(), patientSearchResponse.getTotal()));
+
+						EthnicityId ethnicityId = patientSearchResponse.extractEthnicityId().orElse(EthnicityId.NOT_ASKED);
+						RaceId raceId = patientSearchResponse.extractRaceId().orElse(RaceId.NOT_ASKED);
+						BirthSexId birthSexId = patientSearchResponse.extractBirthSexId().orElse(BirthSexId.NOT_ASKED);
+
+						getDatabase().execute("""
+										UPDATE patient_order
+										SET patient_order_demographics_import_status_id=?,
+										patient_ethnicity_id=?,
+										patient_race_id=?,
+										patient_birth_sex_id=?,
+										patient_demographics_imported_at=NOW()
+										WHERE patient_order_id=?
+										""", PatientOrderDemographicsImportStatusId.IMPORTED,
+								ethnicityId, raceId, birthSexId, demographicsImportNeededPatientOrder.getPatientOrderId());
+					} catch (Exception e) {
+						getLogger().error(format("Unable to import patient demographics information for patient order ID %s",
+								demographicsImportNeededPatientOrder.getPatientOrderId()), e);
+						getErrorReporter().report(e);
+
+						getDatabase().execute("""
+								UPDATE patient_order
+								SET patient_order_demographics_import_status_id=?
+								WHERE patient_order_id=?
+								""", PatientOrderDemographicsImportStatusId.IMPORT_FAILED, demographicsImportNeededPatientOrder.getPatientOrderId());
+					}
+				}
+			}
 		}
 
 		@Nonnull
@@ -4850,6 +4942,11 @@ public class PatientOrderService implements AutoCloseable {
 		@Nonnull
 		protected SystemService getSystemService() {
 			return this.systemService;
+		}
+
+		@Nonnull
+		protected EnterprisePluginProvider getEnterprisePluginProvider() {
+			return this.enterprisePluginProvider;
 		}
 
 		@Nonnull

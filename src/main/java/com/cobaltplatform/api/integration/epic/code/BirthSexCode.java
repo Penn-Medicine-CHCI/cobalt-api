@@ -44,6 +44,8 @@ public enum BirthSexCode {
 	@Nonnull
 	public static final String EXTENSION_URL;
 	@Nonnull
+	public static final String DSTU2_EXTENSION_URL;
+	@Nonnull
 	private static final Map<String, BirthSexCode> BIRTH_SEX_CODES_BY_FHIR_VALUE;
 
 	@Nonnull
@@ -51,6 +53,7 @@ public enum BirthSexCode {
 
 	static {
 		EXTENSION_URL = "http://hl7.org/fhir/us/core/StructureDefinition/us-core-birthsex";
+		DSTU2_EXTENSION_URL = "http://hl7.org/fhir/StructureDefinition/us-core-birth-sex";
 
 		Map<String, BirthSexCode> birthSexCodesByFhirValue = new HashMap<>();
 
@@ -74,5 +77,16 @@ public enum BirthSexCode {
 	public static Optional<BirthSexCode> fromFhirValue(@Nullable String fhirValue) {
 		fhirValue = trimToNull(fhirValue);
 		return Optional.ofNullable(BIRTH_SEX_CODES_BY_FHIR_VALUE.get(fhirValue));
+	}
+
+	@Nonnull
+	public String getDstu2Value() {
+		return this.fhirValue;
+	}
+
+	@Nonnull
+	public static Optional<BirthSexCode> fromDstu2Value(@Nullable String dstu2Value) {
+		dstu2Value = trimToNull(dstu2Value);
+		return Optional.ofNullable(BIRTH_SEX_CODES_BY_FHIR_VALUE.get(dstu2Value));
 	}
 }

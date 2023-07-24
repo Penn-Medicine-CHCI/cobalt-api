@@ -30,6 +30,8 @@ import java.util.UUID;
 public class SkipScreeningSessionRequest {
 	@Nullable
 	private UUID screeningSessionId;
+	@Nullable
+	private Boolean forceSkip;
 
 	@Nullable
 	public UUID getScreeningSessionId() {
@@ -38,5 +40,14 @@ public class SkipScreeningSessionRequest {
 
 	public void setScreeningSessionId(@Nullable UUID screeningSessionId) {
 		this.screeningSessionId = screeningSessionId;
+	}
+
+	@Nullable
+	public Boolean getForceSkip() {
+		return this.forceSkip;
+	}
+
+	public void setForceSkip(@Nullable Boolean forceSkip) {
+		this.forceSkip = forceSkip;
 	}
 }

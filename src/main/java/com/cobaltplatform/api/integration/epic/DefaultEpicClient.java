@@ -694,6 +694,7 @@ public class DefaultEpicClient implements EpicClient {
 	public PatientSearchResponse performPatientSearch(@Nonnull PatientSearchRequest request) {
 		requireNonNull(request);
 
+		String fhirId = trimToNull(request.getFhirId());
 		String identifier = trimToNull(request.getIdentifier());
 		String family = trimToNull(request.getFamily());
 		String given = trimToNull(request.getGiven());
@@ -704,7 +705,9 @@ public class DefaultEpicClient implements EpicClient {
 		Map<String, Object> queryParameters = new HashMap<>();
 
 		// Identifier trumps everything else if provided
-		if (identifier != null) {
+		if (fhirId != null) {
+			queryParameters.put("_id", fhirId);
+		} else if (identifier != null) {
 			queryParameters.put("identifier", identifier);
 		} else {
 			if (family != null)

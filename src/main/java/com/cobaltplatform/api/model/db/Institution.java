@@ -150,6 +150,10 @@ public class Institution {
 	@Nullable
 	private String epicMrnTypeName;
 	@Nullable
+	private String epicPatientUniqueIdType;
+	@Nullable
+	private String epicPatientUniqueIdSystem;
+	@Nullable
 	@DatabaseColumn("mychart_client_id") // In DB, it's "mychart", in code, it's "MyChart"
 	private String myChartClientId;
 	@Nullable
@@ -686,6 +690,24 @@ public class Institution {
 
 	public void setEpicBaseUrl(@Nullable String epicBaseUrl) {
 		this.epicBaseUrl = epicBaseUrl;
+	}
+
+	@Nullable
+	public String getEpicPatientUniqueIdType() {
+		return this.epicPatientUniqueIdType;
+	}
+
+	public void setEpicPatientUniqueIdType(@Nullable String epicPatientUniqueIdType) {
+		this.epicPatientUniqueIdType = epicPatientUniqueIdType;
+	}
+
+	@Nullable
+	public String getEpicPatientUniqueIdSystem() {
+		return this.epicPatientUniqueIdSystem;
+	}
+
+	public void setEpicPatientUniqueIdSystem(@Nullable String epicPatientUniqueIdSystem) {
+		this.epicPatientUniqueIdSystem = epicPatientUniqueIdSystem;
 	}
 
 	@Nullable
