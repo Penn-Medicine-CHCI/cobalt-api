@@ -1193,7 +1193,7 @@ public class ScreeningService {
 							!createdByAccount.getAccountId().equals(screeningSessionCreatedByAccount.getAccountId())) {
 						getLogger().warn("Attempted to answer screening session ID {} for patient order ID {}, but a patient can't answer a screening being worked on by an MHIC",
 								screeningSession.getScreeningSessionId(), patientOrder.getPatientOrderId());
-						throw new ValidationException(getStrings().get("Sorry, this assessment is currently being performed by a mental health worker on your behalf.  You are not permitted to answer it."),
+						throw new ValidationException(getStrings().get("Sorry, this assessment is currently being performed by a mental health specialist on your behalf.  You are not permitted to answer it."),
 								Map.of("shouldExitScreeningSession", true));
 					}
 				} else {
