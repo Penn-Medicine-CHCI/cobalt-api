@@ -329,6 +329,8 @@ public class PatientOrder {
 	private Boolean appointmentScheduled;
 	@Nullable
 	private Boolean testPatientOrder;
+	@Nullable
+	private Integer episodeDurationInDays;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -1552,5 +1554,14 @@ public class PatientOrder {
 
 	public void setTestPatientOrder(@Nullable Boolean testPatientOrder) {
 		this.testPatientOrder = testPatientOrder;
+	}
+
+	@Nullable
+	public Integer getEpisodeDurationInDays() {
+		return this.episodeDurationInDays;
+	}
+
+	public void setEpisodeDurationInDays(@Nullable Integer episodeDurationInDays) {
+		this.episodeDurationInDays = episodeDurationInDays;
 	}
 }
