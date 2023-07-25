@@ -278,6 +278,8 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String resourceCheckInResponseStatusUpdatedAtDescription;
 	@Nullable
+	private Boolean patientDemographicsConfirmed;
+	@Nullable
 	private Instant patientDemographicsConfirmedAt;
 	@Nullable
 	private String patientDemographicsConfirmedAtDescription;
@@ -344,6 +346,8 @@ public class PatientOrderApiResponse {
 	private String mostRecentScreeningSessionCreatedAtDescription;
 	@Nullable
 	private UUID mostRecentScreeningSessionCreatedByAccountId;
+	@Nullable
+	private RoleId mostRecentScreeningSessionCreatedByAccountRoleId;
 	@Nullable
 	private String mostRecentScreeningSessionCreatedByAccountFirstName;
 	@Nullable
@@ -750,6 +754,7 @@ public class PatientOrderApiResponse {
 		this.patientAddressRegionAccepted = patientOrder.getPatientAddressRegionAccepted();
 		this.patientDemographicsCompleted = patientOrder.getPatientDemographicsCompleted();
 		this.patientDemographicsAccepted = patientOrder.getPatientDemographicsAccepted();
+		this.patientDemographicsConfirmed = patientOrder.getPatientDemographicsConfirmed();
 		this.patientDemographicsConfirmedAt = patientOrder.getPatientDemographicsConfirmedAt();
 		this.patientDemographicsConfirmedAtDescription = patientOrder.getPatientDemographicsConfirmedAt() == null
 				? null
@@ -793,6 +798,7 @@ public class PatientOrderApiResponse {
 		this.primaryPlanAccepted = patientOrder.getPrimaryPlanAccepted();
 
 		this.testPatientOrder = patientOrder.getTestPatientOrder();
+		this.mostRecentScreeningSessionCreatedByAccountRoleId = patientOrder.getMostRecentScreeningSessionCreatedByAccountRoleId();
 
 		// MHIC-only view of the data
 		if (format == PatientOrderApiResponseFormat.MHIC) {
@@ -1396,6 +1402,11 @@ public class PatientOrderApiResponse {
 	}
 
 	@Nullable
+	public RoleId getMostRecentScreeningSessionCreatedByAccountRoleId() {
+		return this.mostRecentScreeningSessionCreatedByAccountRoleId;
+	}
+
+	@Nullable
 	public String getMostRecentScreeningSessionCreatedByAccountFirstName() {
 		return this.mostRecentScreeningSessionCreatedByAccountFirstName;
 	}
@@ -1673,6 +1684,11 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public Boolean getPatientDemographicsAccepted() {
 		return this.patientDemographicsAccepted;
+	}
+
+	@Nullable
+	public Boolean getPatientDemographicsConfirmed() {
+		return this.patientDemographicsConfirmed;
 	}
 
 	@Nullable

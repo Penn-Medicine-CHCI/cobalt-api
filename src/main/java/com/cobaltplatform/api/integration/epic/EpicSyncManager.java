@@ -30,7 +30,6 @@ import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.EpicAppointmentFilter.EpicAppointmentFilterId;
 import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.Institution;
-import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
@@ -494,57 +493,65 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 
 		@Override
 		public void run() {
-			InstitutionId institutionId = InstitutionId.COBALT;
-			Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+			List<Institution> institutions = getDatabase().queryForList("""
+					     SELECT *
+					     FROM institution
+					     WHERE institution_id IN (SELECT institution_id FROM provider WHERE scheduling_system_id=? AND active=TRUE);
+					""", Institution.class, SchedulingSystemId.EPIC);
 
-			CurrentContext currentContext = new CurrentContext.Builder(institutionId,
-					getConfiguration().getDefaultLocale(), getConfiguration().getDefaultTimeZone()).build();
+			for (Institution institution : institutions) {
+				CurrentContext currentContext = new CurrentContext.Builder(institution.getInstitutionId(),
+						getConfiguration().getDefaultLocale(), getConfiguration().getDefaultTimeZone()).build();
 
-			getCurrentContextExecutor().execute(currentContext, () -> {
-				// Pick out all EPIC-scheduled providers
-				List<Provider> providers = getProviderService().findProvidersByInstitutionId(institutionId).stream()
-						.filter(provider -> provider.getSchedulingSystemId().equals(SchedulingSystemId.EPIC))
-						.collect(Collectors.toList());
+				getCurrentContextExecutor().execute(currentContext, () -> {
+					// Pick out all EPIC-scheduled providers
+					List<Provider> providers = getProviderService().findProvidersByInstitutionId(institution.getInstitutionId()).stream()
+							.filter(provider -> provider.getSchedulingSystemId().equals(SchedulingSystemId.EPIC))
+							.collect(Collectors.toList());
 
-				EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId).epicClientForBackendService().get();
+					EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institution.getInstitutionId()).epicClientForBackendService().get();
 
-				getLogger().info("Running EPIC availability sync for {} providers in {}...", providers.size(), institutionId.name());
-				int providerSuccessCount = 0;
+					getLogger().info("Running EPIC availability sync for {} providers in {}...",
+							providers.size(), institution.getInstitutionId().name());
 
-				for (Provider provider : providers) {
-					try {
-						LocalDate syncDate = LocalDate.now(provider.getTimeZone());
+					int providerSuccessCount = 0;
 
-						List<ProviderAvailabilityDateInsert> inserts = new ArrayList<>(getEpicSyncManager().getAvailabilitySyncNumberOfDaysAhead());
+					for (Provider provider : providers) {
+						try {
+							LocalDate syncDate = LocalDate.now(provider.getTimeZone());
 
-						for (int i = 0; i < getEpicSyncManager().getAvailabilitySyncNumberOfDaysAhead(); ++i) {
-							ProviderAvailabilityDateInsert insert = getEpicSyncManager().generateProviderAvailabilityDateInsert(epicClient, institution, provider, syncDate);
-							inserts.add(insert);
-							syncDate = syncDate.plusDays(1);
+							List<ProviderAvailabilityDateInsert> inserts = new ArrayList<>(getEpicSyncManager().getAvailabilitySyncNumberOfDaysAhead());
+
+							for (int i = 0; i < getEpicSyncManager().getAvailabilitySyncNumberOfDaysAhead(); ++i) {
+								ProviderAvailabilityDateInsert insert = getEpicSyncManager().generateProviderAvailabilityDateInsert(epicClient, institution, provider, syncDate);
+								inserts.add(insert);
+								syncDate = syncDate.plusDays(1);
+							}
+
+							// After we've done all the EPIC calls to pull data for this provider, commit to DB.
+							// This way we keep transaction time to a minimum to reduce contention
+
+							// For each provider-date, clear out existing availabilities and insert the new ones (if any)
+							for (ProviderAvailabilityDateInsert insert : inserts) {
+								// Dump out info for debugging...
+								if (getLogger().isDebugEnabled())
+									getEpicSyncManager().performDebugLogging(provider, insert);
+
+								getDatabase().transaction(() -> {
+									getEpicSyncManager().performProviderAvailabilityDateInsert(insert);
+								});
+							}
+
+							++providerSuccessCount;
+						} catch (Exception e) {
+							getLogger().warn(format("Unable to sync provider ID %s (%s) with EPIC", provider.getProviderId(), provider.getName()), e);
 						}
-
-						// After we've done all the EPIC calls to pull data for this provider, commit to DB.
-						// This way we keep transaction time to a minimum to reduce contention
-
-						// For each provider-date, clear out existing availabilities and insert the new ones (if any)
-						for (ProviderAvailabilityDateInsert insert : inserts) {
-							// Dump out info for debugging...
-							if (getLogger().isDebugEnabled())
-								getEpicSyncManager().performDebugLogging(provider, insert);
-
-							getDatabase().transaction(() -> {
-								getEpicSyncManager().performProviderAvailabilityDateInsert(insert);
-							});
-						}
-
-						++providerSuccessCount;
-					} catch (Exception e) {
-						getLogger().warn(format("Unable to sync provider ID %s (%s) with EPIC", provider.getProviderId(), provider.getName()), e);
 					}
-				}
 
-				getLogger().info("EPIC provider availability sync complete. Successfully synced {} of {} providers.", providerSuccessCount, providers.size());
-			});
+					getLogger().info("EPIC provider availability sync complete for {}. Successfully synced {} of {} providers.",
+							institution.getInstitutionId().name(), providerSuccessCount, providers.size());
+				});
+			}
 		}
 
 		@Nonnull

@@ -43,6 +43,7 @@ import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderCrisisHandler;
+import com.cobaltplatform.api.model.db.PatientOrderDisposition;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
@@ -1171,6 +1172,38 @@ public class ScreeningService {
 		ScreeningVersion screeningVersion = findScreeningVersionById(screeningSessionScreening.getScreeningVersionId()).get();
 		ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
 		Institution institution = getInstitutionService().findInstitutionById(createdByAccount.getInstitutionId()).get();
+
+		// Special failsafe checks for IC
+		if (institution.getIntegratedCareEnabled() && institution.getIntegratedCareScreeningFlowId().equals(screeningFlowVersion.getScreeningFlowId())) {
+			// Something is wrong if this doesn't exist, fail-fast with .get()
+			PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(screeningSession.getPatientOrderId()).get();
+
+			if (patientOrder.getPatientOrderDispositionId() != PatientOrderDisposition.PatientOrderDispositionId.OPEN) {
+				getLogger().warn("Attempted to answer screening session ID {} for patient order ID {} in {} disposition",
+						screeningSession.getScreeningSessionId(), patientOrder.getPatientOrderId(), patientOrder.getPatientOrderDispositionId().name());
+				throw new ValidationException(getStrings().get("Sorry, this order is closed, so you cannot answer this question."),
+						Map.of("shouldExitScreeningSession", true));
+			} else if (patientOrder.getMostRecentScreeningSessionId() != null) {
+				if (patientOrder.getMostRecentScreeningSessionId().equals(screeningSession.getScreeningSessionId())) {
+					Account screeningSessionCreatedByAccount = getAccountService().findAccountById(screeningSession.getCreatedByAccountId()).get();
+
+					// If a patient tries to answer a question for an assessment that's being performed on the patient's behalf by an MHIC,
+					// prevent that from happening
+					if (createdByAccount.getRoleId() == RoleId.PATIENT &&
+							!createdByAccount.getAccountId().equals(screeningSessionCreatedByAccount.getAccountId())) {
+						getLogger().warn("Attempted to answer screening session ID {} for patient order ID {}, but a patient can't answer a screening being worked on by an MHIC",
+								screeningSession.getScreeningSessionId(), patientOrder.getPatientOrderId());
+						throw new ValidationException(getStrings().get("Sorry, this assessment is currently being performed by a mental health specialist on your behalf.  You are not permitted to answer it."),
+								Map.of("shouldExitScreeningSession", true));
+					}
+				} else {
+					getLogger().warn("Attempted to answer out-of-date screening session ID {} for patient order ID {}",
+							screeningSession.getScreeningSessionId(), patientOrder.getPatientOrderId());
+					throw new ValidationException(getStrings().get("Sorry, this assessment is out-of-date, so you cannot answer this question."),
+							Map.of("shouldExitScreeningSession", true));
+				}
+			}
+		}
 
 		// See if this question was already answered for this session...
 		ScreeningSessionAnsweredScreeningQuestion screeningSessionAnsweredScreeningQuestion = getDatabase().queryForObject("""

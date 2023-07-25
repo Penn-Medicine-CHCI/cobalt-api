@@ -519,7 +519,16 @@ public class MessageService implements AutoCloseable {
 
 			// Tricky: the request body payload of field 'Message' is an encoded JSON string, e.g. "{\"notificationType\":\"Delivery\", ...
 			// We parse the JSON and put it back in so it's a "real" object and easily queryable in our DB
-			Map<String, Object> messageAsJson = getJsonMapper().fromJson(amazonSnsRequestBody.getMessage());
+			Map<String, Object> messageAsJson;
+
+			try {
+				messageAsJson = getJsonMapper().fromJson(amazonSnsRequestBody.getMessage());
+			} catch (Exception ignored) {
+				// There are corner cases where this field is not JSON, e.g. Configuration Set change notification.
+				// Detect that here and use a failsafe
+				messageAsJson = Map.of("message", amazonSnsRequestBody.getMessage());
+			}
+
 			requestBodyAsMap.put("Message", messageAsJson);
 
 			webhookPayload.putAll(requestBodyAsMap);

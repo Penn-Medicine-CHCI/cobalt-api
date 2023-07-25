@@ -38,6 +38,7 @@ import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderS
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
+import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.pyranid.DatabaseColumn;
 
 import javax.annotation.Nullable;
@@ -203,6 +204,8 @@ public class PatientOrder {
 	@Nullable
 	private String testPatientPassword;
 	@Nullable
+	private Boolean patientDemographicsConfirmed;
+	@Nullable
 	private Instant patientDemographicsConfirmedAt;
 	@Nullable
 	private UUID patientDemographicsConfirmedByAccountId;
@@ -241,6 +244,8 @@ public class PatientOrder {
 	private Instant mostRecentScreeningSessionCreatedAt;
 	@Nullable
 	private UUID mostRecentScreeningSessionCreatedByAccountId;
+	@Nullable
+	private RoleId mostRecentScreeningSessionCreatedByAccountRoleId;
 	@Nullable
 	private String mostRecentScreeningSessionCreatedByAccountFirstName;
 	@Nullable
@@ -1001,6 +1006,15 @@ public class PatientOrder {
 	}
 
 	@Nullable
+	public Boolean getPatientDemographicsConfirmed() {
+		return this.patientDemographicsConfirmed;
+	}
+
+	public void setPatientDemographicsConfirmed(@Nullable Boolean patientDemographicsConfirmed) {
+		this.patientDemographicsConfirmed = patientDemographicsConfirmed;
+	}
+
+	@Nullable
 	public Instant getPatientDemographicsConfirmedAt() {
 		return this.patientDemographicsConfirmedAt;
 	}
@@ -1133,6 +1147,15 @@ public class PatientOrder {
 
 	public void setMostRecentScreeningSessionCreatedByAccountId(@Nullable UUID mostRecentScreeningSessionCreatedByAccountId) {
 		this.mostRecentScreeningSessionCreatedByAccountId = mostRecentScreeningSessionCreatedByAccountId;
+	}
+
+	@Nullable
+	public RoleId getMostRecentScreeningSessionCreatedByAccountRoleId() {
+		return this.mostRecentScreeningSessionCreatedByAccountRoleId;
+	}
+
+	public void setMostRecentScreeningSessionCreatedByAccountRoleId(@Nullable RoleId mostRecentScreeningSessionCreatedByAccountRoleId) {
+		this.mostRecentScreeningSessionCreatedByAccountRoleId = mostRecentScreeningSessionCreatedByAccountRoleId;
 	}
 
 	@Nullable

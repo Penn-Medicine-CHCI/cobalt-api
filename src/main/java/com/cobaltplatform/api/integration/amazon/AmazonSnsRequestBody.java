@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.integration.amazon;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -96,7 +97,16 @@ public class AmazonSnsRequestBody {
 
 		// ...but if it's of NOTIFICATION type, it's a JSON object, so provide it as a map for simplified access
 		if (getType() == AmazonSnsMessageType.NOTIFICATION) {
-			Map<String, Object> messageAsMap = getGson().fromJson(this.message, Map.class);
+			Map<String, Object> messageAsMap;
+
+			try {
+				messageAsMap = getGson().fromJson(this.message, Map.class);
+			} catch (JsonSyntaxException ignored) {
+				// Special case for when the Message field is a string instead of an object, e.g. when adjusting a configuration set
+				// "Message": "Successfully validated SNS topic for Amazon SES event publishing."
+				messageAsMap = Map.of("message", this.message, "mail", Map.of());
+			}
+
 			this.messageAsMap = Collections.unmodifiableMap(messageAsMap);
 
 			// There will always be a "mail" object.
