@@ -330,7 +330,7 @@ select
     ) AS resource_check_in_response_needed,
     porcirs.description AS patient_order_resource_check_in_response_status_description,
     patient_demographics_confirmed_at != NULL AS patient_demographics_confirmed,
-    DATE_PART('day', AGE(COALESCE(poq.episode_closed_at, now()), poq.order_date + make_interval(mins => poq.order_age_in_minutes)))::INT AS episode_duration_in_days,
+    DATE_PART('day', (COALESCE(poq.episode_closed_at, now()) - (poq.order_date + make_interval(mins => poq.order_age_in_minutes)))) AS episode_duration_in_days,
     poq.*
 from
     patient_order poq
