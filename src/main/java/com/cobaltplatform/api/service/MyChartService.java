@@ -282,7 +282,11 @@ public class MyChartService {
 		if (validationException.hasErrors())
 			throw validationException;
 
+		// TODO: remove this line once patient app has requisite access to Patient.Read (R4).
+		epicClient = enterprisePlugin.epicClientForBackendService().get();
+
 		try {
+			// This check lets Epic confirm signature/authentication/authorization of the patient's short-lived MyChart token, preventing forgery
 			patient = epicClient.patientReadFhirR4(epicPatientFhirId).orElse(null);
 
 			if (patient == null) {
@@ -299,7 +303,9 @@ public class MyChartService {
 
 		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
 
-		String epicPatientMrn = patient.extractIdentifierByType(institution.getEpicMrnTypeName()).orElse(null);
+		String epicPatientMrn = institution.getEpicPatientMrnSystem() != null
+				? patient.extractIdentifierBySystem(institution.getEpicPatientMrnSystem()).orElse(null)
+				: patient.extractIdentifierByType(institution.getEpicMrnTypeName()).orElse(null);
 
 		// Failsafe; should never occur unless institution is misconfigured
 		if (epicPatientMrn == null)

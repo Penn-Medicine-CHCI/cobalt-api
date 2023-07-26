@@ -1,6 +1,9 @@
 BEGIN;
 SELECT _v.register_patch('108-ic-updates', NULL, NULL);
 
+-- Institutions might have custom "urn:oid:xxx" values for their MRN identifier field's system value as provided by Epic API responses
+ALTER TABLE institution ADD COLUMN epic_patient_mrn_system TEXT;
+
 DROP VIEW v_patient_order;
 DROP VIEW v_all_patient_order;
 
