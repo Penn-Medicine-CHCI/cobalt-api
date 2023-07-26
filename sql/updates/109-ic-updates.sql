@@ -1,6 +1,29 @@
 BEGIN;
 SELECT _v.register_patch('109-ic-updates', NULL, NULL);
 
+-- Preparation for altering account table
+DROP VIEW v_account;
+
+-- Quick reference for patient's unique Epic IDs, if available (MRNs are not necessarily unique)
+ALTER TABLE account ADD COLUMN epic_patient_unique_id TEXT; -- e.g. '123456789'
+ALTER TABLE account ADD COLUMN epic_patient_unique_id_type TEXT;  -- e.g. 'UID'
+
+-- Pick up the renamed columns in the view
+CREATE VIEW v_account AS
+WITH account_capabilities_query AS (
+	 -- Collect the capability types for each account
+	 SELECT
+			 account_id,
+			 jsonb_agg(account_capability_type_id) as account_capability_type_ids
+	 FROM
+			 account_capability
+  GROUP BY account_id
+)
+SELECT a.*, acq.account_capability_type_ids
+FROM account a LEFT OUTER JOIN account_capabilities_query acq on a.account_id=acq.account_id
+WHERE active=TRUE;
+
+
 -- Fix for patient_demographics_confirmed
 CREATE or replace VIEW v_all_patient_order AS WITH
 poo_query AS (
