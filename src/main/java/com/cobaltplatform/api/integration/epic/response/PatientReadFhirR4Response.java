@@ -88,6 +88,21 @@ public class PatientReadFhirR4Response {
 	private List<Contact> contact;
 
 	@Nonnull
+	public Optional<String> extractIdentifierBySystem(@Nullable String system) {
+		system = trimToNull(system);
+
+		if (system == null)
+			return Optional.empty();
+
+		for (Identifier identifier : getIdentifier()) {
+			if (Objects.equals(identifier.getSystem(), system))
+				return Optional.ofNullable(identifier.getValue());
+		}
+
+		return Optional.empty();
+	}
+
+	@Nonnull
 	public Optional<String> extractIdentifierByType(@Nullable String type) {
 		type = trimToNull(type);
 

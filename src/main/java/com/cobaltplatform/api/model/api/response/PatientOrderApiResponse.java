@@ -36,7 +36,6 @@ import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.DistanceUnit.DistanceUnitId;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
-import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderCarePreference.PatientOrderCarePreferenceId;
 import com.cobaltplatform.api.model.db.PatientOrderCareType;
@@ -76,13 +75,10 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.format.FormatStyle;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -826,19 +822,8 @@ public class PatientOrderApiResponse {
 					: formatter.formatTimestamp(patientOrder.getEpisodeClosedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 			this.episodeClosedByAccountId = patientOrder.getEpisodeClosedByAccountId();
 
-			Institution institution = institutionService.findInstitutionById(patientOrder.getInstitutionId()).get();
-
-			Instant orderDateTime = patientOrder.getOrderDate()
-					.atTime(LocalTime.MIDNIGHT)
-					.plus(patientOrder.getOrderAgeInMinutes(), ChronoUnit.MINUTES)
-					.atZone(institution.getTimeZone())
-					.toInstant();
-
-			Instant endDateTime = patientOrder.getEpisodeClosedAt() == null ? Instant.now() : patientOrder.getEpisodeClosedAt();
-			Duration orderDuration = Duration.between(orderDateTime, endDateTime);
-
 			// Safe cast, int can always hold enough
-			this.episodeDurationInDays = (int) orderDuration.toDays();
+			this.episodeDurationInDays = patientOrder.getEpisodeDurationInDays();
 			this.episodeDurationInDaysDescription = strings.get("{{episodeDurationInDays}} days", Map.of("episodeDurationInDays", this.episodeDurationInDays));
 
 			this.patientOrderResourcingStatusId = patientOrder.getPatientOrderResourcingStatusId();
