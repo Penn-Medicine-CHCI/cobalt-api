@@ -312,6 +312,20 @@ public class MyChartService {
 			throw new IllegalStateException(format("Unable to determine MRN for patient FHIR ID '%s'", epicPatientFhirId));
 
 		String ssoId = epicPatientMrn;
+		String epicPatientUniqueId = null;
+		String epicPatientUniqueIdType = null;
+
+		if (institution.getEpicPatientUniqueIdType() != null && institution.getEpicPatientUniqueIdSystem() != null) {
+			epicPatientUniqueId = patient.extractIdentifierBySystem(institution.getEpicPatientUniqueIdSystem()).orElse(null);
+			epicPatientUniqueIdType = institution.getEpicPatientUniqueIdType();
+
+			// Failsafe; should never occur unless institution is misconfigured
+			if (epicPatientUniqueId == null)
+				throw new IllegalStateException(format("Unable to determine unique ID for patient FHIR ID '%s'", epicPatientFhirId));
+
+			ssoId = epicPatientUniqueId;
+		}
+
 		Account existingAccount = getAccountService().findAccountByAccountSourceIdAndSsoIdAndInstitutionId(AccountSourceId.MYCHART, ssoId, institutionId).orElse(null);
 
 		// Account already exists for this account source/SSO ID/institution, return it instead of creating another
@@ -380,13 +394,18 @@ public class MyChartService {
 
 		CreateAddressRequest pinnedAddressRequest = addressRequest;
 		String pinnedEpicPatientFhirId = epicPatientFhirId;
+		String pinnedEpicPatientUniqueId = epicPatientUniqueId;
+		String pinnedEpicPatientUniqueIdType = epicPatientUniqueIdType;
+		String pinnedSsoId = ssoId;
 
 		return getAccountService().createAccount(new CreateAccountRequest() {{
 			setEpicPatientMrn(epicPatientMrn);
 			setEpicPatientFhirId(pinnedEpicPatientFhirId);
+			setEpicPatientUniqueId(pinnedEpicPatientUniqueId);
+			setEpicPatientUniqueIdType(pinnedEpicPatientUniqueIdType);
 			setAccountSourceId(AccountSourceId.MYCHART);
 			setRoleId(RoleId.PATIENT);
-			setSsoId(ssoId);
+			setSsoId(pinnedSsoId);
 			setInstitutionId(institutionId);
 			setSsoAttributesAsJson(ssoAttributesAsJson);
 			setGenderIdentityId(genderIdentityId);

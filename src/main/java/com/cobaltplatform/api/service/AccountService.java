@@ -458,6 +458,8 @@ public class AccountService {
 		String ssoAttributesAsJson = trimToNull(request.getSsoAttributesAsJson());
 		String epicPatientMrn = trimToNull(request.getEpicPatientMrn());
 		String epicPatientFhirId = trimToNull(request.getEpicPatientFhirId());
+		String epicPatientUniqueId = trimToNull(request.getEpicPatientUniqueId());
+		String epicPatientUniqueIdType = trimToNull(request.getEpicPatientUniqueIdType());
 		GenderIdentityId genderIdentityId = request.getGenderIdentityId() == null ? GenderIdentityId.NOT_ASKED : request.getGenderIdentityId();
 		EthnicityId ethnicityId = request.getEthnicityId() == null ? EthnicityId.NOT_ASKED : request.getEthnicityId();
 		BirthSexId birthSexId = request.getBirthSexId() == null ? BirthSexId.NOT_ASKED : request.getBirthSexId();
@@ -564,15 +566,16 @@ public class AccountService {
 		getDatabase().execute("""
 						INSERT INTO account (
 						account_id, role_id, institution_id, account_source_id, source_system_id, sso_id,
-						first_name, last_name, display_name, email_address, phone_number, sso_attributes, password, 
-						epic_patient_mrn, epic_patient_fhir_id, time_zone, gender_identity_id, ethnicity_id, 
-						birth_sex_id, race_id, birthdate, test_account
+						first_name, last_name, display_name, email_address, phone_number, sso_attributes, password,
+						epic_patient_mrn, epic_patient_fhir_id, time_zone, gender_identity_id, ethnicity_id,
+						birth_sex_id, race_id, birthdate, test_account, epic_patient_unique_id, epic_patient_unique_id_type
 						) 
-						VALUES (?,?,?,?,?,?,?,?,?,?,?,CAST(? AS JSONB),?,?,?,?,?,?,?,?,?,?)
+						VALUES (?,?,?,?,?,?,?,?,?,?,?,CAST(? AS JSONB),?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				accountId, roleId, institutionId, accountSourceId, sourceSystemId, ssoId, firstName, lastName, displayName,
 				emailAddress, phoneNumber, finalSsoAttributesAsJson, password, epicPatientMrn,
-				epicPatientFhirId, timeZone, genderIdentityId, ethnicityId, birthSexId, raceId, birthdate, testAccount);
+				epicPatientFhirId, timeZone, genderIdentityId, ethnicityId, birthSexId, raceId, birthdate, testAccount,
+				epicPatientUniqueId, epicPatientUniqueIdType);
 
 		if (addressId != null) {
 			getDatabase().execute("""

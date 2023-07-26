@@ -833,7 +833,8 @@ public class AppointmentService {
 
 				// Now we are ready to book
 				ScheduleAppointmentWithInsuranceRequest appointmentRequest = new ScheduleAppointmentWithInsuranceRequest();
-				appointmentRequest.setPatientID(account.getEpicPatientFhirId());
+				appointmentRequest.setPatientID(account.getEpicPatientUniqueId());
+				appointmentRequest.setPatientIDType(account.getEpicPatientUniqueIdType());
 				appointmentRequest.setDepartmentID(epicDepartment.getDepartmentId());
 				appointmentRequest.setDepartmentIDType(epicDepartment.getDepartmentIdType());
 				appointmentRequest.setProviderID(provider.getEpicProviderId());

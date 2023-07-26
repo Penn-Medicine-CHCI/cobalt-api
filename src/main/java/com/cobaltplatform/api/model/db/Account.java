@@ -106,6 +106,10 @@ public class Account {
 	@Nullable
 	private String epicPatientFhirId;
 	@Nullable
+	private String epicPatientUniqueId;
+	@Nullable
+	private String epicPatientUniqueIdType;
+	@Nullable
 	private String microsoftId;
 	@Nullable
 	private ZoneId timeZone;
@@ -390,6 +394,24 @@ public class Account {
 
 	public void setEpicPatientFhirId(@Nullable String epicPatientFhirId) {
 		this.epicPatientFhirId = epicPatientFhirId;
+	}
+
+	@Nullable
+	public String getEpicPatientUniqueId() {
+		return this.epicPatientUniqueId;
+	}
+
+	public void setEpicPatientUniqueId(@Nullable String epicPatientUniqueId) {
+		this.epicPatientUniqueId = epicPatientUniqueId;
+	}
+
+	@Nullable
+	public String getEpicPatientUniqueIdType() {
+		return this.epicPatientUniqueIdType;
+	}
+
+	public void setEpicPatientUniqueIdType(@Nullable String epicPatientUniqueIdType) {
+		this.epicPatientUniqueIdType = epicPatientUniqueIdType;
 	}
 
 	@Nullable
