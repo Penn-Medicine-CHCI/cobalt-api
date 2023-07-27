@@ -69,6 +69,8 @@ public class Institution {
 	@Nullable
 	private UUID integratedCareScreeningFlowId;
 	@Nullable
+	private UUID integratedCareIntakeScreeningFlowId;
+	@Nullable
 	private UUID featureScreeningFlowId;
 	@Nullable
 	private AnonymousAccountExpirationStrategyId anonymousAccountExpirationStrategyId;
@@ -384,6 +386,15 @@ public class Institution {
 
 	public void setIntegratedCareScreeningFlowId(@Nullable UUID integratedCareScreeningFlowId) {
 		this.integratedCareScreeningFlowId = integratedCareScreeningFlowId;
+	}
+
+	@Nullable
+	public UUID getIntegratedCareIntakeScreeningFlowId() {
+		return this.integratedCareIntakeScreeningFlowId;
+	}
+
+	public void setIntegratedCareIntakeScreeningFlowId(@Nullable UUID integratedCareIntakeScreeningFlowId) {
+		this.integratedCareIntakeScreeningFlowId = integratedCareIntakeScreeningFlowId;
 	}
 
 	@Nullable

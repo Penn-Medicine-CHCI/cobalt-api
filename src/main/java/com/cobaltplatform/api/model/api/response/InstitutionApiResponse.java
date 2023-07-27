@@ -63,6 +63,8 @@ public class InstitutionApiResponse {
 	@Nullable
 	private final UUID integratedCareScreeningFlowId;
 	@Nullable
+	private final UUID integratedCareIntakeScreeningFlowId;
+	@Nullable
 	private final UUID featureScreeningFlowId;
 	@Nonnull
 	private final AnonymousAccountExpirationStrategyId anonymousAccountExpirationStrategyId;
@@ -172,6 +174,7 @@ public class InstitutionApiResponse {
 		this.contentScreeningFlowId = institution.getContentScreeningFlowId();
 		this.groupSessionsScreeningFlowId = institution.getGroupSessionsScreeningFlowId();
 		this.integratedCareScreeningFlowId = institution.getIntegratedCareScreeningFlowId();
+		this.integratedCareIntakeScreeningFlowId = institution.getIntegratedCareIntakeScreeningFlowId();
 		this.featureScreeningFlowId = institution.getFeatureScreeningFlowId();
 		this.anonymousAccountExpirationStrategyId = institution.getAnonymousAccountExpirationStrategyId();
 		this.name = institution.getName();
@@ -251,6 +254,11 @@ public class InstitutionApiResponse {
 	@Nullable
 	public UUID getIntegratedCareScreeningFlowId() {
 		return this.integratedCareScreeningFlowId;
+	}
+
+	@Nullable
+	public UUID getIntegratedCareIntakeScreeningFlowId() {
+		return this.integratedCareIntakeScreeningFlowId;
 	}
 
 	@Nullable
