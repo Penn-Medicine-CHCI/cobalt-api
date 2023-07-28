@@ -280,7 +280,7 @@ public class GroupSessionService implements AutoCloseable {
 		InstitutionId institutionId = request.getInstitutionId();
 		Account account = request.getAccount();
 		FindGroupSessionsRequest.FilterBehavior filterBehavior = request.getFilterBehavior() == null ? FindGroupSessionsRequest.FilterBehavior.DEFAULT : request.getFilterBehavior();
-		FindGroupSessionsRequest.OrderBy orderBy = request.getOrderBy() == null ? FindGroupSessionsRequest.OrderBy.START_TIME_DESCENDING : request.getOrderBy();
+		FindGroupSessionsRequest.OrderBy orderBy = request.getOrderBy() == null ? FindGroupSessionsRequest.OrderBy.START_TIME_ASCENDING : request.getOrderBy();
 
 		List<Object> parameters = new ArrayList<>();
 
@@ -329,12 +329,17 @@ public class GroupSessionService implements AutoCloseable {
 			parameters.add(getNormalizer().normalizeEmailAddress(account.getEmailAddress()).orElse(null));
 		}
 
-		if (orderBy == FindGroupSessionsRequest.OrderBy.START_TIME_ASCENDING)
-			sql.append("ORDER BY gs.start_date_time ASC ");
+		sql.append("ORDER BY ");
+
+		if (orderBy == FindGroupSessionsRequest.OrderBy.START_TIME_DESCENDING)
+			sql.append("gs.start_date_time ASC ");
 		else if (orderBy == FindGroupSessionsRequest.OrderBy.START_TIME_DESCENDING)
-			sql.append("ORDER BY gs.start_date_time DESC ");
+			sql.append("gs.start_date_time DESC ");
 		else
 			throw new IllegalArgumentException(format("Unsure what to do with %s.%s", FindGroupSessionsRequest.OrderBy.class.getSimpleName(), orderBy.name()));
+
+		// Break ordering tie in the event that there are ambiguities
+		sql.append(", gs.group_session_id ");
 
 		sql.append("LIMIT ? ");
 		parameters.add(pageSize);
