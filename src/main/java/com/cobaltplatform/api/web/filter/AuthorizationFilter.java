@@ -22,17 +22,18 @@ package com.cobaltplatform.api.web.filter;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.Account;
-import com.cobaltplatform.api.model.db.AccountSource;
+import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AccessTokenStatus;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.security.ContentSecurityLevel;
+import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
 import com.cobaltplatform.api.util.AccessTokenException;
+import com.cobaltplatform.api.util.LinkGenerator;
 import com.soklet.web.exception.AuthenticationException;
 import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.request.RequestContext;
 import com.soklet.web.routing.Route;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,22 +70,27 @@ public class AuthorizationFilter implements Filter {
 	@Nonnull
 	private final Provider<RequestContext> requestContextProvider;
 	@Nonnull
-	private final Logger logger;
-	@NonNull
 	private final Provider<Configuration> configurationProvider;
+	@Nonnull
+	private final Provider<LinkGenerator> linkGeneratorProvider;
+	@Nonnull
+	private final Logger logger;
 
 	@Inject
 	public AuthorizationFilter(@Nonnull Provider<CurrentContext> currentContextProvider,
 														 @Nonnull Provider<RequestContext> requestContextProvider,
-														 @Nonnull Provider<Configuration> configurationProvider) {
+														 @Nonnull Provider<Configuration> configurationProvider,
+														 @Nonnull Provider<LinkGenerator> linkGeneratorProvider) {
 		requireNonNull(currentContextProvider);
 		requireNonNull(requestContextProvider);
 		requireNonNull(configurationProvider);
+		requireNonNull(linkGeneratorProvider);
 
 		this.currentContextProvider = currentContextProvider;
 		this.requestContextProvider = requestContextProvider;
-		this.logger = LoggerFactory.getLogger(getClass());
 		this.configurationProvider = configurationProvider;
+		this.linkGeneratorProvider = linkGeneratorProvider;
+		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
 	@Override
@@ -130,17 +136,30 @@ public class AuthorizationFilter implements Filter {
 								resourceMethod, roleIds, account.getRoleId().name()));
 				}
 
-				AccessTokenStatus accessTokenStatus = getCurrentContext().getAccessTokenStatus().orElse(null);
+				CurrentContext currentContext = getCurrentContext();
+				AccessTokenStatus accessTokenStatus = currentContext.getAccessTokenStatus().orElse(null);
 
 				if ((authenticationRequired.contentSecurityLevel() == ContentSecurityLevel.HIGH && accessTokenStatus != AccessTokenStatus.FULLY_ACTIVE) ||
 						accessTokenStatus == AccessTokenStatus.FULLY_EXPIRED) {
 
-					AccountSource accountSource = getCurrentContext().getAccountSource().get();
+					AccountSourceForInstitution accountSource = currentContext.getAccountSource().get();
 
-					String signOnUrl = getConfiguration().getEnvironment().equals("prod") ?
-							accountSource.getProdSsoUrl() : getConfiguration().getEnvironment().equals("dev") ?
-							accountSource.getDevSsoUrl() : accountSource.getLocalSsoUrl();
-					String contentSecurityLevel = null;
+					String signOnUrl;
+
+					if (accountSource.getAccountSourceId() == AccountSourceId.EMAIL_PASSWORD) {
+						signOnUrl = getLinkGenerator().generateEmailPasswordSignInLink(currentContext.getInstitutionId(), currentContext.getUserExperienceTypeId().get());
+					} else {
+						// If this was an SSO account, one of these will be set
+						signOnUrl = getConfiguration().getEnvironment().equals("prod") ?
+								accountSource.getProdSsoUrl() : getConfiguration().getEnvironment().equals("dev") ?
+								accountSource.getDevSsoUrl() : accountSource.getLocalSsoUrl();
+					}
+
+					// Fallback: just go to the generic sign-in page
+					if (signOnUrl == null)
+						signOnUrl = getLinkGenerator().generateWebappSignInLink(currentContext.getInstitutionId(), currentContext.getUserExperienceTypeId().get());
+
+					String contentSecurityLevel;
 
 					if (authenticationRequired.contentSecurityLevel() == ContentSecurityLevel.HIGH)
 						contentSecurityLevel = ContentSecurityLevel.HIGH.name();
@@ -175,6 +194,11 @@ public class AuthorizationFilter implements Filter {
 	}
 
 	@Nonnull
+	protected LinkGenerator getLinkGenerator() {
+		return this.linkGeneratorProvider.get();
+	}
+
+	@Nonnull
 	protected Logger getLogger() {
 		return logger;
 	}
@@ -183,5 +207,4 @@ public class AuthorizationFilter implements Filter {
 	protected Configuration getConfiguration() {
 		return configurationProvider.get();
 	}
-
 }

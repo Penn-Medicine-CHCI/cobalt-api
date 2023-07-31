@@ -74,6 +74,7 @@ import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.security.AccessTokenClaims;
 import com.cobaltplatform.api.model.service.AccountEmailVerificationFlowTypeId;
+import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
 import com.cobaltplatform.api.model.service.IcTestPatientEmailAddress;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.Formatter;
@@ -1063,12 +1064,26 @@ public class AccountService {
 	}
 
 	@Nonnull
-	public Optional<AccountSource> findAccountSourceByAccountId(@Nullable UUID accountId) {
+	public Optional<AccountSourceForInstitution> findAccountSourceByAccountId(@Nullable UUID accountId) {
 		if (accountId == null)
 			return Optional.empty();
 
-		return getDatabase().queryForObject("SELECT aa.* FROM account_source aa, account a WHERE a.account_source_id = aa.account_source_id "
-				+ "AND a.account_id = ?", AccountSource.class, accountId);
+		AccountSource accountSource = getDatabase().queryForObject("""
+				SELECT aa.*
+				FROM account_source aa, account a
+				WHERE a.account_source_id = aa.account_source_id
+				AND a.account_id=?
+				""", AccountSource.class, accountId).orElse(null);
+
+		if (accountSource == null)
+			return Optional.empty();
+
+		Account account = findAccountById(accountId).get();
+
+		// AccountSourceForInstitution has additional useful institution-specific data.
+		return getInstitutionService().findAccountSourcesByInstitutionId(account.getInstitutionId()).stream()
+				.filter(accountSourceForInstitution -> accountSourceForInstitution.getAccountSourceId() == accountSource.getAccountSourceId())
+				.findFirst();
 	}
 
 	@Nonnull

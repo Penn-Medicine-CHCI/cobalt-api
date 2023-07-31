@@ -26,13 +26,13 @@ import com.cobaltplatform.api.context.CurrentContextExecutor.CurrentContextOpera
 import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.epic.MyChartAccessToken;
 import com.cobaltplatform.api.model.db.Account;
-import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionUrl;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.security.AccessTokenClaims;
 import com.cobaltplatform.api.model.security.AccessTokenStatus;
+import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
 import com.cobaltplatform.api.model.service.RemoteClient;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.FingerprintService;
@@ -194,10 +194,10 @@ public class CurrentContextRequestHandler {
 
 			Optional<String> sessionTrackingString = extractValueFromRequest(httpServletRequest, getSessionTrackingIdPropertyName());
 			UUID sessionTrackingId = sessionTrackingString.isPresent() ? UUID.fromString(sessionTrackingString.get()) : null;
-			AccountSource accountSource = null;
+			AccountSourceForInstitution accountSource = null;
 
 			if (account != null)
-				accountSource = getAccountService().findAccountSourceByAccountId(account.getAccountId()).orElse(null);
+				accountSource = getAccountService().findAccountSourceByAccountId(account.getAccountId()).get();
 
 			// Try to get fingerprint id
 			String fingerprintIdValue = extractValueFromRequest(httpServletRequest, getFingerprintIdPropertyName()).orElse(null);
