@@ -331,7 +331,7 @@ public class GroupSessionService implements AutoCloseable {
 
 		sql.append("ORDER BY ");
 
-		if (orderBy == FindGroupSessionsRequest.OrderBy.START_TIME_DESCENDING)
+		if (orderBy == FindGroupSessionsRequest.OrderBy.START_TIME_ASCENDING)
 			sql.append("gs.start_date_time ASC ");
 		else if (orderBy == FindGroupSessionsRequest.OrderBy.START_TIME_DESCENDING)
 			sql.append("gs.start_date_time DESC ");
