@@ -46,6 +46,7 @@ import com.cobaltplatform.api.model.db.PatientOrderDemographicsImportStatus.Pati
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderIntakeScreeningStatus.PatientOrderIntakeScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
@@ -358,6 +359,36 @@ public class PatientOrderApiResponse {
 	private Instant mostRecentScreeningSessionCompletedAt;
 	@Nullable
 	private String mostRecentScreeningSessionCompletedAtDescription;
+	@Nullable
+	private UUID mostRecentIntakeScreeningSessionId;
+	@Nullable
+	private Instant mostRecentIntakeScreeningSessionCreatedAt;
+	@Nullable
+	private String mostRecentIntakeScreeningSessionCreatedAtDescription;
+	@Nullable
+	private UUID mostRecentIntakeScreeningSessionCreatedByAccountId;
+	@Nullable
+	private RoleId mostRecentIntakeScreeningSessionCreatedByAccountRoleId;
+	@Nullable
+	private String mostRecentIntakeScreeningSessionCreatedByAccountFirstName;
+	@Nullable
+	private String mostRecentIntakeScreeningSessionCreatedByAccountLastName;
+	@Nullable
+	private String mostRecentIntakeScreeningSessionCreatedByAccountDisplayName;
+	@Nullable
+	private String mostRecentIntakeScreeningSessionCreatedByAccountDisplayNameWithLastFirst;
+	@Nullable
+	private Boolean mostRecentIntakeScreeningSessionCompleted;
+	@Nullable
+	private Instant mostRecentIntakeScreeningSessionCompletedAt;
+	@Nullable
+	private String mostRecentIntakeScreeningSessionCompletedAtDescription;
+	@Nullable
+	private Boolean mostRecentIntakeScreeningSessionByPatient;
+	@Nullable
+	private PatientOrderIntakeScreeningStatusId patientOrderIntakeScreeningStatusId;
+	@Nullable
+	private String patientOrderIntakeScreeningStatusDescription;
 	@Nullable
 	private String panelAccountFirstName;
 	@Nullable
@@ -765,6 +796,18 @@ public class PatientOrderApiResponse {
 		this.mostRecentScreeningSessionCompletedAt = patientOrder.getMostRecentScreeningSessionCompletedAt();
 		this.mostRecentScreeningSessionCompletedAtDescription = patientOrder.getMostRecentScreeningSessionCompletedAt() == null ? null : formatter.formatTimestamp(patientOrder.getMostRecentScreeningSessionCompletedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 
+		this.mostRecentIntakeScreeningSessionId = patientOrder.getMostRecentIntakeScreeningSessionId();
+		this.mostRecentIntakeScreeningSessionCreatedAt = patientOrder.getMostRecentIntakeScreeningSessionCreatedAt();
+		this.mostRecentIntakeScreeningSessionCreatedAtDescription = patientOrder.getMostRecentIntakeScreeningSessionCreatedAt() == null ? null : formatter.formatTimestamp(patientOrder.getMostRecentIntakeScreeningSessionCreatedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.mostRecentIntakeScreeningSessionCreatedByAccountId = patientOrder.getMostRecentIntakeScreeningSessionCreatedByAccountId();
+		this.mostRecentIntakeScreeningSessionCreatedByAccountRoleId = patientOrder.getMostRecentIntakeScreeningSessionCreatedByAccountRoleId();
+		this.mostRecentIntakeScreeningSessionCompleted = patientOrder.getMostRecentIntakeScreeningSessionCompleted();
+		this.mostRecentIntakeScreeningSessionCompletedAt = patientOrder.getMostRecentIntakeScreeningSessionCompletedAt();
+		this.mostRecentIntakeScreeningSessionCompletedAtDescription = patientOrder.getMostRecentIntakeScreeningSessionCompletedAt() == null ? null : formatter.formatTimestamp(patientOrder.getMostRecentIntakeScreeningSessionCompletedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.mostRecentIntakeScreeningSessionByPatient = patientOrder.getMostRecentIntakeScreeningSessionByPatient();
+		this.patientOrderIntakeScreeningStatusId = patientOrder.getPatientOrderIntakeScreeningStatusId();
+		this.patientOrderIntakeScreeningStatusDescription = patientOrder.getPatientOrderIntakeScreeningStatusDescription();
+
 		this.patientAgeOnOrderDate = patientOrder.getPatientAgeOnOrderDate();
 		this.patientAgeOnOrderDateDescription = formatter.formatInteger(patientOrder.getPatientAgeOnOrderDate());
 
@@ -888,6 +931,11 @@ public class PatientOrderApiResponse {
 			this.resourceCheckInScheduledMessageGroupId = patientOrder.getResourceCheckInScheduledMessageGroupId();
 			this.resourceCheckInScheduledAtDateTime = patientOrder.getResourceCheckInScheduledAtDateTime();
 			this.resourceCheckInScheduledAtDateTimeDescription = patientOrder.getResourceCheckInScheduledAtDateTime() == null ? null : formatter.formatDateTime(patientOrder.getResourceCheckInScheduledAtDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+
+			this.mostRecentIntakeScreeningSessionCreatedByAccountFirstName = patientOrder.getMostRecentIntakeScreeningSessionCreatedByAccountFirstName();
+			this.mostRecentIntakeScreeningSessionCreatedByAccountLastName = patientOrder.getMostRecentIntakeScreeningSessionCreatedByAccountLastName();
+			this.mostRecentIntakeScreeningSessionCreatedByAccountDisplayName = Normalizer.normalizeName(patientOrder.getMostRecentIntakeScreeningSessionCreatedByAccountFirstName(), patientOrder.getMostRecentIntakeScreeningSessionCreatedByAccountLastName(), null).orElse(null);
+			this.mostRecentIntakeScreeningSessionCreatedByAccountDisplayNameWithLastFirst = Normalizer.normalizeNameWithLastFirst(patientOrder.getMostRecentIntakeScreeningSessionCreatedByAccountFirstName(), patientOrder.getMostRecentIntakeScreeningSessionCreatedByAccountLastName(), null).orElse(null);
 		}
 	}
 

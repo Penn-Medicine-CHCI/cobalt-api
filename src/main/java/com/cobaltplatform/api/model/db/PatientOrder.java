@@ -30,6 +30,7 @@ import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClo
 import com.cobaltplatform.api.model.db.PatientOrderConsentStatus.PatientOrderConsentStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderDemographicsImportStatus.PatientOrderDemographicsImportStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
+import com.cobaltplatform.api.model.db.PatientOrderIntakeScreeningStatus.PatientOrderIntakeScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
@@ -254,6 +255,30 @@ public class PatientOrder {
 	private Boolean mostRecentScreeningSessionCompleted;
 	@Nullable
 	private Instant mostRecentScreeningSessionCompletedAt;
+	@Nullable
+	private UUID mostRecentIntakeScreeningSessionId;
+	@Nullable
+	private Instant mostRecentIntakeScreeningSessionCreatedAt;
+	@Nullable
+	private UUID mostRecentIntakeScreeningSessionCreatedByAccountId;
+	@Nullable
+	private RoleId mostRecentIntakeScreeningSessionCreatedByAccountRoleId;
+	@Nullable
+	@DatabaseColumn("most_recent_intake_screening_session_created_by_account_fn")
+	private String mostRecentIntakeScreeningSessionCreatedByAccountFirstName;
+	@Nullable
+	@DatabaseColumn("most_recent_intake_screening_session_created_by_account_ln")
+	private String mostRecentIntakeScreeningSessionCreatedByAccountLastName;
+	@Nullable
+	private Boolean mostRecentIntakeScreeningSessionCompleted;
+	@Nullable
+	private Instant mostRecentIntakeScreeningSessionCompletedAt;
+	@Nullable
+	private Boolean mostRecentIntakeScreeningSessionByPatient;
+	@Nullable
+	private PatientOrderIntakeScreeningStatusId patientOrderIntakeScreeningStatusId;
+	@Nullable
+	private String patientOrderIntakeScreeningStatusDescription;
 	@Nullable
 	private String panelAccountFirstName;
 	@Nullable
@@ -1194,6 +1219,105 @@ public class PatientOrder {
 
 	public void setMostRecentScreeningSessionCompletedAt(@Nullable Instant mostRecentScreeningSessionCompletedAt) {
 		this.mostRecentScreeningSessionCompletedAt = mostRecentScreeningSessionCompletedAt;
+	}
+
+	@Nullable
+	public UUID getMostRecentIntakeScreeningSessionId() {
+		return this.mostRecentIntakeScreeningSessionId;
+	}
+
+	public void setMostRecentIntakeScreeningSessionId(@Nullable UUID mostRecentIntakeScreeningSessionId) {
+		this.mostRecentIntakeScreeningSessionId = mostRecentIntakeScreeningSessionId;
+	}
+
+	@Nullable
+	public Instant getMostRecentIntakeScreeningSessionCreatedAt() {
+		return this.mostRecentIntakeScreeningSessionCreatedAt;
+	}
+
+	public void setMostRecentIntakeScreeningSessionCreatedAt(@Nullable Instant mostRecentIntakeScreeningSessionCreatedAt) {
+		this.mostRecentIntakeScreeningSessionCreatedAt = mostRecentIntakeScreeningSessionCreatedAt;
+	}
+
+	@Nullable
+	public UUID getMostRecentIntakeScreeningSessionCreatedByAccountId() {
+		return this.mostRecentIntakeScreeningSessionCreatedByAccountId;
+	}
+
+	public void setMostRecentIntakeScreeningSessionCreatedByAccountId(@Nullable UUID mostRecentIntakeScreeningSessionCreatedByAccountId) {
+		this.mostRecentIntakeScreeningSessionCreatedByAccountId = mostRecentIntakeScreeningSessionCreatedByAccountId;
+	}
+
+	@Nullable
+	public RoleId getMostRecentIntakeScreeningSessionCreatedByAccountRoleId() {
+		return this.mostRecentIntakeScreeningSessionCreatedByAccountRoleId;
+	}
+
+	public void setMostRecentIntakeScreeningSessionCreatedByAccountRoleId(@Nullable RoleId mostRecentIntakeScreeningSessionCreatedByAccountRoleId) {
+		this.mostRecentIntakeScreeningSessionCreatedByAccountRoleId = mostRecentIntakeScreeningSessionCreatedByAccountRoleId;
+	}
+
+	@Nullable
+	public String getMostRecentIntakeScreeningSessionCreatedByAccountFirstName() {
+		return this.mostRecentIntakeScreeningSessionCreatedByAccountFirstName;
+	}
+
+	public void setMostRecentIntakeScreeningSessionCreatedByAccountFirstName(@Nullable String mostRecentIntakeScreeningSessionCreatedByAccountFirstName) {
+		this.mostRecentIntakeScreeningSessionCreatedByAccountFirstName = mostRecentIntakeScreeningSessionCreatedByAccountFirstName;
+	}
+
+	@Nullable
+	public String getMostRecentIntakeScreeningSessionCreatedByAccountLastName() {
+		return this.mostRecentIntakeScreeningSessionCreatedByAccountLastName;
+	}
+
+	public void setMostRecentIntakeScreeningSessionCreatedByAccountLastName(@Nullable String mostRecentIntakeScreeningSessionCreatedByAccountLastName) {
+		this.mostRecentIntakeScreeningSessionCreatedByAccountLastName = mostRecentIntakeScreeningSessionCreatedByAccountLastName;
+	}
+
+	@Nullable
+	public Boolean getMostRecentIntakeScreeningSessionCompleted() {
+		return this.mostRecentIntakeScreeningSessionCompleted;
+	}
+
+	public void setMostRecentIntakeScreeningSessionCompleted(@Nullable Boolean mostRecentIntakeScreeningSessionCompleted) {
+		this.mostRecentIntakeScreeningSessionCompleted = mostRecentIntakeScreeningSessionCompleted;
+	}
+
+	@Nullable
+	public Instant getMostRecentIntakeScreeningSessionCompletedAt() {
+		return this.mostRecentIntakeScreeningSessionCompletedAt;
+	}
+
+	public void setMostRecentIntakeScreeningSessionCompletedAt(@Nullable Instant mostRecentIntakeScreeningSessionCompletedAt) {
+		this.mostRecentIntakeScreeningSessionCompletedAt = mostRecentIntakeScreeningSessionCompletedAt;
+	}
+
+	@Nullable
+	public Boolean getMostRecentIntakeScreeningSessionByPatient() {
+		return this.mostRecentIntakeScreeningSessionByPatient;
+	}
+
+	public void setMostRecentIntakeScreeningSessionByPatient(@Nullable Boolean mostRecentIntakeScreeningSessionByPatient) {
+		this.mostRecentIntakeScreeningSessionByPatient = mostRecentIntakeScreeningSessionByPatient;
+	}
+
+	@Nullable
+	public PatientOrderIntakeScreeningStatusId getPatientOrderIntakeScreeningStatusId() {
+		return this.patientOrderIntakeScreeningStatusId;
+	}
+
+	public void setPatientOrderIntakeScreeningStatusId(@Nullable PatientOrderIntakeScreeningStatusId patientOrderIntakeScreeningStatusId) {
+		this.patientOrderIntakeScreeningStatusId = patientOrderIntakeScreeningStatusId;
+	}
+
+	@Nullable
+	public String getPatientOrderIntakeScreeningStatusDescription() {
+		return this.patientOrderIntakeScreeningStatusDescription;
+	}
+
+	public void setPatientOrderIntakeScreeningStatusDescription(@Nullable String patientOrderIntakeScreeningStatusDescription) {
+		this.patientOrderIntakeScreeningStatusDescription = patientOrderIntakeScreeningStatusDescription;
 	}
 
 	@Nullable

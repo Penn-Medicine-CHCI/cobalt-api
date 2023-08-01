@@ -3,7 +3,13 @@ SELECT _v.register_patch('110-ic-updates', NULL, NULL);
 
 ALTER TABLE institution ADD COLUMN integrated_care_intake_screening_flow_id UUID REFERENCES screening_flow;
 
--- Add TBD columns
+-- Drop order views in preparation for modifying columns
+DROP VIEW v_patient_order;
+DROP VIEW v_all_patient_order;
+
+
+
+-- Added "most recent intake"-related columns
 CREATE or replace VIEW v_all_patient_order AS WITH
 poo_query AS (
     -- Count up the patient outreach attempts for each patient order
@@ -107,8 +113,7 @@ recent_voicemail_task_query AS (
         povt2.patient_order_voicemail_task_id IS NULL
 ),
 ss_query AS (
-    -- Pick the most recently-created screening session for the patient order.
-    -- We discard "skipped" screenings
+    -- Pick the most recently-created clinical screening session for the patient order
     select
         ss.*,
         a.first_name,
@@ -118,12 +123,36 @@ ss_query AS (
         patient_order poq
         join screening_session ss ON poq.patient_order_id = ss.patient_order_id
         join account a ON ss.created_by_account_id = a.account_id
+        join institution i ON a.institution_id = i.institution_id
+        join screening_flow_version sfv ON ss.screening_flow_version_id = sfv.screening_flow_version_id
         left join screening_session ss2 ON ss.patient_order_id = ss2.patient_order_id
         and ss.created < ss2.created
-        and ss2.skipped = false
+        left join screening_flow_version sfv2 ON ss2.screening_flow_version_id = sfv2.screening_flow_version_id
+        and i.integrated_care_screening_flow_id=sfv2.screening_flow_id
     where
         ss2.screening_session_id IS NULL
-        and ss.skipped = false
+        and i.integrated_care_screening_flow_id=sfv.screening_flow_id
+),
+ss_intake_query AS (
+    -- Pick the most recently-created intake screening session for the patient order
+    select
+        ss.*,
+        a.first_name,
+        a.last_name,
+        a.role_id
+    from
+        patient_order poq
+        join screening_session ss ON poq.patient_order_id = ss.patient_order_id
+        join account a ON ss.created_by_account_id = a.account_id
+        join institution i ON a.institution_id = i.institution_id
+        join screening_flow_version sfv ON ss.screening_flow_version_id = sfv.screening_flow_version_id
+        left join screening_session ss2 ON ss.patient_order_id = ss2.patient_order_id
+        and ss.created < ss2.created
+        left join screening_flow_version sfv2 ON ss2.screening_flow_version_id = sfv2.screening_flow_version_id
+        and i.integrated_care_screening_flow_id=sfv2.screening_flow_id
+    where
+        ss2.screening_session_id IS NULL
+        and i.integrated_care_intake_screening_flow_id=sfv.screening_flow_id
 ),
 permitted_regions_query AS (
     -- Pick the permitted set of IC regions (state abbreviations in the US) by institution as an array for easy access
@@ -225,6 +254,28 @@ select
         WHEN poq.patient_account_id = ssq.created_by_account_id THEN true
         ELSE false
     END most_recent_screening_session_by_patient,
+    ssiq.screening_session_id AS most_recent_intake_screening_session_id,
+    ssiq.created AS most_recent_intake_screening_session_created_at,
+    ssiq.created_by_account_id AS most_recent_intake_screening_session_created_by_account_id,
+    ssiq.role_id AS most_recent_intake_screening_session_created_by_account_role_id,
+    ssiq.first_name AS most_recent_intake_screening_session_created_by_account_fn,
+    ssiq.last_name AS most_recent_intake_screening_session_created_by_account_ln,
+    ssiq.completed AS most_recent_intake_screening_session_completed,
+    ssiq.completed_at AS most_recent_intake_screening_session_completed_at,
+    CASE
+        WHEN ssiq.completed = TRUE THEN 'COMPLETE'
+        WHEN ssiq.screening_session_id IS NOT NULL THEN 'IN_PROGRESS'
+        ELSE 'NOT_SCREENED'
+    END patient_order_intake_screening_status_id,
+    CASE
+        WHEN ssiq.completed = TRUE THEN 'Complete'
+        WHEN ssiq.screening_session_id IS NOT NULL THEN 'In Progress'
+        ELSE 'Not Screened'
+    END patient_order_intake_screening_status_description,
+    CASE
+        WHEN poq.patient_account_id = ssiq.created_by_account_id THEN true
+        ELSE false
+    END most_recent_intake_screening_session_by_patient,
     panel_account.first_name AS panel_account_first_name,
     panel_account.last_name AS panel_account_last_name,
     pod.description AS patient_order_disposition_description,
@@ -343,6 +394,7 @@ from
     left outer join smg_query smgq ON poq.patient_order_id = smgq.patient_order_id
     left outer join smgmax_query smgmaxq ON poq.patient_order_id = smgmaxq.patient_order_id
     left outer join ss_query ssq ON poq.patient_order_id = ssq.patient_order_id
+    left outer join ss_intake_query ssiq ON poq.patient_order_id = ssiq.patient_order_id
     left outer join triage_query tq ON poq.patient_order_id = tq.patient_order_id
     left outer join account panel_account ON poq.panel_account_id = panel_account.account_id
     left outer join recent_po_query rpq ON poq.patient_order_id = rpq.patient_order_id
@@ -351,7 +403,6 @@ from
     left outer join recent_voicemail_task_query rvtq on poq.patient_order_id=rvtq.patient_order_id
     left outer join reason_for_referral_query rfrq on poq.patient_order_id=rfrq.patient_order_id
     left outer join patient_order_scheduled_message_group posmg ON poq.resource_check_in_scheduled_message_group_id=posmg.patient_order_scheduled_message_group_id AND posmg.deleted = FALSE;
-
 
 CREATE or replace VIEW v_patient_order AS
 SELECT * FROM v_all_patient_order
