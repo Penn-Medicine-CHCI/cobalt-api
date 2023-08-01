@@ -119,6 +119,7 @@ import com.cobaltplatform.api.model.api.response.QuestionApiResponse.QuestionApi
 import com.cobaltplatform.api.model.api.response.ReportTypeApiResponse.ReportTypeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningAnswerApiResponse.ScreeningAnswerApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningAnswerOptionApiResponse.ScreeningAnswerOptionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ScreeningApiResponse.ScreeningApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningConfirmationPromptApiResponse.ScreeningConfirmationPromptApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningFlowVersionApiResponse.ScreeningFlowVersionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningQuestionApiResponse.ScreeningQuestionApiResponseFactory;
@@ -291,6 +292,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(PatientOrderScheduledScreeningApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ScreeningTypeApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PatientOrderVoicemailTaskApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(ScreeningApiResponseFactory.class)));
 	}
 
 	@Provides
