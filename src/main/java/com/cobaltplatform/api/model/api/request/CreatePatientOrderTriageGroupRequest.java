@@ -21,6 +21,8 @@ package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderTriageOverrideReason.PatientOrderTriageOverrideReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 
 import javax.annotation.Nullable;
@@ -32,7 +34,7 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class UpdatePatientOrderTriagesRequest {
+public class CreatePatientOrderTriageGroupRequest {
 	@Nullable
 	private UUID accountId;
 	@Nullable
@@ -41,6 +43,10 @@ public class UpdatePatientOrderTriagesRequest {
 	private PatientOrderTriageSourceId patientOrderTriageSourceId;
 	@Nullable
 	private UUID screeningSessionId;
+	@Nullable
+	private PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId;
+	@Nullable
+	private PatientOrderTriageOverrideReasonId patientOrderTriageOverrideReasonId;
 	@Nullable
 	private List<CreatePatientOrderTriageRequest> patientOrderTriages;
 
@@ -115,6 +121,24 @@ public class UpdatePatientOrderTriagesRequest {
 
 	public void setScreeningSessionId(@Nullable UUID screeningSessionId) {
 		this.screeningSessionId = screeningSessionId;
+	}
+
+	@Nullable
+	public PatientOrderTriageOverrideReasonId getPatientOrderTriageOverrideReasonId() {
+		return this.patientOrderTriageOverrideReasonId;
+	}
+
+	public void setPatientOrderTriageOverrideReasonId(@Nullable PatientOrderTriageOverrideReasonId patientOrderTriageOverrideReasonId) {
+		this.patientOrderTriageOverrideReasonId = patientOrderTriageOverrideReasonId;
+	}
+
+	@Nullable
+	public PatientOrderSafetyPlanningStatusId getPatientOrderSafetyPlanningStatusId() {
+		return this.patientOrderSafetyPlanningStatusId;
+	}
+
+	public void setPatientOrderSafetyPlanningStatusId(@Nullable PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId) {
+		this.patientOrderSafetyPlanningStatusId = patientOrderSafetyPlanningStatusId;
 	}
 
 	@Nullable

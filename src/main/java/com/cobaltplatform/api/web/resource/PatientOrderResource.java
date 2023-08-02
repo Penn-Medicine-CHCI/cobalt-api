@@ -30,6 +30,7 @@ import com.cobaltplatform.api.model.api.request.CreatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledScreeningRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderTriageGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderOutreachRequest;
@@ -48,7 +49,6 @@ import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStat
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderSafetyPlanningStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledScreeningRequest;
-import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
@@ -65,7 +65,6 @@ import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.Pat
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledScreeningApiResponse.PatientOrderScheduledScreeningApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.PatientOrderTriageApiResponse.PatientOrderTriageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderVoicemailTaskApiResponse.PatientOrderVoicemailTaskApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningTypeApiResponse;
 import com.cobaltplatform.api.model.api.response.ScreeningTypeApiResponse.ScreeningTypeApiResponseFactory;
@@ -89,7 +88,6 @@ import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageGroup;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledScreening;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
-import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderVoicemailTask;
@@ -186,8 +184,6 @@ public class PatientOrderResource {
 	@Nonnull
 	private final AccountApiResponseFactory accountApiResponseFactory;
 	@Nonnull
-	private final PatientOrderTriageApiResponseFactory patientOrderTriageApiResponseFactory;
-	@Nonnull
 	private final TimeZoneApiResponseFactory timeZoneApiResponseFactory;
 	@Nonnull
 	private final LanguageApiResponseFactory languageApiResponseFactory;
@@ -228,7 +224,6 @@ public class PatientOrderResource {
 															@Nonnull PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory,
 															@Nonnull PatientOrderOutreachApiResponseFactory patientOrderOutreachApiResponseFactory,
 															@Nonnull AccountApiResponseFactory accountApiResponseFactory,
-															@Nonnull PatientOrderTriageApiResponseFactory patientOrderTriageApiResponseFactory,
 															@Nonnull TimeZoneApiResponseFactory timeZoneApiResponseFactory,
 															@Nonnull LanguageApiResponseFactory languageApiResponseFactory,
 															@Nonnull CountryApiResponseFactory countryApiResponseFactory,
@@ -252,7 +247,6 @@ public class PatientOrderResource {
 		requireNonNull(patientOrderNoteApiResponseFactory);
 		requireNonNull(patientOrderOutreachApiResponseFactory);
 		requireNonNull(accountApiResponseFactory);
-		requireNonNull(patientOrderTriageApiResponseFactory);
 		requireNonNull(timeZoneApiResponseFactory);
 		requireNonNull(languageApiResponseFactory);
 		requireNonNull(countryApiResponseFactory);
@@ -277,7 +271,6 @@ public class PatientOrderResource {
 		this.patientOrderNoteApiResponseFactory = patientOrderNoteApiResponseFactory;
 		this.patientOrderOutreachApiResponseFactory = patientOrderOutreachApiResponseFactory;
 		this.accountApiResponseFactory = accountApiResponseFactory;
-		this.patientOrderTriageApiResponseFactory = patientOrderTriageApiResponseFactory;
 		this.timeZoneApiResponseFactory = timeZoneApiResponseFactory;
 		this.languageApiResponseFactory = languageApiResponseFactory;
 		this.countryApiResponseFactory = countryApiResponseFactory;
@@ -583,13 +576,13 @@ public class PatientOrderResource {
 		if (!getAuthorizationService().canUpdatePatientOrderTriages(patientOrder, account))
 			throw new AuthorizationException();
 
-		UpdatePatientOrderTriagesRequest request = getRequestBodyParser().parse(requestBody, UpdatePatientOrderTriagesRequest.class);
+		CreatePatientOrderTriageGroupRequest request = getRequestBodyParser().parse(requestBody, CreatePatientOrderTriageGroupRequest.class);
 		request.setPatientOrderId(patientOrderId);
 		request.setAccountId(account.getAccountId());
 		request.setPatientOrderTriageSourceId(PatientOrderTriageSourceId.MANUALLY_SET);
 		request.setScreeningSessionId(null);
 
-		getPatientOrderService().updatePatientOrderTriages(request);
+		getPatientOrderService().createPatientOrderTriageGroup(request);
 
 		PatientOrder updatedPatientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).get();
 		PatientOrderApiResponseFormat responseFormat = PatientOrderApiResponseFormat.fromRoleId(account.getRoleId());
@@ -795,32 +788,6 @@ public class PatientOrderResource {
 		return new ApiResponse(new HashMap<>() {{
 			put("assignedCount", assignedCount);
 			put("assignedCountDescription", getFormatter().formatNumber(assignedCount));
-		}});
-	}
-
-	@Nonnull
-	@GET("/patient-order-triages")
-	@AuthenticationRequired
-	public ApiResponse patientOrderTriages(@Nonnull @QueryParameter UUID patientOrderId,
-																				 @Nonnull @QueryParameter Optional<UUID> screeningSessionId) {
-		requireNonNull(patientOrderId);
-		requireNonNull(screeningSessionId);
-
-		Account account = getCurrentContext().getAccount().get();
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
-
-		if (patientOrder == null)
-			throw new NotFoundException();
-
-		if (!getAuthorizationService().canViewPatientOrderTriages(patientOrder, account))
-			throw new AuthorizationException();
-
-		List<PatientOrderTriage> patientOrderTriages = getPatientOrderService().findPatientOrderTriagesByPatientOrderId(patientOrderId, screeningSessionId.orElse(null));
-
-		return new ApiResponse(new HashMap<>() {{
-			put("patientOrderTriages", patientOrderTriages.stream()
-					.map(patientOrderTriage -> getPatientOrderTriageApiResponseFactory().create(patientOrderTriage))
-					.collect(Collectors.toList()));
 		}});
 	}
 
@@ -1870,11 +1837,6 @@ public class PatientOrderResource {
 	@Nonnull
 	protected AccountApiResponseFactory getAccountApiResponseFactory() {
 		return this.accountApiResponseFactory;
-	}
-
-	@Nonnull
-	protected PatientOrderTriageApiResponseFactory getPatientOrderTriageApiResponseFactory() {
-		return this.patientOrderTriageApiResponseFactory;
 	}
 
 	@Nonnull

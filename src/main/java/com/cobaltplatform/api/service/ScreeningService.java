@@ -24,13 +24,13 @@ import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.messaging.call.CallMessage;
 import com.cobaltplatform.api.messaging.call.CallMessageTemplate;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderTriageGroupRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderTriageGroupRequest.CreatePatientOrderTriageRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest.CreateAnswerRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.request.SkipScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
-import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest;
-import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest.CreatePatientOrderTriageRequest;
 import com.cobaltplatform.api.model.api.response.ScreeningConfirmationPromptApiResponse.ScreeningConfirmationPromptApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
@@ -47,6 +47,7 @@ import com.cobaltplatform.api.model.db.PatientOrderDisposition;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderTriageOverrideReason.PatientOrderTriageOverrideReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Screening;
@@ -1584,12 +1585,13 @@ public class ScreeningService {
 					if (patientOrder == null) {
 						getLogger().warn("No patient order for target account ID {} and screening session ID {}, ignoring triage results...", screeningSession.getTargetAccountId(), screeningSession.getScreeningSessionId());
 					} else {
-						UpdatePatientOrderTriagesRequest patientOrderTriagesRequest = new UpdatePatientOrderTriagesRequest();
-						patientOrderTriagesRequest.setAccountId(screeningSession.getCreatedByAccountId());
-						patientOrderTriagesRequest.setPatientOrderId(patientOrder.getPatientOrderId());
-						patientOrderTriagesRequest.setPatientOrderTriageSourceId(PatientOrderTriageSourceId.COBALT);
-						patientOrderTriagesRequest.setScreeningSessionId(screeningSession.getScreeningSessionId());
-						patientOrderTriagesRequest.setPatientOrderTriages(resultsFunctionOutput.getIntegratedCareTriages().stream()
+						CreatePatientOrderTriageGroupRequest patientOrderTriageGroupRequest = new CreatePatientOrderTriageGroupRequest();
+						patientOrderTriageGroupRequest.setAccountId(screeningSession.getCreatedByAccountId());
+						patientOrderTriageGroupRequest.setPatientOrderId(patientOrder.getPatientOrderId());
+						patientOrderTriageGroupRequest.setPatientOrderTriageSourceId(PatientOrderTriageSourceId.COBALT);
+						patientOrderTriageGroupRequest.setScreeningSessionId(screeningSession.getScreeningSessionId());
+						patientOrderTriageGroupRequest.setPatientOrderTriageOverrideReasonId(PatientOrderTriageOverrideReasonId.NOT_OVERRIDDEN);
+						patientOrderTriageGroupRequest.setPatientOrderTriages(resultsFunctionOutput.getIntegratedCareTriages().stream()
 								.map(integratedCareTriage -> {
 									CreatePatientOrderTriageRequest createRequest = new CreatePatientOrderTriageRequest();
 									createRequest.setPatientOrderFocusTypeId(integratedCareTriage.getPatientOrderFocusTypeId());
@@ -1600,7 +1602,7 @@ public class ScreeningService {
 								})
 								.collect(Collectors.toList()));
 
-						getPatientOrderService().updatePatientOrderTriages(patientOrderTriagesRequest);
+						getPatientOrderService().createPatientOrderTriageGroup(patientOrderTriageGroupRequest);
 
 						// If topmost triage is specialty care, then mark the order as "needs resources"
 						PatientOrder updatedPatientOrder = getPatientOrderService().findPatientOrderById(patientOrder.getPatientOrderId()).get();

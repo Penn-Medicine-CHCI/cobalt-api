@@ -54,7 +54,7 @@ import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientO
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
-import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
+import com.cobaltplatform.api.model.db.PatientOrderTriageGroup;
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
@@ -651,7 +651,8 @@ public class PatientOrderApiResponse {
 			this.screeningSession = currentScreeningSession == null ? null : screeningSessionApiResponseFactory.create(currentScreeningSession);
 			this.screeningSessionResult = completedScreeningSession == null ? null : screeningService.findScreeningSessionResult(completedScreeningSession).get();
 
-			List<PatientOrderTriage> patientOrderTriages = patientOrderService.findPatientOrderTriagesByPatientOrderId(patientOrder.getPatientOrderId());
+			PatientOrderTriageGroup patientOrderTriageGroup = patientOrderService.findActivePatientOrderTriageGroupByPatientOrderId(patientOrder.getPatientOrderId()).orElse(null);
+			List<PatientOrderTriage> patientOrderTriages = patientOrderTriageGroup == null ? List.of() : patientOrderService.findPatientOrderTriagesByPatientOrderTriageGroupId(patientOrderTriageGroup.getPatientOrderTriageGroupId());
 
 			if (patientOrderTriages.size() > 0) {
 				List<PatientOrderFocusType> patientOrderFocusTypes = patientOrderService.findPatientOrderFocusTypes();
@@ -662,9 +663,6 @@ public class PatientOrderApiResponse {
 						.collect(Collectors.toMap(PatientOrderCareType::getPatientOrderCareTypeId, patientOrderCareType -> patientOrderCareType));
 
 				Map<PatientOrderCareTypeId, List<PatientOrderTriage>> patientOrderTriagesByCareTypeIds = new LinkedHashMap<>();
-
-				// Triage source should be the same across all triages, so just pick the first one
-				PatientOrderTriageSourceId patientOrderTriageSourceId = patientOrderTriages.get(0).getPatientOrderTriageSourceId();
 
 				for (PatientOrderTriage patientOrderTriage : patientOrderTriages) {
 					List<PatientOrderTriage> groupedPatientOrderTriages = patientOrderTriagesByCareTypeIds.get(patientOrderTriage.getPatientOrderCareTypeId());
@@ -712,7 +710,7 @@ public class PatientOrderApiResponse {
 						focusTypePatientOrderTriages.add(new PatientOrderTriageGroupFocusApiResponse(patientOrderFocusTypesById.get(patientOrderFocusTypeId), focusReasons));
 					}
 
-					patientOrderTriageGroups.add(new PatientOrderTriageGroupApiResponse(patientOrderTriageSourceId, patientOrderCareType, focusTypePatientOrderTriages));
+					patientOrderTriageGroups.add(new PatientOrderTriageGroupApiResponse(patientOrderTriageGroup.getPatientOrderTriageSourceId(), patientOrderCareType, focusTypePatientOrderTriages));
 				}
 
 				this.patientOrderTriageGroups = patientOrderTriageGroups;

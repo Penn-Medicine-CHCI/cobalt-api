@@ -47,6 +47,8 @@ import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.Create
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderMedicationRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledScreeningRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderTriageGroupRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderTriageGroupRequest.CreatePatientOrderTriageRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderNoteRequest;
@@ -66,8 +68,6 @@ import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStat
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderSafetyPlanningStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledScreeningRequest;
-import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest;
-import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest.CreatePatientOrderTriageRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse.PatientOrderScheduledMessageGroupApiResponseFactory;
@@ -114,6 +114,8 @@ import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType.PatientO
 import com.cobaltplatform.api.model.db.PatientOrderScheduledScreening;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
+import com.cobaltplatform.api.model.db.PatientOrderTriageGroup;
+import com.cobaltplatform.api.model.db.PatientOrderTriageOverrideReason.PatientOrderTriageOverrideReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderVoicemailTask;
@@ -1485,38 +1487,29 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public List<PatientOrderTriage> findPatientOrderTriagesByPatientOrderId(@Nullable UUID patientOrderId) {
-		return findPatientOrderTriagesByPatientOrderId(patientOrderId, null);
+	public Optional<PatientOrderTriageGroup> findActivePatientOrderTriageGroupByPatientOrderId(@Nullable UUID patientOrderId) {
+		if (patientOrderId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM patient_order_triage_group
+				WHERE patient_order_id=?
+				AND active=TRUE
+				""", PatientOrderTriageGroup.class, patientOrderId);
 	}
 
 	@Nonnull
-	public List<PatientOrderTriage> findPatientOrderTriagesByPatientOrderId(@Nullable UUID patientOrderId,
-																																					@Nullable UUID screeningSessionId) {
-		if (patientOrderId == null)
+	public List<PatientOrderTriage> findPatientOrderTriagesByPatientOrderTriageGroupId(@Nullable UUID patientOrderTriageGroupId) {
+		if (patientOrderTriageGroupId == null)
 			return List.of();
 
-		List<Object> parameters = new ArrayList<>();
-
-		String sql = """
+		return getDatabase().queryForList("""
 				SELECT *
 				FROM patient_order_triage
-				WHERE patient_order_id=?
-				""";
-
-		parameters.add(patientOrderId);
-
-		// If a screening session is specified, pull triages regardless of whether they're still active.
-		// If not specified, only pull active triages
-		if (screeningSessionId != null) {
-			sql += " AND screening_session_id=?";
-			parameters.add(screeningSessionId);
-		} else {
-			sql += " AND active=TRUE";
-		}
-
-		sql += " ORDER BY display_order";
-
-		return getDatabase().queryForList(sql, PatientOrderTriage.class, parameters.toArray(new Object[]{}));
+				WHERE patient_order_triage_group_id=?
+				ORDER BY display_order
+				""", PatientOrderTriage.class, patientOrderTriageGroupId);
 	}
 
 	@Nonnull
@@ -1710,12 +1703,14 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public List<UUID> updatePatientOrderTriages(@Nonnull UpdatePatientOrderTriagesRequest request) {
+	public UUID createPatientOrderTriageGroup(@Nonnull CreatePatientOrderTriageGroupRequest request) {
 		requireNonNull(request);
 
 		UUID accountId = request.getAccountId();
 		UUID patientOrderId = request.getPatientOrderId();
 		PatientOrderTriageSourceId patientOrderTriageSourceId = request.getPatientOrderTriageSourceId();
+		PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId = request.getPatientOrderSafetyPlanningStatusId();
+		PatientOrderTriageOverrideReasonId patientOrderTriageOverrideReasonId = request.getPatientOrderTriageOverrideReasonId();
 		UUID screeningSessionId = request.getScreeningSessionId();
 		List<CreatePatientOrderTriageRequest> patientOrderTriages = request.getPatientOrderTriages() == null
 				? List.of() : request.getPatientOrderTriages();
@@ -1777,12 +1772,26 @@ public class PatientOrderService implements AutoCloseable {
 					patientOrder.getPatientOrderId(), account.getAccountId()));
 
 		getDatabase().execute("""
-				UPDATE patient_order_triage
+				UPDATE patient_order_triage_group
 				SET active=FALSE
 				WHERE patient_order_id=?
 				""", patientOrder.getPatientOrderId());
 
 		int displayOrder = 0;
+		UUID patientOrderTriageGroupId = UUID.randomUUID();
+
+		getDatabase().execute("""
+						INSERT INTO patient_order_triage_group (
+						     patient_order_triage_group_id,
+						     patient_order_id,
+						     patient_order_triage_override_reason_id,
+						     patient_order_triage_source_id,
+						     account_id,
+						     screening_session_id,
+						     active
+						) VALUES (?,?,?,?,?,?,?)
+						""", patientOrderTriageGroupId, patientOrderId, patientOrderTriageOverrideReasonId,
+				patientOrderTriageSourceId, accountId, screeningSessionId, true);
 
 		for (CreatePatientOrderTriageRequest patientOrderTriage : patientOrderTriages) {
 			UUID patientOrderTriageId = UUID.randomUUID();
@@ -1792,26 +1801,37 @@ public class PatientOrderService implements AutoCloseable {
 			getDatabase().execute("""
 							INSERT INTO patient_order_triage (
 							     patient_order_triage_id,
-							     patient_order_id,
-							     patient_order_triage_source_id,
+							     patient_order_triage_group_id,
 							     patient_order_care_type_id,
 							     patient_order_focus_type_id,
-							     screening_session_id,
-							     account_id,
 							     reason,
-							     active,
 							     display_order
-							) VALUES (?,?,?,?,?,?,?,?,?,?)
-							""", patientOrderTriageId, patientOrderId, patientOrderTriageSourceId,
+							) VALUES (?,?,?,?,?,?)
+							""", patientOrderTriageId, patientOrderTriageGroupId,
 					patientOrderTriage.getPatientOrderCareTypeId(), patientOrderTriage.getPatientOrderFocusTypeId(),
-					screeningSessionId, accountId, reason, true, displayOrder);
+					reason, displayOrder);
 
 			patientOrderTriageIds.add(patientOrderTriageId);
 		}
 
+		// Special behavior: if safety planning status is specified, adjust the order accordingly
+		if ((patientOrderSafetyPlanningStatusId == PatientOrderSafetyPlanningStatusId.NEEDS_SAFETY_PLANNING
+				|| patientOrderSafetyPlanningStatusId == PatientOrderSafetyPlanningStatusId.NONE_NEEDED)
+				&& patientOrderSafetyPlanningStatusId != patientOrder.getPatientOrderSafetyPlanningStatusId()) {
+
+			getLogger().info("Transitioning patient order ID {} from {} to {}...", patientOrderId,
+					patientOrder.getPatientOrderSafetyPlanningStatusId().name(), patientOrderSafetyPlanningStatusId.name());
+
+			this.updatePatientOrderSafetyPlanningStatus(new UpdatePatientOrderSafetyPlanningStatusRequest() {{
+				setPatientOrderId(patientOrderId);
+				setAccountId(accountId);
+				setPatientOrderSafetyPlanningStatusId(patientOrderSafetyPlanningStatusId);
+			}});
+		}
+
 		// TODO: track events
 
-		return patientOrderTriageIds;
+		return patientOrderTriageGroupId;
 	}
 
 	@Nonnull
@@ -3463,7 +3483,8 @@ public class PatientOrderService implements AutoCloseable {
 		requireNonNull(patientOrder);
 
 		Institution institution = getInstitutionService().findInstitutionById(patientOrder.getInstitutionId()).get();
-		List<PatientOrderTriage> patientOrderTriages = findPatientOrderTriagesByPatientOrderId(patientOrder.getPatientOrderId());
+		PatientOrderTriageGroup patientOrderTriageGroup = findActivePatientOrderTriageGroupByPatientOrderId(patientOrder.getPatientOrderId()).orElse(null);
+		List<PatientOrderTriage> patientOrderTriages = patientOrderTriageGroup == null ? List.of() : findPatientOrderTriagesByPatientOrderTriageGroupId(patientOrderTriageGroup.getPatientOrderTriageGroupId());
 
 		if (patientOrderTriages.size() == 0)
 			throw new ValidationException(getStrings().get("Cannot generate a clinical report; there is no triage information available for this patient order."));
@@ -3528,9 +3549,6 @@ public class PatientOrderService implements AutoCloseable {
 
 		Map<PatientOrderCareTypeId, List<PatientOrderTriage>> patientOrderTriagesByCareTypeIds = new LinkedHashMap<>();
 
-		// Triage source should be the same across all triages, so just pick the first one
-		PatientOrderTriageSourceId patientOrderTriageSourceId = patientOrderTriages.get(0).getPatientOrderTriageSourceId();
-
 		for (PatientOrderTriage patientOrderTriage : patientOrderTriages) {
 			List<PatientOrderTriage> groupedPatientOrderTriages = patientOrderTriagesByCareTypeIds.get(patientOrderTriage.getPatientOrderCareTypeId());
 
@@ -3577,13 +3595,13 @@ public class PatientOrderService implements AutoCloseable {
 				focusTypePatientOrderTriages.add(new PatientOrderTriageGroupFocusApiResponse(patientOrderFocusTypesById.get(patientOrderFocusTypeId), focusReasons));
 			}
 
-			patientOrderTriageGroups.add(new PatientOrderTriageGroupApiResponse(patientOrderTriageSourceId, patientOrderCareType, focusTypePatientOrderTriages));
+			patientOrderTriageGroups.add(new PatientOrderTriageGroupApiResponse(patientOrderTriageGroup.getPatientOrderTriageSourceId(), patientOrderCareType, focusTypePatientOrderTriages));
 		}
 
 		// Pick the first non-safety-planning triage group
 		PatientOrderTriageGroupApiResponse applicablePatientOrderTriageGroup = patientOrderTriageGroups.stream()
-				.filter(patientOrderTriageGroup -> patientOrderTriageGroup.getPatientOrderCareTypeId() != PatientOrderCareTypeId.SAFETY_PLANNING
-						&& patientOrderTriageGroup.getPatientOrderCareTypeId() != PatientOrderCareTypeId.UNSPECIFIED)
+				.filter(potentialPatientOrderTriageGroup -> potentialPatientOrderTriageGroup.getPatientOrderCareTypeId() != PatientOrderCareTypeId.SAFETY_PLANNING
+						&& potentialPatientOrderTriageGroup.getPatientOrderCareTypeId() != PatientOrderCareTypeId.UNSPECIFIED)
 				.findFirst().orElse(null);
 
 		lines.add("");

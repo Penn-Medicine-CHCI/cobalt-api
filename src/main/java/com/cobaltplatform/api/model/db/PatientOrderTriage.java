@@ -21,8 +21,6 @@ package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
-import com.cobaltplatform.api.model.db.PatientOrderTriageOverrideReason.PatientOrderTriageOverrideReasonId;
-import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -37,23 +35,13 @@ public class PatientOrderTriage {
 	@Nullable
 	private UUID patientOrderTriageId;
 	@Nullable
-	private UUID patientOrderId;
+	private UUID patientOrderTriageGroupId;
 	@Nullable
 	private PatientOrderFocusTypeId patientOrderFocusTypeId;
 	@Nullable
 	private PatientOrderCareTypeId patientOrderCareTypeId;
 	@Nullable
-	private PatientOrderTriageSourceId patientOrderTriageSourceId;
-	@Nullable
-	private PatientOrderTriageOverrideReasonId patientOrderTriageOverrideReasonId;
-	@Nullable
-	private UUID screeningSessionId;
-	@Nullable
-	private UUID accountId;
-	@Nullable
 	private String reason;
-	@Nullable
-	private Boolean active;
 	@Nullable
 	private Integer displayOrder;
 	@Nullable
@@ -71,12 +59,12 @@ public class PatientOrderTriage {
 	}
 
 	@Nullable
-	public UUID getPatientOrderId() {
-		return this.patientOrderId;
+	public UUID getPatientOrderTriageGroupId() {
+		return this.patientOrderTriageGroupId;
 	}
 
-	public void setPatientOrderId(@Nullable UUID patientOrderId) {
-		this.patientOrderId = patientOrderId;
+	public void setPatientOrderTriageGroupId(@Nullable UUID patientOrderTriageGroupId) {
+		this.patientOrderTriageGroupId = patientOrderTriageGroupId;
 	}
 
 	@Nullable
@@ -98,57 +86,12 @@ public class PatientOrderTriage {
 	}
 
 	@Nullable
-	public PatientOrderTriageSourceId getPatientOrderTriageSourceId() {
-		return this.patientOrderTriageSourceId;
-	}
-
-	public void setPatientOrderTriageSourceId(@Nullable PatientOrderTriageSourceId patientOrderTriageSourceId) {
-		this.patientOrderTriageSourceId = patientOrderTriageSourceId;
-	}
-
-	@Nullable
-	public PatientOrderTriageOverrideReasonId getPatientOrderTriageOverrideReasonId() {
-		return this.patientOrderTriageOverrideReasonId;
-	}
-
-	public void setPatientOrderTriageOverrideReasonId(@Nullable PatientOrderTriageOverrideReasonId patientOrderTriageOverrideReasonId) {
-		this.patientOrderTriageOverrideReasonId = patientOrderTriageOverrideReasonId;
-	}
-
-	@Nullable
-	public UUID getScreeningSessionId() {
-		return this.screeningSessionId;
-	}
-
-	public void setScreeningSessionId(@Nullable UUID screeningSessionId) {
-		this.screeningSessionId = screeningSessionId;
-	}
-
-	@Nullable
-	public UUID getAccountId() {
-		return this.accountId;
-	}
-
-	public void setAccountId(@Nullable UUID accountId) {
-		this.accountId = accountId;
-	}
-
-	@Nullable
 	public String getReason() {
 		return this.reason;
 	}
 
 	public void setReason(@Nullable String reason) {
 		this.reason = reason;
-	}
-
-	@Nullable
-	public Boolean getActive() {
-		return this.active;
-	}
-
-	public void setActive(@Nullable Boolean active) {
-		this.active = active;
 	}
 
 	@Nullable

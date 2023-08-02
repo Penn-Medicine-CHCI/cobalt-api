@@ -3,13 +3,53 @@ SELECT _v.register_patch('110-ic-updates', NULL, NULL);
 
 ALTER TABLE institution ADD COLUMN integrated_care_intake_screening_flow_id UUID REFERENCES screening_flow;
 
+-- Add concept of "patient_order_triage_group" so we can tie multiple triages together more formally than using "they have the same timestamp"
+CREATE TABLE patient_order_triage_group (
+  patient_order_triage_group_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  patient_order_id UUID NOT NULL REFERENCES patient_order,
+  patient_order_triage_override_reason_id TEXT NOT NULL REFERENCES patient_order_triage_override_reason,
+  patient_order_triage_source_id TEXT NOT NULL REFERENCES patient_order_triage_source,
+  account_id UUID NOT NULL REFERENCES account,
+  screening_session_id UUID REFERENCES screening_session,
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_triage_group FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+-- Migrate over old groups
+INSERT INTO patient_order_triage_group (patient_order_id, patient_order_triage_override_reason_id, patient_order_triage_source_id, account_id, screening_session_id, active, created)
+SELECT old.patient_order_id, old.patient_order_triage_override_reason_id, old.patient_order_triage_source_id, old.account_id, old.screening_session_id, old.active, old.created
+FROM (
+  SELECT COUNT(*), patient_order_id, active, created, patient_order_triage_source_id, patient_order_triage_override_reason_id, account_id, screening_session_id
+  FROM patient_order_triage
+  GROUP BY created, patient_order_id, active, patient_order_triage_source_id, patient_order_triage_override_reason_id, account_id, screening_session_id
+) old;
+
+ALTER TABLE patient_order_triage ADD COLUMN patient_order_triage_group_id UUID REFERENCES patient_order_triage_group;
+
+UPDATE patient_order_triage pot
+SET patient_order_triage_group_id=potg.patient_order_triage_group_id
+FROM patient_order_triage_group potg
+WHERE pot.patient_order_id=potg.patient_order_id
+AND pot.created=potg.created;
+
 -- Drop order views in preparation for modifying columns
 DROP VIEW v_patient_order;
 DROP VIEW v_all_patient_order;
 
+ALTER TABLE patient_order_triage DROP COLUMN patient_order_id;
+ALTER TABLE patient_order_triage DROP COLUMN active;
+ALTER TABLE patient_order_triage DROP COLUMN account_id;
+ALTER TABLE patient_order_triage DROP COLUMN screening_session_id;
+ALTER TABLE patient_order_triage DROP COLUMN patient_order_triage_override_reason_id;
+ALTER TABLE patient_order_triage DROP COLUMN patient_order_triage_source_id;
 
+ALTER TABLE patient_order_triage ALTER COLUMN patient_order_triage_group_id SET NOT NULL;
 
 -- Added "most recent intake"-related columns
+-- Modified triage selection to join on patient_order_triage_group
 CREATE or replace VIEW v_all_patient_order AS WITH
 poo_query AS (
     -- Count up the patient outreach attempts for each patient order
@@ -194,7 +234,7 @@ recent_scheduled_screening_query AS (
             poct.patient_order_care_type_id,
             poct.description AS patient_order_care_type_description,
             pot.patient_order_triage_id,
-            pot.patient_order_triage_source_id,
+            potg.patient_order_triage_source_id,
             RANK() OVER (
                 PARTITION BY poq.patient_order_id
                 ORDER BY
@@ -202,13 +242,15 @@ recent_scheduled_screening_query AS (
             ) AS r
         from
             patient_order poq,
+            patient_order_triage_group potg,
             patient_order_triage pot,
             patient_order_care_type poct
         where
-            poq.patient_order_id = pot.patient_order_id
+            poq.patient_order_id = potg.patient_order_id
+            and potg.patient_order_triage_group_id=pot.patient_order_triage_group_id
             and pot.patient_order_care_type_id = poct.patient_order_care_type_id
             AND pot.patient_order_care_type_id != 'SAFETY_PLANNING'
-            and pot.active = true
+            and potg.active = true
     )
     SELECT DISTINCT
         patient_order_care_type_id,
