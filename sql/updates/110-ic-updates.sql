@@ -415,7 +415,7 @@ from
     left outer join smgmax_query smgmaxq ON poq.patient_order_id = smgmaxq.patient_order_id
     left outer join ss_query ssq ON poq.patient_order_id = ssq.patient_order_id
     left outer join ss_intake_query ssiq ON poq.patient_order_id = ssiq.patient_order_id
-    left outer join patient_order_triage_group potg ON poq.patient_order_id = potg.patient_order_id
+    left outer join patient_order_triage_group potg ON poq.patient_order_id = potg.patient_order_id and potg.active=TRUE
     left outer join patient_order_care_type poct ON potg.patient_order_care_type_id = poct.patient_order_care_type_id
     left outer join account panel_account ON poq.panel_account_id = panel_account.account_id
     left outer join recent_po_query rpq ON poq.patient_order_id = rpq.patient_order_id

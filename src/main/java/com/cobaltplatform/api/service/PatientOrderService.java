@@ -1816,10 +1816,27 @@ public class PatientOrderService implements AutoCloseable {
 						""", patientOrderTriageGroupId, patientOrderId, patientOrderCareTypeId,
 				patientOrderTriageOverrideReasonId, patientOrderTriageSourceId, accountId, screeningSessionId, true);
 
+		// UI does not currently expose an override reason for manual triage updates.
+		// Therefore we use the reason description from the database as a placeholder
+		String overrideReason = null;
+
+		if (patientOrderTriageOverrideReasonId != null && patientOrderTriageSourceId == PatientOrderTriageSourceId.MANUALLY_SET) {
+			PatientOrderTriageOverrideReason patientOrderTriageOverrideReason = getDatabase().queryForObject("""
+					SELECT *
+					FROM patient_order_triage_override_reason
+					WHERE patient_order_triage_override_reason_id=?
+					""", PatientOrderTriageOverrideReason.class, patientOrderTriageOverrideReasonId).get();
+
+			overrideReason = patientOrderTriageOverrideReason.getDescription();
+		}
+
 		for (CreatePatientOrderTriageRequest patientOrderTriage : patientOrderTriages) {
 			UUID patientOrderTriageId = UUID.randomUUID();
 			String reason = trimToNull(patientOrderTriage.getReason());
 			++displayOrder;
+
+			if (reason == null && overrideReason != null)
+				reason = overrideReason;
 
 			getDatabase().execute("""
 							INSERT INTO patient_order_triage (
@@ -1850,27 +1867,28 @@ public class PatientOrderService implements AutoCloseable {
 
 		// "Resettable" means inactive triages that were initially sourced by Cobalt, e.g.
 		// via automated analysis of screening session answers
-		List<PatientOrderTriage> resettablePatientOrderTriages = getDatabase().queryForList("""
+		PatientOrderTriageGroup resettablePatientOrderTriageGroup = getDatabase().queryForObject("""
 				SELECT *
-				FROM patient_order_triage
+				FROM patient_order_triage_group
 				WHERE patient_order_id=?
 				AND patient_order_triage_source_id=?
 				AND active=FALSE
-				""", PatientOrderTriage.class, patientOrderId, PatientOrderTriageSourceId.COBALT);
+				""", PatientOrderTriageGroup.class, patientOrderId, PatientOrderTriageSourceId.COBALT).orElse(null);
 
-		if (resettablePatientOrderTriages.size() == 0)
+		if (resettablePatientOrderTriageGroup == null)
 			return false;
 
-		// Disable all triages for this order
+		// Disable the active triage group for this order
 		getDatabase().execute("""
-				UPDATE patient_order_triage
+				UPDATE patient_order_triage_group
 				SET active=FALSE
 				WHERE patient_order_id=?
+				AND active=TRUE
 				""", patientOrderId);
 
-		// Enable just the original triages
+		// Enable just the original triage group
 		boolean updated = getDatabase().execute("""
-				UPDATE patient_order_triage
+				UPDATE patient_order_triage_group
 				SET active=TRUE
 				WHERE patient_order_id=?
 				AND patient_order_triage_source_id=?
