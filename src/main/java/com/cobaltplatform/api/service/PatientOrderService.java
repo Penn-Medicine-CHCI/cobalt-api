@@ -1725,7 +1725,6 @@ public class PatientOrderService implements AutoCloseable {
 		UUID patientOrderId = request.getPatientOrderId();
 		PatientOrderCareTypeId patientOrderCareTypeId = request.getPatientOrderCareTypeId();
 		PatientOrderTriageSourceId patientOrderTriageSourceId = request.getPatientOrderTriageSourceId();
-		PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId = request.getPatientOrderSafetyPlanningStatusId();
 		PatientOrderTriageOverrideReasonId patientOrderTriageOverrideReasonId = request.getPatientOrderTriageOverrideReasonId();
 		UUID screeningSessionId = request.getScreeningSessionId();
 		List<CreatePatientOrderTriageRequest> patientOrderTriages = request.getPatientOrderTriages() == null
@@ -1836,21 +1835,6 @@ public class PatientOrderService implements AutoCloseable {
 					reason, displayOrder);
 
 			patientOrderTriageIds.add(patientOrderTriageId);
-		}
-
-		// Special behavior: if safety planning status is specified, adjust the order accordingly
-		if ((patientOrderSafetyPlanningStatusId == PatientOrderSafetyPlanningStatusId.NEEDS_SAFETY_PLANNING
-				|| patientOrderSafetyPlanningStatusId == PatientOrderSafetyPlanningStatusId.NONE_NEEDED)
-				&& patientOrderSafetyPlanningStatusId != patientOrder.getPatientOrderSafetyPlanningStatusId()) {
-
-			getLogger().info("Transitioning patient order ID {} from {} to {}...", patientOrderId,
-					patientOrder.getPatientOrderSafetyPlanningStatusId().name(), patientOrderSafetyPlanningStatusId.name());
-
-			this.updatePatientOrderSafetyPlanningStatus(new UpdatePatientOrderSafetyPlanningStatusRequest() {{
-				setPatientOrderId(patientOrderId);
-				setAccountId(accountId);
-				setPatientOrderSafetyPlanningStatusId(patientOrderSafetyPlanningStatusId);
-			}});
 		}
 
 		// TODO: track events

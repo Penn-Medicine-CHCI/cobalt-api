@@ -21,7 +21,6 @@ package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
-import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageOverrideReason.PatientOrderTriageOverrideReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 
@@ -45,8 +44,6 @@ public class CreatePatientOrderTriageGroupRequest {
 	private UUID screeningSessionId;
 	@Nullable
 	private PatientOrderCareTypeId patientOrderCareTypeId; // The "winning" overall care type that is calculated and stored
-	@Nullable
-	private PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId;
 	@Nullable
 	private PatientOrderTriageOverrideReasonId patientOrderTriageOverrideReasonId;
 	@Nullable
@@ -132,15 +129,6 @@ public class CreatePatientOrderTriageGroupRequest {
 
 	public void setPatientOrderTriageOverrideReasonId(@Nullable PatientOrderTriageOverrideReasonId patientOrderTriageOverrideReasonId) {
 		this.patientOrderTriageOverrideReasonId = patientOrderTriageOverrideReasonId;
-	}
-
-	@Nullable
-	public PatientOrderSafetyPlanningStatusId getPatientOrderSafetyPlanningStatusId() {
-		return this.patientOrderSafetyPlanningStatusId;
-	}
-
-	public void setPatientOrderSafetyPlanningStatusId(@Nullable PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId) {
-		this.patientOrderSafetyPlanningStatusId = patientOrderSafetyPlanningStatusId;
 	}
 
 	@Nullable
