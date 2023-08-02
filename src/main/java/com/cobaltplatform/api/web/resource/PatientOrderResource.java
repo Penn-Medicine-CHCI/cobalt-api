@@ -560,10 +560,10 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
-	@PUT("/patient-orders/{patientOrderId}/patient-order-triages")
+	@PUT("/patient-orders/{patientOrderId}/patient-order-triage-groups")
 	@AuthenticationRequired
-	public ApiResponse updatePatientOrderTriages(@Nonnull @PathParameter UUID patientOrderId,
-																							 @Nonnull @RequestBody String requestBody) {
+	public ApiResponse updatePatientOrderTriageGroups(@Nonnull @PathParameter UUID patientOrderId,
+																										@Nonnull @RequestBody String requestBody) {
 		requireNonNull(patientOrderId);
 		requireNonNull(requestBody);
 
