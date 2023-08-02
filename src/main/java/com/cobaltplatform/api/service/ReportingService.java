@@ -402,7 +402,8 @@ public class ReportingService {
 																		@Nonnull Optional<Integer> patientAgeFrom,
 																		@Nonnull Optional<Integer> patientAgeTo,
 																		@Nonnull Optional<List<RaceId>> raceId,
-																		@Nonnull Optional<List<GenderIdentityId>> genderIdentityId) {
+																		@Nonnull Optional<List<GenderIdentityId>> genderIdentityId,
+																		@Nonnull Optional<List<UUID>> panelAccountId) {
 
 		Boolean fileterDescriptionAdded = false;
 
@@ -430,6 +431,14 @@ public class ReportingService {
 
 			if (genderIdentityId.isPresent()) {
 				csVPrinter.printRecord("Gender Identity", genderIdentityId.get().toString());
+				fileterDescriptionAdded = true;
+			}
+
+			if (panelAccountId.isPresent()) {
+				List<Account> accounts = getDatabase().queryForList(format("SELECT * FROM account WHERE account_id in %s",
+						sqlInListPlaceholders(panelAccountId.get())), Account.class, panelAccountId.get().toArray());
+				String mhicNames = accounts.stream().map(it -> it.getDisplayName()).collect(Collectors.joining(","));
+				csVPrinter.printRecord("MHIC(s)", mhicNames);
 				fileterDescriptionAdded = true;
 			}
 
@@ -513,7 +522,7 @@ public class ReportingService {
 		List<DescriptionWithCountRecord> assessmentOverridePatientOrders = findTriageReasonsPatientOrders(whereClauseWithParameters, PatientOrderTriageSourceId.COBALT);
 
 		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT)) {
-			addFilterDescription(csvPrinter, payorName, practiceName, patientAgeFrom, patientAgeTo, raceId, genderIdentityId);
+			addFilterDescription(csvPrinter, payorName, practiceName, patientAgeFrom, patientAgeTo, raceId, genderIdentityId, Optional.empty());
 
 			csvPrinter.printRecord("Referral Count", Integer.toString(patientOrders.size()));
 			csvPrinter.printRecord("Connection Count", Integer.toString(patientOrders.stream().filter(it -> it.getTotalOutreachCount() > 0).collect(Collectors.toList()).size()));
@@ -620,7 +629,7 @@ public class ReportingService {
 		requireNonNull(writer);
 
 		IcWhereClauseWithParameters whereClauseWithParameters = buildIcWhereClauseWithParameters(institutionId, startDateTime, endDateTime, payorName, practiceName, patientAgeFrom,
-				patientAgeTo, raceId, genderIdentityId, panelAccountId);
+				patientAgeTo, raceId, genderIdentityId, Optional.empty());
 
 		//All patient orders matching the report filters
 		List<PatientOrder> patientOrders = getDatabase().queryForList(
@@ -639,7 +648,7 @@ public class ReportingService {
 				DescriptionWithCountRecord.class, whereClauseWithParameters.getParameters().toArray());
 
 		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT)) {
-			addFilterDescription(csvPrinter, payorName, practiceName, patientAgeFrom, patientAgeTo, raceId, genderIdentityId);
+			addFilterDescription(csvPrinter, payorName, practiceName, patientAgeFrom, patientAgeTo, raceId, genderIdentityId, Optional.empty());
 
 			csvPrinter.printRecord("Patients Requiring Scheduling", Integer.toString(openPatientOrders.stream().filter(it -> it.getPatientOrderTriageStatusId() ==
 					PatientOrderTriageStatusId.MHP && it.getAppointmentScheduled() == false).collect(Collectors.toList()).size()));
@@ -653,25 +662,6 @@ public class ReportingService {
 			//TODO: # of days since referral + # of pt outreach attempts
 			csvPrinter.printRecord("Patients Sent Resources", Integer.toString(patientOrders.stream().filter(it ->
 					it.getPatientOrderResourcingStatusId() == PatientOrderResourcingStatusId.SENT_RESOURCES).collect(Collectors.toList()).size()));
-			csvPrinter.printRecord("Calls/Voicemails", patientOrders.stream().map(it -> it.getOutreachCount()).reduce(0, Integer::sum));
-			csvPrinter.printRecord("Texts", patientOrders.stream().map(it -> it.getScheduledMessageGroupCount()).reduce(0, Integer::sum));
-			csvPrinter.printRecord("Closed Orders", Integer.toString(patientOrders.stream().filter(it -> it.getPatientOrderDispositionId() !=
-					PatientOrderDispositionId.OPEN).collect(Collectors.toList()).size()));
-			csvPrinter.printRecord("Assessment Overrides", Integer.toString(patientOrders.stream().filter(it -> it.getPatientOrderTriageSourceId() ==
-					PatientOrderTriageSourceId.MANUALLY_SET).collect(Collectors.toList()).size()));
-
-			List<DescriptionWithCountRecord> assessmentOverridePatientOrders = findTriageReasonsPatientOrders(whereClauseWithParameters, PatientOrderTriageSourceId.MANUALLY_SET);
-			csvPrinter.println();
-			csvPrinter.printRecord("Assessment Override Reason(s)", "Count");
-			if (assessmentOverridePatientOrders.size() > 0) {
-				for (DescriptionWithCountRecord assessmentOverridePatientOrder : assessmentOverridePatientOrders) {
-					List<String> recordElements = new ArrayList<>();
-					recordElements.add(assessmentOverridePatientOrder.getDescription());
-					recordElements.add(assessmentOverridePatientOrder.getCount().toString());
-					csvPrinter.printRecord(recordElements.toArray(new Object[0]));
-				}
-			} else
-				csvPrinter.printRecord("No Assessment Override Reasons");
 
 			csvPrinter.println();
 			csvPrinter.printRecord("Patients Requiring Assessment", "Count");
@@ -686,6 +676,35 @@ public class ReportingService {
 				}
 			} else
 				csvPrinter.printRecord("No Patients Requiring Assessment");
+			csvPrinter.println();
+
+			//The following data points are specific to one of more MHICs (if specified in the report filters
+			IcWhereClauseWithParameters whereClauseWithParametersForMhics = buildIcWhereClauseWithParameters(institutionId, startDateTime, endDateTime, payorName, practiceName, patientAgeFrom,
+					patientAgeTo, raceId, genderIdentityId, panelAccountId);
+
+			//All patient orders matching the report filters
+			List<PatientOrder> patientOrdersForMhics = getDatabase().queryForList(
+					format("SELECT * FROM v_patient_order %s", whereClauseWithParametersForMhics.getWhereClause()), PatientOrder.class, whereClauseWithParametersForMhics.getParameters().toArray());
+			addFilterDescription(csvPrinter, payorName, practiceName, patientAgeFrom, patientAgeTo, raceId, genderIdentityId, panelAccountId);
+			csvPrinter.printRecord("Calls/Voicemails", patientOrdersForMhics.stream().map(it -> it.getOutreachCount()).reduce(0, Integer::sum));
+			csvPrinter.printRecord("Texts/Emails", patientOrdersForMhics.stream().map(it -> it.getScheduledMessageGroupCount()).reduce(0, Integer::sum));
+			csvPrinter.printRecord("Closed Orders", Integer.toString(patientOrdersForMhics.stream().filter(it -> it.getPatientOrderDispositionId() !=
+					PatientOrderDispositionId.OPEN).collect(Collectors.toList()).size()));
+			csvPrinter.printRecord("Assessment Overrides", Integer.toString(patientOrdersForMhics.stream().filter(it -> it.getPatientOrderTriageSourceId() ==
+					PatientOrderTriageSourceId.MANUALLY_SET).collect(Collectors.toList()).size()));
+
+			List<DescriptionWithCountRecord> assessmentOverridePatientOrders = findTriageReasonsPatientOrders(whereClauseWithParametersForMhics, PatientOrderTriageSourceId.MANUALLY_SET);
+			csvPrinter.println();
+			csvPrinter.printRecord("Assessment Override Reason(s)", "Count");
+			if (assessmentOverridePatientOrders.size() > 0) {
+				for (DescriptionWithCountRecord assessmentOverridePatientOrder : assessmentOverridePatientOrders) {
+					List<String> recordElements = new ArrayList<>();
+					recordElements.add(assessmentOverridePatientOrder.getDescription());
+					recordElements.add(assessmentOverridePatientOrder.getCount().toString());
+					csvPrinter.printRecord(recordElements.toArray(new Object[0]));
+				}
+			} else
+				csvPrinter.printRecord("No Assessment Override Reasons");
 
 			csvPrinter.flush();
 		} catch (IOException e) {
@@ -742,9 +761,9 @@ public class ReportingService {
 				AssessmentScoreRecord.class, whereClauseWithParameters.getParameters().toArray());
 		String lastDescription = null;
 		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT)) {
-			addFilterDescription(csvPrinter, payorName, practiceName, patientAgeFrom, patientAgeTo, raceId, genderIdentityId);
+			addFilterDescription(csvPrinter, payorName, practiceName, patientAgeFrom, patientAgeTo, raceId, genderIdentityId, Optional.empty());
 			csvPrinter.printRecord("Number of Patients Completing Assessment", patientOrders.stream().filter(it -> it.getPatientOrderScreeningStatusId() ==
-							PatientOrderScreeningStatusId.COMPLETE).collect(Collectors.toList()).size());
+					PatientOrderScreeningStatusId.COMPLETE).collect(Collectors.toList()).size());
 			csvPrinter.println();
 			csvPrinter.printRecord("Assessment", "Score", "Number of Patients Achieving Score");
 			if (assessmentScores.size() > 0) {
