@@ -1734,6 +1734,15 @@ public class PatientOrderResource {
 				})
 				.collect(Collectors.toList());
 
+		List<Map<String, Object>> patientOrderTriageOverrideReasons = getPatientOrderService().findPatientOrderTriageOverrideReasonsByInstitutionId(institutionId).stream()
+				.map(patientOrderTriageOverrideReason -> {
+					Map<String, Object> patientOrderTriageOverrideReasonJson = new HashMap<>();
+					patientOrderTriageOverrideReasonJson.put("patientOrderTriageOverrideReasonId", patientOrderTriageOverrideReason.getPatientOrderTriageOverrideReasonId());
+					patientOrderTriageOverrideReasonJson.put("description", patientOrderTriageOverrideReason.getDescription());
+					return patientOrderTriageOverrideReasonJson;
+				})
+				.collect(Collectors.toList());
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("timeZones", timeZones);
 			put("countries", countries);
@@ -1755,6 +1764,7 @@ public class PatientOrderResource {
 			put("patientOrderResourcingTypes", patientOrderResourcingTypes);
 			put("patientOrderCarePreferences", patientOrderCarePreferences);
 			put("primaryPayorNames", primaryPayorNames);
+			put("patientOrderTriageOverrideReasons", patientOrderTriageOverrideReasons);
 		}});
 	}
 

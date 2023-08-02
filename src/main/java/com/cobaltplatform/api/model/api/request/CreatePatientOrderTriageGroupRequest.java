@@ -44,6 +44,8 @@ public class CreatePatientOrderTriageGroupRequest {
 	@Nullable
 	private UUID screeningSessionId;
 	@Nullable
+	private PatientOrderCareTypeId patientOrderCareTypeId;
+	@Nullable
 	private PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId;
 	@Nullable
 	private PatientOrderTriageOverrideReasonId patientOrderTriageOverrideReasonId;
@@ -139,6 +141,15 @@ public class CreatePatientOrderTriageGroupRequest {
 
 	public void setPatientOrderSafetyPlanningStatusId(@Nullable PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId) {
 		this.patientOrderSafetyPlanningStatusId = patientOrderSafetyPlanningStatusId;
+	}
+
+	@Nullable
+	public PatientOrderCareTypeId getPatientOrderCareTypeId() {
+		return this.patientOrderCareTypeId;
+	}
+
+	public void setPatientOrderCareTypeId(@Nullable PatientOrderCareTypeId patientOrderCareTypeId) {
+		this.patientOrderCareTypeId = patientOrderCareTypeId;
 	}
 
 	@Nullable

@@ -115,6 +115,7 @@ import com.cobaltplatform.api.model.db.PatientOrderScheduledScreening;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.PatientOrderTriageGroup;
+import com.cobaltplatform.api.model.db.PatientOrderTriageOverrideReason;
 import com.cobaltplatform.api.model.db.PatientOrderTriageOverrideReason.PatientOrderTriageOverrideReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
@@ -689,6 +690,20 @@ public class PatientOrderService implements AutoCloseable {
 				FROM patient_order_care_preference
 				ORDER BY display_order
 				""", PatientOrderCarePreference.class);
+	}
+
+	@Nonnull
+	public List<PatientOrderTriageOverrideReason> findPatientOrderTriageOverrideReasonsByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
+
+		// Don't use institutionId currently, but we might in the future
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM patient_order_triage_override_reason
+				ORDER BY display_order
+				""", PatientOrderTriageOverrideReason.class);
 	}
 
 	@Nonnull
