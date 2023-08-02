@@ -25,48 +25,50 @@ import javax.annotation.concurrent.NotThreadSafe;
 import static java.lang.String.format;
 
 /**
- * @author Transmogrify LLC.
+ * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class PatientOrderFocusType {
+public class PatientOrderReferralReason {
 	@Nullable
-	private PatientOrderFocusTypeId patientOrderFocusTypeId;
+	private PatientOrderReferralReasonId patientOrderReferralReasonId;
 	@Nullable
 	private String description;
 
-	public enum PatientOrderFocusTypeId {
-		UNSPECIFIED,
-		SELF_DIRECTED,
-		GENERAL,
-		GRIEF,
-		INSOMNIA,
-		PSYCHOTHERAPY,
-		ALCOHOL_USE_DISORDER,
-		SUBSTANCE_USE_DISORDER,
+	public enum PatientOrderReferralReasonId {
+		UNKNOWN,
+		ADJUSTMENT_DISORDERS,
+		ALCOHOL_MISUSE_OR_ADDICTION,
+		ANXIETY_SYMPTOMS,
+		DRUG_MISUSE_OR_ADDICTION,
+		FEEDING_OR_EATING_DISORDERS,
+		IMPULSE_CONTROL_AND_CONDUCT_DISORDERS,
+		MOOD_OR_DEPRESSION_SYMPTOMS,
+		NEUROCOGNITIVE_DISORDERS,
+		NEURODEVELOPMENTAL_DISORDERS,
+		OBSESSIVE_COMPULSIVE_DISORDERS,
 		OPIOID_USE_DISORDER,
-		EATING_DISORDER,
-		EVALUATION,
-		ADHD,
-		TRAUMA,
-		LCSW_CAPACITY,
-		CRISIS_CARE,
+		PERSONALITY_DISORDERS,
+		PSYCHOPHARMACOLOGY_MANAGEMENT,
 		PSYCHOSIS,
-		PSYCHIATRY,
-		LGBTIA
+		PTSD_OR_TRAUMA_RELATED_SYMPTOMS,
+		SEXUAL_INTEREST_OR_DISFUNCTION_OR_GENDER_DYSPHORIA,
+		SLEEP_WAKE_CYCLE_DISORDERS,
+		TREATMENT_ENGAGEMENT
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{patientOrderFocusTypeId=%s, description=%s}", getClass().getSimpleName(), getPatientOrderFocusTypeId(), getDescription());
+		return format("%s{patientOrderReferralReasonId=%s, description=%s}", getClass().getSimpleName(),
+				getPatientOrderReferralReasonId(), getDescription());
 	}
 
 	@Nullable
-	public PatientOrderFocusTypeId getPatientOrderFocusTypeId() {
-		return this.patientOrderFocusTypeId;
+	public PatientOrderReferralReasonId getPatientOrderReferralReasonId() {
+		return this.patientOrderReferralReasonId;
 	}
 
-	public void setPatientOrderFocusTypeId(@Nullable PatientOrderFocusTypeId patientOrderFocusTypeId) {
-		this.patientOrderFocusTypeId = patientOrderFocusTypeId;
+	public void setPatientOrderReferralReasonId(@Nullable PatientOrderReferralReasonId patientOrderReferralReasonId) {
+		this.patientOrderReferralReasonId = patientOrderReferralReasonId;
 	}
 
 	@Nullable

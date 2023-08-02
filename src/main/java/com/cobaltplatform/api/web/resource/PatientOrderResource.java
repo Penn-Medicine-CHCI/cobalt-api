@@ -1722,7 +1722,16 @@ public class PatientOrderResource {
 				.collect(Collectors.toList());
 
 		List<String> referringPracticeNames = getPatientOrderService().findReferringPracticeNamesByInstitutionId(institutionId);
-		List<String> reasonsForReferral = getPatientOrderService().findReasonsForReferralByInstitutionId(institutionId);
+
+		List<Map<String, Object>> patientOrderReferralReasons = getPatientOrderService().findPatientOrderReferralReasonsByInstitutionId(institutionId).stream()
+				.map(patientOrderReferralReason -> {
+					Map<String, Object> patientOrderReferralReasonJson = new HashMap<>();
+					patientOrderReferralReasonJson.put("patientOrderReferralReasonId", patientOrderReferralReason.getPatientOrderReferralReasonId());
+					patientOrderReferralReasonJson.put("description", patientOrderReferralReason.getDescription());
+					return patientOrderReferralReasonJson;
+				})
+				.collect(Collectors.toList());
+
 		List<String> primaryPayorNames = getPatientOrderService().findPrimaryPayorNamesByInstitutionId(institutionId);
 
 		List<Map<String, Object>> patientOrderCarePreferences = getPatientOrderService().findPatientOrderCarePreferencesByInstitutionId(institutionId).stream()
@@ -1760,7 +1769,7 @@ public class PatientOrderResource {
 			put("patientOrderCareTypes", patientOrderCareTypes);
 			put("patientOrderFocusTypes", patientOrderFocusTypes);
 			put("referringPracticeNames", referringPracticeNames);
-			put("reasonsForReferral", reasonsForReferral);
+			put("patientOrderReferralReasons", patientOrderReferralReasons);
 			put("patientOrderResourcingTypes", patientOrderResourcingTypes);
 			put("patientOrderCarePreferences", patientOrderCarePreferences);
 			put("primaryPayorNames", primaryPayorNames);

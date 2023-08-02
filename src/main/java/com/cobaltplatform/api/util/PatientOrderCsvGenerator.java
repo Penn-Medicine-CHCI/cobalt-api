@@ -728,11 +728,26 @@ public class PatientOrderCsvGenerator {
 	@Nonnull
 	protected String randomReasonsForReferral() {
 		return pickRandomElement(List.of(
-				"Alcohol or drug use or abuse",
+				"Drug misuse or addiction",
 				"Anxiety symptoms",
-				"Alcohol or drug use or abuse, Anxiety symptoms",
 				"Mood or depression symptoms",
-				"Alcohol or drug use or abuse, Mood or depression symptoms"
+				"Adjustment disorders",
+				"Feeding or eating disorders",
+				"Impulse control and conduct disorders",
+				"Mood or depression symptoms",
+				"Neurocognitive disorders",
+				"Neurodevelopmental disorders",
+				"Obsessive compulsive disorders",
+				"Opioid Use Disorder (OUD)",
+				"Personality disorders",
+				"Psychopharmacology management",
+				"Psychosis",
+				"PTSD or trauma related symptoms",
+				"Sexual interest disorders / sexual dysfunction / gender dysphoria",
+				"Sleep-wake cycle disorders",
+				"Treatment engagement",
+				"Drug misuse or addiction, Anxiety symptoms", // Doubled up
+				"Drug misuse or addiction, Mood or depression symptoms" // Doubled up
 		));
 	}
 

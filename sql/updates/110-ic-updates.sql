@@ -3,6 +3,58 @@ SELECT _v.register_patch('110-ic-updates', NULL, NULL);
 
 ALTER TABLE institution ADD COLUMN integrated_care_intake_screening_flow_id UUID REFERENCES screening_flow;
 
+-- Need a few more focus types to conform to latest rules
+INSERT INTO patient_order_focus_type VALUES ('PSYCHIATRY', 'Psychiatry');
+INSERT INTO patient_order_focus_type VALUES ('LGBTIA', 'LGBTIA+ Competent Provider');
+
+-- Add concept of strongly-typed "reason for referral" so we can more easily take into consideration when triaging
+CREATE TABLE patient_order_referral_reason (
+  patient_order_referral_reason_id VARCHAR PRIMARY KEY,
+  description VARCHAR NOT NULL
+);
+
+INSERT INTO patient_order_referral_reason VALUES ('UNKNOWN', 'Unknown'); -- Special value
+INSERT INTO patient_order_referral_reason VALUES ('ADJUSTMENT_DISORDERS', 'Adjustment disorders');
+INSERT INTO patient_order_referral_reason VALUES ('ALCOHOL_MISUSE_OR_ADDICTION', 'Alcohol misuse or addiction');
+INSERT INTO patient_order_referral_reason VALUES ('ANXIETY_SYMPTOMS', 'Anxiety symptoms');
+INSERT INTO patient_order_referral_reason VALUES ('DRUG_MISUSE_OR_ADDICTION', 'Drug misuse or addiction');
+INSERT INTO patient_order_referral_reason VALUES ('FEEDING_OR_EATING_DISORDERS', 'Feeding or eating disorders');
+INSERT INTO patient_order_referral_reason VALUES ('IMPULSE_CONTROL_AND_CONDUCT_DISORDERS', 'Impulse control and conduct disorders');
+INSERT INTO patient_order_referral_reason VALUES ('MOOD_OR_DEPRESSION_SYMPTOMS', 'Mood or depression symptoms');
+INSERT INTO patient_order_referral_reason VALUES ('NEUROCOGNITIVE_DISORDERS', 'Neurocognitive disorders');
+INSERT INTO patient_order_referral_reason VALUES ('NEURODEVELOPMENTAL_DISORDERS', 'Neurodevelopmental disorders');
+INSERT INTO patient_order_referral_reason VALUES ('OBSESSIVE_COMPULSIVE_DISORDERS', 'Obsessive compulsive disorders');
+INSERT INTO patient_order_referral_reason VALUES ('OPIOID_USE_DISORDER', 'Opioid Use Disorder (OUD)');
+INSERT INTO patient_order_referral_reason VALUES ('PERSONALITY_DISORDERS', 'Personality disorders');
+INSERT INTO patient_order_referral_reason VALUES ('PSYCHOPHARMACOLOGY_MANAGEMENT', 'Psychopharmacology management');
+INSERT INTO patient_order_referral_reason VALUES ('PSYCHOSIS', 'Psychosis');
+INSERT INTO patient_order_referral_reason VALUES ('PTSD_OR_TRAUMA_RELATED_SYMPTOMS', 'PTSD or trauma related symptoms');
+INSERT INTO patient_order_referral_reason VALUES ('SEXUAL_INTEREST_OR_DISFUNCTION_OR_GENDER_DYSPHORIA', 'Sexual interest disorders / sexual dysfunction / gender dysphoria');
+INSERT INTO patient_order_referral_reason VALUES ('SLEEP_WAKE_CYCLE_DISORDERS', 'Sleep-wake cycle disorders');
+INSERT INTO patient_order_referral_reason VALUES ('TREATMENT_ENGAGEMENT', 'Treatment engagement');
+
+-- Replaces patient_order_reason_for_referral
+CREATE TABLE patient_order_referral (
+  patient_order_id UUID NOT NULL REFERENCES patient_order,
+  patient_order_referral_reason_id VARCHAR NOT NULL REFERENCES patient_order_referral_reason,
+  display_order INTEGER NOT NULL,
+  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (patient_order_id, patient_order_referral_reason_id)
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_referral FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+-- Migrate over existing referral data from patient_order_reason_for_referral.
+-- First, fix up nonstandard name
+UPDATE patient_order_reason_for_referral SET reason_for_referral='Drug misuse or addiction' where reason_for_referral='Alcohol or drug use or abuse';
+
+-- Then, migrate in
+INSERT INTO patient_order_referral (patient_order_id, patient_order_referral_reason_id, display_order)
+SELECT porfr.patient_order_id, porr.patient_order_referral_reason_id, porfr.display_order
+FROM patient_order_reason_for_referral porfr, patient_order_referral_reason porr
+WHERE LOWER(porfr.reason_for_referral)=LOWER(porr.description);
+
 -- Add concept of "patient_order_triage_group" so we can tie multiple triages together more formally than using "they have the same timestamp"
 CREATE TABLE patient_order_triage_group (
   patient_order_triage_group_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -63,8 +115,12 @@ ALTER TABLE patient_order_care_type DROP COLUMN severity;
 -- This is legacy and can be removed
 DELETE FROM patient_order_care_type WHERE patient_order_care_type_id='SAFETY_PLANNING';
 
+-- Using patient_order_referral_reason and patient_order_referral instead now
+DROP TABLE patient_order_reason_for_referral;
+
 -- Added "most recent intake"-related columns
 -- Modified triage selection to join on patient_order_triage_group, removed window function
+-- Modified referral reasons to pull from patient_order_referral/patient_order_referral_reason
 CREATE or replace VIEW v_all_patient_order AS WITH
 poo_query AS (
     -- Count up the patient outreach attempts for each patient order
@@ -96,14 +152,16 @@ poomax_query AS (
 reason_for_referral_query AS (
     -- Pick reasons for referral for each patient order
     select
-        poq.patient_order_id, string_agg(porfr.reason_for_referral, ', ' order by porfr.display_order) AS reason_for_referral
+        poq.patient_order_id, string_agg(porr.description, ', ' order by por.display_order) AS reason_for_referral
     from
         patient_order poq,
-        patient_order_reason_for_referral porfr
+        patient_order_referral_reason porr,
+        patient_order_referral por
     where
-        poq.patient_order_id = porfr.patient_order_id
+        poq.patient_order_id = por.patient_order_id
+        AND por.patient_order_referral_reason_id=porr.patient_order_referral_reason_id
     group by
-                poq.patient_order_id
+        poq.patient_order_id
 ),
 smg_query AS (
     -- Count up the scheduled message groups for each patient order

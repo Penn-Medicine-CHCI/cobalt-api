@@ -102,6 +102,8 @@ import com.cobaltplatform.api.model.db.PatientOrderMedication;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderOutreach;
 import com.cobaltplatform.api.model.db.PatientOrderOutreachResult;
+import com.cobaltplatform.api.model.db.PatientOrderReferralReason;
+import com.cobaltplatform.api.model.db.PatientOrderReferralReason.PatientOrderReferralReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType;
@@ -550,17 +552,18 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public List<String> findReasonsForReferralByInstitutionId(@Nullable InstitutionId institutionId) {
+	public List<PatientOrderReferralReason> findPatientOrderReferralReasonsByInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return List.of();
 
 		return getDatabase().queryForList("""
-				SELECT DISTINCT ON (UPPER(porfr.reason_for_referral)) reason_for_referral
-				FROM patient_order_reason_for_referral porfr, patient_order p
-				WHERE p.patient_order_id=porfr.patient_order_id
+				SELECT DISTINCT porr.*
+				FROM patient_order_referral_reason porr, patient_order_referral por, patient_order p
+				WHERE p.patient_order_id=por.patient_order_id
+				AND por.patient_order_referral_reason_id=porr.patient_order_referral_reason_id
 				AND p.institution_id=?
-				ORDER BY UPPER(porfr.reason_for_referral)
-				""", String.class, institutionId);
+				ORDER BY porr.description
+				""", PatientOrderReferralReason.class, institutionId);
 	}
 
 	@Nonnull
@@ -4429,14 +4432,28 @@ public class PatientOrderService implements AutoCloseable {
 
 		int reasonForReferralDisplayOrder = 0;
 
+		Map<String, PatientOrderReferralReasonId> patientOrderReferralReasonIdsByDescription = getDatabase().queryForList("""
+						SELECT *
+						FROM patient_order_referral_reason
+						""", PatientOrderReferralReason.class).stream()
+				.collect(Collectors.toMap(patientOrderReferralReason -> patientOrderReferralReason.getDescription().toLowerCase(Locale.US),
+						patientOrderReferralReason -> patientOrderReferralReason.getPatientOrderReferralReasonId()));
+
 		for (String reasonForReferral : reasonsForReferral) {
+			PatientOrderReferralReasonId patientOrderReferralReasonId = patientOrderReferralReasonIdsByDescription.get(reasonForReferral.toLowerCase(Locale.US));
+
+			if (patientOrderReferralReasonId == null) {
+				getLogger().warn("Encountered unrecognized referral reason '{}'", reasonForReferral);
+				patientOrderReferralReasonId = PatientOrderReferralReasonId.UNKNOWN;
+			}
+
 			getDatabase().execute("""
-					INSERT INTO patient_order_reason_for_referral (
+					INSERT INTO patient_order_referral (
 					patient_order_id,
-					reason_for_referral,
+					patient_order_referral_reason_id,
 					display_order
 					) VALUES (?,?,?)
-					""", patientOrderId, reasonForReferral, reasonForReferralDisplayOrder);
+					""", patientOrderId, patientOrderReferralReasonId, reasonForReferralDisplayOrder);
 
 			++reasonForReferralDisplayOrder;
 		}
