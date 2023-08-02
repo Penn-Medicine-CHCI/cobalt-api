@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageOverrideReason.PatientOrderTriageOverrideReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 
@@ -36,6 +37,8 @@ public class PatientOrderTriageGroup {
 	private UUID patientOrderTriageGroupId;
 	@Nullable
 	private UUID patientOrderId;
+	@Nullable
+	private PatientOrderCareTypeId patientOrderCareTypeId; // The "winning" overall care type that is calculated and stored
 	@Nullable
 	private PatientOrderTriageOverrideReasonId patientOrderTriageOverrideReasonId;
 	@Nullable
@@ -67,6 +70,15 @@ public class PatientOrderTriageGroup {
 
 	public void setPatientOrderId(@Nullable UUID patientOrderId) {
 		this.patientOrderId = patientOrderId;
+	}
+
+	@Nullable
+	public PatientOrderCareTypeId getPatientOrderCareTypeId() {
+		return this.patientOrderCareTypeId;
+	}
+
+	public void setPatientOrderCareTypeId(@Nullable PatientOrderCareTypeId patientOrderCareTypeId) {
+		this.patientOrderCareTypeId = patientOrderCareTypeId;
 	}
 
 	@Nullable

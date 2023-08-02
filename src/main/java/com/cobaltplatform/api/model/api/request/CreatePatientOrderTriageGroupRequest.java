@@ -44,7 +44,7 @@ public class CreatePatientOrderTriageGroupRequest {
 	@Nullable
 	private UUID screeningSessionId;
 	@Nullable
-	private PatientOrderCareTypeId patientOrderCareTypeId;
+	private PatientOrderCareTypeId patientOrderCareTypeId; // The "winning" overall care type that is calculated and stored
 	@Nullable
 	private PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId;
 	@Nullable

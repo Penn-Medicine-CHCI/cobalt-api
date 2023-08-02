@@ -1723,6 +1723,7 @@ public class PatientOrderService implements AutoCloseable {
 
 		UUID accountId = request.getAccountId();
 		UUID patientOrderId = request.getPatientOrderId();
+		PatientOrderCareTypeId patientOrderCareTypeId = request.getPatientOrderCareTypeId();
 		PatientOrderTriageSourceId patientOrderTriageSourceId = request.getPatientOrderTriageSourceId();
 		PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId = request.getPatientOrderSafetyPlanningStatusId();
 		PatientOrderTriageOverrideReasonId patientOrderTriageOverrideReasonId = request.getPatientOrderTriageOverrideReasonId();
@@ -1750,6 +1751,13 @@ public class PatientOrderService implements AutoCloseable {
 
 			if (patientOrder == null)
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+		}
+
+		if (patientOrderCareTypeId == null) {
+			validationException.add(new FieldError("patientOrderCareTypeId", getStrings().get("Patient Order Care Type ID is required.")));
+		} else if (patientOrderCareTypeId == PatientOrderCareTypeId.UNSPECIFIED) {
+			throw new IllegalStateException(format("Attempted to set illegal computed care type %s.%s for patient order ID %s",
+					PatientOrderCareTypeId.class.getSimpleName(), patientOrderCareTypeId.name(), patientOrderId));
 		}
 
 		if (patientOrderTriageSourceId == null) {
@@ -1799,14 +1807,15 @@ public class PatientOrderService implements AutoCloseable {
 						INSERT INTO patient_order_triage_group (
 						     patient_order_triage_group_id,
 						     patient_order_id,
+						     patient_order_care_type_id,
 						     patient_order_triage_override_reason_id,
 						     patient_order_triage_source_id,
 						     account_id,
 						     screening_session_id,
 						     active
-						) VALUES (?,?,?,?,?,?,?)
-						""", patientOrderTriageGroupId, patientOrderId, patientOrderTriageOverrideReasonId,
-				patientOrderTriageSourceId, accountId, screeningSessionId, true);
+						) VALUES (?,?,?,?,?,?,?,?)
+						""", patientOrderTriageGroupId, patientOrderId, patientOrderCareTypeId,
+				patientOrderTriageOverrideReasonId, patientOrderTriageSourceId, accountId, screeningSessionId, true);
 
 		for (CreatePatientOrderTriageRequest patientOrderTriage : patientOrderTriages) {
 			UUID patientOrderTriageId = UUID.randomUUID();
@@ -3613,11 +3622,10 @@ public class PatientOrderService implements AutoCloseable {
 			patientOrderTriageGroups.add(new PatientOrderTriageGroupApiResponse(patientOrderTriageGroup.getPatientOrderTriageSourceId(), patientOrderCareType, focusTypePatientOrderTriages));
 		}
 
-		// Pick the first non-safety-planning triage group
+		// Pick the first non-unspecified triage group
 		PatientOrderTriageGroupApiResponse applicablePatientOrderTriageGroup = patientOrderTriageGroups.stream()
-				.filter(potentialPatientOrderTriageGroup -> potentialPatientOrderTriageGroup.getPatientOrderCareTypeId() != PatientOrderCareTypeId.SAFETY_PLANNING
-						&& potentialPatientOrderTriageGroup.getPatientOrderCareTypeId() != PatientOrderCareTypeId.UNSPECIFIED)
-				.findFirst().orElse(null);
+				.filter(potentialPatientOrderTriageGroup -> potentialPatientOrderTriageGroup.getPatientOrderCareTypeId() != PatientOrderCareTypeId.UNSPECIFIED)
+				.findFirst().get();
 
 		lines.add("");
 		lines.add(getStrings().get("ASSESSMENT TRIAGE: {{careType}} Care", Map.of(

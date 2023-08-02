@@ -1589,6 +1589,7 @@ public class ScreeningService {
 						patientOrderTriageGroupRequest.setAccountId(screeningSession.getCreatedByAccountId());
 						patientOrderTriageGroupRequest.setPatientOrderId(patientOrder.getPatientOrderId());
 						patientOrderTriageGroupRequest.setPatientOrderTriageSourceId(PatientOrderTriageSourceId.COBALT);
+						patientOrderTriageGroupRequest.setPatientOrderCareTypeId(resultsFunctionOutput.getIntegratedCareTriagedCareTypeId());
 						patientOrderTriageGroupRequest.setScreeningSessionId(screeningSession.getScreeningSessionId());
 						patientOrderTriageGroupRequest.setPatientOrderTriageOverrideReasonId(PatientOrderTriageOverrideReasonId.NOT_OVERRIDDEN);
 						patientOrderTriageGroupRequest.setPatientOrderTriages(resultsFunctionOutput.getIntegratedCareTriages().stream()
@@ -2300,6 +2301,8 @@ public class ScreeningService {
 		@Nullable
 		private List<IntegratedCareTriage> integratedCareTriages;
 		@Nullable
+		private PatientOrderCareTypeId integratedCareTriagedCareTypeId; // the overall "winning" triage for IC
+		@Nullable
 		private Set<FeatureId> recommendedFeatureIds;
 		@Nullable
 		@Deprecated
@@ -2354,6 +2357,15 @@ public class ScreeningService {
 
 		public void setIntegratedCareTriages(@Nullable List<IntegratedCareTriage> integratedCareTriages) {
 			this.integratedCareTriages = integratedCareTriages;
+		}
+
+		@Nullable
+		public PatientOrderCareTypeId getIntegratedCareTriagedCareTypeId() {
+			return this.integratedCareTriagedCareTypeId;
+		}
+
+		public void setIntegratedCareTriagedCareTypeId(@Nullable PatientOrderCareTypeId integratedCareTriagedCareTypeId) {
+			this.integratedCareTriagedCareTypeId = integratedCareTriagedCareTypeId;
 		}
 
 		@Nullable

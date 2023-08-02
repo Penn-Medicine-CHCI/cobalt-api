@@ -7,6 +7,7 @@ ALTER TABLE institution ADD COLUMN integrated_care_intake_screening_flow_id UUID
 CREATE TABLE patient_order_triage_group (
   patient_order_triage_group_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_order_id UUID NOT NULL REFERENCES patient_order,
+  patient_order_care_type_id TEXT NOT NULL REFERENCES patient_order_care_type, -- This is the calculated + stored "final" care type based on evaluating all of the triages for this group
   patient_order_triage_override_reason_id TEXT NOT NULL REFERENCES patient_order_triage_override_reason,
   patient_order_triage_source_id TEXT NOT NULL REFERENCES patient_order_triage_source,
   account_id UUID NOT NULL REFERENCES account,
@@ -19,8 +20,8 @@ CREATE TABLE patient_order_triage_group (
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_triage_group FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 -- Migrate over old groups
-INSERT INTO patient_order_triage_group (patient_order_id, patient_order_triage_override_reason_id, patient_order_triage_source_id, account_id, screening_session_id, active, created)
-SELECT old.patient_order_id, old.patient_order_triage_override_reason_id, old.patient_order_triage_source_id, old.account_id, old.screening_session_id, old.active, old.created
+INSERT INTO patient_order_triage_group (patient_order_id, patient_order_care_type_id, patient_order_triage_override_reason_id, patient_order_triage_source_id, account_id, screening_session_id, active, created)
+SELECT old.patient_order_id, 'UNSPECIFIED', old.patient_order_triage_override_reason_id, old.patient_order_triage_source_id, old.account_id, old.screening_session_id, old.active, old.created
 FROM (
   SELECT COUNT(*), patient_order_id, active, created, patient_order_triage_source_id, patient_order_triage_override_reason_id, account_id, screening_session_id
   FROM patient_order_triage
@@ -35,6 +36,14 @@ FROM patient_order_triage_group potg
 WHERE pot.patient_order_id=potg.patient_order_id
 AND pot.created=potg.created;
 
+-- Pick the old calculated patient_order_care_type_id value out of the view to store off on the patient_order_triage_group.
+-- The old inactive ones will be left as UNSPECIFIED but that's OK because this is test data currently
+UPDATE patient_order_triage_group potg
+SET patient_order_care_type_id=po.patient_order_care_type_id
+FROM v_all_patient_order po
+WHERE po.patient_order_id=potg.patient_order_id
+AND potg.active=TRUE;
+
 -- Drop order views in preparation for modifying columns
 DROP VIEW v_patient_order;
 DROP VIEW v_all_patient_order;
@@ -48,8 +57,14 @@ ALTER TABLE patient_order_triage DROP COLUMN patient_order_triage_source_id;
 
 ALTER TABLE patient_order_triage ALTER COLUMN patient_order_triage_group_id SET NOT NULL;
 
+-- No longer need this, it's determined by screening session orchestration
+ALTER TABLE patient_order_care_type DROP COLUMN severity;
+
+-- This is legacy and can be removed
+DELETE FROM patient_order_care_type WHERE patient_order_care_type_id='SAFETY_PLANNING';
+
 -- Added "most recent intake"-related columns
--- Modified triage selection to join on patient_order_triage_group
+-- Modified triage selection to join on patient_order_triage_group, removed window function
 CREATE or replace VIEW v_all_patient_order AS WITH
 poo_query AS (
     -- Count up the patient outreach attempts for each patient order
@@ -224,48 +239,11 @@ recent_scheduled_screening_query AS (
            (PARTITION BY  patient_mrn ORDER BY poq.order_date) as most_recent_episode_closed_at
     from
         patient_order poq
-), triage_query AS (
-    -- Pick the most-severe triage for each patient order.
-    -- Use a window function because it's easier to handle the join needed to order by severity.
-    -- Ignore SAFETY_PLANNING because that's not a "real" triage destination (it's handled separately)
-    WITH poct_cte AS (
-        SELECT
-            poq.patient_order_id,
-            poct.patient_order_care_type_id,
-            poct.description AS patient_order_care_type_description,
-            pot.patient_order_triage_id,
-            potg.patient_order_triage_source_id,
-            RANK() OVER (
-                PARTITION BY poq.patient_order_id
-                ORDER BY
-                    poct.severity DESC
-            ) AS r
-        from
-            patient_order poq,
-            patient_order_triage_group potg,
-            patient_order_triage pot,
-            patient_order_care_type poct
-        where
-            poq.patient_order_id = potg.patient_order_id
-            and potg.patient_order_triage_group_id=pot.patient_order_triage_group_id
-            and pot.patient_order_care_type_id = poct.patient_order_care_type_id
-            AND pot.patient_order_care_type_id != 'SAFETY_PLANNING'
-            and potg.active = true
-    )
-    SELECT DISTINCT
-        patient_order_care_type_id,
-        patient_order_care_type_description,
-        patient_order_id,
-        patient_order_triage_source_id
-    FROM
-        poct_cte
-    WHERE
-        r = 1
 )
 select
-    tq.patient_order_care_type_id,
-    tq.patient_order_care_type_description,
-    tq.patient_order_triage_source_id,
+    potg.patient_order_care_type_id,
+    poct.description as patient_order_care_type_description,
+    potg.patient_order_triage_source_id,
     coalesce(pooq.outreach_count, 0) AS outreach_count,
     poomaxq.max_outreach_date_time AS most_recent_outreach_date_time,
     coalesce(smgq.scheduled_message_group_count, 0) AS scheduled_message_group_count,
@@ -323,21 +301,21 @@ select
     pod.description AS patient_order_disposition_description,
     CASE
         -- Screening completed, most severe level of care type triage is SPECIALTY
-        WHEN tq.patient_order_care_type_id = 'SPECIALTY' THEN 'SPECIALTY_CARE'
+        WHEN potg.patient_order_care_type_id = 'SPECIALTY' THEN 'SPECIALTY_CARE'
         -- Screening completed, most severe level of care type triage is SUBCLINICAL
-        WHEN tq.patient_order_care_type_id = 'SUBCLINICAL' THEN 'SUBCLINICAL'
+        WHEN potg.patient_order_care_type_id = 'SUBCLINICAL' THEN 'SUBCLINICAL'
         -- Screening completed, most severe level of care type triage is COLLABORATIVE.  Patient or MHIC can schedule with a provider
-        WHEN tq.patient_order_care_type_id = 'COLLABORATIVE' THEN 'MHP'
+        WHEN potg.patient_order_care_type_id = 'COLLABORATIVE' THEN 'MHP'
         -- None of the above apply
         ELSE 'NOT_TRIAGED'
     END patient_order_triage_status_id,
     CASE
         -- Screening completed, most severe level of care type triage is SPECIALTY
-        WHEN tq.patient_order_care_type_id = 'SPECIALTY' THEN 'Specialty Care'
+        WHEN potg.patient_order_care_type_id = 'SPECIALTY' THEN 'Specialty Care'
         -- Screening completed, most severe level of care type triage is SUBCLINICAL
-        WHEN tq.patient_order_care_type_id = 'SUBCLINICAL' THEN 'Subclinical'
+        WHEN potg.patient_order_care_type_id = 'SUBCLINICAL' THEN 'Subclinical'
         -- Screening completed, most severe level of care type triage is COLLABORATIVE.  Patient or MHIC can schedule with a provider
-        WHEN tq.patient_order_care_type_id = 'COLLABORATIVE' THEN 'MHP'
+        WHEN potg.patient_order_care_type_id = 'COLLABORATIVE' THEN 'MHP'
         -- None of the above apply
         else 'Not Triaged'
     END patient_order_triage_status_description,
@@ -437,7 +415,8 @@ from
     left outer join smgmax_query smgmaxq ON poq.patient_order_id = smgmaxq.patient_order_id
     left outer join ss_query ssq ON poq.patient_order_id = ssq.patient_order_id
     left outer join ss_intake_query ssiq ON poq.patient_order_id = ssiq.patient_order_id
-    left outer join triage_query tq ON poq.patient_order_id = tq.patient_order_id
+    left outer join patient_order_triage_group potg ON poq.patient_order_id = potg.patient_order_id
+    left outer join patient_order_care_type poct ON potg.patient_order_care_type_id = poct.patient_order_care_type_id
     left outer join account panel_account ON poq.panel_account_id = panel_account.account_id
     left outer join recent_po_query rpq ON poq.patient_order_id = rpq.patient_order_id
     left outer join recent_scheduled_screening_query rssq ON poq.patient_order_id = rssq.patient_order_id
