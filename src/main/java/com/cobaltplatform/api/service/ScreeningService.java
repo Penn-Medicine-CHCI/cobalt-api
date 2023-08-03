@@ -636,7 +636,8 @@ public class ScreeningService {
 
 				// Special behavior if we're IC and this is the special IC screening flow
 				creatingIntegratedCareScreeningSession = institution.getIntegratedCareEnabled()
-						&& Objects.equals(screeningFlowVersion.getScreeningFlowId(), institution.getIntegratedCareScreeningFlowId());
+						&& (Objects.equals(screeningFlowVersion.getScreeningFlowId(), institution.getIntegratedCareScreeningFlowId())
+						|| (Objects.equals(screeningFlowVersion.getScreeningFlowId(), institution.getIntegratedCareIntakeScreeningFlowId())));
 			}
 		}
 
