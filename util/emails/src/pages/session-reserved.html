@@ -1,0 +1,121 @@
+---
+layout: default
+subject: Cobalt | Session Reserved
+title: Session Reserved
+patientName: PATIENT_NAME
+providerName: PROVIDER_NAME
+providerTitles: PROVIDER_TITLES
+sessionDateTime: SESSION_DATE_TIME
+---
+
+<spacer size="48"></spacer>
+
+<p>Hi {{patientName}},</p>
+<spacer size="16"></spacer>
+<p>Your session with <strong>{{providerName}}</strong> has been reserved for <strong>{{sessionDateTime}}</strong></p>
+
+<spacer size="25"></spacer>
+
+<table class="session-card">
+	<tbody>
+		<tr>
+			<td colspan="5">
+				<spacer size="12"></spacer>
+			</td>
+		</tr>
+		<tr>
+			<td width="12" style="width: 12px"></td>
+			<td width="90" style="width: 90px">
+				<img src="https://placehold.it/180" alt="Provider Image" />
+			</td>
+			<td width="12" style="width: 12px"></td>
+			<td style="vertical-align: middle">
+				<p><strong>{{providerName}}, {{providerTitles}}</strong></p>
+				<spacer size="4"></spacer>
+				<p class="small"><strong>{{sessionDateTime}}</strong></p>
+				<spacer size="16"></spacer>
+				<h6><a href="#">Join Session Now</a> | <a href="#" class="text-danger">Cancel Reservation</a></h6>
+			</td>
+			<td width="12" style="width: 12px"></td>
+		</tr>
+		<tr>
+			<td colspan="5">
+				<spacer size="12"></spacer>
+			</td>
+		</tr>
+	</tbody>
+</table>
+
+<spacer size="24"></spacer>
+
+<table>
+	<tbody>
+		<tr>
+			<td width="48" style="width: 48px">
+				<img
+					src="{{root}}assets/img/icon-calendar.png"
+					width="48"
+					height="48"
+					style="width: 48px; height: 48px"
+					alt="Calendar Icon"
+				/>
+			</td>
+			<td width="16" style="width: 16px"></td>
+			<td style="vertical-align: middle">
+				<p><strong>Add Appointment to your Calendar</strong></p>
+				<spacer size="4"></spacer>
+				<h6><a href="#">iCal/Outlook Calendar</a> | <a href="#">Google Calendar</a></h6>
+			</td>
+		</tr>
+	</tbody>
+</table>
+
+<spacer size="24"></spacer>
+
+<table>
+	<tbody>
+		<tr>
+			<td width="48" style="width: 48px">
+				<img
+					src="{{root}}assets/img/icon-search.png"
+					width="48"
+					height="48"
+					style="width: 48px; height: 48px"
+					alt="Search Icon"
+				/>
+			</td>
+			<td width="16" style="width: 16px"></td>
+			<td style="vertical-align: middle">
+				<p><strong>Reserve another session with this provider</strong></p>
+				<spacer size="4"></spacer>
+				<h6><a href="#">View Provider Availability</a></h6>
+			</td>
+		</tr>
+	</tbody>
+</table>
+
+<spacer size="32"></spacer>
+<hr />
+<spacer size="32"></spacer>
+
+<h6><strong>A few tips for a smooth session:</strong></h6>
+<spacer size="16"></spacer>
+<ul>
+	<li>
+		<h6>Find a quiet space with a comfortable chair</h6>
+	</li>
+	<li>
+		<h6>Sit facing a window or have a light nearby</h6>
+	</li>
+	<li>
+		<h6>Take 5 minutes to write down your thoughts or any goals for your time together</h6>
+	</li>
+	<li>
+		<h6>Close all other browser windows, turn your phone off, and make the video full-screen</h6>
+	</li>
+	<li>
+		<h6>Allow for a few minutes of troubleshooting and settling in</h6>
+	</li>
+</ul>
+
+<spacer size="48"></spacer>
