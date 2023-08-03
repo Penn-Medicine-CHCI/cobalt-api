@@ -139,7 +139,7 @@ function sanitizeHbs() {
 function formatHtml() {
 	return gulp
 		.src('dist/**/*.html')
-		.pipe(formatHTML({ indent_size: 4 }))
+		.pipe(formatHTML({ indent_size: 4, indent_with_tabs: true }))
 		.pipe(gulp.dest('dist'));
 }
 async function changeHtmlToHbs() {
