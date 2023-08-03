@@ -1839,7 +1839,7 @@ public class ScreeningService {
 			return Optional.empty();
 
 		if (resultsFunctionOutput.getSupportRoleRecommendations() == null)
-			throw new IllegalStateException("Screening flow results function must provide a 'supportRoleRecommendations' value in output");
+			resultsFunctionOutput.setSupportRoleRecommendations(List.of());
 
 		// Normalize data a bit
 		if (resultsFunctionOutput.getRecommendLegacyContentAnswerIds() == null)
