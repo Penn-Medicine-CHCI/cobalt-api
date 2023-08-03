@@ -950,7 +950,7 @@ public class AppointmentService {
 
 		if (!patientInteractions.isEmpty()) {
 			for (Interaction interaction : patientInteractions) {
-				LocalDateTime followupSendTime = meetingEndTime.plusMinutes(interaction.getSendOffsetInMinutes());
+				LocalDateTime followupSendTime = meetingEndTime;
 				List<UUID> additionalAccountsToNotify = new ArrayList<>();
 				additionalAccountsToNotify.add(createdByAccountId);
 
@@ -970,7 +970,7 @@ public class AppointmentService {
 
 		if (!providerInteractions.isEmpty()) {
 			for (Interaction interaction : providerInteractions) {
-				LocalDateTime followupSendTime = meetingEndTime.plusMinutes(interaction.getSendOffsetInMinutes());
+				LocalDateTime followupSendTime = meetingEndTime;
 				List<UUID> additionalAccountsToNotify = new ArrayList<>();
 				Optional<Account> providerAccount = getAccountService().findAccountByProviderId(providerId);
 
