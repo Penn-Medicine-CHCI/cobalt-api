@@ -13,6 +13,7 @@ import merge from 'merge-stream';
 import beep from 'beepbeep';
 import formatHTML from 'gulp-format-html';
 import header from 'gulp-header';
+import rename from 'gulp-rename';
 
 const $ = plugins();
 
@@ -27,7 +28,7 @@ const EMAIL = yargs.argv.to;
 var CONFIG;
 
 // Build the "dist" folder by running all of the below tasks
-gulp.task('build', gulp.series(clean, pages, sass, images, inline));
+gulp.task('build', gulp.series(cleanDist, pages, sass, images, inline));
 
 // Build emails, run the server, and watch for file changes
 gulp.task('default', gulp.series('build', server, watch));
@@ -41,25 +42,26 @@ gulp.task('mail', gulp.series('build', creds, aws, mail));
 // Build emails, then zip
 gulp.task('zip', gulp.series('build', zip));
 
-// Build the "dist" folder by running all of the below tasks for Java use
+// Build the "dist" folder for Java use
 gulp.task(
 	'java',
 	gulp.series(
-		clean,
+		cleanDist,
 		inkifyLayouts,
 		inkifyPages,
 		sass,
 		images,
 		injectStylesIntoLayouts,
 		injectStylesIntoPages,
-		replaceRootHbs,
-		formatHtml
+		sanitizeHbs,
+		formatHtml,
+		changeHtmlToHbs
 	)
 );
 
 // Delete the "dist" folder
 // This happens every time a build starts
-function clean(done) {
+function cleanDist(done) {
 	rimraf('dist', done);
 }
 
@@ -125,13 +127,29 @@ function injectStylesIntoPages() {
 		)
 		.pipe(gulp.dest('dist/views'));
 }
-function replaceRootHbs() {
-	return gulp.src('dist/**/*.html').pipe($.replace('{{root}}', '{{{staticFileUrlPrefix}}}')).pipe(gulp.dest('dist'));
+function sanitizeHbs() {
+	const YAMLFrontMatter = /---(.|\n)*---/;
+
+	return gulp
+		.src('dist/**/*.html')
+		.pipe($.replace('{{root}}', '{{{staticFileUrlPrefix}}}'))
+		.pipe($.replace(YAMLFrontMatter, ''))
+		.pipe(gulp.dest('dist'));
 }
 function formatHtml() {
 	return gulp
 		.src('dist/**/*.html')
 		.pipe(formatHTML({ indent_size: 4 }))
+		.pipe(gulp.dest('dist'));
+}
+async function changeHtmlToHbs() {
+	return gulp
+		.src('dist/**/*.html')
+		.pipe(
+			rename(function (path) {
+				path.extname = '.hbs';
+			})
+		)
 		.pipe(gulp.dest('dist'));
 }
 
