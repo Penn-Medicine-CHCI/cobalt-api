@@ -276,7 +276,6 @@ public class InteractionService {
 			startDateTime = LocalDateTime.of(interactionDate, interactionTimeOfDay);
 		}
 
-		Integer frequencyInMinutes = interaction.getFrequencyInMinutes();
 		LocalDateTime scheduledAt = startDateTime;
 		Integer optionActionCount = findOptionActionCount(interactionInstanceId);
 
@@ -284,7 +283,7 @@ public class InteractionService {
 			if (i > optionActionCount) {
 				// Determine the send time for the next follow up
 				if (interaction.getInteractionSendMethodId().equals(InteractionSendMethodId.MINUTE_OFFSET))
-					scheduledAt = scheduledAt.plus(frequencyInMinutes, ChronoUnit.MINUTES);
+					scheduledAt = scheduledAt.plus(interaction.getFrequencyInMinutes(), ChronoUnit.MINUTES);
 				else {
 					LocalDate nextInteractionDate = scheduledAt.toLocalDate().plusDays(interaction.getSendDayOffset());
 					LocalTime nextInteractionTimeOfDay = interaction.getSendTimeOfDay();

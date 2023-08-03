@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InteractionType.InteractionTypeId;
+import com.cobaltplatform.api.model.db.InteractionSendMethod.InteractionSendMethodId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -57,13 +58,13 @@ public class Interaction {
 	@Nullable
 	private LocalTime sendTimeOfDay;
 	@Nullable
-	private String interactionSendMethodId;
+	private InteractionSendMethodId interactionSendMethodId;
+	@Nullable
+	private String emailSubject;
 	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
-	@Nullable
-	private String emailSubject;
 
 	@Nullable
 	public UUID getInteractionId() {
@@ -183,11 +184,11 @@ public class Interaction {
 	}
 
 	@Nullable
-	public String getInteractionSendMethodId() {
+	public InteractionSendMethodId getInteractionSendMethodId() {
 		return interactionSendMethodId;
 	}
 
-	public void setInteractionSendMethodId(@Nullable String interactionSendMethodId) {
+	public void setInteractionSendMethodId(@Nullable InteractionSendMethodId interactionSendMethodId) {
 		this.interactionSendMethodId = interactionSendMethodId;
 	}
 
