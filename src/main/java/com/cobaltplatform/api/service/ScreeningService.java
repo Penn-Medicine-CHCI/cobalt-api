@@ -1682,7 +1682,6 @@ public class ScreeningService {
 
 			CreateScreeningSessionRequest request = new CreateScreeningSessionRequest();
 			request.setScreeningFlowId(icIntakeScreeningFlow.getScreeningFlowId());
-			request.setScreeningFlowVersionId(icIntakeScreeningFlow.getActiveScreeningFlowVersionId());
 			request.setPatientOrderId(patientOrderId);
 			request.setTargetAccountId(screeningSession.getTargetAccountId());
 			request.setCreatedByAccountId(screeningSession.getCreatedByAccountId());
