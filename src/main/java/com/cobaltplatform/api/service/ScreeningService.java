@@ -637,7 +637,7 @@ public class ScreeningService {
 				// Special behavior if we're IC and this is the special IC screening flow
 				creatingIntegratedCareScreeningSession = institution.getIntegratedCareEnabled()
 						&& (Objects.equals(screeningFlowVersion.getScreeningFlowId(), institution.getIntegratedCareScreeningFlowId())
-						|| (Objects.equals(screeningFlowVersion.getScreeningFlowId(), institution.getIntegratedCareIntakeScreeningFlowId())));
+						|| Objects.equals(screeningFlowVersion.getScreeningFlowId(), institution.getIntegratedCareIntakeScreeningFlowId()));
 			}
 		}
 
@@ -1177,7 +1177,9 @@ public class ScreeningService {
 		Institution institution = getInstitutionService().findInstitutionById(createdByAccount.getInstitutionId()).get();
 
 		// Special failsafe checks for IC
-		if (institution.getIntegratedCareEnabled() && institution.getIntegratedCareScreeningFlowId().equals(screeningFlowVersion.getScreeningFlowId())) {
+		if (institution.getIntegratedCareEnabled() &&
+				(institution.getIntegratedCareScreeningFlowId().equals(screeningFlowVersion.getScreeningFlowId())
+						|| institution.getIntegratedCareIntakeScreeningFlowId().equals(screeningFlowVersion.getScreeningFlowId()))) {
 			// Something is wrong if this doesn't exist, fail-fast with .get()
 			PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(screeningSession.getPatientOrderId()).get();
 
