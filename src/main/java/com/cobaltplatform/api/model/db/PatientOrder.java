@@ -30,7 +30,10 @@ import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClo
 import com.cobaltplatform.api.model.db.PatientOrderConsentStatus.PatientOrderConsentStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderDemographicsImportStatus.PatientOrderDemographicsImportStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
+import com.cobaltplatform.api.model.db.PatientOrderIntakeInsuranceStatus.PatientOrderIntakeInsuranceStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderIntakeLocationStatus.PatientOrderIntakeLocationStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderIntakeScreeningStatus.PatientOrderIntakeScreeningStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderIntakeWantsServicesStatus.PatientOrderIntakeWantsServicesStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
@@ -356,6 +359,12 @@ public class PatientOrder {
 	private Boolean testPatientOrder;
 	@Nullable
 	private Integer episodeDurationInDays;
+	@Nullable
+	private PatientOrderIntakeWantsServicesStatusId patientOrderIntakeWantsServicesStatusId;
+	@Nullable
+	private PatientOrderIntakeLocationStatusId patientOrderIntakeLocationStatusId;
+	@Nullable
+	private PatientOrderIntakeInsuranceStatusId patientOrderIntakeInsuranceStatusId;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -1687,5 +1696,32 @@ public class PatientOrder {
 
 	public void setEpisodeDurationInDays(@Nullable Integer episodeDurationInDays) {
 		this.episodeDurationInDays = episodeDurationInDays;
+	}
+
+	@Nullable
+	public PatientOrderIntakeWantsServicesStatusId getPatientOrderIntakeWantsServicesStatusId() {
+		return this.patientOrderIntakeWantsServicesStatusId;
+	}
+
+	public void setPatientOrderIntakeWantsServicesStatusId(@Nullable PatientOrderIntakeWantsServicesStatusId patientOrderIntakeWantsServicesStatusId) {
+		this.patientOrderIntakeWantsServicesStatusId = patientOrderIntakeWantsServicesStatusId;
+	}
+
+	@Nullable
+	public PatientOrderIntakeLocationStatusId getPatientOrderIntakeLocationStatusId() {
+		return this.patientOrderIntakeLocationStatusId;
+	}
+
+	public void setPatientOrderIntakeLocationStatusId(@Nullable PatientOrderIntakeLocationStatusId patientOrderIntakeLocationStatusId) {
+		this.patientOrderIntakeLocationStatusId = patientOrderIntakeLocationStatusId;
+	}
+
+	@Nullable
+	public PatientOrderIntakeInsuranceStatusId getPatientOrderIntakeInsuranceStatusId() {
+		return this.patientOrderIntakeInsuranceStatusId;
+	}
+
+	public void setPatientOrderIntakeInsuranceStatusId(@Nullable PatientOrderIntakeInsuranceStatusId patientOrderIntakeInsuranceStatusId) {
+		this.patientOrderIntakeInsuranceStatusId = patientOrderIntakeInsuranceStatusId;
 	}
 }

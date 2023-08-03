@@ -46,7 +46,10 @@ import com.cobaltplatform.api.model.db.PatientOrderDemographicsImportStatus.Pati
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderIntakeInsuranceStatus.PatientOrderIntakeInsuranceStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderIntakeLocationStatus.PatientOrderIntakeLocationStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderIntakeScreeningStatus.PatientOrderIntakeScreeningStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderIntakeWantsServicesStatus.PatientOrderIntakeWantsServicesStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
@@ -58,6 +61,7 @@ import com.cobaltplatform.api.model.db.PatientOrderTriageGroup;
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
+import com.cobaltplatform.api.model.db.ScreeningFlowType.ScreeningFlowTypeId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.service.ScreeningSessionResult;
 import com.cobaltplatform.api.service.AccountService;
@@ -477,6 +481,12 @@ public class PatientOrderApiResponse {
 	private String patientOrderResourceCheckInResponseStatusDescription;
 	@Nullable
 	private Boolean testPatientOrder;
+	@Nullable
+	private PatientOrderIntakeWantsServicesStatusId patientOrderIntakeWantsServicesStatusId;
+	@Nullable
+	private PatientOrderIntakeLocationStatusId patientOrderIntakeLocationStatusId;
+	@Nullable
+	private PatientOrderIntakeInsuranceStatusId patientOrderIntakeInsuranceStatusId;
 
 	public enum PatientOrderApiResponseSupplement {
 		MINIMAL,
@@ -633,7 +643,7 @@ public class PatientOrderApiResponse {
 					.map(patientOrderVoicemailTask -> patientOrderVoicemailTaskApiResponseFactory.create(patientOrderVoicemailTask))
 					.collect(Collectors.toList());
 
-			List<ScreeningSession> screeningSessions = screeningService.findScreeningSessionsByPatientOrderId(patientOrder.getPatientOrderId());
+			List<ScreeningSession> screeningSessions = screeningService.findScreeningSessionsByPatientOrderIdAndScreeningFlowTypeId(patientOrder.getPatientOrderId(), ScreeningFlowTypeId.INTEGRATED_CARE);
 
 			// Look for a completed screening session...
 			ScreeningSession currentScreeningSession = null;
@@ -836,6 +846,10 @@ public class PatientOrderApiResponse {
 
 		this.testPatientOrder = patientOrder.getTestPatientOrder();
 		this.mostRecentScreeningSessionCreatedByAccountRoleId = patientOrder.getMostRecentScreeningSessionCreatedByAccountRoleId();
+
+		this.patientOrderIntakeWantsServicesStatusId = patientOrder.getPatientOrderIntakeWantsServicesStatusId();
+		this.patientOrderIntakeLocationStatusId = patientOrder.getPatientOrderIntakeLocationStatusId();
+		this.patientOrderIntakeInsuranceStatusId = patientOrder.getPatientOrderIntakeInsuranceStatusId();
 
 		// MHIC-only view of the data
 		if (format == PatientOrderApiResponseFormat.MHIC) {
@@ -1805,5 +1819,95 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public Boolean getTestPatientOrder() {
 		return this.testPatientOrder;
+	}
+
+	@Nullable
+	public UUID getMostRecentIntakeScreeningSessionId() {
+		return this.mostRecentIntakeScreeningSessionId;
+	}
+
+	@Nullable
+	public Instant getMostRecentIntakeScreeningSessionCreatedAt() {
+		return this.mostRecentIntakeScreeningSessionCreatedAt;
+	}
+
+	@Nullable
+	public String getMostRecentIntakeScreeningSessionCreatedAtDescription() {
+		return this.mostRecentIntakeScreeningSessionCreatedAtDescription;
+	}
+
+	@Nullable
+	public UUID getMostRecentIntakeScreeningSessionCreatedByAccountId() {
+		return this.mostRecentIntakeScreeningSessionCreatedByAccountId;
+	}
+
+	@Nullable
+	public RoleId getMostRecentIntakeScreeningSessionCreatedByAccountRoleId() {
+		return this.mostRecentIntakeScreeningSessionCreatedByAccountRoleId;
+	}
+
+	@Nullable
+	public String getMostRecentIntakeScreeningSessionCreatedByAccountFirstName() {
+		return this.mostRecentIntakeScreeningSessionCreatedByAccountFirstName;
+	}
+
+	@Nullable
+	public String getMostRecentIntakeScreeningSessionCreatedByAccountLastName() {
+		return this.mostRecentIntakeScreeningSessionCreatedByAccountLastName;
+	}
+
+	@Nullable
+	public String getMostRecentIntakeScreeningSessionCreatedByAccountDisplayName() {
+		return this.mostRecentIntakeScreeningSessionCreatedByAccountDisplayName;
+	}
+
+	@Nullable
+	public String getMostRecentIntakeScreeningSessionCreatedByAccountDisplayNameWithLastFirst() {
+		return this.mostRecentIntakeScreeningSessionCreatedByAccountDisplayNameWithLastFirst;
+	}
+
+	@Nullable
+	public Boolean getMostRecentIntakeScreeningSessionCompleted() {
+		return this.mostRecentIntakeScreeningSessionCompleted;
+	}
+
+	@Nullable
+	public Instant getMostRecentIntakeScreeningSessionCompletedAt() {
+		return this.mostRecentIntakeScreeningSessionCompletedAt;
+	}
+
+	@Nullable
+	public String getMostRecentIntakeScreeningSessionCompletedAtDescription() {
+		return this.mostRecentIntakeScreeningSessionCompletedAtDescription;
+	}
+
+	@Nullable
+	public Boolean getMostRecentIntakeScreeningSessionByPatient() {
+		return this.mostRecentIntakeScreeningSessionByPatient;
+	}
+
+	@Nullable
+	public PatientOrderIntakeScreeningStatusId getPatientOrderIntakeScreeningStatusId() {
+		return this.patientOrderIntakeScreeningStatusId;
+	}
+
+	@Nullable
+	public String getPatientOrderIntakeScreeningStatusDescription() {
+		return this.patientOrderIntakeScreeningStatusDescription;
+	}
+
+	@Nullable
+	public PatientOrderIntakeWantsServicesStatusId getPatientOrderIntakeWantsServicesStatusId() {
+		return this.patientOrderIntakeWantsServicesStatusId;
+	}
+
+	@Nullable
+	public PatientOrderIntakeLocationStatusId getPatientOrderIntakeLocationStatusId() {
+		return this.patientOrderIntakeLocationStatusId;
+	}
+
+	@Nullable
+	public PatientOrderIntakeInsuranceStatusId getPatientOrderIntakeInsuranceStatusId() {
+		return this.patientOrderIntakeInsuranceStatusId;
 	}
 }

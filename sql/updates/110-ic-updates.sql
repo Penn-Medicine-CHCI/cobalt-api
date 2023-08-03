@@ -3,6 +3,38 @@ SELECT _v.register_patch('110-ic-updates', NULL, NULL);
 
 ALTER TABLE institution ADD COLUMN integrated_care_intake_screening_flow_id UUID REFERENCES screening_flow;
 
+INSERT INTO screening_type (screening_type_id, description) VALUES ('IC_INTAKE', 'Integrated Care Intake');
+INSERT INTO screening_flow_type (screening_flow_type_id, description) VALUES ('INTEGRATED_CARE_INTAKE', 'Integrated Care Intake');
+
+-- Status flags driven by IC intake questions
+CREATE TABLE patient_order_intake_wants_services_status (
+  patient_order_intake_wants_services_status_id VARCHAR PRIMARY KEY,
+  description VARCHAR NOT NULL
+);
+
+INSERT INTO patient_order_intake_wants_services_status VALUES ('UNKNOWN', 'Unknown');
+INSERT INTO patient_order_intake_wants_services_status VALUES ('YES', 'Yes');
+INSERT INTO patient_order_intake_wants_services_status VALUES ('NO', 'No');
+
+CREATE TABLE patient_order_intake_location_status (
+  patient_order_intake_location_status_id VARCHAR PRIMARY KEY,
+  description VARCHAR NOT NULL
+);
+
+INSERT INTO patient_order_intake_location_status VALUES ('UNKNOWN', 'Unknown');
+INSERT INTO patient_order_intake_location_status VALUES ('VALID', 'Valid');
+INSERT INTO patient_order_intake_location_status VALUES ('INVALID', 'Invalid');
+
+CREATE TABLE patient_order_intake_insurance_status (
+  patient_order_intake_insurance_status_id VARCHAR PRIMARY KEY,
+  description VARCHAR NOT NULL
+);
+
+INSERT INTO patient_order_intake_insurance_status VALUES ('UNKNOWN', 'Unknown');
+INSERT INTO patient_order_intake_insurance_status VALUES ('VALID', 'Valid');
+INSERT INTO patient_order_intake_insurance_status VALUES ('INVALID', 'Invalid');
+INSERT INTO patient_order_intake_insurance_status VALUES ('CHANGED_RECENTLY', 'Changed Recently');
+
 -- Need a few more focus types to conform to latest rules
 INSERT INTO patient_order_focus_type VALUES ('PSYCHIATRY', 'Psychiatry');
 INSERT INTO patient_order_focus_type VALUES ('LGBTIA', 'LGBTIA+ Competent Provider');
@@ -117,6 +149,11 @@ DELETE FROM patient_order_care_type WHERE patient_order_care_type_id='SAFETY_PLA
 
 -- Using patient_order_referral_reason and patient_order_referral instead now
 DROP TABLE patient_order_reason_for_referral;
+
+-- Status flags driven by IC intake questions
+ALTER TABLE patient_order ADD COLUMN patient_order_intake_wants_services_status_id VARCHAR NOT NULL REFERENCES patient_order_intake_wants_services_status DEFAULT 'UNKNOWN';
+ALTER TABLE patient_order ADD COLUMN patient_order_intake_location_status_id VARCHAR NOT NULL REFERENCES patient_order_intake_location_status DEFAULT 'UNKNOWN';
+ALTER TABLE patient_order ADD COLUMN patient_order_intake_insurance_status_id VARCHAR NOT NULL REFERENCES patient_order_intake_insurance_status DEFAULT 'UNKNOWN';
 
 -- Added "most recent intake"-related columns
 -- Modified triage selection to join on patient_order_triage_group, removed window function

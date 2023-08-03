@@ -56,6 +56,7 @@ import com.cobaltplatform.api.model.db.ScreeningAnswerFormat.ScreeningAnswerForm
 import com.cobaltplatform.api.model.db.ScreeningAnswerOption;
 import com.cobaltplatform.api.model.db.ScreeningConfirmationPrompt;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
+import com.cobaltplatform.api.model.db.ScreeningFlowType.ScreeningFlowTypeId;
 import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
 import com.cobaltplatform.api.model.db.ScreeningQuestion;
 import com.cobaltplatform.api.model.db.ScreeningSession;
@@ -1639,11 +1640,12 @@ public class ScreeningService {
 		Account createdByAccount = getAccountService().findAccountById(screeningSession.getCreatedByAccountId()).get();
 		Institution institution = getInstitutionService().findInstitutionById(createdByAccount.getInstitutionId()).get();
 
+		// Extra data gets sent for special IC screening flows
 		UUID patientOrderId = null;
+		boolean integratedCareIntakeScreeningFlow = institution.getIntegratedCareEnabled() && Objects.equals(screeningFlowVersion.getScreeningFlowId(), institution.getIntegratedCareIntakeScreeningFlowId());
+		boolean integratedCareClinicalScreeningFlow = institution.getIntegratedCareEnabled() && Objects.equals(screeningFlowVersion.getScreeningFlowId(), institution.getIntegratedCareScreeningFlowId());
 
-		// Extra data gets sent for special IC screening flow
-		if (institution.getIntegratedCareEnabled()
-				&& Objects.equals(screeningFlowVersion.getScreeningFlowId(), institution.getIntegratedCareScreeningFlowId())) {
+		if (integratedCareIntakeScreeningFlow || integratedCareClinicalScreeningFlow) {
 			PatientOrder patientOrder = getPatientOrderService().findPatientOrderByScreeningSessionId(screeningSessionId).get();
 			patientOrderId = patientOrder.getPatientOrderId();
 		}
@@ -1657,21 +1659,58 @@ public class ScreeningService {
 		if (destinationFunctionOutput.getScreeningSessionDestinationId() == null)
 			return Optional.empty();
 
-		return Optional.of(new ScreeningSessionDestination(
-				destinationFunctionOutput.getScreeningSessionDestinationId(), destinationFunctionOutput.getContext()));
+		ScreeningSessionDestinationId screeningSessionDestinationId = destinationFunctionOutput.getScreeningSessionDestinationId();
+		Map<String, Object> context = destinationFunctionOutput.getContext() == null ? new HashMap<>() : new HashMap<>(destinationFunctionOutput.getContext());
+
+		// Special handling for IC intake screening flow; create the clinical screening flow immediately after completing and
+		// route to it as the destination
+		if (integratedCareIntakeScreeningFlow) {
+			// TODO: shou we always invoke this?
+
+//			List<ScreeningSession> icClinicalScreeningSessions = findScreeningSessionsByPatientOrderIdAndScreeningFlowTypeId(patientOrderId, ScreeningFlowTypeId.INTEGRATED_CARE);
+//			ScreeningSession completedIcClinicalScreeningSession = icClinicalScreeningSessions.stream()
+//					.filter(icClinicalScreeningSession -> icClinicalScreeningSession.getCompleted())
+//					.findFirst()
+//					.orElse(null);
+
+			getLogger().info("Because the IC Intake screening flow was completed, immediately kick off the clinical one...");
+
+			ScreeningFlow icIntakeScreeningFlow = findScreeningFlowById(institution.getIntegratedCareIntakeScreeningFlowId()).get();
+
+			CreateScreeningSessionRequest request = new CreateScreeningSessionRequest();
+			request.setScreeningFlowId(icIntakeScreeningFlow.getScreeningFlowId());
+			request.setScreeningFlowVersionId(icIntakeScreeningFlow.getActiveScreeningFlowVersionId());
+			request.setPatientOrderId(patientOrderId);
+			request.setTargetAccountId(screeningSession.getTargetAccountId());
+			request.setCreatedByAccountId(screeningSession.getCreatedByAccountId());
+
+			UUID icIntakeScreeningSessionId = createScreeningSession(request);
+
+			ScreeningQuestionContext nextScreeningQuestionContext =
+					findNextUnansweredScreeningQuestionContextByScreeningSessionId(icIntakeScreeningSessionId).orElse(null);
+
+			ScreeningQuestionContextId nextScreeningQuestionContextId = nextScreeningQuestionContext.getScreeningQuestionContextId();
+			context.put("nextScreeningQuestionContextId", nextScreeningQuestionContextId);
+		}
+
+		return Optional.of(new ScreeningSessionDestination(screeningSessionDestinationId, context));
 	}
 
 	@Nonnull
-	public List<ScreeningSession> findScreeningSessionsByPatientOrderId(@Nullable UUID patientOrderId) {
+	public List<ScreeningSession> findScreeningSessionsByPatientOrderIdAndScreeningFlowTypeId(@Nullable UUID patientOrderId,
+																																														@Nullable ScreeningFlowTypeId screeningFlowTypeId) {
 		if (patientOrderId == null)
 			return List.of();
 
 		return getDatabase().queryForList("""
-				SELECT *
-				FROM screening_session
-				WHERE patient_order_id=?
-				ORDER BY created DESC
-				""", ScreeningSession.class, patientOrderId);
+				SELECT ss.*
+				FROM screening_session ss, screening_flow_version sfv, screening_flow sf
+				WHERE ss.patient_order_id=?
+				AND ss.screening_flow_version_id=sfv.screening_flow_version_id
+				AND sfv.screening_flow_id = sf.screening_flow_id
+				AND sf.screening_flow_type_id=?
+				ORDER BY ss.created DESC
+				""", ScreeningSession.class, patientOrderId, screeningFlowTypeId);
 	}
 
 	@Nonnull

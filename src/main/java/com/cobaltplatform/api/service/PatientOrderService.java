@@ -125,6 +125,7 @@ import com.cobaltplatform.api.model.db.PatientOrderVoicemailTask;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
+import com.cobaltplatform.api.model.db.ScreeningFlowType.ScreeningFlowTypeId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.ScreeningType;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
@@ -3519,7 +3520,7 @@ public class PatientOrderService implements AutoCloseable {
 			throw new ValidationException(getStrings().get("Cannot generate a clinical report; there is no triage information available for this patient order."));
 
 		// Look for a completed screening session...
-		List<ScreeningSession> screeningSessions = getScreeningService().findScreeningSessionsByPatientOrderId(patientOrder.getPatientOrderId());
+		List<ScreeningSession> screeningSessions = getScreeningService().findScreeningSessionsByPatientOrderIdAndScreeningFlowTypeId(patientOrder.getPatientOrderId(), ScreeningFlowTypeId.INTEGRATED_CARE);
 		ScreeningSession completedScreeningSession = screeningSessions.stream()
 				.filter(screeningSession -> screeningSession.getCompleted())
 				.findFirst()
