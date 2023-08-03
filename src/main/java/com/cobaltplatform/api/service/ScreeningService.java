@@ -1631,6 +1631,15 @@ public class ScreeningService {
 
 	@Nonnull
 	public Optional<ScreeningSessionDestination> determineDestinationForScreeningSessionId(@Nullable UUID screeningSessionId) {
+		return determineDestinationForScreeningSessionId(screeningSessionId, false);
+	}
+
+	@Nonnull
+	public Optional<ScreeningSessionDestination> determineDestinationForScreeningSessionId(@Nullable UUID screeningSessionId,
+																																												 @Nullable Boolean withSideEffects) {
+		if (withSideEffects == null)
+			withSideEffects = false;
+
 		if (screeningSessionId == null)
 			return Optional.empty();
 
@@ -1665,34 +1674,34 @@ public class ScreeningService {
 		ScreeningSessionDestinationId screeningSessionDestinationId = destinationFunctionOutput.getScreeningSessionDestinationId();
 		Map<String, Object> context = destinationFunctionOutput.getContext() == null ? new HashMap<>() : new HashMap<>(destinationFunctionOutput.getContext());
 
-		// Special handling for IC intake screening flow; create the clinical screening flow immediately after completing and
-		// route to it as the destination
-		if (integratedCareIntakeScreeningFlow) {
-			// TODO: shou we always invoke this?
-
+		if (withSideEffects) {
+			// Special handling for IC intake screening flow; create the clinical screening flow immediately after completing and
+			// route to it as the destination
+			if (integratedCareIntakeScreeningFlow) {
 //			List<ScreeningSession> icClinicalScreeningSessions = findScreeningSessionsByPatientOrderIdAndScreeningFlowTypeId(patientOrderId, ScreeningFlowTypeId.INTEGRATED_CARE);
 //			ScreeningSession completedIcClinicalScreeningSession = icClinicalScreeningSessions.stream()
 //					.filter(icClinicalScreeningSession -> icClinicalScreeningSession.getCompleted())
 //					.findFirst()
 //					.orElse(null);
 
-			getLogger().info("Because the IC Intake screening flow was completed, immediately kick off the clinical one...");
+				getLogger().info("Because the IC Intake screening flow was completed, immediately kick off the clinical one...");
 
-			ScreeningFlow icClinicalScreeningFlow = findScreeningFlowById(institution.getIntegratedCareScreeningFlowId()).get();
+				ScreeningFlow icClinicalScreeningFlow = findScreeningFlowById(institution.getIntegratedCareScreeningFlowId()).get();
 
-			CreateScreeningSessionRequest request = new CreateScreeningSessionRequest();
-			request.setScreeningFlowId(icClinicalScreeningFlow.getScreeningFlowId());
-			request.setPatientOrderId(patientOrderId);
-			request.setTargetAccountId(screeningSession.getTargetAccountId());
-			request.setCreatedByAccountId(screeningSession.getCreatedByAccountId());
+				CreateScreeningSessionRequest request = new CreateScreeningSessionRequest();
+				request.setScreeningFlowId(icClinicalScreeningFlow.getScreeningFlowId());
+				request.setPatientOrderId(patientOrderId);
+				request.setTargetAccountId(screeningSession.getTargetAccountId());
+				request.setCreatedByAccountId(screeningSession.getCreatedByAccountId());
 
-			UUID icClinicalScreeningSessionId = createScreeningSession(request);
+				UUID icClinicalScreeningSessionId = createScreeningSession(request);
 
-			ScreeningQuestionContext nextScreeningQuestionContext =
-					findNextUnansweredScreeningQuestionContextByScreeningSessionId(icClinicalScreeningSessionId).orElse(null);
+				ScreeningQuestionContext nextScreeningQuestionContext =
+						findNextUnansweredScreeningQuestionContextByScreeningSessionId(icClinicalScreeningSessionId).orElse(null);
 
-			ScreeningQuestionContextId nextScreeningQuestionContextId = nextScreeningQuestionContext.getScreeningQuestionContextId();
-			context.put("nextScreeningQuestionContextId", nextScreeningQuestionContextId);
+				ScreeningQuestionContextId nextScreeningQuestionContextId = nextScreeningQuestionContext.getScreeningQuestionContextId();
+				context.put("nextScreeningQuestionContextId", nextScreeningQuestionContextId);
+			}
 		}
 
 		return Optional.of(new ScreeningSessionDestination(screeningSessionDestinationId, context));

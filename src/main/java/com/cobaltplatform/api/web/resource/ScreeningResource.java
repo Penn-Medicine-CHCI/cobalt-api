@@ -494,7 +494,7 @@ public class ScreeningResource {
 		ScreeningQuestionContext nextScreeningQuestionContext =
 				getScreeningService().findNextUnansweredScreeningQuestionContextByScreeningSessionId(screeningSession.getScreeningSessionId()).orElse(null);
 
-		ScreeningSessionDestination screeningSessionDestination = getScreeningService().determineDestinationForScreeningSessionId(screeningSession.getScreeningSessionId()).orElse(null);
+		ScreeningSessionDestination screeningSessionDestination = getScreeningService().determineDestinationForScreeningSessionId(screeningSession.getScreeningSessionId(), true).orElse(null);
 
 		ScreeningSession updatedScreeningSession = getScreeningService().findScreeningSessionById(screeningSessionScreening.getScreeningSessionId()).get();
 
