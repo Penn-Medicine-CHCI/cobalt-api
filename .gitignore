@@ -49,3 +49,13 @@ src/test/resources/account-activities.json
 src/test/resources/accounts.json
 /pic/reports/*.csv
 sql/initial/bootstrap.sql
+
+# Email Util
+util/emails/.DS_Store
+util/emails/node_modules
+util/emails/npm-debug.log
+util/emails/bower_components
+util/emails/dist
+util/emails/.sass-cache
+util/emails/.awspublish*
+util/emails/config.json

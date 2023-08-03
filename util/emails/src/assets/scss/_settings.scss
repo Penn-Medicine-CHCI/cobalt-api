@@ -1,0 +1,199 @@
+//  Foundation for Emails Settings
+//  ------------------------------
+//
+//  Table of Contents:
+//
+//   1.1 Cobalt Color
+//   1.2 Foundation Color
+//   2. Grid
+//   3. Block Grid
+//   4. Typography
+//   5. Button
+//   6. Callout
+//   7. Menu
+//   8. Thumbnail
+
+// 1.1 Cobalt Specific Color Config
+// --------------------------------
+$n000: #ffffff;
+$n050: #faf7f5;
+$n075: #f5f0ec;
+$n100: #dbd7d3;
+$n300: #c2bebb;
+$n500: #73716f;
+$n700: #42413f;
+$n900: #292827;
+
+$p050: #ecf2f8;
+$p100: #c3d0eb;
+$p300: #7a97ce;
+$p500: #30578e;
+$p700: #20406c;
+$p900: #102747;
+
+$a050: #faefe6;
+$a100: #f4ddc9;
+$a300: #f2ad74;
+$a500: #ee934e;
+$a700: #a35921;
+$a900: #7a3500;
+
+$r050: #f8ecea;
+$r100: #f0d2cc;
+$r300: #e56f65;
+$r500: #b82214;
+$r700: #85180e;
+$r900: #67120a;
+
+$y050: #fff5e0;
+$y100: #f5e5c9;
+$y300: #f2c87e;
+$y500: #f0b756;
+$y700: #ad7300;
+$y900: #7f5200;
+
+$g050: #e5f1f1;
+$g100: #c1dbdb;
+$g300: #81b2b1;
+$g500: #377276;
+$g700: #285457;
+$g900: #1d3b3d;
+
+$b050: #ecf2f8;
+$b100: #c3d0eb;
+$b300: #7a97ce;
+$b500: #30578e;
+$b700: #20406c;
+$b900: #102747;
+
+$o050: #faefe6;
+$o100: #f4ddc9;
+$o300: #f2ad74;
+$o500: #ee934e;
+$o700: #a35921;
+$o900: #7a3500;
+
+// 1.2 Foundation Specific Color Config
+// ------------------------------------
+$primary-color: $p500;
+$secondary-color: $a500;
+$success-color: $g500;
+$warning-color: $y500;
+$alert-color: $r500;
+$white: #ffffff;
+$light-gray: $n100;
+$medium-gray: $n500;
+$dark-gray: $n700;
+$black: #000000;
+$pre-color: $o500;
+$global-width: 600px;
+$global-width-small: 95%;
+$global-gutter: 16px;
+$body-background: $n075;
+$container-background: transparent;
+$global-padding: 16px;
+$global-margin: 16px;
+$global-radius: 4px;
+$global-rounded: 500px;
+$global-breakpoint: $global-width + $global-gutter;
+
+// 2. Grid
+// -------
+$grid-column-count: 12;
+$column-padding-bottom: 0;
+$container-radius: 0;
+
+// 3. Block Grid
+// -------------
+$block-grid-max: 8;
+$block-grid-gutter: $global-gutter;
+
+// 4. Typography
+// -------------
+$global-font-color: $n900;
+$body-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif,
+	'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+$global-font-weight: normal;
+$header-color: inherit;
+$global-line-height: 1.375;
+$global-font-size: 16px;
+$body-line-height: $global-line-height;
+$header-font-family: $body-font-family;
+$header-font-weight: $global-font-weight;
+$h1-font-size: 35px;
+$h2-font-size: 28px;
+$h3-font-size: 24px;
+$h4-font-size: 20px;
+$h5-font-size: 16px;
+$h6-font-size: 14px;
+$header-margin-bottom: 0;
+$paragraph-margin-bottom: 0;
+$small-font-size: 80%;
+$small-font-color: $n900;
+$lead-font-size: $global-font-size * 1.25;
+$lead-line-height: 1.6;
+$text-padding: 10px;
+$subheader-lineheight: 1.4;
+$subheader-color: $n900;
+$subheader-font-weight: $global-font-weight;
+$subheader-margin-top: 4px;
+$subheader-margin-bottom: 8px;
+$hr-width: $global-width;
+$hr-border: 1px solid $n100;
+$hr-margin: 0;
+$anchor-text-decoration: none;
+$anchor-color: $primary-color;
+$anchor-color-visited: $anchor-color;
+$anchor-color-hover: darken($primary-color, 10%);
+$anchor-color-active: $anchor-color-hover;
+$stat-font-size: 40px;
+
+// 5. Button
+// ---------
+$button-padding: (
+	tiny: 4px 8px,
+	small: 6px 16px,
+	default: 10px 20px,
+	large: 12px 28px,
+);
+$button-font-size: (
+	tiny: 10px,
+	small: 14px,
+	default: 14px,
+	large: 16px,
+);
+$button-color: $white;
+$button-color-alt: $medium-gray;
+$button-font-weight: bold;
+$button-margin: 0 0 $global-margin 0;
+$button-background: $p500;
+$button-border: 0 solid transparent;
+$button-radius: $global-radius;
+$button-rounded: $global-rounded;
+
+// 6. Callout
+// ----------
+$callout-background: $white;
+$callout-background-fade: 85%;
+$callout-padding: 10px;
+$callout-margin-bottom: $global-margin;
+$callout-border: 1px solid darken($callout-background, 20%);
+$callout-border-secondary: 1px solid darken($secondary-color, 20%);
+$callout-border-success: 1px solid darken($success-color, 20%);
+$callout-border-warning: 1px solid darken($warning-color, 20%);
+$callout-border-alert: 1px solid darken($alert-color, 20%);
+
+// 7. Menu
+// -------
+$menu-item-padding: 10px;
+$menu-item-gutter: 10px;
+$menu-item-color: $primary-color;
+
+// 8. Thumbnail
+// ------------
+$thumbnail-border: solid 4px $white;
+$thumbnail-margin-bottom: $global-margin;
+$thumbnail-shadow: 0 0 0 1px rgba($black, 0.2);
+$thumbnail-shadow-hover: 0 0 6px 1px rgba($primary-color, 0.5);
+$thumbnail-transition: box-shadow 200ms ease-out;
+$thumbnail-radius: $global-radius;
