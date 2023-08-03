@@ -1678,18 +1678,18 @@ public class ScreeningService {
 
 			getLogger().info("Because the IC Intake screening flow was completed, immediately kick off the clinical one...");
 
-			ScreeningFlow icIntakeScreeningFlow = findScreeningFlowById(institution.getIntegratedCareIntakeScreeningFlowId()).get();
+			ScreeningFlow icClinicalScreeningFlow = findScreeningFlowById(institution.getIntegratedCareScreeningFlowId()).get();
 
 			CreateScreeningSessionRequest request = new CreateScreeningSessionRequest();
-			request.setScreeningFlowId(icIntakeScreeningFlow.getScreeningFlowId());
+			request.setScreeningFlowId(icClinicalScreeningFlow.getScreeningFlowId());
 			request.setPatientOrderId(patientOrderId);
 			request.setTargetAccountId(screeningSession.getTargetAccountId());
 			request.setCreatedByAccountId(screeningSession.getCreatedByAccountId());
 
-			UUID icIntakeScreeningSessionId = createScreeningSession(request);
+			UUID icClinicalScreeningSessionId = createScreeningSession(request);
 
 			ScreeningQuestionContext nextScreeningQuestionContext =
-					findNextUnansweredScreeningQuestionContextByScreeningSessionId(icIntakeScreeningSessionId).orElse(null);
+					findNextUnansweredScreeningQuestionContextByScreeningSessionId(icClinicalScreeningSessionId).orElse(null);
 
 			ScreeningQuestionContextId nextScreeningQuestionContextId = nextScreeningQuestionContext.getScreeningQuestionContextId();
 			context.put("nextScreeningQuestionContextId", nextScreeningQuestionContextId);
