@@ -10,7 +10,8 @@
 		"build": "gulp --production",
 		"zip": "gulp zip --production",
 		"litmus": "gulp litmus --production",
-		"mail": "gulp mail --production"
+		"mail": "gulp mail --production",
+		"java": "gulp java --production"
 	},
 	"author": "Foundation <contact@get.foundation> (https://get.foundation)",
 	"license": "MIT",
@@ -31,6 +32,8 @@
 		"gulp-cached": "^1.1.0",
 		"gulp-cli": "^1.1.0",
 		"gulp-concat": "^2.6.0",
+		"gulp-format-html": "^2.2.0",
+		"gulp-header": "^2.0.9",
 		"gulp-html-src": "^1.0.0",
 		"gulp-htmlmin": "^5.0.1",
 		"gulp-if": "^3.0.0",

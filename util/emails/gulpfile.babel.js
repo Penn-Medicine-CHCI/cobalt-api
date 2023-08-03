@@ -11,6 +11,8 @@ import siphon from 'siphon-media-query';
 import path from 'path';
 import merge from 'merge-stream';
 import beep from 'beepbeep';
+import formatHTML from 'gulp-format-html';
+import header from 'gulp-header';
 
 const $ = plugins();
 
@@ -39,6 +41,22 @@ gulp.task('mail', gulp.series('build', creds, aws, mail));
 // Build emails, then zip
 gulp.task('zip', gulp.series('build', zip));
 
+// Build the "dist" folder by running all of the below tasks for Java use
+gulp.task(
+	'java',
+	gulp.series(
+		clean,
+		inkifyLayouts,
+		inkifyPages,
+		sass,
+		images,
+		injectStylesIntoLayouts,
+		injectStylesIntoPages,
+		replaceRootHbs,
+		formatHtml
+	)
+);
+
 // Delete the "dist" folder
 // This happens every time a build starts
 function clean(done) {
@@ -59,6 +77,61 @@ function pages() {
 			})
 		)
 		.pipe(inky())
+		.pipe(gulp.dest('dist'));
+}
+
+function inkifyPages() {
+	return gulp
+		.src(['src/pages/**/*.html', '!src/pages/index.html', '!src/pages/archive/**/*.html'])
+		.pipe(inky())
+		.pipe(gulp.dest('dist/views'));
+}
+function inkifyLayouts() {
+	return gulp
+		.src(['src/layouts/**/*.html', '!src/layouts/archive/**/*.html'])
+		.pipe(inky())
+		.pipe(gulp.dest('dist/layouts'));
+}
+function injectStylesIntoLayouts() {
+	const css = fs.readFileSync('dist/css/app.css').toString();
+
+	return gulp
+		.src('dist/layouts/**/*.html')
+		.pipe($.replace('<!-- <style> -->', `<style>${css}</style>`))
+		.pipe($.replace('<link rel="stylesheet" type="text/css" href="{{root}}css/app.css">', ''))
+		.pipe(
+			$.inlineCss({
+				applyStyleTags: true,
+				removeStyleTags: true,
+				preserveMediaQueries: true,
+				removeLinkTags: true,
+			})
+		)
+		.pipe(gulp.dest('dist/layouts'));
+}
+function injectStylesIntoPages() {
+	const css = fs.readFileSync('dist/css/app.css').toString();
+
+	return gulp
+		.src('dist/views/**/*.html')
+		.pipe(header(`<style>${css}</style>`))
+		.pipe(
+			$.inlineCss({
+				applyStyleTags: true,
+				removeStyleTags: true,
+				preserveMediaQueries: false,
+				removeLinkTags: true,
+			})
+		)
+		.pipe(gulp.dest('dist/views'));
+}
+function replaceRootHbs() {
+	return gulp.src('dist/**/*.html').pipe($.replace('{{root}}', '{{{staticFileUrlPrefix}}}')).pipe(gulp.dest('dist'));
+}
+function formatHtml() {
+	return gulp
+		.src('dist/**/*.html')
+		.pipe(formatHTML({ indent_size: 4 }))
 		.pipe(gulp.dest('dist'));
 }
 
