@@ -57,10 +57,11 @@ gulp.task(
 		injectStylesIntoPages,
 		formatHtmlFiles,
 		changeHtmlFilesToHbsFiles,
-		removeHtmlFilesFromDist,
 		sanitizeHbsFiles,
 		injectLayoutSpecificCode,
-		injectViewSpecificCode
+		injectViewSpecificCode,
+		removeHtmlFilesFromDist,
+		removeCssDirectoryFromDist
 	)
 );
 
@@ -148,9 +149,6 @@ function changeHtmlFilesToHbsFiles() {
 		)
 		.pipe(gulp.dest('dist'));
 }
-function removeHtmlFilesFromDist(done) {
-	rimraf('dist/**/*.html', done);
-}
 function sanitizeHbsFiles() {
 	return gulp.src('dist/**/*.hbs').pipe($.replace('{{root}}', '{{{staticFileUrlPrefix}}}')).pipe(gulp.dest('dist'));
 }
@@ -191,6 +189,12 @@ function viewHbsCodeInjecter() {
 	});
 
 	return stream;
+}
+function removeHtmlFilesFromDist(done) {
+	rimraf('dist/**/*.html', done);
+}
+function removeCssDirectoryFromDist(done) {
+	rimraf('dist/css', done);
 }
 
 // Reset Panini's cache of layouts and partials
