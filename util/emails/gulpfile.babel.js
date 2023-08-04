@@ -174,7 +174,7 @@ function viewHbsCodeInjecter() {
 
 		if (file.isBuffer()) {
 			const fileAsString = file.contents.toString();
-			const frontMatterString = fileAsString.match(frontMatterRegex)[0];
+			const frontMatterString = (fileAsString.match(frontMatterRegex) || [])[0];
 			const frontMatterObject = yaml.loadAll(frontMatterString)[0];
 			const fileAsStringNoFrontMatter = fileAsString.replace(frontMatterRegex, '');
 
