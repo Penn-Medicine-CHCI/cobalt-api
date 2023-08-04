@@ -15,6 +15,7 @@ import formatHTML from 'gulp-format-html';
 import header from 'gulp-header';
 import footer from 'gulp-footer';
 import rename from 'gulp-rename';
+import through from 'through2';
 
 const $ = plugins();
 
@@ -157,10 +158,35 @@ function injectViewSpecificCode() {
 
 	return gulp
 		.src('dist/views/**/*.hbs')
-		.pipe($.replace(YAMLFrontMatter, ''))
-		.pipe(header('{{#partial "body"}}'))
 		.pipe(footer('{{/partial}}'))
+		.pipe(removeYamlFrontMatterAndAddLayoutToHbsFile())
+		.pipe(header('{{#partial "body"}}'))
 		.pipe(gulp.dest('dist/views'));
+}
+function removeYamlFrontMatterAndAddLayoutToHbsFile() {
+	const YAMLFrontMatter = /---(.|\n)*---/;
+
+	const stream = through.obj(function (file, _encoding, cb) {
+		if (file.isStream()) {
+			console.error('Streams are not supported!');
+			return cb();
+		}
+
+		if (file.isBuffer()) {
+			let fileAsString = file.contents.toString();
+			const yamlContent = fileAsString.match(YAMLFrontMatter)[0];
+
+			console.log(yamlContent);
+
+			fileAsString = fileAsString.replace(YAMLFrontMatter, '');
+			file.contents = Buffer.from(fileAsString);
+		}
+
+		this.push(file);
+		cb();
+	});
+
+	return stream;
 }
 
 // Reset Panini's cache of layouts and partials
