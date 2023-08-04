@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('110-ic-updates', NULL, NULL);
+SELECT _v.register_patch('111-ic-updates', NULL, NULL);
 
 ALTER TABLE institution ADD COLUMN integrated_care_intake_screening_flow_id UUID REFERENCES screening_flow;
 
