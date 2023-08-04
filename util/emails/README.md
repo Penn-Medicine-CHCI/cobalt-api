@@ -15,11 +15,15 @@ Documentation for the [Foundation For Emails 2](https://get.foundation/emails.ht
 
 ### `npm run start` or `npm run dev`
 
-Kicks off the build process. A new browser tab will open with a server pointing to your project files.
+Develop emails locally. Auto open a browser and live reload.
 
 ### `npm run build`
 
-Compile SASS and inline styles into the HTML along with the rest of the build process.
+Compile completely inlined emails for stand alone use.
+
+### `npm run java`
+
+Build HBS files for use within the java application (this is a custom gulp task).
 
 ### `npm run litmus`
 
@@ -31,7 +35,7 @@ Build as above, then send to specified email address for testing. _SMTP server d
 
 ### `npm run zip`
 
-Build as above, then zip HTML and images for easy deployment.
+Same as `npm run build`, but zip HTML and images for easy deployment.
 
 ## Speeding Up Your Build
 
