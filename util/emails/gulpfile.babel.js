@@ -159,7 +159,10 @@ function injectLayoutSpecificCode() {
 		.pipe(gulp.dest('dist/layouts'));
 }
 function injectViewSpecificCode() {
-	return gulp.src('dist/views/**/*.hbs').pipe(viewHbsCodeInjecter()).pipe(gulp.dest('dist/views'));
+	return gulp
+		.src(['dist/views/**/*.hbs', '!dist/views/**/subject.hbs'])
+		.pipe(viewHbsCodeInjecter())
+		.pipe(gulp.dest('dist/views'));
 }
 function viewHbsCodeInjecter() {
 	const frontMatterRegex = /---(.|\n)*---/;
