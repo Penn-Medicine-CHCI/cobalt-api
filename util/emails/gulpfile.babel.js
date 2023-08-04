@@ -13,9 +13,9 @@ import merge from 'merge-stream';
 import beep from 'beepbeep';
 import formatHTML from 'gulp-format-html';
 import header from 'gulp-header';
-import footer from 'gulp-footer';
 import rename from 'gulp-rename';
 import through from 'through2';
+import yaml from 'js-yaml';
 
 const $ = plugins();
 
@@ -154,17 +154,10 @@ function sanitizeHbsFiles() {
 	return gulp.src('dist/**/*.hbs').pipe($.replace('{{root}}', '{{{staticFileUrlPrefix}}}')).pipe(gulp.dest('dist'));
 }
 function injectViewSpecificCode() {
-	const YAMLFrontMatter = /---(.|\n)*---/;
-
-	return gulp
-		.src('dist/views/**/*.hbs')
-		.pipe(footer('{{/partial}}'))
-		.pipe(removeYamlFrontMatterAndAddLayoutToHbsFile())
-		.pipe(header('{{#partial "body"}}'))
-		.pipe(gulp.dest('dist/views'));
+	return gulp.src('dist/views/**/*.hbs').pipe(viewHbsCodeInjecter()).pipe(gulp.dest('dist/views'));
 }
-function removeYamlFrontMatterAndAddLayoutToHbsFile() {
-	const YAMLFrontMatter = /---(.|\n)*---/;
+function viewHbsCodeInjecter() {
+	const frontMatterRegex = /---(.|\n)*---/;
 
 	const stream = through.obj(function (file, _encoding, cb) {
 		if (file.isStream()) {
@@ -173,13 +166,17 @@ function removeYamlFrontMatterAndAddLayoutToHbsFile() {
 		}
 
 		if (file.isBuffer()) {
-			let fileAsString = file.contents.toString();
-			const yamlContent = fileAsString.match(YAMLFrontMatter)[0];
+			const fileAsString = file.contents.toString();
+			const frontMatterString = fileAsString.match(frontMatterRegex)[0];
+			const frontMatterObj = yaml.loadAll(frontMatterString)[0];
+			const fileAsStringNoFrontMatter = fileAsString.replace(frontMatterRegex, '');
 
-			console.log(yamlContent);
+			const openPartialBuffer = Buffer.from('{{#partial "body"}}');
+			const hbsTemplate = Buffer.from(fileAsStringNoFrontMatter);
+			const closePartialBuffer = Buffer.from('{{/partial}}');
+			const layoutBuffer = Buffer.from(`{{> layouts/${frontMatterObj.layout}}}`);
 
-			fileAsString = fileAsString.replace(YAMLFrontMatter, '');
-			file.contents = Buffer.from(fileAsString);
+			file.contents = Buffer.concat([openPartialBuffer, hbsTemplate, closePartialBuffer, layoutBuffer]);
 		}
 
 		this.push(file);
