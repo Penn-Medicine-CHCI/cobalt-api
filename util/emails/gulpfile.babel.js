@@ -136,7 +136,7 @@ function injectStylesIntoPages() {
 function formatHtmlFiles() {
 	return gulp
 		.src('dist/**/*.html')
-		.pipe(formatHTML({ indent_size: 4, indent_with_tabs: true }))
+		.pipe(formatHTML({ indent_size: 4, indent_with_tabs: true, indent_inner_html: true }))
 		.pipe(gulp.dest('dist'));
 }
 function changeHtmlFilesToHbsFiles() {
@@ -164,7 +164,7 @@ function injectViewSpecificCode() {
 function viewHbsCodeInjecter() {
 	const frontMatterRegex = /---(.|\n)*---/;
 	const openPartialBuffer = Buffer.from('{{#partial "body"}}');
-	const closePartialBuffer = Buffer.from('{{/partial}}');
+	const closePartialBuffer = Buffer.from('\n{{/partial}}');
 
 	const stream = through.obj(function (file, _encoding, callback) {
 		if (file.isStream()) {
@@ -179,7 +179,7 @@ function viewHbsCodeInjecter() {
 			const fileAsStringNoFrontMatter = fileAsString.replace(frontMatterRegex, '');
 
 			const hbsTemplateBuffer = Buffer.from(fileAsStringNoFrontMatter);
-			const layoutBuffer = Buffer.from(`{{> layouts/${frontMatterObject.layout}}}`);
+			const layoutBuffer = Buffer.from(`\n{{> layouts/${frontMatterObject.layout}}}`);
 
 			file.contents = Buffer.concat([openPartialBuffer, hbsTemplateBuffer, closePartialBuffer, layoutBuffer]);
 		}
