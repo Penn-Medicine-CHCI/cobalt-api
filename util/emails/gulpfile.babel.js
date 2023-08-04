@@ -13,6 +13,7 @@ import merge from 'merge-stream';
 import beep from 'beepbeep';
 import formatHTML from 'gulp-format-html';
 import header from 'gulp-header';
+import footer from 'gulp-footer';
 import rename from 'gulp-rename';
 
 const $ = plugins();
@@ -53,9 +54,11 @@ gulp.task(
 		images,
 		injectStylesIntoLayouts,
 		injectStylesIntoPages,
-		sanitizeHbs,
-		formatHtml,
-		changeHtmlToHbs
+		formatHtmlFiles,
+		changeHtmlFilesToHbsFiles,
+		removeHtmlFilesFromDist,
+		sanitizeHbsFiles,
+		injectViewSpecificCode
 	)
 );
 
@@ -127,22 +130,13 @@ function injectStylesIntoPages() {
 		)
 		.pipe(gulp.dest('dist/views'));
 }
-function sanitizeHbs() {
-	const YAMLFrontMatter = /---(.|\n)*---/;
-
-	return gulp
-		.src('dist/**/*.html')
-		.pipe($.replace('{{root}}', '{{{staticFileUrlPrefix}}}'))
-		.pipe($.replace(YAMLFrontMatter, ''))
-		.pipe(gulp.dest('dist'));
-}
-function formatHtml() {
+function formatHtmlFiles() {
 	return gulp
 		.src('dist/**/*.html')
 		.pipe(formatHTML({ indent_size: 4, indent_with_tabs: true }))
 		.pipe(gulp.dest('dist'));
 }
-async function changeHtmlToHbs() {
+function changeHtmlFilesToHbsFiles() {
 	return gulp
 		.src('dist/**/*.html')
 		.pipe(
@@ -151,6 +145,22 @@ async function changeHtmlToHbs() {
 			})
 		)
 		.pipe(gulp.dest('dist'));
+}
+function removeHtmlFilesFromDist(done) {
+	rimraf('dist/**/*.html', done);
+}
+function sanitizeHbsFiles() {
+	return gulp.src('dist/**/*.hbs').pipe($.replace('{{root}}', '{{{staticFileUrlPrefix}}}')).pipe(gulp.dest('dist'));
+}
+function injectViewSpecificCode() {
+	const YAMLFrontMatter = /---(.|\n)*---/;
+
+	return gulp
+		.src('dist/views/**/*.hbs')
+		.pipe($.replace(YAMLFrontMatter, ''))
+		.pipe(header('{{#partial "body"}}'))
+		.pipe(footer('{{/partial}}'))
+		.pipe(gulp.dest('dist/views'));
 }
 
 // Reset Panini's cache of layouts and partials

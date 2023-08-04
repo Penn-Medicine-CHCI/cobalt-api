@@ -32,6 +32,7 @@
 		"gulp-cached": "^1.1.0",
 		"gulp-cli": "^1.1.0",
 		"gulp-concat": "^2.6.0",
+		"gulp-footer": "^2.1.0",
 		"gulp-format-html": "^2.2.0",
 		"gulp-header": "^2.0.9",
 		"gulp-html-src": "^1.0.0",
