@@ -59,6 +59,7 @@ gulp.task(
 		changeHtmlFilesToHbsFiles,
 		removeHtmlFilesFromDist,
 		sanitizeHbsFiles,
+		injectLayoutSpecificCode,
 		injectViewSpecificCode
 	)
 );
@@ -153,34 +154,40 @@ function removeHtmlFilesFromDist(done) {
 function sanitizeHbsFiles() {
 	return gulp.src('dist/**/*.hbs').pipe($.replace('{{root}}', '{{{staticFileUrlPrefix}}}')).pipe(gulp.dest('dist'));
 }
+function injectLayoutSpecificCode() {
+	return gulp
+		.src('dist/layouts/**/*.hbs')
+		.pipe($.replace('{{> body}}', '{{#block "body"}}{{/block}}'))
+		.pipe(gulp.dest('dist/layouts'));
+}
 function injectViewSpecificCode() {
 	return gulp.src('dist/views/**/*.hbs').pipe(viewHbsCodeInjecter()).pipe(gulp.dest('dist/views'));
 }
 function viewHbsCodeInjecter() {
 	const frontMatterRegex = /---(.|\n)*---/;
+	const openPartialBuffer = Buffer.from('{{#partial "body"}}');
+	const closePartialBuffer = Buffer.from('{{/partial}}');
 
-	const stream = through.obj(function (file, _encoding, cb) {
+	const stream = through.obj(function (file, _encoding, callback) {
 		if (file.isStream()) {
 			console.error('Streams are not supported!');
-			return cb();
+			return callback();
 		}
 
 		if (file.isBuffer()) {
 			const fileAsString = file.contents.toString();
 			const frontMatterString = fileAsString.match(frontMatterRegex)[0];
-			const frontMatterObj = yaml.loadAll(frontMatterString)[0];
+			const frontMatterObject = yaml.loadAll(frontMatterString)[0];
 			const fileAsStringNoFrontMatter = fileAsString.replace(frontMatterRegex, '');
 
-			const openPartialBuffer = Buffer.from('{{#partial "body"}}');
-			const hbsTemplate = Buffer.from(fileAsStringNoFrontMatter);
-			const closePartialBuffer = Buffer.from('{{/partial}}');
-			const layoutBuffer = Buffer.from(`{{> layouts/${frontMatterObj.layout}}}`);
+			const hbsTemplateBuffer = Buffer.from(fileAsStringNoFrontMatter);
+			const layoutBuffer = Buffer.from(`{{> layouts/${frontMatterObject.layout}}}`);
 
-			file.contents = Buffer.concat([openPartialBuffer, hbsTemplate, closePartialBuffer, layoutBuffer]);
+			file.contents = Buffer.concat([openPartialBuffer, hbsTemplateBuffer, closePartialBuffer, layoutBuffer]);
 		}
 
 		this.push(file);
-		cb();
+		callback();
 	});
 
 	return stream;
