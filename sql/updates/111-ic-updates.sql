@@ -6,6 +6,10 @@ ALTER TABLE institution ADD COLUMN integrated_care_intake_screening_flow_id UUID
 INSERT INTO screening_type (screening_type_id, description) VALUES ('IC_INTAKE', 'Integrated Care Intake');
 INSERT INTO screening_flow_type (screening_flow_type_id, description) VALUES ('INTEGRATED_CARE_INTAKE', 'Integrated Care Intake');
 
+-- Support for JSONB metadata on screening questions and screening answer options
+ALTER TABLE screening_question ADD COLUMN metadata JSONB;
+ALTER TABLE screening_answer_option ADD COLUMN metadata JSONB;
+
 -- Status flags driven by IC intake questions
 CREATE TABLE patient_order_intake_wants_services_status (
   patient_order_intake_wants_services_status_id VARCHAR PRIMARY KEY,

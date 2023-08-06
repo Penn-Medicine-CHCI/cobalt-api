@@ -1300,15 +1300,14 @@ public class ScreeningService {
 				findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreeningId);
 		List<ScreeningAnswer> screeningAnswers = findScreeningAnswersAcrossAllQuestionsByScreeningSessionScreeningId(screeningSessionScreeningId);
 
-		Integer answeredScreeningQuestionCount = getDatabase().queryForObject("""
-				SELECT COUNT(*)
-				FROM screening_session_answered_screening_question
+		List<ScreeningSessionAnsweredScreeningQuestion> screeningSessionAnsweredScreeningQuestions = getDatabase().queryForList("""
+				SELECT *
+				FROM v_screening_session_answered_screening_question
 				WHERE screening_session_screening_id=?
-				AND valid=TRUE
-				""", Integer.class, screeningSessionScreeningId).get();
+				""", ScreeningSessionAnsweredScreeningQuestion.class, screeningSessionScreeningId);
 
 		ScreeningScoringFunctionOutput screeningScoringFunctionOutput = executeScreeningScoringFunction(screeningQuestionId,
-				screeningVersion.getScoringFunction(), screeningQuestionsWithAnswerOptions, screeningAnswers, answeredScreeningQuestionCount);
+				screeningVersion.getScoringFunction(), screeningQuestionsWithAnswerOptions, screeningAnswers, screeningSessionAnsweredScreeningQuestions);
 
 		getLogger().info("Screening session screening ID {} ({}) was scored {} with completed flag={}.", screeningSessionScreeningId,
 				screeningVersion.getScreeningTypeId().name(), screeningScoringFunctionOutput.getScore(), screeningScoringFunctionOutput.getCompleted());
@@ -1729,12 +1728,18 @@ public class ScreeningService {
 																																					 @Nonnull String screeningScoringFunctionJavascript,
 																																					 @Nonnull List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions,
 																																					 @Nonnull List<ScreeningAnswer> screeningAnswers,
-																																					 @Nonnull Integer answeredScreeningQuestionCount) {
+																																					 @Nonnull List<ScreeningSessionAnsweredScreeningQuestion> screeningSessionAnsweredScreeningQuestions) {
 		requireNonNull(screeningQuestionId);
 		requireNonNull(screeningScoringFunctionJavascript);
 		requireNonNull(screeningQuestionsWithAnswerOptions);
 		requireNonNull(screeningAnswers);
-		requireNonNull(answeredScreeningQuestionCount);
+		requireNonNull(screeningSessionAnsweredScreeningQuestions);
+
+		int answeredScreeningQuestionCount = screeningSessionAnsweredScreeningQuestions.size();
+
+		Set<UUID> answeredScreeningQuestionIds = screeningSessionAnsweredScreeningQuestions.stream()
+				.map(screeningSessionAnsweredScreeningQuestion -> screeningSessionAnsweredScreeningQuestion.getScreeningQuestionId())
+				.collect(Collectors.toSet());
 
 		ScreeningScoringFunctionOutput screeningScoringFunctionOutput;
 
@@ -1781,6 +1786,7 @@ public class ScreeningService {
 		context.put("screeningAnswers", screeningAnswers);
 		context.put("screeningAnswerOptionsByScreeningAnswerId", screeningAnswerOptionsByScreeningAnswerId);
 		context.put("answeredScreeningQuestionCount", answeredScreeningQuestionCount);
+		context.put("answeredScreeningQuestionIds", answeredScreeningQuestionIds);
 		context.put("screeningQuestionIdsByQuestionText", screeningQuestionIdsByQuestionText);
 		context.put("screeningAnswerIdsByScreeningQuestionId", screeningAnswerIdsByScreeningQuestionId);
 
@@ -1957,6 +1963,7 @@ public class ScreeningService {
 				screeningResult.put("questionText", screeningQuestion.getQuestionText());
 				screeningResult.put("minimumAnswerCount", screeningQuestion.getMinimumAnswerCount());
 				screeningResult.put("maximumAnswerCount", screeningQuestion.getMaximumAnswerCount());
+				screeningResult.put("metadata", screeningQuestion.getMetadata());
 
 				// Each element in this list is a screeningAnswerOption and screeningAnswer pair
 				List<Map<String, Object>> screeningResponses = new ArrayList<>();
@@ -1970,6 +1977,7 @@ public class ScreeningService {
 						screeningAnswerOptionJson.put("answerOptionText", screeningAnswerOption.getAnswerOptionText());
 						screeningAnswerOptionJson.put("indicatesCrisis", screeningAnswerOption.getIndicatesCrisis());
 						screeningAnswerOptionJson.put("score", screeningAnswerOption.getScore());
+						screeningAnswerOptionJson.put("metadata", screeningAnswerOption.getMetadata());
 
 						Map<String, Object> screeningAnswerJson = new HashMap<>(2);
 						screeningAnswerJson.put("screeningAnswerId", screeningAnswer.getScreeningAnswerId());

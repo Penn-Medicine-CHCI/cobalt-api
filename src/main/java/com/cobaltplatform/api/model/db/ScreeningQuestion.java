@@ -21,17 +21,35 @@ package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.ScreeningAnswerContentHint.ScreeningAnswerContentHintId;
 import com.cobaltplatform.api.model.db.ScreeningAnswerFormat.ScreeningAnswerFormatId;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
+import com.pyranid.DatabaseColumn;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
+
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
 public class ScreeningQuestion {
+	@Nonnull
+	private static final Gson GSON;
+
+	static {
+		GSON = new GsonBuilder()
+				.setPrettyPrinting()
+				.disableHtmlEscaping()
+				.create();
+	}
+
 	@Nullable
 	private UUID screeningQuestionId;
 	@Nullable
@@ -55,9 +73,37 @@ public class ScreeningQuestion {
 	@Nullable
 	private Integer displayOrder;
 	@Nullable
+	@DatabaseColumn("metadata")
+	private String metadataAsString;
+	@Nullable
+	private Map<String, Object> metadata;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
+
+	@Nonnull
+	protected Gson getGson() {
+		return GSON;
+	}
+
+	@Nullable
+	public String getMetadataAsString() {
+		return this.metadataAsString;
+	}
+
+	public void setMetadataAsString(@Nullable String metadataAsString) {
+		this.metadataAsString = metadataAsString;
+
+		String metadata = trimToNull(metadataAsString);
+		this.metadata = metadata == null ? Map.of() : getGson().fromJson(metadata, new TypeToken<Map<String, Object>>() {
+		}.getType());
+	}
+
+	@Nonnull
+	public Map<String, Object> getMetadata() {
+		return this.metadata;
+	}
 
 	@Nullable
 	public UUID getScreeningQuestionId() {
