@@ -1,6 +1,18 @@
 BEGIN;
 SELECT _v.register_patch('111-ic-updates', NULL, NULL);
 
+-- Introduce PSYCHOTHERAPIST feature
+INSERT INTO feature (feature_id, navigation_header_id, name, url_name) VALUES
+	('PSYCHOTHERAPIST', 'CONNECT_WITH_SUPPORT', 'Psychotherapist', '/connect-with-support/psychotherapist');
+
+INSERT INTO feature_support_role(feature_id, support_role_id) VALUES
+	('PSYCHOTHERAPIST', 'PSYCHOLOGIST'),
+	('PSYCHOTHERAPIST', 'PSYCHIATRIST');
+
+INSERT INTO feature_filter(feature_id, filter_id) VALUES
+	('PSYCHOTHERAPIST', 'DATE'),
+	('PSYCHOTHERAPIST', 'TIME_OF_DAY');
+
 ALTER TABLE institution ADD COLUMN integrated_care_intake_screening_flow_id UUID REFERENCES screening_flow;
 
 INSERT INTO screening_type (screening_type_id, description) VALUES ('IC_INTAKE', 'Integrated Care Intake');

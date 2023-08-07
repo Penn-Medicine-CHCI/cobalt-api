@@ -65,7 +65,8 @@ public class Feature {
 		INSTITUTION_RESOURCES,
 		PSYCHOLOGIST,
 		PSYCHIATRIST,
-		LCSW
+		LCSW,
+		PSYCHOTHERAPIST
 	}
 
 	@Nullable
