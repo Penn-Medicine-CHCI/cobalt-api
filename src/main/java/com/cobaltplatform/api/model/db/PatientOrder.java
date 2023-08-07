@@ -259,6 +259,8 @@ public class PatientOrder {
 	@Nullable
 	private Instant mostRecentScreeningSessionCompletedAt;
 	@Nullable
+	private Boolean mostRecentScreeningSessionAppearsAbandoned;
+	@Nullable
 	private UUID mostRecentIntakeScreeningSessionId;
 	@Nullable
 	private Instant mostRecentIntakeScreeningSessionCreatedAt;
@@ -278,6 +280,8 @@ public class PatientOrder {
 	private Instant mostRecentIntakeScreeningSessionCompletedAt;
 	@Nullable
 	private Boolean mostRecentIntakeScreeningSessionByPatient;
+	@Nullable
+	private Boolean mostRecentIntakeScreeningSessionAppearsAbandoned;
 	@Nullable
 	private PatientOrderIntakeScreeningStatusId patientOrderIntakeScreeningStatusId;
 	@Nullable
@@ -1723,5 +1727,23 @@ public class PatientOrder {
 
 	public void setPatientOrderIntakeInsuranceStatusId(@Nullable PatientOrderIntakeInsuranceStatusId patientOrderIntakeInsuranceStatusId) {
 		this.patientOrderIntakeInsuranceStatusId = patientOrderIntakeInsuranceStatusId;
+	}
+
+	@Nullable
+	public Boolean getMostRecentScreeningSessionAppearsAbandoned() {
+		return this.mostRecentScreeningSessionAppearsAbandoned;
+	}
+
+	public void setMostRecentScreeningSessionAppearsAbandoned(@Nullable Boolean mostRecentScreeningSessionAppearsAbandoned) {
+		this.mostRecentScreeningSessionAppearsAbandoned = mostRecentScreeningSessionAppearsAbandoned;
+	}
+
+	@Nullable
+	public Boolean getMostRecentIntakeScreeningSessionAppearsAbandoned() {
+		return this.mostRecentIntakeScreeningSessionAppearsAbandoned;
+	}
+
+	public void setMostRecentIntakeScreeningSessionAppearsAbandoned(@Nullable Boolean mostRecentIntakeScreeningSessionAppearsAbandoned) {
+		this.mostRecentIntakeScreeningSessionAppearsAbandoned = mostRecentIntakeScreeningSessionAppearsAbandoned;
 	}
 }

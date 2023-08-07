@@ -364,6 +364,8 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String mostRecentScreeningSessionCompletedAtDescription;
 	@Nullable
+	private Boolean mostRecentScreeningSessionAppearsAbandoned;
+	@Nullable
 	private UUID mostRecentIntakeScreeningSessionId;
 	@Nullable
 	private Instant mostRecentIntakeScreeningSessionCreatedAt;
@@ -389,6 +391,8 @@ public class PatientOrderApiResponse {
 	private String mostRecentIntakeScreeningSessionCompletedAtDescription;
 	@Nullable
 	private Boolean mostRecentIntakeScreeningSessionByPatient;
+	@Nullable
+	private Boolean mostRecentIntakeScreeningSessionAppearsAbandoned;
 	@Nullable
 	private PatientOrderIntakeScreeningStatusId patientOrderIntakeScreeningStatusId;
 	@Nullable
@@ -803,6 +807,7 @@ public class PatientOrderApiResponse {
 		this.mostRecentScreeningSessionCompleted = patientOrder.getMostRecentScreeningSessionCompleted();
 		this.mostRecentScreeningSessionCompletedAt = patientOrder.getMostRecentScreeningSessionCompletedAt();
 		this.mostRecentScreeningSessionCompletedAtDescription = patientOrder.getMostRecentScreeningSessionCompletedAt() == null ? null : formatter.formatTimestamp(patientOrder.getMostRecentScreeningSessionCompletedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.mostRecentScreeningSessionAppearsAbandoned = patientOrder.getMostRecentScreeningSessionAppearsAbandoned();
 
 		this.mostRecentIntakeScreeningSessionId = patientOrder.getMostRecentIntakeScreeningSessionId();
 		this.mostRecentIntakeScreeningSessionCreatedAt = patientOrder.getMostRecentIntakeScreeningSessionCreatedAt();
@@ -813,6 +818,7 @@ public class PatientOrderApiResponse {
 		this.mostRecentIntakeScreeningSessionCompletedAt = patientOrder.getMostRecentIntakeScreeningSessionCompletedAt();
 		this.mostRecentIntakeScreeningSessionCompletedAtDescription = patientOrder.getMostRecentIntakeScreeningSessionCompletedAt() == null ? null : formatter.formatTimestamp(patientOrder.getMostRecentIntakeScreeningSessionCompletedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 		this.mostRecentIntakeScreeningSessionByPatient = patientOrder.getMostRecentIntakeScreeningSessionByPatient();
+		this.mostRecentIntakeScreeningSessionAppearsAbandoned = patientOrder.getMostRecentIntakeScreeningSessionAppearsAbandoned();
 		this.patientOrderIntakeScreeningStatusId = patientOrder.getPatientOrderIntakeScreeningStatusId();
 		this.patientOrderIntakeScreeningStatusDescription = patientOrder.getPatientOrderIntakeScreeningStatusDescription();
 
@@ -1909,5 +1915,15 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public PatientOrderIntakeInsuranceStatusId getPatientOrderIntakeInsuranceStatusId() {
 		return this.patientOrderIntakeInsuranceStatusId;
+	}
+
+	@Nullable
+	public Boolean getMostRecentScreeningSessionAppearsAbandoned() {
+		return this.mostRecentScreeningSessionAppearsAbandoned;
+	}
+
+	@Nullable
+	public Boolean getMostRecentIntakeScreeningSessionAppearsAbandoned() {
+		return this.mostRecentIntakeScreeningSessionAppearsAbandoned;
 	}
 }

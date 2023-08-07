@@ -174,7 +174,8 @@ ALTER TABLE patient_order ADD COLUMN patient_order_intake_insurance_status_id VA
 -- Added "most recent intake"-related columns
 -- Modified triage selection to join on patient_order_triage_group, removed window function
 -- Modified referral reasons to pull from patient_order_referral/patient_order_referral_reason
--- Adjust outreach_followup_needed to take into account new IC instake question statuses
+-- Adjust outreach_followup_needed to take into account new IC intake question statuses
+-- Added most_recent_screening_session_appears_abandoned and most_recent_intake_screening_session_appears_abandoned
 CREATE or replace VIEW v_all_patient_order AS WITH
 poo_query AS (
     -- Count up the patient outreach attempts for each patient order
@@ -386,6 +387,11 @@ select
         WHEN poq.patient_account_id = ssq.created_by_account_id THEN true
         ELSE false
     END most_recent_screening_session_by_patient,
+    (
+    	ssq.screening_session_id IS NOT NULL
+    	AND ssq.completed = FALSE
+    	AND ssq.created < (NOW() - INTERVAL '1 hour')
+    ) AS most_recent_screening_session_appears_abandoned,
     ssiq.screening_session_id AS most_recent_intake_screening_session_id,
     ssiq.created AS most_recent_intake_screening_session_created_at,
     ssiq.created_by_account_id AS most_recent_intake_screening_session_created_by_account_id,
@@ -408,6 +414,11 @@ select
         WHEN poq.patient_account_id = ssiq.created_by_account_id THEN true
         ELSE false
     END most_recent_intake_screening_session_by_patient,
+    (
+    	ssiq.screening_session_id IS NOT NULL
+    	AND ssiq.completed = FALSE
+    	AND ssiq.created < (NOW() - INTERVAL '1 hour')
+    ) AS most_recent_intake_screening_session_appears_abandoned,
     panel_account.first_name AS panel_account_first_name,
     panel_account.last_name AS panel_account_last_name,
     pod.description AS patient_order_disposition_description,

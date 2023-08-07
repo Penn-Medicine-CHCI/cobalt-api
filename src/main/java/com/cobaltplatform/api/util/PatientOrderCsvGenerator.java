@@ -768,7 +768,7 @@ public class PatientOrderCsvGenerator {
 
 	@Nonnull
 	protected String randomOrderComments() {
-		return pickRandomElement(List.of("Your provider's care team is available to help you with your mental health concerns. These may include thoughts, feelings, or behaviors that you would like to change, such as sadness, worry, stress, difficulty sleeping, or substance use.  Your provider recommended that you call the Cobalt Integrated Care Resource Center for a brief assessment and to be connected to care that is right for you. Please call 215-555-1212 today or at your earliest convenience. The Resource Center is available Monday through Friday between the hours of 8:30 AM and 5:00 PM, or you may leave a message after hours. The Resource Center will also be reaching out to you to ensure you get connected to care."));
+		return pickRandomElement(List.of("Your provider's care team is available to help you with your mental health concerns. These may include thoughts, feelings, or behaviors that you would like to change, such as sadness, worry, stress, difficulty sleeping, or substance use.  Your provider recommended that you call the Cobalt Integrated Care Resource Center for a brief assessment and to be connected to care that is right for you. Please call 215-555-1212 today or at your earliest convenience. The Resource Center is available Monday through Friday between the hours of 8:30 AM and 4:30 PM, or you may leave a message after hours. The Resource Center will also be reaching out to you to ensure you get connected to care."));
 	}
 
 	@Nonnull
