@@ -174,6 +174,7 @@ ALTER TABLE patient_order ADD COLUMN patient_order_intake_insurance_status_id VA
 -- Added "most recent intake"-related columns
 -- Modified triage selection to join on patient_order_triage_group, removed window function
 -- Modified referral reasons to pull from patient_order_referral/patient_order_referral_reason
+-- Adjust outreach_followup_needed to take into account new IC instake question statuses
 CREATE or replace VIEW v_all_patient_order AS WITH
 poo_query AS (
     -- Count up the patient outreach attempts for each patient order
@@ -439,10 +440,23 @@ select
     rssq.scheduled_date_time AS patient_order_scheduled_screening_scheduled_date_time,
     rssq.calendar_url AS patient_order_scheduled_screening_calendar_url,
 
-        -- Figure out "outreach followup needed".
-        -- This means...
+    -- Figure out "outreach followup needed".
+    -- This means...
     (
-      -- 1. Order is open
+       (
+        -- 1. Order is open
+        poq.patient_order_disposition_id='OPEN'
+        AND (
+					-- 2. ...and any of the following are indicated during intake:
+					-- * Patient declines IC
+					-- * Patient does not live in an acceptable location
+					-- * Patient insurance is invalid or changed recently
+					poq.patient_order_intake_wants_services_status_id='NO'
+					OR poq.patient_order_intake_location_status_id='INVALID'
+					OR poq.patient_order_intake_insurance_status_id IN ('INVALID', 'CHANGED_RECENTLY')
+        )
+       ) OR (
+        -- 1. Order is open
         poq.patient_order_disposition_id='OPEN'
         -- 2. Screening has not been started or scheduled
         -- Basically patient_order_screening_status_id='NOT_SCREENED' above
@@ -454,7 +468,7 @@ select
         -- Basically most_recent_total_outreach_date_time above + [institution offset] >= NOW()
         AND (
             (GREATEST(poomaxq.max_outreach_date_time, smgmaxq.max_scheduled_message_group_date_time) + make_interval(days => i.integrated_care_outreach_followup_day_offset)) AT TIME ZONE i.time_zone <= NOW()
-        )
+        ))
     ) AS outreach_followup_needed,
 
     raq.appointment_start_time,

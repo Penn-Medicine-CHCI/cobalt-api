@@ -102,6 +102,7 @@ import com.cobaltplatform.api.model.db.PatientOrderMedication;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderOutreach;
 import com.cobaltplatform.api.model.db.PatientOrderOutreachResult;
+import com.cobaltplatform.api.model.db.PatientOrderReferral;
 import com.cobaltplatform.api.model.db.PatientOrderReferralReason;
 import com.cobaltplatform.api.model.db.PatientOrderReferralReason.PatientOrderReferralReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
@@ -521,6 +522,19 @@ public class PatientOrderService implements AutoCloseable {
 				WHERE ss.screening_session_id=?
 				AND ss.patient_order_id=po.patient_order_id
 				""", PatientOrder.class, screeningSessionId);
+	}
+
+	@Nonnull
+	public List<PatientOrderReferral> findPatientOrderReferralsByPatientOrderId(@Nullable UUID patientOrderId) {
+		if (patientOrderId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM patient_order_referral
+				WHERE patient_order_id=?
+				ORDER BY display_order
+				""", PatientOrderReferral.class, patientOrderId);
 	}
 
 	@Nonnull

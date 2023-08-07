@@ -45,6 +45,10 @@ import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClo
 import com.cobaltplatform.api.model.db.PatientOrderCrisisHandler;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderIntakeInsuranceStatus.PatientOrderIntakeInsuranceStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderIntakeLocationStatus.PatientOrderIntakeLocationStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderIntakeWantsServicesStatus.PatientOrderIntakeWantsServicesStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderReferralReason.PatientOrderReferralReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageOverrideReason.PatientOrderTriageOverrideReasonId;
@@ -1581,12 +1585,45 @@ public class ScreeningService {
 							"VALUES (?,?)", screeningSession.getScreeningSessionId(), featureId);
 				}
 
+				// Special handling for IC triage flow
+				if (institution.getIntegratedCareEnabled()
+						&& Objects.equals(institution.getIntegratedCareIntakeScreeningFlowId(), screeningFlowVersion.getScreeningFlowId())) {
+					PatientOrder patientOrder = getPatientOrderService().findPatientOrderByScreeningSessionId(screeningSession.getScreeningSessionId()).orElse(null);
+
+					if (patientOrder == null) {
+						getLogger().warn("No patient order for target account ID {} and screening session ID {}, ignoring intake results...", screeningSession.getTargetAccountId(), screeningSession.getScreeningSessionId());
+					} else {
+						PatientOrderIntakeLocationStatusId patientOrderIntakeLocationStatusId = patientOrder.getPatientOrderIntakeLocationStatusId();
+						PatientOrderIntakeInsuranceStatusId patientOrderIntakeInsuranceStatusId = patientOrder.getPatientOrderIntakeInsuranceStatusId();
+						PatientOrderIntakeWantsServicesStatusId patientOrderIntakeWantsServicesStatusId = patientOrder.getPatientOrderIntakeWantsServicesStatusId();
+
+						if (resultsFunctionOutput.getPatientOrderIntakeLocationStatusId() != null)
+							patientOrderIntakeLocationStatusId = resultsFunctionOutput.getPatientOrderIntakeLocationStatusId();
+
+						if (resultsFunctionOutput.getPatientOrderIntakeInsuranceStatusId() != null)
+							patientOrderIntakeInsuranceStatusId = resultsFunctionOutput.getPatientOrderIntakeInsuranceStatusId();
+
+						if (resultsFunctionOutput.getPatientOrderIntakeWantsServicesStatusId() != null)
+							patientOrderIntakeWantsServicesStatusId = resultsFunctionOutput.getPatientOrderIntakeWantsServicesStatusId();
+
+						getDatabase().execute("""
+										UPDATE patient_order
+										SET patient_order_intake_insurance_status_id=?,
+										patient_order_intake_location_status_id=?,
+										patient_order_intake_wants_services_status_id=?
+										WHERE patient_order_id=?
+										""", patientOrderIntakeInsuranceStatusId, patientOrderIntakeLocationStatusId,
+								patientOrderIntakeWantsServicesStatusId, patientOrder.getPatientOrderId());
+					}
+				}
+
+				// Special handling for IC clinical flow
 				if (institution.getIntegratedCareEnabled()
 						&& Objects.equals(institution.getIntegratedCareScreeningFlowId(), screeningFlowVersion.getScreeningFlowId())) {
 					PatientOrder patientOrder = getPatientOrderService().findPatientOrderByScreeningSessionId(screeningSession.getScreeningSessionId()).orElse(null);
 
 					if (patientOrder == null) {
-						getLogger().warn("No patient order for target account ID {} and screening session ID {}, ignoring triage results...", screeningSession.getTargetAccountId(), screeningSession.getScreeningSessionId());
+						getLogger().warn("No patient order for target account ID {} and screening session ID {}, ignoring clinical results...", screeningSession.getTargetAccountId(), screeningSession.getScreeningSessionId());
 					} else {
 						CreatePatientOrderTriageGroupRequest patientOrderTriageGroupRequest = new CreatePatientOrderTriageGroupRequest();
 						patientOrderTriageGroupRequest.setAccountId(screeningSession.getCreatedByAccountId());
@@ -2045,6 +2082,17 @@ public class ScreeningService {
 			// but there is no target account (i.e. patient never signed in/created account).
 			// So we assume self-administered only in the case where the created-by account is a patient
 			selfAdministered = getAccountService().findAccountById(screeningSession.getCreatedByAccountId()).get().getRoleId() == RoleId.PATIENT;
+
+			// Expose some fields that could be used to aid logic/triage
+			context.put("patientOrderIntakeLocationStatusId", patientOrder.getPatientOrderIntakeLocationStatusId());
+			context.put("patientOrderIntakeInsuranceStatusId", patientOrder.getPatientOrderIntakeInsuranceStatusId());
+			context.put("patientOrderIntakeWantsServicesStatusId", patientOrder.getPatientOrderIntakeWantsServicesStatusId());
+
+			Set<PatientOrderReferralReasonId> patientOrderReferralReasonIds = getPatientOrderService().findPatientOrderReferralsByPatientOrderId(patientOrder.getPatientOrderId()).stream()
+					.map(patientOrderReferral -> patientOrderReferral.getPatientOrderReferralReasonId())
+					.collect(Collectors.toSet());
+
+			context.put("patientOrderReferralReasonIds", patientOrderReferralReasonIds);
 		}
 
 		context.put("screenings", screenings);
@@ -2368,6 +2416,12 @@ public class ScreeningService {
 		@Nullable
 		@Deprecated
 		private Boolean recommendLegacyContentAnswerIds;
+		@Nullable
+		private PatientOrderIntakeLocationStatusId patientOrderIntakeLocationStatusId;
+		@Nullable
+		private PatientOrderIntakeInsuranceStatusId patientOrderIntakeInsuranceStatusId;
+		@Nullable
+		private PatientOrderIntakeWantsServicesStatusId patientOrderIntakeWantsServicesStatusId;
 
 		@Nullable
 		public Set<String> getRecommendedTagIds() {
@@ -2433,6 +2487,33 @@ public class ScreeningService {
 
 		public void setRecommendedFeatureIds(@Nullable Set<FeatureId> recommendedFeatureIds) {
 			this.recommendedFeatureIds = recommendedFeatureIds;
+		}
+
+		@Nullable
+		public PatientOrderIntakeLocationStatusId getPatientOrderIntakeLocationStatusId() {
+			return this.patientOrderIntakeLocationStatusId;
+		}
+
+		public void setPatientOrderIntakeLocationStatusId(@Nullable PatientOrderIntakeLocationStatusId patientOrderIntakeLocationStatusId) {
+			this.patientOrderIntakeLocationStatusId = patientOrderIntakeLocationStatusId;
+		}
+
+		@Nullable
+		public PatientOrderIntakeInsuranceStatusId getPatientOrderIntakeInsuranceStatusId() {
+			return this.patientOrderIntakeInsuranceStatusId;
+		}
+
+		public void setPatientOrderIntakeInsuranceStatusId(@Nullable PatientOrderIntakeInsuranceStatusId patientOrderIntakeInsuranceStatusId) {
+			this.patientOrderIntakeInsuranceStatusId = patientOrderIntakeInsuranceStatusId;
+		}
+
+		@Nullable
+		public PatientOrderIntakeWantsServicesStatusId getPatientOrderIntakeWantsServicesStatusId() {
+			return this.patientOrderIntakeWantsServicesStatusId;
+		}
+
+		public void setPatientOrderIntakeWantsServicesStatusId(@Nullable PatientOrderIntakeWantsServicesStatusId patientOrderIntakeWantsServicesStatusId) {
+			this.patientOrderIntakeWantsServicesStatusId = patientOrderIntakeWantsServicesStatusId;
 		}
 
 		@NotThreadSafe

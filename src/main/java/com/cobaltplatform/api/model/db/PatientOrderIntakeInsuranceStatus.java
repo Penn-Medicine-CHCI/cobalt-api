@@ -37,7 +37,8 @@ public class PatientOrderIntakeInsuranceStatus {
 	public enum PatientOrderIntakeInsuranceStatusId {
 		UNKNOWN,
 		VALID,
-		INVALID
+		INVALID,
+		CHANGED_RECENTLY
 	}
 
 	@Override
