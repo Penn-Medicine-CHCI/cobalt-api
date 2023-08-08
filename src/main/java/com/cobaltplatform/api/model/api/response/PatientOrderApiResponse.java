@@ -61,7 +61,6 @@ import com.cobaltplatform.api.model.db.PatientOrderTriageGroup;
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
-import com.cobaltplatform.api.model.db.ScreeningFlowType.ScreeningFlowTypeId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.service.ScreeningSessionResult;
 import com.cobaltplatform.api.service.AccountService;
@@ -304,6 +303,10 @@ public class PatientOrderApiResponse {
 	private List<PatientOrderScheduledMessageGroupApiResponse> patientOrderScheduledMessageGroups;
 	@Nullable
 	private List<PatientOrderVoicemailTaskApiResponse> patientOrderVoicemailTasks;
+	@Nullable
+	private ScreeningSessionApiResponse intakeScreeningSession;
+	@Nullable
+	private ScreeningSessionResult intakeScreeningSessionResult;
 	@Nullable
 	private ScreeningSessionApiResponse screeningSession;
 	@Nullable
@@ -647,23 +650,15 @@ public class PatientOrderApiResponse {
 					.map(patientOrderVoicemailTask -> patientOrderVoicemailTaskApiResponseFactory.create(patientOrderVoicemailTask))
 					.collect(Collectors.toList());
 
-			List<ScreeningSession> screeningSessions = screeningService.findScreeningSessionsByPatientOrderIdAndScreeningFlowTypeId(patientOrder.getPatientOrderId(), ScreeningFlowTypeId.INTEGRATED_CARE);
+			ScreeningSession mostRecentIntakeScreeningSession = screeningService.findScreeningSessionById(patientOrder.getMostRecentIntakeScreeningSessionId()).orElse(null);
 
-			// Look for a completed screening session...
-			ScreeningSession currentScreeningSession = null;
-			ScreeningSession completedScreeningSession = screeningSessions.stream()
-					.filter(screeningSession -> screeningSession.getCompleted())
-					.findFirst()
-					.orElse(null);
+			this.intakeScreeningSession = mostRecentIntakeScreeningSession == null ? null : screeningSessionApiResponseFactory.create(mostRecentIntakeScreeningSession);
+			this.intakeScreeningSessionResult = screeningService.findScreeningSessionResult(mostRecentIntakeScreeningSession).orElse(null);
 
-			// ...if no completed screening session, pick the first one in the list
-			if (completedScreeningSession != null)
-				currentScreeningSession = completedScreeningSession;
-			else
-				currentScreeningSession = screeningSessions.size() == 0 ? null : screeningSessions.get(0);
+			ScreeningSession mostRecentScreeningSession = screeningService.findScreeningSessionById(patientOrder.getMostRecentScreeningSessionId()).orElse(null);
 
-			this.screeningSession = currentScreeningSession == null ? null : screeningSessionApiResponseFactory.create(currentScreeningSession);
-			this.screeningSessionResult = completedScreeningSession == null ? null : screeningService.findScreeningSessionResult(completedScreeningSession).get();
+			this.screeningSession = mostRecentScreeningSession == null ? null : screeningSessionApiResponseFactory.create(mostRecentScreeningSession);
+			this.screeningSessionResult = screeningService.findScreeningSessionResult(mostRecentScreeningSession).orElse(null);
 
 			PatientOrderTriageGroup patientOrderTriageGroup = patientOrderService.findActivePatientOrderTriageGroupByPatientOrderId(patientOrder.getPatientOrderId()).orElse(null);
 			List<PatientOrderTriage> patientOrderTriages = patientOrderTriageGroup == null ? List.of() : patientOrderService.findPatientOrderTriagesByPatientOrderTriageGroupId(patientOrderTriageGroup.getPatientOrderTriageGroupId());
@@ -1350,6 +1345,16 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public List<PatientOrderTriageGroupApiResponse> getPatientOrderTriageGroups() {
 		return this.patientOrderTriageGroups;
+	}
+
+	@Nullable
+	public ScreeningSessionApiResponse getIntakeScreeningSession() {
+		return this.intakeScreeningSession;
+	}
+
+	@Nullable
+	public ScreeningSessionResult getIntakeScreeningSessionResult() {
+		return this.intakeScreeningSessionResult;
 	}
 
 	@Nullable

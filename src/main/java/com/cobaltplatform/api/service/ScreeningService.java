@@ -42,6 +42,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
+import com.cobaltplatform.api.model.db.PatientOrderConsentStatus.PatientOrderConsentStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderCrisisHandler;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
@@ -1585,7 +1586,7 @@ public class ScreeningService {
 							"VALUES (?,?)", screeningSession.getScreeningSessionId(), featureId);
 				}
 
-				// Special handling for IC triage flow
+				// Special handling for IC intake flow
 				if (institution.getIntegratedCareEnabled()
 						&& Objects.equals(institution.getIntegratedCareIntakeScreeningFlowId(), screeningFlowVersion.getScreeningFlowId())) {
 					PatientOrder patientOrder = getPatientOrderService().findPatientOrderByScreeningSessionId(screeningSession.getScreeningSessionId()).orElse(null);
@@ -1596,6 +1597,7 @@ public class ScreeningService {
 						PatientOrderIntakeLocationStatusId patientOrderIntakeLocationStatusId = patientOrder.getPatientOrderIntakeLocationStatusId();
 						PatientOrderIntakeInsuranceStatusId patientOrderIntakeInsuranceStatusId = patientOrder.getPatientOrderIntakeInsuranceStatusId();
 						PatientOrderIntakeWantsServicesStatusId patientOrderIntakeWantsServicesStatusId = patientOrder.getPatientOrderIntakeWantsServicesStatusId();
+						PatientOrderConsentStatusId patientOrderConsentStatusId = patientOrder.getPatientOrderConsentStatusId();
 
 						if (resultsFunctionOutput.getPatientOrderIntakeLocationStatusId() != null)
 							patientOrderIntakeLocationStatusId = resultsFunctionOutput.getPatientOrderIntakeLocationStatusId();
@@ -1606,14 +1608,18 @@ public class ScreeningService {
 						if (resultsFunctionOutput.getPatientOrderIntakeWantsServicesStatusId() != null)
 							patientOrderIntakeWantsServicesStatusId = resultsFunctionOutput.getPatientOrderIntakeWantsServicesStatusId();
 
+						if (resultsFunctionOutput.getPatientOrderConsentStatusId() != null)
+							patientOrderConsentStatusId = resultsFunctionOutput.getPatientOrderConsentStatusId();
+
 						getDatabase().execute("""
 										UPDATE patient_order
 										SET patient_order_intake_insurance_status_id=?,
 										patient_order_intake_location_status_id=?,
-										patient_order_intake_wants_services_status_id=?
+										patient_order_intake_wants_services_status_id=?,
+										patient_order_consent_status_id=?
 										WHERE patient_order_id=?
 										""", patientOrderIntakeInsuranceStatusId, patientOrderIntakeLocationStatusId,
-								patientOrderIntakeWantsServicesStatusId, patientOrder.getPatientOrderId());
+								patientOrderIntakeWantsServicesStatusId, patientOrderConsentStatusId, patientOrder.getPatientOrderId());
 					}
 				}
 
@@ -1713,14 +1719,14 @@ public class ScreeningService {
 		if (withSideEffects) {
 			// Special handling for IC intake screening flow; create the clinical screening flow immediately after completing and
 			// route to it as the destination
-			if (integratedCareIntakeScreeningFlow) {
+			if (integratedCareIntakeScreeningFlow && screeningSessionDestinationId == ScreeningSessionDestinationId.IC_MHIC_CLINICAL_SCREENING) {
 //			List<ScreeningSession> icClinicalScreeningSessions = findScreeningSessionsByPatientOrderIdAndScreeningFlowTypeId(patientOrderId, ScreeningFlowTypeId.INTEGRATED_CARE);
 //			ScreeningSession completedIcClinicalScreeningSession = icClinicalScreeningSessions.stream()
 //					.filter(icClinicalScreeningSession -> icClinicalScreeningSession.getCompleted())
 //					.findFirst()
 //					.orElse(null);
 
-				getLogger().info("Because the IC Intake screening flow was completed, immediately kick off the clinical one...");
+				getLogger().info("Because the IC Intake screening flow was completed and we're supposed to transition to clinical, immediately create the clinical one...");
 
 				ScreeningFlow icClinicalScreeningFlow = findScreeningFlowById(institution.getIntegratedCareScreeningFlowId()).get();
 
@@ -2422,6 +2428,8 @@ public class ScreeningService {
 		private PatientOrderIntakeInsuranceStatusId patientOrderIntakeInsuranceStatusId;
 		@Nullable
 		private PatientOrderIntakeWantsServicesStatusId patientOrderIntakeWantsServicesStatusId;
+		@Nullable
+		private PatientOrderConsentStatusId patientOrderConsentStatusId;
 
 		@Nullable
 		public Set<String> getRecommendedTagIds() {
@@ -2514,6 +2522,15 @@ public class ScreeningService {
 
 		public void setPatientOrderIntakeWantsServicesStatusId(@Nullable PatientOrderIntakeWantsServicesStatusId patientOrderIntakeWantsServicesStatusId) {
 			this.patientOrderIntakeWantsServicesStatusId = patientOrderIntakeWantsServicesStatusId;
+		}
+
+		@Nullable
+		public PatientOrderConsentStatusId getPatientOrderConsentStatusId() {
+			return this.patientOrderConsentStatusId;
+		}
+
+		public void setPatientOrderConsentStatusId(@Nullable PatientOrderConsentStatusId patientOrderConsentStatusId) {
+			this.patientOrderConsentStatusId = patientOrderConsentStatusId;
 		}
 
 		@NotThreadSafe
