@@ -1583,10 +1583,6 @@ public class PatientOrderService implements AutoCloseable {
 							"lastName", otherAlreadyOpenPatientOrder.getPatientLastName(),
 							"mrn", otherAlreadyOpenPatientOrder.getPatientMrn())));
 
-		// Special case: if we are explicitly re-opening an order that was closed due to "refused care"
-		// then flip its consent status back to UNKNOWN
-		boolean shouldResetConsentStatus = patientOrder.getPatientOrderClosureReasonId() == PatientOrderClosureReasonId.REFUSED_CARE
-				&& patientOrder.getPatientOrderConsentStatusId() == PatientOrderConsentStatusId.REJECTED;
 
 		getDatabase().execute("""
 				UPDATE patient_order
@@ -1594,17 +1590,6 @@ public class PatientOrderService implements AutoCloseable {
 				episode_closed_at=NULL, episode_closed_by_account_id=NULL
 				WHERE patient_order_id=?
 				""", PatientOrderDispositionId.OPEN, PatientOrderClosureReasonId.NOT_CLOSED, patientOrderId);
-
-		if (shouldResetConsentStatus) {
-			getLogger().debug("As a side effect of reopening, flipping consent status back to {} for patient order ID {}",
-					PatientOrderConsentStatusId.UNKNOWN.name(), patientOrder.getPatientOrderId());
-
-			getDatabase().execute("""
-					UPDATE patient_order
-					SET patient_order_consent_status_id=?
-					WHERE patient_order_id=?
-					""", PatientOrderConsentStatusId.UNKNOWN, patientOrderId);
-		}
 
 		createPatientOrderEvent(new CreatePatientOrderEventRequest() {
 			{
@@ -1718,17 +1703,6 @@ public class PatientOrderService implements AutoCloseable {
 				SET patient_order_consent_status_id=?, consent_status_updated_at=NOW(), consent_status_updated_by_account_id=?
 				WHERE patient_order_id=?
 				""", patientOrderConsentStatusId, accountId, patientOrderId);
-
-		// Side effect of rejection: immediately close out the order
-		if (patientOrderConsentStatusId == PatientOrderConsentStatusId.REJECTED) {
-			getLogger().info("Patient Order ID had its consent rejected, so closing it out...", patientOrderId);
-
-			closePatientOrder(new ClosePatientOrderRequest() {{
-				setPatientOrderId(patientOrderId);
-				setPatientOrderClosureReasonId(PatientOrderClosureReasonId.REFUSED_CARE);
-				setAccountId(accountId);
-			}});
-		}
 
 		// TODO: track event
 
@@ -2428,7 +2402,7 @@ public class PatientOrderService implements AutoCloseable {
 				getLogger().info("Changing resource check-in status for patient order ID {} to {}, so closing out...",
 						patientOrderId, patientOrderResourceCheckInResponseStatusId.name());
 				closePatientOrder(new ClosePatientOrderRequest() {{
-					setPatientOrderClosureReasonId(PatientOrderClosureReasonId.SCHEDULED_WITH_SPECIALTY_CARE);
+					setPatientOrderClosureReasonId(PatientOrderClosureReasonId.REFERRED_TO_SPECIALTY_CARE_ENGAGED);
 					setAccountId(accountId);
 					setPatientOrderId(patientOrderId);
 				}});
@@ -2462,7 +2436,7 @@ public class PatientOrderService implements AutoCloseable {
 				getLogger().info("Changing resource check-in status for patient order ID {} to {}, so closing out...",
 						patientOrderId, patientOrderResourceCheckInResponseStatusId.name());
 				closePatientOrder(new ClosePatientOrderRequest() {{
-					setPatientOrderClosureReasonId(PatientOrderClosureReasonId.REFUSED_CARE);
+					setPatientOrderClosureReasonId(PatientOrderClosureReasonId.REFERRED_TO_SPECIALTY_CARE_NOT_ENGAGED);
 					setAccountId(accountId);
 					setPatientOrderId(patientOrderId);
 				}});

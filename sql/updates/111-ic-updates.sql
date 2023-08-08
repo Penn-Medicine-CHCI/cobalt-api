@@ -22,6 +22,34 @@ INSERT INTO screening_flow_type (screening_flow_type_id, description) VALUES ('I
 ALTER TABLE screening_question ADD COLUMN metadata JSONB;
 ALTER TABLE screening_answer_option ADD COLUMN metadata JSONB;
 
+-- Add new closure reasons
+INSERT INTO patient_order_closure_reason VALUES
+  ('REFERRED_TO_SPECIALTY_CARE_ENGAGED', 'Referred to Specialty MH Care and Engaged', 2),
+  ('REFERRED_TO_SPECIALTY_CARE_NOT_ENGAGED', 'Referred to Specialty MH Care but Did Not Engage', 3),
+  ('REFERRED_TO_SPECIALTY_CARE_ENGAGEMENT_UNKNOWN', 'Referred to Specialty MH, Engagement Status Not Known', 4),
+  ('REFERRED_TO_PCP', 'Referred Back to PCP for Mental Health Care', 5),
+  ('LOST_TO_FOLLOWUP', 'Lost to Followup', 6),
+  ('DECLINED_CARE', 'Declined Care', 7),
+  ('INELIGIBLE_FOR_IC', 'Ineligible for Integrated Care', 8),
+  ('REFERRED_TO_QUARTET', 'Referred to Quartet for Connection to Specialty Care', 9);
+
+-- Migrate existing closure reasons
+UPDATE patient_order SET patient_order_closure_reason_id='INELIGIBLE_FOR_IC' WHERE patient_order_closure_reason_id IN ('INELIGIBLE_DUE_TO_INSURANCE', 'INELIGIBLE_DUE_TO_LOCATION');
+UPDATE patient_order SET patient_order_closure_reason_id='DECLINED_CARE' WHERE patient_order_closure_reason_id = 'REFUSED_CARE';
+UPDATE patient_order SET patient_order_closure_reason_id='REFERRED_TO_SPECIALTY_CARE_ENGAGEMENT_UNKNOWN' WHERE patient_order_closure_reason_id = 'TRANSFERRED_TO_SAFETY_PLANNING';
+UPDATE patient_order SET patient_order_closure_reason_id='REFERRED_TO_SPECIALTY_CARE_ENGAGEMENT_UNKNOWN' WHERE patient_order_closure_reason_id = 'SCHEDULED_WITH_SPECIALTY_CARE';
+UPDATE patient_order SET patient_order_closure_reason_id='REFERRED_TO_SPECIALTY_CARE_ENGAGEMENT_UNKNOWN' WHERE patient_order_closure_reason_id = 'SCHEDULED_WITH_MHP';
+
+-- Delete no-longer-used closure reasons
+DELETE FROM patient_order_closure_reason WHERE patient_order_closure_reason_id IN (
+ 'INELIGIBLE_DUE_TO_INSURANCE',
+ 'REFUSED_CARE',
+ 'TRANSFERRED_TO_SAFETY_PLANNING',
+ 'SCHEDULED_WITH_SPECIALTY_CARE',
+ 'SCHEDULED_WITH_MHP',
+ 'INELIGIBLE_DUE_TO_LOCATION'
+);
+
 -- Status flags driven by IC intake questions
 CREATE TABLE patient_order_intake_wants_services_status (
   patient_order_intake_wants_services_status_id VARCHAR PRIMARY KEY,
