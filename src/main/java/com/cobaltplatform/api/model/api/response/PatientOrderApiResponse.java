@@ -494,6 +494,8 @@ public class PatientOrderApiResponse {
 	private PatientOrderIntakeLocationStatusId patientOrderIntakeLocationStatusId;
 	@Nullable
 	private PatientOrderIntakeInsuranceStatusId patientOrderIntakeInsuranceStatusId;
+	@Nullable
+	private Boolean mostRecentIntakeAndClinicalScreeningsSatisfied;
 
 	public enum PatientOrderApiResponseSupplement {
 		MINIMAL,
@@ -851,6 +853,8 @@ public class PatientOrderApiResponse {
 		this.patientOrderIntakeWantsServicesStatusId = patientOrder.getPatientOrderIntakeWantsServicesStatusId();
 		this.patientOrderIntakeLocationStatusId = patientOrder.getPatientOrderIntakeLocationStatusId();
 		this.patientOrderIntakeInsuranceStatusId = patientOrder.getPatientOrderIntakeInsuranceStatusId();
+
+		this.mostRecentIntakeAndClinicalScreeningsSatisfied = patientOrder.getMostRecentIntakeAndClinicalScreeningsSatisfied();
 
 		// MHIC-only view of the data
 		if (format == PatientOrderApiResponseFormat.MHIC) {
@@ -1930,5 +1934,10 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public Boolean getMostRecentIntakeScreeningSessionAppearsAbandoned() {
 		return this.mostRecentIntakeScreeningSessionAppearsAbandoned;
+	}
+
+	@Nullable
+	public Boolean getMostRecentIntakeAndClinicalScreeningsSatisfied() {
+		return this.mostRecentIntakeAndClinicalScreeningsSatisfied;
 	}
 }

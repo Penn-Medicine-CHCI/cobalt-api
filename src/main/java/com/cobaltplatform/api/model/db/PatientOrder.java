@@ -369,6 +369,8 @@ public class PatientOrder {
 	private PatientOrderIntakeLocationStatusId patientOrderIntakeLocationStatusId;
 	@Nullable
 	private PatientOrderIntakeInsuranceStatusId patientOrderIntakeInsuranceStatusId;
+	@Nullable
+	private Boolean mostRecentIntakeAndClinicalScreeningsSatisfied;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -1745,5 +1747,14 @@ public class PatientOrder {
 
 	public void setMostRecentIntakeScreeningSessionAppearsAbandoned(@Nullable Boolean mostRecentIntakeScreeningSessionAppearsAbandoned) {
 		this.mostRecentIntakeScreeningSessionAppearsAbandoned = mostRecentIntakeScreeningSessionAppearsAbandoned;
+	}
+
+	@Nullable
+	public Boolean getMostRecentIntakeAndClinicalScreeningsSatisfied() {
+		return this.mostRecentIntakeAndClinicalScreeningsSatisfied;
+	}
+
+	public void setMostRecentIntakeAndClinicalScreeningsSatisfied(@Nullable Boolean mostRecentIntakeAndClinicalScreeningsSatisfied) {
+		this.mostRecentIntakeAndClinicalScreeningsSatisfied = mostRecentIntakeAndClinicalScreeningsSatisfied;
 	}
 }

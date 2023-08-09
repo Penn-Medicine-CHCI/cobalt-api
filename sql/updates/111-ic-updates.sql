@@ -445,6 +445,24 @@ select
     	AND ssiq.completed = FALSE
     	AND ssiq.created < (NOW() - INTERVAL '1 hour')
     ) AS most_recent_intake_screening_session_appears_abandoned,
+
+    (
+      -- Intake must always be complete.
+      -- But, it's possible to skip clinical if intake short-circuits it entirely.
+      -- So, we're satisfied if intake is complete AND...
+      (ssiq.screening_session_id IS NOT NULL AND ssiq.completed = TRUE)
+      AND (
+        -- Either clinical is complete
+        (ssq.screening_session_id IS NOT NULL AND ssq.completed = TRUE)
+        -- OR clinical does not exist at all (this occurs if intake short-circuits, clinical is never created)
+        OR
+        (ssq.screening_session_id IS NULL)
+        -- OR clinical exists BUT was created prior to the most recent completed intake was created
+        OR
+        (ssq.screening_session_id IS NOT NULL AND ssq.completed = FALSE AND ssiq.created > ssq.created)
+      )
+    ) AS most_recent_intake_and_clinical_screenings_satisfied,
+
     panel_account.first_name AS panel_account_first_name,
     panel_account.last_name AS panel_account_last_name,
     pod.description AS patient_order_disposition_description,
