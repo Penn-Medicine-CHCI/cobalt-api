@@ -693,7 +693,21 @@ public class ScreeningService {
 				setScreeningSessionId(screeningSessionId);
 			}});
 		} else {
-			Screening screening = findScreeningById(screeningFlowVersion.getInitialScreeningId()).get();
+			UUID initialScreeningId = null;
+
+			// If there's an initialization function, invoke it.
+			// The function can optionally allow for starting on a different screening than what's specified as the default
+			if (screeningFlowVersion.getInitializationFunction() != null) {
+				InitializationFunctionOutput initializationFunctionOutput = executeScreeningFlowFunction(screeningFlowVersion.getInitializationFunction(),
+						InitializationFunctionOutput.class, screeningSessionId, createdByAccount.getInstitutionId(), Map.of()).get();
+
+				initialScreeningId = initializationFunctionOutput.getInitialScreeningId();
+			}
+
+			if (initialScreeningId == null)
+				initialScreeningId = screeningFlowVersion.getInitialScreeningId();
+
+			Screening screening = findScreeningById(initialScreeningId).get();
 
 			// Initial screening is the current version of the screening specified in the flow
 			getDatabase().execute("""
@@ -2093,6 +2107,7 @@ public class ScreeningService {
 			context.put("patientOrderIntakeLocationStatusId", patientOrder.getPatientOrderIntakeLocationStatusId());
 			context.put("patientOrderIntakeInsuranceStatusId", patientOrder.getPatientOrderIntakeInsuranceStatusId());
 			context.put("patientOrderIntakeWantsServicesStatusId", patientOrder.getPatientOrderIntakeWantsServicesStatusId());
+			context.put("patientOrderConsentStatusId", patientOrder.getPatientOrderConsentStatusId());
 
 			Set<PatientOrderReferralReasonId> patientOrderReferralReasonIds = getPatientOrderService().findPatientOrderReferralsByPatientOrderId(patientOrder.getPatientOrderId()).stream()
 					.map(patientOrderReferral -> patientOrderReferral.getPatientOrderReferralReasonId())
@@ -2401,6 +2416,21 @@ public class ScreeningService {
 
 		public void setPatientOrderClosureReasonId(@Nullable PatientOrderClosureReasonId patientOrderClosureReasonId) {
 			this.patientOrderClosureReasonId = patientOrderClosureReasonId;
+		}
+	}
+
+	@NotThreadSafe
+	protected static class InitializationFunctionOutput {
+		@Nullable
+		private UUID initialScreeningId;
+
+		@Nullable
+		public UUID getInitialScreeningId() {
+			return this.initialScreeningId;
+		}
+
+		public void setInitialScreeningId(@Nullable UUID initialScreeningId) {
+			this.initialScreeningId = initialScreeningId;
 		}
 	}
 
