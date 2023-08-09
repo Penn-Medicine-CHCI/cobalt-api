@@ -232,7 +232,7 @@ public class GroupSessionResource {
 		requireNonNull(groupSessionId);
 
 		Account account = getCurrentContext().getAccount().get();
-		GroupSession groupSession = getGroupSessionService().findGroupSessionById(groupSessionId).orElse(null);
+		GroupSession groupSession = getGroupSessionService().findGroupSessionById(groupSessionId, account).orElse(null);
 
 		if (groupSession == null)
 			throw new NotFoundException();
@@ -269,8 +269,8 @@ public class GroupSessionResource {
 		request.setInstitutionId(account.getInstitutionId());
 		request.setSubmitterAccountId(account.getAccountId());
 
-		UUID groupSessionId = getGroupSessionService().createGroupSession(request);
-		GroupSession groupSession = getGroupSessionService().findGroupSessionById(groupSessionId).get();
+		UUID groupSessionId = getGroupSessionService().createGroupSession(request, account);
+		GroupSession groupSession = getGroupSessionService().findGroupSessionById(groupSessionId, account).get();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("groupSession", getGroupSessionApiResponseFactory().create(groupSession));
@@ -304,7 +304,7 @@ public class GroupSessionResource {
 		requireNonNull(requestBody);
 
 		Account account = getCurrentContext().getAccount().get();
-		GroupSession groupSession = getGroupSessionService().findGroupSessionById(groupSessionId).orElse(null);
+		GroupSession groupSession = getGroupSessionService().findGroupSessionById(groupSessionId, account).orElse(null);
 
 		if (groupSession == null)
 			throw new NotFoundException();
@@ -316,9 +316,9 @@ public class GroupSessionResource {
 		request.setAccountId(account.getAccountId());
 		request.setGroupSessionId(groupSessionId);
 
-		getGroupSessionService().updateGroupSessionStatus(request);
+		getGroupSessionService().updateGroupSessionStatus(request, account);
 
-		GroupSession updatedGroupSession = getGroupSessionService().findGroupSessionById(groupSessionId).orElse(null);
+		GroupSession updatedGroupSession = getGroupSessionService().findGroupSessionById(groupSessionId, account).orElse(null);
 
 		// "Deleted" case
 		if (updatedGroupSession == null)
@@ -338,7 +338,7 @@ public class GroupSessionResource {
 		requireNonNull(requestBody);
 
 		Account account = getCurrentContext().getAccount().get();
-		GroupSession groupSession = getGroupSessionService().findGroupSessionById(groupSessionId).orElse(null);
+		GroupSession groupSession = getGroupSessionService().findGroupSessionById(groupSessionId, account).orElse(null);
 
 		if (groupSession == null)
 			throw new NotFoundException();
@@ -349,9 +349,9 @@ public class GroupSessionResource {
 		UpdateGroupSessionRequest request = getRequestBodyParser().parse(requestBody, UpdateGroupSessionRequest.class);
 		request.setGroupSessionId(groupSessionId);
 
-		getGroupSessionService().updateGroupSession(request);
+		getGroupSessionService().updateGroupSession(request, account);
 
-		GroupSession updatedGroupSession = getGroupSessionService().findGroupSessionById(groupSessionId).orElse(null);
+		GroupSession updatedGroupSession = getGroupSessionService().findGroupSessionById(groupSessionId, account).orElse(null);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("groupSession", getGroupSessionApiResponseFactory().create(updatedGroupSession));

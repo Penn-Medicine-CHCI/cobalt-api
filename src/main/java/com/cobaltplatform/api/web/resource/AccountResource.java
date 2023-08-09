@@ -451,11 +451,8 @@ public class AccountResource {
 		List<GroupSession> groupSessions = new ArrayList<>(getGroupSessionService().findGroupSessions(new FindGroupSessionsRequest() {{
 			setGroupSessionStatusId(GroupSessionStatusId.ADDED);
 			setInstitutionId(account.getInstitutionId());
+			setOrderBy(OrderBy.START_TIME_DESCENDING);
 		}}).getResults());
-
-		Collections.sort(groupSessions, (groupSession1, groupSession2) -> {
-			return groupSession1.getStartDateTime().compareTo(groupSession2.getStartDateTime());
-		});
 
 		// Don't show too many events
 		if (groupSessions.size() > MAXIMUM_GROUP_SESSIONS)

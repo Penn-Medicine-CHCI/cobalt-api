@@ -23,6 +23,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.db.TagContent;
 import com.cobaltplatform.api.model.db.TagGroup;
+import com.cobaltplatform.api.model.db.TagGroupSession;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.lokalized.Strings;
@@ -171,6 +172,34 @@ public class TagService {
 				FROM tag_content
 				WHERE institution_id=?
 				""", TagContent.class, institutionId);
+	}
+
+	@Nonnull
+	public List<Tag> findTagsByGroupSessionIdAndInstitutionId(@Nullable UUID groupSessionId,
+																											 		  @Nullable InstitutionId institutionId) {
+		if (groupSessionId == null || institutionId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+				    SELECT t.*
+				    FROM tag t, tag_group_session tgs
+				    WHERE tgs.tag_id=t.tag_id
+				    AND tgs.group_session_id=?
+				    AND tgs.institution_id=?
+				    ORDER BY t.name
+				""", Tag.class, groupSessionId, institutionId);
+	}
+
+	@Nonnull
+	public List<TagGroupSession> findTagGroupSessionsByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM tag_group_session
+				WHERE institution_id=?
+				""", TagGroupSession.class, institutionId);
 	}
 
 	@Nonnull

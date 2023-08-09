@@ -25,7 +25,9 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -82,6 +84,30 @@ public class CreateGroupSessionRequest {
 	private String followupEmailContent;
 	@Nullable
 	private String followupEmailSurveyUrl;
+	@Nullable
+	private UUID groupSessionCollectionId;
+	@Nullable
+	private Boolean visibleFlag;
+	@Nullable
+	private UUID screeningFlowId;
+	@Nullable
+	private Boolean sendReminderEmail;
+	@Nullable
+	private String reminderEmailContent;
+	@Nullable
+	private LocalTime followupTimeOfDay;
+	@Nullable
+	private Integer followupDayOffset;
+	@Nullable
+	private Boolean singleSessionFlag;
+	@Nullable
+	private String dateTimeDescription;
+	@Nullable
+	private String sessionPhoneNumber;
+	@Nullable
+	private String sessionEmailAddress;
+	@Nullable
+	private Set<String> tagIds;
 
 	@Nullable
 	public InstitutionId getInstitutionId() {
@@ -298,4 +324,113 @@ public class CreateGroupSessionRequest {
 	public void setFollowupEmailSurveyUrl(@Nullable String followupEmailSurveyUrl) {
 		this.followupEmailSurveyUrl = followupEmailSurveyUrl;
 	}
+
+	@Nullable
+	public UUID getGroupSessionCollectionId() {
+		return groupSessionCollectionId;
+	}
+
+	public void setGroupSessionCollectionId(@Nullable UUID groupSessionCollectionId) {
+		this.groupSessionCollectionId = groupSessionCollectionId;
+	}
+
+	@Nullable
+	public Boolean getVisibleFlag() {
+		return visibleFlag;
+	}
+
+	public void setVisibleFlag(@Nullable Boolean visibleFlag) {
+		this.visibleFlag = visibleFlag;
+	}
+
+	@Nullable
+	public UUID getScreeningFlowId() {
+		return screeningFlowId;
+	}
+
+	public void setScreeningFlowId(@Nullable UUID screeningFlowId) {
+		this.screeningFlowId = screeningFlowId;
+	}
+
+	@Nullable
+	public Boolean getSendReminderEmail() {
+		return sendReminderEmail;
+	}
+
+	public void setSendReminderEmail(@Nullable Boolean sendReminderEmail) {
+		this.sendReminderEmail = sendReminderEmail;
+	}
+
+	@Nullable
+	public String getReminderEmailContent() {
+		return reminderEmailContent;
+	}
+
+	public void setReminderEmailContent(@Nullable String reminderEmailContent) {
+		this.reminderEmailContent = reminderEmailContent;
+	}
+
+	@Nullable
+	public LocalTime getFollowupTimeOfDay() {
+		return followupTimeOfDay;
+	}
+
+	public void setFollowupTimeOfDay(@Nullable LocalTime followupTimeOfDay) {
+		this.followupTimeOfDay = followupTimeOfDay;
+	}
+
+	@Nullable
+	public Integer getFollowupDayOffset() {
+		return followupDayOffset;
+	}
+
+	public void setFollowupDayOffset(@Nullable Integer followupDayOffset) {
+		this.followupDayOffset = followupDayOffset;
+	}
+
+	@Nullable
+	public Boolean getSingleSessionFlag() {
+		return singleSessionFlag;
+	}
+
+	public void setSingleSessionFlag(@Nullable Boolean singleSessionFlag) {
+		this.singleSessionFlag = singleSessionFlag;
+	}
+
+	@Nullable
+	public String getDateTimeDescription() {
+		return dateTimeDescription;
+	}
+
+	public void setDateTimeDescription(@Nullable String dateTimeDescription) {
+		this.dateTimeDescription = dateTimeDescription;
+	}
+
+	@Nullable
+	public String getSessionPhoneNumber() {
+		return sessionPhoneNumber;
+	}
+
+	public void setSessionPhoneNumber(@Nullable String sessionPhoneNumber) {
+		this.sessionPhoneNumber = sessionPhoneNumber;
+	}
+
+	@Nullable
+	public String getSessionEmailAddress() {
+		return sessionEmailAddress;
+	}
+
+	public void setSessionEmailAddress(@Nullable String sessionEmailAddress) {
+		this.sessionEmailAddress = sessionEmailAddress;
+	}
+
+	@Nullable
+	public Set<String> getTagIds() {
+		return tagIds;
+	}
+
+	public void setTagIds(@Nullable Set<String> tagIds) {
+		this.tagIds = tagIds;
+	}
+
 }

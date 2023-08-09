@@ -42,11 +42,14 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.FormatStyle;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -134,11 +137,35 @@ public class GroupSessionApiResponse {
 	@Nullable
 	private final String confirmationEmailContent;
 	@Nonnull
-	private Boolean sendFollowupEmail;
+	private final Boolean sendFollowupEmail;
 	@Nullable
-	private String followupEmailContent;
+	private final String followupEmailContent;
 	@Nullable
-	private String followupEmailSurveyUrl;
+	private final String followupEmailSurveyUrl;
+	@Nullable
+	private final UUID groupSessionCollectionId;
+	@Nullable
+	private final Boolean visibleFlag;
+	@Nullable
+	private final UUID screeningFlowId;
+	@Nullable
+	private final Boolean sendReminderEmail;
+	@Nullable
+	private final String reminderEmailContent;
+	@Nullable
+	private final LocalTime followupTimeOfDay;
+	@Nullable
+	private final Integer followupDayOffset;
+	@Nullable
+	private final Boolean singleSessionFlag;
+	@Nullable
+	private final String dateTimeDescription;
+	@Nullable
+	private final String sessionPhoneNumber;
+	@Nullable
+	private final String sessionEmailAddress;
+	@Nonnull
+	private final List<String> tagIds;
 	@Nonnull
 	private final Instant created;
 	@Nonnull
@@ -176,6 +203,8 @@ public class GroupSessionApiResponse {
 		CurrentContext currentContext = currentContextProvider.get();
 		Account account = currentContext.getAccount().get();
 
+		Boolean hasStartEndTime = groupSession.getStartDateTime() != null && groupSession.getEndDateTime() != null;
+
 		this.groupSessionId = groupSession.getGroupSessionId();
 		this.institutionId = groupSession.getInstitutionId();
 		this.institutionDescription = institutionService.findInstitutionById(institutionId).get().getName();
@@ -204,19 +233,18 @@ public class GroupSessionApiResponse {
 		this.facilitatorAccountId = groupSession.getFacilitatorAccountId();
 		this.facilitatorName = groupSession.getFacilitatorName();
 		this.facilitatorEmailAddress = groupSession.getFacilitatorEmailAddress();
-		this.appointmentTimeDescription = AppointmentTimeFormatter.createTimeDescription(groupSession.getStartDateTime(), groupSession.getEndDateTime(), groupSession.getTimeZone());
 		this.startDateTime = groupSession.getStartDateTime();
-		this.startDateTimeDescription = formatter.formatDateTime(groupSession.getStartDateTime(), FormatStyle.LONG, FormatStyle.SHORT);
+		this.startDateTimeDescription = hasStartEndTime ? formatter.formatDateTime(groupSession.getStartDateTime(), FormatStyle.LONG, FormatStyle.SHORT) : null;
 		this.endDateTime = groupSession.getEndDateTime();
-		this.endDateTimeDescription = formatter.formatDateTime(groupSession.getEndDateTime(), FormatStyle.LONG, FormatStyle.SHORT);
-		this.durationInMinutes = (int) Duration.between(startDateTime, endDateTime).
-
-				toMinutes();
-		this.durationInMinutesDescription = strings.get("{{duration}} minutes", new HashMap<String, Object>() {
+		this.endDateTimeDescription = hasStartEndTime ? formatter.formatDateTime(groupSession.getEndDateTime(), FormatStyle.LONG, FormatStyle.SHORT) : null;
+		this.appointmentTimeDescription = hasStartEndTime ? AppointmentTimeFormatter.createTimeDescription(groupSession.getStartDateTime(), groupSession.getEndDateTime(), groupSession.getTimeZone()) : null;
+		this.durationInMinutes = hasStartEndTime ? (int) Duration.between(startDateTime, endDateTime).
+				toMinutes() : 0;
+		this.durationInMinutesDescription = hasStartEndTime ? strings.get("{{duration}} minutes", new HashMap<String, Object>() {
 			{
 				put("duration", durationInMinutes);
 			}
-		});
+		}) : null;
 
 		if (groupSession.getGroupSessionSchedulingSystemId() == GroupSessionSchedulingSystemId.COBALT) {
 			this.seats = groupSession.getSeats();
@@ -272,6 +300,20 @@ public class GroupSessionApiResponse {
 		this.sendFollowupEmail = groupSession.getSendFollowupEmail();
 		this.followupEmailContent = groupSession.getFollowupEmailContent();
 		this.followupEmailSurveyUrl = groupSession.getFollowupEmailSurveyUrl();
+		this.groupSessionCollectionId = groupSession.getGroupSessionCollectionId();
+		this.visibleFlag = groupSession.getVisibleFlag();
+		this.screeningFlowId = groupSession.getScreeningFlowId();
+		this.sendReminderEmail = groupSession.getSendReminderEmail();
+		this.reminderEmailContent = groupSession.getReminderEmailContent();
+		this.followupTimeOfDay = groupSession.getFollowupTimeOfDay();
+		this.followupDayOffset = groupSession.getFollowupDayOffset();
+		this.singleSessionFlag = groupSession.getSingleSessionFlag();
+		this.dateTimeDescription = groupSession.getDateTimeDescription();
+		this.sessionPhoneNumber = groupSession.getSessionPhoneNumber();
+		this.sessionEmailAddress = groupSession.getSessionEmailAddress();
+		this.tagIds = groupSession.getTags() == null ? Collections.emptyList() : groupSession.getTags().stream()
+				.map(tag -> tag.getTagId())
+				.collect(Collectors.toList());
 		this.created = groupSession.getCreated();
 		this.createdDescription = formatter.formatTimestamp(groupSession.getCreated());
 
@@ -480,6 +522,66 @@ public class GroupSessionApiResponse {
 	@Nullable
 	public String getFollowupEmailSurveyUrl() {
 		return followupEmailSurveyUrl;
+	}
+
+	@Nullable
+	public UUID getGroupSessionCollectionId() {
+		return groupSessionCollectionId;
+	}
+
+	@Nullable
+	public Boolean getVisibleFlag() {
+		return visibleFlag;
+	}
+
+	@Nullable
+	public UUID getScreeningFlowId() {
+		return screeningFlowId;
+	}
+
+	@Nullable
+	public Boolean getSendReminderEmail() {
+		return sendReminderEmail;
+	}
+
+	@Nullable
+	public String getReminderEmailContent() {
+		return reminderEmailContent;
+	}
+
+	@Nullable
+	public LocalTime getFollowupTimeOfDay() {
+		return followupTimeOfDay;
+	}
+
+	@Nullable
+	public Integer getFollowupDayOffset() {
+		return followupDayOffset;
+	}
+
+	@Nullable
+	public Boolean getSingleSessionFlag() {
+		return singleSessionFlag;
+	}
+
+	@Nullable
+	public String getDateTimeDescription() {
+		return dateTimeDescription;
+	}
+
+	@Nullable
+	public String getSessionPhoneNumber() {
+		return sessionPhoneNumber;
+	}
+
+	@Nullable
+	public String getSessionEmailAddress() {
+		return sessionEmailAddress;
+	}
+
+	@Nonnull
+	public List<String> getTagIds() {
+		return tagIds;
 	}
 
 	@Nonnull
