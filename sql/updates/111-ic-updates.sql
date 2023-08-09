@@ -314,45 +314,39 @@ recent_voicemail_task_query AS (
 ),
 ss_query AS (
     -- Pick the most recently-created clinical screening session for the patient order
-    select
-        ss.*,
-        a.first_name,
-        a.last_name,
-        a.role_id
-    from
-        patient_order poq
-        join screening_session ss ON poq.patient_order_id = ss.patient_order_id
-        join account a ON ss.created_by_account_id = a.account_id
-        join institution i ON a.institution_id = i.institution_id
-        join screening_flow_version sfv ON ss.screening_flow_version_id = sfv.screening_flow_version_id
-        left join screening_session ss2 ON ss.patient_order_id = ss2.patient_order_id
-        and ss.created < ss2.created
-        left join screening_flow_version sfv2 ON ss2.screening_flow_version_id = sfv2.screening_flow_version_id
-        and i.integrated_care_screening_flow_id=sfv2.screening_flow_id
-    where
-        ss2.screening_session_id IS NULL
-        and i.integrated_care_screening_flow_id=sfv.screening_flow_id
+	select * from (
+	  select
+	    ss.*,
+	    a.first_name,
+	    a.last_name,
+	    a.role_id,
+	    rank() OVER (PARTITION BY ss.patient_order_id ORDER BY ss.created DESC) as ranked_value
+	  from
+	    patient_order poq, screening_session ss, account a, institution i, screening_flow_version sfv
+	    where poq.patient_order_id = ss.patient_order_id
+	    and i.integrated_care_screening_flow_id=sfv.screening_flow_id
+	    and sfv.screening_flow_version_id =ss.screening_flow_version_id
+	    and ss.created_by_account_id =a.account_id
+	    and i.institution_id = a.institution_id
+	) subquery where ranked_value=1
 ),
 ss_intake_query AS (
     -- Pick the most recently-created intake screening session for the patient order
-    select
-        ss.*,
-        a.first_name,
-        a.last_name,
-        a.role_id
-    from
-        patient_order poq
-        join screening_session ss ON poq.patient_order_id = ss.patient_order_id
-        join account a ON ss.created_by_account_id = a.account_id
-        join institution i ON a.institution_id = i.institution_id
-        join screening_flow_version sfv ON ss.screening_flow_version_id = sfv.screening_flow_version_id
-        left join screening_session ss2 ON ss.patient_order_id = ss2.patient_order_id
-        and ss.created < ss2.created
-        left join screening_flow_version sfv2 ON ss2.screening_flow_version_id = sfv2.screening_flow_version_id
-        and i.integrated_care_intake_screening_flow_id=sfv2.screening_flow_id
-    where
-        ss2.screening_session_id IS NULL
-        and i.integrated_care_intake_screening_flow_id=sfv.screening_flow_id
+	select * from (
+	  select
+	    ss.*,
+	    a.first_name,
+	    a.last_name,
+	    a.role_id,
+	    rank() OVER (PARTITION BY ss.patient_order_id ORDER BY ss.created DESC) as ranked_value
+	  from
+	    patient_order poq, screening_session ss, account a, institution i, screening_flow_version sfv
+	    where poq.patient_order_id = ss.patient_order_id
+	    and i.integrated_care_intake_screening_flow_id=sfv.screening_flow_id
+	    and sfv.screening_flow_version_id =ss.screening_flow_version_id
+	    and ss.created_by_account_id =a.account_id
+	    and i.institution_id = a.institution_id
+	) subquery where ranked_value=1
 ),
 permitted_regions_query AS (
     -- Pick the permitted set of IC regions (state abbreviations in the US) by institution as an array for easy access
