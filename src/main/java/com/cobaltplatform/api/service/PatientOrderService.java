@@ -3525,6 +3525,12 @@ public class PatientOrderService implements AutoCloseable {
 				Map.of("integratedCareProgramName", institution.getIntegratedCareProgramName().toUpperCase(Locale.US))));
 		lines.add("-----------------------------------------------");
 		lines.add(getStrings().get("VISIT SUMMARY / TREATMENT PLAN"));
+
+		if (institution.getIntegratedCareClinicalReportDisclaimer() != null) {
+			lines.add("");
+			lines.add(institution.getIntegratedCareClinicalReportDisclaimer());
+		}
+
 		lines.add("");
 		lines.add(getStrings().get("PATIENT: {{name}} (MRN {{mrn}})",
 				Map.of("name", Normalizer.normalizeName(patientOrder.getPatientFirstName(), null, patientOrder.getPatientLastName()).orElse(null),

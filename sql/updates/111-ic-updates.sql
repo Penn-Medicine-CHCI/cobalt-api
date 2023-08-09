@@ -13,6 +13,7 @@ INSERT INTO feature_filter(feature_id, filter_id) VALUES
 	('PSYCHOTHERAPIST', 'DATE'),
 	('PSYCHOTHERAPIST', 'TIME_OF_DAY');
 
+ALTER TABLE institution ADD COLUMN integrated_care_clinical_report_disclaimer TEXT;
 ALTER TABLE institution ADD COLUMN integrated_care_intake_screening_flow_id UUID REFERENCES screening_flow;
 
 ALTER TABLE screening_flow_version ADD COLUMN initialization_function TEXT;

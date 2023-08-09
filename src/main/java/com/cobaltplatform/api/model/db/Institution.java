@@ -212,6 +212,8 @@ public class Institution {
 	private String integratedCarePrimaryCareName;
 	@Nullable
 	private String clinicalSupportPhoneNumber;
+	@Nullable
+	private String integratedCareClinicalReportDisclaimer;
 
 	public enum InstitutionId {
 		COBALT,
@@ -973,5 +975,14 @@ public class Institution {
 
 	public void setClinicalSupportPhoneNumber(@Nullable String clinicalSupportPhoneNumber) {
 		this.clinicalSupportPhoneNumber = clinicalSupportPhoneNumber;
+	}
+
+	@Nullable
+	public String getIntegratedCareClinicalReportDisclaimer() {
+		return this.integratedCareClinicalReportDisclaimer;
+	}
+
+	public void setIntegratedCareClinicalReportDisclaimer(@Nullable String integratedCareClinicalReportDisclaimer) {
+		this.integratedCareClinicalReportDisclaimer = integratedCareClinicalReportDisclaimer;
 	}
 }
