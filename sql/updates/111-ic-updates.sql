@@ -348,7 +348,7 @@ ss_intake_query AS (
         left join screening_session ss2 ON ss.patient_order_id = ss2.patient_order_id
         and ss.created < ss2.created
         left join screening_flow_version sfv2 ON ss2.screening_flow_version_id = sfv2.screening_flow_version_id
-        and i.integrated_care_screening_flow_id=sfv2.screening_flow_id
+        and i.integrated_care_intake_screening_flow_id=sfv2.screening_flow_id
     where
         ss2.screening_session_id IS NULL
         and i.integrated_care_intake_screening_flow_id=sfv.screening_flow_id
