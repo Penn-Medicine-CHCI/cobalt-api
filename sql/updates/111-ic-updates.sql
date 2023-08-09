@@ -18,7 +18,7 @@ ALTER TABLE institution ADD COLUMN integrated_care_intake_screening_flow_id UUID
 ALTER TABLE screening_flow_version ADD COLUMN initialization_function TEXT;
 
 INSERT INTO screening_type (screening_type_id, description) VALUES ('IC_INTAKE', 'Integrated Care Intake');
-INSERT INTO screening_type (screening_type_id, description) VALUES ('IC_INITIAL_QUESTIONS', 'Integrated Care Initial Questions');
+INSERT INTO screening_type (screening_type_id, description) VALUES ('IC_PATIENT_SELF_REPORTING', 'Patient Self-Reporting');
 INSERT INTO screening_flow_type (screening_flow_type_id, description) VALUES ('INTEGRATED_CARE_INTAKE', 'Integrated Care Intake');
 
 -- Support for JSONB metadata on screening questions and screening answer options
