@@ -98,6 +98,9 @@ import com.cobaltplatform.api.model.db.PatientOrderFocusType;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderImport;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderIntakeInsuranceStatus.PatientOrderIntakeInsuranceStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderIntakeLocationStatus.PatientOrderIntakeLocationStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderIntakeWantsServicesStatus.PatientOrderIntakeWantsServicesStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderMedication;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderOutreach;
@@ -1301,12 +1304,44 @@ public class PatientOrderService implements AutoCloseable {
 			if (patientOrderFilterFlagTypeIds.size() > 0) {
 				List<String> filterFlagWhereClauseLines = new ArrayList<>();
 
-				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.INSURANCE_NOT_ACCEPTED)) {
-					filterFlagWhereClauseLines.add("po.primary_plan_accepted=FALSE");
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.NO_INTEREST)) {
+					filterFlagWhereClauseLines.add("po.patient_order_intake_wants_services_status_id=?");
+					parameters.add(PatientOrderIntakeWantsServicesStatusId.NO);
 				}
 
-				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.ADDRESS_REGION_NOT_ACCEPTED)) {
-					filterFlagWhereClauseLines.add("po.patient_address_region_accepted=FALSE");
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.LOCATION_INVALID)) {
+					filterFlagWhereClauseLines.add("po.patient_order_intake_location_status_id=?");
+					parameters.add(PatientOrderIntakeLocationStatusId.INVALID);
+				}
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.INSURANCE_CHANGED_RECENTLY)) {
+					filterFlagWhereClauseLines.add("po.patient_order_intake_insurance_status_id=?");
+					parameters.add(PatientOrderIntakeInsuranceStatusId.CHANGED_RECENTLY);
+				}
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.INSURANCE_INVALID)) {
+					filterFlagWhereClauseLines.add("po.patient_order_intake_insurance_status_id=?");
+					parameters.add(PatientOrderIntakeInsuranceStatusId.INVALID);
+				}
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.CONSENT_REJECTED)) {
+					filterFlagWhereClauseLines.add("po.patient_order_consent_status_id=?");
+					parameters.add(PatientOrderConsentStatusId.REJECTED);
+				}
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.NEEDS_SAFETY_PLANNING)) {
+					filterFlagWhereClauseLines.add("po.patient_order_safety_planning_status_id=?");
+					parameters.add(PatientOrderSafetyPlanningStatusId.NEEDS_SAFETY_PLANNING);
+				}
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.NEEDS_RESOURCES)) {
+					filterFlagWhereClauseLines.add("po.patient_order_resourcing_status_id=?");
+					parameters.add(PatientOrderResourcingStatusId.NEEDS_RESOURCES);
+				}
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.SESSION_ABANDONED)) {
+					filterFlagWhereClauseLines.add("(po.most_recent_intake_screening_session_appears_abandoned=TRUE OR po.most_recent_screening_session_appears_abandoned=TRUE)");
 				}
 
 				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.MOST_RECENT_EPISODE_CLOSED_WITHIN_DATE_THRESHOLD)) {
