@@ -27,6 +27,8 @@ import com.cobaltplatform.api.model.api.request.FindGroupSessionsRequest.FilterB
 import com.cobaltplatform.api.model.api.request.UpdateGroupSessionRequest;
 import com.cobaltplatform.api.model.api.request.UpdateGroupSessionStatusRequest;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.GroupSessionCollectionApiResponse;
+import com.cobaltplatform.api.model.api.response.GroupSessionCollectionApiResponse.GroupSessionCollectionResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionReservationApiResponse.GroupSessionReservationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
@@ -90,6 +92,8 @@ public class GroupSessionResource {
 	@Nonnull
 	private final PresignedUploadApiResponseFactory presignedUploadApiResponseFactory;
 	@Nonnull
+	private final GroupSessionCollectionResponseFactory groupSessionCollectionResponseFactory;
+	@Nonnull
 	private final RequestBodyParser requestBodyParser;
 	@Nonnull
 	private final Formatter formatter;
@@ -113,6 +117,7 @@ public class GroupSessionResource {
 															@Nonnull GroupSessionApiResponseFactory groupSessionApiResponseFactory,
 															@Nonnull GroupSessionReservationApiResponseFactory groupSessionReservationApiResponseFactory,
 															@Nonnull PresignedUploadApiResponseFactory presignedUploadApiResponseFactory,
+															@Nonnull GroupSessionCollectionResponseFactory groupSessionCollectionResponseFactory,
 															@Nonnull RequestBodyParser requestBodyParser,
 															@Nonnull Formatter formatter,
 															@Nonnull Strings strings,
@@ -132,6 +137,7 @@ public class GroupSessionResource {
 		requireNonNull(auditLogService);
 		requireNonNull(jsonMapper);
 		requireNonNull(authorizationServiceProvider);
+		requireNonNull(groupSessionCollectionResponseFactory);
 
 		this.groupSessionService = groupSessionService;
 		this.groupSessionApiResponseFactory = groupSessionApiResponseFactory;
@@ -146,6 +152,7 @@ public class GroupSessionResource {
 		this.jsonMapper = jsonMapper;
 		this.imageUploadServiceProvider = imageUploadServiceProvider;
 		this.authorizationServiceProvider = authorizationServiceProvider;
+		this.groupSessionCollectionResponseFactory = groupSessionCollectionResponseFactory;
 	}
 
 	public enum GroupSessionViewType {
@@ -359,6 +366,20 @@ public class GroupSessionResource {
 	}
 
 	@Nonnull
+	@GET("/group-session-collections")
+	@AuthenticationRequired
+	public ApiResponse groupSessionCollections() {
+		Account account = getCurrentContext().getAccount().get();
+
+		List<GroupSessionCollectionApiResponse> groupSessionCollectionApiResponses = getGroupSessionService().findGroupSessionCollections(account)
+				.stream().map(groupSessionCollection ->  getGroupSessionCollectionResponseFactory().create(groupSessionCollection)).collect(Collectors.toList());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("groupSessionCollections", groupSessionCollectionApiResponses);
+		}});
+	}
+
+	@Nonnull
 	protected GroupSessionService getGroupSessionService() {
 		return groupSessionService;
 	}
@@ -422,4 +443,7 @@ public class GroupSessionResource {
 	protected AuthorizationService getAuthorizationService() {
 		return authorizationServiceProvider.get();
 	}
+
+	@Nonnull
+	protected GroupSessionCollectionResponseFactory getGroupSessionCollectionResponseFactory() { return this.groupSessionCollectionResponseFactory; }
 }

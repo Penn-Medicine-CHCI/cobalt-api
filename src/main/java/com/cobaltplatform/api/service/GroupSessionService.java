@@ -2030,6 +2030,14 @@ public class GroupSessionService implements AutoCloseable {
 		return "https://cobaltplatform.s3.us-east-2.amazonaws.com/prod/group-sessions/default-group-session.jpg";
 	}
 
+	@Nonnull
+	public List<GroupSessionCollection> findGroupSessionCollections(@Nonnull Account account) {
+		requireNonNull(account);
+
+		return getDatabase().queryForList("SELECT * from group_session_collection WHERE institution_id = ? ORDER BY display_order",
+				GroupSessionCollection.class, account.getInstitutionId());
+	}
+
 	@ThreadSafe
 	protected static class BackgroundSyncTask implements Runnable {
 		@Nonnull
