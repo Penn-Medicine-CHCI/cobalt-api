@@ -1207,8 +1207,9 @@ public class ScreeningService {
 						screeningSession.getScreeningSessionId(), patientOrder.getPatientOrderId(), patientOrder.getPatientOrderDispositionId().name());
 				throw new ValidationException(getStrings().get("Sorry, this order is closed, so you cannot answer this question."),
 						Map.of("shouldExitScreeningSession", true));
-			} else if (patientOrder.getMostRecentScreeningSessionId() != null) {
-				if (patientOrder.getMostRecentScreeningSessionId().equals(screeningSession.getScreeningSessionId())) {
+			} else if (patientOrder.getMostRecentIntakeScreeningSessionId() != null || patientOrder.getMostRecentScreeningSessionId() != null) {
+				if (patientOrder.getMostRecentIntakeScreeningSessionId().equals(screeningSession.getScreeningSessionId())
+						|| patientOrder.getMostRecentScreeningSessionId().equals(screeningSession.getScreeningSessionId())) {
 					Account screeningSessionCreatedByAccount = getAccountService().findAccountById(screeningSession.getCreatedByAccountId()).get();
 
 					// If a patient tries to answer a question for an assessment that's being performed on the patient's behalf by an MHIC,
