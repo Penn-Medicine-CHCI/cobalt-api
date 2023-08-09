@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
+import com.cobaltplatform.api.model.db.GroupSessionLearnMoreMethod.GroupSessionLearnMoreMethodId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 import javax.annotation.Nullable;
@@ -30,7 +31,6 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -96,6 +96,7 @@ public class GroupSession {
 	private String followupEmailContent;
 	@Nullable
 	private String followupEmailSurveyUrl;
+	@Nullable
 	private UUID groupSessionCollectionId;
 	@Nullable
 	private Boolean visibleFlag;
@@ -119,6 +120,10 @@ public class GroupSession {
 	private String sessionEmailAddress;
 	@Nullable
 	private List<Tag> tags;
+	@Nullable
+	private String learnMoreDescription;
+	@Nullable
+	private GroupSessionLearnMoreMethodId groupSessionLearnMoreMethodId;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -510,4 +515,21 @@ public class GroupSession {
 		this.lastUpdated = lastUpdated;
 	}
 
+	@Nullable
+	public String getLearnMoreDescription() {
+		return learnMoreDescription;
+	}
+
+	public void setLearnMoreDescription(@Nullable String learnMoreDescription) {
+		this.learnMoreDescription = learnMoreDescription;
+	}
+
+	@Nullable
+	public GroupSessionLearnMoreMethodId getGroupSessionLearnMoreMethodId() {
+		return groupSessionLearnMoreMethodId;
+	}
+
+	public void setGroupSessionLearnMoreMethodId(@Nullable GroupSessionLearnMoreMethodId groupSessionLearnMoreMethodId) {
+		this.groupSessionLearnMoreMethodId = groupSessionLearnMoreMethodId;
+	}
 }

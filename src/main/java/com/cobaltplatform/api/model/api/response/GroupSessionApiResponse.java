@@ -23,6 +23,7 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.QuestionApiResponse.QuestionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.GroupSession;
+import com.cobaltplatform.api.model.db.GroupSessionLearnMoreMethod;
 import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -166,6 +167,10 @@ public class GroupSessionApiResponse {
 	private final String sessionEmailAddress;
 	@Nonnull
 	private final List<String> tagIds;
+	@Nullable
+	private String learnMoreDescription;
+	@Nullable
+	private GroupSessionLearnMoreMethod.GroupSessionLearnMoreMethodId groupSessionLearnMoreMethodId;
 	@Nonnull
 	private final Instant created;
 	@Nonnull
@@ -314,6 +319,8 @@ public class GroupSessionApiResponse {
 		this.tagIds = groupSession.getTags() == null ? Collections.emptyList() : groupSession.getTags().stream()
 				.map(tag -> tag.getTagId())
 				.collect(Collectors.toList());
+		this.groupSessionLearnMoreMethodId = groupSession.getGroupSessionLearnMoreMethodId();
+		this.learnMoreDescription = groupSession.getLearnMoreDescription();
 		this.created = groupSession.getCreated();
 		this.createdDescription = formatter.formatTimestamp(groupSession.getCreated());
 
@@ -547,6 +554,16 @@ public class GroupSessionApiResponse {
 	@Nullable
 	public String getReminderEmailContent() {
 		return reminderEmailContent;
+	}
+
+	@Nullable
+	public String getLearnMoreDescription() {
+		return learnMoreDescription;
+	}
+
+	@Nullable
+	public GroupSessionLearnMoreMethod.GroupSessionLearnMoreMethodId getGroupSessionLearnMoreMethodId() {
+		return groupSessionLearnMoreMethodId;
 	}
 
 	@Nullable

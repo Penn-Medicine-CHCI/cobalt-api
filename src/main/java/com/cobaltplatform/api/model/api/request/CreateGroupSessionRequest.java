@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.api.request;
 
+import com.cobaltplatform.api.model.db.GroupSessionLearnMoreMethod;
 import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
@@ -108,6 +109,10 @@ public class CreateGroupSessionRequest {
 	private String sessionEmailAddress;
 	@Nullable
 	private Set<String> tagIds;
+	@Nullable
+	private String learnMoreDescription;
+	@Nullable
+	private GroupSessionLearnMoreMethod.GroupSessionLearnMoreMethodId groupSessionLearnMoreMethodId;
 
 	@Nullable
 	public InstitutionId getInstitutionId() {
@@ -433,4 +438,21 @@ public class CreateGroupSessionRequest {
 		this.tagIds = tagIds;
 	}
 
+	@Nullable
+	public String getLearnMoreDescription() {
+		return learnMoreDescription;
+	}
+
+	public void setLearnMoreDescription(@Nullable String learnMoreDescription) {
+		this.learnMoreDescription = learnMoreDescription;
+	}
+
+	@Nullable
+	public GroupSessionLearnMoreMethod.GroupSessionLearnMoreMethodId getGroupSessionLearnMoreMethodId() {
+		return groupSessionLearnMoreMethodId;
+	}
+
+	public void setGroupSessionLearnMoreMethodId(@Nullable GroupSessionLearnMoreMethod.GroupSessionLearnMoreMethodId groupSessionLearnMoreMethodId) {
+		this.groupSessionLearnMoreMethodId = groupSessionLearnMoreMethodId;
+	}
 }

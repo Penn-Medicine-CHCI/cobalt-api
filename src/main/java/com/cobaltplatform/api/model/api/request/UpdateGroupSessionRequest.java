@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.api.request;
 
+import com.cobaltplatform.api.model.db.GroupSessionLearnMoreMethod;
 import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
 
 import javax.annotation.Nullable;
@@ -104,6 +105,9 @@ public class UpdateGroupSessionRequest {
 	private String sessionEmailAddress;
 	@Nullable
 	private Set<String> tagIds;
+	private String learnMoreDescription;
+	@Nullable
+	private GroupSessionLearnMoreMethod.GroupSessionLearnMoreMethodId groupSessionLearnMoreMethodId;
 
 	@Nullable
 	public UUID getGroupSessionId() {
@@ -417,5 +421,22 @@ public class UpdateGroupSessionRequest {
 
 	public void setTagIds(@Nullable Set<String> tagIds) {
 		this.tagIds = tagIds;
+	}
+
+	public String getLearnMoreDescription() {
+		return learnMoreDescription;
+	}
+
+	public void setLearnMoreDescription(String learnMoreDescription) {
+		this.learnMoreDescription = learnMoreDescription;
+	}
+
+	@Nullable
+	public GroupSessionLearnMoreMethod.GroupSessionLearnMoreMethodId getGroupSessionLearnMoreMethodId() {
+		return groupSessionLearnMoreMethodId;
+	}
+
+	public void setGroupSessionLearnMoreMethodId(@Nullable GroupSessionLearnMoreMethod.GroupSessionLearnMoreMethodId groupSessionLearnMoreMethodId) {
+		this.groupSessionLearnMoreMethodId = groupSessionLearnMoreMethodId;
 	}
 }

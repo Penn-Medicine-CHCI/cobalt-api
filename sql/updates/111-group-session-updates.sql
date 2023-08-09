@@ -13,6 +13,21 @@ CREATE TABLE group_session_collection (
 create trigger set_last_updated before
 insert or update on group_session_collection for each row execute procedure set_last_updated();
 
+CREATE TABLE group_session_learn_more_method (
+  group_session_learn_more_method_id VARCHAR NOT NULL PRIMARY KEY,
+  description VARCHAR NOT NULL,
+  created timestamptz NOT NULL DEFAULT now(),
+  last_updated timestamptz NOT NULL 
+);
+
+create trigger set_last_updated before
+insert or update on group_session_learn_more_method for each row execute procedure set_last_updated();
+
+INSERT INTO group_session_learn_more_method VALUES
+('EMAIL', 'Email'),
+('PHONE', 'Phone Number'),
+('URL', 'URL');
+
 ALTER TABLE group_session 
 ADD COLUMN screening_flow_id UUID NULL REFERENCES screening_flow,
 ADD COLUMN visible_flag BOOLEAN NOT NULL DEFAULT true,
@@ -23,6 +38,8 @@ ADD COLUMN send_reminder_email BOOLEAN NOT NULL DEFAULT false,
 ADD COLUMN reminder_email_content TEXT NULL,
 ADD COLUMN single_session_flag BOOLEAN NOT NULL DEFAULT true,
 ADD COLUMN date_time_description TEXT,
+ADD COLUMN group_session_learn_more_method_id VARCHAR REFERENCES group_session_learn_more_method,
+ADD COLUMN learn_more_description VARCHAR,
 ALTER COLUMN start_date_time DROP NOT NULL,
 ALTER COLUMN end_date_time DROP NOT NULL;
 
@@ -80,3 +97,9 @@ CREATE VIEW v_group_session AS
   WHERE gs.group_session_status_id::text <> 'DELETED'::text;
 
 COMMIT;
+
+--Test
+
+INSERT INTO group_session_collection values
+(uuid_generate_v4(), 'COBALT', 'Test Collection 1', 1),
+(uuid_generate_v4(), 'COBALT', 'Test Collection 2', 2);
