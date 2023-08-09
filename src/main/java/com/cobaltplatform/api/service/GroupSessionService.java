@@ -1510,9 +1510,9 @@ public class GroupSessionService implements AutoCloseable {
 				.messageContext(messageContext)
 				.build();
 
-		// Schedule a followup message for this reservation based on institution rules
-		LocalDate followupMessageDate = groupSession.getStartDateTime().toLocalDate().plusDays(institution.getGroupSessionReservationDefaultFollowupDayOffset());
-		LocalTime followupMessageTimeOfDay = institution.getGroupSessionReservationDefaultFollowupTimeOfDay();
+		// Schedule a followup message for this reservation based on group session parameters
+		LocalDate followupMessageDate = groupSession.getStartDateTime().toLocalDate().plusDays(groupSession.getFollowupDayOffset());
+		LocalTime followupMessageTimeOfDay = groupSession.getFollowupTimeOfDay();
 
 		UUID attendeeFollowupScheduledMessageId = getMessageService().createScheduledMessage(new CreateScheduledMessageRequest<>() {{
 			setMetadata(Map.of("groupSessionReservationId", groupSessionReservation.getGroupSessionReservationId()));
