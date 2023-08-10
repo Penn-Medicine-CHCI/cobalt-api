@@ -43,10 +43,6 @@ public class CreateGroupSessionRequest {
 	@Nullable
 	private UUID submitterAccountId;
 	@Nullable
-	private String submitterName;
-	@Nullable
-	private String submitterEmailAddress;
-	@Nullable
 	private String targetEmailAddress;
 	@Nullable
 	private String title;
@@ -135,24 +131,6 @@ public class CreateGroupSessionRequest {
 
 	public void setSubmitterAccountId(@Nullable UUID submitterAccountId) {
 		this.submitterAccountId = submitterAccountId;
-	}
-
-	@Nullable
-	public String getSubmitterName() {
-		return this.submitterName;
-	}
-
-	public void setSubmitterName(@Nullable String submitterName) {
-		this.submitterName = submitterName;
-	}
-
-	@Nullable
-	public String getSubmitterEmailAddress() {
-		return this.submitterEmailAddress;
-	}
-
-	public void setSubmitterEmailAddress(@Nullable String submitterEmailAddress) {
-		this.submitterEmailAddress = submitterEmailAddress;
 	}
 
 	@Nullable

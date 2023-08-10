@@ -78,10 +78,6 @@ public class GroupSessionApiResponse {
 	@Nonnull
 	private final UUID submitterAccountId;
 	@Nonnull
-	private final String submitterName;
-	@Nonnull
-	private final String submitterEmailAddress;
-	@Nonnull
 	private final String targetEmailAddress;
 	@Nullable
 	private final String title;
@@ -218,12 +214,8 @@ public class GroupSessionApiResponse {
 		if (account.getRoleId() == RoleId.ADMINISTRATOR
 				|| Objects.equals(account.getAccountId(), groupSession.getSubmitterAccountId())
 				|| Objects.equals(account.getAccountId(), groupSession.getFacilitatorAccountId())) {
-			this.submitterName = groupSession.getSubmitterName();
-			this.submitterEmailAddress = groupSession.getSubmitterEmailAddress();
 			this.targetEmailAddress = groupSession.getTargetEmailAddress();
 		} else {
-			this.submitterName = null;
-			this.submitterEmailAddress = null;
 			this.targetEmailAddress = null;
 		}
 
@@ -367,16 +359,6 @@ public class GroupSessionApiResponse {
 	@Nonnull
 	public UUID getSubmitterAccountId() {
 		return submitterAccountId;
-	}
-
-	@Nonnull
-	public String getSubmitterName() {
-		return this.submitterName;
-	}
-
-	@Nonnull
-	public String getSubmitterEmailAddress() {
-		return this.submitterEmailAddress;
 	}
 
 	@Nonnull

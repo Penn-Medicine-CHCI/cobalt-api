@@ -69,13 +69,10 @@ CREATE VIEW v_group_session AS
     gs.created,
     gs.last_updated,
     gs.group_session_scheduling_system_id,
-    gs.schedule_url,
     gs.send_followup_email,
     gs.followup_email_content,
     gs.followup_email_survey_url,
     gs.submitter_account_id,
-    gs.submitter_name,
-    gs.submitter_email_address,
     gs.target_email_address,
     gs.en_search_vector,
     ( SELECT count(*) AS count
@@ -95,6 +92,11 @@ CREATE VIEW v_group_session AS
 	gs.date_time_description
    FROM group_session gs
   WHERE gs.group_session_status_id::text <> 'DELETED'::text;
+
+  ALTER TABLE group_session
+  DROP COLUMN submitter_email_address,
+  DROP COLUMN submitter_name,
+  DROP COLUMN schedule_url;
 
 COMMIT;
 
