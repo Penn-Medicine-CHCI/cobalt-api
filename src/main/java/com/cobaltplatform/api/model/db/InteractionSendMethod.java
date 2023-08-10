@@ -25,53 +25,37 @@ import javax.annotation.concurrent.NotThreadSafe;
 import static java.lang.String.format;
 
 /**
- * @author Transmogrify LLC.
+ * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class PatientOrderFocusType {
+public class InteractionSendMethod {
 	@Nullable
-	private PatientOrderFocusTypeId patientOrderFocusTypeId;
+	private InteractionSendMethodId interactionSendMethodId;
 	@Nullable
 	private String description;
 
-	public enum PatientOrderFocusTypeId {
-		UNSPECIFIED,
-		SELF_DIRECTED,
-		GENERAL,
-		GRIEF,
-		INSOMNIA,
-		PSYCHOTHERAPY,
-		ALCOHOL_USE_DISORDER,
-		SUBSTANCE_USE_DISORDER,
-		OPIOID_USE_DISORDER,
-		EATING_DISORDER,
-		EVALUATION,
-		ADHD,
-		TRAUMA,
-		LCSW_CAPACITY,
-		CRISIS_CARE,
-		PSYCHOSIS,
-		PSYCHIATRY,
-		LGBTIA
+	public enum InteractionSendMethodId {
+		MINUTE_OFFSET,
+		DAY_AND_TIME_OFFSET
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{patientOrderFocusTypeId=%s, description=%s}", getClass().getSimpleName(), getPatientOrderFocusTypeId(), getDescription());
+		return format("%s{interactionSendMethodId=%s, description=%s}", getClass().getSimpleName(), getInteractionSendMethodId().name(), getDescription());
 	}
 
 	@Nullable
-	public PatientOrderFocusTypeId getPatientOrderFocusTypeId() {
-		return this.patientOrderFocusTypeId;
+	public InteractionSendMethodId getInteractionSendMethodId() {
+		return interactionSendMethodId;
 	}
 
-	public void setPatientOrderFocusTypeId(@Nullable PatientOrderFocusTypeId patientOrderFocusTypeId) {
-		this.patientOrderFocusTypeId = patientOrderFocusTypeId;
+	public void setInteractionSendMethodId(@Nullable InteractionSendMethodId interactionSendMethodId) {
+		this.interactionSendMethodId = interactionSendMethodId;
 	}
 
 	@Nullable
 	public String getDescription() {
-		return this.description;
+		return description;
 	}
 
 	public void setDescription(@Nullable String description) {

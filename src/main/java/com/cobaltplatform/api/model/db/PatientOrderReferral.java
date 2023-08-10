@@ -19,8 +19,7 @@
 
 package com.cobaltplatform.api.model.db;
 
-import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
-import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderReferralReason.PatientOrderReferralReasonId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -31,17 +30,11 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class PatientOrderTriage {
+public class PatientOrderReferral {
 	@Nullable
-	private UUID patientOrderTriageId;
+	private UUID patientOrderId;
 	@Nullable
-	private UUID patientOrderTriageGroupId;
-	@Nullable
-	private PatientOrderFocusTypeId patientOrderFocusTypeId;
-	@Nullable
-	private PatientOrderCareTypeId patientOrderCareTypeId;
-	@Nullable
-	private String reason;
+	private PatientOrderReferralReasonId patientOrderReferralReasonId;
 	@Nullable
 	private Integer displayOrder;
 	@Nullable
@@ -50,48 +43,21 @@ public class PatientOrderTriage {
 	private Instant lastUpdated;
 
 	@Nullable
-	public UUID getPatientOrderTriageId() {
-		return this.patientOrderTriageId;
+	public UUID getPatientOrderId() {
+		return this.patientOrderId;
 	}
 
-	public void setPatientOrderTriageId(@Nullable UUID patientOrderTriageId) {
-		this.patientOrderTriageId = patientOrderTriageId;
-	}
-
-	@Nullable
-	public UUID getPatientOrderTriageGroupId() {
-		return this.patientOrderTriageGroupId;
-	}
-
-	public void setPatientOrderTriageGroupId(@Nullable UUID patientOrderTriageGroupId) {
-		this.patientOrderTriageGroupId = patientOrderTriageGroupId;
+	public void setPatientOrderId(@Nullable UUID patientOrderId) {
+		this.patientOrderId = patientOrderId;
 	}
 
 	@Nullable
-	public PatientOrderFocusTypeId getPatientOrderFocusTypeId() {
-		return this.patientOrderFocusTypeId;
+	public PatientOrderReferralReasonId getPatientOrderReferralReasonId() {
+		return this.patientOrderReferralReasonId;
 	}
 
-	public void setPatientOrderFocusTypeId(@Nullable PatientOrderFocusTypeId patientOrderFocusTypeId) {
-		this.patientOrderFocusTypeId = patientOrderFocusTypeId;
-	}
-
-	@Nullable
-	public PatientOrderCareTypeId getPatientOrderCareTypeId() {
-		return this.patientOrderCareTypeId;
-	}
-
-	public void setPatientOrderCareTypeId(@Nullable PatientOrderCareTypeId patientOrderCareTypeId) {
-		this.patientOrderCareTypeId = patientOrderCareTypeId;
-	}
-
-	@Nullable
-	public String getReason() {
-		return this.reason;
-	}
-
-	public void setReason(@Nullable String reason) {
-		this.reason = reason;
+	public void setPatientOrderReferralReasonId(@Nullable PatientOrderReferralReasonId patientOrderReferralReasonId) {
+		this.patientOrderReferralReasonId = patientOrderReferralReasonId;
 	}
 
 	@Nullable

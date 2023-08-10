@@ -465,7 +465,6 @@ public class ReportingService {
 						%s
 						AND pot.patient_order_id = vpo.patient_order_id
 						AND pot.patient_order_triage_source_id = '%s'
-						and  pot.patient_order_care_type_id != 'SAFETY_PLANNING'
 						and pot.active = true)
 						SELECT reason as description, count(*) as count
 						FROM pot_reason

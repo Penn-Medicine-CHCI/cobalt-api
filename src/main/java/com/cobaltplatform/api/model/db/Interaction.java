@@ -21,10 +21,12 @@ package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InteractionType.InteractionTypeId;
+import com.cobaltplatform.api.model.db.InteractionSendMethod.InteractionSendMethodId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
+import java.time.LocalTime;
 import java.util.UUID;
 
 
@@ -51,6 +53,14 @@ public class Interaction {
 	private String messageTemplateBody;
 	@Nullable
 	private Integer sendOffsetInMinutes;
+	@Nullable
+	private Integer sendDayOffset;
+	@Nullable
+	private LocalTime sendTimeOfDay;
+	@Nullable
+	private InteractionSendMethodId interactionSendMethodId;
+	@Nullable
+	private String emailSubject;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -153,5 +163,41 @@ public class Interaction {
 
 	public void setMessageTemplateBody(@Nullable String messageTemplateBody) {
 		this.messageTemplateBody = messageTemplateBody;
+	}
+
+	@Nullable
+	public Integer getSendDayOffset() {
+		return sendDayOffset;
+	}
+
+	public void setSendDayOffset(@Nullable Integer sendDayOffset) {
+		this.sendDayOffset = sendDayOffset;
+	}
+
+	@Nullable
+	public LocalTime getSendTimeOfDay() {
+		return sendTimeOfDay;
+	}
+
+	public void setSendTimeOfDay(@Nullable LocalTime sendTimeOfDay) {
+		this.sendTimeOfDay = sendTimeOfDay;
+	}
+
+	@Nullable
+	public InteractionSendMethodId getInteractionSendMethodId() {
+		return interactionSendMethodId;
+	}
+
+	public void setInteractionSendMethodId(@Nullable InteractionSendMethodId interactionSendMethodId) {
+		this.interactionSendMethodId = interactionSendMethodId;
+	}
+
+	@Nullable
+	public String getEmailSubject() {
+		return emailSubject;
+	}
+
+	public void setEmailSubject(@Nullable String emailSubject) {
+		this.emailSubject = emailSubject;
 	}
 }

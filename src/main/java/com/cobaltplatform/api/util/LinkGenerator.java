@@ -161,6 +161,26 @@ public class LinkGenerator {
 	}
 
 	@Nonnull
+	public String generateEmailPasswordSignInLink(@Nonnull InstitutionId institutionId,
+																								@Nonnull UserExperienceTypeId userExperienceTypeId) {
+		requireNonNull(institutionId);
+		requireNonNull(userExperienceTypeId);
+
+		return constructUrl(determineBaseUrl(institutionId, userExperienceTypeId, ClientDeviceTypeId.WEB_BROWSER),
+				"sign-in/email");
+	}
+
+	@Nonnull
+	public String generateWebappSignInLink(@Nonnull InstitutionId institutionId,
+																				 @Nonnull UserExperienceTypeId userExperienceTypeId) {
+		requireNonNull(institutionId);
+		requireNonNull(userExperienceTypeId);
+
+		return constructUrl(determineBaseUrl(institutionId, userExperienceTypeId, ClientDeviceTypeId.WEB_BROWSER),
+				"sign-in");
+	}
+
+	@Nonnull
 	public String generateInteractionOptionLink(@Nonnull InstitutionId institutionId,
 																							@Nonnull InteractionOption interactionOption,
 																							@Nonnull InteractionInstance interactionInstance) {

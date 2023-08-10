@@ -48,6 +48,8 @@ public class ScreeningFlowVersion {
 	@Nullable
 	private Integer versionNumber;
 	@Nullable
+	private String initializationFunction;
+	@Nullable
 	private String orchestrationFunction;
 	@Nullable
 	private String resultsFunction;
@@ -134,6 +136,15 @@ public class ScreeningFlowVersion {
 
 	public void setVersionNumber(@Nullable Integer versionNumber) {
 		this.versionNumber = versionNumber;
+	}
+
+	@Nullable
+	public String getInitializationFunction() {
+		return this.initializationFunction;
+	}
+
+	public void setInitializationFunction(@Nullable String initializationFunction) {
+		this.initializationFunction = initializationFunction;
 	}
 
 	@Nullable

@@ -34,6 +34,7 @@ import com.cobaltplatform.api.model.db.Interaction;
 import com.cobaltplatform.api.model.db.InteractionInstance;
 import com.cobaltplatform.api.model.db.InteractionOption;
 import com.cobaltplatform.api.model.db.InteractionOptionAction;
+import com.cobaltplatform.api.model.db.InteractionSendMethod.InteractionSendMethodId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.ScheduledMessage;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus;
@@ -63,7 +64,9 @@ import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -264,13 +267,29 @@ public class InteractionService {
 		Interaction interaction = findInteractionById(interactionInstance.getInteractionId()).get();
 		Institution institution = getInstitutionService().findInstitutionById(interaction.getInstitutionId()).get();
 
-		Integer frequencyInMinutes = interaction.getFrequencyInMinutes();
+		// Determine the initial send time for this interaction
+		if (interaction.getInteractionSendMethodId().equals(InteractionSendMethodId.MINUTE_OFFSET))
+			startDateTime = startDateTime.plusMinutes(interaction.getSendOffsetInMinutes());
+		else {
+			LocalDate interactionDate = startDateTime.toLocalDate().plusDays(interaction.getSendDayOffset());
+			LocalTime interactionTimeOfDay = interaction.getSendTimeOfDay();
+			startDateTime = LocalDateTime.of(interactionDate, interactionTimeOfDay);
+		}
+
 		LocalDateTime scheduledAt = startDateTime;
 		Integer optionActionCount = findOptionActionCount(interactionInstanceId);
 
 		for (int i = optionActionCount; i < interaction.getMaxInteractionCount(); i++) {
-			if (i > optionActionCount)
-				scheduledAt = scheduledAt.plus(frequencyInMinutes, ChronoUnit.MINUTES);
+			if (i > optionActionCount) {
+				// Determine the send time for the next follow up
+				if (interaction.getInteractionSendMethodId().equals(InteractionSendMethodId.MINUTE_OFFSET))
+					scheduledAt = scheduledAt.plus(interaction.getFrequencyInMinutes(), ChronoUnit.MINUTES);
+				else {
+					LocalDate nextInteractionDate = scheduledAt.toLocalDate().plusDays(interaction.getSendDayOffset());
+					LocalTime nextInteractionTimeOfDay = interaction.getSendTimeOfDay();
+					scheduledAt = LocalDateTime.of(nextInteractionDate, nextInteractionTimeOfDay);
+				}
+			}
 
 			LocalDateTime finalScheduledAt = scheduledAt;
 
@@ -313,6 +332,7 @@ public class InteractionService {
 						put("interactionInstanceUrl", format("%s/interaction-instances/%s",
 								getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institution.getInstitutionId(), UserExperienceTypeId.STAFF).get(), interactionInstanceId));
 						put("messageTemplateBodyHtml", interaction.getMessageTemplateBody());
+						put("subject", interaction.getEmailSubject());
 					}})
 					.build();
 

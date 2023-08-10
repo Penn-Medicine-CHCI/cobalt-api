@@ -86,7 +86,7 @@ import com.cobaltplatform.api.model.api.response.FilterApiResponse.FilterApiResp
 import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupRequestApiResponse.GroupRequestApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.GroupSessionCollectionApiResponse;
+import com.cobaltplatform.api.model.api.response.GroupSessionCollectionApiResponse.GroupSessionCollectionResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionRequestApiResponse.GroupSessionRequestApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionReservationApiResponse.GroupSessionReservationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionResponseApiResponse.GroupSessionResponseApiResponseFactory;
@@ -110,7 +110,6 @@ import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageApiResponse.PatientOrderScheduledMessageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse.PatientOrderScheduledMessageGroupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledScreeningApiResponse.PatientOrderScheduledScreeningApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.PatientOrderTriageApiResponse.PatientOrderTriageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderVoicemailTaskApiResponse.PatientOrderVoicemailTaskApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PinboardNoteApiResponse.PinboardNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
@@ -120,6 +119,7 @@ import com.cobaltplatform.api.model.api.response.QuestionApiResponse.QuestionApi
 import com.cobaltplatform.api.model.api.response.ReportTypeApiResponse.ReportTypeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningAnswerApiResponse.ScreeningAnswerApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningAnswerOptionApiResponse.ScreeningAnswerOptionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ScreeningApiResponse.ScreeningApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningConfirmationPromptApiResponse.ScreeningConfirmationPromptApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningFlowVersionApiResponse.ScreeningFlowVersionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningQuestionApiResponse.ScreeningQuestionApiResponseFactory;
@@ -279,7 +279,6 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(PatientOrderDiagnosisApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PatientOrderMedicationApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PatientOrderOutreachApiResponseFactory.class)));
-		install((new FactoryModuleBuilder().build(PatientOrderTriageApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(InstitutionLocationApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PatientOrderAutocompleteResultApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(FilterApiResponseFactory.class)));
@@ -292,7 +291,8 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(PatientOrderScheduledScreeningApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ScreeningTypeApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PatientOrderVoicemailTaskApiResponseFactory.class)));
-		install((new FactoryModuleBuilder().build(GroupSessionCollectionApiResponse.GroupSessionCollectionResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(GroupSessionCollectionResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(ScreeningApiResponseFactory.class)));
 	}
 
 	@Provides

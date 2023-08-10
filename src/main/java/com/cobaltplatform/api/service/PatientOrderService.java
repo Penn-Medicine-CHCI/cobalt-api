@@ -47,6 +47,8 @@ import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.Create
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderMedicationRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledScreeningRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderTriageGroupRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderTriageGroupRequest.CreatePatientOrderTriageRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderNoteRequest;
@@ -66,8 +68,6 @@ import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStat
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderSafetyPlanningStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledScreeningRequest;
-import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest;
-import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest.CreatePatientOrderTriageRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse.PatientOrderScheduledMessageGroupApiResponseFactory;
@@ -98,10 +98,16 @@ import com.cobaltplatform.api.model.db.PatientOrderFocusType;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderImport;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderIntakeInsuranceStatus.PatientOrderIntakeInsuranceStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderIntakeLocationStatus.PatientOrderIntakeLocationStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderIntakeWantsServicesStatus.PatientOrderIntakeWantsServicesStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderMedication;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderOutreach;
 import com.cobaltplatform.api.model.db.PatientOrderOutreachResult;
+import com.cobaltplatform.api.model.db.PatientOrderReferral;
+import com.cobaltplatform.api.model.db.PatientOrderReferralReason;
+import com.cobaltplatform.api.model.db.PatientOrderReferralReason.PatientOrderReferralReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType;
@@ -114,12 +120,16 @@ import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType.PatientO
 import com.cobaltplatform.api.model.db.PatientOrderScheduledScreening;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
+import com.cobaltplatform.api.model.db.PatientOrderTriageGroup;
+import com.cobaltplatform.api.model.db.PatientOrderTriageOverrideReason;
+import com.cobaltplatform.api.model.db.PatientOrderTriageOverrideReason.PatientOrderTriageOverrideReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderVoicemailTask;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
+import com.cobaltplatform.api.model.db.ScreeningFlowType.ScreeningFlowTypeId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.ScreeningType;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
@@ -518,6 +528,19 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
+	public List<PatientOrderReferral> findPatientOrderReferralsByPatientOrderId(@Nullable UUID patientOrderId) {
+		if (patientOrderId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM patient_order_referral
+				WHERE patient_order_id=?
+				ORDER BY display_order
+				""", PatientOrderReferral.class, patientOrderId);
+	}
+
+	@Nonnull
 	public List<PatientOrder> findPatientOrdersByTestPatientEmailAddressAndInstitutionId(@Nullable IcTestPatientEmailAddress icTestPatientEmailAddress,
 																																											 @Nullable InstitutionId institutionId) {
 		if (icTestPatientEmailAddress == null || institutionId == null)
@@ -547,17 +570,18 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public List<String> findReasonsForReferralByInstitutionId(@Nullable InstitutionId institutionId) {
+	public List<PatientOrderReferralReason> findPatientOrderReferralReasonsByInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return List.of();
 
 		return getDatabase().queryForList("""
-				SELECT DISTINCT ON (UPPER(porfr.reason_for_referral)) reason_for_referral
-				FROM patient_order_reason_for_referral porfr, patient_order p
-				WHERE p.patient_order_id=porfr.patient_order_id
+				SELECT DISTINCT porr.*
+				FROM patient_order_referral_reason porr, patient_order_referral por, patient_order p
+				WHERE p.patient_order_id=por.patient_order_id
+				AND por.patient_order_referral_reason_id=porr.patient_order_referral_reason_id
 				AND p.institution_id=?
-				ORDER BY UPPER(porfr.reason_for_referral)
-				""", String.class, institutionId);
+				ORDER BY porr.description
+				""", PatientOrderReferralReason.class, institutionId);
 	}
 
 	@Nonnull
@@ -687,6 +711,20 @@ public class PatientOrderService implements AutoCloseable {
 				FROM patient_order_care_preference
 				ORDER BY display_order
 				""", PatientOrderCarePreference.class);
+	}
+
+	@Nonnull
+	public List<PatientOrderTriageOverrideReason> findPatientOrderTriageOverrideReasonsByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
+
+		// Don't use institutionId currently, but we might in the future
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM patient_order_triage_override_reason
+				ORDER BY display_order
+				""", PatientOrderTriageOverrideReason.class);
 	}
 
 	@Nonnull
@@ -1266,12 +1304,44 @@ public class PatientOrderService implements AutoCloseable {
 			if (patientOrderFilterFlagTypeIds.size() > 0) {
 				List<String> filterFlagWhereClauseLines = new ArrayList<>();
 
-				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.INSURANCE_NOT_ACCEPTED)) {
-					filterFlagWhereClauseLines.add("po.primary_plan_accepted=FALSE");
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.NO_INTEREST)) {
+					filterFlagWhereClauseLines.add("po.patient_order_intake_wants_services_status_id=?");
+					parameters.add(PatientOrderIntakeWantsServicesStatusId.NO);
 				}
 
-				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.ADDRESS_REGION_NOT_ACCEPTED)) {
-					filterFlagWhereClauseLines.add("po.patient_address_region_accepted=FALSE");
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.LOCATION_INVALID)) {
+					filterFlagWhereClauseLines.add("po.patient_order_intake_location_status_id=?");
+					parameters.add(PatientOrderIntakeLocationStatusId.INVALID);
+				}
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.INSURANCE_CHANGED_RECENTLY)) {
+					filterFlagWhereClauseLines.add("po.patient_order_intake_insurance_status_id=?");
+					parameters.add(PatientOrderIntakeInsuranceStatusId.CHANGED_RECENTLY);
+				}
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.INSURANCE_INVALID)) {
+					filterFlagWhereClauseLines.add("po.patient_order_intake_insurance_status_id=?");
+					parameters.add(PatientOrderIntakeInsuranceStatusId.INVALID);
+				}
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.CONSENT_REJECTED)) {
+					filterFlagWhereClauseLines.add("po.patient_order_consent_status_id=?");
+					parameters.add(PatientOrderConsentStatusId.REJECTED);
+				}
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.NEEDS_SAFETY_PLANNING)) {
+					filterFlagWhereClauseLines.add("po.patient_order_safety_planning_status_id=?");
+					parameters.add(PatientOrderSafetyPlanningStatusId.NEEDS_SAFETY_PLANNING);
+				}
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.NEEDS_RESOURCES)) {
+					filterFlagWhereClauseLines.add("po.patient_order_resourcing_status_id=?");
+					parameters.add(PatientOrderResourcingStatusId.NEEDS_RESOURCES);
+				}
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.SESSION_ABANDONED)) {
+					filterFlagWhereClauseLines.add("(po.most_recent_intake_screening_session_appears_abandoned=TRUE OR po.most_recent_screening_session_appears_abandoned=TRUE)");
 				}
 
 				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.MOST_RECENT_EPISODE_CLOSED_WITHIN_DATE_THRESHOLD)) {
@@ -1485,38 +1555,29 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public List<PatientOrderTriage> findPatientOrderTriagesByPatientOrderId(@Nullable UUID patientOrderId) {
-		return findPatientOrderTriagesByPatientOrderId(patientOrderId, null);
+	public Optional<PatientOrderTriageGroup> findActivePatientOrderTriageGroupByPatientOrderId(@Nullable UUID patientOrderId) {
+		if (patientOrderId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM patient_order_triage_group
+				WHERE patient_order_id=?
+				AND active=TRUE
+				""", PatientOrderTriageGroup.class, patientOrderId);
 	}
 
 	@Nonnull
-	public List<PatientOrderTriage> findPatientOrderTriagesByPatientOrderId(@Nullable UUID patientOrderId,
-																																					@Nullable UUID screeningSessionId) {
-		if (patientOrderId == null)
+	public List<PatientOrderTriage> findPatientOrderTriagesByPatientOrderTriageGroupId(@Nullable UUID patientOrderTriageGroupId) {
+		if (patientOrderTriageGroupId == null)
 			return List.of();
 
-		List<Object> parameters = new ArrayList<>();
-
-		String sql = """
+		return getDatabase().queryForList("""
 				SELECT *
 				FROM patient_order_triage
-				WHERE patient_order_id=?
-				""";
-
-		parameters.add(patientOrderId);
-
-		// If a screening session is specified, pull triages regardless of whether they're still active.
-		// If not specified, only pull active triages
-		if (screeningSessionId != null) {
-			sql += " AND screening_session_id=?";
-			parameters.add(screeningSessionId);
-		} else {
-			sql += " AND active=TRUE";
-		}
-
-		sql += " ORDER BY display_order";
-
-		return getDatabase().queryForList(sql, PatientOrderTriage.class, parameters.toArray(new Object[]{}));
+				WHERE patient_order_triage_group_id=?
+				ORDER BY display_order
+				""", PatientOrderTriage.class, patientOrderTriageGroupId);
 	}
 
 	@Nonnull
@@ -1557,10 +1618,6 @@ public class PatientOrderService implements AutoCloseable {
 							"lastName", otherAlreadyOpenPatientOrder.getPatientLastName(),
 							"mrn", otherAlreadyOpenPatientOrder.getPatientMrn())));
 
-		// Special case: if we are explicitly re-opening an order that was closed due to "refused care"
-		// then flip its consent status back to UNKNOWN
-		boolean shouldResetConsentStatus = patientOrder.getPatientOrderClosureReasonId() == PatientOrderClosureReasonId.REFUSED_CARE
-				&& patientOrder.getPatientOrderConsentStatusId() == PatientOrderConsentStatusId.REJECTED;
 
 		getDatabase().execute("""
 				UPDATE patient_order
@@ -1568,17 +1625,6 @@ public class PatientOrderService implements AutoCloseable {
 				episode_closed_at=NULL, episode_closed_by_account_id=NULL
 				WHERE patient_order_id=?
 				""", PatientOrderDispositionId.OPEN, PatientOrderClosureReasonId.NOT_CLOSED, patientOrderId);
-
-		if (shouldResetConsentStatus) {
-			getLogger().debug("As a side effect of reopening, flipping consent status back to {} for patient order ID {}",
-					PatientOrderConsentStatusId.UNKNOWN.name(), patientOrder.getPatientOrderId());
-
-			getDatabase().execute("""
-					UPDATE patient_order
-					SET patient_order_consent_status_id=?
-					WHERE patient_order_id=?
-					""", PatientOrderConsentStatusId.UNKNOWN, patientOrderId);
-		}
 
 		createPatientOrderEvent(new CreatePatientOrderEventRequest() {
 			{
@@ -1693,29 +1739,20 @@ public class PatientOrderService implements AutoCloseable {
 				WHERE patient_order_id=?
 				""", patientOrderConsentStatusId, accountId, patientOrderId);
 
-		// Side effect of rejection: immediately close out the order
-		if (patientOrderConsentStatusId == PatientOrderConsentStatusId.REJECTED) {
-			getLogger().info("Patient Order ID had its consent rejected, so closing it out...", patientOrderId);
-
-			closePatientOrder(new ClosePatientOrderRequest() {{
-				setPatientOrderId(patientOrderId);
-				setPatientOrderClosureReasonId(PatientOrderClosureReasonId.REFUSED_CARE);
-				setAccountId(accountId);
-			}});
-		}
-
 		// TODO: track event
 
 		return true;
 	}
 
 	@Nonnull
-	public List<UUID> updatePatientOrderTriages(@Nonnull UpdatePatientOrderTriagesRequest request) {
+	public UUID createPatientOrderTriageGroup(@Nonnull CreatePatientOrderTriageGroupRequest request) {
 		requireNonNull(request);
 
 		UUID accountId = request.getAccountId();
 		UUID patientOrderId = request.getPatientOrderId();
+		PatientOrderCareTypeId patientOrderCareTypeId = request.getPatientOrderCareTypeId();
 		PatientOrderTriageSourceId patientOrderTriageSourceId = request.getPatientOrderTriageSourceId();
+		PatientOrderTriageOverrideReasonId patientOrderTriageOverrideReasonId = request.getPatientOrderTriageOverrideReasonId();
 		UUID screeningSessionId = request.getScreeningSessionId();
 		List<CreatePatientOrderTriageRequest> patientOrderTriages = request.getPatientOrderTriages() == null
 				? List.of() : request.getPatientOrderTriages();
@@ -1740,6 +1777,13 @@ public class PatientOrderService implements AutoCloseable {
 
 			if (patientOrder == null)
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+		}
+
+		if (patientOrderCareTypeId == null) {
+			validationException.add(new FieldError("patientOrderCareTypeId", getStrings().get("Patient Order Care Type ID is required.")));
+		} else if (patientOrderCareTypeId == PatientOrderCareTypeId.UNSPECIFIED) {
+			throw new IllegalStateException(format("Attempted to set illegal computed care type %s.%s for patient order ID %s",
+					PatientOrderCareTypeId.class.getSimpleName(), patientOrderCareTypeId.name(), patientOrderId));
 		}
 
 		if (patientOrderTriageSourceId == null) {
@@ -1777,41 +1821,69 @@ public class PatientOrderService implements AutoCloseable {
 					patientOrder.getPatientOrderId(), account.getAccountId()));
 
 		getDatabase().execute("""
-				UPDATE patient_order_triage
+				UPDATE patient_order_triage_group
 				SET active=FALSE
 				WHERE patient_order_id=?
 				""", patientOrder.getPatientOrderId());
 
 		int displayOrder = 0;
+		UUID patientOrderTriageGroupId = UUID.randomUUID();
+
+		getDatabase().execute("""
+						INSERT INTO patient_order_triage_group (
+						     patient_order_triage_group_id,
+						     patient_order_id,
+						     patient_order_care_type_id,
+						     patient_order_triage_override_reason_id,
+						     patient_order_triage_source_id,
+						     account_id,
+						     screening_session_id,
+						     active
+						) VALUES (?,?,?,?,?,?,?,?)
+						""", patientOrderTriageGroupId, patientOrderId, patientOrderCareTypeId,
+				patientOrderTriageOverrideReasonId, patientOrderTriageSourceId, accountId, screeningSessionId, true);
+
+		// UI does not currently expose an override reason for manual triage updates.
+		// Therefore we use the reason description from the database as a placeholder
+		String overrideReason = null;
+
+		if (patientOrderTriageOverrideReasonId != null && patientOrderTriageSourceId == PatientOrderTriageSourceId.MANUALLY_SET) {
+			PatientOrderTriageOverrideReason patientOrderTriageOverrideReason = getDatabase().queryForObject("""
+					SELECT *
+					FROM patient_order_triage_override_reason
+					WHERE patient_order_triage_override_reason_id=?
+					""", PatientOrderTriageOverrideReason.class, patientOrderTriageOverrideReasonId).get();
+
+			overrideReason = patientOrderTriageOverrideReason.getDescription();
+		}
 
 		for (CreatePatientOrderTriageRequest patientOrderTriage : patientOrderTriages) {
 			UUID patientOrderTriageId = UUID.randomUUID();
 			String reason = trimToNull(patientOrderTriage.getReason());
 			++displayOrder;
 
+			if (reason == null && overrideReason != null)
+				reason = overrideReason;
+
 			getDatabase().execute("""
 							INSERT INTO patient_order_triage (
 							     patient_order_triage_id,
-							     patient_order_id,
-							     patient_order_triage_source_id,
+							     patient_order_triage_group_id,
 							     patient_order_care_type_id,
 							     patient_order_focus_type_id,
-							     screening_session_id,
-							     account_id,
 							     reason,
-							     active,
 							     display_order
-							) VALUES (?,?,?,?,?,?,?,?,?,?)
-							""", patientOrderTriageId, patientOrderId, patientOrderTriageSourceId,
+							) VALUES (?,?,?,?,?,?)
+							""", patientOrderTriageId, patientOrderTriageGroupId,
 					patientOrderTriage.getPatientOrderCareTypeId(), patientOrderTriage.getPatientOrderFocusTypeId(),
-					screeningSessionId, accountId, reason, true, displayOrder);
+					reason, displayOrder);
 
 			patientOrderTriageIds.add(patientOrderTriageId);
 		}
 
 		// TODO: track events
 
-		return patientOrderTriageIds;
+		return patientOrderTriageGroupId;
 	}
 
 	@Nonnull
@@ -1822,27 +1894,28 @@ public class PatientOrderService implements AutoCloseable {
 
 		// "Resettable" means inactive triages that were initially sourced by Cobalt, e.g.
 		// via automated analysis of screening session answers
-		List<PatientOrderTriage> resettablePatientOrderTriages = getDatabase().queryForList("""
+		PatientOrderTriageGroup resettablePatientOrderTriageGroup = getDatabase().queryForObject("""
 				SELECT *
-				FROM patient_order_triage
+				FROM patient_order_triage_group
 				WHERE patient_order_id=?
 				AND patient_order_triage_source_id=?
 				AND active=FALSE
-				""", PatientOrderTriage.class, patientOrderId, PatientOrderTriageSourceId.COBALT);
+				""", PatientOrderTriageGroup.class, patientOrderId, PatientOrderTriageSourceId.COBALT).orElse(null);
 
-		if (resettablePatientOrderTriages.size() == 0)
+		if (resettablePatientOrderTriageGroup == null)
 			return false;
 
-		// Disable all triages for this order
+		// Disable the active triage group for this order
 		getDatabase().execute("""
-				UPDATE patient_order_triage
+				UPDATE patient_order_triage_group
 				SET active=FALSE
 				WHERE patient_order_id=?
+				AND active=TRUE
 				""", patientOrderId);
 
-		// Enable just the original triages
+		// Enable just the original triage group
 		boolean updated = getDatabase().execute("""
-				UPDATE patient_order_triage
+				UPDATE patient_order_triage_group
 				SET active=TRUE
 				WHERE patient_order_id=?
 				AND patient_order_triage_source_id=?
@@ -2364,7 +2437,7 @@ public class PatientOrderService implements AutoCloseable {
 				getLogger().info("Changing resource check-in status for patient order ID {} to {}, so closing out...",
 						patientOrderId, patientOrderResourceCheckInResponseStatusId.name());
 				closePatientOrder(new ClosePatientOrderRequest() {{
-					setPatientOrderClosureReasonId(PatientOrderClosureReasonId.SCHEDULED_WITH_SPECIALTY_CARE);
+					setPatientOrderClosureReasonId(PatientOrderClosureReasonId.REFERRED_TO_SPECIALTY_CARE_ENGAGED);
 					setAccountId(accountId);
 					setPatientOrderId(patientOrderId);
 				}});
@@ -2398,7 +2471,7 @@ public class PatientOrderService implements AutoCloseable {
 				getLogger().info("Changing resource check-in status for patient order ID {} to {}, so closing out...",
 						patientOrderId, patientOrderResourceCheckInResponseStatusId.name());
 				closePatientOrder(new ClosePatientOrderRequest() {{
-					setPatientOrderClosureReasonId(PatientOrderClosureReasonId.REFUSED_CARE);
+					setPatientOrderClosureReasonId(PatientOrderClosureReasonId.REFERRED_TO_SPECIALTY_CARE_NOT_ENGAGED);
 					setAccountId(accountId);
 					setPatientOrderId(patientOrderId);
 				}});
@@ -3463,13 +3536,14 @@ public class PatientOrderService implements AutoCloseable {
 		requireNonNull(patientOrder);
 
 		Institution institution = getInstitutionService().findInstitutionById(patientOrder.getInstitutionId()).get();
-		List<PatientOrderTriage> patientOrderTriages = findPatientOrderTriagesByPatientOrderId(patientOrder.getPatientOrderId());
+		PatientOrderTriageGroup patientOrderTriageGroup = findActivePatientOrderTriageGroupByPatientOrderId(patientOrder.getPatientOrderId()).orElse(null);
+		List<PatientOrderTriage> patientOrderTriages = patientOrderTriageGroup == null ? List.of() : findPatientOrderTriagesByPatientOrderTriageGroupId(patientOrderTriageGroup.getPatientOrderTriageGroupId());
 
 		if (patientOrderTriages.size() == 0)
 			throw new ValidationException(getStrings().get("Cannot generate a clinical report; there is no triage information available for this patient order."));
 
 		// Look for a completed screening session...
-		List<ScreeningSession> screeningSessions = getScreeningService().findScreeningSessionsByPatientOrderId(patientOrder.getPatientOrderId());
+		List<ScreeningSession> screeningSessions = getScreeningService().findScreeningSessionsByPatientOrderIdAndScreeningFlowTypeId(patientOrder.getPatientOrderId(), ScreeningFlowTypeId.INTEGRATED_CARE);
 		ScreeningSession completedScreeningSession = screeningSessions.stream()
 				.filter(screeningSession -> screeningSession.getCompleted())
 				.findFirst()
@@ -3486,6 +3560,12 @@ public class PatientOrderService implements AutoCloseable {
 				Map.of("integratedCareProgramName", institution.getIntegratedCareProgramName().toUpperCase(Locale.US))));
 		lines.add("-----------------------------------------------");
 		lines.add(getStrings().get("VISIT SUMMARY / TREATMENT PLAN"));
+
+		if (institution.getIntegratedCareClinicalReportDisclaimer() != null) {
+			lines.add("");
+			lines.add(institution.getIntegratedCareClinicalReportDisclaimer());
+		}
+
 		lines.add("");
 		lines.add(getStrings().get("PATIENT: {{name}} (MRN {{mrn}})",
 				Map.of("name", Normalizer.normalizeName(patientOrder.getPatientFirstName(), null, patientOrder.getPatientLastName()).orElse(null),
@@ -3527,9 +3607,6 @@ public class PatientOrderService implements AutoCloseable {
 				.collect(Collectors.toMap(PatientOrderCareType::getPatientOrderCareTypeId, patientOrderCareType -> patientOrderCareType));
 
 		Map<PatientOrderCareTypeId, List<PatientOrderTriage>> patientOrderTriagesByCareTypeIds = new LinkedHashMap<>();
-
-		// Triage source should be the same across all triages, so just pick the first one
-		PatientOrderTriageSourceId patientOrderTriageSourceId = patientOrderTriages.get(0).getPatientOrderTriageSourceId();
 
 		for (PatientOrderTriage patientOrderTriage : patientOrderTriages) {
 			List<PatientOrderTriage> groupedPatientOrderTriages = patientOrderTriagesByCareTypeIds.get(patientOrderTriage.getPatientOrderCareTypeId());
@@ -3577,14 +3654,13 @@ public class PatientOrderService implements AutoCloseable {
 				focusTypePatientOrderTriages.add(new PatientOrderTriageGroupFocusApiResponse(patientOrderFocusTypesById.get(patientOrderFocusTypeId), focusReasons));
 			}
 
-			patientOrderTriageGroups.add(new PatientOrderTriageGroupApiResponse(patientOrderTriageSourceId, patientOrderCareType, focusTypePatientOrderTriages));
+			patientOrderTriageGroups.add(new PatientOrderTriageGroupApiResponse(patientOrderTriageGroup.getPatientOrderTriageSourceId(), patientOrderCareType, focusTypePatientOrderTriages));
 		}
 
-		// Pick the first non-safety-planning triage group
+		// Pick the first non-unspecified triage group
 		PatientOrderTriageGroupApiResponse applicablePatientOrderTriageGroup = patientOrderTriageGroups.stream()
-				.filter(patientOrderTriageGroup -> patientOrderTriageGroup.getPatientOrderCareTypeId() != PatientOrderCareTypeId.SAFETY_PLANNING
-						&& patientOrderTriageGroup.getPatientOrderCareTypeId() != PatientOrderCareTypeId.UNSPECIFIED)
-				.findFirst().orElse(null);
+				.filter(potentialPatientOrderTriageGroup -> potentialPatientOrderTriageGroup.getPatientOrderCareTypeId() != PatientOrderCareTypeId.UNSPECIFIED)
+				.findFirst().get();
 
 		lines.add("");
 		lines.add(getStrings().get("ASSESSMENT TRIAGE: {{careType}} Care", Map.of(
@@ -4386,14 +4462,28 @@ public class PatientOrderService implements AutoCloseable {
 
 		int reasonForReferralDisplayOrder = 0;
 
+		Map<String, PatientOrderReferralReasonId> patientOrderReferralReasonIdsByDescription = getDatabase().queryForList("""
+						SELECT *
+						FROM patient_order_referral_reason
+						""", PatientOrderReferralReason.class).stream()
+				.collect(Collectors.toMap(patientOrderReferralReason -> patientOrderReferralReason.getDescription().toLowerCase(Locale.US),
+						patientOrderReferralReason -> patientOrderReferralReason.getPatientOrderReferralReasonId()));
+
 		for (String reasonForReferral : reasonsForReferral) {
+			PatientOrderReferralReasonId patientOrderReferralReasonId = patientOrderReferralReasonIdsByDescription.get(reasonForReferral.toLowerCase(Locale.US));
+
+			if (patientOrderReferralReasonId == null) {
+				getLogger().warn("Encountered unrecognized referral reason '{}'", reasonForReferral);
+				patientOrderReferralReasonId = PatientOrderReferralReasonId.UNKNOWN;
+			}
+
 			getDatabase().execute("""
-					INSERT INTO patient_order_reason_for_referral (
+					INSERT INTO patient_order_referral (
 					patient_order_id,
-					reason_for_referral,
+					patient_order_referral_reason_id,
 					display_order
 					) VALUES (?,?,?)
-					""", patientOrderId, reasonForReferral, reasonForReferralDisplayOrder);
+					""", patientOrderId, patientOrderReferralReasonId, reasonForReferralDisplayOrder);
 
 			++reasonForReferralDisplayOrder;
 		}

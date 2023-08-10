@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('111-group-session-updates', NULL, NULL);
+SELECT _v.register_patch('112-group-session-updates', NULL, NULL);
 
 CREATE TABLE group_session_collection (
   group_session_collection_id UUID NOT NULL PRIMARY KEY,
