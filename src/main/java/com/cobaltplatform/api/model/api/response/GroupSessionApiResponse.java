@@ -226,9 +226,19 @@ public class GroupSessionApiResponse {
 		this.facilitatorName = groupSession.getFacilitatorName();
 		this.facilitatorEmailAddress = groupSession.getFacilitatorEmailAddress();
 		this.startDateTime = groupSession.getStartDateTime();
-		this.startDateTimeDescription = hasStartEndTime ? formatter.formatDateTime(groupSession.getStartDateTime(), FormatStyle.LONG, FormatStyle.SHORT) : null;
+		if (hasStartEndTime)
+		  this.startDateTimeDescription = groupSession.getSingleSessionFlag() ?
+					formatter.formatDateTime(groupSession.getStartDateTime(), FormatStyle.LONG, FormatStyle.SHORT) :
+					formatter.formatDate(groupSession.getStartDateTime().toLocalDate(), FormatStyle.LONG);
+		else
+			this.startDateTimeDescription = null;
 		this.endDateTime = groupSession.getEndDateTime();
-		this.endDateTimeDescription = hasStartEndTime ? formatter.formatDateTime(groupSession.getEndDateTime(), FormatStyle.LONG, FormatStyle.SHORT) : null;
+		if (hasStartEndTime)
+			this.endDateTimeDescription = groupSession.getSingleSessionFlag() ?
+					formatter.formatDateTime(groupSession.getEndDateTime(), FormatStyle.LONG, FormatStyle.SHORT) :
+					formatter.formatDate(groupSession.getEndDateTime().toLocalDate(), FormatStyle.LONG);
+		else
+			this.endDateTimeDescription = null;
 		this.appointmentTimeDescription = hasStartEndTime ? AppointmentTimeFormatter.createTimeDescription(groupSession.getStartDateTime(), groupSession.getEndDateTime(), groupSession.getTimeZone()) : null;
 		this.durationInMinutes = hasStartEndTime ? (int) Duration.between(startDateTime, endDateTime).
 				toMinutes() : 0;

@@ -98,6 +98,9 @@ CREATE VIEW v_group_session AS
   DROP COLUMN submitter_name,
   DROP COLUMN schedule_url;
 
+  --Turn off user submitted group sessions
+  UPDATE institution SET user_submitted_group_session_enabled = false;
+
 COMMIT;
 
 --Test
