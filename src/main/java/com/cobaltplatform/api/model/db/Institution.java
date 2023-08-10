@@ -69,6 +69,8 @@ public class Institution {
 	@Nullable
 	private UUID integratedCareScreeningFlowId;
 	@Nullable
+	private UUID integratedCareIntakeScreeningFlowId;
+	@Nullable
 	private UUID featureScreeningFlowId;
 	@Nullable
 	private AnonymousAccountExpirationStrategyId anonymousAccountExpirationStrategyId;
@@ -210,6 +212,8 @@ public class Institution {
 	private String integratedCarePrimaryCareName;
 	@Nullable
 	private String clinicalSupportPhoneNumber;
+	@Nullable
+	private String integratedCareClinicalReportDisclaimer;
 
 	public enum InstitutionId {
 		COBALT,
@@ -384,6 +388,15 @@ public class Institution {
 
 	public void setIntegratedCareScreeningFlowId(@Nullable UUID integratedCareScreeningFlowId) {
 		this.integratedCareScreeningFlowId = integratedCareScreeningFlowId;
+	}
+
+	@Nullable
+	public UUID getIntegratedCareIntakeScreeningFlowId() {
+		return this.integratedCareIntakeScreeningFlowId;
+	}
+
+	public void setIntegratedCareIntakeScreeningFlowId(@Nullable UUID integratedCareIntakeScreeningFlowId) {
+		this.integratedCareIntakeScreeningFlowId = integratedCareIntakeScreeningFlowId;
 	}
 
 	@Nullable
@@ -962,5 +975,14 @@ public class Institution {
 
 	public void setClinicalSupportPhoneNumber(@Nullable String clinicalSupportPhoneNumber) {
 		this.clinicalSupportPhoneNumber = clinicalSupportPhoneNumber;
+	}
+
+	@Nullable
+	public String getIntegratedCareClinicalReportDisclaimer() {
+		return this.integratedCareClinicalReportDisclaimer;
+	}
+
+	public void setIntegratedCareClinicalReportDisclaimer(@Nullable String integratedCareClinicalReportDisclaimer) {
+		this.integratedCareClinicalReportDisclaimer = integratedCareClinicalReportDisclaimer;
 	}
 }

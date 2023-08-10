@@ -46,6 +46,10 @@ import com.cobaltplatform.api.model.db.PatientOrderDemographicsImportStatus.Pati
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderIntakeInsuranceStatus.PatientOrderIntakeInsuranceStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderIntakeLocationStatus.PatientOrderIntakeLocationStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderIntakeScreeningStatus.PatientOrderIntakeScreeningStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderIntakeWantsServicesStatus.PatientOrderIntakeWantsServicesStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
@@ -53,7 +57,7 @@ import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientO
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
-import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
+import com.cobaltplatform.api.model.db.PatientOrderTriageGroup;
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
@@ -300,6 +304,10 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private List<PatientOrderVoicemailTaskApiResponse> patientOrderVoicemailTasks;
 	@Nullable
+	private ScreeningSessionApiResponse intakeScreeningSession;
+	@Nullable
+	private ScreeningSessionResult intakeScreeningSessionResult;
+	@Nullable
 	private ScreeningSessionApiResponse screeningSession;
 	@Nullable
 	private ScreeningSessionResult screeningSessionResult;
@@ -358,6 +366,40 @@ public class PatientOrderApiResponse {
 	private Instant mostRecentScreeningSessionCompletedAt;
 	@Nullable
 	private String mostRecentScreeningSessionCompletedAtDescription;
+	@Nullable
+	private Boolean mostRecentScreeningSessionAppearsAbandoned;
+	@Nullable
+	private UUID mostRecentIntakeScreeningSessionId;
+	@Nullable
+	private Instant mostRecentIntakeScreeningSessionCreatedAt;
+	@Nullable
+	private String mostRecentIntakeScreeningSessionCreatedAtDescription;
+	@Nullable
+	private UUID mostRecentIntakeScreeningSessionCreatedByAccountId;
+	@Nullable
+	private RoleId mostRecentIntakeScreeningSessionCreatedByAccountRoleId;
+	@Nullable
+	private String mostRecentIntakeScreeningSessionCreatedByAccountFirstName;
+	@Nullable
+	private String mostRecentIntakeScreeningSessionCreatedByAccountLastName;
+	@Nullable
+	private String mostRecentIntakeScreeningSessionCreatedByAccountDisplayName;
+	@Nullable
+	private String mostRecentIntakeScreeningSessionCreatedByAccountDisplayNameWithLastFirst;
+	@Nullable
+	private Boolean mostRecentIntakeScreeningSessionCompleted;
+	@Nullable
+	private Instant mostRecentIntakeScreeningSessionCompletedAt;
+	@Nullable
+	private String mostRecentIntakeScreeningSessionCompletedAtDescription;
+	@Nullable
+	private Boolean mostRecentIntakeScreeningSessionByPatient;
+	@Nullable
+	private Boolean mostRecentIntakeScreeningSessionAppearsAbandoned;
+	@Nullable
+	private PatientOrderIntakeScreeningStatusId patientOrderIntakeScreeningStatusId;
+	@Nullable
+	private String patientOrderIntakeScreeningStatusDescription;
 	@Nullable
 	private String panelAccountFirstName;
 	@Nullable
@@ -446,6 +488,14 @@ public class PatientOrderApiResponse {
 	private String patientOrderResourceCheckInResponseStatusDescription;
 	@Nullable
 	private Boolean testPatientOrder;
+	@Nullable
+	private PatientOrderIntakeWantsServicesStatusId patientOrderIntakeWantsServicesStatusId;
+	@Nullable
+	private PatientOrderIntakeLocationStatusId patientOrderIntakeLocationStatusId;
+	@Nullable
+	private PatientOrderIntakeInsuranceStatusId patientOrderIntakeInsuranceStatusId;
+	@Nullable
+	private Boolean mostRecentIntakeAndClinicalScreeningsSatisfied;
 
 	public enum PatientOrderApiResponseSupplement {
 		MINIMAL,
@@ -602,25 +652,18 @@ public class PatientOrderApiResponse {
 					.map(patientOrderVoicemailTask -> patientOrderVoicemailTaskApiResponseFactory.create(patientOrderVoicemailTask))
 					.collect(Collectors.toList());
 
-			List<ScreeningSession> screeningSessions = screeningService.findScreeningSessionsByPatientOrderId(patientOrder.getPatientOrderId());
+			ScreeningSession mostRecentIntakeScreeningSession = screeningService.findScreeningSessionById(patientOrder.getMostRecentIntakeScreeningSessionId()).orElse(null);
 
-			// Look for a completed screening session...
-			ScreeningSession currentScreeningSession = null;
-			ScreeningSession completedScreeningSession = screeningSessions.stream()
-					.filter(screeningSession -> screeningSession.getCompleted())
-					.findFirst()
-					.orElse(null);
+			this.intakeScreeningSession = mostRecentIntakeScreeningSession == null ? null : screeningSessionApiResponseFactory.create(mostRecentIntakeScreeningSession);
+			this.intakeScreeningSessionResult = screeningService.findScreeningSessionResult(mostRecentIntakeScreeningSession).orElse(null);
 
-			// ...if no completed screening session, pick the first one in the list
-			if (completedScreeningSession != null)
-				currentScreeningSession = completedScreeningSession;
-			else
-				currentScreeningSession = screeningSessions.size() == 0 ? null : screeningSessions.get(0);
+			ScreeningSession mostRecentScreeningSession = screeningService.findScreeningSessionById(patientOrder.getMostRecentScreeningSessionId()).orElse(null);
 
-			this.screeningSession = currentScreeningSession == null ? null : screeningSessionApiResponseFactory.create(currentScreeningSession);
-			this.screeningSessionResult = completedScreeningSession == null ? null : screeningService.findScreeningSessionResult(completedScreeningSession).get();
+			this.screeningSession = mostRecentScreeningSession == null ? null : screeningSessionApiResponseFactory.create(mostRecentScreeningSession);
+			this.screeningSessionResult = screeningService.findScreeningSessionResult(mostRecentScreeningSession).orElse(null);
 
-			List<PatientOrderTriage> patientOrderTriages = patientOrderService.findPatientOrderTriagesByPatientOrderId(patientOrder.getPatientOrderId());
+			PatientOrderTriageGroup patientOrderTriageGroup = patientOrderService.findActivePatientOrderTriageGroupByPatientOrderId(patientOrder.getPatientOrderId()).orElse(null);
+			List<PatientOrderTriage> patientOrderTriages = patientOrderTriageGroup == null ? List.of() : patientOrderService.findPatientOrderTriagesByPatientOrderTriageGroupId(patientOrderTriageGroup.getPatientOrderTriageGroupId());
 
 			if (patientOrderTriages.size() > 0) {
 				List<PatientOrderFocusType> patientOrderFocusTypes = patientOrderService.findPatientOrderFocusTypes();
@@ -631,9 +674,6 @@ public class PatientOrderApiResponse {
 						.collect(Collectors.toMap(PatientOrderCareType::getPatientOrderCareTypeId, patientOrderCareType -> patientOrderCareType));
 
 				Map<PatientOrderCareTypeId, List<PatientOrderTriage>> patientOrderTriagesByCareTypeIds = new LinkedHashMap<>();
-
-				// Triage source should be the same across all triages, so just pick the first one
-				PatientOrderTriageSourceId patientOrderTriageSourceId = patientOrderTriages.get(0).getPatientOrderTriageSourceId();
 
 				for (PatientOrderTriage patientOrderTriage : patientOrderTriages) {
 					List<PatientOrderTriage> groupedPatientOrderTriages = patientOrderTriagesByCareTypeIds.get(patientOrderTriage.getPatientOrderCareTypeId());
@@ -681,7 +721,7 @@ public class PatientOrderApiResponse {
 						focusTypePatientOrderTriages.add(new PatientOrderTriageGroupFocusApiResponse(patientOrderFocusTypesById.get(patientOrderFocusTypeId), focusReasons));
 					}
 
-					patientOrderTriageGroups.add(new PatientOrderTriageGroupApiResponse(patientOrderTriageSourceId, patientOrderCareType, focusTypePatientOrderTriages));
+					patientOrderTriageGroups.add(new PatientOrderTriageGroupApiResponse(patientOrderTriageGroup.getPatientOrderTriageSourceId(), patientOrderCareType, focusTypePatientOrderTriages));
 				}
 
 				this.patientOrderTriageGroups = patientOrderTriageGroups;
@@ -764,6 +804,20 @@ public class PatientOrderApiResponse {
 		this.mostRecentScreeningSessionCompleted = patientOrder.getMostRecentScreeningSessionCompleted();
 		this.mostRecentScreeningSessionCompletedAt = patientOrder.getMostRecentScreeningSessionCompletedAt();
 		this.mostRecentScreeningSessionCompletedAtDescription = patientOrder.getMostRecentScreeningSessionCompletedAt() == null ? null : formatter.formatTimestamp(patientOrder.getMostRecentScreeningSessionCompletedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.mostRecentScreeningSessionAppearsAbandoned = patientOrder.getMostRecentScreeningSessionAppearsAbandoned();
+
+		this.mostRecentIntakeScreeningSessionId = patientOrder.getMostRecentIntakeScreeningSessionId();
+		this.mostRecentIntakeScreeningSessionCreatedAt = patientOrder.getMostRecentIntakeScreeningSessionCreatedAt();
+		this.mostRecentIntakeScreeningSessionCreatedAtDescription = patientOrder.getMostRecentIntakeScreeningSessionCreatedAt() == null ? null : formatter.formatTimestamp(patientOrder.getMostRecentIntakeScreeningSessionCreatedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.mostRecentIntakeScreeningSessionCreatedByAccountId = patientOrder.getMostRecentIntakeScreeningSessionCreatedByAccountId();
+		this.mostRecentIntakeScreeningSessionCreatedByAccountRoleId = patientOrder.getMostRecentIntakeScreeningSessionCreatedByAccountRoleId();
+		this.mostRecentIntakeScreeningSessionCompleted = patientOrder.getMostRecentIntakeScreeningSessionCompleted();
+		this.mostRecentIntakeScreeningSessionCompletedAt = patientOrder.getMostRecentIntakeScreeningSessionCompletedAt();
+		this.mostRecentIntakeScreeningSessionCompletedAtDescription = patientOrder.getMostRecentIntakeScreeningSessionCompletedAt() == null ? null : formatter.formatTimestamp(patientOrder.getMostRecentIntakeScreeningSessionCompletedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.mostRecentIntakeScreeningSessionByPatient = patientOrder.getMostRecentIntakeScreeningSessionByPatient();
+		this.mostRecentIntakeScreeningSessionAppearsAbandoned = patientOrder.getMostRecentIntakeScreeningSessionAppearsAbandoned();
+		this.patientOrderIntakeScreeningStatusId = patientOrder.getPatientOrderIntakeScreeningStatusId();
+		this.patientOrderIntakeScreeningStatusDescription = patientOrder.getPatientOrderIntakeScreeningStatusDescription();
 
 		this.patientAgeOnOrderDate = patientOrder.getPatientAgeOnOrderDate();
 		this.patientAgeOnOrderDateDescription = formatter.formatInteger(patientOrder.getPatientAgeOnOrderDate());
@@ -795,6 +849,12 @@ public class PatientOrderApiResponse {
 
 		this.testPatientOrder = patientOrder.getTestPatientOrder();
 		this.mostRecentScreeningSessionCreatedByAccountRoleId = patientOrder.getMostRecentScreeningSessionCreatedByAccountRoleId();
+
+		this.patientOrderIntakeWantsServicesStatusId = patientOrder.getPatientOrderIntakeWantsServicesStatusId();
+		this.patientOrderIntakeLocationStatusId = patientOrder.getPatientOrderIntakeLocationStatusId();
+		this.patientOrderIntakeInsuranceStatusId = patientOrder.getPatientOrderIntakeInsuranceStatusId();
+
+		this.mostRecentIntakeAndClinicalScreeningsSatisfied = patientOrder.getMostRecentIntakeAndClinicalScreeningsSatisfied();
 
 		// MHIC-only view of the data
 		if (format == PatientOrderApiResponseFormat.MHIC) {
@@ -888,6 +948,11 @@ public class PatientOrderApiResponse {
 			this.resourceCheckInScheduledMessageGroupId = patientOrder.getResourceCheckInScheduledMessageGroupId();
 			this.resourceCheckInScheduledAtDateTime = patientOrder.getResourceCheckInScheduledAtDateTime();
 			this.resourceCheckInScheduledAtDateTimeDescription = patientOrder.getResourceCheckInScheduledAtDateTime() == null ? null : formatter.formatDateTime(patientOrder.getResourceCheckInScheduledAtDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+
+			this.mostRecentIntakeScreeningSessionCreatedByAccountFirstName = patientOrder.getMostRecentIntakeScreeningSessionCreatedByAccountFirstName();
+			this.mostRecentIntakeScreeningSessionCreatedByAccountLastName = patientOrder.getMostRecentIntakeScreeningSessionCreatedByAccountLastName();
+			this.mostRecentIntakeScreeningSessionCreatedByAccountDisplayName = Normalizer.normalizeName(patientOrder.getMostRecentIntakeScreeningSessionCreatedByAccountFirstName(), patientOrder.getMostRecentIntakeScreeningSessionCreatedByAccountLastName(), null).orElse(null);
+			this.mostRecentIntakeScreeningSessionCreatedByAccountDisplayNameWithLastFirst = Normalizer.normalizeNameWithLastFirst(patientOrder.getMostRecentIntakeScreeningSessionCreatedByAccountFirstName(), patientOrder.getMostRecentIntakeScreeningSessionCreatedByAccountLastName(), null).orElse(null);
 		}
 	}
 
@@ -1284,6 +1349,16 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public List<PatientOrderTriageGroupApiResponse> getPatientOrderTriageGroups() {
 		return this.patientOrderTriageGroups;
+	}
+
+	@Nullable
+	public ScreeningSessionApiResponse getIntakeScreeningSession() {
+		return this.intakeScreeningSession;
+	}
+
+	@Nullable
+	public ScreeningSessionResult getIntakeScreeningSessionResult() {
+		return this.intakeScreeningSessionResult;
 	}
 
 	@Nullable
@@ -1759,5 +1834,110 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public Boolean getTestPatientOrder() {
 		return this.testPatientOrder;
+	}
+
+	@Nullable
+	public UUID getMostRecentIntakeScreeningSessionId() {
+		return this.mostRecentIntakeScreeningSessionId;
+	}
+
+	@Nullable
+	public Instant getMostRecentIntakeScreeningSessionCreatedAt() {
+		return this.mostRecentIntakeScreeningSessionCreatedAt;
+	}
+
+	@Nullable
+	public String getMostRecentIntakeScreeningSessionCreatedAtDescription() {
+		return this.mostRecentIntakeScreeningSessionCreatedAtDescription;
+	}
+
+	@Nullable
+	public UUID getMostRecentIntakeScreeningSessionCreatedByAccountId() {
+		return this.mostRecentIntakeScreeningSessionCreatedByAccountId;
+	}
+
+	@Nullable
+	public RoleId getMostRecentIntakeScreeningSessionCreatedByAccountRoleId() {
+		return this.mostRecentIntakeScreeningSessionCreatedByAccountRoleId;
+	}
+
+	@Nullable
+	public String getMostRecentIntakeScreeningSessionCreatedByAccountFirstName() {
+		return this.mostRecentIntakeScreeningSessionCreatedByAccountFirstName;
+	}
+
+	@Nullable
+	public String getMostRecentIntakeScreeningSessionCreatedByAccountLastName() {
+		return this.mostRecentIntakeScreeningSessionCreatedByAccountLastName;
+	}
+
+	@Nullable
+	public String getMostRecentIntakeScreeningSessionCreatedByAccountDisplayName() {
+		return this.mostRecentIntakeScreeningSessionCreatedByAccountDisplayName;
+	}
+
+	@Nullable
+	public String getMostRecentIntakeScreeningSessionCreatedByAccountDisplayNameWithLastFirst() {
+		return this.mostRecentIntakeScreeningSessionCreatedByAccountDisplayNameWithLastFirst;
+	}
+
+	@Nullable
+	public Boolean getMostRecentIntakeScreeningSessionCompleted() {
+		return this.mostRecentIntakeScreeningSessionCompleted;
+	}
+
+	@Nullable
+	public Instant getMostRecentIntakeScreeningSessionCompletedAt() {
+		return this.mostRecentIntakeScreeningSessionCompletedAt;
+	}
+
+	@Nullable
+	public String getMostRecentIntakeScreeningSessionCompletedAtDescription() {
+		return this.mostRecentIntakeScreeningSessionCompletedAtDescription;
+	}
+
+	@Nullable
+	public Boolean getMostRecentIntakeScreeningSessionByPatient() {
+		return this.mostRecentIntakeScreeningSessionByPatient;
+	}
+
+	@Nullable
+	public PatientOrderIntakeScreeningStatusId getPatientOrderIntakeScreeningStatusId() {
+		return this.patientOrderIntakeScreeningStatusId;
+	}
+
+	@Nullable
+	public String getPatientOrderIntakeScreeningStatusDescription() {
+		return this.patientOrderIntakeScreeningStatusDescription;
+	}
+
+	@Nullable
+	public PatientOrderIntakeWantsServicesStatusId getPatientOrderIntakeWantsServicesStatusId() {
+		return this.patientOrderIntakeWantsServicesStatusId;
+	}
+
+	@Nullable
+	public PatientOrderIntakeLocationStatusId getPatientOrderIntakeLocationStatusId() {
+		return this.patientOrderIntakeLocationStatusId;
+	}
+
+	@Nullable
+	public PatientOrderIntakeInsuranceStatusId getPatientOrderIntakeInsuranceStatusId() {
+		return this.patientOrderIntakeInsuranceStatusId;
+	}
+
+	@Nullable
+	public Boolean getMostRecentScreeningSessionAppearsAbandoned() {
+		return this.mostRecentScreeningSessionAppearsAbandoned;
+	}
+
+	@Nullable
+	public Boolean getMostRecentIntakeScreeningSessionAppearsAbandoned() {
+		return this.mostRecentIntakeScreeningSessionAppearsAbandoned;
+	}
+
+	@Nullable
+	public Boolean getMostRecentIntakeAndClinicalScreeningsSatisfied() {
+		return this.mostRecentIntakeAndClinicalScreeningsSatisfied;
 	}
 }

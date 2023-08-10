@@ -22,10 +22,10 @@ package com.cobaltplatform.api.context;
 
 import com.cobaltplatform.api.integration.epic.MyChartAccessToken;
 import com.cobaltplatform.api.model.db.Account;
-import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.security.AccessTokenStatus;
+import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
 import com.cobaltplatform.api.model.service.RemoteClient;
 
 import javax.annotation.Nonnull;
@@ -70,7 +70,7 @@ public class CurrentContext {
 	@Nullable
 	private final UUID sessionTrackingId;
 	@Nullable
-	private final AccountSource accountSource;
+	private final AccountSourceForInstitution accountSource;
 	@Nullable
 	private final String fingerprintId;
 	@Nullable
@@ -168,7 +168,7 @@ public class CurrentContext {
 	}
 
 	@Nonnull
-	public Optional<AccountSource> getAccountSource() {
+	public Optional<AccountSourceForInstitution> getAccountSource() {
 		return Optional.ofNullable(this.accountSource);
 	}
 
@@ -207,7 +207,7 @@ public class CurrentContext {
 		@Nullable
 		private UUID sessionTrackingId;
 		@Nullable
-		private AccountSource accountSource;
+		private AccountSourceForInstitution accountSource;
 		@Nullable
 		private String fingerprintId;
 		@Nullable
@@ -270,7 +270,7 @@ public class CurrentContext {
 		}
 
 		@Nonnull
-		public Builder accountSource(@Nullable AccountSource accountSource) {
+		public Builder accountSource(@Nullable AccountSourceForInstitution accountSource) {
 			this.accountSource = accountSource;
 			return this;
 		}

@@ -24,13 +24,13 @@ import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.messaging.call.CallMessage;
 import com.cobaltplatform.api.messaging.call.CallMessageTemplate;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderTriageGroupRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderTriageGroupRequest.CreatePatientOrderTriageRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest.CreateAnswerRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.request.SkipScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
-import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest;
-import com.cobaltplatform.api.model.api.request.UpdatePatientOrderTriagesRequest.CreatePatientOrderTriageRequest;
 import com.cobaltplatform.api.model.api.response.ScreeningConfirmationPromptApiResponse.ScreeningConfirmationPromptApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
@@ -42,11 +42,17 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
+import com.cobaltplatform.api.model.db.PatientOrderConsentStatus.PatientOrderConsentStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderCrisisHandler;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderIntakeInsuranceStatus.PatientOrderIntakeInsuranceStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderIntakeLocationStatus.PatientOrderIntakeLocationStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderIntakeWantsServicesStatus.PatientOrderIntakeWantsServicesStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderReferralReason.PatientOrderReferralReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderTriageOverrideReason.PatientOrderTriageOverrideReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Screening;
@@ -55,6 +61,7 @@ import com.cobaltplatform.api.model.db.ScreeningAnswerFormat.ScreeningAnswerForm
 import com.cobaltplatform.api.model.db.ScreeningAnswerOption;
 import com.cobaltplatform.api.model.db.ScreeningConfirmationPrompt;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
+import com.cobaltplatform.api.model.db.ScreeningFlowType.ScreeningFlowTypeId;
 import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
 import com.cobaltplatform.api.model.db.ScreeningQuestion;
 import com.cobaltplatform.api.model.db.ScreeningSession;
@@ -634,7 +641,8 @@ public class ScreeningService {
 
 				// Special behavior if we're IC and this is the special IC screening flow
 				creatingIntegratedCareScreeningSession = institution.getIntegratedCareEnabled()
-						&& Objects.equals(screeningFlowVersion.getScreeningFlowId(), institution.getIntegratedCareScreeningFlowId());
+						&& (Objects.equals(screeningFlowVersion.getScreeningFlowId(), institution.getIntegratedCareScreeningFlowId())
+						|| Objects.equals(screeningFlowVersion.getScreeningFlowId(), institution.getIntegratedCareIntakeScreeningFlowId()));
 			}
 		}
 
@@ -685,7 +693,21 @@ public class ScreeningService {
 				setScreeningSessionId(screeningSessionId);
 			}});
 		} else {
-			Screening screening = findScreeningById(screeningFlowVersion.getInitialScreeningId()).get();
+			UUID initialScreeningId = null;
+
+			// If there's an initialization function, invoke it.
+			// The function can optionally allow for starting on a different screening than what's specified as the default
+			if (screeningFlowVersion.getInitializationFunction() != null) {
+				InitializationFunctionOutput initializationFunctionOutput = executeScreeningFlowFunction(screeningFlowVersion.getInitializationFunction(),
+						InitializationFunctionOutput.class, screeningSessionId, createdByAccount.getInstitutionId(), Map.of()).get();
+
+				initialScreeningId = initializationFunctionOutput.getInitialScreeningId();
+			}
+
+			if (initialScreeningId == null)
+				initialScreeningId = screeningFlowVersion.getInitialScreeningId();
+
+			Screening screening = findScreeningById(initialScreeningId).get();
 
 			// Initial screening is the current version of the screening specified in the flow
 			getDatabase().execute("""
@@ -1174,7 +1196,9 @@ public class ScreeningService {
 		Institution institution = getInstitutionService().findInstitutionById(createdByAccount.getInstitutionId()).get();
 
 		// Special failsafe checks for IC
-		if (institution.getIntegratedCareEnabled() && institution.getIntegratedCareScreeningFlowId().equals(screeningFlowVersion.getScreeningFlowId())) {
+		if (institution.getIntegratedCareEnabled() &&
+				(institution.getIntegratedCareScreeningFlowId().equals(screeningFlowVersion.getScreeningFlowId())
+						|| institution.getIntegratedCareIntakeScreeningFlowId().equals(screeningFlowVersion.getScreeningFlowId()))) {
 			// Something is wrong if this doesn't exist, fail-fast with .get()
 			PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(screeningSession.getPatientOrderId()).get();
 
@@ -1183,8 +1207,9 @@ public class ScreeningService {
 						screeningSession.getScreeningSessionId(), patientOrder.getPatientOrderId(), patientOrder.getPatientOrderDispositionId().name());
 				throw new ValidationException(getStrings().get("Sorry, this order is closed, so you cannot answer this question."),
 						Map.of("shouldExitScreeningSession", true));
-			} else if (patientOrder.getMostRecentScreeningSessionId() != null) {
-				if (patientOrder.getMostRecentScreeningSessionId().equals(screeningSession.getScreeningSessionId())) {
+			} else if (patientOrder.getMostRecentIntakeScreeningSessionId() != null || patientOrder.getMostRecentScreeningSessionId() != null) {
+				if (patientOrder.getMostRecentIntakeScreeningSessionId().equals(screeningSession.getScreeningSessionId())
+						|| patientOrder.getMostRecentScreeningSessionId().equals(screeningSession.getScreeningSessionId())) {
 					Account screeningSessionCreatedByAccount = getAccountService().findAccountById(screeningSession.getCreatedByAccountId()).get();
 
 					// If a patient tries to answer a question for an assessment that's being performed on the patient's behalf by an MHIC,
@@ -1295,15 +1320,14 @@ public class ScreeningService {
 				findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(screeningSessionScreeningId);
 		List<ScreeningAnswer> screeningAnswers = findScreeningAnswersAcrossAllQuestionsByScreeningSessionScreeningId(screeningSessionScreeningId);
 
-		Integer answeredScreeningQuestionCount = getDatabase().queryForObject("""
-				SELECT COUNT(*)
-				FROM screening_session_answered_screening_question
+		List<ScreeningSessionAnsweredScreeningQuestion> screeningSessionAnsweredScreeningQuestions = getDatabase().queryForList("""
+				SELECT *
+				FROM v_screening_session_answered_screening_question
 				WHERE screening_session_screening_id=?
-				AND valid=TRUE
-				""", Integer.class, screeningSessionScreeningId).get();
+				""", ScreeningSessionAnsweredScreeningQuestion.class, screeningSessionScreeningId);
 
 		ScreeningScoringFunctionOutput screeningScoringFunctionOutput = executeScreeningScoringFunction(screeningQuestionId,
-				screeningVersion.getScoringFunction(), screeningQuestionsWithAnswerOptions, screeningAnswers, answeredScreeningQuestionCount);
+				screeningVersion.getScoringFunction(), screeningQuestionsWithAnswerOptions, screeningAnswers, screeningSessionAnsweredScreeningQuestions);
 
 		getLogger().info("Screening session screening ID {} ({}) was scored {} with completed flag={}.", screeningSessionScreeningId,
 				screeningVersion.getScreeningTypeId().name(), screeningScoringFunctionOutput.getScore(), screeningScoringFunctionOutput.getCompleted());
@@ -1577,19 +1601,59 @@ public class ScreeningService {
 							"VALUES (?,?)", screeningSession.getScreeningSessionId(), featureId);
 				}
 
+				// Special handling for IC intake flow
+				if (institution.getIntegratedCareEnabled()
+						&& Objects.equals(institution.getIntegratedCareIntakeScreeningFlowId(), screeningFlowVersion.getScreeningFlowId())) {
+					PatientOrder patientOrder = getPatientOrderService().findPatientOrderByScreeningSessionId(screeningSession.getScreeningSessionId()).orElse(null);
+
+					if (patientOrder == null) {
+						getLogger().warn("No patient order for target account ID {} and screening session ID {}, ignoring intake results...", screeningSession.getTargetAccountId(), screeningSession.getScreeningSessionId());
+					} else {
+						PatientOrderIntakeLocationStatusId patientOrderIntakeLocationStatusId = patientOrder.getPatientOrderIntakeLocationStatusId();
+						PatientOrderIntakeInsuranceStatusId patientOrderIntakeInsuranceStatusId = patientOrder.getPatientOrderIntakeInsuranceStatusId();
+						PatientOrderIntakeWantsServicesStatusId patientOrderIntakeWantsServicesStatusId = patientOrder.getPatientOrderIntakeWantsServicesStatusId();
+						PatientOrderConsentStatusId patientOrderConsentStatusId = patientOrder.getPatientOrderConsentStatusId();
+
+						if (resultsFunctionOutput.getPatientOrderIntakeLocationStatusId() != null)
+							patientOrderIntakeLocationStatusId = resultsFunctionOutput.getPatientOrderIntakeLocationStatusId();
+
+						if (resultsFunctionOutput.getPatientOrderIntakeInsuranceStatusId() != null)
+							patientOrderIntakeInsuranceStatusId = resultsFunctionOutput.getPatientOrderIntakeInsuranceStatusId();
+
+						if (resultsFunctionOutput.getPatientOrderIntakeWantsServicesStatusId() != null)
+							patientOrderIntakeWantsServicesStatusId = resultsFunctionOutput.getPatientOrderIntakeWantsServicesStatusId();
+
+						if (resultsFunctionOutput.getPatientOrderConsentStatusId() != null)
+							patientOrderConsentStatusId = resultsFunctionOutput.getPatientOrderConsentStatusId();
+
+						getDatabase().execute("""
+										UPDATE patient_order
+										SET patient_order_intake_insurance_status_id=?,
+										patient_order_intake_location_status_id=?,
+										patient_order_intake_wants_services_status_id=?,
+										patient_order_consent_status_id=?
+										WHERE patient_order_id=?
+										""", patientOrderIntakeInsuranceStatusId, patientOrderIntakeLocationStatusId,
+								patientOrderIntakeWantsServicesStatusId, patientOrderConsentStatusId, patientOrder.getPatientOrderId());
+					}
+				}
+
+				// Special handling for IC clinical flow
 				if (institution.getIntegratedCareEnabled()
 						&& Objects.equals(institution.getIntegratedCareScreeningFlowId(), screeningFlowVersion.getScreeningFlowId())) {
 					PatientOrder patientOrder = getPatientOrderService().findPatientOrderByScreeningSessionId(screeningSession.getScreeningSessionId()).orElse(null);
 
 					if (patientOrder == null) {
-						getLogger().warn("No patient order for target account ID {} and screening session ID {}, ignoring triage results...", screeningSession.getTargetAccountId(), screeningSession.getScreeningSessionId());
+						getLogger().warn("No patient order for target account ID {} and screening session ID {}, ignoring clinical results...", screeningSession.getTargetAccountId(), screeningSession.getScreeningSessionId());
 					} else {
-						UpdatePatientOrderTriagesRequest patientOrderTriagesRequest = new UpdatePatientOrderTriagesRequest();
-						patientOrderTriagesRequest.setAccountId(screeningSession.getCreatedByAccountId());
-						patientOrderTriagesRequest.setPatientOrderId(patientOrder.getPatientOrderId());
-						patientOrderTriagesRequest.setPatientOrderTriageSourceId(PatientOrderTriageSourceId.COBALT);
-						patientOrderTriagesRequest.setScreeningSessionId(screeningSession.getScreeningSessionId());
-						patientOrderTriagesRequest.setPatientOrderTriages(resultsFunctionOutput.getIntegratedCareTriages().stream()
+						CreatePatientOrderTriageGroupRequest patientOrderTriageGroupRequest = new CreatePatientOrderTriageGroupRequest();
+						patientOrderTriageGroupRequest.setAccountId(screeningSession.getCreatedByAccountId());
+						patientOrderTriageGroupRequest.setPatientOrderId(patientOrder.getPatientOrderId());
+						patientOrderTriageGroupRequest.setPatientOrderTriageSourceId(PatientOrderTriageSourceId.COBALT);
+						patientOrderTriageGroupRequest.setPatientOrderCareTypeId(resultsFunctionOutput.getIntegratedCareTriagedCareTypeId());
+						patientOrderTriageGroupRequest.setScreeningSessionId(screeningSession.getScreeningSessionId());
+						patientOrderTriageGroupRequest.setPatientOrderTriageOverrideReasonId(PatientOrderTriageOverrideReasonId.NOT_OVERRIDDEN);
+						patientOrderTriageGroupRequest.setPatientOrderTriages(resultsFunctionOutput.getIntegratedCareTriages().stream()
 								.map(integratedCareTriage -> {
 									CreatePatientOrderTriageRequest createRequest = new CreatePatientOrderTriageRequest();
 									createRequest.setPatientOrderFocusTypeId(integratedCareTriage.getPatientOrderFocusTypeId());
@@ -1600,7 +1664,7 @@ public class ScreeningService {
 								})
 								.collect(Collectors.toList()));
 
-						getPatientOrderService().updatePatientOrderTriages(patientOrderTriagesRequest);
+						getPatientOrderService().createPatientOrderTriageGroup(patientOrderTriageGroupRequest);
 
 						// If topmost triage is specialty care, then mark the order as "needs resources"
 						PatientOrder updatedPatientOrder = getPatientOrderService().findPatientOrderById(patientOrder.getPatientOrderId()).get();
@@ -1624,6 +1688,15 @@ public class ScreeningService {
 
 	@Nonnull
 	public Optional<ScreeningSessionDestination> determineDestinationForScreeningSessionId(@Nullable UUID screeningSessionId) {
+		return determineDestinationForScreeningSessionId(screeningSessionId, false);
+	}
+
+	@Nonnull
+	public Optional<ScreeningSessionDestination> determineDestinationForScreeningSessionId(@Nullable UUID screeningSessionId,
+																																												 @Nullable Boolean withSideEffects) {
+		if (withSideEffects == null)
+			withSideEffects = false;
+
 		if (screeningSessionId == null)
 			return Optional.empty();
 
@@ -1636,11 +1709,12 @@ public class ScreeningService {
 		Account createdByAccount = getAccountService().findAccountById(screeningSession.getCreatedByAccountId()).get();
 		Institution institution = getInstitutionService().findInstitutionById(createdByAccount.getInstitutionId()).get();
 
+		// Extra data gets sent for special IC screening flows
 		UUID patientOrderId = null;
+		boolean integratedCareIntakeScreeningFlow = institution.getIntegratedCareEnabled() && Objects.equals(screeningFlowVersion.getScreeningFlowId(), institution.getIntegratedCareIntakeScreeningFlowId());
+		boolean integratedCareClinicalScreeningFlow = institution.getIntegratedCareEnabled() && Objects.equals(screeningFlowVersion.getScreeningFlowId(), institution.getIntegratedCareScreeningFlowId());
 
-		// Extra data gets sent for special IC screening flow
-		if (institution.getIntegratedCareEnabled()
-				&& Objects.equals(screeningFlowVersion.getScreeningFlowId(), institution.getIntegratedCareScreeningFlowId())) {
+		if (integratedCareIntakeScreeningFlow || integratedCareClinicalScreeningFlow) {
 			PatientOrder patientOrder = getPatientOrderService().findPatientOrderByScreeningSessionId(screeningSessionId).get();
 			patientOrderId = patientOrder.getPatientOrderId();
 		}
@@ -1654,21 +1728,54 @@ public class ScreeningService {
 		if (destinationFunctionOutput.getScreeningSessionDestinationId() == null)
 			return Optional.empty();
 
-		return Optional.of(new ScreeningSessionDestination(
-				destinationFunctionOutput.getScreeningSessionDestinationId(), destinationFunctionOutput.getContext()));
+		ScreeningSessionDestinationId screeningSessionDestinationId = destinationFunctionOutput.getScreeningSessionDestinationId();
+		Map<String, Object> context = destinationFunctionOutput.getContext() == null ? new HashMap<>() : new HashMap<>(destinationFunctionOutput.getContext());
+
+		if (withSideEffects) {
+			// Special handling for IC intake screening flow; create the clinical screening flow immediately after completing and
+			// route to it as the destination
+			if (integratedCareIntakeScreeningFlow &&
+					(screeningSessionDestinationId == ScreeningSessionDestinationId.IC_PATIENT_CLINICAL_SCREENING
+							|| screeningSessionDestinationId == ScreeningSessionDestinationId.IC_MHIC_CLINICAL_SCREENING)) {
+
+				getLogger().info("Because the IC Intake screening flow was completed and we're supposed to transition to clinical, immediately create the clinical one...");
+
+				ScreeningFlow icClinicalScreeningFlow = findScreeningFlowById(institution.getIntegratedCareScreeningFlowId()).get();
+
+				CreateScreeningSessionRequest request = new CreateScreeningSessionRequest();
+				request.setScreeningFlowId(icClinicalScreeningFlow.getScreeningFlowId());
+				request.setPatientOrderId(patientOrderId);
+				request.setTargetAccountId(screeningSession.getTargetAccountId());
+				request.setCreatedByAccountId(screeningSession.getCreatedByAccountId());
+
+				UUID icClinicalScreeningSessionId = createScreeningSession(request);
+
+				ScreeningQuestionContext nextScreeningQuestionContext =
+						findNextUnansweredScreeningQuestionContextByScreeningSessionId(icClinicalScreeningSessionId).orElse(null);
+
+				ScreeningQuestionContextId nextScreeningQuestionContextId = nextScreeningQuestionContext.getScreeningQuestionContextId();
+				context.put("nextScreeningQuestionContextId", nextScreeningQuestionContextId);
+			}
+		}
+
+		return Optional.of(new ScreeningSessionDestination(screeningSessionDestinationId, context));
 	}
 
 	@Nonnull
-	public List<ScreeningSession> findScreeningSessionsByPatientOrderId(@Nullable UUID patientOrderId) {
+	public List<ScreeningSession> findScreeningSessionsByPatientOrderIdAndScreeningFlowTypeId(@Nullable UUID patientOrderId,
+																																														@Nullable ScreeningFlowTypeId screeningFlowTypeId) {
 		if (patientOrderId == null)
 			return List.of();
 
 		return getDatabase().queryForList("""
-				SELECT *
-				FROM screening_session
-				WHERE patient_order_id=?
-				ORDER BY created DESC
-				""", ScreeningSession.class, patientOrderId);
+				SELECT ss.*
+				FROM screening_session ss, screening_flow_version sfv, screening_flow sf
+				WHERE ss.patient_order_id=?
+				AND ss.screening_flow_version_id=sfv.screening_flow_version_id
+				AND sfv.screening_flow_id = sf.screening_flow_id
+				AND sf.screening_flow_type_id=?
+				ORDER BY ss.created DESC
+				""", ScreeningSession.class, patientOrderId, screeningFlowTypeId);
 	}
 
 	@Nonnull
@@ -1676,12 +1783,18 @@ public class ScreeningService {
 																																					 @Nonnull String screeningScoringFunctionJavascript,
 																																					 @Nonnull List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions,
 																																					 @Nonnull List<ScreeningAnswer> screeningAnswers,
-																																					 @Nonnull Integer answeredScreeningQuestionCount) {
+																																					 @Nonnull List<ScreeningSessionAnsweredScreeningQuestion> screeningSessionAnsweredScreeningQuestions) {
 		requireNonNull(screeningQuestionId);
 		requireNonNull(screeningScoringFunctionJavascript);
 		requireNonNull(screeningQuestionsWithAnswerOptions);
 		requireNonNull(screeningAnswers);
-		requireNonNull(answeredScreeningQuestionCount);
+		requireNonNull(screeningSessionAnsweredScreeningQuestions);
+
+		int answeredScreeningQuestionCount = screeningSessionAnsweredScreeningQuestions.size();
+
+		Set<UUID> answeredScreeningQuestionIds = screeningSessionAnsweredScreeningQuestions.stream()
+				.map(screeningSessionAnsweredScreeningQuestion -> screeningSessionAnsweredScreeningQuestion.getScreeningQuestionId())
+				.collect(Collectors.toSet());
 
 		ScreeningScoringFunctionOutput screeningScoringFunctionOutput;
 
@@ -1728,6 +1841,7 @@ public class ScreeningService {
 		context.put("screeningAnswers", screeningAnswers);
 		context.put("screeningAnswerOptionsByScreeningAnswerId", screeningAnswerOptionsByScreeningAnswerId);
 		context.put("answeredScreeningQuestionCount", answeredScreeningQuestionCount);
+		context.put("answeredScreeningQuestionIds", answeredScreeningQuestionIds);
 		context.put("screeningQuestionIdsByQuestionText", screeningQuestionIdsByQuestionText);
 		context.put("screeningAnswerIdsByScreeningQuestionId", screeningAnswerIdsByScreeningQuestionId);
 
@@ -1794,7 +1908,7 @@ public class ScreeningService {
 			return Optional.empty();
 
 		if (resultsFunctionOutput.getSupportRoleRecommendations() == null)
-			throw new IllegalStateException("Screening flow results function must provide a 'supportRoleRecommendations' value in output");
+			resultsFunctionOutput.setSupportRoleRecommendations(List.of());
 
 		// Normalize data a bit
 		if (resultsFunctionOutput.getRecommendLegacyContentAnswerIds() == null)
@@ -1904,6 +2018,7 @@ public class ScreeningService {
 				screeningResult.put("questionText", screeningQuestion.getQuestionText());
 				screeningResult.put("minimumAnswerCount", screeningQuestion.getMinimumAnswerCount());
 				screeningResult.put("maximumAnswerCount", screeningQuestion.getMaximumAnswerCount());
+				screeningResult.put("metadata", screeningQuestion.getMetadata());
 
 				// Each element in this list is a screeningAnswerOption and screeningAnswer pair
 				List<Map<String, Object>> screeningResponses = new ArrayList<>();
@@ -1917,6 +2032,7 @@ public class ScreeningService {
 						screeningAnswerOptionJson.put("answerOptionText", screeningAnswerOption.getAnswerOptionText());
 						screeningAnswerOptionJson.put("indicatesCrisis", screeningAnswerOption.getIndicatesCrisis());
 						screeningAnswerOptionJson.put("score", screeningAnswerOption.getScore());
+						screeningAnswerOptionJson.put("metadata", screeningAnswerOption.getMetadata());
 
 						Map<String, Object> screeningAnswerJson = new HashMap<>(2);
 						screeningAnswerJson.put("screeningAnswerId", screeningAnswer.getScreeningAnswerId());
@@ -1984,6 +2100,18 @@ public class ScreeningService {
 			// but there is no target account (i.e. patient never signed in/created account).
 			// So we assume self-administered only in the case where the created-by account is a patient
 			selfAdministered = getAccountService().findAccountById(screeningSession.getCreatedByAccountId()).get().getRoleId() == RoleId.PATIENT;
+
+			// Expose some fields that could be used to aid logic/triage
+			context.put("patientOrderIntakeLocationStatusId", patientOrder.getPatientOrderIntakeLocationStatusId());
+			context.put("patientOrderIntakeInsuranceStatusId", patientOrder.getPatientOrderIntakeInsuranceStatusId());
+			context.put("patientOrderIntakeWantsServicesStatusId", patientOrder.getPatientOrderIntakeWantsServicesStatusId());
+			context.put("patientOrderConsentStatusId", patientOrder.getPatientOrderConsentStatusId());
+
+			Set<PatientOrderReferralReasonId> patientOrderReferralReasonIds = getPatientOrderService().findPatientOrderReferralsByPatientOrderId(patientOrder.getPatientOrderId()).stream()
+					.map(patientOrderReferral -> patientOrderReferral.getPatientOrderReferralReasonId())
+					.collect(Collectors.toSet());
+
+			context.put("patientOrderReferralReasonIds", patientOrderReferralReasonIds);
 		}
 
 		context.put("screenings", screenings);
@@ -2290,6 +2418,21 @@ public class ScreeningService {
 	}
 
 	@NotThreadSafe
+	protected static class InitializationFunctionOutput {
+		@Nullable
+		private UUID initialScreeningId;
+
+		@Nullable
+		public UUID getInitialScreeningId() {
+			return this.initialScreeningId;
+		}
+
+		public void setInitialScreeningId(@Nullable UUID initialScreeningId) {
+			this.initialScreeningId = initialScreeningId;
+		}
+	}
+
+	@NotThreadSafe
 	protected static class ResultsFunctionOutput {
 		@Nullable
 		private Set<String> recommendedTagIds;
@@ -2298,6 +2441,8 @@ public class ScreeningService {
 		@Nullable
 		private List<IntegratedCareTriage> integratedCareTriages;
 		@Nullable
+		private PatientOrderCareTypeId integratedCareTriagedCareTypeId; // the overall "winning" triage for IC
+		@Nullable
 		private Set<FeatureId> recommendedFeatureIds;
 		@Nullable
 		@Deprecated
@@ -2305,6 +2450,14 @@ public class ScreeningService {
 		@Nullable
 		@Deprecated
 		private Boolean recommendLegacyContentAnswerIds;
+		@Nullable
+		private PatientOrderIntakeLocationStatusId patientOrderIntakeLocationStatusId;
+		@Nullable
+		private PatientOrderIntakeInsuranceStatusId patientOrderIntakeInsuranceStatusId;
+		@Nullable
+		private PatientOrderIntakeWantsServicesStatusId patientOrderIntakeWantsServicesStatusId;
+		@Nullable
+		private PatientOrderConsentStatusId patientOrderConsentStatusId;
 
 		@Nullable
 		public Set<String> getRecommendedTagIds() {
@@ -2355,12 +2508,57 @@ public class ScreeningService {
 		}
 
 		@Nullable
+		public PatientOrderCareTypeId getIntegratedCareTriagedCareTypeId() {
+			return this.integratedCareTriagedCareTypeId;
+		}
+
+		public void setIntegratedCareTriagedCareTypeId(@Nullable PatientOrderCareTypeId integratedCareTriagedCareTypeId) {
+			this.integratedCareTriagedCareTypeId = integratedCareTriagedCareTypeId;
+		}
+
+		@Nullable
 		public Set<FeatureId> getRecommendedFeatureIds() {
 			return this.recommendedFeatureIds;
 		}
 
 		public void setRecommendedFeatureIds(@Nullable Set<FeatureId> recommendedFeatureIds) {
 			this.recommendedFeatureIds = recommendedFeatureIds;
+		}
+
+		@Nullable
+		public PatientOrderIntakeLocationStatusId getPatientOrderIntakeLocationStatusId() {
+			return this.patientOrderIntakeLocationStatusId;
+		}
+
+		public void setPatientOrderIntakeLocationStatusId(@Nullable PatientOrderIntakeLocationStatusId patientOrderIntakeLocationStatusId) {
+			this.patientOrderIntakeLocationStatusId = patientOrderIntakeLocationStatusId;
+		}
+
+		@Nullable
+		public PatientOrderIntakeInsuranceStatusId getPatientOrderIntakeInsuranceStatusId() {
+			return this.patientOrderIntakeInsuranceStatusId;
+		}
+
+		public void setPatientOrderIntakeInsuranceStatusId(@Nullable PatientOrderIntakeInsuranceStatusId patientOrderIntakeInsuranceStatusId) {
+			this.patientOrderIntakeInsuranceStatusId = patientOrderIntakeInsuranceStatusId;
+		}
+
+		@Nullable
+		public PatientOrderIntakeWantsServicesStatusId getPatientOrderIntakeWantsServicesStatusId() {
+			return this.patientOrderIntakeWantsServicesStatusId;
+		}
+
+		public void setPatientOrderIntakeWantsServicesStatusId(@Nullable PatientOrderIntakeWantsServicesStatusId patientOrderIntakeWantsServicesStatusId) {
+			this.patientOrderIntakeWantsServicesStatusId = patientOrderIntakeWantsServicesStatusId;
+		}
+
+		@Nullable
+		public PatientOrderConsentStatusId getPatientOrderConsentStatusId() {
+			return this.patientOrderConsentStatusId;
+		}
+
+		public void setPatientOrderConsentStatusId(@Nullable PatientOrderConsentStatusId patientOrderConsentStatusId) {
+			this.patientOrderConsentStatusId = patientOrderConsentStatusId;
 		}
 
 		@NotThreadSafe

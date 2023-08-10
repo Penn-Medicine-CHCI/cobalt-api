@@ -28,50 +28,35 @@ import static java.lang.String.format;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class PatientOrderFocusType {
+public class PatientOrderIntakeWantsServicesStatus {
 	@Nullable
-	private PatientOrderFocusTypeId patientOrderFocusTypeId;
+	private PatientOrderIntakeWantsServicesStatusId patientOrderIntakeWantsServicesStatusId;
 	@Nullable
 	private String description;
 
-	public enum PatientOrderFocusTypeId {
-		UNSPECIFIED,
-		SELF_DIRECTED,
-		GENERAL,
-		GRIEF,
-		INSOMNIA,
-		PSYCHOTHERAPY,
-		ALCOHOL_USE_DISORDER,
-		SUBSTANCE_USE_DISORDER,
-		OPIOID_USE_DISORDER,
-		EATING_DISORDER,
-		EVALUATION,
-		ADHD,
-		TRAUMA,
-		LCSW_CAPACITY,
-		CRISIS_CARE,
-		PSYCHOSIS,
-		PSYCHIATRY,
-		LGBTIA
+	public enum PatientOrderIntakeWantsServicesStatusId {
+		UNKNOWN,
+		YES,
+		NO
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{patientOrderFocusTypeId=%s, description=%s}", getClass().getSimpleName(), getPatientOrderFocusTypeId(), getDescription());
+		return format("%s{patientOrderIntakeWantsServicesStatusId=%s, description=%s}", getClass().getSimpleName(), getPatientOrderIntakeWantsServicesStatusId(), getDescription());
 	}
 
 	@Nullable
-	public PatientOrderFocusTypeId getPatientOrderFocusTypeId() {
-		return this.patientOrderFocusTypeId;
+	public PatientOrderIntakeWantsServicesStatusId getPatientOrderIntakeWantsServicesStatusId() {
+		return this.patientOrderIntakeWantsServicesStatusId;
 	}
 
-	public void setPatientOrderFocusTypeId(@Nullable PatientOrderFocusTypeId patientOrderFocusTypeId) {
-		this.patientOrderFocusTypeId = patientOrderFocusTypeId;
+	public void setPatientOrderIntakeWantsServicesStatusId(@Nullable PatientOrderIntakeWantsServicesStatusId patientOrderIntakeWantsServicesStatusId) {
+		this.patientOrderIntakeWantsServicesStatusId = patientOrderIntakeWantsServicesStatusId;
 	}
 
 	@Nullable
 	public String getDescription() {
-		return this.description;
+		return description;
 	}
 
 	public void setDescription(@Nullable String description) {

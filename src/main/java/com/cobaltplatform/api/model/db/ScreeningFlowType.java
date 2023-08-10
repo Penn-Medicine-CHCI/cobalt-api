@@ -40,6 +40,7 @@ public class ScreeningFlowType {
 		CONTENT_TRIAGE,
 		PROVIDER_INTAKE,
 		INTEGRATED_CARE,
+		INTEGRATED_CARE_INTAKE,
 		FEATURE
 	}
 

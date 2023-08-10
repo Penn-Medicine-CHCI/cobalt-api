@@ -21,6 +21,8 @@ package com.cobaltplatform.api.util;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.integration.epic.MyChartAccessToken;
+import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AccessTokenClaims;
 import com.cobaltplatform.api.model.security.AccessTokenStatus;
@@ -179,8 +181,15 @@ public class Authenticator {
 		Instant shortExpirationTimestamp = accessTokenClaims.getIssuedAt().plus(getAccountService()
 				.findAccessTokenShortExpirationInMinutesByAccount(accessTokenClaims.getAccountId()), MINUTES);
 
-		if (now.isAfter(shortExpirationTimestamp))
+		if (now.isAfter(shortExpirationTimestamp)) {
+			Account account = getAccountService().findAccountById(accessTokenClaims.getAccountId()).get();
+
+			// Anon accounts get fully expired, there is no concept of "reauth to refresh"
+			if (account.getAccountSourceId() == AccountSourceId.ANONYMOUS)
+				return AccessTokenStatus.FULLY_EXPIRED;
+
 			return AccessTokenStatus.PARTIALLY_EXPIRED;
+		}
 
 		return AccessTokenStatus.FULLY_ACTIVE;
 	}

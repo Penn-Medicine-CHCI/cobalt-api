@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderTriageOverrideReason.PatientOrderTriageOverrideReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 
 import javax.annotation.Nullable;
@@ -32,7 +33,7 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class UpdatePatientOrderTriagesRequest {
+public class CreatePatientOrderTriageGroupRequest {
 	@Nullable
 	private UUID accountId;
 	@Nullable
@@ -41,6 +42,10 @@ public class UpdatePatientOrderTriagesRequest {
 	private PatientOrderTriageSourceId patientOrderTriageSourceId;
 	@Nullable
 	private UUID screeningSessionId;
+	@Nullable
+	private PatientOrderCareTypeId patientOrderCareTypeId; // The "winning" overall care type that is calculated and stored
+	@Nullable
+	private PatientOrderTriageOverrideReasonId patientOrderTriageOverrideReasonId;
 	@Nullable
 	private List<CreatePatientOrderTriageRequest> patientOrderTriages;
 
@@ -115,6 +120,24 @@ public class UpdatePatientOrderTriagesRequest {
 
 	public void setScreeningSessionId(@Nullable UUID screeningSessionId) {
 		this.screeningSessionId = screeningSessionId;
+	}
+
+	@Nullable
+	public PatientOrderTriageOverrideReasonId getPatientOrderTriageOverrideReasonId() {
+		return this.patientOrderTriageOverrideReasonId;
+	}
+
+	public void setPatientOrderTriageOverrideReasonId(@Nullable PatientOrderTriageOverrideReasonId patientOrderTriageOverrideReasonId) {
+		this.patientOrderTriageOverrideReasonId = patientOrderTriageOverrideReasonId;
+	}
+
+	@Nullable
+	public PatientOrderCareTypeId getPatientOrderCareTypeId() {
+		return this.patientOrderCareTypeId;
+	}
+
+	public void setPatientOrderCareTypeId(@Nullable PatientOrderCareTypeId patientOrderCareTypeId) {
+		this.patientOrderCareTypeId = patientOrderCareTypeId;
 	}
 
 	@Nullable
