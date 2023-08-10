@@ -198,6 +198,7 @@ public class GroupSessionResource {
 		} else {
 			// Only show 'added' sessions for patient views no matter what your role is
 			request.setGroupSessionStatusId(GroupSessionStatusId.ADDED);
+			request.setFilterBehavior(FilterBehavior.VISIBLE);
 		}
 
 		FindResult<GroupSession> findResult = getGroupSessionService().findGroupSessions(request);

@@ -52,7 +52,8 @@ public class FindGroupSessionsRequest {
 
 	public enum FilterBehavior {
 		DEFAULT,
-		ONLY_MY_SESSIONS
+		ONLY_MY_SESSIONS,
+		VISIBLE
 	}
 
 	public enum OrderBy {

@@ -345,6 +345,10 @@ public class GroupSessionService implements AutoCloseable {
 			parameters.add(getNormalizer().normalizeEmailAddress(account.getEmailAddress()).orElse(null));
 		}
 
+		if (filterBehavior == FindGroupSessionsRequest.FilterBehavior.VISIBLE) {
+			sql.append("AND gs.visible_flag = TRUE ");
+		}
+
 		sql.append("ORDER BY ");
 
 		if (orderBy == FindGroupSessionsRequest.OrderBy.START_TIME_ASCENDING)
