@@ -268,6 +268,26 @@ public class ScreeningService {
 	}
 
 	@Nonnull
+	public List<ScreeningQuestion> findInitialScreeningQuestionsByScreeningFlowVersionId(@Nullable UUID screeningFlowVersionId) {
+		if (screeningFlowVersionId == null)
+			return List.of();
+
+		// We don't currently have a mechanism to know up-front all possible screenings that might be part of a screening flow version,
+		// so for now we just take the questions in the initial screening.
+		//
+		// In general, while we could maintain a list of possible screening per screening flow version, we would not be able
+		// to reliably store off things like question ordering because flows support arbitrary branching
+		return getDatabase().queryForList("""
+				SELECT sq.*
+				FROM screening_question sq, screening s, screening_flow_version sfv
+				WHERE sq.screening_version_id=s.active_screening_version_id
+				AND s.screening_id=sfv.initial_screening_id
+				AND sfv.screening_flow_version_id=?
+				ORDER BY sq.display_order
+				""", ScreeningQuestion.class, screeningFlowVersionId);
+	}
+
+	@Nonnull
 	public Optional<ScreeningConfirmationPrompt> findScreeningConfirmationPromptById(@Nullable UUID screeningConfirmationPromptId) {
 		if (screeningConfirmationPromptId == null)
 			return Optional.empty();

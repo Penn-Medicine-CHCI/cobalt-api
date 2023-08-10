@@ -307,6 +307,33 @@ public class ScreeningResource {
 		}});
 	}
 
+	@Nonnull
+	@GET("/screening-flow-versions/{screeningFlowVersionId}/initial-screening-questions")
+	@AuthenticationRequired
+	public ApiResponse screeningFlowVersionQuestions(@Nonnull @PathParameter UUID screeningFlowVersionId) {
+		requireNonNull(screeningFlowVersionId);
+
+		Account account = getCurrentContext().getAccount().get();
+		ScreeningFlowVersion screeningFlowVersion = getScreeningService().findScreeningFlowVersionById(screeningFlowVersionId).orElse(null);
+
+		if (screeningFlowVersion == null)
+			throw new NotFoundException();
+
+		ScreeningFlow screeningFlow = getScreeningService().findScreeningFlowById(screeningFlowVersion.getScreeningFlowId()).get();
+
+		if (!getAuthorizationService().canViewScreeningFlow(account, screeningFlow))
+			throw new AuthorizationException();
+
+		List<ScreeningQuestion> screeningQuestions = getScreeningService().findInitialScreeningQuestionsByScreeningFlowVersionId(screeningFlowVersionId);
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("screeningQuestions", screeningQuestions.stream()
+					.map(screeningQuestion -> getScreeningQuestionApiResponseFactory().create(screeningQuestion))
+					.collect(Collectors.toList()));
+		}});
+	}
+
+
 	/**
 	 * Skips an entire screening flow version, e.g. user clicks "Skip for now" on 1:1 triage flow before even starting the
 	 * screening.  In this scenario, we create a session for the provided version, and immediately
