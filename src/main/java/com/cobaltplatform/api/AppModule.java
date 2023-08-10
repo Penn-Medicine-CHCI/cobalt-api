@@ -86,6 +86,7 @@ import com.cobaltplatform.api.model.api.response.FilterApiResponse.FilterApiResp
 import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupRequestApiResponse.GroupRequestApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.GroupSessionAutocompleteResultApiResponse.GroupSessionAutocompleteResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionCollectionApiResponse.GroupSessionCollectionResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionRequestApiResponse.GroupSessionRequestApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionReservationApiResponse.GroupSessionReservationApiResponseFactory;
@@ -295,6 +296,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(GroupSessionCollectionResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ScreeningApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ScreeningFlowApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(GroupSessionAutocompleteResultApiResponseFactory.class)));
 	}
 
 	@Provides

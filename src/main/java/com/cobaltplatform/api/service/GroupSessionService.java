@@ -71,6 +71,7 @@ import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.db.TagGroupSession;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.model.service.GroupSessionAutocompleteResult;
 import com.cobaltplatform.api.model.service.GroupSessionRequestWithTotalCount;
 import com.cobaltplatform.api.model.service.GroupSessionStatusWithCount;
 import com.cobaltplatform.api.model.service.GroupSessionWithTotalCount;
@@ -511,6 +512,11 @@ public class GroupSessionService implements AutoCloseable {
 				sourceGroupSession.getFollowupTimeOfDay(), sourceGroupSession.getFollowupDayOffset(), sourceGroupSession.getSingleSessionFlag(),
 				sourceGroupSession.getDateTimeDescription(), sourceGroupSession.getGroupSessionLearnMoreMethodId(), sourceGroupSession.getLearnMoreDescription());
 
+		getDatabase().execute("""
+  		INSERT INTO tag_group_session (tag_group_session_id, tag_id, group_session_id)
+  		SELECT uuid_generate_v4(), tag_id, ?
+  		""", destinationGroupSessionId);
+
 		return destinationGroupSessionId;
 	}
 
@@ -601,6 +607,8 @@ public class GroupSessionService implements AutoCloseable {
 
 		if (urlName == null)
 			validationException.add(new FieldError("urlName", getStrings().get("URL name is required.")));
+		else if (urlNameExistsForInstitutionId(urlName, institution.getInstitutionId()))
+			validationException.add(new FieldError("urlName", getStrings().get("URL name is already in use.")));
 
 		if (facilitatorName == null)
 			validationException.add(new FieldError("facilitatorName", getStrings().get("Facilitator name is required.")));
@@ -783,6 +791,42 @@ public class GroupSessionService implements AutoCloseable {
 	}
 
 	@Nonnull
+	public GroupSessionAutocompleteResult findGroupSessionAutocompleteResults(@Nonnull String urlName,
+																																						@Nonnull InstitutionId institutionId) {
+		requireNonNull(urlName);
+		requireNonNull(institutionId);
+
+		GroupSessionAutocompleteResult result = new GroupSessionAutocompleteResult();
+		Boolean suggestedUrlAvailable = false;
+		int urlSuffix = 1;
+
+		if (!urlNameExistsForInstitutionId(urlName, institutionId))
+			result.setAvailable(true);
+		else {
+			result.setAvailable(false);
+			String recommendedUrlName = null;
+			while (!suggestedUrlAvailable) {
+				recommendedUrlName = format("%s-%s", urlName, urlSuffix);
+				suggestedUrlAvailable = !urlNameExistsForInstitutionId(recommendedUrlName, institutionId);
+				urlSuffix++;
+			}
+			result.setRecommendation(recommendedUrlName);
+		}
+
+		return result;
+	}
+
+	@Nonnull
+	private Boolean urlNameExistsForInstitutionId (@Nonnull String urlName, @Nonnull InstitutionId institutionId){
+		return getDatabase().queryForObject("""
+ 			SELECT COUNT(*) >0 
+ 			FROM group_session 
+ 			WHERE institution_id = ?
+ 			AND LOWER(url_name) = LOWER(?) 
+ 			""", Boolean.class, institutionId, urlName).get();
+	}
+
+	@Nonnull
 	public UUID updateGroupSession(@Nonnull UpdateGroupSessionRequest request, @Nonnull Account account) {
 		requireNonNull(request);
 		requireNonNull(account);
@@ -850,6 +894,8 @@ public class GroupSessionService implements AutoCloseable {
 
 		if (urlName == null)
 			validationException.add(new FieldError("urlName", getStrings().get("URL name is required.")));
+		else if (urlNameExistsForInstitutionId(urlName, institution.getInstitutionId()))
+			validationException.add(new FieldError("urlName", getStrings().get("URL name is already in use.")));
 
 		if (facilitatorName == null)
 			validationException.add(new FieldError("facilitatorName", getStrings().get("Facilitator name is required.")));

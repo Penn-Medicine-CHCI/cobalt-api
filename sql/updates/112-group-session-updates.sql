@@ -105,6 +105,8 @@ CREATE VIEW v_group_session AS
   --Turn off user submitted group sessions
   UPDATE institution SET user_submitted_group_session_enabled = false;
 
+  CREATE UNIQUE INDEX group_session_unique_url_name ON group_session(institution_id, url_name);
+
 COMMIT;
 
 --Test
