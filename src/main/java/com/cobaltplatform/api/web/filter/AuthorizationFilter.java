@@ -150,8 +150,8 @@ public class AuthorizationFilter implements Filter {
 						signOnUrl = getLinkGenerator().generateEmailPasswordSignInLink(currentContext.getInstitutionId(), currentContext.getUserExperienceTypeId().get());
 					} else {
 						// If this was an SSO account, one of these will be set
-						signOnUrl = getConfiguration().getEnvironment().equals("prod") ?
-								accountSource.getProdSsoUrl() : getConfiguration().getEnvironment().equals("dev") ?
+						signOnUrl = getConfiguration().getEnvironment().endsWith("prod") ?
+								accountSource.getProdSsoUrl() : getConfiguration().getEnvironment().endsWith("dev") ?
 								accountSource.getDevSsoUrl() : accountSource.getLocalSsoUrl();
 					}
 
