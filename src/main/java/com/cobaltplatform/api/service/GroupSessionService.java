@@ -698,8 +698,8 @@ public class GroupSessionService implements AutoCloseable {
 				validationException.add(new FieldError("screeningFlowId", getStrings().get("ScreeningFlowId is invalid.")));
 		}
 
-		if (groupSessionSchedulingSystemId != null && learnMoreDescription == null)
-			validationException.add(new FieldError("learnMoreDescription", getStrings().get("A way to lear more is required")));
+		if (groupSessionLearnMoreMethodId != null && learnMoreDescription == null)
+			validationException.add(new FieldError("learnMoreDescription", getStrings().get("A way to learn more is required")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -990,8 +990,8 @@ public class GroupSessionService implements AutoCloseable {
 				validationException.add(new FieldError("screeningFlowId", getStrings().get("ScreeningFlowId is invalid.")));
 		}
 
-		if (groupSessionSchedulingSystemId != null && learnMoreDescription == null)
-			validationException.add(new FieldError("learnMoreDescription", getStrings().get("A way to lear more is required")));
+		if (groupSessionLearnMoreMethodId != null && learnMoreDescription == null)
+			validationException.add(new FieldError("learnMoreDescription", getStrings().get("A way to learn more is required")));
 
 		if (validationException.hasErrors())
 			throw validationException;
