@@ -49,7 +49,8 @@ public class ScreeningSessionDestination {
 		IC_MHIC_SCREENING_SESSION_RESULTS,
 		IC_PATIENT_CLINICAL_SCREENING,
 		IC_MHIC_CLINICAL_SCREENING,
-		HOME
+		HOME,
+		GROUP_SESSION_DETAIL
 	}
 
 	public ScreeningSessionDestination(@Nonnull ScreeningSessionDestinationId screeningSessionDestinationId) {

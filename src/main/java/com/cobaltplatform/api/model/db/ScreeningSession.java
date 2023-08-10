@@ -38,6 +38,8 @@ public class ScreeningSession {
 	@Nullable
 	private UUID patientOrderId;
 	@Nullable
+	private UUID groupSessionId;
+	@Nullable
 	private UUID createdByAccountId;
 	@Nullable
 	private Boolean completed;
@@ -90,6 +92,15 @@ public class ScreeningSession {
 
 	public void setPatientOrderId(@Nullable UUID patientOrderId) {
 		this.patientOrderId = patientOrderId;
+	}
+
+	@Nullable
+	public UUID getGroupSessionId() {
+		return this.groupSessionId;
+	}
+
+	public void setGroupSessionId(@Nullable UUID groupSessionId) {
+		this.groupSessionId = groupSessionId;
 	}
 
 	@Nullable
