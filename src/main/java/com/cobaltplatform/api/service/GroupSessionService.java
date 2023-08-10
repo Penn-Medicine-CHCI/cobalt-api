@@ -490,23 +490,22 @@ public class GroupSessionService implements AutoCloseable {
 
 		getDatabase().execute("""
 						INSERT INTO group_session (group_session_id, institution_id,
-						group_session_status_id, title, description, submitter_account_id, submitter_name, submitter_email_address,
+						group_session_status_id, title, description, submitter_account_id,
 						target_email_address, facilitator_account_id, facilitator_name, facilitator_email_address,
 						image_url, videoconference_url, start_date_time, end_date_time, seats, url_name,
-						confirmation_email_content, locale, time_zone, group_session_scheduling_system_id, schedule_url,
+						confirmation_email_content, locale, time_zone, group_session_scheduling_system_id,
 						send_followup_email, followup_email_content, followup_email_survey_url,
 						group_session_collection_id, visible_flag, screening_flow_id, send_reminder_email, reminder_email_content,
 						followup_time_of_day, followup_day_offset, single_session_flag, date_time_description, group_session_learn_more_method_id, learn_more_description)
-						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				destinationGroupSessionId, sourceGroupSession.getInstitutionId(), GroupSessionStatusId.NEW,
-				sourceGroupSession.getTitle(), sourceGroupSession.getDescription(), sourceGroupSession.getSubmitterAccountId(),
-				sourceGroupSession.getSubmitterName(), sourceGroupSession.getSubmitterEmailAddress(), sourceGroupSession.getTargetEmailAddress(),
+				sourceGroupSession.getTitle(), sourceGroupSession.getDescription(), sourceGroupSession.getSubmitterAccountId(), sourceGroupSession.getTargetEmailAddress(),
 				sourceGroupSession.getFacilitatorAccountId(), sourceGroupSession.getFacilitatorName(), sourceGroupSession.getFacilitatorEmailAddress(),
 				sourceGroupSession.getImageUrl(), sourceGroupSession.getVideoconferenceUrl(), sourceGroupSession.getStartDateTime(), sourceGroupSession.getEndDateTime(),
 				sourceGroupSession.getSeats(), sourceGroupSession.getUrlName(), sourceGroupSession.getConfirmationEmailContent(),
 				sourceGroupSession.getLocale(), sourceGroupSession.getTimeZone(), sourceGroupSession.getGroupSessionSchedulingSystemId(),
-				sourceGroupSession.getScheduleUrl(), sourceGroupSession.getSendFollowupEmail(), sourceGroupSession.getFollowupEmailContent(),
+				sourceGroupSession.getSendFollowupEmail(), sourceGroupSession.getFollowupEmailContent(),
 				sourceGroupSession.getFollowupEmailSurveyUrl(), sourceGroupSession.getGroupSessionCollectionId(), sourceGroupSession.getVisibleFlag(),
 				sourceGroupSession.getScreeningFlowId(), sourceGroupSession.getSendReminderEmail(), sourceGroupSession.getReminderEmailContent(),
 				sourceGroupSession.getFollowupTimeOfDay(), sourceGroupSession.getFollowupDayOffset(), sourceGroupSession.getSingleSessionFlag(),
@@ -536,12 +535,9 @@ public class GroupSessionService implements AutoCloseable {
 		Integer seats = request.getSeats();
 		String imageUrl = trimToNull(request.getImageUrl());
 		String videoconferenceUrl = trimToNull(request.getVideoconferenceUrl());
-		String scheduleUrl = trimToNull(request.getScheduleUrl());
 		List<CreateScreeningQuestionRequest> screeningQuestions = normalizeScreeningQuestions(request.getScreeningQuestions(), request.getScreeningQuestionsV2());
 		String confirmationEmailContent = trimToNull(request.getConfirmationEmailContent());
 		UUID submitterAccountId = request.getSubmitterAccountId();
-		String submitterName = trimToNull(request.getSubmitterName());
-		String submitterEmailAddress = trimToNull(request.getSubmitterEmailAddress());
 		String targetEmailAddress = trimToNull(request.getTargetEmailAddress());
 		Account submitterAccount = null;
 		Institution institution = null;
@@ -594,17 +590,7 @@ public class GroupSessionService implements AutoCloseable {
 				validationException.add(new FieldError("submitterAccountId", getStrings().get("Invalid submitter account.")));
 		}
 
-		if (submitterName == null)
-			validationException.add(new FieldError("submitterName", getStrings().get("Submitter name is required.")));
-
-		if (submitterEmailAddress == null)
-			validationException.add(new FieldError("submitterEmailAddress", getStrings().get("Submitter email address is required.")));
-		else if (!isValidEmailAddress(submitterEmailAddress))
-			validationException.add(new FieldError("submitterEmailAddress", getStrings().get("Submitter email address is invalid.")));
-
-		if (targetEmailAddress == null)
-			validationException.add(new FieldError("targetEmailAddress", getStrings().get("Target email address is required.")));
-		else if (!isValidEmailAddress(targetEmailAddress))
+		if (!isValidEmailAddress(targetEmailAddress))
 			validationException.add(new FieldError("targetEmailAddress", getStrings().get("Target email address is invalid.")));
 
 		if (title == null)
@@ -642,11 +628,6 @@ public class GroupSessionService implements AutoCloseable {
 		}
 
 		if (groupSessionSchedulingSystemId == GroupSessionSchedulingSystemId.COBALT) {
-			scheduleUrl = null;
-
-			if (seats == null)
-				validationException.add(new FieldError("seats", getStrings().get("Seats are required.")));
-
 			if (videoconferenceUrl == null)
 				validationException.add(new FieldError("videoconferenceUrl", getStrings().get("Videoconference URL is required.")));
 
@@ -666,12 +647,8 @@ public class GroupSessionService implements AutoCloseable {
 			if (!singleSessionFlag)
 				validationException.add(new FieldError("singleSessionFlag", getStrings().get("Ongoing series is only permitted for external Group Sessions.")));
 		} else if (groupSessionSchedulingSystemId == GroupSessionSchedulingSystemId.EXTERNAL) {
-			seats = null;
 			videoconferenceUrl = null;
 			confirmationEmailContent = null;
-
-			if (scheduleUrl == null)
-				validationException.add(new FieldError("scheduleUrl", getStrings().get("Schedule URL is required.")));
 
 			if (sendReminderEmail)
 				validationException.add(new FieldError("sendReminderEmail", getStrings().get("Cannot send reminder emails for external sessions.")));
@@ -698,8 +675,8 @@ public class GroupSessionService implements AutoCloseable {
 				validationException.add(new FieldError("screeningFlowId", getStrings().get("ScreeningFlowId is invalid.")));
 		}
 
-		if (groupSessionSchedulingSystemId != null && learnMoreDescription == null)
-			validationException.add(new FieldError("learnMoreDescription", getStrings().get("A way to lear more is required")));
+		if (groupSessionLearnMoreMethodId != null && learnMoreDescription == null)
+			validationException.add(new FieldError("learnMoreDescription", getStrings().get("A way to learn more is required")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -707,25 +684,24 @@ public class GroupSessionService implements AutoCloseable {
 		if (imageUrl == null)
 			imageUrl = getDefaultGroupSessionImageUrl();
 
-		submitterEmailAddress = getNormalizer().normalizeEmailAddress(submitterEmailAddress).get();
 		targetEmailAddress = getNormalizer().normalizeEmailAddress(targetEmailAddress).get();
 		facilitatorEmailAddress = getNormalizer().normalizeEmailAddress(facilitatorEmailAddress).get();
 
 		getDatabase().execute("""
 						INSERT INTO group_session (group_session_id, institution_id,
-						group_session_status_id, title, description, submitter_account_id, submitter_name, submitter_email_address,
+						group_session_status_id, title, description, submitter_account_id,
 						target_email_address, facilitator_account_id, facilitator_name, facilitator_email_address,
 						image_url, videoconference_url, start_date_time, end_date_time, seats, url_name,
-						confirmation_email_content, locale, time_zone, group_session_scheduling_system_id, schedule_url,
+						confirmation_email_content, locale, time_zone, group_session_scheduling_system_id,
 						send_followup_email, followup_email_content, followup_email_survey_url,
 						group_session_collection_id, visible_flag, screening_flow_id, send_reminder_email, reminder_email_content,
 						followup_time_of_day, followup_day_offset, single_session_flag, date_time_description, group_session_learn_more_method_id, learn_more_description)
-						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				groupSessionId, institutionId, GroupSessionStatusId.NEW,
-				title, description, submitterAccountId, submitterName, submitterEmailAddress, targetEmailAddress, facilitatorAccountId, facilitatorName, facilitatorEmailAddress, imageUrl, videoconferenceUrl,
+				title, description, submitterAccountId, targetEmailAddress, facilitatorAccountId, facilitatorName, facilitatorEmailAddress, imageUrl, videoconferenceUrl,
 				startDateTime, endDateTime, seats, urlName, confirmationEmailContent, institution.getLocale(), institution.getTimeZone(),
-				groupSessionSchedulingSystemId, scheduleUrl, sendFollowupEmail, followupEmailContent, followupEmailSurveyUrl,
+				groupSessionSchedulingSystemId, sendFollowupEmail, followupEmailContent, followupEmailSurveyUrl,
 				groupSessionCollectionId, visibleFlag, screeningFlowId, sendReminderEmail, reminderEmailContent,
 				followupTimeOfDay, followupDayOffset, singleSessionFlag, dateTimeDescription, groupSessionLearnMoreMethodId, learnMoreDescription);
 
@@ -819,15 +795,12 @@ public class GroupSessionService implements AutoCloseable {
 		UUID facilitatorAccountId = request.getFacilitatorAccountId();
 		String facilitatorName = trimToNull(request.getFacilitatorName());
 		String facilitatorEmailAddress = trimToNull(request.getFacilitatorEmailAddress());
-		String submitterName = trimToNull(request.getSubmitterName());
-		String submitterEmailAddress = trimToNull(request.getSubmitterEmailAddress());
 		String targetEmailAddress = trimToNull(request.getTargetEmailAddress());
 		LocalDateTime startDateTime = request.getStartDateTime();
 		LocalDateTime endDateTime = request.getEndDateTime();
 		Integer seats = request.getSeats();
 		String imageUrl = trimToNull(request.getImageUrl());
 		String videoconferenceUrl = trimToNull(request.getVideoconferenceUrl());
-		String scheduleUrl = trimToNull(request.getScheduleUrl());
 		List<CreateScreeningQuestionRequest> screeningQuestions = normalizeScreeningQuestions(request.getScreeningQuestions(), request.getScreeningQuestionsV2());
 		String confirmationEmailContent = trimToNull(request.getConfirmationEmailContent());
 		Boolean sendFollowupEmail = request.getSendFollowupEmail();
@@ -886,17 +859,7 @@ public class GroupSessionService implements AutoCloseable {
 		else if (!isValidEmailAddress(facilitatorEmailAddress))
 			validationException.add(new FieldError("facilitatorEmailAddress", getStrings().get("Facilitator email address is invalid.")));
 
-		if (submitterName == null)
-			validationException.add(new FieldError("submitterName", getStrings().get("Submitter name is required.")));
-
-		if (submitterEmailAddress == null)
-			validationException.add(new FieldError("submitterEmailAddress", getStrings().get("Submitter email address is required.")));
-		else if (!isValidEmailAddress(submitterEmailAddress))
-			validationException.add(new FieldError("submitterEmailAddress", getStrings().get("Submitter email address is invalid.")));
-
-		if (targetEmailAddress == null)
-			validationException.add(new FieldError("targetEmailAddress", getStrings().get("Target email address is required.")));
-		else if (!isValidEmailAddress(targetEmailAddress))
+		if (!isValidEmailAddress(targetEmailAddress))
 			validationException.add(new FieldError("targetEmailAddress", getStrings().get("Target email address is invalid.")));
 
 		if (startDateTime == null) {
@@ -917,11 +880,8 @@ public class GroupSessionService implements AutoCloseable {
 		}
 
 		if (groupSessionSchedulingSystemId == GroupSessionSchedulingSystemId.COBALT) {
-			scheduleUrl = null;
 
-			if (seats == null) {
-				validationException.add(new FieldError("seats", getStrings().get("Seats are required.")));
-			} else if (seats < reservationCount) {
+			if (seats < reservationCount) {
 				validationException.add(new FieldError("seats", getStrings().get("The number of permitted attendees cannot be less than the current number of registrants.")));
 			}
 
@@ -944,12 +904,8 @@ public class GroupSessionService implements AutoCloseable {
 			if (!singleSessionFlag)
 				validationException.add(new FieldError("singleSessionFlag", getStrings().get("Ongoing series is only permitted for external Group Sessions.")));
 		} else if (groupSessionSchedulingSystemId == GroupSessionSchedulingSystemId.EXTERNAL) {
-			seats = null;
 			videoconferenceUrl = null;
 			confirmationEmailContent = null;
-
-			if (scheduleUrl == null)
-				validationException.add(new FieldError("scheduleUrl", getStrings().get("Schedule URL is required.")));
 
 			if (sendReminderEmail)
 				validationException.add(new FieldError("sendReminderEmail", getStrings().get("Cannot send reminder emails for external sessions.")));
@@ -990,8 +946,8 @@ public class GroupSessionService implements AutoCloseable {
 				validationException.add(new FieldError("screeningFlowId", getStrings().get("ScreeningFlowId is invalid.")));
 		}
 
-		if (groupSessionSchedulingSystemId != null && learnMoreDescription == null)
-			validationException.add(new FieldError("learnMoreDescription", getStrings().get("A way to lear more is required")));
+		if (groupSessionLearnMoreMethodId != null && learnMoreDescription == null)
+			validationException.add(new FieldError("learnMoreDescription", getStrings().get("A way to learn more is required")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -999,21 +955,20 @@ public class GroupSessionService implements AutoCloseable {
 		if (imageUrl == null)
 			imageUrl = getDefaultGroupSessionImageUrl();
 
-		submitterEmailAddress = getNormalizer().normalizeEmailAddress(submitterEmailAddress).get();
 		targetEmailAddress = getNormalizer().normalizeEmailAddress(targetEmailAddress).get();
 		facilitatorEmailAddress = getNormalizer().normalizeEmailAddress(facilitatorEmailAddress).get();
 
 		if (restrictedUpdate) {
 			getDatabase().execute("""
 							UPDATE group_session SET description=?, facilitator_account_id=?, facilitator_name=?, facilitator_email_address=?,
-							submitter_name=?, submitter_email_address=?, target_email_address=?, image_url=?, videoconference_url=?, seats=?,
+							target_email_address=?, image_url=?, videoconference_url=?, seats=?,
 							confirmation_email_content=?, send_followup_email=?, followup_email_content=?, followup_email_survey_url=?,
 							group_session_collection_id=?, visible_flag=?, screening_flow_id=?, send_reminder_email=?, reminder_email_content=?,
 							followup_time_of_day=?, followup_day_offset=?, single_session_flag=?, date_time_description=?, 
 							group_session_learn_more_method_id=?, learn_more_description=? 
 							WHERE group_session_id=?
 							""", description, facilitatorAccountId, facilitatorName, facilitatorEmailAddress,
-					submitterName, submitterEmailAddress, targetEmailAddress, imageUrl, videoconferenceUrl, seats, confirmationEmailContent,
+					targetEmailAddress, imageUrl, videoconferenceUrl, seats, confirmationEmailContent,
 					sendFollowupEmail, followupEmailContent, followupEmailSurveyUrl, groupSessionCollectionId, visibleFlag, screeningFlowId,
 					sendReminderEmail, reminderEmailContent, followupTimeOfDay, followupDayOffset, singleSessionFlag, dateTimeDescription,
 					groupSessionLearnMoreMethodId, learnMoreDescription, groupSessionId);
@@ -1021,15 +976,15 @@ public class GroupSessionService implements AutoCloseable {
 			getDatabase().execute("""
 							UPDATE group_session SET title=?, description=?, facilitator_account_id=?, facilitator_name=?, facilitator_email_address=?,
 							submitter_name=?, submitter_email_address=?, image_url=?, videoconference_url=?, start_date_time=?, end_date_time=?, seats=?, url_name=?,
-							confirmation_email_content=?, group_session_scheduling_system_id=?, schedule_url=?, send_followup_email=?, followup_email_content=?, followup_email_survey_url=?,
+							confirmation_email_content=?, group_session_scheduling_system_id=?, send_followup_email=?, followup_email_content=?, followup_email_survey_url=?,
 							group_session_collection_id=?, visible_flag=?, screening_flow_id=?, send_reminder_email=?, reminder_email_content=?,
 							followup_time_of_day=?, followup_day_offset=?, single_session_flag=?, date_time_description=?,
 							group_session_learn_more_method_id=?, learn_more_description=? 
 							WHERE group_session_id=?
 							""",
-					title, description, facilitatorAccountId, facilitatorName, facilitatorEmailAddress, submitterName, submitterEmailAddress,
+					title, description, facilitatorAccountId, facilitatorName, facilitatorEmailAddress,
 					imageUrl, videoconferenceUrl, startDateTime, endDateTime, seats, urlName, confirmationEmailContent,
-					groupSessionSchedulingSystemId, scheduleUrl, sendFollowupEmail, followupEmailContent, followupEmailSurveyUrl,
+					groupSessionSchedulingSystemId, sendFollowupEmail, followupEmailContent, followupEmailSurveyUrl,
 					groupSessionCollectionId, visibleFlag, screeningFlowId, sendReminderEmail, reminderEmailContent,
 					followupTimeOfDay, followupDayOffset, singleSessionFlag, dateTimeDescription,
 					groupSessionLearnMoreMethodId, learnMoreDescription, groupSessionId);

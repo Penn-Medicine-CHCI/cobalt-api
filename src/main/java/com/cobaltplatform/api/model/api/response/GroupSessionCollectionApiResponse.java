@@ -40,7 +40,7 @@ import static java.util.Objects.requireNonNull;
 @Immutable
 public class GroupSessionCollectionApiResponse {
 	@Nonnull
-	private final UUID groupSessionCollectionReponseId;
+	private final UUID groupSessionCollectionId;
 	@Nonnull
 	private final InstitutionId institutionId;
 	@Nonnull
@@ -61,7 +61,7 @@ public class GroupSessionCollectionApiResponse {
 		requireNonNull(currentContextProvider);
 		requireNonNull(groupSessionCollection);
 
-		this.groupSessionCollectionReponseId = groupSessionCollection.getGroupSessionCollectionId();
+		this.groupSessionCollectionId = groupSessionCollection.getGroupSessionCollectionId();
 		this.institutionId = groupSessionCollection.getInstitutionId();
 		this.description = groupSessionCollection.getDescription();
 		this.displayOrder = groupSessionCollection.getDisplayOrder();
@@ -69,8 +69,8 @@ public class GroupSessionCollectionApiResponse {
 	}
 
 	@Nonnull
-	public UUID getGroupSessionCollectionReponseId() {
-		return groupSessionCollectionReponseId;
+	public UUID getGroupSessionCollectionId() {
+		return groupSessionCollectionId;
 	}
 
 	@Nonnull
