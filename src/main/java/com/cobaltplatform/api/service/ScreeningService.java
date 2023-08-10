@@ -1734,12 +1734,9 @@ public class ScreeningService {
 		if (withSideEffects) {
 			// Special handling for IC intake screening flow; create the clinical screening flow immediately after completing and
 			// route to it as the destination
-			if (integratedCareIntakeScreeningFlow && screeningSessionDestinationId == ScreeningSessionDestinationId.IC_MHIC_CLINICAL_SCREENING) {
-//			List<ScreeningSession> icClinicalScreeningSessions = findScreeningSessionsByPatientOrderIdAndScreeningFlowTypeId(patientOrderId, ScreeningFlowTypeId.INTEGRATED_CARE);
-//			ScreeningSession completedIcClinicalScreeningSession = icClinicalScreeningSessions.stream()
-//					.filter(icClinicalScreeningSession -> icClinicalScreeningSession.getCompleted())
-//					.findFirst()
-//					.orElse(null);
+			if (integratedCareIntakeScreeningFlow &&
+					(screeningSessionDestinationId == ScreeningSessionDestinationId.IC_PATIENT_CLINICAL_SCREENING
+							|| screeningSessionDestinationId == ScreeningSessionDestinationId.IC_MHIC_CLINICAL_SCREENING)) {
 
 				getLogger().info("Because the IC Intake screening flow was completed and we're supposed to transition to clinical, immediately create the clinical one...");
 
