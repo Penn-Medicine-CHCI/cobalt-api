@@ -74,7 +74,7 @@ public class TagGroupApiResponse {
 		this.name = tagGroup.getName();
 		this.urlName = tagGroup.getUrlName();
 		this.description = tagGroup.getDescription();
-		this.tags = tagService.findTagsByInstitutionId(currentContextProvider.get().getInstitutionId());
+		this.tags = tagService.findTagsByTagGroupId(tagGroup.getTagGroupId());
 	}
 
 	@Nonnull
