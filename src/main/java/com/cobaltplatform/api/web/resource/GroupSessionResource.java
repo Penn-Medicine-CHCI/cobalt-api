@@ -416,7 +416,7 @@ public class GroupSessionResource {
 		GroupSessionAutocompleteResult result = getGroupSessionService().findGroupSessionAutocompleteResults(searchQuery, institutionId);
 
 		return new ApiResponse(new HashMap<>() {{
-			put("groupSessionUrlNameAutocompleteResult",  getGroupSessionAutocompleteResultApiResponseFactory().create(result));
+			put("groupSessionUrlNameValidationResult",  getGroupSessionAutocompleteResultApiResponseFactory().create(result));
 		}});
 	}
 
