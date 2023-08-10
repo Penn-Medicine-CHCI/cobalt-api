@@ -37,6 +37,8 @@ public class CreateScreeningSessionRequest {
 	@Nullable
 	private UUID patientOrderId;
 	@Nullable
+	private UUID groupSessionId;
+	@Nullable
 	private UUID createdByAccountId;
 	@Nullable
 	private Boolean immediatelySkip;
@@ -84,6 +86,15 @@ public class CreateScreeningSessionRequest {
 
 	public void setPatientOrderId(@Nullable UUID patientOrderId) {
 		this.patientOrderId = patientOrderId;
+	}
+
+	@Nullable
+	public UUID getGroupSessionId() {
+		return this.groupSessionId;
+	}
+
+	public void setGroupSessionId(@Nullable UUID groupSessionId) {
+		this.groupSessionId = groupSessionId;
 	}
 
 	@Nullable

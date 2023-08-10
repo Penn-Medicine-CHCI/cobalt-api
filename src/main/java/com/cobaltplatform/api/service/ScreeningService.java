@@ -446,6 +446,22 @@ public class ScreeningService {
 	}
 
 	@Nonnull
+	public List<ScreeningFlow> findScreeningFlowsByInstitutionIdAndScreeningFlowTypeId(@Nullable InstitutionId institutionId,
+																																										 @Nullable ScreeningFlowTypeId screeningFlowTypeId) {
+		if (institutionId == null || screeningFlowTypeId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+						SELECT *
+						FROM screening_flow
+						WHERE institution_id=?
+						AND screening_flow_type_id=?
+						ORDER BY name
+						""",
+				ScreeningFlow.class, institutionId, screeningFlowTypeId);
+	}
+
+	@Nonnull
 	public List<ScreeningType> findScreeningTypes() {
 		return getDatabase().queryForList("SELECT * FROM screening_type ORDER BY description", ScreeningType.class);
 	}
@@ -602,6 +618,7 @@ public class ScreeningService {
 		UUID screeningFlowId = request.getScreeningFlowId();
 		UUID screeningFlowVersionId = request.getScreeningFlowVersionId();
 		UUID patientOrderId = request.getPatientOrderId();
+		UUID groupSessionId = request.getGroupSessionId();
 		ScreeningFlowVersion screeningFlowVersion = null;
 		Account targetAccount = null;
 		Account createdByAccount = null;
@@ -623,10 +640,17 @@ public class ScreeningService {
 		} else {
 			ScreeningFlow screeningFlow = findScreeningFlowById(screeningFlowId).orElse(null);
 
-			if (screeningFlow == null)
+			if (screeningFlow == null) {
 				validationException.add(new FieldError("screeningFlowId", getStrings().get("Screening flow ID is invalid.")));
-			else
+			} else {
 				screeningFlowVersion = findScreeningFlowVersionById(screeningFlow.getActiveScreeningFlowVersionId()).get();
+
+				if (screeningFlow.getScreeningFlowTypeId() == ScreeningFlowTypeId.GROUP_SESSION_INTAKE && groupSessionId == null)
+					validationException.add(new FieldError("groupSessionId", getStrings().get("Group Session ID is required for this type of screening flow.")));
+				else if (screeningFlow.getScreeningFlowTypeId() != ScreeningFlowTypeId.GROUP_SESSION_INTAKE && groupSessionId != null)
+					throw new IllegalStateException(format("It's illegal to specify a Group Session ID for %s.%s",
+							ScreeningFlowTypeId.class.getSimpleName(), screeningFlow.getScreeningFlowTypeId().name()));
+			}
 		}
 
 		if (createdByAccountId == null) {
@@ -682,9 +706,9 @@ public class ScreeningService {
 			throw validationException;
 
 		getDatabase().execute("""
-				INSERT INTO screening_session(screening_session_id, screening_flow_version_id, target_account_id, created_by_account_id, patient_order_id)
-				VALUES (?,?,?,?,?)
-				""", screeningSessionId, screeningFlowVersion.getScreeningFlowVersionId(), targetAccountId, createdByAccountId, patientOrderId);
+				INSERT INTO screening_session(screening_session_id, screening_flow_version_id, target_account_id, created_by_account_id, patient_order_id, group_session_id)
+				VALUES (?,?,?,?,?,?)
+				""", screeningSessionId, screeningFlowVersion.getScreeningFlowVersionId(), targetAccountId, createdByAccountId, patientOrderId, groupSessionId);
 
 		// If we're immediately skipping, mark this session as completed/skipped and do nothing else.
 		// If we're not immediately skipping, create an initial screening session screening
@@ -1884,7 +1908,7 @@ public class ScreeningService {
 			throw new IllegalStateException("Screening flow orchestration function must provide a 'completed' value in output");
 
 		if (orchestrationFunctionOutput.getCrisisIndicated() == null)
-			throw new IllegalStateException("Screening flow orchestration function must provide a 'crisisIndicated' value in output");
+			orchestrationFunctionOutput.setCrisisIndicated(false);
 
 		if (orchestrationFunctionOutput.getCompleted() && orchestrationFunctionOutput.getNextScreeningId() != null)
 			throw new IllegalStateException(format("Screening flow orchestration function output says this screening session is completed, but also provides a nonnull 'nextScreeningId' value"));

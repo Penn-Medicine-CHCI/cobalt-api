@@ -41,7 +41,8 @@ public class ScreeningFlowType {
 		PROVIDER_INTAKE,
 		INTEGRATED_CARE,
 		INTEGRATED_CARE_INTAKE,
-		FEATURE
+		FEATURE,
+		GROUP_SESSION_INTAKE
 	}
 
 	@Override
