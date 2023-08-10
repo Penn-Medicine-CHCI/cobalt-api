@@ -50,7 +50,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -161,10 +160,6 @@ public class GroupSessionApiResponse {
 	private final Boolean singleSessionFlag;
 	@Nullable
 	private final String dateTimeDescription;
-	@Nullable
-	private final String sessionPhoneNumber;
-	@Nullable
-	private final String sessionEmailAddress;
 	@Nonnull
 	private final List<String> tagIds;
 	@Nullable
@@ -314,8 +309,6 @@ public class GroupSessionApiResponse {
 		this.followupDayOffset = groupSession.getFollowupDayOffset();
 		this.singleSessionFlag = groupSession.getSingleSessionFlag();
 		this.dateTimeDescription = groupSession.getDateTimeDescription();
-		this.sessionPhoneNumber = groupSession.getSessionPhoneNumber();
-		this.sessionEmailAddress = groupSession.getSessionEmailAddress();
 		this.tagIds = groupSession.getTags() == null ? Collections.emptyList() : groupSession.getTags().stream()
 				.map(tag -> tag.getTagId())
 				.collect(Collectors.toList());
@@ -584,16 +577,6 @@ public class GroupSessionApiResponse {
 	@Nullable
 	public String getDateTimeDescription() {
 		return dateTimeDescription;
-	}
-
-	@Nullable
-	public String getSessionPhoneNumber() {
-		return sessionPhoneNumber;
-	}
-
-	@Nullable
-	public String getSessionEmailAddress() {
-		return sessionEmailAddress;
 	}
 
 	@Nonnull

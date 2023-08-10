@@ -24,6 +24,7 @@ import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.GroupSessionLearnMoreMethod.GroupSessionLearnMoreMethodId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
@@ -31,6 +32,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 /**
@@ -115,10 +117,6 @@ public class GroupSession {
 	@Nullable
 	private String dateTimeDescription;
 	@Nullable
-	private String sessionPhoneNumber;
-	@Nullable
-	private String sessionEmailAddress;
-	@Nullable
 	private List<Tag> tags;
 	@Nullable
 	private String learnMoreDescription;
@@ -128,6 +126,8 @@ public class GroupSession {
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
+	@Nonnull
+	private Locale locale;
 
 	@Nullable
 	public UUID getGroupSessionId() {
@@ -471,24 +471,6 @@ public class GroupSession {
 	}
 
 	@Nullable
-	public String getSessionPhoneNumber() {
-		return sessionPhoneNumber;
-	}
-
-	public void setSessionPhoneNumber(@Nullable String sessionPhoneNumber) {
-		this.sessionPhoneNumber = sessionPhoneNumber;
-	}
-
-	@Nullable
-	public String getSessionEmailAddress() {
-		return sessionEmailAddress;
-	}
-
-	public void setSessionEmailAddress(@Nullable String sessionEmailAddress) {
-		this.sessionEmailAddress = sessionEmailAddress;
-	}
-
-	@Nullable
 	public List<Tag> getTags() {
 		return tags;
 	}
@@ -532,4 +514,14 @@ public class GroupSession {
 	public void setGroupSessionLearnMoreMethodId(@Nullable GroupSessionLearnMoreMethodId groupSessionLearnMoreMethodId) {
 		this.groupSessionLearnMoreMethodId = groupSessionLearnMoreMethodId;
 	}
+
+	@Nonnull
+	public Locale getLocale() {
+		return locale;
+	}
+
+	public void setLocale(@Nonnull Locale locale) {
+		this.locale = locale;
+	}
+
 }

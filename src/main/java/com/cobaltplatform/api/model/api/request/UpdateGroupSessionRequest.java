@@ -100,10 +100,6 @@ public class UpdateGroupSessionRequest {
 	@Nullable
 	private String dateTimeDescription;
 	@Nullable
-	private String sessionPhoneNumber;
-	@Nullable
-	private String sessionEmailAddress;
-	@Nullable
 	private Set<String> tagIds;
 	private String learnMoreDescription;
 	@Nullable
@@ -394,24 +390,6 @@ public class UpdateGroupSessionRequest {
 
 	public void setDateTimeDescription(@Nullable String dateTimeDescription) {
 		this.dateTimeDescription = dateTimeDescription;
-	}
-
-	@Nullable
-	public String getSessionPhoneNumber() {
-		return sessionPhoneNumber;
-	}
-
-	public void setSessionPhoneNumber(@Nullable String sessionPhoneNumber) {
-		this.sessionPhoneNumber = sessionPhoneNumber;
-	}
-
-	@Nullable
-	public String getSessionEmailAddress() {
-		return sessionEmailAddress;
-	}
-
-	public void setSessionEmailAddress(@Nullable String sessionEmailAddress) {
-		this.sessionEmailAddress = sessionEmailAddress;
 	}
 
 	@Nullable

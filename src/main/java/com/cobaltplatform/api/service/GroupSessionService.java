@@ -459,6 +459,59 @@ public class GroupSessionService implements AutoCloseable {
 	}
 
 	@Nonnull
+	public UUID duplicateGroupSession(@Nonnull UUID groupSessionId, @Nonnull Account account) {
+		requireNonNull(groupSessionId);
+		requireNonNull(account);
+
+		ValidationException validationException = new ValidationException();
+		Integer dateOffset = 7;
+
+		GroupSession sourceGroupSession = findGroupSessionById(groupSessionId, account).orElse(null);
+
+		if (sourceGroupSession == null)
+			validationException.add(new FieldError("groupSessionId", getStrings().get("Not a valid Group Session")));
+		else if (sourceGroupSession.getInstitutionId() != account.getInstitutionId())
+			validationException.add(new FieldError("groupSessionId", getStrings().get("Group Sessions from other Institutions cannot be duplicated")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		//If this is a Cobalt scheduled Group Session then adjust the start and end dates
+		if (sourceGroupSession.getGroupSessionSchedulingSystemId() == GroupSessionSchedulingSystemId.COBALT) {
+			sourceGroupSession.setStartDateTime(sourceGroupSession.getStartDateTime().plusDays(dateOffset));
+			sourceGroupSession.setEndDateTime(sourceGroupSession.getEndDateTime().plusDays(dateOffset));
+		}
+
+		UUID destinationGroupSessionId = UUID.randomUUID();
+
+		getDatabase().execute("""
+						INSERT INTO group_session (group_session_id, institution_id,
+						group_session_status_id, title, description, submitter_account_id, submitter_name, submitter_email_address,
+						target_email_address, facilitator_account_id, facilitator_name, facilitator_email_address,
+						image_url, videoconference_url, start_date_time, end_date_time, seats, url_name,
+						confirmation_email_content, locale, time_zone, group_session_scheduling_system_id, schedule_url,
+						send_followup_email, followup_email_content, followup_email_survey_url,
+						group_session_collection_id, visible_flag, screening_flow_id, send_reminder_email, reminder_email_content,
+						followup_time_of_day, followup_day_offset, single_session_flag, date_time_description, group_session_learn_more_method_id, learn_more_description)
+						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						""",
+				destinationGroupSessionId, sourceGroupSession.getInstitutionId(), GroupSessionStatusId.NEW,
+				sourceGroupSession.getTitle(), sourceGroupSession.getDescription(), sourceGroupSession.getSubmitterAccountId(),
+				sourceGroupSession.getSubmitterName(), sourceGroupSession.getSubmitterEmailAddress(), sourceGroupSession.getTargetEmailAddress(),
+				sourceGroupSession.getFacilitatorAccountId(), sourceGroupSession.getFacilitatorName(), sourceGroupSession.getFacilitatorEmailAddress(),
+				sourceGroupSession.getImageUrl(), sourceGroupSession.getVideoconferenceUrl(), sourceGroupSession.getStartDateTime(), sourceGroupSession.getEndDateTime(),
+				sourceGroupSession.getSeats(), sourceGroupSession.getUrlName(), sourceGroupSession.getConfirmationEmailContent(),
+				sourceGroupSession.getLocale(), sourceGroupSession.getTimeZone(), sourceGroupSession.getGroupSessionSchedulingSystemId(),
+				sourceGroupSession.getScheduleUrl(), sourceGroupSession.getSendFollowupEmail(), sourceGroupSession.getFollowupEmailContent(),
+				sourceGroupSession.getFollowupEmailSurveyUrl(), sourceGroupSession.getGroupSessionCollectionId(), sourceGroupSession.getVisibleFlag(),
+				sourceGroupSession.getScreeningFlowId(), sourceGroupSession.getSendReminderEmail(), sourceGroupSession.getReminderEmailContent(),
+				sourceGroupSession.getFollowupTimeOfDay(), sourceGroupSession.getFollowupDayOffset(), sourceGroupSession.getSingleSessionFlag(),
+				sourceGroupSession.getDateTimeDescription(), sourceGroupSession.getGroupSessionLearnMoreMethodId(), sourceGroupSession.getLearnMoreDescription());
+
+		return destinationGroupSessionId;
+	}
+
+	@Nonnull
 	public UUID createGroupSession(@Nonnull CreateGroupSessionRequest request, @Nonnull Account account) {
 		requireNonNull(request);
 		requireNonNull(account);

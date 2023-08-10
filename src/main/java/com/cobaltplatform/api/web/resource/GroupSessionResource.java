@@ -285,6 +285,22 @@ public class GroupSessionResource {
 	}
 
 	@Nonnull
+	@POST("/group-sessions/{groupSessionId}/duplicate")
+	@AuthenticationRequired
+	public ApiResponse duplicateGroupSession(@Nonnull @PathParameter UUID groupSessionId) {
+		requireNonNull(groupSessionId);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		UUID duplicatedGroupSessionId = getGroupSessionService().duplicateGroupSession(groupSessionId, account);
+		GroupSession groupSession = getGroupSessionService().findGroupSessionById(duplicatedGroupSessionId, account).get();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("groupSession", getGroupSessionApiResponseFactory().create(groupSession));
+		}});
+	}
+
+	@Nonnull
 	@POST("/group-sessions/image-presigned-upload")
 	@AuthenticationRequired
 	public ApiResponse createGroupSessionImagePresignedUpload(@Nonnull @RequestBody String requestBody) {
