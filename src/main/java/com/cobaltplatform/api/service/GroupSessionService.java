@@ -487,6 +487,12 @@ public class GroupSessionService implements AutoCloseable {
 			sourceGroupSession.setEndDateTime(sourceGroupSession.getEndDateTime().plusDays(dateOffset));
 		}
 
+		GroupSessionAutocompleteResult groupSessionAutocompleteResult = findGroupSessionAutocompleteResults(sourceGroupSession.getUrlName(),
+				sourceGroupSession.getInstitutionId());
+
+		if (!groupSessionAutocompleteResult.getAvailable())
+			sourceGroupSession.setUrlName(groupSessionAutocompleteResult.getRecommendation());
+
 		UUID destinationGroupSessionId = UUID.randomUUID();
 
 		getDatabase().execute("""
@@ -498,7 +504,7 @@ public class GroupSessionService implements AutoCloseable {
 						send_followup_email, followup_email_content, followup_email_survey_url,
 						group_session_collection_id, visible_flag, screening_flow_id, send_reminder_email, reminder_email_content,
 						followup_time_of_day, followup_day_offset, single_session_flag, date_time_description, group_session_learn_more_method_id, learn_more_description)
-						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				destinationGroupSessionId, sourceGroupSession.getInstitutionId(), GroupSessionStatusId.NEW,
 				sourceGroupSession.getTitle(), sourceGroupSession.getDescription(), sourceGroupSession.getSubmitterAccountId(), sourceGroupSession.getTargetEmailAddress(),
@@ -513,9 +519,11 @@ public class GroupSessionService implements AutoCloseable {
 				sourceGroupSession.getDateTimeDescription(), sourceGroupSession.getGroupSessionLearnMoreMethodId(), sourceGroupSession.getLearnMoreDescription());
 
 		getDatabase().execute("""
-  		INSERT INTO tag_group_session (tag_group_session_id, tag_id, group_session_id)
-  		SELECT uuid_generate_v4(), tag_id, ?
-  		""", destinationGroupSessionId);
+  		INSERT INTO tag_group_session (tag_group_session_id, tag_id, group_session_id, institution_id)
+  		SELECT uuid_generate_v4(), tgs.tag_id, ?, institution_id
+  		FROM tag_group_session tgs
+  		WHERE tgs.group_session_id = ?
+  		""", destinationGroupSessionId, sourceGroupSession.getGroupSessionId());
 
 		return destinationGroupSessionId;
 	}
