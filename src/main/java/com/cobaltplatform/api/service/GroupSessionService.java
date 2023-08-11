@@ -813,9 +813,10 @@ public class GroupSessionService implements AutoCloseable {
 		urlName = urlName.toLowerCase().replaceAll(" ", "-");
 		int urlSuffix = 1;
 
-		if (!urlNameExistsForInstitutionId(urlName, institutionId, groupSessionId))
+		if (!urlNameExistsForInstitutionId(urlName, institutionId, groupSessionId)) {
 			result.setAvailable(true);
-		else {
+			result.setRecommendation(urlName);
+		} else {
 			result.setAvailable(false);
 			String recommendedUrlName = null;
 			while (!suggestedUrlAvailable) {
