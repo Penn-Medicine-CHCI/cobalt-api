@@ -578,6 +578,9 @@ public class GroupSessionService implements AutoCloseable {
 		if (singleSessionFlag == null)
 			singleSessionFlag = true;
 
+		if (targetEmailAddress == null)
+			targetEmailAddress = facilitatorEmailAddress;
+
 		if (institutionId == null) {
 			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
 		} else {
@@ -595,9 +598,6 @@ public class GroupSessionService implements AutoCloseable {
 			if (submitterAccount == null)
 				validationException.add(new FieldError("submitterAccountId", getStrings().get("Invalid submitter account.")));
 		}
-
-		if (!isValidEmailAddress(targetEmailAddress))
-			validationException.add(new FieldError("targetEmailAddress", getStrings().get("Target email address is invalid.")));
 
 		if (title == null)
 			validationException.add(new FieldError("title", getStrings().get("Title is required.")));
@@ -886,6 +886,9 @@ public class GroupSessionService implements AutoCloseable {
 		if (singleSessionFlag == null)
 			singleSessionFlag = true;
 
+		if (targetEmailAddress == null)
+			targetEmailAddress = facilitatorEmailAddress;
+
 		if (title == null)
 			validationException.add(new FieldError("title", getStrings().get("Title is required.")));
 
@@ -904,9 +907,6 @@ public class GroupSessionService implements AutoCloseable {
 			validationException.add(new FieldError("facilitatorEmailAddress", getStrings().get("Facilitator email address is required.")));
 		else if (!isValidEmailAddress(facilitatorEmailAddress))
 			validationException.add(new FieldError("facilitatorEmailAddress", getStrings().get("Facilitator email address is invalid.")));
-
-		if (!isValidEmailAddress(targetEmailAddress))
-			validationException.add(new FieldError("targetEmailAddress", getStrings().get("Target email address is invalid.")));
 
 		if (startDateTime == null) {
 			validationException.add(new FieldError("startDateTime", getStrings().get("Start time is required.")));
@@ -927,7 +927,7 @@ public class GroupSessionService implements AutoCloseable {
 
 		if (groupSessionSchedulingSystemId == GroupSessionSchedulingSystemId.COBALT) {
 
-			if (seats < reservationCount) {
+			if (seats != null && seats < reservationCount) {
 				validationException.add(new FieldError("seats", getStrings().get("The number of permitted attendees cannot be less than the current number of registrants.")));
 			}
 
@@ -1401,7 +1401,7 @@ public class GroupSessionService implements AutoCloseable {
 					}
 				}
 
-				if (groupSession.getSeatsReserved() >= groupSession.getSeats())
+				if (groupSession.getSeats() != null && groupSession.getSeatsReserved() >= groupSession.getSeats())
 					validationException.add(new FieldError("groupSessionId", getStrings().get("Sorry, this studio session is full.")));
 
 				if (groupSession.getGroupSessionStatusId() == GroupSessionStatusId.ARCHIVED)

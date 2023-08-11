@@ -250,20 +250,28 @@ public class GroupSessionApiResponse {
 
 		if (groupSession.getGroupSessionSchedulingSystemId() == GroupSessionSchedulingSystemId.COBALT) {
 			this.seats = groupSession.getSeats();
-			this.seatsDescription = strings.get("{{seatsDescription}} seats", new HashMap<String, Object>() {{
-				put("seats", groupSession.getSeats());
-				put("seatsDescription", formatter.formatNumber(groupSession.getSeats()));
-			}});
-			this.seatsAvailable = groupSession.getSeatsAvailable();
-			this.seatsAvailableDescription = strings.get("{{seatsAvailableDescription}} seats left", new HashMap<String, Object>() {{
-				put("seatsAvailable", groupSession.getSeatsAvailable());
-				put("seatsAvailableDescription", formatter.formatNumber(groupSession.getSeatsAvailable()));
-			}});
-			this.seatsReserved = groupSession.getSeatsReserved();
-			this.seatsReservedDescription = strings.get("{{seatsReservedDescription}} reservations", new HashMap<String, Object>() {{
-				put("seatsReserved", groupSession.getSeatsReserved());
-				put("seatsReservedDescription", formatter.formatNumber(groupSession.getSeatsReserved()));
-			}});
+			if (this.seats != null) {
+				this.seatsDescription = strings.get("{{seatsDescription}} seats", new HashMap<String, Object>() {{
+					put("seats", groupSession.getSeats());
+					put("seatsDescription", formatter.formatNumber(groupSession.getSeats()));
+				}});
+				this.seatsAvailable = groupSession.getSeatsAvailable();
+				this.seatsAvailableDescription = strings.get("{{seatsAvailableDescription}} seats left", new HashMap<String, Object>() {{
+					put("seatsAvailable", groupSession.getSeatsAvailable());
+					put("seatsAvailableDescription", formatter.formatNumber(groupSession.getSeatsAvailable()));
+				}});
+				this.seatsReserved = groupSession.getSeatsReserved();
+				this.seatsReservedDescription = strings.get("{{seatsReservedDescription}} reservations", new HashMap<String, Object>() {{
+					put("seatsReserved", groupSession.getSeatsReserved());
+					put("seatsReservedDescription", formatter.formatNumber(groupSession.getSeatsReserved()));
+				}});
+			} else {
+				this.seatsDescription = null;
+				this.seatsAvailable = null;
+				this.seatsAvailableDescription = null;
+				this.seatsReserved = null;
+				this.seatsReservedDescription = null;
+			}
 		} else if (groupSession.getGroupSessionSchedulingSystemId() == GroupSessionSchedulingSystemId.EXTERNAL) {
 			this.seats = null;
 			this.seatsDescription = null;
