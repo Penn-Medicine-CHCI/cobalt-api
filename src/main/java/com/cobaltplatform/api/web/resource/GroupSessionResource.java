@@ -31,7 +31,7 @@ import com.cobaltplatform.api.model.api.response.GroupSessionCollectionApiRespon
 import com.cobaltplatform.api.model.api.response.GroupSessionCollectionApiResponse.GroupSessionCollectionResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionReservationApiResponse.GroupSessionReservationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.GroupSessionAutocompleteResultApiResponse.GroupSessionAutocompleteResultApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.GroupSessionUrlValidationResultApiResponse.GroupSessionAutocompleteResultApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionReservation;
@@ -40,7 +40,7 @@ import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
-import com.cobaltplatform.api.model.service.GroupSessionAutocompleteResult;
+import com.cobaltplatform.api.model.service.GroupSessionUrlValidationResult;
 import com.cobaltplatform.api.model.service.GroupSessionStatusWithCount;
 import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.service.AuthorizationService;
@@ -407,13 +407,14 @@ public class GroupSessionResource {
 	@Nonnull
 	@GET("/group-sessions/validate-url-name")
 	@AuthenticationRequired
-		public ApiResponse groupSessionAutocomplete(@Nonnull @QueryParameter String searchQuery) {
+		public ApiResponse groupSessionUrlValidation(@Nonnull @QueryParameter String searchQuery,
+																								 @Nonnull @QueryParameter Optional<UUID> groupSessionId) {
 		requireNonNull(searchQuery);
 
 		Account account = getCurrentContext().getAccount().get();
 		Institution.InstitutionId institutionId = account.getInstitutionId();
 
-		GroupSessionAutocompleteResult result = getGroupSessionService().findGroupSessionAutocompleteResults(searchQuery, institutionId);
+		GroupSessionUrlValidationResult result = getGroupSessionService().findGroupSessionUrlValidationResults(searchQuery, institutionId, groupSessionId);
 
 		return new ApiResponse(new HashMap<>() {{
 			put("groupSessionUrlNameValidationResult",  getGroupSessionAutocompleteResultApiResponseFactory().create(result));

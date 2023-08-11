@@ -19,19 +19,12 @@
 
 package com.cobaltplatform.api.model.api.response;
 
-import com.cobaltplatform.api.model.service.GroupSessionAutocompleteResult;
-import com.cobaltplatform.api.model.service.PatientOrderAutocompleteResult;
-import com.cobaltplatform.api.service.GroupSessionService;
-import com.cobaltplatform.api.util.Formatter;
-import com.cobaltplatform.api.util.Normalizer;
+import com.cobaltplatform.api.model.service.GroupSessionUrlValidationResult;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
-import com.lokalized.Strings;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
-import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
 
@@ -39,7 +32,7 @@ import static java.util.Objects.requireNonNull;
  * @author Transmogrify, LLC.
  */
 @ThreadSafe
-public class GroupSessionAutocompleteResultApiResponse {
+public class GroupSessionUrlValidationResultApiResponse {
 	@Nonnull
 	private final Boolean available;
 	@Nonnull
@@ -49,11 +42,11 @@ public class GroupSessionAutocompleteResultApiResponse {
 	@ThreadSafe
 	public interface GroupSessionAutocompleteResultApiResponseFactory {
 		@Nonnull
-		GroupSessionAutocompleteResultApiResponse create(@Nonnull GroupSessionAutocompleteResult result);
+		GroupSessionUrlValidationResultApiResponse create(@Nonnull GroupSessionUrlValidationResult result);
 	}
 
 	@AssistedInject
-	public GroupSessionAutocompleteResultApiResponse(@Assisted @Nonnull GroupSessionAutocompleteResult result) {
+	public GroupSessionUrlValidationResultApiResponse(@Assisted @Nonnull GroupSessionUrlValidationResult result) {
 
 		this.available = result.getAvailable();
 		this.recommendation = result.getRecommendation();

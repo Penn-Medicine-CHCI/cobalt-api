@@ -26,7 +26,7 @@ import javax.annotation.concurrent.NotThreadSafe;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class GroupSessionAutocompleteResult {
+public class GroupSessionUrlValidationResult {
 	@Nullable
 	private Boolean available;
 	@Nullable
