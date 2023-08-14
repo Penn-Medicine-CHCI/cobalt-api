@@ -93,7 +93,9 @@ CREATE VIEW v_group_session AS
 	gs.send_reminder_email,
 	gs.reminder_email_content,
 	gs.single_session_flag,
-	gs.date_time_description
+	gs.date_time_description,
+    gs.group_session_learn_more_method_id,
+    gs.learn_more_description
    FROM group_session gs
   WHERE gs.group_session_status_id::text <> 'DELETED'::text;
 
