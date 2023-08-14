@@ -28,6 +28,7 @@ import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSession
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
+import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.service.GroupSessionService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.AppointmentTimeFormatter;
@@ -157,7 +158,7 @@ public class GroupSessionApiResponse {
 	@Nullable
 	private final String dateTimeDescription;
 	@Nonnull
-	private final List<String> tagIds;
+	private final List<Tag> tags;
 	@Nullable
 	private String learnMoreDescription;
 	@Nullable
@@ -319,9 +320,7 @@ public class GroupSessionApiResponse {
 		this.followupDayOffset = groupSession.getFollowupDayOffset();
 		this.singleSessionFlag = groupSession.getSingleSessionFlag();
 		this.dateTimeDescription = groupSession.getDateTimeDescription();
-		this.tagIds = groupSession.getTags() == null ? Collections.emptyList() : groupSession.getTags().stream()
-				.map(tag -> tag.getTagId())
-				.collect(Collectors.toList());
+		this.tags = groupSession.getTags() == null ? Collections.emptyList() : groupSession.getTags();
 		this.groupSessionLearnMoreMethodId = groupSession.getGroupSessionLearnMoreMethodId();
 		this.learnMoreDescription = groupSession.getLearnMoreDescription();
 		this.created = groupSession.getCreated();
@@ -580,8 +579,8 @@ public class GroupSessionApiResponse {
 	}
 
 	@Nonnull
-	public List<String> getTagIds() {
-		return tagIds;
+	public List<Tag> getTags() {
+		return tags;
 	}
 
 	@Nonnull
