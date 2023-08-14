@@ -199,13 +199,15 @@ public class GroupSessionResource {
 																	 @Nonnull @QueryParameter Optional<GroupSessionViewType> viewType,
 																	 @Nonnull @QueryParameter Optional<String> urlName,
 																	 @Nonnull @QueryParameter Optional<String> searchQuery,
-																	 @Nonnull @QueryParameter Optional<FindGroupSessionsRequest.OrderBy> orderBy) {
+																	 @Nonnull @QueryParameter Optional<FindGroupSessionsRequest.OrderBy> orderBy,
+																	 @Nonnull @QueryParameter Optional<UUID> groupSessionCollectionId) {
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
 		requireNonNull(viewType);
 		requireNonNull(urlName);
 		requireNonNull(searchQuery);
 		requireNonNull(orderBy);
+		requireNonNull(groupSessionCollectionId);
 
 		Account account = getCurrentContext().getAccount().get();
 
@@ -217,6 +219,7 @@ public class GroupSessionResource {
 		request.setSearchQuery(searchQuery.orElse(null));
 		request.setOrderBy(orderBy.orElse(null));
 		request.setFilterBehavior(FilterBehavior.DEFAULT);
+		request.setGroupSessionCollectionId(groupSessionCollectionId.orElse(null));
 
 		GroupSessionViewType finalViewType = viewType.orElse(GroupSessionViewType.PATIENT);
 
