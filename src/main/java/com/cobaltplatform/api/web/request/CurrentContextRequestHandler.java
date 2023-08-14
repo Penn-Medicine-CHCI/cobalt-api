@@ -77,6 +77,8 @@ public class CurrentContextRequestHandler {
 	private static final String WEBAPP_BASE_URL_PROPERTY_NAME;
 	@Nonnull
 	private static final String WEBAPP_CURRENT_URL_PROPERTY_NAME;
+	@Nonnull
+	private static final String DEBUG_SIMULATE_DELAY_PROPERTY_NAME;
 
 	@Nonnull
 	private static final String CURRENT_CONTEXT_LOGGING_KEY;
@@ -106,6 +108,7 @@ public class CurrentContextRequestHandler {
 		FINGERPRINT_ID_PROPERTY_NAME = "X-Cobalt-Fingerprint-Id";
 		WEBAPP_BASE_URL_PROPERTY_NAME = "X-Cobalt-Webapp-Base-Url";
 		WEBAPP_CURRENT_URL_PROPERTY_NAME = "X-Cobalt-Webapp-Current-Url";
+		DEBUG_SIMULATE_DELAY_PROPERTY_NAME = "X-Cobalt-Debug-Simulate-Delay";
 
 		CURRENT_CONTEXT_LOGGING_KEY = "CURRENT_CONTEXT";
 	}
@@ -147,6 +150,21 @@ public class CurrentContextRequestHandler {
 
 		try {
 			getErrorReporter().applyHttpServletRequest(httpServletRequest);
+
+			// Special request property to simulate delays.  Never usable in production
+			String debugSimulateDelayAsString = extractValueFromRequest(httpServletRequest, getDebugSimulateDelayPropertyName()).orElse(null);
+
+			if (debugSimulateDelayAsString != null && !getConfiguration().isProduction()) {
+				try {
+					Long debugSimulateDelay = Long.valueOf(debugSimulateDelayAsString);
+					getLogger().info("Simulating delay for {}ms per {}...", debugSimulateDelay, getDebugSimulateDelayPropertyName());
+					Thread.sleep(debugSimulateDelay);
+				} catch (InterruptedException e) {
+					getLogger().warn("Simulated delay was interrupted", e);
+				} catch (Exception e) {
+					getLogger().warn("Illegal value '{}' specified for {}", debugSimulateDelayAsString, getDebugSimulateDelayPropertyName());
+				}
+			}
 
 			Account account = null;
 
@@ -306,6 +324,11 @@ public class CurrentContextRequestHandler {
 	@Nonnull
 	public static String getWebappBaseUrlPropertyName() {
 		return WEBAPP_BASE_URL_PROPERTY_NAME;
+	}
+
+	@Nonnull
+	public static String getDebugSimulateDelayPropertyName() {
+		return DEBUG_SIMULATE_DELAY_PROPERTY_NAME;
 	}
 
 	@Nonnull
