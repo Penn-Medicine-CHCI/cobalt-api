@@ -299,6 +299,7 @@ public class GroupSessionService implements AutoCloseable {
 		Account account = request.getAccount();
 		FindGroupSessionsRequest.FilterBehavior filterBehavior = request.getFilterBehavior() == null ? FindGroupSessionsRequest.FilterBehavior.DEFAULT : request.getFilterBehavior();
 		FindGroupSessionsRequest.OrderBy orderBy = request.getOrderBy() == null ? FindGroupSessionsRequest.OrderBy.START_TIME_ASCENDING : request.getOrderBy();
+		UUID groupSessionCollectionId = request.getGroupSessionCollectionId();
 
 		List<Object> parameters = new ArrayList<>();
 
@@ -349,6 +350,11 @@ public class GroupSessionService implements AutoCloseable {
 
 		if (filterBehavior == FindGroupSessionsRequest.FilterBehavior.VISIBLE) {
 			sql.append("AND gs.visible_flag = TRUE ");
+		}
+
+		if (groupSessionCollectionId != null) {
+			sql.append("AND group_session_collection_id = ? ");
+			parameters.add(groupSessionCollectionId);
 		}
 
 		sql.append("ORDER BY ");

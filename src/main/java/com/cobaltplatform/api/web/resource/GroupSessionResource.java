@@ -29,6 +29,8 @@ import com.cobaltplatform.api.model.api.request.UpdateGroupSessionStatusRequest;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionCollectionApiResponse;
 import com.cobaltplatform.api.model.api.response.GroupSessionCollectionApiResponse.GroupSessionCollectionResponseFactory;
+import com.cobaltplatform.api.model.api.response.GroupSessionCollectionWithGroupSessionsApiResponse;
+import com.cobaltplatform.api.model.api.response.GroupSessionCollectionWithGroupSessionsApiResponse.GroupSessionCollectionWithGroupSessionsResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionReservationApiResponse.GroupSessionReservationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionUrlValidationResultApiResponse.GroupSessionAutocompleteResultApiResponseFactory;
@@ -97,6 +99,8 @@ public class GroupSessionResource {
 	@Nonnull
 	private final GroupSessionCollectionResponseFactory groupSessionCollectionResponseFactory;
 	@Nonnull
+	private final GroupSessionCollectionWithGroupSessionsResponseFactory groupSessionCollectionWithGroupSessionsResponseFactory;
+	@Nonnull
 	private final GroupSessionAutocompleteResultApiResponseFactory groupSessionAutocompleteResultApiResponseFactory;
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
@@ -123,6 +127,7 @@ public class GroupSessionResource {
 															@Nonnull GroupSessionReservationApiResponseFactory groupSessionReservationApiResponseFactory,
 															@Nonnull PresignedUploadApiResponseFactory presignedUploadApiResponseFactory,
 															@Nonnull GroupSessionCollectionResponseFactory groupSessionCollectionResponseFactory,
+															@Nonnull GroupSessionCollectionWithGroupSessionsResponseFactory groupSessionCollectionWithGroupSessionsResponseFactory,
 															@Nonnull GroupSessionAutocompleteResultApiResponseFactory groupSessionAutocompleteResultApiResponseFactory,
 															@Nonnull RequestBodyParser requestBodyParser,
 															@Nonnull Formatter formatter,
@@ -145,6 +150,7 @@ public class GroupSessionResource {
 		requireNonNull(authorizationServiceProvider);
 		requireNonNull(groupSessionCollectionResponseFactory);
 		requireNonNull(groupSessionAutocompleteResultApiResponseFactory);
+		requireNonNull(groupSessionCollectionWithGroupSessionsResponseFactory);
 
 		this.groupSessionService = groupSessionService;
 		this.groupSessionApiResponseFactory = groupSessionApiResponseFactory;
@@ -161,11 +167,28 @@ public class GroupSessionResource {
 		this.authorizationServiceProvider = authorizationServiceProvider;
 		this.groupSessionCollectionResponseFactory = groupSessionCollectionResponseFactory;
 		this.groupSessionAutocompleteResultApiResponseFactory = groupSessionAutocompleteResultApiResponseFactory;
+		this.groupSessionCollectionWithGroupSessionsResponseFactory = groupSessionCollectionWithGroupSessionsResponseFactory;
 	}
 
 	public enum GroupSessionViewType {
 		ADMINISTRATOR,
 		PATIENT
+	}
+
+
+	@Nonnull
+	@GET("/group-sessions/collections")
+	@AuthenticationRequired
+	public ApiResponse collectionsWithGroupSessions() {
+		Account account = getCurrentContext().getAccount().get();
+
+		List<GroupSessionCollectionWithGroupSessionsApiResponse> groupSessionCollectionWithGroupSessionsApiResponses = getGroupSessionService().findGroupSessionCollections(account)
+				.stream().map(groupSessionCollectionWithGroupSessions ->  getGroupSessionCollectionWithGroupSessionsResponseFactory()
+						.create(groupSessionCollectionWithGroupSessions, account)).collect(Collectors.toList());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("groupSessionCollections", groupSessionCollectionWithGroupSessionsApiResponses);
+		}});
 	}
 
 	@Nonnull
@@ -491,4 +514,7 @@ public class GroupSessionResource {
 
 	@Nonnull
 	protected GroupSessionAutocompleteResultApiResponseFactory getGroupSessionAutocompleteResultApiResponseFactory() { return groupSessionAutocompleteResultApiResponseFactory; }
+
+	@Nonnull
+	protected GroupSessionCollectionWithGroupSessionsResponseFactory getGroupSessionCollectionWithGroupSessionsResponseFactory() { return groupSessionCollectionWithGroupSessionsResponseFactory; }
 }

@@ -25,6 +25,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
@@ -49,6 +50,8 @@ public class FindGroupSessionsRequest {
 	private FilterBehavior filterBehavior;
 	@Nullable
 	private Account account;
+	@Nullable
+	private UUID groupSessionCollectionId;
 
 	public enum FilterBehavior {
 		DEFAULT,
@@ -140,5 +143,14 @@ public class FindGroupSessionsRequest {
 
 	public void setAccount(@Nullable Account account) {
 		this.account = account;
+	}
+
+	@Nullable
+	public UUID getGroupSessionCollectionId() {
+		return groupSessionCollectionId;
+	}
+
+	public void setGroupSessionCollectionId(@Nullable UUID groupSessionCollectionId) {
+		this.groupSessionCollectionId = groupSessionCollectionId;
 	}
 }
