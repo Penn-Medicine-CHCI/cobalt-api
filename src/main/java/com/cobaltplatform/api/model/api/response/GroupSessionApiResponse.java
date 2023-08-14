@@ -23,12 +23,11 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.QuestionApiResponse.QuestionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.GroupSession;
-import com.cobaltplatform.api.model.db.GroupSessionLearnMoreMethod;
+import com.cobaltplatform.api.model.db.GroupSessionLearnMoreMethod.GroupSessionLearnMoreMethodId;
 import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
-import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.service.GroupSessionService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.AppointmentTimeFormatter;
@@ -158,11 +157,11 @@ public class GroupSessionApiResponse {
 	@Nullable
 	private final String dateTimeDescription;
 	@Nonnull
-	private final List<Tag> tags;
+	private final List<TagApiResponse> tags;
 	@Nullable
 	private String learnMoreDescription;
 	@Nullable
-	private GroupSessionLearnMoreMethod.GroupSessionLearnMoreMethodId groupSessionLearnMoreMethodId;
+	private GroupSessionLearnMoreMethodId groupSessionLearnMoreMethodId;
 	@Nonnull
 	private final Instant created;
 	@Nonnull
@@ -187,6 +186,7 @@ public class GroupSessionApiResponse {
 																 @Nonnull InstitutionService institutionService,
 																 @Nonnull GroupSessionService groupSessionService,
 																 @Nonnull QuestionApiResponseFactory questionApiResponseFactory,
+																 @Nonnull TagApiResponse.TagApiResponseFactory tagApiResponseFactory,
 																 @Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
 																 @Assisted @Nonnull GroupSession groupSession) {
 		requireNonNull(formatter);
@@ -196,6 +196,7 @@ public class GroupSessionApiResponse {
 		requireNonNull(questionApiResponseFactory);
 		requireNonNull(currentContextProvider);
 		requireNonNull(groupSession);
+		requireNonNull(tagApiResponseFactory);
 
 		CurrentContext currentContext = currentContextProvider.get();
 		Account account = currentContext.getAccount().get();
@@ -320,7 +321,8 @@ public class GroupSessionApiResponse {
 		this.followupDayOffset = groupSession.getFollowupDayOffset();
 		this.singleSessionFlag = groupSession.getSingleSessionFlag();
 		this.dateTimeDescription = groupSession.getDateTimeDescription();
-		this.tags = groupSession.getTags() == null ? Collections.emptyList() : groupSession.getTags();
+		this.tags = groupSession.getTags() == null ? Collections.emptyList() : groupSession.getTags().stream()
+				.map(tag -> tagApiResponseFactory.create(tag)).collect(Collectors.toList());
 		this.groupSessionLearnMoreMethodId = groupSession.getGroupSessionLearnMoreMethodId();
 		this.learnMoreDescription = groupSession.getLearnMoreDescription();
 		this.created = groupSession.getCreated();
@@ -554,7 +556,7 @@ public class GroupSessionApiResponse {
 	}
 
 	@Nullable
-	public GroupSessionLearnMoreMethod.GroupSessionLearnMoreMethodId getGroupSessionLearnMoreMethodId() {
+	public GroupSessionLearnMoreMethodId getGroupSessionLearnMoreMethodId() {
 		return groupSessionLearnMoreMethodId;
 	}
 
@@ -579,7 +581,7 @@ public class GroupSessionApiResponse {
 	}
 
 	@Nonnull
-	public List<Tag> getTags() {
+	public List<TagApiResponse> getTags() {
 		return tags;
 	}
 
