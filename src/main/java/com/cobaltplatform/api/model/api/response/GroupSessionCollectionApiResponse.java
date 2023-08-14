@@ -27,6 +27,7 @@ import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -43,6 +44,8 @@ public class GroupSessionCollectionApiResponse {
 	private final UUID groupSessionCollectionId;
 	@Nonnull
 	private final InstitutionId institutionId;
+	@Nullable
+	private String title;
 	@Nonnull
 	private final String description;
 	@Nonnull
@@ -65,6 +68,7 @@ public class GroupSessionCollectionApiResponse {
 		this.institutionId = groupSessionCollection.getInstitutionId();
 		this.description = groupSessionCollection.getDescription();
 		this.displayOrder = groupSessionCollection.getDisplayOrder();
+		this.title = groupSessionCollection.getTitle();
 
 	}
 
@@ -86,5 +90,14 @@ public class GroupSessionCollectionApiResponse {
 	@Nonnull
 	public Integer getDisplayOrder() {
 		return displayOrder;
+	}
+
+	@Nullable
+	public String getTitle() {
+		return title;
+	}
+
+	public void setTitle(@Nullable String title) {
+		this.title = title;
 	}
 }

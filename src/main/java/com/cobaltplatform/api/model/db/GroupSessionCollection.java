@@ -35,6 +35,8 @@ public class GroupSessionCollection {
 	@Nullable
 	private InstitutionId institutionId;
 	@Nullable
+	private String title;
+	@Nullable
 	private String description;
 	@Nullable
 	private Integer displayOrder;
@@ -95,5 +97,14 @@ public class GroupSessionCollection {
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
+	}
+
+	@Nullable
+	public String getTitle() {
+		return title;
+	}
+
+	public void setTitle(@Nullable String title) {
+		this.title = title;
 	}
 }

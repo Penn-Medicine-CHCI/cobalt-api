@@ -8,6 +8,7 @@ ALTER TABLE screening_session ADD COLUMN group_session_id UUID REFERENCES group_
 CREATE TABLE group_session_collection (
   group_session_collection_id UUID NOT NULL PRIMARY KEY,
   institution_id VARCHAR NOT NULL REFERENCES institution,
+  title VARCHAR NOT NULL,
   description VARCHAR NOT NULL,
   display_order INTEGER NOT NULL,
   created timestamptz NOT NULL DEFAULT now(),
@@ -114,5 +115,5 @@ COMMIT;
 --Test
 
 INSERT INTO group_session_collection values
-(uuid_generate_v4(), 'COBALT', 'Test Collection 1', 1),
-(uuid_generate_v4(), 'COBALT', 'Test Collection 2', 2);
+(uuid_generate_v4(), 'COBALT', 'Test Collection 1', 'Test Collection 1 Description', 1),
+(uuid_generate_v4(), 'COBALT', 'Test Collection 2', 'Test Collection 2 Description', 2);
