@@ -229,7 +229,7 @@ public class GroupSessionApiResponse {
 		this.facilitatorEmailAddress = groupSession.getFacilitatorEmailAddress();
 		this.startDateTime = groupSession.getStartDateTime();
 		if (hasStartEndTime)
-		  this.startDateTimeDescription = groupSession.getSingleSessionFlag() ?
+			this.startDateTimeDescription = groupSession.getSingleSessionFlag() ?
 					formatter.formatDateTime(groupSession.getStartDateTime(), FormatStyle.LONG, FormatStyle.SHORT) :
 					formatter.formatDate(groupSession.getStartDateTime().toLocalDate(), FormatStyle.LONG);
 		else
@@ -249,40 +249,29 @@ public class GroupSessionApiResponse {
 				put("duration", durationInMinutes);
 			}
 		}) : null;
-
-		if (groupSession.getGroupSessionSchedulingSystemId() == GroupSessionSchedulingSystemId.COBALT) {
-			this.seats = groupSession.getSeats();
-			if (this.seats != null) {
-				this.seatsDescription = strings.get("{{seatsDescription}} seats", new HashMap<String, Object>() {{
-					put("seats", groupSession.getSeats());
-					put("seatsDescription", formatter.formatNumber(groupSession.getSeats()));
-				}});
-				this.seatsAvailable = groupSession.getSeatsAvailable();
-				this.seatsAvailableDescription = strings.get("{{seatsAvailableDescription}} seats left", new HashMap<String, Object>() {{
-					put("seatsAvailable", groupSession.getSeatsAvailable());
-					put("seatsAvailableDescription", formatter.formatNumber(groupSession.getSeatsAvailable()));
-				}});
-				this.seatsReserved = groupSession.getSeatsReserved();
-				this.seatsReservedDescription = strings.get("{{seatsReservedDescription}} reservations", new HashMap<String, Object>() {{
-					put("seatsReserved", groupSession.getSeatsReserved());
-					put("seatsReservedDescription", formatter.formatNumber(groupSession.getSeatsReserved()));
-				}});
-			} else {
-				this.seatsDescription = null;
-				this.seatsAvailable = null;
-				this.seatsAvailableDescription = null;
-				this.seatsReserved = null;
-				this.seatsReservedDescription = null;
-			}
-		} else if (groupSession.getGroupSessionSchedulingSystemId() == GroupSessionSchedulingSystemId.EXTERNAL) {
-			this.seats = null;
+		
+		this.seats = groupSession.getSeats();
+		if (this.seats != null) {
+			this.seatsDescription = strings.get("{{seatsDescription}} seats", new HashMap<String, Object>() {{
+				put("seats", groupSession.getSeats());
+				put("seatsDescription", formatter.formatNumber(groupSession.getSeats()));
+			}});
+			this.seatsAvailable = groupSession.getSeatsAvailable();
+			this.seatsAvailableDescription = strings.get("{{seatsAvailableDescription}} seats left", new HashMap<String, Object>() {{
+				put("seatsAvailable", groupSession.getSeatsAvailable());
+				put("seatsAvailableDescription", formatter.formatNumber(groupSession.getSeatsAvailable()));
+			}});
+			this.seatsReserved = groupSession.getSeatsReserved();
+			this.seatsReservedDescription = strings.get("{{seatsReservedDescription}} reservations", new HashMap<String, Object>() {{
+				put("seatsReserved", groupSession.getSeatsReserved());
+				put("seatsReservedDescription", formatter.formatNumber(groupSession.getSeatsReserved()));
+			}});
+		} else {
 			this.seatsDescription = null;
 			this.seatsAvailable = null;
 			this.seatsAvailableDescription = null;
 			this.seatsReserved = null;
 			this.seatsReservedDescription = null;
-		} else {
-			throw new UnsupportedOperationException(format("Not sure what to do with %s.%s", GroupSessionSchedulingSystemId.class.getSimpleName(), this.groupSessionSchedulingSystemId.name()));
 		}
 
 		this.timeZone = groupSession.getTimeZone();
