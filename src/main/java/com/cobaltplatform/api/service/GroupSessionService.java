@@ -300,6 +300,7 @@ public class GroupSessionService implements AutoCloseable {
 		FindGroupSessionsRequest.FilterBehavior filterBehavior = request.getFilterBehavior() == null ? FindGroupSessionsRequest.FilterBehavior.DEFAULT : request.getFilterBehavior();
 		FindGroupSessionsRequest.OrderBy orderBy = request.getOrderBy() == null ? FindGroupSessionsRequest.OrderBy.START_TIME_ASCENDING : request.getOrderBy();
 		UUID groupSessionCollectionId = request.getGroupSessionCollectionId();
+		GroupSessionSchedulingSystemId groupSessionSchedulingSystemId = request.getGroupSessionSchedulingSystemId();
 
 		List<Object> parameters = new ArrayList<>();
 
@@ -312,7 +313,7 @@ public class GroupSessionService implements AutoCloseable {
 		if (pageSize > getGroupSessionMaximumPageSize())
 			pageSize = getGroupSessionMaximumPageSize();
 
-		StringBuilder sql = new StringBuilder("SELECT gs.*, COUNT(gs.*) OVER() AS total_count " +
+		StringBuilder sql = new StringBuilder("SELECT gs.*, COUNT(gs.group_session_id) OVER() AS total_count " +
 				"FROM v_group_session gs WHERE 1=1 ");
 
 		if (institutionId != null) {
@@ -355,6 +356,11 @@ public class GroupSessionService implements AutoCloseable {
 		if (groupSessionCollectionId != null) {
 			sql.append("AND group_session_collection_id = ? ");
 			parameters.add(groupSessionCollectionId);
+		}
+
+		if (groupSessionSchedulingSystemId != null){
+			sql.append("AND group_session_scheduling_system_id = ? ");
+			parameters.add(groupSessionSchedulingSystemId);
 		}
 
 		sql.append("ORDER BY ");
