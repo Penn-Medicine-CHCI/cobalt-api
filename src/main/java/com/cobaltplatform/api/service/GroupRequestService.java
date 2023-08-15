@@ -22,8 +22,10 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.CreateGroupRequestRequest;
+import com.cobaltplatform.api.model.api.request.CreateGroupSessionSuggestionRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.GroupRequest;
+import com.cobaltplatform.api.model.db.GroupSessionSuggestion;
 import com.cobaltplatform.api.model.db.GroupTopic;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -55,6 +57,7 @@ import java.util.stream.Collectors;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidEmailAddress;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trim;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
@@ -157,6 +160,79 @@ public class GroupRequestService {
 				WHERE institution_id=?
 				ORDER BY email_address
 				""", String.class, institutionId);
+	}
+
+	@Nonnull
+	public UUID createGroupSessionSuggestion(@Nonnull CreateGroupSessionSuggestionRequest request){
+		requireNonNull(request);
+
+		UUID requestorAccountId = request.getRequestorAccountId();
+		String title = trimToNull(request.getTitle());
+		String description = trim(request.getDescription());
+		String emailAddress = trimToNull(request.getEmailAddress());
+
+		ValidationException validationException = new ValidationException();
+		UUID groupSessionSuggestionId = UUID.randomUUID();
+		Account requestorAccount = null;
+
+		if (requestorAccountId == null) {
+			validationException.add(new FieldError("requestorAccountId", getStrings().get("Account ID is required.")));
+		} else {
+			requestorAccount = getAccountService().findAccountById(requestorAccountId).orElse(null);
+
+			if (requestorAccount == null)
+				validationException.add(new FieldError("requestorAccountId", getStrings().get("Invalid Account ID specified.")));
+		}
+
+		if (title == null)
+			validationException.add(new FieldError("title", getStrings().get("Title is required.")));
+
+		if (emailAddress == null)
+			validationException.add(new FieldError("requestorEmailAddress", getStrings().get("Email address is required.")));
+		else if (!isValidEmailAddress(emailAddress))
+			validationException.add(new FieldError("requestorEmailAddress", getStrings().get("Email address is invalid.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+				INSERT INTO group_session_suggestion
+				  (group_session_suggestion_id, title, description, requestor_account_id)
+				VALUES
+				  (?,?,?,?)
+				  """, groupSessionSuggestionId, title, description, requestorAccount.getAccountId());
+
+		Map<String, Object> messageContext = new HashMap<>();
+		messageContext.put("emailAddress", emailAddress);
+		messageContext.put("title", title);
+		messageContext.put("description", description);
+
+		// Send off an email to let administrators know a group request has been submitted
+		Institution institution = getInstitutionService().findInstitutionById(requestorAccount.getInstitutionId()).get();
+		List<String> groupRequestContactEmailAddresses = findGroupRequestContactEmailAddressesByInstitutionId(institution.getInstitutionId());
+		Locale emailLocale = institution.getLocale();
+
+		if (groupRequestContactEmailAddresses.size() == 0)
+			throw new IllegalStateException(format("No group request contact email addresses configured for institution ID %s",
+					requestorAccount.getInstitutionId().name()));
+
+		getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
+			getMessageService().enqueueMessage(new EmailMessage.Builder(institution.getInstitutionId(), EmailMessageTemplate.GROUP_REQUEST_SUBMITTED, emailLocale)
+					.toAddresses(groupRequestContactEmailAddresses)
+					.messageContext(messageContext)
+					.build());
+		});
+
+		return groupSessionSuggestionId;
+	}
+
+	@Nonnull
+	public Optional<GroupSessionSuggestion> findGroupSessionSuggestionById(@Nullable UUID groupSessionSuggestionId) {
+		if (groupSessionSuggestionId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("SELECT * FROM group_session_suggestion WHERE group_session_suggestion_id=?",
+				GroupSessionSuggestion.class, groupSessionSuggestionId);
 	}
 
 	@Nonnull
