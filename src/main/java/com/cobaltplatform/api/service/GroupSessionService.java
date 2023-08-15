@@ -1135,7 +1135,8 @@ public class GroupSessionService implements AutoCloseable {
 			getMessageService().cancelScheduledMessage(groupSessionReservation.getAttendeeFollowupScheduledMessageId());
 
 			// Next, reschedule as needed
-			scheduleGroupSessionReservationReminderMessage(groupSession, groupSessionReservation);
+			if (groupSession.getSendReminderEmail())
+				scheduleGroupSessionReservationReminderMessage(groupSession, groupSessionReservation);
 
 			if (groupSession.getSendFollowupEmail())
 				scheduleGroupSessionReservationFollowupMessage(groupSession, groupSessionReservation);
@@ -1501,7 +1502,8 @@ public class GroupSessionService implements AutoCloseable {
 			getMessageService().enqueueMessage(attendeeEmailMessage);
 
 			// Schedule a reminder message for the group session reservation
-			scheduleGroupSessionReservationReminderMessage(groupSession, groupSessionReservation);
+			if (groupSession.getSendReminderEmail())
+				scheduleGroupSessionReservationReminderMessage(groupSession, groupSessionReservation);
 
 			// Schedule a followup message, if applicable
 			if (groupSession.getSendFollowupEmail())
