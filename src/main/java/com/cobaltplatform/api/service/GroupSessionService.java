@@ -453,7 +453,7 @@ public class GroupSessionService implements AutoCloseable {
 		GroupSession groupSession = getDatabase().queryForObject("SELECT * FROM v_group_session WHERE group_session_id=?",
 				GroupSession.class, groupSessionId).orElse(null);
 
-		if (groupSessionId == null)
+		if (groupSession == null)
 			return Optional.empty();
 
 		applyTagsToGroupSession(groupSession, account.getInstitutionId());
