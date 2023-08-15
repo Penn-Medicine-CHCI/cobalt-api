@@ -83,7 +83,7 @@ public class GroupSessionCollectionWithGroupSessionsApiResponse {
 		request.setInstitutionId(account.getInstitutionId());
 		request.setFilterBehavior(FindGroupSessionsRequest.FilterBehavior.DEFAULT);
 		request.setGroupSessionStatusId(GroupSessionStatus.GroupSessionStatusId.ADDED);
-		request.setFilterBehavior(FindGroupSessionsRequest.FilterBehavior.VISIBLE);
+		request.setVisibleFlag(true);
 		request.setGroupSessionCollectionId(groupSessionCollection.getGroupSessionCollectionId());
 		FindResult<GroupSession> findResult = groupSessionService.findGroupSessions(request);
 

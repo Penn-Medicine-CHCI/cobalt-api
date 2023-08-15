@@ -56,16 +56,23 @@ public class FindGroupSessionsRequest {
 	private UUID groupSessionCollectionId;
 	@Nonnull
 	private GroupSessionSchedulingSystemId groupSessionSchedulingSystemId;
+	@Nonnull
+	private Boolean visibleFlag;
 
 	public enum FilterBehavior {
 		DEFAULT,
-		ONLY_MY_SESSIONS,
-		VISIBLE
+		ONLY_MY_SESSIONS
 	}
 
 	public enum OrderBy {
 		START_TIME_ASCENDING,
-		START_TIME_DESCENDING
+		START_TIME_DESCENDING,
+		DATE_ADDED_ASCENDING,
+		DATE_ADDED_DESCENDING,
+		REGISTERED_ASCENDING,
+		REGISTERED_DESCENDING,
+		CAPACITY_ASCENDING,
+		CAPACITY_DESCENDING
 	}
 
 	@Nullable
@@ -165,5 +172,14 @@ public class FindGroupSessionsRequest {
 
 	public void setGroupSessionSchedulingSystemId(@Nonnull GroupSessionSchedulingSystemId groupSessionSchedulingSystemId) {
 		this.groupSessionSchedulingSystemId = groupSessionSchedulingSystemId;
+	}
+
+	@Nonnull
+	public Boolean getVisibleFlag() {
+		return visibleFlag;
+	}
+
+	public void setVisibleFlag(@Nonnull Boolean visibleFlag) {
+		this.visibleFlag = visibleFlag;
 	}
 }

@@ -204,7 +204,8 @@ public class GroupSessionResource {
 																	 @Nonnull @QueryParameter Optional<FindGroupSessionsRequest.OrderBy> orderBy,
 																	 @Nonnull @QueryParameter Optional<UUID> groupSessionCollectionId,
 																	 @Nonnull @QueryParameter Optional<GroupSessionStatusId> groupSessionStatusId,
-																	 @Nonnull @QueryParameter Optional<GroupSessionSchedulingSystemId> groupSessionSchedulingSystemId) {
+																	 @Nonnull @QueryParameter Optional<GroupSessionSchedulingSystemId> groupSessionSchedulingSystemId,
+																	 @Nonnull @QueryParameter Optional<Boolean> visibleFlag) {
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
 		requireNonNull(viewType);
@@ -214,6 +215,7 @@ public class GroupSessionResource {
 		requireNonNull(groupSessionCollectionId);
 		requireNonNull(groupSessionStatusId);
 		requireNonNull(groupSessionSchedulingSystemId);
+		requireNonNull(visibleFlag);
 
 		Account account = getCurrentContext().getAccount().get();
 
@@ -228,6 +230,7 @@ public class GroupSessionResource {
 		request.setGroupSessionStatusId(groupSessionStatusId.orElse(null));
 		request.setGroupSessionCollectionId(groupSessionCollectionId.orElse(null));
 		request.setGroupSessionSchedulingSystemId(groupSessionSchedulingSystemId.orElse(null));
+		request.setVisibleFlag(visibleFlag.orElse(null));
 
 		GroupSessionViewType finalViewType = viewType.orElse(GroupSessionViewType.PATIENT);
 
@@ -240,7 +243,7 @@ public class GroupSessionResource {
 		} else {
 			// Only show 'added' sessions for patient views no matter what your role is
 			request.setGroupSessionStatusId(GroupSessionStatusId.ADDED);
-			request.setFilterBehavior(FilterBehavior.VISIBLE);
+			request.setVisibleFlag(true);
 		}
 
 		FindResult<GroupSession> findResult = getGroupSessionService().findGroupSessions(request);
