@@ -111,7 +111,7 @@ CREATE VIEW v_group_session AS
   CREATE UNIQUE INDEX group_session_unique_url_name ON group_session(institution_id, url_name);
 
   CREATE TABLE group_session_suggestion (
-    group_session_suggestion UUID NOT NULL PRIMARY KEY,
+    group_session_suggestion_id UUID NOT NULL PRIMARY KEY,
     title VARCHAR NOT NULL,
     description VARCHAR,
     requestor_account_id UUID NOT NULL REFERENCES account,
@@ -120,7 +120,7 @@ CREATE VIEW v_group_session AS
   );
 
   create trigger set_last_updated before
-  insert or update on group_session_collection for each row execute procedure set_last_updated();
+  insert or update on group_session_suggestion for each row execute procedure set_last_updated();
 
 COMMIT;
 
