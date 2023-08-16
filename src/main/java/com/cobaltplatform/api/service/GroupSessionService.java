@@ -300,6 +300,8 @@ public class GroupSessionService implements AutoCloseable {
 		FindGroupSessionsRequest.FilterBehavior filterBehavior = request.getFilterBehavior() == null ? FindGroupSessionsRequest.FilterBehavior.DEFAULT : request.getFilterBehavior();
 		FindGroupSessionsRequest.OrderBy orderBy = request.getOrderBy() == null ? FindGroupSessionsRequest.OrderBy.START_TIME_DESCENDING : request.getOrderBy();
 		UUID groupSessionCollectionId = request.getGroupSessionCollectionId();
+		GroupSessionSchedulingSystemId groupSessionSchedulingSystemId = request.getGroupSessionSchedulingSystemId();
+		Boolean visibleFlag = request.getVisibleFlag();
 
 		List<Object> parameters = new ArrayList<>();
 
@@ -312,7 +314,7 @@ public class GroupSessionService implements AutoCloseable {
 		if (pageSize > getGroupSessionMaximumPageSize())
 			pageSize = getGroupSessionMaximumPageSize();
 
-		StringBuilder sql = new StringBuilder("SELECT gs.*, COUNT(gs.*) OVER() AS total_count " +
+		StringBuilder sql = new StringBuilder("SELECT gs.*, COUNT(gs.group_session_id) OVER() AS total_count " +
 				"FROM v_group_session gs WHERE 1=1 ");
 
 		if (institutionId != null) {
@@ -348,13 +350,20 @@ public class GroupSessionService implements AutoCloseable {
 			parameters.add(getNormalizer().normalizeEmailAddress(account.getEmailAddress()).orElse(null));
 		}
 
-		if (filterBehavior == FindGroupSessionsRequest.FilterBehavior.VISIBLE) {
-			sql.append("AND gs.visible_flag = TRUE ");
-		}
+		if (visibleFlag != null)
+			if (visibleFlag == true)
+			  sql.append("AND gs.visible_flag = TRUE ");
+		  else
+				sql.append("AND gs.visible_flag = FALSE ");
 
 		if (groupSessionCollectionId != null) {
 			sql.append("AND group_session_collection_id = ? ");
 			parameters.add(groupSessionCollectionId);
+		}
+
+		if (groupSessionSchedulingSystemId != null){
+			sql.append("AND group_session_scheduling_system_id = ? ");
+			parameters.add(groupSessionSchedulingSystemId);
 		}
 
 		sql.append("ORDER BY ");
@@ -363,6 +372,18 @@ public class GroupSessionService implements AutoCloseable {
 			sql.append("gs.start_date_time ASC ");
 		else if (orderBy == FindGroupSessionsRequest.OrderBy.START_TIME_DESCENDING)
 			sql.append("gs.start_date_time DESC NULLS LAST ");
+		else if (orderBy == FindGroupSessionsRequest.OrderBy.CAPACITY_ASCENDING)
+			sql.append("gs.seats ASC ");
+		else if (orderBy == FindGroupSessionsRequest.OrderBy.CAPACITY_DESCENDING)
+			sql.append("gs.seats DESC NULLS LAST ");
+		else if (orderBy == FindGroupSessionsRequest.OrderBy.DATE_ADDED_ASCENDING)
+			sql.append("gs.created ASC ");
+		else if (orderBy == FindGroupSessionsRequest.OrderBy.DATE_ADDED_DESCENDING)
+			sql.append("gs.created DESC NULLS LAST ");
+		else if (orderBy == FindGroupSessionsRequest.OrderBy.REGISTERED_ASCENDING)
+			sql.append("gs.seats_reserved ASC ");
+		else if (orderBy == FindGroupSessionsRequest.OrderBy.REGISTERED_DESCENDING)
+			sql.append("gs.seats_reserved DESC NULLS LAST ");
 		else
 			throw new IllegalArgumentException(format("Unsure what to do with %s.%s", FindGroupSessionsRequest.OrderBy.class.getSimpleName(), orderBy.name()));
 

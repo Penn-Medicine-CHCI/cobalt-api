@@ -20,9 +20,11 @@
 package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.UUID;
@@ -52,16 +54,25 @@ public class FindGroupSessionsRequest {
 	private Account account;
 	@Nullable
 	private UUID groupSessionCollectionId;
+	@Nonnull
+	private GroupSessionSchedulingSystemId groupSessionSchedulingSystemId;
+	@Nonnull
+	private Boolean visibleFlag;
 
 	public enum FilterBehavior {
 		DEFAULT,
-		ONLY_MY_SESSIONS,
-		VISIBLE
+		ONLY_MY_SESSIONS
 	}
 
 	public enum OrderBy {
 		START_TIME_ASCENDING,
-		START_TIME_DESCENDING
+		START_TIME_DESCENDING,
+		DATE_ADDED_ASCENDING,
+		DATE_ADDED_DESCENDING,
+		REGISTERED_ASCENDING,
+		REGISTERED_DESCENDING,
+		CAPACITY_ASCENDING,
+		CAPACITY_DESCENDING
 	}
 
 	@Nullable
@@ -152,5 +163,23 @@ public class FindGroupSessionsRequest {
 
 	public void setGroupSessionCollectionId(@Nullable UUID groupSessionCollectionId) {
 		this.groupSessionCollectionId = groupSessionCollectionId;
+	}
+
+	@Nonnull
+	public GroupSessionSchedulingSystemId getGroupSessionSchedulingSystemId() {
+		return groupSessionSchedulingSystemId;
+	}
+
+	public void setGroupSessionSchedulingSystemId(@Nonnull GroupSessionSchedulingSystemId groupSessionSchedulingSystemId) {
+		this.groupSessionSchedulingSystemId = groupSessionSchedulingSystemId;
+	}
+
+	@Nonnull
+	public Boolean getVisibleFlag() {
+		return visibleFlag;
+	}
+
+	public void setVisibleFlag(@Nonnull Boolean visibleFlag) {
+		this.visibleFlag = visibleFlag;
 	}
 }

@@ -37,6 +37,8 @@ import com.cobaltplatform.api.model.api.response.GroupSessionUrlValidationResult
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionReservation;
+import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem;
+import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Role.RoleId;
@@ -200,7 +202,10 @@ public class GroupSessionResource {
 																	 @Nonnull @QueryParameter Optional<String> urlName,
 																	 @Nonnull @QueryParameter Optional<String> searchQuery,
 																	 @Nonnull @QueryParameter Optional<FindGroupSessionsRequest.OrderBy> orderBy,
-																	 @Nonnull @QueryParameter Optional<UUID> groupSessionCollectionId) {
+																	 @Nonnull @QueryParameter Optional<UUID> groupSessionCollectionId,
+																	 @Nonnull @QueryParameter Optional<GroupSessionStatusId> groupSessionStatusId,
+																	 @Nonnull @QueryParameter Optional<GroupSessionSchedulingSystemId> groupSessionSchedulingSystemId,
+																	 @Nonnull @QueryParameter Optional<Boolean> visibleFlag) {
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
 		requireNonNull(viewType);
@@ -208,6 +213,9 @@ public class GroupSessionResource {
 		requireNonNull(searchQuery);
 		requireNonNull(orderBy);
 		requireNonNull(groupSessionCollectionId);
+		requireNonNull(groupSessionStatusId);
+		requireNonNull(groupSessionSchedulingSystemId);
+		requireNonNull(visibleFlag);
 
 		Account account = getCurrentContext().getAccount().get();
 
@@ -219,7 +227,10 @@ public class GroupSessionResource {
 		request.setSearchQuery(searchQuery.orElse(null));
 		request.setOrderBy(orderBy.orElse(null));
 		request.setFilterBehavior(FilterBehavior.DEFAULT);
+		request.setGroupSessionStatusId(groupSessionStatusId.orElse(null));
 		request.setGroupSessionCollectionId(groupSessionCollectionId.orElse(null));
+		request.setGroupSessionSchedulingSystemId(groupSessionSchedulingSystemId.orElse(null));
+		request.setVisibleFlag(visibleFlag.orElse(null));
 
 		GroupSessionViewType finalViewType = viewType.orElse(GroupSessionViewType.PATIENT);
 
@@ -232,7 +243,7 @@ public class GroupSessionResource {
 		} else {
 			// Only show 'added' sessions for patient views no matter what your role is
 			request.setGroupSessionStatusId(GroupSessionStatusId.ADDED);
-			request.setFilterBehavior(FilterBehavior.VISIBLE);
+			request.setVisibleFlag(true);
 		}
 
 		FindResult<GroupSession> findResult = getGroupSessionService().findGroupSessions(request);
