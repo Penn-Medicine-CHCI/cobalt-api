@@ -21,44 +21,46 @@ package com.cobaltplatform.api.model.db;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-
-import static java.lang.String.format;
+import java.time.Instant;
+import java.util.UUID;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 /**
- * @author Transmogrify LLC.
+ * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class ReportType {
+public class GroupSessionCollection {
 	@Nullable
-	private ReportTypeId reportTypeId;
+	private UUID groupSessionCollectionId;
+	@Nullable
+	private InstitutionId institutionId;
+	@Nullable
+	private String title;
 	@Nullable
 	private String description;
 	@Nullable
 	private Integer displayOrder;
+	@Nullable
+	private Instant created;
+	@Nullable
+	private Instant lastUpdated;
 
-	public enum ReportTypeId {
-		PROVIDER_UNUSED_AVAILABILITY,
-		PROVIDER_APPOINTMENTS,
-		PROVIDER_APPOINTMENT_CANCELATIONS,
-		IC_PIPELINE,
-		IC_OUTREACH,
-		IC_ASSESSMENT,
-		GROUP_SESSION_RESERVATION_EMAILS
+	@Nullable
+	public UUID getGroupSessionCollectionId() {
+		return groupSessionCollectionId;
 	}
 
-	@Override
-	public String toString() {
-		return format("%s{reportTypeId=%s, description=%s, displayOrder=%s}", getClass().getSimpleName(), getReportTypeId(),
-				getDescription(), getDisplayOrder());
+	public void setGroupSessionCollectionId(@Nullable UUID groupSessionCollectionId) {
+		this.groupSessionCollectionId = groupSessionCollectionId;
 	}
 
 	@Nullable
-	public ReportTypeId getReportTypeId() {
-		return this.reportTypeId;
+	public InstitutionId getInstitutionId() {
+		return institutionId;
 	}
 
-	public void setReportTypeId(@Nullable ReportTypeId reportTypeId) {
-		this.reportTypeId = reportTypeId;
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
 	}
 
 	@Nullable
@@ -72,10 +74,37 @@ public class ReportType {
 
 	@Nullable
 	public Integer getDisplayOrder() {
-		return this.displayOrder;
+		return displayOrder;
 	}
 
 	public void setDisplayOrder(@Nullable Integer displayOrder) {
 		this.displayOrder = displayOrder;
+	}
+
+	@Nullable
+	public Instant getCreated() {
+		return created;
+	}
+
+	public void setCreated(@Nullable Instant created) {
+		this.created = created;
+	}
+
+	@Nullable
+	public Instant getLastUpdated() {
+		return lastUpdated;
+	}
+
+	public void setLastUpdated(@Nullable Instant lastUpdated) {
+		this.lastUpdated = lastUpdated;
+	}
+
+	@Nullable
+	public String getTitle() {
+		return title;
+	}
+
+	public void setTitle(@Nullable String title) {
+		this.title = title;
 	}
 }

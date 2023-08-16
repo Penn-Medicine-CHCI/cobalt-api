@@ -27,15 +27,24 @@ import com.cobaltplatform.api.model.api.request.FindGroupSessionsRequest.FilterB
 import com.cobaltplatform.api.model.api.request.UpdateGroupSessionRequest;
 import com.cobaltplatform.api.model.api.request.UpdateGroupSessionStatusRequest;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.GroupSessionCollectionApiResponse;
+import com.cobaltplatform.api.model.api.response.GroupSessionCollectionApiResponse.GroupSessionCollectionResponseFactory;
+import com.cobaltplatform.api.model.api.response.GroupSessionCollectionWithGroupSessionsApiResponse;
+import com.cobaltplatform.api.model.api.response.GroupSessionCollectionWithGroupSessionsApiResponse.GroupSessionCollectionWithGroupSessionsResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionReservationApiResponse.GroupSessionReservationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.GroupSessionUrlValidationResultApiResponse.GroupSessionAutocompleteResultApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionReservation;
+import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem;
+import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.model.service.GroupSessionUrlValidationResult;
 import com.cobaltplatform.api.model.service.GroupSessionStatusWithCount;
 import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.service.AuthorizationService;
@@ -90,6 +99,12 @@ public class GroupSessionResource {
 	@Nonnull
 	private final PresignedUploadApiResponseFactory presignedUploadApiResponseFactory;
 	@Nonnull
+	private final GroupSessionCollectionResponseFactory groupSessionCollectionResponseFactory;
+	@Nonnull
+	private final GroupSessionCollectionWithGroupSessionsResponseFactory groupSessionCollectionWithGroupSessionsResponseFactory;
+	@Nonnull
+	private final GroupSessionAutocompleteResultApiResponseFactory groupSessionAutocompleteResultApiResponseFactory;
+	@Nonnull
 	private final RequestBodyParser requestBodyParser;
 	@Nonnull
 	private final Formatter formatter;
@@ -113,6 +128,9 @@ public class GroupSessionResource {
 															@Nonnull GroupSessionApiResponseFactory groupSessionApiResponseFactory,
 															@Nonnull GroupSessionReservationApiResponseFactory groupSessionReservationApiResponseFactory,
 															@Nonnull PresignedUploadApiResponseFactory presignedUploadApiResponseFactory,
+															@Nonnull GroupSessionCollectionResponseFactory groupSessionCollectionResponseFactory,
+															@Nonnull GroupSessionCollectionWithGroupSessionsResponseFactory groupSessionCollectionWithGroupSessionsResponseFactory,
+															@Nonnull GroupSessionAutocompleteResultApiResponseFactory groupSessionAutocompleteResultApiResponseFactory,
 															@Nonnull RequestBodyParser requestBodyParser,
 															@Nonnull Formatter formatter,
 															@Nonnull Strings strings,
@@ -132,6 +150,9 @@ public class GroupSessionResource {
 		requireNonNull(auditLogService);
 		requireNonNull(jsonMapper);
 		requireNonNull(authorizationServiceProvider);
+		requireNonNull(groupSessionCollectionResponseFactory);
+		requireNonNull(groupSessionAutocompleteResultApiResponseFactory);
+		requireNonNull(groupSessionCollectionWithGroupSessionsResponseFactory);
 
 		this.groupSessionService = groupSessionService;
 		this.groupSessionApiResponseFactory = groupSessionApiResponseFactory;
@@ -146,11 +167,30 @@ public class GroupSessionResource {
 		this.jsonMapper = jsonMapper;
 		this.imageUploadServiceProvider = imageUploadServiceProvider;
 		this.authorizationServiceProvider = authorizationServiceProvider;
+		this.groupSessionCollectionResponseFactory = groupSessionCollectionResponseFactory;
+		this.groupSessionAutocompleteResultApiResponseFactory = groupSessionAutocompleteResultApiResponseFactory;
+		this.groupSessionCollectionWithGroupSessionsResponseFactory = groupSessionCollectionWithGroupSessionsResponseFactory;
 	}
 
 	public enum GroupSessionViewType {
 		ADMINISTRATOR,
 		PATIENT
+	}
+
+
+	@Nonnull
+	@GET("/group-sessions/collections")
+	@AuthenticationRequired
+	public ApiResponse collectionsWithGroupSessions() {
+		Account account = getCurrentContext().getAccount().get();
+
+		List<GroupSessionCollectionWithGroupSessionsApiResponse> groupSessionCollectionWithGroupSessionsApiResponses = getGroupSessionService().findGroupSessionCollections(account)
+				.stream().map(groupSessionCollectionWithGroupSessions ->  getGroupSessionCollectionWithGroupSessionsResponseFactory()
+						.create(groupSessionCollectionWithGroupSessions, account)).collect(Collectors.toList());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("groupSessionCollections", groupSessionCollectionWithGroupSessionsApiResponses);
+		}});
 	}
 
 	@Nonnull
@@ -161,13 +201,21 @@ public class GroupSessionResource {
 																	 @Nonnull @QueryParameter Optional<GroupSessionViewType> viewType,
 																	 @Nonnull @QueryParameter Optional<String> urlName,
 																	 @Nonnull @QueryParameter Optional<String> searchQuery,
-																	 @Nonnull @QueryParameter Optional<FindGroupSessionsRequest.OrderBy> orderBy) {
+																	 @Nonnull @QueryParameter Optional<FindGroupSessionsRequest.OrderBy> orderBy,
+																	 @Nonnull @QueryParameter Optional<UUID> groupSessionCollectionId,
+																	 @Nonnull @QueryParameter Optional<GroupSessionStatusId> groupSessionStatusId,
+																	 @Nonnull @QueryParameter Optional<GroupSessionSchedulingSystemId> groupSessionSchedulingSystemId,
+																	 @Nonnull @QueryParameter Optional<Boolean> visibleFlag) {
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
 		requireNonNull(viewType);
 		requireNonNull(urlName);
 		requireNonNull(searchQuery);
 		requireNonNull(orderBy);
+		requireNonNull(groupSessionCollectionId);
+		requireNonNull(groupSessionStatusId);
+		requireNonNull(groupSessionSchedulingSystemId);
+		requireNonNull(visibleFlag);
 
 		Account account = getCurrentContext().getAccount().get();
 
@@ -179,6 +227,10 @@ public class GroupSessionResource {
 		request.setSearchQuery(searchQuery.orElse(null));
 		request.setOrderBy(orderBy.orElse(null));
 		request.setFilterBehavior(FilterBehavior.DEFAULT);
+		request.setGroupSessionStatusId(groupSessionStatusId.orElse(null));
+		request.setGroupSessionCollectionId(groupSessionCollectionId.orElse(null));
+		request.setGroupSessionSchedulingSystemId(groupSessionSchedulingSystemId.orElse(null));
+		request.setVisibleFlag(visibleFlag.orElse(null));
 
 		GroupSessionViewType finalViewType = viewType.orElse(GroupSessionViewType.PATIENT);
 
@@ -191,6 +243,7 @@ public class GroupSessionResource {
 		} else {
 			// Only show 'added' sessions for patient views no matter what your role is
 			request.setGroupSessionStatusId(GroupSessionStatusId.ADDED);
+			request.setVisibleFlag(true);
 		}
 
 		FindResult<GroupSession> findResult = getGroupSessionService().findGroupSessions(request);
@@ -232,7 +285,7 @@ public class GroupSessionResource {
 		requireNonNull(groupSessionId);
 
 		Account account = getCurrentContext().getAccount().get();
-		GroupSession groupSession = getGroupSessionService().findGroupSessionById(groupSessionId).orElse(null);
+		GroupSession groupSession = getGroupSessionService().findGroupSessionById(groupSessionId, account).orElse(null);
 
 		if (groupSession == null)
 			throw new NotFoundException();
@@ -269,8 +322,24 @@ public class GroupSessionResource {
 		request.setInstitutionId(account.getInstitutionId());
 		request.setSubmitterAccountId(account.getAccountId());
 
-		UUID groupSessionId = getGroupSessionService().createGroupSession(request);
-		GroupSession groupSession = getGroupSessionService().findGroupSessionById(groupSessionId).get();
+		UUID groupSessionId = getGroupSessionService().createGroupSession(request, account);
+		GroupSession groupSession = getGroupSessionService().findGroupSessionById(groupSessionId, account).get();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("groupSession", getGroupSessionApiResponseFactory().create(groupSession));
+		}});
+	}
+
+	@Nonnull
+	@POST("/group-sessions/{groupSessionId}/duplicate")
+	@AuthenticationRequired
+	public ApiResponse duplicateGroupSession(@Nonnull @PathParameter UUID groupSessionId) {
+		requireNonNull(groupSessionId);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		UUID duplicatedGroupSessionId = getGroupSessionService().duplicateGroupSession(groupSessionId, account);
+		GroupSession groupSession = getGroupSessionService().findGroupSessionById(duplicatedGroupSessionId, account).get();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("groupSession", getGroupSessionApiResponseFactory().create(groupSession));
@@ -304,7 +373,7 @@ public class GroupSessionResource {
 		requireNonNull(requestBody);
 
 		Account account = getCurrentContext().getAccount().get();
-		GroupSession groupSession = getGroupSessionService().findGroupSessionById(groupSessionId).orElse(null);
+		GroupSession groupSession = getGroupSessionService().findGroupSessionById(groupSessionId, account).orElse(null);
 
 		if (groupSession == null)
 			throw new NotFoundException();
@@ -316,9 +385,9 @@ public class GroupSessionResource {
 		request.setAccountId(account.getAccountId());
 		request.setGroupSessionId(groupSessionId);
 
-		getGroupSessionService().updateGroupSessionStatus(request);
+		getGroupSessionService().updateGroupSessionStatus(request, account);
 
-		GroupSession updatedGroupSession = getGroupSessionService().findGroupSessionById(groupSessionId).orElse(null);
+		GroupSession updatedGroupSession = getGroupSessionService().findGroupSessionById(groupSessionId, account).orElse(null);
 
 		// "Deleted" case
 		if (updatedGroupSession == null)
@@ -338,7 +407,7 @@ public class GroupSessionResource {
 		requireNonNull(requestBody);
 
 		Account account = getCurrentContext().getAccount().get();
-		GroupSession groupSession = getGroupSessionService().findGroupSessionById(groupSessionId).orElse(null);
+		GroupSession groupSession = getGroupSessionService().findGroupSessionById(groupSessionId, account).orElse(null);
 
 		if (groupSession == null)
 			throw new NotFoundException();
@@ -349,12 +418,43 @@ public class GroupSessionResource {
 		UpdateGroupSessionRequest request = getRequestBodyParser().parse(requestBody, UpdateGroupSessionRequest.class);
 		request.setGroupSessionId(groupSessionId);
 
-		getGroupSessionService().updateGroupSession(request);
+		getGroupSessionService().updateGroupSession(request, account);
 
-		GroupSession updatedGroupSession = getGroupSessionService().findGroupSessionById(groupSessionId).orElse(null);
+		GroupSession updatedGroupSession = getGroupSessionService().findGroupSessionById(groupSessionId, account).orElse(null);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("groupSession", getGroupSessionApiResponseFactory().create(updatedGroupSession));
+		}});
+	}
+
+	@Nonnull
+	@GET("/group-session-collections")
+	@AuthenticationRequired
+	public ApiResponse groupSessionCollections() {
+		Account account = getCurrentContext().getAccount().get();
+
+		List<GroupSessionCollectionApiResponse> groupSessionCollectionApiResponses = getGroupSessionService().findGroupSessionCollections(account)
+				.stream().map(groupSessionCollection ->  getGroupSessionCollectionResponseFactory().create(groupSessionCollection)).collect(Collectors.toList());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("groupSessionCollections", groupSessionCollectionApiResponses);
+		}});
+	}
+
+	@Nonnull
+	@GET("/group-sessions/validate-url-name")
+	@AuthenticationRequired
+		public ApiResponse groupSessionUrlValidation(@Nonnull @QueryParameter String searchQuery,
+																								 @Nonnull @QueryParameter Optional<UUID> groupSessionId) {
+		requireNonNull(searchQuery);
+
+		Account account = getCurrentContext().getAccount().get();
+		Institution.InstitutionId institutionId = account.getInstitutionId();
+
+		GroupSessionUrlValidationResult result = getGroupSessionService().findGroupSessionUrlValidationResults(searchQuery, institutionId, groupSessionId);
+
+		return new ApiResponse(new HashMap<>() {{
+			put("groupSessionUrlNameValidationResult",  getGroupSessionAutocompleteResultApiResponseFactory().create(result));
 		}});
 	}
 
@@ -422,4 +522,13 @@ public class GroupSessionResource {
 	protected AuthorizationService getAuthorizationService() {
 		return authorizationServiceProvider.get();
 	}
+
+	@Nonnull
+	protected GroupSessionCollectionResponseFactory getGroupSessionCollectionResponseFactory() { return this.groupSessionCollectionResponseFactory; }
+
+	@Nonnull
+	protected GroupSessionAutocompleteResultApiResponseFactory getGroupSessionAutocompleteResultApiResponseFactory() { return groupSessionAutocompleteResultApiResponseFactory; }
+
+	@Nonnull
+	protected GroupSessionCollectionWithGroupSessionsResponseFactory getGroupSessionCollectionWithGroupSessionsResponseFactory() { return groupSessionCollectionWithGroupSessionsResponseFactory; }
 }

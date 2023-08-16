@@ -21,9 +21,12 @@ package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateGroupRequestRequest;
+import com.cobaltplatform.api.model.api.request.CreateGroupSessionSuggestionRequest;
 import com.cobaltplatform.api.model.api.response.GroupRequestApiResponse.GroupRequestApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.GroupSessionSuggestionApiResponse.GroupSessionSuggestionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.GroupRequest;
+import com.cobaltplatform.api.model.db.GroupSessionSuggestion;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.GroupRequestService;
 import com.cobaltplatform.api.util.Formatter;
@@ -58,6 +61,8 @@ public class GroupRequestResource {
 	@Nonnull
 	private final GroupRequestApiResponseFactory groupRequestApiResponseFactory;
 	@Nonnull
+	private final GroupSessionSuggestionApiResponseFactory groupSessionSuggestionApiResponseFactory;
+	@Nonnull
 	private final RequestBodyParser requestBodyParser;
 	@Nonnull
 	private final Formatter formatter;
@@ -71,6 +76,7 @@ public class GroupRequestResource {
 	@Inject
 	public GroupRequestResource(@Nonnull GroupRequestService groupRequestService,
 															@Nonnull GroupRequestApiResponseFactory groupRequestApiResponseFactory,
+															@Nonnull GroupSessionSuggestionApiResponseFactory groupSessionSuggestionApiResponseFactory,
 															@Nonnull RequestBodyParser requestBodyParser,
 															@Nonnull Formatter formatter,
 															@Nonnull Strings strings,
@@ -81,9 +87,11 @@ public class GroupRequestResource {
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(currentContextProvider);
+		requireNonNull(groupSessionSuggestionApiResponseFactory);
 
 		this.groupRequestService = groupRequestService;
 		this.groupRequestApiResponseFactory = groupRequestApiResponseFactory;
+		this.groupSessionSuggestionApiResponseFactory = groupSessionSuggestionApiResponseFactory;
 		this.requestBodyParser = requestBodyParser;
 		this.formatter = formatter;
 		this.strings = strings;
@@ -108,6 +116,26 @@ public class GroupRequestResource {
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("groupRequest", getGroupRequestApiResponseFactory().create(groupRequest));
 		}});
+	}
+
+	@Nonnull
+	@POST("/group-suggestions")
+	@AuthenticationRequired
+	public ApiResponse sendGroupSuggestion(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		CreateGroupSessionSuggestionRequest request = getRequestBodyParser().parse(requestBody, CreateGroupSessionSuggestionRequest.class);
+		request.setRequestorAccountId(account.getAccountId());
+
+		UUID groupSessionSuggestionId = getGroupRequestService().createGroupSessionSuggestion(request);
+		GroupSessionSuggestion groupSessionSuggestion = getGroupRequestService().findGroupSessionSuggestionById(groupSessionSuggestionId).get();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("groupSessionSuggestion", getGroupSessionSuggestionApiResponseFactory().create(groupSessionSuggestion));
+		}});
+
 	}
 
 	@Nonnull
@@ -143,5 +171,10 @@ public class GroupRequestResource {
 	@Nonnull
 	protected Logger getLogger() {
 		return this.logger;
+	}
+
+	@Nonnull
+	protected GroupSessionSuggestionApiResponseFactory getGroupSessionSuggestionApiResponseFactory() {
+		return groupSessionSuggestionApiResponseFactory;
 	}
 }

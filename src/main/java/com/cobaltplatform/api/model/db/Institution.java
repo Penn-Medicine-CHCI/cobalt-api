@@ -67,6 +67,8 @@ public class Institution {
 	@Nullable
 	private UUID groupSessionsScreeningFlowId;
 	@Nullable
+	private UUID groupSessionDefaultIntakeScreeningFlowId;
+	@Nullable
 	private UUID integratedCareScreeningFlowId;
 	@Nullable
 	private UUID integratedCareIntakeScreeningFlowId;
@@ -379,6 +381,15 @@ public class Institution {
 
 	public void setGroupSessionsScreeningFlowId(@Nullable UUID groupSessionsScreeningFlowId) {
 		this.groupSessionsScreeningFlowId = groupSessionsScreeningFlowId;
+	}
+
+	@Nullable
+	public UUID getGroupSessionDefaultIntakeScreeningFlowId() {
+		return this.groupSessionDefaultIntakeScreeningFlowId;
+	}
+
+	public void setGroupSessionDefaultIntakeScreeningFlowId(@Nullable UUID groupSessionDefaultIntakeScreeningFlowId) {
+		this.groupSessionDefaultIntakeScreeningFlowId = groupSessionDefaultIntakeScreeningFlowId;
 	}
 
 	@Nullable

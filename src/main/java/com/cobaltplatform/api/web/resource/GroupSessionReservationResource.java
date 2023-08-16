@@ -169,8 +169,8 @@ public class GroupSessionReservationResource {
 		CreateGroupSessionReservationRequest request = getRequestBodyParser().parse(requestBody, CreateGroupSessionReservationRequest.class);
 		request.setAccountId(account.getAccountId());
 
-		UUID groupSessionReservationId = getGroupSessionService().createGroupSessionReservation(request);
-		Pair<GroupSession, GroupSessionReservation> groupSessionReservationPair = getGroupSessionService().findGroupSessionReservationPairById(groupSessionReservationId).get();
+		UUID groupSessionReservationId = getGroupSessionService().createGroupSessionReservation(request, account);
+		Pair<GroupSession, GroupSessionReservation> groupSessionReservationPair = getGroupSessionService().findGroupSessionReservationPairById(groupSessionReservationId, account).get();
 
 		// It's possible creating the reservation has updated the account's email address.
 		// Vend the account so client has the latest and greatest
@@ -189,7 +189,7 @@ public class GroupSessionReservationResource {
 		requireNonNull(groupSessionReservationId);
 
 		Account account = getCurrentContext().getAccount().get();
-		Pair<GroupSession, GroupSessionReservation> groupSessionReservationPair = getGroupSessionService().findGroupSessionReservationPairById(groupSessionReservationId).orElse(null);
+		Pair<GroupSession, GroupSessionReservation> groupSessionReservationPair = getGroupSessionService().findGroupSessionReservationPairById(groupSessionReservationId, account).orElse(null);
 
 		if (groupSessionReservationPair == null)
 			throw new NotFoundException();
@@ -211,7 +211,7 @@ public class GroupSessionReservationResource {
 		request.setAccountId(account.getAccountId());
 		request.setGroupSessionReservationId(groupSessionReservationId);
 
-		getGroupSessionService().cancelGroupSessionReservation(request);
+		getGroupSessionService().cancelGroupSessionReservation(request, account);
 	}
 
 	@GET("/group-session-reservations/{groupSessionReservationId}/google-calendar")
@@ -220,7 +220,9 @@ public class GroupSessionReservationResource {
 	public RedirectResponse googleCalendarGroupSessionReservation(@Nonnull @PathParameter UUID groupSessionReservationId) {
 		requireNonNull(groupSessionReservationId);
 
-		Pair<GroupSession, GroupSessionReservation> groupSessionReservationPair = getGroupSessionService().findGroupSessionReservationPairById(groupSessionReservationId).orElse(null);
+		Account account = getCurrentContext().getAccount().get();
+
+		Pair<GroupSession, GroupSessionReservation> groupSessionReservationPair = getGroupSessionService().findGroupSessionReservationPairById(groupSessionReservationId, account).orElse(null);
 
 		if (groupSessionReservationPair == null)
 			throw new NotFoundException();
@@ -236,7 +238,8 @@ public class GroupSessionReservationResource {
 		requireNonNull(groupSessionReservationId);
 		requireNonNull(httpServletResponse);
 
-		Pair<GroupSession, GroupSessionReservation> groupSessionReservationPair = getGroupSessionService().findGroupSessionReservationPairById(groupSessionReservationId).orElse(null);
+		Account account = getCurrentContext().getAccount().get();
+		Pair<GroupSession, GroupSessionReservation> groupSessionReservationPair = getGroupSessionService().findGroupSessionReservationPairById(groupSessionReservationId, account).orElse(null);
 
 		if (groupSessionReservationPair == null)
 			throw new NotFoundException();

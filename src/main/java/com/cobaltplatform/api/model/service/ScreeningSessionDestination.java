@@ -38,6 +38,8 @@ public class ScreeningSessionDestination {
 	private final ScreeningSessionDestinationId screeningSessionDestinationId;
 	@Nonnull
 	private final Map<String, Object> context;
+	@Nonnull
+	private final ScreeningSessionDestinationResultId screeningSessionDestinationResultId;
 
 	public enum ScreeningSessionDestinationId {
 		CRISIS,
@@ -49,7 +51,8 @@ public class ScreeningSessionDestination {
 		IC_MHIC_SCREENING_SESSION_RESULTS,
 		IC_PATIENT_CLINICAL_SCREENING,
 		IC_MHIC_CLINICAL_SCREENING,
-		HOME
+		HOME,
+		GROUP_SESSION_DETAIL
 	}
 
 	public ScreeningSessionDestination(@Nonnull ScreeningSessionDestinationId screeningSessionDestinationId) {
@@ -62,6 +65,9 @@ public class ScreeningSessionDestination {
 
 		this.screeningSessionDestinationId = screeningSessionDestinationId;
 		this.context = context == null ? Collections.emptyMap() : new HashMap<>(context);
+		this.screeningSessionDestinationResultId = context.containsKey("result")
+				? ScreeningSessionDestinationResultId.valueOf((String) context.get("result"))
+				: ScreeningSessionDestinationResultId.UNSPECIFIED;
 	}
 
 	@Override
@@ -77,5 +83,10 @@ public class ScreeningSessionDestination {
 	@Nonnull
 	public Map<String, Object> getContext() {
 		return this.context;
+	}
+
+	@Nonnull
+	public ScreeningSessionDestinationResultId getScreeningSessionDestinationResultId() {
+		return this.screeningSessionDestinationResultId;
 	}
 }

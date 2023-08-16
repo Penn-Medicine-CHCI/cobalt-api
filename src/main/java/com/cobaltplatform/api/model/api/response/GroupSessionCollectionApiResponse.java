@@ -20,19 +20,18 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.context.CurrentContext;
-import com.cobaltplatform.api.model.db.Color.ColorId;
-import com.cobaltplatform.api.model.db.Tag;
-import com.cobaltplatform.api.model.db.TagGroup;
-import com.cobaltplatform.api.service.TagService;
+import com.cobaltplatform.api.model.db.GroupSessionCollection;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.google.inject.Provider;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
 
-import java.util.List;
+import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
 
@@ -40,70 +39,65 @@ import static java.util.Objects.requireNonNull;
  * @author Transmogrify, LLC.
  */
 @Immutable
-public class TagGroupApiResponse {
+public class GroupSessionCollectionApiResponse {
 	@Nonnull
-	private final String tagGroupId;
+	private final UUID groupSessionCollectionId;
 	@Nonnull
-	private final ColorId colorId;
-	@Nonnull
-	private final String name;
-	@Nonnull
-	private final String urlName;
+	private final InstitutionId institutionId;
+	@Nullable
+	private String title;
 	@Nonnull
 	private final String description;
 	@Nonnull
-	private final List<Tag> tags;
+	private final Integer displayOrder;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
-	public interface TagGroupApiResponseFactory {
+	public interface GroupSessionCollectionResponseFactory {
 		@Nonnull
-		TagGroupApiResponse create(@Nonnull TagGroup tagGroup);
+		GroupSessionCollectionApiResponse create(@Nonnull GroupSessionCollection groupSessionCollection);
 	}
 
 	@AssistedInject
-	public TagGroupApiResponse(@Nonnull Provider<CurrentContext> currentContextProvider,
-														 @Assisted @Nonnull TagGroup tagGroup,
-														 @Nonnull TagService tagService) {
+	public GroupSessionCollectionApiResponse(@Nonnull Provider<CurrentContext> currentContextProvider,
+																					 @Assisted @Nonnull GroupSessionCollection groupSessionCollection) {
 		requireNonNull(currentContextProvider);
-		requireNonNull(tagGroup);
-		requireNonNull(tagService);
+		requireNonNull(groupSessionCollection);
 
-		this.tagGroupId = tagGroup.getTagGroupId();
-		this.colorId = tagGroup.getColorId();
-		this.name = tagGroup.getName();
-		this.urlName = tagGroup.getUrlName();
-		this.description = tagGroup.getDescription();
-		this.tags = tagService.findTagsByTagGroupId(tagGroup.getTagGroupId());
+		this.groupSessionCollectionId = groupSessionCollection.getGroupSessionCollectionId();
+		this.institutionId = groupSessionCollection.getInstitutionId();
+		this.description = groupSessionCollection.getDescription();
+		this.displayOrder = groupSessionCollection.getDisplayOrder();
+		this.title = groupSessionCollection.getTitle();
+
 	}
 
 	@Nonnull
-	public String getTagGroupId() {
-		return this.tagGroupId;
+	public UUID getGroupSessionCollectionId() {
+		return groupSessionCollectionId;
 	}
 
 	@Nonnull
-	public ColorId getColorId() {
-		return this.colorId;
-	}
-
-	@Nonnull
-	public String getName() {
-		return this.name;
-	}
-
-	@Nonnull
-	public String getUrlName() {
-		return this.urlName;
+	public InstitutionId getInstitutionId() {
+		return institutionId;
 	}
 
 	@Nonnull
 	public String getDescription() {
-		return this.description;
+		return description;
 	}
 
 	@Nonnull
-	public List<Tag> getTags() {
-		return tags;
+	public Integer getDisplayOrder() {
+		return displayOrder;
+	}
+
+	@Nullable
+	public String getTitle() {
+		return title;
+	}
+
+	public void setTitle(@Nullable String title) {
+		this.title = title;
 	}
 }

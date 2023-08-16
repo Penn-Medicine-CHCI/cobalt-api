@@ -17,48 +17,41 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db;
+package com.cobaltplatform.api.model.api.request;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-
-import static java.lang.String.format;
+import java.util.UUID;
 
 /**
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class ReportType {
+public class CreateGroupSessionSuggestionRequest {
 	@Nullable
-	private ReportTypeId reportTypeId;
+	private String emailAddress;
+	@Nullable
+	private String title;
 	@Nullable
 	private String description;
 	@Nullable
-	private Integer displayOrder;
+	private UUID requestorAccountId;
 
-	public enum ReportTypeId {
-		PROVIDER_UNUSED_AVAILABILITY,
-		PROVIDER_APPOINTMENTS,
-		PROVIDER_APPOINTMENT_CANCELATIONS,
-		IC_PIPELINE,
-		IC_OUTREACH,
-		IC_ASSESSMENT,
-		GROUP_SESSION_RESERVATION_EMAILS
+	public String getEmailAddress() {
+		return emailAddress;
 	}
 
-	@Override
-	public String toString() {
-		return format("%s{reportTypeId=%s, description=%s, displayOrder=%s}", getClass().getSimpleName(), getReportTypeId(),
-				getDescription(), getDisplayOrder());
+	public void setEmailAddress(String emailAddress) {
+		this.emailAddress = emailAddress;
 	}
 
 	@Nullable
-	public ReportTypeId getReportTypeId() {
-		return this.reportTypeId;
+	public String getTitle() {
+		return title;
 	}
 
-	public void setReportTypeId(@Nullable ReportTypeId reportTypeId) {
-		this.reportTypeId = reportTypeId;
+	public void setTitle(@Nullable String title) {
+		this.title = title;
 	}
 
 	@Nullable
@@ -71,11 +64,11 @@ public class ReportType {
 	}
 
 	@Nullable
-	public Integer getDisplayOrder() {
-		return this.displayOrder;
+	public UUID getRequestorAccountId() {
+		return requestorAccountId;
 	}
 
-	public void setDisplayOrder(@Nullable Integer displayOrder) {
-		this.displayOrder = displayOrder;
+	public void setRequestorAccountId(@Nullable UUID requestorAccountId) {
+		this.requestorAccountId = requestorAccountId;
 	}
 }

@@ -28,37 +28,30 @@ import static java.lang.String.format;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class ReportType {
+public class GroupSessionLearnMoreMethod {
 	@Nullable
-	private ReportTypeId reportTypeId;
+	private GroupSessionLearnMoreMethodId groupSessionLearnMoreMethodId;
 	@Nullable
 	private String description;
-	@Nullable
-	private Integer displayOrder;
 
-	public enum ReportTypeId {
-		PROVIDER_UNUSED_AVAILABILITY,
-		PROVIDER_APPOINTMENTS,
-		PROVIDER_APPOINTMENT_CANCELATIONS,
-		IC_PIPELINE,
-		IC_OUTREACH,
-		IC_ASSESSMENT,
-		GROUP_SESSION_RESERVATION_EMAILS
+	public enum GroupSessionLearnMoreMethodId {
+		EMAIL,
+		PHONE,
+		URL
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{reportTypeId=%s, description=%s, displayOrder=%s}", getClass().getSimpleName(), getReportTypeId(),
-				getDescription(), getDisplayOrder());
+		return format("%s{groupSessionLearnMoreMethodId=%s, description=%s}", getClass().getSimpleName(), getGroupSessionLearnMoreMethodId(), getDescription());
 	}
 
 	@Nullable
-	public ReportTypeId getReportTypeId() {
-		return this.reportTypeId;
+	public GroupSessionLearnMoreMethodId getGroupSessionLearnMoreMethodId() {
+		return groupSessionLearnMoreMethodId;
 	}
 
-	public void setReportTypeId(@Nullable ReportTypeId reportTypeId) {
-		this.reportTypeId = reportTypeId;
+	public void setGroupSessionLearnMoreMethodId(@Nullable GroupSessionLearnMoreMethodId groupSessionLearnMoreMethodId) {
+		this.groupSessionLearnMoreMethodId = groupSessionLearnMoreMethodId;
 	}
 
 	@Nullable
@@ -68,14 +61,5 @@ public class ReportType {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
-	}
-
-	@Nullable
-	public Integer getDisplayOrder() {
-		return this.displayOrder;
-	}
-
-	public void setDisplayOrder(@Nullable Integer displayOrder) {
-		this.displayOrder = displayOrder;
 	}
 }

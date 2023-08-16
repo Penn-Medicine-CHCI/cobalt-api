@@ -20,6 +20,12 @@
 				You have registered to attend <b>"{{groupSessionTitle}}"</b> happening today from <b>{{groupSessionStartTimeDescription}}</b> - <b>{{groupSessionEndTimeDescription}}</b>. We look forward to seeing you there!
 			</p>
 			<br />
+				{{#if groupSession.reminderEmailContent}}
+					<p>
+						{{{groupSession.reminderEmailContent}}}
+					</p>
+					<br />
+				{{/if}}
 			<table width="100%" border="0" cellspacing="0" cellpadding="0" align="center">
 				<tr>
 					<td height="5" bgcolor="#ffffff" width="50%" colspan="2"></td>
