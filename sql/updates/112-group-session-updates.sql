@@ -5,6 +5,8 @@ SELECT _v.register_patch('112-group-session-updates', NULL, NULL);
 INSERT INTO screening_flow_type (screening_flow_type_id, description) VALUES ('GROUP_SESSION_INTAKE', 'Group Session Intake');
 ALTER TABLE screening_session ADD COLUMN group_session_id UUID REFERENCES group_session;
 
+INSERT INTO report_type VALUES ('GROUP_SESSION_RESERVATION_EMAILS', 'Group Session Reservation Email Addresses', 7);
+
 CREATE TABLE group_session_collection (
   group_session_collection_id UUID NOT NULL PRIMARY KEY,
   institution_id VARCHAR NOT NULL REFERENCES institution,
