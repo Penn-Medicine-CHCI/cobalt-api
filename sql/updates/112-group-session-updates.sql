@@ -47,6 +47,7 @@ ADD COLUMN single_session_flag BOOLEAN NOT NULL DEFAULT true,
 ADD COLUMN date_time_description TEXT,
 ADD COLUMN group_session_learn_more_method_id VARCHAR REFERENCES group_session_learn_more_method,
 ADD COLUMN learn_more_description VARCHAR,
+ADD COLUMN different_email_address_for_notifications BOOLEAN NOT NULL DEFAULT false,
 ALTER COLUMN start_date_time DROP NOT NULL,
 ALTER COLUMN end_date_time DROP NOT NULL;
 
@@ -98,7 +99,8 @@ CREATE VIEW v_group_session AS
 	gs.single_session_flag,
 	gs.date_time_description,
     gs.group_session_learn_more_method_id,
-    gs.learn_more_description
+    gs.learn_more_description, 
+    gs.different_email_address_for_notifications
    FROM group_session gs
   WHERE gs.group_session_status_id::text <> 'DELETED'::text;
 
