@@ -100,6 +100,8 @@ public class UpdateGroupSessionRequest {
 	private String learnMoreDescription;
 	@Nullable
 	private GroupSessionLearnMoreMethod.GroupSessionLearnMoreMethodId groupSessionLearnMoreMethodId;
+	@Nullable
+	private Boolean differentEmailAddressForNotifications;
 
 	@Nullable
 	public UUID getGroupSessionId() {
@@ -394,5 +396,14 @@ public class UpdateGroupSessionRequest {
 
 	public void setGroupSessionLearnMoreMethodId(@Nullable GroupSessionLearnMoreMethod.GroupSessionLearnMoreMethodId groupSessionLearnMoreMethodId) {
 		this.groupSessionLearnMoreMethodId = groupSessionLearnMoreMethodId;
+	}
+
+	@Nullable
+	public Boolean getDifferentEmailAddressForNotifications() {
+		return differentEmailAddressForNotifications;
+	}
+
+	public void setDifferentEmailAddressForNotifications(@Nullable Boolean differentEmailAddressForNotifications) {
+		this.differentEmailAddressForNotifications = differentEmailAddressForNotifications;
 	}
 }

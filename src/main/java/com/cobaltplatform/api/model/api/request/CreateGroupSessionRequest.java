@@ -105,6 +105,8 @@ public class CreateGroupSessionRequest {
 	private String learnMoreDescription;
 	@Nullable
 	private GroupSessionLearnMoreMethod.GroupSessionLearnMoreMethodId groupSessionLearnMoreMethodId;
+	@Nullable
+	private Boolean differentEmailAddressForNotifications;
 
 	@Nullable
 	public InstitutionId getInstitutionId() {
@@ -410,5 +412,14 @@ public class CreateGroupSessionRequest {
 
 	public void setGroupSessionLearnMoreMethodId(@Nullable GroupSessionLearnMoreMethod.GroupSessionLearnMoreMethodId groupSessionLearnMoreMethodId) {
 		this.groupSessionLearnMoreMethodId = groupSessionLearnMoreMethodId;
+	}
+
+	@Nullable
+	public Boolean getDifferentEmailAddressForNotifications() {
+		return differentEmailAddressForNotifications;
+	}
+
+	public void setDifferentEmailAddressForNotifications(@Nullable Boolean differentEmailAddressForNotifications) {
+		this.differentEmailAddressForNotifications = differentEmailAddressForNotifications;
 	}
 }

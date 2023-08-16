@@ -595,6 +595,7 @@ public class GroupSessionService implements AutoCloseable {
 		Set<String> tagIds = request.getTagIds() == null ? Set.of() : request.getTagIds();
 		String learnMoreDescription = trimToNull(request.getLearnMoreDescription());
 		GroupSessionLearnMoreMethodId groupSessionLearnMoreMethodId = request.getGroupSessionLearnMoreMethodId();
+		Boolean differentEmailAddressForNotifications = request.getDifferentEmailAddressForNotifications();
 
 		ValidationException validationException = new ValidationException();
 
@@ -613,8 +614,10 @@ public class GroupSessionService implements AutoCloseable {
 		if (singleSessionFlag == null)
 			singleSessionFlag = true;
 
-		if (targetEmailAddress == null)
+		if (!differentEmailAddressForNotifications)
 			targetEmailAddress = facilitatorEmailAddress;
+		else if (targetEmailAddress == null)
+			validationException.add(new FieldError("targetEmailAddress", getStrings().get("Notification email is required.")));
 
 		if (institutionId == null) {
 			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
@@ -740,15 +743,16 @@ public class GroupSessionService implements AutoCloseable {
 						confirmation_email_content, locale, time_zone, group_session_scheduling_system_id,
 						send_followup_email, followup_email_content, followup_email_survey_url,
 						group_session_collection_id, visible_flag, screening_flow_id, send_reminder_email, reminder_email_content,
-						followup_time_of_day, followup_day_offset, single_session_flag, date_time_description, group_session_learn_more_method_id, learn_more_description)
-						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						followup_time_of_day, followup_day_offset, single_session_flag, date_time_description, group_session_learn_more_method_id, 
+						learn_more_description, different_email_address_for_notifications)
+						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				groupSessionId, institutionId, GroupSessionStatusId.NEW,
 				title, description, submitterAccountId, targetEmailAddress, facilitatorAccountId, facilitatorName, facilitatorEmailAddress, imageUrl, videoconferenceUrl,
 				startDateTime, endDateTime, seats, urlName, confirmationEmailContent, institution.getLocale(), institution.getTimeZone(),
 				groupSessionSchedulingSystemId, sendFollowupEmail, followupEmailContent, followupEmailSurveyUrl,
 				groupSessionCollectionId, visibleFlag, screeningFlowId, sendReminderEmail, reminderEmailContent,
-				followupTimeOfDay, followupDayOffset, singleSessionFlag, dateTimeDescription, groupSessionLearnMoreMethodId, learnMoreDescription);
+				followupTimeOfDay, followupDayOffset, singleSessionFlag, dateTimeDescription, groupSessionLearnMoreMethodId, learnMoreDescription, differentEmailAddressForNotifications);
 
 		addTagsToGroupSession(groupSessionId, tagIds, institutionId);
 
@@ -917,6 +921,7 @@ public class GroupSessionService implements AutoCloseable {
 		Set<String> tagIds = request.getTagIds() == null ? Set.of() : request.getTagIds();
 		String learnMoreDescription = trimToNull(request.getLearnMoreDescription());
 		GroupSessionLearnMoreMethodId groupSessionLearnMoreMethodId = request.getGroupSessionLearnMoreMethodId();
+		Boolean differentEmailAddressForNotifications = request.getDifferentEmailAddressForNotifications();
 
 		// Updates are restricted to certain fields if there are reservations already made for this session
 		int reservationCount = findGroupSessionReservationsByGroupSessionId(groupSessionId).size();
@@ -939,7 +944,10 @@ public class GroupSessionService implements AutoCloseable {
 		if (singleSessionFlag == null)
 			singleSessionFlag = true;
 
-		if (targetEmailAddress == null)
+		if (differentEmailAddressForNotifications == null)
+			differentEmailAddressForNotifications = false;
+
+		if (!differentEmailAddressForNotifications)
 			targetEmailAddress = facilitatorEmailAddress;
 
 		if (title == null)
@@ -1066,13 +1074,13 @@ public class GroupSessionService implements AutoCloseable {
 							confirmation_email_content=?, send_followup_email=?, followup_email_content=?, followup_email_survey_url=?,
 							group_session_collection_id=?, visible_flag=?, screening_flow_id=?, send_reminder_email=?, reminder_email_content=?,
 							followup_time_of_day=?, followup_day_offset=?, single_session_flag=?, date_time_description=?, 
-							group_session_learn_more_method_id=?, learn_more_description=? 
+							group_session_learn_more_method_id=?, learn_more_description=?, different_email_address_for_notifications=?
 							WHERE group_session_id=?
 							""", description, facilitatorAccountId, facilitatorName, facilitatorEmailAddress,
 					targetEmailAddress, imageUrl, videoconferenceUrl, seats, confirmationEmailContent,
 					sendFollowupEmail, followupEmailContent, followupEmailSurveyUrl, groupSessionCollectionId, visibleFlag, screeningFlowId,
 					sendReminderEmail, reminderEmailContent, followupTimeOfDay, followupDayOffset, singleSessionFlag, dateTimeDescription,
-					groupSessionLearnMoreMethodId, learnMoreDescription, groupSessionId);
+					groupSessionLearnMoreMethodId, learnMoreDescription, differentEmailAddressForNotifications, groupSessionId);
 		} else {
 			getDatabase().execute("""
 							UPDATE group_session SET title=?, description=?, facilitator_account_id=?, facilitator_name=?, facilitator_email_address=?,
@@ -1080,7 +1088,7 @@ public class GroupSessionService implements AutoCloseable {
 							confirmation_email_content=?, group_session_scheduling_system_id=?, send_followup_email=?, followup_email_content=?, followup_email_survey_url=?,
 							group_session_collection_id=?, visible_flag=?, screening_flow_id=?, send_reminder_email=?, reminder_email_content=?,
 							followup_time_of_day=?, followup_day_offset=?, single_session_flag=?, date_time_description=?,
-							group_session_learn_more_method_id=?, learn_more_description=? 
+							group_session_learn_more_method_id=?, learn_more_description=?, different_email_address_for_notifications=?
 							WHERE group_session_id=?
 							""",
 					title, description, facilitatorAccountId, facilitatorName, facilitatorEmailAddress,
@@ -1088,7 +1096,7 @@ public class GroupSessionService implements AutoCloseable {
 					groupSessionSchedulingSystemId, sendFollowupEmail, followupEmailContent, followupEmailSurveyUrl,
 					groupSessionCollectionId, visibleFlag, screeningFlowId, sendReminderEmail, reminderEmailContent,
 					followupTimeOfDay, followupDayOffset, singleSessionFlag, dateTimeDescription,
-					groupSessionLearnMoreMethodId, learnMoreDescription, groupSessionId);
+					groupSessionLearnMoreMethodId, learnMoreDescription, differentEmailAddressForNotifications, groupSessionId);
 
 			List<Question> existingScreeningQuestions = findScreeningQuestionsByGroupSessionId(groupSessionId);
 			boolean screeningQuestionsChanged = false;

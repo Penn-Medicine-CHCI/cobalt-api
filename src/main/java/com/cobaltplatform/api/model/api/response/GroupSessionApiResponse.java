@@ -172,6 +172,8 @@ public class GroupSessionApiResponse {
 	private final Instant lastUpdated;
 	@Nullable
 	private final String lastUpdatedDescription;
+	@Nullable
+	private final Boolean differentEmailAddressForNotifications;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -216,7 +218,10 @@ public class GroupSessionApiResponse {
 		if (account.getRoleId() == RoleId.ADMINISTRATOR
 				|| Objects.equals(account.getAccountId(), groupSession.getSubmitterAccountId())
 				|| Objects.equals(account.getAccountId(), groupSession.getFacilitatorAccountId())) {
-			this.targetEmailAddress = groupSession.getTargetEmailAddress();
+			if (groupSession.getDifferentEmailAddressForNotifications())
+				this.targetEmailAddress = groupSession.getTargetEmailAddress();
+			else
+				this.targetEmailAddress = null;
 		} else {
 			this.targetEmailAddress = null;
 		}
@@ -322,6 +327,7 @@ public class GroupSessionApiResponse {
 
 		this.lastUpdated = groupSession.getLastUpdated();
 		this.lastUpdatedDescription = formatter.formatTimestamp(groupSession.getLastUpdated());
+		this.differentEmailAddressForNotifications = groupSession.getDifferentEmailAddressForNotifications();
 	}
 
 	@Nonnull
@@ -597,5 +603,10 @@ public class GroupSessionApiResponse {
 	@Nullable
 	public String getLastUpdatedDescription() {
 		return lastUpdatedDescription;
+	}
+
+	@Nullable
+	public Boolean getDifferentEmailAddressForNotifications() {
+		return differentEmailAddressForNotifications;
 	}
 }

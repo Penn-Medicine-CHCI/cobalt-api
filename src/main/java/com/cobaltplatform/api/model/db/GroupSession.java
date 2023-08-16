@@ -124,6 +124,8 @@ public class GroupSession {
 	private Instant lastUpdated;
 	@Nonnull
 	private Locale locale;
+	@Nonnull
+	private Boolean differentEmailAddressForNotifications;
 
 	@Nullable
 	public UUID getGroupSessionId() {
@@ -502,4 +504,12 @@ public class GroupSession {
 		this.locale = locale;
 	}
 
+	@Nonnull
+	public Boolean getDifferentEmailAddressForNotifications() {
+		return differentEmailAddressForNotifications;
+	}
+
+	public void setDifferentEmailAddressForNotifications(@Nonnull Boolean differentEmailAddressForNotifications) {
+		this.differentEmailAddressForNotifications = differentEmailAddressForNotifications;
+	}
 }
