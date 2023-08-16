@@ -16,8 +16,8 @@
       }
     ]
   },
-  "{{seatsDescription}} seats" : {
-    "translation" : "{{seatsDescription}} {{seatsPlaceholder}}",
+  "{{seatsDescription}} seats total" : {
+    "translation" : "{{seatsDescription}} {{seatsPlaceholder}} total",
     "placeholders" : {
       "seatsPlaceholder" : {
         "value" : "seats",
@@ -33,20 +33,20 @@
       }
     ]
   },
-  "{{seatsAvailableDescription}} seats available" : {
+  "{{seatsAvailableDescription}} seats left" : {
     "translation" : "{{seatsAvailableDescription}} {{seatsAvailablePlaceholder}}",
     "placeholders" : {
       "seatsAvailablePlaceholder" : {
         "value" : "seatsAvailable",
         "translations" : {
-          "CARDINALITY_ONE" : "seat available",
-          "CARDINALITY_OTHER" : "seats available"
+          "CARDINALITY_ONE" : "seat left",
+          "CARDINALITY_OTHER" : "seats left"
         }
       }
     },
     "alternatives" : [
       {
-        "seatsAvailable == 0" : "No seats available"
+        "seatsAvailable == 0" : "No seats left"
       }
     ]
   },

@@ -24,6 +24,7 @@ import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.messaging.call.CallMessage;
 import com.cobaltplatform.api.messaging.call.CallMessageTemplate;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
+import com.cobaltplatform.api.model.api.request.CreateGroupSessionReservationRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderTriageGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderTriageGroupRequest.CreatePatientOrderTriageRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest;
@@ -57,6 +58,7 @@ import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTria
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Screening;
 import com.cobaltplatform.api.model.db.ScreeningAnswer;
+import com.cobaltplatform.api.model.db.ScreeningAnswerContentHint.ScreeningAnswerContentHintId;
 import com.cobaltplatform.api.model.db.ScreeningAnswerFormat.ScreeningAnswerFormatId;
 import com.cobaltplatform.api.model.db.ScreeningAnswerOption;
 import com.cobaltplatform.api.model.db.ScreeningConfirmationPrompt;
@@ -78,6 +80,7 @@ import com.cobaltplatform.api.model.service.ScreeningQuestionWithAnswerOptions;
 import com.cobaltplatform.api.model.service.ScreeningScore;
 import com.cobaltplatform.api.model.service.ScreeningSessionDestination;
 import com.cobaltplatform.api.model.service.ScreeningSessionDestination.ScreeningSessionDestinationId;
+import com.cobaltplatform.api.model.service.ScreeningSessionDestinationResultId;
 import com.cobaltplatform.api.model.service.ScreeningSessionResult;
 import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningAnswerResult;
 import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningQuestionResult;
@@ -140,6 +143,8 @@ public class ScreeningService {
 	@Nonnull
 	private final Provider<PatientOrderService> patientOrderServiceProvider;
 	@Nonnull
+	private final Provider<GroupSessionService> groupSessionServiceProvider;
+	@Nonnull
 	private final Provider<AuthorizationService> authorizationServiceProvider;
 	@Nonnull
 	private final Provider<MessageService> messageServiceProvider;
@@ -165,6 +170,7 @@ public class ScreeningService {
 													@Nonnull Provider<InteractionService> interactionServiceProvider,
 													@Nonnull Provider<AccountService> accountServiceProvider,
 													@Nonnull Provider<PatientOrderService> patientOrderServiceProvider,
+													@Nonnull Provider<GroupSessionService> groupSessionServiceProvider,
 													@Nonnull Provider<AuthorizationService> authorizationServiceProvider,
 													@Nonnull Provider<MessageService> messageServiceProvider,
 													@Nonnull ScreeningConfirmationPromptApiResponseFactory screeningConfirmationPromptApiResponseFactory,
@@ -178,6 +184,7 @@ public class ScreeningService {
 		requireNonNull(interactionServiceProvider);
 		requireNonNull(accountServiceProvider);
 		requireNonNull(patientOrderServiceProvider);
+		requireNonNull(groupSessionServiceProvider);
 		requireNonNull(authorizationServiceProvider);
 		requireNonNull(messageServiceProvider);
 		requireNonNull(screeningConfirmationPromptApiResponseFactory);
@@ -192,6 +199,7 @@ public class ScreeningService {
 		this.interactionServiceProvider = interactionServiceProvider;
 		this.accountServiceProvider = accountServiceProvider;
 		this.patientOrderServiceProvider = patientOrderServiceProvider;
+		this.groupSessionServiceProvider = groupSessionServiceProvider;
 		this.authorizationServiceProvider = authorizationServiceProvider;
 		this.messageServiceProvider = messageServiceProvider;
 		this.screeningConfirmationPromptApiResponseFactory = screeningConfirmationPromptApiResponseFactory;
@@ -1774,6 +1782,7 @@ public class ScreeningService {
 
 		ScreeningSessionDestinationId screeningSessionDestinationId = destinationFunctionOutput.getScreeningSessionDestinationId();
 		Map<String, Object> context = destinationFunctionOutput.getContext() == null ? new HashMap<>() : new HashMap<>(destinationFunctionOutput.getContext());
+		ScreeningSessionDestination screeningSessionDestination = new ScreeningSessionDestination(screeningSessionDestinationId, context);
 
 		if (withSideEffects) {
 			// Special handling for IC intake screening flow; create the clinical screening flow immediately after completing and
@@ -1799,6 +1808,39 @@ public class ScreeningService {
 
 				ScreeningQuestionContextId nextScreeningQuestionContextId = nextScreeningQuestionContext.getScreeningQuestionContextId();
 				context.put("nextScreeningQuestionContextId", nextScreeningQuestionContextId);
+			} else if (screeningSession.getGroupSessionId() != null
+					&& screeningSessionDestination.getScreeningSessionDestinationResultId() == ScreeningSessionDestinationResultId.SUCCESS) {
+				// Special handling for group session intake screening flows when they succeed - book a reservation.
+				// Walk all of the answers to the intake and pick out the answer that's for an email-address question.
+				// We assume it's programmer error to specify a group session intake that does not have exactly one email address question
+				String emailAddress = null;
+				ScreeningSessionResult screeningSessionResult = findScreeningSessionResult(screeningSession).get();
+
+				for (ScreeningSessionScreeningResult screeningSessionScreeningResult : screeningSessionResult.getScreeningSessionScreeningResults()) {
+					for (ScreeningQuestionResult screeningQuestionResult : screeningSessionScreeningResult.getScreeningQuestionResults()) {
+						if (screeningQuestionResult.getScreeningAnswerFormatId() == ScreeningAnswerFormatId.FREEFORM_TEXT
+								&& screeningQuestionResult.getScreeningAnswerContentHintId() == ScreeningAnswerContentHintId.EMAIL_ADDRESS) {
+							for (ScreeningAnswerResult screeningAnswerResult : screeningQuestionResult.getScreeningAnswerResults()) {
+								if (emailAddress != null)
+									throw new IllegalStateException(format("There are multiple answers that provide an email address for group session ID %s intake (screening session ID %s), not sure which one to use.",
+											screeningSession.getGroupSessionId(), screeningSession.getScreeningSessionId()));
+
+								emailAddress = screeningAnswerResult.getText();
+							}
+						}
+					}
+				}
+
+				if (emailAddress == null)
+					throw new IllegalStateException(format("There is no answer that provides an email address for group session ID %s intake (screening session ID %s).",
+							screeningSession.getGroupSessionId(), screeningSession.getScreeningSessionId()));
+
+				CreateGroupSessionReservationRequest request = new CreateGroupSessionReservationRequest();
+				request.setAccountId(createdByAccount.getAccountId());
+				request.setGroupSessionId(screeningSession.getGroupSessionId());
+				request.setEmailAddress(emailAddress);
+
+				getGroupSessionService().createGroupSessionReservation(request, createdByAccount);
 			}
 		}
 
@@ -2264,6 +2306,8 @@ public class ScreeningService {
 
 						ScreeningQuestionResult screeningQuestionResult = new ScreeningQuestionResult();
 						screeningQuestionResult.setScreeningQuestionId(screeningQuestion.getScreeningQuestionId());
+						screeningQuestionResult.setScreeningAnswerFormatId(screeningQuestion.getScreeningAnswerFormatId());
+						screeningQuestionResult.setScreeningAnswerContentHintId(screeningQuestion.getScreeningAnswerContentHintId());
 						screeningQuestionResult.setScreeningQuestionIntroText(screeningQuestion.getIntroText());
 						screeningQuestionResult.setScreeningQuestionText(screeningQuestion.getQuestionText());
 						screeningQuestionResult.setScreeningAnswerResults(screeningAnswerResults);
@@ -2713,6 +2757,11 @@ public class ScreeningService {
 	@Nonnull
 	protected PatientOrderService getPatientOrderService() {
 		return this.patientOrderServiceProvider.get();
+	}
+
+	@Nonnull
+	protected GroupSessionService getGroupSessionService() {
+		return this.groupSessionServiceProvider.get();
 	}
 
 	@Nonnull

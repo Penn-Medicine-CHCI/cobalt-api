@@ -71,9 +71,9 @@ import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.db.TagGroupSession;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.FindResult;
-import com.cobaltplatform.api.model.service.GroupSessionUrlValidationResult;
 import com.cobaltplatform.api.model.service.GroupSessionRequestWithTotalCount;
 import com.cobaltplatform.api.model.service.GroupSessionStatusWithCount;
+import com.cobaltplatform.api.model.service.GroupSessionUrlValidationResult;
 import com.cobaltplatform.api.model.service.GroupSessionWithTotalCount;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.LinkGenerator;
@@ -298,7 +298,7 @@ public class GroupSessionService implements AutoCloseable {
 		InstitutionId institutionId = request.getInstitutionId();
 		Account account = request.getAccount();
 		FindGroupSessionsRequest.FilterBehavior filterBehavior = request.getFilterBehavior() == null ? FindGroupSessionsRequest.FilterBehavior.DEFAULT : request.getFilterBehavior();
-		FindGroupSessionsRequest.OrderBy orderBy = request.getOrderBy() == null ? FindGroupSessionsRequest.OrderBy.START_TIME_ASCENDING : request.getOrderBy();
+		FindGroupSessionsRequest.OrderBy orderBy = request.getOrderBy() == null ? FindGroupSessionsRequest.OrderBy.START_TIME_DESCENDING : request.getOrderBy();
 		UUID groupSessionCollectionId = request.getGroupSessionCollectionId();
 
 		List<Object> parameters = new ArrayList<>();
@@ -992,7 +992,7 @@ public class GroupSessionService implements AutoCloseable {
 			if (sendFollowupEmail)
 				validationException.add(new FieldError("sendFollowupEmail", getStrings().get("Cannot send follow-up emails for external sessions.")));
 		} else if (groupSessionSchedulingSystemId == null) {
-			validationException.add(new FieldError("groupSessionSchedulingSystemId", getStrings().get("Studio session scheduling system is required.")));
+			validationException.add(new FieldError("groupSessionSchedulingSystemId", getStrings().get("Group session scheduling system is required.")));
 		} else {
 			throw new UnsupportedOperationException(format("Not sure what to do with %s.%s", GroupSessionSchedulingSystemId.class.getSimpleName(), groupSessionSchedulingSystemId.name()));
 		}
@@ -1231,19 +1231,19 @@ public class GroupSessionService implements AutoCloseable {
 		ValidationException validationException = new ValidationException();
 
 		if (groupSessionId == null) {
-			validationException.add(new FieldError("groupSessionId", getStrings().get("Studio Session ID is required.")));
+			validationException.add(new FieldError("groupSessionId", getStrings().get("Group Session ID is required.")));
 		} else {
 			groupSession = findGroupSessionById(groupSessionId, account).orElse(null);
 
 			if (groupSession == null)
-				validationException.add(new FieldError("groupSessionId", getStrings().get("Invalid Studio Session.")));
+				validationException.add(new FieldError("groupSessionId", getStrings().get("Invalid Group Session.")));
 		}
 
 		if (accountId == null)
 			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
 
 		if (groupSessionStatusId == null)
-			validationException.add(new FieldError("groupSessionStatusId", getStrings().get("Studio Session Status ID is required.")));
+			validationException.add(new FieldError("groupSessionStatusId", getStrings().get("Group Session Status ID is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -1420,12 +1420,12 @@ public class GroupSessionService implements AutoCloseable {
 			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is invalid.")));
 
 		if (groupSessionId == null) {
-			validationException.add(new FieldError("groupSessionId", getStrings().get("Studio Session ID is required.")));
+			validationException.add(new FieldError("groupSessionId", getStrings().get("Group Session ID is required.")));
 		} else {
 			GroupSession groupSession = findGroupSessionById(groupSessionId, account).orElse(null);
 
 			if (groupSession == null) {
-				validationException.add(new FieldError("groupSessionId", getStrings().get("Studio Session ID is invalid.")));
+				validationException.add(new FieldError("groupSessionId", getStrings().get("Group Session ID is invalid.")));
 			} else if (groupSession.getGroupSessionSchedulingSystemId() == GroupSessionSchedulingSystemId.COBALT) {
 				List<GroupSessionReservation> reservations = findGroupSessionReservationsByGroupSessionId(groupSessionId);
 
@@ -1437,18 +1437,18 @@ public class GroupSessionService implements AutoCloseable {
 				}
 
 				if (groupSession.getSeats() != null && groupSession.getSeatsReserved() >= groupSession.getSeats())
-					validationException.add(new FieldError("groupSessionId", getStrings().get("Sorry, this studio session is full.")));
+					validationException.add(new FieldError("groupSessionId", getStrings().get("Sorry, this group session is full.")));
 
 				if (groupSession.getGroupSessionStatusId() == GroupSessionStatusId.ARCHIVED)
-					validationException.add(new FieldError("groupSessionId", getStrings().get("Sorry, you can't join this studio session because it has already ended.")));
+					validationException.add(new FieldError("groupSessionId", getStrings().get("Sorry, you can't join this group session because it has already ended.")));
 				else if (groupSession.getGroupSessionStatusId() == GroupSessionStatusId.CANCELED)
-					validationException.add(new FieldError("groupSessionId", getStrings().get("Sorry, you can't join this studio session because it was canceled.")));
+					validationException.add(new FieldError("groupSessionId", getStrings().get("Sorry, you can't join this group session because it was canceled.")));
 				else if (groupSession.getGroupSessionStatusId() == GroupSessionStatusId.DELETED)
-					validationException.add(new FieldError("groupSessionId", getStrings().get("Sorry, you can't join this studio session because it was removed.")));
+					validationException.add(new FieldError("groupSessionId", getStrings().get("Sorry, you can't join this group session because it was removed.")));
 				else if (groupSession.getGroupSessionStatusId() == GroupSessionStatusId.NEW)
-					validationException.add(new FieldError("groupSessionId", getStrings().get("Sorry, you can't join this studio session because it is not taking reservations yet.")));
+					validationException.add(new FieldError("groupSessionId", getStrings().get("Sorry, you can't join this group session because it is not taking reservations yet.")));
 			} else if (groupSession.getGroupSessionSchedulingSystemId() == GroupSessionSchedulingSystemId.EXTERNAL) {
-				validationException.add(getStrings().get("You are not permitted to book this studio session through Cobalt."));
+				validationException.add(getStrings().get("You are not permitted to book this group session through Cobalt."));
 			} else {
 				throw new UnsupportedOperationException(format("Not sure what to do with %s.%s", GroupSessionSchedulingSystemId.class.getSimpleName(), groupSession.getGroupSessionSchedulingSystemId().name()));
 			}
@@ -1652,12 +1652,12 @@ public class GroupSessionService implements AutoCloseable {
 		ValidationException validationException = new ValidationException();
 
 		if (groupSessionReservationId == null) {
-			validationException.add(new FieldError("groupSessionReservationId", getStrings().get("Studio Session Reservation ID is required.")));
+			validationException.add(new FieldError("groupSessionReservationId", getStrings().get("Group Session Reservation ID is required.")));
 		} else {
 			groupSessionReservationPair = findGroupSessionReservationPairById(groupSessionReservationId, account).orElse(null);
 
 			if (groupSessionReservationPair == null)
-				validationException.add(new FieldError("groupSessionReservationId", getStrings().get("Studio Session Reservation ID is invalid.")));
+				validationException.add(new FieldError("groupSessionReservationId", getStrings().get("Group Session Reservation ID is invalid.")));
 		}
 
 		if (validationException.hasErrors())
@@ -1966,19 +1966,19 @@ public class GroupSessionService implements AutoCloseable {
 		ValidationException validationException = new ValidationException();
 
 		if (groupSessionRequestId == null) {
-			validationException.add(new FieldError("groupSessionRequestId", getStrings().get("Studio Session Request ID is required.")));
+			validationException.add(new FieldError("groupSessionRequestId", getStrings().get("Group Session Request ID is required.")));
 		} else {
 			groupSessionRequest = findGroupSessionRequestById(groupSessionRequestId).orElse(null);
 
 			if (groupSessionRequest == null)
-				validationException.add(new FieldError("groupSessionRequestId", getStrings().get("Invalid Studio Session Request.")));
+				validationException.add(new FieldError("groupSessionRequestId", getStrings().get("Invalid Group Session Request.")));
 		}
 
 		if (accountId == null)
 			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
 
 		if (groupSessionRequestStatusId == null)
-			validationException.add(new FieldError("groupSessionRequestStatusId", getStrings().get("Studio Session Request Status ID is required.")));
+			validationException.add(new FieldError("groupSessionRequestStatusId", getStrings().get("Group Session Request Status ID is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -2047,12 +2047,12 @@ public class GroupSessionService implements AutoCloseable {
 		ValidationException validationException = new ValidationException();
 
 		if (groupSessionRequestId == null) {
-			validationException.add(new FieldError("groupSessionRequestId", getStrings().get("Studio Session Request ID is required.")));
+			validationException.add(new FieldError("groupSessionRequestId", getStrings().get("Group Session Request ID is required.")));
 		} else {
 			groupSessionRequest = findGroupSessionRequestById(groupSessionRequestId).orElse(null);
 
 			if (groupSessionRequest == null)
-				validationException.add(new FieldError("groupSessionRequestId", getStrings().get("Studio Session Request ID is invalid.")));
+				validationException.add(new FieldError("groupSessionRequestId", getStrings().get("Group Session Request ID is invalid.")));
 		}
 
 		if (respondentAccountId == null)
