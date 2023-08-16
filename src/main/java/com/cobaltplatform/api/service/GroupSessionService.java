@@ -352,8 +352,8 @@ public class GroupSessionService implements AutoCloseable {
 
 		if (visibleFlag != null)
 			if (visibleFlag == true)
-			  sql.append("AND gs.visible_flag = TRUE ");
-		  else
+				sql.append("AND gs.visible_flag = TRUE ");
+			else
 				sql.append("AND gs.visible_flag = FALSE ");
 
 		if (groupSessionCollectionId != null) {
@@ -361,7 +361,7 @@ public class GroupSessionService implements AutoCloseable {
 			parameters.add(groupSessionCollectionId);
 		}
 
-		if (groupSessionSchedulingSystemId != null){
+		if (groupSessionSchedulingSystemId != null) {
 			sql.append("AND group_session_scheduling_system_id = ? ");
 			parameters.add(groupSessionSchedulingSystemId);
 		}
