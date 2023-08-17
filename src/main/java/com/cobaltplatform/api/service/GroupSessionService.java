@@ -472,6 +472,14 @@ public class GroupSessionService implements AutoCloseable {
 		if (groupSessionIdentifier == null || account == null)
 			return Optional.empty();
 
+		return findGroupSessionById(groupSessionIdentifier, account.getInstitutionId());
+	}
+
+	@Nonnull
+	public Optional<GroupSession> findGroupSessionById(@Nullable Object groupSessionIdentifier,
+																										 @Nullable InstitutionId institutionId) {
+		if (groupSessionIdentifier == null || institutionId == null)
+			return Optional.empty();
 		GroupSession groupSession = null;
 		UUID groupSessionId = null;
 
@@ -494,13 +502,13 @@ public class GroupSessionService implements AutoCloseable {
 							WHERE url_name=?
 							AND institution_id=?
 							""",
-					GroupSession.class, groupSessionIdentifier, account.getInstitutionId()).orElse(null);
+					GroupSession.class, groupSessionIdentifier, institutionId).orElse(null);
 		}
 
 		if (groupSession == null)
 			return Optional.empty();
 
-		applyTagsToGroupSession(groupSession, account.getInstitutionId());
+		applyTagsToGroupSession(groupSession, institutionId);
 
 		return Optional.of(groupSession);
 	}

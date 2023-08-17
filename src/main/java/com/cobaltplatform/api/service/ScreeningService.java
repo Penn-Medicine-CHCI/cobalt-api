@@ -38,6 +38,7 @@ import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
+import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
@@ -2208,6 +2209,11 @@ public class ScreeningService {
 		context.put("screeningResultsByScreeningSessionScreeningId", screeningResultsByScreeningSessionScreeningId);
 		context.put("selfAdministered", selfAdministered);
 		context.put("additionalContext", additionalContext == null ? Map.of() : additionalContext);
+
+		if(screeningSession.getGroupSessionId() != null) {
+			GroupSession groupSession = getGroupSessionService().findGroupSessionById(screeningSession.getGroupSessionId(), institutionId).get();
+			context.put("groupSession", groupSession);
+		}
 
 		try {
 			screeningFlowFunctionResult = getJavascriptExecutor().execute(screeningFlowFunctionJavascript, context, screeningFlowFunctionResultType);
