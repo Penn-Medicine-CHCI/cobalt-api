@@ -32,20 +32,19 @@ import com.cobaltplatform.api.model.api.response.GroupSessionCollectionApiRespon
 import com.cobaltplatform.api.model.api.response.GroupSessionCollectionWithGroupSessionsApiResponse;
 import com.cobaltplatform.api.model.api.response.GroupSessionCollectionWithGroupSessionsApiResponse.GroupSessionCollectionWithGroupSessionsResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionReservationApiResponse.GroupSessionReservationApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionUrlValidationResultApiResponse.GroupSessionAutocompleteResultApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionReservation;
-import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem;
 import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
-import com.cobaltplatform.api.model.service.GroupSessionUrlValidationResult;
 import com.cobaltplatform.api.model.service.GroupSessionStatusWithCount;
+import com.cobaltplatform.api.model.service.GroupSessionUrlValidationResult;
 import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.GroupSessionService;
@@ -185,7 +184,7 @@ public class GroupSessionResource {
 		Account account = getCurrentContext().getAccount().get();
 
 		List<GroupSessionCollectionWithGroupSessionsApiResponse> groupSessionCollectionWithGroupSessionsApiResponses = getGroupSessionService().findGroupSessionCollections(account)
-				.stream().map(groupSessionCollectionWithGroupSessions ->  getGroupSessionCollectionWithGroupSessionsResponseFactory()
+				.stream().map(groupSessionCollectionWithGroupSessions -> getGroupSessionCollectionWithGroupSessionsResponseFactory()
 						.create(groupSessionCollectionWithGroupSessions, account)).collect(Collectors.toList());
 
 		return new ApiResponse(new HashMap<String, Object>() {{
@@ -281,16 +280,16 @@ public class GroupSessionResource {
 	@Nonnull
 	@GET("/group-sessions/{groupSessionId}")
 	@AuthenticationRequired
-	public ApiResponse groupSession(@Nonnull @PathParameter UUID groupSessionId) {
-		requireNonNull(groupSessionId);
+	public ApiResponse groupSession(@Nonnull @PathParameter("groupSessionId") String groupSessionIdentifier) {
+		requireNonNull(groupSessionIdentifier);
 
 		Account account = getCurrentContext().getAccount().get();
-		GroupSession groupSession = getGroupSessionService().findGroupSessionById(groupSessionId, account).orElse(null);
+		GroupSession groupSession = getGroupSessionService().findGroupSessionById(groupSessionIdentifier, account).orElse(null);
 
 		if (groupSession == null)
 			throw new NotFoundException();
 
-		List<GroupSessionReservation> groupSessionReservations = getGroupSessionService().findGroupSessionReservationsByGroupSessionId(groupSessionId);
+		List<GroupSessionReservation> groupSessionReservations = getGroupSessionService().findGroupSessionReservationsByGroupSessionId(groupSession.getGroupSessionId());
 		GroupSessionReservation groupSessionReservation = null;
 
 		for (GroupSessionReservation potentialGroupSessionReservation : groupSessionReservations) {
@@ -434,7 +433,7 @@ public class GroupSessionResource {
 		Account account = getCurrentContext().getAccount().get();
 
 		List<GroupSessionCollectionApiResponse> groupSessionCollectionApiResponses = getGroupSessionService().findGroupSessionCollections(account)
-				.stream().map(groupSessionCollection ->  getGroupSessionCollectionResponseFactory().create(groupSessionCollection)).collect(Collectors.toList());
+				.stream().map(groupSessionCollection -> getGroupSessionCollectionResponseFactory().create(groupSessionCollection)).collect(Collectors.toList());
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("groupSessionCollections", groupSessionCollectionApiResponses);
@@ -444,8 +443,8 @@ public class GroupSessionResource {
 	@Nonnull
 	@GET("/group-sessions/validate-url-name")
 	@AuthenticationRequired
-		public ApiResponse groupSessionUrlValidation(@Nonnull @QueryParameter String searchQuery,
-																								 @Nonnull @QueryParameter Optional<UUID> groupSessionId) {
+	public ApiResponse groupSessionUrlValidation(@Nonnull @QueryParameter String searchQuery,
+																							 @Nonnull @QueryParameter Optional<UUID> groupSessionId) {
 		requireNonNull(searchQuery);
 
 		Account account = getCurrentContext().getAccount().get();
@@ -454,7 +453,7 @@ public class GroupSessionResource {
 		GroupSessionUrlValidationResult result = getGroupSessionService().findGroupSessionUrlValidationResults(searchQuery, institutionId, groupSessionId);
 
 		return new ApiResponse(new HashMap<>() {{
-			put("groupSessionUrlNameValidationResult",  getGroupSessionAutocompleteResultApiResponseFactory().create(result));
+			put("groupSessionUrlNameValidationResult", getGroupSessionAutocompleteResultApiResponseFactory().create(result));
 		}});
 	}
 
@@ -524,11 +523,17 @@ public class GroupSessionResource {
 	}
 
 	@Nonnull
-	protected GroupSessionCollectionResponseFactory getGroupSessionCollectionResponseFactory() { return this.groupSessionCollectionResponseFactory; }
+	protected GroupSessionCollectionResponseFactory getGroupSessionCollectionResponseFactory() {
+		return this.groupSessionCollectionResponseFactory;
+	}
 
 	@Nonnull
-	protected GroupSessionAutocompleteResultApiResponseFactory getGroupSessionAutocompleteResultApiResponseFactory() { return groupSessionAutocompleteResultApiResponseFactory; }
+	protected GroupSessionAutocompleteResultApiResponseFactory getGroupSessionAutocompleteResultApiResponseFactory() {
+		return groupSessionAutocompleteResultApiResponseFactory;
+	}
 
 	@Nonnull
-	protected GroupSessionCollectionWithGroupSessionsResponseFactory getGroupSessionCollectionWithGroupSessionsResponseFactory() { return groupSessionCollectionWithGroupSessionsResponseFactory; }
+	protected GroupSessionCollectionWithGroupSessionsResponseFactory getGroupSessionCollectionWithGroupSessionsResponseFactory() {
+		return groupSessionCollectionWithGroupSessionsResponseFactory;
+	}
 }
