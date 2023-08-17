@@ -82,6 +82,7 @@ import com.cobaltplatform.api.util.UploadManager;
 import com.cobaltplatform.api.util.UploadManager.PresignedUpload;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.cobaltplatform.api.util.ValidationUtility;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -466,13 +467,35 @@ public class GroupSessionService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public Optional<GroupSession> findGroupSessionById(@Nullable UUID groupSessionId,
+	public Optional<GroupSession> findGroupSessionById(@Nullable Object groupSessionIdentifier,
 																										 @Nullable Account account) {
-		if (groupSessionId == null || account == null)
+		if (groupSessionIdentifier == null || account == null)
 			return Optional.empty();
 
-		GroupSession groupSession = getDatabase().queryForObject("SELECT * FROM v_group_session WHERE group_session_id=?",
-				GroupSession.class, groupSessionId).orElse(null);
+		GroupSession groupSession = null;
+		UUID groupSessionId = null;
+
+		if (groupSessionIdentifier instanceof UUID)
+			groupSessionId = (UUID) groupSessionIdentifier;
+		else if (groupSessionIdentifier instanceof String && ValidationUtility.isValidUUID((String) groupSessionIdentifier))
+			groupSessionId = UUID.fromString((String) groupSessionIdentifier);
+
+		if (groupSessionId != null) {
+			groupSession = getDatabase().queryForObject("""
+							SELECT *
+							FROM v_group_session
+							WHERE group_session_id=?
+							""",
+					GroupSession.class, groupSessionId).orElse(null);
+		} else if (groupSessionIdentifier instanceof String) {
+			groupSession = getDatabase().queryForObject("""
+							SELECT *
+							FROM v_group_session
+							WHERE url_name=?
+							AND institution_id=?
+							""",
+					GroupSession.class, groupSessionIdentifier, account.getInstitutionId()).orElse(null);
+		}
 
 		if (groupSession == null)
 			return Optional.empty();
