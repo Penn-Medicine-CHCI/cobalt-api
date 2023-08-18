@@ -13,7 +13,7 @@ CREATE TABLE epic_fhir_appointment_find_cache (
   institution_id TEXT NOT NULL REFERENCES institution,
   date DATE NOT NULL,
   api_response TEXT NOT NULL,
-  last_updated timestamptz NOT NULL DEFAULT NOW()
+  last_updated timestamptz NOT NULL DEFAULT NOW(),
   PRIMARY KEY(institution_id, date)
 );
 

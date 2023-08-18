@@ -96,6 +96,7 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -871,36 +872,55 @@ public class ProviderService {
 				currentAppointmentTypes.add(appointmentTypesById.get(providerAppointmentType.getAppointmentTypeId()));
 			}
 
-			// Ask Epic for potential slots
+			// Ask Epic for potential slots...
 			EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institution.getInstitutionId()).epicClientForBackendService().get();
 
-			LocalDateTime startDateTime = LocalDateTime.now(account.getTimeZone());
+			// ...by making 1 call per date in parallel.
+			// First, make a list of dates to call.
+			LocalDate currentDate = command.getStartDate() != null ? command.getStartDate() : LocalDate.now(account.getTimeZone());
+			LocalDate endDate = command.getEndDate() != null ? command.getEndDate() : currentDate.plusDays(30);
+			List<LocalDate> dates = new ArrayList<>();
 
-			if (command.getStartDate() != null && command.getStartTime() != null)
-				startDateTime = LocalDateTime.of(command.getStartDate(), command.getStartTime());
+			if (!endDate.isBefore(currentDate)) {
+				while (endDate.isAfter(currentDate)) {
+					dates.add(currentDate);
+					currentDate = currentDate.plusDays(1);
+				}
+			}
 
-			LocalDateTime endDateTime = startDateTime.plusDays(30);
+			// Fan out and make a call for each date
+			// TODO: run each on its own thread
+			List<AppointmentFindFhirStu3Response> appointmentFindResponses = new CopyOnWriteArrayList<>();
 
-			if (command.getEndDate() != null && command.getEndTime() != null)
-				endDateTime = LocalDateTime.of(command.getEndDate(), command.getEndTime());
+			for (LocalDate date : dates) {
+				LocalDateTime startDateTime = LocalDateTime.of(date, command.getStartTime() == null ? LocalTime.MIN : command.getStartTime());
+				LocalDateTime endDateTime = LocalDateTime.of(date, command.getEndTime() == null ? LocalTime.MAX : command.getEndTime());
 
-			AppointmentFindFhirStu3Request appointmentFindRequest = new AppointmentFindFhirStu3Request();
-			appointmentFindRequest.setPatient(account.getEpicPatientFhirId());
-			appointmentFindRequest.setStartTime(startDateTime.atZone(institution.getTimeZone()).toInstant());
-			appointmentFindRequest.setEndTime(endDateTime.atZone(institution.getTimeZone()).toInstant());
-			appointmentFindRequest.setServiceTypes(appointmentTypes.stream()
-					.map(appointmentType -> {
-						AppointmentFindFhirStu3Request.Coding serviceType = new AppointmentFindFhirStu3Request.Coding();
-						serviceType.setCode(appointmentType.getEpicVisitTypeId());
-						serviceType.setSystem(appointmentType.getEpicVisitTypeSystem());
+				AppointmentFindFhirStu3Request appointmentFindRequest = new AppointmentFindFhirStu3Request();
+				appointmentFindRequest.setPatient(account.getEpicPatientFhirId());
+				appointmentFindRequest.setStartTime(startDateTime.atZone(institution.getTimeZone()).toInstant());
+				appointmentFindRequest.setEndTime(endDateTime.atZone(institution.getTimeZone()).toInstant());
+				appointmentFindRequest.setServiceTypes(appointmentTypes.stream()
+						.map(appointmentType -> {
+							AppointmentFindFhirStu3Request.Coding serviceType = new AppointmentFindFhirStu3Request.Coding();
+							serviceType.setCode(appointmentType.getEpicVisitTypeId());
+							serviceType.setSystem(appointmentType.getEpicVisitTypeSystem());
 
-						return serviceType;
-					})
-					.collect(Collectors.toList()));
+							return serviceType;
+						})
+						.collect(Collectors.toList()));
 
-			AppointmentFindFhirStu3Response appointmentFindResponse = epicClient.appointmentFindFhirStu3(appointmentFindRequest);
+				AppointmentFindFhirStu3Response appointmentFindResponse = epicClient.appointmentFindFhirStu3(appointmentFindRequest);
+				appointmentFindResponses.add(appointmentFindResponse);
+			}
 
-			for (AppointmentFindFhirStu3Response.Entry entry : appointmentFindResponse.getEntry()) {
+			// Collect all of the entries for all dates into one big list of entries
+			List<AppointmentFindFhirStu3Response.Entry> entries = appointmentFindResponses.stream()
+					.map(appointmentFindFhirStu3Response -> appointmentFindFhirStu3Response.getEntry())
+					.flatMap(List::stream)
+					.collect(Collectors.toList());
+
+			for (AppointmentFindFhirStu3Response.Entry entry : entries) {
 				if (!"Appointment".equals(entry.getResource().getResourceType()))
 					continue;
 
@@ -918,10 +938,10 @@ public class ProviderService {
 
 				// Assumes single service type and coding
 				if (entry.getResource().getServiceType().size() != 1)
-					throw new IllegalStateException(format("Invalid size of serviceType element for %s", appointmentFindResponse.getRawJson()));
+					throw new IllegalStateException("Invalid size of serviceType element");
 
 				if (entry.getResource().getServiceType().get(0).getCoding().size() != 1)
-					throw new IllegalStateException(format("Invalid size of serviceType.coding element for %s", appointmentFindResponse.getRawJson()));
+					throw new IllegalStateException("Invalid size of serviceType.coding element");
 
 				AppointmentFindFhirStu3Response.Entry.Resource.ServiceType.Coding appointmentTypeCoding =
 						entry.getResource().getServiceType().get(0).getCoding().get(0);
@@ -937,7 +957,7 @@ public class ProviderService {
 						.collect(Collectors.toSet());
 
 				if (epicPractitionerFhirIds.size() == 0) {
-					getLogger().warn("Unable to find practitioner FHIR IDs for slot in {}", appointmentFindResponse.getRawJson());
+					getLogger().warn("Unable to find practitioner FHIR IDs for slot");
 				} else {
 					for (String epicPractitionerFhirId : epicPractitionerFhirIds) {
 						Provider provider = providersByEpicPractitionerFhirId.get(epicPractitionerFhirId);
@@ -994,7 +1014,7 @@ public class ProviderService {
 
 							// Assumes there is only one slot
 							if (entry.getResource().getContained().size() != 1)
-								throw new IllegalStateException(format("Invalid size of resource.contained element for %s", appointmentFindResponse.getRawJson()));
+								throw new IllegalStateException("Invalid size of resource.contained element");
 
 							availabilityTime.getSlotStatusCodesByAppointmentTypeId().put(appointmentType.getAppointmentTypeId(), entry.getResource().getContained().get(0).getStatus());
 
