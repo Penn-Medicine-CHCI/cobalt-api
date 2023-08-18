@@ -96,7 +96,12 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -877,7 +882,8 @@ public class ProviderService {
 
 			// ...by making 1 call per date in parallel.
 			// First, make a list of dates to call.
-			LocalDate currentDate = command.getStartDate() != null ? command.getStartDate() : LocalDate.now(account.getTimeZone());
+			LocalDate startDate = command.getStartDate() != null ? command.getStartDate() : LocalDate.now(account.getTimeZone());
+			LocalDate currentDate = startDate;
 			LocalDate endDate = command.getEndDate() != null ? command.getEndDate() : currentDate.plusDays(30);
 			List<LocalDate> dates = new ArrayList<>();
 
@@ -889,36 +895,64 @@ public class ProviderService {
 			}
 
 			// Fan out and make a call for each date
-			// TODO: run each on its own thread
-			List<AppointmentFindFhirStu3Response> appointmentFindResponses = new CopyOnWriteArrayList<>();
+			List<CompletableFuture<AppointmentFindFhirStu3Response>> completableFutures = new ArrayList<>(dates.size());
+
+			getLogger().debug("Pulling Epic FHIR data from {} to {}...", startDate, endDate);
+
+			ExecutorService executor = Executors.newFixedThreadPool(15);
 
 			for (LocalDate date : dates) {
-				LocalDateTime startDateTime = LocalDateTime.of(date, command.getStartTime() == null ? LocalTime.MIN : command.getStartTime());
-				LocalDateTime endDateTime = LocalDateTime.of(date, command.getEndTime() == null ? LocalTime.MAX : command.getEndTime());
+				completableFutures.add(CompletableFuture.supplyAsync(() -> {
+					getLogger().trace("Start: {}", date);
 
-				AppointmentFindFhirStu3Request appointmentFindRequest = new AppointmentFindFhirStu3Request();
-				appointmentFindRequest.setPatient(account.getEpicPatientFhirId());
-				appointmentFindRequest.setStartTime(startDateTime.atZone(institution.getTimeZone()).toInstant());
-				appointmentFindRequest.setEndTime(endDateTime.atZone(institution.getTimeZone()).toInstant());
-				appointmentFindRequest.setServiceTypes(appointmentTypes.stream()
-						.map(appointmentType -> {
-							AppointmentFindFhirStu3Request.Coding serviceType = new AppointmentFindFhirStu3Request.Coding();
-							serviceType.setCode(appointmentType.getEpicVisitTypeId());
-							serviceType.setSystem(appointmentType.getEpicVisitTypeSystem());
+					LocalDateTime startDateTime = LocalDateTime.of(date, command.getStartTime() == null ? LocalTime.MIN : command.getStartTime());
+					LocalDateTime endDateTime = LocalDateTime.of(date, command.getEndTime() == null ? LocalTime.MAX : command.getEndTime());
 
-							return serviceType;
-						})
-						.collect(Collectors.toList()));
+					AppointmentFindFhirStu3Request appointmentFindRequest = new AppointmentFindFhirStu3Request();
+					appointmentFindRequest.setPatient(account.getEpicPatientFhirId());
+					appointmentFindRequest.setStartTime(startDateTime.atZone(institution.getTimeZone()).toInstant());
+					appointmentFindRequest.setEndTime(endDateTime.atZone(institution.getTimeZone()).toInstant());
+					appointmentFindRequest.setServiceTypes(appointmentTypes.stream()
+							.map(appointmentType -> {
+								AppointmentFindFhirStu3Request.Coding serviceType = new AppointmentFindFhirStu3Request.Coding();
+								serviceType.setCode(appointmentType.getEpicVisitTypeId());
+								serviceType.setSystem(appointmentType.getEpicVisitTypeSystem());
 
-				AppointmentFindFhirStu3Response appointmentFindResponse = epicClient.appointmentFindFhirStu3(appointmentFindRequest);
-				appointmentFindResponses.add(appointmentFindResponse);
+								return serviceType;
+							})
+							.collect(Collectors.toList()));
+
+					AppointmentFindFhirStu3Response appointmentFindResponse = epicClient.appointmentFindFhirStu3(appointmentFindRequest);
+
+					getLogger().trace("End: {}", date);
+					return appointmentFindResponse;
+				}, executor));
 			}
+
+			CompletableFuture<Void> combinedFuture = CompletableFuture.allOf(completableFutures.toArray(new CompletableFuture[0]));
+
+			getLogger().debug("Waiting for all futures to complete...");
+
+			try {
+				combinedFuture.get(20, TimeUnit.SECONDS);
+			} catch (ExecutionException | InterruptedException | TimeoutException e) {
+				throw new RuntimeException(e);
+			}
+
+			getLogger().debug("All futures completed.");
+
+			// Take all of the futures and turn them into a list
+			List<AppointmentFindFhirStu3Response> appointmentFindResponses = completableFutures.stream()
+					.map(CompletableFuture::join)
+					.collect(Collectors.toList());
 
 			// Collect all of the entries for all dates into one big list of entries
 			List<AppointmentFindFhirStu3Response.Entry> entries = appointmentFindResponses.stream()
 					.map(appointmentFindFhirStu3Response -> appointmentFindFhirStu3Response.getEntry())
 					.flatMap(List::stream)
 					.collect(Collectors.toList());
+
+			Set<AppointmentFindFhirStu3SlotKey> slotKeys = new HashSet<>(entries.size());
 
 			for (AppointmentFindFhirStu3Response.Entry entry : entries) {
 				if (!"Appointment".equals(entry.getResource().getResourceType()))
@@ -1008,6 +1042,16 @@ public class ProviderService {
 								}
 							}
 
+							// Discard duplicate slots (protects against case where we get the same results back, e.g. running locally with mock data or Epic returns same data unintentionally)
+							AppointmentFindFhirStu3SlotKey slotKey = new AppointmentFindFhirStu3SlotKey(epicPractitionerFhirId, slotDate, slotTime, appointmentType.getAppointmentTypeId());
+
+							if (slotKeys.contains(slotKey)) {
+								getLogger().trace("Already have a slot for {}, skipping...", slotKey);
+								continue;
+							}
+
+							slotKeys.add(slotKey);
+
 							availabilityTime.getAppointmentTypeIds().add(appointmentType.getAppointmentTypeId());
 							availabilityTime.getAppointmentStatusCodesByAppointmentTypeId().put(appointmentType.getAppointmentTypeId(), entry.getResource().getStatus());
 							availabilityTime.getAppointmentParticipantStatusCodesByAppointmentTypeId().put(appointmentType.getAppointmentTypeId(), practitioner.getStatus());
@@ -1017,7 +1061,6 @@ public class ProviderService {
 								throw new IllegalStateException("Invalid size of resource.contained element");
 
 							availabilityTime.getSlotStatusCodesByAppointmentTypeId().put(appointmentType.getAppointmentTypeId(), entry.getResource().getContained().get(0).getStatus());
-
 							availabilityDate.getTimes().add(availabilityTime);
 						}
 					}
@@ -1036,6 +1079,45 @@ public class ProviderService {
 		}
 
 		return availabilityDatesByEpicFhirProviderId;
+	}
+
+	@Immutable
+	protected static class AppointmentFindFhirStu3SlotKey {
+		@Nonnull
+		private final String key;
+
+		public AppointmentFindFhirStu3SlotKey(@Nonnull String epicPractitionerFhirId,
+																					@Nonnull LocalDate slotDate,
+																					@Nonnull LocalTime slotTime,
+																					@Nonnull UUID appointmentTypeId) {
+			requireNonNull(epicPractitionerFhirId);
+			requireNonNull(slotDate);
+			requireNonNull(slotTime);
+			requireNonNull(appointmentTypeId);
+
+			this.key = format("%s-%s-%s-%s", epicPractitionerFhirId, slotDate, slotTime, appointmentTypeId);
+		}
+
+		@Override
+		public int hashCode() {
+			return this.key.hashCode();
+		}
+
+		@Override
+		public boolean equals(Object object) {
+			if (object == null)
+				return false;
+
+			if (!(object instanceof AppointmentFindFhirStu3SlotKey))
+				return false;
+
+			return this.key.equals(((AppointmentFindFhirStu3SlotKey) object).key);
+		}
+
+		@Override
+		public String toString() {
+			return format("%s{key=%s}", getClass().getSimpleName(), this.key);
+		}
 	}
 
 	/**
