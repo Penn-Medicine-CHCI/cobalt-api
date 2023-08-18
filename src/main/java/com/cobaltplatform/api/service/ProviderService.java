@@ -879,7 +879,7 @@ public class ProviderService {
 			if (command.getStartDate() != null && command.getStartTime() != null)
 				startDateTime = LocalDateTime.of(command.getStartDate(), command.getStartTime());
 
-			LocalDateTime endDateTime = startDateTime.plusDays(60);
+			LocalDateTime endDateTime = startDateTime.plusDays(30);
 
 			if (command.getEndDate() != null && command.getEndTime() != null)
 				endDateTime = LocalDateTime.of(command.getEndDate(), command.getEndTime());

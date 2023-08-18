@@ -216,6 +216,10 @@ public class Institution {
 	private String clinicalSupportPhoneNumber;
 	@Nullable
 	private String integratedCareClinicalReportDisclaimer;
+	@Nullable
+	private Boolean epicFhirAppointmentFindCacheEnabled;
+	@Nullable
+	private Integer epicFhirAppointmentFindCacheExpirationInSeconds;
 
 	public enum InstitutionId {
 		COBALT,
@@ -995,5 +999,23 @@ public class Institution {
 
 	public void setIntegratedCareClinicalReportDisclaimer(@Nullable String integratedCareClinicalReportDisclaimer) {
 		this.integratedCareClinicalReportDisclaimer = integratedCareClinicalReportDisclaimer;
+	}
+
+	@Nullable
+	public Boolean getEpicFhirAppointmentFindCacheEnabled() {
+		return this.epicFhirAppointmentFindCacheEnabled;
+	}
+
+	public void setEpicFhirAppointmentFindCacheEnabled(@Nullable Boolean epicFhirAppointmentFindCacheEnabled) {
+		this.epicFhirAppointmentFindCacheEnabled = epicFhirAppointmentFindCacheEnabled;
+	}
+
+	@Nullable
+	public Integer getEpicFhirAppointmentFindCacheExpirationInSeconds() {
+		return this.epicFhirAppointmentFindCacheExpirationInSeconds;
+	}
+
+	public void setEpicFhirAppointmentFindCacheExpirationInSeconds(@Nullable Integer epicFhirAppointmentFindCacheExpirationInSeconds) {
+		this.epicFhirAppointmentFindCacheExpirationInSeconds = epicFhirAppointmentFindCacheExpirationInSeconds;
 	}
 }
