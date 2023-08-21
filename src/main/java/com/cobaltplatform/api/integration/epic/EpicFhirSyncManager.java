@@ -108,7 +108,7 @@ public class EpicFhirSyncManager implements ProviderAvailabilitySyncManager, Aut
 	private ScheduledExecutorService availabilitySyncExecutorService;
 
 	static {
-		AVAILABILITY_SYNC_NUMBER_OF_DAYS_AHEAD = 40;
+		AVAILABILITY_SYNC_NUMBER_OF_DAYS_AHEAD = 60;
 		AVAILABILITY_SYNC_INTERVAL_IN_SECONDS = 60L;
 		AVAILABILITY_SYNC_INITIAL_DELAY_IN_SECONDS = 10L;
 	}
@@ -429,7 +429,7 @@ public class EpicFhirSyncManager implements ProviderAvailabilitySyncManager, Aut
 					  api_response,
 					  last_updated
 					) VALUES (?,?,CAST(? AS JSONB),?)
-					ON CONFLICT DO UPDATE SET
+					ON CONFLICT (institution_id, date) DO UPDATE SET
 					  api_response = EXCLUDED.api_response,
 					  last_updated = EXCLUDED.last_updated
 					""", institution.getInstitutionId(), date, apiResponse, lastUpdated);
