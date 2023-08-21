@@ -901,13 +901,6 @@ public class ProviderService {
 					continue;
 
 				LocalDateTime slotStartDateTime = LocalDateTime.ofInstant(entry.getResource().getStart(), institution.getTimeZone());
-				LocalDateTime slotEndDateTime = LocalDateTime.ofInstant(entry.getResource().getEnd(), institution.getTimeZone());
-
-				// Hack for testing...
-				if (getConfiguration().isLocal()) {
-					slotStartDateTime = slotStartDateTime.plusMonths(1);
-					slotEndDateTime = slotEndDateTime.plusMonths(1);
-				}
 
 				LocalDate slotDate = slotStartDateTime.toLocalDate();
 				LocalTime slotTime = slotStartDateTime.toLocalTime();

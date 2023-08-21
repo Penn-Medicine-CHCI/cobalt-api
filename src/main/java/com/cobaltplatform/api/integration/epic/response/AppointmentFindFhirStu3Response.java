@@ -58,7 +58,7 @@ public class AppointmentFindFhirStu3Response {
 	}
 
 	@Nullable
-	private String rawJson;
+	private transient String rawJson;
 
 	@Nullable
 	private String resourceType;
