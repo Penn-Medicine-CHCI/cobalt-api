@@ -23,8 +23,6 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.integration.acuity.AcuitySchedulingCache;
 import com.cobaltplatform.api.integration.acuity.AcuitySchedulingClient;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
-import com.cobaltplatform.api.integration.epic.EpicClient;
-import com.cobaltplatform.api.integration.epic.request.AppointmentFindFhirStu3Request;
 import com.cobaltplatform.api.integration.epic.response.AppointmentFindFhirStu3Response;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest.ProviderFindAvailability;
@@ -35,6 +33,7 @@ import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Assessment;
+import com.cobaltplatform.api.model.db.EpicFhirAppointmentFindCache;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Interaction;
@@ -96,12 +95,6 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -877,73 +870,22 @@ public class ProviderService {
 				currentAppointmentTypes.add(appointmentTypesById.get(providerAppointmentType.getAppointmentTypeId()));
 			}
 
-			// Ask Epic for potential slots...
-			EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institution.getInstitutionId()).epicClientForBackendService().get();
-
-			// ...by making 1 call per date in parallel.
-			// First, make a list of dates to call.
 			LocalDate startDate = command.getStartDate() != null ? command.getStartDate() : LocalDate.now(account.getTimeZone());
-			LocalDate currentDate = startDate;
-			LocalDate endDate = command.getEndDate() != null ? command.getEndDate() : currentDate.plusDays(30);
-			List<LocalDate> dates = new ArrayList<>();
+			LocalDate endDate = command.getEndDate() != null ? command.getEndDate() : startDate.plusDays(60);
 
-			if (!endDate.isBefore(currentDate)) {
-				while (endDate.isAfter(currentDate)) {
-					dates.add(currentDate);
-					currentDate = currentDate.plusDays(1);
-				}
-			}
+			// Instead of calling Epic FHIR directly to find appointments, look at our local cache of serialized responses.
+			// Calling Epic over a date range like this for all providers would be prohibitively slow
+			List<EpicFhirAppointmentFindCache> epicFhirAppointmentFindCaches = getDatabase().queryForList("""
+					SELECT *
+					FROM epic_fhir_appointment_find_cache
+					WHERE institution_id=?
+					AND date >= ?
+					AND date <= ?
+					""", EpicFhirAppointmentFindCache.class, institution.getInstitutionId(), startDate, endDate);
 
-			// Fan out and make a call for each date
-			List<CompletableFuture<AppointmentFindFhirStu3Response>> completableFutures = new ArrayList<>(dates.size());
-
-			getLogger().debug("Pulling Epic FHIR data from {} to {}...", startDate, endDate);
-
-			ExecutorService executor = Executors.newFixedThreadPool(15);
-
-			for (LocalDate date : dates) {
-				completableFutures.add(CompletableFuture.supplyAsync(() -> {
-					getLogger().trace("Start: {}", date);
-
-					LocalDateTime startDateTime = LocalDateTime.of(date, command.getStartTime() == null ? LocalTime.MIN : command.getStartTime());
-					LocalDateTime endDateTime = LocalDateTime.of(date, command.getEndTime() == null ? LocalTime.MAX : command.getEndTime());
-
-					AppointmentFindFhirStu3Request appointmentFindRequest = new AppointmentFindFhirStu3Request();
-					appointmentFindRequest.setPatient(account.getEpicPatientFhirId());
-					appointmentFindRequest.setStartTime(startDateTime.atZone(institution.getTimeZone()).toInstant());
-					appointmentFindRequest.setEndTime(endDateTime.atZone(institution.getTimeZone()).toInstant());
-					appointmentFindRequest.setServiceTypes(appointmentTypes.stream()
-							.map(appointmentType -> {
-								AppointmentFindFhirStu3Request.Coding serviceType = new AppointmentFindFhirStu3Request.Coding();
-								serviceType.setCode(appointmentType.getEpicVisitTypeId());
-								serviceType.setSystem(appointmentType.getEpicVisitTypeSystem());
-
-								return serviceType;
-							})
-							.collect(Collectors.toList()));
-
-					AppointmentFindFhirStu3Response appointmentFindResponse = epicClient.appointmentFindFhirStu3(appointmentFindRequest);
-
-					getLogger().trace("End: {}", date);
-					return appointmentFindResponse;
-				}, executor));
-			}
-
-			CompletableFuture<Void> combinedFuture = CompletableFuture.allOf(completableFutures.toArray(new CompletableFuture[0]));
-
-			getLogger().debug("Waiting for all futures to complete...");
-
-			try {
-				combinedFuture.get(20, TimeUnit.SECONDS);
-			} catch (ExecutionException | InterruptedException | TimeoutException e) {
-				throw new RuntimeException(e);
-			}
-
-			getLogger().debug("All futures completed.");
-
-			// Take all of the futures and turn them into a list
-			List<AppointmentFindFhirStu3Response> appointmentFindResponses = completableFutures.stream()
-					.map(CompletableFuture::join)
+			// Deserialize the cached data into a list
+			List<AppointmentFindFhirStu3Response> appointmentFindResponses = epicFhirAppointmentFindCaches.stream()
+					.map(epicFhirAppointmentFindCache -> AppointmentFindFhirStu3Response.deserialize(epicFhirAppointmentFindCache.getApiResponse()))
 					.collect(Collectors.toList());
 
 			// Collect all of the entries for all dates into one big list of entries

@@ -23,17 +23,40 @@ import com.cobaltplatform.api.integration.epic.code.AppointmentParticipantStatus
 import com.cobaltplatform.api.integration.epic.code.AppointmentStatusCode;
 import com.cobaltplatform.api.integration.epic.code.SlotStatusCode;
 import com.cobaltplatform.api.integration.epic.shared.Link;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
 import java.util.List;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
 public class AppointmentFindFhirStu3Response {
+	@Nonnull
+	private static final Gson GSON;
+
+	static {
+		GSON = new GsonBuilder().disableHtmlEscaping().create();
+	}
+
+	@Nonnull
+	public String serialize() {
+		return GSON.toJson(this);
+	}
+
+	@Nonnull
+	public static AppointmentFindFhirStu3Response deserialize(@Nonnull String serialized) {
+		requireNonNull(serialized);
+		return GSON.fromJson(serialized, AppointmentFindFhirStu3Response.class);
+	}
+
 	@Nullable
 	private String rawJson;
 
