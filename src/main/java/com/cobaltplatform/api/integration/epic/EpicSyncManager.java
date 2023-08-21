@@ -238,7 +238,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 		Institution institution = getInstitutionService().findInstitutionById(provider.getInstitutionId()).get();
 		EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(provider.getInstitutionId()).epicClientForBackendService().get();
 
-		getLogger().info("Syncing availabilty for {} provider {} on {}...", institution.getInstitutionId().name(), provider.getName(), date);
+		getLogger().info("Syncing availability for {} provider {} on {}...", institution.getInstitutionId().name(), provider.getName(), date);
 
 		ProviderAvailabilityDateInsert insert = generateProviderAvailabilityDateInsert(epicClient, institution, provider, date);
 

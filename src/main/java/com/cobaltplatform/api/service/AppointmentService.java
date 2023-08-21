@@ -35,6 +35,7 @@ import com.cobaltplatform.api.integration.bluejeans.MeetingResponse;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.epic.EpicClient;
+import com.cobaltplatform.api.integration.epic.EpicFhirSyncManager;
 import com.cobaltplatform.api.integration.epic.EpicSyncManager;
 import com.cobaltplatform.api.integration.epic.request.AppointmentBookFhirStu3Request;
 import com.cobaltplatform.api.integration.epic.request.GetProviderScheduleRequest;
@@ -155,6 +156,8 @@ public class AppointmentService {
 	@Nonnull
 	private final EpicSyncManager epicSyncManager;
 	@Nonnull
+	private final EpicFhirSyncManager epicFhirSyncManager;
+	@Nonnull
 	private final AcuitySchedulingClient acuitySchedulingClient;
 	@Nonnull
 	private final AcuitySchedulingCache acuitySchedulingCache;
@@ -202,6 +205,7 @@ public class AppointmentService {
 														@Nonnull Configuration configuration,
 														@Nonnull Strings strings,
 														@Nonnull EpicSyncManager epicSyncManager,
+														@Nonnull EpicFhirSyncManager epicFhirSyncManager,
 														@Nonnull AcuitySchedulingClient acuitySchedulingClient,
 														@Nonnull AcuitySchedulingCache acuitySchedulingCache,
 														@Nonnull BluejeansClient bluejeansClient,
@@ -227,6 +231,7 @@ public class AppointmentService {
 		requireNonNull(strings);
 		requireNonNull(enterprisePluginProvider);
 		requireNonNull(epicSyncManager);
+		requireNonNull(epicFhirSyncManager);
 		requireNonNull(acuitySchedulingClient);
 		requireNonNull(acuitySchedulingCache);
 		requireNonNull(bluejeansClient);
@@ -251,6 +256,7 @@ public class AppointmentService {
 		this.strings = strings;
 		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.epicSyncManager = epicSyncManager;
+		this.epicFhirSyncManager = epicFhirSyncManager;
 		this.acuitySchedulingClient = acuitySchedulingClient;
 		this.acuitySchedulingCache = acuitySchedulingCache;
 		this.bluejeansClient = bluejeansClient;
@@ -938,6 +944,10 @@ public class AppointmentService {
 			} else if (schedulingSystemId == SchedulingSystemId.EPIC) {
 				ForkJoinPool.commonPool().execute(() -> {
 					getEpicSyncManager().syncProviderAvailability(providerId, meetingStartTime.toLocalDate());
+				});
+			} else if (schedulingSystemId == SchedulingSystemId.EPIC_FHIR) {
+				ForkJoinPool.commonPool().execute(() -> {
+					getEpicFhirSyncManager().syncProviderAvailability(providerId, meetingStartTime.toLocalDate());
 				});
 			} else if (schedulingSystemId == SchedulingSystemId.COBALT) {
 				// For native appointments, we are responsible for sending emails out
@@ -1661,6 +1671,10 @@ public class AppointmentService {
 				ForkJoinPool.commonPool().execute(() -> {
 					getEpicSyncManager().syncProviderAvailability(pinnedAppointment.getProviderId(), pinnedAppointment.getStartTime().toLocalDate());
 				});
+			} else if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR) {
+				ForkJoinPool.commonPool().execute(() -> {
+					getEpicFhirSyncManager().syncProviderAvailability(pinnedAppointment.getProviderId(), pinnedAppointment.getStartTime().toLocalDate());
+				});
 			} else if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.COBALT) {
 				sendPatientAndProviderCobaltAppointmentCanceledEmails(appointmentId);
 			}
@@ -1996,6 +2010,11 @@ public class AppointmentService {
 	@Nonnull
 	protected EpicSyncManager getEpicSyncManager() {
 		return this.epicSyncManager;
+	}
+
+	@Nonnull
+	protected EpicFhirSyncManager getEpicFhirSyncManager() {
+		return this.epicFhirSyncManager;
 	}
 
 	@Nonnull

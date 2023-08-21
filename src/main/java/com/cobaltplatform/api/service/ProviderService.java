@@ -23,8 +23,6 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.integration.acuity.AcuitySchedulingCache;
 import com.cobaltplatform.api.integration.acuity.AcuitySchedulingClient;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
-import com.cobaltplatform.api.integration.epic.EpicClient;
-import com.cobaltplatform.api.integration.epic.request.AppointmentFindFhirStu3Request;
 import com.cobaltplatform.api.integration.epic.response.AppointmentFindFhirStu3Response;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest.ProviderFindAvailability;
@@ -35,6 +33,7 @@ import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Assessment;
+import com.cobaltplatform.api.model.db.EpicFhirAppointmentFindCache;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Interaction;
@@ -871,36 +870,33 @@ public class ProviderService {
 				currentAppointmentTypes.add(appointmentTypesById.get(providerAppointmentType.getAppointmentTypeId()));
 			}
 
-			// Ask Epic for potential slots
-			EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institution.getInstitutionId()).epicClientForBackendService().get();
+			LocalDate startDate = command.getStartDate() != null ? command.getStartDate() : LocalDate.now(account.getTimeZone());
+			LocalDate endDate = command.getEndDate() != null ? command.getEndDate() : startDate.plusDays(60);
 
-			LocalDateTime startDateTime = LocalDateTime.now(account.getTimeZone());
+			// Instead of calling Epic FHIR directly to find appointments, look at our local cache of serialized responses.
+			// Calling Epic over a date range like this for all providers would be prohibitively slow
+			List<EpicFhirAppointmentFindCache> epicFhirAppointmentFindCaches = getDatabase().queryForList("""
+					SELECT *
+					FROM epic_fhir_appointment_find_cache
+					WHERE institution_id=?
+					AND date >= ?
+					AND date <= ?
+					""", EpicFhirAppointmentFindCache.class, institution.getInstitutionId(), startDate, endDate);
 
-			if (command.getStartDate() != null && command.getStartTime() != null)
-				startDateTime = LocalDateTime.of(command.getStartDate(), command.getStartTime());
+			// Deserialize the cached data into a list
+			List<AppointmentFindFhirStu3Response> appointmentFindResponses = epicFhirAppointmentFindCaches.stream()
+					.map(epicFhirAppointmentFindCache -> AppointmentFindFhirStu3Response.deserialize(epicFhirAppointmentFindCache.getApiResponse()))
+					.collect(Collectors.toList());
 
-			LocalDateTime endDateTime = startDateTime.plusDays(60);
+			// Collect all of the entries for all dates into one big list of entries
+			List<AppointmentFindFhirStu3Response.Entry> entries = appointmentFindResponses.stream()
+					.map(appointmentFindFhirStu3Response -> appointmentFindFhirStu3Response.getEntry())
+					.flatMap(List::stream)
+					.collect(Collectors.toList());
 
-			if (command.getEndDate() != null && command.getEndTime() != null)
-				endDateTime = LocalDateTime.of(command.getEndDate(), command.getEndTime());
+			Set<AppointmentFindFhirStu3SlotKey> slotKeys = new HashSet<>(entries.size());
 
-			AppointmentFindFhirStu3Request appointmentFindRequest = new AppointmentFindFhirStu3Request();
-			appointmentFindRequest.setPatient(account.getEpicPatientFhirId());
-			appointmentFindRequest.setStartTime(startDateTime.atZone(institution.getTimeZone()).toInstant());
-			appointmentFindRequest.setEndTime(endDateTime.atZone(institution.getTimeZone()).toInstant());
-			appointmentFindRequest.setServiceTypes(appointmentTypes.stream()
-					.map(appointmentType -> {
-						AppointmentFindFhirStu3Request.Coding serviceType = new AppointmentFindFhirStu3Request.Coding();
-						serviceType.setCode(appointmentType.getEpicVisitTypeId());
-						serviceType.setSystem(appointmentType.getEpicVisitTypeSystem());
-
-						return serviceType;
-					})
-					.collect(Collectors.toList()));
-
-			AppointmentFindFhirStu3Response appointmentFindResponse = epicClient.appointmentFindFhirStu3(appointmentFindRequest);
-
-			for (AppointmentFindFhirStu3Response.Entry entry : appointmentFindResponse.getEntry()) {
+			for (AppointmentFindFhirStu3Response.Entry entry : entries) {
 				if (!"Appointment".equals(entry.getResource().getResourceType()))
 					continue;
 
@@ -918,10 +914,10 @@ public class ProviderService {
 
 				// Assumes single service type and coding
 				if (entry.getResource().getServiceType().size() != 1)
-					throw new IllegalStateException(format("Invalid size of serviceType element for %s", appointmentFindResponse.getRawJson()));
+					throw new IllegalStateException("Invalid size of serviceType element");
 
 				if (entry.getResource().getServiceType().get(0).getCoding().size() != 1)
-					throw new IllegalStateException(format("Invalid size of serviceType.coding element for %s", appointmentFindResponse.getRawJson()));
+					throw new IllegalStateException("Invalid size of serviceType.coding element");
 
 				AppointmentFindFhirStu3Response.Entry.Resource.ServiceType.Coding appointmentTypeCoding =
 						entry.getResource().getServiceType().get(0).getCoding().get(0);
@@ -937,7 +933,7 @@ public class ProviderService {
 						.collect(Collectors.toSet());
 
 				if (epicPractitionerFhirIds.size() == 0) {
-					getLogger().warn("Unable to find practitioner FHIR IDs for slot in {}", appointmentFindResponse.getRawJson());
+					getLogger().warn("Unable to find practitioner FHIR IDs for slot");
 				} else {
 					for (String epicPractitionerFhirId : epicPractitionerFhirIds) {
 						Provider provider = providersByEpicPractitionerFhirId.get(epicPractitionerFhirId);
@@ -988,16 +984,25 @@ public class ProviderService {
 								}
 							}
 
+							// Discard duplicate slots (protects against case where we get the same results back, e.g. running locally with mock data or Epic returns same data unintentionally)
+							AppointmentFindFhirStu3SlotKey slotKey = new AppointmentFindFhirStu3SlotKey(epicPractitionerFhirId, slotDate, slotTime, appointmentType.getAppointmentTypeId());
+
+							if (slotKeys.contains(slotKey)) {
+								getLogger().trace("Already have a slot for {}, skipping...", slotKey);
+								continue;
+							}
+
+							slotKeys.add(slotKey);
+
 							availabilityTime.getAppointmentTypeIds().add(appointmentType.getAppointmentTypeId());
 							availabilityTime.getAppointmentStatusCodesByAppointmentTypeId().put(appointmentType.getAppointmentTypeId(), entry.getResource().getStatus());
 							availabilityTime.getAppointmentParticipantStatusCodesByAppointmentTypeId().put(appointmentType.getAppointmentTypeId(), practitioner.getStatus());
 
 							// Assumes there is only one slot
 							if (entry.getResource().getContained().size() != 1)
-								throw new IllegalStateException(format("Invalid size of resource.contained element for %s", appointmentFindResponse.getRawJson()));
+								throw new IllegalStateException("Invalid size of resource.contained element");
 
 							availabilityTime.getSlotStatusCodesByAppointmentTypeId().put(appointmentType.getAppointmentTypeId(), entry.getResource().getContained().get(0).getStatus());
-
 							availabilityDate.getTimes().add(availabilityTime);
 						}
 					}
@@ -1016,6 +1021,45 @@ public class ProviderService {
 		}
 
 		return availabilityDatesByEpicFhirProviderId;
+	}
+
+	@Immutable
+	protected static class AppointmentFindFhirStu3SlotKey {
+		@Nonnull
+		private final String key;
+
+		public AppointmentFindFhirStu3SlotKey(@Nonnull String epicPractitionerFhirId,
+																					@Nonnull LocalDate slotDate,
+																					@Nonnull LocalTime slotTime,
+																					@Nonnull UUID appointmentTypeId) {
+			requireNonNull(epicPractitionerFhirId);
+			requireNonNull(slotDate);
+			requireNonNull(slotTime);
+			requireNonNull(appointmentTypeId);
+
+			this.key = format("%s-%s-%s-%s", epicPractitionerFhirId, slotDate, slotTime, appointmentTypeId);
+		}
+
+		@Override
+		public int hashCode() {
+			return this.key.hashCode();
+		}
+
+		@Override
+		public boolean equals(Object object) {
+			if (object == null)
+				return false;
+
+			if (!(object instanceof AppointmentFindFhirStu3SlotKey))
+				return false;
+
+			return this.key.equals(((AppointmentFindFhirStu3SlotKey) object).key);
+		}
+
+		@Override
+		public String toString() {
+			return format("%s{key=%s}", getClass().getSimpleName(), this.key);
+		}
 	}
 
 	/**

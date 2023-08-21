@@ -45,6 +45,7 @@ import com.cobaltplatform.api.integration.epic.response.PatientCreateResponse;
 import com.cobaltplatform.api.integration.epic.response.PatientReadFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse;
 import com.cobaltplatform.api.integration.epic.response.ScheduleAppointmentWithInsuranceResponse;
+import com.cobaltplatform.api.integration.epic.shared.Link;
 import com.cobaltplatform.api.util.Normalizer;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -359,7 +360,7 @@ public class DefaultEpicClient implements EpicClient {
 			valueCodeableConceptJson.put("coding", codings);
 
 			Map<String, Object> parameter = new HashMap<>();
-			parameter.put("name", "indications");
+			parameter.put("name", "specialties");
 			parameter.put("valueCodeableConcept", valueCodeableConceptJson);
 
 			parameters.add(parameter);
@@ -506,7 +507,44 @@ public class DefaultEpicClient implements EpicClient {
 				.requestBody(requestBody)
 				.build();
 
-		return makeApiCall(apiCall);
+		// Make the first call...
+		AppointmentFindFhirStu3Response response = makeApiCall(apiCall);
+		int i = 0;
+
+		// ...and if there are more pages of data, accumulate them into the first call's response.
+		// Once there are no more pages, we're done.
+		while (response.getLink().size() > 0) {
+			Link nextLink = response.getLink().stream()
+					.filter(link -> "next".equals(link.getRelation()))
+					.findFirst()
+					.orElse(null);
+
+			if (nextLink == null)
+				break;
+
+			++i;
+
+			getLogger().debug("Fetching appointment page {}...", i);
+
+			ApiCall<AppointmentFindFhirStu3Response> pageApiCall = new ApiCall.Builder<>(httpMethod, nextLink.getUrl(), responseBodyMapper)
+					.requestBody(requestBody)
+					.build();
+
+			AppointmentFindFhirStu3Response pageResponse = makeApiCall(pageApiCall);
+
+			// Map into the aggregate response
+			if (pageResponse.getEntry() != null)
+				response.getEntry().addAll(pageResponse.getEntry());
+
+			// Add to the aggregate response's total
+			if (pageResponse.getTotal() != null && response.getTotal() != null)
+				response.setTotal(response.getTotal() + pageResponse.getTotal());
+
+			// Replace the aggregate response's set of links with the page's set
+			response.setLink(pageResponse.getLink() == null ? List.of() : pageResponse.getLink());
+		}
+
+		return response;
 	}
 
 	@Nonnull
@@ -910,7 +948,8 @@ public class DefaultEpicClient implements EpicClient {
 	protected <T> T makeApiCall(@Nonnull ApiCall<T> apiCall) {
 		requireNonNull(apiCall);
 
-		String finalUrl = format("%s/%s", getEpicConfiguration().getBaseUrl(), apiCall.getUrl());
+		boolean absoluteUrl = apiCall.getUrl().startsWith("https://") || apiCall.getUrl().startsWith("http://");
+		String finalUrl = absoluteUrl ? apiCall.getUrl() : format("%s/%s", getEpicConfiguration().getBaseUrl(), apiCall.getUrl());
 
 		Map<String, Object> headers = new HashMap<>();
 		headers.put("Content-Type", "application/json");
@@ -938,8 +977,12 @@ public class DefaultEpicClient implements EpicClient {
 		HttpRequest.Builder httpRequestBuilder = new HttpRequest.Builder(apiCall.getHttpMethod(), finalUrl)
 				.headers(headers);
 
-		if (apiCall.getQueryParameters().size() > 0)
+		if (apiCall.getQueryParameters().size() > 0) {
+			if (absoluteUrl)
+				throw new IllegalArgumentException(format("Cannot specify query parameters when using an absolute URL. URL was %s", apiCall.getUrl()));
+
 			httpRequestBuilder.queryParameters(apiCall.getQueryParameters());
+		}
 
 		String requestBody = apiCall.getRequestBody().orElse(null);
 

@@ -22,6 +22,7 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.integration.acuity.AcuitySyncManager;
 import com.cobaltplatform.api.integration.common.ProviderAvailabilitySyncManager;
+import com.cobaltplatform.api.integration.epic.EpicFhirSyncManager;
 import com.cobaltplatform.api.integration.epic.EpicSyncManager;
 import com.cobaltplatform.api.model.db.BetaFeature;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -64,6 +65,8 @@ public class SystemService {
 	@Nonnull
 	private final EpicSyncManager epicSyncManager;
 	@Nonnull
+	private final EpicFhirSyncManager epicFhirSyncManager;
+	@Nonnull
 	private final AcuitySyncManager acuitySyncManager;
 	@Nonnull
 	private final Configuration configuration;
@@ -76,12 +79,14 @@ public class SystemService {
 	public SystemService(@Nonnull Database database,
 											 @Nonnull ProviderService providerService,
 											 @Nonnull EpicSyncManager epicSyncManager,
+											 @Nonnull EpicFhirSyncManager epicFhirSyncManager,
 											 @Nonnull AcuitySyncManager acuitySyncManager,
 											 @Nonnull Configuration configuration,
 											 @Nonnull Strings strings) {
 		requireNonNull(database);
 		requireNonNull(providerService);
 		requireNonNull(epicSyncManager);
+		requireNonNull(epicFhirSyncManager);
 		requireNonNull(acuitySyncManager);
 		requireNonNull(configuration);
 		requireNonNull(strings);
@@ -89,6 +94,7 @@ public class SystemService {
 		this.database = database;
 		this.providerService = providerService;
 		this.epicSyncManager = epicSyncManager;
+		this.epicFhirSyncManager = epicFhirSyncManager;
 		this.acuitySyncManager = acuitySyncManager;
 		this.configuration = configuration;
 		this.strings = strings;
@@ -159,6 +165,8 @@ public class SystemService {
 
 			if (provider.getSchedulingSystemId() == SchedulingSystemId.EPIC)
 				providerAvailabilitySyncManager = getEpicSyncManager();
+			else if (provider.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR)
+				providerAvailabilitySyncManager = getEpicFhirSyncManager();
 			else if (provider.getSchedulingSystemId() == SchedulingSystemId.ACUITY)
 				providerAvailabilitySyncManager = getAcuitySyncManager();
 
@@ -217,6 +225,8 @@ public class SystemService {
 
 		if (provider.getSchedulingSystemId() == SchedulingSystemId.EPIC)
 			providerAvailabilitySyncManager = getEpicSyncManager();
+		else if (provider.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR)
+			providerAvailabilitySyncManager = getEpicFhirSyncManager();
 		else if (provider.getSchedulingSystemId() == SchedulingSystemId.ACUITY)
 			providerAvailabilitySyncManager = getAcuitySyncManager();
 
@@ -293,62 +303,67 @@ public class SystemService {
 
 		@Nonnull
 		public Provider getProvider() {
-			return provider;
+			return this.provider;
 		}
 
 		@Nonnull
 		public LocalDate getDate() {
-			return date;
+			return this.date;
 		}
 
 		@Nonnull
 		public Boolean getSuccess() {
-			return success;
+			return this.success;
 		}
 
 		@Nonnull
 		public Optional<Exception> getException() {
-			return Optional.ofNullable(exception);
+			return Optional.ofNullable(this.exception);
 		}
 
 		@Nullable
 		public Instant getCreated() {
-			return created;
+			return this.created;
 		}
 	}
 
 	@Nonnull
 	protected Database getDatabase() {
-		return database;
+		return this.database;
 	}
 
 	@Nonnull
 	protected ProviderService getProviderService() {
-		return providerService;
+		return this.providerService;
 	}
 
 	@Nonnull
 	protected EpicSyncManager getEpicSyncManager() {
-		return epicSyncManager;
+		return this.epicSyncManager;
+	}
+
+	@Nonnull
+	protected EpicFhirSyncManager getEpicFhirSyncManager() {
+		return this.epicFhirSyncManager;
 	}
 
 	@Nonnull
 	protected AcuitySyncManager getAcuitySyncManager() {
-		return acuitySyncManager;
+		return this.acuitySyncManager;
 	}
 
 	@Nonnull
 	protected Configuration getConfiguration() {
-		return configuration;
+		return this.configuration;
 	}
 
 	@Nonnull
 	protected Strings getStrings() {
-		return strings;
+		return this.strings;
 	}
 
 	@Nonnull
 	protected Logger getLogger() {
-		return logger;
+		return this.logger;
 	}
 }

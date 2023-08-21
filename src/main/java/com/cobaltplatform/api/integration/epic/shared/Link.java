@@ -31,4 +31,22 @@ public class Link {
 	private String relation;
 	@Nullable
 	private String url;
+
+	@Nullable
+	public String getRelation() {
+		return this.relation;
+	}
+
+	public void setRelation(@Nullable String relation) {
+		this.relation = relation;
+	}
+
+	@Nullable
+	public String getUrl() {
+		return this.url;
+	}
+
+	public void setUrl(@Nullable String url) {
+		this.url = url;
+	}
 }
