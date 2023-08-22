@@ -21,6 +21,7 @@ package com.cobaltplatform.api;
 
 import com.cobaltplatform.api.integration.acuity.AcuitySyncManager;
 import com.cobaltplatform.api.integration.bluejeans.BluejeansCredentialsProvider;
+import com.cobaltplatform.api.integration.epic.EpicFhirSyncManager;
 import com.cobaltplatform.api.integration.epic.EpicSyncManager;
 import com.cobaltplatform.api.service.AvailabilityService;
 import com.cobaltplatform.api.service.GroupSessionService;
@@ -162,6 +163,13 @@ public class App implements AutoCloseable {
 			} catch (Exception e) {
 				getLogger().warn("Failed to start EPIC sync manager", e);
 			}
+
+			try {
+				EpicFhirSyncManager epicFhirSyncManager = getInjector().getInstance(EpicFhirSyncManager.class);
+				epicFhirSyncManager.start();
+			} catch (Exception e) {
+				getLogger().warn("Failed to start EPIC FHIR sync manager", e);
+			}
 		}
 
 		try {
@@ -232,6 +240,13 @@ public class App implements AutoCloseable {
 				epicSyncManager.stop();
 			} catch (Exception e) {
 				getLogger().warn("Unable to stop EPIC sync manager", e);
+			}
+
+			try {
+				EpicFhirSyncManager epicFhirSyncManager = getInjector().getInstance(EpicFhirSyncManager.class);
+				epicFhirSyncManager.stop();
+			} catch (Exception e) {
+				getLogger().warn("Unable to stop EPIC FHIR sync manager", e);
 			}
 		}
 

@@ -20,7 +20,7 @@
 	<tr>
 		<td align="left" class="em_blue" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:18px; line-height:24px; color:#000;">
 			<p>
-				<b>{{groupSession.facilitatorName}}</b> looks forward to seeing you on <b>{{groupSessionStartDateDescription}}</b> @ <b>{{groupSessionStartTimeDescription}}</b>
+				{{groupSession.facilitatorName}} looks forward to seeing you on {{groupSessionStartDateDescription}} @ {{groupSessionStartTimeDescription}}
 			</p>
 			<br />
 
@@ -42,7 +42,7 @@
 						</a>
 					</td>
 					<td align="right" width="50%">
-						<a href="{{{cancelUrl}}}" target="_blank" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:16px; line-height:20px;">Cancel Reservation</a>
+						<p>To cancel or reschedule, email your provider at {{{groupSession.targetEmailAddress}}}.</p>
 					</td>
 				</tr>
 				<tr>
@@ -68,7 +68,7 @@
 				</tr>
 				<tr>
 					<td colspan="2">
-						<p><b>Here are a few tips to help you have a smooth session:</b></p>
+						<p>Here are a few tips to help you have a smooth session:</p>
 						<ul>
 							<li style="margin-bottom: 5px;">Find a quiet space with a comfortable chair</li>
 							<li style="margin-bottom: 5px;">Sit facing a window or have a light nearby</li>

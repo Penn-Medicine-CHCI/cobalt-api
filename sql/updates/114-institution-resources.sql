@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('113-institution-resources', NULL, NULL);
+SELECT _v.register_patch('114-institution-resources', NULL, NULL);
 
 -- Groups institution resources for display purposes
 CREATE TABLE institution_resource_group (
@@ -9,6 +9,7 @@ CREATE TABLE institution_resource_group (
 	name VARCHAR NOT NULL,
 	url_name VARCHAR NOT NULL,
 	description VARCHAR,
+	display_order INTEGER NOT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
