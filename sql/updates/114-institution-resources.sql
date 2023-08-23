@@ -40,4 +40,7 @@ CREATE TABLE institution_resource_group_institution_resource (
   PRIMARY KEY(institution_resource_group_id, institution_resource_id)
 );
 
+ALTER TABLE institution ADD COLUMN resource_groups_title TEXT;
+ALTER TABLE institution ADD COLUMN resource_groups_description TEXT;
+
 COMMIT;
