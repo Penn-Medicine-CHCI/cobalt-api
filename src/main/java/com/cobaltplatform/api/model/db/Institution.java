@@ -218,6 +218,10 @@ public class Institution {
 	private String integratedCareClinicalReportDisclaimer;
 	@Nullable
 	private Integer epicFhirAppointmentFindCacheExpirationInSeconds;
+	@Nullable
+	private String resourceGroupsTitle;
+	@Nullable
+	private String resourceGroupsDescription;
 
 	public enum InstitutionId {
 		COBALT,
@@ -1006,5 +1010,23 @@ public class Institution {
 
 	public void setEpicFhirAppointmentFindCacheExpirationInSeconds(@Nullable Integer epicFhirAppointmentFindCacheExpirationInSeconds) {
 		this.epicFhirAppointmentFindCacheExpirationInSeconds = epicFhirAppointmentFindCacheExpirationInSeconds;
+	}
+
+	@Nullable
+	public String getResourceGroupsTitle() {
+		return this.resourceGroupsTitle;
+	}
+
+	public void setResourceGroupsTitle(@Nullable String resourceGroupsTitle) {
+		this.resourceGroupsTitle = resourceGroupsTitle;
+	}
+
+	@Nullable
+	public String getResourceGroupsDescription() {
+		return this.resourceGroupsDescription;
+	}
+
+	public void setResourceGroupsDescription(@Nullable String resourceGroupsDescription) {
+		this.resourceGroupsDescription = resourceGroupsDescription;
 	}
 }

@@ -22,10 +22,12 @@ package com.cobaltplatform.api.web.resource;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.InstitutionResourceApiResponse.InstitutionResourceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionResourceGroupApiResponse.InstitutionResourceGroupApiResponseFactory;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.InstitutionResource;
 import com.cobaltplatform.api.model.db.InstitutionResourceGroup;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.InstitutionResourceService;
+import com.cobaltplatform.api.service.InstitutionService;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.PathParameter;
 import com.soklet.web.annotation.QueryParameter;
@@ -55,6 +57,8 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class InstitutionResourceResource {
 	@Nonnull
+	private final InstitutionService institutionService;
+	@Nonnull
 	private final InstitutionResourceService institutionResourceService;
 	@Nonnull
 	private final InstitutionResourceApiResponseFactory institutionResourceApiResponseFactory;
@@ -66,15 +70,18 @@ public class InstitutionResourceResource {
 	private final Logger logger;
 
 	@Inject
-	public InstitutionResourceResource(@Nonnull InstitutionResourceService institutionResourceService,
+	public InstitutionResourceResource(@Nonnull InstitutionService institutionService,
+																		 @Nonnull InstitutionResourceService institutionResourceService,
 																		 @Nonnull InstitutionResourceApiResponseFactory institutionResourceApiResponseFactory,
 																		 @Nonnull InstitutionResourceGroupApiResponseFactory institutionResourceGroupApiResponseFactory,
 																		 @Nonnull Provider<CurrentContext> currentContextProvider) {
+		requireNonNull(institutionService);
 		requireNonNull(institutionResourceService);
 		requireNonNull(institutionResourceApiResponseFactory);
 		requireNonNull(institutionResourceGroupApiResponseFactory);
 		requireNonNull(currentContextProvider);
 
+		this.institutionService = institutionService;
 		this.institutionResourceService = institutionResourceService;
 		this.institutionResourceApiResponseFactory = institutionResourceApiResponseFactory;
 		this.institutionResourceGroupApiResponseFactory = institutionResourceGroupApiResponseFactory;
@@ -86,10 +93,12 @@ public class InstitutionResourceResource {
 	@GET("/institution-resource-groups")
 	@AuthenticationRequired
 	public ApiResponse institutionResourceGroups() {
-		List<InstitutionResourceGroup> institutionResourceGroups = getInstitutionResourceService
-				().findInstitutionResourceGroupsByInstitutionId(getCurrentContext().getInstitutionId());
+		Institution institution = getInstitutionService().findInstitutionById(getCurrentContext().getInstitutionId()).get();
+		List<InstitutionResourceGroup> institutionResourceGroups = getInstitutionResourceService().findInstitutionResourceGroupsByInstitutionId(getCurrentContext().getInstitutionId());
 
 		return new ApiResponse(new HashMap<String, Object>() {{
+			put("institutionResourceGroupsTitle", institution.getResourceGroupsTitle());
+			put("institutionResourceGroupsDescription", institution.getResourceGroupsDescription());
 			put("institutionResourceGroups", institutionResourceGroups.stream()
 					.map(institutionResourceGroup -> getInstitutionResourceGroupApiResponseFactory().create(institutionResourceGroup))
 					.collect(Collectors.toList()));
@@ -136,6 +145,11 @@ public class InstitutionResourceResource {
 					.map(institutionResource -> getInstitutionResourceApiResponseFactory().create(institutionResource))
 					.collect(Collectors.toList()));
 		}});
+	}
+
+	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return this.institutionService;
 	}
 
 	@Nonnull
