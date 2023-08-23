@@ -24,7 +24,8 @@ CREATE TABLE institution_resource (
 	name VARCHAR NOT NULL,
 	url_name VARCHAR NOT NULL,
 	description VARCHAR,
-	image_url VARCHAR NOT NULL,
+	url VARCHAR,
+	image_url VARCHAR,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
