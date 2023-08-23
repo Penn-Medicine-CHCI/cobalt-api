@@ -30,6 +30,7 @@ import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.PathParameter;
 import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.Resource;
+import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
 import org.slf4j.Logger;
@@ -106,6 +107,9 @@ public class InstitutionResourceResource {
 		if (institutionResource == null)
 			throw new NotFoundException();
 
+		if (!institutionResource.getInstitutionId().equals(getCurrentContext().getInstitutionId()))
+			throw new AuthorizationException();
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("institutionResource", getInstitutionResourceApiResponseFactory().create(institutionResource));
 		}});
@@ -121,6 +125,9 @@ public class InstitutionResourceResource {
 
 		if (institutionResourceGroup == null)
 			throw new NotFoundException();
+
+		if (!institutionResourceGroup.getInstitutionId().equals(getCurrentContext().getInstitutionId()))
+			throw new AuthorizationException();
 
 		List<InstitutionResource> institutionResources = getInstitutionResourceService().findInstitutionResourcesByInstitutionResourceGroupId(institutionResourceGroup.getInstitutionResourceGroupId());
 
