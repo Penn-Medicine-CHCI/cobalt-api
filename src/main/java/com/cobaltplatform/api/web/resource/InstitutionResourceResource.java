@@ -106,6 +106,25 @@ public class InstitutionResourceResource {
 	}
 
 	@Nonnull
+	@GET("/institution-resource-groups/{institutionResourceGroupId}")
+	@AuthenticationRequired
+	public ApiResponse institutionResourceGroup(@Nonnull @PathParameter("institutionResourceGroupId") String institutionResourceGroupIdentifier) {
+		requireNonNull(institutionResourceGroupIdentifier);
+
+		InstitutionResourceGroup institutionResourceGroup = getInstitutionResourceService().findInstitutionResourceGroupByIdentifier(institutionResourceGroupIdentifier, getCurrentContext().getInstitutionId()).orElse(null);
+
+		if (institutionResourceGroup == null)
+			throw new NotFoundException();
+
+		if (!institutionResourceGroup.getInstitutionId().equals(getCurrentContext().getInstitutionId()))
+			throw new AuthorizationException();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("institutionResourceGroup", getInstitutionResourceGroupApiResponseFactory().create(institutionResourceGroup));
+		}});
+	}
+
+	@Nonnull
 	@GET("/institution-resources/{institutionResourceId}")
 	@AuthenticationRequired
 	public ApiResponse institutionResource(@Nonnull @PathParameter("institutionResourceId") String institutionResourceIdentifier) {
