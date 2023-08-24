@@ -43,4 +43,40 @@ CREATE TABLE institution_resource_group_institution_resource (
 ALTER TABLE institution ADD COLUMN resource_groups_title TEXT;
 ALTER TABLE institution ADD COLUMN resource_groups_description TEXT;
 
+ALTER TABLE institution_feature ADD COLUMN name_override TEXT;
+ALTER TABLE institution_feature ADD COLUMN landing_page_visible BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE institution_feature ADD COLUMN treatment_description TEXT;
+
+UPDATE institution_feature SET landing_page_visible=nav_visible;
+
+INSERT INTO feature
+  (feature_id, name, url_name, navigation_header_id)
+VALUES
+  ('RESOURCE_NAVIGATOR', 'Connect with a Resource Navigator', '/feedback', 'CONNECT_WITH_SUPPORT');
+
+INSERT INTO support_role (support_role_id, description, display_order) VALUES ('MSW', 'Master''s Level Social Worker', 11);
+
+-- Clean up old data.  The PSYCHOTHERAPIST feature is now psychologists and LCSWs
+DELETE FROM feature_support_role WHERE feature_id='PSYCHOTHERAPIST' AND support_role_id='PSYCHIATRIST';
+INSERT INTO feature_support_role(feature_id, support_role_id) VALUES ('PSYCHOTHERAPIST', 'LCSW');
+
+-- Introduce MSW feature
+INSERT INTO feature (feature_id, navigation_header_id, name, url_name) VALUES
+	('MSW', 'CONNECT_WITH_SUPPORT', 'Master''s Level Social Worker', '/connect-with-support/msw');
+
+INSERT INTO feature_support_role(feature_id, support_role_id) VALUES
+	('MSW', 'MSW');
+
+INSERT INTO feature_filter(feature_id, filter_id) VALUES
+	('MSW', 'DATE'),
+	('MSW', 'TIME_OF_DAY');
+
+-- No longer have an LCSW feature
+UPDATE screening_session_feature_recommendation SET feature_id='MSW' WHERE feature_id='LCSW';
+
+DELETE FROM feature_filter WHERE feature_id='LCSW';
+DELETE FROM feature_support_role WHERE feature_id='LCSW';
+DELETE FROM institution_feature WHERE feature_id='LCSW';
+DELETE FROM feature WHERE feature_id='LCSW';
+
 COMMIT;

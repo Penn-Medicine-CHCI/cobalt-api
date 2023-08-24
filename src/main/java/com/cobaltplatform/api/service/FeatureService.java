@@ -107,7 +107,6 @@ public class FeatureService {
 				""", Feature.class, screeningSessionId);
 	}
 
-
 	@Nonnull
 	protected Database getDatabase() {
 		return this.database;
