@@ -25,9 +25,9 @@ import com.cobaltplatform.api.model.api.response.ReportTypeApiResponse;
 import com.cobaltplatform.api.model.api.response.ReportTypeApiResponse.ReportTypeApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
+import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.ReportType.ReportTypeId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
-import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ReportingService;
@@ -47,6 +47,7 @@ import javax.inject.Singleton;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -126,8 +127,8 @@ public class ReportingResource {
 	@GET("/reporting/run-report")
 	@AuthenticationRequired
 	public Object runReport(@Nonnull @QueryParameter ReportTypeId reportTypeId,
-													@Nonnull @QueryParameter LocalDateTime startDateTime, // inclusive
-													@Nonnull @QueryParameter LocalDateTime endDateTime, // inclusive
+													@Nonnull @QueryParameter("startDateTime") Optional<LocalDateTime> suppliedStartDateTime, // inclusive
+													@Nonnull @QueryParameter("endDateTime") Optional<LocalDateTime> suppliedEndDateTime, // inclusive
 													@Nonnull @QueryParameter Optional<List<String>> patientOrderInsurancePayorId,
 													@Nonnull @QueryParameter Optional<List<String>> referringPracticeNames,
 													@Nonnull @QueryParameter Optional<Integer> minimumPatientAge,
@@ -135,12 +136,13 @@ public class ReportingResource {
 													@Nonnull @QueryParameter Optional<List<RaceId>> patientRaceId,
 													@Nonnull @QueryParameter Optional<List<GenderIdentityId>> patientGenderIdentityId,
 													@Nonnull @QueryParameter Optional<List<UUID>> panelAccountId,
+													@Nonnull @QueryParameter Optional<UUID> groupSessionId,
 													@Nonnull @QueryParameter Optional<ZoneId> timeZone,
 													@Nonnull @QueryParameter Optional<Locale> locale,
 													@Nonnull HttpServletResponse httpServletResponse) throws IOException {
 		requireNonNull(reportTypeId);
-		requireNonNull(startDateTime);
-		requireNonNull(endDateTime);
+		requireNonNull(suppliedStartDateTime);
+		requireNonNull(suppliedEndDateTime);
 		requireNonNull(patientOrderInsurancePayorId);
 		requireNonNull(referringPracticeNames);
 		requireNonNull(minimumPatientAge);
@@ -148,6 +150,7 @@ public class ReportingResource {
 		requireNonNull(patientRaceId);
 		requireNonNull(patientGenderIdentityId);
 		requireNonNull(panelAccountId);
+		requireNonNull(groupSessionId);
 		requireNonNull(timeZone);
 		requireNonNull(locale);
 		requireNonNull(httpServletResponse);
@@ -157,11 +160,20 @@ public class ReportingResource {
 		if (!getAuthorizationService().canViewReportTypeId(account, reportTypeId))
 			throw new AuthorizationException();
 
+		LocalDateTime startDateTime = suppliedStartDateTime.orElse(null);
+		LocalDateTime endDateTime = suppliedEndDateTime.orElse(null);
+
 		ZoneId reportTimeZone = timeZone.orElse(account.getTimeZone());
 		Locale reportLocale = locale.orElse(account.getLocale());
 
 		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", reportLocale);
-		String filename = format("Cobalt %s %s to %s.csv", reportTypeId.name(), dateTimeFormatter.format(startDateTime), dateTimeFormatter.format(endDateTime));
+		DateTimeFormatter instantFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd H:mm:ss")
+				.withLocale(reportLocale)
+				.withZone(reportTimeZone);
+
+		String filename = startDateTime != null & endDateTime != null ?
+				format("Cobalt %s %s to %s.csv", reportTypeId.name(), dateTimeFormatter.format(startDateTime), dateTimeFormatter.format(endDateTime))
+				: format("Cobalt %s on %s.csv", reportTypeId.name(), instantFormatter.format(Instant.now()));
 
 		httpServletResponse.setContentType("text/csv");
 		httpServletResponse.setHeader("Content-Encoding", "gzip");
@@ -183,6 +195,8 @@ public class ReportingResource {
 			else if (reportTypeId == ReportTypeId.IC_ASSESSMENT)
 				getReportingService().runIcAssessmentReportCsv(account.getInstitutionId(), startDateTime, endDateTime, patientOrderInsurancePayorId, referringPracticeNames, minimumPatientAge, maximumPatientAge, patientRaceId, patientGenderIdentityId,
 						reportTimeZone, reportLocale, printWriter);
+			else if (reportTypeId == ReportTypeId.GROUP_SESSION_RESERVATION_EMAILS)
+				getReportingService().runGroupSessionReservationEmailsReportCsv(groupSessionId.get(), reportTimeZone, reportLocale, printWriter);
 			else
 				throw new IllegalStateException(format("We don't support %s.%s yet", ReportTypeId.class.getSimpleName(), reportTypeId.name()));
 		}

@@ -21,7 +21,9 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.Color.ColorId;
+import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.db.TagGroup;
+import com.cobaltplatform.api.service.TagService;
 import com.google.inject.Provider;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -29,6 +31,8 @@ import com.google.inject.assistedinject.AssistedInject;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
+
+import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
@@ -47,6 +51,8 @@ public class TagGroupApiResponse {
 	private final String urlName;
 	@Nonnull
 	private final String description;
+	@Nonnull
+	private final List<Tag> tags;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -57,15 +63,18 @@ public class TagGroupApiResponse {
 
 	@AssistedInject
 	public TagGroupApiResponse(@Nonnull Provider<CurrentContext> currentContextProvider,
-														 @Assisted @Nonnull TagGroup tagGroup) {
+														 @Assisted @Nonnull TagGroup tagGroup,
+														 @Nonnull TagService tagService) {
 		requireNonNull(currentContextProvider);
 		requireNonNull(tagGroup);
+		requireNonNull(tagService);
 
 		this.tagGroupId = tagGroup.getTagGroupId();
 		this.colorId = tagGroup.getColorId();
 		this.name = tagGroup.getName();
 		this.urlName = tagGroup.getUrlName();
 		this.description = tagGroup.getDescription();
+		this.tags = tagService.findTagsByTagGroupId(tagGroup.getTagGroupId());
 	}
 
 	@Nonnull
@@ -91,5 +100,10 @@ public class TagGroupApiResponse {
 	@Nonnull
 	public String getDescription() {
 		return this.description;
+	}
+
+	@Nonnull
+	public List<Tag> getTags() {
+		return tags;
 	}
 }

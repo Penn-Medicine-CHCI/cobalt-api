@@ -22,6 +22,9 @@ package com.cobaltplatform.api.util;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.Collections;
@@ -30,6 +33,7 @@ import java.util.Locale.IsoCountryCode;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import static java.lang.String.format;
 
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
@@ -88,6 +92,18 @@ public final class ValidationUtility {
 			return false;
 
 		return getEmailValidationPattern().matcher(value).matches();
+	}
+
+	@Nonnull
+	public static Boolean isValidUrlSubdirectory(@Nullable String value) {
+		try {
+			String urlValue = format("https://foo.com/%s", value);
+			URL url = new URL(urlValue);
+			url.toURI();
+			return true;
+		} catch (URISyntaxException | MalformedURLException e) {
+			return false;
+		}
 	}
 
 	@Nonnull

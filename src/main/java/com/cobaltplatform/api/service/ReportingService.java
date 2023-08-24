@@ -22,6 +22,7 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
+import com.cobaltplatform.api.model.db.GroupSessionReservation;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderConsentStatus;
@@ -41,8 +42,6 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static java.lang.String.format;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -65,8 +64,11 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
-import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;;
+
+;
 
 /**
  * @author Transmogrify, LLC.
@@ -76,6 +78,8 @@ import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
 public class ReportingService {
 	@Nonnull
 	private final Provider<AccountService> accountServiceProvider;
+	@Nonnull
+	private final Provider<GroupSessionService> groupSessionServiceProvider;
 	@Nonnull
 	private final Database database;
 	@Nonnull
@@ -89,17 +93,20 @@ public class ReportingService {
 
 	@Inject
 	public ReportingService(@Nonnull Provider<AccountService> accountServiceProvider,
+													@Nonnull Provider<GroupSessionService> groupSessionServiceProvider,
 													@Nonnull Database database,
 													@Nonnull Strings strings,
 													@Nonnull Formatter formatter,
 													@Nonnull Configuration configuration) {
 		requireNonNull(accountServiceProvider);
+		requireNonNull(groupSessionServiceProvider);
 		requireNonNull(database);
 		requireNonNull(strings);
 		requireNonNull(formatter);
 		requireNonNull(configuration);
 
 		this.accountServiceProvider = accountServiceProvider;
+		this.groupSessionServiceProvider = groupSessionServiceProvider;
 		this.database = database;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -542,7 +549,7 @@ public class ReportingService {
 			Integer totalStartedScreenings = inProgressScreeningCount + completedScreeningCount;
 			csvPrinter.printRecord("Abandonment Rate", getFormatter().formatPercent(totalStartedScreenings > 0 ?
 					((double) inProgressScreeningCount / totalStartedScreenings) : 0));
-			csvPrinter.printRecord("Completion Rate",  getFormatter().formatPercent(totalStartedScreenings > 0 ?
+			csvPrinter.printRecord("Completion Rate", getFormatter().formatPercent(totalStartedScreenings > 0 ?
 					((double) completedScreeningCount / totalStartedScreenings) : 0));
 			csvPrinter.printRecord("Triaged to Subclinical", Integer.toString(patientOrders.stream().filter(it -> it.getPatientOrderTriageStatusId() ==
 					PatientOrderTriageStatusId.SUBCLINICAL).collect(Collectors.toList()).size()));
@@ -782,6 +789,45 @@ public class ReportingService {
 				}
 			} else
 				csvPrinter.printRecord("No matching assessment data");
+
+			csvPrinter.flush();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+
+	public void runGroupSessionReservationEmailsReportCsv(@Nonnull UUID groupSessionId,
+																												@Nonnull ZoneId reportTimeZone,
+																												@Nonnull Locale reportLocale,
+																												@Nonnull Writer writer) {
+		requireNonNull(groupSessionId);
+		requireNonNull(reportTimeZone);
+		requireNonNull(reportLocale);
+		requireNonNull(writer);
+
+		List<GroupSessionReservation> groupSessionReservations = getGroupSessionService().findGroupSessionReservationsByGroupSessionId(groupSessionId);
+
+		DateTimeFormatter instantFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd H:mm:ss")
+				.withLocale(reportLocale)
+				.withZone(reportTimeZone);
+
+		List<String> headerColumns = List.of(
+				getStrings().get("Group Session Reservation ID"),
+				getStrings().get("Email Address"),
+				getStrings().get("Reserved At")
+		);
+
+		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(headerColumns.toArray(new String[0])))) {
+			for (GroupSessionReservation groupSessionReservation : groupSessionReservations) {
+				List<String> recordElements = new ArrayList<>();
+
+				recordElements.add(groupSessionReservation.getGroupSessionReservationId().toString());
+				recordElements.add(groupSessionReservation.getEmailAddress());
+				recordElements.add(instantFormatter.format(groupSessionReservation.getCreated()));
+
+				csvPrinter.printRecord(recordElements.toArray(new Object[0]));
+			}
 
 			csvPrinter.flush();
 		} catch (IOException e) {
@@ -1104,6 +1150,11 @@ public class ReportingService {
 	@Nonnull
 	protected AccountService getAccountService() {
 		return this.accountServiceProvider.get();
+	}
+
+	@Nonnull
+	protected GroupSessionService getGroupSessionService() {
+		return this.groupSessionServiceProvider.get();
 	}
 
 	@Nonnull

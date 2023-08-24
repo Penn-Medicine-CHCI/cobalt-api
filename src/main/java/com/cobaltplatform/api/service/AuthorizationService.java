@@ -37,6 +37,7 @@ import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.ReportType.ReportTypeId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
+import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.TopicCenter;
 import com.cobaltplatform.api.model.security.AccountCapabilities;
@@ -470,6 +471,15 @@ public class AuthorizationService {
 			return true;
 
 		return false;
+	}
+
+	@Nonnull
+	public Boolean canViewScreeningFlow(@Nonnull Account account,
+																			@Nonnull ScreeningFlow screeningFlow) {
+		requireNonNull(account);
+		requireNonNull(screeningFlow);
+
+		return Objects.equals(account.getInstitutionId(), screeningFlow.getInstitutionId());
 	}
 
 	@Nonnull

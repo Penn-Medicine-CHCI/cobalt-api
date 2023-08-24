@@ -116,6 +116,9 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/108-ic-u
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/109-ic-updates.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/110-interaction-scheduling-updates.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/111-ic-updates.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/112-group-session-updates.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/113-epic-fhir-caching.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/114-institution-resources.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

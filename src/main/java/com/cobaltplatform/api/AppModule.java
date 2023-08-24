@@ -86,13 +86,19 @@ import com.cobaltplatform.api.model.api.response.FilterApiResponse.FilterApiResp
 import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupRequestApiResponse.GroupRequestApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.GroupSessionCollectionApiResponse.GroupSessionCollectionResponseFactory;
+import com.cobaltplatform.api.model.api.response.GroupSessionCollectionWithGroupSessionsApiResponse.GroupSessionCollectionWithGroupSessionsResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionRequestApiResponse.GroupSessionRequestApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionReservationApiResponse.GroupSessionReservationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionResponseApiResponse.GroupSessionResponseApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.GroupSessionSuggestionApiResponse.GroupSessionSuggestionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.GroupSessionUrlValidationResultApiResponse.GroupSessionAutocompleteResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupTopicApiResponse.GroupTopicApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionBlurbApiResponse.InstitutionBlurbApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionLocationApiResponse.InstitutionLocationApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.InstitutionResourceApiResponse.InstitutionResourceApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.InstitutionResourceGroupApiResponse.InstitutionResourceGroupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionTeamMemberApiResponse.InstitutionTeamMemberApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InteractionInstanceApiResponse.InteractionInstanceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InteractionOptionActionApiResponse.InteractionOptionActionApiResponseFactory;
@@ -120,6 +126,7 @@ import com.cobaltplatform.api.model.api.response.ScreeningAnswerApiResponse.Scre
 import com.cobaltplatform.api.model.api.response.ScreeningAnswerOptionApiResponse.ScreeningAnswerOptionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningApiResponse.ScreeningApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningConfirmationPromptApiResponse.ScreeningConfirmationPromptApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ScreeningFlowApiResponse.ScreeningFlowApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningFlowVersionApiResponse.ScreeningFlowVersionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningQuestionApiResponse.ScreeningQuestionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
@@ -290,7 +297,14 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(PatientOrderScheduledScreeningApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ScreeningTypeApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PatientOrderVoicemailTaskApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(GroupSessionCollectionResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ScreeningApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(ScreeningFlowApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(GroupSessionAutocompleteResultApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(GroupSessionCollectionWithGroupSessionsResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(GroupSessionSuggestionApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(InstitutionResourceGroupApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(InstitutionResourceApiResponseFactory.class)));
 	}
 
 	@Provides

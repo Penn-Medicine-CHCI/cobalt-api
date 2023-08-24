@@ -67,6 +67,8 @@ public class Institution {
 	@Nullable
 	private UUID groupSessionsScreeningFlowId;
 	@Nullable
+	private UUID groupSessionDefaultIntakeScreeningFlowId;
+	@Nullable
 	private UUID integratedCareScreeningFlowId;
 	@Nullable
 	private UUID integratedCareIntakeScreeningFlowId;
@@ -214,6 +216,12 @@ public class Institution {
 	private String clinicalSupportPhoneNumber;
 	@Nullable
 	private String integratedCareClinicalReportDisclaimer;
+	@Nullable
+	private Integer epicFhirAppointmentFindCacheExpirationInSeconds;
+	@Nullable
+	private String resourceGroupsTitle;
+	@Nullable
+	private String resourceGroupsDescription;
 
 	public enum InstitutionId {
 		COBALT,
@@ -379,6 +387,15 @@ public class Institution {
 
 	public void setGroupSessionsScreeningFlowId(@Nullable UUID groupSessionsScreeningFlowId) {
 		this.groupSessionsScreeningFlowId = groupSessionsScreeningFlowId;
+	}
+
+	@Nullable
+	public UUID getGroupSessionDefaultIntakeScreeningFlowId() {
+		return this.groupSessionDefaultIntakeScreeningFlowId;
+	}
+
+	public void setGroupSessionDefaultIntakeScreeningFlowId(@Nullable UUID groupSessionDefaultIntakeScreeningFlowId) {
+		this.groupSessionDefaultIntakeScreeningFlowId = groupSessionDefaultIntakeScreeningFlowId;
 	}
 
 	@Nullable
@@ -984,5 +1001,32 @@ public class Institution {
 
 	public void setIntegratedCareClinicalReportDisclaimer(@Nullable String integratedCareClinicalReportDisclaimer) {
 		this.integratedCareClinicalReportDisclaimer = integratedCareClinicalReportDisclaimer;
+	}
+
+	@Nullable
+	public Integer getEpicFhirAppointmentFindCacheExpirationInSeconds() {
+		return this.epicFhirAppointmentFindCacheExpirationInSeconds;
+	}
+
+	public void setEpicFhirAppointmentFindCacheExpirationInSeconds(@Nullable Integer epicFhirAppointmentFindCacheExpirationInSeconds) {
+		this.epicFhirAppointmentFindCacheExpirationInSeconds = epicFhirAppointmentFindCacheExpirationInSeconds;
+	}
+
+	@Nullable
+	public String getResourceGroupsTitle() {
+		return this.resourceGroupsTitle;
+	}
+
+	public void setResourceGroupsTitle(@Nullable String resourceGroupsTitle) {
+		this.resourceGroupsTitle = resourceGroupsTitle;
+	}
+
+	@Nullable
+	public String getResourceGroupsDescription() {
+		return this.resourceGroupsDescription;
+	}
+
+	public void setResourceGroupsDescription(@Nullable String resourceGroupsDescription) {
+		this.resourceGroupsDescription = resourceGroupsDescription;
 	}
 }

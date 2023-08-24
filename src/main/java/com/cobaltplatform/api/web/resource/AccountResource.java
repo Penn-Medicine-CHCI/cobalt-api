@@ -75,6 +75,7 @@ import com.cobaltplatform.api.model.db.BetaFeatureAlert;
 import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.Feature;
+import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionRequest;
 import com.cobaltplatform.api.model.db.GroupSessionRequestStatus.GroupSessionRequestStatusId;
@@ -86,6 +87,7 @@ import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
+import com.cobaltplatform.api.model.service.FeatureForInstitution;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.ActivityTrackingService;
 import com.cobaltplatform.api.service.AppointmentService;
@@ -135,6 +137,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -451,11 +454,8 @@ public class AccountResource {
 		List<GroupSession> groupSessions = new ArrayList<>(getGroupSessionService().findGroupSessions(new FindGroupSessionsRequest() {{
 			setGroupSessionStatusId(GroupSessionStatusId.ADDED);
 			setInstitutionId(account.getInstitutionId());
+			setOrderBy(OrderBy.START_TIME_DESCENDING);
 		}}).getResults());
-
-		Collections.sort(groupSessions, (groupSession1, groupSession2) -> {
-			return groupSession1.getStartDateTime().compareTo(groupSession2.getStartDateTime());
-		});
 
 		// Don't show too many events
 		if (groupSessions.size() > MAXIMUM_GROUP_SESSIONS)
@@ -865,9 +865,16 @@ public class AccountResource {
 		if (mostRecentCompletedProviderTriageScreeningSession != null)
 			features = getFeatureService().findFeaturesRecommendedForScreeningSessionId(mostRecentCompletedProviderTriageScreeningSession.getScreeningSessionId());
 
-		return new ApiResponse(Map.of("features", features.stream()
-				.map(feature -> getFeatureApiResponseFactory().create(feature))
-				.collect(Collectors.toList())));
+		Account account = getAccountService().findAccountById(accountId).get();
+		Map<FeatureId, FeatureForInstitution> featuresForInstitutionByFeatureId = getInstitutionService().findFeaturesByInstitutionId(institution, account).stream()
+				.collect(Collectors.toMap(FeatureForInstitution::getFeatureId, Function.identity()));
+
+		List<FeatureForInstitution> featuresForInstitution = features.stream()
+				.map(feature -> featuresForInstitutionByFeatureId.get(feature.getFeatureId()))
+				.filter(featureForInstitution -> featureForInstitution != null)
+				.collect(Collectors.toList());
+
+		return new ApiResponse(Map.of("features", featuresForInstitution));
 	}
 
 	@Nonnull

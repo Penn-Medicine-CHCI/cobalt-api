@@ -24,6 +24,7 @@ import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.messaging.call.CallMessage;
 import com.cobaltplatform.api.messaging.call.CallMessageTemplate;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
+import com.cobaltplatform.api.model.api.request.CreateGroupSessionReservationRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderTriageGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderTriageGroupRequest.CreatePatientOrderTriageRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest;
@@ -37,6 +38,7 @@ import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
+import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
@@ -57,6 +59,7 @@ import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTria
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Screening;
 import com.cobaltplatform.api.model.db.ScreeningAnswer;
+import com.cobaltplatform.api.model.db.ScreeningAnswerContentHint.ScreeningAnswerContentHintId;
 import com.cobaltplatform.api.model.db.ScreeningAnswerFormat.ScreeningAnswerFormatId;
 import com.cobaltplatform.api.model.db.ScreeningAnswerOption;
 import com.cobaltplatform.api.model.db.ScreeningConfirmationPrompt;
@@ -78,6 +81,7 @@ import com.cobaltplatform.api.model.service.ScreeningQuestionWithAnswerOptions;
 import com.cobaltplatform.api.model.service.ScreeningScore;
 import com.cobaltplatform.api.model.service.ScreeningSessionDestination;
 import com.cobaltplatform.api.model.service.ScreeningSessionDestination.ScreeningSessionDestinationId;
+import com.cobaltplatform.api.model.service.ScreeningSessionDestinationResultId;
 import com.cobaltplatform.api.model.service.ScreeningSessionResult;
 import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningAnswerResult;
 import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningQuestionResult;
@@ -140,6 +144,8 @@ public class ScreeningService {
 	@Nonnull
 	private final Provider<PatientOrderService> patientOrderServiceProvider;
 	@Nonnull
+	private final Provider<GroupSessionService> groupSessionServiceProvider;
+	@Nonnull
 	private final Provider<AuthorizationService> authorizationServiceProvider;
 	@Nonnull
 	private final Provider<MessageService> messageServiceProvider;
@@ -165,6 +171,7 @@ public class ScreeningService {
 													@Nonnull Provider<InteractionService> interactionServiceProvider,
 													@Nonnull Provider<AccountService> accountServiceProvider,
 													@Nonnull Provider<PatientOrderService> patientOrderServiceProvider,
+													@Nonnull Provider<GroupSessionService> groupSessionServiceProvider,
 													@Nonnull Provider<AuthorizationService> authorizationServiceProvider,
 													@Nonnull Provider<MessageService> messageServiceProvider,
 													@Nonnull ScreeningConfirmationPromptApiResponseFactory screeningConfirmationPromptApiResponseFactory,
@@ -178,6 +185,7 @@ public class ScreeningService {
 		requireNonNull(interactionServiceProvider);
 		requireNonNull(accountServiceProvider);
 		requireNonNull(patientOrderServiceProvider);
+		requireNonNull(groupSessionServiceProvider);
 		requireNonNull(authorizationServiceProvider);
 		requireNonNull(messageServiceProvider);
 		requireNonNull(screeningConfirmationPromptApiResponseFactory);
@@ -192,6 +200,7 @@ public class ScreeningService {
 		this.interactionServiceProvider = interactionServiceProvider;
 		this.accountServiceProvider = accountServiceProvider;
 		this.patientOrderServiceProvider = patientOrderServiceProvider;
+		this.groupSessionServiceProvider = groupSessionServiceProvider;
 		this.authorizationServiceProvider = authorizationServiceProvider;
 		this.messageServiceProvider = messageServiceProvider;
 		this.screeningConfirmationPromptApiResponseFactory = screeningConfirmationPromptApiResponseFactory;
@@ -265,6 +274,26 @@ public class ScreeningService {
 
 		return getDatabase().queryForObject("SELECT * FROM screening_flow_version WHERE screening_flow_version_id=?",
 				ScreeningFlowVersion.class, screeningFlowVersionId);
+	}
+
+	@Nonnull
+	public List<ScreeningQuestion> findInitialScreeningQuestionsByScreeningFlowVersionId(@Nullable UUID screeningFlowVersionId) {
+		if (screeningFlowVersionId == null)
+			return List.of();
+
+		// We don't currently have a mechanism to know up-front all possible screenings that might be part of a screening flow version,
+		// so for now we just take the questions in the initial screening.
+		//
+		// In general, while we could maintain a list of possible screening per screening flow version, we would not be able
+		// to reliably store off things like question ordering because flows support arbitrary branching
+		return getDatabase().queryForList("""
+				SELECT sq.*
+				FROM screening_question sq, screening s, screening_flow_version sfv
+				WHERE sq.screening_version_id=s.active_screening_version_id
+				AND s.screening_id=sfv.initial_screening_id
+				AND sfv.screening_flow_version_id=?
+				ORDER BY sq.display_order
+				""", ScreeningQuestion.class, screeningFlowVersionId);
 	}
 
 	@Nonnull
@@ -446,6 +475,22 @@ public class ScreeningService {
 	}
 
 	@Nonnull
+	public List<ScreeningFlow> findScreeningFlowsByInstitutionIdAndScreeningFlowTypeId(@Nullable InstitutionId institutionId,
+																																										 @Nullable ScreeningFlowTypeId screeningFlowTypeId) {
+		if (institutionId == null || screeningFlowTypeId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+						SELECT *
+						FROM screening_flow
+						WHERE institution_id=?
+						AND screening_flow_type_id=?
+						ORDER BY name
+						""",
+				ScreeningFlow.class, institutionId, screeningFlowTypeId);
+	}
+
+	@Nonnull
 	public List<ScreeningType> findScreeningTypes() {
 		return getDatabase().queryForList("SELECT * FROM screening_type ORDER BY description", ScreeningType.class);
 	}
@@ -602,6 +647,7 @@ public class ScreeningService {
 		UUID screeningFlowId = request.getScreeningFlowId();
 		UUID screeningFlowVersionId = request.getScreeningFlowVersionId();
 		UUID patientOrderId = request.getPatientOrderId();
+		UUID groupSessionId = request.getGroupSessionId();
 		ScreeningFlowVersion screeningFlowVersion = null;
 		Account targetAccount = null;
 		Account createdByAccount = null;
@@ -623,10 +669,17 @@ public class ScreeningService {
 		} else {
 			ScreeningFlow screeningFlow = findScreeningFlowById(screeningFlowId).orElse(null);
 
-			if (screeningFlow == null)
+			if (screeningFlow == null) {
 				validationException.add(new FieldError("screeningFlowId", getStrings().get("Screening flow ID is invalid.")));
-			else
+			} else {
 				screeningFlowVersion = findScreeningFlowVersionById(screeningFlow.getActiveScreeningFlowVersionId()).get();
+
+				if (screeningFlow.getScreeningFlowTypeId() == ScreeningFlowTypeId.GROUP_SESSION_INTAKE && groupSessionId == null)
+					validationException.add(new FieldError("groupSessionId", getStrings().get("Group Session ID is required for this type of screening flow.")));
+				else if (screeningFlow.getScreeningFlowTypeId() != ScreeningFlowTypeId.GROUP_SESSION_INTAKE && groupSessionId != null)
+					throw new IllegalStateException(format("It's illegal to specify a Group Session ID for %s.%s",
+							ScreeningFlowTypeId.class.getSimpleName(), screeningFlow.getScreeningFlowTypeId().name()));
+			}
 		}
 
 		if (createdByAccountId == null) {
@@ -682,9 +735,9 @@ public class ScreeningService {
 			throw validationException;
 
 		getDatabase().execute("""
-				INSERT INTO screening_session(screening_session_id, screening_flow_version_id, target_account_id, created_by_account_id, patient_order_id)
-				VALUES (?,?,?,?,?)
-				""", screeningSessionId, screeningFlowVersion.getScreeningFlowVersionId(), targetAccountId, createdByAccountId, patientOrderId);
+				INSERT INTO screening_session(screening_session_id, screening_flow_version_id, target_account_id, created_by_account_id, patient_order_id, group_session_id)
+				VALUES (?,?,?,?,?,?)
+				""", screeningSessionId, screeningFlowVersion.getScreeningFlowVersionId(), targetAccountId, createdByAccountId, patientOrderId, groupSessionId);
 
 		// If we're immediately skipping, mark this session as completed/skipped and do nothing else.
 		// If we're not immediately skipping, create an initial screening session screening
@@ -1730,6 +1783,7 @@ public class ScreeningService {
 
 		ScreeningSessionDestinationId screeningSessionDestinationId = destinationFunctionOutput.getScreeningSessionDestinationId();
 		Map<String, Object> context = destinationFunctionOutput.getContext() == null ? new HashMap<>() : new HashMap<>(destinationFunctionOutput.getContext());
+		ScreeningSessionDestination screeningSessionDestination = new ScreeningSessionDestination(screeningSessionDestinationId, context);
 
 		if (withSideEffects) {
 			// Special handling for IC intake screening flow; create the clinical screening flow immediately after completing and
@@ -1755,6 +1809,39 @@ public class ScreeningService {
 
 				ScreeningQuestionContextId nextScreeningQuestionContextId = nextScreeningQuestionContext.getScreeningQuestionContextId();
 				context.put("nextScreeningQuestionContextId", nextScreeningQuestionContextId);
+			} else if (screeningSession.getGroupSessionId() != null
+					&& screeningSessionDestination.getScreeningSessionDestinationResultId() == ScreeningSessionDestinationResultId.SUCCESS) {
+				// Special handling for group session intake screening flows when they succeed - book a reservation.
+				// Walk all of the answers to the intake and pick out the answer that's for an email-address question.
+				// We assume it's programmer error to specify a group session intake that does not have exactly one email address question
+				String emailAddress = null;
+				ScreeningSessionResult screeningSessionResult = findScreeningSessionResult(screeningSession).get();
+
+				for (ScreeningSessionScreeningResult screeningSessionScreeningResult : screeningSessionResult.getScreeningSessionScreeningResults()) {
+					for (ScreeningQuestionResult screeningQuestionResult : screeningSessionScreeningResult.getScreeningQuestionResults()) {
+						if (screeningQuestionResult.getScreeningAnswerFormatId() == ScreeningAnswerFormatId.FREEFORM_TEXT
+								&& screeningQuestionResult.getScreeningAnswerContentHintId() == ScreeningAnswerContentHintId.EMAIL_ADDRESS) {
+							for (ScreeningAnswerResult screeningAnswerResult : screeningQuestionResult.getScreeningAnswerResults()) {
+								if (emailAddress != null)
+									throw new IllegalStateException(format("There are multiple answers that provide an email address for group session ID %s intake (screening session ID %s), not sure which one to use.",
+											screeningSession.getGroupSessionId(), screeningSession.getScreeningSessionId()));
+
+								emailAddress = screeningAnswerResult.getText();
+							}
+						}
+					}
+				}
+
+				if (emailAddress == null)
+					throw new IllegalStateException(format("There is no answer that provides an email address for group session ID %s intake (screening session ID %s).",
+							screeningSession.getGroupSessionId(), screeningSession.getScreeningSessionId()));
+
+				CreateGroupSessionReservationRequest request = new CreateGroupSessionReservationRequest();
+				request.setAccountId(createdByAccount.getAccountId());
+				request.setGroupSessionId(screeningSession.getGroupSessionId());
+				request.setEmailAddress(emailAddress);
+
+				getGroupSessionService().createGroupSessionReservation(request, createdByAccount);
 			}
 		}
 
@@ -1884,7 +1971,7 @@ public class ScreeningService {
 			throw new IllegalStateException("Screening flow orchestration function must provide a 'completed' value in output");
 
 		if (orchestrationFunctionOutput.getCrisisIndicated() == null)
-			throw new IllegalStateException("Screening flow orchestration function must provide a 'crisisIndicated' value in output");
+			orchestrationFunctionOutput.setCrisisIndicated(false);
 
 		if (orchestrationFunctionOutput.getCompleted() && orchestrationFunctionOutput.getNextScreeningId() != null)
 			throw new IllegalStateException(format("Screening flow orchestration function output says this screening session is completed, but also provides a nonnull 'nextScreeningId' value"));
@@ -2123,6 +2210,11 @@ public class ScreeningService {
 		context.put("selfAdministered", selfAdministered);
 		context.put("additionalContext", additionalContext == null ? Map.of() : additionalContext);
 
+		if(screeningSession.getGroupSessionId() != null) {
+			GroupSession groupSession = getGroupSessionService().findGroupSessionById(screeningSession.getGroupSessionId(), institutionId).get();
+			context.put("groupSession", groupSession);
+		}
+
 		try {
 			screeningFlowFunctionResult = getJavascriptExecutor().execute(screeningFlowFunctionJavascript, context, screeningFlowFunctionResultType);
 		} catch (JavascriptExecutionException e) {
@@ -2220,6 +2312,8 @@ public class ScreeningService {
 
 						ScreeningQuestionResult screeningQuestionResult = new ScreeningQuestionResult();
 						screeningQuestionResult.setScreeningQuestionId(screeningQuestion.getScreeningQuestionId());
+						screeningQuestionResult.setScreeningAnswerFormatId(screeningQuestion.getScreeningAnswerFormatId());
+						screeningQuestionResult.setScreeningAnswerContentHintId(screeningQuestion.getScreeningAnswerContentHintId());
 						screeningQuestionResult.setScreeningQuestionIntroText(screeningQuestion.getIntroText());
 						screeningQuestionResult.setScreeningQuestionText(screeningQuestion.getQuestionText());
 						screeningQuestionResult.setScreeningAnswerResults(screeningAnswerResults);
@@ -2669,6 +2763,11 @@ public class ScreeningService {
 	@Nonnull
 	protected PatientOrderService getPatientOrderService() {
 		return this.patientOrderServiceProvider.get();
+	}
+
+	@Nonnull
+	protected GroupSessionService getGroupSessionService() {
+		return this.groupSessionServiceProvider.get();
 	}
 
 	@Nonnull

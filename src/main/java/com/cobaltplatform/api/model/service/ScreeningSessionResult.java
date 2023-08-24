@@ -19,6 +19,10 @@
 
 package com.cobaltplatform.api.model.service;
 
+import com.cobaltplatform.api.model.db.ScreeningAnswerContentHint;
+import com.cobaltplatform.api.model.db.ScreeningAnswerContentHint.ScreeningAnswerContentHintId;
+import com.cobaltplatform.api.model.db.ScreeningAnswerFormat;
+import com.cobaltplatform.api.model.db.ScreeningAnswerFormat.ScreeningAnswerFormatId;
 import com.cobaltplatform.api.model.db.ScreeningType.ScreeningTypeId;
 
 import javax.annotation.Nullable;
@@ -47,6 +51,10 @@ public class ScreeningSessionResult {
 		@Nullable
 		private UUID screeningQuestionId;
 		@Nullable
+		private ScreeningAnswerFormatId screeningAnswerFormatId;
+		@Nullable
+		private ScreeningAnswerContentHintId screeningAnswerContentHintId;
+		@Nullable
 		private String screeningQuestionIntroText;
 		@Nullable
 		private String screeningQuestionText;
@@ -60,6 +68,24 @@ public class ScreeningSessionResult {
 
 		public void setScreeningQuestionId(@Nullable UUID screeningQuestionId) {
 			this.screeningQuestionId = screeningQuestionId;
+		}
+
+		@Nullable
+		public ScreeningAnswerFormatId getScreeningAnswerFormatId() {
+			return this.screeningAnswerFormatId;
+		}
+
+		public void setScreeningAnswerFormatId(@Nullable ScreeningAnswerFormatId screeningAnswerFormatId) {
+			this.screeningAnswerFormatId = screeningAnswerFormatId;
+		}
+
+		@Nullable
+		public ScreeningAnswerContentHintId getScreeningAnswerContentHintId() {
+			return this.screeningAnswerContentHintId;
+		}
+
+		public void setScreeningAnswerContentHintId(@Nullable ScreeningAnswerContentHintId screeningAnswerContentHintId) {
+			this.screeningAnswerContentHintId = screeningAnswerContentHintId;
 		}
 
 		@Nullable

@@ -51,6 +51,8 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
 import com.cobaltplatform.api.model.db.FontSize.FontSizeId;
 import com.cobaltplatform.api.model.db.GroupSession;
+import com.cobaltplatform.api.model.db.GroupSessionCollection;
+import com.cobaltplatform.api.model.db.GroupSessionLearnMoreMethod.GroupSessionLearnMoreMethodId;
 import com.cobaltplatform.api.model.db.GroupSessionRequest;
 import com.cobaltplatform.api.model.db.GroupSessionRequestStatus;
 import com.cobaltplatform.api.model.db.GroupSessionRequestStatus.GroupSessionRequestStatusId;
@@ -64,10 +66,14 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Question;
 import com.cobaltplatform.api.model.db.QuestionType.QuestionTypeId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
+import com.cobaltplatform.api.model.db.ScreeningFlow;
+import com.cobaltplatform.api.model.db.Tag;
+import com.cobaltplatform.api.model.db.TagGroupSession;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.GroupSessionRequestWithTotalCount;
 import com.cobaltplatform.api.model.service.GroupSessionStatusWithCount;
+import com.cobaltplatform.api.model.service.GroupSessionUrlValidationResult;
 import com.cobaltplatform.api.model.service.GroupSessionWithTotalCount;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.LinkGenerator;
@@ -76,6 +82,7 @@ import com.cobaltplatform.api.util.UploadManager;
 import com.cobaltplatform.api.util.UploadManager.PresignedUpload;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.cobaltplatform.api.util.ValidationUtility;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -108,12 +115,14 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidEmailAddress;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidUrl;
+import static com.cobaltplatform.api.util.ValidationUtility.isValidUrlSubdirectory;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
@@ -138,6 +147,10 @@ public class GroupSessionService implements AutoCloseable {
 	private final Provider<MessageService> messageServiceProvider;
 	@Nonnull
 	private final Provider<BackgroundSyncTask> backgroundSyncTaskProvider;
+	@Nullable
+	private final ScreeningService screeningService;
+	@Nullable
+	private final TagService tagService;
 	@Nonnull
 	private final Database database;
 	@Nonnull
@@ -176,6 +189,8 @@ public class GroupSessionService implements AutoCloseable {
 														 @Nonnull Provider<InstitutionService> institutionServiceProvider,
 														 @Nonnull Provider<MessageService> messageServiceProvider,
 														 @Nonnull Provider<BackgroundSyncTask> backgroundSyncTaskProvider,
+														 @Nonnull ScreeningService screeningService,
+														 @Nonnull TagService tagService,
 														 @Nonnull Database database,
 														 @Nonnull UploadManager uploadManager,
 														 @Nonnull LinkGenerator linkGenerator,
@@ -188,6 +203,8 @@ public class GroupSessionService implements AutoCloseable {
 		requireNonNull(accountServiceProvider);
 		requireNonNull(institutionServiceProvider);
 		requireNonNull(messageServiceProvider);
+		requireNonNull(screeningService);
+		requireNonNull(tagService);
 		requireNonNull(backgroundSyncTaskProvider);
 		requireNonNull(database);
 		requireNonNull(uploadManager);
@@ -202,6 +219,8 @@ public class GroupSessionService implements AutoCloseable {
 		this.accountServiceProvider = accountServiceProvider;
 		this.institutionServiceProvider = institutionServiceProvider;
 		this.messageServiceProvider = messageServiceProvider;
+		this.screeningService = screeningService;
+		this.tagService = tagService;
 		this.backgroundSyncTaskProvider = backgroundSyncTaskProvider;
 		this.database = database;
 		this.uploadManager = uploadManager;
@@ -280,7 +299,10 @@ public class GroupSessionService implements AutoCloseable {
 		InstitutionId institutionId = request.getInstitutionId();
 		Account account = request.getAccount();
 		FindGroupSessionsRequest.FilterBehavior filterBehavior = request.getFilterBehavior() == null ? FindGroupSessionsRequest.FilterBehavior.DEFAULT : request.getFilterBehavior();
-		FindGroupSessionsRequest.OrderBy orderBy = request.getOrderBy() == null ? FindGroupSessionsRequest.OrderBy.START_TIME_ASCENDING : request.getOrderBy();
+		FindGroupSessionsRequest.OrderBy orderBy = request.getOrderBy() == null ? FindGroupSessionsRequest.OrderBy.START_TIME_DESCENDING : request.getOrderBy();
+		UUID groupSessionCollectionId = request.getGroupSessionCollectionId();
+		GroupSessionSchedulingSystemId groupSessionSchedulingSystemId = request.getGroupSessionSchedulingSystemId();
+		Boolean visibleFlag = request.getVisibleFlag();
 
 		List<Object> parameters = new ArrayList<>();
 
@@ -293,7 +315,7 @@ public class GroupSessionService implements AutoCloseable {
 		if (pageSize > getGroupSessionMaximumPageSize())
 			pageSize = getGroupSessionMaximumPageSize();
 
-		StringBuilder sql = new StringBuilder("SELECT gs.*, COUNT(gs.*) OVER() AS total_count " +
+		StringBuilder sql = new StringBuilder("SELECT gs.*, COUNT(gs.group_session_id) OVER() AS total_count " +
 				"FROM v_group_session gs WHERE 1=1 ");
 
 		if (institutionId != null) {
@@ -329,12 +351,40 @@ public class GroupSessionService implements AutoCloseable {
 			parameters.add(getNormalizer().normalizeEmailAddress(account.getEmailAddress()).orElse(null));
 		}
 
+		if (visibleFlag != null)
+			if (visibleFlag == true)
+				sql.append("AND gs.visible_flag = TRUE ");
+			else
+				sql.append("AND gs.visible_flag = FALSE ");
+
+		if (groupSessionCollectionId != null) {
+			sql.append("AND group_session_collection_id = ? ");
+			parameters.add(groupSessionCollectionId);
+		}
+
+		if (groupSessionSchedulingSystemId != null) {
+			sql.append("AND group_session_scheduling_system_id = ? ");
+			parameters.add(groupSessionSchedulingSystemId);
+		}
+
 		sql.append("ORDER BY ");
 
 		if (orderBy == FindGroupSessionsRequest.OrderBy.START_TIME_ASCENDING)
 			sql.append("gs.start_date_time ASC ");
 		else if (orderBy == FindGroupSessionsRequest.OrderBy.START_TIME_DESCENDING)
-			sql.append("gs.start_date_time DESC ");
+			sql.append("gs.start_date_time DESC NULLS LAST ");
+		else if (orderBy == FindGroupSessionsRequest.OrderBy.CAPACITY_ASCENDING)
+			sql.append("gs.seats ASC ");
+		else if (orderBy == FindGroupSessionsRequest.OrderBy.CAPACITY_DESCENDING)
+			sql.append("gs.seats DESC NULLS LAST ");
+		else if (orderBy == FindGroupSessionsRequest.OrderBy.DATE_ADDED_ASCENDING)
+			sql.append("gs.created ASC ");
+		else if (orderBy == FindGroupSessionsRequest.OrderBy.DATE_ADDED_DESCENDING)
+			sql.append("gs.created DESC NULLS LAST ");
+		else if (orderBy == FindGroupSessionsRequest.OrderBy.REGISTERED_ASCENDING)
+			sql.append("gs.seats_reserved ASC ");
+		else if (orderBy == FindGroupSessionsRequest.OrderBy.REGISTERED_DESCENDING)
+			sql.append("gs.seats_reserved DESC NULLS LAST ");
 		else
 			throw new IllegalArgumentException(format("Unsure what to do with %s.%s", FindGroupSessionsRequest.OrderBy.class.getSimpleName(), orderBy.name()));
 
@@ -417,12 +467,50 @@ public class GroupSessionService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public Optional<GroupSession> findGroupSessionById(@Nullable UUID groupSessionId) {
-		if (groupSessionId == null)
+	public Optional<GroupSession> findGroupSessionById(@Nullable Object groupSessionIdentifier,
+																										 @Nullable Account account) {
+		if (groupSessionIdentifier == null || account == null)
 			return Optional.empty();
 
-		return getDatabase().queryForObject("SELECT * FROM v_group_session WHERE group_session_id=?",
-				GroupSession.class, groupSessionId);
+		return findGroupSessionById(groupSessionIdentifier, account.getInstitutionId());
+	}
+
+	@Nonnull
+	public Optional<GroupSession> findGroupSessionById(@Nullable Object groupSessionIdentifier,
+																										 @Nullable InstitutionId institutionId) {
+		if (groupSessionIdentifier == null || institutionId == null)
+			return Optional.empty();
+		GroupSession groupSession = null;
+		UUID groupSessionId = null;
+
+		if (groupSessionIdentifier instanceof UUID)
+			groupSessionId = (UUID) groupSessionIdentifier;
+		else if (groupSessionIdentifier instanceof String && ValidationUtility.isValidUUID((String) groupSessionIdentifier))
+			groupSessionId = UUID.fromString((String) groupSessionIdentifier);
+
+		if (groupSessionId != null) {
+			groupSession = getDatabase().queryForObject("""
+							SELECT *
+							FROM v_group_session
+							WHERE group_session_id=?
+							""",
+					GroupSession.class, groupSessionId).orElse(null);
+		} else if (groupSessionIdentifier instanceof String) {
+			groupSession = getDatabase().queryForObject("""
+							SELECT *
+							FROM v_group_session
+							WHERE url_name=?
+							AND institution_id=?
+							""",
+					GroupSession.class, groupSessionIdentifier, institutionId).orElse(null);
+		}
+
+		if (groupSession == null)
+			return Optional.empty();
+
+		applyTagsToGroupSession(groupSession, institutionId);
+
+		return Optional.of(groupSession);
 	}
 
 	@Nonnull
@@ -435,14 +523,79 @@ public class GroupSessionService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public UUID createGroupSession(@Nonnull CreateGroupSessionRequest request) {
+	public UUID duplicateGroupSession(@Nonnull UUID groupSessionId, @Nonnull Account account) {
+		requireNonNull(groupSessionId);
+		requireNonNull(account);
+
+		ValidationException validationException = new ValidationException();
+		Integer dateOffset = 7;
+		UUID destinationGroupSessionId = UUID.randomUUID();
+
+		GroupSession sourceGroupSession = findGroupSessionById(groupSessionId, account).orElse(null);
+
+		if (sourceGroupSession == null)
+			validationException.add(new FieldError("groupSessionId", getStrings().get("Not a valid Group Session")));
+		else if (sourceGroupSession.getInstitutionId() != account.getInstitutionId())
+			validationException.add(new FieldError("groupSessionId", getStrings().get("Group Sessions from other Institutions cannot be duplicated")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		//If this is a Cobalt scheduled Group Session then adjust the start and end dates
+		if (sourceGroupSession.getGroupSessionSchedulingSystemId() == GroupSessionSchedulingSystemId.COBALT) {
+			sourceGroupSession.setStartDateTime(sourceGroupSession.getStartDateTime().plusDays(dateOffset));
+			sourceGroupSession.setEndDateTime(sourceGroupSession.getEndDateTime().plusDays(dateOffset));
+		}
+
+		GroupSessionUrlValidationResult groupSessionUrlValidationResult = findGroupSessionUrlValidationResults(sourceGroupSession.getUrlName(),
+				sourceGroupSession.getInstitutionId(), Optional.of(destinationGroupSessionId));
+
+		if (!groupSessionUrlValidationResult.getAvailable())
+			sourceGroupSession.setUrlName(groupSessionUrlValidationResult.getRecommendation());
+
+		getDatabase().execute("""
+						INSERT INTO group_session (group_session_id, institution_id,
+						group_session_status_id, title, description, submitter_account_id,
+						target_email_address, facilitator_account_id, facilitator_name, facilitator_email_address,
+						image_url, videoconference_url, start_date_time, end_date_time, seats, url_name,
+						confirmation_email_content, locale, time_zone, group_session_scheduling_system_id,
+						send_followup_email, followup_email_content, followup_email_survey_url,
+						group_session_collection_id, visible_flag, screening_flow_id, send_reminder_email, reminder_email_content,
+						followup_time_of_day, followup_day_offset, single_session_flag, date_time_description, group_session_learn_more_method_id, learn_more_description)
+						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						""",
+				destinationGroupSessionId, sourceGroupSession.getInstitutionId(), GroupSessionStatusId.NEW,
+				sourceGroupSession.getTitle(), sourceGroupSession.getDescription(), sourceGroupSession.getSubmitterAccountId(), sourceGroupSession.getTargetEmailAddress(),
+				sourceGroupSession.getFacilitatorAccountId(), sourceGroupSession.getFacilitatorName(), sourceGroupSession.getFacilitatorEmailAddress(),
+				sourceGroupSession.getImageUrl(), sourceGroupSession.getVideoconferenceUrl(), sourceGroupSession.getStartDateTime(), sourceGroupSession.getEndDateTime(),
+				sourceGroupSession.getSeats(), sourceGroupSession.getUrlName(), sourceGroupSession.getConfirmationEmailContent(),
+				sourceGroupSession.getLocale(), sourceGroupSession.getTimeZone(), sourceGroupSession.getGroupSessionSchedulingSystemId(),
+				sourceGroupSession.getSendFollowupEmail(), sourceGroupSession.getFollowupEmailContent(),
+				sourceGroupSession.getFollowupEmailSurveyUrl(), sourceGroupSession.getGroupSessionCollectionId(), sourceGroupSession.getVisibleFlag(),
+				sourceGroupSession.getScreeningFlowId(), sourceGroupSession.getSendReminderEmail(), sourceGroupSession.getReminderEmailContent(),
+				sourceGroupSession.getFollowupTimeOfDay(), sourceGroupSession.getFollowupDayOffset(), sourceGroupSession.getSingleSessionFlag(),
+				sourceGroupSession.getDateTimeDescription(), sourceGroupSession.getGroupSessionLearnMoreMethodId(), sourceGroupSession.getLearnMoreDescription());
+
+		getDatabase().execute("""
+				INSERT INTO tag_group_session (tag_group_session_id, tag_id, group_session_id, institution_id)
+				SELECT uuid_generate_v4(), tgs.tag_id, ?, institution_id
+				FROM tag_group_session tgs
+				WHERE tgs.group_session_id = ?
+				""", destinationGroupSessionId, sourceGroupSession.getGroupSessionId());
+
+		return destinationGroupSessionId;
+	}
+
+	@Nonnull
+	public UUID createGroupSession(@Nonnull CreateGroupSessionRequest request, @Nonnull Account account) {
 		requireNonNull(request);
+		requireNonNull(account);
 
 		InstitutionId institutionId = request.getInstitutionId();
 		GroupSessionSchedulingSystemId groupSessionSchedulingSystemId = request.getGroupSessionSchedulingSystemId();
 		String title = trimToNull(request.getTitle());
 		String description = trimToNull(request.getDescription());
-		String urlName = trimToNull(request.getUrlName());
+		String urlName = trimToNull(request.getUrlName().toLowerCase().replaceAll(" ", "-"));
 		UUID facilitatorAccountId = request.getFacilitatorAccountId();
 		String facilitatorName = trimToNull(request.getFacilitatorName());
 		String facilitatorEmailAddress = trimToNull(request.getFacilitatorEmailAddress());
@@ -454,16 +607,26 @@ public class GroupSessionService implements AutoCloseable {
 		Integer seats = request.getSeats();
 		String imageUrl = trimToNull(request.getImageUrl());
 		String videoconferenceUrl = trimToNull(request.getVideoconferenceUrl());
-		String scheduleUrl = trimToNull(request.getScheduleUrl());
 		List<CreateScreeningQuestionRequest> screeningQuestions = normalizeScreeningQuestions(request.getScreeningQuestions(), request.getScreeningQuestionsV2());
 		String confirmationEmailContent = trimToNull(request.getConfirmationEmailContent());
 		UUID submitterAccountId = request.getSubmitterAccountId();
-		String submitterName = trimToNull(request.getSubmitterName());
-		String submitterEmailAddress = trimToNull(request.getSubmitterEmailAddress());
 		String targetEmailAddress = trimToNull(request.getTargetEmailAddress());
 		Account submitterAccount = null;
 		Institution institution = null;
 		UUID groupSessionId = UUID.randomUUID();
+		UUID groupSessionCollectionId = request.getGroupSessionCollectionId();
+		Boolean visibleFlag = request.getVisibleFlag();
+		UUID screeningFlowId = request.getScreeningFlowId();
+		Boolean sendReminderEmail = request.getSendReminderEmail();
+		String reminderEmailContent = trimToNull(request.getReminderEmailContent());
+		LocalTime followupTimeOfDay = request.getFollowupTimeOfDay();
+		Integer followupDayOffset = request.getFollowupDayOffset();
+		Boolean singleSessionFlag = request.getSingleSessionFlag();
+		String dateTimeDescription = trimToNull(request.getDateTimeDescription());
+		Set<String> tagIds = request.getTagIds() == null ? Set.of() : request.getTagIds();
+		String learnMoreDescription = trimToNull(request.getLearnMoreDescription());
+		GroupSessionLearnMoreMethodId groupSessionLearnMoreMethodId = request.getGroupSessionLearnMoreMethodId();
+		Boolean differentEmailAddressForNotifications = request.getDifferentEmailAddressForNotifications();
 
 		ValidationException validationException = new ValidationException();
 
@@ -472,6 +635,20 @@ public class GroupSessionService implements AutoCloseable {
 
 		if (sendFollowupEmail == null)
 			sendFollowupEmail = false;
+
+		if (sendReminderEmail == null)
+			sendReminderEmail = false;
+
+		if (visibleFlag == null)
+			visibleFlag = true;
+
+		if (singleSessionFlag == null)
+			singleSessionFlag = true;
+
+		if (!differentEmailAddressForNotifications)
+			targetEmailAddress = facilitatorEmailAddress;
+		else if (targetEmailAddress == null)
+			validationException.add(new FieldError("targetEmailAddress", getStrings().get("Notification email is required.")));
 
 		if (institutionId == null) {
 			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
@@ -491,19 +668,6 @@ public class GroupSessionService implements AutoCloseable {
 				validationException.add(new FieldError("submitterAccountId", getStrings().get("Invalid submitter account.")));
 		}
 
-		if (submitterName == null)
-			validationException.add(new FieldError("submitterName", getStrings().get("Submitter name is required.")));
-
-		if (submitterEmailAddress == null)
-			validationException.add(new FieldError("submitterEmailAddress", getStrings().get("Submitter email address is required.")));
-		else if (!isValidEmailAddress(submitterEmailAddress))
-			validationException.add(new FieldError("submitterEmailAddress", getStrings().get("Submitter email address is invalid.")));
-
-		if (targetEmailAddress == null)
-			validationException.add(new FieldError("targetEmailAddress", getStrings().get("Target email address is required.")));
-		else if (!isValidEmailAddress(targetEmailAddress))
-			validationException.add(new FieldError("targetEmailAddress", getStrings().get("Target email address is invalid.")));
-
 		if (title == null)
 			validationException.add(new FieldError("title", getStrings().get("Title is required.")));
 
@@ -511,7 +675,11 @@ public class GroupSessionService implements AutoCloseable {
 			validationException.add(new FieldError("description", getStrings().get("Description is required.")));
 
 		if (urlName == null)
-			validationException.add(new FieldError("urlName", getStrings().get("URL name is required.")));
+			validationException.add(new FieldError("urlName", getStrings().get("Friendly URL name is required.")));
+		else if (!isValidUrlSubdirectory(urlName))
+			validationException.add(new FieldError("urlName", getStrings().get("Not a valid Friendly URL")));
+		else if (urlNameExistsForInstitutionId(urlName, institution.getInstitutionId(), Optional.of(groupSessionId)))
+			validationException.add(new FieldError("urlName", getStrings().get("Friendly URL name is already in use.")));
 
 		if (facilitatorName == null)
 			validationException.add(new FieldError("facilitatorName", getStrings().get("Facilitator name is required.")));
@@ -521,16 +689,16 @@ public class GroupSessionService implements AutoCloseable {
 		else if (!isValidEmailAddress(facilitatorEmailAddress))
 			validationException.add(new FieldError("facilitatorEmailAddress", getStrings().get("Facilitator email address is invalid.")));
 
-		if (startDateTime == null) {
+		if (singleSessionFlag && startDateTime == null) {
 			validationException.add(new FieldError("startDateTime", getStrings().get("Start time is required.")));
-		} else {
+		} else if (startDateTime != null) {
 			LocalDateTime currentLocalDateTime = LocalDateTime.now(institution.getTimeZone());
 
 			if (currentLocalDateTime.isAfter(startDateTime))
 				validationException.add(new FieldError("startDateTime", getStrings().get("Start time must be in the future.")));
 		}
 
-		if (endDateTime == null)
+		if (singleSessionFlag && endDateTime == null)
 			validationException.add(new FieldError("endDateTime", getStrings().get("End time is required.")));
 
 		if (startDateTime != null && endDateTime != null) {
@@ -539,20 +707,32 @@ public class GroupSessionService implements AutoCloseable {
 		}
 
 		if (groupSessionSchedulingSystemId == GroupSessionSchedulingSystemId.COBALT) {
-			scheduleUrl = null;
-
-			if (seats == null)
-				validationException.add(new FieldError("seats", getStrings().get("Seats are required.")));
-
 			if (videoconferenceUrl == null)
 				validationException.add(new FieldError("videoconferenceUrl", getStrings().get("Videoconference URL is required.")));
+
+			if (sendReminderEmail)
+				if (reminderEmailContent == null)
+					validationException.add(new FieldError("reminderEmailContent", getStrings().get("Reminder Email Text is required.")));
+
+			if (sendFollowupEmail) {
+				if (followupEmailContent == null)
+					validationException.add(new FieldError("followupEmailContent", getStrings().get("Follow-up Email Text is required.")));
+				if (followupDayOffset == null)
+					validationException.add(new FieldError("followupDayOffset", getStrings().get("Number of days after session is required.")));
+				if (followupTimeOfDay == null)
+					validationException.add(new FieldError("followupTimeOfDay", getStrings().get("Time is required.")));
+			}
+
+			if (!singleSessionFlag)
+				validationException.add(new FieldError("singleSessionFlag", getStrings().get("Ongoing series is only permitted for external Group Sessions.")));
 		} else if (groupSessionSchedulingSystemId == GroupSessionSchedulingSystemId.EXTERNAL) {
-			seats = null;
 			videoconferenceUrl = null;
 			confirmationEmailContent = null;
 
-			if (scheduleUrl == null)
-				validationException.add(new FieldError("scheduleUrl", getStrings().get("Schedule URL is required.")));
+			if (sendReminderEmail)
+				validationException.add(new FieldError("sendReminderEmail", getStrings().get("Cannot send reminder emails for external sessions.")));
+			if (sendFollowupEmail)
+				validationException.add(new FieldError("sendFollowupEmail", getStrings().get("Cannot send follow-up emails for external sessions.")));
 		} else {
 			throw new UnsupportedOperationException(format("Not sure what to do with %s.%s", GroupSessionSchedulingSystemId.class.getSimpleName(), groupSessionSchedulingSystemId.name()));
 		}
@@ -560,69 +740,219 @@ public class GroupSessionService implements AutoCloseable {
 		if (videoconferenceUrl != null && !isValidUrl(videoconferenceUrl))
 			validationException.add(new FieldError("videoconferenceUrl", getStrings().get("Videoconference URL is invalid.")));
 
+		if (visibleFlag == false && groupSessionCollectionId != null)
+			validationException.add(new FieldError("groupSessionCollectionId", getStrings().get("GroupSessionCollectionId is not relevant to hidden sessions.")));
+		else if (groupSessionCollectionId != null) {
+			Optional groupSessionCollection = findGroupSessionCollectionById(groupSessionCollectionId);
+			if (!groupSessionCollection.isPresent())
+				validationException.add(new FieldError("groupSessionCollectionId", getStrings().get("GroupSessionCollectionId is invalid.")));
+		}
+
+		if (screeningFlowId != null) {
+			Optional<ScreeningFlow> screeningFlow = getScreeningService().findScreeningFlowById(screeningFlowId);
+			if (!screeningFlow.isPresent())
+				validationException.add(new FieldError("screeningFlowId", getStrings().get("ScreeningFlowId is invalid.")));
+		}
+
+		if (groupSessionLearnMoreMethodId != null && learnMoreDescription == null)
+			validationException.add(new FieldError("learnMoreDescription", getStrings().get("A way to learn more is required")));
+
 		if (validationException.hasErrors())
 			throw validationException;
 
 		if (imageUrl == null)
 			imageUrl = getDefaultGroupSessionImageUrl();
 
-		submitterEmailAddress = getNormalizer().normalizeEmailAddress(submitterEmailAddress).get();
 		targetEmailAddress = getNormalizer().normalizeEmailAddress(targetEmailAddress).get();
 		facilitatorEmailAddress = getNormalizer().normalizeEmailAddress(facilitatorEmailAddress).get();
 
 		getDatabase().execute("""
 						INSERT INTO group_session (group_session_id, institution_id,
-						group_session_status_id, title, description, submitter_account_id, submitter_name, submitter_email_address,
+						group_session_status_id, title, description, submitter_account_id,
 						target_email_address, facilitator_account_id, facilitator_name, facilitator_email_address,
 						image_url, videoconference_url, start_date_time, end_date_time, seats, url_name,
-						confirmation_email_content, locale, time_zone, group_session_scheduling_system_id, schedule_url,
-						send_followup_email, followup_email_content, followup_email_survey_url)
-						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						confirmation_email_content, locale, time_zone, group_session_scheduling_system_id,
+						send_followup_email, followup_email_content, followup_email_survey_url,
+						group_session_collection_id, visible_flag, screening_flow_id, send_reminder_email, reminder_email_content,
+						followup_time_of_day, followup_day_offset, single_session_flag, date_time_description, group_session_learn_more_method_id, 
+						learn_more_description, different_email_address_for_notifications)
+						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				groupSessionId, institutionId, GroupSessionStatusId.NEW,
-				title, description, submitterAccountId, submitterName, submitterEmailAddress, targetEmailAddress, facilitatorAccountId, facilitatorName, facilitatorEmailAddress, imageUrl, videoconferenceUrl,
+				title, description, submitterAccountId, targetEmailAddress, facilitatorAccountId, facilitatorName, facilitatorEmailAddress, imageUrl, videoconferenceUrl,
 				startDateTime, endDateTime, seats, urlName, confirmationEmailContent, institution.getLocale(), institution.getTimeZone(),
-				groupSessionSchedulingSystemId, scheduleUrl, sendFollowupEmail, followupEmailContent, followupEmailSurveyUrl);
+				groupSessionSchedulingSystemId, sendFollowupEmail, followupEmailContent, followupEmailSurveyUrl,
+				groupSessionCollectionId, visibleFlag, screeningFlowId, sendReminderEmail, reminderEmailContent,
+				followupTimeOfDay, followupDayOffset, singleSessionFlag, dateTimeDescription, groupSessionLearnMoreMethodId, learnMoreDescription, differentEmailAddressForNotifications);
 
+		addTagsToGroupSession(groupSessionId, tagIds, institutionId);
+
+		// TODO: Remove this once screeningFlowId is wired up
 		// Create assessment if there is a screening question
 		if (screeningQuestions.size() > 0) {
 			UUID assessmentId = createAssessmentForScreeningQuestions(screeningQuestions);
 			getDatabase().execute("UPDATE group_session SET assessment_id=? WHERE group_session_id=?", assessmentId, groupSessionId);
 		}
 
-		sendAdminNotification(submitterAccount, findGroupSessionById(groupSessionId).get());
+		sendAdminNotification(submitterAccount, findGroupSessionById(groupSessionId, account).get());
 
 		return groupSessionId;
 	}
 
 	@Nonnull
-	public UUID updateGroupSession(@Nonnull UpdateGroupSessionRequest request) {
+	protected void addTagsToGroupSession(@Nonnull UUID groupSessionId,
+																			 @Nonnull Set<String> tagIds,
+																			 @Nonnull InstitutionId institutionId) {
+		requireNonNull(groupSessionId);
+		requireNonNull(tagIds);
+		requireNonNull(institutionId);
+
+		for (String tagId : tagIds) {
+			tagId = trimToNull(tagId);
+
+			if (tagId == null)
+				continue;
+
+			getDatabase().execute("""
+					INSERT INTO tag_group_session (tag_id, institution_id, group_session_id) 
+					VALUES (?,?,?)
+					""", tagId, institutionId, groupSessionId);
+		}
+	}
+
+	@Nonnull
+	protected <T extends GroupSession> void applyTagsToGroupSession(@Nonnull T groupSession,
+																																	@Nonnull InstitutionId institutionId) {
+		requireNonNull(groupSession);
+		requireNonNull(institutionId);
+
+		groupSession.setTags(getTagService().findTagsByGroupSessionIdAndInstitutionId(groupSession.getGroupSessionId(), institutionId));
+	}
+
+	@Nonnull
+	protected void applyTagsToGroupSession(@Nonnull List<? extends GroupSession> groupSessions,
+																				 @Nonnull InstitutionId institutionId) {
+		requireNonNull(groupSessions);
+		requireNonNull(institutionId);
+
+		// Pull back all data up-front to avoid N+1 selects
+		Map<UUID, List<TagGroupSession>> tagGroupSessionsByContentId = getTagService().findTagGroupSessionsByInstitutionId(institutionId).stream()
+				.collect(Collectors.groupingBy(TagGroupSession::getGroupSessionId));
+		Map<String, Tag> tagsByTagId = getTagService().findTagsByInstitutionId(institutionId).stream()
+				.collect(Collectors.toMap(Tag::getTagId, Function.identity()));
+
+		for (GroupSession groupSession : groupSessions) {
+			List<Tag> tags = Collections.emptyList();
+			List<TagGroupSession> tagGroupSessions = tagGroupSessionsByContentId.get(groupSession.getGroupSessionId());
+
+			if (tagGroupSessions != null)
+				tags = tagGroupSessions.stream()
+						.map(tagContent -> tagsByTagId.get(tagContent.getTagId()))
+						.collect(Collectors.toList());
+
+			groupSession.setTags(tags);
+		}
+	}
+
+	@Nonnull
+	private Optional<GroupSessionCollection> findGroupSessionCollectionById(@Nonnull UUID groupSessionCollectionId) {
+		requireNonNull(groupSessionCollectionId);
+
+		return getDatabase().queryForObject("SELECT * FROM group_session_collection WHERE group_session_collection_id = ?",
+				GroupSessionCollection.class, groupSessionCollectionId);
+	}
+
+	@Nonnull
+	public GroupSessionUrlValidationResult findGroupSessionUrlValidationResults(@Nonnull String urlName,
+																																							@Nonnull InstitutionId institutionId,
+																																							@Nonnull Optional<UUID> groupSessionId) {
+		requireNonNull(urlName);
+		requireNonNull(institutionId);
+
+		GroupSessionUrlValidationResult result = new GroupSessionUrlValidationResult();
+		Boolean suggestedUrlAvailable = false;
+
+		urlName = urlName.toLowerCase().replaceAll(" ", "-");
+		int urlSuffix = 1;
+
+		if (!urlNameExistsForInstitutionId(urlName, institutionId, groupSessionId)) {
+			result.setAvailable(true);
+			result.setRecommendation(urlName);
+		} else {
+			result.setAvailable(false);
+			String recommendedUrlName = null;
+			while (!suggestedUrlAvailable) {
+				recommendedUrlName = format("%s-%s", urlName, urlSuffix);
+				suggestedUrlAvailable = !urlNameExistsForInstitutionId(recommendedUrlName, institutionId, groupSessionId);
+				urlSuffix++;
+			}
+			result.setRecommendation(recommendedUrlName);
+		}
+
+		return result;
+	}
+
+	@Nonnull
+	private Boolean urlNameExistsForInstitutionId(@Nonnull String urlName, @Nonnull InstitutionId institutionId,
+																								@Nonnull Optional<UUID> groupSessionId) {
+		List<Object> parameters = new ArrayList<>();
+		StringBuilder query = new StringBuilder("""
+				SELECT COUNT(*) >0 
+				FROM group_session gs
+				WHERE gs.institution_id = ?
+				AND LOWER(gs.url_name) = LOWER(?)
+				""");
+
+		parameters.add(institutionId);
+		parameters.add(urlName);
+
+		if (groupSessionId.isPresent()) {
+			query.append(" AND gs.group_session_id != ?");
+			parameters.add(groupSessionId.get());
+		}
+
+		return getDatabase().queryForObject(query.toString(), Boolean.class, parameters.toArray()).get();
+	}
+
+	@Nonnull
+	public UUID updateGroupSession(@Nonnull UpdateGroupSessionRequest request, @Nonnull Account account) {
 		requireNonNull(request);
+		requireNonNull(account);
 
 		UUID groupSessionId = request.getGroupSessionId();
 		GroupSessionSchedulingSystemId groupSessionSchedulingSystemId = request.getGroupSessionSchedulingSystemId();
 		String title = trimToNull(request.getTitle());
 		String description = trimToNull(request.getDescription());
-		String urlName = trimToNull(request.getUrlName());
+		String urlName = trimToNull(request.getUrlName().toLowerCase().replaceAll(" ", "-"));
 		UUID facilitatorAccountId = request.getFacilitatorAccountId();
 		String facilitatorName = trimToNull(request.getFacilitatorName());
 		String facilitatorEmailAddress = trimToNull(request.getFacilitatorEmailAddress());
-		String submitterName = trimToNull(request.getSubmitterName());
-		String submitterEmailAddress = trimToNull(request.getSubmitterEmailAddress());
 		String targetEmailAddress = trimToNull(request.getTargetEmailAddress());
 		LocalDateTime startDateTime = request.getStartDateTime();
 		LocalDateTime endDateTime = request.getEndDateTime();
 		Integer seats = request.getSeats();
 		String imageUrl = trimToNull(request.getImageUrl());
 		String videoconferenceUrl = trimToNull(request.getVideoconferenceUrl());
-		String scheduleUrl = trimToNull(request.getScheduleUrl());
 		List<CreateScreeningQuestionRequest> screeningQuestions = normalizeScreeningQuestions(request.getScreeningQuestions(), request.getScreeningQuestionsV2());
 		String confirmationEmailContent = trimToNull(request.getConfirmationEmailContent());
 		Boolean sendFollowupEmail = request.getSendFollowupEmail();
 		String followupEmailContent = trimToNull(request.getFollowupEmailContent());
 		String followupEmailSurveyUrl = trimToNull(request.getFollowupEmailSurveyUrl());
-		GroupSession groupSession = findGroupSessionById(groupSessionId).get();
+		GroupSession groupSession = findGroupSessionById(groupSessionId, account).get();
 		Institution institution = getInstitutionService().findInstitutionById(groupSession.getInstitutionId()).get();
+		UUID groupSessionCollectionId = request.getGroupSessionCollectionId();
+		Boolean visibleFlag = request.getVisibleFlag();
+		UUID screeningFlowId = request.getScreeningFlowId();
+		Boolean sendReminderEmail = request.getSendReminderEmail();
+		String reminderEmailContent = trimToNull(request.getReminderEmailContent());
+		LocalTime followupTimeOfDay = request.getFollowupTimeOfDay();
+		Integer followupDayOffset = request.getFollowupDayOffset();
+		Boolean singleSessionFlag = request.getSingleSessionFlag();
+		String dateTimeDescription = trimToNull(request.getDateTimeDescription());
+		Set<String> tagIds = request.getTagIds() == null ? Set.of() : request.getTagIds();
+		String learnMoreDescription = trimToNull(request.getLearnMoreDescription());
+		GroupSessionLearnMoreMethodId groupSessionLearnMoreMethodId = request.getGroupSessionLearnMoreMethodId();
+		Boolean differentEmailAddressForNotifications = request.getDifferentEmailAddressForNotifications();
 
 		// Updates are restricted to certain fields if there are reservations already made for this session
 		int reservationCount = findGroupSessionReservationsByGroupSessionId(groupSessionId).size();
@@ -633,6 +963,24 @@ public class GroupSessionService implements AutoCloseable {
 		if (sendFollowupEmail == null)
 			sendFollowupEmail = false;
 
+		if (groupSessionSchedulingSystemId == null)
+			groupSessionSchedulingSystemId = GroupSessionSchedulingSystemId.COBALT;
+
+		if (sendReminderEmail == null)
+			sendReminderEmail = false;
+
+		if (visibleFlag == null)
+			visibleFlag = true;
+
+		if (singleSessionFlag == null)
+			singleSessionFlag = true;
+
+		if (differentEmailAddressForNotifications == null)
+			differentEmailAddressForNotifications = false;
+
+		if (!differentEmailAddressForNotifications)
+			targetEmailAddress = facilitatorEmailAddress;
+
 		if (title == null)
 			validationException.add(new FieldError("title", getStrings().get("Title is required.")));
 
@@ -640,7 +988,11 @@ public class GroupSessionService implements AutoCloseable {
 			validationException.add(new FieldError("description", getStrings().get("Description is required.")));
 
 		if (urlName == null)
-			validationException.add(new FieldError("urlName", getStrings().get("URL name is required.")));
+			validationException.add(new FieldError("urlName", getStrings().get("Friendly URL name is required.")));
+		else if (!isValidUrlSubdirectory(urlName))
+			validationException.add(new FieldError("urlName", getStrings().get("Not a valid Friendly URL")));
+		else if (urlNameExistsForInstitutionId(urlName, institution.getInstitutionId(), Optional.of(groupSessionId)))
+			validationException.add(new FieldError("urlName", getStrings().get("Friendly URL name is already in use.")));
 
 		if (facilitatorName == null)
 			validationException.add(new FieldError("facilitatorName", getStrings().get("Facilitator name is required.")));
@@ -649,19 +1001,6 @@ public class GroupSessionService implements AutoCloseable {
 			validationException.add(new FieldError("facilitatorEmailAddress", getStrings().get("Facilitator email address is required.")));
 		else if (!isValidEmailAddress(facilitatorEmailAddress))
 			validationException.add(new FieldError("facilitatorEmailAddress", getStrings().get("Facilitator email address is invalid.")));
-
-		if (submitterName == null)
-			validationException.add(new FieldError("submitterName", getStrings().get("Submitter name is required.")));
-
-		if (submitterEmailAddress == null)
-			validationException.add(new FieldError("submitterEmailAddress", getStrings().get("Submitter email address is required.")));
-		else if (!isValidEmailAddress(submitterEmailAddress))
-			validationException.add(new FieldError("submitterEmailAddress", getStrings().get("Submitter email address is invalid.")));
-
-		if (targetEmailAddress == null)
-			validationException.add(new FieldError("targetEmailAddress", getStrings().get("Target email address is required.")));
-		else if (!isValidEmailAddress(targetEmailAddress))
-			validationException.add(new FieldError("targetEmailAddress", getStrings().get("Target email address is invalid.")));
 
 		if (startDateTime == null) {
 			validationException.add(new FieldError("startDateTime", getStrings().get("Start time is required.")));
@@ -681,25 +1020,39 @@ public class GroupSessionService implements AutoCloseable {
 		}
 
 		if (groupSessionSchedulingSystemId == GroupSessionSchedulingSystemId.COBALT) {
-			scheduleUrl = null;
 
-			if (seats == null) {
-				validationException.add(new FieldError("seats", getStrings().get("Seats are required.")));
-			} else if (seats < reservationCount) {
+			if (seats != null && seats < reservationCount) {
 				validationException.add(new FieldError("seats", getStrings().get("The number of permitted attendees cannot be less than the current number of registrants.")));
 			}
 
 			if (videoconferenceUrl == null)
 				validationException.add(new FieldError("videoconferenceUrl", getStrings().get("Videoconference URL is required.")));
+
+			if (sendReminderEmail)
+				if (reminderEmailContent == null)
+					validationException.add(new FieldError("reminderEmailContent", getStrings().get("Reminder Email Text is required.")));
+
+			if (sendFollowupEmail) {
+				if (followupEmailContent == null)
+					validationException.add(new FieldError("followupEmailContent", getStrings().get("Follow-up Email Text is required.")));
+				if (followupDayOffset == null)
+					validationException.add(new FieldError("followupDayOffset", getStrings().get("Number of days after session is required.")));
+				if (followupTimeOfDay == null)
+					validationException.add(new FieldError("followupTimeOfDay", getStrings().get("Time is required.")));
+			}
+
+			if (!singleSessionFlag)
+				validationException.add(new FieldError("singleSessionFlag", getStrings().get("Ongoing series is only permitted for external Group Sessions.")));
 		} else if (groupSessionSchedulingSystemId == GroupSessionSchedulingSystemId.EXTERNAL) {
-			seats = null;
 			videoconferenceUrl = null;
 			confirmationEmailContent = null;
 
-			if (scheduleUrl == null)
-				validationException.add(new FieldError("scheduleUrl", getStrings().get("Schedule URL is required.")));
+			if (sendReminderEmail)
+				validationException.add(new FieldError("sendReminderEmail", getStrings().get("Cannot send reminder emails for external sessions.")));
+			if (sendFollowupEmail)
+				validationException.add(new FieldError("sendFollowupEmail", getStrings().get("Cannot send follow-up emails for external sessions.")));
 		} else if (groupSessionSchedulingSystemId == null) {
-			validationException.add(new FieldError("groupSessionSchedulingSystemId", getStrings().get("Studio session scheduling system is required.")));
+			validationException.add(new FieldError("groupSessionSchedulingSystemId", getStrings().get("Group session scheduling system is required.")));
 		} else {
 			throw new UnsupportedOperationException(format("Not sure what to do with %s.%s", GroupSessionSchedulingSystemId.class.getSimpleName(), groupSessionSchedulingSystemId.name()));
 		}
@@ -707,35 +1060,74 @@ public class GroupSessionService implements AutoCloseable {
 		if (videoconferenceUrl != null && !isValidUrl(videoconferenceUrl))
 			validationException.add(new FieldError("videoconferenceUrl", getStrings().get("Videoconference URL is invalid.")));
 
+		if (singleSessionFlag && startDateTime == null) {
+			validationException.add(new FieldError("startDateTime", getStrings().get("Start time is required.")));
+		} else if (startDateTime != null) {
+			LocalDateTime currentLocalDateTime = LocalDateTime.now(institution.getTimeZone());
+
+			if (currentLocalDateTime.isAfter(startDateTime))
+				validationException.add(new FieldError("startDateTime", getStrings().get("Start time must be in the future.")));
+		}
+
+		if (singleSessionFlag && endDateTime == null)
+			validationException.add(new FieldError("endDateTime", getStrings().get("End time is required.")));
+
+		if (visibleFlag == false && groupSessionCollectionId != null)
+			validationException.add(new FieldError("groupSessionCollectionId", getStrings().get("GroupSessionCollectionId is not relevant to hidden sessions.")));
+		else if (groupSessionCollectionId != null) {
+			Optional groupSessionCollection = findGroupSessionCollectionById(groupSessionCollectionId);
+			if (!groupSessionCollection.isPresent())
+				validationException.add(new FieldError("groupSessionCollectionId", getStrings().get("GroupSessionCollectionId is invalid.")));
+		}
+
+		if (screeningFlowId != null) {
+			Optional<ScreeningFlow> screeningFlow = getScreeningService().findScreeningFlowById(screeningFlowId);
+			if (!screeningFlow.isPresent())
+				validationException.add(new FieldError("screeningFlowId", getStrings().get("ScreeningFlowId is invalid.")));
+		}
+
+		if (groupSessionLearnMoreMethodId != null && learnMoreDescription == null)
+			validationException.add(new FieldError("learnMoreDescription", getStrings().get("A way to learn more is required")));
+
 		if (validationException.hasErrors())
 			throw validationException;
 
 		if (imageUrl == null)
 			imageUrl = getDefaultGroupSessionImageUrl();
 
-		submitterEmailAddress = getNormalizer().normalizeEmailAddress(submitterEmailAddress).get();
 		targetEmailAddress = getNormalizer().normalizeEmailAddress(targetEmailAddress).get();
 		facilitatorEmailAddress = getNormalizer().normalizeEmailAddress(facilitatorEmailAddress).get();
 
 		if (restrictedUpdate) {
 			getDatabase().execute("""
 							UPDATE group_session SET description=?, facilitator_account_id=?, facilitator_name=?, facilitator_email_address=?,
-							submitter_name=?, submitter_email_address=?, target_email_address=?, image_url=?, videoconference_url=?, seats=?,
-							confirmation_email_content=?, send_followup_email=?, followup_email_content=?, followup_email_survey_url=?
+							target_email_address=?, image_url=?, videoconference_url=?, seats=?,
+							confirmation_email_content=?, send_followup_email=?, followup_email_content=?, followup_email_survey_url=?,
+							group_session_collection_id=?, visible_flag=?, screening_flow_id=?, send_reminder_email=?, reminder_email_content=?,
+							followup_time_of_day=?, followup_day_offset=?, single_session_flag=?, date_time_description=?, 
+							group_session_learn_more_method_id=?, learn_more_description=?, different_email_address_for_notifications=?
 							WHERE group_session_id=?
 							""", description, facilitatorAccountId, facilitatorName, facilitatorEmailAddress,
-					submitterName, submitterEmailAddress, targetEmailAddress, imageUrl, videoconferenceUrl, seats, confirmationEmailContent,
-					sendFollowupEmail, followupEmailContent, followupEmailSurveyUrl, groupSessionId);
+					targetEmailAddress, imageUrl, videoconferenceUrl, seats, confirmationEmailContent,
+					sendFollowupEmail, followupEmailContent, followupEmailSurveyUrl, groupSessionCollectionId, visibleFlag, screeningFlowId,
+					sendReminderEmail, reminderEmailContent, followupTimeOfDay, followupDayOffset, singleSessionFlag, dateTimeDescription,
+					groupSessionLearnMoreMethodId, learnMoreDescription, differentEmailAddressForNotifications, groupSessionId);
 		} else {
 			getDatabase().execute("""
 							UPDATE group_session SET title=?, description=?, facilitator_account_id=?, facilitator_name=?, facilitator_email_address=?,
-							submitter_name=?, submitter_email_address=?, image_url=?, videoconference_url=?, start_date_time=?, end_date_time=?, seats=?, url_name=?,
-							confirmation_email_content=?, group_session_scheduling_system_id=?, schedule_url=?, send_followup_email=?, followup_email_content=?, followup_email_survey_url=?
+							target_email_address=?, image_url=?, videoconference_url=?, start_date_time=?, end_date_time=?, seats=?, url_name=?,
+							confirmation_email_content=?, group_session_scheduling_system_id=?, send_followup_email=?, followup_email_content=?, followup_email_survey_url=?,
+							group_session_collection_id=?, visible_flag=?, screening_flow_id=?, send_reminder_email=?, reminder_email_content=?,
+							followup_time_of_day=?, followup_day_offset=?, single_session_flag=?, date_time_description=?,
+							group_session_learn_more_method_id=?, learn_more_description=?, different_email_address_for_notifications=?
 							WHERE group_session_id=?
 							""",
-					title, description, facilitatorAccountId, facilitatorName, facilitatorEmailAddress, submitterName, submitterEmailAddress,
-					imageUrl, videoconferenceUrl, startDateTime, endDateTime, seats, urlName, confirmationEmailContent,
-					groupSessionSchedulingSystemId, scheduleUrl, sendFollowupEmail, followupEmailContent, followupEmailSurveyUrl, groupSessionId);
+					title, description, facilitatorAccountId, facilitatorName, facilitatorEmailAddress,
+					targetEmailAddress, imageUrl, videoconferenceUrl, startDateTime, endDateTime, seats, urlName, confirmationEmailContent,
+					groupSessionSchedulingSystemId, sendFollowupEmail, followupEmailContent, followupEmailSurveyUrl,
+					groupSessionCollectionId, visibleFlag, screeningFlowId, sendReminderEmail, reminderEmailContent,
+					followupTimeOfDay, followupDayOffset, singleSessionFlag, dateTimeDescription,
+					groupSessionLearnMoreMethodId, learnMoreDescription, differentEmailAddressForNotifications, groupSessionId);
 
 			List<Question> existingScreeningQuestions = findScreeningQuestionsByGroupSessionId(groupSessionId);
 			boolean screeningQuestionsChanged = false;
@@ -764,7 +1156,11 @@ public class GroupSessionService implements AutoCloseable {
 			}
 		}
 
-		cancelAndResendAllScheduledMessagesForGroupSessionId(groupSessionId);
+		//Remove any tags for this Group Session and add whatever tags we have for the update
+		getDatabase().execute("DELETE FROM tag_group_session WHERE group_session_id=?", groupSessionId);
+		addTagsToGroupSession(groupSessionId, tagIds, institution.getInstitutionId());
+
+		cancelAndResendAllScheduledMessagesForGroupSessionId(groupSessionId, account);
 
 		return groupSessionId;
 	}
@@ -783,13 +1179,13 @@ public class GroupSessionService implements AutoCloseable {
 		}
 	}
 
-	protected void cancelAndResendAllScheduledMessagesForGroupSessionId(@Nullable UUID groupSessionId) {
-		if (groupSessionId == null)
+	protected void cancelAndResendAllScheduledMessagesForGroupSessionId(@Nullable UUID groupSessionId, @Nonnull Account account) {
+		if (groupSessionId == null || account == null)
 			return;
 
 		// After an update to the group session, rework all the scheduled messages to take any changes into account
 		List<GroupSessionReservation> groupSessionReservations = findGroupSessionReservationsByGroupSessionId(groupSessionId);
-		GroupSession groupSession = findGroupSessionById(groupSessionId).get();
+		GroupSession groupSession = findGroupSessionById(groupSessionId, account).get();
 
 		getLogger().info("Re-sending scheduled messages for {} group session reservations for group session ID {}...", groupSessionReservations.size(), groupSessionId);
 
@@ -799,7 +1195,8 @@ public class GroupSessionService implements AutoCloseable {
 			getMessageService().cancelScheduledMessage(groupSessionReservation.getAttendeeFollowupScheduledMessageId());
 
 			// Next, reschedule as needed
-			scheduleGroupSessionReservationReminderMessage(groupSession, groupSessionReservation);
+			if (groupSession.getSendReminderEmail())
+				scheduleGroupSessionReservationReminderMessage(groupSession, groupSessionReservation);
 
 			if (groupSession.getSendFollowupEmail())
 				scheduleGroupSessionReservationFollowupMessage(groupSession, groupSessionReservation);
@@ -883,8 +1280,9 @@ public class GroupSessionService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public Boolean updateGroupSessionStatus(@Nonnull UpdateGroupSessionStatusRequest request) {
+	public Boolean updateGroupSessionStatus(@Nonnull UpdateGroupSessionStatusRequest request, @Nonnull Account account) {
 		requireNonNull(request);
+		requireNonNull(account);
 
 		UUID groupSessionId = request.getGroupSessionId();
 		UUID accountId = request.getAccountId();
@@ -893,19 +1291,19 @@ public class GroupSessionService implements AutoCloseable {
 		ValidationException validationException = new ValidationException();
 
 		if (groupSessionId == null) {
-			validationException.add(new FieldError("groupSessionId", getStrings().get("Studio Session ID is required.")));
+			validationException.add(new FieldError("groupSessionId", getStrings().get("Group Session ID is required.")));
 		} else {
-			groupSession = findGroupSessionById(groupSessionId).orElse(null);
+			groupSession = findGroupSessionById(groupSessionId, account).orElse(null);
 
 			if (groupSession == null)
-				validationException.add(new FieldError("groupSessionId", getStrings().get("Invalid Studio Session.")));
+				validationException.add(new FieldError("groupSessionId", getStrings().get("Invalid Group Session.")));
 		}
 
 		if (accountId == null)
 			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
 
 		if (groupSessionStatusId == null)
-			validationException.add(new FieldError("groupSessionStatusId", getStrings().get("Studio Session Status ID is required.")));
+			validationException.add(new FieldError("groupSessionStatusId", getStrings().get("Group Session Status ID is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -1024,8 +1422,9 @@ public class GroupSessionService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public Optional<Pair<GroupSession, GroupSessionReservation>> findGroupSessionReservationPairById(@Nullable UUID groupSessionReservationId) {
-		if (groupSessionReservationId == null)
+	public Optional<Pair<GroupSession, GroupSessionReservation>> findGroupSessionReservationPairById(@Nullable UUID groupSessionReservationId,
+																																																	 @Nullable Account account) {
+		if (groupSessionReservationId == null || account == null)
 			return Optional.empty();
 
 		GroupSessionReservation groupSessionReservation = getDatabase().queryForObject("SELECT * FROM v_group_session_reservation " +
@@ -1035,7 +1434,7 @@ public class GroupSessionService implements AutoCloseable {
 		if (groupSessionReservation == null)
 			return Optional.empty();
 
-		GroupSession groupSession = findGroupSessionById(groupSessionReservation.getGroupSessionId()).orElse(null);
+		GroupSession groupSession = findGroupSessionById(groupSessionReservation.getGroupSessionId(), account).orElse(null);
 
 		if (groupSession == null)
 			return Optional.empty();
@@ -1054,8 +1453,9 @@ public class GroupSessionService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public UUID createGroupSessionReservation(@Nonnull CreateGroupSessionReservationRequest request) {
+	public UUID createGroupSessionReservation(@Nonnull CreateGroupSessionReservationRequest request, @Nonnull Account account) {
 		requireNonNull(request);
+		requireNonNull(account);
 
 		UUID accountId = request.getAccountId();
 		String emailAddress = getNormalizer().normalizeEmailAddress(request.getEmailAddress()).orElse(null);
@@ -1080,12 +1480,12 @@ public class GroupSessionService implements AutoCloseable {
 			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is invalid.")));
 
 		if (groupSessionId == null) {
-			validationException.add(new FieldError("groupSessionId", getStrings().get("Studio Session ID is required.")));
+			validationException.add(new FieldError("groupSessionId", getStrings().get("Group Session ID is required.")));
 		} else {
-			GroupSession groupSession = findGroupSessionById(groupSessionId).orElse(null);
+			GroupSession groupSession = findGroupSessionById(groupSessionId, account).orElse(null);
 
 			if (groupSession == null) {
-				validationException.add(new FieldError("groupSessionId", getStrings().get("Studio Session ID is invalid.")));
+				validationException.add(new FieldError("groupSessionId", getStrings().get("Group Session ID is invalid.")));
 			} else if (groupSession.getGroupSessionSchedulingSystemId() == GroupSessionSchedulingSystemId.COBALT) {
 				List<GroupSessionReservation> reservations = findGroupSessionReservationsByGroupSessionId(groupSessionId);
 
@@ -1096,19 +1496,19 @@ public class GroupSessionService implements AutoCloseable {
 					}
 				}
 
-				if (groupSession.getSeatsReserved() >= groupSession.getSeats())
-					validationException.add(new FieldError("groupSessionId", getStrings().get("Sorry, this studio session is full.")));
+				if (groupSession.getSeats() != null && groupSession.getSeatsReserved() >= groupSession.getSeats())
+					validationException.add(new FieldError("groupSessionId", getStrings().get("Sorry, this group session is full.")));
 
 				if (groupSession.getGroupSessionStatusId() == GroupSessionStatusId.ARCHIVED)
-					validationException.add(new FieldError("groupSessionId", getStrings().get("Sorry, you can't join this studio session because it has already ended.")));
+					validationException.add(new FieldError("groupSessionId", getStrings().get("Sorry, you can't join this group session because it has already ended.")));
 				else if (groupSession.getGroupSessionStatusId() == GroupSessionStatusId.CANCELED)
-					validationException.add(new FieldError("groupSessionId", getStrings().get("Sorry, you can't join this studio session because it was canceled.")));
+					validationException.add(new FieldError("groupSessionId", getStrings().get("Sorry, you can't join this group session because it was canceled.")));
 				else if (groupSession.getGroupSessionStatusId() == GroupSessionStatusId.DELETED)
-					validationException.add(new FieldError("groupSessionId", getStrings().get("Sorry, you can't join this studio session because it was removed.")));
+					validationException.add(new FieldError("groupSessionId", getStrings().get("Sorry, you can't join this group session because it was removed.")));
 				else if (groupSession.getGroupSessionStatusId() == GroupSessionStatusId.NEW)
-					validationException.add(new FieldError("groupSessionId", getStrings().get("Sorry, you can't join this studio session because it is not taking reservations yet.")));
+					validationException.add(new FieldError("groupSessionId", getStrings().get("Sorry, you can't join this group session because it is not taking reservations yet.")));
 			} else if (groupSession.getGroupSessionSchedulingSystemId() == GroupSessionSchedulingSystemId.EXTERNAL) {
-				validationException.add(getStrings().get("You are not permitted to book this studio session through Cobalt."));
+				validationException.add(getStrings().get("You are not permitted to book this group session through Cobalt."));
 			} else {
 				throw new UnsupportedOperationException(format("Not sure what to do with %s.%s", GroupSessionSchedulingSystemId.class.getSimpleName(), groupSession.getGroupSessionSchedulingSystemId().name()));
 			}
@@ -1131,11 +1531,11 @@ public class GroupSessionService implements AutoCloseable {
 		String attendeeName = Normalizer.normalizeName(attendeeAccount.getFirstName(), attendeeAccount.getLastName()).orElse(getStrings().get("Anonymous User"));
 		Account pinnedAttendeeAccount = attendeeAccount;
 
-		GroupSession groupSession = findGroupSessionById(groupSessionId).get();
+		GroupSession groupSession = findGroupSessionById(groupSessionId, account).get();
 		Institution institution = getInstitutionService().findInstitutionById(groupSession.getInstitutionId()).get();
 
 		getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
-			GroupSessionReservation groupSessionReservation = findGroupSessionReservationPairById(groupSessionReservationId).get().getRight();
+			GroupSessionReservation groupSessionReservation = findGroupSessionReservationPairById(groupSessionReservationId, account).get().getRight();
 			Map<String, Object> attendeeMessageContext = new HashMap<String, Object>() {{
 				put("groupSession", groupSession);
 				put("imageUrl", firstNonNull(groupSession.getImageUrl(), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
@@ -1162,7 +1562,8 @@ public class GroupSessionService implements AutoCloseable {
 			getMessageService().enqueueMessage(attendeeEmailMessage);
 
 			// Schedule a reminder message for the group session reservation
-			scheduleGroupSessionReservationReminderMessage(groupSession, groupSessionReservation);
+			if (groupSession.getSendReminderEmail())
+				scheduleGroupSessionReservationReminderMessage(groupSession, groupSessionReservation);
 
 			// Schedule a followup message, if applicable
 			if (groupSession.getSendFollowupEmail())
@@ -1281,9 +1682,9 @@ public class GroupSessionService implements AutoCloseable {
 				.messageContext(messageContext)
 				.build();
 
-		// Schedule a followup message for this reservation based on institution rules
-		LocalDate followupMessageDate = groupSession.getStartDateTime().toLocalDate().plusDays(institution.getGroupSessionReservationDefaultFollowupDayOffset());
-		LocalTime followupMessageTimeOfDay = institution.getGroupSessionReservationDefaultFollowupTimeOfDay();
+		// Schedule a followup message for this reservation based on group session parameters
+		LocalDate followupMessageDate = groupSession.getStartDateTime().toLocalDate().plusDays(groupSession.getFollowupDayOffset());
+		LocalTime followupMessageTimeOfDay = groupSession.getFollowupTimeOfDay();
 
 		UUID attendeeFollowupScheduledMessageId = getMessageService().createScheduledMessage(new CreateScheduledMessageRequest<>() {{
 			setMetadata(Map.of("groupSessionReservationId", groupSessionReservation.getGroupSessionReservationId()));
@@ -1302,20 +1703,21 @@ public class GroupSessionService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public Boolean cancelGroupSessionReservation(@Nonnull CancelGroupSessionReservationRequest request) {
+	public Boolean cancelGroupSessionReservation(@Nonnull CancelGroupSessionReservationRequest request, @Nonnull Account account) {
 		requireNonNull(request);
+		requireNonNull(account);
 
 		UUID groupSessionReservationId = request.getGroupSessionReservationId();
 		Pair<GroupSession, GroupSessionReservation> groupSessionReservationPair = null;
 		ValidationException validationException = new ValidationException();
 
 		if (groupSessionReservationId == null) {
-			validationException.add(new FieldError("groupSessionReservationId", getStrings().get("Studio Session Reservation ID is required.")));
+			validationException.add(new FieldError("groupSessionReservationId", getStrings().get("Group Session Reservation ID is required.")));
 		} else {
-			groupSessionReservationPair = findGroupSessionReservationPairById(groupSessionReservationId).orElse(null);
+			groupSessionReservationPair = findGroupSessionReservationPairById(groupSessionReservationId, account).orElse(null);
 
 			if (groupSessionReservationPair == null)
-				validationException.add(new FieldError("groupSessionReservationId", getStrings().get("Studio Session Reservation ID is invalid.")));
+				validationException.add(new FieldError("groupSessionReservationId", getStrings().get("Group Session Reservation ID is invalid.")));
 		}
 
 		if (validationException.hasErrors())
@@ -1624,19 +2026,19 @@ public class GroupSessionService implements AutoCloseable {
 		ValidationException validationException = new ValidationException();
 
 		if (groupSessionRequestId == null) {
-			validationException.add(new FieldError("groupSessionRequestId", getStrings().get("Studio Session Request ID is required.")));
+			validationException.add(new FieldError("groupSessionRequestId", getStrings().get("Group Session Request ID is required.")));
 		} else {
 			groupSessionRequest = findGroupSessionRequestById(groupSessionRequestId).orElse(null);
 
 			if (groupSessionRequest == null)
-				validationException.add(new FieldError("groupSessionRequestId", getStrings().get("Invalid Studio Session Request.")));
+				validationException.add(new FieldError("groupSessionRequestId", getStrings().get("Invalid Group Session Request.")));
 		}
 
 		if (accountId == null)
 			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
 
 		if (groupSessionRequestStatusId == null)
-			validationException.add(new FieldError("groupSessionRequestStatusId", getStrings().get("Studio Session Request Status ID is required.")));
+			validationException.add(new FieldError("groupSessionRequestStatusId", getStrings().get("Group Session Request Status ID is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -1705,12 +2107,12 @@ public class GroupSessionService implements AutoCloseable {
 		ValidationException validationException = new ValidationException();
 
 		if (groupSessionRequestId == null) {
-			validationException.add(new FieldError("groupSessionRequestId", getStrings().get("Studio Session Request ID is required.")));
+			validationException.add(new FieldError("groupSessionRequestId", getStrings().get("Group Session Request ID is required.")));
 		} else {
 			groupSessionRequest = findGroupSessionRequestById(groupSessionRequestId).orElse(null);
 
 			if (groupSessionRequest == null)
-				validationException.add(new FieldError("groupSessionRequestId", getStrings().get("Studio Session Request ID is invalid.")));
+				validationException.add(new FieldError("groupSessionRequestId", getStrings().get("Group Session Request ID is invalid.")));
 		}
 
 		if (respondentAccountId == null)
@@ -1889,6 +2291,14 @@ public class GroupSessionService implements AutoCloseable {
 		return "https://cobaltplatform.s3.us-east-2.amazonaws.com/prod/group-sessions/default-group-session.jpg";
 	}
 
+	@Nonnull
+	public List<GroupSessionCollection> findGroupSessionCollections(@Nonnull Account account) {
+		requireNonNull(account);
+
+		return getDatabase().queryForList("SELECT * from group_session_collection WHERE institution_id = ? ORDER BY display_order",
+				GroupSessionCollection.class, account.getInstitutionId());
+	}
+
 	@ThreadSafe
 	protected static class BackgroundSyncTask implements Runnable {
 		@Nonnull
@@ -1937,7 +2347,12 @@ public class GroupSessionService implements AutoCloseable {
 		protected void closeOutCompletedGroupSessions() {
 			// Can probably be more efficient and do it all in one query, doing it this way to be specific to timezones...
 			// Basically saying "if ADDED group session has completed in the group session's timezone, then mark it ARCHIVED and send out any followup emails"
-			List<GroupSession> groupSessions = getDatabase().queryForList("SELECT * FROM group_session WHERE group_session_status_id=?", GroupSession.class, GroupSessionStatusId.ADDED);
+			List<GroupSession> groupSessions = getDatabase().queryForList("""
+					SELECT * FROM group_session
+					WHERE group_session_status_id=? 
+					AND start_date_time IS NOT NULL
+					AND end_date_time IS NOT NULL
+					""", GroupSession.class, GroupSessionStatusId.ADDED);
 
 			for (GroupSession groupSession : groupSessions) {
 				LocalDateTime currentDateTime = LocalDateTime.now(groupSession.getTimeZone());
@@ -2071,5 +2486,15 @@ public class GroupSessionService implements AutoCloseable {
 	@Nonnull
 	protected Optional<ScheduledExecutorService> getBackgroundTaskExecutorService() {
 		return Optional.ofNullable(backgroundTaskExecutorService);
+	}
+
+	@Nonnull
+	protected ScreeningService getScreeningService() {
+		return this.screeningService;
+	}
+
+	@Nonnull
+	protected TagService getTagService() {
+		return tagService;
 	}
 }

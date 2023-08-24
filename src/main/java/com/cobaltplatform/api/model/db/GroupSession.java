@@ -21,13 +21,18 @@ package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
+import com.cobaltplatform.api.model.db.GroupSessionLearnMoreMethod.GroupSessionLearnMoreMethodId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 /**
@@ -47,10 +52,6 @@ public class GroupSession {
 	private UUID assessmentId;
 	@Nullable
 	private UUID submitterAccountId;
-	@Nullable
-	private String submitterName;
-	@Nullable
-	private String submitterEmailAddress;
 	@Nullable
 	private String targetEmailAddress;
 	@Nullable
@@ -94,9 +95,37 @@ public class GroupSession {
 	@Nullable
 	private String followupEmailSurveyUrl;
 	@Nullable
+	private UUID groupSessionCollectionId;
+	@Nullable
+	private Boolean visibleFlag;
+	@Nullable
+	private UUID screeningFlowId;
+	@Nullable
+	private Boolean sendReminderEmail;
+	@Nullable
+	private String reminderEmailContent;
+	@Nullable
+	private LocalTime followupTimeOfDay;
+	@Nullable
+	private Integer followupDayOffset;
+	@Nullable
+	private Boolean singleSessionFlag;
+	@Nullable
+	private String dateTimeDescription;
+	@Nullable
+	private List<Tag> tags;
+	@Nullable
+	private String learnMoreDescription;
+	@Nullable
+	private GroupSessionLearnMoreMethodId groupSessionLearnMoreMethodId;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
+	@Nonnull
+	private Locale locale;
+	@Nonnull
+	private Boolean differentEmailAddressForNotifications;
 
 	@Nullable
 	public UUID getGroupSessionId() {
@@ -168,24 +197,6 @@ public class GroupSession {
 
 	public void setFacilitatorAccountId(@Nullable UUID facilitatorAccountId) {
 		this.facilitatorAccountId = facilitatorAccountId;
-	}
-
-	@Nullable
-	public String getSubmitterName() {
-		return this.submitterName;
-	}
-
-	public void setSubmitterName(@Nullable String submitterName) {
-		this.submitterName = submitterName;
-	}
-
-	@Nullable
-	public String getSubmitterEmailAddress() {
-		return this.submitterEmailAddress;
-	}
-
-	public void setSubmitterEmailAddress(@Nullable String submitterEmailAddress) {
-		this.submitterEmailAddress = submitterEmailAddress;
 	}
 
 	@Nullable
@@ -359,6 +370,95 @@ public class GroupSession {
 		this.followupEmailSurveyUrl = followupEmailSurveyUrl;
 	}
 
+	public UUID getGroupSessionCollectionId() {
+		return groupSessionCollectionId;
+	}
+
+	public void setGroupSessionCollectionId(UUID groupSessionCollectionId) {
+		this.groupSessionCollectionId = groupSessionCollectionId;
+	}
+
+	@Nullable
+	public Boolean getVisibleFlag() {
+		return visibleFlag;
+	}
+
+	public void setVisibleFlag(@Nullable Boolean visibleFlag) {
+		this.visibleFlag = visibleFlag;
+	}
+
+	@Nullable
+	public UUID getScreeningFlowId() {
+		return screeningFlowId;
+	}
+
+	public void setScreeningFlowId(@Nullable UUID screeningFlowId) {
+		this.screeningFlowId = screeningFlowId;
+	}
+
+	@Nullable
+	public Boolean getSendReminderEmail() {
+		return sendReminderEmail;
+	}
+
+	public void setSendReminderEmail(@Nullable Boolean sendReminderEmail) {
+		this.sendReminderEmail = sendReminderEmail;
+	}
+
+	@Nullable
+	public String getReminderEmailContent() {
+		return reminderEmailContent;
+	}
+
+	public void setReminderEmailContent(@Nullable String reminderEmailContent) {
+		this.reminderEmailContent = reminderEmailContent;
+	}
+
+	@Nullable
+	public LocalTime getFollowupTimeOfDay() {
+		return followupTimeOfDay;
+	}
+
+	public void setFollowupTimeOfDay(@Nullable LocalTime followupTimeOfDay) {
+		this.followupTimeOfDay = followupTimeOfDay;
+	}
+
+	@Nullable
+	public Integer getFollowupDayOffset() {
+		return followupDayOffset;
+	}
+
+	public void setFollowupDayOffset(@Nullable Integer followupDayOffset) {
+		this.followupDayOffset = followupDayOffset;
+	}
+
+	@Nullable
+	public Boolean getSingleSessionFlag() {
+		return singleSessionFlag;
+	}
+
+	public void setSingleSessionFlag(@Nullable Boolean singleSessionFlag) {
+		this.singleSessionFlag = singleSessionFlag;
+	}
+
+	@Nullable
+	public String getDateTimeDescription() {
+		return dateTimeDescription;
+	}
+
+	public void setDateTimeDescription(@Nullable String dateTimeDescription) {
+		this.dateTimeDescription = dateTimeDescription;
+	}
+
+	@Nullable
+	public List<Tag> getTags() {
+		return tags;
+	}
+
+	public void setTags(@Nullable List<Tag> tags) {
+		this.tags = tags;
+	}
+
 	@Nullable
 	public Instant getCreated() {
 		return created;
@@ -375,5 +475,41 @@ public class GroupSession {
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
+	}
+
+	@Nullable
+	public String getLearnMoreDescription() {
+		return learnMoreDescription;
+	}
+
+	public void setLearnMoreDescription(@Nullable String learnMoreDescription) {
+		this.learnMoreDescription = learnMoreDescription;
+	}
+
+	@Nullable
+	public GroupSessionLearnMoreMethodId getGroupSessionLearnMoreMethodId() {
+		return groupSessionLearnMoreMethodId;
+	}
+
+	public void setGroupSessionLearnMoreMethodId(@Nullable GroupSessionLearnMoreMethodId groupSessionLearnMoreMethodId) {
+		this.groupSessionLearnMoreMethodId = groupSessionLearnMoreMethodId;
+	}
+
+	@Nonnull
+	public Locale getLocale() {
+		return locale;
+	}
+
+	public void setLocale(@Nonnull Locale locale) {
+		this.locale = locale;
+	}
+
+	@Nonnull
+	public Boolean getDifferentEmailAddressForNotifications() {
+		return differentEmailAddressForNotifications;
+	}
+
+	public void setDifferentEmailAddressForNotifications(@Nonnull Boolean differentEmailAddressForNotifications) {
+		this.differentEmailAddressForNotifications = differentEmailAddressForNotifications;
 	}
 }

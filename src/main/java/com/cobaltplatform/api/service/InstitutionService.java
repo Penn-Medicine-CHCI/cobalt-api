@@ -359,7 +359,7 @@ public class InstitutionService {
 					< screeningFlowVersion.getRecommendationExpirationMinutes()))
 				screeningSessionId = mostRecentCompletedFeatureScreeningSession.getScreeningSessionId();
 
-		List<FeatureForInstitution> features = getDatabase().queryForList("SELECT f.feature_id, f.url_name, f.name, if.description, if.nav_description, if.nav_visible, " +
+		List<FeatureForInstitution> features = getDatabase().queryForList("SELECT f.feature_id, f.url_name, COALESCE(if.name_override, f.name) AS name, if.description, if.nav_description, if.nav_visible, if.landing_page_visible, if.treatment_description, " +
 				"CASE WHEN ss.screening_session_id IS NOT NULL THEN true ELSE false END AS recommended, f.navigation_header_id " +
 				"FROM institution_feature if, feature f  " +
 				"LEFT OUTER JOIN screening_session_feature_recommendation ss " +
