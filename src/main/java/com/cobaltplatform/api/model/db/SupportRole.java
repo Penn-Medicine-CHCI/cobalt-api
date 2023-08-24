@@ -45,6 +45,7 @@ public class SupportRole {
 		MHIC,
 		MHP,
 		LCSW,
+		MSW,
 		OTHER
 	}
 

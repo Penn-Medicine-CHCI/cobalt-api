@@ -45,6 +45,8 @@ public class FeatureForInstitution {
 	@Nullable
 	private Boolean navVisible;
 	@Nullable
+	private Boolean landingPageVisible;
+	@Nullable
 	private Boolean recommended;
 	@Nullable
 	private NavigationHeaderId navigationHeaderId;
@@ -52,6 +54,8 @@ public class FeatureForInstitution {
 	private List<SupportRoleId> supportRoleIds;
 	@Nullable
 	private Boolean locationPromptRequired;
+	@Nullable
+	private String treatmentDescription;
 
 
 	@Nullable
@@ -142,5 +146,23 @@ public class FeatureForInstitution {
 
 	public void setLocationPromptRequired(@Nullable Boolean locationPromptRequired) {
 		this.locationPromptRequired = locationPromptRequired;
+	}
+
+	@Nullable
+	public Boolean getLandingPageVisible() {
+		return this.landingPageVisible;
+	}
+
+	public void setLandingPageVisible(@Nullable Boolean landingPageVisible) {
+		this.landingPageVisible = landingPageVisible;
+	}
+
+	@Nullable
+	public String getTreatmentDescription() {
+		return this.treatmentDescription;
+	}
+
+	public void setTreatmentDescription(@Nullable String treatmentDescription) {
+		this.treatmentDescription = treatmentDescription;
 	}
 }
