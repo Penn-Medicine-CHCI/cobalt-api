@@ -1,0 +1,15 @@
+<a href="{{{ctaHref}}}" target="_blank">
+  <center>
+    {{#if ctaAsset}}
+      <img
+        class="call-to-action-asset"
+        src="{{{staticFileUrlPrefix}}}/{{{ctaAsset}}}"
+        alt="{{{ctaAlt}}}"
+      />
+    {{/if}}
+
+    {{#if ctaText}}
+      {{{ctaText}}}
+    {{/if}}
+  </center>
+</a>
