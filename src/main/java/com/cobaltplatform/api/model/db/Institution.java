@@ -222,6 +222,8 @@ public class Institution {
 	private String resourceGroupsTitle;
 	@Nullable
 	private String resourceGroupsDescription;
+	@Nullable
+	private Boolean epicFhirEnabled;
 
 	public enum InstitutionId {
 		COBALT,
@@ -1028,5 +1030,14 @@ public class Institution {
 
 	public void setResourceGroupsDescription(@Nullable String resourceGroupsDescription) {
 		this.resourceGroupsDescription = resourceGroupsDescription;
+	}
+
+	@Nullable
+	public Boolean getEpicFhirEnabled() {
+		return this.epicFhirEnabled;
+	}
+
+	public void setEpicFhirEnabled(@Nullable Boolean epicFhirEnabled) {
+		this.epicFhirEnabled = epicFhirEnabled;
 	}
 }

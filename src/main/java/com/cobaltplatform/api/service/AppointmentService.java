@@ -37,10 +37,13 @@ import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.epic.EpicClient;
 import com.cobaltplatform.api.integration.epic.EpicFhirSyncManager;
 import com.cobaltplatform.api.integration.epic.EpicSyncManager;
+import com.cobaltplatform.api.integration.epic.code.AppointmentStatusCode;
 import com.cobaltplatform.api.integration.epic.request.AppointmentBookFhirStu3Request;
+import com.cobaltplatform.api.integration.epic.request.AppointmentSearchFhirStu3Request;
 import com.cobaltplatform.api.integration.epic.request.GetProviderScheduleRequest;
 import com.cobaltplatform.api.integration.epic.request.ScheduleAppointmentWithInsuranceRequest;
 import com.cobaltplatform.api.integration.epic.response.AppointmentBookFhirStu3Response;
+import com.cobaltplatform.api.integration.epic.response.AppointmentSearchFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse;
 import com.cobaltplatform.api.integration.epic.response.ScheduleAppointmentWithInsuranceResponse;
 import com.cobaltplatform.api.integration.gcal.GoogleCalendarUrlGenerator;
@@ -130,6 +133,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -334,12 +338,104 @@ public class AppointmentService {
 		if (accountId == null || timeZone == null)
 			return Collections.emptyList();
 
-		Account account = getAccountService().findAccountById(accountId).get();
+		Account account = getAccountService().findAccountById(accountId).orElse(null);
 
-		List<Appointment> appointments = getDatabase().queryForList("SELECT * FROM appointment WHERE account_id=? AND canceled=FALSE " +
-				"AND start_time >= ? ORDER BY start_time", Appointment.class, accountId, LocalDateTime.now(timeZone));
+		if (account == null)
+			return List.of();
 
-		return appointments;
+		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
+		Instant now = Instant.now();
+
+		if (institution.getEpicFhirEnabled()) {
+			// Special behavior for Epic FHIR institutions -
+			// Ask Epic for all appointments, then filter by only those providers that are active in Cobalt
+			EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institution.getInstitutionId());
+			EpicClient epicClient = enterprisePlugin.epicClientForBackendService().get();
+
+			AppointmentSearchFhirStu3Request request = new AppointmentSearchFhirStu3Request();
+			request.setPatient(account.getEpicPatientFhirId());
+
+			AppointmentSearchFhirStu3Response response = epicClient.appointmentSearchFhirStu3(request);
+
+			getLogger().debug("Patient {} has {} appointment[s] overall.", account.getEpicPatientFhirId(), response.getTotal());
+
+			if (response.getTotal() == 0)
+				return List.of();
+
+			// Find all Epic FHIR providers we're aware of and make them quickly accessible by their Epic Practitioner FHIR ID
+			Map<String, Provider> providersByEpicPractitionerFhirId = getProviderService().findProvidersByInstitutionId(institution.getInstitutionId()).stream()
+					.filter(provider -> provider.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR)
+					.collect(Collectors.toMap(Provider::getEpicPractitionerFhirId, Function.identity()));
+
+			List<Appointment> appointments = new ArrayList<>();
+
+			// Pick out all the appointment resources that match providers in our system
+			for (AppointmentSearchFhirStu3Response.Entry entry : response.getEntry()) {
+				AppointmentSearchFhirStu3Response.Entry.Resource resource = entry.getResource();
+
+				if ("Appointment".equals(resource.getResourceType())) {
+					boolean legitimateStatus = resource.getStatus() == AppointmentStatusCode.ARRIVED
+							|| resource.getStatus() == AppointmentStatusCode.BOOKED
+							|| resource.getStatus() == AppointmentStatusCode.CHECKED_IN
+							|| resource.getStatus() == AppointmentStatusCode.FULFILLED;
+
+					// Find the "actor" in each appointment that matches one of our providers
+					Provider matchingProvider = null;
+
+					for (AppointmentSearchFhirStu3Response.Entry.Resource.Participant participant : resource.getParticipant()) {
+						AppointmentSearchFhirStu3Response.Entry.Resource.Participant.Actor actor = participant.getActor();
+
+						if (actor != null) {
+							for (String epicPractitionerFhirId : providersByEpicPractitionerFhirId.keySet()) {
+								if (actor.getReference() != null && actor.getReference().endsWith(format("Practitioner/%s", epicPractitionerFhirId))) {
+									matchingProvider = providersByEpicPractitionerFhirId.get(epicPractitionerFhirId);
+									break;
+								}
+							}
+						}
+
+						if (matchingProvider != null)
+							break;
+					}
+
+					// OK, this appointment is with a provider in our system, has a valid status, and is after "now".
+					// It can be included in our results.
+					// Create a simulated appointment for display.
+					// TODO: match against visit type as well?
+					if (legitimateStatus && matchingProvider != null && resource.getStart().isAfter(now)) {
+						Appointment appointment = new Appointment();
+						appointment.setAppointmentId(UUID.randomUUID());
+						appointment.setAccountId(accountId);
+						appointment.setAppointmentTypeId(UUID.randomUUID());
+						appointment.setAttendanceStatusId(AttendanceStatusId.UNKNOWN);
+						appointment.setCanceled(false);
+						appointment.setCreated(now);
+						appointment.setLastUpdated(now);
+						appointment.setDurationInMinutes(Long.valueOf(resource.getMinutesDuration()));
+						appointment.setSchedulingSystemId(SchedulingSystemId.EPIC_FHIR);
+						appointment.setProviderId(matchingProvider.getProviderId());
+						appointment.setStartTime(LocalDateTime.ofInstant(resource.getStart(), institution.getTimeZone()));
+						appointment.setEndTime(LocalDateTime.ofInstant(resource.getEnd(), institution.getTimeZone()));
+						appointment.setTimeZone(institution.getTimeZone());
+						appointment.setVideoconferencePlatformId(VideoconferencePlatformId.EXTERNAL);
+						appointment.setTitle(getStrings().get("1:1 Appointment with {{providerName}}", Map.of("providerName", matchingProvider.getName())));
+
+						appointments.add(appointment);
+					}
+				}
+			}
+
+			return appointments;
+		} else {
+			return getDatabase().queryForList("""
+					SELECT *
+					FROM appointment
+					WHERE account_id=?
+					AND canceled=FALSE
+					AND start_time >= ?
+					ORDER BY start_time
+					""", Appointment.class, accountId, now);
+		}
 	}
 
 	@Nonnull
