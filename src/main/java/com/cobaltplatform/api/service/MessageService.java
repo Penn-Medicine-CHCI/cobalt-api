@@ -295,7 +295,7 @@ public class MessageService implements AutoCloseable {
 			Map<String, Object> messageContext = new HashMap<>(customizedEmailMessage.getMessageContext()); // Mutable copy
 
 			// e.g. https://cobaltplatform.s3.us-east-2.amazonaws.com/local/emails/button-start-appointment@2x.jpg
-			messageContext.put("staticFileUrlPrefix", format(" https://%s.s3.%s.amazonaws.com/%s/emails",
+			messageContext.put("staticFileUrlPrefix", format("https://%s.s3.%s.amazonaws.com/%s/emails",
 					getConfiguration().getAmazonS3BucketName(), getConfiguration().getAmazonS3Region().id(), getConfiguration().getEnvironment()));
 			messageContext.put("copyrightYear", LocalDateTime.now(institution.getTimeZone()).getYear());
 			messageContext.put("supportEmailAddress", institution.getSupportEmailAddress());
