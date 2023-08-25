@@ -119,6 +119,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/111-ic-updates
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/112-group-session-updates.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/113-epic-fhir-caching.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/114-institution-resources.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/115-epic-fhir-enabled.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
