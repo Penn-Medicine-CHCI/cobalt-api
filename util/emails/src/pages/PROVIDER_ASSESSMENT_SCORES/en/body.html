@@ -1,0 +1,56 @@
+---
+layout: default
+subject: 'Cobalt: Appointment Booked'
+title: '{{title}}'
+accountDescription: '{{accountDescription}}'
+accountScores: '{{accountScores}}'
+videoconferenceUrl: '{{videoconferenceUrl}}'
+appointmentDate: '{{appointmentDate}}'
+appointmentStartTime: '{{appointmentStartTime}}'
+appointmentEndTime: '{{appointmentEndTime}}'
+intakeResults: '{{intakeResults}}'
+---
+
+
+<spacer size="48"></spacer>
+
+<p>
+	A healthcare worker has booked an appointment with you through The Cobalt system.
+</p>
+
+<spacer size="16"></spacer>
+
+<p>
+	{{accountDescription}}
+</p>
+
+<spacer size="16"></spacer>
+
+<p>
+	Appointment Date - {{appointmentDate}}
+</p>
+<spacer size="4"></spacer>
+<p>
+	Appointment Time - {{appointmentStartTime}} to {{appointmentEndTime}}
+</p>
+
+{{#if videoconferenceUrl}}
+	<spacer size="4"></spacer>
+	<p>
+		Videoconference Link - <a href="{{videoconferenceUrl}}">{{videoconferenceUrl}}</a>
+	</p>
+	{{/if}}
+
+<spacer size="4"></spacer>
+<p>
+	Assessment results - {{accountScores}}
+</p>
+
+{{#if intakeResults}}
+	<spacer size="4"></spacer>
+	<p>
+		Intake results - {{intakeResults}}
+	</p>
+{{/if}}
+
+<spacer size="48"></spacer>

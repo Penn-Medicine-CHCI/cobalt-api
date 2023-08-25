@@ -1,0 +1,35 @@
+---
+layout: default
+subject: "Cobalt: Content added awaiting approval - {{contentTitle}}"
+title: "{{title}}"
+adminAccountName: "{{adminAccountName}}"
+submittingAccountName: "{{submittingAccountName}}"
+contentType: "{{contentType}}"
+contentTitle: "{{contentTitle}}"
+contentAuthor: "{{contentAuthor}}"
+submissionDate: "{{submissionDate}}"
+cmsListUrl: "{{cmsListUrl}}"
+staticFileUrlPrefix: "https://cobalt-shared-media.s3.amazonaws.com/emails"
+---
+
+<spacer size="48"></spacer>
+
+<p>Hi {{adminAccountName}},</p>
+
+<spacer size="16"></spacer>
+
+<p>
+  {{submittingAccountName}} has submitted On Your Time content for your review.
+  The {{contentType}} {{contentTitle}}, by {{contentAuthor}} was submitted on
+  {{submissionDate}}
+</p>
+
+<spacer size="32"></spacer>
+
+{{> call-to-action
+  ctaHref=cmsListUrl
+  ctaAsset='button-approve-or-reject@2x.jpg'
+  ctaAlt='Approve or Reject this content'
+}}
+
+<spacer size="48"></spacer>

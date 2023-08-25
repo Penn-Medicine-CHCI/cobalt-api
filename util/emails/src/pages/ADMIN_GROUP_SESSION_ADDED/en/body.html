@@ -1,0 +1,32 @@
+---
+layout: default
+subject: "Cobalt: Group Session added awaiting approval - {{groupSessionTitle}}"
+title: '{{title}}'
+adminAccountName: "{{adminAccountName}}"
+submittingAccountName: "{{submittingAccountName}}"
+groupSessionTitle: "{{groupSessionTitle}}"
+groupSessionListUrl: "{{groupSessionListUrl}}"
+staticFileUrlPrefix: "https://cobalt-shared-media.s3.amazonaws.com/emails"
+---
+
+<spacer size="48"></spacer>
+
+<p>Hi {{adminAccountName}},</p>
+
+<spacer size="16"></spacer>
+
+<p>
+  {{submittingAccountName}} has submitted a Group Session called
+  '{{groupSessionTitle}}' for your review.
+</p>
+
+<spacer size="32"></spacer>
+
+
+{{> call-to-action
+  ctaHref=groupSessionListUrl
+  ctaAsset='button-approve-or-reject@2x.jpg'
+  ctaAlt='Approve or Reject this content'
+}}
+
+<spacer size="48"></spacer>

@@ -1,0 +1,52 @@
+---
+layout: default
+subject: 'Cobalt: Reservation canceled for ‘{{{groupSession.title}}}’'
+title: '{{title}}'
+groupSession:
+  {
+    title: "{{groupSession.title}}",
+    facilitatorName: "{{groupSession.facilitatorName}}",
+    videoconferenceUrl: "{{groupSession.videoconferenceUrl}}",
+    confirmationEmailContent: "{{groupSession.confirmationEmailContent}}",
+		targetEmailAddress: "{{groupSession.targetEmailAddress}}"
+  }
+imageUrl: "https://cobalt-shared-media.s3.amazonaws.com/emails/default-provider.png"
+attendeeName: "{{attendeeName}}"
+groupSessionStartDateDescription: "{{groupSessionStartDateDescription}}"
+groupSessionStartTimeDescription: "{{groupSessionStartTimeDescription}}"
+groupSessionEndDateDescription: "{{groupSessionEndDateDescription}}"
+groupSessionEndTimeDescription: "{{groupSessionEndTimeDescription}}"
+cancelUrl: "{{cancelUrl}}"
+icalUrl: "{{icalUrl}}"
+googleCalendarUrl: "{{googleCalendarUrl}}"
+anotherTimeUrl: "{{anotherTimeUrl}}"
+staticFileUrlPrefix: "https://cobalt-shared-media.s3.amazonaws.com/emails"
+---
+
+<spacer size="48"></spacer>
+
+{{> session-image sessionImageSrc=imageUrl sessionImageAlt=groupSession.title }}
+
+<spacer size="16"></spacer>
+
+<p class="text-center">
+	Your group session reservation for &lsquo;{{groupSession.title}}&rsquo; on {{groupSessionStartDateDescription}} @ {{groupSessionStartTimeDescription}} has been canceled.
+</p>
+
+<spacer size="32"></spacer>
+
+<p>Hi {{attendeeName}},</p>
+
+<spacer size="16"></spacer>
+
+<p>
+	Your group session reservation has been canceled.
+</p>
+
+{{#if anotherTimeUrl}}
+<spacer size="32"></spacer>
+
+{{> call-to-action ctaHref=anotherTimeUrl ctaAsset='button-another-time@2x.jpg' ctaAlt="Reserve Another Session" }}
+{{/if}}
+
+<spacer size="48"></spacer>

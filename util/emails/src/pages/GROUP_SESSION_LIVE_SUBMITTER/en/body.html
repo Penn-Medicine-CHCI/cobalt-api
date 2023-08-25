@@ -1,0 +1,32 @@
+---
+layout: default
+subject: 'Cobalt: Group Session ‘{{{groupSession.title}}}’ is now live!'
+title: '{{title}}'
+imageUrl: 'https://cobalt-shared-media.s3.amazonaws.com/emails/default-provider.png'
+groupSession: {title: '{{groupSession.title}}'}
+groupSessionUrl: '{{groupSession}}'
+---
+
+<spacer size="48"></spacer>
+
+{{> session-image sessionImageSrc=imageUrl sessionImageAlt=groupSession.title }}
+
+<spacer size="16"></spacer>
+
+<p class="text-center">
+	We're following up on your recent group session submission
+</p>
+
+<spacer size="32"></spacer>
+
+<p>
+	Hi there!
+</p>
+
+<spacer size="16"></spacer>
+
+<p>
+	The group session you submitted is now live!  <a href="{{{groupSessionUrl}}}">Please click here to see it on Cobalt</a>.
+</p>
+
+<spacer size="48"></spacer>
