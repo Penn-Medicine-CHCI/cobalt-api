@@ -81,6 +81,8 @@ import com.cobaltplatform.api.model.api.response.CallToActionApiResponse.CallToA
 import com.cobaltplatform.api.model.api.response.ClinicApiResponse.ClinicApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse.CountryApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.FaqApiResponse.FaqApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.FaqTopicApiResponse.FaqTopicApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FeatureApiResponse.FeatureApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FilterApiResponse.FilterApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApiResponseFactory;
@@ -305,6 +307,8 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(GroupSessionSuggestionApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(InstitutionResourceGroupApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(InstitutionResourceApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(FaqApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(FaqTopicApiResponseFactory.class)));
 	}
 
 	@Provides

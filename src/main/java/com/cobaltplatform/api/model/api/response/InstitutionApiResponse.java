@@ -135,6 +135,8 @@ public class InstitutionApiResponse {
 	@Nullable
 	private final String clinicalSupportPhoneNumberDescription;
 	@Nonnull
+	private final Boolean faqEnabled;
+	@Nonnull
 	private final List<AlertApiResponse> alerts;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
@@ -222,6 +224,8 @@ public class InstitutionApiResponse {
 
 		this.clinicalSupportPhoneNumber = institution.getClinicalSupportPhoneNumber();
 		this.clinicalSupportPhoneNumberDescription = institution.getClinicalSupportPhoneNumber() == null ? null : formatter.formatPhoneNumber(institution.getClinicalSupportPhoneNumber());
+
+		this.faqEnabled = institution.getFaqEnabled();
 
 		if (account == null) {
 			this.alerts = alertService.findAlertsByInstitutionId(institution.getInstitutionId()).stream()
@@ -442,5 +446,10 @@ public class InstitutionApiResponse {
 	@Nullable
 	public String getClinicalSupportPhoneNumberDescription() {
 		return this.clinicalSupportPhoneNumberDescription;
+	}
+
+	@Nonnull
+	public Boolean getFaqEnabled() {
+		return this.faqEnabled;
 	}
 }
