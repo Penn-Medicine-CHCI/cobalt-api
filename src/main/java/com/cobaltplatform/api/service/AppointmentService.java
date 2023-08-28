@@ -352,6 +352,10 @@ public class AppointmentService {
 			EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institution.getInstitutionId());
 			EpicClient epicClient = enterprisePlugin.epicClientForBackendService().get();
 
+			// We don't have a FHIR ID associated with this account yet?  No results available
+			if (account.getEpicPatientFhirId() == null)
+				return List.of();
+
 			AppointmentSearchFhirStu3Request request = new AppointmentSearchFhirStu3Request();
 			request.setPatient(account.getEpicPatientFhirId());
 
