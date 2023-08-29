@@ -219,8 +219,10 @@ function injectViewSpecificCode() {
 }
 function viewHbsCodeInjecter() {
 	const frontMatterRegex = /---(.|\n)*---/;
+	const hexColorRegex = /(#[0-9a-fA-F]+)/g
 	const openPartialBuffer = Buffer.from('{{#partial "body"}}');
 	const closePartialBuffer = Buffer.from('\n{{/partial}}');
+	const hexColorThemeTokenMap = getReverseColorTokenMap();
 
 	const stream = through.obj(function (file, _encoding, callback) {
 		if (file.isStream()) {
@@ -233,9 +235,18 @@ function viewHbsCodeInjecter() {
 			const frontMatterString = (fileAsString.match(frontMatterRegex) || [])[0];
 			const frontMatterObject = yaml.loadAll(frontMatterString)[0];
 			const fileAsStringNoFrontMatter = fileAsString.replace(frontMatterRegex, '');
+			const fileAsStringNoHexColors = fileAsStringNoFrontMatter.replace(hexColorRegex, (hexColor) => {
+				const colorToken = hexColorThemeTokenMap[hexColor];
 
-			const hbsTemplateBuffer = Buffer.from(fileAsStringNoFrontMatter);
-			const layoutBuffer = Buffer.from(`\n{{> layouts/${frontMatterObject.layout}}}`);
+				if (colorToken) {
+					return `{{${colorToken}}}`;
+				}
+
+				return hexColor;
+			});
+
+			const hbsTemplateBuffer = Buffer.from(fileAsStringNoHexColors);
+			const layoutBuffer = Buffer.from(`\n\n{{> layouts/${frontMatterObject.layout}}}`);
 
 			file.contents = Buffer.concat([openPartialBuffer, hbsTemplateBuffer, closePartialBuffer, layoutBuffer]);
 		}
@@ -446,4 +457,28 @@ function zip() {
 	});
 
 	return merge(moveTasks);
+}
+// mapping of '#ffffff: n0'
+// reversed from sass '$n0: #ffffff;'
+function getReverseColorTokenMap() {
+	const colorsFileLines = fs
+		.readFileSync("src/assets/scss/_colors.scss", "utf-8")
+		.split("\n");
+
+	const colorMap = {}
+
+	for (const line of colorsFileLines) {
+		// start of line -- $"someVar" followed by a ':' some whitespace and the #hex;
+		const colorDeclarationRegex = new RegExp(
+			`^\\$(\\w+):\\s*(#[0-9a-fA-F]+);`
+		);
+		const match = line.match(colorDeclarationRegex);
+
+		if (match) {
+			const [, colorName, colorHex] = match;
+			colorMap[colorHex] = colorName;
+		}
+	}
+
+	return colorMap;
 }
