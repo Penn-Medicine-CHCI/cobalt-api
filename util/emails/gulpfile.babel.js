@@ -50,7 +50,7 @@ gulp.task(
 	gulp.series(
 		cleanDist,
 		inkifyLayouts,
-		inkifyPages,
+		inlinePartialsAndInkifyPages,
 		sass,
 		images,
 		injectStylesIntoLayouts,
@@ -88,9 +88,62 @@ function pages() {
 		.pipe(gulp.dest('dist'));
 }
 
-function inkifyPages() {
+
+function inlinePartialsAndInkifyPages() {
+	const partialsDir = 'src/partials';
+	const partials = {};
+
+	// read all available partials to memory
+	fs.readdirSync(partialsDir).forEach(partialFile => {
+		const partialName = path.basename(partialFile, '.html');
+		const partialContent = fs.readFileSync(path.join(partialsDir, partialFile), 'utf-8');
+		partials[partialName] = partialContent;
+	});
+
 	return gulp
 		.src(['src/pages/**/*.html', '!src/pages/index.html', '!src/pages/archive/**/*.html'])
+		.pipe(through.obj(function(file, _, cb) {
+			let content = file.contents.toString();
+
+			// Inline partials for java consumption
+			for (let partialName in partials) {
+				// matches for `{{#> PARTIAL_NAME }}{{/PARTIAL_NAME}}`
+				const partialBlockRegex = `{{#>\\s*${partialName}\\s*([^}]+)?}}([\\s\\S]*?){{\\/${partialName}}}`
+				// matches for `{{> PARTIAL_NAME paramOne=valueOne paramTwo=valueTwo }}` // capturing params in a group
+				const partialRegex = `{{>\\s*${partialName}\\s*([^}]+)?}}`
+
+				const regex = new RegExp(`${partialBlockRegex}|${partialRegex}`, 'g');
+
+
+				// replace partials with their content .. preserving/forwarding params
+				content = content.replace(regex, (match, paramStr1, innerContent, paramStr2) => {
+					let partialContent = partials[partialName];
+
+					if (innerContent !== undefined) {
+						const blockRegex = new RegExp('{{>\\s*@partial-block\\s*}}', 'g')
+						partialContent = partialContent.replace(blockRegex, innerContent)
+					}
+
+					const paramStr = paramStr1 || paramStr2;
+
+					if (paramStr && paramStr.trim()) {
+						const params = paramStr.trim().split(/\s+/);
+						for (const param of params) {
+							const [key, value] = param.split('=');
+							const paramRegex = new RegExp(`{{${key}}}`, 'g');
+							partialContent = partialContent.replace(paramRegex, value)
+						}
+					}
+
+					return partialContent;
+				})
+			}
+
+
+			file.contents = Buffer.from( content);
+
+			cb(null, file);
+		}))
 		.pipe(inky())
 		.pipe(gulp.dest('dist/views'));
 }
