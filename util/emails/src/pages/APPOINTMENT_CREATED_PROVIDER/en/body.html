@@ -1,7 +1,6 @@
 ---
 layout: default
 subject: "Cobalt: Appointment Booked for {{appointmentStartDateTimeDescription}}"
-title: "{{title}}"
 appointmentId: "{{appointmentId}}"
 appointmentStartDateTimeDescription: "{{appointmentStartDateTimeDescription}}"
 appointmentStartDateDescription: "{{appointmentStartDateDescription}}"
@@ -15,26 +14,34 @@ googleCalendarUrl: "{{googleCalendarUrl}}"
 providerSchedulingUrl: "{{providerSchedulingUrl}}"
 ---
 
-<spacer size="48"></spacer>
 
-<p>Hello {{providerName}},</p>
 
-<spacer size="16"></spacer>
+{{#> header}}
+	Appointment booked
+{{/header}}
 
-<p>
-  A Cobalt user ({{accountEmailAddress}}) will be meeting with you at
-  <a href="{{{videoconferenceUrl}}}">{{{videoconferenceUrl}}}</a> on
-  {{appointmentStartDateDescription}} @ {{appointmentStartTimeDescription}}.
-</p>
+{{#> content}}
+	<spacer size="48"></spacer>
 
-<spacer size="32"></spacer>
+	<p>Hello {{providerName}},</p>
 
-{{#if providerSchedulingUrl}}
-<p>
-  <a href="{{{providerSchedulingUrl}}}">
-		Click here to view patient information in Cobalt.
-	</a>
-</p>
-{{/if}}
+	<spacer size="16"></spacer>
 
-<spacer size="48"></spacer>
+	<p>
+		A Cobalt user ({{accountEmailAddress}}) will be meeting with you at
+		<a href="{{{videoconferenceUrl}}}">{{{videoconferenceUrl}}}</a> on
+		{{appointmentStartDateDescription}} @ {{appointmentStartTimeDescription}}.
+	</p>
+
+	<spacer size="32"></spacer>
+
+	{{#if providerSchedulingUrl}}
+		<p>
+			<a href="{{{providerSchedulingUrl}}}">
+				Click here to view patient information in Cobalt.
+			</a>
+		</p>
+	{{/if}}
+
+	<spacer size="48"></spacer>
+{{/content}}

@@ -1,7 +1,6 @@
 ---
 layout: default
 subject: 'Cobalt: Appointment Canceled for {{appointmentStartDateTimeDescription}}'
-title: '{{title}}'
 appointmentId: '{{appointmentId}}'
 appointmentStartDateTimeDescription: '{{appointmentStartDateTimeDescription}}'
 appointmentStartDateDescription: '{{appointmentStartDateDescription}}'
@@ -12,14 +11,21 @@ accountEmailAddress: '{{accountEmailAddress}}'
 ---
 
 
-<spacer size="48"></spacer>
 
-<p>Hi {{providerName}},</p>
+{{#> header}}
+	Appointment canceled
+{{/header}}
 
-<spacer size="16"></spacer>
+{{#> content}}
+	<spacer size="48"></spacer>
 
-<p>
-	Your appointment with {{accountName}} ({{accountEmailAddress}}) on {{appointmentStartDateDescription}} @ {{appointmentStartTimeDescription}} has been canceled.
-</p>
+	<p>Hi {{providerName}},</p>
 
-<spacer size="48"></spacer>
+	<spacer size="16"></spacer>
+
+	<p>
+		Your appointment with {{accountName}} ({{accountEmailAddress}}) on {{appointmentStartDateDescription}} @ {{appointmentStartTimeDescription}} has been canceled.
+	</p>
+
+	<spacer size="48"></spacer>
+{{/content}}

@@ -1,40 +1,49 @@
 ---
 layout: default
 subject: 'Cobalt: Group session canceled - {{{groupSession.title}}}'
-title: '{{title}}'
 groupSession: {title: '{{groupSession.title}}'}
-imageUrl: 'https://cobalt-shared-media.s3.amazonaws.com/emails/default-provider.png'
+imageUrl: '/assets/img/default-provider.png'
 attendeeName: '{{attendeeName}}'
 groupSessionStartDateDescription: '{{groupSessionStartDateDescription}}'
 groupSessionStartTimeDescription: '{{groupSessionStartTimeDescription}}'
 anotherTimeUrl: '{{anotherTimeUrl}}'
-staticFileUrlPrefix: 'https://cobalt-shared-media.s3.amazonaws.com/emails'
 ---
 
-<spacer size="48"></spacer>
 
-{{> session-image sessionImageSrc=imageUrl sessionImageAlt=groupSession.title }}
+{{#> header}}
 
-<spacer size="16"></spacer>
+{{/header}}
 
-<p class="text-center">
-	The group session &lsquo;{{groupSession.title}}&rsquo; has been canceled.
-</p>
+{{#> content}}
+	<spacer size="48"></spacer>
 
-<spacer size="32"></spacer>
+	{{> session-image sessionImageSrc=imageUrl sessionImageAlt=groupSession.title }}
 
-<p>
-	Hi {{attendeeName}},
-</p>
+	<spacer size="16"></spacer>
 
-<spacer size="16"></spacer>
+	<p class="text-center">
+		The group session &lsquo;{{groupSession.title}}&rsquo; has been canceled.
+	</p>
 
-<p>
-	The group session scheduled for {{groupSessionStartDateDescription}} @ {{groupSessionStartTimeDescription}} has been canceled.  We apologize for the inconvenience.
-</p>
+	<spacer size="32"></spacer>
 
-<spacer size="32"></spacer>
+	<p>
+		Hi {{attendeeName}},
+	</p>
 
-{{> call-to-action ctaHref=anotherTimeUrl ctaAsset='button-another-time@2x.jpg' ctaAlt="Reserve Another Session" }}
+	<spacer size="16"></spacer>
 
-<spacer size="48"></spacer>
+	<p>
+		The group session scheduled for {{groupSessionStartDateDescription}} @ {{groupSessionStartTimeDescription}} has been canceled.We apologize for the inconvenience.
+	</p>
+
+	<spacer size="32"></spacer>
+
+	{{> call-to-action
+		ctaHref=anotherTimeUrl
+		ctaAsset='assets/img/button-another-time@2x.jpg'
+		ctaAlt="Reserve Another Session"
+	}}
+
+	<spacer size="48"></spacer>
+{{/content}}

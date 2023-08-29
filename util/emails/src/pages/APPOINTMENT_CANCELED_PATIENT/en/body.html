@@ -1,39 +1,45 @@
 ---
 layout: default
 subject: 'Cobalt: Session Canceled with {{providerNameAndCredentials}}'
-title: '{{title}}'
 appointmentId: '{{appointmentId}}'
 providerName: '{{providerName}}'
 providerNameAndCredentials: '{{providerNameAndCredentials}}'
 videoconferenceUrl: '{{videoconferenceUrl}}'
-imageUrl: 'https://cobalt-shared-media.s3.amazonaws.com/emails/default-provider.png'
+imageUrl: '/assets/img/default-provider.png'
 patientName: '{{patientName}}'
 appointmentStartDateDescription: '{{appointmentStartDateDescription}}'
 appointmentStartTimeDescription: '{{appointmentStartTimeDescription}}'
 ---
 
-<spacer size="48"></spacer>
 
-{{> provider-image
-  providerImageSrc=imageUrl
-  providerImageAlt=providerName
-}}
+{{#> header}}
 
-<spacer size="16"></spacer>
+{{/header}}
 
-<p class="text-center">Your session with {{providerNameAndCredentials}} is canceled.</p>
+{{#> content}}
+	<spacer size="48"></spacer>
 
-<spacer size="32"></spacer>
+	{{> provider-image
+		providerImageSrc=imageUrl
+		providerImageAlt=providerName
+	}}
 
-<p>Hello,</p>
+	<spacer size="16"></spacer>
 
-<spacer size="16"></spacer>
+	<p class="text-center">Your session with {{providerNameAndCredentials}} is canceled.</p>
 
-<p>
-  Your appointment with {{providerName}}
-  on {{appointmentStartDateDescription}}
-  @ {{appointmentStartTimeDescription}}
-  has been canceled.
-</p>
+	<spacer size="32"></spacer>
 
-<spacer size="48"></spacer>
+	<p>Hello,</p>
+
+	<spacer size="16"></spacer>
+
+	<p>
+		Your appointment with {{providerName}}
+		on {{appointmentStartDateDescription}}
+		@ {{appointmentStartTimeDescription}}
+		has been canceled.
+	</p>
+
+	<spacer size="48"></spacer>
+{{/content}}

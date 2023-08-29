@@ -1,16 +1,14 @@
 ---
 layout: default
 subject: "Cobalt: Seat Reserved for {{{groupSession.title}}}"
-title: "{{title}}"
-groupSession:
-  {
-    title: "{{groupSession.title}}",
-    facilitatorName: "{{groupSession.facilitatorName}}",
-    videoconferenceUrl: "{{groupSession.videoconferenceUrl}}",
-    confirmationEmailContent: "{{groupSession.confirmationEmailContent}}",
-		targetEmailAddress: "{{groupSession.targetEmailAddress}}"
-  }
-imageUrl: "https://cobalt-shared-media.s3.amazonaws.com/emails/default-provider.png"
+groupSession: {
+	title: "{{groupSession.title}}",
+	facilitatorName: "{{groupSession.facilitatorName}}",
+	videoconferenceUrl: "{{groupSession.videoconferenceUrl}}",
+	confirmationEmailContent: "{{groupSession.confirmationEmailContent}}",
+	targetEmailAddress: "{{groupSession.targetEmailAddress}}"
+}
+imageUrl: "/assets/img/default-provider.png"
 attendeeName: "{{attendeeName}}"
 groupSessionStartDateDescription: "{{groupSessionStartDateDescription}}"
 groupSessionStartTimeDescription: "{{groupSessionStartTimeDescription}}"
@@ -20,49 +18,62 @@ cancelUrl: "{{cancelUrl}}"
 icalUrl: "{{icalUrl}}"
 googleCalendarUrl: "{{googleCalendarUrl}}"
 anotherTimeUrl: "{{anotherTimeUrl}}"
-staticFileUrlPrefix: "https://cobalt-shared-media.s3.amazonaws.com/emails"
 ---
 
-<spacer size="48"></spacer>
 
-{{> session-image sessionImageSrc=imageUrl sessionImageAlt=groupSession.title }}
 
-<spacer size="16"></spacer>
+{{#> header}}
 
-<p class="text-center">
-  Your group session seat is reserved for &lsquo;{{groupSession.title}}&rsquo;.
-</p>
+{{/header}}
 
-<spacer size="32"></spacer>
+{{#> content}}
+	<spacer size="48"></spacer>
 
-<p>Hello,</p>
+	{{> session-image
+		sessionImageSrc=imageUrl
+		sessionImageAlt=groupSession.title
+	}}
 
-<spacer size="16"></spacer>
+	<spacer size="16"></spacer>
 
-<p>
-  {{groupSession.facilitatorName}} looks forward to seeing you on
-  {{groupSessionStartDateDescription}} @ {{groupSessionStartTimeDescription}}
-</p>
+	<p class="text-center">
+		Your group session seat is reserved for &lsquo;{{groupSession.title}}&rsquo;.
+	</p>
 
-{{#if groupSession.confirmationEmailContent}}
-<spacer size="16"></spacer>
-<p>{{{groupSession.confirmationEmailContent}}}</p>
-{{/if}}
+	<spacer size="32"></spacer>
 
-<spacer size="32"></spacer>
+	<p>Hello,</p>
 
-{{> call-to-action ctaHref=groupSession.videoconferenceUrl
-	ctaAsset='button-start-appointment@2x.jpg' ctaAlt="Join Now" }}
+	<spacer size="16"></spacer>
 
-<spacer size="32"></spacer>
+	<p>
+		{{groupSession.facilitatorName}} looks forward to seeing you on
+		{{groupSessionStartDateDescription}} @ {{groupSessionStartTimeDescription}}
+	</p>
 
-<p>
-	To cancel or reschedule, email your provider at
-	{{{groupSession.targetEmailAddress}}}.
-</p>
+	{{#if groupSession.confirmationEmailContent}}
+		<spacer size="16"></spacer>
+		<p>{{{groupSession.confirmationEmailContent}}}</p>
+	{{/if}}
 
-<spacer size="32"></spacer>
+	<spacer size="32"></spacer>
 
-{{> smooth-session-tips }}
+	{{> call-to-action
+		ctaHref=groupSession.videoconferenceUrl
+		ctaAsset='assets/img/button-start-appointment@2x.jpg'
+		ctaAlt="Join Now"
+	}}
 
-<spacer size="48"></spacer>
+	<spacer size="32"></spacer>
+
+	<p>
+		To cancel or reschedule, email your provider at
+		{{{groupSession.targetEmailAddress}}}.
+	</p>
+
+	<spacer size="32"></spacer>
+
+	{{> smooth-session-tips }}
+
+	<spacer size="48"></spacer>
+{{/content}}

@@ -1,17 +1,33 @@
 ---
 layout: default
-subject: Cobalt | Appointment Confirmation Code
-title: Appointment Confirmation Code
-name: PATIENT_NAME
-confirmationCode: CONFIRMATION_CODE
+subject: '{{subject}}'
+title: '{{title}}'
+salutation: '{{salutation}}'
+codeTypeDescription: '{{codeTypeDescription}}'
+confirmationCode: '{{confirmationCode}}'
 ---
 
-<spacer size="48"></spacer>
-<p>Hi {{name}},</p>
-<spacer size="16"></spacer>
-<p>Your confirmation code is:</p>
-<spacer size="16"></spacer>
-<h2><strong>{{confirmationCode}}</strong></h2>
-<spacer size="16"></spacer>
-<p>Enter this code to finish booking your appointment.</p>
-<spacer size="72"></spacer>
+
+{{#> header}}
+	{{title}}
+{{/header}}
+
+{{#> content}}
+	<spacer size="48"></spacer>
+
+	<p>{{salutation}}</p>
+
+	<spacer size="16"></spacer>
+
+	<p>Your {{codeTypeDescription}} is:</p>
+
+	<spacer size="16"></spacer>
+
+	<h2><strong>{{confirmationCode}}</strong></h2>
+
+	<spacer size="16"></spacer>
+
+	<p>Enter this code to finish booking your appointment.</p>
+
+	<spacer size="72"></spacer>
+{{/content}}

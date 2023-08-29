@@ -1,46 +1,53 @@
 ---
 layout: default
 subject: 'Cobalt: Followup for ‘{{{groupSession.title}}}’'
-title: '{{title}}'
-groupSession:
-  {
-    title: "{{groupSession.title}}",
-    facilitatorName: "{{groupSession.facilitatorName}}",
-    videoconferenceUrl: "{{groupSession.videoconferenceUrl}}",
-    confirmationEmailContent: "{{groupSession.confirmationEmailContent}}",
-		targetEmailAddress: "{{groupSession.targetEmailAddress}}",
-		followupEmailSurveyUrl: "{{groupSession.followupEmailSurveyUrl}}"
-  }
-imageUrl: "https://cobalt-shared-media.s3.amazonaws.com/emails/default-provider.png"
+groupSession: {
+	title: "{{groupSession.title}}",
+	facilitatorName: "{{groupSession.facilitatorName}}",
+	videoconferenceUrl: "{{groupSession.videoconferenceUrl}}",
+	confirmationEmailContent: "{{groupSession.confirmationEmailContent}}",
+	targetEmailAddress: "{{groupSession.targetEmailAddress}}",
+	followupEmailSurveyUrl: "{{groupSession.followupEmailSurveyUrl}}"
+}
+imageUrl: "/assets/img/default-provider.png"
 ---
 
 
-<spacer size="48"></spacer>
+{{#> header}}
 
-{{> session-image sessionImageSrc=imageUrl sessionImageAlt=groupSession.title }}
+{{/header}}
 
-<spacer size="16"></spacer>
+{{#> content}}
+	<spacer size="48"></spacer>
 
-<p class="text-center">
-  We're following up on your recent group session
-</p>
+	{{> session-image
+		sessionImageSrc=imageUrl
+		sessionImageAlt=groupSession.title
+	}}
 
-<spacer size="32"></spacer>
+	<spacer size="16"></spacer>
 
-<p>Hi there!</p>
-
-<spacer size="16"></spacer>
-
-<p>
-	{{{groupSession.followupEmailContent}}}
-</p>
-
-{{#if groupSession.followupEmailSurveyUrl}}
-<spacer size="32"></spacer>
-	<p>
-		<a href="{{{groupSession.followupEmailSurveyUrl}}}">Please click here to take the survey</a>
+	<p class="text-center">
+		We're following up on your recent group session
 	</p>
-{{/if}}
 
-<spacer size="48"></spacer>
+	<spacer size="32"></spacer>
 
+	<p>Hi there!</p>
+
+	<spacer size="16"></spacer>
+
+	<p>
+		{{{groupSession.followupEmailContent}}}
+	</p>
+
+	{{#if groupSession.followupEmailSurveyUrl}}
+		<spacer size="32"></spacer>
+		<p>
+			<a href="{{{groupSession.followupEmailSurveyUrl}}}">Please click here to take the survey</a>
+		</p>
+	{{/if}}
+
+	<spacer size="48"></spacer>
+
+{{/content}}

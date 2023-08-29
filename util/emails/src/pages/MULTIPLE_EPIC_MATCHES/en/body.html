@@ -1,15 +1,21 @@
 ---
 layout: default
 subject: "Cobalt: Multiple EPIC Patient Matches"
-title: "{{title}}"
 phoneNumberDescription: "{{phoneNumberDescription}}"
 ---
 
-<spacer size="48"></spacer>
 
-<p>
-  A patient with phone number {{phoneNumberDescription}} matched with multiple
-  EPIC records. Please give them a call to perform their booking manually.
-</p>
+{{#> header}}
 
-<spacer size="48"></spacer>
+{{/header}}
+
+{{#> content}}
+	<spacer size="48"></spacer>
+
+	<p>
+		A patient with phone number {{phoneNumberDescription}} matched with multiple
+		EPIC records. Please give them a call to perform their booking manually.
+	</p>
+
+	<spacer size="48"></spacer>
+{{/content}}

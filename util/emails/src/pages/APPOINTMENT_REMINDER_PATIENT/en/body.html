@@ -6,7 +6,7 @@ providerName: '{{providerName}}'
 providerEmailAddress: '{{providerEmailAddress}}'
 providerNameAndCredentials: '{{providerNameAndCredentials}}'
 videoconferenceUrl: '{{videoconferenceUrl}}'
-imageUrl: 'https://cobalt-shared-media.s3.amazonaws.com/emails/default-provider.png'
+imageUrl: '/assets/img/default-provider.png'
 patientName: '{{patientName}}'
 appointmentStartDateDescription: '{{appointmentStartDateDescription}}'
 appointmentStartTimeDescription: '{{appointmentStartTimeDescription}}'
@@ -16,24 +16,35 @@ googleCalendarUrl: '{{googleCalendarUrl}}'
 anotherTimeUrl: '{{anotherTimeUrl}}'
 ---
 
-<spacer size="48"></spacer>
 
-{{> provider-image providerImageSrc=imageUrl providerImageAlt=providerName }}
+{{#> header}}
+	Appointment Reminder
+{{/header}}
 
-<spacer size="32"></spacer>
+{{#> content}}
+	<spacer size="48"></spacer>
 
-<p>Hello,</p>
+	{{> provider-image providerImageSrc=imageUrl providerImageAlt=providerName }}
 
-<p>
-	This is a reminder that you have scheduled a 1:1 Support Session with{{providerName}} tomorrow, {{appointmentStartDateDescription}} at {{appointmentStartTimeDescription}}.
-</p>
-<br />
-<p>
-	If you have any questions about the appointment, please email your provider at <a href="mailto:{{providerEmailAddress}}">{{providerEmailAddress}}</a>.
-</p>
-<br/>
-<p>
-	Warmly, The Cobalt Team
-</p>
+	<spacer size="32"></spacer>
 
-<spacer size="48"></spacer>
+	<p>Hello,</p>
+
+	<p>
+		This is a reminder that you have scheduled a 1:1 Support Session with{{providerName}} tomorrow, {{appointmentStartDateDescription}} at {{appointmentStartTimeDescription}}.
+	</p>
+
+	<spacer size="16"></spacer>
+
+	<p>
+		If you have any questions about the appointment, please email your provider at <a href="mailto:{{providerEmailAddress}}">{{providerEmailAddress}}</a>.
+	</p>
+
+	<spacer size="16"></spacer>
+
+	<p>
+		Warmly, The Cobalt Team
+	</p>
+
+	<spacer size="48"></spacer>
+{{/content}}

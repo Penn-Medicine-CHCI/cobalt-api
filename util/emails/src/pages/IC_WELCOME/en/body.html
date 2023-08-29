@@ -1,22 +1,29 @@
 ---
 layout: default
 subject: "{{integratedCareProgramName}}: Welcome!"
-title: "{{title}}"
 integratedCarePrimaryCareName: "{{integratedCarePrimaryCareName}}"
 webappBaseUrl: "{{webappBaseUrl}}"
 integratedCarePhoneNumberDescription: "{{integratedCarePhoneNumberDescription}}"
 ---
 
-<spacer size="48"></spacer>
 
-<p>
-  Your {{integratedCarePrimaryCareName}} healthcare provider would like to
-  connect you to further care. Please visit
-  <a href="{{{webappBaseUrl}}}">{{webappBaseUrl}}</a> to get connected.
-</p>
 
-<spacer size="32"></spacer>
+{{#> header}}
+	Welcome to {{integratedCareProgramName}}!
+{{/header}}
 
-<p>Questions? Please call us at {{integratedCarePhoneNumberDescription}}.</p>
+{{#> content}}
+	<spacer size="48"></spacer>
 
-<spacer size="48"></spacer>
+	<p>
+		Your {{integratedCarePrimaryCareName}} healthcare provider would like to
+		connect you to further care. Please visit
+		<a href="{{{webappBaseUrl}}}">{{webappBaseUrl}}</a> to get connected.
+	</p>
+
+	<spacer size="32"></spacer>
+
+	<p>Questions? Please call us at {{integratedCarePhoneNumberDescription}}.</p>
+
+	<spacer size="48"></spacer>
+{{/content}}

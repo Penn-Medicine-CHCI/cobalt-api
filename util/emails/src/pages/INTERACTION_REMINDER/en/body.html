@@ -1,39 +1,44 @@
 ---
 layout: default
 subject: 'Interaction Reminder for {{{caseNumber}}}'
-title: '{{title}}'
 endUserHtmlRepresentation: "{{endUserHtmlRepresentation}}"
 hipaaCompliantMetadata: "{{hipaaCompliantMetadata}}"
 interactionInstanceUrl: "{{interactionInstanceUrl}}"
 ---
 
 
-<spacer size="48"></spacer>
+{{#> header}}
+	We're following up with a reminder
+{{/header}}
 
-<p>
-	Details
-</p>
+{{#> content}}
+	<spacer size="48"></spacer>
 
-<spacer size="16"></spacer>
+	<p>
+		Details
+	</p>
 
-<p>
-	Here are the relevant details:
-</p>
+	<spacer size="16"></spacer>
 
-<spacer size="4"></spacer>
+	<p>
+		Here are the relevant details:
+	</p>
 
-<p>
-	{{#if endUserHtmlRepresentation}}
-		{{{endUserHtmlRepresentation}}}
-	{{else}}
-		{{{hipaaCompliantMetadata}}}
-	{{/if}}
-</p>
+	<spacer size="4"></spacer>
 
-<spacer size="32"></spacer>
+	<p>
+		{{#if endUserHtmlRepresentation}}
+			{{{endUserHtmlRepresentation}}}
+		{{else}}
+			{{{hipaaCompliantMetadata}}}
+		{{/if}}
+	</p>
 
-<p>
-	<a href="{{interactionInstanceUrl}}">Click here to access more details in Cobalt</a>
-</p>
+	<spacer size="32"></spacer>
 
-<spacer size="48"></spacer>
+	<p>
+		<a href="{{interactionInstanceUrl}}">Click here to access more details in Cobalt</a>
+	</p>
+
+	<spacer size="48"></spacer>
+{{/content}}

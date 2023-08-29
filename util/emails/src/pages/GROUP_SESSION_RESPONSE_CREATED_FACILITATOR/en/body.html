@@ -1,11 +1,10 @@
 ---
 layout: default
 subject: 'Cobalt: Group Session requested for {{{groupSessionRequestTitle}}}'
-title: '{{title}}'
 groupSessionRequestTitle: '{{groupSessionRequestTitle}}'
 facilitatorName: '{{facilitatorName}}'
 respondentName: '{{respondentName}}'
-imageUrl: 'https://cobalt-shared-media.s3.amazonaws.com/emails/default-provider.png'
+imageUrl: '/assets/img/default-provider.png'
 respondentEmailAddress: '{{respondentEmailAddress}}'
 respondentPhoneNumber: '{{respondentPhoneNumber}}'
 suggestedDate: '{{suggestedDate}}'
@@ -19,66 +18,74 @@ customAnswer2: '{{customAnswer2}}'
 ---
 
 
-<spacer size="48"></spacer>
+{{#> header}}
 
-{{> session-image sessionImageSrc=imageUrl sessionImageAlt=groupSession.title }}
+{{/header}}
 
-<spacer size="16"></spacer>
+{{#> content}}
+	<spacer size="48"></spacer>
 
-<p class="text-center">
-	Group Session requested for ‘{{{groupSessionRequestTitle}}}&rsquo;.
-</p>
+	{{> session-image
+		sessionImageSrc=imageUrl
+		sessionImageAlt=groupSession.title
+	}}
 
-<spacer size="32"></spacer>
+	<spacer size="16"></spacer>
 
-<p>Hi {{facilitatorName}},</p>
+	<p class="text-center">
+		Group Session requested for ‘{{{groupSessionRequestTitle}}}&rsquo;.
+	</p>
 
-<spacer size="16"></spacer>
+	<spacer size="32"></spacer>
 
-<p>
-	A Group Session was requested for ‘{{{groupSessionRequestTitle}}}’.
-</p>
-<spacer size="16"></spacer>
+	<p>Hi {{facilitatorName}},</p>
 
-<p>
-	Requestor Name: {{respondentName}}
-</p>
-<spacer size="4"></spacer>
-<p>
-	Requestor Email Address: {{respondentEmailAddress}}
-</p>
-<spacer size="4"></spacer>
-<p>
-	Requestor Phone Number: {{respondentPhoneNumber}}
-</p>
-<spacer size="4"></spacer>
-<p>
-	Suggested Date: {{suggestedDate}}
-</p>
-<spacer size="4"></spacer>
-<p>
-	Suggested Time: {{suggestedTime}}
-</p>
-<spacer size="4"></spacer>
-<p>
-	Expected Participants: {{expectedParticipants}}
-</p>
-<spacer size="4"></spacer>
-<p>
-	Notes: {{notes}}
-</p>
-{{#if customQuestion1}}
-<spacer size="4"></spacer>
-<p>
-	{{customQuestion1}}: {{customAnswer1}}
-</p>
-{{/if}}
-{{#if customQuestion2}}
-<spacer size="4"></spacer>
-<p>
-	{{customQuestion2}}: {{customAnswer2}}
-</p>
-{{/if}}
+	<spacer size="16"></spacer>
 
-<spacer size="48"></spacer>
+	<p>
+		A Group Session was requested for ‘{{{groupSessionRequestTitle}}}’.
+	</p>
+	<spacer size="16"></spacer>
 
+	<p>
+		Requestor Name: {{respondentName}}
+	</p>
+	<spacer size="4"></spacer>
+	<p>
+		Requestor Email Address: {{respondentEmailAddress}}
+	</p>
+	<spacer size="4"></spacer>
+	<p>
+		Requestor Phone Number: {{respondentPhoneNumber}}
+	</p>
+	<spacer size="4"></spacer>
+	<p>
+		Suggested Date: {{suggestedDate}}
+	</p>
+	<spacer size="4"></spacer>
+	<p>
+		Suggested Time: {{suggestedTime}}
+	</p>
+	<spacer size="4"></spacer>
+	<p>
+		Expected Participants: {{expectedParticipants}}
+	</p>
+	<spacer size="4"></spacer>
+	<p>
+		Notes: {{notes}}
+	</p>
+	{{#if customQuestion1}}
+		<spacer size="4"></spacer>
+		<p>
+			{{customQuestion1}}: {{customAnswer1}}
+		</p>
+	{{/if}}
+	{{#if customQuestion2}}
+		<spacer size="4"></spacer>
+		<p>
+			{{customQuestion2}}: {{customAnswer2}}
+		</p>
+	{{/if}}
+
+	<spacer size="48"></spacer>
+{{/content}}

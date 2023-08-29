@@ -1,7 +1,6 @@
 ---
 layout: default
 subject: "Cobalt: Group Session request submitted by {{requestorName}}"
-title: "{{title}}"
 requestorName: "{{requestorName}}"
 requestorEmailAddress: "{{requestorEmailAddress}}"
 preferredDateDescription: "{{preferredDateDescription}}"
@@ -12,28 +11,35 @@ maximumAttendeeCount: "{{maximumAttendeeCount}}"
 groupTopicNames: ["topic1", "topic2", "topic3"]
 ---
 
-<spacer size="48"></spacer>
 
-<p>Requestor Name: {{requestorName}}</p>
-<spacer size="4"></spacer>
-<p>Requestor Email Address: {{requestorEmailAddress}}</p>
-<spacer size="4"></spacer>
-<p>Preferred Date: {{preferredDateDescription}}</p>
-<spacer size="4"></spacer>
-<p>Preferred Time: {{preferredTimeDescription}}</p>
-<spacer size="4"></spacer>
-<p>Additional Description: {{additionalDescription}}</p>
-<spacer size="4"></spacer>
-<p>Minimum Attendee Count: {{minimumAttendeeCount}}</p>
-<spacer size="4"></spacer>
-<p>Maximum Attendee Count: {{maximumAttendeeCount}}</p>
-<spacer size="4"></spacer>
-<p>Group Topics:</p>
-<spacer size="4"></spacer>
-<ul>
-  {{#each groupTopicNames}}
-  <li>{{this}}</li>
-  {{/each}}
-</ul>
+{{#> header}}
+	Group Session requested
+{{/header}}
 
-<spacer size="48"></spacer>
+{{#> content}}
+	<spacer size="48"></spacer>
+
+	<p>Requestor Name: {{requestorName}}</p>
+	<spacer size="4"></spacer>
+	<p>Requestor Email Address: {{requestorEmailAddress}}</p>
+	<spacer size="4"></spacer>
+	<p>Preferred Date: {{preferredDateDescription}}</p>
+	<spacer size="4"></spacer>
+	<p>Preferred Time: {{preferredTimeDescription}}</p>
+	<spacer size="4"></spacer>
+	<p>Additional Description: {{additionalDescription}}</p>
+	<spacer size="4"></spacer>
+	<p>Minimum Attendee Count: {{minimumAttendeeCount}}</p>
+	<spacer size="4"></spacer>
+	<p>Maximum Attendee Count: {{maximumAttendeeCount}}</p>
+	<spacer size="4"></spacer>
+	<p>Group Topics:</p>
+	<spacer size="4"></spacer>
+	<ul>
+		{{#each groupTopicNames}}
+		<li>{{this}}</li>
+		{{/each}}
+	</ul>
+
+	<spacer size="48"></spacer>
+{{/content}}

@@ -1,16 +1,14 @@
 ---
 layout: default
 subject: 'Cobalt: Group Session Reminder'
-title: '{{title}}'
-groupSession:
-  {
-    title: "{{groupSession.title}}",
-    facilitatorName: "{{groupSession.facilitatorName}}",
-    videoconferenceUrl: "{{groupSession.videoconferenceUrl}}",
-    confirmationEmailContent: "{{groupSession.confirmationEmailContent}}",
-		targetEmailAddress: "{{groupSession.targetEmailAddress}}"
-  }
-imageUrl: "https://cobalt-shared-media.s3.amazonaws.com/emails/default-provider.png"
+groupSession: {
+	title: "{{groupSession.title}}",
+	facilitatorName: "{{groupSession.facilitatorName}}",
+	videoconferenceUrl: "{{groupSession.videoconferenceUrl}}",
+	confirmationEmailContent: "{{groupSession.confirmationEmailContent}}",
+	targetEmailAddress: "{{groupSession.targetEmailAddress}}"
+}
+imageUrl: "/assets/img/default-provider.png"
 groupSessionTitle: "{{groupSessionTitle}}"
 attendeeName: "{{attendeeName}}"
 groupSessionStartDateDescription: "{{groupSessionStartDateDescription}}"
@@ -21,40 +19,51 @@ cancelUrl: "{{cancelUrl}}"
 icalUrl: "{{icalUrl}}"
 googleCalendarUrl: "{{googleCalendarUrl}}"
 anotherTimeUrl: "{{anotherTimeUrl}}"
-staticFileUrlPrefix: "https://cobalt-shared-media.s3.amazonaws.com/emails"
 ---
 
 
-<spacer size="48"></spacer>
+{{#> header}}
 
-{{> session-image sessionImageSrc=imageUrl sessionImageAlt=groupSession.title }}
+{{/header}}
 
-<spacer size="32"></spacer>
+{{#> content}}
+	<spacer size="48"></spacer>
 
-<p>Hello,</p>
+	{{> session-image
+		sessionImageSrc=imageUrl
+		sessionImageAlt=groupSession.title
+	}}
 
-<spacer size="16"></spacer>
-<p>
-	You have registered to attend "{{groupSessionTitle}}" happening today from {{groupSessionStartTimeDescription}} - {{groupSessionEndTimeDescription}}. We look forward to seeing you there!
-</p>
+	<spacer size="32"></spacer>
 
-{{#if groupSession.reminderEmailContent}}
+	<p>Hello,</p>
+
 	<spacer size="16"></spacer>
 	<p>
-		{{{groupSession.reminderEmailContent}}}
+		You have registered to attend "{{groupSessionTitle}}" happening today from {{groupSessionStartTimeDescription}} - {{groupSessionEndTimeDescription}}. We look forward to seeing you there!
 	</p>
-{{/if}}
+
+	{{#if groupSession.reminderEmailContent}}
+		<spacer size="16"></spacer>
+		<p>
+			{{{groupSession.reminderEmailContent}}}
+		</p>
+	{{/if}}
 
 
-<spacer size="32"></spacer>
+	<spacer size="32"></spacer>
 
-{{> call-to-action ctaHref=groupSession.videoconferenceUrl
-	ctaAsset='button-start-appointment@2x.jpg' ctaAlt="Join Now" }}
+	{{> call-to-action
+		ctaHref=groupSession.videoconferenceUrl
+		ctaAsset='assets/img/button-start-appointment@2x.jpg'
+		ctaAlt="Join Now"
+	}}
 
-<spacer size="32"></spacer>
+	<spacer size="32"></spacer>
 
-<p>
-	Warmly, The Cobalt Team
-</p>
+	<p>
+		Warmly, The Cobalt Team
+	</p>
 
-<spacer size="48"></spacer>
+	<spacer size="48"></spacer>
+{{/content}}
