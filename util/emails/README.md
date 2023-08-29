@@ -37,6 +37,23 @@ Build as above, then send to specified email address for testing. _SMTP server d
 
 Same as `npm run build`, but zip HTML and images for easy deployment.
 
+## Screenshot extraction
+
+1. Build the templates to serve locally
+```
+npm run build
+```
+
+2. Serve the static assets locally (will use port `9080`)
+```
+npx static-server dist
+```
+
+3. In a separate process; Run Cypress test which will traverse all available templates and capture their screenshots to .gitignored `util/emails/cypress/screenshots`
+```
+npx cypress run --headless
+```
+
 ## Speeding Up Your Build
 
 If you create a lot of emails, your build can start to slow down, as each build rebuilds all of the emails in the

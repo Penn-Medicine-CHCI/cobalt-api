@@ -59,3 +59,6 @@ util/emails/dist
 util/emails/.sass-cache
 util/emails/.awspublish*
 util/emails/config.json
+util/emails/cypress/downloads
+util/emails/cypress/screenshots
+util/emails/cypress/videos

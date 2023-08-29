@@ -26,6 +26,7 @@
 		"beepbeep": "^1.2.0",
 		"browser-sync": "^2.11.0",
 		"colors": "^1.1.2",
+		"cypress": "12.17.4",
 		"gulp": "^4.0.2",
 		"gulp-autoprefixer": "^7.0.1",
 		"gulp-awspublish": "^3.0.1",
@@ -63,6 +64,7 @@
 		"rimraf": "^2.3.3",
 		"sass": "^1.35.2",
 		"siphon-media-query": "^1.0.0",
+		"static-server": "2.2.1",
 		"through2": "^4.0.2",
 		"yargs": "^4.1.0"
 	},
