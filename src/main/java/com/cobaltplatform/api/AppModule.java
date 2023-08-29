@@ -517,12 +517,12 @@ public class AppModule extends AbstractModule {
 	public MessageSender<EmailMessage> provideEmailMessageSender(@Nonnull Configuration configuration) {
 		requireNonNull(configuration);
 
-		if (getConfiguration().getShouldSendRealEmailMessages()) {
-			HandlebarsTemplater handlebarsTemplater = new HandlebarsTemplater(Paths.get("messages/email"), configuration, "views");
-			return new AmazonSesEmailMessageSender(handlebarsTemplater, configuration);
-		}
+		HandlebarsTemplater handlebarsTemplater = new HandlebarsTemplater(Paths.get("messages/email"), configuration, "views");
 
-		return new ConsoleEmailMessageSender();
+		if (getConfiguration().getShouldSendRealEmailMessages())
+			return new AmazonSesEmailMessageSender(handlebarsTemplater, configuration);
+
+		return new ConsoleEmailMessageSender(handlebarsTemplater, configuration);
 	}
 
 	@Provides
