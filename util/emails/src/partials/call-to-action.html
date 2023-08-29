@@ -3,13 +3,13 @@
     {{#if ctaAsset}}
       <img
         class="call-to-action-asset"
-        src="{{{staticFileUrlPrefix}}}/{{{ctaAsset}}}"
-        alt="{{{ctaAlt}}}"
+        src="{{root}}{{ctaAsset}}"
+        alt="{{ctaAlt}}"
       />
     {{/if}}
 
     {{#if ctaText}}
-      {{{ctaText}}}
+      {{ctaText}}
     {{/if}}
   </center>
 </a>
