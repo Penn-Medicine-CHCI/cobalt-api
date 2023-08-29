@@ -130,7 +130,7 @@ function inlinePartialsAndInkifyPages() {
 						const params = paramStr.trim().split(/\s+/);
 						for (const param of params) {
 							const [key, value] = param.split('=');
-							const paramRegex = new RegExp(`{{${key}}}`, 'g');
+							const paramRegex = new RegExp(key, 'g');
 							partialContent = partialContent.replace(paramRegex, value)
 						}
 					}
