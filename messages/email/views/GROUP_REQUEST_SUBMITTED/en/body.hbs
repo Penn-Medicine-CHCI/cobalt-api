@@ -1,6 +1,6 @@
 {{#partial "header"}}
 	<tr>
-		<td align="center" class="em_white" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:36px; line-height:40px; color:#ffffff; ">Group Session requested</td>
+		<td align="center" class="em_white" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:36px; line-height:40px; color:#ffffff; font-weight:bold;">Group Session requested</td>
 	</tr>
 {{/partial}}
 
@@ -8,28 +8,28 @@
 	<tr>
 		<td align="left" class="em_blue" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:18px; line-height:24px; color:#000;">
 			<p>
-				Requestor Name: {{requestorName}}
+				<b>Requestor Name:</b> {{requestorName}}
 			</p>
 			<p>
-				Requestor Email Address: {{requestorEmailAddress}}
+				<b>Requestor Email Address:</b> {{requestorEmailAddress}}
 			</p>
 			<p>
-				Preferred Date: {{preferredDateDescription}}
+				<b>Preferred Date:</b> {{preferredDateDescription}}
 			</p>
 			<p>
-				Preferred Time: {{preferredTimeDescription}}
+				<b>Preferred Time:</b> {{preferredTimeDescription}}
 			</p>
 			<p>
-				Additional Description: {{additionalDescription}}
+				<b>Additional Description:</b> {{additionalDescription}}
 			</p>
 			<p>
-				Minimum Attendee Count: {{minimumAttendeeCount}}
+				<b>Minimum Attendee Count:</b> {{minimumAttendeeCount}}
 			</p>
 			<p>
-				Maximum Attendee Count: {{maximumAttendeeCount}}
+				<b>Maximum Attendee Count:</b> {{maximumAttendeeCount}}
 			</p>
 			<p>
-				Group Topics:
+				<b>Group Topics:</b>
 				<ul>
 					{{#each groupTopicNames}}
 						<li>{{this}}</li>
