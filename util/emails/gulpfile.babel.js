@@ -127,7 +127,12 @@ function inlinePartialsAndInkifyPages() {
 					const paramStr = paramStr1 || paramStr2;
 
 					if (paramStr && paramStr.trim()) {
-						const params = paramStr.trim().split(/\s+/);
+						// params can be:
+						// - key=value
+						// - key="string value"
+						// - key
+						const params = paramStr.trim().match(/(\w+=['"][^'"]+['"]|\w+=\w+|\w+)/g);
+
 						for (const param of params) {
 							const [key, value] = param.split('=');
 							const paramRegex = new RegExp(key, 'g');
