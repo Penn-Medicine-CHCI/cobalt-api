@@ -226,6 +226,11 @@ public class Institution {
 	private Boolean epicFhirEnabled;
 	@Nullable
 	private Boolean faqEnabled;
+	@Nullable
+	private String externalContactUsUrl;
+	@Nullable
+	@DatabaseColumn("mychart_instructions_url")
+	private String myChartInstructionsUrl;
 
 	public enum InstitutionId {
 		COBALT,
@@ -1050,5 +1055,23 @@ public class Institution {
 
 	public void setFaqEnabled(@Nullable Boolean faqEnabled) {
 		this.faqEnabled = faqEnabled;
+	}
+
+	@Nullable
+	public String getExternalContactUsUrl() {
+		return this.externalContactUsUrl;
+	}
+
+	public void setExternalContactUsUrl(@Nullable String externalContactUsUrl) {
+		this.externalContactUsUrl = externalContactUsUrl;
+	}
+
+	@Nullable
+	public String getMyChartInstructionsUrl() {
+		return this.myChartInstructionsUrl;
+	}
+
+	public void setMyChartInstructionsUrl(@Nullable String myChartInstructionsUrl) {
+		this.myChartInstructionsUrl = myChartInstructionsUrl;
 	}
 }
