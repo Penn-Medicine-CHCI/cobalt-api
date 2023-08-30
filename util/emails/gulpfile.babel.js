@@ -208,6 +208,10 @@ function changeHtmlFilesToHbsFiles() {
 		.pipe(gulp.dest('dist'));
 }
 function sanitizeHbsFiles() {
+	// remove the "default" layout which is only
+	// a required placeholder for panini/dev task
+	// everything is generated starting from _V2
+	fs.rmSync('dist/layouts/default.hbs');
 	return gulp.src('dist/**/*.hbs').pipe($.replace('{{root}}', '{{{staticFileUrlPrefix}}}')).pipe(gulp.dest('dist'));
 }
 function injectLayoutSpecificCode() {

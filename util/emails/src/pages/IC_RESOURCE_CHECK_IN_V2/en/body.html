@@ -1,0 +1,29 @@
+---
+layout: default_V2
+subject: "{{integratedCareProgramName}}: Checking In"
+integratedCareProgramName: "{{integratedCareProgramName}}"
+webappBaseUrl: "{{webappBaseUrl}}"
+integratedCarePhoneNumberDescription: "{{integratedCarePhoneNumberDescription}}"
+---
+
+
+{{#> header}}
+	How are you doing?
+{{/header}}
+
+{{#> content}}
+	<spacer size="48"></spacer>
+
+	<p>
+		Hi, it's {{integratedCareProgramName}}. We are checking in to see if the
+		resources we provided were helpful. Please visit
+		<a href="{{{webappBaseUrl}}}">{{{webappBaseUrl}}}</a> to let us know how
+		you're doing.
+	</p>
+
+	<spacer size="32"></spacer>
+
+	<p>Questions? Please call us at {{integratedCarePhoneNumberDescription}}.</p>
+
+	<spacer size="48"></spacer>
+{{/content}}

@@ -1,0 +1,84 @@
+---
+layout: default_V2
+subject: 'Cobalt: Session Reserved with {{providerNameAndCredentials}}'
+appointmentId: '{{appointmentId}}'
+providerName: '{{providerName}}'
+providerEmailAddress: '{{providerEmailAddress}}'
+providerNameAndCredentials: '{{providerNameAndCredentials}}'
+videoconferenceUrl: '{{videoconferenceUrl}}'
+imageUrl: '/assets/img/default-provider.png'
+patientName: '{{patientName}}'
+appointmentStartDateDescription: '{{appointmentStartDateDescription}}'
+appointmentStartTimeDescription: '{{appointmentStartTimeDescription}}'
+cancelUrl: '{{cancelUrl}}'
+icalUrl: '{{icalUrl}}'
+googleCalendarUrl: '{{googleCalendarUrl}}'
+anotherTimeUrl: '{{anotherTimeUrl}}'
+---
+
+
+
+{{#> header}}
+	Your session is reserved with {{providerNameAndCredentials}}.
+{{/header}}
+
+{{#> content}}
+	<spacer size="48"></spacer>
+
+	<p>Hi {{patientName}},</p>
+
+	<spacer size="16"></spacer>
+
+	<p>Your session with <strong>{{providerName}}</strong> has been reserved for <strong>{{appointmentStartDateDescription}} {{appointmentStartTimeDescription}}</strong></p>
+
+	<spacer size="25"></spacer>
+
+
+	{{> reservation-card
+		reservationCardImageSrc=imageUrl
+		reservationCardImageAlt=providerName
+		reservationCardName=providerNameAndCredentials
+		reservationCardStartDateDescription=appointmentStartDateDescription
+		reservationCardStartTimeDescription=appointmentStartTimeDescription
+		reservationCardActionUrl=videoconferenceUrl
+		reservationCardActionText='Join Session Now'
+		reservationCardCancelUrl=cancelUrl
+		reservationCardCancelText='Cancel Reservation'
+	}}
+
+	<spacer size="24"></spacer>
+
+	{{> calendar-links
+		calendarLinksActionText='Add Appointment to your Calendar'
+	}}
+
+	<spacer size="24"></spacer>
+
+	<table>
+		<tbody>
+			<tr>
+				<td width="48" style="width: 48px">
+					<img
+						src="{{root}}assets/img/icon-search.png"
+						width="48"
+						height="48"
+						style="width: 48px; height: 48px"
+						alt="Search Icon"
+					/>
+				</td>
+				<td width="16" style="width: 16px"></td>
+				<td style="vertical-align: middle">
+					<p><strong>Reserve another session with this provider</strong></p>
+					<spacer size="4"></spacer>
+					<h6><a href="#">View Provider Availability</a></h6>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+
+	<spacer size="32"></spacer>
+
+	{{> smooth-session-tips }}
+
+	<spacer size="48"></spacer>
+{{/content}}

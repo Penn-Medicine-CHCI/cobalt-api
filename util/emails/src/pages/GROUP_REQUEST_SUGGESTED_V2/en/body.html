@@ -1,0 +1,30 @@
+---
+layout: default_V2
+subject: 'Cobalt: Group Session suggestion submitted by {{emailAddress}}'
+title: '{{title}}'
+emailAddress: '{{emailAddress}}'
+description: '{{description}}'
+---
+
+
+{{#> header}}
+	Group Session requested
+{{/header}}
+
+{{#> content}}
+	<spacer size="48"></spacer>
+
+	<p>
+		Requestor Email Address: {{emailAddress}}
+	</p>
+	<spacer size="4"></spacer>
+	<p>
+		Title: {{title}}
+	</p>
+	<spacer size="4"></spacer>
+	<p>
+		Description: {{description}}
+	</p>
+
+	<spacer size="48"></spacer>
+{{/content}}

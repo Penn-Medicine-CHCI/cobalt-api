@@ -1,0 +1,50 @@
+---
+layout: default_V2
+subject: 'Cobalt: 1:1 Support Session Reminder'
+appointmentId: '{{appointmentId}}'
+providerName: '{{providerName}}'
+providerEmailAddress: '{{providerEmailAddress}}'
+providerNameAndCredentials: '{{providerNameAndCredentials}}'
+videoconferenceUrl: '{{videoconferenceUrl}}'
+imageUrl: '/assets/img/default-provider.png'
+patientName: '{{patientName}}'
+appointmentStartDateDescription: '{{appointmentStartDateDescription}}'
+appointmentStartTimeDescription: '{{appointmentStartTimeDescription}}'
+cancelUrl: '{{cancelUrl}}'
+icalUrl: '{{icalUrl}}'
+googleCalendarUrl: '{{googleCalendarUrl}}'
+anotherTimeUrl: '{{anotherTimeUrl}}'
+---
+
+
+{{#> header}}
+	Appointment Reminder
+{{/header}}
+
+{{#> content}}
+	<spacer size="48"></spacer>
+
+	{{> provider-image providerImageSrc=imageUrl providerImageAlt=providerName }}
+
+	<spacer size="32"></spacer>
+
+	<p>Hello,</p>
+
+	<p>
+		This is a reminder that you have scheduled a 1:1 Support Session with{{providerName}} tomorrow, {{appointmentStartDateDescription}} at {{appointmentStartTimeDescription}}.
+	</p>
+
+	<spacer size="16"></spacer>
+
+	<p>
+		If you have any questions about the appointment, please email your provider at <a href="mailto:{{providerEmailAddress}}">{{providerEmailAddress}}</a>.
+	</p>
+
+	<spacer size="16"></spacer>
+
+	<p>
+		Warmly, The Cobalt Team
+	</p>
+
+	<spacer size="48"></spacer>
+{{/content}}

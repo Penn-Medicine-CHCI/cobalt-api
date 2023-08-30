@@ -1,0 +1,45 @@
+---
+layout: default_V2
+subject: 'Cobalt: Session Canceled with {{providerNameAndCredentials}}'
+appointmentId: '{{appointmentId}}'
+providerName: '{{providerName}}'
+providerNameAndCredentials: '{{providerNameAndCredentials}}'
+videoconferenceUrl: '{{videoconferenceUrl}}'
+imageUrl: '/assets/img/default-provider.png'
+patientName: '{{patientName}}'
+appointmentStartDateDescription: '{{appointmentStartDateDescription}}'
+appointmentStartTimeDescription: '{{appointmentStartTimeDescription}}'
+---
+
+
+{{#> header}}
+
+{{/header}}
+
+{{#> content}}
+	<spacer size="48"></spacer>
+
+	{{> provider-image
+		providerImageSrc=imageUrl
+		providerImageAlt=providerName
+	}}
+
+	<spacer size="16"></spacer>
+
+	<p class="text-center">Your session with {{providerNameAndCredentials}} is canceled.</p>
+
+	<spacer size="32"></spacer>
+
+	<p>Hello,</p>
+
+	<spacer size="16"></spacer>
+
+	<p>
+		Your appointment with {{providerName}}
+		on {{appointmentStartDateDescription}}
+		@ {{appointmentStartTimeDescription}}
+		has been canceled.
+	</p>
+
+	<spacer size="48"></spacer>
+{{/content}}

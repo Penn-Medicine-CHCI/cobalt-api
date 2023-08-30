@@ -1,0 +1,44 @@
+---
+layout: default_V2
+subject: 'Cobalt: New Attendee for {{{groupSession.title}}}'
+groupSession: {title: '{{groupSession.title}}'}
+imageUrl: '/assets/img/default-provider.png'
+facilitatorName: '{{facilitatorName}}'
+attendeeName: '{{attendeeName}}'
+groupSessionUrl: '{{groupSessionUrl}}'
+attendeeEmailAddress: '{{attendeeEmailAddress}}'
+groupSessionStartDateDescription: '{{groupSessionStartDateDescription}}'
+groupSessionStartTimeDescription: '{{groupSessionStartTimeDescription}}'
+---
+
+
+{{#> header}}
+
+{{/header}}
+
+{{#> content}}
+	<spacer size="48"></spacer>
+
+	{{> session-image
+		sessionImageSrc=imageUrl
+		sessionImageAlt=groupSession.title
+	}}
+
+	<spacer size="16"></spacer>
+
+	<p class="text-center">
+		New attendee for &lsquo;{{groupSession.title}}&rsquo;.
+	</p>
+
+	<spacer size="32"></spacer>
+
+	<p>Hi {{facilitatorName}},</p>
+
+	<spacer size="16"></spacer>
+
+	<p>
+		{{attendeeName}} ({{attendeeEmailAddress}}) will be joining your <a href="{{{groupSessionUrl}}}">group session</a> on {{groupSessionStartDateDescription}} @ {{groupSessionStartTimeDescription}}
+	</p>
+
+	<spacer size="48"></spacer>
+{{/content}}
