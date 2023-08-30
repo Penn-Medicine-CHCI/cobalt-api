@@ -244,7 +244,7 @@ function viewHbsCodeInjecter() {
 				const colorToken = hexColorThemeTokenMap[hexColor];
 
 				if (colorToken) {
-					return `{{${colorToken}}}`;
+					return `{{colors.${colorToken}}}`;
 				}
 
 				return hexColor;
