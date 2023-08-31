@@ -292,6 +292,19 @@ public class AppointmentService {
 	}
 
 	@Nonnull
+	public List<Appointment> findAppointmentsByAccountId(@Nullable UUID accountId) {
+		if (accountId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+					SELECT *
+					FROM appointment
+					WHERE account_id=?
+					ORDER BY start_time DESC
+				""", Appointment.class, accountId);
+	}
+
+	@Nonnull
 	public Optional<Appointment> findAppointmentByAcuityAppointmentId(@Nullable Long acuityAppointmentId) {
 		if (acuityAppointmentId == null)
 			return Optional.empty();
