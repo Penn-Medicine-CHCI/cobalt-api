@@ -136,6 +136,10 @@ public class InstitutionApiResponse {
 	private final String clinicalSupportPhoneNumberDescription;
 	@Nonnull
 	private final Boolean faqEnabled;
+	@Nullable
+	private final String externalContactUsUrl;
+	@Nullable
+	private final String myChartInstructionsUrl;
 	@Nonnull
 	private final List<AlertApiResponse> alerts;
 
@@ -226,6 +230,8 @@ public class InstitutionApiResponse {
 		this.clinicalSupportPhoneNumberDescription = institution.getClinicalSupportPhoneNumber() == null ? null : formatter.formatPhoneNumber(institution.getClinicalSupportPhoneNumber());
 
 		this.faqEnabled = institution.getFaqEnabled();
+		this.externalContactUsUrl = institution.getExternalContactUsUrl();
+		this.myChartInstructionsUrl = institution.getMyChartInstructionsUrl();
 
 		if (account == null) {
 			this.alerts = alertService.findAlertsByInstitutionId(institution.getInstitutionId()).stream()
@@ -451,5 +457,15 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public Boolean getFaqEnabled() {
 		return this.faqEnabled;
+	}
+
+	@Nullable
+	public String getExternalContactUsUrl() {
+		return this.externalContactUsUrl;
+	}
+
+	@Nullable
+	public String getMyChartInstructionsUrl() {
+		return this.myChartInstructionsUrl;
 	}
 }
