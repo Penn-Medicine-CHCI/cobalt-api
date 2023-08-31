@@ -38,6 +38,7 @@ import com.cobaltplatform.api.messaging.sms.SmsMessageSerializer;
 import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.InstitutionColorValue;
 import com.cobaltplatform.api.model.db.MessageLog;
 import com.cobaltplatform.api.model.db.MessageStatus.MessageStatusId;
 import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
@@ -77,6 +78,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -290,6 +292,7 @@ public class MessageService implements AutoCloseable {
 			// Customize the message
 			InstitutionId institutionId = message.getInstitutionId();
 			Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+			List<InstitutionColorValue> institutionColorValues = getInstitutionService().findInstitutionColorValuesByInstitutionId(institutionId);
 
 			// Add some common global fields to the email before it goes out
 			Map<String, Object> messageContext = new HashMap<>(customizedEmailMessage.getMessageContext()); // Mutable copy
@@ -299,6 +302,16 @@ public class MessageService implements AutoCloseable {
 					getConfiguration().getAmazonS3BucketName(), getConfiguration().getAmazonS3Region().id(), getConfiguration().getEnvironment()));
 			messageContext.put("copyrightYear", LocalDateTime.now(institution.getTimeZone()).getYear());
 			messageContext.put("supportEmailAddress", institution.getSupportEmailAddress());
+
+			// e.g. "p900" -> "#FEA123"
+			Map<String, String> cssColorRepresentationsByName = institutionColorValues.stream()
+					.collect(Collectors.toMap(
+									institutionColorValue -> institutionColorValue.getName(),
+									institutionColorValue -> institutionColorValue.getCssRepresentation()
+							)
+					);
+
+			messageContext.put("colors", cssColorRepresentationsByName);
 
 			// Create a new email message using the updated email message context
 			customizedEmailMessage = customizedEmailMessage.toBuilder()
