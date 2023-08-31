@@ -281,6 +281,8 @@ function resetPages(done) {
 
 // Compile Sass into CSS
 function sass() {
+	syncColorConfigWithSass();
+
 	return gulp
 		.src('src/assets/scss/app.scss')
 		.pipe($.if(!PRODUCTION, $.sourcemaps.init()))
@@ -334,7 +336,7 @@ function watch() {
 		'all',
 		gulp.series(resetPages, pages, inline, browser.reload)
 	);
-	gulp.watch(['../scss/**/*.scss', 'src/assets/scss/**/*.scss']).on(
+	gulp.watch(['src/assets/colors.json', '../scss/**/*.scss', 'src/assets/scss/**/*.scss']).on(
 		'all',
 		gulp.series(resetPages, sass, pages, inline, browser.reload)
 	);
@@ -467,19 +469,33 @@ function zip() {
 
 	return merge(moveTasks);
 }
+function syncColorConfigWithSass() {
+  const colorMap = getReverseColorTokenMap();
+
+  const colorSass = Object.entries(colorMap).reduce(
+    (sassVariables, [colorHex, colorToken]) => {
+      sassVariables += "$" + colorToken + ": " + colorHex + ";\r\n";
+
+			return sassVariables;
+    },
+    ""
+  );
+
+  fs.writeFileSync("src/assets/scss/_colors.scss", colorSass);
+}
 // mapping of '#ffffff: n0'
-// reversed from sass '$n0: #ffffff;'
+// reversed from json '"n0": "#ffffff"'
 function getReverseColorTokenMap() {
 	const colorsFileLines = fs
-		.readFileSync("src/assets/scss/_colors.scss", "utf-8")
+		.readFileSync("src/assets/colors.json", "utf-8")
 		.split("\n");
 
 	const colorMap = {}
 
 	for (const line of colorsFileLines) {
-		// start of line -- $"someVar" followed by a ':' some whitespace and the #hex;
+		// searching for =>    "colorToken": "colorHex"
 		const colorDeclarationRegex = new RegExp(
-			`^\\$(\\w+):\\s*(#[0-9a-fA-F]+);`
+			`\\"(\\w+)":\\s*"(#[0-9a-fA-F]+)"`
 		);
 		const match = line.match(colorDeclarationRegex);
 
