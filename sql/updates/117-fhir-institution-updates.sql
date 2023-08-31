@@ -85,4 +85,9 @@ CREATE TABLE institution_color_value (
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON institution_color_value FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
+CREATE VIEW v_institution_color_value AS
+SELECT icv.*, cv.name
+FROM institution_color_value icv, color_value cv
+WHERE icv.color_value_id=cv.color_value_id;
+
 COMMIT;

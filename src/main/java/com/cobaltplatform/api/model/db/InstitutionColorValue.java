@@ -42,6 +42,10 @@ public class InstitutionColorValue {
 	@Nullable
 	private Instant lastUpdated;
 
+	// Part of v_institution_color_value
+	@Nullable
+	private String name;
+
 	@Nullable
 	public InstitutionId getInstitutionId() {
 		return this.institutionId;
@@ -85,5 +89,14 @@ public class InstitutionColorValue {
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
+	}
+
+	@Nullable
+	public String getName() {
+		return this.name;
+	}
+
+	public void setName(@Nullable String name) {
+		this.name = name;
 	}
 }

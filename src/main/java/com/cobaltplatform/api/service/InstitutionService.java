@@ -26,6 +26,7 @@ import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionBlurb;
 import com.cobaltplatform.api.model.db.InstitutionBlurbTeamMember;
+import com.cobaltplatform.api.model.db.InstitutionColorValue;
 import com.cobaltplatform.api.model.db.InstitutionLocation;
 import com.cobaltplatform.api.model.db.InstitutionTeamMember;
 import com.cobaltplatform.api.model.db.InstitutionUrl;
@@ -396,11 +397,24 @@ public class InstitutionService {
 			return Collections.emptyList();
 
 		return getDatabase().queryForList("""
-				SELECT * 
-				FROM institution_location 
-				WHERE institution_id = ?
+				SELECT *
+				FROM institution_location
+				WHERE institution_id=?
 				ORDER BY display_order
 				""", InstitutionLocation.class, institutionId);
+	}
+
+	@Nonnull
+	public List<InstitutionColorValue> findInstitutionColorValuesByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM v_institution_color_value
+				WHERE institution_id=?
+				ORDER BY name
+				""", InstitutionColorValue.class, institutionId);
 	}
 
 	@Nonnull
