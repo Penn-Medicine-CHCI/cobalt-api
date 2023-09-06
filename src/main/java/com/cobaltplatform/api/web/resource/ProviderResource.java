@@ -417,26 +417,30 @@ public class ProviderResource {
 						for (AvailabilityTime availabilityTime : availabilityDate.getTimes()) {
 							String timeDescription = normalizeTimeFormat(formatter.formatTime(availabilityTime.getTime(), FormatStyle.SHORT), locale);
 
-							// TODO: remove this special test handling for Epic FHIR slots
-							if (providerFind.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR) {
-								List<AppointmentType> slotAppointmentTypes = availabilityTime.getAppointmentTypeIds().stream()
-										.map(appointmentTypeId -> appointmentTypesById.get(appointmentTypeId))
-										.collect(Collectors.toList());
+							boolean debugFhirSlotInformation = false;
 
-								List<String> debugSupplements = new ArrayList<>(slotAppointmentTypes.size());
+							// Tack on a bunch of debugging information for FHIR slots, if enabled
+							if (debugFhirSlotInformation) {
+								if (providerFind.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR) {
+									List<AppointmentType> slotAppointmentTypes = availabilityTime.getAppointmentTypeIds().stream()
+											.map(appointmentTypeId -> appointmentTypesById.get(appointmentTypeId))
+											.collect(Collectors.toList());
 
-								for (AppointmentType slotAppointmentType : slotAppointmentTypes) {
-									SlotStatusCode slotStatusCode = availabilityTime.getSlotStatusCodesByAppointmentTypeId().get(slotAppointmentType.getAppointmentTypeId());
-									AppointmentStatusCode appointmentStatusCode = availabilityTime.getAppointmentStatusCodesByAppointmentTypeId().get(slotAppointmentType.getAppointmentTypeId());
-									AppointmentParticipantStatusCode appointmentParticipantStatusCode = availabilityTime.getAppointmentParticipantStatusCodesByAppointmentTypeId().get(slotAppointmentType.getAppointmentTypeId());
+									List<String> debugSupplements = new ArrayList<>(slotAppointmentTypes.size());
 
-									debugSupplements.add(format("(%s: [slot=%s, appointment=%s, participant=%s])", slotAppointmentType.getName(),
-											(slotStatusCode == null ? null : slotStatusCode.getFhirValue()),
-											(appointmentStatusCode == null ? null : appointmentStatusCode.getFhirValue()),
-											(appointmentParticipantStatusCode == null ? null : appointmentParticipantStatusCode.getFhirValue())));
+									for (AppointmentType slotAppointmentType : slotAppointmentTypes) {
+										SlotStatusCode slotStatusCode = availabilityTime.getSlotStatusCodesByAppointmentTypeId().get(slotAppointmentType.getAppointmentTypeId());
+										AppointmentStatusCode appointmentStatusCode = availabilityTime.getAppointmentStatusCodesByAppointmentTypeId().get(slotAppointmentType.getAppointmentTypeId());
+										AppointmentParticipantStatusCode appointmentParticipantStatusCode = availabilityTime.getAppointmentParticipantStatusCodesByAppointmentTypeId().get(slotAppointmentType.getAppointmentTypeId());
+
+										debugSupplements.add(format("(%s: [slot=%s, appointment=%s, participant=%s])", slotAppointmentType.getName(),
+												(slotStatusCode == null ? null : slotStatusCode.getFhirValue()),
+												(appointmentStatusCode == null ? null : appointmentStatusCode.getFhirValue()),
+												(appointmentParticipantStatusCode == null ? null : appointmentParticipantStatusCode.getFhirValue())));
+									}
+
+									timeDescription = timeDescription + " " + debugSupplements.stream().collect(Collectors.joining(", "));
 								}
-
-								timeDescription = timeDescription + " " + debugSupplements.stream().collect(Collectors.joining(", "));
 							}
 
 							Map<String, Object> normalizedTime = new LinkedHashMap<>();
