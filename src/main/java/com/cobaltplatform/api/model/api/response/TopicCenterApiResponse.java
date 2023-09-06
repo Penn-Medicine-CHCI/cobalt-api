@@ -107,6 +107,11 @@ public class TopicCenterApiResponse {
 		this.name = topicCenter.getName();
 		this.description = topicCenter.getDescription();
 		this.urlName = topicCenter.getUrlName();
+		this.topicCenterDisplayStyleId = topicCenter.getTopicCenterDisplayStyleId();
+		this.featuredTitle = topicCenter.getFeaturedTitle();
+		this.featuredDescription = topicCenter.getFeaturedDescription();
+		this.featuredCallToAction = topicCenter.getFeaturedCallToAction();
+		this.imageUrl = topicCenter.getImageUrl();
 
 		List<TopicCenterRowDetail> topicCenterRows = topicCenterService.findTopicCenterRowsByTopicCenterId(topicCenter.getTopicCenterId(), institutionId);
 
@@ -140,6 +145,31 @@ public class TopicCenterApiResponse {
 	@Nonnull
 	public String getUrlName() {
 		return this.urlName;
+	}
+
+	@Nonnull
+	public TopicCenterDisplayStyleId getTopicCenterDisplayStyleId() {
+		return this.topicCenterDisplayStyleId;
+	}
+
+	@Nullable
+	public String getFeaturedTitle() {
+		return this.featuredTitle;
+	}
+
+	@Nullable
+	public String getFeaturedDescription() {
+		return this.featuredDescription;
+	}
+
+	@Nullable
+	public String getFeaturedCallToAction() {
+		return this.featuredCallToAction;
+	}
+
+	@Nullable
+	public String getImageUrl() {
+		return this.imageUrl;
 	}
 
 	@Nonnull
