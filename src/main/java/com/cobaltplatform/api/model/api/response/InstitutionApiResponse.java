@@ -141,6 +141,10 @@ public class InstitutionApiResponse {
 	@Nullable
 	private final String myChartInstructionsUrl;
 	@Nonnull
+	private final Boolean epicFhirEnabled;
+	@Nullable
+	private final UUID featuredTopicCenterId;
+	@Nonnull
 	private final List<AlertApiResponse> alerts;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
@@ -232,6 +236,8 @@ public class InstitutionApiResponse {
 		this.faqEnabled = institution.getFaqEnabled();
 		this.externalContactUsUrl = institution.getExternalContactUsUrl();
 		this.myChartInstructionsUrl = institution.getMyChartInstructionsUrl();
+		this.epicFhirEnabled = institution.getEpicFhirEnabled();
+		this.featuredTopicCenterId = institution.getFeaturedTopicCenterId();
 
 		if (account == null) {
 			this.alerts = alertService.findAlertsByInstitutionId(institution.getInstitutionId()).stream()
@@ -467,5 +473,15 @@ public class InstitutionApiResponse {
 	@Nullable
 	public String getMyChartInstructionsUrl() {
 		return this.myChartInstructionsUrl;
+	}
+
+	@Nonnull
+	public Boolean getEpicFhirEnabled() {
+		return this.epicFhirEnabled;
+	}
+
+	@Nullable
+	public UUID getFeaturedTopicCenterId() {
+		return this.featuredTopicCenterId;
 	}
 }

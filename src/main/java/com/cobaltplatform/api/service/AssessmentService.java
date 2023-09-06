@@ -140,18 +140,10 @@ public class AssessmentService {
 					providerId, appointmentTypeId
 			);
 
-			if (assessment.isPresent())
-				return assessment;
+			return assessment;
 		}
 
-		return database.queryForObject(
-				"SELECT a.* FROM assessment as a, provider p, provider_clinic pc , clinic c WHERE " +
-						"p.provider_id = pc.provider_id AND pc.clinic_id = c.clinic_id " +
-						"AND c.intake_assessment_id = a.assessment_id " +
-						"AND pc.primary_clinic = true AND p.provider_id = ? ",
-				Assessment.class,
-				providerId
-		);
+		return Optional.empty();
 	}
 
 	@Nonnull

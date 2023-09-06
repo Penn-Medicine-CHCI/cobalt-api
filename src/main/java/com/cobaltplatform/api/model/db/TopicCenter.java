@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.TopicCenterDisplayStyle.TopicCenterDisplayStyleId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
@@ -32,11 +34,21 @@ public class TopicCenter {
 	@Nullable
 	private UUID topicCenterId;
 	@Nullable
+	private TopicCenterDisplayStyleId topicCenterDisplayStyleId;
+	@Nullable
 	private String name;
 	@Nullable
 	private String description;
 	@Nullable
 	private String urlName;
+	@Nullable
+	private String featuredTitle;
+	@Nullable
+	private String featuredDescription;
+	@Nullable
+	private String featuredCallToAction;
+	@Nullable
+	private String imageUrl;
 	@Nullable
 	private UUID createdByAccountId;
 	@Nullable
@@ -78,6 +90,51 @@ public class TopicCenter {
 
 	public void setUrlName(@Nullable String urlName) {
 		this.urlName = urlName;
+	}
+
+	@Nullable
+	public TopicCenterDisplayStyleId getTopicCenterDisplayStyleId() {
+		return this.topicCenterDisplayStyleId;
+	}
+
+	public void setTopicCenterDisplayStyleId(@Nullable TopicCenterDisplayStyleId topicCenterDisplayStyleId) {
+		this.topicCenterDisplayStyleId = topicCenterDisplayStyleId;
+	}
+
+	@Nullable
+	public String getFeaturedTitle() {
+		return this.featuredTitle;
+	}
+
+	public void setFeaturedTitle(@Nullable String featuredTitle) {
+		this.featuredTitle = featuredTitle;
+	}
+
+	@Nullable
+	public String getFeaturedDescription() {
+		return this.featuredDescription;
+	}
+
+	public void setFeaturedDescription(@Nullable String featuredDescription) {
+		this.featuredDescription = featuredDescription;
+	}
+
+	@Nullable
+	public String getFeaturedCallToAction() {
+		return this.featuredCallToAction;
+	}
+
+	public void setFeaturedCallToAction(@Nullable String featuredCallToAction) {
+		this.featuredCallToAction = featuredCallToAction;
+	}
+
+	@Nullable
+	public String getImageUrl() {
+		return this.imageUrl;
+	}
+
+	public void setImageUrl(@Nullable String imageUrl) {
+		this.imageUrl = imageUrl;
 	}
 
 	@Nullable

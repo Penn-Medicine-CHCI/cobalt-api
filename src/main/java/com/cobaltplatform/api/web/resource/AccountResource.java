@@ -843,7 +843,7 @@ public class AccountResource {
 	@Nonnull
 	@AuthenticationRequired
 	@GET("/accounts/{accountId}/provider-triage-recommended-features")
-	public ApiResponse accountRecommendedSupportRoles(@Nonnull @PathParameter UUID accountId) {
+	public ApiResponse providerTriageRecommendedFeatures(@Nonnull @PathParameter UUID accountId) {
 		requireNonNull(accountId);
 
 		Account currentAccount = getCurrentContext().getAccount().get();
@@ -874,7 +874,15 @@ public class AccountResource {
 				.filter(featureForInstitution -> featureForInstitution != null)
 				.collect(Collectors.toList());
 
-		return new ApiResponse(Map.of("features", featuresForInstitution));
+		// For now, just care that any appointment exists so long as it's not marked canceled
+		boolean appointmentAlreadyScheduled = getAppointmentService().findAppointmentsByAccountId(accountId).stream()
+				.filter(appointment -> !appointment.getCanceled())
+				.count() > 0;
+
+		return new ApiResponse(Map.of(
+				"features", featuresForInstitution,
+				"appointmentAlreadyScheduled", appointmentAlreadyScheduled
+		));
 	}
 
 	@Nonnull

@@ -64,6 +64,7 @@ import com.cobaltplatform.api.model.api.request.CreateInteractionInstanceRequest
 import com.cobaltplatform.api.model.api.request.CreatePatientIntakeQuestionRequest;
 import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningQuestionRequest;
+import com.cobaltplatform.api.model.api.request.ProviderFindRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountEmailAddressRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountPhoneNumberRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAcuityAppointmentTypeRequest;
@@ -100,6 +101,8 @@ import com.cobaltplatform.api.model.db.VideoconferencePlatform.VideoconferencePl
 import com.cobaltplatform.api.model.db.VisitType;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.cobaltplatform.api.model.service.EvidenceScores;
+import com.cobaltplatform.api.model.service.ProviderFind;
+import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.Normalizer;
@@ -289,6 +292,19 @@ public class AppointmentService {
 			return Optional.empty();
 
 		return getDatabase().queryForObject("SELECT * FROM appointment WHERE appointment_id=?", Appointment.class, appointmentId);
+	}
+
+	@Nonnull
+	public List<Appointment> findAppointmentsByAccountId(@Nullable UUID accountId) {
+		if (accountId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+					SELECT *
+					FROM appointment
+					WHERE account_id=?
+					ORDER BY start_time DESC
+				""", Appointment.class, accountId);
 	}
 
 	@Nonnull
@@ -773,25 +789,65 @@ public class AppointmentService {
 			// TODO: use cache here
 			acuityAppointmentType = getAcuitySchedulingClient().findAppointmentTypeById(appointmentType.getAcuityAppointmentTypeId()).get();
 
-		// Ensure we can't double-book the same time
-		List<Appointment> existingAppointmentsForDate = findAppointmentsByProviderId(providerId, date, date.plusDays(1));
-		LocalDateTime appointmentStartTime = LocalDateTime.of(date, time);
+		// Ensure we can't double-book the same time.
+		// EPIC FHIR providers have a special flow for this where we just ask Epic directly instead of our own DB.
+		if (provider.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR) {
+			// Quickly force a sync to get latest data
+			getEpicFhirSyncManager().syncProviderAvailability(providerId, date);
 
-		for (Appointment existingAppointmentForDate : existingAppointmentsForDate) {
-			if (existingAppointmentForDate.getStartTime().equals(appointmentStartTime)) {
-				getLogger().info("Attempted to book an appointment with provider ID {} at {} but existing appointment ID {} already is at that time", provider.getProviderId(), appointmentStartTime, existingAppointmentForDate.getAppointmentId());
+			boolean slotStillAvailable = false;
+
+			ProviderFindRequest providerFindRequest = new ProviderFindRequest();
+			providerFindRequest.setStartDate(date);
+			providerFindRequest.setStartTime(LocalTime.MIN);
+			providerFindRequest.setEndDate(date);
+			providerFindRequest.setEndTime(LocalTime.MAX);
+			providerFindRequest.setInstitutionId(institution.getInstitutionId());
+			providerFindRequest.setProviderId(providerId);
+
+			List<ProviderFind> providerFinds = getProviderService().findProviders(providerFindRequest, account);
+
+			for (ProviderFind providerFind : providerFinds) {
+				if (!providerFind.getProviderId().equals(providerId))
+					continue;
+
+				for (AvailabilityDate availabilityDate : providerFind.getDates()) {
+					if (!availabilityDate.getDate().equals(date))
+						continue;
+
+					for (ProviderFind.AvailabilityTime availabilityTime : availabilityDate.getTimes()) {
+						if (availabilityTime.getTime().equals(time)) {
+							slotStillAvailable = true;
+							break;
+						}
+					}
+				}
+			}
+
+			if (!slotStillAvailable) {
+				getLogger().info("Can't find an open timeslot for provider ID {} on {} at {}", provider.getProviderId(), date, time);
 				throw new ValidationException(getStrings().get("Sorry, this appointment time is no longer available. Please pick a different time."));
 			}
-		}
+		} else {
+			List<Appointment> existingAppointmentsForDate = findAppointmentsByProviderId(providerId, date, date.plusDays(1));
+			LocalDateTime appointmentStartTime = LocalDateTime.of(date, time);
 
-		// Ensure we are not booking within the provider's lead time
-		if (provider.getSchedulingLeadTimeInHours() != null) {
-			LocalDateTime now = LocalDateTime.now(provider.getTimeZone());
-			long hoursUntilAppointment = ChronoUnit.HOURS.between(now, appointmentStartTime);
+			for (Appointment existingAppointmentForDate : existingAppointmentsForDate) {
+				if (existingAppointmentForDate.getStartTime().equals(appointmentStartTime)) {
+					getLogger().info("Attempted to book an appointment with provider ID {} at {} but existing appointment ID {} already is at that time", provider.getProviderId(), appointmentStartTime, existingAppointmentForDate.getAppointmentId());
+					throw new ValidationException(getStrings().get("Sorry, this appointment time is no longer available. Please pick a different time."));
+				}
+			}
 
-			if (hoursUntilAppointment < provider.getSchedulingLeadTimeInHours()) {
-				getLogger().info("Attempted to book an appointment {} hours away, but provider ID {} lead time in hours is {}", hoursUntilAppointment, provider.getProviderId(), provider.getSchedulingLeadTimeInHours());
-				throw new ValidationException(getStrings().get("Sorry, this appointment time is no longer available. Please pick a different time."));
+			// Ensure we are not booking within the provider's lead time
+			if (provider.getSchedulingLeadTimeInHours() != null) {
+				LocalDateTime now = LocalDateTime.now(provider.getTimeZone());
+				long hoursUntilAppointment = ChronoUnit.HOURS.between(now, appointmentStartTime);
+
+				if (hoursUntilAppointment < provider.getSchedulingLeadTimeInHours()) {
+					getLogger().info("Attempted to book an appointment {} hours away, but provider ID {} lead time in hours is {}", hoursUntilAppointment, provider.getProviderId(), provider.getSchedulingLeadTimeInHours());
+					throw new ValidationException(getStrings().get("Sorry, this appointment time is no longer available. Please pick a different time."));
+				}
 			}
 		}
 
