@@ -350,25 +350,7 @@ public class SessionService {
 			}
 		}
 
-		return database.queryForObject("SELECT acs.* " +
-						"FROM " +
-						"account_session as acs, " +
-						"account as a, " +
-						"assessment as ass, " +
-						"provider_clinic pc, " +
-						"clinic c " +
-						"WHERE " +
-						"acs.assessment_id = ass.assessment_id AND " +
-						"c.clinic_id = pc.clinic_id AND " +
-						"pc.provider_id = ? AND pc.primary_clinic = true AND " +
-						"c.intake_assessment_id = ass.assessment_id AND " +
-						"a.account_id = ? AND " +
-						"acs.account_id = a.account_id AND " +
-						"acs.complete_flag = ? AND " +
-						"acs.current_flag = ? AND " +
-						"ass.assessment_type_id = ? " +
-						"ORDER by acs.created DESC LIMIT 1", AccountSession.class, providerId,
-				account.getAccountId(), complete, true, AssessmentTypeId.INTAKE);
+		return Optional.empty();
 	}
 
 	@Nonnull
