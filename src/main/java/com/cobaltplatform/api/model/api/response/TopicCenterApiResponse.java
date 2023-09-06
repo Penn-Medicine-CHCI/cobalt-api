@@ -25,6 +25,7 @@ import com.cobaltplatform.api.model.api.response.TopicCenterRowApiResponse.Topic
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.db.TopicCenter;
+import com.cobaltplatform.api.model.db.TopicCenterDisplayStyle.TopicCenterDisplayStyleId;
 import com.cobaltplatform.api.model.service.TopicCenterRowDetail;
 import com.cobaltplatform.api.service.TagService;
 import com.cobaltplatform.api.service.TopicCenterService;
@@ -54,11 +55,22 @@ public class TopicCenterApiResponse {
 	@Nonnull
 	private final UUID topicCenterId;
 	@Nonnull
+	private final TopicCenterDisplayStyleId topicCenterDisplayStyleId;
+	@Nonnull
 	private final String name;
 	@Nullable
 	private final String description;
 	@Nonnull
 	private final String urlName;
+	@Nullable
+	private final String featuredTitle;
+	@Nullable
+	private final String featuredDescription;
+	@Nullable
+	private final String featuredCallToAction;
+	@Nullable
+	private final String imageUrl;
+
 	@Nonnull
 	private final List<TopicCenterRowApiResponse> topicCenterRows;
 	@Nonnull
