@@ -81,6 +81,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -552,10 +553,6 @@ public class ProviderService {
 			supportRoles.add(providerSupportRole);
 		}
 
-		// Keep track of all psychiatrist IDs so we can determine which resultset values need the "phone number required" field to be set
-		Set<UUID> psychiatristProviderIds = new HashSet<>(getDatabase().queryForList("SELECT p.provider_id FROM provider p, provider_support_role psr " +
-				"WHERE psr.provider_id=p.provider_id and psr.support_role_id=?", UUID.class, SupportRoleId.PSYCHIATRIST));
-
 		// Keep track of all therapist/other IDs so we can determine which resultset values need the title massaged
 		Set<UUID> titleOverrideProviderIds = new HashSet<>(getDatabase().queryForList("SELECT DISTINCT p.provider_id FROM provider p, provider_support_role psr " +
 				"WHERE psr.provider_id=p.provider_id and psr.support_role_id IN (?,?,?)", UUID.class, SupportRoleId.CLINICIAN, SupportRoleId.OTHER, SupportRoleId.CARE_MANAGER));
@@ -996,7 +993,19 @@ public class ProviderService {
 								throw new IllegalStateException("Invalid size of resource.contained element");
 
 							availabilityTime.getSlotStatusCodesByAppointmentTypeId().put(appointmentType.getAppointmentTypeId(), entry.getResource().getContained().get(0).getStatus());
-							availabilityDate.getTimes().add(availabilityTime);
+
+							// Ensure we are not booking within the provider's lead time, if applicable
+							boolean slotIsTooEarly = false;
+
+							if (provider.getSchedulingLeadTimeInHours() != null) {
+								LocalDateTime now = LocalDateTime.now(provider.getTimeZone());
+								LocalDateTime appointmentStartTime = LocalDateTime.of(availabilityDate.getDate(), availabilityTime.getTime());
+								long hoursUntilAppointment = ChronoUnit.HOURS.between(now, appointmentStartTime);
+								slotIsTooEarly = hoursUntilAppointment < provider.getSchedulingLeadTimeInHours();
+							}
+
+							if (!slotIsTooEarly)
+								availabilityDate.getTimes().add(availabilityTime);
 						}
 					}
 				}
