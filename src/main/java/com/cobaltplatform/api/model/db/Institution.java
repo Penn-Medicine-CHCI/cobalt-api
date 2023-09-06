@@ -231,6 +231,8 @@ public class Institution {
 	@Nullable
 	@DatabaseColumn("mychart_instructions_url")
 	private String myChartInstructionsUrl;
+	@Nullable
+	private UUID featuredTopicCenterId;
 
 	public enum InstitutionId {
 		COBALT,
@@ -1073,5 +1075,14 @@ public class Institution {
 
 	public void setMyChartInstructionsUrl(@Nullable String myChartInstructionsUrl) {
 		this.myChartInstructionsUrl = myChartInstructionsUrl;
+	}
+
+	@Nullable
+	public UUID getFeaturedTopicCenterId() {
+		return this.featuredTopicCenterId;
+	}
+
+	public void setFeaturedTopicCenterId(@Nullable UUID featuredTopicCenterId) {
+		this.featuredTopicCenterId = featuredTopicCenterId;
 	}
 }
