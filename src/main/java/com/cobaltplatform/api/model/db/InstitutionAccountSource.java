@@ -46,6 +46,8 @@ public class InstitutionAccountSource {
 	@Nullable
 	private String description;
 	@Nullable
+	private Boolean visible;
+	@Nullable
 	private Integer displayOrder;
 
 	@Nullable
@@ -100,6 +102,15 @@ public class InstitutionAccountSource {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
+	}
+
+	@Nullable
+	public Boolean getVisible() {
+		return this.visible;
+	}
+
+	public void setVisible(@Nullable Boolean visible) {
+		this.visible = visible;
 	}
 
 	@Nullable
