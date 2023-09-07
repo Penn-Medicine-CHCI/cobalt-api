@@ -51,6 +51,8 @@ public class AccountSourceForInstitution {
 	@Nullable
 	private String prodSsoUrl;
 	@Nullable
+	private Boolean visible;
+	@Nullable
 	private Integer displayOrder;
 
 	@Nullable
@@ -132,6 +134,15 @@ public class AccountSourceForInstitution {
 
 	public void setProdSsoUrl(@Nullable String prodSsoUrl) {
 		this.prodSsoUrl = prodSsoUrl;
+	}
+
+	@Nullable
+	public Boolean getVisible() {
+		return this.visible;
+	}
+
+	public void setVisible(@Nullable Boolean visible) {
+		this.visible = visible;
 	}
 
 	@Nullable
