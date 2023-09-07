@@ -753,7 +753,7 @@ public class AccountResource {
 
 		ForgotPasswordRequest request = getRequestBodyParser().parse(body, ForgotPasswordRequest.class);
 		request.setUserExperienceTypeId(getCurrentContext().getUserExperienceTypeId().get());
-		request.setInstitutionId(request.getInstitutionId());
+		request.setInstitutionId(getCurrentContext().getInstitutionId());
 
 		getAccountService().forgotPassword(request);
 
