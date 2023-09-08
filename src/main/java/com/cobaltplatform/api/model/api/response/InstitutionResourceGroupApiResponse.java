@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.Color.ColorId;
+import com.cobaltplatform.api.model.db.ColorValue.ColorValueId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionResourceGroup;
 import com.cobaltplatform.api.util.Formatter;
@@ -28,6 +29,7 @@ import com.google.inject.assistedinject.AssistedInject;
 import com.lokalized.Strings;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.UUID;
 
@@ -46,10 +48,26 @@ public class InstitutionResourceGroupApiResponse {
 	private final String name;
 	@Nonnull
 	private final String urlName;
+	@Nullable
+	private final String imageUrl;
 	@Nonnull
 	private final String description;
-	@Nonnull
-	private final ColorId colorId;
+	@Nullable
+	private final ColorValueId backgroundColorValueId;
+	@Nullable
+	private final ColorId backgroundColorId;
+	@Nullable
+	private final String backgroundColorValueName;
+	@Nullable
+	private final String backgroundColorValueCssRepresentation;
+	@Nullable
+	private final ColorValueId textColorValueId;
+	@Nullable
+	private final ColorId textColorId;
+	@Nullable
+	private final String textColorValueName;
+	@Nullable
+	private final String textColorValueCssRepresentation;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -71,7 +89,15 @@ public class InstitutionResourceGroupApiResponse {
 		this.name = institutionResourceGroup.getName();
 		this.urlName = institutionResourceGroup.getUrlName();
 		this.description = institutionResourceGroup.getDescription();
-		this.colorId = institutionResourceGroup.getColorId();
+		this.imageUrl = institutionResourceGroup.getImageUrl();
+		this.backgroundColorValueId = institutionResourceGroup.getBackgroundColorValueId();
+		this.backgroundColorId = institutionResourceGroup.getBackgroundColorId();
+		this.backgroundColorValueName = institutionResourceGroup.getBackgroundColorValueName();
+		this.backgroundColorValueCssRepresentation = institutionResourceGroup.getBackgroundColorValueCssRepresentation();
+		this.textColorValueId = institutionResourceGroup.getTextColorValueId();
+		this.textColorId = institutionResourceGroup.getTextColorId();
+		this.textColorValueName = institutionResourceGroup.getTextColorValueName();
+		this.textColorValueCssRepresentation = institutionResourceGroup.getTextColorValueCssRepresentation();
 	}
 
 	@Nonnull
@@ -99,8 +125,48 @@ public class InstitutionResourceGroupApiResponse {
 		return this.description;
 	}
 
-	@Nonnull
-	public ColorId getColorId() {
-		return this.colorId;
+	@Nullable
+	public String getImageUrl() {
+		return this.imageUrl;
+	}
+
+	@Nullable
+	public ColorValueId getBackgroundColorValueId() {
+		return this.backgroundColorValueId;
+	}
+
+	@Nullable
+	public ColorId getBackgroundColorId() {
+		return this.backgroundColorId;
+	}
+
+	@Nullable
+	public String getBackgroundColorValueName() {
+		return this.backgroundColorValueName;
+	}
+
+	@Nullable
+	public String getBackgroundColorValueCssRepresentation() {
+		return this.backgroundColorValueCssRepresentation;
+	}
+
+	@Nullable
+	public ColorValueId getTextColorValueId() {
+		return this.textColorValueId;
+	}
+
+	@Nullable
+	public ColorId getTextColorId() {
+		return this.textColorId;
+	}
+
+	@Nullable
+	public String getTextColorValueName() {
+		return this.textColorValueName;
+	}
+
+	@Nullable
+	public String getTextColorValueCssRepresentation() {
+		return this.textColorValueCssRepresentation;
 	}
 }

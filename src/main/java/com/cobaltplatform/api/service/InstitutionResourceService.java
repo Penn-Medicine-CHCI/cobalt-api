@@ -112,7 +112,7 @@ public class InstitutionResourceService {
 
 		return getDatabase().queryForList("""
 				SELECT *
-				FROM institution_resource_group
+				FROM v_institution_resource_group
 				WHERE institution_id=?
 				ORDER BY display_order
 				""", InstitutionResourceGroup.class, institutionId);
@@ -125,7 +125,7 @@ public class InstitutionResourceService {
 
 		return getDatabase().queryForObject("""
 				SELECT *
-				FROM institution_resource_group
+				FROM v_institution_resource_group
 				WHERE institution_resource_group_id=?
 				""", InstitutionResourceGroup.class, institutionResourceGroupId);
 	}
@@ -140,7 +140,7 @@ public class InstitutionResourceService {
 
 		return getDatabase().queryForObject("""
 				SELECT *
-				FROM institution_resource_group
+				FROM v_institution_resource_group
 				WHERE institution_id=?
 				AND url_name=?
 				""", InstitutionResourceGroup.class, institutionId, urlName);
