@@ -233,6 +233,8 @@ public class Institution {
 	private String myChartInstructionsUrl;
 	@Nullable
 	private UUID featuredTopicCenterId;
+	@Nullable
+	private String techSupportPhoneNumber;
 
 	public enum InstitutionId {
 		COBALT,
@@ -1084,5 +1086,14 @@ public class Institution {
 
 	public void setFeaturedTopicCenterId(@Nullable UUID featuredTopicCenterId) {
 		this.featuredTopicCenterId = featuredTopicCenterId;
+	}
+
+	@Nullable
+	public String getTechSupportPhoneNumber() {
+		return this.techSupportPhoneNumber;
+	}
+
+	public void setTechSupportPhoneNumber(@Nullable String techSupportPhoneNumber) {
+		this.techSupportPhoneNumber = techSupportPhoneNumber;
 	}
 }

@@ -144,6 +144,10 @@ public class InstitutionApiResponse {
 	private final Boolean epicFhirEnabled;
 	@Nullable
 	private final UUID featuredTopicCenterId;
+	@Nullable
+	private final String techSupportPhoneNumber;
+	@Nullable
+	private final String techSupportPhoneNumberDescription;
 	@Nonnull
 	private final List<AlertApiResponse> alerts;
 
@@ -238,6 +242,9 @@ public class InstitutionApiResponse {
 		this.myChartInstructionsUrl = institution.getMyChartInstructionsUrl();
 		this.epicFhirEnabled = institution.getEpicFhirEnabled();
 		this.featuredTopicCenterId = institution.getFeaturedTopicCenterId();
+
+		this.techSupportPhoneNumber = institution.getTechSupportPhoneNumber();
+		this.techSupportPhoneNumberDescription = institution.getTechSupportPhoneNumber() == null ? null : formatter.formatPhoneNumber(institution.getTechSupportPhoneNumber());
 
 		if (account == null) {
 			this.alerts = alertService.findAlertsByInstitutionId(institution.getInstitutionId()).stream()
@@ -483,5 +490,15 @@ public class InstitutionApiResponse {
 	@Nullable
 	public UUID getFeaturedTopicCenterId() {
 		return this.featuredTopicCenterId;
+	}
+
+	@Nullable
+	public String getTechSupportPhoneNumber() {
+		return this.techSupportPhoneNumber;
+	}
+
+	@Nullable
+	public String getTechSupportPhoneNumberDescription() {
+		return this.techSupportPhoneNumberDescription;
 	}
 }
