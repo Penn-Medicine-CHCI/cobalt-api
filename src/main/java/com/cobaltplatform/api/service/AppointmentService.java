@@ -337,7 +337,6 @@ public class AppointmentService {
 				"AND start_time >= ?  ORDER BY start_time ASC", Appointment.class, accountId, providerId, LocalDate.now(timeZone));
 	}
 
-
 	@Nonnull
 	public List<Appointment> findRecentAppointmentsByAccountId(@Nullable UUID accountId,
 																														 @Nullable ZoneId timeZone) {
@@ -826,7 +825,7 @@ public class AppointmentService {
 
 			if (!slotStillAvailable) {
 				getLogger().info("Can't find an open timeslot for provider ID {} on {} at {}", provider.getProviderId(), date, time);
-				throw new ValidationException(getStrings().get("Sorry, this appointment time is no longer available. Please pick a different time."));
+				throw new ValidationException(getStrings().get("Sorry, this appointment time is no longer available. Please pick a different time."), Map.of("appointmentTimeslotUnavailable", true));
 			}
 		} else {
 			List<Appointment> existingAppointmentsForDate = findAppointmentsByProviderId(providerId, date, date.plusDays(1));
@@ -835,7 +834,7 @@ public class AppointmentService {
 			for (Appointment existingAppointmentForDate : existingAppointmentsForDate) {
 				if (existingAppointmentForDate.getStartTime().equals(appointmentStartTime)) {
 					getLogger().info("Attempted to book an appointment with provider ID {} at {} but existing appointment ID {} already is at that time", provider.getProviderId(), appointmentStartTime, existingAppointmentForDate.getAppointmentId());
-					throw new ValidationException(getStrings().get("Sorry, this appointment time is no longer available. Please pick a different time."));
+					throw new ValidationException(getStrings().get("Sorry, this appointment time is no longer available. Please pick a different time.", Map.of("appointmentTimeslotUnavailable", true)));
 				}
 			}
 
@@ -846,7 +845,7 @@ public class AppointmentService {
 
 				if (hoursUntilAppointment < provider.getSchedulingLeadTimeInHours()) {
 					getLogger().info("Attempted to book an appointment {} hours away, but provider ID {} lead time in hours is {}", hoursUntilAppointment, provider.getProviderId(), provider.getSchedulingLeadTimeInHours());
-					throw new ValidationException(getStrings().get("Sorry, this appointment time is no longer available. Please pick a different time."));
+					throw new ValidationException(getStrings().get("Sorry, this appointment time is no longer available. Please pick a different time.", Map.of("appointmentTimeslotUnavailable", true)));
 				}
 			}
 		}
@@ -941,7 +940,7 @@ public class AppointmentService {
 				}
 
 				if (e instanceof AcuitySchedulingNotAvailableException)
-					throw new ValidationException(getStrings().get("Sorry, this booking time is no longer available. Please choose a different time."));
+					throw new ValidationException(getStrings().get("Sorry, this appointment time is no longer available. Please pick a different time.", Map.of("appointmentTimeslotUnavailable", true)));
 
 				// If we have a different exception from Acuity, then handle it specially
 				if (e instanceof AcuitySchedulingException) {
@@ -991,7 +990,7 @@ public class AppointmentService {
 				}
 
 				if (!slotStillOpen)
-					throw new ValidationException(getStrings().get("Sorry, this time is currently unavailable for booking.  Please choose a different time."));
+					throw new ValidationException(getStrings().get("Sorry, this appointment time is no longer available. Please pick a different time.", Map.of("appointmentTimeslotUnavailable", true)));
 
 				// Now we are ready to book
 				ScheduleAppointmentWithInsuranceRequest appointmentRequest = new ScheduleAppointmentWithInsuranceRequest();
