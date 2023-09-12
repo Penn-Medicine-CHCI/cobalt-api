@@ -492,7 +492,10 @@ public class ProviderResource {
 				normalizedProviderFind.put("phoneNumber", providerFind.getPhoneNumber());
 				normalizedProviderFind.put("formattedPhoneNumber", getFormatter().formatPhoneNumber(providerFind.getPhoneNumber()));
 
-				normalizedProviderFinds.add(normalizedProviderFind);
+				// Skip over any providers that have no slot information at all.
+				// This is possible with Epic FHIR providers, for example
+				if (normalizedTimes.size() > 0)
+					normalizedProviderFinds.add(normalizedProviderFind);
 			}
 
 			ProviderFindSection section = new ProviderFindSection();
