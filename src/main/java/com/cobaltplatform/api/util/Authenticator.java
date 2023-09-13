@@ -66,6 +66,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import static java.lang.String.format;
 import static java.time.temporal.ChronoUnit.MINUTES;
 import static java.time.temporal.ChronoUnit.SECONDS;
 import static java.util.Objects.requireNonNull;
@@ -268,6 +269,10 @@ public class Authenticator {
 		String decodedPayload = new String(Base64.getDecoder().decode(encodedPayload), StandardCharsets.UTF_8);
 		Map<String, Object> payloadJson = getGson().fromJson(decodedPayload, Map.class);
 		Double exp = (Double) payloadJson.get("exp");
+
+		if (exp == null)
+			throw new IllegalStateException(format("Missing 'exp' in claims of %s", signingToken));
+
 		Instant expiration = Instant.ofEpochSecond(exp.longValue());
 
 		return new SigningTokenClaims(payloadJson, expiration);
