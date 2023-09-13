@@ -357,8 +357,8 @@ public class ProviderService {
 		if (account.getEpicPatientFhirId() != null)
 			return false;
 
-		List<Provider> epicFhirProviders = findProvidersForInstitutionWithSchedulingSystemId(account.getInstitutionId(), SchedulingSystemId.EPIC_FHIR);
-		return epicFhirProviders.size() > 0;
+		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
+		return institution.getEpicFhirEnabled();
 	}
 
 	@Nonnull
