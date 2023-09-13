@@ -55,7 +55,9 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -252,6 +254,23 @@ public class Authenticator {
 		} catch (Exception e) {
 			throw new SigningTokenValidationException("Unable to process signing token", e);
 		}
+	}
+
+	// Only used in special cases, e.g. testing, where you need to examine claims from a JWT signing token
+	// without cryptographically verifying them in the process.
+	@Nonnull
+	public SigningTokenClaims extractSigningTokenClaimsUnsafelyWithoutValidation(@Nonnull String signingToken) {
+		requireNonNull(signingToken);
+
+		String[] components = signingToken.split("\\.");
+		String encodedPayload = components[1];
+
+		String decodedPayload = new String(Base64.getDecoder().decode(encodedPayload), StandardCharsets.UTF_8);
+		Map<String, Object> payloadJson = getGson().fromJson(decodedPayload, Map.class);
+		Double exp = (Double) payloadJson.get("exp");
+		Instant expiration = Instant.ofEpochSecond(exp.longValue());
+
+		return new SigningTokenClaims(payloadJson, expiration);
 	}
 
 	@NotThreadSafe
