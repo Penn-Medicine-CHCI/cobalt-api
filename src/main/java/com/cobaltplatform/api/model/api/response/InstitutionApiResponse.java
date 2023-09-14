@@ -148,6 +148,8 @@ public class InstitutionApiResponse {
 	private final String techSupportPhoneNumber;
 	@Nullable
 	private final String techSupportPhoneNumberDescription;
+	@Nullable
+	private final String privacyPolicyUrl;
 	@Nonnull
 	private final List<AlertApiResponse> alerts;
 
@@ -245,6 +247,8 @@ public class InstitutionApiResponse {
 
 		this.techSupportPhoneNumber = institution.getTechSupportPhoneNumber();
 		this.techSupportPhoneNumberDescription = institution.getTechSupportPhoneNumber() == null ? null : formatter.formatPhoneNumber(institution.getTechSupportPhoneNumber());
+
+		this.privacyPolicyUrl = institution.getPrivacyPolicyUrl();
 
 		if (account == null) {
 			this.alerts = alertService.findAlertsByInstitutionId(institution.getInstitutionId()).stream()
@@ -500,5 +504,10 @@ public class InstitutionApiResponse {
 	@Nullable
 	public String getTechSupportPhoneNumberDescription() {
 		return this.techSupportPhoneNumberDescription;
+	}
+
+	@Nullable
+	public String getPrivacyPolicyUrl() {
+		return this.privacyPolicyUrl;
 	}
 }
