@@ -29,7 +29,6 @@ import com.cobaltplatform.api.integration.epic.response.AppointmentFindFhirStu3R
 import com.cobaltplatform.api.model.db.EpicFhirAppointmentFindCache;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Provider;
-import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.cobaltplatform.api.service.AppointmentService;
 import com.cobaltplatform.api.service.InstitutionService;
@@ -61,7 +60,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -298,21 +296,13 @@ public class EpicFhirSyncManager implements ProviderAvailabilitySyncManager, Aut
 			List<Institution> institutions = getDatabase().queryForList("""
 					     SELECT *
 					     FROM institution
-					     WHERE institution_id IN (SELECT institution_id FROM provider WHERE scheduling_system_id=? AND active=TRUE);
-					""", Institution.class, SchedulingSystemId.EPIC_FHIR);
+					     WHERE epic_fhir_enabled=TRUE
+					     ORDER BY institution_id
+					""", Institution.class);
 
 			for (Institution institution : institutions) {
 				CurrentContext currentContext = new CurrentContext.Builder(institution.getInstitutionId(),
 						getConfiguration().getDefaultLocale(), getConfiguration().getDefaultTimeZone()).build();
-
-				// Pick out all EPIC_FHIR-scheduled providers
-				List<Provider> providers = getProviderService().findProvidersByInstitutionId(institution.getInstitutionId()).stream()
-						.filter(provider -> provider.getActive() && provider.getSchedulingSystemId().equals(SchedulingSystemId.EPIC_FHIR))
-						.collect(Collectors.toList());
-
-				// No Epic FHIR providers?  Nothing to do
-				if (providers.size() == 0)
-					continue;
 
 				getCurrentContextExecutor().execute(currentContext, () -> {
 					EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institution.getInstitutionId()).epicClientForBackendService().get();
