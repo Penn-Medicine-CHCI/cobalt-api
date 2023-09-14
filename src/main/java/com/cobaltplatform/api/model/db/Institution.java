@@ -235,6 +235,8 @@ public class Institution {
 	private UUID featuredTopicCenterId;
 	@Nullable
 	private String techSupportPhoneNumber;
+	@Nullable
+	private String privacyPolicyUrl;
 
 	public enum InstitutionId {
 		COBALT,
@@ -1095,5 +1097,14 @@ public class Institution {
 
 	public void setTechSupportPhoneNumber(@Nullable String techSupportPhoneNumber) {
 		this.techSupportPhoneNumber = techSupportPhoneNumber;
+	}
+
+	@Nullable
+	public String getPrivacyPolicyUrl() {
+		return this.privacyPolicyUrl;
+	}
+
+	public void setPrivacyPolicyUrl(@Nullable String privacyPolicyUrl) {
+		this.privacyPolicyUrl = privacyPolicyUrl;
 	}
 }
