@@ -11,7 +11,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <kotlin.version>1.6.21</kotlin.version>
+        <kotlin.version>1.8.20</kotlin.version>
     </properties>
 
     <build>
@@ -104,6 +104,13 @@
                 <groupId>software.amazon.awssdk</groupId>
                 <artifactId>bom</artifactId>
                 <version>2.15.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.google.cloud</groupId>
+                <artifactId>libraries-bom</artifactId>
+                <version>26.20.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -467,6 +474,11 @@
             <groupId>com.devskiller.friendly-id</groupId>
             <artifactId>friendly-id</artifactId>
             <version>1.1.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>google-cloud-bigquery</artifactId>
         </dependency>
 
         <dependency>
