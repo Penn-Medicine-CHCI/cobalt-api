@@ -23,6 +23,9 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import javax.annotation.concurrent.ThreadSafe;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import static com.soklet.util.LoggingUtils.initializeLogback;
@@ -38,8 +41,11 @@ public class GoogleBigQueryClientTests {
 	}
 
 	@Test
-	public void testGoogleBigQuery() {
-		GoogleBigQueryClient googleBigQueryClient = new DefaultGoogleBigQueryClient();
+	public void testGoogleBigQuery() throws Exception {
+		String serviceAccountPrivateKeyJson = Files.readString(
+				Path.of("resources/test/bigquery-service-account-private-key.json"), StandardCharsets.UTF_8);
+
+		GoogleBigQueryClient googleBigQueryClient = new DefaultGoogleBigQueryClient(serviceAccountPrivateKeyJson);
 		googleBigQueryClient.test();
 	}
 }
