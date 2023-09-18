@@ -20,6 +20,8 @@
 package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.GroupSessionLearnMoreMethod;
+import com.cobaltplatform.api.model.db.GroupSessionLocationType;
+import com.cobaltplatform.api.model.db.GroupSessionLocationType.GroupSessionLocationTypeId;
 import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
@@ -40,6 +42,8 @@ public class CreateGroupSessionRequest {
 	private InstitutionId institutionId;
 	@Nullable
 	private GroupSessionSchedulingSystemId groupSessionSchedulingSystemId;
+	@Nullable
+	private GroupSessionLocationTypeId groupSessionLocationTypeId;
 	@Nullable
 	private UUID submitterAccountId;
 	@Nullable
@@ -124,6 +128,15 @@ public class CreateGroupSessionRequest {
 
 	public void setGroupSessionSchedulingSystemId(@Nullable GroupSessionSchedulingSystemId groupSessionSchedulingSystemId) {
 		this.groupSessionSchedulingSystemId = groupSessionSchedulingSystemId;
+	}
+
+	@Nullable
+	public GroupSessionLocationTypeId getGroupSessionLocationTypeId() {
+		return this.groupSessionLocationTypeId;
+	}
+
+	public void setGroupSessionLocationTypeId(@Nullable GroupSessionLocationTypeId groupSessionLocationTypeId) {
+		this.groupSessionLocationTypeId = groupSessionLocationTypeId;
 	}
 
 	@Nullable

@@ -336,12 +336,19 @@ public class GroupSessionResource {
 		requireNonNull(groupSessionId);
 
 		Account account = getCurrentContext().getAccount().get();
+		GroupSession groupSession = getGroupSessionService().findGroupSessionById(groupSessionId, account).orElse(null);
+
+		if (groupSession == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canEditGroupSession(groupSession, account))
+			throw new AuthorizationException();
 
 		UUID duplicatedGroupSessionId = getGroupSessionService().duplicateGroupSession(groupSessionId, account);
-		GroupSession groupSession = getGroupSessionService().findGroupSessionById(duplicatedGroupSessionId, account).get();
+		GroupSession duplicatedGroupSession = getGroupSessionService().findGroupSessionById(duplicatedGroupSessionId, account).get();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("groupSession", getGroupSessionApiResponseFactory().create(groupSession));
+			put("groupSession", getGroupSessionApiResponseFactory().create(duplicatedGroupSession));
 		}});
 	}
 

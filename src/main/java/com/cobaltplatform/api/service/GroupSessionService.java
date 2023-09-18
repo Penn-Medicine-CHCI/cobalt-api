@@ -53,6 +53,7 @@ import com.cobaltplatform.api.model.db.FontSize.FontSizeId;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionCollection;
 import com.cobaltplatform.api.model.db.GroupSessionLearnMoreMethod.GroupSessionLearnMoreMethodId;
+import com.cobaltplatform.api.model.db.GroupSessionLocationType.GroupSessionLocationTypeId;
 import com.cobaltplatform.api.model.db.GroupSessionRequest;
 import com.cobaltplatform.api.model.db.GroupSessionRequestStatus;
 import com.cobaltplatform.api.model.db.GroupSessionRequestStatus.GroupSessionRequestStatusId;
@@ -87,6 +88,8 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.apache.commons.lang3.tuple.Pair;
+import org.owasp.html.HtmlPolicyBuilder;
+import org.owasp.html.PolicyFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -166,6 +169,8 @@ public class GroupSessionService implements AutoCloseable {
 	@Nonnull
 	private final ICalInviteGenerator iCalInviteGenerator;
 	@Nonnull
+	private final PolicyFactory htmlSanitizingPolicyFactory;
+	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
 	private final Strings strings;
@@ -233,6 +238,7 @@ public class GroupSessionService implements AutoCloseable {
 		this.strings = strings;
 		this.backgroundTaskLock = new Object();
 		this.backgroundTaskStarted = false;
+		this.htmlSanitizingPolicyFactory = createHtmlSanitizingPolicyFactory();
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
@@ -558,11 +564,11 @@ public class GroupSessionService implements AutoCloseable {
 						group_session_status_id, title, description, submitter_account_id,
 						target_email_address, facilitator_account_id, facilitator_name, facilitator_email_address,
 						image_url, videoconference_url, start_date_time, end_date_time, seats, url_name,
-						confirmation_email_content, locale, time_zone, group_session_scheduling_system_id,
+						confirmation_email_content, locale, time_zone, group_session_scheduling_system_id, group_session_location_type_id,
 						send_followup_email, followup_email_content, followup_email_survey_url,
 						group_session_collection_id, visible_flag, screening_flow_id, send_reminder_email, reminder_email_content,
 						followup_time_of_day, followup_day_offset, single_session_flag, date_time_description, group_session_learn_more_method_id, learn_more_description)
-						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				destinationGroupSessionId, sourceGroupSession.getInstitutionId(), GroupSessionStatusId.NEW,
 				sourceGroupSession.getTitle(), sourceGroupSession.getDescription(), sourceGroupSession.getSubmitterAccountId(), sourceGroupSession.getTargetEmailAddress(),
@@ -570,7 +576,7 @@ public class GroupSessionService implements AutoCloseable {
 				sourceGroupSession.getImageUrl(), sourceGroupSession.getVideoconferenceUrl(), sourceGroupSession.getStartDateTime(), sourceGroupSession.getEndDateTime(),
 				sourceGroupSession.getSeats(), sourceGroupSession.getUrlName(), sourceGroupSession.getConfirmationEmailContent(),
 				sourceGroupSession.getLocale(), sourceGroupSession.getTimeZone(), sourceGroupSession.getGroupSessionSchedulingSystemId(),
-				sourceGroupSession.getSendFollowupEmail(), sourceGroupSession.getFollowupEmailContent(),
+				sourceGroupSession.getGroupSessionLocationTypeId(), sourceGroupSession.getSendFollowupEmail(), sourceGroupSession.getFollowupEmailContent(),
 				sourceGroupSession.getFollowupEmailSurveyUrl(), sourceGroupSession.getGroupSessionCollectionId(), sourceGroupSession.getVisibleFlag(),
 				sourceGroupSession.getScreeningFlowId(), sourceGroupSession.getSendReminderEmail(), sourceGroupSession.getReminderEmailContent(),
 				sourceGroupSession.getFollowupTimeOfDay(), sourceGroupSession.getFollowupDayOffset(), sourceGroupSession.getSingleSessionFlag(),
@@ -587,12 +593,14 @@ public class GroupSessionService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public UUID createGroupSession(@Nonnull CreateGroupSessionRequest request, @Nonnull Account account) {
+	public UUID createGroupSession(@Nonnull CreateGroupSessionRequest request,
+																 @Nonnull Account account) {
 		requireNonNull(request);
 		requireNonNull(account);
 
 		InstitutionId institutionId = request.getInstitutionId();
 		GroupSessionSchedulingSystemId groupSessionSchedulingSystemId = request.getGroupSessionSchedulingSystemId();
+		GroupSessionLocationTypeId groupSessionLocationTypeId = request.getGroupSessionLocationTypeId();
 		String title = trimToNull(request.getTitle());
 		String description = trimToNull(request.getDescription());
 		String urlName = trimToNull(request.getUrlName().toLowerCase().replaceAll(" ", "-"));
@@ -671,6 +679,10 @@ public class GroupSessionService implements AutoCloseable {
 		if (title == null)
 			validationException.add(new FieldError("title", getStrings().get("Title is required.")));
 
+		// If a non-administrator is adding this content, sanitize its HTML
+		if (description != null && account.getRoleId() != RoleId.ADMINISTRATOR)
+			description = trimToNull(getHtmlSanitizingPolicyFactory().sanitize(description));
+
 		if (description == null)
 			validationException.add(new FieldError("description", getStrings().get("Description is required.")));
 
@@ -704,6 +716,12 @@ public class GroupSessionService implements AutoCloseable {
 		if (startDateTime != null && endDateTime != null) {
 			if (endDateTime.equals(startDateTime) || endDateTime.isBefore(startDateTime))
 				validationException.add(getStrings().get("End time cannot be before start time."));
+		}
+
+		if (groupSessionLocationTypeId == null) {
+			validationException.add(new FieldError("groupSessionLocationTypeId", getStrings().get("Location type is required.")));
+		} else if (groupSessionLocationTypeId == GroupSessionLocationTypeId.VIRTUAL && videoconferenceUrl == null) {
+			validationException.add(new FieldError("videoconferenceUrl", getStrings().get("Videoconference URL is required for virtual group sessions.")));
 		}
 
 		if (groupSessionSchedulingSystemId == GroupSessionSchedulingSystemId.COBALT) {
@@ -772,16 +790,16 @@ public class GroupSessionService implements AutoCloseable {
 						target_email_address, facilitator_account_id, facilitator_name, facilitator_email_address,
 						image_url, videoconference_url, start_date_time, end_date_time, seats, url_name,
 						confirmation_email_content, locale, time_zone, group_session_scheduling_system_id,
-						send_followup_email, followup_email_content, followup_email_survey_url,
+						group_session_location_type_id, send_followup_email, followup_email_content, followup_email_survey_url,
 						group_session_collection_id, visible_flag, screening_flow_id, send_reminder_email, reminder_email_content,
 						followup_time_of_day, followup_day_offset, single_session_flag, date_time_description, group_session_learn_more_method_id, 
 						learn_more_description, different_email_address_for_notifications)
-						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				groupSessionId, institutionId, GroupSessionStatusId.NEW,
 				title, description, submitterAccountId, targetEmailAddress, facilitatorAccountId, facilitatorName, facilitatorEmailAddress, imageUrl, videoconferenceUrl,
 				startDateTime, endDateTime, seats, urlName, confirmationEmailContent, institution.getLocale(), institution.getTimeZone(),
-				groupSessionSchedulingSystemId, sendFollowupEmail, followupEmailContent, followupEmailSurveyUrl,
+				groupSessionSchedulingSystemId, groupSessionLocationTypeId, sendFollowupEmail, followupEmailContent, followupEmailSurveyUrl,
 				groupSessionCollectionId, visibleFlag, screeningFlowId, sendReminderEmail, reminderEmailContent,
 				followupTimeOfDay, followupDayOffset, singleSessionFlag, dateTimeDescription, groupSessionLearnMoreMethodId, learnMoreDescription, differentEmailAddressForNotifications);
 
@@ -915,12 +933,14 @@ public class GroupSessionService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public UUID updateGroupSession(@Nonnull UpdateGroupSessionRequest request, @Nonnull Account account) {
+	public UUID updateGroupSession(@Nonnull UpdateGroupSessionRequest request,
+																 @Nonnull Account account) {
 		requireNonNull(request);
 		requireNonNull(account);
 
 		UUID groupSessionId = request.getGroupSessionId();
 		GroupSessionSchedulingSystemId groupSessionSchedulingSystemId = request.getGroupSessionSchedulingSystemId();
+		GroupSessionLocationTypeId groupSessionLocationTypeId = request.getGroupSessionLocationTypeId();
 		String title = trimToNull(request.getTitle());
 		String description = trimToNull(request.getDescription());
 		String urlName = trimToNull(request.getUrlName().toLowerCase().replaceAll(" ", "-"));
@@ -984,6 +1004,10 @@ public class GroupSessionService implements AutoCloseable {
 		if (title == null)
 			validationException.add(new FieldError("title", getStrings().get("Title is required.")));
 
+		// If a non-administrator is updating this content, sanitize its HTML
+		if (description != null && account.getRoleId() != RoleId.ADMINISTRATOR)
+			description = trimToNull(getHtmlSanitizingPolicyFactory().sanitize(description));
+
 		if (description == null)
 			validationException.add(new FieldError("description", getStrings().get("Description is required.")));
 
@@ -1013,6 +1037,12 @@ public class GroupSessionService implements AutoCloseable {
 
 		if (endDateTime == null)
 			validationException.add(new FieldError("endDateTime", getStrings().get("End time is required.")));
+
+		if (groupSessionLocationTypeId == null) {
+			validationException.add(new FieldError("groupSessionLocationTypeId", getStrings().get("Location type is required.")));
+		} else if (groupSessionLocationTypeId == GroupSessionLocationTypeId.VIRTUAL && videoconferenceUrl == null) {
+			validationException.add(new FieldError("videoconferenceUrl", getStrings().get("Videoconference URL is required for virtual group sessions.")));
+		}
 
 		if (startDateTime != null && endDateTime != null) {
 			if (endDateTime.equals(startDateTime) || endDateTime.isBefore(startDateTime))
@@ -1105,13 +1135,14 @@ public class GroupSessionService implements AutoCloseable {
 							confirmation_email_content=?, send_followup_email=?, followup_email_content=?, followup_email_survey_url=?,
 							group_session_collection_id=?, visible_flag=?, screening_flow_id=?, send_reminder_email=?, reminder_email_content=?,
 							followup_time_of_day=?, followup_day_offset=?, single_session_flag=?, date_time_description=?, 
-							group_session_learn_more_method_id=?, learn_more_description=?, different_email_address_for_notifications=?
+							group_session_learn_more_method_id=?, learn_more_description=?, different_email_address_for_notifications=?,
+							group_session_location_type_id=?
 							WHERE group_session_id=?
 							""", description, facilitatorAccountId, facilitatorName, facilitatorEmailAddress,
 					targetEmailAddress, imageUrl, videoconferenceUrl, seats, confirmationEmailContent,
 					sendFollowupEmail, followupEmailContent, followupEmailSurveyUrl, groupSessionCollectionId, visibleFlag, screeningFlowId,
 					sendReminderEmail, reminderEmailContent, followupTimeOfDay, followupDayOffset, singleSessionFlag, dateTimeDescription,
-					groupSessionLearnMoreMethodId, learnMoreDescription, differentEmailAddressForNotifications, groupSessionId);
+					groupSessionLearnMoreMethodId, learnMoreDescription, differentEmailAddressForNotifications, groupSessionLocationTypeId, groupSessionId);
 		} else {
 			getDatabase().execute("""
 							UPDATE group_session SET title=?, description=?, facilitator_account_id=?, facilitator_name=?, facilitator_email_address=?,
@@ -1119,7 +1150,8 @@ public class GroupSessionService implements AutoCloseable {
 							confirmation_email_content=?, group_session_scheduling_system_id=?, send_followup_email=?, followup_email_content=?, followup_email_survey_url=?,
 							group_session_collection_id=?, visible_flag=?, screening_flow_id=?, send_reminder_email=?, reminder_email_content=?,
 							followup_time_of_day=?, followup_day_offset=?, single_session_flag=?, date_time_description=?,
-							group_session_learn_more_method_id=?, learn_more_description=?, different_email_address_for_notifications=?
+							group_session_learn_more_method_id=?, learn_more_description=?, different_email_address_for_notifications=?,
+							group_session_location_type_id=?
 							WHERE group_session_id=?
 							""",
 					title, description, facilitatorAccountId, facilitatorName, facilitatorEmailAddress,
@@ -1127,7 +1159,7 @@ public class GroupSessionService implements AutoCloseable {
 					groupSessionSchedulingSystemId, sendFollowupEmail, followupEmailContent, followupEmailSurveyUrl,
 					groupSessionCollectionId, visibleFlag, screeningFlowId, sendReminderEmail, reminderEmailContent,
 					followupTimeOfDay, followupDayOffset, singleSessionFlag, dateTimeDescription,
-					groupSessionLearnMoreMethodId, learnMoreDescription, differentEmailAddressForNotifications, groupSessionId);
+					groupSessionLearnMoreMethodId, learnMoreDescription, differentEmailAddressForNotifications, groupSessionLocationTypeId, groupSessionId);
 
 			List<Question> existingScreeningQuestions = findScreeningQuestionsByGroupSessionId(groupSessionId);
 			boolean screeningQuestionsChanged = false;
@@ -2299,6 +2331,29 @@ public class GroupSessionService implements AutoCloseable {
 				GroupSessionCollection.class, account.getInstitutionId());
 	}
 
+	@Nonnull
+	protected PolicyFactory createHtmlSanitizingPolicyFactory() {
+		// Here's what we want to permit in our rich-text input
+		// for non-administrative users:
+		//
+		// "p"
+		// "strong"
+		// "br"
+		// "em"
+		// "u"
+		// "s"
+		// "ol"
+		// "li"
+		// "ul"
+		// "a" with href rel="noopener noreferrer" target="_blank"
+		return new HtmlPolicyBuilder()
+				.allowElements("p", "strong", "br", "em", "u", "s", "ol", "li", "ul", "a")
+				.allowUrlProtocols("https")
+				.allowAttributes("href", "rel", "target").onElements("a")
+				.requireRelNofollowOnLinks()
+				.toFactory();
+	}
+
 	@ThreadSafe
 	protected static class BackgroundSyncTask implements Runnable {
 		@Nonnull
@@ -2367,45 +2422,45 @@ public class GroupSessionService implements AutoCloseable {
 
 		@Nonnull
 		protected CurrentContextExecutor getCurrentContextExecutor() {
-			return currentContextExecutor;
+			return this.currentContextExecutor;
 		}
 
 		@Nonnull
 		protected ErrorReporter getErrorReporter() {
-			return errorReporter;
+			return this.errorReporter;
 		}
 
 		@Nonnull
 		protected Database getDatabase() {
-			return database;
+			return this.database;
 		}
 
 		@Nonnull
 		protected Configuration getConfiguration() {
-			return configuration;
+			return this.configuration;
 		}
 
 		@Nonnull
 		protected Logger getLogger() {
-			return logger;
+			return this.logger;
 		}
 	}
 
 	@Nonnull
 	public Boolean isBackgroundTaskStarted() {
 		synchronized (getBackgroundTaskLock()) {
-			return backgroundTaskStarted;
+			return this.backgroundTaskStarted;
 		}
 	}
 
 	@Nonnull
 	protected AccountService getAccountService() {
-		return accountServiceProvider.get();
+		return this.accountServiceProvider.get();
 	}
 
 	@Nonnull
 	protected InstitutionService getInstitutionService() {
-		return institutionServiceProvider.get();
+		return this.institutionServiceProvider.get();
 	}
 
 	@Nonnull
@@ -2415,52 +2470,52 @@ public class GroupSessionService implements AutoCloseable {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return database;
+		return this.database;
 	}
 
 	@Nonnull
 	protected UploadManager getUploadManager() {
-		return uploadManager;
+		return this.uploadManager;
 	}
 
 	@Nonnull
 	protected LinkGenerator getLinkGenerator() {
-		return linkGenerator;
+		return this.linkGenerator;
 	}
 
 	@Nonnull
 	protected Formatter getFormatter() {
-		return formatter;
+		return this.formatter;
 	}
 
 	@Nonnull
 	protected Normalizer getNormalizer() {
-		return normalizer;
+		return this.normalizer;
 	}
 
 	@Nonnull
 	protected GoogleCalendarUrlGenerator getGoogleCalendarUrlGenerator() {
-		return googleCalendarUrlGenerator;
+		return this.googleCalendarUrlGenerator;
 	}
 
 	@Nonnull
 	protected ICalInviteGenerator getiCalInviteGenerator() {
-		return iCalInviteGenerator;
+		return this.iCalInviteGenerator;
 	}
 
 	@Nonnull
 	protected Configuration getConfiguration() {
-		return configuration;
+		return this.configuration;
 	}
 
 	@Nonnull
 	protected Strings getStrings() {
-		return strings;
+		return this.strings;
 	}
 
 	@Nonnull
 	protected Logger getLogger() {
-		return logger;
+		return this.logger;
 	}
 
 	@Nonnull
@@ -2475,17 +2530,17 @@ public class GroupSessionService implements AutoCloseable {
 
 	@Nonnull
 	protected Object getBackgroundTaskLock() {
-		return backgroundTaskLock;
+		return this.backgroundTaskLock;
 	}
 
 	@Nonnull
 	protected Provider<BackgroundSyncTask> getBackgroundSyncTaskProvider() {
-		return backgroundSyncTaskProvider;
+		return this.backgroundSyncTaskProvider;
 	}
 
 	@Nonnull
 	protected Optional<ScheduledExecutorService> getBackgroundTaskExecutorService() {
-		return Optional.ofNullable(backgroundTaskExecutorService);
+		return Optional.ofNullable(this.backgroundTaskExecutorService);
 	}
 
 	@Nonnull
@@ -2495,6 +2550,11 @@ public class GroupSessionService implements AutoCloseable {
 
 	@Nonnull
 	protected TagService getTagService() {
-		return tagService;
+		return this.tagService;
+	}
+
+	@Nonnull
+	protected PolicyFactory getHtmlSanitizingPolicyFactory() {
+		return this.htmlSanitizingPolicyFactory;
 	}
 }
