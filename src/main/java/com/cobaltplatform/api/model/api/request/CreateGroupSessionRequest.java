@@ -20,6 +20,8 @@
 package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.GroupSessionLearnMoreMethod;
+import com.cobaltplatform.api.model.db.GroupSessionLocationType;
+import com.cobaltplatform.api.model.db.GroupSessionLocationType.GroupSessionLocationTypeId;
 import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
@@ -41,6 +43,8 @@ public class CreateGroupSessionRequest {
 	@Nullable
 	private GroupSessionSchedulingSystemId groupSessionSchedulingSystemId;
 	@Nullable
+	private GroupSessionLocationTypeId groupSessionLocationTypeId;
+	@Nullable
 	private UUID submitterAccountId;
 	@Nullable
 	private String targetEmailAddress;
@@ -50,6 +54,8 @@ public class CreateGroupSessionRequest {
 	private String description;
 	@Nullable
 	private String urlName;
+	@Nullable
+	private String inPersonLocation;
 	@Nullable
 	private UUID facilitatorAccountId;
 	@Nullable
@@ -127,6 +133,15 @@ public class CreateGroupSessionRequest {
 	}
 
 	@Nullable
+	public GroupSessionLocationTypeId getGroupSessionLocationTypeId() {
+		return this.groupSessionLocationTypeId;
+	}
+
+	public void setGroupSessionLocationTypeId(@Nullable GroupSessionLocationTypeId groupSessionLocationTypeId) {
+		this.groupSessionLocationTypeId = groupSessionLocationTypeId;
+	}
+
+	@Nullable
 	public UUID getSubmitterAccountId() {
 		return submitterAccountId;
 	}
@@ -169,6 +184,15 @@ public class CreateGroupSessionRequest {
 
 	public void setUrlName(@Nullable String urlName) {
 		this.urlName = urlName;
+	}
+
+	@Nullable
+	public String getInPersonLocation() {
+		return this.inPersonLocation;
+	}
+
+	public void setInPersonLocation(@Nullable String inPersonLocation) {
+		this.inPersonLocation = inPersonLocation;
 	}
 
 	@Nullable
