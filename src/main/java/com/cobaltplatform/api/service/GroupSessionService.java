@@ -953,8 +953,9 @@ public class GroupSessionService implements AutoCloseable {
 
 		urlName = normalizeUrlName(urlName).orElse("");
 
+		// If this is an illegal name, it already "exists"
 		if (getIllegalGroupSessionUrlNames().contains(urlName))
-			return false;
+			return true;
 
 		List<Object> parameters = new ArrayList<>();
 		StringBuilder query = new StringBuilder("""
