@@ -6,6 +6,9 @@ CREATE TABLE group_session_location_type (
   description VARCHAR NOT NULL
 );
 
+INSERT INTO group_session_location_type VALUES ('VIRTUAL', 'Virtual');
+INSERT INTO group_session_location_type VALUES ('IN_PERSON', 'In-Person');
+
 ALTER TABLE group_session ADD COLUMN group_session_location_type_id TEXT NOT NULL REFERENCES group_session_location_type DEFAULT 'VIRTUAL';
 ALTER TABLE group_session ADD COLUMN in_person_location TEXT;
 
