@@ -88,6 +88,8 @@ public class GroupSessionApiResponse {
 	@Nullable
 	private final String urlName;
 	@Nullable
+	private final String inPersonLocation;
+	@Nullable
 	private final UUID facilitatorAccountId;
 	@Nullable
 	private final String facilitatorName;
@@ -235,6 +237,7 @@ public class GroupSessionApiResponse {
 		this.title = groupSession.getTitle();
 		this.description = groupSession.getDescription();
 		this.urlName = groupSession.getUrlName();
+		this.inPersonLocation = groupSession.getInPersonLocation();
 		this.facilitatorAccountId = groupSession.getFacilitatorAccountId();
 		this.facilitatorName = groupSession.getFacilitatorName();
 		this.facilitatorEmailAddress = groupSession.getFacilitatorEmailAddress();
@@ -400,6 +403,11 @@ public class GroupSessionApiResponse {
 	@Nullable
 	public String getUrlName() {
 		return this.urlName;
+	}
+
+	@Nullable
+	public String getInPersonLocation() {
+		return this.inPersonLocation;
 	}
 
 	@Nullable

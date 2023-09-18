@@ -7,16 +7,18 @@ CREATE TABLE group_session_location_type (
 );
 
 ALTER TABLE group_session ADD COLUMN group_session_location_type_id TEXT NOT NULL REFERENCES group_session_location_type DEFAULT 'VIRTUAL';
+ALTER TABLE group_session ADD COLUMN in_person_location TEXT;
 
 DROP VIEW v_group_session;
 
--- Added group_session_location_type_id
+-- Added group_session_location_type_id and in_person_location
 CREATE VIEW v_group_session AS
  SELECT gs.group_session_id,
     gs.institution_id,
     gs.group_session_status_id,
     gs.assessment_id,
     gs.group_session_location_type_id,
+    gs.in_person_location,
     gs.title,
     gs.description,
     gs.facilitator_account_id,

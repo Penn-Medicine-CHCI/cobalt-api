@@ -50,6 +50,8 @@ public class UpdateGroupSessionRequest {
 	@Nullable
 	private String urlName;
 	@Nullable
+	private String inPersonLocation;
+	@Nullable
 	private UUID facilitatorAccountId;
 	@Nullable
 	private String facilitatorName;
@@ -159,6 +161,15 @@ public class UpdateGroupSessionRequest {
 
 	public void setUrlName(@Nullable String urlName) {
 		this.urlName = urlName;
+	}
+
+	@Nullable
+	public String getInPersonLocation() {
+		return this.inPersonLocation;
+	}
+
+	public void setInPersonLocation(@Nullable String inPersonLocation) {
+		this.inPersonLocation = inPersonLocation;
 	}
 
 	@Nullable
