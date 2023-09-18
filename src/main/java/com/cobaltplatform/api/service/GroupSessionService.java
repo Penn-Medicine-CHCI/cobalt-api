@@ -796,6 +796,11 @@ public class GroupSessionService implements AutoCloseable {
 		if (imageUrl == null)
 			imageUrl = getDefaultGroupSessionImageUrl();
 
+		// Never makes sense to specify a videoconference URL in these scenarios
+		if (groupSessionLocationTypeId == GroupSessionLocationTypeId.IN_PERSON
+				|| groupSessionSchedulingSystemId == GroupSessionSchedulingSystemId.EXTERNAL)
+			videoconferenceUrl = null;
+
 		targetEmailAddress = getNormalizer().normalizeEmailAddress(targetEmailAddress).get();
 		facilitatorEmailAddress = getNormalizer().normalizeEmailAddress(facilitatorEmailAddress).get();
 
@@ -1165,6 +1170,11 @@ public class GroupSessionService implements AutoCloseable {
 
 		if (imageUrl == null)
 			imageUrl = getDefaultGroupSessionImageUrl();
+
+		// Never makes sense to specify a videoconference URL in these scenarios
+		if (groupSessionLocationTypeId == GroupSessionLocationTypeId.IN_PERSON
+				|| groupSessionSchedulingSystemId == GroupSessionSchedulingSystemId.EXTERNAL)
+			videoconferenceUrl = null;
 
 		targetEmailAddress = getNormalizer().normalizeEmailAddress(targetEmailAddress).get();
 		facilitatorEmailAddress = getNormalizer().normalizeEmailAddress(facilitatorEmailAddress).get();
