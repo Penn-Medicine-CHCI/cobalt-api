@@ -39,7 +39,7 @@ import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionReservation;
 import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
-import com.cobaltplatform.api.model.db.Institution;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
@@ -455,9 +455,9 @@ public class GroupSessionResource {
 		requireNonNull(searchQuery);
 
 		Account account = getCurrentContext().getAccount().get();
-		Institution.InstitutionId institutionId = account.getInstitutionId();
+		InstitutionId institutionId = account.getInstitutionId();
 
-		GroupSessionUrlValidationResult result = getGroupSessionService().findGroupSessionUrlValidationResults(searchQuery, institutionId, groupSessionId);
+		GroupSessionUrlValidationResult result = getGroupSessionService().findGroupSessionUrlValidationResults(searchQuery, institutionId, groupSessionId.orElse(null));
 
 		return new ApiResponse(new HashMap<>() {{
 			put("groupSessionUrlNameValidationResult", getGroupSessionAutocompleteResultApiResponseFactory().create(result));

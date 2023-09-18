@@ -141,6 +141,8 @@ public class GroupSessionService implements AutoCloseable {
 	private static final Long BACKGROUND_TASK_INTERVAL_IN_SECONDS;
 	@Nonnull
 	private static final Long BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS;
+	@Nonnull
+	private static final Set<String> ILLEGAL_GROUP_SESSION_URL_NAMES;
 
 	@Nonnull
 	private final Provider<AccountService> accountServiceProvider;
@@ -187,6 +189,14 @@ public class GroupSessionService implements AutoCloseable {
 	static {
 		BACKGROUND_TASK_INTERVAL_IN_SECONDS = 60L;
 		BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS = 10L;
+
+		ILLEGAL_GROUP_SESSION_URL_NAMES = Set.of(
+				"request",
+				"by-request",
+				"collection",
+				"add-internal",
+				"add-external"
+		);
 	}
 
 	@Inject
@@ -554,7 +564,7 @@ public class GroupSessionService implements AutoCloseable {
 		}
 
 		GroupSessionUrlValidationResult groupSessionUrlValidationResult = findGroupSessionUrlValidationResults(sourceGroupSession.getUrlName(),
-				sourceGroupSession.getInstitutionId(), Optional.of(destinationGroupSessionId));
+				sourceGroupSession.getInstitutionId(), destinationGroupSessionId);
 
 		if (!groupSessionUrlValidationResult.getAvailable())
 			sourceGroupSession.setUrlName(groupSessionUrlValidationResult.getRecommendation());
@@ -605,7 +615,7 @@ public class GroupSessionService implements AutoCloseable {
 		GroupSessionLocationTypeId groupSessionLocationTypeId = request.getGroupSessionLocationTypeId();
 		String title = trimToNull(request.getTitle());
 		String description = trimToNull(request.getDescription());
-		String urlName = trimToNull(request.getUrlName().toLowerCase().replaceAll(" ", "-"));
+		String urlName = request.getUrlName() == null ? null : normalizeUrlName(request.getUrlName()).orElse(null);
 		String inPersonLocation = trimToNull(request.getInPersonLocation());
 		UUID facilitatorAccountId = request.getFacilitatorAccountId();
 		String facilitatorName = trimToNull(request.getFacilitatorName());
@@ -693,7 +703,7 @@ public class GroupSessionService implements AutoCloseable {
 			validationException.add(new FieldError("urlName", getStrings().get("Friendly URL name is required.")));
 		else if (!isValidUrlSubdirectory(urlName))
 			validationException.add(new FieldError("urlName", getStrings().get("Not a valid Friendly URL")));
-		else if (urlNameExistsForInstitutionId(urlName, institution.getInstitutionId(), Optional.of(groupSessionId)))
+		else if (urlNameExistsForInstitutionId(urlName, institution.getInstitutionId(), groupSessionId))
 			validationException.add(new FieldError("urlName", getStrings().get("Friendly URL name is already in use.")));
 
 		if (facilitatorName == null)
@@ -888,14 +898,14 @@ public class GroupSessionService implements AutoCloseable {
 	@Nonnull
 	public GroupSessionUrlValidationResult findGroupSessionUrlValidationResults(@Nonnull String urlName,
 																																							@Nonnull InstitutionId institutionId,
-																																							@Nonnull Optional<UUID> groupSessionId) {
+																																							@Nullable UUID groupSessionId) {
 		requireNonNull(urlName);
 		requireNonNull(institutionId);
 
 		GroupSessionUrlValidationResult result = new GroupSessionUrlValidationResult();
 		Boolean suggestedUrlAvailable = false;
 
-		urlName = urlName.toLowerCase().replaceAll(" ", "-");
+		urlName = normalizeUrlName(urlName).orElse("");
 		int urlSuffix = 1;
 
 		if (!urlNameExistsForInstitutionId(urlName, institutionId, groupSessionId)) {
@@ -916,11 +926,34 @@ public class GroupSessionService implements AutoCloseable {
 	}
 
 	@Nonnull
-	private Boolean urlNameExistsForInstitutionId(@Nonnull String urlName, @Nonnull InstitutionId institutionId,
-																								@Nonnull Optional<UUID> groupSessionId) {
+	protected Optional<String> normalizeUrlName(@Nullable String urlName) {
+		urlName = trimToNull(urlName);
+
+		if (urlName == null)
+			return Optional.empty();
+
+		return Optional.ofNullable(urlName.toLowerCase(Locale.ENGLISH)
+				// All groups of whitespace characters are converted to a single '-'
+				.replaceAll("\\p{Zs}+", "-")
+				// Anything that's not alphanumeric or a hyphen is discarded
+				.replaceAll("[^-\\pL\\pN]", ""));
+	}
+
+	@Nonnull
+	protected Boolean urlNameExistsForInstitutionId(@Nonnull String urlName,
+																									@Nonnull InstitutionId institutionId,
+																									@Nullable UUID groupSessionId) {
+		requireNonNull(urlName);
+		requireNonNull(institutionId);
+
+		urlName = normalizeUrlName(urlName).orElse("");
+
+		if (getIllegalGroupSessionUrlNames().contains(urlName))
+			return false;
+
 		List<Object> parameters = new ArrayList<>();
 		StringBuilder query = new StringBuilder("""
-				SELECT COUNT(*) >0 
+				SELECT COUNT(*) > 0
 				FROM group_session gs
 				WHERE gs.institution_id = ?
 				AND LOWER(gs.url_name) = LOWER(?)
@@ -929,9 +962,9 @@ public class GroupSessionService implements AutoCloseable {
 		parameters.add(institutionId);
 		parameters.add(urlName);
 
-		if (groupSessionId.isPresent()) {
+		if (groupSessionId != null) {
 			query.append(" AND gs.group_session_id != ?");
-			parameters.add(groupSessionId.get());
+			parameters.add(groupSessionId);
 		}
 
 		return getDatabase().queryForObject(query.toString(), Boolean.class, parameters.toArray()).get();
@@ -948,7 +981,7 @@ public class GroupSessionService implements AutoCloseable {
 		GroupSessionLocationTypeId groupSessionLocationTypeId = request.getGroupSessionLocationTypeId();
 		String title = trimToNull(request.getTitle());
 		String description = trimToNull(request.getDescription());
-		String urlName = trimToNull(request.getUrlName().toLowerCase().replaceAll(" ", "-"));
+		String urlName = request.getUrlName() == null ? null : normalizeUrlName(request.getUrlName()).orElse(null);
 		String inPersonLocation = trimToNull(request.getInPersonLocation());
 		UUID facilitatorAccountId = request.getFacilitatorAccountId();
 		String facilitatorName = trimToNull(request.getFacilitatorName());
@@ -1021,7 +1054,7 @@ public class GroupSessionService implements AutoCloseable {
 			validationException.add(new FieldError("urlName", getStrings().get("Friendly URL name is required.")));
 		else if (!isValidUrlSubdirectory(urlName))
 			validationException.add(new FieldError("urlName", getStrings().get("Not a valid Friendly URL")));
-		else if (urlNameExistsForInstitutionId(urlName, institution.getInstitutionId(), Optional.of(groupSessionId)))
+		else if (urlNameExistsForInstitutionId(urlName, institution.getInstitutionId(), groupSessionId))
 			validationException.add(new FieldError("urlName", getStrings().get("Friendly URL name is already in use.")));
 
 		if (facilitatorName == null)
@@ -2536,6 +2569,11 @@ public class GroupSessionService implements AutoCloseable {
 	@Nonnull
 	protected Long getBackgroundTaskInitialDelayInSeconds() {
 		return BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS;
+	}
+
+	@Nonnull
+	protected Set<String> getIllegalGroupSessionUrlNames() {
+		return ILLEGAL_GROUP_SESSION_URL_NAMES;
 	}
 
 	@Nonnull
