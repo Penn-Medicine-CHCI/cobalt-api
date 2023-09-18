@@ -373,6 +373,7 @@ public class AppointmentService {
 
 			AppointmentSearchFhirStu3Request request = new AppointmentSearchFhirStu3Request();
 			request.setPatient(account.getEpicPatientFhirId());
+			request.setStatus(AppointmentSearchFhirStu3Request.Status.BOOKED);
 
 			AppointmentSearchFhirStu3Response response = epicClient.appointmentSearchFhirStu3(request);
 
