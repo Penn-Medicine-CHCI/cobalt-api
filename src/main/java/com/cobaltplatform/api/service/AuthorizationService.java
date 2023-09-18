@@ -26,7 +26,6 @@ import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.CalendarPermission.CalendarPermissionId;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionRequest;
-import com.cobaltplatform.api.model.db.GroupSessionRequestStatus.GroupSessionRequestStatusId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -207,17 +206,6 @@ public class AuthorizationService {
 		requireNonNull(account);
 
 		if (account.getRoleId() == RoleId.ADMINISTRATOR && groupSessionRequest.getInstitutionId() == account.getInstitutionId())
-			return true;
-
-		String accountEmailAddress = getNormalizer().normalizeEmailAddress(account.getEmailAddress()).orElse(null);
-		String facilitatorEmailAddress = getNormalizer().normalizeEmailAddress(groupSessionRequest.getFacilitatorEmailAddress()).orElse(null);
-
-		boolean facilitator = Objects.equals(account.getAccountId(), groupSessionRequest.getFacilitatorAccountId())
-				|| (account.getEmailAddress() != null && Objects.equals(accountEmailAddress, facilitatorEmailAddress));
-		boolean submitter = Objects.equals(account.getAccountId(), groupSessionRequest.getSubmitterAccountId());
-
-		// Submitters and facilitators can only edit in NEW status
-		if ((submitter || facilitator) && groupSessionRequest.getGroupSessionRequestStatusId() == GroupSessionRequestStatusId.NEW)
 			return true;
 
 		return false;

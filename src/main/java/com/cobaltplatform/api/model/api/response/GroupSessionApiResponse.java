@@ -24,6 +24,7 @@ import com.cobaltplatform.api.model.api.response.QuestionApiResponse.QuestionApi
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionLearnMoreMethod.GroupSessionLearnMoreMethodId;
+import com.cobaltplatform.api.model.db.GroupSessionLocationType.GroupSessionLocationTypeId;
 import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -62,17 +63,19 @@ import static java.util.Objects.requireNonNull;
 public class GroupSessionApiResponse {
 	@Nonnull
 	private final UUID groupSessionId;
-	@Nullable
-	private final InstitutionId institutionId;
-	@Nullable
-	private final String institutionDescription;
-	@Nullable
-	private final GroupSessionStatusId groupSessionStatusId;
-	@Nullable
-	private final String groupSessionStatusIdDescription;
-	@Nullable
-	private GroupSessionSchedulingSystemId groupSessionSchedulingSystemId;
 	@Nonnull
+	private final InstitutionId institutionId;
+	@Nonnull
+	private final String institutionDescription;
+	@Nonnull
+	private final GroupSessionStatusId groupSessionStatusId;
+	@Nonnull
+	private final String groupSessionStatusIdDescription;
+	@Nonnull
+	private final GroupSessionSchedulingSystemId groupSessionSchedulingSystemId;
+	@Nonnull
+	private final GroupSessionLocationTypeId groupSessionLocationTypeId;
+	@Nullable
 	private final UUID assessmentId;
 	@Nonnull
 	private final UUID submitterAccountId;
@@ -84,6 +87,8 @@ public class GroupSessionApiResponse {
 	private final String description;
 	@Nullable
 	private final String urlName;
+	@Nullable
+	private final String inPersonLocation;
 	@Nullable
 	private final UUID facilitatorAccountId;
 	@Nullable
@@ -213,6 +218,7 @@ public class GroupSessionApiResponse {
 		this.groupSessionStatusId = groupSession.getGroupSessionStatusId();
 		this.groupSessionStatusIdDescription = groupSessionService.findGroupSessionStatusById(groupSession.getGroupSessionStatusId()).get().getDescription();
 		this.groupSessionSchedulingSystemId = groupSession.getGroupSessionSchedulingSystemId();
+		this.groupSessionLocationTypeId = groupSession.getGroupSessionLocationTypeId();
 		this.assessmentId = groupSession.getAssessmentId();
 		this.submitterAccountId = groupSession.getSubmitterAccountId();
 
@@ -231,6 +237,7 @@ public class GroupSessionApiResponse {
 		this.title = groupSession.getTitle();
 		this.description = groupSession.getDescription();
 		this.urlName = groupSession.getUrlName();
+		this.inPersonLocation = groupSession.getInPersonLocation();
 		this.facilitatorAccountId = groupSession.getFacilitatorAccountId();
 		this.facilitatorName = groupSession.getFacilitatorName();
 		this.facilitatorEmailAddress = groupSession.getFacilitatorEmailAddress();
@@ -335,47 +342,47 @@ public class GroupSessionApiResponse {
 
 	@Nonnull
 	public UUID getGroupSessionId() {
-		return groupSessionId;
+		return this.groupSessionId;
 	}
 
-	@Nullable
+	@Nonnull
 	public InstitutionId getInstitutionId() {
-		return institutionId;
+		return this.institutionId;
 	}
 
-	@Nullable
+	@Nonnull
 	public String getInstitutionDescription() {
-		return institutionDescription;
+		return this.institutionDescription;
 	}
 
-	@Nullable
+	@Nonnull
 	public GroupSessionStatusId getGroupSessionStatusId() {
-		return groupSessionStatusId;
+		return this.groupSessionStatusId;
 	}
 
-	@Nullable
+	@Nonnull
 	public String getGroupSessionStatusIdDescription() {
-		return groupSessionStatusIdDescription;
+		return this.groupSessionStatusIdDescription;
+	}
+
+	@Nonnull
+	public GroupSessionSchedulingSystemId getGroupSessionSchedulingSystemId() {
+		return this.groupSessionSchedulingSystemId;
+	}
+
+	@Nonnull
+	public GroupSessionLocationTypeId getGroupSessionLocationTypeId() {
+		return this.groupSessionLocationTypeId;
 	}
 
 	@Nullable
-	public GroupSessionSchedulingSystemId getGroupSessionSchedulingSystemId() {
-		return groupSessionSchedulingSystemId;
-	}
-
-	@Nonnull
-	public String getAppointmentTimeDescription() {
-		return appointmentTimeDescription;
-	}
-
-	@Nonnull
 	public UUID getAssessmentId() {
-		return assessmentId;
+		return this.assessmentId;
 	}
 
 	@Nonnull
 	public UUID getSubmitterAccountId() {
-		return submitterAccountId;
+		return this.submitterAccountId;
 	}
 
 	@Nonnull
@@ -385,222 +392,42 @@ public class GroupSessionApiResponse {
 
 	@Nullable
 	public String getTitle() {
-		return title;
+		return this.title;
 	}
 
 	@Nullable
 	public String getDescription() {
-		return description;
+		return this.description;
 	}
 
 	@Nullable
 	public String getUrlName() {
-		return urlName;
+		return this.urlName;
+	}
+
+	@Nullable
+	public String getInPersonLocation() {
+		return this.inPersonLocation;
 	}
 
 	@Nullable
 	public UUID getFacilitatorAccountId() {
-		return facilitatorAccountId;
+		return this.facilitatorAccountId;
 	}
 
 	@Nullable
 	public String getFacilitatorName() {
-		return facilitatorName;
+		return this.facilitatorName;
 	}
 
 	@Nullable
 	public String getFacilitatorEmailAddress() {
-		return facilitatorEmailAddress;
-	}
-
-	@Nullable
-	public LocalDateTime getStartDateTime() {
-		return startDateTime;
-	}
-
-	@Nullable
-	public String getStartDateTimeDescription() {
-		return startDateTimeDescription;
-	}
-
-	@Nullable
-	public LocalDateTime getEndDateTime() {
-		return endDateTime;
-	}
-
-	@Nullable
-	public String getEndDateTimeDescription() {
-		return endDateTimeDescription;
-	}
-
-	@Nullable
-	public Integer getDurationInMinutes() {
-		return durationInMinutes;
-	}
-
-	@Nullable
-	public String getDurationInMinutesDescription() {
-		return durationInMinutesDescription;
-	}
-
-	@Nullable
-	public Integer getSeats() {
-		return seats;
-	}
-
-	@Nullable
-	public String getSeatsDescription() {
-		return seatsDescription;
-	}
-
-	@Nullable
-	public Integer getSeatsAvailable() {
-		return seatsAvailable;
-	}
-
-	@Nullable
-	public String getSeatsAvailableDescription() {
-		return seatsAvailableDescription;
-	}
-
-	@Nullable
-	public Integer getSeatsReserved() {
-		return seatsReserved;
-	}
-
-	@Nullable
-	public String getSeatsReservedDescription() {
-		return seatsReservedDescription;
-	}
-
-	@Nullable
-	public ZoneId getTimeZone() {
-		return timeZone;
-	}
-
-	@Nullable
-	public String getImageUrl() {
-		return imageUrl;
-	}
-
-	@Nullable
-	public String getVideoconferenceUrl() {
-		return videoconferenceUrl;
-	}
-
-	@Nullable
-	public String getScheduleUrl() {
-		return scheduleUrl;
-	}
-
-	@Nullable
-	public String getConfirmationEmailContent() {
-		return confirmationEmailContent;
+		return this.facilitatorEmailAddress;
 	}
 
 	@Nonnull
-	public Boolean getSendFollowupEmail() {
-		return sendFollowupEmail;
-	}
-
-	@Nullable
-	public String getFollowupEmailContent() {
-		return followupEmailContent;
-	}
-
-	@Nullable
-	public String getFollowupEmailSurveyUrl() {
-		return followupEmailSurveyUrl;
-	}
-
-	@Nullable
-	public UUID getGroupSessionCollectionId() {
-		return groupSessionCollectionId;
-	}
-
-	@Nullable
-	public Boolean getVisibleFlag() {
-		return visibleFlag;
-	}
-
-	@Nullable
-	public UUID getScreeningFlowId() {
-		return screeningFlowId;
-	}
-
-	@Nullable
-	public Boolean getSendReminderEmail() {
-		return sendReminderEmail;
-	}
-
-	@Nullable
-	public String getReminderEmailContent() {
-		return reminderEmailContent;
-	}
-
-	@Nullable
-	public String getLearnMoreDescription() {
-		return learnMoreDescription;
-	}
-
-	@Nullable
-	public GroupSessionLearnMoreMethodId getGroupSessionLearnMoreMethodId() {
-		return groupSessionLearnMoreMethodId;
-	}
-
-	@Nullable
-	public LocalTime getFollowupTimeOfDay() {
-		return followupTimeOfDay;
-	}
-
-	@Nullable
-	public Integer getFollowupDayOffset() {
-		return followupDayOffset;
-	}
-
-	@Nullable
-	public Boolean getSingleSessionFlag() {
-		return singleSessionFlag;
-	}
-
-	@Nullable
-	public String getDateTimeDescription() {
-		return dateTimeDescription;
-	}
-
-	@Nonnull
-	public List<TagApiResponse> getTags() {
-		return tags;
-	}
-
-	@Nonnull
-	public Instant getCreated() {
-		return created;
-	}
-
-	@Nonnull
-	public String getCreatedDescription() {
-		return createdDescription;
-	}
-
-	@Nonnull
-	public String getCreatedDateDescription() {
-		return createdDateDescription;
-	}
-
-	@Nullable
-	public Instant getLastUpdated() {
-		return lastUpdated;
-	}
-
-	@Nullable
-	public String getLastUpdatedDescription() {
-		return lastUpdatedDescription;
-	}
-
-	@Nullable
-	public Boolean getDifferentEmailAddressForNotifications() {
-		return differentEmailAddressForNotifications;
+	public String getAppointmentTimeDescription() {
+		return this.appointmentTimeDescription;
 	}
 
 	@Nullable
@@ -621,5 +448,195 @@ public class GroupSessionApiResponse {
 	@Nullable
 	public String getEndTimeDescription() {
 		return this.endTimeDescription;
+	}
+
+	@Nullable
+	public LocalDateTime getStartDateTime() {
+		return this.startDateTime;
+	}
+
+	@Nullable
+	public String getStartDateTimeDescription() {
+		return this.startDateTimeDescription;
+	}
+
+	@Nullable
+	public LocalDateTime getEndDateTime() {
+		return this.endDateTime;
+	}
+
+	@Nullable
+	public String getEndDateTimeDescription() {
+		return this.endDateTimeDescription;
+	}
+
+	@Nullable
+	public Integer getDurationInMinutes() {
+		return this.durationInMinutes;
+	}
+
+	@Nullable
+	public String getDurationInMinutesDescription() {
+		return this.durationInMinutesDescription;
+	}
+
+	@Nullable
+	public Integer getSeats() {
+		return this.seats;
+	}
+
+	@Nullable
+	public String getSeatsDescription() {
+		return this.seatsDescription;
+	}
+
+	@Nullable
+	public Integer getSeatsAvailable() {
+		return this.seatsAvailable;
+	}
+
+	@Nullable
+	public String getSeatsAvailableDescription() {
+		return this.seatsAvailableDescription;
+	}
+
+	@Nullable
+	public Integer getSeatsReserved() {
+		return this.seatsReserved;
+	}
+
+	@Nullable
+	public String getSeatsReservedDescription() {
+		return this.seatsReservedDescription;
+	}
+
+	@Nullable
+	public ZoneId getTimeZone() {
+		return this.timeZone;
+	}
+
+	@Nullable
+	public String getImageUrl() {
+		return this.imageUrl;
+	}
+
+	@Nullable
+	public String getVideoconferenceUrl() {
+		return this.videoconferenceUrl;
+	}
+
+	@Nullable
+	public String getScheduleUrl() {
+		return this.scheduleUrl;
+	}
+
+	@Nullable
+	public String getConfirmationEmailContent() {
+		return this.confirmationEmailContent;
+	}
+
+	@Nonnull
+	public Boolean getSendFollowupEmail() {
+		return this.sendFollowupEmail;
+	}
+
+	@Nullable
+	public String getFollowupEmailContent() {
+		return this.followupEmailContent;
+	}
+
+	@Nullable
+	public String getFollowupEmailSurveyUrl() {
+		return this.followupEmailSurveyUrl;
+	}
+
+	@Nullable
+	public UUID getGroupSessionCollectionId() {
+		return this.groupSessionCollectionId;
+	}
+
+	@Nullable
+	public Boolean getVisibleFlag() {
+		return this.visibleFlag;
+	}
+
+	@Nullable
+	public UUID getScreeningFlowId() {
+		return this.screeningFlowId;
+	}
+
+	@Nullable
+	public Boolean getSendReminderEmail() {
+		return this.sendReminderEmail;
+	}
+
+	@Nullable
+	public String getReminderEmailContent() {
+		return this.reminderEmailContent;
+	}
+
+	@Nullable
+	public LocalTime getFollowupTimeOfDay() {
+		return this.followupTimeOfDay;
+	}
+
+	@Nullable
+	public Integer getFollowupDayOffset() {
+		return this.followupDayOffset;
+	}
+
+	@Nullable
+	public Boolean getSingleSessionFlag() {
+		return this.singleSessionFlag;
+	}
+
+	@Nullable
+	public String getDateTimeDescription() {
+		return this.dateTimeDescription;
+	}
+
+	@Nonnull
+	public List<TagApiResponse> getTags() {
+		return this.tags;
+	}
+
+	@Nullable
+	public String getLearnMoreDescription() {
+		return this.learnMoreDescription;
+	}
+
+	@Nullable
+	public GroupSessionLearnMoreMethodId getGroupSessionLearnMoreMethodId() {
+		return this.groupSessionLearnMoreMethodId;
+	}
+
+	@Nonnull
+	public Instant getCreated() {
+		return this.created;
+	}
+
+	@Nonnull
+	public String getCreatedDescription() {
+		return this.createdDescription;
+	}
+
+	@Nonnull
+	public String getCreatedDateDescription() {
+		return this.createdDateDescription;
+	}
+
+	@Nullable
+	public Instant getLastUpdated() {
+		return this.lastUpdated;
+	}
+
+	@Nullable
+	public String getLastUpdatedDescription() {
+		return this.lastUpdatedDescription;
+	}
+
+	@Nullable
+	public Boolean getDifferentEmailAddressForNotifications() {
+		return this.differentEmailAddressForNotifications;
 	}
 }
