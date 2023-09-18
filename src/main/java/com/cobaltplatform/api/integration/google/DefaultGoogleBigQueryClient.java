@@ -38,6 +38,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -65,19 +68,14 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 	}
 
 	@Override
-	public void test() {
-		QueryJobConfiguration queryConfig =
-				QueryJobConfiguration.newBuilder(
-								"SELECT CONCAT('https://stackoverflow.com/questions/', "
-										+ "CAST(id as STRING)) as url, view_count "
-										+ "FROM `bigquery-public-data.stackoverflow.posts_questions` "
-										+ "WHERE tags like '%google-bigquery%' "
-										+ "ORDER BY view_count DESC "
-										+ "LIMIT 10")
-						// Use standard SQL syntax for queries.
-						// See: https://cloud.google.com/bigquery/sql-reference/
-						.setUseLegacySql(false)
-						.build();
+	@Nonnull
+	public List<FieldValueList> queryForList(@Nonnull String sql) {
+		requireNonNull(sql);
+
+		// See: https://cloud.google.com/bigquery/sql-reference/
+		QueryJobConfiguration queryConfig = QueryJobConfiguration.newBuilder(sql)
+				.setUseLegacySql(false)
+				.build();
 
 		// Create a job ID so that we can safely retry.
 		JobId jobId = JobId.of(UUID.randomUUID().toString());
@@ -102,14 +100,12 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 		try {
 			// Get the results.
 			TableResult result = queryJob.getQueryResults();
+			List<FieldValueList> rows = new ArrayList<>();
 
-			// Print all pages of the results.
-			for (FieldValueList row : result.iterateAll()) {
-				// String type
-				String url = row.get("url").getStringValue();
-				String viewCount = row.get("view_count").getStringValue();
-				System.out.printf("%s : %s views\n", url, viewCount);
-			}
+			for (FieldValueList row : result.iterateAll())
+				rows.add(row);
+
+			return Collections.unmodifiableList(rows);
 		} catch (InterruptedException e) {
 			throw new RuntimeException("BigQuery results extraction was interrupted", e);
 		}

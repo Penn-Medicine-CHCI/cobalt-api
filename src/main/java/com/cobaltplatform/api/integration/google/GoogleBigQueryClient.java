@@ -19,9 +19,15 @@
 
 package com.cobaltplatform.api.integration.google;
 
+import com.google.cloud.bigquery.FieldValueList;
+
+import javax.annotation.Nonnull;
+import java.util.List;
+
 /**
  * @author Transmogrify, LLC.
  */
 public interface GoogleBigQueryClient {
-	void test();
+	@Nonnull
+	List<FieldValueList> queryForList(@Nonnull String sql);
 }
