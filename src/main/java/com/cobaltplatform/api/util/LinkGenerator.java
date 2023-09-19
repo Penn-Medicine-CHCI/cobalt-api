@@ -157,7 +157,7 @@ public class LinkGenerator {
 		requireNonNull(userExperienceTypeId);
 
 		return constructUrl(determineBaseUrl(institutionId, userExperienceTypeId, ClientDeviceTypeId.WEB_BROWSER),
-				"group-sessions/scheduled");
+				"admin/group-sessions");
 	}
 
 	@Nonnull
