@@ -740,9 +740,6 @@ public class GroupSessionService implements AutoCloseable {
 		}
 
 		if (groupSessionSchedulingSystemId == GroupSessionSchedulingSystemId.COBALT) {
-			if (videoconferenceUrl == null)
-				validationException.add(new FieldError("videoconferenceUrl", getStrings().get("Videoconference URL is required.")));
-
 			if (sendReminderEmail)
 				if (reminderEmailContent == null)
 					validationException.add(new FieldError("reminderEmailContent", getStrings().get("Reminder Email Text is required.")));
@@ -1097,13 +1094,8 @@ public class GroupSessionService implements AutoCloseable {
 		}
 
 		if (groupSessionSchedulingSystemId == GroupSessionSchedulingSystemId.COBALT) {
-
-			if (seats != null && seats < reservationCount) {
+			if (seats != null && seats < reservationCount)
 				validationException.add(new FieldError("seats", getStrings().get("The number of permitted attendees cannot be less than the current number of registrants.")));
-			}
-
-			if (videoconferenceUrl == null)
-				validationException.add(new FieldError("videoconferenceUrl", getStrings().get("Videoconference URL is required.")));
 
 			if (sendReminderEmail)
 				if (reminderEmailContent == null)
@@ -2374,7 +2366,7 @@ public class GroupSessionService implements AutoCloseable {
 
 	@Nonnull
 	protected String getDefaultGroupSessionImageUrl() {
-		return "https://cobaltplatform.s3.us-east-2.amazonaws.com/prod/group-sessions/default-group-session.jpg";
+		return "https://cobalt-shared-media.s3.amazonaws.com/group-sessions/default-group-session.jpg";
 	}
 
 	@Nonnull
