@@ -22,6 +22,8 @@ package com.cobaltplatform.api.integration.enterprise;
 import com.cobaltplatform.api.integration.epic.EpicClient;
 import com.cobaltplatform.api.integration.epic.MyChartAccessToken;
 import com.cobaltplatform.api.integration.epic.MyChartAuthenticator;
+import com.cobaltplatform.api.integration.google.GoogleBigQueryClient;
+import com.cobaltplatform.api.integration.google.MockGoogleBigQueryClient;
 import com.cobaltplatform.api.integration.microsoft.MicrosoftAccessToken;
 import com.cobaltplatform.api.integration.microsoft.MicrosoftAuthenticator;
 import com.cobaltplatform.api.integration.microsoft.MicrosoftClient;
@@ -119,5 +121,10 @@ public interface EnterprisePlugin {
 	@Nonnull
 	default List<Content> recommendedContentForAccountId(@Nullable UUID accountId) {
 		return Collections.emptyList();
+	}
+
+	@Nonnull
+	default GoogleBigQueryClient googleBigQueryClient() {
+		return new MockGoogleBigQueryClient();
 	}
 }

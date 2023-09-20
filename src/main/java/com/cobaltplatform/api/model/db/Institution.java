@@ -237,6 +237,9 @@ public class Institution {
 	private String techSupportPhoneNumber;
 	@Nullable
 	private String privacyPolicyUrl;
+	@Nullable
+	@DatabaseColumn("google_bigquery_service_account_private_key")
+	private String googleBigQueryServiceAccountPrivateKey;
 
 	public enum InstitutionId {
 		COBALT,
@@ -1106,5 +1109,14 @@ public class Institution {
 
 	public void setPrivacyPolicyUrl(@Nullable String privacyPolicyUrl) {
 		this.privacyPolicyUrl = privacyPolicyUrl;
+	}
+
+	@Nullable
+	public String getGoogleBigQueryServiceAccountPrivateKey() {
+		return this.googleBigQueryServiceAccountPrivateKey;
+	}
+
+	public void setGoogleBigQueryServiceAccountPrivateKey(@Nullable String googleBigQueryServiceAccountPrivateKey) {
+		this.googleBigQueryServiceAccountPrivateKey = googleBigQueryServiceAccountPrivateKey;
 	}
 }
