@@ -35,7 +35,6 @@ import com.google.gson.reflect.TypeToken;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
-import javax.inject.Singleton;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -54,7 +53,6 @@ import static java.util.Objects.requireNonNull;
 /**
  * @author Transmogrify, LLC.
  */
-@Singleton
 @ThreadSafe
 public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 	@Nonnull

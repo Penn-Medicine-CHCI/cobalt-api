@@ -19,26 +19,15 @@
 
 package com.cobaltplatform.api.integration.google;
 
-import com.google.cloud.bigquery.FieldValueList;
-
 import javax.annotation.Nonnull;
-import javax.annotation.concurrent.ThreadSafe;
-import java.util.List;
 
 /**
  * @author Transmogrify, LLC.
  */
-@ThreadSafe
-public class MockGoogleBigQueryClient implements GoogleBigQueryClient {
+public interface GoogleAnalyticsDataClient {
 	@Nonnull
-	@Override
-	public String getProjectId() {
-		return "mock";
-	}
+	String getPropertyId();
 
-	@Override
 	@Nonnull
-	public List<FieldValueList> queryForList(@Nonnull String sql) {
-		return List.of();
-	}
+	String getProjectId();
 }
