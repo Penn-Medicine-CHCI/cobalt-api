@@ -905,26 +905,42 @@ public class GroupSessionService implements AutoCloseable {
 		requireNonNull(institutionId);
 
 		GroupSessionUrlValidationResult result = new GroupSessionUrlValidationResult();
-		Boolean suggestedUrlAvailable = false;
 
+		boolean urlNameContainsIllegalCharacters = urlNameContainsIllegalCharacters(urlName.trim());
 		urlName = normalizeUrlName(urlName).orElse("");
-		int urlSuffix = 1;
 
-		if (!urlNameExistsForInstitutionId(urlName, institutionId, groupSessionId)) {
+		if (urlNameContainsIllegalCharacters) {
+			result.setAvailable(false);
+			result.setRecommendation(recommendedUrlNameForUrlName(urlName, institutionId, groupSessionId));
+		} else if (!urlNameExistsForInstitutionId(urlName, institutionId, groupSessionId)) {
 			result.setAvailable(true);
 			result.setRecommendation(urlName);
 		} else {
 			result.setAvailable(false);
-			String recommendedUrlName = null;
-			while (!suggestedUrlAvailable) {
-				recommendedUrlName = format("%s-%s", urlName, urlSuffix);
-				suggestedUrlAvailable = !urlNameExistsForInstitutionId(recommendedUrlName, institutionId, groupSessionId);
-				urlSuffix++;
-			}
-			result.setRecommendation(recommendedUrlName);
+			result.setRecommendation(recommendedUrlNameForUrlName(urlName, institutionId, groupSessionId));
 		}
 
 		return result;
+	}
+
+	@Nonnull
+	protected String recommendedUrlNameForUrlName(@Nonnull String urlName,
+																								@Nonnull InstitutionId institutionId,
+																								@Nullable UUID groupSessionId) {
+		requireNonNull(urlName);
+		requireNonNull(institutionId);
+
+		String recommendedUrlName = null;
+		boolean suggestedUrlAvailable = false;
+		int urlSuffix = 1;
+
+		while (!suggestedUrlAvailable) {
+			recommendedUrlName = format("%s-%s", urlName, urlSuffix);
+			suggestedUrlAvailable = !urlNameExistsForInstitutionId(recommendedUrlName, institutionId, groupSessionId);
+			urlSuffix++;
+		}
+
+		return recommendedUrlName;
 	}
 
 	@Nonnull
@@ -939,6 +955,13 @@ public class GroupSessionService implements AutoCloseable {
 				.replaceAll("\\p{Zs}+", "-")
 				// Anything that's not alphanumeric or a hyphen is discarded
 				.replaceAll("[^-\\pL\\pN]", ""));
+	}
+
+	@Nonnull
+	protected Boolean urlNameContainsIllegalCharacters(@Nonnull String urlName) {
+		requireNonNull(urlName);
+		// Alphanumerics and hyphens only
+		return !urlName.matches("[-\\pL\\pN]+");
 	}
 
 	@Nonnull
