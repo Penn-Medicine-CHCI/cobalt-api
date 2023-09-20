@@ -19,6 +19,9 @@
 
 package com.cobaltplatform.api.integration.google;
 
+import com.google.cloud.bigquery.FieldValue;
+import com.google.cloud.bigquery.FieldValueList;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -27,6 +30,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 
 import static com.soklet.util.LoggingUtils.initializeLogback;
 
@@ -46,6 +50,60 @@ public class GoogleBigQueryClientTests {
 				Path.of("resources/test/bigquery-service-account-private-key.json"), StandardCharsets.UTF_8);
 
 		GoogleBigQueryClient googleBigQueryClient = new DefaultGoogleBigQueryClient(serviceAccountPrivateKeyJson);
-		googleBigQueryClient.test();
+		List<FieldValueList> rows = googleBigQueryClient.queryForList("""
+				SELECT event_date, event_timestamp, event_name, event_params
+				FROM {{projectId}}.analytics_351576958.events_20230913
+				WHERE event_name='Top Nav Dropdown'
+				ORDER BY event_timestamp
+				LIMIT 100
+				""");
+
+		System.out.println("Got back " + rows.size() + " rows.");
+
+		// ** Event names
+		//
+		// first_visit
+		// user_engagement
+		// form_start
+		// In Crisis Button
+		// video_complete
+		// scroll
+		// video_start
+		// Top Nav Dropdown
+		// click
+		// session_start
+		// Top Nav
+		// Sign in
+		// video_progress
+		// page_view
+		// User Clicked Crisis Link in Header
+		// HP Nav
+
+		for (FieldValueList row : rows) {
+			String eventName = row.get("event_name").getStringValue();
+
+			if (eventName.equals("Top Nav Dropdown")) {
+				FieldValue eventParams = row.get("event_params");
+				FieldValueList eventParamsValueRecords = (FieldValueList) eventParams.getValue();
+
+				for (FieldValue eventParamsValueRecord : eventParamsValueRecords) {
+					FieldValueList recordValue = eventParamsValueRecord.getRecordValue();
+
+					FieldValue recordKeyValue = recordValue.get(0);
+					String recordKey = recordKeyValue.getStringValue();
+
+					if (recordKey.equals("link_text")) {
+						FieldValue linkTextValue = recordValue.get(1);
+						String linkText = linkTextValue.getRecordValue().get(0).getStringValue();
+						Assert.assertNotNull("Missing link_text", linkText);
+					} else if (recordKey.equals("page_location")) {
+						FieldValue pageLocationValue = recordValue.get(1);
+						String pageLocation = pageLocationValue.getRecordValue().get(0).getStringValue();
+						Assert.assertNotNull("Missing page_location", pageLocation);
+					}
+				}
+			}
+		}
 	}
 }
+

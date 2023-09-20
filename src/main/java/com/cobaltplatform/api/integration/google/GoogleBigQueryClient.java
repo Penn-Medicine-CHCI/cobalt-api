@@ -29,5 +29,8 @@ import java.util.List;
  */
 public interface GoogleBigQueryClient {
 	@Nonnull
+	String getProjectId();
+
+	@Nonnull
 	List<FieldValueList> queryForList(@Nonnull String sql);
 }

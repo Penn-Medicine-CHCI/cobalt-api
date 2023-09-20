@@ -29,6 +29,9 @@ import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.TableResult;
+import com.google.common.io.CharStreams;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -36,11 +39,13 @@ import javax.inject.Singleton;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -53,24 +58,49 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 	@Nonnull
+	private final String projectId;
+	@Nonnull
 	private final GoogleCredentials googleCredentials;
 	@Nonnull
 	private final BigQuery bigQuery;
 
 	public DefaultGoogleBigQueryClient(@Nonnull String serviceAccountPrivateKeyJson) {
+		// ByteArrayInputStream does not need to be closed
 		this(new ByteArrayInputStream(serviceAccountPrivateKeyJson.getBytes(StandardCharsets.UTF_8)));
 	}
 
 	public DefaultGoogleBigQueryClient(@Nonnull InputStream serviceAccountPrivateKeyJsonInputStream) {
 		requireNonNull(serviceAccountPrivateKeyJsonInputStream);
-		this.googleCredentials = acquireGoogleCredentials(serviceAccountPrivateKeyJsonInputStream);
-		this.bigQuery = createBigQuery(this.googleCredentials);
+
+		try {
+			String serviceAccountPrivateKeyJson = CharStreams.toString(new InputStreamReader(requireNonNull(serviceAccountPrivateKeyJsonInputStream), StandardCharsets.UTF_8));
+
+			// Confirm that this is well-formed JSON and extract the project ID
+			Map<String, Object> jsonObject = new Gson().fromJson(serviceAccountPrivateKeyJson, new TypeToken<Map<String, Object>>() {
+			}.getType());
+
+			this.projectId = requireNonNull((String) jsonObject.get("project_id"));
+			this.googleCredentials = acquireGoogleCredentials(serviceAccountPrivateKeyJson);
+			this.bigQuery = createBigQuery(this.googleCredentials);
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+	@Nonnull
+	@Override
+	public String getProjectId() {
+		return this.projectId;
 	}
 
 	@Override
 	@Nonnull
 	public List<FieldValueList> queryForList(@Nonnull String sql) {
 		requireNonNull(sql);
+
+		// Special behavior: look for "{{projectId}}" and replace it with the actual project ID
+		// to make querying easier.
+		sql = sql.replace("{{projectId}}", getProjectId());
 
 		// See: https://cloud.google.com/bigquery/sql-reference/
 		QueryJobConfiguration queryConfig = QueryJobConfiguration.newBuilder(sql)
@@ -112,11 +142,11 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 	}
 
 	@Nonnull
-	protected GoogleCredentials acquireGoogleCredentials(@Nonnull InputStream serviceAccountPrivateKeyJsonInputStream) {
-		requireNonNull(serviceAccountPrivateKeyJsonInputStream);
+	protected GoogleCredentials acquireGoogleCredentials(@Nonnull String serviceAccountPrivateKeyJson) {
+		requireNonNull(serviceAccountPrivateKeyJson);
 
-		try {
-			return ServiceAccountCredentials.fromStream(serviceAccountPrivateKeyJsonInputStream)
+		try (InputStream inputStream = new ByteArrayInputStream(serviceAccountPrivateKeyJson.getBytes(StandardCharsets.UTF_8))) {
+			return ServiceAccountCredentials.fromStream(inputStream)
 					.createScoped(Set.of("https://www.googleapis.com/auth/bigquery"));
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
