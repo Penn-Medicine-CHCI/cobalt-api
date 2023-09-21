@@ -733,9 +733,9 @@ public class GroupSessionService implements AutoCloseable {
 
 		if (groupSessionLocationTypeId == null) {
 			validationException.add(new FieldError("groupSessionLocationTypeId", getStrings().get("Location type is required.")));
-		} else if (groupSessionLocationTypeId == GroupSessionLocationTypeId.VIRTUAL && videoconferenceUrl == null) {
+		} else if (groupSessionSchedulingSystemId == GroupSessionSchedulingSystemId.COBALT && groupSessionLocationTypeId == GroupSessionLocationTypeId.VIRTUAL && videoconferenceUrl == null) {
 			validationException.add(new FieldError("videoconferenceUrl", getStrings().get("Videoconference URL is required for virtual group sessions.")));
-		} else if (groupSessionLocationTypeId == GroupSessionLocationTypeId.IN_PERSON && inPersonLocation == null) {
+		} else if (groupSessionSchedulingSystemId == GroupSessionSchedulingSystemId.COBALT && groupSessionLocationTypeId == GroupSessionLocationTypeId.IN_PERSON && inPersonLocation == null) {
 			validationException.add(new FieldError("inPersonLocation", getStrings().get("A location is required for in-person group sessions.")));
 		}
 
@@ -1105,9 +1105,9 @@ public class GroupSessionService implements AutoCloseable {
 
 		if (groupSessionLocationTypeId == null) {
 			validationException.add(new FieldError("groupSessionLocationTypeId", getStrings().get("Location type is required.")));
-		} else if (groupSessionLocationTypeId == GroupSessionLocationTypeId.VIRTUAL && videoconferenceUrl == null) {
+		} else if (groupSessionSchedulingSystemId == GroupSessionSchedulingSystemId.COBALT && groupSessionLocationTypeId == GroupSessionLocationTypeId.VIRTUAL && videoconferenceUrl == null) {
 			validationException.add(new FieldError("videoconferenceUrl", getStrings().get("Videoconference URL is required for virtual group sessions.")));
-		} else if (groupSessionLocationTypeId == GroupSessionLocationTypeId.IN_PERSON && inPersonLocation == null) {
+		} else if (groupSessionSchedulingSystemId == GroupSessionSchedulingSystemId.COBALT && groupSessionLocationTypeId == GroupSessionLocationTypeId.IN_PERSON && inPersonLocation == null) {
 			validationException.add(new FieldError("inPersonLocation", getStrings().get("A location is required for in-person group sessions.")));
 		}
 
