@@ -31,27 +31,29 @@
 				<br />
 			{{/if}}
 
-			<table width="100%" border="0" cellspacing="0" cellpadding="0" align="center">
-				<tr>
-					<td height="5" bgcolor="#ffffff" width="50%" colspan="2"></td>
-				</tr>
-				<tr>
-					<td align="left" width="50%">
-						<a href="{{{groupSession.videoconferenceUrl}}}" target="_blank">
-							<img src="{{{staticFileUrlPrefix}}}/button-start-appointment@2x.jpg" width="155" height="54" alt="Join Now" />
-						</a>
-					</td>
-					<td align="right" width="50%">
-						<a href="{{{cancelUrl}}}" target="_blank" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:16px; line-height:20px;">Cancel Reservation</a>
-					</td>
-				</tr>
-				<tr>
-					<td height="30" bgcolor="#ffffff" width="50%" colspan="2"></td>
-				</tr>
-				<tr>
-					<td height="1" bgcolor="#ccc" width="50%" colspan="2"></td>
-				</tr>
-			</table>
+	        {{#if groupSession.videoconferenceUrl}}
+				<table width="100%" border="0" cellspacing="0" cellpadding="0" align="center">
+					<tr>
+						<td height="5" bgcolor="#ffffff" width="50%" colspan="2"></td>
+					</tr>
+					<tr>
+						<td align="left" width="50%">
+							<a href="{{{groupSession.videoconferenceUrl}}}" target="_blank">
+								<img src="{{{staticFileUrlPrefix}}}/button-start-appointment@2x.jpg" width="155" height="54" alt="Join Now" />
+							</a>
+						</td>
+						<td align="right" width="50%">
+							<a href="{{{cancelUrl}}}" target="_blank" style="font-family:'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:16px; line-height:20px;">Cancel Reservation</a>
+						</td>
+					</tr>
+					<tr>
+						<td height="30" bgcolor="#ffffff" width="50%" colspan="2"></td>
+					</tr>
+					<tr>
+						<td height="1" bgcolor="#ccc" width="50%" colspan="2"></td>
+					</tr>
+				</table>
+			{{/if}}
 			<table width="100%" border="0" cellspacing="0" cellpadding="0" align="center">
 				<tr>
 					<td height="30" bgcolor="#ffffff" width="50%"></td>
