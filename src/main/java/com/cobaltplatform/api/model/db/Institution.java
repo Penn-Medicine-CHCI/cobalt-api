@@ -30,6 +30,7 @@ import com.pyranid.DatabaseColumn;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Collections;
@@ -241,6 +242,14 @@ public class Institution {
 	private String googleReportingServiceAccountPrivateKey;
 	@Nullable
 	private String ga4PropertyId;
+	@Nullable
+	private Long mixpanelProjectId;
+	@Nullable
+	private String mixpanelServiceAccountUsername;
+	@Nullable
+	private String mixpanelServiceAccountSecret;
+	@Nullable
+	private LocalDate mixpanelEventHistoryStartsAt;
 
 	public enum InstitutionId {
 		COBALT,
@@ -1128,5 +1137,41 @@ public class Institution {
 
 	public void setGa4PropertyId(@Nullable String ga4PropertyId) {
 		this.ga4PropertyId = ga4PropertyId;
+	}
+
+	@Nullable
+	public Long getMixpanelProjectId() {
+		return this.mixpanelProjectId;
+	}
+
+	public void setMixpanelProjectId(@Nullable Long mixpanelProjectId) {
+		this.mixpanelProjectId = mixpanelProjectId;
+	}
+
+	@Nullable
+	public String getMixpanelServiceAccountUsername() {
+		return this.mixpanelServiceAccountUsername;
+	}
+
+	public void setMixpanelServiceAccountUsername(@Nullable String mixpanelServiceAccountUsername) {
+		this.mixpanelServiceAccountUsername = mixpanelServiceAccountUsername;
+	}
+
+	@Nullable
+	public String getMixpanelServiceAccountSecret() {
+		return this.mixpanelServiceAccountSecret;
+	}
+
+	public void setMixpanelServiceAccountSecret(@Nullable String mixpanelServiceAccountSecret) {
+		this.mixpanelServiceAccountSecret = mixpanelServiceAccountSecret;
+	}
+
+	@Nullable
+	public LocalDate getMixpanelEventHistoryStartsAt() {
+		return this.mixpanelEventHistoryStartsAt;
+	}
+
+	public void setMixpanelEventHistoryStartsAt(@Nullable LocalDate mixpanelEventHistoryStartsAt) {
+		this.mixpanelEventHistoryStartsAt = mixpanelEventHistoryStartsAt;
 	}
 }
