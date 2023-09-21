@@ -2358,16 +2358,18 @@ public class GroupSessionService implements AutoCloseable {
 		requireNonNull(groupSessionReservation);
 		requireNonNull(inviteMethod);
 
-		String extendedDescription = format("%s\n\n%s", groupSession.getDescription(), getStrings().get("Join videoconference: {{videoconferenceUrl}}", new HashMap<String, Object>() {{
+		String extendedDescription = groupSession.getVideoconferenceUrl() == null ? groupSession.getDescription() : format("%s\n\n%s", groupSession.getDescription(), getStrings().get("Join videoconference: {{videoconferenceUrl}}", new HashMap<String, Object>() {{
 			put("videoconferenceUrl", groupSession.getVideoconferenceUrl());
 		}}));
+
+		String location = groupSession.getVideoconferenceUrl() == null ? groupSession.getInPersonLocation() : groupSession.getVideoconferenceUrl();
 
 		InviteAttendee inviteAttendee = InviteAttendee.forEmailAddress(groupSessionReservation.getEmailAddress());
 		InviteOrganizer inviteOrganizer = InviteOrganizer.forEmailAddress(groupSession.getTargetEmailAddress());
 
 		return getiCalInviteGenerator().generateInvite(groupSession.getGroupSessionId().toString(), groupSession.getTitle(),
 				extendedDescription, groupSession.getStartDateTime(), groupSession.getEndDateTime(),
-				groupSession.getTimeZone(), groupSession.getVideoconferenceUrl(), inviteMethod, inviteOrganizer, inviteAttendee, OrganizerAttendeeStrategy.BOTH_ATTENDEES);
+				groupSession.getTimeZone(), location, inviteMethod, inviteOrganizer, inviteAttendee, OrganizerAttendeeStrategy.BOTH_ATTENDEES);
 	}
 
 	@Nonnull
