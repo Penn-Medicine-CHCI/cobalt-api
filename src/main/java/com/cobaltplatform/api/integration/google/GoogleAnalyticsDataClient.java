@@ -19,6 +19,9 @@
 
 package com.cobaltplatform.api.integration.google;
 
+import com.google.analytics.data.v1beta.RunReportRequest;
+import com.google.analytics.data.v1beta.RunReportResponse;
+
 import javax.annotation.Nonnull;
 
 /**
@@ -26,8 +29,11 @@ import javax.annotation.Nonnull;
  */
 public interface GoogleAnalyticsDataClient {
 	@Nonnull
-	String getPropertyId();
+	String getGa4PropertyId();
 
 	@Nonnull
 	String getProjectId();
+
+	@Nonnull
+	RunReportResponse runReport(@Nonnull RunReportRequest runReportRequest);
 }

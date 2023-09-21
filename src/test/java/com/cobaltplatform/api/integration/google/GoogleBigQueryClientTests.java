@@ -46,10 +46,10 @@ public class GoogleBigQueryClientTests {
 
 	@Test
 	public void testGoogleBigQuery() throws Exception {
-		String serviceAccountPrivateKeyJson = Files.readString(
-				Path.of("resources/test/bigquery-service-account-private-key.json"), StandardCharsets.UTF_8);
+		String reportingServiceAccountPrivateKeyJson = Files.readString(
+				Path.of("resources/test/reporting-service-account-private-key.json"), StandardCharsets.UTF_8);
 
-		GoogleBigQueryClient googleBigQueryClient = new DefaultGoogleBigQueryClient(serviceAccountPrivateKeyJson);
+		GoogleBigQueryClient googleBigQueryClient = new DefaultGoogleBigQueryClient(reportingServiceAccountPrivateKeyJson);
 		List<FieldValueList> rows = googleBigQueryClient.queryForList("""
 				SELECT event_date, event_timestamp, event_name, event_params
 				FROM {{projectId}}.analytics_351576958.events_20230913

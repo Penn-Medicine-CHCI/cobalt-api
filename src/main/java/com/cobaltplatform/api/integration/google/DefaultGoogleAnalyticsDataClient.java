@@ -21,6 +21,8 @@ package com.cobaltplatform.api.integration.google;
 
 import com.google.analytics.data.v1beta.BetaAnalyticsDataClient;
 import com.google.analytics.data.v1beta.BetaAnalyticsDataSettings;
+import com.google.analytics.data.v1beta.RunReportRequest;
+import com.google.analytics.data.v1beta.RunReportResponse;
 import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
@@ -41,12 +43,14 @@ import java.util.Map;
 import static java.util.Objects.requireNonNull;
 
 /**
+ * Requires that the system account email address be added as a Viewer directly on the GA4 property.
+ *
  * @author Transmogrify, LLC.
  */
 @ThreadSafe
 public class DefaultGoogleAnalyticsDataClient implements GoogleAnalyticsDataClient {
 	@Nonnull
-	private final String propertyId;
+	private final String ga4PropertyId;
 	@Nonnull
 	private final String projectId;
 	@Nonnull
@@ -54,15 +58,15 @@ public class DefaultGoogleAnalyticsDataClient implements GoogleAnalyticsDataClie
 	@Nonnull
 	private final BetaAnalyticsDataClient betaAnalyticsDataClient;
 
-	public DefaultGoogleAnalyticsDataClient(@Nonnull String propertyId,
+	public DefaultGoogleAnalyticsDataClient(@Nonnull String ga4PropertyId,
 																					@Nonnull String serviceAccountPrivateKeyJson) {
 		// ByteArrayInputStream does not need to be closed
-		this(propertyId, new ByteArrayInputStream(serviceAccountPrivateKeyJson.getBytes(StandardCharsets.UTF_8)));
+		this(ga4PropertyId, new ByteArrayInputStream(serviceAccountPrivateKeyJson.getBytes(StandardCharsets.UTF_8)));
 	}
 
-	public DefaultGoogleAnalyticsDataClient(@Nonnull String propertyId,
+	public DefaultGoogleAnalyticsDataClient(@Nonnull String ga4PropertyId,
 																					@Nonnull InputStream serviceAccountPrivateKeyJsonInputStream) {
-		requireNonNull(propertyId);
+		requireNonNull(ga4PropertyId);
 		requireNonNull(serviceAccountPrivateKeyJsonInputStream);
 
 		try {
@@ -72,7 +76,7 @@ public class DefaultGoogleAnalyticsDataClient implements GoogleAnalyticsDataClie
 			Map<String, Object> jsonObject = new Gson().fromJson(serviceAccountPrivateKeyJson, new TypeToken<Map<String, Object>>() {
 			}.getType());
 
-			this.propertyId = propertyId;
+			this.ga4PropertyId = ga4PropertyId;
 			this.projectId = requireNonNull((String) jsonObject.get("project_id"));
 			this.googleCredentials = acquireGoogleCredentials(serviceAccountPrivateKeyJson);
 			this.betaAnalyticsDataClient = createBetaAnalyticsDataClient(this.googleCredentials);
@@ -83,14 +87,21 @@ public class DefaultGoogleAnalyticsDataClient implements GoogleAnalyticsDataClie
 
 	@Override
 	@Nonnull
-	public String getPropertyId() {
-		return this.propertyId;
+	public String getGa4PropertyId() {
+		return this.ga4PropertyId;
 	}
 
 	@Override
 	@Nonnull
 	public String getProjectId() {
 		return this.projectId;
+	}
+
+	@Nonnull
+	@Override
+	public RunReportResponse runReport(@Nonnull RunReportRequest runReportRequest) {
+		requireNonNull(runReportRequest);
+		return getBetaAnalyticsDataClient().runReport(runReportRequest);
 	}
 
 	@Nonnull

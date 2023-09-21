@@ -19,6 +19,10 @@
 
 package com.cobaltplatform.api.integration.google;
 
+import com.google.analytics.data.v1beta.RunReportRequest;
+import com.google.analytics.data.v1beta.RunReportResponse;
+import org.jetbrains.annotations.NotNull;
+
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -35,7 +39,13 @@ public class MockGoogleAnalyticsDataClient implements GoogleAnalyticsDataClient 
 
 	@Nonnull
 	@Override
-	public String getPropertyId() {
+	public String getGa4PropertyId() {
 		return "mock";
+	}
+
+	@Nonnull
+	@Override
+	public RunReportResponse runReport(@NotNull RunReportRequest runReportRequest) {
+		return RunReportResponse.newBuilder().build();
 	}
 }

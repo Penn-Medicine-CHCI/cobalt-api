@@ -238,8 +238,9 @@ public class Institution {
 	@Nullable
 	private String privacyPolicyUrl;
 	@Nullable
-	@DatabaseColumn("google_bigquery_service_account_private_key")
-	private String googleBigQueryServiceAccountPrivateKey;
+	private String googleReportingServiceAccountPrivateKey;
+	@Nullable
+	private String ga4PropertyId;
 
 	public enum InstitutionId {
 		COBALT,
@@ -1112,11 +1113,20 @@ public class Institution {
 	}
 
 	@Nullable
-	public String getGoogleBigQueryServiceAccountPrivateKey() {
-		return this.googleBigQueryServiceAccountPrivateKey;
+	public String getGoogleReportingServiceAccountPrivateKey() {
+		return this.googleReportingServiceAccountPrivateKey;
 	}
 
-	public void setGoogleBigQueryServiceAccountPrivateKey(@Nullable String googleBigQueryServiceAccountPrivateKey) {
-		this.googleBigQueryServiceAccountPrivateKey = googleBigQueryServiceAccountPrivateKey;
+	public void setGoogleReportingServiceAccountPrivateKey(@Nullable String googleReportingServiceAccountPrivateKey) {
+		this.googleReportingServiceAccountPrivateKey = googleReportingServiceAccountPrivateKey;
+	}
+
+	@Nullable
+	public String getGa4PropertyId() {
+		return this.ga4PropertyId;
+	}
+
+	public void setGa4PropertyId(@Nullable String ga4PropertyId) {
+		this.ga4PropertyId = ga4PropertyId;
 	}
 }
