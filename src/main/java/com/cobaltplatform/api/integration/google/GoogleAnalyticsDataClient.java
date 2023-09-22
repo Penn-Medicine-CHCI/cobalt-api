@@ -25,6 +25,7 @@ import com.google.analytics.data.v1beta.RunReportResponse;
 import javax.annotation.Nonnull;
 
 /**
+ * See https://developers.google.com/analytics/devguides/reporting/data/v1/api-schema
  * @author Transmogrify, LLC.
  */
 public interface GoogleAnalyticsDataClient {

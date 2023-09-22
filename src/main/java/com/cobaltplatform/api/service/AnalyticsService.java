@@ -20,6 +20,14 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
+import com.cobaltplatform.api.integration.google.GoogleAnalyticsDataClient;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.google.analytics.data.v1beta.DateRange;
+import com.google.analytics.data.v1beta.Dimension;
+import com.google.analytics.data.v1beta.Metric;
+import com.google.analytics.data.v1beta.Row;
+import com.google.analytics.data.v1beta.RunReportRequest;
+import com.google.analytics.data.v1beta.RunReportResponse;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -29,7 +37,10 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -61,7 +72,94 @@ public class AnalyticsService {
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
-	// TODO: build out
+	@Nonnull
+	public AnalyticsResultNewVersusReturning newVersusReturning(@Nonnull InstitutionId institutionId,
+																															@Nonnull LocalDate startDate,
+																															@Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		GoogleAnalyticsDataClient googleAnalyticsDataClient = googleAnalyticsDataClientForInstitutionId(institutionId);
+
+		RunReportRequest request = RunReportRequest.newBuilder()
+				.setProperty(format("properties/%s", googleAnalyticsDataClient.getGa4PropertyId()))
+				.addDimensions(Dimension.newBuilder().setName("newVsReturning"))
+				.addMetrics(Metric.newBuilder().setName("activeUsers"))
+				.addDateRanges(DateRange.newBuilder()
+						.setStartDate(DateTimeFormatter.ISO_LOCAL_DATE.format(startDate))
+						.setEndDate(DateTimeFormatter.ISO_LOCAL_DATE.format(endDate)))
+				.build();
+
+		RunReportResponse response = googleAnalyticsDataClient.runReport(request);
+
+		Long newActiveUsers = 0L;
+		Long returningActiveUsers = 0L;
+		Long otherActiveUsers = 0L;
+
+		for (Row row : response.getRowsList()) {
+			String dimensionName = row.getDimensionValuesCount() > 0 ? row.getDimensionValues(0).getValue() : null;
+			Long metricCount = row.getMetricValuesCount() > 0 ? Long.valueOf(row.getMetricValues(0).getValue()) : 0;
+
+			if (dimensionName == null)
+				continue;
+
+			if ("new".equals(dimensionName)) {
+				newActiveUsers = metricCount;
+			} else if ("returning".equals(dimensionName)) {
+				returningActiveUsers = metricCount;
+			} else if ("(not set)".equals(dimensionName)) {
+				otherActiveUsers = metricCount;
+			} else {
+				getLogger().warn("Unrecognized dimension name '{}' (metric value {})", dimensionName, metricCount);
+			}
+		}
+
+		return new AnalyticsResultNewVersusReturning(newActiveUsers, returningActiveUsers, otherActiveUsers);
+	}
+
+	@Nonnull
+	protected GoogleAnalyticsDataClient googleAnalyticsDataClientForInstitutionId(@Nonnull InstitutionId institutionId) {
+		requireNonNull(institutionId);
+		return getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId).googleAnalyticsDataClient();
+	}
+
+	@ThreadSafe
+	public static class AnalyticsResultNewVersusReturning {
+		@Nonnull
+		private final Long newActiveUsers;
+		@Nonnull
+		private final Long returningActiveUsers;
+		@Nonnull
+		private final Long otherActiveUsers;
+
+		public AnalyticsResultNewVersusReturning(@Nonnull Long newActiveUsers,
+																						 @Nonnull Long returningActiveUsers,
+																						 @Nonnull Long otherActiveUsers) {
+			requireNonNull(newActiveUsers);
+			requireNonNull(returningActiveUsers);
+			requireNonNull(otherActiveUsers);
+
+			this.newActiveUsers = newActiveUsers;
+			this.returningActiveUsers = returningActiveUsers;
+			this.otherActiveUsers = otherActiveUsers;
+		}
+
+		@Nonnull
+		public Long getNewActiveUsers() {
+			return this.newActiveUsers;
+		}
+
+		@Nonnull
+		public Long getReturningActiveUsers() {
+			return this.returningActiveUsers;
+		}
+
+		@Nonnull
+		public Long getOtherActiveUsers() {
+			return this.otherActiveUsers;
+		}
+	}
 
 	@Nonnull
 	protected EnterprisePluginProvider getEnterprisePluginProvider() {

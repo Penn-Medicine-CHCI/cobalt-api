@@ -32,11 +32,17 @@ import com.cobaltplatform.api.integration.epic.EpicEmpCredentials;
 import com.cobaltplatform.api.integration.epic.MyChartAccessToken;
 import com.cobaltplatform.api.integration.epic.MyChartAuthenticator;
 import com.cobaltplatform.api.integration.epic.MyChartConfiguration;
+import com.cobaltplatform.api.integration.google.DefaultGoogleAnalyticsDataClient;
 import com.cobaltplatform.api.integration.google.DefaultGoogleBigQueryClient;
+import com.cobaltplatform.api.integration.google.GoogleAnalyticsDataClient;
 import com.cobaltplatform.api.integration.google.GoogleBigQueryClient;
+import com.cobaltplatform.api.integration.google.MockGoogleAnalyticsDataClient;
 import com.cobaltplatform.api.integration.google.MockGoogleBigQueryClient;
 import com.cobaltplatform.api.integration.microsoft.DefaultMicrosoftAuthenticator;
 import com.cobaltplatform.api.integration.microsoft.MicrosoftAuthenticator;
+import com.cobaltplatform.api.integration.mixpanel.DefaultMixpanelClient;
+import com.cobaltplatform.api.integration.mixpanel.MixpanelClient;
+import com.cobaltplatform.api.integration.mixpanel.MockMixpanelClient;
 import com.cobaltplatform.api.model.db.EpicBackendServiceAuthType;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.security.SigningCredentials;
@@ -77,7 +83,19 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 	@Nonnull
 	@Override
 	public GoogleBigQueryClient googleBigQueryClient() {
-		return (GoogleBigQueryClient) getExpensiveClientCache().get(ExpensiveClientCacheKey.GOOGLE_BIGQUERY);
+		return (GoogleBigQueryClient) getExpensiveClientCache().get(ExpensiveClientCacheKey.GOOGLE_BIG_QUERY);
+	}
+
+	@Nonnull
+	@Override
+	public GoogleAnalyticsDataClient googleAnalyticsDataClient() {
+		return (GoogleAnalyticsDataClient) getExpensiveClientCache().get(ExpensiveClientCacheKey.GOOGLE_ANALYTICS_DATA);
+	}
+
+	@Nonnull
+	@Override
+	public MixpanelClient mixpanelClient() {
+		return (MixpanelClient) getExpensiveClientCache().get(ExpensiveClientCacheKey.MIXPANEL);
 	}
 
 	@Nonnull
@@ -125,8 +143,12 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 				.build(expensiveClientCacheKey -> {
 					requireNonNull(expensiveClientCacheKey);
 
-					if (expensiveClientCacheKey == ExpensiveClientCacheKey.GOOGLE_BIGQUERY)
+					if (expensiveClientCacheKey == ExpensiveClientCacheKey.GOOGLE_BIG_QUERY)
 						return uncachedGoogleBigQueryClient();
+					if (expensiveClientCacheKey == ExpensiveClientCacheKey.GOOGLE_ANALYTICS_DATA)
+						return uncachedGoogleAnalyticsDataClient();
+					if (expensiveClientCacheKey == ExpensiveClientCacheKey.MIXPANEL)
+						return uncachedMixpanelClient();
 					if (expensiveClientCacheKey == ExpensiveClientCacheKey.MICROSOFT_AUTHENTICATOR)
 						return uncachedMicrosoftAuthenticator();
 					if (expensiveClientCacheKey == ExpensiveClientCacheKey.MYCHART_AUTHENTICATOR)
@@ -149,6 +171,33 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 			return new MockGoogleBigQueryClient();
 
 		return new DefaultGoogleBigQueryClient(googleReportingServiceAccountPrivateKey);
+	}
+
+	@Nonnull
+	protected GoogleAnalyticsDataClient uncachedGoogleAnalyticsDataClient() {
+		Institution institution = getInstitutionService().findInstitutionById(getInstitutionId()).get();
+
+		String ga4PropertyId = institution.getGa4PropertyId();
+		String googleReportingServiceAccountPrivateKey = institution.getGoogleReportingServiceAccountPrivateKey();
+
+		if (ga4PropertyId == null || googleReportingServiceAccountPrivateKey == null)
+			return new MockGoogleAnalyticsDataClient();
+
+		return new DefaultGoogleAnalyticsDataClient(ga4PropertyId, googleReportingServiceAccountPrivateKey);
+	}
+
+	@Nonnull
+	protected MixpanelClient uncachedMixpanelClient() {
+		Institution institution = getInstitutionService().findInstitutionById(getInstitutionId()).get();
+
+		Long mixpanelProjectId = institution.getMixpanelProjectId();
+		String mixpanelServiceAccountUsername = institution.getMixpanelServiceAccountUsername();
+		String mixpanelServiceAccountSecret = institution.getMixpanelServiceAccountSecret();
+
+		if (mixpanelProjectId == null || mixpanelServiceAccountUsername == null || mixpanelServiceAccountSecret == null)
+			return new MockMixpanelClient();
+
+		return new DefaultMixpanelClient(mixpanelProjectId, mixpanelServiceAccountUsername, mixpanelServiceAccountSecret);
 	}
 
 	@Nonnull
@@ -233,7 +282,9 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 	}
 
 	enum ExpensiveClientCacheKey {
-		GOOGLE_BIGQUERY,
+		GOOGLE_BIG_QUERY,
+		GOOGLE_ANALYTICS_DATA,
+		MIXPANEL,
 		MICROSOFT_AUTHENTICATOR,
 		MYCHART_AUTHENTICATOR,
 		EPIC_CLIENT_FOR_BACKEND_SERVICE
