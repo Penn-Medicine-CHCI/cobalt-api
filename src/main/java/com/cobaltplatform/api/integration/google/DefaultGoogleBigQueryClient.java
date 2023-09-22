@@ -58,16 +58,21 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 	@Nonnull
 	private final String projectId;
 	@Nonnull
+	private final String bigQueryResourceId;
+	@Nonnull
 	private final GoogleCredentials googleCredentials;
 	@Nonnull
 	private final BigQuery bigQuery;
 
-	public DefaultGoogleBigQueryClient(@Nonnull String serviceAccountPrivateKeyJson) {
+	public DefaultGoogleBigQueryClient(@Nonnull String bigQueryResourceId,
+																		 @Nonnull String serviceAccountPrivateKeyJson) {
 		// ByteArrayInputStream does not need to be closed
-		this(new ByteArrayInputStream(serviceAccountPrivateKeyJson.getBytes(StandardCharsets.UTF_8)));
+		this(bigQueryResourceId, new ByteArrayInputStream(serviceAccountPrivateKeyJson.getBytes(StandardCharsets.UTF_8)));
 	}
 
-	public DefaultGoogleBigQueryClient(@Nonnull InputStream serviceAccountPrivateKeyJsonInputStream) {
+	public DefaultGoogleBigQueryClient(@Nonnull String bigQueryResourceId,
+																		 @Nonnull InputStream serviceAccountPrivateKeyJsonInputStream) {
+		requireNonNull(bigQueryResourceId);
 		requireNonNull(serviceAccountPrivateKeyJsonInputStream);
 
 		try {
@@ -77,6 +82,7 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 			Map<String, Object> jsonObject = new Gson().fromJson(serviceAccountPrivateKeyJson, new TypeToken<Map<String, Object>>() {
 			}.getType());
 
+			this.bigQueryResourceId = bigQueryResourceId;
 			this.projectId = requireNonNull((String) jsonObject.get("project_id"));
 			this.googleCredentials = acquireGoogleCredentials(serviceAccountPrivateKeyJson);
 			this.bigQuery = createBigQuery(this.googleCredentials);
@@ -91,14 +97,20 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 		return this.projectId;
 	}
 
+	@Nonnull
+	@Override
+	public String getBigQueryResourceId() {
+		return this.bigQueryResourceId;
+	}
+
 	@Override
 	@Nonnull
 	public List<FieldValueList> queryForList(@Nonnull String sql) {
 		requireNonNull(sql);
 
-		// Special behavior: look for "{{projectId}}" and replace it with the actual project ID
+		// Special behavior: look for "{{datasetId}}" and replace it with the actual value
 		// to make querying easier.
-		sql = sql.replace("{{projectId}}", getProjectId());
+		sql = sql.replace("{{datasetId}}", getDatasetId());
 
 		// See: https://cloud.google.com/bigquery/sql-reference/
 		QueryJobConfiguration queryConfig = QueryJobConfiguration.newBuilder(sql)

@@ -165,12 +165,13 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 	protected GoogleBigQueryClient uncachedGoogleBigQueryClient() {
 		Institution institution = getInstitutionService().findInstitutionById(getInstitutionId()).get();
 
+		String bigQueryResourceId = institution.getBigQueryResourceId();
 		String googleReportingServiceAccountPrivateKey = institution.getGoogleReportingServiceAccountPrivateKey();
 
-		if (googleReportingServiceAccountPrivateKey == null)
+		if (bigQueryResourceId == null || googleReportingServiceAccountPrivateKey == null)
 			return new MockGoogleBigQueryClient();
 
-		return new DefaultGoogleBigQueryClient(googleReportingServiceAccountPrivateKey);
+		return new DefaultGoogleBigQueryClient(bigQueryResourceId, googleReportingServiceAccountPrivateKey);
 	}
 
 	@Nonnull

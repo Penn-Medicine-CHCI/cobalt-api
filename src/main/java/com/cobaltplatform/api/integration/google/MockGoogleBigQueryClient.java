@@ -33,7 +33,13 @@ public class MockGoogleBigQueryClient implements GoogleBigQueryClient {
 	@Nonnull
 	@Override
 	public String getProjectId() {
-		return "mock";
+		return "mock-project-id";
+	}
+
+	@Nonnull
+	@Override
+	public String getBigQueryResourceId() {
+		return "mock-resource-id";
 	}
 
 	@Override

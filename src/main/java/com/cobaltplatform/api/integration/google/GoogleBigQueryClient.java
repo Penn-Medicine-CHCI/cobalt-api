@@ -22,7 +22,12 @@ package com.cobaltplatform.api.integration.google;
 import com.google.cloud.bigquery.FieldValueList;
 
 import javax.annotation.Nonnull;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+
+import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -32,5 +37,20 @@ public interface GoogleBigQueryClient {
 	String getProjectId();
 
 	@Nonnull
+	String getBigQueryResourceId();
+
+	@Nonnull
+	default String getDatasetId() {
+		return format("%s.%s", getProjectId(), getBigQueryResourceId());
+	}
+
+	@Nonnull
 	List<FieldValueList> queryForList(@Nonnull String sql);
+
+	@Nonnull
+	default String dateAsTableSuffix(@Nonnull LocalDate date) {
+		requireNonNull(date);
+		// e.g. Oct 31, 2023 would be "20231031"
+		return DateTimeFormatter.ISO_DATE.format(date).replace("-", "");
+	}
 }

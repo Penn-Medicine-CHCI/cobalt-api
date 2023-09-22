@@ -243,6 +243,9 @@ public class Institution {
 	@Nullable
 	private String ga4PropertyId;
 	@Nullable
+	@DatabaseColumn("bigquery_resource_id")
+	private String bigQueryResourceId;
+	@Nullable
 	private Long mixpanelProjectId;
 	@Nullable
 	private String mixpanelServiceAccountUsername;
@@ -1137,6 +1140,15 @@ public class Institution {
 
 	public void setGa4PropertyId(@Nullable String ga4PropertyId) {
 		this.ga4PropertyId = ga4PropertyId;
+	}
+
+	@Nullable
+	public String getBigQueryResourceId() {
+		return this.bigQueryResourceId;
+	}
+
+	public void setBigQueryResourceId(@Nullable String bigQueryResourceId) {
+		this.bigQueryResourceId = bigQueryResourceId;
 	}
 
 	@Nullable

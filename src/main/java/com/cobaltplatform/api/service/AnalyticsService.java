@@ -21,6 +21,7 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.google.GoogleAnalyticsDataClient;
+import com.cobaltplatform.api.integration.google.GoogleBigQueryClient;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.google.analytics.data.v1beta.DateRange;
 import com.google.analytics.data.v1beta.Dimension;
@@ -28,6 +29,8 @@ import com.google.analytics.data.v1beta.Metric;
 import com.google.analytics.data.v1beta.Row;
 import com.google.analytics.data.v1beta.RunReportRequest;
 import com.google.analytics.data.v1beta.RunReportResponse;
+import com.google.cloud.bigquery.FieldValue;
+import com.google.cloud.bigquery.FieldValueList;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -39,6 +42,10 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -119,9 +126,44 @@ public class AnalyticsService {
 	}
 
 	@Nonnull
+	protected Set<UUID> accountIdsWithAtLeastOneEvent(@Nonnull InstitutionId institutionId,
+																										@Nonnull LocalDate startDate,
+																										@Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		GoogleBigQueryClient googleBigQueryClient = googleBigQueryClientForInstitutionId(institutionId);
+		List<FieldValueList> rows = googleBigQueryClient.queryForList(format("""
+				SELECT DISTINCT user_id
+				FROM `{{datasetId}}.events_*`
+				WHERE _TABLE_SUFFIX BETWEEN '%s' AND '%s'
+				""", googleBigQueryClient.dateAsTableSuffix(startDate), googleBigQueryClient.dateAsTableSuffix(endDate)));
+
+		Set<UUID> accountIds = new HashSet<>();
+
+		for (FieldValueList row : rows) {
+			FieldValue fieldValue = row.get(0);
+
+			if (fieldValue.isNull())
+				continue;
+
+			accountIds.add(UUID.fromString(fieldValue.getStringValue()));
+		}
+
+		return accountIds;
+	}
+
+	@Nonnull
 	protected GoogleAnalyticsDataClient googleAnalyticsDataClientForInstitutionId(@Nonnull InstitutionId institutionId) {
 		requireNonNull(institutionId);
 		return getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId).googleAnalyticsDataClient();
+	}
+
+	@Nonnull
+	protected GoogleBigQueryClient googleBigQueryClientForInstitutionId(@Nonnull InstitutionId institutionId) {
+		requireNonNull(institutionId);
+		return getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId).googleBigQueryClient();
 	}
 
 	@ThreadSafe

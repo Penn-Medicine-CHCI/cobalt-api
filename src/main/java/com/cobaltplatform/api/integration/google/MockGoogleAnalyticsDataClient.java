@@ -34,13 +34,13 @@ public class MockGoogleAnalyticsDataClient implements GoogleAnalyticsDataClient 
 	@Nonnull
 	@Override
 	public String getProjectId() {
-		return "mock";
+		return "mock-project-id";
 	}
 
 	@Nonnull
 	@Override
 	public String getGa4PropertyId() {
-		return "mock";
+		return "mock-ga4-property-id";
 	}
 
 	@Nonnull
