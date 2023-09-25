@@ -101,6 +101,8 @@ public class DefaultGoogleAnalyticsDataClient implements GoogleAnalyticsDataClie
 	@Override
 	public RunReportResponse runReport(@Nonnull RunReportRequest runReportRequest) {
 		requireNonNull(runReportRequest);
+
+		// See https://developers.google.com/analytics/devguides/reporting/data/v1/api-schema
 		return getBetaAnalyticsDataClient().runReport(runReportRequest);
 	}
 

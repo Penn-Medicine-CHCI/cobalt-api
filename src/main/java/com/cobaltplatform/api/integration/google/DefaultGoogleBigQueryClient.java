@@ -108,6 +108,10 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 	public List<FieldValueList> queryForList(@Nonnull String sql) {
 		requireNonNull(sql);
 
+		// See
+		// https://developers.google.com/analytics/bigquery/basic-queries
+		// https://cloud.google.com/bigquery/docs/querying-wildcard-tables
+
 		// Special behavior: look for "{{datasetId}}" and replace it with the actual value
 		// to make querying easier.
 		sql = sql.replace("{{datasetId}}", getDatasetId());
