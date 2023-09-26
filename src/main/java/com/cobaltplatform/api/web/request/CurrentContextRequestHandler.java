@@ -79,6 +79,8 @@ public class CurrentContextRequestHandler {
 	private static final String WEBAPP_CURRENT_URL_PROPERTY_NAME;
 	@Nonnull
 	private static final String DEBUG_SIMULATE_DELAY_PROPERTY_NAME;
+	@Nonnull
+	private static final String INSTITUTION_ID_PROPERTY_NAME;
 
 	@Nonnull
 	private static final String CURRENT_CONTEXT_LOGGING_KEY;
@@ -109,6 +111,7 @@ public class CurrentContextRequestHandler {
 		WEBAPP_BASE_URL_PROPERTY_NAME = "X-Cobalt-Webapp-Base-Url";
 		WEBAPP_CURRENT_URL_PROPERTY_NAME = "X-Cobalt-Webapp-Current-Url";
 		DEBUG_SIMULATE_DELAY_PROPERTY_NAME = "X-Cobalt-Debug-Simulate-Delay";
+		INSTITUTION_ID_PROPERTY_NAME = "X-Cobalt-Institution-Id";
 
 		CURRENT_CONTEXT_LOGGING_KEY = "CURRENT_CONTEXT";
 	}
@@ -232,6 +235,16 @@ public class CurrentContextRequestHandler {
 			// However, in special cases like an OAuth callback, we won't get that header because we can't control how we're called.
 			Institution institution = getInstitutionService().findInstitutionByWebappBaseUrl(webappBaseUrl).orElse(null);
 
+			// For cases like mobile apps, where there is no webapp URL, look for a special "institution ID" header and use that
+			if (institution == null) {
+				String institutionIdAsString = extractValueFromRequest(httpServletRequest, getInstitutionIdPropertyName()).orElse(null);
+
+				if (institutionIdAsString != null) {
+					InstitutionId institutionId = InstitutionId.valueOf(institutionIdAsString);
+					institution = getInstitutionService().findInstitutionById(institutionId).get();
+				}
+			}
+
 			if (account == null && institution == null) {
 				// If no signed-in account or X-Cobalt-Webapp-Base-Url header, assume default COBALT institution.
 				// This would be the case for an OAuth callback, for example
@@ -334,6 +347,11 @@ public class CurrentContextRequestHandler {
 	@Nonnull
 	public static String getWebappCurrentUrlPropertyName() {
 		return WEBAPP_CURRENT_URL_PROPERTY_NAME;
+	}
+
+	@Nonnull
+	public static String getInstitutionIdPropertyName() {
+		return INSTITUTION_ID_PROPERTY_NAME;
 	}
 
 	@Nonnull
