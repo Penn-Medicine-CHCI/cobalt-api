@@ -22,6 +22,7 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.google.GoogleAnalyticsDataClient;
 import com.cobaltplatform.api.integration.google.GoogleBigQueryClient;
+import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.google.analytics.data.v1beta.DateRange;
 import com.google.analytics.data.v1beta.Dimension;
@@ -42,8 +43,11 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -56,6 +60,13 @@ import static java.util.Objects.requireNonNull;
 @Singleton
 @ThreadSafe
 public class AnalyticsService {
+	@Nonnull
+	private static final String ACTIVE_USER_ACCOUNT_TEMPORARY_TABLE_NAME;
+
+	static {
+		ACTIVE_USER_ACCOUNT_TEMPORARY_TABLE_NAME = "active_user_account";
+	}
+
 	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
 	@Nonnull
@@ -80,9 +91,9 @@ public class AnalyticsService {
 	}
 
 	@Nonnull
-	public AnalyticsResultNewVersusReturning newVersusReturning(@Nonnull InstitutionId institutionId,
-																															@Nonnull LocalDate startDate,
-																															@Nonnull LocalDate endDate) {
+	public AnalyticsResultNewVersusReturning activeUserCountsNewVersusReturning(@Nonnull InstitutionId institutionId,
+																																							@Nonnull LocalDate startDate,
+																																							@Nonnull LocalDate endDate) {
 		requireNonNull(institutionId);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
@@ -126,9 +137,76 @@ public class AnalyticsService {
 	}
 
 	@Nonnull
-	protected Set<UUID> accountIdsWithAtLeastOneEvent(@Nonnull InstitutionId institutionId,
-																										@Nonnull LocalDate startDate,
-																										@Nonnull LocalDate endDate) {
+	public Map<AccountSourceId, Long> activeUserCountsByAccountSourceId(@Nonnull InstitutionId institutionId,
+																																			@Nonnull LocalDate startDate,
+																																			@Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		Map<AccountSourceId, Long> activeUserCountsByAccountSourceId = new HashMap<>();
+
+		// TODO: implement
+
+		return activeUserCountsByAccountSourceId;
+	}
+
+	/**
+	 * Creates a temporary table named {@link #getActiveUserAccountTemporaryTableName()} and asks the remote analytics
+	 * service for all account IDs that have registered at least one analytics event (e.g. page view) during the provided date range
+	 * and inserts them into the table.
+	 * <p>
+	 * Then, executes the provided {@code runnable}, which will be able to query over the temporary table data,
+	 * e.g. to join against the `account` table to answer questions like "how many users of X type interacted
+	 * with the site during the date range?"
+	 * <p>
+	 * After the {@code runnable} has completed, the temporary table will be dropped.
+	 *
+	 * @param institutionId institution for which to pull data
+	 * @param startDate     date range start, inclusive
+	 * @param endDate       date range end, inclusive
+	 * @param runnable      the code to execute, which will have access to the temporary table of account IDs
+	 */
+	public void withActiveUserAccountIds(@Nonnull InstitutionId institutionId,
+																			 @Nonnull LocalDate startDate,
+																			 @Nonnull LocalDate endDate,
+																			 @Nonnull Runnable runnable) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		// Deliberately leave out the "REFERENCES account" for...
+		// 1. performance
+		// 2. ease of testing when we know IDs won't be found, e.g. local database with production analytics data
+		getDatabase().execute(format("""
+				CREATE TEMPORARY TABLE %s (
+				  account_id UUID NOT NULL PRIMARY KEY
+				) ON COMMIT DROP
+				""", getActiveUserAccountTemporaryTableName()));
+
+		Set<UUID> activeUserAccountIds = activeUserAccountIds(institutionId, startDate, endDate);
+
+		List<List<Object>> parameterGroups = new ArrayList<>(activeUserAccountIds.size());
+
+		for (UUID activeUserAccountId : activeUserAccountIds)
+			parameterGroups.add(List.of(activeUserAccountId));
+
+		getDatabase().executeBatch(format("""
+				  INSERT INTO %s (account_id) VALUES (?)
+				""", getActiveUserAccountTemporaryTableName()), parameterGroups);
+
+		try {
+			runnable.run();
+		} finally {
+			// Should already happen automatically due to ON COMMIT DROP, this is just-in-case
+			getDatabase().execute(format("DROP TEMPORARY TABLE IF EXISTS %s", getActiveUserAccountTemporaryTableName()));
+		}
+	}
+
+	@Nonnull
+	protected Set<UUID> activeUserAccountIds(@Nonnull InstitutionId institutionId,
+																					 @Nonnull LocalDate startDate,
+																					 @Nonnull LocalDate endDate) {
 		requireNonNull(institutionId);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
@@ -201,6 +279,11 @@ public class AnalyticsService {
 		public Long getOtherActiveUsers() {
 			return this.otherActiveUsers;
 		}
+	}
+
+	@Nonnull
+	public String getActiveUserAccountTemporaryTableName() {
+		return ACTIVE_USER_ACCOUNT_TEMPORARY_TABLE_NAME;
 	}
 
 	@Nonnull
