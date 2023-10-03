@@ -53,6 +53,13 @@ public class GoogleBigQueryClientTests {
 	}
 
 	@Test
+	public void testRestApi() {
+		// TODO
+		DefaultGoogleBigQueryClient googleBigQueryClient = (DefaultGoogleBigQueryClient) acquireGoogleBigQueryClient();
+		googleBigQueryClient.test("ignored");
+	}
+
+	@Test
 	public void testLargeResultset() {
 		GoogleBigQueryClient googleBigQueryClient = acquireGoogleBigQueryClient();
 

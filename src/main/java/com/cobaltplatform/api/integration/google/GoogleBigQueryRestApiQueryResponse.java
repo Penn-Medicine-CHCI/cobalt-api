@@ -50,6 +50,7 @@ class GoogleBigQueryRestApiQueryResponse {
 	static {
 		GSON = new GsonBuilder()
 				.setPrettyPrinting()
+				.disableHtmlEscaping()
 				.registerTypeAdapter(GoogleBigQueryRestApiQueryResponse.Row.RowField.class, new JsonDeserializer<Row.RowField>() {
 					@Override
 					@Nullable
@@ -133,6 +134,7 @@ class GoogleBigQueryRestApiQueryResponse {
 	}
 
 	@Override
+	@Nonnull
 	public String toString() {
 		return GSON.toJson(this);
 	}
