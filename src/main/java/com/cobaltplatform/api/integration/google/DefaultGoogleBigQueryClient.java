@@ -361,6 +361,7 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 				// *** End User ***
 
 				// *** Start Traffic Source ***
+
 				GoogleBigQueryExportRecord.TrafficSource trafficSource = new GoogleBigQueryExportRecord.TrafficSource();
 				GoogleBigQueryRestApiQueryResponse.Row.RowField trafficSourceField = row.getFields().get(fieldIndicesByName.get("traffic_source"));
 
@@ -373,17 +374,16 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 						if (fieldsLevel2.size() != 3)
 							throw new IllegalStateException("Not sure how to handle traffic source field " + trafficSourceField);
 
-						String name = fieldsLevel2.get(0).getValue();
-						String medium = fieldsLevel2.get(1).getValue();
-						String source = fieldsLevel2.get(2).getValue();
-
-						// TODO
+						trafficSource.setName(fieldsLevel2.get(0).getValue());
+						trafficSource.setMedium(fieldsLevel2.get(1).getValue());
+						trafficSource.setSource(fieldsLevel2.get(2).getValue());
 					}
 				}
 
 				// *** End Traffic Source ***
 
 				// *** Start Collected Traffic Source ***
+
 				GoogleBigQueryExportRecord.CollectedTrafficSource collectedTrafficSource = new GoogleBigQueryExportRecord.CollectedTrafficSource();
 				GoogleBigQueryRestApiQueryResponse.Row.RowField collectedTrafficSourceField = row.getFields().get(fieldIndicesByName.get("collected_traffic_source"));
 
@@ -396,28 +396,29 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 						if (fieldsLevel2.size() != 9)
 							throw new IllegalStateException("Not sure how to handle collected traffic source field " + trafficSourceField);
 
-						String manualCampaignId = fieldsLevel2.get(0).getValue();
-						String manualCampaignName = fieldsLevel2.get(1).getValue();
-						String manualSource = fieldsLevel2.get(2).getValue();
-						String manualMedium = fieldsLevel2.get(3).getValue();
-						String manualTerm = fieldsLevel2.get(4).getValue();
-						String manualContent = fieldsLevel2.get(5).getValue();
-						String gclid = fieldsLevel2.get(6).getValue();
-						String dclid = fieldsLevel2.get(7).getValue();
-						String srsltid = fieldsLevel2.get(8).getValue();
-
-						// TODO
+						collectedTrafficSource.setManualCampaignId(fieldsLevel2.get(0).getValue());
+						collectedTrafficSource.setManualCampaignName(fieldsLevel2.get(1).getValue());
+						collectedTrafficSource.setManualSource(fieldsLevel2.get(2).getValue());
+						collectedTrafficSource.setManualMedium(fieldsLevel2.get(3).getValue());
+						collectedTrafficSource.setManualTerm(fieldsLevel2.get(4).getValue());
+						collectedTrafficSource.setManualContent(fieldsLevel2.get(5).getValue());
+						collectedTrafficSource.setGclid(fieldsLevel2.get(6).getValue());
+						collectedTrafficSource.setDclid(fieldsLevel2.get(7).getValue());
+						collectedTrafficSource.setSrsltid(fieldsLevel2.get(8).getValue());
 					}
 				}
+
 				// *** End Collected Traffic Source ***
 
 				// *** Start Device ***
+
 				GoogleBigQueryExportRecord.Device device = new GoogleBigQueryExportRecord.Device();
 				// TODO
 
 				// *** End Device ***
 
 				// *** Start Geo ***
+
 				GoogleBigQueryExportRecord.Geo geo = new GoogleBigQueryExportRecord.Geo();
 				// TODO
 
@@ -430,6 +431,8 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 				exportRecord.setGeo(geo);
 				exportRecord.setTrafficSource(trafficSource);
 				exportRecord.setCollectedTrafficSource(collectedTrafficSource);
+
+				System.out.println(exportRecord);
 
 				exportRecords.add(exportRecord);
 			}

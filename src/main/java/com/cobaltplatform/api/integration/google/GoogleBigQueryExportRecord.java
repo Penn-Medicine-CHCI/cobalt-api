@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.integration.google;
 
+import com.cobaltplatform.api.util.GsonUtility;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -40,10 +41,13 @@ public class GoogleBigQueryExportRecord {
 	private static final Gson GSON;
 
 	static {
-		GSON = new GsonBuilder()
+		GsonBuilder gsonBuilder = new GsonBuilder()
 				.setPrettyPrinting()
-				.disableHtmlEscaping()
-				.create();
+				.disableHtmlEscaping();
+
+		GsonUtility.applyDefaultTypeAdapters(gsonBuilder);
+
+		GSON = gsonBuilder.create();
 	}
 
 	@Nullable
