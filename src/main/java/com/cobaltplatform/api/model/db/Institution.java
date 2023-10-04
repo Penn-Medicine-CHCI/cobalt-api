@@ -237,6 +237,10 @@ public class Institution {
 	private String techSupportPhoneNumber;
 	@Nullable
 	private String privacyPolicyUrl;
+	@Nullable
+	private String secureFilesharingPlatformName;
+	@Nullable
+	private String secureFilesharingPlatformUrl;
 
 	public enum InstitutionId {
 		COBALT,
@@ -1106,5 +1110,23 @@ public class Institution {
 
 	public void setPrivacyPolicyUrl(@Nullable String privacyPolicyUrl) {
 		this.privacyPolicyUrl = privacyPolicyUrl;
+	}
+
+	@Nullable
+	public String getSecureFilesharingPlatformName() {
+		return this.secureFilesharingPlatformName;
+	}
+
+	public void setSecureFilesharingPlatformName(@Nullable String secureFilesharingPlatformName) {
+		this.secureFilesharingPlatformName = secureFilesharingPlatformName;
+	}
+
+	@Nullable
+	public String getSecureFilesharingPlatformUrl() {
+		return this.secureFilesharingPlatformUrl;
+	}
+
+	public void setSecureFilesharingPlatformUrl(@Nullable String secureFilesharingPlatformUrl) {
+		this.secureFilesharingPlatformUrl = secureFilesharingPlatformUrl;
 	}
 }

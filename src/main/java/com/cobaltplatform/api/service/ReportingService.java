@@ -264,6 +264,74 @@ public class ReportingService {
 		}
 	}
 
+
+	public void runProviderAppointmentsEapReportCsv(@Nonnull InstitutionId institutionId,
+																									@Nonnull LocalDateTime startDateTime,
+																									@Nonnull LocalDateTime endDateTime,
+																									@Nonnull ZoneId reportTimeZone,
+																									@Nonnull Locale reportLocale,
+																									@Nonnull Writer writer) {
+		requireNonNull(institutionId);
+		requireNonNull(startDateTime);
+		requireNonNull(endDateTime);
+		requireNonNull(reportTimeZone);
+		requireNonNull(reportLocale);
+		requireNonNull(writer);
+
+		// Ignoring TZ for now because the slot date-times are stored as "wall clock" times in the database
+		// and in practice anyone reporting over them is in the same institution/timezone as the provider
+		List<ProviderAppointmentReportRecord> records = getDatabase().queryForList("""
+				SELECT p.provider_id, p.name AS provider_name, app.start_time AS start_date_time, app.created as booked_at,
+				a.account_id AS patient_account_id, a.display_name AS patient_name, a.email_address AS patient_email_address,
+				a.phone_number AS patient_phone_number
+				FROM appointment app, provider p, account a
+				WHERE p.provider_id=app.provider_id
+				AND app.account_id=a.account_id
+				AND p.institution_id=?
+				AND app.canceled = FALSE
+				AND app.start_time >= ?
+				AND app.start_time <= ?
+				ORDER BY p.name, app.start_time
+								""", ProviderAppointmentReportRecord.class, institutionId, startDateTime, endDateTime);
+
+		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd H:mm").withLocale(reportLocale);
+		DateTimeFormatter instantFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd H:mm:ss")
+				.withLocale(reportLocale)
+				.withZone(reportTimeZone);
+
+		List<String> headerColumns = List.of(
+				getStrings().get("Provider ID"),
+				getStrings().get("Provider Name"),
+				getStrings().get("Slot Date/Time"),
+				getStrings().get("Booked At"),
+				getStrings().get("Patient Account ID"),
+				getStrings().get("Patient Name"),
+				getStrings().get("Patient Email Address"),
+				getStrings().get("Patient Phone Number")
+		);
+
+		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(headerColumns.toArray(new String[0])))) {
+			for (ProviderAppointmentReportRecord record : records) {
+				List<String> recordElements = new ArrayList<>();
+
+				recordElements.add(record.getProviderId().toString());
+				recordElements.add(record.getProviderName());
+				recordElements.add(dateTimeFormatter.format(record.getStartDateTime()));
+				recordElements.add(instantFormatter.format(record.getBookedAt()));
+				recordElements.add(record.getPatientAccountId().toString());
+				recordElements.add(record.getPatientName());
+				recordElements.add(record.getPatientEmailAddress());
+				recordElements.add(record.getPatientPhoneNumber());
+
+				csvPrinter.printRecord(recordElements.toArray(new Object[0]));
+			}
+
+			csvPrinter.flush();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
 	public void runProviderAppointmentCancelationsReportCsv(@Nonnull InstitutionId institutionId,
 																													@Nonnull LocalDateTime startDateTime,
 																													@Nonnull LocalDateTime endDateTime,
