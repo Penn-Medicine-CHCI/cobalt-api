@@ -1,6 +1,9 @@
 BEGIN;
 SELECT _v.register_patch('125-admin-capabilities', NULL, NULL);
 
+-- Going to use Capabilities for this instead - it's currently unused anyway, safe to delete
+DROP TABLE account_report_type;
+
 ALTER TABLE institution ADD COLUMN secure_filesharing_platform_name TEXT;
 ALTER TABLE institution ADD COLUMN secure_filesharing_platform_url TEXT;
 

@@ -33,7 +33,8 @@ import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTria
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.ReportType;
-import com.cobaltplatform.api.model.db.Role.RoleId;
+import com.cobaltplatform.api.model.db.ReportType.ReportTypeId;
+import com.cobaltplatform.api.model.service.AccountCapabilityFlags;
 import com.cobaltplatform.api.util.Formatter;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -81,6 +82,8 @@ public class ReportingService {
 	@Nonnull
 	private final Provider<GroupSessionService> groupSessionServiceProvider;
 	@Nonnull
+	private final Provider<AuthorizationService> authorizationServiceProvider;
+	@Nonnull
 	private final Database database;
 	@Nonnull
 	private final Strings strings;
@@ -94,12 +97,14 @@ public class ReportingService {
 	@Inject
 	public ReportingService(@Nonnull Provider<AccountService> accountServiceProvider,
 													@Nonnull Provider<GroupSessionService> groupSessionServiceProvider,
+													@Nonnull Provider<AuthorizationService> authorizationServiceProvider,
 													@Nonnull Database database,
 													@Nonnull Strings strings,
 													@Nonnull Formatter formatter,
 													@Nonnull Configuration configuration) {
 		requireNonNull(accountServiceProvider);
 		requireNonNull(groupSessionServiceProvider);
+		requireNonNull(authorizationServiceProvider);
 		requireNonNull(database);
 		requireNonNull(strings);
 		requireNonNull(formatter);
@@ -107,6 +112,7 @@ public class ReportingService {
 
 		this.accountServiceProvider = accountServiceProvider;
 		this.groupSessionServiceProvider = groupSessionServiceProvider;
+		this.authorizationServiceProvider = authorizationServiceProvider;
 		this.database = database;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -132,18 +138,36 @@ public class ReportingService {
 		if (account == null)
 			return List.of();
 
-		// All reports are available to admins
-		if (account.getRoleId() == RoleId.ADMINISTRATOR)
-			return getDatabase().queryForList("SELECT * FROM report_type ORDER BY display_order", ReportType.class);
+		List<ReportType> reportTypes = getDatabase().queryForList("SELECT * FROM report_type ORDER BY display_order", ReportType.class);
+		AccountCapabilityFlags accountCapabilityFlags = getAuthorizationService().determineAccountCapabilityFlagsForAccount(account);
 
-		// For other users, only pick reports to which they are explicitly granted access
-		return getDatabase().queryForList("""
-				SELECT rt.* 
-				FROM report_type rt, account_report_type art
-				WHERE art.account_id=?
-				AND art.report_type_id=rt.report_type_id
-				ORDER BY rt.display_order
-				""", ReportType.class, account.getAccountId());
+		// Examine capabilities to determine available report types
+		return reportTypes.stream()
+				.filter(reportType -> {
+					if (reportType.getReportTypeId() == ReportTypeId.PROVIDER_UNUSED_AVAILABILITY)
+						return accountCapabilityFlags.isCanViewProviderReportUnusedAvailability();
+
+					if (reportType.getReportTypeId() == ReportTypeId.PROVIDER_APPOINTMENTS)
+						return accountCapabilityFlags.isCanViewProviderReportAppointments();
+
+					if (reportType.getReportTypeId() == ReportTypeId.PROVIDER_APPOINTMENTS_EAP)
+						return accountCapabilityFlags.isCanViewProviderReportAppointmentsEap();
+
+					if (reportType.getReportTypeId() == ReportTypeId.PROVIDER_APPOINTMENT_CANCELATIONS)
+						return accountCapabilityFlags.isCanViewProviderReportAppointmentCancelations();
+
+					if (reportType.getReportTypeId() == ReportTypeId.IC_PIPELINE
+							|| reportType.getReportTypeId() == ReportTypeId.IC_OUTREACH
+							|| reportType.getReportTypeId() == ReportTypeId.IC_ASSESSMENT)
+						return accountCapabilityFlags.isCanViewIcReports();
+
+					if (reportType.getReportTypeId() == ReportTypeId.GROUP_SESSION_RESERVATION_EMAILS)
+						return accountCapabilityFlags.isCanAdministerGroupSessions();
+
+					throw new UnsupportedOperationException(format("Unexpected %s value '%s'",
+							ReportTypeId.class.getSimpleName(), reportType.getReportTypeId().name()));
+				})
+				.collect(Collectors.toList());
 	}
 
 	public void runProviderUnusedAvailabilityReportCsv(@Nonnull InstitutionId institutionId,
@@ -1223,6 +1247,11 @@ public class ReportingService {
 	@Nonnull
 	protected GroupSessionService getGroupSessionService() {
 		return this.groupSessionServiceProvider.get();
+	}
+
+	@Nonnull
+	protected AuthorizationService getAuthorizationService() {
+		return this.authorizationServiceProvider.get();
 	}
 
 	@Nonnull
