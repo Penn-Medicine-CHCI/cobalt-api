@@ -315,7 +315,7 @@ public class ReportingService {
 		// Ignoring TZ for now because the slot date-times are stored as "wall clock" times in the database
 		// and in practice anyone reporting over them is in the same institution/timezone as the provider
 		List<ProviderAppointmentEap> appointments = getDatabase().queryForList("""
-				SELECT select app.*, p.name as provider_name, a.email_address as account_email_address, a.account_source_id,
+				SELECT app.*, p.name as provider_name, a.email_address as account_email_address, a.account_source_id,
 				a.first_name as account_first_name, a.last_name as account_last_name, a.email_address
 				FROM appointment app, provider p, account a, provider_support_role psr
 				WHERE p.provider_id=app.provider_id
@@ -476,7 +476,6 @@ public class ReportingService {
 
 				if (appointment.getIntakeAssessmentId() != null)
 					intakeAssessmentIds.add(appointment.getIntakeAssessmentId());
-
 
 				List<String> recordElements = new ArrayList<>();
 
