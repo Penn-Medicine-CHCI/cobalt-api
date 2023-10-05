@@ -160,6 +160,27 @@ public class AuthorizationService {
 				|| accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_SAFETY_PLANNING_ADMIN));
 		accountCapabilityFlags.setCanViewIcReports(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_ADMIN));
 		accountCapabilityFlags.setCanImportIcPatientOrders(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_ADMIN));
+		accountCapabilityFlags.setCanAdministerContent(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.CONTENT_ADMIN));
+		accountCapabilityFlags.setCanAdministerGroupSessions(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.GROUP_SESSION_ADMIN));
+		accountCapabilityFlags.setCanViewAnalytics(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.ANALYTICS_VIEWER));
+
+		// You can view provider reports if you have "report admin" (all reports) or any individual report access
+		accountCapabilityFlags.setCanViewProviderReports(
+				accountCapabilityTypeIds.contains(AccountCapabilityTypeId.PROVIDER_REPORT_ADMIN)
+						|| accountCapabilityTypeIds.contains(AccountCapabilityTypeId.PROVIDER_REPORT_UNUSED_AVAILABILITY_VIEWER)
+						|| accountCapabilityTypeIds.contains(AccountCapabilityTypeId.PROVIDER_REPORT_APPOINTMENT_CANCELATIONS_VIEWER)
+						|| accountCapabilityTypeIds.contains(AccountCapabilityTypeId.PROVIDER_REPORT_APPOINTMENTS_VIEWER)
+						|| accountCapabilityTypeIds.contains(AccountCapabilityTypeId.PROVIDER_REPORT_APPOINTMENTS_EAP_VIEWER)
+		);
+
+		accountCapabilityFlags.setCanViewProviderReportUnusedAvailability(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.PROVIDER_REPORT_ADMIN)
+				|| accountCapabilityTypeIds.contains(AccountCapabilityTypeId.PROVIDER_REPORT_UNUSED_AVAILABILITY_VIEWER));
+		accountCapabilityFlags.setCanViewProviderReportAppointmentCancelations(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.PROVIDER_REPORT_ADMIN)
+				|| accountCapabilityTypeIds.contains(AccountCapabilityTypeId.PROVIDER_REPORT_APPOINTMENT_CANCELATIONS_VIEWER));
+		accountCapabilityFlags.setCanViewProviderReportAppointments(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.PROVIDER_REPORT_ADMIN)
+				|| accountCapabilityTypeIds.contains(AccountCapabilityTypeId.PROVIDER_REPORT_APPOINTMENTS_VIEWER));
+		accountCapabilityFlags.setCanViewProviderReportAppointmentsEap(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.PROVIDER_REPORT_ADMIN)
+				|| accountCapabilityTypeIds.contains(AccountCapabilityTypeId.PROVIDER_REPORT_APPOINTMENTS_EAP_VIEWER));
 
 		return accountCapabilityFlags;
 	}

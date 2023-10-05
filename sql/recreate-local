@@ -129,6 +129,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/121-irg-images
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/122-institution-adjustments.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/123-institution-privacy-policy.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/124-group-session-location.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/125-admin-capabilities.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

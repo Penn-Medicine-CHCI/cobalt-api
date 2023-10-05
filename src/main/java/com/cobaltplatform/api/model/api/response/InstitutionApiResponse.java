@@ -150,6 +150,10 @@ public class InstitutionApiResponse {
 	private final String techSupportPhoneNumberDescription;
 	@Nullable
 	private final String privacyPolicyUrl;
+	@Nullable
+	private final String secureFilesharingPlatformName;
+	@Nullable
+	private final String secureFilesharingPlatformUrl;
 	@Nonnull
 	private final List<AlertApiResponse> alerts;
 
@@ -249,6 +253,8 @@ public class InstitutionApiResponse {
 		this.techSupportPhoneNumberDescription = institution.getTechSupportPhoneNumber() == null ? null : formatter.formatPhoneNumber(institution.getTechSupportPhoneNumber());
 
 		this.privacyPolicyUrl = institution.getPrivacyPolicyUrl();
+		this.secureFilesharingPlatformName = institution.getSecureFilesharingPlatformName();
+		this.secureFilesharingPlatformUrl = institution.getSecureFilesharingPlatformUrl();
 
 		if (account == null) {
 			this.alerts = alertService.findAlertsByInstitutionId(institution.getInstitutionId()).stream()
@@ -509,5 +515,15 @@ public class InstitutionApiResponse {
 	@Nullable
 	public String getPrivacyPolicyUrl() {
 		return this.privacyPolicyUrl;
+	}
+
+	@Nullable
+	public String getSecureFilesharingPlatformName() {
+		return this.secureFilesharingPlatformName;
+	}
+
+	@Nullable
+	public String getSecureFilesharingPlatformUrl() {
+		return this.secureFilesharingPlatformUrl;
 	}
 }

@@ -33,7 +33,8 @@ import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTria
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.ReportType;
-import com.cobaltplatform.api.model.db.Role.RoleId;
+import com.cobaltplatform.api.model.db.ReportType.ReportTypeId;
+import com.cobaltplatform.api.model.service.AccountCapabilityFlags;
 import com.cobaltplatform.api.util.Formatter;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -81,6 +82,8 @@ public class ReportingService {
 	@Nonnull
 	private final Provider<GroupSessionService> groupSessionServiceProvider;
 	@Nonnull
+	private final Provider<AuthorizationService> authorizationServiceProvider;
+	@Nonnull
 	private final Database database;
 	@Nonnull
 	private final Strings strings;
@@ -94,12 +97,14 @@ public class ReportingService {
 	@Inject
 	public ReportingService(@Nonnull Provider<AccountService> accountServiceProvider,
 													@Nonnull Provider<GroupSessionService> groupSessionServiceProvider,
+													@Nonnull Provider<AuthorizationService> authorizationServiceProvider,
 													@Nonnull Database database,
 													@Nonnull Strings strings,
 													@Nonnull Formatter formatter,
 													@Nonnull Configuration configuration) {
 		requireNonNull(accountServiceProvider);
 		requireNonNull(groupSessionServiceProvider);
+		requireNonNull(authorizationServiceProvider);
 		requireNonNull(database);
 		requireNonNull(strings);
 		requireNonNull(formatter);
@@ -107,6 +112,7 @@ public class ReportingService {
 
 		this.accountServiceProvider = accountServiceProvider;
 		this.groupSessionServiceProvider = groupSessionServiceProvider;
+		this.authorizationServiceProvider = authorizationServiceProvider;
 		this.database = database;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -132,18 +138,36 @@ public class ReportingService {
 		if (account == null)
 			return List.of();
 
-		// All reports are available to admins
-		if (account.getRoleId() == RoleId.ADMINISTRATOR)
-			return getDatabase().queryForList("SELECT * FROM report_type ORDER BY display_order", ReportType.class);
+		List<ReportType> reportTypes = getDatabase().queryForList("SELECT * FROM report_type ORDER BY display_order", ReportType.class);
+		AccountCapabilityFlags accountCapabilityFlags = getAuthorizationService().determineAccountCapabilityFlagsForAccount(account);
 
-		// For other users, only pick reports to which they are explicitly granted access
-		return getDatabase().queryForList("""
-				SELECT rt.* 
-				FROM report_type rt, account_report_type art
-				WHERE art.account_id=?
-				AND art.report_type_id=rt.report_type_id
-				ORDER BY rt.display_order
-				""", ReportType.class, account.getAccountId());
+		// Examine capabilities to determine available report types
+		return reportTypes.stream()
+				.filter(reportType -> {
+					if (reportType.getReportTypeId() == ReportTypeId.PROVIDER_UNUSED_AVAILABILITY)
+						return accountCapabilityFlags.isCanViewProviderReportUnusedAvailability();
+
+					if (reportType.getReportTypeId() == ReportTypeId.PROVIDER_APPOINTMENTS)
+						return accountCapabilityFlags.isCanViewProviderReportAppointments();
+
+					if (reportType.getReportTypeId() == ReportTypeId.PROVIDER_APPOINTMENTS_EAP)
+						return accountCapabilityFlags.isCanViewProviderReportAppointmentsEap();
+
+					if (reportType.getReportTypeId() == ReportTypeId.PROVIDER_APPOINTMENT_CANCELATIONS)
+						return accountCapabilityFlags.isCanViewProviderReportAppointmentCancelations();
+
+					if (reportType.getReportTypeId() == ReportTypeId.IC_PIPELINE
+							|| reportType.getReportTypeId() == ReportTypeId.IC_OUTREACH
+							|| reportType.getReportTypeId() == ReportTypeId.IC_ASSESSMENT)
+						return accountCapabilityFlags.isCanViewIcReports();
+
+					if (reportType.getReportTypeId() == ReportTypeId.GROUP_SESSION_RESERVATION_EMAILS)
+						return accountCapabilityFlags.isCanAdministerGroupSessions();
+
+					throw new UnsupportedOperationException(format("Unexpected %s value '%s'",
+							ReportTypeId.class.getSimpleName(), reportType.getReportTypeId().name()));
+				})
+				.collect(Collectors.toList());
 	}
 
 	public void runProviderUnusedAvailabilityReportCsv(@Nonnull InstitutionId institutionId,
@@ -223,6 +247,74 @@ public class ReportingService {
 				AND app.canceled = FALSE
 				AND app.start_time >= ?
 				AND app.start_time <= ?  
+				ORDER BY p.name, app.start_time
+								""", ProviderAppointmentReportRecord.class, institutionId, startDateTime, endDateTime);
+
+		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd H:mm").withLocale(reportLocale);
+		DateTimeFormatter instantFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd H:mm:ss")
+				.withLocale(reportLocale)
+				.withZone(reportTimeZone);
+
+		List<String> headerColumns = List.of(
+				getStrings().get("Provider ID"),
+				getStrings().get("Provider Name"),
+				getStrings().get("Slot Date/Time"),
+				getStrings().get("Booked At"),
+				getStrings().get("Patient Account ID"),
+				getStrings().get("Patient Name"),
+				getStrings().get("Patient Email Address"),
+				getStrings().get("Patient Phone Number")
+		);
+
+		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(headerColumns.toArray(new String[0])))) {
+			for (ProviderAppointmentReportRecord record : records) {
+				List<String> recordElements = new ArrayList<>();
+
+				recordElements.add(record.getProviderId().toString());
+				recordElements.add(record.getProviderName());
+				recordElements.add(dateTimeFormatter.format(record.getStartDateTime()));
+				recordElements.add(instantFormatter.format(record.getBookedAt()));
+				recordElements.add(record.getPatientAccountId().toString());
+				recordElements.add(record.getPatientName());
+				recordElements.add(record.getPatientEmailAddress());
+				recordElements.add(record.getPatientPhoneNumber());
+
+				csvPrinter.printRecord(recordElements.toArray(new Object[0]));
+			}
+
+			csvPrinter.flush();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+
+	public void runProviderAppointmentsEapReportCsv(@Nonnull InstitutionId institutionId,
+																									@Nonnull LocalDateTime startDateTime,
+																									@Nonnull LocalDateTime endDateTime,
+																									@Nonnull ZoneId reportTimeZone,
+																									@Nonnull Locale reportLocale,
+																									@Nonnull Writer writer) {
+		requireNonNull(institutionId);
+		requireNonNull(startDateTime);
+		requireNonNull(endDateTime);
+		requireNonNull(reportTimeZone);
+		requireNonNull(reportLocale);
+		requireNonNull(writer);
+
+		// Ignoring TZ for now because the slot date-times are stored as "wall clock" times in the database
+		// and in practice anyone reporting over them is in the same institution/timezone as the provider
+		List<ProviderAppointmentReportRecord> records = getDatabase().queryForList("""
+				SELECT p.provider_id, p.name AS provider_name, app.start_time AS start_date_time, app.created as booked_at,
+				a.account_id AS patient_account_id, a.display_name AS patient_name, a.email_address AS patient_email_address,
+				a.phone_number AS patient_phone_number
+				FROM appointment app, provider p, account a
+				WHERE p.provider_id=app.provider_id
+				AND app.account_id=a.account_id
+				AND p.institution_id=?
+				AND app.canceled = FALSE
+				AND app.start_time >= ?
+				AND app.start_time <= ?
 				ORDER BY p.name, app.start_time
 								""", ProviderAppointmentReportRecord.class, institutionId, startDateTime, endDateTime);
 
@@ -1155,6 +1247,11 @@ public class ReportingService {
 	@Nonnull
 	protected GroupSessionService getGroupSessionService() {
 		return this.groupSessionServiceProvider.get();
+	}
+
+	@Nonnull
+	protected AuthorizationService getAuthorizationService() {
+		return this.authorizationServiceProvider.get();
 	}
 
 	@Nonnull
