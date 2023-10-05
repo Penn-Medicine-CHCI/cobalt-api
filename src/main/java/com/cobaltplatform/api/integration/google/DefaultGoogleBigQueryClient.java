@@ -350,13 +350,26 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 				GoogleBigQueryExportRecord.User user = new GoogleBigQueryExportRecord.User();
 
 				GoogleBigQueryRestApiQueryResponse.Row.RowField userIdField = row.getFields().get(fieldIndicesByName.get("user_id"));
-				UUID userId = userIdField.getValue() == null ? null : UUID.fromString(userIdField.getValue());
+				user.setUserId(userIdField.getValue());
 
 				// User Pseudo ID
 				GoogleBigQueryRestApiQueryResponse.Row.RowField userPseudoIdField = row.getFields().get(fieldIndicesByName.get("user_pseudo_id"));
-				String userPseudoId = userPseudoIdField.getValue();
+				user.setUserPseudoId(userPseudoIdField.getValue());
 
-				// TODO
+				// Is Active User
+				GoogleBigQueryRestApiQueryResponse.Row.RowField isActiveUserField = row.getFields().get(fieldIndicesByName.get("is_active_user"));
+				user.setIsActiveUser("true".equalsIgnoreCase(isActiveUserField.getValue()));
+
+				// First Touch Timestamp
+				GoogleBigQueryRestApiQueryResponse.Row.RowField userFirstTouchTimestampField = row.getFields().get(fieldIndicesByName.get("user_first_touch_timestamp"));
+
+				if (userFirstTouchTimestampField.getValue() != null) {
+					long userFirstTouchTimestampFieldValueAsMicroseconds = Long.valueOf(userFirstTouchTimestampField.getValue());
+					Instant userFirstTouchTimestamp = Instant.ofEpochSecond(
+							TimeUnit.MICROSECONDS.toSeconds(userFirstTouchTimestampFieldValueAsMicroseconds),
+							TimeUnit.MICROSECONDS.toNanos(userFirstTouchTimestampFieldValueAsMicroseconds % TimeUnit.SECONDS.toMicros(1)));
+					user.setUserFirstTouchTimestamp(userFirstTouchTimestamp);
+				}
 
 				// *** End User ***
 
@@ -413,7 +426,51 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 				// *** Start Device ***
 
 				GoogleBigQueryExportRecord.Device device = new GoogleBigQueryExportRecord.Device();
-				// TODO
+				GoogleBigQueryRestApiQueryResponse.Row.RowField deviceField = row.getFields().get(fieldIndicesByName.get("device"));
+
+				if (deviceField.getField() != null) {
+					GoogleBigQueryRestApiQueryResponse.Row.RowField fieldLevel1 = deviceField.getField();
+
+					if (fieldLevel1.getFields() != null) {
+						List<GoogleBigQueryRestApiQueryResponse.Row.RowField> fieldsLevel2 = fieldLevel1.getFields();
+
+						if (fieldsLevel2.size() != 15)
+							throw new IllegalStateException("Not sure how to handle device field " + deviceField);
+
+						device.setCategory(fieldsLevel2.get(0).getValue());
+						device.setMobileBrandName(fieldsLevel2.get(1).getValue());
+						device.setMobileModelName(fieldsLevel2.get(2).getValue());
+						device.setMobileMarketingName(fieldsLevel2.get(3).getValue());
+						device.setMobileOsHardwareModel(fieldsLevel2.get(4).getValue());
+						device.setOperatingSystem(fieldsLevel2.get(5).getValue());
+						device.setOperatingSystemVersion(fieldsLevel2.get(6).getValue());
+						device.setVendorId(fieldsLevel2.get(7).getValue());
+						device.setAdvertisingId(fieldsLevel2.get(8).getValue());
+						device.setLanguage(fieldsLevel2.get(9).getValue());
+
+						String isLimitedAdTrackingAsString = fieldsLevel2.get(10).getValue();
+						device.setIsLimitedAdTracking(isLimitedAdTrackingAsString != null && !isLimitedAdTrackingAsString.equalsIgnoreCase("no"));
+
+						String timeZoneOffsetSecondsAsString = fieldsLevel2.get(11).getValue();
+
+						if (timeZoneOffsetSecondsAsString != null)
+							device.setTimeZoneOffsetSeconds(Long.valueOf(timeZoneOffsetSecondsAsString));
+
+						device.setBrowser(fieldsLevel2.get(12).getValue());
+						device.setBrowserVersion(fieldsLevel2.get(13).getValue());
+
+						GoogleBigQueryRestApiQueryResponse.Row.RowField webInfoField = fieldsLevel2.get(14).getField();
+
+						if (webInfoField != null) {
+							if (webInfoField.getFields().size() != 3)
+								throw new IllegalStateException("Not sure how to handle device web info field " + webInfoField);
+
+							device.setWebInfoBrowser(webInfoField.getFields().get(0).getValue());
+							device.setWebInfoBrowserVersion(webInfoField.getFields().get(1).getValue());
+							device.setWebInfoBrowserHostname(webInfoField.getFields().get(2).getValue());
+						}
+					}
+				}
 
 				// *** End Device ***
 

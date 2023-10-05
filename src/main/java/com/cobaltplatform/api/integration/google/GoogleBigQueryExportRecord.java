@@ -215,7 +215,7 @@ public class GoogleBigQueryExportRecord {
 		@Nullable
 		private String userPseudoId;
 		@Nullable
-		private Long userFirstTouchTimestamp;
+		private Instant userFirstTouchTimestamp;
 
 		@Override
 		@Nonnull
@@ -224,12 +224,12 @@ public class GoogleBigQueryExportRecord {
 		}
 
 		@Nullable
-		public Boolean getActiveUser() {
+		public Boolean getIsActiveUser() {
 			return this.isActiveUser;
 		}
 
-		public void setActiveUser(@Nullable Boolean activeUser) {
-			isActiveUser = activeUser;
+		public void setIsActiveUser(@Nullable Boolean isActiveUser) {
+			this.isActiveUser = isActiveUser;
 		}
 
 		@Nullable
@@ -251,11 +251,11 @@ public class GoogleBigQueryExportRecord {
 		}
 
 		@Nullable
-		public Long getUserFirstTouchTimestamp() {
+		public Instant getUserFirstTouchTimestamp() {
 			return this.userFirstTouchTimestamp;
 		}
 
-		public void setUserFirstTouchTimestamp(@Nullable Long userFirstTouchTimestamp) {
+		public void setUserFirstTouchTimestamp(@Nullable Instant userFirstTouchTimestamp) {
 			this.userFirstTouchTimestamp = userFirstTouchTimestamp;
 		}
 	}
@@ -439,6 +439,10 @@ public class GoogleBigQueryExportRecord {
 		@Nullable
 		private Boolean isLimitedAdTracking;
 		@Nullable
+		private String browser;
+		@Nullable
+		private String browserVersion;
+		@Nullable
 		private String webInfoBrowser;
 		@Nullable
 		private String webInfoBrowserVersion;
@@ -551,12 +555,30 @@ public class GoogleBigQueryExportRecord {
 		}
 
 		@Nullable
-		public Boolean getLimitedAdTracking() {
+		public Boolean getIsLimitedAdTracking() {
 			return this.isLimitedAdTracking;
 		}
 
-		public void setLimitedAdTracking(@Nullable Boolean limitedAdTracking) {
-			isLimitedAdTracking = limitedAdTracking;
+		public void setIsLimitedAdTracking(@Nullable Boolean isLimitedAdTracking) {
+			this.isLimitedAdTracking = isLimitedAdTracking;
+		}
+
+		@Nullable
+		public String getBrowser() {
+			return this.browser;
+		}
+
+		public void setBrowser(@Nullable String browser) {
+			this.browser = browser;
+		}
+
+		@Nullable
+		public String getBrowserVersion() {
+			return this.browserVersion;
+		}
+
+		public void setBrowserVersion(@Nullable String browserVersion) {
+			this.browserVersion = browserVersion;
 		}
 
 		@Nullable
