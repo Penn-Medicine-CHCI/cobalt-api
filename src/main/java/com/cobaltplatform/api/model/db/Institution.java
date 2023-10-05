@@ -239,6 +239,10 @@ public class Institution {
 	@Nullable
 	private String privacyPolicyUrl;
 	@Nullable
+	private String secureFilesharingPlatformName;
+	@Nullable
+	private String secureFilesharingPlatformUrl;
+	@Nullable
 	private String googleReportingServiceAccountPrivateKey;
 	@Nullable
 	private String ga4PropertyId;
@@ -1122,6 +1126,23 @@ public class Institution {
 
 	public void setPrivacyPolicyUrl(@Nullable String privacyPolicyUrl) {
 		this.privacyPolicyUrl = privacyPolicyUrl;
+	}
+
+	public String getSecureFilesharingPlatformName() {
+		return this.secureFilesharingPlatformName;
+	}
+
+	public void setSecureFilesharingPlatformName(@Nullable String secureFilesharingPlatformName) {
+		this.secureFilesharingPlatformName = secureFilesharingPlatformName;
+	}
+
+	@Nullable
+	public String getSecureFilesharingPlatformUrl() {
+		return this.secureFilesharingPlatformUrl;
+	}
+
+	public void setSecureFilesharingPlatformUrl(@Nullable String secureFilesharingPlatformUrl) {
+		this.secureFilesharingPlatformUrl = secureFilesharingPlatformUrl;
 	}
 
 	@Nullable

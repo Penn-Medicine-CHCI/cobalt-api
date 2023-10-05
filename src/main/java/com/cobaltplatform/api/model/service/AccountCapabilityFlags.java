@@ -30,6 +30,14 @@ public class AccountCapabilityFlags {
 	private boolean canViewIcReports;
 	private boolean canEditIcSafetyPlanning;
 	private boolean canImportIcPatientOrders;
+	private boolean canAdministerGroupSessions;
+	private boolean canAdministerContent;
+	private boolean canViewAnalytics;
+	private boolean canViewProviderReports;
+	private boolean canViewProviderReportUnusedAvailability;
+	private boolean canViewProviderReportAppointmentCancelations;
+	private boolean canViewProviderReportAppointments;
+	private boolean canViewProviderReportAppointmentsEap;
 
 	public boolean isCanEditIcTriages() {
 		return this.canEditIcTriages;
@@ -61,5 +69,69 @@ public class AccountCapabilityFlags {
 
 	public void setCanImportIcPatientOrders(boolean canImportIcPatientOrders) {
 		this.canImportIcPatientOrders = canImportIcPatientOrders;
+	}
+
+	public boolean isCanAdministerGroupSessions() {
+		return this.canAdministerGroupSessions;
+	}
+
+	public void setCanAdministerGroupSessions(boolean canAdministerGroupSessions) {
+		this.canAdministerGroupSessions = canAdministerGroupSessions;
+	}
+
+	public boolean isCanAdministerContent() {
+		return this.canAdministerContent;
+	}
+
+	public void setCanAdministerContent(boolean canAdministerContent) {
+		this.canAdministerContent = canAdministerContent;
+	}
+
+	public boolean isCanViewProviderReports() {
+		return this.canViewProviderReports;
+	}
+
+	public void setCanViewProviderReports(boolean canViewProviderReports) {
+		this.canViewProviderReports = canViewProviderReports;
+	}
+
+	public boolean isCanViewAnalytics() {
+		return this.canViewAnalytics;
+	}
+
+	public void setCanViewAnalytics(boolean canViewAnalytics) {
+		this.canViewAnalytics = canViewAnalytics;
+	}
+
+	public boolean isCanViewProviderReportUnusedAvailability() {
+		return this.canViewProviderReportUnusedAvailability;
+	}
+
+	public void setCanViewProviderReportUnusedAvailability(boolean canViewProviderReportUnusedAvailability) {
+		this.canViewProviderReportUnusedAvailability = canViewProviderReportUnusedAvailability;
+	}
+
+	public boolean isCanViewProviderReportAppointmentCancelations() {
+		return this.canViewProviderReportAppointmentCancelations;
+	}
+
+	public void setCanViewProviderReportAppointmentCancelations(boolean canViewProviderReportAppointmentCancelations) {
+		this.canViewProviderReportAppointmentCancelations = canViewProviderReportAppointmentCancelations;
+	}
+
+	public boolean isCanViewProviderReportAppointments() {
+		return this.canViewProviderReportAppointments;
+	}
+
+	public void setCanViewProviderReportAppointments(boolean canViewProviderReportAppointments) {
+		this.canViewProviderReportAppointments = canViewProviderReportAppointments;
+	}
+
+	public boolean isCanViewProviderReportAppointmentsEap() {
+		return this.canViewProviderReportAppointmentsEap;
+	}
+
+	public void setCanViewProviderReportAppointmentsEap(boolean canViewProviderReportAppointmentsEap) {
+		this.canViewProviderReportAppointmentsEap = canViewProviderReportAppointmentsEap;
 	}
 }

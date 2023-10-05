@@ -21,6 +21,11 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AccountSource;
+import com.cobaltplatform.api.model.db.Appointment;
+import com.cobaltplatform.api.model.db.AppointmentType;
+import com.cobaltplatform.api.model.db.AppointmentTypeAssessment;
+import com.cobaltplatform.api.model.db.Clinic;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.GroupSessionReservation;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -33,7 +38,9 @@ import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTria
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.ReportType;
-import com.cobaltplatform.api.model.db.Role.RoleId;
+import com.cobaltplatform.api.model.db.ReportType.ReportTypeId;
+import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
+import com.cobaltplatform.api.model.service.AccountCapabilityFlags;
 import com.cobaltplatform.api.util.Formatter;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -61,10 +68,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
+import static com.cobaltplatform.api.util.ValidationUtility.isValidEmailAddress;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -81,6 +92,8 @@ public class ReportingService {
 	@Nonnull
 	private final Provider<GroupSessionService> groupSessionServiceProvider;
 	@Nonnull
+	private final Provider<AuthorizationService> authorizationServiceProvider;
+	@Nonnull
 	private final Database database;
 	@Nonnull
 	private final Strings strings;
@@ -94,12 +107,14 @@ public class ReportingService {
 	@Inject
 	public ReportingService(@Nonnull Provider<AccountService> accountServiceProvider,
 													@Nonnull Provider<GroupSessionService> groupSessionServiceProvider,
+													@Nonnull Provider<AuthorizationService> authorizationServiceProvider,
 													@Nonnull Database database,
 													@Nonnull Strings strings,
 													@Nonnull Formatter formatter,
 													@Nonnull Configuration configuration) {
 		requireNonNull(accountServiceProvider);
 		requireNonNull(groupSessionServiceProvider);
+		requireNonNull(authorizationServiceProvider);
 		requireNonNull(database);
 		requireNonNull(strings);
 		requireNonNull(formatter);
@@ -107,6 +122,7 @@ public class ReportingService {
 
 		this.accountServiceProvider = accountServiceProvider;
 		this.groupSessionServiceProvider = groupSessionServiceProvider;
+		this.authorizationServiceProvider = authorizationServiceProvider;
 		this.database = database;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -132,18 +148,36 @@ public class ReportingService {
 		if (account == null)
 			return List.of();
 
-		// All reports are available to admins
-		if (account.getRoleId() == RoleId.ADMINISTRATOR)
-			return getDatabase().queryForList("SELECT * FROM report_type ORDER BY display_order", ReportType.class);
+		List<ReportType> reportTypes = getDatabase().queryForList("SELECT * FROM report_type ORDER BY display_order", ReportType.class);
+		AccountCapabilityFlags accountCapabilityFlags = getAuthorizationService().determineAccountCapabilityFlagsForAccount(account);
 
-		// For other users, only pick reports to which they are explicitly granted access
-		return getDatabase().queryForList("""
-				SELECT rt.* 
-				FROM report_type rt, account_report_type art
-				WHERE art.account_id=?
-				AND art.report_type_id=rt.report_type_id
-				ORDER BY rt.display_order
-				""", ReportType.class, account.getAccountId());
+		// Examine capabilities to determine available report types
+		return reportTypes.stream()
+				.filter(reportType -> {
+					if (reportType.getReportTypeId() == ReportTypeId.PROVIDER_UNUSED_AVAILABILITY)
+						return accountCapabilityFlags.isCanViewProviderReportUnusedAvailability();
+
+					if (reportType.getReportTypeId() == ReportTypeId.PROVIDER_APPOINTMENTS)
+						return accountCapabilityFlags.isCanViewProviderReportAppointments();
+
+					if (reportType.getReportTypeId() == ReportTypeId.PROVIDER_APPOINTMENTS_EAP)
+						return accountCapabilityFlags.isCanViewProviderReportAppointmentsEap();
+
+					if (reportType.getReportTypeId() == ReportTypeId.PROVIDER_APPOINTMENT_CANCELATIONS)
+						return accountCapabilityFlags.isCanViewProviderReportAppointmentCancelations();
+
+					if (reportType.getReportTypeId() == ReportTypeId.IC_PIPELINE
+							|| reportType.getReportTypeId() == ReportTypeId.IC_OUTREACH
+							|| reportType.getReportTypeId() == ReportTypeId.IC_ASSESSMENT)
+						return accountCapabilityFlags.isCanViewIcReports();
+
+					if (reportType.getReportTypeId() == ReportTypeId.GROUP_SESSION_RESERVATION_EMAILS)
+						return accountCapabilityFlags.isCanAdministerGroupSessions();
+
+					throw new UnsupportedOperationException(format("Unexpected %s value '%s'",
+							ReportTypeId.class.getSimpleName(), reportType.getReportTypeId().name()));
+				})
+				.collect(Collectors.toList());
 	}
 
 	public void runProviderUnusedAvailabilityReportCsv(@Nonnull InstitutionId institutionId,
@@ -254,6 +288,211 @@ public class ReportingService {
 				recordElements.add(record.getPatientName());
 				recordElements.add(record.getPatientEmailAddress());
 				recordElements.add(record.getPatientPhoneNumber());
+
+				csvPrinter.printRecord(recordElements.toArray(new Object[0]));
+			}
+
+			csvPrinter.flush();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+
+	public void runProviderAppointmentsEapReportCsv(@Nonnull InstitutionId institutionId,
+																									@Nonnull LocalDateTime startDateTime,
+																									@Nonnull LocalDateTime endDateTime,
+																									@Nonnull ZoneId reportTimeZone,
+																									@Nonnull Locale reportLocale,
+																									@Nonnull Writer writer) {
+		requireNonNull(institutionId);
+		requireNonNull(startDateTime);
+		requireNonNull(endDateTime);
+		requireNonNull(reportTimeZone);
+		requireNonNull(reportLocale);
+		requireNonNull(writer);
+
+		// Ignoring TZ for now because the slot date-times are stored as "wall clock" times in the database
+		// and in practice anyone reporting over them is in the same institution/timezone as the provider
+		List<ProviderAppointmentEap> appointments = getDatabase().queryForList("""
+				SELECT app.*, p.name as provider_name, a.email_address as account_email_address, a.account_source_id,
+				a.first_name as account_first_name, a.last_name as account_last_name, a.email_address
+				FROM appointment app, provider p, account a, provider_support_role psr
+				WHERE p.provider_id=app.provider_id
+				AND app.account_id=a.account_id
+				AND psr.provider_id=p.provider_id
+				AND psr.support_role_id=?
+				AND p.institution_id=?
+				AND app.canceled = FALSE
+				AND app.start_time >= ?
+				AND app.start_time <= ?
+				ORDER BY p.name, app.start_time
+								""", ProviderAppointmentEap.class, SupportRoleId.CARE_MANAGER, institutionId, startDateTime, endDateTime);
+
+		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd H:mm").withLocale(reportLocale);
+		DateTimeFormatter instantFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd H:mm:ss")
+				.withLocale(reportLocale)
+				.withZone(reportTimeZone);
+
+		for (ProviderAppointmentEap appointment : appointments) {
+			AppointmentType appointmentType = database.queryForObject("SELECT * FROM appointment_type WHERE appointment_type_id=?", AppointmentType.class, appointment.getAppointmentTypeId()).get();
+			List<AppointmentTypeAssessment> appointmentTypeAssessments = database.queryForList("""
+					SELECT *
+					FROM appointment_type_assessment
+					WHERE appointment_type_id=?
+					""", AppointmentTypeAssessment.class, appointmentType.getAppointmentTypeId());
+
+			Set<UUID> assessmentIdsForAppointmentType = appointmentTypeAssessments.stream()
+					.map(ata -> ata.getAssessmentId())
+					.collect(Collectors.toSet());
+
+			List<Clinic> clinics = database.queryForList("""
+								select c.* from clinic c, provider_clinic pc 
+								where pc.provider_id=?
+								and pc.clinic_id=c.clinic_id
+					""", Clinic.class, appointment.getProviderId());
+
+			Set<UUID> clinicIntakeAssessmentIds = clinics.stream()
+					.map(clinic -> clinic.getIntakeAssessmentId())
+					.filter(id -> id != null)
+					.collect(Collectors.toSet());
+
+			if (appointment.getIntakeAccountSessionId() != null) {
+				if (!assessmentIdsForAppointmentType.contains(appointment.getIntakeAssessmentId())) {
+					if (assessmentIdsForAppointmentType.size() == 0) {
+						appointment.setNote(format("Clinic Intake Assessment ID %s was used (no appointment type assessment available)", appointment.getIntakeAssessmentId()));
+
+						if (!clinicIntakeAssessmentIds.contains(appointment.getIntakeAssessmentId()))
+							throw new IllegalStateException("Not sure where intake assessment ID came from...");
+					} else {
+						appointment.setNote(format("Error: Intake Assessment ID %s not in %s", appointment.getIntakeAssessmentId(), assessmentIdsForAppointmentType));
+					}
+				}
+
+				List<AssessmentAnswer> assessmentAnswers = database.queryForList("""
+						select q.question_text, asa.answer_text
+						from account_session_answer asa, answer a, question q
+						where asa.account_session_id = ?
+						and asa.answer_id=a.answer_id
+						and a.question_id=q.question_id
+						and asa.answer_text is not null
+						""", AssessmentAnswer.class, appointment.getIntakeAccountSessionId());
+
+				// TODO: this is a temporary hardcode to support legacy intake assessments
+				for (AssessmentAnswer assessmentAnswer : assessmentAnswers) {
+					if ("What is your first name?".equals(assessmentAnswer.getQuestionText())) {
+						appointment.setFirstNameAnswer(assessmentAnswer);
+					} else if ("What is your last name?".equals(assessmentAnswer.getQuestionText())) {
+						appointment.setLastNameAnswer(assessmentAnswer);
+					} else if ("What is your phone number?".equals(assessmentAnswer.getQuestionText())) {
+						appointment.setPhoneNumberAnswer(assessmentAnswer);
+					} else {
+						throw new IllegalStateException("Unexpected question: '" + assessmentAnswer.getQuestionText() + "'");
+					}
+				}
+			}
+		}
+
+		// Not including some columns for the moment
+		List<String> headerColumns = List.of(
+				getStrings().get("Appointment ID"),
+				getStrings().get("Provider"),
+				getStrings().get("Booking Date/Time"),
+				getStrings().get("Appointment Date/Time"),
+				//getStrings().get("Account Source"),
+				getStrings().get("First Name"),
+				getStrings().get("Last Name"),
+				getStrings().get("Email"),
+				getStrings().get("Phone")
+				//getStrings().get("Took Assessment?"),
+				//getStrings().get("Assessment ID"),
+				//getStrings().get("Account Session ID"),
+				//getStrings().get("Note")
+		);
+
+		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(headerColumns.toArray(new String[0])))) {
+			SortedSet<UUID> intakeAssessmentIds = new TreeSet<>();
+
+			for (ProviderAppointmentEap appointment : appointments) {
+				String provider = appointment.getProviderName();
+				String bookingDateTime = instantFormatter.format(appointment.getCreated());
+				String accountSourceId = appointment.getAccountSourceId().name();
+				String appointmentDateTime = dateTimeFormatter.format(appointment.getStartTime());
+				String emailAddress = appointment.getAccountEmailAddress();
+
+				if (emailAddress == null) {
+					Account account = database.queryForObject("SELECT * FROM account WHERE account_id=?", Account.class, appointment.getAccountId()).get();
+
+					// If the SSO ID appears to be a valid email address, use it
+					if (account.getSsoId() != null && isValidEmailAddress(account.getSsoId()))
+						emailAddress = account.getSsoId();
+				}
+
+				String firstName = appointment.getFirstNameAnswer() != null ? appointment.getFirstNameAnswer().getAnswerText() : null;
+
+				if (firstName == null)
+					firstName = appointment.getAccountFirstName();
+
+				String lastName = appointment.getLastNameAnswer() != null ? appointment.getLastNameAnswer().getAnswerText() : null;
+
+				if (lastName == null)
+					lastName = appointment.getAccountLastName();
+
+				String phoneNumber = appointment.getPhoneNumberAnswer() != null ? appointment.getPhoneNumberAnswer().getAnswerText() : null;
+
+				if (phoneNumber == null)
+					phoneNumber = appointment.getPhoneNumber();
+
+				boolean elidePii = true;
+
+				if (elidePii) {
+					if (firstName != null) {
+						firstName = firstName.substring(0, 1).toUpperCase(Locale.US);
+						firstName = firstName + ".";
+					}
+
+					if (lastName != null) {
+						lastName = lastName.substring(0, 1).toUpperCase(Locale.US);
+						lastName = lastName + ".";
+					}
+
+					if (emailAddress != null) {
+						String suffix = emailAddress.substring(emailAddress.indexOf("@"));
+						String prefix = emailAddress.substring(0, emailAddress.indexOf("@"));
+						emailAddress = emailAddress.substring(0, 1) + format("%0" + (prefix.length() - 1) + "d", 0).replace("0", "*") + suffix; // + " --- " + emailAddress;
+					}
+
+					if (phoneNumber != null) {
+						if (phoneNumber.startsWith("1"))
+							phoneNumber = phoneNumber.substring(1);
+
+						String prefix = phoneNumber.substring(0, 3);
+						String suffix = phoneNumber.substring(phoneNumber.length() - 4, phoneNumber.length());
+						phoneNumber = prefix + "***" + suffix;
+					}
+				}
+
+				String tookAssessment = appointment.getIntakeAccountSessionId() != null ? "YES" : "NO";
+
+				if (appointment.getIntakeAssessmentId() != null)
+					intakeAssessmentIds.add(appointment.getIntakeAssessmentId());
+
+				List<String> recordElements = new ArrayList<>();
+
+				// Not including some columns for the moment
+				recordElements.add(appointment.getAppointmentId().toString());
+				recordElements.add(provider);
+				recordElements.add(bookingDateTime);
+				recordElements.add(appointmentDateTime);
+				//recordElements.add(accountSourceId);
+				recordElements.add(firstName);
+				recordElements.add(lastName);
+				recordElements.add(emailAddress);
+				recordElements.add(phoneNumber);
+				//recordElements.add(tookAssessment);
+				//recordElements.add(appointment.getIntakeAssessmentId() == null ? null : appointment.getIntakeAssessmentId().toString());
+				//recordElements.add(appointment.getIntakeAccountSessionId() == null ? null : appointment.getIntakeAccountSessionId().toString());
+				//recordElements.add(appointment.getNote());
 
 				csvPrinter.printRecord(recordElements.toArray(new Object[0]));
 			}
@@ -1057,6 +1296,134 @@ public class ReportingService {
 		}
 	}
 
+	@NotThreadSafe
+	protected static class ProviderAppointmentEap extends Appointment {
+		@Nullable
+		private String providerName;
+		@Nullable
+		private String accountFirstName;
+		@Nullable
+		private String accountLastName;
+		@Nullable
+		private String accountEmailAddress;
+		@Nullable
+		private AccountSource.AccountSourceId accountSourceId;
+		@Nullable
+		private AssessmentAnswer firstNameAnswer;
+		@Nullable
+		private AssessmentAnswer lastNameAnswer;
+		@Nullable
+		private AssessmentAnswer phoneNumberAnswer;
+		@Nullable
+		private String note;
+
+		@Nullable
+		public String getProviderName() {
+			return this.providerName;
+		}
+
+		public void setProviderName(@Nullable String providerName) {
+			this.providerName = providerName;
+		}
+
+		@Nullable
+		public AccountSource.AccountSourceId getAccountSourceId() {
+			return this.accountSourceId;
+		}
+
+		public void setAccountSourceId(@Nullable AccountSource.AccountSourceId accountSourceId) {
+			this.accountSourceId = accountSourceId;
+		}
+
+		@Nullable
+		public String getAccountLastName() {
+			return this.accountLastName;
+		}
+
+		@Nullable
+		public String getAccountEmailAddress() {
+			return this.accountEmailAddress;
+		}
+
+		public void setAccountEmailAddress(@Nullable String accountEmailAddress) {
+			this.accountEmailAddress = accountEmailAddress;
+		}
+
+		public void setAccountLastName(@Nullable String accountLastName) {
+			this.accountLastName = accountLastName;
+		}
+
+		@Nullable
+		public String getAccountFirstName() {
+			return this.accountFirstName;
+		}
+
+		public void setAccountFirstName(@Nullable String accountFirstName) {
+			this.accountFirstName = accountFirstName;
+		}
+
+		@Nullable
+		public AssessmentAnswer getFirstNameAnswer() {
+			return this.firstNameAnswer;
+		}
+
+		public void setFirstNameAnswer(@Nullable AssessmentAnswer firstNameAnswer) {
+			this.firstNameAnswer = firstNameAnswer;
+		}
+
+		@Nullable
+		public AssessmentAnswer getLastNameAnswer() {
+			return this.lastNameAnswer;
+		}
+
+		public void setLastNameAnswer(@Nullable AssessmentAnswer lastNameAnswer) {
+			this.lastNameAnswer = lastNameAnswer;
+		}
+
+		@Nullable
+		public AssessmentAnswer getPhoneNumberAnswer() {
+			return this.phoneNumberAnswer;
+		}
+
+		public void setPhoneNumberAnswer(@Nullable AssessmentAnswer phoneNumberAnswer) {
+			this.phoneNumberAnswer = phoneNumberAnswer;
+		}
+
+		@Nullable
+		public String getNote() {
+			return this.note;
+		}
+
+		public void setNote(@Nullable String note) {
+			this.note = note;
+		}
+	}
+
+	@NotThreadSafe
+	protected static class AssessmentAnswer {
+		@Nullable
+		private String questionText;
+		@Nullable
+		private String answerText;
+
+		@Nullable
+		public String getQuestionText() {
+			return this.questionText;
+		}
+
+		public void setQuestionText(@Nullable String questionText) {
+			this.questionText = questionText;
+		}
+
+		@Nullable
+		public String getAnswerText() {
+			return this.answerText;
+		}
+
+		public void setAnswerText(@Nullable String answerText) {
+			this.answerText = answerText;
+		}
+	}
 
 	@NotThreadSafe
 	protected static class IcWhereClauseWithParameters {
@@ -1155,6 +1522,11 @@ public class ReportingService {
 	@Nonnull
 	protected GroupSessionService getGroupSessionService() {
 		return this.groupSessionServiceProvider.get();
+	}
+
+	@Nonnull
+	protected AuthorizationService getAuthorizationService() {
+		return this.authorizationServiceProvider.get();
 	}
 
 	@Nonnull

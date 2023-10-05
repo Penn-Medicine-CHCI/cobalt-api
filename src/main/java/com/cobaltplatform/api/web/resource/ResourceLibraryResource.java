@@ -137,6 +137,20 @@ public class ResourceLibraryResource {
 	}
 
 	@Nonnull
+	@GET("/resource-library/tag-groups")
+	@AuthenticationRequired
+	public ApiResponse resourceLibraryTagGroups() {
+		CurrentContext currentContext = getCurrentContext();
+		List<TagGroupApiResponse> tagGroups = getTagService().findTagGroupsByInstitutionId(currentContext.getInstitutionId()).stream()
+				.map(tagGroup -> getTagGroupApiResponseFactory().create(tagGroup))
+				.collect(Collectors.toList());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("tagGroups", tagGroups);
+		}});
+	}
+
+	@Nonnull
 	@GET("/resource-library")
 	@AuthenticationRequired
 	public ApiResponse resourceLibrary() {
