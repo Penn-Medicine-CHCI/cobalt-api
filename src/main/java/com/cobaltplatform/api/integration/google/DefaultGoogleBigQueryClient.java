@@ -477,7 +477,25 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 				// *** Start Geo ***
 
 				GoogleBigQueryExportRecord.Geo geo = new GoogleBigQueryExportRecord.Geo();
-				// TODO
+				GoogleBigQueryRestApiQueryResponse.Row.RowField geoField = row.getFields().get(fieldIndicesByName.get("geo"));
+
+				if (geoField.getField() != null) {
+					GoogleBigQueryRestApiQueryResponse.Row.RowField fieldLevel1 = geoField.getField();
+
+					if (fieldLevel1.getFields() != null) {
+						List<GoogleBigQueryRestApiQueryResponse.Row.RowField> fieldsLevel2 = fieldLevel1.getFields();
+
+						if (fieldsLevel2.size() != 6)
+							throw new IllegalStateException("Not sure how to handle geo field " + geoField);
+
+						geo.setCity(fieldsLevel2.get(0).getValue());
+						geo.setCountry(fieldsLevel2.get(1).getValue());
+						geo.setContinent(fieldsLevel2.get(2).getValue());
+						geo.setRegion(fieldsLevel2.get(3).getValue());
+						geo.setSubContinent(fieldsLevel2.get(4).getValue());
+						geo.setMetro(fieldsLevel2.get(5).getValue());
+					}
+				}
 
 				// *** End Geo ***
 
