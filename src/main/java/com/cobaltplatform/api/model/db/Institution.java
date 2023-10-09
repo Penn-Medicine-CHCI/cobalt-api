@@ -250,6 +250,9 @@ public class Institution {
 	@DatabaseColumn("bigquery_resource_id")
 	private String bigQueryResourceId;
 	@Nullable
+	@DatabaseColumn("bigquery_event_history_starts_at")
+	private LocalDate bigQueryEventHistoryStartsAt;
+	@Nullable
 	private Long mixpanelProjectId;
 	@Nullable
 	private String mixpanelServiceAccountUsername;
@@ -1170,6 +1173,15 @@ public class Institution {
 
 	public void setBigQueryResourceId(@Nullable String bigQueryResourceId) {
 		this.bigQueryResourceId = bigQueryResourceId;
+	}
+
+	@Nullable
+	public LocalDate getBigQueryEventHistoryStartsAt() {
+		return this.bigQueryEventHistoryStartsAt;
+	}
+
+	public void setBigQueryEventHistoryStartsAt(@Nullable LocalDate bigQueryEventHistoryStartsAt) {
+		this.bigQueryEventHistoryStartsAt = bigQueryEventHistoryStartsAt;
 	}
 
 	@Nullable
