@@ -23,6 +23,7 @@ import com.cobaltplatform.api.http.DefaultHttpClient;
 import com.cobaltplatform.api.http.HttpClient;
 import com.cobaltplatform.api.http.HttpMethod;
 import com.cobaltplatform.api.http.HttpRequest;
+import com.cobaltplatform.api.http.HttpRequestOption;
 import com.cobaltplatform.api.http.HttpResponse;
 import com.cobaltplatform.api.model.db.AnalyticsGoogleBigQueryEvent;
 import com.cobaltplatform.api.util.GsonUtility;
@@ -43,6 +44,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
 import javax.annotation.Nonnull;
+import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -185,7 +187,7 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 	/**
 	 * Package-private to allow tests to access.
 	 */
-	List<GoogleBigQueryExportRecord> extractGoogleBigQueryExportRecordsFromPageJson(@Nonnull String pageJson) {
+	GoogleBigQueryExportRecordsPage extractGoogleBigQueryExportRecordsFromPageJson(@Nonnull String pageJson) {
 		requireNonNull(pageJson);
 
 		GoogleBigQueryRestApiQueryResponse response = GoogleBigQueryRestApiQueryResponse.fromJson(pageJson);
@@ -521,12 +523,10 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 			exportRecord.setTrafficSource(trafficSource);
 			exportRecord.setCollectedTrafficSource(collectedTrafficSource);
 
-			System.out.println(exportRecord);
-
 			exportRecords.add(exportRecord);
 		}
 
-		return exportRecords;
+		return new GoogleBigQueryExportRecordsPage(response, exportRecords);
 	}
 
 	@Override
@@ -564,17 +564,75 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 				.build();
 
 		try {
-			HttpResponse httpResponse = httpClient.execute(httpRequest);
+			HttpResponse httpResponse = httpClient.execute(httpRequest, HttpRequestOption.SUPPRESS_RESPONSE_BODY_LOGGING);
 			byte[] responseBody = httpResponse.getBody().orElse(null);
 			String responseBodyAsString = responseBody == null ? null : new String(responseBody, StandardCharsets.UTF_8);
 
 			if (httpResponse.getStatus() >= 400)
 				throw new IOException(format("Received HTTP %d and response body:\n%s", httpResponse.getStatus(), responseBodyAsString));
 
-			// TODO: finish up
-			throw new UnsupportedOperationException();
+			// First page of data
+			GoogleBigQueryExportRecordsPage page = extractGoogleBigQueryExportRecordsFromPageJson(responseBodyAsString);
+			List<GoogleBigQueryExportRecord> exportRecords = new ArrayList<>(Integer.valueOf(page.getResponse().getTotalRows()));
+			exportRecords.addAll(page.getExportRecords());
+
+			// More pages?  Walk them using the page token
+			while (page.getResponse().getPageToken() != null) {
+				// See https://cloud.google.com/bigquery/docs/paging-results
+				// See https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/getQueryResults
+				String pageUrl = format("https://www.googleapis.com/bigquery/v2/projects/%s/queries/%s", projectId, page.getResponse().getJobReference().getJobId());
+
+				HttpRequest httpRequestForPage = new HttpRequest.Builder(HttpMethod.GET, pageUrl)
+						.queryParameters(Map.of(
+								"access_token", accessToken.getTokenValue(),
+								"timeout_ms", timeout.toMillis(),
+								"page_token", page.getResponse().getPageToken()
+						))
+						.build();
+
+				HttpResponse httpResponseForPage = httpClient.execute(httpRequestForPage, HttpRequestOption.SUPPRESS_RESPONSE_BODY_LOGGING);
+				byte[] responseBodyForPage = httpResponseForPage.getBody().orElse(null);
+				String responseBodyAsStringForPage = responseBodyForPage == null ? null : new String(responseBodyForPage, StandardCharsets.UTF_8);
+
+				if (httpResponseForPage.getStatus() >= 400)
+					throw new IOException(format("Received HTTP %d and response body:\n%s", httpResponseForPage.getStatus(), responseBodyAsStringForPage));
+
+				// Parse the page of data
+				page = extractGoogleBigQueryExportRecordsFromPageJson(responseBodyAsStringForPage);
+				System.out.println("Page rows: " + page.getResponse().getRows().size());
+				exportRecords.addAll(page.getExportRecords());
+			}
+
+			return exportRecords;
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
+		}
+	}
+
+	@NotThreadSafe
+	static class GoogleBigQueryExportRecordsPage {
+		@Nonnull
+		private final GoogleBigQueryRestApiQueryResponse response;
+		@Nonnull
+		private final List<GoogleBigQueryExportRecord> exportRecords;
+
+		public GoogleBigQueryExportRecordsPage(@Nonnull GoogleBigQueryRestApiQueryResponse response,
+																					 @Nonnull List<GoogleBigQueryExportRecord> exportRecords) {
+			requireNonNull(response);
+			requireNonNull(exportRecords);
+
+			this.response = response;
+			this.exportRecords = exportRecords;
+		}
+
+		@Nonnull
+		public GoogleBigQueryRestApiQueryResponse getResponse() {
+			return this.response;
+		}
+
+		@Nonnull
+		public List<GoogleBigQueryExportRecord> getExportRecords() {
+			return this.exportRecords;
 		}
 	}
 

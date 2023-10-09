@@ -33,6 +33,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
@@ -57,6 +58,20 @@ public class GoogleBigQueryClientTests {
 		String pageJson = Files.readString(Path.of("resources/test/bigquery-single-scroll-api-response.json"), StandardCharsets.UTF_8);
 		DefaultGoogleBigQueryClient googleBigQueryClient = (DefaultGoogleBigQueryClient) acquireGoogleBigQueryClient();
 		googleBigQueryClient.extractGoogleBigQueryExportRecordsFromPageJson(pageJson);
+	}
+
+	@Test
+	public void testRestApiQueryForExport() {
+		GoogleBigQueryClient googleBigQueryClient = acquireGoogleBigQueryClient();
+		List<GoogleBigQueryExportRecord> exportRecords = googleBigQueryClient.performRestApiQueryForExport(format("""
+						SELECT *
+						FROM `{{datasetId}}.events_*`
+						WHERE _TABLE_SUFFIX BETWEEN '%s' AND '%s'
+						""",
+				googleBigQueryClient.dateAsTableSuffix(LocalDate.of(2023, 9, 1)),
+				googleBigQueryClient.dateAsTableSuffix(LocalDate.of(2023, 9, 10))), Duration.ofSeconds(30));
+
+		System.out.println("Export records: " + exportRecords.size());
 	}
 
 	@Test
