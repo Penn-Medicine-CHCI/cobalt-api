@@ -69,7 +69,7 @@ public class GoogleBigQueryClientTests {
 						WHERE _TABLE_SUFFIX BETWEEN '%s' AND '%s'
 						""",
 				googleBigQueryClient.dateAsTableSuffix(LocalDate.of(2023, 9, 1)),
-				googleBigQueryClient.dateAsTableSuffix(LocalDate.of(2023, 9, 10))), Duration.ofSeconds(30));
+				googleBigQueryClient.dateAsTableSuffix(LocalDate.of(2023, 9, 8))), Duration.ofSeconds(30));
 
 		System.out.println("Export records: " + exportRecords.size());
 	}

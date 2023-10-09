@@ -42,6 +42,8 @@ import com.google.common.io.CharStreams;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -75,6 +77,13 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 	@Nonnull
+	private static final DateTimeFormatter EXPORT_DATE_FORMATTER;
+
+	static {
+		EXPORT_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd", Locale.US);
+	}
+
+	@Nonnull
 	private final String projectId;
 	@Nonnull
 	private final String bigQueryResourceId;
@@ -84,6 +93,8 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 	private final BigQuery bigQuery;
 	@Nonnull
 	private final Gson gson;
+	@Nonnull
+	private final Logger logger;
 
 	public DefaultGoogleBigQueryClient(@Nonnull String bigQueryResourceId,
 																		 @Nonnull String serviceAccountPrivateKeyJson) {
@@ -102,6 +113,7 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 
 		GsonUtility.applyDefaultTypeAdapters(gsonBuilder);
 
+		this.logger = LoggerFactory.getLogger(getClass());
 		this.gson = gsonBuilder.create();
 
 		try {
@@ -199,14 +211,6 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 			fieldIndicesByName.put(field.getName(), i);
 		}
 
-		System.out.println("Total rows: " + response.getTotalRows());
-		System.out.println("Page rows: " + response.getRows().size());
-		System.out.println("Page token: " + response.getPageToken());
-
-		// TODO: pull out as a static
-		DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyyMMdd", Locale.US);
-
-		// TODO: implement paging to combine all pages into a single `rows` array
 		List<GoogleBigQueryRestApiQueryResponse.Row> rows = new ArrayList<>(response.getRows());
 		List<GoogleBigQueryExportRecord> exportRecords = new ArrayList<>(rows.size());
 
@@ -218,7 +222,7 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 
 			// Event date
 			GoogleBigQueryRestApiQueryResponse.Row.RowField eventDateField = row.getFields().get(fieldIndicesByName.get("event_date"));
-			event.setDate(LocalDate.parse(eventDateField.getValue(), dateFormatter));
+			event.setDate(LocalDate.parse(eventDateField.getValue(), EXPORT_DATE_FORMATTER));
 
 			// Event timestamp
 			GoogleBigQueryRestApiQueryResponse.Row.RowField eventTimestampField = row.getFields().get(fieldIndicesByName.get("event_timestamp"));
@@ -576,6 +580,8 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 			List<GoogleBigQueryExportRecord> exportRecords = new ArrayList<>(Integer.valueOf(page.getResponse().getTotalRows()));
 			exportRecords.addAll(page.getExportRecords());
 
+			getLogger().info("BigQuery page has {} rows ({} of {} total).", page.getResponse().getRows().size(), exportRecords.size(), page.getResponse().getTotalRows());
+
 			// More pages?  Walk them using the page token
 			while (page.getResponse().getPageToken() != null) {
 				// See https://cloud.google.com/bigquery/docs/paging-results
@@ -599,8 +605,8 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 
 				// Parse the page of data
 				page = extractGoogleBigQueryExportRecordsFromPageJson(responseBodyAsStringForPage);
-				System.out.println("Page rows: " + page.getResponse().getRows().size());
 				exportRecords.addAll(page.getExportRecords());
+				getLogger().info("BigQuery page has {} rows ({} of {} total).", page.getResponse().getRows().size(), exportRecords.size(), page.getResponse().getTotalRows());
 			}
 
 			return exportRecords;
@@ -682,5 +688,10 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 	@Nonnull
 	protected Gson getGson() {
 		return this.gson;
+	}
+
+	@Nonnull
+	protected Logger getLogger() {
+		return this.logger;
 	}
 }
