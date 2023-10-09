@@ -118,6 +118,12 @@ public class AnalyticsGoogleBigQueryEvent {
 		return this.deviceAsJson == null ? Optional.empty() : Optional.of(GSON.fromJson(this.deviceAsJson, Device.class));
 	}
 
+	@Override
+	@Nonnull
+	public String toString() {
+		return GSON.toJson(this);
+	}
+
 	public static abstract class AnalyticsGoogleBigQueryProperty {
 		@Override
 		@Nonnull

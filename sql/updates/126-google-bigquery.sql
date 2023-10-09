@@ -62,14 +62,10 @@ CREATE TABLE analytics_google_bigquery_event (
 	UNIQUE (institution_id, name, timestamp, user_pseudo_id, event_bundle_sequence_id)
 );
 
--- Run this separately in nonlocal environments.
--- Locally, we might pull down dev or prod data for experimenting and won't have corresponding account records, so
--- having this constraint present locally would cause inserts to fail.
--- ALTER TABLE analytics_bigquery_event ADD CONSTRAINT account_fk FOREIGN KEY (account_id) REFERENCES account (account_id);
-
 CREATE TABLE analytics_mixpanel_event (
   analytics_mixpanel_event_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   institution_id VARCHAR NOT NULL REFERENCES institution,
+  account_id UUID, -- see note below about why we do not include 'REFERENCES account' here
   distinct_id VARCHAR NOT NULL, -- this is not really distinct - just preserving what Mixpanel calls it
 	name VARCHAR NOT NULL,
 	date DATE NOT NULL, -- duplicate data for easy access
@@ -78,5 +74,12 @@ CREATE TABLE analytics_mixpanel_event (
 	-- In MixPanel world, the combination of "distinct_id, name, timestamp" is a unique identifier.
 	UNIQUE (institution_id, distinct_id, name, timestamp)
 );
+
+-- Run these statements only in nonlocal environments.
+-- Locally, we might pull down dev or prod data for experimenting and won't have corresponding account records, so
+-- having this constraint present locally would cause inserts to fail.
+--
+-- ALTER TABLE analytics_bigquery_event ADD CONSTRAINT account_fk FOREIGN KEY (account_id) REFERENCES account (account_id);
+-- ALTER TABLE analytics_mixpanel_event ADD CONSTRAINT account_fk FOREIGN KEY (account_id) REFERENCES account (account_id);
 
 COMMIT;
