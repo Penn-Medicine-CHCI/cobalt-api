@@ -46,7 +46,7 @@ CREATE TABLE analytics_event_date_sync (
 CREATE TABLE analytics_google_bigquery_event (
   analytics_google_bigquery_event_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   institution_id VARCHAR NOT NULL REFERENCES institution,
-  account_id UUID, -- see note below about why we do not include 'REFERENCES account' here
+  account_id UUID, -- duplicates user->userId for easy access. see note below about why we do not include 'REFERENCES account' here
   user_pseudo_id TEXT, -- duplicates user->userPseudoId for easy access
   event_bundle_sequence_id TEXT, -- duplicates event->bundleSequenceId for easy access
 	name VARCHAR NOT NULL, -- duplicates event->name for easy access
@@ -65,7 +65,7 @@ CREATE TABLE analytics_google_bigquery_event (
 CREATE TABLE analytics_mixpanel_event (
   analytics_mixpanel_event_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   institution_id VARCHAR NOT NULL REFERENCES institution,
-  account_id UUID, -- see note below about why we do not include 'REFERENCES account' here
+  account_id UUID, -- duplicates properties->$user_id for easy access. see note below about why we do not include 'REFERENCES account' here
   distinct_id VARCHAR NOT NULL, -- this is not really distinct - just preserving what Mixpanel calls it
 	name VARCHAR NOT NULL,
 	date DATE NOT NULL, -- duplicate data for easy access

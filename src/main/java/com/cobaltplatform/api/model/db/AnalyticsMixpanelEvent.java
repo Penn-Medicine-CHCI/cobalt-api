@@ -33,6 +33,8 @@ import java.time.LocalDate;
 import java.util.Map;
 import java.util.UUID;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * @author Transmogrify, LLC.
  */
@@ -74,7 +76,11 @@ public class AnalyticsMixpanelEvent {
 		return GSON.toJson(this);
 	}
 
-	// TODO: We probably want a formalized Mixpanel Properties type here, similar to BigQuery
+	@Nonnull
+	public static String toPropertiesJson(@Nonnull Map<String, Object> properties) {
+		requireNonNull(properties);
+		return GSON.toJson(properties);
+	}
 
 	@Nonnull
 	public Map<String, Object> getProperties() {
