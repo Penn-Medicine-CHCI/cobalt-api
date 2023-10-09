@@ -47,7 +47,7 @@ CREATE TABLE analytics_mixpanel_event (
 	date DATE NOT NULL, -- duplicate data for easy access
 	timestamp TIMESTAMPTZ NOT NULL,
 	properties JSONB NOT NULL,
-	UNIQUE (institution_id, distinct_id, event, timestamp)
+	UNIQUE (institution_id, distinct_id, name, timestamp)
 );
 
 CREATE TABLE analytics_bigquery_event (
