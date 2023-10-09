@@ -42,9 +42,15 @@ public class MockGoogleBigQueryClient implements GoogleBigQueryClient {
 		return "mock-resource-id";
 	}
 
-	@Override
 	@Nonnull
+	@Override
 	public List<FieldValueList> queryForList(@Nonnull String sql) {
+		return List.of();
+	}
+
+	@Nonnull
+	@Override
+	public List<GoogleBigQueryExportRecord> performRestApiQueryForExport(@Nonnull String sql) {
 		return List.of();
 	}
 }

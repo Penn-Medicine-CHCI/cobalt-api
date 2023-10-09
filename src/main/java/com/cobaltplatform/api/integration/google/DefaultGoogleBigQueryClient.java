@@ -50,8 +50,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -183,356 +181,356 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 		}
 	}
 
-	public List<GoogleBigQueryExportRecord> test(@Nonnull String sql) {
-		try {
-			String json = Files.readString(Path.of("resources/test/bigquery-single-scroll-api-response.json"), StandardCharsets.UTF_8);
+	/**
+	 * Package-private to allow tests to access.
+	 */
+	List<GoogleBigQueryExportRecord> extractGoogleBigQueryExportRecordsFromPageJson(@Nonnull String pageJson) {
+		requireNonNull(pageJson);
 
-			GoogleBigQueryRestApiQueryResponse response = GoogleBigQueryRestApiQueryResponse.fromJson(json);
+		GoogleBigQueryRestApiQueryResponse response = GoogleBigQueryRestApiQueryResponse.fromJson(pageJson);
 
-			Map<String, Integer> fieldIndicesByName = new HashMap<>(response.getSchema().getFields().size());
+		Map<String, Integer> fieldIndicesByName = new HashMap<>(response.getSchema().getFields().size());
 
-			for (int i = 0; i < response.getSchema().getFields().size(); ++i) {
-				GoogleBigQueryRestApiQueryResponse.TableSchema.TableFieldSchema field = response.getSchema().getFields().get(i);
-				fieldIndicesByName.put(field.getName(), i);
+		for (int i = 0; i < response.getSchema().getFields().size(); ++i) {
+			GoogleBigQueryRestApiQueryResponse.TableSchema.TableFieldSchema field = response.getSchema().getFields().get(i);
+			fieldIndicesByName.put(field.getName(), i);
+		}
+
+		System.out.println("Total rows: " + response.getTotalRows());
+		System.out.println("Page rows: " + response.getRows().size());
+		System.out.println("Page token: " + response.getPageToken());
+
+		// TODO: pull out as a static
+		DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyyMMdd", Locale.US);
+
+		// TODO: implement paging to combine all pages into a single `rows` array
+		List<GoogleBigQueryRestApiQueryResponse.Row> rows = new ArrayList<>(response.getRows());
+		List<GoogleBigQueryExportRecord> exportRecords = new ArrayList<>(rows.size());
+
+		// Pull relevant data from the response.
+		// Schema is documented at https://support.google.com/analytics/answer/7029846?hl=en
+		for (GoogleBigQueryRestApiQueryResponse.Row row : rows) {
+			// *** Start Event ***
+			AnalyticsGoogleBigQueryEvent.Event event = new AnalyticsGoogleBigQueryEvent.Event();
+
+			// Event date
+			GoogleBigQueryRestApiQueryResponse.Row.RowField eventDateField = row.getFields().get(fieldIndicesByName.get("event_date"));
+			event.setDate(LocalDate.parse(eventDateField.getValue(), dateFormatter));
+
+			// Event timestamp
+			GoogleBigQueryRestApiQueryResponse.Row.RowField eventTimestampField = row.getFields().get(fieldIndicesByName.get("event_timestamp"));
+			long eventTimestampFieldValueAsMicroseconds = Long.valueOf(eventTimestampField.getValue());
+			Instant eventTimestamp = Instant.ofEpochSecond(
+					TimeUnit.MICROSECONDS.toSeconds(eventTimestampFieldValueAsMicroseconds),
+					TimeUnit.MICROSECONDS.toNanos(eventTimestampFieldValueAsMicroseconds % TimeUnit.SECONDS.toMicros(1)));
+			event.setTimestamp(eventTimestamp);
+
+			// Event previous timestamp
+			GoogleBigQueryRestApiQueryResponse.Row.RowField eventPreviousTimestampField = row.getFields().get(fieldIndicesByName.get("event_previous_timestamp"));
+
+			if (eventPreviousTimestampField.getValue() != null) {
+				long eventPreviousTimestampFieldValueAsMicroseconds = Long.valueOf(eventPreviousTimestampField.getValue());
+				Instant eventPreviousTimestamp = Instant.ofEpochSecond(
+						TimeUnit.MICROSECONDS.toSeconds(eventPreviousTimestampFieldValueAsMicroseconds),
+						TimeUnit.MICROSECONDS.toNanos(eventPreviousTimestampFieldValueAsMicroseconds % TimeUnit.SECONDS.toMicros(1)));
+				event.setPreviousTimestamp(eventPreviousTimestamp);
 			}
 
-			System.out.println("Total rows: " + response.getTotalRows());
-			System.out.println("Page rows: " + response.getRows().size());
-			System.out.println("Page token: " + response.getPageToken());
+			// Event name
+			GoogleBigQueryRestApiQueryResponse.Row.RowField eventNameField = row.getFields().get(fieldIndicesByName.get("event_name"));
+			event.setName(eventNameField.getValue());
 
-			// TODO: pull out as a static
-			DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyyMMdd", Locale.US);
+			// Event value in USD
+			GoogleBigQueryRestApiQueryResponse.Row.RowField eventValueInUsdField = row.getFields().get(fieldIndicesByName.get("event_value_in_usd"));
+			event.setValueInUsd(eventValueInUsdField.getValue() == null ? null : Double.valueOf(eventValueInUsdField.getValue()));
 
-			// TODO: implement paging to combine all pages into a single `rows` array
-			List<GoogleBigQueryRestApiQueryResponse.Row> rows = new ArrayList<>(response.getRows());
-			List<GoogleBigQueryExportRecord> exportRecords = new ArrayList<>(rows.size());
+			// Event bundle sequence ID
+			GoogleBigQueryRestApiQueryResponse.Row.RowField eventBundleSequenceIdField = row.getFields().get(fieldIndicesByName.get("event_bundle_sequence_id"));
+			event.setBundleSequenceId(eventBundleSequenceIdField.getValue() == null ? null : Long.valueOf(eventBundleSequenceIdField.getValue()));
 
-			// Pull relevant data from the response.
-			// Schema is documented at https://support.google.com/analytics/answer/7029846?hl=en
-			for (GoogleBigQueryRestApiQueryResponse.Row row : rows) {
-				// *** Start Event ***
-				AnalyticsGoogleBigQueryEvent.Event event = new AnalyticsGoogleBigQueryEvent.Event();
+			// Event bundle sequence ID
+			GoogleBigQueryRestApiQueryResponse.Row.RowField eventServerTimestampOffsetField = row.getFields().get(fieldIndicesByName.get("event_server_timestamp_offset"));
+			event.setServerTimestampOffset(eventServerTimestampOffsetField.getValue() == null ? null : Long.valueOf(eventServerTimestampOffsetField.getValue()));
 
-				// Event date
-				GoogleBigQueryRestApiQueryResponse.Row.RowField eventDateField = row.getFields().get(fieldIndicesByName.get("event_date"));
-				event.setDate(LocalDate.parse(eventDateField.getValue(), dateFormatter));
+			// Event Params
+			GoogleBigQueryRestApiQueryResponse.Row.RowField eventParamsField = row.getFields().get(fieldIndicesByName.get("event_params"));
+			List<GoogleBigQueryRestApiQueryResponse.Row.RowField> eventParamsFields = eventParamsField.getFields();
 
-				// Event timestamp
-				GoogleBigQueryRestApiQueryResponse.Row.RowField eventTimestampField = row.getFields().get(fieldIndicesByName.get("event_timestamp"));
-				long eventTimestampFieldValueAsMicroseconds = Long.valueOf(eventTimestampField.getValue());
-				Instant eventTimestamp = Instant.ofEpochSecond(
-						TimeUnit.MICROSECONDS.toSeconds(eventTimestampFieldValueAsMicroseconds),
-						TimeUnit.MICROSECONDS.toNanos(eventTimestampFieldValueAsMicroseconds % TimeUnit.SECONDS.toMicros(1)));
-				event.setTimestamp(eventTimestamp);
+			Map<String, AnalyticsGoogleBigQueryEvent.Event.EventParamValue> eventParameters = new HashMap<>();
 
-				// Event previous timestamp
-				GoogleBigQueryRestApiQueryResponse.Row.RowField eventPreviousTimestampField = row.getFields().get(fieldIndicesByName.get("event_previous_timestamp"));
+			// Format is, for each field in the list there is another field object.  In that field ovject, there is a list of fields.
+			// In the list of fields -
+			// * the first element has a value with the name of the event
+			// * the second element has a field object with a list of fields contained in it.  The first non-null value is the one to take
+			//
+			// Example:
+			// [{
+			//  "field": {
+			//    "fields": [
+			//      {
+			//        "value": "link_detail"
+			//      },
+			//      {
+			//        "field": {
+			//          "fields": [
+			//            {
+			//              "value": "Wellness Coaching"
+			//            },
+			//            {},
+			//            {},
+			//            {}
+			//          ]
+			//        }
+			//      }
+			//    ]
+			//  }
+			// }
 
-				if (eventPreviousTimestampField.getValue() != null) {
-					long eventPreviousTimestampFieldValueAsMicroseconds = Long.valueOf(eventPreviousTimestampField.getValue());
-					Instant eventPreviousTimestamp = Instant.ofEpochSecond(
-							TimeUnit.MICROSECONDS.toSeconds(eventPreviousTimestampFieldValueAsMicroseconds),
-							TimeUnit.MICROSECONDS.toNanos(eventPreviousTimestampFieldValueAsMicroseconds % TimeUnit.SECONDS.toMicros(1)));
-					event.setPreviousTimestamp(eventPreviousTimestamp);
-				}
+			for (GoogleBigQueryRestApiQueryResponse.Row.RowField field : eventParamsFields) {
+				GoogleBigQueryRestApiQueryResponse.Row.RowField fieldLevel1 = field.getField();
 
-				// Event name
-				GoogleBigQueryRestApiQueryResponse.Row.RowField eventNameField = row.getFields().get(fieldIndicesByName.get("event_name"));
-				event.setName(eventNameField.getValue());
+				if (fieldLevel1 != null) {
+					List<GoogleBigQueryRestApiQueryResponse.Row.RowField> fieldsLevel2 = fieldLevel1.getFields();
 
-				// Event value in USD
-				GoogleBigQueryRestApiQueryResponse.Row.RowField eventValueInUsdField = row.getFields().get(fieldIndicesByName.get("event_value_in_usd"));
-				event.setValueInUsd(eventValueInUsdField.getValue() == null ? null : Double.valueOf(eventValueInUsdField.getValue()));
+					if (fieldsLevel2 != null) {
+						if (fieldsLevel2.size() != 2)
+							throw new IllegalStateException("Not sure how to handle event params field " + field);
 
-				// Event bundle sequence ID
-				GoogleBigQueryRestApiQueryResponse.Row.RowField eventBundleSequenceIdField = row.getFields().get(fieldIndicesByName.get("event_bundle_sequence_id"));
-				event.setBundleSequenceId(eventBundleSequenceIdField.getValue() == null ? null : Long.valueOf(eventBundleSequenceIdField.getValue()));
+						// Name should just have a value
+						GoogleBigQueryRestApiQueryResponse.Row.RowField fieldLevel3ParameterName = fieldsLevel2.get(0);
+						String parameterName = fieldLevel3ParameterName.getValue();
 
-				// Event bundle sequence ID
-				GoogleBigQueryRestApiQueryResponse.Row.RowField eventServerTimestampOffsetField = row.getFields().get(fieldIndicesByName.get("event_server_timestamp_offset"));
-				event.setServerTimestampOffset(eventServerTimestampOffsetField.getValue() == null ? null : Long.valueOf(eventServerTimestampOffsetField.getValue()));
+						GoogleBigQueryRestApiQueryResponse.Row.RowField fieldLevel3ParameterValueLevel1 = fieldsLevel2.get(1);
 
-				// Event Params
-				GoogleBigQueryRestApiQueryResponse.Row.RowField eventParamsField = row.getFields().get(fieldIndicesByName.get("event_params"));
-				List<GoogleBigQueryRestApiQueryResponse.Row.RowField> eventParamsFields = eventParamsField.getFields();
+						if (fieldLevel3ParameterValueLevel1 == null)
+							throw new IllegalStateException("Not sure how to handle event params field " + field);
 
-				Map<String, AnalyticsGoogleBigQueryEvent.Event.EventParamValue> eventParameters = new HashMap<>();
+						// Values need to be picked out of a list
+						GoogleBigQueryRestApiQueryResponse.Row.RowField fieldLevel3ParameterValueLevel2 = fieldLevel3ParameterValueLevel1.getField();
 
-				// Format is, for each field in the list there is another field object.  In that field ovject, there is a list of fields.
-				// In the list of fields -
-				// * the first element has a value with the name of the event
-				// * the second element has a field object with a list of fields contained in it.  The first non-null value is the one to take
-				//
-				// Example:
-				// [{
-				//  "field": {
-				//    "fields": [
-				//      {
-				//        "value": "link_detail"
-				//      },
-				//      {
-				//        "field": {
-				//          "fields": [
-				//            {
-				//              "value": "Wellness Coaching"
-				//            },
-				//            {},
-				//            {},
-				//            {}
-				//          ]
-				//        }
-				//      }
-				//    ]
-				//  }
-				// }
+						if (fieldLevel3ParameterValueLevel2 == null
+								|| fieldLevel3ParameterValueLevel2.getFields() == null
+								|| fieldLevel3ParameterValueLevel2.getFields().size() != 4) // Event params always have STRING, INTEGER, FLOAT, DOUBLE options
+							throw new IllegalStateException("Not sure how to handle event params field " + field);
 
-				for (GoogleBigQueryRestApiQueryResponse.Row.RowField field : eventParamsFields) {
-					GoogleBigQueryRestApiQueryResponse.Row.RowField fieldLevel1 = field.getField();
+						// Event params always have STRING, INTEGER, FLOAT, DOUBLE options
+						GoogleBigQueryRestApiQueryResponse.Row.RowField stringRowField = fieldLevel3ParameterValueLevel2.getFields().get(0);
+						String stringValue = stringRowField.getValue();
+						AnalyticsGoogleBigQueryEvent.Event.EventParamValue eventParamValue = new AnalyticsGoogleBigQueryEvent.Event.EventParamValue();
 
-					if (fieldLevel1 != null) {
-						List<GoogleBigQueryRestApiQueryResponse.Row.RowField> fieldsLevel2 = fieldLevel1.getFields();
+						if (stringRowField.getValue() != null) {
+							eventParamValue.setValue(stringValue);
+							eventParamValue.setType(AnalyticsGoogleBigQueryEvent.Event.EventParamValueType.STRING);
+						} else {
+							// Google's INTEGER definition can be larger than Java's Integer.MAX_VALUE, so we use Long instead
+							GoogleBigQueryRestApiQueryResponse.Row.RowField longRowField = fieldLevel3ParameterValueLevel2.getFields().get(1);
+							Long longValue = longRowField.getValue() == null ? null : Long.valueOf(longRowField.getValue());
 
-						if (fieldsLevel2 != null) {
-							if (fieldsLevel2.size() != 2)
-								throw new IllegalStateException("Not sure how to handle event params field " + field);
-
-							// Name should just have a value
-							GoogleBigQueryRestApiQueryResponse.Row.RowField fieldLevel3ParameterName = fieldsLevel2.get(0);
-							String parameterName = fieldLevel3ParameterName.getValue();
-
-							GoogleBigQueryRestApiQueryResponse.Row.RowField fieldLevel3ParameterValueLevel1 = fieldsLevel2.get(1);
-
-							if (fieldLevel3ParameterValueLevel1 == null)
-								throw new IllegalStateException("Not sure how to handle event params field " + field);
-
-							// Values need to be picked out of a list
-							GoogleBigQueryRestApiQueryResponse.Row.RowField fieldLevel3ParameterValueLevel2 = fieldLevel3ParameterValueLevel1.getField();
-
-							if (fieldLevel3ParameterValueLevel2 == null
-									|| fieldLevel3ParameterValueLevel2.getFields() == null
-									|| fieldLevel3ParameterValueLevel2.getFields().size() != 4) // Event params always have STRING, INTEGER, FLOAT, DOUBLE options
-								throw new IllegalStateException("Not sure how to handle event params field " + field);
-
-							// Event params always have STRING, INTEGER, FLOAT, DOUBLE options
-							GoogleBigQueryRestApiQueryResponse.Row.RowField stringRowField = fieldLevel3ParameterValueLevel2.getFields().get(0);
-							String stringValue = stringRowField.getValue();
-							AnalyticsGoogleBigQueryEvent.Event.EventParamValue eventParamValue = new AnalyticsGoogleBigQueryEvent.Event.EventParamValue();
-
-							if (stringRowField.getValue() != null) {
-								eventParamValue.setValue(stringValue);
-								eventParamValue.setType(AnalyticsGoogleBigQueryEvent.Event.EventParamValueType.STRING);
+							if (longValue != null) {
+								eventParamValue.setValue(longValue);
+								eventParamValue.setType(AnalyticsGoogleBigQueryEvent.Event.EventParamValueType.INTEGER);
 							} else {
-								// Google's INTEGER definition can be larger than Java's Integer.MAX_VALUE, so we use Long instead
-								GoogleBigQueryRestApiQueryResponse.Row.RowField longRowField = fieldLevel3ParameterValueLevel2.getFields().get(1);
-								Long longValue = longRowField.getValue() == null ? null : Long.valueOf(longRowField.getValue());
+								GoogleBigQueryRestApiQueryResponse.Row.RowField floatRowField = fieldLevel3ParameterValueLevel2.getFields().get(2);
+								Float floatValue = floatRowField.getValue() == null ? null : Float.valueOf(floatRowField.getValue());
 
-								if (longValue != null) {
-									eventParamValue.setValue(longValue);
-									eventParamValue.setType(AnalyticsGoogleBigQueryEvent.Event.EventParamValueType.INTEGER);
+								if (floatValue != null) {
+									eventParamValue.setValue(floatValue);
+									eventParamValue.setType(AnalyticsGoogleBigQueryEvent.Event.EventParamValueType.FLOAT);
 								} else {
-									GoogleBigQueryRestApiQueryResponse.Row.RowField floatRowField = fieldLevel3ParameterValueLevel2.getFields().get(2);
-									Float floatValue = floatRowField.getValue() == null ? null : Float.valueOf(floatRowField.getValue());
+									GoogleBigQueryRestApiQueryResponse.Row.RowField doubleRowField = fieldLevel3ParameterValueLevel2.getFields().get(3);
+									Double doubleValue = doubleRowField.getValue() == null ? null : Double.valueOf(doubleRowField.getValue());
 
-									if (floatValue != null) {
-										eventParamValue.setValue(floatValue);
-										eventParamValue.setType(AnalyticsGoogleBigQueryEvent.Event.EventParamValueType.FLOAT);
-									} else {
-										GoogleBigQueryRestApiQueryResponse.Row.RowField doubleRowField = fieldLevel3ParameterValueLevel2.getFields().get(3);
-										Double doubleValue = doubleRowField.getValue() == null ? null : Double.valueOf(doubleRowField.getValue());
-
-										if (doubleValue != null) {
-											eventParamValue.setValue(doubleValue);
-											eventParamValue.setType(AnalyticsGoogleBigQueryEvent.Event.EventParamValueType.DOUBLE);
-										}
+									if (doubleValue != null) {
+										eventParamValue.setValue(doubleValue);
+										eventParamValue.setType(AnalyticsGoogleBigQueryEvent.Event.EventParamValueType.DOUBLE);
 									}
 								}
 							}
-
-							eventParameters.put(parameterName, eventParamValue);
 						}
+
+						eventParameters.put(parameterName, eventParamValue);
 					}
 				}
-
-				event.setParameters(eventParameters);
-
-				// *** End Event ***
-
-				// *** Start User ***
-
-				// User ID
-				AnalyticsGoogleBigQueryEvent.User user = new AnalyticsGoogleBigQueryEvent.User();
-
-				GoogleBigQueryRestApiQueryResponse.Row.RowField userIdField = row.getFields().get(fieldIndicesByName.get("user_id"));
-				user.setUserId(userIdField.getValue());
-
-				// User Pseudo ID
-				GoogleBigQueryRestApiQueryResponse.Row.RowField userPseudoIdField = row.getFields().get(fieldIndicesByName.get("user_pseudo_id"));
-				user.setUserPseudoId(userPseudoIdField.getValue());
-
-				// Is Active User
-				GoogleBigQueryRestApiQueryResponse.Row.RowField isActiveUserField = row.getFields().get(fieldIndicesByName.get("is_active_user"));
-				user.setIsActiveUser("true".equalsIgnoreCase(isActiveUserField.getValue()));
-
-				// First Touch Timestamp
-				GoogleBigQueryRestApiQueryResponse.Row.RowField userFirstTouchTimestampField = row.getFields().get(fieldIndicesByName.get("user_first_touch_timestamp"));
-
-				if (userFirstTouchTimestampField.getValue() != null) {
-					long userFirstTouchTimestampFieldValueAsMicroseconds = Long.valueOf(userFirstTouchTimestampField.getValue());
-					Instant userFirstTouchTimestamp = Instant.ofEpochSecond(
-							TimeUnit.MICROSECONDS.toSeconds(userFirstTouchTimestampFieldValueAsMicroseconds),
-							TimeUnit.MICROSECONDS.toNanos(userFirstTouchTimestampFieldValueAsMicroseconds % TimeUnit.SECONDS.toMicros(1)));
-					user.setUserFirstTouchTimestamp(userFirstTouchTimestamp);
-				}
-
-				// *** End User ***
-
-				// *** Start Traffic Source ***
-
-				AnalyticsGoogleBigQueryEvent.TrafficSource trafficSource = new AnalyticsGoogleBigQueryEvent.TrafficSource();
-				GoogleBigQueryRestApiQueryResponse.Row.RowField trafficSourceField = row.getFields().get(fieldIndicesByName.get("traffic_source"));
-
-				if (trafficSourceField.getField() != null) {
-					GoogleBigQueryRestApiQueryResponse.Row.RowField fieldLevel1 = trafficSourceField.getField();
-
-					if (fieldLevel1.getFields() != null) {
-						List<GoogleBigQueryRestApiQueryResponse.Row.RowField> fieldsLevel2 = fieldLevel1.getFields();
-
-						if (fieldsLevel2.size() != 3)
-							throw new IllegalStateException("Not sure how to handle traffic source field " + trafficSourceField);
-
-						trafficSource.setName(fieldsLevel2.get(0).getValue());
-						trafficSource.setMedium(fieldsLevel2.get(1).getValue());
-						trafficSource.setSource(fieldsLevel2.get(2).getValue());
-					}
-				}
-
-				// *** End Traffic Source ***
-
-				// *** Start Collected Traffic Source ***
-
-				AnalyticsGoogleBigQueryEvent.CollectedTrafficSource collectedTrafficSource = new AnalyticsGoogleBigQueryEvent.CollectedTrafficSource();
-				GoogleBigQueryRestApiQueryResponse.Row.RowField collectedTrafficSourceField = row.getFields().get(fieldIndicesByName.get("collected_traffic_source"));
-
-				if (collectedTrafficSourceField.getField() != null) {
-					GoogleBigQueryRestApiQueryResponse.Row.RowField fieldLevel1 = collectedTrafficSourceField.getField();
-
-					if (fieldLevel1.getFields() != null) {
-						List<GoogleBigQueryRestApiQueryResponse.Row.RowField> fieldsLevel2 = fieldLevel1.getFields();
-
-						if (fieldsLevel2.size() != 9)
-							throw new IllegalStateException("Not sure how to handle collected traffic source field " + trafficSourceField);
-
-						collectedTrafficSource.setManualCampaignId(fieldsLevel2.get(0).getValue());
-						collectedTrafficSource.setManualCampaignName(fieldsLevel2.get(1).getValue());
-						collectedTrafficSource.setManualSource(fieldsLevel2.get(2).getValue());
-						collectedTrafficSource.setManualMedium(fieldsLevel2.get(3).getValue());
-						collectedTrafficSource.setManualTerm(fieldsLevel2.get(4).getValue());
-						collectedTrafficSource.setManualContent(fieldsLevel2.get(5).getValue());
-						collectedTrafficSource.setGclid(fieldsLevel2.get(6).getValue());
-						collectedTrafficSource.setDclid(fieldsLevel2.get(7).getValue());
-						collectedTrafficSource.setSrsltid(fieldsLevel2.get(8).getValue());
-					}
-				}
-
-				// *** End Collected Traffic Source ***
-
-				// *** Start Device ***
-
-				AnalyticsGoogleBigQueryEvent.Device device = new AnalyticsGoogleBigQueryEvent.Device();
-				GoogleBigQueryRestApiQueryResponse.Row.RowField deviceField = row.getFields().get(fieldIndicesByName.get("device"));
-
-				if (deviceField.getField() != null) {
-					GoogleBigQueryRestApiQueryResponse.Row.RowField fieldLevel1 = deviceField.getField();
-
-					if (fieldLevel1.getFields() != null) {
-						List<GoogleBigQueryRestApiQueryResponse.Row.RowField> fieldsLevel2 = fieldLevel1.getFields();
-
-						if (fieldsLevel2.size() != 15)
-							throw new IllegalStateException("Not sure how to handle device field " + deviceField);
-
-						device.setCategory(fieldsLevel2.get(0).getValue());
-						device.setMobileBrandName(fieldsLevel2.get(1).getValue());
-						device.setMobileModelName(fieldsLevel2.get(2).getValue());
-						device.setMobileMarketingName(fieldsLevel2.get(3).getValue());
-						device.setMobileOsHardwareModel(fieldsLevel2.get(4).getValue());
-						device.setOperatingSystem(fieldsLevel2.get(5).getValue());
-						device.setOperatingSystemVersion(fieldsLevel2.get(6).getValue());
-						device.setVendorId(fieldsLevel2.get(7).getValue());
-						device.setAdvertisingId(fieldsLevel2.get(8).getValue());
-						device.setLanguage(fieldsLevel2.get(9).getValue());
-
-						String isLimitedAdTrackingAsString = fieldsLevel2.get(10).getValue();
-						device.setIsLimitedAdTracking(isLimitedAdTrackingAsString != null && !isLimitedAdTrackingAsString.equalsIgnoreCase("no"));
-
-						String timeZoneOffsetSecondsAsString = fieldsLevel2.get(11).getValue();
-
-						if (timeZoneOffsetSecondsAsString != null)
-							device.setTimeZoneOffsetSeconds(Long.valueOf(timeZoneOffsetSecondsAsString));
-
-						device.setBrowser(fieldsLevel2.get(12).getValue());
-						device.setBrowserVersion(fieldsLevel2.get(13).getValue());
-
-						GoogleBigQueryRestApiQueryResponse.Row.RowField webInfoField = fieldsLevel2.get(14).getField();
-
-						if (webInfoField != null) {
-							if (webInfoField.getFields().size() != 3)
-								throw new IllegalStateException("Not sure how to handle device web info field " + webInfoField);
-
-							device.setWebInfoBrowser(webInfoField.getFields().get(0).getValue());
-							device.setWebInfoBrowserVersion(webInfoField.getFields().get(1).getValue());
-							device.setWebInfoBrowserHostname(webInfoField.getFields().get(2).getValue());
-						}
-					}
-				}
-
-				// *** End Device ***
-
-				// *** Start Geo ***
-
-				AnalyticsGoogleBigQueryEvent.Geo geo = new AnalyticsGoogleBigQueryEvent.Geo();
-				GoogleBigQueryRestApiQueryResponse.Row.RowField geoField = row.getFields().get(fieldIndicesByName.get("geo"));
-
-				if (geoField.getField() != null) {
-					GoogleBigQueryRestApiQueryResponse.Row.RowField fieldLevel1 = geoField.getField();
-
-					if (fieldLevel1.getFields() != null) {
-						List<GoogleBigQueryRestApiQueryResponse.Row.RowField> fieldsLevel2 = fieldLevel1.getFields();
-
-						if (fieldsLevel2.size() != 6)
-							throw new IllegalStateException("Not sure how to handle geo field " + geoField);
-
-						geo.setCity(fieldsLevel2.get(0).getValue());
-						geo.setCountry(fieldsLevel2.get(1).getValue());
-						geo.setContinent(fieldsLevel2.get(2).getValue());
-						geo.setRegion(fieldsLevel2.get(3).getValue());
-						geo.setSubContinent(fieldsLevel2.get(4).getValue());
-						geo.setMetro(fieldsLevel2.get(5).getValue());
-					}
-				}
-
-				// *** End Geo ***
-
-				GoogleBigQueryExportRecord exportRecord = new GoogleBigQueryExportRecord();
-				exportRecord.setEvent(event);
-				exportRecord.setUser(user);
-				exportRecord.setDevice(device);
-				exportRecord.setGeo(geo);
-				exportRecord.setTrafficSource(trafficSource);
-				exportRecord.setCollectedTrafficSource(collectedTrafficSource);
-
-				System.out.println(exportRecord);
-
-				exportRecords.add(exportRecord);
 			}
 
-			return exportRecords;
-		} catch (
-				IOException e) {
-			throw new UncheckedIOException(e);
+			event.setParameters(eventParameters);
+
+			// *** End Event ***
+
+			// *** Start User ***
+
+			// User ID
+			AnalyticsGoogleBigQueryEvent.User user = new AnalyticsGoogleBigQueryEvent.User();
+
+			GoogleBigQueryRestApiQueryResponse.Row.RowField userIdField = row.getFields().get(fieldIndicesByName.get("user_id"));
+			user.setUserId(userIdField.getValue());
+
+			// User Pseudo ID
+			GoogleBigQueryRestApiQueryResponse.Row.RowField userPseudoIdField = row.getFields().get(fieldIndicesByName.get("user_pseudo_id"));
+			user.setUserPseudoId(userPseudoIdField.getValue());
+
+			// Is Active User
+			GoogleBigQueryRestApiQueryResponse.Row.RowField isActiveUserField = row.getFields().get(fieldIndicesByName.get("is_active_user"));
+			user.setIsActiveUser("true".equalsIgnoreCase(isActiveUserField.getValue()));
+
+			// First Touch Timestamp
+			GoogleBigQueryRestApiQueryResponse.Row.RowField userFirstTouchTimestampField = row.getFields().get(fieldIndicesByName.get("user_first_touch_timestamp"));
+
+			if (userFirstTouchTimestampField.getValue() != null) {
+				long userFirstTouchTimestampFieldValueAsMicroseconds = Long.valueOf(userFirstTouchTimestampField.getValue());
+				Instant userFirstTouchTimestamp = Instant.ofEpochSecond(
+						TimeUnit.MICROSECONDS.toSeconds(userFirstTouchTimestampFieldValueAsMicroseconds),
+						TimeUnit.MICROSECONDS.toNanos(userFirstTouchTimestampFieldValueAsMicroseconds % TimeUnit.SECONDS.toMicros(1)));
+				user.setUserFirstTouchTimestamp(userFirstTouchTimestamp);
+			}
+
+			// *** End User ***
+
+			// *** Start Traffic Source ***
+
+			AnalyticsGoogleBigQueryEvent.TrafficSource trafficSource = new AnalyticsGoogleBigQueryEvent.TrafficSource();
+			GoogleBigQueryRestApiQueryResponse.Row.RowField trafficSourceField = row.getFields().get(fieldIndicesByName.get("traffic_source"));
+
+			if (trafficSourceField.getField() != null) {
+				GoogleBigQueryRestApiQueryResponse.Row.RowField fieldLevel1 = trafficSourceField.getField();
+
+				if (fieldLevel1.getFields() != null) {
+					List<GoogleBigQueryRestApiQueryResponse.Row.RowField> fieldsLevel2 = fieldLevel1.getFields();
+
+					if (fieldsLevel2.size() != 3)
+						throw new IllegalStateException("Not sure how to handle traffic source field " + trafficSourceField);
+
+					trafficSource.setName(fieldsLevel2.get(0).getValue());
+					trafficSource.setMedium(fieldsLevel2.get(1).getValue());
+					trafficSource.setSource(fieldsLevel2.get(2).getValue());
+				}
+			}
+
+			// *** End Traffic Source ***
+
+			// *** Start Collected Traffic Source ***
+
+			AnalyticsGoogleBigQueryEvent.CollectedTrafficSource collectedTrafficSource = new AnalyticsGoogleBigQueryEvent.CollectedTrafficSource();
+			GoogleBigQueryRestApiQueryResponse.Row.RowField collectedTrafficSourceField = row.getFields().get(fieldIndicesByName.get("collected_traffic_source"));
+
+			if (collectedTrafficSourceField.getField() != null) {
+				GoogleBigQueryRestApiQueryResponse.Row.RowField fieldLevel1 = collectedTrafficSourceField.getField();
+
+				if (fieldLevel1.getFields() != null) {
+					List<GoogleBigQueryRestApiQueryResponse.Row.RowField> fieldsLevel2 = fieldLevel1.getFields();
+
+					if (fieldsLevel2.size() != 9)
+						throw new IllegalStateException("Not sure how to handle collected traffic source field " + trafficSourceField);
+
+					collectedTrafficSource.setManualCampaignId(fieldsLevel2.get(0).getValue());
+					collectedTrafficSource.setManualCampaignName(fieldsLevel2.get(1).getValue());
+					collectedTrafficSource.setManualSource(fieldsLevel2.get(2).getValue());
+					collectedTrafficSource.setManualMedium(fieldsLevel2.get(3).getValue());
+					collectedTrafficSource.setManualTerm(fieldsLevel2.get(4).getValue());
+					collectedTrafficSource.setManualContent(fieldsLevel2.get(5).getValue());
+					collectedTrafficSource.setGclid(fieldsLevel2.get(6).getValue());
+					collectedTrafficSource.setDclid(fieldsLevel2.get(7).getValue());
+					collectedTrafficSource.setSrsltid(fieldsLevel2.get(8).getValue());
+				}
+			}
+
+			// *** End Collected Traffic Source ***
+
+			// *** Start Device ***
+
+			AnalyticsGoogleBigQueryEvent.Device device = new AnalyticsGoogleBigQueryEvent.Device();
+			GoogleBigQueryRestApiQueryResponse.Row.RowField deviceField = row.getFields().get(fieldIndicesByName.get("device"));
+
+			if (deviceField.getField() != null) {
+				GoogleBigQueryRestApiQueryResponse.Row.RowField fieldLevel1 = deviceField.getField();
+
+				if (fieldLevel1.getFields() != null) {
+					List<GoogleBigQueryRestApiQueryResponse.Row.RowField> fieldsLevel2 = fieldLevel1.getFields();
+
+					if (fieldsLevel2.size() != 15)
+						throw new IllegalStateException("Not sure how to handle device field " + deviceField);
+
+					device.setCategory(fieldsLevel2.get(0).getValue());
+					device.setMobileBrandName(fieldsLevel2.get(1).getValue());
+					device.setMobileModelName(fieldsLevel2.get(2).getValue());
+					device.setMobileMarketingName(fieldsLevel2.get(3).getValue());
+					device.setMobileOsHardwareModel(fieldsLevel2.get(4).getValue());
+					device.setOperatingSystem(fieldsLevel2.get(5).getValue());
+					device.setOperatingSystemVersion(fieldsLevel2.get(6).getValue());
+					device.setVendorId(fieldsLevel2.get(7).getValue());
+					device.setAdvertisingId(fieldsLevel2.get(8).getValue());
+					device.setLanguage(fieldsLevel2.get(9).getValue());
+
+					String isLimitedAdTrackingAsString = fieldsLevel2.get(10).getValue();
+					device.setIsLimitedAdTracking(isLimitedAdTrackingAsString != null && !isLimitedAdTrackingAsString.equalsIgnoreCase("no"));
+
+					String timeZoneOffsetSecondsAsString = fieldsLevel2.get(11).getValue();
+
+					if (timeZoneOffsetSecondsAsString != null)
+						device.setTimeZoneOffsetSeconds(Long.valueOf(timeZoneOffsetSecondsAsString));
+
+					device.setBrowser(fieldsLevel2.get(12).getValue());
+					device.setBrowserVersion(fieldsLevel2.get(13).getValue());
+
+					GoogleBigQueryRestApiQueryResponse.Row.RowField webInfoField = fieldsLevel2.get(14).getField();
+
+					if (webInfoField != null) {
+						if (webInfoField.getFields().size() != 3)
+							throw new IllegalStateException("Not sure how to handle device web info field " + webInfoField);
+
+						device.setWebInfoBrowser(webInfoField.getFields().get(0).getValue());
+						device.setWebInfoBrowserVersion(webInfoField.getFields().get(1).getValue());
+						device.setWebInfoBrowserHostname(webInfoField.getFields().get(2).getValue());
+					}
+				}
+			}
+
+			// *** End Device ***
+
+			// *** Start Geo ***
+
+			AnalyticsGoogleBigQueryEvent.Geo geo = new AnalyticsGoogleBigQueryEvent.Geo();
+			GoogleBigQueryRestApiQueryResponse.Row.RowField geoField = row.getFields().get(fieldIndicesByName.get("geo"));
+
+			if (geoField.getField() != null) {
+				GoogleBigQueryRestApiQueryResponse.Row.RowField fieldLevel1 = geoField.getField();
+
+				if (fieldLevel1.getFields() != null) {
+					List<GoogleBigQueryRestApiQueryResponse.Row.RowField> fieldsLevel2 = fieldLevel1.getFields();
+
+					if (fieldsLevel2.size() != 6)
+						throw new IllegalStateException("Not sure how to handle geo field " + geoField);
+
+					geo.setCity(fieldsLevel2.get(0).getValue());
+					geo.setCountry(fieldsLevel2.get(1).getValue());
+					geo.setContinent(fieldsLevel2.get(2).getValue());
+					geo.setRegion(fieldsLevel2.get(3).getValue());
+					geo.setSubContinent(fieldsLevel2.get(4).getValue());
+					geo.setMetro(fieldsLevel2.get(5).getValue());
+				}
+			}
+
+			// *** End Geo ***
+
+			GoogleBigQueryExportRecord exportRecord = new GoogleBigQueryExportRecord();
+			exportRecord.setEvent(event);
+			exportRecord.setUser(user);
+			exportRecord.setDevice(device);
+			exportRecord.setGeo(geo);
+			exportRecord.setTrafficSource(trafficSource);
+			exportRecord.setCollectedTrafficSource(collectedTrafficSource);
+
+			System.out.println(exportRecord);
+
+			exportRecords.add(exportRecord);
 		}
+
+		return exportRecords;
 	}
 
-	public void performRestApiQuery(@Nonnull String sql) {
+	@Override
+	@Nonnull
+	public List<GoogleBigQueryExportRecord> performRestApiQueryForExport(@Nonnull String sql) {
 		requireNonNull(sql);
 
 		// Special behavior: look for "{{datasetId}}" and replace it with the actual value
@@ -568,6 +566,7 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 				throw new IOException(format("Received HTTP %d and response body:\n%s", httpResponse.getStatus(), responseBodyAsString));
 
 			// TODO: finish up
+			throw new UnsupportedOperationException();
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}

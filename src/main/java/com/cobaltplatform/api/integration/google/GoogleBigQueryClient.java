@@ -48,6 +48,9 @@ public interface GoogleBigQueryClient {
 	List<FieldValueList> queryForList(@Nonnull String sql);
 
 	@Nonnull
+	List<GoogleBigQueryExportRecord> performRestApiQueryForExport(@Nonnull String sql);
+
+	@Nonnull
 	default String dateAsTableSuffix(@Nonnull LocalDate date) {
 		requireNonNull(date);
 		// e.g. Oct 31, 2023 would be "20231031"

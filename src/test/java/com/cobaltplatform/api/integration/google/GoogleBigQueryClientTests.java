@@ -53,10 +53,10 @@ public class GoogleBigQueryClientTests {
 	}
 
 	@Test
-	public void testRestApi() {
-		// TODO
+	public void testRestApiQueryForExportParsing() throws IOException {
+		String pageJson = Files.readString(Path.of("resources/test/bigquery-single-scroll-api-response.json"), StandardCharsets.UTF_8);
 		DefaultGoogleBigQueryClient googleBigQueryClient = (DefaultGoogleBigQueryClient) acquireGoogleBigQueryClient();
-		googleBigQueryClient.test("ignored");
+		googleBigQueryClient.extractGoogleBigQueryExportRecordsFromPageJson(pageJson);
 	}
 
 	@Test
