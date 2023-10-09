@@ -165,26 +165,26 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 	protected GoogleBigQueryClient uncachedGoogleBigQueryClient() {
 		Institution institution = getInstitutionService().findInstitutionById(getInstitutionId()).get();
 
-		String bigQueryResourceId = institution.getBigQueryResourceId();
+		String googleBigQueryResourceId = institution.getGoogleBigQueryResourceId();
 		String googleReportingServiceAccountPrivateKey = institution.getGoogleReportingServiceAccountPrivateKey();
 
-		if (bigQueryResourceId == null || googleReportingServiceAccountPrivateKey == null)
+		if (googleBigQueryResourceId == null || googleReportingServiceAccountPrivateKey == null)
 			return new MockGoogleBigQueryClient();
 
-		return new DefaultGoogleBigQueryClient(bigQueryResourceId, googleReportingServiceAccountPrivateKey);
+		return new DefaultGoogleBigQueryClient(googleBigQueryResourceId, googleReportingServiceAccountPrivateKey);
 	}
 
 	@Nonnull
 	protected GoogleAnalyticsDataClient uncachedGoogleAnalyticsDataClient() {
 		Institution institution = getInstitutionService().findInstitutionById(getInstitutionId()).get();
 
-		String ga4PropertyId = institution.getGa4PropertyId();
+		String googleGa4PropertyId = institution.getGoogleGa4PropertyId();
 		String googleReportingServiceAccountPrivateKey = institution.getGoogleReportingServiceAccountPrivateKey();
 
-		if (ga4PropertyId == null || googleReportingServiceAccountPrivateKey == null)
+		if (googleGa4PropertyId == null || googleReportingServiceAccountPrivateKey == null)
 			return new MockGoogleAnalyticsDataClient();
 
-		return new DefaultGoogleAnalyticsDataClient(ga4PropertyId, googleReportingServiceAccountPrivateKey);
+		return new DefaultGoogleAnalyticsDataClient(googleGa4PropertyId, googleReportingServiceAccountPrivateKey);
 	}
 
 	@Nonnull

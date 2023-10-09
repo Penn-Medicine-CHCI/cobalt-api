@@ -24,6 +24,8 @@ import com.cobaltplatform.api.http.HttpClient;
 import com.cobaltplatform.api.http.HttpMethod;
 import com.cobaltplatform.api.http.HttpRequest;
 import com.cobaltplatform.api.http.HttpResponse;
+import com.cobaltplatform.api.model.db.AnalyticsGoogleBigQueryEvent;
+import com.cobaltplatform.api.util.GsonUtility;
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
@@ -37,6 +39,7 @@ import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.TableResult;
 import com.google.common.io.CharStreams;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
 import javax.annotation.Nonnull;
@@ -78,6 +81,8 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 	private final GoogleCredentials googleCredentials;
 	@Nonnull
 	private final BigQuery bigQuery;
+	@Nonnull
+	private final Gson gson;
 
 	public DefaultGoogleBigQueryClient(@Nonnull String bigQueryResourceId,
 																		 @Nonnull String serviceAccountPrivateKeyJson) {
@@ -90,11 +95,19 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 		requireNonNull(bigQueryResourceId);
 		requireNonNull(serviceAccountPrivateKeyJsonInputStream);
 
+		GsonBuilder gsonBuilder = new GsonBuilder()
+				.setPrettyPrinting()
+				.disableHtmlEscaping();
+
+		GsonUtility.applyDefaultTypeAdapters(gsonBuilder);
+
+		this.gson = gsonBuilder.create();
+
 		try {
 			String serviceAccountPrivateKeyJson = CharStreams.toString(new InputStreamReader(requireNonNull(serviceAccountPrivateKeyJsonInputStream), StandardCharsets.UTF_8));
 
 			// Confirm that this is well-formed JSON and extract the project ID
-			Map<String, Object> jsonObject = new Gson().fromJson(serviceAccountPrivateKeyJson, new TypeToken<Map<String, Object>>() {
+			Map<String, Object> jsonObject = getGson().fromJson(serviceAccountPrivateKeyJson, new TypeToken<Map<String, Object>>() {
 			}.getType());
 
 			this.bigQueryResourceId = bigQueryResourceId;
@@ -198,7 +211,7 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 			// Schema is documented at https://support.google.com/analytics/answer/7029846?hl=en
 			for (GoogleBigQueryRestApiQueryResponse.Row row : rows) {
 				// *** Start Event ***
-				GoogleBigQueryExportRecord.Event event = new GoogleBigQueryExportRecord.Event();
+				AnalyticsGoogleBigQueryEvent.Event event = new AnalyticsGoogleBigQueryEvent.Event();
 
 				// Event date
 				GoogleBigQueryRestApiQueryResponse.Row.RowField eventDateField = row.getFields().get(fieldIndicesByName.get("event_date"));
@@ -243,7 +256,7 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 				GoogleBigQueryRestApiQueryResponse.Row.RowField eventParamsField = row.getFields().get(fieldIndicesByName.get("event_params"));
 				List<GoogleBigQueryRestApiQueryResponse.Row.RowField> eventParamsFields = eventParamsField.getFields();
 
-				Map<String, GoogleBigQueryExportRecord.Event.EventParamValue> eventParameters = new HashMap<>();
+				Map<String, AnalyticsGoogleBigQueryEvent.Event.EventParamValue> eventParameters = new HashMap<>();
 
 				// Format is, for each field in the list there is another field object.  In that field ovject, there is a list of fields.
 				// In the list of fields -
@@ -303,11 +316,11 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 							// Event params always have STRING, INTEGER, FLOAT, DOUBLE options
 							GoogleBigQueryRestApiQueryResponse.Row.RowField stringRowField = fieldLevel3ParameterValueLevel2.getFields().get(0);
 							String stringValue = stringRowField.getValue();
-							GoogleBigQueryExportRecord.Event.EventParamValue eventParamValue = new GoogleBigQueryExportRecord.Event.EventParamValue();
+							AnalyticsGoogleBigQueryEvent.Event.EventParamValue eventParamValue = new AnalyticsGoogleBigQueryEvent.Event.EventParamValue();
 
 							if (stringRowField.getValue() != null) {
 								eventParamValue.setValue(stringValue);
-								eventParamValue.setType(GoogleBigQueryExportRecord.Event.EventParamValueType.STRING);
+								eventParamValue.setType(AnalyticsGoogleBigQueryEvent.Event.EventParamValueType.STRING);
 							} else {
 								// Google's INTEGER definition can be larger than Java's Integer.MAX_VALUE, so we use Long instead
 								GoogleBigQueryRestApiQueryResponse.Row.RowField longRowField = fieldLevel3ParameterValueLevel2.getFields().get(1);
@@ -315,21 +328,21 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 
 								if (longValue != null) {
 									eventParamValue.setValue(longValue);
-									eventParamValue.setType(GoogleBigQueryExportRecord.Event.EventParamValueType.INTEGER);
+									eventParamValue.setType(AnalyticsGoogleBigQueryEvent.Event.EventParamValueType.INTEGER);
 								} else {
 									GoogleBigQueryRestApiQueryResponse.Row.RowField floatRowField = fieldLevel3ParameterValueLevel2.getFields().get(2);
 									Float floatValue = floatRowField.getValue() == null ? null : Float.valueOf(floatRowField.getValue());
 
 									if (floatValue != null) {
 										eventParamValue.setValue(floatValue);
-										eventParamValue.setType(GoogleBigQueryExportRecord.Event.EventParamValueType.FLOAT);
+										eventParamValue.setType(AnalyticsGoogleBigQueryEvent.Event.EventParamValueType.FLOAT);
 									} else {
 										GoogleBigQueryRestApiQueryResponse.Row.RowField doubleRowField = fieldLevel3ParameterValueLevel2.getFields().get(3);
 										Double doubleValue = doubleRowField.getValue() == null ? null : Double.valueOf(doubleRowField.getValue());
 
 										if (doubleValue != null) {
 											eventParamValue.setValue(doubleValue);
-											eventParamValue.setType(GoogleBigQueryExportRecord.Event.EventParamValueType.DOUBLE);
+											eventParamValue.setType(AnalyticsGoogleBigQueryEvent.Event.EventParamValueType.DOUBLE);
 										}
 									}
 								}
@@ -347,7 +360,7 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 				// *** Start User ***
 
 				// User ID
-				GoogleBigQueryExportRecord.User user = new GoogleBigQueryExportRecord.User();
+				AnalyticsGoogleBigQueryEvent.User user = new AnalyticsGoogleBigQueryEvent.User();
 
 				GoogleBigQueryRestApiQueryResponse.Row.RowField userIdField = row.getFields().get(fieldIndicesByName.get("user_id"));
 				user.setUserId(userIdField.getValue());
@@ -375,7 +388,7 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 
 				// *** Start Traffic Source ***
 
-				GoogleBigQueryExportRecord.TrafficSource trafficSource = new GoogleBigQueryExportRecord.TrafficSource();
+				AnalyticsGoogleBigQueryEvent.TrafficSource trafficSource = new AnalyticsGoogleBigQueryEvent.TrafficSource();
 				GoogleBigQueryRestApiQueryResponse.Row.RowField trafficSourceField = row.getFields().get(fieldIndicesByName.get("traffic_source"));
 
 				if (trafficSourceField.getField() != null) {
@@ -397,7 +410,7 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 
 				// *** Start Collected Traffic Source ***
 
-				GoogleBigQueryExportRecord.CollectedTrafficSource collectedTrafficSource = new GoogleBigQueryExportRecord.CollectedTrafficSource();
+				AnalyticsGoogleBigQueryEvent.CollectedTrafficSource collectedTrafficSource = new AnalyticsGoogleBigQueryEvent.CollectedTrafficSource();
 				GoogleBigQueryRestApiQueryResponse.Row.RowField collectedTrafficSourceField = row.getFields().get(fieldIndicesByName.get("collected_traffic_source"));
 
 				if (collectedTrafficSourceField.getField() != null) {
@@ -425,7 +438,7 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 
 				// *** Start Device ***
 
-				GoogleBigQueryExportRecord.Device device = new GoogleBigQueryExportRecord.Device();
+				AnalyticsGoogleBigQueryEvent.Device device = new AnalyticsGoogleBigQueryEvent.Device();
 				GoogleBigQueryRestApiQueryResponse.Row.RowField deviceField = row.getFields().get(fieldIndicesByName.get("device"));
 
 				if (deviceField.getField() != null) {
@@ -476,7 +489,7 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 
 				// *** Start Geo ***
 
-				GoogleBigQueryExportRecord.Geo geo = new GoogleBigQueryExportRecord.Geo();
+				AnalyticsGoogleBigQueryEvent.Geo geo = new AnalyticsGoogleBigQueryEvent.Geo();
 				GoogleBigQueryRestApiQueryResponse.Row.RowField geoField = row.getFields().get(fieldIndicesByName.get("geo"));
 
 				if (geoField.getField() != null) {
@@ -536,7 +549,7 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 				.queryParameters(Map.of(
 						"access_token", accessToken.getTokenValue()
 				))
-				.body(new Gson().toJson(Map.of(
+				.body(getGson().toJson(Map.of(
 						"query", sql,
 						// Note: if using legacy SQL in the future, duplicate rows will be returned.
 						// If that happens - to get distinct results, compose a primary key (combination of these 4 fields) and filter:
@@ -601,5 +614,10 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 	@Nonnull
 	protected BigQuery getBigQuery() {
 		return this.bigQuery;
+	}
+
+	@Nonnull
+	protected Gson getGson() {
+		return this.gson;
 	}
 }

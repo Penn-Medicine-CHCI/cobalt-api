@@ -245,13 +245,13 @@ public class Institution {
 	@Nullable
 	private String googleReportingServiceAccountPrivateKey;
 	@Nullable
-	private String ga4PropertyId;
+	private String googleGa4PropertyId;
 	@Nullable
-	@DatabaseColumn("bigquery_resource_id")
-	private String bigQueryResourceId;
+	@DatabaseColumn("google_bigquery_resource_id")
+	private String googleBigQueryResourceId;
 	@Nullable
-	@DatabaseColumn("bigquery_event_history_starts_at")
-	private LocalDate bigQueryEventHistoryStartsAt;
+	@DatabaseColumn("google_bigquery_event_date_sync_starts_at")
+	private LocalDate googleBigQueryEventDateSyncStartsAt;
 	@Nullable
 	private Long mixpanelProjectId;
 	@Nullable
@@ -259,7 +259,7 @@ public class Institution {
 	@Nullable
 	private String mixpanelServiceAccountSecret;
 	@Nullable
-	private LocalDate mixpanelEventHistoryStartsAt;
+	private LocalDate mixpanelEventDateSyncStartsAt;
 
 	public enum InstitutionId {
 		COBALT,
@@ -1158,30 +1158,30 @@ public class Institution {
 	}
 
 	@Nullable
-	public String getGa4PropertyId() {
-		return this.ga4PropertyId;
+	public String getGoogleGa4PropertyId() {
+		return this.googleGa4PropertyId;
 	}
 
-	public void setGa4PropertyId(@Nullable String ga4PropertyId) {
-		this.ga4PropertyId = ga4PropertyId;
-	}
-
-	@Nullable
-	public String getBigQueryResourceId() {
-		return this.bigQueryResourceId;
-	}
-
-	public void setBigQueryResourceId(@Nullable String bigQueryResourceId) {
-		this.bigQueryResourceId = bigQueryResourceId;
+	public void setGoogleGa4PropertyId(@Nullable String googleGa4PropertyId) {
+		this.googleGa4PropertyId = googleGa4PropertyId;
 	}
 
 	@Nullable
-	public LocalDate getBigQueryEventHistoryStartsAt() {
-		return this.bigQueryEventHistoryStartsAt;
+	public String getGoogleBigQueryResourceId() {
+		return this.googleBigQueryResourceId;
 	}
 
-	public void setBigQueryEventHistoryStartsAt(@Nullable LocalDate bigQueryEventHistoryStartsAt) {
-		this.bigQueryEventHistoryStartsAt = bigQueryEventHistoryStartsAt;
+	public void setGoogleBigQueryResourceId(@Nullable String googleBigQueryResourceId) {
+		this.googleBigQueryResourceId = googleBigQueryResourceId;
+	}
+
+	@Nullable
+	public LocalDate getGoogleBigQueryEventDateSyncStartsAt() {
+		return this.googleBigQueryEventDateSyncStartsAt;
+	}
+
+	public void setGoogleBigQueryEventDateSyncStartsAt(@Nullable LocalDate googleBigQueryEventDateSyncStartsAt) {
+		this.googleBigQueryEventDateSyncStartsAt = googleBigQueryEventDateSyncStartsAt;
 	}
 
 	@Nullable
@@ -1212,11 +1212,11 @@ public class Institution {
 	}
 
 	@Nullable
-	public LocalDate getMixpanelEventHistoryStartsAt() {
-		return this.mixpanelEventHistoryStartsAt;
+	public LocalDate getMixpanelEventDateSyncStartsAt() {
+		return this.mixpanelEventDateSyncStartsAt;
 	}
 
-	public void setMixpanelEventHistoryStartsAt(@Nullable LocalDate mixpanelEventHistoryStartsAt) {
-		this.mixpanelEventHistoryStartsAt = mixpanelEventHistoryStartsAt;
+	public void setMixpanelEventDateSyncStartsAt(@Nullable LocalDate mixpanelEventDateSyncStartsAt) {
+		this.mixpanelEventDateSyncStartsAt = mixpanelEventDateSyncStartsAt;
 	}
 }
