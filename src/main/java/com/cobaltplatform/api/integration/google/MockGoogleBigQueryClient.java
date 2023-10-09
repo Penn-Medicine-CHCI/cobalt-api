@@ -23,6 +23,7 @@ import com.google.cloud.bigquery.FieldValueList;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
+import java.time.Duration;
 import java.util.List;
 
 /**
@@ -50,7 +51,8 @@ public class MockGoogleBigQueryClient implements GoogleBigQueryClient {
 
 	@Nonnull
 	@Override
-	public List<GoogleBigQueryExportRecord> performRestApiQueryForExport(@Nonnull String sql) {
+	public List<GoogleBigQueryExportRecord> performRestApiQueryForExport(@Nonnull String sql,
+																																			 @Nonnull Duration timeout) {
 		return List.of();
 	}
 }

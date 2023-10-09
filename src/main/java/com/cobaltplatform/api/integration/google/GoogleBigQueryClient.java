@@ -22,6 +22,7 @@ package com.cobaltplatform.api.integration.google;
 import com.google.cloud.bigquery.FieldValueList;
 
 import javax.annotation.Nonnull;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -47,8 +48,17 @@ public interface GoogleBigQueryClient {
 	@Nonnull
 	List<FieldValueList> queryForList(@Nonnull String sql);
 
+	/**
+	 * This is specifically for the "jobs.query" method documented at https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query.
+	 * Also see general documentation for BigQuery's REST API at https://cloud.google.com/bigquery/docs/reference/rest.
+	 *
+	 * @param sql     non-legacy SQL to perform
+	 * @param timeout how long to block waiting for results from BigQuery
+	 * @return the set of all resultset records from BigQuery
+	 */
 	@Nonnull
-	List<GoogleBigQueryExportRecord> performRestApiQueryForExport(@Nonnull String sql);
+	List<GoogleBigQueryExportRecord> performRestApiQueryForExport(@Nonnull String sql,
+																																@Nonnull Duration timeout);
 
 	@Nonnull
 	default String dateAsTableSuffix(@Nonnull LocalDate date) {

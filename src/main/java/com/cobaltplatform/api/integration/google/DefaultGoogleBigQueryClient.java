@@ -50,6 +50,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -530,8 +531,10 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 
 	@Override
 	@Nonnull
-	public List<GoogleBigQueryExportRecord> performRestApiQueryForExport(@Nonnull String sql) {
+	public List<GoogleBigQueryExportRecord> performRestApiQueryForExport(@Nonnull String sql,
+																																			 @Nonnull Duration timeout) {
 		requireNonNull(sql);
+		requireNonNull(timeout);
 
 		// Special behavior: look for "{{datasetId}}" and replace it with the actual value
 		// to make querying easier.
@@ -539,6 +542,8 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 
 		AccessToken accessToken = acquireAccessToken();
 		String projectId = getProjectId();
+
+		// See https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query
 		String url = format("https://www.googleapis.com/bigquery/v2/projects/%s/queries", projectId);
 
 		HttpClient httpClient = new DefaultHttpClient("bigquery-rest-api");
@@ -553,7 +558,8 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 						// If that happens - to get distinct results, compose a primary key (combination of these 4 fields) and filter:
 						// event_name, event_timestamp, user_pseudo_id, event_bundle_sequence_id
 						// See https://stackoverflow.com/a/75894260
-						"use_legacy_sql", "false"
+						"use_legacy_sql", "false",
+						"timeout_ms", timeout.toMillis()
 				)))
 				.build();
 
