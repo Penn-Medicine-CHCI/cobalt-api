@@ -464,7 +464,6 @@ public class EpicFhirSyncManager implements ProviderAvailabilitySyncManager, Aut
 		protected Logger getLogger() {
 			return logger;
 		}
-
 	}
 
 	@Nonnull

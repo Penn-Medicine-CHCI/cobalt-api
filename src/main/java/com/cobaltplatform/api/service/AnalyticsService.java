@@ -19,37 +19,45 @@
 
 package com.cobaltplatform.api.service;
 
+import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.context.CurrentContextExecutor;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.google.GoogleAnalyticsDataClient;
 import com.cobaltplatform.api.integration.google.GoogleBigQueryClient;
+import com.cobaltplatform.api.integration.mixpanel.MixpanelClient;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.google.analytics.data.v1beta.DateRange;
 import com.google.analytics.data.v1beta.Dimension;
 import com.google.analytics.data.v1beta.Metric;
 import com.google.analytics.data.v1beta.Row;
 import com.google.analytics.data.v1beta.RunReportRequest;
 import com.google.analytics.data.v1beta.RunReportResponse;
-import com.google.cloud.bigquery.FieldValue;
-import com.google.cloud.bigquery.FieldValueList;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
+import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -59,14 +67,21 @@ import static java.util.Objects.requireNonNull;
  */
 @Singleton
 @ThreadSafe
-public class AnalyticsService {
+public class AnalyticsService implements AutoCloseable {
 	@Nonnull
-	private static final String ACTIVE_USER_ACCOUNT_TEMPORARY_TABLE_NAME;
+	private static final Long ANALYTICS_SYNC_INTERVAL_IN_SECONDS;
+	@Nonnull
+	private static final Long ANALYTICS_SYNC_INITIAL_DELAY_IN_SECONDS;
 
 	static {
-		ACTIVE_USER_ACCOUNT_TEMPORARY_TABLE_NAME = "active_user_account";
+		ANALYTICS_SYNC_INTERVAL_IN_SECONDS = 60L * 5L;
+		ANALYTICS_SYNC_INITIAL_DELAY_IN_SECONDS = 10L;
 	}
 
+	@Nonnull
+	private final Provider<SystemService> systemServiceProvider;
+	@Nonnull
+	private final Provider<AnalyticsSyncTask> analyticsSyncTaskProvider;
 	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
 	@Nonnull
@@ -74,20 +89,90 @@ public class AnalyticsService {
 	@Nonnull
 	private final Strings strings;
 	@Nonnull
+	private final Object analyticsSyncLock;
+	@Nonnull
 	private final Logger logger;
 
+	@Nonnull
+	private Boolean started;
+	@Nullable
+	private ScheduledExecutorService analyticsSyncExecutorService;
+
 	@Inject
-	public AnalyticsService(@Nonnull EnterprisePluginProvider enterprisePluginProvider,
+	public AnalyticsService(@Nonnull Provider<SystemService> systemServiceProvider,
+													@Nonnull Provider<AnalyticsSyncTask> analyticsSyncTaskProvider,
+													@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 													@Nonnull Database database,
 													@Nonnull Strings strings) {
+		requireNonNull(systemServiceProvider);
+		requireNonNull(analyticsSyncTaskProvider);
 		requireNonNull(enterprisePluginProvider);
 		requireNonNull(database);
 		requireNonNull(strings);
 
+		this.systemServiceProvider = systemServiceProvider;
+		this.analyticsSyncTaskProvider = analyticsSyncTaskProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.database = database;
 		this.strings = strings;
+		this.analyticsSyncLock = new Object();
+		this.started = false;
 		this.logger = LoggerFactory.getLogger(getClass());
+	}
+
+	@Override
+	public void close() throws Exception {
+		stopAnalyticsSync();
+	}
+
+	@Nonnull
+	public Boolean startAnalyticsSync() {
+		synchronized (getAnalyticsSyncLock()) {
+			if (isStarted())
+				return false;
+
+			getLogger().trace("Starting analytics sync...");
+
+			this.analyticsSyncExecutorService = Executors.newScheduledThreadPool(1, new ThreadFactoryBuilder().setNameFormat("analytics-sync-task").build());
+
+			this.started = true;
+
+			getAnalyticsSyncExecutorService().get().scheduleWithFixedDelay(new Runnable() {
+				@Override
+				public void run() {
+					try {
+						getSystemService().performAdvisoryLockOperationIfAvailable(AdvisoryLock.ANALYTICS_SYNC, () -> {
+							getAnalyticsSyncTaskProvider().get().run();
+						});
+					} catch (Exception e) {
+						getLogger().warn(format("Unable to sync analytics - will retry in %s seconds", String.valueOf(getAnalyticsSyncIntervalInSeconds())), e);
+					}
+				}
+			}, getAnalyticsSyncInitialDelayInSeconds(), getAnalyticsSyncIntervalInSeconds(), TimeUnit.SECONDS);
+
+			getLogger().trace("Analytics sync started.");
+
+			return true;
+		}
+	}
+
+	@Nonnull
+	public Boolean stopAnalyticsSync() {
+		synchronized (getAnalyticsSyncLock()) {
+			if (!isStarted())
+				return false;
+
+			getLogger().trace("Stopping analytics sync...");
+
+			getAnalyticsSyncExecutorService().get().shutdownNow();
+			this.analyticsSyncExecutorService = null;
+
+			this.started = false;
+
+			getLogger().trace("Analytics sync stopped.");
+
+			return true;
+		}
 	}
 
 	@Nonnull
@@ -151,87 +236,6 @@ public class AnalyticsService {
 		return activeUserCountsByAccountSourceId;
 	}
 
-	/**
-	 * Creates a temporary table named {@link #getActiveUserAccountTemporaryTableName()} and asks the remote analytics
-	 * service for all account IDs that have registered at least one analytics event (e.g. page view) during the provided date range
-	 * and inserts them into the table.
-	 * <p>
-	 * Then, executes the provided {@code runnable}, which will be able to query over the temporary table data,
-	 * e.g. to join against the `account` table to answer questions like "how many users of X type interacted
-	 * with the site during the date range?"
-	 * <p>
-	 * After the {@code runnable} has completed, the temporary table will be dropped.
-	 *
-	 * @param institutionId institution for which to pull data
-	 * @param startDate     date range start, inclusive
-	 * @param endDate       date range end, inclusive
-	 * @param runnable      the code to execute, which will have access to the temporary table of account IDs
-	 */
-	public void withActiveUserAccountIds(@Nonnull InstitutionId institutionId,
-																			 @Nonnull LocalDate startDate,
-																			 @Nonnull LocalDate endDate,
-																			 @Nonnull Runnable runnable) {
-		requireNonNull(institutionId);
-		requireNonNull(startDate);
-		requireNonNull(endDate);
-
-		// Deliberately leave out the "REFERENCES account" for...
-		// 1. performance
-		// 2. ease of testing when we know IDs won't be found, e.g. local database with production analytics data
-		getDatabase().execute(format("""
-				CREATE TEMPORARY TABLE %s (
-				  account_id UUID NOT NULL PRIMARY KEY
-				) ON COMMIT DROP
-				""", getActiveUserAccountTemporaryTableName()));
-
-		Set<UUID> activeUserAccountIds = activeUserAccountIds(institutionId, startDate, endDate);
-
-		List<List<Object>> parameterGroups = new ArrayList<>(activeUserAccountIds.size());
-
-		for (UUID activeUserAccountId : activeUserAccountIds)
-			parameterGroups.add(List.of(activeUserAccountId));
-
-		getDatabase().executeBatch(format("""
-				  INSERT INTO %s (account_id) VALUES (?)
-				""", getActiveUserAccountTemporaryTableName()), parameterGroups);
-
-		try {
-			runnable.run();
-		} finally {
-			// Should already happen automatically due to ON COMMIT DROP, this is just-in-case
-			getDatabase().execute(format("DROP TEMPORARY TABLE IF EXISTS %s", getActiveUserAccountTemporaryTableName()));
-		}
-	}
-
-	@Nonnull
-	protected Set<UUID> activeUserAccountIds(@Nonnull InstitutionId institutionId,
-																					 @Nonnull LocalDate startDate,
-																					 @Nonnull LocalDate endDate) {
-		requireNonNull(institutionId);
-		requireNonNull(startDate);
-		requireNonNull(endDate);
-
-		GoogleBigQueryClient googleBigQueryClient = googleBigQueryClientForInstitutionId(institutionId);
-		List<FieldValueList> rows = googleBigQueryClient.queryForList(format("""
-				SELECT DISTINCT user_id
-				FROM `{{datasetId}}.events_*`
-				WHERE _TABLE_SUFFIX BETWEEN '%s' AND '%s'
-				""", googleBigQueryClient.dateAsTableSuffix(startDate), googleBigQueryClient.dateAsTableSuffix(endDate)));
-
-		Set<UUID> accountIds = new HashSet<>();
-
-		for (FieldValueList row : rows) {
-			FieldValue fieldValue = row.get(0);
-
-			if (fieldValue.isNull())
-				continue;
-
-			accountIds.add(UUID.fromString(fieldValue.getStringValue()));
-		}
-
-		return accountIds;
-	}
-
 	@Nonnull
 	protected GoogleAnalyticsDataClient googleAnalyticsDataClientForInstitutionId(@Nonnull InstitutionId institutionId) {
 		requireNonNull(institutionId);
@@ -281,9 +285,135 @@ public class AnalyticsService {
 		}
 	}
 
+	@ThreadSafe
+	protected static class AnalyticsSyncTask implements Runnable {
+		@Nonnull
+		private final Provider<AnalyticsService> analyticsServiceProvider;
+		@Nonnull
+		private final Provider<InstitutionService> institutionServiceProvider;
+		@Nonnull
+		private final EnterprisePluginProvider enterprisePluginProvider;
+		@Nonnull
+		private final CurrentContextExecutor currentContextExecutor;
+		@Nonnull
+		private final Database database;
+		@Nonnull
+		private final Configuration configuration;
+		@Nonnull
+		private final Logger logger;
+
+		@Inject
+		public AnalyticsSyncTask(@Nonnull Provider<AnalyticsService> analyticsServiceProvider,
+														 @Nonnull Provider<InstitutionService> institutionServiceProvider,
+														 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
+														 @Nonnull CurrentContextExecutor currentContextExecutor,
+														 @Nonnull Database database,
+														 @Nonnull Configuration configuration) {
+			requireNonNull(analyticsServiceProvider);
+			requireNonNull(institutionServiceProvider);
+			requireNonNull(enterprisePluginProvider);
+			requireNonNull(currentContextExecutor);
+			requireNonNull(database);
+			requireNonNull(configuration);
+
+			this.analyticsServiceProvider = analyticsServiceProvider;
+			this.institutionServiceProvider = institutionServiceProvider;
+			this.currentContextExecutor = currentContextExecutor;
+			this.enterprisePluginProvider = enterprisePluginProvider;
+			this.database = database;
+			this.configuration = configuration;
+			this.logger = LoggerFactory.getLogger(getClass());
+		}
+
+		@Override
+		public void run() {
+			List<Institution> institutions = getDatabase().queryForList("""
+					     SELECT *
+					     FROM institution
+					     WHERE google_bigquery_sync_enabled=TRUE OR mixpanel_sync_enabled=TRUE
+					     ORDER BY institution_id
+					""", Institution.class);
+
+			for (Institution institution : institutions) {
+				getLogger().trace("Analytics sync starting for {}...", institution.getInstitutionId().name());
+
+				CurrentContext currentContext = new CurrentContext.Builder(institution.getInstitutionId(),
+						getConfiguration().getDefaultLocale(), getConfiguration().getDefaultTimeZone()).build();
+
+				try {
+					getCurrentContextExecutor().execute(currentContext, () -> {
+						EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institution.getInstitutionId());
+
+						if (institution.getMixpanelSyncEnabled()) {
+							MixpanelClient mixpanelClient = enterprisePlugin.mixpanelClient();
+							// TODO: sync Mixpanel
+						}
+
+						if (institution.getGoogleBigQuerySyncEnabled()) {
+							GoogleBigQueryClient googleBigQueryClient = enterprisePlugin.googleBigQueryClient();
+							// TODO: sync BigQuery
+						}
+					});
+				} finally {
+					getLogger().trace("Analytics sync complete for {}.", institution.getInstitutionId().name());
+				}
+			}
+		}
+
+		@Nonnull
+		protected AnalyticsService getAnalyticsService() {
+			return this.analyticsServiceProvider.get();
+		}
+
+		@Nonnull
+		protected InstitutionService getInstitutionService() {
+			return this.institutionServiceProvider.get();
+		}
+
+		@Nonnull
+		protected CurrentContextExecutor getCurrentContextExecutor() {
+			return this.currentContextExecutor;
+		}
+
+		@Nonnull
+		protected EnterprisePluginProvider getEnterprisePluginProvider() {
+			return this.enterprisePluginProvider;
+		}
+
+		@Nonnull
+		protected Database getDatabase() {
+			return this.database;
+		}
+
+		@Nonnull
+		protected Configuration getConfiguration() {
+			return this.configuration;
+		}
+
+		@Nonnull
+		protected Logger getLogger() {
+			return this.logger;
+		}
+	}
+
 	@Nonnull
-	public String getActiveUserAccountTemporaryTableName() {
-		return ACTIVE_USER_ACCOUNT_TEMPORARY_TABLE_NAME;
+	protected Long getAnalyticsSyncInitialDelayInSeconds() {
+		return ANALYTICS_SYNC_INITIAL_DELAY_IN_SECONDS;
+	}
+
+	@Nonnull
+	protected Long getAnalyticsSyncIntervalInSeconds() {
+		return ANALYTICS_SYNC_INTERVAL_IN_SECONDS;
+	}
+
+	@Nonnull
+	protected SystemService getSystemService() {
+		return this.systemServiceProvider.get();
+	}
+
+	@Nonnull
+	protected Provider<AnalyticsSyncTask> getAnalyticsSyncTaskProvider() {
+		return this.analyticsSyncTaskProvider;
 	}
 
 	@Nonnull
@@ -299,6 +429,21 @@ public class AnalyticsService {
 	@Nonnull
 	protected Strings getStrings() {
 		return this.strings;
+	}
+
+	@Nonnull
+	protected Object getAnalyticsSyncLock() {
+		return this.analyticsSyncLock;
+	}
+
+	@Nonnull
+	protected Boolean isStarted() {
+		return this.started;
+	}
+
+	@Nonnull
+	protected Optional<ScheduledExecutorService> getAnalyticsSyncExecutorService() {
+		return Optional.ofNullable(this.analyticsSyncExecutorService);
 	}
 
 	@Nonnull

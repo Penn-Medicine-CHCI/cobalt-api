@@ -4,11 +4,13 @@ SELECT _v.register_patch('126-google-bigquery', NULL, NULL);
 ALTER TABLE institution ADD COLUMN google_reporting_service_account_private_key VARCHAR;
 ALTER TABLE institution ADD COLUMN google_ga4_property_id VARCHAR;
 ALTER TABLE institution ADD COLUMN google_bigquery_resource_id VARCHAR;
-ALTER TABLE institution ADD COLUMN google_bigquery_event_date_sync_starts_at DATE;
+ALTER TABLE institution ADD COLUMN google_bigquery_sync_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE institution ADD COLUMN google_bigquery_sync_starts_at DATE;
 ALTER TABLE institution ADD COLUMN mixpanel_project_id INTEGER;
 ALTER TABLE institution ADD COLUMN mixpanel_service_account_username VARCHAR;
 ALTER TABLE institution ADD COLUMN mixpanel_service_account_secret VARCHAR;
-ALTER TABLE institution ADD COLUMN mixpanel_event_date_sync_starts_at DATE;
+ALTER TABLE institution ADD COLUMN mixpanel_sync_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE institution ADD COLUMN mixpanel_sync_starts_at DATE;
 
 CREATE TABLE analytics_vendor (
 	analytics_vendor_id VARCHAR PRIMARY KEY,

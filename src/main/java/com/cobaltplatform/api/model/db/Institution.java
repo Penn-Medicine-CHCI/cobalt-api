@@ -250,8 +250,11 @@ public class Institution {
 	@DatabaseColumn("google_bigquery_resource_id")
 	private String googleBigQueryResourceId;
 	@Nullable
-	@DatabaseColumn("google_bigquery_event_date_sync_starts_at")
-	private LocalDate googleBigQueryEventDateSyncStartsAt;
+	@DatabaseColumn("google_bigquery_sync_enabled")
+	private Boolean googleBigQuerySyncEnabled;
+	@Nullable
+	@DatabaseColumn("google_bigquery_sync_starts_at")
+	private LocalDate googleBigQuerySyncStartsAt;
 	@Nullable
 	private Long mixpanelProjectId;
 	@Nullable
@@ -259,7 +262,9 @@ public class Institution {
 	@Nullable
 	private String mixpanelServiceAccountSecret;
 	@Nullable
-	private LocalDate mixpanelEventDateSyncStartsAt;
+	private Boolean mixpanelSyncEnabled;
+	@Nullable
+	private LocalDate mixpanelSyncStartsAt;
 
 	public enum InstitutionId {
 		COBALT,
@@ -1176,12 +1181,21 @@ public class Institution {
 	}
 
 	@Nullable
-	public LocalDate getGoogleBigQueryEventDateSyncStartsAt() {
-		return this.googleBigQueryEventDateSyncStartsAt;
+	public Boolean getGoogleBigQuerySyncEnabled() {
+		return this.googleBigQuerySyncEnabled;
 	}
 
-	public void setGoogleBigQueryEventDateSyncStartsAt(@Nullable LocalDate googleBigQueryEventDateSyncStartsAt) {
-		this.googleBigQueryEventDateSyncStartsAt = googleBigQueryEventDateSyncStartsAt;
+	public void setGoogleBigQuerySyncEnabled(@Nullable Boolean googleBigQuerySyncEnabled) {
+		this.googleBigQuerySyncEnabled = googleBigQuerySyncEnabled;
+	}
+
+	@Nullable
+	public LocalDate getGoogleBigQuerySyncStartsAt() {
+		return this.googleBigQuerySyncStartsAt;
+	}
+
+	public void setGoogleBigQuerySyncStartsAt(@Nullable LocalDate googleBigQuerySyncStartsAt) {
+		this.googleBigQuerySyncStartsAt = googleBigQuerySyncStartsAt;
 	}
 
 	@Nullable
@@ -1212,11 +1226,20 @@ public class Institution {
 	}
 
 	@Nullable
-	public LocalDate getMixpanelEventDateSyncStartsAt() {
-		return this.mixpanelEventDateSyncStartsAt;
+	public Boolean getMixpanelSyncEnabled() {
+		return this.mixpanelSyncEnabled;
 	}
 
-	public void setMixpanelEventDateSyncStartsAt(@Nullable LocalDate mixpanelEventDateSyncStartsAt) {
-		this.mixpanelEventDateSyncStartsAt = mixpanelEventDateSyncStartsAt;
+	public void setMixpanelSyncEnabled(@Nullable Boolean mixpanelSyncEnabled) {
+		this.mixpanelSyncEnabled = mixpanelSyncEnabled;
+	}
+
+	@Nullable
+	public LocalDate getMixpanelSyncStartsAt() {
+		return this.mixpanelSyncStartsAt;
+	}
+
+	public void setMixpanelSyncStartsAt(@Nullable LocalDate mixpanelSyncStartsAt) {
+		this.mixpanelSyncStartsAt = mixpanelSyncStartsAt;
 	}
 }
