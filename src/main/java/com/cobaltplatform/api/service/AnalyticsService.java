@@ -26,8 +26,11 @@ import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.google.GoogleAnalyticsDataClient;
 import com.cobaltplatform.api.integration.google.GoogleBigQueryClient;
+import com.cobaltplatform.api.integration.google.GoogleBigQueryExportRecord;
 import com.cobaltplatform.api.integration.mixpanel.MixpanelClient;
+import com.cobaltplatform.api.integration.mixpanel.MixpanelEvent;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
+import com.cobaltplatform.api.model.db.AnalyticsGoogleBigQueryEvent;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
@@ -49,12 +52,16 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -236,6 +243,131 @@ public class AnalyticsService implements AutoCloseable {
 		return activeUserCountsByAccountSourceId;
 	}
 
+	public void persistGoogleBigQueryEvents(@Nonnull InstitutionId institutionId,
+																					@Nonnull LocalDate date,
+																					@Nonnull List<GoogleBigQueryExportRecord> exportRecords) {
+		requireNonNull(institutionId);
+		requireNonNull(exportRecords);
+		requireNonNull(date);
+
+		getLogger().info("Persisting {} Google BigQuery events for {} on {}...", exportRecords.size(), institutionId.name(), date);
+
+		// First, clear out anything that's already stored off for this institution/date
+		getDatabase().execute("""
+				DELETE FROM analytics_google_bigquery_event
+				WHERE institution_id=?
+				AND date=?
+				""", institutionId, date);
+
+		// Then, prepare for batch insert of events for the institution/date
+		List<List<Object>> parameterGroups = new ArrayList<>(exportRecords.size());
+
+		for (GoogleBigQueryExportRecord exportRecord : exportRecords) {
+			UUID accountId = null;
+
+			if (exportRecord.getUser().getUserId() != null)
+				accountId = UUID.fromString(exportRecord.getUser().getUserId());
+
+			List<Object> parameterGroup = new ArrayList<>(14);
+			parameterGroup.add(institutionId);
+			parameterGroup.add(accountId);
+			parameterGroup.add(exportRecord.getUser().getUserPseudoId());
+			parameterGroup.add(exportRecord.getEvent().getBundleSequenceId());
+			parameterGroup.add(exportRecord.getEvent().getName());
+			parameterGroup.add(date);
+			parameterGroup.add(exportRecord.getEvent().getTimestamp());
+
+			AnalyticsGoogleBigQueryEvent.Event.EventParamValue timestampEventParamValue = exportRecord.getEvent().getParameters().get("timestamp");
+			parameterGroup.add(timestampEventParamValue == null ? null : Instant.ofEpochMilli((long) timestampEventParamValue.getValue()));
+
+			parameterGroup.add(exportRecord.getEvent().toJson());
+			parameterGroup.add(exportRecord.getUser().toJson());
+			parameterGroup.add(exportRecord.getTrafficSource().toJson());
+			parameterGroup.add(exportRecord.getCollectedTrafficSource().toJson());
+			parameterGroup.add(exportRecord.getGeo().toJson());
+			parameterGroup.add(exportRecord.getDevice().toJson());
+
+			parameterGroups.add(parameterGroup);
+		}
+
+		getDatabase().executeBatch("""
+				INSERT INTO analytics_google_bigquery_event (
+				    institution_id,
+				    account_id,
+				    user_pseudo_id,
+				    event_bundle_sequence_id,
+				    name,
+				    date,
+				    timestamp,
+				    timestamp_parameter,
+				    event,
+				    bigquery_user,
+				    traffic_source,
+				    collected_traffic_source,
+				    geo,
+				    device
+				) VALUES (?,?,?,?,?,?,?,?,CAST(? AS JSONB),CAST(? AS JSONB),CAST(? AS JSONB),CAST(? AS JSONB),CAST(? AS JSONB),CAST(? AS JSONB))
+				""", parameterGroups);
+
+		getLogger().info("Successfully persisted {} Google BigQuery events for {} on {}.", exportRecords.size(), institutionId.name(), date);
+	}
+
+	public void persistMixpanelEvents(@Nonnull InstitutionId institutionId,
+																		@Nonnull LocalDate date,
+																		@Nonnull List<MixpanelEvent> mixpanelEvents) {
+		requireNonNull(institutionId);
+		requireNonNull(mixpanelEvents);
+		requireNonNull(date);
+
+		getLogger().info("Persisting {} Mixpanel events for {} on {}...", mixpanelEvents.size(), institutionId.name(), date);
+
+		// First, clear out anything that's already stored off for this institution/date
+		getDatabase().execute("""
+				DELETE FROM analytics_mixpanel_event
+				WHERE institution_id=?
+				AND date=?
+				""", institutionId, date);
+
+		// Then, prepare for batch insert of events for the institution/date
+		List<List<Object>> parameterGroups = new ArrayList<>(mixpanelEvents.size());
+
+		for (MixpanelEvent mixpanelEvent : mixpanelEvents) {
+			UUID accountId = null;
+
+			if (mixpanelEvent.getUserId().isPresent())
+				accountId = UUID.fromString(mixpanelEvent.getUserId().get());
+
+			List<Object> parameterGroup = new ArrayList<>(9);
+			parameterGroup.add(institutionId);
+			parameterGroup.add(accountId);
+			parameterGroup.add(mixpanelEvent.getDistinctId());
+			parameterGroup.add(mixpanelEvent.getAnonId());
+			parameterGroup.add(mixpanelEvent.getDeviceId());
+			parameterGroup.add(mixpanelEvent.getEvent());
+			parameterGroup.add(date);
+			parameterGroup.add(mixpanelEvent.getTime());
+			parameterGroup.add(mixpanelEvent.getPropertiesAsJson().get());
+
+			parameterGroups.add(parameterGroup);
+		}
+
+		getDatabase().executeBatch("""
+				INSERT INTO analytics_mixpanel_event (
+				    institution_id,
+				    account_id,
+				    distinct_id,
+				    anon_id,
+				    device_id,
+				    name,
+				    date,
+				    timestamp,
+				    properties
+				) VALUES (?,?,?,?,?,?,?,?,CAST(? AS JSONB))
+				""", parameterGroups);
+
+		getLogger().info("Successfully persisted {} Mixpanel events for {} on {}.", mixpanelEvents.size(), institutionId.name(), date);
+	}
+
 	@Nonnull
 	protected GoogleAnalyticsDataClient googleAnalyticsDataClientForInstitutionId(@Nonnull InstitutionId institutionId) {
 		requireNonNull(institutionId);
@@ -345,12 +477,43 @@ public class AnalyticsService implements AutoCloseable {
 						EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institution.getInstitutionId());
 
 						if (institution.getMixpanelSyncEnabled()) {
+							getLogger().info("Mixpanel analytics sync starting for {}...", institution.getInstitutionId().name());
+
 							MixpanelClient mixpanelClient = enterprisePlugin.mixpanelClient();
-							// TODO: sync Mixpanel
+
+							// TODO: examine sync status to determine the set of dates to sync
+							LocalDate date = LocalDate.of(2023, 9, 1);
+
+							List<MixpanelEvent> mixpanelEvents = mixpanelClient.findEventsForDateRange(date, date);
+
+							getLogger().info("Found {} Mixpanel events for {}.", mixpanelEvents.size(), date);
+
+							getDatabase().transaction(() -> {
+								getAnalyticsService().persistMixpanelEvents(institution.getInstitutionId(), date, mixpanelEvents);
+							});
 						}
 
 						if (institution.getGoogleBigQuerySyncEnabled()) {
+							getLogger().info("Google BigQuery analytics sync starting for {}...", institution.getInstitutionId().name());
+
 							GoogleBigQueryClient googleBigQueryClient = enterprisePlugin.googleBigQueryClient();
+
+							// TODO: examine sync status to determine the set of dates to sync
+							LocalDate date = LocalDate.of(2023, 9, 1);
+
+							List<GoogleBigQueryExportRecord> exportRecords = googleBigQueryClient.performRestApiQueryForExport(format("""
+											SELECT *
+											FROM `{{datasetId}}.events_*`
+											WHERE _TABLE_SUFFIX BETWEEN '%s' AND '%s'
+											""",
+									googleBigQueryClient.dateAsTableSuffix(date),
+									googleBigQueryClient.dateAsTableSuffix(date)), Duration.ofSeconds(30));
+
+
+							getDatabase().transaction(() -> {
+								getAnalyticsService().persistGoogleBigQueryEvents(institution.getInstitutionId(), date, exportRecords);
+							});
+
 							// TODO: sync BigQuery
 						}
 					});

@@ -19,13 +19,18 @@
 
 package com.cobaltplatform.api.integration.mixpanel;
 
+import com.cobaltplatform.api.util.GsonUtility;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 
-import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -34,7 +39,26 @@ import static java.util.Objects.requireNonNull;
 @NotThreadSafe
 public class MixpanelEvent {
 	@Nonnull
+	private static final Gson GSON;
+
+	static {
+		GsonBuilder gsonBuilder = new GsonBuilder()
+				.setPrettyPrinting()
+				.disableHtmlEscaping();
+
+		GsonUtility.applyDefaultTypeAdapters(gsonBuilder);
+
+		GSON = gsonBuilder.create();
+	}
+
+	@Nonnull
 	private final String distinctId;
+	@Nonnull
+	private final String anonId;
+	@Nullable
+	private final String userId;
+	@Nonnull
+	private final String deviceId;
 	@Nonnull
 	private final Instant time;
 	@Nonnull
@@ -43,15 +67,23 @@ public class MixpanelEvent {
 	private final Map<String, Object> properties;
 
 	public MixpanelEvent(@Nonnull String distinctId,
+											 @Nonnull String anonId,
+											 @Nullable String userId,
+											 @Nonnull String deviceId,
 											 @Nonnull Instant time,
 											 @Nonnull String event,
 											 @Nonnull Map<String, Object> properties) {
 		requireNonNull(distinctId);
+		requireNonNull(anonId);
+		requireNonNull(deviceId);
 		requireNonNull(time);
 		requireNonNull(event);
 		requireNonNull(properties);
 
 		this.distinctId = distinctId;
+		this.anonId = anonId;
+		this.userId = userId;
+		this.deviceId = deviceId;
 		this.time = time;
 		this.event = event;
 		this.properties = Collections.unmodifiableMap(properties);
@@ -60,13 +92,32 @@ public class MixpanelEvent {
 	@Override
 	@Nonnull
 	public String toString() {
-		return format("%s{event=%s, distinctId=%s, time=%s, properties=%s}",
-				getClass().getSimpleName(), getEvent(), getDistinctId(), getTime(), getProperties());
+		return GSON.toJson(this);
+	}
+
+	@Nonnull
+	public Optional<String> getPropertiesAsJson() {
+		return getProperties() == null ? Optional.empty() : Optional.of(GSON.toJson(getProperties()));
 	}
 
 	@Nonnull
 	public String getDistinctId() {
 		return this.distinctId;
+	}
+
+	@Nonnull
+	public String getAnonId() {
+		return this.anonId;
+	}
+
+	@Nonnull
+	public Optional<String> getUserId() {
+		return Optional.ofNullable(this.userId);
+	}
+
+	@Nonnull
+	public String getDeviceId() {
+		return this.deviceId;
 	}
 
 	@Nonnull

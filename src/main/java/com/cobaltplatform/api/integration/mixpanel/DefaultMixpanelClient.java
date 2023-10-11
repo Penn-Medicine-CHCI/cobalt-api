@@ -23,7 +23,9 @@ import com.cobaltplatform.api.http.DefaultHttpClient;
 import com.cobaltplatform.api.http.HttpClient;
 import com.cobaltplatform.api.http.HttpMethod;
 import com.cobaltplatform.api.http.HttpRequest;
+import com.cobaltplatform.api.http.HttpRequestOption;
 import com.cobaltplatform.api.http.HttpResponse;
+import com.cobaltplatform.api.util.WebUtility;
 import com.google.gson.Gson;
 
 import javax.annotation.Nonnull;
@@ -92,7 +94,7 @@ public class DefaultMixpanelClient implements MixpanelClient {
 				.build();
 
 		try {
-			HttpResponse httpResponse = getHttpClient().execute(httpRequest);
+			HttpResponse httpResponse = getHttpClient().execute(httpRequest, HttpRequestOption.SUPPRESS_RESPONSE_BODY_LOGGING);
 			String responseBody = httpResponse.getBody().isPresent() ? new String(httpResponse.getBody().get()) : null;
 
 			if (httpResponse.getStatus() >= 400)
@@ -105,17 +107,38 @@ public class DefaultMixpanelClient implements MixpanelClient {
 						Map<String, Object> eventJson = getGson().fromJson(line, Map.class);
 
 						Map<String, Object> properties = (Map<String, Object>) eventJson.get("properties");
+
+						elideSensitiveDataInUrlProperty("$current_url", properties);
+						elideSensitiveDataInUrlProperty("$initial_referrer", properties);
+						elideSensitiveDataInUrlProperty("$referrer", properties);
+
 						String event = (String) eventJson.get("event");
 						String distinctId = (String) properties.get("distinct_id");
+						String anonId = (String) properties.get("$anon_id");
+						String userId = (String) properties.get("$user_id");
+						String deviceId = (String) properties.get("$device_id");
 						Instant time = Instant.ofEpochSecond(((Double) properties.get("time")).longValue());
 
-						return new MixpanelEvent(distinctId, time, event, properties);
+						return new MixpanelEvent(distinctId, anonId, userId, deviceId, time, event, properties);
 					})
 					.collect(Collectors.toList());
 
 			return mixpanelEvents;
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
+		}
+	}
+
+	protected void elideSensitiveDataInUrlProperty(@Nonnull String propertyName,
+																								 @Nonnull Map<String, Object> properties) {
+		requireNonNull(propertyName);
+		requireNonNull(properties);
+
+		String url = (String) properties.get(propertyName);
+
+		if (url != null) {
+			url = WebUtility.elideSensitiveDataInUrl(url);
+			properties.put(propertyName, url);
 		}
 	}
 

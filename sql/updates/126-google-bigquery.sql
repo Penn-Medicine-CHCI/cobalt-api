@@ -53,15 +53,20 @@ CREATE TABLE analytics_google_bigquery_event (
   event_bundle_sequence_id TEXT, -- duplicates event->bundleSequenceId for easy access
 	name VARCHAR NOT NULL, -- duplicates event->name for easy access
 	date DATE NOT NULL, -- duplicates event->date for easy access
-	timestamp TIMESTAMPTZ NOT NULL, --  duplicates event->timestamp for easy access
+	timestamp TIMESTAMPTZ NOT NULL, -- event_timestamp field
+	timestamp_parameter TIMESTAMPTZ, --  duplicates event->timestamp (can be different from previous field)
 	event JSONB NOT NULL,
-	"user" JSONB NOT NULL,
+	bigquery_user JSONB NOT NULL, -- "user" is a reserved word in PG and has to be double-quoted to reference, hence `bigquery_user`
 	traffic_source JSONB NOT NULL,
 	collected_traffic_source JSONB NOT NULL,
 	geo JSONB NOT NULL,
 	device JSONB NOT NULL,
-	-- In BigQuery world, the combination of "event_name, event_timestamp, user_pseudo_id, event_bundle_sequence_id" is a unique identifier.
-	UNIQUE (institution_id, name, timestamp, user_pseudo_id, event_bundle_sequence_id)
+	-- In BigQuery world, the combination of "event_name, event_timestamp, user_pseudo_id, event_bundle_sequence_id" is in theory a unique identifier.
+	-- In practice, it also needs event_server_timestamp_offset because event_timestamp can be duplicated if events are batched together on the client.
+	-- GA4 does not populate event_server_timestamp_offset, so we cannot apply this unique constraint as-is.
+	-- However, events have a "timestamp" parameter field (timestamp_parameter in our table), which appears to be sufficient to uniquely identify in combination with the other fields.
+	-- See https://issuetracker.google.com/issues/246937506
+	UNIQUE (institution_id, name, timestamp, timestamp_parameter, user_pseudo_id, event_bundle_sequence_id)
 );
 
 CREATE TABLE analytics_mixpanel_event (
@@ -69,11 +74,13 @@ CREATE TABLE analytics_mixpanel_event (
   institution_id VARCHAR NOT NULL REFERENCES institution,
   account_id UUID, -- duplicates properties->$user_id for easy access. see note below about why we do not include 'REFERENCES account' here
   distinct_id VARCHAR NOT NULL, -- this is not really distinct - just preserving what Mixpanel calls it
+  anon_id VARCHAR NOT NULL,
+  device_id VARCHAR NOT NULL,
 	name VARCHAR NOT NULL,
 	date DATE NOT NULL, -- duplicate data for easy access
 	timestamp TIMESTAMPTZ NOT NULL,
 	properties JSONB NOT NULL,
-	-- In MixPanel world, the combination of "distinct_id, name, timestamp" is a unique identifier.
+	-- In Mixpanel world, the combination of "distinct_id, name, timestamp" is a unique identifier.
 	UNIQUE (institution_id, distinct_id, name, timestamp)
 );
 

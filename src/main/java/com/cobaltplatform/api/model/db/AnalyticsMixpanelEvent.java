@@ -62,6 +62,10 @@ public class AnalyticsMixpanelEvent {
 	@Nullable
 	private String distinctId;
 	@Nullable
+	private String anonId;
+	@Nullable
+	private String deviceId;
+	@Nullable
 	private String name;
 	@Nullable
 	private LocalDate date;
@@ -122,6 +126,24 @@ public class AnalyticsMixpanelEvent {
 
 	public void setDistinctId(@Nullable String distinctId) {
 		this.distinctId = distinctId;
+	}
+
+	@Nullable
+	public String getAnonId() {
+		return this.anonId;
+	}
+
+	public void setAnonId(@Nullable String anonId) {
+		this.anonId = anonId;
+	}
+
+	@Nullable
+	public String getDeviceId() {
+		return this.deviceId;
+	}
+
+	public void setDeviceId(@Nullable String deviceId) {
+		this.deviceId = deviceId;
 	}
 
 	@Nullable

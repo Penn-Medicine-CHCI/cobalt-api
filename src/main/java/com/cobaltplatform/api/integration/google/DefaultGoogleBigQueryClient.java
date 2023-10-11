@@ -27,6 +27,7 @@ import com.cobaltplatform.api.http.HttpRequestOption;
 import com.cobaltplatform.api.http.HttpResponse;
 import com.cobaltplatform.api.model.db.AnalyticsGoogleBigQueryEvent;
 import com.cobaltplatform.api.util.GsonUtility;
+import com.cobaltplatform.api.util.WebUtility;
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
@@ -255,7 +256,7 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 			GoogleBigQueryRestApiQueryResponse.Row.RowField eventBundleSequenceIdField = row.getFields().get(fieldIndicesByName.get("event_bundle_sequence_id"));
 			event.setBundleSequenceId(eventBundleSequenceIdField.getValue() == null ? null : Long.valueOf(eventBundleSequenceIdField.getValue()));
 
-			// Event bundle sequence ID
+			// Event server timestamp offset
 			GoogleBigQueryRestApiQueryResponse.Row.RowField eventServerTimestampOffsetField = row.getFields().get(fieldIndicesByName.get("event_server_timestamp_offset"));
 			event.setServerTimestampOffset(eventServerTimestampOffsetField.getValue() == null ? null : Long.valueOf(eventServerTimestampOffsetField.getValue()));
 
@@ -609,9 +610,34 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 				getLogger().info("BigQuery page has {} rows ({} of {} total).", page.getResponse().getRows().size(), exportRecords.size(), page.getResponse().getTotalRows());
 			}
 
+			// Elide sensitive data in URLs
+			for (GoogleBigQueryExportRecord exportRecord : exportRecords) {
+				// These modify `event` in-place
+				elideSensitiveDataInUrlForEventParameterName("page_location", exportRecord.getEvent());
+				elideSensitiveDataInUrlForEventParameterName("page_referrer", exportRecord.getEvent());
+			}
+
 			return exportRecords;
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
+		}
+	}
+
+	// Modifies `event` in-place
+	protected void elideSensitiveDataInUrlForEventParameterName(@Nonnull String parameterName,
+																															@Nonnull AnalyticsGoogleBigQueryEvent.Event event) {
+		requireNonNull(parameterName);
+		requireNonNull(event);
+
+		AnalyticsGoogleBigQueryEvent.Event.EventParamValue eventParamValue = event.getParameters().get(parameterName);
+
+		if (eventParamValue != null) {
+			String url = (String) eventParamValue.getValue();
+
+			if (url != null) {
+				url = WebUtility.elideSensitiveDataInUrl(url);
+				eventParamValue.setValue(url);
+			}
 		}
 	}
 

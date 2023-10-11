@@ -73,7 +73,7 @@ public class AnalyticsGoogleBigQueryEvent {
 	@DatabaseColumn("event")
 	private String eventAsJson;
 	@Nullable
-	@DatabaseColumn("user")
+	@DatabaseColumn("bigquery_user")
 	private String userAsJson;
 	@Nullable
 	@DatabaseColumn("traffic_source")
