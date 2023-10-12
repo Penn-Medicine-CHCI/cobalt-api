@@ -509,6 +509,9 @@ public class AnalyticsService implements AutoCloseable {
 
 		protected void performMixpanelSync(@Nonnull Institution institution,
 																			 @Nonnull MixpanelClient mixpanelClient) {
+			// Note rate limits per https://docs.mixpanel.com/docs/other-bits/rate-limits
+			// Raw Export API (endpoint: data.mixpanel.com/api/2.0/export):
+			// * A maximum of 100 concurrent queries, 60 queries per hour, and 3 queries per second.
 			performAnalyticsSync(institution, AnalyticsVendorId.MIXPANEL, institution.getMixpanelSyncStartsAt(), (date) -> {
 				// Pull events for date
 				return mixpanelClient.findEventsForDateRange(date, date);
@@ -553,7 +556,14 @@ public class AnalyticsService implements AutoCloseable {
 			// Initial "fast" transaction to pull a set of all syncable dates, guarded by advisory lock.
 			getDatabase().transaction(() -> {
 				getSystemService().performAdvisoryLockOperationIfAvailable(AdvisoryLock.ANALYTICS_SYNC, () -> {
-					// TODO: if "busy syncing" and sync started over an hour ago, assume there was a problem, and clear out event data/status
+					// If "busy syncing" and sync started over an hour ago, assume there was a problem, and transition to "failed"
+					// so sync can be retried
+					getDatabase().execute("""
+							UPDATE analytics_event_date_sync
+							SET analytics_sync_status_id=?, sync_ended_at=NOW()
+							WHERE (NOW() - sync_started_at) > INTERVAL '60 minutes'
+							AND analytics_sync_status_id=?
+							""", AnalyticsSyncStatusId.SYNC_FAILED, AnalyticsSyncStatusId.BUSY_SYNCING);
 
 					// Find dates that we know are either already synced or in-progress, so we can skip over them
 					Set<LocalDate> skippableDates = getDatabase().queryForList("""
