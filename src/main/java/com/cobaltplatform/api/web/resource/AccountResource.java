@@ -84,6 +84,7 @@ import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
+import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
@@ -874,14 +875,61 @@ public class AccountResource {
 				.filter(featureForInstitution -> featureForInstitution != null)
 				.collect(Collectors.toList());
 
-		// For now, just care that any appointment exists so long as it's not marked canceled
-		boolean appointmentAlreadyScheduled = getAppointmentService().findAppointmentsByAccountId(accountId).stream()
+		List<Appointment> appointments = getAppointmentService().findAppointmentsByAccountId(accountId).stream()
 				.filter(appointment -> !appointment.getCanceled())
-				.count() > 0;
+				.collect(Collectors.toList());
+
+		boolean appointmentAlreadyScheduled = appointments.size() > 0;
+
+		// Break out already-booked appointments by support role.
+		// This allows FE to see, for example, if you were recommended PSYCHOTHERAPIST and PSYCHIATRIST features, that you have
+		// booked with a PSYCHOTHERAPIST but not a PSYCHIATRIST
+		Map<SupportRoleId, Set<FeatureId>> featureIdsBySupportRoleId = new HashMap<>();
+
+		for (FeatureForInstitution feature : featuresForInstitution) {
+			if (feature.getSupportRoleIds() != null && feature.getSupportRoleIds().size() > 0) {
+				for (SupportRoleId supportRoleId : feature.getSupportRoleIds()) {
+					Set<FeatureId> featureIds = featureIdsBySupportRoleId.get(supportRoleId);
+
+					if (featureIds == null) {
+						featureIds = new HashSet<>();
+						featureIdsBySupportRoleId.put(supportRoleId, featureIds);
+					}
+
+					featureIds.add(feature.getFeatureId());
+				}
+			}
+		}
+
+		Map<FeatureId, Boolean> appointmentScheduledByFeatureId = new HashMap<>(featuresForInstitution.size());
+
+		// Prime the map to have all features
+		for (FeatureForInstitution feature : featuresForInstitution)
+			appointmentScheduledByFeatureId.put(feature.getFeatureId(), false);
+
+		appointments.stream()
+				.map(appointment -> appointment.getProviderId())
+				.distinct()
+				.forEach(providerId -> {
+					Set<SupportRoleId> supportRoleIds = getProviderService().findSupportRolesByProviderId(providerId).stream()
+							.map(supportRole -> supportRole.getSupportRoleId())
+							.collect(Collectors.toSet());
+
+					for (SupportRoleId supportRoleId : supportRoleIds) {
+						Set<FeatureId> featureIds = featureIdsBySupportRoleId.get(supportRoleId);
+
+						if (featureIds != null) {
+							for (FeatureId featureId : featureIds) {
+								appointmentScheduledByFeatureId.put(featureId, true);
+							}
+						}
+					}
+				});
 
 		return new ApiResponse(Map.of(
 				"features", featuresForInstitution,
-				"appointmentAlreadyScheduled", appointmentAlreadyScheduled
+				"appointmentAlreadyScheduled", appointmentAlreadyScheduled, // DEPRECATED
+				"appointmentScheduledByFeatureId", appointmentScheduledByFeatureId
 		));
 	}
 
