@@ -105,7 +105,6 @@ public class DefaultMixpanelClient implements MixpanelClient {
 					.filter(line -> line != null && line.trim().length() > 0)
 					.map(line -> {
 						Map<String, Object> eventJson = getGson().fromJson(line, Map.class);
-
 						Map<String, Object> properties = (Map<String, Object>) eventJson.get("properties");
 
 						elideSensitiveDataInUrlProperty("$current_url", properties);
@@ -119,7 +118,11 @@ public class DefaultMixpanelClient implements MixpanelClient {
 						String deviceId = (String) properties.get("$device_id");
 						Instant time = Instant.ofEpochSecond(((Double) properties.get("time")).longValue());
 
-						return new MixpanelEvent(distinctId, anonId, userId, deviceId, time, event, properties);
+						try {
+							return new MixpanelEvent(distinctId, anonId, userId, deviceId, time, event, properties);
+						} catch (Exception e) {
+							throw new IllegalArgumentException(format("Unable to create Mixpanel event from data: %s", eventJson), e);
+						}
 					})
 					.collect(Collectors.toList());
 

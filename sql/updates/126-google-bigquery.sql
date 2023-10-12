@@ -27,14 +27,13 @@ CREATE TABLE analytics_sync_status (
 	description VARCHAR NOT NULL
 );
 
-INSERT INTO analytics_sync_status VALUES ('UNSYNCED', 'Unsynced');
 INSERT INTO analytics_sync_status VALUES ('SYNCED', 'Synced');
 INSERT INTO analytics_sync_status VALUES ('BUSY_SYNCING', 'Busy Syncing');
 INSERT INTO analytics_sync_status VALUES ('SYNC_FAILED', 'Sync Failed');
 
 -- Analytics data is synced by date (e.g. asking BigQuery for all events for 2023-10-31 for institution ABC).
 -- Keep track of each date's sync status by institution so know what's already synced and what still needs to be synced.
--- Actual event data is stored in analytics_mixpanel_event and analytics_bigquery_event tables.
+-- Actual event data is stored in analytics_mixpanel_event and analytics_google_bigquery_event tables.
 CREATE TABLE analytics_event_date_sync (
   institution_id VARCHAR NOT NULL REFERENCES institution,
   analytics_vendor_id VARCHAR NOT NULL REFERENCES analytics_vendor,
@@ -42,7 +41,7 @@ CREATE TABLE analytics_event_date_sync (
 	date DATE NOT NULL,
 	sync_started_at timestamptz NOT NULL,
 	sync_ended_at timestamptz,
-	PRIMARY KEY (institution_id, analytics_vendor_id, date)
+	CONSTRAINT analytics_event_date_sync_pk PRIMARY KEY (institution_id, analytics_vendor_id, date)
 );
 
 CREATE TABLE analytics_google_bigquery_event (
@@ -74,7 +73,7 @@ CREATE TABLE analytics_mixpanel_event (
   institution_id VARCHAR NOT NULL REFERENCES institution,
   account_id UUID, -- duplicates properties->$user_id for easy access. see note below about why we do not include 'REFERENCES account' here
   distinct_id VARCHAR NOT NULL, -- this is not really distinct - just preserving what Mixpanel calls it
-  anon_id VARCHAR NOT NULL,
+  anon_id VARCHAR,
   device_id VARCHAR NOT NULL,
 	name VARCHAR NOT NULL,
 	date DATE NOT NULL, -- duplicate data for easy access

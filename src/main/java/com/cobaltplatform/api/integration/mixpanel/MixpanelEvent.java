@@ -53,7 +53,7 @@ public class MixpanelEvent {
 
 	@Nonnull
 	private final String distinctId;
-	@Nonnull
+	@Nullable
 	private final String anonId;
 	@Nullable
 	private final String userId;
@@ -67,14 +67,13 @@ public class MixpanelEvent {
 	private final Map<String, Object> properties;
 
 	public MixpanelEvent(@Nonnull String distinctId,
-											 @Nonnull String anonId,
+											 @Nullable String anonId,
 											 @Nullable String userId,
 											 @Nonnull String deviceId,
 											 @Nonnull Instant time,
 											 @Nonnull String event,
 											 @Nonnull Map<String, Object> properties) {
 		requireNonNull(distinctId);
-		requireNonNull(anonId);
 		requireNonNull(deviceId);
 		requireNonNull(time);
 		requireNonNull(event);
@@ -106,8 +105,8 @@ public class MixpanelEvent {
 	}
 
 	@Nonnull
-	public String getAnonId() {
-		return this.anonId;
+	public Optional<String> getAnonId() {
+		return Optional.ofNullable(this.anonId);
 	}
 
 	@Nonnull

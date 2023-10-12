@@ -22,6 +22,7 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
+import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.google.GoogleAnalyticsDataClient;
@@ -30,7 +31,10 @@ import com.cobaltplatform.api.integration.google.GoogleBigQueryExportRecord;
 import com.cobaltplatform.api.integration.mixpanel.MixpanelClient;
 import com.cobaltplatform.api.integration.mixpanel.MixpanelEvent;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
+import com.cobaltplatform.api.model.db.AnalyticsEventDateSync;
 import com.cobaltplatform.api.model.db.AnalyticsGoogleBigQueryEvent;
+import com.cobaltplatform.api.model.db.AnalyticsSyncStatus.AnalyticsSyncStatusId;
+import com.cobaltplatform.api.model.db.AnalyticsVendor.AnalyticsVendorId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
@@ -56,15 +60,18 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -341,7 +348,7 @@ public class AnalyticsService implements AutoCloseable {
 			parameterGroup.add(institutionId);
 			parameterGroup.add(accountId);
 			parameterGroup.add(mixpanelEvent.getDistinctId());
-			parameterGroup.add(mixpanelEvent.getAnonId());
+			parameterGroup.add(mixpanelEvent.getAnonId().orElse(null));
 			parameterGroup.add(mixpanelEvent.getDeviceId());
 			parameterGroup.add(mixpanelEvent.getEvent());
 			parameterGroup.add(date);
@@ -424,9 +431,13 @@ public class AnalyticsService implements AutoCloseable {
 		@Nonnull
 		private final Provider<InstitutionService> institutionServiceProvider;
 		@Nonnull
+		private final Provider<SystemService> systemServiceProvider;
+		@Nonnull
 		private final EnterprisePluginProvider enterprisePluginProvider;
 		@Nonnull
 		private final CurrentContextExecutor currentContextExecutor;
+		@Nonnull
+		private final ErrorReporter errorReporter;
 		@Nonnull
 		private final Database database;
 		@Nonnull
@@ -437,21 +448,27 @@ public class AnalyticsService implements AutoCloseable {
 		@Inject
 		public AnalyticsSyncTask(@Nonnull Provider<AnalyticsService> analyticsServiceProvider,
 														 @Nonnull Provider<InstitutionService> institutionServiceProvider,
+														 @Nonnull Provider<SystemService> systemServiceProvider,
 														 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
 														 @Nonnull CurrentContextExecutor currentContextExecutor,
+														 @Nonnull ErrorReporter errorReporter,
 														 @Nonnull Database database,
 														 @Nonnull Configuration configuration) {
 			requireNonNull(analyticsServiceProvider);
 			requireNonNull(institutionServiceProvider);
+			requireNonNull(systemServiceProvider);
 			requireNonNull(enterprisePluginProvider);
 			requireNonNull(currentContextExecutor);
+			requireNonNull(errorReporter);
 			requireNonNull(database);
 			requireNonNull(configuration);
 
 			this.analyticsServiceProvider = analyticsServiceProvider;
 			this.institutionServiceProvider = institutionServiceProvider;
-			this.currentContextExecutor = currentContextExecutor;
+			this.systemServiceProvider = systemServiceProvider;
 			this.enterprisePluginProvider = enterprisePluginProvider;
+			this.currentContextExecutor = currentContextExecutor;
+			this.errorReporter = errorReporter;
 			this.database = database;
 			this.configuration = configuration;
 			this.logger = LoggerFactory.getLogger(getClass());
@@ -476,51 +493,187 @@ public class AnalyticsService implements AutoCloseable {
 					getCurrentContextExecutor().execute(currentContext, () -> {
 						EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institution.getInstitutionId());
 
-						if (institution.getMixpanelSyncEnabled()) {
-							getLogger().info("Mixpanel analytics sync starting for {}...", institution.getInstitutionId().name());
+						if (institution.getMixpanelSyncEnabled())
+							performMixpanelSync(institution, enterprisePlugin.mixpanelClient());
 
-							MixpanelClient mixpanelClient = enterprisePlugin.mixpanelClient();
-
-							// TODO: examine sync status to determine the set of dates to sync
-							LocalDate date = LocalDate.of(2023, 9, 1);
-
-							List<MixpanelEvent> mixpanelEvents = mixpanelClient.findEventsForDateRange(date, date);
-
-							getLogger().info("Found {} Mixpanel events for {}.", mixpanelEvents.size(), date);
-
-							getDatabase().transaction(() -> {
-								getAnalyticsService().persistMixpanelEvents(institution.getInstitutionId(), date, mixpanelEvents);
-							});
-						}
-
-						if (institution.getGoogleBigQuerySyncEnabled()) {
-							getLogger().info("Google BigQuery analytics sync starting for {}...", institution.getInstitutionId().name());
-
-							GoogleBigQueryClient googleBigQueryClient = enterprisePlugin.googleBigQueryClient();
-
-							// TODO: examine sync status to determine the set of dates to sync
-							LocalDate date = LocalDate.of(2023, 9, 1);
-
-							List<GoogleBigQueryExportRecord> exportRecords = googleBigQueryClient.performRestApiQueryForExport(format("""
-											SELECT *
-											FROM `{{datasetId}}.events_*`
-											WHERE _TABLE_SUFFIX BETWEEN '%s' AND '%s'
-											""",
-									googleBigQueryClient.dateAsTableSuffix(date),
-									googleBigQueryClient.dateAsTableSuffix(date)), Duration.ofSeconds(30));
-
-
-							getDatabase().transaction(() -> {
-								getAnalyticsService().persistGoogleBigQueryEvents(institution.getInstitutionId(), date, exportRecords);
-							});
-
-							// TODO: sync BigQuery
-						}
+						if (institution.getGoogleBigQuerySyncEnabled())
+							performGoogleBigQuerySync(institution, enterprisePlugin.googleBigQueryClient());
 					});
 				} finally {
 					getLogger().trace("Analytics sync complete for {}.", institution.getInstitutionId().name());
 				}
 			}
+		}
+
+		protected void performMixpanelSync(@Nonnull Institution institution,
+																			 @Nonnull MixpanelClient mixpanelClient) {
+			List<LocalDate> datesToSync = new ArrayList<>();
+
+			// Initial "fast" transaction to pull a set of all syncable dates, guarded by advisory lock.
+			getDatabase().transaction(() -> {
+				getSystemService().performAdvisoryLockOperationIfAvailable(AdvisoryLock.ANALYTICS_SYNC, () -> {
+					// TODO: if "busy syncing" and sync started over an hour ago, assume there was a problem, and clear out event data/status
+
+					// Find dates that we know are either already synced or in-progress, so we can skip over them
+					Set<LocalDate> skippableDates = getDatabase().queryForList("""
+											SELECT *
+											FROM analytics_event_date_sync
+											WHERE institution_id=?
+											AND analytics_sync_status_id IN (?,?)
+											AND analytics_vendor_id=?
+											""", AnalyticsEventDateSync.class, institution.getInstitutionId(), AnalyticsSyncStatusId.BUSY_SYNCING, AnalyticsSyncStatusId.SYNCED,
+									AnalyticsVendorId.MIXPANEL).stream()
+							.map(analyticsEventDateSync -> analyticsEventDateSync.getDate())
+							.collect(Collectors.toSet());
+
+					LocalDate minimumDate = institution.getMixpanelSyncStartsAt();
+
+					// Furthest we can sync to is whatever date it was 24 hours ago in the institution's timezone.
+					// This is because we don't have accurate up-to-the-minute data from our data warehouses
+					LocalDate maximumDate = LocalDate.ofInstant(Instant.now().minus(24, ChronoUnit.HOURS), institution.getTimeZone());
+
+					if (minimumDate.isAfter(maximumDate))
+						throw new IllegalStateException(format("Configured minimum date %s is after maximum date %s", minimumDate, maximumDate));
+
+					LocalDate potentialDateToSync = minimumDate;
+
+					while (!potentialDateToSync.isAfter(maximumDate)) {
+						if (!skippableDates.contains(potentialDateToSync))
+							datesToSync.add(potentialDateToSync);
+
+						potentialDateToSync = potentialDateToSync.plusDays(1);
+					}
+
+					// Mark all dates as "busy syncing"
+					if (datesToSync.size() > 0) {
+						getLogger().info("Need to sync {} {} dates: {}", datesToSync.size(), AnalyticsVendorId.MIXPANEL.name(), datesToSync);
+
+						List<List<Object>> parameterGroups = new ArrayList<>(datesToSync.size());
+						Instant syncStartedAt = Instant.now();
+
+						for (LocalDate dateToSync : datesToSync) {
+							List<Object> parameterGroup = new ArrayList<>();
+							parameterGroup.add(institution.getInstitutionId());
+							parameterGroup.add(AnalyticsVendorId.MIXPANEL);
+							parameterGroup.add(AnalyticsSyncStatusId.BUSY_SYNCING);
+							parameterGroup.add(dateToSync);
+							parameterGroup.add(syncStartedAt);
+							parameterGroup.add(null); // sync_ended_at
+
+							parameterGroups.add(parameterGroup);
+						}
+
+						// Batch upsert to keep track of syncing.
+						// Upsert is for scenarios like retrying a date that was in AnalyticsSyncStatusId.SYNC_FAILED state
+						getDatabase().executeBatch("""
+								INSERT INTO analytics_event_date_sync (
+								  institution_id,
+								  analytics_vendor_id,
+								  analytics_sync_status_id,
+								  date,
+								  sync_started_at,
+								  sync_ended_at
+								) VALUES (?,?,?,?,?,?)
+								ON CONFLICT ON CONSTRAINT analytics_event_date_sync_pk DO UPDATE
+								  SET analytics_sync_status_id = EXCLUDED.analytics_sync_status_id,
+								  sync_started_at = EXCLUDED.sync_started_at,
+								  sync_ended_at = EXCLUDED.sync_ended_at
+								""", parameterGroups);
+					}
+				});
+			});
+
+			if (datesToSync.size() > 0) {
+				for (LocalDate dateToSync : datesToSync) {
+					getLogger().info("Performing Mixpanel analytics sync for {} at {}...", dateToSync, institution.getInstitutionId().name());
+
+					List<MixpanelEvent> mixpanelEvents = new ArrayList<>();
+
+					try {
+						mixpanelEvents.addAll(mixpanelClient.findEventsForDateRange(dateToSync, dateToSync));
+					} catch (Exception e) {
+						getLogger().error(format("Failed to fetch %s events for %s on %s", AnalyticsVendorId.MIXPANEL,
+								institution.getInstitutionId(), dateToSync), e);
+
+						getErrorReporter().report(e);
+
+						// Mark the sync as failed in a separate transaction
+						getDatabase().transaction(() -> {
+							getDatabase().execute("""
+									UPDATE analytics_event_date_sync
+									SET sync_ended_at=NOW(), analytics_sync_status_id=?
+									WHERE date=?
+									AND analytics_vendor_id=?
+									AND institution_id=?
+									""", AnalyticsSyncStatusId.SYNC_FAILED, dateToSync, AnalyticsVendorId.MIXPANEL, institution.getInstitutionId());
+						});
+
+						continue;
+					}
+
+					getLogger().info("Found {} Mixpanel events for {} at {}.", mixpanelEvents.size(), dateToSync, institution.getInstitutionId().name());
+
+					getDatabase().transaction(() -> {
+						try {
+							getAnalyticsService().persistMixpanelEvents(institution.getInstitutionId(), dateToSync, mixpanelEvents);
+
+							getDatabase().execute("""
+									UPDATE analytics_event_date_sync
+									SET sync_ended_at=NOW(), analytics_sync_status_id=?
+									WHERE date=?
+									AND analytics_vendor_id=?
+									AND institution_id=?
+									""", AnalyticsSyncStatusId.SYNCED, dateToSync, AnalyticsVendorId.MIXPANEL, institution.getInstitutionId());
+						} catch (Exception e) {
+							getLogger().error(format("Failed to persist %s events for %s on %s", AnalyticsVendorId.MIXPANEL,
+									institution.getInstitutionId(), dateToSync), e);
+
+							getErrorReporter().report(e);
+
+							// Mark the sync as failed in a separate transaction
+							getDatabase().transaction(() -> {
+								getDatabase().execute("""
+										UPDATE analytics_event_date_sync
+										SET sync_ended_at=NOW(), analytics_sync_status_id=?
+										WHERE date=?
+										AND analytics_vendor_id=?
+										AND institution_id=?
+										""", AnalyticsSyncStatusId.SYNC_FAILED, dateToSync, AnalyticsVendorId.MIXPANEL, institution.getInstitutionId());
+							});
+						}
+					});
+				}
+			}
+		}
+
+		protected void performGoogleBigQuerySync(@Nonnull Institution institution,
+																						 @Nonnull GoogleBigQueryClient googleBigQueryClient) {
+			getLogger().info("Google BigQuery analytics sync starting for {}...", institution.getInstitutionId().name());
+
+			// TODO: examine sync status to determine the set of dates to sync
+			LocalDate startDate = LocalDate.of(2023, 10, 1);
+			LocalDate endDate = LocalDate.of(2023, 10, 2);
+			LocalDate date = startDate;
+
+			while (!date.isAfter(endDate)) {
+				List<GoogleBigQueryExportRecord> exportRecords = googleBigQueryClient.performRestApiQueryForExport(format("""
+								SELECT *
+								FROM `{{datasetId}}.events_*`
+								WHERE _TABLE_SUFFIX BETWEEN '%s' AND '%s'
+								""",
+						googleBigQueryClient.dateAsTableSuffix(date),
+						googleBigQueryClient.dateAsTableSuffix(date)), Duration.ofSeconds(30));
+
+				LocalDate pinnedDate = date;
+
+				getDatabase().transaction(() -> {
+					getAnalyticsService().persistGoogleBigQueryEvents(institution.getInstitutionId(), pinnedDate, exportRecords);
+				});
+
+				date = date.plusDays(1);
+			}
+
+			// TODO: sync BigQuery
 		}
 
 		@Nonnull
@@ -534,13 +687,23 @@ public class AnalyticsService implements AutoCloseable {
 		}
 
 		@Nonnull
-		protected CurrentContextExecutor getCurrentContextExecutor() {
-			return this.currentContextExecutor;
+		protected SystemService getSystemService() {
+			return this.systemServiceProvider.get();
 		}
 
 		@Nonnull
 		protected EnterprisePluginProvider getEnterprisePluginProvider() {
 			return this.enterprisePluginProvider;
+		}
+
+		@Nonnull
+		protected CurrentContextExecutor getCurrentContextExecutor() {
+			return this.currentContextExecutor;
+		}
+
+		@Nonnull
+		protected ErrorReporter getErrorReporter() {
+			return this.errorReporter;
 		}
 
 		@Nonnull

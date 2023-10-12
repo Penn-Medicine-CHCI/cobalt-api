@@ -35,7 +35,6 @@ public class AnalyticsSyncStatus {
 	private String description;
 
 	public enum AnalyticsSyncStatusId {
-		UNSYNCED,
 		SYNCED,
 		BUSY_SYNCING,
 		SYNC_FAILED
