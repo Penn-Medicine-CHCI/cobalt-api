@@ -245,6 +245,7 @@ public class Institution {
 	@Nullable
 	private String googleReportingServiceAccountPrivateKey;
 	@Nullable
+	@DatabaseColumn("google_ga4_property_id")
 	private String googleGa4PropertyId;
 	@Nullable
 	@DatabaseColumn("google_bigquery_resource_id")

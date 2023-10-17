@@ -20,11 +20,16 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AnalyticsService;
+import com.cobaltplatform.api.service.AnalyticsService.AnalyticsResultNewVersusReturning;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.soklet.web.annotation.GET;
+import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.Resource;
+import com.soklet.web.response.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +38,9 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
@@ -69,9 +77,24 @@ public class AnalyticsResource {
 	@Nonnull
 	@GET("/analytics")
 	@AuthenticationRequired
-	public Object analytics() {
-		// TODO: build out
-		throw new UnsupportedOperationException();
+	public ApiResponse analytics(@Nonnull @QueryParameter LocalDate startDate,
+															 @Nonnull @QueryParameter LocalDate endDate) {
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		// TODO: authorization service check
+
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+		AnalyticsResultNewVersusReturning activeUserCountsNewVersusReturning = getAnalyticsService().findActiveUserCountsNewVersusReturning(institutionId, startDate, endDate);
+		Map<AccountSourceId, Long> activeUserCountsByAccountSourceId = getAnalyticsService().findActiveUserCountsByAccountSourceId(institutionId, startDate, endDate);
+
+		// NOTE: this is a WIP
+
+		Map<String, Object> response = new HashMap<>();
+		response.put("activeUserCountsNewVersusReturning", activeUserCountsNewVersusReturning);
+		response.put("activeUserCountsByAccountSourceId", activeUserCountsByAccountSourceId);
+
+		return new ApiResponse(response);
 	}
 
 	@Nonnull

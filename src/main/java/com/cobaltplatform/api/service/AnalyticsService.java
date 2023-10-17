@@ -38,6 +38,7 @@ import com.cobaltplatform.api.model.db.AnalyticsVendor.AnalyticsVendorId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
+import com.cobaltplatform.api.util.ValidationException;
 import com.google.analytics.data.v1beta.DateRange;
 import com.google.analytics.data.v1beta.Dimension;
 import com.google.analytics.data.v1beta.Metric;
@@ -52,6 +53,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -59,6 +61,8 @@ import javax.inject.Singleton;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -95,6 +99,8 @@ public class AnalyticsService implements AutoCloseable {
 	}
 
 	@Nonnull
+	private final Provider<InstitutionService> institutionServiceProvider;
+	@Nonnull
 	private final Provider<SystemService> systemServiceProvider;
 	@Nonnull
 	private final Provider<AnalyticsSyncTask> analyticsSyncTaskProvider;
@@ -115,17 +121,20 @@ public class AnalyticsService implements AutoCloseable {
 	private ScheduledExecutorService analyticsSyncExecutorService;
 
 	@Inject
-	public AnalyticsService(@Nonnull Provider<SystemService> systemServiceProvider,
+	public AnalyticsService(@Nonnull Provider<InstitutionService> institutionServiceProvider,
+													@Nonnull Provider<SystemService> systemServiceProvider,
 													@Nonnull Provider<AnalyticsSyncTask> analyticsSyncTaskProvider,
 													@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 													@Nonnull Database database,
 													@Nonnull Strings strings) {
+		requireNonNull(institutionServiceProvider);
 		requireNonNull(systemServiceProvider);
 		requireNonNull(analyticsSyncTaskProvider);
 		requireNonNull(enterprisePluginProvider);
 		requireNonNull(database);
 		requireNonNull(strings);
 
+		this.institutionServiceProvider = institutionServiceProvider;
 		this.systemServiceProvider = systemServiceProvider;
 		this.analyticsSyncTaskProvider = analyticsSyncTaskProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
@@ -191,10 +200,13 @@ public class AnalyticsService implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Active "new vs returning" user counts: GA4 provides this data.
+	 */
 	@Nonnull
-	public AnalyticsResultNewVersusReturning activeUserCountsNewVersusReturning(@Nonnull InstitutionId institutionId,
-																																							@Nonnull LocalDate startDate,
-																																							@Nonnull LocalDate endDate) {
+	public AnalyticsResultNewVersusReturning findActiveUserCountsNewVersusReturning(@Nonnull InstitutionId institutionId,
+																																									@Nonnull LocalDate startDate,
+																																									@Nonnull LocalDate endDate) {
 		requireNonNull(institutionId);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
@@ -237,19 +249,64 @@ public class AnalyticsService implements AutoCloseable {
 		return new AnalyticsResultNewVersusReturning(newActiveUsers, returningActiveUsers, otherActiveUsers);
 	}
 
+	/**
+	 * Active user counts: at least one BigQuery event for an account ID during the date range.
+	 */
 	@Nonnull
-	public Map<AccountSourceId, Long> activeUserCountsByAccountSourceId(@Nonnull InstitutionId institutionId,
-																																			@Nonnull LocalDate startDate,
-																																			@Nonnull LocalDate endDate) {
+	public Map<AccountSourceId, Long> findActiveUserCountsByAccountSourceId(@Nonnull InstitutionId institutionId,
+																																					@Nonnull LocalDate startDate,
+																																					@Nonnull LocalDate endDate) {
 		requireNonNull(institutionId);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
 
+		if (endDate.isBefore(startDate))
+			throw new ValidationException(getStrings().get("End date cannot be before start date."));
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		Instant startTimestamp = LocalDateTime.of(startDate, LocalTime.MIN).atZone(institution.getTimeZone()).toInstant();
+		Instant endTimestamp = LocalDateTime.of(endDate, LocalTime.MAX).atZone(institution.getTimeZone()).toInstant();
+
+		List<AccountSourceIdCount> accountSourceIdCounts = getDatabase().queryForList("""
+				SELECT COUNT(DISTINCT a.account_id) as count, a.account_source_id
+				FROM account a, analytics_google_bigquery_event agbe
+				WHERE a.account_id=(agbe.bigquery_user->>'userId')::UUID
+				AND agbe.timestamp BETWEEN ? AND ?
+				GROUP BY a.account_source_id
+				""", AccountSourceIdCount.class, startTimestamp, endTimestamp);
+
 		Map<AccountSourceId, Long> activeUserCountsByAccountSourceId = new HashMap<>();
 
-		// TODO: implement
+		for (AccountSourceIdCount accountSourceIdCount : accountSourceIdCounts)
+			activeUserCountsByAccountSourceId.put(accountSourceIdCount.getAccountSourceId(), accountSourceIdCount.getCount());
 
 		return activeUserCountsByAccountSourceId;
+	}
+
+	@NotThreadSafe
+	protected static class AccountSourceIdCount {
+		@Nullable
+		private Long count;
+		@Nullable
+		private AccountSourceId accountSourceId;
+
+		@Nullable
+		public Long getCount() {
+			return this.count;
+		}
+
+		public void setCount(@Nullable Long count) {
+			this.count = count;
+		}
+
+		@Nullable
+		public AccountSourceId getAccountSourceId() {
+			return this.accountSourceId;
+		}
+
+		public void setAccountSourceId(@Nullable AccountSourceId accountSourceId) {
+			this.accountSourceId = accountSourceId;
+		}
 	}
 
 	public void persistGoogleBigQueryEvents(@Nonnull InstitutionId institutionId,
@@ -381,12 +438,6 @@ public class AnalyticsService implements AutoCloseable {
 	protected GoogleAnalyticsDataClient googleAnalyticsDataClientForInstitutionId(@Nonnull InstitutionId institutionId) {
 		requireNonNull(institutionId);
 		return getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId).googleAnalyticsDataClient();
-	}
-
-	@Nonnull
-	protected GoogleBigQueryClient googleBigQueryClientForInstitutionId(@Nonnull InstitutionId institutionId) {
-		requireNonNull(institutionId);
-		return getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId).googleBigQueryClient();
 	}
 
 	@ThreadSafe
@@ -749,6 +800,11 @@ public class AnalyticsService implements AutoCloseable {
 	@Nonnull
 	protected Long getAnalyticsSyncIntervalInSeconds() {
 		return ANALYTICS_SYNC_INTERVAL_IN_SECONDS;
+	}
+
+	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return this.institutionServiceProvider.get();
 	}
 
 	@Nonnull
