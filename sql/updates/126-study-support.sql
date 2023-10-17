@@ -61,10 +61,10 @@ CREATE TABLE account_check_in
 (account_check_in_id UUID NOT NULL PRIMARY KEY,
  account_study_id UUID NOT NULL REFERENCES account_study,
  study_check_in_id UUID NOT NULL REFERENCES study_check_in,
- check_in_start_date_time timestamptz NOT NULL,
- check_in_end_date_time timestamptz NOT NULL,
+ check_in_start_date_time timestamp NOT NULL,
+ check_in_end_date_time timestamp NOT NULL,
  completed_flag BOOLEAN NOT NULL DEFAULT false,
- completed_date timestamptz NULL,
+ completed_date timestamp NULL,
  created timestamptz NOT NULL DEFAULT now(),
  last_updated timestamptz NOT NULL
 );
@@ -73,7 +73,7 @@ create trigger set_last_updated before
 insert or update on account_check_in for each row execute procedure set_last_updated();
 
 CREATE TABLE check_in_action_status
-(check_in_action_status_id VARCHAR NOT NULL PRIMARY KEY DEFAULT 'NOT_STARTED',
+(check_in_action_status_id VARCHAR NOT NULL PRIMARY KEY DEFAULT 'INCOMPLETE',
 description VARCHAR NOT NULL);
 
 CREATE TABLE account_check_in_action
@@ -98,6 +98,7 @@ INSERT INTO check_in_action_status
 (check_in_action_status_id, description)
 VALUES
 ('INCOMPLETE', 'Incomplete'),
+('IN_PROGRESS', 'In progress'),
 ('FAILED', 'Failed'),
 ('COMPLETE', 'Complete');
 
@@ -121,7 +122,7 @@ AND ac.account_check_in_id = aci.account_check_in_id
 AND sc.check_in_type_id = cit.check_in_type_id
 AND ac.check_in_action_status_id = cis.check_in_action_status_id
 AND aci.account_study_id = a.account_study_id
-ORDER BY aci.check_in_start_date_time ASC;
+ORDER BY aci.check_in_start_date_time, sc.action_order ASC;
 
 
 COMMIT;

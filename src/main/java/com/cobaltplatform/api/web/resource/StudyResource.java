@@ -20,11 +20,13 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.request.UpdateCheckInAction;
 import com.cobaltplatform.api.model.api.response.AccountCheckInApiResponse.AccountCheckInApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.CheckInActionStatus;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.StudyService;
+import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.*;
 import com.soklet.web.response.ApiResponse;
 import org.slf4j.Logger;
@@ -58,19 +60,24 @@ public class StudyResource {
 	private final Logger logger;
 	@Nonnull
 	private final AccountCheckInApiResponseFactory accountCheckInApiResponseFactory;
+	@Nonnull
+	private final RequestBodyParser requestBodyParser;
 
 	@Inject
 	public StudyResource(@Nonnull StudyService studyService,
 											 @Nonnull Provider<CurrentContext> currentContextProvider,
-											 @Nonnull AccountCheckInApiResponseFactory accountCheckInApiResponseFactory) {
+											 @Nonnull AccountCheckInApiResponseFactory accountCheckInApiResponseFactory,
+											 @Nonnull RequestBodyParser requestBodyParser) {
 		requireNonNull(studyService);
 		requireNonNull(currentContextProvider);
 		requireNonNull(accountCheckInApiResponseFactory);
+		requireNonNull(requestBodyParser);
 
 		this.studyService = studyService;
 		this.currentContextProvider = currentContextProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.accountCheckInApiResponseFactory = accountCheckInApiResponseFactory;
+		this.requestBodyParser = requestBodyParser;
 	}
 
 	@Nonnull
@@ -99,15 +106,15 @@ public class StudyResource {
 		}});
 	}
 
-	//Temp endpoint for testing check-in status updates
 	@Nonnull
 	@PUT("/studies/{studyId}/check-in-action/{accountCheckInActionId}")
 	@AuthenticationRequired
 	public ApiResponse updateCheckInActionStatusId(@Nonnull @PathParameter UUID studyId,
-																								 @Nonnull @PathParameter UUID accountCheckInActionId) {
+																								 @Nonnull @PathParameter UUID accountCheckInActionId,
+																								 @Nonnull @RequestBody String requestBody) {
 		Account account = getCurrentContext().getAccount().get();
-
-		getStudyService().updateAccountCheckInAction(account, accountCheckInActionId, CheckInActionStatus.CheckInActionStatusId.COMPLETE);
+		UpdateCheckInAction request = getRequestBodyParser().parse(requestBody, UpdateCheckInAction.class);
+		getStudyService().updateAccountCheckInAction(account, accountCheckInActionId, request);
 		getStudyService().rescheduleAccountCheckIn(account, studyId);
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("checkIns", getStudyService().getAccountCheckInsForAccountAndStudy(account, studyId, Optional.of(false))
@@ -135,4 +142,8 @@ public class StudyResource {
 		return this.accountCheckInApiResponseFactory;
 	}
 
+	@Nonnull
+	public RequestBodyParser getRequestBodyParser() {
+		return requestBodyParser;
+	}
 }
