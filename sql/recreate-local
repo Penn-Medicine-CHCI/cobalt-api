@@ -129,7 +129,13 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/121-irg-images
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/122-institution-adjustments.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/123-institution-privacy-policy.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/124-group-session-location.sql
-PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/125-admin-capabilities.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/126-study-support.sql
+INSERT INTO account_check_in
+  (account_check_in_id, account_id, study_check_in_id, check_in_date_time)
+SELECT uuid_generate_v4(), '59363653-3604-4916-8366-95be6ae05ed9', study_check_in, now() + interval 'offset_days days'
+FROM study_check_in
+WHERE study_id = '4b2cdf98-f84c-4dc9-b440-d77f14da0c72'
+
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
