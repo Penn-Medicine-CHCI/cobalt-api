@@ -285,7 +285,7 @@ public class GroupSessionApiResponse {
 		}) : null;
 
 		this.seats = groupSession.getSeats();
-		
+
 		if (this.seats != null) {
 			this.seatsDescription = strings.get("{{seatsDescription}} seats total", new HashMap<String, Object>() {{
 				put("seats", groupSession.getSeats());
@@ -302,8 +302,8 @@ public class GroupSessionApiResponse {
 			this.seatsAvailableDescription = null;
 		}
 
-		this.seatsReserved = groupSession.getSeatsReserved();
-		this.seatsReservedDescription = strings.get("{{seatsReservedDescription}} reservations", new HashMap<String, Object>() {{
+		this.seatsReserved = groupSession.getGroupSessionSchedulingSystemId() != GroupSessionSchedulingSystemId.COBALT ? null : groupSession.getSeatsReserved();
+		this.seatsReservedDescription = groupSession.getGroupSessionSchedulingSystemId() != GroupSessionSchedulingSystemId.COBALT ? strings.get("N/A") : strings.get("{{seatsReservedDescription}} reservations", new HashMap<String, Object>() {{
 			put("seatsReserved", groupSession.getSeatsReserved());
 			put("seatsReservedDescription", formatter.formatNumber(groupSession.getSeatsReserved()));
 		}});
