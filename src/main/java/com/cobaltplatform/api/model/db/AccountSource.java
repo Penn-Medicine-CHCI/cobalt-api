@@ -47,6 +47,7 @@ public class AccountSource {
 		ANONYMOUS,
 		EMAIL_PASSWORD,
 		MYCHART,
+		USERNAME
 	}
 
 	@Override

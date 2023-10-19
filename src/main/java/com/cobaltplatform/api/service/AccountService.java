@@ -43,6 +43,7 @@ import com.cobaltplatform.api.model.api.request.UpdateAccountLocationRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountPhoneNumberRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountRoleRequest;
 import com.cobaltplatform.api.model.api.request.UpdateBetaFeatureAlertRequest;
+import com.cobaltplatform.api.model.api.request.UsernamePasswordAccessTokenRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Account.StandardMetadata;
 import com.cobaltplatform.api.model.db.AccountInvite;
@@ -593,6 +594,58 @@ public class AccountService {
 	}
 
 	@Nonnull
+	public UUID forcePasswordReset(Account account) {
+		UUID passwordResetToken = UUID.randomUUID();
+		Instant expirationTimestamp = Instant.now().plus(1, ChronoUnit.HOURS);
+
+		getDatabase().execute("INSERT INTO password_reset_request (account_id, password_reset_token, expiration_timestamp) VALUES (?, ?, ?)",
+				account.getAccountId(), passwordResetToken, expirationTimestamp);
+
+		return passwordResetToken;
+	}
+
+	@Nonnull
+	public String obtainUsernamePasswordAccessToken(@Nonnull UsernamePasswordAccessTokenRequest request) {
+		ValidationException validationException = new ValidationException();
+
+		String username = trimToNull(request.getUsername());
+		String password = trimToNull(request.getPassword());
+		InstitutionId institutionId = request.getInstitutionId();
+		Institution institution = null;
+
+		if (username == null)
+			validationException.add(new FieldError("username", getStrings().get("Username is required")));
+
+		if (password == null)
+			validationException.add(new FieldError("password", getStrings().get("Password is required")));
+
+		if (institutionId == null) {
+			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required")));
+		} else {
+			institution = getInstitutionService().findInstitutionById(institutionId).get();
+		}
+
+		Account account = findAccountByUsernameAndAccountSourceId(username, AccountSourceId.USERNAME, institutionId).orElse(null);
+
+		if (account == null) {
+			validationException.add(new FieldError("username", getStrings().get("You have entered an invalid username or password")));
+		} else {
+			Boolean verified = false;
+
+			if (password != null)
+				verified = getAuthenticator().verifyPassword(password, account.getPassword());
+
+			if (!verified)
+				validationException.add(new FieldError("password", getStrings().get("You have entered an invalid username or password")));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		return getAuthenticator().generateAccessToken(account.getAccountId(), account.getRoleId());
+	}
+
+	@Nonnull
 	public String obtainEmailPasswordAccessToken(@Nonnull EmailPasswordAccessTokenRequest request) {
 		ValidationException validationException = new ValidationException();
 
@@ -664,6 +717,22 @@ public class AccountService {
 			throw validationException;
 
 		return getAuthenticator().generateAccessToken(account.getAccountId(), account.getRoleId());
+	}
+
+	@Nonnull
+	public Optional<Account> findAccountByUsernameAndAccountSourceId(@Nullable String username,
+																																	 @Nullable AccountSourceId accountSourceId,
+																																	 @Nullable InstitutionId institutionId) {
+
+		if (username == null || accountSourceId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT * FROM v_account
+				WHERE LOWER(username)=LOWER(?)
+				AND account_source_id=?
+				AND institution_id=?
+				""", Account.class, username, accountSourceId, institutionId);
 	}
 
 	@Nonnull
@@ -915,7 +984,7 @@ public class AccountService {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		getDatabase().execute("UPDATE account SET password = ? WHERE account_id = ?",
+		getDatabase().execute("UPDATE account SET password = ?, password_reset_required = false WHERE account_id = ?",
 				getAuthenticator().hashPassword(request.getPassword()), passwordResetRequest.getAccountId());
 
 		getDatabase().execute("UPDATE password_reset_request SET expiration_timestamp = now() WHERE password_reset_request_id = ?",

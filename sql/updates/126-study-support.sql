@@ -91,6 +91,13 @@ insert or update on account_check_in_action for each row execute procedure set_l
 
 ALTER TABLE screening_session ADD COLUMN account_check_in_action_id UUID NULL REFERENCES account_check_in_action;
 
+ALTER TABLE account ADD COLUMN username VARCHAR NULL;
+
+INSERT INTO account_source
+(account_source_id, description)
+VALUES
+('USERNME', 'Username');
+
 INSERT INTO check_in_type
 (check_in_type_id, description)
 VALUES
@@ -130,7 +137,22 @@ AND ac.check_in_action_status_id = cis.check_in_action_status_id
 AND aci.account_study_id = a.account_study_id
 ORDER BY aci.check_in_start_date_time, sc.action_order ASC;
 
+DROP VIEW v_account;
 
+-- Pick-up new column on account table
+CREATE VIEW v_account AS
+WITH account_capabilities_query AS (
+	 -- Collect the capability types for each account
+	 SELECT
+			 account_id,
+			 jsonb_agg(account_capability_type_id) as account_capability_type_ids
+	 FROM
+			 account_capability
+  GROUP BY account_id
+)
+SELECT a.*, acq.account_capability_type_ids
+FROM account a LEFT OUTER JOIN account_capabilities_query acq on a.account_id=acq.account_id
+WHERE active=TRUE;
 
 COMMIT;
 

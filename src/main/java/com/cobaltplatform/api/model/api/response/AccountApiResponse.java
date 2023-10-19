@@ -146,6 +146,10 @@ public class AccountApiResponse {
 	private final String epicPatientFhirId;
 	@Nullable
 	private final Boolean testAccount;
+	@Nullable
+	private final Boolean passwordResetRequired;
+	@Nullable
+	private final UUID passwordResetToken;
 
 	public enum AccountApiResponseSupplement {
 		EVERYTHING,
@@ -225,6 +229,8 @@ public class AccountApiResponse {
 		this.institutionLocationId = account.getInstitutionLocationId();
 		this.promptedForInstitutionLocation = account.getPromptedForInstitutionLocation();
 		this.testAccount = account.getTestAccount();
+		this.passwordResetRequired = account.getPasswordResetRequired();
+		this.passwordResetToken = account.getPasswordResetToken();
 
 		if (showPrivateDetails) {
 			this.emailAddress = account.getEmailAddress();
@@ -497,5 +503,15 @@ public class AccountApiResponse {
 	@Nullable
 	public Boolean getTestAccount() {
 		return this.testAccount;
+	}
+
+	@Nullable
+	public Boolean getPasswordResetRequired() {
+		return passwordResetRequired;
+	}
+
+	@Nullable
+	public UUID getPasswordResetToken() {
+		return passwordResetToken;
 	}
 }

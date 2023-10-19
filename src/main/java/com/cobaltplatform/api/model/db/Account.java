@@ -144,6 +144,15 @@ public class Account {
 	@Nullable
 	private Boolean testAccount;
 
+	@Nullable
+	private String username;
+
+	@Nullable
+	private Boolean passwordResetRequired;
+
+	@Nullable
+	private UUID passwordResetToken;
+
 	// From v_account
 
 	@Nullable
@@ -569,5 +578,32 @@ public class Account {
 
 	public void setTestAccount(@Nullable Boolean testAccount) {
 		this.testAccount = testAccount;
+	}
+
+	@Nullable
+	public String getUsername() {
+		return username;
+	}
+
+	public void setUsername(@Nullable String username) {
+		this.username = username;
+	}
+
+	@Nullable
+	public Boolean getPasswordResetRequired() {
+		return passwordResetRequired;
+	}
+
+	public void setPasswordResetRequired(@Nullable Boolean passwordResetRequired) {
+		this.passwordResetRequired = passwordResetRequired;
+	}
+
+	@Nullable
+	public UUID getPasswordResetToken() {
+		return passwordResetToken;
+	}
+
+	public void setPasswordResetToken(@Nullable UUID passwordResetToken) {
+		this.passwordResetToken = passwordResetToken;
 	}
 }
