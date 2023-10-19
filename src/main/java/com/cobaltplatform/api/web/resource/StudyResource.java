@@ -23,7 +23,6 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.UpdateCheckInAction;
 import com.cobaltplatform.api.model.api.response.AccountCheckInApiResponse.AccountCheckInApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
-import com.cobaltplatform.api.model.db.CheckInActionStatus;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.StudyService;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
@@ -88,7 +87,7 @@ public class StudyResource {
 
 		getStudyService().addAccountToStudy(account, studyId);
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("checkIns", getStudyService().getAccountCheckInsForAccountAndStudy(account, studyId, Optional.of(false))
+			put("checkIns", getStudyService().findAccountCheckInsForAccountAndStudy(account, studyId, Optional.of(false))
 					.stream().map(accountCheckIn -> getAccountCheckInApiResponseFactory().create(accountCheckIn)).collect(Collectors.toList()));
 		}});
 	}
@@ -101,7 +100,7 @@ public class StudyResource {
 
 		getStudyService().rescheduleAccountCheckIn(account, studyId);
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("checkIns", getStudyService().getAccountCheckInsForAccountAndStudy(account, studyId, Optional.of(false))
+			put("checkIns", getStudyService().findAccountCheckInsForAccountAndStudy(account, studyId, Optional.of(false))
 					.stream().map(accountCheckIn -> getAccountCheckInApiResponseFactory().create(accountCheckIn)).collect(Collectors.toList()));
 		}});
 	}
@@ -117,7 +116,7 @@ public class StudyResource {
 		getStudyService().updateAccountCheckInAction(account, accountCheckInActionId, request);
 		getStudyService().rescheduleAccountCheckIn(account, studyId);
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("checkIns", getStudyService().getAccountCheckInsForAccountAndStudy(account, studyId, Optional.of(false))
+			put("checkIns", getStudyService().findAccountCheckInsForAccountAndStudy(account, studyId, Optional.of(false))
 					.stream().map(accountCheckIn -> getAccountCheckInApiResponseFactory().create(accountCheckIn)).collect(Collectors.toList()));
 		}});
 	}

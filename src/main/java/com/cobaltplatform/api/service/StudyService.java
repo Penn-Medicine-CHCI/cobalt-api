@@ -24,12 +24,10 @@ import com.cobaltplatform.api.model.api.request.UpdateCheckInAction;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountCheckIn;
 import com.cobaltplatform.api.model.db.AccountCheckInAction;
-import com.cobaltplatform.api.model.db.CheckInActionStatus;
 import com.cobaltplatform.api.model.db.CheckInActionStatus.CheckInActionStatusId;
 import com.cobaltplatform.api.model.db.Study;
 import com.cobaltplatform.api.model.db.StudyCheckIn;
 import com.cobaltplatform.api.util.ValidationException;
-import com.cobaltplatform.api.util.ValidationUtility;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -77,7 +75,7 @@ public class StudyService {
 	}
 
 	@Nonnull
-	public List<AccountCheckIn> getAccountCheckInsForAccountAndStudy(@Nonnull Account account,
+	public List<AccountCheckIn> findAccountCheckInsForAccountAndStudy(@Nonnull Account account,
 																																	 @Nonnull UUID studyId,
 																																	 @Nonnull Optional<Boolean> completed) {
 		requireNonNull(account);
@@ -102,8 +100,8 @@ public class StudyService {
 	}
 
 	@Nonnull
-	public List<AccountCheckInAction> getAccountCheckInActionsFoAccountAndStudy(@Nonnull UUID accountId,
-																																							@Nonnull UUID accountCheckInId) {
+	public List<AccountCheckInAction> findAccountCheckInActionsFoAccountAndCheckIn(@Nonnull UUID accountId,
+																																								 @Nonnull UUID accountCheckInId) {
 		requireNonNull(accountId);
 		requireNonNull(accountCheckInId);
 
@@ -111,6 +109,19 @@ public class StudyService {
 				SELECT * 
 				FROM v_account_check_in_action
 				WHERE account_id = ? AND account_check_in_id = ?
+				""", AccountCheckInAction.class, accountId, accountCheckInId);
+	}
+
+	@Nonnull
+	public Optional<AccountCheckInAction> findAccountCheckInActionFoAccountAndCheckIn(@Nonnull UUID accountId,
+																																										@Nonnull UUID accountCheckInId) {
+		requireNonNull(accountId);
+		requireNonNull(accountCheckInId);
+
+		return getDatabase().queryForObject("""
+				SELECT * 
+				FROM v_account_check_in_action
+				WHERE account_id = ? AND account_check_in_action_id = ?
 				""", AccountCheckInAction.class, accountId, accountCheckInId);
 	}
 
@@ -197,35 +208,43 @@ public class StudyService {
 		//study.minutesBetweenCheckIns then start a check-in immediately
 
 		//Find all of the check-ins
-		List<AccountCheckIn> accountCheckIns = getAccountCheckInsForAccountAndStudy(account, studyId, Optional.empty());
+		List<AccountCheckIn> accountCheckIns = findAccountCheckInsForAccountAndStudy(account, studyId, Optional.empty());
 		Study study = findStudyById(studyId).get();
 		int checkInCount = 0;
 		Integer minutesInADay = 1440;
 		LocalDateTime checkInStartDateTime;
 		LocalDateTime checkInEndDateTime;
-		LocalDateTime startDateTime = LocalDateTime.now(account.getTimeZone());
-		getLogger().debug(format("startDateTime = %s", startDateTime));
+		LocalDateTime currentDateTime = LocalDateTime.now(account.getTimeZone());
+		getLogger().debug(format("startDateTime = %s", currentDateTime));
+		LocalDateTime newStartDateTime = currentDateTime;
 
 		for (AccountCheckIn accountCheckIn : accountCheckIns) {
 			getLogger().debug(format("Reschedule check-in %s", checkInCount));
-			if (checkInCount == 0 && accountCheckActive(account, accountCheckIn)) { //If this is the first check-in and it is still active do nothing
-				getLogger().debug("Breaking because this is the first check-in and it is still active.");
-				break;
-			} else if (accountCheckIn.getCompletedFlag()) {
+			if (accountCheckIn.getCompletedFlag()) {
 				getLogger().debug(format("Check-in %s is complete so continuing to next check-in", accountCheckIn));
-				startDateTime = accountCheckIn.getCompletedDate();
+				newStartDateTime = accountCheckIn.getCompletedDate();
 				checkInCount++;
 				continue;
+			} else if (accountCheckExpired(account, accountCheckIn)) {
+				newStartDateTime = currentDateTime;
+				getDatabase().execute("""
+						UPDATE account_check_in 
+						SET expired_flag = true 
+						WHERE account_check_in_id = ?""", accountCheckIn.getAccountCheckInId());
+				continue;
+			} else if (accountCheckActive(account, accountCheckIn)) {
+				getLogger().debug("Breaking because we found an active check-in.");
+				break;
 			}
 			if (study.getMinutesBetweenCheckIns() >= minutesInADay) {
 				//TODO: Validate that the minutes are a whole number of days
 				Integer daysToAdd = checkInCount == 0 ? 0 : (study.getMinutesBetweenCheckIns() * checkInCount) / minutesInADay;
-				LocalDate checkInStartDate = startDateTime.toLocalDate().plusDays(daysToAdd);
+				LocalDate checkInStartDate = newStartDateTime.toLocalDate().plusDays(daysToAdd);
 				checkInStartDateTime = LocalDateTime.of(checkInStartDate, LocalTime.of(0, 0, 0));
 			} else {
 				Integer minutesToAdd = study.getMinutesBetweenCheckIns() * checkInCount;
-				checkInStartDateTime = startDateTime.plus(minutesToAdd, ChronoUnit.MINUTES);
-				getLogger().debug(format("Adding %s minutes to %s and setting next check-in to %s", minutesToAdd, startDateTime, checkInStartDateTime));
+				checkInStartDateTime = newStartDateTime.plus(minutesToAdd, ChronoUnit.MINUTES);
+				getLogger().debug(format("Adding %s minutes to %s and setting next check-in to %s", minutesToAdd, newStartDateTime, checkInStartDateTime));
 			}
 			checkInEndDateTime = checkInStartDateTime.plusMinutes(study.getMinutesBetweenCheckIns());
 
@@ -245,6 +264,11 @@ public class StudyService {
 		return !accountCheckIn.getCompletedFlag() &&
 				(LocalDateTime.now(account.getTimeZone()).isAfter(accountCheckIn.getCheckInStartDateTime())
 						&& LocalDateTime.now(account.getTimeZone()).isBefore(accountCheckIn.getCheckInEndDateTime()));
+	}
+
+	@Nonnull
+	public boolean accountCheckExpired(Account account, AccountCheckIn accountCheckIn) {
+		return !accountCheckIn.getCompletedFlag() && LocalDateTime.now(account.getTimeZone()).isAfter(accountCheckIn.getCheckInEndDateTime());
 	}
 
 	@Nonnull

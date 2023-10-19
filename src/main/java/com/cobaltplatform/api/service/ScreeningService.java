@@ -34,6 +34,7 @@ import com.cobaltplatform.api.model.api.request.SkipScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
 import com.cobaltplatform.api.model.api.response.ScreeningConfirmationPromptApiResponse.ScreeningConfirmationPromptApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AccountCheckInAction;
 import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
@@ -152,6 +153,8 @@ public class ScreeningService {
 	@Nonnull
 	private final ScreeningConfirmationPromptApiResponseFactory screeningConfirmationPromptApiResponseFactory;
 	@Nonnull
+	private final StudyService studyService;
+	@Nonnull
 	private final JavascriptExecutor javascriptExecutor;
 	@Nonnull
 	private final ErrorReporter errorReporter;
@@ -174,6 +177,7 @@ public class ScreeningService {
 													@Nonnull Provider<GroupSessionService> groupSessionServiceProvider,
 													@Nonnull Provider<AuthorizationService> authorizationServiceProvider,
 													@Nonnull Provider<MessageService> messageServiceProvider,
+													@Nonnull StudyService studyService,
 													@Nonnull ScreeningConfirmationPromptApiResponseFactory screeningConfirmationPromptApiResponseFactory,
 													@Nonnull JavascriptExecutor javascriptExecutor,
 													@Nonnull ErrorReporter errorReporter,
@@ -188,6 +192,7 @@ public class ScreeningService {
 		requireNonNull(groupSessionServiceProvider);
 		requireNonNull(authorizationServiceProvider);
 		requireNonNull(messageServiceProvider);
+		requireNonNull(studyService);
 		requireNonNull(screeningConfirmationPromptApiResponseFactory);
 		requireNonNull(javascriptExecutor);
 		requireNonNull(errorReporter);
@@ -203,6 +208,7 @@ public class ScreeningService {
 		this.groupSessionServiceProvider = groupSessionServiceProvider;
 		this.authorizationServiceProvider = authorizationServiceProvider;
 		this.messageServiceProvider = messageServiceProvider;
+		this.studyService = studyService;
 		this.screeningConfirmationPromptApiResponseFactory = screeningConfirmationPromptApiResponseFactory;
 		this.javascriptExecutor = javascriptExecutor;
 		this.errorReporter = errorReporter;
@@ -648,6 +654,7 @@ public class ScreeningService {
 		UUID screeningFlowVersionId = request.getScreeningFlowVersionId();
 		UUID patientOrderId = request.getPatientOrderId();
 		UUID groupSessionId = request.getGroupSessionId();
+		UUID accountCheckInActionId = request.getAccountCheckInActionId();
 		ScreeningFlowVersion screeningFlowVersion = null;
 		Account targetAccount = null;
 		Account createdByAccount = null;
@@ -731,13 +738,23 @@ public class ScreeningService {
 			patientOrderId = null;
 		}
 
+		if (accountCheckInActionId != null) {
+			if (targetAccountId == null) {
+				validationException.add(new FieldError("targetAccountId", getStrings().get("Target account ID is required.")));
+			} else {
+				Optional<AccountCheckInAction> accountCheckInAction = studyService.findAccountCheckInActionFoAccountAndCheckIn(targetAccountId, accountCheckInActionId);
+				if (!accountCheckInAction.isPresent())
+					validationException.add(new FieldError("accountCheckInActionId", getStrings().get("Account check-in is not valid for this account.")));
+			}
+		}
+
 		if (validationException.hasErrors())
 			throw validationException;
 
 		getDatabase().execute("""
-				INSERT INTO screening_session(screening_session_id, screening_flow_version_id, target_account_id, created_by_account_id, patient_order_id, group_session_id)
-				VALUES (?,?,?,?,?,?)
-				""", screeningSessionId, screeningFlowVersion.getScreeningFlowVersionId(), targetAccountId, createdByAccountId, patientOrderId, groupSessionId);
+				INSERT INTO screening_session(screening_session_id, screening_flow_version_id, target_account_id, created_by_account_id, patient_order_id, group_session_id, account_check_in_action_id)
+				VALUES (?,?,?,?,?,?,?)
+				""", screeningSessionId, screeningFlowVersion.getScreeningFlowVersionId(), targetAccountId, createdByAccountId, patientOrderId, groupSessionId, accountCheckInActionId);
 
 		// If we're immediately skipping, mark this session as completed/skipped and do nothing else.
 		// If we're not immediately skipping, create an initial screening session screening
@@ -806,7 +823,8 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	public Optional<ScreeningQuestionContext> findScreeningQuestionContextById(@Nullable ScreeningQuestionContextId screeningQuestionContextId) {
+	public Optional<ScreeningQuestionContext> findScreeningQuestionContextById(@Nullable ScreeningQuestionContextId
+																																								 screeningQuestionContextId) {
 		if (screeningQuestionContextId == null)
 			return Optional.empty();
 
@@ -839,7 +857,8 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	public Optional<ScreeningQuestionContext> findPreviousScreeningQuestionContextByScreeningQuestionContextId(@Nullable ScreeningQuestionContextId screeningQuestionContextId) {
+	public Optional<ScreeningQuestionContext> findPreviousScreeningQuestionContextByScreeningQuestionContextId
+			(@Nullable ScreeningQuestionContextId screeningQuestionContextId) {
 		if (screeningQuestionContextId == null)
 			return Optional.empty();
 
@@ -902,7 +921,8 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	public Optional<ScreeningQuestionContext> findNextUnansweredScreeningQuestionContextByScreeningSessionId(@Nullable UUID screeningSessionId) {
+	public Optional<ScreeningQuestionContext> findNextUnansweredScreeningQuestionContextByScreeningSessionId
+			(@Nullable UUID screeningSessionId) {
 		if (screeningSessionId == null)
 			return Optional.empty();
 
@@ -949,7 +969,8 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	protected Optional<ScreeningSessionScreening> findCurrentScreeningSessionScreeningByScreeningSessionId(@Nullable UUID screeningSessionId) {
+	protected Optional<ScreeningSessionScreening> findCurrentScreeningSessionScreeningByScreeningSessionId
+			(@Nullable UUID screeningSessionId) {
 		if (screeningSessionId == null)
 			return Optional.empty();
 
@@ -962,7 +983,8 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	protected List<ScreeningQuestion> findScreeningQuestionsByScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
+	protected List<ScreeningQuestion> findScreeningQuestionsByScreeningSessionScreeningId(@Nullable UUID
+																																														screeningSessionScreeningId) {
 		if (screeningSessionScreeningId == null)
 			return List.of();
 
@@ -976,8 +998,9 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	protected List<ScreeningQuestionWithAnswerOptions> findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(
-			@Nullable UUID screeningSessionScreeningId) {
+	protected List<ScreeningQuestionWithAnswerOptions> findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId
+			(
+					@Nullable UUID screeningSessionScreeningId) {
 		if (screeningSessionScreeningId == null)
 			return Collections.emptyList();
 
@@ -1013,7 +1036,8 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	protected Set<UUID> findScreeningSessionInapplicableScreeningQuestionIdsByScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
+	protected Set<UUID> findScreeningSessionInapplicableScreeningQuestionIdsByScreeningSessionScreeningId
+			(@Nullable UUID screeningSessionScreeningId) {
 		if (screeningSessionScreeningId == null)
 			return Collections.emptySet();
 
@@ -1026,7 +1050,8 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	protected List<ScreeningSessionAnsweredScreeningQuestion> findScreeningSessionAnsweredScreeningQuestionsByScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
+	protected List<ScreeningSessionAnsweredScreeningQuestion> findScreeningSessionAnsweredScreeningQuestionsByScreeningSessionScreeningId
+			(@Nullable UUID screeningSessionScreeningId) {
 		if (screeningSessionScreeningId == null)
 			return Collections.emptyList();
 
@@ -1040,7 +1065,8 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	protected List<ScreeningAnswer> findScreeningAnswersAcrossAllQuestionsByScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
+	protected List<ScreeningAnswer> findScreeningAnswersAcrossAllQuestionsByScreeningSessionScreeningId(@Nullable UUID
+																																																					screeningSessionScreeningId) {
 		if (screeningSessionScreeningId == null)
 			return Collections.emptyList();
 
@@ -1057,7 +1083,8 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	public List<ScreeningAnswer> findScreeningAnswersByScreeningQuestionContextId(@Nullable ScreeningQuestionContextId screeningQuestionContextId) {
+	public List<ScreeningAnswer> findScreeningAnswersByScreeningQuestionContextId(@Nullable ScreeningQuestionContextId
+																																										screeningQuestionContextId) {
 		if (screeningQuestionContextId == null)
 			return Collections.emptyList();
 
@@ -1075,7 +1102,8 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	protected List<ScreeningSessionScreening> findCurrentScreeningSessionScreeningsByScreeningSessionId(@Nullable UUID screeningSessionId) {
+	protected List<ScreeningSessionScreening> findCurrentScreeningSessionScreeningsByScreeningSessionId(@Nullable UUID
+																																																					screeningSessionId) {
 		if (screeningSessionId == null)
 			return Collections.emptyList();
 
@@ -1740,12 +1768,14 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	public Optional<ScreeningSessionDestination> determineDestinationForScreeningSessionId(@Nullable UUID screeningSessionId) {
+	public Optional<ScreeningSessionDestination> determineDestinationForScreeningSessionId(@Nullable UUID
+																																														 screeningSessionId) {
 		return determineDestinationForScreeningSessionId(screeningSessionId, false);
 	}
 
 	@Nonnull
-	public Optional<ScreeningSessionDestination> determineDestinationForScreeningSessionId(@Nullable UUID screeningSessionId,
+	public Optional<ScreeningSessionDestination> determineDestinationForScreeningSessionId(@Nullable UUID
+																																														 screeningSessionId,
 																																												 @Nullable Boolean withSideEffects) {
 		if (withSideEffects == null)
 			withSideEffects = false;
@@ -1849,7 +1879,8 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	public List<ScreeningSession> findScreeningSessionsByPatientOrderIdAndScreeningFlowTypeId(@Nullable UUID patientOrderId,
+	public List<ScreeningSession> findScreeningSessionsByPatientOrderIdAndScreeningFlowTypeId(@Nullable UUID
+																																																patientOrderId,
 																																														@Nullable ScreeningFlowTypeId screeningFlowTypeId) {
 		if (patientOrderId == null)
 			return List.of();
@@ -1952,7 +1983,8 @@ public class ScreeningService {
 
 
 	@Nonnull
-	protected Optional<OrchestrationFunctionOutput> executeScreeningFlowOrchestrationFunction(@Nonnull String screeningFlowOrchestrationFunctionJavascript,
+	protected Optional<OrchestrationFunctionOutput> executeScreeningFlowOrchestrationFunction(@Nonnull String
+																																																screeningFlowOrchestrationFunctionJavascript,
 																																														@Nullable UUID screeningSessionId,
 																																														@Nullable InstitutionId institutionId,
 																																														@Nullable Map<String, Object> additionalContext) {
@@ -1980,7 +2012,8 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	protected Optional<ResultsFunctionOutput> executeScreeningFlowResultsFunction(@Nonnull String screeningFlowResultsFunctionJavascript,
+	protected Optional<ResultsFunctionOutput> executeScreeningFlowResultsFunction(@Nonnull String
+																																										screeningFlowResultsFunctionJavascript,
 																																								@Nullable UUID screeningSessionId,
 																																								@Nullable InstitutionId institutionId) {
 		requireNonNull(screeningFlowResultsFunctionJavascript);
@@ -2017,7 +2050,8 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	protected Optional<DestinationFunctionOutput> executeScreeningFlowDestinationFunction(@Nonnull String screeningFlowDestinationFunctionJavascript,
+	protected Optional<DestinationFunctionOutput> executeScreeningFlowDestinationFunction(@Nonnull String
+																																														screeningFlowDestinationFunctionJavascript,
 																																												@Nullable UUID screeningSessionId,
 																																												@Nullable InstitutionId institutionId,
 																																												@Nullable Map<String, Object> additionalContext) {
@@ -2210,7 +2244,7 @@ public class ScreeningService {
 		context.put("selfAdministered", selfAdministered);
 		context.put("additionalContext", additionalContext == null ? Map.of() : additionalContext);
 
-		if(screeningSession.getGroupSessionId() != null) {
+		if (screeningSession.getGroupSessionId() != null) {
 			GroupSession groupSession = getGroupSessionService().findGroupSessionById(screeningSession.getGroupSessionId(), institutionId).get();
 			context.put("groupSession", groupSession);
 		}
@@ -2778,6 +2812,11 @@ public class ScreeningService {
 	@Nonnull
 	protected MessageService getMessageService() {
 		return this.messageServiceProvider.get();
+	}
+
+	@Nonnull
+	protected StudyService getStudyService() {
+		return studyService;
 	}
 
 	@Nonnull

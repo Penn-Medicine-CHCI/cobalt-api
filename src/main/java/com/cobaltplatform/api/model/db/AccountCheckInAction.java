@@ -41,14 +41,21 @@ public class AccountCheckInAction {
 	private UUID studyCheckInActionId;
 	@Nullable
 	private CheckInActionStatusId checkInActionStatusId;
-
 	@Nullable
 	private String checkInStatusDescription;
 
 	@Nullable
 	private CheckInTypeId checkInTypeId;
 
-	@Nullable String checkInTypeDescription;
+	@Nullable
+	String checkInTypeDescription;
+
+	@Nullable
+	private UUID screeningSessionId;
+
+	@Nullable
+	private UUID screeningFlowId;
+
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -133,5 +140,23 @@ public class AccountCheckInAction {
 
 	public void setCheckInTypeDescription(@Nullable String checkInTypeDescription) {
 		this.checkInTypeDescription = checkInTypeDescription;
+	}
+
+	@Nullable
+	public UUID getScreeningSessionId() {
+		return screeningSessionId;
+	}
+
+	public void setScreeningSessionId(@Nullable UUID screeningSessionId) {
+		this.screeningSessionId = screeningSessionId;
+	}
+
+	@Nullable
+	public UUID getScreeningFlowId() {
+		return screeningFlowId;
+	}
+
+	public void setScreeningFlowId(@Nullable UUID screeningFlowId) {
+		this.screeningFlowId = screeningFlowId;
 	}
 }

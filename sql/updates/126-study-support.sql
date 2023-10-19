@@ -19,7 +19,6 @@ CREATE TABLE study_check_in
 (study_check_in_id UUID NOT NULL PRIMARY KEY,
  study_id UUID NOT NULL REFERENCES study,
  check_in_number INTEGER NOT NULL,
- screening_flow_id UUID NULL,
  created timestamptz NOT NULL DEFAULT now(),
  last_updated timestamptz NOT NULL
 );
@@ -36,6 +35,7 @@ CREATE TABLE study_check_in_action
  study_check_in_id UUID NOT NULL REFERENCES study_check_in,
  check_in_type_id VARCHAR NOT NULL REFERENCES check_in_type,
  action_order INTEGER NOT NULL,
+ screening_flow_id UUID NULL,
  created timestamptz NOT NULL DEFAULT now(),
  last_updated timestamptz NOT NULL
 );
@@ -64,6 +64,7 @@ CREATE TABLE account_check_in
  check_in_start_date_time timestamp NOT NULL,
  check_in_end_date_time timestamp NOT NULL,
  completed_flag BOOLEAN NOT NULL DEFAULT false,
+ expired_flag BOOLEAN NOT NULL DEFAULT false,
  completed_date timestamp NULL,
  created timestamptz NOT NULL DEFAULT now(),
  last_updated timestamptz NOT NULL
@@ -87,6 +88,8 @@ CREATE TABLE account_check_in_action
 
 create trigger set_last_updated before
 insert or update on account_check_in_action for each row execute procedure set_last_updated();
+
+ALTER TABLE screening_session ADD COLUMN account_check_in_action_id UUID NULL REFERENCES account_check_in_action;
 
 INSERT INTO check_in_type
 (check_in_type_id, description)
@@ -113,8 +116,11 @@ ORDER BY ac.check_in_start_date_time ASC;
 CREATE OR REPLACE VIEW v_account_check_in_action
 AS
 SELECT ac.*, a.account_id, sci.study_id, sc.check_in_type_id,
-cit.description as check_in_type_description, cis.description as check_in_status_description
-FROM account_check_in_action ac, study_check_in_action sc, study_check_in sci, account_check_in aci,
+cit.description as check_in_type_description, cis.description as check_in_status_description,
+ss.screening_session_id, sc.screening_flow_id
+FROM account_check_in_action ac
+LEFT OUTER JOIN screening_session ss ON ac.account_check_in_action_id = ss.account_check_in_action_id,
+study_check_in_action sc, study_check_in sci, account_check_in aci,
 check_in_type cit, check_in_action_status cis, account_study a
 WHERE ac.study_check_in_action_id = sc.study_check_in_action_id
 AND sc.study_check_in_id = sci.study_check_in_id
@@ -123,6 +129,7 @@ AND sc.check_in_type_id = cit.check_in_type_id
 AND ac.check_in_action_status_id = cis.check_in_action_status_id
 AND aci.account_study_id = a.account_study_id
 ORDER BY aci.check_in_start_date_time, sc.action_order ASC;
+
 
 
 COMMIT;

@@ -112,7 +112,7 @@ public class AccountCheckInApiResponse {
 		this.checkInActive = checkInActive;
 		this.created = accountCheckIn.getCreated();
 		this.lastUpdated = accountCheckIn.getLastUpdated();
-		this.accountCheckInActions = studyService.getAccountCheckInActionsFoAccountAndStudy
+		this.accountCheckInActions = studyService.findAccountCheckInActionsFoAccountAndCheckIn
 				(currentContextProvider.get().getAccount().get().getAccountId(), accountCheckIn.getAccountCheckInId());
 	}
 
