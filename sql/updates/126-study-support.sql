@@ -131,7 +131,7 @@ SELECT ac.*, a.account_id, sc.study_id, sc.check_in_number
 FROM account_check_in ac, account_study a, study_check_in sc 
 WHERE ac.account_study_id = a.account_study_id 
 AND ac.study_check_in_id = sc.study_check_in_id
-ORDER BY ac.check_in_start_date_time ASC;
+ORDER BY sc.check_in_number ASC;
 
 CREATE OR REPLACE VIEW v_account_check_in_action
 AS
@@ -148,7 +148,7 @@ AND ac.account_check_in_id = aci.account_check_in_id
 AND sc.check_in_type_id = cit.check_in_type_id
 AND ac.check_in_action_status_id = cis.check_in_action_status_id
 AND aci.account_study_id = a.account_study_id
-ORDER BY sc.check_in_number, sc.action_order ASC;
+ORDER BY aci.check_in_start_date_time, sc.action_order ASC;
 
 DROP VIEW v_account;
 

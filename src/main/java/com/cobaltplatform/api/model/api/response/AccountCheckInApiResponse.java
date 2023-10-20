@@ -28,6 +28,7 @@ import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.Provider;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
+import com.cobaltplatform.api.model.api.response.AccountCheckInActionApiResponse.AccountCheckInActionApiResponseFactory;
 
 import static java.lang.String.format;
 
@@ -35,13 +36,12 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
-import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.FormatStyle;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -53,8 +53,6 @@ public class AccountCheckInApiResponse {
 	@Nullable
 	private final UUID accountCheckInId;
 	@Nullable
-	private final UUID accountId;
-	@Nullable
 	private final CheckInType.CheckInTypeId checkInTypeId;
 	@Nullable
 	private final Integer checkInNumber;
@@ -65,8 +63,7 @@ public class AccountCheckInApiResponse {
 	@Nullable
 	private final Boolean checkInActive;
 	@Nullable
-	private final List<AccountCheckInAction> accountCheckInActions;
-
+	private final List<AccountCheckInActionApiResponse> accountCheckInActions;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -79,15 +76,19 @@ public class AccountCheckInApiResponse {
 	public AccountCheckInApiResponse(@Nonnull Provider<CurrentContext> currentContextProvider,
 																	 @Assisted @Nonnull AccountCheckIn accountCheckIn,
 																	 @Nonnull Formatter formatter,
-																	 @Nonnull StudyService studyService) {
+																	 @Nonnull StudyService studyService,
+																	 @Nonnull AccountCheckInActionApiResponseFactory accountCheckInActionApiResponseFactory) {
 		requireNonNull(currentContextProvider);
 		requireNonNull(accountCheckIn);
 		requireNonNull(studyService);
 		requireNonNull(formatter);
+		requireNonNull(accountCheckInActionApiResponseFactory);
 
 		Boolean checkInActive = studyService.accountCheckActive(currentContextProvider.get().getAccount().get(), accountCheckIn);
 		Boolean includeTimeInDescription = !accountCheckIn.getCheckInStartDateTime().toLocalTime().equals(LocalTime.of(0, 0, 0));
 		String checkInDescription;
+
+		//this.accountCheckInActionApiResponseFactory = accountCheckInActionApiResponseFactory;
 
 		if (checkInActive) {
 			if (includeTimeInDescription)
@@ -100,7 +101,6 @@ public class AccountCheckInApiResponse {
 			checkInDescription = formatter.formatDate(accountCheckIn.getCheckInStartDateTime().toLocalDate());
 
 		this.accountCheckInId = accountCheckIn.getAccountCheckInId();
-		this.accountId = accountCheckIn.getAccountId();
 		this.checkInTypeId = accountCheckIn.getCheckInTypeId();
 		this.checkInNumber = accountCheckIn.getCheckInNumber();
 		this.checkInNumberDescription = format("Check %s", accountCheckIn.getCheckInNumber());
@@ -108,7 +108,8 @@ public class AccountCheckInApiResponse {
 				: format("Starts %s", checkInDescription));
 		this.checkInActive = checkInActive;
 		this.accountCheckInActions = studyService.findAccountCheckInActionsFoAccountAndCheckIn
-				(currentContextProvider.get().getAccount().get().getAccountId(), accountCheckIn.getAccountCheckInId(), Optional.empty());
+				(currentContextProvider.get().getAccount().get().getAccountId(), accountCheckIn.getAccountCheckInId(),
+						Optional.empty()).stream().map(accountCheckInAction -> accountCheckInActionApiResponseFactory.create(accountCheckInAction)).collect(Collectors.toList());
 	}
 
 	@Nullable
@@ -116,21 +117,17 @@ public class AccountCheckInApiResponse {
 		return accountCheckInId;
 	}
 
-	@Nullable
-	public UUID getAccountId() {
-		return accountId;
-	}
 
 	@Nullable
 	public CheckInType.CheckInTypeId getCheckInTypeId() {
 		return checkInTypeId;
 	}
-
+/*
 	@Nullable
-	public List<AccountCheckInAction> getAccountCheckInActions() {
+	public List<AccountCheckInActionApiResponse> getAccountCheckInActions() {
 		return accountCheckInActions;
 	}
-
+*/
 
 	@Nullable
 	public Integer getCheckInNumber() {
@@ -146,4 +143,10 @@ public class AccountCheckInApiResponse {
 	public String getCheckInDescription() {
 		return checkInDescription;
 	}
+
+	@Nullable
+	public Boolean getCheckInActive() {
+		return checkInActive;
+	}
+
 }

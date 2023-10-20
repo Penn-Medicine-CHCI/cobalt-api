@@ -62,6 +62,7 @@ import com.cobaltplatform.api.messaging.sms.SmsMessage;
 import com.cobaltplatform.api.messaging.sms.SmsMessageSerializer;
 import com.cobaltplatform.api.messaging.sms.TwilioSmsMessageSender;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.AccountCheckInActionApiResponse.AccountCheckInActionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AccountCheckInApiResponse.AccountCheckInApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AccountSessionApiResponse.AccountSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse.AccountSourceApiResponseFactory;
@@ -311,6 +312,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(FaqApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(FaqTopicApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(AccountCheckInApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(AccountCheckInActionApiResponseFactory.class)));
 	}
 
 	@Provides
