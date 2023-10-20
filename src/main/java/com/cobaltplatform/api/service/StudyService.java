@@ -76,13 +76,12 @@ public class StudyService {
 
 	@Nonnull
 	public List<AccountCheckIn> findAccountCheckInsForAccountAndStudy(@Nonnull Account account,
-																																	 @Nonnull UUID studyId,
-																																	 @Nonnull Optional<Boolean> completed) {
+																																		@Nonnull UUID studyId,
+																																		@Nonnull Optional<Boolean> completed) {
 		requireNonNull(account);
 		requireNonNull(studyId);
 
 		List<Object> sqlParams = new ArrayList<>();
-
 		StringBuilder query = new StringBuilder("""
 				SELECT * 
 					FROM v_account_check_in 
@@ -101,15 +100,26 @@ public class StudyService {
 
 	@Nonnull
 	public List<AccountCheckInAction> findAccountCheckInActionsFoAccountAndCheckIn(@Nonnull UUID accountId,
-																																								 @Nonnull UUID accountCheckInId) {
+																																								 @Nonnull UUID accountCheckInId,
+																																								 @Nonnull Optional<CheckInActionStatusId> checkInActionStatusId) {
 		requireNonNull(accountId);
 		requireNonNull(accountCheckInId);
 
-		return getDatabase().queryForList("""
+		List<Object> sqlParams = new ArrayList<>();
+		StringBuilder query = new StringBuilder("""
 				SELECT * 
 				FROM v_account_check_in_action
 				WHERE account_id = ? AND account_check_in_id = ?
-				""", AccountCheckInAction.class, accountId, accountCheckInId);
+				""");
+		sqlParams.add(accountId);
+		sqlParams.add(accountCheckInId);
+
+		if (checkInActionStatusId.isPresent()) {
+			query.append("AND check_in_action_status_id = ? ");
+			sqlParams.add(checkInActionStatusId.get().toString());
+		}
+
+		return getDatabase().queryForList(query.toString(), AccountCheckInAction.class, sqlParams.toArray());
 	}
 
 	@Nonnull
@@ -147,6 +157,7 @@ public class StudyService {
 		LocalDateTime checkInEndDateTime;
 		Integer minutesInDay = 1440;
 		UUID accountStudyId = UUID.randomUUID();
+		Optional<Study> study = findStudyById(studyId);
 
 		Boolean accountAlreadyInStudy = getDatabase().queryForObject("""
 				SELECT COUNT(*) > 0
@@ -158,10 +169,14 @@ public class StudyService {
 		if (accountAlreadyInStudy)
 			validationException.add(new ValidationException.FieldError("account", getStrings().get("Account is already in this study.")));
 
+		if (!study.isPresent())
+			validationException.add(new ValidationException.FieldError("study", getStrings().get("This study does not exist.")));
+		else if (!study.get().getInstitutionId().equals(account.getInstitutionId()))
+			validationException.add(new ValidationException.FieldError("study", getStrings().get("You cannot join this study.")));
+
 		if (validationException.hasErrors())
 			throw validationException;
 
-		Study study = findStudyById(studyId).get();
 
 		getDatabase().execute("""
 					INSERT INTO account_study 
@@ -172,15 +187,15 @@ public class StudyService {
 
 		int checkInCount = 0;
 		for (StudyCheckIn studyCheckIn : studyCheckIns) {
-			if (study.getMinutesBetweenCheckIns() >= minutesInDay) {
+			if (study.get().getMinutesBetweenCheckIns() >= minutesInDay) {
 				//TODO: Validate that the minutes are a whole number of days
-				Integer daysToAdd = checkInCount == 0 ? 0 : (study.getMinutesBetweenCheckIns() * checkInCount) / minutesInDay;
+				Integer daysToAdd = checkInCount == 0 ? 0 : (study.get().getMinutesBetweenCheckIns() * checkInCount) / minutesInDay;
 				LocalDate checkInStartDate = currentDate.toLocalDate().plusDays(daysToAdd);
 				checkInStartDateTime = LocalDateTime.of(checkInStartDate, LocalTime.of(0, 0, 0));
 			} else {
-				checkInStartDateTime = currentDate.plus(study.getMinutesBetweenCheckIns() * checkInCount, ChronoUnit.MINUTES);
+				checkInStartDateTime = currentDate.plus(study.get().getMinutesBetweenCheckIns() * checkInCount, ChronoUnit.MINUTES);
 			}
-			checkInEndDateTime = checkInStartDateTime.plusMinutes(study.getMinutesBetweenCheckIns());
+			checkInEndDateTime = checkInStartDateTime.plusMinutes(study.get().getMinutesBetweenCheckIns());
 
 			UUID accountCheckInId = UUID.randomUUID();
 			getDatabase().execute("""
@@ -202,51 +217,80 @@ public class StudyService {
 	}
 
 	@Nonnull
+	private void expireCheckIn(@Nonnull UUID accountCheckInId) {
+		getDatabase().execute("""
+				UPDATE account_check_in 
+				SET expired_flag = true 
+				WHERE account_check_in_id = ?""", accountCheckInId);
+	}
+
+	@Nonnull
 	public void rescheduleAccountCheckIn(@Nonnull Account account, @Nonnull UUID studyId) {
 		//Adjust the start and end times for all future check-ins based on the current check-in. If there is no
 		//current check-in then take the "next" check-in and make that active. If it's been longer than the
 		//study.minutesBetweenCheckIns then start a check-in immediately
-
+		ValidationException validationException = new ValidationException();
 		//Find all of the check-ins
 		List<AccountCheckIn> accountCheckIns = findAccountCheckInsForAccountAndStudy(account, studyId, Optional.empty());
-		Study study = findStudyById(studyId).get();
 		int checkInCount = 0;
 		Integer minutesInADay = 1440;
 		LocalDateTime checkInStartDateTime;
 		LocalDateTime checkInEndDateTime;
 		LocalDateTime currentDateTime = LocalDateTime.now(account.getTimeZone());
-		getLogger().debug(format("startDateTime = %s", currentDateTime));
 		LocalDateTime newStartDateTime = currentDateTime;
+		Optional<Study> study = findStudyById(studyId);
 
+		if (!study.isPresent())
+			validationException.add(new ValidationException.FieldError("studyId", getStrings().get("Not a valid Study ID.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		Boolean rescheduleFirstCheckIn = false;
+		getLogger().debug("Rescheduling check-ins");
 		for (AccountCheckIn accountCheckIn : accountCheckIns) {
-			getLogger().debug(format("Reschedule check-in %s", checkInCount));
-			if (accountCheckIn.getCompletedFlag()) {
+			if (accountCheckActive(account, accountCheckIn)) {
+				getLogger().debug("Breaking because check-in %s is active.");
+				break;
+			} else if (accountCheckIn.getCheckInNumber() == 1 && !accountCheckIn.getCompletedFlag()) {
+				//This is the first check-in and it has not been completed so check to see if it's been started
+				getLogger().debug("Hit first check-in and it's not complete, check if it's been started");
+				Boolean checkInStarted = findAccountCheckInActionsFoAccountAndCheckIn(account.getAccountId(),
+						accountCheckIn.getAccountCheckInId(), Optional.of(CheckInActionStatusId.COMPLETE)).size() > 0;
+				if (checkInStarted) {
+					getLogger().debug("First check-in is started but not complete so expiring and continuing on.");
+					expireCheckIn(accountCheckIn.getAccountCheckInId());
+					checkInCount++;
+					continue;
+				} else {
+					getLogger().debug("First check-in is NOT started and not complete so setting start time to now and continuing on.");
+					rescheduleFirstCheckIn = true;
+					newStartDateTime = currentDateTime;
+				}
+			} else if (accountCheckIn.getCompletedFlag()) {
 				getLogger().debug(format("Check-in %s is complete so continuing to next check-in", accountCheckIn));
 				newStartDateTime = accountCheckIn.getCompletedDate();
 				checkInCount++;
 				continue;
-			} else if (accountCheckExpired(account, accountCheckIn)) {
+			} else if (accountCheckExpired(account, accountCheckIn) && !rescheduleFirstCheckIn) {
+				getLogger().debug(format("Check-in %s has expired so setting to expired and continuing to next check-in", accountCheckIn));
 				newStartDateTime = currentDateTime;
-				getDatabase().execute("""
-						UPDATE account_check_in 
-						SET expired_flag = true 
-						WHERE account_check_in_id = ?""", accountCheckIn.getAccountCheckInId());
+				expireCheckIn(accountCheckIn.getAccountCheckInId());
+				checkInCount++;
 				continue;
-			} else if (accountCheckActive(account, accountCheckIn)) {
-				getLogger().debug("Breaking because we found an active check-in.");
-				break;
 			}
-			if (study.getMinutesBetweenCheckIns() >= minutesInADay) {
+
+			if (study.get().getMinutesBetweenCheckIns() >= minutesInADay) {
 				//TODO: Validate that the minutes are a whole number of days
-				Integer daysToAdd = checkInCount == 0 ? 0 : (study.getMinutesBetweenCheckIns() * checkInCount) / minutesInADay;
+				Integer daysToAdd = checkInCount == 0 ? 0 : (study.get().getMinutesBetweenCheckIns() * checkInCount) / minutesInADay;
 				LocalDate checkInStartDate = newStartDateTime.toLocalDate().plusDays(daysToAdd);
 				checkInStartDateTime = LocalDateTime.of(checkInStartDate, LocalTime.of(0, 0, 0));
 			} else {
-				Integer minutesToAdd = study.getMinutesBetweenCheckIns() * checkInCount;
+				Integer minutesToAdd = study.get().getMinutesBetweenCheckIns() * checkInCount;
 				checkInStartDateTime = newStartDateTime.plus(minutesToAdd, ChronoUnit.MINUTES);
 				getLogger().debug(format("Adding %s minutes to %s and setting next check-in to %s", minutesToAdd, newStartDateTime, checkInStartDateTime));
 			}
-			checkInEndDateTime = checkInStartDateTime.plusMinutes(study.getMinutesBetweenCheckIns());
+			checkInEndDateTime = checkInStartDateTime.plusMinutes(study.get().getMinutesBetweenCheckIns());
 
 			getDatabase().execute("""
 					UPDATE account_check_in
@@ -305,14 +349,12 @@ public class StudyService {
 
 	@Nonnull
 	public void updateAccountCheckInAction(@Nonnull Account account,
-																				 @Nonnull UUID accountCheckInActionId,
 																				 @Nonnull UpdateCheckInAction request) {
 		requireNonNull(account);
-		requireNonNull(accountCheckInActionId);
 		requireNonNull(request);
 
 		ValidationException validationException = new ValidationException();
-		Optional<AccountCheckInAction> accountCheckInAction = findAccountCheckInActionById(accountCheckInActionId);
+		Optional<AccountCheckInAction> accountCheckInAction = findAccountCheckInActionById(request.getAccountCheckInActionId());
 		CheckInActionStatusId checkInActionStatusId = request.getCheckInStatusId();
 		LocalDateTime currentLocalDateTime = LocalDateTime.now(account.getTimeZone());
 
@@ -339,7 +381,7 @@ public class StudyService {
 				UPDATE account_check_in_action 
 				SET check_in_action_status_id = ?
 				WHERE account_check_in_action_id=?
-				""", checkInActionStatusId, accountCheckInActionId);
+				""", checkInActionStatusId, request.getAccountCheckInActionId());
 
 		// If a check-in action is being completed, check if all the actions are complete
 		// and set the check-in to complete if they are.

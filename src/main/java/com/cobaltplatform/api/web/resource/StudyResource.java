@@ -113,7 +113,9 @@ public class StudyResource {
 																								 @Nonnull @RequestBody String requestBody) {
 		Account account = getCurrentContext().getAccount().get();
 		UpdateCheckInAction request = getRequestBodyParser().parse(requestBody, UpdateCheckInAction.class);
-		getStudyService().updateAccountCheckInAction(account, accountCheckInActionId, request);
+
+		request.setAccountCheckInActionId(accountCheckInActionId);
+		getStudyService().updateAccountCheckInAction(account, request);
 		getStudyService().rescheduleAccountCheckIn(account, studyId);
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("checkIns", getStudyService().findAccountCheckInsForAccountAndStudy(account, studyId, Optional.of(false))

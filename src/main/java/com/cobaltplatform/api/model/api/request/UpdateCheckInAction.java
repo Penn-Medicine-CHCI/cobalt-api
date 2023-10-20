@@ -23,12 +23,19 @@ import com.cobaltplatform.api.model.db.CheckInActionStatus.CheckInActionStatusId
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
 public class UpdateCheckInAction {
+	@Nonnull
+	private UUID accountId;
+
+	@Nonnull
+	private UUID accountCheckInActionId;
+
 	@Nonnull
 	private CheckInActionStatusId checkInStatusId;
 
@@ -39,5 +46,23 @@ public class UpdateCheckInAction {
 
 	public void setCheckInStatusId(@Nonnull CheckInActionStatusId checkInStatusId) {
 		this.checkInStatusId = checkInStatusId;
+	}
+
+	@Nonnull
+	public UUID getAccountId() {
+		return accountId;
+	}
+
+	public void setAccountId(@Nonnull UUID accountId) {
+		this.accountId = accountId;
+	}
+
+	@Nonnull
+	public UUID getAccountCheckInActionId() {
+		return accountCheckInActionId;
+	}
+
+	public void setAccountCheckInActionId(@Nonnull UUID accountCheckInActionId) {
+		this.accountCheckInActionId = accountCheckInActionId;
 	}
 }

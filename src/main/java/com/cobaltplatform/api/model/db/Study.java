@@ -32,6 +32,8 @@ public class Study {
 	@Nullable
 	private UUID studyId;
 	@Nullable
+	private Institution.InstitutionId institutionId;
+	@Nullable
 	private Integer minutesBetweenCheckIns;
 	@Nullable
 	private Integer gracePeriodInMinutes;
@@ -83,5 +85,14 @@ public class Study {
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
+	}
+
+	@Nullable
+	public Institution.InstitutionId getInstitutionId() {
+		return institutionId;
+	}
+
+	public void setInstitutionId(@Nullable Institution.InstitutionId institutionId) {
+		this.institutionId = institutionId;
 	}
 }

@@ -58,6 +58,8 @@ public class ScreeningSession {
 	@Nullable
 	private Instant lastUpdated;
 
+	@Nullable UUID accountCheckInActionId;
+
 	@Nullable
 	public UUID getScreeningSessionId() {
 		return this.screeningSessionId;
@@ -182,5 +184,14 @@ public class ScreeningSession {
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
+	}
+
+	@Nullable
+	public UUID getAccountCheckInActionId() {
+		return accountCheckInActionId;
+	}
+
+	public void setAccountCheckInActionId(@Nullable UUID accountCheckInActionId) {
+		this.accountCheckInActionId = accountCheckInActionId;
 	}
 }

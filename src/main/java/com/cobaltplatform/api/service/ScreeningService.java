@@ -31,6 +31,7 @@ import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest.CreateAnswerRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.request.SkipScreeningSessionRequest;
+import com.cobaltplatform.api.model.api.request.UpdateCheckInAction;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
 import com.cobaltplatform.api.model.api.response.ScreeningConfirmationPromptApiResponse.ScreeningConfirmationPromptApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
@@ -38,6 +39,7 @@ import com.cobaltplatform.api.model.db.AccountCheckInAction;
 import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
+import com.cobaltplatform.api.model.db.CheckInActionStatus.CheckInActionStatusId;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.Institution;
@@ -685,6 +687,12 @@ public class ScreeningService {
 					validationException.add(new FieldError("groupSessionId", getStrings().get("Group Session ID is required for this type of screening flow.")));
 				else if (screeningFlow.getScreeningFlowTypeId() != ScreeningFlowTypeId.GROUP_SESSION_INTAKE && groupSessionId != null)
 					throw new IllegalStateException(format("It's illegal to specify a Group Session ID for %s.%s",
+							ScreeningFlowTypeId.class.getSimpleName(), screeningFlow.getScreeningFlowTypeId().name()));
+
+				if (screeningFlow.getScreeningFlowTypeId() == ScreeningFlowTypeId.STUDY && accountCheckInActionId == null)
+					validationException.add(new FieldError("accountCheckInActionId", getStrings().get("Account check-in action ID is required for this type of screening flow.")));
+				else if (screeningFlow.getScreeningFlowTypeId() != ScreeningFlowTypeId.STUDY && accountCheckInActionId != null)
+					throw new IllegalStateException(format("It's illegal to specify a account check-in action ID for %s.%s",
 							ScreeningFlowTypeId.class.getSimpleName(), screeningFlow.getScreeningFlowTypeId().name()));
 			}
 		}
@@ -1762,6 +1770,17 @@ public class ScreeningService {
 					}
 				}
 			}
+
+			if (screeningSession.getAccountCheckInActionId() != null) {
+				//This screening session is associated with a study check-in so mark this check-in complete
+				UpdateCheckInAction updateCheckInActionRequest = new UpdateCheckInAction();
+				updateCheckInActionRequest.setAccountCheckInActionId(screeningSession.getAccountCheckInActionId());
+				updateCheckInActionRequest.setCheckInStatusId(CheckInActionStatusId.COMPLETE);
+
+				getStudyService().updateAccountCheckInAction(createdByAccount, updateCheckInActionRequest);
+
+			}
+
 		}
 
 		return screeningAnswerIds;

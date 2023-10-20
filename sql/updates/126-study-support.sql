@@ -4,6 +4,7 @@ SELECT _v.register_patch('126-study-support', NULL, NULL);
 --Base table for study metadata
 CREATE TABLE study
 (study_id UUID NOT NULL PRIMARY KEY,
+ institution_id VARCHAR NOT NULL REFERENCES institution,
  name VARCHAR NOT NULL,
  minutes_between_check_ins INTEGER NOT NULL,
  grace_period_in_minutes INTEGER NOT NULL,
@@ -93,10 +94,17 @@ ALTER TABLE screening_session ADD COLUMN account_check_in_action_id UUID NULL RE
 
 ALTER TABLE account ADD COLUMN username VARCHAR NULL;
 
+ALTER TABLE account ADD COLUMN password_reset_required BOOLEAN NOT NULL DEFAULT FALSE;
+
 INSERT INTO account_source
 (account_source_id, description)
 VALUES
-('USERNME', 'Username');
+('USERNAME', 'Username');
+
+INSERT INTO institution_account_source
+(institution_account_source_id, institution_id, account_source_id, account_source_display_style_id, display_order, authentication_description, visible)
+VALUES
+(uuid_generate_v4(), 'COBALT', 'USERNAME', 'TERTIARY', 3, 'Username', false);
 
 INSERT INTO check_in_type
 (check_in_type_id, description)
@@ -111,6 +119,11 @@ VALUES
 ('IN_PROGRESS', 'In progress'),
 ('FAILED', 'Failed'),
 ('COMPLETE', 'Complete');
+
+INSERT INTO screening_flow_type
+(screening_flow_type_id, description)
+VALUES
+('STUDY', 'Study');
 
 CREATE OR REPLACE VIEW v_account_check_in
 AS
@@ -135,7 +148,7 @@ AND ac.account_check_in_id = aci.account_check_in_id
 AND sc.check_in_type_id = cit.check_in_type_id
 AND ac.check_in_action_status_id = cis.check_in_action_status_id
 AND aci.account_study_id = a.account_study_id
-ORDER BY aci.check_in_start_date_time, sc.action_order ASC;
+ORDER BY sc.check_in_number, sc.action_order ASC;
 
 DROP VIEW v_account;
 

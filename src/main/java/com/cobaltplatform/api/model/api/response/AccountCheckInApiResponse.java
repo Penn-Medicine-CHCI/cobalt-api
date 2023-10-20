@@ -40,6 +40,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.FormatStyle;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -65,10 +66,6 @@ public class AccountCheckInApiResponse {
 	private final Boolean checkInActive;
 	@Nullable
 	private final List<AccountCheckInAction> accountCheckInActions;
-	@Nullable
-	private final Instant created;
-	@Nullable
-	private final Instant lastUpdated;
 
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
@@ -110,10 +107,8 @@ public class AccountCheckInApiResponse {
 		this.checkInDescription = format(checkInActive ? format("Ends %s", checkInDescription)
 				: format("Starts %s", checkInDescription));
 		this.checkInActive = checkInActive;
-		this.created = accountCheckIn.getCreated();
-		this.lastUpdated = accountCheckIn.getLastUpdated();
 		this.accountCheckInActions = studyService.findAccountCheckInActionsFoAccountAndCheckIn
-				(currentContextProvider.get().getAccount().get().getAccountId(), accountCheckIn.getAccountCheckInId());
+				(currentContextProvider.get().getAccount().get().getAccountId(), accountCheckIn.getAccountCheckInId(), Optional.empty());
 	}
 
 	@Nullable
@@ -136,15 +131,6 @@ public class AccountCheckInApiResponse {
 		return accountCheckInActions;
 	}
 
-	@Nullable
-	public Instant getCreated() {
-		return created;
-	}
-
-	@Nullable
-	public Instant getLastUpdated() {
-		return lastUpdated;
-	}
 
 	@Nullable
 	public Integer getCheckInNumber() {
