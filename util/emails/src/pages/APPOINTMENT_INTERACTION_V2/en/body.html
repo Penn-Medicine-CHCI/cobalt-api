@@ -1,0 +1,25 @@
+---
+layout: default_V2
+subject: '{{subject}}'
+caseNumber: '{{caseNumber}}'
+metadata: '{{metadata}}'
+endUserHtmlRepresentation: '{{endUserHtmlRepresentation}}'
+interactionInstanceUrl: '{{interactionInstanceUrl}}'
+messageTemplateBodyHtml: '{{messageTemplateBodyHtml}}'
+---
+
+
+
+{{#> header}}
+	We're following up to get feedback on your appointment
+{{/header}}
+
+{{#> content}}
+	<spacer size="48"></spacer>
+
+	<p>
+		{{{messageTemplateBodyHtml}}}
+	</p>
+
+	<spacer size="48"></spacer>
+{{/content}}

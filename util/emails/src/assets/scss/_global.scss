@@ -1,0 +1,23 @@
+// Elements
+// --------------------------------
+hr {
+	margin: 0;
+	border: 0;
+	height: 1px;
+	background-color: $n100;
+}
+
+ul {
+	margin: 0;
+	padding-left: 16px;
+}
+
+// Text
+// --------------------------------
+a {
+	text-decoration: underline;
+}
+
+.text-danger {
+	color: $d500 !important;
+}

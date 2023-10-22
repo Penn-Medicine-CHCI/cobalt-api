@@ -1,0 +1,33 @@
+---
+layout: default_V2
+subject: '{{subject}}'
+title: '{{title}}'
+salutation: '{{salutation}}'
+codeTypeDescription: '{{codeTypeDescription}}'
+confirmationCode: '{{confirmationCode}}'
+---
+
+
+{{#> header}}
+	{{title}}
+{{/header}}
+
+{{#> content}}
+	<spacer size="48"></spacer>
+
+	<p>{{salutation}}</p>
+
+	<spacer size="16"></spacer>
+
+	<p>Your {{codeTypeDescription}} is:</p>
+
+	<spacer size="16"></spacer>
+
+	<h2><strong>{{confirmationCode}}</strong></h2>
+
+	<spacer size="16"></spacer>
+
+	<p>Enter this code to finish booking your appointment.</p>
+
+	<spacer size="72"></spacer>
+{{/content}}

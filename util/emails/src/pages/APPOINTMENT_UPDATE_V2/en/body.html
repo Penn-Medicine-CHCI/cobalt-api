@@ -1,0 +1,30 @@
+---
+layout: default_V2
+subject: 'Cobalt: Appointment Update'
+appointmentTimeDescription: '{{appointmentTimeDescription}}'
+appointmentDateDescription: '{{appointmentDateDescription}}'
+videoconferenceUrl: '{{videoconferenceUrl}}'
+---
+
+
+
+{{#> header}}
+	Appointment Update
+{{/header}}
+
+{{#> content}}
+	<spacer size="48"></spacer>
+
+	<p>
+		Hello!
+	</p>
+
+	<spacer size="16"></spacer>
+
+	<p>
+		Your Cobalt appointment at {{appointmentTimeDescription}} on {{appointmentDateDescription}} has a new videoconference URL: <a href="{{videoconferenceUrl}}">{{videoconferenceUrl}}</a>
+	</p>
+
+	<spacer size="48"></spacer>
+{{/content}}
+

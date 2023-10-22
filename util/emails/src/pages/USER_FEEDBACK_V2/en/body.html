@@ -1,0 +1,34 @@
+---
+layout: default_V2
+subject: 'Cobalt: User Feedback'
+accountDescription: '{{accountDescription}}'
+institutionDescription: '{{institutionDescription}}'
+feedback: '{{feedback}}'
+emailAddress: '{{emailAddress}}'
+---
+
+
+{{#> header}}
+
+{{/header}}
+
+{{#> content}}
+	<spacer size="48"></spacer>
+
+	<p>
+		The Cobalt system received user feedback from {{accountDescription}} at {{institutionDescription}}:
+	</p>
+
+	<spacer size="16"></spacer>
+
+	<pre>{{feedback}}</pre>
+
+	{{#if emailAddress}}
+		<spacer size="32"></spacer>
+		<p>
+			Contact email address provided was {{emailAddress}}
+		</p>
+	{{/if}}
+
+	<spacer size="48"></spacer>
+{{/content}}

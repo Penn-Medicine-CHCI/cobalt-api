@@ -1,0 +1,41 @@
+---
+layout: default_V2
+subject: 'Cobalt: Group Session {{{groupSessionRequest.title}}} is now live!'
+imageUrl: '/assets/img/default-provider.png'
+groupSessionRequest: {title: '{{groupSessionRequest.title}}'}
+groupSessionRequestUrl: '{{groupSessionRequestUrl}}'
+---
+
+
+{{#> header}}
+
+{{/header}}
+
+{{#> content}}
+	<spacer size="48"></spacer>
+
+	{{> session-image
+		sessionImageSrc=imageUrl
+		sessionImageAlt=groupSessionRequest.title
+	}}
+
+	<spacer size="16"></spacer>
+
+	<p class="text-center">
+		We're following up on your recent group session submission
+	</p>
+
+	<spacer size="32"></spacer>
+
+	<p>
+		Hi there!
+	</p>
+
+	<spacer size="16"></spacer>
+
+	<p>
+		The group session you submitted is now live! <a href="{{{groupSessionUrl}}}">Please click here to see it on Cobalt</a>.
+	</p>
+
+	<spacer size="48"></spacer>
+{{/content}}

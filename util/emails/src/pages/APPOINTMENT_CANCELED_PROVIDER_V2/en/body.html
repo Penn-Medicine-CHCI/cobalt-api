@@ -1,0 +1,31 @@
+---
+layout: default_V2
+subject: 'Cobalt: Appointment Canceled for {{appointmentStartDateTimeDescription}}'
+appointmentId: '{{appointmentId}}'
+appointmentStartDateTimeDescription: '{{appointmentStartDateTimeDescription}}'
+appointmentStartDateDescription: '{{appointmentStartDateDescription}}'
+appointmentStartTimeDescription: '{{appointmentStartTimeDescription}}'
+providerName: '{{providerName}}'
+accountName: '{{accountName}}'
+accountEmailAddress: '{{accountEmailAddress}}'
+---
+
+
+
+{{#> header}}
+	Appointment canceled
+{{/header}}
+
+{{#> content}}
+	<spacer size="48"></spacer>
+
+	<p>Hi {{providerName}},</p>
+
+	<spacer size="16"></spacer>
+
+	<p>
+		Your appointment with {{accountName}} ({{accountEmailAddress}}) on {{appointmentStartDateDescription}} @ {{appointmentStartTimeDescription}} has been canceled.
+	</p>
+
+	<spacer size="48"></spacer>
+{{/content}}

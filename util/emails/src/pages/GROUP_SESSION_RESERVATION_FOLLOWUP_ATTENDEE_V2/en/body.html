@@ -1,0 +1,53 @@
+---
+layout: default_V2
+subject: 'Cobalt: Followup for ‘{{{groupSession.title}}}’'
+groupSession: {
+	title: "{{groupSession.title}}",
+	facilitatorName: "{{groupSession.facilitatorName}}",
+	videoconferenceUrl: "{{groupSession.videoconferenceUrl}}",
+	confirmationEmailContent: "{{groupSession.confirmationEmailContent}}",
+	targetEmailAddress: "{{groupSession.targetEmailAddress}}",
+	followupEmailSurveyUrl: "{{groupSession.followupEmailSurveyUrl}}"
+}
+imageUrl: "/assets/img/default-provider.png"
+---
+
+
+{{#> header}}
+
+{{/header}}
+
+{{#> content}}
+	<spacer size="48"></spacer>
+
+	{{> session-image
+		sessionImageSrc=imageUrl
+		sessionImageAlt=groupSession.title
+	}}
+
+	<spacer size="16"></spacer>
+
+	<p class="text-center">
+		We're following up on your recent group session
+	</p>
+
+	<spacer size="32"></spacer>
+
+	<p>Hi there!</p>
+
+	<spacer size="16"></spacer>
+
+	<p>
+		{{{groupSession.followupEmailContent}}}
+	</p>
+
+	{{#if groupSession.followupEmailSurveyUrl}}
+		<spacer size="32"></spacer>
+		<p>
+			<a href="{{{groupSession.followupEmailSurveyUrl}}}">Please click here to take the survey</a>
+		</p>
+	{{/if}}
+
+	<spacer size="48"></spacer>
+
+{{/content}}

@@ -1,0 +1,91 @@
+---
+layout: default_V2
+subject: 'Cobalt: Group Session requested for {{{groupSessionRequestTitle}}}'
+groupSessionRequestTitle: '{{groupSessionRequestTitle}}'
+facilitatorName: '{{facilitatorName}}'
+respondentName: '{{respondentName}}'
+imageUrl: '/assets/img/default-provider.png'
+respondentEmailAddress: '{{respondentEmailAddress}}'
+respondentPhoneNumber: '{{respondentPhoneNumber}}'
+suggestedDate: '{{suggestedDate}}'
+suggestedTime: '{{suggestedTime}}'
+expectedParticipants: '{{expectedParticipants}}'
+notes: '{{notes}}'
+customQuestion1: '{{customQuestion1}}'
+customAnswer1: '{{customAnswer1}}'
+customQuestion2: '{{customQuestion2}}'
+customAnswer2: '{{customAnswer2}}'
+---
+
+
+{{#> header}}
+
+{{/header}}
+
+{{#> content}}
+	<spacer size="48"></spacer>
+
+	{{> session-image
+		sessionImageSrc=imageUrl
+		sessionImageAlt=groupSession.title
+	}}
+
+	<spacer size="16"></spacer>
+
+	<p class="text-center">
+		Group Session requested for ‘{{{groupSessionRequestTitle}}}&rsquo;.
+	</p>
+
+	<spacer size="32"></spacer>
+
+	<p>Hi {{facilitatorName}},</p>
+
+	<spacer size="16"></spacer>
+
+	<p>
+		A Group Session was requested for ‘{{{groupSessionRequestTitle}}}’.
+	</p>
+	<spacer size="16"></spacer>
+
+	<p>
+		Requestor Name: {{respondentName}}
+	</p>
+	<spacer size="4"></spacer>
+	<p>
+		Requestor Email Address: {{respondentEmailAddress}}
+	</p>
+	<spacer size="4"></spacer>
+	<p>
+		Requestor Phone Number: {{respondentPhoneNumber}}
+	</p>
+	<spacer size="4"></spacer>
+	<p>
+		Suggested Date: {{suggestedDate}}
+	</p>
+	<spacer size="4"></spacer>
+	<p>
+		Suggested Time: {{suggestedTime}}
+	</p>
+	<spacer size="4"></spacer>
+	<p>
+		Expected Participants: {{expectedParticipants}}
+	</p>
+	<spacer size="4"></spacer>
+	<p>
+		Notes: {{notes}}
+	</p>
+	{{#if customQuestion1}}
+		<spacer size="4"></spacer>
+		<p>
+			{{customQuestion1}}: {{customAnswer1}}
+		</p>
+	{{/if}}
+	{{#if customQuestion2}}
+		<spacer size="4"></spacer>
+		<p>
+			{{customQuestion2}}: {{customAnswer2}}
+		</p>
+	{{/if}}
+
+	<spacer size="48"></spacer>
+{{/content}}

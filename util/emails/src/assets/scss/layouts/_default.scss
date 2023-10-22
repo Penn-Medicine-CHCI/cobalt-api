@@ -1,0 +1,26 @@
+.logo-outer {
+	background-color: $n0;
+}
+
+.title-outer {
+	background-color: $p500;
+
+	h3 {
+		color: $n0;
+	}
+}
+
+.body-outer {
+	background-color: $n0;
+}
+
+.footer-outer {
+	background-color: $n50;
+	border-top: 4px solid $a300;
+
+	p {
+		color: $n500;
+		font-size: 12px;
+		line-height: 18px;
+	}
+}
