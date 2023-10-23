@@ -86,6 +86,10 @@ public class CreateAccountRequest {
 	private CreateAddressRequest address;
 	@Nullable
 	private Boolean testAccount;
+	@Nullable
+	private String username;
+	@Nullable
+	private Boolean passwordResetRequired;
 
 	@Nullable
 	public RoleId getRoleId() {
@@ -301,5 +305,23 @@ public class CreateAccountRequest {
 
 	public void setTestAccount(@Nullable Boolean testAccount) {
 		this.testAccount = testAccount;
+	}
+
+	@Nullable
+	public String getUsername() {
+		return username;
+	}
+
+	public void setUsername(@Nullable String username) {
+		this.username = username;
+	}
+
+	@Nullable
+	public Boolean getPasswordResetRequired() {
+		return passwordResetRequired;
+	}
+
+	public void setPasswordResetRequired(@Nullable Boolean passwordResetRequired) {
+		this.passwordResetRequired = passwordResetRequired;
 	}
 }

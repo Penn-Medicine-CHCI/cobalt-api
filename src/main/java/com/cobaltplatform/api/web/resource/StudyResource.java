@@ -22,8 +22,10 @@ package com.cobaltplatform.api.web.resource;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.UpdateCheckInAction;
 import com.cobaltplatform.api.model.api.response.AccountCheckInApiResponse.AccountCheckInApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.StudyAccountApiResponse.StudyAccountApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.service.StudyAccount;
 import com.cobaltplatform.api.service.StudyService;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.*;
@@ -36,12 +38,13 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
-import javax.swing.text.html.Option;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -60,6 +63,9 @@ public class StudyResource {
 	private final Logger logger;
 	@Nonnull
 	private final AccountCheckInApiResponseFactory accountCheckInApiResponseFactory;
+
+	@Nonnull
+	private final StudyAccountApiResponseFactory studyAccountApiResponseFactory;
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
 
@@ -67,31 +73,35 @@ public class StudyResource {
 	public StudyResource(@Nonnull StudyService studyService,
 											 @Nonnull Provider<CurrentContext> currentContextProvider,
 											 @Nonnull AccountCheckInApiResponseFactory accountCheckInApiResponseFactory,
+											 @Nonnull StudyAccountApiResponseFactory studyAccountApiResponseFactory,
 											 @Nonnull RequestBodyParser requestBodyParser) {
 		requireNonNull(studyService);
 		requireNonNull(currentContextProvider);
 		requireNonNull(accountCheckInApiResponseFactory);
 		requireNonNull(requestBodyParser);
+		requireNonNull(studyAccountApiResponseFactory);
 
 		this.studyService = studyService;
 		this.currentContextProvider = currentContextProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.accountCheckInApiResponseFactory = accountCheckInApiResponseFactory;
 		this.requestBodyParser = requestBodyParser;
+		this.studyAccountApiResponseFactory = studyAccountApiResponseFactory;
 	}
 
 	@Nonnull
-	@POST("/studies/{studyId}/add-account")
+	@POST("/studies/{studyId}/generate-accounts")
 	@AuthenticationRequired
-	public ApiResponse addCurrentAccountToStudy(@Nonnull @PathParameter UUID studyId) {
+	public ApiResponse addCurrentAccountToStudy(@Nonnull @PathParameter UUID studyId,
+																							@Nonnull @QueryParameter Optional<Integer> count) {
 		requireNonNull(studyId);
+		requireNonNull(count);
 
 		Account account = getCurrentContext().getAccount().get();
-
-		getStudyService().addAccountToStudy(account, studyId);
+		int finalCount = count.orElse(10);
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("checkIns", getStudyService().findAccountCheckInsForAccountAndStudy(account, studyId, Optional.of(false))
-					.stream().map(accountCheckIn -> getAccountCheckInApiResponseFactory().create(accountCheckIn)).collect(Collectors.toList()));
+			put("accounts", getStudyService().generateAccountsForStudy(studyId, finalCount, account).stream().map(studyAccount ->
+					getStudyAccountApiResponseFactory().create(studyAccount)).collect(Collectors.toList()));
 		}});
 	}
 
@@ -155,5 +165,10 @@ public class StudyResource {
 	@Nonnull
 	public RequestBodyParser getRequestBodyParser() {
 		return requestBodyParser;
+	}
+
+	@Nonnull
+	protected StudyAccountApiResponseFactory getStudyAccountApiResponseFactory() {
+		return studyAccountApiResponseFactory;
 	}
 }

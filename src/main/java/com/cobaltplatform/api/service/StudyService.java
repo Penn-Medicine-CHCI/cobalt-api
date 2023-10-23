@@ -20,14 +20,19 @@
 package com.cobaltplatform.api.service;
 
 
+import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.UpdateCheckInAction;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountCheckIn;
 import com.cobaltplatform.api.model.db.AccountCheckInAction;
+import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.CheckInActionStatus.CheckInActionStatusId;
 import com.cobaltplatform.api.model.db.CheckInStatus.CheckInStatusId;
+import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Study;
 import com.cobaltplatform.api.model.db.StudyCheckIn;
+import com.cobaltplatform.api.model.service.StudyAccount;
+import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.ValidationException;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -46,6 +51,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Random;
 import java.util.UUID;
 
 import static java.lang.String.format;
@@ -63,16 +69,26 @@ public class StudyService {
 	private final Strings strings;
 	@Nonnull
 	private final Logger logger;
+	@Nonnull
+	private final Authenticator authenticator;
+	@Nonnull
+	private final AccountService accountService;
 
 	@Inject
 	public StudyService(@Nonnull Database database,
-											@Nonnull Strings strings) {
+											@Nonnull Strings strings,
+											@Nonnull AccountService accountService,
+											@Nonnull Authenticator authenticator) {
 		requireNonNull(database);
 		requireNonNull(strings);
+		requireNonNull(authenticator);
+		requireNonNull(accountService);
 
 		this.database = database;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
+		this.accountService = accountService;
+		this.authenticator = authenticator;
 	}
 
 	@Nonnull
@@ -148,6 +164,54 @@ public class StudyService {
 				FROM study 
 				WHERE study_id = ?
 				""", Study.class, studyId);
+	}
+
+	@Nonnull
+	public List<StudyAccount> generateAccountsForStudy(@Nonnull UUID studyId,
+																										 @Nonnull Integer count,
+																										 @Nonnull Account account) {
+		requireNonNull(studyId);
+		requireNonNull(count);
+
+		ValidationException validationException = new ValidationException();
+		Optional<Study> study = findStudyById(studyId);
+		List<StudyAccount> studyAccounts = new ArrayList<>();
+
+		if(!study.isPresent())
+			validationException.add(new ValidationException.FieldError("studyId", getStrings().get("Not a valid Study ID.")));
+		else if (study.get().getInstitutionId() != account.getInstitutionId())
+			validationException.add(new ValidationException.FieldError("institutionId", getStrings().get("You can only create accounts for studies in your institution.")));
+
+		if (!account.getRoleId().equals(RoleId.ADMINISTRATOR))
+			validationException.add(new ValidationException.FieldError("accountId", getStrings().get("Only administrators can create Study accounts.")));
+
+		for (int i = 0; i < count; ++i) {
+			String accountUsername = new Random().ints(10, 97, 122)
+					.collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
+					.toString();
+			String accountPassword = new Random().ints(10, 97, 122)
+					.collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
+					.toString();
+
+			getLogger().debug(format("Adding %s with password %s", accountUsername, accountPassword));
+			studyAccounts.add(new StudyAccount() {{
+				setUsername(accountUsername);
+				setPassword(accountPassword);
+			}});
+			UUID accountId = accountService.createAccount(new CreateAccountRequest() {{
+				setAccountSourceId(AccountSource.AccountSourceId.USERNAME);
+				setRoleId(RoleId.PATIENT);
+				setInstitutionId(account.getInstitutionId());
+				setUsername(accountUsername);
+				setPassword(getAuthenticator().hashPassword(accountPassword));
+				setTestAccount(true);
+				setPasswordResetRequired(true);
+			}});
+
+			addAccountToStudy(accountService.findAccountById(accountId).get(), studyId);
+		}
+
+		return studyAccounts;
 	}
 
 	@Nonnull
@@ -414,7 +478,14 @@ public class StudyService {
 	}
 
 	@Nonnull
+	protected Authenticator getAuthenticator() {
+		return authenticator;
+	}
+
+	@Nonnull
 	protected Logger getLogger() {
 		return this.logger;
+
+
 	}
 }
