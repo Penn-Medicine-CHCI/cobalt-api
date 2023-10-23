@@ -113,13 +113,13 @@ INSERT INTO check_in_type
 (check_in_type_id, description)
 VALUES
 ('VIDEO','Record Video'),
-('SCREENING', 'Take the assessment');
+('SCREENING', 'Take the Assessment');
 
 INSERT INTO check_in_status
 (check_in_status_id, description)
 VALUES
 ('NOT_STARTED', 'Not Started'),
-('IN_PROGRESS', 'In progress'),
+('IN_PROGRESS', 'In Progress'),
 ('COMPLETE', 'Complete'),
 ('EXPIRED', 'Expired');
 
@@ -127,7 +127,7 @@ INSERT INTO check_in_action_status
 (check_in_action_status_id, description)
 VALUES
 ('INCOMPLETE', 'Incomplete'),
-('IN_PROGRESS', 'In progress'),
+('IN_PROGRESS', 'In Progress'),
 ('FAILED', 'Failed'),
 ('COMPLETE', 'Complete');
 
