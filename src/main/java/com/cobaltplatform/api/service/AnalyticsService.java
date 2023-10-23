@@ -272,8 +272,9 @@ public class AnalyticsService implements AutoCloseable {
 				FROM account a, analytics_google_bigquery_event agbe
 				WHERE a.account_id=(agbe.bigquery_user->>'userId')::UUID
 				AND agbe.timestamp BETWEEN ? AND ?
+				AND agbe.institution_id=?
 				GROUP BY a.account_source_id
-				""", AccountSourceIdCount.class, startTimestamp, endTimestamp);
+				""", AccountSourceIdCount.class, startTimestamp, endTimestamp, institutionId);
 
 		Map<AccountSourceId, Long> activeUserCountsByAccountSourceId = new HashMap<>();
 
@@ -281,6 +282,109 @@ public class AnalyticsService implements AutoCloseable {
 			activeUserCountsByAccountSourceId.put(accountSourceIdCount.getAccountSourceId(), accountSourceIdCount.getCount());
 
 		return activeUserCountsByAccountSourceId;
+	}
+
+	/**
+	 * Section page view counts: groupings of "Sections" and how many page views/distinct users ('user' instead of 'account' b/c might not be signed in).
+	 */
+	@Nonnull
+	public List<SectionPageViewCount> findSectionPageViewCounts(@Nonnull InstitutionId institutionId,
+																															@Nonnull LocalDate startDate,
+																															@Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		if (endDate.isBefore(startDate))
+			throw new ValidationException(getStrings().get("End date cannot be before start date."));
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		Instant startTimestamp = LocalDateTime.of(startDate, LocalTime.MIN).atZone(institution.getTimeZone()).toInstant();
+		Instant endTimestamp = LocalDateTime.of(endDate, LocalTime.MAX).atZone(institution.getTimeZone()).toInstant();
+
+		// Sign In
+		// * Starts with /sign-in
+		//
+		// Home Page
+		// * Null or equal to / or starts with /?
+		//
+		// Features
+		// * Starts with /connect-with-support/[feature-name]
+		// * Starts with /resource-library
+		// * Starts with /group-sessions
+
+//		List<Feature> features = getDatabase().queryForList("""
+//				 SELECT f.feature_id, COALESCE(if.name_override, f.name) AS name, f.url_name
+//				 FROM institution_feature if, feature f
+//				 WHERE f.feature_id=if.feature_id
+//				 AND if.institution_id=?
+//				 ORDER BY f.feature_id
+//				""", Feature.class, institutionId);
+
+		//SELECT 'Sign In' as section, COUNT(*)
+		//FROM analytics_google_bigquery_event
+		//WHERE event->'parameters'->'page_path'->>'value' LIKE '/sign-in%'
+		//AND name='page_view'
+		//AND institution_id='COBALT'
+		//AND timestamp BETWEEN '2023-10-01T04:00:00Z' AND '2023-10-02T03:59:59.999999999Z'
+		//UNION
+		//SELECT 'Home Page' as section, COUNT(*)
+		//FROM analytics_google_bigquery_event
+		//WHERE (event->'parameters'->'page_path'->>'value' IS NULL OR event->'parameters'->'page_path'->>'value' = '/' OR event->'parameters'->'page_path'->>'value' LIKE '/?%')
+		//AND name='page_view'
+		//AND institution_id='COBALT'
+		//AND timestamp BETWEEN '2023-10-01T04:00:00Z' AND '2023-10-02T03:59:59.999999999Z';
+
+		throw new UnsupportedOperationException();
+	}
+
+	@Nonnull
+	protected List<String> findPageViewUrls() {
+		// All pageviews for all institutions and all time.
+		// Just for reference...
+		return getDatabase().queryForList("""
+				SELECT DISTINCT event->'parameters'->'page_path'->>'value' AS page_path
+				FROM analytics_google_bigquery_event
+				WHERE name='page_view'
+				ORDER BY event->'parameters'->'page_path'->>'value'
+				""", String.class);
+	}
+
+	@NotThreadSafe
+	public static class SectionPageViewCount {
+		@Nullable
+		private String section;
+		@Nullable
+		private Long count;
+		@Nullable
+		private Long userCount;
+
+		@Nullable
+		public String getSection() {
+			return this.section;
+		}
+
+		public void setSection(@Nullable String section) {
+			this.section = section;
+		}
+
+		@Nullable
+		public Long getCount() {
+			return this.count;
+		}
+
+		public void setCount(@Nullable Long count) {
+			this.count = count;
+		}
+
+		@Nullable
+		public Long getUserCount() {
+			return this.userCount;
+		}
+
+		public void setUserCount(@Nullable Long userCount) {
+			this.userCount = userCount;
+		}
 	}
 
 	@NotThreadSafe
