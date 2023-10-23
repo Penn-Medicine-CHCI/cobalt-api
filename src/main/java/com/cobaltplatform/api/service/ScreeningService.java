@@ -927,8 +927,7 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	public Optional<ScreeningQuestionContext> findNextUnansweredScreeningQuestionContextByScreeningSessionId
-			(@Nullable UUID screeningSessionId) {
+	public Optional<ScreeningQuestionContext> findNextUnansweredScreeningQuestionContextByScreeningSessionId(@Nullable UUID screeningSessionId) {
 		if (screeningSessionId == null)
 			return Optional.empty();
 
