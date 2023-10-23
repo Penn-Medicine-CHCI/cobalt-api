@@ -39,6 +39,8 @@ public class CreateScreeningSessionRequest {
 	@Nullable
 	private UUID groupSessionId;
 	@Nullable
+	private UUID accountCheckInActionId;
+	@Nullable
 	private UUID createdByAccountId;
 	@Nullable
 	private Boolean immediatelySkip;
@@ -104,5 +106,14 @@ public class CreateScreeningSessionRequest {
 
 	public void setImmediatelySkip(@Nullable Boolean immediatelySkip) {
 		this.immediatelySkip = immediatelySkip;
+	}
+
+	@Nullable
+	public UUID getAccountCheckInActionId() {
+		return accountCheckInActionId;
+	}
+
+	public void setAccountCheckInActionId(@Nullable UUID accountCheckInActionId) {
+		this.accountCheckInActionId = accountCheckInActionId;
 	}
 }

@@ -31,12 +31,15 @@ import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest.CreateAnswerRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.request.SkipScreeningSessionRequest;
+import com.cobaltplatform.api.model.api.request.UpdateCheckInAction;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
 import com.cobaltplatform.api.model.api.response.ScreeningConfirmationPromptApiResponse.ScreeningConfirmationPromptApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AccountCheckInAction;
 import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
+import com.cobaltplatform.api.model.db.CheckInActionStatus.CheckInActionStatusId;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.Institution;
@@ -152,6 +155,8 @@ public class ScreeningService {
 	@Nonnull
 	private final ScreeningConfirmationPromptApiResponseFactory screeningConfirmationPromptApiResponseFactory;
 	@Nonnull
+	private final StudyService studyService;
+	@Nonnull
 	private final JavascriptExecutor javascriptExecutor;
 	@Nonnull
 	private final ErrorReporter errorReporter;
@@ -174,6 +179,7 @@ public class ScreeningService {
 													@Nonnull Provider<GroupSessionService> groupSessionServiceProvider,
 													@Nonnull Provider<AuthorizationService> authorizationServiceProvider,
 													@Nonnull Provider<MessageService> messageServiceProvider,
+													@Nonnull StudyService studyService,
 													@Nonnull ScreeningConfirmationPromptApiResponseFactory screeningConfirmationPromptApiResponseFactory,
 													@Nonnull JavascriptExecutor javascriptExecutor,
 													@Nonnull ErrorReporter errorReporter,
@@ -188,6 +194,7 @@ public class ScreeningService {
 		requireNonNull(groupSessionServiceProvider);
 		requireNonNull(authorizationServiceProvider);
 		requireNonNull(messageServiceProvider);
+		requireNonNull(studyService);
 		requireNonNull(screeningConfirmationPromptApiResponseFactory);
 		requireNonNull(javascriptExecutor);
 		requireNonNull(errorReporter);
@@ -203,6 +210,7 @@ public class ScreeningService {
 		this.groupSessionServiceProvider = groupSessionServiceProvider;
 		this.authorizationServiceProvider = authorizationServiceProvider;
 		this.messageServiceProvider = messageServiceProvider;
+		this.studyService = studyService;
 		this.screeningConfirmationPromptApiResponseFactory = screeningConfirmationPromptApiResponseFactory;
 		this.javascriptExecutor = javascriptExecutor;
 		this.errorReporter = errorReporter;
@@ -648,6 +656,7 @@ public class ScreeningService {
 		UUID screeningFlowVersionId = request.getScreeningFlowVersionId();
 		UUID patientOrderId = request.getPatientOrderId();
 		UUID groupSessionId = request.getGroupSessionId();
+		UUID accountCheckInActionId = request.getAccountCheckInActionId();
 		ScreeningFlowVersion screeningFlowVersion = null;
 		Account targetAccount = null;
 		Account createdByAccount = null;
@@ -678,6 +687,12 @@ public class ScreeningService {
 					validationException.add(new FieldError("groupSessionId", getStrings().get("Group Session ID is required for this type of screening flow.")));
 				else if (screeningFlow.getScreeningFlowTypeId() != ScreeningFlowTypeId.GROUP_SESSION_INTAKE && groupSessionId != null)
 					throw new IllegalStateException(format("It's illegal to specify a Group Session ID for %s.%s",
+							ScreeningFlowTypeId.class.getSimpleName(), screeningFlow.getScreeningFlowTypeId().name()));
+
+				if (screeningFlow.getScreeningFlowTypeId() == ScreeningFlowTypeId.STUDY && accountCheckInActionId == null)
+					validationException.add(new FieldError("accountCheckInActionId", getStrings().get("Account check-in action ID is required for this type of screening flow.")));
+				else if (screeningFlow.getScreeningFlowTypeId() != ScreeningFlowTypeId.STUDY && accountCheckInActionId != null)
+					throw new IllegalStateException(format("It's illegal to specify a account check-in action ID for %s.%s",
 							ScreeningFlowTypeId.class.getSimpleName(), screeningFlow.getScreeningFlowTypeId().name()));
 			}
 		}
@@ -731,13 +746,23 @@ public class ScreeningService {
 			patientOrderId = null;
 		}
 
+		if (accountCheckInActionId != null) {
+			if (targetAccountId == null) {
+				validationException.add(new FieldError("targetAccountId", getStrings().get("Target account ID is required.")));
+			} else {
+				Optional<AccountCheckInAction> accountCheckInAction = studyService.findAccountCheckInActionFoAccountAndCheckIn(targetAccountId, accountCheckInActionId);
+				if (!accountCheckInAction.isPresent())
+					validationException.add(new FieldError("accountCheckInActionId", getStrings().get("Account check-in is not valid for this account.")));
+			}
+		}
+
 		if (validationException.hasErrors())
 			throw validationException;
 
 		getDatabase().execute("""
-				INSERT INTO screening_session(screening_session_id, screening_flow_version_id, target_account_id, created_by_account_id, patient_order_id, group_session_id)
-				VALUES (?,?,?,?,?,?)
-				""", screeningSessionId, screeningFlowVersion.getScreeningFlowVersionId(), targetAccountId, createdByAccountId, patientOrderId, groupSessionId);
+				INSERT INTO screening_session(screening_session_id, screening_flow_version_id, target_account_id, created_by_account_id, patient_order_id, group_session_id, account_check_in_action_id)
+				VALUES (?,?,?,?,?,?,?)
+				""", screeningSessionId, screeningFlowVersion.getScreeningFlowVersionId(), targetAccountId, createdByAccountId, patientOrderId, groupSessionId, accountCheckInActionId);
 
 		// If we're immediately skipping, mark this session as completed/skipped and do nothing else.
 		// If we're not immediately skipping, create an initial screening session screening
@@ -976,8 +1001,7 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	protected List<ScreeningQuestionWithAnswerOptions> findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(
-			@Nullable UUID screeningSessionScreeningId) {
+	protected List<ScreeningQuestionWithAnswerOptions> findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
 		if (screeningSessionScreeningId == null)
 			return Collections.emptyList();
 
@@ -1734,6 +1758,17 @@ public class ScreeningService {
 					}
 				}
 			}
+
+			if (screeningSession.getAccountCheckInActionId() != null) {
+				//This screening session is associated with a study check-in so mark this check-in complete
+				UpdateCheckInAction updateCheckInActionRequest = new UpdateCheckInAction();
+				updateCheckInActionRequest.setAccountCheckInActionId(screeningSession.getAccountCheckInActionId());
+				updateCheckInActionRequest.setCheckInStatusId(CheckInActionStatusId.COMPLETE);
+
+				getStudyService().updateAccountCheckInAction(createdByAccount, updateCheckInActionRequest);
+
+			}
+
 		}
 
 		return screeningAnswerIds;
@@ -2210,7 +2245,7 @@ public class ScreeningService {
 		context.put("selfAdministered", selfAdministered);
 		context.put("additionalContext", additionalContext == null ? Map.of() : additionalContext);
 
-		if(screeningSession.getGroupSessionId() != null) {
+		if (screeningSession.getGroupSessionId() != null) {
 			GroupSession groupSession = getGroupSessionService().findGroupSessionById(screeningSession.getGroupSessionId(), institutionId).get();
 			context.put("groupSession", groupSession);
 		}
@@ -2778,6 +2813,11 @@ public class ScreeningService {
 	@Nonnull
 	protected MessageService getMessageService() {
 		return this.messageServiceProvider.get();
+	}
+
+	@Nonnull
+	protected StudyService getStudyService() {
+		return studyService;
 	}
 
 	@Nonnull
