@@ -36,6 +36,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import javax.swing.text.html.Option;
 import java.util.HashMap;
 import java.util.Optional;
 import java.util.UUID;
@@ -83,6 +84,8 @@ public class StudyResource {
 	@POST("/studies/{studyId}/add-account")
 	@AuthenticationRequired
 	public ApiResponse addCurrentAccountToStudy(@Nonnull @PathParameter UUID studyId) {
+		requireNonNull(studyId);
+
 		Account account = getCurrentContext().getAccount().get();
 
 		getStudyService().addAccountToStudy(account, studyId);
@@ -95,12 +98,14 @@ public class StudyResource {
 	@Nonnull
 	@GET("/studies/{studyId}/check-in-list")
 	@AuthenticationRequired
-	public ApiResponse getAccountCheckInForStudy(@Nonnull @PathParameter UUID studyId) {
+	public ApiResponse getAccountCheckInForStudy(@Nonnull @PathParameter UUID studyId,
+																							 @QueryParameter Optional<Boolean> pastCheckIns) {
+		requireNonNull(studyId);
 		Account account = getCurrentContext().getAccount().get();
 
 		getStudyService().rescheduleAccountCheckIn(account, studyId);
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("checkIns", getStudyService().findAccountCheckInsForAccountAndStudy(account, studyId, Optional.of(false))
+			put("checkIns", getStudyService().findAccountCheckInsForAccountAndStudy(account, studyId, pastCheckIns)
 					.stream().map(accountCheckIn -> getAccountCheckInApiResponseFactory().create(accountCheckIn)).collect(Collectors.toList()));
 		}});
 	}
@@ -111,6 +116,10 @@ public class StudyResource {
 	public ApiResponse updateCheckInActionStatusId(@Nonnull @PathParameter UUID studyId,
 																								 @Nonnull @PathParameter UUID accountCheckInActionId,
 																								 @Nonnull @RequestBody String requestBody) {
+		requireNonNull(studyId);
+		requireNonNull(accountCheckInActionId);
+		requireNonNull(requestBody);
+
 		Account account = getCurrentContext().getAccount().get();
 		UpdateCheckInAction request = getRequestBodyParser().parse(requestBody, UpdateCheckInAction.class);
 

@@ -58,14 +58,17 @@ insert or update on account_study for each row execute procedure set_last_update
 CREATE UNIQUE INDEX idx_account_study_account_id
 ON account_study (account_id, study_id);
 
+CREATE TABLE check_in_status
+(check_in_status_id VARCHAR NOT NULL PRIMARY KEY,
+description VARCHAR NOT NULL);
+
 CREATE TABLE account_check_in
 (account_check_in_id UUID NOT NULL PRIMARY KEY,
  account_study_id UUID NOT NULL REFERENCES account_study,
  study_check_in_id UUID NOT NULL REFERENCES study_check_in,
  check_in_start_date_time timestamp NOT NULL,
  check_in_end_date_time timestamp NOT NULL,
- completed_flag BOOLEAN NOT NULL DEFAULT false,
- expired_flag BOOLEAN NOT NULL DEFAULT false,
+ check_in_status_id VARCHAR NOT NULL REFERENCES check_in_status DEFAULT 'NOT_STARTED',
  completed_date timestamp NULL,
  created timestamptz NOT NULL DEFAULT now(),
  last_updated timestamptz NOT NULL
@@ -112,6 +115,14 @@ VALUES
 ('VIDEO','Record Video'),
 ('SCREENING', 'Take the assessment');
 
+INSERT INTO check_in_status
+(check_in_status_id, description)
+VALUES
+('NOT_STARTED', 'Not Started'),
+('IN_PROGRESS', 'In progress'),
+('COMPLETE', 'Complete'),
+('EXPIRED', 'Expired');
+
 INSERT INTO check_in_action_status
 (check_in_action_status_id, description)
 VALUES
@@ -127,16 +138,17 @@ VALUES
 
 CREATE OR REPLACE VIEW v_account_check_in
 AS
-SELECT ac.*, a.account_id, sc.study_id, sc.check_in_number
-FROM account_check_in ac, account_study a, study_check_in sc 
+SELECT ac.*, a.account_id, sc.study_id, sc.check_in_number, cis.description as check_in_status_description
+FROM account_check_in ac, account_study a, study_check_in sc, check_in_status cis 
 WHERE ac.account_study_id = a.account_study_id 
 AND ac.study_check_in_id = sc.study_check_in_id
+AND ac.check_in_status_id = cis.check_in_status_id
 ORDER BY sc.check_in_number ASC;
 
 CREATE OR REPLACE VIEW v_account_check_in_action
 AS
 SELECT ac.*, a.account_id, sci.study_id, sc.check_in_type_id,
-cit.description as check_in_type_description, cis.description as check_in_status_description,
+cit.description as check_in_type_description, cis.description as check_in_action_status_description,
 ss.screening_session_id, sc.screening_flow_id
 FROM account_check_in_action ac
 LEFT OUTER JOIN screening_session ss ON ac.account_check_in_action_id = ss.account_check_in_action_id,

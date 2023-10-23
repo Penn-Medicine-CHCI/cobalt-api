@@ -23,10 +23,9 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.UUID;
 import com.cobaltplatform.api.model.db.CheckInType.CheckInTypeId;
-import org.checkerframework.checker.units.qual.N;
+import com.cobaltplatform.api.model.db.CheckInStatus.CheckInStatusId;
 
 
 /**
@@ -62,7 +61,7 @@ public class AccountCheckIn {
 	private LocalDateTime completedDate;
 
 	@Nullable
-	private Boolean completedFlag;
+	private CheckInStatusId checkInStatusId;
 
 	@Nullable
 	public UUID getAccountCheckInId() {
@@ -146,12 +145,12 @@ public class AccountCheckIn {
 	}
 
 	@Nullable
-	public Boolean getCompletedFlag() {
-		return completedFlag;
+	public CheckInStatusId getCheckInStatusId() {
+		return checkInStatusId;
 	}
 
-	public void setCompletedFlag(@Nullable Boolean completedFlag) {
-		this.completedFlag = completedFlag;
+	public void setCheckInStatusId(@Nullable CheckInStatusId checkInStatusId) {
+		this.checkInStatusId = checkInStatusId;
 	}
 
 	@Nullable

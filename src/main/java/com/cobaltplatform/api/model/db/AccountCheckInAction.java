@@ -43,7 +43,7 @@ public class AccountCheckInAction {
 	@Nullable
 	private CheckInActionStatusId checkInActionStatusId;
 	@Nullable
-	private String checkInStatusDescription;
+	private String checkInActionStatusDescription;
 
 	@Nullable
 	private CheckInTypeId checkInTypeId;
@@ -117,12 +117,12 @@ public class AccountCheckInAction {
 	}
 
 	@Nullable
-	public String getCheckInStatusDescription() {
-		return checkInStatusDescription;
+	public String getCheckInActionStatusDescription() {
+		return checkInActionStatusDescription;
 	}
 
-	public void setCheckInStatusDescription(@Nullable String checkInStatusDescription) {
-		this.checkInStatusDescription = checkInStatusDescription;
+	public void setCheckInActionStatusDescription(@Nullable String checkInActionStatusDescription) {
+		this.checkInActionStatusDescription = checkInActionStatusDescription;
 	}
 
 	@Nullable

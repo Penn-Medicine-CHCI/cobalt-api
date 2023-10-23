@@ -22,6 +22,8 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.AccountCheckIn;
 import com.cobaltplatform.api.model.db.AccountCheckInAction;
+import com.cobaltplatform.api.model.db.CheckInActionStatus;
+import com.cobaltplatform.api.model.db.CheckInStatus;
 import com.cobaltplatform.api.model.db.CheckInType;
 import com.cobaltplatform.api.service.StudyService;
 import com.cobaltplatform.api.util.Formatter;
@@ -86,30 +88,33 @@ public class AccountCheckInApiResponse {
 
 		Boolean checkInActive = studyService.accountCheckActive(currentContextProvider.get().getAccount().get(), accountCheckIn);
 		Boolean includeTimeInDescription = !accountCheckIn.getCheckInStartDateTime().toLocalTime().equals(LocalTime.of(0, 0, 0));
-		String checkInDescription;
-
-		//this.accountCheckInActionApiResponseFactory = accountCheckInActionApiResponseFactory;
+		String checkInDateDescription;
+		List<AccountCheckInAction> accountCheckInActionList = studyService.findAccountCheckInActionsFoAccountAndCheckIn
+				(currentContextProvider.get().getAccount().get().getAccountId(), accountCheckIn.getAccountCheckInId(),
+						Optional.empty());
+		Integer completedCheckInActionCount = accountCheckInActionList.stream().filter(ac ->
+				ac.getCheckInActionStatusId().equals(CheckInActionStatus.CheckInActionStatusId.COMPLETE)).collect(Collectors.toList()).size();
 
 		if (checkInActive) {
 			if (includeTimeInDescription)
-				checkInDescription = formatter.formatDateTime(accountCheckIn.getCheckInEndDateTime(), FormatStyle.LONG, FormatStyle.MEDIUM);
+				checkInDateDescription = formatter.formatDateTime(accountCheckIn.getCheckInEndDateTime(), FormatStyle.LONG, FormatStyle.MEDIUM);
 			else
-				checkInDescription = formatter.formatDate(accountCheckIn.getCheckInEndDateTime().toLocalDate());
+				checkInDateDescription = formatter.formatDate(accountCheckIn.getCheckInEndDateTime().toLocalDate());
 		} else if (includeTimeInDescription)
-			checkInDescription = formatter.formatDateTime(accountCheckIn.getCheckInStartDateTime(), FormatStyle.LONG, FormatStyle.MEDIUM);
+			checkInDateDescription = formatter.formatDateTime(accountCheckIn.getCheckInStartDateTime(), FormatStyle.LONG, FormatStyle.MEDIUM);
 		else
-			checkInDescription = formatter.formatDate(accountCheckIn.getCheckInStartDateTime().toLocalDate());
+			checkInDateDescription = formatter.formatDate(accountCheckIn.getCheckInStartDateTime().toLocalDate());
 
 		this.accountCheckInId = accountCheckIn.getAccountCheckInId();
 		this.checkInTypeId = accountCheckIn.getCheckInTypeId();
 		this.checkInNumber = accountCheckIn.getCheckInNumber();
 		this.checkInNumberDescription = format("Check %s", accountCheckIn.getCheckInNumber());
-		this.checkInDescription = format(checkInActive ? format("Ends %s", checkInDescription)
-				: format("Starts %s", checkInDescription));
+		this.checkInDescription = checkInActive ? format("Ends %s", checkInDateDescription)
+				: accountCheckIn.getCheckInStatusId().equals(CheckInStatus.CheckInStatusId.COMPLETE) ||
+				accountCheckIn.getCheckInStatusId().equals(CheckInStatus.CheckInStatusId.EXPIRED) ?
+				format("%s of %s", completedCheckInActionCount, accountCheckInActionList.size()) : format("Upcoming");
 		this.checkInActive = checkInActive;
-		this.accountCheckInActions = studyService.findAccountCheckInActionsFoAccountAndCheckIn
-				(currentContextProvider.get().getAccount().get().getAccountId(), accountCheckIn.getAccountCheckInId(),
-						Optional.empty()).stream().map(accountCheckInAction -> accountCheckInActionApiResponseFactory.create(accountCheckInAction)).collect(Collectors.toList());
+		this.accountCheckInActions = accountCheckInActionList.stream().map(accountCheckInAction -> accountCheckInActionApiResponseFactory.create(accountCheckInAction)).collect(Collectors.toList());
 	}
 
 	@Nullable

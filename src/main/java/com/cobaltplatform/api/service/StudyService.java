@@ -25,6 +25,7 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountCheckIn;
 import com.cobaltplatform.api.model.db.AccountCheckInAction;
 import com.cobaltplatform.api.model.db.CheckInActionStatus.CheckInActionStatusId;
+import com.cobaltplatform.api.model.db.CheckInStatus.CheckInStatusId;
 import com.cobaltplatform.api.model.db.Study;
 import com.cobaltplatform.api.model.db.StudyCheckIn;
 import com.cobaltplatform.api.util.ValidationException;
@@ -77,7 +78,7 @@ public class StudyService {
 	@Nonnull
 	public List<AccountCheckIn> findAccountCheckInsForAccountAndStudy(@Nonnull Account account,
 																																		@Nonnull UUID studyId,
-																																		@Nonnull Optional<Boolean> completed) {
+																																		@Nonnull Optional<Boolean> pastCheckIns) {
 		requireNonNull(account);
 		requireNonNull(studyId);
 
@@ -90,9 +91,14 @@ public class StudyService {
 		sqlParams.add(account.getAccountId());
 		sqlParams.add(studyId);
 
-		if (completed.isPresent()) {
-			query.append("AND completed_flag = ? ");
-			sqlParams.add(completed.get());
+		if (pastCheckIns.isPresent()) {
+			if (pastCheckIns.get() == true) {
+				query.append("AND check_in_status_id IN (?,?) ");
+			} else {
+				query.append("AND check_in_status_id NOT IN (?,?) ");
+			}
+			sqlParams.add(CheckInStatusId.COMPLETE.toString());
+			sqlParams.add(CheckInStatusId.EXPIRED.toString());
 		}
 
 		return getDatabase().queryForList(query.toString(), AccountCheckIn.class, sqlParams.toArray());
@@ -217,11 +223,12 @@ public class StudyService {
 	}
 
 	@Nonnull
-	private void expireCheckIn(@Nonnull UUID accountCheckInId) {
+	private void updateCheckInStatusId(@Nonnull UUID accountCheckInId,
+																	 @Nonnull CheckInStatusId checkInStatusId) {
 		getDatabase().execute("""
 				UPDATE account_check_in 
-				SET expired_flag = true 
-				WHERE account_check_in_id = ?""", accountCheckInId);
+				SET check_in_status_id = ? 
+				WHERE account_check_in_id = ?""", checkInStatusId, accountCheckInId);
 	}
 
 	@Nonnull
@@ -252,14 +259,14 @@ public class StudyService {
 			if (accountCheckActive(account, accountCheckIn)) {
 				getLogger().debug("Breaking because check-in %s is active.");
 				break;
-			} else if (accountCheckIn.getCheckInNumber() == 1 && !accountCheckIn.getCompletedFlag()) {
+			} else if (accountCheckIn.getCheckInNumber() == 1 && !accountCheckIn.getCheckInStatusId().equals(CheckInStatusId.COMPLETE)) {
 				//This is the first check-in and it has not been completed so check to see if it's been started
 				getLogger().debug("Hit first check-in and it's not complete, check if it's been started");
 				Boolean checkInStarted = findAccountCheckInActionsFoAccountAndCheckIn(account.getAccountId(),
 						accountCheckIn.getAccountCheckInId(), Optional.of(CheckInActionStatusId.COMPLETE)).size() > 0;
 				if (checkInStarted) {
 					getLogger().debug("First check-in is started but not complete so expiring and continuing on.");
-					expireCheckIn(accountCheckIn.getAccountCheckInId());
+					updateCheckInStatusId(accountCheckIn.getAccountCheckInId(), CheckInStatusId.EXPIRED);
 					checkInCount++;
 					continue;
 				} else {
@@ -267,7 +274,7 @@ public class StudyService {
 					rescheduleFirstCheckIn = true;
 					newStartDateTime = currentDateTime;
 				}
-			} else if (accountCheckIn.getCompletedFlag()) {
+			} else if (accountCheckIn.getCheckInStatusId().equals(CheckInStatusId.COMPLETE)) {
 				getLogger().debug(format("Check-in %s is complete so continuing to next check-in", accountCheckIn));
 				newStartDateTime = accountCheckIn.getCompletedDate();
 				checkInCount++;
@@ -275,7 +282,7 @@ public class StudyService {
 			} else if (accountCheckExpired(account, accountCheckIn) && !rescheduleFirstCheckIn) {
 				getLogger().debug(format("Check-in %s has expired so setting to expired and continuing to next check-in", accountCheckIn));
 				newStartDateTime = currentDateTime;
-				expireCheckIn(accountCheckIn.getAccountCheckInId());
+				updateCheckInStatusId(accountCheckIn.getAccountCheckInId(), CheckInStatusId.EXPIRED);
 				checkInCount++;
 				continue;
 			}
@@ -305,14 +312,14 @@ public class StudyService {
 
 	@Nonnull
 	public boolean accountCheckActive(Account account, AccountCheckIn accountCheckIn) {
-		return !accountCheckIn.getCompletedFlag() &&
+		return !accountCheckIn.getCheckInStatusId().equals(CheckInStatusId.COMPLETE) &&
 				(LocalDateTime.now(account.getTimeZone()).isAfter(accountCheckIn.getCheckInStartDateTime())
 						&& LocalDateTime.now(account.getTimeZone()).isBefore(accountCheckIn.getCheckInEndDateTime()));
 	}
 
 	@Nonnull
 	public boolean accountCheckExpired(Account account, AccountCheckIn accountCheckIn) {
-		return !accountCheckIn.getCompletedFlag() && LocalDateTime.now(account.getTimeZone()).isAfter(accountCheckIn.getCheckInEndDateTime());
+		return !accountCheckIn.getCheckInStatusId().equals(CheckInStatusId.COMPLETE) && LocalDateTime.now(account.getTimeZone()).isAfter(accountCheckIn.getCheckInEndDateTime());
 	}
 
 	@Nonnull
@@ -365,7 +372,7 @@ public class StudyService {
 			Optional<AccountCheckIn> accountCheckIn = findAccountCheckInById(accountCheckInAction.get().getAccountCheckInId());
 			if (!accountCheckIn.isPresent())
 				validationException.add(new ValidationException.FieldError("accountCheckIn", getStrings().get("Account check-in not found.")));
-			else if (accountCheckIn.get().getCompletedFlag())
+			else if (accountCheckIn.get().getCheckInStatusId().equals(CheckInStatusId.COMPLETE))
 				validationException.add(new ValidationException.FieldError("accountCheckIn", getStrings().get("Account check-in is complete.")));
 			else if (accountCheckIn.get().getCheckInStartDateTime().isAfter(currentLocalDateTime) || accountCheckIn.get().getCheckInEndDateTime().isBefore(currentLocalDateTime))
 				validationException.add(new ValidationException.FieldError("accountCheckIn", getStrings().get("Account check-in is not permitted at this time.")));
@@ -390,9 +397,9 @@ public class StudyService {
 				LocalDateTime completedDateTime = LocalDateTime.now(account.getTimeZone());
 				getDatabase().execute("""
 						UPDATE account_check_in 
-						SET completed_flag = true, completed_date = ?
+						SET check_in_status_id = ?, completed_date = ?
 						WHERE account_check_in_id = ?
-						""", completedDateTime, accountCheckInAction.get().getAccountCheckInId());
+						""", CheckInStatusId.COMPLETE.toString(), completedDateTime, accountCheckInAction.get().getAccountCheckInId());
 			}
 	}
 

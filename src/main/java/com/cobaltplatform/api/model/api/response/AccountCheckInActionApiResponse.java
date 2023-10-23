@@ -49,7 +49,7 @@ public class AccountCheckInActionApiResponse {
 	@Nullable
 	private CheckInActionStatusId checkInActionStatusId;
 	@Nullable
-	private String checkInStatusDescription;
+	private String checkInActionStatusDescription;
 
 	@Nullable
 	private CheckInType.CheckInTypeId checkInTypeId;
@@ -81,7 +81,7 @@ public class AccountCheckInActionApiResponse {
 		accountCheckInActionId = accountCheckInAction.getAccountCheckInActionId();
 		checkInActionStatusId = accountCheckInAction.getCheckInActionStatusId();
 		checkInActionStatusId = accountCheckInAction.getCheckInActionStatusId();
-		checkInStatusDescription = accountCheckInAction.getCheckInStatusDescription();
+		checkInActionStatusDescription = accountCheckInAction.getCheckInActionStatusDescription();
 		checkInTypeId = accountCheckInAction.getCheckInTypeId();
 		checkInTypeDescription = accountCheckInAction.getCheckInTypeDescription();
 		screeningSessionId = accountCheckInAction.getScreeningSessionId();
@@ -99,8 +99,8 @@ public class AccountCheckInActionApiResponse {
 	}
 
 	@Nullable
-	public String getCheckInStatusDescription() {
-		return checkInStatusDescription;
+	public String getCheckInActionStatusDescription() {
+		return checkInActionStatusDescription;
 	}
 
 	@Nullable
