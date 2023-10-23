@@ -831,8 +831,7 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	public Optional<ScreeningQuestionContext> findScreeningQuestionContextById(@Nullable ScreeningQuestionContextId
-																																								 screeningQuestionContextId) {
+	public Optional<ScreeningQuestionContext> findScreeningQuestionContextById(@Nullable ScreeningQuestionContextId screeningQuestionContextId) {
 		if (screeningQuestionContextId == null)
 			return Optional.empty();
 
@@ -865,8 +864,7 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	public Optional<ScreeningQuestionContext> findPreviousScreeningQuestionContextByScreeningQuestionContextId
-			(@Nullable ScreeningQuestionContextId screeningQuestionContextId) {
+	public Optional<ScreeningQuestionContext> findPreviousScreeningQuestionContextByScreeningQuestionContextId(@Nullable ScreeningQuestionContextId screeningQuestionContextId) {
 		if (screeningQuestionContextId == null)
 			return Optional.empty();
 
@@ -977,8 +975,7 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	protected Optional<ScreeningSessionScreening> findCurrentScreeningSessionScreeningByScreeningSessionId
-			(@Nullable UUID screeningSessionId) {
+	protected Optional<ScreeningSessionScreening> findCurrentScreeningSessionScreeningByScreeningSessionId(@Nullable UUID screeningSessionId) {
 		if (screeningSessionId == null)
 			return Optional.empty();
 
@@ -991,8 +988,7 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	protected List<ScreeningQuestion> findScreeningQuestionsByScreeningSessionScreeningId(@Nullable UUID
-																																														screeningSessionScreeningId) {
+	protected List<ScreeningQuestion> findScreeningQuestionsByScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
 		if (screeningSessionScreeningId == null)
 			return List.of();
 
@@ -1006,9 +1002,7 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	protected List<ScreeningQuestionWithAnswerOptions> findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId
-			(
-					@Nullable UUID screeningSessionScreeningId) {
+	protected List<ScreeningQuestionWithAnswerOptions> findScreeningQuestionsWithAnswerOptionsByScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
 		if (screeningSessionScreeningId == null)
 			return Collections.emptyList();
 
@@ -1044,8 +1038,7 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	protected Set<UUID> findScreeningSessionInapplicableScreeningQuestionIdsByScreeningSessionScreeningId
-			(@Nullable UUID screeningSessionScreeningId) {
+	protected Set<UUID> findScreeningSessionInapplicableScreeningQuestionIdsByScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
 		if (screeningSessionScreeningId == null)
 			return Collections.emptySet();
 
@@ -1058,8 +1051,7 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	protected List<ScreeningSessionAnsweredScreeningQuestion> findScreeningSessionAnsweredScreeningQuestionsByScreeningSessionScreeningId
-			(@Nullable UUID screeningSessionScreeningId) {
+	protected List<ScreeningSessionAnsweredScreeningQuestion> findScreeningSessionAnsweredScreeningQuestionsByScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
 		if (screeningSessionScreeningId == null)
 			return Collections.emptyList();
 
@@ -1073,8 +1065,7 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	protected List<ScreeningAnswer> findScreeningAnswersAcrossAllQuestionsByScreeningSessionScreeningId(@Nullable UUID
-																																																					screeningSessionScreeningId) {
+	protected List<ScreeningAnswer> findScreeningAnswersAcrossAllQuestionsByScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
 		if (screeningSessionScreeningId == null)
 			return Collections.emptyList();
 
@@ -1091,8 +1082,7 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	public List<ScreeningAnswer> findScreeningAnswersByScreeningQuestionContextId(@Nullable ScreeningQuestionContextId
-																																										screeningQuestionContextId) {
+	public List<ScreeningAnswer> findScreeningAnswersByScreeningQuestionContextId(@Nullable ScreeningQuestionContextId screeningQuestionContextId) {
 		if (screeningQuestionContextId == null)
 			return Collections.emptyList();
 
@@ -1110,8 +1100,7 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	protected List<ScreeningSessionScreening> findCurrentScreeningSessionScreeningsByScreeningSessionId(@Nullable UUID
-																																																					screeningSessionId) {
+	protected List<ScreeningSessionScreening> findCurrentScreeningSessionScreeningsByScreeningSessionId(@Nullable UUID screeningSessionId) {
 		if (screeningSessionId == null)
 			return Collections.emptyList();
 
@@ -1787,14 +1776,12 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	public Optional<ScreeningSessionDestination> determineDestinationForScreeningSessionId(@Nullable UUID
-																																														 screeningSessionId) {
+	public Optional<ScreeningSessionDestination> determineDestinationForScreeningSessionId(@Nullable UUID screeningSessionId) {
 		return determineDestinationForScreeningSessionId(screeningSessionId, false);
 	}
 
 	@Nonnull
-	public Optional<ScreeningSessionDestination> determineDestinationForScreeningSessionId(@Nullable UUID
-																																														 screeningSessionId,
+	public Optional<ScreeningSessionDestination> determineDestinationForScreeningSessionId(@Nullable UUID screeningSessionId,
 																																												 @Nullable Boolean withSideEffects) {
 		if (withSideEffects == null)
 			withSideEffects = false;
@@ -1898,8 +1885,7 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	public List<ScreeningSession> findScreeningSessionsByPatientOrderIdAndScreeningFlowTypeId(@Nullable UUID
-																																																patientOrderId,
+	public List<ScreeningSession> findScreeningSessionsByPatientOrderIdAndScreeningFlowTypeId(@Nullable UUID patientOrderId,
 																																														@Nullable ScreeningFlowTypeId screeningFlowTypeId) {
 		if (patientOrderId == null)
 			return List.of();
@@ -2002,8 +1988,7 @@ public class ScreeningService {
 
 
 	@Nonnull
-	protected Optional<OrchestrationFunctionOutput> executeScreeningFlowOrchestrationFunction(@Nonnull String
-																																																screeningFlowOrchestrationFunctionJavascript,
+	protected Optional<OrchestrationFunctionOutput> executeScreeningFlowOrchestrationFunction(@Nonnull String screeningFlowOrchestrationFunctionJavascript,
 																																														@Nullable UUID screeningSessionId,
 																																														@Nullable InstitutionId institutionId,
 																																														@Nullable Map<String, Object> additionalContext) {
@@ -2031,8 +2016,7 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	protected Optional<ResultsFunctionOutput> executeScreeningFlowResultsFunction(@Nonnull String
-																																										screeningFlowResultsFunctionJavascript,
+	protected Optional<ResultsFunctionOutput> executeScreeningFlowResultsFunction(@Nonnull String screeningFlowResultsFunctionJavascript,
 																																								@Nullable UUID screeningSessionId,
 																																								@Nullable InstitutionId institutionId) {
 		requireNonNull(screeningFlowResultsFunctionJavascript);
@@ -2069,8 +2053,7 @@ public class ScreeningService {
 	}
 
 	@Nonnull
-	protected Optional<DestinationFunctionOutput> executeScreeningFlowDestinationFunction(@Nonnull String
-																																														screeningFlowDestinationFunctionJavascript,
+	protected Optional<DestinationFunctionOutput> executeScreeningFlowDestinationFunction(@Nonnull String screeningFlowDestinationFunctionJavascript,
 																																												@Nullable UUID screeningSessionId,
 																																												@Nullable InstitutionId institutionId,
 																																												@Nullable Map<String, Object> additionalContext) {
