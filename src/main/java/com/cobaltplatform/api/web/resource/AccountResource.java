@@ -793,7 +793,7 @@ public class AccountResource {
 		return new ApiResponse();
 	}
 
-	@POST("/accounts/reset-password")
+	@PUT("/accounts/reset-password")
 	public ApiResponse resetPassword(@Nonnull @RequestBody String body) {
 		requireNonNull(body);
 

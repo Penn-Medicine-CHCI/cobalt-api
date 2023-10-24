@@ -1763,7 +1763,7 @@ public class ScreeningService {
 				//This screening session is associated with a study check-in so mark this check-in complete
 				UpdateCheckInAction updateCheckInActionRequest = new UpdateCheckInAction();
 				updateCheckInActionRequest.setAccountCheckInActionId(screeningSession.getAccountCheckInActionId());
-				updateCheckInActionRequest.setCheckInStatusId(CheckInActionStatusId.COMPLETE);
+				updateCheckInActionRequest.setCheckInActionStatusId(CheckInActionStatusId.COMPLETE);
 
 				getStudyService().updateAccountCheckInAction(createdByAccount, updateCheckInActionRequest);
 

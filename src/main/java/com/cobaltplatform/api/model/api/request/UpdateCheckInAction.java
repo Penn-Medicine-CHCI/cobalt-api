@@ -37,15 +37,15 @@ public class UpdateCheckInAction {
 	private UUID accountCheckInActionId;
 
 	@Nonnull
-	private CheckInActionStatusId checkInStatusId;
+	private CheckInActionStatusId checkInActionStatusId;
 
 	@Nonnull
-	public CheckInActionStatusId getCheckInStatusId() {
-		return checkInStatusId;
+	public CheckInActionStatusId getCheckInActionStatusId() {
+		return checkInActionStatusId;
 	}
 
-	public void setCheckInStatusId(@Nonnull CheckInActionStatusId checkInStatusId) {
-		this.checkInStatusId = checkInStatusId;
+	public void setCheckInActionStatusId(@Nonnull CheckInActionStatusId checkInActionStatusId) {
+		this.checkInActionStatusId = checkInActionStatusId;
 	}
 
 	@Nonnull

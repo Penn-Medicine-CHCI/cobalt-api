@@ -426,7 +426,7 @@ public class StudyService {
 
 		ValidationException validationException = new ValidationException();
 		Optional<AccountCheckInAction> accountCheckInAction = findAccountCheckInActionById(request.getAccountCheckInActionId());
-		CheckInActionStatusId checkInActionStatusId = request.getCheckInStatusId();
+		CheckInActionStatusId checkInActionStatusId = request.getCheckInActionStatusId();
 		LocalDateTime currentLocalDateTime = LocalDateTime.now(account.getTimeZone());
 
 		if (!accountCheckInAction.isPresent())
@@ -456,7 +456,7 @@ public class StudyService {
 
 		// If a check-in action is being completed, check if all the actions are complete
 		// and set the check-in to complete if they are.
-		if (request.getCheckInStatusId().equals(CheckInActionStatusId.COMPLETE))
+		if (request.getCheckInActionStatusId().equals(CheckInActionStatusId.COMPLETE))
 			if (checkInComplete(accountCheckInAction.get().getAccountCheckInId())) {
 				LocalDateTime completedDateTime = LocalDateTime.now(account.getTimeZone());
 				getDatabase().execute("""

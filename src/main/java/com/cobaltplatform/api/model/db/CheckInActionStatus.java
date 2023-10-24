@@ -36,6 +36,7 @@ public class CheckInActionStatus {
 
 	public enum CheckInActionStatusId {
 		INCOMPLETE,
+		IN_PROGRESS,
 		FAILED,
 		COMPLETE
 	}
