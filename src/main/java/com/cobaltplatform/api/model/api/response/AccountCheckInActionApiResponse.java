@@ -63,6 +63,12 @@ public class AccountCheckInActionApiResponse {
 	@Nullable
 	private UUID screeningFlowId;
 
+	@Nullable
+	private final String videoPrompt;
+
+	@Nullable
+	private final String videoScript;
+
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface AccountCheckInActionApiResponseFactory {
@@ -86,6 +92,8 @@ public class AccountCheckInActionApiResponse {
 		checkInTypeDescription = accountCheckInAction.getCheckInTypeDescription();
 		screeningSessionId = accountCheckInAction.getScreeningSessionId();
 		screeningFlowId = accountCheckInAction.getScreeningFlowId();
+		videoPrompt = accountCheckInAction.getVideoPrompt();
+		videoScript = accountCheckInAction.getVideoScript();
 	}
 
 	@Nullable
@@ -121,5 +129,15 @@ public class AccountCheckInActionApiResponse {
 	@Nullable
 	public UUID getScreeningFlowId() {
 		return screeningFlowId;
+	}
+
+	@Nullable
+	public String getVideoPrompt() {
+		return videoPrompt;
+	}
+
+	@Nullable
+	public String getVideoScript() {
+		return videoScript;
 	}
 }

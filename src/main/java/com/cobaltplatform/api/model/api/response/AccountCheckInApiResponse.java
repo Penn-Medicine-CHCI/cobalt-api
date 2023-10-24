@@ -112,7 +112,7 @@ public class AccountCheckInApiResponse {
 		this.checkInDescription = checkInActive ? format("Ends %s", checkInDateDescription)
 				: accountCheckIn.getCheckInStatusId().equals(CheckInStatus.CheckInStatusId.COMPLETE) ||
 				accountCheckIn.getCheckInStatusId().equals(CheckInStatus.CheckInStatusId.EXPIRED) ?
-				format("%s of %s", completedCheckInActionCount, accountCheckInActionList.size()) : format("Upcoming");
+				format("%s of %s Complete", completedCheckInActionCount, accountCheckInActionList.size()) : format("Upcoming");
 		this.checkInActive = checkInActive;
 		this.accountCheckInActions = accountCheckInActionList.stream().map(accountCheckInAction -> accountCheckInActionApiResponseFactory.create(accountCheckInAction)).collect(Collectors.toList());
 	}
@@ -127,12 +127,11 @@ public class AccountCheckInApiResponse {
 	public CheckInType.CheckInTypeId getCheckInTypeId() {
 		return checkInTypeId;
 	}
-/*
+
 	@Nullable
 	public List<AccountCheckInActionApiResponse> getAccountCheckInActions() {
 		return accountCheckInActions;
 	}
-*/
 
 	@Nullable
 	public Integer getCheckInNumber() {

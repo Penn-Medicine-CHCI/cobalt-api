@@ -317,7 +317,7 @@ public class StudyService {
 		getLogger().debug("Rescheduling check-ins");
 		for (AccountCheckIn accountCheckIn : accountCheckIns) {
 			if (accountCheckActive(account, accountCheckIn)) {
-				getLogger().debug("Breaking because check-in %s is active.");
+				getLogger().debug(format("Breaking because check-in %s is active.", accountCheckIn.getCheckInNumber()));
 				break;
 			} else if (accountCheckIn.getCheckInNumber() == 1 && !accountCheckIn.getCheckInStatusId().equals(CheckInStatusId.COMPLETE)) {
 				//This is the first check-in and it has not been completed so check to see if it's been started

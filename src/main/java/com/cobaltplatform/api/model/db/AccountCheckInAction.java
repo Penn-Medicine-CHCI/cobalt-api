@@ -58,6 +58,12 @@ public class AccountCheckInAction {
 	private UUID screeningFlowId;
 
 	@Nullable
+	private String videoPrompt;
+
+	@Nullable
+	private String videoScript;
+
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -159,5 +165,23 @@ public class AccountCheckInAction {
 
 	public void setScreeningFlowId(@Nullable UUID screeningFlowId) {
 		this.screeningFlowId = screeningFlowId;
+	}
+
+	@Nullable
+	public String getVideoPrompt() {
+		return videoPrompt;
+	}
+
+	public void setVideoPrompt(@Nullable String videoPrompt) {
+		this.videoPrompt = videoPrompt;
+	}
+
+	@Nullable
+	public String getVideoScript() {
+		return videoScript;
+	}
+
+	public void setVideoScript(@Nullable String videoScript) {
+		this.videoScript = videoScript;
 	}
 }
