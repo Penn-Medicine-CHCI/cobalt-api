@@ -58,6 +58,18 @@ public class AccountCheckInAction {
 	private UUID screeningFlowId;
 
 	@Nullable
+	private String videoPrompt;
+
+	@Nullable
+	private String videoScript;
+
+	@Nullable
+	private String videoIntro;
+	@Nullable
+	private Integer minVideoTimeMinutes;
+	@Nullable
+	private Integer maxVideoTimeMinutes;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -159,5 +171,50 @@ public class AccountCheckInAction {
 
 	public void setScreeningFlowId(@Nullable UUID screeningFlowId) {
 		this.screeningFlowId = screeningFlowId;
+	}
+
+	@Nullable
+	public String getVideoPrompt() {
+		return videoPrompt;
+	}
+
+	public void setVideoPrompt(@Nullable String videoPrompt) {
+		this.videoPrompt = videoPrompt;
+	}
+
+	@Nullable
+	public String getVideoScript() {
+		return videoScript;
+	}
+
+	public void setVideoScript(@Nullable String videoScript) {
+		this.videoScript = videoScript;
+	}
+
+	@Nullable
+	public String getVideoIntro() {
+		return videoIntro;
+	}
+
+	public void setVideoIntro(@Nullable String videoIntro) {
+		this.videoIntro = videoIntro;
+	}
+
+	@Nullable
+	public Integer getMinVideoTimeMinutes() {
+		return minVideoTimeMinutes;
+	}
+
+	public void setMinVideoTimeMinutes(@Nullable Integer minVideoTimeMinutes) {
+		this.minVideoTimeMinutes = minVideoTimeMinutes;
+	}
+
+	@Nullable
+	public Integer getMaxVideoTimeMinutes() {
+		return maxVideoTimeMinutes;
+	}
+
+	public void setMaxVideoTimeMinutes(@Nullable Integer maxVideoTimeMinutes) {
+		this.maxVideoTimeMinutes = maxVideoTimeMinutes;
 	}
 }

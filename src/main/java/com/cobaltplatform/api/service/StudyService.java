@@ -28,6 +28,7 @@ import com.cobaltplatform.api.model.db.AccountCheckInAction;
 import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.CheckInActionStatus.CheckInActionStatusId;
 import com.cobaltplatform.api.model.db.CheckInStatus.CheckInStatusId;
+import com.cobaltplatform.api.model.db.CheckInStatusGroup.CheckInStatusGroupId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Study;
 import com.cobaltplatform.api.model.db.StudyCheckIn;
@@ -94,7 +95,7 @@ public class StudyService {
 	@Nonnull
 	public List<AccountCheckIn> findAccountCheckInsForAccountAndStudy(@Nonnull Account account,
 																																		@Nonnull UUID studyId,
-																																		@Nonnull Optional<Boolean> pastCheckIns) {
+																																		@Nonnull Optional<CheckInStatusGroupId> checkInStatusGroupId) {
 		requireNonNull(account);
 		requireNonNull(studyId);
 
@@ -107,14 +108,9 @@ public class StudyService {
 		sqlParams.add(account.getAccountId());
 		sqlParams.add(studyId);
 
-		if (pastCheckIns.isPresent()) {
-			if (pastCheckIns.get() == true) {
-				query.append("AND check_in_status_id IN (?,?) ");
-			} else {
-				query.append("AND check_in_status_id NOT IN (?,?) ");
-			}
-			sqlParams.add(CheckInStatusId.COMPLETE.toString());
-			sqlParams.add(CheckInStatusId.EXPIRED.toString());
+		if (checkInStatusGroupId.isPresent()) {
+			query.append("AND check_in_status_group_id = ? ");
+			sqlParams.add(checkInStatusGroupId.get().toString());
 		}
 
 		return getDatabase().queryForList(query.toString(), AccountCheckIn.class, sqlParams.toArray());
@@ -321,7 +317,7 @@ public class StudyService {
 		getLogger().debug("Rescheduling check-ins");
 		for (AccountCheckIn accountCheckIn : accountCheckIns) {
 			if (accountCheckActive(account, accountCheckIn)) {
-				getLogger().debug("Breaking because check-in %s is active.");
+				getLogger().debug(format("Breaking because check-in %s is active.", accountCheckIn.getCheckInNumber()));
 				break;
 			} else if (accountCheckIn.getCheckInNumber() == 1 && !accountCheckIn.getCheckInStatusId().equals(CheckInStatusId.COMPLETE)) {
 				//This is the first check-in and it has not been completed so check to see if it's been started
@@ -426,7 +422,7 @@ public class StudyService {
 
 		ValidationException validationException = new ValidationException();
 		Optional<AccountCheckInAction> accountCheckInAction = findAccountCheckInActionById(request.getAccountCheckInActionId());
-		CheckInActionStatusId checkInActionStatusId = request.getCheckInStatusId();
+		CheckInActionStatusId checkInActionStatusId = request.getCheckInActionStatusId();
 		LocalDateTime currentLocalDateTime = LocalDateTime.now(account.getTimeZone());
 
 		if (!accountCheckInAction.isPresent())
@@ -456,7 +452,7 @@ public class StudyService {
 
 		// If a check-in action is being completed, check if all the actions are complete
 		// and set the check-in to complete if they are.
-		if (request.getCheckInStatusId().equals(CheckInActionStatusId.COMPLETE))
+		if (request.getCheckInActionStatusId().equals(CheckInActionStatusId.COMPLETE))
 			if (checkInComplete(accountCheckInAction.get().getAccountCheckInId())) {
 				LocalDateTime completedDateTime = LocalDateTime.now(account.getTimeZone());
 				getDatabase().execute("""

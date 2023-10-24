@@ -28,31 +28,29 @@ import static java.lang.String.format;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CheckInActionStatus {
+public class CheckInStatusGroup {
 	@Nullable
-	private CheckInActionStatusId checkInActionStatusId;
+	private CheckInStatusGroupId checkInStatusGroupId;
 	@Nullable
 	private String description;
 
-	public enum CheckInActionStatusId {
-		INCOMPLETE,
-		IN_PROGRESS,
-		FAILED,
-		COMPLETE
+	public enum CheckInStatusGroupId {
+		TO_DO,
+		PAST
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{checkInActionStatusId=%s, description=%s}", getClass().getSimpleName(), getCheckInActionStatusId(), getDescription());
+		return format("%s{checkInStatusGroupId=%s, description=%s}", getClass().getSimpleName(), getCheckInStatusGroupId(), getDescription());
 	}
 
 	@Nullable
-	public CheckInActionStatusId getCheckInActionStatusId() {
-		return checkInActionStatusId;
+	public CheckInStatusGroupId getCheckInStatusGroupId() {
+		return checkInStatusGroupId;
 	}
 
-	public void setCheckInActionStatusId(@Nullable CheckInActionStatusId checkInActionStatusId) {
-		this.checkInActionStatusId = checkInActionStatusId;
+	public void setCheckInStatusGroupId(@Nullable CheckInStatusGroupId checkInStatusGroupId) {
+		this.checkInStatusGroupId = checkInStatusGroupId;
 	}
 
 	@Nullable

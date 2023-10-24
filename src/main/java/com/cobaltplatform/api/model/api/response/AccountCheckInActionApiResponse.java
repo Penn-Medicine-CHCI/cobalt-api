@@ -63,6 +63,20 @@ public class AccountCheckInActionApiResponse {
 	@Nullable
 	private UUID screeningFlowId;
 
+	@Nullable
+	private final String videoPrompt;
+
+	@Nullable
+	private final String videoScript;
+
+	@Nullable
+	private final String videoIntro;
+
+	@Nullable
+	private Integer minVideoTimeMinutes;
+	@Nullable
+	private Integer maxVideoTimeMinutes;
+
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface AccountCheckInActionApiResponseFactory {
@@ -86,6 +100,11 @@ public class AccountCheckInActionApiResponse {
 		checkInTypeDescription = accountCheckInAction.getCheckInTypeDescription();
 		screeningSessionId = accountCheckInAction.getScreeningSessionId();
 		screeningFlowId = accountCheckInAction.getScreeningFlowId();
+		videoPrompt = accountCheckInAction.getVideoPrompt();
+		videoScript = accountCheckInAction.getVideoScript();
+		videoIntro = accountCheckInAction.getVideoIntro();
+		minVideoTimeMinutes = accountCheckInAction.getMinVideoTimeMinutes();
+		maxVideoTimeMinutes = accountCheckInAction.getMaxVideoTimeMinutes();
 	}
 
 	@Nullable
@@ -121,5 +140,30 @@ public class AccountCheckInActionApiResponse {
 	@Nullable
 	public UUID getScreeningFlowId() {
 		return screeningFlowId;
+	}
+
+	@Nullable
+	public String getVideoPrompt() {
+		return videoPrompt;
+	}
+
+	@Nullable
+	public String getVideoScript() {
+		return videoScript;
+	}
+
+	@Nullable
+	public String getVideoIntro() {
+		return videoIntro;
+	}
+
+	@Nullable
+	public Integer getMinVideoTimeMinutes() {
+		return minVideoTimeMinutes;
+	}
+
+	@Nullable
+	public Integer getMaxVideoTimeMinutes() {
+		return maxVideoTimeMinutes;
 	}
 }

@@ -30,31 +30,20 @@ import java.util.UUID;
  */
 @NotThreadSafe
 public class UpdateCheckInAction {
-	@Nonnull
-	private UUID accountId;
 
 	@Nonnull
 	private UUID accountCheckInActionId;
 
 	@Nonnull
-	private CheckInActionStatusId checkInStatusId;
+	private CheckInActionStatusId checkInActionStatusId;
 
 	@Nonnull
-	public CheckInActionStatusId getCheckInStatusId() {
-		return checkInStatusId;
+	public CheckInActionStatusId getCheckInActionStatusId() {
+		return checkInActionStatusId;
 	}
 
-	public void setCheckInStatusId(@Nonnull CheckInActionStatusId checkInStatusId) {
-		this.checkInStatusId = checkInStatusId;
-	}
-
-	@Nonnull
-	public UUID getAccountId() {
-		return accountId;
-	}
-
-	public void setAccountId(@Nonnull UUID accountId) {
-		this.accountId = accountId;
+	public void setCheckInActionStatusId(@Nonnull CheckInActionStatusId checkInActionStatusId) {
+		this.checkInActionStatusId = checkInActionStatusId;
 	}
 
 	@Nonnull

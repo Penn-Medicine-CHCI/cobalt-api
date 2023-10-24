@@ -24,8 +24,8 @@ import com.cobaltplatform.api.model.api.request.UpdateCheckInAction;
 import com.cobaltplatform.api.model.api.response.AccountCheckInApiResponse.AccountCheckInApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.StudyAccountApiResponse.StudyAccountApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.CheckInStatusGroup.CheckInStatusGroupId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
-import com.cobaltplatform.api.model.service.StudyAccount;
 import com.cobaltplatform.api.service.StudyService;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.*;
@@ -39,12 +39,10 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -109,13 +107,13 @@ public class StudyResource {
 	@GET("/studies/{studyId}/check-in-list")
 	@AuthenticationRequired
 	public ApiResponse getAccountCheckInForStudy(@Nonnull @PathParameter UUID studyId,
-																							 @QueryParameter Optional<Boolean> pastCheckIns) {
+																							 @QueryParameter Optional<CheckInStatusGroupId> checkInStatusGroupId) {
 		requireNonNull(studyId);
 		Account account = getCurrentContext().getAccount().get();
 
 		getStudyService().rescheduleAccountCheckIn(account, studyId);
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("checkIns", getStudyService().findAccountCheckInsForAccountAndStudy(account, studyId, pastCheckIns)
+			put("checkIns", getStudyService().findAccountCheckInsForAccountAndStudy(account, studyId, checkInStatusGroupId)
 					.stream().map(accountCheckIn -> getAccountCheckInApiResponseFactory().create(accountCheckIn)).collect(Collectors.toList()));
 		}});
 	}
@@ -137,7 +135,7 @@ public class StudyResource {
 		getStudyService().updateAccountCheckInAction(account, request);
 		getStudyService().rescheduleAccountCheckIn(account, studyId);
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("checkIns", getStudyService().findAccountCheckInsForAccountAndStudy(account, studyId, Optional.of(false))
+			put("checkIns", getStudyService().findAccountCheckInsForAccountAndStudy(account, studyId, Optional.of(CheckInStatusGroupId.TO_DO))
 					.stream().map(accountCheckIn -> getAccountCheckInApiResponseFactory().create(accountCheckIn)).collect(Collectors.toList()));
 		}});
 	}
