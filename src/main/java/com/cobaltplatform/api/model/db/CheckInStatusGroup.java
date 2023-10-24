@@ -17,41 +17,48 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.api.request;
+package com.cobaltplatform.api.model.db;
 
-import com.cobaltplatform.api.model.db.CheckInActionStatus.CheckInActionStatusId;
-
-import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.util.UUID;
+
+import static java.lang.String.format;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class UpdateCheckInAction {
+public class CheckInStatusGroup {
+	@Nullable
+	private CheckInStatusGroupId checkInStatusGroupId;
+	@Nullable
+	private String description;
 
-	@Nonnull
-	private UUID accountCheckInActionId;
-
-	@Nonnull
-	private CheckInActionStatusId checkInActionStatusId;
-
-	@Nonnull
-	public CheckInActionStatusId getCheckInActionStatusId() {
-		return checkInActionStatusId;
+	public enum CheckInStatusGroupId {
+		TO_DO,
+		PAST
 	}
 
-	public void setCheckInActionStatusId(@Nonnull CheckInActionStatusId checkInActionStatusId) {
-		this.checkInActionStatusId = checkInActionStatusId;
+	@Override
+	public String toString() {
+		return format("%s{checkInStatusGroupId=%s, description=%s}", getClass().getSimpleName(), getCheckInStatusGroupId(), getDescription());
 	}
 
-	@Nonnull
-	public UUID getAccountCheckInActionId() {
-		return accountCheckInActionId;
+	@Nullable
+	public CheckInStatusGroupId getCheckInStatusGroupId() {
+		return checkInStatusGroupId;
 	}
 
-	public void setAccountCheckInActionId(@Nonnull UUID accountCheckInActionId) {
-		this.accountCheckInActionId = accountCheckInActionId;
+	public void setCheckInStatusGroupId(@Nullable CheckInStatusGroupId checkInStatusGroupId) {
+		this.checkInStatusGroupId = checkInStatusGroupId;
+	}
+
+	@Nullable
+	public String getDescription() {
+		return description;
+	}
+
+	public void setDescription(@Nullable String description) {
+		this.description = description;
 	}
 }

@@ -28,6 +28,7 @@ import com.cobaltplatform.api.model.db.AccountCheckInAction;
 import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.CheckInActionStatus.CheckInActionStatusId;
 import com.cobaltplatform.api.model.db.CheckInStatus.CheckInStatusId;
+import com.cobaltplatform.api.model.db.CheckInStatusGroup.CheckInStatusGroupId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Study;
 import com.cobaltplatform.api.model.db.StudyCheckIn;
@@ -94,7 +95,7 @@ public class StudyService {
 	@Nonnull
 	public List<AccountCheckIn> findAccountCheckInsForAccountAndStudy(@Nonnull Account account,
 																																		@Nonnull UUID studyId,
-																																		@Nonnull Optional<Boolean> pastCheckIns) {
+																																		@Nonnull Optional<CheckInStatusGroupId> checkInStatusGroupId) {
 		requireNonNull(account);
 		requireNonNull(studyId);
 
@@ -107,14 +108,9 @@ public class StudyService {
 		sqlParams.add(account.getAccountId());
 		sqlParams.add(studyId);
 
-		if (pastCheckIns.isPresent()) {
-			if (pastCheckIns.get() == true) {
-				query.append("AND check_in_status_id IN (?,?) ");
-			} else {
-				query.append("AND check_in_status_id NOT IN (?,?) ");
-			}
-			sqlParams.add(CheckInStatusId.COMPLETE.toString());
-			sqlParams.add(CheckInStatusId.EXPIRED.toString());
+		if (checkInStatusGroupId.isPresent()) {
+			query.append("AND check_in_status_group_id = ? ");
+			sqlParams.add(checkInStatusGroupId.get().toString());
 		}
 
 		return getDatabase().queryForList(query.toString(), AccountCheckIn.class, sqlParams.toArray());

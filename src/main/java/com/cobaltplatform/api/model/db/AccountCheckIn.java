@@ -63,6 +63,8 @@ public class AccountCheckIn {
 	@Nullable
 	private CheckInStatusId checkInStatusId;
 
+
+
 	@Nullable
 	public UUID getAccountCheckInId() {
 		return accountCheckInId;

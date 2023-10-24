@@ -770,6 +770,12 @@ public class ScreeningService {
 			skipScreeningSession(new SkipScreeningSessionRequest() {{
 				setScreeningSessionId(screeningSessionId);
 			}});
+
+			if (accountCheckInActionId != null)
+				getStudyService().updateAccountCheckInAction( targetAccount, new UpdateCheckInAction() {{
+					setAccountCheckInActionId(accountCheckInActionId);
+					setCheckInActionStatusId(CheckInActionStatusId.COMPLETE);
+				}});
 		} else {
 			UUID initialScreeningId = null;
 
@@ -792,6 +798,12 @@ public class ScreeningService {
 					INSERT INTO screening_session_screening(screening_session_id, screening_version_id, screening_order)
 					VALUES (?,?,?)
 					""", screeningSessionId, screening.getActiveScreeningVersionId(), 1);
+
+			if (accountCheckInActionId != null)
+				getStudyService().updateAccountCheckInAction( targetAccount, new UpdateCheckInAction() {{
+					setAccountCheckInActionId(accountCheckInActionId);
+					setCheckInActionStatusId(CheckInActionStatusId.IN_PROGRESS);
+				}});
 		}
 
 		return screeningSessionId;

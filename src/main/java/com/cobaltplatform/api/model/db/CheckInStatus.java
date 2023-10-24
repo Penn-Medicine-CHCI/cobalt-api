@@ -34,6 +34,10 @@ public class CheckInStatus {
 	@Nullable
 	private String description;
 
+	@Nullable
+	private String checkInStatusGroupId;
+
+
 	public enum CheckInStatusId {
 		NOT_STARTED,
 		IN_PROGRESS,
@@ -62,5 +66,14 @@ public class CheckInStatus {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
+	}
+
+	@Nullable
+	public String getCheckInStatusGroupId() {
+		return checkInStatusGroupId;
+	}
+
+	public void setCheckInStatusGroupId(@Nullable String checkInStatusGroupId) {
+		this.checkInStatusGroupId = checkInStatusGroupId;
 	}
 }
