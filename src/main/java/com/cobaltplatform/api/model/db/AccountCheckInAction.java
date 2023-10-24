@@ -64,6 +64,12 @@ public class AccountCheckInAction {
 	private String videoScript;
 
 	@Nullable
+	private String videoIntro;
+	@Nullable
+	private Integer minVideoTimeMinutes;
+	@Nullable
+	private Integer maxVideoTimeMinutes;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -183,5 +189,32 @@ public class AccountCheckInAction {
 
 	public void setVideoScript(@Nullable String videoScript) {
 		this.videoScript = videoScript;
+	}
+
+	@Nullable
+	public String getVideoIntro() {
+		return videoIntro;
+	}
+
+	public void setVideoIntro(@Nullable String videoIntro) {
+		this.videoIntro = videoIntro;
+	}
+
+	@Nullable
+	public Integer getMinVideoTimeMinutes() {
+		return minVideoTimeMinutes;
+	}
+
+	public void setMinVideoTimeMinutes(@Nullable Integer minVideoTimeMinutes) {
+		this.minVideoTimeMinutes = minVideoTimeMinutes;
+	}
+
+	@Nullable
+	public Integer getMaxVideoTimeMinutes() {
+		return maxVideoTimeMinutes;
+	}
+
+	public void setMaxVideoTimeMinutes(@Nullable Integer maxVideoTimeMinutes) {
+		this.maxVideoTimeMinutes = maxVideoTimeMinutes;
 	}
 }
