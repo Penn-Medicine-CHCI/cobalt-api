@@ -42,6 +42,7 @@ import com.cobaltplatform.api.model.api.request.UpdateAccountLocationRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountPhoneNumberRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountRoleRequest;
 import com.cobaltplatform.api.model.api.request.UpdateBetaFeatureAlertRequest;
+import com.cobaltplatform.api.model.api.request.UsernamePasswordAccessTokenRequest;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseSupplement;
@@ -354,6 +355,37 @@ public class AccountResource {
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("account", getAccountApiResponseFactory().create(account, finalSupplements));
 			put("institution", getInstitutionApiResponseFactory().create(institution, getCurrentContext()));
+		}});
+	}
+
+	@Nonnull
+	@POST("/accounts/username-password-access-token")
+	public ApiResponse accountUsernamePasswordAccessToken(@Nonnull @RequestBody String requestBody,
+																												@Nonnull HttpServletResponse httpServletResponse) {
+		requireNonNull(requestBody);
+		requireNonNull(httpServletResponse);
+
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		UsernamePasswordAccessTokenRequest request = getRequestBodyParser().parse(requestBody, UsernamePasswordAccessTokenRequest.class);
+		request.setInstitutionId(institutionId);
+
+		String accessToken = getAccountService().obtainUsernamePasswordAccessToken(request);
+		Account account = getAccountService().findAccountByAccessToken(accessToken).get();
+
+		Boolean passwordResetRequired = account.getPasswordResetRequired();
+		final String finalAccessToken = passwordResetRequired ? null : accessToken;
+
+		if (passwordResetRequired) {
+			accessToken = null;
+			account.setPasswordResetRequired(true);
+			account.setPasswordResetToken(getAccountService().forcePasswordReset(account));
+		}
+
+		Account finalAccount = account;
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("account", getAccountApiResponseFactory().create(finalAccount));
+			put("accessToken", finalAccessToken);
 		}});
 	}
 
@@ -761,7 +793,7 @@ public class AccountResource {
 		return new ApiResponse();
 	}
 
-	@POST("/accounts/reset-password")
+	@PUT("/accounts/reset-password")
 	public ApiResponse resetPassword(@Nonnull @RequestBody String body) {
 		requireNonNull(body);
 

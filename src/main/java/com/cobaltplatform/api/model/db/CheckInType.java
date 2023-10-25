@@ -25,44 +25,37 @@ import javax.annotation.concurrent.NotThreadSafe;
 import static java.lang.String.format;
 
 /**
- * @author Transmogrify LLC.
+ * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class ScreeningFlowType {
+public class CheckInType {
 	@Nullable
-	private ScreeningFlowTypeId screeningFlowTypeId;
+	private CheckInTypeId checkInTypeId;
 	@Nullable
 	private String description;
 
-	public enum ScreeningFlowTypeId {
-		CUSTOM,
-		PROVIDER_TRIAGE,
-		CONTENT_TRIAGE,
-		PROVIDER_INTAKE,
-		INTEGRATED_CARE,
-		INTEGRATED_CARE_INTAKE,
-		FEATURE,
-		GROUP_SESSION_INTAKE,
-		STUDY
+	public enum CheckInTypeId {
+		VIDEO,
+		SCREENING
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{screeningFlowTypeId=%s, description=%s}", getClass().getSimpleName(), getScreeningFlowTypeId().name(), getDescription());
+		return format("%s{checkInTypeId=%s, description=%s}", getClass().getSimpleName(), getCheckInTypeId(), getDescription());
 	}
 
 	@Nullable
-	public ScreeningFlowTypeId getScreeningFlowTypeId() {
-		return this.screeningFlowTypeId;
+	public CheckInTypeId getCheckInTypeId() {
+		return checkInTypeId;
 	}
 
-	public void setScreeningFlowTypeId(@Nullable ScreeningFlowTypeId screeningFlowTypeId) {
-		this.screeningFlowTypeId = screeningFlowTypeId;
+	public void setCheckInTypeId(@Nullable CheckInTypeId checkInTypeId) {
+		this.checkInTypeId = checkInTypeId;
 	}
 
 	@Nullable
 	public String getDescription() {
-		return this.description;
+		return description;
 	}
 
 	public void setDescription(@Nullable String description) {

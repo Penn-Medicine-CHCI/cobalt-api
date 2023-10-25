@@ -130,7 +130,9 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/122-institutio
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/123-institution-privacy-policy.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/124-group-session-location.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/125-admin-capabilities.sql
-PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/126-google-bigquery.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/126-study-support.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/127-check-in-status-group.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/128-google-bigquery.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

@@ -62,6 +62,8 @@ import com.cobaltplatform.api.messaging.sms.SmsMessage;
 import com.cobaltplatform.api.messaging.sms.SmsMessageSerializer;
 import com.cobaltplatform.api.messaging.sms.TwilioSmsMessageSender;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.AccountCheckInActionApiResponse.AccountCheckInActionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.AccountCheckInApiResponse.AccountCheckInApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AccountSessionApiResponse.AccountSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse.AccountSourceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ActivityTrackingApiResponse.ActivityTrackingApiResponseFactory;
@@ -134,6 +136,7 @@ import com.cobaltplatform.api.model.api.response.ScreeningQuestionApiResponse.Sc
 import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningTypeApiResponse.ScreeningTypeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SpecialtyApiResponse.SpecialtyApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.StudyAccountApiResponse.StudyAccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApiResponseFactory;
@@ -309,6 +312,9 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(InstitutionResourceApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(FaqApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(FaqTopicApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(AccountCheckInApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(AccountCheckInActionApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(StudyAccountApiResponseFactory.class)));
 	}
 
 	@Provides

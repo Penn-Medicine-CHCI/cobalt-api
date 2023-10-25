@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('126-google-bigquery', NULL, NULL);
+SELECT _v.register_patch('128-google-bigquery', NULL, NULL);
 
 ALTER TABLE institution ADD COLUMN google_reporting_service_account_private_key VARCHAR;
 ALTER TABLE institution ADD COLUMN google_ga4_property_id VARCHAR;

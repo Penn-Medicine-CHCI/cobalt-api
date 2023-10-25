@@ -17,55 +17,49 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db;
+package com.cobaltplatform.api.model.api.request;
+
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-
-import static java.lang.String.format;
 
 /**
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class ScreeningFlowType {
+public class UsernamePasswordAccessTokenRequest {
 	@Nullable
-	private ScreeningFlowTypeId screeningFlowTypeId;
+	private String username;
 	@Nullable
-	private String description;
+	private String password;
+	@Nullable
+	private InstitutionId institutionId;
 
-	public enum ScreeningFlowTypeId {
-		CUSTOM,
-		PROVIDER_TRIAGE,
-		CONTENT_TRIAGE,
-		PROVIDER_INTAKE,
-		INTEGRATED_CARE,
-		INTEGRATED_CARE_INTAKE,
-		FEATURE,
-		GROUP_SESSION_INTAKE,
-		STUDY
+	@Nullable
+	public String getUsername() {
+		return username;
 	}
 
-	@Override
-	public String toString() {
-		return format("%s{screeningFlowTypeId=%s, description=%s}", getClass().getSimpleName(), getScreeningFlowTypeId().name(), getDescription());
+	public void setUsername(@Nullable String username) {
+		this.username = username;
 	}
 
 	@Nullable
-	public ScreeningFlowTypeId getScreeningFlowTypeId() {
-		return this.screeningFlowTypeId;
+	public String getPassword() {
+		return password;
 	}
 
-	public void setScreeningFlowTypeId(@Nullable ScreeningFlowTypeId screeningFlowTypeId) {
-		this.screeningFlowTypeId = screeningFlowTypeId;
+	public void setPassword(@Nullable String password) {
+		this.password = password;
 	}
 
 	@Nullable
-	public String getDescription() {
-		return this.description;
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
 	}
 
-	public void setDescription(@Nullable String description) {
-		this.description = description;
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
 	}
 }
