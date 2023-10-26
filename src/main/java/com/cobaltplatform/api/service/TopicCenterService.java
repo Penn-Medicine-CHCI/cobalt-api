@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.service;
 
+import com.cobaltplatform.api.model.api.request.FindResourceLibraryContentRequest;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionRequest;
@@ -28,6 +29,9 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionTopicCenter;
 import com.cobaltplatform.api.model.db.PinboardNote;
 import com.cobaltplatform.api.model.db.TopicCenter;
+import com.cobaltplatform.api.model.db.TopicCenterRowTag;
+import com.cobaltplatform.api.model.db.TopicCenterRowTagType.TopicCenterRowTagTypeId;
+import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.NavigationItem;
 import com.cobaltplatform.api.model.service.TopicCenterRowDetail;
 import com.lokalized.Strings;
@@ -44,11 +48,15 @@ import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 
@@ -132,7 +140,11 @@ public class TopicCenterService {
 			return Collections.emptyList();
 
 		return getDatabase().queryForList("""
-				SELECT itc.navigation_icon_name as icon_name, ('/topic-centers/' || tc.url_name) as url, COALESCE(itc.navigation_item_name, tc.name) as name
+				SELECT
+					itc.navigation_icon_name as icon_name,
+					('/topic-centers/' || tc.url_name) as url,
+					COALESCE(itc.navigation_item_name, tc.name) as name,
+					tc.image_url
 				FROM institution_topic_center itc, topic_center tc
 				WHERE itc.topic_center_id=tc.topic_center_id
 				AND itc.navigation_item_enabled=TRUE
@@ -143,7 +155,8 @@ public class TopicCenterService {
 
 	@Nonnull
 	public List<TopicCenterRowDetail> findTopicCenterRowsByTopicCenterId(@Nullable UUID topicCenterId,
-																																			 @Nullable InstitutionId institutionId) {
+																																			 @Nullable InstitutionId institutionId,
+																																			 @Nullable UUID accountId) {
 		if (topicCenterId == null || institutionId == null)
 			return Collections.emptyList();
 
@@ -154,7 +167,28 @@ public class TopicCenterService {
 				    ORDER BY display_order
 				""", TopicCenterRowDetail.class, topicCenterId);
 
-		// TODO: later, we need to support pulling data by tags as well
+		// Pull all of the tags across all rows in the topic center (so we don't have to query for each row individually)
+		List<TopicCenterRowTagDetail> topicCenterRowTags = getDatabase().queryForList("""
+				    SELECT tcrt.*
+				    FROM topic_center_row_tag tcrt, topic_center_row tcr
+				    WHERE tcr.topic_center_row_id=tcrt.topic_center_row_id
+				    AND tcr.topic_center_id=?
+				    ORDER BY tcr.display_order, tcrt.display_order
+				""", TopicCenterRowTagDetail.class, topicCenterId);
+
+		// Make topic center row tags available by row ID for easy access
+		Map<UUID, List<TopicCenterRowTagDetail>> topicCenterRowTagsByTopicCenterRowId = new HashMap<>(topicCenterRowTags.size());
+
+		for (TopicCenterRowTagDetail topicCenterRowTag : topicCenterRowTags) {
+			List<TopicCenterRowTagDetail> topicCenterRowTagsForRow = topicCenterRowTagsByTopicCenterRowId.get(topicCenterRowTag.getTopicCenterRowId());
+
+			if (topicCenterRowTagsForRow == null) {
+				topicCenterRowTagsForRow = new ArrayList<>();
+				topicCenterRowTagsByTopicCenterRowId.put(topicCenterRowTag.getTopicCenterRowId(), topicCenterRowTagsForRow);
+			}
+
+			topicCenterRowTagsForRow.add(topicCenterRowTag);
+		}
 
 		// Pull all of the group sessions across all rows in the topic center (so we don't have to query for each row individually)
 		List<GroupSessionTopicCenterRow> groupSessionTopicCenterRows = getDatabase().queryForList("""
@@ -205,6 +239,7 @@ public class TopicCenterService {
 			topicCenterRow.setGroupSessionRequests(new ArrayList<>());
 			topicCenterRow.setPinboardNotes(new ArrayList<>());
 			topicCenterRow.setContents(new ArrayList<>());
+			topicCenterRow.setTopicCenterRowTags(new ArrayList<>());
 
 			for (GroupSessionTopicCenterRow groupSession : groupSessionTopicCenterRows)
 				if (groupSession.getTopicCenterRowId().equals(topicCenterRow.getTopicCenterRowId()))
@@ -221,6 +256,71 @@ public class TopicCenterService {
 			for (ContentTopicCenterRow content : contentTopicCenterRows)
 				if (content.getTopicCenterRowId().equals(topicCenterRow.getTopicCenterRowId()))
 					topicCenterRow.getContents().add(content);
+
+			List<TopicCenterRowTagDetail> rowTags = topicCenterRowTagsByTopicCenterRowId.get(topicCenterRow.getTopicCenterRowId());
+
+			if (rowTags != null && rowTags.size() > 0) {
+				for (TopicCenterRowTagDetail rowTag : rowTags) {
+					// For now, we only support CONTENT type.  Later, we can support others
+					if (rowTag.getTopicCenterRowTagTypeId() == TopicCenterRowTagTypeId.CONTENT) {
+						// Pull a limited set of content for this tag
+						FindResult<Content> findResult = getContentService().findResourceLibraryContent(new FindResourceLibraryContentRequest() {
+							{
+								setInstitutionId(institutionId);
+								setSearchQuery(null);
+								setTagIds(Set.of(rowTag.getTagId()));
+								setContentTypeIds(Set.of());
+								setContentDurationIds(Set.of());
+								setPageNumber(0);
+								setPageSize(10);
+								setPrioritizeUnviewedForAccountId(accountId);
+							}
+						});
+
+						rowTag.setContents(findResult.getResults());
+					} else {
+						throw new UnsupportedOperationException(format("%s.%s is not yet supported",
+								TopicCenterRowTagTypeId.class.getSimpleName(), rowTag.getTopicCenterRowTagTypeId().name()));
+					}
+
+					topicCenterRow.getTopicCenterRowTags().add(rowTag);
+				}
+			}
+		}
+
+		// Set group session (and by-request) carousel titles if applicable, taking overrides into account
+		for (TopicCenterRowDetail topicCenterRow : topicCenterRows) {
+			if (topicCenterRow.getGroupSessions() != null && topicCenterRow.getGroupSessions().size() > 0) {
+				String groupSessionsTitle = getStrings().get("Scheduled");
+
+				if (topicCenterRow.getGroupSessionsTitleOverride() != null)
+					groupSessionsTitle = topicCenterRow.getGroupSessionsTitleOverride();
+
+				topicCenterRow.setGroupSessionsTitle(groupSessionsTitle);
+
+				String groupSessionsDescription = getStrings().get("Scheduled sessions have a set date and time.");
+
+				if (topicCenterRow.getGroupSessionsDescriptionOverride() != null)
+					groupSessionsDescription = topicCenterRow.getGroupSessionsDescriptionOverride();
+
+				topicCenterRow.setGroupSessionsDescription(groupSessionsDescription);
+			}
+
+			if (topicCenterRow.getGroupSessionRequests() != null && topicCenterRow.getGroupSessionRequests().size() > 0) {
+				String groupSessionRequestsTitle = getStrings().get("By Request");
+
+				if (topicCenterRow.getGroupSessionRequestsTitleOverride() != null)
+					groupSessionRequestsTitle = topicCenterRow.getGroupSessionRequestsTitleOverride();
+
+				topicCenterRow.setGroupSessionRequestsTitle(groupSessionRequestsTitle);
+
+				String groupSessionRequestsDescription = getStrings().get("Submit a request to facilitate a one-time session.");
+
+				if (topicCenterRow.getGroupSessionRequestsDescriptionOverride() != null)
+					groupSessionRequestsDescription = topicCenterRow.getGroupSessionRequestsDescriptionOverride();
+
+				topicCenterRow.setGroupSessionRequestsDescription(groupSessionRequestsDescription);
+			}
 		}
 
 		return topicCenterRows;
@@ -230,6 +330,32 @@ public class TopicCenterService {
 	protected Optional<String> normalizeUrlName(@Nullable String urlName) {
 		urlName = trimToEmpty(urlName).toLowerCase(Locale.US);
 		return urlName.length() == 0 ? Optional.empty() : Optional.of(urlName);
+	}
+
+	@NotThreadSafe
+	public static class TopicCenterRowTagDetail extends TopicCenterRowTag {
+		@Nullable
+		private List<Content> contents;
+		@Nullable
+		private List<GroupSession> groupSessions;
+
+		@Nullable
+		public List<Content> getContents() {
+			return this.contents;
+		}
+
+		public void setContents(@Nullable List<Content> contents) {
+			this.contents = contents;
+		}
+
+		@Nullable
+		public List<GroupSession> getGroupSessions() {
+			return this.groupSessions;
+		}
+
+		public void setGroupSessions(@Nullable List<GroupSession> groupSessions) {
+			this.groupSessions = groupSessions;
+		}
 	}
 
 	@NotThreadSafe
