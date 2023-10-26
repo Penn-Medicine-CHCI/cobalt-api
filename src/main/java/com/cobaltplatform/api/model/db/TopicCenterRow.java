@@ -38,6 +38,14 @@ public class TopicCenterRow {
 	@Nullable
 	private String description;
 	@Nullable
+	private String groupSessionsTitleOverride;
+	@Nullable
+	private String groupSessionsDescriptionOverride;
+	@Nullable
+	private String groupSessionRequestsTitleOverride;
+	@Nullable
+	private String groupSessionRequestsDescriptionOverride;
+	@Nullable
 	private Integer displayOrder;
 	@Nullable
 	private UUID createdByAccountId;
@@ -80,6 +88,42 @@ public class TopicCenterRow {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
+	}
+
+	@Nullable
+	public String getGroupSessionsTitleOverride() {
+		return this.groupSessionsTitleOverride;
+	}
+
+	public void setGroupSessionsTitleOverride(@Nullable String groupSessionsTitleOverride) {
+		this.groupSessionsTitleOverride = groupSessionsTitleOverride;
+	}
+
+	@Nullable
+	public String getGroupSessionsDescriptionOverride() {
+		return this.groupSessionsDescriptionOverride;
+	}
+
+	public void setGroupSessionsDescriptionOverride(@Nullable String groupSessionsDescriptionOverride) {
+		this.groupSessionsDescriptionOverride = groupSessionsDescriptionOverride;
+	}
+
+	@Nullable
+	public String getGroupSessionRequestsTitleOverride() {
+		return this.groupSessionRequestsTitleOverride;
+	}
+
+	public void setGroupSessionRequestsTitleOverride(@Nullable String groupSessionRequestsTitleOverride) {
+		this.groupSessionRequestsTitleOverride = groupSessionRequestsTitleOverride;
+	}
+
+	@Nullable
+	public String getGroupSessionRequestsDescriptionOverride() {
+		return this.groupSessionRequestsDescriptionOverride;
+	}
+
+	public void setGroupSessionRequestsDescriptionOverride(@Nullable String groupSessionRequestsDescriptionOverride) {
+		this.groupSessionRequestsDescriptionOverride = groupSessionRequestsDescriptionOverride;
 	}
 
 	@Nullable
