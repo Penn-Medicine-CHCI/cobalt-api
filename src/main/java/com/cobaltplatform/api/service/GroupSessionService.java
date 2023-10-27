@@ -1680,7 +1680,7 @@ public class GroupSessionService implements AutoCloseable {
 						put("imageUrl", firstNonNull(groupSession.getImageUrl(), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
 						put("facilitatorName", groupSession.getFacilitatorName());
 						put("attendeeName", attendeeName);
-						put("groupSessionUrl", format("%s/group-sessions/scheduled/%s/edit", getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institution.getInstitutionId(), UserExperienceTypeId.STAFF).get(), groupSession.getGroupSessionId()));
+						put("groupSessionUrl", format("%s/admin/group-sessions/edit/%s", getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institution.getInstitutionId(), UserExperienceTypeId.STAFF).get(), groupSession.getGroupSessionId()));
 						put("attendeeEmailAddress", attendeeEmailAddress);
 						put("groupSessionStartDateDescription", getFormatter().formatDate(groupSession.getStartDateTime().toLocalDate()));
 						put("groupSessionStartTimeDescription", getFormatter().formatTime(groupSession.getStartDateTime().toLocalTime(), FormatStyle.SHORT));
@@ -1868,7 +1868,7 @@ public class GroupSessionService implements AutoCloseable {
 						put("facilitatorName", groupSession.getFacilitatorName());
 						put("attendeeName", attendeeName);
 						put("attendeeEmailAddress", attendeeEmailAddress);
-						put("groupSessionUrl", format("%s/group-sessions/scheduled/%s/edit", getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institution.getInstitutionId(), UserExperienceTypeId.STAFF).get(), groupSession.getGroupSessionId()));
+						put("groupSessionUrl", format("%s/admin/group-sessions/edit/%s", getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institution.getInstitutionId(), UserExperienceTypeId.STAFF).get(), groupSession.getGroupSessionId()));
 						put("groupSessionStartDateDescription", getFormatter().formatDate(groupSession.getStartDateTime().toLocalDate()));
 						put("groupSessionStartTimeDescription", getFormatter().formatTime(groupSession.getStartDateTime().toLocalTime(), FormatStyle.SHORT));
 					}})

@@ -17,58 +17,48 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.service;
+package com.cobaltplatform.api.model.db;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
+import static java.lang.String.format;
+
 /**
- * @author Transmogrify, LLC.
+ * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class NavigationItem {
+public class TopicCenterRowTagType {
 	@Nullable
-	private String url;
+	private TopicCenterRowTagTypeId topicCenterRowTagTypeId;
 	@Nullable
-	private String name;
-	@Nullable
-	private String iconName;
-	@Nullable
-	private String imageUrl;
+	private String description;
 
-	@Nullable
-	public String getUrl() {
-		return this.url;
+	public enum TopicCenterRowTagTypeId {
+		CONTENT,
+		GROUP_SESSION
 	}
 
-	public void setUrl(@Nullable String url) {
-		this.url = url;
+	@Override
+	public String toString() {
+		return format("%s{topicCenterRowTagTypeId=%s, description=%s}", getClass().getSimpleName(), getTopicCenterRowTagTypeId(), getDescription());
 	}
 
 	@Nullable
-	public String getName() {
-		return this.name;
+	public TopicCenterRowTagTypeId getTopicCenterRowTagTypeId() {
+		return this.topicCenterRowTagTypeId;
 	}
 
-	public void setName(@Nullable String name) {
-		this.name = name;
-	}
-
-	@Nullable
-	public String getIconName() {
-		return this.iconName;
-	}
-
-	public void setIconName(@Nullable String iconName) {
-		this.iconName = iconName;
+	public void setTopicCenterRowTagTypeId(@Nullable TopicCenterRowTagTypeId topicCenterRowTagTypeId) {
+		this.topicCenterRowTagTypeId = topicCenterRowTagTypeId;
 	}
 
 	@Nullable
-	public String getImageUrl() {
-		return this.imageUrl;
+	public String getDescription() {
+		return this.description;
 	}
 
-	public void setImageUrl(@Nullable String imageUrl) {
-		this.imageUrl = imageUrl;
+	public void setDescription(@Nullable String description) {
+		this.description = description;
 	}
 }
