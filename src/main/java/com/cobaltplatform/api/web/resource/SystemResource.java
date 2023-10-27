@@ -27,6 +27,7 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.integration.acuity.AcuitySchedulingCache;
 import com.cobaltplatform.api.integration.acuity.AcuitySchedulingClient;
 import com.cobaltplatform.api.integration.epic.EpicSyncManager;
+import com.cobaltplatform.api.model.api.request.CreateMarketingSiteOutreachRequest;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
@@ -35,12 +36,14 @@ import com.cobaltplatform.api.service.Way2HealthService;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.CryptoUtility;
 import com.cobaltplatform.api.util.Formatter;
+import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.cobaltplatform.api.web.response.ResponseGenerator;
 import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.PUT;
 import com.soklet.web.annotation.QueryParameter;
+import com.soklet.web.annotation.RequestBody;
 import com.soklet.web.annotation.Resource;
 import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.exception.NotFoundException;
@@ -96,6 +99,8 @@ public class SystemResource {
 	@Nonnull
 	private final Way2HealthService way2HealthService;
 	@Nonnull
+	private final RequestBodyParser requestBodyParser;
+	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final Formatter formatter;
@@ -112,6 +117,7 @@ public class SystemResource {
 												@Nonnull AcuitySchedulingClient acuitySchedulingClient,
 												@Nonnull EpicSyncManager epicSyncManager,
 												@Nonnull Way2HealthService way2HealthService,
+												@Nonnull RequestBodyParser requestBodyParser,
 												@Nonnull Provider<CurrentContext> currentContextProvider,
 												@Nonnull Formatter formatter,
 												@Nonnull Strings strings) {
@@ -124,6 +130,7 @@ public class SystemResource {
 		requireNonNull(acuitySchedulingClient);
 		requireNonNull(epicSyncManager);
 		requireNonNull(way2HealthService);
+		requireNonNull(requestBodyParser);
 		requireNonNull(currentContextProvider);
 		requireNonNull(formatter);
 		requireNonNull(strings);
@@ -137,6 +144,7 @@ public class SystemResource {
 		this.acuitySchedulingClient = acuitySchedulingClient;
 		this.epicSyncManager = epicSyncManager;
 		this.way2HealthService = way2HealthService;
+		this.requestBodyParser = requestBodyParser;
 		this.currentContextProvider = currentContextProvider;
 		this.formatter = formatter;
 		this.strings = strings;
@@ -352,62 +360,75 @@ public class SystemResource {
 	}
 
 	@Nonnull
+	@POST("/system/marketing-site-outreach")
+	public ApiResponse createMarketingSiteOutreach(@Nonnull @RequestBody String requestBody) {
+		CreateMarketingSiteOutreachRequest request = getRequestBodyParser().parse(requestBody, CreateMarketingSiteOutreachRequest.class);
+		getSystemService().createMarketingSiteOutreach(request);
+		return new ApiResponse();
+	}
+
+	@Nonnull
 	protected SystemService getSystemService() {
-		return systemService;
+		return this.systemService;
 	}
 
 	@Nonnull
 	protected Configuration getConfiguration() {
-		return configuration;
+		return this.configuration;
 	}
 
 	@Nonnull
 	protected Cache getLocalCache() {
-		return localCache;
+		return this.localCache;
 	}
 
 	@Nonnull
 	protected Cache getDistributedCache() {
-		return distributedCache;
+		return this.distributedCache;
 	}
 
 	@Nonnull
 	protected Authenticator getAuthenticator() {
-		return authenticator;
+		return this.authenticator;
 	}
 
 	@Nonnull
 	protected AcuitySchedulingCache getAcuitySchedulingCache() {
-		return acuitySchedulingCache;
+		return this.acuitySchedulingCache;
 	}
 
 	@Nonnull
 	protected AcuitySchedulingClient getAcuitySchedulingClient() {
-		return acuitySchedulingClient;
+		return this.acuitySchedulingClient;
 	}
 
 	@Nonnull
 	protected Formatter getFormatter() {
-		return formatter;
+		return this.formatter;
 	}
 
 	@Nonnull
 	protected Strings getStrings() {
-		return strings;
+		return this.strings;
 	}
 
 	@Nonnull
 	protected EpicSyncManager getEpicSyncManager() {
-		return epicSyncManager;
+		return this.epicSyncManager;
 	}
 
 	@Nonnull
 	protected Way2HealthService getWay2HealthService() {
-		return way2HealthService;
+		return this.way2HealthService;
+	}
+
+	@Nonnull
+	protected RequestBodyParser getRequestBodyParser() {
+		return this.requestBodyParser;
 	}
 
 	@Nonnull
 	protected CurrentContext getCurrentContext() {
-		return currentContextProvider.get();
+		return this.currentContextProvider.get();
 	}
 }
