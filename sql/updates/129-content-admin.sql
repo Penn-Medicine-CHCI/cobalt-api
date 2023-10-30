@@ -3,16 +3,16 @@ SELECT _v.register_patch('128-content-admin', NULL, NULL);
 
 CREATE TABLE content_status
 (content_status_id VARCHAR NOT NULL PRIMARY KEY,
- description VARCHAR NOT NULL);
+ description VARCHAR NOT NULL,
+ display_order INTEGER NOT NULL);
 
 INSERT INTO content_status
-(content_status_id, description)
+(content_status_id, description, display_order)
 VALUES
-('DRAFT', 'Draft'),
-('LIVE', 'Live'),
-('SCHEDULED', 'Scheduled'),
-('AVAILABLE', 'Available'),
-('EXPIRED', 'Expired');
+('DRAFT', 'Draft',1),
+('SCHEDULED', 'Scheduled', 2),
+('LIVE', 'Live', 3),
+('EXPIRED', 'Expired', 4);
 
 ALTER TABLE content ADD COLUMN content_status_id VARCHAR REFERENCES content_status;
 ALTER TABLE content ADD COLUMN shared_flag BOOLEAN NOT NULL DEFAULT false;

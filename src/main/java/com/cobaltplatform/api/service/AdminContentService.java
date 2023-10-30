@@ -21,25 +21,13 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateContentRequest;
-import com.cobaltplatform.api.model.api.request.FindResourceLibraryContentRequest;
-import com.cobaltplatform.api.model.api.request.PersonalizeAssessmentChoicesCommand.SubmissionAnswer;
-import com.cobaltplatform.api.model.api.request.UpdateContentArchivedStatus;
 import com.cobaltplatform.api.model.api.request.UpdateContentRequest;
 import com.cobaltplatform.api.model.db.Account;
-import com.cobaltplatform.api.model.db.AccountSession;
-import com.cobaltplatform.api.model.db.ActivityAction.ActivityActionId;
-import com.cobaltplatform.api.model.db.ActivityType.ActivityTypeId;
-import com.cobaltplatform.api.model.db.Content;
+import com.cobaltplatform.api.model.db.ContentStatus;
 import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
-import com.cobaltplatform.api.model.db.ContentType;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
-import com.cobaltplatform.api.model.db.ContentTypeLabel;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.Tag;
-import com.cobaltplatform.api.model.db.TagContent;
 import com.cobaltplatform.api.model.service.AdminContent;
-import com.cobaltplatform.api.model.service.ContentDurationId;
-import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.LinkGenerator;
 import com.cobaltplatform.api.util.ValidationException;
@@ -51,30 +39,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import javax.annotation.concurrent.NotThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
-import java.time.Instant;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.model.db.Role.RoleId;
-import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
-import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
-import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
-import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
@@ -418,6 +393,22 @@ public class AdminContentService {
 		requireNonNull(content);
 
 		return account.getRoleId() == RoleId.ADMINISTRATOR && account.getInstitutionId() == content.getOwnerInstitutionId();
+	}
+
+	@Nonnull
+	public void deleteContentById(@Nonnull UUID contentId) {
+		requireNonNull(contentId);
+
+		getDatabase().execute("UPDATE content SET deleted_flag = true WHERE content_id = ? ", contentId);
+	}
+
+	@Nonnull
+	public List<ContentStatus> findContentStatuses() {
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM content_status
+				ORDER BY display_order
+				""", ContentStatus.class);
 	}
 
 	@Nonnull

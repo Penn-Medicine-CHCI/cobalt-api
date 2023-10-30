@@ -36,9 +36,8 @@ public class ContentStatus {
 
 	public enum ContentStatusId {
 		DRAFT,
-		LIVE,
 		SCHEDULED,
-		AVAILABLE,
+		LIVE,
 		EXPIRED
 	}
 

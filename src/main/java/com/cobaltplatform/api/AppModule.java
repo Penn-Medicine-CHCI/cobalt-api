@@ -81,6 +81,7 @@ import com.cobaltplatform.api.model.api.response.BetaFeatureAlertApiResponse.Bet
 import com.cobaltplatform.api.model.api.response.CallToActionApiResponse.CallToActionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ClinicApiResponse.ClinicApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ContentStatusApiResponse.ContentStatusApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse.CountryApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FaqApiResponse.FaqApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FaqTopicApiResponse.FaqTopicApiResponseFactory;
@@ -316,6 +317,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(AccountCheckInActionApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(StudyAccountApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(TopicCenterRowTagApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(ContentStatusApiResponseFactory.class)));
 	}
 
 	@Provides

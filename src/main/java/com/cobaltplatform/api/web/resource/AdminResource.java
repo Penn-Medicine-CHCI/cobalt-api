@@ -22,11 +22,11 @@ package com.cobaltplatform.api.web.resource;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateContentRequest;
 import com.cobaltplatform.api.model.api.request.CreatePresignedUploadRequest;
-import com.cobaltplatform.api.model.api.request.UpdateContentArchivedStatus;
 import com.cobaltplatform.api.model.api.request.UpdateContentRequest;
 import com.cobaltplatform.api.model.api.response.AdminContentApiResponse.AdminContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AdminInstitutionApiResponse.AdminInstitutionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ContentStatusApiResponse.ContentStatusApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TagApiResponse;
 import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
@@ -116,6 +116,8 @@ public class AdminResource {
 	private final TagApiResponseFactory tagApiResponseFactory;
 	@Nonnull
 	private final TagGroupApiResponseFactory tagGroupApiResponseFactory;
+	@Nonnull
+	private final ContentStatusApiResponseFactory contentStatusApiResponseFactory;
 
 
 	@Inject
@@ -133,7 +135,8 @@ public class AdminResource {
 											 @Nonnull Provider<AssessmentService> assessmentServiceProvider,
 											 @Nonnull Provider<AssessmentFormApiResponseFactory> assessmentFormApiResponseFactoryProvider,
 											 @Nonnull TagApiResponseFactory tagApiResponseFactory,
-											 @Nonnull TagGroupApiResponseFactory tagGroupApiResponseFactory) {
+											 @Nonnull TagGroupApiResponseFactory tagGroupApiResponseFactory,
+											 @Nonnull ContentStatusApiResponseFactory contentStatusApiResponseFactory) {
 		this.contentService = contentService;
 		this.adminContentService = adminContentService;
 		this.tagService = tagService;
@@ -149,6 +152,7 @@ public class AdminResource {
 		this.assessmentFormApiResponseFactoryProvider = assessmentFormApiResponseFactoryProvider;
 		this.tagApiResponseFactory = tagApiResponseFactory;
 		this.tagGroupApiResponseFactory = tagGroupApiResponseFactory;
+		this.contentStatusApiResponseFactory = contentStatusApiResponseFactory;
 	}
 
 	@GET("/admin/my-content/filter")
@@ -220,11 +224,11 @@ public class AdminResource {
 		Account account = getCurrentContext().getAccount().get();
 		if (account.getRoleId() == RoleId.ADMINISTRATOR) {
 			return new ApiResponse(Map.of(
-					"contentStatuses", getInstitutionService().findNetworkInstitutions(account.getInstitutionId()).stream().
-							map(it -> getAdminInstitutionApiResponseFactory().create(it)).collect(Collectors.toList())
+					"contentStatuses", getAdminContentService().findContentStatuses().stream().
+							map(it -> getContentStatusApiResponseFactory().create(it)).collect(Collectors.toList())
 			));
 		} else {
-			return new ApiResponse(Map.of("institutions", emptyList()));
+			return new ApiResponse(Map.of("contentStatuses", emptyList()));
 		}
 	}
 
@@ -329,34 +333,10 @@ public class AdminResource {
 		else if (!getAdminContentService().hasAdminAccessToContent(account, content.get()))
 			throw new AuthorizationException();
 
-		getContentService().deleteContentById(contentId);
+		getAdminContentService().deleteContentById(contentId);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("contentId", contentId);
-		}});
-
-	}
-
-	@PUT("/admin/content/{contentId}/archive")
-	@AuthenticationRequired
-	public ApiResponse archiveContent(@Nonnull @RequestBody String requestBody,
-																		@Nonnull @PathParameter UUID contentId) {
-		requireNonNull(requestBody);
-		requireNonNull(contentId);
-		Account account = getCurrentContext().getAccount().get();
-		UpdateContentArchivedStatus request = getRequestBodyParser().parse(requestBody, UpdateContentArchivedStatus.class);
-		Optional<AdminContent> content = getAdminContentService().findAdminContentByIdForInstitution(account.getInstitutionId(), contentId);
-
-		if (!content.isPresent())
-			throw new NotFoundException();
-		else if (!getAdminContentService().hasAdminAccessToContent(account, content.get()))
-			throw new AuthorizationException();
-
-		request.setContentId(contentId);
-		getContentService().updateArchiveFlagContentById(request);
-
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("content", getAdminContentApiResponseFactory().create(account, getAdminContentService().findAdminContentByIdForInstitution(account.getInstitutionId(), contentId).get(), AdminContentDisplayType.MY_CONTENT));
 		}});
 
 	}
@@ -452,5 +432,10 @@ public class AdminResource {
 	@Nonnull
 	protected TagGroupApiResponseFactory getTagGroupApiResponseFactory() {
 		return this.tagGroupApiResponseFactory;
+	}
+
+	@Nonnull
+	protected ContentStatusApiResponseFactory getContentStatusApiResponseFactory() {
+		return contentStatusApiResponseFactory;
 	}
 }

@@ -20,11 +20,9 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.context.CurrentContext;
-import com.cobaltplatform.api.model.api.request.CreateContentRequest;
 import com.cobaltplatform.api.model.api.request.FindResourceLibraryContentRequest;
 import com.cobaltplatform.api.model.api.request.PersonalizeAssessmentChoicesCommand.SubmissionAnswer;
 import com.cobaltplatform.api.model.api.request.UpdateContentArchivedStatus;
-import com.cobaltplatform.api.model.api.request.UpdateContentRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.ActivityAction.ActivityActionId;
@@ -42,9 +40,6 @@ import com.cobaltplatform.api.model.service.ContentDurationId;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.LinkGenerator;
-import com.cobaltplatform.api.util.ValidationException;
-import com.cobaltplatform.api.util.ValidationException.FieldError;
-import com.cobaltplatform.api.util.ValidationUtility;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -57,7 +52,6 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -69,7 +63,6 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static com.cobaltplatform.api.model.db.Role.RoleId;
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
 import static java.lang.String.format;
@@ -450,99 +443,9 @@ public class ContentService {
 		return getDatabase().queryForObject("SELECT * FROM content WHERE content_id = ?", Content.class, contentId);
 	}
 
-
-
-
-
-	@Nonnull
-	private void addContentToInstitutionsForPublic(@Nonnull UUID contentId) {
-		requireNonNull(contentId);
-
-		getDatabase().execute("INSERT INTO institution_content (institution_content_id, institution_id, content_id) " +
-						"SELECT uuid_generate_v4(), i.institution_id, ? FROM institution i WHERE " +
-						"i.institution_id NOT IN (SELECT ic.institution_id FROM institution_content ic WHERE ic.content_id=?) ",
-				contentId, contentId);
-	}
-
-	@Nonnull
-	private void removeContentFromInstitutionsForPublic(@Nonnull UUID contentId) {
-		requireNonNull(contentId);
-
-		getDatabase().execute("DELETE FROM institution_content WHERE content_id = ? AND institution_id != " +
-				"(SELECT c.owner_institution_id FROM content c WHERE c.content_id = ?)", contentId, contentId);
-	}
-
 	@Nonnull
 	public List<ContentType> findContentTypes() {
 		return getDatabase().queryForList("SELECT * FROM content_type WHERE deleted=FALSE ORDER BY description", ContentType.class);
-	}
-
-	//TODO: CA-REMOVE
-	/*
-	@Nonnull
-	public List<ApprovalStatus> findApprovalStatuses() {
-		return getDatabase().queryForList("SELECT * FROM approval_status ORDER BY description", ApprovalStatus.class);
-	}
-
-	@Nonnull
-	public ApprovalStatus findApprovalStatusById(ApprovalStatusId approvalStatusId) {
-		return getDatabase().queryForObject("SELECT * FROM approval_status WHERE approval_status_id = ?",
-				ApprovalStatus.class, approvalStatusId).get();
-	}
-
-	@Nonnull
-	private void updateContentVisibilityApprovalStatus(@Nonnull UUID contentId,
-																										 @Nonnull ApprovalStatusId approvalStatusId,
-																										 @Nonnull VisibilityId visibilityId) {
-		requireNonNull(contentId);
-		requireNonNull(approvalStatusId);
-		requireNonNull(visibilityId);
-
-		if (visibilityId == VisibilityId.PRIVATE)
-			getDatabase().execute("UPDATE content SET owner_institution_approval_status_id = ? WHERE content_id=? ",
-					approvalStatusId, contentId);
-		else
-			getDatabase().execute("UPDATE content SET other_institution_approval_status_id = ? WHERE content_id=? ",
-					approvalStatusId, contentId);
-
-	}
-
-	@Nonnull
-	public void updateContentVisibilityApprovalStatusForAccount(@Nonnull Account account,
-																															@Nonnull UpdateContentApprovalStatusRequest request) {
-		requireNonNull(account);
-		requireNonNull(request);
-
-		AdminContent content = findAdminContentByIdForInstitution(account.getInstitutionId(), request.getContentId())
-				.orElseThrow();
-
-		if (account.getRoleId() == RoleId.ADMINISTRATOR) {
-			//Administrators control network and private visibility
-			if (content.getVisibilityId() == VisibilityId.NETWORK) {
-				updateContentVisibilityApprovalStatus(request.getContentId(), request.getApprovalStatusId(), VisibilityId.NETWORK);
-			}
-			updateContentVisibilityApprovalStatus(request.getContentId(), request.getApprovalStatusId(), VisibilityId.PRIVATE);
-
-			if (content.getOwnerInstitutionId() == account.getInstitutionId()) {
-				getDatabase().execute("UPDATE institution_content SET approved_flag = ? WHERE content_id = ? AND institution_id = ?", true, content.getContentId(), account.getInstitutionId());
-			}
-		}
-	}
-	*/
-
-	@Nonnull
-	public void deleteContentById(@Nonnull UUID contentId) {
-		requireNonNull(contentId);
-
-		getDatabase().execute("UPDATE content SET deleted_flag = true WHERE content_id = ? ", contentId);
-	}
-
-	@Nonnull
-	public void updateArchiveFlagContentById(@Nonnull UpdateContentArchivedStatus command) {
-		requireNonNull(command);
-
-		getDatabase().execute("UPDATE content SET archived_flag = ? WHERE content_id = ? ",
-				command.getArchivedFlag(), command.getContentId());
 	}
 
 	@Nonnull
