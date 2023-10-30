@@ -40,6 +40,7 @@ import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.AdminContent;
 import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.service.AdminContentService;
 import com.cobaltplatform.api.service.AssessmentService;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.ImageUploadService;
@@ -88,6 +89,8 @@ public class AdminResource {
 	@Nonnull
 	private final ContentService contentService;
 	@Nonnull
+	private final AdminContentService adminContentService;
+	@Nonnull
 	private final TagService tagService;
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
@@ -117,6 +120,7 @@ public class AdminResource {
 
 	@Inject
 	public AdminResource(@Nonnull ContentService contentService,
+											 @Nonnull AdminContentService adminContentService,
 											 @Nonnull TagService tagService,
 											 @Nonnull RequestBodyParser requestBodyParser,
 											 @Nonnull Provider<CurrentContext> currentContextProvider,
@@ -131,6 +135,7 @@ public class AdminResource {
 											 @Nonnull TagApiResponseFactory tagApiResponseFactory,
 											 @Nonnull TagGroupApiResponseFactory tagGroupApiResponseFactory) {
 		this.contentService = contentService;
+		this.adminContentService = adminContentService;
 		this.tagService = tagService;
 		this.requestBodyParser = requestBodyParser;
 		this.currentContextProvider = currentContextProvider;
@@ -209,13 +214,18 @@ public class AdminResource {
 		}
 	}
 
-	@GET("/admin/content-type-labels")
+	@GET("/admin/content-statuses")
 	@AuthenticationRequired
-	public ApiResponse getContentTypeLabels() {
+	public ApiResponse getContentStatuses() {
 		Account account = getCurrentContext().getAccount().get();
-		return new ApiResponse(Map.of(
-				"contentTypeLabels", getContentService().findContentTypeLabels()
-		));
+		if (account.getRoleId() == RoleId.ADMINISTRATOR) {
+			return new ApiResponse(Map.of(
+					"contentStatuses", getInstitutionService().findNetworkInstitutions(account.getInstitutionId()).stream().
+							map(it -> getAdminInstitutionApiResponseFactory().create(it)).collect(Collectors.toList())
+			));
+		} else {
+			return new ApiResponse(Map.of("institutions", emptyList()));
+		}
 	}
 
 	@POST("/admin/content/")
@@ -225,7 +235,7 @@ public class AdminResource {
 
 		Account account = getCurrentContext().getAccount().get();
 		CreateContentRequest request = getRequestBodyParser().parse(requestBody, CreateContentRequest.class);
-		AdminContent adminContent = getContentService().createContent(account, request);
+		AdminContent adminContent = getAdminContentService().createContent(account, request);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("adminContent", getAdminContentApiResponseFactory().create(account, adminContent, AdminContentDisplayType.DETAIL));
@@ -242,7 +252,7 @@ public class AdminResource {
 		Account account = getCurrentContext().getAccount().get();
 		UpdateContentRequest request = getRequestBodyParser().parse(requestBody, UpdateContentRequest.class);
 		request.setContentId(contentId);
-		AdminContent adminContent = getContentService().updateContent(account, request);
+		AdminContent adminContent = getAdminContentService().updateContent(account, request);
 		/*AdminContentDisplayType adminContentDisplayType = (request.getRemoveFromInstitution() == null || !request.getRemoveFromInstitution()) ?
 				AdminContentDisplayType.DETAIL : AdminContentDisplayType.AVAILABLE_CONTENT;
 */
@@ -259,7 +269,7 @@ public class AdminResource {
 		requireNonNull(contentId);
 
 		Account account = getCurrentContext().getAccount().get();
-		Optional<AdminContent> content = getContentService().findAdminContentByIdForInstitution(account.getInstitutionId(), contentId);
+		Optional<AdminContent> content = getAdminContentService().findAdminContentByIdForInstitution(account.getInstitutionId(), contentId);
 
 		if (!content.isPresent())
 			throw new NotFoundException();
@@ -312,11 +322,11 @@ public class AdminResource {
 	public ApiResponse deleteContent(@Nonnull @PathParameter UUID contentId) {
 		requireNonNull(contentId);
 		Account account = getCurrentContext().getAccount().get();
-		Optional<AdminContent> content = getContentService().findAdminContentByIdForInstitution(account.getInstitutionId(), contentId);
+		Optional<AdminContent> content = getAdminContentService().findAdminContentByIdForInstitution(account.getInstitutionId(), contentId);
 
 		if (!content.isPresent())
 			throw new NotFoundException();
-		else if (!getContentService().hasAdminAccessToContent(account, content.get()))
+		else if (!getAdminContentService().hasAdminAccessToContent(account, content.get()))
 			throw new AuthorizationException();
 
 		getContentService().deleteContentById(contentId);
@@ -335,18 +345,18 @@ public class AdminResource {
 		requireNonNull(contentId);
 		Account account = getCurrentContext().getAccount().get();
 		UpdateContentArchivedStatus request = getRequestBodyParser().parse(requestBody, UpdateContentArchivedStatus.class);
-		Optional<AdminContent> content = getContentService().findAdminContentByIdForInstitution(account.getInstitutionId(), contentId);
+		Optional<AdminContent> content = getAdminContentService().findAdminContentByIdForInstitution(account.getInstitutionId(), contentId);
 
 		if (!content.isPresent())
 			throw new NotFoundException();
-		else if (!getContentService().hasAdminAccessToContent(account, content.get()))
+		else if (!getAdminContentService().hasAdminAccessToContent(account, content.get()))
 			throw new AuthorizationException();
 
 		request.setContentId(contentId);
 		getContentService().updateArchiveFlagContentById(request);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("content", getAdminContentApiResponseFactory().create(account, contentService.findAdminContentByIdForInstitution(account.getInstitutionId(), contentId).get(), AdminContentDisplayType.MY_CONTENT));
+			put("content", getAdminContentApiResponseFactory().create(account, getAdminContentService().findAdminContentByIdForInstitution(account.getInstitutionId(), contentId).get(), AdminContentDisplayType.MY_CONTENT));
 		}});
 
 	}
@@ -372,6 +382,11 @@ public class AdminResource {
 	@Nonnull
 	protected ContentService getContentService() {
 		return contentService;
+	}
+
+	@Nonnull
+	protected AdminContentService getAdminContentService() {
+		return adminContentService;
 	}
 
 	@Nonnull
