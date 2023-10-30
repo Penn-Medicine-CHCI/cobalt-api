@@ -22,7 +22,6 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.FindResourceLibraryContentRequest;
 import com.cobaltplatform.api.model.api.request.PersonalizeAssessmentChoicesCommand.SubmissionAnswer;
-import com.cobaltplatform.api.model.api.request.UpdateContentArchivedStatus;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.ActivityAction.ActivityActionId;

@@ -90,6 +90,9 @@ public class Content {
 	private Boolean sharedFlag;
 	@Nullable
 	private ContentStatus.ContentStatusId contentStatusId;
+
+	@Nullable
+	private String contentStatusDescription;
 	@Nullable
 	private Integer totalCount;
 	@Nullable
@@ -318,5 +321,14 @@ public class Content {
 
 	public void setDateCreated(@Nullable LocalDate dateCreated) {
 		this.dateCreated = dateCreated;
+	}
+
+	@Nullable
+	public String getContentStatusDescription() {
+		return contentStatusDescription;
+	}
+
+	public void setContentStatusDescription(@Nullable String contentStatusDescription) {
+		this.contentStatusDescription = contentStatusDescription;
 	}
 }

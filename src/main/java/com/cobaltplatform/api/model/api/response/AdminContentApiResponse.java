@@ -20,7 +20,7 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.Account;
-import com.cobaltplatform.api.model.db.ContentStatus;
+import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
 import com.cobaltplatform.api.model.db.ContentType;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
 import com.cobaltplatform.api.model.service.AdminContent;
@@ -92,7 +92,7 @@ public class AdminContentApiResponse {
 	@Nullable
 	private Boolean sharedFlag;
 	@Nullable
-	private ContentStatus.ContentStatusId contentStatusId;
+	private ContentStatusId contentStatusId;
 	@Nullable
 	private String contentStatusDescription;
 	@Nullable
@@ -144,89 +144,30 @@ public class AdminContentApiResponse {
 		this.publishStartDate = adminContent.getPublishStartDate();
 		this.publishStartDateDescription = adminContent.getPublishStartDate() != null ? formatter.formatDate(adminContent.getPublishStartDate(), FormatStyle.SHORT) : null;
 		this.publishEndDate = adminContent.getPublishEndDate();
-		this.publishEndDateDescription = adminContent.getPublishEndDate() != null ? formatter.formatDate(adminContent.getPublishEndDate(), FormatStyle.SHORT) : null;
+		this.publishEndDateDescription = adminContent.getPublishEndDate() != null ? formatter.formatDate(adminContent.getPublishEndDate(), FormatStyle.SHORT) : "No Expiry";
 		this.dateCreated = adminContent.getDateCreated();
 		this.dateCreatedDescription = formatter.formatDate(adminContent.getDateCreated(), FormatStyle.SHORT);
 		this.publishRecurring = adminContent.getPublishRecurring();
 		this.searchTerms = adminContent.getSearchTerms();
 		this.sharedFlag = adminContent.getSharedFlag();
 		this.contentStatusId = adminContent.getContentStatusId();
-
-		/*if (adminContentDisplayType == AdminContentDisplayType.MY_CONTENT) {
-			contentActionIdList.add(ContentActionId.EDIT);
-		}*/
+		this.contentStatusDescription = adminContent.getContentStatusDescription();
 
 		if (contentOwnedByCurrentAccount) {
-			if (adminContent.getContentStatusId().equals(ContentStatus.ContentStatusId.DRAFT)) {
+			if (adminContent.getContentStatusId().equals(ContentStatusId.DRAFT)) {
 				contentActionIdList.add(ContentActionId.EDIT);
 				contentActionIdList.add(ContentActionId.DELETE);
-			} else if (adminContent.getContentStatusId().equals(ContentStatus.ContentStatusId.LIVE)) {
+			} else if (adminContent.getContentStatusId().equals(ContentStatusId.LIVE)) {
 				contentActionIdList.add(ContentActionId.EDIT);
 				contentActionIdList.add(ContentActionId.VIEW_ON_COBALT);
 				contentActionIdList.add(ContentActionId.EXPIRE);
-			} else if (adminContent.getContentStatusId().equals(ContentStatus.ContentStatusId.EXPIRED)) {
+			} else if (adminContent.getContentStatusId().equals(ContentStatusId.EXPIRED)) {
 				contentActionIdList.add(ContentActionId.EDIT);
 				contentActionIdList.add(ContentActionId.UNEXPIRE);
 			}
 		} else {
 
 		}
-
-		/*
-		if (adminContent.getArchivedFlag()) {
-			contentActionIdList.add(ContentActionId.UNARCHIVE);
-			contentActionIdList.add(ContentActionId.DELETE);
-		} else {
-			if (adminContentDisplayType == AdminContentDisplayType.MY_CONTENT) {
-				if (this.visibilityId == VisibilityId.PUBLIC) {
-					switch (adminContent.getOtherInstitutionApprovalStatusId()) {
-						case PENDING:
-							contentActionIdList.add(ContentActionId.REJECT);
-							contentActionIdList.add(ContentActionId.ARCHIVE);
-							break;
-						case APPROVED:
-							contentActionIdList.add(ContentActionId.ARCHIVE);
-							break;
-						case REJECTED:
-							contentActionIdList.add(ContentActionId.APPROVE);
-							contentActionIdList.add(ContentActionId.DELETE);
-							break;
-						case ARCHIVED:
-							break;
-					}
-				} else if (this.visibilityId == VisibilityId.PRIVATE) {
-					switch (adminContent.getOwnerInstitutionApprovalStatusId()) {
-
-						case PENDING:
-							contentActionIdList.add(ContentActionId.APPROVE);
-							contentActionIdList.add(ContentActionId.REJECT);
-							break;
-						case APPROVED:
-							contentActionIdList.add(ContentActionId.ARCHIVE);
-							break;
-						case REJECTED:
-							contentActionIdList.add(ContentActionId.APPROVE);
-							contentActionIdList.add(ContentActionId.DELETE);
-							break;
-						case ARCHIVED:
-							contentActionIdList.add(ContentActionId.APPROVE);
-							break;
-					}
-				} else {
-					if (!adminContent.getArchivedFlag())
-						contentActionIdList.add(ContentActionId.ARCHIVE);
-				}
-			} else if (adminContentDisplayType == AdminContentDisplayType.AVAILABLE_CONTENT) {
-				if (adminContent.getApprovedFlag()) {
-					contentActionIdList.add(ContentActionId.REMOVE);
-					availableStatusId = AvailableStatusId.ADDED;
-				} else {
-					contentActionIdList.add(ContentActionId.ADD);
-					availableStatusId = AvailableStatusId.AVAILABLE;
-				}
-			}
-		}
-*/
 		this.actions = contentActionIdList;
 
 		this.tagIds = adminContent.getTags() == null ? Collections.emptyList() : adminContent.getTags().stream()
@@ -321,7 +262,7 @@ public class AdminContentApiResponse {
 	}
 
 	@Nullable
-	public ContentStatus.ContentStatusId getContentStatusId() {
+	public ContentStatusId getContentStatusId() {
 		return contentStatusId;
 	}
 

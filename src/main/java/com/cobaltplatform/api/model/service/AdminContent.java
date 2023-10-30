@@ -19,7 +19,7 @@
 
 package com.cobaltplatform.api.model.service;
 
-import com.cobaltplatform.api.model.db.ContentStatus;
+import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
 import com.cobaltplatform.api.model.db.ContentType;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Tag;
@@ -73,7 +73,10 @@ public class AdminContent{
 	@Nullable
 	private Boolean sharedFlag;
 	@Nullable
-	private ContentStatus.ContentStatusId contentStatusId;
+	private ContentStatusId contentStatusId;
+
+	@Nullable
+	private String contentStatusDescription;
 
 	// This is stored separately in the DB, but in practice it's needed everywhere we see content in the UI
 	@Nullable
@@ -240,11 +243,11 @@ public class AdminContent{
 	}
 
 	@Nullable
-	public ContentStatus.ContentStatusId getContentStatusId() {
+	public ContentStatusId getContentStatusId() {
 		return contentStatusId;
 	}
 
-	public void setContentStatusId(@Nullable ContentStatus.ContentStatusId contentStatusId) {
+	public void setContentStatusId(@Nullable ContentStatusId contentStatusId) {
 		this.contentStatusId = contentStatusId;
 	}
 
@@ -255,5 +258,14 @@ public class AdminContent{
 
 	public void setDateCreated(@Nullable LocalDate dateCreated) {
 		this.dateCreated = dateCreated;
+	}
+
+	@Nullable
+	public String getContentStatusDescription() {
+		return contentStatusDescription;
+	}
+
+	public void setContentStatusDescription(@Nullable String contentStatusDescription) {
+		this.contentStatusDescription = contentStatusDescription;
 	}
 }
