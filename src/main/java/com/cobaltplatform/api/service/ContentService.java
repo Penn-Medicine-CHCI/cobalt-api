@@ -20,40 +20,30 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.context.CurrentContext;
-import com.cobaltplatform.api.messaging.email.EmailMessage;
-import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.CreateContentRequest;
 import com.cobaltplatform.api.model.api.request.FindResourceLibraryContentRequest;
-import com.cobaltplatform.api.model.api.request.PersonalizeAssessmentChoicesCommand;
 import com.cobaltplatform.api.model.api.request.PersonalizeAssessmentChoicesCommand.SubmissionAnswer;
-import com.cobaltplatform.api.model.api.request.UpdateContentApprovalStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdateContentArchivedStatus;
 import com.cobaltplatform.api.model.api.request.UpdateContentRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.ActivityAction.ActivityActionId;
 import com.cobaltplatform.api.model.db.ActivityType.ActivityTypeId;
-import com.cobaltplatform.api.model.db.ApprovalStatus;
-import com.cobaltplatform.api.model.db.Assessment;
-import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
 import com.cobaltplatform.api.model.db.AvailableStatus;
 import com.cobaltplatform.api.model.db.AvailableStatus.AvailableStatusId;
 import com.cobaltplatform.api.model.db.Content;
+import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
 import com.cobaltplatform.api.model.db.ContentType;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
 import com.cobaltplatform.api.model.db.ContentTypeLabel;
-import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.db.TagContent;
-import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
-import com.cobaltplatform.api.model.db.Visibility;
 import com.cobaltplatform.api.model.service.AdminContent;
 import com.cobaltplatform.api.model.service.ContentDurationId;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.LinkGenerator;
-import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
@@ -70,7 +60,6 @@ import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -82,14 +71,10 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static com.cobaltplatform.api.model.db.ApprovalStatus.ApprovalStatusId;
 import static com.cobaltplatform.api.model.db.Role.RoleId;
-import static com.cobaltplatform.api.model.db.Visibility.VisibilityId;
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
 import static java.lang.String.format;
-import static java.util.Collections.emptyList;
-import static java.util.Collections.emptyMap;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -196,17 +181,12 @@ public class ContentService {
 	}
 
 	@Nonnull
-	public FindResult<AdminContent> findAllContentForAccount(@Nonnull Boolean myContent,
-																													 @Nonnull Account account,
+	public FindResult<AdminContent> findAllContentForAccount(@Nonnull Account account,
 																													 @Nonnull Optional<Integer> page,
 																													 @Nonnull Optional<ContentTypeId> contentTypeId,
 																													 @Nonnull Optional<InstitutionId> institutionId,
-																													 @Nonnull Optional<VisibilityId> visibilityId,
-																													 @Nonnull Optional<ApprovalStatusId> myApprovalStatusId,
-																													 @Nonnull Optional<ApprovalStatusId> otherApprovalStatusId,
 																													 @Nonnull Optional<AvailableStatusId> availableStatusId,
 																													 @Nonnull Optional<String> search) {
-		requireNonNull(myContent);
 		requireNonNull(account);
 
 		List<Object> parameters = new ArrayList();
@@ -225,49 +205,12 @@ public class ContentService {
 			parameters.add(institutionId.get());
 		}
 
-		if (myApprovalStatusId.isPresent()) {
-			whereClause.append("AND va.owner_institution_approval_status_id = ? ");
-			parameters.add(myApprovalStatusId.get());
-		}
-
-		if (otherApprovalStatusId.isPresent()) {
-			whereClause.append("AND va.other_institution_approval_status_id = ? ");
-			parameters.add(otherApprovalStatusId.get());
-		}
-
-		if (visibilityId.isPresent()) {
-			whereClause.append("AND va.visibility_id = ? ");
-			parameters.add(visibilityId.get());
-		}
-
 		if (search.isPresent()) {
 			String lowerSearch = trimToEmpty(search.get().toLowerCase());
 			whereClause.append("AND (LOWER(title) % ? or SIMILARITY(LOWER(title), ?) > 0.5 OR LOWER(title) LIKE ?) ");
 			parameters.add(lowerSearch);
 			parameters.add(lowerSearch);
 			parameters.add('%' + lowerSearch + '%');
-		}
-
-
-		if (myContent) {
-			whereClause.append("AND va.owner_institution_id = ? AND institution_id = ? ");
-			parameters.add(account.getInstitutionId());
-			parameters.add(account.getInstitutionId());
-			if (availableStatusId.isPresent()) {
-				whereClause.append(" AND approved_flag = ? ");
-				parameters.add(availableStatusId.get() == AvailableStatusId.ADDED);
-			}
-		} else {
-			whereClause.append("AND va.owner_institution_id != ? ");
-			parameters.add(account.getInstitutionId());
-			whereClause.append("AND va.owner_institution_approval_status_id = ?");
-			parameters.add(ApprovalStatusId.APPROVED);
-			whereClause.append("AND va.institution_id = ? ");
-			parameters.add(account.getInstitutionId());
-			if (availableStatusId.isPresent()) {
-				whereClause.append("AND va.approved_flag = ? ");
-				parameters.add(availableStatusId.get() == AvailableStatusId.ADDED);
-			}
 		}
 
 		String query =
@@ -527,16 +470,14 @@ public class ContentService {
 	}
 
 	@Nonnull
-	private void addContentToInstitution(@Nonnull UUID contentId, @Nonnull InstitutionId institutionId,
-																			 @Nonnull Boolean approvedFlag) {
+	private void addContentToInstitution(@Nonnull UUID contentId, @Nonnull InstitutionId institutionId) {
 		requireNonNull(contentId);
 		requireNonNull(institutionId);
-		requireNonNull(approvedFlag);
 
-		getDatabase().execute("INSERT INTO institution_content (institution_content_id, institution_id, content_id, approved_flag) " +
-				"VALUES (?,?,?,?)" +
-				"ON CONFLICT (institution_id, content_id) DO " +
-				"UPDATE SET approved_flag = ? ", UUID.randomUUID(), institutionId, contentId, approvedFlag, approvedFlag);
+		getDatabase().execute("""
+				INSERT INTO institution_content (institution_content_id, institution_id, content_id) 
+				VALUES (?,?,?)
+				""", UUID.randomUUID(), institutionId, contentId);
 	}
 
 	@Nonnull
@@ -563,15 +504,12 @@ public class ContentService {
 	}
 
 	@Nonnull
-	public List<Visibility> findVisibilities() {
-		return getDatabase().queryForList("SELECT * FROM visibility ORDER BY description", Visibility.class);
-	}
-
-	@Nonnull
 	public List<AvailableStatus> findAvailableStatuses() {
 		return getDatabase().queryForList("SELECT * FROM available_status ORDER BY description", AvailableStatus.class);
 	}
 
+	//TODO: CA-REMOVE
+	/*
 	@Nonnull
 	public List<ApprovalStatus> findApprovalStatuses() {
 		return getDatabase().queryForList("SELECT * FROM approval_status ORDER BY description", ApprovalStatus.class);
@@ -621,6 +559,7 @@ public class ContentService {
 			}
 		}
 	}
+	*/
 
 	@Nonnull
 	public void deleteContentById(@Nonnull UUID contentId) {
@@ -650,28 +589,20 @@ public class ContentService {
 		requireNonNull(command);
 
 		UUID contentId = UUID.randomUUID();
-
 		String title = trimToNull(command.getTitle());
 		String url = trimToNull(command.getUrl());
 		String imageUrl = trimToNull(command.getImageUrl());
 		String description = trimToNull(command.getDescription());
 		String author = trimToNull(command.getAuthor());
-		@Deprecated
-		String contentTypeLabelId = trimToNull(command.getContentTypeLabelId());
-		VisibilityId visibilityCommand = command.getVisibilityId();
+		ContentStatusId contentStatusId = command.getContentStatusId();
 		ContentTypeId contentTypeId = command.getContentTypeId();
 		String durationInMinutesString = trimToNull(command.getDurationInMinutes());
 		Set<String> tagIds = command.getTagIds() == null ? Set.of() : command.getTagIds();
-		ApprovalStatusId otherInstitutionsApprovalStatusId = ApprovalStatusId.PENDING;
-
-		PersonalizeAssessmentChoicesCommand contentTagCommand = command.getContentTags();
-		List<InstitutionId> visibleInstitutionIds = command.getInstitutionIdList() == null ? emptyList() : command.getInstitutionIdList();
-
-		LocalDate createdDate = command.getDateCreated();
-
-		// Temporary until we phase out contentTypeLabelId entirely
-		if (contentTypeLabelId == null && contentTypeId != null)
-			contentTypeLabelId = contentTypeId.name();
+		LocalDate publishStartDate = command.getPublishStartDate();
+		LocalDate publishEndDate = command.getPublishEndDate();
+		Boolean publishRecurring = command.getPublishRecurring() == null ? false : command.getPublishRecurring();
+		String searchTerms = trimToNull(command.getSearchTerms());
+		Boolean sharedFlag = command.getSharedFlag();
 
 		ValidationException validationException = new ValidationException();
 
@@ -692,28 +623,20 @@ public class ContentService {
 			validationException.add(new FieldError("contentTypeId", getStrings().get("Content type is required")));
 		}
 
-		if (contentTypeLabelId == null) {
-			validationException.add(new FieldError("contentTypeLabel", getStrings().get("Content type label is required")));
+		if (contentStatusId == null) {
+			validationException.add(new FieldError("contentStatusId", getStrings().get("Content status is required")));
 		}
 
-		if (account.getRoleId() != RoleId.ADMINISTRATOR) {
-			visibilityCommand = VisibilityId.PRIVATE;
-		} else if (visibilityCommand == null) {
-			validationException.add(new FieldError("visiblityId", getStrings().get("Visibility is required")));
+		if (sharedFlag == null) {
+			validationException.add(new FieldError("sharedFlag", getStrings().get("Shared flag is required")));
 		}
 
-		if (visibilityCommand == VisibilityId.NETWORK && visibleInstitutionIds.isEmpty()) {
-			validationException.add(new FieldError("institutionIds", getStrings().get("Institutions are required for in-network visibility")));
+		if (contentStatusId == null) {
+			validationException.add(new FieldError("contentStatusId", getStrings().get("Content status is required")));
 		}
 
-		Map<UUID, List<SubmissionAnswer>> contentTagChoices = null;
-		if (account.getRoleId() == RoleId.ADMINISTRATOR) {
-			if (contentTagCommand != null && contentTagCommand.getChoices().size() > 0) {
-				Assessment assessment = getAssessmentService().findAssessmentByTypeForInstitution(AssessmentTypeId.INTRO, account.getInstitutionId()).orElseThrow();
-				contentTagChoices = getAssessmentService().validateIntroAssessmentSubmissionCommand(contentTagCommand, assessment, validationException);
-			}
-		} else {
-			contentTagChoices = emptyMap();
+		if (publishStartDate == null) {
+			validationException.add(new FieldError("publishStartDate", getStrings().get("Publish start date is required")));
 		}
 
 		if (durationInMinutesString != null && !ValidationUtility.isValidInteger(durationInMinutesString))
@@ -727,43 +650,19 @@ public class ContentService {
 		if (url != null && !url.startsWith("http://") && !url.startsWith("https://"))
 			url = String.format("https://%s", url);
 
-		ApprovalStatusId initialApprovalStatus;
-		if (account.getRoleId() == RoleId.ADMINISTRATOR) {
-			initialApprovalStatus = ApprovalStatusId.APPROVED;
-		} else {
-			initialApprovalStatus = ApprovalStatusId.PENDING;
-		}
+		InstitutionId ownerInstitutionId = account.getInstitutionId();
 
-		getDatabase().execute("INSERT INTO content (content_id, content_type_id, title, url, image_url, date_created, " +
-						"duration_in_minutes, description, author, owner_institution_id, content_type_label_id, " +
-						"owner_institution_approval_status_id, other_institution_approval_status_id, visibility_id) " +
-						"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-				contentId, command.getContentTypeId(), title, url, imageUrl, createdDate, durationInMinutes,
-				description, author, account.getInstitutionId(), contentTypeLabelId,
-				initialApprovalStatus, otherInstitutionsApprovalStatusId, visibilityCommand);
+		getDatabase().execute("""
+						INSERT INTO content (content_id, content_type_id, title, url, image_url,
+						duration_in_minutes, description, author, content_status_id, shared_flag,
+						search_terms, publish_start_date, publish_end_date, publish_recurring, owner_institution_id, date_created)
+						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, now())												
+						""",
+				contentId, command.getContentTypeId(), title, url, imageUrl,
+				durationInMinutes, description, author, contentStatusId, sharedFlag,
+				searchTerms, publishStartDate, publishEndDate, publishRecurring, ownerInstitutionId);
 
-
-		addContentToInstitution(contentId, account.getInstitutionId(), initialApprovalStatus == ApprovalStatusId.APPROVED);
-		addContentToInstitution(contentId, InstitutionId.COBALT, true);
-
-		if (visibilityCommand == VisibilityId.NETWORK) {
-			otherInstitutionsApprovalStatusId = ApprovalStatusId.APPROVED;
-			for (InstitutionId institutionId : visibleInstitutionIds) {
-				addContentToInstitution(contentId, institutionId, false);
-			}
-		} else if (visibilityCommand == VisibilityId.PUBLIC) {
-			ApprovalStatusId publicApprovalStatusId = ApprovalStatusId.PENDING;
-			otherInstitutionsApprovalStatusId = publicApprovalStatusId;
-			for (Institution institution : getInstitutionService().findInstitutionsWithoutSpecifiedContentId(contentId))
-				addContentToInstitution(contentId, institution.getInstitutionId(), otherInstitutionsApprovalStatusId == ApprovalStatusId.APPROVED);
-		}
-
-		getDatabase().execute("UPDATE content SET other_institution_approval_status_id = ? WHERE content_id=?",
-				otherInstitutionsApprovalStatusId, contentId);
-
-		if (contentTagChoices != null) {
-			tagContent(contentId, contentTagChoices, false);
-		}
+		addContentToInstitution(contentId, account.getInstitutionId());
 
 		for (String tagId : tagIds) {
 			tagId = trimToNull(tagId);
@@ -779,10 +678,13 @@ public class ContentService {
 
 		AdminContent adminContent = findAdminContentByIdForInstitution(account.getInstitutionId(), contentId).get();
 		applyTagsToAdminContent(adminContent, account.getInstitutionId());
-		sendAdminNotification(account, adminContent);
+		//TODO: Do we still want to send emails?
+		//sendAdminNotification(account, adminContent);
 		return adminContent;
 	}
 
+
+	/*
 	@Nonnull
 	private void sendAdminNotification(@Nonnull Account accountAddingContent,
 																		 @Nonnull AdminContent adminContent) {
@@ -813,7 +715,7 @@ public class ContentService {
 		});
 
 	}
-
+*/
 	@Nonnull
 	public AdminContent updateContent(@Nonnull Account account, @Nonnull UpdateContentRequest command) {
 		requireNonNull(account);
@@ -824,18 +726,14 @@ public class ContentService {
 		String imageUrlCommand = trimToNull(command.getImageUrl());
 		String descriptionCommand = trimToNull(command.getDescription());
 		String authorCommand = trimToNull(command.getAuthor());
-		String contentTypeLabelIdCommand = trimToNull(command.getContentTypeLabelId());
-		LocalDate createdDateCommand = command.getDateCreated();
-		VisibilityId visibilityIdCommand = command.getVisibilityId();
 		ContentTypeId contentTypeIdCommand = command.getContentTypeId();
-		PersonalizeAssessmentChoicesCommand contentTagCommand = command.getContentTags();
-		List<InstitutionId> visibleInstitutionIds = command.getInstitutionIdList();
-		Boolean addToInstitution = command.getAddToInstitution() == null ? false : command.getAddToInstitution();
-		Boolean removeFromInstitution = command.getRemoveFromInstitution() == null ? false : command.getRemoveFromInstitution();
 		String durationInMinutesString = trimToNull(command.getDurationInMinutes());
 		Set<String> tagIds = command.getTagIds() == null ? Set.of() : command.getTagIds();
-		ApprovalStatusId otherInstitutionsApprovalStatusId = ApprovalStatusId.PENDING;
-		ApprovalStatusId ownerInstitutionsApprovalStatusId = ApprovalStatusId.APPROVED;
+		LocalDate publishStartDate = command.getPublishStartDate();
+		LocalDate publishEndDate = command.getPublishEndDate();
+		Boolean publishRecurring = command.getPublishRecurring();
+		String searchTerms = trimToNull(command.getSearchTerms());
+		Boolean sharedFlag = command.getSharedFlag();
 
 		ValidationException validationException = new ValidationException();
 
@@ -864,33 +762,15 @@ public class ContentService {
 				existingContent.setAuthor(authorCommand);
 			}
 
-			if (contentTypeLabelIdCommand != null) {
-				existingContent.setContentTypeLabelId(contentTypeLabelIdCommand);
-			}
-
 			if (contentTypeIdCommand != null) {
 				existingContent.setContentTypeId(contentTypeIdCommand);
 			}
-
-			if (createdDateCommand != null) {
-				existingContent.setDateCreated(createdDateCommand);
-			}
 		}
 
+		/*
 		Map<UUID, List<SubmissionAnswer>> contentTagChoices = null;
 		Assessment assessment = getAssessmentService().findAssessmentByTypeForInstitution(AssessmentTypeId.INTRO, account.getInstitutionId()).orElseThrow();
-		;
-		//if (existingContent.getOwnerInstitutionId().equals(account.getInstitutionId())) {
-		if (contentTagCommand != null && contentTagCommand.getChoices().size() > 0) {
-			contentTagChoices = getAssessmentService().validateIntroAssessmentSubmissionCommand(contentTagCommand, assessment, validationException);
-		}
-		//} else {
-
-		//}
-
-		if (addToInstitution && removeFromInstitution) {
-			validationException.add(new FieldError("remove", getStrings().get("Are you adding or removing? Can't do both")));
-		}
+		*/
 
 		if (durationInMinutesString != null && !ValidationUtility.isValidInteger(durationInMinutesString))
 			validationException.add(new FieldError("durationInMinutes", getStrings().get("Must be an integer")));
@@ -900,6 +780,8 @@ public class ContentService {
 
 		Integer durationInMinutes = durationInMinutesString == null ? null : Integer.parseInt(durationInMinutesString);
 		boolean shouldNotify = false;
+
+		/*
 		if (removeFromInstitution) {
 			getDatabase().execute("UPDATE institution_content SET approved_flag = ? WHERE content_id = ? AND institution_id = ?", false, existingContent.getContentId(), account.getInstitutionId());
 			getDatabase().execute("DELETE FROM answer_content WHERE content_id = ? AND answer_id IN " +
@@ -942,16 +824,20 @@ public class ContentService {
 				}
 			}
 
-			if (account.getRoleId() != RoleId.ADMINISTRATOR)
-				ownerInstitutionsApprovalStatusId = existingContent.getOwnerInstitutionApprovalStatusId();
+		 */
 
-			getDatabase().execute("UPDATE content SET content_type_id=?, title=?, url=?, image_url=?, date_created=?, " +
-							"duration_in_minutes=?, description=?, author=?, content_type_label_id=?, other_institution_approval_status_id = ?, " + "" +
-							"visibility_id = ?, owner_institution_approval_status_id = ? WHERE content_id=?",
-					existingContent.getContentTypeId(), existingContent.getTitle(), existingContent.getUrl(), existingContent.getImageUrl(), existingContent.getDateCreated(),
-					durationInMinutes, existingContent.getDescription(), existingContent.getAuthor(),
-					existingContent.getContentTypeLabelId(), otherInstitutionsApprovalStatusId, visibilityIdCommand, ownerInstitutionsApprovalStatusId, existingContent.getContentId());
+		getDatabase().execute("""
+							 	UPDATE content SET content_type_id=?, title=?, url=?, image_url=?, 
+							 	duration_in_minutes=?, description=?, author=?, publish_start_date=?, publish_end_date=?,
+							 	publish_recurring=?, search_terms=?, shared_flag=?, content_status_id=?
+								WHERE content_id=?
+						""",
+				existingContent.getContentTypeId(), existingContent.getTitle(), existingContent.getUrl(), existingContent.getImageUrl(),
+				durationInMinutes, existingContent.getDescription(), existingContent.getAuthor(), existingContent.getPublishStartDate(), existingContent.getPublishEndDate(),
+				existingContent.getPublishRecurring(), existingContent.getSearchTerms(), existingContent.getSharedFlag(), existingContent.getContentStatusId(),
+				existingContent.getContentId());
 
+		/*
 			if (addToInstitution || account.getRoleId() == RoleId.ADMINISTRATOR) {
 				getDatabase().execute("UPDATE institution_content SET approved_flag = ? WHERE content_id = ? AND institution_id = ?", true, existingContent.getContentId(), account.getInstitutionId());
 			}
@@ -959,11 +845,14 @@ public class ContentService {
 			if (contentTagChoices != null) {
 				tagContent(existingContent.getContentId(), contentTagChoices, addToInstitution);
 			}
+		 */
 
+		/*
 		}
+		 */
 
 		AdminContent adminContent = findAdminContentByIdForInstitution(account.getInstitutionId(), command.getContentId()).orElse(null);
-
+		/*
 		if (adminContent == null) {
 			if (addToInstitution) {
 				Content content = findContentById(command.getContentId()).get();
@@ -973,6 +862,7 @@ public class ContentService {
 						account.getAccountId(), command.getContentId()));
 			}
 		}
+		*/
 
 		applyTagsToAdminContent(adminContent, account.getInstitutionId());
 
@@ -994,9 +884,11 @@ public class ContentService {
 					""", tagId, account.getInstitutionId(), command.getContentId());
 		}
 
+		/*
 		if (shouldNotify) {
 			sendAdminNotification(account, adminContent);
 		}
+		*/
 		return adminContent;
 	}
 
@@ -1204,9 +1096,6 @@ public class ContentService {
 				FROM institution_content ic, content c
 				LEFT OUTER JOIN content_viewed_query as cvq ON c.content_id=cvq.content_id
 				WHERE c.content_id=ic.content_id
-				AND ic.approved_flag=TRUE
-				AND c.deleted_flag=FALSE
-				AND c.archived_flag=FALSE
 				AND ic.institution_id=?
 				ORDER BY cvq.last_viewed_at ASC NULLS FIRST, c.created DESC
 								""", Content.class, ActivityActionId.VIEW, ActivityTypeId.CONTENT, account.getAccountId(), account.getInstitutionId());

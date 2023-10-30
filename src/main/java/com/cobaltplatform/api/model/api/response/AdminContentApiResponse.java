@@ -20,11 +20,9 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.Account;
-import com.cobaltplatform.api.model.db.ApprovalStatus;
-import com.cobaltplatform.api.model.db.AvailableStatus.AvailableStatusId;
+import com.cobaltplatform.api.model.db.ContentStatus;
 import com.cobaltplatform.api.model.db.ContentType;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
-import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.service.AdminContent;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.InstitutionService;
@@ -44,7 +42,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.model.db.ContentAction.ContentActionId;
-import static com.cobaltplatform.api.model.db.Visibility.VisibilityId;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -54,10 +51,6 @@ import static java.util.Objects.requireNonNull;
 public class AdminContentApiResponse {
 	@Nullable
 	private UUID contentId;
-	@Nullable
-	private LocalDate dateCreated;
-	@Nullable
-	private String dateCreatedDescription;
 	@Nullable
 	private ContentType.ContentTypeId contentTypeId;
 	@Nullable
@@ -73,31 +66,38 @@ public class AdminContentApiResponse {
 	@Nullable
 	private String ownerInstitution;
 	@Nullable
-	private AvailableStatusId availableStatusId;
-	@Nullable
-	private VisibilityId visibilityId;
-	@Nullable
 	private Integer views;
-	@Nullable
-	private List<ContentActionId> actions;
-	@Nullable
-	private List<UUID> contentTagIds;
 	@Nullable
 	private String duration;
 	@Nullable
 	private Integer durationInMinutes;
-	@Nullable
-	private Boolean visibleToOtherInstitutions;
-	@Nullable
-	private List<Institution> selectedNetworkInstitutions;
-	@Nullable
-	private String contentTypeLabelId;
-	@Nullable
-	private ApprovalStatus ownerInstitutionApprovalStatus;
-	@Nullable
-	private ApprovalStatus otherInstitutionApprovalStatus;
 	@Nonnull
 	private final List<String> tagIds;
+	@Nullable
+	private LocalDate publishStartDate;
+	@Nullable
+	private String publishStartDateDescription;
+	@Nullable
+	private LocalDate publishEndDate;
+	@Nullable
+	private String publishEndDateDescription;
+	@Nullable
+	private LocalDate dateCreated;
+	@Nullable
+	private String dateCreatedDescription;
+	@Nullable
+	private Boolean publishRecurring;
+	@Nullable
+	private String searchTerms;
+	@Nullable
+	private Boolean sharedFlag;
+	@Nullable
+	private ContentStatus.ContentStatusId contentStatusId;
+	@Nullable
+	private String contentStatusDescription;
+	@Nullable
+	private List<ContentActionId> actions;
+
 
 	public enum AdminContentDisplayType {
 		DETAIL,
@@ -127,10 +127,9 @@ public class AdminContentApiResponse {
 		requireNonNull(account);
 
 		List<ContentActionId> contentActionIdList = new ArrayList<>();
+		Boolean contentOwnedByCurrentAccount = account.getInstitutionId().equals(adminContent.getOwnerInstitutionId());
 
 		this.contentId = adminContent.getContentId();
-		this.dateCreated = adminContent.getDateCreated();
-		this.dateCreatedDescription = adminContent.getDateCreated() != null ? formatter.formatDate(adminContent.getDateCreated(), FormatStyle.SHORT) : null;
 		this.contentTypeId = adminContent.getContentTypeId();
 		this.title = adminContent.getTitle();
 		this.author = adminContent.getAuthor();
@@ -139,37 +138,41 @@ public class AdminContentApiResponse {
 		this.imageUrl = adminContent.getImageUrl();
 		this.ownerInstitution = adminContent.getOwnerInstitution();
 		this.views = adminContent.getViews();
-		this.visibilityId = adminContent.getVisibilityId();
 		//TODO: update frontend to use durationInMinutes
 		this.duration = adminContent.getDurationInMinutes() != null ? adminContent.getDurationInMinutes().toString() : null;
 		this.durationInMinutes = adminContent.getDurationInMinutes();
-		this.contentTypeLabelId = adminContent.getContentTypeLabelId();
-		this.visibleToOtherInstitutions = this.visibilityId == VisibilityId.NETWORK || this.visibilityId == VisibilityId.PUBLIC;
-		this.ownerInstitutionApprovalStatus = contentService.findApprovalStatusById(adminContent.getOwnerInstitutionApprovalStatusId());
+		this.publishStartDate = adminContent.getPublishStartDate();
+		this.publishStartDateDescription = adminContent.getPublishStartDate() != null ? formatter.formatDate(adminContent.getPublishStartDate(), FormatStyle.SHORT) : null;
+		this.publishEndDate = adminContent.getPublishEndDate();
+		this.publishEndDateDescription = adminContent.getPublishEndDate() != null ? formatter.formatDate(adminContent.getPublishEndDate(), FormatStyle.SHORT) : null;
+		this.dateCreated = adminContent.getDateCreated();
+		this.dateCreatedDescription = formatter.formatDate(adminContent.getDateCreated(), FormatStyle.SHORT);
+		this.publishRecurring = adminContent.getPublishRecurring();
+		this.searchTerms = adminContent.getSearchTerms();
+		this.sharedFlag = adminContent.getSharedFlag();
+		this.contentStatusId = adminContent.getContentStatusId();
 
-		if (visibleToOtherInstitutions) {
-			this.otherInstitutionApprovalStatus = contentService.findApprovalStatusById(adminContent.getOtherInstitutionApprovalStatusId());
-		} else {
-			this.otherInstitutionApprovalStatus = contentService.findApprovalStatusById(ApprovalStatus.ApprovalStatusId.NOT_APPLICABLE);
-		}
-
-		if (adminContent.getArchivedFlag()) {
-			this.ownerInstitutionApprovalStatus = contentService.findApprovalStatusById(ApprovalStatus.ApprovalStatusId.ARCHIVED);
-			this.otherInstitutionApprovalStatus = contentService.findApprovalStatusById(ApprovalStatus.ApprovalStatusId.ARCHIVED);
-		}
-
-
-		if (adminContentDisplayType == AdminContentDisplayType.DETAIL) {
-			this.contentTagIds = contentService.findTagsForContent(adminContent.getContentId());
-			if (this.visibilityId == VisibilityId.NETWORK) {
-				this.selectedNetworkInstitutions = institutionService.findSelectedNetworkInstitutionsForContentId(adminContent.getOwnerInstitutionId(), contentId);
-			}
-		}
-
-		if (adminContentDisplayType == AdminContentDisplayType.MY_CONTENT) {
+		/*if (adminContentDisplayType == AdminContentDisplayType.MY_CONTENT) {
 			contentActionIdList.add(ContentActionId.EDIT);
+		}*/
+
+		if (contentOwnedByCurrentAccount) {
+			if (adminContent.getContentStatusId().equals(ContentStatus.ContentStatusId.DRAFT)) {
+				contentActionIdList.add(ContentActionId.EDIT);
+				contentActionIdList.add(ContentActionId.DELETE);
+			} else if (adminContent.getContentStatusId().equals(ContentStatus.ContentStatusId.LIVE)) {
+				contentActionIdList.add(ContentActionId.EDIT);
+				contentActionIdList.add(ContentActionId.VIEW_ON_COBALT);
+				contentActionIdList.add(ContentActionId.EXPIRE);
+			} else if (adminContent.getContentStatusId().equals(ContentStatus.ContentStatusId.EXPIRED)) {
+				contentActionIdList.add(ContentActionId.EDIT);
+				contentActionIdList.add(ContentActionId.UNEXPIRE);
+			}
+		} else {
+
 		}
 
+		/*
 		if (adminContent.getArchivedFlag()) {
 			contentActionIdList.add(ContentActionId.UNARCHIVE);
 			contentActionIdList.add(ContentActionId.DELETE);
@@ -223,6 +226,7 @@ public class AdminContentApiResponse {
 				}
 			}
 		}
+*/
 		this.actions = contentActionIdList;
 
 		this.tagIds = adminContent.getTags() == null ? Collections.emptyList() : adminContent.getTags().stream()
@@ -233,16 +237,6 @@ public class AdminContentApiResponse {
 	@Nonnull
 	public UUID getContentId() {
 		return contentId;
-	}
-
-	@Nullable
-	public LocalDate getDateCreated() {
-		return dateCreated;
-	}
-
-	@Nonnull
-	public String getDateCreatedDescription() {
-		return dateCreatedDescription;
 	}
 
 	@Nonnull
@@ -275,10 +269,6 @@ public class AdminContentApiResponse {
 		return views;
 	}
 
-	@Nonnull
-	public List<ContentActionId> getActions() {
-		return actions;
-	}
 
 	@Nullable
 	public String getDuration() {
@@ -290,38 +280,78 @@ public class AdminContentApiResponse {
 		return durationInMinutes;
 	}
 
-	@Nullable
-	public Boolean getVisibleToOtherInstitutions() {
-		return visibleToOtherInstitutions;
-	}
-
-	@Nullable
-	public List<Institution> getSelectedNetworkInstitutions() {
-		return selectedNetworkInstitutions;
-	}
-
-	@Nullable
-	public String getContentTypeLabelId() {
-		return contentTypeLabelId;
-	}
-
-	@Nullable
-	public VisibilityId getVisibilityId() {
-		return visibilityId;
-	}
-
-	@Nullable
-	public ApprovalStatus getOwnerInstitutionApprovalStatus() {
-		return ownerInstitutionApprovalStatus;
-	}
-
-	@Nullable
-	public ApprovalStatus getOtherInstitutionApprovalStatus() {
-		return otherInstitutionApprovalStatus;
-	}
-
 	@Nonnull
 	public List<String> getTagIds() {
 		return this.tagIds;
+	}
+
+	@Nullable
+	public String getUrl() {
+		return url;
+	}
+
+	@Nullable
+	public String getImageUrl() {
+		return imageUrl;
+	}
+
+	@Nullable
+	public LocalDate getPublishStartDate() {
+		return publishStartDate;
+	}
+
+	@Nullable
+	public LocalDate getPublishEndDate() {
+		return publishEndDate;
+	}
+
+	@Nullable
+	public Boolean getPublishRecurring() {
+		return publishRecurring;
+	}
+
+	@Nullable
+	public String getSearchTerms() {
+		return searchTerms;
+	}
+
+	@Nullable
+	public Boolean getSharedFlag() {
+		return sharedFlag;
+	}
+
+	@Nullable
+	public ContentStatus.ContentStatusId getContentStatusId() {
+		return contentStatusId;
+	}
+
+	@Nullable
+	public String getPublishStartDateDescription() {
+		return publishStartDateDescription;
+	}
+
+	@Nullable
+	public String getPublishEndDateDescription() {
+		return publishEndDateDescription;
+	}
+
+	@Nullable
+	public String getContentStatusDescription() {
+		return contentStatusDescription;
+	}
+
+	@Nullable
+	public List<ContentActionId> getActions() {
+		return actions;
+	}
+
+	@Nullable
+	public LocalDate getDateCreated() {
+		return dateCreated;
+	}
+
+	@Nullable
+	public String getDateCreatedDescription() {
+		return dateCreatedDescription;
 	}
 }

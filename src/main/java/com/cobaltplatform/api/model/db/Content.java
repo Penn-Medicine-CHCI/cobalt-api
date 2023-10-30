@@ -26,6 +26,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -43,10 +44,6 @@ public class Content {
 	@Nullable
 	private String url;
 	@Nullable
-	private Instant dateCreated;
-	@Nonnull
-	private String dateCreatedDescription;
-	@Nullable
 	private String imageUrl;
 	@Nullable
 	private String description;
@@ -60,8 +57,6 @@ public class Content {
 	private Instant lastUpdated;
 	@Nullable
 	private String lastUpdatedDescription;
-	@Nullable
-	private String contentTypeLabel;
 	@Nonnull
 	private InstitutionId ownerInstitutionId;
 	@Nonnull
@@ -83,6 +78,22 @@ public class Content {
 	@Nullable
 	private List<Tag> tags;
 
+	@Nullable
+	private LocalDate publishStartDate;
+	@Nullable
+	private LocalDate publishEndDate;
+	@Nullable
+	private Boolean publishRecurring;
+	@Nullable
+	private String searchTerms;
+	@Nullable
+	private Boolean sharedFlag;
+	@Nullable
+	private ContentStatus.ContentStatusId contentStatusId;
+	@Nullable
+	private Integer totalCount;
+	@Nullable
+	private LocalDate dateCreated;
 
 	@Nonnull
 	public UUID getContentId() {
@@ -118,24 +129,6 @@ public class Content {
 
 	public void setUrl(@Nullable String url) {
 		this.url = url;
-	}
-
-	@Nullable
-	public Instant getDateCreated() {
-		return dateCreated;
-	}
-
-	public void setDateCreated(@Nullable Instant dateCreated) {
-		this.dateCreated = dateCreated;
-	}
-
-	@Nonnull
-	public String getDateCreatedDescription() {
-		return dateCreatedDescription;
-	}
-
-	public void setDateCreatedDescription(@Nonnull String dateCreatedDescription) {
-		this.dateCreatedDescription = dateCreatedDescription;
 	}
 
 	@Nullable
@@ -228,15 +221,6 @@ public class Content {
 		this.newFlag = newFlag;
 	}
 
-	@Nullable
-	public String getContentTypeLabel() {
-		return contentTypeLabel;
-	}
-
-	public void setContentTypeLabel(@Nullable String contentTypeLabel) {
-		this.contentTypeLabel = contentTypeLabel;
-	}
-
 	@Nonnull
 	public InstitutionId getOwnerInstitutionId() {
 		return ownerInstitutionId;
@@ -262,5 +246,77 @@ public class Content {
 
 	public void setTags(@Nullable List<Tag> tags) {
 		this.tags = tags;
+	}
+
+	@Nullable
+	public LocalDate getPublishStartDate() {
+		return publishStartDate;
+	}
+
+	public void setPublishStartDate(@Nullable LocalDate publishStartDate) {
+		this.publishStartDate = publishStartDate;
+	}
+
+	@Nullable
+	public LocalDate getPublishEndDate() {
+		return publishEndDate;
+	}
+
+	public void setPublishEndDate(@Nullable LocalDate publishEndDate) {
+		this.publishEndDate = publishEndDate;
+	}
+
+	@Nullable
+	public Boolean getPublishRecurring() {
+		return publishRecurring;
+	}
+
+	public void setPublishRecurring(@Nullable Boolean publishRecurring) {
+		this.publishRecurring = publishRecurring;
+	}
+
+	@Nullable
+	public String getSearchTerms() {
+		return searchTerms;
+	}
+
+	public void setSearchTerms(@Nullable String searchTerms) {
+		this.searchTerms = searchTerms;
+	}
+
+	@Nullable
+	public Boolean getSharedFlag() {
+		return sharedFlag;
+	}
+
+	public void setSharedFlag(@Nullable Boolean sharedFlag) {
+		this.sharedFlag = sharedFlag;
+	}
+
+	@Nullable
+	public ContentStatus.ContentStatusId getContentStatusId() {
+		return contentStatusId;
+	}
+
+	public void setContentStatusId(@Nullable ContentStatus.ContentStatusId contentStatusId) {
+		this.contentStatusId = contentStatusId;
+	}
+
+	@Nullable
+	public Integer getTotalCount() {
+		return totalCount;
+	}
+
+	public void setTotalCount(@Nullable Integer totalCount) {
+		this.totalCount = totalCount;
+	}
+
+	@Nullable
+	public LocalDate getDateCreated() {
+		return dateCreated;
+	}
+
+	public void setDateCreated(@Nullable LocalDate dateCreated) {
+		this.dateCreated = dateCreated;
 	}
 }

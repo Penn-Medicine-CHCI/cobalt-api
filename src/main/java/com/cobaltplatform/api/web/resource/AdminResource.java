@@ -22,10 +22,8 @@ package com.cobaltplatform.api.web.resource;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateContentRequest;
 import com.cobaltplatform.api.model.api.request.CreatePresignedUploadRequest;
-import com.cobaltplatform.api.model.api.request.UpdateContentApprovalStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdateContentArchivedStatus;
 import com.cobaltplatform.api.model.api.request.UpdateContentRequest;
-import com.cobaltplatform.api.model.api.response.AdminAvailableContentApiResponse.AdminAvailableContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AdminContentApiResponse.AdminContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AdminInstitutionApiResponse.AdminInstitutionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
@@ -35,12 +33,10 @@ import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFa
 import com.cobaltplatform.api.model.api.response.TagGroupApiResponse;
 import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
-import com.cobaltplatform.api.model.db.ApprovalStatus;
 import com.cobaltplatform.api.model.db.AvailableStatus;
 import com.cobaltplatform.api.model.db.ContentType;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Role.RoleId;
-import com.cobaltplatform.api.model.db.Visibility;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.AdminContent;
 import com.cobaltplatform.api.model.service.FindResult;
@@ -102,8 +98,6 @@ public class AdminResource {
 	@Nonnull
 	private final AdminContentApiResponseFactory adminContentApiResponseFactory;
 	@Nonnull
-	private final AdminAvailableContentApiResponseFactory adminAvailableContentApiResponseFactory;
-	@Nonnull
 	private final Provider<ImageUploadService> imageUploadServiceProvider;
 	@Nonnull
 	private final Provider<PresignedUploadApiResponseFactory> presignedUploadApiResponseFactoryProvider;
@@ -128,7 +122,6 @@ public class AdminResource {
 											 @Nonnull Provider<CurrentContext> currentContextProvider,
 											 @Nonnull ContentApiResponseFactory contentApiResponseFactory,
 											 @Nonnull AdminContentApiResponseFactory adminContentApiResponseFactory,
-											 @Nonnull AdminAvailableContentApiResponseFactory adminAvailableContentApiResponseFactory,
 											 @Nonnull InstitutionService institutionService,
 											 @Nonnull AdminInstitutionApiResponseFactory adminInstitutionApiResponseFactory,
 											 @Nonnull Provider<ImageUploadService> imageUploadServiceProvider,
@@ -145,7 +138,6 @@ public class AdminResource {
 		this.adminContentApiResponseFactory = adminContentApiResponseFactory;
 		this.institutionService = institutionService;
 		this.adminInstitutionApiResponseFactory = adminInstitutionApiResponseFactory;
-		this.adminAvailableContentApiResponseFactory = adminAvailableContentApiResponseFactory;
 		this.imageUploadServiceProvider = imageUploadServiceProvider;
 		this.presignedUploadApiResponseFactoryProvider = presignedUploadApiResponseFactoryProvider;
 		this.assessmentServiceProvider = assessmentServiceProvider;
@@ -161,8 +153,6 @@ public class AdminResource {
 			put("contentTypes", getContentService().findContentTypes());
 			put("institutions", getInstitutionService().findNonCobaltInstitutions().stream().
 					map(it -> getAdminInstitutionApiResponseFactory().create(it)).collect(Collectors.toList()));
-			put("myApprovalStatuses", getContentService().findApprovalStatuses());
-			put("otherApprovalStatuses", getContentService().findApprovalStatuses());
 		}});
 	}
 
@@ -171,15 +161,12 @@ public class AdminResource {
 	public ApiResponse getMyContent(@QueryParameter Optional<Integer> page,
 																	@QueryParameter Optional<ContentType.ContentTypeId> contentTypeId,
 																	@QueryParameter Optional<Institution.InstitutionId> institutionId,
-																	@QueryParameter Optional<Visibility.VisibilityId> visibilityId,
-																	@QueryParameter Optional<ApprovalStatus.ApprovalStatusId> myApprovalStatusId,
-																	@QueryParameter Optional<ApprovalStatus.ApprovalStatusId> otherApprovalStatusId,
 																	@QueryParameter Optional<String> search) {
 		Account account = getCurrentContext().getAccount().get();
 
 		//TODO: create a filter object to pass all the query params
 		FindResult<AdminContent> content = getContentService()
-				.findAllContentForAccount(true, account, page, contentTypeId, institutionId, visibilityId, myApprovalStatusId, otherApprovalStatusId, Optional.empty(), search);
+				.findAllContentForAccount( account, page, contentTypeId, institutionId, Optional.empty(), search);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("adminContent", content.getResults().stream().map(content -> getAdminContentApiResponseFactory().create(account, content, AdminContentDisplayType.MY_CONTENT)).collect(Collectors.toList()));
@@ -205,7 +192,7 @@ public class AdminResource {
 		Account account = getCurrentContext().getAccount().get();
 
 		FindResult<AdminContent> content = getContentService()
-				.findAllContentForAccount(false, account, page, contentTypeId, Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), availableStatusId, search);
+				.findAllContentForAccount( account, page, contentTypeId, Optional.empty(), availableStatusId, search);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("adminContent", content.getResults().stream().map(content -> getAdminContentApiResponseFactory().create(account, content, AdminContentDisplayType.AVAILABLE_CONTENT)).collect(Collectors.toList()));
@@ -281,9 +268,10 @@ public class AdminResource {
 		UpdateContentRequest request = getRequestBodyParser().parse(requestBody, UpdateContentRequest.class);
 		request.setContentId(contentId);
 		AdminContent adminContent = getContentService().updateContent(account, request);
-		AdminContentDisplayType adminContentDisplayType = (request.getRemoveFromInstitution() == null || !request.getRemoveFromInstitution()) ?
+		/*AdminContentDisplayType adminContentDisplayType = (request.getRemoveFromInstitution() == null || !request.getRemoveFromInstitution()) ?
 				AdminContentDisplayType.DETAIL : AdminContentDisplayType.AVAILABLE_CONTENT;
-
+*/
+		AdminContentDisplayType adminContentDisplayType = AdminContentDisplayType.DETAIL;
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("adminContent", getAdminContentApiResponseFactory().create(account, adminContent, adminContentDisplayType));
 		}});
@@ -309,6 +297,8 @@ public class AdminResource {
 
 	}
 
+	//TODO: CA-REMOVE
+	/*
 	@PUT("/admin/content/{contentId}/approval-status")
 	@AuthenticationRequired
 	public ApiResponse updateApprovalStatus(@Nonnull @RequestBody String requestBody,
@@ -325,7 +315,8 @@ public class AdminResource {
 			throw new AuthorizationException();
 
 		request.setContentId(contentId);
-		getContentService().updateContentVisibilityApprovalStatusForAccount(account, request);
+		//TODO: CA-Look at this
+		//getContentService().updateContentVisibilityApprovalStatusForAccount(account, request);
 		AdminContent adminContent = contentService.findAdminContentByIdForInstitution(account.getInstitutionId(), contentId).get();
 
 		AdminContentDisplayType displayType;
@@ -340,7 +331,7 @@ public class AdminResource {
 		}});
 
 	}
-
+	*/
 	@DELETE("/admin/content/{contentId}")
 	@AuthenticationRequired
 	public ApiResponse deleteContent(@Nonnull @PathParameter UUID contentId) {
@@ -426,11 +417,6 @@ public class AdminResource {
 	@Nonnull
 	protected AdminContentApiResponseFactory getAdminContentApiResponseFactory() {
 		return adminContentApiResponseFactory;
-	}
-
-	@Nonnull
-	protected AdminAvailableContentApiResponseFactory getAdminAvailableContentApiResponseFactory() {
-		return adminAvailableContentApiResponseFactory;
 	}
 
 	@Nonnull

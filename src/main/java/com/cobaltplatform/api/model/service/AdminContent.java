@@ -19,11 +19,10 @@
 
 package com.cobaltplatform.api.model.service;
 
-import com.cobaltplatform.api.model.db.ApprovalStatus;
+import com.cobaltplatform.api.model.db.ContentStatus;
 import com.cobaltplatform.api.model.db.ContentType;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Tag;
-import com.cobaltplatform.api.model.db.Visibility;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -40,13 +39,7 @@ public class AdminContent{
 	@Nonnull
 	private UUID contentId;
 	@Nonnull
-	private LocalDate dateCreated;
-	@Nonnull
-	private String dateCreatedDescription;
-	@Nonnull
 	private ContentType.ContentTypeId contentTypeId;
-	@Nonnull
-	private String contentTypeLabelId;
 	@Nonnull
 	private String title;
 	@Nonnull
@@ -64,19 +57,23 @@ public class AdminContent{
 	@Nonnull
 	private Integer views;
 	@Nonnull
-	private Boolean approvedFlag;
-	@Nonnull
 	private Institution.InstitutionId ownerInstitutionId;
-	@Nonnull
-	private Boolean archivedFlag;
 	@Nullable
 	private Integer totalCount;
 	@Nullable
-	private Visibility.VisibilityId visibilityId;
+	private LocalDate publishStartDate;
 	@Nullable
-	private ApprovalStatus.ApprovalStatusId ownerInstitutionApprovalStatusId;
+	private LocalDate publishEndDate;
 	@Nullable
-	private ApprovalStatus.ApprovalStatusId otherInstitutionApprovalStatusId;
+	private LocalDate dateCreated;
+	@Nullable
+	private Boolean publishRecurring;
+	@Nullable
+	private String searchTerms;
+	@Nullable
+	private Boolean sharedFlag;
+	@Nullable
+	private ContentStatus.ContentStatusId contentStatusId;
 
 	// This is stored separately in the DB, but in practice it's needed everywhere we see content in the UI
 	@Nullable
@@ -90,34 +87,6 @@ public class AdminContent{
 	public void setContentId(@Nonnull UUID contentId) {
 		this.contentId = contentId;
 	}
-
-	@Nonnull
-	public String getContentTypeLabelId() {
-		return contentTypeLabelId;
-	}
-
-	public void setContentTypeLabelId(@Nonnull String contentTypeLabelId) {
-		this.contentTypeLabelId = contentTypeLabelId;
-	}
-
-	@Nonnull
-	public LocalDate getDateCreated() {
-		return dateCreated;
-	}
-
-	public void setDateCreated(@Nonnull LocalDate dateCreated) {
-		this.dateCreated = dateCreated;
-	}
-
-	@Nonnull
-	public String getDateCreatedDescription() {
-		return dateCreatedDescription;
-	}
-
-	public void setDateCreatedDescription(@Nonnull String dateCreatedDescription) {
-		this.dateCreatedDescription = dateCreatedDescription;
-	}
-
 	@Nonnull
 	public ContentType.ContentTypeId getContentTypeId() {
 		return contentTypeId;
@@ -200,15 +169,6 @@ public class AdminContent{
 	}
 
 	@Nonnull
-	public Boolean getApprovedFlag() {
-		return approvedFlag;
-	}
-
-	public void setApprovedFlag(@Nonnull Boolean approvedFlag) {
-		this.approvedFlag = approvedFlag;
-	}
-
-	@Nonnull
 	public Institution.InstitutionId getOwnerInstitutionId() {
 		return ownerInstitutionId;
 	}
@@ -216,16 +176,6 @@ public class AdminContent{
 	public void setOwnerInstitutionId(@Nonnull Institution.InstitutionId ownerInstitutionId) {
 		this.ownerInstitutionId = ownerInstitutionId;
 	}
-
-	@Nonnull
-	public Boolean getArchivedFlag() {
-		return archivedFlag;
-	}
-
-	public void setArchivedFlag(@Nonnull Boolean archivedFlag) {
-		this.archivedFlag = archivedFlag;
-	}
-
 	@Nullable
 	public Integer getTotalCount() {
 		return totalCount;
@@ -236,38 +186,74 @@ public class AdminContent{
 	}
 
 	@Nullable
-	public Visibility.VisibilityId getVisibilityId() {
-		return visibilityId;
-	}
-
-	public void setVisibilityId(@Nullable Visibility.VisibilityId visibilityId) {
-		this.visibilityId = visibilityId;
-	}
-
-	@Nullable
-	public ApprovalStatus.ApprovalStatusId getOwnerInstitutionApprovalStatusId() {
-		return ownerInstitutionApprovalStatusId;
-	}
-
-	public void setOwnerInstitutionApprovalStatusId(@Nullable ApprovalStatus.ApprovalStatusId ownerInstitutionApprovalStatusId) {
-		this.ownerInstitutionApprovalStatusId = ownerInstitutionApprovalStatusId;
-	}
-
-	@Nullable
-	public ApprovalStatus.ApprovalStatusId getOtherInstitutionApprovalStatusId() {
-		return otherInstitutionApprovalStatusId;
-	}
-
-	public void setOtherInstitutionApprovalStatusId(@Nullable ApprovalStatus.ApprovalStatusId otherInstitutionApprovalStatusId) {
-		this.otherInstitutionApprovalStatusId = otherInstitutionApprovalStatusId;
-	}
-
-	@Nullable
 	public List<Tag> getTags() {
 		return this.tags;
 	}
 
 	public void setTags(@Nullable List<Tag> tags) {
 		this.tags = tags;
+	}
+
+	@Nullable
+	public LocalDate getPublishStartDate() {
+		return publishStartDate;
+	}
+
+	public void setPublishStartDate(@Nullable LocalDate publishStartDate) {
+		this.publishStartDate = publishStartDate;
+	}
+
+	@Nullable
+	public LocalDate getPublishEndDate() {
+		return publishEndDate;
+	}
+
+	public void setPublishEndDate(@Nullable LocalDate publishEndDate) {
+		this.publishEndDate = publishEndDate;
+	}
+
+	@Nullable
+	public Boolean getPublishRecurring() {
+		return publishRecurring;
+	}
+
+	public void setPublishRecurring(@Nullable Boolean publishRecurring) {
+		this.publishRecurring = publishRecurring;
+	}
+
+	@Nullable
+	public String getSearchTerms() {
+		return searchTerms;
+	}
+
+	public void setSearchTerms(@Nullable String searchTerms) {
+		this.searchTerms = searchTerms;
+	}
+
+	@Nullable
+	public Boolean getSharedFlag() {
+		return sharedFlag;
+	}
+
+	public void setSharedFlag(@Nullable Boolean sharedFlag) {
+		this.sharedFlag = sharedFlag;
+	}
+
+	@Nullable
+	public ContentStatus.ContentStatusId getContentStatusId() {
+		return contentStatusId;
+	}
+
+	public void setContentStatusId(@Nullable ContentStatus.ContentStatusId contentStatusId) {
+		this.contentStatusId = contentStatusId;
+	}
+
+	@Nullable
+	public LocalDate getDateCreated() {
+		return dateCreated;
+	}
+
+	public void setDateCreated(@Nullable LocalDate dateCreated) {
+		this.dateCreated = dateCreated;
 	}
 }

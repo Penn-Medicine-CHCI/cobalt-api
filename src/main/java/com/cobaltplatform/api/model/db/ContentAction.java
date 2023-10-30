@@ -36,13 +36,15 @@ public class ContentAction {
 
 	public enum ContentActionId {
 		EDIT,
-		APPROVE,
-		REJECT,
 		DELETE,
 		ARCHIVE,
 		UNARCHIVE,
+		REMOVE,
 		ADD,
-		REMOVE
+		VIEW_ON_COBALT,
+		EXPIRE,
+		UNEXPIRE
+
 	}
 
 	@Nullable

@@ -68,7 +68,6 @@ import com.cobaltplatform.api.model.api.response.AccountSessionApiResponse.Accou
 import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse.AccountSourceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ActivityTrackingApiResponse.ActivityTrackingApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AddressApiResponse.AddressApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.AdminAvailableContentApiResponse.AdminAvailableContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AdminContentApiResponse.AdminContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AdminInstitutionApiResponse.AdminInstitutionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AlertApiResponse.AlertApiResponseFactory;
@@ -250,7 +249,6 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(PresignedUploadApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(AssessmentFormApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(AdminContentApiResponseFactory.class)));
-		install((new FactoryModuleBuilder().build(AdminAvailableContentApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(AdminInstitutionApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(AppointmentTypeApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(LogicalAvailabilityApiResponseFactory.class)));

@@ -55,10 +55,6 @@ public class ContentApiResponse {
 	@Nullable
 	private final String url;
 	@Nullable
-	private final Instant dateCreated;
-	@Nonnull
-	private final String dateCreatedDescription;
-	@Nullable
 	private String imageUrl;
 	@Nullable
 	private final String description;
@@ -131,8 +127,6 @@ public class ContentApiResponse {
 		this.contentTypeId = content.getContentTypeId();
 		this.title = content.getTitle();
 		this.url = content.getUrl();
-		this.dateCreated = content.getDateCreated();
-		this.dateCreatedDescription = content.getDateCreated() != null ? formatter.formatTimestamp(content.getDateCreated()) : null;
 		this.imageUrl = content.getImageUrl();
 		this.description = content.getDescription();
 		this.author = content.getAuthor();
@@ -143,7 +137,6 @@ public class ContentApiResponse {
 		this.contentTypeDescription = content.getContentTypeDescription();
 		this.callToAction = content.getCallToAction();
 		this.newFlag = content.getNewFlag();
-		this.contentTypeLabel = content.getContentTypeLabel();
 
 		// Deprecated field
 		this.duration = content.getDurationInMinutes() != null ?
@@ -189,16 +182,6 @@ public class ContentApiResponse {
 	@Nullable
 	public String getUrl() {
 		return url;
-	}
-
-	@Nullable
-	public Instant getDateCreated() {
-		return dateCreated;
-	}
-
-	@Nonnull
-	public String getDateCreatedDescription() {
-		return dateCreatedDescription;
 	}
 
 	@Nullable
