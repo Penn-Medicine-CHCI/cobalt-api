@@ -142,6 +142,7 @@ import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApi
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TopicCenterApiResponse.TopicCenterApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TopicCenterRowApiResponse.TopicCenterRowApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.TopicCenterRowTagApiResponse.TopicCenterRowTagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.VisitTypeApiResponse.VisitTypeApiResponseFactory;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.cobaltplatform.api.util.Formatter;
@@ -313,6 +314,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(AccountCheckInApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(AccountCheckInActionApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(StudyAccountApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(TopicCenterRowTagApiResponseFactory.class)));
 	}
 
 	@Provides

@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.service;
+package com.cobaltplatform.api.model.api.request;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -26,49 +26,60 @@ import javax.annotation.concurrent.NotThreadSafe;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class NavigationItem {
+public class CreateMarketingSiteOutreachRequest {
 	@Nullable
-	private String url;
+	private String firstName;
 	@Nullable
-	private String name;
+	private String lastName;
 	@Nullable
-	private String iconName;
+	private String emailAddress;
 	@Nullable
-	private String imageUrl;
+	private String jobTitle;
+	@Nullable
+	private String message;
 
 	@Nullable
-	public String getUrl() {
-		return this.url;
+	public String getFirstName() {
+		return this.firstName;
 	}
 
-	public void setUrl(@Nullable String url) {
-		this.url = url;
-	}
-
-	@Nullable
-	public String getName() {
-		return this.name;
-	}
-
-	public void setName(@Nullable String name) {
-		this.name = name;
+	public void setFirstName(@Nullable String firstName) {
+		this.firstName = firstName;
 	}
 
 	@Nullable
-	public String getIconName() {
-		return this.iconName;
+	public String getLastName() {
+		return this.lastName;
 	}
 
-	public void setIconName(@Nullable String iconName) {
-		this.iconName = iconName;
+	public void setLastName(@Nullable String lastName) {
+		this.lastName = lastName;
 	}
 
 	@Nullable
-	public String getImageUrl() {
-		return this.imageUrl;
+	public String getEmailAddress() {
+		return this.emailAddress;
 	}
 
-	public void setImageUrl(@Nullable String imageUrl) {
-		this.imageUrl = imageUrl;
+	public void setEmailAddress(@Nullable String emailAddress) {
+		this.emailAddress = emailAddress;
+	}
+
+	@Nullable
+	public String getJobTitle() {
+		return this.jobTitle;
+	}
+
+	public void setJobTitle(@Nullable String jobTitle) {
+		this.jobTitle = jobTitle;
+	}
+
+	@Nullable
+	public String getMessage() {
+		return this.message;
+	}
+
+	public void setMessage(@Nullable String message) {
+		this.message = message;
 	}
 }

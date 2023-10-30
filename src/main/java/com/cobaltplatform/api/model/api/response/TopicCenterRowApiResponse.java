@@ -23,6 +23,7 @@ import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiRe
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionRequestApiResponse.GroupSessionRequestApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PinboardNoteApiResponse.PinboardNoteApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.TopicCenterRowTagApiResponse.TopicCenterRowTagApiResponseFactory;
 import com.cobaltplatform.api.model.service.TopicCenterRowDetail;
 import com.cobaltplatform.api.service.TopicCenterService;
 import com.cobaltplatform.api.util.Formatter;
@@ -52,6 +53,14 @@ public class TopicCenterRowApiResponse {
 	private final String title;
 	@Nullable
 	private final String description;
+	@Nullable
+	private final String groupSessionsTitle;
+	@Nullable
+	private final String groupSessionsDescription;
+	@Nullable
+	private final String groupSessionRequestsTitle;
+	@Nullable
+	private final String groupSessionRequestsDescription;
 	@Nonnull
 	private final List<GroupSessionApiResponse> groupSessions;
 	@Nonnull
@@ -60,6 +69,8 @@ public class TopicCenterRowApiResponse {
 	private final List<PinboardNoteApiResponse> pinboardNotes;
 	@Nonnull
 	private final List<ContentApiResponse> contents;
+	@Nonnull
+	private final List<TopicCenterRowTagApiResponse> topicCenterRowTags;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -74,6 +85,7 @@ public class TopicCenterRowApiResponse {
 																	 @Nonnull GroupSessionRequestApiResponseFactory groupSessionRequestApiResponseFactory,
 																	 @Nonnull PinboardNoteApiResponseFactory pinboardNoteApiResponseFactory,
 																	 @Nonnull ContentApiResponseFactory contentApiResponseFactory,
+																	 @Nonnull TopicCenterRowTagApiResponseFactory topicCenterRowTagApiResponseFactory,
 																	 @Nonnull Formatter formatter,
 																	 @Nonnull Strings strings,
 																	 @Assisted @Nonnull TopicCenterRowDetail topicCenterRow) {
@@ -82,6 +94,7 @@ public class TopicCenterRowApiResponse {
 		requireNonNull(groupSessionRequestApiResponseFactory);
 		requireNonNull(pinboardNoteApiResponseFactory);
 		requireNonNull(contentApiResponseFactory);
+		requireNonNull(topicCenterRowTagApiResponseFactory);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(topicCenterRow);
@@ -89,6 +102,10 @@ public class TopicCenterRowApiResponse {
 		this.topicCenterRowId = topicCenterRow.getTopicCenterRowId();
 		this.title = topicCenterRow.getTitle();
 		this.description = topicCenterRow.getDescription();
+		this.groupSessionsTitle = topicCenterRow.getGroupSessionsTitle();
+		this.groupSessionsDescription = topicCenterRow.getGroupSessionsDescription();
+		this.groupSessionRequestsTitle = topicCenterRow.getGroupSessionRequestsTitle();
+		this.groupSessionRequestsDescription = topicCenterRow.getGroupSessionRequestsDescription();
 
 		this.groupSessions = topicCenterRow.getGroupSessions() == null ? Collections.emptyList() :
 				topicCenterRow.getGroupSessions().stream()
@@ -109,6 +126,11 @@ public class TopicCenterRowApiResponse {
 				topicCenterRow.getContents().stream()
 						.map(content -> contentApiResponseFactory.create(content))
 						.collect(Collectors.toList());
+
+		this.topicCenterRowTags = topicCenterRow.getTopicCenterRowTags() == null ? Collections.emptyList() :
+				topicCenterRow.getTopicCenterRowTags().stream()
+						.map(topicCenterRowTag -> topicCenterRowTagApiResponseFactory.create(topicCenterRowTag))
+						.collect(Collectors.toList());
 	}
 
 	@Nonnull
@@ -124,6 +146,26 @@ public class TopicCenterRowApiResponse {
 	@Nonnull
 	public Optional<String> getDescription() {
 		return Optional.ofNullable(this.description);
+	}
+
+	@Nonnull
+	public Optional<String> getGroupSessionsTitle() {
+		return Optional.ofNullable(this.groupSessionsTitle);
+	}
+
+	@Nonnull
+	public Optional<String> getGroupSessionsDescription() {
+		return Optional.ofNullable(this.groupSessionsDescription);
+	}
+
+	@Nonnull
+	public Optional<String> getGroupSessionRequestsTitle() {
+		return Optional.ofNullable(this.groupSessionRequestsTitle);
+	}
+
+	@Nonnull
+	public Optional<String> getGroupSessionRequestsDescription() {
+		return Optional.ofNullable(this.groupSessionRequestsDescription);
 	}
 
 	@Nonnull
@@ -144,5 +186,10 @@ public class TopicCenterRowApiResponse {
 	@Nonnull
 	public List<ContentApiResponse> getContents() {
 		return this.contents;
+	}
+
+	@Nonnull
+	public List<TopicCenterRowTagApiResponse> getTopicCenterRowTags() {
+		return this.topicCenterRowTags;
 	}
 }

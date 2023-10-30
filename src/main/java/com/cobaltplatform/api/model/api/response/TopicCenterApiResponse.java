@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TopicCenterRowApiResponse.TopicCenterRowApiResponseFactory;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.db.TopicCenter;
@@ -101,7 +102,9 @@ public class TopicCenterApiResponse {
 		requireNonNull(strings);
 		requireNonNull(topicCenter);
 
-		InstitutionId institutionId = currentContextProvider.get().getInstitutionId();
+		CurrentContext currentContext = currentContextProvider.get();
+		InstitutionId institutionId = currentContext.getInstitutionId();
+		Account account = currentContext.getAccount().orElse(null);
 
 		this.topicCenterId = topicCenter.getTopicCenterId();
 		this.name = topicCenter.getName();
@@ -113,7 +116,7 @@ public class TopicCenterApiResponse {
 		this.featuredCallToAction = topicCenter.getFeaturedCallToAction();
 		this.imageUrl = topicCenter.getImageUrl();
 
-		List<TopicCenterRowDetail> topicCenterRows = topicCenterService.findTopicCenterRowsByTopicCenterId(topicCenter.getTopicCenterId(), institutionId);
+		List<TopicCenterRowDetail> topicCenterRows = topicCenterService.findTopicCenterRowsByTopicCenterId(topicCenter.getTopicCenterId(), institutionId, account == null ? null : account.getAccountId());
 
 		this.topicCenterRows = topicCenterRows.stream()
 				.map(topicCenterRowDetail -> topicCenterRowApiResponseFactory.create(topicCenterRowDetail))

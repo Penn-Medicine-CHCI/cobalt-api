@@ -24,11 +24,17 @@ import com.cobaltplatform.api.integration.acuity.AcuitySyncManager;
 import com.cobaltplatform.api.integration.common.ProviderAvailabilitySyncManager;
 import com.cobaltplatform.api.integration.epic.EpicFhirSyncManager;
 import com.cobaltplatform.api.integration.epic.EpicSyncManager;
+import com.cobaltplatform.api.messaging.email.EmailMessage;
+import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
+import com.cobaltplatform.api.model.api.request.CreateMarketingSiteOutreachRequest;
 import com.cobaltplatform.api.model.db.BetaFeature;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
+import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.cobaltplatform.api.util.ValidationUtility;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import com.soklet.web.exception.NotFoundException;
@@ -44,13 +50,16 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -61,7 +70,9 @@ public class SystemService {
 	@Nonnull
 	private final Database database;
 	@Nonnull
-	private final ProviderService providerService;
+	private final javax.inject.Provider<ProviderService> providerServiceProvider;
+	@Nonnull
+	private final javax.inject.Provider<MessageService> messageServiceProvider;
 	@Nonnull
 	private final EpicSyncManager epicSyncManager;
 	@Nonnull
@@ -77,14 +88,15 @@ public class SystemService {
 
 	@Inject
 	public SystemService(@Nonnull Database database,
-											 @Nonnull ProviderService providerService,
+											 @Nonnull javax.inject.Provider<ProviderService> providerServiceProvider,
+											 @Nonnull javax.inject.Provider<MessageService> messageServiceProvider,
 											 @Nonnull EpicSyncManager epicSyncManager,
 											 @Nonnull EpicFhirSyncManager epicFhirSyncManager,
 											 @Nonnull AcuitySyncManager acuitySyncManager,
 											 @Nonnull Configuration configuration,
 											 @Nonnull Strings strings) {
 		requireNonNull(database);
-		requireNonNull(providerService);
+		requireNonNull(providerServiceProvider);
 		requireNonNull(epicSyncManager);
 		requireNonNull(epicFhirSyncManager);
 		requireNonNull(acuitySyncManager);
@@ -92,7 +104,8 @@ public class SystemService {
 		requireNonNull(strings);
 
 		this.database = database;
-		this.providerService = providerService;
+		this.providerServiceProvider = providerServiceProvider;
+		this.messageServiceProvider = messageServiceProvider;
 		this.epicSyncManager = epicSyncManager;
 		this.epicFhirSyncManager = epicFhirSyncManager;
 		this.acuitySyncManager = acuitySyncManager;
@@ -144,7 +157,7 @@ public class SystemService {
 																					 @Nullable LocalDate startingAtDate) {
 		requireNonNull(institutionId);
 
-		List<Provider> providers = providerService.findProvidersByInstitutionId(institutionId).stream()
+		List<Provider> providers = getProviderService().findProvidersByInstitutionId(institutionId).stream()
 				.filter(provider -> provider.getSchedulingSystemId() == SchedulingSystemId.EPIC || provider.getSchedulingSystemId() == SchedulingSystemId.ACUITY)
 				.sorted(Comparator.comparing(Provider::getName))
 				.collect(Collectors.toList());
@@ -203,7 +216,7 @@ public class SystemService {
 																			 @Nullable LocalDate endingAtDate) {
 		requireNonNull(providerId);
 
-		Provider provider = providerService.findProviderById(providerId).orElse(null);
+		Provider provider = getProviderService().findProviderById(providerId).orElse(null);
 
 		if (provider == null)
 			throw new NotFoundException();
@@ -262,6 +275,48 @@ public class SystemService {
 		}
 
 		getLogger().info("Finished syncing provider availability for {} for {} - {}", provider.getName(), startingAtDate, endingAtDate);
+	}
+
+	public void createMarketingSiteOutreach(@Nonnull CreateMarketingSiteOutreachRequest request) {
+		requireNonNull(request);
+
+		String firstName = trimToNull(request.getFirstName());
+		String lastName = trimToNull(request.getLastName());
+		String emailAddress = trimToNull(request.getEmailAddress());
+		String jobTitle = trimToNull(request.getJobTitle());
+		String message = trimToNull(request.getMessage());
+		ValidationException validationException = new ValidationException();
+
+		if (firstName == null)
+			validationException.add(new FieldError("firstName", strings.get("First name is required.")));
+
+		if (lastName == null)
+			validationException.add(new FieldError("lastName", strings.get("Last name is required.")));
+
+		if (emailAddress == null)
+			validationException.add(new FieldError("emailAddress", strings.get("Email address is required.")));
+		else if (!ValidationUtility.isValidEmailAddress(emailAddress))
+			validationException.add(new FieldError("emailAddress", strings.get("Email address is invalid.")));
+
+		if (jobTitle == null)
+			validationException.add(new FieldError("jobTitle", strings.get("Job title is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		// It's OK to hardcode institution, email, and locale because this is a specially targeted email
+		EmailMessage emailMessage = new EmailMessage.Builder(InstitutionId.COBALT, EmailMessageTemplate.MARKETING_SITE_OUTREACH, Locale.US)
+				.toAddresses(List.of("hello@cobaltinnovations.org"))
+				.messageContext(new HashMap<String, Object>() {{
+					put("firstName", firstName);
+					put("lastName", lastName);
+					put("emailAddress", emailAddress);
+					put("jobTitle", jobTitle);
+					put("message", message == null ? getStrings().get("(no message)") : message);
+				}})
+				.build();
+
+		getMessageService().enqueueMessage(emailMessage);
 	}
 
 	@ThreadSafe
@@ -334,7 +389,12 @@ public class SystemService {
 
 	@Nonnull
 	protected ProviderService getProviderService() {
-		return this.providerService;
+		return this.providerServiceProvider.get();
+	}
+
+	@Nonnull
+	protected MessageService getMessageService() {
+		return this.messageServiceProvider.get();
 	}
 
 	@Nonnull
