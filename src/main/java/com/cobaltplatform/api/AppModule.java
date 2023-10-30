@@ -226,7 +226,8 @@ public class AppModule extends AbstractModule {
 		requireNonNull(configuration);
 
 		this.configuration = configuration;
-		this.logger = LoggerFactory.getLogger(getClass());
+		this.logger = LoggerFactory.
+				getLogger(getClass());
 	}
 
 	@Override

@@ -33,7 +33,7 @@ import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFa
 import com.cobaltplatform.api.model.api.response.TagGroupApiResponse;
 import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
-import com.cobaltplatform.api.model.db.AvailableStatus;
+import com.cobaltplatform.api.model.db.ContentStatus;
 import com.cobaltplatform.api.model.db.ContentType;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Role.RoleId;
@@ -156,46 +156,21 @@ public class AdminResource {
 		}});
 	}
 
-	@GET("/admin/my-content")
+	@GET("/admin/content")
 	@AuthenticationRequired
 	public ApiResponse getMyContent(@QueryParameter Optional<Integer> page,
 																	@QueryParameter Optional<ContentType.ContentTypeId> contentTypeId,
 																	@QueryParameter Optional<Institution.InstitutionId> institutionId,
-																	@QueryParameter Optional<String> search) {
+																	@QueryParameter Optional<String> search,
+																	@QueryParameter Optional<ContentStatus.ContentStatusId> contentStatusId) {
 		Account account = getCurrentContext().getAccount().get();
 
 		//TODO: create a filter object to pass all the query params
 		FindResult<AdminContent> content = getContentService()
-				.findAllContentForAccount( account, page, contentTypeId, institutionId, Optional.empty(), search);
+				.findAllContentForAccount( account, page, contentTypeId, institutionId, search, contentStatusId);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("adminContent", content.getResults().stream().map(content -> getAdminContentApiResponseFactory().create(account, content, AdminContentDisplayType.MY_CONTENT)).collect(Collectors.toList()));
-			put("totalCount", content.getTotalCount());
-		}});
-	}
-
-	@GET("/admin/available-content/filter")
-	@AuthenticationRequired
-	public ApiResponse getAvailableContentFilter() {
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("contentTypes", getContentService().findContentTypes());
-			put("availableStatuses", getContentService().findAvailableStatuses());
-		}});
-	}
-
-	@GET("/admin/available-content")
-	@AuthenticationRequired
-	public ApiResponse getAvailableContent(@QueryParameter Optional<Integer> page,
-																				 @QueryParameter Optional<ContentType.ContentTypeId> contentTypeId,
-																				 @QueryParameter Optional<AvailableStatus.AvailableStatusId> availableStatusId,
-																				 @QueryParameter Optional<String> search) {
-		Account account = getCurrentContext().getAccount().get();
-
-		FindResult<AdminContent> content = getContentService()
-				.findAllContentForAccount( account, page, contentTypeId, Optional.empty(), availableStatusId, search);
-
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("adminContent", content.getResults().stream().map(content -> getAdminContentApiResponseFactory().create(account, content, AdminContentDisplayType.AVAILABLE_CONTENT)).collect(Collectors.toList()));
 			put("totalCount", content.getTotalCount());
 		}});
 	}

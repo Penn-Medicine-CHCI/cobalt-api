@@ -29,8 +29,6 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.ActivityAction.ActivityActionId;
 import com.cobaltplatform.api.model.db.ActivityType.ActivityTypeId;
-import com.cobaltplatform.api.model.db.AvailableStatus;
-import com.cobaltplatform.api.model.db.AvailableStatus.AvailableStatusId;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
 import com.cobaltplatform.api.model.db.ContentType;
@@ -185,8 +183,8 @@ public class ContentService {
 																													 @Nonnull Optional<Integer> page,
 																													 @Nonnull Optional<ContentTypeId> contentTypeId,
 																													 @Nonnull Optional<InstitutionId> institutionId,
-																													 @Nonnull Optional<AvailableStatusId> availableStatusId,
-																													 @Nonnull Optional<String> search) {
+																													 @Nonnull Optional<String> search,
+																													 @Nonnull Optional<ContentStatusId> contentStatusId) {
 		requireNonNull(account);
 
 		List<Object> parameters = new ArrayList();
@@ -211,6 +209,11 @@ public class ContentService {
 			parameters.add(lowerSearch);
 			parameters.add(lowerSearch);
 			parameters.add('%' + lowerSearch + '%');
+		}
+
+		if (contentStatusId.isPresent()) {
+			whereClause.append("AND va.content_status_id = ? ");
+			parameters.add(contentStatusId.get());
 		}
 
 		String query =
@@ -501,11 +504,6 @@ public class ContentService {
 	@Nonnull
 	public List<ContentType> findContentTypes() {
 		return getDatabase().queryForList("SELECT * FROM content_type WHERE deleted=FALSE ORDER BY description", ContentType.class);
-	}
-
-	@Nonnull
-	public List<AvailableStatus> findAvailableStatuses() {
-		return getDatabase().queryForList("SELECT * FROM available_status ORDER BY description", AvailableStatus.class);
 	}
 
 	//TODO: CA-REMOVE
