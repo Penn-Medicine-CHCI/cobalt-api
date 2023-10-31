@@ -42,7 +42,7 @@ ALTER TABLE content DROP COLUMN archived_flag;
 ALTER TABLE content DROP COLUMN owner_institution_approval_status_id;
 ALTER TABLE content DROP COLUMN other_institution_approval_status_id;
 ALTER TABLE content DROP COLUMN visibility_id;
-ALTER TABLE content DROP COLUMN content_type_label_id;
+--ALTER TABLE content DROP COLUMN content_type_label_id;
 
 DROP TABLE visibility;
 DROP TABLE approval_status;

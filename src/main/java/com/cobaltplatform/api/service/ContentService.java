@@ -156,7 +156,7 @@ public class ContentService {
 
 		String query = format("SELECT  DISTINCT ON (vc.content_id, new_flag) vc.*, " +
 				"CASE WHEN activity_tracking_id IS NULL THEN true ELSE false " +
-				"END as new_flag FROM v_admin_content vc " +
+				"END as new_flag FROM v_institution_content vc " +
 				"LEFT OUTER JOIN activity_tracking act ON vc.content_id = CAST (act.context ->> 'contentId' AS UUID) " +
 				"AND act.account_id = ? WHERE vc.content_id=? %s", institutionClause);
 		Content content = getDatabase().queryForObject(query,
@@ -303,10 +303,9 @@ public class ContentService {
 				        AND c.content_type_id = ct.content_type_id
 				        AND c.content_type_label_id = ctl.content_type_label_id
 				        AND ic.content_id = c.content_id
-				        AND ic.institution_id = ?
-				        AND ic.approved_flag = TRUE
+				        AND ic.institution_id = ?				   
 				        AND c.deleted_flag = FALSE
-				        AND c.archived_flag = FALSE				        
+				        AND c.content_status_id = 'LIVE'				        
 				),
 				total_count_query AS (
 				    SELECT
@@ -336,6 +335,7 @@ public class ContentService {
 				.replace("{{contentViewedJoin}}", contentViewedJoin == null ? "" : contentViewedJoin)
 				.replace("{{contentViewedOrderBy}}", contentViewedOrderBy == null ? "" : contentViewedOrderBy);
 
+		logger.debug("query = " + sql);
 		List<ContentWithTotalCount> contents = getDatabase().queryForList(sql, ContentWithTotalCount.class, sqlVaragsParameters(parameters));
 
 		applyTagsToContents(contents, institutionId);
