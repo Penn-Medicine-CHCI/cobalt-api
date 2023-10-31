@@ -23,6 +23,7 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateContentRequest;
 import com.cobaltplatform.api.model.api.request.UpdateContentRequest;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.ContentStatus;
 import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
@@ -49,6 +50,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import static com.cobaltplatform.api.model.db.Role.RoleId;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
@@ -85,6 +87,8 @@ public class AdminContentService {
 	private final Provider<Formatter> formatterProvider;
 	@Nonnull
 	private final Provider<LinkGenerator> linkGeneratorProvider;
+	@Nonnull
+	private final Provider<ContentService> contentServiceProvider;
 
 	@Inject
 	public AdminContentService(@Nonnull Provider<CurrentContext> currentContextProvider,
@@ -97,7 +101,8 @@ public class AdminContentService {
 														 @Nonnull Database database,
 														 @Nonnull SessionService sessionService,
 														 @Nonnull InstitutionService institutionService,
-														 @Nonnull Strings strings) {
+														 @Nonnull Strings strings,
+														 @Nonnull Provider<ContentService> contentServiceProvider) {
 		requireNonNull(currentContextProvider);
 		requireNonNull(assessmentServiceProvider);
 		requireNonNull(tagServiceProvider);
@@ -109,6 +114,7 @@ public class AdminContentService {
 		requireNonNull(sessionService);
 		requireNonNull(institutionService);
 		requireNonNull(strings);
+		requireNonNull(contentServiceProvider);
 
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.database = database;
@@ -122,6 +128,7 @@ public class AdminContentService {
 		this.accountServiceProvider = accountServiceProvider;
 		this.formatterProvider = formatterProvider;
 		this.linkGeneratorProvider = linkGeneratorProvider;
+		this.contentServiceProvider = contentServiceProvider;
 	}
 
 	@Nonnull
@@ -190,7 +197,7 @@ public class AdminContentService {
 		Integer durationInMinutes = durationInMinutesString == null ? null : Integer.parseInt(durationInMinutesString);
 
 		if (url != null && !url.startsWith("http://") && !url.startsWith("https://"))
-			url = String.format("https://%s", url);
+			url = format("https://%s", url);
 
 		InstitutionId ownerInstitutionId = account.getInstitutionId();
 
@@ -204,7 +211,7 @@ public class AdminContentService {
 				durationInMinutes, description, author, contentStatusId, sharedFlag,
 				searchTerms, publishStartDate, publishEndDate, publishRecurring, ownerInstitutionId);
 
-		addContentToInstitution(contentId, account.getInstitutionId());
+		addContentToInstitution(contentId,  account);
 
 		for (String tagId : tagIds) {
 			tagId = trimToNull(tagId);
@@ -255,7 +262,7 @@ public class AdminContentService {
 
 			if (urlCommand != null) {
 				if (!urlCommand.startsWith("http://") && !urlCommand.startsWith("https://"))
-					urlCommand = String.format("https://%s", urlCommand);
+					urlCommand = format("https://%s", urlCommand);
 				existingContent.setUrl(urlCommand);
 			}
 
@@ -342,14 +349,50 @@ public class AdminContentService {
 	}
 
 	@Nonnull
-	private void addContentToInstitution(@Nonnull UUID contentId, @Nonnull InstitutionId institutionId) {
-		requireNonNull(contentId);
+	public Boolean contentIsAddable(@Nonnull Content content,
+																	@Nonnull InstitutionId institutionId) {
+		requireNonNull(content);
 		requireNonNull(institutionId);
+
+		if (content.getOwnerInstitutionId() == institutionId)
+			return true;
+		else return content.getContentStatusId().equals(ContentStatusId.LIVE) ||
+				content.getContentStatusId().equals(ContentStatusId.SCHEDULED);
+
+	}
+
+	@Nonnull
+	public void addContentToInstitution(@Nonnull UUID contentId,
+																			@Nonnull Account account) {
+		requireNonNull(contentId);
+		requireNonNull(account);
+
+		ValidationException validationException = new ValidationException();
+
+		Boolean institutionHasContent = getDatabase().queryForObject("""
+				SELECT count(*) > 0 
+				FROM institution_content ic
+				WHERE ic.institution_id = ? 
+				AND ic.content_id = ?
+				""", Boolean.class, account.getInstitutionId(), contentId).get();
+
+		if (institutionHasContent) {
+			validationException.add(new FieldError("contentId", getStrings().get("Your institution already has this content added.")));
+		} else {
+			Optional<Content> content = getContentService().findContentById(contentId);
+			if (!content.isPresent())
+				validationException.add(new FieldError("contentId", getStrings().get("Content does not exist.")));
+			else if (!contentIsAddable(content.get(), account.getInstitutionId()))
+				validationException.add(new FieldError("contentId", getStrings().get("Content cannot be added.")));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
 
 		getDatabase().execute("""
 				INSERT INTO institution_content (institution_content_id, institution_id, content_id) 
 				VALUES (?,?,?)
-				""", UUID.randomUUID(), institutionId, contentId);
+				""", UUID.randomUUID(), account.getInstitutionId(), contentId);
 	}
 
 	@Nonnull
@@ -459,5 +502,10 @@ public class AdminContentService {
 	@Nonnull
 	protected LinkGenerator getLinkGenerator() {
 		return linkGeneratorProvider.get();
+	}
+
+	@Nonnull
+	protected ContentService getContentService() {
+		return contentServiceProvider.get();
 	}
 }

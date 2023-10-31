@@ -438,7 +438,7 @@ public class ContentService {
 	}
 
 	@Nonnull
-	private Optional<Content> findContentById(@Nonnull UUID contentId) {
+	public Optional<Content> findContentById(@Nonnull UUID contentId) {
 		return getDatabase().queryForObject("SELECT * FROM content WHERE content_id = ?", Content.class, contentId);
 	}
 

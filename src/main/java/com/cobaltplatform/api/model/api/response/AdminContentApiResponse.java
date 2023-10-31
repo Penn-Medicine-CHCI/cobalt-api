@@ -150,8 +150,15 @@ public class AdminContentApiResponse {
 		this.publishRecurring = adminContent.getPublishRecurring();
 		this.searchTerms = adminContent.getSearchTerms();
 		this.sharedFlag = adminContent.getSharedFlag();
-		this.contentStatusId = adminContent.getContentStatusId();
-		this.contentStatusDescription = adminContent.getContentStatusDescription();
+
+
+		if (contentOwnedByCurrentAccount) {
+			this.contentStatusId = adminContent.getContentStatusId();
+			this.contentStatusDescription = adminContent.getContentStatusDescription();
+		} else {
+			//TODO: handle content status when not owned (available vs. already added)
+		}
+
 
 		if (contentOwnedByCurrentAccount) {
 			if (adminContent.getContentStatusId().equals(ContentStatusId.DRAFT)) {
@@ -166,7 +173,7 @@ public class AdminContentApiResponse {
 				contentActionIdList.add(ContentActionId.UNEXPIRE);
 			}
 		} else {
-
+			//TODO: status for add/remove
 		}
 		this.actions = contentActionIdList;
 

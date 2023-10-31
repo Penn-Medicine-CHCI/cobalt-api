@@ -59,6 +59,7 @@ import com.soklet.web.annotation.Resource;
 import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
+import org.checkerframework.checker.units.qual.A;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -167,16 +168,16 @@ public class AdminResource {
 
 	@GET("/admin/content")
 	@AuthenticationRequired
-	public ApiResponse getMyContent(@QueryParameter Optional<Integer> page,
-																	@QueryParameter Optional<ContentType.ContentTypeId> contentTypeId,
-																	@QueryParameter Optional<Institution.InstitutionId> institutionId,
-																	@QueryParameter Optional<String> search,
-																	@QueryParameter Optional<ContentStatus.ContentStatusId> contentStatusId) {
+	public ApiResponse getContent(@QueryParameter Optional<Integer> page,
+																@QueryParameter Optional<ContentType.ContentTypeId> contentTypeId,
+																@QueryParameter Optional<Institution.InstitutionId> institutionId,
+																@QueryParameter Optional<String> search,
+																@QueryParameter Optional<ContentStatus.ContentStatusId> contentStatusId) {
 		Account account = getCurrentContext().getAccount().get();
 
 		//TODO: create a filter object to pass all the query params
 		FindResult<AdminContent> content = getContentService()
-				.findAllContentForAccount( account, page, contentTypeId, institutionId, search, contentStatusId);
+				.findAllContentForAccount(account, page, contentTypeId, institutionId, search, contentStatusId);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("adminContent", content.getResults().stream().map(content -> getAdminContentApiResponseFactory().create(account, content, AdminContentDisplayType.MY_CONTENT)).collect(Collectors.toList()));
@@ -286,41 +287,6 @@ public class AdminResource {
 
 	}
 
-	//TODO: CA-REMOVE
-	/*
-	@PUT("/admin/content/{contentId}/approval-status")
-	@AuthenticationRequired
-	public ApiResponse updateApprovalStatus(@Nonnull @RequestBody String requestBody,
-																					@Nonnull @PathParameter UUID contentId) {
-		requireNonNull(requestBody);
-		requireNonNull(contentId);
-		Account account = getCurrentContext().getAccount().get();
-		UpdateContentApprovalStatusRequest request = getRequestBodyParser().parse(requestBody, UpdateContentApprovalStatusRequest.class);
-		Optional<AdminContent> content = getContentService().findAdminContentByIdForInstitution(account.getInstitutionId(), contentId);
-
-		if (!content.isPresent())
-			throw new NotFoundException();
-		else if (!getContentService().hasAdminAccessToContent(account, content.get()))
-			throw new AuthorizationException();
-
-		request.setContentId(contentId);
-		//TODO: CA-Look at this
-		//getContentService().updateContentVisibilityApprovalStatusForAccount(account, request);
-		AdminContent adminContent = contentService.findAdminContentByIdForInstitution(account.getInstitutionId(), contentId).get();
-
-		AdminContentDisplayType displayType;
-		if (adminContent.getOwnerInstitutionId() == account.getInstitutionId()) {
-			displayType = AdminContentDisplayType.MY_CONTENT;
-		} else {
-			displayType = AdminContentDisplayType.AVAILABLE_CONTENT;
-		}
-
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("content", getAdminContentApiResponseFactory().create(account, adminContent, displayType));
-		}});
-
-	}
-	*/
 	@DELETE("/admin/content/{contentId}")
 	@AuthenticationRequired
 	public ApiResponse deleteContent(@Nonnull @PathParameter UUID contentId) {
@@ -356,6 +322,20 @@ public class AdminResource {
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("presignedUpload", getPresignedUploadApiResponseFactory().create(presignedUpload));
+		}});
+	}
+
+	@Nonnull
+	@POST("/admin/content/{contentId}/add")
+	@AuthenticationRequired
+	public ApiResponse addContent(@Nonnull @PathParameter UUID contentId){
+		Account account = getCurrentContext().getAccount().get();
+
+		getAdminContentService().addContentToInstitution(contentId, account);
+		Optional<AdminContent> content = getAdminContentService()
+				.findAdminContentByIdForInstitution(account.getInstitutionId(), contentId);
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("content", getAdminContentApiResponseFactory().create(account, content.get(), AdminContentDisplayType.DETAIL));
 		}});
 	}
 
