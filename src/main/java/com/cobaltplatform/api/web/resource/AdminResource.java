@@ -176,11 +176,11 @@ public class AdminResource {
 		Account account = getCurrentContext().getAccount().get();
 
 		//TODO: create a filter object to pass all the query params
-		FindResult<AdminContent> content = getContentService()
-				.findAllContentForAccount(account, page, contentTypeId, institutionId, search, contentStatusId);
-
+		FindResult<AdminContent> content = getAdminContentService()
+				.findAllContentForAdmin(account, page, contentTypeId, institutionId, search, contentStatusId);
+		List<UUID> institutionContentIds = getAdminContentService().findContentIdsForInstitution(account.getInstitutionId());
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("adminContent", content.getResults().stream().map(content -> getAdminContentApiResponseFactory().create(account, content, AdminContentDisplayType.MY_CONTENT)).collect(Collectors.toList()));
+			put("adminContent", content.getResults().stream().map(content -> getAdminContentApiResponseFactory().create(account, content, AdminContentDisplayType.MY_CONTENT, institutionContentIds)).collect(Collectors.toList()));
 			put("totalCount", content.getTotalCount());
 		}});
 	}
@@ -241,9 +241,9 @@ public class AdminResource {
 		Account account = getCurrentContext().getAccount().get();
 		CreateContentRequest request = getRequestBodyParser().parse(requestBody, CreateContentRequest.class);
 		AdminContent adminContent = getAdminContentService().createContent(account, request);
-
+		List<UUID> institutionContentIds = getAdminContentService().findContentIdsForInstitution(account.getInstitutionId());
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("adminContent", getAdminContentApiResponseFactory().create(account, adminContent, AdminContentDisplayType.DETAIL));
+			put("adminContent", getAdminContentApiResponseFactory().create(account, adminContent, AdminContentDisplayType.DETAIL, institutionContentIds));
 		}});
 	}
 
@@ -262,8 +262,9 @@ public class AdminResource {
 				AdminContentDisplayType.DETAIL : AdminContentDisplayType.AVAILABLE_CONTENT;
 */
 		AdminContentDisplayType adminContentDisplayType = AdminContentDisplayType.DETAIL;
+		List<UUID> institutionContentIds = getAdminContentService().findContentIdsForInstitution(account.getInstitutionId());
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("adminContent", getAdminContentApiResponseFactory().create(account, adminContent, adminContentDisplayType));
+			put("adminContent", getAdminContentApiResponseFactory().create(account, adminContent, adminContentDisplayType, institutionContentIds));
 		}});
 	}
 
@@ -279,10 +280,11 @@ public class AdminResource {
 		if (!content.isPresent())
 			throw new NotFoundException();
 
+		List<UUID> institutionContentIds = getAdminContentService().findContentIdsForInstitution(account.getInstitutionId());
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("networkInstitutions", getInstitutionService().findNetworkInstitutions(account.getInstitutionId()).stream().
 					map(it -> getAdminInstitutionApiResponseFactory().create(it)).collect(Collectors.toList()));
-			put("content", getAdminContentApiResponseFactory().create(account, content.get(), AdminContentDisplayType.DETAIL));
+			put("content", getAdminContentApiResponseFactory().create(account, content.get(), AdminContentDisplayType.DETAIL, institutionContentIds));
 		}});
 
 	}
@@ -334,8 +336,9 @@ public class AdminResource {
 		getAdminContentService().addContentToInstitution(contentId, account);
 		Optional<AdminContent> content = getAdminContentService()
 				.findAdminContentByIdForInstitution(account.getInstitutionId(), contentId);
+		List<UUID> institutionContentIds = getAdminContentService().findContentIdsForInstitution(account.getInstitutionId());
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("content", getAdminContentApiResponseFactory().create(account, content.get(), AdminContentDisplayType.DETAIL));
+			put("content", getAdminContentApiResponseFactory().create(account, content.get(), AdminContentDisplayType.DETAIL,institutionContentIds));
 		}});
 	}
 

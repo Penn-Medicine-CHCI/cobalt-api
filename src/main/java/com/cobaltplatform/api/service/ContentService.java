@@ -171,67 +171,6 @@ public class ContentService {
 	}
 
 	@Nonnull
-	public FindResult<AdminContent> findAllContentForAccount(@Nonnull Account account,
-																													 @Nonnull Optional<Integer> page,
-																													 @Nonnull Optional<ContentTypeId> contentTypeId,
-																													 @Nonnull Optional<InstitutionId> institutionId,
-																													 @Nonnull Optional<String> search,
-																													 @Nonnull Optional<ContentStatusId> contentStatusId) {
-		requireNonNull(account);
-
-		List<Object> parameters = new ArrayList();
-		Integer pageNumber = page.orElse(0);
-		Integer limit = DEFAULT_PAGE_SIZE;
-		Integer offset = pageNumber * DEFAULT_PAGE_SIZE;
-		StringBuilder whereClause = new StringBuilder(" 1=1 ");
-
-		if (contentTypeId.isPresent()) {
-			whereClause.append("AND va.content_type_id = ? ");
-			parameters.add(contentTypeId.get());
-		}
-
-		if (institutionId.isPresent()) {
-			whereClause.append("AND va.owner_institution_id = ? ");
-			parameters.add(institutionId.get());
-		}
-
-		if (search.isPresent()) {
-			String lowerSearch = trimToEmpty(search.get().toLowerCase());
-			whereClause.append("AND (LOWER(title) % ? or SIMILARITY(LOWER(title), ?) > 0.5 OR LOWER(title) LIKE ?) ");
-			parameters.add(lowerSearch);
-			parameters.add(lowerSearch);
-			parameters.add('%' + lowerSearch + '%');
-		}
-
-		if (contentStatusId.isPresent()) {
-			whereClause.append("AND va.content_status_id = ? ");
-			parameters.add(contentStatusId.get());
-		}
-
-		String query =
-				String.format("SELECT va.*, " +
-						"(select COUNT(*) FROM " +
-						"  activity_tracking a WHERE " +
-						"  va.content_id = CAST (a.context ->> 'contentId' AS UUID) AND " +
-						"  a.activity_action_id = 'VIEW' AND " +
-						"  activity_type_id='CONTENT') AS views ," +
-						"count(*) over() AS total_count " +
-						"FROM v_admin_content va " +
-						"WHERE %s " +
-						"ORDER BY last_updated DESC LIMIT ? OFFSET ? ", whereClause.toString());
-
-		logger.debug("query: " + query);
-		parameters.add(limit);
-		parameters.add(offset);
-		List<AdminContent> content = getDatabase().queryForList(query, AdminContent.class, sqlVaragsParameters(parameters));
-		Integer totalCount = content.stream().filter(it -> it.getTotalCount() != null).mapToInt(AdminContent::getTotalCount).findFirst().orElse(0);
-
-		applyTagsToAdminContents(content, account.getInstitutionId());
-
-		return new FindResult<>(content, totalCount);
-	}
-
-	@Nonnull
 	public FindResult<Content> findResourceLibraryContent(@Nonnull FindResourceLibraryContentRequest request) {
 		requireNonNull(request);
 

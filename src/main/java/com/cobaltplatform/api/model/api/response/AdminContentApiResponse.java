@@ -111,7 +111,8 @@ public class AdminContentApiResponse {
 		@Nonnull
 		AdminContentApiResponse create(@Nonnull Account account,
 																	 @Nonnull AdminContent adminContent,
-																	 @Nonnull AdminContentDisplayType adminContentDisplayType);
+																	 @Nonnull AdminContentDisplayType adminContentDisplayType,
+																	 @Nonnull List<UUID> institutionContentIds);
 	}
 
 	@AssistedInject
@@ -120,11 +121,13 @@ public class AdminContentApiResponse {
 																 @Nonnull InstitutionService institutionService,
 																 @Assisted @Nonnull Account account,
 																 @Assisted @Nonnull AdminContent adminContent,
-																 @Assisted @Nonnull AdminContentDisplayType adminContentDisplayType) {
+																 @Assisted @Nonnull AdminContentDisplayType adminContentDisplayType,
+																 @Assisted @Nonnull List<UUID> institutionContentIds) {
 		requireNonNull(formatter);
 		requireNonNull(adminContent);
 		requireNonNull(contentService);
 		requireNonNull(account);
+		requireNonNull(institutionContentIds);
 
 		List<ContentActionId> contentActionIdList = new ArrayList<>();
 		Boolean contentOwnedByCurrentAccount = account.getInstitutionId().equals(adminContent.getOwnerInstitutionId());
@@ -155,12 +158,6 @@ public class AdminContentApiResponse {
 		if (contentOwnedByCurrentAccount) {
 			this.contentStatusId = adminContent.getContentStatusId();
 			this.contentStatusDescription = adminContent.getContentStatusDescription();
-		} else {
-			//TODO: handle content status when not owned (available vs. already added)
-		}
-
-
-		if (contentOwnedByCurrentAccount) {
 			if (adminContent.getContentStatusId().equals(ContentStatusId.DRAFT)) {
 				contentActionIdList.add(ContentActionId.EDIT);
 				contentActionIdList.add(ContentActionId.DELETE);
@@ -173,8 +170,17 @@ public class AdminContentApiResponse {
 				contentActionIdList.add(ContentActionId.UNEXPIRE);
 			}
 		} else {
-			//TODO: status for add/remove
+			if (institutionContentIds.contains(adminContent.getContentId())) {
+				contentActionIdList.add(ContentActionId.REMOVE);
+				contentActionIdList.add(ContentActionId.VIEW_ON_COBALT);
+			} else {
+				this.contentStatusId = ContentStatusId.AVAILABLE;
+				//TODO: don't hardcode this
+				this.contentStatusDescription = "Available";
+				contentActionIdList.add(ContentActionId.ADD);
+			}
 		}
+
 		this.actions = contentActionIdList;
 
 		this.tagIds = adminContent.getTags() == null ? Collections.emptyList() : adminContent.getTags().stream()

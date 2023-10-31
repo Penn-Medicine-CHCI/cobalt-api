@@ -29,6 +29,7 @@ import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.service.AdminContent;
+import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.LinkGenerator;
 import com.cobaltplatform.api.util.ValidationException;
@@ -44,14 +45,17 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
 import static com.cobaltplatform.api.model.db.Role.RoleId;
+import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
@@ -129,6 +133,74 @@ public class AdminContentService {
 		this.formatterProvider = formatterProvider;
 		this.linkGeneratorProvider = linkGeneratorProvider;
 		this.contentServiceProvider = contentServiceProvider;
+	}
+
+	@Nonnull
+	public FindResult<AdminContent> findAllContentForAdmin(@Nonnull Account account,
+																												 @Nonnull Optional<Integer> page,
+																												 @Nonnull Optional<ContentTypeId> contentTypeId,
+																												 @Nonnull Optional<InstitutionId> institutionId,
+																												 @Nonnull Optional<String> search,
+																												 @Nonnull Optional<ContentStatusId> contentStatusId) {
+		requireNonNull(account);
+
+		List<Object> parameters = new ArrayList();
+		Integer pageNumber = page.orElse(0);
+		Integer limit = DEFAULT_PAGE_SIZE;
+		Integer offset = pageNumber * DEFAULT_PAGE_SIZE;
+		StringBuilder whereClause = new StringBuilder(" 1=1 ");
+
+		if (contentTypeId.isPresent()) {
+			whereClause.append("AND va.content_type_id = ? ");
+			parameters.add(contentTypeId.get());
+		}
+
+		if (institutionId.isPresent()) {
+			whereClause.append("AND va.owner_institution_id = ? ");
+			parameters.add(institutionId.get());
+		}
+
+		if (search.isPresent()) {
+			String lowerSearch = trimToEmpty(search.get().toLowerCase());
+			whereClause.append("AND (LOWER(title) % ? or SIMILARITY(LOWER(title), ?) > 0.5 OR LOWER(title) LIKE ?) ");
+			parameters.add(lowerSearch);
+			parameters.add(lowerSearch);
+			parameters.add('%' + lowerSearch + '%');
+		}
+
+		if (contentStatusId.isPresent()) {
+			whereClause.append("AND va.content_status_id = ? ");
+			parameters.add(contentStatusId.get());
+		}
+
+		String query =
+				String.format("""
+						SELECT va.*, 
+						(select COUNT(*) FROM 
+						 activity_tracking a WHERE
+						va.content_id = CAST (a.context ->> 'contentId' AS UUID) AND 
+						a.activity_action_id = 'VIEW' AND
+						activity_type_id='CONTENT') AS views ,
+						count(*) over() AS total_count 
+						FROM v_admin_content va 
+						WHERE %s 
+						AND (owner_institution_id != ? AND shared_flag = true AND content_status_id IN ('LIVE', 'SCHEDULED'))
+						OR (owner_institution_id = ?)
+						ORDER BY last_updated DESC LIMIT ? OFFSET ? 
+						""", whereClause.toString());
+
+		parameters.add(account.getInstitutionId());
+		parameters.add(account.getInstitutionId());
+
+		logger.debug("query: " + query);
+		parameters.add(limit);
+		parameters.add(offset);
+		List<AdminContent> content = getDatabase().queryForList(query, AdminContent.class, sqlVaragsParameters(parameters));
+		Integer totalCount = content.stream().filter(it -> it.getTotalCount() != null).mapToInt(AdminContent::getTotalCount).findFirst().orElse(0);
+
+		getContentService().applyTagsToAdminContents(content, account.getInstitutionId());
+
+		return new FindResult<>(content, totalCount);
 	}
 
 	@Nonnull
@@ -211,7 +283,7 @@ public class AdminContentService {
 				durationInMinutes, description, author, contentStatusId, sharedFlag,
 				searchTerms, publishStartDate, publishEndDate, publishRecurring, ownerInstitutionId);
 
-		addContentToInstitution(contentId,  account);
+		addContentToInstitution(contentId, account);
 
 		for (String tagId : tagIds) {
 			tagId = trimToNull(tagId);
@@ -294,7 +366,7 @@ public class AdminContentService {
 			if (searchTerms != null)
 				existingContent.setSearchTerms(searchTerms);
 
-			if (sharedFlag !=null)
+			if (sharedFlag != null)
 				existingContent.setSharedFlag(sharedFlag);
 		}
 
@@ -357,7 +429,8 @@ public class AdminContentService {
 		if (content.getOwnerInstitutionId() == institutionId)
 			return true;
 		else return content.getContentStatusId().equals(ContentStatusId.LIVE) ||
-				content.getContentStatusId().equals(ContentStatusId.SCHEDULED);
+				content.getContentStatusId().equals(ContentStatusId.SCHEDULED) ||
+				content.getSharedFlag() == true;
 
 	}
 
@@ -400,15 +473,15 @@ public class AdminContentService {
 		requireNonNull(institutionId);
 		requireNonNull(contentId);
 
-		AdminContent adminContent = getDatabase().queryForObject("SELECT va.*, " +
+		AdminContent adminContent = getDatabase().queryForObject("SELECT vi.*, " +
 						"(select COUNT(*) FROM " +
 						" activity_tracking a WHERE " +
-						" va.content_id = CAST (a.context ->> 'contentId' AS UUID) AND " +
+						" vi.content_id = CAST (a.context ->> 'contentId' AS UUID) AND " +
 						" a.activity_action_id = 'VIEW' AND " +
 						" activity_type_id='CONTENT') AS views " +
-						"FROM v_admin_content va " +
-						"WHERE va.content_id = ? " +
-						"AND va.institution_id = ? ",
+						"FROM v_institution_content vi " +
+						"WHERE vi.content_id = ? " +
+						"AND vi.institution_id = ? ",
 				AdminContent.class, contentId, institutionId).orElse(null);
 
 		if (adminContent != null)
@@ -452,6 +525,15 @@ public class AdminContentService {
 				FROM content_status
 				ORDER BY display_order
 				""", ContentStatus.class);
+	}
+
+	@Nonnull
+	public List<UUID> findContentIdsForInstitution(@Nonnull InstitutionId institutionId) {
+		requireNonNull(institutionId);
+
+		return getDatabase().queryForList("""
+				SELECT content_id FROM institution_content WHERE institution_id=?
+				""", UUID.class, institutionId);
 	}
 
 	@Nonnull

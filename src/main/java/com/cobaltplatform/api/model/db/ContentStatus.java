@@ -38,7 +38,9 @@ public class ContentStatus {
 		DRAFT,
 		SCHEDULED,
 		LIVE,
-		EXPIRED
+		EXPIRED,
+		//pseudo status for shared content
+		AVAILABLE
 	}
 
 	@Override

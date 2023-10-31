@@ -71,10 +71,43 @@ AS SELECT c.content_id,
     c.en_search_vector,
     ct.description AS content_type_description,
     ct.call_to_action,
-    it.institution_id,
     c.owner_institution_id,
     i.name AS owner_institution,
     c.date_created
+   FROM content_type ct,
+    institution i,
+    content_status cs,
+    content c 
+  WHERE c.content_type_id::text = ct.content_type_id::text 
+  AND c.owner_institution_id::text = i.institution_id::text
+  AND c.content_status_id = cs.content_status_id
+  AND c.deleted_flag = false;
+
+CREATE OR REPLACE VIEW v_institution_content
+AS SELECT c.content_id,
+    c.content_type_id,
+    c.title,
+    c.url,
+    c.publish_start_date,
+    c.publish_end_date,
+    c.publish_recurring,
+    c.content_status_id,
+    cs.description content_status_description,
+    c.shared_flag, 
+    c.search_terms,
+    c.duration_in_minutes,
+    c.image_url,
+    c.description,
+    c.author,
+    c.created,
+    c.last_updated,
+    c.en_search_vector,
+    ct.description AS content_type_description,
+    ct.call_to_action,
+    c.owner_institution_id,
+    i.name AS owner_institution,
+    c.date_created,
+    it.institution_id
    FROM content c,
     content_type ct,
     institution_content it,
@@ -85,6 +118,5 @@ AS SELECT c.content_id,
   AND c.owner_institution_id::text = i.institution_id::text
   AND c.content_status_id = cs.content_status_id
   AND c.deleted_flag = false;
-
 
 COMMIT;
