@@ -87,7 +87,6 @@ public class ContentApiResponse {
 	private final List<String> tagIds;
 	@Nullable
 	private final List<TagApiResponse> tags;
-
 	public enum ContentApiResponseSupplement {
 		TAGS
 	}
@@ -137,6 +136,7 @@ public class ContentApiResponse {
 		this.contentTypeDescription = content.getContentTypeDescription();
 		this.callToAction = content.getCallToAction();
 		this.newFlag = content.getNewFlag();
+		this.contentTypeLabel = content.getContentTypeLabel();
 
 		// Deprecated field
 		this.duration = content.getDurationInMinutes() != null ?
@@ -267,4 +267,6 @@ public class ContentApiResponse {
 	public Optional<List<TagApiResponse>> getTags() {
 		return Optional.ofNullable(this.tags);
 	}
+
+
 }

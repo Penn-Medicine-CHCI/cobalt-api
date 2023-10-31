@@ -42,7 +42,6 @@ ALTER TABLE content DROP COLUMN archived_flag;
 ALTER TABLE content DROP COLUMN owner_institution_approval_status_id;
 ALTER TABLE content DROP COLUMN other_institution_approval_status_id;
 ALTER TABLE content DROP COLUMN visibility_id;
---ALTER TABLE content DROP COLUMN content_type_label_id;
 
 DROP TABLE visibility;
 DROP TABLE approval_status;
@@ -73,11 +72,13 @@ AS SELECT c.content_id,
     ct.call_to_action,
     c.owner_institution_id,
     i.name AS owner_institution,
-    c.date_created
+    c.date_created,
+    ctl.description AS content_type_label,
    FROM content_type ct,
     institution i,
     content_status cs,
-    content c 
+    content c,
+    content_type_label ctl
   WHERE c.content_type_id::text = ct.content_type_id::text 
   AND c.owner_institution_id::text = i.institution_id::text
   AND c.content_status_id = cs.content_status_id
@@ -107,12 +108,14 @@ AS SELECT c.content_id,
     c.owner_institution_id,
     i.name AS owner_institution,
     c.date_created,
-    it.institution_id
+    it.institution_id,
+    ctl.description AS content_type_label,
    FROM content c,
     content_type ct,
     institution_content it,
     institution i,
-    content_status cs
+    content_status cs,
+    content_type_label ctl
   WHERE c.content_type_id::text = ct.content_type_id::text 
   AND c.content_id = it.content_id 
   AND c.owner_institution_id::text = i.institution_id::text
