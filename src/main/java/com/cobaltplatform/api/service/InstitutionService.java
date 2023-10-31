@@ -248,26 +248,6 @@ public class InstitutionService {
 	}
 
 	@Nonnull
-	public List<Institution> findNetworkInstitutions(@Nullable InstitutionId institutionId) {
-		if (institutionId == null)
-			return Collections.emptyList();
-
-		return getDatabase().queryForList("SELECT i.* FROM institution i, institution_network ii WHERE " +
-				"i.institution_id = ii.related_institution_id AND ii.parent_institution_id = ? ", Institution.class, institutionId);
-	}
-
-	@Nonnull
-	public List<Institution> findSelectedNetworkInstitutionsForContentId(@Nonnull InstitutionId institutionId,
-																																			 @Nonnull UUID contentId) {
-		requireNonNull(institutionId);
-		requireNonNull(contentId);
-
-		return getDatabase().queryForList("SELECT i.institution_id, i.name FROM institution i, institution_network ii, institution_content ic WHERE " +
-				"i.institution_id = ii.related_institution_id AND ii.related_institution_id = ic. institution_id " +
-				"AND ii.parent_institution_id = ? AND ic.content_id = ?", Institution.class, institutionId, contentId);
-	}
-
-	@Nonnull
 	public List<Institution> findInstitutionsMatchingMetadata(@Nullable Map<String, Object> metadata) {
 		requireNonNull(metadata);
 

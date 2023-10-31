@@ -46,6 +46,7 @@ ALTER TABLE content DROP COLUMN visibility_id;
 DROP TABLE visibility;
 DROP TABLE approval_status;
 DROP TABLE available_status;
+DROP TABLE institution_network;
 
 ALTER TABLE institution_content DROP COLUMN approved_flag;
 
@@ -73,7 +74,7 @@ AS SELECT c.content_id,
     c.owner_institution_id,
     i.name AS owner_institution,
     c.date_created,
-    ctl.description AS content_type_label,
+    ctl.description AS content_type_label
    FROM content_type ct,
     institution i,
     content_status cs,
@@ -109,7 +110,7 @@ AS SELECT c.content_id,
     i.name AS owner_institution,
     c.date_created,
     it.institution_id,
-    ctl.description AS content_type_label,
+    ctl.description AS content_type_label
    FROM content c,
     content_type ct,
     institution_content it,

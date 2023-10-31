@@ -204,21 +204,6 @@ public class AdminResource {
 			put("tags", tags);
 		}});
 	}
-
-	@GET("/admin/content-institutions")
-	@AuthenticationRequired
-	public ApiResponse getInNetworkInstitutions() {
-		Account account = getCurrentContext().getAccount().get();
-		if (account.getRoleId() == RoleId.ADMINISTRATOR) {
-			return new ApiResponse(Map.of(
-					"institutions", getInstitutionService().findNetworkInstitutions(account.getInstitutionId()).stream().
-							map(it -> getAdminInstitutionApiResponseFactory().create(it)).collect(Collectors.toList())
-			));
-		} else {
-			return new ApiResponse(Map.of("institutions", emptyList()));
-		}
-	}
-
 	@GET("/admin/content-statuses")
 	@AuthenticationRequired
 	public ApiResponse getContentStatuses() {
@@ -258,16 +243,13 @@ public class AdminResource {
 		UpdateContentRequest request = getRequestBodyParser().parse(requestBody, UpdateContentRequest.class);
 		request.setContentId(contentId);
 		AdminContent adminContent = getAdminContentService().updateContent(account, request);
-		/*AdminContentDisplayType adminContentDisplayType = (request.getRemoveFromInstitution() == null || !request.getRemoveFromInstitution()) ?
-				AdminContentDisplayType.DETAIL : AdminContentDisplayType.AVAILABLE_CONTENT;
-*/
+
 		AdminContentDisplayType adminContentDisplayType = AdminContentDisplayType.DETAIL;
 		List<UUID> institutionContentIds = getAdminContentService().findContentIdsForInstitution(account.getInstitutionId());
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("adminContent", getAdminContentApiResponseFactory().create(account, adminContent, adminContentDisplayType, institutionContentIds));
 		}});
 	}
-
 
 	@GET("/admin/content/{contentId}")
 	@AuthenticationRequired
@@ -282,8 +264,6 @@ public class AdminResource {
 
 		List<UUID> institutionContentIds = getAdminContentService().findContentIdsForInstitution(account.getInstitutionId());
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("networkInstitutions", getInstitutionService().findNetworkInstitutions(account.getInstitutionId()).stream().
-					map(it -> getAdminInstitutionApiResponseFactory().create(it)).collect(Collectors.toList()));
 			put("content", getAdminContentApiResponseFactory().create(account, content.get(), AdminContentDisplayType.DETAIL, institutionContentIds));
 		}});
 

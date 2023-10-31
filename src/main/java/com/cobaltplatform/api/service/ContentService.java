@@ -27,7 +27,6 @@ import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.ActivityAction.ActivityActionId;
 import com.cobaltplatform.api.model.db.ActivityType.ActivityTypeId;
 import com.cobaltplatform.api.model.db.Content;
-import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
 import com.cobaltplatform.api.model.db.ContentType;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
 import com.cobaltplatform.api.model.db.ContentTypeLabel;
@@ -66,7 +65,6 @@ import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
-import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
@@ -335,7 +333,6 @@ public class ContentService {
 				.replace("{{contentViewedJoin}}", contentViewedJoin == null ? "" : contentViewedJoin)
 				.replace("{{contentViewedOrderBy}}", contentViewedOrderBy == null ? "" : contentViewedOrderBy);
 
-		logger.debug("query = " + sql);
 		List<ContentWithTotalCount> contents = getDatabase().queryForList(sql, ContentWithTotalCount.class, sqlVaragsParameters(parameters));
 
 		applyTagsToContents(contents, institutionId);
@@ -392,40 +389,6 @@ public class ContentService {
 				UUID.class, contentId);
 	}
 
-
-	/*
-	@Nonnull
-	private void sendAdminNotification(@Nonnull Account accountAddingContent,
-																		 @Nonnull AdminContent adminContent) {
-		List<Account> accountsToNotify = accountAddingContent.getRoleId() == RoleId.ADMINISTRATOR
-				? List.of() : getAccountService().findAdminAccountsForInstitution(accountAddingContent.getInstitutionId());
-
-		String date = adminContent.getDateCreated() == null ? getFormatter().formatDate(LocalDate.now(), FormatStyle.SHORT) : getFormatter().formatDate(adminContent.getDateCreated(), FormatStyle.SHORT);
-
-		getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
-			for (Account accountToNotify : accountsToNotify) {
-				if (accountToNotify.getEmailAddress() != null) {
-					EmailMessage emailMessage = new EmailMessage.Builder(accountToNotify.getInstitutionId(), EmailMessageTemplate.ADMIN_CMS_CONTENT_ADDED, accountToNotify.getLocale())
-							.toAddresses(List.of(accountToNotify.getEmailAddress()))
-							.messageContext(Map.of(
-									"adminAccountName", Normalizer.normalizeName(accountToNotify.getFirstName(), accountToNotify.getLastName()).orElse(getStrings().get("Anonymous User")),
-									"submittingAccountName", Normalizer.normalizeName(accountAddingContent.getFirstName(), accountAddingContent.getLastName()).orElse(getStrings().get("Anonymous User")),
-									"contentType", adminContent.getContentTypeId().name(),
-									"contentTitle", adminContent.getTitle(),
-									"contentAuthor", adminContent.getAuthor(),
-									"submissionDate", date,
-									"cmsListUrl", getLinkGenerator().generateCmsMyContentLink(accountToNotify.getInstitutionId(), UserExperienceTypeId.STAFF)
-							))
-							.build();
-
-					getEmailMessageManager().enqueueMessage(emailMessage);
-				}
-			}
-		});
-
-	}
-*/
-
 	private void tagContent(@Nonnull UUID contentId,
 													@Nonnull Map<UUID, List<SubmissionAnswer>> contentTags,
 													@Nonnull Boolean addToInstitution) {
@@ -436,15 +399,6 @@ public class ContentService {
 				getDatabase().execute("INSERT INTO answer_content (answer_content_id, answer_id, content_id) VALUES (?, ?,?)",
 						UUID.randomUUID(), answerId, contentId)
 		);
-	}
-
-	@Nonnull
-	public List<Content> findAdditionalContentForAccount(@Nonnull Account account,
-																											 @Nonnull List<Content> filteredContent) {
-		requireNonNull(account);
-		requireNonNull(filteredContent);
-
-		return findAdditionalContentForAccount(account, filteredContent, null, null, null);
 	}
 
 	@Nonnull

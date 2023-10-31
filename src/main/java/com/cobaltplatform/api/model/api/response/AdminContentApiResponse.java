@@ -188,6 +188,40 @@ public class AdminContentApiResponse {
 				.collect(Collectors.toList());
 	}
 
+
+	/*
+	@Nonnull
+	private void sendAdminNotification(@Nonnull Account accountAddingContent,
+																		 @Nonnull AdminContent adminContent) {
+		List<Account> accountsToNotify = accountAddingContent.getRoleId() == RoleId.ADMINISTRATOR
+				? List.of() : getAccountService().findAdminAccountsForInstitution(accountAddingContent.getInstitutionId());
+
+		String date = adminContent.getDateCreated() == null ? getFormatter().formatDate(LocalDate.now(), FormatStyle.SHORT) : getFormatter().formatDate(adminContent.getDateCreated(), FormatStyle.SHORT);
+
+		getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
+			for (Account accountToNotify : accountsToNotify) {
+				if (accountToNotify.getEmailAddress() != null) {
+					EmailMessage emailMessage = new EmailMessage.Builder(accountToNotify.getInstitutionId(), EmailMessageTemplate.ADMIN_CMS_CONTENT_ADDED, accountToNotify.getLocale())
+							.toAddresses(List.of(accountToNotify.getEmailAddress()))
+							.messageContext(Map.of(
+									"adminAccountName", Normalizer.normalizeName(accountToNotify.getFirstName(), accountToNotify.getLastName()).orElse(getStrings().get("Anonymous User")),
+									"submittingAccountName", Normalizer.normalizeName(accountAddingContent.getFirstName(), accountAddingContent.getLastName()).orElse(getStrings().get("Anonymous User")),
+									"contentType", adminContent.getContentTypeId().name(),
+									"contentTitle", adminContent.getTitle(),
+									"contentAuthor", adminContent.getAuthor(),
+									"submissionDate", date,
+									"cmsListUrl", getLinkGenerator().generateCmsMyContentLink(accountToNotify.getInstitutionId(), UserExperienceTypeId.STAFF)
+							))
+							.build();
+
+					getEmailMessageManager().enqueueMessage(emailMessage);
+				}
+			}
+		});
+
+	}
+*/
+
 	@Nonnull
 	public UUID getContentId() {
 		return contentId;
