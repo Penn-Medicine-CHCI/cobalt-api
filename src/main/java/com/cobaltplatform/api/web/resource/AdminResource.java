@@ -343,6 +343,18 @@ public class AdminResource {
 	}
 
 	@Nonnull
+	@DELETE("/admin/content/{contentId}/remove")
+	@AuthenticationRequired
+	public ApiResponse removeContent(@Nonnull @PathParameter UUID contentId){
+		Account account = getCurrentContext().getAccount().get();
+
+		getAdminContentService().removeContentFromInstitution(contentId, account);
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("contentId", contentId);
+		}});
+	}
+
+	@Nonnull
 	protected ContentService getContentService() {
 		return contentService;
 	}

@@ -428,8 +428,8 @@ public class AdminContentService {
 
 		if (content.getOwnerInstitutionId() == institutionId)
 			return true;
-		else return content.getContentStatusId().equals(ContentStatusId.LIVE) ||
-				content.getContentStatusId().equals(ContentStatusId.SCHEDULED) ||
+		else return (content.getContentStatusId().equals(ContentStatusId.LIVE) ||
+				content.getContentStatusId().equals(ContentStatusId.SCHEDULED)) &&
 				content.getSharedFlag() == true;
 
 	}
@@ -466,6 +466,28 @@ public class AdminContentService {
 				INSERT INTO institution_content (institution_content_id, institution_id, content_id) 
 				VALUES (?,?,?)
 				""", UUID.randomUUID(), account.getInstitutionId(), contentId);
+	}
+
+	@Nonnull
+	public void removeContentFromInstitution(@Nonnull UUID contentId,
+																					 @Nonnull Account account) {
+		requireNonNull(contentId);
+		requireNonNull(account);
+
+		ValidationException validationException = new ValidationException();
+		Optional<Content> content = getContentService().findContentById(contentId);
+
+		if (!content.isPresent()) {
+			validationException.add(new FieldError("contentId", getStrings().get("Content is not valid.")));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+				DELETE FROM institution_content 
+				WHERE institution_id=? AND content_id=?  				
+				""", account.getInstitutionId(), contentId);
 	}
 
 	@Nonnull
