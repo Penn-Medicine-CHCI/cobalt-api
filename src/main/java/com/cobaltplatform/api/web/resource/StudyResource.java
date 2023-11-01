@@ -24,10 +24,13 @@ import com.cobaltplatform.api.model.api.request.UpdateCheckInAction;
 import com.cobaltplatform.api.model.api.response.AccountCheckInApiResponse.AccountCheckInApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.StudyAccountApiResponse.StudyAccountApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AccountStudy;
 import com.cobaltplatform.api.model.db.CheckInStatusGroup.CheckInStatusGroupId;
+import com.cobaltplatform.api.model.db.EncryptionKeypair;
 import com.cobaltplatform.api.model.db.Study;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.StudyService;
+import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
@@ -36,6 +39,7 @@ import com.soklet.web.annotation.PathParameter;
 import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.RequestBody;
 import com.soklet.web.annotation.Resource;
+import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
 import org.slf4j.Logger;
@@ -63,14 +67,14 @@ import static java.util.Objects.requireNonNull;
 public class StudyResource {
 	@Nonnull
 	private final StudyService studyService;
-
+	@Nonnull
+	private final SystemService systemService;
 	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final Logger logger;
 	@Nonnull
 	private final AccountCheckInApiResponseFactory accountCheckInApiResponseFactory;
-
 	@Nonnull
 	private final StudyAccountApiResponseFactory studyAccountApiResponseFactory;
 	@Nonnull
@@ -78,17 +82,20 @@ public class StudyResource {
 
 	@Inject
 	public StudyResource(@Nonnull StudyService studyService,
+											 @Nonnull SystemService systemService,
 											 @Nonnull Provider<CurrentContext> currentContextProvider,
 											 @Nonnull AccountCheckInApiResponseFactory accountCheckInApiResponseFactory,
 											 @Nonnull StudyAccountApiResponseFactory studyAccountApiResponseFactory,
 											 @Nonnull RequestBodyParser requestBodyParser) {
 		requireNonNull(studyService);
+		requireNonNull(systemService);
 		requireNonNull(currentContextProvider);
 		requireNonNull(accountCheckInApiResponseFactory);
 		requireNonNull(requestBodyParser);
 		requireNonNull(studyAccountApiResponseFactory);
 
 		this.studyService = studyService;
+		this.systemService = systemService;
 		this.currentContextProvider = currentContextProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.accountCheckInApiResponseFactory = accountCheckInApiResponseFactory;
@@ -161,7 +168,10 @@ public class StudyResource {
 		if (study == null)
 			throw new NotFoundException();
 
-		// TODO: authorization check
+		AccountStudy accountStudy = getStudyService().findAccountStudyByAccountIdAndStudyId(account.getAccountId(), study.getStudyId()).orElse(null);
+
+		if (accountStudy == null)
+			throw new AuthorizationException();
 
 		// See format at https://github.com/onnela-lab/beiwe-backend/blob/main/api/mobile_api.py
 		//
@@ -175,7 +185,8 @@ public class StudyResource {
 		//    }
 		//
 
-		String clientPublicKey = "";
+		EncryptionKeypair encryptionKeypair = getSystemService().findEncryptionKeypairById(accountStudy.getEncryptionKeypairId()).get();
+		String clientPublicKey = encryptionKeypair.getPublicKeyAsString();
 
 		// Device Settings model is available at https://github.com/onnela-lab/beiwe-backend/blob/main/database/study_models.py
 		Map<String, Object> deviceSettings = new HashMap<>();
@@ -219,6 +230,11 @@ public class StudyResource {
 	@Nonnull
 	protected StudyService getStudyService() {
 		return this.studyService;
+	}
+
+	@Nonnull
+	protected SystemService getSystemService() {
+		return this.systemService;
 	}
 
 	@Nonnull

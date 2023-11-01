@@ -28,6 +28,7 @@ import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.CreateMarketingSiteOutreachRequest;
 import com.cobaltplatform.api.model.db.BetaFeature;
+import com.cobaltplatform.api.model.db.EncryptionKeypair;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PrivateKeyFormat.PrivateKeyFormatId;
 import com.cobaltplatform.api.model.db.Provider;
@@ -358,6 +359,18 @@ public class SystemService {
 				""", encryptionKeypairId, publicKeyAsString, privateKeyAsString, publicKeyFormatId, privateKeyFormatId, keySize);
 
 		return encryptionKeypairId;
+	}
+
+	@Nonnull
+	public Optional<EncryptionKeypair> findEncryptionKeypairById(@Nullable UUID encryptionKeypairId) {
+		if (encryptionKeypairId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM encryption_keypair
+				WHERE encryption_keypair_id=?
+				""", EncryptionKeypair.class, encryptionKeypairId);
 	}
 
 	@ThreadSafe

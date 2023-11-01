@@ -26,6 +26,7 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountCheckIn;
 import com.cobaltplatform.api.model.db.AccountCheckInAction;
 import com.cobaltplatform.api.model.db.AccountSource;
+import com.cobaltplatform.api.model.db.AccountStudy;
 import com.cobaltplatform.api.model.db.CheckInActionStatus.CheckInActionStatusId;
 import com.cobaltplatform.api.model.db.CheckInStatus.CheckInStatusId;
 import com.cobaltplatform.api.model.db.CheckInStatusGroup.CheckInStatusGroupId;
@@ -473,6 +474,20 @@ public class StudyService {
 						WHERE account_check_in_id = ?
 						""", CheckInStatusId.COMPLETE.toString(), completedDateTime, accountCheckInAction.get().getAccountCheckInId());
 			}
+	}
+
+	@Nonnull
+	public Optional<AccountStudy> findAccountStudyByAccountIdAndStudyId(@Nullable UUID accountId,
+																																			@Nullable UUID studyId) {
+		if (accountId == null || studyId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				  SELECT *
+				  FROM account_study
+				  WHERE account_id=?
+				  AND study_id=?
+				""", AccountStudy.class, accountId, studyId);
 	}
 
 	@Nonnull

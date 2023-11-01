@@ -374,7 +374,6 @@ public class AccountResource {
 		Account account = getAccountService().findAccountByAccessToken(accessToken).get();
 
 		Boolean passwordResetRequired = account.getPasswordResetRequired();
-		final String finalAccessToken = passwordResetRequired ? null : accessToken;
 
 		if (passwordResetRequired) {
 			accessToken = null;
@@ -383,6 +382,8 @@ public class AccountResource {
 		}
 
 		Account finalAccount = account;
+		String finalAccessToken = accessToken;
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("account", getAccountApiResponseFactory().create(finalAccount));
 			put("accessToken", finalAccessToken);
