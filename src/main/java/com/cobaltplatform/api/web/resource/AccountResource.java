@@ -489,7 +489,9 @@ public class AccountResource {
 			setGroupSessionStatusId(GroupSessionStatusId.ADDED);
 			setInstitutionId(account.getInstitutionId());
 			setOrderBy(OrderBy.START_TIME_DESCENDING);
-		}}).getResults());
+		}}).getResults()).stream()
+				.filter(groupSession -> groupSession.getVisibleFlag() != null & groupSession.getVisibleFlag())
+				.collect(Collectors.toList());
 
 		// Don't show too many events
 		if (groupSessions.size() > MAXIMUM_GROUP_SESSIONS)
