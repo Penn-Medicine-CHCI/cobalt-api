@@ -291,9 +291,27 @@ public class GroupSessionApiResponse {
 			this.endTimeDescription = null;
 		}
 
-		this.appointmentTimeDescription = hasStartEndTime ? AppointmentTimeFormatter.createTimeDescription(groupSession.getStartDateTime(), groupSession.getEndDateTime(), groupSession.getTimeZone()) : null;
-		this.durationInMinutes = hasStartEndTime ? (int) Duration.between(startDateTime, endDateTime).
-				toMinutes() : 0;
+		String appointmentTimeDescription;
+
+		if (groupSession.getSingleSessionFlag()) {
+			// e.g. Thu Nov 16 @ 12:00am-12:00am
+			appointmentTimeDescription = hasStartEndTime ? AppointmentTimeFormatter.createTimeDescription(groupSession.getStartDateTime(), groupSession.getEndDateTime(), groupSession.getTimeZone()) : null;
+		} else {
+			// Recurring sessions
+			if (hasStartEndTime) {
+				// "dateTimeDescription" is whatever the user specifies in free-form input
+				if (groupSession.getDateTimeDescription() != null)
+					appointmentTimeDescription = String.format("%s (%s)", AppointmentTimeFormatter.createDateDescription(this.startDate, this.endDate), groupSession.getDateTimeDescription());
+				else
+					appointmentTimeDescription = AppointmentTimeFormatter.createDateDescription(this.startDate, this.endDate);
+			} else {
+				appointmentTimeDescription = groupSession.getDateTimeDescription();
+			}
+		}
+
+		this.appointmentTimeDescription = appointmentTimeDescription;
+
+		this.durationInMinutes = hasStartEndTime ? (int) Duration.between(startDateTime, endDateTime).toMinutes() : 0;
 		this.durationInMinutesDescription = hasStartEndTime ? strings.get("{{duration}} minutes", new HashMap<String, Object>() {
 			{
 				put("duration", durationInMinutes);
