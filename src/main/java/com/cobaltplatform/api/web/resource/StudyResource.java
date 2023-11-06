@@ -28,10 +28,15 @@ import com.cobaltplatform.api.model.db.AccountStudy;
 import com.cobaltplatform.api.model.db.CheckInStatusGroup.CheckInStatusGroupId;
 import com.cobaltplatform.api.model.db.EncryptionKeypair;
 import com.cobaltplatform.api.model.db.Study;
+import com.cobaltplatform.api.model.db.StudyBeiweConfig;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.StudyService;
 import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
+import com.google.gson.FieldNamingPolicy;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.PUT;
@@ -188,8 +193,27 @@ public class StudyResource {
 		EncryptionKeypair encryptionKeypair = getSystemService().findEncryptionKeypairById(accountStudy.getEncryptionKeypairId()).get();
 		String clientPublicKey = encryptionKeypair.getPublicKeyAsString();
 
+		// It's programmer error if this does not exist for a study.
+		// Clients will only call this endpoint if they are using Beiwe
+		StudyBeiweConfig studyBeiweConfig = getStudyService().findStudyBeiweConfigByStudyId(study.getStudyId()).get();
+
+		Gson gson = new GsonBuilder()
+				.disableHtmlEscaping()
+				.setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
+				.create();
+
+		String studyBeiweConfigAsJson = gson.toJson(studyBeiweConfig);
+
 		// Device Settings model is available at https://github.com/onnela-lab/beiwe-backend/blob/main/database/study_models.py
-		Map<String, Object> deviceSettings = new HashMap<>();
+		Map<String, Object> deviceSettings = gson.fromJson(studyBeiweConfigAsJson, new TypeToken<Map<String, Object>>() {
+		}.getType());
+
+		// There are some internal fields unrelated to Beiwe on this record we don't need to expose
+		deviceSettings.remove("study_beiwe_config_id");
+		deviceSettings.remove("study_id");
+		deviceSettings.remove("consent_sections_as_string");
+		deviceSettings.remove("created");
+		deviceSettings.remove("last_updated");
 
 		//     # set up FCM files
 		//    firebase_plist_data = None

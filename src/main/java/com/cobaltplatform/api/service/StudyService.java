@@ -32,6 +32,7 @@ import com.cobaltplatform.api.model.db.CheckInStatus.CheckInStatusId;
 import com.cobaltplatform.api.model.db.CheckInStatusGroup.CheckInStatusGroupId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Study;
+import com.cobaltplatform.api.model.db.StudyBeiweConfig;
 import com.cobaltplatform.api.model.db.StudyCheckIn;
 import com.cobaltplatform.api.model.service.StudyAccount;
 import com.cobaltplatform.api.util.Authenticator;
@@ -488,6 +489,18 @@ public class StudyService {
 				  WHERE account_id=?
 				  AND study_id=?
 				""", AccountStudy.class, accountId, studyId);
+	}
+
+	@Nonnull
+	public Optional<StudyBeiweConfig> findStudyBeiweConfigByStudyId(@Nullable UUID studyId) {
+		if (studyId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+					SELECT *
+					FROM study_beiwe_config
+					WHERE study_id=?
+				""", StudyBeiweConfig.class, studyId);
 	}
 
 	@Nonnull

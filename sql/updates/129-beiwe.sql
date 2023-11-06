@@ -61,7 +61,7 @@ ALTER TABLE account_study ALTER COLUMN encryption_keypair_id SET NOT NULL;
 -- https://github.com/onnela-lab/beiwe-backend/blob/main/constants/study_constants.py
 
 CREATE TABLE study_beiwe_config (
-  study_beiwe_config_id UUID NOT NULL PRIMARY KEY,
+  study_beiwe_config_id UUID NOT NULL PRIMARY KEY DEFAULT uuid_generate_v4(),
   study_id UUID NOT NULL REFERENCES study,
 
   -- ** BEIWE START **
@@ -181,5 +181,8 @@ VALUES ('924fb45d-804d-453d-8dc2-bbc11d4dc9d8', 'COBALT', 'Cobalt Test Study', 2
 -- Permit USERNAME accounts in COBALT institution
 insert into institution_account_source (institution_account_source_id, institution_id, account_source_id, account_source_display_style_id, display_order, authentication_description, visible)
 values (uuid_generate_v4(), 'COBALT', 'USERNAME', 'TERTIARY', 4, 'Username and Password', FALSE);
+
+-- Add a Beiwe config for each existing study
+INSERT INTO study_beiwe_config (study_id) SELECT study_id FROM study;
 
 COMMIT;
