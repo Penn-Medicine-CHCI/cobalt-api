@@ -106,6 +106,14 @@ public class GroupSessionApiResponse {
 	@Nullable
 	private final String endTimeDescription;
 	@Nullable
+	private final LocalDate startDate;
+	@Nullable
+	private final String startDateDescription;
+	@Nullable
+	private final LocalDate endDate;
+	@Nullable
+	private final String endDateDescription;
+	@Nullable
 	private final LocalDateTime startDateTime;
 	@Nullable
 	private final String startDateTimeDescription;
@@ -260,17 +268,25 @@ public class GroupSessionApiResponse {
 			this.endDateTimeDescription = null;
 
 		if (this.startDateTime != null) {
+			this.startDate = this.startDateTime.toLocalDate();
+			this.startDateDescription = formatter.formatDate(this.startDate, FormatStyle.LONG);
 			this.startTime = this.startDateTime.toLocalTime();
 			this.startTimeDescription = formatter.formatTime(this.startTime, FormatStyle.SHORT);
 		} else {
+			this.startDate = null;
+			this.startDateDescription = null;
 			this.startTime = null;
 			this.startTimeDescription = null;
 		}
 
 		if (this.endDateTime != null) {
+			this.endDate = this.endDateTime.toLocalDate();
+			this.endDateDescription = formatter.formatDate(this.endDate, FormatStyle.LONG);
 			this.endTime = this.endDateTime.toLocalTime();
 			this.endTimeDescription = formatter.formatTime(this.endTime, FormatStyle.SHORT);
 		} else {
+			this.endDate = null;
+			this.endDateDescription = null;
 			this.endTime = null;
 			this.endTimeDescription = null;
 		}
