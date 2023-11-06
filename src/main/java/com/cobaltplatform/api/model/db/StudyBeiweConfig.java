@@ -19,15 +19,35 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
+import com.pyranid.DatabaseColumn;
+
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
+
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
 public class StudyBeiweConfig {
+	@Nonnull
+	private static final Gson GSON;
+
+	static {
+		GSON = new GsonBuilder()
+				.setPrettyPrinting()
+				.disableHtmlEscaping()
+				.create();
+	}
+
 	@Nullable
 	private UUID studyBeiweConfigId;
 	@Nullable
@@ -62,99 +82,587 @@ public class StudyBeiweConfig {
 
 	// Whether iOS-specific data streams are turned on
 
+	@Nullable
+	private Boolean proximity;
+	@Nullable
+	private Boolean gyro;
+	@Nullable
+	private Boolean magnetometer;
+	@Nullable
+	private Boolean devicemotion;
+	@Nullable
+	private Boolean reachability;
 
-	/*
+	// Upload over cellular data or only over WiFi (WiFi-only is default)
 
+	@Nullable
+	private Boolean allowUploadOverCellularData;
 
+	// Timer variables
 
-  -- Whether iOS-specific data streams are turned on
-  proximity BOOLEAN NOT NULL DEFAULT FALSE,
-  gyro BOOLEAN NOT NULL DEFAULT FALSE, -- not ios-specific anymore
-  magnetometer BOOLEAN NOT NULL DEFAULT FALSE, -- not ios-specific anymore
-  devicemotion BOOLEAN NOT NULL DEFAULT FALSE,
-  reachability BOOLEAN NOT NULL DEFAULT TRUE,
+	@Nullable
+	private Integer accelerometerOffDurationSeconds;
 
-  -- Upload over cellular data or only over WiFi (WiFi-only is default)
-  allow_upload_over_cellular_data BOOLEAN NOT NULL DEFAULT FALSE,
+	@Nullable
+	private Integer accelerometerOnDurationSeconds;
+	@Nullable
+	private Integer accelerometerFrequency;
+	@Nullable
+	private Integer ambientAudioOffDurationSeconds;
+	@Nullable
+	private Integer ambientAudioOnDurationSeconds;
+	@Nullable
+	private Integer ambientAudioBitrate;
+	@Nullable
+	private Integer ambientAudioSamplingRate;
+	@Nullable
+	private Integer bluetoothOnDurationSeconds;
+	@Nullable
+	private Integer bluetoothTotalDurationSeconds;
+	@Nullable
+	private Integer bluetoothGlobalOffsetSeconds;
+	@Nullable
+	private Integer checkForNewSurveysFrequencySeconds;
+	@Nullable
+	private Integer createNewDataFilesFrequencySeconds;
+	@Nullable
+	private Integer gpsOffDurationSeconds;
+	@Nullable
+	private Integer gpsOnDurationSeconds;
+	@Nullable
+	private Integer secondsBeforeAutoLogout;
+	@Nullable
+	private Integer uploadDataFilesFrequencySeconds;
+	@Nullable
+	private Integer voiceRecordingMaxTimeLengthSeconds;
+	@Nullable
+	private Integer wifiLogFrequencySeconds;
+	@Nullable
+	private Integer gyroOffDurationSeconds;
+	@Nullable
+	private Integer gyroOnDurationSeconds;
+	@Nullable
+	private Integer gyroFrequency;
 
-  -- Timer variables
-  accelerometer_off_duration_seconds INTEGER NOT NULL DEFAULT 10, -- min 1
-  accelerometer_on_duration_seconds INTEGER NOT NULL DEFAULT 10, -- min 1
-  accelerometer_frequency INTEGER NOT NULL DEFAULT 10, -- min 1
-  ambient_audio_off_duration_seconds INTEGER NOT NULL DEFAULT 600, -- min 1
-  ambient_audio_on_duration_seconds INTEGER NOT NULL DEFAULT 600, -- min 1
-  ambient_audio_bitrate INTEGER NOT NULL DEFAULT 24000, -- min 16000
-  ambient_audio_sampling_rate INTEGER NOT NULL DEFAULT 44100, -- min 16000
-  bluetooth_on_duration_seconds INTEGER NOT NULL DEFAULT 60, -- min 1
-  bluetooth_total_duration_seconds INTEGER NOT NULL DEFAULT 300, -- min 1
-  bluetooth_global_offset_seconds INTEGER NOT NULL DEFAULT 0,
-  check_for_new_surveys_frequency_seconds INTEGER NOT NULL DEFAULT 3600, -- min 30
-  create_new_data_files_frequency_seconds INTEGER NOT NULL DEFAULT 900, -- min 30
-  gps_off_duration_seconds INTEGER NOT NULL DEFAULT 600, -- min 1
-  gps_on_duration_seconds INTEGER NOT NULL DEFAULT 60, -- min 1
-  seconds_before_auto_logout INTEGER NOT NULL DEFAULT 600, -- min 1
-  upload_data_files_frequency_seconds INTEGER NOT NULL DEFAULT 3600, -- min 10
-  voice_recording_max_time_length_seconds INTEGER NOT NULL DEFAULT 240,
-  wifi_log_frequency_seconds INTEGER NOT NULL DEFAULT 300, -- min 10
-  gyro_off_duration_seconds INTEGER NOT NULL DEFAULT 600, -- min 1
-  gyro_on_duration_seconds INTEGER NOT NULL DEFAULT 60, -- min 1
-  gyro_frequency INTEGER NOT NULL DEFAULT 10, -- min 1
+	// iOS-specific timer variables
 
-  -- iOS-specific timer variables
-  magnetometer_off_duration_seconds INTEGER NOT NULL DEFAULT 600, -- min 1
-  magnetometer_on_duration_seconds INTEGER NOT NULL DEFAULT 60, -- min 1
-  devicemotion_off_duration_seconds INTEGER NOT NULL DEFAULT 600, -- min 1
-  devicemotion_on_duration_seconds INTEGER NOT NULL DEFAULT 60, -- min 1
+	@Nullable
+	private Integer magnetometerOffDurationSeconds;
+	@Nullable
+	private Integer magnetometerOnDurationSeconds;
+	@Nullable
+	private Integer devicemotionOffDurationSeconds;
+	@Nullable
+	private Integer devicemotionOnDurationSeconds;
 
-  -- Text strings
-  about_page_text TEXT NOT NULL DEFAULT 'Placeholder About Page text',
-  call_clinician_button_text TEXT NOT NULL DEFAULT 'Call My Clinician',
-  consent_form_text TEXT NOT NULL DEFAULT 'I have read and understood the information about the study and all of my questions about the study have been answered by the study researchers.',
-  survey_submit_success_toast_text TEXT NOT NULL DEFAULT 'Thank you for completing the survey.',
+	// Text strings
 
-  -- Consent sections
-  consent_sections JSONB NOT NULL DEFAULT '
-{
-    "welcome": {
-        "text": "",
-        "more": ""
-    },
-    "data_gathering": {
-        "text": "",
-        "more": ""
-    },
-    "privacy": {
-        "text": "",
-        "more": ""
-    },
-    "data_use": {
-        "text": "",
-        "more": ""
-    },
-    "time_commitment": {
-        "text": "",
-        "more": ""
-    },
-    "study_survey": {
-        "text": "",
-        "more": ""
-    },
-    "study_tasks": {
-        "text": "",
-        "more": ""
-    },
-    "withdrawing": {
-        "text": "",
-        "more": ""
-    }
-}
-'::JSONB,
+	@Nullable
+	private String aboutPageText;
+	@Nullable
+	private String callClinicianButtonText;
+	@Nullable
+	private String consentFormText;
+	@Nullable
+	private String surveySubmitSuccessToastText;
 
-  -- ** BEIWE END **
+	// Consent sections
 
-	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+	@Nullable
+	@DatabaseColumn("consent_sections")
+	private String consentSectionsAsString;
+	@Nullable
+	private Map<String, Object> consentSections;
 
-	 */
+	@Nullable
+	private Instant created;
+	@Nullable
+	private Instant lastUpdated;
 
+	// Special accessors/mutators
+
+	@Nonnull
+	protected Gson getGson() {
+		return GSON;
+	}
+
+	@Nullable
+	public String getConsentSectionsAsString() {
+		return this.consentSectionsAsString;
+	}
+
+	public void setConsentSectionsAsString(@Nullable String consentSectionsAsString) {
+		this.consentSectionsAsString = consentSectionsAsString;
+
+		String consentSections = trimToNull(consentSectionsAsString);
+		this.consentSections = consentSections == null ? Map.of() : getGson().fromJson(consentSections, new TypeToken<Map<String, Object>>() {
+		}.getType());
+	}
+
+	// No corresponding setter.  Value is driven by #setConsentSectionsAsString above
+	@Nonnull
+	public Map<String, Object> getConsentSections() {
+		return this.consentSections;
+	}
+
+	// Remaining accessors/mutators
+
+	@Nullable
+	public UUID getStudyBeiweConfigId() {
+		return this.studyBeiweConfigId;
+	}
+
+	public void setStudyBeiweConfigId(@Nullable UUID studyBeiweConfigId) {
+		this.studyBeiweConfigId = studyBeiweConfigId;
+	}
+
+	@Nullable
+	public UUID getStudyId() {
+		return this.studyId;
+	}
+
+	public void setStudyId(@Nullable UUID studyId) {
+		this.studyId = studyId;
+	}
+
+	@Nullable
+	public Boolean getAccelerometer() {
+		return this.accelerometer;
+	}
+
+	public void setAccelerometer(@Nullable Boolean accelerometer) {
+		this.accelerometer = accelerometer;
+	}
+
+	@Nullable
+	public Boolean getGps() {
+		return this.gps;
+	}
+
+	public void setGps(@Nullable Boolean gps) {
+		this.gps = gps;
+	}
+
+	@Nullable
+	public Boolean getCalls() {
+		return this.calls;
+	}
+
+	public void setCalls(@Nullable Boolean calls) {
+		this.calls = calls;
+	}
+
+	@Nullable
+	public Boolean getTexts() {
+		return this.texts;
+	}
+
+	public void setTexts(@Nullable Boolean texts) {
+		this.texts = texts;
+	}
+
+	@Nullable
+	public Boolean getWifi() {
+		return this.wifi;
+	}
+
+	public void setWifi(@Nullable Boolean wifi) {
+		this.wifi = wifi;
+	}
+
+	@Nullable
+	public Boolean getBluetooth() {
+		return this.bluetooth;
+	}
+
+	public void setBluetooth(@Nullable Boolean bluetooth) {
+		this.bluetooth = bluetooth;
+	}
+
+	@Nullable
+	public Boolean getPowerState() {
+		return this.powerState;
+	}
+
+	public void setPowerState(@Nullable Boolean powerState) {
+		this.powerState = powerState;
+	}
+
+	@Nullable
+	public Boolean getUseAnonymizedHashing() {
+		return this.useAnonymizedHashing;
+	}
+
+	public void setUseAnonymizedHashing(@Nullable Boolean useAnonymizedHashing) {
+		this.useAnonymizedHashing = useAnonymizedHashing;
+	}
+
+	@Nullable
+	public Boolean getUseGpsFuzzing() {
+		return this.useGpsFuzzing;
+	}
+
+	public void setUseGpsFuzzing(@Nullable Boolean useGpsFuzzing) {
+		this.useGpsFuzzing = useGpsFuzzing;
+	}
+
+	@Nullable
+	public Boolean getCallClinicianButtonEnabled() {
+		return this.callClinicianButtonEnabled;
+	}
+
+	public void setCallClinicianButtonEnabled(@Nullable Boolean callClinicianButtonEnabled) {
+		this.callClinicianButtonEnabled = callClinicianButtonEnabled;
+	}
+
+	@Nullable
+	public Boolean getCallResearchAssistantButtonEnabled() {
+		return this.callResearchAssistantButtonEnabled;
+	}
+
+	public void setCallResearchAssistantButtonEnabled(@Nullable Boolean callResearchAssistantButtonEnabled) {
+		this.callResearchAssistantButtonEnabled = callResearchAssistantButtonEnabled;
+	}
+
+	@Nullable
+	public Boolean getAmbientAudio() {
+		return this.ambientAudio;
+	}
+
+	public void setAmbientAudio(@Nullable Boolean ambientAudio) {
+		this.ambientAudio = ambientAudio;
+	}
+
+	@Nullable
+	public Boolean getProximity() {
+		return this.proximity;
+	}
+
+	public void setProximity(@Nullable Boolean proximity) {
+		this.proximity = proximity;
+	}
+
+	@Nullable
+	public Boolean getGyro() {
+		return this.gyro;
+	}
+
+	public void setGyro(@Nullable Boolean gyro) {
+		this.gyro = gyro;
+	}
+
+	@Nullable
+	public Boolean getMagnetometer() {
+		return this.magnetometer;
+	}
+
+	public void setMagnetometer(@Nullable Boolean magnetometer) {
+		this.magnetometer = magnetometer;
+	}
+
+	@Nullable
+	public Boolean getDevicemotion() {
+		return this.devicemotion;
+	}
+
+	public void setDevicemotion(@Nullable Boolean devicemotion) {
+		this.devicemotion = devicemotion;
+	}
+
+	@Nullable
+	public Boolean getReachability() {
+		return this.reachability;
+	}
+
+	public void setReachability(@Nullable Boolean reachability) {
+		this.reachability = reachability;
+	}
+
+	@Nullable
+	public Boolean getAllowUploadOverCellularData() {
+		return this.allowUploadOverCellularData;
+	}
+
+	public void setAllowUploadOverCellularData(@Nullable Boolean allowUploadOverCellularData) {
+		this.allowUploadOverCellularData = allowUploadOverCellularData;
+	}
+
+	@Nullable
+	public Integer getAccelerometerOffDurationSeconds() {
+		return this.accelerometerOffDurationSeconds;
+	}
+
+	public void setAccelerometerOffDurationSeconds(@Nullable Integer accelerometerOffDurationSeconds) {
+		this.accelerometerOffDurationSeconds = accelerometerOffDurationSeconds;
+	}
+
+	@Nullable
+	public Integer getAccelerometerOnDurationSeconds() {
+		return this.accelerometerOnDurationSeconds;
+	}
+
+	public void setAccelerometerOnDurationSeconds(@Nullable Integer accelerometerOnDurationSeconds) {
+		this.accelerometerOnDurationSeconds = accelerometerOnDurationSeconds;
+	}
+
+	@Nullable
+	public Integer getAccelerometerFrequency() {
+		return this.accelerometerFrequency;
+	}
+
+	public void setAccelerometerFrequency(@Nullable Integer accelerometerFrequency) {
+		this.accelerometerFrequency = accelerometerFrequency;
+	}
+
+	@Nullable
+	public Integer getAmbientAudioOffDurationSeconds() {
+		return this.ambientAudioOffDurationSeconds;
+	}
+
+	public void setAmbientAudioOffDurationSeconds(@Nullable Integer ambientAudioOffDurationSeconds) {
+		this.ambientAudioOffDurationSeconds = ambientAudioOffDurationSeconds;
+	}
+
+	@Nullable
+	public Integer getAmbientAudioOnDurationSeconds() {
+		return this.ambientAudioOnDurationSeconds;
+	}
+
+	public void setAmbientAudioOnDurationSeconds(@Nullable Integer ambientAudioOnDurationSeconds) {
+		this.ambientAudioOnDurationSeconds = ambientAudioOnDurationSeconds;
+	}
+
+	@Nullable
+	public Integer getAmbientAudioBitrate() {
+		return this.ambientAudioBitrate;
+	}
+
+	public void setAmbientAudioBitrate(@Nullable Integer ambientAudioBitrate) {
+		this.ambientAudioBitrate = ambientAudioBitrate;
+	}
+
+	@Nullable
+	public Integer getAmbientAudioSamplingRate() {
+		return this.ambientAudioSamplingRate;
+	}
+
+	public void setAmbientAudioSamplingRate(@Nullable Integer ambientAudioSamplingRate) {
+		this.ambientAudioSamplingRate = ambientAudioSamplingRate;
+	}
+
+	@Nullable
+	public Integer getBluetoothOnDurationSeconds() {
+		return this.bluetoothOnDurationSeconds;
+	}
+
+	public void setBluetoothOnDurationSeconds(@Nullable Integer bluetoothOnDurationSeconds) {
+		this.bluetoothOnDurationSeconds = bluetoothOnDurationSeconds;
+	}
+
+	@Nullable
+	public Integer getBluetoothTotalDurationSeconds() {
+		return this.bluetoothTotalDurationSeconds;
+	}
+
+	public void setBluetoothTotalDurationSeconds(@Nullable Integer bluetoothTotalDurationSeconds) {
+		this.bluetoothTotalDurationSeconds = bluetoothTotalDurationSeconds;
+	}
+
+	@Nullable
+	public Integer getBluetoothGlobalOffsetSeconds() {
+		return this.bluetoothGlobalOffsetSeconds;
+	}
+
+	public void setBluetoothGlobalOffsetSeconds(@Nullable Integer bluetoothGlobalOffsetSeconds) {
+		this.bluetoothGlobalOffsetSeconds = bluetoothGlobalOffsetSeconds;
+	}
+
+	@Nullable
+	public Integer getCheckForNewSurveysFrequencySeconds() {
+		return this.checkForNewSurveysFrequencySeconds;
+	}
+
+	public void setCheckForNewSurveysFrequencySeconds(@Nullable Integer checkForNewSurveysFrequencySeconds) {
+		this.checkForNewSurveysFrequencySeconds = checkForNewSurveysFrequencySeconds;
+	}
+
+	@Nullable
+	public Integer getCreateNewDataFilesFrequencySeconds() {
+		return this.createNewDataFilesFrequencySeconds;
+	}
+
+	public void setCreateNewDataFilesFrequencySeconds(@Nullable Integer createNewDataFilesFrequencySeconds) {
+		this.createNewDataFilesFrequencySeconds = createNewDataFilesFrequencySeconds;
+	}
+
+	@Nullable
+	public Integer getGpsOffDurationSeconds() {
+		return this.gpsOffDurationSeconds;
+	}
+
+	public void setGpsOffDurationSeconds(@Nullable Integer gpsOffDurationSeconds) {
+		this.gpsOffDurationSeconds = gpsOffDurationSeconds;
+	}
+
+	@Nullable
+	public Integer getGpsOnDurationSeconds() {
+		return this.gpsOnDurationSeconds;
+	}
+
+	public void setGpsOnDurationSeconds(@Nullable Integer gpsOnDurationSeconds) {
+		this.gpsOnDurationSeconds = gpsOnDurationSeconds;
+	}
+
+	@Nullable
+	public Integer getSecondsBeforeAutoLogout() {
+		return this.secondsBeforeAutoLogout;
+	}
+
+	public void setSecondsBeforeAutoLogout(@Nullable Integer secondsBeforeAutoLogout) {
+		this.secondsBeforeAutoLogout = secondsBeforeAutoLogout;
+	}
+
+	@Nullable
+	public Integer getUploadDataFilesFrequencySeconds() {
+		return this.uploadDataFilesFrequencySeconds;
+	}
+
+	public void setUploadDataFilesFrequencySeconds(@Nullable Integer uploadDataFilesFrequencySeconds) {
+		this.uploadDataFilesFrequencySeconds = uploadDataFilesFrequencySeconds;
+	}
+
+	@Nullable
+	public Integer getVoiceRecordingMaxTimeLengthSeconds() {
+		return this.voiceRecordingMaxTimeLengthSeconds;
+	}
+
+	public void setVoiceRecordingMaxTimeLengthSeconds(@Nullable Integer voiceRecordingMaxTimeLengthSeconds) {
+		this.voiceRecordingMaxTimeLengthSeconds = voiceRecordingMaxTimeLengthSeconds;
+	}
+
+	@Nullable
+	public Integer getWifiLogFrequencySeconds() {
+		return this.wifiLogFrequencySeconds;
+	}
+
+	public void setWifiLogFrequencySeconds(@Nullable Integer wifiLogFrequencySeconds) {
+		this.wifiLogFrequencySeconds = wifiLogFrequencySeconds;
+	}
+
+	@Nullable
+	public Integer getGyroOffDurationSeconds() {
+		return this.gyroOffDurationSeconds;
+	}
+
+	public void setGyroOffDurationSeconds(@Nullable Integer gyroOffDurationSeconds) {
+		this.gyroOffDurationSeconds = gyroOffDurationSeconds;
+	}
+
+	@Nullable
+	public Integer getGyroOnDurationSeconds() {
+		return this.gyroOnDurationSeconds;
+	}
+
+	public void setGyroOnDurationSeconds(@Nullable Integer gyroOnDurationSeconds) {
+		this.gyroOnDurationSeconds = gyroOnDurationSeconds;
+	}
+
+	@Nullable
+	public Integer getGyroFrequency() {
+		return this.gyroFrequency;
+	}
+
+	public void setGyroFrequency(@Nullable Integer gyroFrequency) {
+		this.gyroFrequency = gyroFrequency;
+	}
+
+	@Nullable
+	public Integer getMagnetometerOffDurationSeconds() {
+		return this.magnetometerOffDurationSeconds;
+	}
+
+	public void setMagnetometerOffDurationSeconds(@Nullable Integer magnetometerOffDurationSeconds) {
+		this.magnetometerOffDurationSeconds = magnetometerOffDurationSeconds;
+	}
+
+	@Nullable
+	public Integer getMagnetometerOnDurationSeconds() {
+		return this.magnetometerOnDurationSeconds;
+	}
+
+	public void setMagnetometerOnDurationSeconds(@Nullable Integer magnetometerOnDurationSeconds) {
+		this.magnetometerOnDurationSeconds = magnetometerOnDurationSeconds;
+	}
+
+	@Nullable
+	public Integer getDevicemotionOffDurationSeconds() {
+		return this.devicemotionOffDurationSeconds;
+	}
+
+	public void setDevicemotionOffDurationSeconds(@Nullable Integer devicemotionOffDurationSeconds) {
+		this.devicemotionOffDurationSeconds = devicemotionOffDurationSeconds;
+	}
+
+	@Nullable
+	public Integer getDevicemotionOnDurationSeconds() {
+		return this.devicemotionOnDurationSeconds;
+	}
+
+	public void setDevicemotionOnDurationSeconds(@Nullable Integer devicemotionOnDurationSeconds) {
+		this.devicemotionOnDurationSeconds = devicemotionOnDurationSeconds;
+	}
+
+	@Nullable
+	public String getAboutPageText() {
+		return this.aboutPageText;
+	}
+
+	public void setAboutPageText(@Nullable String aboutPageText) {
+		this.aboutPageText = aboutPageText;
+	}
+
+	@Nullable
+	public String getCallClinicianButtonText() {
+		return this.callClinicianButtonText;
+	}
+
+	public void setCallClinicianButtonText(@Nullable String callClinicianButtonText) {
+		this.callClinicianButtonText = callClinicianButtonText;
+	}
+
+	@Nullable
+	public String getConsentFormText() {
+		return this.consentFormText;
+	}
+
+	public void setConsentFormText(@Nullable String consentFormText) {
+		this.consentFormText = consentFormText;
+	}
+
+	@Nullable
+	public String getSurveySubmitSuccessToastText() {
+		return this.surveySubmitSuccessToastText;
+	}
+
+	public void setSurveySubmitSuccessToastText(@Nullable String surveySubmitSuccessToastText) {
+		this.surveySubmitSuccessToastText = surveySubmitSuccessToastText;
+	}
+
+	@Nullable
+	public Instant getCreated() {
+		return this.created;
+	}
+
+	public void setCreated(@Nullable Instant created) {
+		this.created = created;
+	}
+
+	@Nullable
+	public Instant getLastUpdated() {
+		return this.lastUpdated;
+	}
+
+	public void setLastUpdated(@Nullable Instant lastUpdated) {
+		this.lastUpdated = lastUpdated;
+	}
 }
