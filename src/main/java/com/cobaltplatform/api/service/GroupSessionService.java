@@ -930,8 +930,8 @@ public class GroupSessionService implements AutoCloseable {
 		requireNonNull(urlName);
 		requireNonNull(institutionId);
 
-		String recommendedUrlName = null;
-		boolean suggestedUrlAvailable = false;
+		String recommendedUrlName = urlName;
+		boolean suggestedUrlAvailable = !urlNameExistsForInstitutionId(recommendedUrlName, institutionId, groupSessionId);
 		int urlSuffix = 1;
 
 		while (!suggestedUrlAvailable) {
