@@ -32,6 +32,7 @@ import com.cobaltplatform.api.messaging.MessageSender;
 import com.cobaltplatform.api.messaging.call.CallMessage;
 import com.cobaltplatform.api.messaging.call.CallMessageSerializer;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
+import com.cobaltplatform.api.messaging.email.EmailMessageContextKey;
 import com.cobaltplatform.api.messaging.email.EmailMessageSerializer;
 import com.cobaltplatform.api.messaging.sms.SmsMessage;
 import com.cobaltplatform.api.messaging.sms.SmsMessageSerializer;
@@ -54,6 +55,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import com.pyranid.Transaction;
+import org.apache.commons.lang3.ObjectUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,6 +84,7 @@ import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -298,10 +301,11 @@ public class MessageService implements AutoCloseable {
 			Map<String, Object> messageContext = new HashMap<>(customizedEmailMessage.getMessageContext()); // Mutable copy
 
 			// e.g. https://cobaltplatform.s3.us-east-2.amazonaws.com/local/emails/button-start-appointment@2x.jpg
-			messageContext.put("staticFileUrlPrefix", format("https://%s.s3.%s.amazonaws.com/%s/emails",
-					getConfiguration().getAmazonS3BucketName(), getConfiguration().getAmazonS3Region().id(), getConfiguration().getEnvironment()));
+			String staticFileUrlPrefix = format("https://%s.s3.%s.amazonaws.com/%s/emails",
+					getConfiguration().getAmazonS3BucketName(), getConfiguration().getAmazonS3Region().id(), getConfiguration().getEnvironment());
+
+			messageContext.put("staticFileUrlPrefix", staticFileUrlPrefix);
 			messageContext.put("copyrightYear", LocalDateTime.now(institution.getTimeZone()).getYear());
-			messageContext.put("supportEmailAddress", institution.getSupportEmailAddress());
 
 			// e.g. "p900" -> "#FEA123"
 			Map<String, String> cssColorRepresentationsByName = institutionColorValues.stream()
@@ -312,6 +316,30 @@ public class MessageService implements AutoCloseable {
 					);
 
 			messageContext.put("colors", cssColorRepresentationsByName);
+
+			// Platform name (optionally overridable)
+			String platformName = ObjectUtils.firstNonNull(
+					trimToNull((String) messageContext.get(EmailMessageContextKey.OVERRIDE_PLATFORM_NAME.name())),
+					getStrings().get("Cobalt")
+			);
+
+			messageContext.put("platformName", platformName);
+
+			// Support email address (optionally overridable)
+			String supportEmailAddress = ObjectUtils.firstNonNull(
+					trimToNull((String) messageContext.get(EmailMessageContextKey.OVERRIDE_PLATFORM_SUPPORT_EMAIL_ADDRESS.name())),
+					institution.getSupportEmailAddress()
+			);
+
+			messageContext.put("supportEmailAddress", supportEmailAddress);
+
+			// Support email address (optionally overridable)
+			String platformEmailImageUrl = ObjectUtils.firstNonNull(
+					trimToNull((String) messageContext.get(EmailMessageContextKey.OVERRIDE_PLATFORM_EMAIL_IMAGE_URL.name())),
+					format("%s/logo@2x.jpg", staticFileUrlPrefix)
+			);
+
+			messageContext.put("platformEmailImageUrl", platformEmailImageUrl);
 
 			// Create a new email message using the updated email message context
 			customizedEmailMessage = customizedEmailMessage.toBuilder()
