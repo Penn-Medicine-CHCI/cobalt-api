@@ -374,7 +374,6 @@ public class AccountResource {
 		Account account = getAccountService().findAccountByAccessToken(accessToken).get();
 
 		Boolean passwordResetRequired = account.getPasswordResetRequired();
-		final String finalAccessToken = passwordResetRequired ? null : accessToken;
 
 		if (passwordResetRequired) {
 			accessToken = null;
@@ -383,6 +382,8 @@ public class AccountResource {
 		}
 
 		Account finalAccount = account;
+		String finalAccessToken = accessToken;
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("account", getAccountApiResponseFactory().create(finalAccount));
 			put("accessToken", finalAccessToken);
@@ -488,7 +489,9 @@ public class AccountResource {
 			setGroupSessionStatusId(GroupSessionStatusId.ADDED);
 			setInstitutionId(account.getInstitutionId());
 			setOrderBy(OrderBy.START_TIME_DESCENDING);
-		}}).getResults());
+		}}).getResults()).stream()
+				.filter(groupSession -> groupSession.getVisibleFlag() != null & groupSession.getVisibleFlag())
+				.collect(Collectors.toList());
 
 		// Don't show too many events
 		if (groupSessions.size() > MAXIMUM_GROUP_SESSIONS)
