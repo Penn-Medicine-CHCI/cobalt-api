@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -40,11 +41,19 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 public class StudyBeiweConfig {
 	@Nonnull
 	private static final Gson GSON;
+	@Nonnull
+	private static final Gson DEVICE_SETTINGS_GSON;
 
 	static {
 		GSON = new GsonBuilder()
 				.setPrettyPrinting()
 				.disableHtmlEscaping()
+				.create();
+
+		// Special formatting for Beiwe device_settings field
+		DEVICE_SETTINGS_GSON = new GsonBuilder()
+				.disableHtmlEscaping()
+				.setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
 				.create();
 	}
 
@@ -186,6 +195,11 @@ public class StudyBeiweConfig {
 		return GSON;
 	}
 
+	@Nonnull
+	protected Gson getDeviceSettingsGson() {
+		return DEVICE_SETTINGS_GSON;
+	}
+
 	@Nullable
 	public String getConsentSectionsAsString() {
 		return this.consentSectionsAsString;
@@ -203,6 +217,23 @@ public class StudyBeiweConfig {
 	@Nonnull
 	public Map<String, Object> getConsentSections() {
 		return this.consentSections;
+	}
+
+	public Map<String, Object> toDeviceSettingsRepresentation() {
+		String studyBeiweConfigAsJson = getDeviceSettingsGson().toJson(this);
+
+		// Device Settings model is available at https://github.com/onnela-lab/beiwe-backend/blob/main/database/study_models.py
+		Map<String, Object> deviceSettings = getDeviceSettingsGson().fromJson(studyBeiweConfigAsJson, new TypeToken<Map<String, Object>>() {
+		}.getType());
+
+		// There are some internal fields unrelated to Beiwe on this record we don't need to expose
+		deviceSettings.remove("study_beiwe_config_id");
+		deviceSettings.remove("study_id");
+		deviceSettings.remove("consent_sections_as_string");
+		deviceSettings.remove("created");
+		deviceSettings.remove("last_updated");
+
+		return deviceSettings;
 	}
 
 	// Remaining accessors/mutators
