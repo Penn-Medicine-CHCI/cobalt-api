@@ -103,18 +103,22 @@ public final class CryptoUtility {
 
 	@Nonnull
 	public static KeyPair generateKeyPair() {
-		return generateKeyPair(null);
+		return generateKeyPair(null, null);
 	}
 
 	@Nonnull
-	public static KeyPair generateKeyPair(@Nullable String algorithm) {
+	public static KeyPair generateKeyPair(@Nullable String algorithm,
+																				@Nullable Integer keySize) {
 		if (algorithm == null)
 			algorithm = "RSA";
+
+		if (keySize == null)
+			keySize = 4096;
 
 		try {
 			KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(algorithm);
 			SecureRandom secureRandom = SecureRandom.getInstance("SHA1PRNG");
-			keyPairGenerator.initialize(4096, secureRandom);
+			keyPairGenerator.initialize(keySize, secureRandom);
 			return keyPairGenerator.generateKeyPair();
 		} catch (NoSuchAlgorithmException e) {
 			throw new IllegalStateException(e);

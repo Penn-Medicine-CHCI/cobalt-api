@@ -28,10 +28,14 @@ import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.CreateMarketingSiteOutreachRequest;
 import com.cobaltplatform.api.model.db.BetaFeature;
+import com.cobaltplatform.api.model.db.EncryptionKeypair;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.PrivateKeyFormat.PrivateKeyFormatId;
 import com.cobaltplatform.api.model.db.Provider;
+import com.cobaltplatform.api.model.db.PublicKeyFormat.PublicKeyFormatId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
+import com.cobaltplatform.api.util.CryptoUtility;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
@@ -46,9 +50,11 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.security.KeyPair;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -317,6 +323,54 @@ public class SystemService {
 				.build();
 
 		getMessageService().enqueueMessage(emailMessage);
+	}
+
+	@Nonnull
+	public UUID createEncryptionKeypair() {
+		return createEncryptionKeypair("RSA", 4096);
+	}
+
+	@Nonnull
+	public UUID createEncryptionKeypair(@Nonnull String algorithm,
+																			@Nonnull Integer keySize) {
+		requireNonNull(algorithm);
+		requireNonNull(keySize);
+
+		// Create the keypair and turn it into String representations for persistence
+		KeyPair keyPair = CryptoUtility.generateKeyPair(algorithm, keySize);
+
+		Base64.Encoder encoder = Base64.getEncoder();
+		String publicKeyAsString = encoder.encodeToString(keyPair.getPublic().getEncoded());
+		String privateKeyAsString = encoder.encodeToString(keyPair.getPrivate().getEncoded());
+		PublicKeyFormatId publicKeyFormatId = PublicKeyFormatId.fromPublicKey(keyPair.getPublic()).orElseThrow();
+		PrivateKeyFormatId privateKeyFormatId = PrivateKeyFormatId.fromPrivateKey(keyPair.getPrivate()).orElseThrow();
+
+		UUID encryptionKeypairId = UUID.randomUUID();
+
+		getDatabase().execute("""
+				INSERT INTO encryption_keypair (
+				  encryption_keypair_id,
+				  public_key,
+				  private_key,
+				  public_key_format_id,
+				  private_key_format_id,
+				  key_size
+				) VALUES (?,?,?,?,?,?)
+				""", encryptionKeypairId, publicKeyAsString, privateKeyAsString, publicKeyFormatId, privateKeyFormatId, keySize);
+
+		return encryptionKeypairId;
+	}
+
+	@Nonnull
+	public Optional<EncryptionKeypair> findEncryptionKeypairById(@Nullable UUID encryptionKeypairId) {
+		if (encryptionKeypairId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM encryption_keypair
+				WHERE encryption_keypair_id=?
+				""", EncryptionKeypair.class, encryptionKeypairId);
 	}
 
 	@ThreadSafe

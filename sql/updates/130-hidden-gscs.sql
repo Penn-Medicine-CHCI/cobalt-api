@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('129-hidden-gscs', NULL, NULL);
+SELECT _v.register_patch('130-hidden-gscs', NULL, NULL);
 
 ALTER TABLE group_session_collection ADD COLUMN visible_flag BOOLEAN NOT NULL DEFAULT TRUE;
 
