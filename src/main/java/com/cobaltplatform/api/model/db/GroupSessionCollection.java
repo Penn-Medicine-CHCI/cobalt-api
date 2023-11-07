@@ -41,6 +41,8 @@ public class GroupSessionCollection {
 	@Nullable
 	private Integer displayOrder;
 	@Nullable
+	private Boolean visibleFlag;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -106,5 +108,14 @@ public class GroupSessionCollection {
 
 	public void setTitle(@Nullable String title) {
 		this.title = title;
+	}
+
+	@Nullable
+	public Boolean getVisibleFlag() {
+		return this.visibleFlag;
+	}
+
+	public void setVisibleFlag(@Nullable Boolean visibleFlag) {
+		this.visibleFlag = visibleFlag;
 	}
 }
