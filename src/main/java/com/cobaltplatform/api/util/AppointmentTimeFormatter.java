@@ -22,6 +22,7 @@ package com.cobaltplatform.api.util;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -84,6 +85,18 @@ public class AppointmentTimeFormatter {
 		String endAmPm = getSharedTimeDescriptionAmPmFormatter().withZone(timeZone).format(endTime).toLowerCase(Locale.US);
 
 		return format("%s @ %s%s-%s%s", date, startTimeFormatted, startAmPm, endTimeFormatted, endAmPm);
+	}
+
+	@Nonnull
+	public static String createDateDescription(@Nonnull LocalDate startDate,
+																						 @Nullable LocalDate endDate) {
+		String startDateDescription = getSharedTimeDescriptionDateFormatter().format(startDate);
+		String endDateDescription = getSharedTimeDescriptionDateFormatter().format(endDate);
+
+		if (startDate.equals(endDate))
+			return startDateDescription;
+
+		return format("%s - %s", startDateDescription, endDateDescription);
 	}
 
 	@Nonnull

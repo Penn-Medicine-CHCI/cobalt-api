@@ -714,17 +714,21 @@ public class GroupSessionService implements AutoCloseable {
 		else if (!isValidEmailAddress(facilitatorEmailAddress))
 			validationException.add(new FieldError("facilitatorEmailAddress", getStrings().get("Facilitator email address is invalid.")));
 
-		if (singleSessionFlag && startDateTime == null) {
-			validationException.add(new FieldError("startDateTime", getStrings().get("Start time is required.")));
-		} else if (startDateTime != null) {
-			LocalDateTime currentLocalDateTime = LocalDateTime.now(institution.getTimeZone());
+		LocalDateTime currentLocalDateTime = LocalDateTime.now(institution.getTimeZone());
 
-			if (currentLocalDateTime.isAfter(startDateTime))
+		if (startDateTime == null) {
+			validationException.add(new FieldError("startDateTime", getStrings().get("Start time is required.")));
+		} else {
+			if (singleSessionFlag && currentLocalDateTime.isAfter(startDateTime))
 				validationException.add(new FieldError("startDateTime", getStrings().get("Start time must be in the future.")));
 		}
 
-		if (singleSessionFlag && endDateTime == null)
+		if (endDateTime == null) {
 			validationException.add(new FieldError("endDateTime", getStrings().get("End time is required.")));
+		} else {
+			if (!singleSessionFlag && currentLocalDateTime.toLocalDate().isAfter(endDateTime.toLocalDate()))
+				validationException.add(new FieldError("endDateTime", getStrings().get("End date must be in the future.")));
+		}
 
 		if (startDateTime != null && endDateTime != null) {
 			if (endDateTime.equals(startDateTime) || endDateTime.isBefore(startDateTime))
@@ -930,8 +934,8 @@ public class GroupSessionService implements AutoCloseable {
 		requireNonNull(urlName);
 		requireNonNull(institutionId);
 
-		String recommendedUrlName = null;
-		boolean suggestedUrlAvailable = false;
+		String recommendedUrlName = urlName;
+		boolean suggestedUrlAvailable = !urlNameExistsForInstitutionId(recommendedUrlName, institutionId, groupSessionId);
 		int urlSuffix = 1;
 
 		while (!suggestedUrlAvailable) {
@@ -1091,17 +1095,21 @@ public class GroupSessionService implements AutoCloseable {
 		else if (!isValidEmailAddress(facilitatorEmailAddress))
 			validationException.add(new FieldError("facilitatorEmailAddress", getStrings().get("Facilitator email address is invalid.")));
 
+		LocalDateTime currentLocalDateTime = LocalDateTime.now(institution.getTimeZone());
+
 		if (startDateTime == null) {
 			validationException.add(new FieldError("startDateTime", getStrings().get("Start time is required.")));
 		} else {
-			LocalDateTime currentLocalDateTime = LocalDateTime.now(institution.getTimeZone());
-
-			if (currentLocalDateTime.isAfter(startDateTime))
+			if (singleSessionFlag && currentLocalDateTime.isAfter(startDateTime))
 				validationException.add(new FieldError("startDateTime", getStrings().get("Start time must be in the future.")));
 		}
 
-		if (endDateTime == null)
+		if (endDateTime == null) {
 			validationException.add(new FieldError("endDateTime", getStrings().get("End time is required.")));
+		} else {
+			if (!singleSessionFlag && currentLocalDateTime.toLocalDate().isAfter(endDateTime.toLocalDate()))
+				validationException.add(new FieldError("endDateTime", getStrings().get("End date must be in the future.")));
+		}
 
 		if (groupSessionLocationTypeId == null) {
 			validationException.add(new FieldError("groupSessionLocationTypeId", getStrings().get("Location type is required.")));
@@ -1151,18 +1159,6 @@ public class GroupSessionService implements AutoCloseable {
 
 		if (videoconferenceUrl != null && !isValidUrl(videoconferenceUrl))
 			validationException.add(new FieldError("videoconferenceUrl", getStrings().get("Videoconference URL is invalid.")));
-
-		if (singleSessionFlag && startDateTime == null) {
-			validationException.add(new FieldError("startDateTime", getStrings().get("Start time is required.")));
-		} else if (startDateTime != null) {
-			LocalDateTime currentLocalDateTime = LocalDateTime.now(institution.getTimeZone());
-
-			if (currentLocalDateTime.isAfter(startDateTime))
-				validationException.add(new FieldError("startDateTime", getStrings().get("Start time must be in the future.")));
-		}
-
-		if (singleSessionFlag && endDateTime == null)
-			validationException.add(new FieldError("endDateTime", getStrings().get("End time is required.")));
 
 		if (visibleFlag == false && groupSessionCollectionId != null)
 			validationException.add(new FieldError("groupSessionCollectionId", getStrings().get("GroupSessionCollectionId is not relevant to hidden sessions.")));

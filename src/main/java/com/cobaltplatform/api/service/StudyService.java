@@ -26,11 +26,13 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountCheckIn;
 import com.cobaltplatform.api.model.db.AccountCheckInAction;
 import com.cobaltplatform.api.model.db.AccountSource;
+import com.cobaltplatform.api.model.db.AccountStudy;
 import com.cobaltplatform.api.model.db.CheckInActionStatus.CheckInActionStatusId;
 import com.cobaltplatform.api.model.db.CheckInStatus.CheckInStatusId;
 import com.cobaltplatform.api.model.db.CheckInStatusGroup.CheckInStatusGroupId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Study;
+import com.cobaltplatform.api.model.db.StudyBeiweConfig;
 import com.cobaltplatform.api.model.db.StudyCheckIn;
 import com.cobaltplatform.api.model.service.StudyAccount;
 import com.cobaltplatform.api.util.Authenticator;
@@ -41,10 +43,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
+import javax.inject.Provider;
 import javax.inject.Singleton;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -73,23 +76,28 @@ public class StudyService {
 	@Nonnull
 	private final Authenticator authenticator;
 	@Nonnull
-	private final AccountService accountService;
+	private final Provider<AccountService> accountServiceProvider;
+	@Nonnull
+	private final Provider<SystemService> systemServiceProvider;
 
 	@Inject
 	public StudyService(@Nonnull Database database,
 											@Nonnull Strings strings,
-											@Nonnull AccountService accountService,
-											@Nonnull Authenticator authenticator) {
+											@Nonnull Authenticator authenticator,
+											@Nonnull Provider<AccountService> accountServiceProvider,
+											@Nonnull Provider<SystemService> systemServiceProvider) {
 		requireNonNull(database);
 		requireNonNull(strings);
 		requireNonNull(authenticator);
-		requireNonNull(accountService);
+		requireNonNull(accountServiceProvider);
+		requireNonNull(systemServiceProvider);
 
 		this.database = database;
 		this.strings = strings;
-		this.logger = LoggerFactory.getLogger(getClass());
-		this.accountService = accountService;
 		this.authenticator = authenticator;
+		this.accountServiceProvider = accountServiceProvider;
+		this.systemServiceProvider = systemServiceProvider;
+		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
 	@Nonnull
@@ -154,11 +162,14 @@ public class StudyService {
 	}
 
 	@Nonnull
-	private Optional<Study> findStudyById(@Nonnull UUID studyId) {
+	public Optional<Study> findStudyById(@Nullable UUID studyId) {
+		if (studyId == null)
+			return Optional.empty();
+
 		return getDatabase().queryForObject("""
-				SELECT * 
-				FROM study 
-				WHERE study_id = ?
+				SELECT *
+				FROM study
+				WHERE study_id=?
 				""", Study.class, studyId);
 	}
 
@@ -173,7 +184,7 @@ public class StudyService {
 		Optional<Study> study = findStudyById(studyId);
 		List<StudyAccount> studyAccounts = new ArrayList<>();
 
-		if(!study.isPresent())
+		if (!study.isPresent())
 			validationException.add(new ValidationException.FieldError("studyId", getStrings().get("Not a valid Study ID.")));
 		else if (study.get().getInstitutionId() != account.getInstitutionId())
 			validationException.add(new ValidationException.FieldError("institutionId", getStrings().get("You can only create accounts for studies in your institution.")));
@@ -194,7 +205,7 @@ public class StudyService {
 				setUsername(accountUsername);
 				setPassword(accountPassword);
 			}});
-			UUID accountId = accountService.createAccount(new CreateAccountRequest() {{
+			UUID accountId = getAccountService().createAccount(new CreateAccountRequest() {{
 				setAccountSourceId(AccountSource.AccountSourceId.USERNAME);
 				setRoleId(RoleId.PATIENT);
 				setInstitutionId(account.getInstitutionId());
@@ -204,7 +215,7 @@ public class StudyService {
 				setPasswordResetRequired(true);
 			}});
 
-			addAccountToStudy(accountService.findAccountById(accountId).get(), studyId);
+			addAccountToStudy(getAccountService().findAccountById(accountId).get(), studyId);
 		}
 
 		return studyAccounts;
@@ -227,8 +238,8 @@ public class StudyService {
 
 		Boolean accountAlreadyInStudy = getDatabase().queryForObject("""
 				SELECT COUNT(*) > 0
-				FROM account_study 
-				WHERE account_id = ? 
+				FROM account_study
+				WHERE account_id = ?
 				AND study_id = ?
 				""", Boolean.class, account.getAccountId(), studyId).get();
 
@@ -243,13 +254,16 @@ public class StudyService {
 		if (validationException.hasErrors())
 			throw validationException;
 
+		// This is the format expected by Beiwe.
+		// We might have this be specifiable in the future for other types of studies
+		UUID encryptionKeypairId = getSystemService().createEncryptionKeypair("RSA", 2048);
 
 		getDatabase().execute("""
-					INSERT INTO account_study 
-					  (account_study_id, account_id, study_id)
+					INSERT INTO account_study
+					  (account_study_id, account_id, study_id, encryption_keypair_id)
 					VALUES
-					  (?, ?, ?)
-				""", accountStudyId, account.getAccountId(), studyId);
+					  (?, ?, ?, ?)
+				""", accountStudyId, account.getAccountId(), studyId, encryptionKeypairId);
 
 		int checkInCount = 0;
 		for (StudyCheckIn studyCheckIn : studyCheckIns) {
@@ -284,7 +298,7 @@ public class StudyService {
 
 	@Nonnull
 	private void updateCheckInStatusId(@Nonnull UUID accountCheckInId,
-																	 @Nonnull CheckInStatusId checkInStatusId) {
+																		 @Nonnull CheckInStatusId checkInStatusId) {
 		getDatabase().execute("""
 				UPDATE account_check_in 
 				SET check_in_status_id = ? 
@@ -464,6 +478,32 @@ public class StudyService {
 	}
 
 	@Nonnull
+	public Optional<AccountStudy> findAccountStudyByAccountIdAndStudyId(@Nullable UUID accountId,
+																																			@Nullable UUID studyId) {
+		if (accountId == null || studyId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				  SELECT *
+				  FROM account_study
+				  WHERE account_id=?
+				  AND study_id=?
+				""", AccountStudy.class, accountId, studyId);
+	}
+
+	@Nonnull
+	public Optional<StudyBeiweConfig> findStudyBeiweConfigByStudyId(@Nullable UUID studyId) {
+		if (studyId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+					SELECT *
+					FROM study_beiwe_config
+					WHERE study_id=?
+				""", StudyBeiweConfig.class, studyId);
+	}
+
+	@Nonnull
 	protected Database getDatabase() {
 		return this.database;
 	}
@@ -479,9 +519,17 @@ public class StudyService {
 	}
 
 	@Nonnull
+	protected AccountService getAccountService() {
+		return this.accountServiceProvider.get();
+	}
+
+	@Nonnull
+	protected SystemService getSystemService() {
+		return this.systemServiceProvider.get();
+	}
+
+	@Nonnull
 	protected Logger getLogger() {
 		return this.logger;
-
-
 	}
 }
