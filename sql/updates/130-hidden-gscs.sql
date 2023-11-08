@@ -2,6 +2,14 @@ BEGIN;
 SELECT _v.register_patch('130-hidden-gscs', NULL, NULL);
 
 ALTER TABLE group_session_collection ADD COLUMN visible_flag BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE group_session_collection ADD COLUMN url_name TEXT;
+
+-- Populate URL names for collection with a variant of their title, e.g. "Test Collection 1" becomes 'test-collection-1'
+UPDATE group_session_collection SET url_name = LOWER(REPLACE(title, ' ', '-'));
+
+CREATE UNIQUE INDEX group_session_collection_unique_url_name_idx ON group_session_collection USING btree (institution_id, url_name);
+
+ALTER TABLE group_session_collection ALTER COLUMN url_name SET NOT NULL;
 
 -- Some group sessions have the ability to whitelabel parts of the system
 ALTER TABLE group_session ADD COLUMN override_platform_name TEXT;
