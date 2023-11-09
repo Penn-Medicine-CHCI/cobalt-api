@@ -97,6 +97,14 @@ public class AdminContentApiResponse {
 	private String contentStatusDescription;
 	@Nullable
 	private List<ContentActionId> actions;
+	@Nullable
+	private String contentTypeDescription;
+	@Nullable
+	private Integer inUseCount;
+	@Nullable
+	private String inUseInstitutionDescription;
+	@Nullable
+	private Boolean newFlag;
 
 
 	public enum AdminContentDisplayType {
@@ -153,7 +161,7 @@ public class AdminContentApiResponse {
 		this.publishRecurring = adminContent.getPublishRecurring();
 		this.searchTerms = adminContent.getSearchTerms();
 		this.sharedFlag = adminContent.getSharedFlag();
-
+		this.contentTypeDescription = adminContent.getContentTypeDescription();
 
 		if (contentOwnedByCurrentAccount) {
 			this.contentStatusId = adminContent.getContentStatusId();
@@ -186,6 +194,11 @@ public class AdminContentApiResponse {
 		this.tagIds = adminContent.getTags() == null ? Collections.emptyList() : adminContent.getTags().stream()
 				.map(tag -> tag.getTagId())
 				.collect(Collectors.toList());
+
+		//TODO: Set these for real
+		this.newFlag = false;
+		this.inUseCount = 2;
+		this.inUseInstitutionDescription = "NYU, Dartmouth";
 	}
 
 
@@ -341,5 +354,25 @@ public class AdminContentApiResponse {
 	@Nullable
 	public String getDateCreatedDescription() {
 		return dateCreatedDescription;
+	}
+
+	@Nullable
+	public String getContentTypeDescription() {
+		return contentTypeDescription;
+	}
+
+	@Nullable
+	public Integer getInUseCount() {
+		return inUseCount;
+	}
+
+	@Nullable
+	public String getInUseInstitutionDescription() {
+		return inUseInstitutionDescription;
+	}
+
+	@Nullable
+	public Boolean getNewFlag() {
+		return newFlag;
 	}
 }

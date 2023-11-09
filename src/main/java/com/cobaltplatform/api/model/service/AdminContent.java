@@ -82,6 +82,9 @@ public class AdminContent{
 	@Nullable
 	private List<Tag> tags;
 
+	@Nullable
+	private String contentTypeDescription;
+
 	@Nonnull
 	public UUID getContentId() {
 		return contentId;
@@ -267,5 +270,14 @@ public class AdminContent{
 
 	public void setContentStatusDescription(@Nullable String contentStatusDescription) {
 		this.contentStatusDescription = contentStatusDescription;
+	}
+
+	@Nullable
+	public String getContentTypeDescription() {
+		return contentTypeDescription;
+	}
+
+	public void setContentTypeDescription(@Nullable String contentTypeDescription) {
+		this.contentTypeDescription = contentTypeDescription;
 	}
 }
