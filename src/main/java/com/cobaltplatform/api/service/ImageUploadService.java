@@ -98,7 +98,7 @@ public class ImageUploadService {
 
 		String key = format("%s/%s/%s/%s", getConfiguration().getEnvironment(), useCase, UUID.randomUUID(), filename);
 
-		return getUploadManager().createPresignedUpload(key, contentType, new HashMap<>() {{
+		return getUploadManager().createPresignedUpload(key, contentType, true, new HashMap<>() {{
 			put("account-id", accountId.toString());
 		}});
 	}

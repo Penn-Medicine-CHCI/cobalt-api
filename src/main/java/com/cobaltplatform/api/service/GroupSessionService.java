@@ -2357,7 +2357,7 @@ public class GroupSessionService implements AutoCloseable {
 
 		String key = format("%s/group-session-requests/%s/%s", getConfiguration().getEnvironment(), UUID.randomUUID(), filename);
 
-		return getUploadManager().createPresignedUpload(key, contentType, new HashMap<>() {{
+		return getUploadManager().createPresignedUpload(key, contentType, true, new HashMap<>() {{
 			put("account-id", accountId.toString());
 		}});
 	}
