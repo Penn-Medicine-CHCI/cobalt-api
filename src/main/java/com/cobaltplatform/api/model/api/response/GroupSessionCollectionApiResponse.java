@@ -30,7 +30,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
-
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -45,9 +44,11 @@ public class GroupSessionCollectionApiResponse {
 	@Nonnull
 	private final InstitutionId institutionId;
 	@Nullable
-	private String title;
+	private final String title;
 	@Nonnull
 	private final String description;
+	@Nonnull
+	private final String urlName;
 	@Nonnull
 	private final Integer displayOrder;
 
@@ -67,6 +68,7 @@ public class GroupSessionCollectionApiResponse {
 		this.groupSessionCollectionId = groupSessionCollection.getGroupSessionCollectionId();
 		this.institutionId = groupSessionCollection.getInstitutionId();
 		this.description = groupSessionCollection.getDescription();
+		this.urlName = groupSessionCollection.getUrlName();
 		this.displayOrder = groupSessionCollection.getDisplayOrder();
 		this.title = groupSessionCollection.getTitle();
 
@@ -74,30 +76,31 @@ public class GroupSessionCollectionApiResponse {
 
 	@Nonnull
 	public UUID getGroupSessionCollectionId() {
-		return groupSessionCollectionId;
+		return this.groupSessionCollectionId;
 	}
 
 	@Nonnull
 	public InstitutionId getInstitutionId() {
-		return institutionId;
+		return this.institutionId;
 	}
 
 	@Nonnull
 	public String getDescription() {
-		return description;
+		return this.description;
+	}
+
+	@Nonnull
+	public String getUrlName() {
+		return this.urlName;
 	}
 
 	@Nonnull
 	public Integer getDisplayOrder() {
-		return displayOrder;
+		return this.displayOrder;
 	}
 
 	@Nullable
 	public String getTitle() {
-		return title;
-	}
-
-	public void setTitle(@Nullable String title) {
-		this.title = title;
+		return this.title;
 	}
 }

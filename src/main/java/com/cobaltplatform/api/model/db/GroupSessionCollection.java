@@ -19,11 +19,12 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
 import java.util.UUID;
-import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 /**
  * @author Transmogrify, LLC.
@@ -39,7 +40,11 @@ public class GroupSessionCollection {
 	@Nullable
 	private String description;
 	@Nullable
+	private String urlName;
+	@Nullable
 	private Integer displayOrder;
+	@Nullable
+	private Boolean visibleFlag;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -70,6 +75,15 @@ public class GroupSessionCollection {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
+	}
+
+	@Nullable
+	public String getUrlName() {
+		return this.urlName;
+	}
+
+	public void setUrlName(@Nullable String urlName) {
+		this.urlName = urlName;
 	}
 
 	@Nullable
@@ -106,5 +120,14 @@ public class GroupSessionCollection {
 
 	public void setTitle(@Nullable String title) {
 		this.title = title;
+	}
+
+	@Nullable
+	public Boolean getVisibleFlag() {
+		return this.visibleFlag;
+	}
+
+	public void setVisibleFlag(@Nullable Boolean visibleFlag) {
+		this.visibleFlag = visibleFlag;
 	}
 }

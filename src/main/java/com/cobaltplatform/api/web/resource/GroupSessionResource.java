@@ -240,9 +240,13 @@ public class GroupSessionResource {
 				request.setAccount(account);
 			}
 		} else {
-			// Only show 'added' sessions for patient views no matter what your role is
+			// Only show 'added' sessions for patient views no matter what your role is...
 			request.setGroupSessionStatusId(GroupSessionStatusId.ADDED);
 			request.setVisibleFlag(true);
+
+			//...unless this is a collection.  In that case, we can see all sessions associated, even invisible ones
+			if(request.getGroupSessionCollectionId() != null)
+				request.setVisibleFlag(null);
 		}
 
 		FindResult<GroupSession> findResult = getGroupSessionService().findGroupSessions(request);

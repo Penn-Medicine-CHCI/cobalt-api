@@ -48,6 +48,8 @@ public class TopicCenter {
 	@Nullable
 	private String featuredCallToAction;
 	@Nullable
+	private String navDescription;
+	@Nullable
 	private String imageUrl;
 	@Nullable
 	private UUID createdByAccountId;
@@ -126,6 +128,15 @@ public class TopicCenter {
 
 	public void setFeaturedCallToAction(@Nullable String featuredCallToAction) {
 		this.featuredCallToAction = featuredCallToAction;
+	}
+
+	@Nullable
+	public String getNavDescription() {
+		return this.navDescription;
+	}
+
+	public void setNavDescription(@Nullable String navDescription) {
+		this.navDescription = navDescription;
 	}
 
 	@Nullable

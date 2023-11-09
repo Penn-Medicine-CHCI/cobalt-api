@@ -26,10 +26,12 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountCheckIn;
 import com.cobaltplatform.api.model.db.AccountCheckInAction;
 import com.cobaltplatform.api.model.db.AccountSource;
+import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.AccountStudy;
 import com.cobaltplatform.api.model.db.CheckInActionStatus.CheckInActionStatusId;
 import com.cobaltplatform.api.model.db.CheckInStatus.CheckInStatusId;
 import com.cobaltplatform.api.model.db.CheckInStatusGroup.CheckInStatusGroupId;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Study;
 import com.cobaltplatform.api.model.db.StudyBeiweConfig;
@@ -56,8 +58,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+import static com.cobaltplatform.api.util.ValidationUtility.isValidUUID;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -155,10 +160,31 @@ public class StudyService {
 		requireNonNull(accountCheckInId);
 
 		return getDatabase().queryForObject("""
-				SELECT * 
+				SELECT *
 				FROM v_account_check_in_action
 				WHERE account_id = ? AND account_check_in_action_id = ?
 				""", AccountCheckInAction.class, accountId, accountCheckInId);
+	}
+
+	@Nonnull
+	public Optional<Study> findStudyByIdentifier(@Nullable Object studyIdentifier,
+																							 @Nullable InstitutionId institutionId) {
+		if (studyIdentifier == null || institutionId == null)
+			return Optional.empty();
+
+		if (studyIdentifier instanceof UUID)
+			return findStudyById((UUID) studyIdentifier);
+
+		if (studyIdentifier instanceof String) {
+			String studyIdentifierAsString = (String) studyIdentifier;
+
+			if (isValidUUID(studyIdentifierAsString))
+				return findStudyById(UUID.fromString(studyIdentifierAsString));
+
+			return findStudyByInstitutionIdAndUrlName(institutionId, studyIdentifierAsString);
+		}
+
+		return Optional.empty();
 	}
 
 	@Nonnull
@@ -171,6 +197,22 @@ public class StudyService {
 				FROM study
 				WHERE study_id=?
 				""", Study.class, studyId);
+	}
+
+	@Nonnull
+	public Optional<Study> findStudyByInstitutionIdAndUrlName(@Nullable InstitutionId institutionId,
+																														@Nullable String urlName) {
+		if (institutionId == null || urlName == null)
+			return Optional.empty();
+
+		urlName = urlName.trim();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM study
+				WHERE institution_id=?
+				AND url_name=?
+				""", Study.class, institutionId, urlName);
 	}
 
 	@Nonnull
@@ -206,7 +248,7 @@ public class StudyService {
 				setPassword(accountPassword);
 			}});
 			UUID accountId = getAccountService().createAccount(new CreateAccountRequest() {{
-				setAccountSourceId(AccountSource.AccountSourceId.USERNAME);
+				setAccountSourceId(AccountSourceId.USERNAME);
 				setRoleId(RoleId.PATIENT);
 				setInstitutionId(account.getInstitutionId());
 				setUsername(accountUsername);
@@ -501,6 +543,38 @@ public class StudyService {
 					FROM study_beiwe_config
 					WHERE study_id=?
 				""", StudyBeiweConfig.class, studyId);
+	}
+
+	@Nonnull
+	public Set<AccountSourceId> findPermittedAccountSourceIdsByStudyId(@Nullable UUID studyId) {
+		if (studyId == null)
+			return Set.of();
+
+		Study study = findStudyById(studyId).orElse(null);
+
+		if (study == null)
+			return Set.of();
+
+		// See if there are explicitly-permitted account sources for this study
+		List<AccountSource> permittedAccountSources = getDatabase().queryForList("""
+					SELECT asrc.*
+					FROM account_source asrc, study_account_source sas
+					WHERE asrc.account_source_id=sas.account_source_id
+					AND sas.study_id=?
+				""", AccountSource.class, studyId);
+
+		// Didn't find any explicitly permitted for this study?  Then all of them are permitted
+		if (permittedAccountSources.size() == 0) {
+			permittedAccountSources = getDatabase().queryForList("""
+						SELECT *
+						FROM institution_account_source
+						WHERE institution_id=?
+					""", AccountSource.class, study.getInstitutionId());
+		}
+
+		return permittedAccountSources.stream()
+				.map(accountSource -> accountSource.getAccountSourceId())
+				.collect(Collectors.toSet());
 	}
 
 	@Nonnull

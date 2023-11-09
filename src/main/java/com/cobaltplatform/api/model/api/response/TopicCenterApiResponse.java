@@ -70,6 +70,8 @@ public class TopicCenterApiResponse {
 	@Nullable
 	private final String featuredCallToAction;
 	@Nullable
+	private final String navDescription;
+	@Nullable
 	private final String imageUrl;
 
 	@Nonnull
@@ -114,6 +116,7 @@ public class TopicCenterApiResponse {
 		this.featuredTitle = topicCenter.getFeaturedTitle();
 		this.featuredDescription = topicCenter.getFeaturedDescription();
 		this.featuredCallToAction = topicCenter.getFeaturedCallToAction();
+		this.navDescription = topicCenter.getNavDescription();
 		this.imageUrl = topicCenter.getImageUrl();
 
 		List<TopicCenterRowDetail> topicCenterRows = topicCenterService.findTopicCenterRowsByTopicCenterId(topicCenter.getTopicCenterId(), institutionId, account == null ? null : account.getAccountId());
@@ -168,6 +171,11 @@ public class TopicCenterApiResponse {
 	@Nullable
 	public String getFeaturedCallToAction() {
 		return this.featuredCallToAction;
+	}
+
+	@Nullable
+	public String getNavDescription() {
+		return this.navDescription;
 	}
 
 	@Nullable
