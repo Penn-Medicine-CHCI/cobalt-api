@@ -11,6 +11,33 @@ CREATE UNIQUE INDEX group_session_collection_unique_url_name_idx ON group_sessio
 
 ALTER TABLE group_session_collection ALTER COLUMN url_name SET NOT NULL;
 
+ALTER TABLE topic_center ADD COLUMN nav_description TEXT;
+
+UPDATE topic_center SET nav_description=featured_description;
+
+ALTER TABLE study ADD COLUMN url_name TEXT;
+
+-- Populate URL names for study with a variant of their name, e.g. "Cobalt Study" becomes 'cobalt-study'
+UPDATE study SET url_name = LOWER(REPLACE(name, ' ', '-'));
+
+CREATE UNIQUE INDEX study_unique_url_name_idx ON study USING btree (institution_id, url_name);
+
+ALTER TABLE study ALTER COLUMN url_name SET NOT NULL;
+
+ALTER TABLE study ADD COLUMN onboarding_destination_url TEXT;
+
+CREATE TABLE study_account_source (
+	study_id UUID NOT NULL REFERENCES study,
+	account_source_id TEXT NOT NULL REFERENCES account_source,
+	PRIMARY KEY (study_id, account_source_id)
+);
+
+-- Example account source data for Cobalt-institution test studies
+INSERT INTO study_account_source (study_id, account_source_id)
+SELECT study_id, 'ANONYMOUS'
+FROM study
+WHERE institution_id='COBALT';
+
 -- Some group sessions have the ability to whitelabel parts of the system
 ALTER TABLE group_session ADD COLUMN override_platform_name TEXT;
 ALTER TABLE group_session ADD COLUMN override_platform_email_image_url TEXT;

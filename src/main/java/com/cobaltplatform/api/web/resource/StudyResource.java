@@ -24,6 +24,7 @@ import com.cobaltplatform.api.model.api.request.UpdateCheckInAction;
 import com.cobaltplatform.api.model.api.response.AccountCheckInApiResponse.AccountCheckInApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.StudyAccountApiResponse.StudyAccountApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.AccountStudy;
 import com.cobaltplatform.api.model.db.CheckInStatusGroup.CheckInStatusGroupId;
 import com.cobaltplatform.api.model.db.EncryptionKeypair;
@@ -54,6 +55,7 @@ import javax.inject.Singleton;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -158,13 +160,13 @@ public class StudyResource {
 	}
 
 	@Nonnull
-	@GET("/studies/{studyId}/beiwe-config")
+	@GET("/studies/{studyIdentifier}/beiwe-config")
 	@AuthenticationRequired
-	public ApiResponse beiweConfig(@Nonnull @PathParameter UUID studyId) {
-		requireNonNull(studyId);
+	public ApiResponse beiweConfig(@Nonnull @PathParameter String studyIdentifier) {
+		requireNonNull(studyIdentifier);
 
 		Account account = getCurrentContext().getAccount().get();
-		Study study = getStudyService().findStudyById(studyId).orElse(null);
+		Study study = getStudyService().findStudyByIdentifier(studyIdentifier, getCurrentContext().getInstitutionId()).orElse(null);
 
 		if (study == null)
 			throw new NotFoundException();
@@ -217,6 +219,25 @@ public class StudyResource {
 			put("android_firebase_json", androidFirebaseJson);
 			put("study_name", study.getName());
 			put("study_id", study.getStudyId());
+		}});
+	}
+
+	@Nonnull
+	@GET("/studies/{studyIdentifier}/onboarding")
+	@AuthenticationRequired
+	public ApiResponse studyOnboarding(@Nonnull @PathParameter String studyIdentifier) {
+		requireNonNull(studyIdentifier);
+
+		Study study = getStudyService().findStudyByIdentifier(studyIdentifier, getCurrentContext().getInstitutionId()).orElse(null);
+
+		if (study == null)
+			throw new NotFoundException();
+
+		Set<AccountSourceId> permittedAcountSourceIds = getStudyService().findPermittedAccountSourceIdsByStudyId(study.getStudyId());
+
+		return new ApiResponse(new HashMap<>() {{
+			put("onboardingDestinationUrl", study.getOnboardingDestinationUrl());
+			put("permittedAccountSourceIds", permittedAcountSourceIds);
 		}});
 	}
 
