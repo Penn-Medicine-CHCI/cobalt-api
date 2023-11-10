@@ -137,6 +137,8 @@ public class GroupSession {
 	private String overridePlatformEmailImageUrl;
 	@Nullable
 	private String overridePlatformSupportEmailAddress;
+	@Nullable
+	private String groupSessionCollectionUrlName;
 
 	@Nullable
 	public UUID getGroupSessionId() {
@@ -567,5 +569,14 @@ public class GroupSession {
 
 	public void setOverridePlatformSupportEmailAddress(@Nullable String overridePlatformSupportEmailAddress) {
 		this.overridePlatformSupportEmailAddress = overridePlatformSupportEmailAddress;
+	}
+
+	@Nullable
+	public String getGroupSessionCollectionUrlName() {
+		return this.groupSessionCollectionUrlName;
+	}
+
+	public void setGroupSessionCollectionUrlName(@Nullable String groupSessionCollectionUrlName) {
+		this.groupSessionCollectionUrlName = groupSessionCollectionUrlName;
 	}
 }
