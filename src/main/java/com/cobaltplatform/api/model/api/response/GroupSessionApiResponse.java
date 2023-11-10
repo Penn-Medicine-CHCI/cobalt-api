@@ -189,6 +189,8 @@ public class GroupSessionApiResponse {
 	private final String lastUpdatedDescription;
 	@Nullable
 	private final Boolean differentEmailAddressForNotifications;
+	@Nullable
+	private final String groupSessionCollectionUrlName;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -371,7 +373,9 @@ public class GroupSessionApiResponse {
 
 		this.lastUpdated = groupSession.getLastUpdated();
 		this.lastUpdatedDescription = formatter.formatTimestamp(groupSession.getLastUpdated());
+
 		this.differentEmailAddressForNotifications = groupSession.getDifferentEmailAddressForNotifications();
+		this.groupSessionCollectionUrlName = groupSession.getGroupSessionCollectionUrlName();
 	}
 
 	@Nonnull
@@ -672,5 +676,30 @@ public class GroupSessionApiResponse {
 	@Nullable
 	public Boolean getDifferentEmailAddressForNotifications() {
 		return this.differentEmailAddressForNotifications;
+	}
+
+	@Nullable
+	public LocalDate getStartDate() {
+		return this.startDate;
+	}
+
+	@Nullable
+	public String getStartDateDescription() {
+		return this.startDateDescription;
+	}
+
+	@Nullable
+	public LocalDate getEndDate() {
+		return this.endDate;
+	}
+
+	@Nullable
+	public String getEndDateDescription() {
+		return this.endDateDescription;
+	}
+
+	@Nullable
+	public String getGroupSessionCollectionUrlName() {
+		return this.groupSessionCollectionUrlName;
 	}
 }

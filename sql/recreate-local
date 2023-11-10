@@ -135,6 +135,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/127-check-in-s
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/128-topic-centers.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/129-beiwe.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/130-hidden-gscs.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/131-gsc-url-name.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
