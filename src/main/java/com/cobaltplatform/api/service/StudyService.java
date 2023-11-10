@@ -38,7 +38,10 @@ import com.cobaltplatform.api.model.db.StudyBeiweConfig;
 import com.cobaltplatform.api.model.db.StudyCheckIn;
 import com.cobaltplatform.api.model.service.StudyAccount;
 import com.cobaltplatform.api.util.Authenticator;
+import com.cobaltplatform.api.util.UploadManager;
+import com.cobaltplatform.api.util.UploadManager.PresignedUpload;
 import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -81,6 +84,8 @@ public class StudyService {
 	@Nonnull
 	private final Authenticator authenticator;
 	@Nonnull
+	private final UploadManager uploadManager;
+	@Nonnull
 	private final Provider<AccountService> accountServiceProvider;
 	@Nonnull
 	private final Provider<SystemService> systemServiceProvider;
@@ -89,17 +94,20 @@ public class StudyService {
 	public StudyService(@Nonnull Database database,
 											@Nonnull Strings strings,
 											@Nonnull Authenticator authenticator,
+											@Nonnull UploadManager uploadManager,
 											@Nonnull Provider<AccountService> accountServiceProvider,
 											@Nonnull Provider<SystemService> systemServiceProvider) {
 		requireNonNull(database);
 		requireNonNull(strings);
 		requireNonNull(authenticator);
+		requireNonNull(uploadManager);
 		requireNonNull(accountServiceProvider);
 		requireNonNull(systemServiceProvider);
 
 		this.database = database;
 		this.strings = strings;
 		this.authenticator = authenticator;
+		this.uploadManager = uploadManager;
 		this.accountServiceProvider = accountServiceProvider;
 		this.systemServiceProvider = systemServiceProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -227,12 +235,12 @@ public class StudyService {
 		List<StudyAccount> studyAccounts = new ArrayList<>();
 
 		if (!study.isPresent())
-			validationException.add(new ValidationException.FieldError("studyId", getStrings().get("Not a valid Study ID.")));
+			validationException.add(new FieldError("studyId", getStrings().get("Not a valid Study ID.")));
 		else if (study.get().getInstitutionId() != account.getInstitutionId())
-			validationException.add(new ValidationException.FieldError("institutionId", getStrings().get("You can only create accounts for studies in your institution.")));
+			validationException.add(new FieldError("institutionId", getStrings().get("You can only create accounts for studies in your institution.")));
 
 		if (!account.getRoleId().equals(RoleId.ADMINISTRATOR))
-			validationException.add(new ValidationException.FieldError("accountId", getStrings().get("Only administrators can create Study accounts.")));
+			validationException.add(new FieldError("accountId", getStrings().get("Only administrators can create Study accounts.")));
 
 		for (int i = 0; i < count; ++i) {
 			String accountUsername = new Random().ints(10, 97, 122)
@@ -286,12 +294,12 @@ public class StudyService {
 				""", Boolean.class, account.getAccountId(), studyId).get();
 
 		if (accountAlreadyInStudy)
-			validationException.add(new ValidationException.FieldError("account", getStrings().get("Account is already in this study.")));
+			validationException.add(new FieldError("account", getStrings().get("Account is already in this study.")));
 
 		if (!study.isPresent())
-			validationException.add(new ValidationException.FieldError("study", getStrings().get("This study does not exist.")));
+			validationException.add(new FieldError("study", getStrings().get("This study does not exist.")));
 		else if (!study.get().getInstitutionId().equals(account.getInstitutionId()))
-			validationException.add(new ValidationException.FieldError("study", getStrings().get("You cannot join this study.")));
+			validationException.add(new FieldError("study", getStrings().get("You cannot join this study.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -364,7 +372,7 @@ public class StudyService {
 		Optional<Study> study = findStudyById(studyId);
 
 		if (!study.isPresent())
-			validationException.add(new ValidationException.FieldError("studyId", getStrings().get("Not a valid Study ID.")));
+			validationException.add(new FieldError("studyId", getStrings().get("Not a valid Study ID.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -439,24 +447,26 @@ public class StudyService {
 	}
 
 	@Nonnull
-	private Optional<AccountCheckInAction> findAccountCheckInActionById(@Nonnull UUID accountCheckInActionId) {
-		requireNonNull(accountCheckInActionId);
+	public Optional<AccountCheckInAction> findAccountCheckInActionById(@Nullable UUID accountCheckInActionId) {
+		if (accountCheckInActionId == null)
+			return Optional.empty();
 
 		return getDatabase().queryForObject("""
-				SELECT * 
-				FROM account_check_in_action 
-				WHERE account_check_in_action_id = ?  
+				SELECT *
+				FROM account_check_in_action
+				WHERE account_check_in_action_id = ?
 				""", AccountCheckInAction.class, accountCheckInActionId);
 	}
 
 	@Nonnull
-	private Optional<AccountCheckIn> findAccountCheckInById(@Nonnull UUID accountCheckInId) {
-		requireNonNull(accountCheckInId);
+	public Optional<AccountCheckIn> findAccountCheckInById(@Nullable UUID accountCheckInId) {
+		if (accountCheckInId == null)
+			return Optional.empty();
 
 		return getDatabase().queryForObject("""
-				SELECT * 
-				FROM account_check_in 
-				WHERE account_check_in_id = ?  
+				SELECT *
+				FROM account_check_in
+				WHERE account_check_in_id = ?
 				""", AccountCheckIn.class, accountCheckInId);
 	}
 
@@ -482,20 +492,20 @@ public class StudyService {
 		LocalDateTime currentLocalDateTime = LocalDateTime.now(account.getTimeZone());
 
 		if (!accountCheckInAction.isPresent())
-			validationException.add(new ValidationException.FieldError("accountCheckInAction", getStrings().get("Account check-in action not found.")));
+			validationException.add(new FieldError("accountCheckInAction", getStrings().get("Account check-in action not found.")));
 
 		if (accountCheckInAction.isPresent()) {
 			Optional<AccountCheckIn> accountCheckIn = findAccountCheckInById(accountCheckInAction.get().getAccountCheckInId());
 			if (!accountCheckIn.isPresent())
-				validationException.add(new ValidationException.FieldError("accountCheckIn", getStrings().get("Account check-in not found.")));
+				validationException.add(new FieldError("accountCheckIn", getStrings().get("Account check-in not found.")));
 			else if (accountCheckIn.get().getCheckInStatusId().equals(CheckInStatusId.COMPLETE))
-				validationException.add(new ValidationException.FieldError("accountCheckIn", getStrings().get("Account check-in is complete.")));
+				validationException.add(new FieldError("accountCheckIn", getStrings().get("Account check-in is complete.")));
 			else if (accountCheckIn.get().getCheckInStartDateTime().isAfter(currentLocalDateTime) || accountCheckIn.get().getCheckInEndDateTime().isBefore(currentLocalDateTime))
-				validationException.add(new ValidationException.FieldError("accountCheckIn", getStrings().get("Account check-in is not permitted at this time.")));
+				validationException.add(new FieldError("accountCheckIn", getStrings().get("Account check-in is not permitted at this time.")));
 		}
 
 		if (checkInActionStatusId == null)
-			validationException.add(new ValidationException.FieldError("checkInStatusId", getStrings().get("checkInStatusId is required.")));
+			validationException.add(new FieldError("checkInStatusId", getStrings().get("checkInStatusId is required.")));
 		else if (validationException.hasErrors())
 			throw validationException;
 
@@ -578,6 +588,42 @@ public class StudyService {
 	}
 
 	@Nonnull
+	public Optional<Study> findStudyByStudyCheckInActionId(@Nullable UUID studyCheckInActionId) {
+		if (studyCheckInActionId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				  SELECT s.*
+				  FROM study s, study_check_in sci, study_check_in_action scia
+				  WHERE scia.study_check_in_action_id=?
+				  AND scia.study_check_in_id=sci.study_check_in_id
+				  AND sci.study_id=s.study_id
+				""", Study.class, studyCheckInActionId);
+	}
+
+	@Nonnull
+	public PresignedUpload createPresignedUploadForAccountCheckInActionId(@Nullable UUID accountCheckInActionId) {
+		AccountCheckInAction accountCheckInAction = null;
+		ValidationException validationException = new ValidationException();
+
+		if (accountCheckInActionId == null) {
+			validationException.add(new FieldError("accountCheckInActionId", getStrings().get("Account check-in action ID is required.")));
+		} else {
+			accountCheckInAction = findAccountCheckInActionById(accountCheckInActionId).orElse(null);
+
+			if (accountCheckInAction == null)
+				validationException.add(new FieldError("accountCheckInActionId", getStrings().get("Account check-in action ID is invalid.")));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+
+
+		return getUploadManager().createPresignedUpload();
+	}
+
+	@Nonnull
 	protected Database getDatabase() {
 		return this.database;
 	}
@@ -589,7 +635,12 @@ public class StudyService {
 
 	@Nonnull
 	protected Authenticator getAuthenticator() {
-		return authenticator;
+		return this.authenticator;
+	}
+
+	@Nonnull
+	protected UploadManager getUploadManager() {
+		return this.uploadManager;
 	}
 
 	@Nonnull

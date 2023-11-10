@@ -22,8 +22,10 @@ package com.cobaltplatform.api.web.resource;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.UpdateCheckInAction;
 import com.cobaltplatform.api.model.api.response.AccountCheckInApiResponse.AccountCheckInApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.StudyAccountApiResponse.StudyAccountApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AccountCheckInAction;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.AccountStudy;
 import com.cobaltplatform.api.model.db.CheckInStatusGroup.CheckInStatusGroupId;
@@ -33,6 +35,7 @@ import com.cobaltplatform.api.model.db.StudyBeiweConfig;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.StudyService;
 import com.cobaltplatform.api.service.SystemService;
+import com.cobaltplatform.api.util.UploadManager.PresignedUpload;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
@@ -81,6 +84,8 @@ public class StudyResource {
 	@Nonnull
 	private final StudyAccountApiResponseFactory studyAccountApiResponseFactory;
 	@Nonnull
+	private final PresignedUploadApiResponseFactory presignedUploadApiResponseFactory;
+	@Nonnull
 	private final RequestBodyParser requestBodyParser;
 
 	@Inject
@@ -89,6 +94,7 @@ public class StudyResource {
 											 @Nonnull Provider<CurrentContext> currentContextProvider,
 											 @Nonnull AccountCheckInApiResponseFactory accountCheckInApiResponseFactory,
 											 @Nonnull StudyAccountApiResponseFactory studyAccountApiResponseFactory,
+											 @Nonnull PresignedUploadApiResponseFactory presignedUploadApiResponseFactory,
 											 @Nonnull RequestBodyParser requestBodyParser) {
 		requireNonNull(studyService);
 		requireNonNull(systemService);
@@ -96,6 +102,7 @@ public class StudyResource {
 		requireNonNull(accountCheckInApiResponseFactory);
 		requireNonNull(requestBodyParser);
 		requireNonNull(studyAccountApiResponseFactory);
+		requireNonNull(presignedUploadApiResponseFactory);
 
 		this.studyService = studyService;
 		this.systemService = systemService;
@@ -104,6 +111,7 @@ public class StudyResource {
 		this.accountCheckInApiResponseFactory = accountCheckInApiResponseFactory;
 		this.requestBodyParser = requestBodyParser;
 		this.studyAccountApiResponseFactory = studyAccountApiResponseFactory;
+		this.presignedUploadApiResponseFactory = presignedUploadApiResponseFactory;
 	}
 
 	@Nonnull
@@ -242,6 +250,62 @@ public class StudyResource {
 	}
 
 	@Nonnull
+	@GET("/studies/{studyIdentifier}/presigned-upload")
+	@AuthenticationRequired
+	public ApiResponse studyPresignedUpload(@Nonnull @PathParameter String studyIdentifier,
+																					@Nonnull @RequestBody String requestBody) {
+		requireNonNull(studyIdentifier);
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+		Study study = getStudyService().findStudyByIdentifier(studyIdentifier, getCurrentContext().getInstitutionId()).orElse(null);
+
+		if (study == null)
+			throw new NotFoundException();
+
+		AccountStudy accountStudy = getStudyService().findAccountStudyByAccountIdAndStudyId(account.getAccountId(), study.getStudyId()).orElse(null);
+
+		if (accountStudy == null)
+			throw new AuthorizationException();
+
+		// TODO: get presigned upload
+
+		PresignedUpload presignedUpload = getStudyService().createPresignedUploadForStudy();
+
+		return new ApiResponse(Map.of(
+				"presignedUpload", getPresignedUploadApiResponseFactory().create(presignedUpload)
+		));
+	}
+
+	@Nonnull
+	@POST("/account-check-in-actions/{accountCheckInActionId}/presigned-upload")
+	@AuthenticationRequired
+	public ApiResponse accountCheckInActionPresignedUpload(@Nonnull @PathParameter UUID accountCheckInActionId,
+																												 @Nonnull @RequestBody String requestBody) {
+		requireNonNull(accountCheckInActionId);
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+		AccountCheckInAction accountCheckInAction = getStudyService().findAccountCheckInActionById(accountCheckInActionId).orElse(null);
+
+		if (accountCheckInAction == null)
+			throw new NotFoundException();
+
+		Study study = getStudyService().findStudyByStudyCheckInActionId(accountCheckInAction.getStudyCheckInActionId()).get();
+
+		AccountStudy accountStudy = getStudyService().findAccountStudyByAccountIdAndStudyId(account.getAccountId(), study.getStudyId()).orElse(null);
+
+		if (accountStudy == null)
+			throw new AuthorizationException();
+
+		PresignedUpload presignedUpload = getStudyService().createPresignedUploadForAccountCheckInAction(accountCheckInActionId);
+
+		return new ApiResponse(Map.of(
+				"presignedUpload", getPresignedUploadApiResponseFactory().create(presignedUpload)
+		));
+	}
+
+	@Nonnull
 	protected CurrentContext getCurrentContext() {
 		return this.currentContextProvider.get();
 	}
@@ -268,11 +332,16 @@ public class StudyResource {
 
 	@Nonnull
 	public RequestBodyParser getRequestBodyParser() {
-		return requestBodyParser;
+		return this.requestBodyParser;
 	}
 
 	@Nonnull
 	protected StudyAccountApiResponseFactory getStudyAccountApiResponseFactory() {
-		return studyAccountApiResponseFactory;
+		return this.studyAccountApiResponseFactory;
+	}
+
+	@Nonnull
+	protected PresignedUploadApiResponseFactory getPresignedUploadApiResponseFactory() {
+		return this.presignedUploadApiResponseFactory;
 	}
 }
