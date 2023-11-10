@@ -488,7 +488,7 @@ public class AccountResource {
 		List<GroupSession> groupSessions = new ArrayList<>(getGroupSessionService().findGroupSessions(new FindGroupSessionsRequest() {{
 			setGroupSessionStatusId(GroupSessionStatusId.ADDED);
 			setInstitutionId(account.getInstitutionId());
-			setOrderBy(OrderBy.START_TIME_DESCENDING);
+			setOrderBy(OrderBy.START_TIME_ASCENDING);
 		}}).getResults()).stream()
 				.filter(groupSession -> groupSession.getVisibleFlag() != null & groupSession.getVisibleFlag())
 				.collect(Collectors.toList());

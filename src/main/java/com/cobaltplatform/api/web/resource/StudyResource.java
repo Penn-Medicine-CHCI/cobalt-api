@@ -20,10 +20,14 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.request.CreateAccountCheckInActionFileUploadRequest;
+import com.cobaltplatform.api.model.api.request.CreateStudyFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.UpdateCheckInAction;
 import com.cobaltplatform.api.model.api.response.AccountCheckInApiResponse.AccountCheckInApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse.FileUploadResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.StudyAccountApiResponse.StudyAccountApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AccountCheckInAction;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.AccountStudy;
 import com.cobaltplatform.api.model.db.CheckInStatusGroup.CheckInStatusGroupId;
@@ -31,6 +35,7 @@ import com.cobaltplatform.api.model.db.EncryptionKeypair;
 import com.cobaltplatform.api.model.db.Study;
 import com.cobaltplatform.api.model.db.StudyBeiweConfig;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.service.StudyService;
 import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
@@ -81,6 +86,8 @@ public class StudyResource {
 	@Nonnull
 	private final StudyAccountApiResponseFactory studyAccountApiResponseFactory;
 	@Nonnull
+	private final FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory;
+	@Nonnull
 	private final RequestBodyParser requestBodyParser;
 
 	@Inject
@@ -89,6 +96,7 @@ public class StudyResource {
 											 @Nonnull Provider<CurrentContext> currentContextProvider,
 											 @Nonnull AccountCheckInApiResponseFactory accountCheckInApiResponseFactory,
 											 @Nonnull StudyAccountApiResponseFactory studyAccountApiResponseFactory,
+											 @Nonnull FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory,
 											 @Nonnull RequestBodyParser requestBodyParser) {
 		requireNonNull(studyService);
 		requireNonNull(systemService);
@@ -96,6 +104,7 @@ public class StudyResource {
 		requireNonNull(accountCheckInApiResponseFactory);
 		requireNonNull(requestBodyParser);
 		requireNonNull(studyAccountApiResponseFactory);
+		requireNonNull(fileUploadResultApiResponseFactory);
 
 		this.studyService = studyService;
 		this.systemService = systemService;
@@ -104,6 +113,7 @@ public class StudyResource {
 		this.accountCheckInApiResponseFactory = accountCheckInApiResponseFactory;
 		this.requestBodyParser = requestBodyParser;
 		this.studyAccountApiResponseFactory = studyAccountApiResponseFactory;
+		this.fileUploadResultApiResponseFactory = fileUploadResultApiResponseFactory;
 	}
 
 	@Nonnull
@@ -242,6 +252,68 @@ public class StudyResource {
 	}
 
 	@Nonnull
+	@POST("/studies/{studyIdentifier}/file-upload")
+	@AuthenticationRequired
+	public ApiResponse createStudyFileUpload(@Nonnull @PathParameter String studyIdentifier,
+																					 @Nonnull @RequestBody String requestBody) {
+		requireNonNull(studyIdentifier);
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+		Study study = getStudyService().findStudyByIdentifier(studyIdentifier, getCurrentContext().getInstitutionId()).orElse(null);
+
+		if (study == null)
+			throw new NotFoundException();
+
+		AccountStudy accountStudy = getStudyService().findAccountStudyByAccountIdAndStudyId(account.getAccountId(), study.getStudyId()).orElse(null);
+
+		if (accountStudy == null)
+			throw new AuthorizationException();
+
+		CreateStudyFileUploadRequest request = getRequestBodyParser().parse(requestBody, CreateStudyFileUploadRequest.class);
+		request.setAccountId(account.getAccountId());
+		request.setStudyId(study.getStudyId());
+
+		FileUploadResult fileUploadResult = getStudyService().createStudyFileUpload(request);
+
+		return new ApiResponse(Map.of(
+				"fileUploadResult", getFileUploadResultApiResponseFactory().create(fileUploadResult)
+		));
+	}
+
+	@Nonnull
+	@POST("/account-check-in-actions/{accountCheckInActionId}/file-upload")
+	@AuthenticationRequired
+	public ApiResponse createAccountCheckInActionFileUpload(@Nonnull @PathParameter UUID accountCheckInActionId,
+																													@Nonnull @RequestBody String requestBody) {
+		requireNonNull(accountCheckInActionId);
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+		AccountCheckInAction accountCheckInAction = getStudyService().findAccountCheckInActionById(accountCheckInActionId).orElse(null);
+
+		if (accountCheckInAction == null)
+			throw new NotFoundException();
+
+		Study study = getStudyService().findStudyByStudyCheckInActionId(accountCheckInAction.getStudyCheckInActionId()).get();
+
+		AccountStudy accountStudy = getStudyService().findAccountStudyByAccountIdAndStudyId(account.getAccountId(), study.getStudyId()).orElse(null);
+
+		if (accountStudy == null)
+			throw new AuthorizationException();
+
+		CreateAccountCheckInActionFileUploadRequest request = getRequestBodyParser().parse(requestBody, CreateAccountCheckInActionFileUploadRequest.class);
+		request.setAccountId(account.getAccountId());
+		request.setAccountCheckInActionId(accountCheckInActionId);
+
+		FileUploadResult fileUploadResult = getStudyService().createAccountCheckInActionFileUpload(request);
+
+		return new ApiResponse(Map.of(
+				"fileUploadResult", getFileUploadResultApiResponseFactory().create(fileUploadResult)
+		));
+	}
+
+	@Nonnull
 	protected CurrentContext getCurrentContext() {
 		return this.currentContextProvider.get();
 	}
@@ -268,11 +340,16 @@ public class StudyResource {
 
 	@Nonnull
 	public RequestBodyParser getRequestBodyParser() {
-		return requestBodyParser;
+		return this.requestBodyParser;
 	}
 
 	@Nonnull
 	protected StudyAccountApiResponseFactory getStudyAccountApiResponseFactory() {
-		return studyAccountApiResponseFactory;
+		return this.studyAccountApiResponseFactory;
+	}
+
+	@Nonnull
+	protected FileUploadResultApiResponseFactory getFileUploadResultApiResponseFactory() {
+		return this.fileUploadResultApiResponseFactory;
 	}
 }

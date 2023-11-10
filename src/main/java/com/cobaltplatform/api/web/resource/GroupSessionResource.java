@@ -45,13 +45,13 @@ import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.GroupSessionStatusWithCount;
 import com.cobaltplatform.api.model.service.GroupSessionUrlValidationResult;
+import com.cobaltplatform.api.model.service.PresignedUpload;
 import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.GroupSessionService;
 import com.cobaltplatform.api.service.ImageUploadService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
-import com.cobaltplatform.api.util.UploadManager.PresignedUpload;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
@@ -245,7 +245,7 @@ public class GroupSessionResource {
 			request.setVisibleFlag(true);
 
 			//...unless this is a collection.  In that case, we can see all sessions associated, even invisible ones
-			if(request.getGroupSessionCollectionId() != null)
+			if (request.getGroupSessionCollectionId() != null)
 				request.setVisibleFlag(null);
 		}
 

@@ -77,11 +77,11 @@ import com.cobaltplatform.api.model.service.GroupSessionRequestWithTotalCount;
 import com.cobaltplatform.api.model.service.GroupSessionStatusWithCount;
 import com.cobaltplatform.api.model.service.GroupSessionUrlValidationResult;
 import com.cobaltplatform.api.model.service.GroupSessionWithTotalCount;
+import com.cobaltplatform.api.model.service.PresignedUpload;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.LinkGenerator;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.UploadManager;
-import com.cobaltplatform.api.util.UploadManager.PresignedUpload;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
@@ -2357,7 +2357,7 @@ public class GroupSessionService implements AutoCloseable {
 
 		String key = format("%s/group-session-requests/%s/%s", getConfiguration().getEnvironment(), UUID.randomUUID(), filename);
 
-		return getUploadManager().createPresignedUpload(key, contentType, new HashMap<>() {{
+		return getUploadManager().createPresignedUpload(key, contentType, true, new HashMap<>() {{
 			put("account-id", accountId.toString());
 		}});
 	}
