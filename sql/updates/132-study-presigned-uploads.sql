@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('131-study-presigned-uploads', NULL, NULL);
+SELECT _v.register_patch('132-study-presigned-uploads', NULL, NULL);
 
 CREATE TABLE account_check_in_action_upload (
   account_check_in_action_upload_id UUID PRIMARY KEY,
