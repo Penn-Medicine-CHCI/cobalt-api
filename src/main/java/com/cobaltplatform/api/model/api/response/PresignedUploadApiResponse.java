@@ -19,10 +19,10 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.service.PresignedUpload;
+import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
-import com.cobaltplatform.api.util.Formatter;
-import com.cobaltplatform.api.util.UploadManager.PresignedUpload;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;

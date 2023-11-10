@@ -21,6 +21,7 @@ package com.cobaltplatform.api.util;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.http.HttpMethod;
+import com.cobaltplatform.api.model.service.PresignedUpload;
 import com.lokalized.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,14 +36,12 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -163,70 +162,6 @@ public class UploadManager {
 			builder.endpointOverride(URI.create(getConfiguration().getAmazonS3BaseUrl()));
 
 		return builder.build();
-	}
-
-	@Immutable
-	public static class PresignedUpload {
-		@Nonnull
-		private final String httpMethod;
-		@Nonnull
-		private final String url;
-		@Nonnull
-		private final String accessUrl;
-		@Nonnull
-		private final String contentType;
-		@Nonnull
-		private final Instant expirationTimestamp;
-		@Nonnull
-		private final Map<String, String> httpHeaders;
-
-		public PresignedUpload(@Nonnull String httpMethod,
-													 @Nonnull String url,
-													 @Nonnull String contentType,
-													 @Nonnull Instant expirationTimestamp,
-													 @Nullable Map<String, String> httpHeaders) {
-			requireNonNull(httpMethod);
-			requireNonNull(url);
-			requireNonNull(contentType);
-			requireNonNull(expirationTimestamp);
-
-			this.httpMethod = httpMethod;
-			this.url = url;
-			this.accessUrl = url.indexOf("?") == -1 ? url : url.substring(0, url.indexOf("?")); // Rip off query params
-			this.contentType = contentType;
-			this.expirationTimestamp = expirationTimestamp;
-			this.httpHeaders = httpHeaders == null ? Collections.emptyMap() : Collections.unmodifiableMap(httpHeaders);
-		}
-
-		@Nonnull
-		public String getHttpMethod() {
-			return httpMethod;
-		}
-
-		@Nonnull
-		public String getUrl() {
-			return url;
-		}
-
-		@Nonnull
-		public String getAccessUrl() {
-			return accessUrl;
-		}
-
-		@Nonnull
-		public String getContentType() {
-			return contentType;
-		}
-
-		@Nonnull
-		public Instant getExpirationTimestamp() {
-			return expirationTimestamp;
-		}
-
-		@Nonnull
-		public Map<String, String> getHttpHeaders() {
-			return httpHeaders;
-		}
 	}
 
 	@Nonnull

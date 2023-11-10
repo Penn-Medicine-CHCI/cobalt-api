@@ -27,15 +27,16 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreateStudyPresignedUploadRequest {
+public class CreateAccountCheckInActionFileUploadRequest extends CreateFileUploadRequest {
 	@Nullable
-	private UUID studyId;
-	@Nullable
-	private UUID accountId;
-	@Nullable
-	private String filename;
-	@Nullable
-	private String contentType;
+	private UUID accountCheckInActionId;
 
-	// TODO
+	@Nullable
+	public UUID getAccountCheckInActionId() {
+		return this.accountCheckInActionId;
+	}
+
+	public void setAccountCheckInActionId(@Nullable UUID accountCheckInActionId) {
+		this.accountCheckInActionId = accountCheckInActionId;
+	}
 }

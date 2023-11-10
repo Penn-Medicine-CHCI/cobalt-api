@@ -17,54 +17,30 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db;
+package com.cobaltplatform.api.model.api.request;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 /**
- * @author Transmogrify LLC.
+ * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class AccountCheckInActionUpload {
-	@Nullable
-	private UUID accountCheckInActionUploadId;
-	@Nullable
-	private UUID accountCheckInActionId;
+public class CreateFileUploadRequest {
 	@Nullable
 	private UUID accountId;
 	@Nullable
-	private String url;
-	@Nullable
-	private String storageKey;
+	private String storageKeyPrefix;
 	@Nullable
 	private String filename;
 	@Nullable
 	private String contentType;
 	@Nullable
-	private Instant created;
+	private Boolean publicRead;
 	@Nullable
-	private Instant lastUpdated;
-
-	@Nullable
-	public UUID getAccountCheckInActionUploadId() {
-		return this.accountCheckInActionUploadId;
-	}
-
-	public void setAccountCheckInActionUploadId(@Nullable UUID accountCheckInActionUploadId) {
-		this.accountCheckInActionUploadId = accountCheckInActionUploadId;
-	}
-
-	@Nullable
-	public UUID getAccountCheckInActionId() {
-		return this.accountCheckInActionId;
-	}
-
-	public void setAccountCheckInActionId(@Nullable UUID accountCheckInActionId) {
-		this.accountCheckInActionId = accountCheckInActionId;
-	}
+	private Map<String, String> metadata;
 
 	@Nullable
 	public UUID getAccountId() {
@@ -76,21 +52,12 @@ public class AccountCheckInActionUpload {
 	}
 
 	@Nullable
-	public String getUrl() {
-		return this.url;
+	public String getStorageKeyPrefix() {
+		return this.storageKeyPrefix;
 	}
 
-	public void setUrl(@Nullable String url) {
-		this.url = url;
-	}
-
-	@Nullable
-	public String getStorageKey() {
-		return this.storageKey;
-	}
-
-	public void setStorageKey(@Nullable String storageKey) {
-		this.storageKey = storageKey;
+	public void setStorageKeyPrefix(@Nullable String storageKeyPrefix) {
+		this.storageKeyPrefix = storageKeyPrefix;
 	}
 
 	@Nullable
@@ -112,20 +79,20 @@ public class AccountCheckInActionUpload {
 	}
 
 	@Nullable
-	public Instant getCreated() {
-		return this.created;
+	public Boolean getPublicRead() {
+		return this.publicRead;
 	}
 
-	public void setCreated(@Nullable Instant created) {
-		this.created = created;
+	public void setPublicRead(@Nullable Boolean publicRead) {
+		this.publicRead = publicRead;
 	}
 
 	@Nullable
-	public Instant getLastUpdated() {
-		return this.lastUpdated;
+	public Map<String, String> getMetadata() {
+		return this.metadata;
 	}
 
-	public void setLastUpdated(@Nullable Instant lastUpdated) {
-		this.lastUpdated = lastUpdated;
+	public void setMetadata(@Nullable Map<String, String> metadata) {
+		this.metadata = metadata;
 	}
 }

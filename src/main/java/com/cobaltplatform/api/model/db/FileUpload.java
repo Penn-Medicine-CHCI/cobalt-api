@@ -28,11 +28,9 @@ import java.util.UUID;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class StudyUpload {
+public class FileUpload {
 	@Nullable
-	private UUID studyUploadId;
-	@Nullable
-	private UUID studyId;
+	private UUID fileUploadId;
 	@Nullable
 	private UUID accountId;
 	@Nullable
@@ -49,21 +47,12 @@ public class StudyUpload {
 	private Instant lastUpdated;
 
 	@Nullable
-	public UUID getStudyUploadId() {
-		return this.studyUploadId;
+	public UUID getFileUploadId() {
+		return this.fileUploadId;
 	}
 
-	public void setStudyUploadId(@Nullable UUID studyUploadId) {
-		this.studyUploadId = studyUploadId;
-	}
-
-	@Nullable
-	public UUID getStudyId() {
-		return this.studyId;
-	}
-
-	public void setStudyId(@Nullable UUID studyId) {
-		this.studyId = studyId;
+	public void setFileUploadId(@Nullable UUID fileUploadId) {
+		this.fileUploadId = fileUploadId;
 	}
 
 	@Nullable

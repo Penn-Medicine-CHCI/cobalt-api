@@ -20,9 +20,11 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.request.CreateAccountCheckInActionFileUploadRequest;
+import com.cobaltplatform.api.model.api.request.CreateStudyFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.UpdateCheckInAction;
 import com.cobaltplatform.api.model.api.response.AccountCheckInApiResponse.AccountCheckInApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse.FileUploadResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.StudyAccountApiResponse.StudyAccountApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountCheckInAction;
@@ -33,9 +35,9 @@ import com.cobaltplatform.api.model.db.EncryptionKeypair;
 import com.cobaltplatform.api.model.db.Study;
 import com.cobaltplatform.api.model.db.StudyBeiweConfig;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.service.StudyService;
 import com.cobaltplatform.api.service.SystemService;
-import com.cobaltplatform.api.util.UploadManager.PresignedUpload;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
@@ -84,7 +86,7 @@ public class StudyResource {
 	@Nonnull
 	private final StudyAccountApiResponseFactory studyAccountApiResponseFactory;
 	@Nonnull
-	private final PresignedUploadApiResponseFactory presignedUploadApiResponseFactory;
+	private final FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory;
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
 
@@ -94,7 +96,7 @@ public class StudyResource {
 											 @Nonnull Provider<CurrentContext> currentContextProvider,
 											 @Nonnull AccountCheckInApiResponseFactory accountCheckInApiResponseFactory,
 											 @Nonnull StudyAccountApiResponseFactory studyAccountApiResponseFactory,
-											 @Nonnull PresignedUploadApiResponseFactory presignedUploadApiResponseFactory,
+											 @Nonnull FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory,
 											 @Nonnull RequestBodyParser requestBodyParser) {
 		requireNonNull(studyService);
 		requireNonNull(systemService);
@@ -102,7 +104,7 @@ public class StudyResource {
 		requireNonNull(accountCheckInApiResponseFactory);
 		requireNonNull(requestBodyParser);
 		requireNonNull(studyAccountApiResponseFactory);
-		requireNonNull(presignedUploadApiResponseFactory);
+		requireNonNull(fileUploadResultApiResponseFactory);
 
 		this.studyService = studyService;
 		this.systemService = systemService;
@@ -111,7 +113,7 @@ public class StudyResource {
 		this.accountCheckInApiResponseFactory = accountCheckInApiResponseFactory;
 		this.requestBodyParser = requestBodyParser;
 		this.studyAccountApiResponseFactory = studyAccountApiResponseFactory;
-		this.presignedUploadApiResponseFactory = presignedUploadApiResponseFactory;
+		this.fileUploadResultApiResponseFactory = fileUploadResultApiResponseFactory;
 	}
 
 	@Nonnull
@@ -250,10 +252,10 @@ public class StudyResource {
 	}
 
 	@Nonnull
-	@GET("/studies/{studyIdentifier}/presigned-upload")
+	@POST("/studies/{studyIdentifier}/file-upload")
 	@AuthenticationRequired
-	public ApiResponse studyPresignedUpload(@Nonnull @PathParameter String studyIdentifier,
-																					@Nonnull @RequestBody String requestBody) {
+	public ApiResponse createStudyFileUpload(@Nonnull @PathParameter String studyIdentifier,
+																					 @Nonnull @RequestBody String requestBody) {
 		requireNonNull(studyIdentifier);
 		requireNonNull(requestBody);
 
@@ -268,20 +270,22 @@ public class StudyResource {
 		if (accountStudy == null)
 			throw new AuthorizationException();
 
-		// TODO: get presigned upload
+		CreateStudyFileUploadRequest request = getRequestBodyParser().parse(requestBody, CreateStudyFileUploadRequest.class);
+		request.setAccountId(account.getAccountId());
+		request.setStudyId(study.getStudyId());
 
-		PresignedUpload presignedUpload = getStudyService().createPresignedUploadForStudy();
+		FileUploadResult fileUploadResult = getStudyService().createStudyFileUpload(request);
 
 		return new ApiResponse(Map.of(
-				"presignedUpload", getPresignedUploadApiResponseFactory().create(presignedUpload)
+				"fileUploadResult", getFileUploadResultApiResponseFactory().create(fileUploadResult)
 		));
 	}
 
 	@Nonnull
-	@POST("/account-check-in-actions/{accountCheckInActionId}/presigned-upload")
+	@POST("/account-check-in-actions/{accountCheckInActionId}/file-upload")
 	@AuthenticationRequired
-	public ApiResponse accountCheckInActionPresignedUpload(@Nonnull @PathParameter UUID accountCheckInActionId,
-																												 @Nonnull @RequestBody String requestBody) {
+	public ApiResponse createAccountCheckInActionFileUpload(@Nonnull @PathParameter UUID accountCheckInActionId,
+																													@Nonnull @RequestBody String requestBody) {
 		requireNonNull(accountCheckInActionId);
 		requireNonNull(requestBody);
 
@@ -298,10 +302,14 @@ public class StudyResource {
 		if (accountStudy == null)
 			throw new AuthorizationException();
 
-		PresignedUpload presignedUpload = getStudyService().createPresignedUploadForAccountCheckInAction(accountCheckInActionId);
+		CreateAccountCheckInActionFileUploadRequest request = getRequestBodyParser().parse(requestBody, CreateAccountCheckInActionFileUploadRequest.class);
+		request.setAccountId(account.getAccountId());
+		request.setAccountCheckInActionId(accountCheckInActionId);
+
+		FileUploadResult fileUploadResult = getStudyService().createAccountCheckInActionFileUpload(request);
 
 		return new ApiResponse(Map.of(
-				"presignedUpload", getPresignedUploadApiResponseFactory().create(presignedUpload)
+				"fileUploadResult", getFileUploadResultApiResponseFactory().create(fileUploadResult)
 		));
 	}
 
@@ -341,7 +349,7 @@ public class StudyResource {
 	}
 
 	@Nonnull
-	protected PresignedUploadApiResponseFactory getPresignedUploadApiResponseFactory() {
-		return this.presignedUploadApiResponseFactory;
+	protected FileUploadResultApiResponseFactory getFileUploadResultApiResponseFactory() {
+		return this.fileUploadResultApiResponseFactory;
 	}
 }

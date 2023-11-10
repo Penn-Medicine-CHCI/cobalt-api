@@ -20,7 +20,10 @@
 package com.cobaltplatform.api.service;
 
 
+import com.cobaltplatform.api.model.api.request.CreateAccountCheckInActionFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
+import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
+import com.cobaltplatform.api.model.api.request.CreateStudyFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.UpdateCheckInAction;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountCheckIn;
@@ -36,10 +39,9 @@ import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Study;
 import com.cobaltplatform.api.model.db.StudyBeiweConfig;
 import com.cobaltplatform.api.model.db.StudyCheckIn;
+import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.StudyAccount;
 import com.cobaltplatform.api.util.Authenticator;
-import com.cobaltplatform.api.util.UploadManager;
-import com.cobaltplatform.api.util.UploadManager.PresignedUpload;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.lokalized.Strings;
@@ -53,12 +55,17 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
@@ -76,6 +83,9 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class StudyService {
 	@Nonnull
+	private static final DateTimeFormatter STUDY_FILE_UPLOAD_TIMESTAMP_FORMATTER;
+
+	@Nonnull
 	private final Database database;
 	@Nonnull
 	private final Strings strings;
@@ -84,30 +94,29 @@ public class StudyService {
 	@Nonnull
 	private final Authenticator authenticator;
 	@Nonnull
-	private final UploadManager uploadManager;
-	@Nonnull
 	private final Provider<AccountService> accountServiceProvider;
 	@Nonnull
 	private final Provider<SystemService> systemServiceProvider;
+
+	static {
+		STUDY_FILE_UPLOAD_TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.US).withZone(ZoneId.of("UTC"));
+	}
 
 	@Inject
 	public StudyService(@Nonnull Database database,
 											@Nonnull Strings strings,
 											@Nonnull Authenticator authenticator,
-											@Nonnull UploadManager uploadManager,
 											@Nonnull Provider<AccountService> accountServiceProvider,
 											@Nonnull Provider<SystemService> systemServiceProvider) {
 		requireNonNull(database);
 		requireNonNull(strings);
 		requireNonNull(authenticator);
-		requireNonNull(uploadManager);
 		requireNonNull(accountServiceProvider);
 		requireNonNull(systemServiceProvider);
 
 		this.database = database;
 		this.strings = strings;
 		this.authenticator = authenticator;
-		this.uploadManager = uploadManager;
 		this.accountServiceProvider = accountServiceProvider;
 		this.systemServiceProvider = systemServiceProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -602,14 +611,19 @@ public class StudyService {
 	}
 
 	@Nonnull
-	public PresignedUpload createPresignedUploadForAccountCheckInActionId(@Nullable UUID accountCheckInActionId) {
+	public FileUploadResult createAccountCheckInActionFileUpload(@Nonnull CreateAccountCheckInActionFileUploadRequest request) {
+		requireNonNull(request);
+
 		AccountCheckInAction accountCheckInAction = null;
 		ValidationException validationException = new ValidationException();
 
-		if (accountCheckInActionId == null) {
+		if (request.getAccountId() == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (request.getAccountCheckInActionId() == null) {
 			validationException.add(new FieldError("accountCheckInActionId", getStrings().get("Account check-in action ID is required.")));
 		} else {
-			accountCheckInAction = findAccountCheckInActionById(accountCheckInActionId).orElse(null);
+			accountCheckInAction = findAccountCheckInActionById(request.getAccountCheckInActionId()).orElse(null);
 
 			if (accountCheckInAction == null)
 				validationException.add(new FieldError("accountCheckInActionId", getStrings().get("Account check-in action ID is invalid.")));
@@ -618,9 +632,62 @@ public class StudyService {
 		if (validationException.hasErrors())
 			throw validationException;
 
+		// Make a separate instance so we don't mutate the request passed into this method
+		CreateFileUploadRequest fileUploadRequest = new CreateFileUploadRequest();
+		fileUploadRequest.setAccountId(request.getAccountId());
+		fileUploadRequest.setContentType(request.getContentType());
+		fileUploadRequest.setFilename(request.getFilename());
+		fileUploadRequest.setPublicRead(false);
+		fileUploadRequest.setStorageKeyPrefix(format("account-check-in-actions/%s/%s%s", accountCheckInAction.getAccountCheckInActionId(),
+				request.getAccountId(), STUDY_FILE_UPLOAD_TIMESTAMP_FORMATTER.format(Instant.now())));
+		fileUploadRequest.setMetadata(Map.of(
+				"account-check-in-action-id", request.getAccountCheckInActionId().toString(),
+				"account-id", request.getAccountId().toString()
+		));
 
+		FileUploadResult fileUploadResult = getSystemService().createFileUpload(fileUploadRequest);
 
-		return getUploadManager().createPresignedUpload();
+		return fileUploadResult;
+	}
+
+	@Nonnull
+	public FileUploadResult createStudyFileUpload(@Nonnull CreateStudyFileUploadRequest request) {
+		requireNonNull(request);
+
+		Study study = null;
+		ValidationException validationException = new ValidationException();
+
+		if (request.getAccountId() == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (request.getStudyId() == null) {
+			validationException.add(new FieldError("studyId", getStrings().get("Study ID is required.")));
+		} else {
+			study = findStudyById(request.getStudyId()).orElse(null);
+
+			if (study == null)
+				validationException.add(new FieldError("studyId", getStrings().get("Study ID is invalid.")));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		// Make a separate instance so we don't mutate the request passed into this method
+		CreateFileUploadRequest fileUploadRequest = new CreateFileUploadRequest();
+		fileUploadRequest.setAccountId(request.getAccountId());
+		fileUploadRequest.setContentType(request.getContentType());
+		fileUploadRequest.setFilename(request.getFilename());
+		fileUploadRequest.setPublicRead(false);
+		fileUploadRequest.setStorageKeyPrefix(format("studies/%s/%s/%s", study.getStudyId(), request.getAccountId(),
+				STUDY_FILE_UPLOAD_TIMESTAMP_FORMATTER.format(Instant.now())));
+		fileUploadRequest.setMetadata(Map.of(
+				"study-id", request.getStudyId().toString(),
+				"account-id", request.getAccountId().toString()
+		));
+
+		FileUploadResult fileUploadResult = getSystemService().createFileUpload(fileUploadRequest);
+
+		return fileUploadResult;
 	}
 
 	@Nonnull
@@ -636,11 +703,6 @@ public class StudyService {
 	@Nonnull
 	protected Authenticator getAuthenticator() {
 		return this.authenticator;
-	}
-
-	@Nonnull
-	protected UploadManager getUploadManager() {
-		return this.uploadManager;
 	}
 
 	@Nonnull
