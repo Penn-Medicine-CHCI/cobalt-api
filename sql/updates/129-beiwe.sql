@@ -179,8 +179,8 @@ INSERT INTO study (study_id, institution_id, name, minutes_between_check_ins, gr
 VALUES ('924fb45d-804d-453d-8dc2-bbc11d4dc9d8', 'COBALT', 'Cobalt Test Study', 2, 0);
 
 -- Permit USERNAME accounts in COBALT institution
-insert into institution_account_source (institution_account_source_id, institution_id, account_source_id, account_source_display_style_id, display_order, authentication_description, visible)
-values (uuid_generate_v4(), 'COBALT', 'USERNAME', 'TERTIARY', 4, 'Username and Password', FALSE);
+--insert into institution_account_source (institution_account_source_id, institution_id, account_source_id, account_source_display_style_id, display_order, authentication_description, visible)
+--values (uuid_generate_v4(), 'COBALT', 'USERNAME', 'TERTIARY', 4, 'Username and Password', FALSE);
 
 -- Add a Beiwe config for each existing study
 INSERT INTO study_beiwe_config (study_id) SELECT study_id FROM study;
