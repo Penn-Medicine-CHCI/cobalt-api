@@ -36,6 +36,7 @@ import com.cobaltplatform.api.model.api.response.GroupSessionUrlValidationResult
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.GroupSession;
+import com.cobaltplatform.api.model.db.GroupSessionCollection;
 import com.cobaltplatform.api.model.db.GroupSessionReservation;
 import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
@@ -202,6 +203,7 @@ public class GroupSessionResource {
 																	 @Nonnull @QueryParameter Optional<String> searchQuery,
 																	 @Nonnull @QueryParameter Optional<FindGroupSessionsRequest.OrderBy> orderBy,
 																	 @Nonnull @QueryParameter Optional<UUID> groupSessionCollectionId,
+																	 @Nonnull @QueryParameter Optional<String> groupSessionCollectionUrlName,
 																	 @Nonnull @QueryParameter Optional<GroupSessionStatusId> groupSessionStatusId,
 																	 @Nonnull @QueryParameter Optional<GroupSessionSchedulingSystemId> groupSessionSchedulingSystemId,
 																	 @Nonnull @QueryParameter Optional<Boolean> visibleFlag) {
@@ -212,6 +214,7 @@ public class GroupSessionResource {
 		requireNonNull(searchQuery);
 		requireNonNull(orderBy);
 		requireNonNull(groupSessionCollectionId);
+		requireNonNull(groupSessionCollectionUrlName);
 		requireNonNull(groupSessionStatusId);
 		requireNonNull(groupSessionSchedulingSystemId);
 		requireNonNull(visibleFlag);
@@ -230,6 +233,14 @@ public class GroupSessionResource {
 		request.setGroupSessionCollectionId(groupSessionCollectionId.orElse(null));
 		request.setGroupSessionSchedulingSystemId(groupSessionSchedulingSystemId.orElse(null));
 		request.setVisibleFlag(visibleFlag.orElse(null));
+
+		// If a groupSessionCollectionUrlName is specified, use it override the groupSessionCollectionId
+		if (groupSessionCollectionUrlName.isPresent()) {
+			GroupSessionCollection groupSessionCollection = getGroupSessionService().findGroupSessionCollectionByInstitutionIdAndUrlName(account.getInstitutionId(), groupSessionCollectionUrlName.get()).orElse(null);
+
+			if (groupSessionCollection != null)
+				request.setGroupSessionCollectionId(groupSessionCollection.getGroupSessionCollectionId());
+		}
 
 		GroupSessionViewType finalViewType = viewType.orElse(GroupSessionViewType.PATIENT);
 

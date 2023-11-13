@@ -895,11 +895,28 @@ public class GroupSessionService implements AutoCloseable {
 	}
 
 	@Nonnull
-	private Optional<GroupSessionCollection> findGroupSessionCollectionById(@Nonnull UUID groupSessionCollectionId) {
-		requireNonNull(groupSessionCollectionId);
+	public Optional<GroupSessionCollection> findGroupSessionCollectionById(@Nullable UUID groupSessionCollectionId) {
+		if (groupSessionCollectionId == null)
+			return Optional.empty();
 
 		return getDatabase().queryForObject("SELECT * FROM group_session_collection WHERE group_session_collection_id = ?",
 				GroupSessionCollection.class, groupSessionCollectionId);
+	}
+
+	@Nonnull
+	public Optional<GroupSessionCollection> findGroupSessionCollectionByInstitutionIdAndUrlName(@Nullable InstitutionId institutionId,
+																																															@Nullable String urlName) {
+		if (institutionId == null || urlName == null)
+			return Optional.empty();
+
+		urlName = urlName.trim();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM group_session_collection
+				WHERE institution_id=?
+				AND url_name=?
+				""", GroupSessionCollection.class, institutionId, urlName);
 	}
 
 	@Nonnull
