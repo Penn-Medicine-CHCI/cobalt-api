@@ -234,7 +234,6 @@ public class StudyResource {
 
 	@Nonnull
 	@GET("/studies/{studyIdentifier}/onboarding")
-	@AuthenticationRequired
 	public ApiResponse studyOnboarding(@Nonnull @PathParameter String studyIdentifier) {
 		requireNonNull(studyIdentifier);
 
