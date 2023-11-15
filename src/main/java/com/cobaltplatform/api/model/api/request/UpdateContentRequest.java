@@ -62,7 +62,8 @@ public class UpdateContentRequest {
 	private String searchTerms;
 	@Nullable
 	private Boolean sharedFlag;
-
+	@Nullable
+	private String fileUrl;
 	@Nullable
 	public UUID getContentId() {
 		return contentId;
@@ -189,4 +190,12 @@ public class UpdateContentRequest {
 		this.sharedFlag = sharedFlag;
 	}
 
+	@Nullable
+	public String getFileUrl() {
+		return fileUrl;
+	}
+
+	public void setFileUrl(@Nullable String fileUrl) {
+		this.fileUrl = fileUrl;
+	}
 }

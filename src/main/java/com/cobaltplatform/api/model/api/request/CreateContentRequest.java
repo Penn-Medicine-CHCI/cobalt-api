@@ -59,6 +59,8 @@ public class CreateContentRequest {
 	private String searchTerms;
 	@Nullable
 	private Boolean sharedFlag;
+	@Nullable
+	private String fileUrl;
 
 	@Nullable
 	public ContentTypeId getContentTypeId() {
@@ -177,4 +179,12 @@ public class CreateContentRequest {
 		this.sharedFlag = sharedFlag;
 	}
 
+	@Nullable
+	public String getFileUrl() {
+		return fileUrl;
+	}
+
+	public void setFileUrl(@Nullable String fileUrl) {
+		this.fileUrl = fileUrl;
+	}
 }

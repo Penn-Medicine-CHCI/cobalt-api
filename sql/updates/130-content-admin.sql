@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('128-content-admin', NULL, NULL);
+SELECT _v.register_patch('130-content-admin', NULL, NULL);
 
 CREATE TABLE content_status
 (content_status_id VARCHAR NOT NULL PRIMARY KEY,
@@ -20,6 +20,7 @@ ALTER TABLE content ADD COLUMN publish_start_date timestamptz NULL;
 ALTER TABLE content ADD COLUMN publish_end_date timestamptz NULL;
 ALTER TABLE content ADD COLUMN publish_recurring BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE content ADD COLUMN published BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE content ADD COLUMN file_url VARCHAR NULL;
 
 UPDATE content SET published = TRUE where owner_institution_approval_status_id='APPROVED';
 UPDATE content SET shared_flag = TRUE WHERE visibility_id = 'PUBLIC';

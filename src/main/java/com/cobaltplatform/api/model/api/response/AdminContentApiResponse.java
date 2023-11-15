@@ -113,6 +113,10 @@ public class AdminContentApiResponse {
 	@Nullable
 	private String callToAction;
 
+	@Nullable
+	private String fileUrl;
+
+
 
 	public enum AdminContentDisplayType {
 		DETAIL,
@@ -215,6 +219,7 @@ public class AdminContentApiResponse {
 					put("minutes", formatter.formatNumber(adminContent.getDurationInMinutes()));
 				}}) : null;
 
+		this.fileUrl = adminContent.getFileUrl();
 	}
 
 
@@ -400,5 +405,10 @@ public class AdminContentApiResponse {
 	@Nullable
 	public String getCallToAction() {
 		return callToAction;
+	}
+
+	@Nullable
+	public String getFileUrl() {
+		return fileUrl;
 	}
 }

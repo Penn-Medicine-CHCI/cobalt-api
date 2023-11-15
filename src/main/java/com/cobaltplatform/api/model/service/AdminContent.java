@@ -87,6 +87,8 @@ public class AdminContent{
 
 	@Nullable
 	private String callToAction;
+	@Nullable
+	private String fileUrl;
 
 	@Nonnull
 	public UUID getContentId() {
@@ -291,5 +293,14 @@ public class AdminContent{
 
 	public void setCallToAction(@Nullable String callToAction) {
 		this.callToAction = callToAction;
+	}
+
+	@Nullable
+	public String getFileUrl() {
+		return fileUrl;
+	}
+
+	public void setFileUrl(@Nullable String fileUrl) {
+		this.fileUrl = fileUrl;
 	}
 }

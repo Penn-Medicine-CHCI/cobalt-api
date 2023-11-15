@@ -223,6 +223,7 @@ public class AdminContentService {
 		Boolean publishRecurring = command.getPublishRecurring() == null ? false : command.getPublishRecurring();
 		String searchTerms = trimToNull(command.getSearchTerms());
 		Boolean sharedFlag = command.getSharedFlag();
+		String fileUrl = trimToNull(command.getFileUrl());
 
 		ValidationException validationException = new ValidationException();
 
@@ -267,12 +268,12 @@ public class AdminContentService {
 		getDatabase().execute("""
 						INSERT INTO content (content_id, content_type_id, title, url, image_url,
 						duration_in_minutes, description, author, shared_flag,
-						search_terms, publish_start_date, publish_end_date, publish_recurring, owner_institution_id, date_created)
-						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?, now())												
+						search_terms, publish_start_date, publish_end_date, publish_recurring, owner_institution_id, date_created, file_url)
+						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?, now(),?)												
 						""",
 				contentId, command.getContentTypeId(), title, url, imageUrl,
 				durationInMinutes, description, author, sharedFlag,
-				searchTerms, publishStartDate, publishEndDate, publishRecurring, ownerInstitutionId);
+				searchTerms, publishStartDate, publishEndDate, publishRecurring, ownerInstitutionId, fileUrl);
 
 		addContentToInstitution(contentId, account);
 
@@ -313,6 +314,7 @@ public class AdminContentService {
 		Boolean publishRecurring = command.getPublishRecurring();
 		String searchTerms = trimToNull(command.getSearchTerms());
 		Boolean sharedFlag = command.getSharedFlag();
+		String fileUrl = trimToNull(command.getFileUrl());
 
 		ValidationException validationException = new ValidationException();
 
@@ -359,6 +361,9 @@ public class AdminContentService {
 
 			if (sharedFlag != null)
 				existingContent.setSharedFlag(sharedFlag);
+
+			if (fileUrl != null)
+				existingContent.setFileUrl(fileUrl);
 		}
 
 		if (durationInMinutesString != null && !ValidationUtility.isValidInteger(durationInMinutesString))
@@ -373,12 +378,12 @@ public class AdminContentService {
 		getDatabase().execute("""
 							 	UPDATE content SET content_type_id=?, title=?, url=?, image_url=?, 
 							 	duration_in_minutes=?, description=?, author=?, publish_start_date=?, publish_end_date=?,
-							 	publish_recurring=?, search_terms=?, shared_flag=?
+							 	publish_recurring=?, search_terms=?, shared_flag=?, file_url=?
 								WHERE content_id=?
 						""",
 				existingContent.getContentTypeId(), existingContent.getTitle(), existingContent.getUrl(), existingContent.getImageUrl(),
 				durationInMinutes, existingContent.getDescription(), existingContent.getAuthor(), existingContent.getPublishStartDate(), existingContent.getPublishEndDate(),
-				existingContent.getPublishRecurring(), existingContent.getSearchTerms(), existingContent.getSharedFlag(),
+				existingContent.getPublishRecurring(), existingContent.getSearchTerms(), existingContent.getSharedFlag(),existingContent.getFileUrl(),
 				existingContent.getContentId());
 
 		AdminContent adminContent = findAdminContentByIdForInstitution(account.getInstitutionId(), command.getContentId()).orElse(null);
