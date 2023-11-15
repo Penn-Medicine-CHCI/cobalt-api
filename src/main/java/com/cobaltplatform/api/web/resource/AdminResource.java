@@ -308,6 +308,23 @@ public class AdminResource {
 	}
 
 	@Nonnull
+	@POST("/admin/content/file-presigned-upload")
+	@AuthenticationRequired
+	public ApiResponse createFileImagePresignedUpload(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		CreatePresignedUploadRequest request = getRequestBodyParser().parse(requestBody, CreatePresignedUploadRequest.class);
+		request.setAccountId(account.getAccountId());
+
+		PresignedUpload presignedUpload = getImageUploadService().generatePresignedUploadForContent(request);
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("filePresignedUpload", getPresignedUploadApiResponseFactory().create(presignedUpload));
+		}});
+	}
+	@Nonnull
 	@POST("/admin/content/{contentId}/add")
 	@AuthenticationRequired
 	public ApiResponse addContent(@Nonnull @PathParameter UUID contentId){
