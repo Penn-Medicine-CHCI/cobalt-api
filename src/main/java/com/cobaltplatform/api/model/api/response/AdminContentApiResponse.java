@@ -29,6 +29,7 @@ import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
+import com.lokalized.Strings;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -37,6 +38,7 @@ import java.time.LocalDate;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -105,6 +107,11 @@ public class AdminContentApiResponse {
 	private String inUseInstitutionDescription;
 	@Nullable
 	private Boolean newFlag;
+	@Nullable
+	private String durationInMinutesDescription;
+
+	@Nullable
+	private String callToAction;
 
 
 	public enum AdminContentDisplayType {
@@ -130,12 +137,14 @@ public class AdminContentApiResponse {
 																 @Assisted @Nonnull Account account,
 																 @Assisted @Nonnull AdminContent adminContent,
 																 @Assisted @Nonnull AdminContentDisplayType adminContentDisplayType,
-																 @Assisted @Nonnull List<UUID> institutionContentIds) {
+																 @Assisted @Nonnull List<UUID> institutionContentIds,
+																 @Nonnull Strings strings) {
 		requireNonNull(formatter);
 		requireNonNull(adminContent);
 		requireNonNull(contentService);
 		requireNonNull(account);
 		requireNonNull(institutionContentIds);
+		requireNonNull(strings);
 
 		List<ContentActionId> contentActionIdList = new ArrayList<>();
 		Boolean contentOwnedByCurrentAccount = account.getInstitutionId().equals(adminContent.getOwnerInstitutionId());
@@ -199,6 +208,13 @@ public class AdminContentApiResponse {
 		this.newFlag = false;
 		this.inUseCount = 2;
 		this.inUseInstitutionDescription = "NYU, Dartmouth";
+
+		this.callToAction = adminContent.getCallToAction();
+		this.durationInMinutesDescription = adminContent.getDurationInMinutes() != null ?
+				strings.get("{{minutes}} min", new HashMap<>() {{
+					put("minutes", formatter.formatNumber(adminContent.getDurationInMinutes()));
+				}}) : null;
+
 	}
 
 
@@ -374,5 +390,15 @@ public class AdminContentApiResponse {
 	@Nullable
 	public Boolean getNewFlag() {
 		return newFlag;
+	}
+
+	@Nullable
+	public String getDurationInMinutesDescription() {
+		return durationInMinutesDescription;
+	}
+
+	@Nullable
+	public String getCallToAction() {
+		return callToAction;
 	}
 }

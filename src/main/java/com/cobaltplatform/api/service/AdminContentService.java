@@ -503,6 +503,29 @@ public class AdminContentService {
 				WHERE content_id=?  				
 				""", contentId);
 	}
+
+	@Nonnull
+	public void publishContent(@Nonnull UUID contentId,
+																 @Nonnull Account account) {
+		requireNonNull(contentId);
+		requireNonNull(account);
+
+		ValidationException validationException = new ValidationException();
+		Optional<Content> content = getContentService().findContentById(contentId);
+
+		if (!content.isPresent()) {
+			validationException.add(new FieldError("contentId", getStrings().get("Content is not valid.")));
+		} else if (content.get().getOwnerInstitutionId() != account.getInstitutionId())
+			validationException.add(new FieldError("contentId", getStrings().get("You must own the content to publish it.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+				UPDATE content SET published = true 
+				WHERE content_id=?  				
+				""", contentId);
+	}
 	@Nonnull
 	public Optional<AdminContent> findAdminContentByIdForInstitution(@Nonnull InstitutionId institutionId, @Nonnull UUID contentId) {
 		requireNonNull(institutionId);

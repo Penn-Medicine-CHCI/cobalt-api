@@ -85,6 +85,9 @@ public class AdminContent{
 	@Nullable
 	private String contentTypeDescription;
 
+	@Nullable
+	private String callToAction;
+
 	@Nonnull
 	public UUID getContentId() {
 		return contentId;
@@ -279,5 +282,14 @@ public class AdminContent{
 
 	public void setContentTypeDescription(@Nullable String contentTypeDescription) {
 		this.contentTypeDescription = contentTypeDescription;
+	}
+
+	@Nullable
+	public String getCallToAction() {
+		return callToAction;
+	}
+
+	public void setCallToAction(@Nullable String callToAction) {
+		this.callToAction = callToAction;
 	}
 }
