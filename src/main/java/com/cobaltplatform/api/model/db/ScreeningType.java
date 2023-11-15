@@ -64,7 +64,8 @@ public class ScreeningType {
 		IC_DRUG_USE_OPIOID,
 		BPI_1,
 		PRIME_5,
-		PSYCHOSIS
+		PSYCHOSIS,
+		SUDS_THERMOMETER
 	}
 
 	@Override
