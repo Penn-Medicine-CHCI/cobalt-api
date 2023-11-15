@@ -335,6 +335,18 @@ public class AdminResource {
 	}
 
 	@Nonnull
+	@PUT("/admin/content/{contentId}/force-expire")
+	@AuthenticationRequired
+	public ApiResponse forceExpireContent(@Nonnull @PathParameter UUID contentId){
+		Account account = getCurrentContext().getAccount().get();
+
+		getAdminContentService().forceExpireContent(contentId, account);
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("content", contentId);
+		}});
+	}
+
+	@Nonnull
 	protected ContentService getContentService() {
 		return contentService;
 	}

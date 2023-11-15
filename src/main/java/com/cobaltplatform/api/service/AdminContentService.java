@@ -215,7 +215,6 @@ public class AdminContentService {
 		String imageUrl = trimToNull(command.getImageUrl());
 		String description = trimToNull(command.getDescription());
 		String author = trimToNull(command.getAuthor());
-		ContentStatusId contentStatusId = command.getContentStatusId();
 		ContentTypeId contentTypeId = command.getContentTypeId();
 		String durationInMinutesString = trimToNull(command.getDurationInMinutes());
 		Set<String> tagIds = command.getTagIds() == null ? Set.of() : command.getTagIds();
@@ -244,16 +243,8 @@ public class AdminContentService {
 			validationException.add(new FieldError("contentTypeId", getStrings().get("Content type is required")));
 		}
 
-		if (contentStatusId == null) {
-			validationException.add(new FieldError("contentStatusId", getStrings().get("Content status is required")));
-		}
-
 		if (sharedFlag == null) {
 			validationException.add(new FieldError("sharedFlag", getStrings().get("Shared flag is required")));
-		}
-
-		if (contentStatusId == null) {
-			validationException.add(new FieldError("contentStatusId", getStrings().get("Content status is required")));
 		}
 
 		if (publishStartDate == null) {
@@ -275,12 +266,12 @@ public class AdminContentService {
 
 		getDatabase().execute("""
 						INSERT INTO content (content_id, content_type_id, title, url, image_url,
-						duration_in_minutes, description, author, content_status_id, shared_flag,
+						duration_in_minutes, description, author, shared_flag,
 						search_terms, publish_start_date, publish_end_date, publish_recurring, owner_institution_id, date_created)
-						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, now())												
+						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?, now())												
 						""",
 				contentId, command.getContentTypeId(), title, url, imageUrl,
-				durationInMinutes, description, author, contentStatusId, sharedFlag,
+				durationInMinutes, description, author, sharedFlag,
 				searchTerms, publishStartDate, publishEndDate, publishRecurring, ownerInstitutionId);
 
 		addContentToInstitution(contentId, account);
@@ -382,12 +373,12 @@ public class AdminContentService {
 		getDatabase().execute("""
 							 	UPDATE content SET content_type_id=?, title=?, url=?, image_url=?, 
 							 	duration_in_minutes=?, description=?, author=?, publish_start_date=?, publish_end_date=?,
-							 	publish_recurring=?, search_terms=?, shared_flag=?, content_status_id=?
+							 	publish_recurring=?, search_terms=?, shared_flag=?
 								WHERE content_id=?
 						""",
 				existingContent.getContentTypeId(), existingContent.getTitle(), existingContent.getUrl(), existingContent.getImageUrl(),
 				durationInMinutes, existingContent.getDescription(), existingContent.getAuthor(), existingContent.getPublishStartDate(), existingContent.getPublishEndDate(),
-				existingContent.getPublishRecurring(), existingContent.getSearchTerms(), existingContent.getSharedFlag(), existingContent.getContentStatusId(),
+				existingContent.getPublishRecurring(), existingContent.getSearchTerms(), existingContent.getSharedFlag(),
 				existingContent.getContentId());
 
 		AdminContent adminContent = findAdminContentByIdForInstitution(account.getInstitutionId(), command.getContentId()).orElse(null);
@@ -490,6 +481,28 @@ public class AdminContentService {
 				""", account.getInstitutionId(), contentId);
 	}
 
+	@Nonnull
+	public void forceExpireContent(@Nonnull UUID contentId,
+																 @Nonnull Account account) {
+		requireNonNull(contentId);
+		requireNonNull(account);
+
+		ValidationException validationException = new ValidationException();
+		Optional<Content> content = getContentService().findContentById(contentId);
+
+		if (!content.isPresent()) {
+			validationException.add(new FieldError("contentId", getStrings().get("Content is not valid.")));
+		} else if (content.get().getOwnerInstitutionId() != account.getInstitutionId())
+			validationException.add(new FieldError("contentId", getStrings().get("You must own the content to expire it.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+				UPDATE content SET publish_end_date = NOW() 
+				WHERE content_id=?  				
+				""", contentId);
+	}
 	@Nonnull
 	public Optional<AdminContent> findAdminContentByIdForInstitution(@Nonnull InstitutionId institutionId, @Nonnull UUID contentId) {
 		requireNonNull(institutionId);

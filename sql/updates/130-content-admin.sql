@@ -14,21 +14,15 @@ VALUES
 ('LIVE', 'Live', 3),
 ('EXPIRED', 'Expired', 4);
 
-ALTER TABLE content ADD COLUMN content_status_id VARCHAR REFERENCES content_status;
 ALTER TABLE content ADD COLUMN shared_flag BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE content ADD COLUMN search_terms VARCHAR NULL;
 ALTER TABLE content ADD COLUMN publish_start_date timestamptz NULL;
 ALTER TABLE content ADD COLUMN publish_end_date timestamptz NULL;
 ALTER TABLE content ADD COLUMN publish_recurring BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE content ADD COLUMN published BOOLEAN NOT NULL DEFAULT false;
 
-UPDATE content SET content_status_id = 'EXPIRED' where archived_flag = true;
-UPDATE content SET content_status_id = 'DRAFT' where owner_institution_approval_status_id='PENDING' and content_status_id IS NULL;
-UPDATE content SET content_status_id = 'LIVE' where owner_institution_approval_status_id='APPROVED' and content_status_id IS NULL;
-UPDATE content SET content_status_id = 'EXPIRED' where owner_institution_approval_status_id='REJECTED' and content_status_id IS NULL;
-ALTER TABLE content ALTER COLUMN content_status_id SET NOT NULL;
-
+UPDATE content SET published = TRUE where owner_institution_approval_status_id='APPROVED';
 UPDATE content SET shared_flag = TRUE WHERE visibility_id = 'PUBLIC';
-
 UPDATE content SET publish_start_date = date_created;
 UPDATE content SET publish_start_date = created WHERE publish_start_date IS NULL;
 ALTER TABLE content ALTER COLUMN publish_start_date SET NOT NULL;
@@ -60,8 +54,16 @@ AS SELECT c.content_id,
     c.publish_start_date,
     c.publish_end_date,
     c.publish_recurring,
-    c.content_status_id,
-    cs.description content_status_description,
+    CASE WHEN c.published =  false THEN 'DRAFT'
+    WHEN NOW() BETWEEN c.publish_start_date AND COALESCE(c.publish_end_date, NOW() + INTERVAL '1 DAY') THEN 'LIVE'
+    WHEN COALESCE(c.publish_end_date, NOW() + INTERVAL '1 DAY') < NOW() THEN 'EXPIRED'
+    WHEN c.publish_start_date > NOW() THEN 'SCHEDULED'
+    END as content_status_id,
+    CASE WHEN c.published =  false THEN 'Draft'
+    WHEN NOW() BETWEEN c.publish_start_date AND c.publish_end_date THEN 'Live'
+    WHEN c.publish_end_date < NOW() THEN 'Expired'
+    WHEN c.publish_start_date > NOW() THEN 'Scheduled'
+    END as content_status_description,
     c.shared_flag, 
     c.search_terms,
     c.duration_in_minutes,
@@ -78,47 +80,16 @@ AS SELECT c.content_id,
     c.date_created
    FROM content_type ct,
     institution i,
-    content_status cs,
     content c
   WHERE c.content_type_id::text = ct.content_type_id::text 
   AND c.owner_institution_id::text = i.institution_id::text
-  AND c.content_status_id = cs.content_status_id
   AND c.deleted_flag = false;
 
 CREATE OR REPLACE VIEW v_institution_content
-AS SELECT c.content_id,
-    c.content_type_id,
-    c.title,
-    c.url,
-    c.publish_start_date,
-    c.publish_end_date,
-    c.publish_recurring,
-    c.content_status_id,
-    cs.description content_status_description,
-    c.shared_flag, 
-    c.search_terms,
-    c.duration_in_minutes,
-    c.image_url,
-    c.description,
-    c.author,
-    c.created,
-    c.last_updated,
-    c.en_search_vector,
-    ct.description AS content_type_description,
-    ct.call_to_action,
-    c.owner_institution_id,
-    i.name AS owner_institution,
-    c.date_created,
+AS SELECT vac.*,
     it.institution_id
-   FROM content c,
-    content_type ct,
-    institution_content it,
-    institution i,
-    content_status cs
-  WHERE c.content_type_id::text = ct.content_type_id::text 
-  AND c.content_id = it.content_id 
-  AND c.owner_institution_id::text = i.institution_id::text
-  AND c.content_status_id = cs.content_status_id
-  AND c.deleted_flag = false;
+   FROM v_admin_content vac,
+    institution_content it
+  WHERE vac.content_id = it.content_id;
 
 COMMIT;

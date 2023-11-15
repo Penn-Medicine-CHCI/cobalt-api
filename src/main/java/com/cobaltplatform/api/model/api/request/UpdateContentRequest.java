@@ -62,8 +62,6 @@ public class UpdateContentRequest {
 	private String searchTerms;
 	@Nullable
 	private Boolean sharedFlag;
-	@Nullable
-	private ContentStatus.ContentStatusId contentStatusId;
 
 	@Nullable
 	public UUID getContentId() {
@@ -191,12 +189,4 @@ public class UpdateContentRequest {
 		this.sharedFlag = sharedFlag;
 	}
 
-	@Nullable
-	public ContentStatus.ContentStatusId getContentStatusId() {
-		return contentStatusId;
-	}
-
-	public void setContentStatusId(@Nullable ContentStatus.ContentStatusId contentStatusId) {
-		this.contentStatusId = contentStatusId;
-	}
 }
