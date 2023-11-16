@@ -307,7 +307,6 @@ public class AdminContentService {
 		String descriptionCommand = trimToNull(command.getDescription());
 		String authorCommand = trimToNull(command.getAuthor());
 		ContentTypeId contentTypeIdCommand = command.getContentTypeId();
-		ContentStatusId contentStatusId = command.getContentStatusId();
 		String durationInMinutesString = trimToNull(command.getDurationInMinutes());
 		Set<String> tagIds = command.getTagIds() == null ? Set.of() : command.getTagIds();
 		LocalDate publishStartDate = command.getPublishStartDate();
@@ -365,9 +364,6 @@ public class AdminContentService {
 
 			if (fileUrl != null)
 				existingContent.setFileUrl(fileUrl);
-
-			if (contentStatusId != null)
-				existingContent.setContentStatusId(contentStatusId);
 		}
 
 		if (durationInMinutesString != null && !ValidationUtility.isValidInteger(durationInMinutesString))
@@ -382,13 +378,13 @@ public class AdminContentService {
 		getDatabase().execute("""
 							 	UPDATE content SET content_type_id=?, title=?, url=?, image_url=?, 
 							 	duration_in_minutes=?, description=?, author=?, publish_start_date=?, publish_end_date=?,
-							 	publish_recurring=?, search_terms=?, shared_flag=?, file_url=?, content_status_id=?
+							 	publish_recurring=?, search_terms=?, shared_flag=?, file_url=?
 								WHERE content_id=?
 						""",
 				existingContent.getContentTypeId(), existingContent.getTitle(), existingContent.getUrl(), existingContent.getImageUrl(),
 				durationInMinutes, existingContent.getDescription(), existingContent.getAuthor(), existingContent.getPublishStartDate(), existingContent.getPublishEndDate(),
-				existingContent.getPublishRecurring(), existingContent.getSearchTerms(), existingContent.getSharedFlag(), existingContent.getFileUrl(),
-				existingContent.getContentStatusId(), existingContent.getContentId());
+				existingContent.getPublishRecurring(), existingContent.getSearchTerms(), existingContent.getSharedFlag(),existingContent.getFileUrl(),
+				existingContent.getContentId());
 
 		AdminContent adminContent = findAdminContentByIdForInstitution(account.getInstitutionId(), command.getContentId()).orElse(null);
 
@@ -515,7 +511,7 @@ public class AdminContentService {
 
 	@Nonnull
 	public void publishContent(@Nonnull UUID contentId,
-														 @Nonnull Account account) {
+																 @Nonnull Account account) {
 		requireNonNull(contentId);
 		requireNonNull(account);
 
@@ -535,7 +531,6 @@ public class AdminContentService {
 				WHERE content_id=?  				
 				""", contentId);
 	}
-
 	@Nonnull
 	public Optional<AdminContent> findAdminContentByIdForInstitution(@Nonnull InstitutionId institutionId, @Nonnull UUID contentId) {
 		requireNonNull(institutionId);

@@ -19,7 +19,7 @@
 
 package com.cobaltplatform.api.model.api.request;
 
-import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
+import com.cobaltplatform.api.model.db.ContentStatus;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
 
 import javax.annotation.Nonnull;
@@ -38,8 +38,6 @@ public class UpdateContentRequest {
 	private UUID contentId;
 	@Nullable
 	private ContentTypeId contentTypeId;
-	@Nullable
-	private ContentStatusId contentStatusId;
 	@Nonnull
 	private String title;
 	@Nullable
@@ -66,7 +64,6 @@ public class UpdateContentRequest {
 	private Boolean sharedFlag;
 	@Nullable
 	private String fileUrl;
-
 	@Nullable
 	public UUID getContentId() {
 		return contentId;
@@ -83,15 +80,6 @@ public class UpdateContentRequest {
 
 	public void setContentTypeId(@Nullable ContentTypeId contentTypeId) {
 		this.contentTypeId = contentTypeId;
-	}
-
-	@Nullable
-	public ContentStatusId getContentStatusId() {
-		return this.contentStatusId;
-	}
-
-	public void setContentStatusId(@Nullable ContentStatusId contentStatusId) {
-		this.contentStatusId = contentStatusId;
 	}
 
 	@Nonnull
