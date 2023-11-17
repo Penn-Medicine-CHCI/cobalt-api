@@ -910,6 +910,11 @@ public class AccountResource {
 				.filter(featureForInstitution -> featureForInstitution != null)
 				.collect(Collectors.toList());
 
+		// If this is an Epic FHIR institution, sync Epic cancelations into our own database to
+		// make sure we're up-to-date
+		if (institution.getEpicFhirEnabled())
+			getAppointmentService().synchronizeEpicFhirCanceledAppointmentsForAccountId(accountId);
+
 		List<Appointment> appointments = getAppointmentService().findAppointmentsByAccountId(accountId).stream()
 				.filter(appointment -> !appointment.getCanceled())
 				.collect(Collectors.toList());
