@@ -21,6 +21,7 @@ package com.cobaltplatform.api.integration.epic.response;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.List;
 
 /**
  * @author Transmogrify, LLC.
@@ -29,57 +30,161 @@ import javax.annotation.concurrent.NotThreadSafe;
 public class AppointmentBookFhirStu3Response {
 	@Nullable
 	private String rawJson;
+	@Nullable
+	private String resourceType;
+	@Nullable
+	private String type;
+	@Nullable
+	private Integer total;
+	@Nullable
+	private List<Link> link;
+	@Nullable
+	private List<Entry> entry;
 
-	// TODO
-	//
-	// {
-	//   "resourceType":"Appointment",
-	//   "id":"eU32HphPn1VaOoKuco8Q56SVsfdrB3fsVeoLAjhpvLY43",
-	//   "identifier":[
-	//      {
-	//         "system":"urn:oid:1.2.840.114350.1.13.861.1.7.3.698084.8",
-	//         "value":"10158405185"
-	//      }
-	//   ],
-	//   "status":"booked",
-	//   "serviceType":[
-	//      {
-	//         "coding":[
-	//            {
-	//               "system":"urn:oid:1.2.840.114350.1.13.861.1.7.2.808267",
-	//               "code":"225",
-	//               "display":"Physical Therapy Visit"
-	//            }
-	//         ]
-	//      }
-	//   ],
-	//   "start":"2018-08-04T00:00:00Z",
-	//   "end":"2018-08-04T00:30:00Z",
-	//   "minutesDuration":30,
-	//   "participant":[
-	//      {
-	//         "actor":{
-	//            "reference":"https://hostname/instance/api/FHIR/STU3/Patient/efvHwbc1k1CQ9XjM1zvvefQ3",
-	//            "display":"CDS,Fhir"
-	//         },
-	//         "status":"accepted"
-	//      },
-	//      {
-	//         "actor":{
-	//            "reference":"https://hostname/instance/api/FHIR/STU3/Practitioner/edNKJE8VjTF.I8BInZ7jSn5nAYzw4T3TaxTbsCoM.lgY3",
-	//            "display":"Jones, Alex, MD"
-	//         },
-	//         "status":"accepted"
-	//      },
-	//      {
-	//         "actor":{
-	//            "reference":"https://hostname/instance/api/FHIR/STU3/Location/e6mKSqgx8ytPcbu-A4F0TVA3",
-	//            "display":"INITIAL DEPARTMENT"
-	//         },
-	//         "status":"accepted"
-	//      }
-	//   ]
-	// }
+	@NotThreadSafe
+	public static class Entry {
+		@Nullable
+		private List<Link> link;
+		@Nullable
+		private String fullUrl;
+		@Nullable
+		private Resource resource;
+		@Nullable
+		private Search search;
+
+		@NotThreadSafe
+		public static class Search {
+			@Nullable
+			private String mode;
+
+			@Nullable
+			public String getMode() {
+				return this.mode;
+			}
+
+			public void setMode(@Nullable String mode) {
+				this.mode = mode;
+			}
+		}
+
+		@NotThreadSafe
+		public static class Resource {
+			@Nullable
+			private String resourceType;
+			@Nullable
+			private String id;
+			@Nullable
+			private List<Identifier> identifier;
+
+			// TODO: add other Resource fields as needed.  For now, these are all we care about
+
+			@NotThreadSafe
+			public static class Identifier {
+				@Nullable
+				private String system;
+				@Nullable
+				private String value;
+
+				@Nullable
+				public String getSystem() {
+					return this.system;
+				}
+
+				public void setSystem(@Nullable String system) {
+					this.system = system;
+				}
+
+				@Nullable
+				public String getValue() {
+					return this.value;
+				}
+
+				public void setValue(@Nullable String value) {
+					this.value = value;
+				}
+			}
+
+			@Nullable
+			public String getResourceType() {
+				return this.resourceType;
+			}
+
+			public void setResourceType(@Nullable String resourceType) {
+				this.resourceType = resourceType;
+			}
+
+			@Nullable
+			public String getId() {
+				return this.id;
+			}
+
+			public void setId(@Nullable String id) {
+				this.id = id;
+			}
+
+			@Nullable
+			public List<Identifier> getIdentifier() {
+				return this.identifier;
+			}
+
+			public void setIdentifier(@Nullable List<Identifier> identifier) {
+				this.identifier = identifier;
+			}
+		}
+
+		@Nullable
+		public List<Link> getLink() {
+			return this.link;
+		}
+
+		public void setLink(@Nullable List<Link> link) {
+			this.link = link;
+		}
+
+		@Nullable
+		public String getFullUrl() {
+			return this.fullUrl;
+		}
+
+		public void setFullUrl(@Nullable String fullUrl) {
+			this.fullUrl = fullUrl;
+		}
+
+		@Nullable
+		public Resource getResource() {
+			return this.resource;
+		}
+
+		public void setResource(@Nullable Resource resource) {
+			this.resource = resource;
+		}
+	}
+
+	@NotThreadSafe
+	public static class Link {
+		@Nullable
+		private String relation;
+		@Nullable
+		private String url;
+
+		@Nullable
+		public String getRelation() {
+			return this.relation;
+		}
+
+		public void setRelation(@Nullable String relation) {
+			this.relation = relation;
+		}
+
+		@Nullable
+		public String getUrl() {
+			return this.url;
+		}
+
+		public void setUrl(@Nullable String url) {
+			this.url = url;
+		}
+	}
 
 	@Nullable
 	public String getRawJson() {
@@ -88,5 +193,50 @@ public class AppointmentBookFhirStu3Response {
 
 	public void setRawJson(@Nullable String rawJson) {
 		this.rawJson = rawJson;
+	}
+
+	@Nullable
+	public String getResourceType() {
+		return this.resourceType;
+	}
+
+	public void setResourceType(@Nullable String resourceType) {
+		this.resourceType = resourceType;
+	}
+
+	@Nullable
+	public String getType() {
+		return this.type;
+	}
+
+	public void setType(@Nullable String type) {
+		this.type = type;
+	}
+
+	@Nullable
+	public Integer getTotal() {
+		return this.total;
+	}
+
+	public void setTotal(@Nullable Integer total) {
+		this.total = total;
+	}
+
+	@Nullable
+	public List<Link> getLink() {
+		return this.link;
+	}
+
+	public void setLink(@Nullable List<Link> link) {
+		this.link = link;
+	}
+
+	@Nullable
+	public List<Entry> getEntry() {
+		return this.entry;
+	}
+
+	public void setEntry(@Nullable List<Entry> entry) {
+		this.entry = entry;
 	}
 }
