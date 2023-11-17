@@ -131,11 +131,13 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
@@ -398,69 +400,13 @@ public class AppointmentService {
 			if (account.getEpicPatientFhirId() == null)
 				return List.of();
 
+			// Sync Epic cancelations into our own database to make sure we're up-to-date
+			synchronizeEpicFhirCanceledAppointmentsForAccountId(accountId);
+
 			// Find all Epic FHIR providers we're aware of and make them quickly accessible by their Epic Practitioner FHIR ID
 			Map<String, Provider> providersByEpicPractitionerFhirId = getProviderService().findProvidersByInstitutionId(institution.getInstitutionId()).stream()
 					.filter(provider -> provider.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR)
 					.collect(Collectors.toMap(Provider::getEpicPractitionerFhirId, Function.identity()));
-
-			// Ask Epic for canceled appointments and cancel them in Cobalt as well if they are present
-			AppointmentSearchFhirStu3Request canceledAppointmentsRequest = new AppointmentSearchFhirStu3Request();
-			canceledAppointmentsRequest.setPatient(account.getEpicPatientFhirId());
-			canceledAppointmentsRequest.setStatus(AppointmentSearchFhirStu3Request.Status.CANCELLED);
-
-			AppointmentSearchFhirStu3Response canceledAppointmentsResponse = epicClient.appointmentSearchFhirStu3(canceledAppointmentsRequest);
-
-			if (canceledAppointmentsResponse.getTotal() > 0) {
-				getLogger().debug("Patient {} has {} canceled appointment[s] overall.", account.getEpicPatientFhirId(), canceledAppointmentsResponse.getTotal());
-
-				// Pick out all the appointment resources that match providers in our system
-				for (AppointmentSearchFhirStu3Response.Entry entry : canceledAppointmentsResponse.getEntry()) {
-					AppointmentSearchFhirStu3Response.Entry.Resource resource = entry.getResource();
-
-					if ("Appointment".equals(resource.getResourceType())) {
-						if (resource.getStatus() != AppointmentStatusCode.CANCELLED)
-							continue;
-
-						// Find the "actor" in each appointment that matches one of our providers
-						Provider matchingProvider = null;
-
-						for (AppointmentSearchFhirStu3Response.Entry.Resource.Participant participant : resource.getParticipant()) {
-							AppointmentSearchFhirStu3Response.Entry.Resource.Participant.Actor actor = participant.getActor();
-
-							if (actor != null) {
-								for (String epicPractitionerFhirId : providersByEpicPractitionerFhirId.keySet()) {
-									if (actor.getReference() != null && actor.getReference().endsWith(format("Practitioner/%s", epicPractitionerFhirId))) {
-										matchingProvider = providersByEpicPractitionerFhirId.get(epicPractitionerFhirId);
-										break;
-									}
-								}
-							}
-
-							if (matchingProvider != null)
-								break;
-						}
-
-						// Special behavior: if appointment is marked as canceled, cancel it in our database as well
-						if (resource.getStatus() == AppointmentStatusCode.CANCELLED && matchingProvider != null && resource.getStart().isAfter(now)) {
-							Appointment appointment = findAppointmentByEpicFhirId(resource.getId(), account.getInstitutionId()).orElse(null);
-
-							if (appointment != null && !appointment.getCanceled()) {
-								getLogger().info("Appointment ID {} with Epic FHIR ID {} was canceled on the Epic side, so canceling it in Cobalt...",
-										appointment.getAppointmentId(), appointment.getEpicAppointmentFhirId());
-
-								cancelAppointment(new CancelAppointmentRequest() {{
-									setAppointmentId(appointment.getAppointmentId());
-									setAppointmentCancelationReasonId(AppointmentCancelationReasonId.EXTERNALLY_CANCELED);
-									setAccountId(account.getAccountId());
-									setCanceledByWebhook(false);
-									setCanceledForReschedule(false);
-									setForce(true);
-								}});
-							}
-						}
-					}
-				}
-			}
 
 			AppointmentSearchFhirStu3Request request = new AppointmentSearchFhirStu3Request();
 			request.setPatient(account.getEpicPatientFhirId());
@@ -542,6 +488,99 @@ public class AppointmentService {
 					ORDER BY start_time
 					""", Appointment.class, accountId, now);
 		}
+	}
+
+	@Nonnull
+	public Set<UUID> synchronizeEpicFhirCanceledAppointmentsForAccountId(@Nullable UUID accountId) {
+		if (accountId == null)
+			return Set.of();
+
+		Account account = getAccountService().findAccountById(accountId).orElse(null);
+
+		if (account == null || account.getEpicPatientFhirId() == null)
+			return Set.of();
+
+		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
+
+		// Only applicable for Epic FHIR institutions
+		if (!institution.getEpicFhirEnabled())
+			return Set.of();
+
+		Instant now = Instant.now();
+
+		// Ask Epic for all canceled appointments, then filter by only those providers that are active in Cobalt
+		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institution.getInstitutionId());
+		EpicClient epicClient = enterprisePlugin.epicClientForBackendService().get();
+
+		// Find all Epic FHIR providers we're aware of and make them quickly accessible by their Epic Practitioner FHIR ID
+		Map<String, Provider> providersByEpicPractitionerFhirId = getProviderService().findProvidersByInstitutionId(institution.getInstitutionId()).stream()
+				.filter(provider -> provider.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR)
+				.collect(Collectors.toMap(Provider::getEpicPractitionerFhirId, Function.identity()));
+
+		Set<UUID> canceledAppointmentIds = new HashSet<>();
+
+		// Ask Epic for canceled appointments and cancel them in Cobalt as well if they are present
+		AppointmentSearchFhirStu3Request canceledAppointmentsRequest = new AppointmentSearchFhirStu3Request();
+		canceledAppointmentsRequest.setPatient(account.getEpicPatientFhirId());
+		canceledAppointmentsRequest.setStatus(AppointmentSearchFhirStu3Request.Status.CANCELLED);
+
+		AppointmentSearchFhirStu3Response canceledAppointmentsResponse = epicClient.appointmentSearchFhirStu3(canceledAppointmentsRequest);
+
+		if (canceledAppointmentsResponse.getTotal() > 0) {
+			getLogger().debug("Patient {} has {} canceled appointment[s] overall.", account.getEpicPatientFhirId(), canceledAppointmentsResponse.getTotal());
+
+			// Pick out all the appointment resources that match providers in our system
+			for (AppointmentSearchFhirStu3Response.Entry entry : canceledAppointmentsResponse.getEntry()) {
+				AppointmentSearchFhirStu3Response.Entry.Resource resource = entry.getResource();
+
+				if ("Appointment".equals(resource.getResourceType())) {
+					if (resource.getStatus() != AppointmentStatusCode.CANCELLED)
+						continue;
+
+					// Find the "actor" in each appointment that matches one of our providers
+					Provider matchingProvider = null;
+
+					for (AppointmentSearchFhirStu3Response.Entry.Resource.Participant participant : resource.getParticipant()) {
+						AppointmentSearchFhirStu3Response.Entry.Resource.Participant.Actor actor = participant.getActor();
+
+						if (actor != null) {
+							for (String epicPractitionerFhirId : providersByEpicPractitionerFhirId.keySet()) {
+								if (actor.getReference() != null && actor.getReference().endsWith(format("Practitioner/%s", epicPractitionerFhirId))) {
+									matchingProvider = providersByEpicPractitionerFhirId.get(epicPractitionerFhirId);
+									break;
+								}
+							}
+						}
+
+						if (matchingProvider != null)
+							break;
+					}
+
+					// Special behavior: if appointment is marked as canceled, cancel it in our database as well
+					if (resource.getStatus() == AppointmentStatusCode.CANCELLED && matchingProvider != null && resource.getStart().isAfter(now)) {
+						Appointment appointment = findAppointmentByEpicFhirId(resource.getId(), account.getInstitutionId()).orElse(null);
+
+						if (appointment != null && !appointment.getCanceled()) {
+							getLogger().info("Appointment ID {} with Epic FHIR ID {} was canceled on the Epic side, so canceling it in Cobalt...",
+									appointment.getAppointmentId(), appointment.getEpicAppointmentFhirId());
+
+							cancelAppointment(new CancelAppointmentRequest() {{
+								setAppointmentId(appointment.getAppointmentId());
+								setAppointmentCancelationReasonId(AppointmentCancelationReasonId.EXTERNALLY_CANCELED);
+								setAccountId(account.getAccountId());
+								setCanceledByWebhook(false);
+								setCanceledForReschedule(false);
+								setForce(true);
+							}});
+
+							canceledAppointmentIds.add(appointment.getAppointmentId());
+						}
+					}
+				}
+			}
+		}
+
+		return canceledAppointmentIds;
 	}
 
 	@Nonnull
