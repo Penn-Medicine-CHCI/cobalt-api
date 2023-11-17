@@ -19,6 +19,9 @@
 
 package com.cobaltplatform.api.model.api.request;
 
+import com.cobaltplatform.api.model.db.AppointmentCancelationReason;
+import com.cobaltplatform.api.model.db.AppointmentCancelationReason.AppointmentCancelationReasonId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.UUID;
@@ -38,6 +41,9 @@ public class CancelAppointmentRequest {
 	private Boolean canceledForReschedule;
 	@Nullable
 	private UUID rescheduleAppointmentId;
+	@Nullable
+	private AppointmentCancelationReasonId appointmentCancelationReasonId;
+	private boolean force;
 
 	@Nullable
 	public UUID getAccountId() {
@@ -82,5 +88,22 @@ public class CancelAppointmentRequest {
 
 	public void setRescheduleAppointmentId(@Nullable UUID rescheduleAppointmentId) {
 		this.rescheduleAppointmentId = rescheduleAppointmentId;
+	}
+
+	@Nullable
+	public AppointmentCancelationReasonId getAppointmentCancelationReasonId() {
+		return this.appointmentCancelationReasonId;
+	}
+
+	public void setAppointmentCancelationReasonId(@Nullable AppointmentCancelationReasonId appointmentCancelationReasonId) {
+		this.appointmentCancelationReasonId = appointmentCancelationReasonId;
+	}
+
+	public boolean isForce() {
+		return this.force;
+	}
+
+	public void setForce(boolean force) {
+		this.force = force;
 	}
 }

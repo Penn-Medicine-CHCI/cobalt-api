@@ -138,6 +138,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/130-hidden-gsc
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/131-gsc-url-name.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/132-study-presigned-uploads.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/133-suds-thermometer.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/134-epic-cancelation-detection.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
