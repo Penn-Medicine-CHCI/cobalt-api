@@ -321,7 +321,7 @@ public class AdminResource {
 		PresignedUpload presignedUpload = getImageUploadService().generatePresignedUploadForContent(request);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("filePresignedUpload", getPresignedUploadApiResponseFactory().create(presignedUpload));
+			put("presignedUpload", getPresignedUploadApiResponseFactory().create(presignedUpload));
 		}});
 	}
 	@Nonnull
