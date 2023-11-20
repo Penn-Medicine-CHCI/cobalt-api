@@ -598,7 +598,10 @@ public class ResourceLibraryResource {
 	@Nonnull
 	protected List<Map<String, Object>> availableContentTypes() {
 		return getContentService().findContentTypes().stream()
-				.map(contentType -> Map.<String, Object>of("contentTypeId", contentType.getContentTypeId(), "description", contentType.getDescription()))
+				.map(contentType -> Map.<String, Object>of(
+						"contentTypeId", contentType.getContentTypeId(),
+						"description", contentType.getDescription(),
+						"callToAction", contentType.getCallToAction()))
 				.collect(Collectors.toList());
 	}
 
