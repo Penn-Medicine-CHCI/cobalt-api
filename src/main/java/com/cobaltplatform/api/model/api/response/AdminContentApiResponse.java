@@ -115,8 +115,8 @@ public class AdminContentApiResponse {
 
 	@Nullable
 	private String fileUrl;
-
-
+	@Nullable
+	private final List<TagApiResponse> tags;
 
 	public enum AdminContentDisplayType {
 		DETAIL,
@@ -142,13 +142,15 @@ public class AdminContentApiResponse {
 																 @Assisted @Nonnull AdminContent adminContent,
 																 @Assisted @Nonnull AdminContentDisplayType adminContentDisplayType,
 																 @Assisted @Nonnull List<UUID> institutionContentIds,
-																 @Nonnull Strings strings) {
+																 @Nonnull Strings strings,
+																 @Nonnull TagApiResponse.TagApiResponseFactory tagApiResponseFactory) {
 		requireNonNull(formatter);
 		requireNonNull(adminContent);
 		requireNonNull(contentService);
 		requireNonNull(account);
 		requireNonNull(institutionContentIds);
 		requireNonNull(strings);
+		requireNonNull(tagApiResponseFactory);
 
 		List<ContentActionId> contentActionIdList = new ArrayList<>();
 		Boolean contentOwnedByCurrentAccount = account.getInstitutionId().equals(adminContent.getOwnerInstitutionId());
@@ -220,6 +222,10 @@ public class AdminContentApiResponse {
 				}}) : null;
 
 		this.fileUrl = adminContent.getFileUrl();
+
+		this.tags = adminContent.getTags() == null ? Collections.emptyList() : adminContent.getTags().stream()
+				.map(tag -> tagApiResponseFactory.create(tag))
+				.collect(Collectors.toList());;
 	}
 
 
@@ -410,5 +416,10 @@ public class AdminContentApiResponse {
 	@Nullable
 	public String getFileUrl() {
 		return fileUrl;
+	}
+
+	@Nullable
+	public List<TagApiResponse> getTags() {
+		return tags;
 	}
 }
