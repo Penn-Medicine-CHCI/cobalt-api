@@ -371,7 +371,7 @@ public class EpicFhirSyncManager implements ProviderAvailabilitySyncManager, Aut
 						getLogger().debug("Waiting for all futures to complete...");
 
 						try {
-							combinedFuture.get(180, TimeUnit.SECONDS);
+							combinedFuture.get(5, TimeUnit.MINUTES);
 						} catch (ExecutionException e) {
 							throw new RuntimeException("Epic FHIR provider find cache job failed", e);
 						} catch (TimeoutException e) {
@@ -464,7 +464,6 @@ public class EpicFhirSyncManager implements ProviderAvailabilitySyncManager, Aut
 		protected Logger getLogger() {
 			return logger;
 		}
-
 	}
 
 	@Nonnull

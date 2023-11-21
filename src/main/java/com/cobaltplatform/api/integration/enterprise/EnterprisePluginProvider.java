@@ -103,9 +103,23 @@ public class EnterprisePluginProvider {
 				// This line appears unsafe, but we do a check below to confirm it's kosher
 				Class<? extends EnterprisePlugin> enterprisePluginClass = (Class<? extends EnterprisePlugin>) Class.forName(fullyQualifiedClassName);
 
-				if (!Arrays.stream(enterprisePluginClass.getInterfaces()).toList().contains(EnterprisePlugin.class))
-					throw new IllegalStateException(format("Plugin class %s must be modified to implement the %s interface.",
-							fullyQualifiedClassName, EnterprisePlugin.class));
+				if (!Arrays.stream(enterprisePluginClass.getInterfaces()).toList().contains(EnterprisePlugin.class)) {
+					boolean superclassImplementsEnterprisePlugin = false;
+					Class<?> enterprisePluginSuperclass = enterprisePluginClass.getSuperclass();
+
+					while (enterprisePluginSuperclass != null) {
+						if (Arrays.stream(enterprisePluginSuperclass.getInterfaces()).toList().contains(EnterprisePlugin.class)) {
+							superclassImplementsEnterprisePlugin = true;
+							break;
+						}
+
+						enterprisePluginSuperclass = enterprisePluginClass.getSuperclass();
+					}
+
+					if (!superclassImplementsEnterprisePlugin)
+						throw new IllegalStateException(format("Plugin class %s, or one of its superclasses, must be modified to implement the %s interface.",
+								fullyQualifiedClassName, EnterprisePlugin.class));
+				}
 
 				enterprisePluginClassesByInstitutionId.put(institutionId, enterprisePluginClass);
 			} catch (Exception e) {

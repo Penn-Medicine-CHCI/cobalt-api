@@ -17,32 +17,42 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.integration.enterprise;
+package com.cobaltplatform.api.integration.google;
 
-import com.cobaltplatform.api.Configuration;
-import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.service.InstitutionService;
+import com.google.cloud.bigquery.FieldValueList;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import java.time.Duration;
+import java.util.List;
 
 /**
  * @author Transmogrify, LLC.
  */
-@Singleton
 @ThreadSafe
-public class CobaltIcEnterprisePlugin extends DefaultEnterprisePlugin {
-	@Inject
-	public CobaltIcEnterprisePlugin(@Nonnull InstitutionService institutionService,
-																	@Nonnull Configuration configuration) {
-		super(institutionService, configuration);
+public class MockGoogleBigQueryClient implements GoogleBigQueryClient {
+	@Nonnull
+	@Override
+	public String getProjectId() {
+		return "mock-project-id";
 	}
 
 	@Nonnull
 	@Override
-	public InstitutionId getInstitutionId() {
-		return InstitutionId.COBALT_IC;
+	public String getBigQueryResourceId() {
+		return "mock-resource-id";
+	}
+
+	@Nonnull
+	@Override
+	public List<FieldValueList> queryForList(@Nonnull String sql) {
+		return List.of();
+	}
+
+	@Nonnull
+	@Override
+	public List<GoogleBigQueryExportRecord> performRestApiQueryForExport(@Nonnull String sql,
+																																			 @Nonnull Duration timeout) {
+		return List.of();
 	}
 }

@@ -30,6 +30,7 @@ import com.pyranid.DatabaseColumn;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Collections;
@@ -241,6 +242,30 @@ public class Institution {
 	private String secureFilesharingPlatformName;
 	@Nullable
 	private String secureFilesharingPlatformUrl;
+	@Nullable
+	private String googleReportingServiceAccountPrivateKey;
+	@Nullable
+	@DatabaseColumn("google_ga4_property_id")
+	private String googleGa4PropertyId;
+	@Nullable
+	@DatabaseColumn("google_bigquery_resource_id")
+	private String googleBigQueryResourceId;
+	@Nullable
+	@DatabaseColumn("google_bigquery_sync_enabled")
+	private Boolean googleBigQuerySyncEnabled;
+	@Nullable
+	@DatabaseColumn("google_bigquery_sync_starts_at")
+	private LocalDate googleBigQuerySyncStartsAt;
+	@Nullable
+	private Long mixpanelProjectId;
+	@Nullable
+	private String mixpanelServiceAccountUsername;
+	@Nullable
+	private String mixpanelServiceAccountSecret;
+	@Nullable
+	private Boolean mixpanelSyncEnabled;
+	@Nullable
+	private LocalDate mixpanelSyncStartsAt;
 
 	public enum InstitutionId {
 		COBALT,
@@ -1112,7 +1137,6 @@ public class Institution {
 		this.privacyPolicyUrl = privacyPolicyUrl;
 	}
 
-	@Nullable
 	public String getSecureFilesharingPlatformName() {
 		return this.secureFilesharingPlatformName;
 	}
@@ -1128,5 +1152,95 @@ public class Institution {
 
 	public void setSecureFilesharingPlatformUrl(@Nullable String secureFilesharingPlatformUrl) {
 		this.secureFilesharingPlatformUrl = secureFilesharingPlatformUrl;
+	}
+
+	@Nullable
+	public String getGoogleReportingServiceAccountPrivateKey() {
+		return this.googleReportingServiceAccountPrivateKey;
+	}
+
+	public void setGoogleReportingServiceAccountPrivateKey(@Nullable String googleReportingServiceAccountPrivateKey) {
+		this.googleReportingServiceAccountPrivateKey = googleReportingServiceAccountPrivateKey;
+	}
+
+	@Nullable
+	public String getGoogleGa4PropertyId() {
+		return this.googleGa4PropertyId;
+	}
+
+	public void setGoogleGa4PropertyId(@Nullable String googleGa4PropertyId) {
+		this.googleGa4PropertyId = googleGa4PropertyId;
+	}
+
+	@Nullable
+	public String getGoogleBigQueryResourceId() {
+		return this.googleBigQueryResourceId;
+	}
+
+	public void setGoogleBigQueryResourceId(@Nullable String googleBigQueryResourceId) {
+		this.googleBigQueryResourceId = googleBigQueryResourceId;
+	}
+
+	@Nullable
+	public Boolean getGoogleBigQuerySyncEnabled() {
+		return this.googleBigQuerySyncEnabled;
+	}
+
+	public void setGoogleBigQuerySyncEnabled(@Nullable Boolean googleBigQuerySyncEnabled) {
+		this.googleBigQuerySyncEnabled = googleBigQuerySyncEnabled;
+	}
+
+	@Nullable
+	public LocalDate getGoogleBigQuerySyncStartsAt() {
+		return this.googleBigQuerySyncStartsAt;
+	}
+
+	public void setGoogleBigQuerySyncStartsAt(@Nullable LocalDate googleBigQuerySyncStartsAt) {
+		this.googleBigQuerySyncStartsAt = googleBigQuerySyncStartsAt;
+	}
+
+	@Nullable
+	public Long getMixpanelProjectId() {
+		return this.mixpanelProjectId;
+	}
+
+	public void setMixpanelProjectId(@Nullable Long mixpanelProjectId) {
+		this.mixpanelProjectId = mixpanelProjectId;
+	}
+
+	@Nullable
+	public String getMixpanelServiceAccountUsername() {
+		return this.mixpanelServiceAccountUsername;
+	}
+
+	public void setMixpanelServiceAccountUsername(@Nullable String mixpanelServiceAccountUsername) {
+		this.mixpanelServiceAccountUsername = mixpanelServiceAccountUsername;
+	}
+
+	@Nullable
+	public String getMixpanelServiceAccountSecret() {
+		return this.mixpanelServiceAccountSecret;
+	}
+
+	public void setMixpanelServiceAccountSecret(@Nullable String mixpanelServiceAccountSecret) {
+		this.mixpanelServiceAccountSecret = mixpanelServiceAccountSecret;
+	}
+
+	@Nullable
+	public Boolean getMixpanelSyncEnabled() {
+		return this.mixpanelSyncEnabled;
+	}
+
+	public void setMixpanelSyncEnabled(@Nullable Boolean mixpanelSyncEnabled) {
+		this.mixpanelSyncEnabled = mixpanelSyncEnabled;
+	}
+
+	@Nullable
+	public LocalDate getMixpanelSyncStartsAt() {
+		return this.mixpanelSyncStartsAt;
+	}
+
+	public void setMixpanelSyncStartsAt(@Nullable LocalDate mixpanelSyncStartsAt) {
+		this.mixpanelSyncStartsAt = mixpanelSyncStartsAt;
 	}
 }

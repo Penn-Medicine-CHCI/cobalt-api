@@ -17,17 +17,30 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.integration.penn;
-
-import com.cobaltplatform.api.integration.penn.model.BluejeansMeeting;
+package com.cobaltplatform.api.model.service;
 
 import javax.annotation.Nonnull;
+import javax.annotation.concurrent.ThreadSafe;
+import java.util.Collections;
 import java.util.List;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * @author Transmogrify, LLC.
  */
-public interface SwitchboardClient {
+@ThreadSafe
+public class AnalyticsWidgetGroup {
 	@Nonnull
-	List<BluejeansMeeting> fetchBluejeansMeetingsForCsns(@Nonnull List<String> csns);
+	private final List<AnalyticsWidget> widgets;
+
+	public AnalyticsWidgetGroup(@Nonnull List<AnalyticsWidget> widgets) {
+		requireNonNull(widgets);
+		this.widgets = Collections.unmodifiableList(widgets);
+	}
+
+	@Nonnull
+	public List<AnalyticsWidget> getWidgets() {
+		return this.widgets;
+	}
 }

@@ -17,32 +17,24 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.integration.enterprise;
+package com.cobaltplatform.api.integration.google;
 
-import com.cobaltplatform.api.Configuration;
-import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.service.InstitutionService;
+import com.google.analytics.data.v1beta.RunReportRequest;
+import com.google.analytics.data.v1beta.RunReportResponse;
 
 import javax.annotation.Nonnull;
-import javax.annotation.concurrent.ThreadSafe;
-import javax.inject.Inject;
-import javax.inject.Singleton;
 
 /**
+ * See https://developers.google.com/analytics/devguides/reporting/data/v1/api-schema
  * @author Transmogrify, LLC.
  */
-@Singleton
-@ThreadSafe
-public class CobaltIcEnterprisePlugin extends DefaultEnterprisePlugin {
-	@Inject
-	public CobaltIcEnterprisePlugin(@Nonnull InstitutionService institutionService,
-																	@Nonnull Configuration configuration) {
-		super(institutionService, configuration);
-	}
+public interface GoogleAnalyticsDataClient {
+	@Nonnull
+	String getGa4PropertyId();
 
 	@Nonnull
-	@Override
-	public InstitutionId getInstitutionId() {
-		return InstitutionId.COBALT_IC;
-	}
+	String getProjectId();
+
+	@Nonnull
+	RunReportResponse runReport(@Nonnull RunReportRequest runReportRequest);
 }

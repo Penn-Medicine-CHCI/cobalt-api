@@ -283,4 +283,25 @@ public final class WebUtility {
 
 		return Optional.of(url);
 	}
+
+	@Nonnull
+	public static String elideSensitiveDataInUrl(@Nonnull String url) {
+		requireNonNull(url);
+
+		url = trimToNull(url);
+
+		if (url == null || (!url.startsWith("http://") && !url.startsWith("https://")))
+			return url;
+
+		// Turns
+		// https://example.cobalt.care/auth?accessToken=eyJhbG...abc
+		// into
+		// https://example.cobalt.care/auth?accessToken=(elided)
+		int authAccessTokenIndex = url.indexOf("/auth?accessToken=");
+
+		if (authAccessTokenIndex != -1)
+			url = url.substring(0, authAccessTokenIndex) + "/auth?accessToken=(elided)";
+
+		return url;
+	}
 }

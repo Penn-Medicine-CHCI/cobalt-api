@@ -17,32 +17,14 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.integration.enterprise;
+package com.cobaltplatform.api.model.service;
 
-import com.cobaltplatform.api.Configuration;
-import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.service.InstitutionService;
-
-import javax.annotation.Nonnull;
-import javax.annotation.concurrent.ThreadSafe;
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * @author Transmogrify, LLC.
  */
-@Singleton
-@ThreadSafe
-public class CobaltIcEnterprisePlugin extends DefaultEnterprisePlugin {
-	@Inject
-	public CobaltIcEnterprisePlugin(@Nonnull InstitutionService institutionService,
-																	@Nonnull Configuration configuration) {
-		super(institutionService, configuration);
-	}
+@NotThreadSafe
+public class AnalyticsWidget {
 
-	@Nonnull
-	@Override
-	public InstitutionId getInstitutionId() {
-		return InstitutionId.COBALT_IC;
-	}
 }

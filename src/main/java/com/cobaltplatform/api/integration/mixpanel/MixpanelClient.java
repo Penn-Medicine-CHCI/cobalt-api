@@ -17,32 +17,24 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.integration.enterprise;
-
-import com.cobaltplatform.api.Configuration;
-import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.service.InstitutionService;
+package com.cobaltplatform.api.integration.mixpanel;
 
 import javax.annotation.Nonnull;
-import javax.annotation.concurrent.ThreadSafe;
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import java.time.LocalDate;
+import java.util.List;
 
 /**
  * @author Transmogrify, LLC.
  */
-@Singleton
-@ThreadSafe
-public class CobaltIcEnterprisePlugin extends DefaultEnterprisePlugin {
-	@Inject
-	public CobaltIcEnterprisePlugin(@Nonnull InstitutionService institutionService,
-																	@Nonnull Configuration configuration) {
-		super(institutionService, configuration);
-	}
-
+public interface MixpanelClient {
+	/**
+	 * Pulls raw Mixpanel events over a date range per https://developer.mixpanel.com/reference/raw-event-export.
+	 *
+	 * @param fromDate date range start (inclusive)
+	 * @param toDate   date range end (inclusive)
+	 * @return events that occurred within the provided date range
+	 */
 	@Nonnull
-	@Override
-	public InstitutionId getInstitutionId() {
-		return InstitutionId.COBALT_IC;
-	}
+	List<MixpanelEvent> findEventsForDateRange(@Nonnull LocalDate fromDate,
+																						 @Nonnull LocalDate toDate);
 }
