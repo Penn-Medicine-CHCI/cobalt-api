@@ -533,7 +533,7 @@ public class AnalyticsService implements AutoCloseable {
 				    timestamp,
 				    properties
 				) VALUES (?,?,?,?,?,?,?,?,CAST(? AS JSONB))
-				ON CONFLICT (analytics_mixpanel_event_institution_id_distinct_id_name_ti_key) DO NOTHING
+				ON CONFLICT ON CONSTRAINT analytics_mixpanel_event_institution_id_distinct_id_name_ti_key DO NOTHING
 				""", parameterGroups);
 
 		getLogger().info("Successfully persisted {} Mixpanel events for {} on {}.", mixpanelEvents.size(), institutionId.name(), date);
