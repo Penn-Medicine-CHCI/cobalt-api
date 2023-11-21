@@ -120,8 +120,7 @@ public class AdminContentApiResponse {
 
 	public enum AdminContentDisplayType {
 		DETAIL,
-		AVAILABLE_CONTENT,
-		MY_CONTENT
+		LIST
 	}
 
 	// Note: requires FactoryModuleBuilder entry in AppModule

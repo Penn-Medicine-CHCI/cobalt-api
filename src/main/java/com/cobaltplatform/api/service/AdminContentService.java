@@ -192,7 +192,6 @@ public class AdminContentService {
 		parameters.add(account.getInstitutionId());
 		parameters.add(account.getInstitutionId());
 
-		logger.debug("query: " + query);
 		parameters.add(limit);
 		parameters.add(offset);
 		List<AdminContent> content = getDatabase().queryForList(query, AdminContent.class, sqlVaragsParameters(parameters));

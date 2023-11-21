@@ -40,11 +40,8 @@ import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.AdminContent;
 import com.cobaltplatform.api.model.service.FindResult;
-<<<<<<< HEAD
 import com.cobaltplatform.api.service.AdminContentService;
-=======
 import com.cobaltplatform.api.model.service.PresignedUpload;
->>>>>>> master
 import com.cobaltplatform.api.service.AssessmentService;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.ImageUploadService;
@@ -183,7 +180,7 @@ public class AdminResource {
 				.findAllContentForAdmin(account, page, contentTypeId, institutionId, search, contentStatusId);
 		List<UUID> institutionContentIds = getAdminContentService().findContentIdsForInstitution(account.getInstitutionId());
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("adminContent", content.getResults().stream().map(content -> getAdminContentApiResponseFactory().create(account, content, AdminContentDisplayType.MY_CONTENT, institutionContentIds)).collect(Collectors.toList()));
+			put("adminContent", content.getResults().stream().map(content -> getAdminContentApiResponseFactory().create(account, content, AdminContentDisplayType.LIST, institutionContentIds)).collect(Collectors.toList()));
 			put("totalCount", content.getTotalCount());
 		}});
 	}
