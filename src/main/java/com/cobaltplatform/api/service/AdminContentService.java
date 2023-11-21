@@ -156,8 +156,14 @@ public class AdminContentService {
 		}
 
 		if (institutionId.isPresent()) {
-			whereClause.append("AND va.owner_institution_id = ? ");
+			logger.debug("institution = " + institutionId.get());
+			whereClause.append("AND (owner_institution_id = ? AND shared_flag = true AND content_status_id IN ('LIVE', 'SCHEDULED')) ");
 			parameters.add(institutionId.get());
+		} else {
+			whereClause.append("AND ((owner_institution_id != ? AND shared_flag = true AND content_status_id IN ('LIVE', 'SCHEDULED')) ");
+			whereClause.append("OR (owner_institution_id = ?)) ");
+			parameters.add(account.getInstitutionId());
+			parameters.add(account.getInstitutionId());
 		}
 
 		if (search.isPresent()) {
@@ -184,13 +190,8 @@ public class AdminContentService {
 						count(*) over() AS total_count 
 						FROM v_admin_content va 
 						WHERE %s 
-						AND (owner_institution_id != ? AND shared_flag = true AND content_status_id IN ('LIVE', 'SCHEDULED'))
-						OR (owner_institution_id = ?)
 						ORDER BY created DESC LIMIT ? OFFSET ? 
 						""", whereClause.toString());
-
-		parameters.add(account.getInstitutionId());
-		parameters.add(account.getInstitutionId());
 
 		parameters.add(limit);
 		parameters.add(offset);
@@ -199,6 +200,8 @@ public class AdminContentService {
 
 		getContentService().applyTagsToAdminContents(content, account.getInstitutionId());
 		getContentService().applyInstitutionsToAdminContents(content, account.getInstitutionId());
+
+		logger.debug("query = " + query);
 
 		return new FindResult<>(content, totalCount);
 	}
