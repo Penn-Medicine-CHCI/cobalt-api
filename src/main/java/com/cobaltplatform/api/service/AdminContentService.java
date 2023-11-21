@@ -186,7 +186,7 @@ public class AdminContentService {
 						WHERE %s 
 						AND (owner_institution_id != ? AND shared_flag = true AND content_status_id IN ('LIVE', 'SCHEDULED'))
 						OR (owner_institution_id = ?)
-						ORDER BY last_updated DESC LIMIT ? OFFSET ? 
+						ORDER BY created DESC LIMIT ? OFFSET ? 
 						""", whereClause.toString());
 
 		parameters.add(account.getInstitutionId());

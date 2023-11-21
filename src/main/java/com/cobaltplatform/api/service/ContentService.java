@@ -27,10 +27,10 @@ import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.ActivityAction.ActivityActionId;
 import com.cobaltplatform.api.model.db.ActivityType.ActivityTypeId;
 import com.cobaltplatform.api.model.db.Content;
+import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
 import com.cobaltplatform.api.model.db.ContentType;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
 import com.cobaltplatform.api.model.db.ContentTypeLabel;
-import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionContent;
 import com.cobaltplatform.api.model.db.Tag;
@@ -569,12 +569,14 @@ public class ContentService {
 				       GROUP BY content_id
 				     )
 				SELECT cvq.last_viewed_at, c.*    
-				FROM institution_content ic, content c
+				FROM institution_content ic, v_admin_content c
 				LEFT OUTER JOIN content_viewed_query as cvq ON c.content_id=cvq.content_id
 				WHERE c.content_id=ic.content_id
 				AND ic.institution_id=?
+				AND c.content_status_id = ?
 				ORDER BY cvq.last_viewed_at ASC NULLS FIRST, c.created DESC
-								""", Content.class, ActivityActionId.VIEW, ActivityTypeId.CONTENT, account.getAccountId(), account.getInstitutionId());
+								""", Content.class, ActivityActionId.VIEW, ActivityTypeId.CONTENT, account.getAccountId(),
+				account.getInstitutionId(), ContentStatusId.LIVE);
 
 		applyTagsToContents(contents, account.getInstitutionId());
 
@@ -650,15 +652,16 @@ public class ContentService {
 	}
 
 	@Nonnull
-	private List<InstitutionContent> findNonInstitutionContent(@Nonnull InstitutionId institutionId) {
-		requireNonNull(institutionId);
+	private List<InstitutionContent> findNonInstitutionContent() {
 
 		return getDatabase().queryForList("""
 				SELECT ic.*, i.name as institution_name
-				FROM institution_content ic, institution i
-				WHERE ic.institution_id = i.institution_id
-				AND i.institution_id != ?
-				""", InstitutionContent.class, institutionId);
+				FROM institution_content ic, institution i, v_admin_content va
+				WHERE ic.institution_id = i.institution_id	
+				AND ic.content_id = va.content_id
+				AND va.content_status_id = ?
+				ORDER BY ic.content_id, i.name			
+				""", InstitutionContent.class, ContentStatusId.LIVE);
 	}
 
 	@Nonnull
@@ -668,7 +671,7 @@ public class ContentService {
 		requireNonNull(institutionId);
 
 		// Pull back all data up-front to avoid N+1 selects
-		Map<UUID, List<InstitutionContent>> institutionContentsByContentId = findNonInstitutionContent(institutionId).stream()
+		Map<UUID, List<InstitutionContent>> institutionContentsByContentId = findNonInstitutionContent().stream()
 				.collect(Collectors.groupingBy(InstitutionContent::getContentId));
 
 		for (AdminContent adminContent : adminContents) {
@@ -677,7 +680,7 @@ public class ContentService {
 			Integer inUseCount = 0;
 
 			if (institutionContents != null) {
-				institutions = institutionContents.stream().map(i -> i.getInstitutionName()).collect(Collectors.joining(","));
+				institutions = institutionContents.stream().map(i -> i.getInstitutionName()).collect(Collectors.joining(", "));
 				inUseCount = institutionContents.size();
 			}
 
