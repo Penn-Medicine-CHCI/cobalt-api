@@ -94,6 +94,11 @@ public class AnalyticsResource {
 		response.put("activeUserCountsNewVersusReturning", activeUserCountsNewVersusReturning);
 		response.put("activeUserCountsByAccountSourceId", activeUserCountsByAccountSourceId);
 
+		boolean fail = true;
+
+		if (fail)
+			throw new UnsupportedOperationException();
+
 		return new ApiResponse(response);
 	}
 
