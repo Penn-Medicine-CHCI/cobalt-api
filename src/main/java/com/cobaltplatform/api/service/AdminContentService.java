@@ -135,13 +135,23 @@ public class AdminContentService {
 		this.contentServiceProvider = contentServiceProvider;
 	}
 
+	public enum ContentSortOrder {
+		DATE_ADDED_DESC,
+		DATE_ADDED_ASC,
+		PUBLISH_DATE_DESC,
+		PUBLISH_DATE_ASC,
+		EXPIRY_DATE_DESC,
+		EXPIRY_DATE_ASC
+	}
+
 	@Nonnull
 	public FindResult<AdminContent> findAllContentForAdmin(@Nonnull Account account,
 																												 @Nonnull Optional<Integer> page,
 																												 @Nonnull Optional<ContentTypeId> contentTypeId,
 																												 @Nonnull Optional<InstitutionId> institutionId,
 																												 @Nonnull Optional<String> search,
-																												 @Nonnull Optional<ContentStatusId> contentStatusId) {
+																												 @Nonnull Optional<ContentStatusId> contentStatusId,
+																												 @Nonnull Optional<ContentSortOrder> sortOrder) {
 		requireNonNull(account);
 
 		List<Object> parameters = new ArrayList();
@@ -149,6 +159,7 @@ public class AdminContentService {
 		Integer limit = DEFAULT_PAGE_SIZE;
 		Integer offset = pageNumber * DEFAULT_PAGE_SIZE;
 		StringBuilder whereClause = new StringBuilder(" 1=1 ");
+		StringBuilder orderByClause = new StringBuilder("ORDER BY ");
 
 		if (contentTypeId.isPresent()) {
 			whereClause.append("AND va.content_type_id = ? ");
@@ -178,6 +189,21 @@ public class AdminContentService {
 			parameters.add(contentStatusId.get());
 		}
 
+		ContentSortOrder contentSortOrder = sortOrder.isPresent() ? sortOrder.get() : ContentSortOrder.DATE_ADDED_DESC;
+
+		if (contentSortOrder.equals(ContentSortOrder.DATE_ADDED_DESC))
+			orderByClause.append("va.created DESC");
+		else if (contentSortOrder.equals(ContentSortOrder.DATE_ADDED_ASC))
+			orderByClause.append("va.created ASC");
+		else if (contentSortOrder.equals(ContentSortOrder.PUBLISH_DATE_DESC))
+			orderByClause.append("va.publish_start_date DESC");
+		else if (contentSortOrder.equals(ContentSortOrder.PUBLISH_DATE_ASC))
+			orderByClause.append("va.publish_start_date ASC");
+		else if (contentSortOrder.equals(ContentSortOrder.EXPIRY_DATE_DESC))
+			orderByClause.append("va.publish_end_date DESC");
+		else if (contentSortOrder.equals(ContentSortOrder.EXPIRY_DATE_ASC))
+			orderByClause.append("va.publish_end_date ASC");
+
 		String query =
 				String.format("""
 						SELECT va.*, 
@@ -189,8 +215,8 @@ public class AdminContentService {
 						count(*) over() AS total_count 
 						FROM v_admin_content va 
 						WHERE %s 
-						ORDER BY created DESC LIMIT ? OFFSET ? 
-						""", whereClause.toString());
+						%s LIMIT ? OFFSET ? 
+						""", whereClause.toString(), orderByClause.toString());
 
 		parameters.add(limit);
 		parameters.add(offset);
