@@ -21,6 +21,7 @@ package com.cobaltplatform.api.util;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.http.HttpMethod;
+import com.cobaltplatform.api.model.service.PresignedUpload;
 import com.lokalized.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,14 +36,12 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -80,34 +79,42 @@ public class UploadManager {
 
 	@Nonnull
 	public PresignedUpload createPresignedUpload(@Nonnull String key,
-																							 @Nonnull String contentType) {
+																							 @Nonnull String contentType,
+																							 @Nonnull Boolean publicRead) {
 		requireNonNull(key);
 		requireNonNull(contentType);
+		requireNonNull(publicRead);
 
-		return createPresignedUpload(key, contentType, Collections.emptyMap());
+		return createPresignedUpload(key, contentType, publicRead, null);
 	}
 
 	@Nonnull
 	public PresignedUpload createPresignedUpload(@Nonnull String key,
 																							 @Nonnull String contentType,
+																							 @Nonnull Boolean publicRead,
 																							 @Nullable Map<String, String> metadata) {
 		requireNonNull(key);
 		requireNonNull(contentType);
+		requireNonNull(publicRead);
 
 		if (metadata == null)
-			metadata = Collections.emptyMap();
+			metadata = Map.of();
 
 		Instant expirationTimestamp = Instant.now().plus(getConfiguration().getAmazonS3PresignedUploadExpirationInMinutes(), MINUTES);
 
-		PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+		PutObjectRequest.Builder putObjectRequestBuilder = PutObjectRequest.builder()
 				.bucket(getConfiguration().getAmazonS3BucketName())
 				.key(key)
 				.contentType(contentType)
-				.acl(ObjectCannedACL.PUBLIC_READ)
-				.metadata(metadata.entrySet().stream().collect(Collectors.toMap(e -> format("x-amz-meta-%s", e.getKey()), Map.Entry::getValue)))
-				.build();
+				.metadata(metadata.entrySet().stream().collect(Collectors.toMap(e -> format("x-amz-meta-%s", e.getKey()), Map.Entry::getValue)));
+
+		if (publicRead)
+			putObjectRequestBuilder.acl(ObjectCannedACL.PUBLIC_READ);
+
+		PutObjectRequest putObjectRequest = putObjectRequestBuilder.build();
 
 		PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+				// TODO: expiration should be configurable
 				.signatureDuration(Duration.ofMinutes(getConfiguration().getAmazonS3PresignedUploadExpirationInMinutes()))
 				.putObjectRequest(putObjectRequest)
 				.build();
@@ -119,7 +126,9 @@ public class UploadManager {
 		String url = presignedRequest.url().toString();
 
 		Map<String, String> finalMetadata = new HashMap<>(putObjectRequest.metadata());
-		finalMetadata.put("x-amz-acl", "public-read"); // If you do not include this header for ObjectCannedACL.PUBLIC_READ, you will get a 403
+
+		if (publicRead)
+			finalMetadata.put("x-amz-acl", "public-read"); // If you do not include this header for ObjectCannedACL.PUBLIC_READ, you will get a 403
 
 		return new PresignedUpload(HttpMethod.PUT.name(), url, contentType, expirationTimestamp, finalMetadata);
 	}
@@ -134,6 +143,7 @@ public class UploadManager {
 				.key(key)
 				.build();
 
+		// TODO: expiration should be configurable
 		GetObjectPresignRequest getObjectPresignRequest = GetObjectPresignRequest.builder()
 				.signatureDuration(Duration.ofMinutes(getConfiguration().getAmazonS3PresignedUploadExpirationInMinutes()))
 				.getObjectRequest(getObjectRequest)
@@ -148,75 +158,10 @@ public class UploadManager {
 		S3Presigner.Builder builder = S3Presigner.builder()
 				.region(getConfiguration().getAmazonS3Region());
 
-		if (getConfiguration().getAmazonUseLocalstack()) {
+		if (getConfiguration().getAmazonUseLocalstack())
 			builder.endpointOverride(URI.create(getConfiguration().getAmazonS3BaseUrl()));
-		}
 
 		return builder.build();
-	}
-
-	@Immutable
-	public static class PresignedUpload {
-		@Nonnull
-		private final String httpMethod;
-		@Nonnull
-		private final String url;
-		@Nonnull
-		private final String accessUrl;
-		@Nonnull
-		private final String contentType;
-		@Nonnull
-		private final Instant expirationTimestamp;
-		@Nonnull
-		private final Map<String, String> httpHeaders;
-
-		public PresignedUpload(@Nonnull String httpMethod,
-													 @Nonnull String url,
-													 @Nonnull String contentType,
-													 @Nonnull Instant expirationTimestamp,
-													 @Nullable Map<String, String> httpHeaders) {
-			requireNonNull(httpMethod);
-			requireNonNull(url);
-			requireNonNull(contentType);
-			requireNonNull(expirationTimestamp);
-
-			this.httpMethod = httpMethod;
-			this.url = url;
-			this.accessUrl = url.indexOf("?") == -1 ? url : url.substring(0, url.indexOf("?")); // Rip off query params
-			this.contentType = contentType;
-			this.expirationTimestamp = expirationTimestamp;
-			this.httpHeaders = httpHeaders == null ? Collections.emptyMap() : Collections.unmodifiableMap(httpHeaders);
-		}
-
-		@Nonnull
-		public String getHttpMethod() {
-			return httpMethod;
-		}
-
-		@Nonnull
-		public String getUrl() {
-			return url;
-		}
-
-		@Nonnull
-		public String getAccessUrl() {
-			return accessUrl;
-		}
-
-		@Nonnull
-		public String getContentType() {
-			return contentType;
-		}
-
-		@Nonnull
-		public Instant getExpirationTimestamp() {
-			return expirationTimestamp;
-		}
-
-		@Nonnull
-		public Map<String, String> getHttpHeaders() {
-			return httpHeaders;
-		}
 	}
 
 	@Nonnull

@@ -488,7 +488,7 @@ public class AccountResource {
 		List<GroupSession> groupSessions = new ArrayList<>(getGroupSessionService().findGroupSessions(new FindGroupSessionsRequest() {{
 			setGroupSessionStatusId(GroupSessionStatusId.ADDED);
 			setInstitutionId(account.getInstitutionId());
-			setOrderBy(OrderBy.START_TIME_DESCENDING);
+			setOrderBy(OrderBy.START_TIME_ASCENDING);
 		}}).getResults()).stream()
 				.filter(groupSession -> groupSession.getVisibleFlag() != null & groupSession.getVisibleFlag())
 				.collect(Collectors.toList());
@@ -909,6 +909,11 @@ public class AccountResource {
 				.map(feature -> featuresForInstitutionByFeatureId.get(feature.getFeatureId()))
 				.filter(featureForInstitution -> featureForInstitution != null)
 				.collect(Collectors.toList());
+
+		// If this is an Epic FHIR institution, sync Epic cancelations into our own database to
+		// make sure we're up-to-date
+		if (institution.getEpicFhirEnabled())
+			getAppointmentService().synchronizeEpicFhirCanceledAppointmentsForAccountId(accountId);
 
 		List<Appointment> appointments = getAppointmentService().findAppointmentsByAccountId(accountId).stream()
 				.filter(appointment -> !appointment.getCanceled())

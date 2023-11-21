@@ -40,13 +40,16 @@ import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.AdminContent;
 import com.cobaltplatform.api.model.service.FindResult;
+<<<<<<< HEAD
 import com.cobaltplatform.api.service.AdminContentService;
+=======
+import com.cobaltplatform.api.model.service.PresignedUpload;
+>>>>>>> master
 import com.cobaltplatform.api.service.AssessmentService;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.ImageUploadService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.TagService;
-import com.cobaltplatform.api.util.UploadManager.PresignedUpload;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.DELETE;
 import com.soklet.web.annotation.GET;

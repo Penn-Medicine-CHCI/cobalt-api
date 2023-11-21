@@ -86,6 +86,7 @@ import com.cobaltplatform.api.model.api.response.CountryApiResponse.CountryApiRe
 import com.cobaltplatform.api.model.api.response.FaqApiResponse.FaqApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FaqTopicApiResponse.FaqTopicApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FeatureApiResponse.FeatureApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse.FileUploadResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FilterApiResponse.FilterApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupRequestApiResponse.GroupRequestApiResponseFactory;
@@ -318,6 +319,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(StudyAccountApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(TopicCenterRowTagApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ContentStatusApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(FileUploadResultApiResponseFactory.class)));
 	}
 
 	@Provides

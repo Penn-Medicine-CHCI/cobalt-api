@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.acuity.AcuitySchedulingCache;
 import com.cobaltplatform.api.integration.acuity.AcuitySchedulingClient;
 import com.cobaltplatform.api.integration.acuity.AcuitySchedulingException;
@@ -75,6 +76,7 @@ import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.AccountSessionAnswer;
 import com.cobaltplatform.api.model.db.Answer;
 import com.cobaltplatform.api.model.db.Appointment;
+import com.cobaltplatform.api.model.db.AppointmentCancelationReason.AppointmentCancelationReasonId;
 import com.cobaltplatform.api.model.db.AppointmentReason;
 import com.cobaltplatform.api.model.db.AppointmentReasonType.AppointmentReasonTypeId;
 import com.cobaltplatform.api.model.db.AppointmentTime;
@@ -129,11 +131,13 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
@@ -206,6 +210,8 @@ public class AppointmentService {
 	private final JsonMapper jsonMapper;
 	@Nonnull
 	private final InteractionService interactionService;
+	@Nonnull
+	private final ErrorReporter errorReporter;
 
 	@Inject
 	public AppointmentService(@Nonnull Database database,
@@ -232,7 +238,8 @@ public class AppointmentService {
 														@Nonnull GoogleCalendarUrlGenerator googleCalendarUrlGenerator,
 														@Nonnull ICalInviteGenerator iCalInviteGenerator,
 														@Nonnull JsonMapper jsonMapper,
-														@Nonnull InteractionService interactionService) {
+														@Nonnull InteractionService interactionService,
+														@Nonnull ErrorReporter errorReporter) {
 		requireNonNull(database);
 		requireNonNull(configuration);
 		requireNonNull(strings);
@@ -257,6 +264,7 @@ public class AppointmentService {
 		requireNonNull(iCalInviteGenerator);
 		requireNonNull(jsonMapper);
 		requireNonNull(interactionService);
+		requireNonNull(errorReporter);
 
 		this.database = database;
 		this.configuration = configuration;
@@ -284,6 +292,7 @@ public class AppointmentService {
 		this.jsonMapper = jsonMapper;
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.interactionService = interactionService;
+		this.errorReporter = errorReporter;
 	}
 
 	@Nonnull
@@ -292,6 +301,26 @@ public class AppointmentService {
 			return Optional.empty();
 
 		return getDatabase().queryForObject("SELECT * FROM appointment WHERE appointment_id=?", Appointment.class, appointmentId);
+	}
+
+	@Nonnull
+	public Optional<Appointment> findAppointmentByEpicFhirId(@Nullable String appointmentEpicFhirId,
+																													 @Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return Optional.empty();
+
+		appointmentEpicFhirId = trimToNull(appointmentEpicFhirId);
+
+		if (appointmentEpicFhirId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT a.*
+				FROM appointment a, provider p
+				WHERE a.provider_id=p.provider_id
+				AND p.institution_id=?
+				AND a.epic_appointment_fhir_id=?
+				""", Appointment.class, institutionId, appointmentEpicFhirId);
 	}
 
 	@Nonnull
@@ -371,6 +400,14 @@ public class AppointmentService {
 			if (account.getEpicPatientFhirId() == null)
 				return List.of();
 
+			// Sync Epic cancelations into our own database to make sure we're up-to-date
+			synchronizeEpicFhirCanceledAppointmentsForAccountId(accountId);
+
+			// Find all Epic FHIR providers we're aware of and make them quickly accessible by their Epic Practitioner FHIR ID
+			Map<String, Provider> providersByEpicPractitionerFhirId = getProviderService().findProvidersByInstitutionId(institution.getInstitutionId()).stream()
+					.filter(provider -> provider.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR)
+					.collect(Collectors.toMap(Provider::getEpicPractitionerFhirId, Function.identity()));
+
 			AppointmentSearchFhirStu3Request request = new AppointmentSearchFhirStu3Request();
 			request.setPatient(account.getEpicPatientFhirId());
 			request.setStatus(AppointmentSearchFhirStu3Request.Status.BOOKED);
@@ -381,11 +418,6 @@ public class AppointmentService {
 
 			if (response.getTotal() == 0)
 				return List.of();
-
-			// Find all Epic FHIR providers we're aware of and make them quickly accessible by their Epic Practitioner FHIR ID
-			Map<String, Provider> providersByEpicPractitionerFhirId = getProviderService().findProvidersByInstitutionId(institution.getInstitutionId()).stream()
-					.filter(provider -> provider.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR)
-					.collect(Collectors.toMap(Provider::getEpicPractitionerFhirId, Function.identity()));
 
 			List<Appointment> appointments = new ArrayList<>();
 
@@ -456,6 +488,99 @@ public class AppointmentService {
 					ORDER BY start_time
 					""", Appointment.class, accountId, now);
 		}
+	}
+
+	@Nonnull
+	public Set<UUID> synchronizeEpicFhirCanceledAppointmentsForAccountId(@Nullable UUID accountId) {
+		if (accountId == null)
+			return Set.of();
+
+		Account account = getAccountService().findAccountById(accountId).orElse(null);
+
+		if (account == null || account.getEpicPatientFhirId() == null)
+			return Set.of();
+
+		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
+
+		// Only applicable for Epic FHIR institutions
+		if (!institution.getEpicFhirEnabled())
+			return Set.of();
+
+		Instant now = Instant.now();
+
+		// Ask Epic for all canceled appointments, then filter by only those providers that are active in Cobalt
+		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institution.getInstitutionId());
+		EpicClient epicClient = enterprisePlugin.epicClientForBackendService().get();
+
+		// Find all Epic FHIR providers we're aware of and make them quickly accessible by their Epic Practitioner FHIR ID
+		Map<String, Provider> providersByEpicPractitionerFhirId = getProviderService().findProvidersByInstitutionId(institution.getInstitutionId()).stream()
+				.filter(provider -> provider.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR)
+				.collect(Collectors.toMap(Provider::getEpicPractitionerFhirId, Function.identity()));
+
+		Set<UUID> canceledAppointmentIds = new HashSet<>();
+
+		// Ask Epic for canceled appointments and cancel them in Cobalt as well if they are present
+		AppointmentSearchFhirStu3Request canceledAppointmentsRequest = new AppointmentSearchFhirStu3Request();
+		canceledAppointmentsRequest.setPatient(account.getEpicPatientFhirId());
+		canceledAppointmentsRequest.setStatus(AppointmentSearchFhirStu3Request.Status.CANCELLED);
+
+		AppointmentSearchFhirStu3Response canceledAppointmentsResponse = epicClient.appointmentSearchFhirStu3(canceledAppointmentsRequest);
+
+		if (canceledAppointmentsResponse.getTotal() > 0) {
+			getLogger().debug("Patient {} has {} canceled appointment[s] overall.", account.getEpicPatientFhirId(), canceledAppointmentsResponse.getTotal());
+
+			// Pick out all the appointment resources that match providers in our system
+			for (AppointmentSearchFhirStu3Response.Entry entry : canceledAppointmentsResponse.getEntry()) {
+				AppointmentSearchFhirStu3Response.Entry.Resource resource = entry.getResource();
+
+				if ("Appointment".equals(resource.getResourceType())) {
+					if (resource.getStatus() != AppointmentStatusCode.CANCELLED)
+						continue;
+
+					// Find the "actor" in each appointment that matches one of our providers
+					Provider matchingProvider = null;
+
+					for (AppointmentSearchFhirStu3Response.Entry.Resource.Participant participant : resource.getParticipant()) {
+						AppointmentSearchFhirStu3Response.Entry.Resource.Participant.Actor actor = participant.getActor();
+
+						if (actor != null) {
+							for (String epicPractitionerFhirId : providersByEpicPractitionerFhirId.keySet()) {
+								if (actor.getReference() != null && actor.getReference().endsWith(format("Practitioner/%s", epicPractitionerFhirId))) {
+									matchingProvider = providersByEpicPractitionerFhirId.get(epicPractitionerFhirId);
+									break;
+								}
+							}
+						}
+
+						if (matchingProvider != null)
+							break;
+					}
+
+					// Special behavior: if appointment is marked as canceled, cancel it in our database as well
+					if (resource.getStatus() == AppointmentStatusCode.CANCELLED && matchingProvider != null && resource.getStart().isAfter(now)) {
+						Appointment appointment = findAppointmentByEpicFhirId(resource.getId(), account.getInstitutionId()).orElse(null);
+
+						if (appointment != null && !appointment.getCanceled()) {
+							getLogger().info("Appointment ID {} with Epic FHIR ID {} was canceled on the Epic side, so canceling it in Cobalt...",
+									appointment.getAppointmentId(), appointment.getEpicAppointmentFhirId());
+
+							cancelAppointment(new CancelAppointmentRequest() {{
+								setAppointmentId(appointment.getAppointmentId());
+								setAppointmentCancelationReasonId(AppointmentCancelationReasonId.EXTERNALLY_CANCELED);
+								setAccountId(account.getAccountId());
+								setCanceledByWebhook(false);
+								setCanceledForReschedule(false);
+								setForce(true);
+							}});
+
+							canceledAppointmentIds.add(appointment.getAppointmentId());
+						}
+					}
+				}
+			}
+		}
+
+		return canceledAppointmentIds;
 	}
 
 	@Nonnull
@@ -678,6 +803,9 @@ public class AppointmentService {
 		String phoneNumber = trimToNull(request.getPhoneNumber());
 		String comment = trimToNull(request.getComment());
 		String epicAppointmentFhirId = trimToNull(request.getEpicAppointmentFhirId());
+		String epicAppointmentFhirIdentifierSystem = null;
+		String epicAppointmentFhirIdentifierValue = null;
+		String epicAppointmentFhirStu3ResponseJson = null;
 		Account account = null;
 		AppointmentType appointmentType = null;
 		UUID appointmentId = UUID.randomUUID();
@@ -1035,8 +1163,21 @@ public class AppointmentService {
 			appointmentBookRequest.setPatient(account.getEpicPatientFhirId());
 			appointmentBookRequest.setAppointmentNote(getStrings().get("Booked via Cobalt"));
 
-			// TODO: examine response, better error handling for Epic FHIR appointment bookings
+			// In addition to storing off raw JSON from the response, pull out identifying information for the appointment
 			AppointmentBookFhirStu3Response appointmentBookResponse = epicClient.appointmentBookFhirStu3(appointmentBookRequest);
+			epicAppointmentFhirStu3ResponseJson = appointmentBookResponse.getRawJson();
+
+			try {
+				AppointmentBookFhirStu3Response.Entry entry = appointmentBookResponse.getEntry().get(0);
+				epicAppointmentFhirId = entry.getResource().getId();
+
+				AppointmentBookFhirStu3Response.Entry.Resource.Identifier identifier = entry.getResource().getIdentifier().get(0);
+				epicAppointmentFhirIdentifierSystem = trimToNull(identifier.getSystem());
+				epicAppointmentFhirIdentifierValue = trimToNull(identifier.getValue());
+			} catch (Exception e) {
+				getLogger().error(format("Unable to parse %s - JSON was: %s", AppointmentBookFhirStu3Response.class.getSimpleName(), appointmentBookResponse.getRawJson()), e);
+				getErrorReporter().report(e);
+			}
 		} else {
 			throw new RuntimeException(format("Unexpected value %s.%s provided", SchedulingSystemId.class.getSimpleName(), appointmentType.getSchedulingSystemId().name()));
 		}
@@ -1074,11 +1215,12 @@ public class AppointmentService {
 		getDatabase().execute("INSERT INTO appointment (appointment_id, provider_id, account_id, created_by_account_id, " +
 						"appointment_type_id, acuity_appointment_id, bluejeans_meeting_id, bluejeans_participant_passcode, title, start_time, end_time, " +
 						"duration_in_minutes, time_zone, videoconference_url, epic_contact_id, epic_contact_id_type, videoconference_platform_id, " +
-						"phone_number, appointment_reason_id, comment, intake_assessment_id, scheduling_system_id, intake_account_session_id, patient_order_id, epic_appointment_fhir_id) " +
-						"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", appointmentId, providerId,
+						"phone_number, appointment_reason_id, comment, intake_assessment_id, scheduling_system_id, intake_account_session_id, patient_order_id, epic_appointment_fhir_id, epic_appointment_fhir_identifier_system, epic_appointment_fhir_identifier_value, epic_appointment_fhir_stu3_response) " +
+						"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CAST (? AS JSONB))", appointmentId, providerId,
 				accountId, createdByAccountId, appointmentTypeId, acuityAppointmentId, bluejeansMeetingId, bluejeansParticipantPasscode,
 				title, meetingStartTime, meetingEndTime, durationInMinutes, timeZone, videoconferenceUrl, epicContactId,
-				epicContactIdType, videoconferencePlatformId, appointmentPhoneNumber, appointmentReasonId, comment, intakeAssessmentId, appointmentType.getSchedulingSystemId(), intakeAccountSessionId, patientOrderId, epicAppointmentFhirId);
+				epicContactIdType, videoconferencePlatformId, appointmentPhoneNumber, appointmentReasonId, comment, intakeAssessmentId, appointmentType.getSchedulingSystemId(), intakeAccountSessionId, patientOrderId,
+				epicAppointmentFhirId, epicAppointmentFhirIdentifierSystem, epicAppointmentFhirIdentifierValue, epicAppointmentFhirStu3ResponseJson);
 
 		sendProviderScoreEmail(provider, account, emailAddress, phoneNumber, videoconferenceUrl,
 				getFormatter().formatDate(meetingStartTime.toLocalDate()),
@@ -1714,6 +1856,7 @@ public class AppointmentService {
 		UUID appointmentId = request.getAppointmentId();
 		UUID accountId = request.getAccountId();
 		Boolean canceledByWebhook = request.getCanceledByWebhook() == null ? false : request.getCanceledByWebhook();
+		AppointmentCancelationReasonId appointmentCancelationReasonId = request.getAppointmentCancelationReasonId() == null ? AppointmentCancelationReasonId.UNSPECIFIED : request.getAppointmentCancelationReasonId();
 		Appointment appointment = null;
 		Account account = null;
 		ValidationException validationException = new ValidationException();
@@ -1731,8 +1874,8 @@ public class AppointmentService {
 					return false;
 				}
 
-				// Special behavior: you cannot directly cancel an Epic FHIR appointment
-				if (appointment.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR) {
+				// Special behavior: you cannot directly cancel an Epic FHIR appointment unless "force" is specified
+				if (appointment.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR && !request.isForce()) {
 					Provider provider = getProviderService().findProviderById(appointment.getProviderId()).get();
 					Institution institution = getInstitutionService().findInstitutionById(provider.getInstitutionId()).get();
 					String clinicalSupportPhoneNumber = institution.getClinicalSupportPhoneNumber();
@@ -1804,7 +1947,8 @@ public class AppointmentService {
 		}
 
 		boolean canceled = getDatabase().execute("UPDATE appointment SET canceled=TRUE, attendance_status_id=?, canceled_at=NOW(), " +
-				"canceled_for_reschedule=?, rescheduled_appointment_id=? WHERE appointment_id=?", AttendanceStatusId.CANCELED, request.getCanceledForReschedule(), request.getRescheduleAppointmentId(), appointmentId) > 0;
+						"canceled_for_reschedule=?, rescheduled_appointment_id=?, appointment_cancelation_reason_id=? WHERE appointment_id=?",
+				AttendanceStatusId.CANCELED, request.getCanceledForReschedule(), request.getRescheduleAppointmentId(), appointmentCancelationReasonId, appointmentId) > 0;
 
 		// Cancel any interaction instances that are scheduled for this appointment
 		getInteractionService().cancelInteractionInstancesForAppointment(appointmentId);
@@ -2271,5 +2415,10 @@ public class AppointmentService {
 	@Nonnull
 	protected InteractionService getInteractionService() {
 		return this.interactionService;
+	}
+
+	@Nonnull
+	protected ErrorReporter getErrorReporter() {
+		return this.errorReporter;
 	}
 }

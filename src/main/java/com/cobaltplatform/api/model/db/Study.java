@@ -38,6 +38,10 @@ public class Study {
 	@Nullable
 	private String name;
 	@Nullable
+	private String urlName;
+	@Nullable
+	private String onboardingDestinationUrl;
+	@Nullable
 	private Integer minutesBetweenCheckIns;
 	@Nullable
 	private Integer gracePeriodInMinutes;
@@ -62,6 +66,24 @@ public class Study {
 
 	public void setName(@Nullable String name) {
 		this.name = name;
+	}
+
+	@Nullable
+	public String getUrlName() {
+		return this.urlName;
+	}
+
+	public void setUrlName(@Nullable String urlName) {
+		this.urlName = urlName;
+	}
+
+	@Nullable
+	public String getOnboardingDestinationUrl() {
+		return this.onboardingDestinationUrl;
+	}
+
+	public void setOnboardingDestinationUrl(@Nullable String onboardingDestinationUrl) {
+		this.onboardingDestinationUrl = onboardingDestinationUrl;
 	}
 
 	@Nullable

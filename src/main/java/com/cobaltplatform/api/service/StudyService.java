@@ -20,23 +20,30 @@
 package com.cobaltplatform.api.service;
 
 
+import com.cobaltplatform.api.model.api.request.CreateAccountCheckInActionFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
+import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
+import com.cobaltplatform.api.model.api.request.CreateStudyFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.UpdateCheckInAction;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountCheckIn;
 import com.cobaltplatform.api.model.db.AccountCheckInAction;
 import com.cobaltplatform.api.model.db.AccountSource;
+import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.AccountStudy;
 import com.cobaltplatform.api.model.db.CheckInActionStatus.CheckInActionStatusId;
 import com.cobaltplatform.api.model.db.CheckInStatus.CheckInStatusId;
 import com.cobaltplatform.api.model.db.CheckInStatusGroup.CheckInStatusGroupId;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Study;
 import com.cobaltplatform.api.model.db.StudyBeiweConfig;
 import com.cobaltplatform.api.model.db.StudyCheckIn;
+import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.StudyAccount;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -48,16 +55,24 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+import static com.cobaltplatform.api.util.ValidationUtility.isValidUUID;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -67,6 +82,9 @@ import static java.util.Objects.requireNonNull;
 @Singleton
 @ThreadSafe
 public class StudyService {
+	@Nonnull
+	private static final DateTimeFormatter STUDY_FILE_UPLOAD_TIMESTAMP_FORMATTER;
+
 	@Nonnull
 	private final Database database;
 	@Nonnull
@@ -79,6 +97,10 @@ public class StudyService {
 	private final Provider<AccountService> accountServiceProvider;
 	@Nonnull
 	private final Provider<SystemService> systemServiceProvider;
+
+	static {
+		STUDY_FILE_UPLOAD_TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.US).withZone(ZoneId.of("UTC"));
+	}
 
 	@Inject
 	public StudyService(@Nonnull Database database,
@@ -155,10 +177,31 @@ public class StudyService {
 		requireNonNull(accountCheckInId);
 
 		return getDatabase().queryForObject("""
-				SELECT * 
+				SELECT *
 				FROM v_account_check_in_action
 				WHERE account_id = ? AND account_check_in_action_id = ?
 				""", AccountCheckInAction.class, accountId, accountCheckInId);
+	}
+
+	@Nonnull
+	public Optional<Study> findStudyByIdentifier(@Nullable Object studyIdentifier,
+																							 @Nullable InstitutionId institutionId) {
+		if (studyIdentifier == null || institutionId == null)
+			return Optional.empty();
+
+		if (studyIdentifier instanceof UUID)
+			return findStudyById((UUID) studyIdentifier);
+
+		if (studyIdentifier instanceof String) {
+			String studyIdentifierAsString = (String) studyIdentifier;
+
+			if (isValidUUID(studyIdentifierAsString))
+				return findStudyById(UUID.fromString(studyIdentifierAsString));
+
+			return findStudyByInstitutionIdAndUrlName(institutionId, studyIdentifierAsString);
+		}
+
+		return Optional.empty();
 	}
 
 	@Nonnull
@@ -174,6 +217,22 @@ public class StudyService {
 	}
 
 	@Nonnull
+	public Optional<Study> findStudyByInstitutionIdAndUrlName(@Nullable InstitutionId institutionId,
+																														@Nullable String urlName) {
+		if (institutionId == null || urlName == null)
+			return Optional.empty();
+
+		urlName = urlName.trim();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM study
+				WHERE institution_id=?
+				AND url_name=?
+				""", Study.class, institutionId, urlName);
+	}
+
+	@Nonnull
 	public List<StudyAccount> generateAccountsForStudy(@Nonnull UUID studyId,
 																										 @Nonnull Integer count,
 																										 @Nonnull Account account) {
@@ -185,12 +244,12 @@ public class StudyService {
 		List<StudyAccount> studyAccounts = new ArrayList<>();
 
 		if (!study.isPresent())
-			validationException.add(new ValidationException.FieldError("studyId", getStrings().get("Not a valid Study ID.")));
+			validationException.add(new FieldError("studyId", getStrings().get("Not a valid Study ID.")));
 		else if (study.get().getInstitutionId() != account.getInstitutionId())
-			validationException.add(new ValidationException.FieldError("institutionId", getStrings().get("You can only create accounts for studies in your institution.")));
+			validationException.add(new FieldError("institutionId", getStrings().get("You can only create accounts for studies in your institution.")));
 
 		if (!account.getRoleId().equals(RoleId.ADMINISTRATOR))
-			validationException.add(new ValidationException.FieldError("accountId", getStrings().get("Only administrators can create Study accounts.")));
+			validationException.add(new FieldError("accountId", getStrings().get("Only administrators can create Study accounts.")));
 
 		for (int i = 0; i < count; ++i) {
 			String accountUsername = new Random().ints(10, 97, 122)
@@ -206,7 +265,7 @@ public class StudyService {
 				setPassword(accountPassword);
 			}});
 			UUID accountId = getAccountService().createAccount(new CreateAccountRequest() {{
-				setAccountSourceId(AccountSource.AccountSourceId.USERNAME);
+				setAccountSourceId(AccountSourceId.USERNAME);
 				setRoleId(RoleId.PATIENT);
 				setInstitutionId(account.getInstitutionId());
 				setUsername(accountUsername);
@@ -244,12 +303,12 @@ public class StudyService {
 				""", Boolean.class, account.getAccountId(), studyId).get();
 
 		if (accountAlreadyInStudy)
-			validationException.add(new ValidationException.FieldError("account", getStrings().get("Account is already in this study.")));
+			validationException.add(new FieldError("account", getStrings().get("Account is already in this study.")));
 
 		if (!study.isPresent())
-			validationException.add(new ValidationException.FieldError("study", getStrings().get("This study does not exist.")));
+			validationException.add(new FieldError("study", getStrings().get("This study does not exist.")));
 		else if (!study.get().getInstitutionId().equals(account.getInstitutionId()))
-			validationException.add(new ValidationException.FieldError("study", getStrings().get("You cannot join this study.")));
+			validationException.add(new FieldError("study", getStrings().get("You cannot join this study.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -322,7 +381,7 @@ public class StudyService {
 		Optional<Study> study = findStudyById(studyId);
 
 		if (!study.isPresent())
-			validationException.add(new ValidationException.FieldError("studyId", getStrings().get("Not a valid Study ID.")));
+			validationException.add(new FieldError("studyId", getStrings().get("Not a valid Study ID.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -397,24 +456,26 @@ public class StudyService {
 	}
 
 	@Nonnull
-	private Optional<AccountCheckInAction> findAccountCheckInActionById(@Nonnull UUID accountCheckInActionId) {
-		requireNonNull(accountCheckInActionId);
+	public Optional<AccountCheckInAction> findAccountCheckInActionById(@Nullable UUID accountCheckInActionId) {
+		if (accountCheckInActionId == null)
+			return Optional.empty();
 
 		return getDatabase().queryForObject("""
-				SELECT * 
-				FROM account_check_in_action 
-				WHERE account_check_in_action_id = ?  
+				SELECT *
+				FROM account_check_in_action
+				WHERE account_check_in_action_id = ?
 				""", AccountCheckInAction.class, accountCheckInActionId);
 	}
 
 	@Nonnull
-	private Optional<AccountCheckIn> findAccountCheckInById(@Nonnull UUID accountCheckInId) {
-		requireNonNull(accountCheckInId);
+	public Optional<AccountCheckIn> findAccountCheckInById(@Nullable UUID accountCheckInId) {
+		if (accountCheckInId == null)
+			return Optional.empty();
 
 		return getDatabase().queryForObject("""
-				SELECT * 
-				FROM account_check_in 
-				WHERE account_check_in_id = ?  
+				SELECT *
+				FROM account_check_in
+				WHERE account_check_in_id = ?
 				""", AccountCheckIn.class, accountCheckInId);
 	}
 
@@ -440,20 +501,20 @@ public class StudyService {
 		LocalDateTime currentLocalDateTime = LocalDateTime.now(account.getTimeZone());
 
 		if (!accountCheckInAction.isPresent())
-			validationException.add(new ValidationException.FieldError("accountCheckInAction", getStrings().get("Account check-in action not found.")));
+			validationException.add(new FieldError("accountCheckInAction", getStrings().get("Account check-in action not found.")));
 
 		if (accountCheckInAction.isPresent()) {
 			Optional<AccountCheckIn> accountCheckIn = findAccountCheckInById(accountCheckInAction.get().getAccountCheckInId());
 			if (!accountCheckIn.isPresent())
-				validationException.add(new ValidationException.FieldError("accountCheckIn", getStrings().get("Account check-in not found.")));
+				validationException.add(new FieldError("accountCheckIn", getStrings().get("Account check-in not found.")));
 			else if (accountCheckIn.get().getCheckInStatusId().equals(CheckInStatusId.COMPLETE))
-				validationException.add(new ValidationException.FieldError("accountCheckIn", getStrings().get("Account check-in is complete.")));
+				validationException.add(new FieldError("accountCheckIn", getStrings().get("Account check-in is complete.")));
 			else if (accountCheckIn.get().getCheckInStartDateTime().isAfter(currentLocalDateTime) || accountCheckIn.get().getCheckInEndDateTime().isBefore(currentLocalDateTime))
-				validationException.add(new ValidationException.FieldError("accountCheckIn", getStrings().get("Account check-in is not permitted at this time.")));
+				validationException.add(new FieldError("accountCheckIn", getStrings().get("Account check-in is not permitted at this time.")));
 		}
 
 		if (checkInActionStatusId == null)
-			validationException.add(new ValidationException.FieldError("checkInStatusId", getStrings().get("checkInStatusId is required.")));
+			validationException.add(new FieldError("checkInStatusId", getStrings().get("checkInStatusId is required.")));
 		else if (validationException.hasErrors())
 			throw validationException;
 
@@ -504,6 +565,132 @@ public class StudyService {
 	}
 
 	@Nonnull
+	public Set<AccountSourceId> findPermittedAccountSourceIdsByStudyId(@Nullable UUID studyId) {
+		if (studyId == null)
+			return Set.of();
+
+		Study study = findStudyById(studyId).orElse(null);
+
+		if (study == null)
+			return Set.of();
+
+		// See if there are explicitly-permitted account sources for this study
+		List<AccountSource> permittedAccountSources = getDatabase().queryForList("""
+					SELECT asrc.*
+					FROM account_source asrc, study_account_source sas
+					WHERE asrc.account_source_id=sas.account_source_id
+					AND sas.study_id=?
+				""", AccountSource.class, studyId);
+
+		// Didn't find any explicitly permitted for this study?  Then all of them are permitted
+		if (permittedAccountSources.size() == 0) {
+			permittedAccountSources = getDatabase().queryForList("""
+						SELECT *
+						FROM institution_account_source
+						WHERE institution_id=?
+					""", AccountSource.class, study.getInstitutionId());
+		}
+
+		return permittedAccountSources.stream()
+				.map(accountSource -> accountSource.getAccountSourceId())
+				.collect(Collectors.toSet());
+	}
+
+	@Nonnull
+	public Optional<Study> findStudyByStudyCheckInActionId(@Nullable UUID studyCheckInActionId) {
+		if (studyCheckInActionId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				  SELECT s.*
+				  FROM study s, study_check_in sci, study_check_in_action scia
+				  WHERE scia.study_check_in_action_id=?
+				  AND scia.study_check_in_id=sci.study_check_in_id
+				  AND sci.study_id=s.study_id
+				""", Study.class, studyCheckInActionId);
+	}
+
+	@Nonnull
+	public FileUploadResult createAccountCheckInActionFileUpload(@Nonnull CreateAccountCheckInActionFileUploadRequest request) {
+		requireNonNull(request);
+
+		AccountCheckInAction accountCheckInAction = null;
+		ValidationException validationException = new ValidationException();
+
+		if (request.getAccountId() == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (request.getAccountCheckInActionId() == null) {
+			validationException.add(new FieldError("accountCheckInActionId", getStrings().get("Account check-in action ID is required.")));
+		} else {
+			accountCheckInAction = findAccountCheckInActionById(request.getAccountCheckInActionId()).orElse(null);
+
+			if (accountCheckInAction == null)
+				validationException.add(new FieldError("accountCheckInActionId", getStrings().get("Account check-in action ID is invalid.")));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		// Make a separate instance so we don't mutate the request passed into this method
+		CreateFileUploadRequest fileUploadRequest = new CreateFileUploadRequest();
+		fileUploadRequest.setAccountId(request.getAccountId());
+		fileUploadRequest.setContentType(request.getContentType());
+		fileUploadRequest.setFilename(request.getFilename());
+		fileUploadRequest.setPublicRead(false);
+		fileUploadRequest.setStorageKeyPrefix(format("account-check-in-actions/%s/%s%s", accountCheckInAction.getAccountCheckInActionId(),
+				request.getAccountId(), STUDY_FILE_UPLOAD_TIMESTAMP_FORMATTER.format(Instant.now())));
+		fileUploadRequest.setMetadata(Map.of(
+				"account-check-in-action-id", request.getAccountCheckInActionId().toString(),
+				"account-id", request.getAccountId().toString()
+		));
+
+		FileUploadResult fileUploadResult = getSystemService().createFileUpload(fileUploadRequest);
+
+		return fileUploadResult;
+	}
+
+	@Nonnull
+	public FileUploadResult createStudyFileUpload(@Nonnull CreateStudyFileUploadRequest request) {
+		requireNonNull(request);
+
+		Study study = null;
+		ValidationException validationException = new ValidationException();
+
+		if (request.getAccountId() == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (request.getStudyId() == null) {
+			validationException.add(new FieldError("studyId", getStrings().get("Study ID is required.")));
+		} else {
+			study = findStudyById(request.getStudyId()).orElse(null);
+
+			if (study == null)
+				validationException.add(new FieldError("studyId", getStrings().get("Study ID is invalid.")));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		// Make a separate instance so we don't mutate the request passed into this method
+		CreateFileUploadRequest fileUploadRequest = new CreateFileUploadRequest();
+		fileUploadRequest.setAccountId(request.getAccountId());
+		fileUploadRequest.setContentType(request.getContentType());
+		fileUploadRequest.setFilename(request.getFilename());
+		fileUploadRequest.setPublicRead(false);
+		fileUploadRequest.setStorageKeyPrefix(format("studies/%s/%s/%s", study.getStudyId(), request.getAccountId(),
+				STUDY_FILE_UPLOAD_TIMESTAMP_FORMATTER.format(Instant.now())));
+		fileUploadRequest.setMetadata(Map.of(
+				"study-id", request.getStudyId().toString(),
+				"account-id", request.getAccountId().toString()
+		));
+
+		FileUploadResult fileUploadResult = getSystemService().createFileUpload(fileUploadRequest);
+
+		return fileUploadResult;
+	}
+
+	@Nonnull
 	protected Database getDatabase() {
 		return this.database;
 	}
@@ -515,7 +702,7 @@ public class StudyService {
 
 	@Nonnull
 	protected Authenticator getAuthenticator() {
-		return authenticator;
+		return this.authenticator;
 	}
 
 	@Nonnull

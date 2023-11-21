@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.AppointmentCancelationReason.AppointmentCancelationReasonId;
 import com.cobaltplatform.api.model.db.AttendanceStatus.AttendanceStatusId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.VideoconferencePlatform.VideoconferencePlatformId;
@@ -62,6 +63,8 @@ public class Appointment implements Comparable<Appointment> {
 	private UUID patientReminderScheduledMessageId;
 	@Nullable
 	private UUID patientOrderId;
+	@Nullable
+	private AppointmentCancelationReasonId appointmentCancelationReasonId;
 	@Nullable
 	private Long acuityAppointmentId;
 	@Nullable
@@ -108,6 +111,12 @@ public class Appointment implements Comparable<Appointment> {
 	private UUID rescheduledAppointmentId;
 	@Nullable
 	private UUID intakeAccountSessionId;
+	@Nullable
+	private String epicAppointmentFhirId;
+	@Nullable
+	private String epicAppointmentFhirIdentifierSystem;
+	@Nullable
+	private String epicAppointmentFhirIdentifierValue;
 
 	static {
 		DEFAULT_COMPARATOR = Comparator.comparing(Appointment::getStartTime)
@@ -396,6 +405,15 @@ public class Appointment implements Comparable<Appointment> {
 	}
 
 	@Nullable
+	public AppointmentCancelationReasonId getAppointmentCancelationReasonId() {
+		return this.appointmentCancelationReasonId;
+	}
+
+	public void setAppointmentCancelationReasonId(@Nullable AppointmentCancelationReasonId appointmentCancelationReasonId) {
+		this.appointmentCancelationReasonId = appointmentCancelationReasonId;
+	}
+
+	@Nullable
 	public Boolean getCanceledForReschedule() {
 		return canceledForReschedule;
 	}
@@ -420,5 +438,32 @@ public class Appointment implements Comparable<Appointment> {
 
 	public void setIntakeAccountSessionId(@Nullable UUID intakeAccountSessionId) {
 		this.intakeAccountSessionId = intakeAccountSessionId;
+	}
+
+	@Nullable
+	public String getEpicAppointmentFhirId() {
+		return this.epicAppointmentFhirId;
+	}
+
+	public void setEpicAppointmentFhirId(@Nullable String epicAppointmentFhirId) {
+		this.epicAppointmentFhirId = epicAppointmentFhirId;
+	}
+
+	@Nullable
+	public String getEpicAppointmentFhirIdentifierSystem() {
+		return this.epicAppointmentFhirIdentifierSystem;
+	}
+
+	public void setEpicAppointmentFhirIdentifierSystem(@Nullable String epicAppointmentFhirIdentifierSystem) {
+		this.epicAppointmentFhirIdentifierSystem = epicAppointmentFhirIdentifierSystem;
+	}
+
+	@Nullable
+	public String getEpicAppointmentFhirIdentifierValue() {
+		return this.epicAppointmentFhirIdentifierValue;
+	}
+
+	public void setEpicAppointmentFhirIdentifierValue(@Nullable String epicAppointmentFhirIdentifierValue) {
+		this.epicAppointmentFhirIdentifierValue = epicAppointmentFhirIdentifierValue;
 	}
 }

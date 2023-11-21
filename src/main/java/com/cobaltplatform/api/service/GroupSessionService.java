@@ -31,6 +31,7 @@ import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.InviteOrganiz
 import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.OrganizerAttendeeStrategy;
 import com.cobaltplatform.api.messaging.email.EmailAttachment;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
+import com.cobaltplatform.api.messaging.email.EmailMessageContextKey;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.CancelGroupSessionReservationRequest;
 import com.cobaltplatform.api.model.api.request.CreateGroupSessionRequest;
@@ -76,11 +77,11 @@ import com.cobaltplatform.api.model.service.GroupSessionRequestWithTotalCount;
 import com.cobaltplatform.api.model.service.GroupSessionStatusWithCount;
 import com.cobaltplatform.api.model.service.GroupSessionUrlValidationResult;
 import com.cobaltplatform.api.model.service.GroupSessionWithTotalCount;
+import com.cobaltplatform.api.model.service.PresignedUpload;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.LinkGenerator;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.UploadManager;
-import com.cobaltplatform.api.util.UploadManager.PresignedUpload;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
@@ -894,11 +895,28 @@ public class GroupSessionService implements AutoCloseable {
 	}
 
 	@Nonnull
-	private Optional<GroupSessionCollection> findGroupSessionCollectionById(@Nonnull UUID groupSessionCollectionId) {
-		requireNonNull(groupSessionCollectionId);
+	public Optional<GroupSessionCollection> findGroupSessionCollectionById(@Nullable UUID groupSessionCollectionId) {
+		if (groupSessionCollectionId == null)
+			return Optional.empty();
 
 		return getDatabase().queryForObject("SELECT * FROM group_session_collection WHERE group_session_collection_id = ?",
 				GroupSessionCollection.class, groupSessionCollectionId);
+	}
+
+	@Nonnull
+	public Optional<GroupSessionCollection> findGroupSessionCollectionByInstitutionIdAndUrlName(@Nullable InstitutionId institutionId,
+																																															@Nullable String urlName) {
+		if (institutionId == null || urlName == null)
+			return Optional.empty();
+
+		urlName = urlName.trim();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM group_session_collection
+				WHERE institution_id=?
+				AND url_name=?
+				""", GroupSessionCollection.class, institutionId, urlName);
 	}
 
 	@Nonnull
@@ -1439,6 +1457,9 @@ public class GroupSessionService implements AutoCloseable {
 								put("groupSessionStartDateDescription", getFormatter().formatDate(pinnedGroupSession.getStartDateTime().toLocalDate()));
 								put("groupSessionStartTimeDescription", getFormatter().formatTime(pinnedGroupSession.getStartDateTime().toLocalTime(), FormatStyle.SHORT));
 								put("anotherTimeUrl", format("%s/in-the-studio", getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(pinnedGroupSession.getInstitutionId(), UserExperienceTypeId.PATIENT).get()));
+								put(EmailMessageContextKey.OVERRIDE_PLATFORM_NAME.name(), pinnedGroupSession.getOverridePlatformName());
+								put(EmailMessageContextKey.OVERRIDE_PLATFORM_EMAIL_IMAGE_URL.name(), pinnedGroupSession.getOverridePlatformEmailImageUrl());
+								put(EmailMessageContextKey.OVERRIDE_PLATFORM_SUPPORT_EMAIL_ADDRESS.name(), pinnedGroupSession.getOverridePlatformSupportEmailAddress());
 							}})
 							.build();
 
@@ -1462,6 +1483,9 @@ public class GroupSessionService implements AutoCloseable {
 								put("groupSession", pinnedGroupSession);
 								put("imageUrl", firstNonNull(pinnedGroupSession.getImageUrl(), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
 								put("groupSessionUrl", format("%s/in-the-studio", getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(pinnedGroupSession.getInstitutionId(), UserExperienceTypeId.PATIENT).get()));
+								put(EmailMessageContextKey.OVERRIDE_PLATFORM_NAME.name(), pinnedGroupSession.getOverridePlatformName());
+								put(EmailMessageContextKey.OVERRIDE_PLATFORM_EMAIL_IMAGE_URL.name(), pinnedGroupSession.getOverridePlatformEmailImageUrl());
+								put(EmailMessageContextKey.OVERRIDE_PLATFORM_SUPPORT_EMAIL_ADDRESS.name(), pinnedGroupSession.getOverridePlatformSupportEmailAddress());
 							}})
 							.build();
 
@@ -1645,6 +1669,9 @@ public class GroupSessionService implements AutoCloseable {
 				put("icalUrl", format("%s/group-session-reservations/%s/ical", getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institution.getInstitutionId(), UserExperienceTypeId.PATIENT).get(), groupSessionReservationId));
 				put("googleCalendarUrl", format("%s/group-session-reservations/%s/google-calendar", getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institution.getInstitutionId(), UserExperienceTypeId.PATIENT).get(), groupSessionReservationId));
 				put("anotherTimeUrl", format("%s/in-the-studio", getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institution.getInstitutionId(), UserExperienceTypeId.PATIENT).get()));
+				put(EmailMessageContextKey.OVERRIDE_PLATFORM_NAME.name(), groupSession.getOverridePlatformName());
+				put(EmailMessageContextKey.OVERRIDE_PLATFORM_EMAIL_IMAGE_URL.name(), groupSession.getOverridePlatformEmailImageUrl());
+				put(EmailMessageContextKey.OVERRIDE_PLATFORM_SUPPORT_EMAIL_ADDRESS.name(), groupSession.getOverridePlatformSupportEmailAddress());
 			}};
 
 			EmailMessage attendeeEmailMessage = new EmailMessage.Builder(groupSession.getInstitutionId(), EmailMessageTemplate.GROUP_SESSION_RESERVATION_CREATED_ATTENDEE, pinnedAttendeeAccount.getLocale())
@@ -1680,6 +1707,9 @@ public class GroupSessionService implements AutoCloseable {
 						put("attendeeEmailAddress", attendeeEmailAddress);
 						put("groupSessionStartDateDescription", getFormatter().formatDate(groupSession.getStartDateTime().toLocalDate()));
 						put("groupSessionStartTimeDescription", getFormatter().formatTime(groupSession.getStartDateTime().toLocalTime(), FormatStyle.SHORT));
+						put(EmailMessageContextKey.OVERRIDE_PLATFORM_NAME.name(), groupSession.getOverridePlatformName());
+						put(EmailMessageContextKey.OVERRIDE_PLATFORM_EMAIL_IMAGE_URL.name(), groupSession.getOverridePlatformEmailImageUrl());
+						put(EmailMessageContextKey.OVERRIDE_PLATFORM_SUPPORT_EMAIL_ADDRESS.name(), groupSession.getOverridePlatformSupportEmailAddress());
 					}})
 					.build();
 
@@ -1730,6 +1760,9 @@ public class GroupSessionService implements AutoCloseable {
 			put("icalUrl", format("%s/group-session-reservations/%s/ical", getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institution.getInstitutionId(), UserExperienceTypeId.PATIENT).get(), groupSessionReservation.getGroupSessionReservationId()));
 			put("googleCalendarUrl", format("%s/group-session-reservations/%s/google-calendar", getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institution.getInstitutionId(), UserExperienceTypeId.PATIENT).get(), groupSessionReservation.getGroupSessionReservationId()));
 			put("anotherTimeUrl", format("%s/in-the-studio", getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institution.getInstitutionId(), UserExperienceTypeId.PATIENT).get()));
+			put(EmailMessageContextKey.OVERRIDE_PLATFORM_NAME.name(), groupSession.getOverridePlatformName());
+			put(EmailMessageContextKey.OVERRIDE_PLATFORM_EMAIL_IMAGE_URL.name(), groupSession.getOverridePlatformEmailImageUrl());
+			put(EmailMessageContextKey.OVERRIDE_PLATFORM_SUPPORT_EMAIL_ADDRESS.name(), groupSession.getOverridePlatformSupportEmailAddress());
 		}};
 
 		// Schedule a reminder message for this reservation based on institution rules
@@ -1770,6 +1803,9 @@ public class GroupSessionService implements AutoCloseable {
 		Map<String, Object> messageContext = new HashMap<>();
 		messageContext.put("groupSession", groupSession);
 		messageContext.put("imageUrl", firstNonNull(groupSession.getImageUrl(), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
+		messageContext.put(EmailMessageContextKey.OVERRIDE_PLATFORM_NAME.name(), groupSession.getOverridePlatformName());
+		messageContext.put(EmailMessageContextKey.OVERRIDE_PLATFORM_EMAIL_IMAGE_URL.name(), groupSession.getOverridePlatformEmailImageUrl());
+		messageContext.put(EmailMessageContextKey.OVERRIDE_PLATFORM_SUPPORT_EMAIL_ADDRESS.name(), groupSession.getOverridePlatformSupportEmailAddress());
 
 		EmailMessage followupEmailMessage = new EmailMessage.Builder(groupSession.getInstitutionId(), EmailMessageTemplate.GROUP_SESSION_RESERVATION_FOLLOWUP_ATTENDEE, account.getLocale())
 				.toAddresses(new ArrayList<>() {{
@@ -1847,6 +1883,9 @@ public class GroupSessionService implements AutoCloseable {
 						put("groupSessionStartDateDescription", getFormatter().formatDate(groupSession.getStartDateTime().toLocalDate()));
 						put("groupSessionStartTimeDescription", getFormatter().formatTime(groupSession.getStartDateTime().toLocalTime(), FormatStyle.SHORT));
 						put("anotherTimeUrl", format("%s/in-the-studio", getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institution.getInstitutionId(), UserExperienceTypeId.PATIENT).get()));
+						put(EmailMessageContextKey.OVERRIDE_PLATFORM_NAME.name(), groupSession.getOverridePlatformName());
+						put(EmailMessageContextKey.OVERRIDE_PLATFORM_EMAIL_IMAGE_URL.name(), groupSession.getOverridePlatformEmailImageUrl());
+						put(EmailMessageContextKey.OVERRIDE_PLATFORM_SUPPORT_EMAIL_ADDRESS.name(), groupSession.getOverridePlatformSupportEmailAddress());
 					}})
 					.emailAttachments(List.of(generateICalInviteAsEmailAttachment(groupSession, groupSessionReservation, InviteMethod.CANCEL)))
 					.build();
@@ -1867,6 +1906,9 @@ public class GroupSessionService implements AutoCloseable {
 						put("groupSessionUrl", format("%s/admin/group-sessions/edit/%s", getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institution.getInstitutionId(), UserExperienceTypeId.STAFF).get(), groupSession.getGroupSessionId()));
 						put("groupSessionStartDateDescription", getFormatter().formatDate(groupSession.getStartDateTime().toLocalDate()));
 						put("groupSessionStartTimeDescription", getFormatter().formatTime(groupSession.getStartDateTime().toLocalTime(), FormatStyle.SHORT));
+						put(EmailMessageContextKey.OVERRIDE_PLATFORM_NAME.name(), groupSession.getOverridePlatformName());
+						put(EmailMessageContextKey.OVERRIDE_PLATFORM_EMAIL_IMAGE_URL.name(), groupSession.getOverridePlatformEmailImageUrl());
+						put(EmailMessageContextKey.OVERRIDE_PLATFORM_SUPPORT_EMAIL_ADDRESS.name(), groupSession.getOverridePlatformSupportEmailAddress());
 					}})
 					.build();
 
@@ -2332,7 +2374,7 @@ public class GroupSessionService implements AutoCloseable {
 
 		String key = format("%s/group-session-requests/%s/%s", getConfiguration().getEnvironment(), UUID.randomUUID(), filename);
 
-		return getUploadManager().createPresignedUpload(key, contentType, new HashMap<>() {{
+		return getUploadManager().createPresignedUpload(key, contentType, true, new HashMap<>() {{
 			put("account-id", accountId.toString());
 		}});
 	}

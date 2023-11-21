@@ -21,6 +21,7 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.api.request.CreatePresignedUploadRequest;
+import com.cobaltplatform.api.model.service.PresignedUpload;
 import com.cobaltplatform.api.util.UploadManager;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
@@ -62,19 +63,19 @@ public class ImageUploadService {
 	}
 
 	@Nonnull
-	public UploadManager.PresignedUpload generatePresignedUploadForGroupSession(@Nonnull CreatePresignedUploadRequest request) {
+	public PresignedUpload generatePresignedUploadForGroupSession(@Nonnull CreatePresignedUploadRequest request) {
 		requireNonNull(request);
 		return generatePresignedUploadForUseCase(request, "group-sessions");
 	}
 
 	@Nonnull
-	public UploadManager.PresignedUpload generatePresignedUploadForContent(@Nonnull CreatePresignedUploadRequest request) {
+	public PresignedUpload generatePresignedUploadForContent(@Nonnull CreatePresignedUploadRequest request) {
 		requireNonNull(request);
 		return generatePresignedUploadForUseCase(request, "content");
 	}
 
-	private UploadManager.PresignedUpload generatePresignedUploadForUseCase(@Nonnull CreatePresignedUploadRequest request,
-																																					@Nonnull String useCase) {
+	private PresignedUpload generatePresignedUploadForUseCase(@Nonnull CreatePresignedUploadRequest request,
+																														@Nonnull String useCase) {
 		UUID accountId = request.getAccountId();
 		String filename = trimToNull(request.getFilename());
 		String contentType = trimToNull(request.getContentType());
@@ -98,7 +99,7 @@ public class ImageUploadService {
 
 		String key = format("%s/%s/%s/%s", getConfiguration().getEnvironment(), useCase, UUID.randomUUID(), filename);
 
-		return getUploadManager().createPresignedUpload(key, contentType, new HashMap<>() {{
+		return getUploadManager().createPresignedUpload(key, contentType, true, new HashMap<>() {{
 			put("account-id", accountId.toString());
 		}});
 	}

@@ -28,75 +28,38 @@ import static java.lang.String.format;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class ScreeningType {
+public class AppointmentCancelationReason {
 	@Nullable
-	private ScreeningTypeId screeningTypeId;
+	private AppointmentCancelationReasonId appointmentCancelationReasonId;
 	@Nullable
 	private String description;
-	@Nullable
-	private Integer overallScoreMaximum;
 
-	public enum ScreeningTypeId {
-		CUSTOM,
-		GAD_2,
-		GAD_7,
-		PHQ_4,
-		PHQ_8,
-		PHQ_9,
-		WHO_5,
-		PC_PTSD_5,
-		CAGE_ALCOHOL,
-		TICS,
-		ISI,
-		ASRM,
-		C_SSRS_3,
-		C_SSRS_8,
-		DAST_10,
-		BPI,
-		AUDIT_C,
-		MBI_9,
-		@Deprecated IC_INTRO,  // Replaced by IC_INTAKE
-		@Deprecated IC_INTRO_CONDITIONS, // Replaced by IC_PATIENT_SELF_REPORTING
-		@Deprecated IC_INTRO_SYMPTOMS, // Replaced by IC_PATIENT_SELF_REPORTING
-		IC_INTAKE,
-		IC_PATIENT_SELF_REPORTING,
-		IC_DRUG_USE_FREQUENCY,
-		IC_DRUG_USE_OPIOID,
-		BPI_1,
-		PRIME_5,
-		PSYCHOSIS,
-		SUDS_THERMOMETER
+	public enum AppointmentCancelationReasonId {
+		UNSPECIFIED,
+		EXTERNALLY_CANCELED
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{screeningTypeId=%s, description=%s}", getClass().getSimpleName(), getScreeningTypeId().name(), getDescription());
+		return format("%s{appointmentCancelationReasonId=%s, description=%s}", getClass().getSimpleName(),
+				getAppointmentCancelationReasonId(), getDescription());
 	}
 
 	@Nullable
-	public ScreeningTypeId getScreeningTypeId() {
-		return this.screeningTypeId;
+	public AppointmentCancelationReasonId getAppointmentCancelationReasonId() {
+		return this.appointmentCancelationReasonId;
 	}
 
-	public void setScreeningTypeId(@Nullable ScreeningTypeId screeningTypeId) {
-		this.screeningTypeId = screeningTypeId;
+	public void setAppointmentCancelationReasonId(@Nullable AppointmentCancelationReasonId appointmentCancelationReasonId) {
+		this.appointmentCancelationReasonId = appointmentCancelationReasonId;
 	}
 
 	@Nullable
 	public String getDescription() {
-		return this.description;
+		return description;
 	}
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
-	}
-
-	@Nullable
-	public Integer getOverallScoreMaximum() {
-		return this.overallScoreMaximum;
-	}
-
-	public void setOverallScoreMaximum(@Nullable Integer overallScoreMaximum) {
-		this.overallScoreMaximum = overallScoreMaximum;
 	}
 }

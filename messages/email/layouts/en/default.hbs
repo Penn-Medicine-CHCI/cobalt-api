@@ -88,7 +88,11 @@ body, table, td {font-family: Arial,  sans-serif !important;}
 								<td height="25" style="height:25px;" class="em_h20">&nbsp;</td>
 							</tr>
 							<tr>
-								<td align="center" valign="top"><a href="#" target="_blank" style="text-decoration:none;"><img src="{{{staticFileUrlPrefix}}}/logo@2x.jpg" width="200" height="26" alt="Cobalt" style="font-family: 'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:30px; line-height:35px; color:#000000; font-weight:bold; text-transform:uppercase; display:block; max-width:200px;" border="0" /></a></td>
+								{{#if platformEmailImageUrl}}
+									<td align="center" valign="top"><a href="#" target="_blank" style="text-decoration:none;"><img src="{{{platformEmailImageUrl}}}" width="650" alt="Cobalt" style="font-family: 'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:30px; line-height:35px; color:#000000; font-weight:bold; text-transform:uppercase; display:block; max-width:650px;" border="0" /></a></td>
+								{{else}}
+									<td align="center" valign="top"><a href="#" target="_blank" style="text-decoration:none;"><img src="{{{staticFileUrlPrefix}}}/logo@2x.jpg" width="200" height="26" alt="Cobalt" style="font-family: 'Karla', 'Open Sans', 'Roboto', Arial, sans-serif; font-size:30px; line-height:35px; color:#000000; font-weight:bold; text-transform:uppercase; display:block; max-width:200px;" border="0" /></a></td>
+								{{/if}}
 							</tr>
 							<tr>
 								<td height="22" style="height:22px;" class="em_h20">&nbsp;</td>
