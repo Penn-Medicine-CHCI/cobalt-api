@@ -189,15 +189,16 @@ public class AdminContentApiResponse {
 				contentActionIdList.add(ContentActionId.EXPIRE);
 			} else if (adminContent.getContentStatusId().equals(ContentStatusId.EXPIRED)) {
 				contentActionIdList.add(ContentActionId.EDIT);
-				contentActionIdList.add(ContentActionId.UNEXPIRE);
+				contentActionIdList.add(ContentActionId.DELETE);
 			}
 		} else {
 			if (institutionContentIds.contains(adminContent.getContentId())) {
+				this.contentStatusId = adminContent.getContentStatusId();
+				this.contentStatusDescription = adminContent.getContentStatusDescription();
 				contentActionIdList.add(ContentActionId.REMOVE);
 				contentActionIdList.add(ContentActionId.VIEW_ON_COBALT);
 			} else {
 				this.contentStatusId = ContentStatusId.AVAILABLE;
-				//TODO: don't hardcode this
 				this.contentStatusDescription = "Available";
 				contentActionIdList.add(ContentActionId.ADD);
 			}
@@ -211,8 +212,8 @@ public class AdminContentApiResponse {
 
 		//TODO: Set these for real
 		this.newFlag = false;
-		this.inUseCount = 2;
-		this.inUseInstitutionDescription = "NYU, Dartmouth";
+		this.inUseCount = adminContent.getInUseCount();
+		this.inUseInstitutionDescription = adminContent.getInUseInstitutionDescription();
 
 		this.callToAction = adminContent.getCallToAction();
 		this.durationInMinutesDescription = adminContent.getDurationInMinutes() != null ?

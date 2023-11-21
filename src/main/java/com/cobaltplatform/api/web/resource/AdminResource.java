@@ -356,11 +356,12 @@ public class AdminResource {
 	@AuthenticationRequired
 	public ApiResponse forceExpireContent(@Nonnull @PathParameter UUID contentId){
 		Account account = getCurrentContext().getAccount().get();
+
+		getAdminContentService().forceExpireContent(contentId, account);
+
 		Optional<AdminContent> content = getAdminContentService()
 				.findAdminContentByIdForInstitution(account.getInstitutionId(), contentId);
 		List<UUID> institutionContentIds = getAdminContentService().findContentIdsForInstitution(account.getInstitutionId());
-
-		getAdminContentService().forceExpireContent(contentId, account);
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("content", getAdminContentApiResponseFactory().create(account, content.get(), AdminContentDisplayType.DETAIL,institutionContentIds));
 		}});

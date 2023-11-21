@@ -90,6 +90,12 @@ public class AdminContent{
 	@Nullable
 	private String fileUrl;
 
+	@Nullable
+	private String inUseInstitutionDescription;
+
+	@Nullable
+	private Integer inUseCount;
+
 	@Nonnull
 	public UUID getContentId() {
 		return contentId;
@@ -302,5 +308,23 @@ public class AdminContent{
 
 	public void setFileUrl(@Nullable String fileUrl) {
 		this.fileUrl = fileUrl;
+	}
+
+	@Nullable
+	public String getInUseInstitutionDescription() {
+		return inUseInstitutionDescription;
+	}
+
+	public void setInUseInstitutionDescription(@Nullable String inUseInstitutionDescription) {
+		this.inUseInstitutionDescription = inUseInstitutionDescription;
+	}
+
+	@Nullable
+	public Integer getInUseCount() {
+		return inUseCount;
+	}
+
+	public void setInUseCount(@Nullable Integer inUseCount) {
+		this.inUseCount = inUseCount;
 	}
 }

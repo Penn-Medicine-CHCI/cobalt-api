@@ -198,6 +198,7 @@ public class AdminContentService {
 		Integer totalCount = content.stream().filter(it -> it.getTotalCount() != null).mapToInt(AdminContent::getTotalCount).findFirst().orElse(0);
 
 		getContentService().applyTagsToAdminContents(content, account.getInstitutionId());
+		getContentService().applyInstitutionsToAdminContents(content, account.getInstitutionId());
 
 		return new FindResult<>(content, totalCount);
 	}
@@ -503,7 +504,7 @@ public class AdminContentService {
 			throw validationException;
 
 		getDatabase().execute("""
-				UPDATE content SET publish_end_date = NOW() 
+				UPDATE content SET publish_end_date = NOW() - INTERVAL '1 DAY' 
 				WHERE content_id=?  				
 				""", contentId);
 	}

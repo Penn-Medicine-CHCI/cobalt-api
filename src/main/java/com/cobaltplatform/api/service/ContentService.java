@@ -30,7 +30,9 @@ import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.ContentType;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
 import com.cobaltplatform.api.model.db.ContentTypeLabel;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.InstitutionContent;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.db.TagContent;
 import com.cobaltplatform.api.model.service.AdminContent;
@@ -375,7 +377,7 @@ public class ContentService {
 
 	@Nonnull
 	public Optional<Content> findContentById(@Nonnull UUID contentId) {
-		return getDatabase().queryForObject("SELECT * FROM content WHERE content_id = ?", Content.class, contentId);
+		return getDatabase().queryForObject("SELECT * FROM v_admin_content WHERE content_id = ?", Content.class, contentId);
 	}
 
 	@Nonnull
@@ -646,6 +648,44 @@ public class ContentService {
 			adminContent.setTags(tags);
 		}
 	}
+
+	@Nonnull
+	private List<InstitutionContent> findNonInstitutionContent(@Nonnull InstitutionId institutionId) {
+		requireNonNull(institutionId);
+
+		return getDatabase().queryForList("""
+				SELECT ic.*, i.name as institution_name
+				FROM institution_content ic, institution i
+				WHERE ic.institution_id = i.institution_id
+				AND i.institution_id != ?
+				""", InstitutionContent.class, institutionId);
+	}
+
+	@Nonnull
+	protected void applyInstitutionsToAdminContents(@Nonnull List<? extends AdminContent> adminContents,
+																									@Nonnull InstitutionId institutionId) {
+		requireNonNull(adminContents);
+		requireNonNull(institutionId);
+
+		// Pull back all data up-front to avoid N+1 selects
+		Map<UUID, List<InstitutionContent>> institutionContentsByContentId = findNonInstitutionContent(institutionId).stream()
+				.collect(Collectors.groupingBy(InstitutionContent::getContentId));
+
+		for (AdminContent adminContent : adminContents) {
+			List<InstitutionContent> institutionContents = institutionContentsByContentId.get(adminContent.getContentId());
+			String institutions = null;
+			Integer inUseCount = 0;
+
+			if (institutionContents != null) {
+				institutions = institutionContents.stream().map(i -> i.getInstitutionName()).collect(Collectors.joining(","));
+				inUseCount = institutionContents.size();
+			}
+
+			adminContent.setInUseInstitutionDescription(institutions);
+			adminContent.setInUseCount(inUseCount);
+		}
+	}
+
 
 	@Nonnull
 	protected SessionService getSessionService() {
