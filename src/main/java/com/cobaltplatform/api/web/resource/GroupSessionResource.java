@@ -36,6 +36,7 @@ import com.cobaltplatform.api.model.api.response.GroupSessionUrlValidationResult
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.GroupSession;
+import com.cobaltplatform.api.model.db.GroupSessionCollection;
 import com.cobaltplatform.api.model.db.GroupSessionReservation;
 import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
@@ -45,13 +46,13 @@ import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.GroupSessionStatusWithCount;
 import com.cobaltplatform.api.model.service.GroupSessionUrlValidationResult;
+import com.cobaltplatform.api.model.service.PresignedUpload;
 import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.GroupSessionService;
 import com.cobaltplatform.api.service.ImageUploadService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
-import com.cobaltplatform.api.util.UploadManager.PresignedUpload;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
@@ -202,6 +203,7 @@ public class GroupSessionResource {
 																	 @Nonnull @QueryParameter Optional<String> searchQuery,
 																	 @Nonnull @QueryParameter Optional<FindGroupSessionsRequest.OrderBy> orderBy,
 																	 @Nonnull @QueryParameter Optional<UUID> groupSessionCollectionId,
+																	 @Nonnull @QueryParameter Optional<String> groupSessionCollectionUrlName,
 																	 @Nonnull @QueryParameter Optional<GroupSessionStatusId> groupSessionStatusId,
 																	 @Nonnull @QueryParameter Optional<GroupSessionSchedulingSystemId> groupSessionSchedulingSystemId,
 																	 @Nonnull @QueryParameter Optional<Boolean> visibleFlag) {
@@ -212,6 +214,7 @@ public class GroupSessionResource {
 		requireNonNull(searchQuery);
 		requireNonNull(orderBy);
 		requireNonNull(groupSessionCollectionId);
+		requireNonNull(groupSessionCollectionUrlName);
 		requireNonNull(groupSessionStatusId);
 		requireNonNull(groupSessionSchedulingSystemId);
 		requireNonNull(visibleFlag);
@@ -231,6 +234,14 @@ public class GroupSessionResource {
 		request.setGroupSessionSchedulingSystemId(groupSessionSchedulingSystemId.orElse(null));
 		request.setVisibleFlag(visibleFlag.orElse(null));
 
+		// If a groupSessionCollectionUrlName is specified, use it override the groupSessionCollectionId
+		if (groupSessionCollectionUrlName.isPresent()) {
+			GroupSessionCollection groupSessionCollection = getGroupSessionService().findGroupSessionCollectionByInstitutionIdAndUrlName(account.getInstitutionId(), groupSessionCollectionUrlName.get()).orElse(null);
+
+			if (groupSessionCollection != null)
+				request.setGroupSessionCollectionId(groupSessionCollection.getGroupSessionCollectionId());
+		}
+
 		GroupSessionViewType finalViewType = viewType.orElse(GroupSessionViewType.PATIENT);
 
 		// For admin views, real admins can see everything.  But patients can only see their own
@@ -240,9 +251,13 @@ public class GroupSessionResource {
 				request.setAccount(account);
 			}
 		} else {
-			// Only show 'added' sessions for patient views no matter what your role is
+			// Only show 'added' sessions for patient views no matter what your role is...
 			request.setGroupSessionStatusId(GroupSessionStatusId.ADDED);
 			request.setVisibleFlag(true);
+
+			//...unless this is a collection.  In that case, we can see all sessions associated, even invisible ones
+			if (request.getGroupSessionCollectionId() != null)
+				request.setVisibleFlag(null);
 		}
 
 		FindResult<GroupSession> findResult = getGroupSessionService().findGroupSessions(request);

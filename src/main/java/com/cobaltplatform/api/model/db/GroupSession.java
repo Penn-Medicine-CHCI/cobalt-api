@@ -131,6 +131,14 @@ public class GroupSession {
 	private Locale locale;
 	@Nonnull
 	private Boolean differentEmailAddressForNotifications;
+	@Nullable
+	private String overridePlatformName;
+	@Nullable
+	private String overridePlatformEmailImageUrl;
+	@Nullable
+	private String overridePlatformSupportEmailAddress;
+	@Nullable
+	private String groupSessionCollectionUrlName;
 
 	@Nullable
 	public UUID getGroupSessionId() {
@@ -534,5 +542,41 @@ public class GroupSession {
 
 	public void setDifferentEmailAddressForNotifications(@Nonnull Boolean differentEmailAddressForNotifications) {
 		this.differentEmailAddressForNotifications = differentEmailAddressForNotifications;
+	}
+
+	@Nullable
+	public String getOverridePlatformName() {
+		return this.overridePlatformName;
+	}
+
+	public void setOverridePlatformName(@Nullable String overridePlatformName) {
+		this.overridePlatformName = overridePlatformName;
+	}
+
+	@Nullable
+	public String getOverridePlatformEmailImageUrl() {
+		return this.overridePlatformEmailImageUrl;
+	}
+
+	public void setOverridePlatformEmailImageUrl(@Nullable String overridePlatformEmailImageUrl) {
+		this.overridePlatformEmailImageUrl = overridePlatformEmailImageUrl;
+	}
+
+	@Nullable
+	public String getOverridePlatformSupportEmailAddress() {
+		return this.overridePlatformSupportEmailAddress;
+	}
+
+	public void setOverridePlatformSupportEmailAddress(@Nullable String overridePlatformSupportEmailAddress) {
+		this.overridePlatformSupportEmailAddress = overridePlatformSupportEmailAddress;
+	}
+
+	@Nullable
+	public String getGroupSessionCollectionUrlName() {
+		return this.groupSessionCollectionUrlName;
+	}
+
+	public void setGroupSessionCollectionUrlName(@Nullable String groupSessionCollectionUrlName) {
+		this.groupSessionCollectionUrlName = groupSessionCollectionUrlName;
 	}
 }

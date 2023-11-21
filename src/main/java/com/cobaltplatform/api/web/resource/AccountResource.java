@@ -374,7 +374,6 @@ public class AccountResource {
 		Account account = getAccountService().findAccountByAccessToken(accessToken).get();
 
 		Boolean passwordResetRequired = account.getPasswordResetRequired();
-		final String finalAccessToken = passwordResetRequired ? null : accessToken;
 
 		if (passwordResetRequired) {
 			accessToken = null;
@@ -383,6 +382,8 @@ public class AccountResource {
 		}
 
 		Account finalAccount = account;
+		String finalAccessToken = accessToken;
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("account", getAccountApiResponseFactory().create(finalAccount));
 			put("accessToken", finalAccessToken);
@@ -487,8 +488,10 @@ public class AccountResource {
 		List<GroupSession> groupSessions = new ArrayList<>(getGroupSessionService().findGroupSessions(new FindGroupSessionsRequest() {{
 			setGroupSessionStatusId(GroupSessionStatusId.ADDED);
 			setInstitutionId(account.getInstitutionId());
-			setOrderBy(OrderBy.START_TIME_DESCENDING);
-		}}).getResults());
+			setOrderBy(OrderBy.START_TIME_ASCENDING);
+		}}).getResults()).stream()
+				.filter(groupSession -> groupSession.getVisibleFlag() != null & groupSession.getVisibleFlag())
+				.collect(Collectors.toList());
 
 		// Don't show too many events
 		if (groupSessions.size() > MAXIMUM_GROUP_SESSIONS)
@@ -906,6 +909,11 @@ public class AccountResource {
 				.map(feature -> featuresForInstitutionByFeatureId.get(feature.getFeatureId()))
 				.filter(featureForInstitution -> featureForInstitution != null)
 				.collect(Collectors.toList());
+
+		// If this is an Epic FHIR institution, sync Epic cancelations into our own database to
+		// make sure we're up-to-date
+		if (institution.getEpicFhirEnabled())
+			getAppointmentService().synchronizeEpicFhirCanceledAppointmentsForAccountId(accountId);
 
 		List<Appointment> appointments = getAppointmentService().findAppointmentsByAccountId(accountId).stream()
 				.filter(appointment -> !appointment.getCanceled())

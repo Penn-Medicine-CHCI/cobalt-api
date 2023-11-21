@@ -26,12 +26,20 @@ import com.cobaltplatform.api.integration.epic.EpicFhirSyncManager;
 import com.cobaltplatform.api.integration.epic.EpicSyncManager;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
+import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreateMarketingSiteOutreachRequest;
 import com.cobaltplatform.api.model.db.BetaFeature;
+import com.cobaltplatform.api.model.db.EncryptionKeypair;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.PrivateKeyFormat.PrivateKeyFormatId;
 import com.cobaltplatform.api.model.db.Provider;
+import com.cobaltplatform.api.model.db.PublicKeyFormat.PublicKeyFormatId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
+import com.cobaltplatform.api.model.service.FileUploadResult;
+import com.cobaltplatform.api.model.service.PresignedUpload;
+import com.cobaltplatform.api.util.CryptoUtility;
+import com.cobaltplatform.api.util.UploadManager;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
@@ -46,15 +54,19 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.security.KeyPair;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -80,6 +92,8 @@ public class SystemService {
 	@Nonnull
 	private final AcuitySyncManager acuitySyncManager;
 	@Nonnull
+	private final UploadManager uploadManager;
+	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
 	private final Strings strings;
@@ -93,6 +107,7 @@ public class SystemService {
 											 @Nonnull EpicSyncManager epicSyncManager,
 											 @Nonnull EpicFhirSyncManager epicFhirSyncManager,
 											 @Nonnull AcuitySyncManager acuitySyncManager,
+											 @Nonnull UploadManager uploadManager,
 											 @Nonnull Configuration configuration,
 											 @Nonnull Strings strings) {
 		requireNonNull(database);
@@ -100,6 +115,7 @@ public class SystemService {
 		requireNonNull(epicSyncManager);
 		requireNonNull(epicFhirSyncManager);
 		requireNonNull(acuitySyncManager);
+		requireNonNull(uploadManager);
 		requireNonNull(configuration);
 		requireNonNull(strings);
 
@@ -109,6 +125,7 @@ public class SystemService {
 		this.epicSyncManager = epicSyncManager;
 		this.epicFhirSyncManager = epicFhirSyncManager;
 		this.acuitySyncManager = acuitySyncManager;
+		this.uploadManager = uploadManager;
 		this.configuration = configuration;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -319,6 +336,122 @@ public class SystemService {
 		getMessageService().enqueueMessage(emailMessage);
 	}
 
+	@Nonnull
+	public UUID createEncryptionKeypair() {
+		return createEncryptionKeypair("RSA", 4096);
+	}
+
+	@Nonnull
+	public UUID createEncryptionKeypair(@Nonnull String algorithm,
+																			@Nonnull Integer keySize) {
+		requireNonNull(algorithm);
+		requireNonNull(keySize);
+
+		// Create the keypair and turn it into String representations for persistence
+		KeyPair keyPair = CryptoUtility.generateKeyPair(algorithm, keySize);
+
+		Base64.Encoder encoder = Base64.getEncoder();
+		String publicKeyAsString = encoder.encodeToString(keyPair.getPublic().getEncoded());
+		String privateKeyAsString = encoder.encodeToString(keyPair.getPrivate().getEncoded());
+		PublicKeyFormatId publicKeyFormatId = PublicKeyFormatId.fromPublicKey(keyPair.getPublic()).orElseThrow();
+		PrivateKeyFormatId privateKeyFormatId = PrivateKeyFormatId.fromPrivateKey(keyPair.getPrivate()).orElseThrow();
+
+		UUID encryptionKeypairId = UUID.randomUUID();
+
+		getDatabase().execute("""
+				INSERT INTO encryption_keypair (
+				  encryption_keypair_id,
+				  public_key,
+				  private_key,
+				  public_key_format_id,
+				  private_key_format_id,
+				  key_size
+				) VALUES (?,?,?,?,?,?)
+				""", encryptionKeypairId, publicKeyAsString, privateKeyAsString, publicKeyFormatId, privateKeyFormatId, keySize);
+
+		return encryptionKeypairId;
+	}
+
+	@Nonnull
+	public Optional<EncryptionKeypair> findEncryptionKeypairById(@Nullable UUID encryptionKeypairId) {
+		if (encryptionKeypairId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM encryption_keypair
+				WHERE encryption_keypair_id=?
+				""", EncryptionKeypair.class, encryptionKeypairId);
+	}
+
+	@Nonnull
+	public FileUploadResult createFileUpload(@Nonnull CreateFileUploadRequest request) {
+		requireNonNull(request);
+
+		UUID accountId = request.getAccountId();
+		String storageKeyPrefix = trimToNull(request.getStorageKeyPrefix());
+		String filename = trimToNull(request.getFilename());
+		String contentType = trimToNull(request.getContentType());
+		Boolean publicRead = request.getPublicRead() == null ? false : request.getPublicRead();
+		Map<String, String> metadata = request.getMetadata() == null ? Map.of() : request.getMetadata();
+		UUID fileUploadId = UUID.randomUUID();
+
+		ValidationException validationException = new ValidationException();
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required")));
+
+		if (storageKeyPrefix == null) {
+			validationException.add(new FieldError("storageKeyPrefix", getStrings().get("Storage key prefix is required")));
+		} else if (storageKeyPrefix.startsWith("/") || storageKeyPrefix.endsWith("/")) {
+			validationException.add(new FieldError("storageKeyPrefix", getStrings().get("Storage key prefix cannot begin or end with a '/' character.")));
+		} else if (Pattern.compile("//+").matcher(storageKeyPrefix).find() /* don't care about precompiling pattern here b/c it's short and not a hot codepath */) {
+			validationException.add(new FieldError("storageKeyPrefix", getStrings().get("Storage key prefix cannot have multiple '/' characters in a row.")));
+		} else {
+			boolean valid = true;
+
+			// Only allow letters and numbers and hyphens and forward slashes
+			for (int i = 0; i < storageKeyPrefix.length(); ++i) {
+				char character = storageKeyPrefix.charAt(i);
+
+				if (!(Character.isLetterOrDigit(character) || character == '-' || character == '/')) {
+					valid = false;
+					break;
+				}
+			}
+
+			if (!valid)
+				validationException.add(new FieldError("storageKeyPrefix", getStrings().get("Storage key prefix can only contain letters, numbers, forward slashes, and hyphens.")));
+		}
+
+		if (filename == null)
+			validationException.add(new FieldError("filename", getStrings().get("Filename is required")));
+
+		if (contentType == null)
+			validationException.add(new FieldError("contentType", getStrings().get("Content type is required")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		String storageKey = format("file-uploads/%s/%s/%s", storageKeyPrefix, fileUploadId, filename);
+		contentType = contentType.toLowerCase(Locale.ENGLISH);
+
+		PresignedUpload presignedUpload = getUploadManager().createPresignedUpload(storageKey, contentType, publicRead, metadata);
+
+		getDatabase().execute("""
+				INSERT INTO file_upload (
+				  file_upload_id,
+				  account_id,
+				  url,
+				  storage_key,
+				  filename,
+				  content_type
+				) VALUES (?,?,?,?,?,?)
+				""", fileUploadId, accountId, presignedUpload.getAccessUrl(), storageKey, filename, contentType);
+
+		return new FileUploadResult(fileUploadId, presignedUpload);
+	}
+
 	@ThreadSafe
 	public static class ProviderSyncRecord {
 		@Nonnull
@@ -410,6 +543,11 @@ public class SystemService {
 	@Nonnull
 	protected AcuitySyncManager getAcuitySyncManager() {
 		return this.acuitySyncManager;
+	}
+
+	@Nonnull
+	protected UploadManager getUploadManager() {
+		return this.uploadManager;
 	}
 
 	@Nonnull

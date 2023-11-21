@@ -106,6 +106,14 @@ public class GroupSessionApiResponse {
 	@Nullable
 	private final String endTimeDescription;
 	@Nullable
+	private final LocalDate startDate;
+	@Nullable
+	private final String startDateDescription;
+	@Nullable
+	private final LocalDate endDate;
+	@Nullable
+	private final String endDateDescription;
+	@Nullable
 	private final LocalDateTime startDateTime;
 	@Nullable
 	private final String startDateTimeDescription;
@@ -181,6 +189,8 @@ public class GroupSessionApiResponse {
 	private final String lastUpdatedDescription;
 	@Nullable
 	private final Boolean differentEmailAddressForNotifications;
+	@Nullable
+	private final String groupSessionCollectionUrlName;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -260,24 +270,50 @@ public class GroupSessionApiResponse {
 			this.endDateTimeDescription = null;
 
 		if (this.startDateTime != null) {
+			this.startDate = this.startDateTime.toLocalDate();
+			this.startDateDescription = formatter.formatDate(this.startDate, FormatStyle.LONG);
 			this.startTime = this.startDateTime.toLocalTime();
 			this.startTimeDescription = formatter.formatTime(this.startTime, FormatStyle.SHORT);
 		} else {
+			this.startDate = null;
+			this.startDateDescription = null;
 			this.startTime = null;
 			this.startTimeDescription = null;
 		}
 
 		if (this.endDateTime != null) {
+			this.endDate = this.endDateTime.toLocalDate();
+			this.endDateDescription = formatter.formatDate(this.endDate, FormatStyle.LONG);
 			this.endTime = this.endDateTime.toLocalTime();
 			this.endTimeDescription = formatter.formatTime(this.endTime, FormatStyle.SHORT);
 		} else {
+			this.endDate = null;
+			this.endDateDescription = null;
 			this.endTime = null;
 			this.endTimeDescription = null;
 		}
 
-		this.appointmentTimeDescription = hasStartEndTime ? AppointmentTimeFormatter.createTimeDescription(groupSession.getStartDateTime(), groupSession.getEndDateTime(), groupSession.getTimeZone()) : null;
-		this.durationInMinutes = hasStartEndTime ? (int) Duration.between(startDateTime, endDateTime).
-				toMinutes() : 0;
+		String appointmentTimeDescription;
+
+		if (groupSession.getSingleSessionFlag()) {
+			// e.g. Thu Nov 16 @ 12:00am-12:00am
+			appointmentTimeDescription = hasStartEndTime ? AppointmentTimeFormatter.createTimeDescription(groupSession.getStartDateTime(), groupSession.getEndDateTime(), groupSession.getTimeZone()) : null;
+		} else {
+			// Recurring sessions
+			if (hasStartEndTime) {
+				// "dateTimeDescription" is whatever the user specifies in free-form input
+				if (groupSession.getDateTimeDescription() != null)
+					appointmentTimeDescription = String.format("%s (%s)", AppointmentTimeFormatter.createDateDescription(this.startDate, this.endDate), groupSession.getDateTimeDescription());
+				else
+					appointmentTimeDescription = AppointmentTimeFormatter.createDateDescription(this.startDate, this.endDate);
+			} else {
+				appointmentTimeDescription = groupSession.getDateTimeDescription();
+			}
+		}
+
+		this.appointmentTimeDescription = appointmentTimeDescription;
+
+		this.durationInMinutes = hasStartEndTime ? (int) Duration.between(startDateTime, endDateTime).toMinutes() : 0;
 		this.durationInMinutesDescription = hasStartEndTime ? strings.get("{{duration}} minutes", new HashMap<String, Object>() {
 			{
 				put("duration", durationInMinutes);
@@ -337,7 +373,9 @@ public class GroupSessionApiResponse {
 
 		this.lastUpdated = groupSession.getLastUpdated();
 		this.lastUpdatedDescription = formatter.formatTimestamp(groupSession.getLastUpdated());
+
 		this.differentEmailAddressForNotifications = groupSession.getDifferentEmailAddressForNotifications();
+		this.groupSessionCollectionUrlName = groupSession.getGroupSessionCollectionUrlName();
 	}
 
 	@Nonnull
@@ -638,5 +676,30 @@ public class GroupSessionApiResponse {
 	@Nullable
 	public Boolean getDifferentEmailAddressForNotifications() {
 		return this.differentEmailAddressForNotifications;
+	}
+
+	@Nullable
+	public LocalDate getStartDate() {
+		return this.startDate;
+	}
+
+	@Nullable
+	public String getStartDateDescription() {
+		return this.startDateDescription;
+	}
+
+	@Nullable
+	public LocalDate getEndDate() {
+		return this.endDate;
+	}
+
+	@Nullable
+	public String getEndDateDescription() {
+		return this.endDateDescription;
+	}
+
+	@Nullable
+	public String getGroupSessionCollectionUrlName() {
+		return this.groupSessionCollectionUrlName;
 	}
 }

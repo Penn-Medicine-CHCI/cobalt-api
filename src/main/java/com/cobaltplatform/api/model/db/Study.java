@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
@@ -32,7 +34,13 @@ public class Study {
 	@Nullable
 	private UUID studyId;
 	@Nullable
-	private Institution.InstitutionId institutionId;
+	private InstitutionId institutionId;
+	@Nullable
+	private String name;
+	@Nullable
+	private String urlName;
+	@Nullable
+	private String onboardingDestinationUrl;
 	@Nullable
 	private Integer minutesBetweenCheckIns;
 	@Nullable
@@ -49,6 +57,33 @@ public class Study {
 
 	public void setStudyId(@Nullable UUID studyId) {
 		this.studyId = studyId;
+	}
+
+	@Nullable
+	public String getName() {
+		return this.name;
+	}
+
+	public void setName(@Nullable String name) {
+		this.name = name;
+	}
+
+	@Nullable
+	public String getUrlName() {
+		return this.urlName;
+	}
+
+	public void setUrlName(@Nullable String urlName) {
+		this.urlName = urlName;
+	}
+
+	@Nullable
+	public String getOnboardingDestinationUrl() {
+		return this.onboardingDestinationUrl;
+	}
+
+	public void setOnboardingDestinationUrl(@Nullable String onboardingDestinationUrl) {
+		this.onboardingDestinationUrl = onboardingDestinationUrl;
 	}
 
 	@Nullable
@@ -88,11 +123,11 @@ public class Study {
 	}
 
 	@Nullable
-	public Institution.InstitutionId getInstitutionId() {
+	public InstitutionId getInstitutionId() {
 		return institutionId;
 	}
 
-	public void setInstitutionId(@Nullable Institution.InstitutionId institutionId) {
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
 		this.institutionId = institutionId;
 	}
 }
