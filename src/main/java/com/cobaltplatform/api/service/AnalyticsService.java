@@ -733,9 +733,9 @@ public class AnalyticsService implements AutoCloseable {
 							.map(analyticsEventDateSync -> analyticsEventDateSync.getDate())
 							.collect(Collectors.toSet());
 
-					// Furthest we can sync to is whatever date it was 24 hours ago in the institution's timezone.
+					// Furthest we can sync to is whatever date it was 36 hours ago in the institution's timezone.
 					// This is because we don't have accurate up-to-the-minute data from our data warehouses
-					LocalDate maximumDate = LocalDate.ofInstant(Instant.now().minus(24, ChronoUnit.HOURS), institution.getTimeZone());
+					LocalDate maximumDate = LocalDate.ofInstant(Instant.now().minus(36, ChronoUnit.HOURS), institution.getTimeZone());
 
 					if (minimumDate.isAfter(maximumDate))
 						throw new IllegalStateException(format("Configured minimum date %s is after maximum date %s", minimumDate, maximumDate));
