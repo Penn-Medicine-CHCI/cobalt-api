@@ -582,10 +582,11 @@ public class AdminContentService {
 						" vi.content_id = CAST (a.context ->> 'contentId' AS UUID) AND " +
 						" a.activity_action_id = 'VIEW' AND " +
 						" activity_type_id='CONTENT') AS views " +
-						"FROM v_institution_content vi " +
-						"WHERE vi.content_id = ? " +
-						"AND vi.institution_id = ? ",
-				AdminContent.class, contentId, institutionId).orElse(null);
+						"FROM v_admin_content vi " +
+						"WHERE vi.content_id = ? " ,
+						//TODO: Revisit this
+						// "AND vi.institution_id = ? ",
+				AdminContent.class, contentId).orElse(null);
 
 		if (adminContent != null)
 			applyTagsToAdminContent(adminContent, institutionId);
