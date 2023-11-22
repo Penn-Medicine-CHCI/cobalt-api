@@ -23,6 +23,7 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
 import com.cobaltplatform.api.model.db.ContentType;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
+import com.cobaltplatform.api.model.db.Role;
 import com.cobaltplatform.api.model.service.AdminContent;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.InstitutionService;
@@ -117,6 +118,9 @@ public class AdminContentApiResponse {
 	private String fileUrl;
 	@Nullable
 	private final List<TagApiResponse> tags;
+
+	@Nullable
+	private Boolean isEditable;
 
 	public enum AdminContentDisplayType {
 		DETAIL,
@@ -225,7 +229,10 @@ public class AdminContentApiResponse {
 
 		this.tags = adminContent.getTags() == null ? Collections.emptyList() : adminContent.getTags().stream()
 				.map(tag -> tagApiResponseFactory.create(tag))
-				.collect(Collectors.toList());;
+				.collect(Collectors.toList());
+
+		this.isEditable = account.getInstitutionId().equals(adminContent.getOwnerInstitutionId())
+				&& account.getRoleId().equals(Role.RoleId.ADMINISTRATOR);
 	}
 
 
