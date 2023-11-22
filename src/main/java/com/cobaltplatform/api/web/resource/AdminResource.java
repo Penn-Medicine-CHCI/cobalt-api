@@ -350,8 +350,12 @@ public class AdminResource {
 		Account account = getCurrentContext().getAccount().get();
 
 		getAdminContentService().removeContentFromInstitution(contentId, account);
+
+		Optional<AdminContent> content = getAdminContentService()
+				.findAdminContentByIdForInstitution(account.getInstitutionId(), contentId);
+		List<UUID> institutionContentIds = getAdminContentService().findContentIdsForInstitution(account.getInstitutionId());
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("contentId", contentId);
+			put("content", getAdminContentApiResponseFactory().create(account, content.get(), AdminContentDisplayType.DETAIL,institutionContentIds));
 		}});
 	}
 
