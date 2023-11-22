@@ -665,6 +665,14 @@ public class ContentService {
 	}
 
 	@Nonnull
+	protected void applyInstitutionsToAdminContent(@Nonnull AdminContent adminContent,
+																								 @Nonnull InstitutionId institutionId) {
+
+		List<AdminContent> adminContents = new ArrayList<>();
+		adminContents.add(adminContent);
+		applyInstitutionsToAdminContents(adminContents, institutionId);
+	}
+	@Nonnull
 	protected void applyInstitutionsToAdminContents(@Nonnull List<? extends AdminContent> adminContents,
 																									@Nonnull InstitutionId institutionId) {
 		requireNonNull(adminContents);

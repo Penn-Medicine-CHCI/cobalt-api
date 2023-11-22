@@ -429,6 +429,7 @@ public class AdminContentService {
 		AdminContent adminContent = findAdminContentByIdForInstitution(account.getInstitutionId(), command.getContentId()).orElse(null);
 
 		applyTagsToAdminContent(adminContent, account.getInstitutionId());
+		getContentService().applyInstitutionsToAdminContent(adminContent, account.getInstitutionId());
 
 		getDatabase().execute("""
 				DELETE FROM tag_content
@@ -588,8 +589,10 @@ public class AdminContentService {
 						// "AND vi.institution_id = ? ",
 				AdminContent.class, contentId).orElse(null);
 
-		if (adminContent != null)
+		if (adminContent != null) {
 			applyTagsToAdminContent(adminContent, institutionId);
+			getContentService().applyInstitutionsToAdminContent(adminContent, institutionId);
+		}
 
 		return Optional.ofNullable(adminContent);
 	}
