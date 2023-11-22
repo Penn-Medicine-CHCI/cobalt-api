@@ -153,7 +153,7 @@ public class AdminContentService {
 																												 @Nonnull Optional<InstitutionId> institutionId,
 																												 @Nonnull Optional<String> search,
 																												 @Nonnull Optional<ContentStatusId> contentStatusId,
-																												 @Nonnull Optional<ContentSortOrder> sortOrder,
+																												 @Nonnull Optional<ContentSortOrder> orderBy,
 																												 @Nonnull Optional<Boolean> sharingOn,
 																												 @Nonnull Optional<String> tagId) {
 		requireNonNull(account);
@@ -203,7 +203,7 @@ public class AdminContentService {
 			parameters.add(sharingOn.get());
 		}
 
-		ContentSortOrder contentSortOrder = sortOrder.isPresent() ? sortOrder.get() : ContentSortOrder.DATE_ADDED_DESC;
+		ContentSortOrder contentSortOrder = orderBy.isPresent() ? orderBy.get() : ContentSortOrder.DATE_ADDED_DESC;
 
 		if (contentSortOrder.equals(ContentSortOrder.DATE_ADDED_DESC))
 			orderByClause.append("va.created DESC");

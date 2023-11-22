@@ -174,14 +174,14 @@ public class AdminResource {
 																@QueryParameter Optional<Institution.InstitutionId> institutionId,
 																@QueryParameter Optional<String> search,
 																@QueryParameter Optional<ContentStatus.ContentStatusId> contentStatusId,
-																@QueryParameter Optional<AdminContentService.ContentSortOrder> sortOrder,
+																@QueryParameter Optional<AdminContentService.ContentSortOrder> orderBy,
 																@QueryParameter Optional<Boolean> sharingOn,
 																@QueryParameter Optional<String> tagId) {
 		Account account = getCurrentContext().getAccount().get();
 
 		//TODO: create a filter object to pass all the query params
 		FindResult<AdminContent> content = getAdminContentService()
-				.findAllContentForAdmin(account, page, contentTypeId, institutionId, search, contentStatusId, sortOrder, sharingOn, tagId);
+				.findAllContentForAdmin(account, page, contentTypeId, institutionId, search, contentStatusId, orderBy, sharingOn, tagId);
 		List<UUID> institutionContentIds = getAdminContentService().findContentIdsForInstitution(account.getInstitutionId());
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("adminContent", content.getResults().stream().map(content -> getAdminContentApiResponseFactory().create(account, content, AdminContentDisplayType.LIST, institutionContentIds)).collect(Collectors.toList()));
