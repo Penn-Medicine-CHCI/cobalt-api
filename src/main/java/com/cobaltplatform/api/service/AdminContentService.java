@@ -28,6 +28,7 @@ import com.cobaltplatform.api.model.db.ContentStatus;
 import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.service.AdminContent;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.util.Formatter;
@@ -37,6 +38,7 @@ import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
 import com.lokalized.Strings;
 import com.pyranid.Database;
+import com.soklet.web.annotation.QueryParameter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -151,7 +153,9 @@ public class AdminContentService {
 																												 @Nonnull Optional<InstitutionId> institutionId,
 																												 @Nonnull Optional<String> search,
 																												 @Nonnull Optional<ContentStatusId> contentStatusId,
-																												 @Nonnull Optional<ContentSortOrder> sortOrder) {
+																												 @Nonnull Optional<ContentSortOrder> sortOrder,
+																												 @Nonnull Optional<Boolean> sharingOn,
+																												 @Nonnull Optional<String> tagId) {
 		requireNonNull(account);
 
 		List<Object> parameters = new ArrayList();
@@ -187,6 +191,16 @@ public class AdminContentService {
 		if (contentStatusId.isPresent()) {
 			whereClause.append("AND va.content_status_id = ? ");
 			parameters.add(contentStatusId.get());
+		}
+
+		if (tagId.isPresent()) {
+			whereClause.append("AND EXISTS (SELECT 'X' FROM tag_content tc WHERE tc.tag_id = ? AND va.content_id = tc.content_id) ");
+			parameters.add(tagId.get());
+		}
+
+		if (sharingOn.isPresent()) {
+			whereClause.append("AND va.shared_flag = ? ");
+			parameters.add(sharingOn.get());
 		}
 
 		ContentSortOrder contentSortOrder = sortOrder.isPresent() ? sortOrder.get() : ContentSortOrder.DATE_ADDED_DESC;
