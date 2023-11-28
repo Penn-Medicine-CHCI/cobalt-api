@@ -93,4 +93,11 @@ AS SELECT vac.*,
     institution_content it
   WHERE vac.content_id = it.content_id;
 
+CREATE OR REPLACE FUNCTION group_session_en_search_vector_update() RETURNS TRIGGER AS $$
+BEGIN
+    NEW.en_search_vector = TO_TSVECTOR('pg_catalog.english', COALESCE(NEW.title, '') || ' ' || COALESCE(NEW.description, '') || ' ' || COALESCE(NEW.url_name, '') || ' ' || COALESCE(NEW.facilitator_name, '') || ' ' || COALESCE(NEW.search_terms, ''));
+    RETURN NEW;
+END
+$$ LANGUAGE 'plpgsql';
+
 COMMIT;
