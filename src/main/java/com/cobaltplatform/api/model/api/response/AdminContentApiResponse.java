@@ -194,6 +194,8 @@ public class AdminContentApiResponse {
 			} else if (adminContent.getContentStatusId().equals(ContentStatusId.EXPIRED)) {
 				contentActionIdList.add(ContentActionId.EDIT);
 				contentActionIdList.add(ContentActionId.DELETE);
+			} else if (adminContent.getContentStatusId().equals(ContentStatusId.SCHEDULED)) {
+				contentActionIdList.add(ContentActionId.EDIT);
 			}
 		} else {
 			if (institutionContentIds.contains(adminContent.getContentId())) {
