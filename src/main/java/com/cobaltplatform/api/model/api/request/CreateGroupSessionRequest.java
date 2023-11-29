@@ -20,7 +20,6 @@
 package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.GroupSessionLearnMoreMethod;
-import com.cobaltplatform.api.model.db.GroupSessionLocationType;
 import com.cobaltplatform.api.model.db.GroupSessionLocationType.GroupSessionLocationTypeId;
 import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -113,6 +112,8 @@ public class CreateGroupSessionRequest {
 	private GroupSessionLearnMoreMethod.GroupSessionLearnMoreMethodId groupSessionLearnMoreMethodId;
 	@Nullable
 	private Boolean differentEmailAddressForNotifications;
+	@Nullable
+	private LocalDateTime registrationEndDateTime;
 
 	@Nullable
 	public InstitutionId getInstitutionId() {
@@ -445,5 +446,14 @@ public class CreateGroupSessionRequest {
 
 	public void setDifferentEmailAddressForNotifications(@Nullable Boolean differentEmailAddressForNotifications) {
 		this.differentEmailAddressForNotifications = differentEmailAddressForNotifications;
+	}
+
+	@Nullable
+	public LocalDateTime getRegistrationEndDateTime() {
+		return this.registrationEndDateTime;
+	}
+
+	public void setRegistrationEndDateTime(@Nullable LocalDateTime registrationEndDateTime) {
+		this.registrationEndDateTime = registrationEndDateTime;
 	}
 }
