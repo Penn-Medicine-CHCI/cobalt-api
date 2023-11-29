@@ -191,6 +191,10 @@ public class GroupSessionApiResponse {
 	private final Boolean differentEmailAddressForNotifications;
 	@Nullable
 	private final String groupSessionCollectionUrlName;
+	@Nullable
+	private final LocalDateTime registrationEndDateTime;
+	@Nullable
+	private final String registrationEndDateTimeDescription;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -343,6 +347,16 @@ public class GroupSessionApiResponse {
 			put("seatsReserved", groupSession.getSeatsReserved());
 			put("seatsReservedDescription", formatter.formatNumber(groupSession.getSeatsReserved()));
 		}});
+
+		if (groupSession.getRegistrationEndDateTime() != null) {
+			this.registrationEndDateTime = groupSession.getRegistrationEndDateTime();
+			// Note: for the moment, chop off the time component and just format the date because the UI only works with dates.
+			// If we add UI support for time in the future, we can take that into account when formatting.
+			this.registrationEndDateTimeDescription = formatter.formatDate(groupSession.getRegistrationEndDateTime().toLocalDate(), FormatStyle.MEDIUM);
+		} else {
+			this.registrationEndDateTime = null;
+			this.registrationEndDateTimeDescription = null;
+		}
 
 		this.timeZone = groupSession.getTimeZone();
 		this.imageUrl = groupSession.getImageUrl();
@@ -701,5 +715,15 @@ public class GroupSessionApiResponse {
 	@Nullable
 	public String getGroupSessionCollectionUrlName() {
 		return this.groupSessionCollectionUrlName;
+	}
+
+	@Nullable
+	public LocalDateTime getRegistrationEndDateTime() {
+		return this.registrationEndDateTime;
+	}
+
+	@Nullable
+	public String getRegistrationEndDateTimeDescription() {
+		return this.registrationEndDateTimeDescription;
 	}
 }

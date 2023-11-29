@@ -43,6 +43,8 @@ public class Provider {
 	@Nullable
 	private SchedulingSystemId schedulingSystemId;
 	@Nullable
+	private String urlName;
+	@Nullable
 	private String name;
 	@Nullable
 	private String title;
@@ -126,6 +128,15 @@ public class Provider {
 
 	public void setSchedulingSystemId(@Nullable SchedulingSystemId schedulingSystemId) {
 		this.schedulingSystemId = schedulingSystemId;
+	}
+
+	@Nullable
+	public String getUrlName() {
+		return this.urlName;
+	}
+
+	public void setUrlName(@Nullable String urlName) {
+		this.urlName = urlName;
 	}
 
 	@Nullable

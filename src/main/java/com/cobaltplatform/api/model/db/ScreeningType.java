@@ -65,7 +65,8 @@ public class ScreeningType {
 		BPI_1,
 		PRIME_5,
 		PSYCHOSIS,
-		SUDS_THERMOMETER
+		SUDS_THERMOMETER,
+		UCLA_LONELINESS
 	}
 
 	@Override
