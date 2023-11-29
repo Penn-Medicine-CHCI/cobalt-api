@@ -191,6 +191,12 @@ public class GroupSessionApiResponse {
 	private final Boolean differentEmailAddressForNotifications;
 	@Nullable
 	private final String groupSessionCollectionUrlName;
+	@Nullable
+	private final LocalDateTime registrationEndDateTime;
+	@Nullable
+	private final String registrationEndDateTimeDescription;
+	@Nonnull
+	private final Boolean registrationEndDateTimeHasPassed;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -343,6 +349,18 @@ public class GroupSessionApiResponse {
 			put("seatsReserved", groupSession.getSeatsReserved());
 			put("seatsReservedDescription", formatter.formatNumber(groupSession.getSeatsReserved()));
 		}});
+
+		if (groupSession.getRegistrationEndDateTime() != null) {
+			this.registrationEndDateTime = groupSession.getRegistrationEndDateTime();
+			// Note: for the moment, chop off the time component and just format the date because the UI only works with dates.
+			// If we add UI support for time in the future, we can take that into account when formatting.
+			this.registrationEndDateTimeDescription = formatter.formatDate(groupSession.getRegistrationEndDateTime().toLocalDate(), FormatStyle.MEDIUM);
+			this.registrationEndDateTimeHasPassed = Instant.now().isAfter(groupSession.getRegistrationEndDateTime().atZone(currentContext.getTimeZone()).toInstant());
+		} else {
+			this.registrationEndDateTime = null;
+			this.registrationEndDateTimeDescription = null;
+			this.registrationEndDateTimeHasPassed = false;
+		}
 
 		this.timeZone = groupSession.getTimeZone();
 		this.imageUrl = groupSession.getImageUrl();
@@ -701,5 +719,20 @@ public class GroupSessionApiResponse {
 	@Nullable
 	public String getGroupSessionCollectionUrlName() {
 		return this.groupSessionCollectionUrlName;
+	}
+
+	@Nullable
+	public LocalDateTime getRegistrationEndDateTime() {
+		return this.registrationEndDateTime;
+	}
+
+	@Nullable
+	public String getRegistrationEndDateTimeDescription() {
+		return this.registrationEndDateTimeDescription;
+	}
+
+	@Nonnull
+	public Boolean getRegistrationEndDateTimeHasPassed() {
+		return this.registrationEndDateTimeHasPassed;
 	}
 }

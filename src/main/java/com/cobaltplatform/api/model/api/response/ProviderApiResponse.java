@@ -61,6 +61,8 @@ public class ProviderApiResponse {
 	@Nonnull
 	private final InstitutionId institutionId;
 	@Nonnull
+	private final String urlName;
+	@Nonnull
 	private final String name;
 	@Nonnull
 	private final String emailAddress;
@@ -163,6 +165,7 @@ public class ProviderApiResponse {
 		this.providerId = provider.getProviderId();
 		this.institutionId = provider.getInstitutionId();
 		this.emailAddress = provider.getEmailAddress();
+		this.urlName = provider.getUrlName();
 		this.name = provider.getName();
 		this.title = provider.getTitle();
 		this.clinic = provider.getClinic();
@@ -245,6 +248,11 @@ public class ProviderApiResponse {
 	@Nonnull
 	public InstitutionId getInstitutionId() {
 		return institutionId;
+	}
+
+	@Nonnull
+	public String getUrlName() {
+		return this.urlName;
 	}
 
 	@Nonnull

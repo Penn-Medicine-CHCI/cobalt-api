@@ -139,6 +139,8 @@ public class GroupSession {
 	private String overridePlatformSupportEmailAddress;
 	@Nullable
 	private String groupSessionCollectionUrlName;
+	@Nullable
+	private LocalDateTime registrationEndDateTime;
 
 	@Nullable
 	public UUID getGroupSessionId() {
@@ -578,5 +580,14 @@ public class GroupSession {
 
 	public void setGroupSessionCollectionUrlName(@Nullable String groupSessionCollectionUrlName) {
 		this.groupSessionCollectionUrlName = groupSessionCollectionUrlName;
+	}
+
+	@Nullable
+	public LocalDateTime getRegistrationEndDateTime() {
+		return this.registrationEndDateTime;
+	}
+
+	public void setRegistrationEndDateTime(@Nullable LocalDateTime registrationEndDateTime) {
+		this.registrationEndDateTime = registrationEndDateTime;
 	}
 }

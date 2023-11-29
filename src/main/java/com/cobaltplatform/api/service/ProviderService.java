@@ -101,6 +101,7 @@ import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
+import static com.cobaltplatform.api.util.ValidationUtility.isValidUUID;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -198,6 +199,43 @@ public class ProviderService {
 			return Optional.empty();
 
 		return getDatabase().queryForObject("SELECT * FROM provider WHERE provider_id=?", Provider.class, providerId);
+	}
+
+	@Nonnull
+	public Optional<Provider> findProviderByInstitutionIdAndUrlName(@Nullable InstitutionId institutionId,
+																																	@Nullable String urlName) {
+		if (institutionId == null || urlName == null)
+			return Optional.empty();
+
+		urlName = urlName.trim();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM provider
+				WHERE institution_id=?
+				AND url_name=?
+				""", Provider.class, institutionId, urlName);
+	}
+
+	@Nonnull
+	public Optional<Provider> findProviderByIdentifier(@Nullable Object providerIdentifier,
+																										 @Nullable InstitutionId institutionId) {
+		if (providerIdentifier == null || institutionId == null)
+			return Optional.empty();
+
+		if (providerIdentifier instanceof UUID)
+			return findProviderById((UUID) providerIdentifier);
+		
+		if (providerIdentifier instanceof String) {
+			String providerIdentifierAsString = (String) providerIdentifier;
+
+			if (isValidUUID(providerIdentifierAsString))
+				return findProviderById(UUID.fromString(providerIdentifierAsString));
+
+			return findProviderByInstitutionIdAndUrlName(institutionId, providerIdentifierAsString);
+		}
+
+		return Optional.empty();
 	}
 
 	@Nonnull
@@ -723,6 +761,7 @@ public class ProviderService {
 
 			ProviderFind providerFind = new ProviderFind();
 			providerFind.setProviderId(provider.getProviderId());
+			providerFind.setUrlName(provider.getUrlName());
 			providerFind.setName(provider.getName());
 			providerFind.setTitle(provider.getTitle());
 			providerFind.setDescription(provider.getDescription());

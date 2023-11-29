@@ -464,6 +464,7 @@ public class ProviderResource {
 
 				Map<String, Object> normalizedProviderFind = new LinkedHashMap<>();
 				normalizedProviderFind.put("providerId", providerFind.getProviderId());
+				normalizedProviderFind.put("urlName", providerFind.getUrlName());
 				normalizedProviderFind.put("name", providerFind.getName());
 				normalizedProviderFind.put("title", providerFind.getTitle());
 				normalizedProviderFind.put("description", providerFind.getDescription());
@@ -977,13 +978,13 @@ public class ProviderResource {
 	}
 
 	@Nonnull
-	@GET("/providers/{providerId}")
+	@GET("/providers/{providerIdentifier}")
 	@AuthenticationRequired
-	public ApiResponse provider(@Nonnull @PathParameter UUID providerId) {
-		requireNonNull(providerId);
+	public ApiResponse provider(@Nonnull @PathParameter String providerIdentifier) {
+		requireNonNull(providerIdentifier);
 
 		Account account = getCurrentContext().getAccount().get();
-		Provider provider = getProviderService().findProviderById(providerId).orElse(null);
+		Provider provider = getProviderService().findProviderByIdentifier(providerIdentifier, account.getInstitutionId()).orElse(null);
 
 		if (provider == null)
 			throw new NotFoundException();

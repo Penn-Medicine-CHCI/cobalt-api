@@ -44,6 +44,8 @@ public class ProviderFind {
 	@Nullable
 	private UUID providerId;
 	@Nullable
+	private String urlName;
+	@Nullable
 	private String name;
 	@Nullable
 	private String title;
@@ -255,6 +257,15 @@ public class ProviderFind {
 
 	public void setName(@Nullable String name) {
 		this.name = name;
+	}
+
+	@Nullable
+	public String getUrlName() {
+		return this.urlName;
+	}
+
+	public void setUrlName(@Nullable String urlName) {
+		this.urlName = urlName;
 	}
 
 	@Nullable
