@@ -355,7 +355,7 @@ public class GroupSessionApiResponse {
 			// Note: for the moment, chop off the time component and just format the date because the UI only works with dates.
 			// If we add UI support for time in the future, we can take that into account when formatting.
 			this.registrationEndDateTimeDescription = formatter.formatDate(groupSession.getRegistrationEndDateTime().toLocalDate(), FormatStyle.MEDIUM);
-			this.registrationEndDateTimeHasPassed = Instant.now().isAfter(groupSession.getRegistrationEndDateTime().atZone(currentContext.getTimeZone()).toInstant());
+			this.registrationEndDateTimeHasPassed = LocalDateTime.now(currentContext.getTimeZone()).isAfter(groupSession.getRegistrationEndDateTime());
 		} else {
 			this.registrationEndDateTime = null;
 			this.registrationEndDateTimeDescription = null;
