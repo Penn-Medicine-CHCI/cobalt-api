@@ -189,7 +189,8 @@ public class Account {
 	public static class StandardMetadata {
 		@Nullable
 		private Set<UUID> interactionIds;
-
+		@Nullable
+		private Set<UUID> interactionInstanceIds;
 		@Nonnull
 		public static StandardMetadata emptyInstance() {
 			StandardMetadata standardMetadata = new StandardMetadata();
@@ -204,6 +205,15 @@ public class Account {
 
 		public void setInteractionIds(@Nullable Set<UUID> interactionIds) {
 			this.interactionIds = interactionIds;
+		}
+
+		@Nullable
+		public Set<UUID> getInteractionInstanceIds() {
+			return interactionInstanceIds;
+		}
+
+		public void setInteractionInstanceIds(@Nullable Set<UUID> interactionInstanceIds) {
+			this.interactionInstanceIds = interactionInstanceIds;
 		}
 	}
 
