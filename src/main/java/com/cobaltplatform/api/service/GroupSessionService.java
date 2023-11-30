@@ -484,6 +484,18 @@ public class GroupSessionService implements AutoCloseable {
 	}
 
 	@Nonnull
+	public Optional<GroupSession> findGroupSessionByIdIncludingDeleted(@Nullable UUID groupSessionId) {
+		if (groupSessionId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM group_session
+				WHERE group_session_id=?
+				""", GroupSession.class, groupSessionId);
+	}
+
+	@Nonnull
 	public Optional<GroupSession> findGroupSessionById(@Nullable Object groupSessionIdentifier,
 																										 @Nullable Account account) {
 		if (groupSessionIdentifier == null || account == null)
