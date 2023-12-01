@@ -23,6 +23,7 @@ import com.cobaltplatform.api.integration.acuity.AcuitySyncManager;
 import com.cobaltplatform.api.integration.bluejeans.BluejeansCredentialsProvider;
 import com.cobaltplatform.api.integration.epic.EpicFhirSyncManager;
 import com.cobaltplatform.api.integration.epic.EpicSyncManager;
+import com.cobaltplatform.api.service.AnalyticsService;
 import com.cobaltplatform.api.service.AvailabilityService;
 import com.cobaltplatform.api.service.GroupSessionService;
 import com.cobaltplatform.api.service.MessageService;
@@ -201,9 +202,23 @@ public class App implements AutoCloseable {
 		} catch (Exception e) {
 			getLogger().warn("Failed to start Patient Order Service background tasks", e);
 		}
+
+		try {
+			AnalyticsService analyticsService = getInjector().getInstance(AnalyticsService.class);
+			analyticsService.startAnalyticsSync();
+		} catch (Exception e) {
+			getLogger().warn("Failed to start Analytics Service background sync task", e);
+		}
 	}
 
 	public void performShutdownTasks() {
+		try {
+			AnalyticsService analyticsService = getInjector().getInstance(AnalyticsService.class);
+			analyticsService.stopAnalyticsSync();
+		} catch (Exception e) {
+			getLogger().warn("Failed to stop Analytics Service background sync task", e);
+		}
+
 		try {
 			PatientOrderService patientOrderService = getInjector().getInstance(PatientOrderService.class);
 			patientOrderService.stopBackgroundTasks();

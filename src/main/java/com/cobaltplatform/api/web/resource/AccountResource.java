@@ -806,8 +806,12 @@ public class AccountResource {
 		if (account == null)
 			throw new ValidationException(getStrings().get("Sorry, we were unable to reset your password."));
 
+		// Vend a new access token for convenience
+		String accessToken = getAuthenticator().generateAccessToken(account.getAccountId(), account.getRoleId());
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("account", getAccountApiResponseFactory().create(account));
+			put("accessToken", accessToken);
 		}});
 	}
 

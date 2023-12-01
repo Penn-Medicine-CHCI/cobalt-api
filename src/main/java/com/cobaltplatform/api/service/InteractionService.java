@@ -244,7 +244,7 @@ public class InteractionService {
 
 		if (request.getAdditionalAccountsToNotify() != null && request.getAdditionalAccountsToNotify().size() > 0)
 			for (UUID accountIdToUpdate : request.getAdditionalAccountsToNotify())
-				addInteractionIdToAccount(interactionId, accountIdToUpdate);
+				addInteractionInstanceIdToAccount(interactionInstanceId, accountIdToUpdate);
 
 		getDatabase().execute("INSERT INTO interaction_instance (interaction_instance_id, interaction_id, account_id, start_date_time, "
 						+ "time_zone, metadata, hipaa_compliant_metadata) VALUES (?,?,?,?,?,CAST (? AS JSONB),CAST (? AS JSONB))", interactionInstanceId,
@@ -299,6 +299,13 @@ public class InteractionService {
 			List<String> accountsToEmail = getAccountService().findAccountsMatchingMetadata(standardMetadata).stream()
 					.map(e -> e.getEmailAddress()).filter(e -> e != null)
 					.collect(Collectors.toList());
+
+			standardMetadata = new Account.StandardMetadata();
+			standardMetadata.setInteractionInstanceIds(Set.of(interactionInstanceId));
+
+			accountsToEmail.addAll(getAccountService().findAccountsMatchingMetadata(standardMetadata).stream()
+					.map(e -> e.getEmailAddress()).filter(e -> e != null)
+					.collect(Collectors.toList()));
 
 			if (accountsToEmail.size() == 0) {
 				getLogger().warn("Did not find any accounts to email for interaction ID {}", interaction.getInteractionId());
@@ -461,21 +468,21 @@ public class InteractionService {
 	}
 
 	@Nonnull
-	private void addInteractionIdToAccount(@Nonnull UUID interactionId,
-																				 @Nonnull UUID accountId) {
-		requireNonNull(interactionId);
+	private void addInteractionInstanceIdToAccount(@Nonnull UUID interactionInstanceId,
+																								 @Nonnull UUID accountId) {
+		requireNonNull(interactionInstanceId);
 		requireNonNull(accountId);
 
-		Boolean accountHasInteractions = getDatabase().queryForObject("SELECT COUNT(*) > 0 FROM account WHERE metadata ?? 'interactionIds' AND account_id=? ",
+		Boolean accountHasInteractionInstances = getDatabase().queryForObject("SELECT COUNT(*) > 0 FROM account WHERE metadata ?? 'interactionInstanceIds' AND account_id=? ",
 				Boolean.class, accountId).get();
 
-		if (accountHasInteractions)
+		if (accountHasInteractionInstances)
 			getDatabase().execute(format("UPDATE account SET metadata = jsonb_set(" +
-					"  metadata::jsonb, array['interactionIds'], " +
-					"  (metadata->'interactionIds')::jsonb || '[\"%s\"]'::jsonb) " +
-					"WHERE account_id = ?", interactionId), accountId);
+					"  metadata::jsonb, array['interactionInstanceIds'], " +
+					"  (metadata->'interactionInstanceIds')::jsonb || '[\"%s\"]'::jsonb) " +
+					"WHERE account_id = ?", interactionInstanceId), accountId);
 		else
-			getDatabase().execute(format("UPDATE account SET metadata = '{\"interactionIds\": [\"%s\"]}'::JSONB WHERE account_id = ?", interactionId), accountId);
+			getDatabase().execute(format("UPDATE account SET metadata = coalesce(metadata,'{}')::jsonb || '{\"interactionInstanceIds\": [\"%s\"]}'::JSONB WHERE account_id = ?", interactionInstanceId), accountId);
 
 	}
 

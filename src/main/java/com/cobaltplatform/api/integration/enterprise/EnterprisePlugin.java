@@ -22,9 +22,15 @@ package com.cobaltplatform.api.integration.enterprise;
 import com.cobaltplatform.api.integration.epic.EpicClient;
 import com.cobaltplatform.api.integration.epic.MyChartAccessToken;
 import com.cobaltplatform.api.integration.epic.MyChartAuthenticator;
+import com.cobaltplatform.api.integration.google.GoogleAnalyticsDataClient;
+import com.cobaltplatform.api.integration.google.GoogleBigQueryClient;
+import com.cobaltplatform.api.integration.google.MockGoogleAnalyticsDataClient;
+import com.cobaltplatform.api.integration.google.MockGoogleBigQueryClient;
 import com.cobaltplatform.api.integration.microsoft.MicrosoftAccessToken;
 import com.cobaltplatform.api.integration.microsoft.MicrosoftAuthenticator;
 import com.cobaltplatform.api.integration.microsoft.MicrosoftClient;
+import com.cobaltplatform.api.integration.mixpanel.MixpanelClient;
+import com.cobaltplatform.api.integration.mixpanel.MockMixpanelClient;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Content;
@@ -119,5 +125,20 @@ public interface EnterprisePlugin {
 	@Nonnull
 	default List<Content> recommendedContentForAccountId(@Nullable UUID accountId) {
 		return Collections.emptyList();
+	}
+
+	@Nonnull
+	default GoogleBigQueryClient googleBigQueryClient() {
+		return new MockGoogleBigQueryClient();
+	}
+
+	@Nonnull
+	default GoogleAnalyticsDataClient googleAnalyticsDataClient() {
+		return new MockGoogleAnalyticsDataClient();
+	}
+
+	@Nonnull
+	default MixpanelClient mixpanelClient() {
+		return new MockMixpanelClient();
 	}
 }

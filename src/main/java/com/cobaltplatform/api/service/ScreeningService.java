@@ -2258,7 +2258,12 @@ public class ScreeningService {
 		context.put("additionalContext", additionalContext == null ? Map.of() : additionalContext);
 
 		if (screeningSession.getGroupSessionId() != null) {
-			GroupSession groupSession = getGroupSessionService().findGroupSessionById(screeningSession.getGroupSessionId(), institutionId).get();
+			GroupSession groupSession = getGroupSessionService().findGroupSessionById(screeningSession.getGroupSessionId(), institutionId).orElse(null);
+
+			// If we couldn't find the session, perhaps it was deleted.  Use failsafe here
+			if (groupSession == null)
+				groupSession = getGroupSessionService().findGroupSessionByIdIncludingDeleted(screeningSession.getGroupSessionId()).get();
+
 			context.put("groupSession", groupSession);
 		}
 

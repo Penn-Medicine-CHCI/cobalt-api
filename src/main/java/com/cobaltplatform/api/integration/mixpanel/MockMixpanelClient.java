@@ -17,12 +17,10 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.integration.penn;
-
-import com.cobaltplatform.api.integration.penn.model.BluejeansMeeting;
+package com.cobaltplatform.api.integration.mixpanel;
 
 import javax.annotation.Nonnull;
-import javax.annotation.concurrent.ThreadSafe;
+import java.time.LocalDate;
 import java.util.List;
 
 import static java.util.Objects.requireNonNull;
@@ -30,12 +28,14 @@ import static java.util.Objects.requireNonNull;
 /**
  * @author Transmogrify, LLC.
  */
-@ThreadSafe
-public class DefaultSwitchboardClient implements SwitchboardClient {
+public class MockMixpanelClient implements MixpanelClient {
 	@Nonnull
 	@Override
-	public List<BluejeansMeeting> fetchBluejeansMeetingsForCsns(@Nonnull List<String> csns) {
-		requireNonNull(csns);
-		throw new UnsupportedOperationException();
+	public List<MixpanelEvent> findEventsForDateRange(@Nonnull LocalDate fromDate,
+																										@Nonnull LocalDate toDate) {
+		requireNonNull(fromDate);
+		requireNonNull(toDate);
+
+		return List.of();
 	}
 }

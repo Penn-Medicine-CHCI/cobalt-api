@@ -139,7 +139,9 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/131-gsc-
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/132-study-presigned-uploads.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/133-suds-thermometer.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/134-epic-cancelation-detection.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/135-content-admin.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/135-google-bigquery.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/136-late-november.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/137-content-admin.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
