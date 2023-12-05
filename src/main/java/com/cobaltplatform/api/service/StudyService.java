@@ -691,6 +691,18 @@ public class StudyService {
 	}
 
 	@Nonnull
+	public List<Study> findStudiesForAccountId(@Nullable UUID accountId) {
+		requireNonNull(accountId);
+
+		return getDatabase().queryForList("""
+				SELECT s.*
+				FROM study s, account_study a
+				WHERE s.study_id = a.study_id
+				AND a.account_id = ?
+				""", Study.class, accountId);
+	}
+
+	@Nonnull
 	protected Database getDatabase() {
 		return this.database;
 	}

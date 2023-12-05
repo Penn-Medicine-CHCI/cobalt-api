@@ -51,6 +51,8 @@ public class ScreeningFlowVersionApiResponse {
 	private final Boolean skippable;
 	@Nonnull
 	private final Integer versionNumber;
+	@Nonnull
+	private final String versionNumberDescription;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -74,6 +76,7 @@ public class ScreeningFlowVersionApiResponse {
 		this.phoneNumberRequired = screeningFlowVersion.getPhoneNumberRequired();
 		this.skippable = screeningFlowVersion.getSkippable();
 		this.versionNumber = screeningFlowVersion.getVersionNumber();
+		this.versionNumberDescription = formatter.formatNumber(screeningFlowVersion.getVersionNumber());
 	}
 
 	@Nonnull
@@ -109,5 +112,10 @@ public class ScreeningFlowVersionApiResponse {
 	@Nonnull
 	public Integer getVersionNumber() {
 		return this.versionNumber;
+	}
+
+	@Nonnull
+	public String getVersionNumberDescription() {
+		return this.versionNumberDescription;
 	}
 }
