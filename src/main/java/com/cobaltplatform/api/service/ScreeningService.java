@@ -97,6 +97,7 @@ import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.lokalized.Strings;
 import com.pyranid.Database;
+import org.apache.arrow.flatbuf.Bool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -694,6 +695,15 @@ public class ScreeningService {
 				else if (screeningFlow.getScreeningFlowTypeId() != ScreeningFlowTypeId.STUDY && accountCheckInActionId != null)
 					throw new IllegalStateException(format("It's illegal to specify a account check-in action ID for %s.%s",
 							ScreeningFlowTypeId.class.getSimpleName(), screeningFlow.getScreeningFlowTypeId().name()));
+				else {
+					Boolean screeningSessionExists = getDatabase().queryForObject("""
+							SELECT count(*) > 0 
+							FROM screening_session
+							WHERE account_check_in_action_id = ?""", Boolean.class, accountCheckInActionId).get();
+
+					if (screeningSessionExists)
+						validationException.add(new FieldError("accountCheckInActionId", getStrings().get("Screening session already exists for this account check in action.")));
+				}
 			}
 		}
 
