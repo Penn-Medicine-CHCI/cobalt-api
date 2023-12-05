@@ -138,6 +138,7 @@ import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.Scr
 import com.cobaltplatform.api.model.api.response.ScreeningTypeApiResponse.ScreeningTypeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SpecialtyApiResponse.SpecialtyApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.StudyAccountApiResponse.StudyAccountApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.StudyApiResponse.StudyApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApiResponseFactory;
@@ -319,6 +320,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(StudyAccountApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(TopicCenterRowTagApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(FileUploadResultApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(StudyApiResponseFactory.class)));
 	}
 
 	@Provides
