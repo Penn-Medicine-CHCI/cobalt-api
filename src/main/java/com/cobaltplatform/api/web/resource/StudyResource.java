@@ -26,6 +26,7 @@ import com.cobaltplatform.api.model.api.request.UpdateCheckInAction;
 import com.cobaltplatform.api.model.api.response.AccountCheckInApiResponse.AccountCheckInApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse.FileUploadResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.StudyAccountApiResponse.StudyAccountApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.StudyApiResponse.StudyApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountCheckInAction;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
@@ -90,6 +91,9 @@ public class StudyResource {
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
 
+	@Nonnull
+	private final StudyApiResponseFactory studyApiResponseFactory;
+
 	@Inject
 	public StudyResource(@Nonnull StudyService studyService,
 											 @Nonnull SystemService systemService,
@@ -97,6 +101,7 @@ public class StudyResource {
 											 @Nonnull AccountCheckInApiResponseFactory accountCheckInApiResponseFactory,
 											 @Nonnull StudyAccountApiResponseFactory studyAccountApiResponseFactory,
 											 @Nonnull FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory,
+											 @Nonnull StudyApiResponseFactory studyApiResponseFactory,
 											 @Nonnull RequestBodyParser requestBodyParser) {
 		requireNonNull(studyService);
 		requireNonNull(systemService);
@@ -105,6 +110,7 @@ public class StudyResource {
 		requireNonNull(requestBodyParser);
 		requireNonNull(studyAccountApiResponseFactory);
 		requireNonNull(fileUploadResultApiResponseFactory);
+		requireNonNull(studyApiResponseFactory);
 
 		this.studyService = studyService;
 		this.systemService = systemService;
@@ -114,6 +120,7 @@ public class StudyResource {
 		this.requestBodyParser = requestBodyParser;
 		this.studyAccountApiResponseFactory = studyAccountApiResponseFactory;
 		this.fileUploadResultApiResponseFactory = fileUploadResultApiResponseFactory;
+		this.studyApiResponseFactory = studyApiResponseFactory;
 	}
 
 	@Nonnull
@@ -144,6 +151,17 @@ public class StudyResource {
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("checkIns", getStudyService().findAccountCheckInsForAccountAndStudy(account, studyId, checkInStatusGroupId)
 					.stream().map(accountCheckIn -> getAccountCheckInApiResponseFactory().create(accountCheckIn)).collect(Collectors.toList()));
+		}});
+	}
+
+	@Nonnull
+	@GET("/studies/list")
+	@AuthenticationRequired
+	public ApiResponse studyList() {
+		Account account = getCurrentContext().getAccount().get();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("studies", getStudyService().findStudiesForAccountId(account.getAccountId())
+					.stream().map(accountStudies -> getStudyApiResponseFactory().create(accountStudies)).collect(Collectors.toList()));
 		}});
 	}
 
@@ -350,5 +368,10 @@ public class StudyResource {
 	@Nonnull
 	protected FileUploadResultApiResponseFactory getFileUploadResultApiResponseFactory() {
 		return this.fileUploadResultApiResponseFactory;
+	}
+
+	@Nonnull
+	protected StudyApiResponseFactory getStudyApiResponseFactory() {
+		return this.studyApiResponseFactory;
 	}
 }
