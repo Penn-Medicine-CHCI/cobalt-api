@@ -28,6 +28,7 @@ import com.lokalized.Strings;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -50,6 +51,8 @@ public class ScreeningAnswerOptionApiResponse {
 	private final String freeformSupplementText;
 	@Nonnull
 	private final Integer displayOrder;
+	@Nullable
+	private Map<String, Object> metadata;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -72,6 +75,7 @@ public class ScreeningAnswerOptionApiResponse {
 		this.freeformSupplement = screeningAnswerOption.getFreeformSupplement();
 		this.freeformSupplementText = screeningAnswerOption.getFreeformSupplementText();
 		this.displayOrder = screeningAnswerOption.getDisplayOrder();
+		this.metadata = screeningAnswerOption.getMetadata();
 	}
 
 	@Nonnull
@@ -102,5 +106,10 @@ public class ScreeningAnswerOptionApiResponse {
 	@Nonnull
 	public Integer getDisplayOrder() {
 		return this.displayOrder;
+	}
+
+	@Nonnull
+	public Optional<Map<String, Object>> getMetadata() {
+		return Optional.ofNullable(this.metadata);
 	}
 }
