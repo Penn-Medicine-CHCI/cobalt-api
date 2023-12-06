@@ -46,6 +46,8 @@ public class ScreeningConfirmationPromptApiResponse {
 	private final ScreeningImageId screeningImageId;
 	@Nullable
 	private final String text;
+	@Nullable
+	private final String titleText;
 	@Nonnull
 	private final String actionText;
 
@@ -67,6 +69,7 @@ public class ScreeningConfirmationPromptApiResponse {
 		this.screeningConfirmationPromptId = screeningConfirmationPrompt.getScreeningConfirmationPromptId();
 		this.screeningImageId = screeningConfirmationPrompt.getScreeningImageId();
 		this.text = screeningConfirmationPrompt.getText();
+		this.titleText = screeningConfirmationPrompt.getTitleText();
 		this.actionText = screeningConfirmationPrompt.getActionText();
 	}
 
@@ -89,6 +92,11 @@ public class ScreeningConfirmationPromptApiResponse {
 	@Nonnull
 	public Optional<String> getText() {
 		return Optional.ofNullable(this.text);
+	}
+
+	@Nonnull
+	public Optional<String> getTitleText() {
+		return Optional.ofNullable(this.titleText);
 	}
 
 	@Nonnull

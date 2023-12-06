@@ -46,7 +46,8 @@ public class ScreeningImage {
 		SAFETY,
 		SCREENING_COMPLETE,
 		SCREENING_TO_DO,
-		WELCOME
+		WELCOME,
+		SUDS_THERMOMETER
 	}
 
 	@Override

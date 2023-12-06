@@ -28,6 +28,7 @@ import com.lokalized.Strings;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -48,8 +49,14 @@ public class ScreeningAnswerOptionApiResponse {
 	private final Boolean freeformSupplement;
 	@Nullable
 	private final String freeformSupplementText;
+	@Nullable
+	private Integer score;
+	@Nullable
+	private String scoreDescription;
 	@Nonnull
 	private final Integer displayOrder;
+	@Nullable
+	private Map<String, Object> metadata;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -71,7 +78,10 @@ public class ScreeningAnswerOptionApiResponse {
 		this.answerOptionText = screeningAnswerOption.getAnswerOptionText();
 		this.freeformSupplement = screeningAnswerOption.getFreeformSupplement();
 		this.freeformSupplementText = screeningAnswerOption.getFreeformSupplementText();
+		this.score = screeningAnswerOption.getScore();
+		this.scoreDescription = screeningAnswerOption.getScore() == null ? null : formatter.formatNumber(screeningAnswerOption.getScore());
 		this.displayOrder = screeningAnswerOption.getDisplayOrder();
+		this.metadata = screeningAnswerOption.getMetadata();
 	}
 
 	@Nonnull
@@ -100,7 +110,22 @@ public class ScreeningAnswerOptionApiResponse {
 	}
 
 	@Nonnull
+	public Optional<Integer> getScore() {
+		return Optional.ofNullable(this.score);
+	}
+
+	@Nonnull
+	public Optional<String> getScoreDescription() {
+		return Optional.ofNullable(this.scoreDescription);
+	}
+
+	@Nonnull
 	public Integer getDisplayOrder() {
 		return this.displayOrder;
+	}
+
+	@Nonnull
+	public Optional<Map<String, Object>> getMetadata() {
+		return Optional.ofNullable(this.metadata);
 	}
 }

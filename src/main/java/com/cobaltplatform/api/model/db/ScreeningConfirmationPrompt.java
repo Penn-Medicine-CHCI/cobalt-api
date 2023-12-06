@@ -38,6 +38,8 @@ public class ScreeningConfirmationPrompt {
 	@Nullable
 	private String text;
 	@Nullable
+	private String titleText;
+	@Nullable
 	private String actionText;
 	@Nullable
 	private Instant created;
@@ -69,6 +71,15 @@ public class ScreeningConfirmationPrompt {
 
 	public void setText(@Nullable String text) {
 		this.text = text;
+	}
+
+	@Nullable
+	public String getTitleText() {
+		return this.titleText;
+	}
+
+	public void setTitleText(@Nullable String titleText) {
+		this.titleText = titleText;
 	}
 
 	@Nullable
