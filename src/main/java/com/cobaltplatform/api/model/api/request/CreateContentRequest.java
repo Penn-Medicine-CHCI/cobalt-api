@@ -27,6 +27,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.LocalDate;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
@@ -60,7 +61,7 @@ public class CreateContentRequest {
 	@Nullable
 	private Boolean sharedFlag;
 	@Nullable
-	private String fileUrl;
+	private UUID fileUploadId;
 
 	@Nullable
 	public ContentTypeId getContentTypeId() {
@@ -180,11 +181,11 @@ public class CreateContentRequest {
 	}
 
 	@Nullable
-	public String getFileUrl() {
-		return fileUrl;
+	public UUID getFileUploadId() {
+		return fileUploadId;
 	}
 
-	public void setFileUrl(@Nullable String fileUrl) {
-		this.fileUrl = fileUrl;
+	public void setFileUploadId(@Nullable UUID fileUploadId) {
+		this.fileUploadId = fileUploadId;
 	}
 }

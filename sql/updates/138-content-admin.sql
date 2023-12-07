@@ -21,6 +21,7 @@ ALTER TABLE content ADD COLUMN publish_end_date timestamptz NULL;
 ALTER TABLE content ADD COLUMN publish_recurring BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE content ADD COLUMN published BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE content ADD COLUMN file_url VARCHAR NULL;
+ALTER TABLE content ADD COLUMN file_upload_id UUID NULL REFERENCES file_upload(file_upload_id);
 
 UPDATE content SET published = TRUE where owner_institution_approval_status_id='APPROVED';
 UPDATE content SET shared_flag = TRUE WHERE visibility_id = 'PUBLIC';
@@ -78,10 +79,15 @@ AS SELECT c.content_id,
     ct.call_to_action,
     c.owner_institution_id,
     i.name AS owner_institution,
-    c.date_created
+    c.date_created,
+    c.file_upload_id,
+    fu.url as file_url,
+    fu.filename,
+    fu.content_type
    FROM content_type ct,
     institution i,
-    content c
+    content c 
+    LEFT OUTER JOIN file_upload fu ON c.file_upload_id = fu.file_upload_id
   WHERE c.content_type_id::text = ct.content_type_id::text 
   AND c.owner_institution_id::text = i.institution_id::text
   AND c.deleted_flag = false;

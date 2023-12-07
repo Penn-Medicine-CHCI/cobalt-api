@@ -63,7 +63,7 @@ public class UpdateContentRequest {
 	@Nullable
 	private Boolean sharedFlag;
 	@Nullable
-	private String fileUrl;
+	private UUID fileUploadId;
 	@Nullable
 	public UUID getContentId() {
 		return contentId;
@@ -191,11 +191,11 @@ public class UpdateContentRequest {
 	}
 
 	@Nullable
-	public String getFileUrl() {
-		return fileUrl;
+	public UUID getFileUploadId() {
+		return fileUploadId;
 	}
 
-	public void setFileUrl(@Nullable String fileUrl) {
-		this.fileUrl = fileUrl;
+	public void setFileUploadId(@Nullable UUID fileUploadId) {
+		this.fileUploadId = fileUploadId;
 	}
 }

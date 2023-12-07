@@ -115,12 +115,18 @@ public class AdminContentApiResponse {
 	private String callToAction;
 
 	@Nullable
-	private String fileUrl;
+	private UUID fileUploadId;
 	@Nullable
 	private final List<TagApiResponse> tags;
 
 	@Nullable
 	private Boolean isEditable;
+
+	@Nullable
+	private String filename;
+
+	@Nullable
+	private String fileContentType;
 
 	public enum AdminContentDisplayType {
 		DETAIL,
@@ -163,7 +169,7 @@ public class AdminContentApiResponse {
 		this.title = adminContent.getTitle();
 		this.author = adminContent.getAuthor();
 		this.description = adminContent.getDescription();
-		this.url = adminContent.getUrl();
+		this.url = adminContent.getFileUploadId() != null ? adminContent.getFileUrl() : adminContent.getUrl();
 		this.imageUrl = adminContent.getImageUrl();
 		this.ownerInstitution = adminContent.getOwnerInstitution();
 		this.views = adminContent.getViews();
@@ -227,7 +233,7 @@ public class AdminContentApiResponse {
 					put("minutes", formatter.formatNumber(adminContent.getDurationInMinutes()));
 				}}) : null;
 
-		this.fileUrl = adminContent.getFileUrl();
+		this.fileUploadId = adminContent.getFileUploadId();
 
 		this.tags = adminContent.getTags() == null ? Collections.emptyList() : adminContent.getTags().stream()
 				.map(tag -> tagApiResponseFactory.create(tag))
@@ -423,12 +429,27 @@ public class AdminContentApiResponse {
 	}
 
 	@Nullable
-	public String getFileUrl() {
-		return fileUrl;
+	public UUID getFileUploadId() {
+		return fileUploadId;
+	}
+
+	@Nullable
+	public Boolean getEditable() {
+		return isEditable;
 	}
 
 	@Nullable
 	public List<TagApiResponse> getTags() {
 		return tags;
+	}
+
+	@Nullable
+	public String getFilename() {
+		return filename;
+	}
+
+	@Nullable
+	public String getFileContentType() {
+		return fileContentType;
 	}
 }

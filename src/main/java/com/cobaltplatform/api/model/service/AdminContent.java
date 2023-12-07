@@ -88,13 +88,22 @@ public class AdminContent{
 	@Nullable
 	private String callToAction;
 	@Nullable
-	private String fileUrl;
+	private UUID fileUploadId;
 
 	@Nullable
 	private String inUseInstitutionDescription;
 
 	@Nullable
 	private Integer inUseCount;
+
+	@Nullable
+	private String fileUrl;
+
+	@Nullable
+	private String filename;
+
+	@Nullable
+	private String fileContentType;
 
 	@Nonnull
 	public UUID getContentId() {
@@ -302,12 +311,12 @@ public class AdminContent{
 	}
 
 	@Nullable
-	public String getFileUrl() {
-		return fileUrl;
+	public UUID getFileUploadId() {
+		return fileUploadId;
 	}
 
-	public void setFileUrl(@Nullable String fileUrl) {
-		this.fileUrl = fileUrl;
+	public void setFileUploadId(@Nullable UUID fileUploadId) {
+		this.fileUploadId = fileUploadId;
 	}
 
 	@Nullable
@@ -326,5 +335,32 @@ public class AdminContent{
 
 	public void setInUseCount(@Nullable Integer inUseCount) {
 		this.inUseCount = inUseCount;
+	}
+
+	@Nullable
+	public String getFileUrl() {
+		return fileUrl;
+	}
+
+	public void setFileUrl(@Nullable String fileUrl) {
+		this.fileUrl = fileUrl;
+	}
+
+	@Nullable
+	public String getFilename() {
+		return filename;
+	}
+
+	public void setFilename(@Nullable String filename) {
+		this.filename = filename;
+	}
+
+	@Nullable
+	public String getFileContentType() {
+		return fileContentType;
+	}
+
+	public void setFileContentType(@Nullable String fileContentType) {
+		this.fileContentType = fileContentType;
 	}
 }

@@ -21,12 +21,14 @@ package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateContentRequest;
+import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreatePresignedUploadRequest;
 import com.cobaltplatform.api.model.api.request.UpdateContentRequest;
 import com.cobaltplatform.api.model.api.response.AdminContentApiResponse.AdminContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AdminInstitutionApiResponse.AdminInstitutionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentStatusApiResponse.ContentStatusApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse.FileUploadResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TagApiResponse;
 import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
@@ -37,9 +39,9 @@ import com.cobaltplatform.api.model.db.ContentStatus;
 import com.cobaltplatform.api.model.db.ContentType;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Role.RoleId;
-import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.AdminContent;
+import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.service.AdminContentService;
 import com.cobaltplatform.api.model.service.PresignedUpload;
@@ -60,7 +62,6 @@ import com.soklet.web.annotation.Resource;
 import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
-import org.checkerframework.checker.units.qual.A;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -120,6 +121,8 @@ public class AdminResource {
 	private final TagGroupApiResponseFactory tagGroupApiResponseFactory;
 	@Nonnull
 	private final ContentStatusApiResponseFactory contentStatusApiResponseFactory;
+	@Nonnull
+	private final FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory;
 
 
 	@Inject
@@ -138,7 +141,8 @@ public class AdminResource {
 											 @Nonnull Provider<AssessmentFormApiResponseFactory> assessmentFormApiResponseFactoryProvider,
 											 @Nonnull TagApiResponseFactory tagApiResponseFactory,
 											 @Nonnull TagGroupApiResponseFactory tagGroupApiResponseFactory,
-											 @Nonnull ContentStatusApiResponseFactory contentStatusApiResponseFactory) {
+											 @Nonnull ContentStatusApiResponseFactory contentStatusApiResponseFactory,
+											 @Nonnull FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory) {
 		this.contentService = contentService;
 		this.adminContentService = adminContentService;
 		this.tagService = tagService;
@@ -155,6 +159,7 @@ public class AdminResource {
 		this.tagApiResponseFactory = tagApiResponseFactory;
 		this.tagGroupApiResponseFactory = tagGroupApiResponseFactory;
 		this.contentStatusApiResponseFactory = contentStatusApiResponseFactory;
+		this.fileUploadResultApiResponseFactory = fileUploadResultApiResponseFactory;
 	}
 
 	@GET("/admin/my-content/filter")
@@ -319,13 +324,12 @@ public class AdminResource {
 
 		Account account = getCurrentContext().getAccount().get();
 
-		CreatePresignedUploadRequest request = getRequestBodyParser().parse(requestBody, CreatePresignedUploadRequest.class);
+		CreateFileUploadRequest request = getRequestBodyParser().parse(requestBody, CreateFileUploadRequest.class);
 		request.setAccountId(account.getAccountId());
 
-		PresignedUpload presignedUpload = getImageUploadService().generatePresignedUploadForContent(request);
-
+		FileUploadResult fileUploadResult = getAdminContentService().createContentFileUpload(request);
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("presignedUpload", getPresignedUploadApiResponseFactory().create(presignedUpload));
+			put("fileUploadResult", getFileUploadResultApiResponseFactory().create(fileUploadResult));
 		}});
 	}
 	@Nonnull
@@ -468,5 +472,10 @@ public class AdminResource {
 	@Nonnull
 	protected ContentStatusApiResponseFactory getContentStatusApiResponseFactory() {
 		return contentStatusApiResponseFactory;
+	}
+
+	@Nonnull
+	protected FileUploadResultApiResponseFactory getFileUploadResultApiResponseFactory() {
+		return fileUploadResultApiResponseFactory;
 	}
 }

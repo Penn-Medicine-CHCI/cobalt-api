@@ -21,6 +21,7 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateContentRequest;
+import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.UpdateContentRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Content;
@@ -30,6 +31,7 @@ import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.service.AdminContent;
+import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.LinkGenerator;
@@ -49,6 +51,7 @@ import javax.inject.Singleton;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -96,6 +99,9 @@ public class AdminContentService {
 	@Nonnull
 	private final Provider<ContentService> contentServiceProvider;
 
+	@Nonnull
+	private final SystemService systemService;
+
 	@Inject
 	public AdminContentService(@Nonnull Provider<CurrentContext> currentContextProvider,
 														 @Nonnull Provider<AssessmentService> assessmentServiceProvider,
@@ -108,7 +114,8 @@ public class AdminContentService {
 														 @Nonnull SessionService sessionService,
 														 @Nonnull InstitutionService institutionService,
 														 @Nonnull Strings strings,
-														 @Nonnull Provider<ContentService> contentServiceProvider) {
+														 @Nonnull Provider<ContentService> contentServiceProvider,
+														 @Nonnull SystemService systemService) {
 		requireNonNull(currentContextProvider);
 		requireNonNull(assessmentServiceProvider);
 		requireNonNull(tagServiceProvider);
@@ -121,6 +128,7 @@ public class AdminContentService {
 		requireNonNull(institutionService);
 		requireNonNull(strings);
 		requireNonNull(contentServiceProvider);
+		requireNonNull(systemService);
 
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.database = database;
@@ -135,6 +143,7 @@ public class AdminContentService {
 		this.formatterProvider = formatterProvider;
 		this.linkGeneratorProvider = linkGeneratorProvider;
 		this.contentServiceProvider = contentServiceProvider;
+		this.systemService = systemService;
 	}
 
 	public enum ContentSortOrder {
@@ -263,15 +272,15 @@ public class AdminContentService {
 		Boolean publishRecurring = command.getPublishRecurring() == null ? false : command.getPublishRecurring();
 		String searchTerms = trimToNull(command.getSearchTerms());
 		Boolean sharedFlag = command.getSharedFlag();
-		String fileUrl = trimToNull(command.getFileUrl());
+		UUID fileUploadId = command.getFileUploadId();
 
 		ValidationException validationException = new ValidationException();
 
 		if (title == null)
 			validationException.add(new FieldError("title", getStrings().get("Title is required.")));
 
-		if (url == null && contentTypeId != null && contentTypeId != ContentTypeId.ARTICLE)
-			validationException.add(new FieldError("url", getStrings().get("URL is required.")));
+		if (url == null && contentTypeId != null && contentTypeId != ContentTypeId.ARTICLE && fileUploadId == null)
+			validationException.add(new FieldError("url", getStrings().get("URL or file upload url is required.")));
 
 		if (author == null)
 			validationException.add(new FieldError("author", getStrings().get("Author is required.")));
@@ -295,6 +304,9 @@ public class AdminContentService {
 		if (durationInMinutesString != null && !ValidationUtility.isValidInteger(durationInMinutesString))
 			validationException.add(new FieldError("durationInMinutes", getStrings().get("Must be an integer")));
 
+		if (fileUploadId != null && url != null)
+			validationException.add(new FieldError("url", getStrings().get("Can only specify a file url or a file upload url ")));
+
 		if (validationException.hasErrors())
 			throw validationException;
 
@@ -308,12 +320,12 @@ public class AdminContentService {
 		getDatabase().execute("""
 						INSERT INTO content (content_id, content_type_id, title, url, image_url,
 						duration_in_minutes, description, author, shared_flag,
-						search_terms, publish_start_date, publish_end_date, publish_recurring, owner_institution_id, date_created, file_url)
+						search_terms, publish_start_date, publish_end_date, publish_recurring, owner_institution_id, date_created, file_upload_id)
 						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?, now(),?)												
 						""",
 				contentId, command.getContentTypeId(), title, url, imageUrl,
 				durationInMinutes, description, author, sharedFlag,
-				searchTerms, publishStartDate, publishEndDate, publishRecurring, ownerInstitutionId, fileUrl);
+				searchTerms, publishStartDate, publishEndDate, publishRecurring, ownerInstitutionId, fileUploadId);
 
 		addContentToInstitution(contentId, account);
 
@@ -354,7 +366,7 @@ public class AdminContentService {
 		Boolean publishRecurring = command.getPublishRecurring();
 		String searchTerms = trimToNull(command.getSearchTerms());
 		Boolean sharedFlag = command.getSharedFlag();
-		String fileUrl = trimToNull(command.getFileUrl());
+		UUID fileUploadId = command.getFileUploadId();
 
 		ValidationException validationException = new ValidationException();
 
@@ -402,8 +414,8 @@ public class AdminContentService {
 			if (sharedFlag != null)
 				existingContent.setSharedFlag(sharedFlag);
 
-			if (fileUrl != null)
-				existingContent.setFileUrl(fileUrl);
+			if (fileUploadId != null)
+				existingContent.setFileUploadId(fileUploadId);
 		}
 
 		if (durationInMinutesString != null && !ValidationUtility.isValidInteger(durationInMinutesString))
@@ -418,12 +430,12 @@ public class AdminContentService {
 		getDatabase().execute("""
 							 	UPDATE content SET content_type_id=?, title=?, url=?, image_url=?, 
 							 	duration_in_minutes=?, description=?, author=?, publish_start_date=?, publish_end_date=?,
-							 	publish_recurring=?, search_terms=?, shared_flag=?, file_url=?
+							 	publish_recurring=?, search_terms=?, shared_flag=?, file_upload_id=?
 								WHERE content_id=?
 						""",
 				existingContent.getContentTypeId(), existingContent.getTitle(), existingContent.getUrl(), existingContent.getImageUrl(),
 				durationInMinutes, existingContent.getDescription(), existingContent.getAuthor(), existingContent.getPublishStartDate(), existingContent.getPublishEndDate(),
-				existingContent.getPublishRecurring(), existingContent.getSearchTerms(), existingContent.getSharedFlag(),existingContent.getFileUrl(),
+				existingContent.getPublishRecurring(), existingContent.getSearchTerms(), existingContent.getSharedFlag(),existingContent.getFileUploadId(),
 				existingContent.getContentId());
 
 		AdminContent adminContent = findAdminContentByIdForInstitution(account.getInstitutionId(), command.getContentId()).orElse(null);
@@ -644,6 +656,34 @@ public class AdminContentService {
 	}
 
 	@Nonnull
+	public FileUploadResult createContentFileUpload(@Nonnull CreateFileUploadRequest request) {
+		requireNonNull(request);
+
+		ValidationException validationException = new ValidationException();
+
+		if (request.getAccountId() == null)
+			validationException.add(new ValidationException.FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		// Make a separate instance so we don't mutate the request passed into this method
+		CreateFileUploadRequest fileUploadRequest = new CreateFileUploadRequest();
+		fileUploadRequest.setAccountId(request.getAccountId());
+		fileUploadRequest.setContentType(request.getContentType());
+		fileUploadRequest.setFilename(request.getFilename());
+		fileUploadRequest.setPublicRead(false);
+		fileUploadRequest.setStorageKeyPrefix(format("content/%s", UUID.randomUUID()));
+		fileUploadRequest.setMetadata(Map.of(
+				"account-id", request.getAccountId().toString()
+		));
+
+		FileUploadResult fileUploadResult = getSystemService().createFileUpload(fileUploadRequest);
+
+		return fileUploadResult;
+	}
+
+	@Nonnull
 	protected SessionService getSessionService() {
 		return sessionService;
 	}
@@ -696,5 +736,10 @@ public class AdminContentService {
 	@Nonnull
 	protected ContentService getContentService() {
 		return contentServiceProvider.get();
+	}
+
+	@Nonnull
+	protected SystemService getSystemService() {
+		return systemService;
 	}
 }
