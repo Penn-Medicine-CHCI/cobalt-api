@@ -5,7 +5,7 @@ SELECT _v.register_patch('138-analytics', NULL, NULL);
 -- * Appointment booked
 -- * Group session booked
 -- * Content viewed
-create view v_analytics_account_meaningful_interaction as
+CREATE OR REPLACE VIEW v_analytics_account_meaningful_interaction AS
   select a.account_id, a.institution_id, app.created as activity_timestamp, 'APPOINTMENT_BOOKED' as activity
   from account a, appointment app
   where a.account_id=app.account_id
@@ -19,7 +19,7 @@ union
   where at.activity_type_id='CONTENT' and at.account_id=a.account_id;
 
 -- Account interaction is anything at all we see coming from BigQuery
-CREATE VIEW v_analytics_account_interaction as
+CREATE OR REPLACE VIEW v_analytics_account_interaction AS
   SELECT
     a.account_id,
     a.institution_id,
