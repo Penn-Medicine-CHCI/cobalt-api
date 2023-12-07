@@ -241,6 +241,10 @@ public class AdminContentApiResponse {
 
 		this.isEditable = account.getInstitutionId().equals(adminContent.getOwnerInstitutionId())
 				&& account.getRoleId().equals(Role.RoleId.ADMINISTRATOR);
+
+		this.filename = adminContent.getFilename();
+
+		this.fileContentType = adminContent.getFileContentType();
 	}
 
 
