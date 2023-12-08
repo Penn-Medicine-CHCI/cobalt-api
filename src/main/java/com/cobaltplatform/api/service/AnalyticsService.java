@@ -312,6 +312,12 @@ public class AnalyticsService implements AutoCloseable {
 				ORDER BY url_name
 				""", Feature.class, institution.getInstitutionId());
 
+		// GA only reliably provides absolute URLs in its data, so we need to discard the prefix to find and work with the url_path.
+		// For example, "https://www.cobaltplatform.com/group-sessions?abc=123" has url_path "/group-sessions?abc=123".
+		// We do this by getting the webapp base URL and using it as part of a regex.
+		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.PATIENT).get();
+		String urlPathRegex = format("^%s", webappBaseUrl);
+
 		// Sections are:
 		// * Hardcoded "Sign In"
 		// * Hardcoded "Home Page"
@@ -339,12 +345,6 @@ public class AnalyticsService implements AutoCloseable {
 				)
 				""";
 
-		// GA only reliably provides absolute URLs in its data, so we need to discard the prefix to find and work with the url_path.
-		// For example, "https://www.cobaltplatform.com/group-sessions?abc=123" has url_path "/group-sessions?abc=123".
-		// We do this by getting the webapp base URL and using it as part of a regex.
-		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.PATIENT).get();
-		String urlPathRegex = format("^%s", webappBaseUrl);
-
 		List<Object> pageViewParameters = new ArrayList<>();
 		pageViewParameters.add(urlPathRegex);
 		pageViewParameters.add(startTimestamp);
@@ -352,9 +352,6 @@ public class AnalyticsService implements AutoCloseable {
 		pageViewParameters.add(institutionId);
 
 		List<String> pageViewsSectionSqls = new ArrayList<>();
-
-		// Sign In
-		// TODO: need to query for this separately because there is no signed-in user
 
 		// Home
 		pageViewsSectionSqls.add("""							
@@ -385,6 +382,33 @@ public class AnalyticsService implements AutoCloseable {
 
 		List<SectionCount> pageViewSectionCounts = getDatabase().queryForList(pageViewSql, SectionCount.class, pageViewParameters.toArray(new Object[]{}));
 
+		// Sign In page views - needs special handling.
+		// We query for this differently because there is no signed-in user, so can't use v_analytics_account_interaction.
+		// We just want the raw sign-in page views
+		SectionCount signInPageViewSectionCount = getDatabase().queryForObject("""
+				   WITH agbe AS (
+				     SELECT regexp_replace(event->'parameters'->'page_location'->>'value', ?, '') as url_path
+				     FROM analytics_google_bigquery_event
+				     WHERE name='page_view'
+				     AND institution_id=?
+				     AND timestamp BETWEEN ? AND ?
+				   )
+				   SELECT ? AS section, COUNT(*) AS count
+				   FROM agbe
+				   WHERE url_path = '/sign-in'
+				   OR url_path LIKE '/sign-in?%'
+				   GROUP BY section
+				""", SectionCount.class, urlPathRegex, institutionId, startTimestamp, endTimestamp, SIGN_IN_SECTION).orElse(null);
+
+		// No data at all?  Count is zero
+		if (signInPageViewSectionCount == null) {
+			signInPageViewSectionCount = new SectionCount();
+			signInPageViewSectionCount.setSection(SIGN_IN_SECTION);
+			signInPageViewSectionCount.setCount(0L);
+		}
+
+		pageViewSectionCounts.add(signInPageViewSectionCount);
+
 		// TODO: query for these other kinds of section counts
 		List<SectionCount> userSectionCounts = new ArrayList<>();
 		List<SectionCount> activeUserSectionCounts = new ArrayList<>();
@@ -406,6 +430,7 @@ public class AnalyticsService implements AutoCloseable {
 
 		// ...and fill in with each type of data
 		for (SectionCount pageViewSectionCount : pageViewSectionCounts) {
+			System.out.println(pageViewSectionCount);
 			SectionCountSummary sectionCountSummary = sectionCountSummariesBySection.get(pageViewSectionCount.getSection());
 			sectionCountSummary.setPageViewCount(pageViewSectionCount.getCount());
 		}
