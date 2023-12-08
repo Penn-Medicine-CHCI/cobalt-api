@@ -309,7 +309,7 @@ public class AnalyticsService implements AutoCloseable {
 				FROM feature f, institution_feature if
 				WHERE if.feature_id=f.feature_id
 				AND if.institution_id=?
-				ORDER BY url_name
+				ORDER BY name
 				""", Feature.class, institution.getInstitutionId());
 
 		// GA only reliably provides absolute URLs in its data, so we need to discard the prefix to find and work with the url_path.
@@ -409,9 +409,128 @@ public class AnalyticsService implements AutoCloseable {
 
 		pageViewSectionCounts.add(signInPageViewSectionCount);
 
-		// TODO: query for these other kinds of section counts
-		List<SectionCount> userSectionCounts = new ArrayList<>();
-		List<SectionCount> activeUserSectionCounts = new ArrayList<>();
+		// Now, determine user counts (user with any kind of page view during the date range)
+		String userSql = """
+				WITH aai AS (
+				    select
+				        *, regexp_replace(url, ?, '') as url_path
+				    from
+				        v_analytics_account_interaction
+				    where
+				        activity='page_view'
+				        and activity_timestamp BETWEEN ? AND ?
+				        and institution_id=?
+				)
+				""";
+
+		List<Object> userParameters = new ArrayList<>();
+		userParameters.add(urlPathRegex);
+		userParameters.add(startTimestamp);
+		userParameters.add(endTimestamp);
+		userParameters.add(institutionId);
+
+		List<String> userSectionSqls = new ArrayList<>();
+
+		// Home
+		userSectionSqls.add("""							
+						SELECT ? AS section, COUNT(distinct aai.account_id) AS count
+						FROM aai
+						WHERE (url_path = '/' OR url_path LIKE '/?%')
+						GROUP BY section
+				""".trim());
+
+		userParameters.add(HOME_PAGE_SECTION);
+
+		// Features
+		for (Feature feature : features) {
+			userSectionSqls.add("""							
+							SELECT COALESCE(if.name_override, f.name) AS section, COUNT(distinct aai.account_id) AS count
+							FROM aai, feature f, institution_feature if
+							WHERE f.feature_id=?
+							AND if.feature_id=f.feature_id
+							AND if.institution_id=aai.institution_id
+							AND aai.url_path LIKE CONCAT(f.url_name, '%')
+							GROUP BY section
+					""".trim());
+
+			userParameters.add(feature.getFeatureId());
+		}
+
+		userSql = userSql + userSectionSqls.stream().collect(Collectors.joining("\nUNION\n"));
+
+		List<SectionCount> userSectionCounts = getDatabase().queryForList(userSql, SectionCount.class, userParameters.toArray(new Object[]{}));
+
+		// There is no concept of user count for the sign-in screen b/c there is no one signed in!
+		userSectionCounts.add(new SectionCount() {{
+			setSection(SIGN_IN_SECTION);
+			setCount(0L);
+		}});
+
+		// Now, determine *active* user counts (user with any kind of page view during the date range who has taking *meaningful* actions in Cobalt)
+		String activeUserSql = """
+				WITH aai AS (
+				    select
+				        *, regexp_replace(url, ?, '') as url_path
+				    from
+				        v_analytics_account_interaction
+				    where
+				        activity='page_view'
+				        and activity_timestamp BETWEEN ? AND ?
+				        and institution_id=?
+				        and account_id in (
+				          select account_id
+				          from v_analytics_account_meaningful_interaction
+				          where institution_id=?
+				          and activity_timestamp BETWEEN ? AND ?
+				        )
+				)
+				""";
+
+		List<Object> activeUserParameters = new ArrayList<>();
+		activeUserParameters.add(urlPathRegex);
+		activeUserParameters.add(startTimestamp);
+		activeUserParameters.add(endTimestamp);
+		activeUserParameters.add(institutionId);
+		activeUserParameters.add(institutionId);
+		activeUserParameters.add(startTimestamp);
+		activeUserParameters.add(endTimestamp);
+
+		List<String> activeUserSectionSqls = new ArrayList<>();
+
+		// Home
+		activeUserSectionSqls.add("""							
+						SELECT ? AS section, COUNT(distinct aai.account_id) AS count
+						FROM aai
+						WHERE (url_path = '/' OR url_path LIKE '/?%')
+						GROUP BY section
+				""".trim());
+
+		activeUserParameters.add(HOME_PAGE_SECTION);
+
+		// Features
+		for (Feature feature : features) {
+			activeUserSectionSqls.add("""							
+							SELECT COALESCE(if.name_override, f.name) AS section, COUNT(distinct aai.account_id) AS count
+							FROM aai, feature f, institution_feature if
+							WHERE f.feature_id=?
+							AND if.feature_id=f.feature_id
+							AND if.institution_id=aai.institution_id
+							AND aai.url_path LIKE CONCAT(f.url_name, '%')
+							GROUP BY section
+					""".trim());
+
+			activeUserParameters.add(feature.getFeatureId());
+		}
+
+		activeUserSql = activeUserSql + activeUserSectionSqls.stream().collect(Collectors.joining("\nUNION\n"));
+
+		List<SectionCount> activeUserSectionCounts = getDatabase().queryForList(activeUserSql, SectionCount.class, activeUserParameters.toArray(new Object[]{}));
+
+		// There is no concept of active user count for the sign-in screen b/c there is no one signed in!
+		activeUserSectionCounts.add(new SectionCount() {{
+			setSection(SIGN_IN_SECTION);
+			setCount(0L);
+		}});
 
 		List<SectionCountSummary> sectionCountSummaries = new ArrayList<>(sections.size());
 		Map<String, SectionCountSummary> sectionCountSummariesBySection = new HashMap<>(sections.size());
@@ -430,7 +549,6 @@ public class AnalyticsService implements AutoCloseable {
 
 		// ...and fill in with each type of data
 		for (SectionCount pageViewSectionCount : pageViewSectionCounts) {
-			System.out.println(pageViewSectionCount);
 			SectionCountSummary sectionCountSummary = sectionCountSummariesBySection.get(pageViewSectionCount.getSection());
 			sectionCountSummary.setPageViewCount(pageViewSectionCount.getCount());
 		}
