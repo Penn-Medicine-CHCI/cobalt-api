@@ -213,42 +213,52 @@ public class AnalyticsService implements AutoCloseable {
 		requireNonNull(startDate);
 		requireNonNull(endDate);
 
-		GoogleAnalyticsDataClient googleAnalyticsDataClient = googleAnalyticsDataClientForInstitutionId(institutionId);
+		// TODO: we should query against our own database for this information instead so numbers are consistent with other sections
+		// UI needs "New" and "Returning" so should be the set of distinct identifiers in the past vs distinct identifiers over the time range
 
-		RunReportRequest request = RunReportRequest.newBuilder()
-				.setProperty(format("properties/%s", googleAnalyticsDataClient.getGa4PropertyId()))
-				.addDimensions(Dimension.newBuilder().setName("newVsReturning"))
-				.addMetrics(Metric.newBuilder().setName("activeUsers"))
-				.addDateRanges(DateRange.newBuilder()
-						.setStartDate(DateTimeFormatter.ISO_LOCAL_DATE.format(startDate))
-						.setEndDate(DateTimeFormatter.ISO_LOCAL_DATE.format(endDate)))
-				.build();
+		boolean useGoogleAnalytics = false;
 
-		RunReportResponse response = googleAnalyticsDataClient.runReport(request);
+		if (useGoogleAnalytics) {
+			GoogleAnalyticsDataClient googleAnalyticsDataClient = googleAnalyticsDataClientForInstitutionId(institutionId);
 
-		Long newActiveUsers = 0L;
-		Long returningActiveUsers = 0L;
-		Long otherActiveUsers = 0L;
+			RunReportRequest request = RunReportRequest.newBuilder()
+					.setProperty(format("properties/%s", googleAnalyticsDataClient.getGa4PropertyId()))
+					.addDimensions(Dimension.newBuilder().setName("newVsReturning"))
+					.addMetrics(Metric.newBuilder().setName("activeUsers"))
+					.addDateRanges(DateRange.newBuilder()
+							.setStartDate(DateTimeFormatter.ISO_LOCAL_DATE.format(startDate))
+							.setEndDate(DateTimeFormatter.ISO_LOCAL_DATE.format(endDate)))
+					.build();
 
-		for (Row row : response.getRowsList()) {
-			String dimensionName = row.getDimensionValuesCount() > 0 ? row.getDimensionValues(0).getValue() : null;
-			Long metricCount = row.getMetricValuesCount() > 0 ? Long.valueOf(row.getMetricValues(0).getValue()) : 0;
+			RunReportResponse response = googleAnalyticsDataClient.runReport(request);
 
-			if (dimensionName == null)
-				continue;
+			Long newActiveUsers = 0L;
+			Long returningActiveUsers = 0L;
+			Long otherActiveUsers = 0L;
 
-			if ("new".equals(dimensionName)) {
-				newActiveUsers = metricCount;
-			} else if ("returning".equals(dimensionName)) {
-				returningActiveUsers = metricCount;
-			} else if ("(not set)".equals(dimensionName)) {
-				otherActiveUsers = metricCount;
-			} else {
-				getLogger().warn("Unrecognized dimension name '{}' (metric value {})", dimensionName, metricCount);
+			for (Row row : response.getRowsList()) {
+				String dimensionName = row.getDimensionValuesCount() > 0 ? row.getDimensionValues(0).getValue() : null;
+				Long metricCount = row.getMetricValuesCount() > 0 ? Long.valueOf(row.getMetricValues(0).getValue()) : 0;
+
+				if (dimensionName == null)
+					continue;
+
+				if ("new".equals(dimensionName)) {
+					newActiveUsers = metricCount;
+				} else if ("returning".equals(dimensionName)) {
+					returningActiveUsers = metricCount;
+				} else if ("(not set)".equals(dimensionName)) {
+					otherActiveUsers = metricCount;
+				} else {
+					getLogger().warn("Unrecognized dimension name '{}' (metric value {})", dimensionName, metricCount);
+				}
 			}
+
+			return new AnalyticsResultNewVersusReturning(newActiveUsers, returningActiveUsers, otherActiveUsers);
 		}
 
-		return new AnalyticsResultNewVersusReturning(newActiveUsers, returningActiveUsers, otherActiveUsers);
+		// TODO: query for this
+		return new AnalyticsResultNewVersusReturning(0L, 0L, 0L);
 	}
 
 	/**
@@ -566,6 +576,31 @@ public class AnalyticsService implements AutoCloseable {
 		return sectionCountSummaries;
 	}
 
+	@Nonnull
+	public TrafficSourceSummary findTrafficSourceSummary(@Nonnull InstitutionId institutionId,
+																											 @Nonnull LocalDate startDate,
+																											 @Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		if (endDate.isBefore(startDate))
+			throw new ValidationException(getStrings().get("End date cannot be before start date."));
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		Instant startTimestamp = LocalDateTime.of(startDate, LocalTime.MIN).atZone(institution.getTimeZone()).toInstant();
+		Instant endTimestamp = LocalDateTime.of(endDate, LocalTime.MAX).atZone(institution.getTimeZone()).toInstant();
+
+		TrafficSourceSummary trafficSourceSummary = new TrafficSourceSummary();
+		trafficSourceSummary.setTrafficSourceMediumCounts(List.of());
+		trafficSourceSummary.setTrafficSourceSourceCounts(List.of());
+		trafficSourceSummary.setUsersTotalCount(0L);
+		trafficSourceSummary.setUsersFromTrafficSourceCount(0L);
+		trafficSourceSummary.setUsersFromTrafficSourcePercentage(0D);
+
+		return trafficSourceSummary;
+	}
+
 	@NotThreadSafe
 	protected static class SectionCount {
 		@Nullable
@@ -663,6 +698,117 @@ public class AnalyticsService implements AutoCloseable {
 
 		public void setAccountSourceId(@Nullable AccountSourceId accountSourceId) {
 			this.accountSourceId = accountSourceId;
+		}
+	}
+
+	@NotThreadSafe
+	public static class TrafficSourceMediumCount {
+		@Nullable
+		private String medium;
+		@Nullable
+		private Long userCount;
+
+		@Nullable
+		public String getMedium() {
+			return this.medium;
+		}
+
+		public void setMedium(@Nullable String medium) {
+			this.medium = medium;
+		}
+
+		@Nullable
+		public Long getUserCount() {
+			return this.userCount;
+		}
+
+		public void setUserCount(@Nullable Long userCount) {
+			this.userCount = userCount;
+		}
+	}
+
+	@NotThreadSafe
+	public static class TrafficSourceSourceCount {
+		@Nullable
+		private String source;
+		@Nullable
+		private Long userCount;
+
+		@Nullable
+		public String getSource() {
+			return this.source;
+		}
+
+		public void setSource(@Nullable String source) {
+			this.source = source;
+		}
+
+		@Nullable
+		public Long getUserCount() {
+			return this.userCount;
+		}
+
+		public void setUserCount(@Nullable Long userCount) {
+			this.userCount = userCount;
+		}
+	}
+
+	@NotThreadSafe
+	public static class TrafficSourceSummary {
+		@Nullable
+		private Long usersFromTrafficSourceCount;
+		@Nullable
+		private Long usersTotalCount;
+		@Nullable
+		private Double usersFromTrafficSourcePercentage; // is usersFromTrafficSourceCount / usersTotalCount
+		@Nullable
+		private List<TrafficSourceMediumCount> trafficSourceMediumCounts;
+		@Nullable
+		private List<TrafficSourceSourceCount> trafficSourceSourceCounts;
+
+		@Nullable
+		public Long getUsersFromTrafficSourceCount() {
+			return this.usersFromTrafficSourceCount;
+		}
+
+		public void setUsersFromTrafficSourceCount(@Nullable Long usersFromTrafficSourceCount) {
+			this.usersFromTrafficSourceCount = usersFromTrafficSourceCount;
+		}
+
+		@Nullable
+		public Long getUsersTotalCount() {
+			return this.usersTotalCount;
+		}
+
+		public void setUsersTotalCount(@Nullable Long usersTotalCount) {
+			this.usersTotalCount = usersTotalCount;
+		}
+
+		@Nullable
+		public Double getUsersFromTrafficSourcePercentage() {
+			return this.usersFromTrafficSourcePercentage;
+		}
+
+		public void setUsersFromTrafficSourcePercentage(@Nullable Double usersFromTrafficSourcePercentage) {
+			this.usersFromTrafficSourcePercentage = usersFromTrafficSourcePercentage;
+		}
+
+		@Nullable
+		public List<TrafficSourceMediumCount> getTrafficSourceMediumCounts() {
+			return this.trafficSourceMediumCounts;
+		}
+
+		public void setTrafficSourceMediumCounts(@Nullable List<TrafficSourceMediumCount> trafficSourceMediumCounts) {
+			this.trafficSourceMediumCounts = trafficSourceMediumCounts;
+		}
+
+		@Nullable
+		public List<TrafficSourceSourceCount> getTrafficSourceSourceCounts() {
+			return this.trafficSourceSourceCounts;
+		}
+
+		public void setTrafficSourceSourceCounts(@Nullable List<TrafficSourceSourceCount> trafficSourceSourceCounts) {
+			this.trafficSourceSourceCounts = trafficSourceSourceCounts;
 		}
 	}
 
