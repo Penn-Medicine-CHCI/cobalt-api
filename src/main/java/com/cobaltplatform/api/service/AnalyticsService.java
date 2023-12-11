@@ -419,7 +419,7 @@ public class AnalyticsService implements AutoCloseable {
 
 		pageViewSectionCounts.add(signInPageViewSectionCount);
 
-		// Now, determine user counts (user with any kind of page view during the date range)
+		// Now, determine user counts (user with any kind of event during the date range)
 		String userSql = """
 				WITH aai AS (
 				    select
@@ -591,12 +591,82 @@ public class AnalyticsService implements AutoCloseable {
 		Instant startTimestamp = LocalDateTime.of(startDate, LocalTime.MIN).atZone(institution.getTimeZone()).toInstant();
 		Instant endTimestamp = LocalDateTime.of(endDate, LocalTime.MAX).atZone(institution.getTimeZone()).toInstant();
 
+		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.PATIENT).get();
+
+		// e.g. "referral, organic, (direct), ..."
+		// Distinct by account since an account's events can have the same medium many times
+		List<TrafficSourceMediumCount> trafficSourceMediumCounts = getDatabase().queryForList("""
+				WITH ts AS (
+				   SELECT DISTINCT traffic_source->>'medium' AS medium, account_id
+				   FROM analytics_google_bigquery_event
+				   WHERE account_id IS NOT NULL
+				   AND timestamp BETWEEN ? AND ?
+				   AND institution_id=?
+				)
+				SELECT COUNT(*) AS user_count, ts.medium
+				FROM ts
+				GROUP BY ts.medium
+				ORDER BY user_count DESC
+					""", TrafficSourceMediumCount.class, startTimestamp, endTimestamp, institutionId);
+
+		// e.g. "google, canva.com, yahoo, ..."
+		List<TrafficSourceReferrerCount> trafficSourceReferrerCounts = List.of();
+
+		// If false, use alternative approach of pulling from "event->'parameters'->'page_referrer'" which gives more detail
+		boolean useTrafficSourceReferrer = true;
+
+		if (useTrafficSourceReferrer) {
+			trafficSourceReferrerCounts = getDatabase().queryForList("""
+					WITH ts AS (
+					   SELECT DISTINCT traffic_source->>'source' AS referrer, account_id, institution_id
+					   FROM analytics_google_bigquery_event
+					   WHERE account_id IS NOT NULL
+					   AND timestamp BETWEEN ? AND ?
+					   AND institution_id=?
+					)
+					SELECT COUNT(*) AS user_count, ts.referrer
+					FROM ts
+					GROUP BY ts.referrer
+					ORDER BY user_count DESC
+					""", TrafficSourceReferrerCount.class, startTimestamp, endTimestamp, institutionId);
+		} else {
+			// Distinct by account since an account's events can have the same referrer many times
+			trafficSourceReferrerCounts = getDatabase().queryForList("""
+					WITH rd AS (
+						SELECT DISTINCT event->'parameters'->'page_referrer'->>'value' as referrer, account_id
+						FROM analytics_google_bigquery_event
+						WHERE event->'parameters'->'page_referrer'->>'value' NOT LIKE CONCAT(?, '%')
+						AND account_id IS NOT NULL
+						AND timestamp BETWEEN ? AND ?
+						AND institution_id=?
+					)
+					SELECT COUNT(*) AS user_count, referrer
+					FROM rd
+					GROUP BY referrer
+					ORDER BY user_count DESC
+										""", TrafficSourceReferrerCount.class, webappBaseUrl, startTimestamp, endTimestamp, institutionId);
+		}
+
+//		Long usersTotalCount = getDatabase().queryForObject("""
+//				SELECT COUNT(DISTINCT account_id)
+//				FROM analytics_google_bigquery_event
+//				WHERE account_id IS NOT NULL
+//				AND timestamp BETWEEN ? AND ?
+//				AND institution_id=?
+//				""", Long.class, startTimestamp, endTimestamp, institutionId).get();
+
+		Long usersFromTrafficSourceMediumTotalCount = trafficSourceMediumCounts.stream().count();
+		Long usersFromNonreferralTrafficSourceMediumCount = trafficSourceMediumCounts.stream()
+				.filter(trafficSourceMediumCount -> !trafficSourceMediumCount.getMedium().equals("(none)"))
+				.count();
+		Double usersFromNonreferralTrafficSourceMediumPercentage = usersFromTrafficSourceMediumTotalCount.equals(0L) ? 0D : usersFromNonreferralTrafficSourceMediumCount / usersFromTrafficSourceMediumTotalCount;
+
 		TrafficSourceSummary trafficSourceSummary = new TrafficSourceSummary();
-		trafficSourceSummary.setTrafficSourceMediumCounts(List.of());
-		trafficSourceSummary.setTrafficSourceSourceCounts(List.of());
-		trafficSourceSummary.setUsersTotalCount(0L);
-		trafficSourceSummary.setUsersFromTrafficSourceCount(0L);
-		trafficSourceSummary.setUsersFromTrafficSourcePercentage(0D);
+		trafficSourceSummary.setTrafficSourceMediumCounts(trafficSourceMediumCounts);
+		trafficSourceSummary.setTrafficSourceReferrerCounts(trafficSourceReferrerCounts);
+		trafficSourceSummary.setUsersFromTrafficSourceMediumTotalCount(usersFromTrafficSourceMediumTotalCount);
+		trafficSourceSummary.setUsersFromNonreferralTrafficSourceMediumCount(usersFromNonreferralTrafficSourceMediumCount);
+		trafficSourceSummary.setUsersFromNonreferralTrafficSourceMediumPercentage(usersFromNonreferralTrafficSourceMediumPercentage);
 
 		return trafficSourceSummary;
 	}
@@ -728,19 +798,19 @@ public class AnalyticsService implements AutoCloseable {
 	}
 
 	@NotThreadSafe
-	public static class TrafficSourceSourceCount {
+	public static class TrafficSourceReferrerCount {
 		@Nullable
-		private String source;
+		private String referrer;
 		@Nullable
 		private Long userCount;
 
 		@Nullable
-		public String getSource() {
-			return this.source;
+		public String getReferrer() {
+			return this.referrer;
 		}
 
-		public void setSource(@Nullable String source) {
-			this.source = source;
+		public void setReferrer(@Nullable String referrer) {
+			this.referrer = referrer;
 		}
 
 		@Nullable
@@ -756,41 +826,41 @@ public class AnalyticsService implements AutoCloseable {
 	@NotThreadSafe
 	public static class TrafficSourceSummary {
 		@Nullable
-		private Long usersFromTrafficSourceCount;
+		private Long usersFromTrafficSourceMediumTotalCount;
 		@Nullable
-		private Long usersTotalCount;
+		private Long usersFromNonreferralTrafficSourceMediumCount;
 		@Nullable
-		private Double usersFromTrafficSourcePercentage; // is usersFromTrafficSourceCount / usersTotalCount
+		private Double usersFromNonreferralTrafficSourceMediumPercentage; // is usersFromNonreferralTrafficSourceMediumCount / usersTotalCount
 		@Nullable
 		private List<TrafficSourceMediumCount> trafficSourceMediumCounts;
 		@Nullable
-		private List<TrafficSourceSourceCount> trafficSourceSourceCounts;
+		private List<TrafficSourceReferrerCount> trafficSourceReferrerCounts;
 
 		@Nullable
-		public Long getUsersFromTrafficSourceCount() {
-			return this.usersFromTrafficSourceCount;
+		public Long getUsersFromTrafficSourceMediumTotalCount() {
+			return this.usersFromTrafficSourceMediumTotalCount;
 		}
 
-		public void setUsersFromTrafficSourceCount(@Nullable Long usersFromTrafficSourceCount) {
-			this.usersFromTrafficSourceCount = usersFromTrafficSourceCount;
-		}
-
-		@Nullable
-		public Long getUsersTotalCount() {
-			return this.usersTotalCount;
-		}
-
-		public void setUsersTotalCount(@Nullable Long usersTotalCount) {
-			this.usersTotalCount = usersTotalCount;
+		public void setUsersFromTrafficSourceMediumTotalCount(@Nullable Long usersFromTrafficSourceMediumTotalCount) {
+			this.usersFromTrafficSourceMediumTotalCount = usersFromTrafficSourceMediumTotalCount;
 		}
 
 		@Nullable
-		public Double getUsersFromTrafficSourcePercentage() {
-			return this.usersFromTrafficSourcePercentage;
+		public Long getUsersFromNonreferralTrafficSourceMediumCount() {
+			return this.usersFromNonreferralTrafficSourceMediumCount;
 		}
 
-		public void setUsersFromTrafficSourcePercentage(@Nullable Double usersFromTrafficSourcePercentage) {
-			this.usersFromTrafficSourcePercentage = usersFromTrafficSourcePercentage;
+		public void setUsersFromNonreferralTrafficSourceMediumCount(@Nullable Long usersFromNonreferralTrafficSourceMediumCount) {
+			this.usersFromNonreferralTrafficSourceMediumCount = usersFromNonreferralTrafficSourceMediumCount;
+		}
+
+		@Nullable
+		public Double getUsersFromNonreferralTrafficSourceMediumPercentage() {
+			return this.usersFromNonreferralTrafficSourceMediumPercentage;
+		}
+
+		public void setUsersFromNonreferralTrafficSourceMediumPercentage(@Nullable Double usersFromNonreferralTrafficSourceMediumPercentage) {
+			this.usersFromNonreferralTrafficSourceMediumPercentage = usersFromNonreferralTrafficSourceMediumPercentage;
 		}
 
 		@Nullable
@@ -803,12 +873,12 @@ public class AnalyticsService implements AutoCloseable {
 		}
 
 		@Nullable
-		public List<TrafficSourceSourceCount> getTrafficSourceSourceCounts() {
-			return this.trafficSourceSourceCounts;
+		public List<TrafficSourceReferrerCount> getTrafficSourceReferrerCounts() {
+			return this.trafficSourceReferrerCounts;
 		}
 
-		public void setTrafficSourceSourceCounts(@Nullable List<TrafficSourceSourceCount> trafficSourceSourceCounts) {
-			this.trafficSourceSourceCounts = trafficSourceSourceCounts;
+		public void setTrafficSourceReferrerCounts(@Nullable List<TrafficSourceReferrerCount> trafficSourceReferrerCounts) {
+			this.trafficSourceReferrerCounts = trafficSourceReferrerCounts;
 		}
 	}
 
