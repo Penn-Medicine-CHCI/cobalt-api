@@ -43,8 +43,6 @@ public class CreateContentRequest {
 	@Nullable
 	private String url;
 	@Nullable
-	private String imageUrl;
-	@Nullable
 	private String durationInMinutes;
 	@Nullable
 	private String description;
@@ -62,6 +60,8 @@ public class CreateContentRequest {
 	private Boolean sharedFlag;
 	@Nullable
 	private UUID fileUploadId;
+	@Nullable
+	private UUID imageFileUploadId;
 
 	@Nullable
 	public ContentTypeId getContentTypeId() {
@@ -98,16 +98,6 @@ public class CreateContentRequest {
 	public void setUrl(@Nullable String url) {
 		this.url = url;
 	}
-
-	@Nullable
-	public String getImageUrl() {
-		return imageUrl;
-	}
-
-	public void setImageUrl(@Nullable String imageUrl) {
-		this.imageUrl = imageUrl;
-	}
-
 	@Nullable
 	public String getDurationInMinutes() {
 		return durationInMinutes;
@@ -187,5 +177,14 @@ public class CreateContentRequest {
 
 	public void setFileUploadId(@Nullable UUID fileUploadId) {
 		this.fileUploadId = fileUploadId;
+	}
+
+	@Nullable
+	public UUID getImageFileUploadId() {
+		return imageFileUploadId;
+	}
+
+	public void setImageFileUploadId(@Nullable UUID imageFileUploadId) {
+		this.imageFileUploadId = imageFileUploadId;
 	}
 }

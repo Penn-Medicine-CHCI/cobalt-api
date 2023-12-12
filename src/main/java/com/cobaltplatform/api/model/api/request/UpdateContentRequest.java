@@ -45,8 +45,6 @@ public class UpdateContentRequest {
 	@Nullable
 	private String url;
 	@Nullable
-	private String imageUrl;
-	@Nullable
 	private String durationInMinutes;
 	@Nullable
 	private String description;
@@ -64,6 +62,9 @@ public class UpdateContentRequest {
 	private Boolean sharedFlag;
 	@Nullable
 	private UUID fileUploadId;
+	@Nullable
+	private UUID imageFileUploadId;
+
 	@Nullable
 	public UUID getContentId() {
 		return contentId;
@@ -107,15 +108,6 @@ public class UpdateContentRequest {
 
 	public void setUrl(@Nullable String url) {
 		this.url = url;
-	}
-
-	@Nullable
-	public String getImageUrl() {
-		return imageUrl;
-	}
-
-	public void setImageUrl(@Nullable String imageUrl) {
-		this.imageUrl = imageUrl;
 	}
 
 	@Nullable
@@ -197,5 +189,14 @@ public class UpdateContentRequest {
 
 	public void setFileUploadId(@Nullable UUID fileUploadId) {
 		this.fileUploadId = fileUploadId;
+	}
+
+	@Nullable
+	public UUID getImageFileUploadId() {
+		return imageFileUploadId;
+	}
+
+	public void setImageFileUploadId(@Nullable UUID imageFileUploadId) {
+		this.imageFileUploadId = imageFileUploadId;
 	}
 }

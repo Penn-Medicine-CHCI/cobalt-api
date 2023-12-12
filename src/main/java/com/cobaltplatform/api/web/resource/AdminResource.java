@@ -22,7 +22,6 @@ package com.cobaltplatform.api.web.resource;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateContentRequest;
 import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
-import com.cobaltplatform.api.model.api.request.CreatePresignedUploadRequest;
 import com.cobaltplatform.api.model.api.request.UpdateContentRequest;
 import com.cobaltplatform.api.model.api.response.AdminContentApiResponse.AdminContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AdminInstitutionApiResponse.AdminInstitutionApiResponseFactory;
@@ -44,7 +43,6 @@ import com.cobaltplatform.api.model.service.AdminContent;
 import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.service.AdminContentService;
-import com.cobaltplatform.api.model.service.PresignedUpload;
 import com.cobaltplatform.api.service.AssessmentService;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.ImageUploadService;
@@ -296,24 +294,6 @@ public class AdminResource {
 			put("contentId", contentId);
 		}});
 
-	}
-
-	@Nonnull
-	@POST("/admin/content/image-presigned-upload")
-	@AuthenticationRequired
-	public ApiResponse createContentImagePresignedUpload(@Nonnull @RequestBody String requestBody) {
-		requireNonNull(requestBody);
-
-		Account account = getCurrentContext().getAccount().get();
-
-		CreatePresignedUploadRequest request = getRequestBodyParser().parse(requestBody, CreatePresignedUploadRequest.class);
-		request.setAccountId(account.getAccountId());
-
-		PresignedUpload presignedUpload = getImageUploadService().generatePresignedUploadForContent(request);
-
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("presignedUpload", getPresignedUploadApiResponseFactory().create(presignedUpload));
-		}});
 	}
 
 	@Nonnull

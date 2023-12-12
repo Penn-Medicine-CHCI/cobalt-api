@@ -261,7 +261,6 @@ public class AdminContentService {
 		UUID contentId = UUID.randomUUID();
 		String title = trimToNull(command.getTitle());
 		String url = trimToNull(command.getUrl());
-		String imageUrl = trimToNull(command.getImageUrl());
 		String description = trimToNull(command.getDescription());
 		String author = trimToNull(command.getAuthor());
 		ContentTypeId contentTypeId = command.getContentTypeId();
@@ -273,6 +272,7 @@ public class AdminContentService {
 		String searchTerms = trimToNull(command.getSearchTerms());
 		Boolean sharedFlag = command.getSharedFlag();
 		UUID fileUploadId = command.getFileUploadId();
+		UUID imageFileUploadId = command.getImageFileUploadId();
 
 		ValidationException validationException = new ValidationException();
 
@@ -318,14 +318,15 @@ public class AdminContentService {
 		InstitutionId ownerInstitutionId = account.getInstitutionId();
 
 		getDatabase().execute("""
-						INSERT INTO content (content_id, content_type_id, title, url, image_url,
+						INSERT INTO content (content_id, content_type_id, title, url,
 						duration_in_minutes, description, author, shared_flag,
-						search_terms, publish_start_date, publish_end_date, publish_recurring, owner_institution_id, date_created, file_upload_id)
-						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?, now(),?)												
+						search_terms, publish_start_date, publish_end_date, publish_recurring, owner_institution_id, date_created, 
+						file_upload_id, image_file_upload_id)
+						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,now(),?,?)												
 						""",
-				contentId, command.getContentTypeId(), title, url, imageUrl,
+				contentId, command.getContentTypeId(), title, url,
 				durationInMinutes, description, author, sharedFlag,
-				searchTerms, publishStartDate, publishEndDate, publishRecurring, ownerInstitutionId, fileUploadId);
+				searchTerms, publishStartDate, publishEndDate, publishRecurring, ownerInstitutionId, fileUploadId, imageFileUploadId);
 
 		addContentToInstitution(contentId, account);
 
@@ -355,7 +356,6 @@ public class AdminContentService {
 
 		String titleCommand = trimToNull(command.getTitle());
 		String urlCommand = trimToNull(command.getUrl());
-		String imageUrlCommand = trimToNull(command.getImageUrl());
 		String descriptionCommand = trimToNull(command.getDescription());
 		String authorCommand = trimToNull(command.getAuthor());
 		ContentTypeId contentTypeIdCommand = command.getContentTypeId();
@@ -367,6 +367,7 @@ public class AdminContentService {
 		String searchTerms = trimToNull(command.getSearchTerms());
 		Boolean sharedFlag = command.getSharedFlag();
 		UUID fileUploadId = command.getFileUploadId();
+		UUID imageFileUploadId = command.getFileUploadId();
 
 		ValidationException validationException = new ValidationException();
 
@@ -381,10 +382,6 @@ public class AdminContentService {
 				if (!urlCommand.startsWith("http://") && !urlCommand.startsWith("https://"))
 					urlCommand = format("https://%s", urlCommand);
 				existingContent.setUrl(urlCommand);
-			}
-
-			if (imageUrlCommand != null) {
-				existingContent.setImageUrl(imageUrlCommand);
 			}
 
 			if (descriptionCommand != null) {
@@ -416,10 +413,16 @@ public class AdminContentService {
 
 			if (fileUploadId != null)
 				existingContent.setFileUploadId(fileUploadId);
+
+			if (imageFileUploadId != null)
+				existingContent.setImageFileUploadId(imageFileUploadId);
 		}
 
 		if (durationInMinutesString != null && !ValidationUtility.isValidInteger(durationInMinutesString))
 			validationException.add(new FieldError("durationInMinutes", getStrings().get("Must be an integer")));
+
+		if (fileUploadId != null && urlCommand != null)
+			validationException.add(new FieldError("url", getStrings().get("Can only specify a file url or a file upload url ")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -427,15 +430,19 @@ public class AdminContentService {
 		Integer durationInMinutes = durationInMinutesString == null ? null : Integer.parseInt(durationInMinutesString);
 		boolean shouldNotify = false;
 
+		// If there is a url specified then null out the fileUploadId in case this content previously had a fileUploadId
+		if (urlCommand != null)
+			existingContent.setFileUploadId(null);
+
 		getDatabase().execute("""
-							 	UPDATE content SET content_type_id=?, title=?, url=?, image_url=?, 
+							 	UPDATE content SET content_type_id=?, title=?, url=?, 
 							 	duration_in_minutes=?, description=?, author=?, publish_start_date=?, publish_end_date=?,
-							 	publish_recurring=?, search_terms=?, shared_flag=?, file_upload_id=?
+							 	publish_recurring=?, search_terms=?, shared_flag=?, file_upload_id=?, image_file_upload_id=?
 								WHERE content_id=?
 						""",
-				existingContent.getContentTypeId(), existingContent.getTitle(), existingContent.getUrl(), existingContent.getImageUrl(),
+				existingContent.getContentTypeId(), existingContent.getTitle(), existingContent.getUrl(),
 				durationInMinutes, existingContent.getDescription(), existingContent.getAuthor(), existingContent.getPublishStartDate(), existingContent.getPublishEndDate(),
-				existingContent.getPublishRecurring(), existingContent.getSearchTerms(), existingContent.getSharedFlag(),existingContent.getFileUploadId(),
+				existingContent.getPublishRecurring(), existingContent.getSearchTerms(), existingContent.getSharedFlag(),existingContent.getFileUploadId(), existingContent.getImageFileUploadId(),
 				existingContent.getContentId());
 
 		AdminContent adminContent = findAdminContentByIdForInstitution(account.getInstitutionId(), command.getContentId()).orElse(null);

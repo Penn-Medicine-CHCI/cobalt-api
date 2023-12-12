@@ -91,6 +91,9 @@ public class AdminContent{
 	private UUID fileUploadId;
 
 	@Nullable
+	private UUID imageFileUploadId;
+
+	@Nullable
 	private String inUseInstitutionDescription;
 
 	@Nullable
@@ -362,5 +365,14 @@ public class AdminContent{
 
 	public void setFileContentType(@Nullable String fileContentType) {
 		this.fileContentType = fileContentType;
+	}
+
+	@Nullable
+	public UUID getImageFileUploadId() {
+		return imageFileUploadId;
+	}
+
+	public void setImageFileUploadId(@Nullable UUID imageFileUploadId) {
+		this.imageFileUploadId = imageFileUploadId;
 	}
 }
