@@ -97,12 +97,14 @@ public class AnalyticsResource {
 		Map<AccountSourceId, Long> activeUserCountsByAccountSourceId = getAnalyticsService().findActiveUserCountsByAccountSourceId(institutionId, startDate, endDate);
 		List<SectionCountSummary> sectionCountSummaries = getAnalyticsService().findSectionCountSummaries(institutionId, startDate, endDate);
 		TrafficSourceSummary trafficSourceSummary = getAnalyticsService().findTrafficSourceSummary(institutionId, startDate, endDate);
+		Map<String, Long> activeUserCountsByInstitutionLocation = getAnalyticsService().findActiveUserCountsByInstitutionLocation(institutionId, startDate, endDate);
 
 		// NOTE: this is a WIP
 
 		Map<String, Object> response = new HashMap<>();
 		response.put("activeUserCountsNewVersusReturning", activeUserCountsNewVersusReturning);
 		response.put("activeUserCountsByAccountSourceId", activeUserCountsByAccountSourceId);
+		response.put("activeUserCountsByInstitutionLocation", activeUserCountsByInstitutionLocation);
 		response.put("sectionCountSummaries", sectionCountSummaries);
 		response.put("trafficSourceSummary", trafficSourceSummary);
 
