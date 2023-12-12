@@ -27,6 +27,7 @@ import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AnalyticsService;
 import com.cobaltplatform.api.service.AnalyticsService.AnalyticsResultNewVersusReturning;
 import com.cobaltplatform.api.service.AnalyticsService.SectionCountSummary;
+import com.cobaltplatform.api.service.AnalyticsService.TrafficSourceSummary;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.QueryParameter;
@@ -95,6 +96,7 @@ public class AnalyticsResource {
 		AnalyticsResultNewVersusReturning activeUserCountsNewVersusReturning = getAnalyticsService().findActiveUserCountsNewVersusReturning(institutionId, startDate, endDate);
 		Map<AccountSourceId, Long> activeUserCountsByAccountSourceId = getAnalyticsService().findActiveUserCountsByAccountSourceId(institutionId, startDate, endDate);
 		List<SectionCountSummary> sectionCountSummaries = getAnalyticsService().findSectionCountSummaries(institutionId, startDate, endDate);
+		TrafficSourceSummary trafficSourceSummary = getAnalyticsService().findTrafficSourceSummary(institutionId, startDate, endDate);
 
 		// NOTE: this is a WIP
 
@@ -102,6 +104,7 @@ public class AnalyticsResource {
 		response.put("activeUserCountsNewVersusReturning", activeUserCountsNewVersusReturning);
 		response.put("activeUserCountsByAccountSourceId", activeUserCountsByAccountSourceId);
 		response.put("sectionCountSummaries", sectionCountSummaries);
+		response.put("trafficSourceSummary", trafficSourceSummary);
 
 		return new ApiResponse(response);
 	}

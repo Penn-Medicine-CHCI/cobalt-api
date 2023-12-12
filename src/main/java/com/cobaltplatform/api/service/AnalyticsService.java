@@ -213,42 +213,92 @@ public class AnalyticsService implements AutoCloseable {
 		requireNonNull(startDate);
 		requireNonNull(endDate);
 
-		GoogleAnalyticsDataClient googleAnalyticsDataClient = googleAnalyticsDataClientForInstitutionId(institutionId);
+		if (endDate.isBefore(startDate))
+			throw new ValidationException(getStrings().get("End date cannot be before start date."));
 
-		RunReportRequest request = RunReportRequest.newBuilder()
-				.setProperty(format("properties/%s", googleAnalyticsDataClient.getGa4PropertyId()))
-				.addDimensions(Dimension.newBuilder().setName("newVsReturning"))
-				.addMetrics(Metric.newBuilder().setName("activeUsers"))
-				.addDateRanges(DateRange.newBuilder()
-						.setStartDate(DateTimeFormatter.ISO_LOCAL_DATE.format(startDate))
-						.setEndDate(DateTimeFormatter.ISO_LOCAL_DATE.format(endDate)))
-				.build();
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		Instant startTimestamp = LocalDateTime.of(startDate, LocalTime.MIN).atZone(institution.getTimeZone()).toInstant();
+		Instant endTimestamp = LocalDateTime.of(endDate, LocalTime.MAX).atZone(institution.getTimeZone()).toInstant();
 
-		RunReportResponse response = googleAnalyticsDataClient.runReport(request);
+		// We were previously using GA4 API for this
+		boolean useGoogleAnalytics = false;
 
-		Long newActiveUsers = 0L;
-		Long returningActiveUsers = 0L;
-		Long otherActiveUsers = 0L;
+		if (useGoogleAnalytics) {
+			GoogleAnalyticsDataClient googleAnalyticsDataClient = googleAnalyticsDataClientForInstitutionId(institutionId);
 
-		for (Row row : response.getRowsList()) {
-			String dimensionName = row.getDimensionValuesCount() > 0 ? row.getDimensionValues(0).getValue() : null;
-			Long metricCount = row.getMetricValuesCount() > 0 ? Long.valueOf(row.getMetricValues(0).getValue()) : 0;
+			RunReportRequest request = RunReportRequest.newBuilder()
+					.setProperty(format("properties/%s", googleAnalyticsDataClient.getGa4PropertyId()))
+					.addDimensions(Dimension.newBuilder().setName("newVsReturning"))
+					.addMetrics(Metric.newBuilder().setName("activeUsers"))
+					.addDateRanges(DateRange.newBuilder()
+							.setStartDate(DateTimeFormatter.ISO_LOCAL_DATE.format(startDate))
+							.setEndDate(DateTimeFormatter.ISO_LOCAL_DATE.format(endDate)))
+					.build();
 
-			if (dimensionName == null)
-				continue;
+			RunReportResponse response = googleAnalyticsDataClient.runReport(request);
 
-			if ("new".equals(dimensionName)) {
-				newActiveUsers = metricCount;
-			} else if ("returning".equals(dimensionName)) {
-				returningActiveUsers = metricCount;
-			} else if ("(not set)".equals(dimensionName)) {
-				otherActiveUsers = metricCount;
-			} else {
-				getLogger().warn("Unrecognized dimension name '{}' (metric value {})", dimensionName, metricCount);
+			Long newActiveUsers = 0L;
+			Long returningActiveUsers = 0L;
+			Long otherActiveUsers = 0L;
+
+			for (Row row : response.getRowsList()) {
+				String dimensionName = row.getDimensionValuesCount() > 0 ? row.getDimensionValues(0).getValue() : null;
+				Long metricCount = row.getMetricValuesCount() > 0 ? Long.valueOf(row.getMetricValues(0).getValue()) : 0;
+
+				if (dimensionName == null)
+					continue;
+
+				if ("new".equals(dimensionName)) {
+					newActiveUsers = metricCount;
+				} else if ("returning".equals(dimensionName)) {
+					returningActiveUsers = metricCount;
+				} else if ("(not set)".equals(dimensionName)) {
+					otherActiveUsers = metricCount;
+				} else {
+					getLogger().warn("Unrecognized dimension name '{}' (metric value {})", dimensionName, metricCount);
+				}
 			}
+
+			return new AnalyticsResultNewVersusReturning(newActiveUsers, returningActiveUsers, otherActiveUsers);
 		}
 
-		return new AnalyticsResultNewVersusReturning(newActiveUsers, returningActiveUsers, otherActiveUsers);
+
+		// Instead of calling the GA4 API, we query against our own database's BigQuery records for this information
+		// so numbers are consistent with other sections.
+
+		Long newUserCount;
+		Long returningUserCount;
+		Long otherUserCount = 0L; // This value only comes from GA4 API; we don't use it when pulling from BigQuery data
+
+		newUserCount = getDatabase().queryForObject("""
+				SELECT COUNT(DISTINCT account_id) AS count
+				FROM v_analytics_account_interaction
+				WHERE account_id IS NOT NULL
+				AND activity_timestamp BETWEEN ? AND ?
+				AND institution_id=?
+				AND account_id NOT IN (
+				  SELECT account_id
+				  FROM account
+				  WHERE institution_id=?
+				  AND created < ?
+				)
+				""", Long.class, startTimestamp, endTimestamp, institutionId, institutionId, startTimestamp).get();
+
+		returningUserCount = getDatabase().queryForObject("""
+				SELECT COUNT(DISTINCT account_id) AS count
+				FROM v_analytics_account_interaction
+				WHERE account_id IS NOT NULL
+				AND activity_timestamp BETWEEN ? AND ?
+				AND institution_id=?
+				AND account_id IN (
+				  SELECT account_id
+				  FROM account
+				  WHERE institution_id=?
+				  AND created < ?
+				)
+				""", Long.class, startTimestamp, endTimestamp, institutionId, institutionId, startTimestamp).get();
+
+		return new AnalyticsResultNewVersusReturning(newUserCount, returningUserCount, otherUserCount);
 	}
 
 	/**
@@ -284,6 +334,82 @@ public class AnalyticsService implements AutoCloseable {
 			activeUserCountsByAccountSourceId.put(accountSourceIdCount.getAccountSourceId(), accountSourceIdCount.getCount());
 
 		return activeUserCountsByAccountSourceId;
+	}
+
+	@Nonnull
+	public Map<String, Long> findActiveUserCountsByInstitutionLocation(@Nonnull InstitutionId institutionId,
+																																		 @Nonnull LocalDate startDate,
+																																		 @Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		if (endDate.isBefore(startDate))
+			throw new ValidationException(getStrings().get("End date cannot be before start date."));
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		Instant startTimestamp = LocalDateTime.of(startDate, LocalTime.MIN).atZone(institution.getTimeZone()).toInstant();
+		Instant endTimestamp = LocalDateTime.of(endDate, LocalTime.MAX).atZone(institution.getTimeZone()).toInstant();
+
+		// Accounts that have institution locations
+		List<AccountSourceInstitutionLocationCount> accountSourceInstitutionLocationCounts = getDatabase().queryForList("""
+				SELECT COUNT(DISTINCT a.account_id) AS count, il.name AS institution_location_description
+				FROM account a, v_analytics_account_interaction aai, institution_location il
+				WHERE a.account_id=aai.account_id
+				AND aai.activity_timestamp BETWEEN ? AND ?
+				AND aai.institution_id=?
+				AND a.institution_location_id=il.institution_location_id
+				GROUP BY il.name
+				""", AccountSourceInstitutionLocationCount.class, startTimestamp, endTimestamp, institutionId);
+
+		final String NOT_ASKED_LABEL = getStrings().get("Not Asked");
+
+		// Accounts that do NOT have an institution location and were never asked to provide one
+		AccountSourceInstitutionLocationCount accountSourceInstitutionNotAskedLocationCount = getDatabase().queryForObject("""
+				SELECT COUNT(DISTINCT a.account_id) AS count, ? AS institution_location_description
+				FROM account a, v_analytics_account_interaction aai
+				WHERE a.account_id=aai.account_id
+				AND aai.activity_timestamp BETWEEN ? AND ?
+				AND aai.institution_id=?
+				AND a.institution_location_id IS NULL
+				AND a.prompted_for_institution_location=FALSE
+				GROUP BY institution_location_description
+				""", AccountSourceInstitutionLocationCount.class, NOT_ASKED_LABEL, startTimestamp, endTimestamp, institutionId).orElse(null);
+
+		if (accountSourceInstitutionNotAskedLocationCount == null) {
+			accountSourceInstitutionNotAskedLocationCount = new AccountSourceInstitutionLocationCount();
+			accountSourceInstitutionNotAskedLocationCount.setCount(0L);
+			accountSourceInstitutionNotAskedLocationCount.setInstitutionLocationDescription(NOT_ASKED_LABEL);
+		}
+
+		final String DECLINED_TO_ANSWER_LABEL = getStrings().get("Declined to Answer");
+
+		// Accounts that do NOT have an institution location even though they were asked to pick one
+		AccountSourceInstitutionLocationCount accountSourceInstitutionDeclinedToAnswerLocationCount = getDatabase().queryForObject("""
+				SELECT COUNT(DISTINCT a.account_id) AS count, ? AS institution_location_description
+				FROM account a, v_analytics_account_interaction aai
+				WHERE a.account_id=aai.account_id
+				AND aai.activity_timestamp BETWEEN ? AND ?
+				AND aai.institution_id=?
+				AND a.institution_location_id IS NULL
+				AND a.prompted_for_institution_location=TRUE
+				GROUP BY institution_location_description
+				""", AccountSourceInstitutionLocationCount.class, DECLINED_TO_ANSWER_LABEL, startTimestamp, endTimestamp, institutionId).orElse(null);
+
+		if (accountSourceInstitutionDeclinedToAnswerLocationCount == null) {
+			accountSourceInstitutionDeclinedToAnswerLocationCount = new AccountSourceInstitutionLocationCount();
+			accountSourceInstitutionDeclinedToAnswerLocationCount.setCount(0L);
+			accountSourceInstitutionDeclinedToAnswerLocationCount.setInstitutionLocationDescription(DECLINED_TO_ANSWER_LABEL);
+		}
+
+		Map<String, Long> activeUserCountsByInstitutionLocation = new HashMap<>();
+		activeUserCountsByInstitutionLocation.put(accountSourceInstitutionNotAskedLocationCount.getInstitutionLocationDescription(), accountSourceInstitutionNotAskedLocationCount.getCount());
+		activeUserCountsByInstitutionLocation.put(accountSourceInstitutionDeclinedToAnswerLocationCount.getInstitutionLocationDescription(), accountSourceInstitutionDeclinedToAnswerLocationCount.getCount());
+
+		for (AccountSourceInstitutionLocationCount accountSourceInstitutionLocationCount : accountSourceInstitutionLocationCounts)
+			activeUserCountsByInstitutionLocation.put(accountSourceInstitutionLocationCount.getInstitutionLocationDescription(), accountSourceInstitutionLocationCount.getCount());
+
+		return activeUserCountsByInstitutionLocation;
 	}
 
 	/**
@@ -409,7 +535,7 @@ public class AnalyticsService implements AutoCloseable {
 
 		pageViewSectionCounts.add(signInPageViewSectionCount);
 
-		// Now, determine user counts (user with any kind of page view during the date range)
+		// Now, determine user counts (user with any kind of event during the date range)
 		String userSql = """
 				WITH aai AS (
 				    select
@@ -566,6 +692,101 @@ public class AnalyticsService implements AutoCloseable {
 		return sectionCountSummaries;
 	}
 
+	@Nonnull
+	public TrafficSourceSummary findTrafficSourceSummary(@Nonnull InstitutionId institutionId,
+																											 @Nonnull LocalDate startDate,
+																											 @Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		if (endDate.isBefore(startDate))
+			throw new ValidationException(getStrings().get("End date cannot be before start date."));
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		Instant startTimestamp = LocalDateTime.of(startDate, LocalTime.MIN).atZone(institution.getTimeZone()).toInstant();
+		Instant endTimestamp = LocalDateTime.of(endDate, LocalTime.MAX).atZone(institution.getTimeZone()).toInstant();
+
+		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.PATIENT).get();
+
+		// e.g. "referral, organic, (direct), ..."
+		// Distinct by account since an account's events can have the same medium many times
+		List<TrafficSourceMediumCount> trafficSourceMediumCounts = getDatabase().queryForList("""
+				WITH ts AS (
+				   SELECT DISTINCT traffic_source->>'medium' AS medium, account_id
+				   FROM analytics_google_bigquery_event
+				   WHERE account_id IS NOT NULL
+				   AND timestamp BETWEEN ? AND ?
+				   AND institution_id=?
+				)
+				SELECT COUNT(*) AS user_count, ts.medium
+				FROM ts
+				GROUP BY ts.medium
+				ORDER BY user_count DESC
+					""", TrafficSourceMediumCount.class, startTimestamp, endTimestamp, institutionId);
+
+		// e.g. "google, canva.com, yahoo, ..."
+		List<TrafficSourceReferrerCount> trafficSourceReferrerCounts = List.of();
+
+		// If false, use alternative approach of pulling from "event->'parameters'->'page_referrer'" which gives more detail
+		boolean useTrafficSourceReferrer = true;
+
+		if (useTrafficSourceReferrer) {
+			trafficSourceReferrerCounts = getDatabase().queryForList("""
+					WITH ts AS (
+					   SELECT DISTINCT traffic_source->>'source' AS referrer, account_id, institution_id
+					   FROM analytics_google_bigquery_event
+					   WHERE account_id IS NOT NULL
+					   AND timestamp BETWEEN ? AND ?
+					   AND institution_id=?
+					)
+					SELECT COUNT(*) AS user_count, ts.referrer
+					FROM ts
+					GROUP BY ts.referrer
+					ORDER BY user_count DESC
+					""", TrafficSourceReferrerCount.class, startTimestamp, endTimestamp, institutionId);
+		} else {
+			// Distinct by account since an account's events can have the same referrer many times
+			trafficSourceReferrerCounts = getDatabase().queryForList("""
+					WITH rd AS (
+						SELECT DISTINCT event->'parameters'->'page_referrer'->>'value' as referrer, account_id
+						FROM analytics_google_bigquery_event
+						WHERE event->'parameters'->'page_referrer'->>'value' NOT LIKE CONCAT(?, '%')
+						AND account_id IS NOT NULL
+						AND timestamp BETWEEN ? AND ?
+						AND institution_id=?
+					)
+					SELECT COUNT(*) AS user_count, referrer
+					FROM rd
+					GROUP BY referrer
+					ORDER BY user_count DESC
+										""", TrafficSourceReferrerCount.class, webappBaseUrl, startTimestamp, endTimestamp, institutionId);
+		}
+
+//		Long usersTotalCount = getDatabase().queryForObject("""
+//				SELECT COUNT(DISTINCT account_id)
+//				FROM analytics_google_bigquery_event
+//				WHERE account_id IS NOT NULL
+//				AND timestamp BETWEEN ? AND ?
+//				AND institution_id=?
+//				""", Long.class, startTimestamp, endTimestamp, institutionId).get();
+
+		Long usersFromTrafficSourceMediumTotalCount = trafficSourceMediumCounts.stream().count();
+		Long usersFromNonreferralTrafficSourceMediumCount = trafficSourceMediumCounts.stream()
+				.filter(trafficSourceMediumCount -> !trafficSourceMediumCount.getMedium().equals("(none)"))
+				.count();
+		Double usersFromNonreferralTrafficSourceMediumPercentage = usersFromTrafficSourceMediumTotalCount.equals(0L) ? 0D : usersFromNonreferralTrafficSourceMediumCount / usersFromTrafficSourceMediumTotalCount;
+
+		TrafficSourceSummary trafficSourceSummary = new TrafficSourceSummary();
+		trafficSourceSummary.setTrafficSourceMediumCounts(trafficSourceMediumCounts);
+		trafficSourceSummary.setTrafficSourceReferrerCounts(trafficSourceReferrerCounts);
+		trafficSourceSummary.setUsersFromTrafficSourceMediumTotalCount(usersFromTrafficSourceMediumTotalCount);
+		trafficSourceSummary.setUsersFromNonreferralTrafficSourceMediumCount(usersFromNonreferralTrafficSourceMediumCount);
+		trafficSourceSummary.setUsersFromNonreferralTrafficSourceMediumPercentage(usersFromNonreferralTrafficSourceMediumPercentage);
+
+		return trafficSourceSummary;
+	}
+
 	@NotThreadSafe
 	protected static class SectionCount {
 		@Nullable
@@ -663,6 +884,180 @@ public class AnalyticsService implements AutoCloseable {
 
 		public void setAccountSourceId(@Nullable AccountSourceId accountSourceId) {
 			this.accountSourceId = accountSourceId;
+		}
+	}
+
+	@NotThreadSafe
+	protected static class AccountSourceInstitutionLocationCount {
+		@Nullable
+		private Long count;
+		@Nullable
+		private String institutionLocationDescription;
+
+		@Nullable
+		public Long getCount() {
+			return this.count;
+		}
+
+		public void setCount(@Nullable Long count) {
+			this.count = count;
+		}
+
+		@Nullable
+		public String getInstitutionLocationDescription() {
+			return this.institutionLocationDescription;
+		}
+
+		public void setInstitutionLocationDescription(@Nullable String institutionLocationDescription) {
+			this.institutionLocationDescription = institutionLocationDescription;
+		}
+	}
+
+	@NotThreadSafe
+	public static class TrafficSourceMediumCount {
+		@Nullable
+		private String medium;
+		@Nullable
+		private Long userCount;
+
+		@Nullable
+		public String getMedium() {
+			return this.medium;
+		}
+
+		public void setMedium(@Nullable String medium) {
+			this.medium = medium;
+		}
+
+		@Nullable
+		public Long getUserCount() {
+			return this.userCount;
+		}
+
+		public void setUserCount(@Nullable Long userCount) {
+			this.userCount = userCount;
+		}
+	}
+
+	@NotThreadSafe
+	public static class TrafficSourceReferrerCount {
+		@Nullable
+		private String referrer;
+		@Nullable
+		private Long userCount;
+
+		@Nullable
+		public String getReferrer() {
+			return this.referrer;
+		}
+
+		public void setReferrer(@Nullable String referrer) {
+			this.referrer = referrer;
+		}
+
+		@Nullable
+		public Long getUserCount() {
+			return this.userCount;
+		}
+
+		public void setUserCount(@Nullable Long userCount) {
+			this.userCount = userCount;
+		}
+	}
+
+	@NotThreadSafe
+	public static class TrafficSourceSummary {
+		@Nullable
+		private Long usersFromTrafficSourceMediumTotalCount;
+		@Nullable
+		private Long usersFromNonreferralTrafficSourceMediumCount;
+		@Nullable
+		private Double usersFromNonreferralTrafficSourceMediumPercentage; // is usersFromNonreferralTrafficSourceMediumCount / usersTotalCount
+		@Nullable
+		private List<TrafficSourceMediumCount> trafficSourceMediumCounts;
+		@Nullable
+		private List<TrafficSourceReferrerCount> trafficSourceReferrerCounts;
+
+		@Nullable
+		public Long getUsersFromTrafficSourceMediumTotalCount() {
+			return this.usersFromTrafficSourceMediumTotalCount;
+		}
+
+		public void setUsersFromTrafficSourceMediumTotalCount(@Nullable Long usersFromTrafficSourceMediumTotalCount) {
+			this.usersFromTrafficSourceMediumTotalCount = usersFromTrafficSourceMediumTotalCount;
+		}
+
+		@Nullable
+		public Long getUsersFromNonreferralTrafficSourceMediumCount() {
+			return this.usersFromNonreferralTrafficSourceMediumCount;
+		}
+
+		public void setUsersFromNonreferralTrafficSourceMediumCount(@Nullable Long usersFromNonreferralTrafficSourceMediumCount) {
+			this.usersFromNonreferralTrafficSourceMediumCount = usersFromNonreferralTrafficSourceMediumCount;
+		}
+
+		@Nullable
+		public Double getUsersFromNonreferralTrafficSourceMediumPercentage() {
+			return this.usersFromNonreferralTrafficSourceMediumPercentage;
+		}
+
+		public void setUsersFromNonreferralTrafficSourceMediumPercentage(@Nullable Double usersFromNonreferralTrafficSourceMediumPercentage) {
+			this.usersFromNonreferralTrafficSourceMediumPercentage = usersFromNonreferralTrafficSourceMediumPercentage;
+		}
+
+		@Nullable
+		public List<TrafficSourceMediumCount> getTrafficSourceMediumCounts() {
+			return this.trafficSourceMediumCounts;
+		}
+
+		public void setTrafficSourceMediumCounts(@Nullable List<TrafficSourceMediumCount> trafficSourceMediumCounts) {
+			this.trafficSourceMediumCounts = trafficSourceMediumCounts;
+		}
+
+		@Nullable
+		public List<TrafficSourceReferrerCount> getTrafficSourceReferrerCounts() {
+			return this.trafficSourceReferrerCounts;
+		}
+
+		public void setTrafficSourceReferrerCounts(@Nullable List<TrafficSourceReferrerCount> trafficSourceReferrerCounts) {
+			this.trafficSourceReferrerCounts = trafficSourceReferrerCounts;
+		}
+	}
+
+	@ThreadSafe
+	public static class AnalyticsResultNewVersusReturning {
+		@Nonnull
+		private final Long newUserCount;
+		@Nonnull
+		private final Long returningUserCount;
+		@Nonnull
+		private final Long otherUserCount;
+
+		public AnalyticsResultNewVersusReturning(@Nonnull Long newUserCount,
+																						 @Nonnull Long returningUserCount,
+																						 @Nonnull Long otherUserCount) {
+			requireNonNull(newUserCount);
+			requireNonNull(returningUserCount);
+			requireNonNull(otherUserCount);
+
+			this.newUserCount = newUserCount;
+			this.returningUserCount = returningUserCount;
+			this.otherUserCount = otherUserCount;
+		}
+
+		@Nonnull
+		public Long getNewUserCount() {
+			return this.newUserCount;
+		}
+
+		@Nonnull
+		public Long getReturningUserCount() {
+			return this.returningUserCount;
+		}
+
+		@Nonnull
+		public Long getOtherUserCount() {
+			return this.otherUserCount;
 		}
 	}
 
@@ -796,43 +1191,6 @@ public class AnalyticsService implements AutoCloseable {
 	protected GoogleAnalyticsDataClient googleAnalyticsDataClientForInstitutionId(@Nonnull InstitutionId institutionId) {
 		requireNonNull(institutionId);
 		return getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId).googleAnalyticsDataClient();
-	}
-
-	@ThreadSafe
-	public static class AnalyticsResultNewVersusReturning {
-		@Nonnull
-		private final Long newActiveUsers;
-		@Nonnull
-		private final Long returningActiveUsers;
-		@Nonnull
-		private final Long otherActiveUsers;
-
-		public AnalyticsResultNewVersusReturning(@Nonnull Long newActiveUsers,
-																						 @Nonnull Long returningActiveUsers,
-																						 @Nonnull Long otherActiveUsers) {
-			requireNonNull(newActiveUsers);
-			requireNonNull(returningActiveUsers);
-			requireNonNull(otherActiveUsers);
-
-			this.newActiveUsers = newActiveUsers;
-			this.returningActiveUsers = returningActiveUsers;
-			this.otherActiveUsers = otherActiveUsers;
-		}
-
-		@Nonnull
-		public Long getNewActiveUsers() {
-			return this.newActiveUsers;
-		}
-
-		@Nonnull
-		public Long getReturningActiveUsers() {
-			return this.returningActiveUsers;
-		}
-
-		@Nonnull
-		public Long getOtherActiveUsers() {
-			return this.otherActiveUsers;
-		}
 	}
 
 	@ThreadSafe
