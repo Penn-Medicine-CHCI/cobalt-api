@@ -141,7 +141,8 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/134-epic-cance
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/135-google-bigquery.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/136-late-november.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/137-suds-thermometer.sql
-PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/138-content-admin.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/138-analytics.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/139-content-admin.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

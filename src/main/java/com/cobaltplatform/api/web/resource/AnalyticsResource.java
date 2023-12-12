@@ -20,15 +20,19 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AnalyticsService;
 import com.cobaltplatform.api.service.AnalyticsService.AnalyticsResultNewVersusReturning;
+import com.cobaltplatform.api.service.AnalyticsService.SectionCountSummary;
+import com.cobaltplatform.api.service.AnalyticsService.TrafficSourceSummary;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.Resource;
+import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.response.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +44,7 @@ import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
@@ -82,22 +87,26 @@ public class AnalyticsResource {
 		requireNonNull(startDate);
 		requireNonNull(endDate);
 
-		// TODO: authorization service check
-
 		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+		Account account = getCurrentContext().getAccount().get();
+
+		if (!getAuthorizationService().canViewAnalytics(institutionId, account))
+			throw new AuthorizationException();
+
 		AnalyticsResultNewVersusReturning activeUserCountsNewVersusReturning = getAnalyticsService().findActiveUserCountsNewVersusReturning(institutionId, startDate, endDate);
 		Map<AccountSourceId, Long> activeUserCountsByAccountSourceId = getAnalyticsService().findActiveUserCountsByAccountSourceId(institutionId, startDate, endDate);
+		List<SectionCountSummary> sectionCountSummaries = getAnalyticsService().findSectionCountSummaries(institutionId, startDate, endDate);
+		TrafficSourceSummary trafficSourceSummary = getAnalyticsService().findTrafficSourceSummary(institutionId, startDate, endDate);
+		Map<String, Long> activeUserCountsByInstitutionLocation = getAnalyticsService().findActiveUserCountsByInstitutionLocation(institutionId, startDate, endDate);
 
 		// NOTE: this is a WIP
 
 		Map<String, Object> response = new HashMap<>();
 		response.put("activeUserCountsNewVersusReturning", activeUserCountsNewVersusReturning);
 		response.put("activeUserCountsByAccountSourceId", activeUserCountsByAccountSourceId);
-
-		boolean fail = true;
-
-		if (fail)
-			throw new UnsupportedOperationException();
+		response.put("activeUserCountsByInstitutionLocation", activeUserCountsByInstitutionLocation);
+		response.put("sectionCountSummaries", sectionCountSummaries);
+		response.put("trafficSourceSummary", trafficSourceSummary);
 
 		return new ApiResponse(response);
 	}

@@ -664,6 +664,18 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
+	public Boolean canViewAnalytics(@Nonnull InstitutionId institutionId,
+																	@Nonnull Account account) {
+		requireNonNull(institutionId);
+		requireNonNull(account);
+
+		if (!account.getInstitutionId().equals(institutionId))
+			return false;
+
+		return account.getAccountCapabilityTypeIds().contains(AccountCapabilityTypeId.ANALYTICS_VIEWER);
+	}
+
+	@Nonnull
 	protected GroupSessionService getGroupSessionService() {
 		return this.groupSessionServiceProvider.get();
 	}

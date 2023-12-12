@@ -788,11 +788,9 @@ public class GroupSessionService implements AutoCloseable {
 		if (videoconferenceUrl != null && !isValidUrl(videoconferenceUrl))
 			validationException.add(new FieldError("videoconferenceUrl", getStrings().get("Videoconference URL is invalid.")));
 
-		if (visibleFlag == false && groupSessionCollectionId != null)
-			validationException.add(new FieldError("groupSessionCollectionId", getStrings().get("GroupSessionCollectionId is not relevant to hidden sessions.")));
-		else if (groupSessionCollectionId != null) {
-			Optional groupSessionCollection = findGroupSessionCollectionById(groupSessionCollectionId);
-			if (!groupSessionCollection.isPresent())
+		if (groupSessionCollectionId != null) {
+			GroupSessionCollection groupSessionCollection = findGroupSessionCollectionById(groupSessionCollectionId).orElse(null);
+			if (groupSessionCollection == null)
 				validationException.add(new FieldError("groupSessionCollectionId", getStrings().get("GroupSessionCollectionId is invalid.")));
 		}
 
@@ -1193,11 +1191,9 @@ public class GroupSessionService implements AutoCloseable {
 		if (videoconferenceUrl != null && !isValidUrl(videoconferenceUrl))
 			validationException.add(new FieldError("videoconferenceUrl", getStrings().get("Videoconference URL is invalid.")));
 
-		if (visibleFlag == false && groupSessionCollectionId != null)
-			validationException.add(new FieldError("groupSessionCollectionId", getStrings().get("GroupSessionCollectionId is not relevant to hidden sessions.")));
-		else if (groupSessionCollectionId != null) {
-			Optional groupSessionCollection = findGroupSessionCollectionById(groupSessionCollectionId);
-			if (!groupSessionCollection.isPresent())
+		if (groupSessionCollectionId != null) {
+			GroupSessionCollection groupSessionCollection = findGroupSessionCollectionById(groupSessionCollectionId).orElse(null);
+			if (groupSessionCollection == null)
 				validationException.add(new FieldError("groupSessionCollectionId", getStrings().get("GroupSessionCollectionId is invalid.")));
 		}
 
