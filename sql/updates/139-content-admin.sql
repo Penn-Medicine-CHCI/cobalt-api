@@ -109,4 +109,7 @@ BEGIN
 END
 $$ LANGUAGE 'plpgsql';
 
+CREATE INDEX idx_content_file_upload_id ON content(file_upload_id);
+CREATE INDEX idx_content_image_file_upload_id ON content(image_file_upload_id);
+
 COMMIT;
