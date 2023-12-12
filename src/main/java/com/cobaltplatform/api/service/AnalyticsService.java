@@ -771,10 +771,13 @@ public class AnalyticsService implements AutoCloseable {
 //				AND institution_id=?
 //				""", Long.class, startTimestamp, endTimestamp, institutionId).get();
 
-		Long usersFromTrafficSourceMediumTotalCount = trafficSourceMediumCounts.stream().count();
+		Long usersFromTrafficSourceMediumTotalCount = trafficSourceMediumCounts.stream()
+				.collect(Collectors.summingLong(trafficSourceMediumCount -> trafficSourceMediumCount.getUserCount()));
+
 		Long usersFromNonreferralTrafficSourceMediumCount = trafficSourceMediumCounts.stream()
 				.filter(trafficSourceMediumCount -> !trafficSourceMediumCount.getMedium().equals("(none)"))
-				.count();
+				.collect(Collectors.summingLong(trafficSourceMediumCount -> trafficSourceMediumCount.getUserCount()));
+
 		Double usersFromNonreferralTrafficSourceMediumPercentage = usersFromTrafficSourceMediumTotalCount.equals(0L) ? 0D : usersFromNonreferralTrafficSourceMediumCount / usersFromTrafficSourceMediumTotalCount;
 
 		TrafficSourceSummary trafficSourceSummary = new TrafficSourceSummary();
