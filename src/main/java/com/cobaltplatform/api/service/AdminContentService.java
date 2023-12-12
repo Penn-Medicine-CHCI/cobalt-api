@@ -663,7 +663,8 @@ public class AdminContentService {
 	}
 
 	@Nonnull
-	public FileUploadResult createContentFileUpload(@Nonnull CreateFileUploadRequest request) {
+	public FileUploadResult createContentFileUpload(@Nonnull CreateFileUploadRequest request,
+																									@Nonnull String storagePrefixKey) {
 		requireNonNull(request);
 
 		ValidationException validationException = new ValidationException();
@@ -680,7 +681,7 @@ public class AdminContentService {
 		fileUploadRequest.setContentType(request.getContentType());
 		fileUploadRequest.setFilename(request.getFilename());
 		fileUploadRequest.setPublicRead(false);
-		fileUploadRequest.setStorageKeyPrefix(format("content/%s", UUID.randomUUID()));
+		fileUploadRequest.setStorageKeyPrefix(storagePrefixKey);
 		fileUploadRequest.setMetadata(Map.of(
 				"account-id", request.getAccountId().toString()
 		));

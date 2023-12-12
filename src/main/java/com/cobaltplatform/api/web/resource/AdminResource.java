@@ -307,7 +307,7 @@ public class AdminResource {
 		CreateFileUploadRequest request = getRequestBodyParser().parse(requestBody, CreateFileUploadRequest.class);
 		request.setAccountId(account.getAccountId());
 
-		FileUploadResult fileUploadResult = getAdminContentService().createContentFileUpload(request);
+		FileUploadResult fileUploadResult = getAdminContentService().createContentFileUpload(request, "content/images");
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("fileUploadResult", getFileUploadResultApiResponseFactory().create(fileUploadResult));
@@ -325,7 +325,7 @@ public class AdminResource {
 		CreateFileUploadRequest request = getRequestBodyParser().parse(requestBody, CreateFileUploadRequest.class);
 		request.setAccountId(account.getAccountId());
 
-		FileUploadResult fileUploadResult = getAdminContentService().createContentFileUpload(request);
+		FileUploadResult fileUploadResult = getAdminContentService().createContentFileUpload(request, "content/files");
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("fileUploadResult", getFileUploadResultApiResponseFactory().create(fileUploadResult));
 		}});
