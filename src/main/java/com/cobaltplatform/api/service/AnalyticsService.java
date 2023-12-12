@@ -213,9 +213,14 @@ public class AnalyticsService implements AutoCloseable {
 		requireNonNull(startDate);
 		requireNonNull(endDate);
 
-		// TODO: we should query against our own database for this information instead so numbers are consistent with other sections
-		// UI needs "New" and "Returning" so should be the set of distinct identifiers in the past vs distinct identifiers over the time range
+		if (endDate.isBefore(startDate))
+			throw new ValidationException(getStrings().get("End date cannot be before start date."));
 
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		Instant startTimestamp = LocalDateTime.of(startDate, LocalTime.MIN).atZone(institution.getTimeZone()).toInstant();
+		Instant endTimestamp = LocalDateTime.of(endDate, LocalTime.MAX).atZone(institution.getTimeZone()).toInstant();
+
+		// We were previously using GA4 API for this
 		boolean useGoogleAnalytics = false;
 
 		if (useGoogleAnalytics) {
@@ -257,8 +262,43 @@ public class AnalyticsService implements AutoCloseable {
 			return new AnalyticsResultNewVersusReturning(newActiveUsers, returningActiveUsers, otherActiveUsers);
 		}
 
-		// TODO: query for this
-		return new AnalyticsResultNewVersusReturning(0L, 0L, 0L);
+
+		// Instead of calling the GA4 API, we query against our own database's BigQuery records for this information
+		// so numbers are consistent with other sections.
+
+		Long newUserCount;
+		Long returningUserCount;
+		Long otherUserCount = 0L; // This value only comes from GA4 API; we don't use it when pulling from BigQuery data
+
+		newUserCount = getDatabase().queryForObject("""
+				SELECT COUNT(DISTINCT account_id) AS count
+				FROM v_analytics_account_interaction
+				WHERE account_id IS NOT NULL
+				AND activity_timestamp BETWEEN ? AND ?
+				AND institution_id=?
+				AND account_id NOT IN (
+				  SELECT account_id
+				  FROM account
+				  WHERE institution_id=?
+				  AND created < ?
+				)
+				""", Long.class, startTimestamp, endTimestamp, institutionId, institutionId, startTimestamp).get();
+
+		returningUserCount = getDatabase().queryForObject("""
+				SELECT COUNT(DISTINCT account_id) AS count
+				FROM v_analytics_account_interaction
+				WHERE account_id IS NOT NULL
+				AND activity_timestamp BETWEEN ? AND ?
+				AND institution_id=?
+				AND account_id IN (
+				  SELECT account_id
+				  FROM account
+				  WHERE institution_id=?
+				  AND created < ?
+				)
+				""", Long.class, startTimestamp, endTimestamp, institutionId, institutionId, startTimestamp).get();
+
+		return new AnalyticsResultNewVersusReturning(newUserCount, returningUserCount, otherUserCount);
 	}
 
 	/**
@@ -882,6 +922,43 @@ public class AnalyticsService implements AutoCloseable {
 		}
 	}
 
+	@ThreadSafe
+	public static class AnalyticsResultNewVersusReturning {
+		@Nonnull
+		private final Long newUserCount;
+		@Nonnull
+		private final Long returningUserCount;
+		@Nonnull
+		private final Long otherUserCount;
+
+		public AnalyticsResultNewVersusReturning(@Nonnull Long newUserCount,
+																						 @Nonnull Long returningUserCount,
+																						 @Nonnull Long otherUserCount) {
+			requireNonNull(newUserCount);
+			requireNonNull(returningUserCount);
+			requireNonNull(otherUserCount);
+
+			this.newUserCount = newUserCount;
+			this.returningUserCount = returningUserCount;
+			this.otherUserCount = otherUserCount;
+		}
+
+		@Nonnull
+		public Long getNewUserCount() {
+			return this.newUserCount;
+		}
+
+		@Nonnull
+		public Long getReturningUserCount() {
+			return this.returningUserCount;
+		}
+
+		@Nonnull
+		public Long getOtherUserCount() {
+			return this.otherUserCount;
+		}
+	}
+
 	public void persistGoogleBigQueryEvents(@Nonnull InstitutionId institutionId,
 																					@Nonnull LocalDate date,
 																					@Nonnull List<GoogleBigQueryExportRecord> exportRecords) {
@@ -1012,43 +1089,6 @@ public class AnalyticsService implements AutoCloseable {
 	protected GoogleAnalyticsDataClient googleAnalyticsDataClientForInstitutionId(@Nonnull InstitutionId institutionId) {
 		requireNonNull(institutionId);
 		return getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId).googleAnalyticsDataClient();
-	}
-
-	@ThreadSafe
-	public static class AnalyticsResultNewVersusReturning {
-		@Nonnull
-		private final Long newActiveUsers;
-		@Nonnull
-		private final Long returningActiveUsers;
-		@Nonnull
-		private final Long otherActiveUsers;
-
-		public AnalyticsResultNewVersusReturning(@Nonnull Long newActiveUsers,
-																						 @Nonnull Long returningActiveUsers,
-																						 @Nonnull Long otherActiveUsers) {
-			requireNonNull(newActiveUsers);
-			requireNonNull(returningActiveUsers);
-			requireNonNull(otherActiveUsers);
-
-			this.newActiveUsers = newActiveUsers;
-			this.returningActiveUsers = returningActiveUsers;
-			this.otherActiveUsers = otherActiveUsers;
-		}
-
-		@Nonnull
-		public Long getNewActiveUsers() {
-			return this.newActiveUsers;
-		}
-
-		@Nonnull
-		public Long getReturningActiveUsers() {
-			return this.returningActiveUsers;
-		}
-
-		@Nonnull
-		public Long getOtherActiveUsers() {
-			return this.otherActiveUsers;
-		}
 	}
 
 	@ThreadSafe
