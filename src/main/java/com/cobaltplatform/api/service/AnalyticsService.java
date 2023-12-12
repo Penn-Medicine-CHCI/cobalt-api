@@ -336,6 +336,82 @@ public class AnalyticsService implements AutoCloseable {
 		return activeUserCountsByAccountSourceId;
 	}
 
+	@Nonnull
+	public Map<String, Long> findActiveUserCountsByInstitutionLocation(@Nonnull InstitutionId institutionId,
+																																		 @Nonnull LocalDate startDate,
+																																		 @Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		if (endDate.isBefore(startDate))
+			throw new ValidationException(getStrings().get("End date cannot be before start date."));
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		Instant startTimestamp = LocalDateTime.of(startDate, LocalTime.MIN).atZone(institution.getTimeZone()).toInstant();
+		Instant endTimestamp = LocalDateTime.of(endDate, LocalTime.MAX).atZone(institution.getTimeZone()).toInstant();
+
+		// Accounts that have institution locations
+		List<AccountSourceInstitutionLocationCount> accountSourceInstitutionLocationCounts = getDatabase().queryForList("""
+				SELECT COUNT(DISTINCT a.account_id) AS count, il.name AS institution_location_description
+				FROM account a, v_analytics_account_interaction aai, institution_location il
+				WHERE a.account_id=aai.account_id
+				AND aai.activity_timestamp BETWEEN ? AND ?
+				AND aai.institution_id=?
+				AND a.institution_location_id=il.institution_location_id
+				GROUP BY il.name
+				""", AccountSourceInstitutionLocationCount.class, startTimestamp, endTimestamp, institutionId);
+
+		final String NOT_ASKED_LABEL = getStrings().get("Not Asked");
+
+		// Accounts that do NOT have an institution location and were never asked to provide one
+		AccountSourceInstitutionLocationCount accountSourceInstitutionNotAskedLocationCount = getDatabase().queryForObject("""
+				SELECT COUNT(DISTINCT a.account_id) AS count, ? AS institution_location_description
+				FROM account a, v_analytics_account_interaction aai
+				WHERE a.account_id=aai.account_id
+				AND aai.activity_timestamp BETWEEN ? AND ?
+				AND aai.institution_id=?
+				AND a.institution_location_id IS NULL
+				AND a.prompted_for_institution_location=FALSE
+				GROUP BY institution_location_description
+				""", AccountSourceInstitutionLocationCount.class, NOT_ASKED_LABEL, startTimestamp, endTimestamp, institutionId).orElse(null);
+
+		if (accountSourceInstitutionNotAskedLocationCount == null) {
+			accountSourceInstitutionNotAskedLocationCount = new AccountSourceInstitutionLocationCount();
+			accountSourceInstitutionNotAskedLocationCount.setCount(0L);
+			accountSourceInstitutionNotAskedLocationCount.setInstitutionLocationDescription(NOT_ASKED_LABEL);
+		}
+
+		final String DECLINED_TO_ANSWER_LABEL = getStrings().get("Declined to Answer");
+
+		// Accounts that do NOT have an institution location even though they were asked to pick one
+		AccountSourceInstitutionLocationCount accountSourceInstitutionDeclinedToAnswerLocationCount = getDatabase().queryForObject("""
+				SELECT COUNT(DISTINCT a.account_id) AS count, ? AS institution_location_description
+				FROM account a, v_analytics_account_interaction aai
+				WHERE a.account_id=aai.account_id
+				AND aai.activity_timestamp BETWEEN ? AND ?
+				AND aai.institution_id=?
+				AND a.institution_location_id IS NULL
+				AND a.prompted_for_institution_location=TRUE
+				GROUP BY institution_location_description
+				""", AccountSourceInstitutionLocationCount.class, DECLINED_TO_ANSWER_LABEL, startTimestamp, endTimestamp, institutionId).orElse(null);
+
+		if (accountSourceInstitutionDeclinedToAnswerLocationCount == null) {
+			accountSourceInstitutionDeclinedToAnswerLocationCount = new AccountSourceInstitutionLocationCount();
+			accountSourceInstitutionDeclinedToAnswerLocationCount.setCount(0L);
+			accountSourceInstitutionDeclinedToAnswerLocationCount.setInstitutionLocationDescription(DECLINED_TO_ANSWER_LABEL);
+		}
+
+		Map<String, Long> activeUserCountsByInstitutionLocation = new HashMap<>();
+		activeUserCountsByInstitutionLocation.put(accountSourceInstitutionNotAskedLocationCount.getInstitutionLocationDescription(), accountSourceInstitutionNotAskedLocationCount.getCount());
+		activeUserCountsByInstitutionLocation.put(accountSourceInstitutionDeclinedToAnswerLocationCount.getInstitutionLocationDescription(), accountSourceInstitutionDeclinedToAnswerLocationCount.getCount());
+
+		for (AccountSourceInstitutionLocationCount accountSourceInstitutionLocationCount : accountSourceInstitutionLocationCounts)
+			activeUserCountsByInstitutionLocation.put(accountSourceInstitutionLocationCount.getInstitutionLocationDescription(), accountSourceInstitutionLocationCount.getCount());
+
+		return activeUserCountsByInstitutionLocation;
+	}
+
 	/**
 	 * Section counts: groupings of "Sections" and how many page views/all users/active users
 	 */
@@ -808,6 +884,32 @@ public class AnalyticsService implements AutoCloseable {
 
 		public void setAccountSourceId(@Nullable AccountSourceId accountSourceId) {
 			this.accountSourceId = accountSourceId;
+		}
+	}
+
+	@NotThreadSafe
+	protected static class AccountSourceInstitutionLocationCount {
+		@Nullable
+		private Long count;
+		@Nullable
+		private String institutionLocationDescription;
+
+		@Nullable
+		public Long getCount() {
+			return this.count;
+		}
+
+		public void setCount(@Nullable Long count) {
+			this.count = count;
+		}
+
+		@Nullable
+		public String getInstitutionLocationDescription() {
+			return this.institutionLocationDescription;
+		}
+
+		public void setInstitutionLocationDescription(@Nullable String institutionLocationDescription) {
+			this.institutionLocationDescription = institutionLocationDescription;
 		}
 	}
 
