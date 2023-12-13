@@ -907,6 +907,78 @@ public class AnalyticsService implements AutoCloseable {
 		return enterprisePlugin.analyticsClinicalScreeningSessionSeverityCountsByDescriptionByScreeningFlowId(startTimestamp, endTimestamp);
 	}
 
+	@Nonnull
+	public List<CrisisTriggerCount> findCrisisTriggerCounts(@Nonnull InstitutionId institutionId,
+																													@Nonnull LocalDate startDate,
+																													@Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		if (endDate.isBefore(startDate))
+			throw new ValidationException(getStrings().get("End date cannot be before start date."));
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		Instant startTimestamp = LocalDateTime.of(startDate, LocalTime.MIN).atZone(institution.getTimeZone()).toInstant();
+		Instant endTimestamp = LocalDateTime.of(endDate, LocalTime.MAX).atZone(institution.getTimeZone()).toInstant();
+
+		List<CrisisTriggerCount> crisisTriggerCounts = new ArrayList<>();
+
+		crisisTriggerCounts.addAll(getDatabase().queryForList("""		
+				SELECT COUNT(ss.*) as count, 'Assessment' as name
+				FROM screening_session ss, account a
+				WHERE ss.target_account_id=a.account_id
+				AND a.institution_id=?
+				AND ss.created BETWEEN ? AND ?
+				AND ss.crisis_indicated=TRUE
+								""", CrisisTriggerCount.class, institutionId, startTimestamp, endTimestamp));
+
+		crisisTriggerCounts.addAll(getDatabase().queryForList("""		
+				SELECT COUNT(*) AS count, 'Home Selection' AS name
+				FROM analytics_google_bigquery_event
+				WHERE name='HP Nav'
+				AND event->'parameters'->'link_text'->>'value'='Crisis Support'
+				AND institution_id=?
+				AND timestamp BETWEEN ? AND ?
+				""", CrisisTriggerCount.class, institutionId, startTimestamp, endTimestamp));
+
+		crisisTriggerCounts.addAll(getDatabase().queryForList("""		
+				SELECT COUNT(*) AS count, 'In Crisis Button' AS name
+				FROM analytics_google_bigquery_event
+				WHERE name='In Crisis Button'
+				AND institution_id=?
+				AND timestamp BETWEEN ? AND ?
+				""", CrisisTriggerCount.class, institutionId, startTimestamp, endTimestamp));
+
+		return crisisTriggerCounts;
+	}
+
+	@NotThreadSafe
+	public static class CrisisTriggerCount {
+		@Nullable
+		private String name;
+		@Nullable
+		private Long count;
+
+		@Nullable
+		public String getName() {
+			return this.name;
+		}
+
+		public void setName(@Nullable String name) {
+			this.name = name;
+		}
+
+		@Nullable
+		public Long getCount() {
+			return this.count;
+		}
+
+		public void setCount(@Nullable Long count) {
+			this.count = count;
+		}
+	}
+
 	@NotThreadSafe
 	public static class ScreeningSessionCompletion {
 		@Nullable

@@ -27,6 +27,7 @@ import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AnalyticsService;
 import com.cobaltplatform.api.service.AnalyticsService.AnalyticsResultNewVersusReturning;
+import com.cobaltplatform.api.service.AnalyticsService.CrisisTriggerCount;
 import com.cobaltplatform.api.service.AnalyticsService.ScreeningSessionCompletion;
 import com.cobaltplatform.api.service.AnalyticsService.SectionCountSummary;
 import com.cobaltplatform.api.service.AnalyticsService.TrafficSourceSummary;
@@ -126,6 +127,8 @@ public class AnalyticsResource {
 				.map(screeningFlowId -> getScreeningService().findScreeningFlowById(screeningFlowId).get())
 				.collect(Collectors.toMap(screeningFlow -> screeningFlow.getScreeningFlowId(), Function.identity()));
 
+		List<CrisisTriggerCount> crisisTriggerCounts = getAnalyticsService().findCrisisTriggerCounts(institutionId, startDate, endDate);
+
 		// NOTE: this is a WIP
 
 		Map<String, Object> response = new HashMap<>();
@@ -139,7 +142,8 @@ public class AnalyticsResource {
 				),
 				"assessmentsAndAppointments", Map.of(
 						"screeningSessionCompletions", screeningSessionCompletions,
-						"screeningSessionSeverityCounts", screeningSessionSeverityCounts
+						"screeningSessionSeverityCounts", screeningSessionSeverityCounts,
+						"crisisTriggerCounts", crisisTriggerCounts
 				),
 				"groupSessions", Map.of(
 
