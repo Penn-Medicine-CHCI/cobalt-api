@@ -23,12 +23,15 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AnalyticsService;
 import com.cobaltplatform.api.service.AnalyticsService.AnalyticsResultNewVersusReturning;
+import com.cobaltplatform.api.service.AnalyticsService.ScreeningSessionCompletion;
 import com.cobaltplatform.api.service.AnalyticsService.SectionCountSummary;
 import com.cobaltplatform.api.service.AnalyticsService.TrafficSourceSummary;
 import com.cobaltplatform.api.service.AuthorizationService;
+import com.cobaltplatform.api.service.ScreeningService;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.Resource;
@@ -44,8 +47,14 @@ import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.SortedMap;
+import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -61,6 +70,8 @@ public class AnalyticsResource {
 	@Nonnull
 	private final AuthorizationService authorizationService;
 	@Nonnull
+	private final ScreeningService screeningService;
+	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final Logger logger;
@@ -68,13 +79,16 @@ public class AnalyticsResource {
 	@Inject
 	public AnalyticsResource(@Nonnull AnalyticsService analyticsService,
 													 @Nonnull AuthorizationService authorizationService,
+													 @Nonnull ScreeningService screeningService,
 													 @Nonnull Provider<CurrentContext> currentContextProvider) {
 		requireNonNull(analyticsService);
 		requireNonNull(authorizationService);
+		requireNonNull(screeningService);
 		requireNonNull(currentContextProvider);
 
 		this.analyticsService = analyticsService;
 		this.authorizationService = authorizationService;
+		this.screeningService = screeningService;
 		this.currentContextProvider = currentContextProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
@@ -93,20 +107,47 @@ public class AnalyticsResource {
 		if (!getAuthorizationService().canViewAnalytics(institutionId, account))
 			throw new AuthorizationException();
 
+		// Overview analytics
 		AnalyticsResultNewVersusReturning activeUserCountsNewVersusReturning = getAnalyticsService().findActiveUserCountsNewVersusReturning(institutionId, startDate, endDate);
 		Map<AccountSourceId, Long> activeUserCountsByAccountSourceId = getAnalyticsService().findActiveUserCountsByAccountSourceId(institutionId, startDate, endDate);
 		List<SectionCountSummary> sectionCountSummaries = getAnalyticsService().findSectionCountSummaries(institutionId, startDate, endDate);
 		TrafficSourceSummary trafficSourceSummary = getAnalyticsService().findTrafficSourceSummary(institutionId, startDate, endDate);
 		Map<String, Long> activeUserCountsByInstitutionLocation = getAnalyticsService().findActiveUserCountsByInstitutionLocation(institutionId, startDate, endDate);
 
+		// Assessments and appointments analytics
+		Map<UUID, ScreeningSessionCompletion> screeningSessionCompletions = getAnalyticsService().findClinicalScreeningSessionCompletionsByScreeningFlowId(institutionId, startDate, endDate);
+		Map<UUID, SortedMap<String, Long>> screeningSessionSeverityCounts = getAnalyticsService().findClinicalScreeningSessionSeverityCountsByDescriptionByScreeningFlowId(institutionId, startDate, endDate);
+
+		Set<UUID> screeningFlowIds = new HashSet<>(screeningSessionCompletions.size() + screeningSessionSeverityCounts.size());
+		screeningFlowIds.addAll(screeningSessionCompletions.keySet());
+		screeningFlowIds.addAll(screeningSessionSeverityCounts.keySet());
+
+		Map<UUID, ScreeningFlow> screeningFlowsByScreeningFlowId = screeningFlowIds.stream()
+				.map(screeningFlowId -> getScreeningService().findScreeningFlowById(screeningFlowId).get())
+				.collect(Collectors.toMap(screeningFlow -> screeningFlow.getScreeningFlowId(), Function.identity()));
+
 		// NOTE: this is a WIP
 
 		Map<String, Object> response = new HashMap<>();
-		response.put("activeUserCountsNewVersusReturning", activeUserCountsNewVersusReturning);
-		response.put("activeUserCountsByAccountSourceId", activeUserCountsByAccountSourceId);
-		response.put("activeUserCountsByInstitutionLocation", activeUserCountsByInstitutionLocation);
-		response.put("sectionCountSummaries", sectionCountSummaries);
-		response.put("trafficSourceSummary", trafficSourceSummary);
+		response.put("sections", Map.of(
+				"overview", Map.of(
+						"activeUserCountsNewVersusReturning", activeUserCountsNewVersusReturning,
+						"activeUserCountsByAccountSourceId", activeUserCountsByAccountSourceId,
+						"activeUserCountsByInstitutionLocation", activeUserCountsByInstitutionLocation,
+						"sectionCountSummaries", sectionCountSummaries,
+						"trafficSourceSummary", trafficSourceSummary
+				),
+				"assessmentsAndAppointments", Map.of(
+						"screeningSessionCompletions", screeningSessionCompletions,
+						"screeningSessionSeverityCounts", screeningSessionSeverityCounts
+				),
+				"groupSessions", Map.of(
+
+				),
+				"resourcesAndTopics", Map.of(
+
+				)
+		));
 
 		return new ApiResponse(response);
 	}
@@ -119,6 +160,11 @@ public class AnalyticsResource {
 	@Nonnull
 	protected AuthorizationService getAuthorizationService() {
 		return this.authorizationService;
+	}
+
+	@Nonnull
+	protected ScreeningService getScreeningService() {
+		return this.screeningService;
 	}
 
 	@Nonnull
