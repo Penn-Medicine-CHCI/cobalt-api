@@ -43,8 +43,13 @@ import javax.annotation.Nullable;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.SortedMap;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -140,5 +145,21 @@ public interface EnterprisePlugin {
 	@Nonnull
 	default MixpanelClient mixpanelClient() {
 		return new MockMixpanelClient();
+	}
+
+	@Nonnull
+	default Set<UUID> analyticsClinicalScreeningFlowIds() {
+		return Set.of();
+	}
+
+	// Key is screening flow ID (from above analyticsClinicalScreeningFlowIds())
+	// Values are a sorted map of severity names (e.g. "Mild", "Moderate", "Severe") to counts
+	@Nonnull
+	default Map<UUID, SortedMap<String, Long>> analyticsClinicalScreeningSessionSeverityCountsByDescriptionByScreeningFlowId(@Nonnull Instant startTimestamp,
+																																																													 @Nonnull Instant endTimestamp) {
+		Set<UUID> analyticsClinicalScreeningFlowIds = analyticsClinicalScreeningFlowIds();
+
+		return analyticsClinicalScreeningFlowIds.stream()
+				.collect(Collectors.toMap(Function.identity(), ignored -> Collections.emptySortedMap()));
 	}
 }

@@ -38,8 +38,11 @@ import com.cobaltplatform.api.model.db.AnalyticsVendor.AnalyticsVendorId;
 import com.cobaltplatform.api.model.db.Feature;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.ScreeningType.ScreeningTypeId;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
+import com.cobaltplatform.api.model.service.ScreeningScore;
+import com.cobaltplatform.api.model.service.ScreeningSessionScreeningWithType;
 import com.cobaltplatform.api.util.ValidationException;
 import com.google.analytics.data.v1beta.DateRange;
 import com.google.analytics.data.v1beta.Dimension;
@@ -73,6 +76,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.SortedMap;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -105,6 +109,8 @@ public class AnalyticsService implements AutoCloseable {
 	@Nonnull
 	private final Provider<SystemService> systemServiceProvider;
 	@Nonnull
+	private final Provider<ScreeningService> screeningServiceProvider;
+	@Nonnull
 	private final Provider<AnalyticsSyncTask> analyticsSyncTaskProvider;
 	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
@@ -125,12 +131,14 @@ public class AnalyticsService implements AutoCloseable {
 	@Inject
 	public AnalyticsService(@Nonnull Provider<InstitutionService> institutionServiceProvider,
 													@Nonnull Provider<SystemService> systemServiceProvider,
+													@Nonnull Provider<ScreeningService> screeningServiceProvider,
 													@Nonnull Provider<AnalyticsSyncTask> analyticsSyncTaskProvider,
 													@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 													@Nonnull Database database,
 													@Nonnull Strings strings) {
 		requireNonNull(institutionServiceProvider);
 		requireNonNull(systemServiceProvider);
+		requireNonNull(screeningServiceProvider);
 		requireNonNull(analyticsSyncTaskProvider);
 		requireNonNull(enterprisePluginProvider);
 		requireNonNull(database);
@@ -138,6 +146,7 @@ public class AnalyticsService implements AutoCloseable {
 
 		this.institutionServiceProvider = institutionServiceProvider;
 		this.systemServiceProvider = systemServiceProvider;
+		this.screeningServiceProvider = screeningServiceProvider;
 		this.analyticsSyncTaskProvider = analyticsSyncTaskProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.database = database;
@@ -763,14 +772,6 @@ public class AnalyticsService implements AutoCloseable {
 										""", TrafficSourceReferrerCount.class, webappBaseUrl, startTimestamp, endTimestamp, institutionId);
 		}
 
-//		Long usersTotalCount = getDatabase().queryForObject("""
-//				SELECT COUNT(DISTINCT account_id)
-//				FROM analytics_google_bigquery_event
-//				WHERE account_id IS NOT NULL
-//				AND timestamp BETWEEN ? AND ?
-//				AND institution_id=?
-//				""", Long.class, startTimestamp, endTimestamp, institutionId).get();
-
 		Long usersFromTrafficSourceMediumTotalCount = trafficSourceMediumCounts.stream()
 				.collect(Collectors.summingLong(trafficSourceMediumCount -> trafficSourceMediumCount.getUserCount()));
 
@@ -778,7 +779,7 @@ public class AnalyticsService implements AutoCloseable {
 				.filter(trafficSourceMediumCount -> !trafficSourceMediumCount.getMedium().equals("(none)"))
 				.collect(Collectors.summingLong(trafficSourceMediumCount -> trafficSourceMediumCount.getUserCount()));
 
-		Double usersFromNonreferralTrafficSourceMediumPercentage = usersFromTrafficSourceMediumTotalCount.equals(0L) ? 0D : usersFromNonreferralTrafficSourceMediumCount / usersFromTrafficSourceMediumTotalCount;
+		Double usersFromNonreferralTrafficSourceMediumPercentage = usersFromTrafficSourceMediumTotalCount.equals(0L) ? 0D : usersFromNonreferralTrafficSourceMediumCount.doubleValue() / usersFromTrafficSourceMediumTotalCount.doubleValue();
 
 		TrafficSourceSummary trafficSourceSummary = new TrafficSourceSummary();
 		trafficSourceSummary.setTrafficSourceMediumCounts(trafficSourceMediumCounts);
@@ -788,6 +789,231 @@ public class AnalyticsService implements AutoCloseable {
 		trafficSourceSummary.setUsersFromNonreferralTrafficSourceMediumPercentage(usersFromNonreferralTrafficSourceMediumPercentage);
 
 		return trafficSourceSummary;
+	}
+
+	@Nonnull
+	public Map<UUID, ScreeningSessionCompletion> findClinicalScreeningSessionCompletionsByScreeningFlowId(@Nonnull InstitutionId institutionId,
+																																																				@Nonnull LocalDate startDate,
+																																																				@Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		if (endDate.isBefore(startDate))
+			throw new ValidationException(getStrings().get("End date cannot be before start date."));
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		Instant startTimestamp = LocalDateTime.of(startDate, LocalTime.MIN).atZone(institution.getTimeZone()).toInstant();
+		Instant endTimestamp = LocalDateTime.of(endDate, LocalTime.MAX).atZone(institution.getTimeZone()).toInstant();
+
+		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId);
+
+		Set<UUID> screeningFlowIds = enterprisePlugin.analyticsClinicalScreeningFlowIds();
+		Map<UUID, ScreeningSessionCompletion> screeningSessionCompletionsByScreeningFlowId = new HashMap<>(screeningFlowIds.size());
+
+		for (UUID screeningFlowId : screeningFlowIds) {
+			Long startedCount = getDatabase().queryForObject("""
+					SELECT count(ss.*)
+					FROM screening_session ss, account a, screening_flow_version sfv
+					WHERE sfv.screening_flow_id=?
+					AND ss.screening_flow_version_id = sfv.screening_flow_version_id
+					AND ss.target_account_id=a.account_id
+					AND a.institution_id=?
+					AND ss.created BETWEEN ? AND ?
+										""", Long.class, screeningFlowId, institutionId, startTimestamp, endTimestamp).get();
+
+			Long completedCount = getDatabase().queryForObject("""
+					SELECT count(ss.*)
+					FROM screening_session ss, account a, screening_flow_version sfv
+					WHERE sfv.screening_flow_id=?
+					AND ss.screening_flow_version_id = sfv.screening_flow_version_id
+					AND ss.target_account_id=a.account_id
+					AND a.institution_id=?
+					AND ss.created BETWEEN ? AND ?
+					AND ss.completed=TRUE
+										""", Long.class, screeningFlowId, institutionId, startTimestamp, endTimestamp).get();
+			Double completionPercentage = startedCount.equals(0L) ? 0D : (completedCount.doubleValue() / startedCount.doubleValue());
+
+			ScreeningSessionCompletion screeningSessionCompletion = new ScreeningSessionCompletion();
+			screeningSessionCompletion.setStartedCount(startedCount);
+			screeningSessionCompletion.setCompletedCount(completedCount);
+			screeningSessionCompletion.setCompletionPercentage(completionPercentage);
+		}
+
+		return screeningSessionCompletionsByScreeningFlowId;
+	}
+
+	@Nonnull
+	@SuppressWarnings("unused") // for example code
+	public Map<UUID, SortedMap<String, Long>> findClinicalScreeningSessionSeverityCountsByDescriptionByScreeningFlowId(@Nonnull InstitutionId institutionId,
+																																																										 @Nonnull LocalDate startDate,
+																																																										 @Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		if (endDate.isBefore(startDate))
+			throw new ValidationException(getStrings().get("End date cannot be before start date."));
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		Instant startTimestamp = LocalDateTime.of(startDate, LocalTime.MIN).atZone(institution.getTimeZone()).toInstant();
+		Instant endTimestamp = LocalDateTime.of(endDate, LocalTime.MAX).atZone(institution.getTimeZone()).toInstant();
+
+		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId);
+
+		boolean runExampleCode = false;
+
+		// Example of how enterprise plugin might work to break out scores and group them according to custom scoring rules
+		if (runExampleCode) {
+			UUID screeningFlowId = UUID.randomUUID(); // just a placeholder for a clinical screening flow ID
+			List<ScreeningSessionScreeningWithType> screeningSessionScreenings = getScreeningService().findScreeningSessionScreeningsWithTypeByScreeningFlowId(screeningFlowId, institutionId, startTimestamp, endTimestamp);
+
+			// Group records by screening session ID
+			Set<UUID> screeningSessionIds = screeningSessionScreenings.stream()
+					.map(screeningSessionScreening -> screeningSessionScreening.getScreeningSessionId())
+					.collect(Collectors.toSet());
+
+			// 1. Prime the map - key is screening session ID, value is scores grouped by screening type ID
+			// (it's assumed the screening session never has the same screening type twice)
+			Map<UUID, Map<ScreeningTypeId, ScreeningScore>> screeningSessionScreeningScoresByScreeningTypeIdByScreeningSessionId = screeningSessionIds.stream()
+					.collect(Collectors.toMap(Function.identity(), ignored -> new HashMap<>()));
+
+			// 2. Load it up with score data by screening type for easy access
+			for (ScreeningSessionScreeningWithType screeningSessionScreening : screeningSessionScreenings) {
+				Map<ScreeningTypeId, ScreeningScore> screeningScoresByType = screeningSessionScreeningScoresByScreeningTypeIdByScreeningSessionId.get(screeningSessionScreening.getScreeningSessionId());
+				screeningScoresByType.put(screeningSessionScreening.getScreeningTypeId(), screeningSessionScreening.getScoreAsObject().get());
+			}
+
+			// 3. Do our calculations and add to running totals
+			Long mildCount = 0L;
+			Long mediumCount = 0L;
+			Long severeCount = 0L;
+
+			for (Map<ScreeningTypeId, ScreeningScore> screeningScoresByType : screeningSessionScreeningScoresByScreeningTypeIdByScreeningSessionId.values()) {
+				ScreeningScore phq9Score = screeningScoresByType.get(ScreeningTypeId.PHQ_9);
+				ScreeningScore gad7Score = screeningScoresByType.get(ScreeningTypeId.GAD_7);
+				ScreeningScore who5Score = screeningScoresByType.get(ScreeningTypeId.WHO_5);
+
+				// These are just fake scores, used for an example
+				if (phq9Score != null && phq9Score.getOverallScore() < 3)
+					++mildCount;
+				else if (phq9Score != null && phq9Score.getOverallScore() < 6)
+					++mediumCount;
+				else if (phq9Score != null && phq9Score.getOverallScore() < 6)
+					++severeCount;
+			}
+		}
+
+		return enterprisePlugin.analyticsClinicalScreeningSessionSeverityCountsByDescriptionByScreeningFlowId(startTimestamp, endTimestamp);
+	}
+
+	@Nonnull
+	public List<CrisisTriggerCount> findCrisisTriggerCounts(@Nonnull InstitutionId institutionId,
+																													@Nonnull LocalDate startDate,
+																													@Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		if (endDate.isBefore(startDate))
+			throw new ValidationException(getStrings().get("End date cannot be before start date."));
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		Instant startTimestamp = LocalDateTime.of(startDate, LocalTime.MIN).atZone(institution.getTimeZone()).toInstant();
+		Instant endTimestamp = LocalDateTime.of(endDate, LocalTime.MAX).atZone(institution.getTimeZone()).toInstant();
+
+		List<CrisisTriggerCount> crisisTriggerCounts = new ArrayList<>();
+
+		crisisTriggerCounts.addAll(getDatabase().queryForList("""		
+				SELECT COUNT(ss.*) as count, 'Assessment' as name
+				FROM screening_session ss, account a
+				WHERE ss.target_account_id=a.account_id
+				AND a.institution_id=?
+				AND ss.created BETWEEN ? AND ?
+				AND ss.crisis_indicated=TRUE
+								""", CrisisTriggerCount.class, institutionId, startTimestamp, endTimestamp));
+
+		crisisTriggerCounts.addAll(getDatabase().queryForList("""		
+				SELECT COUNT(*) AS count, 'Home Selection' AS name
+				FROM analytics_google_bigquery_event
+				WHERE name='HP Nav'
+				AND event->'parameters'->'link_text'->>'value'='Crisis Support'
+				AND institution_id=?
+				AND timestamp BETWEEN ? AND ?
+				""", CrisisTriggerCount.class, institutionId, startTimestamp, endTimestamp));
+
+		crisisTriggerCounts.addAll(getDatabase().queryForList("""		
+				SELECT COUNT(*) AS count, 'In Crisis Button' AS name
+				FROM analytics_google_bigquery_event
+				WHERE name='In Crisis Button'
+				AND institution_id=?
+				AND timestamp BETWEEN ? AND ?
+				""", CrisisTriggerCount.class, institutionId, startTimestamp, endTimestamp));
+
+		return crisisTriggerCounts;
+	}
+
+	@NotThreadSafe
+	public static class CrisisTriggerCount {
+		@Nullable
+		private String name;
+		@Nullable
+		private Long count;
+
+		@Nullable
+		public String getName() {
+			return this.name;
+		}
+
+		public void setName(@Nullable String name) {
+			this.name = name;
+		}
+
+		@Nullable
+		public Long getCount() {
+			return this.count;
+		}
+
+		public void setCount(@Nullable Long count) {
+			this.count = count;
+		}
+	}
+
+	@NotThreadSafe
+	public static class ScreeningSessionCompletion {
+		@Nullable
+		private Double completionPercentage;
+		@Nullable
+		private Long startedCount;
+		@Nullable
+		private Long completedCount;
+
+		@Nullable
+		public Double getCompletionPercentage() {
+			return this.completionPercentage;
+		}
+
+		public void setCompletionPercentage(@Nullable Double completionPercentage) {
+			this.completionPercentage = completionPercentage;
+		}
+
+		@Nullable
+		public Long getStartedCount() {
+			return this.startedCount;
+		}
+
+		public void setStartedCount(@Nullable Long startedCount) {
+			this.startedCount = startedCount;
+		}
+
+		@Nullable
+		public Long getCompletedCount() {
+			return this.completedCount;
+		}
+
+		public void setCompletedCount(@Nullable Long completedCount) {
+			this.completedCount = completedCount;
+		}
 	}
 
 	@NotThreadSafe
@@ -1529,6 +1755,11 @@ public class AnalyticsService implements AutoCloseable {
 	@Nonnull
 	protected SystemService getSystemService() {
 		return this.systemServiceProvider.get();
+	}
+
+	@Nonnull
+	protected ScreeningService getScreeningService() {
+		return this.screeningServiceProvider.get();
 	}
 
 	@Nonnull

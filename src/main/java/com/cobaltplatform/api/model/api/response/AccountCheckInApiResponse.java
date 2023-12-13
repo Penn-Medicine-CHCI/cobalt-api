@@ -20,19 +20,18 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.response.AccountCheckInActionApiResponse.AccountCheckInActionApiResponseFactory;
 import com.cobaltplatform.api.model.db.AccountCheckIn;
 import com.cobaltplatform.api.model.db.AccountCheckInAction;
 import com.cobaltplatform.api.model.db.CheckInActionStatus;
 import com.cobaltplatform.api.model.db.CheckInStatus;
-import com.cobaltplatform.api.model.db.CheckInType;
+import com.cobaltplatform.api.model.db.CheckInType.CheckInTypeId;
 import com.cobaltplatform.api.service.StudyService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.Provider;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
-import com.cobaltplatform.api.model.api.response.AccountCheckInActionApiResponse.AccountCheckInActionApiResponseFactory;
-
-import static java.lang.String.format;
+import com.lokalized.Strings;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -41,6 +40,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.time.LocalTime;
 import java.time.format.FormatStyle;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -52,10 +52,26 @@ import static java.util.Objects.requireNonNull;
  */
 @Immutable
 public class AccountCheckInApiResponse {
+	@Nonnull
+	private static final List<String> COLOR_CSS_REPRESENTATIONS;
+
+	static {
+		COLOR_CSS_REPRESENTATIONS = List.of(
+				"#34C759",
+				"#00C7BE",
+				"#30B0C7",
+				"#32ADE6",
+				"#007AFF",
+				"#5856D6",
+				"#AF52DE",
+				"#BE65E9"
+		);
+	}
+
 	@Nullable
 	private final UUID accountCheckInId;
 	@Nullable
-	private final CheckInType.CheckInTypeId checkInTypeId;
+	private final CheckInTypeId checkInTypeId;
 	@Nullable
 	private final Integer checkInNumber;
 	@Nullable
@@ -64,6 +80,8 @@ public class AccountCheckInApiResponse {
 	private final String checkInDescription;
 	@Nullable
 	private final Boolean checkInActive;
+	@Nullable
+	private final String colorCssRepresentation;
 	@Nullable
 	private final List<AccountCheckInActionApiResponse> accountCheckInActions;
 
@@ -78,12 +96,14 @@ public class AccountCheckInApiResponse {
 	public AccountCheckInApiResponse(@Nonnull Provider<CurrentContext> currentContextProvider,
 																	 @Assisted @Nonnull AccountCheckIn accountCheckIn,
 																	 @Nonnull Formatter formatter,
+																	 @Nonnull Strings strings,
 																	 @Nonnull StudyService studyService,
 																	 @Nonnull AccountCheckInActionApiResponseFactory accountCheckInActionApiResponseFactory) {
 		requireNonNull(currentContextProvider);
 		requireNonNull(accountCheckIn);
 		requireNonNull(studyService);
 		requireNonNull(formatter);
+		requireNonNull(strings);
 		requireNonNull(accountCheckInActionApiResponseFactory);
 
 		Boolean checkInActive = studyService.accountCheckActive(currentContextProvider.get().getAccount().get(), accountCheckIn);
@@ -108,13 +128,19 @@ public class AccountCheckInApiResponse {
 		this.accountCheckInId = accountCheckIn.getAccountCheckInId();
 		this.checkInTypeId = accountCheckIn.getCheckInTypeId();
 		this.checkInNumber = accountCheckIn.getCheckInNumber();
-		this.checkInNumberDescription = format("Check %s", accountCheckIn.getCheckInNumber());
-		this.checkInDescription = checkInActive ? format("Ends %s", checkInDateDescription)
+		this.checkInNumberDescription = strings.get("Check {{checkInNumber}}", Map.of("checkInNumber", accountCheckIn.getCheckInNumber()));
+		this.checkInDescription = checkInActive ? strings.get("Ends {{checkInDateDescription}}", Map.of("checkInDateDescription", checkInDateDescription))
 				: accountCheckIn.getCheckInStatusId().equals(CheckInStatus.CheckInStatusId.COMPLETE) ||
 				accountCheckIn.getCheckInStatusId().equals(CheckInStatus.CheckInStatusId.EXPIRED) ?
-				format("%s of %s Complete", completedCheckInActionCount, accountCheckInActionList.size()) : format("Upcoming");
+				strings.get("{{completedCheckInActionCount}} of {{totalCheckInActionCount}} Complete", Map.of(
+						"completedCheckInActionCount", completedCheckInActionCount,
+						"totalCheckInActionCount", accountCheckInActionList.size())) : strings.get("Upcoming");
 		this.checkInActive = checkInActive;
 		this.accountCheckInActions = accountCheckInActionList.stream().map(accountCheckInAction -> accountCheckInActionApiResponseFactory.create(accountCheckInAction)).collect(Collectors.toList());
+
+		// Pick a color from our hardcoded list.
+		// Note that check-in numbers are 1-indexed, so we need to subtract one for the modulo operation
+		this.colorCssRepresentation = COLOR_CSS_REPRESENTATIONS.get((accountCheckIn.getCheckInNumber() - 1) % COLOR_CSS_REPRESENTATIONS.size());
 	}
 
 	@Nullable
@@ -122,9 +148,8 @@ public class AccountCheckInApiResponse {
 		return accountCheckInId;
 	}
 
-
 	@Nullable
-	public CheckInType.CheckInTypeId getCheckInTypeId() {
+	public CheckInTypeId getCheckInTypeId() {
 		return checkInTypeId;
 	}
 
@@ -153,4 +178,8 @@ public class AccountCheckInApiResponse {
 		return checkInActive;
 	}
 
+	@Nullable
+	public String getColorCssRepresentation() {
+		return this.colorCssRepresentation;
+	}
 }
