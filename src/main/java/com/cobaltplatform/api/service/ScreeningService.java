@@ -89,6 +89,7 @@ import com.cobaltplatform.api.model.service.ScreeningSessionResult;
 import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningAnswerResult;
 import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningQuestionResult;
 import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningSessionScreeningResult;
+import com.cobaltplatform.api.model.service.ScreeningSessionScreeningWithType;
 import com.cobaltplatform.api.service.ScreeningService.ResultsFunctionOutput.SupportRoleRecommendation;
 import com.cobaltplatform.api.util.JavascriptExecutionException;
 import com.cobaltplatform.api.util.JavascriptExecutor;
@@ -97,7 +98,6 @@ import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.lokalized.Strings;
 import com.pyranid.Database;
-import org.apache.arrow.flatbuf.Bool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -782,7 +782,7 @@ public class ScreeningService {
 			}});
 
 			if (accountCheckInActionId != null)
-				getStudyService().updateAccountCheckInAction( targetAccount, new UpdateCheckInAction() {{
+				getStudyService().updateAccountCheckInAction(targetAccount, new UpdateCheckInAction() {{
 					setAccountCheckInActionId(accountCheckInActionId);
 					setCheckInActionStatusId(CheckInActionStatusId.COMPLETE);
 				}});
@@ -810,7 +810,7 @@ public class ScreeningService {
 					""", screeningSessionId, screening.getActiveScreeningVersionId(), 1);
 
 			if (accountCheckInActionId != null)
-				getStudyService().updateAccountCheckInAction( targetAccount, new UpdateCheckInAction() {{
+				getStudyService().updateAccountCheckInAction(targetAccount, new UpdateCheckInAction() {{
 					setAccountCheckInActionId(accountCheckInActionId);
 					setCheckInActionStatusId(CheckInActionStatusId.IN_PROGRESS);
 				}});
@@ -2405,6 +2405,28 @@ public class ScreeningService {
 		screeningSessionResult.setScreeningSessionScreeningResults(screeningSessionScreeningResults);
 
 		return Optional.of(screeningSessionResult);
+	}
+
+	@Nonnull
+	public List<ScreeningSessionScreeningWithType> findScreeningSessionScreeningsWithTypeByScreeningFlowId(@Nullable UUID screeningFlowId,
+																																																				 @Nullable InstitutionId institutionId,
+																																																				 @Nullable Instant startTimestamp,
+																																																				 @Nullable Instant endTimestamp) {
+		if (screeningFlowId == null || institutionId == null || startTimestamp == null || endTimestamp == null)
+			return List.of();
+		
+		return getDatabase().queryForList("""
+				SELECT sv.screening_type_id, sss.*
+				FROM v_screening_session_screening sss, screening_session ss, account a, screening_version sv, screening_flow_version sfv
+				WHERE sss.screening_session_id=ss.screening_session_id
+				AND sv.screening_version_id=sss.screening_version_id
+				AND sfv.screening_flow_id=?
+				AND ss.screening_flow_version_id=sfv.screening_flow_version_id
+				AND ss.target_account_id=a.account_id
+				AND a.institution_id=?
+				AND ss.created BETWEEN ? AND ?
+				AND sss.completed=TRUE
+								""", ScreeningSessionScreeningWithType.class, screeningFlowId, institutionId, startTimestamp, endTimestamp);
 	}
 
 	public void debugScreeningSession(@Nonnull UUID screeningSessionId) {

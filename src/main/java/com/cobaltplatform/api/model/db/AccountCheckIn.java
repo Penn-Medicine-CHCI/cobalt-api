@@ -19,14 +19,14 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.CheckInStatus.CheckInStatusId;
+import com.cobaltplatform.api.model.db.CheckInType.CheckInTypeId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
-import com.cobaltplatform.api.model.db.CheckInType.CheckInTypeId;
-import com.cobaltplatform.api.model.db.CheckInStatus.CheckInStatusId;
-
 
 /**
  * @author Transmogrify, LLC.
@@ -62,7 +62,6 @@ public class AccountCheckIn {
 
 	@Nullable
 	private CheckInStatusId checkInStatusId;
-
 
 
 	@Nullable
