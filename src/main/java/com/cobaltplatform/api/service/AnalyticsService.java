@@ -953,6 +953,68 @@ public class AnalyticsService implements AutoCloseable {
 		return crisisTriggerCounts;
 	}
 
+	@Nonnull
+	public List<AppointmentClickToCallCount> findAppointmentClickToCallCounts(@Nonnull InstitutionId institutionId,
+																																						@Nonnull LocalDate startDate,
+																																						@Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		if (endDate.isBefore(startDate))
+			throw new ValidationException(getStrings().get("End date cannot be before start date."));
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		Instant startTimestamp = LocalDateTime.of(startDate, LocalTime.MIN).atZone(institution.getTimeZone()).toInstant();
+		Instant endTimestamp = LocalDateTime.of(endDate, LocalTime.MAX).atZone(institution.getTimeZone()).toInstant();
+
+		List<AppointmentClickToCallCount> appointmentClickToCallCounts = new ArrayList<>();
+
+		appointmentClickToCallCounts.addAll(getDatabase().queryForList("""		
+				SELECT COUNT(*) AS count, 'Therapy Phone Call' AS name
+				FROM analytics_google_bigquery_event
+				WHERE name='Therapy Phone Call'
+				AND institution_id=?
+				AND timestamp BETWEEN ? AND ?
+				""", AppointmentClickToCallCount.class, institutionId, startTimestamp, endTimestamp));
+
+		appointmentClickToCallCounts.addAll(getDatabase().queryForList("""		
+				SELECT COUNT(*) AS count, 'Medication Prescriber Phone Call' AS name
+				FROM analytics_google_bigquery_event
+				WHERE name='Medication Prescriber Phone Call'
+				AND institution_id=?
+				AND timestamp BETWEEN ? AND ?
+				""", AppointmentClickToCallCount.class, institutionId, startTimestamp, endTimestamp));
+
+		return appointmentClickToCallCounts;
+	}
+
+	@NotThreadSafe
+	public static class AppointmentClickToCallCount {
+		@Nullable
+		private String name;
+		@Nullable
+		private Long count;
+
+		@Nullable
+		public String getName() {
+			return this.name;
+		}
+
+		public void setName(@Nullable String name) {
+			this.name = name;
+		}
+
+		@Nullable
+		public Long getCount() {
+			return this.count;
+		}
+
+		public void setCount(@Nullable Long count) {
+			this.count = count;
+		}
+	}
+
 	@NotThreadSafe
 	public static class CrisisTriggerCount {
 		@Nullable

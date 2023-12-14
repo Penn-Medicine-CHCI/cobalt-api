@@ -27,6 +27,7 @@ import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AnalyticsService;
 import com.cobaltplatform.api.service.AnalyticsService.AnalyticsResultNewVersusReturning;
+import com.cobaltplatform.api.service.AnalyticsService.AppointmentClickToCallCount;
 import com.cobaltplatform.api.service.AnalyticsService.CrisisTriggerCount;
 import com.cobaltplatform.api.service.AnalyticsService.ScreeningSessionCompletion;
 import com.cobaltplatform.api.service.AnalyticsService.SectionCountSummary;
@@ -125,16 +126,9 @@ public class AnalyticsResource {
 		// Assessments and appointments analytics
 		Map<UUID, ScreeningSessionCompletion> screeningSessionCompletions = getAnalyticsService().findClinicalScreeningSessionCompletionsByScreeningFlowId(institutionId, startDate, endDate);
 		Map<UUID, SortedMap<String, Long>> screeningSessionSeverityCounts = getAnalyticsService().findClinicalScreeningSessionSeverityCountsByDescriptionByScreeningFlowId(institutionId, startDate, endDate);
-
-		Set<UUID> screeningFlowIds = new HashSet<>(screeningSessionCompletions.size() + screeningSessionSeverityCounts.size());
-		screeningFlowIds.addAll(screeningSessionCompletions.keySet());
-		screeningFlowIds.addAll(screeningSessionSeverityCounts.keySet());
-
-		Map<UUID, ScreeningFlow> screeningFlowsByScreeningFlowId = screeningFlowIds.stream()
-				.map(screeningFlowId -> getScreeningService().findScreeningFlowById(screeningFlowId).get())
-				.collect(Collectors.toMap(screeningFlow -> screeningFlow.getScreeningFlowId(), Function.identity()));
-
 		List<CrisisTriggerCount> crisisTriggerCounts = getAnalyticsService().findCrisisTriggerCounts(institutionId, startDate, endDate);
+
+		List<AppointmentClickToCallCount> appointmentClickToCallCounts = getAnalyticsService().findAppointmentClickToCallCounts(institutionId, startDate, endDate);
 
 		// NOTE: this is a WIP
 
@@ -150,7 +144,9 @@ public class AnalyticsResource {
 				"assessmentsAndAppointments", Map.of(
 						"screeningSessionCompletions", screeningSessionCompletions,
 						"screeningSessionSeverityCounts", screeningSessionSeverityCounts,
-						"crisisTriggerCounts", crisisTriggerCounts
+						"crisisTriggerCounts", crisisTriggerCounts,
+						"XXX", null,
+						"appointmentClickToCallCounts", appointmentClickToCallCounts
 				),
 				"groupSessions", Map.of(
 
@@ -177,6 +173,12 @@ public class AnalyticsResource {
 
 		if (!getAuthorizationService().canViewAnalytics(institutionId, account))
 			throw new AuthorizationException();
+
+		AnalyticsResultNewVersusReturning activeUserCountsNewVersusReturning = getAnalyticsService().findActiveUserCountsNewVersusReturning(institutionId, startDate, endDate);
+		Map<AccountSourceId, Long> activeUserCountsByAccountSourceId = getAnalyticsService().findActiveUserCountsByAccountSourceId(institutionId, startDate, endDate);
+		List<SectionCountSummary> sectionCountSummaries = getAnalyticsService().findSectionCountSummaries(institutionId, startDate, endDate);
+		TrafficSourceSummary trafficSourceSummary = getAnalyticsService().findTrafficSourceSummary(institutionId, startDate, endDate);
+		Map<String, Long> activeUserCountsByInstitutionLocation = getAnalyticsService().findActiveUserCountsByInstitutionLocation(institutionId, startDate, endDate);
 
 		String exampleJson = """
 				{
@@ -401,6 +403,21 @@ public class AnalyticsResource {
 
 		if (!getAuthorizationService().canViewAnalytics(institutionId, account))
 			throw new AuthorizationException();
+
+		Map<UUID, ScreeningSessionCompletion> screeningSessionCompletions = getAnalyticsService().findClinicalScreeningSessionCompletionsByScreeningFlowId(institutionId, startDate, endDate);
+		Map<UUID, SortedMap<String, Long>> screeningSessionSeverityCounts = getAnalyticsService().findClinicalScreeningSessionSeverityCountsByDescriptionByScreeningFlowId(institutionId, startDate, endDate);
+
+		Set<UUID> screeningFlowIds = new HashSet<>(screeningSessionCompletions.size() + screeningSessionSeverityCounts.size());
+		screeningFlowIds.addAll(screeningSessionCompletions.keySet());
+		screeningFlowIds.addAll(screeningSessionSeverityCounts.keySet());
+
+		Map<UUID, ScreeningFlow> screeningFlowsByScreeningFlowId = screeningFlowIds.stream()
+				.map(screeningFlowId -> getScreeningService().findScreeningFlowById(screeningFlowId).get())
+				.collect(Collectors.toMap(screeningFlow -> screeningFlow.getScreeningFlowId(), Function.identity()));
+
+		List<CrisisTriggerCount> crisisTriggerCounts = getAnalyticsService().findCrisisTriggerCounts(institutionId, startDate, endDate);
+
+		List<AppointmentClickToCallCount> appointmentClickToCallCounts = getAnalyticsService().findAppointmentClickToCallCounts(institutionId, startDate, endDate);
 
 		String exampleJson = """
 				{
