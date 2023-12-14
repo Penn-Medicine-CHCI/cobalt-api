@@ -45,7 +45,6 @@ import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.service.AdminContentService;
 import com.cobaltplatform.api.service.AssessmentService;
 import com.cobaltplatform.api.service.ContentService;
-import com.cobaltplatform.api.service.ImageUploadService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.TagService;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
@@ -102,8 +101,6 @@ public class AdminResource {
 	@Nonnull
 	private final AdminContentApiResponseFactory adminContentApiResponseFactory;
 	@Nonnull
-	private final Provider<ImageUploadService> imageUploadServiceProvider;
-	@Nonnull
 	private final Provider<PresignedUploadApiResponseFactory> presignedUploadApiResponseFactoryProvider;
 	@Nonnull
 	private final Provider<AssessmentService> assessmentServiceProvider;
@@ -133,7 +130,6 @@ public class AdminResource {
 											 @Nonnull AdminContentApiResponseFactory adminContentApiResponseFactory,
 											 @Nonnull InstitutionService institutionService,
 											 @Nonnull AdminInstitutionApiResponseFactory adminInstitutionApiResponseFactory,
-											 @Nonnull Provider<ImageUploadService> imageUploadServiceProvider,
 											 @Nonnull Provider<PresignedUploadApiResponseFactory> presignedUploadApiResponseFactoryProvider,
 											 @Nonnull Provider<AssessmentService> assessmentServiceProvider,
 											 @Nonnull Provider<AssessmentFormApiResponseFactory> assessmentFormApiResponseFactoryProvider,
@@ -150,7 +146,6 @@ public class AdminResource {
 		this.adminContentApiResponseFactory = adminContentApiResponseFactory;
 		this.institutionService = institutionService;
 		this.adminInstitutionApiResponseFactory = adminInstitutionApiResponseFactory;
-		this.imageUploadServiceProvider = imageUploadServiceProvider;
 		this.presignedUploadApiResponseFactoryProvider = presignedUploadApiResponseFactoryProvider;
 		this.assessmentServiceProvider = assessmentServiceProvider;
 		this.assessmentFormApiResponseFactoryProvider = assessmentFormApiResponseFactoryProvider;
@@ -430,11 +425,6 @@ public class AdminResource {
 	@Nonnull
 	protected AdminInstitutionApiResponseFactory getAdminInstitutionApiResponseFactory() {
 		return adminInstitutionApiResponseFactory;
-	}
-
-	@Nonnull
-	protected ImageUploadService getImageUploadService() {
-		return imageUploadServiceProvider.get();
 	}
 
 	@Nonnull

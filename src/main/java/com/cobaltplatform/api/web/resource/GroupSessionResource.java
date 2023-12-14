@@ -52,7 +52,6 @@ import com.cobaltplatform.api.model.service.GroupSessionUrlValidationResult;
 import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.GroupSessionService;
-import com.cobaltplatform.api.service.ImageUploadService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
@@ -75,7 +74,6 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
-import java.io.File;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -122,8 +120,6 @@ public class GroupSessionResource {
 	@Nonnull
 	private final JsonMapper jsonMapper;
 	@Nonnull
-	private final Provider<ImageUploadService> imageUploadServiceProvider;
-	@Nonnull
 	private final Provider<AuthorizationService> authorizationServiceProvider;
 	@Nonnull
 	private final FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory;
@@ -143,7 +139,6 @@ public class GroupSessionResource {
 															@Nonnull Provider<CurrentContext> currentContextProvider,
 															@Nonnull AuditLogService auditLogService,
 															@Nonnull JsonMapper jsonMapper,
-															@Nonnull Provider<ImageUploadService> imageUploadServiceProvider,
 															@Nonnull Provider<AuthorizationService> authorizationServiceProvider,
 															@Nonnull FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory) {
 		requireNonNull(groupSessionService);
@@ -173,7 +168,6 @@ public class GroupSessionResource {
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.auditLogService = auditLogService;
 		this.jsonMapper = jsonMapper;
-		this.imageUploadServiceProvider = imageUploadServiceProvider;
 		this.authorizationServiceProvider = authorizationServiceProvider;
 		this.groupSessionCollectionResponseFactory = groupSessionCollectionResponseFactory;
 		this.groupSessionAutocompleteResultApiResponseFactory = groupSessionAutocompleteResultApiResponseFactory;
@@ -540,11 +534,6 @@ public class GroupSessionResource {
 	@Nonnull
 	protected JsonMapper getJsonMapper() {
 		return jsonMapper;
-	}
-
-	@Nonnull
-	protected ImageUploadService getImageUploadService() {
-		return imageUploadServiceProvider.get();
 	}
 
 	@Nonnull
