@@ -68,8 +68,6 @@ public class CreateGroupSessionRequest {
 	@Nullable
 	private Integer seats;
 	@Nullable
-	private String imageUrl;
-	@Nullable
 	private String videoconferenceUrl;
 	@Nullable
 	private String scheduleUrl;
@@ -114,6 +112,9 @@ public class CreateGroupSessionRequest {
 	private Boolean differentEmailAddressForNotifications;
 	@Nullable
 	private LocalDateTime registrationEndDateTime;
+
+	@Nullable
+	private UUID imageFileUploadId;
 
 	@Nullable
 	public InstitutionId getInstitutionId() {
@@ -249,16 +250,6 @@ public class CreateGroupSessionRequest {
 	public void setSeats(@Nullable Integer seats) {
 		this.seats = seats;
 	}
-
-	@Nullable
-	public String getImageUrl() {
-		return imageUrl;
-	}
-
-	public void setImageUrl(@Nullable String imageUrl) {
-		this.imageUrl = imageUrl;
-	}
-
 	@Nullable
 	public String getVideoconferenceUrl() {
 		return videoconferenceUrl;
@@ -455,5 +446,14 @@ public class CreateGroupSessionRequest {
 
 	public void setRegistrationEndDateTime(@Nullable LocalDateTime registrationEndDateTime) {
 		this.registrationEndDateTime = registrationEndDateTime;
+	}
+
+	@Nullable
+	public UUID getImageFileUploadId() {
+		return imageFileUploadId;
+	}
+
+	public void setImageFileUploadId(@Nullable UUID imageFileUploadId) {
+		this.imageFileUploadId = imageFileUploadId;
 	}
 }

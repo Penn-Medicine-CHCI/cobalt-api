@@ -84,8 +84,6 @@ public class GroupSession {
 	@Nullable
 	private ZoneId timeZone;
 	@Nullable
-	private String imageUrl;
-	@Nullable
 	private String videoconferenceUrl;
 	@Nullable
 	private String screeningQuestion;
@@ -141,6 +139,10 @@ public class GroupSession {
 	private String groupSessionCollectionUrlName;
 	@Nullable
 	private LocalDateTime registrationEndDateTime;
+	@Nullable
+	private UUID imageFileUploadId;
+	@Nullable
+	private String imageFileUploadUrl;
 
 	@Nullable
 	public UUID getGroupSessionId() {
@@ -320,15 +322,6 @@ public class GroupSession {
 
 	public void setTimeZone(@Nullable ZoneId timeZone) {
 		this.timeZone = timeZone;
-	}
-
-	@Nullable
-	public String getImageUrl() {
-		return imageUrl;
-	}
-
-	public void setImageUrl(@Nullable String imageUrl) {
-		this.imageUrl = imageUrl;
 	}
 
 	@Nullable
@@ -589,5 +582,23 @@ public class GroupSession {
 
 	public void setRegistrationEndDateTime(@Nullable LocalDateTime registrationEndDateTime) {
 		this.registrationEndDateTime = registrationEndDateTime;
+	}
+
+	@Nullable
+	public UUID getImageFileUploadId() {
+		return imageFileUploadId;
+	}
+
+	public void setImageFileUploadId(@Nullable UUID imageFileUploadId) {
+		this.imageFileUploadId = imageFileUploadId;
+	}
+
+	@Nullable
+	public String getImageFileUploadUrl() {
+		return imageFileUploadUrl;
+	}
+
+	public void setImageFileUploadUrl(@Nullable String imageFileUploadUrl) {
+		this.imageFileUploadUrl = imageFileUploadUrl;
 	}
 }

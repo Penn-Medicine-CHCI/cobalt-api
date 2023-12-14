@@ -20,12 +20,14 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreateGroupSessionRequest;
-import com.cobaltplatform.api.model.api.request.CreatePresignedUploadRequest;
 import com.cobaltplatform.api.model.api.request.FindGroupSessionsRequest;
 import com.cobaltplatform.api.model.api.request.FindGroupSessionsRequest.FilterBehavior;
 import com.cobaltplatform.api.model.api.request.UpdateGroupSessionRequest;
 import com.cobaltplatform.api.model.api.request.UpdateGroupSessionStatusRequest;
+import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse;
+import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse.FileUploadResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionCollectionApiResponse;
 import com.cobaltplatform.api.model.api.response.GroupSessionCollectionApiResponse.GroupSessionCollectionResponseFactory;
@@ -43,10 +45,10 @@ import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.GroupSessionStatusWithCount;
 import com.cobaltplatform.api.model.service.GroupSessionUrlValidationResult;
-import com.cobaltplatform.api.model.service.PresignedUpload;
 import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.GroupSessionService;
@@ -73,6 +75,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.io.File;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -122,6 +125,9 @@ public class GroupSessionResource {
 	private final Provider<ImageUploadService> imageUploadServiceProvider;
 	@Nonnull
 	private final Provider<AuthorizationService> authorizationServiceProvider;
+	@Nonnull
+	private final FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory;
+
 
 	@Inject
 	public GroupSessionResource(@Nonnull GroupSessionService groupSessionService,
@@ -138,7 +144,8 @@ public class GroupSessionResource {
 															@Nonnull AuditLogService auditLogService,
 															@Nonnull JsonMapper jsonMapper,
 															@Nonnull Provider<ImageUploadService> imageUploadServiceProvider,
-															@Nonnull Provider<AuthorizationService> authorizationServiceProvider) {
+															@Nonnull Provider<AuthorizationService> authorizationServiceProvider,
+															@Nonnull FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory) {
 		requireNonNull(groupSessionService);
 		requireNonNull(groupSessionApiResponseFactory);
 		requireNonNull(groupSessionReservationApiResponseFactory);
@@ -153,6 +160,7 @@ public class GroupSessionResource {
 		requireNonNull(groupSessionCollectionResponseFactory);
 		requireNonNull(groupSessionAutocompleteResultApiResponseFactory);
 		requireNonNull(groupSessionCollectionWithGroupSessionsResponseFactory);
+		requireNonNull(fileUploadResultApiResponseFactory);
 
 		this.groupSessionService = groupSessionService;
 		this.groupSessionApiResponseFactory = groupSessionApiResponseFactory;
@@ -170,6 +178,7 @@ public class GroupSessionResource {
 		this.groupSessionCollectionResponseFactory = groupSessionCollectionResponseFactory;
 		this.groupSessionAutocompleteResultApiResponseFactory = groupSessionAutocompleteResultApiResponseFactory;
 		this.groupSessionCollectionWithGroupSessionsResponseFactory = groupSessionCollectionWithGroupSessionsResponseFactory;
+		this.fileUploadResultApiResponseFactory = fileUploadResultApiResponseFactory;
 	}
 
 	public enum GroupSessionViewType {
@@ -375,13 +384,12 @@ public class GroupSessionResource {
 
 		Account account = getCurrentContext().getAccount().get();
 
-		CreatePresignedUploadRequest request = getRequestBodyParser().parse(requestBody, CreatePresignedUploadRequest.class);
+		CreateFileUploadRequest request = getRequestBodyParser().parse(requestBody, CreateFileUploadRequest.class);
 		request.setAccountId(account.getAccountId());
 
-		PresignedUpload presignedUpload = getImageUploadService().generatePresignedUploadForGroupSession(request);
-
+		FileUploadResult fileUploadResult = getGroupSessionService().createGroupSessionFileUpload(request, "group-sessions");
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("presignedUpload", getPresignedUploadApiResponseFactory().create(presignedUpload));
+			put("fileUploadResult", getFileUploadResultApiResponseFactory().create(fileUploadResult));
 		}});
 	}
 
@@ -557,5 +565,10 @@ public class GroupSessionResource {
 	@Nonnull
 	protected GroupSessionCollectionWithGroupSessionsResponseFactory getGroupSessionCollectionWithGroupSessionsResponseFactory() {
 		return groupSessionCollectionWithGroupSessionsResponseFactory;
+	}
+
+	@Nonnull
+	protected FileUploadResultApiResponseFactory getFileUploadResultApiResponseFactory() {
+		return fileUploadResultApiResponseFactory;
 	}
 }

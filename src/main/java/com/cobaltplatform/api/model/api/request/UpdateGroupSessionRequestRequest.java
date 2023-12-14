@@ -43,13 +43,13 @@ public class UpdateGroupSessionRequestRequest {
 	@Nullable
 	private String facilitatorEmailAddress;
 	@Nullable
-	private String imageUrl;
-	@Nullable
 	private String customQuestion1;
 	@Nullable
 	private String customQuestion2;
 	@Nullable
 	private Boolean dataCollectionEnabled;
+	@Nullable
+	private UUID imageFileUploadId;
 
 	@Nullable
 	public UUID getGroupSessionRequestId() {
@@ -115,15 +115,6 @@ public class UpdateGroupSessionRequestRequest {
 	}
 
 	@Nullable
-	public String getImageUrl() {
-		return imageUrl;
-	}
-
-	public void setImageUrl(@Nullable String imageUrl) {
-		this.imageUrl = imageUrl;
-	}
-
-	@Nullable
 	public String getCustomQuestion1() {
 		return customQuestion1;
 	}
@@ -148,5 +139,14 @@ public class UpdateGroupSessionRequestRequest {
 
 	public void setDataCollectionEnabled(@Nullable Boolean dataCollectionEnabled) {
 		this.dataCollectionEnabled = dataCollectionEnabled;
+	}
+
+	@Nullable
+	public UUID getImageFileUploadId() {
+		return imageFileUploadId;
+	}
+
+	public void setImageFileUploadId(@Nullable UUID imageFileUploadId) {
+		this.imageFileUploadId = imageFileUploadId;
 	}
 }

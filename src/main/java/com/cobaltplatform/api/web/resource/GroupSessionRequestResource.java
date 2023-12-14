@@ -20,12 +20,13 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreateGroupSessionRequestRequest;
-import com.cobaltplatform.api.model.api.request.CreatePresignedUploadRequest;
 import com.cobaltplatform.api.model.api.request.FindGroupSessionRequestsRequest;
 import com.cobaltplatform.api.model.api.request.FindGroupSessionRequestsRequest.FilterBehavior;
 import com.cobaltplatform.api.model.api.request.UpdateGroupSessionRequestRequest;
 import com.cobaltplatform.api.model.api.request.UpdateGroupSessionRequestStatusRequest;
+import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse.FileUploadResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionRequestApiResponse.GroupSessionRequestApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
@@ -33,8 +34,8 @@ import com.cobaltplatform.api.model.db.GroupSessionRequest;
 import com.cobaltplatform.api.model.db.GroupSessionRequestStatus.GroupSessionRequestStatusId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.FindResult;
-import com.cobaltplatform.api.model.service.PresignedUpload;
 import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.GroupSessionService;
@@ -97,6 +98,9 @@ public class GroupSessionRequestResource {
 	private final JsonMapper jsonMapper;
 	@Nonnull
 	private final Provider<AuthorizationService> authorizationServiceProvider;
+	@Nonnull
+	private final FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory;
+
 
 	@Inject
 	public GroupSessionRequestResource(@Nonnull GroupSessionService groupSessionService,
@@ -108,7 +112,8 @@ public class GroupSessionRequestResource {
 																		 @Nonnull Provider<CurrentContext> currentContextProvider,
 																		 @Nonnull AuditLogService auditLogService,
 																		 @Nonnull JsonMapper jsonMapper,
-																		 @Nonnull Provider<AuthorizationService> authorizationServiceProvider) {
+																		 @Nonnull Provider<AuthorizationService> authorizationServiceProvider,
+																		 @Nonnull FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory) {
 		requireNonNull(groupSessionService);
 		requireNonNull(groupSessionRequestApiResponseFactory);
 		requireNonNull(presignedUploadApiResponseFactory);
@@ -119,6 +124,7 @@ public class GroupSessionRequestResource {
 		requireNonNull(auditLogService);
 		requireNonNull(jsonMapper);
 		requireNonNull(authorizationServiceProvider);
+		requireNonNull(fileUploadResultApiResponseFactory);
 
 		this.groupSessionService = groupSessionService;
 		this.groupSessionRequestApiResponseFactory = groupSessionRequestApiResponseFactory;
@@ -131,6 +137,7 @@ public class GroupSessionRequestResource {
 		this.auditLogService = auditLogService;
 		this.jsonMapper = jsonMapper;
 		this.authorizationServiceProvider = authorizationServiceProvider;
+		this.fileUploadResultApiResponseFactory = fileUploadResultApiResponseFactory;
 	}
 
 	public enum GroupSessionRequestViewType {
@@ -230,13 +237,12 @@ public class GroupSessionRequestResource {
 
 		Account account = getCurrentContext().getAccount().get();
 
-		CreatePresignedUploadRequest request = getRequestBodyParser().parse(requestBody, CreatePresignedUploadRequest.class);
+		CreateFileUploadRequest request = getRequestBodyParser().parse(requestBody, CreateFileUploadRequest.class);
 		request.setAccountId(account.getAccountId());
 
-		PresignedUpload presignedUpload = getGroupSessionService().generatePresignedUploadForGroupSessionRequest(request);
-
+		FileUploadResult fileUploadResult = getGroupSessionService().createGroupSessionFileUpload(request, "group-session-requests");
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("presignedUpload", getPresignedUploadApiResponseFactory().create(presignedUpload));
+			put("fileUploadResult", getFileUploadResultApiResponseFactory().create(fileUploadResult));
 		}});
 	}
 
@@ -355,5 +361,10 @@ public class GroupSessionRequestResource {
 	@Nonnull
 	protected AuthorizationService getAuthorizationService() {
 		return authorizationServiceProvider.get();
+	}
+
+	@Nonnull
+	protected FileUploadResultApiResponseFactory getFileUploadResultApiResponseFactory() {
+		return fileUploadResultApiResponseFactory;
 	}
 }
