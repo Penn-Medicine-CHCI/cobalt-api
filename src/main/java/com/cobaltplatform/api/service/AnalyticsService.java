@@ -1022,7 +1022,10 @@ public class AnalyticsService implements AutoCloseable {
 						  COALESCE(MAX(pr.available_appointment_count), 0) AS available_appointment_count,
 						  COALESCE(MAX(pr.booked_appointment_count), 0) AS booked_appointment_count,
 						  COALESCE(MAX(pr.canceled_appointment_count), 0) AS canceled_appointment_count,
-						  (COALESCE(MAX(pr.available_appointment_count), 0)::DECIMAL / COALESCE(MAX(pr.booked_appointment_count), 0)::DECIMAL) / 100 AS booking_percentage
+						  CASE
+						    WHEN COALESCE(MAX(pr.available_appointment_count), 0) = 0 THEN 0
+						    ELSE COALESCE(MAX(pr.booked_appointment_count), 0)::DECIMAL / COALESCE(MAX(pr.available_appointment_count), 0)::DECIMAL
+						  END AS booking_percentage
 						FROM provider_row pr
 						GROUP BY pr.provider_id, pr.name
 						ORDER BY pr.name
