@@ -1170,6 +1170,273 @@ public class AnalyticsService implements AutoCloseable {
 		return groupSessionSummary;
 	}
 
+	@Nonnull
+	public ResourceAndTopicSummary findResourceAndTopicSummary(@Nonnull InstitutionId institutionId,
+																														 @Nonnull LocalDate startDate,
+																														 @Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		if (endDate.isBefore(startDate))
+			throw new ValidationException(getStrings().get("End date cannot be before start date."));
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		Instant startTimestamp = LocalDateTime.of(startDate, LocalTime.MIN).atZone(institution.getTimeZone()).toInstant();
+		Instant endTimestamp = LocalDateTime.of(endDate, LocalTime.MAX).atZone(institution.getTimeZone()).toInstant();
+
+		// GA only reliably provides absolute URLs in its data, so we need to discard the prefix to find and work with the url_path.
+		// For example, "https://www.cobaltplatform.com/group-sessions?abc=123" has url_path "/group-sessions?abc=123".
+		// We do this by getting the webapp base URL and using it as part of a regex.
+		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.PATIENT).get();
+		String urlPathRegex = format("^%s", webappBaseUrl);
+
+		// Tag page views
+		// Chops off query parameters, so /resource-library/tag-groups/symptoms?test=123 is counted as /resource-library/tag-groups/symptoms.
+		// Also determines tags based on URL name suffix.
+		List<TagGroupPageView> tagGroupPageViews = getDatabase().queryForList("""
+				WITH tag_group_page_normalized_view AS (
+				  WITH tag_group_page_view AS (
+				      SELECT regexp_replace(url, ?, '') AS raw_url_path
+				      FROM v_analytics_account_interaction
+				      WHERE activity = 'page_view'
+				      AND activity_timestamp BETWEEN ? AND ?
+				      AND institution_id=?
+				      AND regexp_replace(url, ?, '') LIKE '/resource-library/tag-groups/%'
+				  )
+				  SELECT COUNT(*) AS page_view_count,
+				    CASE
+				      WHEN STRPOS(tgpv.raw_url_path, ?) > 0 THEN SUBSTR(tgpv.raw_url_path, 0, STRPOS(tgpv.raw_url_path, ?))
+				      ELSE tgpv.raw_url_path
+				    END AS url_path
+				  FROM tag_group_page_view tgpv
+				  GROUP BY url_path
+				)
+				SELECT tgpnv.page_view_count, tgpnv.url_path, tg.tag_group_id, tg.name AS tag_group_name
+				FROM tag_group_page_normalized_view tgpnv, tag_group tg
+				WHERE tg.url_name = REVERSE(SUBSTR(REVERSE(tgpnv.url_path), 0, STRPOS(REVERSE(tgpnv.url_path), '/')))
+				ORDER BY tgpnv.page_view_count DESC
+												""", TagGroupPageView.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, "?", "?");
+
+		// Tag page views
+		// Chops off query parameters, so /resource-library/tags/anxiety?test=123 is counted as /resource-library/tags/anxiety.
+		// Also determines tags based on URL name suffix.
+		List<TagPageView> tagPageViews = getDatabase().queryForList("""
+				WITH tag_page_normalized_view AS (
+				  WITH tag_page_view AS (
+				      SELECT regexp_replace(url, ?, '') AS raw_url_path
+				      FROM v_analytics_account_interaction
+				      WHERE activity = 'page_view'
+				      AND activity_timestamp BETWEEN ? AND ?
+				      AND institution_id=?
+				      AND regexp_replace(url, ?, '') LIKE '/resource-library/tags/%'
+				  )
+				  SELECT COUNT(*) AS page_view_count,
+				    CASE
+				      WHEN STRPOS(tpv.raw_url_path, ?) > 0 THEN SUBSTR(tpv.raw_url_path, 0, STRPOS(tpv.raw_url_path, ?))
+				      ELSE tpv.raw_url_path
+				    END AS url_path
+				  FROM tag_page_view tpv
+				  GROUP BY url_path
+				)
+				SELECT tpnv.page_view_count, tpnv.url_path, t.tag_id, t.name AS tag_name, t.tag_group_id
+				FROM tag_page_normalized_view tpnv, tag t
+				WHERE t.url_name = REVERSE(SUBSTR(REVERSE(tpnv.url_path), 0, STRPOS(REVERSE(tpnv.url_path), '/')))
+				ORDER BY tpnv.page_view_count DESC
+								""", TagPageView.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, "?", "?");
+
+		// TODO
+		List<ContentPageView> contentPageViews = new ArrayList<>();
+
+		ResourceAndTopicSummary resourceAndTopicSummary = new ResourceAndTopicSummary();
+		resourceAndTopicSummary.setTagGroupPageViews(tagGroupPageViews);
+		resourceAndTopicSummary.setTagPageViews(tagPageViews);
+		resourceAndTopicSummary.setContentPageViews(contentPageViews);
+
+		return resourceAndTopicSummary;
+	}
+
+	@NotThreadSafe
+	public static class ResourceAndTopicSummary {
+		@Nullable
+		private List<TagGroupPageView> tagGroupPageViews;
+		@Nullable
+		private List<TagPageView> tagPageViews;
+		@Nullable
+		private List<ContentPageView> contentPageViews;
+
+		@Nullable
+		public List<TagGroupPageView> getTagGroupPageViews() {
+			return this.tagGroupPageViews;
+		}
+
+		public void setTagGroupPageViews(@Nullable List<TagGroupPageView> tagGroupPageViews) {
+			this.tagGroupPageViews = tagGroupPageViews;
+		}
+
+		@Nullable
+		public List<TagPageView> getTagPageViews() {
+			return this.tagPageViews;
+		}
+
+		public void setTagPageViews(@Nullable List<TagPageView> tagPageViews) {
+			this.tagPageViews = tagPageViews;
+		}
+
+		@Nullable
+		public List<ContentPageView> getContentPageViews() {
+			return this.contentPageViews;
+		}
+
+		public void setContentPageViews(@Nullable List<ContentPageView> contentPageViews) {
+			this.contentPageViews = contentPageViews;
+		}
+	}
+
+	@NotThreadSafe
+	public static class ContentPageView {
+		@Nullable
+		private UUID contentId;
+		@Nullable
+		private String title;
+		@Nullable
+		private Long pageViewCount;
+
+		@Nullable
+		public UUID getContentId() {
+			return this.contentId;
+		}
+
+		public void setContentId(@Nullable UUID contentId) {
+			this.contentId = contentId;
+		}
+
+		@Nullable
+		public String getTitle() {
+			return this.title;
+		}
+
+		public void setTitle(@Nullable String title) {
+			this.title = title;
+		}
+
+		@Nullable
+		public Long getPageViewCount() {
+			return this.pageViewCount;
+		}
+
+		public void setPageViewCount(@Nullable Long pageViewCount) {
+			this.pageViewCount = pageViewCount;
+		}
+	}
+
+	@NotThreadSafe
+	public static class TagGroupPageView {
+		@Nullable
+		private Long pageViewCount;
+		@Nullable
+		private String urlPath;
+		@Nullable
+		private String tagGroupId;
+		@Nullable
+		private String tagGroupName;
+
+		@Nullable
+		public Long getPageViewCount() {
+			return this.pageViewCount;
+		}
+
+		public void setPageViewCount(@Nullable Long pageViewCount) {
+			this.pageViewCount = pageViewCount;
+		}
+
+		@Nullable
+		public String getUrlPath() {
+			return this.urlPath;
+		}
+
+		public void setUrlPath(@Nullable String urlPath) {
+			this.urlPath = urlPath;
+		}
+
+		@Nullable
+		public String getTagGroupId() {
+			return this.tagGroupId;
+		}
+
+		public void setTagGroupId(@Nullable String tagGroupId) {
+			this.tagGroupId = tagGroupId;
+		}
+
+		@Nullable
+		public String getTagGroupName() {
+			return this.tagGroupName;
+		}
+
+		public void setTagGroupName(@Nullable String tagGroupName) {
+			this.tagGroupName = tagGroupName;
+		}
+	}
+
+	@NotThreadSafe
+	public static class TagPageView {
+		@Nullable
+		private Long pageViewCount;
+		@Nullable
+		private String urlPath;
+		@Nullable
+		private String tagId;
+		@Nullable
+		private String tagName;
+		@Nullable
+		private String tagGroupId;
+
+		@Nullable
+		public Long getPageViewCount() {
+			return this.pageViewCount;
+		}
+
+		public void setPageViewCount(@Nullable Long pageViewCount) {
+			this.pageViewCount = pageViewCount;
+		}
+
+		@Nullable
+		public String getUrlPath() {
+			return this.urlPath;
+		}
+
+		public void setUrlPath(@Nullable String urlPath) {
+			this.urlPath = urlPath;
+		}
+
+		@Nullable
+		public String getTagId() {
+			return this.tagId;
+		}
+
+		public void setTagId(@Nullable String tagId) {
+			this.tagId = tagId;
+		}
+
+		@Nullable
+		public String getTagName() {
+			return this.tagName;
+		}
+
+		public void setTagName(@Nullable String tagName) {
+			this.tagName = tagName;
+		}
+
+		@Nullable
+		public String getTagGroupId() {
+			return this.tagGroupId;
+		}
+
+		public void setTagGroupId(@Nullable String tagGroupId) {
+			this.tagGroupId = tagGroupId;
+		}
+	}
+
 	@NotThreadSafe
 	public static class GroupSessionSummary {
 		@Nullable

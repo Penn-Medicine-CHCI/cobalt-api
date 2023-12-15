@@ -31,6 +31,7 @@ import com.cobaltplatform.api.service.AnalyticsService.AppointmentClickToCallCou
 import com.cobaltplatform.api.service.AnalyticsService.AppointmentCount;
 import com.cobaltplatform.api.service.AnalyticsService.CrisisTriggerCount;
 import com.cobaltplatform.api.service.AnalyticsService.GroupSessionSummary;
+import com.cobaltplatform.api.service.AnalyticsService.ResourceAndTopicSummary;
 import com.cobaltplatform.api.service.AnalyticsService.ScreeningSessionCompletion;
 import com.cobaltplatform.api.service.AnalyticsService.SectionCountSummary;
 import com.cobaltplatform.api.service.AnalyticsService.TrafficSourceSummary;
@@ -135,7 +136,8 @@ public class AnalyticsResource {
 		// Group Sessions
 		GroupSessionSummary groupSessionSummary = getAnalyticsService().findGroupSessionSummary(institutionId, startDate, endDate);
 
-		// NOTE: this is a WIP
+		// Resources and Topics
+		ResourceAndTopicSummary resourceAndTopicSummary = getAnalyticsService().findResourceAndTopicSummary(institutionId, startDate, endDate);
 
 		Map<String, Object> response = new HashMap<>();
 		response.put("sections", Map.of(
@@ -157,7 +159,7 @@ public class AnalyticsResource {
 						"groupSessionSummary", groupSessionSummary
 				),
 				"resourcesAndTopics", Map.of(
-
+						"resourceAndTopicSummary", resourceAndTopicSummary
 				)
 		));
 
@@ -581,6 +583,8 @@ public class AnalyticsResource {
 		if (!getAuthorizationService().canViewAnalytics(institutionId, account))
 			throw new AuthorizationException();
 
+		GroupSessionSummary groupSessionSummary = getAnalyticsService().findGroupSessionSummary(institutionId, startDate, endDate);
+
 		String exampleJson = """
 				{
 				  "analyticsWidgetGroups": [
@@ -623,6 +627,14 @@ public class AnalyticsResource {
 				                  "1,000",
 				                  "1,000"
 				                ]
+				              },
+				              {
+				                "data": [
+				                  "Test Session",
+				                  "1/1/2023",
+				                  "2,000",
+				                  "3,000"
+				                ]
 				              }
 				            ]
 				          }
@@ -650,6 +662,8 @@ public class AnalyticsResource {
 
 		if (!getAuthorizationService().canViewAnalytics(institutionId, account))
 			throw new AuthorizationException();
+
+		ResourceAndTopicSummary resourceAndTopicSummary = getAnalyticsService().findResourceAndTopicSummary(institutionId, startDate, endDate);
 
 		String exampleJson = """
 				{
