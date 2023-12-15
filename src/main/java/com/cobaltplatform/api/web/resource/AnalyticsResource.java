@@ -27,7 +27,11 @@ import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AnalyticsService;
 import com.cobaltplatform.api.service.AnalyticsService.AnalyticsResultNewVersusReturning;
+import com.cobaltplatform.api.service.AnalyticsService.AppointmentClickToCallCount;
+import com.cobaltplatform.api.service.AnalyticsService.AppointmentCount;
 import com.cobaltplatform.api.service.AnalyticsService.CrisisTriggerCount;
+import com.cobaltplatform.api.service.AnalyticsService.GroupSessionSummary;
+import com.cobaltplatform.api.service.AnalyticsService.ResourceAndTopicSummary;
 import com.cobaltplatform.api.service.AnalyticsService.ScreeningSessionCompletion;
 import com.cobaltplatform.api.service.AnalyticsService.SectionCountSummary;
 import com.cobaltplatform.api.service.AnalyticsService.TrafficSourceSummary;
@@ -125,18 +129,15 @@ public class AnalyticsResource {
 		// Assessments and appointments analytics
 		Map<UUID, ScreeningSessionCompletion> screeningSessionCompletions = getAnalyticsService().findClinicalScreeningSessionCompletionsByScreeningFlowId(institutionId, startDate, endDate);
 		Map<UUID, SortedMap<String, Long>> screeningSessionSeverityCounts = getAnalyticsService().findClinicalScreeningSessionSeverityCountsByDescriptionByScreeningFlowId(institutionId, startDate, endDate);
-
-		Set<UUID> screeningFlowIds = new HashSet<>(screeningSessionCompletions.size() + screeningSessionSeverityCounts.size());
-		screeningFlowIds.addAll(screeningSessionCompletions.keySet());
-		screeningFlowIds.addAll(screeningSessionSeverityCounts.keySet());
-
-		Map<UUID, ScreeningFlow> screeningFlowsByScreeningFlowId = screeningFlowIds.stream()
-				.map(screeningFlowId -> getScreeningService().findScreeningFlowById(screeningFlowId).get())
-				.collect(Collectors.toMap(screeningFlow -> screeningFlow.getScreeningFlowId(), Function.identity()));
-
 		List<CrisisTriggerCount> crisisTriggerCounts = getAnalyticsService().findCrisisTriggerCounts(institutionId, startDate, endDate);
+		List<AppointmentCount> appointmentCounts = getAnalyticsService().findAppointmentCounts(institutionId, startDate, endDate);
+		List<AppointmentClickToCallCount> appointmentClickToCallCounts = getAnalyticsService().findAppointmentClickToCallCounts(institutionId, startDate, endDate);
 
-		// NOTE: this is a WIP
+		// Group Sessions
+		GroupSessionSummary groupSessionSummary = getAnalyticsService().findGroupSessionSummary(institutionId, startDate, endDate);
+
+		// Resources and Topics
+		ResourceAndTopicSummary resourceAndTopicSummary = getAnalyticsService().findResourceAndTopicSummary(institutionId, startDate, endDate);
 
 		Map<String, Object> response = new HashMap<>();
 		response.put("sections", Map.of(
@@ -150,13 +151,15 @@ public class AnalyticsResource {
 				"assessmentsAndAppointments", Map.of(
 						"screeningSessionCompletions", screeningSessionCompletions,
 						"screeningSessionSeverityCounts", screeningSessionSeverityCounts,
-						"crisisTriggerCounts", crisisTriggerCounts
+						"crisisTriggerCounts", crisisTriggerCounts,
+						"appointmentCounts", appointmentCounts,
+						"appointmentClickToCallCounts", appointmentClickToCallCounts
 				),
 				"groupSessions", Map.of(
-
+						"groupSessionSummary", groupSessionSummary
 				),
 				"resourcesAndTopics", Map.of(
-
+						"resourceAndTopicSummary", resourceAndTopicSummary
 				)
 		));
 
@@ -177,6 +180,12 @@ public class AnalyticsResource {
 
 		if (!getAuthorizationService().canViewAnalytics(institutionId, account))
 			throw new AuthorizationException();
+
+		AnalyticsResultNewVersusReturning activeUserCountsNewVersusReturning = getAnalyticsService().findActiveUserCountsNewVersusReturning(institutionId, startDate, endDate);
+		Map<AccountSourceId, Long> activeUserCountsByAccountSourceId = getAnalyticsService().findActiveUserCountsByAccountSourceId(institutionId, startDate, endDate);
+		List<SectionCountSummary> sectionCountSummaries = getAnalyticsService().findSectionCountSummaries(institutionId, startDate, endDate);
+		TrafficSourceSummary trafficSourceSummary = getAnalyticsService().findTrafficSourceSummary(institutionId, startDate, endDate);
+		Map<String, Long> activeUserCountsByInstitutionLocation = getAnalyticsService().findActiveUserCountsByInstitutionLocation(institutionId, startDate, endDate);
 
 		String exampleJson = """
 				{
@@ -402,6 +411,22 @@ public class AnalyticsResource {
 		if (!getAuthorizationService().canViewAnalytics(institutionId, account))
 			throw new AuthorizationException();
 
+		Map<UUID, ScreeningSessionCompletion> screeningSessionCompletions = getAnalyticsService().findClinicalScreeningSessionCompletionsByScreeningFlowId(institutionId, startDate, endDate);
+		Map<UUID, SortedMap<String, Long>> screeningSessionSeverityCounts = getAnalyticsService().findClinicalScreeningSessionSeverityCountsByDescriptionByScreeningFlowId(institutionId, startDate, endDate);
+
+		Set<UUID> screeningFlowIds = new HashSet<>(screeningSessionCompletions.size() + screeningSessionSeverityCounts.size());
+		screeningFlowIds.addAll(screeningSessionCompletions.keySet());
+		screeningFlowIds.addAll(screeningSessionSeverityCounts.keySet());
+
+		Map<UUID, ScreeningFlow> screeningFlowsByScreeningFlowId = screeningFlowIds.stream()
+				.map(screeningFlowId -> getScreeningService().findScreeningFlowById(screeningFlowId).get())
+				.collect(Collectors.toMap(screeningFlow -> screeningFlow.getScreeningFlowId(), Function.identity()));
+
+		List<CrisisTriggerCount> crisisTriggerCounts = getAnalyticsService().findCrisisTriggerCounts(institutionId, startDate, endDate);
+
+		List<AppointmentCount> appointmentCounts = getAnalyticsService().findAppointmentCounts(institutionId, startDate, endDate);
+		List<AppointmentClickToCallCount> appointmentClickToCallCounts = getAnalyticsService().findAppointmentClickToCallCounts(institutionId, startDate, endDate);
+
 		String exampleJson = """
 				{
 				  "analyticsWidgetGroups": [
@@ -558,6 +583,8 @@ public class AnalyticsResource {
 		if (!getAuthorizationService().canViewAnalytics(institutionId, account))
 			throw new AuthorizationException();
 
+		GroupSessionSummary groupSessionSummary = getAnalyticsService().findGroupSessionSummary(institutionId, startDate, endDate);
+
 		String exampleJson = """
 				{
 				  "analyticsWidgetGroups": [
@@ -600,6 +627,14 @@ public class AnalyticsResource {
 				                  "1,000",
 				                  "1,000"
 				                ]
+				              },
+				              {
+				                "data": [
+				                  "Test Session",
+				                  "1/1/2023",
+				                  "2,000",
+				                  "3,000"
+				                ]
 				              }
 				            ]
 				          }
@@ -627,6 +662,8 @@ public class AnalyticsResource {
 
 		if (!getAuthorizationService().canViewAnalytics(institutionId, account))
 			throw new AuthorizationException();
+
+		ResourceAndTopicSummary resourceAndTopicSummary = getAnalyticsService().findResourceAndTopicSummary(institutionId, startDate, endDate);
 
 		String exampleJson = """
 				{
