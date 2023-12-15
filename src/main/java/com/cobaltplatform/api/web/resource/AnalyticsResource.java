@@ -30,6 +30,7 @@ import com.cobaltplatform.api.service.AnalyticsService.AnalyticsResultNewVersusR
 import com.cobaltplatform.api.service.AnalyticsService.AppointmentClickToCallCount;
 import com.cobaltplatform.api.service.AnalyticsService.AppointmentCount;
 import com.cobaltplatform.api.service.AnalyticsService.CrisisTriggerCount;
+import com.cobaltplatform.api.service.AnalyticsService.GroupSessionSummary;
 import com.cobaltplatform.api.service.AnalyticsService.ScreeningSessionCompletion;
 import com.cobaltplatform.api.service.AnalyticsService.SectionCountSummary;
 import com.cobaltplatform.api.service.AnalyticsService.TrafficSourceSummary;
@@ -131,6 +132,9 @@ public class AnalyticsResource {
 		List<AppointmentCount> appointmentCounts = getAnalyticsService().findAppointmentCounts(institutionId, startDate, endDate);
 		List<AppointmentClickToCallCount> appointmentClickToCallCounts = getAnalyticsService().findAppointmentClickToCallCounts(institutionId, startDate, endDate);
 
+		// Group Sessions
+		GroupSessionSummary groupSessionSummary = getAnalyticsService().findGroupSessionSummary(institutionId, startDate, endDate);
+
 		// NOTE: this is a WIP
 
 		Map<String, Object> response = new HashMap<>();
@@ -150,7 +154,7 @@ public class AnalyticsResource {
 						"appointmentClickToCallCounts", appointmentClickToCallCounts
 				),
 				"groupSessions", Map.of(
-
+						"groupSessionSummary", groupSessionSummary
 				),
 				"resourcesAndTopics", Map.of(
 

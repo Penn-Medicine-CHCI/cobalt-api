@@ -1021,7 +1021,7 @@ public class AnalyticsService implements AutoCloseable {
 						  pr.name,
 						  COALESCE(MAX(pr.available_appointment_count), 0) AS available_appointment_count,
 						  COALESCE(MAX(pr.booked_appointment_count), 0) AS booked_appointment_count,
-						  COALESCE(MAX(pr.canceled_appointment_count), 0) AS canceled_appointment_count, 
+						  COALESCE(MAX(pr.canceled_appointment_count), 0) AS canceled_appointment_count,
 						  (COALESCE(MAX(pr.available_appointment_count), 0)::DECIMAL / COALESCE(MAX(pr.booked_appointment_count), 0)::DECIMAL) / 100 AS booking_percentage
 						FROM provider_row pr
 						GROUP BY pr.provider_id, pr.name
@@ -1069,6 +1069,201 @@ public class AnalyticsService implements AutoCloseable {
 				""", AppointmentClickToCallCount.class, institutionId, startTimestamp, endTimestamp));
 
 		return appointmentClickToCallCounts;
+	}
+
+	@Nonnull
+	public GroupSessionSummary findGroupSessionSummary(@Nonnull InstitutionId institutionId,
+																										 @Nonnull LocalDate startDate,
+																										 @Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		if (endDate.isBefore(startDate))
+			throw new ValidationException(getStrings().get("End date cannot be before start date."));
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		Instant startTimestamp = LocalDateTime.of(startDate, LocalTime.MIN).atZone(institution.getTimeZone()).toInstant();
+		Instant endTimestamp = LocalDateTime.of(endDate, LocalTime.MAX).atZone(institution.getTimeZone()).toInstant();
+
+		Long registrationCount = getDatabase().queryForObject("""
+				SELECT COUNT(gsr.*) as registration_count
+				FROM v_group_session_reservation gsr, account a, institution i
+				WHERE gsr.account_id=a.account_id
+				AND a.institution_id=i.institution_id
+				AND gsr.created BETWEEN ? AND ?
+				AND a.institution_id=?
+				""", Long.class, startTimestamp, endTimestamp, institutionId).get();
+
+		Long requestCount = getDatabase().queryForObject("""
+				SELECT COUNT(gr.*) as request_count
+				FROM group_request gr, account a, institution i
+				WHERE gr.requestor_account_id=a.account_id
+				AND a.institution_id=i.institution_id
+				AND gr.created BETWEEN ? AND ?
+				AND a.institution_id=?
+				""", Long.class, startTimestamp, endTimestamp, institutionId).get();
+
+		// GA only reliably provides absolute URLs in its data, so we need to discard the prefix to find and work with the url_path.
+		// For example, "https://www.cobaltplatform.com/group-sessions?abc=123" has url_path "/group-sessions?abc=123".
+		// We do this by getting the webapp base URL and using it as part of a regex.
+		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.PATIENT).get();
+		String urlPathRegex = format("^%s", webappBaseUrl);
+
+		List<GroupSessionCount> groupSessionCounts = getDatabase().queryForList("""
+						WITH gs_row AS (
+						    WITH gs_page_view AS (
+						        SELECT COUNT(*) AS page_view_count, regexp_replace(url, ?, '') AS url_path
+						        FROM v_analytics_account_interaction
+						        WHERE activity = 'page_view'
+						        AND activity_timestamp BETWEEN ? AND ?
+						        AND institution_id=?
+						        AND (
+						            regexp_replace(url, ?, '') LIKE '/in-the-studio/group-session-scheduled/%'
+						            OR
+						            regexp_replace(url, ?, '') LIKE '/group-sessions/%'
+						        )
+						        GROUP BY url_path
+						    ), gs_registration AS (
+						        SELECT COUNT(gsr.*) as registration_count, gsr.group_session_id
+						        FROM v_group_session_reservation gsr, account a, institution i
+						        WHERE gsr.account_id=a.account_id
+						        AND a.institution_id=i.institution_id
+						        AND gsr.created BETWEEN ? AND ?
+						        AND a.institution_id=?
+						        GROUP BY gsr.group_session_id
+						    )
+						    SELECT gs.group_session_id, gs.title, SUM(gspv.page_view_count) AS page_view_count, NULL::BIGINT AS registration_count
+						    FROM group_session gs, gs_page_view gspv
+						    WHERE
+						    (
+						    gspv.url_path = '/group-sessions/' || gs.url_name
+						    OR
+						    gspv.url_path = '/group-sessions/' || gs.group_session_id
+						    OR
+						    gspv.url_path = '/in-the-studio/group-session-scheduled/' || gs.group_session_id
+						    )
+						    GROUP BY gs.group_session_id, gs.title, registration_count
+						    UNION
+						    SELECT gs.group_session_id, gs.title, NULL::BIGINT AS page_view_count, gsr.registration_count
+						    FROM group_session gs, gs_registration gsr
+						    WHERE gs.group_session_id=gsr.group_session_id
+						)
+						SELECT
+						  gs.group_session_id,
+						  gs.title,
+						  gs.start_date_time,
+						  COALESCE(MAX(gsr.page_view_count), 0) AS page_view_count,
+						  COALESCE(MAX(gsr.registration_count), 0) AS registration_count
+						FROM gs_row gsr, group_session gs
+						WHERE gsr.group_session_id=gs.group_session_id
+						GROUP BY gs.group_session_id, gs.title, gs.start_date_time
+						ORDER BY gs.title, gs.start_date_time
+						""", GroupSessionCount.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, urlPathRegex,
+				startTimestamp, endTimestamp, institutionId);
+
+		GroupSessionSummary groupSessionSummary = new GroupSessionSummary();
+		groupSessionSummary.setRegistrationCount(registrationCount);
+		groupSessionSummary.setRequestCount(requestCount);
+		groupSessionSummary.setGroupSessionCounts(groupSessionCounts);
+
+		return groupSessionSummary;
+	}
+
+	@NotThreadSafe
+	public static class GroupSessionSummary {
+		@Nullable
+		private Long registrationCount;
+		@Nullable
+		private Long requestCount;
+		@Nullable
+		private List<GroupSessionCount> groupSessionCounts;
+
+		@Nullable
+		public Long getRegistrationCount() {
+			return this.registrationCount;
+		}
+
+		public void setRegistrationCount(@Nullable Long registrationCount) {
+			this.registrationCount = registrationCount;
+		}
+
+		@Nullable
+		public Long getRequestCount() {
+			return this.requestCount;
+		}
+
+		public void setRequestCount(@Nullable Long requestCount) {
+			this.requestCount = requestCount;
+		}
+
+		@Nullable
+		public List<GroupSessionCount> getGroupSessionCounts() {
+			return this.groupSessionCounts;
+		}
+
+		public void setGroupSessionCounts(@Nullable List<GroupSessionCount> groupSessionCounts) {
+			this.groupSessionCounts = groupSessionCounts;
+		}
+	}
+
+	@NotThreadSafe
+	public static class GroupSessionCount {
+		@Nullable
+		private UUID groupSessionId;
+		@Nullable
+		private String title;
+		@Nullable
+		private LocalDateTime startDateTime;
+		@Nullable
+		private Long registrationCount;
+		@Nullable
+		private Long pageViewCount;
+
+		@Nullable
+		public UUID getGroupSessionId() {
+			return this.groupSessionId;
+		}
+
+		public void setGroupSessionId(@Nullable UUID groupSessionId) {
+			this.groupSessionId = groupSessionId;
+		}
+
+		@Nullable
+		public String getTitle() {
+			return this.title;
+		}
+
+		public void setTitle(@Nullable String title) {
+			this.title = title;
+		}
+
+		@Nullable
+		public LocalDateTime getStartDateTime() {
+			return this.startDateTime;
+		}
+
+		public void setStartDateTime(@Nullable LocalDateTime startDateTime) {
+			this.startDateTime = startDateTime;
+		}
+
+		@Nullable
+		public Long getRegistrationCount() {
+			return this.registrationCount;
+		}
+
+		public void setRegistrationCount(@Nullable Long registrationCount) {
+			this.registrationCount = registrationCount;
+		}
+
+		@Nullable
+		public Long getPageViewCount() {
+			return this.pageViewCount;
+		}
+
+		public void setPageViewCount(@Nullable Long pageViewCount) {
+			this.pageViewCount = pageViewCount;
+		}
 	}
 
 	@NotThreadSafe
