@@ -26,7 +26,6 @@ import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
 import com.cobaltplatform.api.model.db.Role;
 import com.cobaltplatform.api.model.service.AdminContent;
 import com.cobaltplatform.api.service.ContentService;
-import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -37,6 +36,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.LocalDate;
 import java.time.format.FormatStyle;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -126,6 +126,9 @@ public class AdminContentApiResponse {
 	private String filename;
 
 	@Nullable
+	private UUID imageFileUploadId;
+
+	@Nullable
 	private String fileContentType;
 
 	public enum AdminContentDisplayType {
@@ -146,7 +149,6 @@ public class AdminContentApiResponse {
 	@AssistedInject
 	public AdminContentApiResponse(@Nonnull Formatter formatter,
 																 @Nonnull ContentService contentService,
-																 @Nonnull InstitutionService institutionService,
 																 @Assisted @Nonnull Account account,
 																 @Assisted @Nonnull AdminContent adminContent,
 																 @Assisted @Nonnull AdminContentDisplayType adminContentDisplayType,
@@ -222,8 +224,8 @@ public class AdminContentApiResponse {
 				.map(tag -> tag.getTagId())
 				.collect(Collectors.toList());
 
-		//TODO: Set these for real
-		this.newFlag = false;
+		//TODO: Better logic to set the new flag
+		this.newFlag = this.dateCreated.compareTo(LocalDate.now().minus(14, ChronoUnit.DAYS)) > 0;
 		this.inUseCount = adminContent.getInUseCount();
 		this.inUseInstitutionDescription = adminContent.getInUseInstitutionDescription();
 
@@ -234,6 +236,8 @@ public class AdminContentApiResponse {
 				}}) : null;
 
 		this.fileUploadId = adminContent.getFileUploadId();
+
+		this.imageFileUploadId = adminContent.getImageFileUploadId();
 
 		this.tags = adminContent.getTags() == null ? Collections.emptyList() : adminContent.getTags().stream()
 				.map(tag -> tagApiResponseFactory.create(tag))
@@ -455,5 +459,10 @@ public class AdminContentApiResponse {
 	@Nullable
 	public String getFileContentType() {
 		return fileContentType;
+	}
+
+	@Nullable
+	public UUID getImageFileUploadId() {
+		return imageFileUploadId;
 	}
 }

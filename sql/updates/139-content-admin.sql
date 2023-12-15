@@ -177,4 +177,14 @@ CREATE VIEW v_group_session AS
 
   ALTER TABLE group_session DROP COLUMN image_url;
 
+  --create a default file_upload image for Group Sessions
+  INSERT INTO file_upload
+    (file_upload_id, account_id, url, filename,
+     storage_key, content_type)
+  VALUES
+    ('3e39722c-5ae9-4e35-a1f6-e0adc0df391c', (SELECT account_id FROM account WHERE email_address = 'admin@cobaltinnovations.org'), 
+     'https://cobalt-shared-media.s3.amazonaws.com/group-sessions/default-group-session.jpg', 'default-group-session',
+     'default-group-session', 'application/jpeg');
+
+
 COMMIT;
