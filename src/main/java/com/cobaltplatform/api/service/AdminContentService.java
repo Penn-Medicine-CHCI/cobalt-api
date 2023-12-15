@@ -367,7 +367,7 @@ public class AdminContentService {
 		String searchTerms = trimToNull(command.getSearchTerms());
 		Boolean sharedFlag = command.getSharedFlag();
 		UUID fileUploadId = command.getFileUploadId();
-		UUID imageFileUploadId = command.getFileUploadId();
+		UUID imageFileUploadId = command.getImageFileUploadId();
 
 		ValidationException validationException = new ValidationException();
 
