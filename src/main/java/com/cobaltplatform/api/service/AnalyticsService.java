@@ -838,6 +838,8 @@ public class AnalyticsService implements AutoCloseable {
 			screeningSessionCompletion.setStartedCount(startedCount);
 			screeningSessionCompletion.setCompletedCount(completedCount);
 			screeningSessionCompletion.setCompletionPercentage(completionPercentage);
+
+			screeningSessionCompletionsByScreeningFlowId.put(screeningFlowId, screeningSessionCompletion);
 		}
 
 		return screeningSessionCompletionsByScreeningFlowId;
