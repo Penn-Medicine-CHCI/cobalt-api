@@ -954,6 +954,88 @@ public class AnalyticsService implements AutoCloseable {
 	}
 
 	@Nonnull
+	public List<AppointmentCount> findAppointmentCounts(@Nonnull InstitutionId institutionId,
+																											@Nonnull LocalDate startDate,
+																											@Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		if (endDate.isBefore(startDate))
+			throw new ValidationException(getStrings().get("End date cannot be before start date."));
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		Instant startTimestamp = LocalDateTime.of(startDate, LocalTime.MIN).atZone(institution.getTimeZone()).toInstant();
+		Instant endTimestamp = LocalDateTime.of(endDate, LocalTime.MAX).atZone(institution.getTimeZone()).toInstant();
+
+		List<AppointmentCount> appointmentCounts = getDatabase().queryForList("""
+						WITH provider_row AS (
+						    WITH booked_app AS (
+						        SELECT app.appointment_id, app.provider_id
+						        FROM appointment app, account a, institution i
+						        WHERE app.account_id=a.account_id
+						        AND app.canceled=FALSE
+						        AND a.institution_id=i.institution_id
+						        AND app.start_time AT TIME ZONE i.time_zone between ? AND ?
+						        AND a.institution_id=?
+						    ), canceled_app AS (
+						        SELECT app.appointment_id, app.provider_id
+						        FROM appointment app, account a, institution i
+						        WHERE app.account_id=a.account_id
+						        AND app.canceled=TRUE
+						        AND a.institution_id=i.institution_id
+						        AND app.start_time AT TIME ZONE i.time_zone between ? AND ?
+						        AND a.institution_id=?
+						    ), available_app AS (
+						        SELECT pah.provider_availability_history_id, pah.slot_date_time, p.provider_id
+						        FROM provider_availability_history pah, provider p, institution i
+						        WHERE pah.provider_id=p.provider_id
+						        AND p.institution_id=i.institution_id
+						        AND p.display_phone_number_only_for_booking=FALSE
+						        AND pah.slot_date_time AT TIME ZONE i.time_zone between ? AND ?
+						        AND p.institution_id=?
+						    )
+						    SELECT p.provider_id, p.name, count(aa.*) as available_appointment_count, NULL::BIGINT as booked_appointment_count, NULL::BIGINT as canceled_appointment_count
+						    FROM provider p
+						    LEFT OUTER JOIN available_app aa ON p.provider_id=aa.provider_id
+						    WHERE p.institution_id=?
+						    GROUP BY p.provider_id, p.name, booked_appointment_count, canceled_appointment_count
+						    HAVING count(aa.*) > 0
+						    UNION
+						    SELECT p.provider_id, p.name, NULL::BIGINT as available_appointment_count, count(ba.*) as booked_appointment_count, NULL::BIGINT as canceled_appointment_count
+						    FROM provider p
+						    LEFT OUTER JOIN booked_app ba ON p.provider_id=ba.provider_id
+						    WHERE p.institution_id=?
+						    GROUP BY p.provider_id, p.name, available_appointment_count, canceled_appointment_count
+						    HAVING count(ba.*) > 0
+						    UNION
+						    SELECT p.provider_id, p.name, NULL::BIGINT as available_appointment_count, NULL::BIGINT as booked_appointment_count, count(ca.*) as canceled_appointment_count
+						    FROM provider p
+						    LEFT OUTER JOIN canceled_app ca ON p.provider_id=ca.provider_id
+						    WHERE p.institution_id=?
+						    GROUP BY p.provider_id, p.name, available_appointment_count, booked_appointment_count
+						    HAVING count(ca.*) > 0
+						)
+						SELECT
+						  pr.provider_id,
+						  pr.name,
+						  COALESCE(MAX(pr.available_appointment_count), 0) AS available_appointment_count,
+						  COALESCE(MAX(pr.booked_appointment_count), 0) AS booked_appointment_count,
+						  COALESCE(MAX(pr.canceled_appointment_count), 0) AS canceled_appointment_count, 
+						  (COALESCE(MAX(pr.available_appointment_count), 0)::DECIMAL / COALESCE(MAX(pr.booked_appointment_count), 0)::DECIMAL) / 100 AS booking_percentage
+						FROM provider_row pr
+						GROUP BY pr.provider_id, pr.name
+						ORDER BY pr.name
+						""", AppointmentCount.class, startTimestamp, endTimestamp, institutionId,
+				startTimestamp, endTimestamp, institutionId,
+				startTimestamp, endTimestamp, institutionId,
+				institutionId, institutionId, institutionId
+		);
+
+		return appointmentCounts;
+	}
+
+	@Nonnull
 	public List<AppointmentClickToCallCount> findAppointmentClickToCallCounts(@Nonnull InstitutionId institutionId,
 																																						@Nonnull LocalDate startDate,
 																																						@Nonnull LocalDate endDate) {
@@ -987,6 +1069,76 @@ public class AnalyticsService implements AutoCloseable {
 				""", AppointmentClickToCallCount.class, institutionId, startTimestamp, endTimestamp));
 
 		return appointmentClickToCallCounts;
+	}
+
+	@NotThreadSafe
+	public static class AppointmentCount {
+		@Nullable
+		private UUID providerId;
+		@Nullable
+		private String name;
+		@Nullable
+		private Long availableAppointmentCount;
+		@Nullable
+		private Long bookedAppointmentCount;
+		@Nullable
+		private Long canceledAppointmentCount;
+		@Nullable
+		private Double bookingPercentage;
+
+		@Nullable
+		public UUID getProviderId() {
+			return this.providerId;
+		}
+
+		public void setProviderId(@Nullable UUID providerId) {
+			this.providerId = providerId;
+		}
+
+		@Nullable
+		public String getName() {
+			return this.name;
+		}
+
+		public void setName(@Nullable String name) {
+			this.name = name;
+		}
+
+		@Nullable
+		public Long getAvailableAppointmentCount() {
+			return this.availableAppointmentCount;
+		}
+
+		public void setAvailableAppointmentCount(@Nullable Long availableAppointmentCount) {
+			this.availableAppointmentCount = availableAppointmentCount;
+		}
+
+		@Nullable
+		public Long getBookedAppointmentCount() {
+			return this.bookedAppointmentCount;
+		}
+
+		public void setBookedAppointmentCount(@Nullable Long bookedAppointmentCount) {
+			this.bookedAppointmentCount = bookedAppointmentCount;
+		}
+
+		@Nullable
+		public Long getCanceledAppointmentCount() {
+			return this.canceledAppointmentCount;
+		}
+
+		public void setCanceledAppointmentCount(@Nullable Long canceledAppointmentCount) {
+			this.canceledAppointmentCount = canceledAppointmentCount;
+		}
+
+		@Nullable
+		public Double getBookingPercentage() {
+			return this.bookingPercentage;
+		}
+
+		public void setBookingPercentage(@Nullable Double bookingPercentage) {
+			this.bookingPercentage = bookingPercentage;
+		}
 	}
 
 	@NotThreadSafe

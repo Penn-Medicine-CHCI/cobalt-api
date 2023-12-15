@@ -28,6 +28,7 @@ import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AnalyticsService;
 import com.cobaltplatform.api.service.AnalyticsService.AnalyticsResultNewVersusReturning;
 import com.cobaltplatform.api.service.AnalyticsService.AppointmentClickToCallCount;
+import com.cobaltplatform.api.service.AnalyticsService.AppointmentCount;
 import com.cobaltplatform.api.service.AnalyticsService.CrisisTriggerCount;
 import com.cobaltplatform.api.service.AnalyticsService.ScreeningSessionCompletion;
 import com.cobaltplatform.api.service.AnalyticsService.SectionCountSummary;
@@ -127,7 +128,7 @@ public class AnalyticsResource {
 		Map<UUID, ScreeningSessionCompletion> screeningSessionCompletions = getAnalyticsService().findClinicalScreeningSessionCompletionsByScreeningFlowId(institutionId, startDate, endDate);
 		Map<UUID, SortedMap<String, Long>> screeningSessionSeverityCounts = getAnalyticsService().findClinicalScreeningSessionSeverityCountsByDescriptionByScreeningFlowId(institutionId, startDate, endDate);
 		List<CrisisTriggerCount> crisisTriggerCounts = getAnalyticsService().findCrisisTriggerCounts(institutionId, startDate, endDate);
-
+		List<AppointmentCount> appointmentCounts = getAnalyticsService().findAppointmentCounts(institutionId, startDate, endDate);
 		List<AppointmentClickToCallCount> appointmentClickToCallCounts = getAnalyticsService().findAppointmentClickToCallCounts(institutionId, startDate, endDate);
 
 		// NOTE: this is a WIP
@@ -145,7 +146,7 @@ public class AnalyticsResource {
 						"screeningSessionCompletions", screeningSessionCompletions,
 						"screeningSessionSeverityCounts", screeningSessionSeverityCounts,
 						"crisisTriggerCounts", crisisTriggerCounts,
-						"XXX", null,
+						"appointmentCounts", appointmentCounts,
 						"appointmentClickToCallCounts", appointmentClickToCallCounts
 				),
 				"groupSessions", Map.of(
@@ -417,6 +418,7 @@ public class AnalyticsResource {
 
 		List<CrisisTriggerCount> crisisTriggerCounts = getAnalyticsService().findCrisisTriggerCounts(institutionId, startDate, endDate);
 
+		List<AppointmentCount> appointmentCounts = getAnalyticsService().findAppointmentCounts(institutionId, startDate, endDate);
 		List<AppointmentClickToCallCount> appointmentClickToCallCounts = getAnalyticsService().findAppointmentClickToCallCounts(institutionId, startDate, endDate);
 
 		String exampleJson = """
