@@ -413,9 +413,13 @@ public class AdminContentService {
 
 			if (fileUploadId != null)
 				existingContent.setFileUploadId(fileUploadId);
+			else
+				existingContent.setFileUploadId(null);
 
 			if (imageFileUploadId != null)
 				existingContent.setImageFileUploadId(imageFileUploadId);
+			else
+				existingContent.setImageFileUploadId(null);
 		}
 
 		if (durationInMinutesString != null && !ValidationUtility.isValidInteger(durationInMinutesString))
