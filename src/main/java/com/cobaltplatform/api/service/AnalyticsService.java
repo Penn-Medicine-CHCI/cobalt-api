@@ -1163,7 +1163,7 @@ public class AnalyticsService implements AutoCloseable {
 						FROM gs_row gsr, group_session gs
 						WHERE gsr.group_session_id=gs.group_session_id
 						GROUP BY gs.group_session_id, gs.title, gs.start_date_time
-						ORDER BY gs.title, gs.start_date_time
+						ORDER BY registration_count DESC, page_view_count DESC, gs.title, gs.start_date_time
 						""", GroupSessionCount.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, urlPathRegex,
 				startTimestamp, endTimestamp, institutionId);
 
