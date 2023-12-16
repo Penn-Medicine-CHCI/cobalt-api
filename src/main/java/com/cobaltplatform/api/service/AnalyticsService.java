@@ -1272,6 +1272,7 @@ public class AnalyticsService implements AutoCloseable {
 				SELECT cpnv.page_view_count, cpnv.url_path, c.content_id, c.title AS content_title
 				FROM content_page_normalized_view cpnv, content c
 				WHERE c.content_id = (REVERSE(SUBSTR(REVERSE(cpnv.url_path), 0, STRPOS(REVERSE(cpnv.url_path), '/'))))::UUID
+				ORDER BY cpnv.page_view_count DESC, c.title
 				""", ContentPageView.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, "?", "?");
 
 		List<TopicCenterInteraction> topicCenterInteractions = getDatabase().queryForList("""
