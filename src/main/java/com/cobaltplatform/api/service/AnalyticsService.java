@@ -1253,10 +1253,209 @@ public class AnalyticsService implements AutoCloseable {
 		// TODO
 		List<ContentPageView> contentPageViews = new ArrayList<>();
 
+		List<TopicCenterInteraction> topicCenterInteractions = getDatabase().queryForList("""
+						WITH topic_center_row as (
+						    WITH topic_center_page_view AS (
+						        SELECT
+						            COUNT(*) AS page_view_count,
+						            regexp_replace(
+						                regexp_replace(
+						                    regexp_replace(url, ?, ''),
+						                    '^/topic-centers/',
+						                    '/community/'
+						                ),
+						                '^/featured-topics/',
+						                '/community/'
+						            ) AS url_path
+						        FROM
+						            v_analytics_account_interaction
+						        WHERE
+						            activity = 'page_view'
+						            AND activity_timestamp BETWEEN ? AND ?
+						            AND institution_id = ?
+						            AND (
+						                regexp_replace(url, ?, '') LIKE '/featured-topics/%'
+						                OR regexp_replace(url, ?, '') LIKE '/community/%'
+						                OR regexp_replace(url, ?, '') LIKE '/topic-centers/%'
+						            )
+						        GROUP BY
+						            url_path
+						    ),
+						    topic_center_unique_visitor AS (
+						        SELECT
+						            COUNT(DISTINCT account_id) AS unique_visitor_count,
+						            regexp_replace(
+						                regexp_replace(
+						                    regexp_replace(url, ?, ''),
+						                    '^/topic-centers/',
+						                    '/community/'
+						                ),
+						                '^/featured-topics/',
+						                '/community/'
+						            ) AS url_path
+						        FROM
+						            v_analytics_account_interaction
+						        WHERE
+						            activity = 'page_view'
+						            AND activity_timestamp BETWEEN ? AND ?
+						            AND institution_id = ?
+						            AND (
+						                regexp_replace(url, ?, '') LIKE '/featured-topics/%'
+						                OR regexp_replace(url, ?, '') LIKE '/community/%'
+						                OR regexp_replace(url, ?, '') LIKE '/topic-centers/%'
+						            )
+						        GROUP BY
+						            url_path
+						    )
+						    SELECT
+						        tc.topic_center_id,
+						        tc.name,
+						        tcpv.page_view_count,
+						        NULL :: BIGINT as unique_visitor_count,
+						        NULL :: BIGINT as group_session_click_count,
+						        NULL :: BIGINT as group_session_by_request_click_count,
+						        NULL :: BIGINT as pinboard_item_click_count,
+						        NULL :: BIGINT as content_click_count
+						    FROM
+						        topic_center_page_view tcpv,
+						        topic_center tc
+						    WHERE
+						        tc.url_name = REVERSE(
+						            SUBSTR(
+						                REVERSE(tcpv.url_path),
+						                0,
+						                STRPOS(REVERSE(tcpv.url_path), '/')
+						            )
+						        )
+						    UNION
+						    SELECT
+						        tc.topic_center_id,
+						        tc.name,
+						        NULL :: BIGINT AS page_view_count,
+						        tcuv.unique_visitor_count,
+						        NULL :: BIGINT as group_session_click_count,
+						        NULL :: BIGINT as group_session_by_request_click_count,
+						        NULL :: BIGINT as pinboard_item_click_count,
+						        NULL :: BIGINT as content_click_count
+						    FROM
+						        topic_center_unique_visitor tcuv,
+						        topic_center tc
+						    WHERE
+						        tc.url_name = REVERSE(
+						            SUBSTR(
+						                REVERSE(tcuv.url_path),
+						                0,
+						                STRPOS(REVERSE(tcuv.url_path), '/')
+						            )
+						        )
+						    UNION
+						    SELECT
+						        tc.topic_center_id,
+						        tc.name,
+						        NULL :: BIGINT AS page_view_count,
+						        NULL :: BIGINT AS unique_visitor_count,
+						        COUNT(*) AS group_session_click_count,
+						        NULL :: BIGINT AS group_session_by_request_click_count,
+						        NULL :: BIGINT AS pinboard_item_click_count,
+						        NULL :: BIGINT AS content_click_count
+						    FROM
+						        analytics_mixpanel_event ame,
+						        topic_center tc
+						    where
+						        ame.name = 'Topic Center Group Session Click'
+						        AND ame.timestamp BETWEEN ? AND ?
+						        AND ame.institution_id = ?
+						        AND (ame.properties ->> 'Topic Center ID') :: UUID = tc.topic_center_id
+						    GROUP BY
+						        tc.topic_center_id
+						    UNION
+						    SELECT
+						        tc.topic_center_id,
+						        tc.name,
+						        NULL :: BIGINT AS page_view_count,
+						        NULL :: BIGINT AS unique_visitor_count,
+						        NULL :: BIGINT AS group_session_click_count,
+						        COUNT(*) AS group_session_by_request_click_count,
+						        NULL :: BIGINT AS pinboard_item_click_count,
+						        NULL :: BIGINT AS content_click_count
+						    FROM
+						        analytics_mixpanel_event ame,
+						        topic_center tc
+						    WHERE
+						        ame.name = 'Topic Center Group Session By Request Click'
+						        AND ame.timestamp BETWEEN ? AND ?
+						        AND ame.institution_id = ?
+						        AND (ame.properties ->> 'Topic Center ID') :: UUID = tc.topic_center_id
+						    GROUP BY
+						        tc.topic_center_id
+						    UNION
+						    SELECT
+						        tc.topic_center_id,
+						        tc.name,
+						        NULL :: BIGINT AS page_view_count,
+						        NULL :: BIGINT AS unique_visitor_count,
+						        NULL :: BIGINT AS group_session_click_count,
+						        NULL :: BIGINT AS group_session_by_request_click_count,
+						        COUNT(*) AS pinboard_item_click_count,
+						        NULL :: BIGINT AS content_click_count
+						    FROM
+						        analytics_mixpanel_event ame,
+						        topic_center tc
+						    WHERE
+						        ame.name = 'Topic Center Pinboard Item Click'
+						        AND ame.timestamp BETWEEN ? AND ?
+						        AND ame.institution_id = ?
+						        AND (ame.properties ->> 'Topic Center ID') :: UUID = tc.topic_center_id
+						    GROUP BY
+						        tc.topic_center_id
+						    UNION
+						    SELECT
+						        tc.topic_center_id,
+						        tc.name,
+						        NULL :: BIGINT AS page_view_count,
+						        NULL :: BIGINT AS unique_visitor_count,
+						        NULL :: BIGINT AS group_session_click_count,
+						        NULL :: BIGINT AS group_session_by_request_click_count,
+						        NULL :: BIGINT AS pinboard_item_click_count,
+						        COUNT(*) AS content_click_count
+						    FROM
+						        analytics_mixpanel_event ame,
+						        topic_center tc
+						    WHERE
+						        ame.name = 'Topic Center Content Click'
+						        AND ame.timestamp BETWEEN ? AND ?
+						        AND ame.institution_id = ?
+						        AND (ame.properties ->> 'Topic Center ID') :: UUID = tc.topic_center_id
+						    GROUP BY
+						        tc.topic_center_id
+						)
+						SELECT
+						    tcr.topic_center_id,
+						    name,
+						    COALESCE(MAX(page_view_count), 0) AS page_view_count,
+						    COALESCE(MAX(unique_visitor_count), 0) AS unique_visitor_count,
+						    COALESCE(MAX(group_session_click_count), 0) AS group_session_click_count,
+						    COALESCE(MAX(group_session_by_request_click_count), 0) AS group_session_by_request_click_count,
+						    COALESCE(MAX(pinboard_item_click_count), 0) AS pinboard_item_click_count,
+						    COALESCE(MAX(content_click_count), 0) AS content_click_count
+						FROM
+						    topic_center_row tcr
+						GROUP BY
+						    tcr.topic_center_id,
+						    tcr.name
+						ORDER BY
+						    COALESCE(MAX(page_view_count), 0) DESC,
+						    tcr.name
+										""", TopicCenterInteraction.class, urlPathRegex, startTimestamp, endTimestamp, institutionId,
+				urlPathRegex, urlPathRegex, urlPathRegex, urlPathRegex, startTimestamp, endTimestamp, institutionId,
+				urlPathRegex, urlPathRegex, urlPathRegex, startTimestamp, endTimestamp, institutionId, startTimestamp,
+				endTimestamp, institutionId, startTimestamp, endTimestamp, institutionId, startTimestamp, endTimestamp, institutionId);
+
 		ResourceAndTopicSummary resourceAndTopicSummary = new ResourceAndTopicSummary();
 		resourceAndTopicSummary.setTagGroupPageViews(tagGroupPageViews);
 		resourceAndTopicSummary.setTagPageViews(tagPageViews);
 		resourceAndTopicSummary.setContentPageViews(contentPageViews);
+		resourceAndTopicSummary.setTopicCenterInteractions(topicCenterInteractions);
 
 		return resourceAndTopicSummary;
 	}
@@ -1269,6 +1468,8 @@ public class AnalyticsService implements AutoCloseable {
 		private List<TagPageView> tagPageViews;
 		@Nullable
 		private List<ContentPageView> contentPageViews;
+		@Nullable
+		private List<TopicCenterInteraction> topicCenterInteractions;
 
 		@Nullable
 		public List<TagGroupPageView> getTagGroupPageViews() {
@@ -1295,6 +1496,107 @@ public class AnalyticsService implements AutoCloseable {
 
 		public void setContentPageViews(@Nullable List<ContentPageView> contentPageViews) {
 			this.contentPageViews = contentPageViews;
+		}
+
+		@Nullable
+		public List<TopicCenterInteraction> getTopicCenterInteractions() {
+			return this.topicCenterInteractions;
+		}
+
+		public void setTopicCenterInteractions(@Nullable List<TopicCenterInteraction> topicCenterInteractions) {
+			this.topicCenterInteractions = topicCenterInteractions;
+		}
+	}
+
+	@NotThreadSafe
+	public static class TopicCenterInteraction {
+		@Nullable
+		private UUID topicCenterId;
+		@Nullable
+		private String name;
+		@Nullable
+		private Long pageViewCount;
+		@Nullable
+		private Long uniqueVisitorCount;
+		@Nullable
+		private Long groupSessionClickCount;
+		@Nullable
+		private Long groupSessionByRequestClickCount;
+		@Nullable
+		private Long pinboardItemClickCount;
+		@Nullable
+		private Long contentClickCount;
+
+		@Nullable
+		public UUID getTopicCenterId() {
+			return this.topicCenterId;
+		}
+
+		public void setTopicCenterId(@Nullable UUID topicCenterId) {
+			this.topicCenterId = topicCenterId;
+		}
+
+		@Nullable
+		public String getName() {
+			return this.name;
+		}
+
+		public void setName(@Nullable String name) {
+			this.name = name;
+		}
+
+		@Nullable
+		public Long getPageViewCount() {
+			return this.pageViewCount;
+		}
+
+		public void setPageViewCount(@Nullable Long pageViewCount) {
+			this.pageViewCount = pageViewCount;
+		}
+
+		@Nullable
+		public Long getUniqueVisitorCount() {
+			return this.uniqueVisitorCount;
+		}
+
+		public void setUniqueVisitorCount(@Nullable Long uniqueVisitorCount) {
+			this.uniqueVisitorCount = uniqueVisitorCount;
+		}
+
+		@Nullable
+		public Long getGroupSessionClickCount() {
+			return this.groupSessionClickCount;
+		}
+
+		public void setGroupSessionClickCount(@Nullable Long groupSessionClickCount) {
+			this.groupSessionClickCount = groupSessionClickCount;
+		}
+
+		@Nullable
+		public Long getGroupSessionByRequestClickCount() {
+			return this.groupSessionByRequestClickCount;
+		}
+
+		public void setGroupSessionByRequestClickCount(@Nullable Long groupSessionByRequestClickCount) {
+			this.groupSessionByRequestClickCount = groupSessionByRequestClickCount;
+		}
+
+		@Nullable
+		public Long getPinboardItemClickCount() {
+			return this.pinboardItemClickCount;
+		}
+
+		public void setPinboardItemClickCount(@Nullable Long pinboardItemClickCount) {
+			this.pinboardItemClickCount = pinboardItemClickCount;
+		}
+
+		@Nullable
+		public Long getContentClickCount() {
+			return this.contentClickCount;
+		}
+
+		public void setContentClickCount(@Nullable Long contentClickCount) {
+			this.contentClickCount = contentClickCount;
 		}
 	}
 
