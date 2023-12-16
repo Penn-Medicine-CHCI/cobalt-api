@@ -1250,8 +1250,29 @@ public class AnalyticsService implements AutoCloseable {
 				ORDER BY tpnv.page_view_count DESC
 								""", TagPageView.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, "?", "?");
 
-		// TODO
-		List<ContentPageView> contentPageViews = new ArrayList<>();
+		// Content that matches URLs like "/resource-library/{uuid}", discarding query parameters
+		List<ContentPageView> contentPageViews = getDatabase().queryForList("""
+				WITH content_page_normalized_view AS (
+				  WITH content_page_view AS (
+				      SELECT regexp_replace(url, ?, '') AS raw_url_path
+				      FROM v_analytics_account_interaction
+				      WHERE activity = 'page_view'
+				      AND activity_timestamp BETWEEN ? AND ?
+				      AND institution_id=?
+				      AND regexp_replace(url, ?, '') ~ '^/resource-library/[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}'
+				  )
+				  SELECT COUNT(*) AS page_view_count,
+				    CASE
+				      WHEN STRPOS(cpv.raw_url_path, ?) > 0 THEN SUBSTR(cpv.raw_url_path, 0, STRPOS(cpv.raw_url_path, ?))
+				      ELSE cpv.raw_url_path
+				    END AS url_path
+				  FROM content_page_view cpv
+				  GROUP BY url_path
+				)
+				SELECT cpnv.page_view_count, cpnv.url_path, c.content_id, c.title AS content_title
+				FROM content_page_normalized_view cpnv, content c
+				WHERE c.content_id = (REVERSE(SUBSTR(REVERSE(cpnv.url_path), 0, STRPOS(REVERSE(cpnv.url_path), '/'))))::UUID
+				""", ContentPageView.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, "?", "?");
 
 		List<TopicCenterInteraction> topicCenterInteractions = getDatabase().queryForList("""
 						WITH topic_center_row as (
@@ -1605,7 +1626,7 @@ public class AnalyticsService implements AutoCloseable {
 		@Nullable
 		private UUID contentId;
 		@Nullable
-		private String title;
+		private String contentTitle;
 		@Nullable
 		private Long pageViewCount;
 
@@ -1619,12 +1640,12 @@ public class AnalyticsService implements AutoCloseable {
 		}
 
 		@Nullable
-		public String getTitle() {
-			return this.title;
+		public String getContentTitle() {
+			return this.contentTitle;
 		}
 
-		public void setTitle(@Nullable String title) {
-			this.title = title;
+		public void setContentTitle(@Nullable String contentTitle) {
+			this.contentTitle = contentTitle;
 		}
 
 		@Nullable
