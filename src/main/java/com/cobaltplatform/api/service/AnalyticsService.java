@@ -775,18 +775,18 @@ public class AnalyticsService implements AutoCloseable {
 		Long usersFromTrafficSourceMediumTotalCount = trafficSourceMediumCounts.stream()
 				.collect(Collectors.summingLong(trafficSourceMediumCount -> trafficSourceMediumCount.getUserCount()));
 
-		Long usersFromNonreferralTrafficSourceMediumCount = trafficSourceMediumCounts.stream()
+		Long usersFromNonDirectTrafficSourceMediumCount = trafficSourceMediumCounts.stream()
 				.filter(trafficSourceMediumCount -> !trafficSourceMediumCount.getMedium().equals("(none)"))
 				.collect(Collectors.summingLong(trafficSourceMediumCount -> trafficSourceMediumCount.getUserCount()));
 
-		Double usersFromNonreferralTrafficSourceMediumPercentage = usersFromTrafficSourceMediumTotalCount.equals(0L) ? 0D : usersFromNonreferralTrafficSourceMediumCount.doubleValue() / usersFromTrafficSourceMediumTotalCount.doubleValue();
+		Double usersFromNonDirectTrafficSourceMediumPercentage = usersFromTrafficSourceMediumTotalCount.equals(0L) ? 0D : usersFromNonDirectTrafficSourceMediumCount.doubleValue() / usersFromTrafficSourceMediumTotalCount.doubleValue();
 
 		TrafficSourceSummary trafficSourceSummary = new TrafficSourceSummary();
 		trafficSourceSummary.setTrafficSourceMediumCounts(trafficSourceMediumCounts);
 		trafficSourceSummary.setTrafficSourceReferrerCounts(trafficSourceReferrerCounts);
 		trafficSourceSummary.setUsersFromTrafficSourceMediumTotalCount(usersFromTrafficSourceMediumTotalCount);
-		trafficSourceSummary.setUsersFromNonreferralTrafficSourceMediumCount(usersFromNonreferralTrafficSourceMediumCount);
-		trafficSourceSummary.setUsersFromNonreferralTrafficSourceMediumPercentage(usersFromNonreferralTrafficSourceMediumPercentage);
+		trafficSourceSummary.setUsersFromNonDirectTrafficSourceMediumCount(usersFromNonDirectTrafficSourceMediumCount);
+		trafficSourceSummary.setUsersFromNonDirectTrafficSourceMediumPercentage(usersFromNonDirectTrafficSourceMediumPercentage);
 
 		return trafficSourceSummary;
 	}
@@ -2203,9 +2203,9 @@ public class AnalyticsService implements AutoCloseable {
 		@Nullable
 		private Long usersFromTrafficSourceMediumTotalCount;
 		@Nullable
-		private Long usersFromNonreferralTrafficSourceMediumCount;
+		private Long usersFromNonDirectTrafficSourceMediumCount;
 		@Nullable
-		private Double usersFromNonreferralTrafficSourceMediumPercentage; // is usersFromNonreferralTrafficSourceMediumCount / usersTotalCount
+		private Double usersFromNonDirectTrafficSourceMediumPercentage; // is usersFromNonDirectTrafficSourceMediumCount / usersTotalCount
 		@Nullable
 		private List<TrafficSourceMediumCount> trafficSourceMediumCounts;
 		@Nullable
@@ -2221,21 +2221,21 @@ public class AnalyticsService implements AutoCloseable {
 		}
 
 		@Nullable
-		public Long getUsersFromNonreferralTrafficSourceMediumCount() {
-			return this.usersFromNonreferralTrafficSourceMediumCount;
+		public Long getUsersFromNonDirectTrafficSourceMediumCount() {
+			return this.usersFromNonDirectTrafficSourceMediumCount;
 		}
 
-		public void setUsersFromNonreferralTrafficSourceMediumCount(@Nullable Long usersFromNonreferralTrafficSourceMediumCount) {
-			this.usersFromNonreferralTrafficSourceMediumCount = usersFromNonreferralTrafficSourceMediumCount;
+		public void setUsersFromNonDirectTrafficSourceMediumCount(@Nullable Long usersFromNonDirectTrafficSourceMediumCount) {
+			this.usersFromNonDirectTrafficSourceMediumCount = usersFromNonDirectTrafficSourceMediumCount;
 		}
 
 		@Nullable
-		public Double getUsersFromNonreferralTrafficSourceMediumPercentage() {
-			return this.usersFromNonreferralTrafficSourceMediumPercentage;
+		public Double getUsersFromNonDirectTrafficSourceMediumPercentage() {
+			return this.usersFromNonDirectTrafficSourceMediumPercentage;
 		}
 
-		public void setUsersFromNonreferralTrafficSourceMediumPercentage(@Nullable Double usersFromNonreferralTrafficSourceMediumPercentage) {
-			this.usersFromNonreferralTrafficSourceMediumPercentage = usersFromNonreferralTrafficSourceMediumPercentage;
+		public void setUsersFromNonDirectTrafficSourceMediumPercentage(@Nullable Double usersFromNonDirectTrafficSourceMediumPercentage) {
+			this.usersFromNonDirectTrafficSourceMediumPercentage = usersFromNonDirectTrafficSourceMediumPercentage;
 		}
 
 		@Nullable
