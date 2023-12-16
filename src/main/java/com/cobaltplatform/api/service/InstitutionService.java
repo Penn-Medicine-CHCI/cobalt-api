@@ -21,6 +21,7 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.Color.ColorId;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -415,6 +416,23 @@ public class InstitutionService {
 				WHERE institution_id=?
 				ORDER BY name
 				""", InstitutionColorValue.class, institutionId);
+	}
+
+	@Nonnull
+	public List<InstitutionColorValue> findInstitutionColorValuesByInstitutionId(@Nullable InstitutionId institutionId,
+																																							 @Nullable ColorId colorId) {
+		if (institutionId == null || colorId == null)
+			return Collections.emptyList();
+
+		// Ordering is darkest first
+		return getDatabase().queryForList("""
+					SELECT icv.*
+					FROM color_value cv, v_institution_color_value icv
+					WHERE icv.color_value_id=cv.color_value_id
+					AND cv.color_id=?
+					AND icv.institution_id=?
+					ORDER BY -LENGTH(icv.color_value_id), icv.color_value_id DESC
+				""", InstitutionColorValue.class, colorId, institutionId);
 	}
 
 	@Nonnull
