@@ -38,6 +38,8 @@ import com.cobaltplatform.api.service.AnalyticsService.GroupSessionSummary;
 import com.cobaltplatform.api.service.AnalyticsService.ResourceAndTopicSummary;
 import com.cobaltplatform.api.service.AnalyticsService.ScreeningSessionCompletion;
 import com.cobaltplatform.api.service.AnalyticsService.SectionCountSummary;
+import com.cobaltplatform.api.service.AnalyticsService.TrafficSourceMediumCount;
+import com.cobaltplatform.api.service.AnalyticsService.TrafficSourceReferrerCount;
 import com.cobaltplatform.api.service.AnalyticsService.TrafficSourceSummary;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.InstitutionService;
@@ -250,10 +252,34 @@ public class AnalyticsResource {
 			);
 
 			trafficSourceSummary = new TrafficSourceSummary();
-			trafficSourceSummary.setTrafficSourceMediumCounts(List.of());
-			trafficSourceSummary.setTrafficSourceReferrerCounts(List.of());
-			trafficSourceSummary.setUsersFromNonDirectTrafficSourceMediumCount(1234L);
-			trafficSourceSummary.setUsersFromTrafficSourceMediumTotalCount(5000L);
+			trafficSourceSummary.setTrafficSourceMediumCounts(List.of(
+					new TrafficSourceMediumCount() {{
+						setUserCount(5000L);
+						setMedium("Direct");
+					}},
+					new TrafficSourceMediumCount() {{
+						setUserCount(750L);
+						setMedium("Referral");
+					}}
+			));
+
+			trafficSourceSummary.setTrafficSourceReferrerCounts(List.of(
+					new TrafficSourceReferrerCount() {{
+						setUserCount(500L);
+						setReferrer("Google");
+					}},
+					new TrafficSourceReferrerCount() {{
+						setUserCount(150L);
+						setReferrer("website1.com");
+					}},
+					new TrafficSourceReferrerCount() {{
+						setUserCount(100L);
+						setReferrer("website2.com");
+					}}
+			));
+
+			trafficSourceSummary.setUsersFromNonDirectTrafficSourceMediumCount(750L);
+			trafficSourceSummary.setUsersFromTrafficSourceMediumTotalCount(5750L);
 			trafficSourceSummary.setUsersFromNonDirectTrafficSourceMediumPercentage((double) trafficSourceSummary.getUsersFromNonDirectTrafficSourceMediumCount() / (double) trafficSourceSummary.getUsersFromTrafficSourceMediumTotalCount());
 
 			activeUserCountsByInstitutionLocation = new TreeMap<>(Map.of(
@@ -372,30 +398,60 @@ public class AnalyticsResource {
 
 		pageviewsWidget.setWidgetData(pageviewsWidgetData);
 
-		// 				          "widgetReportId": "ADMIN_ANALYTICS_PAGEVIEWS",
-		//				          "widgetTitle": "Pageviews",
-		//				          "widgetTypeId": "TABLE",
-		//				          "widgetData": {
-		//				            "headers": [
-		//				              "Section",
-		//				              "Views",
-		//				              "Users",
-		//				              "Active Users"
-		//				            ],
-		//				            "rows": [
-		//				              {
-		//				                "data": [
-		//				                  "Sign In",
-		//				                  "1,000,000",
-		//				                  "500,000",
-		//				                  "250,000"
-		//				                ]
-		//				              },
-
 		// Group 3
 		AnalyticsBarChartWidget referralsWidget = new AnalyticsBarChartWidget();
+		referralsWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_USER_REFERRALS);
+		referralsWidget.setWidgetTitle(getStrings().get("Users from Referrals"));
+		referralsWidget.setWidgetSubtitle(getStrings().get("{{percentage}} of Total", Map.of("percentage", getFormatter().formatPercent(trafficSourceSummary.getUsersFromNonDirectTrafficSourceMediumPercentage()))));
+		referralsWidget.setWidgetChartLabel(getStrings().get("Users"));
+		referralsWidget.setWidgetTotal(trafficSourceSummary.getUsersFromTrafficSourceMediumTotalCount());
+		referralsWidget.setWidgetTotalDescription(getFormatter().formatNumber(referralsWidget.getWidgetTotal()));
+		referralsWidget.setWidgetData(new ArrayList<>(trafficSourceSummary.getTrafficSourceMediumCounts().size()));
+
+		i = 0;
+
+		for (TrafficSourceMediumCount trafficSourceMediumCount : trafficSourceSummary.getTrafficSourceMediumCounts()) {
+			AnalyticsWidgetChartData widgetChartData = new AnalyticsWidgetChartData();
+			widgetChartData.setLabel(trafficSourceMediumCount.getMedium());
+			widgetChartData.setCount(trafficSourceMediumCount.getUserCount());
+			widgetChartData.setCountDescription(getFormatter().formatNumber(widgetChartData.getCount()));
+			widgetChartData.setColor(colorCssRepresentations.get(i % colorCssRepresentations.size()));
+
+			referralsWidget.getWidgetData().add(widgetChartData);
+
+			++i;
+		}
 
 		AnalyticsTableWidget referringDomainsWidget = new AnalyticsTableWidget();
+		referringDomainsWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_REFERRING_DOMAINS);
+		referringDomainsWidget.setWidgetTitle(getStrings().get("Referring Domains"));
+
+		AnalyticsWidgetTableData referringDomainsTableData = new AnalyticsWidgetTableData();
+		referringDomainsTableData.setHeaders(
+				List.of(
+						getStrings().get("Domain"),
+						getStrings().get("Users")
+				)
+		);
+		referringDomainsTableData.setRows(new ArrayList<>(trafficSourceSummary.getTrafficSourceReferrerCounts().size()));
+
+		int trafficSourceReferrerIndex = 0;
+
+		for (TrafficSourceReferrerCount trafficSourceReferrerCount : trafficSourceSummary.getTrafficSourceReferrerCounts()) {
+			++trafficSourceReferrerIndex;
+
+			AnalyticsWidgetTableRow widgetTableRow = new AnalyticsWidgetTableRow();
+			widgetTableRow.setData(List.of(
+					getStrings().get("{{index}}. {{referrer}}", Map.of(
+							"index", getFormatter().formatNumber(trafficSourceReferrerIndex),
+							"referrer", trafficSourceReferrerCount.getReferrer()
+					)),
+					getFormatter().formatNumber(trafficSourceReferrerCount.getUserCount())
+			));
+			referringDomainsTableData.getRows().add(widgetTableRow);
+		}
+
+		referringDomainsWidget.setWidgetData(referringDomainsTableData);
 
 		// Group the widgets
 		AnalyticsWidgetGroup visitsUsersEmployersGroup = new AnalyticsWidgetGroup();
@@ -410,8 +466,8 @@ public class AnalyticsResource {
 		// Return the groups
 		List<AnalyticsWidgetGroup> analyticsWidgetGroups = List.of(
 				visitsUsersEmployersGroup,
-				pageviewsGroup//,
-				//referralsGroup
+				pageviewsGroup,
+				referralsGroup
 		);
 
 		boolean returnExampleJson = false;
@@ -585,7 +641,7 @@ public class AnalyticsResource {
 				          "widgetTotalDescription": "5,900,510.00",
 				          "widgetSubtitle": "100% of Total",
 				          "widgetTypeId": "BAR_CHART",
-				          "widgetChartLabel": "New Users",
+				          "widgetChartLabel": "Users",
 				          "widgetData": [
 				            {
 				              "label": "Direct",
