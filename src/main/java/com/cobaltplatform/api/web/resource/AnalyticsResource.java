@@ -82,7 +82,6 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -219,10 +218,6 @@ public class AnalyticsResource {
 		List<String> colorCssRepresentations = getInstitutionService().findInstitutionColorValuesByInstitutionId(institutionId, ColorId.BRAND_PRIMARY).stream()
 				.map(institutionColorValue -> institutionColorValue.getCssRepresentation())
 				.collect(Collectors.toList());
-
-		// Need more than a single color to draw something meaningful
-		if (colorCssRepresentations.size() <= 1)
-			throw new IllegalStateException(format("Not enough colors available for institution ID %s", institutionId.name()));
 
 		AnalyticsResultNewVersusReturning activeUserCountsNewVersusReturning = getAnalyticsService().findActiveUserCountsNewVersusReturning(institutionId, startDate, endDate);
 		Map<AccountSourceId, Long> activeUserCountsByAccountSourceId = getAnalyticsService().findActiveUserCountsByAccountSourceId(institutionId, startDate, endDate);
@@ -706,9 +701,9 @@ public class AnalyticsResource {
 	@Nonnull
 	@GET("/analytics/assessments-appointments")
 	@AuthenticationRequired
-	public CustomResponse analyticsAssessmentsAppointments(@Nonnull HttpServletResponse httpServletResponse,
-																												 @Nonnull @QueryParameter LocalDate startDate,
-																												 @Nonnull @QueryParameter LocalDate endDate) {
+	public Object analyticsAssessmentsAppointments(@Nonnull HttpServletResponse httpServletResponse,
+																								 @Nonnull @QueryParameter LocalDate startDate,
+																								 @Nonnull @QueryParameter LocalDate endDate) {
 		requireNonNull(startDate);
 		requireNonNull(endDate);
 
@@ -717,6 +712,18 @@ public class AnalyticsResource {
 
 		if (!getAuthorizationService().canViewAnalytics(institutionId, account))
 			throw new AuthorizationException();
+
+		List<String> successColorCssRepresentations = getInstitutionService().findInstitutionColorValuesByInstitutionId(institutionId, ColorId.SEMANTIC_SUCCESS).stream()
+				.map(institutionColorValue -> institutionColorValue.getCssRepresentation())
+				.collect(Collectors.toList());
+
+		List<String> warningColorCssRepresentations = getInstitutionService().findInstitutionColorValuesByInstitutionId(institutionId, ColorId.SEMANTIC_WARNING).stream()
+				.map(institutionColorValue -> institutionColorValue.getCssRepresentation())
+				.collect(Collectors.toList());
+
+		List<String> dangerColorCssRepresentations = getInstitutionService().findInstitutionColorValuesByInstitutionId(institutionId, ColorId.SEMANTIC_DANGER).stream()
+				.map(institutionColorValue -> institutionColorValue.getCssRepresentation())
+				.collect(Collectors.toList());
 
 		Map<UUID, ScreeningSessionCompletion> screeningSessionCompletions = getAnalyticsService().findClinicalScreeningSessionCompletionsByScreeningFlowId(institutionId, startDate, endDate);
 		Map<UUID, SortedMap<String, Long>> screeningSessionSeverityCounts = getAnalyticsService().findClinicalScreeningSessionSeverityCountsByDescriptionByScreeningFlowId(institutionId, startDate, endDate);
@@ -733,6 +740,36 @@ public class AnalyticsResource {
 
 		List<AppointmentCount> appointmentCounts = getAnalyticsService().findAppointmentCounts(institutionId, startDate, endDate);
 		List<AppointmentClickToCallCount> appointmentClickToCallCounts = getAnalyticsService().findAppointmentClickToCallCounts(institutionId, startDate, endDate);
+
+		boolean useExampleData = !getConfiguration().isProduction();
+
+		if (useExampleData) {
+			// TODO
+		}
+
+		// Group the widgets
+		AnalyticsWidgetGroup firstGroup = new AnalyticsWidgetGroup();
+		firstGroup.setWidgets(List.of());
+
+		AnalyticsWidgetGroup secondGroup = new AnalyticsWidgetGroup();
+		secondGroup.setWidgets(List.of());
+
+		AnalyticsWidgetGroup thirdGroup = new AnalyticsWidgetGroup();
+		thirdGroup.setWidgets(List.of());
+
+		// Return the groups
+		List<AnalyticsWidgetGroup> analyticsWidgetGroups = List.of(
+				firstGroup,
+				secondGroup,
+				thirdGroup
+		);
+
+		boolean returnExampleJson = true;
+
+		if (!returnExampleJson)
+			return new ApiResponse(Map.of(
+					"analyticsWidgetGroups", analyticsWidgetGroups
+			));
 
 		String exampleJson = """
 				{
@@ -878,9 +915,9 @@ public class AnalyticsResource {
 	@Nonnull
 	@GET("/analytics/group-sessions")
 	@AuthenticationRequired
-	public CustomResponse analyticsGroupSessions(@Nonnull HttpServletResponse httpServletResponse,
-																							 @Nonnull @QueryParameter LocalDate startDate,
-																							 @Nonnull @QueryParameter LocalDate endDate) {
+	public Object analyticsGroupSessions(@Nonnull HttpServletResponse httpServletResponse,
+																			 @Nonnull @QueryParameter LocalDate startDate,
+																			 @Nonnull @QueryParameter LocalDate endDate) {
 		requireNonNull(startDate);
 		requireNonNull(endDate);
 
@@ -891,6 +928,36 @@ public class AnalyticsResource {
 			throw new AuthorizationException();
 
 		GroupSessionSummary groupSessionSummary = getAnalyticsService().findGroupSessionSummary(institutionId, startDate, endDate);
+
+		boolean useExampleData = !getConfiguration().isProduction();
+
+		if (useExampleData) {
+			// TODO
+		}
+
+		// Group the widgets
+		AnalyticsWidgetGroup firstGroup = new AnalyticsWidgetGroup();
+		firstGroup.setWidgets(List.of());
+
+		AnalyticsWidgetGroup secondGroup = new AnalyticsWidgetGroup();
+		secondGroup.setWidgets(List.of());
+
+		AnalyticsWidgetGroup thirdGroup = new AnalyticsWidgetGroup();
+		thirdGroup.setWidgets(List.of());
+
+		// Return the groups
+		List<AnalyticsWidgetGroup> analyticsWidgetGroups = List.of(
+				firstGroup,
+				secondGroup,
+				thirdGroup
+		);
+
+		boolean returnExampleJson = true;
+
+		if (!returnExampleJson)
+			return new ApiResponse(Map.of(
+					"analyticsWidgetGroups", analyticsWidgetGroups
+			));
 
 		String exampleJson = """
 				{
@@ -958,9 +1025,9 @@ public class AnalyticsResource {
 	@Nonnull
 	@GET("/analytics/resources-topics")
 	@AuthenticationRequired
-	public CustomResponse analyticsResourcesTopics(@Nonnull HttpServletResponse httpServletResponse,
-																								 @Nonnull @QueryParameter LocalDate startDate,
-																								 @Nonnull @QueryParameter LocalDate endDate) {
+	public Object analyticsResourcesTopics(@Nonnull HttpServletResponse httpServletResponse,
+																				 @Nonnull @QueryParameter LocalDate startDate,
+																				 @Nonnull @QueryParameter LocalDate endDate) {
 		requireNonNull(startDate);
 		requireNonNull(endDate);
 
@@ -971,6 +1038,36 @@ public class AnalyticsResource {
 			throw new AuthorizationException();
 
 		ResourceAndTopicSummary resourceAndTopicSummary = getAnalyticsService().findResourceAndTopicSummary(institutionId, startDate, endDate);
+
+		boolean useExampleData = !getConfiguration().isProduction();
+
+		if (useExampleData) {
+			// TODO
+		}
+
+		// Group the widgets
+		AnalyticsWidgetGroup firstGroup = new AnalyticsWidgetGroup();
+		firstGroup.setWidgets(List.of());
+
+		AnalyticsWidgetGroup secondGroup = new AnalyticsWidgetGroup();
+		secondGroup.setWidgets(List.of());
+
+		AnalyticsWidgetGroup thirdGroup = new AnalyticsWidgetGroup();
+		thirdGroup.setWidgets(List.of());
+
+		// Return the groups
+		List<AnalyticsWidgetGroup> analyticsWidgetGroups = List.of(
+				firstGroup,
+				secondGroup,
+				thirdGroup
+		);
+
+		boolean returnExampleJson = true;
+
+		if (!returnExampleJson)
+			return new ApiResponse(Map.of(
+					"analyticsWidgetGroups", analyticsWidgetGroups
+			));
 
 		String exampleJson = """
 				{
