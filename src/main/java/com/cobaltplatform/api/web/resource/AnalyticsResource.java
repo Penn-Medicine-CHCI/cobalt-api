@@ -293,8 +293,8 @@ public class AnalyticsResource {
 		usersWidget.setWidgetTitle(getStrings().get("Users"));
 		usersWidget.setWidgetSubtitle(getStrings().get("Total"));
 		usersWidget.setWidgetChartLabel(getStrings().get("Users"));
-		usersWidget.setWidgetTotal(activeUserCountsNewVersusReturning.getNewUserCount() + activeUserCountsNewVersusReturning.getReturningUserCount());
-		usersWidget.setWidgetTotalDescription(getFormatter().formatNumber(visitsWidget.getWidgetTotal()));
+		usersWidget.setWidgetTotal(activeUserCountsByAccountSourceId.values().stream().collect(Collectors.summingLong(Long::longValue)));
+		usersWidget.setWidgetTotalDescription(getFormatter().formatNumber(usersWidget.getWidgetTotal()));
 		usersWidget.setWidgetData(new ArrayList<>(activeUserCountsByAccountSourceId.size()));
 
 		Map<AccountSourceId, AccountSourceForInstitution> accountSourcesByAccountSourceId = new TreeMap<>(getInstitutionService().findAccountSourcesByInstitutionId(institutionId).stream()
@@ -322,8 +322,8 @@ public class AnalyticsResource {
 		employersWidget.setWidgetTitle(getStrings().get("Employer"));
 		employersWidget.setWidgetSubtitle(getStrings().get("Across {{employerCount}} Employer[s]", Map.of("employerCount", activeUserCountsByInstitutionLocation.size())));
 		employersWidget.setWidgetChartLabel(getStrings().get("Users"));
-		employersWidget.setWidgetTotal(activeUserCountsNewVersusReturning.getNewUserCount() + activeUserCountsNewVersusReturning.getReturningUserCount());
-		employersWidget.setWidgetTotalDescription(getFormatter().formatNumber(visitsWidget.getWidgetTotal()));
+		employersWidget.setWidgetTotal(activeUserCountsByInstitutionLocation.values().stream().collect(Collectors.summingLong(Long::longValue)));
+		employersWidget.setWidgetTotalDescription(getFormatter().formatNumber(employersWidget.getWidgetTotal()));
 		employersWidget.setWidgetData(new ArrayList<>(activeUserCountsByAccountSourceId.size()));
 
 		i = 0;
@@ -345,6 +345,52 @@ public class AnalyticsResource {
 
 		// Group 2
 		AnalyticsTableWidget pageviewsWidget = new AnalyticsTableWidget();
+		pageviewsWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_PAGEVIEWS);
+		pageviewsWidget.setWidgetTitle(getStrings().get("Pageviews"));
+
+		AnalyticsWidgetTableData pageviewsWidgetData = new AnalyticsWidgetTableData();
+		pageviewsWidgetData.setHeaders(List.of(
+				getStrings().get("Section"),
+				getStrings().get("Views"),
+				getStrings().get("Users"),
+				getStrings().get("Active Users")
+		));
+		pageviewsWidgetData.setRows(new ArrayList<>(sectionCountSummaries.size()));
+
+		for (SectionCountSummary sectionCountSummary : sectionCountSummaries) {
+			AnalyticsWidgetTableRow tableRow = new AnalyticsWidgetTableRow();
+
+			tableRow.setData(List.of(
+					sectionCountSummary.getSection(),
+					getFormatter().formatNumber(sectionCountSummary.getPageViewCount()),
+					getFormatter().formatNumber(sectionCountSummary.getUserCount()),
+					getFormatter().formatNumber(sectionCountSummary.getActiveUserCount())
+			));
+
+			pageviewsWidgetData.getRows().add(tableRow);
+		}
+
+		pageviewsWidget.setWidgetData(pageviewsWidgetData);
+
+		// 				          "widgetReportId": "ADMIN_ANALYTICS_PAGEVIEWS",
+		//				          "widgetTitle": "Pageviews",
+		//				          "widgetTypeId": "TABLE",
+		//				          "widgetData": {
+		//				            "headers": [
+		//				              "Section",
+		//				              "Views",
+		//				              "Users",
+		//				              "Active Users"
+		//				            ],
+		//				            "rows": [
+		//				              {
+		//				                "data": [
+		//				                  "Sign In",
+		//				                  "1,000,000",
+		//				                  "500,000",
+		//				                  "250,000"
+		//				                ]
+		//				              },
 
 		// Group 3
 		AnalyticsBarChartWidget referralsWidget = new AnalyticsBarChartWidget();
@@ -363,8 +409,8 @@ public class AnalyticsResource {
 
 		// Return the groups
 		List<AnalyticsWidgetGroup> analyticsWidgetGroups = List.of(
-				visitsUsersEmployersGroup//,
-				//pageviewsGroup,
+				visitsUsersEmployersGroup,
+				pageviewsGroup//,
 				//referralsGroup
 		);
 
