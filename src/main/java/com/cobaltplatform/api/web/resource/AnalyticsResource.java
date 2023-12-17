@@ -735,9 +735,7 @@ public class AnalyticsResource {
 		Map<UUID, ScreeningFlow> screeningFlowsByScreeningFlowId = screeningFlowIds.stream()
 				.map(screeningFlowId -> getScreeningService().findScreeningFlowById(screeningFlowId).get())
 				.collect(Collectors.toMap(screeningFlow -> screeningFlow.getScreeningFlowId(), Function.identity()));
-
 		List<CrisisTriggerCount> crisisTriggerCounts = getAnalyticsService().findCrisisTriggerCounts(institutionId, startDate, endDate);
-
 		List<AppointmentCount> appointmentCounts = getAnalyticsService().findAppointmentCounts(institutionId, startDate, endDate);
 		List<AppointmentClickToCallCount> appointmentClickToCallCounts = getAnalyticsService().findAppointmentClickToCallCounts(institutionId, startDate, endDate);
 
@@ -779,7 +777,8 @@ public class AnalyticsResource {
 				        {
 				          "widgetReportId": "ADMIN_ANALYTICS_CLINICAL_ASSESSMENT_COMPLETION",
 				          "widgetTitle": "Clinical Assessment Completion",
-				          "widgetTotal": "25%",
+				          "widgetTotal": 0.25,
+				          "widgetTotalDescription": "25%",
 				          "widgetSubtitle": "Completion Rate",
 				          "widgetTypeId": "BAR_CHART",
 				          "widgetChartLabel": "Assessments",
@@ -787,16 +786,19 @@ public class AnalyticsResource {
 				            {
 				              "label": "Started",
 				              "count": 120,
+				              "countDescription": "120",
 				              "color": "#EE934E"
 				            },
 				            {
 				              "label": "Phone #s collected",
 				              "count": 120,
+				              "countDescription": "120",
 				              "color": "#EE934E"
 				            },
 				            {
 				              "label": "Completed",
 				              "count": 120,
+				              "countDescription": "120",
 				              "color": "#EE934E"
 				            }
 				          ]
@@ -804,7 +806,8 @@ public class AnalyticsResource {
 				        {
 				          "widgetReportId": "ADMIN_ANALYTICS_CLINICAL_ASSESSMENT_SEVERITY",
 				          "widgetTitle": "Clinical Assessment Severity",
-				          "widgetTotal": "1,150",
+				          "widgetTotal": 1150,
+				          "widgetTotalDescription": "1,150",
 				          "widgetSubtitle": "Completed Assessments",
 				          "widgetTypeId": "BAR_CHART",
 				          "widgetChartLabel": "Assessments",
@@ -812,16 +815,19 @@ public class AnalyticsResource {
 				            {
 				              "label": "Mild",
 				              "count": 120,
+				              "countDescription": "120",
 				              "color": "#81B2B1"
 				            },
 				            {
 				              "label": "Moderate",
 				              "count": 120,
+				              "countDescription": "120",
 				              "color": "#F0B756"
 				            },
 				            {
 				              "label": "Severe",
 				              "count": 120,
+				              "countDescription": "120",
 				              "color": "#E56F65"
 				            }
 				          ]
@@ -829,7 +835,8 @@ public class AnalyticsResource {
 				        {
 				          "widgetReportId": "ADMIN_ANALYTICS_CRISIS_TRIGGERS",
 				          "widgetTitle": "Crisis Triggers",
-				          "widgetTotal": "1,150",
+				          "widgetTotal": 1150,
+				          "widgetTotalDescription": "1,150",
 				          "widgetSubtitle": "Total",
 				          "widgetTypeId": "BAR_CHART",
 				          "widgetChartLabel": "Times Triggered",
@@ -837,16 +844,19 @@ public class AnalyticsResource {
 				            {
 				              "label": "Home Selection",
 				              "count": 120,
+				              "countDescription": "120",
 				              "color": "#E56F65"
 				            },
 				            {
 				              "label": "PHQ-9 Flags",
 				              "count": 120,
+				              "countDescription": "120",
 				              "color": "#E56F65"
 				            },
 				            {
 				              "label": "In Crisis Button",
 				              "count": 120,
+				              "countDescription": "120",
 				              "color": "#E56F65"
 				            }
 				          ]
@@ -967,14 +977,16 @@ public class AnalyticsResource {
 				        {
 				          "widgetReportId": "ADMIN_ANALYTICS_GROUP_SESSION_REGISTRATIONS",
 				          "widgetTitle": "Registrations",
-				          "widgetTotal": "100",
+				          "widgetTotal": 100,
+				          "widgetTotalDescription": "100",
 				          "widgetSubtitle": "Total",
 				          "widgetTypeId": "COUNTER"
 				        },
 				        {
 				          "widgetReportId": "ADMIN_ANALYTICS_GROUP_SESSION_REQUESTS",
 				          "widgetTitle": "Requests",
-				          "widgetTotal": "100",
+				          "widgetTotal": 100,
+				          "widgetTotalDescription": "100",
 				          "widgetSubtitle": "Total",
 				          "widgetTypeId": "COUNTER"
 				        }
