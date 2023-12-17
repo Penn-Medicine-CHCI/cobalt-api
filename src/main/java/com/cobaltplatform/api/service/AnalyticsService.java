@@ -77,6 +77,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -337,7 +338,7 @@ public class AnalyticsService implements AutoCloseable {
 				GROUP BY a.account_source_id
 				""", AccountSourceIdCount.class, startTimestamp, endTimestamp, institutionId);
 
-		Map<AccountSourceId, Long> activeUserCountsByAccountSourceId = new HashMap<>();
+		Map<AccountSourceId, Long> activeUserCountsByAccountSourceId = new TreeMap<>();
 
 		for (AccountSourceIdCount accountSourceIdCount : accountSourceIdCounts)
 			activeUserCountsByAccountSourceId.put(accountSourceIdCount.getAccountSourceId(), accountSourceIdCount.getCount());
@@ -411,7 +412,7 @@ public class AnalyticsService implements AutoCloseable {
 			accountSourceInstitutionDeclinedToAnswerLocationCount.setInstitutionLocationDescription(DECLINED_TO_ANSWER_LABEL);
 		}
 
-		Map<String, Long> activeUserCountsByInstitutionLocation = new HashMap<>();
+		Map<String, Long> activeUserCountsByInstitutionLocation = new TreeMap<>();
 		activeUserCountsByInstitutionLocation.put(accountSourceInstitutionNotAskedLocationCount.getInstitutionLocationDescription(), accountSourceInstitutionNotAskedLocationCount.getCount());
 		activeUserCountsByInstitutionLocation.put(accountSourceInstitutionDeclinedToAnswerLocationCount.getInstitutionLocationDescription(), accountSourceInstitutionDeclinedToAnswerLocationCount.getCount());
 
