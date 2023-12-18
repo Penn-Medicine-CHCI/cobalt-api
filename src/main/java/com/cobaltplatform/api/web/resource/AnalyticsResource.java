@@ -859,7 +859,7 @@ public class AnalyticsResource {
 				severityData.setLabel(description);
 				severityData.setCount(count);
 				severityData.setCountDescription(getFormatter().formatNumber(count));
-				severityData.setColor(dangerColorCssRepresentations.get(i % successColorCssRepresentations.size()));
+				severityData.setColor(warningColorCssRepresentations.get(i % warningColorCssRepresentations.size()));
 
 				severityWidgetData.add(severityData);
 
@@ -901,6 +901,85 @@ public class AnalyticsResource {
 
 		crisisWidget.setWidgetData(crisisWidgetData);
 
+		// Provider Table
+		AnalyticsTableWidget providerTableWidget = new AnalyticsTableWidget();
+		providerTableWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_APPOINTMENTS_BOOKABLE);
+		providerTableWidget.setWidgetTitle(getStrings().get("Appointments - Bookable Online"));
+
+		AnalyticsWidgetTableData providerWidgetTableData = new AnalyticsWidgetTableData();
+
+		providerWidgetTableData.setHeaders(List.of(
+				getStrings().get("Provider Name"),
+				getStrings().get("Available Appointments"),
+				getStrings().get("Booked Appointments"),
+				getStrings().get("Cancelled Appointments"),
+				getStrings().get("% of Appts Booked & Kept")
+		));
+
+		List<AnalyticsWidgetTableRow> providerWidgetTableRows = new ArrayList<>(appointmentCounts.size());
+
+		for (AppointmentCount appointmentCount : appointmentCounts) {
+			AnalyticsWidgetTableRow row = new AnalyticsWidgetTableRow();
+			row.setData(List.of(
+					appointmentCount.getName(),
+					getFormatter().formatNumber(appointmentCount.getAvailableAppointmentCount()),
+					getFormatter().formatNumber(appointmentCount.getBookedAppointmentCount()),
+					getFormatter().formatNumber(appointmentCount.getCanceledAppointmentCount()),
+					getFormatter().formatPercent(appointmentCount.getBookingPercentage())
+			));
+
+			providerWidgetTableRows.add(row);
+		}
+
+		providerWidgetTableData.setRows(providerWidgetTableRows);
+
+		providerTableWidget.setWidgetData(providerWidgetTableData);
+
+		// Click to Call Table
+		// 				          "widgetReportId": "ADMIN_ANALYTICS_APPOINTMENTS_CLICK_TO_CALL",
+		//				          "widgetTitle": "Appointments - Click to Call",
+		//				          "widgetTypeId": "TABLE",
+		//				          "widgetData": {
+		//				            "headers": [
+		//				              "Provider Type",
+		//				              "# of Clicks to Calls"
+		//				            ],
+		//				            "rows": [
+		//				              {
+		//				                "data": [
+		//				                  "Provider Type Name",
+		//				                  "1,000"
+		//				                ]
+		//				              }
+		//				            ]
+
+		AnalyticsTableWidget clickToCallTableWidget = new AnalyticsTableWidget();
+		clickToCallTableWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_APPOINTMENTS_CLICK_TO_CALL);
+		clickToCallTableWidget.setWidgetTitle(getStrings().get("Appointments - Click to Call"));
+
+		AnalyticsWidgetTableData clickToCallWidgetTableData = new AnalyticsWidgetTableData();
+
+		clickToCallWidgetTableData.setHeaders(List.of(
+				getStrings().get("Provider Name"),
+				getStrings().get("# of Clicks to Call")
+		));
+
+		List<AnalyticsWidgetTableRow> clickToCallWidgetTableRows = new ArrayList<>(appointmentClickToCallCounts.size());
+
+		for (AppointmentClickToCallCount appointmentClickToCallCount : appointmentClickToCallCounts) {
+			AnalyticsWidgetTableRow row = new AnalyticsWidgetTableRow();
+			row.setData(List.of(
+					appointmentClickToCallCount.getName(),
+					getFormatter().formatNumber(appointmentClickToCallCount.getCount())
+			));
+
+			clickToCallWidgetTableRows.add(row);
+		}
+
+		clickToCallWidgetTableData.setRows(clickToCallWidgetTableRows);
+
+		clickToCallTableWidget.setWidgetData(clickToCallWidgetTableData);
+
 		// Group the widgets
 		List<AnalyticsWidget> assessmentAndCrisisWidgets = new ArrayList<>(clinicalAssessmentWidgets.size() + 1);
 		assessmentAndCrisisWidgets.addAll(clinicalAssessmentWidgets);
@@ -910,10 +989,10 @@ public class AnalyticsResource {
 		firstGroup.setWidgets(assessmentAndCrisisWidgets);
 
 		AnalyticsWidgetGroup secondGroup = new AnalyticsWidgetGroup();
-		secondGroup.setWidgets(List.of());
+		secondGroup.setWidgets(List.of(providerTableWidget));
 
 		AnalyticsWidgetGroup thirdGroup = new AnalyticsWidgetGroup();
-		thirdGroup.setWidgets(List.of());
+		thirdGroup.setWidgets(List.of(clickToCallTableWidget));
 
 		// Return the groups
 		List<AnalyticsWidgetGroup> analyticsWidgetGroups = List.of(
@@ -922,7 +1001,7 @@ public class AnalyticsResource {
 				thirdGroup
 		);
 
-		boolean returnExampleJson = true;
+		boolean returnExampleJson = false;
 
 		if (!returnExampleJson)
 			return new ApiResponse(Map.of(
