@@ -735,6 +735,7 @@ public class AnalyticsResource {
 		Map<UUID, ScreeningFlow> screeningFlowsByScreeningFlowId = screeningFlowIds.stream()
 				.map(screeningFlowId -> getScreeningService().findScreeningFlowById(screeningFlowId).get())
 				.collect(Collectors.toMap(screeningFlow -> screeningFlow.getScreeningFlowId(), Function.identity()));
+
 		List<CrisisTriggerCount> crisisTriggerCounts = getAnalyticsService().findCrisisTriggerCounts(institutionId, startDate, endDate);
 		List<AppointmentCount> appointmentCounts = getAnalyticsService().findAppointmentCounts(institutionId, startDate, endDate);
 		List<AppointmentClickToCallCount> appointmentClickToCallCounts = getAnalyticsService().findAppointmentClickToCallCounts(institutionId, startDate, endDate);
@@ -742,12 +743,171 @@ public class AnalyticsResource {
 		boolean useExampleData = !getConfiguration().isProduction();
 
 		if (useExampleData) {
-			// TODO
+			// Fake out clinical screening flow[s]
+			screeningFlowIds = Set.of(UUID.randomUUID());
+			int i = 0;
+
+			for (UUID screeningFlowId : screeningFlowIds) {
+				ScreeningSessionCompletion screeningSessionCompletion = new ScreeningSessionCompletion();
+				screeningSessionCompletion.setStartedCount(75L);
+				screeningSessionCompletion.setCompletedCount(25L);
+				screeningSessionCompletion.setCompletionPercentage((double) screeningSessionCompletion.getCompletedCount() / (double) (screeningSessionCompletion.getStartedCount() + screeningSessionCompletion.getCompletedCount()));
+
+				screeningSessionCompletions.put(screeningFlowId, screeningSessionCompletion);
+
+				screeningSessionSeverityCounts.put(screeningFlowId, new TreeMap<>(Map.of(
+						getStrings().get("Mild"), 50L,
+						getStrings().get("Moderate"), 25L,
+						getStrings().get("Severe"), 10L
+				)));
+
+				ScreeningFlow screeningFlow = new ScreeningFlow();
+				screeningFlow.setScreeningFlowId(screeningFlowId);
+				screeningFlow.setName(getStrings().get("Fake Screening Flow {{index}}", Map.of("index", ++i)));
+
+				screeningFlowsByScreeningFlowId.put(screeningFlowId, screeningFlow);
+			}
+
+			// Other data
+			crisisTriggerCounts = List.of(
+					new CrisisTriggerCount() {{
+						setCount(100L);
+						setName(getStrings().get("Home Selection"));
+					}},
+					new CrisisTriggerCount() {{
+						setCount(50L);
+						setName(getStrings().get("Assessment"));
+					}},
+					new CrisisTriggerCount() {{
+						setCount(125L);
+						setName(getStrings().get("In Crisis Button"));
+					}}
+			);
+
+			appointmentCounts = List.of(
+					new AppointmentCount() {{
+						setProviderId(UUID.randomUUID());
+						setName(getStrings().get("Test Provider"));
+						setAvailableAppointmentCount(150L);
+						setBookedAppointmentCount(25L);
+						setCanceledAppointmentCount(45L);
+						setBookingPercentage((double) getBookedAppointmentCount() / (double) getAvailableAppointmentCount());
+					}}
+			);
+
+			appointmentClickToCallCounts = List.of(
+					new AppointmentClickToCallCount() {{
+						setName(getStrings().get("Test Provider"));
+						setCount(10L);
+					}}
+			);
 		}
 
+		List<AnalyticsWidget> clinicalAssessmentWidgets = new ArrayList<>();
+
+		for (UUID screeningFlowId : screeningFlowIds) {
+			ScreeningFlow screeningFlow = screeningFlowsByScreeningFlowId.get(screeningFlowId);
+			ScreeningSessionCompletion screeningSessionCompletion = screeningSessionCompletions.get(screeningFlowId);
+			SortedMap<String, Long> severityCountsByDescription = screeningSessionSeverityCounts.get(screeningFlowId);
+
+			AnalyticsBarChartWidget clinicalAssessmentCompletionWidget = new AnalyticsBarChartWidget();
+			clinicalAssessmentCompletionWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_CLINICAL_ASSESSMENT_COMPLETION);
+			clinicalAssessmentCompletionWidget.setWidgetTitle(getStrings().get("{{screeningFlowName}} Completion", Map.of("screeningFlowName", screeningFlow.getName())));
+			clinicalAssessmentCompletionWidget.setWidgetTotal(screeningSessionCompletion.getCompletionPercentage());
+			clinicalAssessmentCompletionWidget.setWidgetTotalDescription(getFormatter().formatPercent(screeningSessionCompletion.getCompletionPercentage()));
+			clinicalAssessmentCompletionWidget.setWidgetSubtitle(getStrings().get("Completion Rate"));
+			clinicalAssessmentCompletionWidget.setWidgetChartLabel(getStrings().get("Assessments"));
+
+			AnalyticsWidgetChartData startedWidgetChartData = new AnalyticsWidgetChartData();
+			startedWidgetChartData.setCount(screeningSessionCompletion.getStartedCount());
+			startedWidgetChartData.setCountDescription(getFormatter().formatNumber(screeningSessionCompletion.getStartedCount()));
+			startedWidgetChartData.setLabel(getStrings().get("Started"));
+			startedWidgetChartData.setColor(successColorCssRepresentations.get(0 % successColorCssRepresentations.size()));
+
+			AnalyticsWidgetChartData completedWidgetChartData = new AnalyticsWidgetChartData();
+			completedWidgetChartData.setCount(screeningSessionCompletion.getCompletedCount());
+			completedWidgetChartData.setCountDescription(getFormatter().formatNumber(screeningSessionCompletion.getCompletedCount()));
+			completedWidgetChartData.setLabel(getStrings().get("Completed"));
+			completedWidgetChartData.setColor(successColorCssRepresentations.get(1 % successColorCssRepresentations.size()));
+
+			clinicalAssessmentCompletionWidget.setWidgetData(List.of(
+					startedWidgetChartData,
+					completedWidgetChartData
+			));
+
+			clinicalAssessmentWidgets.add(clinicalAssessmentCompletionWidget);
+
+			Long severityTotalCount = severityCountsByDescription.values().stream()
+					.collect(Collectors.summingLong(Long::longValue));
+
+			AnalyticsBarChartWidget clinicalAssessmentSeverityWidget = new AnalyticsBarChartWidget();
+			clinicalAssessmentSeverityWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_CLINICAL_ASSESSMENT_SEVERITY);
+			clinicalAssessmentSeverityWidget.setWidgetTitle(getStrings().get("{{screeningFlowName}} Severity", Map.of("screeningFlowName", screeningFlow.getName())));
+			clinicalAssessmentSeverityWidget.setWidgetTotal(severityTotalCount);
+			clinicalAssessmentSeverityWidget.setWidgetTotalDescription(getFormatter().formatNumber(severityTotalCount));
+			clinicalAssessmentSeverityWidget.setWidgetSubtitle(getStrings().get("Completed Assessments"));
+			clinicalAssessmentSeverityWidget.setWidgetChartLabel(getStrings().get("Assessments"));
+
+			List<AnalyticsWidgetChartData> severityWidgetData = new ArrayList<>(severityCountsByDescription.size());
+			int i = 0;
+
+			for (Entry<String, Long> entry : severityCountsByDescription.entrySet()) {
+				String description = entry.getKey();
+				Long count = entry.getValue();
+
+				AnalyticsWidgetChartData severityData = new AnalyticsWidgetChartData();
+				severityData.setLabel(description);
+				severityData.setCount(count);
+				severityData.setCountDescription(getFormatter().formatNumber(count));
+				severityData.setColor(dangerColorCssRepresentations.get(i % successColorCssRepresentations.size()));
+
+				severityWidgetData.add(severityData);
+
+				++i;
+			}
+
+			clinicalAssessmentSeverityWidget.setWidgetData(severityWidgetData);
+
+			clinicalAssessmentWidgets.add(clinicalAssessmentSeverityWidget);
+		}
+
+		Long crisisTriggerTotalCount = crisisTriggerCounts.stream()
+				.map(crisisTriggerCount -> crisisTriggerCount.getCount())
+				.collect(Collectors.summingLong(Long::longValue));
+
+		AnalyticsBarChartWidget crisisWidget = new AnalyticsBarChartWidget();
+		crisisWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_CRISIS_TRIGGERS);
+		crisisWidget.setWidgetTitle(getStrings().get("Crisis Triggers"));
+		crisisWidget.setWidgetTotal(crisisTriggerTotalCount);
+		crisisWidget.setWidgetTotalDescription(getFormatter().formatNumber(crisisTriggerTotalCount));
+		crisisWidget.setWidgetSubtitle(getStrings().get("Total"));
+		crisisWidget.setWidgetChartLabel(getStrings().get("Times Triggered"));
+
+		List<AnalyticsWidgetChartData> crisisWidgetData = new ArrayList<>(crisisTriggerCounts.size());
+
+		int i = 0;
+
+		for (CrisisTriggerCount crisisTriggerCount : crisisTriggerCounts) {
+			AnalyticsWidgetChartData crisisData = new AnalyticsWidgetChartData();
+			crisisData.setLabel(crisisTriggerCount.getName());
+			crisisData.setCount(crisisTriggerCount.getCount());
+			crisisData.setCountDescription(getFormatter().formatNumber(crisisTriggerCount.getCount()));
+			crisisData.setColor(dangerColorCssRepresentations.get(i % dangerColorCssRepresentations.size()));
+
+			crisisWidgetData.add(crisisData);
+
+			++i;
+		}
+
+		crisisWidget.setWidgetData(crisisWidgetData);
+
 		// Group the widgets
+		List<AnalyticsWidget> assessmentAndCrisisWidgets = new ArrayList<>(clinicalAssessmentWidgets.size() + 1);
+		assessmentAndCrisisWidgets.addAll(clinicalAssessmentWidgets);
+		assessmentAndCrisisWidgets.add(crisisWidget);
+
 		AnalyticsWidgetGroup firstGroup = new AnalyticsWidgetGroup();
-		firstGroup.setWidgets(List.of());
+		firstGroup.setWidgets(assessmentAndCrisisWidgets);
 
 		AnalyticsWidgetGroup secondGroup = new AnalyticsWidgetGroup();
 		secondGroup.setWidgets(List.of());
