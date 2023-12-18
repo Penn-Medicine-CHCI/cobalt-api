@@ -1466,7 +1466,7 @@ public class AnalyticsResource {
 				AnalyticsWidgetTableRow nestedRow = new AnalyticsWidgetTableRow();
 
 				nestedRow.setData(List.of(
-						getStrings().get("(No tag pageview)"),
+						getStrings().get("(No tag pageviews)"),
 						"--"
 				));
 

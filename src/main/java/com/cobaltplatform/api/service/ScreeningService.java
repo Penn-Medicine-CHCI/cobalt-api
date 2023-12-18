@@ -2414,7 +2414,7 @@ public class ScreeningService {
 																																																				 @Nullable Instant endTimestamp) {
 		if (screeningFlowId == null || institutionId == null || startTimestamp == null || endTimestamp == null)
 			return List.of();
-		
+
 		return getDatabase().queryForList("""
 				SELECT sv.screening_type_id, sss.*
 				FROM v_screening_session_screening sss, screening_session ss, account a, screening_version sv, screening_flow_version sfv
@@ -2426,6 +2426,7 @@ public class ScreeningService {
 				AND a.institution_id=?
 				AND ss.created BETWEEN ? AND ?
 				AND sss.completed=TRUE
+				AND ss.skipped=FALSE
 								""", ScreeningSessionScreeningWithType.class, screeningFlowId, institutionId, startTimestamp, endTimestamp);
 	}
 
