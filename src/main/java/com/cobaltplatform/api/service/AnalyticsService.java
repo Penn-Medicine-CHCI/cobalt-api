@@ -39,6 +39,7 @@ import com.cobaltplatform.api.model.db.Feature;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.ScreeningType.ScreeningTypeId;
+import com.cobaltplatform.api.model.db.TagGroup;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.cobaltplatform.api.model.service.ScreeningScore;
@@ -77,6 +78,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -111,6 +113,8 @@ public class AnalyticsService implements AutoCloseable {
 	@Nonnull
 	private final Provider<ScreeningService> screeningServiceProvider;
 	@Nonnull
+	private final Provider<TagService> tagServiceProvider;
+	@Nonnull
 	private final Provider<AnalyticsSyncTask> analyticsSyncTaskProvider;
 	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
@@ -132,6 +136,7 @@ public class AnalyticsService implements AutoCloseable {
 	public AnalyticsService(@Nonnull Provider<InstitutionService> institutionServiceProvider,
 													@Nonnull Provider<SystemService> systemServiceProvider,
 													@Nonnull Provider<ScreeningService> screeningServiceProvider,
+													@Nonnull Provider<TagService> tagServiceProvider,
 													@Nonnull Provider<AnalyticsSyncTask> analyticsSyncTaskProvider,
 													@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 													@Nonnull Database database,
@@ -139,6 +144,7 @@ public class AnalyticsService implements AutoCloseable {
 		requireNonNull(institutionServiceProvider);
 		requireNonNull(systemServiceProvider);
 		requireNonNull(screeningServiceProvider);
+		requireNonNull(tagServiceProvider);
 		requireNonNull(analyticsSyncTaskProvider);
 		requireNonNull(enterprisePluginProvider);
 		requireNonNull(database);
@@ -147,6 +153,7 @@ public class AnalyticsService implements AutoCloseable {
 		this.institutionServiceProvider = institutionServiceProvider;
 		this.systemServiceProvider = systemServiceProvider;
 		this.screeningServiceProvider = screeningServiceProvider;
+		this.tagServiceProvider = tagServiceProvider;
 		this.analyticsSyncTaskProvider = analyticsSyncTaskProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.database = database;
@@ -337,7 +344,7 @@ public class AnalyticsService implements AutoCloseable {
 				GROUP BY a.account_source_id
 				""", AccountSourceIdCount.class, startTimestamp, endTimestamp, institutionId);
 
-		Map<AccountSourceId, Long> activeUserCountsByAccountSourceId = new HashMap<>();
+		Map<AccountSourceId, Long> activeUserCountsByAccountSourceId = new TreeMap<>();
 
 		for (AccountSourceIdCount accountSourceIdCount : accountSourceIdCounts)
 			activeUserCountsByAccountSourceId.put(accountSourceIdCount.getAccountSourceId(), accountSourceIdCount.getCount());
@@ -411,7 +418,7 @@ public class AnalyticsService implements AutoCloseable {
 			accountSourceInstitutionDeclinedToAnswerLocationCount.setInstitutionLocationDescription(DECLINED_TO_ANSWER_LABEL);
 		}
 
-		Map<String, Long> activeUserCountsByInstitutionLocation = new HashMap<>();
+		Map<String, Long> activeUserCountsByInstitutionLocation = new TreeMap<>();
 		activeUserCountsByInstitutionLocation.put(accountSourceInstitutionNotAskedLocationCount.getInstitutionLocationDescription(), accountSourceInstitutionNotAskedLocationCount.getCount());
 		activeUserCountsByInstitutionLocation.put(accountSourceInstitutionDeclinedToAnswerLocationCount.getInstitutionLocationDescription(), accountSourceInstitutionDeclinedToAnswerLocationCount.getCount());
 
@@ -1163,7 +1170,7 @@ public class AnalyticsService implements AutoCloseable {
 						FROM gs_row gsr, group_session gs
 						WHERE gsr.group_session_id=gs.group_session_id
 						GROUP BY gs.group_session_id, gs.title, gs.start_date_time
-						ORDER BY gs.title, gs.start_date_time
+						ORDER BY registration_count DESC, page_view_count DESC, gs.title, gs.start_date_time
 						""", GroupSessionCount.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, urlPathRegex,
 				startTimestamp, endTimestamp, institutionId);
 
@@ -1273,6 +1280,7 @@ public class AnalyticsService implements AutoCloseable {
 				FROM content_page_normalized_view cpnv, content c
 				WHERE c.content_id = (REVERSE(SUBSTR(REVERSE(cpnv.url_path), 0, STRPOS(REVERSE(cpnv.url_path), '/'))))::UUID
 				ORDER BY cpnv.page_view_count DESC, c.title
+				LIMIT 25
 				""", ContentPageView.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, "?", "?");
 
 		List<TopicCenterInteraction> topicCenterInteractions = getDatabase().queryForList("""
@@ -1478,6 +1486,35 @@ public class AnalyticsService implements AutoCloseable {
 		resourceAndTopicSummary.setTagPageViews(tagPageViews);
 		resourceAndTopicSummary.setContentPageViews(contentPageViews);
 		resourceAndTopicSummary.setTopicCenterInteractions(topicCenterInteractions);
+
+		// TODO: revisit tag group page views - are they the sum of all contained tag page views, or their own thing (or maybe we surface both in the UI)?
+		// Currently, it's unlikely but possible to have a tag page view but no corresponding tag group page view.
+		// Safeguard against that by filling in "empty" tag group page view records
+		Map<String, TagGroup> tagGroupsByTagGroupId = getTagService().findTagGroupsByInstitutionId(institutionId).stream()
+				.collect(Collectors.toMap(tagGroup -> tagGroup.getTagGroupId(), Function.identity()));
+
+		Set<String> tagGroupPageViewTagGroupIds = tagGroupPageViews.stream()
+				.map(tagGroupPageView -> tagGroupPageView.getTagGroupId())
+				.collect(Collectors.toSet());
+
+		// If any tag doesn't have a corresponding group row, add a blank one
+		for (TagPageView tagPageView : tagPageViews) {
+			if (!tagGroupPageViewTagGroupIds.contains(tagPageView.getTagGroupId())) {
+				TagGroup tagGroup = tagGroupsByTagGroupId.get(tagPageView.getTagGroupId());
+
+				TagGroupPageView tagGroupPageView = new TagGroupPageView();
+				tagGroupPageView.setTagGroupId(tagGroup.getTagGroupId());
+				tagGroupPageView.setTagGroupName(tagGroup.getName());
+				tagGroupPageView.setPageViewCount(0L); // TODO: revisit if we apply a different meaning for page views in the context of tag groups
+				tagGroupPageView.setUrlPath(format("/resource-library/tag-groups/%s", tagGroup.getUrlName()));
+
+				// Add to the list of tag group page views...
+				resourceAndTopicSummary.getTagGroupPageViews().add(tagGroupPageView);
+
+				// ...and remember what we did so we don't re-add the same blank row
+				tagGroupPageViewTagGroupIds.add(tagPageView.getTagGroupId());
+			}
+		}
 
 		return resourceAndTopicSummary;
 	}
@@ -2765,6 +2802,11 @@ public class AnalyticsService implements AutoCloseable {
 	@Nonnull
 	protected ScreeningService getScreeningService() {
 		return this.screeningServiceProvider.get();
+	}
+
+	@Nonnull
+	protected TagService getTagService() {
+		return this.tagServiceProvider.get();
 	}
 
 	@Nonnull
