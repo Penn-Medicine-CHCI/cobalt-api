@@ -1446,7 +1446,7 @@ public class AnalyticsResource {
 
 			List<TagPageView> nestedTagPageViews = tagPageViewsByTagGroupIds.get(tagGroupPageView.getTagGroupId());
 
-			if (nestedTagPageViews != null) {
+			if (nestedTagPageViews != null && nestedTagPageViews.size() > 0) {
 				List<AnalyticsWidgetTableRow> nestedRows = new ArrayList<>();
 
 				for (TagPageView tagPageView : nestedTagPageViews) {
@@ -1460,6 +1460,17 @@ public class AnalyticsResource {
 				}
 
 				row.setNestedRows(nestedRows);
+			} else {
+				// UI doesn't correctly handle scenario where some rows have nested rows and some don't -
+				// work around that here by always having a "blank" nested row
+				AnalyticsWidgetTableRow nestedRow = new AnalyticsWidgetTableRow();
+
+				nestedRow.setData(List.of(
+						getStrings().get("(No tag pageview)"),
+						"--"
+				));
+
+				row.setNestedRows(List.of(nestedRow));
 			}
 
 			tagGroupTableRows.add(row);
