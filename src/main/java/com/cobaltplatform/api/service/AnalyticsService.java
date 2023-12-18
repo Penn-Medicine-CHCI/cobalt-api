@@ -838,6 +838,7 @@ public class AnalyticsService implements AutoCloseable {
 					AND a.institution_id=?
 					AND ss.created BETWEEN ? AND ?
 					AND ss.completed=TRUE
+					AND ss.skipped=FALSE
 										""", Long.class, screeningFlowId, institutionId, startTimestamp, endTimestamp).get();
 			Double completionPercentage = startedCount.equals(0L) ? 0D : (completedCount.doubleValue() / startedCount.doubleValue());
 
@@ -1028,12 +1029,12 @@ public class AnalyticsService implements AutoCloseable {
 						SELECT
 						  pr.provider_id,
 						  pr.name,
-						  COALESCE(MAX(pr.available_appointment_count), 0) AS available_appointment_count,
+						  (COALESCE(MAX(pr.available_appointment_count), 0) + COALESCE(MAX(pr.booked_appointment_count), 0)) AS available_appointment_count,
 						  COALESCE(MAX(pr.booked_appointment_count), 0) AS booked_appointment_count,
 						  COALESCE(MAX(pr.canceled_appointment_count), 0) AS canceled_appointment_count,
 						  CASE
-						    WHEN COALESCE(MAX(pr.available_appointment_count), 0) = 0 THEN 0
-						    ELSE COALESCE(MAX(pr.booked_appointment_count), 0)::DECIMAL / COALESCE(MAX(pr.available_appointment_count), 0)::DECIMAL
+						    WHEN (COALESCE(MAX(pr.available_appointment_count), 0) + COALESCE(MAX(pr.booked_appointment_count), 0)) = 0 THEN 0
+						    ELSE COALESCE(MAX(pr.booked_appointment_count), 0)::DECIMAL / (COALESCE(MAX(pr.available_appointment_count), 0) + COALESCE(MAX(pr.booked_appointment_count), 0))::DECIMAL
 						  END AS booking_percentage
 						FROM provider_row pr
 						GROUP BY pr.provider_id, pr.name
