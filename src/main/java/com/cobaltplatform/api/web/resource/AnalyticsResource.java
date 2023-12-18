@@ -1468,15 +1468,79 @@ public class AnalyticsResource {
 		tagGroupTableData.setRows(tagGroupTableRows);
 		tagGroupTableWidget.setWidgetData(tagGroupTableData);
 
+		// Resource detail table widget
+		AnalyticsTableWidget resourceDetailTableWidget = new AnalyticsTableWidget();
+		resourceDetailTableWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_RESOURCE_PAGEVIEWS);
+		resourceDetailTableWidget.setWidgetTitle(getStrings().get("Resource Detail Pageviews (Top 25)"));
+
+		AnalyticsWidgetTableData resourceDetailWidgetTableData = new AnalyticsWidgetTableData();
+
+		resourceDetailWidgetTableData.setHeaders(List.of(
+				getStrings().get("Content Title"),
+				getStrings().get("Views")
+		));
+
+		List<AnalyticsWidgetTableRow> resourceDetailWidgetTableRows = new ArrayList<>(resourceAndTopicSummary.getContentPageViews().size());
+
+		for (ContentPageView contentPageView : resourceAndTopicSummary.getContentPageViews()) {
+			AnalyticsWidgetTableRow row = new AnalyticsWidgetTableRow();
+			row.setData(List.of(
+					contentPageView.getContentTitle(),
+					getFormatter().formatNumber(contentPageView.getPageViewCount())
+			));
+
+			resourceDetailWidgetTableRows.add(row);
+		}
+
+		resourceDetailWidgetTableData.setRows(resourceDetailWidgetTableRows);
+		resourceDetailTableWidget.setWidgetData(resourceDetailWidgetTableData);
+
+		// Topic center table widget
+		AnalyticsTableWidget topicCenterTableWidget = new AnalyticsTableWidget();
+		topicCenterTableWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_TOPIC_CENTER_OVERVIEW);
+		topicCenterTableWidget.setWidgetTitle(getStrings().get("Topic Center Overview"));
+
+		AnalyticsWidgetTableData topicCenterWidgetTableData = new AnalyticsWidgetTableData();
+
+		topicCenterWidgetTableData.setHeaders(List.of(
+				getStrings().get("Topic Center Title"),
+				getStrings().get("Pageviews"),
+				getStrings().get("Unique Visitors"),
+				getStrings().get("Group Session Clicks"),
+				getStrings().get("Group Session By Request Clicks"),
+				getStrings().get("Pinboard Clicks"),
+				getStrings().get("Content Clicks")
+		));
+
+		List<AnalyticsWidgetTableRow> topicCenterWidgetTableRows = new ArrayList<>(resourceAndTopicSummary.getTopicCenterInteractions().size());
+
+		for (TopicCenterInteraction topicCenterInteraction : resourceAndTopicSummary.getTopicCenterInteractions()) {
+			AnalyticsWidgetTableRow row = new AnalyticsWidgetTableRow();
+			row.setData(List.of(
+					topicCenterInteraction.getName(),
+					getFormatter().formatNumber(topicCenterInteraction.getPageViewCount()),
+					getFormatter().formatNumber(topicCenterInteraction.getUniqueVisitorCount()),
+					getFormatter().formatNumber(topicCenterInteraction.getGroupSessionClickCount()),
+					getFormatter().formatNumber(topicCenterInteraction.getGroupSessionByRequestClickCount()),
+					getFormatter().formatNumber(topicCenterInteraction.getPinboardItemClickCount()),
+					getFormatter().formatNumber(topicCenterInteraction.getContentClickCount())
+			));
+
+			topicCenterWidgetTableRows.add(row);
+		}
+
+		topicCenterWidgetTableData.setRows(topicCenterWidgetTableRows);
+		topicCenterTableWidget.setWidgetData(topicCenterWidgetTableData);
+
 		// Group the widgets
 		AnalyticsWidgetGroup firstGroup = new AnalyticsWidgetGroup();
 		firstGroup.setWidgets(List.of(tagGroupTableWidget));
 
 		AnalyticsWidgetGroup secondGroup = new AnalyticsWidgetGroup();
-		secondGroup.setWidgets(List.of());
+		secondGroup.setWidgets(List.of(resourceDetailTableWidget));
 
 		AnalyticsWidgetGroup thirdGroup = new AnalyticsWidgetGroup();
-		thirdGroup.setWidgets(List.of());
+		thirdGroup.setWidgets(List.of(topicCenterTableWidget));
 
 		// Return the groups
 		List<AnalyticsWidgetGroup> analyticsWidgetGroups = List.of(
