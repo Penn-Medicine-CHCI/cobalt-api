@@ -33,12 +33,16 @@ import com.cobaltplatform.api.service.AnalyticsService;
 import com.cobaltplatform.api.service.AnalyticsService.AnalyticsResultNewVersusReturning;
 import com.cobaltplatform.api.service.AnalyticsService.AppointmentClickToCallCount;
 import com.cobaltplatform.api.service.AnalyticsService.AppointmentCount;
+import com.cobaltplatform.api.service.AnalyticsService.ContentPageView;
 import com.cobaltplatform.api.service.AnalyticsService.CrisisTriggerCount;
 import com.cobaltplatform.api.service.AnalyticsService.GroupSessionCount;
 import com.cobaltplatform.api.service.AnalyticsService.GroupSessionSummary;
 import com.cobaltplatform.api.service.AnalyticsService.ResourceAndTopicSummary;
 import com.cobaltplatform.api.service.AnalyticsService.ScreeningSessionCompletion;
 import com.cobaltplatform.api.service.AnalyticsService.SectionCountSummary;
+import com.cobaltplatform.api.service.AnalyticsService.TagGroupPageView;
+import com.cobaltplatform.api.service.AnalyticsService.TagPageView;
+import com.cobaltplatform.api.service.AnalyticsService.TopicCenterInteraction;
 import com.cobaltplatform.api.service.AnalyticsService.TrafficSourceMediumCount;
 import com.cobaltplatform.api.service.AnalyticsService.TrafficSourceReferrerCount;
 import com.cobaltplatform.api.service.AnalyticsService.TrafficSourceSummary;
@@ -1343,12 +1347,130 @@ public class AnalyticsResource {
 		boolean useExampleData = !getConfiguration().isProduction();
 
 		if (useExampleData) {
-			// TODO
+			TagGroupPageView tagGroupPageView1 = new TagGroupPageView();
+			tagGroupPageView1.setPageViewCount(123L);
+			tagGroupPageView1.setTagGroupId("SYMPTOMS");
+			tagGroupPageView1.setTagGroupName(getStrings().get("Symptoms"));
+			tagGroupPageView1.setUrlPath("/ignored");
+
+			TagGroupPageView tagGroupPageView2 = new TagGroupPageView();
+			tagGroupPageView2.setPageViewCount(1234L);
+			tagGroupPageView2.setTagGroupId("WORK_LIFE");
+			tagGroupPageView2.setTagGroupName(getStrings().get("Work Life"));
+			tagGroupPageView2.setUrlPath("/ignored");
+
+			List<TagGroupPageView> tagGroupPageViews = List.of(tagGroupPageView1, tagGroupPageView2);
+
+			TagPageView tagPageView1 = new TagPageView();
+			tagPageView1.setPageViewCount(5000L);
+			tagPageView1.setTagId("MOOD");
+			tagPageView1.setTagName(getStrings().get("Mood"));
+			tagPageView1.setTagGroupId("SYMPTOMS");
+			tagPageView1.setUrlPath("ignored");
+
+			TagPageView tagPageView2 = new TagPageView();
+			tagPageView2.setPageViewCount(100000L);
+			tagPageView2.setTagId("STRESS");
+			tagPageView2.setTagName(getStrings().get("Stress"));
+			tagPageView2.setTagGroupId("SYMPTOMS");
+			tagPageView2.setUrlPath("ignored");
+
+			TagPageView tagPageView3 = new TagPageView();
+			tagPageView3.setPageViewCount(50L);
+			tagPageView3.setTagId("BURNOUT");
+			tagPageView3.setTagName(getStrings().get("Burnout"));
+			tagPageView3.setTagGroupId("WORK_LIFE");
+			tagPageView3.setUrlPath("ignored");
+
+			List<TagPageView> tagPageViews = List.of(tagPageView1, tagPageView2, tagPageView3);
+
+			ContentPageView contentPageView1 = new ContentPageView();
+			contentPageView1.setContentId(UUID.randomUUID());
+			contentPageView1.setContentTitle(getStrings().get("Content Title 1"));
+			contentPageView1.setPageViewCount(12345L);
+
+			List<ContentPageView> contentPageViews = List.of(contentPageView1);
+
+			TopicCenterInteraction topicCenterInteraction1 = new TopicCenterInteraction();
+			topicCenterInteraction1.setTopicCenterId(UUID.randomUUID());
+			topicCenterInteraction1.setName(getStrings().get("Topic Center 1"));
+			topicCenterInteraction1.setPageViewCount(1000L);
+			topicCenterInteraction1.setUniqueVisitorCount(500L);
+			topicCenterInteraction1.setGroupSessionClickCount(250L);
+			topicCenterInteraction1.setGroupSessionByRequestClickCount(50L);
+			topicCenterInteraction1.setPinboardItemClickCount(10L);
+			topicCenterInteraction1.setContentClickCount(1250L);
+
+			List<TopicCenterInteraction> topicCenterInteractions = List.of(topicCenterInteraction1);
+
+			resourceAndTopicSummary = new ResourceAndTopicSummary();
+			resourceAndTopicSummary.setTagGroupPageViews(tagGroupPageViews);
+			resourceAndTopicSummary.setTagPageViews(tagPageViews);
+			resourceAndTopicSummary.setContentPageViews(contentPageViews);
+			resourceAndTopicSummary.setTopicCenterInteractions(topicCenterInteractions);
 		}
+
+		// Index the tag page views by tag group to make nested rows easier to work with
+		Map<String, List<TagPageView>> tagPageViewsByTagGroupIds = new HashMap<>(resourceAndTopicSummary.getTagGroupPageViews().size());
+
+		for (TagPageView tagPageView : resourceAndTopicSummary.getTagPageViews()) {
+			List<TagPageView> tagPageViews = tagPageViewsByTagGroupIds.get(tagPageView.getTagGroupId());
+
+			if (tagPageViews == null) {
+				tagPageViews = new ArrayList<>();
+				tagPageViewsByTagGroupIds.put(tagPageView.getTagGroupId(), tagPageViews);
+			}
+
+			tagPageViews.add(tagPageView);
+		}
+
+		AnalyticsTableWidget tagGroupTableWidget = new AnalyticsTableWidget();
+		tagGroupTableWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_RESOURCE_TOPIC_PAGEVIEWS);
+		tagGroupTableWidget.setWidgetTitle(getStrings().get("Pageview by Resource Topic"));
+
+		AnalyticsWidgetTableData tagGroupTableData = new AnalyticsWidgetTableData();
+
+		tagGroupTableData.setHeaders(List.of(
+				getStrings().get("Topic"),
+				getStrings().get("Pageviews")
+		));
+
+		List<AnalyticsWidgetTableRow> tagGroupTableRows = new ArrayList<>();
+
+		for (TagGroupPageView tagGroupPageView : resourceAndTopicSummary.getTagGroupPageViews()) {
+			AnalyticsWidgetTableRow row = new AnalyticsWidgetTableRow();
+			row.setData(List.of(
+					tagGroupPageView.getTagGroupName(),
+					getFormatter().formatNumber(tagGroupPageView.getPageViewCount())
+			));
+
+			List<TagPageView> nestedTagPageViews = tagPageViewsByTagGroupIds.get(tagGroupPageView.getTagGroupId());
+
+			if (nestedTagPageViews != null) {
+				List<AnalyticsWidgetTableRow> nestedRows = new ArrayList<>();
+
+				for (TagPageView tagPageView : nestedTagPageViews) {
+					AnalyticsWidgetTableRow nestedRow = new AnalyticsWidgetTableRow();
+					nestedRow.setData(List.of(
+							tagPageView.getTagName(),
+							getFormatter().formatNumber(tagPageView.getPageViewCount())
+					));
+
+					nestedRows.add(nestedRow);
+				}
+
+				row.setNestedRows(nestedRows);
+			}
+
+			tagGroupTableRows.add(row);
+		}
+
+		tagGroupTableData.setRows(tagGroupTableRows);
+		tagGroupTableWidget.setWidgetData(tagGroupTableData);
 
 		// Group the widgets
 		AnalyticsWidgetGroup firstGroup = new AnalyticsWidgetGroup();
-		firstGroup.setWidgets(List.of());
+		firstGroup.setWidgets(List.of(tagGroupTableWidget));
 
 		AnalyticsWidgetGroup secondGroup = new AnalyticsWidgetGroup();
 		secondGroup.setWidgets(List.of());
@@ -1363,7 +1485,7 @@ public class AnalyticsResource {
 				thirdGroup
 		);
 
-		boolean returnExampleJson = true;
+		boolean returnExampleJson = false;
 
 		if (!returnExampleJson)
 			return new ApiResponse(Map.of(
