@@ -34,6 +34,7 @@ import com.cobaltplatform.api.service.AnalyticsService.AnalyticsResultNewVersusR
 import com.cobaltplatform.api.service.AnalyticsService.AppointmentClickToCallCount;
 import com.cobaltplatform.api.service.AnalyticsService.AppointmentCount;
 import com.cobaltplatform.api.service.AnalyticsService.CrisisTriggerCount;
+import com.cobaltplatform.api.service.AnalyticsService.GroupSessionCount;
 import com.cobaltplatform.api.service.AnalyticsService.GroupSessionSummary;
 import com.cobaltplatform.api.service.AnalyticsService.ResourceAndTopicSummary;
 import com.cobaltplatform.api.service.AnalyticsService.ScreeningSessionCompletion;
@@ -69,6 +70,9 @@ import java.io.StringReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -936,23 +940,6 @@ public class AnalyticsResource {
 		providerTableWidget.setWidgetData(providerWidgetTableData);
 
 		// Click to Call Table
-		// 				          "widgetReportId": "ADMIN_ANALYTICS_APPOINTMENTS_CLICK_TO_CALL",
-		//				          "widgetTitle": "Appointments - Click to Call",
-		//				          "widgetTypeId": "TABLE",
-		//				          "widgetData": {
-		//				            "headers": [
-		//				              "Provider Type",
-		//				              "# of Clicks to Calls"
-		//				            ],
-		//				            "rows": [
-		//				              {
-		//				                "data": [
-		//				                  "Provider Type Name",
-		//				                  "1,000"
-		//				                ]
-		//				              }
-		//				            ]
-
 		AnalyticsTableWidget clickToCallTableWidget = new AnalyticsTableWidget();
 		clickToCallTableWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_APPOINTMENTS_CLICK_TO_CALL);
 		clickToCallTableWidget.setWidgetTitle(getStrings().get("Appointments - Click to Call"));
@@ -1181,27 +1168,90 @@ public class AnalyticsResource {
 		boolean useExampleData = !getConfiguration().isProduction();
 
 		if (useExampleData) {
-			// TODO
+			groupSessionSummary = new GroupSessionSummary();
+			groupSessionSummary.setRegistrationCount(1234L);
+			groupSessionSummary.setRequestCount(100L);
+
+			GroupSessionCount groupSessionCount1 = new GroupSessionCount();
+			groupSessionCount1.setGroupSessionId(UUID.randomUUID());
+			groupSessionCount1.setTitle(getStrings().get("Group Session 1"));
+			groupSessionCount1.setStartDateTime(LocalDateTime.of(LocalDate.of(2025, 1, 1), LocalTime.of(13, 30)));
+			groupSessionCount1.setRegistrationCount(100L);
+			groupSessionCount1.setPageViewCount(10000L);
+
+			GroupSessionCount groupSessionCount2 = new GroupSessionCount();
+			groupSessionCount2.setGroupSessionId(UUID.randomUUID());
+			groupSessionCount2.setTitle(getStrings().get("Group Session 2"));
+			groupSessionCount2.setStartDateTime(LocalDateTime.of(LocalDate.of(2026, 12, 31), LocalTime.of(18, 30)));
+			groupSessionCount2.setRegistrationCount(1000L);
+			groupSessionCount2.setPageViewCount(1250000L);
+
+			groupSessionSummary.setGroupSessionCounts(List.of(
+					groupSessionCount1,
+					groupSessionCount2
+			));
 		}
+
+		AnalyticsCounterWidget groupSessionRegistrationWidget = new AnalyticsCounterWidget();
+		groupSessionRegistrationWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_GROUP_SESSION_REGISTRATIONS);
+		groupSessionRegistrationWidget.setWidgetTitle(getStrings().get("Registrations"));
+		groupSessionRegistrationWidget.setWidgetTotal(groupSessionSummary.getRegistrationCount());
+		groupSessionRegistrationWidget.setWidgetTotalDescription(getFormatter().formatNumber(groupSessionSummary.getRegistrationCount()));
+		groupSessionRegistrationWidget.setWidgetSubtitle(getStrings().get("Total"));
+
+		AnalyticsCounterWidget groupSessionRequestWidget = new AnalyticsCounterWidget();
+		groupSessionRequestWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_GROUP_SESSION_REQUESTS);
+		groupSessionRequestWidget.setWidgetTitle(getStrings().get("Requests"));
+		groupSessionRequestWidget.setWidgetTotal(groupSessionSummary.getRequestCount());
+		groupSessionRequestWidget.setWidgetTotalDescription(getFormatter().formatNumber(groupSessionSummary.getRequestCount()));
+		groupSessionRequestWidget.setWidgetSubtitle(getStrings().get("Total"));
+
+		// Group Sessions Table
+		AnalyticsTableWidget groupSessionTableWidget = new AnalyticsTableWidget();
+		groupSessionTableWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_GROUP_SESSIONS);
+		groupSessionTableWidget.setWidgetTitle(getStrings().get("Group Sessions"));
+
+		AnalyticsWidgetTableData groupSessionTableWidgetData = new AnalyticsWidgetTableData();
+
+		groupSessionTableWidgetData.setHeaders(List.of(
+				getStrings().get("Session Title"),
+				getStrings().get("Date Scheduled"),
+				getStrings().get("Pageviews"),
+				getStrings().get("Registrations")
+		));
+
+		List<AnalyticsWidgetTableRow> groupSessionWidgetTableRows = new ArrayList<>(groupSessionSummary.getGroupSessionCounts().size());
+
+		for (GroupSessionCount groupSessionCount : groupSessionSummary.getGroupSessionCounts()) {
+			AnalyticsWidgetTableRow row = new AnalyticsWidgetTableRow();
+			row.setData(List.of(
+					groupSessionCount.getTitle(),
+					groupSessionCount.getStartDateTime() == null ? "--" : getFormatter().formatDateTime(groupSessionCount.getStartDateTime(), FormatStyle.SHORT, FormatStyle.SHORT),
+					getFormatter().formatNumber(groupSessionCount.getPageViewCount()),
+					getFormatter().formatNumber(groupSessionCount.getRegistrationCount())
+			));
+
+			groupSessionWidgetTableRows.add(row);
+		}
+
+		groupSessionTableWidgetData.setRows(groupSessionWidgetTableRows);
+
+		groupSessionTableWidget.setWidgetData(groupSessionTableWidgetData);
 
 		// Group the widgets
 		AnalyticsWidgetGroup firstGroup = new AnalyticsWidgetGroup();
-		firstGroup.setWidgets(List.of());
+		firstGroup.setWidgets(List.of(groupSessionRegistrationWidget, groupSessionRequestWidget));
 
 		AnalyticsWidgetGroup secondGroup = new AnalyticsWidgetGroup();
-		secondGroup.setWidgets(List.of());
-
-		AnalyticsWidgetGroup thirdGroup = new AnalyticsWidgetGroup();
-		thirdGroup.setWidgets(List.of());
+		secondGroup.setWidgets(List.of(groupSessionTableWidget));
 
 		// Return the groups
 		List<AnalyticsWidgetGroup> analyticsWidgetGroups = List.of(
 				firstGroup,
-				secondGroup,
-				thirdGroup
+				secondGroup
 		);
 
-		boolean returnExampleJson = true;
+		boolean returnExampleJson = false;
 
 		if (!returnExampleJson)
 			return new ApiResponse(Map.of(
