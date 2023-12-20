@@ -19,45 +19,50 @@
 
 package com.cobaltplatform.api.model.db;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-
-import static java.lang.String.format;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class ClientDeviceType {
+public class FileUploadType {
 	@Nullable
-	private ClientDeviceTypeId clientDeviceTypeId;
+	private FileUploadTypeId fileUploadTypeId;
 	@Nullable
 	private String description;
 
-	public enum ClientDeviceTypeId {
-		IOS_APP,
-		ANDROID_APP,
-		WEB_BROWSER;
-
-		@Nonnull
-		public static Boolean isNativeApp(@Nullable ClientDeviceTypeId clientDeviceTypeId) {
-			return clientDeviceTypeId == IOS_APP || clientDeviceTypeId == ANDROID_APP;
-		}
+	public enum FileUploadTypeId {
+		UNSPECIFIED,
+		CONTENT,
+		IMAGE,
+		VIDEO,
+		ACCELEROMETER,
+		GPS,
+		STEPS,
+		PHONE_CALL,
+		TEXT_MESSAGE,
+		PROXIMITY,
+		MAGNETOMETER,
+		DEVICE_MOTION,
+		REACHABILITY,
+		WIFI,
+		BLUETOOTH,
+		POWER_STATE
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{clientDeviceTypeId=%s, description=%s}", getClass().getSimpleName(), getClientDeviceTypeId(), getDescription());
+		return String.format("%s{fileUploadTypeId=%s, description=%s}", getClass().getSimpleName(), getFileUploadTypeId(), getDescription());
 	}
 
 	@Nullable
-	public ClientDeviceTypeId getClientDeviceTypeId() {
-		return clientDeviceTypeId;
+	public FileUploadTypeId getFileUploadTypeId() {
+		return this.fileUploadTypeId;
 	}
 
-	public void setClientDeviceTypeId(@Nullable ClientDeviceTypeId clientDeviceTypeId) {
-		this.clientDeviceTypeId = clientDeviceTypeId;
+	public void setFileUploadTypeId(@Nullable FileUploadTypeId fileUploadTypeId) {
+		this.fileUploadTypeId = fileUploadTypeId;
 	}
 
 	@Nullable

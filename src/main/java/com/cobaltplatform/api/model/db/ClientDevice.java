@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
+import com.cobaltplatform.api.model.db.PushTokenType.PushTokenTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -38,6 +39,8 @@ public class ClientDevice {
 	@Nullable
 	private String fingerprint;
 	@Nullable
+	private PushTokenTypeId pushTokenTypeId;
+	@Nullable
 	private String pushToken;
 	@Nullable
 	private String operatingSystemName;
@@ -52,13 +55,9 @@ public class ClientDevice {
 	@Nullable
 	private String appVersion;
 	@Nullable
-	private Instant createdTimestamp;
+	private Instant created;
 	@Nullable
-	private UUID createdAccountId;
-	@Nullable
-	private Instant lastUpdatedTimestamp;
-	@Nullable
-	private UUID lastUpdatedAccountId;
+	private Instant lastUpdated;
 
 	@Nullable
 	public UUID getClientDeviceId() {
@@ -85,6 +84,15 @@ public class ClientDevice {
 
 	public void setFingerprint(@Nullable String fingerprint) {
 		this.fingerprint = fingerprint;
+	}
+
+	@Nullable
+	public PushTokenTypeId getPushTokenTypeId() {
+		return this.pushTokenTypeId;
+	}
+
+	public void setPushTokenTypeId(@Nullable PushTokenTypeId pushTokenTypeId) {
+		this.pushTokenTypeId = pushTokenTypeId;
 	}
 
 	@Nullable
@@ -151,38 +159,20 @@ public class ClientDevice {
 	}
 
 	@Nullable
-	public Instant getCreatedTimestamp() {
-		return createdTimestamp;
+	public Instant getCreated() {
+		return this.created;
 	}
 
-	public void setCreatedTimestamp(@Nullable Instant createdTimestamp) {
-		this.createdTimestamp = createdTimestamp;
-	}
-
-	@Nullable
-	public UUID getCreatedAccountId() {
-		return createdAccountId;
-	}
-
-	public void setCreatedAccountId(@Nullable UUID createdAccountId) {
-		this.createdAccountId = createdAccountId;
+	public void setCreated(@Nullable Instant created) {
+		this.created = created;
 	}
 
 	@Nullable
-	public Instant getLastUpdatedTimestamp() {
-		return lastUpdatedTimestamp;
+	public Instant getLastUpdated() {
+		return this.lastUpdated;
 	}
 
-	public void setLastUpdatedTimestamp(@Nullable Instant lastUpdatedTimestamp) {
-		this.lastUpdatedTimestamp = lastUpdatedTimestamp;
-	}
-
-	@Nullable
-	public UUID getLastUpdatedAccountId() {
-		return lastUpdatedAccountId;
-	}
-
-	public void setLastUpdatedAccountId(@Nullable UUID lastUpdatedAccountId) {
-		this.lastUpdatedAccountId = lastUpdatedAccountId;
+	public void setLastUpdated(@Nullable Instant lastUpdated) {
+		this.lastUpdated = lastUpdated;
 	}
 }

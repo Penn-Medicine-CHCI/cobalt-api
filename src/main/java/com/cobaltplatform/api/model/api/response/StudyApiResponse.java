@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.Study;
+import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 
@@ -27,7 +28,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
-
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -49,6 +49,14 @@ public class StudyApiResponse {
 	private final Integer minutesBetweenCheckIns;
 	@Nullable
 	private final Integer gracePeriodInMinutes;
+	@Nullable
+	private final String coordinatorName;
+	@Nullable
+	private final String coordinatorEmailAddress;
+	@Nullable
+	private final String coordinatorPhoneNumber;
+	@Nullable
+	private final String coordinatorPhoneNumberDescription;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -58,7 +66,9 @@ public class StudyApiResponse {
 	}
 
 	@AssistedInject
-	public StudyApiResponse(@Assisted @Nonnull Study study) {
+	public StudyApiResponse(@Nonnull Formatter formatter,
+													@Assisted @Nonnull Study study) {
+		requireNonNull(formatter);
 		requireNonNull(study);
 
 		this.studyId = study.getStudyId();
@@ -67,7 +77,10 @@ public class StudyApiResponse {
 		this.onboardingDestinationUrl = study.getOnboardingDestinationUrl();
 		this.minutesBetweenCheckIns = study.getMinutesBetweenCheckIns();
 		this.gracePeriodInMinutes = study.getGracePeriodInMinutes();
-
+		this.coordinatorName = study.getCoordinatorName();
+		this.coordinatorEmailAddress = study.getCoordinatorEmailAddress();
+		this.coordinatorPhoneNumber = study.getCoordinatorPhoneNumber();
+		this.coordinatorPhoneNumberDescription = getCoordinatorPhoneNumber() == null ? null : formatter.formatPhoneNumber(getCoordinatorPhoneNumber());
 	}
 
 	@Nullable
@@ -98,5 +111,25 @@ public class StudyApiResponse {
 	@Nullable
 	public Integer getGracePeriodInMinutes() {
 		return gracePeriodInMinutes;
+	}
+
+	@Nullable
+	public String getCoordinatorName() {
+		return this.coordinatorName;
+	}
+
+	@Nullable
+	public String getCoordinatorEmailAddress() {
+		return this.coordinatorEmailAddress;
+	}
+
+	@Nullable
+	public String getCoordinatorPhoneNumber() {
+		return this.coordinatorPhoneNumber;
+	}
+
+	@Nullable
+	public String getCoordinatorPhoneNumberDescription() {
+		return this.coordinatorPhoneNumberDescription;
 	}
 }

@@ -19,45 +19,36 @@
 
 package com.cobaltplatform.api.model.db;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-
-import static java.lang.String.format;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class ClientDeviceType {
+public class PushTokenType {
 	@Nullable
-	private ClientDeviceTypeId clientDeviceTypeId;
+	private PushTokenTypeId pushTokenTypeId;
 	@Nullable
 	private String description;
 
-	public enum ClientDeviceTypeId {
-		IOS_APP,
-		ANDROID_APP,
-		WEB_BROWSER;
-
-		@Nonnull
-		public static Boolean isNativeApp(@Nullable ClientDeviceTypeId clientDeviceTypeId) {
-			return clientDeviceTypeId == IOS_APP || clientDeviceTypeId == ANDROID_APP;
-		}
+	public enum PushTokenTypeId {
+		NATIVE,
+		FCM
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{clientDeviceTypeId=%s, description=%s}", getClass().getSimpleName(), getClientDeviceTypeId(), getDescription());
+		return String.format("%s{pushTokenTypeId=%s, description=%s}", getClass().getSimpleName(), getPushTokenTypeId(), getDescription());
 	}
 
 	@Nullable
-	public ClientDeviceTypeId getClientDeviceTypeId() {
-		return clientDeviceTypeId;
+	public PushTokenTypeId getPushTokenTypeId() {
+		return this.pushTokenTypeId;
 	}
 
-	public void setClientDeviceTypeId(@Nullable ClientDeviceTypeId clientDeviceTypeId) {
-		this.clientDeviceTypeId = clientDeviceTypeId;
+	public void setPushTokenTypeId(@Nullable PushTokenTypeId pushTokenTypeId) {
+		this.pushTokenTypeId = pushTokenTypeId;
 	}
 
 	@Nullable

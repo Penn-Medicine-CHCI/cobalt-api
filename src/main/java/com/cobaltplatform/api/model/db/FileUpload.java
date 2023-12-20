@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.FileUploadType.FileUploadTypeId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
@@ -31,6 +33,8 @@ import java.util.UUID;
 public class FileUpload {
 	@Nullable
 	private UUID fileUploadId;
+	@Nullable
+	private FileUploadTypeId fileUploadTypeId;
 	@Nullable
 	private UUID accountId;
 	@Nullable
@@ -53,6 +57,15 @@ public class FileUpload {
 
 	public void setFileUploadId(@Nullable UUID fileUploadId) {
 		this.fileUploadId = fileUploadId;
+	}
+
+	@Nullable
+	public FileUploadTypeId getFileUploadTypeId() {
+		return this.fileUploadTypeId;
+	}
+
+	public void setFileUploadTypeId(@Nullable FileUploadTypeId fileUploadTypeId) {
+		this.fileUploadTypeId = fileUploadTypeId;
 	}
 
 	@Nullable
