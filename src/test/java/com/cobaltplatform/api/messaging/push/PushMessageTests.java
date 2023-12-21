@@ -59,5 +59,6 @@ public class PushMessageTests {
 		String secretKeyJson = Files.readString(Path.of("resources/test/fcm-secret-key.json"), StandardCharsets.UTF_8);
 		MessageSender<PushMessage> pushMessageSender = new GoogleFcmPushMessageSender(secretKeyJson);
 		String identifier = pushMessageSender.sendMessage(pushMessage);
+		System.out.println("Push message identifier: " + identifier);
 	}
 }
