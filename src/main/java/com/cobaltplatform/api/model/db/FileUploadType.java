@@ -37,6 +37,7 @@ public class FileUploadType {
 		CONTENT,
 		IMAGE,
 		VIDEO,
+		AUDIO,
 		ACCELEROMETER,
 		GPS,
 		STEPS,

@@ -20,7 +20,6 @@
 package com.cobaltplatform.api.messaging.push;
 
 import com.cobaltplatform.api.messaging.Message;
-import com.cobaltplatform.api.messaging.sms.SmsMessageTemplate;
 import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
@@ -31,10 +30,8 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 
-import static java.lang.String.format;
 import static java.util.Collections.emptyMap;
 import static java.util.Objects.requireNonNull;
 
@@ -53,7 +50,7 @@ public class PushMessage implements Message {
 	private final PushTokenTypeId pushTokenTypeId;
 	@Nonnull
 	private final String pushToken;
-	@Nullable
+	@Nonnull
 	private final PushMessageTemplate messageTemplate;
 	@Nonnull
 	private final Locale locale;
@@ -67,12 +64,18 @@ public class PushMessage implements Message {
 
 		this.messageId = builder.messageId;
 		this.institutionId = builder.institutionId;
-		this.toNumber = builder.toNumber;
+		this.clientDeviceTypeId = builder.clientDeviceTypeId;
+		this.pushTokenTypeId = builder.pushTokenTypeId;
+		this.pushToken = builder.pushToken;
 		this.locale = builder.locale;
 		this.messageTemplate = builder.messageTemplate;
 		this.messageContext = builder.messageContext == null ? emptyMap() : Map.copyOf(builder.messageContext);
+		this.metadata = builder.metadata == null ? emptyMap() : Map.copyOf(builder.metadata);
 	}
 
+	// TODO: fix up implementation
+
+	/*
 	@Override
 	public String toString() {
 		return format("%s{messageId=%s, messageTemplate=%s, messageContext=%s, locale=%s, toNumber=%s}",
@@ -102,30 +105,12 @@ public class PushMessage implements Message {
 		return Objects.hash(getMessageId(), getInstitutionId(), getToNumber(), getMessageTemplate(), getLocale(), getMessageContext());
 	}
 
+	 */
+
 	@Override
 	@Nonnull
 	public InstitutionId getInstitutionId() {
 		return this.institutionId;
-	}
-
-	@Nonnull
-	public String getToNumber() {
-		return toNumber;
-	}
-
-	@Nonnull
-	public SmsMessageTemplate getMessageTemplate() {
-		return messageTemplate;
-	}
-
-	@Nonnull
-	public Map<String, Object> getMessageContext() {
-		return messageContext;
-	}
-
-	@Nonnull
-	public Locale getLocale() {
-		return locale;
 	}
 
 	@Nonnull
@@ -140,48 +125,103 @@ public class PushMessage implements Message {
 		return MessageTypeId.PUSH;
 	}
 
+	@Nonnull
+	public ClientDeviceTypeId getClientDeviceTypeId() {
+		return this.clientDeviceTypeId;
+	}
+
+	@Nonnull
+	public PushTokenTypeId getPushTokenTypeId() {
+		return this.pushTokenTypeId;
+	}
+
+	@Nonnull
+	public String getPushToken() {
+		return this.pushToken;
+	}
+
+	@Nonnull
+	public PushMessageTemplate getMessageTemplate() {
+		return this.messageTemplate;
+	}
+
+	@Nonnull
+	public Locale getLocale() {
+		return this.locale;
+	}
+
+	@Nonnull
+	public Map<String, Object> getMessageContext() {
+		return this.messageContext;
+	}
+
+	@Nonnull
+	public Map<String, Object> getMetadata() {
+		return this.metadata;
+	}
+
 	public static class Builder {
 		@Nonnull
 		private final UUID messageId;
 		@Nonnull
 		private final InstitutionId institutionId;
 		@Nonnull
-		private final String toNumber;
+		private final ClientDeviceTypeId clientDeviceTypeId;
 		@Nonnull
-		private final SmsMessageTemplate messageTemplate;
+		private final PushTokenTypeId pushTokenTypeId;
+		@Nonnull
+		private final String pushToken;
+		@Nonnull
+		private final PushMessageTemplate messageTemplate;
 		@Nonnull
 		private final Locale locale;
 		@Nullable
 		private Map<String, Object> messageContext;
+		@Nullable
+		private Map<String, Object> metadata;
 
 		public Builder(@Nonnull InstitutionId institutionId,
-									 @Nonnull SmsMessageTemplate messageTemplate,
-									 @Nonnull String toNumber,
+									 @Nonnull PushMessageTemplate messageTemplate,
+									 @Nonnull ClientDeviceTypeId clientDeviceTypeId,
+									 @Nonnull PushTokenTypeId pushTokenTypeId,
+									 @Nonnull String pushToken,
 									 @Nonnull Locale locale) {
-			this(UUID.randomUUID(), institutionId, messageTemplate, toNumber, locale);
+			this(UUID.randomUUID(), institutionId, messageTemplate, clientDeviceTypeId, pushTokenTypeId, pushToken, locale);
 		}
 
 		public Builder(@Nonnull UUID messageId,
 									 @Nonnull InstitutionId institutionId,
-									 @Nonnull SmsMessageTemplate messageTemplate,
-									 @Nonnull String toNumber,
+									 @Nonnull PushMessageTemplate messageTemplate,
+									 @Nonnull ClientDeviceTypeId clientDeviceTypeId,
+									 @Nonnull PushTokenTypeId pushTokenTypeId,
+									 @Nonnull String pushToken,
 									 @Nonnull Locale locale) {
 			requireNonNull(messageId);
 			requireNonNull(institutionId);
 			requireNonNull(messageTemplate);
-			requireNonNull(toNumber);
+			requireNonNull(clientDeviceTypeId);
+			requireNonNull(pushTokenTypeId);
+			requireNonNull(pushToken);
 			requireNonNull(locale);
 
 			this.messageId = messageId;
 			this.institutionId = institutionId;
 			this.messageTemplate = messageTemplate;
-			this.toNumber = toNumber;
+			this.clientDeviceTypeId = clientDeviceTypeId;
+			this.pushTokenTypeId = pushTokenTypeId;
+			this.pushToken = pushToken;
 			this.locale = locale;
 		}
 
 		@Nonnull
 		public Builder messageContext(@Nullable Map<String, Object> messageContext) {
 			this.messageContext = messageContext;
+			return this;
+		}
+
+		@Nonnull
+		public Builder metadata(@Nullable Map<String, Object> metadata) {
+			this.metadata = metadata;
 			return this;
 		}
 

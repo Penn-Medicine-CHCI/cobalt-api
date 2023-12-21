@@ -37,7 +37,8 @@ public class MessageVendor {
 	public enum MessageVendorId {
 		UNSPECIFIED,
 		TWILIO,
-		AMAZON_SES
+		AMAZON_SES,
+		GOOGLE_FCM
 	}
 
 	@Override

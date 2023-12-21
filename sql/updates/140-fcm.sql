@@ -44,7 +44,9 @@ CREATE TABLE account_client_device (
 	last_updated TIMESTAMPTZ NOT NULL
 );
 
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON last_updated FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON account_client_device FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+INSERT INTO message_vendor VALUES ('GOOGLE_FCM', 'Google FCM');
 
 -- Additional information at the study level for push and coordinator
 ALTER TABLE study ADD COLUMN coordinator_name TEXT;
@@ -60,6 +62,7 @@ INSERT INTO file_upload_type VALUES ('UNSPECIFIED', 'Unspecified');
 INSERT INTO file_upload_type VALUES ('CONTENT', 'Content');
 INSERT INTO file_upload_type VALUES ('IMAGE', 'Image');
 INSERT INTO file_upload_type VALUES ('VIDEO', 'Video');
+INSERT INTO file_upload_type VALUES ('AUDIO', 'Audio');
 INSERT INTO file_upload_type VALUES ('ACCELEROMETER', 'Accelerometer');
 INSERT INTO file_upload_type VALUES ('GPS', 'GPS');
 INSERT INTO file_upload_type VALUES ('STEPS', 'Steps');
