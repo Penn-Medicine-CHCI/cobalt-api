@@ -27,6 +27,7 @@ import com.cobaltplatform.api.http.HttpResponse;
 import com.cobaltplatform.api.messaging.MessageSender;
 import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
 import com.cobaltplatform.api.model.db.MessageVendor.MessageVendorId;
+import com.cobaltplatform.api.util.HandlebarsTemplater;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.common.io.CharStreams;
 import com.google.gson.Gson;
@@ -46,6 +47,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +61,8 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
  */
 @ThreadSafe
 public class GoogleFcmPushMessageSender implements MessageSender<PushMessage> {
+	@Nonnull
+	private final HandlebarsTemplater handlebarsTemplater;
 	@Nonnull
 	private final String projectId;
 	@Nonnull
@@ -75,19 +79,30 @@ public class GoogleFcmPushMessageSender implements MessageSender<PushMessage> {
 		this(new ByteArrayInputStream(serviceAccountPrivateKeyJson.getBytes(StandardCharsets.UTF_8)));
 	}
 
-	public GoogleFcmPushMessageSender(
-			@Nonnull InputStream serviceAccountPrivateKeyJsonInputStream) {
+	public GoogleFcmPushMessageSender(@Nonnull String serviceAccountPrivateKeyJson,
+																		@Nullable HandlebarsTemplater handlebarsTemplater) {
+		// ByteArrayInputStream does not need to be closed
+		this(new ByteArrayInputStream(serviceAccountPrivateKeyJson.getBytes(StandardCharsets.UTF_8)), handlebarsTemplater);
+	}
+
+	public GoogleFcmPushMessageSender(@Nonnull InputStream serviceAccountPrivateKeyJsonInputStream) {
+		this(serviceAccountPrivateKeyJsonInputStream, null);
+	}
+
+	public GoogleFcmPushMessageSender(@Nonnull InputStream serviceAccountPrivateKeyJsonInputStream,
+																		@Nullable HandlebarsTemplater handlebarsTemplater) {
 		requireNonNull(serviceAccountPrivateKeyJsonInputStream);
 
 		this.logger = LoggerFactory.getLogger(getClass());
 
 		try {
-			String serviceAccountPrivateKeyJson = CharStreams.toString(new InputStreamReader(requireNonNull(serviceAccountPrivateKeyJsonInputStream), StandardCharsets.UTF_8));
+			String serviceAccountPrivateKeyJson = CharStreams.toString(new InputStreamReader(serviceAccountPrivateKeyJsonInputStream, StandardCharsets.UTF_8));
 
 			// Confirm that this is well-formed JSON and extract the project ID
 			Map<String, Object> jsonObject = new Gson().fromJson(serviceAccountPrivateKeyJson, new TypeToken<Map<String, Object>>() {
 			}.getType());
 
+			this.handlebarsTemplater = handlebarsTemplater == null ? new HandlebarsTemplater.Builder(Paths.get("messages/push")).build() : handlebarsTemplater;
 			this.projectId = requireNonNull((String) jsonObject.get("project_id"));
 			this.googleCredentials = acquireGoogleCredentials(serviceAccountPrivateKeyJson);
 			this.gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
@@ -175,8 +190,9 @@ public class GoogleFcmPushMessageSender implements MessageSender<PushMessage> {
 	protected HttpRequest createHttpRequest(@Nonnull PushMessage pushMessage) {
 		requireNonNull(pushMessage);
 
-		String title = "test title"; // TODO: merge with template
-		String body = "test body"; // TODO: merge with template
+		Map<String, Object> messageContext = new HashMap<>(pushMessage.getMessageContext());
+		String title = getHandlebarsTemplater().mergeTemplate(pushMessage.getMessageTemplate().name(), "title", pushMessage.getLocale(), messageContext).get();
+		String body = getHandlebarsTemplater().mergeTemplate(pushMessage.getMessageTemplate().name(), "body", pushMessage.getLocale(), messageContext).get();
 
 		// Relevant docs:
 		// https://firebase.google.com/docs/cloud-messaging/js/first-message#http_post_request
@@ -281,6 +297,11 @@ public class GoogleFcmPushMessageSender implements MessageSender<PushMessage> {
 		} catch (IOException e) {
 			throw new UncheckedIOException("Unable to acquire FCM access token", e);
 		}
+	}
+
+	@Nonnull
+	protected HandlebarsTemplater getHandlebarsTemplater() {
+		return this.handlebarsTemplater;
 	}
 
 	@Nonnull

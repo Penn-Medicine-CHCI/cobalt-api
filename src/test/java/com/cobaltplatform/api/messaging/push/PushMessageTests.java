@@ -52,8 +52,8 @@ public class PushMessageTests {
 
 		PushMessage pushMessage = new PushMessage.Builder(InstitutionId.COBALT, PushMessageTemplate.MICROINTERVENTION,
 				ClientDeviceTypeId.IOS_APP, PushTokenType.PushTokenTypeId.FCM, pushToken, Locale.forLanguageTag("en-US"))
-				.messageContext(Map.of("one", "two"))
-				.metadata(Map.of("three", "four"))
+				.messageContext(Map.of("condition", "Anxiety"))
+				.metadata(Map.of("one", "two", "three", "four"))
 				.build();
 
 		String secretKeyJson = Files.readString(Path.of("resources/test/fcm-secret-key.json"), StandardCharsets.UTF_8);

@@ -534,7 +534,10 @@ public class AppModule extends AbstractModule {
 		requireNonNull(configuration);
 
 		if (getConfiguration().getShouldSendRealEmailMessages()) {
-			HandlebarsTemplater handlebarsTemplater = new HandlebarsTemplater(Paths.get("messages/email"), configuration, "views");
+			HandlebarsTemplater handlebarsTemplater = new HandlebarsTemplater.Builder(Paths.get("messages/email"))
+					.viewsDirectoryName("views")
+					.shouldCacheTemplates(configuration.getShouldCacheHandlebarsTemplates())
+					.build();
 			return new AmazonSesEmailMessageSender(handlebarsTemplater, configuration);
 		}
 
@@ -558,7 +561,10 @@ public class AppModule extends AbstractModule {
 		requireNonNull(normalizer);
 
 		if (getConfiguration().getShouldSendRealSmsMessages()) {
-			HandlebarsTemplater handlebarsTemplater = new HandlebarsTemplater(Paths.get("messages/sms"), configuration);
+			HandlebarsTemplater handlebarsTemplater = new HandlebarsTemplater.Builder(Paths.get("messages/sms"))
+					.shouldCacheTemplates(configuration.getShouldCacheHandlebarsTemplates())
+					.build();
+
 			return new TwilioSmsMessageSender(handlebarsTemplater, normalizer, configuration);
 		}
 
@@ -582,7 +588,10 @@ public class AppModule extends AbstractModule {
 		requireNonNull(normalizer);
 
 		if (getConfiguration().getShouldSendRealCallMessages()) {
-			HandlebarsTemplater handlebarsTemplater = new HandlebarsTemplater(Paths.get("messages/call"), configuration);
+			HandlebarsTemplater handlebarsTemplater = new HandlebarsTemplater.Builder(Paths.get("messages/call"))
+					.shouldCacheTemplates(configuration.getShouldCacheHandlebarsTemplates())
+					.build();
+
 			return new TwilioCallMessageSender(handlebarsTemplater, normalizer, configuration);
 		}
 

@@ -51,7 +51,7 @@ public class SerializablePushMessage {
 	@Nonnull
 	private Map<String, Object> messageContext;
 	@Nonnull
-	private Map<String, Object> metadata;
+	private Map<String, String> metadata;
 
 	@Nonnull
 	public UUID getMessageId() {
@@ -126,11 +126,11 @@ public class SerializablePushMessage {
 	}
 
 	@Nonnull
-	public Map<String, Object> getMetadata() {
+	public Map<String, String> getMetadata() {
 		return this.metadata;
 	}
 
-	public void setMetadata(@Nonnull Map<String, Object> metadata) {
+	public void setMetadata(@Nonnull Map<String, String> metadata) {
 		this.metadata = metadata;
 	}
 }

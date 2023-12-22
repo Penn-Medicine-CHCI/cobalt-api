@@ -59,7 +59,7 @@ public class PushMessage implements Message {
 	@Nonnull
 	private final Map<String, Object> messageContext;
 	@Nonnull
-	private final Map<String, Object> metadata;
+	private final Map<String, String> metadata;
 
 	private PushMessage(@Nonnull Builder builder) {
 		requireNonNull(builder);
@@ -158,7 +158,7 @@ public class PushMessage implements Message {
 	}
 
 	@Nonnull
-	public Map<String, Object> getMetadata() {
+	public Map<String, String> getMetadata() {
 		return this.metadata;
 	}
 
@@ -180,7 +180,7 @@ public class PushMessage implements Message {
 		@Nullable
 		private Map<String, Object> messageContext;
 		@Nullable
-		private Map<String, Object> metadata;
+		private Map<String, String> metadata;
 
 		public Builder(@Nonnull InstitutionId institutionId,
 									 @Nonnull PushMessageTemplate messageTemplate,
@@ -222,7 +222,7 @@ public class PushMessage implements Message {
 		}
 
 		@Nonnull
-		public Builder metadata(@Nullable Map<String, Object> metadata) {
+		public Builder metadata(@Nullable Map<String, String> metadata) {
 			this.metadata = metadata;
 			return this;
 		}
