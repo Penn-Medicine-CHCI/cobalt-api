@@ -33,7 +33,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.reflect.TypeToken;
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,6 +52,7 @@ import java.util.Map;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify LLC.
@@ -111,6 +111,8 @@ public class GoogleFcmPushMessageSender implements MessageSender<PushMessage> {
 
 			HttpResponse httpResponse = getHttpClient().execute(httpRequest);
 			String responseBody = httpResponse.getBody().isPresent() ? new String(httpResponse.getBody().get(), StandardCharsets.UTF_8) : null;
+			String errorStatus = null;
+			String errorMessage = null;
 
 			if (httpResponse.getStatus() > 299) {
 				if (responseBody != null) {
@@ -137,29 +139,29 @@ public class GoogleFcmPushMessageSender implements MessageSender<PushMessage> {
 							//  }
 							//}
 
-							// TODO: different exception type
-							if ("NOT_FOUND".equals(fcmErrorBody.getError().getStatus()))
-								throw new RuntimeException(format("FCM says %s push device with token %s is invalid (might have been refreshed or uninstalled)",
-										pushMessage.getClientDeviceTypeId().name(), pushMessage.getPushToken())/*, pushMessage */);
+							errorStatus = trimToNull(fcmErrorBody.getError().getStatus());
+							errorMessage = trimToNull(fcmErrorBody.getError().getMessage());
 						}
 					} catch (Exception ignored) {
 						// Can't parse JSON - not a big deal
 					}
 				}
 
-				// TODO: different exception type
-				if (httpResponse.getStatus() == 404)
-					throw new RuntimeException(format("FCM says %s push device with token %s is invalid (might have been refreshed or uninstalled)",
-							pushMessage.getClientDeviceTypeId().name(), pushMessage.getPushToken())/*, pushMessage*/);
+				if (httpResponse.getStatus() == 404 || ("NOT_FOUND".equals(errorStatus) || "INVALID_ARGUMENT".equals(errorStatus)))
+					throw new PushMessageInvalidDeviceException(format("FCM says %s push device with token '%s' is invalid (might have been refreshed or uninstalled).  Message was '%s'",
+							pushMessage.getClientDeviceTypeId().name(), pushMessage.getPushToken(), errorMessage), pushMessage);
 
-				throw new IOException(format("HTTP status was %d", httpResponse.getStatus()));
+				throw new PushMessageException(format("FCM says %s push device with push token '%s' is invalid (might have been refreshed or uninstalled)",
+						pushMessage.getClientDeviceTypeId().name(), pushMessage.getPushToken()), pushMessage);
 			}
 
 			FcmSuccessBody fcmSuccessBody = getGson().fromJson(responseBody, FcmSuccessBody.class);
-			messageIdentifier = StringUtils.trimToNull(fcmSuccessBody.getName());
+			messageIdentifier = trimToNull(fcmSuccessBody.getName());
 
+			// Should never occur
 			if (messageIdentifier == null)
-				throw new RuntimeException("TODO: better error message if we don't know the message ID");
+				throw new PushMessageException(format("FCM Push message appears to have been sent to device with push token '%s', but unable to extract an identifier from the response body: %s",
+						pushMessage.getPushToken(), responseBody), pushMessage);
 
 			getLogger().info("Successfully sent push notification in {} ms.", System.currentTimeMillis() - time);
 
