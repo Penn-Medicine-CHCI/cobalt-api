@@ -75,8 +75,6 @@ public class PushMessage implements Message {
 		this.metadata = builder.metadata == null ? emptyMap() : Map.copyOf(builder.metadata);
 	}
 
-	// TODO: fix up implementation
-
 	@Override
 	public String toString() {
 		return format("%s{messageId=%s, institutionId=%s, messageTemplate=%s, messageContext=%s, metadata=%s, locale=%s, clientDeviceTypeId, pushTokenTypeId=%s, pushToken=%s}",

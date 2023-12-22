@@ -31,7 +31,10 @@ import com.cobaltplatform.api.integration.microsoft.MicrosoftAuthenticator;
 import com.cobaltplatform.api.integration.microsoft.MicrosoftClient;
 import com.cobaltplatform.api.integration.mixpanel.MixpanelClient;
 import com.cobaltplatform.api.integration.mixpanel.MockMixpanelClient;
+import com.cobaltplatform.api.messaging.MessageSender;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
+import com.cobaltplatform.api.messaging.push.ConsolePushMessageSender;
+import com.cobaltplatform.api.messaging.push.PushMessage;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -145,6 +148,11 @@ public interface EnterprisePlugin {
 	@Nonnull
 	default MixpanelClient mixpanelClient() {
 		return new MockMixpanelClient();
+	}
+
+	@Nonnull
+	default MessageSender<PushMessage> pushMessageSender() {
+		return new ConsolePushMessageSender();
 	}
 
 	@Nonnull

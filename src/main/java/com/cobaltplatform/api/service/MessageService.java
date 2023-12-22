@@ -34,6 +34,8 @@ import com.cobaltplatform.api.messaging.call.CallMessageSerializer;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageContextKey;
 import com.cobaltplatform.api.messaging.email.EmailMessageSerializer;
+import com.cobaltplatform.api.messaging.push.PushMessage;
+import com.cobaltplatform.api.messaging.push.PushMessageSerializer;
 import com.cobaltplatform.api.messaging.sms.SmsMessage;
 import com.cobaltplatform.api.messaging.sms.SmsMessageSerializer;
 import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
@@ -124,6 +126,8 @@ public class MessageService implements AutoCloseable {
 	@Nonnull
 	private final MessageSender<CallMessage> callMessageSender;
 	@Nonnull
+	private final PushMessageSerializer pushMessageSerializer;
+	@Nonnull
 	private final Database database;
 	@Nonnull
 	private final Configuration configuration;
@@ -168,6 +172,7 @@ public class MessageService implements AutoCloseable {
 												@Nonnull MessageSender<SmsMessage> smsMessageSender,
 												@Nonnull CallMessageSerializer callMessageSerializer,
 												@Nonnull MessageSender<CallMessage> callMessageSender,
+												@Nonnull PushMessageSerializer pushMessageSerializer,
 												@Nonnull Database database,
 												@Nonnull Configuration configuration,
 												@Nonnull Formatter formatter,
@@ -184,6 +189,7 @@ public class MessageService implements AutoCloseable {
 		requireNonNull(smsMessageSender);
 		requireNonNull(callMessageSerializer);
 		requireNonNull(callMessageSender);
+		requireNonNull(pushMessageSerializer);
 		requireNonNull(database);
 		requireNonNull(configuration);
 		requireNonNull(formatter);
@@ -201,6 +207,7 @@ public class MessageService implements AutoCloseable {
 		this.smsMessageSender = smsMessageSender;
 		this.callMessageSerializer = callMessageSerializer;
 		this.callMessageSender = callMessageSender;
+		this.pushMessageSerializer = pushMessageSerializer;
 		this.database = database;
 		this.configuration = configuration;
 		this.formatter = formatter;
@@ -360,6 +367,10 @@ public class MessageService implements AutoCloseable {
 		} else if (message.getMessageTypeId() == MessageTypeId.CALL) {
 			serializedMessage = getCallMessageSerializer().serializeMessage((CallMessage) message);
 			messageVendorId = getCallMessageSender().getMessageVendorId();
+		} else if (message.getMessageTypeId() == MessageTypeId.PUSH) {
+			serializedMessage = getPushMessageSerializer().serializeMessage((PushMessage) message);
+			EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(message.getInstitutionId());
+			messageVendorId = enterprisePlugin.pushMessageSender().getMessageVendorId();
 		} else {
 			throw new IllegalStateException(format("Sorry, %s.%s is not yet supported.",
 					MessageTypeId.class.getSimpleName(), message.getMessageTypeId().name()));
@@ -406,6 +417,8 @@ public class MessageService implements AutoCloseable {
 			serializedMessage = getSmsMessageSerializer().serializeMessage((SmsMessage) message);
 		else if (message.getMessageTypeId() == MessageTypeId.CALL)
 			serializedMessage = getCallMessageSerializer().serializeMessage((CallMessage) message);
+		else if (message.getMessageTypeId() == MessageTypeId.PUSH)
+			serializedMessage = getPushMessageSerializer().serializeMessage((PushMessage) message);
 		else
 			throw new IllegalStateException(format("Sorry, %s.%s is not yet supported.",
 					MessageTypeId.class.getSimpleName(), message.getMessageTypeId().name()));
@@ -653,7 +666,11 @@ public class MessageService implements AutoCloseable {
 		@Nonnull
 		private final CallMessageSerializer callMessageSerializer;
 		@Nonnull
+		private final PushMessageSerializer pushMessageSerializer;
+		@Nonnull
 		private final Database database;
+		@Nonnull
+		private final EnterprisePluginProvider enterprisePluginProvider;
 		@Nonnull
 		private final CurrentContextExecutor currentContextExecutor;
 		@Nonnull
@@ -673,7 +690,9 @@ public class MessageService implements AutoCloseable {
 													 @Nonnull MessageSender<SmsMessage> smsMessageSender,
 													 @Nonnull CallMessageSerializer callMessageSerializer,
 													 @Nonnull MessageSender<CallMessage> callMessageSender,
+													 @Nonnull PushMessageSerializer pushMessageSerializer,
 													 @Nonnull Database database,
+													 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
 													 @Nonnull CurrentContextExecutor currentContextExecutor,
 													 @Nonnull ErrorReporter errorReporter,
 													 @Nonnull Formatter formatter,
@@ -685,7 +704,9 @@ public class MessageService implements AutoCloseable {
 			requireNonNull(smsMessageSender);
 			requireNonNull(callMessageSerializer);
 			requireNonNull(callMessageSender);
+			requireNonNull(pushMessageSerializer);
 			requireNonNull(database);
+			requireNonNull(enterprisePluginProvider);
 			requireNonNull(currentContextExecutor);
 			requireNonNull(errorReporter);
 			requireNonNull(formatter);
@@ -697,8 +718,10 @@ public class MessageService implements AutoCloseable {
 			this.smsMessageSerializer = smsMessageSerializer;
 			this.smsMessageSender = smsMessageSender;
 			this.callMessageSerializer = callMessageSerializer;
+			this.pushMessageSerializer = pushMessageSerializer;
 			this.callMessageSender = callMessageSender;
 			this.database = database;
+			this.enterprisePluginProvider = enterprisePluginProvider;
 			this.currentContextExecutor = currentContextExecutor;
 			this.errorReporter = errorReporter;
 			this.formatter = formatter;
@@ -761,6 +784,9 @@ public class MessageService implements AutoCloseable {
 			} else if (messageLog.getMessageTypeId() == MessageTypeId.CALL) {
 				deserializedMessage = getCallMessageSerializer().deserializeMessage(messageLog.getSerializedMessage());
 				messageSender = getCallMessageSender();
+			} else if (messageLog.getMessageTypeId() == MessageTypeId.PUSH) {
+				deserializedMessage = getPushMessageSerializer().deserializeMessage(messageLog.getSerializedMessage());
+				messageSender = getEnterprisePluginProvider().enterprisePluginForInstitutionId(deserializedMessage.getInstitutionId()).pushMessageSender();
 			} else {
 				throw new IllegalStateException(format("Sorry, %s.%s is not yet supported.",
 						MessageTypeId.class.getSimpleName(), messageLog.getMessageTypeId().name()));
@@ -910,33 +936,43 @@ public class MessageService implements AutoCloseable {
 		}
 
 		@Nonnull
+		protected PushMessageSerializer getPushMessageSerializer() {
+			return this.pushMessageSerializer;
+		}
+
+		@Nonnull
 		protected Database getDatabase() {
-			return database;
+			return this.database;
 		}
 
 		@Nonnull
 		protected CurrentContextExecutor getCurrentContextExecutor() {
-			return currentContextExecutor;
+			return this.currentContextExecutor;
+		}
+
+		@Nonnull
+		protected EnterprisePluginProvider getEnterprisePluginProvider() {
+			return this.enterprisePluginProvider;
 		}
 
 		@Nonnull
 		protected ErrorReporter getErrorReporter() {
-			return errorReporter;
+			return this.errorReporter;
 		}
 
 		@Nonnull
 		protected Formatter getFormatter() {
-			return formatter;
+			return this.formatter;
 		}
 
 		@Nonnull
 		protected Configuration getConfiguration() {
-			return configuration;
+			return this.configuration;
 		}
 
 		@Nonnull
 		protected Logger getLogger() {
-			return logger;
+			return this.logger;
 		}
 	}
 
@@ -950,6 +986,8 @@ public class MessageService implements AutoCloseable {
 		private final SmsMessageSerializer smsMessageSerializer;
 		@Nonnull
 		private final CallMessageSerializer callMessageSerializer;
+		@Nonnull
+		private final PushMessageSerializer pushMessageSerializer;
 		@Nonnull
 		private final Database database;
 		@Nonnull
@@ -968,6 +1006,7 @@ public class MessageService implements AutoCloseable {
 																@Nonnull EmailMessageSerializer emailMessageSerializer,
 																@Nonnull SmsMessageSerializer smsMessageSerializer,
 																@Nonnull CallMessageSerializer callMessageSerializer,
+																@Nonnull PushMessageSerializer pushMessageSerializer,
 																@Nonnull Database database,
 																@Nonnull CurrentContextExecutor currentContextExecutor,
 																@Nonnull ErrorReporter errorReporter,
@@ -977,6 +1016,7 @@ public class MessageService implements AutoCloseable {
 			requireNonNull(emailMessageSerializer);
 			requireNonNull(smsMessageSerializer);
 			requireNonNull(callMessageSerializer);
+			requireNonNull(pushMessageSerializer);
 			requireNonNull(database);
 			requireNonNull(currentContextExecutor);
 			requireNonNull(errorReporter);
@@ -987,6 +1027,7 @@ public class MessageService implements AutoCloseable {
 			this.emailMessageSerializer = emailMessageSerializer;
 			this.smsMessageSerializer = smsMessageSerializer;
 			this.callMessageSerializer = callMessageSerializer;
+			this.pushMessageSerializer = pushMessageSerializer;
 			this.database = database;
 			this.currentContextExecutor = currentContextExecutor;
 			this.errorReporter = errorReporter;
@@ -1074,6 +1115,11 @@ public class MessageService implements AutoCloseable {
 		@Nonnull
 		protected CallMessageSerializer getCallMessageSerializer() {
 			return callMessageSerializer;
+		}
+
+		@Nonnull
+		protected PushMessageSerializer getPushMessageSerializer() {
+			return this.pushMessageSerializer;
 		}
 
 		@Nonnull
@@ -1190,6 +1236,11 @@ public class MessageService implements AutoCloseable {
 	@Nonnull
 	protected MessageSender<CallMessage> getCallMessageSender() {
 		return this.callMessageSender;
+	}
+
+	@Nonnull
+	protected PushMessageSerializer getPushMessageSerializer() {
+		return this.pushMessageSerializer;
 	}
 
 	@Nonnull

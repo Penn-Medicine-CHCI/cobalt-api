@@ -57,6 +57,8 @@ import com.cobaltplatform.api.messaging.email.AmazonSesEmailMessageSender;
 import com.cobaltplatform.api.messaging.email.ConsoleEmailMessageSender;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageSerializer;
+import com.cobaltplatform.api.messaging.push.PushMessage;
+import com.cobaltplatform.api.messaging.push.PushMessageSerializer;
 import com.cobaltplatform.api.messaging.sms.ConsoleSmsMessageSender;
 import com.cobaltplatform.api.messaging.sms.SmsMessage;
 import com.cobaltplatform.api.messaging.sms.SmsMessageSerializer;
@@ -585,6 +587,14 @@ public class AppModule extends AbstractModule {
 		}
 
 		return new ConsoleCallMessageSender();
+	}
+
+	@Provides
+	@Singleton
+	@Nonnull
+	public MessageSerializer<PushMessage> providePushMessageSerializer(@Nonnull PushMessageSerializer pushMessageSerializer) {
+		requireNonNull(pushMessageSerializer);
+		return pushMessageSerializer;
 	}
 
 	@Provides
