@@ -48,6 +48,10 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON account_client_device
 
 INSERT INTO message_vendor VALUES ('GOOGLE_FCM', 'Google FCM');
 
+-- FCM is configurable per-institution
+-- TODO: move this and other keys into their own table separate from `institution` so we can more tightly restrict access
+ALTER TABLE institution ADD COLUMN google_fcm_service_account_private_key VARCHAR;
+
 -- Additional information at the study level for push and coordinator
 ALTER TABLE study ADD COLUMN coordinator_name TEXT;
 ALTER TABLE study ADD COLUMN coordinator_email_address TEXT;

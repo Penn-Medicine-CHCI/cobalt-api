@@ -30,8 +30,10 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
+import static java.lang.String.format;
 import static java.util.Collections.emptyMap;
 import static java.util.Objects.requireNonNull;
 
@@ -75,11 +77,11 @@ public class PushMessage implements Message {
 
 	// TODO: fix up implementation
 
-	/*
 	@Override
 	public String toString() {
-		return format("%s{messageId=%s, messageTemplate=%s, messageContext=%s, locale=%s, toNumber=%s}",
-				getClass().getSimpleName(), getMessageId(), getMessageTemplate(), getMessageContext(), getLocale(), getToNumber());
+		return format("%s{messageId=%s, institutionId=%s, messageTemplate=%s, messageContext=%s, metadata=%s, locale=%s, clientDeviceTypeId, pushTokenTypeId=%s, pushToken=%s}",
+				getClass().getSimpleName(), getMessageId(), getInstitutionId(), getMessageTemplate(), getMessageContext(),
+				getMetadata(), getLocale(), getClientDeviceTypeId(), getPushTokenTypeId(), getPushToken());
 	}
 
 	@Override
@@ -94,18 +96,20 @@ public class PushMessage implements Message {
 
 		return getMessageId().equals(that.getMessageId()) &&
 				getInstitutionId().equals(that.getInstitutionId()) &&
-				getToNumber().equals(that.getToNumber()) &&
+				getClientDeviceTypeId().equals(that.getClientDeviceTypeId()) &&
+				getPushTokenTypeId().equals(that.getPushTokenTypeId()) &&
+				getPushToken().equals(that.getPushToken()) &&
 				getMessageTemplate().equals(that.getMessageTemplate()) &&
 				getLocale().equals(that.getLocale()) &&
-				getMessageContext().equals(that.getMessageContext());
+				getMessageContext().equals(that.getMessageContext()) &&
+				getMetadata().equals(that.getMetadata());
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(getMessageId(), getInstitutionId(), getToNumber(), getMessageTemplate(), getLocale(), getMessageContext());
+		return Objects.hash(getMessageId(), getInstitutionId(), getClientDeviceTypeId(), getPushTokenTypeId(), getPushToken(),
+				getMessageTemplate(), getLocale(), getMessageContext(), getMetadata());
 	}
-
-	 */
 
 	@Override
 	@Nonnull

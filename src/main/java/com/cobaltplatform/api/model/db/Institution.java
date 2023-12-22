@@ -266,6 +266,8 @@ public class Institution {
 	private Boolean mixpanelSyncEnabled;
 	@Nullable
 	private LocalDate mixpanelSyncStartsAt;
+	@Nullable
+	private String googleFcmServiceAccountPrivateKey;
 
 	public enum InstitutionId {
 		COBALT,
@@ -1242,5 +1244,14 @@ public class Institution {
 
 	public void setMixpanelSyncStartsAt(@Nullable LocalDate mixpanelSyncStartsAt) {
 		this.mixpanelSyncStartsAt = mixpanelSyncStartsAt;
+	}
+
+	@Nullable
+	public String getGoogleFcmServiceAccountPrivateKey() {
+		return this.googleFcmServiceAccountPrivateKey;
+	}
+
+	public void setGoogleFcmServiceAccountPrivateKey(@Nullable String googleFcmServiceAccountPrivateKey) {
+		this.googleFcmServiceAccountPrivateKey = googleFcmServiceAccountPrivateKey;
 	}
 }
