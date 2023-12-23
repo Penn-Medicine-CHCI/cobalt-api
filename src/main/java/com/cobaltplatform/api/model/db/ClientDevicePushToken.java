@@ -19,7 +19,6 @@
 
 package com.cobaltplatform.api.model.db;
 
-import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.model.db.PushTokenType.PushTokenTypeId;
 
 import javax.annotation.Nullable;
@@ -31,27 +30,32 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class ClientDevice {
+public class ClientDevicePushToken {
+	@Nullable
+	private UUID clientDevicePushTokenId;
 	@Nullable
 	private UUID clientDeviceId;
 	@Nullable
-	private ClientDeviceTypeId clientDeviceTypeId;
+	private PushTokenTypeId pushTokenTypeId;
 	@Nullable
-	private String fingerprint;
-	@Nullable
-	private String operatingSystemName;
-	@Nullable
-	private String operatingSystemVersion;
-	@Nullable
-	private String modelName;
+	private String pushToken;
 	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
 
 	@Nullable
+	public UUID getClientDevicePushTokenId() {
+		return this.clientDevicePushTokenId;
+	}
+
+	public void setClientDevicePushTokenId(@Nullable UUID clientDevicePushTokenId) {
+		this.clientDevicePushTokenId = clientDevicePushTokenId;
+	}
+
+	@Nullable
 	public UUID getClientDeviceId() {
-		return clientDeviceId;
+		return this.clientDeviceId;
 	}
 
 	public void setClientDeviceId(@Nullable UUID clientDeviceId) {
@@ -59,48 +63,21 @@ public class ClientDevice {
 	}
 
 	@Nullable
-	public ClientDeviceTypeId getClientDeviceTypeId() {
-		return clientDeviceTypeId;
+	public PushTokenTypeId getPushTokenTypeId() {
+		return this.pushTokenTypeId;
 	}
 
-	public void setClientDeviceTypeId(@Nullable ClientDeviceTypeId clientDeviceTypeId) {
-		this.clientDeviceTypeId = clientDeviceTypeId;
-	}
-
-	@Nullable
-	public String getFingerprint() {
-		return fingerprint;
-	}
-
-	public void setFingerprint(@Nullable String fingerprint) {
-		this.fingerprint = fingerprint;
+	public void setPushTokenTypeId(@Nullable PushTokenTypeId pushTokenTypeId) {
+		this.pushTokenTypeId = pushTokenTypeId;
 	}
 
 	@Nullable
-	public String getOperatingSystemName() {
-		return operatingSystemName;
+	public String getPushToken() {
+		return this.pushToken;
 	}
 
-	public void setOperatingSystemName(@Nullable String operatingSystemName) {
-		this.operatingSystemName = operatingSystemName;
-	}
-
-	@Nullable
-	public String getOperatingSystemVersion() {
-		return operatingSystemVersion;
-	}
-
-	public void setOperatingSystemVersion(@Nullable String operatingSystemVersion) {
-		this.operatingSystemVersion = operatingSystemVersion;
-	}
-
-	@Nullable
-	public String getModelName() {
-		return modelName;
-	}
-
-	public void setModelName(@Nullable String modelName) {
-		this.modelName = modelName;
+	public void setPushToken(@Nullable String pushToken) {
+		this.pushToken = pushToken;
 	}
 
 	@Nullable

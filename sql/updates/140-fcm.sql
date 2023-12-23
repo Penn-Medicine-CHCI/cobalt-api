@@ -22,26 +22,35 @@ CREATE TABLE client_device (
 	client_device_id UUID NOT NULL PRIMARY KEY DEFAULT uuid_generate_v4(),
 	client_device_type_id TEXT NOT NULL REFERENCES client_device_type,
 	fingerprint TEXT NOT NULL, -- Unique device identifier
-	push_token_type_id TEXT REFERENCES push_token_type,
-	push_token TEXT,
+	model_name TEXT,
 	operating_system_name TEXT,
 	operating_system_version TEXT,
-	browser_name TEXT,
-	browser_version TEXT,
-	model_name TEXT,
-	app_version TEXT,
 	created TIMESTAMPTZ NOT NULL DEFAULT now(),
 	last_updated TIMESTAMPTZ NOT NULL
 );
 
+-- Devices must have unique fingerprints
+CREATE UNIQUE INDEX client_device_fingerprint_idx ON client_device USING btree (fingerprint);
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON client_device FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
+CREATE TABLE client_device_push_token (
+  client_device_push_token_id UUID NOT NULL PRIMARY KEY DEFAULT uuid_generate_v4(),
+  client_device_id UUID NOT NULL REFERENCES client_device,
+  push_token_type_id TEXT NOT NULL REFERENCES push_token_type,
+  push_token TEXT NOT NULL,
+  created TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_updated TIMESTAMPTZ NOT NULL
+);
+
+CREATE UNIQUE INDEX client_device_push_token_cd_pt_ptt_idx ON client_device_push_token USING btree (client_device_id, push_token, push_token_type_id);
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON client_device_push_token FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
 CREATE TABLE account_client_device (
-	account_client_device_id UUID NOT NULL PRIMARY KEY DEFAULT uuid_generate_v4(),
 	account_id UUID NOT NULL REFERENCES account,
 	client_device_id UUID NOT NULL REFERENCES client_device,
 	created TIMESTAMPTZ NOT NULL DEFAULT now(),
-	last_updated TIMESTAMPTZ NOT NULL
+	last_updated TIMESTAMPTZ NOT NULL,
+	PRIMARY KEY (account_id, client_device_id)
 );
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON account_client_device FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
@@ -82,4 +91,4 @@ INSERT INTO file_upload_type VALUES ('POWER_STATE', 'Power State');
 
 ALTER TABLE file_upload ADD COLUMN file_upload_type_id TEXT NOT NULL REFERENCES file_upload_type DEFAULT 'UNSPECIFIED';
 
-ROLLBACK;
+COMMIT;
