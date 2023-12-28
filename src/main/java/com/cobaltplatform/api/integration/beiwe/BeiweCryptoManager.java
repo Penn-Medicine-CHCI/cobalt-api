@@ -138,7 +138,7 @@ public class BeiweCryptoManager {
 						decryptedBytes = aesDecryptCipher.doFinal(Base64.getUrlDecoder().decode(aesEncryptedLineContentInBase64));
 					} catch (IllegalBlockSizeException | BadPaddingException e) {
 						throw new BeiweCryptoException(format("Unable to perform %s decryption on Beiwe text file body line: %s",
-								rsaDecryptCipher.getAlgorithm(), line), e);
+								aesDecryptCipher.getAlgorithm(), line), e);
 					}
 
 					// Finally, we have plaintext for this line.  Write it to our output sink
@@ -207,7 +207,6 @@ public class BeiweCryptoManager {
 		requireNonNull(ivParameterSpec);
 
 		final String AES_CIPHER_NAME = "AES/CBC/PKCS5Padding";
-
 		Cipher aesDecryptCipher;
 
 		try {
