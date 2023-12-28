@@ -58,7 +58,7 @@ public class PushMessageSerializer implements MessageSerializer<PushMessage> {
 		serializablePushMessage.setMessageId(pushMessage.getMessageId());
 		serializablePushMessage.setInstitutionId(pushMessage.getInstitutionId());
 		serializablePushMessage.setClientDeviceTypeId(pushMessage.getClientDeviceTypeId());
-		serializablePushMessage.setPushTokenTypeId(pushMessage.getPushTokenTypeId());
+		serializablePushMessage.setClientDevicePushTokenTypeId(pushMessage.getClientDevicePushTokenTypeId());
 		serializablePushMessage.setPushToken(pushMessage.getPushToken());
 		serializablePushMessage.setMessageTemplate(pushMessage.getMessageTemplate());
 		serializablePushMessage.setMessageContext(pushMessage.getMessageContext());
@@ -79,7 +79,7 @@ public class PushMessageSerializer implements MessageSerializer<PushMessage> {
 				serializablePushMessage.getInstitutionId(),
 				serializablePushMessage.getMessageTemplate(),
 				serializablePushMessage.getClientDeviceTypeId(),
-				serializablePushMessage.getPushTokenTypeId(),
+				serializablePushMessage.getClientDevicePushTokenTypeId(),
 				serializablePushMessage.getPushToken(),
 				serializablePushMessage.getLocale())
 				.messageContext(serializablePushMessage.getMessageContext())

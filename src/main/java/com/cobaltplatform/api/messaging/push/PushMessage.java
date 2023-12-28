@@ -20,10 +20,10 @@
 package com.cobaltplatform.api.messaging.push;
 
 import com.cobaltplatform.api.messaging.Message;
+import com.cobaltplatform.api.model.db.ClientDevicePushTokenType.ClientDevicePushTokenTypeId;
 import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
-import com.cobaltplatform.api.model.db.PushTokenType.PushTokenTypeId;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -49,7 +49,7 @@ public class PushMessage implements Message {
 	@Nonnull
 	private final ClientDeviceTypeId clientDeviceTypeId;
 	@Nonnull
-	private final PushTokenTypeId pushTokenTypeId;
+	private final ClientDevicePushTokenTypeId clientDevicePushTokenTypeId;
 	@Nonnull
 	private final String pushToken;
 	@Nonnull
@@ -67,7 +67,7 @@ public class PushMessage implements Message {
 		this.messageId = builder.messageId;
 		this.institutionId = builder.institutionId;
 		this.clientDeviceTypeId = builder.clientDeviceTypeId;
-		this.pushTokenTypeId = builder.pushTokenTypeId;
+		this.clientDevicePushTokenTypeId = builder.clientDevicePushTokenTypeId;
 		this.pushToken = builder.pushToken;
 		this.locale = builder.locale;
 		this.messageTemplate = builder.messageTemplate;
@@ -77,9 +77,9 @@ public class PushMessage implements Message {
 
 	@Override
 	public String toString() {
-		return format("%s{messageId=%s, institutionId=%s, messageTemplate=%s, messageContext=%s, metadata=%s, locale=%s, clientDeviceTypeId, pushTokenTypeId=%s, pushToken=%s}",
+		return format("%s{messageId=%s, institutionId=%s, messageTemplate=%s, messageContext=%s, metadata=%s, locale=%s, clientDeviceTypeId, clientDevicePushTokenTypeId=%s, pushToken=%s}",
 				getClass().getSimpleName(), getMessageId(), getInstitutionId(), getMessageTemplate(), getMessageContext(),
-				getMetadata(), getLocale(), getClientDeviceTypeId(), getPushTokenTypeId(), getPushToken());
+				getMetadata(), getLocale(), getClientDeviceTypeId(), getClientDevicePushTokenTypeId(), getPushToken());
 	}
 
 	@Override
@@ -95,7 +95,7 @@ public class PushMessage implements Message {
 		return getMessageId().equals(that.getMessageId()) &&
 				getInstitutionId().equals(that.getInstitutionId()) &&
 				getClientDeviceTypeId().equals(that.getClientDeviceTypeId()) &&
-				getPushTokenTypeId().equals(that.getPushTokenTypeId()) &&
+				getClientDevicePushTokenTypeId().equals(that.getClientDevicePushTokenTypeId()) &&
 				getPushToken().equals(that.getPushToken()) &&
 				getMessageTemplate().equals(that.getMessageTemplate()) &&
 				getLocale().equals(that.getLocale()) &&
@@ -105,7 +105,7 @@ public class PushMessage implements Message {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(getMessageId(), getInstitutionId(), getClientDeviceTypeId(), getPushTokenTypeId(), getPushToken(),
+		return Objects.hash(getMessageId(), getInstitutionId(), getClientDeviceTypeId(), getClientDevicePushTokenTypeId(), getPushToken(),
 				getMessageTemplate(), getLocale(), getMessageContext(), getMetadata());
 	}
 
@@ -133,8 +133,8 @@ public class PushMessage implements Message {
 	}
 
 	@Nonnull
-	public PushTokenTypeId getPushTokenTypeId() {
-		return this.pushTokenTypeId;
+	public ClientDevicePushTokenTypeId getClientDevicePushTokenTypeId() {
+		return this.clientDevicePushTokenTypeId;
 	}
 
 	@Nonnull
@@ -170,7 +170,7 @@ public class PushMessage implements Message {
 		@Nonnull
 		private final ClientDeviceTypeId clientDeviceTypeId;
 		@Nonnull
-		private final PushTokenTypeId pushTokenTypeId;
+		private final ClientDevicePushTokenTypeId clientDevicePushTokenTypeId;
 		@Nonnull
 		private final String pushToken;
 		@Nonnull
@@ -185,24 +185,24 @@ public class PushMessage implements Message {
 		public Builder(@Nonnull InstitutionId institutionId,
 									 @Nonnull PushMessageTemplate messageTemplate,
 									 @Nonnull ClientDeviceTypeId clientDeviceTypeId,
-									 @Nonnull PushTokenTypeId pushTokenTypeId,
+									 @Nonnull ClientDevicePushTokenTypeId clientDevicePushTokenTypeId,
 									 @Nonnull String pushToken,
 									 @Nonnull Locale locale) {
-			this(UUID.randomUUID(), institutionId, messageTemplate, clientDeviceTypeId, pushTokenTypeId, pushToken, locale);
+			this(UUID.randomUUID(), institutionId, messageTemplate, clientDeviceTypeId, clientDevicePushTokenTypeId, pushToken, locale);
 		}
 
 		public Builder(@Nonnull UUID messageId,
 									 @Nonnull InstitutionId institutionId,
 									 @Nonnull PushMessageTemplate messageTemplate,
 									 @Nonnull ClientDeviceTypeId clientDeviceTypeId,
-									 @Nonnull PushTokenTypeId pushTokenTypeId,
+									 @Nonnull ClientDevicePushTokenTypeId clientDevicePushTokenTypeId,
 									 @Nonnull String pushToken,
 									 @Nonnull Locale locale) {
 			requireNonNull(messageId);
 			requireNonNull(institutionId);
 			requireNonNull(messageTemplate);
 			requireNonNull(clientDeviceTypeId);
-			requireNonNull(pushTokenTypeId);
+			requireNonNull(clientDevicePushTokenTypeId);
 			requireNonNull(pushToken);
 			requireNonNull(locale);
 
@@ -210,7 +210,7 @@ public class PushMessage implements Message {
 			this.institutionId = institutionId;
 			this.messageTemplate = messageTemplate;
 			this.clientDeviceTypeId = clientDeviceTypeId;
-			this.pushTokenTypeId = pushTokenTypeId;
+			this.clientDevicePushTokenTypeId = clientDevicePushTokenTypeId;
 			this.pushToken = pushToken;
 			this.locale = locale;
 		}

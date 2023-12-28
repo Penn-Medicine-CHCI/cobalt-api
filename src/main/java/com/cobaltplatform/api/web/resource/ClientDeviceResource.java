@@ -20,9 +20,11 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.request.UpsertClientDevicePushTokenRequest;
 import com.cobaltplatform.api.model.api.request.UpsertClientDeviceRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ClientDevice;
+import com.cobaltplatform.api.model.db.ClientDevicePushToken;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.ClientDeviceService;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
@@ -38,7 +40,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
-import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -87,9 +89,28 @@ public class ClientDeviceResource {
 		ClientDevice clientDevice = getClientDeviceService().findClientDeviceById(clientDeviceId).get();
 
 		// TODO: introduce API response type
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("clientDevice", clientDevice);
-		}});
+		return new ApiResponse(Map.of(
+				"clientDevice", clientDevice
+		));
+	}
+
+	@Nonnull
+	@POST("/client-device-push-tokens")
+	@AuthenticationRequired
+	public ApiResponse upsertClientDevicePushToken(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+		UpsertClientDevicePushTokenRequest request = getRequestBodyParser().parse(requestBody, UpsertClientDevicePushTokenRequest.class);
+		request.setAccountId(account.getAccountId());
+
+		UUID clientDevicePushTokenId = getClientDeviceService().upsertClientDevicePushToken(request);
+		ClientDevicePushToken clientDevicePushToken = getClientDeviceService().findClientDevicePushTokenById(clientDevicePushTokenId).get();
+
+		// TODO: introduce API response type
+		return new ApiResponse(Map.of(
+				"clientDevicePushToken", clientDevicePushToken
+		));
 	}
 
 	@Nonnull

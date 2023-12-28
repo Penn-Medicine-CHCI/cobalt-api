@@ -19,7 +19,7 @@
 
 package com.cobaltplatform.api.model.db;
 
-import com.cobaltplatform.api.model.db.PushTokenType.PushTokenTypeId;
+import com.cobaltplatform.api.model.db.ClientDevicePushTokenType.ClientDevicePushTokenTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -36,7 +36,7 @@ public class ClientDevicePushToken {
 	@Nullable
 	private UUID clientDeviceId;
 	@Nullable
-	private PushTokenTypeId pushTokenTypeId;
+	private ClientDevicePushTokenTypeId clientDevicePushTokenTypeId;
 	@Nullable
 	private String pushToken;
 	@Nullable
@@ -65,12 +65,12 @@ public class ClientDevicePushToken {
 	}
 
 	@Nullable
-	public PushTokenTypeId getPushTokenTypeId() {
-		return this.pushTokenTypeId;
+	public ClientDevicePushTokenTypeId getClientDevicePushTokenTypeId() {
+		return this.clientDevicePushTokenTypeId;
 	}
 
-	public void setPushTokenTypeId(@Nullable PushTokenTypeId pushTokenTypeId) {
-		this.pushTokenTypeId = pushTokenTypeId;
+	public void setClientDevicePushTokenTypeId(@Nullable ClientDevicePushTokenTypeId clientDevicePushTokenTypeId) {
+		this.clientDevicePushTokenTypeId = clientDevicePushTokenTypeId;
 	}
 
 	@Nullable

@@ -20,7 +20,6 @@
 package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
-import com.cobaltplatform.api.model.db.PushTokenType.PushTokenTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;

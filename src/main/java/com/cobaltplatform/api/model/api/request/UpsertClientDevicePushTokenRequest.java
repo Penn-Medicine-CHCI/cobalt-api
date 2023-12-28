@@ -19,7 +19,7 @@
 
 package com.cobaltplatform.api.model.api.request;
 
-import com.cobaltplatform.api.model.db.PushTokenType.PushTokenTypeId;
+import com.cobaltplatform.api.model.db.ClientDevicePushTokenType.ClientDevicePushTokenTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -31,21 +31,23 @@ import java.util.UUID;
 @NotThreadSafe
 public class UpsertClientDevicePushTokenRequest {
 	@Nullable
-	private UUID accountId;
+	private UUID clientDeviceId;
 	@Nullable
 	private String fingerprint;
 	@Nullable
-	private PushTokenTypeId pushTokenTypeId;
+	private UUID accountId;
+	@Nullable
+	private ClientDevicePushTokenTypeId clientDevicePushTokenTypeId;
 	@Nullable
 	private String pushToken;
 
 	@Nullable
-	public UUID getAccountId() {
-		return this.accountId;
+	public UUID getClientDeviceId() {
+		return this.clientDeviceId;
 	}
 
-	public void setAccountId(@Nullable UUID accountId) {
-		this.accountId = accountId;
+	public void setClientDeviceId(@Nullable UUID clientDeviceId) {
+		this.clientDeviceId = clientDeviceId;
 	}
 
 	@Nullable
@@ -58,12 +60,21 @@ public class UpsertClientDevicePushTokenRequest {
 	}
 
 	@Nullable
-	public PushTokenTypeId getPushTokenTypeId() {
-		return this.pushTokenTypeId;
+	public UUID getAccountId() {
+		return this.accountId;
 	}
 
-	public void setPushTokenTypeId(@Nullable PushTokenTypeId pushTokenTypeId) {
-		this.pushTokenTypeId = pushTokenTypeId;
+	public void setAccountId(@Nullable UUID accountId) {
+		this.accountId = accountId;
+	}
+
+	@Nullable
+	public ClientDevicePushTokenTypeId getClientDevicePushTokenTypeId() {
+		return this.clientDevicePushTokenTypeId;
+	}
+
+	public void setClientDevicePushTokenTypeId(@Nullable ClientDevicePushTokenTypeId clientDevicePushTokenTypeId) {
+		this.clientDevicePushTokenTypeId = clientDevicePushTokenTypeId;
 	}
 
 	@Nullable

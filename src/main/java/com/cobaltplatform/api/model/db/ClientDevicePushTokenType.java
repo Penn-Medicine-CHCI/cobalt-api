@@ -26,29 +26,30 @@ import javax.annotation.concurrent.NotThreadSafe;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class PushTokenType {
+public class ClientDevicePushTokenType {
 	@Nullable
-	private PushTokenTypeId pushTokenTypeId;
+	private ClientDevicePushTokenTypeId clientDevicePushTokenTypeId;
 	@Nullable
 	private String description;
 
-	public enum PushTokenTypeId {
+	public enum ClientDevicePushTokenTypeId {
 		NATIVE,
-		FCM
+		GOOGLE_FCM
 	}
 
 	@Override
 	public String toString() {
-		return String.format("%s{pushTokenTypeId=%s, description=%s}", getClass().getSimpleName(), getPushTokenTypeId(), getDescription());
+		return String.format("%s{clientDevicePushTokenTypeId=%s, description=%s}", getClass().getSimpleName(),
+				getClientDevicePushTokenTypeId(), getDescription());
 	}
 
 	@Nullable
-	public PushTokenTypeId getPushTokenTypeId() {
-		return this.pushTokenTypeId;
+	public ClientDevicePushTokenTypeId getClientDevicePushTokenTypeId() {
+		return this.clientDevicePushTokenTypeId;
 	}
 
-	public void setPushTokenTypeId(@Nullable PushTokenTypeId pushTokenTypeId) {
-		this.pushTokenTypeId = pushTokenTypeId;
+	public void setClientDevicePushTokenTypeId(@Nullable ClientDevicePushTokenTypeId clientDevicePushTokenTypeId) {
+		this.clientDevicePushTokenTypeId = clientDevicePushTokenTypeId;
 	}
 
 	@Nullable

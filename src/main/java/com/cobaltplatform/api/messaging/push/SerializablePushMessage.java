@@ -19,9 +19,10 @@
 
 package com.cobaltplatform.api.messaging.push;
 
+import com.cobaltplatform.api.model.db.ClientDevicePushTokenType;
+import com.cobaltplatform.api.model.db.ClientDevicePushTokenType.ClientDevicePushTokenTypeId;
 import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.PushTokenType.PushTokenTypeId;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -41,7 +42,7 @@ public class SerializablePushMessage {
 	@Nonnull
 	private ClientDeviceTypeId clientDeviceTypeId;
 	@Nonnull
-	private PushTokenTypeId pushTokenTypeId;
+	private ClientDevicePushTokenType.ClientDevicePushTokenTypeId clientDevicePushTokenTypeId;
 	@Nonnull
 	private String pushToken;
 	@Nonnull
@@ -81,12 +82,12 @@ public class SerializablePushMessage {
 	}
 
 	@Nonnull
-	public PushTokenTypeId getPushTokenTypeId() {
-		return this.pushTokenTypeId;
+	public ClientDevicePushTokenTypeId getClientDevicePushTokenTypeId() {
+		return this.clientDevicePushTokenTypeId;
 	}
 
-	public void setPushTokenTypeId(@Nonnull PushTokenTypeId pushTokenTypeId) {
-		this.pushTokenTypeId = pushTokenTypeId;
+	public void setClientDevicePushTokenTypeId(@Nonnull ClientDevicePushTokenTypeId clientDevicePushTokenTypeId) {
+		this.clientDevicePushTokenTypeId = clientDevicePushTokenTypeId;
 	}
 
 	@Nonnull

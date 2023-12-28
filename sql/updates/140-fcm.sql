@@ -10,13 +10,13 @@ INSERT INTO client_device_type VALUES ('WEB_BROWSER', 'Web Browser');
 INSERT INTO client_device_type VALUES ('IOS_APP', 'iOS App');
 INSERT INTO client_device_type VALUES ('ANDROID_APP', 'Android App');
 
-CREATE TABLE push_token_type (
-	push_token_type_id TEXT NOT NULL PRIMARY KEY,
+CREATE TABLE client_device_push_token_type (
+	client_device_push_token_type_id TEXT NOT NULL PRIMARY KEY,
 	description TEXT NOT NULL
 );
 
-INSERT INTO push_token_type VALUES ('NATIVE', 'Native');
-INSERT INTO push_token_type VALUES ('FCM', 'Firebase Cloud Messaging');
+INSERT INTO client_device_push_token_type VALUES ('NATIVE', 'Native');
+INSERT INTO client_device_push_token_type VALUES ('GOOGLE_FCM', 'Google Firebase Cloud Messaging (FCM)');
 
 CREATE TABLE client_device (
 	client_device_id UUID NOT NULL PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -40,7 +40,7 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON client_device FOR EAC
 CREATE TABLE client_device_push_token (
   client_device_push_token_id UUID NOT NULL PRIMARY KEY DEFAULT uuid_generate_v4(),
   client_device_id UUID NOT NULL REFERENCES client_device,
-  push_token_type_id TEXT NOT NULL REFERENCES push_token_type,
+  client_device_push_token_type_id TEXT NOT NULL REFERENCES client_device_push_token_type,
   push_token TEXT NOT NULL,
   valid BOOLEAN NOT NULL DEFAULT TRUE,
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -48,7 +48,7 @@ CREATE TABLE client_device_push_token (
 );
 
 -- Push tokens must be unique for the combination of device/token/type
-CREATE UNIQUE INDEX client_device_push_token_unique_idx ON client_device_push_token USING btree (client_device_id, push_token, push_token_type_id);
+CREATE UNIQUE INDEX client_device_push_token_unique_idx ON client_device_push_token USING btree (client_device_id, push_token, client_device_push_token_type_id);
 
 -- Explicit constraint on table so we can upsert and say ON CONFLICT (client_device_fingerprint_unique)
 ALTER TABLE client_device_push_token ADD CONSTRAINT client_device_push_token_unique_idx UNIQUE USING INDEX client_device_push_token_unique_idx;
@@ -65,7 +65,7 @@ CREATE TABLE account_client_device (
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON account_client_device FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
-INSERT INTO message_vendor VALUES ('GOOGLE_FCM', 'Google FCM');
+INSERT INTO message_vendor VALUES ('GOOGLE_FCM', 'Google Firebase Cloud Messaging (FCM)');
 
 -- FCM is configurable per-institution
 -- TODO: move this and other keys into their own table separate from `institution` so we can more tightly restrict access
