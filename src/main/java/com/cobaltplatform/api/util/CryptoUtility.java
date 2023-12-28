@@ -46,6 +46,7 @@ import java.security.cert.X509Certificate;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
@@ -137,6 +138,19 @@ public final class CryptoUtility {
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		} catch (CertificateException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	@Nonnull
+	public static PublicKey toPublicKey(@Nonnull String publicKeyAsString) {
+		requireNonNull(publicKeyAsString);
+
+		try {
+			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+			X509EncodedKeySpec x509EncodedKeySpec = new X509EncodedKeySpec(Base64.getDecoder().decode(publicKeyAsString));
+			return keyFactory.generatePublic(x509EncodedKeySpec);
+		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
 			throw new RuntimeException(e);
 		}
 	}
