@@ -17,51 +17,44 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db;
+package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.PushTokenType.PushTokenTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.time.Instant;
 import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class ClientDevicePushToken {
+public class UpsertClientDevicePushTokenRequest {
 	@Nullable
-	private UUID clientDevicePushTokenId;
+	private UUID accountId;
 	@Nullable
-	private UUID clientDeviceId;
+	private String fingerprint;
 	@Nullable
 	private PushTokenTypeId pushTokenTypeId;
 	@Nullable
 	private String pushToken;
-	@Nullable
-	private Boolean valid;
-	@Nullable
-	private Instant created;
-	@Nullable
-	private Instant lastUpdated;
 
 	@Nullable
-	public UUID getClientDevicePushTokenId() {
-		return this.clientDevicePushTokenId;
+	public UUID getAccountId() {
+		return this.accountId;
 	}
 
-	public void setClientDevicePushTokenId(@Nullable UUID clientDevicePushTokenId) {
-		this.clientDevicePushTokenId = clientDevicePushTokenId;
+	public void setAccountId(@Nullable UUID accountId) {
+		this.accountId = accountId;
 	}
 
 	@Nullable
-	public UUID getClientDeviceId() {
-		return this.clientDeviceId;
+	public String getFingerprint() {
+		return this.fingerprint;
 	}
 
-	public void setClientDeviceId(@Nullable UUID clientDeviceId) {
-		this.clientDeviceId = clientDeviceId;
+	public void setFingerprint(@Nullable String fingerprint) {
+		this.fingerprint = fingerprint;
 	}
 
 	@Nullable
@@ -80,32 +73,5 @@ public class ClientDevicePushToken {
 
 	public void setPushToken(@Nullable String pushToken) {
 		this.pushToken = pushToken;
-	}
-
-	@Nullable
-	public Boolean getValid() {
-		return this.valid;
-	}
-
-	public void setValid(@Nullable Boolean valid) {
-		this.valid = valid;
-	}
-
-	@Nullable
-	public Instant getCreated() {
-		return this.created;
-	}
-
-	public void setCreated(@Nullable Instant created) {
-		this.created = created;
-	}
-
-	@Nullable
-	public Instant getLastUpdated() {
-		return this.lastUpdated;
-	}
-
-	public void setLastUpdated(@Nullable Instant lastUpdated) {
-		this.lastUpdated = lastUpdated;
 	}
 }

@@ -30,7 +30,11 @@ CREATE TABLE client_device (
 );
 
 -- Devices must have unique fingerprints
-CREATE UNIQUE INDEX client_device_fingerprint_idx ON client_device USING btree (fingerprint);
+CREATE UNIQUE INDEX client_device_unique_idx ON client_device USING btree (fingerprint);
+
+-- Explicit constraint on table so we can upsert and say ON CONFLICT (client_device_fingerprint_unique)
+ALTER TABLE client_device ADD CONSTRAINT client_device_unique_idx UNIQUE USING INDEX client_device_unique_idx;
+
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON client_device FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 CREATE TABLE client_device_push_token (
@@ -38,11 +42,17 @@ CREATE TABLE client_device_push_token (
   client_device_id UUID NOT NULL REFERENCES client_device,
   push_token_type_id TEXT NOT NULL REFERENCES push_token_type,
   push_token TEXT NOT NULL,
+  valid BOOLEAN NOT NULL DEFAULT TRUE,
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
   last_updated TIMESTAMPTZ NOT NULL
 );
 
-CREATE UNIQUE INDEX client_device_push_token_cd_pt_ptt_idx ON client_device_push_token USING btree (client_device_id, push_token, push_token_type_id);
+-- Push tokens must be unique for the combination of device/token/type
+CREATE UNIQUE INDEX client_device_push_token_unique_idx ON client_device_push_token USING btree (client_device_id, push_token, push_token_type_id);
+
+-- Explicit constraint on table so we can upsert and say ON CONFLICT (client_device_fingerprint_unique)
+ALTER TABLE client_device_push_token ADD CONSTRAINT client_device_push_token_unique_idx UNIQUE USING INDEX client_device_push_token_unique_idx;
+
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON client_device_push_token FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 CREATE TABLE account_client_device (
@@ -50,7 +60,7 @@ CREATE TABLE account_client_device (
 	client_device_id UUID NOT NULL REFERENCES client_device,
 	created TIMESTAMPTZ NOT NULL DEFAULT now(),
 	last_updated TIMESTAMPTZ NOT NULL,
-	PRIMARY KEY (account_id, client_device_id)
+	CONSTRAINT account_client_device_unique_idx PRIMARY KEY (account_id, client_device_id)
 );
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON account_client_device FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
