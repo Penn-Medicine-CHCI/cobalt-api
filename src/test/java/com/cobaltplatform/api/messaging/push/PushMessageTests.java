@@ -20,9 +20,9 @@
 package com.cobaltplatform.api.messaging.push;
 
 import com.cobaltplatform.api.messaging.MessageSender;
+import com.cobaltplatform.api.model.db.ClientDevicePushTokenType.ClientDevicePushTokenTypeId;
 import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.ClientDevicePushTokenType.ClientDevicePushTokenTypeId;
 import org.junit.BeforeClass;
 import org.junit.Test;
 

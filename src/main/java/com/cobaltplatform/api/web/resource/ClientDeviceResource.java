@@ -22,6 +22,8 @@ package com.cobaltplatform.api.web.resource;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.UpsertClientDevicePushTokenRequest;
 import com.cobaltplatform.api.model.api.request.UpsertClientDeviceRequest;
+import com.cobaltplatform.api.model.api.response.ClientDeviceApiResponse.ClientDeviceApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ClientDevicePushTokenApiResponse.ClientDevicePushTokenApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ClientDevice;
 import com.cobaltplatform.api.model.db.ClientDevicePushToken;
@@ -55,6 +57,10 @@ public class ClientDeviceResource {
 	@Nonnull
 	private final ClientDeviceService clientDeviceService;
 	@Nonnull
+	private final ClientDeviceApiResponseFactory clientDeviceApiResponseFactory;
+	@Nonnull
+	private final ClientDevicePushTokenApiResponseFactory clientDevicePushTokenApiResponseFactory;
+	@Nonnull
 	private final RequestBodyParser requestBodyParser;
 	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
@@ -63,13 +69,19 @@ public class ClientDeviceResource {
 
 	@Inject
 	public ClientDeviceResource(@Nonnull ClientDeviceService clientDeviceService,
+															@Nonnull ClientDeviceApiResponseFactory clientDeviceApiResponseFactory,
+															@Nonnull ClientDevicePushTokenApiResponseFactory clientDevicePushTokenApiResponseFactory,
 															@Nonnull RequestBodyParser requestBodyParser,
 															@Nonnull Provider<CurrentContext> currentContextProvider) {
 		requireNonNull(clientDeviceService);
+		requireNonNull(clientDeviceApiResponseFactory);
+		requireNonNull(clientDevicePushTokenApiResponseFactory);
 		requireNonNull(requestBodyParser);
 		requireNonNull(currentContextProvider);
 
 		this.clientDeviceService = clientDeviceService;
+		this.clientDeviceApiResponseFactory = clientDeviceApiResponseFactory;
+		this.clientDevicePushTokenApiResponseFactory = clientDevicePushTokenApiResponseFactory;
 		this.requestBodyParser = requestBodyParser;
 		this.currentContextProvider = currentContextProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -88,9 +100,8 @@ public class ClientDeviceResource {
 		UUID clientDeviceId = getClientDeviceService().upsertClientDevice(request);
 		ClientDevice clientDevice = getClientDeviceService().findClientDeviceById(clientDeviceId).get();
 
-		// TODO: introduce API response type
 		return new ApiResponse(Map.of(
-				"clientDevice", clientDevice
+				"clientDevice", getClientDeviceApiResponseFactory().create(clientDevice)
 		));
 	}
 
@@ -107,15 +118,24 @@ public class ClientDeviceResource {
 		UUID clientDevicePushTokenId = getClientDeviceService().upsertClientDevicePushToken(request);
 		ClientDevicePushToken clientDevicePushToken = getClientDeviceService().findClientDevicePushTokenById(clientDevicePushTokenId).get();
 
-		// TODO: introduce API response type
 		return new ApiResponse(Map.of(
-				"clientDevicePushToken", clientDevicePushToken
+				"clientDevicePushToken", getClientDevicePushTokenApiResponseFactory().create(clientDevicePushToken)
 		));
 	}
 
 	@Nonnull
 	protected ClientDeviceService getClientDeviceService() {
 		return this.clientDeviceService;
+	}
+
+	@Nonnull
+	protected ClientDeviceApiResponseFactory getClientDeviceApiResponseFactory() {
+		return this.clientDeviceApiResponseFactory;
+	}
+
+	@Nonnull
+	protected ClientDevicePushTokenApiResponseFactory getClientDevicePushTokenApiResponseFactory() {
+		return this.clientDevicePushTokenApiResponseFactory;
 	}
 
 	@Nonnull
