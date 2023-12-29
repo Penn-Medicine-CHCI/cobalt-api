@@ -17,108 +17,86 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.messaging.push;
+package com.cobaltplatform.api.model.api.request;
 
+
+import com.cobaltplatform.api.messaging.push.PushMessageTemplate;
 import com.cobaltplatform.api.model.db.ClientDevicePushTokenType.ClientDevicePushTokenTypeId;
-import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
-import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
 /**
- * @author Transmogrify LLC.
+ * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class SerializablePushMessage {
-	@Nonnull
-	private UUID messageId;
-	@Nonnull
-	private InstitutionId institutionId;
-	@Nonnull
+public class TestClientDevicePushMessageRequest {
+	@Nullable
+	private UUID accountId;
+	@Nullable
 	private ClientDevicePushTokenTypeId clientDevicePushTokenTypeId;
-	@Nonnull
+	@Nullable
 	private String pushToken;
-	@Nonnull
-	private PushMessageTemplate messageTemplate;
-	@Nonnull
-	private Locale locale;
-	@Nonnull
+	@Nullable
+	private PushMessageTemplate pushMessageTemplate;
+	@Nullable
 	private Map<String, Object> messageContext;
-	@Nonnull
+	@Nullable
 	private Map<String, String> metadata;
 
-	@Nonnull
-	public UUID getMessageId() {
-		return this.messageId;
+	@Nullable
+	public UUID getAccountId() {
+		return this.accountId;
 	}
 
-	public void setMessageId(@Nonnull UUID messageId) {
-		this.messageId = messageId;
+	public void setAccountId(@Nullable UUID accountId) {
+		this.accountId = accountId;
 	}
 
-	@Nonnull
-	public InstitutionId getInstitutionId() {
-		return this.institutionId;
-	}
-
-	public void setInstitutionId(@Nonnull InstitutionId institutionId) {
-		this.institutionId = institutionId;
-	}
-
-	@Nonnull
+	@Nullable
 	public ClientDevicePushTokenTypeId getClientDevicePushTokenTypeId() {
 		return this.clientDevicePushTokenTypeId;
 	}
 
-	public void setClientDevicePushTokenTypeId(@Nonnull ClientDevicePushTokenTypeId clientDevicePushTokenTypeId) {
+	public void setClientDevicePushTokenTypeId(@Nullable ClientDevicePushTokenTypeId clientDevicePushTokenTypeId) {
 		this.clientDevicePushTokenTypeId = clientDevicePushTokenTypeId;
 	}
 
-	@Nonnull
+	@Nullable
 	public String getPushToken() {
 		return this.pushToken;
 	}
 
-	public void setPushToken(@Nonnull String pushToken) {
+	public void setPushToken(@Nullable String pushToken) {
 		this.pushToken = pushToken;
 	}
 
-	@Nonnull
-	public PushMessageTemplate getMessageTemplate() {
-		return this.messageTemplate;
+	@Nullable
+	public PushMessageTemplate getPushMessageTemplate() {
+		return this.pushMessageTemplate;
 	}
 
-	public void setMessageTemplate(@Nonnull PushMessageTemplate messageTemplate) {
-		this.messageTemplate = messageTemplate;
+	public void setPushMessageTemplate(@Nullable PushMessageTemplate pushMessageTemplate) {
+		this.pushMessageTemplate = pushMessageTemplate;
 	}
 
-	@Nonnull
-	public Locale getLocale() {
-		return this.locale;
-	}
-
-	public void setLocale(@Nonnull Locale locale) {
-		this.locale = locale;
-	}
-
-	@Nonnull
+	@Nullable
 	public Map<String, Object> getMessageContext() {
 		return this.messageContext;
 	}
 
-	public void setMessageContext(@Nonnull Map<String, Object> messageContext) {
+	public void setMessageContext(@Nullable Map<String, Object> messageContext) {
 		this.messageContext = messageContext;
 	}
 
-	@Nonnull
+	@Nullable
 	public Map<String, String> getMetadata() {
 		return this.metadata;
 	}
 
-	public void setMetadata(@Nonnull Map<String, String> metadata) {
+	public void setMetadata(@Nullable Map<String, String> metadata) {
 		this.metadata = metadata;
 	}
 }

@@ -39,6 +39,8 @@ public class UpsertClientDeviceRequest {
 	@Nullable
 	private String modelName;
 	@Nullable
+	private String brand;
+	@Nullable
 	private String operatingSystemName;
 	@Nullable
 	private String operatingSystemVersion;
@@ -77,6 +79,15 @@ public class UpsertClientDeviceRequest {
 
 	public void setModelName(@Nullable String modelName) {
 		this.modelName = modelName;
+	}
+
+	@Nullable
+	public String getBrand() {
+		return this.brand;
+	}
+
+	public void setBrand(@Nullable String brand) {
+		this.brand = brand;
 	}
 
 	@Nullable

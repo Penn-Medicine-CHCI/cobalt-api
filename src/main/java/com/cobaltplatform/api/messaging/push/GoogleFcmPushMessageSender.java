@@ -163,11 +163,11 @@ public class GoogleFcmPushMessageSender implements MessageSender<PushMessage> {
 				}
 
 				if (httpResponse.getStatus() == 404 || ("NOT_FOUND".equals(errorStatus) || "INVALID_ARGUMENT".equals(errorStatus)))
-					throw new PushMessageInvalidDeviceException(format("FCM says %s push device with token '%s' is invalid (might have been refreshed or uninstalled).  Message was '%s'",
-							pushMessage.getClientDeviceTypeId().name(), pushMessage.getPushToken(), errorMessage), pushMessage);
+					throw new PushMessageInvalidDeviceException(format("FCM says push device with token '%s' is invalid (might have been refreshed or uninstalled).  Message was '%s'",
+							pushMessage.getPushToken(), errorMessage), pushMessage);
 
-				throw new PushMessageException(format("FCM says %s push device with push token '%s' is invalid (might have been refreshed or uninstalled)",
-						pushMessage.getClientDeviceTypeId().name(), pushMessage.getPushToken()), pushMessage);
+				throw new PushMessageException(format("FCM says push device with push token '%s' is invalid (might have been refreshed or uninstalled)",
+						pushMessage.getPushToken()), pushMessage);
 			}
 
 			FcmSuccessBody fcmSuccessBody = getGson().fromJson(responseBody, FcmSuccessBody.class);

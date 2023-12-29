@@ -47,6 +47,7 @@ import com.cobaltplatform.api.messaging.MessageSender;
 import com.cobaltplatform.api.messaging.push.ConsolePushMessageSender;
 import com.cobaltplatform.api.messaging.push.GoogleFcmPushMessageSender;
 import com.cobaltplatform.api.messaging.push.PushMessage;
+import com.cobaltplatform.api.model.db.ClientDevicePushTokenType.ClientDevicePushTokenTypeId;
 import com.cobaltplatform.api.model.db.EpicBackendServiceAuthType;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.security.SigningCredentials;
@@ -137,8 +138,8 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 
 	@Nonnull
 	@Override
-	public MessageSender<PushMessage> pushMessageSender() {
-		return (MessageSender<PushMessage>) getExpensiveClientCache().get(ExpensiveClientCacheKey.PUSH_MESSAGE_SENDER);
+	public MessageSender<PushMessage> pushMessageSenderForPushTokenTypeId(@Nonnull ClientDevicePushTokenTypeId clientDevicePushTokenTypeId) {
+		return (MessageSender<PushMessage>) getExpensiveClientCache().get(ExpensiveClientCacheKey.GOOGLE_FCM_PUSH_MESSAGE_SENDER);
 	}
 
 	@Nonnull
@@ -165,8 +166,8 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 						return uncachedMyChartAuthenticator();
 					if (expensiveClientCacheKey == ExpensiveClientCacheKey.EPIC_CLIENT_FOR_BACKEND_SERVICE)
 						return uncachedEpicClientForBackendService();
-					if (expensiveClientCacheKey == ExpensiveClientCacheKey.PUSH_MESSAGE_SENDER)
-						return uncachedPushMessageSender();
+					if (expensiveClientCacheKey == ExpensiveClientCacheKey.GOOGLE_FCM_PUSH_MESSAGE_SENDER)
+						return uncachedGoogleFcmPushMessageSender();
 
 					throw new IllegalStateException(format("Unexpected value %s was provided for %s",
 							expensiveClientCacheKey.name(), ExpensiveClientCacheKey.class.getSimpleName()));
@@ -280,7 +281,7 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 	}
 
 	@Nonnull
-	protected MessageSender<PushMessage> uncachedPushMessageSender() {
+	protected MessageSender<PushMessage> uncachedGoogleFcmPushMessageSender() {
 		Institution institution = getInstitutionService().findInstitutionById(getInstitutionId()).get();
 
 		String googleFcmServiceAccountPrivateKey = institution.getGoogleFcmServiceAccountPrivateKey();
@@ -313,6 +314,6 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 		MICROSOFT_AUTHENTICATOR,
 		MYCHART_AUTHENTICATOR,
 		EPIC_CLIENT_FOR_BACKEND_SERVICE,
-		PUSH_MESSAGE_SENDER
+		GOOGLE_FCM_PUSH_MESSAGE_SENDER
 	}
 }

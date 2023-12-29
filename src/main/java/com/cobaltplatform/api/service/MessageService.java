@@ -368,9 +368,10 @@ public class MessageService implements AutoCloseable {
 			serializedMessage = getCallMessageSerializer().serializeMessage((CallMessage) message);
 			messageVendorId = getCallMessageSender().getMessageVendorId();
 		} else if (message.getMessageTypeId() == MessageTypeId.PUSH) {
-			serializedMessage = getPushMessageSerializer().serializeMessage((PushMessage) message);
+			PushMessage pushMessage = (PushMessage) message;
+			serializedMessage = getPushMessageSerializer().serializeMessage(pushMessage);
 			EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(message.getInstitutionId());
-			messageVendorId = enterprisePlugin.pushMessageSender().getMessageVendorId();
+			messageVendorId = enterprisePlugin.pushMessageSenderForPushTokenTypeId(pushMessage.getClientDevicePushTokenTypeId()).getMessageVendorId();
 		} else {
 			throw new IllegalStateException(format("Sorry, %s.%s is not yet supported.",
 					MessageTypeId.class.getSimpleName(), message.getMessageTypeId().name()));
@@ -786,7 +787,8 @@ public class MessageService implements AutoCloseable {
 				messageSender = getCallMessageSender();
 			} else if (messageLog.getMessageTypeId() == MessageTypeId.PUSH) {
 				deserializedMessage = getPushMessageSerializer().deserializeMessage(messageLog.getSerializedMessage());
-				messageSender = getEnterprisePluginProvider().enterprisePluginForInstitutionId(deserializedMessage.getInstitutionId()).pushMessageSender();
+				PushMessage pushMessage = (PushMessage) deserializedMessage;
+				messageSender = getEnterprisePluginProvider().enterprisePluginForInstitutionId(deserializedMessage.getInstitutionId()).pushMessageSenderForPushTokenTypeId(pushMessage.getClientDevicePushTokenTypeId());
 			} else {
 				throw new IllegalStateException(format("Sorry, %s.%s is not yet supported.",
 						MessageTypeId.class.getSimpleName(), messageLog.getMessageTypeId().name()));

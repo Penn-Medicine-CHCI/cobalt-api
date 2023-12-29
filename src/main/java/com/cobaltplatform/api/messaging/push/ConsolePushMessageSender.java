@@ -26,7 +26,6 @@ import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
-import java.util.UUID;
 
 import static org.slf4j.LoggerFactory.getLogger;
 
@@ -45,7 +44,7 @@ public class ConsolePushMessageSender implements MessageSender<PushMessage> {
 	@Override
 	public String sendMessage(@Nonnull PushMessage pushMessage) {
 		logger.debug("Fake-sending push message {}", pushMessage);
-		return UUID.randomUUID().toString();
+		return String.valueOf(pushMessage.getMessageId());
 	}
 
 	@Nonnull

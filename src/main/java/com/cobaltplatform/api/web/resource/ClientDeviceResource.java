@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.request.TestClientDevicePushMessageRequest;
 import com.cobaltplatform.api.model.api.request.UpsertClientDevicePushTokenRequest;
 import com.cobaltplatform.api.model.api.request.UpsertClientDeviceRequest;
 import com.cobaltplatform.api.model.api.response.ClientDeviceApiResponse.ClientDeviceApiResponseFactory;
@@ -120,6 +121,23 @@ public class ClientDeviceResource {
 
 		return new ApiResponse(Map.of(
 				"clientDevicePushToken", getClientDevicePushTokenApiResponseFactory().create(clientDevicePushToken)
+		));
+	}
+
+	@Nonnull
+	@POST("/client-device-push-tokens/test")
+	@AuthenticationRequired
+	public ApiResponse testClientDevicePushMessage(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+		TestClientDevicePushMessageRequest request = getRequestBodyParser().parse(requestBody, TestClientDevicePushMessageRequest.class);
+		request.setAccountId(account.getAccountId());
+
+		String messageId = getClientDeviceService().testClientDevicePushMessage(request);
+
+		return new ApiResponse(Map.of(
+				"messageId", messageId
 		));
 	}
 

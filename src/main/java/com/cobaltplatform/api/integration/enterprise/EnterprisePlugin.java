@@ -36,6 +36,7 @@ import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.push.ConsolePushMessageSender;
 import com.cobaltplatform.api.messaging.push.PushMessage;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.ClientDevicePushTokenType.ClientDevicePushTokenTypeId;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.service.CallToAction;
@@ -151,7 +152,7 @@ public interface EnterprisePlugin {
 	}
 
 	@Nonnull
-	default MessageSender<PushMessage> pushMessageSender() {
+	default MessageSender<PushMessage> pushMessageSenderForPushTokenTypeId(@Nonnull ClientDevicePushTokenTypeId clientDevicePushTokenTypeId) {
 		return new ConsolePushMessageSender();
 	}
 

@@ -19,8 +19,15 @@
 
 package com.cobaltplatform.api.service;
 
+import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
+import com.cobaltplatform.api.messaging.MessageSender;
+import com.cobaltplatform.api.messaging.push.PushMessage;
+import com.cobaltplatform.api.messaging.push.PushMessageTemplate;
+import com.cobaltplatform.api.model.api.request.TestClientDevicePushMessageRequest;
 import com.cobaltplatform.api.model.api.request.UpsertClientDevicePushTokenRequest;
 import com.cobaltplatform.api.model.api.request.UpsertClientDeviceRequest;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ClientDevice;
 import com.cobaltplatform.api.model.db.ClientDevicePushToken;
 import com.cobaltplatform.api.model.db.ClientDevicePushTokenType.ClientDevicePushTokenTypeId;
@@ -38,6 +45,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
+import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.sql.Savepoint;
 import java.util.Map;
@@ -54,6 +62,12 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @ThreadSafe
 public class ClientDeviceService {
 	@Nonnull
+	private final Provider<MessageService> messageServiceProvider;
+	@Nonnull
+	private final Provider<AccountService> accountServiceProvider;
+	@Nonnull
+	private final EnterprisePluginProvider enterprisePluginProvider;
+	@Nonnull
 	private final Database database;
 	@Nonnull
 	private final Strings strings;
@@ -61,11 +75,20 @@ public class ClientDeviceService {
 	private final Logger logger;
 
 	@Inject
-	public ClientDeviceService(@Nonnull Database database,
+	public ClientDeviceService(@Nonnull Provider<MessageService> messageServiceProvider,
+														 @Nonnull Provider<AccountService> accountServiceProvider,
+														 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
+														 @Nonnull Database database,
 														 @Nonnull Strings strings) {
+		requireNonNull(messageServiceProvider);
+		requireNonNull(accountServiceProvider);
+		requireNonNull(enterprisePluginProvider);
 		requireNonNull(database);
 		requireNonNull(strings);
 
+		this.messageServiceProvider = messageServiceProvider;
+		this.accountServiceProvider = accountServiceProvider;
+		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.database = database;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -149,6 +172,7 @@ public class ClientDeviceService {
 		ClientDeviceTypeId clientDeviceTypeId = request.getClientDeviceTypeId();
 		String fingerprint = trimToNull(request.getFingerprint());
 		String modelName = trimToNull(request.getModelName());
+		String brand = trimToNull(request.getBrand());
 		String operatingSystemName = trimToNull(request.getOperatingSystemName());
 		String operatingSystemVersion = trimToNull(request.getOperatingSystemVersion());
 
@@ -171,16 +195,17 @@ public class ClientDeviceService {
 				  client_device_type_id,
 				  fingerprint,
 				  model_name,
+				  brand,
 				  operating_system_name,
 				  operating_system_version
 				)
-				VALUES (?,?,?,?,?)
+				VALUES (?,?,?,?,?,?)
 				ON CONFLICT ON CONSTRAINT client_device_unique_idx
 				DO UPDATE SET
 				  operating_system_name=EXCLUDED.operating_system_name,
 				  operating_system_version=EXCLUDED.operating_system_version
 				RETURNING client_device_id
-				""", UUID.class, clientDeviceTypeId, fingerprint, modelName, operatingSystemName, operatingSystemVersion).get();
+				""", UUID.class, clientDeviceTypeId, fingerprint, modelName, brand, operatingSystemName, operatingSystemVersion).get();
 
 		Transaction transaction = getDatabase().currentTransaction().get();
 		Savepoint savepoint = transaction.createSavepoint();
@@ -274,6 +299,82 @@ public class ClientDeviceService {
 					.getClientDevicePushTokenId();
 
 		return clientDevicePushTokenId;
+	}
+
+	@Nonnull
+	public String testClientDevicePushMessage(@Nonnull TestClientDevicePushMessageRequest request) {
+		requireNonNull(request);
+
+		UUID accountId = request.getAccountId();
+		ClientDevicePushTokenTypeId clientDevicePushTokenTypeId = request.getClientDevicePushTokenTypeId();
+		String pushToken = trimToNull(request.getPushToken());
+		PushMessageTemplate pushMessageTemplate = request.getPushMessageTemplate();
+		Map<String, Object> messageContext = request.getMessageContext();
+		Map<String, String> metadata = request.getMetadata();
+		Account account = null;
+
+		ValidationException validationException = new ValidationException();
+
+		if (accountId == null) {
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+		} else {
+			account = getAccountService().findAccountById(accountId).orElse(null);
+
+			if (account == null)
+				validationException.add(new FieldError("accountId", getStrings().get("Account ID is invalid.")));
+		}
+
+		if (clientDevicePushTokenTypeId == null)
+			validationException.add(new FieldError("clientDevicePushTokenTypeId", getStrings().get("Client Device Push Token Type ID is required.")));
+
+		if (pushToken == null)
+			validationException.add(new FieldError("pushToken", getStrings().get("Push token is required.")));
+
+		if (pushMessageTemplate == null)
+			validationException.add(new FieldError("pushMessageTemplate", getStrings().get("Push Message Template is required.")));
+
+		if (messageContext == null)
+			messageContext = Map.of();
+
+		if (metadata == null)
+			metadata = Map.of();
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		PushMessage pushMessage = new PushMessage.Builder(account.getInstitutionId(), pushMessageTemplate, clientDevicePushTokenTypeId, pushToken, account.getLocale())
+				.messageContext(messageContext)
+				.metadata(metadata)
+				.build();
+
+		// Other parts of the application should enqueue the message via MessageService.
+		// Here, we use the "raw" sender with no enqueuing so exceptions are immediately bubbled out to the caller,
+		// which is helpful for testing.
+		boolean useRawPushMessageSender = true;
+
+		if (useRawPushMessageSender) {
+			EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(account.getInstitutionId());
+			MessageSender<PushMessage> pushMessageSender = enterprisePlugin.pushMessageSenderForPushTokenTypeId(clientDevicePushTokenTypeId);
+			return pushMessageSender.sendMessage(pushMessage);
+		} else {
+			getMessageService().enqueueMessage(pushMessage);
+			return String.valueOf(pushMessage.getMessageId());
+		}
+	}
+
+	@Nonnull
+	protected MessageService getMessageService() {
+		return this.messageServiceProvider.get();
+	}
+
+	@Nonnull
+	protected AccountService getAccountService() {
+		return this.accountServiceProvider.get();
+	}
+
+	@Nonnull
+	protected EnterprisePluginProvider getEnterprisePluginProvider() {
+		return this.enterprisePluginProvider;
 	}
 
 	@Nonnull

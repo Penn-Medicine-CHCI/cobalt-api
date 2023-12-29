@@ -33,7 +33,8 @@ public class ClientDevicePushTokenType {
 	private String description;
 
 	public enum ClientDevicePushTokenTypeId {
-		NATIVE,
+		ANDROID_NATIVE,
+		IOS_NATIVE,
 		GOOGLE_FCM
 	}
 

@@ -15,7 +15,8 @@ CREATE TABLE client_device_push_token_type (
 	description TEXT NOT NULL
 );
 
-INSERT INTO client_device_push_token_type VALUES ('NATIVE', 'Native');
+INSERT INTO client_device_push_token_type VALUES ('ANDROID_NATIVE', 'Android Native');
+INSERT INTO client_device_push_token_type VALUES ('IOS_NATIVE', 'iOS Native');
 INSERT INTO client_device_push_token_type VALUES ('GOOGLE_FCM', 'Google Firebase Cloud Messaging (FCM)');
 
 CREATE TABLE client_device (
@@ -23,6 +24,7 @@ CREATE TABLE client_device (
 	client_device_type_id TEXT NOT NULL REFERENCES client_device_type,
 	fingerprint TEXT NOT NULL, -- Unique device identifier
 	model_name TEXT,
+	brand TEXT,
 	operating_system_name TEXT,
 	operating_system_version TEXT,
 	created TIMESTAMPTZ NOT NULL DEFAULT now(),

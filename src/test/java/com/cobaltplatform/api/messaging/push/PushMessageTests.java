@@ -21,7 +21,6 @@ package com.cobaltplatform.api.messaging.push;
 
 import com.cobaltplatform.api.messaging.MessageSender;
 import com.cobaltplatform.api.model.db.ClientDevicePushTokenType.ClientDevicePushTokenTypeId;
-import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -51,7 +50,7 @@ public class PushMessageTests {
 		String pushToken = Files.readString(Path.of("resources/test/fcm-push-token"), StandardCharsets.UTF_8).trim();
 
 		PushMessage pushMessage = new PushMessage.Builder(InstitutionId.COBALT, PushMessageTemplate.MICROINTERVENTION,
-				ClientDeviceTypeId.IOS_APP, ClientDevicePushTokenTypeId.GOOGLE_FCM, pushToken, Locale.forLanguageTag("en-US"))
+				ClientDevicePushTokenTypeId.GOOGLE_FCM, pushToken, Locale.forLanguageTag("en-US"))
 				.messageContext(Map.of("condition", "Anxiety"))
 				.metadata(Map.of("one", "two", "three", "four"))
 				.build();

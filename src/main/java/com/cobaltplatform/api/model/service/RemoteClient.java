@@ -43,6 +43,8 @@ public class RemoteClient {
 	private static final UserAgentParser USER_AGENT_PARSER;
 
 	@Nullable
+	private final String fingerprint;
+	@Nullable
 	private final String appVersion;
 	@Nullable
 	private final String appBuildNumber;
@@ -67,7 +69,8 @@ public class RemoteClient {
 		USER_AGENT_PARSER = new UserAgentParser();
 	}
 
-	private RemoteClient(@Nullable String appVersion,
+	private RemoteClient(@Nullable String fingerprint,
+											 @Nullable String appVersion,
 											 @Nullable String appBuildNumber,
 											 @Nullable ClientDeviceTypeId typeId,
 											 @Nullable String operatingSystemName,
@@ -77,6 +80,7 @@ public class RemoteClient {
 											 @Nullable String manufacturer,
 											 @Nullable UserAgent userAgent,
 											 @Nullable String ipAddress) {
+		this.fingerprint = fingerprint;
 		this.appVersion = appVersion;
 		this.appBuildNumber = appBuildNumber;
 		this.typeId = typeId;
@@ -97,6 +101,7 @@ public class RemoteClient {
 		String ipAddressFromHeader = trimToNull(httpServletRequest.getHeader("X-Real-IP"));
 		String ipAddress = ipAddressFromHeader == null ? httpServletRequest.getRemoteAddr() : ipAddressFromHeader;
 
+		String fingerprint = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-Fingerprint").orElse(null);
 		String appVersion = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-App-Version").orElse(null);
 		String appBuildNumber = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-App-Build-Number").orElse(null);
 		String typeIdAsString = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-Type-Id").orElse(null);
@@ -113,7 +118,9 @@ public class RemoteClient {
 		if (operatingSystemVersion == null)
 			operatingSystemVersion = userAgent.getOperatingSystemVersion().orElse(null);
 
-		return new RemoteClient(appVersion,
+		return new RemoteClient(
+				fingerprint,
+				appVersion,
 				appBuildNumber,
 				typeId,
 				operatingSystemName,
@@ -122,7 +129,8 @@ public class RemoteClient {
 				brand,
 				manufacturer,
 				userAgent,
-				ipAddress);
+				ipAddress
+		);
 	}
 
 	@Override
@@ -134,70 +142,76 @@ public class RemoteClient {
 	public String getDescription() {
 		String appVersion = getAppVersion().orElse(null);
 		ClientDeviceTypeId clientDeviceTypeId = getTypeId().orElse(null);
+		UserAgent userAgent = getUserAgent().orElse(null);
 
-		if (appVersion == null || clientDeviceTypeId == null)
-			return getUserAgent().getDescription();
+		if ((appVersion == null || clientDeviceTypeId == null) && userAgent != null)
+			return userAgent.getDescription();
 
-		String clientDeviceTypeIdDescription = "Unknown";
+		String operatingSystemVersion = getOperatingSystemVersion().orElse("Unknown OS Version");
+		String model = getModel().orElse("Unknown Model");
+
+		String clientDeviceTypeIdDescription = "Unknown App";
 
 		if (clientDeviceTypeId == ClientDeviceTypeId.ANDROID_APP)
 			clientDeviceTypeIdDescription = "Android App";
 		else if (clientDeviceTypeId == ClientDeviceTypeId.IOS_APP)
 			clientDeviceTypeIdDescription = "iOS App";
 
-		return format("%s %s (App %s on %s)", clientDeviceTypeIdDescription,
-				getOperatingSystemVersion().orElse(null),
-				appVersion,
-				getModel().orElse(null));
+		return format("%s %s (App %s on %s)", clientDeviceTypeIdDescription, operatingSystemVersion, appVersion, model);
+	}
+
+	@Nonnull
+	public Optional<String> getFingerprint() {
+		return Optional.ofNullable(this.fingerprint);
 	}
 
 	@Nonnull
 	public Optional<String> getAppVersion() {
-		return Optional.ofNullable(appVersion);
+		return Optional.ofNullable(this.appVersion);
 	}
 
 	@Nonnull
 	public Optional<String> getAppBuildNumber() {
-		return Optional.ofNullable(appBuildNumber);
+		return Optional.ofNullable(this.appBuildNumber);
 	}
 
 	@Nonnull
 	public Optional<ClientDeviceTypeId> getTypeId() {
-		return Optional.ofNullable(typeId);
+		return Optional.ofNullable(this.typeId);
 	}
 
 	@Nonnull
 	public Optional<String> getOperatingSystemName() {
-		return Optional.ofNullable(operatingSystemName);
+		return Optional.ofNullable(this.operatingSystemName);
 	}
 
 	@Nonnull
 	public Optional<String> getOperatingSystemVersion() {
-		return Optional.ofNullable(operatingSystemVersion);
+		return Optional.ofNullable(this.operatingSystemVersion);
 	}
 
 	@Nonnull
 	public Optional<String> getModel() {
-		return Optional.ofNullable(model);
+		return Optional.ofNullable(this.model);
 	}
 
 	@Nonnull
 	public Optional<String> getBrand() {
-		return Optional.ofNullable(brand);
+		return Optional.ofNullable(this.brand);
 	}
 
 	@Nonnull
 	public Optional<String> getManufacturer() {
-		return Optional.ofNullable(manufacturer);
+		return Optional.ofNullable(this.manufacturer);
 	}
 
 	@Nonnull
-	public UserAgent getUserAgent() {
-		return this.userAgent;
+	public Optional<UserAgent> getUserAgent() {
+		return Optional.ofNullable(this.userAgent);
 	}
 
 	@Nonnull
-	public String getIpAddress() {
-		return ipAddress;
+	public Optional<String> getIpAddress() {
+		return Optional.ofNullable(this.ipAddress);
 	}
 }
