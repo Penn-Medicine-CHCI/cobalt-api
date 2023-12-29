@@ -46,6 +46,12 @@ public class Study {
 	@Nullable
 	private Integer gracePeriodInMinutes;
 	@Nullable
+	private String coordinatorName;
+	@Nullable
+	private String coordinatorEmailAddress;
+	@Nullable
+	private String coordinatorPhoneNumber;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -129,5 +135,32 @@ public class Study {
 
 	public void setInstitutionId(@Nullable InstitutionId institutionId) {
 		this.institutionId = institutionId;
+	}
+
+	@Nullable
+	public String getCoordinatorName() {
+		return this.coordinatorName;
+	}
+
+	public void setCoordinatorName(@Nullable String coordinatorName) {
+		this.coordinatorName = coordinatorName;
+	}
+
+	@Nullable
+	public String getCoordinatorEmailAddress() {
+		return this.coordinatorEmailAddress;
+	}
+
+	public void setCoordinatorEmailAddress(@Nullable String coordinatorEmailAddress) {
+		this.coordinatorEmailAddress = coordinatorEmailAddress;
+	}
+
+	@Nullable
+	public String getCoordinatorPhoneNumber() {
+		return this.coordinatorPhoneNumber;
+	}
+
+	public void setCoordinatorPhoneNumber(@Nullable String coordinatorPhoneNumber) {
+		this.coordinatorPhoneNumber = coordinatorPhoneNumber;
 	}
 }

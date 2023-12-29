@@ -22,37 +22,35 @@ package com.cobaltplatform.api.model.db;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
-import static java.lang.String.format;
-
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class MessageVendor {
+public class ClientDevicePushTokenType {
 	@Nullable
-	private MessageVendorId messageVendorId;
+	private ClientDevicePushTokenTypeId clientDevicePushTokenTypeId;
 	@Nullable
 	private String description;
 
-	public enum MessageVendorId {
-		UNSPECIFIED,
-		TWILIO,
-		AMAZON_SES,
+	public enum ClientDevicePushTokenTypeId {
+		ANDROID_NATIVE,
+		IOS_NATIVE,
 		GOOGLE_FCM
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{messageVendorId=%s, description=%s}", getClass().getSimpleName(), getMessageVendorId().name(), getDescription());
+		return String.format("%s{clientDevicePushTokenTypeId=%s, description=%s}", getClass().getSimpleName(),
+				getClientDevicePushTokenTypeId(), getDescription());
 	}
 
 	@Nullable
-	public MessageVendorId getMessageVendorId() {
-		return this.messageVendorId;
+	public ClientDevicePushTokenTypeId getClientDevicePushTokenTypeId() {
+		return this.clientDevicePushTokenTypeId;
 	}
 
-	public void setMessageVendorId(@Nullable MessageVendorId messageVendorId) {
-		this.messageVendorId = messageVendorId;
+	public void setClientDevicePushTokenTypeId(@Nullable ClientDevicePushTokenTypeId clientDevicePushTokenTypeId) {
+		this.clientDevicePushTokenTypeId = clientDevicePushTokenTypeId;
 	}
 
 	@Nullable

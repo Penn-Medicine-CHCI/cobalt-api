@@ -57,6 +57,8 @@ import com.cobaltplatform.api.messaging.email.AmazonSesEmailMessageSender;
 import com.cobaltplatform.api.messaging.email.ConsoleEmailMessageSender;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageSerializer;
+import com.cobaltplatform.api.messaging.push.PushMessage;
+import com.cobaltplatform.api.messaging.push.PushMessageSerializer;
 import com.cobaltplatform.api.messaging.sms.ConsoleSmsMessageSender;
 import com.cobaltplatform.api.messaging.sms.SmsMessage;
 import com.cobaltplatform.api.messaging.sms.SmsMessageSerializer;
@@ -80,6 +82,8 @@ import com.cobaltplatform.api.model.api.response.AssessmentFormApiResponse.Asses
 import com.cobaltplatform.api.model.api.response.AvailabilityTimeApiResponse.AvailabilityTimeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.BetaFeatureAlertApiResponse.BetaFeatureAlertApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CallToActionApiResponse.CallToActionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ClientDeviceApiResponse.ClientDeviceApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ClientDevicePushTokenApiResponse.ClientDevicePushTokenApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ClinicApiResponse.ClinicApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse.CountryApiResponseFactory;
@@ -323,6 +327,8 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(FileUploadResultApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(StudyApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ScreeningVersionApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(ClientDeviceApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(ClientDevicePushTokenApiResponseFactory.class)));
 	}
 
 	@Provides
@@ -532,7 +538,10 @@ public class AppModule extends AbstractModule {
 		requireNonNull(configuration);
 
 		if (getConfiguration().getShouldSendRealEmailMessages()) {
-			HandlebarsTemplater handlebarsTemplater = new HandlebarsTemplater(Paths.get("messages/email"), configuration, "views");
+			HandlebarsTemplater handlebarsTemplater = new HandlebarsTemplater.Builder(Paths.get("messages/email"))
+					.viewsDirectoryName("views")
+					.shouldCacheTemplates(configuration.getShouldCacheHandlebarsTemplates())
+					.build();
 			return new AmazonSesEmailMessageSender(handlebarsTemplater, configuration);
 		}
 
@@ -556,7 +565,10 @@ public class AppModule extends AbstractModule {
 		requireNonNull(normalizer);
 
 		if (getConfiguration().getShouldSendRealSmsMessages()) {
-			HandlebarsTemplater handlebarsTemplater = new HandlebarsTemplater(Paths.get("messages/sms"), configuration);
+			HandlebarsTemplater handlebarsTemplater = new HandlebarsTemplater.Builder(Paths.get("messages/sms"))
+					.shouldCacheTemplates(configuration.getShouldCacheHandlebarsTemplates())
+					.build();
+
 			return new TwilioSmsMessageSender(handlebarsTemplater, normalizer, configuration);
 		}
 
@@ -580,11 +592,22 @@ public class AppModule extends AbstractModule {
 		requireNonNull(normalizer);
 
 		if (getConfiguration().getShouldSendRealCallMessages()) {
-			HandlebarsTemplater handlebarsTemplater = new HandlebarsTemplater(Paths.get("messages/call"), configuration);
+			HandlebarsTemplater handlebarsTemplater = new HandlebarsTemplater.Builder(Paths.get("messages/call"))
+					.shouldCacheTemplates(configuration.getShouldCacheHandlebarsTemplates())
+					.build();
+
 			return new TwilioCallMessageSender(handlebarsTemplater, normalizer, configuration);
 		}
 
 		return new ConsoleCallMessageSender();
+	}
+
+	@Provides
+	@Singleton
+	@Nonnull
+	public MessageSerializer<PushMessage> providePushMessageSerializer(@Nonnull PushMessageSerializer pushMessageSerializer) {
+		requireNonNull(pushMessageSerializer);
+		return pushMessageSerializer;
 	}
 
 	@Provides

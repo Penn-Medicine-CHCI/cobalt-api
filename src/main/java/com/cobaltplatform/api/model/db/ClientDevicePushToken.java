@@ -19,7 +19,7 @@
 
 package com.cobaltplatform.api.model.db;
 
-import com.cobaltplatform.api.model.db.FileUploadType.FileUploadTypeId;
+import com.cobaltplatform.api.model.db.ClientDevicePushTokenType.ClientDevicePushTokenTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -27,90 +27,68 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * @author Transmogrify LLC.
+ * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class FileUpload {
+public class ClientDevicePushToken {
 	@Nullable
-	private UUID fileUploadId;
+	private UUID clientDevicePushTokenId;
 	@Nullable
-	private FileUploadTypeId fileUploadTypeId;
+	private UUID clientDeviceId;
 	@Nullable
-	private UUID accountId;
+	private ClientDevicePushTokenTypeId clientDevicePushTokenTypeId;
 	@Nullable
-	private String url;
+	private String pushToken;
 	@Nullable
-	private String storageKey;
-	@Nullable
-	private String filename;
-	@Nullable
-	private String contentType;
+	private Boolean valid;
 	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
 
 	@Nullable
-	public UUID getFileUploadId() {
-		return this.fileUploadId;
+	public UUID getClientDevicePushTokenId() {
+		return this.clientDevicePushTokenId;
 	}
 
-	public void setFileUploadId(@Nullable UUID fileUploadId) {
-		this.fileUploadId = fileUploadId;
-	}
-
-	@Nullable
-	public FileUploadTypeId getFileUploadTypeId() {
-		return this.fileUploadTypeId;
-	}
-
-	public void setFileUploadTypeId(@Nullable FileUploadTypeId fileUploadTypeId) {
-		this.fileUploadTypeId = fileUploadTypeId;
+	public void setClientDevicePushTokenId(@Nullable UUID clientDevicePushTokenId) {
+		this.clientDevicePushTokenId = clientDevicePushTokenId;
 	}
 
 	@Nullable
-	public UUID getAccountId() {
-		return this.accountId;
+	public UUID getClientDeviceId() {
+		return this.clientDeviceId;
 	}
 
-	public void setAccountId(@Nullable UUID accountId) {
-		this.accountId = accountId;
-	}
-
-	@Nullable
-	public String getUrl() {
-		return this.url;
-	}
-
-	public void setUrl(@Nullable String url) {
-		this.url = url;
+	public void setClientDeviceId(@Nullable UUID clientDeviceId) {
+		this.clientDeviceId = clientDeviceId;
 	}
 
 	@Nullable
-	public String getStorageKey() {
-		return this.storageKey;
+	public ClientDevicePushTokenTypeId getClientDevicePushTokenTypeId() {
+		return this.clientDevicePushTokenTypeId;
 	}
 
-	public void setStorageKey(@Nullable String storageKey) {
-		this.storageKey = storageKey;
-	}
-
-	@Nullable
-	public String getFilename() {
-		return this.filename;
-	}
-
-	public void setFilename(@Nullable String filename) {
-		this.filename = filename;
+	public void setClientDevicePushTokenTypeId(@Nullable ClientDevicePushTokenTypeId clientDevicePushTokenTypeId) {
+		this.clientDevicePushTokenTypeId = clientDevicePushTokenTypeId;
 	}
 
 	@Nullable
-	public String getContentType() {
-		return this.contentType;
+	public String getPushToken() {
+		return this.pushToken;
 	}
 
-	public void setContentType(@Nullable String contentType) {
-		this.contentType = contentType;
+	public void setPushToken(@Nullable String pushToken) {
+		this.pushToken = pushToken;
+	}
+
+	@Nullable
+	public Boolean getValid() {
+		return this.valid;
+	}
+
+	public void setValid(@Nullable Boolean valid) {
+		this.valid = valid;
 	}
 
 	@Nullable

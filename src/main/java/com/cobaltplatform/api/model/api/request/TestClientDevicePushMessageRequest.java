@@ -19,7 +19,9 @@
 
 package com.cobaltplatform.api.model.api.request;
 
-import com.cobaltplatform.api.model.db.FileUploadType.FileUploadTypeId;
+
+import com.cobaltplatform.api.messaging.push.PushMessageTemplate;
+import com.cobaltplatform.api.model.db.ClientDevicePushTokenType.ClientDevicePushTokenTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -30,19 +32,17 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreateFileUploadRequest {
+public class TestClientDevicePushMessageRequest {
 	@Nullable
 	private UUID accountId;
 	@Nullable
-	private FileUploadTypeId fileUploadTypeId;
+	private ClientDevicePushTokenTypeId clientDevicePushTokenTypeId;
 	@Nullable
-	private String storageKeyPrefix;
+	private String pushToken;
 	@Nullable
-	private String filename;
+	private PushMessageTemplate pushMessageTemplate;
 	@Nullable
-	private String contentType;
-	@Nullable
-	private Boolean publicRead;
+	private Map<String, Object> messageContext;
 	@Nullable
 	private Map<String, String> metadata;
 
@@ -56,48 +56,39 @@ public class CreateFileUploadRequest {
 	}
 
 	@Nullable
-	public FileUploadTypeId getFileUploadTypeId() {
-		return this.fileUploadTypeId;
+	public ClientDevicePushTokenTypeId getClientDevicePushTokenTypeId() {
+		return this.clientDevicePushTokenTypeId;
 	}
 
-	public void setFileUploadTypeId(@Nullable FileUploadTypeId fileUploadTypeId) {
-		this.fileUploadTypeId = fileUploadTypeId;
-	}
-
-	@Nullable
-	public String getStorageKeyPrefix() {
-		return this.storageKeyPrefix;
-	}
-
-	public void setStorageKeyPrefix(@Nullable String storageKeyPrefix) {
-		this.storageKeyPrefix = storageKeyPrefix;
+	public void setClientDevicePushTokenTypeId(@Nullable ClientDevicePushTokenTypeId clientDevicePushTokenTypeId) {
+		this.clientDevicePushTokenTypeId = clientDevicePushTokenTypeId;
 	}
 
 	@Nullable
-	public String getFilename() {
-		return this.filename;
+	public String getPushToken() {
+		return this.pushToken;
 	}
 
-	public void setFilename(@Nullable String filename) {
-		this.filename = filename;
-	}
-
-	@Nullable
-	public String getContentType() {
-		return this.contentType;
-	}
-
-	public void setContentType(@Nullable String contentType) {
-		this.contentType = contentType;
+	public void setPushToken(@Nullable String pushToken) {
+		this.pushToken = pushToken;
 	}
 
 	@Nullable
-	public Boolean getPublicRead() {
-		return this.publicRead;
+	public PushMessageTemplate getPushMessageTemplate() {
+		return this.pushMessageTemplate;
 	}
 
-	public void setPublicRead(@Nullable Boolean publicRead) {
-		this.publicRead = publicRead;
+	public void setPushMessageTemplate(@Nullable PushMessageTemplate pushMessageTemplate) {
+		this.pushMessageTemplate = pushMessageTemplate;
+	}
+
+	@Nullable
+	public Map<String, Object> getMessageContext() {
+		return this.messageContext;
+	}
+
+	public void setMessageContext(@Nullable Map<String, Object> messageContext) {
+		this.messageContext = messageContext;
 	}
 
 	@Nullable

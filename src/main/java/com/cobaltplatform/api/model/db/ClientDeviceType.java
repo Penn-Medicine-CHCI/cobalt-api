@@ -22,8 +22,6 @@ package com.cobaltplatform.api.model.db;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.time.Instant;
-import java.util.UUID;
 
 import static java.lang.String.format;
 
@@ -36,14 +34,6 @@ public class ClientDeviceType {
 	private ClientDeviceTypeId clientDeviceTypeId;
 	@Nullable
 	private String description;
-	@Nullable
-	private Instant createdTimestamp;
-	@Nullable
-	private UUID createdAccountId;
-	@Nullable
-	private Instant lastUpdatedTimestamp;
-	@Nullable
-	private UUID lastUpdatedAccountId;
 
 	public enum ClientDeviceTypeId {
 		IOS_APP,
@@ -53,6 +43,11 @@ public class ClientDeviceType {
 		@Nonnull
 		public static Boolean isNativeApp(@Nullable ClientDeviceTypeId clientDeviceTypeId) {
 			return clientDeviceTypeId == IOS_APP || clientDeviceTypeId == ANDROID_APP;
+		}
+
+		@Nonnull
+		public Boolean isNativeApp() {
+			return ClientDeviceTypeId.isNativeApp(this);
 		}
 	}
 
@@ -77,41 +72,5 @@ public class ClientDeviceType {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
-	}
-
-	@Nullable
-	public Instant getCreatedTimestamp() {
-		return createdTimestamp;
-	}
-
-	public void setCreatedTimestamp(@Nullable Instant createdTimestamp) {
-		this.createdTimestamp = createdTimestamp;
-	}
-
-	@Nullable
-	public UUID getCreatedAccountId() {
-		return createdAccountId;
-	}
-
-	public void setCreatedAccountId(@Nullable UUID createdAccountId) {
-		this.createdAccountId = createdAccountId;
-	}
-
-	@Nullable
-	public Instant getLastUpdatedTimestamp() {
-		return lastUpdatedTimestamp;
-	}
-
-	public void setLastUpdatedTimestamp(@Nullable Instant lastUpdatedTimestamp) {
-		this.lastUpdatedTimestamp = lastUpdatedTimestamp;
-	}
-
-	@Nullable
-	public UUID getLastUpdatedAccountId() {
-		return lastUpdatedAccountId;
-	}
-
-	public void setLastUpdatedAccountId(@Nullable UUID lastUpdatedAccountId) {
-		this.lastUpdatedAccountId = lastUpdatedAccountId;
 	}
 }

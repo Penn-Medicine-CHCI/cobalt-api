@@ -22,37 +22,48 @@ package com.cobaltplatform.api.model.db;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
-import static java.lang.String.format;
-
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class MessageVendor {
+public class FileUploadType {
 	@Nullable
-	private MessageVendorId messageVendorId;
+	private FileUploadTypeId fileUploadTypeId;
 	@Nullable
 	private String description;
 
-	public enum MessageVendorId {
+	public enum FileUploadTypeId {
 		UNSPECIFIED,
-		TWILIO,
-		AMAZON_SES,
-		GOOGLE_FCM
+		CONTENT,
+		IMAGE,
+		VIDEO,
+		AUDIO,
+		ACCELEROMETER,
+		GPS,
+		STEPS,
+		PHONE_CALL,
+		TEXT_MESSAGE,
+		PROXIMITY,
+		MAGNETOMETER,
+		DEVICE_MOTION,
+		REACHABILITY,
+		WIFI,
+		BLUETOOTH,
+		POWER_STATE
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{messageVendorId=%s, description=%s}", getClass().getSimpleName(), getMessageVendorId().name(), getDescription());
+		return String.format("%s{fileUploadTypeId=%s, description=%s}", getClass().getSimpleName(), getFileUploadTypeId(), getDescription());
 	}
 
 	@Nullable
-	public MessageVendorId getMessageVendorId() {
-		return this.messageVendorId;
+	public FileUploadTypeId getFileUploadTypeId() {
+		return this.fileUploadTypeId;
 	}
 
-	public void setMessageVendorId(@Nullable MessageVendorId messageVendorId) {
-		this.messageVendorId = messageVendorId;
+	public void setFileUploadTypeId(@Nullable FileUploadTypeId fileUploadTypeId) {
+		this.fileUploadTypeId = fileUploadTypeId;
 	}
 
 	@Nullable

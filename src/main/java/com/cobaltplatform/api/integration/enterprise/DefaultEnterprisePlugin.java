@@ -43,6 +43,11 @@ import com.cobaltplatform.api.integration.microsoft.MicrosoftAuthenticator;
 import com.cobaltplatform.api.integration.mixpanel.DefaultMixpanelClient;
 import com.cobaltplatform.api.integration.mixpanel.MixpanelClient;
 import com.cobaltplatform.api.integration.mixpanel.MockMixpanelClient;
+import com.cobaltplatform.api.messaging.MessageSender;
+import com.cobaltplatform.api.messaging.push.ConsolePushMessageSender;
+import com.cobaltplatform.api.messaging.push.GoogleFcmPushMessageSender;
+import com.cobaltplatform.api.messaging.push.PushMessage;
+import com.cobaltplatform.api.model.db.ClientDevicePushTokenType.ClientDevicePushTokenTypeId;
 import com.cobaltplatform.api.model.db.EpicBackendServiceAuthType;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.security.SigningCredentials;
@@ -132,6 +137,12 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 	}
 
 	@Nonnull
+	@Override
+	public MessageSender<PushMessage> pushMessageSenderForPushTokenTypeId(@Nonnull ClientDevicePushTokenTypeId clientDevicePushTokenTypeId) {
+		return (MessageSender<PushMessage>) getExpensiveClientCache().get(ExpensiveClientCacheKey.GOOGLE_FCM_PUSH_MESSAGE_SENDER);
+	}
+
+	@Nonnull
 	protected LoadingCache<ExpensiveClientCacheKey, Object> createExpensiveClientCache() {
 		// Keep expensive clients around for a little bit so we don't recreate them constantly.
 		// We keep expiration short so changes to configuration/database (for example) can be reflected
@@ -155,6 +166,8 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 						return uncachedMyChartAuthenticator();
 					if (expensiveClientCacheKey == ExpensiveClientCacheKey.EPIC_CLIENT_FOR_BACKEND_SERVICE)
 						return uncachedEpicClientForBackendService();
+					if (expensiveClientCacheKey == ExpensiveClientCacheKey.GOOGLE_FCM_PUSH_MESSAGE_SENDER)
+						return uncachedGoogleFcmPushMessageSender();
 
 					throw new IllegalStateException(format("Unexpected value %s was provided for %s",
 							expensiveClientCacheKey.name(), ExpensiveClientCacheKey.class.getSimpleName()));
@@ -268,6 +281,18 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 	}
 
 	@Nonnull
+	protected MessageSender<PushMessage> uncachedGoogleFcmPushMessageSender() {
+		Institution institution = getInstitutionService().findInstitutionById(getInstitutionId()).get();
+
+		String googleFcmServiceAccountPrivateKey = institution.getGoogleFcmServiceAccountPrivateKey();
+
+		if (googleFcmServiceAccountPrivateKey == null)
+			return new ConsolePushMessageSender();
+
+		return new GoogleFcmPushMessageSender(googleFcmServiceAccountPrivateKey);
+	}
+
+	@Nonnull
 	protected InstitutionService getInstitutionService() {
 		return this.institutionService;
 	}
@@ -288,6 +313,7 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 		MIXPANEL,
 		MICROSOFT_AUTHENTICATOR,
 		MYCHART_AUTHENTICATOR,
-		EPIC_CLIENT_FOR_BACKEND_SERVICE
+		EPIC_CLIENT_FOR_BACKEND_SERVICE,
+		GOOGLE_FCM_PUSH_MESSAGE_SENDER
 	}
 }

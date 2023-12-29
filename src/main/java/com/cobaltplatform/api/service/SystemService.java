@@ -30,6 +30,7 @@ import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreateMarketingSiteOutreachRequest;
 import com.cobaltplatform.api.model.db.BetaFeature;
 import com.cobaltplatform.api.model.db.EncryptionKeypair;
+import com.cobaltplatform.api.model.db.FileUploadType.FileUploadTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PrivateKeyFormat.PrivateKeyFormatId;
 import com.cobaltplatform.api.model.db.Provider;
@@ -45,6 +46,7 @@ import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
 import com.lokalized.Strings;
 import com.pyranid.Database;
+import com.soklet.converter.ValueConverterRegistry;
 import com.soklet.web.exception.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -389,6 +391,7 @@ public class SystemService {
 		requireNonNull(request);
 
 		UUID accountId = request.getAccountId();
+		FileUploadTypeId fileUploadTypeId = request.getFileUploadTypeId();
 		String storageKeyPrefix = trimToNull(request.getStorageKeyPrefix());
 		String filename = trimToNull(request.getFilename());
 		String contentType = trimToNull(request.getContentType());
@@ -400,6 +403,9 @@ public class SystemService {
 
 		if (accountId == null)
 			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required")));
+
+		if (fileUploadTypeId == null)
+			validationException.add(new FieldError("fileUploadTypeId", getStrings().get("File Upload Type ID is required")));
 
 		if (storageKeyPrefix == null) {
 			validationException.add(new FieldError("storageKeyPrefix", getStrings().get("Storage key prefix is required")));
@@ -441,13 +447,14 @@ public class SystemService {
 		getDatabase().execute("""
 				INSERT INTO file_upload (
 				  file_upload_id,
+				  file_upload_type_id,
 				  account_id,
 				  url,
 				  storage_key,
 				  filename,
 				  content_type
 				) VALUES (?,?,?,?,?,?)
-				""", fileUploadId, accountId, presignedUpload.getAccessUrl(), storageKey, filename, contentType);
+				""", fileUploadId, fileUploadTypeId, accountId, presignedUpload.getAccessUrl(), storageKey, filename, contentType);
 
 		return new FileUploadResult(fileUploadId, presignedUpload);
 	}
