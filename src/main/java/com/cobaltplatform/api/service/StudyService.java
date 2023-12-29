@@ -635,6 +635,7 @@ public class StudyService {
 		// Make a separate instance so we don't mutate the request passed into this method
 		CreateFileUploadRequest fileUploadRequest = new CreateFileUploadRequest();
 		fileUploadRequest.setAccountId(request.getAccountId());
+		fileUploadRequest.setFileUploadTypeId(request.getFileUploadTypeId());
 		fileUploadRequest.setContentType(request.getContentType());
 		fileUploadRequest.setFilename(request.getFilename());
 		fileUploadRequest.setPublicRead(false);
@@ -675,6 +676,7 @@ public class StudyService {
 		// Make a separate instance so we don't mutate the request passed into this method
 		CreateFileUploadRequest fileUploadRequest = new CreateFileUploadRequest();
 		fileUploadRequest.setAccountId(request.getAccountId());
+		fileUploadRequest.setFileUploadTypeId(request.getFileUploadTypeId());
 		fileUploadRequest.setContentType(request.getContentType());
 		fileUploadRequest.setFilename(request.getFilename());
 		fileUploadRequest.setPublicRead(false);
