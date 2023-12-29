@@ -46,7 +46,6 @@ import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
 import com.lokalized.Strings;
 import com.pyranid.Database;
-import com.soklet.converter.ValueConverterRegistry;
 import com.soklet.web.exception.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -453,7 +452,7 @@ public class SystemService {
 				  storage_key,
 				  filename,
 				  content_type
-				) VALUES (?,?,?,?,?,?)
+				) VALUES (?,?,?,?,?,?,?)
 				""", fileUploadId, fileUploadTypeId, accountId, presignedUpload.getAccessUrl(), storageKey, filename, contentType);
 
 		return new FileUploadResult(fileUploadId, presignedUpload);
