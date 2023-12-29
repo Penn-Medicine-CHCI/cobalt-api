@@ -23,7 +23,7 @@ CREATE TABLE client_device (
 	client_device_id UUID NOT NULL PRIMARY KEY DEFAULT uuid_generate_v4(),
 	client_device_type_id TEXT NOT NULL REFERENCES client_device_type,
 	fingerprint TEXT NOT NULL, -- Unique device identifier
-	model_name TEXT,
+	model TEXT,
 	brand TEXT,
 	operating_system_name TEXT,
 	operating_system_version TEXT,

@@ -171,7 +171,7 @@ public class ClientDeviceService {
 		UUID accountId = request.getAccountId();
 		ClientDeviceTypeId clientDeviceTypeId = request.getClientDeviceTypeId();
 		String fingerprint = trimToNull(request.getFingerprint());
-		String modelName = trimToNull(request.getModelName());
+		String model = trimToNull(request.getModel());
 		String brand = trimToNull(request.getBrand());
 		String operatingSystemName = trimToNull(request.getOperatingSystemName());
 		String operatingSystemVersion = trimToNull(request.getOperatingSystemVersion());
@@ -194,7 +194,7 @@ public class ClientDeviceService {
 				INSERT INTO client_device (
 				  client_device_type_id,
 				  fingerprint,
-				  model_name,
+				  model,
 				  brand,
 				  operating_system_name,
 				  operating_system_version
@@ -205,7 +205,7 @@ public class ClientDeviceService {
 				  operating_system_name=EXCLUDED.operating_system_name,
 				  operating_system_version=EXCLUDED.operating_system_version
 				RETURNING client_device_id
-				""", UUID.class, clientDeviceTypeId, fingerprint, modelName, brand, operatingSystemName, operatingSystemVersion).get();
+				""", UUID.class, clientDeviceTypeId, fingerprint, model, brand, operatingSystemName, operatingSystemVersion).get();
 
 		Transaction transaction = getDatabase().currentTransaction().get();
 		Savepoint savepoint = transaction.createSavepoint();
@@ -219,7 +219,7 @@ public class ClientDeviceService {
 					""", clientDeviceId, accountId);
 		} catch (DatabaseException e) {
 			if ("account_client_device_unique_idx".equals(e.constraint().orElse(null))) {
-				getLogger().debug("Client device already associated with account, don't need to re-associate.");
+				getLogger().trace("Client device already associated with account, don't need to re-associate.");
 				transaction.rollback(savepoint);
 			} else {
 				throw e;

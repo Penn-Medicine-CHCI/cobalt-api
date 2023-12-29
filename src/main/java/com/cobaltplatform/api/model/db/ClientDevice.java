@@ -42,7 +42,7 @@ public class ClientDevice {
 	@Nullable
 	private String operatingSystemVersion;
 	@Nullable
-	private String modelName;
+	private String model;
 	@Nullable
 	private String brand;
 	@Nullable
@@ -52,7 +52,7 @@ public class ClientDevice {
 
 	@Nullable
 	public UUID getClientDeviceId() {
-		return clientDeviceId;
+		return this.clientDeviceId;
 	}
 
 	public void setClientDeviceId(@Nullable UUID clientDeviceId) {
@@ -61,7 +61,7 @@ public class ClientDevice {
 
 	@Nullable
 	public ClientDeviceTypeId getClientDeviceTypeId() {
-		return clientDeviceTypeId;
+		return this.clientDeviceTypeId;
 	}
 
 	public void setClientDeviceTypeId(@Nullable ClientDeviceTypeId clientDeviceTypeId) {
@@ -70,7 +70,7 @@ public class ClientDevice {
 
 	@Nullable
 	public String getFingerprint() {
-		return fingerprint;
+		return this.fingerprint;
 	}
 
 	public void setFingerprint(@Nullable String fingerprint) {
@@ -79,7 +79,7 @@ public class ClientDevice {
 
 	@Nullable
 	public String getOperatingSystemName() {
-		return operatingSystemName;
+		return this.operatingSystemName;
 	}
 
 	public void setOperatingSystemName(@Nullable String operatingSystemName) {
@@ -88,7 +88,7 @@ public class ClientDevice {
 
 	@Nullable
 	public String getOperatingSystemVersion() {
-		return operatingSystemVersion;
+		return this.operatingSystemVersion;
 	}
 
 	public void setOperatingSystemVersion(@Nullable String operatingSystemVersion) {
@@ -96,12 +96,12 @@ public class ClientDevice {
 	}
 
 	@Nullable
-	public String getModelName() {
-		return modelName;
+	public String getModel() {
+		return this.model;
 	}
 
-	public void setModelName(@Nullable String modelName) {
-		this.modelName = modelName;
+	public void setModel(@Nullable String model) {
+		this.model = model;
 	}
 
 	@Nullable

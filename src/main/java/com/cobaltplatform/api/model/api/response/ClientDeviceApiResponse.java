@@ -51,7 +51,7 @@ public class ClientDeviceApiResponse {
 	@Nullable
 	private final String operatingSystemVersion;
 	@Nullable
-	private final String modelName;
+	private final String model;
 	@Nullable
 	private final String brand;
 	@Nonnull
@@ -83,7 +83,7 @@ public class ClientDeviceApiResponse {
 		this.fingerprint = clientDevice.getFingerprint();
 		this.operatingSystemName = clientDevice.getOperatingSystemName();
 		this.operatingSystemVersion = clientDevice.getOperatingSystemVersion();
-		this.modelName = clientDevice.getModelName();
+		this.model = clientDevice.getModel();
 		this.brand = clientDevice.getBrand();
 		this.created = clientDevice.getCreated();
 		this.createdDescription = formatter.formatTimestamp(clientDevice.getCreated());
@@ -117,8 +117,8 @@ public class ClientDeviceApiResponse {
 	}
 
 	@Nonnull
-	public Optional<String> getModelName() {
-		return Optional.ofNullable(this.modelName);
+	public Optional<String> getModel() {
+		return Optional.ofNullable(this.model);
 	}
 
 	@Nonnull

@@ -37,7 +37,7 @@ public class UpsertClientDeviceRequest {
 	@Nullable
 	private String fingerprint;
 	@Nullable
-	private String modelName;
+	private String model;
 	@Nullable
 	private String brand;
 	@Nullable
@@ -73,12 +73,12 @@ public class UpsertClientDeviceRequest {
 	}
 
 	@Nullable
-	public String getModelName() {
-		return this.modelName;
+	public String getModel() {
+		return this.model;
 	}
 
-	public void setModelName(@Nullable String modelName) {
-		this.modelName = modelName;
+	public void setModel(@Nullable String model) {
+		this.model = model;
 	}
 
 	@Nullable

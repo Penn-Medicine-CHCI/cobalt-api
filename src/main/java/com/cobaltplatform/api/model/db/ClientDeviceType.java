@@ -44,6 +44,11 @@ public class ClientDeviceType {
 		public static Boolean isNativeApp(@Nullable ClientDeviceTypeId clientDeviceTypeId) {
 			return clientDeviceTypeId == IOS_APP || clientDeviceTypeId == ANDROID_APP;
 		}
+
+		@Nonnull
+		public Boolean isNativeApp() {
+			return ClientDeviceTypeId.isNativeApp(this);
+		}
 	}
 
 	@Override
