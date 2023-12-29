@@ -31,13 +31,13 @@ import com.github.jknack.handlebars.context.MapValueResolver;
 import com.github.jknack.handlebars.context.MethodValueResolver;
 import com.github.jknack.handlebars.io.FileTemplateLoader;
 import com.github.jknack.handlebars.io.TemplateLoader;
-import com.cobaltplatform.api.Configuration;
 import org.apache.commons.text.StringEscapeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -61,36 +61,28 @@ import static java.util.Objects.requireNonNull;
 public class HandlebarsTemplater {
 	@Nonnull
 	private final Path templateRootDirectory;
-	@Nonnull
-	private final Configuration configuration;
 	@Nullable
 	private final String viewsDirectoryName;
 	@Nonnull
+	private final Locale defaultLocale;
+	@Nonnull
 	private final Handlebars handlebars;
 	@Nonnull
-	private final TemplateCache handlebarsTemplateCache;
+	private final TemplateCache templateCache;
 	@Nonnull
-	private final Boolean shouldCacheHandlebarsTemplates;
+	private final Boolean shouldCacheTemplates;
 	@Nonnull
 	private final Logger logger;
 
-	public HandlebarsTemplater(@Nonnull Path templateRootDirectory,
-														 @Nonnull Configuration configuration) {
-		this(templateRootDirectory, configuration, null);
-	}
+	protected HandlebarsTemplater(@Nonnull Builder builder) {
+		requireNonNull(builder);
 
-	public HandlebarsTemplater(@Nonnull Path templateRootDirectory,
-														 @Nonnull Configuration configuration,
-														 @Nullable String viewsDirectoryName) {
-		requireNonNull(templateRootDirectory);
-		requireNonNull(configuration);
-
-		this.templateRootDirectory = templateRootDirectory;
-		this.configuration = configuration;
-		this.viewsDirectoryName = viewsDirectoryName;
-		this.handlebarsTemplateCache = new ConcurrentMapTemplateCache();
-		this.shouldCacheHandlebarsTemplates = configuration.getShouldCacheHandlebarsTemplates();
-		this.handlebars = createHandlebars(templateRootDirectory, handlebarsTemplateCache);
+		this.templateRootDirectory = builder.templateRootDirectory;
+		this.viewsDirectoryName = builder.viewsDirectoryName;
+		this.shouldCacheTemplates = builder.shouldCacheTemplates == null ? true : builder.shouldCacheTemplates;
+		this.defaultLocale = builder.defaultLocale == null ? Locale.ENGLISH : builder.defaultLocale;
+		this.templateCache = new ConcurrentMapTemplateCache();
+		this.handlebars = createHandlebars(templateRootDirectory, templateCache);
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
@@ -98,11 +90,11 @@ public class HandlebarsTemplater {
 	 * Merges a Handlebars template in a locale-aware way.
 	 * <p>
 	 * Given a {@code templateRootDirectory} like {@code "messages/email"}, a {@code templateParentName} of
-	 * {@code "QMR_STATUS_CHANGE"} and a {@code templateChildName} of @{code "body"}, the on-disk representation would look like this:
+	 * {@code "EXAMPLE_STATUS_CHANGE"} and a {@code templateChildName} of @{code "body"}, the on-disk representation would look like this:
 	 * <p>
-	 * {@code messages/email/QMR_STATUS_CHANGE/en/body.hbs}
+	 * {@code messages/email/EXAMPLE_STATUS_CHANGE/en/body.hbs}
 	 *
-	 * @param templateParentName e.g. @{code "QMR_STATUS_CHANGE"}
+	 * @param templateParentName e.g. @{code "EXAMPLE_STATUS_CHANGE"}
 	 * @param templateChildName  e.g. @{code "body"}
 	 * @param locale             used to resolve localized template
 	 * @return the merged template, or an empty result if no template was found
@@ -118,11 +110,11 @@ public class HandlebarsTemplater {
 	 * Merges a Handlebars template in a locale-aware way.
 	 * <p>
 	 * Given a {@code templateRootDirectory} like {@code "messages/email"}, a {@code templateParentName} of
-	 * {@code "QMR_STATUS_CHANGE"} and a {@code templateChildName} of @{code "body"}, the on-disk representation would look like this:
+	 * {@code "EXAMPLE_STATUS_CHANGE"} and a {@code templateChildName} of @{code "body"}, the on-disk representation would look like this:
 	 * <p>
-	 * {@code messages/email/QMR_STATUS_CHANGE/en/body.hbs}
+	 * {@code messages/email/EXAMPLE_STATUS_CHANGE/en/body.hbs}
 	 *
-	 * @param templateParentName e.g. @{code "QMR_STATUS_CHANGE"}
+	 * @param templateParentName e.g. @{code "EXAMPLE_STATUS_CHANGE"}
 	 * @param templateChildName  e.g. @{code "body"}
 	 * @param locale             used to resolve localized template
 	 * @param context            data to merge into the template, if any
@@ -133,15 +125,15 @@ public class HandlebarsTemplater {
 																				@Nonnull String templateChildName,
 																				@Nonnull Locale locale,
 																				@Nonnull Map<String, Object> context) {
-		// templateParentName like QMR_STATUS_CHANGE
+		// templateParentName like EXAMPLE_STATUS_CHANGE
 		// templateChildName like body
 		requireNonNull(templateParentName);
 		requireNonNull(templateChildName);
 		requireNonNull(locale);
 		requireNonNull(context);
 
-		if (!getShouldCacheHandlebarsTemplates())
-			getHandlebarsTemplateCache().clear();
+		if (!getShouldCacheTemplates())
+			getTemplateCache().clear();
 
 		String templateName = resolveTemplateName(getTemplateRootDirectory(), templateParentName, templateChildName, locale).orElse(null);
 
@@ -153,7 +145,7 @@ public class HandlebarsTemplater {
 			Template template = getHandlebars().compile(templateName);
 
 			Context handlebarsContext = Context.newBuilder(context).resolver(MapValueResolver.INSTANCE, JavaBeanValueResolver.INSTANCE,
-					MethodValueResolver.INSTANCE, FieldValueResolver.INSTANCE)
+							MethodValueResolver.INSTANCE, FieldValueResolver.INSTANCE)
 					.build();
 
 			return Optional.of(template.apply(handlebarsContext));
@@ -181,13 +173,13 @@ public class HandlebarsTemplater {
 
 		Path languageSpecificPath = templateRootDirectory.resolve(templateParentName).resolve(language).resolve(format("%s.hbs", templateChildName));
 
-		// See if a template exists on-disk for the preferred language, e.g. "QMR_STATUS_CHANGE/ja/body.hbs" - if not found, fall back to default
+		// See if a template exists on-disk for the preferred language, e.g. "EXAMPLE_STATUS_CHANGE/ja/body.hbs" - if not found, fall back to default
 		if (!Files.exists(languageSpecificPath)) {
 			getLogger().trace("Language-specific template at {} does not exist, trying fallback...", languageSpecificPath.toAbsolutePath());
 
-			// Default would be "en" - so something like "QMR_STATUS_CHANGE/en/body.hbs"
+			// Default would be "en" - so something like "EXAMPLE_STATUS_CHANGE/en/body.hbs"
 			// If we can't find the default, return an empty result so callers can figure out how to proceed
-			language = getConfiguration().getDefaultLocale().getLanguage();
+			language = getDefaultLocale().getLanguage();
 			languageSpecificPath = templateRootDirectory.resolve(templateParentName).resolve(language).resolve(format("%s.hbs", templateChildName));
 
 			if (!Files.exists(languageSpecificPath)) {
@@ -334,36 +326,76 @@ public class HandlebarsTemplater {
 
 	@Nonnull
 	protected Path getTemplateRootDirectory() {
-		return templateRootDirectory;
-	}
-
-	@Nonnull
-	protected Configuration getConfiguration() {
-		return configuration;
+		return this.templateRootDirectory;
 	}
 
 	@Nullable
 	protected Optional<String> getViewsDirectoryName() {
-		return Optional.ofNullable(viewsDirectoryName);
+		return Optional.ofNullable(this.viewsDirectoryName);
+	}
+
+	@Nonnull
+	protected Locale getDefaultLocale() {
+		return this.defaultLocale;
 	}
 
 	@Nonnull
 	protected Handlebars getHandlebars() {
-		return handlebars;
+		return this.handlebars;
 	}
 
 	@Nonnull
-	protected TemplateCache getHandlebarsTemplateCache() {
-		return handlebarsTemplateCache;
+	protected TemplateCache getTemplateCache() {
+		return this.templateCache;
 	}
 
 	@Nonnull
-	protected Boolean getShouldCacheHandlebarsTemplates() {
-		return shouldCacheHandlebarsTemplates;
+	protected Boolean getShouldCacheTemplates() {
+		return this.shouldCacheTemplates;
 	}
 
 	@Nonnull
 	protected Logger getLogger() {
-		return logger;
+		return this.logger;
+	}
+
+	@NotThreadSafe
+	public static class Builder {
+		@Nonnull
+		private final Path templateRootDirectory;
+		@Nullable
+		private String viewsDirectoryName;
+		@Nullable
+		private Boolean shouldCacheTemplates;
+		@Nullable
+		private Locale defaultLocale;
+
+		public Builder(@Nonnull Path templateRootDirectory) {
+			requireNonNull(templateRootDirectory);
+			this.templateRootDirectory = templateRootDirectory;
+		}
+
+		@Nonnull
+		public Builder viewsDirectoryName(@Nullable String viewsDirectoryName) {
+			this.viewsDirectoryName = viewsDirectoryName;
+			return this;
+		}
+
+		@Nonnull
+		public Builder shouldCacheTemplates(@Nullable Boolean shouldCacheTemplates) {
+			this.shouldCacheTemplates = shouldCacheTemplates;
+			return this;
+		}
+
+		@Nonnull
+		public Builder defaultLocale(@Nullable Locale defaultLocale) {
+			this.defaultLocale = defaultLocale;
+			return this;
+		}
+
+		@Nonnull
+		public HandlebarsTemplater build() {
+			return new HandlebarsTemplater(this);
+		}
 	}
 }

@@ -1,8 +1,5 @@
 /*
- * Copyright 2021 The University of Pennsylvania and Penn Medicine
- *
- * Originally created at the University of Pennsylvania and Penn Medicine by:
- * Dr. David Asch; Dr. Lisa Bellini; Dr. Cecilia Livesey; Kelley Kugler; and Dr. Matthew Press.
+ * Copyright 2023 Cobalt Innovations, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,14 +14,26 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.service;
+package com.cobaltplatform.api.integration.beiwe;
+
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.ThreadSafe;
 
 /**
- * @author Transmogrify, LLC.
+ * @author Cobalt Innovations, Inc.
  */
-public enum AnalyticsWidgetTypeId {
-	COUNTER,
-	BAR_CHART,
-	PIE_CHART,
-	TABLE
+@ThreadSafe
+public class BeiweCryptoException extends RuntimeException {
+	public BeiweCryptoException(@Nullable String message) {
+		super(message);
+	}
+
+	public BeiweCryptoException(@Nullable Throwable cause) {
+		super(cause);
+	}
+
+	public BeiweCryptoException(@Nullable String message,
+															@Nullable Throwable cause) {
+		super(message, cause);
+	}
 }

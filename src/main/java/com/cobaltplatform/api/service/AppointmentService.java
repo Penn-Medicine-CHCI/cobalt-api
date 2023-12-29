@@ -2057,7 +2057,7 @@ public class AppointmentService {
 			return;
 		}
 
-		if (provider.getSchedulingSystemId() == SchedulingSystemId.COBALT) {
+		if (provider.getSchedulingSystemId() == SchedulingSystemId.COBALT && provider.getVideoconferencePlatformId() != VideoconferencePlatformId.TELEPHONE) {
 			getLogger().debug("Provider {} uses native scheduling, do not send a provider score email.", provider.getName());
 			return;
 		}

@@ -25,7 +25,9 @@ import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.context.CurrentContextExecutor.CurrentContextOperation;
 import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.epic.MyChartAccessToken;
+import com.cobaltplatform.api.model.api.request.UpsertClientDeviceRequest;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionUrl;
@@ -35,14 +37,17 @@ import com.cobaltplatform.api.model.security.AccessTokenStatus;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
 import com.cobaltplatform.api.model.service.RemoteClient;
 import com.cobaltplatform.api.service.AccountService;
+import com.cobaltplatform.api.service.ClientDeviceService;
 import com.cobaltplatform.api.service.FingerprintService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.Authenticator;
+import com.pyranid.Database;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -94,7 +99,11 @@ public class CurrentContextRequestHandler {
 	@Nonnull
 	private final InstitutionService institutionService;
 	@Nonnull
+	private final ClientDeviceService clientDeviceService;
+	@Nonnull
 	private final Authenticator authenticator;
+	@Nonnull
+	private final Database database;
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
@@ -121,14 +130,18 @@ public class CurrentContextRequestHandler {
 																			@Nonnull AccountService accountService,
 																			@Nonnull InstitutionService institutionService,
 																			@Nonnull FingerprintService fingerprintService,
+																			@Nonnull ClientDeviceService clientDeviceService,
 																			@Nonnull Authenticator authenticator,
+																			@Nonnull Database database,
 																			@Nonnull Configuration configuration,
 																			@Nonnull ErrorReporter errorReporter) {
 		requireNonNull(currentContextExecutor);
 		requireNonNull(accountService);
 		requireNonNull(institutionService);
 		requireNonNull(fingerprintService);
+		requireNonNull(clientDeviceService);
 		requireNonNull(authenticator);
+		requireNonNull(database);
 		requireNonNull(configuration);
 		requireNonNull(errorReporter);
 
@@ -136,7 +149,9 @@ public class CurrentContextRequestHandler {
 		this.accountService = accountService;
 		this.institutionService = institutionService;
 		this.fingerprintService = fingerprintService;
+		this.clientDeviceService = clientDeviceService;
 		this.authenticator = authenticator;
+		this.database = database;
 		this.configuration = configuration;
 		this.errorReporter = errorReporter;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -297,6 +312,9 @@ public class CurrentContextRequestHandler {
 						timeZone.getId());
 			}
 
+			// Store off the client device if we have it available to us
+			persistClientDeviceIfNecessary(remoteClient, institution, account);
+
 			try {
 				MDC.put(getCurrentContextLoggingKey(), currentContextDescription);
 				getCurrentContextExecutor().execute(currentContext, currentContextOperation);
@@ -306,7 +324,54 @@ public class CurrentContextRequestHandler {
 		} finally {
 			getErrorReporter().endScope();
 		}
+	}
 
+	@Nonnull
+	protected Boolean persistClientDeviceIfNecessary(@Nonnull RemoteClient remoteClient,
+																									 @Nonnull Institution institution,
+																									 @Nullable Account account) {
+		requireNonNull(remoteClient);
+		requireNonNull(institution);
+
+		ClientDeviceTypeId clientDeviceTypeId = remoteClient.getTypeId().orElse(null);
+
+		// Currently, we only store off client devices if...
+		// 1. They are native apps
+		// 2. There is an account present
+		if (clientDeviceTypeId == null || !clientDeviceTypeId.isNativeApp() || account == null)
+			return false;
+
+		String fingerprint = remoteClient.getFingerprint().orElse(null);
+
+		// ...and 3. They have a fingerprint specified
+		if (fingerprint == null) {
+			getLogger().warn("Native app request does not have a Fingerprint specified");
+			return false;
+		}
+
+		UpsertClientDeviceRequest request = new UpsertClientDeviceRequest();
+		request.setAccountId(account.getAccountId());
+		request.setClientDeviceTypeId(clientDeviceTypeId);
+		request.setFingerprint(fingerprint);
+		request.setBrand(remoteClient.getBrand().orElse(null));
+		request.setModel(remoteClient.getModel().orElse(null));
+		request.setOperatingSystemName(remoteClient.getOperatingSystemName().orElse(null));
+		request.setOperatingSystemVersion(remoteClient.getOperatingSystemVersion().orElse(null));
+
+		// We are outside of the context of the "request" transaction, so we make one here.
+		// It's necessary because the upsert requires one to recover in the event of a unique constraint violation.
+		try {
+			getDatabase().transaction(() -> {
+				getClientDeviceService().upsertClientDevice(request);
+			});
+
+			return true;
+		} catch (Exception e) {
+			// Something really unexpected happened when trying to auto-persist the client device,
+			// report the error and continue moving
+			getErrorReporter().report(e);
+			return false;
+		}
 	}
 
 	@Nonnull
@@ -380,8 +445,18 @@ public class CurrentContextRequestHandler {
 	}
 
 	@Nonnull
+	protected ClientDeviceService getClientDeviceService() {
+		return this.clientDeviceService;
+	}
+
+	@Nonnull
 	protected Authenticator getAuthenticator() {
 		return this.authenticator;
+	}
+
+	@Nonnull
+	protected Database getDatabase() {
+		return this.database;
 	}
 
 	@Nonnull

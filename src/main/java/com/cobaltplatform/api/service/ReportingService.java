@@ -174,8 +174,11 @@ public class ReportingService {
 					if (reportType.getReportTypeId() == ReportTypeId.GROUP_SESSION_RESERVATION_EMAILS)
 						return accountCapabilityFlags.isCanAdministerGroupSessions();
 
-					throw new UnsupportedOperationException(format("Unexpected %s value '%s'",
-							ReportTypeId.class.getSimpleName(), reportType.getReportTypeId().name()));
+					// TODO: We might re-enable this later
+					// throw new UnsupportedOperationException(format("Unexpected %s value '%s'",
+					//		ReportTypeId.class.getSimpleName(), reportType.getReportTypeId().name()));
+
+					return false;
 				})
 				.collect(Collectors.toList());
 	}

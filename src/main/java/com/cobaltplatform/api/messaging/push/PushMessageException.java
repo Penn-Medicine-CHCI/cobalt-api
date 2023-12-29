@@ -17,12 +17,11 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.service;
+package com.cobaltplatform.api.messaging.push;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
-import java.util.Collections;
-import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
@@ -30,17 +29,31 @@ import static java.util.Objects.requireNonNull;
  * @author Transmogrify, LLC.
  */
 @ThreadSafe
-public class AnalyticsWidgetGroup {
+public class PushMessageException extends RuntimeException {
 	@Nonnull
-	private final List<AnalyticsWidget> widgets;
+	private final PushMessage pushMessage;
 
-	public AnalyticsWidgetGroup(@Nonnull List<AnalyticsWidget> widgets) {
-		requireNonNull(widgets);
-		this.widgets = Collections.unmodifiableList(widgets);
+	public PushMessageException(@Nullable String message,
+															@Nonnull PushMessage pushMessage) {
+		this(message, null, pushMessage);
+	}
+
+	public PushMessageException(@Nullable Throwable cause,
+															@Nonnull PushMessage pushMessage) {
+		this(null, cause, pushMessage);
+	}
+
+	public PushMessageException(@Nullable String message,
+															@Nullable Throwable cause,
+															@Nonnull PushMessage pushMessage) {
+		super(message, cause);
+
+		requireNonNull(pushMessage);
+		this.pushMessage = pushMessage;
 	}
 
 	@Nonnull
-	public List<AnalyticsWidget> getWidgets() {
-		return this.widgets;
+	public PushMessage getPushMessage() {
+		return this.pushMessage;
 	}
 }

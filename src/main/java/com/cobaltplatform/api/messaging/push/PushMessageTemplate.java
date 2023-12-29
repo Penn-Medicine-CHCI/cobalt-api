@@ -17,14 +17,12 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.service;
-
-import javax.annotation.concurrent.NotThreadSafe;
+package com.cobaltplatform.api.messaging.push;
 
 /**
  * @author Transmogrify, LLC.
  */
-@NotThreadSafe
-public class AnalyticsWidget {
-
+public enum PushMessageTemplate {
+	FREEFORM,
+	MICROINTERVENTION
 }
