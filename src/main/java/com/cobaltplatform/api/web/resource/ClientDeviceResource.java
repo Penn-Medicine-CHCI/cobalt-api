@@ -29,6 +29,7 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ClientDevice;
 import com.cobaltplatform.api.model.db.ClientDevicePushToken;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.service.RemoteClient;
 import com.cobaltplatform.api.service.ClientDeviceService;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.POST;
@@ -113,8 +114,15 @@ public class ClientDeviceResource {
 		requireNonNull(requestBody);
 
 		Account account = getCurrentContext().getAccount().get();
+		RemoteClient remoteClient = getCurrentContext().getRemoteClient().orElse(null);
+
 		UpsertClientDevicePushTokenRequest request = getRequestBodyParser().parse(requestBody, UpsertClientDevicePushTokenRequest.class);
 		request.setAccountId(account.getAccountId());
+
+		// Fill in field from client (here, X-Client-Device-Fingerprint header) if not explicitly specified in request body.
+		// Lets clients say "register for the current device, for which you already have fingerprint data"
+		if (remoteClient != null && request.getFingerprint() == null)
+			request.setFingerprint(remoteClient.getFingerprint().orElse(null));
 
 		UUID clientDevicePushTokenId = getClientDeviceService().upsertClientDevicePushToken(request);
 		ClientDevicePushToken clientDevicePushToken = getClientDeviceService().findClientDevicePushTokenById(clientDevicePushTokenId).get();
