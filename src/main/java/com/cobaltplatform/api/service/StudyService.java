@@ -171,6 +171,21 @@ public class StudyService {
 	}
 
 	@Nonnull
+	public Boolean accountCheckInStarted(@Nonnull UUID accountId,
+																			 @Nonnull UUID accountCheckInId) {
+		requireNonNull(accountId);
+		requireNonNull(accountCheckInId);
+
+
+		return getDatabase().queryForObject("""
+				SELECT COUNT(*) > 0
+				FROM v_account_check_in_action
+				WHERE account_id = ? AND account_check_in_id = ?
+				AND check_in_action_status_id != ?
+				""", Boolean.class, accountId, accountCheckInId, CheckInActionStatusId.INCOMPLETE).get();
+	}
+
+	@Nonnull
 	public Optional<AccountCheckInAction> findAccountCheckInActionFoAccountAndCheckIn(@Nonnull UUID accountId,
 																																										@Nonnull UUID accountCheckInId) {
 		requireNonNull(accountId);
@@ -395,8 +410,7 @@ public class StudyService {
 			} else if (accountCheckIn.getCheckInNumber() == 1 && !accountCheckIn.getCheckInStatusId().equals(CheckInStatusId.COMPLETE)) {
 				//This is the first check-in and it has not been completed so check to see if it's been started
 				getLogger().debug("Hit first check-in and it's not complete, check if it's been started");
-				Boolean checkInStarted = findAccountCheckInActionsFoAccountAndCheckIn(account.getAccountId(),
-						accountCheckIn.getAccountCheckInId(), Optional.of(CheckInActionStatusId.COMPLETE)).size() > 0;
+				Boolean checkInStarted = accountCheckInStarted(account.getAccountId(), accountCheckIn.getAccountCheckInId());
 				if (checkInStarted) {
 					getLogger().debug("First check-in is started but not complete so expiring and continuing on.");
 					updateCheckInStatusId(accountCheckIn.getAccountCheckInId(), CheckInStatusId.EXPIRED);
