@@ -186,5 +186,10 @@ CREATE VIEW v_group_session AS
      'https://cobalt-shared-media.s3.amazonaws.com/group-sessions/default-group-session.jpg', 'default-group-session',
      'default-group-session', 'application/jpeg');
 
+  DELETE FROM file_upload_type WHERE file_upload_type_id = 'IMAGE';
+
+  INSERT INTO file_upload_type VALUES ('CONTENT_IMAGE', 'Content Image');
+  INSERT INTO file_upload_type VALUES ('GROUP_SESSION_IMAGE', 'Group Session Image');
+
 
 COMMIT;

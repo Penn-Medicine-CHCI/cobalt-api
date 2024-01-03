@@ -37,6 +37,7 @@ import com.cobaltplatform.api.model.api.response.GroupSessionReservationApiRespo
 import com.cobaltplatform.api.model.api.response.GroupSessionUrlValidationResultApiResponse.GroupSessionAutocompleteResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.FileUploadType;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionCollection;
 import com.cobaltplatform.api.model.db.GroupSessionReservation;
@@ -380,6 +381,7 @@ public class GroupSessionResource {
 
 		CreateFileUploadRequest request = getRequestBodyParser().parse(requestBody, CreateFileUploadRequest.class);
 		request.setAccountId(account.getAccountId());
+		request.setFileUploadTypeId(FileUploadType.FileUploadTypeId.GROUP_SESSION_IMAGE);
 
 		FileUploadResult fileUploadResult = getGroupSessionService().createGroupSessionFileUpload(request, "group-sessions");
 		return new ApiResponse(new HashMap<String, Object>() {{

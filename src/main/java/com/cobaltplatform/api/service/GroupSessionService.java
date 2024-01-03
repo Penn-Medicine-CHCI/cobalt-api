@@ -2400,6 +2400,7 @@ public class GroupSessionService implements AutoCloseable {
 		fileUploadRequest.setMetadata(Map.of(
 				"account-id", request.getAccountId().toString()
 		));
+		fileUploadRequest.setFileUploadTypeId(request.getFileUploadTypeId());
 
 		FileUploadResult fileUploadResult = getSystemService().createFileUpload(fileUploadRequest);
 

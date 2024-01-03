@@ -36,6 +36,7 @@ import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApi
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ContentStatus;
 import com.cobaltplatform.api.model.db.ContentType;
+import com.cobaltplatform.api.model.db.FileUploadType;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
@@ -301,6 +302,7 @@ public class AdminResource {
 
 		CreateFileUploadRequest request = getRequestBodyParser().parse(requestBody, CreateFileUploadRequest.class);
 		request.setAccountId(account.getAccountId());
+		request.setFileUploadTypeId(FileUploadType.FileUploadTypeId.CONTENT);
 
 		FileUploadResult fileUploadResult = getAdminContentService().createContentFileUpload(request, "content/images");
 
@@ -319,6 +321,7 @@ public class AdminResource {
 
 		CreateFileUploadRequest request = getRequestBodyParser().parse(requestBody, CreateFileUploadRequest.class);
 		request.setAccountId(account.getAccountId());
+		request.setFileUploadTypeId(FileUploadType.FileUploadTypeId.CONTENT_IMAGE);
 
 		FileUploadResult fileUploadResult = getAdminContentService().createContentFileUpload(request, "content/files");
 		return new ApiResponse(new HashMap<String, Object>() {{
