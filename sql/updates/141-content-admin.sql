@@ -46,6 +46,7 @@ DROP TABLE approval_status;
 DROP TABLE available_status;
 DROP TABLE institution_network;
 DROP TABLE content_type_label;
+DROP TABLE answer_content;
 
 ALTER TABLE institution_content DROP COLUMN approved_flag;
 
