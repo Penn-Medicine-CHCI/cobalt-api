@@ -280,9 +280,8 @@ public class AdminResource {
 			throw new AuthorizationException();
 
 		getAdminContentService().deleteContentById(contentId);
-
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("contentId", contentId);
+			put("content", content);
 		}});
 
 	}
