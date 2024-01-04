@@ -19,7 +19,10 @@
 
 package com.cobaltplatform.api.service;
 
+import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.context.CurrentContextExecutor;
+import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.model.api.request.FindResourceLibraryContentRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ActivityAction.ActivityActionId;
@@ -37,6 +40,7 @@ import com.cobaltplatform.api.model.service.ContentDurationId;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.LinkGenerator;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -45,10 +49,12 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -56,6 +62,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -69,7 +78,7 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
  * @author Transmogrify LLC.
  */
 @Singleton
-public class ContentService {
+public class ContentService implements AutoCloseable {
 	@Nonnull
 	private static final int DEFAULT_PAGE_SIZE = 15;
 	private static final int MAXIMUM_PAGE_SIZE = 100;
@@ -80,8 +89,6 @@ public class ContentService {
 	private final Logger logger;
 	@Nonnull
 	private final SessionService sessionService;
-	@Nonnull
-	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final InstitutionService institutionService;
 	@Nonnull
@@ -98,6 +105,27 @@ public class ContentService {
 	private final Provider<Formatter> formatterProvider;
 	@Nonnull
 	private final Provider<LinkGenerator> linkGeneratorProvider;
+	@Nonnull
+	private final Provider<BackgroundSyncTask> backgroundSyncTaskProvider;
+	@Nonnull
+	private final Object backgroundTaskLock;
+	@Nonnull
+	private Boolean backgroundTaskStarted;
+	@Nullable
+	private ScheduledExecutorService backgroundTaskExecutorService;
+
+	@Nonnull
+	private static final Long BACKGROUND_TASK_INTERVAL_IN_SECONDS;
+	@Nonnull
+	private static final Long BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS;
+
+	@Nonnull
+	private final Configuration configuration;
+
+	static {
+		BACKGROUND_TASK_INTERVAL_IN_SECONDS = 60L;
+		BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS = 10L;
+	}
 
 	@Inject
 	public ContentService(@Nonnull Provider<CurrentContext> currentContextProvider,
@@ -110,7 +138,9 @@ public class ContentService {
 												@Nonnull Database database,
 												@Nonnull SessionService sessionService,
 												@Nonnull InstitutionService institutionService,
-												@Nonnull Strings strings) {
+												@Nonnull Strings strings,
+												@Nonnull Provider<BackgroundSyncTask> backgroundSyncTaskProvider,
+												@Nonnull Configuration configuration) {
 		requireNonNull(currentContextProvider);
 		requireNonNull(assessmentServiceProvider);
 		requireNonNull(tagServiceProvider);
@@ -122,12 +152,13 @@ public class ContentService {
 		requireNonNull(sessionService);
 		requireNonNull(institutionService);
 		requireNonNull(strings);
+		requireNonNull(backgroundSyncTaskProvider);
+		requireNonNull(configuration);
 
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.database = database;
 		this.sessionService = sessionService;
 		this.tagServiceProvider = tagServiceProvider;
-		this.currentContextProvider = currentContextProvider;
 		this.institutionService = institutionService;
 		this.strings = strings;
 		this.assessmentServiceProvider = assessmentServiceProvider;
@@ -135,6 +166,10 @@ public class ContentService {
 		this.accountServiceProvider = accountServiceProvider;
 		this.formatterProvider = formatterProvider;
 		this.linkGeneratorProvider = linkGeneratorProvider;
+		this.backgroundSyncTaskProvider = backgroundSyncTaskProvider;
+		this.backgroundTaskLock = new Object();
+		this.backgroundTaskStarted = false;
+		this.configuration = configuration;
 	}
 
 	@Nonnull
@@ -390,22 +425,22 @@ public class ContentService {
 			return List.of();
 
 		List<Content> contents = getDatabase().queryForList("""
-				WITH content_viewed_query as (
-				       SELECT CAST (context ->> 'contentId' AS UUID) AS content_id, MAX(created) AS last_viewed_at
-				       FROM activity_tracking
-				       WHERE activity_action_id=?
-				       AND activity_type_id=?
-				       AND account_id=?
-				       GROUP BY content_id
-				     )
-				SELECT cvq.last_viewed_at, c.*    
-				FROM institution_content ic, v_admin_content c
-				LEFT OUTER JOIN content_viewed_query as cvq ON c.content_id=cvq.content_id
-				WHERE c.content_id=ic.content_id
-				AND ic.institution_id=?
-				AND c.content_status_id = ?
-				ORDER BY cvq.last_viewed_at ASC NULLS FIRST, c.created DESC
-								""", Content.class, ActivityActionId.VIEW, ActivityTypeId.CONTENT, account.getAccountId(),
+						WITH content_viewed_query as (
+						       SELECT CAST (context ->> 'contentId' AS UUID) AS content_id, MAX(created) AS last_viewed_at
+						       FROM activity_tracking
+						       WHERE activity_action_id=?
+						       AND activity_type_id=?
+						       AND account_id=?
+						       GROUP BY content_id
+						     )
+						SELECT cvq.last_viewed_at, c.*    
+						FROM institution_content ic, v_admin_content c
+						LEFT OUTER JOIN content_viewed_query as cvq ON c.content_id=cvq.content_id
+						WHERE c.content_id=ic.content_id
+						AND ic.institution_id=?
+						AND c.content_status_id = ?
+						ORDER BY cvq.last_viewed_at ASC NULLS FIRST, c.created DESC
+										""", Content.class, ActivityActionId.VIEW, ActivityTypeId.CONTENT, account.getAccountId(),
 				account.getInstitutionId(), ContentStatusId.LIVE);
 
 		applyTagsToContents(contents, account.getInstitutionId());
@@ -502,6 +537,7 @@ public class ContentService {
 		adminContents.add(adminContent);
 		applyInstitutionsToAdminContents(adminContents, institutionId);
 	}
+
 	@Nonnull
 	protected void applyInstitutionsToAdminContents(@Nonnull List<? extends AdminContent> adminContents,
 																									@Nonnull InstitutionId institutionId) {
@@ -527,6 +563,165 @@ public class ContentService {
 		}
 	}
 
+	@Override
+	public void close() throws Exception {
+		stopBackgroundTask();
+	}
+
+	@Nonnull
+	public Boolean startBackgroundTask() {
+		synchronized (getBackgroundTaskLock()) {
+			if (isBackgroundTaskStarted())
+				return false;
+
+			getLogger().trace("Starting Content Service background task...");
+
+			this.backgroundTaskExecutorService = Executors.newScheduledThreadPool(1, new ThreadFactoryBuilder().setNameFormat("content-service-background-task").build());
+			this.backgroundTaskStarted = true;
+			getBackgroundTaskExecutorService().get().scheduleWithFixedDelay(new Runnable() {
+				@Override
+				public void run() {
+					try {
+						getBackgroundSyncTaskProvider().get().run();
+					} catch (Exception e) {
+						getLogger().warn(format("Unable to complete Content Service background task - will retry in %s seconds", String.valueOf(getBackgroundTaskIntervalInSeconds())), e);
+					}
+				}
+			}, getBackgroundTaskInitialDelayInSeconds(), getBackgroundTaskIntervalInSeconds(), TimeUnit.SECONDS);
+
+			getLogger().trace("Content Service background task started.");
+
+			return true;
+		}
+	}
+
+	@Nonnull
+	public Boolean stopBackgroundTask() {
+		synchronized (getBackgroundTaskLock()) {
+			if (!isBackgroundTaskStarted())
+				return false;
+
+			getLogger().trace("Stopping group session background task...");
+
+			getBackgroundTaskExecutorService().get().shutdownNow();
+			this.backgroundTaskExecutorService = null;
+			this.backgroundTaskStarted = false;
+
+			getLogger().trace("Group session background task stopped.");
+
+			return true;
+		}
+	}
+
+	@ThreadSafe
+	protected static class BackgroundSyncTask implements Runnable {
+		@Nonnull
+		private final CurrentContextExecutor currentContextExecutor;
+		@Nonnull
+		private final ErrorReporter errorReporter;
+		@Nonnull
+		private final Database database;
+		@Nonnull
+		private final Configuration configuration;
+		@Nonnull
+		private final Logger logger;
+
+		@Inject
+		public BackgroundSyncTask(@Nonnull CurrentContextExecutor currentContextExecutor,
+															@Nonnull ErrorReporter errorReporter,
+															@Nonnull Database database,
+															@Nonnull Configuration configuration) {
+			requireNonNull(currentContextExecutor);
+			requireNonNull(errorReporter);
+			requireNonNull(database);
+			requireNonNull(configuration);
+
+			this.currentContextExecutor = currentContextExecutor;
+			this.errorReporter = errorReporter;
+			this.database = database;
+			this.configuration = configuration;
+			this.logger = LoggerFactory.getLogger(getClass());
+		}
+
+		@Override
+		public void run() {
+			CurrentContext currentContext = new CurrentContext.Builder(InstitutionId.COBALT,
+					getConfiguration().getDefaultLocale(), getConfiguration().getDefaultTimeZone()).build();
+
+			getCurrentContextExecutor().execute(currentContext, () -> {
+				try {
+					rescheduleContentActivationExpiration();
+				} catch (Exception e) {
+					getLogger().error("Unable to reschedule content activation/expiration", e);
+					getErrorReporter().report(e);
+				}
+			});
+		}
+
+		protected void rescheduleContentActivationExpiration() {
+			List<Content> expiredRecurringContent = getDatabase().queryForList("""
+					SELECT * 
+					FROM v_admin_content vc
+					WHERE content_status_id = ? 
+					AND publish_recurring = TRUE """, Content.class, ContentStatusId.EXPIRED);
+
+			for (Content content : expiredRecurringContent) {
+				LocalDate publishStartDate = content.getPublishStartDate();
+				LocalDate publishEndDate = content.getPublishEndDate();
+				LocalDate now = LocalDate.now();
+
+				if (publishStartDate.getYear() == publishEndDate.getYear())
+					publishStartDate = publishStartDate.withYear(now.getYear());
+				else
+					publishStartDate = publishStartDate.withYear(now.getYear() - 1);
+
+				publishEndDate = publishEndDate.withYear(now.getYear());
+
+				if (now.isAfter(publishStartDate) && now.isBefore(publishEndDate)) {
+					getLogger().info("Content ID {} is being activated", content.getContentId());
+					getDatabase().execute("""
+							UPDATE content 
+							SET publish_start_date = ?, publish_end_date = ? 
+							WHERE content_id = ?
+							""", publishStartDate, publishEndDate, content.getContentId());
+				}
+
+			}
+
+		}
+
+		@Nonnull
+		protected CurrentContextExecutor getCurrentContextExecutor() {
+			return this.currentContextExecutor;
+		}
+
+		@Nonnull
+		protected ErrorReporter getErrorReporter() {
+			return this.errorReporter;
+		}
+
+		@Nonnull
+		protected Database getDatabase() {
+			return this.database;
+		}
+
+		@Nonnull
+		protected Configuration getConfiguration() {
+			return this.configuration;
+		}
+
+		@Nonnull
+		protected Logger getLogger() {
+			return this.logger;
+		}
+	}
+
+	@Nonnull
+	public Boolean isBackgroundTaskStarted() {
+		synchronized (getBackgroundTaskLock()) {
+			return this.backgroundTaskStarted;
+		}
+	}
 
 	@Nonnull
 	protected SessionService getSessionService() {
@@ -577,4 +772,40 @@ public class ContentService {
 	protected LinkGenerator getLinkGenerator() {
 		return linkGeneratorProvider.get();
 	}
+
+	@Nonnull
+	protected Object getBackgroundTaskLock() {
+		return this.backgroundTaskLock;
+	}
+
+	@Nonnull
+	protected Logger getLogger() {
+		return this.logger;
+	}
+
+	@Nonnull
+	protected Long getBackgroundTaskIntervalInSeconds() {
+		return BACKGROUND_TASK_INTERVAL_IN_SECONDS;
+	}
+
+	@Nonnull
+	protected Long getBackgroundTaskInitialDelayInSeconds() {
+		return BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS;
+	}
+
+	@Nonnull
+	protected Provider<BackgroundSyncTask> getBackgroundSyncTaskProvider() {
+		return this.backgroundSyncTaskProvider;
+	}
+
+	@Nonnull
+	protected Optional<ScheduledExecutorService> getBackgroundTaskExecutorService() {
+		return Optional.ofNullable(this.backgroundTaskExecutorService);
+	}
+
+	@Nonnull
+	protected Configuration getConfiguration() {
+		return this.configuration;
+	}
+
 }

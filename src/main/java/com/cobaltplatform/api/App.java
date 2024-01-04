@@ -25,6 +25,7 @@ import com.cobaltplatform.api.integration.epic.EpicFhirSyncManager;
 import com.cobaltplatform.api.integration.epic.EpicSyncManager;
 import com.cobaltplatform.api.service.AnalyticsService;
 import com.cobaltplatform.api.service.AvailabilityService;
+import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.GroupSessionService;
 import com.cobaltplatform.api.service.MessageService;
 import com.cobaltplatform.api.service.PatientOrderService;
@@ -209,6 +210,14 @@ public class App implements AutoCloseable {
 		} catch (Exception e) {
 			getLogger().warn("Failed to start Analytics Service background sync task", e);
 		}
+
+		try {
+			ContentService contentService = getInjector().getInstance(ContentService.class);
+			contentService.startBackgroundTask();
+			getLogger().debug("Started Content Service background task");
+		} catch (Exception e) {
+			getLogger().warn("Failed to start Content Service background task", e);
+		}
 	}
 
 	public void performShutdownTasks() {
@@ -297,6 +306,13 @@ public class App implements AutoCloseable {
 				((Closeable) dataSource).close();
 		} catch (Exception e) {
 			getLogger().warn("Unable to close datasource", e);
+		}
+
+		try {
+			ContentService contentService = getInjector().getInstance(ContentService.class);
+			contentService.stopBackgroundTask();
+		} catch (Exception e) {
+			getLogger().warn("Failed to stop Content background task", e);
 		}
 
 		getLogger().debug("Shutdown complete.");

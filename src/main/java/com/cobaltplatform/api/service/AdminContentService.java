@@ -57,6 +57,7 @@ import java.util.UUID;
 import static com.cobaltplatform.api.model.db.Role.RoleId;
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
 import static java.lang.String.format;
+import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -368,7 +369,6 @@ public class AdminContentService {
 		UUID imageFileUploadId = command.getImageFileUploadId();
 
 		ValidationException validationException = new ValidationException();
-
 		AdminContent existingContent = findAdminContentByIdForInstitution(account.getInstitutionId(), command.getContentId()).orElseThrow();
 
 		if (hasAdminAccessToContent(account, existingContent)) {
@@ -425,6 +425,12 @@ public class AdminContentService {
 
 		if (fileUploadId != null && urlCommand != null)
 			validationException.add(new FieldError("url", getStrings().get("Can only specify a file url or a file upload url ")));
+
+		if (publishStartDate.isAfter(publishEndDate))
+			validationException.add(new FieldError("publishStartDate", getStrings().get("Start date must be before the expiration date")));
+
+		if (publishRecurring && Long.compare(DAYS.between(publishStartDate, publishEndDate), 365) > 0)
+			validationException.add(new FieldError("publishStartDate", getStrings().get("Recurring content cannot be active for more than 1 year")));
 
 		if (validationException.hasErrors())
 			throw validationException;

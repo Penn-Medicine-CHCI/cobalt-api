@@ -2722,4 +2722,5 @@ public class GroupSessionService implements AutoCloseable {
 	protected SystemService getSystemService() {
 		return systemService;
 	}
+
 }
