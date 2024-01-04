@@ -31,7 +31,6 @@ import com.cobaltplatform.api.util.ValidationUtility;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.PathParameter;
-import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.Resource;
 import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
@@ -43,10 +42,7 @@ import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.net.URL;
 import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 

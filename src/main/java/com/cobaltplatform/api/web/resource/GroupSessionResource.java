@@ -26,7 +26,6 @@ import com.cobaltplatform.api.model.api.request.FindGroupSessionsRequest;
 import com.cobaltplatform.api.model.api.request.FindGroupSessionsRequest.FilterBehavior;
 import com.cobaltplatform.api.model.api.request.UpdateGroupSessionRequest;
 import com.cobaltplatform.api.model.api.request.UpdateGroupSessionStatusRequest;
-import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse;
 import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse.FileUploadResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionCollectionApiResponse;

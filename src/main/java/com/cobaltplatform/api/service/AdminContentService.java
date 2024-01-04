@@ -29,7 +29,6 @@ import com.cobaltplatform.api.model.db.ContentStatus;
 import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.service.AdminContent;
 import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.FindResult;
@@ -40,7 +39,6 @@ import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
 import com.lokalized.Strings;
 import com.pyranid.Database;
-import com.soklet.web.annotation.QueryParameter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

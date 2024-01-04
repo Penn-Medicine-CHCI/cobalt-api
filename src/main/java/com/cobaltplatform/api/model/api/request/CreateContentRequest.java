@@ -19,7 +19,6 @@
 
 package com.cobaltplatform.api.model.api.request;
 
-import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
 
 import javax.annotation.Nonnull;

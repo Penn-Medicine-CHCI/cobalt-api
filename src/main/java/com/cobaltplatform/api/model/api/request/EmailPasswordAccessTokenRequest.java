@@ -19,7 +19,6 @@
 
 package com.cobaltplatform.api.model.api.request;
 
-import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 import javax.annotation.Nullable;

@@ -21,8 +21,6 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.Feature;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
-import com.cobaltplatform.api.model.db.Filter;
-import com.cobaltplatform.api.model.db.Filter.FilterId;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 
