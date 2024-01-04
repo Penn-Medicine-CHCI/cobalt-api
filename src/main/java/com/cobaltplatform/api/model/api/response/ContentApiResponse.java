@@ -75,8 +75,6 @@ public class ContentApiResponse {
 	@Nullable
 	private Boolean newFlag;
 	@Nullable
-	private String contentTypeLabel;
-	@Nullable
 	@Deprecated // prefer "durationInMinutesDescription"
 	private String duration;
 	@Nullable
@@ -136,7 +134,6 @@ public class ContentApiResponse {
 		this.contentTypeDescription = content.getContentTypeDescription();
 		this.callToAction = content.getCallToAction();
 		this.newFlag = content.getNewFlag();
-		this.contentTypeLabel = content.getContentTypeLabel();
 
 		// Deprecated field
 		this.duration = content.getDurationInMinutes() != null ?
@@ -212,11 +209,6 @@ public class ContentApiResponse {
 	@Nullable
 	public Instant getLastUpdated() {
 		return lastUpdated;
-	}
-
-	@Nullable
-	public String getContentTypeLabel() {
-		return contentTypeLabel;
 	}
 
 	@Nullable

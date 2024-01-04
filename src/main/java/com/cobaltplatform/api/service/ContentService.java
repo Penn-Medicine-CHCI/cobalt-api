@@ -21,7 +21,6 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.FindResourceLibraryContentRequest;
-import com.cobaltplatform.api.model.api.request.PersonalizeAssessmentChoicesCommand.SubmissionAnswer;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.ActivityAction.ActivityActionId;
@@ -30,7 +29,6 @@ import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
 import com.cobaltplatform.api.model.db.ContentType;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
-import com.cobaltplatform.api.model.db.ContentTypeLabel;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionContent;
 import com.cobaltplatform.api.model.db.Tag;
@@ -288,23 +286,13 @@ public class ContentService {
 		String sql = """
 				WITH base_query AS (
 				    SELECT DISTINCT
-				        c.*,
-				        ct.call_to_action,
-				        ctl.description AS content_type_label,
-				        ct.description AS content_type_description
+				        c.*
 				    FROM
-				        content c,
-				        content_type ct,
-				        content_type_label ctl,
-				        institution_content ic
+				        v_institution_content c
 				        {{fromClause}}
 				    WHERE 1=1
 				        {{whereClause}}
-				        AND c.content_type_id = ct.content_type_id
-				        AND c.content_type_label_id = ctl.content_type_label_id
-				        AND ic.content_id = c.content_id
-				        AND ic.institution_id = ?				   
-				        AND c.deleted_flag = FALSE
+				        AND c.institution_id = ?				   				        
 				        AND c.content_status_id = 'LIVE'				        
 				),
 				total_count_query AS (
@@ -383,162 +371,6 @@ public class ContentService {
 	@Nonnull
 	public List<ContentType> findContentTypes() {
 		return getDatabase().queryForList("SELECT * FROM content_type WHERE deleted=FALSE ORDER BY description", ContentType.class);
-	}
-
-	@Nonnull
-	public List<UUID> findTagsForContent(@Nonnull UUID contentId) {
-		return getDatabase().queryForList("SELECT answer_id FROM answer_content WHERE content_id = ?",
-				UUID.class, contentId);
-	}
-
-	private void tagContent(@Nonnull UUID contentId,
-													@Nonnull Map<UUID, List<SubmissionAnswer>> contentTags,
-													@Nonnull Boolean addToInstitution) {
-		if (!addToInstitution)
-			getDatabase().execute("DELETE FROM answer_content WHERE content_id = ?", contentId);
-
-		contentTags.values().stream().flatMap(it -> it.stream().map(SubmissionAnswer::getAnswerId)).forEach(answerId ->
-				getDatabase().execute("INSERT INTO answer_content (answer_content_id, answer_id, content_id) VALUES (?, ?,?)",
-						UUID.randomUUID(), answerId, contentId)
-		);
-	}
-
-	@Nonnull
-	public List<Content> findAdditionalContentForAccount(@Nonnull Account account,
-																											 @Nonnull List<Content> filteredContent,
-																											 @Nullable String format,
-																											 @Nullable Integer maxLengthMinutes,
-																											 @Nullable String searchQuery) {
-		requireNonNull(account);
-		requireNonNull(filteredContent);
-
-		format = trimToNull(format);
-		searchQuery = trimToNull(searchQuery);
-
-		List<Object> unfilteredParameters = new ArrayList();
-		StringBuilder unfilteredQuery = new StringBuilder("SELECT DISTINCT ON (c.content_id, c.created, new_flag) c.* , " +
-				"CASE WHEN (activity_tracking_id IS NULL) AND (c.created >= now() - INTERVAL '1 WEEK') THEN true " +
-				"ELSE false END as new_flag " +
-				"FROM v_admin_content c LEFT OUTER JOIN activity_tracking act ON c.content_id = CAST (act.context ->> 'contentId' AS UUID) " +
-				"AND act.account_id = ? WHERE c.institution_id = ? AND c.approved_flag=TRUE AND c.archived_flag=FALSE ");
-		final String ORDER_BY = "ORDER BY new_flag DESC, c.created DESC";
-		unfilteredParameters.add(account.getAccountId());
-		unfilteredParameters.add(account.getInstitutionId());
-
-		if (format != null) {
-			String formatList = Arrays.asList(format.split(","))
-					.stream().map(c -> String.format("'%s'", c))
-					.collect(Collectors.joining(","));
-			unfilteredQuery.append(String.format("AND c.content_type_label_id IN (%s) ", formatList));
-		}
-
-		if (maxLengthMinutes != null) {
-			unfilteredQuery.append("AND duration_in_minutes <= ? ");
-			unfilteredParameters.add(maxLengthMinutes);
-		}
-
-		String inList = filteredContent.stream().map(c -> String.format("'%s'", c.getContentId().toString()))
-				.collect(Collectors.joining(","));
-
-		if (trimToNull(inList) != null)
-			unfilteredQuery.append(String.format(" AND c.content_id NOT IN (%s) ", inList));
-
-		if (searchQuery != null) {
-			unfilteredQuery.append("AND ((c.en_search_vector @@ websearch_to_tsquery('english', ?)) OR (c.title ILIKE CONCAT('%',?,'%') OR c.description ILIKE CONCAT('%',?,'%'))) ");
-			unfilteredParameters.add(searchQuery);
-			unfilteredParameters.add(searchQuery);
-			unfilteredParameters.add(searchQuery);
-		}
-
-		unfilteredQuery.append(ORDER_BY);
-
-		List<Content> unfilteredContent = getDatabase().queryForList(unfilteredQuery.toString(),
-				Content.class, unfilteredParameters.toArray());
-
-		applyTagsToContents(unfilteredContent, account.getInstitutionId());
-
-		return unfilteredContent;
-	}
-
-	@Nonnull
-	public List<ContentTypeLabel> findContentTypeLabelsForAccount(Account account) {
-		//TODO: Limit this to just approved content and cache
-		return getDatabase().queryForList("SELECT DISTINCT ctl.content_type_label_id, ctl.description FROM content c, institution_content i, content_type_label ctl " +
-				"WHERE i.content_id = c.content_id AND i.institution_id = ? AND c.content_type_label_id = ctl.content_type_label_id ORDER BY ctl.description ", ContentTypeLabel.class, account.getInstitutionId());
-	}
-
-	@Nonnull
-	public List<Content> findContentForAccount(@Nonnull Account account) {
-		requireNonNull(account);
-		return findContentForAccount(account, null, null, null);
-	}
-
-	@Nonnull
-	public List<Content> findContentForAccount(@Nonnull Account account,
-																						 @Nullable String format,
-																						 @Nullable Integer maxLengthMinutes,
-																						 @Nullable String searchQuery) {
-		requireNonNull(account);
-
-		format = trimToNull(format);
-		searchQuery = trimToNull(searchQuery);
-
-		List<Content> content = new ArrayList<>();
-		Optional<AccountSession> accountSession = getSessionService().getCurrentIntroSessionForAccount(
-				currentContextProvider.get().getAccount().get());
-		List<Object> parameters = new ArrayList();
-		Boolean introAssessmentComplete = accountSession.isPresent() &&
-				getSessionService().doesAccountSessionHaveAnswers(accountSession.get().getAccountSessionId());
-
-		if (!introAssessmentComplete)
-			return content;
-
-		StringBuilder query = new StringBuilder("SELECT c.content_id,c.content_type_id,c.title,c.url,c.date_created,c.image_url, " +
-				"c.description,c.author,c.created,c.last_updated,c.owner_institution_id, " +
-				"c.content_type_label,c.content_type_description,c.call_to_action,c.institution_id, c.duration_in_minutes,  " +
-				"CASE WHEN (activity_tracking_id IS NULL) AND (c.created >= now() - INTERVAL '1 WEEK') THEN true  " +
-				"ELSE false END as new_flag, count(*) as match_count " +
-				"FROM answer_content ac, v_account_session_answer a1, v_admin_content c  " +
-				"LEFT OUTER JOIN activity_tracking act ON c.content_id = CAST (act.context ->> 'contentId' AS UUID) AND act.account_id = ? " +
-				"WHERE ac.content_id = c.content_id  " +
-				"AND ac.answer_id = a1.answer_id " +
-				"and a1.account_session_id= ? " +
-				"AND c.institution_id = ? AND c.approved_flag = TRUE AND c.archived_flag=FALSE AND c.owner_institution_approval_status_id='APPROVED' ");
-		final String GROUP_BY = "group by c.content_id,c.content_type_id,c.title,c.url,c.date_created,c.image_url, " +
-				"c.description,c.author,c.created,c.last_updated,c.owner_institution_id, " +
-				"c.content_type_label,c.content_type_description,c.call_to_action,c.institution_id, c.duration_in_minutes , new_flag  ";
-		final String ORDER_BY = "ORDER BY new_flag DESC, match_count DESC, c.created DESC";
-		parameters.add(account.getAccountId());
-		parameters.add(accountSession.get().getAccountSessionId());
-		parameters.add(account.getInstitutionId());
-
-		if (searchQuery != null) {
-			query.append("AND ((c.en_search_vector @@ websearch_to_tsquery('english', ?)) OR (c.title ILIKE CONCAT('%',?,'%') OR c.description ILIKE CONCAT('%',?,'%'))) ");
-			parameters.add(searchQuery);
-			parameters.add(searchQuery);
-			parameters.add(searchQuery);
-		}
-
-		if (format != null) {
-			String formatList = Arrays.asList(format.split(","))
-					.stream().map(c -> String.format("'%s'", c))
-					.collect(Collectors.joining(","));
-			query.append(String.format("AND c.content_type_label_id IN (%s) ", formatList));
-		}
-
-		if (maxLengthMinutes != null) {
-			query.append("AND duration_in_minutes <= ? ");
-			parameters.add(maxLengthMinutes);
-		}
-
-		query.append(GROUP_BY);
-		query.append(ORDER_BY);
-
-		content = getDatabase().queryForList(query.toString(), Content.class, parameters.toArray());
-
-		applyTagsToContents(content, account.getInstitutionId());
-
-		return content;
 	}
 
 	@Nonnull

@@ -69,9 +69,6 @@ public class Content {
 	@Nullable
 	private String callToAction;
 
-	@Nullable
-	private String contentTypeLabel;
-
 	//TODO: re-think this
 	// Determines if the content is new to the current user
 	@Nullable
@@ -335,12 +332,4 @@ public class Content {
 		this.contentStatusDescription = contentStatusDescription;
 	}
 
-	@Nullable
-	public String getContentTypeLabel() {
-		return contentTypeLabel;
-	}
-
-	public void setContentTypeLabel(@Nullable String contentTypeLabel) {
-		this.contentTypeLabel = contentTypeLabel;
-	}
 }
