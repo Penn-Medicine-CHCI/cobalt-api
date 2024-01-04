@@ -74,7 +74,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.model.api.response.AdminContentApiResponse.AdminContentDisplayType;
-import static com.cobaltplatform.api.model.api.response.AssessmentFormApiResponse.AssessmentFormApiResponseFactory;
 import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNull;
 
@@ -106,8 +105,6 @@ public class AdminResource {
 	@Nonnull
 	private final Provider<AssessmentService> assessmentServiceProvider;
 	@Nonnull
-	private final Provider<AssessmentFormApiResponseFactory> assessmentFormApiResponseFactoryProvider;
-	@Nonnull
 	private final InstitutionService institutionService;
 	@Nonnull
 	private final AdminInstitutionApiResponseFactory adminInstitutionApiResponseFactory;
@@ -133,7 +130,6 @@ public class AdminResource {
 											 @Nonnull AdminInstitutionApiResponseFactory adminInstitutionApiResponseFactory,
 											 @Nonnull Provider<PresignedUploadApiResponseFactory> presignedUploadApiResponseFactoryProvider,
 											 @Nonnull Provider<AssessmentService> assessmentServiceProvider,
-											 @Nonnull Provider<AssessmentFormApiResponseFactory> assessmentFormApiResponseFactoryProvider,
 											 @Nonnull TagApiResponseFactory tagApiResponseFactory,
 											 @Nonnull TagGroupApiResponseFactory tagGroupApiResponseFactory,
 											 @Nonnull ContentStatusApiResponseFactory contentStatusApiResponseFactory,
@@ -149,7 +145,6 @@ public class AdminResource {
 		this.adminInstitutionApiResponseFactory = adminInstitutionApiResponseFactory;
 		this.presignedUploadApiResponseFactoryProvider = presignedUploadApiResponseFactoryProvider;
 		this.assessmentServiceProvider = assessmentServiceProvider;
-		this.assessmentFormApiResponseFactoryProvider = assessmentFormApiResponseFactoryProvider;
 		this.tagApiResponseFactory = tagApiResponseFactory;
 		this.tagGroupApiResponseFactory = tagGroupApiResponseFactory;
 		this.contentStatusApiResponseFactory = contentStatusApiResponseFactory;
@@ -438,11 +433,6 @@ public class AdminResource {
 	@Nonnull
 	protected AssessmentService getAssessmentService() {
 		return assessmentServiceProvider.get();
-	}
-
-	@Nonnull
-	protected AssessmentFormApiResponseFactory getAssessmentFormApiResponseFactory() {
-		return assessmentFormApiResponseFactoryProvider.get();
 	}
 
 	@Nonnull

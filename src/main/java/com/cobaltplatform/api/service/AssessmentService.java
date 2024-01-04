@@ -597,30 +597,6 @@ public class AssessmentService {
 	}
 
 	@Nonnull
-	public UUID submitPersonalizeAssessmentAnswers(@Nonnull Account account, @Nonnull PersonalizeAssessmentChoicesCommand command) {
-		ValidationException validationException = new ValidationException();
-
-		Assessment introAssessment = findAssessmentByTypeForUser(AssessmentTypeId.INTRO, account).orElseThrow();
-		AccountSession accountSession = getSessionService().createSessionForAssessment(account.getAccountId(), introAssessment);
-
-		Map<UUID, List<SubmissionAnswer>> choicesAsMap = validateIntroAssessmentSubmissionCommand(command, introAssessment, validationException);
-
-		if (validationException.hasErrors()) throw validationException;
-
-		choicesAsMap.forEach((questionId, submissionAnswers) ->
-				submissionAnswers.forEach(submissionAnswer ->
-						database.execute(
-								"INSERT INTO account_session_answer (account_session_answer_id, account_session_id, answer_id) " +
-										"VALUES (?, ?, ?)",
-								UUID.randomUUID(), accountSession.getAccountSessionId(), submissionAnswer.getAnswerId())
-				)
-		);
-
-
-		return accountSession.getAccountSessionId();
-	}
-
-	@Nonnull
 	public AssessmentType findRequiredAssessmentTypeById(String assessmentTypeId) {
 		return database.queryForObject("SELECT * FROM assessment_type WHERE assessment_type_id = ? ", AssessmentType.class, assessmentTypeId).get();
 	}

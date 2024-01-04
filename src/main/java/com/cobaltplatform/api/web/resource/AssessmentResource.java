@@ -20,10 +20,8 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
-import com.cobaltplatform.api.model.api.request.PersonalizeAssessmentChoicesCommand;
 import com.cobaltplatform.api.model.api.request.SubmitAssessmentAnswerRequest;
 import com.cobaltplatform.api.model.api.response.AssessmentApiResponse.AssessmentQuestionAnswerApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.AssessmentFormApiResponse.AssessmentFormApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
@@ -38,12 +36,10 @@ import com.cobaltplatform.api.service.SessionService;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
-import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.PUT;
 import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.RequestBody;
 import com.soklet.web.annotation.Resource;
-import com.soklet.web.exception.AuthenticationException;
 import com.soklet.web.response.ApiResponse;
 
 import javax.annotation.Nonnull;
@@ -79,8 +75,6 @@ public class AssessmentResource {
 	@Nonnull
 	private final AssessmentQuestionAnswerApiResponseFactory assessmentQuestionAnswerApiResponseFactory;
 	@Nonnull
-	private final AssessmentFormApiResponseFactory assessmentFormApiResponseFactory;
-	@Nonnull
 	private final ProviderService providerService;
 	@Nonnull
 	private final ProviderApiResponseFactory providerApiResponseFactory;
@@ -94,7 +88,6 @@ public class AssessmentResource {
 														@Nonnull RequestBodyParser requestBodyParser,
 														@Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
 														@Nonnull AssessmentQuestionAnswerApiResponseFactory assessmentQuestionAnswerApiResponseFactory,
-														@Nonnull AssessmentFormApiResponseFactory assessmentFormApiResponseFactory,
 														@Nonnull ProviderService providerService,
 														@Nonnull ProviderApiResponseFactory providerApiResponseFactory,
 														@Nonnull Strings strings) {
@@ -104,36 +97,9 @@ public class AssessmentResource {
 		this.requestBodyParser = requestBodyParser;
 		this.currentContextProvider = currentContextProvider;
 		this.assessmentQuestionAnswerApiResponseFactory = assessmentQuestionAnswerApiResponseFactory;
-		this.assessmentFormApiResponseFactory = assessmentFormApiResponseFactory;
 		this.providerService = providerService;
 		this.providerApiResponseFactory = providerApiResponseFactory;
 		this.strings = strings;
-	}
-
-	@AuthenticationRequired
-	@GET("/assessment/personalize")
-	public ApiResponse getPersonalizedQuestions() {
-		Account account = getCurrentContext().getAccount().orElseThrow(AuthenticationException::new);
-		Assessment assessment = getAssessmentService().findAssessmentByTypeForUser(AssessmentTypeId.INTRO, account).orElseThrow();
-		Optional<AccountSession> accountSession = sessionService.findCurrentAccountSessionForAssessment(account, assessment);
-
-		return new ApiResponse(Map.of(
-				"assessment", getAssessmentFormApiResponseFactory().create(assessment, accountSession)
-		));
-	}
-
-	@AuthenticationRequired
-	@POST("/assessment/personalize")
-	public ApiResponse submitPersonalizedAnswers(@RequestBody String body) {
-		Account account = getCurrentContext().getAccount().orElseThrow(AuthenticationException::new);
-		PersonalizeAssessmentChoicesCommand command = requestBodyParser.parse(body, PersonalizeAssessmentChoicesCommand.class);
-		UUID sessionId = assessmentService.submitPersonalizeAssessmentAnswers(account, command);
-		Assessment assessment = getAssessmentService().findAssessmentByTypeForUser(AssessmentTypeId.INTRO, account).orElseThrow();
-		Optional<AccountSession> accountSession = getSessionService().findAccountSessionById(sessionId);
-
-		return new ApiResponse(
-				Map.of("assessment", getAssessmentFormApiResponseFactory().create(assessment, accountSession))
-		);
 	}
 
 	@AuthenticationRequired
@@ -269,8 +235,4 @@ public class AssessmentResource {
 		return strings;
 	}
 
-	@Nonnull
-	protected AssessmentFormApiResponseFactory getAssessmentFormApiResponseFactory() {
-		return assessmentFormApiResponseFactory;
-	}
 }
