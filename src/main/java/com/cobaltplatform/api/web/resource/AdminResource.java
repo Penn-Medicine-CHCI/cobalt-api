@@ -281,7 +281,7 @@ public class AdminResource {
 
 		getAdminContentService().deleteContentById(contentId);
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("content", content);
+			put("content", content.get());
 		}});
 
 	}
