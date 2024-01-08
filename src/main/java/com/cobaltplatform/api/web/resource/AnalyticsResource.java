@@ -790,7 +790,7 @@ public class AnalyticsResource {
 			crisisTriggerCounts = List.of(
 					new CrisisTriggerCount() {{
 						setCount(100L);
-						setName(getStrings().get("Home Selection"));
+						setName(getStrings().get("HP Chiclet"));
 					}},
 					new CrisisTriggerCount() {{
 						setCount(50L);
@@ -828,9 +828,15 @@ public class AnalyticsResource {
 			ScreeningSessionCompletion screeningSessionCompletion = screeningSessionCompletions.get(screeningFlowId);
 			SortedMap<String, Long> severityCountsByDescription = screeningSessionSeverityCounts.get(screeningFlowId);
 
+			// Pick the analytics name of the screening flow if present
+			String screeningFlowName = Stream.of(screeningFlow.getAnalyticsName(), screeningFlow.getName())
+					.filter(Objects::nonNull)
+					.findFirst()
+					.get();
+
 			AnalyticsBarChartWidget clinicalAssessmentCompletionWidget = new AnalyticsBarChartWidget();
 			clinicalAssessmentCompletionWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_CLINICAL_ASSESSMENT_COMPLETION);
-			clinicalAssessmentCompletionWidget.setWidgetTitle(getStrings().get("{{screeningFlowName}} Completion", Map.of("screeningFlowName", screeningFlow.getName())));
+			clinicalAssessmentCompletionWidget.setWidgetTitle(getStrings().get("{{screeningFlowName}} Completion", Map.of("screeningFlowName", screeningFlowName)));
 			clinicalAssessmentCompletionWidget.setWidgetTotal(screeningSessionCompletion.getCompletionPercentage());
 			clinicalAssessmentCompletionWidget.setWidgetTotalDescription(getFormatter().formatPercent(screeningSessionCompletion.getCompletionPercentage()));
 			clinicalAssessmentCompletionWidget.setWidgetSubtitle(getStrings().get("Completion Rate"));
@@ -860,7 +866,7 @@ public class AnalyticsResource {
 
 			AnalyticsBarChartWidget clinicalAssessmentSeverityWidget = new AnalyticsBarChartWidget();
 			clinicalAssessmentSeverityWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_CLINICAL_ASSESSMENT_SEVERITY);
-			clinicalAssessmentSeverityWidget.setWidgetTitle(getStrings().get("{{screeningFlowName}} Severity", Map.of("screeningFlowName", screeningFlow.getName())));
+			clinicalAssessmentSeverityWidget.setWidgetTitle(getStrings().get("{{screeningFlowName}} Severity", Map.of("screeningFlowName", screeningFlowName)));
 			clinicalAssessmentSeverityWidget.setWidgetTotal(severityTotalCount);
 			clinicalAssessmentSeverityWidget.setWidgetTotalDescription(getFormatter().formatNumber(severityTotalCount));
 			clinicalAssessmentSeverityWidget.setWidgetSubtitle(getStrings().get("Completed Assessments"));
@@ -1082,7 +1088,7 @@ public class AnalyticsResource {
 				          "widgetChartLabel": "Times Triggered",
 				          "widgetData": [
 				            {
-				              "label": "Home Selection",
+				              "label": "HP Chiclet",
 				              "count": 120,
 				              "countDescription": "120",
 				              "color": "#E56F65"

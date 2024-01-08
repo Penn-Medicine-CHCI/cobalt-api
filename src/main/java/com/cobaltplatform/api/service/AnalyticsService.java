@@ -375,7 +375,7 @@ public class AnalyticsService implements AutoCloseable {
 				AND aai.activity_timestamp BETWEEN ? AND ?
 				AND aai.institution_id=?
 				AND a.institution_location_id=il.institution_location_id
-				GROUP BY il.name
+				GROUP BY institution_location_description
 				""", AccountSourceInstitutionLocationCount.class, startTimestamp, endTimestamp, institutionId);
 
 		final String NOT_ASKED_LABEL = getStrings().get("Not Asked");
@@ -944,7 +944,7 @@ public class AnalyticsService implements AutoCloseable {
 								""", CrisisTriggerCount.class, institutionId, startTimestamp, endTimestamp));
 
 		crisisTriggerCounts.addAll(getDatabase().queryForList("""		
-				SELECT COUNT(*) AS count, 'Home Selection' AS name
+				SELECT COUNT(*) AS count, 'HP Chiclet' AS name
 				FROM analytics_google_bigquery_event
 				WHERE name='HP Nav'
 				AND event->'parameters'->'link_text'->>'value'='Crisis Support'
