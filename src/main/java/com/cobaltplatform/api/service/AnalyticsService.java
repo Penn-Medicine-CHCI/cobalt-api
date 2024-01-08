@@ -369,7 +369,7 @@ public class AnalyticsService implements AutoCloseable {
 
 		// Accounts that have institution locations
 		List<AccountSourceInstitutionLocationCount> accountSourceInstitutionLocationCounts = getDatabase().queryForList("""
-				SELECT COUNT(DISTINCT a.account_id) AS count, il.name AS institution_location_description
+				SELECT COUNT(DISTINCT a.account_id) AS count, COALESCE(il.short_name, il.name) AS institution_location_description
 				FROM account a, v_analytics_account_interaction aai, institution_location il
 				WHERE a.account_id=aai.account_id
 				AND aai.activity_timestamp BETWEEN ? AND ?

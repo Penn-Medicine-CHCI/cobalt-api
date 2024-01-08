@@ -48,7 +48,11 @@ public class StudyApiResponse {
 	@Nullable
 	private final Integer minutesBetweenCheckIns;
 	@Nullable
+	private final String minutesBetweenCheckInsDescription;
+	@Nullable
 	private final Integer gracePeriodInMinutes;
+	@Nullable
+	private final String gracePeriodInMinutesDescription;
 	@Nullable
 	private final String coordinatorName;
 	@Nullable
@@ -78,7 +82,9 @@ public class StudyApiResponse {
 		this.urlName = study.getUrlName();
 		this.onboardingDestinationUrl = study.getOnboardingDestinationUrl();
 		this.minutesBetweenCheckIns = study.getMinutesBetweenCheckIns();
+		this.minutesBetweenCheckInsDescription = study.getMinutesBetweenCheckIns() == null ? null : formatter.formatNumber(study.getMinutesBetweenCheckIns());
 		this.gracePeriodInMinutes = study.getGracePeriodInMinutes();
+		this.gracePeriodInMinutesDescription = study.getGracePeriodInMinutes() == null ? null : formatter.formatNumber(study.getGracePeriodInMinutes());
 		this.coordinatorName = study.getCoordinatorName();
 		this.coordinatorEmailAddress = study.getCoordinatorEmailAddress();
 		this.coordinatorPhoneNumber = study.getCoordinatorPhoneNumber();
@@ -112,8 +118,18 @@ public class StudyApiResponse {
 	}
 
 	@Nullable
+	public String getMinutesBetweenCheckInsDescription() {
+		return this.minutesBetweenCheckInsDescription;
+	}
+
+	@Nullable
 	public Integer getGracePeriodInMinutes() {
 		return gracePeriodInMinutes;
+	}
+
+	@Nullable
+	public String getGracePeriodInMinutesDescription() {
+		return this.gracePeriodInMinutesDescription;
 	}
 
 	@Nullable

@@ -192,7 +192,7 @@ public class InstitutionService {
 
 		List<AccountSourceForInstitution> accountSources = getDatabase().queryForList("""
 						SELECT ias.institution_id, a.account_source_id, ias.account_source_display_style_id,
-						a.description, ias.authentication_description, a.local_sso_url, a.dev_sso_url,
+						a.description, a.short_description, ias.authentication_description, a.local_sso_url, a.dev_sso_url,
 						a.prod_sso_url, ias.display_order, ias.requires_user_experience_type_id, ias.visible
 						FROM institution_account_source ias, account_source a
 						WHERE ias.institution_id=?

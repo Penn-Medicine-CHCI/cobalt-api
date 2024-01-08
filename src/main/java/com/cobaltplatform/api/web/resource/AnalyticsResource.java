@@ -83,12 +83,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
 
@@ -333,10 +335,18 @@ public class AnalyticsResource {
 
 		for (Entry<AccountSourceId, Long> entry : activeUserCountsByAccountSourceId.entrySet()) {
 			AccountSourceId accountSourceId = entry.getKey();
+			AccountSourceForInstitution accountSource = accountSourcesByAccountSourceId.get(accountSourceId);
+
+			// Pick the short description of the account source if present
+			String description = Stream.of(accountSource.getShortDescription(), accountSource.getDescription())
+					.filter(Objects::nonNull)
+					.findFirst()
+					.get();
+
 			Long count = entry.getValue();
 
 			AnalyticsWidgetChartData widgetChartData = new AnalyticsWidgetChartData();
-			widgetChartData.setLabel(accountSourcesByAccountSourceId.get(accountSourceId).getDescription());
+			widgetChartData.setLabel(description);
 			widgetChartData.setCount(count);
 			widgetChartData.setCountDescription(getFormatter().formatNumber(count));
 			widgetChartData.setColor(colorCssRepresentations.get(i % colorCssRepresentations.size()));
