@@ -901,7 +901,7 @@ public class AnalyticsResource {
 
 		AnalyticsBarChartWidget crisisWidget = new AnalyticsBarChartWidget();
 		crisisWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_CRISIS_TRIGGERS);
-		crisisWidget.setWidgetTitle(getStrings().get("Crisis Triggers"));
+		crisisWidget.setWidgetTitle(getStrings().get("Crisis"));
 		crisisWidget.setWidgetTotal(crisisTriggerTotalCount);
 		crisisWidget.setWidgetTotalDescription(getFormatter().formatNumber(crisisTriggerTotalCount));
 		crisisWidget.setWidgetSubtitle(getStrings().get("Total"));
