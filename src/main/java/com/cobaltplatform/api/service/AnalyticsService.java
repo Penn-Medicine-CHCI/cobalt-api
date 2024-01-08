@@ -1165,12 +1165,13 @@ public class AnalyticsService implements AutoCloseable {
 						SELECT
 						  gs.group_session_id,
 						  gs.title,
+						  gs.facilitator_name,
 						  gs.start_date_time,
 						  COALESCE(MAX(gsr.page_view_count), 0) AS page_view_count,
 						  COALESCE(MAX(gsr.registration_count), 0) AS registration_count
 						FROM gs_row gsr, group_session gs
 						WHERE gsr.group_session_id=gs.group_session_id
-						GROUP BY gs.group_session_id, gs.title, gs.start_date_time
+						GROUP BY gs.group_session_id, gs.title, gs.facilitator_name, gs.start_date_time
 						ORDER BY registration_count DESC, page_view_count DESC, gs.title, gs.start_date_time
 						""", GroupSessionCount.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, urlPathRegex,
 				startTimestamp, endTimestamp, institutionId);
@@ -1848,6 +1849,8 @@ public class AnalyticsService implements AutoCloseable {
 		@Nullable
 		private String title;
 		@Nullable
+		private String facilitator;
+		@Nullable
 		private LocalDateTime startDateTime;
 		@Nullable
 		private Long registrationCount;
@@ -1870,6 +1873,15 @@ public class AnalyticsService implements AutoCloseable {
 
 		public void setTitle(@Nullable String title) {
 			this.title = title;
+		}
+
+		@Nullable
+		public String getFacilitator() {
+			return this.facilitator;
+		}
+
+		public void setFacilitator(@Nullable String facilitator) {
+			this.facilitator = facilitator;
 		}
 
 		@Nullable

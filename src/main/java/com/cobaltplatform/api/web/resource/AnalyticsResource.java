@@ -1195,6 +1195,7 @@ public class AnalyticsResource {
 			GroupSessionCount groupSessionCount1 = new GroupSessionCount();
 			groupSessionCount1.setGroupSessionId(UUID.randomUUID());
 			groupSessionCount1.setTitle(getStrings().get("Group Session 1"));
+			groupSessionCount1.setFacilitator("Facilitator 1");
 			groupSessionCount1.setStartDateTime(LocalDateTime.of(LocalDate.of(2025, 1, 1), LocalTime.of(13, 30)));
 			groupSessionCount1.setRegistrationCount(100L);
 			groupSessionCount1.setPageViewCount(10000L);
@@ -1202,6 +1203,7 @@ public class AnalyticsResource {
 			GroupSessionCount groupSessionCount2 = new GroupSessionCount();
 			groupSessionCount2.setGroupSessionId(UUID.randomUUID());
 			groupSessionCount2.setTitle(getStrings().get("Group Session 2"));
+			groupSessionCount2.setFacilitator("Facilitator 2");
 			groupSessionCount2.setStartDateTime(LocalDateTime.of(LocalDate.of(2026, 12, 31), LocalTime.of(18, 30)));
 			groupSessionCount2.setRegistrationCount(1000L);
 			groupSessionCount2.setPageViewCount(1250000L);
@@ -1235,6 +1237,7 @@ public class AnalyticsResource {
 
 		groupSessionTableWidgetData.setHeaders(List.of(
 				getStrings().get("Session Title"),
+				getStrings().get("Facilitator"),
 				getStrings().get("Date Scheduled"),
 				getStrings().get("Pageviews"),
 				getStrings().get("Registrations")
@@ -1250,6 +1253,7 @@ public class AnalyticsResource {
 							"groupSessionIndex", groupSessionIndex,
 							"groupSessionTitle", groupSessionCount.getTitle()
 					)),
+					groupSessionCount.getFacilitator(),
 					groupSessionCount.getStartDateTime() == null ? "--" : getFormatter().formatDateTime(groupSessionCount.getStartDateTime(), FormatStyle.SHORT, FormatStyle.SHORT),
 					getFormatter().formatNumber(groupSessionCount.getPageViewCount()),
 					getFormatter().formatNumber(groupSessionCount.getRegistrationCount())
