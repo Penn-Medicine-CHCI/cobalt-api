@@ -1241,17 +1241,22 @@ public class AnalyticsResource {
 		));
 
 		List<AnalyticsWidgetTableRow> groupSessionWidgetTableRows = new ArrayList<>(groupSessionSummary.getGroupSessionCounts().size());
+		int groupSessionIndex = 1;
 
 		for (GroupSessionCount groupSessionCount : groupSessionSummary.getGroupSessionCounts()) {
 			AnalyticsWidgetTableRow row = new AnalyticsWidgetTableRow();
 			row.setData(List.of(
-					groupSessionCount.getTitle(),
+					getStrings().get("{{groupSessionIndex}}. {{groupSessionTitle}}", Map.of(
+							"groupSessionIndex", groupSessionIndex,
+							"groupSessionTitle", groupSessionCount.getTitle()
+					)),
 					groupSessionCount.getStartDateTime() == null ? "--" : getFormatter().formatDateTime(groupSessionCount.getStartDateTime(), FormatStyle.SHORT, FormatStyle.SHORT),
 					getFormatter().formatNumber(groupSessionCount.getPageViewCount()),
 					getFormatter().formatNumber(groupSessionCount.getRegistrationCount())
 			));
 
 			groupSessionWidgetTableRows.add(row);
+			++groupSessionIndex;
 		}
 
 		groupSessionTableWidgetData.setRows(groupSessionWidgetTableRows);
@@ -1508,15 +1513,20 @@ public class AnalyticsResource {
 		));
 
 		List<AnalyticsWidgetTableRow> resourceDetailWidgetTableRows = new ArrayList<>(resourceAndTopicSummary.getContentPageViews().size());
+		int contentIndex = 1;
 
 		for (ContentPageView contentPageView : resourceAndTopicSummary.getContentPageViews()) {
 			AnalyticsWidgetTableRow row = new AnalyticsWidgetTableRow();
 			row.setData(List.of(
-					contentPageView.getContentTitle(),
+					getStrings().get("{{contentIndex}}. {{contentTitle}}", Map.of(
+							"contentIndex", contentIndex,
+							"contentTitle", contentPageView.getContentTitle()
+					)),
 					getFormatter().formatNumber(contentPageView.getPageViewCount())
 			));
 
 			resourceDetailWidgetTableRows.add(row);
+			++contentIndex;
 		}
 
 		resourceDetailWidgetTableData.setRows(resourceDetailWidgetTableRows);
