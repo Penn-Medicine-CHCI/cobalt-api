@@ -145,6 +145,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/137-suds-therm
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/138-analytics.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/139-analytics.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/140-fcm.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/141-analytics.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

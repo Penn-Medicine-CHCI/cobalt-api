@@ -57,6 +57,8 @@ public class StudyApiResponse {
 	private final String coordinatorPhoneNumber;
 	@Nullable
 	private final String coordinatorPhoneNumberDescription;
+	@Nullable
+	private final String coordinatorAvailability;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -81,6 +83,7 @@ public class StudyApiResponse {
 		this.coordinatorEmailAddress = study.getCoordinatorEmailAddress();
 		this.coordinatorPhoneNumber = study.getCoordinatorPhoneNumber();
 		this.coordinatorPhoneNumberDescription = getCoordinatorPhoneNumber() == null ? null : formatter.formatPhoneNumber(getCoordinatorPhoneNumber());
+		this.coordinatorAvailability = study.getCoordinatorAvailability();
 	}
 
 	@Nullable
@@ -131,5 +134,10 @@ public class StudyApiResponse {
 	@Nullable
 	public String getCoordinatorPhoneNumberDescription() {
 		return this.coordinatorPhoneNumberDescription;
+	}
+
+	@Nullable
+	public String getCoordinatorAvailability() {
+		return this.coordinatorAvailability;
 	}
 }
