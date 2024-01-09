@@ -27,6 +27,8 @@ import com.cobaltplatform.api.model.db.Color.ColorId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.ReportType.ReportTypeId;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
+import com.cobaltplatform.api.model.db.TopicCenter;
+import com.cobaltplatform.api.model.db.TopicCenterDisplayStyle.TopicCenterDisplayStyleId;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
@@ -50,6 +52,7 @@ import com.cobaltplatform.api.service.AnalyticsService.TrafficSourceSummary;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ScreeningService;
+import com.cobaltplatform.api.service.TopicCenterService;
 import com.cobaltplatform.api.util.Formatter;
 import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
@@ -112,6 +115,8 @@ public class AnalyticsResource {
 	@Nonnull
 	private final InstitutionService institutionService;
 	@Nonnull
+	private final TopicCenterService topicCenterService;
+	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
@@ -127,6 +132,7 @@ public class AnalyticsResource {
 													 @Nonnull AuthorizationService authorizationService,
 													 @Nonnull ScreeningService screeningService,
 													 @Nonnull InstitutionService institutionService,
+													 @Nonnull TopicCenterService topicCenterService,
 													 @Nonnull Configuration configuration,
 													 @Nonnull Provider<CurrentContext> currentContextProvider,
 													 @Nonnull Strings strings,
@@ -135,6 +141,7 @@ public class AnalyticsResource {
 		requireNonNull(authorizationService);
 		requireNonNull(screeningService);
 		requireNonNull(institutionService);
+		requireNonNull(topicCenterService);
 		requireNonNull(configuration);
 		requireNonNull(currentContextProvider);
 		requireNonNull(strings);
@@ -144,6 +151,7 @@ public class AnalyticsResource {
 		this.authorizationService = authorizationService;
 		this.screeningService = screeningService;
 		this.institutionService = institutionService;
+		this.topicCenterService = topicCenterService;
 		this.configuration = configuration;
 		this.currentContextProvider = currentContextProvider;
 		this.strings = strings;
@@ -1453,9 +1461,12 @@ public class AnalyticsResource {
 
 			List<ContentPageView> contentPageViews = List.of(contentPageView1);
 
+			// Pick an arbitrary topic center
+			TopicCenter topicCenter = getTopicCenterService().findTopicCentersByInstitutionId(InstitutionId.COBALT).get(0);
+
 			TopicCenterInteraction topicCenterInteraction1 = new TopicCenterInteraction();
-			topicCenterInteraction1.setTopicCenterId(UUID.randomUUID());
-			topicCenterInteraction1.setName(getStrings().get("Topic Center 1"));
+			topicCenterInteraction1.setTopicCenterId(topicCenter.getTopicCenterId());
+			topicCenterInteraction1.setName(topicCenter.getName());
 			topicCenterInteraction1.setPageViewCount(1000L);
 			topicCenterInteraction1.setUniqueVisitorCount(500L);
 			topicCenterInteraction1.setActiveUserCount(35L);
@@ -1606,9 +1617,16 @@ public class AnalyticsResource {
 		List<AnalyticsWidgetTableRow> topicCenterWidgetTableRows = new ArrayList<>(resourceAndTopicSummary.getTopicCenterInteractions().size());
 
 		for (TopicCenterInteraction topicCenterInteraction : resourceAndTopicSummary.getTopicCenterInteractions()) {
+			String topicCenterUrl = topicCenterUrl(institutionId, topicCenterInteraction.getTopicCenterId());
+
+			String topicCenterName = getStrings().get("<a href='{{topicCenterUrl}}' target='_blank'>{{topicCenterName}}</a>", Map.of(
+					"topicCenterUrl", topicCenterUrl,
+					"topicCenterName", topicCenterInteraction.getName()
+			));
+
 			AnalyticsWidgetTableRow row = new AnalyticsWidgetTableRow();
 			row.setData(List.of(
-					topicCenterInteraction.getName(),
+					topicCenterName,
 					getFormatter().formatNumber(topicCenterInteraction.getPageViewCount()),
 					getFormatter().formatNumber(topicCenterInteraction.getUniqueVisitorCount()),
 					getFormatter().formatNumber(topicCenterInteraction.getActiveUserCount()),
@@ -1790,6 +1808,21 @@ public class AnalyticsResource {
 
 		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.STAFF).get();
 		return format("%s/admin/group-sessions/view/%s", webappBaseUrl, groupSessionId);
+	}
+
+	@Nonnull
+	protected String topicCenterUrl(@Nonnull InstitutionId institutionId,
+																	@Nonnull UUID topicCenterId) {
+		requireNonNull(institutionId);
+		requireNonNull(topicCenterId);
+
+		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.PATIENT).get();
+		TopicCenter topicCenter = getTopicCenterService().findTopicCenterById(topicCenterId).get();
+
+		if (topicCenter.getTopicCenterDisplayStyleId() == TopicCenterDisplayStyleId.FEATURED)
+			return format("%s/featured-topics/%s", webappBaseUrl, topicCenter.getUrlName());
+
+		return format("%s/community/%s", webappBaseUrl, topicCenter.getUrlName());
 	}
 
 	public enum AnalyticsWidgetTypeId {
@@ -2133,6 +2166,11 @@ public class AnalyticsResource {
 	@Nonnull
 	protected InstitutionService getInstitutionService() {
 		return this.institutionService;
+	}
+
+	@Nonnull
+	protected TopicCenterService getTopicCenterService() {
+		return this.topicCenterService;
 	}
 
 	@Nonnull
