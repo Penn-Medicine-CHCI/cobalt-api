@@ -424,7 +424,7 @@ public class AnalyticsResource {
 		// Group 3
 		AnalyticsBarChartWidget referralsWidget = new AnalyticsBarChartWidget();
 		referralsWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_USER_REFERRALS);
-		referralsWidget.setWidgetTitle(getStrings().get("Users from Referrals"));
+		referralsWidget.setWidgetTitle(getStrings().get("Top Acquisition Channels"));
 		referralsWidget.setWidgetSubtitle(getStrings().get("{{percentage}} of Total", Map.of("percentage", getFormatter().formatPercent(trafficSourceSummary.getUsersFromNonDirectTrafficSourceMediumPercentage()))));
 		referralsWidget.setWidgetChartLabel(getStrings().get("Users"));
 		referralsWidget.setWidgetTotal(trafficSourceSummary.getUsersFromTrafficSourceMediumTotalCount());

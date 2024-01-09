@@ -753,6 +753,16 @@ public class AnalyticsService implements AutoCloseable {
 				ORDER BY user_count DESC
 					""", TrafficSourceMediumCount.class, startTimestamp, endTimestamp, institutionId);
 
+		// Nicer names here
+		for (TrafficSourceMediumCount trafficSourceMediumCount : trafficSourceMediumCounts) {
+			if ("(none)".equalsIgnoreCase(trafficSourceMediumCount.getMedium()))
+				trafficSourceMediumCount.setMedium(getStrings().get("Direct"));
+			else if ("referral".equalsIgnoreCase(trafficSourceMediumCount.getMedium()))
+				trafficSourceMediumCount.setMedium(getStrings().get("Referral"));
+			else if ("organic".equalsIgnoreCase(trafficSourceMediumCount.getMedium()))
+				trafficSourceMediumCount.setMedium(getStrings().get("Organic Search"));
+		}
+
 		// e.g. "google, canva.com, yahoo, ..."
 		List<TrafficSourceReferrerCount> trafficSourceReferrerCounts = List.of();
 
@@ -770,6 +780,7 @@ public class AnalyticsService implements AutoCloseable {
 					)
 					SELECT COUNT(*) AS user_count, ts.referrer
 					FROM ts
+					WHERE ts.referrer != '(direct)'
 					GROUP BY ts.referrer
 					ORDER BY user_count DESC
 					""", TrafficSourceReferrerCount.class, startTimestamp, endTimestamp, institutionId);
