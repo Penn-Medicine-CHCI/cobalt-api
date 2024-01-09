@@ -808,6 +808,7 @@ public class AnalyticsResource {
 					new AppointmentCount() {{
 						setProviderId(UUID.randomUUID());
 						setName(getStrings().get("Test Provider"));
+						setUrlName("test-provider");
 						setSupportRolesDescription("Support Role 1, Support Role 2");
 						setAvailableAppointmentCount(150L);
 						setBookedAppointmentCount(25L);
@@ -956,9 +957,14 @@ public class AnalyticsResource {
 		List<AnalyticsWidgetTableRow> providerWidgetTableRows = new ArrayList<>(appointmentCounts.size());
 
 		for (AppointmentCount appointmentCount : appointmentCounts) {
+			String providerName = getStrings().get("<a href='{{providerDetailUrl}}' target='_blank'>{{providerName}}</a>", Map.of(
+					"providerDetailUrl", providerDetailUrl(institutionId, appointmentCount.getUrlName()),
+					"providerName", appointmentCount.getName()
+			));
+
 			AnalyticsWidgetTableRow row = new AnalyticsWidgetTableRow();
 			row.setData(List.of(
-					appointmentCount.getName(),
+					providerName,
 					appointmentCount.getSupportRolesDescription(),
 					getFormatter().formatNumber(appointmentCount.getAvailableAppointmentCount()),
 					getFormatter().formatNumber(appointmentCount.getBookedAppointmentCount()),
@@ -1726,6 +1732,16 @@ public class AnalyticsResource {
 		}
 
 		return CustomResponse.instance();
+	}
+
+	@Nonnull
+	protected String providerDetailUrl(@Nonnull InstitutionId institutionId,
+																		 @Nonnull Object providerIdentifier /* either ID or URL Name is acceptable */) {
+		requireNonNull(institutionId);
+		requireNonNull(providerIdentifier);
+
+		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.PATIENT).get();
+		return format("%s/providers/%s", webappBaseUrl, providerIdentifier);
 	}
 
 	@Nonnull

@@ -1015,30 +1015,31 @@ public class AnalyticsService implements AutoCloseable {
 						        AND pah.slot_date_time AT TIME ZONE i.time_zone between ? AND ?
 						        AND p.institution_id=?
 						    )
-						    SELECT p.provider_id, p.name, count(aa.*) as available_appointment_count, NULL::BIGINT as booked_appointment_count, NULL::BIGINT as canceled_appointment_count
+						    SELECT p.provider_id, p.name, p.url_name, count(aa.*) as available_appointment_count, NULL::BIGINT as booked_appointment_count, NULL::BIGINT as canceled_appointment_count
 						    FROM provider p
 						    LEFT OUTER JOIN available_app aa ON p.provider_id=aa.provider_id
 						    WHERE p.institution_id=?
-						    GROUP BY p.provider_id, p.name, booked_appointment_count, canceled_appointment_count
+						    GROUP BY p.provider_id, p.name, p.url_name, booked_appointment_count, canceled_appointment_count
 						    HAVING count(aa.*) > 0
 						    UNION
-						    SELECT p.provider_id, p.name, NULL::BIGINT as available_appointment_count, count(ba.*) as booked_appointment_count, NULL::BIGINT as canceled_appointment_count
+						    SELECT p.provider_id, p.name, p.url_name, NULL::BIGINT as available_appointment_count, count(ba.*) as booked_appointment_count, NULL::BIGINT as canceled_appointment_count
 						    FROM provider p
 						    LEFT OUTER JOIN booked_app ba ON p.provider_id=ba.provider_id
 						    WHERE p.institution_id=?
-						    GROUP BY p.provider_id, p.name, available_appointment_count, canceled_appointment_count
+						    GROUP BY p.provider_id, p.name, p.url_name, available_appointment_count, canceled_appointment_count
 						    HAVING count(ba.*) > 0
 						    UNION
-						    SELECT p.provider_id, p.name, NULL::BIGINT as available_appointment_count, NULL::BIGINT as booked_appointment_count, count(ca.*) as canceled_appointment_count
+						    SELECT p.provider_id, p.name, p.url_name, NULL::BIGINT as available_appointment_count, NULL::BIGINT as booked_appointment_count, count(ca.*) as canceled_appointment_count
 						    FROM provider p
 						    LEFT OUTER JOIN canceled_app ca ON p.provider_id=ca.provider_id
 						    WHERE p.institution_id=?
-						    GROUP BY p.provider_id, p.name, available_appointment_count, booked_appointment_count
+						    GROUP BY p.provider_id, p.name, p.url_name, available_appointment_count, booked_appointment_count
 						    HAVING count(ca.*) > 0
 						)
 						SELECT
 						  pr.provider_id,
 						  pr.name,
+						  pr.url_name,
 						  (COALESCE(MAX(pr.available_appointment_count), 0) + COALESCE(MAX(pr.booked_appointment_count), 0)) AS available_appointment_count,
 						  COALESCE(MAX(pr.booked_appointment_count), 0) AS booked_appointment_count,
 						  COALESCE(MAX(pr.canceled_appointment_count), 0) AS canceled_appointment_count,
@@ -1047,7 +1048,7 @@ public class AnalyticsService implements AutoCloseable {
 						    ELSE COALESCE(MAX(pr.booked_appointment_count), 0)::DECIMAL / (COALESCE(MAX(pr.available_appointment_count), 0) + COALESCE(MAX(pr.booked_appointment_count), 0))::DECIMAL
 						  END AS booking_percentage
 						FROM provider_row pr
-						GROUP BY pr.provider_id, pr.name
+						GROUP BY pr.provider_id, pr.name, pr.url_name
 						ORDER BY pr.name
 						""", AppointmentCount.class, startTimestamp, endTimestamp, institutionId,
 				startTimestamp, endTimestamp, institutionId,
@@ -2008,6 +2009,8 @@ public class AnalyticsService implements AutoCloseable {
 		@Nullable
 		private String name;
 		@Nullable
+		private String urlName;
+		@Nullable
 		private String supportRolesDescription;
 		@Nullable
 		private Long availableAppointmentCount;
@@ -2034,6 +2037,15 @@ public class AnalyticsService implements AutoCloseable {
 
 		public void setName(@Nullable String name) {
 			this.name = name;
+		}
+
+		@Nullable
+		public String getUrlName() {
+			return this.urlName;
+		}
+
+		public void setUrlName(@Nullable String urlName) {
+			this.urlName = urlName;
 		}
 
 		@Nullable
