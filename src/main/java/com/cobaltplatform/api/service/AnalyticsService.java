@@ -88,6 +88,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
+import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -1090,54 +1092,6 @@ public class AnalyticsService implements AutoCloseable {
 		return appointmentCounts;
 	}
 
-	@NotThreadSafe
-	protected static class ProviderWithSupportRole {
-		@Nullable
-		private UUID providerId;
-		@Nullable
-		private String providerName;
-		@Nullable
-		private SupportRoleId supportRoleId;
-		@Nullable
-		private String supportRoleDescription;
-
-		@Nullable
-		public UUID getProviderId() {
-			return this.providerId;
-		}
-
-		public void setProviderId(@Nullable UUID providerId) {
-			this.providerId = providerId;
-		}
-
-		@Nullable
-		public String getProviderName() {
-			return this.providerName;
-		}
-
-		public void setProviderName(@Nullable String providerName) {
-			this.providerName = providerName;
-		}
-
-		@Nullable
-		public SupportRoleId getSupportRoleId() {
-			return this.supportRoleId;
-		}
-
-		public void setSupportRoleId(@Nullable SupportRoleId supportRoleId) {
-			this.supportRoleId = supportRoleId;
-		}
-
-		@Nullable
-		public String getSupportRoleDescription() {
-			return this.supportRoleDescription;
-		}
-
-		public void setSupportRoleDescription(@Nullable String supportRoleDescription) {
-			this.supportRoleDescription = supportRoleDescription;
-		}
-	}
-
 	@Nonnull
 	public List<AppointmentClickToCallCount> findAppointmentClickToCallCounts(@Nonnull InstitutionId institutionId,
 																																						@Nonnull LocalDate startDate,
@@ -1374,6 +1328,53 @@ public class AnalyticsService implements AutoCloseable {
 				ORDER BY cpnv.page_view_count DESC, c.title
 				LIMIT 25
 				""", ContentPageView.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, "?", "?");
+
+		// whereClauseComponents.add(format("AND tc.tag_id IN %s", sqlInListPlaceholders(tagIds)));
+
+		Set<UUID> contentIds = contentPageViews.stream().map(cpv -> cpv.getContentId()).collect(Collectors.toSet());
+
+		List<Object> contentPageViewTagParameters = new ArrayList<>();
+		contentPageViewTagParameters.add(institutionId);
+		contentPageViewTagParameters.addAll(contentIds);
+
+		StringBuilder contentPageViewTagsSql = new StringBuilder();
+		contentPageViewTagsSql.append("""
+				SELECT t.tag_id, tc.content_id, t.description AS tag_description, t.url_name AS tag_url_name
+				FROM tag_content tc, tag t
+				WHERE tc.institution_id=?
+				AND tc.tag_id=t.tag_id
+				""");
+
+		if (contentIds.size() > 0) {
+			contentPageViewTagsSql.append(format("""
+					AND tc.content_id IN %s
+					""", sqlInListPlaceholders(contentIds)));
+		}
+
+		contentPageViewTagsSql.append("""
+				ORDER BY t.tag_id, t.description
+				""");
+
+		List<ContentPageViewTag> contentPageViewTags = getDatabase().queryForList(contentPageViewTagsSql.toString(),
+				ContentPageViewTag.class, sqlVaragsParameters(contentPageViewTagParameters));
+
+		Map<UUID, List<ContentPageViewTag>> contentPageViewTagsByContentId = new HashMap<>(contentPageViews.size());
+
+		for (ContentPageViewTag contentPageViewTag : contentPageViewTags) {
+			List<ContentPageViewTag> currentContentPageViewTags = contentPageViewTagsByContentId.get(contentPageViewTag.getContentId());
+
+			if (currentContentPageViewTags == null) {
+				currentContentPageViewTags = new ArrayList<>();
+				contentPageViewTagsByContentId.put(contentPageViewTag.getContentId(), currentContentPageViewTags);
+			}
+
+			currentContentPageViewTags.add(contentPageViewTag);
+		}
+
+		for (ContentPageView contentPageView : contentPageViews) {
+			List<ContentPageViewTag> currentContentPageViewTags = contentPageViewTagsByContentId.get(contentPageView.getContentId());
+			contentPageView.setContentPageViewTags(currentContentPageViewTags == null ? List.of() : currentContentPageViewTags);
+		}
 
 		List<TopicCenterInteraction> topicCenterInteractions = getDatabase().queryForList("""
 						WITH topic_center_row as (
@@ -1759,6 +1760,8 @@ public class AnalyticsService implements AutoCloseable {
 		private String contentTitle;
 		@Nullable
 		private Long pageViewCount;
+		@Nullable
+		private List<ContentPageViewTag> contentPageViewTags;
 
 		@Nullable
 		public UUID getContentId() {
@@ -1785,6 +1788,63 @@ public class AnalyticsService implements AutoCloseable {
 
 		public void setPageViewCount(@Nullable Long pageViewCount) {
 			this.pageViewCount = pageViewCount;
+		}
+
+		@Nullable
+		public List<ContentPageViewTag> getContentPageViewTags() {
+			return this.contentPageViewTags;
+		}
+
+		public void setContentPageViewTags(@Nullable List<ContentPageViewTag> contentPageViewTags) {
+			this.contentPageViewTags = contentPageViewTags;
+		}
+	}
+
+	@NotThreadSafe
+	public static class ContentPageViewTag {
+		@Nullable
+		private String tagId;
+		@Nullable
+		private UUID contentId;
+		@Nullable
+		private String tagDescription;
+		@Nullable
+		private String tagUrlName;
+
+		@Nullable
+		public String getTagId() {
+			return this.tagId;
+		}
+
+		public void setTagId(@Nullable String tagId) {
+			this.tagId = tagId;
+		}
+
+		@Nullable
+		public UUID getContentId() {
+			return this.contentId;
+		}
+
+		public void setContentId(@Nullable UUID contentId) {
+			this.contentId = contentId;
+		}
+
+		@Nullable
+		public String getTagDescription() {
+			return this.tagDescription;
+		}
+
+		public void setTagDescription(@Nullable String tagDescription) {
+			this.tagDescription = tagDescription;
+		}
+
+		@Nullable
+		public String getTagUrlName() {
+			return this.tagUrlName;
+		}
+
+		public void setTagUrlName(@Nullable String tagUrlName) {
+			this.tagUrlName = tagUrlName;
 		}
 	}
 
@@ -1929,6 +1989,54 @@ public class AnalyticsService implements AutoCloseable {
 
 		public void setGroupSessionCounts(@Nullable List<GroupSessionCount> groupSessionCounts) {
 			this.groupSessionCounts = groupSessionCounts;
+		}
+	}
+
+	@NotThreadSafe
+	protected static class ProviderWithSupportRole {
+		@Nullable
+		private UUID providerId;
+		@Nullable
+		private String providerName;
+		@Nullable
+		private SupportRoleId supportRoleId;
+		@Nullable
+		private String supportRoleDescription;
+
+		@Nullable
+		public UUID getProviderId() {
+			return this.providerId;
+		}
+
+		public void setProviderId(@Nullable UUID providerId) {
+			this.providerId = providerId;
+		}
+
+		@Nullable
+		public String getProviderName() {
+			return this.providerName;
+		}
+
+		public void setProviderName(@Nullable String providerName) {
+			this.providerName = providerName;
+		}
+
+		@Nullable
+		public SupportRoleId getSupportRoleId() {
+			return this.supportRoleId;
+		}
+
+		public void setSupportRoleId(@Nullable SupportRoleId supportRoleId) {
+			this.supportRoleId = supportRoleId;
+		}
+
+		@Nullable
+		public String getSupportRoleDescription() {
+			return this.supportRoleDescription;
+		}
+
+		public void setSupportRoleDescription(@Nullable String supportRoleDescription) {
+			this.supportRoleDescription = supportRoleDescription;
 		}
 	}
 

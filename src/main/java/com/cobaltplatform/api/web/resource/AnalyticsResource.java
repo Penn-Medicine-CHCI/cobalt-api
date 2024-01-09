@@ -1269,7 +1269,7 @@ public class AnalyticsResource {
 		for (GroupSessionCount groupSessionCount : groupSessionSummary.getGroupSessionCounts()) {
 			String groupSessionTitle = getStrings().get("{{groupSessionIndex}}. <a href='{{groupSessionAdminUrl}}' target='_blank'>{{groupSessionTitle}}</a>", Map.of(
 					"groupSessionIndex", groupSessionIndex,
-					"groupSessionAdminUrl", groupSessionAdminUrl(institutionId, UserExperienceTypeId.STAFF, groupSessionCount.getGroupSessionId()),
+					"groupSessionAdminUrl", groupSessionAdminUrl(institutionId, groupSessionCount.getGroupSessionId()),
 					"groupSessionTitle", groupSessionCount.getTitle()
 			));
 
@@ -1436,6 +1436,20 @@ public class AnalyticsResource {
 			contentPageView1.setContentId(UUID.randomUUID());
 			contentPageView1.setContentTitle(getStrings().get("Content Title 1"));
 			contentPageView1.setPageViewCount(12345L);
+			contentPageView1.setContentPageViewTags(List.of(
+					new AnalyticsService.ContentPageViewTag() {{
+						setTagId("MOOD");
+						setTagDescription("Mood");
+						setContentId(UUID.randomUUID());
+						setTagUrlName("mood");
+					}},
+					new AnalyticsService.ContentPageViewTag() {{
+						setTagId("STRESS");
+						setTagDescription("Stress");
+						setContentId(UUID.randomUUID());
+						setTagUrlName("stress");
+					}}
+			));
 
 			List<ContentPageView> contentPageViews = List.of(contentPageView1);
 
@@ -1536,6 +1550,7 @@ public class AnalyticsResource {
 
 		resourceDetailWidgetTableData.setHeaders(List.of(
 				getStrings().get("Content Title"),
+				getStrings().get("Tags"),
 				getStrings().get("Views")
 		));
 
@@ -1543,12 +1558,22 @@ public class AnalyticsResource {
 		int contentIndex = 1;
 
 		for (ContentPageView contentPageView : resourceAndTopicSummary.getContentPageViews()) {
+			String contentAdminUrl = contentAdminUrl(institutionId, contentPageView.getContentId());
+
+			String contentTitle = getStrings().get("{{contentIndex}}. <a href='{{contentAdminUrl}}' target='_blank'>{{contentTitle}}</a>", Map.of(
+					"contentIndex", contentIndex,
+					"contentAdminUrl", contentAdminUrl,
+					"contentTitle", contentPageView.getContentTitle()
+			));
+
+			String contentTagsDescription = contentPageView.getContentPageViewTags().stream()
+					.map(contentPageViewTag -> contentPageViewTag.getTagDescription())
+					.collect(Collectors.joining(", "));
+
 			AnalyticsWidgetTableRow row = new AnalyticsWidgetTableRow();
 			row.setData(List.of(
-					getStrings().get("{{contentIndex}}. {{contentTitle}}", Map.of(
-							"contentIndex", contentIndex,
-							"contentTitle", contentPageView.getContentTitle()
-					)),
+					contentTitle,
+					contentTagsDescription,
 					getFormatter().formatNumber(contentPageView.getPageViewCount())
 			));
 
@@ -1745,14 +1770,22 @@ public class AnalyticsResource {
 	}
 
 	@Nonnull
+	protected String contentAdminUrl(@Nonnull InstitutionId institutionId,
+																	 @Nonnull UUID contentId) {
+		requireNonNull(institutionId);
+		requireNonNull(contentId);
+
+		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.STAFF).get();
+		return format("%s/admin/my-content/create?contentId=%s&editing=true", webappBaseUrl, contentId);
+	}
+
+	@Nonnull
 	protected String groupSessionAdminUrl(@Nonnull InstitutionId institutionId,
-																				@Nonnull UserExperienceTypeId userExperienceTypeId,
 																				@Nonnull UUID groupSessionId) {
 		requireNonNull(institutionId);
-		requireNonNull(userExperienceTypeId);
 		requireNonNull(groupSessionId);
 
-		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, userExperienceTypeId).get();
+		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.STAFF).get();
 		return format("%s/admin/group-sessions/view/%s", webappBaseUrl, groupSessionId);
 	}
 
