@@ -27,6 +27,7 @@ import com.cobaltplatform.api.model.db.Color.ColorId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.ReportType.ReportTypeId;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
+import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
 import com.cobaltplatform.api.service.AnalyticsService;
@@ -92,6 +93,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -845,18 +847,27 @@ public class AnalyticsResource {
 			AnalyticsWidgetChartData startedWidgetChartData = new AnalyticsWidgetChartData();
 			startedWidgetChartData.setCount(screeningSessionCompletion.getStartedCount());
 			startedWidgetChartData.setCountDescription(getFormatter().formatNumber(screeningSessionCompletion.getStartedCount()));
-			startedWidgetChartData.setLabel(getStrings().get("Started"));
+			startedWidgetChartData.setLabel(getStrings().get("Total"));
 			startedWidgetChartData.setColor(successColorCssRepresentations.get(0 % successColorCssRepresentations.size()));
 
 			AnalyticsWidgetChartData completedWidgetChartData = new AnalyticsWidgetChartData();
 			completedWidgetChartData.setCount(screeningSessionCompletion.getCompletedCount());
 			completedWidgetChartData.setCountDescription(getFormatter().formatNumber(screeningSessionCompletion.getCompletedCount()));
-			completedWidgetChartData.setLabel(getStrings().get("Completed"));
+			completedWidgetChartData.setLabel(getStrings().get("Complete"));
 			completedWidgetChartData.setColor(successColorCssRepresentations.get(1 % successColorCssRepresentations.size()));
+
+			Long incompleteCount = screeningSessionCompletion.getStartedCount() - screeningSessionCompletion.getCompletedCount();
+
+			AnalyticsWidgetChartData incompleteWidgetChartData = new AnalyticsWidgetChartData();
+			incompleteWidgetChartData.setCount(incompleteCount);
+			incompleteWidgetChartData.setCountDescription(getFormatter().formatNumber(incompleteCount));
+			incompleteWidgetChartData.setLabel(getStrings().get("Incomplete"));
+			incompleteWidgetChartData.setColor(successColorCssRepresentations.get(2 % successColorCssRepresentations.size()));
 
 			clinicalAssessmentCompletionWidget.setWidgetData(List.of(
 					startedWidgetChartData,
-					completedWidgetChartData
+					completedWidgetChartData,
+					incompleteWidgetChartData
 			));
 
 			clinicalAssessmentWidgets.add(clinicalAssessmentCompletionWidget);
@@ -1026,7 +1037,7 @@ public class AnalyticsResource {
 				          "widgetTotal": 0.25,
 				          "widgetTotalDescription": "25%",
 				          "widgetSubtitle": "Completion Rate",
-				          "widgetTypeId": "BAR_CHART",
+				          "widgetTypeId": "PIE_CHART",
 				          "widgetChartLabel": "Assessments",
 				          "widgetData": [
 				            {
@@ -1195,7 +1206,7 @@ public class AnalyticsResource {
 			GroupSessionCount groupSessionCount1 = new GroupSessionCount();
 			groupSessionCount1.setGroupSessionId(UUID.randomUUID());
 			groupSessionCount1.setTitle(getStrings().get("Group Session 1"));
-			groupSessionCount1.setFacilitator("Facilitator 1");
+			groupSessionCount1.setFacilitator(getStrings().get("Facilitator 1"));
 			groupSessionCount1.setStartDateTime(LocalDateTime.of(LocalDate.of(2025, 1, 1), LocalTime.of(13, 30)));
 			groupSessionCount1.setRegistrationCount(100L);
 			groupSessionCount1.setPageViewCount(10000L);
@@ -1203,7 +1214,7 @@ public class AnalyticsResource {
 			GroupSessionCount groupSessionCount2 = new GroupSessionCount();
 			groupSessionCount2.setGroupSessionId(UUID.randomUUID());
 			groupSessionCount2.setTitle(getStrings().get("Group Session 2"));
-			groupSessionCount2.setFacilitator("Facilitator 2");
+			groupSessionCount2.setFacilitator(getStrings().get("Facilitator 2"));
 			groupSessionCount2.setStartDateTime(LocalDateTime.of(LocalDate.of(2026, 12, 31), LocalTime.of(18, 30)));
 			groupSessionCount2.setRegistrationCount(1000L);
 			groupSessionCount2.setPageViewCount(1250000L);
@@ -1247,12 +1258,15 @@ public class AnalyticsResource {
 		int groupSessionIndex = 1;
 
 		for (GroupSessionCount groupSessionCount : groupSessionSummary.getGroupSessionCounts()) {
+			String groupSessionTitle = getStrings().get("{{groupSessionIndex}}. <a href='{{groupSessionAdminUrl}}' target='_blank'>{{groupSessionTitle}}</a>", Map.of(
+					"groupSessionIndex", groupSessionIndex,
+					"groupSessionAdminUrl", groupSessionAdminUrl(institutionId, UserExperienceTypeId.STAFF, groupSessionCount.getGroupSessionId()),
+					"groupSessionTitle", groupSessionCount.getTitle()
+			));
+
 			AnalyticsWidgetTableRow row = new AnalyticsWidgetTableRow();
 			row.setData(List.of(
-					getStrings().get("{{groupSessionIndex}}. {{groupSessionTitle}}", Map.of(
-							"groupSessionIndex", groupSessionIndex,
-							"groupSessionTitle", groupSessionCount.getTitle()
-					)),
+					groupSessionTitle,
 					groupSessionCount.getFacilitator(),
 					groupSessionCount.getStartDateTime() == null ? "--" : getFormatter().formatDateTime(groupSessionCount.getStartDateTime(), FormatStyle.SHORT, FormatStyle.SHORT),
 					getFormatter().formatNumber(groupSessionCount.getPageViewCount()),
@@ -1709,6 +1723,18 @@ public class AnalyticsResource {
 		}
 
 		return CustomResponse.instance();
+	}
+
+	@Nonnull
+	protected String groupSessionAdminUrl(@Nonnull InstitutionId institutionId,
+																				@Nonnull UserExperienceTypeId userExperienceTypeId,
+																				@Nonnull UUID groupSessionId) {
+		requireNonNull(institutionId);
+		requireNonNull(userExperienceTypeId);
+		requireNonNull(groupSessionId);
+
+		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, userExperienceTypeId).get();
+		return format("%s/admin/group-sessions/view/%s", webappBaseUrl, groupSessionId);
 	}
 
 	public enum AnalyticsWidgetTypeId {
