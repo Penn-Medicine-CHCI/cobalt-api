@@ -39,6 +39,7 @@ import com.cobaltplatform.api.model.db.Feature;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.ScreeningType.ScreeningTypeId;
+import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.db.TagGroup;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
@@ -1054,7 +1055,86 @@ public class AnalyticsService implements AutoCloseable {
 				institutionId, institutionId, institutionId
 		);
 
+		// Fill in support roles for each provider
+		List<ProviderWithSupportRole> providerWithSupportRoles = getDatabase().queryForList("""
+				SELECT p.provider_id, p.name AS provider_name, sr.support_role_id, sr.description AS support_role_description
+				FROM provider p, provider_support_role psr, support_role sr
+				WHERE p.institution_id=?
+				AND p.provider_id=psr.provider_id
+				AND psr.support_role_id=sr.support_role_id
+				ORDER BY p.name, sr.description
+								""", ProviderWithSupportRole.class, institutionId);
+
+		Map<UUID, List<String>> supportRoleDescriptionsByProviderId = new HashMap<>(providerWithSupportRoles.size());
+
+		for (ProviderWithSupportRole providerWithSupportRole : providerWithSupportRoles) {
+			List<String> supportRoleDescriptions = supportRoleDescriptionsByProviderId.get(providerWithSupportRole.getProviderId());
+
+			if (supportRoleDescriptions == null) {
+				supportRoleDescriptions = new ArrayList<>();
+				supportRoleDescriptionsByProviderId.put(providerWithSupportRole.getProviderId(), supportRoleDescriptions);
+			}
+
+			supportRoleDescriptions.add(providerWithSupportRole.getSupportRoleDescription());
+		}
+
+		// Now that we have the support role data easily accessible, merge it into the results
+		for (AppointmentCount appointmentCount : appointmentCounts) {
+			List<String> supportRoleDescriptions = supportRoleDescriptionsByProviderId.get(appointmentCount.getProviderId());
+			appointmentCount.setSupportRolesDescription(supportRoleDescriptions == null || supportRoleDescriptions.size() == 0
+					? getStrings().get("Unspecified")
+					: supportRoleDescriptions.stream().collect(Collectors.joining(", ")));
+		}
+
 		return appointmentCounts;
+	}
+
+	@NotThreadSafe
+	protected static class ProviderWithSupportRole {
+		@Nullable
+		private UUID providerId;
+		@Nullable
+		private String providerName;
+		@Nullable
+		private SupportRoleId supportRoleId;
+		@Nullable
+		private String supportRoleDescription;
+
+		@Nullable
+		public UUID getProviderId() {
+			return this.providerId;
+		}
+
+		public void setProviderId(@Nullable UUID providerId) {
+			this.providerId = providerId;
+		}
+
+		@Nullable
+		public String getProviderName() {
+			return this.providerName;
+		}
+
+		public void setProviderName(@Nullable String providerName) {
+			this.providerName = providerName;
+		}
+
+		@Nullable
+		public SupportRoleId getSupportRoleId() {
+			return this.supportRoleId;
+		}
+
+		public void setSupportRoleId(@Nullable SupportRoleId supportRoleId) {
+			this.supportRoleId = supportRoleId;
+		}
+
+		@Nullable
+		public String getSupportRoleDescription() {
+			return this.supportRoleDescription;
+		}
+
+		public void setSupportRoleDescription(@Nullable String supportRoleDescription) {
+			this.supportRoleDescription = supportRoleDescription;
+		}
 	}
 
 	@Nonnull
@@ -1928,6 +2008,8 @@ public class AnalyticsService implements AutoCloseable {
 		@Nullable
 		private String name;
 		@Nullable
+		private String supportRolesDescription;
+		@Nullable
 		private Long availableAppointmentCount;
 		@Nullable
 		private Long bookedAppointmentCount;
@@ -1952,6 +2034,15 @@ public class AnalyticsService implements AutoCloseable {
 
 		public void setName(@Nullable String name) {
 			this.name = name;
+		}
+
+		@Nullable
+		public String getSupportRolesDescription() {
+			return this.supportRolesDescription;
+		}
+
+		public void setSupportRolesDescription(@Nullable String supportRolesDescription) {
+			this.supportRolesDescription = supportRolesDescription;
 		}
 
 		@Nullable

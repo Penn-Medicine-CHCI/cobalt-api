@@ -808,6 +808,7 @@ public class AnalyticsResource {
 					new AppointmentCount() {{
 						setProviderId(UUID.randomUUID());
 						setName(getStrings().get("Test Provider"));
+						setSupportRolesDescription("Support Role 1, Support Role 2");
 						setAvailableAppointmentCount(150L);
 						setBookedAppointmentCount(25L);
 						setCanceledAppointmentCount(45L);
@@ -945,6 +946,7 @@ public class AnalyticsResource {
 
 		providerWidgetTableData.setHeaders(List.of(
 				getStrings().get("Provider Name"),
+				getStrings().get("Support Role"),
 				getStrings().get("Available Appointments"),
 				getStrings().get("Booked Appointments"),
 				getStrings().get("Cancelled Appointments"),
@@ -957,6 +959,7 @@ public class AnalyticsResource {
 			AnalyticsWidgetTableRow row = new AnalyticsWidgetTableRow();
 			row.setData(List.of(
 					appointmentCount.getName(),
+					appointmentCount.getSupportRolesDescription(),
 					getFormatter().formatNumber(appointmentCount.getAvailableAppointmentCount()),
 					getFormatter().formatNumber(appointmentCount.getBookedAppointmentCount()),
 					getFormatter().formatNumber(appointmentCount.getCanceledAppointmentCount()),
