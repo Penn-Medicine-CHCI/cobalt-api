@@ -1458,6 +1458,7 @@ public class AnalyticsResource {
 			topicCenterInteraction1.setName(getStrings().get("Topic Center 1"));
 			topicCenterInteraction1.setPageViewCount(1000L);
 			topicCenterInteraction1.setUniqueVisitorCount(500L);
+			topicCenterInteraction1.setActiveUserCount(35L);
 			topicCenterInteraction1.setGroupSessionClickCount(250L);
 			topicCenterInteraction1.setGroupSessionByRequestClickCount(50L);
 			topicCenterInteraction1.setPinboardItemClickCount(10L);
@@ -1595,6 +1596,7 @@ public class AnalyticsResource {
 				getStrings().get("Topic Center Title"),
 				getStrings().get("Pageviews"),
 				getStrings().get("Unique Visitors"),
+				getStrings().get("Active Users"),
 				getStrings().get("Group Session Clicks"),
 				getStrings().get("Group Session By Request Clicks"),
 				getStrings().get("Pinboard Clicks"),
@@ -1609,6 +1611,7 @@ public class AnalyticsResource {
 					topicCenterInteraction.getName(),
 					getFormatter().formatNumber(topicCenterInteraction.getPageViewCount()),
 					getFormatter().formatNumber(topicCenterInteraction.getUniqueVisitorCount()),
+					getFormatter().formatNumber(topicCenterInteraction.getActiveUserCount()),
 					getFormatter().formatNumber(topicCenterInteraction.getGroupSessionClickCount()),
 					getFormatter().formatNumber(topicCenterInteraction.getGroupSessionByRequestClickCount()),
 					getFormatter().formatNumber(topicCenterInteraction.getPinboardItemClickCount()),

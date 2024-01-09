@@ -1429,12 +1429,42 @@ public class AnalyticsService implements AutoCloseable {
 						            )
 						        GROUP BY
 						            url_path
+						    ),
+						    topic_center_active_user AS (
+						        SELECT
+						            COUNT(DISTINCT aai.account_id) AS active_user_count,
+						            regexp_replace(
+						                regexp_replace(
+						                    regexp_replace(url, ?, ''),
+						                    '^/topic-centers/',
+						                    '/community/'
+						                ),
+						                '^/featured-topics/',
+						                '/community/'
+						            ) AS url_path
+						        FROM
+						            v_analytics_account_interaction aai, v_analytics_account_meaningful_interaction aami
+						        WHERE
+						        		aai.account_id = aami.account_id
+						            AND aai.activity = 'page_view'
+						            AND aai.activity_timestamp BETWEEN ? AND ?
+						            AND aai.institution_id = ?
+						            AND (
+						                regexp_replace(aai.url, ?, '') LIKE '/featured-topics/%'
+						                OR regexp_replace(aai.url, ?, '') LIKE '/community/%'
+						                OR regexp_replace(aai.url, ?, '') LIKE '/topic-centers/%'
+						            )
+						            AND aami.institution_id = ?
+												AND aai.activity_timestamp BETWEEN ? AND ?
+						        GROUP BY
+						            url_path
 						    )
 						    SELECT
 						        tc.topic_center_id,
 						        tc.name,
 						        tcpv.page_view_count,
 						        NULL :: BIGINT as unique_visitor_count,
+						        NULL :: BIGINT AS active_user_count,
 						        NULL :: BIGINT as group_session_click_count,
 						        NULL :: BIGINT as group_session_by_request_click_count,
 						        NULL :: BIGINT as pinboard_item_click_count,
@@ -1456,6 +1486,7 @@ public class AnalyticsService implements AutoCloseable {
 						        tc.name,
 						        NULL :: BIGINT AS page_view_count,
 						        tcuv.unique_visitor_count,
+						        NULL :: BIGINT AS active_user_count,
 						        NULL :: BIGINT as group_session_click_count,
 						        NULL :: BIGINT as group_session_by_request_click_count,
 						        NULL :: BIGINT as pinboard_item_click_count,
@@ -1477,6 +1508,29 @@ public class AnalyticsService implements AutoCloseable {
 						        tc.name,
 						        NULL :: BIGINT AS page_view_count,
 						        NULL :: BIGINT AS unique_visitor_count,
+						        tcau.active_user_count,
+						        NULL :: BIGINT as group_session_click_count,
+						        NULL :: BIGINT as group_session_by_request_click_count,
+						        NULL :: BIGINT as pinboard_item_click_count,
+						        NULL :: BIGINT as content_click_count
+						    FROM
+						        topic_center_active_user tcau,
+						        topic_center tc
+						    WHERE
+						        tc.url_name = REVERSE(
+						            SUBSTR(
+						                REVERSE(tcau.url_path),
+						                0,
+						                STRPOS(REVERSE(tcau.url_path), '/')
+						            )
+						        )
+						    UNION
+						    SELECT
+						        tc.topic_center_id,
+						        tc.name,
+						        NULL :: BIGINT AS page_view_count,
+						        NULL :: BIGINT AS unique_visitor_count,
+						        NULL :: BIGINT AS active_user_count,
 						        COUNT(*) AS group_session_click_count,
 						        NULL :: BIGINT AS group_session_by_request_click_count,
 						        NULL :: BIGINT AS pinboard_item_click_count,
@@ -1497,6 +1551,7 @@ public class AnalyticsService implements AutoCloseable {
 						        tc.name,
 						        NULL :: BIGINT AS page_view_count,
 						        NULL :: BIGINT AS unique_visitor_count,
+						        NULL :: BIGINT AS active_user_count,
 						        NULL :: BIGINT AS group_session_click_count,
 						        COUNT(*) AS group_session_by_request_click_count,
 						        NULL :: BIGINT AS pinboard_item_click_count,
@@ -1517,6 +1572,7 @@ public class AnalyticsService implements AutoCloseable {
 						        tc.name,
 						        NULL :: BIGINT AS page_view_count,
 						        NULL :: BIGINT AS unique_visitor_count,
+						        NULL :: BIGINT AS active_user_count,
 						        NULL :: BIGINT AS group_session_click_count,
 						        NULL :: BIGINT AS group_session_by_request_click_count,
 						        COUNT(*) AS pinboard_item_click_count,
@@ -1537,6 +1593,7 @@ public class AnalyticsService implements AutoCloseable {
 						        tc.name,
 						        NULL :: BIGINT AS page_view_count,
 						        NULL :: BIGINT AS unique_visitor_count,
+						        NULL :: BIGINT AS active_user_count,
 						        NULL :: BIGINT AS group_session_click_count,
 						        NULL :: BIGINT AS group_session_by_request_click_count,
 						        NULL :: BIGINT AS pinboard_item_click_count,
@@ -1557,6 +1614,7 @@ public class AnalyticsService implements AutoCloseable {
 						    name,
 						    COALESCE(MAX(page_view_count), 0) AS page_view_count,
 						    COALESCE(MAX(unique_visitor_count), 0) AS unique_visitor_count,
+						    COALESCE(MAX(active_user_count), 0) AS active_user_count,
 						    COALESCE(MAX(group_session_click_count), 0) AS group_session_click_count,
 						    COALESCE(MAX(group_session_by_request_click_count), 0) AS group_session_by_request_click_count,
 						    COALESCE(MAX(pinboard_item_click_count), 0) AS pinboard_item_click_count,
@@ -1571,8 +1629,11 @@ public class AnalyticsService implements AutoCloseable {
 						    tcr.name
 										""", TopicCenterInteraction.class, urlPathRegex, startTimestamp, endTimestamp, institutionId,
 				urlPathRegex, urlPathRegex, urlPathRegex, urlPathRegex, startTimestamp, endTimestamp, institutionId,
-				urlPathRegex, urlPathRegex, urlPathRegex, startTimestamp, endTimestamp, institutionId, startTimestamp,
-				endTimestamp, institutionId, startTimestamp, endTimestamp, institutionId, startTimestamp, endTimestamp, institutionId);
+				urlPathRegex, urlPathRegex, urlPathRegex, urlPathRegex, startTimestamp, endTimestamp, institutionId,
+				urlPathRegex, urlPathRegex, urlPathRegex, institutionId, startTimestamp, endTimestamp,
+				startTimestamp, endTimestamp, institutionId, startTimestamp,
+				endTimestamp, institutionId, startTimestamp, endTimestamp, institutionId,
+				startTimestamp, endTimestamp, institutionId);
 
 		ResourceAndTopicSummary resourceAndTopicSummary = new ResourceAndTopicSummary();
 		resourceAndTopicSummary.setTagGroupPageViews(tagGroupPageViews);
@@ -1671,6 +1732,8 @@ public class AnalyticsService implements AutoCloseable {
 		@Nullable
 		private Long uniqueVisitorCount;
 		@Nullable
+		private Long activeUserCount;
+		@Nullable
 		private Long groupSessionClickCount;
 		@Nullable
 		private Long groupSessionByRequestClickCount;
@@ -1713,6 +1776,15 @@ public class AnalyticsService implements AutoCloseable {
 
 		public void setUniqueVisitorCount(@Nullable Long uniqueVisitorCount) {
 			this.uniqueVisitorCount = uniqueVisitorCount;
+		}
+
+		@Nullable
+		public Long getActiveUserCount() {
+			return this.activeUserCount;
+		}
+
+		public void setActiveUserCount(@Nullable Long activeUserCount) {
+			this.activeUserCount = activeUserCount;
 		}
 
 		@Nullable
