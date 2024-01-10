@@ -1719,12 +1719,23 @@ public class AnalyticsService implements AutoCloseable {
 				endTimestamp, institutionId, startTimestamp, endTimestamp, institutionId,
 				startTimestamp, endTimestamp, institutionId);
 
+		List<TagCount> contentTagCounts = getDatabase().queryForList("""
+				SELECT COUNT(*), tag_id
+				FROM tag_content
+				WHERE institution_id=?
+				GROUP BY tag_id
+				""", TagCount.class, institutionId);
+
+		Map<String, Long> contentCountsByTagId = contentTagCounts.stream()
+				.collect(Collectors.toMap(TagCount::getTagId, TagCount::getCount));
+
 		ResourceAndTopicSummary resourceAndTopicSummary = new ResourceAndTopicSummary();
 		resourceAndTopicSummary.setDirectTagGroupPageViews(directTagGroupPageViews);
 		resourceAndTopicSummary.setDirectTagPageViews(directTagPageViews);
 		resourceAndTopicSummary.setContentTagPageViews(contentTagPageViews);
 		resourceAndTopicSummary.setContentPageViews(contentPageViews);
 		resourceAndTopicSummary.setTopicCenterInteractions(topicCenterInteractions);
+		resourceAndTopicSummary.setContentCountsByTagId(contentCountsByTagId);
 
 		return resourceAndTopicSummary;
 	}
@@ -1741,6 +1752,8 @@ public class AnalyticsService implements AutoCloseable {
 		private List<ContentPageView> contentPageViews;
 		@Nullable
 		private List<TopicCenterInteraction> topicCenterInteractions;
+		@Nullable
+		private Map<String, Long> contentCountsByTagId;
 
 		@Nullable
 		public List<TagGroupPageView> getDirectTagGroupPageViews() {
@@ -1785,6 +1798,15 @@ public class AnalyticsService implements AutoCloseable {
 
 		public void setTopicCenterInteractions(@Nullable List<TopicCenterInteraction> topicCenterInteractions) {
 			this.topicCenterInteractions = topicCenterInteractions;
+		}
+
+		@Nullable
+		public Map<String, Long> getContentCountsByTagId() {
+			return this.contentCountsByTagId;
+		}
+
+		public void setContentCountsByTagId(@Nullable Map<String, Long> contentCountsByTagId) {
+			this.contentCountsByTagId = contentCountsByTagId;
 		}
 	}
 
@@ -2605,6 +2627,32 @@ public class AnalyticsService implements AutoCloseable {
 
 		public void setUserCount(@Nullable Long userCount) {
 			this.userCount = userCount;
+		}
+	}
+
+	@NotThreadSafe
+	protected static class TagCount {
+		@Nullable
+		private Long count;
+		@Nullable
+		private String tagId;
+
+		@Nullable
+		public Long getCount() {
+			return this.count;
+		}
+
+		public void setCount(@Nullable Long count) {
+			this.count = count;
+		}
+
+		@Nullable
+		public String getTagId() {
+			return this.tagId;
+		}
+
+		public void setTagId(@Nullable String tagId) {
+			this.tagId = tagId;
 		}
 	}
 

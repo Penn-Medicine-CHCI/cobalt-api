@@ -79,6 +79,7 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -1500,12 +1501,18 @@ public class AnalyticsResource {
 
 			List<TopicCenterInteraction> topicCenterInteractions = List.of(topicCenterInteraction1);
 
+			Map<String, Long> contentCountsByTagId = Map.of(
+					"BURNOUT", 123L,
+					"STRESS", 456L
+			);
+
 			resourceAndTopicSummary = new ResourceAndTopicSummary();
 			resourceAndTopicSummary.setDirectTagGroupPageViews(directTagGroupPageViews);
 			resourceAndTopicSummary.setDirectTagPageViews(directTagPageViews);
 			resourceAndTopicSummary.setContentTagPageViews(contentTagPageViews);
 			resourceAndTopicSummary.setContentPageViews(contentPageViews);
 			resourceAndTopicSummary.setTopicCenterInteractions(topicCenterInteractions);
+			resourceAndTopicSummary.setContentCountsByTagId(contentCountsByTagId);
 		}
 
 		// Content Tags Table Widget
@@ -1518,23 +1525,33 @@ public class AnalyticsResource {
 		contentTagsWidgetTableData.setHeaders(List.of(
 				getStrings().get("Tag"),
 				getStrings().get("Topic"),
-				getStrings().get("Content Pageviews")
-		));
+				getStrings().get("Content Pageviews"),
+				getStrings().get("Pieces of Content With This Tag")
+				));
 
 		Map<String, TagGroup> tagGroupsByTagGroupId = getTagService().findTagGroupsByInstitutionId(institutionId).stream()
 				.collect(Collectors.toMap(TagGroup::getTagGroupId, Function.identity()));
 
 		List<AnalyticsWidgetTableRow> contentTagsWidgetTableRows = new ArrayList<>(resourceAndTopicSummary.getContentTagPageViews().size());
 
+		NumberFormat percentageFormatter = NumberFormat.getPercentInstance(getCurrentContext().getLocale());
+		percentageFormatter.setMaximumFractionDigits(2);
+
+		Map<String, Long> contentCountsByTagId = resourceAndTopicSummary.getContentCountsByTagId();
+		Long totalTaggedContentCount = contentCountsByTagId.values().stream().mapToLong(Long::longValue).sum();
+
 		for (TagPageView contentTagPageView : resourceAndTopicSummary.getContentTagPageViews()) {
 			TagGroup tagGroup = tagGroupsByTagGroupId.get(contentTagPageView.getTagGroupId());
+			Long contentCount = contentCountsByTagId.get(contentTagPageView.getTagId());
+			double contentPercentage = totalTaggedContentCount == 0 ? 0 : (double) contentCount / (double) totalTaggedContentCount;
 
 			AnalyticsWidgetTableRow row = new AnalyticsWidgetTableRow();
 
 			row.setData(List.of(
 					contentTagPageView.getTagName(),
 					tagGroup.getName(),
-					getFormatter().formatNumber(contentTagPageView.getPageViewCount())
+					getFormatter().formatNumber(contentTagPageView.getPageViewCount()),
+					format("%s (%s)", getFormatter().formatNumber(contentCount), percentageFormatter.format(contentPercentage))
 			));
 
 			contentTagsWidgetTableRows.add(row);
