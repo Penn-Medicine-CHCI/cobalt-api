@@ -40,7 +40,7 @@ import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.ScreeningType.ScreeningTypeId;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
-import com.cobaltplatform.api.model.db.TagGroup;
+import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.cobaltplatform.api.model.service.ScreeningScore;
@@ -73,6 +73,8 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -1260,10 +1262,10 @@ public class AnalyticsService implements AutoCloseable {
 		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.PATIENT).get();
 		String urlPathRegex = format("^%s", webappBaseUrl);
 
-		// Tag page views
+		// Tag group page views
 		// Chops off query parameters, so /resource-library/tag-groups/symptoms?test=123 is counted as /resource-library/tag-groups/symptoms.
 		// Also determines tags based on URL name suffix.
-		List<TagGroupPageView> tagGroupPageViews = getDatabase().queryForList("""
+		List<TagGroupPageView> directTagGroupPageViews = getDatabase().queryForList("""
 				WITH tag_group_page_normalized_view AS (
 				  WITH tag_group_page_view AS (
 				      SELECT regexp_replace(url, ?, '') AS raw_url_path
@@ -1290,7 +1292,7 @@ public class AnalyticsService implements AutoCloseable {
 		// Tag page views
 		// Chops off query parameters, so /resource-library/tags/anxiety?test=123 is counted as /resource-library/tags/anxiety.
 		// Also determines tags based on URL name suffix.
-		List<TagPageView> tagPageViews = getDatabase().queryForList("""
+		List<TagPageView> directTagPageViews = getDatabase().queryForList("""
 				WITH tag_page_normalized_view AS (
 				  WITH tag_page_view AS (
 				      SELECT regexp_replace(url, ?, '') AS raw_url_path
@@ -1313,6 +1315,79 @@ public class AnalyticsService implements AutoCloseable {
 				WHERE t.url_name = REVERSE(SUBSTR(REVERSE(tpnv.url_path), 0, STRPOS(REVERSE(tpnv.url_path), '/')))
 				ORDER BY tpnv.page_view_count DESC
 								""", TagPageView.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, "?", "?");
+
+		// Index by tag ID for easy access
+		Map<String, TagPageView> directTagPageViewsByTagId = directTagPageViews.stream()
+				.collect(Collectors.toMap(TagPageView::getTagId, Function.identity()));
+
+		// Tags based on content detail page views
+		List<TagPageView> contentTagPageViews = new ArrayList<>();
+
+		// Pull a list of all tags and fill with zeroes as a base list
+		List<Tag> tags = getTagService().findTagsByInstitutionId(institutionId);
+
+		// Prime the content data with all zero values for each tag
+		for (Tag tag : tags) {
+			TagPageView zeroedTagPageView = new TagPageView();
+			zeroedTagPageView.setTagId(tag.getTagId());
+			zeroedTagPageView.setTagName(tag.getName());
+			zeroedTagPageView.setUrlPath(tag.getUrlName());
+			zeroedTagPageView.setTagGroupId(tag.getTagGroupId());
+			zeroedTagPageView.setPageViewCount(0L);
+
+			contentTagPageViews.add(zeroedTagPageView);
+		}
+
+		// Index by tag ID for easy access
+		Map<String, TagPageView> contentTagPageViewsByTagId = contentTagPageViews.stream()
+				.collect(Collectors.toMap(TagPageView::getTagId, Function.identity()));
+
+		// Sum up the tags for every content detail page view.
+		// Example for a time window with 2 page_view events:
+		// * Page view 1 for content with MOOD and SLEEP tags
+		// * Page view 2 for content with BURNOUT and SLEEP tags
+		// Resultset would be 1 MOOD, 1 BURNOUT, 2 SLEEP
+		List<TagPageView> activeContentTagPageViews = getDatabase().queryForList("""
+				WITH page_views_by_tag AS (
+				    WITH content_page_normalized_view AS (
+				        WITH content_page_view AS (
+				            SELECT regexp_replace(url, ?, '') AS raw_url_path
+				            FROM v_analytics_account_interaction
+				            WHERE activity = 'page_view'
+				            AND activity_timestamp BETWEEN ? AND ?
+				            AND institution_id=?
+				            AND regexp_replace(url, ?, '') ~ '^/resource-library/[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}'
+				        )
+				        SELECT COUNT(*) AS page_view_count,
+				        CASE
+				            WHEN STRPOS(cpv.raw_url_path, ?) > 0 THEN SUBSTR(cpv.raw_url_path, 0, STRPOS(cpv.raw_url_path, ?))
+				            ELSE cpv.raw_url_path
+				        END AS url_path
+				        FROM content_page_view cpv
+				        GROUP BY url_path
+				    )
+				    SELECT cpnv.page_view_count, cpnv.url_path, c.content_id, c.title AS content_title, tc.tag_id
+				    FROM content_page_normalized_view cpnv, content c, tag_content tc
+				    WHERE c.content_id = (REVERSE(SUBSTR(REVERSE(cpnv.url_path), 0, STRPOS(REVERSE(cpnv.url_path), '/'))))::UUID
+				    AND c.content_id = tc.content_id
+				    AND tc.institution_id = ?
+				)
+				SELECT SUM(pvbt.page_view_count), pvbt.tag_id, t.name AS tag_name, t.tag_group_id, t.url_name AS url_path
+				FROM page_views_by_tag pvbt, tag t
+				WHERE pvbt.tag_id=t.tag_id
+				GROUP BY pvbt.tag_id, t.name, t.tag_group_id, t.url_name
+								""", TagPageView.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, "?", "?", institutionId);
+
+		// Overlay the query results onto the zeroed-out initial list
+		for (TagPageView activeContentTagPageView : activeContentTagPageViews) {
+			TagPageView contentTagPageView = contentTagPageViewsByTagId.get(activeContentTagPageView.getTagId());
+			contentTagPageView.setPageViewCount(activeContentTagPageView.getPageViewCount());
+		}
+
+		// Sort the list by page view count descending, then tag name
+		Collections.sort(contentTagPageViews, Comparator
+				.comparing(TagPageView::getPageViewCount, Comparator.reverseOrder())
+				.thenComparing(TagPageView::getTagName));
 
 		// Content that matches URLs like "/resource-library/{uuid}", discarding query parameters
 		List<ContentPageView> contentPageViews = getDatabase().queryForList("""
@@ -1339,8 +1414,6 @@ public class AnalyticsService implements AutoCloseable {
 				ORDER BY cpnv.page_view_count DESC, c.title
 				LIMIT 25
 				""", ContentPageView.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, "?", "?");
-
-		// whereClauseComponents.add(format("AND tc.tag_id IN %s", sqlInListPlaceholders(tagIds)));
 
 		Set<UUID> contentIds = contentPageViews.stream().map(cpv -> cpv.getContentId()).collect(Collectors.toSet());
 
@@ -1647,39 +1720,11 @@ public class AnalyticsService implements AutoCloseable {
 				startTimestamp, endTimestamp, institutionId);
 
 		ResourceAndTopicSummary resourceAndTopicSummary = new ResourceAndTopicSummary();
-		resourceAndTopicSummary.setTagGroupPageViews(tagGroupPageViews);
-		resourceAndTopicSummary.setTagPageViews(tagPageViews);
+		resourceAndTopicSummary.setDirectTagGroupPageViews(directTagGroupPageViews);
+		resourceAndTopicSummary.setDirectTagPageViews(directTagPageViews);
+		resourceAndTopicSummary.setContentTagPageViews(contentTagPageViews);
 		resourceAndTopicSummary.setContentPageViews(contentPageViews);
 		resourceAndTopicSummary.setTopicCenterInteractions(topicCenterInteractions);
-
-		// TODO: revisit tag group page views - are they the sum of all contained tag page views, or their own thing (or maybe we surface both in the UI)?
-		// Currently, it's unlikely but possible to have a tag page view but no corresponding tag group page view.
-		// Safeguard against that by filling in "empty" tag group page view records
-		Map<String, TagGroup> tagGroupsByTagGroupId = getTagService().findTagGroupsByInstitutionId(institutionId).stream()
-				.collect(Collectors.toMap(tagGroup -> tagGroup.getTagGroupId(), Function.identity()));
-
-		Set<String> tagGroupPageViewTagGroupIds = tagGroupPageViews.stream()
-				.map(tagGroupPageView -> tagGroupPageView.getTagGroupId())
-				.collect(Collectors.toSet());
-
-		// If any tag doesn't have a corresponding group row, add a blank one
-		for (TagPageView tagPageView : tagPageViews) {
-			if (!tagGroupPageViewTagGroupIds.contains(tagPageView.getTagGroupId())) {
-				TagGroup tagGroup = tagGroupsByTagGroupId.get(tagPageView.getTagGroupId());
-
-				TagGroupPageView tagGroupPageView = new TagGroupPageView();
-				tagGroupPageView.setTagGroupId(tagGroup.getTagGroupId());
-				tagGroupPageView.setTagGroupName(tagGroup.getName());
-				tagGroupPageView.setPageViewCount(0L); // TODO: revisit if we apply a different meaning for page views in the context of tag groups
-				tagGroupPageView.setUrlPath(format("/resource-library/tag-groups/%s", tagGroup.getUrlName()));
-
-				// Add to the list of tag group page views...
-				resourceAndTopicSummary.getTagGroupPageViews().add(tagGroupPageView);
-
-				// ...and remember what we did so we don't re-add the same blank row
-				tagGroupPageViewTagGroupIds.add(tagPageView.getTagGroupId());
-			}
-		}
 
 		return resourceAndTopicSummary;
 	}
@@ -1687,30 +1732,41 @@ public class AnalyticsService implements AutoCloseable {
 	@NotThreadSafe
 	public static class ResourceAndTopicSummary {
 		@Nullable
-		private List<TagGroupPageView> tagGroupPageViews;
+		private List<TagGroupPageView> directTagGroupPageViews;
 		@Nullable
-		private List<TagPageView> tagPageViews;
+		private List<TagPageView> directTagPageViews;
+		@Nullable
+		private List<TagPageView> contentTagPageViews;
 		@Nullable
 		private List<ContentPageView> contentPageViews;
 		@Nullable
 		private List<TopicCenterInteraction> topicCenterInteractions;
 
 		@Nullable
-		public List<TagGroupPageView> getTagGroupPageViews() {
-			return this.tagGroupPageViews;
+		public List<TagGroupPageView> getDirectTagGroupPageViews() {
+			return this.directTagGroupPageViews;
 		}
 
-		public void setTagGroupPageViews(@Nullable List<TagGroupPageView> tagGroupPageViews) {
-			this.tagGroupPageViews = tagGroupPageViews;
+		public void setDirectTagGroupPageViews(@Nullable List<TagGroupPageView> directTagGroupPageViews) {
+			this.directTagGroupPageViews = directTagGroupPageViews;
 		}
 
 		@Nullable
-		public List<TagPageView> getTagPageViews() {
-			return this.tagPageViews;
+		public List<TagPageView> getDirectTagPageViews() {
+			return this.directTagPageViews;
 		}
 
-		public void setTagPageViews(@Nullable List<TagPageView> tagPageViews) {
-			this.tagPageViews = tagPageViews;
+		public void setDirectTagPageViews(@Nullable List<TagPageView> directTagPageViews) {
+			this.directTagPageViews = directTagPageViews;
+		}
+
+		@Nullable
+		public List<TagPageView> getContentTagPageViews() {
+			return this.contentTagPageViews;
+		}
+
+		public void setContentTagPageViews(@Nullable List<TagPageView> contentTagPageViews) {
+			this.contentTagPageViews = contentTagPageViews;
 		}
 
 		@Nullable

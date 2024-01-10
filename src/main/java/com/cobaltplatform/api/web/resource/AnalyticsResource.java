@@ -27,6 +27,7 @@ import com.cobaltplatform.api.model.db.Color.ColorId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.ReportType.ReportTypeId;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
+import com.cobaltplatform.api.model.db.TagGroup;
 import com.cobaltplatform.api.model.db.TopicCenter;
 import com.cobaltplatform.api.model.db.TopicCenterDisplayStyle.TopicCenterDisplayStyleId;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
@@ -52,6 +53,7 @@ import com.cobaltplatform.api.service.AnalyticsService.TrafficSourceSummary;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ScreeningService;
+import com.cobaltplatform.api.service.TagService;
 import com.cobaltplatform.api.service.TopicCenterService;
 import com.cobaltplatform.api.util.Formatter;
 import com.lokalized.Strings;
@@ -117,6 +119,8 @@ public class AnalyticsResource {
 	@Nonnull
 	private final TopicCenterService topicCenterService;
 	@Nonnull
+	private final TagService tagService;
+	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
@@ -133,6 +137,7 @@ public class AnalyticsResource {
 													 @Nonnull ScreeningService screeningService,
 													 @Nonnull InstitutionService institutionService,
 													 @Nonnull TopicCenterService topicCenterService,
+													 @Nonnull TagService tagService,
 													 @Nonnull Configuration configuration,
 													 @Nonnull Provider<CurrentContext> currentContextProvider,
 													 @Nonnull Strings strings,
@@ -142,6 +147,7 @@ public class AnalyticsResource {
 		requireNonNull(screeningService);
 		requireNonNull(institutionService);
 		requireNonNull(topicCenterService);
+		requireNonNull(tagService);
 		requireNonNull(configuration);
 		requireNonNull(currentContextProvider);
 		requireNonNull(strings);
@@ -152,6 +158,7 @@ public class AnalyticsResource {
 		this.screeningService = screeningService;
 		this.institutionService = institutionService;
 		this.topicCenterService = topicCenterService;
+		this.tagService = tagService;
 		this.configuration = configuration;
 		this.currentContextProvider = currentContextProvider;
 		this.strings = strings;
@@ -1403,42 +1410,58 @@ public class AnalyticsResource {
 		boolean useExampleData = !getConfiguration().isProduction();
 
 		if (useExampleData) {
-			TagGroupPageView tagGroupPageView1 = new TagGroupPageView();
-			tagGroupPageView1.setPageViewCount(123L);
-			tagGroupPageView1.setTagGroupId("SYMPTOMS");
-			tagGroupPageView1.setTagGroupName(getStrings().get("Symptoms"));
-			tagGroupPageView1.setUrlPath("/ignored");
+			TagGroupPageView directTagGroupPageView1 = new TagGroupPageView();
+			directTagGroupPageView1.setPageViewCount(123L);
+			directTagGroupPageView1.setTagGroupId("SYMPTOMS");
+			directTagGroupPageView1.setTagGroupName(getStrings().get("Symptoms"));
+			directTagGroupPageView1.setUrlPath("/ignored");
 
-			TagGroupPageView tagGroupPageView2 = new TagGroupPageView();
-			tagGroupPageView2.setPageViewCount(1234L);
-			tagGroupPageView2.setTagGroupId("WORK_LIFE");
-			tagGroupPageView2.setTagGroupName(getStrings().get("Work Life"));
-			tagGroupPageView2.setUrlPath("/ignored");
+			TagGroupPageView directTagGroupPageView2 = new TagGroupPageView();
+			directTagGroupPageView2.setPageViewCount(1234L);
+			directTagGroupPageView2.setTagGroupId("WORK_LIFE");
+			directTagGroupPageView2.setTagGroupName(getStrings().get("Work Life"));
+			directTagGroupPageView2.setUrlPath("/ignored");
 
-			List<TagGroupPageView> tagGroupPageViews = List.of(tagGroupPageView1, tagGroupPageView2);
+			List<TagGroupPageView> directTagGroupPageViews = List.of(directTagGroupPageView1, directTagGroupPageView2);
 
-			TagPageView tagPageView1 = new TagPageView();
-			tagPageView1.setPageViewCount(5000L);
-			tagPageView1.setTagId("MOOD");
-			tagPageView1.setTagName(getStrings().get("Mood"));
-			tagPageView1.setTagGroupId("SYMPTOMS");
-			tagPageView1.setUrlPath("ignored");
+			TagPageView directTagPageView1 = new TagPageView();
+			directTagPageView1.setPageViewCount(5000L);
+			directTagPageView1.setTagId("MOOD");
+			directTagPageView1.setTagName(getStrings().get("Mood"));
+			directTagPageView1.setTagGroupId("SYMPTOMS");
+			directTagPageView1.setUrlPath("ignored");
 
-			TagPageView tagPageView2 = new TagPageView();
-			tagPageView2.setPageViewCount(100000L);
-			tagPageView2.setTagId("STRESS");
-			tagPageView2.setTagName(getStrings().get("Stress"));
-			tagPageView2.setTagGroupId("SYMPTOMS");
-			tagPageView2.setUrlPath("ignored");
+			TagPageView directTagPageView2 = new TagPageView();
+			directTagPageView2.setPageViewCount(100000L);
+			directTagPageView2.setTagId("STRESS");
+			directTagPageView2.setTagName(getStrings().get("Stress"));
+			directTagPageView2.setTagGroupId("SYMPTOMS");
+			directTagPageView2.setUrlPath("ignored");
 
-			TagPageView tagPageView3 = new TagPageView();
-			tagPageView3.setPageViewCount(50L);
-			tagPageView3.setTagId("BURNOUT");
-			tagPageView3.setTagName(getStrings().get("Burnout"));
-			tagPageView3.setTagGroupId("WORK_LIFE");
-			tagPageView3.setUrlPath("ignored");
+			TagPageView directTagPageView3 = new TagPageView();
+			directTagPageView3.setPageViewCount(50L);
+			directTagPageView3.setTagId("BURNOUT");
+			directTagPageView3.setTagName(getStrings().get("Burnout"));
+			directTagPageView3.setTagGroupId("WORK_LIFE");
+			directTagPageView3.setUrlPath("ignored");
 
-			List<TagPageView> tagPageViews = List.of(tagPageView1, tagPageView2, tagPageView3);
+			List<TagPageView> directTagPageViews = List.of(directTagPageView1, directTagPageView2, directTagPageView3);
+
+			TagPageView contentTagPageView1 = new TagPageView();
+			contentTagPageView1.setPageViewCount(50L);
+			contentTagPageView1.setTagId("BURNOUT");
+			contentTagPageView1.setTagName(getStrings().get("Burnout"));
+			contentTagPageView1.setTagGroupId("WORK_LIFE");
+			contentTagPageView1.setUrlPath("ignored");
+
+			TagPageView contentTagPageView2 = new TagPageView();
+			contentTagPageView2.setPageViewCount(25L);
+			contentTagPageView2.setTagId("STRESS");
+			contentTagPageView2.setTagName(getStrings().get("Stress"));
+			contentTagPageView2.setTagGroupId("SYMPTOMS");
+			contentTagPageView2.setUrlPath("ignored");
+
+			List<TagPageView> contentTagPageViews = List.of(contentTagPageView1, contentTagPageView2);
 
 			ContentPageView contentPageView1 = new ContentPageView();
 			contentPageView1.setContentId(UUID.randomUUID());
@@ -1478,80 +1501,116 @@ public class AnalyticsResource {
 			List<TopicCenterInteraction> topicCenterInteractions = List.of(topicCenterInteraction1);
 
 			resourceAndTopicSummary = new ResourceAndTopicSummary();
-			resourceAndTopicSummary.setTagGroupPageViews(tagGroupPageViews);
-			resourceAndTopicSummary.setTagPageViews(tagPageViews);
+			resourceAndTopicSummary.setDirectTagGroupPageViews(directTagGroupPageViews);
+			resourceAndTopicSummary.setDirectTagPageViews(directTagPageViews);
+			resourceAndTopicSummary.setContentTagPageViews(contentTagPageViews);
 			resourceAndTopicSummary.setContentPageViews(contentPageViews);
 			resourceAndTopicSummary.setTopicCenterInteractions(topicCenterInteractions);
 		}
 
-		// Index the tag page views by tag group to make nested rows easier to work with
-		Map<String, List<TagPageView>> tagPageViewsByTagGroupIds = new HashMap<>(resourceAndTopicSummary.getTagGroupPageViews().size());
+		// Content Tags Table Widget
+		AnalyticsTableWidget contentTagsTableWidget = new AnalyticsTableWidget();
+		contentTagsTableWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_RESOURCE_TOPIC_PAGEVIEWS);
+		contentTagsTableWidget.setWidgetTitle(getStrings().get("Tag Popularity"));
 
-		for (TagPageView tagPageView : resourceAndTopicSummary.getTagPageViews()) {
-			List<TagPageView> tagPageViews = tagPageViewsByTagGroupIds.get(tagPageView.getTagGroupId());
+		AnalyticsWidgetTableData contentTagsWidgetTableData = new AnalyticsWidgetTableData();
 
-			if (tagPageViews == null) {
-				tagPageViews = new ArrayList<>();
-				tagPageViewsByTagGroupIds.put(tagPageView.getTagGroupId(), tagPageViews);
-			}
-
-			tagPageViews.add(tagPageView);
-		}
-
-		AnalyticsTableWidget tagGroupTableWidget = new AnalyticsTableWidget();
-		tagGroupTableWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_RESOURCE_TOPIC_PAGEVIEWS);
-		tagGroupTableWidget.setWidgetTitle(getStrings().get("Pageview by Resource Topic"));
-
-		AnalyticsWidgetTableData tagGroupTableData = new AnalyticsWidgetTableData();
-
-		tagGroupTableData.setHeaders(List.of(
+		contentTagsWidgetTableData.setHeaders(List.of(
+				getStrings().get("Tag"),
 				getStrings().get("Topic"),
-				getStrings().get("Pageviews")
+				getStrings().get("Content Pageviews")
 		));
 
-		List<AnalyticsWidgetTableRow> tagGroupTableRows = new ArrayList<>();
+		Map<String, TagGroup> tagGroupsByTagGroupId = getTagService().findTagGroupsByInstitutionId(institutionId).stream()
+				.collect(Collectors.toMap(TagGroup::getTagGroupId, Function.identity()));
 
-		for (TagGroupPageView tagGroupPageView : resourceAndTopicSummary.getTagGroupPageViews()) {
+		List<AnalyticsWidgetTableRow> contentTagsWidgetTableRows = new ArrayList<>(resourceAndTopicSummary.getContentTagPageViews().size());
+
+		for (TagPageView contentTagPageView : resourceAndTopicSummary.getContentTagPageViews()) {
+			TagGroup tagGroup = tagGroupsByTagGroupId.get(contentTagPageView.getTagGroupId());
+
 			AnalyticsWidgetTableRow row = new AnalyticsWidgetTableRow();
+
 			row.setData(List.of(
-					tagGroupPageView.getTagGroupName(),
-					getFormatter().formatNumber(tagGroupPageView.getPageViewCount())
+					contentTagPageView.getTagName(),
+					tagGroup.getName(),
+					getFormatter().formatNumber(contentTagPageView.getPageViewCount())
 			));
 
-			List<TagPageView> nestedTagPageViews = tagPageViewsByTagGroupIds.get(tagGroupPageView.getTagGroupId());
-
-			if (nestedTagPageViews != null && nestedTagPageViews.size() > 0) {
-				List<AnalyticsWidgetTableRow> nestedRows = new ArrayList<>();
-
-				for (TagPageView tagPageView : nestedTagPageViews) {
-					AnalyticsWidgetTableRow nestedRow = new AnalyticsWidgetTableRow();
-					nestedRow.setData(List.of(
-							tagPageView.getTagName(),
-							getFormatter().formatNumber(tagPageView.getPageViewCount())
-					));
-
-					nestedRows.add(nestedRow);
-				}
-
-				row.setNestedRows(nestedRows);
-			} else {
-				// UI doesn't correctly handle scenario where some rows have nested rows and some don't -
-				// work around that here by always having a "blank" nested row
-				AnalyticsWidgetTableRow nestedRow = new AnalyticsWidgetTableRow();
-
-				nestedRow.setData(List.of(
-						getStrings().get("(No tag pageviews)"),
-						"--"
-				));
-
-				row.setNestedRows(List.of(nestedRow));
-			}
-
-			tagGroupTableRows.add(row);
+			contentTagsWidgetTableRows.add(row);
 		}
 
-		tagGroupTableData.setRows(tagGroupTableRows);
-		tagGroupTableWidget.setWidgetData(tagGroupTableData);
+		contentTagsWidgetTableData.setRows(contentTagsWidgetTableRows);
+		contentTagsTableWidget.setWidgetData(contentTagsWidgetTableData);
+
+//		// Index the tag page views by tag group to make nested rows easier to work with
+//		Map<String, List<TagPageView>> tagPageViewsByTagGroupIds = new HashMap<>(resourceAndTopicSummary.getTagGroupPageViews().size());
+//
+//		for (TagPageView tagPageView : resourceAndTopicSummary.getTagPageViews()) {
+//			List<TagPageView> tagPageViews = tagPageViewsByTagGroupIds.get(tagPageView.getTagGroupId());
+//
+//			if (tagPageViews == null) {
+//				tagPageViews = new ArrayList<>();
+//				tagPageViewsByTagGroupIds.put(tagPageView.getTagGroupId(), tagPageViews);
+//			}
+//
+//			tagPageViews.add(tagPageView);
+//		}
+
+//		AnalyticsTableWidget tagGroupTableWidget = new AnalyticsTableWidget();
+//		tagGroupTableWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_RESOURCE_TOPIC_PAGEVIEWS);
+//		tagGroupTableWidget.setWidgetTitle(getStrings().get("Pageview by Resource Topic"));
+//
+//		AnalyticsWidgetTableData tagGroupTableData = new AnalyticsWidgetTableData();
+//
+//		tagGroupTableData.setHeaders(List.of(
+//				getStrings().get("Topic"),
+//				getStrings().get("Pageviews")
+//		));
+//
+//		List<AnalyticsWidgetTableRow> tagGroupTableRows = new ArrayList<>();
+//
+//		for (TagGroupPageView tagGroupPageView : resourceAndTopicSummary.getTagGroupPageViews()) {
+//			AnalyticsWidgetTableRow row = new AnalyticsWidgetTableRow();
+//			row.setData(List.of(
+//					tagGroupPageView.getTagGroupName(),
+//					getFormatter().formatNumber(tagGroupPageView.getPageViewCount())
+//			));
+//
+//			List<TagPageView> nestedTagPageViews = tagPageViewsByTagGroupIds.get(tagGroupPageView.getTagGroupId());
+//
+//			if (nestedTagPageViews != null && nestedTagPageViews.size() > 0) {
+//				List<AnalyticsWidgetTableRow> nestedRows = new ArrayList<>();
+//
+//				for (TagPageView tagPageView : nestedTagPageViews) {
+//					AnalyticsWidgetTableRow nestedRow = new AnalyticsWidgetTableRow();
+//					nestedRow.setData(List.of(
+//							tagPageView.getTagName(),
+//							getFormatter().formatNumber(tagPageView.getPageViewCount())
+//					));
+//
+//					nestedRows.add(nestedRow);
+//				}
+//
+//				row.setNestedRows(nestedRows);
+//			} else {
+//				// UI doesn't correctly handle scenario where some rows have nested rows and some don't -
+//				// work around that here by always having a "blank" nested row
+//				AnalyticsWidgetTableRow nestedRow = new AnalyticsWidgetTableRow();
+//
+//				nestedRow.setData(List.of(
+//						getStrings().get("(No tag pageviews)"),
+//						"--"
+//				));
+//
+//				row.setNestedRows(List.of(nestedRow));
+//			}
+//
+//			tagGroupTableRows.add(row);
+//		}
+//
+//		tagGroupTableData.setRows(tagGroupTableRows);
+//		tagGroupTableWidget.setWidgetData(tagGroupTableData);
 
 		// Resource detail table widget
 		AnalyticsTableWidget resourceDetailTableWidget = new AnalyticsTableWidget();
@@ -1644,7 +1703,7 @@ public class AnalyticsResource {
 
 		// Group the widgets
 		AnalyticsWidgetGroup firstGroup = new AnalyticsWidgetGroup();
-		firstGroup.setWidgets(List.of(tagGroupTableWidget));
+		firstGroup.setWidgets(List.of(contentTagsTableWidget));
 
 		AnalyticsWidgetGroup secondGroup = new AnalyticsWidgetGroup();
 		secondGroup.setWidgets(List.of(resourceDetailTableWidget));
@@ -2171,6 +2230,11 @@ public class AnalyticsResource {
 	@Nonnull
 	protected TopicCenterService getTopicCenterService() {
 		return this.topicCenterService;
+	}
+
+	@Nonnull
+	protected TagService getTagService() {
+		return this.tagService;
 	}
 
 	@Nonnull
