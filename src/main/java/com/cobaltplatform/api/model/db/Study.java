@@ -52,6 +52,8 @@ public class Study {
 	@Nullable
 	private String coordinatorPhoneNumber;
 	@Nullable
+	private String coordinatorAvailability;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -162,5 +164,14 @@ public class Study {
 
 	public void setCoordinatorPhoneNumber(@Nullable String coordinatorPhoneNumber) {
 		this.coordinatorPhoneNumber = coordinatorPhoneNumber;
+	}
+
+	@Nullable
+	public String getCoordinatorAvailability() {
+		return this.coordinatorAvailability;
+	}
+
+	public void setCoordinatorAvailability(@Nullable String coordinatorAvailability) {
+		this.coordinatorAvailability = coordinatorAvailability;
 	}
 }

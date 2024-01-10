@@ -34,6 +34,8 @@ public class AccountSource {
 	@Nullable
 	private String description;
 	@Nullable
+	private String shortDescription;
+	@Nullable
 	private String authenticationDescription;
 	@Nullable
 	private String localSsoUrl;
@@ -71,6 +73,15 @@ public class AccountSource {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
+	}
+
+	@Nullable
+	public String getShortDescription() {
+		return this.shortDescription;
+	}
+
+	public void setShortDescription(@Nullable String shortDescription) {
+		this.shortDescription = shortDescription;
 	}
 
 	@Nullable

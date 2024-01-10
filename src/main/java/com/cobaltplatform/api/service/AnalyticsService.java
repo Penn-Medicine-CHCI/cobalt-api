@@ -39,7 +39,8 @@ import com.cobaltplatform.api.model.db.Feature;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.ScreeningType.ScreeningTypeId;
-import com.cobaltplatform.api.model.db.TagGroup;
+import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
+import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.cobaltplatform.api.model.service.ScreeningScore;
@@ -72,6 +73,8 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -87,6 +90,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
+import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -369,33 +374,39 @@ public class AnalyticsService implements AutoCloseable {
 
 		// Accounts that have institution locations
 		List<AccountSourceInstitutionLocationCount> accountSourceInstitutionLocationCounts = getDatabase().queryForList("""
-				SELECT COUNT(DISTINCT a.account_id) AS count, il.name AS institution_location_description
+				SELECT COUNT(DISTINCT a.account_id) AS count, COALESCE(il.short_name, il.name) AS institution_location_description
 				FROM account a, v_analytics_account_interaction aai, institution_location il
 				WHERE a.account_id=aai.account_id
 				AND aai.activity_timestamp BETWEEN ? AND ?
 				AND aai.institution_id=?
 				AND a.institution_location_id=il.institution_location_id
-				GROUP BY il.name
+				GROUP BY institution_location_description
 				""", AccountSourceInstitutionLocationCount.class, startTimestamp, endTimestamp, institutionId);
 
-		final String NOT_ASKED_LABEL = getStrings().get("Not Asked");
+		// Received a request to remove this data from the report
+		boolean includeNotAsked = false;
+		AccountSourceInstitutionLocationCount accountSourceInstitutionNotAskedLocationCount = null;
 
-		// Accounts that do NOT have an institution location and were never asked to provide one
-		AccountSourceInstitutionLocationCount accountSourceInstitutionNotAskedLocationCount = getDatabase().queryForObject("""
-				SELECT COUNT(DISTINCT a.account_id) AS count, ? AS institution_location_description
-				FROM account a, v_analytics_account_interaction aai
-				WHERE a.account_id=aai.account_id
-				AND aai.activity_timestamp BETWEEN ? AND ?
-				AND aai.institution_id=?
-				AND a.institution_location_id IS NULL
-				AND a.prompted_for_institution_location=FALSE
-				GROUP BY institution_location_description
-				""", AccountSourceInstitutionLocationCount.class, NOT_ASKED_LABEL, startTimestamp, endTimestamp, institutionId).orElse(null);
+		if (includeNotAsked) {
+			final String NOT_ASKED_LABEL = getStrings().get("Not Asked");
 
-		if (accountSourceInstitutionNotAskedLocationCount == null) {
-			accountSourceInstitutionNotAskedLocationCount = new AccountSourceInstitutionLocationCount();
-			accountSourceInstitutionNotAskedLocationCount.setCount(0L);
-			accountSourceInstitutionNotAskedLocationCount.setInstitutionLocationDescription(NOT_ASKED_LABEL);
+			// Accounts that do NOT have an institution location and were never asked to provide one
+			accountSourceInstitutionNotAskedLocationCount = getDatabase().queryForObject("""
+					SELECT COUNT(DISTINCT a.account_id) AS count, ? AS institution_location_description
+					FROM account a, v_analytics_account_interaction aai
+					WHERE a.account_id=aai.account_id
+					AND aai.activity_timestamp BETWEEN ? AND ?
+					AND aai.institution_id=?
+					AND a.institution_location_id IS NULL
+					AND a.prompted_for_institution_location=FALSE
+					GROUP BY institution_location_description
+					""", AccountSourceInstitutionLocationCount.class, NOT_ASKED_LABEL, startTimestamp, endTimestamp, institutionId).orElse(null);
+
+			if (accountSourceInstitutionNotAskedLocationCount == null) {
+				accountSourceInstitutionNotAskedLocationCount = new AccountSourceInstitutionLocationCount();
+				accountSourceInstitutionNotAskedLocationCount.setCount(0L);
+				accountSourceInstitutionNotAskedLocationCount.setInstitutionLocationDescription(NOT_ASKED_LABEL);
+			}
 		}
 
 		final String DECLINED_TO_ANSWER_LABEL = getStrings().get("Declined to Answer");
@@ -419,7 +430,10 @@ public class AnalyticsService implements AutoCloseable {
 		}
 
 		Map<String, Long> activeUserCountsByInstitutionLocation = new TreeMap<>();
-		activeUserCountsByInstitutionLocation.put(accountSourceInstitutionNotAskedLocationCount.getInstitutionLocationDescription(), accountSourceInstitutionNotAskedLocationCount.getCount());
+
+		if (includeNotAsked && accountSourceInstitutionNotAskedLocationCount != null)
+			activeUserCountsByInstitutionLocation.put(accountSourceInstitutionNotAskedLocationCount.getInstitutionLocationDescription(), accountSourceInstitutionNotAskedLocationCount.getCount());
+
 		activeUserCountsByInstitutionLocation.put(accountSourceInstitutionDeclinedToAnswerLocationCount.getInstitutionLocationDescription(), accountSourceInstitutionDeclinedToAnswerLocationCount.getCount());
 
 		for (AccountSourceInstitutionLocationCount accountSourceInstitutionLocationCount : accountSourceInstitutionLocationCounts)
@@ -741,6 +755,16 @@ public class AnalyticsService implements AutoCloseable {
 				ORDER BY user_count DESC
 					""", TrafficSourceMediumCount.class, startTimestamp, endTimestamp, institutionId);
 
+		// Nicer names here
+		for (TrafficSourceMediumCount trafficSourceMediumCount : trafficSourceMediumCounts) {
+			if ("(none)".equalsIgnoreCase(trafficSourceMediumCount.getMedium()))
+				trafficSourceMediumCount.setMedium(getStrings().get("Direct"));
+			else if ("referral".equalsIgnoreCase(trafficSourceMediumCount.getMedium()))
+				trafficSourceMediumCount.setMedium(getStrings().get("Referral"));
+			else if ("organic".equalsIgnoreCase(trafficSourceMediumCount.getMedium()))
+				trafficSourceMediumCount.setMedium(getStrings().get("Organic Search"));
+		}
+
 		// e.g. "google, canva.com, yahoo, ..."
 		List<TrafficSourceReferrerCount> trafficSourceReferrerCounts = List.of();
 
@@ -758,6 +782,7 @@ public class AnalyticsService implements AutoCloseable {
 					)
 					SELECT COUNT(*) AS user_count, ts.referrer
 					FROM ts
+					WHERE ts.referrer != '(direct)'
 					GROUP BY ts.referrer
 					ORDER BY user_count DESC
 					""", TrafficSourceReferrerCount.class, startTimestamp, endTimestamp, institutionId);
@@ -944,7 +969,7 @@ public class AnalyticsService implements AutoCloseable {
 								""", CrisisTriggerCount.class, institutionId, startTimestamp, endTimestamp));
 
 		crisisTriggerCounts.addAll(getDatabase().queryForList("""		
-				SELECT COUNT(*) AS count, 'Home Selection' AS name
+				SELECT COUNT(*) AS count, 'HP Chiclet' AS name
 				FROM analytics_google_bigquery_event
 				WHERE name='HP Nav'
 				AND event->'parameters'->'link_text'->>'value'='Crisis Support'
@@ -1005,30 +1030,31 @@ public class AnalyticsService implements AutoCloseable {
 						        AND pah.slot_date_time AT TIME ZONE i.time_zone between ? AND ?
 						        AND p.institution_id=?
 						    )
-						    SELECT p.provider_id, p.name, count(aa.*) as available_appointment_count, NULL::BIGINT as booked_appointment_count, NULL::BIGINT as canceled_appointment_count
+						    SELECT p.provider_id, p.name, p.url_name, count(aa.*) as available_appointment_count, NULL::BIGINT as booked_appointment_count, NULL::BIGINT as canceled_appointment_count
 						    FROM provider p
 						    LEFT OUTER JOIN available_app aa ON p.provider_id=aa.provider_id
 						    WHERE p.institution_id=?
-						    GROUP BY p.provider_id, p.name, booked_appointment_count, canceled_appointment_count
+						    GROUP BY p.provider_id, p.name, p.url_name, booked_appointment_count, canceled_appointment_count
 						    HAVING count(aa.*) > 0
 						    UNION
-						    SELECT p.provider_id, p.name, NULL::BIGINT as available_appointment_count, count(ba.*) as booked_appointment_count, NULL::BIGINT as canceled_appointment_count
+						    SELECT p.provider_id, p.name, p.url_name, NULL::BIGINT as available_appointment_count, count(ba.*) as booked_appointment_count, NULL::BIGINT as canceled_appointment_count
 						    FROM provider p
 						    LEFT OUTER JOIN booked_app ba ON p.provider_id=ba.provider_id
 						    WHERE p.institution_id=?
-						    GROUP BY p.provider_id, p.name, available_appointment_count, canceled_appointment_count
+						    GROUP BY p.provider_id, p.name, p.url_name, available_appointment_count, canceled_appointment_count
 						    HAVING count(ba.*) > 0
 						    UNION
-						    SELECT p.provider_id, p.name, NULL::BIGINT as available_appointment_count, NULL::BIGINT as booked_appointment_count, count(ca.*) as canceled_appointment_count
+						    SELECT p.provider_id, p.name, p.url_name, NULL::BIGINT as available_appointment_count, NULL::BIGINT as booked_appointment_count, count(ca.*) as canceled_appointment_count
 						    FROM provider p
 						    LEFT OUTER JOIN canceled_app ca ON p.provider_id=ca.provider_id
 						    WHERE p.institution_id=?
-						    GROUP BY p.provider_id, p.name, available_appointment_count, booked_appointment_count
+						    GROUP BY p.provider_id, p.name, p.url_name, available_appointment_count, booked_appointment_count
 						    HAVING count(ca.*) > 0
 						)
 						SELECT
 						  pr.provider_id,
 						  pr.name,
+						  pr.url_name,
 						  (COALESCE(MAX(pr.available_appointment_count), 0) + COALESCE(MAX(pr.booked_appointment_count), 0)) AS available_appointment_count,
 						  COALESCE(MAX(pr.booked_appointment_count), 0) AS booked_appointment_count,
 						  COALESCE(MAX(pr.canceled_appointment_count), 0) AS canceled_appointment_count,
@@ -1037,13 +1063,44 @@ public class AnalyticsService implements AutoCloseable {
 						    ELSE COALESCE(MAX(pr.booked_appointment_count), 0)::DECIMAL / (COALESCE(MAX(pr.available_appointment_count), 0) + COALESCE(MAX(pr.booked_appointment_count), 0))::DECIMAL
 						  END AS booking_percentage
 						FROM provider_row pr
-						GROUP BY pr.provider_id, pr.name
+						GROUP BY pr.provider_id, pr.name, pr.url_name
 						ORDER BY pr.name
 						""", AppointmentCount.class, startTimestamp, endTimestamp, institutionId,
 				startTimestamp, endTimestamp, institutionId,
 				startTimestamp, endTimestamp, institutionId,
 				institutionId, institutionId, institutionId
 		);
+
+		// Fill in support roles for each provider
+		List<ProviderWithSupportRole> providerWithSupportRoles = getDatabase().queryForList("""
+				SELECT p.provider_id, p.name AS provider_name, sr.support_role_id, sr.description AS support_role_description
+				FROM provider p, provider_support_role psr, support_role sr
+				WHERE p.institution_id=?
+				AND p.provider_id=psr.provider_id
+				AND psr.support_role_id=sr.support_role_id
+				ORDER BY p.name, sr.description
+								""", ProviderWithSupportRole.class, institutionId);
+
+		Map<UUID, List<String>> supportRoleDescriptionsByProviderId = new HashMap<>(providerWithSupportRoles.size());
+
+		for (ProviderWithSupportRole providerWithSupportRole : providerWithSupportRoles) {
+			List<String> supportRoleDescriptions = supportRoleDescriptionsByProviderId.get(providerWithSupportRole.getProviderId());
+
+			if (supportRoleDescriptions == null) {
+				supportRoleDescriptions = new ArrayList<>();
+				supportRoleDescriptionsByProviderId.put(providerWithSupportRole.getProviderId(), supportRoleDescriptions);
+			}
+
+			supportRoleDescriptions.add(providerWithSupportRole.getSupportRoleDescription());
+		}
+
+		// Now that we have the support role data easily accessible, merge it into the results
+		for (AppointmentCount appointmentCount : appointmentCounts) {
+			List<String> supportRoleDescriptions = supportRoleDescriptionsByProviderId.get(appointmentCount.getProviderId());
+			appointmentCount.setSupportRolesDescription(supportRoleDescriptions == null || supportRoleDescriptions.size() == 0
+					? getStrings().get("Unspecified")
+					: supportRoleDescriptions.stream().collect(Collectors.joining(", ")));
+		}
 
 		return appointmentCounts;
 	}
@@ -1165,12 +1222,13 @@ public class AnalyticsService implements AutoCloseable {
 						SELECT
 						  gs.group_session_id,
 						  gs.title,
+						  gs.facilitator_name,
 						  gs.start_date_time,
 						  COALESCE(MAX(gsr.page_view_count), 0) AS page_view_count,
 						  COALESCE(MAX(gsr.registration_count), 0) AS registration_count
 						FROM gs_row gsr, group_session gs
 						WHERE gsr.group_session_id=gs.group_session_id
-						GROUP BY gs.group_session_id, gs.title, gs.start_date_time
+						GROUP BY gs.group_session_id, gs.title, gs.facilitator_name, gs.start_date_time
 						ORDER BY registration_count DESC, page_view_count DESC, gs.title, gs.start_date_time
 						""", GroupSessionCount.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, urlPathRegex,
 				startTimestamp, endTimestamp, institutionId);
@@ -1204,10 +1262,10 @@ public class AnalyticsService implements AutoCloseable {
 		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.PATIENT).get();
 		String urlPathRegex = format("^%s", webappBaseUrl);
 
-		// Tag page views
+		// Tag group page views
 		// Chops off query parameters, so /resource-library/tag-groups/symptoms?test=123 is counted as /resource-library/tag-groups/symptoms.
 		// Also determines tags based on URL name suffix.
-		List<TagGroupPageView> tagGroupPageViews = getDatabase().queryForList("""
+		List<TagGroupPageView> directTagGroupPageViews = getDatabase().queryForList("""
 				WITH tag_group_page_normalized_view AS (
 				  WITH tag_group_page_view AS (
 				      SELECT regexp_replace(url, ?, '') AS raw_url_path
@@ -1234,7 +1292,7 @@ public class AnalyticsService implements AutoCloseable {
 		// Tag page views
 		// Chops off query parameters, so /resource-library/tags/anxiety?test=123 is counted as /resource-library/tags/anxiety.
 		// Also determines tags based on URL name suffix.
-		List<TagPageView> tagPageViews = getDatabase().queryForList("""
+		List<TagPageView> directTagPageViews = getDatabase().queryForList("""
 				WITH tag_page_normalized_view AS (
 				  WITH tag_page_view AS (
 				      SELECT regexp_replace(url, ?, '') AS raw_url_path
@@ -1257,6 +1315,79 @@ public class AnalyticsService implements AutoCloseable {
 				WHERE t.url_name = REVERSE(SUBSTR(REVERSE(tpnv.url_path), 0, STRPOS(REVERSE(tpnv.url_path), '/')))
 				ORDER BY tpnv.page_view_count DESC
 								""", TagPageView.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, "?", "?");
+
+		// Index by tag ID for easy access
+		Map<String, TagPageView> directTagPageViewsByTagId = directTagPageViews.stream()
+				.collect(Collectors.toMap(TagPageView::getTagId, Function.identity()));
+
+		// Tags based on content detail page views
+		List<TagPageView> contentTagPageViews = new ArrayList<>();
+
+		// Pull a list of all tags and fill with zeroes as a base list
+		List<Tag> tags = getTagService().findTagsByInstitutionId(institutionId);
+
+		// Prime the content data with all zero values for each tag
+		for (Tag tag : tags) {
+			TagPageView zeroedTagPageView = new TagPageView();
+			zeroedTagPageView.setTagId(tag.getTagId());
+			zeroedTagPageView.setTagName(tag.getName());
+			zeroedTagPageView.setUrlPath(tag.getUrlName());
+			zeroedTagPageView.setTagGroupId(tag.getTagGroupId());
+			zeroedTagPageView.setPageViewCount(0L);
+
+			contentTagPageViews.add(zeroedTagPageView);
+		}
+
+		// Index by tag ID for easy access
+		Map<String, TagPageView> contentTagPageViewsByTagId = contentTagPageViews.stream()
+				.collect(Collectors.toMap(TagPageView::getTagId, Function.identity()));
+
+		// Sum up the tags for every content detail page view.
+		// Example for a time window with 2 page_view events:
+		// * Page view 1 for content with MOOD and SLEEP tags
+		// * Page view 2 for content with BURNOUT and SLEEP tags
+		// Resultset would be 1 MOOD, 1 BURNOUT, 2 SLEEP
+		List<TagPageView> activeContentTagPageViews = getDatabase().queryForList("""
+				WITH page_views_by_tag AS (
+				    WITH content_page_normalized_view AS (
+				        WITH content_page_view AS (
+				            SELECT regexp_replace(url, ?, '') AS raw_url_path
+				            FROM v_analytics_account_interaction
+				            WHERE activity = 'page_view'
+				            AND activity_timestamp BETWEEN ? AND ?
+				            AND institution_id=?
+				            AND regexp_replace(url, ?, '') ~ '^/resource-library/[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}'
+				        )
+				        SELECT COUNT(*) AS page_view_count,
+				        CASE
+				            WHEN STRPOS(cpv.raw_url_path, ?) > 0 THEN SUBSTR(cpv.raw_url_path, 0, STRPOS(cpv.raw_url_path, ?))
+				            ELSE cpv.raw_url_path
+				        END AS url_path
+				        FROM content_page_view cpv
+				        GROUP BY url_path
+				    )
+				    SELECT cpnv.page_view_count, cpnv.url_path, c.content_id, c.title AS content_title, tc.tag_id
+				    FROM content_page_normalized_view cpnv, content c, tag_content tc
+				    WHERE c.content_id = (REVERSE(SUBSTR(REVERSE(cpnv.url_path), 0, STRPOS(REVERSE(cpnv.url_path), '/'))))::UUID
+				    AND c.content_id = tc.content_id
+				    AND tc.institution_id = ?
+				)
+				SELECT SUM(pvbt.page_view_count), pvbt.tag_id, t.name AS tag_name, t.tag_group_id, t.url_name AS url_path
+				FROM page_views_by_tag pvbt, tag t
+				WHERE pvbt.tag_id=t.tag_id
+				GROUP BY pvbt.tag_id, t.name, t.tag_group_id, t.url_name
+								""", TagPageView.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, "?", "?", institutionId);
+
+		// Overlay the query results onto the zeroed-out initial list
+		for (TagPageView activeContentTagPageView : activeContentTagPageViews) {
+			TagPageView contentTagPageView = contentTagPageViewsByTagId.get(activeContentTagPageView.getTagId());
+			contentTagPageView.setPageViewCount(activeContentTagPageView.getPageViewCount());
+		}
+
+		// Sort the list by page view count descending, then tag name
+		Collections.sort(contentTagPageViews, Comparator
+				.comparing(TagPageView::getPageViewCount, Comparator.reverseOrder())
+				.thenComparing(TagPageView::getTagName));
 
 		// Content that matches URLs like "/resource-library/{uuid}", discarding query parameters
 		List<ContentPageView> contentPageViews = getDatabase().queryForList("""
@@ -1283,6 +1414,51 @@ public class AnalyticsService implements AutoCloseable {
 				ORDER BY cpnv.page_view_count DESC, c.title
 				LIMIT 25
 				""", ContentPageView.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, "?", "?");
+
+		Set<UUID> contentIds = contentPageViews.stream().map(cpv -> cpv.getContentId()).collect(Collectors.toSet());
+
+		List<Object> contentPageViewTagParameters = new ArrayList<>();
+		contentPageViewTagParameters.add(institutionId);
+		contentPageViewTagParameters.addAll(contentIds);
+
+		StringBuilder contentPageViewTagsSql = new StringBuilder();
+		contentPageViewTagsSql.append("""
+				SELECT t.tag_id, tc.content_id, t.description AS tag_description, t.url_name AS tag_url_name
+				FROM tag_content tc, tag t
+				WHERE tc.institution_id=?
+				AND tc.tag_id=t.tag_id
+				""");
+
+		if (contentIds.size() > 0) {
+			contentPageViewTagsSql.append(format("""
+					AND tc.content_id IN %s
+					""", sqlInListPlaceholders(contentIds)));
+		}
+
+		contentPageViewTagsSql.append("""
+				ORDER BY t.tag_id, t.description
+				""");
+
+		List<ContentPageViewTag> contentPageViewTags = getDatabase().queryForList(contentPageViewTagsSql.toString(),
+				ContentPageViewTag.class, sqlVaragsParameters(contentPageViewTagParameters));
+
+		Map<UUID, List<ContentPageViewTag>> contentPageViewTagsByContentId = new HashMap<>(contentPageViews.size());
+
+		for (ContentPageViewTag contentPageViewTag : contentPageViewTags) {
+			List<ContentPageViewTag> currentContentPageViewTags = contentPageViewTagsByContentId.get(contentPageViewTag.getContentId());
+
+			if (currentContentPageViewTags == null) {
+				currentContentPageViewTags = new ArrayList<>();
+				contentPageViewTagsByContentId.put(contentPageViewTag.getContentId(), currentContentPageViewTags);
+			}
+
+			currentContentPageViewTags.add(contentPageViewTag);
+		}
+
+		for (ContentPageView contentPageView : contentPageViews) {
+			List<ContentPageViewTag> currentContentPageViewTags = contentPageViewTagsByContentId.get(contentPageView.getContentId());
+			contentPageView.setContentPageViewTags(currentContentPageViewTags == null ? List.of() : currentContentPageViewTags);
+		}
 
 		List<TopicCenterInteraction> topicCenterInteractions = getDatabase().queryForList("""
 						WITH topic_center_row as (
@@ -1337,12 +1513,42 @@ public class AnalyticsService implements AutoCloseable {
 						            )
 						        GROUP BY
 						            url_path
+						    ),
+						    topic_center_active_user AS (
+						        SELECT
+						            COUNT(DISTINCT aai.account_id) AS active_user_count,
+						            regexp_replace(
+						                regexp_replace(
+						                    regexp_replace(url, ?, ''),
+						                    '^/topic-centers/',
+						                    '/community/'
+						                ),
+						                '^/featured-topics/',
+						                '/community/'
+						            ) AS url_path
+						        FROM
+						            v_analytics_account_interaction aai, v_analytics_account_meaningful_interaction aami
+						        WHERE
+						        		aai.account_id = aami.account_id
+						            AND aai.activity = 'page_view'
+						            AND aai.activity_timestamp BETWEEN ? AND ?
+						            AND aai.institution_id = ?
+						            AND (
+						                regexp_replace(aai.url, ?, '') LIKE '/featured-topics/%'
+						                OR regexp_replace(aai.url, ?, '') LIKE '/community/%'
+						                OR regexp_replace(aai.url, ?, '') LIKE '/topic-centers/%'
+						            )
+						            AND aami.institution_id = ?
+												AND aai.activity_timestamp BETWEEN ? AND ?
+						        GROUP BY
+						            url_path
 						    )
 						    SELECT
 						        tc.topic_center_id,
 						        tc.name,
 						        tcpv.page_view_count,
 						        NULL :: BIGINT as unique_visitor_count,
+						        NULL :: BIGINT AS active_user_count,
 						        NULL :: BIGINT as group_session_click_count,
 						        NULL :: BIGINT as group_session_by_request_click_count,
 						        NULL :: BIGINT as pinboard_item_click_count,
@@ -1364,6 +1570,7 @@ public class AnalyticsService implements AutoCloseable {
 						        tc.name,
 						        NULL :: BIGINT AS page_view_count,
 						        tcuv.unique_visitor_count,
+						        NULL :: BIGINT AS active_user_count,
 						        NULL :: BIGINT as group_session_click_count,
 						        NULL :: BIGINT as group_session_by_request_click_count,
 						        NULL :: BIGINT as pinboard_item_click_count,
@@ -1385,6 +1592,29 @@ public class AnalyticsService implements AutoCloseable {
 						        tc.name,
 						        NULL :: BIGINT AS page_view_count,
 						        NULL :: BIGINT AS unique_visitor_count,
+						        tcau.active_user_count,
+						        NULL :: BIGINT as group_session_click_count,
+						        NULL :: BIGINT as group_session_by_request_click_count,
+						        NULL :: BIGINT as pinboard_item_click_count,
+						        NULL :: BIGINT as content_click_count
+						    FROM
+						        topic_center_active_user tcau,
+						        topic_center tc
+						    WHERE
+						        tc.url_name = REVERSE(
+						            SUBSTR(
+						                REVERSE(tcau.url_path),
+						                0,
+						                STRPOS(REVERSE(tcau.url_path), '/')
+						            )
+						        )
+						    UNION
+						    SELECT
+						        tc.topic_center_id,
+						        tc.name,
+						        NULL :: BIGINT AS page_view_count,
+						        NULL :: BIGINT AS unique_visitor_count,
+						        NULL :: BIGINT AS active_user_count,
 						        COUNT(*) AS group_session_click_count,
 						        NULL :: BIGINT AS group_session_by_request_click_count,
 						        NULL :: BIGINT AS pinboard_item_click_count,
@@ -1405,6 +1635,7 @@ public class AnalyticsService implements AutoCloseable {
 						        tc.name,
 						        NULL :: BIGINT AS page_view_count,
 						        NULL :: BIGINT AS unique_visitor_count,
+						        NULL :: BIGINT AS active_user_count,
 						        NULL :: BIGINT AS group_session_click_count,
 						        COUNT(*) AS group_session_by_request_click_count,
 						        NULL :: BIGINT AS pinboard_item_click_count,
@@ -1425,6 +1656,7 @@ public class AnalyticsService implements AutoCloseable {
 						        tc.name,
 						        NULL :: BIGINT AS page_view_count,
 						        NULL :: BIGINT AS unique_visitor_count,
+						        NULL :: BIGINT AS active_user_count,
 						        NULL :: BIGINT AS group_session_click_count,
 						        NULL :: BIGINT AS group_session_by_request_click_count,
 						        COUNT(*) AS pinboard_item_click_count,
@@ -1445,6 +1677,7 @@ public class AnalyticsService implements AutoCloseable {
 						        tc.name,
 						        NULL :: BIGINT AS page_view_count,
 						        NULL :: BIGINT AS unique_visitor_count,
+						        NULL :: BIGINT AS active_user_count,
 						        NULL :: BIGINT AS group_session_click_count,
 						        NULL :: BIGINT AS group_session_by_request_click_count,
 						        NULL :: BIGINT AS pinboard_item_click_count,
@@ -1465,6 +1698,7 @@ public class AnalyticsService implements AutoCloseable {
 						    name,
 						    COALESCE(MAX(page_view_count), 0) AS page_view_count,
 						    COALESCE(MAX(unique_visitor_count), 0) AS unique_visitor_count,
+						    COALESCE(MAX(active_user_count), 0) AS active_user_count,
 						    COALESCE(MAX(group_session_click_count), 0) AS group_session_click_count,
 						    COALESCE(MAX(group_session_by_request_click_count), 0) AS group_session_by_request_click_count,
 						    COALESCE(MAX(pinboard_item_click_count), 0) AS pinboard_item_click_count,
@@ -1479,43 +1713,29 @@ public class AnalyticsService implements AutoCloseable {
 						    tcr.name
 										""", TopicCenterInteraction.class, urlPathRegex, startTimestamp, endTimestamp, institutionId,
 				urlPathRegex, urlPathRegex, urlPathRegex, urlPathRegex, startTimestamp, endTimestamp, institutionId,
-				urlPathRegex, urlPathRegex, urlPathRegex, startTimestamp, endTimestamp, institutionId, startTimestamp,
-				endTimestamp, institutionId, startTimestamp, endTimestamp, institutionId, startTimestamp, endTimestamp, institutionId);
+				urlPathRegex, urlPathRegex, urlPathRegex, urlPathRegex, startTimestamp, endTimestamp, institutionId,
+				urlPathRegex, urlPathRegex, urlPathRegex, institutionId, startTimestamp, endTimestamp,
+				startTimestamp, endTimestamp, institutionId, startTimestamp,
+				endTimestamp, institutionId, startTimestamp, endTimestamp, institutionId,
+				startTimestamp, endTimestamp, institutionId);
+
+		List<TagCount> contentTagCounts = getDatabase().queryForList("""
+				SELECT COUNT(*), tag_id
+				FROM tag_content
+				WHERE institution_id=?
+				GROUP BY tag_id
+				""", TagCount.class, institutionId);
+
+		Map<String, Long> contentCountsByTagId = contentTagCounts.stream()
+				.collect(Collectors.toMap(TagCount::getTagId, TagCount::getCount));
 
 		ResourceAndTopicSummary resourceAndTopicSummary = new ResourceAndTopicSummary();
-		resourceAndTopicSummary.setTagGroupPageViews(tagGroupPageViews);
-		resourceAndTopicSummary.setTagPageViews(tagPageViews);
+		resourceAndTopicSummary.setDirectTagGroupPageViews(directTagGroupPageViews);
+		resourceAndTopicSummary.setDirectTagPageViews(directTagPageViews);
+		resourceAndTopicSummary.setContentTagPageViews(contentTagPageViews);
 		resourceAndTopicSummary.setContentPageViews(contentPageViews);
 		resourceAndTopicSummary.setTopicCenterInteractions(topicCenterInteractions);
-
-		// TODO: revisit tag group page views - are they the sum of all contained tag page views, or their own thing (or maybe we surface both in the UI)?
-		// Currently, it's unlikely but possible to have a tag page view but no corresponding tag group page view.
-		// Safeguard against that by filling in "empty" tag group page view records
-		Map<String, TagGroup> tagGroupsByTagGroupId = getTagService().findTagGroupsByInstitutionId(institutionId).stream()
-				.collect(Collectors.toMap(tagGroup -> tagGroup.getTagGroupId(), Function.identity()));
-
-		Set<String> tagGroupPageViewTagGroupIds = tagGroupPageViews.stream()
-				.map(tagGroupPageView -> tagGroupPageView.getTagGroupId())
-				.collect(Collectors.toSet());
-
-		// If any tag doesn't have a corresponding group row, add a blank one
-		for (TagPageView tagPageView : tagPageViews) {
-			if (!tagGroupPageViewTagGroupIds.contains(tagPageView.getTagGroupId())) {
-				TagGroup tagGroup = tagGroupsByTagGroupId.get(tagPageView.getTagGroupId());
-
-				TagGroupPageView tagGroupPageView = new TagGroupPageView();
-				tagGroupPageView.setTagGroupId(tagGroup.getTagGroupId());
-				tagGroupPageView.setTagGroupName(tagGroup.getName());
-				tagGroupPageView.setPageViewCount(0L); // TODO: revisit if we apply a different meaning for page views in the context of tag groups
-				tagGroupPageView.setUrlPath(format("/resource-library/tag-groups/%s", tagGroup.getUrlName()));
-
-				// Add to the list of tag group page views...
-				resourceAndTopicSummary.getTagGroupPageViews().add(tagGroupPageView);
-
-				// ...and remember what we did so we don't re-add the same blank row
-				tagGroupPageViewTagGroupIds.add(tagPageView.getTagGroupId());
-			}
-		}
+		resourceAndTopicSummary.setContentCountsByTagId(contentCountsByTagId);
 
 		return resourceAndTopicSummary;
 	}
@@ -1523,30 +1743,43 @@ public class AnalyticsService implements AutoCloseable {
 	@NotThreadSafe
 	public static class ResourceAndTopicSummary {
 		@Nullable
-		private List<TagGroupPageView> tagGroupPageViews;
+		private List<TagGroupPageView> directTagGroupPageViews;
 		@Nullable
-		private List<TagPageView> tagPageViews;
+		private List<TagPageView> directTagPageViews;
+		@Nullable
+		private List<TagPageView> contentTagPageViews;
 		@Nullable
 		private List<ContentPageView> contentPageViews;
 		@Nullable
 		private List<TopicCenterInteraction> topicCenterInteractions;
+		@Nullable
+		private Map<String, Long> contentCountsByTagId;
 
 		@Nullable
-		public List<TagGroupPageView> getTagGroupPageViews() {
-			return this.tagGroupPageViews;
+		public List<TagGroupPageView> getDirectTagGroupPageViews() {
+			return this.directTagGroupPageViews;
 		}
 
-		public void setTagGroupPageViews(@Nullable List<TagGroupPageView> tagGroupPageViews) {
-			this.tagGroupPageViews = tagGroupPageViews;
+		public void setDirectTagGroupPageViews(@Nullable List<TagGroupPageView> directTagGroupPageViews) {
+			this.directTagGroupPageViews = directTagGroupPageViews;
 		}
 
 		@Nullable
-		public List<TagPageView> getTagPageViews() {
-			return this.tagPageViews;
+		public List<TagPageView> getDirectTagPageViews() {
+			return this.directTagPageViews;
 		}
 
-		public void setTagPageViews(@Nullable List<TagPageView> tagPageViews) {
-			this.tagPageViews = tagPageViews;
+		public void setDirectTagPageViews(@Nullable List<TagPageView> directTagPageViews) {
+			this.directTagPageViews = directTagPageViews;
+		}
+
+		@Nullable
+		public List<TagPageView> getContentTagPageViews() {
+			return this.contentTagPageViews;
+		}
+
+		public void setContentTagPageViews(@Nullable List<TagPageView> contentTagPageViews) {
+			this.contentTagPageViews = contentTagPageViews;
 		}
 
 		@Nullable
@@ -1566,6 +1799,15 @@ public class AnalyticsService implements AutoCloseable {
 		public void setTopicCenterInteractions(@Nullable List<TopicCenterInteraction> topicCenterInteractions) {
 			this.topicCenterInteractions = topicCenterInteractions;
 		}
+
+		@Nullable
+		public Map<String, Long> getContentCountsByTagId() {
+			return this.contentCountsByTagId;
+		}
+
+		public void setContentCountsByTagId(@Nullable Map<String, Long> contentCountsByTagId) {
+			this.contentCountsByTagId = contentCountsByTagId;
+		}
 	}
 
 	@NotThreadSafe
@@ -1578,6 +1820,8 @@ public class AnalyticsService implements AutoCloseable {
 		private Long pageViewCount;
 		@Nullable
 		private Long uniqueVisitorCount;
+		@Nullable
+		private Long activeUserCount;
 		@Nullable
 		private Long groupSessionClickCount;
 		@Nullable
@@ -1621,6 +1865,15 @@ public class AnalyticsService implements AutoCloseable {
 
 		public void setUniqueVisitorCount(@Nullable Long uniqueVisitorCount) {
 			this.uniqueVisitorCount = uniqueVisitorCount;
+		}
+
+		@Nullable
+		public Long getActiveUserCount() {
+			return this.activeUserCount;
+		}
+
+		public void setActiveUserCount(@Nullable Long activeUserCount) {
+			this.activeUserCount = activeUserCount;
 		}
 
 		@Nullable
@@ -1668,6 +1921,8 @@ public class AnalyticsService implements AutoCloseable {
 		private String contentTitle;
 		@Nullable
 		private Long pageViewCount;
+		@Nullable
+		private List<ContentPageViewTag> contentPageViewTags;
 
 		@Nullable
 		public UUID getContentId() {
@@ -1694,6 +1949,63 @@ public class AnalyticsService implements AutoCloseable {
 
 		public void setPageViewCount(@Nullable Long pageViewCount) {
 			this.pageViewCount = pageViewCount;
+		}
+
+		@Nullable
+		public List<ContentPageViewTag> getContentPageViewTags() {
+			return this.contentPageViewTags;
+		}
+
+		public void setContentPageViewTags(@Nullable List<ContentPageViewTag> contentPageViewTags) {
+			this.contentPageViewTags = contentPageViewTags;
+		}
+	}
+
+	@NotThreadSafe
+	public static class ContentPageViewTag {
+		@Nullable
+		private String tagId;
+		@Nullable
+		private UUID contentId;
+		@Nullable
+		private String tagDescription;
+		@Nullable
+		private String tagUrlName;
+
+		@Nullable
+		public String getTagId() {
+			return this.tagId;
+		}
+
+		public void setTagId(@Nullable String tagId) {
+			this.tagId = tagId;
+		}
+
+		@Nullable
+		public UUID getContentId() {
+			return this.contentId;
+		}
+
+		public void setContentId(@Nullable UUID contentId) {
+			this.contentId = contentId;
+		}
+
+		@Nullable
+		public String getTagDescription() {
+			return this.tagDescription;
+		}
+
+		public void setTagDescription(@Nullable String tagDescription) {
+			this.tagDescription = tagDescription;
+		}
+
+		@Nullable
+		public String getTagUrlName() {
+			return this.tagUrlName;
+		}
+
+		public void setTagUrlName(@Nullable String tagUrlName) {
+			this.tagUrlName = tagUrlName;
 		}
 	}
 
@@ -1842,11 +2154,61 @@ public class AnalyticsService implements AutoCloseable {
 	}
 
 	@NotThreadSafe
+	protected static class ProviderWithSupportRole {
+		@Nullable
+		private UUID providerId;
+		@Nullable
+		private String providerName;
+		@Nullable
+		private SupportRoleId supportRoleId;
+		@Nullable
+		private String supportRoleDescription;
+
+		@Nullable
+		public UUID getProviderId() {
+			return this.providerId;
+		}
+
+		public void setProviderId(@Nullable UUID providerId) {
+			this.providerId = providerId;
+		}
+
+		@Nullable
+		public String getProviderName() {
+			return this.providerName;
+		}
+
+		public void setProviderName(@Nullable String providerName) {
+			this.providerName = providerName;
+		}
+
+		@Nullable
+		public SupportRoleId getSupportRoleId() {
+			return this.supportRoleId;
+		}
+
+		public void setSupportRoleId(@Nullable SupportRoleId supportRoleId) {
+			this.supportRoleId = supportRoleId;
+		}
+
+		@Nullable
+		public String getSupportRoleDescription() {
+			return this.supportRoleDescription;
+		}
+
+		public void setSupportRoleDescription(@Nullable String supportRoleDescription) {
+			this.supportRoleDescription = supportRoleDescription;
+		}
+	}
+
+	@NotThreadSafe
 	public static class GroupSessionCount {
 		@Nullable
 		private UUID groupSessionId;
 		@Nullable
 		private String title;
+		@Nullable
+		private String facilitator;
 		@Nullable
 		private LocalDateTime startDateTime;
 		@Nullable
@@ -1870,6 +2232,15 @@ public class AnalyticsService implements AutoCloseable {
 
 		public void setTitle(@Nullable String title) {
 			this.title = title;
+		}
+
+		@Nullable
+		public String getFacilitator() {
+			return this.facilitator;
+		}
+
+		public void setFacilitator(@Nullable String facilitator) {
+			this.facilitator = facilitator;
 		}
 
 		@Nullable
@@ -1907,6 +2278,10 @@ public class AnalyticsService implements AutoCloseable {
 		@Nullable
 		private String name;
 		@Nullable
+		private String urlName;
+		@Nullable
+		private String supportRolesDescription;
+		@Nullable
 		private Long availableAppointmentCount;
 		@Nullable
 		private Long bookedAppointmentCount;
@@ -1931,6 +2306,24 @@ public class AnalyticsService implements AutoCloseable {
 
 		public void setName(@Nullable String name) {
 			this.name = name;
+		}
+
+		@Nullable
+		public String getUrlName() {
+			return this.urlName;
+		}
+
+		public void setUrlName(@Nullable String urlName) {
+			this.urlName = urlName;
+		}
+
+		@Nullable
+		public String getSupportRolesDescription() {
+			return this.supportRolesDescription;
+		}
+
+		public void setSupportRolesDescription(@Nullable String supportRolesDescription) {
+			this.supportRolesDescription = supportRolesDescription;
 		}
 
 		@Nullable
@@ -2234,6 +2627,32 @@ public class AnalyticsService implements AutoCloseable {
 
 		public void setUserCount(@Nullable Long userCount) {
 			this.userCount = userCount;
+		}
+	}
+
+	@NotThreadSafe
+	protected static class TagCount {
+		@Nullable
+		private Long count;
+		@Nullable
+		private String tagId;
+
+		@Nullable
+		public Long getCount() {
+			return this.count;
+		}
+
+		public void setCount(@Nullable Long count) {
+			this.count = count;
+		}
+
+		@Nullable
+		public String getTagId() {
+			return this.tagId;
+		}
+
+		public void setTagId(@Nullable String tagId) {
+			this.tagId = tagId;
 		}
 	}
 

@@ -28,7 +28,9 @@ import com.google.inject.assistedinject.AssistedInject;
 import com.lokalized.Strings;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.Optional;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -48,6 +50,8 @@ public class ScreeningFlowApiResponse {
 	private final UUID activeScreeningFlowVersionId;
 	@Nonnull
 	private final String name;
+	@Nullable
+	private final String analyticsName;
 	@Nonnull
 	private final UUID createdByAccountId;
 
@@ -71,6 +75,7 @@ public class ScreeningFlowApiResponse {
 		this.screeningFlowTypeId = screeningFlow.getScreeningFlowTypeId();
 		this.activeScreeningFlowVersionId = screeningFlow.getActiveScreeningFlowVersionId();
 		this.name = screeningFlow.getName();
+		this.analyticsName = screeningFlow.getAnalyticsName();
 		this.createdByAccountId = screeningFlow.getCreatedByAccountId();
 	}
 
@@ -97,6 +102,11 @@ public class ScreeningFlowApiResponse {
 	@Nonnull
 	public String getName() {
 		return this.name;
+	}
+
+	@Nonnull
+	public Optional<String> getAnalyticsName() {
+		return Optional.ofNullable(this.analyticsName);
 	}
 
 	@Nonnull

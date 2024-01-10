@@ -43,6 +43,8 @@ public class ScreeningFlow {
 	@Nullable
 	private String name;
 	@Nullable
+	private String analyticsName;
+	@Nullable
 	private UUID createdByAccountId;
 	@Nullable
 	private Instant created;
@@ -92,6 +94,15 @@ public class ScreeningFlow {
 
 	public void setName(@Nullable String name) {
 		this.name = name;
+	}
+
+	@Nullable
+	public String getAnalyticsName() {
+		return this.analyticsName;
+	}
+
+	public void setAnalyticsName(@Nullable String analyticsName) {
+		this.analyticsName = analyticsName;
 	}
 
 	@Nullable

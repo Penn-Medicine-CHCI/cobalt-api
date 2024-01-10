@@ -48,7 +48,11 @@ public class StudyApiResponse {
 	@Nullable
 	private final Integer minutesBetweenCheckIns;
 	@Nullable
+	private final String minutesBetweenCheckInsDescription;
+	@Nullable
 	private final Integer gracePeriodInMinutes;
+	@Nullable
+	private final String gracePeriodInMinutesDescription;
 	@Nullable
 	private final String coordinatorName;
 	@Nullable
@@ -57,6 +61,8 @@ public class StudyApiResponse {
 	private final String coordinatorPhoneNumber;
 	@Nullable
 	private final String coordinatorPhoneNumberDescription;
+	@Nullable
+	private final String coordinatorAvailability;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -76,11 +82,14 @@ public class StudyApiResponse {
 		this.urlName = study.getUrlName();
 		this.onboardingDestinationUrl = study.getOnboardingDestinationUrl();
 		this.minutesBetweenCheckIns = study.getMinutesBetweenCheckIns();
+		this.minutesBetweenCheckInsDescription = study.getMinutesBetweenCheckIns() == null ? null : formatter.formatNumber(study.getMinutesBetweenCheckIns());
 		this.gracePeriodInMinutes = study.getGracePeriodInMinutes();
+		this.gracePeriodInMinutesDescription = study.getGracePeriodInMinutes() == null ? null : formatter.formatNumber(study.getGracePeriodInMinutes());
 		this.coordinatorName = study.getCoordinatorName();
 		this.coordinatorEmailAddress = study.getCoordinatorEmailAddress();
 		this.coordinatorPhoneNumber = study.getCoordinatorPhoneNumber();
 		this.coordinatorPhoneNumberDescription = getCoordinatorPhoneNumber() == null ? null : formatter.formatPhoneNumber(getCoordinatorPhoneNumber());
+		this.coordinatorAvailability = study.getCoordinatorAvailability();
 	}
 
 	@Nullable
@@ -109,8 +118,18 @@ public class StudyApiResponse {
 	}
 
 	@Nullable
+	public String getMinutesBetweenCheckInsDescription() {
+		return this.minutesBetweenCheckInsDescription;
+	}
+
+	@Nullable
 	public Integer getGracePeriodInMinutes() {
 		return gracePeriodInMinutes;
+	}
+
+	@Nullable
+	public String getGracePeriodInMinutesDescription() {
+		return this.gracePeriodInMinutesDescription;
 	}
 
 	@Nullable
@@ -131,5 +150,10 @@ public class StudyApiResponse {
 	@Nullable
 	public String getCoordinatorPhoneNumberDescription() {
 		return this.coordinatorPhoneNumberDescription;
+	}
+
+	@Nullable
+	public String getCoordinatorAvailability() {
+		return this.coordinatorAvailability;
 	}
 }
