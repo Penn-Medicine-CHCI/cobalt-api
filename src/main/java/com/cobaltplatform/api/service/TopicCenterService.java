@@ -90,6 +90,20 @@ public class TopicCenterService {
 	}
 
 	@Nonnull
+	public List<TopicCenter> findTopicCentersByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT tc.*
+				FROM topic_center tc, institution_topic_center itc
+				WHERE itc.institution_id=?
+				AND itc.topic_center_id=tc.topic_center_id
+				ORDER BY tc.name
+				""", TopicCenter.class, institutionId);
+	}
+
+	@Nonnull
 	public Optional<TopicCenter> findTopicCenterById(@Nullable UUID topicCenterId) {
 		if (topicCenterId == null)
 			return Optional.empty();

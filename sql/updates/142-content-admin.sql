@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('141-content-admin', NULL, NULL);
+SELECT _v.register_patch('142-content-admin', NULL, NULL);
 
 CREATE TABLE content_status
 (content_status_id VARCHAR NOT NULL PRIMARY KEY,

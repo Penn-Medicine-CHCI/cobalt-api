@@ -37,8 +37,11 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -147,6 +150,28 @@ public class TagService {
 	}
 
 	@Nonnull
+	public Map<String, List<Tag>> findTagsByTagGroupIdForInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return Map.of();
+
+		List<Tag> tags = findTagsByInstitutionId(institutionId);
+		Map<String, List<Tag>> tagsByTagGroupId = new LinkedHashMap<>();
+
+		for (Tag tag : tags) {
+			List<Tag> currentTags = tagsByTagGroupId.get(tag.getTagGroupId());
+
+			if (currentTags == null) {
+				currentTags = new ArrayList<>();
+				tagsByTagGroupId.put(tag.getTagGroupId(), currentTags);
+			}
+
+			currentTags.add(tag);
+		}
+
+		return tagsByTagGroupId;
+	}
+
+	@Nonnull
 	public List<Tag> findTagsByContentIdAndInstitutionId(@Nullable UUID contentId,
 																											 @Nullable InstitutionId institutionId) {
 		if (contentId == null || institutionId == null)
@@ -176,7 +201,7 @@ public class TagService {
 
 	@Nonnull
 	public List<Tag> findTagsByGroupSessionIdAndInstitutionId(@Nullable UUID groupSessionId,
-																											 		  @Nullable InstitutionId institutionId) {
+																														@Nullable InstitutionId institutionId) {
 		if (groupSessionId == null || institutionId == null)
 			return Collections.emptyList();
 

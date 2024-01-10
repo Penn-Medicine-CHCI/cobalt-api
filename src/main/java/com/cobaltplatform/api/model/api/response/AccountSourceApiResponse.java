@@ -43,6 +43,8 @@ public class AccountSourceApiResponse {
 	private final AccountSourceId accountSourceId;
 	@Nonnull
 	private final String description;
+	@Nullable
+	private final String shortDescription;
 	@Nonnull
 	private final String authenticationDescription;
 	@Nonnull
@@ -69,6 +71,7 @@ public class AccountSourceApiResponse {
 
 		this.accountSourceId = accountSource.getAccountSourceId();
 		this.description = accountSource.getDescription();
+		this.shortDescription = accountSource.getShortDescription();
 		this.authenticationDescription = accountSource.getAuthenticationDescription();
 		this.accountSourceDisplayStyleId = accountSource.getAccountSourceDisplayStyleId();
 
@@ -92,6 +95,11 @@ public class AccountSourceApiResponse {
 	@Nonnull
 	public String getDescription() {
 		return this.description;
+	}
+
+	@Nonnull
+	public Optional<String> getShortDescription() {
+		return Optional.ofNullable(this.shortDescription);
 	}
 
 	@Nonnull

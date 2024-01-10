@@ -82,6 +82,8 @@ public class AccountApiResponse {
 	@Nullable
 	private final UUID providerId;
 	@Nullable
+	private final String username; // Generally only for study-specific accounts
+	@Nullable
 	private final String firstName;
 	@Nullable
 	private final String lastName;
@@ -216,6 +218,7 @@ public class AccountApiResponse {
 		this.accountSourceId = account.getAccountSourceId();
 		this.sourceSystemId = account.getSourceSystemId();
 		this.betaStatusId = account.getBetaStatusId();
+		this.username = account.getUsername();
 		this.firstName = account.getFirstName();
 		this.lastName = account.getLastName();
 		this.displayName = account.getDisplayName();
@@ -338,6 +341,11 @@ public class AccountApiResponse {
 	@Nonnull
 	public BetaStatusId getBetaStatusId() {
 		return betaStatusId;
+	}
+
+	@Nullable
+	public String getUsername() {
+		return this.username;
 	}
 
 	@Nullable
