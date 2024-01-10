@@ -85,6 +85,8 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -317,7 +319,7 @@ public class AnalyticsResource {
 		// Group 1
 		AnalyticsPieChartWidget visitsWidget = new AnalyticsPieChartWidget();
 		visitsWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_VISITS);
-		visitsWidget.setWidgetTitle(getStrings().get("Visits"));
+		visitsWidget.setWidgetTitle(getStrings().get("New vs. Returning Users"));
 		visitsWidget.setWidgetSubtitle(getStrings().get("Total"));
 		visitsWidget.setWidgetChartLabel(getStrings().get("Visits"));
 		visitsWidget.setWidgetTotal(activeUserCountsNewVersusReturning.getNewUserCount() + activeUserCountsNewVersusReturning.getReturningUserCount());
@@ -339,7 +341,7 @@ public class AnalyticsResource {
 
 		AnalyticsPieChartWidget usersWidget = new AnalyticsPieChartWidget();
 		usersWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_USERS);
-		usersWidget.setWidgetTitle(getStrings().get("Users"));
+		usersWidget.setWidgetTitle(getStrings().get("User Account Sources"));
 		usersWidget.setWidgetSubtitle(getStrings().get("Total"));
 		usersWidget.setWidgetChartLabel(getStrings().get("Users"));
 		usersWidget.setWidgetTotal(activeUserCountsByAccountSourceId.values().stream().collect(Collectors.summingLong(Long::longValue)));
@@ -376,7 +378,7 @@ public class AnalyticsResource {
 
 		AnalyticsPieChartWidget employersWidget = new AnalyticsPieChartWidget();
 		employersWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_USERS);
-		employersWidget.setWidgetTitle(getStrings().get("Employer"));
+		employersWidget.setWidgetTitle(getStrings().get("User Employers"));
 		employersWidget.setWidgetSubtitle(getStrings().get("Across {{employerCount}} Employer[s]", Map.of("employerCount", activeUserCountsByInstitutionLocation.size())));
 		employersWidget.setWidgetChartLabel(getStrings().get("Users"));
 		employersWidget.setWidgetTotal(activeUserCountsByInstitutionLocation.values().stream().collect(Collectors.summingLong(Long::longValue)));
@@ -403,16 +405,22 @@ public class AnalyticsResource {
 		// Group 2
 		AnalyticsTableWidget pageviewsWidget = new AnalyticsTableWidget();
 		pageviewsWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_PAGEVIEWS);
-		pageviewsWidget.setWidgetTitle(getStrings().get("Pageviews"));
+		pageviewsWidget.setWidgetTitle(getStrings().get("Usage By Section"));
 
 		AnalyticsWidgetTableData pageviewsWidgetData = new AnalyticsWidgetTableData();
 		pageviewsWidgetData.setHeaders(List.of(
 				getStrings().get("Section"),
-				getStrings().get("Views"),
+				getStrings().get("Pageviews"),
 				getStrings().get("Users"),
 				getStrings().get("Active Users")
 		));
 		pageviewsWidgetData.setRows(new ArrayList<>(sectionCountSummaries.size()));
+
+		// Sort by pageviews descending, then section name
+		sectionCountSummaries = new ArrayList<>(sectionCountSummaries); // ensure mutability
+		Collections.sort(sectionCountSummaries, Comparator
+				.comparing(SectionCountSummary::getPageViewCount, Comparator.reverseOrder())
+				.thenComparing(SectionCountSummary::getSection));
 
 		for (SectionCountSummary sectionCountSummary : sectionCountSummaries) {
 			AnalyticsWidgetTableRow tableRow = new AnalyticsWidgetTableRow();
@@ -1527,7 +1535,7 @@ public class AnalyticsResource {
 				getStrings().get("Topic"),
 				getStrings().get("Content Pageviews"),
 				getStrings().get("Pieces of Content With This Tag")
-				));
+		));
 
 		Map<String, TagGroup> tagGroupsByTagGroupId = getTagService().findTagGroupsByInstitutionId(institutionId).stream()
 				.collect(Collectors.toMap(TagGroup::getTagGroupId, Function.identity()));
@@ -1639,7 +1647,7 @@ public class AnalyticsResource {
 		resourceDetailWidgetTableData.setHeaders(List.of(
 				getStrings().get("Content Title"),
 				getStrings().get("Tags"),
-				getStrings().get("Views")
+				getStrings().get("Pageviews")
 		));
 
 		List<AnalyticsWidgetTableRow> resourceDetailWidgetTableRows = new ArrayList<>(resourceAndTopicSummary.getContentPageViews().size());
@@ -1682,7 +1690,7 @@ public class AnalyticsResource {
 		topicCenterWidgetTableData.setHeaders(List.of(
 				getStrings().get("Topic Center Title"),
 				getStrings().get("Pageviews"),
-				getStrings().get("Unique Visitors"),
+				getStrings().get("Users"),
 				getStrings().get("Active Users"),
 				getStrings().get("Group Session Clicks"),
 				getStrings().get("Group Session By Request Clicks"),
