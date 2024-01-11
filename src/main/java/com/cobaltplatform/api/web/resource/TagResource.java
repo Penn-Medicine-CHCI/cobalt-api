@@ -20,6 +20,8 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.response.TagApiResponse;
+import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TagGroupApiResponse;
 import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
@@ -49,25 +51,30 @@ import static java.util.Objects.requireNonNull;
 @Singleton
 @ThreadSafe
 public class TagResource {
+	@Nonnull
+	private final TagService tagService;
+	@Nonnull
+	private final TagApiResponseFactory tagApiResponseFactory;
+	@Nonnull
+	private final TagGroupApiResponseFactory tagGroupApiResponseFactory;
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final Logger logger;
-	@Nonnull
-	private final TagGroupApiResponseFactory tagGroupApiResponseFactory;
-	@Nonnull
-	private final TagService tagService;
 
 	@Inject
-	public TagResource(@Nonnull Provider<CurrentContext> currentContextProvider,
+	public TagResource(@Nonnull TagService tagService,
+										 @Nonnull TagApiResponseFactory tagApiResponseFactory,
 										 @Nonnull TagGroupApiResponseFactory tagGroupApiResponseFactory,
-										 @Nonnull TagService tagService) {
-		requireNonNull(currentContextProvider);
+										 @Nonnull Provider<CurrentContext> currentContextProvider) {
 		requireNonNull(tagService);
+		requireNonNull(tagApiResponseFactory);
 		requireNonNull(tagGroupApiResponseFactory);
+		requireNonNull(currentContextProvider);
 
+		this.tagService = tagService;
+		this.tagApiResponseFactory = tagApiResponseFactory;
 		this.tagGroupApiResponseFactory = tagGroupApiResponseFactory;
 		this.currentContextProvider = currentContextProvider;
-		this.tagService = tagService;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
@@ -87,6 +94,36 @@ public class TagResource {
 	}
 
 	@Nonnull
+	@GET("/tags")
+	@AuthenticationRequired
+	public ApiResponse tags() {
+		Account account = getCurrentContext().getAccount().get();
+
+		List<TagApiResponse> tags = getTagService().findTagsByInstitutionId(account.getInstitutionId()).stream()
+				.map(tag -> getTagApiResponseFactory().create(tag))
+				.collect(Collectors.toList());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("tags", tags);
+		}});
+	}
+
+	@Nonnull
+	protected TagService getTagService() {
+		return this.tagService;
+	}
+
+	@Nonnull
+	protected TagApiResponseFactory getTagApiResponseFactory() {
+		return this.tagApiResponseFactory;
+	}
+
+	@Nonnull
+	protected TagGroupApiResponseFactory getTagGroupApiResponseFactory() {
+		return this.tagGroupApiResponseFactory;
+	}
+
+	@Nonnull
 	protected CurrentContext getCurrentContext() {
 		return this.currentContextProvider.get();
 	}
@@ -95,13 +132,4 @@ public class TagResource {
 	protected Logger getLogger() {
 		return this.logger;
 	}
-
-	@Nonnull
-	protected TagService getTagService() { return this.tagService; }
-
-	@Nonnull
-	protected TagGroupApiResponseFactory getTagGroupApiResponseFactory() {
-		return this.tagGroupApiResponseFactory;
-	}
-
 }

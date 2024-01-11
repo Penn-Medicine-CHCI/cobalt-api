@@ -39,6 +39,8 @@ import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
 import com.cobaltplatform.api.model.service.FeatureForInstitution;
 import com.cobaltplatform.api.util.JsonMapper;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -46,6 +48,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -57,6 +60,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -86,6 +90,8 @@ public class InstitutionService {
 	private final Provider<ScreeningService> screeningServiceProvider;
 	@Nonnull
 	private final Provider<FeatureService> featureServiceProvider;
+	@Nonnull
+	private final LoadingCache<WebappBaseUrlCacheKey, Optional<String>> webappBaseUrlCache;
 
 	@Inject
 	public InstitutionService(@Nonnull Database database,
@@ -108,6 +114,11 @@ public class InstitutionService {
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.screeningServiceProvider = screeningServiceProvider;
 		this.featureServiceProvider = featureServiceProvider;
+		this.webappBaseUrlCache = Caffeine.newBuilder()
+				.maximumSize(100)
+				.refreshAfterWrite(Duration.ofMinutes(5))
+				.expireAfterWrite(Duration.ofMinutes(10))
+				.build(key -> findUncachedWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(key));
 	}
 
 	@Nonnull
@@ -125,6 +136,15 @@ public class InstitutionService {
 		if (institutionId == null || userExperienceTypeId == null)
 			return Optional.empty();
 
+		WebappBaseUrlCacheKey webappBaseUrlCacheKey = new WebappBaseUrlCacheKey(institutionId, userExperienceTypeId);
+		return getWebappBaseUrlCache().get(webappBaseUrlCacheKey);
+	}
+
+	@Nonnull
+	protected Optional<String> findUncachedWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(@Nullable WebappBaseUrlCacheKey webappBaseUrlCacheKey) {
+		if (webappBaseUrlCacheKey == null)
+			return Optional.empty();
+
 		// First, see if we have a URL matching the user experience type for the institution
 		InstitutionUrl institutionUrl = getDatabase().queryForObject("""
 				    SELECT *
@@ -132,7 +152,7 @@ public class InstitutionService {
 				    WHERE institution_id=?
 				    AND preferred=TRUE
 				    AND user_experience_type_id=?
-				""", InstitutionUrl.class, institutionId, userExperienceTypeId).orElse(null);
+				""", InstitutionUrl.class, webappBaseUrlCacheKey.getInstitutionId(), webappBaseUrlCacheKey.getUserExperienceTypeId()).orElse(null);
 
 		// ...if not, just pick the URL regardless of user experience type (perhaps institution does not have
 		// multiple user experience types)
@@ -142,7 +162,7 @@ public class InstitutionService {
 					    FROM institution_url
 					    WHERE institution_id=?
 					    AND preferred=TRUE
-					""", InstitutionUrl.class, institutionId).orElse(null);
+					""", InstitutionUrl.class, webappBaseUrlCacheKey.getInstitutionId()).orElse(null);
 
 		if (institutionUrl == null)
 			return Optional.empty();
@@ -192,7 +212,7 @@ public class InstitutionService {
 
 		List<AccountSourceForInstitution> accountSources = getDatabase().queryForList("""
 						SELECT ias.institution_id, a.account_source_id, ias.account_source_display_style_id,
-						a.description, ias.authentication_description, a.local_sso_url, a.dev_sso_url,
+						a.description, a.short_description, ias.authentication_description, a.local_sso_url, a.dev_sso_url,
 						a.prod_sso_url, ias.display_order, ias.requires_user_experience_type_id, ias.visible
 						FROM institution_account_source ias, account_source a
 						WHERE ias.institution_id=?
@@ -415,6 +435,47 @@ public class InstitutionService {
 				""", InstitutionColorValue.class, colorId, institutionId);
 	}
 
+	@Immutable
+	private static final class WebappBaseUrlCacheKey {
+		@Nonnull
+		private final InstitutionId institutionId;
+		@Nonnull
+		private final UserExperienceTypeId userExperienceTypeId;
+
+		public WebappBaseUrlCacheKey(@Nonnull InstitutionId institutionId,
+																 @Nonnull UserExperienceTypeId userExperienceTypeId) {
+			requireNonNull(institutionId);
+			requireNonNull(userExperienceTypeId);
+
+			this.institutionId = institutionId;
+			this.userExperienceTypeId = userExperienceTypeId;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) return true;
+			if (o == null || getClass() != o.getClass()) return false;
+			WebappBaseUrlCacheKey that = (WebappBaseUrlCacheKey) o;
+			return getInstitutionId() == that.getInstitutionId() && getUserExperienceTypeId() == that.getUserExperienceTypeId();
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(getInstitutionId(), getUserExperienceTypeId());
+		}
+
+		@Nonnull
+		public InstitutionId getInstitutionId() {
+			return this.institutionId;
+		}
+
+		@Nonnull
+		public UserExperienceTypeId getUserExperienceTypeId() {
+			return this.userExperienceTypeId;
+		}
+	}
+
+
 	@Nonnull
 	protected Database getDatabase() {
 		return this.database;
@@ -448,5 +509,10 @@ public class InstitutionService {
 	@Nonnull
 	protected FeatureService getFeatureService() {
 		return this.featureServiceProvider.get();
+	}
+
+	@Nonnull
+	protected LoadingCache<WebappBaseUrlCacheKey, Optional<String>> getWebappBaseUrlCache() {
+		return this.webappBaseUrlCache;
 	}
 }

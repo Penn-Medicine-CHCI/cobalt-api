@@ -21,12 +21,21 @@ package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.response.AlertApiResponse;
+import com.cobaltplatform.api.model.api.response.AlertApiResponse.AlertApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
+import com.cobaltplatform.api.model.db.Alert;
+import com.cobaltplatform.api.model.db.AlertType.AlertTypeId;
 import com.cobaltplatform.api.model.db.Color.ColorId;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.ReportType.ReportTypeId;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
+import com.cobaltplatform.api.model.db.TagGroup;
+import com.cobaltplatform.api.model.db.TopicCenter;
+import com.cobaltplatform.api.model.db.TopicCenterDisplayStyle.TopicCenterDisplayStyleId;
+import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
 import com.cobaltplatform.api.service.AnalyticsService;
@@ -49,6 +58,8 @@ import com.cobaltplatform.api.service.AnalyticsService.TrafficSourceSummary;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ScreeningService;
+import com.cobaltplatform.api.service.TagService;
+import com.cobaltplatform.api.service.TopicCenterService;
 import com.cobaltplatform.api.util.Formatter;
 import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
@@ -73,23 +84,30 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.text.NumberFormat;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -108,6 +126,12 @@ public class AnalyticsResource {
 	@Nonnull
 	private final InstitutionService institutionService;
 	@Nonnull
+	private final TopicCenterService topicCenterService;
+	@Nonnull
+	private final TagService tagService;
+	@Nonnull
+	private final AlertApiResponseFactory alertApiResponseFactory;
+	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
@@ -123,6 +147,9 @@ public class AnalyticsResource {
 													 @Nonnull AuthorizationService authorizationService,
 													 @Nonnull ScreeningService screeningService,
 													 @Nonnull InstitutionService institutionService,
+													 @Nonnull TopicCenterService topicCenterService,
+													 @Nonnull TagService tagService,
+													 @Nonnull AlertApiResponseFactory alertApiResponseFactory,
 													 @Nonnull Configuration configuration,
 													 @Nonnull Provider<CurrentContext> currentContextProvider,
 													 @Nonnull Strings strings,
@@ -131,6 +158,9 @@ public class AnalyticsResource {
 		requireNonNull(authorizationService);
 		requireNonNull(screeningService);
 		requireNonNull(institutionService);
+		requireNonNull(topicCenterService);
+		requireNonNull(tagService);
+		requireNonNull(alertApiResponseFactory);
 		requireNonNull(configuration);
 		requireNonNull(currentContextProvider);
 		requireNonNull(strings);
@@ -140,6 +170,9 @@ public class AnalyticsResource {
 		this.authorizationService = authorizationService;
 		this.screeningService = screeningService;
 		this.institutionService = institutionService;
+		this.topicCenterService = topicCenterService;
+		this.tagService = tagService;
+		this.alertApiResponseFactory = alertApiResponseFactory;
 		this.configuration = configuration;
 		this.currentContextProvider = currentContextProvider;
 		this.strings = strings;
@@ -297,7 +330,7 @@ public class AnalyticsResource {
 		// Group 1
 		AnalyticsPieChartWidget visitsWidget = new AnalyticsPieChartWidget();
 		visitsWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_VISITS);
-		visitsWidget.setWidgetTitle(getStrings().get("Visits"));
+		visitsWidget.setWidgetTitle(getStrings().get("New vs. Returning Users"));
 		visitsWidget.setWidgetSubtitle(getStrings().get("Total"));
 		visitsWidget.setWidgetChartLabel(getStrings().get("Visits"));
 		visitsWidget.setWidgetTotal(activeUserCountsNewVersusReturning.getNewUserCount() + activeUserCountsNewVersusReturning.getReturningUserCount());
@@ -319,7 +352,7 @@ public class AnalyticsResource {
 
 		AnalyticsPieChartWidget usersWidget = new AnalyticsPieChartWidget();
 		usersWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_USERS);
-		usersWidget.setWidgetTitle(getStrings().get("Users"));
+		usersWidget.setWidgetTitle(getStrings().get("User Account Sources"));
 		usersWidget.setWidgetSubtitle(getStrings().get("Total"));
 		usersWidget.setWidgetChartLabel(getStrings().get("Users"));
 		usersWidget.setWidgetTotal(activeUserCountsByAccountSourceId.values().stream().collect(Collectors.summingLong(Long::longValue)));
@@ -333,10 +366,18 @@ public class AnalyticsResource {
 
 		for (Entry<AccountSourceId, Long> entry : activeUserCountsByAccountSourceId.entrySet()) {
 			AccountSourceId accountSourceId = entry.getKey();
+			AccountSourceForInstitution accountSource = accountSourcesByAccountSourceId.get(accountSourceId);
+
+			// Pick the short description of the account source if present
+			String description = Stream.of(accountSource.getShortDescription(), accountSource.getDescription())
+					.filter(Objects::nonNull)
+					.findFirst()
+					.get();
+
 			Long count = entry.getValue();
 
 			AnalyticsWidgetChartData widgetChartData = new AnalyticsWidgetChartData();
-			widgetChartData.setLabel(accountSourcesByAccountSourceId.get(accountSourceId).getDescription());
+			widgetChartData.setLabel(description);
 			widgetChartData.setCount(count);
 			widgetChartData.setCountDescription(getFormatter().formatNumber(count));
 			widgetChartData.setColor(colorCssRepresentations.get(i % colorCssRepresentations.size()));
@@ -348,7 +389,7 @@ public class AnalyticsResource {
 
 		AnalyticsPieChartWidget employersWidget = new AnalyticsPieChartWidget();
 		employersWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_USERS);
-		employersWidget.setWidgetTitle(getStrings().get("Employer"));
+		employersWidget.setWidgetTitle(getStrings().get("User Employers"));
 		employersWidget.setWidgetSubtitle(getStrings().get("Across {{employerCount}} Employer[s]", Map.of("employerCount", activeUserCountsByInstitutionLocation.size())));
 		employersWidget.setWidgetChartLabel(getStrings().get("Users"));
 		employersWidget.setWidgetTotal(activeUserCountsByInstitutionLocation.values().stream().collect(Collectors.summingLong(Long::longValue)));
@@ -375,16 +416,22 @@ public class AnalyticsResource {
 		// Group 2
 		AnalyticsTableWidget pageviewsWidget = new AnalyticsTableWidget();
 		pageviewsWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_PAGEVIEWS);
-		pageviewsWidget.setWidgetTitle(getStrings().get("Pageviews"));
+		pageviewsWidget.setWidgetTitle(getStrings().get("Usage By Section"));
 
 		AnalyticsWidgetTableData pageviewsWidgetData = new AnalyticsWidgetTableData();
 		pageviewsWidgetData.setHeaders(List.of(
 				getStrings().get("Section"),
-				getStrings().get("Views"),
+				getStrings().get("Pageviews"),
 				getStrings().get("Users"),
 				getStrings().get("Active Users")
 		));
 		pageviewsWidgetData.setRows(new ArrayList<>(sectionCountSummaries.size()));
+
+		// Sort by pageviews descending, then section name
+		sectionCountSummaries = new ArrayList<>(sectionCountSummaries); // ensure mutability
+		Collections.sort(sectionCountSummaries, Comparator
+				.comparing(SectionCountSummary::getPageViewCount, Comparator.reverseOrder())
+				.thenComparing(SectionCountSummary::getSection));
 
 		for (SectionCountSummary sectionCountSummary : sectionCountSummaries) {
 			AnalyticsWidgetTableRow tableRow = new AnalyticsWidgetTableRow();
@@ -404,7 +451,7 @@ public class AnalyticsResource {
 		// Group 3
 		AnalyticsBarChartWidget referralsWidget = new AnalyticsBarChartWidget();
 		referralsWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_USER_REFERRALS);
-		referralsWidget.setWidgetTitle(getStrings().get("Users from Referrals"));
+		referralsWidget.setWidgetTitle(getStrings().get("Top Acquisition Channels"));
 		referralsWidget.setWidgetSubtitle(getStrings().get("{{percentage}} of Total", Map.of("percentage", getFormatter().formatPercent(trafficSourceSummary.getUsersFromNonDirectTrafficSourceMediumPercentage()))));
 		referralsWidget.setWidgetChartLabel(getStrings().get("Users"));
 		referralsWidget.setWidgetTotal(trafficSourceSummary.getUsersFromTrafficSourceMediumTotalCount());
@@ -473,11 +520,21 @@ public class AnalyticsResource {
 				referralsGroup
 		);
 
+		List<AlertApiResponse> alerts = new ArrayList<>();
+
+		final LocalDate FIRST_BIGQUERY_DATE = LocalDate.of(2023, 6, 13);
+
+		if (startDate.isBefore(FIRST_BIGQUERY_DATE))
+			alerts.add(syntheticAlertForMessage(getStrings().get("Overview reports are only valid for dates on or after {{firstDateDescription}}.", Map.of(
+					"firstDateDescription", getFormatter().formatDate(FIRST_BIGQUERY_DATE, FormatStyle.MEDIUM)
+			))));
+
 		boolean returnExampleJson = false;
 
 		if (!returnExampleJson)
 			return new ApiResponse(Map.of(
-					"analyticsWidgetGroups", analyticsWidgetGroups
+					"analyticsWidgetGroups", analyticsWidgetGroups,
+					"alerts", alerts
 			));
 
 		String exampleJson = """
@@ -733,6 +790,8 @@ public class AnalyticsResource {
 				.map(institutionColorValue -> institutionColorValue.getCssRepresentation())
 				.collect(Collectors.toList());
 
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+
 		Map<UUID, ScreeningSessionCompletion> screeningSessionCompletions = getAnalyticsService().findClinicalScreeningSessionCompletionsByScreeningFlowId(institutionId, startDate, endDate);
 		Map<UUID, SortedMap<String, Long>> screeningSessionSeverityCounts = getAnalyticsService().findClinicalScreeningSessionSeverityCountsByDescriptionByScreeningFlowId(institutionId, startDate, endDate);
 
@@ -772,6 +831,7 @@ public class AnalyticsResource {
 				ScreeningFlow screeningFlow = new ScreeningFlow();
 				screeningFlow.setScreeningFlowId(screeningFlowId);
 				screeningFlow.setName(getStrings().get("Fake Screening Flow {{index}}", Map.of("index", ++i)));
+				screeningFlow.setCreated(LocalDateTime.of(2023, 4, 13, 11, 0, 0).atZone(institution.getTimeZone()).toInstant());
 
 				screeningFlowsByScreeningFlowId.put(screeningFlowId, screeningFlow);
 			}
@@ -780,7 +840,7 @@ public class AnalyticsResource {
 			crisisTriggerCounts = List.of(
 					new CrisisTriggerCount() {{
 						setCount(100L);
-						setName(getStrings().get("Home Selection"));
+						setName(getStrings().get("HP Chiclet"));
 					}},
 					new CrisisTriggerCount() {{
 						setCount(50L);
@@ -796,6 +856,8 @@ public class AnalyticsResource {
 					new AppointmentCount() {{
 						setProviderId(UUID.randomUUID());
 						setName(getStrings().get("Test Provider"));
+						setUrlName("test-provider");
+						setSupportRolesDescription("Support Role 1, Support Role 2");
 						setAvailableAppointmentCount(150L);
 						setBookedAppointmentCount(25L);
 						setCanceledAppointmentCount(45L);
@@ -818,9 +880,15 @@ public class AnalyticsResource {
 			ScreeningSessionCompletion screeningSessionCompletion = screeningSessionCompletions.get(screeningFlowId);
 			SortedMap<String, Long> severityCountsByDescription = screeningSessionSeverityCounts.get(screeningFlowId);
 
+			// Pick the analytics name of the screening flow if present
+			String screeningFlowName = Stream.of(screeningFlow.getAnalyticsName(), screeningFlow.getName())
+					.filter(Objects::nonNull)
+					.findFirst()
+					.get();
+
 			AnalyticsBarChartWidget clinicalAssessmentCompletionWidget = new AnalyticsBarChartWidget();
 			clinicalAssessmentCompletionWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_CLINICAL_ASSESSMENT_COMPLETION);
-			clinicalAssessmentCompletionWidget.setWidgetTitle(getStrings().get("{{screeningFlowName}} Completion", Map.of("screeningFlowName", screeningFlow.getName())));
+			clinicalAssessmentCompletionWidget.setWidgetTitle(getStrings().get("{{screeningFlowName}} Completion", Map.of("screeningFlowName", screeningFlowName)));
 			clinicalAssessmentCompletionWidget.setWidgetTotal(screeningSessionCompletion.getCompletionPercentage());
 			clinicalAssessmentCompletionWidget.setWidgetTotalDescription(getFormatter().formatPercent(screeningSessionCompletion.getCompletionPercentage()));
 			clinicalAssessmentCompletionWidget.setWidgetSubtitle(getStrings().get("Completion Rate"));
@@ -829,18 +897,27 @@ public class AnalyticsResource {
 			AnalyticsWidgetChartData startedWidgetChartData = new AnalyticsWidgetChartData();
 			startedWidgetChartData.setCount(screeningSessionCompletion.getStartedCount());
 			startedWidgetChartData.setCountDescription(getFormatter().formatNumber(screeningSessionCompletion.getStartedCount()));
-			startedWidgetChartData.setLabel(getStrings().get("Started"));
+			startedWidgetChartData.setLabel(getStrings().get("Total"));
 			startedWidgetChartData.setColor(successColorCssRepresentations.get(0 % successColorCssRepresentations.size()));
 
 			AnalyticsWidgetChartData completedWidgetChartData = new AnalyticsWidgetChartData();
 			completedWidgetChartData.setCount(screeningSessionCompletion.getCompletedCount());
 			completedWidgetChartData.setCountDescription(getFormatter().formatNumber(screeningSessionCompletion.getCompletedCount()));
-			completedWidgetChartData.setLabel(getStrings().get("Completed"));
+			completedWidgetChartData.setLabel(getStrings().get("Complete"));
 			completedWidgetChartData.setColor(successColorCssRepresentations.get(1 % successColorCssRepresentations.size()));
+
+			Long incompleteCount = screeningSessionCompletion.getStartedCount() - screeningSessionCompletion.getCompletedCount();
+
+			AnalyticsWidgetChartData incompleteWidgetChartData = new AnalyticsWidgetChartData();
+			incompleteWidgetChartData.setCount(incompleteCount);
+			incompleteWidgetChartData.setCountDescription(getFormatter().formatNumber(incompleteCount));
+			incompleteWidgetChartData.setLabel(getStrings().get("Incomplete"));
+			incompleteWidgetChartData.setColor(successColorCssRepresentations.get(2 % successColorCssRepresentations.size()));
 
 			clinicalAssessmentCompletionWidget.setWidgetData(List.of(
 					startedWidgetChartData,
-					completedWidgetChartData
+					completedWidgetChartData,
+					incompleteWidgetChartData
 			));
 
 			clinicalAssessmentWidgets.add(clinicalAssessmentCompletionWidget);
@@ -850,7 +927,7 @@ public class AnalyticsResource {
 
 			AnalyticsBarChartWidget clinicalAssessmentSeverityWidget = new AnalyticsBarChartWidget();
 			clinicalAssessmentSeverityWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_CLINICAL_ASSESSMENT_SEVERITY);
-			clinicalAssessmentSeverityWidget.setWidgetTitle(getStrings().get("{{screeningFlowName}} Severity", Map.of("screeningFlowName", screeningFlow.getName())));
+			clinicalAssessmentSeverityWidget.setWidgetTitle(getStrings().get("{{screeningFlowName}} Severity", Map.of("screeningFlowName", screeningFlowName)));
 			clinicalAssessmentSeverityWidget.setWidgetTotal(severityTotalCount);
 			clinicalAssessmentSeverityWidget.setWidgetTotalDescription(getFormatter().formatNumber(severityTotalCount));
 			clinicalAssessmentSeverityWidget.setWidgetSubtitle(getStrings().get("Completed Assessments"));
@@ -885,7 +962,7 @@ public class AnalyticsResource {
 
 		AnalyticsBarChartWidget crisisWidget = new AnalyticsBarChartWidget();
 		crisisWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_CRISIS_TRIGGERS);
-		crisisWidget.setWidgetTitle(getStrings().get("Crisis Triggers"));
+		crisisWidget.setWidgetTitle(getStrings().get("Crisis"));
 		crisisWidget.setWidgetTotal(crisisTriggerTotalCount);
 		crisisWidget.setWidgetTotalDescription(getFormatter().formatNumber(crisisTriggerTotalCount));
 		crisisWidget.setWidgetSubtitle(getStrings().get("Total"));
@@ -918,6 +995,7 @@ public class AnalyticsResource {
 
 		providerWidgetTableData.setHeaders(List.of(
 				getStrings().get("Provider Name"),
+				getStrings().get("Support Role"),
 				getStrings().get("Available Appointments"),
 				getStrings().get("Booked Appointments"),
 				getStrings().get("Cancelled Appointments"),
@@ -927,9 +1005,15 @@ public class AnalyticsResource {
 		List<AnalyticsWidgetTableRow> providerWidgetTableRows = new ArrayList<>(appointmentCounts.size());
 
 		for (AppointmentCount appointmentCount : appointmentCounts) {
+			String providerName = getStrings().get("<a href='{{providerDetailUrl}}' target='_blank'>{{providerName}}</a>", Map.of(
+					"providerDetailUrl", providerDetailUrl(institutionId, appointmentCount.getUrlName()),
+					"providerName", appointmentCount.getName()
+			));
+
 			AnalyticsWidgetTableRow row = new AnalyticsWidgetTableRow();
 			row.setData(List.of(
-					appointmentCount.getName(),
+					providerName,
+					appointmentCount.getSupportRolesDescription(),
 					getFormatter().formatNumber(appointmentCount.getAvailableAppointmentCount()),
 					getFormatter().formatNumber(appointmentCount.getBookedAppointmentCount()),
 					getFormatter().formatNumber(appointmentCount.getCanceledAppointmentCount()),
@@ -992,11 +1076,44 @@ public class AnalyticsResource {
 				thirdGroup
 		);
 
+		// Figure out our alerts
+		List<AlertApiResponse> alerts = new ArrayList<>();
+
+		final LocalDate FIRST_BIGQUERY_DATE = LocalDate.of(2023, 6, 13);
+		final LocalDate FIRST_NATIVE_SCHEDULING_DATE = LocalDate.of(2022, 8, 11);
+
+		if (startDate.isBefore(FIRST_BIGQUERY_DATE)) {
+			alerts.add(syntheticAlertForMessage(getStrings().get("Crisis 'HP Chiclet' and 'In Crisis Button' reports are only valid for dates on or after {{firstDateDescription}}.", Map.of(
+					"firstDateDescription", getFormatter().formatDate(FIRST_BIGQUERY_DATE, FormatStyle.MEDIUM)
+			))));
+			alerts.add(syntheticAlertForMessage(getStrings().get("Click-to-call reports are only valid for dates on or after {{firstDateDescription}}.", Map.of(
+					"firstDateDescription", getFormatter().formatDate(FIRST_BIGQUERY_DATE, FormatStyle.MEDIUM)
+			))));
+		}
+
+		if (startDate.isBefore(FIRST_NATIVE_SCHEDULING_DATE)) {
+			alerts.add(syntheticAlertForMessage(getStrings().get("Provider available appointments are only valid for dates on or after {{firstDateDescription}}.", Map.of(
+					"firstDateDescription", getFormatter().formatDate(FIRST_NATIVE_SCHEDULING_DATE, FormatStyle.MEDIUM)
+			))));
+		}
+
+		for (ScreeningFlow screeningFlow : screeningFlowsByScreeningFlowId.values()) {
+			LocalDate createdAt = LocalDate.ofInstant(screeningFlow.getCreated(), institution.getTimeZone());
+
+			if (startDate.isBefore(createdAt)) {
+				alerts.add(syntheticAlertForMessage(getStrings().get("{{screeningFlowName}} reports are only valid for dates on or after {{dateDescription}}.", Map.of(
+						"screeningFlowName", screeningFlow.getName(),
+						"dateDescription", getFormatter().formatDate(createdAt, FormatStyle.MEDIUM)
+				))));
+			}
+		}
+
 		boolean returnExampleJson = false;
 
 		if (!returnExampleJson)
 			return new ApiResponse(Map.of(
-					"analyticsWidgetGroups", analyticsWidgetGroups
+					"analyticsWidgetGroups", analyticsWidgetGroups,
+					"alerts", alerts
 			));
 
 		String exampleJson = """
@@ -1010,7 +1127,7 @@ public class AnalyticsResource {
 				          "widgetTotal": 0.25,
 				          "widgetTotalDescription": "25%",
 				          "widgetSubtitle": "Completion Rate",
-				          "widgetTypeId": "BAR_CHART",
+				          "widgetTypeId": "PIE_CHART",
 				          "widgetChartLabel": "Assessments",
 				          "widgetData": [
 				            {
@@ -1072,7 +1189,7 @@ public class AnalyticsResource {
 				          "widgetChartLabel": "Times Triggered",
 				          "widgetData": [
 				            {
-				              "label": "Home Selection",
+				              "label": "HP Chiclet",
 				              "count": 120,
 				              "countDescription": "120",
 				              "color": "#E56F65"
@@ -1179,6 +1296,7 @@ public class AnalyticsResource {
 			GroupSessionCount groupSessionCount1 = new GroupSessionCount();
 			groupSessionCount1.setGroupSessionId(UUID.randomUUID());
 			groupSessionCount1.setTitle(getStrings().get("Group Session 1"));
+			groupSessionCount1.setFacilitator(getStrings().get("Facilitator 1"));
 			groupSessionCount1.setStartDateTime(LocalDateTime.of(LocalDate.of(2025, 1, 1), LocalTime.of(13, 30)));
 			groupSessionCount1.setRegistrationCount(100L);
 			groupSessionCount1.setPageViewCount(10000L);
@@ -1186,6 +1304,7 @@ public class AnalyticsResource {
 			GroupSessionCount groupSessionCount2 = new GroupSessionCount();
 			groupSessionCount2.setGroupSessionId(UUID.randomUUID());
 			groupSessionCount2.setTitle(getStrings().get("Group Session 2"));
+			groupSessionCount2.setFacilitator(getStrings().get("Facilitator 2"));
 			groupSessionCount2.setStartDateTime(LocalDateTime.of(LocalDate.of(2026, 12, 31), LocalTime.of(18, 30)));
 			groupSessionCount2.setRegistrationCount(1000L);
 			groupSessionCount2.setPageViewCount(1250000L);
@@ -1219,23 +1338,33 @@ public class AnalyticsResource {
 
 		groupSessionTableWidgetData.setHeaders(List.of(
 				getStrings().get("Session Title"),
+				getStrings().get("Facilitator"),
 				getStrings().get("Date Scheduled"),
 				getStrings().get("Pageviews"),
 				getStrings().get("Registrations")
 		));
 
 		List<AnalyticsWidgetTableRow> groupSessionWidgetTableRows = new ArrayList<>(groupSessionSummary.getGroupSessionCounts().size());
+		int groupSessionIndex = 1;
 
 		for (GroupSessionCount groupSessionCount : groupSessionSummary.getGroupSessionCounts()) {
+			String groupSessionTitle = getStrings().get("{{groupSessionIndex}}. <a href='{{groupSessionAdminUrl}}' target='_blank'>{{groupSessionTitle}}</a>", Map.of(
+					"groupSessionIndex", groupSessionIndex,
+					"groupSessionAdminUrl", groupSessionAdminUrl(institutionId, groupSessionCount.getGroupSessionId()),
+					"groupSessionTitle", groupSessionCount.getTitle()
+			));
+
 			AnalyticsWidgetTableRow row = new AnalyticsWidgetTableRow();
 			row.setData(List.of(
-					groupSessionCount.getTitle(),
+					groupSessionTitle,
+					groupSessionCount.getFacilitator(),
 					groupSessionCount.getStartDateTime() == null ? "--" : getFormatter().formatDateTime(groupSessionCount.getStartDateTime(), FormatStyle.SHORT, FormatStyle.SHORT),
 					getFormatter().formatNumber(groupSessionCount.getPageViewCount()),
 					getFormatter().formatNumber(groupSessionCount.getRegistrationCount())
 			));
 
 			groupSessionWidgetTableRows.add(row);
+			++groupSessionIndex;
 		}
 
 		groupSessionTableWidgetData.setRows(groupSessionWidgetTableRows);
@@ -1255,11 +1384,23 @@ public class AnalyticsResource {
 				secondGroup
 		);
 
+		// Figure out our alerts
+		List<AlertApiResponse> alerts = new ArrayList<>();
+
+		final LocalDate FIRST_BIGQUERY_DATE = LocalDate.of(2023, 6, 13);
+
+		if (startDate.isBefore(FIRST_BIGQUERY_DATE)) {
+			alerts.add(syntheticAlertForMessage(getStrings().get("Group Session Pageview data is only available for dates on or after {{firstDateDescription}}.", Map.of(
+					"firstDateDescription", getFormatter().formatDate(FIRST_BIGQUERY_DATE, FormatStyle.MEDIUM)
+			))));
+		}
+
 		boolean returnExampleJson = false;
 
 		if (!returnExampleJson)
 			return new ApiResponse(Map.of(
-					"analyticsWidgetGroups", analyticsWidgetGroups
+					"analyticsWidgetGroups", analyticsWidgetGroups,
+					"alerts", alerts
 			));
 
 		String exampleJson = """
@@ -1347,55 +1488,89 @@ public class AnalyticsResource {
 		boolean useExampleData = !getConfiguration().isProduction();
 
 		if (useExampleData) {
-			TagGroupPageView tagGroupPageView1 = new TagGroupPageView();
-			tagGroupPageView1.setPageViewCount(123L);
-			tagGroupPageView1.setTagGroupId("SYMPTOMS");
-			tagGroupPageView1.setTagGroupName(getStrings().get("Symptoms"));
-			tagGroupPageView1.setUrlPath("/ignored");
+			TagGroupPageView directTagGroupPageView1 = new TagGroupPageView();
+			directTagGroupPageView1.setPageViewCount(123L);
+			directTagGroupPageView1.setTagGroupId("SYMPTOMS");
+			directTagGroupPageView1.setTagGroupName(getStrings().get("Symptoms"));
+			directTagGroupPageView1.setUrlPath("/ignored");
 
-			TagGroupPageView tagGroupPageView2 = new TagGroupPageView();
-			tagGroupPageView2.setPageViewCount(1234L);
-			tagGroupPageView2.setTagGroupId("WORK_LIFE");
-			tagGroupPageView2.setTagGroupName(getStrings().get("Work Life"));
-			tagGroupPageView2.setUrlPath("/ignored");
+			TagGroupPageView directTagGroupPageView2 = new TagGroupPageView();
+			directTagGroupPageView2.setPageViewCount(1234L);
+			directTagGroupPageView2.setTagGroupId("WORK_LIFE");
+			directTagGroupPageView2.setTagGroupName(getStrings().get("Work Life"));
+			directTagGroupPageView2.setUrlPath("/ignored");
 
-			List<TagGroupPageView> tagGroupPageViews = List.of(tagGroupPageView1, tagGroupPageView2);
+			List<TagGroupPageView> directTagGroupPageViews = List.of(directTagGroupPageView1, directTagGroupPageView2);
 
-			TagPageView tagPageView1 = new TagPageView();
-			tagPageView1.setPageViewCount(5000L);
-			tagPageView1.setTagId("MOOD");
-			tagPageView1.setTagName(getStrings().get("Mood"));
-			tagPageView1.setTagGroupId("SYMPTOMS");
-			tagPageView1.setUrlPath("ignored");
+			TagPageView directTagPageView1 = new TagPageView();
+			directTagPageView1.setPageViewCount(5000L);
+			directTagPageView1.setTagId("MOOD");
+			directTagPageView1.setTagName(getStrings().get("Mood"));
+			directTagPageView1.setTagGroupId("SYMPTOMS");
+			directTagPageView1.setUrlPath("ignored");
 
-			TagPageView tagPageView2 = new TagPageView();
-			tagPageView2.setPageViewCount(100000L);
-			tagPageView2.setTagId("STRESS");
-			tagPageView2.setTagName(getStrings().get("Stress"));
-			tagPageView2.setTagGroupId("SYMPTOMS");
-			tagPageView2.setUrlPath("ignored");
+			TagPageView directTagPageView2 = new TagPageView();
+			directTagPageView2.setPageViewCount(100000L);
+			directTagPageView2.setTagId("STRESS");
+			directTagPageView2.setTagName(getStrings().get("Stress"));
+			directTagPageView2.setTagGroupId("SYMPTOMS");
+			directTagPageView2.setUrlPath("ignored");
 
-			TagPageView tagPageView3 = new TagPageView();
-			tagPageView3.setPageViewCount(50L);
-			tagPageView3.setTagId("BURNOUT");
-			tagPageView3.setTagName(getStrings().get("Burnout"));
-			tagPageView3.setTagGroupId("WORK_LIFE");
-			tagPageView3.setUrlPath("ignored");
+			TagPageView directTagPageView3 = new TagPageView();
+			directTagPageView3.setPageViewCount(50L);
+			directTagPageView3.setTagId("BURNOUT");
+			directTagPageView3.setTagName(getStrings().get("Burnout"));
+			directTagPageView3.setTagGroupId("WORK_LIFE");
+			directTagPageView3.setUrlPath("ignored");
 
-			List<TagPageView> tagPageViews = List.of(tagPageView1, tagPageView2, tagPageView3);
+			List<TagPageView> directTagPageViews = List.of(directTagPageView1, directTagPageView2, directTagPageView3);
+
+			TagPageView contentTagPageView1 = new TagPageView();
+			contentTagPageView1.setPageViewCount(50L);
+			contentTagPageView1.setTagId("BURNOUT");
+			contentTagPageView1.setTagName(getStrings().get("Burnout"));
+			contentTagPageView1.setTagGroupId("WORK_LIFE");
+			contentTagPageView1.setUrlPath("ignored");
+
+			TagPageView contentTagPageView2 = new TagPageView();
+			contentTagPageView2.setPageViewCount(25L);
+			contentTagPageView2.setTagId("STRESS");
+			contentTagPageView2.setTagName(getStrings().get("Stress"));
+			contentTagPageView2.setTagGroupId("SYMPTOMS");
+			contentTagPageView2.setUrlPath("ignored");
+
+			List<TagPageView> contentTagPageViews = List.of(contentTagPageView1, contentTagPageView2);
 
 			ContentPageView contentPageView1 = new ContentPageView();
 			contentPageView1.setContentId(UUID.randomUUID());
 			contentPageView1.setContentTitle(getStrings().get("Content Title 1"));
 			contentPageView1.setPageViewCount(12345L);
+			contentPageView1.setContentPageViewTags(List.of(
+					new AnalyticsService.ContentPageViewTag() {{
+						setTagId("MOOD");
+						setTagDescription("Mood");
+						setContentId(UUID.randomUUID());
+						setTagUrlName("mood");
+					}},
+					new AnalyticsService.ContentPageViewTag() {{
+						setTagId("STRESS");
+						setTagDescription("Stress");
+						setContentId(UUID.randomUUID());
+						setTagUrlName("stress");
+					}}
+			));
 
 			List<ContentPageView> contentPageViews = List.of(contentPageView1);
 
+			// Pick an arbitrary topic center
+			TopicCenter topicCenter = getTopicCenterService().findTopicCentersByInstitutionId(InstitutionId.COBALT).get(0);
+
 			TopicCenterInteraction topicCenterInteraction1 = new TopicCenterInteraction();
-			topicCenterInteraction1.setTopicCenterId(UUID.randomUUID());
-			topicCenterInteraction1.setName(getStrings().get("Topic Center 1"));
+			topicCenterInteraction1.setTopicCenterId(topicCenter.getTopicCenterId());
+			topicCenterInteraction1.setName(topicCenter.getName());
 			topicCenterInteraction1.setPageViewCount(1000L);
 			topicCenterInteraction1.setUniqueVisitorCount(500L);
+			topicCenterInteraction1.setActiveUserCount(35L);
 			topicCenterInteraction1.setGroupSessionClickCount(250L);
 			topicCenterInteraction1.setGroupSessionByRequestClickCount(50L);
 			topicCenterInteraction1.setPinboardItemClickCount(10L);
@@ -1403,81 +1578,64 @@ public class AnalyticsResource {
 
 			List<TopicCenterInteraction> topicCenterInteractions = List.of(topicCenterInteraction1);
 
+			Map<String, Long> contentCountsByTagId = Map.of(
+					"BURNOUT", 123L,
+					"STRESS", 456L
+			);
+
 			resourceAndTopicSummary = new ResourceAndTopicSummary();
-			resourceAndTopicSummary.setTagGroupPageViews(tagGroupPageViews);
-			resourceAndTopicSummary.setTagPageViews(tagPageViews);
+			resourceAndTopicSummary.setDirectTagGroupPageViews(directTagGroupPageViews);
+			resourceAndTopicSummary.setDirectTagPageViews(directTagPageViews);
+			resourceAndTopicSummary.setContentTagPageViews(contentTagPageViews);
 			resourceAndTopicSummary.setContentPageViews(contentPageViews);
 			resourceAndTopicSummary.setTopicCenterInteractions(topicCenterInteractions);
+			resourceAndTopicSummary.setContentCountsByTagId(contentCountsByTagId);
 		}
 
-		// Index the tag page views by tag group to make nested rows easier to work with
-		Map<String, List<TagPageView>> tagPageViewsByTagGroupIds = new HashMap<>(resourceAndTopicSummary.getTagGroupPageViews().size());
+		// Content Tags Table Widget
+		AnalyticsTableWidget contentTagsTableWidget = new AnalyticsTableWidget();
+		contentTagsTableWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_RESOURCE_TOPIC_PAGEVIEWS);
+		contentTagsTableWidget.setWidgetTitle(getStrings().get("Tag Popularity"));
 
-		for (TagPageView tagPageView : resourceAndTopicSummary.getTagPageViews()) {
-			List<TagPageView> tagPageViews = tagPageViewsByTagGroupIds.get(tagPageView.getTagGroupId());
+		AnalyticsWidgetTableData contentTagsWidgetTableData = new AnalyticsWidgetTableData();
 
-			if (tagPageViews == null) {
-				tagPageViews = new ArrayList<>();
-				tagPageViewsByTagGroupIds.put(tagPageView.getTagGroupId(), tagPageViews);
-			}
-
-			tagPageViews.add(tagPageView);
-		}
-
-		AnalyticsTableWidget tagGroupTableWidget = new AnalyticsTableWidget();
-		tagGroupTableWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_RESOURCE_TOPIC_PAGEVIEWS);
-		tagGroupTableWidget.setWidgetTitle(getStrings().get("Pageview by Resource Topic"));
-
-		AnalyticsWidgetTableData tagGroupTableData = new AnalyticsWidgetTableData();
-
-		tagGroupTableData.setHeaders(List.of(
+		contentTagsWidgetTableData.setHeaders(List.of(
+				getStrings().get("Tag"),
 				getStrings().get("Topic"),
-				getStrings().get("Pageviews")
+				getStrings().get("Content Pageviews"),
+				getStrings().get("Pieces of Content With This Tag")
 		));
 
-		List<AnalyticsWidgetTableRow> tagGroupTableRows = new ArrayList<>();
+		Map<String, TagGroup> tagGroupsByTagGroupId = getTagService().findTagGroupsByInstitutionId(institutionId).stream()
+				.collect(Collectors.toMap(TagGroup::getTagGroupId, Function.identity()));
 
-		for (TagGroupPageView tagGroupPageView : resourceAndTopicSummary.getTagGroupPageViews()) {
+		List<AnalyticsWidgetTableRow> contentTagsWidgetTableRows = new ArrayList<>(resourceAndTopicSummary.getContentTagPageViews().size());
+
+		NumberFormat percentageFormatter = NumberFormat.getPercentInstance(getCurrentContext().getLocale());
+		percentageFormatter.setMaximumFractionDigits(2);
+
+		Map<String, Long> contentCountsByTagId = resourceAndTopicSummary.getContentCountsByTagId();
+		Long totalTaggedContentCount = contentCountsByTagId.values().stream().mapToLong(Long::longValue).sum();
+
+		for (TagPageView contentTagPageView : resourceAndTopicSummary.getContentTagPageViews()) {
+			TagGroup tagGroup = tagGroupsByTagGroupId.get(contentTagPageView.getTagGroupId());
+			Long contentCount = contentCountsByTagId.get(contentTagPageView.getTagId());
+			double contentPercentage = totalTaggedContentCount == 0 ? 0 : (double) contentCount / (double) totalTaggedContentCount;
+
 			AnalyticsWidgetTableRow row = new AnalyticsWidgetTableRow();
+
 			row.setData(List.of(
-					tagGroupPageView.getTagGroupName(),
-					getFormatter().formatNumber(tagGroupPageView.getPageViewCount())
+					contentTagPageView.getTagName(),
+					tagGroup.getName(),
+					getFormatter().formatNumber(contentTagPageView.getPageViewCount()),
+					format("%s (%s)", getFormatter().formatNumber(contentCount), percentageFormatter.format(contentPercentage))
 			));
 
-			List<TagPageView> nestedTagPageViews = tagPageViewsByTagGroupIds.get(tagGroupPageView.getTagGroupId());
-
-			if (nestedTagPageViews != null && nestedTagPageViews.size() > 0) {
-				List<AnalyticsWidgetTableRow> nestedRows = new ArrayList<>();
-
-				for (TagPageView tagPageView : nestedTagPageViews) {
-					AnalyticsWidgetTableRow nestedRow = new AnalyticsWidgetTableRow();
-					nestedRow.setData(List.of(
-							tagPageView.getTagName(),
-							getFormatter().formatNumber(tagPageView.getPageViewCount())
-					));
-
-					nestedRows.add(nestedRow);
-				}
-
-				row.setNestedRows(nestedRows);
-			} else {
-				// UI doesn't correctly handle scenario where some rows have nested rows and some don't -
-				// work around that here by always having a "blank" nested row
-				AnalyticsWidgetTableRow nestedRow = new AnalyticsWidgetTableRow();
-
-				nestedRow.setData(List.of(
-						getStrings().get("(No tag pageviews)"),
-						"--"
-				));
-
-				row.setNestedRows(List.of(nestedRow));
-			}
-
-			tagGroupTableRows.add(row);
+			contentTagsWidgetTableRows.add(row);
 		}
 
-		tagGroupTableData.setRows(tagGroupTableRows);
-		tagGroupTableWidget.setWidgetData(tagGroupTableData);
+		contentTagsWidgetTableData.setRows(contentTagsWidgetTableRows);
+		contentTagsTableWidget.setWidgetData(contentTagsWidgetTableData);
 
 		// Resource detail table widget
 		AnalyticsTableWidget resourceDetailTableWidget = new AnalyticsTableWidget();
@@ -1488,19 +1646,35 @@ public class AnalyticsResource {
 
 		resourceDetailWidgetTableData.setHeaders(List.of(
 				getStrings().get("Content Title"),
-				getStrings().get("Views")
+				getStrings().get("Tags"),
+				getStrings().get("Content Pageviews")
 		));
 
 		List<AnalyticsWidgetTableRow> resourceDetailWidgetTableRows = new ArrayList<>(resourceAndTopicSummary.getContentPageViews().size());
+		int contentIndex = 1;
 
 		for (ContentPageView contentPageView : resourceAndTopicSummary.getContentPageViews()) {
+			String contentAdminUrl = contentAdminUrl(institutionId, contentPageView.getContentId());
+
+			String contentTitle = getStrings().get("{{contentIndex}}. <a href='{{contentAdminUrl}}' target='_blank'>{{contentTitle}}</a>", Map.of(
+					"contentIndex", contentIndex,
+					"contentAdminUrl", contentAdminUrl,
+					"contentTitle", contentPageView.getContentTitle()
+			));
+
+			String contentTagsDescription = contentPageView.getContentPageViewTags().stream()
+					.map(contentPageViewTag -> contentPageViewTag.getTagDescription())
+					.collect(Collectors.joining(", "));
+
 			AnalyticsWidgetTableRow row = new AnalyticsWidgetTableRow();
 			row.setData(List.of(
-					contentPageView.getContentTitle(),
+					contentTitle,
+					contentTagsDescription,
 					getFormatter().formatNumber(contentPageView.getPageViewCount())
 			));
 
 			resourceDetailWidgetTableRows.add(row);
+			++contentIndex;
 		}
 
 		resourceDetailWidgetTableData.setRows(resourceDetailWidgetTableRows);
@@ -1516,7 +1690,8 @@ public class AnalyticsResource {
 		topicCenterWidgetTableData.setHeaders(List.of(
 				getStrings().get("Topic Center Title"),
 				getStrings().get("Pageviews"),
-				getStrings().get("Unique Visitors"),
+				getStrings().get("Users"),
+				getStrings().get("Active Users"),
 				getStrings().get("Group Session Clicks"),
 				getStrings().get("Group Session By Request Clicks"),
 				getStrings().get("Pinboard Clicks"),
@@ -1526,11 +1701,19 @@ public class AnalyticsResource {
 		List<AnalyticsWidgetTableRow> topicCenterWidgetTableRows = new ArrayList<>(resourceAndTopicSummary.getTopicCenterInteractions().size());
 
 		for (TopicCenterInteraction topicCenterInteraction : resourceAndTopicSummary.getTopicCenterInteractions()) {
+			String topicCenterUrl = topicCenterUrl(institutionId, topicCenterInteraction.getTopicCenterId());
+
+			String topicCenterName = getStrings().get("<a href='{{topicCenterUrl}}' target='_blank'>{{topicCenterName}}</a>", Map.of(
+					"topicCenterUrl", topicCenterUrl,
+					"topicCenterName", topicCenterInteraction.getName()
+			));
+
 			AnalyticsWidgetTableRow row = new AnalyticsWidgetTableRow();
 			row.setData(List.of(
-					topicCenterInteraction.getName(),
+					topicCenterName,
 					getFormatter().formatNumber(topicCenterInteraction.getPageViewCount()),
 					getFormatter().formatNumber(topicCenterInteraction.getUniqueVisitorCount()),
+					getFormatter().formatNumber(topicCenterInteraction.getActiveUserCount()),
 					getFormatter().formatNumber(topicCenterInteraction.getGroupSessionClickCount()),
 					getFormatter().formatNumber(topicCenterInteraction.getGroupSessionByRequestClickCount()),
 					getFormatter().formatNumber(topicCenterInteraction.getPinboardItemClickCount()),
@@ -1545,7 +1728,7 @@ public class AnalyticsResource {
 
 		// Group the widgets
 		AnalyticsWidgetGroup firstGroup = new AnalyticsWidgetGroup();
-		firstGroup.setWidgets(List.of(tagGroupTableWidget));
+		firstGroup.setWidgets(List.of(contentTagsTableWidget));
 
 		AnalyticsWidgetGroup secondGroup = new AnalyticsWidgetGroup();
 		secondGroup.setWidgets(List.of(resourceDetailTableWidget));
@@ -1560,11 +1743,26 @@ public class AnalyticsResource {
 				thirdGroup
 		);
 
+		// Figure out our alerts
+		List<AlertApiResponse> alerts = new ArrayList<>();
+
+		final LocalDate FIRST_BIGQUERY_DATE = LocalDate.of(2023, 6, 13);
+
+		if (startDate.isBefore(FIRST_BIGQUERY_DATE)) {
+			alerts.add(syntheticAlertForMessage(getStrings().get("Content Pageview data is only available for dates on or after {{firstDateDescription}}.", Map.of(
+					"firstDateDescription", getFormatter().formatDate(FIRST_BIGQUERY_DATE, FormatStyle.MEDIUM)
+			))));
+			alerts.add(syntheticAlertForMessage(getStrings().get("Topic Center data is only available for dates on or after {{firstDateDescription}}.", Map.of(
+					"firstDateDescription", getFormatter().formatDate(FIRST_BIGQUERY_DATE, FormatStyle.MEDIUM)
+			))));
+		}
+
 		boolean returnExampleJson = false;
 
 		if (!returnExampleJson)
 			return new ApiResponse(Map.of(
-					"analyticsWidgetGroups", analyticsWidgetGroups
+					"analyticsWidgetGroups", analyticsWidgetGroups,
+					"alerts", alerts
 			));
 
 		String exampleJson = """
@@ -1679,6 +1877,66 @@ public class AnalyticsResource {
 		}
 
 		return CustomResponse.instance();
+	}
+
+	@Nonnull
+	protected String providerDetailUrl(@Nonnull InstitutionId institutionId,
+																		 @Nonnull Object providerIdentifier /* either ID or URL Name is acceptable */) {
+		requireNonNull(institutionId);
+		requireNonNull(providerIdentifier);
+
+		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.PATIENT).get();
+		return format("%s/providers/%s", webappBaseUrl, providerIdentifier);
+	}
+
+	@Nonnull
+	protected String contentAdminUrl(@Nonnull InstitutionId institutionId,
+																	 @Nonnull UUID contentId) {
+		requireNonNull(institutionId);
+		requireNonNull(contentId);
+
+		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.STAFF).get();
+		return format("%s/admin/my-content/create?contentId=%s&editing=true", webappBaseUrl, contentId);
+	}
+
+	@Nonnull
+	protected String groupSessionAdminUrl(@Nonnull InstitutionId institutionId,
+																				@Nonnull UUID groupSessionId) {
+		requireNonNull(institutionId);
+		requireNonNull(groupSessionId);
+
+		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.STAFF).get();
+		return format("%s/admin/group-sessions/view/%s", webappBaseUrl, groupSessionId);
+	}
+
+	@Nonnull
+	protected String topicCenterUrl(@Nonnull InstitutionId institutionId,
+																	@Nonnull UUID topicCenterId) {
+		requireNonNull(institutionId);
+		requireNonNull(topicCenterId);
+
+		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.PATIENT).get();
+		TopicCenter topicCenter = getTopicCenterService().findTopicCenterById(topicCenterId).get();
+
+		if (topicCenter.getTopicCenterDisplayStyleId() == TopicCenterDisplayStyleId.FEATURED)
+			return format("%s/featured-topics/%s", webappBaseUrl, topicCenter.getUrlName());
+
+		return format("%s/community/%s", webappBaseUrl, topicCenter.getUrlName());
+	}
+
+	@Nonnull
+	protected AlertApiResponse syntheticAlertForMessage(@Nonnull String message) {
+		requireNonNull(message);
+
+		Alert alert = new Alert();
+		alert.setAlertId(UUID.randomUUID());
+		alert.setAlertTypeId(AlertTypeId.WARNING);
+		alert.setTitle(getStrings().get("Some data is not available for this date range"));
+		alert.setMessage(message);
+		alert.setCreated(Instant.now());
+		alert.setLastUpdated(alert.getCreated());
+
+		return getAlertApiResponseFactory().create(alert);
 	}
 
 	public enum AnalyticsWidgetTypeId {
@@ -2022,6 +2280,21 @@ public class AnalyticsResource {
 	@Nonnull
 	protected InstitutionService getInstitutionService() {
 		return this.institutionService;
+	}
+
+	@Nonnull
+	protected TopicCenterService getTopicCenterService() {
+		return this.topicCenterService;
+	}
+
+	@Nonnull
+	protected TagService getTagService() {
+		return this.tagService;
+	}
+
+	@Nonnull
+	protected AlertApiResponseFactory getAlertApiResponseFactory() {
+		return this.alertApiResponseFactory;
 	}
 
 	@Nonnull
