@@ -1372,7 +1372,7 @@ public class AnalyticsService implements AutoCloseable {
 				    AND c.content_id = tc.content_id
 				    AND tc.institution_id = ?
 				)
-				SELECT SUM(pvbt.page_view_count), pvbt.tag_id, t.name AS tag_name, t.tag_group_id, t.url_name AS url_path
+				SELECT SUM(pvbt.page_view_count) AS page_view_count, pvbt.tag_id, t.name AS tag_name, t.tag_group_id, t.url_name AS url_path
 				FROM page_views_by_tag pvbt, tag t
 				WHERE pvbt.tag_id=t.tag_id
 				GROUP BY pvbt.tag_id, t.name, t.tag_group_id, t.url_name
@@ -2208,7 +2208,7 @@ public class AnalyticsService implements AutoCloseable {
 		@Nullable
 		private String title;
 		@Nullable
-		private String facilitator;
+		private String facilitatorName;
 		@Nullable
 		private LocalDateTime startDateTime;
 		@Nullable
@@ -2235,12 +2235,12 @@ public class AnalyticsService implements AutoCloseable {
 		}
 
 		@Nullable
-		public String getFacilitator() {
-			return this.facilitator;
+		public String getFacilitatorName() {
+			return this.facilitatorName;
 		}
 
-		public void setFacilitator(@Nullable String facilitator) {
-			this.facilitator = facilitator;
+		public void setFacilitatorName(@Nullable String facilitatorName) {
+			this.facilitatorName = facilitatorName;
 		}
 
 		@Nullable
