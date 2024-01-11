@@ -24,7 +24,7 @@ ALTER TABLE content ADD COLUMN file_upload_id UUID NULL REFERENCES file_upload(f
 ALTER TABLE content ADD COLUMN image_file_upload_id UUID NULL REFERENCES file_upload(file_upload_id);
 ALTER TABLE group_session ADD COLUMN image_file_upload_id UUID NULL REFERENCES file_upload;
 
-UPDATE content SET published = TRUE where owner_institution_approval_status_id='APPROVED';
+UPDATE content SET published = TRUE where owner_institution_approval_status_id='APPROVED' AND archived_flag = FALSE AND deleted_flag = FALSE;
 UPDATE content SET shared_flag = TRUE WHERE visibility_id = 'PUBLIC';
 UPDATE content SET publish_start_date = date_created;
 UPDATE content SET publish_start_date = created WHERE publish_start_date IS NULL;

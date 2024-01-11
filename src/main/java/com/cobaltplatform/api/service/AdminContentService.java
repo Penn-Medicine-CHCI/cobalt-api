@@ -199,8 +199,14 @@ public class AdminContentService {
 		}
 
 		if (contentStatusId.isPresent()) {
-			whereClause.append("AND va.content_status_id = ? ");
-			parameters.add(contentStatusId.get());
+			if (contentStatusId.get().equals(ContentStatusId.AVAILABLE)) {
+				whereClause.append("AND va.content_status_id IN  (?, ?) AND ic.created IS NULL ");
+				parameters.add(ContentStatusId.LIVE.toString());
+				parameters.add(ContentStatusId.SCHEDULED.toString());
+			} else {
+				whereClause.append("AND va.content_status_id = ? AND ic.created IS NOT NULL ");
+				parameters.add(contentStatusId.get());
+			}
 		}
 
 		if (tagId.isPresent()) {
@@ -320,7 +326,7 @@ public class AdminContentService {
 				validationException.add(new FieldError("publishStartDate", getStrings().get("Start date and expiration date are required")));
 			else if (Long.compare(DAYS.between(publishStartDate, publishEndDate), 365) > 0)
 				validationException.add(new FieldError("publishStartDate", getStrings().get("Recurring content cannot be active for more than 1 year")));
-		} else if (publishStartDate == null )
+		} else if (publishStartDate == null)
 			validationException.add(new FieldError("publishStartDate", getStrings().get("Start date is required")));
 
 
@@ -434,7 +440,7 @@ public class AdminContentService {
 				validationException.add(new FieldError("publishStartDate", getStrings().get("Start date and expiration date are required")));
 			else if (Long.compare(DAYS.between(publishStartDate, publishEndDate), 365) > 0)
 				validationException.add(new FieldError("publishStartDate", getStrings().get("Recurring content cannot be active for more than 1 year")));
-		} else if (publishStartDate == null )
+		} else if (publishStartDate == null)
 			validationException.add(new FieldError("publishStartDate", getStrings().get("Start date is required")));
 
 		if (validationException.hasErrors())
@@ -449,9 +455,9 @@ public class AdminContentService {
 							 	publish_recurring=?, search_terms=?, shared_flag=?, file_upload_id=?, image_file_upload_id=?
 								WHERE content_id=?
 						""",
-				contentTypeIdCommand, titleCommand,urlCommand,
+				contentTypeIdCommand, titleCommand, urlCommand,
 				durationInMinutes, descriptionCommand, authorCommand, publishStartDate, publishEndDate,
-				publishRecurring, searchTerms, sharedFlag,fileUploadId, imageFileUploadId,
+				publishRecurring, searchTerms, sharedFlag, fileUploadId, imageFileUploadId,
 				command.getContentId());
 
 		AdminContent adminContent = findAdminContentByIdForInstitution(account.getInstitutionId(), command.getContentId()).orElse(null);
@@ -580,7 +586,7 @@ public class AdminContentService {
 
 	@Nonnull
 	public void publishContent(@Nonnull UUID contentId,
-																 @Nonnull Account account) {
+														 @Nonnull Account account) {
 		requireNonNull(contentId);
 		requireNonNull(account);
 
@@ -600,6 +606,7 @@ public class AdminContentService {
 				WHERE content_id=?  				
 				""", contentId);
 	}
+
 	@Nonnull
 	public Optional<AdminContent> findAdminContentByIdForInstitution(@Nonnull InstitutionId institutionId, @Nonnull UUID contentId) {
 		requireNonNull(institutionId);
@@ -612,9 +619,9 @@ public class AdminContentService {
 						" a.activity_action_id = 'VIEW' AND " +
 						" activity_type_id='CONTENT') AS views " +
 						"FROM v_admin_content vi " +
-						"WHERE vi.content_id = ? " ,
-						//TODO: Revisit this
-						// "AND vi.institution_id = ? ",
+						"WHERE vi.content_id = ? ",
+				//TODO: Revisit this
+				// "AND vi.institution_id = ? ",
 				AdminContent.class, contentId).orElse(null);
 
 		if (adminContent != null) {
@@ -655,11 +662,20 @@ public class AdminContentService {
 
 	@Nonnull
 	public List<ContentStatus> findContentStatuses() {
-		return getDatabase().queryForList("""
+		List<ContentStatus> contentStatutes = new ArrayList<>();
+		//Add in the pseudo status of Available
+		ContentStatus availableStatus = new ContentStatus();
+		availableStatus.setContentStatusId(ContentStatusId.AVAILABLE);
+		availableStatus.setDescription("Available");
+		contentStatutes.add(availableStatus);
+
+		contentStatutes.addAll(getDatabase().queryForList("""
 				SELECT *
 				FROM content_status
 				ORDER BY display_order
-				""", ContentStatus.class);
+				""", ContentStatus.class));
+
+		return contentStatutes;
 	}
 
 	@Nonnull
