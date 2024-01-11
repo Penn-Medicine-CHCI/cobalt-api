@@ -150,7 +150,7 @@ DROP FUNCTION migrate_content_image_url;
 DROP FUNCTION migrate_group_session_image_url;
 
 DROP VIEW v_admin_content;
-DROP VIEW v_content_view;
+DROP VIEW IF EXISTS v_content_view;
 
 ALTER TABLE content DROP COLUMN archived_flag;
 ALTER TABLE content DROP COLUMN owner_institution_approval_status_id;
