@@ -1423,7 +1423,7 @@ public class AnalyticsService implements AutoCloseable {
 
 		StringBuilder contentPageViewTagsSql = new StringBuilder();
 		contentPageViewTagsSql.append("""
-				SELECT t.tag_id, tc.content_id, t.description AS tag_description, t.url_name AS tag_url_name
+				SELECT t.tag_id, tc.content_id, t.name AS tag_description, t.url_name AS tag_url_name
 				FROM tag_content tc, tag t
 				WHERE tc.institution_id=?
 				AND tc.tag_id=t.tag_id
