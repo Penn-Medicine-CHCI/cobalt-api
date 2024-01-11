@@ -930,7 +930,7 @@ public class AnalyticsResource {
 			clinicalAssessmentSeverityWidget.setWidgetTitle(getStrings().get("{{screeningFlowName}} Severity", Map.of("screeningFlowName", screeningFlowName)));
 			clinicalAssessmentSeverityWidget.setWidgetTotal(severityTotalCount);
 			clinicalAssessmentSeverityWidget.setWidgetTotalDescription(getFormatter().formatNumber(severityTotalCount));
-			clinicalAssessmentSeverityWidget.setWidgetSubtitle(getStrings().get("Completed Assessments"));
+			clinicalAssessmentSeverityWidget.setWidgetSubtitle(getStrings().get("Assessments"));
 			clinicalAssessmentSeverityWidget.setWidgetChartLabel(getStrings().get("Assessments"));
 
 			List<AnalyticsWidgetChartData> severityWidgetData = new ArrayList<>(severityCountsByDescription.size());
