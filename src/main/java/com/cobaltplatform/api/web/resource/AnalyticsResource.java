@@ -332,7 +332,7 @@ public class AnalyticsResource {
 		visitsWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_VISITS);
 		visitsWidget.setWidgetTitle(getStrings().get("New vs. Returning Users"));
 		visitsWidget.setWidgetSubtitle(getStrings().get("Total"));
-		visitsWidget.setWidgetChartLabel(getStrings().get("Visits"));
+		visitsWidget.setWidgetChartLabel(getStrings().get("Users"));
 		visitsWidget.setWidgetTotal(activeUserCountsNewVersusReturning.getNewUserCount() + activeUserCountsNewVersusReturning.getReturningUserCount());
 		visitsWidget.setWidgetTotalDescription(getFormatter().formatNumber(visitsWidget.getWidgetTotal()));
 
@@ -930,7 +930,7 @@ public class AnalyticsResource {
 			clinicalAssessmentSeverityWidget.setWidgetTitle(getStrings().get("{{screeningFlowName}} Severity", Map.of("screeningFlowName", screeningFlowName)));
 			clinicalAssessmentSeverityWidget.setWidgetTotal(severityTotalCount);
 			clinicalAssessmentSeverityWidget.setWidgetTotalDescription(getFormatter().formatNumber(severityTotalCount));
-			clinicalAssessmentSeverityWidget.setWidgetSubtitle(getStrings().get("Completed Assessments"));
+			clinicalAssessmentSeverityWidget.setWidgetSubtitle(getStrings().get("Assessments"));
 			clinicalAssessmentSeverityWidget.setWidgetChartLabel(getStrings().get("Assessments"));
 
 			List<AnalyticsWidgetChartData> severityWidgetData = new ArrayList<>(severityCountsByDescription.size());
