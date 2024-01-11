@@ -332,7 +332,7 @@ public class AnalyticsResource {
 		visitsWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_VISITS);
 		visitsWidget.setWidgetTitle(getStrings().get("New vs. Returning Users"));
 		visitsWidget.setWidgetSubtitle(getStrings().get("Total"));
-		visitsWidget.setWidgetChartLabel(getStrings().get("Visits"));
+		visitsWidget.setWidgetChartLabel(getStrings().get("Users"));
 		visitsWidget.setWidgetTotal(activeUserCountsNewVersusReturning.getNewUserCount() + activeUserCountsNewVersusReturning.getReturningUserCount());
 		visitsWidget.setWidgetTotalDescription(getFormatter().formatNumber(visitsWidget.getWidgetTotal()));
 
