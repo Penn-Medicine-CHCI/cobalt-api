@@ -136,6 +136,12 @@ public class AdminContentApiResponse {
 		LIST
 	}
 
+	@Nullable
+	private LocalDate dateAddedToInstitution;
+
+	@Nullable
+	private String dateAddedToInstitutionDescription;
+
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface AdminContentApiResponseFactory {
@@ -249,6 +255,11 @@ public class AdminContentApiResponse {
 		this.filename = adminContent.getFilename();
 
 		this.fileContentType = adminContent.getFileContentType();
+
+		this.dateAddedToInstitution = adminContent.getDateAddedToInstitution();
+
+		this.dateAddedToInstitutionDescription =  adminContent.getDateAddedToInstitution() != null ?
+				formatter.formatDate(adminContent.getDateAddedToInstitution(), FormatStyle.SHORT) : "N/A";
 	}
 
 
@@ -464,5 +475,15 @@ public class AdminContentApiResponse {
 	@Nullable
 	public UUID getImageFileUploadId() {
 		return imageFileUploadId;
+	}
+
+	@Nullable
+	public LocalDate getDateAddedToInstitution() {
+		return dateAddedToInstitution;
+	}
+
+	@Nullable
+	public String getDateAddedToInstitutionDescription() {
+		return dateAddedToInstitutionDescription;
 	}
 }

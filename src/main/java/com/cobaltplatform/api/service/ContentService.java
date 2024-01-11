@@ -345,7 +345,7 @@ public class ContentService implements AutoCloseable {
 				    {{contentViewedJoin}}
 				ORDER BY
 						{{contentViewedOrderBy}}
-				    bq.last_updated DESC
+				    bq.institution_created_date DESC
 				LIMIT ?
 				OFFSET ?
 								"""
@@ -439,7 +439,7 @@ public class ContentService implements AutoCloseable {
 						WHERE c.content_id=ic.content_id
 						AND ic.institution_id=?
 						AND c.content_status_id = ?
-						ORDER BY cvq.last_viewed_at ASC NULLS FIRST, c.created DESC
+						ORDER BY cvq.last_viewed_at ASC NULLS FIRST, ic.created DESC
 										""", Content.class, ActivityActionId.VIEW, ActivityTypeId.CONTENT, account.getAccountId(),
 				account.getInstitutionId(), ContentStatusId.LIVE);
 

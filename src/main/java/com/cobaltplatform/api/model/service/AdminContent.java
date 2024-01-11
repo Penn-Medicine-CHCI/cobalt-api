@@ -108,6 +108,9 @@ public class AdminContent{
 	@Nullable
 	private String fileContentType;
 
+	@Nullable
+	private LocalDate dateAddedToInstitution;
+
 	@Nonnull
 	public UUID getContentId() {
 		return contentId;
@@ -374,5 +377,14 @@ public class AdminContent{
 
 	public void setImageFileUploadId(@Nullable UUID imageFileUploadId) {
 		this.imageFileUploadId = imageFileUploadId;
+	}
+
+	@Nullable
+	public LocalDate getDateAddedToInstitution() {
+		return dateAddedToInstitution;
+	}
+
+	public void setDateAddedToInstitution(@Nullable LocalDate dateAddedToInstitution) {
+		this.dateAddedToInstitution = dateAddedToInstitution;
 	}
 }

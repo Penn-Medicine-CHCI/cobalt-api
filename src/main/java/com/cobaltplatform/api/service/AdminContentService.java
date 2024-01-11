@@ -173,6 +173,8 @@ public class AdminContentService {
 		StringBuilder whereClause = new StringBuilder(" 1=1 ");
 		StringBuilder orderByClause = new StringBuilder("ORDER BY ");
 
+		parameters.add(account.getInstitutionId());
+
 		if (contentTypeId.isPresent()) {
 			whereClause.append("AND va.content_type_id = ? ");
 			parameters.add(contentTypeId.get());
@@ -214,9 +216,9 @@ public class AdminContentService {
 		ContentSortOrder contentSortOrder = orderBy.isPresent() ? orderBy.get() : ContentSortOrder.DATE_ADDED_DESC;
 
 		if (contentSortOrder.equals(ContentSortOrder.DATE_ADDED_DESC))
-			orderByClause.append("va.created DESC");
+			orderByClause.append("ic.created DESC NULLS LAST");
 		else if (contentSortOrder.equals(ContentSortOrder.DATE_ADDED_ASC))
-			orderByClause.append("va.created ASC");
+			orderByClause.append("ic.created ASC");
 		else if (contentSortOrder.equals(ContentSortOrder.PUBLISH_DATE_DESC))
 			orderByClause.append("va.publish_start_date DESC");
 		else if (contentSortOrder.equals(ContentSortOrder.PUBLISH_DATE_ASC))
@@ -234,17 +236,20 @@ public class AdminContentService {
 						va.content_id = CAST (a.context ->> 'contentId' AS UUID) AND 
 						a.activity_action_id = 'VIEW' AND
 						activity_type_id='CONTENT') AS views ,
-						count(*) over() AS total_count 
+						count(*) over() AS total_count,
+						ic.created AS date_added_to_institution
 						FROM v_admin_content va 
+						LEFT OUTER JOIN institution_content ic ON va.content_id = ic.content_id 
+						AND ic.institution_id = ?
 						WHERE %s 
 						%s LIMIT ? OFFSET ? 
 						""", whereClause.toString(), orderByClause.toString());
 
 		parameters.add(limit);
 		parameters.add(offset);
+
 		List<AdminContent> content = getDatabase().queryForList(query, AdminContent.class, sqlVaragsParameters(parameters));
 		Integer totalCount = content.stream().filter(it -> it.getTotalCount() != null).mapToInt(AdminContent::getTotalCount).findFirst().orElse(0);
-
 		getContentService().applyTagsToAdminContents(content, account.getInstitutionId());
 		getContentService().applyInstitutionsToAdminContents(content, account.getInstitutionId());
 
@@ -305,6 +310,19 @@ public class AdminContentService {
 
 		if (fileUploadId != null && url != null)
 			validationException.add(new FieldError("url", getStrings().get("Can only specify a file url or a file upload url ")));
+
+		if (publishStartDate != null && publishEndDate != null)
+			if (publishStartDate.isAfter(publishEndDate))
+				validationException.add(new FieldError("publishStartDate", getStrings().get("Start date must be before the expiration date")));
+
+		if (publishRecurring) {
+			if (publishStartDate == null || publishEndDate == null)
+				validationException.add(new FieldError("publishStartDate", getStrings().get("Start date and expiration date are required")));
+			else if (Long.compare(DAYS.between(publishStartDate, publishEndDate), 365) > 0)
+				validationException.add(new FieldError("publishStartDate", getStrings().get("Recurring content cannot be active for more than 1 year")));
+		} else if (publishStartDate == null )
+			validationException.add(new FieldError("publishStartDate", getStrings().get("Start date is required")));
+
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -371,53 +389,34 @@ public class AdminContentService {
 		ValidationException validationException = new ValidationException();
 		AdminContent existingContent = findAdminContentByIdForInstitution(account.getInstitutionId(), command.getContentId()).orElseThrow();
 
-		if (hasAdminAccessToContent(account, existingContent)) {
-			if (titleCommand != null) {
-				existingContent.setTitle(titleCommand);
-			}
+		if (!hasAdminAccessToContent(account, existingContent)) {
+			validationException.add(new FieldError("contentId", getStrings().get("You do not have permission to update this content")));
+			throw validationException;
+		}
 
-			if (urlCommand != null) {
-				if (!urlCommand.startsWith("http://") && !urlCommand.startsWith("https://"))
-					urlCommand = format("https://%s", urlCommand);
-				existingContent.setUrl(urlCommand);
-			}
+		if (titleCommand == null)
+			validationException.add(new FieldError("title", getStrings().get("Title is required.")));
 
-			if (descriptionCommand != null) {
-				existingContent.setDescription(descriptionCommand);
-			}
+		if (urlCommand == null && contentTypeIdCommand != null && contentTypeIdCommand != ContentTypeId.ARTICLE && fileUploadId == null)
+			validationException.add(new FieldError("url", getStrings().get("URL or file upload url is required.")));
 
-			if (authorCommand != null) {
-				existingContent.setAuthor(authorCommand);
-			}
+		if (authorCommand == null)
+			validationException.add(new FieldError("author", getStrings().get("Author is required.")));
 
-			if (contentTypeIdCommand != null) {
-				existingContent.setContentTypeId(contentTypeIdCommand);
-			}
+		if (descriptionCommand == null) {
+			validationException.add(new FieldError("description", getStrings().get("Description is required")));
+		}
 
-			if (publishStartDate != null)
-				existingContent.setPublishStartDate(publishStartDate);
+		if (contentTypeIdCommand == null) {
+			validationException.add(new FieldError("contentTypeId", getStrings().get("Content type is required")));
+		}
 
-			if (publishEndDate != null)
-				existingContent.setPublishEndDate(publishEndDate);
+		if (sharedFlag == null) {
+			validationException.add(new FieldError("sharedFlag", getStrings().get("Shared flag is required")));
+		}
 
-			if (publishRecurring != null)
-				existingContent.setPublishRecurring(publishRecurring);
-
-			if (searchTerms != null)
-				existingContent.setSearchTerms(searchTerms);
-
-			if (sharedFlag != null)
-				existingContent.setSharedFlag(sharedFlag);
-
-			if (fileUploadId != null)
-				existingContent.setFileUploadId(fileUploadId);
-			else
-				existingContent.setFileUploadId(null);
-
-			if (imageFileUploadId != null)
-				existingContent.setImageFileUploadId(imageFileUploadId);
-			else
-				existingContent.setImageFileUploadId(null);
+		if (publishStartDate == null) {
+			validationException.add(new FieldError("publishStartDate", getStrings().get("Publish start date is required")));
 		}
 
 		if (durationInMinutesString != null && !ValidationUtility.isValidInteger(durationInMinutesString))
@@ -426,11 +425,17 @@ public class AdminContentService {
 		if (fileUploadId != null && urlCommand != null)
 			validationException.add(new FieldError("url", getStrings().get("Can only specify a file url or a file upload url ")));
 
-		if (publishStartDate.isAfter(publishEndDate))
-			validationException.add(new FieldError("publishStartDate", getStrings().get("Start date must be before the expiration date")));
+		if (publishStartDate != null && publishEndDate != null)
+			if (publishStartDate.isAfter(publishEndDate))
+				validationException.add(new FieldError("publishStartDate", getStrings().get("Start date must be before the expiration date")));
 
-		if (publishRecurring && Long.compare(DAYS.between(publishStartDate, publishEndDate), 365) > 0)
-			validationException.add(new FieldError("publishStartDate", getStrings().get("Recurring content cannot be active for more than 1 year")));
+		if (publishRecurring) {
+			if (publishStartDate == null || publishEndDate == null)
+				validationException.add(new FieldError("publishStartDate", getStrings().get("Start date and expiration date are required")));
+			else if (Long.compare(DAYS.between(publishStartDate, publishEndDate), 365) > 0)
+				validationException.add(new FieldError("publishStartDate", getStrings().get("Recurring content cannot be active for more than 1 year")));
+		} else if (publishStartDate == null )
+			validationException.add(new FieldError("publishStartDate", getStrings().get("Start date is required")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -438,20 +443,16 @@ public class AdminContentService {
 		Integer durationInMinutes = durationInMinutesString == null ? null : Integer.parseInt(durationInMinutesString);
 		boolean shouldNotify = false;
 
-		// If there is a url specified then null out the fileUploadId in case this content previously had a fileUploadId
-		if (urlCommand != null)
-			existingContent.setFileUploadId(null);
-
 		getDatabase().execute("""
 							 	UPDATE content SET content_type_id=?, title=?, url=?, 
 							 	duration_in_minutes=?, description=?, author=?, publish_start_date=?, publish_end_date=?,
 							 	publish_recurring=?, search_terms=?, shared_flag=?, file_upload_id=?, image_file_upload_id=?
 								WHERE content_id=?
 						""",
-				existingContent.getContentTypeId(), existingContent.getTitle(), existingContent.getUrl(),
-				durationInMinutes, existingContent.getDescription(), existingContent.getAuthor(), existingContent.getPublishStartDate(), existingContent.getPublishEndDate(),
-				existingContent.getPublishRecurring(), existingContent.getSearchTerms(), existingContent.getSharedFlag(),existingContent.getFileUploadId(), existingContent.getImageFileUploadId(),
-				existingContent.getContentId());
+				contentTypeIdCommand, titleCommand,urlCommand,
+				durationInMinutes, descriptionCommand, authorCommand, publishStartDate, publishEndDate,
+				publishRecurring, searchTerms, sharedFlag,fileUploadId, imageFileUploadId,
+				command.getContentId());
 
 		AdminContent adminContent = findAdminContentByIdForInstitution(account.getInstitutionId(), command.getContentId()).orElse(null);
 

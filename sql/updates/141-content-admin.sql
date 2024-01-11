@@ -22,6 +22,7 @@ ALTER TABLE content ADD COLUMN publish_recurring BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE content ADD COLUMN published BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE content ADD COLUMN file_upload_id UUID NULL REFERENCES file_upload(file_upload_id);
 ALTER TABLE content ADD COLUMN image_file_upload_id UUID NULL REFERENCES file_upload(file_upload_id);
+ALTER TABLE group_session ADD COLUMN image_file_upload_id UUID NULL REFERENCES file_upload;
 
 UPDATE content SET published = TRUE where owner_institution_approval_status_id='APPROVED';
 UPDATE content SET shared_flag = TRUE WHERE visibility_id = 'PUBLIC';
@@ -32,7 +33,124 @@ ALTER TABLE content ALTER COLUMN publish_start_date SET NOT NULL;
 UPDATE content SET date_created = created WHERE date_created IS NULL;
 ALTER TABLE content ALTER COLUMN date_created SET NOT NULL;
 
+DELETE FROM file_upload_type WHERE file_upload_type_id = 'IMAGE';
+
+INSERT INTO file_upload_type VALUES ('CONTENT_IMAGE', 'Content Image');
+INSERT INTO file_upload_type VALUES ('GROUP_SESSION_IMAGE', 'Group Session Image');
+
+create or replace function reverse_string(text) returns text as
+'
+DECLARE
+    reversed_string text;
+    incoming alias for $1;
+BEGIN
+reversed_string = '''';
+for i in reverse char_length(incoming)..1 loop
+reversed_string = reversed_string || substring(incoming from i for 1);
+end loop;
+return reversed_string;
+END'
+language plpgsql;
+
+CREATE OR REPLACE FUNCTION migrate_content_image_url() 
+RETURNS void AS $$
+DECLARE
+  accountId UUID;
+  fileUploadId UUID;
+  contentCur CURSOR FOR
+    SELECT content_id, image_url,
+    substr(image_url, length(image_url) - position('/' in reverse_string(image_url)) + 2, 
+    position('.jpg' IN (substr(image_url, length(image_url) - position('/' in reverse_string(image_url)) + 2))) - 1) AS filename
+    FROM content
+    WHERE NULLIF(TRIM(image_url), '') IS NOT NULL;
+  contentRec RECORD;
+BEGIN 
+  SELECT account_id
+  INTO accountId
+  FROM account 
+  WHERE email_address = 'admin@cobaltinnovations.org';
+  
+  FOR contentRec IN contentCur LOOP
+    SELECT file_upload_id
+    INTO fileUploadId
+    FROM file_upload
+    WHERE url = contentRec.image_url;
+
+    IF (fileUploadId IS NULL) THEN
+      SELECT uuid_generate_v4() INTO fileUploadId;
+    
+      INSERT INTO file_upload
+        (file_upload_id, account_id, url, filename, storage_key, content_type, file_upload_type_id)
+      VALUES 
+        (fileUploadId, accountId, contentRec.image_url, contentRec.filename, fileUploadId, 'application/jpeg', 'CONTENT_IMAGE');
+    END IF;
+    
+    UPDATE content
+    SET image_file_upload_id = fileUploadId
+    WHERE content_id = contentRec.content_id;
+  END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT migrate_content_image_url(); 
+
+--create a default file_upload image for Group Sessions
+  INSERT INTO file_upload
+    (file_upload_id, account_id, url, filename,
+     storage_key, content_type)
+  VALUES
+    ('3e39722c-5ae9-4e35-a1f6-e0adc0df391c', (SELECT account_id FROM account WHERE email_address = 'admin@cobaltinnovations.org'), 
+     'https://cobalt-shared-media.s3.amazonaws.com/group-sessions/default-group-session.jpg', 'default-group-session',
+     'default-group-session', 'application/jpeg');
+
+CREATE OR REPLACE FUNCTION migrate_group_session_image_url() 
+RETURNS void AS $$
+DECLARE
+  accountId UUID;
+  fileUploadId UUID;
+  groupSessionCur CURSOR FOR
+    SELECT group_session_id, image_url,
+    substr(image_url, length(image_url) - position('/' in reverse_string(image_url)) + 2, 
+    position('.jpg' IN (substr(image_url, length(image_url) - position('/' in reverse_string(image_url)) + 2))) - 1) AS filename
+    FROM group_session
+    WHERE NULLIF(TRIM(image_url), '') IS NOT NULL;
+  groupSessionRec RECORD;
+BEGIN 
+  SELECT account_id
+  INTO accountId
+  FROM account 
+  WHERE email_address = 'admin@cobaltinnovations.org';
+  
+  FOR groupSessionRec IN groupSessionCur LOOP
+    SELECT file_upload_id
+    INTO fileUploadId
+    FROM file_upload
+    WHERE url = groupSessionRec.image_url;
+
+    IF (fileUploadId IS NULL) THEN
+      SELECT uuid_generate_v4() INTO fileUploadId;
+    
+      INSERT INTO file_upload
+        (file_upload_id, account_id, url, filename, storage_key, content_type, file_upload_type_id)
+      VALUES 
+        (fileUploadId, accountId, groupSessionRec.image_url, groupSessionRec.filename, fileUploadId, 'application/jpeg', 'GROUP_SESSION_IMAGE');
+    END IF;
+    
+    UPDATE group_session
+    SET image_file_upload_id = fileUploadId
+    WHERE group_session_id = groupSessionRec.group_session_id;
+  END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT migrate_group_session_image_url(); 
+
+DROP FUNCTION reverse_string;
+DROP FUNCTION migrate_content_image_url;
+DROP FUNCTION migrate_group_session_image_url;
+
 DROP VIEW v_admin_content;
+DROP VIEW v_content_view;
 
 ALTER TABLE content DROP COLUMN archived_flag;
 ALTER TABLE content DROP COLUMN owner_institution_approval_status_id;
@@ -47,6 +165,8 @@ DROP TABLE available_status;
 DROP TABLE institution_network;
 DROP TABLE content_type_label;
 DROP TABLE answer_content;
+
+DELETE FROM institution_content WHERE approved_flag = FALSE;
 
 ALTER TABLE institution_content DROP COLUMN approved_flag;
 
@@ -98,7 +218,8 @@ AS SELECT c.content_id,
 
 CREATE OR REPLACE VIEW v_institution_content
 AS SELECT vac.*,
-    it.institution_id
+    it.institution_id,
+    it.created AS institution_created_date
    FROM v_admin_content vac,
     institution_content it
   WHERE vac.content_id = it.content_id;
@@ -112,8 +233,6 @@ $$ LANGUAGE 'plpgsql';
 
 CREATE INDEX idx_content_file_upload_id ON content(file_upload_id);
 CREATE INDEX idx_content_image_file_upload_id ON content(image_file_upload_id);
-
-ALTER TABLE group_session ADD COLUMN image_file_upload_id UUID NULL REFERENCES file_upload;
 
 DROP VIEW v_group_session;
 
@@ -177,20 +296,5 @@ CREATE VIEW v_group_session AS
   WHERE gs.group_session_status_id::text <> 'DELETED'::text;
 
   ALTER TABLE group_session DROP COLUMN image_url;
-
-  --create a default file_upload image for Group Sessions
-  INSERT INTO file_upload
-    (file_upload_id, account_id, url, filename,
-     storage_key, content_type)
-  VALUES
-    ('3e39722c-5ae9-4e35-a1f6-e0adc0df391c', (SELECT account_id FROM account WHERE email_address = 'admin@cobaltinnovations.org'), 
-     'https://cobalt-shared-media.s3.amazonaws.com/group-sessions/default-group-session.jpg', 'default-group-session',
-     'default-group-session', 'application/jpeg');
-
-  DELETE FROM file_upload_type WHERE file_upload_type_id = 'IMAGE';
-
-  INSERT INTO file_upload_type VALUES ('CONTENT_IMAGE', 'Content Image');
-  INSERT INTO file_upload_type VALUES ('GROUP_SESSION_IMAGE', 'Group Session Image');
-
 
 COMMIT;
