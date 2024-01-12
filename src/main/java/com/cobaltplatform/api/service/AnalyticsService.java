@@ -869,7 +869,7 @@ public class AnalyticsService implements AutoCloseable {
 				// Support special legacy data where a screening session could end immediately on crisis, but due
 				// to a bug, users could still back-button and skip after completing.
 				// Alternative would be to update all affected screening sessions in the DB to remove "skipped=true" flag.
-				completedSql.append("AND (ss.skipped=FALSE OR (ss.skipped=TRUE AND ss.crisis_flag=TRUE))");
+				completedSql.append("AND (ss.skipped=FALSE OR (ss.skipped=TRUE AND ss.crisis_indicated=TRUE))");
 			} else {
 				completedSql.append("AND ss.skipped=FALSE");
 			}
