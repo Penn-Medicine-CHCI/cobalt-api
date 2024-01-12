@@ -1100,9 +1100,15 @@ public class AnalyticsResource {
 		for (ScreeningFlow screeningFlow : screeningFlowsByScreeningFlowId.values()) {
 			LocalDate createdAt = LocalDate.ofInstant(screeningFlow.getCreated(), institution.getTimeZone());
 
+			// Pick the analytics name of the screening flow if present
+			String screeningFlowName = Stream.of(screeningFlow.getAnalyticsName(), screeningFlow.getName())
+					.filter(Objects::nonNull)
+					.findFirst()
+					.get();
+
 			if (startDate.isBefore(createdAt)) {
-				alerts.add(syntheticAlertForMessage(getStrings().get("{{screeningFlowName}} reports are only valid for dates on or after {{dateDescription}}.", Map.of(
-						"screeningFlowName", screeningFlow.getName(),
+				alerts.add(syntheticAlertForMessage(getStrings().get("{{screeningFlowName}} Completion and Severity reports are only valid for dates on or after {{dateDescription}}.", Map.of(
+						"screeningFlowName", screeningFlowName,
 						"dateDescription", getFormatter().formatDate(createdAt, FormatStyle.MEDIUM)
 				))));
 			}
