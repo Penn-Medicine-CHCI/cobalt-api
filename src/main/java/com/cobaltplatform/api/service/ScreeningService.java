@@ -842,12 +842,12 @@ public class ScreeningService {
 			if (screeningSession == null) {
 				validationException.add(new FieldError("screeningSessionId", getStrings().get("Screening Session ID is invalid.")));
 			} else if (screeningSession.getCompleted()) {
-				validationException.add(getStrings().get("Sorry, you are not permitted to skip this screening because it has already been completed."));
+				validationException.add(getStrings().get("Sorry, you are not permitted to skip this assessment because it has already been completed."));
 			} else {
 				ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
 
 				if (!forceSkip && !screeningFlowVersion.getSkippable())
-					validationException.add(getStrings().get("Sorry, you are not permitted to skip this screening."));
+					validationException.add(getStrings().get("Sorry, you are not permitted to skip this assessment."));
 			}
 		}
 
@@ -2443,7 +2443,7 @@ public class ScreeningService {
 			// Support special legacy data where a screening session could end immediately on crisis, but due
 			// to a bug, users could still back-button and skip after completing.
 			// Alternative would be to update all affected screening sessions in the DB to remove "skipped=true" flag.
-			sql.append("AND (ss.skipped=FALSE OR (ss.skipped=TRUE AND ss.crisis_flag=TRUE))");
+			sql.append("AND (ss.skipped=FALSE OR (ss.skipped=TRUE AND ss.crisis_indicated=TRUE))");
 		} else {
 			sql.append("AND ss.skipped=FALSE");
 		}
