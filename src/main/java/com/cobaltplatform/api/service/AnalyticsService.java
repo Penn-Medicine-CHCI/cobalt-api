@@ -854,7 +854,7 @@ public class AnalyticsService implements AutoCloseable {
 					AND ss.created BETWEEN ? AND ?
 										""", Long.class, screeningFlowId, institutionId, startTimestamp, endTimestamp).get();
 
-			Long completedCount = getDatabase().queryForObject("""
+			StringBuilder completedSql = new StringBuilder("""
 					SELECT count(ss.*)
 					FROM screening_session ss, account a, screening_flow_version sfv
 					WHERE sfv.screening_flow_id=?
@@ -863,8 +863,18 @@ public class AnalyticsService implements AutoCloseable {
 					AND a.institution_id=?
 					AND ss.created BETWEEN ? AND ?
 					AND ss.completed=TRUE
-					AND ss.skipped=FALSE
-										""", Long.class, screeningFlowId, institutionId, startTimestamp, endTimestamp).get();
+					""");
+
+			if (enterprisePlugin.analyticsClinicalScreeningFlowNeedsCrisisSkipWorkaround(screeningFlowId)) {
+				// Support special legacy data where a screening session could end immediately on crisis, but due
+				// to a bug, users could still back-button and skip after completing.
+				// Alternative would be to update all affected screening sessions in the DB to remove "skipped=true" flag.
+				completedSql.append("AND (ss.skipped=FALSE OR (ss.skipped=TRUE AND ss.crisis_flag=TRUE))");
+			} else {
+				completedSql.append("AND ss.skipped=FALSE");
+			}
+
+			Long completedCount = getDatabase().queryForObject(completedSql.toString(), Long.class, screeningFlowId, institutionId, startTimestamp, endTimestamp).get();
 			Double completionPercentage = startedCount.equals(0L) ? 0D : (completedCount.doubleValue() / startedCount.doubleValue());
 
 			ScreeningSessionCompletion screeningSessionCompletion = new ScreeningSessionCompletion();

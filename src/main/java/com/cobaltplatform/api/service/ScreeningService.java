@@ -21,6 +21,8 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.error.ErrorReporter;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.messaging.call.CallMessage;
 import com.cobaltplatform.api.messaging.call.CallMessageTemplate;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
@@ -160,6 +162,8 @@ public class ScreeningService {
 	@Nonnull
 	private final JavascriptExecutor javascriptExecutor;
 	@Nonnull
+	private final EnterprisePluginProvider enterprisePluginProvider;
+	@Nonnull
 	private final ErrorReporter errorReporter;
 	@Nonnull
 	private final Normalizer normalizer;
@@ -183,6 +187,7 @@ public class ScreeningService {
 													@Nonnull StudyService studyService,
 													@Nonnull ScreeningConfirmationPromptApiResponseFactory screeningConfirmationPromptApiResponseFactory,
 													@Nonnull JavascriptExecutor javascriptExecutor,
+													@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 													@Nonnull ErrorReporter errorReporter,
 													@Nonnull Normalizer normalizer,
 													@Nonnull Database database,
@@ -198,6 +203,7 @@ public class ScreeningService {
 		requireNonNull(studyService);
 		requireNonNull(screeningConfirmationPromptApiResponseFactory);
 		requireNonNull(javascriptExecutor);
+		requireNonNull(enterprisePluginProvider);
 		requireNonNull(errorReporter);
 		requireNonNull(normalizer);
 		requireNonNull(database);
@@ -214,6 +220,7 @@ public class ScreeningService {
 		this.studyService = studyService;
 		this.screeningConfirmationPromptApiResponseFactory = screeningConfirmationPromptApiResponseFactory;
 		this.javascriptExecutor = javascriptExecutor;
+		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.errorReporter = errorReporter;
 		this.normalizer = normalizer;
 		this.database = database;
@@ -834,6 +841,8 @@ public class ScreeningService {
 
 			if (screeningSession == null) {
 				validationException.add(new FieldError("screeningSessionId", getStrings().get("Screening Session ID is invalid.")));
+			} else if (screeningSession.getCompleted()) {
+				validationException.add(getStrings().get("Sorry, you are not permitted to skip this screening because it has already been completed."));
 			} else {
 				ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
 
@@ -2415,7 +2424,8 @@ public class ScreeningService {
 		if (screeningFlowId == null || institutionId == null || startTimestamp == null || endTimestamp == null)
 			return List.of();
 
-		return getDatabase().queryForList("""
+		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId);
+		StringBuilder sql = new StringBuilder("""
 				SELECT sv.screening_type_id, sss.*
 				FROM v_screening_session_screening sss, screening_session ss, account a, screening_version sv, screening_flow_version sfv
 				WHERE sss.screening_session_id=ss.screening_session_id
@@ -2426,8 +2436,20 @@ public class ScreeningService {
 				AND a.institution_id=?
 				AND ss.created BETWEEN ? AND ?
 				AND sss.completed=TRUE
-				AND ss.skipped=FALSE
-								""", ScreeningSessionScreeningWithType.class, screeningFlowId, institutionId, startTimestamp, endTimestamp);
+				AND ss.completed=TRUE
+				""");
+
+		if (enterprisePlugin.analyticsClinicalScreeningFlowNeedsCrisisSkipWorkaround(screeningFlowId)) {
+			// Support special legacy data where a screening session could end immediately on crisis, but due
+			// to a bug, users could still back-button and skip after completing.
+			// Alternative would be to update all affected screening sessions in the DB to remove "skipped=true" flag.
+			sql.append("AND (ss.skipped=FALSE OR (ss.skipped=TRUE AND ss.crisis_flag=TRUE))");
+		} else {
+			sql.append("AND ss.skipped=FALSE");
+		}
+
+		return getDatabase().queryForList(sql.toString(),
+				ScreeningSessionScreeningWithType.class, screeningFlowId, institutionId, startTimestamp, endTimestamp);
 	}
 
 	public void debugScreeningSession(@Nonnull UUID screeningSessionId) {
@@ -2878,6 +2900,11 @@ public class ScreeningService {
 	@Nonnull
 	protected JavascriptExecutor getJavascriptExecutor() {
 		return this.javascriptExecutor;
+	}
+
+	@Nonnull
+	protected EnterprisePluginProvider getEnterprisePluginProvider() {
+		return this.enterprisePluginProvider;
 	}
 
 	@Nonnull
