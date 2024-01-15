@@ -27,6 +27,7 @@ import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.ScheduledMessage;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.gson.Gson;
 import com.pyranid.Database;
 import org.junit.Assert;
@@ -129,7 +130,7 @@ public class MessageServiceTests {
 	public void testScheduledSending() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			MessageService messageService = app.getInjector().getInstance(MessageService.class);
-			Database database = app.getInjector().getInstance(Database.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
 
 			// Schedule it for "now" so it will be sent immediately
 			ZoneId timeZone = ZoneId.systemDefault();
@@ -158,7 +159,7 @@ public class MessageServiceTests {
 	public void testScheduledSendingTimeZones() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			MessageService messageService = app.getInjector().getInstance(MessageService.class);
-			Database database = app.getInjector().getInstance(Database.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
 
 			// Schedule it for "now" so it will be sent immediately
 			ZoneId timeZone = ZoneId.of("America/New_York");
@@ -187,7 +188,7 @@ public class MessageServiceTests {
 	public void testScheduledSendingErrorHandling() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			MessageService messageService = app.getInjector().getInstance(MessageService.class);
-			Database database = app.getInjector().getInstance(Database.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
 
 			// Schedule it for "now" so it will be sent immediately
 			ZoneId timeZone = ZoneId.systemDefault();

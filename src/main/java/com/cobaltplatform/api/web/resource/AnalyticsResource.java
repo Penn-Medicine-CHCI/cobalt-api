@@ -61,6 +61,7 @@ import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.service.TagService;
 import com.cobaltplatform.api.service.TopicCenterService;
 import com.cobaltplatform.api.util.Formatter;
+import com.cobaltplatform.api.util.db.ReadReplica;
 import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.QueryParameter;
@@ -183,6 +184,7 @@ public class AnalyticsResource {
 	@Nonnull
 	@GET("/analytics")
 	@AuthenticationRequired
+	@ReadReplica
 	public ApiResponse analytics(@Nonnull @QueryParameter LocalDate startDate,
 															 @Nonnull @QueryParameter LocalDate endDate) {
 		requireNonNull(startDate);
@@ -244,6 +246,7 @@ public class AnalyticsResource {
 	@Nonnull
 	@GET("/analytics/overview")
 	@AuthenticationRequired
+	@ReadReplica
 	public Object analyticsOverview(@Nonnull HttpServletResponse httpServletResponse,
 																	@Nonnull @QueryParameter LocalDate startDate,
 																	@Nonnull @QueryParameter LocalDate endDate) {
@@ -766,6 +769,7 @@ public class AnalyticsResource {
 	@Nonnull
 	@GET("/analytics/assessments-appointments")
 	@AuthenticationRequired
+	@ReadReplica
 	public Object analyticsAssessmentsAppointments(@Nonnull HttpServletResponse httpServletResponse,
 																								 @Nonnull @QueryParameter LocalDate startDate,
 																								 @Nonnull @QueryParameter LocalDate endDate) {
@@ -1278,6 +1282,7 @@ public class AnalyticsResource {
 	@Nonnull
 	@GET("/analytics/group-sessions")
 	@AuthenticationRequired
+	@ReadReplica
 	public Object analyticsGroupSessions(@Nonnull HttpServletResponse httpServletResponse,
 																			 @Nonnull @QueryParameter LocalDate startDate,
 																			 @Nonnull @QueryParameter LocalDate endDate) {
@@ -1477,6 +1482,7 @@ public class AnalyticsResource {
 	@Nonnull
 	@GET("/analytics/resources-topics")
 	@AuthenticationRequired
+	@ReadReplica
 	public Object analyticsResourcesTopics(@Nonnull HttpServletResponse httpServletResponse,
 																				 @Nonnull @QueryParameter LocalDate startDate,
 																				 @Nonnull @QueryParameter LocalDate endDate) {

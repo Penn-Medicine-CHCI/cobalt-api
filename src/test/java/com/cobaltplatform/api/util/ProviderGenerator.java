@@ -20,6 +20,7 @@ import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AppointmentService;
 import com.cobaltplatform.api.service.AvailabilityService;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.pyranid.Database;
 
 import javax.annotation.Nonnull;
@@ -67,7 +68,7 @@ public class ProviderGenerator {
 		IntegrationTestExecutor.runTransactionallyAndCommit((app) -> {
 			String currentTimestampAsString = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", getLocale()).withZone(getTimeZone()).format(Instant.now());
 
-			Database database = app.getInjector().getInstance(Database.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
 			AvailabilityService availabilityService = app.getInjector().getInstance(AvailabilityService.class);
 			AccountService accountService = app.getInjector().getInstance(AccountService.class);
 			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);

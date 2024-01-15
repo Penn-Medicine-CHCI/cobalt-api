@@ -21,6 +21,7 @@ package com.cobaltplatform.api.web.filter;
 
 import com.cobaltplatform.api.context.DatabaseContext;
 import com.cobaltplatform.api.context.DatabaseContextExecutor;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.pyranid.Database;
 import com.pyranid.StatementLog;
 import org.slf4j.Logger;
@@ -54,19 +55,19 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class DatabaseFilter implements Filter {
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final DatabaseContextExecutor databaseContextExecutor;
 	@Nonnull
 	private final Logger logger;
 
 	@Inject
-	public DatabaseFilter(@Nonnull Database database,
+	public DatabaseFilter(@Nonnull DatabaseProvider databaseProvider,
 												@Nonnull DatabaseContextExecutor databaseContextExecutor) {
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(databaseContextExecutor);
 
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.databaseContextExecutor = databaseContextExecutor;
 		this.logger = LoggerFactory.getLogger("com.cobaltplatform.api.sql.REQUEST_SQL");
 	}
@@ -138,16 +139,16 @@ public class DatabaseFilter implements Filter {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull
 	protected DatabaseContextExecutor getDatabaseContextExecutor() {
-		return databaseContextExecutor;
+		return this.databaseContextExecutor;
 	}
 
 	@Nonnull
 	public Logger getLogger() {
-		return logger;
+		return this.logger;
 	}
 }

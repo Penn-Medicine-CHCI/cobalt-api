@@ -32,6 +32,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -75,7 +76,7 @@ public class GroupRequestService {
 	@Nonnull
 	private final Formatter formatter;
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Strings strings;
 	@Nonnull
@@ -86,20 +87,20 @@ public class GroupRequestService {
 														 @Nonnull Provider<InstitutionService> institutionServiceProvider,
 														 @Nonnull Provider<MessageService> messageServiceProvider,
 														 @Nonnull Formatter formatter,
-														 @Nonnull Database database,
+														 @Nonnull DatabaseProvider databaseProvider,
 														 @Nonnull Strings strings) {
 		requireNonNull(accountServiceProvider);
 		requireNonNull(institutionServiceProvider);
 		requireNonNull(messageServiceProvider);
 		requireNonNull(formatter);
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(strings);
 
 		this.accountServiceProvider = accountServiceProvider;
 		this.institutionServiceProvider = institutionServiceProvider;
 		this.messageServiceProvider = messageServiceProvider;
 		this.formatter = formatter;
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
@@ -163,7 +164,7 @@ public class GroupRequestService {
 	}
 
 	@Nonnull
-	public UUID createGroupSessionSuggestion(@Nonnull CreateGroupSessionSuggestionRequest request){
+	public UUID createGroupSessionSuggestion(@Nonnull CreateGroupSessionSuggestionRequest request) {
 		requireNonNull(request);
 
 		UUID requestorAccountId = request.getRequestorAccountId();
@@ -376,7 +377,7 @@ public class GroupRequestService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return this.database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

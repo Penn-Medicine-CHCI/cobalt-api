@@ -19,7 +19,6 @@
 
 package com.cobaltplatform.api.service;
 
-import com.lokalized.Strings;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.api.request.CreateFollowupRequest;
 import com.cobaltplatform.api.model.api.request.FindFollowupsRequest;
@@ -27,6 +26,8 @@ import com.cobaltplatform.api.model.db.Followup;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
+import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,7 +61,7 @@ public class FollowupService {
 	@Nonnull
 	private final javax.inject.Provider<ProviderService> providerServiceProvider;
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
@@ -71,18 +72,18 @@ public class FollowupService {
 	@Inject
 	public FollowupService(@Nonnull javax.inject.Provider<AccountService> accountServiceProvider,
 												 @Nonnull javax.inject.Provider<ProviderService> providerServiceProvider,
-												 @Nonnull Database database,
+												 @Nonnull DatabaseProvider databaseProvider,
 												 @Nonnull Configuration configuration,
 												 @Nonnull Strings strings) {
 		requireNonNull(accountServiceProvider);
 		requireNonNull(providerServiceProvider);
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(configuration);
 		requireNonNull(strings);
 
 		this.accountServiceProvider = accountServiceProvider;
 		this.providerServiceProvider = providerServiceProvider;
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.configuration = configuration;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -225,7 +226,7 @@ public class FollowupService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

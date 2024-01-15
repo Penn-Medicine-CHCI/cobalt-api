@@ -48,6 +48,7 @@ import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -98,7 +99,7 @@ public class MyChartService {
 	@Nonnull
 	private final Normalizer normalizer;
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
@@ -119,7 +120,7 @@ public class MyChartService {
 												@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 												@Nonnull Authenticator authenticator,
 												@Nonnull Normalizer normalizer,
-												@Nonnull Database database,
+												@Nonnull DatabaseProvider databaseProvider,
 												@Nonnull Configuration configuration,
 												@Nonnull Strings strings) {
 		requireNonNull(institutionServiceProvider);
@@ -127,7 +128,7 @@ public class MyChartService {
 		requireNonNull(enterprisePluginProvider);
 		requireNonNull(authenticator);
 		requireNonNull(normalizer);
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(configuration);
 		requireNonNull(strings);
 
@@ -136,7 +137,7 @@ public class MyChartService {
 		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.authenticator = authenticator;
 		this.normalizer = normalizer;
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.configuration = configuration;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -469,7 +470,7 @@ public class MyChartService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return this.database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

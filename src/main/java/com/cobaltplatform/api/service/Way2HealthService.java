@@ -41,6 +41,7 @@ import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -86,7 +87,7 @@ public class Way2HealthService implements AutoCloseable {
 	private static final Long BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS;
 
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Way2HealthClient way2HealthClient;
 	@Nonnull
@@ -112,18 +113,18 @@ public class Way2HealthService implements AutoCloseable {
 
 	@Inject
 	public Way2HealthService(@Nonnull Way2HealthClient way2HealthClient,
-													 @Nonnull Database database,
+													 @Nonnull DatabaseProvider databaseProvider,
 													 @Nonnull Configuration configuration,
 													 @Nonnull Strings strings,
 													 @Nonnull Provider<BackgroundSyncTask> backgroundSyncTaskProvider) {
 		requireNonNull(way2HealthClient);
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(configuration);
 		requireNonNull(strings);
 		requireNonNull(backgroundSyncTaskProvider);
 
 		this.way2HealthClient = way2HealthClient;
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.configuration = configuration;
 		this.strings = strings;
 		this.backgroundTaskLock = new Object();
@@ -217,7 +218,7 @@ public class Way2HealthService implements AutoCloseable {
 		@Nonnull
 		private final Formatter formatter;
 		@Nonnull
-		private final Database database;
+		private final DatabaseProvider databaseProvider;
 		@Nonnull
 		private final Configuration configuration;
 		@Nonnull
@@ -234,7 +235,7 @@ public class Way2HealthService implements AutoCloseable {
 															@Nonnull ErrorReporter errorReporter,
 															@Nonnull Normalizer normalizer,
 															@Nonnull Formatter formatter,
-															@Nonnull Database database,
+															@Nonnull DatabaseProvider databaseProvider,
 															@Nonnull Configuration configuration,
 															@Nonnull Strings strings) {
 			requireNonNull(systemService);
@@ -245,7 +246,7 @@ public class Way2HealthService implements AutoCloseable {
 			requireNonNull(errorReporter);
 			requireNonNull(normalizer);
 			requireNonNull(formatter);
-			requireNonNull(database);
+			requireNonNull(databaseProvider);
 			requireNonNull(configuration);
 			requireNonNull(strings);
 
@@ -257,7 +258,7 @@ public class Way2HealthService implements AutoCloseable {
 			this.errorReporter = errorReporter;
 			this.normalizer = normalizer;
 			this.formatter = formatter;
-			this.database = database;
+			this.databaseProvider = databaseProvider;
 			this.configuration = configuration;
 			this.strings = strings;
 			this.logger = LoggerFactory.getLogger(getClass());
@@ -641,7 +642,7 @@ public class Way2HealthService implements AutoCloseable {
 
 		@Nonnull
 		protected Database getDatabase() {
-			return database;
+			return this.databaseProvider.get();
 		}
 
 		@Nonnull
@@ -684,7 +685,7 @@ public class Way2HealthService implements AutoCloseable {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return database;
+		return databaseProvider.get();
 	}
 
 	@Nonnull

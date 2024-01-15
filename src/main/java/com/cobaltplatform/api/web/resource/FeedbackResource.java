@@ -31,6 +31,7 @@ import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -66,7 +67,7 @@ public class FeedbackResource {
 	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Strings strings;
 	@Nonnull
@@ -76,13 +77,13 @@ public class FeedbackResource {
 	public FeedbackResource(@Nonnull RequestBodyParser requestBodyParser,
 													@Nonnull MessageService messageService,
 													@Nonnull Provider<CurrentContext> currentContextProvider,
-													@Nonnull Database database,
+													@Nonnull DatabaseProvider databaseProvider,
 													@Nonnull Strings strings,
 													@Nonnull Formatter formatter) {
 		this.requestBodyParser = requestBodyParser;
 		this.messageService = messageService;
 		this.currentContextProvider = currentContextProvider;
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.strings = strings;
 		this.formatter = formatter;
 	}
@@ -150,7 +151,7 @@ public class FeedbackResource {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return this.database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

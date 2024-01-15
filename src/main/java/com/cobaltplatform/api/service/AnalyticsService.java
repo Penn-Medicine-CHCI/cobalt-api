@@ -46,6 +46,7 @@ import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.cobaltplatform.api.model.service.ScreeningScore;
 import com.cobaltplatform.api.model.service.ScreeningSessionScreeningWithType;
 import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.analytics.data.v1beta.DateRange;
 import com.google.analytics.data.v1beta.Dimension;
 import com.google.analytics.data.v1beta.Metric;
@@ -124,7 +125,7 @@ public class AnalyticsService implements AutoCloseable {
 	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Strings strings;
 	@Nonnull
@@ -144,7 +145,7 @@ public class AnalyticsService implements AutoCloseable {
 													@Nonnull Provider<TagService> tagServiceProvider,
 													@Nonnull Provider<AnalyticsSyncTask> analyticsSyncTaskProvider,
 													@Nonnull EnterprisePluginProvider enterprisePluginProvider,
-													@Nonnull Database database,
+													@Nonnull DatabaseProvider databaseProvider,
 													@Nonnull Strings strings) {
 		requireNonNull(institutionServiceProvider);
 		requireNonNull(systemServiceProvider);
@@ -152,7 +153,7 @@ public class AnalyticsService implements AutoCloseable {
 		requireNonNull(tagServiceProvider);
 		requireNonNull(analyticsSyncTaskProvider);
 		requireNonNull(enterprisePluginProvider);
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(strings);
 
 		this.institutionServiceProvider = institutionServiceProvider;
@@ -161,7 +162,7 @@ public class AnalyticsService implements AutoCloseable {
 		this.tagServiceProvider = tagServiceProvider;
 		this.analyticsSyncTaskProvider = analyticsSyncTaskProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.strings = strings;
 		this.analyticsSyncLock = new Object();
 		this.started = false;
@@ -2909,7 +2910,7 @@ public class AnalyticsService implements AutoCloseable {
 		@Nonnull
 		private final ErrorReporter errorReporter;
 		@Nonnull
-		private final Database database;
+		private final DatabaseProvider databaseProvider;
 		@Nonnull
 		private final Configuration configuration;
 		@Nonnull
@@ -2922,7 +2923,7 @@ public class AnalyticsService implements AutoCloseable {
 														 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
 														 @Nonnull CurrentContextExecutor currentContextExecutor,
 														 @Nonnull ErrorReporter errorReporter,
-														 @Nonnull Database database,
+														 @Nonnull DatabaseProvider databaseProvider,
 														 @Nonnull Configuration configuration) {
 			requireNonNull(analyticsServiceProvider);
 			requireNonNull(institutionServiceProvider);
@@ -2930,7 +2931,7 @@ public class AnalyticsService implements AutoCloseable {
 			requireNonNull(enterprisePluginProvider);
 			requireNonNull(currentContextExecutor);
 			requireNonNull(errorReporter);
-			requireNonNull(database);
+			requireNonNull(databaseProvider);
 			requireNonNull(configuration);
 
 			this.analyticsServiceProvider = analyticsServiceProvider;
@@ -2939,7 +2940,7 @@ public class AnalyticsService implements AutoCloseable {
 			this.enterprisePluginProvider = enterprisePluginProvider;
 			this.currentContextExecutor = currentContextExecutor;
 			this.errorReporter = errorReporter;
-			this.database = database;
+			this.databaseProvider = databaseProvider;
 			this.configuration = configuration;
 			this.logger = LoggerFactory.getLogger(getClass());
 		}
@@ -3195,7 +3196,7 @@ public class AnalyticsService implements AutoCloseable {
 
 		@Nonnull
 		protected Database getDatabase() {
-			return this.database;
+			return this.databaseProvider.get();
 		}
 
 		@Nonnull
@@ -3251,7 +3252,7 @@ public class AnalyticsService implements AutoCloseable {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return this.database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

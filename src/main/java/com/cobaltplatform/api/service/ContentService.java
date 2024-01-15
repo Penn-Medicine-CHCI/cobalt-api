@@ -57,6 +57,7 @@ import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -104,7 +105,7 @@ public class ContentService {
 	private static final int MAXIMUM_PAGE_SIZE = 100;
 
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Logger logger;
 	@Nonnull
@@ -136,7 +137,7 @@ public class ContentService {
 												@Nonnull Provider<AccountService> accountServiceProvider,
 												@Nonnull Provider<Formatter> formatterProvider,
 												@Nonnull Provider<LinkGenerator> linkGeneratorProvider,
-												@Nonnull Database database,
+												@Nonnull DatabaseProvider databaseProvider,
 												@Nonnull SessionService sessionService,
 												@Nonnull InstitutionService institutionService,
 												@Nonnull Strings strings) {
@@ -147,13 +148,13 @@ public class ContentService {
 		requireNonNull(accountServiceProvider);
 		requireNonNull(formatterProvider);
 		requireNonNull(linkGeneratorProvider);
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(sessionService);
 		requireNonNull(institutionService);
 		requireNonNull(strings);
 
 		this.logger = LoggerFactory.getLogger(getClass());
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.sessionService = sessionService;
 		this.tagServiceProvider = tagServiceProvider;
 		this.currentContextProvider = currentContextProvider;
@@ -1303,7 +1304,7 @@ public class ContentService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

@@ -110,6 +110,7 @@ import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -159,7 +160,7 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @ThreadSafe
 public class AppointmentService {
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
@@ -214,7 +215,7 @@ public class AppointmentService {
 	private final ErrorReporter errorReporter;
 
 	@Inject
-	public AppointmentService(@Nonnull Database database,
+	public AppointmentService(@Nonnull DatabaseProvider databaseProvider,
 														@Nonnull Configuration configuration,
 														@Nonnull Strings strings,
 														@Nonnull EpicSyncManager epicSyncManager,
@@ -240,7 +241,7 @@ public class AppointmentService {
 														@Nonnull JsonMapper jsonMapper,
 														@Nonnull InteractionService interactionService,
 														@Nonnull ErrorReporter errorReporter) {
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(configuration);
 		requireNonNull(strings);
 		requireNonNull(enterprisePluginProvider);
@@ -266,7 +267,7 @@ public class AppointmentService {
 		requireNonNull(interactionService);
 		requireNonNull(errorReporter);
 
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.configuration = configuration;
 		this.strings = strings;
 		this.enterprisePluginProvider = enterprisePluginProvider;
@@ -2289,7 +2290,7 @@ public class AppointmentService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return this.database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull
