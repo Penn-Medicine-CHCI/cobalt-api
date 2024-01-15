@@ -33,6 +33,7 @@ import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.service.AppointmentService;
 import com.cobaltplatform.api.service.ProviderService;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -96,7 +97,7 @@ public class AcuitySyncManager implements ProviderAvailabilitySyncManager, AutoC
 	@Nonnull
 	private final AcuitySchedulingClient acuitySchedulingClient;
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
@@ -127,7 +128,7 @@ public class AcuitySyncManager implements ProviderAvailabilitySyncManager, AutoC
 													 @Nonnull javax.inject.Provider<ProviderService> providerServiceProvider,
 													 @Nonnull javax.inject.Provider<AppointmentService> appointmentServiceProvider,
 													 @Nonnull AcuitySchedulingClient acuitySchedulingClient,
-													 @Nonnull Database database,
+													 @Nonnull DatabaseProvider databaseProvider,
 													 @Nonnull Configuration configuration,
 													 @Nonnull Strings strings) {
 		requireNonNull(availabilitySyncTaskProvider);
@@ -135,7 +136,7 @@ public class AcuitySyncManager implements ProviderAvailabilitySyncManager, AutoC
 		requireNonNull(providerServiceProvider);
 		requireNonNull(appointmentServiceProvider);
 		requireNonNull(acuitySchedulingClient);
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(configuration);
 		requireNonNull(strings);
 
@@ -144,7 +145,7 @@ public class AcuitySyncManager implements ProviderAvailabilitySyncManager, AutoC
 		this.providerServiceProvider = providerServiceProvider;
 		this.appointmentServiceProvider = appointmentServiceProvider;
 		this.acuitySchedulingClient = acuitySchedulingClient;
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.configuration = configuration;
 		this.strings = strings;
 		this.acuitySyncLock = new Object();
@@ -386,7 +387,7 @@ public class AcuitySyncManager implements ProviderAvailabilitySyncManager, AutoC
 		@Nonnull
 		private final CurrentContextExecutor currentContextExecutor;
 		@Nonnull
-		private final Database database;
+		private final DatabaseProvider databaseProvider;
 		@Nonnull
 		private final Configuration configuration;
 		@Nonnull
@@ -397,20 +398,20 @@ public class AcuitySyncManager implements ProviderAvailabilitySyncManager, AutoC
 																@Nonnull javax.inject.Provider<ProviderService> providerServiceProvider,
 																@Nonnull CurrentContextExecutor currentContextExecutor,
 																@Nonnull AcuitySchedulingClient acuitySchedulingClient,
-																@Nonnull Database database,
+																@Nonnull DatabaseProvider databaseProvider,
 																@Nonnull Configuration configuration) {
 			requireNonNull(acuitySyncManager);
 			requireNonNull(providerServiceProvider);
 			requireNonNull(currentContextExecutor);
 			requireNonNull(acuitySchedulingClient);
-			requireNonNull(database);
+			requireNonNull(databaseProvider);
 			requireNonNull(configuration);
 
 			this.acuitySyncManager = acuitySyncManager;
 			this.providerServiceProvider = providerServiceProvider;
 			this.currentContextExecutor = currentContextExecutor;
 			this.acuitySchedulingClient = acuitySchedulingClient;
-			this.database = database;
+			this.databaseProvider = databaseProvider;
 			this.configuration = configuration;
 			this.logger = LoggerFactory.getLogger(getClass());
 		}
@@ -494,7 +495,7 @@ public class AcuitySyncManager implements ProviderAvailabilitySyncManager, AutoC
 
 		@Nonnull
 		protected Database getDatabase() {
-			return database;
+			return this.databaseProvider.get();
 		}
 
 		@Nonnull
@@ -519,7 +520,7 @@ public class AcuitySyncManager implements ProviderAvailabilitySyncManager, AutoC
 		@Nonnull
 		private final CurrentContextExecutor currentContextExecutor;
 		@Nonnull
-		private final Database database;
+		private final DatabaseProvider databaseProvider;
 		@Nonnull
 		private final Configuration configuration;
 		@Nonnull
@@ -530,20 +531,20 @@ public class AcuitySyncManager implements ProviderAvailabilitySyncManager, AutoC
 																	 @Nonnull javax.inject.Provider<AppointmentService> appointmentServiceProvider,
 																	 @Nonnull CurrentContextExecutor currentContextExecutor,
 																	 @Nonnull AcuitySchedulingClient acuitySchedulingClient,
-																	 @Nonnull Database database,
+																	 @Nonnull DatabaseProvider databaseProvider,
 																	 @Nonnull Configuration configuration) {
 			requireNonNull(acuitySyncManagerProvider);
 			requireNonNull(appointmentServiceProvider);
 			requireNonNull(currentContextExecutor);
 			requireNonNull(acuitySchedulingClient);
-			requireNonNull(database);
+			requireNonNull(databaseProvider);
 			requireNonNull(configuration);
 
 			this.acuitySyncManagerProvider = acuitySyncManagerProvider;
 			this.appointmentServiceProvider = appointmentServiceProvider;
 			this.currentContextExecutor = currentContextExecutor;
 			this.acuitySchedulingClient = acuitySchedulingClient;
-			this.database = database;
+			this.databaseProvider = databaseProvider;
 			this.configuration = configuration;
 			this.logger = LoggerFactory.getLogger(getClass());
 		}
@@ -629,7 +630,7 @@ public class AcuitySyncManager implements ProviderAvailabilitySyncManager, AutoC
 
 		@Nonnull
 		protected Database getDatabase() {
-			return database;
+			return this.databaseProvider.get();
 		}
 
 		@Nonnull
@@ -785,7 +786,7 @@ public class AcuitySyncManager implements ProviderAvailabilitySyncManager, AutoC
 
 	@Nonnull
 	protected Database getDatabase() {
-		return database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

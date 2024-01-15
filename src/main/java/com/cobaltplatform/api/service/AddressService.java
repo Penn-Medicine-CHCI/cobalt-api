@@ -24,6 +24,7 @@ import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.service.Region;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -50,7 +51,7 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @ThreadSafe
 public class AddressService {
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Normalizer normalizer;
 	@Nonnull
@@ -59,14 +60,14 @@ public class AddressService {
 	private final Logger logger;
 
 	@Inject
-	public AddressService(@Nonnull Database database,
+	public AddressService(@Nonnull DatabaseProvider databaseProvider,
 												@Nonnull Normalizer normalizer,
 												@Nonnull Strings strings) {
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(normalizer);
 		requireNonNull(strings);
 
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.normalizer = normalizer;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -187,7 +188,7 @@ public class AddressService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return this.database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

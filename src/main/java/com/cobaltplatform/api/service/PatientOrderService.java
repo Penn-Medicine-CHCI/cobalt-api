@@ -153,6 +153,7 @@ import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.common.hash.Hashing;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.gson.Gson;
@@ -255,7 +256,7 @@ public class PatientOrderService implements AutoCloseable {
 	@Nonnull
 	private final PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory;
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Normalizer normalizer;
 	@Nonnull
@@ -286,7 +287,7 @@ public class PatientOrderService implements AutoCloseable {
 														 @Nonnull Provider<ScreeningService> screeningServiceProvider,
 														 @Nonnull Provider<BackgroundTask> backgroundTaskProvider,
 														 @Nonnull PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory,
-														 @Nonnull Database database,
+														 @Nonnull DatabaseProvider databaseProvider,
 														 @Nonnull Normalizer normalizer,
 														 @Nonnull Formatter formatter,
 														 @Nonnull Authenticator authenticator,
@@ -299,7 +300,7 @@ public class PatientOrderService implements AutoCloseable {
 		requireNonNull(screeningServiceProvider);
 		requireNonNull(backgroundTaskProvider);
 		requireNonNull(patientOrderScheduledMessageGroupApiResponseFactory);
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(normalizer);
 		requireNonNull(formatter);
 		requireNonNull(authenticator);
@@ -313,7 +314,7 @@ public class PatientOrderService implements AutoCloseable {
 		this.screeningServiceProvider = screeningServiceProvider;
 		this.backgroundTaskProvider = backgroundTaskProvider;
 		this.patientOrderScheduledMessageGroupApiResponseFactory = patientOrderScheduledMessageGroupApiResponseFactory;
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.normalizer = normalizer;
 		this.formatter = formatter;
 		this.authenticator = authenticator;
@@ -4894,7 +4895,7 @@ public class PatientOrderService implements AutoCloseable {
 		@Nonnull
 		private final ErrorReporter errorReporter;
 		@Nonnull
-		private final Database database;
+		private final DatabaseProvider databaseProvider;
 		@Nonnull
 		private final Logger logger;
 
@@ -4905,14 +4906,14 @@ public class PatientOrderService implements AutoCloseable {
 													@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 													@Nonnull CurrentContextExecutor currentContextExecutor,
 													@Nonnull ErrorReporter errorReporter,
-													@Nonnull Database database) {
+													@Nonnull DatabaseProvider databaseProvider) {
 			requireNonNull(institutionService);
 			requireNonNull(patientOrderService);
 			requireNonNull(systemService);
 			requireNonNull(enterprisePluginProvider);
 			requireNonNull(currentContextExecutor);
 			requireNonNull(errorReporter);
-			requireNonNull(database);
+			requireNonNull(databaseProvider);
 
 			this.institutionService = institutionService;
 			this.patientOrderService = patientOrderService;
@@ -4920,7 +4921,7 @@ public class PatientOrderService implements AutoCloseable {
 			this.enterprisePluginProvider = enterprisePluginProvider;
 			this.currentContextExecutor = currentContextExecutor;
 			this.errorReporter = errorReporter;
-			this.database = database;
+			this.databaseProvider = databaseProvider;
 			this.logger = LoggerFactory.getLogger(getClass());
 		}
 
@@ -5070,7 +5071,7 @@ public class PatientOrderService implements AutoCloseable {
 
 		@Nonnull
 		protected Database getDatabase() {
-			return this.database;
+			return this.databaseProvider.get();
 		}
 
 		@Nonnull
@@ -5268,7 +5269,7 @@ public class PatientOrderService implements AutoCloseable {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return this.database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

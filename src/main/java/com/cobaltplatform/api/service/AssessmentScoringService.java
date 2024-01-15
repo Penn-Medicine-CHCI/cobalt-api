@@ -32,6 +32,7 @@ import com.cobaltplatform.api.model.db.CrisisContact;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.service.EvidenceScores;
 import com.cobaltplatform.api.util.Formatter;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 
@@ -77,7 +78,7 @@ public class AssessmentScoringService {
 	@Nonnull
 	private final ErrorReporter errorReporter;
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Formatter formatter;
 	@Nonnull
@@ -90,7 +91,7 @@ public class AssessmentScoringService {
 																	@Nonnull Provider<InstitutionService> institutionServiceProvider,
 																	@Nonnull Provider<MessageService> messageServiceProvider,
 																	@Nonnull ErrorReporter errorReporter,
-																	@Nonnull Database database,
+																	@Nonnull DatabaseProvider databaseProvider,
 																	@Nonnull Formatter formatter,
 																	@Nonnull Strings strings) {
 		requireNonNull(assessmentServiceProvder);
@@ -99,7 +100,7 @@ public class AssessmentScoringService {
 		requireNonNull(institutionServiceProvider);
 		requireNonNull(messageServiceProvider);
 		requireNonNull(errorReporter);
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 
@@ -109,7 +110,7 @@ public class AssessmentScoringService {
 		this.institutionServiceProvider = institutionServiceProvider;
 		this.messageServiceProvider = messageServiceProvider;
 		this.errorReporter = errorReporter;
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.formatter = formatter;
 		this.strings = strings;
 	}
@@ -133,7 +134,7 @@ public class AssessmentScoringService {
 	// TODO: remove crisis email in favor of the crisis interaction
 	private void sendCrisisEmail(Account crisisAccount, EvidenceScores scores) {
 
-		List<CrisisContact> crisisContacts = database.queryForList("SELECT * FROM crisis_contact WHERE institution_id = ? AND active = true",
+		List<CrisisContact> crisisContacts = getDatabase().queryForList("SELECT * FROM crisis_contact WHERE institution_id = ? AND active = true",
 				CrisisContact.class, crisisAccount.getInstitutionId());
 
 		if (crisisContacts.isEmpty()) {
@@ -440,7 +441,7 @@ public class AssessmentScoringService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

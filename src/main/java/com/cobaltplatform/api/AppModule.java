@@ -159,6 +159,8 @@ import com.cobaltplatform.api.util.HttpLoggingInterceptor;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.JsonMapper.MappingNullability;
 import com.cobaltplatform.api.util.Normalizer;
+import com.cobaltplatform.api.util.db.ReadReplica;
+import com.cobaltplatform.api.util.db.WritableMaster;
 import com.cobaltplatform.api.web.filter.AuthorizationFilter;
 import com.cobaltplatform.api.web.filter.DatabaseFilter;
 import com.cobaltplatform.api.web.filter.DebuggingFilter;
@@ -339,12 +341,13 @@ public class AppModule extends AbstractModule {
 		return this.configuration;
 	}
 
+	@Nonnull
 	@Provides
 	@Singleton
-	@Nonnull
-	public Database provideDatabase(@Nonnull Injector injector,
-																	@Nonnull DataSource dataSource,
-																	@Nonnull Provider<Optional<DatabaseContext>> databaseContextProvider) {
+	@ReadReplica
+	public Database provideReadReplicaDatabase(@Nonnull Injector injector,
+																						 @ReadReplica @Nonnull DataSource dataSource,
+																						 @Nonnull Provider<Optional<DatabaseContext>> databaseContextProvider) {
 		requireNonNull(injector);
 		requireNonNull(dataSource);
 		requireNonNull(databaseContextProvider);
@@ -363,10 +366,53 @@ public class AppModule extends AbstractModule {
 				.build();
 	}
 
+	@Nonnull
 	@Provides
 	@Singleton
+	@WritableMaster
+	public Database provideWritableMasterDatabase(@Nonnull Injector injector,
+																								@WritableMaster @Nonnull DataSource dataSource,
+																								@Nonnull Provider<Optional<DatabaseContext>> databaseContextProvider) {
+		requireNonNull(injector);
+		requireNonNull(dataSource);
+		requireNonNull(databaseContextProvider);
+
+		return Database.forDataSource(dataSource)
+				.instanceProvider(injector::getInstance)
+				.statementLogger(new StatementLogger() {
+					@Override
+					public void log(StatementLog statementLog) {
+						DatabaseContext databaseContext = databaseContextProvider.get().orElse(null);
+
+						if (databaseContext != null)
+							databaseContext.addStatementLog(statementLog);
+					}
+				})
+				.build();
+	}
+
 	@Nonnull
-	public DataSource provideDataSource(@Nonnull Configuration configuration) {
+	@Provides
+	@Singleton
+	@ReadReplica
+	public DataSource provideReadReplicaDataSource(@Nonnull Configuration configuration) {
+		requireNonNull(configuration);
+
+		return new HikariDataSource(new HikariConfig() {
+			{
+				setJdbcUrl(getConfiguration().getJdbcReadReplicaUrl());
+				setUsername(getConfiguration().getJdbcReadReplicaUsername());
+				setPassword(getConfiguration().getJdbcReadReplicaPassword());
+				setMaximumPoolSize(getConfiguration().getJdbcReadReplicaMaximumPoolSize());
+			}
+		});
+	}
+
+	@Nonnull
+	@Provides
+	@Singleton
+	@WritableMaster
+	public DataSource provideWritableMasterDataSource(@Nonnull Configuration configuration) {
 		requireNonNull(configuration);
 
 		return new HikariDataSource(new HikariConfig() {

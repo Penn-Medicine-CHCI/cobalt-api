@@ -53,6 +53,7 @@ import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -128,7 +129,7 @@ public class MessageService implements AutoCloseable {
 	@Nonnull
 	private final PushMessageSerializer pushMessageSerializer;
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
@@ -173,7 +174,7 @@ public class MessageService implements AutoCloseable {
 												@Nonnull CallMessageSerializer callMessageSerializer,
 												@Nonnull MessageSender<CallMessage> callMessageSender,
 												@Nonnull PushMessageSerializer pushMessageSerializer,
-												@Nonnull Database database,
+												@Nonnull DatabaseProvider databaseProvider,
 												@Nonnull Configuration configuration,
 												@Nonnull Formatter formatter,
 												@Nonnull Normalizer normalizer,
@@ -190,7 +191,7 @@ public class MessageService implements AutoCloseable {
 		requireNonNull(callMessageSerializer);
 		requireNonNull(callMessageSender);
 		requireNonNull(pushMessageSerializer);
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(configuration);
 		requireNonNull(formatter);
 		requireNonNull(normalizer);
@@ -208,7 +209,7 @@ public class MessageService implements AutoCloseable {
 		this.callMessageSerializer = callMessageSerializer;
 		this.callMessageSender = callMessageSender;
 		this.pushMessageSerializer = pushMessageSerializer;
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.configuration = configuration;
 		this.formatter = formatter;
 		this.normalizer = normalizer;
@@ -669,7 +670,7 @@ public class MessageService implements AutoCloseable {
 		@Nonnull
 		private final PushMessageSerializer pushMessageSerializer;
 		@Nonnull
-		private final Database database;
+		private final DatabaseProvider databaseProvider;
 		@Nonnull
 		private final EnterprisePluginProvider enterprisePluginProvider;
 		@Nonnull
@@ -692,7 +693,7 @@ public class MessageService implements AutoCloseable {
 													 @Nonnull CallMessageSerializer callMessageSerializer,
 													 @Nonnull MessageSender<CallMessage> callMessageSender,
 													 @Nonnull PushMessageSerializer pushMessageSerializer,
-													 @Nonnull Database database,
+													 @Nonnull DatabaseProvider databaseProvider,
 													 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
 													 @Nonnull CurrentContextExecutor currentContextExecutor,
 													 @Nonnull ErrorReporter errorReporter,
@@ -706,7 +707,7 @@ public class MessageService implements AutoCloseable {
 			requireNonNull(callMessageSerializer);
 			requireNonNull(callMessageSender);
 			requireNonNull(pushMessageSerializer);
-			requireNonNull(database);
+			requireNonNull(databaseProvider);
 			requireNonNull(enterprisePluginProvider);
 			requireNonNull(currentContextExecutor);
 			requireNonNull(errorReporter);
@@ -721,7 +722,7 @@ public class MessageService implements AutoCloseable {
 			this.callMessageSerializer = callMessageSerializer;
 			this.pushMessageSerializer = pushMessageSerializer;
 			this.callMessageSender = callMessageSender;
-			this.database = database;
+			this.databaseProvider = databaseProvider;
 			this.enterprisePluginProvider = enterprisePluginProvider;
 			this.currentContextExecutor = currentContextExecutor;
 			this.errorReporter = errorReporter;
@@ -944,7 +945,7 @@ public class MessageService implements AutoCloseable {
 
 		@Nonnull
 		protected Database getDatabase() {
-			return this.database;
+			return this.databaseProvider.get();
 		}
 
 		@Nonnull
@@ -991,7 +992,7 @@ public class MessageService implements AutoCloseable {
 		@Nonnull
 		private final PushMessageSerializer pushMessageSerializer;
 		@Nonnull
-		private final Database database;
+		private final DatabaseProvider databaseProvider;
 		@Nonnull
 		private final CurrentContextExecutor currentContextExecutor;
 		@Nonnull
@@ -1009,7 +1010,7 @@ public class MessageService implements AutoCloseable {
 																@Nonnull SmsMessageSerializer smsMessageSerializer,
 																@Nonnull CallMessageSerializer callMessageSerializer,
 																@Nonnull PushMessageSerializer pushMessageSerializer,
-																@Nonnull Database database,
+																@Nonnull DatabaseProvider databaseProvider,
 																@Nonnull CurrentContextExecutor currentContextExecutor,
 																@Nonnull ErrorReporter errorReporter,
 																@Nonnull Formatter formatter,
@@ -1019,7 +1020,7 @@ public class MessageService implements AutoCloseable {
 			requireNonNull(smsMessageSerializer);
 			requireNonNull(callMessageSerializer);
 			requireNonNull(pushMessageSerializer);
-			requireNonNull(database);
+			requireNonNull(databaseProvider);
 			requireNonNull(currentContextExecutor);
 			requireNonNull(errorReporter);
 			requireNonNull(formatter);
@@ -1030,7 +1031,7 @@ public class MessageService implements AutoCloseable {
 			this.smsMessageSerializer = smsMessageSerializer;
 			this.callMessageSerializer = callMessageSerializer;
 			this.pushMessageSerializer = pushMessageSerializer;
-			this.database = database;
+			this.databaseProvider = databaseProvider;
 			this.currentContextExecutor = currentContextExecutor;
 			this.errorReporter = errorReporter;
 			this.formatter = formatter;
@@ -1126,7 +1127,7 @@ public class MessageService implements AutoCloseable {
 
 		@Nonnull
 		protected Database getDatabase() {
-			return database;
+			return this.databaseProvider.get();
 		}
 
 		@Nonnull
@@ -1247,7 +1248,7 @@ public class MessageService implements AutoCloseable {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

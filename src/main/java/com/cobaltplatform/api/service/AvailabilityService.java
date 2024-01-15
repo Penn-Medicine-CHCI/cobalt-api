@@ -48,6 +48,7 @@ import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityStatus;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -114,7 +115,7 @@ public class AvailabilityService implements AutoCloseable {
 	@Nonnull
 	private final javax.inject.Provider<HistoryBackgroundTask> historyBackgroundTaskProvider;
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
@@ -134,14 +135,14 @@ public class AvailabilityService implements AutoCloseable {
 														 @Nonnull javax.inject.Provider<ProviderService> providerServiceProvider,
 														 @Nonnull javax.inject.Provider<FollowupService> followupServiceProvider,
 														 @Nonnull javax.inject.Provider<HistoryBackgroundTask> historyBackgroundTaskProvider,
-														 @Nonnull Database database,
+														 @Nonnull DatabaseProvider databaseProvider,
 														 @Nonnull Configuration configuration,
 														 @Nonnull Strings strings) {
 		requireNonNull(appointmentServiceProvider);
 		requireNonNull(providerServiceProvider);
 		requireNonNull(followupServiceProvider);
 		requireNonNull(historyBackgroundTaskProvider);
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(configuration);
 		requireNonNull(strings);
 
@@ -149,7 +150,7 @@ public class AvailabilityService implements AutoCloseable {
 		this.providerServiceProvider = providerServiceProvider;
 		this.followupServiceProvider = followupServiceProvider;
 		this.historyBackgroundTaskProvider = historyBackgroundTaskProvider;
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.configuration = configuration;
 		this.strings = strings;
 		this.historyBackgroundTaskLock = new Object();
@@ -670,7 +671,7 @@ public class AvailabilityService implements AutoCloseable {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return this.database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull
@@ -725,7 +726,7 @@ public class AvailabilityService implements AutoCloseable {
 		@Nonnull
 		private final ErrorReporter errorReporter;
 		@Nonnull
-		private final Database database;
+		private final DatabaseProvider databaseProvider;
 		@Nonnull
 		private final Configuration configuration;
 		@Nonnull
@@ -738,7 +739,7 @@ public class AvailabilityService implements AutoCloseable {
 																 @Nonnull AppointmentService appointmentService,
 																 @Nonnull CurrentContextExecutor currentContextExecutor,
 																 @Nonnull ErrorReporter errorReporter,
-																 @Nonnull Database database,
+																 @Nonnull DatabaseProvider databaseProvider,
 																 @Nonnull Configuration configuration) {
 			requireNonNull(systemService);
 			requireNonNull(providerService);
@@ -746,7 +747,7 @@ public class AvailabilityService implements AutoCloseable {
 			requireNonNull(appointmentService);
 			requireNonNull(currentContextExecutor);
 			requireNonNull(errorReporter);
-			requireNonNull(database);
+			requireNonNull(databaseProvider);
 			requireNonNull(configuration);
 
 			this.systemService = systemService;
@@ -755,7 +756,7 @@ public class AvailabilityService implements AutoCloseable {
 			this.appointmentService = appointmentService;
 			this.currentContextExecutor = currentContextExecutor;
 			this.errorReporter = errorReporter;
-			this.database = database;
+			this.databaseProvider = databaseProvider;
 			this.configuration = configuration;
 			this.logger = LoggerFactory.getLogger(getClass());
 		}
@@ -912,7 +913,7 @@ public class AvailabilityService implements AutoCloseable {
 
 		@Nonnull
 		protected Database getDatabase() {
-			return this.database;
+			return this.databaseProvider.get();
 		}
 
 		@Nonnull

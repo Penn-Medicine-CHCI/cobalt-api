@@ -85,6 +85,7 @@ import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -136,7 +137,7 @@ public class AccountService {
 	@Nonnull
 	private final Provider<PatientOrderService> patientOrderServiceProvider;
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Cache distributedCache;
 	@Nonnull
@@ -174,7 +175,7 @@ public class AccountService {
 												@Nonnull Provider<InteractionService> interactionServiceProvider,
 												@Nonnull Provider<AddressService> addressServiceProvider,
 												@Nonnull Provider<PatientOrderService> patientOrderServiceProvider,
-												@Nonnull Database database,
+												@Nonnull DatabaseProvider databaseProvider,
 												@Nonnull @DistributedCache Cache distributedCache,
 												@Nonnull Authenticator authenticator,
 												@Nonnull Normalizer normalizer,
@@ -191,7 +192,7 @@ public class AccountService {
 		requireNonNull(interactionServiceProvider);
 		requireNonNull(addressServiceProvider);
 		requireNonNull(patientOrderServiceProvider);
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(distributedCache);
 		requireNonNull(authenticator);
 		requireNonNull(normalizer);
@@ -209,7 +210,7 @@ public class AccountService {
 		this.interactionServiceProvider = interactionServiceProvider;
 		this.addressServiceProvider = addressServiceProvider;
 		this.patientOrderServiceProvider = patientOrderServiceProvider;
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.distributedCache = distributedCache;
 		this.authenticator = authenticator;
 		this.normalizer = normalizer;
@@ -958,7 +959,7 @@ public class AccountService {
 	private Optional<PasswordResetRequest> findPasswordResetRequestByToken(UUID passwordResetToken) {
 		requireNonNull(passwordResetToken);
 
-		return database.queryForObject("SELECT * FROM password_reset_request WHERE password_reset_token = ?",
+		return getDatabase().queryForObject("SELECT * FROM password_reset_request WHERE password_reset_token = ?",
 				PasswordResetRequest.class, passwordResetToken);
 	}
 
@@ -1545,7 +1546,7 @@ public class AccountService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

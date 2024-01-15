@@ -30,8 +30,11 @@ import com.cobaltplatform.api.service.GroupSessionService;
 import com.cobaltplatform.api.service.MessageService;
 import com.cobaltplatform.api.service.PatientOrderService;
 import com.cobaltplatform.api.service.Way2HealthService;
+import com.cobaltplatform.api.util.db.ReadReplica;
+import com.cobaltplatform.api.util.db.WritableMaster;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.util.Modules;
 import com.soklet.guice.SokletModule;
@@ -300,12 +303,21 @@ public class App implements AutoCloseable {
 		}
 
 		try {
-			DataSource dataSource = getInjector().getInstance(DataSource.class);
+			DataSource readReplicaDataSource = getInjector().getInstance(Key.get(DataSource.class, ReadReplica.class));
 
-			if (dataSource instanceof Closeable)
-				((Closeable) dataSource).close();
+			if (readReplicaDataSource instanceof Closeable)
+				((Closeable) readReplicaDataSource).close();
 		} catch (Exception e) {
-			getLogger().warn("Unable to close datasource", e);
+			getLogger().warn("Unable to close read-replica datasource", e);
+		}
+
+		try {
+			DataSource writableMasterDataSource = getInjector().getInstance(Key.get(DataSource.class, WritableMaster.class));
+
+			if (writableMasterDataSource instanceof Closeable)
+				((Closeable) writableMasterDataSource).close();
+		} catch (Exception e) {
+			getLogger().warn("Unable to close writable-master datasource", e);
 		}
 
 		try {

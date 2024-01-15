@@ -46,6 +46,7 @@ import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.cobaltplatform.api.model.service.ScreeningScore;
 import com.cobaltplatform.api.model.service.ScreeningSessionScreeningWithType;
 import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.analytics.data.v1beta.DateRange;
 import com.google.analytics.data.v1beta.Dimension;
 import com.google.analytics.data.v1beta.Metric;
@@ -124,7 +125,7 @@ public class AnalyticsService implements AutoCloseable {
 	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Strings strings;
 	@Nonnull
@@ -144,7 +145,7 @@ public class AnalyticsService implements AutoCloseable {
 													@Nonnull Provider<TagService> tagServiceProvider,
 													@Nonnull Provider<AnalyticsSyncTask> analyticsSyncTaskProvider,
 													@Nonnull EnterprisePluginProvider enterprisePluginProvider,
-													@Nonnull Database database,
+													@Nonnull DatabaseProvider databaseProvider,
 													@Nonnull Strings strings) {
 		requireNonNull(institutionServiceProvider);
 		requireNonNull(systemServiceProvider);
@@ -152,7 +153,7 @@ public class AnalyticsService implements AutoCloseable {
 		requireNonNull(tagServiceProvider);
 		requireNonNull(analyticsSyncTaskProvider);
 		requireNonNull(enterprisePluginProvider);
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(strings);
 
 		this.institutionServiceProvider = institutionServiceProvider;
@@ -161,7 +162,7 @@ public class AnalyticsService implements AutoCloseable {
 		this.tagServiceProvider = tagServiceProvider;
 		this.analyticsSyncTaskProvider = analyticsSyncTaskProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.strings = strings;
 		this.analyticsSyncLock = new Object();
 		this.started = false;
@@ -854,7 +855,7 @@ public class AnalyticsService implements AutoCloseable {
 					AND ss.created BETWEEN ? AND ?
 										""", Long.class, screeningFlowId, institutionId, startTimestamp, endTimestamp).get();
 
-			Long completedCount = getDatabase().queryForObject("""
+			StringBuilder completedSql = new StringBuilder("""
 					SELECT count(ss.*)
 					FROM screening_session ss, account a, screening_flow_version sfv
 					WHERE sfv.screening_flow_id=?
@@ -863,8 +864,18 @@ public class AnalyticsService implements AutoCloseable {
 					AND a.institution_id=?
 					AND ss.created BETWEEN ? AND ?
 					AND ss.completed=TRUE
-					AND ss.skipped=FALSE
-										""", Long.class, screeningFlowId, institutionId, startTimestamp, endTimestamp).get();
+					""");
+
+			if (enterprisePlugin.analyticsClinicalScreeningFlowNeedsCrisisSkipWorkaround(screeningFlowId)) {
+				// Support special legacy data where a screening session could end immediately on crisis, but due
+				// to a bug, users could still back-button and skip after completing.
+				// Alternative would be to update all affected screening sessions in the DB to remove "skipped=true" flag.
+				completedSql.append("AND (ss.skipped=FALSE OR (ss.skipped=TRUE AND ss.crisis_indicated=TRUE))");
+			} else {
+				completedSql.append("AND ss.skipped=FALSE");
+			}
+
+			Long completedCount = getDatabase().queryForObject(completedSql.toString(), Long.class, screeningFlowId, institutionId, startTimestamp, endTimestamp).get();
 			Double completionPercentage = startedCount.equals(0L) ? 0D : (completedCount.doubleValue() / startedCount.doubleValue());
 
 			ScreeningSessionCompletion screeningSessionCompletion = new ScreeningSessionCompletion();
@@ -1372,7 +1383,7 @@ public class AnalyticsService implements AutoCloseable {
 				    AND c.content_id = tc.content_id
 				    AND tc.institution_id = ?
 				)
-				SELECT SUM(pvbt.page_view_count), pvbt.tag_id, t.name AS tag_name, t.tag_group_id, t.url_name AS url_path
+				SELECT SUM(pvbt.page_view_count) AS page_view_count, pvbt.tag_id, t.name AS tag_name, t.tag_group_id, t.url_name AS url_path
 				FROM page_views_by_tag pvbt, tag t
 				WHERE pvbt.tag_id=t.tag_id
 				GROUP BY pvbt.tag_id, t.name, t.tag_group_id, t.url_name
@@ -1423,7 +1434,7 @@ public class AnalyticsService implements AutoCloseable {
 
 		StringBuilder contentPageViewTagsSql = new StringBuilder();
 		contentPageViewTagsSql.append("""
-				SELECT t.tag_id, tc.content_id, t.description AS tag_description, t.url_name AS tag_url_name
+				SELECT t.tag_id, tc.content_id, t.name AS tag_description, t.url_name AS tag_url_name
 				FROM tag_content tc, tag t
 				WHERE tc.institution_id=?
 				AND tc.tag_id=t.tag_id
@@ -2208,7 +2219,7 @@ public class AnalyticsService implements AutoCloseable {
 		@Nullable
 		private String title;
 		@Nullable
-		private String facilitator;
+		private String facilitatorName;
 		@Nullable
 		private LocalDateTime startDateTime;
 		@Nullable
@@ -2235,12 +2246,12 @@ public class AnalyticsService implements AutoCloseable {
 		}
 
 		@Nullable
-		public String getFacilitator() {
-			return this.facilitator;
+		public String getFacilitatorName() {
+			return this.facilitatorName;
 		}
 
-		public void setFacilitator(@Nullable String facilitator) {
-			this.facilitator = facilitator;
+		public void setFacilitatorName(@Nullable String facilitatorName) {
+			this.facilitatorName = facilitatorName;
 		}
 
 		@Nullable
@@ -2899,7 +2910,7 @@ public class AnalyticsService implements AutoCloseable {
 		@Nonnull
 		private final ErrorReporter errorReporter;
 		@Nonnull
-		private final Database database;
+		private final DatabaseProvider databaseProvider;
 		@Nonnull
 		private final Configuration configuration;
 		@Nonnull
@@ -2912,7 +2923,7 @@ public class AnalyticsService implements AutoCloseable {
 														 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
 														 @Nonnull CurrentContextExecutor currentContextExecutor,
 														 @Nonnull ErrorReporter errorReporter,
-														 @Nonnull Database database,
+														 @Nonnull DatabaseProvider databaseProvider,
 														 @Nonnull Configuration configuration) {
 			requireNonNull(analyticsServiceProvider);
 			requireNonNull(institutionServiceProvider);
@@ -2920,7 +2931,7 @@ public class AnalyticsService implements AutoCloseable {
 			requireNonNull(enterprisePluginProvider);
 			requireNonNull(currentContextExecutor);
 			requireNonNull(errorReporter);
-			requireNonNull(database);
+			requireNonNull(databaseProvider);
 			requireNonNull(configuration);
 
 			this.analyticsServiceProvider = analyticsServiceProvider;
@@ -2929,7 +2940,7 @@ public class AnalyticsService implements AutoCloseable {
 			this.enterprisePluginProvider = enterprisePluginProvider;
 			this.currentContextExecutor = currentContextExecutor;
 			this.errorReporter = errorReporter;
-			this.database = database;
+			this.databaseProvider = databaseProvider;
 			this.configuration = configuration;
 			this.logger = LoggerFactory.getLogger(getClass());
 		}
@@ -3185,7 +3196,7 @@ public class AnalyticsService implements AutoCloseable {
 
 		@Nonnull
 		protected Database getDatabase() {
-			return this.database;
+			return this.databaseProvider.get();
 		}
 
 		@Nonnull
@@ -3241,7 +3252,7 @@ public class AnalyticsService implements AutoCloseable {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return this.database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

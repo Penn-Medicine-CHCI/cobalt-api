@@ -171,4 +171,14 @@ public interface EnterprisePlugin {
 		return analyticsClinicalScreeningFlowIds.stream()
 				.collect(Collectors.toMap(Function.identity(), ignored -> Collections.emptySortedMap()));
 	}
+
+	// For legacy data where screening flows with hard stops due to crisis still permitted users to back-button and hit "skip".
+	// This would lead to a "completed=true, skipped=true, crisis_indicated=true" screening session which needs to be detected
+	// to produce meaningful analytics (analytics code should not treat it as a skip).
+	// Alternative would be to update all affected screening sessions in the DB to remove "skipped=true" flag.
+	@Nonnull
+	default Boolean analyticsClinicalScreeningFlowNeedsCrisisSkipWorkaround(@Nonnull UUID screeningFlowId) {
+		requireNonNull(screeningFlowId);
+		return false;
+	}
 }

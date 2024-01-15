@@ -44,6 +44,7 @@ import com.cobaltplatform.api.util.UploadManager;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import com.soklet.web.exception.NotFoundException;
@@ -81,7 +82,7 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @ThreadSafe
 public class SystemService {
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final javax.inject.Provider<ProviderService> providerServiceProvider;
 	@Nonnull
@@ -102,7 +103,7 @@ public class SystemService {
 	private final Logger logger;
 
 	@Inject
-	public SystemService(@Nonnull Database database,
+	public SystemService(@Nonnull DatabaseProvider databaseProvider,
 											 @Nonnull javax.inject.Provider<ProviderService> providerServiceProvider,
 											 @Nonnull javax.inject.Provider<MessageService> messageServiceProvider,
 											 @Nonnull EpicSyncManager epicSyncManager,
@@ -111,7 +112,7 @@ public class SystemService {
 											 @Nonnull UploadManager uploadManager,
 											 @Nonnull Configuration configuration,
 											 @Nonnull Strings strings) {
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(providerServiceProvider);
 		requireNonNull(epicSyncManager);
 		requireNonNull(epicFhirSyncManager);
@@ -120,7 +121,7 @@ public class SystemService {
 		requireNonNull(configuration);
 		requireNonNull(strings);
 
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.providerServiceProvider = providerServiceProvider;
 		this.messageServiceProvider = messageServiceProvider;
 		this.epicSyncManager = epicSyncManager;
@@ -523,7 +524,7 @@ public class SystemService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return this.database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

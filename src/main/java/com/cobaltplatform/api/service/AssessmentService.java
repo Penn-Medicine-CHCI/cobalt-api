@@ -42,6 +42,7 @@ import com.cobaltplatform.api.model.service.QuestionAnswers;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.pyranid.Database;
 import com.soklet.web.exception.NotFoundException;
 import org.slf4j.Logger;
@@ -74,7 +75,7 @@ import static java.util.stream.Collectors.toSet;
 public class AssessmentService {
 
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final SessionService sessionService;
 	@Nonnull
@@ -87,12 +88,12 @@ public class AssessmentService {
 	private final Logger logger;
 
 	@Inject
-	public AssessmentService(@Nonnull Database database,
+	public AssessmentService(@Nonnull DatabaseProvider databaseProvider,
 													 @Nonnull SessionService sessionService,
 													 @Nonnull AssessmentScoringService assessmentScoringService,
 													 @Nonnull @DistributedCache Cache distributedCache,
 													 @Nonnull Normalizer normalizer) {
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.sessionService = sessionService;
 		this.assessmentScoringService = assessmentScoringService;
 		this.distributedCache = distributedCache;
@@ -115,7 +116,7 @@ public class AssessmentService {
 	@Nonnull
 	public Optional<Assessment> findAssessmentByTypeForInstitution(@Nonnull AssessmentTypeId assessmentTypeId,
 																																 @Nonnull InstitutionId institutionId) {
-		return database.queryForObject(
+		return getDatabase().queryForObject(
 				"SELECT a.* FROM assessment as a, institution_assessment as ia WHERE " +
 						"ia.institution_id = ? AND " +
 						"a.assessment_type_id = ? AND " +
@@ -131,7 +132,7 @@ public class AssessmentService {
 	public Optional<Assessment> findIntakeAssessmentByProviderId(@Nonnull UUID providerId,
 																															 @Nullable UUID appointmentTypeId) {
 		if (appointmentTypeId != null) {
-			Optional<Assessment> assessment = database.queryForObject(
+			Optional<Assessment> assessment = getDatabase().queryForObject(
 					"SELECT a.* FROM assessment as a, provider p, provider_appointment_type pat, v_appointment_type at WHERE " +
 							"p.provider_id = pat.provider_id AND pat.appointment_type_id = at.appointment_type_id " +
 							"AND at.assessment_id = a.assessment_id " +
@@ -151,7 +152,7 @@ public class AssessmentService {
 		if (groupSessionId == null)
 			return Optional.empty();
 
-		return database.queryForObject(
+		return getDatabase().queryForObject(
 				"SELECT a.* FROM assessment as a, v_group_session gs WHERE gs.assessment_id=a.assessment_id AND gs.group_session_id=?",
 				Assessment.class, groupSessionId
 		);
@@ -160,45 +161,45 @@ public class AssessmentService {
 
 	@Nonnull
 	public Optional<Assessment> findAssessmentById(@Nonnull UUID assessmentId) {
-		return database.queryForObject("SELECT * from assessment where assessment_id = ?", Assessment.class, assessmentId);
+		return getDatabase().queryForObject("SELECT * from assessment where assessment_id = ?", Assessment.class, assessmentId);
 	}
 
 	@Nonnull
 	public Optional<Question> findQuestionById(@Nonnull UUID questionId) {
-		return database.queryForObject("SELECT * FROM question WHERE question_id = ?", Question.class, questionId);
+		return getDatabase().queryForObject("SELECT * FROM question WHERE question_id = ?", Question.class, questionId);
 	}
 
 	@Nonnull
 	private Optional<Answer> findAnswerByIdAndQuestion(@Nonnull UUID answerId, @Nonnull UUID questionId) {
-		return database.queryForObject("SELECT * FROM answer WHERE answer_id = ? AND question_id = ?", Answer.class, answerId, questionId);
+		return getDatabase().queryForObject("SELECT * FROM answer WHERE answer_id = ? AND question_id = ?", Answer.class, answerId, questionId);
 	}
 
 	@Nonnull
 	private Optional<Question> findFirstQuestionForAssessment(@Nullable UUID assessmentId) {
 		if (assessmentId == null) return Optional.empty();
-		return database.queryForObject("SELECT * FROM question WHERE assessment_id = ? and display_order = 1", Question.class, assessmentId);
+		return getDatabase().queryForObject("SELECT * FROM question WHERE assessment_id = ? and display_order = 1", Question.class, assessmentId);
 	}
 
 	@Nonnull
 	private Optional<Assessment> findPreviousAssessment(@Nonnull UUID currentAssessmentId) {
-		return database.queryForObject("SELECT * from assessment WHERE next_assessment_id = ?", Assessment.class, currentAssessmentId);
+		return getDatabase().queryForObject("SELECT * from assessment WHERE next_assessment_id = ?", Assessment.class, currentAssessmentId);
 	}
 
 	@Nonnull
 	public List<Question> findQuestionsForAssessmentId(@Nonnull UUID assessmentId) {
-		return database.queryForList("SELECT * FROM question WHERE assessment_id = ? ORDER BY display_order",
+		return getDatabase().queryForList("SELECT * FROM question WHERE assessment_id = ? ORDER BY display_order",
 				Question.class, assessmentId);
 	}
 
 	@Nonnull
 	public List<Question> findRootQuestionsForFormAssessmentId(@Nonnull UUID assessmentId) {
-		return database.queryForList("SELECT * FROM question WHERE assessment_id = ? AND is_root_question = ? ORDER BY display_order",
+		return getDatabase().queryForList("SELECT * FROM question WHERE assessment_id = ? AND is_root_question = ? ORDER BY display_order",
 				Question.class, assessmentId, true);
 	}
 
 	@Nonnull
 	public List<Answer> findAnswersForQuestion(@Nonnull UUID questionId) {
-		return database.queryForList("SELECT * FROM answer WHERE question_id = ? ORDER BY display_order", Answer.class, questionId);
+		return getDatabase().queryForList("SELECT * FROM answer WHERE question_id = ? ORDER BY display_order", Answer.class, questionId);
 	}
 
 
@@ -209,7 +210,7 @@ public class AssessmentService {
 			return Optional.empty();
 
 		return Optional.ofNullable(getDistributedCache().get(format("questionTypeByQuestionTypeId-%s", quesstionTypeId.name()), () -> {
-			return database.queryForObject("SELECT * FROM question_type WHERE question_type_id=?", QuestionType.class, quesstionTypeId).orElse(null);
+			return getDatabase().queryForObject("SELECT * FROM question_type WHERE question_type_id=?", QuestionType.class, quesstionTypeId).orElse(null);
 		}, QuestionType.class));
 	}
 
@@ -227,10 +228,10 @@ public class AssessmentService {
 			sqlParams.add(answer.getAnswerText());
 		}
 
-		database.execute("DELETE FROM account_session_answer WHERE " +
+		getDatabase().execute("DELETE FROM account_session_answer WHERE " +
 				"account_session_id = ? AND " +
 				"answer_id IN (SELECT answer_id FROM answer WHERE question_id = ?)", accountSession.getAccountSessionId(), question.getQuestionId());
-		database.execute("INSERT INTO account_session_answer (account_session_answer_id, account_session_id, answer_id, answer_text) VALUES " + answerSql, sqlParams.toArray());
+		getDatabase().execute("INSERT INTO account_session_answer (account_session_answer_id, account_session_id, answer_id, answer_text) VALUES " + answerSql, sqlParams.toArray());
 	}
 
 	@Nonnull
@@ -242,11 +243,11 @@ public class AssessmentService {
 		Optional<Question> nextQuestion = Optional.empty();
 
 		if (answer == null)
-			nextQuestion = database.queryForObject(
+			nextQuestion = getDatabase().queryForObject(
 					"SELECT * from question WHERE assessment_id = ? AND display_order = ?",
 					Question.class, assessment.getAssessmentId(), next);
 		else {
-			nextQuestion = database.queryForObject(
+			nextQuestion = getDatabase().queryForObject(
 					"SELECT * from question WHERE question_id = ? ",
 					Question.class, answer.getNextQuestionId());
 			logger.debug(String.format("got answer %s", answer.getAnswerText()));
@@ -261,11 +262,11 @@ public class AssessmentService {
 	private Optional<Question> findPreviousQuestion(@Nonnull Assessment assessment,
 																									@Nonnull Question currentQuestion) {
 		if (currentQuestion.getDisplayOrder() > 1) {
-			return database.queryForObject("SELECT * from question WHERE assessment_id = ? AND display_order = ?", Question.class, assessment.getAssessmentId(), currentQuestion.getDisplayOrder() - 1);
+			return getDatabase().queryForObject("SELECT * from question WHERE assessment_id = ? AND display_order = ?", Question.class, assessment.getAssessmentId(), currentQuestion.getDisplayOrder() - 1);
 		} else {
 			Optional<Assessment> previousAssessment = findPreviousAssessment(assessment.getAssessmentId());
 			if (previousAssessment.isPresent()) {
-				return database.queryForObject("SELECT * from question WHERE assessment_id = ? ORDER by display_order DESC LIMIT 1", Question.class, previousAssessment.get().getAssessmentId());
+				return getDatabase().queryForObject("SELECT * from question WHERE assessment_id = ? ORDER by display_order DESC LIMIT 1", Question.class, previousAssessment.get().getAssessmentId());
 			}
 			return Optional.empty();
 		}
@@ -536,7 +537,7 @@ public class AssessmentService {
 				throw new NotFoundException("No question for that id");
 			}
 			UUID questionId = UUID.fromString(questionIdCommand);
-			currentQuestion = database.queryForObject("SELECT * FROM question WHERE question_id = ?", Question.class, questionId);
+			currentQuestion = getDatabase().queryForObject("SELECT * FROM question WHERE question_id = ?", Question.class, questionId);
 			if (currentQuestion.isEmpty()) throw new NotFoundException("Invalid submission question id");
 		}
 
@@ -598,7 +599,7 @@ public class AssessmentService {
 
 	@Nonnull
 	public AssessmentType findRequiredAssessmentTypeById(String assessmentTypeId) {
-		return database.queryForObject("SELECT * FROM assessment_type WHERE assessment_type_id = ? ", AssessmentType.class, assessmentTypeId).get();
+		return getDatabase().queryForObject("SELECT * FROM assessment_type WHERE assessment_type_id = ? ", AssessmentType.class, assessmentTypeId).get();
 	}
 
 	@Nonnull
@@ -609,5 +610,10 @@ public class AssessmentService {
 	@Nonnull
 	public Normalizer getNormalizer() {
 		return normalizer;
+	}
+
+	@Nonnull
+	protected Database getDatabase() {
+		return this.databaseProvider.get();
 	}
 }

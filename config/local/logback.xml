@@ -17,6 +17,7 @@
 	<logger name="com.cobaltplatform.api.mock" level="DEBUG" />
 	<logger name="com.cobaltplatform.api.integration.acuity" level="INFO" />
 	<logger name="com.cobaltplatform.api.integration.epic.sync.http" level="INFO" />
+	<logger name="com.cobaltplatform.api.util.db.DatabaseProvider" level="WARN" />
 	<logger name="com.soklet" level="DEBUG" />
 	<logger name="com.soklet.archive" level="INFO" />
 	<logger name="com.pyranid" level="INFO" />

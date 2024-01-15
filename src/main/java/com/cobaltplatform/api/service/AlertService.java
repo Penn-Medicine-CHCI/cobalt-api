@@ -25,6 +25,7 @@ import com.cobaltplatform.api.model.db.Alert;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -53,7 +54,7 @@ public class AlertService {
 	@Nonnull
 	private final Provider<InstitutionService> institutionServiceProvider;
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Strings strings;
 	@Nonnull
@@ -62,16 +63,16 @@ public class AlertService {
 	@Inject
 	public AlertService(@Nonnull Provider<AccountService> accountServiceProvider,
 											@Nonnull Provider<InstitutionService> institutionServiceProvider,
-											@Nonnull Database database,
+											@Nonnull DatabaseProvider databaseProvider,
 											@Nonnull Strings strings) {
 		requireNonNull(accountServiceProvider);
 		requireNonNull(institutionServiceProvider);
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(strings);
 
 		this.accountServiceProvider = accountServiceProvider;
 		this.institutionServiceProvider = institutionServiceProvider;
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
@@ -171,7 +172,7 @@ public class AlertService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return this.database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

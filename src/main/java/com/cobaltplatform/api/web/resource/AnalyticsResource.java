@@ -61,6 +61,7 @@ import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.service.TagService;
 import com.cobaltplatform.api.service.TopicCenterService;
 import com.cobaltplatform.api.util.Formatter;
+import com.cobaltplatform.api.util.db.ReadReplica;
 import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.QueryParameter;
@@ -183,6 +184,7 @@ public class AnalyticsResource {
 	@Nonnull
 	@GET("/analytics")
 	@AuthenticationRequired
+	@ReadReplica
 	public ApiResponse analytics(@Nonnull @QueryParameter LocalDate startDate,
 															 @Nonnull @QueryParameter LocalDate endDate) {
 		requireNonNull(startDate);
@@ -244,6 +246,7 @@ public class AnalyticsResource {
 	@Nonnull
 	@GET("/analytics/overview")
 	@AuthenticationRequired
+	@ReadReplica
 	public Object analyticsOverview(@Nonnull HttpServletResponse httpServletResponse,
 																	@Nonnull @QueryParameter LocalDate startDate,
 																	@Nonnull @QueryParameter LocalDate endDate) {
@@ -332,7 +335,7 @@ public class AnalyticsResource {
 		visitsWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_VISITS);
 		visitsWidget.setWidgetTitle(getStrings().get("New vs. Returning Users"));
 		visitsWidget.setWidgetSubtitle(getStrings().get("Total"));
-		visitsWidget.setWidgetChartLabel(getStrings().get("Visits"));
+		visitsWidget.setWidgetChartLabel(getStrings().get("Users"));
 		visitsWidget.setWidgetTotal(activeUserCountsNewVersusReturning.getNewUserCount() + activeUserCountsNewVersusReturning.getReturningUserCount());
 		visitsWidget.setWidgetTotalDescription(getFormatter().formatNumber(visitsWidget.getWidgetTotal()));
 
@@ -766,6 +769,7 @@ public class AnalyticsResource {
 	@Nonnull
 	@GET("/analytics/assessments-appointments")
 	@AuthenticationRequired
+	@ReadReplica
 	public Object analyticsAssessmentsAppointments(@Nonnull HttpServletResponse httpServletResponse,
 																								 @Nonnull @QueryParameter LocalDate startDate,
 																								 @Nonnull @QueryParameter LocalDate endDate) {
@@ -930,7 +934,7 @@ public class AnalyticsResource {
 			clinicalAssessmentSeverityWidget.setWidgetTitle(getStrings().get("{{screeningFlowName}} Severity", Map.of("screeningFlowName", screeningFlowName)));
 			clinicalAssessmentSeverityWidget.setWidgetTotal(severityTotalCount);
 			clinicalAssessmentSeverityWidget.setWidgetTotalDescription(getFormatter().formatNumber(severityTotalCount));
-			clinicalAssessmentSeverityWidget.setWidgetSubtitle(getStrings().get("Completed Assessments"));
+			clinicalAssessmentSeverityWidget.setWidgetSubtitle(getStrings().get("Assessments"));
 			clinicalAssessmentSeverityWidget.setWidgetChartLabel(getStrings().get("Assessments"));
 
 			List<AnalyticsWidgetChartData> severityWidgetData = new ArrayList<>(severityCountsByDescription.size());
@@ -1100,9 +1104,15 @@ public class AnalyticsResource {
 		for (ScreeningFlow screeningFlow : screeningFlowsByScreeningFlowId.values()) {
 			LocalDate createdAt = LocalDate.ofInstant(screeningFlow.getCreated(), institution.getTimeZone());
 
+			// Pick the analytics name of the screening flow if present
+			String screeningFlowName = Stream.of(screeningFlow.getAnalyticsName(), screeningFlow.getName())
+					.filter(Objects::nonNull)
+					.findFirst()
+					.get();
+
 			if (startDate.isBefore(createdAt)) {
-				alerts.add(syntheticAlertForMessage(getStrings().get("{{screeningFlowName}} reports are only valid for dates on or after {{dateDescription}}.", Map.of(
-						"screeningFlowName", screeningFlow.getName(),
+				alerts.add(syntheticAlertForMessage(getStrings().get("{{screeningFlowName}} Completion and Severity reports are only valid for dates on or after {{dateDescription}}.", Map.of(
+						"screeningFlowName", screeningFlowName,
 						"dateDescription", getFormatter().formatDate(createdAt, FormatStyle.MEDIUM)
 				))));
 			}
@@ -1272,6 +1282,7 @@ public class AnalyticsResource {
 	@Nonnull
 	@GET("/analytics/group-sessions")
 	@AuthenticationRequired
+	@ReadReplica
 	public Object analyticsGroupSessions(@Nonnull HttpServletResponse httpServletResponse,
 																			 @Nonnull @QueryParameter LocalDate startDate,
 																			 @Nonnull @QueryParameter LocalDate endDate) {
@@ -1296,7 +1307,7 @@ public class AnalyticsResource {
 			GroupSessionCount groupSessionCount1 = new GroupSessionCount();
 			groupSessionCount1.setGroupSessionId(UUID.randomUUID());
 			groupSessionCount1.setTitle(getStrings().get("Group Session 1"));
-			groupSessionCount1.setFacilitator(getStrings().get("Facilitator 1"));
+			groupSessionCount1.setFacilitatorName(getStrings().get("Facilitator 1"));
 			groupSessionCount1.setStartDateTime(LocalDateTime.of(LocalDate.of(2025, 1, 1), LocalTime.of(13, 30)));
 			groupSessionCount1.setRegistrationCount(100L);
 			groupSessionCount1.setPageViewCount(10000L);
@@ -1304,7 +1315,7 @@ public class AnalyticsResource {
 			GroupSessionCount groupSessionCount2 = new GroupSessionCount();
 			groupSessionCount2.setGroupSessionId(UUID.randomUUID());
 			groupSessionCount2.setTitle(getStrings().get("Group Session 2"));
-			groupSessionCount2.setFacilitator(getStrings().get("Facilitator 2"));
+			groupSessionCount2.setFacilitatorName(getStrings().get("Facilitator 2"));
 			groupSessionCount2.setStartDateTime(LocalDateTime.of(LocalDate.of(2026, 12, 31), LocalTime.of(18, 30)));
 			groupSessionCount2.setRegistrationCount(1000L);
 			groupSessionCount2.setPageViewCount(1250000L);
@@ -1357,7 +1368,7 @@ public class AnalyticsResource {
 			AnalyticsWidgetTableRow row = new AnalyticsWidgetTableRow();
 			row.setData(List.of(
 					groupSessionTitle,
-					groupSessionCount.getFacilitator(),
+					groupSessionCount.getFacilitatorName(),
 					groupSessionCount.getStartDateTime() == null ? "--" : getFormatter().formatDateTime(groupSessionCount.getStartDateTime(), FormatStyle.SHORT, FormatStyle.SHORT),
 					getFormatter().formatNumber(groupSessionCount.getPageViewCount()),
 					getFormatter().formatNumber(groupSessionCount.getRegistrationCount())
@@ -1471,6 +1482,7 @@ public class AnalyticsResource {
 	@Nonnull
 	@GET("/analytics/resources-topics")
 	@AuthenticationRequired
+	@ReadReplica
 	public Object analyticsResourcesTopics(@Nonnull HttpServletResponse httpServletResponse,
 																				 @Nonnull @QueryParameter LocalDate startDate,
 																				 @Nonnull @QueryParameter LocalDate endDate) {

@@ -37,6 +37,7 @@ import com.cobaltplatform.api.util.LinkGenerator;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -72,7 +73,7 @@ public class AdminContentService {
 	private static final int MAXIMUM_PAGE_SIZE = 100;
 
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Logger logger;
 	@Nonnull
@@ -109,7 +110,7 @@ public class AdminContentService {
 														 @Nonnull Provider<AccountService> accountServiceProvider,
 														 @Nonnull Provider<Formatter> formatterProvider,
 														 @Nonnull Provider<LinkGenerator> linkGeneratorProvider,
-														 @Nonnull Database database,
+														 @Nonnull DatabaseProvider databaseProvider,
 														 @Nonnull SessionService sessionService,
 														 @Nonnull InstitutionService institutionService,
 														 @Nonnull Strings strings,
@@ -122,7 +123,7 @@ public class AdminContentService {
 		requireNonNull(accountServiceProvider);
 		requireNonNull(formatterProvider);
 		requireNonNull(linkGeneratorProvider);
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(sessionService);
 		requireNonNull(institutionService);
 		requireNonNull(strings);
@@ -130,7 +131,7 @@ public class AdminContentService {
 		requireNonNull(systemService);
 
 		this.logger = LoggerFactory.getLogger(getClass());
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.sessionService = sessionService;
 		this.tagServiceProvider = tagServiceProvider;
 		this.currentContextProvider = currentContextProvider;
@@ -724,7 +725,7 @@ public class AdminContentService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

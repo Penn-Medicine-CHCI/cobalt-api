@@ -42,6 +42,7 @@ import com.cobaltplatform.api.model.db.ReportType.ReportTypeId;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.service.AccountCapabilityFlags;
 import com.cobaltplatform.api.util.Formatter;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import com.soklet.web.annotation.QueryParameter;
@@ -94,7 +95,7 @@ public class ReportingService {
 	@Nonnull
 	private final Provider<AuthorizationService> authorizationServiceProvider;
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Strings strings;
 	@Nonnull
@@ -108,14 +109,14 @@ public class ReportingService {
 	public ReportingService(@Nonnull Provider<AccountService> accountServiceProvider,
 													@Nonnull Provider<GroupSessionService> groupSessionServiceProvider,
 													@Nonnull Provider<AuthorizationService> authorizationServiceProvider,
-													@Nonnull Database database,
+													@Nonnull DatabaseProvider databaseProvider,
 													@Nonnull Strings strings,
 													@Nonnull Formatter formatter,
 													@Nonnull Configuration configuration) {
 		requireNonNull(accountServiceProvider);
 		requireNonNull(groupSessionServiceProvider);
 		requireNonNull(authorizationServiceProvider);
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(strings);
 		requireNonNull(formatter);
 		requireNonNull(configuration);
@@ -123,7 +124,7 @@ public class ReportingService {
 		this.accountServiceProvider = accountServiceProvider;
 		this.groupSessionServiceProvider = groupSessionServiceProvider;
 		this.authorizationServiceProvider = authorizationServiceProvider;
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.formatter = formatter;
@@ -338,8 +339,8 @@ public class ReportingService {
 				.withZone(reportTimeZone);
 
 		for (ProviderAppointmentEap appointment : appointments) {
-			AppointmentType appointmentType = database.queryForObject("SELECT * FROM appointment_type WHERE appointment_type_id=?", AppointmentType.class, appointment.getAppointmentTypeId()).get();
-			List<AppointmentTypeAssessment> appointmentTypeAssessments = database.queryForList("""
+			AppointmentType appointmentType = getDatabase().queryForObject("SELECT * FROM appointment_type WHERE appointment_type_id=?", AppointmentType.class, appointment.getAppointmentTypeId()).get();
+			List<AppointmentTypeAssessment> appointmentTypeAssessments = getDatabase().queryForList("""
 					SELECT *
 					FROM appointment_type_assessment
 					WHERE appointment_type_id=?
@@ -349,7 +350,7 @@ public class ReportingService {
 					.map(ata -> ata.getAssessmentId())
 					.collect(Collectors.toSet());
 
-			List<Clinic> clinics = database.queryForList("""
+			List<Clinic> clinics = getDatabase().queryForList("""
 								select c.* from clinic c, provider_clinic pc 
 								where pc.provider_id=?
 								and pc.clinic_id=c.clinic_id
@@ -372,7 +373,7 @@ public class ReportingService {
 					}
 				}
 
-				List<AssessmentAnswer> assessmentAnswers = database.queryForList("""
+				List<AssessmentAnswer> assessmentAnswers = getDatabase().queryForList("""
 						select q.question_text, asa.answer_text
 						from account_session_answer asa, answer a, question q
 						where asa.account_session_id = ?
@@ -424,7 +425,7 @@ public class ReportingService {
 				String emailAddress = appointment.getAccountEmailAddress();
 
 				if (emailAddress == null) {
-					Account account = database.queryForObject("SELECT * FROM account WHERE account_id=?", Account.class, appointment.getAccountId()).get();
+					Account account = getDatabase().queryForObject("SELECT * FROM account WHERE account_id=?", Account.class, appointment.getAccountId()).get();
 
 					// If the SSO ID appears to be a valid email address, use it
 					if (account.getSsoId() != null && isValidEmailAddress(account.getSsoId()))
@@ -1534,7 +1535,7 @@ public class ReportingService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return this.database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

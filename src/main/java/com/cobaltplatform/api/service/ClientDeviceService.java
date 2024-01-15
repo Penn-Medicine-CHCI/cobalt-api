@@ -34,6 +34,7 @@ import com.cobaltplatform.api.model.db.ClientDevicePushTokenType.ClientDevicePus
 import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import com.pyranid.DatabaseException;
@@ -68,7 +69,7 @@ public class ClientDeviceService {
 	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Strings strings;
 	@Nonnull
@@ -78,18 +79,18 @@ public class ClientDeviceService {
 	public ClientDeviceService(@Nonnull Provider<MessageService> messageServiceProvider,
 														 @Nonnull Provider<AccountService> accountServiceProvider,
 														 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
-														 @Nonnull Database database,
+														 @Nonnull DatabaseProvider databaseProvider,
 														 @Nonnull Strings strings) {
 		requireNonNull(messageServiceProvider);
 		requireNonNull(accountServiceProvider);
 		requireNonNull(enterprisePluginProvider);
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(strings);
 
 		this.messageServiceProvider = messageServiceProvider;
 		this.accountServiceProvider = accountServiceProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
@@ -379,7 +380,7 @@ public class ClientDeviceService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return this.database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

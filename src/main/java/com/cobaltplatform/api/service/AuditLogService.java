@@ -19,8 +19,9 @@
 
 package com.cobaltplatform.api.service;
 
-import com.google.gson.Gson;
 import com.cobaltplatform.api.model.db.AuditLog;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
+import com.google.gson.Gson;
 import com.pyranid.Database;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,16 +41,16 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class AuditLogService {
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Logger logger;
 
 	@Inject
-	public AuditLogService(@Nonnull Database database,
+	public AuditLogService(@Nonnull DatabaseProvider databaseProvider,
 												 @Nonnull Gson gson) {
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
@@ -73,7 +74,7 @@ public class AuditLogService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

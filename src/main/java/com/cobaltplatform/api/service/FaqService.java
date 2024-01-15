@@ -22,6 +22,7 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.model.db.Faq;
 import com.cobaltplatform.api.model.db.FaqTopic;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -45,19 +46,19 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class FaqService {
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Strings strings;
 	@Nonnull
 	private final Logger logger;
 
 	@Inject
-	public FaqService(@Nonnull Database database,
+	public FaqService(@Nonnull DatabaseProvider databaseProvider,
 										@Nonnull Strings strings) {
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(strings);
 
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
@@ -189,7 +190,7 @@ public class FaqService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return this.database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

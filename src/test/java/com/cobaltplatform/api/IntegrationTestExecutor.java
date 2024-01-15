@@ -22,6 +22,7 @@ package com.cobaltplatform.api;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.inject.AbstractModule;
 import com.google.inject.Module;
 import com.google.inject.Provides;
@@ -89,7 +90,7 @@ public final class IntegrationTestExecutor {
 		requireNonNull(appFunction);
 
 		run((app) -> {
-			Database database = app.getInjector().getInstance(Database.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
 
 			database.transaction(() -> {
 				appFunction.accept(app);

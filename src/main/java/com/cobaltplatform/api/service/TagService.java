@@ -24,6 +24,7 @@ import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.db.TagContent;
 import com.cobaltplatform.api.model.db.TagGroup;
 import com.cobaltplatform.api.model.db.TagGroupSession;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.lokalized.Strings;
@@ -54,7 +55,7 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class TagService {
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Strings strings;
 	@Nonnull
@@ -65,12 +66,12 @@ public class TagService {
 	private final Logger logger;
 
 	@Inject
-	public TagService(@Nonnull Database database,
+	public TagService(@Nonnull DatabaseProvider databaseProvider,
 										@Nonnull Strings strings) {
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(strings);
 
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
 
@@ -242,7 +243,7 @@ public class TagService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

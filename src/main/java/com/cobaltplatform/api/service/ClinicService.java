@@ -22,6 +22,7 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.db.Clinic;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -47,7 +48,7 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @ThreadSafe
 public class ClinicService {
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
@@ -56,14 +57,14 @@ public class ClinicService {
 	private final Logger logger;
 
 	@Inject
-	public ClinicService(@Nonnull Database database,
+	public ClinicService(@Nonnull DatabaseProvider databaseProvider,
 											 @Nonnull Configuration configuration,
 											 @Nonnull Strings strings) {
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(configuration);
 		requireNonNull(strings);
 
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.configuration = configuration;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -112,7 +113,7 @@ public class ClinicService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

@@ -40,6 +40,7 @@ import com.cobaltplatform.api.model.service.ContentDurationId;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.LinkGenerator;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -84,7 +85,7 @@ public class ContentService implements AutoCloseable {
 	private static final int MAXIMUM_PAGE_SIZE = 100;
 
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Logger logger;
 	@Nonnull
@@ -135,7 +136,7 @@ public class ContentService implements AutoCloseable {
 												@Nonnull Provider<AccountService> accountServiceProvider,
 												@Nonnull Provider<Formatter> formatterProvider,
 												@Nonnull Provider<LinkGenerator> linkGeneratorProvider,
-												@Nonnull Database database,
+												@Nonnull DatabaseProvider databaseProvider,
 												@Nonnull SessionService sessionService,
 												@Nonnull InstitutionService institutionService,
 												@Nonnull Strings strings,
@@ -148,7 +149,7 @@ public class ContentService implements AutoCloseable {
 		requireNonNull(accountServiceProvider);
 		requireNonNull(formatterProvider);
 		requireNonNull(linkGeneratorProvider);
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(sessionService);
 		requireNonNull(institutionService);
 		requireNonNull(strings);
@@ -156,7 +157,7 @@ public class ContentService implements AutoCloseable {
 		requireNonNull(configuration);
 
 		this.logger = LoggerFactory.getLogger(getClass());
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.sessionService = sessionService;
 		this.tagServiceProvider = tagServiceProvider;
 		this.institutionService = institutionService;
@@ -620,7 +621,7 @@ public class ContentService implements AutoCloseable {
 		@Nonnull
 		private final ErrorReporter errorReporter;
 		@Nonnull
-		private final Database database;
+		private final DatabaseProvider databaseProvider;
 		@Nonnull
 		private final Configuration configuration;
 		@Nonnull
@@ -629,16 +630,16 @@ public class ContentService implements AutoCloseable {
 		@Inject
 		public BackgroundSyncTask(@Nonnull CurrentContextExecutor currentContextExecutor,
 															@Nonnull ErrorReporter errorReporter,
-															@Nonnull Database database,
+															@Nonnull DatabaseProvider databaseProvider,
 															@Nonnull Configuration configuration) {
 			requireNonNull(currentContextExecutor);
 			requireNonNull(errorReporter);
-			requireNonNull(database);
+			requireNonNull(databaseProvider);
 			requireNonNull(configuration);
 
 			this.currentContextExecutor = currentContextExecutor;
 			this.errorReporter = errorReporter;
-			this.database = database;
+			this.databaseProvider = databaseProvider;
 			this.configuration = configuration;
 			this.logger = LoggerFactory.getLogger(getClass());
 		}
@@ -702,7 +703,7 @@ public class ContentService implements AutoCloseable {
 
 		@Nonnull
 		protected Database getDatabase() {
-			return this.database;
+			return this.databaseProvider.get();
 		}
 
 		@Nonnull
@@ -730,7 +731,7 @@ public class ContentService implements AutoCloseable {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull
