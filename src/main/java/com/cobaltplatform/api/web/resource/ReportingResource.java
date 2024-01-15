@@ -31,6 +31,7 @@ import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ReportingService;
+import com.cobaltplatform.api.util.db.ReadReplica;
 import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.QueryParameter;
@@ -112,6 +113,7 @@ public class ReportingResource {
 	@Nonnull
 	@GET("/reporting/report-types")
 	@AuthenticationRequired
+	@ReadReplica
 	public ApiResponse reportTypes() {
 		Account account = getCurrentContext().getAccount().get();
 		List<ReportTypeApiResponse> reportTypes = getReportingService().findReportTypesAvailableForAccount(account).stream()
@@ -125,6 +127,7 @@ public class ReportingResource {
 
 	@Nonnull
 	@GET("/reporting/run-report")
+	@ReadReplica
 	@AuthenticationRequired
 	public Object runReport(@Nonnull @QueryParameter ReportTypeId reportTypeId,
 													@Nonnull @QueryParameter("startDateTime") Optional<LocalDateTime> suppliedStartDateTime, // inclusive
