@@ -22,6 +22,7 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionResource;
 import com.cobaltplatform.api.model.db.InstitutionResourceGroup;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -45,19 +46,19 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class InstitutionResourceService {
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Strings strings;
 	@Nonnull
 	private final Logger logger;
 
 	@Inject
-	public InstitutionResourceService(@Nonnull Database database,
+	public InstitutionResourceService(@Nonnull DatabaseProvider databaseProvider,
 																		@Nonnull Strings strings) {
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(strings);
 
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
@@ -177,7 +178,7 @@ public class InstitutionResourceService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return this.database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

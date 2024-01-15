@@ -41,6 +41,7 @@ import com.cobaltplatform.api.service.ClientDeviceService;
 import com.cobaltplatform.api.service.FingerprintService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.Authenticator;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.pyranid.Database;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -103,7 +104,7 @@ public class CurrentContextRequestHandler {
 	@Nonnull
 	private final Authenticator authenticator;
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
@@ -132,7 +133,7 @@ public class CurrentContextRequestHandler {
 																			@Nonnull FingerprintService fingerprintService,
 																			@Nonnull ClientDeviceService clientDeviceService,
 																			@Nonnull Authenticator authenticator,
-																			@Nonnull Database database,
+																			@Nonnull DatabaseProvider databaseProvider,
 																			@Nonnull Configuration configuration,
 																			@Nonnull ErrorReporter errorReporter) {
 		requireNonNull(currentContextExecutor);
@@ -141,7 +142,7 @@ public class CurrentContextRequestHandler {
 		requireNonNull(fingerprintService);
 		requireNonNull(clientDeviceService);
 		requireNonNull(authenticator);
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(configuration);
 		requireNonNull(errorReporter);
 
@@ -151,7 +152,7 @@ public class CurrentContextRequestHandler {
 		this.fingerprintService = fingerprintService;
 		this.clientDeviceService = clientDeviceService;
 		this.authenticator = authenticator;
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.configuration = configuration;
 		this.errorReporter = errorReporter;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -456,7 +457,7 @@ public class CurrentContextRequestHandler {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return this.database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

@@ -24,6 +24,7 @@ import com.cobaltplatform.api.model.db.Feature;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Filter;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.pyranid.Database;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,15 +47,15 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class FeatureService {
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Logger logger;
 
 	@Inject
-	public FeatureService(@Nonnull Database database) {
-		requireNonNull(database);
+	public FeatureService(@Nonnull DatabaseProvider databaseProvider) {
+		requireNonNull(databaseProvider);
 
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
@@ -109,7 +110,7 @@ public class FeatureService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return this.database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

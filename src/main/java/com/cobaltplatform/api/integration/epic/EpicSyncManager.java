@@ -37,6 +37,7 @@ import com.cobaltplatform.api.service.AppointmentService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.service.SystemService;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -96,7 +97,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
@@ -124,7 +125,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 												 @Nonnull javax.inject.Provider<InstitutionService> institutionServiceProvider,
 												 @Nonnull javax.inject.Provider<SystemService> systemServiceProvider,
 												 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
-												 @Nonnull Database database,
+												 @Nonnull DatabaseProvider databaseProvider,
 												 @Nonnull Configuration configuration,
 												 @Nonnull Strings strings) {
 		requireNonNull(availabilitySyncTaskProvider);
@@ -132,7 +133,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 		requireNonNull(appointmentServiceProvider);
 		requireNonNull(systemServiceProvider);
 		requireNonNull(enterprisePluginProvider);
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(configuration);
 		requireNonNull(strings);
 
@@ -142,7 +143,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 		this.institutionServiceProvider = institutionServiceProvider;
 		this.systemServiceProvider = systemServiceProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.configuration = configuration;
 		this.strings = strings;
 		this.epicSyncLock = new Object();
@@ -459,7 +460,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 		@Nonnull
 		private final CurrentContextExecutor currentContextExecutor;
 		@Nonnull
-		private final Database database;
+		private final DatabaseProvider databaseProvider;
 		@Nonnull
 		private final Configuration configuration;
 		@Nonnull
@@ -471,14 +472,14 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 																@Nonnull javax.inject.Provider<InstitutionService> institutionServiceProvider,
 																@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 																@Nonnull CurrentContextExecutor currentContextExecutor,
-																@Nonnull Database database,
+																@Nonnull DatabaseProvider databaseProvider,
 																@Nonnull Configuration configuration) {
 			requireNonNull(epicSyncManager);
 			requireNonNull(providerServiceProvider);
 			requireNonNull(institutionServiceProvider);
 			requireNonNull(enterprisePluginProvider);
 			requireNonNull(currentContextExecutor);
-			requireNonNull(database);
+			requireNonNull(databaseProvider);
 			requireNonNull(configuration);
 
 			this.epicSyncManager = epicSyncManager;
@@ -486,7 +487,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 			this.institutionServiceProvider = institutionServiceProvider;
 			this.currentContextExecutor = currentContextExecutor;
 			this.enterprisePluginProvider = enterprisePluginProvider;
-			this.database = database;
+			this.databaseProvider = databaseProvider;
 			this.configuration = configuration;
 			this.logger = LoggerFactory.getLogger(getClass());
 		}
@@ -581,7 +582,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 
 		@Nonnull
 		protected Database getDatabase() {
-			return database;
+			return this.databaseProvider.get();
 		}
 
 		@Nonnull
@@ -738,7 +739,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 
 	@Nonnull
 	protected Database getDatabase() {
-		return database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

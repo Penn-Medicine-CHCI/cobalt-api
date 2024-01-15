@@ -85,6 +85,7 @@ import com.cobaltplatform.api.util.UploadManager;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -158,7 +159,7 @@ public class GroupSessionService implements AutoCloseable {
 	@Nullable
 	private final TagService tagService;
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final UploadManager uploadManager;
 	@Nonnull
@@ -207,7 +208,7 @@ public class GroupSessionService implements AutoCloseable {
 														 @Nonnull Provider<BackgroundSyncTask> backgroundSyncTaskProvider,
 														 @Nonnull ScreeningService screeningService,
 														 @Nonnull TagService tagService,
-														 @Nonnull Database database,
+														 @Nonnull DatabaseProvider databaseProvider,
 														 @Nonnull UploadManager uploadManager,
 														 @Nonnull LinkGenerator linkGenerator,
 														 @Nonnull Formatter formatter,
@@ -222,7 +223,7 @@ public class GroupSessionService implements AutoCloseable {
 		requireNonNull(screeningService);
 		requireNonNull(tagService);
 		requireNonNull(backgroundSyncTaskProvider);
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(uploadManager);
 		requireNonNull(linkGenerator);
 		requireNonNull(formatter);
@@ -238,7 +239,7 @@ public class GroupSessionService implements AutoCloseable {
 		this.screeningService = screeningService;
 		this.tagService = tagService;
 		this.backgroundSyncTaskProvider = backgroundSyncTaskProvider;
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.uploadManager = uploadManager;
 		this.linkGenerator = linkGenerator;
 		this.formatter = formatter;
@@ -2481,7 +2482,7 @@ public class GroupSessionService implements AutoCloseable {
 		@Nonnull
 		private final ErrorReporter errorReporter;
 		@Nonnull
-		private final Database database;
+		private final DatabaseProvider databaseProvider;
 		@Nonnull
 		private final Configuration configuration;
 		@Nonnull
@@ -2490,16 +2491,16 @@ public class GroupSessionService implements AutoCloseable {
 		@Inject
 		public BackgroundSyncTask(@Nonnull CurrentContextExecutor currentContextExecutor,
 															@Nonnull ErrorReporter errorReporter,
-															@Nonnull Database database,
+															@Nonnull DatabaseProvider databaseProvider,
 															@Nonnull Configuration configuration) {
 			requireNonNull(currentContextExecutor);
 			requireNonNull(errorReporter);
-			requireNonNull(database);
+			requireNonNull(databaseProvider);
 			requireNonNull(configuration);
 
 			this.currentContextExecutor = currentContextExecutor;
 			this.errorReporter = errorReporter;
-			this.database = database;
+			this.databaseProvider = databaseProvider;
 			this.configuration = configuration;
 			this.logger = LoggerFactory.getLogger(getClass());
 		}
@@ -2552,7 +2553,7 @@ public class GroupSessionService implements AutoCloseable {
 
 		@Nonnull
 		protected Database getDatabase() {
-			return this.database;
+			return this.databaseProvider.get();
 		}
 
 		@Nonnull
@@ -2590,7 +2591,7 @@ public class GroupSessionService implements AutoCloseable {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return this.database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

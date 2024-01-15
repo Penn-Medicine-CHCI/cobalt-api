@@ -22,6 +22,7 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.model.api.request.CreateActivityTrackingRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ActivityTracking;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.pyranid.Database;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,14 +40,14 @@ import java.util.UUID;
 @Singleton
 public class ActivityTrackingService {
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Logger logger;
 
 	@Inject
-	public ActivityTrackingService(@Nonnull Database database) {
+	public ActivityTrackingService(@Nonnull DatabaseProvider databaseProvider) {
 		this.logger = LoggerFactory.getLogger(getClass());
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 	}
 
 	@Nonnull
@@ -75,7 +76,6 @@ public class ActivityTrackingService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return database;
+		return this.databaseProvider.get();
 	}
-
 }

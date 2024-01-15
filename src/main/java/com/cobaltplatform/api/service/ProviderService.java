@@ -62,6 +62,7 @@ import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityStatus;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityTime;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.apache.commons.lang3.builder.ToStringBuilder;
@@ -131,7 +132,7 @@ public class ProviderService {
 	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
@@ -155,7 +156,7 @@ public class ProviderService {
 												 @Nonnull javax.inject.Provider<ClinicService> clinicServiceProvider,
 												 @Nonnull javax.inject.Provider<AvailabilityService> availabilityServiceProvider,
 												 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
-												 @Nonnull Database database,
+												 @Nonnull DatabaseProvider databaseProvider,
 												 @Nonnull Configuration configuration,
 												 @Nonnull AcuitySchedulingClient acuitySchedulingClient,
 												 @Nonnull AcuitySchedulingCache acuitySchedulingCache,
@@ -169,7 +170,7 @@ public class ProviderService {
 		requireNonNull(clinicServiceProvider);
 		requireNonNull(availabilityServiceProvider);
 		requireNonNull(enterprisePluginProvider);
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(configuration);
 		requireNonNull(acuitySchedulingClient);
 		requireNonNull(acuitySchedulingCache);
@@ -184,7 +185,7 @@ public class ProviderService {
 		this.clinicServiceProvider = clinicServiceProvider;
 		this.availabilityServiceProvider = availabilityServiceProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.configuration = configuration;
 		this.acuitySchedulingClient = acuitySchedulingClient;
 		this.acuitySchedulingCache = acuitySchedulingCache;
@@ -225,7 +226,7 @@ public class ProviderService {
 
 		if (providerIdentifier instanceof UUID)
 			return findProviderById((UUID) providerIdentifier);
-		
+
 		if (providerIdentifier instanceof String) {
 			String providerIdentifierAsString = (String) providerIdentifier;
 
@@ -2318,7 +2319,7 @@ public class ProviderService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

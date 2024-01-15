@@ -31,6 +31,7 @@ import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.cobaltplatform.api.model.service.ProviderCalendar;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.inject.Injector;
 import com.pyranid.Database;
 import org.junit.Assert;
@@ -109,7 +110,7 @@ public class AvailabilityServiceTests {
 
 	@Nonnull
 	protected TestProvider createTestProvider(@Nonnull Injector injector) {
-		Database database = injector.getInstance(Database.class);
+		Database database = injector.getInstance(DatabaseProvider.class).getWritableMasterDatabase();
 		AccountService accountService = injector.getInstance(AccountService.class);
 		AppointmentService appointmentService = injector.getInstance(AppointmentService.class);
 

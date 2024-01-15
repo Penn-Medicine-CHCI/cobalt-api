@@ -1,6 +1,7 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -9,7 +10,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.inject.Inject;
 import javax.inject.Singleton;
-
 import java.time.Instant;
 import java.util.UUID;
 
@@ -21,7 +21,7 @@ import static java.util.Objects.requireNonNull;
 @Singleton
 public class FingerprintService {
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
@@ -31,14 +31,14 @@ public class FingerprintService {
 
 
 	@Inject
-	public FingerprintService(@Nonnull Database database,
+	public FingerprintService(@Nonnull DatabaseProvider databaseProvider,
 														@Nonnull Configuration configuration,
 														@Nonnull Strings strings) {
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(configuration);
 		requireNonNull(strings);
 
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.configuration = configuration;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -46,12 +46,12 @@ public class FingerprintService {
 
 	public void storeFingerprintForAccount(@Nonnull UUID accountId, @Nonnull String fingerprintId) {
 		getDatabase().execute("INSERT INTO account_fingerprint (account_id, fingerprint_id) VALUES (?,?) " +
-				"ON CONFLICT ON CONSTRAINT account_fingerprint_key DO UPDATE SET last_updated=?", accountId, fingerprintId, Instant.now());	
+				"ON CONFLICT ON CONSTRAINT account_fingerprint_key DO UPDATE SET last_updated=?", accountId, fingerprintId, Instant.now());
 	}
 
 	@Nonnull
 	protected Database getDatabase() {
-		return database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

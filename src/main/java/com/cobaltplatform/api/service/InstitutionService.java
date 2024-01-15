@@ -39,6 +39,7 @@ import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
 import com.cobaltplatform.api.model.service.FeatureForInstitution;
 import com.cobaltplatform.api.util.JsonMapper;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.lokalized.Strings;
@@ -77,7 +78,7 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @ThreadSafe
 public class InstitutionService {
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final JsonMapper jsonMapper;
 	@Nonnull
@@ -94,20 +95,20 @@ public class InstitutionService {
 	private final LoadingCache<WebappBaseUrlCacheKey, Optional<String>> webappBaseUrlCache;
 
 	@Inject
-	public InstitutionService(@Nonnull Database database,
+	public InstitutionService(@Nonnull DatabaseProvider databaseProvider,
 														@Nonnull JsonMapper jsonMapper,
 														@Nonnull Configuration configuration,
 														@Nonnull Strings strings,
 														@Nonnull Provider<ScreeningService> screeningServiceProvider,
 														@Nonnull Provider<FeatureService> featureServiceProvider) {
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(jsonMapper);
 		requireNonNull(configuration);
 		requireNonNull(strings);
 		requireNonNull(screeningServiceProvider);
 		requireNonNull(featureServiceProvider);
 
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.jsonMapper = jsonMapper;
 		this.configuration = configuration;
 		this.strings = strings;
@@ -498,7 +499,7 @@ public class InstitutionService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return this.database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

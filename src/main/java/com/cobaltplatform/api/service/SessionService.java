@@ -27,6 +27,7 @@ import com.cobaltplatform.api.model.db.AppointmentTypeAssessment;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
 import com.cobaltplatform.api.model.db.Question;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.pyranid.Database;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,25 +55,25 @@ import static java.util.Collections.emptyList;
 public class SessionService {
 
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Logger logger;
 
 	@Inject
-	public SessionService(@Nonnull Database database) {
-		this.database = database;
+	public SessionService(@Nonnull DatabaseProvider databaseProvider) {
+		this.databaseProvider = databaseProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
 	@Nonnull
 	public Optional<AccountSession> findAccountSessionById(@Nonnull UUID accountSessionId) {
-		return database.queryForObject("SELECT * from account_session WHERE account_session_id = ?",
+		return getDatabase().queryForObject("SELECT * from account_session WHERE account_session_id = ?",
 				AccountSession.class, accountSessionId);
 	}
 
 	@Nonnull
 	public Optional<AccountSession> findAccountSessionByIdAndAccount(@Nonnull Account account, @Nonnull UUID sessionId) {
-		return database.queryForObject("SELECT * from account_session WHERE account_id = ? and account_session_id = ?",
+		return getDatabase().queryForObject("SELECT * from account_session WHERE account_id = ? and account_session_id = ?",
 				AccountSession.class, account.getAccountId(), sessionId);
 	}
 
@@ -83,14 +84,14 @@ public class SessionService {
 
 	@Nonnull
 	public Optional<AccountSession> findCurrentAccountSessionForAssessmentId(@Nonnull Account account, @Nonnull UUID assessmentId) {
-		return database.queryForObject("SELECT * from account_session WHERE account_id = ? AND assessment_id = ? AND current_flag = ? ORDER BY last_updated DESC LIMIT 1",
+		return getDatabase().queryForObject("SELECT * from account_session WHERE account_id = ? AND assessment_id = ? AND current_flag = ? ORDER BY last_updated DESC LIMIT 1",
 				AccountSession.class, account.getAccountId(), assessmentId, true);
 	}
 
 	@Nonnull
 	public List<Answer> findAnswersForLastCompleteIntroSession(@Nonnull AccountSession currentAccountSession,
 																														 @Nonnull Question question) {
-		Optional<AccountSession> lastCompleteSession = database.queryForObject("SELECT * FROM account_session WHERE " +
+		Optional<AccountSession> lastCompleteSession = getDatabase().queryForObject("SELECT * FROM account_session WHERE " +
 						"assessment_id = ? AND " +
 						"account_id = ? AND " +
 						"complete_flag = ? " +
@@ -104,7 +105,7 @@ public class SessionService {
 
 	public void markCurrentSessionCompleteForAssessmentType(@Nonnull Account account,
 																													@Nonnull AssessmentTypeId assessmentTypeId) {
-		database.execute("UPDATE account_session SET complete_flag = ? WHERE account_session_id = " +
+		getDatabase().execute("UPDATE account_session SET complete_flag = ? WHERE account_session_id = " +
 						"(" +
 						"SELECT account_session_id FROM " +
 						"account_session as acs, " +
@@ -124,7 +125,7 @@ public class SessionService {
 
 	@Nonnull
 	public List<Answer> findAnswersForSession(@Nonnull AccountSession accountSession) {
-		return database.queryForList("SELECT a.* FROM " +
+		return getDatabase().queryForList("SELECT a.* FROM " +
 						"answer as a, " +
 						"question as q, " +
 						"account_session_answer as asa WHERE " +
@@ -139,7 +140,7 @@ public class SessionService {
 		if (accountSessionId == null)
 			return Collections.emptyList();
 
-		return database.queryForList("SELECT asa.*, q.question_id FROM " +
+		return getDatabase().queryForList("SELECT asa.*, q.question_id FROM " +
 						"answer as a, " +
 						"question as q, " +
 						"account_session_answer as asa WHERE " +
@@ -152,13 +153,13 @@ public class SessionService {
 	@Nonnull
 	public Boolean canAccountIdViewAccountSessionId(@Nullable UUID accountId,
 																									@Nullable UUID accountSessionId) {
-		return database.queryForObject("SELECT COUNT(*) > 0 FROM assessment_viewer av, account_session a_s " +
+		return getDatabase().queryForObject("SELECT COUNT(*) > 0 FROM assessment_viewer av, account_session a_s " +
 				"WHERE av.assessment_id=a_s.assessment_id AND av.account_id=? AND a_s.account_session_id=?", Boolean.class, accountId, accountSessionId).get();
 	}
 
 	@Nonnull
 	public Optional<AccountSession> getCurrentIntroSessionForAccount(@Nonnull Account account) {
-		return database.queryForObject("SELECT acs.* FROM account_session as acs, assessment as a, institution_assessment as ia " +
+		return getDatabase().queryForObject("SELECT acs.* FROM account_session as acs, assessment as a, institution_assessment as ia " +
 						"WHERE " +
 						"acs.account_id = ? AND " +
 						"ia.institution_id = ? AND " +
@@ -177,7 +178,7 @@ public class SessionService {
 	@Nonnull
 	public Optional<AccountSession> getCompletedAssessmentSessionForAccount(@Nonnull Account account,
 																																					@Nonnull AssessmentTypeId assessmentTypeId) {
-		return database.queryForObject("SELECT account_session.* FROM " +
+		return getDatabase().queryForObject("SELECT account_session.* FROM " +
 						"account, " +
 						"account_session, " +
 						"institution_assessment, " +
@@ -201,7 +202,7 @@ public class SessionService {
 	@Nonnull
 	public void markSessionAsComplete(@Nonnull AccountSession accountSession) {
 		logger.debug(format("Mark session complete - account_session_id: %s assessment_id: %s ", accountSession.getAccountSessionId(), accountSession.getAssessmentId()));
-		database.execute("UPDATE account_session SET complete_flag = ? WHERE account_session_id = ?", true, accountSession.getAccountSessionId());
+		getDatabase().execute("UPDATE account_session SET complete_flag = ? WHERE account_session_id = ?", true, accountSession.getAccountSessionId());
 	}
 
 	@Nonnull
@@ -209,11 +210,11 @@ public class SessionService {
 																									 @Nonnull Assessment assessment) {
 		UUID newSessionId = UUID.randomUUID();
 		logger.debug(format("Create session - account_session_id: %s assessment_id: %s ", newSessionId, assessment.getAssessmentId()));
-		database.execute("UPDATE account_session SET current_flag = ? AND complete_flag = ? WHERE account_id = ? AND assessment_id = ?",
+		getDatabase().execute("UPDATE account_session SET current_flag = ? AND complete_flag = ? WHERE account_id = ? AND assessment_id = ?",
 				false, false, accountId, assessment.getAssessmentId());
 
 		if (assessment.getAssessmentTypeId().equals(AssessmentTypeId.PHQ4)) {
-			database.execute(
+			getDatabase().execute(
 					"UPDATE account_session SET current_flag = ? WHERE account_session_id IN (" +
 							"SELECT acs.account_session_id " +
 							"FROM " +
@@ -232,7 +233,7 @@ public class SessionService {
 					false, accountId, AssessmentTypeId.PHQ4, AssessmentTypeId.PHQ9, AssessmentTypeId.GAD7, AssessmentTypeId.PCPTSD);
 		}
 
-		return database.executeReturning("INSERT INTO account_session VALUES (?,?,?) RETURNING *",
+		return getDatabase().executeReturning("INSERT INTO account_session VALUES (?,?,?) RETURNING *",
 				AccountSession.class, newSessionId, accountId, assessment.getAssessmentId()).get();
 
 	}
@@ -240,7 +241,7 @@ public class SessionService {
 
 	@Nonnull
 	public Optional<AccountSession> findCurrentIncompleteEvidenceAssessmentForAccount(@Nonnull Account account) {
-		Optional<AccountSession> opt = database.queryForObject("SELECT acs.* " +
+		Optional<AccountSession> opt = getDatabase().queryForObject("SELECT acs.* " +
 				"FROM " +
 				"account_session as acs, " +
 				"account as a, " +
@@ -261,7 +262,7 @@ public class SessionService {
 
 	@Nonnull
 	public Optional<AccountSession> findCurrentIncompleteIntroAssessmentForAccount(@Nonnull Account account) {
-		Optional<AccountSession> opt = database.queryForObject("SELECT acs.* " +
+		Optional<AccountSession> opt = getDatabase().queryForObject("SELECT acs.* " +
 				"FROM " +
 				"account_session as acs, " +
 				"account as a, " +
@@ -282,7 +283,7 @@ public class SessionService {
 
 	@Nonnull
 	public Optional<AccountSession> findIntakeAssessmentForAppointmentId(@Nonnull UUID appointmentId) {
-		return database.queryForObject("SELECT acs.*  " +
+		return getDatabase().queryForObject("SELECT acs.*  " +
 						"FROM  " +
 						"account_session as acs, " +
 						"assessment as ass,  " +
@@ -292,7 +293,7 @@ public class SessionService {
 						"ass.assessment_id = a.intake_assessment_id AND " +
 						"acs.complete_flag = ? AND  " +
 						"acs.current_flag = ? AND  " +
-						"a.appointment_id = ? "+
+						"a.appointment_id = ? " +
 						"ORDER by acs.created DESC LIMIT 1 "
 				, AccountSession.class, true, true, appointmentId);
 	}
@@ -303,7 +304,7 @@ public class SessionService {
 																																									 @Nullable UUID appointmentTypeId,
 																																									 @Nonnull Boolean complete) {
 		if (appointmentTypeId != null) {
-			Optional<AccountSession> accountSession = database.queryForObject("SELECT acs.*  " +
+			Optional<AccountSession> accountSession = getDatabase().queryForObject("SELECT acs.*  " +
 							"FROM  " +
 							"account as a,  " +
 							"account_session as acs,  " +
@@ -328,10 +329,10 @@ public class SessionService {
 				// Special case: if there was an intake assessment that has a newer assessment
 				UUID assessmentId = accountSession.get().getAssessmentId();
 
-				AppointmentTypeAssessment activeAppointmentTypeAssessment = database.queryForObject("SELECT * FROM appointment_type_assessment " +
+				AppointmentTypeAssessment activeAppointmentTypeAssessment = getDatabase().queryForObject("SELECT * FROM appointment_type_assessment " +
 						"WHERE appointment_type_id=? AND active=true", AppointmentTypeAssessment.class, appointmentTypeId).orElse(null);
 
-				if(activeAppointmentTypeAssessment != null && !activeAppointmentTypeAssessment.getAssessmentId().equals(assessmentId)) {
+				if (activeAppointmentTypeAssessment != null && !activeAppointmentTypeAssessment.getAssessmentId().equals(assessmentId)) {
 					logger.debug("Appointment type ID {} has a newer assessment ID {} than the old assessment ID {} associated with account session ID",
 							appointmentTypeId, activeAppointmentTypeAssessment.getAssessmentId(), assessmentId, accountSession.get().getAccountSessionId());
 
@@ -339,7 +340,7 @@ public class SessionService {
 					Instant now = Instant.now();
 					Instant gracePeriodEnd = activeAppointmentTypeAssessment.getCreated().plus(gracePeriodInMinutes, ChronoUnit.MINUTES);
 
-					if(now.isAfter(gracePeriodEnd)) {
+					if (now.isAfter(gracePeriodEnd)) {
 						logger.debug("Current time is {}, which is after the grace period time {} ({} minutes) for appointment type assessment updates. " +
 								"We're going to force user to start a new session.", now, gracePeriodEnd, gracePeriodInMinutes);
 						return Optional.empty();
@@ -355,14 +356,14 @@ public class SessionService {
 
 	@Nonnull
 	public List<AccountSession> findCompletedAccountSessionsForAccount(@Nonnull Account account) {
-		return database.queryForList("SELECT * FROM account_session WHERE account_id = ? AND complete_flag = true", AccountSession.class,
+		return getDatabase().queryForList("SELECT * FROM account_session WHERE account_id = ? AND complete_flag = true", AccountSession.class,
 				account.getAccountId());
 	}
 
 	@Nonnull
 	public Optional<AccountSession> findCurrentIntakeAssessmentForAccountAndGroupSessionId(@Nonnull Account account, @Nonnull UUID groupSessionId,
 																																												 @Nonnull Boolean complete) {
-		Optional<AccountSession> opt = database.queryForObject("SELECT acs.* " +
+		Optional<AccountSession> opt = getDatabase().queryForObject("SELECT acs.* " +
 						"FROM " +
 						"account_session as acs, " +
 						"account as a, " +
@@ -384,7 +385,7 @@ public class SessionService {
 
 	@Nonnull
 	public List<Answer> findAnswersForSessionAndQuestion(@Nonnull AccountSession accountSession, @Nonnull Question question) {
-		return database.queryForList("SELECT an.answer_id, an.question_id, COALESCE(asa.answer_text, an.answer_text) AS answer_text, " +
+		return getDatabase().queryForList("SELECT an.answer_id, an.question_id, COALESCE(asa.answer_text, an.answer_text) AS answer_text, " +
 						"an.answer_value, an.display_order, an.crisis, an.call, an.next_question_id " +
 						"FROM " +
 						"account_session_answer as asa, " +
@@ -425,7 +426,7 @@ public class SessionService {
 
 	@Nonnull
 	public Boolean doesAccountSessionHaveAnswers(@Nonnull UUID accountSessionId) {
-		return database.queryForObject("SELECT COUNT(*) > 0 FROM account_session_answer WHERE " +
+		return getDatabase().queryForObject("SELECT COUNT(*) > 0 FROM account_session_answer WHERE " +
 				"account_session_id = ?", Boolean.class, accountSessionId).get();
 	}
 
@@ -448,4 +449,8 @@ public class SessionService {
 		}
 	}
 
+	@Nonnull
+	protected Database getDatabase() {
+		return this.databaseProvider.get();
+	}
 }

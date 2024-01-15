@@ -98,6 +98,7 @@ import com.cobaltplatform.api.util.JavascriptExecutor;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -168,7 +169,7 @@ public class ScreeningService {
 	@Nonnull
 	private final Normalizer normalizer;
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
@@ -190,7 +191,7 @@ public class ScreeningService {
 													@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 													@Nonnull ErrorReporter errorReporter,
 													@Nonnull Normalizer normalizer,
-													@Nonnull Database database,
+													@Nonnull DatabaseProvider databaseProvider,
 													@Nonnull Configuration configuration,
 													@Nonnull Strings strings) {
 		requireNonNull(institutionServiceProvider);
@@ -206,7 +207,7 @@ public class ScreeningService {
 		requireNonNull(enterprisePluginProvider);
 		requireNonNull(errorReporter);
 		requireNonNull(normalizer);
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(configuration);
 		requireNonNull(strings);
 
@@ -223,7 +224,7 @@ public class ScreeningService {
 		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.errorReporter = errorReporter;
 		this.normalizer = normalizer;
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.configuration = configuration;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -2919,7 +2920,7 @@ public class ScreeningService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return this.database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

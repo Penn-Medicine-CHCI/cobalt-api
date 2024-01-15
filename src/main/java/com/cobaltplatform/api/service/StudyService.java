@@ -44,6 +44,7 @@ import com.cobaltplatform.api.model.service.StudyAccount;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -86,7 +87,7 @@ public class StudyService {
 	private static final DateTimeFormatter STUDY_FILE_UPLOAD_TIMESTAMP_FORMATTER;
 
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Strings strings;
 	@Nonnull
@@ -103,18 +104,18 @@ public class StudyService {
 	}
 
 	@Inject
-	public StudyService(@Nonnull Database database,
+	public StudyService(@Nonnull DatabaseProvider databaseProvider,
 											@Nonnull Strings strings,
 											@Nonnull Authenticator authenticator,
 											@Nonnull Provider<AccountService> accountServiceProvider,
 											@Nonnull Provider<SystemService> systemServiceProvider) {
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(strings);
 		requireNonNull(authenticator);
 		requireNonNull(accountServiceProvider);
 		requireNonNull(systemServiceProvider);
 
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.strings = strings;
 		this.authenticator = authenticator;
 		this.accountServiceProvider = accountServiceProvider;
@@ -131,7 +132,7 @@ public class StudyService {
 
 		List<Object> sqlParams = new ArrayList<>();
 		StringBuilder query = new StringBuilder("""
-				SELECT * 
+				SELECT *
 					FROM v_account_check_in 
 					WHERE account_id = ? AND study_id = ?
 					""");
@@ -720,7 +721,7 @@ public class StudyService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return this.database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

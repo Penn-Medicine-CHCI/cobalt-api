@@ -34,6 +34,7 @@ import com.cobaltplatform.api.model.db.TopicCenterRowTagType.TopicCenterRowTagTy
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.NavigationItem;
 import com.cobaltplatform.api.model.service.TopicCenterRowDetail;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -67,7 +68,7 @@ import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 @ThreadSafe
 public class TopicCenterService {
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Provider<ContentService> contentServiceProvider;
 	@Nonnull
@@ -76,14 +77,14 @@ public class TopicCenterService {
 	private final Logger logger;
 
 	@Inject
-	public TopicCenterService(@Nonnull Database database,
+	public TopicCenterService(@Nonnull DatabaseProvider databaseProvider,
 														@Nonnull Provider<ContentService> contentServiceProvider,
 														@Nonnull Strings strings) {
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(contentServiceProvider);
 		requireNonNull(strings);
 
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.contentServiceProvider = contentServiceProvider;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -434,7 +435,7 @@ public class TopicCenterService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull

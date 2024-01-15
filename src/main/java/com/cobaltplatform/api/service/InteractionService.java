@@ -53,6 +53,7 @@ import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -93,7 +94,7 @@ public class InteractionService {
 	@Nonnull
 	private final Strings strings;
 	@Nonnull
-	private final Database database;
+	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Logger logger;
 	@Nonnull
@@ -116,7 +117,7 @@ public class InteractionService {
 	private final JsonMapper jsonMapper;
 
 	@Inject
-	public InteractionService(@Nonnull Database database,
+	public InteractionService(@Nonnull DatabaseProvider databaseProvider,
 														@Nonnull javax.inject.Provider<AccountService> accountServiceProvider,
 														@Nonnull Strings strings,
 														@Nonnull javax.inject.Provider<MessageService> messageServiceProvider,
@@ -127,7 +128,7 @@ public class InteractionService {
 														@Nonnull ErrorReporter errorReporter,
 														@Nonnull Configuration configuration,
 														@Nonnull JsonMapper jsonMapper) {
-		requireNonNull(database);
+		requireNonNull(databaseProvider);
 		requireNonNull(accountServiceProvider);
 		requireNonNull(strings);
 		requireNonNull(messageServiceProvider);
@@ -140,7 +141,7 @@ public class InteractionService {
 		requireNonNull(jsonMapper);
 
 		this.logger = LoggerFactory.getLogger(getClass());
-		this.database = database;
+		this.databaseProvider = databaseProvider;
 		this.accountServiceProvider = accountServiceProvider;
 		this.strings = strings;
 		this.messageServiceProvider = messageServiceProvider;
@@ -904,7 +905,7 @@ public class InteractionService {
 
 	@Nonnull
 	protected Database getDatabase() {
-		return this.database;
+		return this.databaseProvider.get();
 	}
 
 	@Nonnull
