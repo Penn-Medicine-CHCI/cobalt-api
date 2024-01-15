@@ -199,6 +199,14 @@ public class Configuration {
 	private final String jdbcPassword;
 	@Nonnull
 	private final Integer jdbcMaximumPoolSize;
+	@Nonnull
+	private final String jdbcReadReplicaUrl;
+	@Nonnull
+	private final String jdbcReadReplicaUsername;
+	@Nonnull
+	private final String jdbcReadReplicaPassword;
+	@Nonnull
+	private final Integer jdbcReadReplicaMaximumPoolSize;
 	@Nullable
 	private final String amazonAwsSecretsManagerContext;
 	@Nonnull
@@ -394,6 +402,11 @@ public class Configuration {
 		this.jdbcUsername = valueFor("com.cobaltplatform.api.jdbc.username", String.class);
 		this.jdbcPassword = valueFor("com.cobaltplatform.api.jdbc.password", String.class);
 		this.jdbcMaximumPoolSize = valueFor("com.cobaltplatform.api.jdbc.maximumPoolSize", Integer.class);
+
+		this.jdbcReadReplicaUrl = valueFor("com.cobaltplatform.api.jdbc.readReplicaUrl", String.class);
+		this.jdbcReadReplicaUsername = valueFor("com.cobaltplatform.api.jdbc.readReplicaUsername", String.class);
+		this.jdbcReadReplicaPassword = valueFor("com.cobaltplatform.api.jdbc.readReplicaPassword", String.class);
+		this.jdbcReadReplicaMaximumPoolSize = valueFor("com.cobaltplatform.api.jdbc.readReplicaMaximumPoolSize", Integer.class);
 
 		this.amazonEc2RoleName = valueFor("com.cobaltplatform.api.amazon.ec2RoleName", String.class);
 
@@ -1218,6 +1231,26 @@ public class Configuration {
 	@Nonnull
 	public Integer getJdbcMaximumPoolSize() {
 		return this.jdbcMaximumPoolSize;
+	}
+
+	@Nonnull
+	public String getJdbcReadReplicaUrl() {
+		return this.jdbcReadReplicaUrl;
+	}
+
+	@Nonnull
+	public String getJdbcReadReplicaUsername() {
+		return this.jdbcReadReplicaUsername;
+	}
+
+	@Nonnull
+	public String getJdbcReadReplicaPassword() {
+		return this.jdbcReadReplicaPassword;
+	}
+
+	@Nonnull
+	public Integer getJdbcReadReplicaMaximumPoolSize() {
+		return this.jdbcReadReplicaMaximumPoolSize;
 	}
 
 	@Nonnull
