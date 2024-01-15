@@ -58,6 +58,26 @@ public class DatabaseProvider {
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
+	/**
+	 * Provides a context-appropriate Database instance (e.g. read-replica for reporting API calls).
+	 * <p>
+	 * This is almost always what you want instead of explicit references to a read-replica or writable-master.
+	 * <p>
+	 * We can then think of concepts like "use read-replica" at the API call level by marking resource methods as @ReadReplica
+	 * as opposed to specific Service methods "hardcoding" whether they talk to a read-replica or writable-master.
+	 * This permits building Service methods in a generic way, usable in both read-only vs. writable contexts
+	 * and they "just work" - the appropriate database/transaction is already selected upstream.
+	 * <p>
+	 * Suppose we did not take this approach and instead have explicit references to read-replica and writable-master
+	 * databases in our Service methods.  A scenario like this could occur:
+	 * <ul>
+	 * <li>API call comes in, we start a transaction against writable master</li>
+	 * <li>Service method A, which directly references writable master, creates a new record in the database</li>
+	 * <li>Service method B, which directly references read-replica, attempts to pull data inserted by service method A</li>
+	 * <li>Potentially subtle errors occur because service method B is not participating in the transaction and cannot see
+	 *   the data inserted by Service method A (it is pointing to a different database!)</li>
+	 * </ul>
+	 */
 	@Nonnull
 	public Database get() {
 		Route route;
