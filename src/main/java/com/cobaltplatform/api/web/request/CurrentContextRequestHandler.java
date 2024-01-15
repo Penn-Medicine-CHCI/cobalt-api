@@ -268,6 +268,7 @@ public class CurrentContextRequestHandler {
 			} else if (account != null && institution == null) {
 				getLogger().debug("This request did not specify its institution via {}, so current context will default to {}, " +
 						"which is associated with account ID {}", getWebappBaseUrlPropertyName(), account.getInstitutionId().name(), account.getAccountId());
+				institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
 			} else if (account != null && institution != null && !Objects.equals(account.getInstitutionId(), institution.getInstitutionId())) {
 				// It's illegal to access an account outside of its own institution's context
 				throw new IllegalStateException(format("Account ID %s is associated with %s but is being accessed in the context of %s",
