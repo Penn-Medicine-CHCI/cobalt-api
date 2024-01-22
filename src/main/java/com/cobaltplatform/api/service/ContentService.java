@@ -23,11 +23,15 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.error.ErrorReporter;
+import com.cobaltplatform.api.model.api.request.CreateContentFeedbackRequest;
 import com.cobaltplatform.api.model.api.request.FindResourceLibraryContentRequest;
+import com.cobaltplatform.api.model.api.request.UpdateContentFeedbackRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ActivityAction.ActivityActionId;
 import com.cobaltplatform.api.model.db.ActivityType.ActivityTypeId;
 import com.cobaltplatform.api.model.db.Content;
+import com.cobaltplatform.api.model.db.ContentFeedback;
+import com.cobaltplatform.api.model.db.ContentFeedbackType.ContentFeedbackTypeId;
 import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
 import com.cobaltplatform.api.model.db.ContentType;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
@@ -40,6 +44,8 @@ import com.cobaltplatform.api.model.service.ContentDurationId;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.LinkGenerator;
+import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
@@ -447,6 +453,79 @@ public class ContentService implements AutoCloseable {
 		applyTagsToContents(contents, account.getInstitutionId());
 
 		return contents;
+	}
+
+	@Nonnull
+	public Optional<ContentFeedback> findContentFeedbackById(@Nullable UUID contentFeedbackId) {
+		if (contentFeedbackId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM content_feedback
+				WHERE content_feedback_id=?
+				""", ContentFeedback.class, contentFeedbackId);
+	}
+
+	@Nonnull
+	public UUID createContentFeedback(@Nonnull CreateContentFeedbackRequest request) {
+		requireNonNull(request);
+
+		ContentFeedbackTypeId contentFeedbackTypeId = request.getContentFeedbackTypeId();
+		UUID contentId = request.getContentId();
+		UUID accountId = request.getAccountId();
+		String message = trimToNull(request.getMessage());
+		UUID contentFeedbackId = UUID.randomUUID();
+		ValidationException validationException = new ValidationException();
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (contentId == null)
+			validationException.add(new FieldError("contentId", getStrings().get("Content ID is required.")));
+
+		if (contentFeedbackTypeId == null)
+			validationException.add(new FieldError("contentFeedbackTypeId", getStrings().get("Content Feedback Type ID is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+				INSERT INTO content_feedback (
+				    content_feedback_id,
+				    content_feedback_type_id,
+				    content_id,
+				    account_id,
+				    message
+				) VALUES (?,?,?,?,?)
+				""", contentFeedbackId, contentFeedbackTypeId, contentId, accountId, message);
+
+		return contentFeedbackId;
+	}
+
+	@Nonnull
+	public Boolean updateContentFeedback(@Nonnull UpdateContentFeedbackRequest request) {
+		requireNonNull(request);
+
+		UUID contentFeedbackId = request.getContentFeedbackId();
+		ContentFeedbackTypeId contentFeedbackTypeId = request.getContentFeedbackTypeId();
+		String message = trimToNull(request.getMessage());
+		ValidationException validationException = new ValidationException();
+
+		if (contentFeedbackId == null)
+			validationException.add(new FieldError("contentFeedbackId", getStrings().get("Content Feedback ID is required.")));
+
+		if (contentFeedbackTypeId == null)
+			validationException.add(new FieldError("contentFeedbackTypeId", getStrings().get("Content Feedback Type ID is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		return getDatabase().execute("""
+				UPDATE content_feedback
+				SET content_feedback_type_id=?, message=?
+				WHERE content_feedback_id=?
+				""", contentFeedbackTypeId, message, contentFeedbackId) > 0;
 	}
 
 	/**

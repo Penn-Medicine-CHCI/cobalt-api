@@ -54,6 +54,8 @@ public class ContentApiResponse {
 	private final String title;
 	@Nullable
 	private final String url;
+	@Nonnull
+	private final Boolean neverEmbed;
 	@Nullable
 	private String imageUrl;
 	@Nullable
@@ -124,6 +126,7 @@ public class ContentApiResponse {
 		this.contentTypeId = content.getContentTypeId();
 		this.title = content.getTitle();
 		this.url = content.getUrl();
+		this.neverEmbed = content.getNeverEmbed();
 		this.imageUrl = content.getImageUrl();
 		this.description = content.getDescription();
 		this.author = content.getAuthor();
@@ -179,6 +182,11 @@ public class ContentApiResponse {
 	@Nullable
 	public String getUrl() {
 		return url;
+	}
+
+	@Nonnull
+	public Boolean getNeverEmbed() {
+		return this.neverEmbed;
 	}
 
 	@Nullable

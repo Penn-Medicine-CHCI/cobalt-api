@@ -57,6 +57,10 @@ public class Content {
 	private Instant lastUpdated;
 	@Nullable
 	private String lastUpdatedDescription;
+	@Nullable
+	private Boolean neverEmbed;
+	@Nullable
+	private String contentTypeLabel;
 	@Nonnull
 	private InstitutionId ownerInstitutionId;
 	@Nonnull
@@ -132,6 +136,15 @@ public class Content {
 
 	public void setUrl(@Nullable String url) {
 		this.url = url;
+	}
+
+	@Nullable
+	public Boolean getNeverEmbed() {
+		return this.neverEmbed;
+	}
+
+	public void setNeverEmbed(@Nullable Boolean neverEmbed) {
+		this.neverEmbed = neverEmbed;
 	}
 
 	@Nullable

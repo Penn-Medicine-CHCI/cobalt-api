@@ -129,6 +129,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/121-irg-images
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/122-institution-adjustments.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/123-institution-privacy-policy.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/124-group-session-location.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/125-admin-capabilities.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/126-study-support.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/127-check-in-status-group.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/128-topic-centers.sql
@@ -145,7 +146,8 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/138-analytics.
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/139-analytics.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/140-fcm.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/141-analytics.sql
-PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/142-content-admin.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/142-content-feedback.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/143-content-admin.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
