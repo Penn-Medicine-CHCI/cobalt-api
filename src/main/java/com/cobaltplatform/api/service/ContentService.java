@@ -22,12 +22,14 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
+import com.cobaltplatform.api.model.api.request.CreateContentFeedbackRequest;
 import com.cobaltplatform.api.model.api.request.CreateContentRequest;
 import com.cobaltplatform.api.model.api.request.FindResourceLibraryContentRequest;
 import com.cobaltplatform.api.model.api.request.PersonalizeAssessmentChoicesCommand;
 import com.cobaltplatform.api.model.api.request.PersonalizeAssessmentChoicesCommand.SubmissionAnswer;
 import com.cobaltplatform.api.model.api.request.UpdateContentApprovalStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdateContentArchivedStatus;
+import com.cobaltplatform.api.model.api.request.UpdateContentFeedbackRequest;
 import com.cobaltplatform.api.model.api.request.UpdateContentRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
@@ -39,6 +41,8 @@ import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
 import com.cobaltplatform.api.model.db.AvailableStatus;
 import com.cobaltplatform.api.model.db.AvailableStatus.AvailableStatusId;
 import com.cobaltplatform.api.model.db.Content;
+import com.cobaltplatform.api.model.db.ContentFeedback;
+import com.cobaltplatform.api.model.db.ContentFeedbackType.ContentFeedbackTypeId;
 import com.cobaltplatform.api.model.db.ContentType;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
 import com.cobaltplatform.api.model.db.ContentTypeLabel;
@@ -1216,6 +1220,80 @@ public class ContentService {
 
 		return contents;
 	}
+
+	@Nonnull
+	public Optional<ContentFeedback> findContentFeedbackById(@Nullable UUID contentFeedbackId) {
+		if (contentFeedbackId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM content_feedback
+				WHERE content_feedback_id=?
+				""", ContentFeedback.class, contentFeedbackId);
+	}
+
+	@Nonnull
+	public UUID createContentFeedback(@Nonnull CreateContentFeedbackRequest request) {
+		requireNonNull(request);
+
+		ContentFeedbackTypeId contentFeedbackTypeId = request.getContentFeedbackTypeId();
+		UUID contentId = request.getContentId();
+		UUID accountId = request.getAccountId();
+		String message = trimToNull(request.getMessage());
+		UUID contentFeedbackId = UUID.randomUUID();
+		ValidationException validationException = new ValidationException();
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (contentId == null)
+			validationException.add(new FieldError("contentId", getStrings().get("Content ID is required.")));
+
+		if (contentFeedbackTypeId == null)
+			validationException.add(new FieldError("contentFeedbackTypeId", getStrings().get("Content Feedback Type ID is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+				INSERT INTO content_feedback (
+				    content_feedback_id,
+				    content_feedback_type_id,
+				    content_id,
+				    account_id,
+				    message
+				) VALUES (?,?,?,?,?)
+				""", contentFeedbackId, contentFeedbackTypeId, contentId, accountId, message);
+
+		return contentFeedbackId;
+	}
+
+	@Nonnull
+	public Boolean updateContentFeedback(@Nonnull UpdateContentFeedbackRequest request) {
+		requireNonNull(request);
+
+		UUID contentFeedbackId = request.getContentFeedbackId();
+		ContentFeedbackTypeId contentFeedbackTypeId = request.getContentFeedbackTypeId();
+		String message = trimToNull(request.getMessage());
+		ValidationException validationException = new ValidationException();
+
+		if (contentFeedbackId == null)
+			validationException.add(new FieldError("contentFeedbackId", getStrings().get("Content Feedback ID is required.")));
+
+		if (contentFeedbackTypeId == null)
+			validationException.add(new FieldError("contentFeedbackTypeId", getStrings().get("Content Feedback Type ID is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		return getDatabase().execute("""
+				UPDATE content_feedback
+				SET content_feedback_type_id=?, message=?
+				WHERE content_feedback_id=?
+				""", contentFeedbackTypeId, message, contentFeedbackId) > 0;
+	}
+
 
 	/**
 	 * Note: modifies {@code contents} parameter in-place.

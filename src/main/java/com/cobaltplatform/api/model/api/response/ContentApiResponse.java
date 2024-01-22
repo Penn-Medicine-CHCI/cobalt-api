@@ -54,6 +54,8 @@ public class ContentApiResponse {
 	private final String title;
 	@Nullable
 	private final String url;
+	@Nonnull
+	private final Boolean neverEmbed;
 	@Nullable
 	private final Instant dateCreated;
 	@Nonnull
@@ -131,6 +133,7 @@ public class ContentApiResponse {
 		this.contentTypeId = content.getContentTypeId();
 		this.title = content.getTitle();
 		this.url = content.getUrl();
+		this.neverEmbed = content.getNeverEmbed();
 		this.dateCreated = content.getDateCreated();
 		this.dateCreatedDescription = content.getDateCreated() != null ? formatter.formatTimestamp(content.getDateCreated()) : null;
 		this.imageUrl = content.getImageUrl();
@@ -189,6 +192,11 @@ public class ContentApiResponse {
 	@Nullable
 	public String getUrl() {
 		return url;
+	}
+
+	@Nonnull
+	public Boolean getNeverEmbed() {
+		return this.neverEmbed;
 	}
 
 	@Nullable
