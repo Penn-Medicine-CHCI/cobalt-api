@@ -125,6 +125,10 @@ public class AccountApiResponse {
 	private final Instant created;
 	@Nonnull
 	private final String createdDescription;
+	@Nonnull
+	private final LocalDate createdDate;
+	@Nonnull
+	private final String createdDateDescription;
 	@Nullable
 	private final Instant lastUpdated;
 	@Nullable
@@ -208,9 +212,11 @@ public class AccountApiResponse {
 		requireNonNull(account);
 		requireNonNull(supplements);
 
+		CurrentContext currentContext = currentContextProvider.get();
+
 		boolean showPrivateDetails = supplements.contains(AccountApiResponseSupplement.EVERYTHING)
 				|| supplements.contains(AccountApiResponseSupplement.PRIVATE_DETAILS)
-				|| shouldShowPrivateDetails(account, currentContextProvider);
+				|| shouldShowPrivateDetails(account, currentContext);
 
 		this.accountId = account.getAccountId();
 		this.roleId = account.getRoleId();
@@ -234,6 +240,8 @@ public class AccountApiResponse {
 		this.testAccount = account.getTestAccount();
 		this.passwordResetRequired = account.getPasswordResetRequired();
 		this.passwordResetToken = account.getPasswordResetToken();
+		this.createdDate = LocalDate.ofInstant(account.getCreated(), currentContext.getTimeZone());
+		this.createdDateDescription = formatter.formatDate(this.createdDate, FormatStyle.MEDIUM);
 
 		if (showPrivateDetails) {
 			this.emailAddress = account.getEmailAddress();
@@ -305,11 +313,11 @@ public class AccountApiResponse {
 
 	@Nonnull
 	protected static Boolean shouldShowPrivateDetails(@Nonnull Account account,
-																										@Nonnull Provider<CurrentContext> currentContextProvider) {
+																										@Nonnull CurrentContext currentContext) {
 		requireNonNull(account);
-		requireNonNull(currentContextProvider);
+		requireNonNull(currentContext);
 
-		Account currentAccount = currentContextProvider.get().getAccount().orElse(null);
+		Account currentAccount = currentContext.getAccount().orElse(null);
 		return currentAccount != null && currentAccount.getAccountId().equals(account.getAccountId());
 	}
 
