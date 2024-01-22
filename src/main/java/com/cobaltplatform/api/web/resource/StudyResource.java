@@ -188,6 +188,23 @@ public class StudyResource {
 	}
 
 	@Nonnull
+	@GET("/studies/{studyIdentifier}")
+	public ApiResponse study(@Nonnull @PathParameter String studyIdentifier) {
+		requireNonNull(studyIdentifier);
+
+		Study study = getStudyService().findStudyByIdentifier(studyIdentifier, getCurrentContext().getInstitutionId()).orElse(null);
+
+		if (study == null)
+			throw new NotFoundException();
+
+		// Note: currently this endpoint is publicly accessible. This is by design.
+		// There is no "secret" information in the Study type, and it's necessary
+		// for clients to have access to coordinator contact information for help with sign-in etc.
+
+		return new ApiResponse(Map.of("study", getStudyApiResponseFactory().create(study)));
+	}
+
+	@Nonnull
 	@GET("/studies/{studyIdentifier}/beiwe-config")
 	@AuthenticationRequired
 	public ApiResponse beiweConfig(@Nonnull @PathParameter String studyIdentifier) {
@@ -204,18 +221,6 @@ public class StudyResource {
 		if (accountStudy == null)
 			throw new AuthorizationException();
 
-		// See format at https://github.com/onnela-lab/beiwe-backend/blob/main/api/mobile_api.py
-		//
-		//     return_obj = {
-		//        'client_public_key': get_client_public_key_string(patient_id, participant.study.object_id),
-		//        'device_settings': participant.study.device_settings.export(),
-		//        'ios_plist': firebase_plist_data,
-		//        'android_firebase_json': firebase_json_data,
-		//        'study_name': participant.study.name,
-		//        'study_id': participant.study.object_id,
-		//    }
-		//
-
 		EncryptionKeypair encryptionKeypair = getSystemService().findEncryptionKeypairById(accountStudy.getEncryptionKeypairId()).get();
 		String clientPublicKey = encryptionKeypair.getPublicKeyAsString();
 
@@ -224,27 +229,12 @@ public class StudyResource {
 		StudyBeiweConfig studyBeiweConfig = getStudyService().findStudyBeiweConfigByStudyId(study.getStudyId()).get();
 		Map<String, Object> deviceSettings = studyBeiweConfig.toDeviceSettingsRepresentation();
 
-		//     # set up FCM files
-		//    firebase_plist_data = None
-		//    firebase_json_data = None
-		//    if participant.os_type == 'IOS':
-		//        ios_credentials = FileAsText.objects.filter(tag=IOS_FIREBASE_CREDENTIALS).first()
-		//        if ios_credentials:
-		//            firebase_plist_data = plistlib.loads(ios_credentials.text.encode())
-		//    elif participant.os_type == 'ANDROID':
-		//        android_credentials = FileAsText.objects.filter(tag=ANDROID_FIREBASE_CREDENTIALS).first()
-		//        if android_credentials:
-		//            firebase_json_data = json.loads(android_credentials.text)
-
-		// TODO: implement
-		Map<String, Object> iosPlist = new HashMap<>();
-		Map<String, Object> androidFirebaseJson = new HashMap<>();
-
+		// See format at https://github.com/onnela-lab/beiwe-backend/blob/main/api/mobile_api.py
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("client_public_key", clientPublicKey);
 			put("device_settings", deviceSettings);
-			put("ios_plist", iosPlist);
-			put("android_firebase_json", androidFirebaseJson);
+			put("ios_plist", Map.of() /* not currently used */);
+			put("android_firebase_json", Map.of() /* not currently used */);
 			put("study_name", study.getName());
 			put("study_id", study.getStudyId());
 		}});
