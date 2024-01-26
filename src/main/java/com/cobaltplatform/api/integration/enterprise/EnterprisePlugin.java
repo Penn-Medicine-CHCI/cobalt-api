@@ -181,4 +181,9 @@ public interface EnterprisePlugin {
 		requireNonNull(screeningFlowId);
 		return false;
 	}
+
+	@Nonnull
+	default Optional<String> fileUploadStorageKeyPrefix() {
+		return Optional.empty();
+	}
 }
