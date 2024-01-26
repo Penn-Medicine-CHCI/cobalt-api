@@ -706,7 +706,7 @@ public class AdminContentService {
 		fileUploadRequest.setAccountId(request.getAccountId());
 		fileUploadRequest.setContentType(request.getContentType());
 		fileUploadRequest.setFilename(request.getFilename());
-		fileUploadRequest.setPublicRead(false);
+		fileUploadRequest.setPublicRead(true);
 		fileUploadRequest.setStorageKeyPrefix(storagePrefixKey);
 		fileUploadRequest.setFileUploadTypeId(request.getFileUploadTypeId());
 		fileUploadRequest.setMetadata(Map.of(
