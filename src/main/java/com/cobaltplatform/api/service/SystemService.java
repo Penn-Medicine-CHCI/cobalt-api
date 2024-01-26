@@ -458,9 +458,6 @@ public class SystemService {
 		if (contentType == null)
 			validationException.add(new FieldError("contentType", getStrings().get("Content type is required.")));
 
-		if (filesize == null)
-			validationException.add(new FieldError("filesize", getStrings().get("File size is required.")));
-
 		if (validationException.hasErrors())
 			throw validationException;
 
