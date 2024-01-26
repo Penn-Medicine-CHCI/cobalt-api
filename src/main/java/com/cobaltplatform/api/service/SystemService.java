@@ -22,12 +22,15 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.integration.acuity.AcuitySyncManager;
 import com.cobaltplatform.api.integration.common.ProviderAvailabilitySyncManager;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.epic.EpicFhirSyncManager;
 import com.cobaltplatform.api.integration.epic.EpicSyncManager;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreateMarketingSiteOutreachRequest;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.BetaFeature;
 import com.cobaltplatform.api.model.db.EncryptionKeypair;
 import com.cobaltplatform.api.model.db.FileUploadType.FileUploadTypeId;
@@ -88,6 +91,8 @@ public class SystemService {
 	@Nonnull
 	private final javax.inject.Provider<MessageService> messageServiceProvider;
 	@Nonnull
+	private final javax.inject.Provider<AccountService> accountServiceProvider;
+	@Nonnull
 	private final EpicSyncManager epicSyncManager;
 	@Nonnull
 	private final EpicFhirSyncManager epicFhirSyncManager;
@@ -95,6 +100,8 @@ public class SystemService {
 	private final AcuitySyncManager acuitySyncManager;
 	@Nonnull
 	private final UploadManager uploadManager;
+	@Nonnull
+	private final EnterprisePluginProvider enterprisePluginProvider;
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
@@ -106,28 +113,35 @@ public class SystemService {
 	public SystemService(@Nonnull DatabaseProvider databaseProvider,
 											 @Nonnull javax.inject.Provider<ProviderService> providerServiceProvider,
 											 @Nonnull javax.inject.Provider<MessageService> messageServiceProvider,
+											 @Nonnull javax.inject.Provider<AccountService> accountServiceProvider,
 											 @Nonnull EpicSyncManager epicSyncManager,
 											 @Nonnull EpicFhirSyncManager epicFhirSyncManager,
 											 @Nonnull AcuitySyncManager acuitySyncManager,
 											 @Nonnull UploadManager uploadManager,
+											 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
 											 @Nonnull Configuration configuration,
 											 @Nonnull Strings strings) {
 		requireNonNull(databaseProvider);
 		requireNonNull(providerServiceProvider);
+		requireNonNull(messageServiceProvider);
+		requireNonNull(accountServiceProvider);
 		requireNonNull(epicSyncManager);
 		requireNonNull(epicFhirSyncManager);
 		requireNonNull(acuitySyncManager);
 		requireNonNull(uploadManager);
+		requireNonNull(enterprisePluginProvider);
 		requireNonNull(configuration);
 		requireNonNull(strings);
 
 		this.databaseProvider = databaseProvider;
 		this.providerServiceProvider = providerServiceProvider;
 		this.messageServiceProvider = messageServiceProvider;
+		this.accountServiceProvider = accountServiceProvider;
 		this.epicSyncManager = epicSyncManager;
 		this.epicFhirSyncManager = epicFhirSyncManager;
 		this.acuitySyncManager = acuitySyncManager;
 		this.uploadManager = uploadManager;
+		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.configuration = configuration;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -398,17 +412,24 @@ public class SystemService {
 		Boolean publicRead = request.getPublicRead() == null ? false : request.getPublicRead();
 		Map<String, String> metadata = request.getMetadata() == null ? Map.of() : request.getMetadata();
 		UUID fileUploadId = UUID.randomUUID();
+		Account account = null;
 
 		ValidationException validationException = new ValidationException();
 
-		if (accountId == null)
-			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required")));
+		if (accountId == null) {
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+		} else {
+			account = getAccountService().findAccountById(accountId).orElse(null);
+
+			if (account == null)
+				validationException.add(new FieldError("accountId", getStrings().get("Account ID is invalid.")));
+		}
 
 		if (fileUploadTypeId == null)
-			validationException.add(new FieldError("fileUploadTypeId", getStrings().get("File Upload Type ID is required")));
+			validationException.add(new FieldError("fileUploadTypeId", getStrings().get("File Upload Type ID is required.")));
 
 		if (storageKeyPrefix == null) {
-			validationException.add(new FieldError("storageKeyPrefix", getStrings().get("Storage key prefix is required")));
+			validationException.add(new FieldError("storageKeyPrefix", getStrings().get("Storage key prefix is required.")));
 		} else if (storageKeyPrefix.startsWith("/") || storageKeyPrefix.endsWith("/")) {
 			validationException.add(new FieldError("storageKeyPrefix", getStrings().get("Storage key prefix cannot begin or end with a '/' character.")));
 		} else if (Pattern.compile("//+").matcher(storageKeyPrefix).find() /* don't care about precompiling pattern here b/c it's short and not a hot codepath */) {
@@ -431,15 +452,23 @@ public class SystemService {
 		}
 
 		if (filename == null)
-			validationException.add(new FieldError("filename", getStrings().get("Filename is required")));
+			validationException.add(new FieldError("filename", getStrings().get("Filename is required.")));
 
 		if (contentType == null)
-			validationException.add(new FieldError("contentType", getStrings().get("Content type is required")));
+			validationException.add(new FieldError("contentType", getStrings().get("Content type is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
 
 		String storageKey = format("file-uploads/%s/%s/%s", storageKeyPrefix, fileUploadId, filename);
+
+		// Some institutions might have a special prefix.  If so, include it.
+		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(account.getInstitutionId());
+		String fileUploadStorageKeyPrefix = enterprisePlugin.fileUploadStorageKeyPrefix().orElse(null);
+
+		if (fileUploadStorageKeyPrefix != null)
+			storageKey = format("%s/%s", fileUploadStorageKeyPrefix, storageKey);
+
 		contentType = contentType.toLowerCase(Locale.ENGLISH);
 
 		PresignedUpload presignedUpload = getUploadManager().createPresignedUpload(storageKey, contentType, publicRead, metadata);
@@ -538,6 +567,11 @@ public class SystemService {
 	}
 
 	@Nonnull
+	protected AccountService getAccountService() {
+		return this.accountServiceProvider.get();
+	}
+
+	@Nonnull
 	protected EpicSyncManager getEpicSyncManager() {
 		return this.epicSyncManager;
 	}
@@ -555,6 +589,11 @@ public class SystemService {
 	@Nonnull
 	protected UploadManager getUploadManager() {
 		return this.uploadManager;
+	}
+
+	@Nonnull
+	protected EnterprisePluginProvider getEnterprisePluginProvider() {
+		return this.enterprisePluginProvider;
 	}
 
 	@Nonnull
