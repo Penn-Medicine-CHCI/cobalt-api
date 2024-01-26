@@ -109,6 +109,9 @@ public class AdminContent{
 	private String fileContentType;
 
 	@Nullable
+	private Number filesize;
+
+	@Nullable
 	private LocalDate dateAddedToInstitution;
 
 	@Nonnull
@@ -386,5 +389,14 @@ public class AdminContent{
 
 	public void setDateAddedToInstitution(@Nullable LocalDate dateAddedToInstitution) {
 		this.dateAddedToInstitution = dateAddedToInstitution;
+	}
+
+	@Nullable
+	public Number getFilesize() {
+		return filesize;
+	}
+
+	public void setFilesize(@Nullable Number filesize) {
+		this.filesize = filesize;
 	}
 }

@@ -712,6 +712,7 @@ public class AdminContentService {
 		fileUploadRequest.setMetadata(Map.of(
 				"account-id", request.getAccountId().toString()
 		));
+		fileUploadRequest.setFilesize(request.getFilesize());
 
 		FileUploadResult fileUploadResult = getSystemService().createFileUpload(fileUploadRequest);
 
