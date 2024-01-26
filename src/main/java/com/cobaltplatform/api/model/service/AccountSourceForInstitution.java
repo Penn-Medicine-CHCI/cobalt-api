@@ -21,7 +21,6 @@ package com.cobaltplatform.api.model.service;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.AccountSourceDisplayStyle.AccountSourceDisplayStyleId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.UserExperienceType;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 
 import javax.annotation.Nullable;

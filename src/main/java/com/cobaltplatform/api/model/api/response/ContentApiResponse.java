@@ -57,10 +57,6 @@ public class ContentApiResponse {
 	@Nonnull
 	private final Boolean neverEmbed;
 	@Nullable
-	private final Instant dateCreated;
-	@Nonnull
-	private final String dateCreatedDescription;
-	@Nullable
 	private String imageUrl;
 	@Nullable
 	private final String description;
@@ -81,8 +77,6 @@ public class ContentApiResponse {
 	@Nullable
 	private Boolean newFlag;
 	@Nullable
-	private String contentTypeLabel;
-	@Nullable
 	@Deprecated // prefer "durationInMinutesDescription"
 	private String duration;
 	@Nullable
@@ -93,7 +87,6 @@ public class ContentApiResponse {
 	private final List<String> tagIds;
 	@Nullable
 	private final List<TagApiResponse> tags;
-
 	public enum ContentApiResponseSupplement {
 		TAGS
 	}
@@ -134,8 +127,6 @@ public class ContentApiResponse {
 		this.title = content.getTitle();
 		this.url = content.getUrl();
 		this.neverEmbed = content.getNeverEmbed();
-		this.dateCreated = content.getDateCreated();
-		this.dateCreatedDescription = content.getDateCreated() != null ? formatter.formatTimestamp(content.getDateCreated()) : null;
 		this.imageUrl = content.getImageUrl();
 		this.description = content.getDescription();
 		this.author = content.getAuthor();
@@ -146,7 +137,6 @@ public class ContentApiResponse {
 		this.contentTypeDescription = content.getContentTypeDescription();
 		this.callToAction = content.getCallToAction();
 		this.newFlag = content.getNewFlag();
-		this.contentTypeLabel = content.getContentTypeLabel();
 
 		// Deprecated field
 		this.duration = content.getDurationInMinutes() != null ?
@@ -200,16 +190,6 @@ public class ContentApiResponse {
 	}
 
 	@Nullable
-	public Instant getDateCreated() {
-		return dateCreated;
-	}
-
-	@Nonnull
-	public String getDateCreatedDescription() {
-		return dateCreatedDescription;
-	}
-
-	@Nullable
 	public String getImageUrl() {
 		return imageUrl;
 	}
@@ -237,11 +217,6 @@ public class ContentApiResponse {
 	@Nullable
 	public Instant getLastUpdated() {
 		return lastUpdated;
-	}
-
-	@Nullable
-	public String getContentTypeLabel() {
-		return contentTypeLabel;
 	}
 
 	@Nullable
@@ -292,4 +267,6 @@ public class ContentApiResponse {
 	public Optional<List<TagApiResponse>> getTags() {
 		return Optional.ofNullable(this.tags);
 	}
+
+
 }

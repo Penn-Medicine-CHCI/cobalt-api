@@ -19,8 +19,8 @@
 
 package com.cobaltplatform.api.model.api.response;
 
-import com.cobaltplatform.api.model.db.Filter;
-import com.cobaltplatform.api.model.db.Filter.FilterId;
+import com.cobaltplatform.api.model.db.ContentStatus;
+import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 
@@ -34,34 +34,34 @@ import static java.util.Objects.requireNonNull;
  * @author Transmogrify, LLC.
  */
 @Immutable
-public class FilterApiResponse {
+public class ContentStatusApiResponse {
 	@Nonnull
-	private final FilterId filterId;
+	private final ContentStatusId contentStatusId;
 	@Nonnull
-	private final String name;
+	private final String description;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
-	public interface FilterApiResponseFactory {
+	public interface ContentStatusApiResponseFactory {
 		@Nonnull
-		FilterApiResponse create(@Nonnull Filter filter);
+		ContentStatusApiResponse create(@Nonnull ContentStatus contentStatus);
 	}
 
 	@AssistedInject
-	public FilterApiResponse(@Assisted @Nonnull Filter filter) {
-		requireNonNull(filter);
+	public ContentStatusApiResponse(@Assisted @Nonnull ContentStatus contentStatus) {
+		requireNonNull(contentStatus);
 
-		this.filterId = filter.getFilterId();
-		this.name = filter.getName();
+		this.contentStatusId = contentStatus.getContentStatusId();
+		this.description = contentStatus.getDescription();
 	}
 
 	@Nonnull
-	public FilterId getFilterId() {
-		return filterId;
+	public ContentStatusId getContentStatusId() {
+		return contentStatusId;
 	}
 
 	@Nonnull
-	public String getName() {
-		return name;
+	public String getDescription() {
+		return description;
 	}
 }

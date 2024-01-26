@@ -35,7 +35,8 @@ public class FileUploadType {
 	public enum FileUploadTypeId {
 		UNSPECIFIED,
 		CONTENT,
-		IMAGE,
+		CONTENT_IMAGE,
+		GROUP_SESSION_IMAGE,
 		VIDEO,
 		AUDIO,
 		ACCELEROMETER,

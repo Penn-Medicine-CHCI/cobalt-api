@@ -17,40 +17,52 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.api.request;
+package com.cobaltplatform.api.model.db;
 
-import com.cobaltplatform.api.model.db.ApprovalStatus;
-
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.util.UUID;
+
+import static java.lang.String.format;
 
 /**
- * @author Transmogrify, LLC.
+ * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class UpdateContentApprovalStatusRequest {
+public class ContentStatus {
 	@Nullable
-	private UUID contentId;
-	@Nonnull
-	private ApprovalStatus.ApprovalStatusId approvalStatusId;
+	private ContentStatusId contentStatusId;
+	@Nullable
+	private String description;
+
+	public enum ContentStatusId {
+		DRAFT,
+		SCHEDULED,
+		LIVE,
+		EXPIRED,
+		//pseudo status for shared content
+		AVAILABLE
+	}
+
+	@Override
+	public String toString() {
+		return format("%s{contentStatusId=%s, description=%s}", getClass().getSimpleName(), getContentStatusId(), getDescription());
+	}
 
 	@Nullable
-	public UUID getContentId() {
-		return contentId;
+	public ContentStatusId getContentStatusId() {
+		return contentStatusId;
 	}
 
-	public void setContentId(@Nullable UUID contentId) {
-		this.contentId = contentId;
+	public void setContentStatusId(@Nullable ContentStatusId contentStatusId) {
+		this.contentStatusId = contentStatusId;
 	}
 
-	@Nonnull
-	public ApprovalStatus.ApprovalStatusId getApprovalStatusId() {
-		return approvalStatusId;
+	@Nullable
+	public String getDescription() {
+		return description;
 	}
 
-	public void setApprovalStatusId(@Nonnull ApprovalStatus.ApprovalStatusId approvalStatusId) {
-		this.approvalStatusId = approvalStatusId;
+	public void setDescription(@Nullable String description) {
+		this.description = description;
 	}
 }

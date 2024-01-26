@@ -21,7 +21,6 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.api.response.AppointmentTypeApiResponse.AppointmentTypeApiResponseFactory;
 import com.cobaltplatform.api.model.db.AppointmentType;
-import com.cobaltplatform.api.model.db.SchedulingSystem;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;

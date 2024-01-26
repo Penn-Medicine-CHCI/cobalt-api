@@ -19,17 +19,13 @@
 
 package com.cobaltplatform.api.model.api.request;
 
-import com.cobaltplatform.api.model.db.ContentType;
+import com.cobaltplatform.api.model.db.ContentStatus;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
-import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.Visibility;
-import com.cobaltplatform.api.model.db.Visibility.VisibilityId;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -49,27 +45,25 @@ public class UpdateContentRequest {
 	@Nullable
 	private String url;
 	@Nullable
-	private String imageUrl;
-	@Nullable
 	private String durationInMinutes;
 	@Nullable
 	private String description;
 	@Nullable
-	private String contentTypeLabelId;
+	private LocalDate publishStartDate;
 	@Nullable
-	private LocalDate dateCreated;
+	private LocalDate publishEndDate;
 	@Nullable
-	private VisibilityId visibilityId;
-	@Nullable
-	private List<InstitutionId> institutionIdList;
-	@Nullable
-	private PersonalizeAssessmentChoicesCommand contentTags;
-	@Nullable
-	private Boolean addToInstitution;
-	@Nullable
-	private Boolean removeFromInstitution;
+	private Boolean publishRecurring;
 	@Nullable
 	private Set<String> tagIds;
+	@Nullable
+	private String searchTerms;
+	@Nullable
+	private Boolean sharedFlag;
+	@Nullable
+	private UUID fileUploadId;
+	@Nullable
+	private UUID imageFileUploadId;
 
 	@Nullable
 	public UUID getContentId() {
@@ -117,15 +111,6 @@ public class UpdateContentRequest {
 	}
 
 	@Nullable
-	public String getImageUrl() {
-		return imageUrl;
-	}
-
-	public void setImageUrl(@Nullable String imageUrl) {
-		this.imageUrl = imageUrl;
-	}
-
-	@Nullable
 	public String getDurationInMinutes() {
 		return durationInMinutes;
 	}
@@ -144,74 +129,74 @@ public class UpdateContentRequest {
 	}
 
 	@Nullable
-	public String getContentTypeLabelId() {
-		return contentTypeLabelId;
+	public LocalDate getPublishStartDate() {
+		return publishStartDate;
 	}
 
-	public void setContentTypeLabelId(@Nullable String contentTypeLabelId) {
-		this.contentTypeLabelId = contentTypeLabelId;
-	}
-
-	@Nullable
-	public VisibilityId getVisibilityId() {
-		return visibilityId;
-	}
-
-	public void setVisibilityId(@Nullable VisibilityId visibilityId) {
-		this.visibilityId = visibilityId;
+	public void setPublishStartDate(@Nullable LocalDate publishStartDate) {
+		this.publishStartDate = publishStartDate;
 	}
 
 	@Nullable
-	public List<InstitutionId> getInstitutionIdList() {
-		return institutionIdList;
+	public LocalDate getPublishEndDate() {
+		return publishEndDate;
 	}
 
-	public void setInstitutionIdList(@Nullable List<InstitutionId> institutionIdList) {
-		this.institutionIdList = institutionIdList;
-	}
-
-	@Nullable
-	public LocalDate getDateCreated() {
-		return dateCreated;
-	}
-
-	public void setDateCreated(@Nullable LocalDate dateCreated) {
-		this.dateCreated = dateCreated;
+	public void setPublishEndDate(@Nullable LocalDate publishEndDate) {
+		this.publishEndDate = publishEndDate;
 	}
 
 	@Nullable
-	public PersonalizeAssessmentChoicesCommand getContentTags() {
-		return contentTags;
+	public Boolean getPublishRecurring() {
+		return publishRecurring;
 	}
 
-	public void setContentTags(@Nullable PersonalizeAssessmentChoicesCommand contentTags) {
-		this.contentTags = contentTags;
-	}
-
-	@Nullable
-	public Boolean getAddToInstitution() {
-		return addToInstitution;
-	}
-
-	public void setAddToInstitution(@Nullable Boolean addToInstitution) {
-		this.addToInstitution = addToInstitution;
-	}
-
-	@Nullable
-	public Boolean getRemoveFromInstitution() {
-		return removeFromInstitution;
-	}
-
-	public void setRemoveFromInstitution(@Nullable Boolean removeFromInstitution) {
-		this.removeFromInstitution = removeFromInstitution;
+	public void setPublishRecurring(@Nullable Boolean publishRecurring) {
+		this.publishRecurring = publishRecurring;
 	}
 
 	@Nullable
 	public Set<String> getTagIds() {
-		return this.tagIds;
+		return tagIds;
 	}
 
 	public void setTagIds(@Nullable Set<String> tagIds) {
 		this.tagIds = tagIds;
+	}
+
+	@Nullable
+	public String getSearchTerms() {
+		return searchTerms;
+	}
+
+	public void setSearchTerms(@Nullable String searchTerms) {
+		this.searchTerms = searchTerms;
+	}
+
+	@Nullable
+	public Boolean getSharedFlag() {
+		return sharedFlag;
+	}
+
+	public void setSharedFlag(@Nullable Boolean sharedFlag) {
+		this.sharedFlag = sharedFlag;
+	}
+
+	@Nullable
+	public UUID getFileUploadId() {
+		return fileUploadId;
+	}
+
+	public void setFileUploadId(@Nullable UUID fileUploadId) {
+		this.fileUploadId = fileUploadId;
+	}
+
+	@Nullable
+	public UUID getImageFileUploadId() {
+		return imageFileUploadId;
+	}
+
+	public void setImageFileUploadId(@Nullable UUID imageFileUploadId) {
+		this.imageFileUploadId = imageFileUploadId;
 	}
 }

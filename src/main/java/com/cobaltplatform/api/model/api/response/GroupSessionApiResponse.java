@@ -363,7 +363,7 @@ public class GroupSessionApiResponse {
 		}
 
 		this.timeZone = groupSession.getTimeZone();
-		this.imageUrl = groupSession.getImageUrl();
+		this.imageUrl = groupSession.getImageFileUploadUrl();
 		this.videoconferenceUrl = groupSession.getVideoconferenceUrl();
 		this.scheduleUrl = groupSession.getScheduleUrl();
 		this.confirmationEmailContent = groupSession.getConfirmationEmailContent();

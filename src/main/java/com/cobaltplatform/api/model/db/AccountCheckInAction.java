@@ -21,7 +21,6 @@ package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.CheckInActionStatus.CheckInActionStatusId;
 import com.cobaltplatform.api.model.db.CheckInType.CheckInTypeId;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;

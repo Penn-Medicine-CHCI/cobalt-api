@@ -21,45 +21,59 @@ package com.cobaltplatform.api.model.db;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-
-import static java.lang.String.format;
+import java.util.UUID;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 /**
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class Visibility {
+public class InstitutionContent {
 	@Nullable
-	private VisibilityId visibilityId;
-	@Nullable
-	private String description;
-
-	public enum VisibilityId {
-		PRIVATE,
-		NETWORK,
-		PUBLIC
-	}
-
-	@Override
-	public String toString() {
-		return format("%s{visibilityId=%s, description=%s}", getClass().getSimpleName(), getVisibilityId(), getDescription());
-	}
+	private InstitutionId institutionId;
 
 	@Nullable
-	public VisibilityId getVisibilityId() {
-		return visibilityId;
+	private UUID institutionContentId;
+
+	@Nullable
+	private UUID contentId;
+
+	@Nullable
+	private String institutionName;
+
+	@Nullable
+	public InstitutionId getInstitutionId() {
+		return institutionId;
 	}
 
-	public void setVisibilityId(@Nullable VisibilityId visibilityId) {
-		this.visibilityId = visibilityId;
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
 	}
 
 	@Nullable
-	public String getDescription() {
-		return description;
+	public UUID getInstitutionContentId() {
+		return institutionContentId;
 	}
 
-	public void setDescription(@Nullable String description) {
-		this.description = description;
+	public void setInstitutionContentId(@Nullable UUID institutionContentId) {
+		this.institutionContentId = institutionContentId;
+	}
+
+	@Nullable
+	public UUID getContentId() {
+		return contentId;
+	}
+
+	public void setContentId(@Nullable UUID contentId) {
+		this.contentId = contentId;
+	}
+
+	@Nullable
+	public String getInstitutionName() {
+		return institutionName;
+	}
+
+	public void setInstitutionName(@Nullable String institutionName) {
+		this.institutionName = institutionName;
 	}
 }

@@ -24,7 +24,6 @@ import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import com.cobaltplatform.api.model.api.request.PersonalizeAssessmentChoicesCommand.SubmissionAnswer;
 import com.cobaltplatform.api.model.db.AccountSession;
-import com.cobaltplatform.api.model.db.Answer;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.Question;
 import com.cobaltplatform.api.service.AssessmentService;

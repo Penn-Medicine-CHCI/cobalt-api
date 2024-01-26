@@ -31,7 +31,6 @@ import com.cobaltplatform.api.util.ValidationUtility;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.PathParameter;
-import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.Resource;
 import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
@@ -43,10 +42,7 @@ import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.net.URL;
 import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -87,45 +83,6 @@ public class ContentResource {
 		this.requestBodyParser = requestBodyParser;
 		this.currentContextProvider = currentContextProvider;
 		this.contentApiResponseFactory = contentApiResponseFactory;
-	}
-
-	@GET("/content")
-	@AuthenticationRequired
-	@Deprecated
-	public ApiResponse getContent(@Nonnull @QueryParameter Optional<String> format,
-																@Nonnull @QueryParameter Optional<Integer> maxLengthMinutes,
-																@Nonnull @QueryParameter Optional<String> searchQuery) {
-		requireNonNull(format);
-		requireNonNull(maxLengthMinutes);
-		requireNonNull(searchQuery);
-
-		Account account = getCurrentContext().getAccount().get();
-		List<Content> contents = getContentService().findContentForAccount(account, format.orElse(null),
-				maxLengthMinutes.orElse(null), searchQuery.orElse(null));
-
-		List<ContentApiResponse> filteredContent = contents.stream().map(
-				content -> getContentApiResponseFactory().create(content)).collect(Collectors.toList());
-
-		List<ContentApiResponse> additionalContent =
-				getContentService().findAdditionalContentForAccount(account, contents, format.orElse(null), maxLengthMinutes.orElse(null), searchQuery.orElse(null)).stream().map(
-						content -> getContentApiResponseFactory().create(content)).collect(Collectors.toList());
-
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("content", filteredContent);
-			put("additionalContent", additionalContent);
-
-			// TODO: remove this once FE no longer uses it
-			put("formats", getContentService().findContentTypeLabelsForAccount(account));
-		}});
-	}
-
-	@GET("/content-type-labels")
-	@AuthenticationRequired
-	public ApiResponse contentTypeLabels() {
-		Account account = getCurrentContext().getAccount().get();
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("contentTypeLabels", getContentService().findContentTypeLabelsForAccount(account));
-		}});
 	}
 
 	@GET("/content/{contentId}")

@@ -70,7 +70,6 @@ import com.cobaltplatform.api.model.api.response.AccountSessionApiResponse.Accou
 import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse.AccountSourceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ActivityTrackingApiResponse.ActivityTrackingApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AddressApiResponse.AddressApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.AdminAvailableContentApiResponse.AdminAvailableContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AdminContentApiResponse.AdminContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AdminInstitutionApiResponse.AdminInstitutionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AlertApiResponse.AlertApiResponseFactory;
@@ -86,6 +85,7 @@ import com.cobaltplatform.api.model.api.response.ClientDeviceApiResponse.ClientD
 import com.cobaltplatform.api.model.api.response.ClientDevicePushTokenApiResponse.ClientDevicePushTokenApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ClinicApiResponse.ClinicApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ContentStatusApiResponse.ContentStatusApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentFeedbackApiResponse.ContentFeedbackApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse.CountryApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FaqApiResponse.FaqApiResponseFactory;
@@ -237,7 +237,8 @@ public class AppModule extends AbstractModule {
 		requireNonNull(configuration);
 
 		this.configuration = configuration;
-		this.logger = LoggerFactory.getLogger(getClass());
+		this.logger = LoggerFactory.
+				getLogger(getClass());
 	}
 
 	@Override
@@ -261,7 +262,6 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(PresignedUploadApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(AssessmentFormApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(AdminContentApiResponseFactory.class)));
-		install((new FactoryModuleBuilder().build(AdminAvailableContentApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(AdminInstitutionApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(AppointmentTypeApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(LogicalAvailabilityApiResponseFactory.class)));
@@ -327,6 +327,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(AccountCheckInActionApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(StudyAccountApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(TopicCenterRowTagApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(ContentStatusApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(FileUploadResultApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(StudyApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ScreeningVersionApiResponseFactory.class)));

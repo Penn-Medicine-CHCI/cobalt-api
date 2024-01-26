@@ -40,7 +40,6 @@ import com.soklet.web.annotation.PathParameter;
 import com.soklet.web.annotation.Resource;
 import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.exception.NotFoundException;
-import com.soklet.web.response.ApiResponse;
 import com.soklet.web.response.BinaryResponse;
 
 import javax.annotation.Nonnull;
@@ -52,7 +51,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 

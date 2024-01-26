@@ -21,33 +21,31 @@ package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateContentRequest;
-import com.cobaltplatform.api.model.api.request.CreatePresignedUploadRequest;
-import com.cobaltplatform.api.model.api.request.UpdateContentApprovalStatusRequest;
-import com.cobaltplatform.api.model.api.request.UpdateContentArchivedStatus;
+import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.UpdateContentRequest;
-import com.cobaltplatform.api.model.api.response.AdminAvailableContentApiResponse.AdminAvailableContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AdminContentApiResponse.AdminContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AdminInstitutionApiResponse.AdminInstitutionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ContentStatusApiResponse.ContentStatusApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse.FileUploadResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TagApiResponse;
 import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TagGroupApiResponse;
 import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
-import com.cobaltplatform.api.model.db.ApprovalStatus;
-import com.cobaltplatform.api.model.db.AvailableStatus;
+import com.cobaltplatform.api.model.db.ContentStatus;
 import com.cobaltplatform.api.model.db.ContentType;
+import com.cobaltplatform.api.model.db.FileUploadType;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Role.RoleId;
-import com.cobaltplatform.api.model.db.Visibility;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.AdminContent;
+import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.FindResult;
-import com.cobaltplatform.api.model.service.PresignedUpload;
+import com.cobaltplatform.api.service.AdminContentService;
 import com.cobaltplatform.api.service.AssessmentService;
 import com.cobaltplatform.api.service.ContentService;
-import com.cobaltplatform.api.service.ImageUploadService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.TagService;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
@@ -76,7 +74,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.model.api.response.AdminContentApiResponse.AdminContentDisplayType;
-import static com.cobaltplatform.api.model.api.response.AssessmentFormApiResponse.AssessmentFormApiResponseFactory;
 import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNull;
 
@@ -92,6 +89,8 @@ public class AdminResource {
 	@Nonnull
 	private final ContentService contentService;
 	@Nonnull
+	private final AdminContentService adminContentService;
+	@Nonnull
 	private final TagService tagService;
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
@@ -102,15 +101,9 @@ public class AdminResource {
 	@Nonnull
 	private final AdminContentApiResponseFactory adminContentApiResponseFactory;
 	@Nonnull
-	private final AdminAvailableContentApiResponseFactory adminAvailableContentApiResponseFactory;
-	@Nonnull
-	private final Provider<ImageUploadService> imageUploadServiceProvider;
-	@Nonnull
 	private final Provider<PresignedUploadApiResponseFactory> presignedUploadApiResponseFactoryProvider;
 	@Nonnull
 	private final Provider<AssessmentService> assessmentServiceProvider;
-	@Nonnull
-	private final Provider<AssessmentFormApiResponseFactory> assessmentFormApiResponseFactoryProvider;
 	@Nonnull
 	private final InstitutionService institutionService;
 	@Nonnull
@@ -119,25 +112,30 @@ public class AdminResource {
 	private final TagApiResponseFactory tagApiResponseFactory;
 	@Nonnull
 	private final TagGroupApiResponseFactory tagGroupApiResponseFactory;
+	@Nonnull
+	private final ContentStatusApiResponseFactory contentStatusApiResponseFactory;
+	@Nonnull
+	private final FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory;
 
 
 	@Inject
 	public AdminResource(@Nonnull ContentService contentService,
+											 @Nonnull AdminContentService adminContentService,
 											 @Nonnull TagService tagService,
 											 @Nonnull RequestBodyParser requestBodyParser,
 											 @Nonnull Provider<CurrentContext> currentContextProvider,
 											 @Nonnull ContentApiResponseFactory contentApiResponseFactory,
 											 @Nonnull AdminContentApiResponseFactory adminContentApiResponseFactory,
-											 @Nonnull AdminAvailableContentApiResponseFactory adminAvailableContentApiResponseFactory,
 											 @Nonnull InstitutionService institutionService,
 											 @Nonnull AdminInstitutionApiResponseFactory adminInstitutionApiResponseFactory,
-											 @Nonnull Provider<ImageUploadService> imageUploadServiceProvider,
 											 @Nonnull Provider<PresignedUploadApiResponseFactory> presignedUploadApiResponseFactoryProvider,
 											 @Nonnull Provider<AssessmentService> assessmentServiceProvider,
-											 @Nonnull Provider<AssessmentFormApiResponseFactory> assessmentFormApiResponseFactoryProvider,
 											 @Nonnull TagApiResponseFactory tagApiResponseFactory,
-											 @Nonnull TagGroupApiResponseFactory tagGroupApiResponseFactory) {
+											 @Nonnull TagGroupApiResponseFactory tagGroupApiResponseFactory,
+											 @Nonnull ContentStatusApiResponseFactory contentStatusApiResponseFactory,
+											 @Nonnull FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory) {
 		this.contentService = contentService;
+		this.adminContentService = adminContentService;
 		this.tagService = tagService;
 		this.requestBodyParser = requestBodyParser;
 		this.currentContextProvider = currentContextProvider;
@@ -145,13 +143,12 @@ public class AdminResource {
 		this.adminContentApiResponseFactory = adminContentApiResponseFactory;
 		this.institutionService = institutionService;
 		this.adminInstitutionApiResponseFactory = adminInstitutionApiResponseFactory;
-		this.adminAvailableContentApiResponseFactory = adminAvailableContentApiResponseFactory;
-		this.imageUploadServiceProvider = imageUploadServiceProvider;
 		this.presignedUploadApiResponseFactoryProvider = presignedUploadApiResponseFactoryProvider;
 		this.assessmentServiceProvider = assessmentServiceProvider;
-		this.assessmentFormApiResponseFactoryProvider = assessmentFormApiResponseFactoryProvider;
 		this.tagApiResponseFactory = tagApiResponseFactory;
 		this.tagGroupApiResponseFactory = tagGroupApiResponseFactory;
+		this.contentStatusApiResponseFactory = contentStatusApiResponseFactory;
+		this.fileUploadResultApiResponseFactory = fileUploadResultApiResponseFactory;
 	}
 
 	@GET("/admin/my-content/filter")
@@ -161,54 +158,27 @@ public class AdminResource {
 			put("contentTypes", getContentService().findContentTypes());
 			put("institutions", getInstitutionService().findNonCobaltInstitutions().stream().
 					map(it -> getAdminInstitutionApiResponseFactory().create(it)).collect(Collectors.toList()));
-			put("myApprovalStatuses", getContentService().findApprovalStatuses());
-			put("otherApprovalStatuses", getContentService().findApprovalStatuses());
 		}});
 	}
 
-	@GET("/admin/my-content")
+	@GET("/admin/content")
 	@AuthenticationRequired
-	public ApiResponse getMyContent(@QueryParameter Optional<Integer> page,
-																	@QueryParameter Optional<ContentType.ContentTypeId> contentTypeId,
-																	@QueryParameter Optional<Institution.InstitutionId> institutionId,
-																	@QueryParameter Optional<Visibility.VisibilityId> visibilityId,
-																	@QueryParameter Optional<ApprovalStatus.ApprovalStatusId> myApprovalStatusId,
-																	@QueryParameter Optional<ApprovalStatus.ApprovalStatusId> otherApprovalStatusId,
-																	@QueryParameter Optional<String> search) {
+	public ApiResponse getContent(@QueryParameter Optional<Integer> page,
+																@QueryParameter Optional<ContentType.ContentTypeId> contentTypeId,
+																@QueryParameter Optional<Institution.InstitutionId> institutionId,
+																@QueryParameter Optional<String> search,
+																@QueryParameter Optional<ContentStatus.ContentStatusId> contentStatusId,
+																@QueryParameter Optional<AdminContentService.ContentSortOrder> orderBy,
+																@QueryParameter Optional<Boolean> sharingOn,
+																@QueryParameter Optional<String> tagId) {
 		Account account = getCurrentContext().getAccount().get();
 
 		//TODO: create a filter object to pass all the query params
-		FindResult<AdminContent> content = getContentService()
-				.findAllContentForAccount(true, account, page, contentTypeId, institutionId, visibilityId, myApprovalStatusId, otherApprovalStatusId, Optional.empty(), search);
-
+		FindResult<AdminContent> content = getAdminContentService()
+				.findAllContentForAdmin(account, page, contentTypeId, institutionId, search, contentStatusId, orderBy, sharingOn, tagId);
+		List<UUID> institutionContentIds = getAdminContentService().findContentIdsForInstitution(account.getInstitutionId());
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("adminContent", content.getResults().stream().map(content -> getAdminContentApiResponseFactory().create(account, content, AdminContentDisplayType.MY_CONTENT)).collect(Collectors.toList()));
-			put("totalCount", content.getTotalCount());
-		}});
-	}
-
-	@GET("/admin/available-content/filter")
-	@AuthenticationRequired
-	public ApiResponse getAvailableContentFilter() {
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("contentTypes", getContentService().findContentTypes());
-			put("availableStatuses", getContentService().findAvailableStatuses());
-		}});
-	}
-
-	@GET("/admin/available-content")
-	@AuthenticationRequired
-	public ApiResponse getAvailableContent(@QueryParameter Optional<Integer> page,
-																				 @QueryParameter Optional<ContentType.ContentTypeId> contentTypeId,
-																				 @QueryParameter Optional<AvailableStatus.AvailableStatusId> availableStatusId,
-																				 @QueryParameter Optional<String> search) {
-		Account account = getCurrentContext().getAccount().get();
-
-		FindResult<AdminContent> content = getContentService()
-				.findAllContentForAccount(false, account, page, contentTypeId, Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), availableStatusId, search);
-
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("adminContent", content.getResults().stream().map(content -> getAdminContentApiResponseFactory().create(account, content, AdminContentDisplayType.AVAILABLE_CONTENT)).collect(Collectors.toList()));
+			put("adminContent", content.getResults().stream().map(content -> getAdminContentApiResponseFactory().create(account, content, AdminContentDisplayType.LIST, institutionContentIds)).collect(Collectors.toList()));
 			put("totalCount", content.getTotalCount());
 		}});
 	}
@@ -232,28 +202,18 @@ public class AdminResource {
 			put("tags", tags);
 		}});
 	}
-
-	@GET("/admin/content-institutions")
+	@GET("/admin/content-statuses")
 	@AuthenticationRequired
-	public ApiResponse getInNetworkInstitutions() {
+	public ApiResponse getContentStatuses() {
 		Account account = getCurrentContext().getAccount().get();
 		if (account.getRoleId() == RoleId.ADMINISTRATOR) {
 			return new ApiResponse(Map.of(
-					"institutions", getInstitutionService().findNetworkInstitutions(account.getInstitutionId()).stream().
-							map(it -> getAdminInstitutionApiResponseFactory().create(it)).collect(Collectors.toList())
+					"contentStatuses", getAdminContentService().findContentStatuses().stream().
+							map(it -> getContentStatusApiResponseFactory().create(it)).collect(Collectors.toList())
 			));
 		} else {
-			return new ApiResponse(Map.of("institutions", emptyList()));
+			return new ApiResponse(Map.of("contentStatuses", emptyList()));
 		}
-	}
-
-	@GET("/admin/content-type-labels")
-	@AuthenticationRequired
-	public ApiResponse getContentTypeLabels() {
-		Account account = getCurrentContext().getAccount().get();
-		return new ApiResponse(Map.of(
-				"contentTypeLabels", getContentService().findContentTypeLabels()
-		));
 	}
 
 	@POST("/admin/content/")
@@ -263,10 +223,10 @@ public class AdminResource {
 
 		Account account = getCurrentContext().getAccount().get();
 		CreateContentRequest request = getRequestBodyParser().parse(requestBody, CreateContentRequest.class);
-		AdminContent adminContent = getContentService().createContent(account, request);
-
+		AdminContent adminContent = getAdminContentService().createContent(account, request);
+		List<UUID> institutionContentIds = getAdminContentService().findContentIdsForInstitution(account.getInstitutionId());
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("adminContent", getAdminContentApiResponseFactory().create(account, adminContent, AdminContentDisplayType.DETAIL));
+			put("adminContent", getAdminContentApiResponseFactory().create(account, adminContent, AdminContentDisplayType.DETAIL, institutionContentIds));
 		}});
 	}
 
@@ -280,15 +240,14 @@ public class AdminResource {
 		Account account = getCurrentContext().getAccount().get();
 		UpdateContentRequest request = getRequestBodyParser().parse(requestBody, UpdateContentRequest.class);
 		request.setContentId(contentId);
-		AdminContent adminContent = getContentService().updateContent(account, request);
-		AdminContentDisplayType adminContentDisplayType = (request.getRemoveFromInstitution() == null || !request.getRemoveFromInstitution()) ?
-				AdminContentDisplayType.DETAIL : AdminContentDisplayType.AVAILABLE_CONTENT;
+		AdminContent adminContent = getAdminContentService().updateContent(account, request);
 
+		AdminContentDisplayType adminContentDisplayType = AdminContentDisplayType.DETAIL;
+		List<UUID> institutionContentIds = getAdminContentService().findContentIdsForInstitution(account.getInstitutionId());
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("adminContent", getAdminContentApiResponseFactory().create(account, adminContent, adminContentDisplayType));
+			put("adminContent", getAdminContentApiResponseFactory().create(account, adminContent, adminContentDisplayType, institutionContentIds));
 		}});
 	}
-
 
 	@GET("/admin/content/{contentId}")
 	@AuthenticationRequired
@@ -296,47 +255,14 @@ public class AdminResource {
 		requireNonNull(contentId);
 
 		Account account = getCurrentContext().getAccount().get();
-		Optional<AdminContent> content = getContentService().findAdminContentByIdForInstitution(account.getInstitutionId(), contentId);
+		Optional<AdminContent> content = getAdminContentService().findAdminContentByIdForInstitution(account.getInstitutionId(), contentId);
 
 		if (!content.isPresent())
 			throw new NotFoundException();
 
+		List<UUID> institutionContentIds = getAdminContentService().findContentIdsForInstitution(account.getInstitutionId());
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("networkInstitutions", getInstitutionService().findNetworkInstitutions(account.getInstitutionId()).stream().
-					map(it -> getAdminInstitutionApiResponseFactory().create(it)).collect(Collectors.toList()));
-			put("content", getAdminContentApiResponseFactory().create(account, content.get(), AdminContentDisplayType.DETAIL));
-		}});
-
-	}
-
-	@PUT("/admin/content/{contentId}/approval-status")
-	@AuthenticationRequired
-	public ApiResponse updateApprovalStatus(@Nonnull @RequestBody String requestBody,
-																					@Nonnull @PathParameter UUID contentId) {
-		requireNonNull(requestBody);
-		requireNonNull(contentId);
-		Account account = getCurrentContext().getAccount().get();
-		UpdateContentApprovalStatusRequest request = getRequestBodyParser().parse(requestBody, UpdateContentApprovalStatusRequest.class);
-		Optional<AdminContent> content = getContentService().findAdminContentByIdForInstitution(account.getInstitutionId(), contentId);
-
-		if (!content.isPresent())
-			throw new NotFoundException();
-		else if (!getContentService().hasAdminAccessToContent(account, content.get()))
-			throw new AuthorizationException();
-
-		request.setContentId(contentId);
-		getContentService().updateContentVisibilityApprovalStatusForAccount(account, request);
-		AdminContent adminContent = contentService.findAdminContentByIdForInstitution(account.getInstitutionId(), contentId).get();
-
-		AdminContentDisplayType displayType;
-		if (adminContent.getOwnerInstitutionId() == account.getInstitutionId()) {
-			displayType = AdminContentDisplayType.MY_CONTENT;
-		} else {
-			displayType = AdminContentDisplayType.AVAILABLE_CONTENT;
-		}
-
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("content", getAdminContentApiResponseFactory().create(account, adminContent, displayType));
+			put("content", getAdminContentApiResponseFactory().create(account, content.get(), AdminContentDisplayType.DETAIL, institutionContentIds));
 		}});
 
 	}
@@ -346,41 +272,16 @@ public class AdminResource {
 	public ApiResponse deleteContent(@Nonnull @PathParameter UUID contentId) {
 		requireNonNull(contentId);
 		Account account = getCurrentContext().getAccount().get();
-		Optional<AdminContent> content = getContentService().findAdminContentByIdForInstitution(account.getInstitutionId(), contentId);
+		Optional<AdminContent> content = getAdminContentService().findAdminContentByIdForInstitution(account.getInstitutionId(), contentId);
 
 		if (!content.isPresent())
 			throw new NotFoundException();
-		else if (!getContentService().hasAdminAccessToContent(account, content.get()))
+		else if (!getAdminContentService().hasAdminAccessToContent(account, content.get()))
 			throw new AuthorizationException();
 
-		getContentService().deleteContentById(contentId);
-
+		getAdminContentService().deleteContentById(contentId);
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("contentId", contentId);
-		}});
-
-	}
-
-	@PUT("/admin/content/{contentId}/archive")
-	@AuthenticationRequired
-	public ApiResponse archiveContent(@Nonnull @RequestBody String requestBody,
-																		@Nonnull @PathParameter UUID contentId) {
-		requireNonNull(requestBody);
-		requireNonNull(contentId);
-		Account account = getCurrentContext().getAccount().get();
-		UpdateContentArchivedStatus request = getRequestBodyParser().parse(requestBody, UpdateContentArchivedStatus.class);
-		Optional<AdminContent> content = getContentService().findAdminContentByIdForInstitution(account.getInstitutionId(), contentId);
-
-		if (!content.isPresent())
-			throw new NotFoundException();
-		else if (!getContentService().hasAdminAccessToContent(account, content.get()))
-			throw new AuthorizationException();
-
-		request.setContentId(contentId);
-		getContentService().updateArchiveFlagContentById(request);
-
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("content", getAdminContentApiResponseFactory().create(account, contentService.findAdminContentByIdForInstitution(account.getInstitutionId(), contentId).get(), AdminContentDisplayType.MY_CONTENT));
+			put("content", content.get());
 		}});
 
 	}
@@ -393,19 +294,104 @@ public class AdminResource {
 
 		Account account = getCurrentContext().getAccount().get();
 
-		CreatePresignedUploadRequest request = getRequestBodyParser().parse(requestBody, CreatePresignedUploadRequest.class);
+		CreateFileUploadRequest request = getRequestBodyParser().parse(requestBody, CreateFileUploadRequest.class);
 		request.setAccountId(account.getAccountId());
+		request.setFileUploadTypeId(FileUploadType.FileUploadTypeId.CONTENT);
 
-		PresignedUpload presignedUpload = getImageUploadService().generatePresignedUploadForContent(request);
+		FileUploadResult fileUploadResult = getAdminContentService().createContentFileUpload(request, "content/images");
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("presignedUpload", getPresignedUploadApiResponseFactory().create(presignedUpload));
+			put("fileUploadResult", getFileUploadResultApiResponseFactory().create(fileUploadResult));
+		}});
+	}
+
+	@Nonnull
+	@POST("/admin/content/file-presigned-upload")
+	@AuthenticationRequired
+	public ApiResponse createFileImagePresignedUpload(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		CreateFileUploadRequest request = getRequestBodyParser().parse(requestBody, CreateFileUploadRequest.class);
+		request.setAccountId(account.getAccountId());
+		request.setFileUploadTypeId(FileUploadType.FileUploadTypeId.CONTENT_IMAGE);
+
+		FileUploadResult fileUploadResult = getAdminContentService().createContentFileUpload(request, "content/files");
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("fileUploadResult", getFileUploadResultApiResponseFactory().create(fileUploadResult));
+		}});
+	}
+	@Nonnull
+	@POST("/admin/content/{contentId}/add")
+	@AuthenticationRequired
+	public ApiResponse addContent(@Nonnull @PathParameter UUID contentId){
+		Account account = getCurrentContext().getAccount().get();
+
+		getAdminContentService().addContentToInstitution(contentId, account);
+		Optional<AdminContent> content = getAdminContentService()
+				.findAdminContentByIdForInstitution(account.getInstitutionId(), contentId);
+		List<UUID> institutionContentIds = getAdminContentService().findContentIdsForInstitution(account.getInstitutionId());
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("content", getAdminContentApiResponseFactory().create(account, content.get(), AdminContentDisplayType.DETAIL,institutionContentIds));
+		}});
+	}
+
+	@Nonnull
+	@DELETE("/admin/content/{contentId}/remove")
+	@AuthenticationRequired
+	public ApiResponse removeContent(@Nonnull @PathParameter UUID contentId){
+		Account account = getCurrentContext().getAccount().get();
+
+		getAdminContentService().removeContentFromInstitution(contentId, account);
+
+		Optional<AdminContent> content = getAdminContentService()
+				.findAdminContentByIdForInstitution(account.getInstitutionId(), contentId);
+		List<UUID> institutionContentIds = getAdminContentService().findContentIdsForInstitution(account.getInstitutionId());
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("content", getAdminContentApiResponseFactory().create(account, content.get(), AdminContentDisplayType.DETAIL,institutionContentIds));
+		}});
+	}
+
+	@Nonnull
+	@PUT("/admin/content/{contentId}/force-expire")
+	@AuthenticationRequired
+	public ApiResponse forceExpireContent(@Nonnull @PathParameter UUID contentId){
+		Account account = getCurrentContext().getAccount().get();
+
+		getAdminContentService().forceExpireContent(contentId, account);
+
+		Optional<AdminContent> content = getAdminContentService()
+				.findAdminContentByIdForInstitution(account.getInstitutionId(), contentId);
+		List<UUID> institutionContentIds = getAdminContentService().findContentIdsForInstitution(account.getInstitutionId());
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("content", getAdminContentApiResponseFactory().create(account, content.get(), AdminContentDisplayType.DETAIL,institutionContentIds));
+		}});
+	}
+
+	@Nonnull
+	@PUT("/admin/content/{contentId}/publish")
+	@AuthenticationRequired
+	public ApiResponse publishContent(@Nonnull @PathParameter UUID contentId){
+		Account account = getCurrentContext().getAccount().get();
+
+		getAdminContentService().publishContent(contentId, account);
+		Optional<AdminContent> content = getAdminContentService()
+				.findAdminContentByIdForInstitution(account.getInstitutionId(), contentId);
+		List<UUID> institutionContentIds = getAdminContentService().findContentIdsForInstitution(account.getInstitutionId());
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("content", getAdminContentApiResponseFactory().create(account, content.get(), AdminContentDisplayType.DETAIL,institutionContentIds));
 		}});
 	}
 
 	@Nonnull
 	protected ContentService getContentService() {
 		return contentService;
+	}
+
+	@Nonnull
+	protected AdminContentService getAdminContentService() {
+		return adminContentService;
 	}
 
 	@Nonnull
@@ -429,11 +415,6 @@ public class AdminResource {
 	}
 
 	@Nonnull
-	protected AdminAvailableContentApiResponseFactory getAdminAvailableContentApiResponseFactory() {
-		return adminAvailableContentApiResponseFactory;
-	}
-
-	@Nonnull
 	protected InstitutionService getInstitutionService() {
 		return institutionService;
 	}
@@ -444,11 +425,6 @@ public class AdminResource {
 	}
 
 	@Nonnull
-	protected ImageUploadService getImageUploadService() {
-		return imageUploadServiceProvider.get();
-	}
-
-	@Nonnull
 	protected PresignedUploadApiResponseFactory getPresignedUploadApiResponseFactory() {
 		return presignedUploadApiResponseFactoryProvider.get();
 	}
@@ -456,11 +432,6 @@ public class AdminResource {
 	@Nonnull
 	protected AssessmentService getAssessmentService() {
 		return assessmentServiceProvider.get();
-	}
-
-	@Nonnull
-	protected AssessmentFormApiResponseFactory getAssessmentFormApiResponseFactory() {
-		return assessmentFormApiResponseFactoryProvider.get();
 	}
 
 	@Nonnull
@@ -476,5 +447,15 @@ public class AdminResource {
 	@Nonnull
 	protected TagGroupApiResponseFactory getTagGroupApiResponseFactory() {
 		return this.tagGroupApiResponseFactory;
+	}
+
+	@Nonnull
+	protected ContentStatusApiResponseFactory getContentStatusApiResponseFactory() {
+		return contentStatusApiResponseFactory;
+	}
+
+	@Nonnull
+	protected FileUploadResultApiResponseFactory getFileUploadResultApiResponseFactory() {
+		return fileUploadResultApiResponseFactory;
 	}
 }
