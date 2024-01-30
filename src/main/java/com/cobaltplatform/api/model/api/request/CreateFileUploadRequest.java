@@ -45,6 +45,8 @@ public class CreateFileUploadRequest {
 	private Boolean publicRead;
 	@Nullable
 	private Map<String, String> metadata;
+	@Nullable
+	private Number filesize;
 
 	@Nullable
 	public UUID getAccountId() {
@@ -107,5 +109,14 @@ public class CreateFileUploadRequest {
 
 	public void setMetadata(@Nullable Map<String, String> metadata) {
 		this.metadata = metadata;
+	}
+
+	@Nullable
+	public Number getFilesize() {
+		return filesize;
+	}
+
+	public void setFilesize(@Nullable Number filesize) {
+		this.filesize = filesize;
 	}
 }
