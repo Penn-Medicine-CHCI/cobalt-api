@@ -3753,7 +3753,6 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientOrderImportTypeId == null) {
 			validationException.add(new FieldError("patientOrderImportTypeId", getStrings().get("Patient Order Import Type ID is required.")));
 		} else if (patientOrderImportTypeId == PatientOrderImportTypeId.CSV) {
-
 			if (csvContent == null) {
 				validationException.add(new FieldError("csvContent", getStrings().get("CSV file is required.")));
 			} else {
@@ -3766,7 +3765,8 @@ public class PatientOrderService implements AutoCloseable {
 						FROM patient_order_import
 						WHERE raw_order_checksum=?
 						AND institution_id=?
-						""", PatientOrderImport.class, rawOrderChecksum, institutionId).orElse(null);
+						AND patient_order_import_type=?
+						""", PatientOrderImport.class, rawOrderChecksum, institutionId, PatientOrderImportTypeId.CSV).orElse(null);
 
 				if (existingPatientOrderImportMatchingChecksum != null)
 					validationException.add(new FieldError("csvContent", getStrings().get("This file has already been imported.")));
@@ -3774,8 +3774,10 @@ public class PatientOrderService implements AutoCloseable {
 
 			if (accountId == null)
 				validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+		} else if (patientOrderImportTypeId == PatientOrderImportTypeId.HL7_MESSAGE) {
+			// TODO: implement
+			throw new UnsupportedOperationException();
 		} else {
-			// TODO: revisit when we support EPIC imports directly
 			throw new IllegalArgumentException(format("We do not yet support %s.%s", PatientOrderImportTypeId.class.getSimpleName(),
 					patientOrderImportTypeId.name()));
 		}

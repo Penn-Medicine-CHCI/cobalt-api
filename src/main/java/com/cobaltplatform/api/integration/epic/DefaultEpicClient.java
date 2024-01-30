@@ -38,6 +38,7 @@ import com.cobaltplatform.api.integration.epic.response.AppointmentBookFhirStu3R
 import com.cobaltplatform.api.integration.epic.response.AppointmentFindFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.AppointmentSearchFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.CancelAppointmentResponse;
+import com.cobaltplatform.api.integration.epic.response.EncounterSearchFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.GetPatientAppointmentsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetPatientDemographicsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse;
@@ -131,8 +132,35 @@ public class DefaultEpicClient implements EpicClient {
 		if (patientId == null)
 			return Optional.empty();
 
-		HttpMethod httpMethod = HttpMethod.GET;
 		String url = format("api/FHIR/R4/Patient/%s", patientId);
+		return patientReadFhirR4Internal(url, null);
+	}
+
+	@Nonnull
+	@Override
+	public Optional<PatientReadFhirR4Response> patientReadFhirR4(@Nullable String patientIdSystem,
+																															 @Nullable String patientIdValue) {
+		patientIdSystem = trimToNull(patientIdSystem);
+		patientIdValue = trimToNull(patientIdValue);
+
+		if (patientIdSystem == null || patientIdValue == null)
+			return Optional.empty();
+
+		String url = "api/FHIR/R4/Patient";
+		Map<String, Object> queryParameters = Map.of("identifier", format("%s|%s", patientIdSystem, patientIdValue));
+
+		return patientReadFhirR4Internal(url, queryParameters);
+	}
+
+	@Nonnull
+	public Optional<PatientReadFhirR4Response> patientReadFhirR4Internal(@Nullable String url,
+																																			 @Nullable Map<String, Object> queryParameters) {
+		url = trimToNull(url);
+
+		if (url == null)
+			return Optional.empty();
+
+		HttpMethod httpMethod = HttpMethod.GET;
 
 		// TODO: handle "not found" case
 		//
@@ -171,6 +199,7 @@ public class DefaultEpicClient implements EpicClient {
 		};
 
 		ApiCall<Optional<PatientReadFhirR4Response>> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+				.queryParameters(queryParameters)
 				.build();
 
 		return makeApiCall(apiCall);
@@ -721,6 +750,31 @@ public class DefaultEpicClient implements EpicClient {
 		};
 
 		ApiCall<AppointmentSearchFhirStu3Response> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+				.queryParameters(queryParameters)
+				.build();
+
+		return makeApiCall(apiCall);
+	}
+
+	@Nonnull
+	@Override
+	public EncounterSearchFhirR4Response encounterSearchFhirR4(@Nullable String patientId) {
+		patientId = trimToNull(patientId);
+
+		HttpMethod httpMethod = HttpMethod.GET;
+		String url = "api/FHIR/R4/Encounter";
+
+		Map<String, Object> queryParameters = new HashMap<>();
+		queryParameters.put("patient", patientId);
+
+		Function<String, EncounterSearchFhirR4Response> responseBodyMapper = (responseBody) -> {
+			EncounterSearchFhirR4Response response = getGson().fromJson(responseBody, EncounterSearchFhirR4Response.class);
+			response.setRawJson(responseBody.trim());
+
+			return response;
+		};
+
+		ApiCall<EncounterSearchFhirR4Response> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
 				.queryParameters(queryParameters)
 				.build();
 

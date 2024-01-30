@@ -220,6 +220,12 @@ public class PatientOrder {
 	@Nullable
 	private DistanceUnitId inPersonCareRadiusDistanceUnitId;
 	@Nullable
+	private UUID epicDepartmentId;
+	@Nullable
+	private String encounterId;
+	@Nullable
+	private Instant encounterSyncedAt;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -371,6 +377,8 @@ public class PatientOrder {
 	private PatientOrderIntakeInsuranceStatusId patientOrderIntakeInsuranceStatusId;
 	@Nullable
 	private Boolean mostRecentIntakeAndClinicalScreeningsSatisfied;
+	@Nullable
+	private String epicDepartmentName;
 
 	@Nullable
 	public UUID getPatientOrderId() {

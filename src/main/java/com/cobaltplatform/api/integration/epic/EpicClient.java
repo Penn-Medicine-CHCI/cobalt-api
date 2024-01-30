@@ -33,6 +33,7 @@ import com.cobaltplatform.api.integration.epic.response.AppointmentBookFhirStu3R
 import com.cobaltplatform.api.integration.epic.response.AppointmentFindFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.AppointmentSearchFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.CancelAppointmentResponse;
+import com.cobaltplatform.api.integration.epic.response.EncounterSearchFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.GetPatientAppointmentsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetPatientDemographicsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse;
@@ -78,6 +79,17 @@ public interface EpicClient {
 	 */
 	@Nonnull
 	Optional<PatientReadFhirR4Response> patientReadFhirR4(@Nullable String patientId);
+
+	/**
+	 * Same as {@link #patientReadFhirR4(String)}, except driven by patient identifier system and value instead of FHIR ID.
+	 *
+	 * @param patientIdSystem The patient ID system, e.g. "UID"
+	 * @param patientIdValue  The patient ID value, e.g. "8641707922"
+	 * @return the patient, or an empty value if none was found for the given identifier system and value
+	 */
+	@Nonnull
+	Optional<PatientReadFhirR4Response> patientReadFhirR4(@Nullable String patientIdSystem,
+																												@Nullable String patientIdValue);
 
 	/**
 	 * <a href="https://fhir.epic.com/Specifications?api=840">FHIR Appointment $find (STU3)</a>
@@ -141,6 +153,22 @@ public interface EpicClient {
 	 */
 	@Nonnull
 	AppointmentSearchFhirStu3Response appointmentSearchFhirStu3(@Nonnull AppointmentSearchFhirStu3Request request);
+
+	/**
+	 * <a href="https://fhir.epic.com/Specifications?api=909">FHIR Encounter.Search (R4)</a>
+	 * <p>
+	 * The Encounter resource defines the setting where patient care takes place.
+	 * This includes ambulatory, inpatient, emergency, home health, and virtual encounters.
+	 * <p>
+	 * This API may behave differently when used in a patient-facing context. See the
+	 * <a href="https://fhir.epic.com/Documentation?docId=patientfacingfhirapps">Patient-Facing Apps Using FHIR document</a>
+	 * for more information.
+	 *
+	 * @param patientId The patient FHIR ID
+	 * @return the encounter search results for the given patient FHIR ID
+	 */
+	@Nonnull
+	EncounterSearchFhirR4Response encounterSearchFhirR4(@Nullable String patientId);
 
 	@Nonnull
 	PatientSearchResponse performPatientSearch(@Nonnull PatientSearchRequest request);

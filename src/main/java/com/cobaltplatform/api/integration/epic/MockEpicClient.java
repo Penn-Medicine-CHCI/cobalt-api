@@ -33,6 +33,7 @@ import com.cobaltplatform.api.integration.epic.response.AppointmentBookFhirStu3R
 import com.cobaltplatform.api.integration.epic.response.AppointmentFindFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.AppointmentSearchFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.CancelAppointmentResponse;
+import com.cobaltplatform.api.integration.epic.response.EncounterSearchFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.GetPatientAppointmentsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetPatientDemographicsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse;
@@ -43,6 +44,7 @@ import com.cobaltplatform.api.integration.epic.response.ScheduleAppointmentWithI
 import com.google.gson.Gson;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -73,7 +75,14 @@ public class MockEpicClient implements EpicClient {
 
 	@Nonnull
 	@Override
-	public Optional<PatientReadFhirR4Response> patientReadFhirR4(@Nonnull String patientId) {
+	public Optional<PatientReadFhirR4Response> patientReadFhirR4(@Nullable String patientId) {
+		return Optional.empty();
+	}
+
+	@Nonnull
+	@Override
+	public Optional<PatientReadFhirR4Response> patientReadFhirR4(@Nullable String patientIdSystem,
+																															 @Nullable String patientIdValue) {
 		return Optional.empty();
 	}
 
@@ -96,6 +105,12 @@ public class MockEpicClient implements EpicClient {
 	public AppointmentSearchFhirStu3Response appointmentSearchFhirStu3(@Nonnull AppointmentSearchFhirStu3Request request) {
 		requireNonNull(request);
 		return acquireMockResponseInstance(AppointmentSearchFhirStu3Response.class);
+	}
+
+	@Nonnull
+	@Override
+	public EncounterSearchFhirR4Response encounterSearchFhirR4(@Nullable String patientId) {
+		return acquireMockResponseInstance(EncounterSearchFhirR4Response.class);
 	}
 
 	@Nonnull

@@ -28,34 +28,36 @@ import static java.lang.String.format;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class PatientOrderImportType {
+public class DepartmentAvailabilityStatus {
 	@Nullable
-	private PatientOrderImportTypeId patientOrderImportTypeId;
+	private DepartmentAvailabilityStatusId departmentAvailabilityStatusId;
 	@Nullable
 	private String description;
 
-	public enum PatientOrderImportTypeId {
-		CSV,
-		HL7_MESSAGE
+	public enum DepartmentAvailabilityStatusId {
+		AVAILABLE,
+		UNAVAILABLE,
+		BUSY
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{patientOrderImportTypeId=%s, description=%s}", getClass().getSimpleName(), getPatientOrderImportTypeId(), getDescription());
+		return format("%s{departmentAvailabilityStatusId=%s, description=%s}", getClass().getSimpleName(),
+				getDepartmentAvailabilityStatusId(), getDescription());
 	}
 
 	@Nullable
-	public PatientOrderImportTypeId getPatientOrderImportTypeId() {
-		return this.patientOrderImportTypeId;
+	public DepartmentAvailabilityStatusId getDepartmentAvailabilityStatusId() {
+		return this.departmentAvailabilityStatusId;
 	}
 
-	public void setPatientOrderImportTypeId(@Nullable PatientOrderImportTypeId patientOrderImportTypeId) {
-		this.patientOrderImportTypeId = patientOrderImportTypeId;
+	public void setDepartmentAvailabilityStatusId(@Nullable DepartmentAvailabilityStatusId departmentAvailabilityStatusId) {
+		this.departmentAvailabilityStatusId = departmentAvailabilityStatusId;
 	}
 
 	@Nullable
 	public String getDescription() {
-		return this.description;
+		return description;
 	}
 
 	public void setDescription(@Nullable String description) {

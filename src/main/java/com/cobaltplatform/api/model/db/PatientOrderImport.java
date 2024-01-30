@@ -45,6 +45,8 @@ public class PatientOrderImport {
 	@Nullable
 	private String rawOrderChecksum;
 	@Nullable
+	private String rawOrderFilename;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -101,6 +103,15 @@ public class PatientOrderImport {
 
 	public void setRawOrderChecksum(@Nullable String rawOrderChecksum) {
 		this.rawOrderChecksum = rawOrderChecksum;
+	}
+
+	@Nullable
+	public String getRawOrderFilename() {
+		return this.rawOrderFilename;
+	}
+
+	public void setRawOrderFilename(@Nullable String rawOrderFilename) {
+		this.rawOrderFilename = rawOrderFilename;
 	}
 
 	@Nullable

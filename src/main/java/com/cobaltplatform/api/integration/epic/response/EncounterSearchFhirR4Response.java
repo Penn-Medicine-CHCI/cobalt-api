@@ -17,48 +17,27 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db;
+package com.cobaltplatform.api.integration.epic.response;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
-import static java.lang.String.format;
-
 /**
- * @author Transmogrify LLC.
+ * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class PatientOrderImportType {
+public class EncounterSearchFhirR4Response {
 	@Nullable
-	private PatientOrderImportTypeId patientOrderImportTypeId;
+	private String rawJson;
+
+	// TODO: implementation
+	
 	@Nullable
-	private String description;
-
-	public enum PatientOrderImportTypeId {
-		CSV,
-		HL7_MESSAGE
+	public String getRawJson() {
+		return this.rawJson;
 	}
 
-	@Override
-	public String toString() {
-		return format("%s{patientOrderImportTypeId=%s, description=%s}", getClass().getSimpleName(), getPatientOrderImportTypeId(), getDescription());
-	}
-
-	@Nullable
-	public PatientOrderImportTypeId getPatientOrderImportTypeId() {
-		return this.patientOrderImportTypeId;
-	}
-
-	public void setPatientOrderImportTypeId(@Nullable PatientOrderImportTypeId patientOrderImportTypeId) {
-		this.patientOrderImportTypeId = patientOrderImportTypeId;
-	}
-
-	@Nullable
-	public String getDescription() {
-		return this.description;
-	}
-
-	public void setDescription(@Nullable String description) {
-		this.description = description;
+	public void setRawJson(@Nullable String rawJson) {
+		this.rawJson = rawJson;
 	}
 }

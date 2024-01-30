@@ -268,6 +268,8 @@ public class Institution {
 	private LocalDate mixpanelSyncStartsAt;
 	@Nullable
 	private String googleFcmServiceAccountPrivateKey;
+	@Nullable
+	private String integratedCareOrderImportBucketName;
 
 	public enum InstitutionId {
 		COBALT,
@@ -1253,5 +1255,14 @@ public class Institution {
 
 	public void setGoogleFcmServiceAccountPrivateKey(@Nullable String googleFcmServiceAccountPrivateKey) {
 		this.googleFcmServiceAccountPrivateKey = googleFcmServiceAccountPrivateKey;
+	}
+
+	@Nullable
+	public String getIntegratedCareOrderImportBucketName() {
+		return this.integratedCareOrderImportBucketName;
+	}
+
+	public void setIntegratedCareOrderImportBucketName(@Nullable String integratedCareOrderImportBucketName) {
+		this.integratedCareOrderImportBucketName = integratedCareOrderImportBucketName;
 	}
 }
