@@ -413,6 +413,7 @@ public class SystemService {
 		Map<String, String> metadata = request.getMetadata() == null ? Map.of() : request.getMetadata();
 		UUID fileUploadId = UUID.randomUUID();
 		Account account = null;
+		Number filesize = request.getFilesize();
 
 		ValidationException validationException = new ValidationException();
 
@@ -481,9 +482,10 @@ public class SystemService {
 				  url,
 				  storage_key,
 				  filename,
-				  content_type
-				) VALUES (?,?,?,?,?,?,?)
-				""", fileUploadId, fileUploadTypeId, accountId, presignedUpload.getAccessUrl(), storageKey, filename, contentType);
+				  content_type,
+				  filesize
+				) VALUES (?,?,?,?,?,?,?,?)
+				""", fileUploadId, fileUploadTypeId, accountId, presignedUpload.getAccessUrl(), storageKey, filename, contentType, filesize);
 
 		return new FileUploadResult(fileUploadId, presignedUpload);
 	}
