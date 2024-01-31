@@ -16,6 +16,30 @@
       }
     ]
   },
+  "{{duration}} hours" : {
+    "translation" : "{{duration}} {{hoursPlaceholder}}",
+    "placeholders" : {
+      "hoursPlaceholder" : {
+        "value" : "duration",
+        "translations" : {
+          "CARDINALITY_ONE" : "hour",
+          "CARDINALITY_OTHER" : "hours"
+        }
+      }
+    }
+  },
+  "{{duration}} seconds" : {
+    "translation" : "{{duration}} {{secondsPlaceholder}}",
+    "placeholders" : {
+      "secondsPlaceholder" : {
+        "value" : "duration",
+        "translations" : {
+          "CARDINALITY_ONE" : "second",
+          "CARDINALITY_OTHER" : "seconds"
+        }
+      }
+    }
+  },
   "{{seatsDescription}} seats total" : {
     "translation" : "{{seatsDescription}} {{seatsPlaceholder}} total",
     "placeholders" : {
