@@ -3,7 +3,7 @@
     "translation" : "{{duration}} {{minutesPlaceholder}}",
     "placeholders" : {
       "minutesPlaceholder" : {
-        "value" : "duration",
+        "value" : "durationAsNumber",
         "translations" : {
           "CARDINALITY_ONE" : "minute",
           "CARDINALITY_OTHER" : "minutes"
@@ -20,7 +20,7 @@
     "translation" : "{{duration}} {{hoursPlaceholder}}",
     "placeholders" : {
       "hoursPlaceholder" : {
-        "value" : "duration",
+        "value" : "durationAsNumber",
         "translations" : {
           "CARDINALITY_ONE" : "hour",
           "CARDINALITY_OTHER" : "hours"
@@ -32,7 +32,7 @@
     "translation" : "{{duration}} {{secondsPlaceholder}}",
     "placeholders" : {
       "secondsPlaceholder" : {
-        "value" : "duration",
+        "value" : "durationAsNumber",
         "translations" : {
           "CARDINALITY_ONE" : "second",
           "CARDINALITY_OTHER" : "seconds"
