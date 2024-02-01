@@ -111,12 +111,12 @@ public class AmazonSnsCallbackResource {
 		requireNonNull(snsSubscriptionArn);
 		requireNonNull(requestBody);
 
-		getLogger().info("Received Amazon SNS callback. Request body is '{}'", requestBody);
+		getLogger().debug("Received Amazon SNS callback. Request body is '{}'", requestBody);
 
 		Map<String, String> requestHeaders = new HashMap<>();
 
 		for (String headerName : Collections.list(httpServletRequest.getHeaderNames())) {
-			getLogger().info("Request Header: {}={}", headerName, httpServletRequest.getHeader(headerName));
+			getLogger().debug("Request Header: {}={}", headerName, httpServletRequest.getHeader(headerName));
 			requestHeaders.put(headerName, httpServletRequest.getHeader(headerName));
 		}
 
@@ -126,6 +126,8 @@ public class AmazonSnsCallbackResource {
 			getErrorReporter().report(format("Unable to validate Amazon SNS webhook with request body: %s", requestBody));
 			throw new AuthorizationException();
 		}
+
+		getLogger().info("This Amazon SNS callback is for message ID {}", amazonSnsRequestBody.getMessageId());
 
 		if (amazonSnsRequestBody.getType() == AmazonSnsMessageType.SUBSCRIPTION_CONFIRMATION) {
 			getLogger().info("This is an Amazon SNS subscription confirmation request - attempting to confirm...");
