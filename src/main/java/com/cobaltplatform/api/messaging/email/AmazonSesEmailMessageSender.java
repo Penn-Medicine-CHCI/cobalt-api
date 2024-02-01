@@ -135,7 +135,7 @@ public class AmazonSesEmailMessageSender implements MessageSender<EmailMessage> 
 			logMessages.add(format("BCC: %s", emailMessage.getBccAddresses().stream().collect(Collectors.joining(", "))));
 
 		logMessages.add(format("Subject: %s", subject));
-		logMessages.add(format("Body:\n%s", body));
+		logMessages.add(format("Message Context:\n%s", messageContext));
 
 		getLogger().info(logMessages.stream().collect(Collectors.joining("\n")));
 
