@@ -125,7 +125,7 @@ public class ContentApiResponse {
 		this.contentId = content.getContentId();
 		this.contentTypeId = content.getContentTypeId();
 		this.title = content.getTitle();
-		this.url = content.getUrl();
+		this.url = content.getFileUploadId() != null ? content.getFileUrl() : content.getUrl();
 		this.neverEmbed = content.getNeverEmbed();
 		this.imageUrl = content.getImageUrl();
 		this.description = content.getDescription();
