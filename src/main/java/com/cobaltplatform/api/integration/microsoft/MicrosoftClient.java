@@ -19,8 +19,10 @@
 
 package com.cobaltplatform.api.integration.microsoft;
 
+import com.cobaltplatform.api.integration.microsoft.model.OnlineMeeting;
 import com.cobaltplatform.api.integration.microsoft.model.Subscription;
 import com.cobaltplatform.api.integration.microsoft.model.User;
+import com.cobaltplatform.api.integration.microsoft.request.OnlineMeetingCreateRequest;
 import com.cobaltplatform.api.integration.microsoft.request.SubscriptionCreateRequest;
 
 import javax.annotation.Nonnull;
@@ -58,4 +60,7 @@ public interface MicrosoftClient {
 	// {
 	//  "expirationDateTime": "2022-10-22T11:00:00.0000000Z"
 	// }
+
+	@Nonnull
+	OnlineMeeting createOnlineMeeting(@Nonnull OnlineMeetingCreateRequest request) throws MicrosoftException;
 }

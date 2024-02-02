@@ -24,8 +24,10 @@ import com.cobaltplatform.api.http.HttpClient;
 import com.cobaltplatform.api.http.HttpMethod;
 import com.cobaltplatform.api.http.HttpRequest;
 import com.cobaltplatform.api.http.HttpResponse;
+import com.cobaltplatform.api.integration.microsoft.model.OnlineMeeting;
 import com.cobaltplatform.api.integration.microsoft.model.Subscription;
 import com.cobaltplatform.api.integration.microsoft.model.User;
+import com.cobaltplatform.api.integration.microsoft.request.OnlineMeetingCreateRequest;
 import com.cobaltplatform.api.integration.microsoft.request.SubscriptionCreateRequest;
 import com.google.gson.Gson;
 
@@ -140,6 +142,34 @@ public class DefaultMicrosoftClient implements MicrosoftClient {
 				.build();
 
 		makeApiCall(apiCall);
+	}
+
+	@Nonnull
+	@Override
+	public OnlineMeeting createOnlineMeeting(@Nonnull OnlineMeetingCreateRequest request) throws MicrosoftException {
+		requireNonNull(request);
+
+		String userId = trimToNull(request.getUserId());
+
+		HttpMethod httpMethod = HttpMethod.POST;
+		String url = userId == null ? "me/onlineMeetings" : format("users/%s/onlineMeetings", userId);
+
+		Map<String, Object> requestBodyJson = new HashMap<>();
+		requestBodyJson.put("subject", request.getSubject());
+		requestBodyJson.put("startDateTime", DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(request.getStartDateTime()));
+		requestBodyJson.put("endDateTime", DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(request.getEndDateTime()));
+
+		String requestBody = getGson().toJson(requestBodyJson);
+
+		Function<String, OnlineMeeting> responseBodyMapper = (responseBody) -> {
+			return getGson().fromJson(responseBody, OnlineMeeting.class);
+		};
+
+		ApiCall<OnlineMeeting> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+				.requestBody(requestBody)
+				.build();
+
+		return makeApiCall(apiCall);
 	}
 
 	@Nonnull
