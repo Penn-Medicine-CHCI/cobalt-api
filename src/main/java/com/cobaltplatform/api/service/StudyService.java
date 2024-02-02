@@ -200,9 +200,8 @@ public class StudyService {
 	}
 
 	@Nonnull
-	public Optional<Study> findStudyByIdentifier(@Nullable Object studyIdentifier,
-																							 @Nullable InstitutionId institutionId) {
-		if (studyIdentifier == null || institutionId == null)
+	public Optional<Study> findStudyByIdentifier(@Nullable Object studyIdentifier) {
+		if (studyIdentifier == null)
 			return Optional.empty();
 
 		if (studyIdentifier instanceof UUID)
@@ -214,7 +213,7 @@ public class StudyService {
 			if (isValidUUID(studyIdentifierAsString))
 				return findStudyById(UUID.fromString(studyIdentifierAsString));
 
-			return findStudyByInstitutionIdAndUrlName(institutionId, studyIdentifierAsString);
+			return findStudyByInstitutionIdAndUrlName(studyIdentifierAsString);
 		}
 
 		return Optional.empty();
@@ -233,9 +232,8 @@ public class StudyService {
 	}
 
 	@Nonnull
-	public Optional<Study> findStudyByInstitutionIdAndUrlName(@Nullable InstitutionId institutionId,
-																														@Nullable String urlName) {
-		if (institutionId == null || urlName == null)
+	public Optional<Study> findStudyByInstitutionIdAndUrlName(@Nullable String urlName) {
+		if (urlName == null)
 			return Optional.empty();
 
 		urlName = urlName.trim();
@@ -243,9 +241,8 @@ public class StudyService {
 		return getDatabase().queryForObject("""
 				SELECT *
 				FROM study
-				WHERE institution_id=?
-				AND url_name=?
-				""", Study.class, institutionId, urlName);
+				WHERE url_name=?
+				""", Study.class, urlName);
 	}
 
 	@Nonnull
