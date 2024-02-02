@@ -605,6 +605,7 @@ public class ContentService implements AutoCloseable {
 				WHERE ic.institution_id = i.institution_id	
 				AND ic.content_id = va.content_id
 				AND va.content_status_id = ?
+				AND i.sharing_content = true
 				ORDER BY ic.content_id, i.name			
 				""", InstitutionContent.class, ContentStatusId.LIVE);
 	}
