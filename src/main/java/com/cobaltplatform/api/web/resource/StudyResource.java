@@ -192,7 +192,7 @@ public class StudyResource {
 	public ApiResponse study(@Nonnull @PathParameter String studyIdentifier) {
 		requireNonNull(studyIdentifier);
 
-		Study study = getStudyService().findStudyByIdentifier(studyIdentifier, getCurrentContext().getInstitutionId()).orElse(null);
+		Study study = getStudyService().findStudyByIdentifier(studyIdentifier).orElse(null);
 
 		if (study == null)
 			throw new NotFoundException();
@@ -211,7 +211,7 @@ public class StudyResource {
 		requireNonNull(studyIdentifier);
 
 		Account account = getCurrentContext().getAccount().get();
-		Study study = getStudyService().findStudyByIdentifier(studyIdentifier, getCurrentContext().getInstitutionId()).orElse(null);
+		Study study = getStudyService().findStudyByIdentifier(studyIdentifier).orElse(null);
 
 		if (study == null)
 			throw new NotFoundException();
@@ -245,7 +245,7 @@ public class StudyResource {
 	public ApiResponse studyOnboarding(@Nonnull @PathParameter String studyIdentifier) {
 		requireNonNull(studyIdentifier);
 
-		Study study = getStudyService().findStudyByIdentifier(studyIdentifier, getCurrentContext().getInstitutionId()).orElse(null);
+		Study study = getStudyService().findStudyByIdentifier(studyIdentifier).orElse(null);
 
 		if (study == null)
 			throw new NotFoundException();
@@ -267,7 +267,7 @@ public class StudyResource {
 		requireNonNull(requestBody);
 
 		Account account = getCurrentContext().getAccount().get();
-		Study study = getStudyService().findStudyByIdentifier(studyIdentifier, getCurrentContext().getInstitutionId()).orElse(null);
+		Study study = getStudyService().findStudyByIdentifier(studyIdentifier).orElse(null);
 
 		if (study == null)
 			throw new NotFoundException();

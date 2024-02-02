@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Study;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
@@ -64,6 +65,9 @@ public class StudyApiResponse {
 	@Nullable
 	private final String coordinatorAvailability;
 
+	@Nullable
+	private final Institution.InstitutionId institutionId;
+
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface StudyApiResponseFactory {
@@ -90,6 +94,7 @@ public class StudyApiResponse {
 		this.coordinatorPhoneNumber = study.getCoordinatorPhoneNumber();
 		this.coordinatorPhoneNumberDescription = getCoordinatorPhoneNumber() == null ? null : formatter.formatPhoneNumber(getCoordinatorPhoneNumber());
 		this.coordinatorAvailability = study.getCoordinatorAvailability();
+		this.institutionId = study.getInstitutionId();
 	}
 
 	@Nullable
@@ -155,5 +160,10 @@ public class StudyApiResponse {
 	@Nullable
 	public String getCoordinatorAvailability() {
 		return this.coordinatorAvailability;
+	}
+
+	@Nullable
+	public Institution.InstitutionId getInstitutionId() {
+		return institutionId;
 	}
 }
