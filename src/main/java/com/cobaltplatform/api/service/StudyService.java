@@ -524,8 +524,10 @@ public class StudyService {
 				validationException.add(new FieldError("accountCheckIn", getStrings().get("Account check-in not found.")));
 			else if (accountCheckIn.get().getCheckInStatusId().equals(CheckInStatusId.COMPLETE))
 				validationException.add(new FieldError("accountCheckIn", getStrings().get("Account check-in is complete.")));
-			else if (accountCheckIn.get().getCheckInStartDateTime().isAfter(currentLocalDateTime) || accountCheckIn.get().getCheckInEndDateTime().isBefore(currentLocalDateTime))
+			else if (accountCheckInAction.get().getCheckInActionStatusId().compareTo(CheckInActionStatusId.IN_PROGRESS) != 0) {
+					if (accountCheckIn.get().getCheckInStartDateTime().isAfter(currentLocalDateTime) || accountCheckIn.get().getCheckInEndDateTime().isBefore(currentLocalDateTime))
 				validationException.add(new FieldError("accountCheckIn", getStrings().get("Account check-in is not permitted at this time.")));
+			}
 		}
 
 		if (checkInActionStatusId == null)
