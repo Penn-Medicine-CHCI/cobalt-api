@@ -73,9 +73,9 @@ public class AccountCheckInActionApiResponse {
 	private final String videoIntro;
 
 	@Nullable
-	private Integer minVideoTimeMinutes;
+	private Integer minVideoTimeSeconds;
 	@Nullable
-	private Integer maxVideoTimeMinutes;
+	private Integer maxVideoTimeSeconds;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -103,8 +103,8 @@ public class AccountCheckInActionApiResponse {
 		videoPrompt = accountCheckInAction.getVideoPrompt();
 		videoScript = accountCheckInAction.getVideoScript();
 		videoIntro = accountCheckInAction.getVideoIntro();
-		minVideoTimeMinutes = accountCheckInAction.getMinVideoTimeMinutes();
-		maxVideoTimeMinutes = accountCheckInAction.getMaxVideoTimeMinutes();
+		minVideoTimeSeconds = accountCheckInAction.getMinVideoTimeSeconds();
+		maxVideoTimeSeconds = accountCheckInAction.getMaxVideoTimeSeconds();
 	}
 
 	@Nullable
@@ -158,12 +158,12 @@ public class AccountCheckInActionApiResponse {
 	}
 
 	@Nullable
-	public Integer getMinVideoTimeMinutes() {
-		return minVideoTimeMinutes;
+	public Integer getMinVideoTimeSeconds() {
+		return minVideoTimeSeconds;
 	}
 
 	@Nullable
-	public Integer getMaxVideoTimeMinutes() {
-		return maxVideoTimeMinutes;
+	public Integer getMaxVideoTimeSeconds() {
+		return maxVideoTimeSeconds;
 	}
 }

@@ -65,9 +65,9 @@ public class AccountCheckInAction {
 	@Nullable
 	private String videoIntro;
 	@Nullable
-	private Integer minVideoTimeMinutes;
+	private Integer minVideoTimeSeconds;
 	@Nullable
-	private Integer maxVideoTimeMinutes;
+	private Integer maxVideoTimeSeconds;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -200,20 +200,20 @@ public class AccountCheckInAction {
 	}
 
 	@Nullable
-	public Integer getMinVideoTimeMinutes() {
-		return minVideoTimeMinutes;
+	public Integer getMinVideoTimeSeconds() {
+		return minVideoTimeSeconds;
 	}
 
-	public void setMinVideoTimeMinutes(@Nullable Integer minVideoTimeMinutes) {
-		this.minVideoTimeMinutes = minVideoTimeMinutes;
+	public void setMinVideoTimeSeconds(@Nullable Integer minVideoTimeSeconds) {
+		this.minVideoTimeSeconds = minVideoTimeSeconds;
 	}
 
 	@Nullable
-	public Integer getMaxVideoTimeMinutes() {
-		return maxVideoTimeMinutes;
+	public Integer getMaxVideoTimeSeconds() {
+		return maxVideoTimeSeconds;
 	}
 
-	public void setMaxVideoTimeMinutes(@Nullable Integer maxVideoTimeMinutes) {
-		this.maxVideoTimeMinutes = maxVideoTimeMinutes;
+	public void setMaxVideoTimeSeconds(@Nullable Integer maxVideoTimeSeconds) {
+		this.maxVideoTimeSeconds = maxVideoTimeSeconds;
 	}
 }
