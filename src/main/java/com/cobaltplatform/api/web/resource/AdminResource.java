@@ -156,7 +156,7 @@ public class AdminResource {
 	public ApiResponse getMyContentFilter() {
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("contentTypes", getContentService().findContentTypes());
-			put("institutions", getInstitutionService().findNonCobaltInstitutions().stream().
+			put("institutions", getInstitutionService().findInstitutionsWhoAreSharingWithMe().stream().
 					map(it -> getAdminInstitutionApiResponseFactory().create(it)).collect(Collectors.toList()));
 		}});
 	}
