@@ -175,6 +175,7 @@ public class AdminContentService {
 		StringBuilder orderByClause = new StringBuilder("ORDER BY ");
 
 		parameters.add(account.getInstitutionId());
+		parameters.add(account.getInstitutionId());
 
 		if (contentTypeId.isPresent()) {
 			whereClause.append("AND va.content_type_id = ? ");
@@ -239,10 +240,12 @@ public class AdminContentService {
 				String.format("""
 						SELECT va.*, 
 						(select COUNT(*) FROM 
-						 activity_tracking a WHERE
-						va.content_id = CAST (a.context ->> 'contentId' AS UUID) AND 
-						a.activity_action_id = 'VIEW' AND
-						activity_type_id='CONTENT') AS views ,
+						 activity_tracking at, account a WHERE
+						va.content_id = CAST (at.context ->> 'contentId' AS UUID) AND 
+						at.activity_action_id = 'VIEW' AND
+						at.activity_type_id='CONTENT' AND
+						at.account_id = a.account_id AND
+						a.institution_id = ?) AS views ,
 						count(*) over() AS total_count,
 						ic.created AS date_added_to_institution
 						FROM v_admin_content va 
