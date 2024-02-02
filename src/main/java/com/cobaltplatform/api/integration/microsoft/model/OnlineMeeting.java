@@ -27,6 +27,8 @@ import javax.annotation.concurrent.NotThreadSafe;
  */
 @NotThreadSafe
 public class OnlineMeeting {
+	// See https://learn.microsoft.com/en-us/graph/api/resources/onlinemeeting?view=graph-rest-1.0
+
 	@Nullable
 	private String id;
 
