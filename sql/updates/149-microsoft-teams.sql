@@ -21,4 +21,9 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON microsoft_teams_meeti
 
 ALTER TABLE appointment ADD COLUMN microsoft_teams_meeting_id UUID REFERENCES microsoft_teams_meeting;
 
+ALTER TABLE institution ADD COLUMN microsoft_teams_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE institution ADD COLUMN microsoft_teams_tenant_id TEXT;
+ALTER TABLE institution ADD COLUMN microsoft_teams_client_id TEXT;
+ALTER TABLE institution ADD COLUMN microsoft_teams_user_id TEXT;
+
 COMMIT;

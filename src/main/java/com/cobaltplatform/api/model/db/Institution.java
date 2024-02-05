@@ -269,6 +269,16 @@ public class Institution {
 	@Nullable
 	private String googleFcmServiceAccountPrivateKey;
 
+	// Microsoft Teams config
+	@Nullable
+	private Boolean microsoftTeamsEnabled;
+	@Nullable
+	private String microsoftTeamsTenantId;
+	@Nullable
+	private String microsoftTeamsClientId;
+	@Nullable
+	private String microsoftTeamsUserId;
+
 	public enum InstitutionId {
 		COBALT,
 		COBALT_IC,
@@ -1253,5 +1263,41 @@ public class Institution {
 
 	public void setGoogleFcmServiceAccountPrivateKey(@Nullable String googleFcmServiceAccountPrivateKey) {
 		this.googleFcmServiceAccountPrivateKey = googleFcmServiceAccountPrivateKey;
+	}
+
+	@Nullable
+	public Boolean getMicrosoftTeamsEnabled() {
+		return this.microsoftTeamsEnabled;
+	}
+
+	public void setMicrosoftTeamsEnabled(@Nullable Boolean microsoftTeamsEnabled) {
+		this.microsoftTeamsEnabled = microsoftTeamsEnabled;
+	}
+
+	@Nullable
+	public String getMicrosoftTeamsTenantId() {
+		return this.microsoftTeamsTenantId;
+	}
+
+	public void setMicrosoftTeamsTenantId(@Nullable String microsoftTeamsTenantId) {
+		this.microsoftTeamsTenantId = microsoftTeamsTenantId;
+	}
+
+	@Nullable
+	public String getMicrosoftTeamsClientId() {
+		return this.microsoftTeamsClientId;
+	}
+
+	public void setMicrosoftTeamsClientId(@Nullable String microsoftTeamsClientId) {
+		this.microsoftTeamsClientId = microsoftTeamsClientId;
+	}
+
+	@Nullable
+	public String getMicrosoftTeamsUserId() {
+		return this.microsoftTeamsUserId;
+	}
+
+	public void setMicrosoftTeamsUserId(@Nullable String microsoftTeamsUserId) {
+		this.microsoftTeamsUserId = microsoftTeamsUserId;
 	}
 }

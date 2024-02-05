@@ -559,7 +559,7 @@ public class SystemService {
 							end_date_time,
 							time_zone,
 							api_response
-						) VALUES (?,?,?,?,?,?,?,?,?)
+						) VALUES (?,?,?,?,?,?,?,?,CAST(? AS JSONB))
 						""", microsoftTeamsMeetingId, institutionId, createdByAccountId, onlineMeeting.getId(), onlineMeeting.getJoinUrl(),
 				startDateTime, endDateTime, timeZone, onlineMeeting.getRawJson());
 

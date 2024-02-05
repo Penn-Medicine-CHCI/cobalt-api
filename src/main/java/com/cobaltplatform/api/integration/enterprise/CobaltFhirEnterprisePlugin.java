@@ -22,6 +22,7 @@ package com.cobaltplatform.api.integration.enterprise;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.service.InstitutionService;
+import com.cobaltplatform.api.util.AwsSecretManagerClient;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -36,8 +37,9 @@ import javax.inject.Singleton;
 public class CobaltFhirEnterprisePlugin extends DefaultEnterprisePlugin {
 	@Inject
 	public CobaltFhirEnterprisePlugin(@Nonnull InstitutionService institutionService,
+																		@Nonnull AwsSecretManagerClient awsSecretManagerClient,
 																		@Nonnull Configuration configuration) {
-		super(institutionService, configuration);
+		super(institutionService, awsSecretManagerClient, configuration);
 	}
 
 	@Nonnull

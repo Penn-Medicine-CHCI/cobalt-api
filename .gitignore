@@ -49,3 +49,7 @@ src/test/resources/account-activities.json
 src/test/resources/accounts.json
 /pic/reports/*.csv
 sql/initial/bootstrap.sql
+
+# All Localstack secrets ignored except for the .gitkeep file
+localstack/secrets/*
+!localstack/secrets/.gitkeep

@@ -1027,6 +1027,7 @@ public class AppointmentService {
 		} else if (videoconferencePlatformId == VideoconferencePlatformId.MICROSOFT_TEAMS) {
 			// Prepare Teams meeting request
 			OnlineMeetingCreateRequest onlineMeetingCreateRequest = new OnlineMeetingCreateRequest();
+			onlineMeetingCreateRequest.setUserId(institution.getMicrosoftTeamsUserId());
 			onlineMeetingCreateRequest.setSubject(getStrings().get("1:1 Appointment with {{providerName}}", Map.of(
 					"providerName", provider.getName()
 			)));

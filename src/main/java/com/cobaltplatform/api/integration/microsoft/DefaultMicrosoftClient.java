@@ -40,6 +40,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -159,10 +160,19 @@ public class DefaultMicrosoftClient implements MicrosoftClient {
 		requestBodyJson.put("startDateTime", DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(request.getStartDateTime()));
 		requestBodyJson.put("endDateTime", DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(request.getEndDateTime()));
 
+		Map<String, Object> participants = new HashMap<>();
+		participants.put("attendees", List.of());
+		participants.put("organizer", null);
+
+		requestBodyJson.put("participants", participants);
+
 		String requestBody = getGson().toJson(requestBodyJson);
 
 		Function<String, OnlineMeeting> responseBodyMapper = (responseBody) -> {
-			return getGson().fromJson(responseBody, OnlineMeeting.class);
+			OnlineMeeting onlineMeeting = getGson().fromJson(responseBody, OnlineMeeting.class);
+			onlineMeeting.setRawJson(responseBody);
+
+			return onlineMeeting;
 		};
 
 		ApiCall<OnlineMeeting> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)

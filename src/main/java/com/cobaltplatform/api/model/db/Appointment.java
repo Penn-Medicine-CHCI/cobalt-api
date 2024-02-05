@@ -117,6 +117,8 @@ public class Appointment implements Comparable<Appointment> {
 	private String epicAppointmentFhirIdentifierSystem;
 	@Nullable
 	private String epicAppointmentFhirIdentifierValue;
+	@Nullable
+	private UUID microsoftTeamsMeetingId;
 
 	static {
 		DEFAULT_COMPARATOR = Comparator.comparing(Appointment::getStartTime)
@@ -465,5 +467,14 @@ public class Appointment implements Comparable<Appointment> {
 
 	public void setEpicAppointmentFhirIdentifierValue(@Nullable String epicAppointmentFhirIdentifierValue) {
 		this.epicAppointmentFhirIdentifierValue = epicAppointmentFhirIdentifierValue;
+	}
+
+	@Nullable
+	public UUID getMicrosoftTeamsMeetingId() {
+		return this.microsoftTeamsMeetingId;
+	}
+
+	public void setMicrosoftTeamsMeetingId(@Nullable UUID microsoftTeamsMeetingId) {
+		this.microsoftTeamsMeetingId = microsoftTeamsMeetingId;
 	}
 }
