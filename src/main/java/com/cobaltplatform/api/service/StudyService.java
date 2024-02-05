@@ -402,7 +402,7 @@ public class StudyService {
 		Boolean rescheduleFirstCheckIn = false;
 		getLogger().debug("Rescheduling check-ins");
 		for (AccountCheckIn accountCheckIn : accountCheckIns) {
-			if (accountCheckActive(account, accountCheckIn)) {
+			if (accountCheckActive(account, accountCheckIn) && !rescheduleFirstCheckIn) {
 				getLogger().debug(format("Breaking because check-in %s is active.", accountCheckIn.getCheckInNumber()));
 				break;
 			} else if (accountCheckIn.getCheckInNumber() == 1 && !accountCheckIn.getCheckInStatusId().equals(CheckInStatusId.COMPLETE)) {
