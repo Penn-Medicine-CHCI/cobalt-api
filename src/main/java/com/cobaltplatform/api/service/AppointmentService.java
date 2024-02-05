@@ -53,8 +53,7 @@ import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.InviteAttende
 import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.InviteMethod;
 import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.InviteOrganizer;
 import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.OrganizerAttendeeStrategy;
-import com.cobaltplatform.api.integration.microsoft.MicrosoftClient;
-import com.cobaltplatform.api.integration.microsoft.model.OnlineMeeting;
+import com.cobaltplatform.api.integration.microsoft.request.OnlineMeetingCreateRequest;
 import com.cobaltplatform.api.messaging.email.EmailAttachment;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
@@ -64,6 +63,7 @@ import com.cobaltplatform.api.model.api.request.CreateAcuityAppointmentTypeReque
 import com.cobaltplatform.api.model.api.request.CreateAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.CreateAppointmentTypeRequest;
 import com.cobaltplatform.api.model.api.request.CreateInteractionInstanceRequest;
+import com.cobaltplatform.api.model.api.request.CreateMicrosoftTeamsMeetingRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientIntakeQuestionRequest;
 import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningQuestionRequest;
@@ -94,6 +94,7 @@ import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Interaction;
 import com.cobaltplatform.api.model.db.InteractionType;
+import com.cobaltplatform.api.model.db.MicrosoftTeamsMeeting;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.Question;
 import com.cobaltplatform.api.model.db.QuestionContentHint.QuestionContentHintId;
@@ -192,6 +193,8 @@ public class AppointmentService {
 	@Nonnull
 	private final javax.inject.Provider<MessageService> messageServiceProvider;
 	@Nonnull
+	private final javax.inject.Provider<SystemService> systemServiceProvider;
+	@Nonnull
 	private final Logger logger;
 	@Nonnull
 	private final javax.inject.Provider<AssessmentScoringService> assessmentScoringServiceProvider;
@@ -234,6 +237,7 @@ public class AppointmentService {
 														@Nonnull javax.inject.Provider<ClinicService> clinicServiceProvider,
 														@Nonnull javax.inject.Provider<InstitutionService> institutionServiceProvider,
 														@Nonnull javax.inject.Provider<MessageService> messageServiceProvider,
+														@Nonnull javax.inject.Provider<SystemService> systemServiceProvider,
 														@Nonnull Formatter formatter,
 														@Nonnull Normalizer normalizer,
 														@Nonnull SessionService sessionService,
@@ -259,6 +263,7 @@ public class AppointmentService {
 		requireNonNull(clinicServiceProvider);
 		requireNonNull(institutionServiceProvider);
 		requireNonNull(messageServiceProvider);
+		requireNonNull(systemServiceProvider);
 		requireNonNull(formatter);
 		requireNonNull(normalizer);
 		requireNonNull(sessionService);
@@ -286,6 +291,7 @@ public class AppointmentService {
 		this.institutionServiceProvider = institutionServiceProvider;
 		this.assessmentScoringServiceProvider = assessmentScoringServiceProvider;
 		this.messageServiceProvider = messageServiceProvider;
+		this.systemServiceProvider = systemServiceProvider;
 		this.formatter = formatter;
 		this.normalizer = normalizer;
 		this.sessionService = sessionService;
@@ -811,6 +817,7 @@ public class AppointmentService {
 		String epicAppointmentFhirStu3ResponseJson = null;
 		Account account = null;
 		AppointmentType appointmentType = null;
+		MicrosoftTeamsMeeting microsoftTeamsMeeting = null;
 		UUID appointmentId = UUID.randomUUID();
 
 		ValidationException validationException = new ValidationException();
@@ -1018,9 +1025,33 @@ public class AppointmentService {
 			bluejeansParticipantPasscode = meetingResponse.getAttendeePasscode();
 			videoconferenceUrl = meetingResponse.meetingLinkWithAttendeePasscode();
 		} else if (videoconferencePlatformId == VideoconferencePlatformId.MICROSOFT_TEAMS) {
-			MicrosoftClient microsoftClient = enterprisePlugin.microsoftTeamsClientForDaemon().get();
-			OnlineMeeting onlineMeeting = microsoftClient.createOnlineMeeting();
-			videoconferenceUrl = onlineMeeting.getJoinUrl();
+			// Prepare Teams meeting request
+			OnlineMeetingCreateRequest onlineMeetingCreateRequest = new OnlineMeetingCreateRequest();
+			onlineMeetingCreateRequest.setSubject(getStrings().get("1:1 Appointment with {{providerName}}", Map.of(
+					"providerName", provider.getName()
+			)));
+			onlineMeetingCreateRequest.setStartDateTime(meetingStartTime.atZone(timeZone));
+			onlineMeetingCreateRequest.setEndDateTime(meetingEndTime.atZone(timeZone));
+
+			try {
+				// Create the Teams meeting
+				UUID microsoftTeamsMeetingId = getSystemService().createMicrosoftTeamsMeeting(new CreateMicrosoftTeamsMeetingRequest() {{
+					setInstitutionId(institution.getInstitutionId());
+					setCreatedByAccountId(accountId);
+					setOnlineMeetingCreateRequest(onlineMeetingCreateRequest);
+				}});
+
+				// Use the "join" URL as the videoconference URL
+				microsoftTeamsMeeting = getSystemService().findMicrosoftTeamsMeetingById(microsoftTeamsMeetingId).get();
+				videoconferenceUrl = microsoftTeamsMeeting.getJoinUrl();
+			} catch (ValidationException e) {
+				// We want to know if there is a problem creating Teams meetings.
+				// In theory this above code should not fail unless there is a systemic issue, e.g. Teams is down, or creds revoked
+				getErrorReporter().report(e);
+
+				// Let the user-friendly exception bubble out
+				throw e;
+			}
 		} else if (videoconferencePlatformId == VideoconferencePlatformId.TELEPHONE) {
 			// Hack: phone number is encoded as the URL in the provider sheet.
 			// The real URL is the webapp - we have a `GET /appointments/{appointmentId}`
@@ -1090,7 +1121,6 @@ public class AppointmentService {
 			}
 		} else if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.EPIC) {
 			try {
-				EnterprisePlugin enterprisePlugin = enterprisePluginProvider.enterprisePluginForInstitutionId(account.getInstitutionId());
 				EpicClient epicClient = enterprisePlugin.epicClientForBackendService().get();
 				account = getAccountService().findAccountById(accountId).get();
 
@@ -1163,7 +1193,6 @@ public class AppointmentService {
 		} else if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.COBALT) {
 			// Nothing to do for now
 		} else if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR) {
-			EnterprisePlugin enterprisePlugin = enterprisePluginProvider.enterprisePluginForInstitutionId(account.getInstitutionId());
 			EpicClient epicClient = enterprisePlugin.epicClientForBackendService().get();
 
 			AppointmentBookFhirStu3Request appointmentBookRequest = new AppointmentBookFhirStu3Request();
@@ -1223,11 +1252,13 @@ public class AppointmentService {
 		getDatabase().execute("INSERT INTO appointment (appointment_id, provider_id, account_id, created_by_account_id, " +
 						"appointment_type_id, acuity_appointment_id, bluejeans_meeting_id, bluejeans_participant_passcode, title, start_time, end_time, " +
 						"duration_in_minutes, time_zone, videoconference_url, epic_contact_id, epic_contact_id_type, videoconference_platform_id, " +
-						"phone_number, appointment_reason_id, comment, intake_assessment_id, scheduling_system_id, intake_account_session_id, patient_order_id, epic_appointment_fhir_id, epic_appointment_fhir_identifier_system, epic_appointment_fhir_identifier_value, epic_appointment_fhir_stu3_response) " +
-						"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CAST (? AS JSONB))", appointmentId, providerId,
+						"phone_number, appointment_reason_id, comment, intake_assessment_id, scheduling_system_id, intake_account_session_id, patient_order_id, " +
+						"microsoft_teams_meeting_id, epic_appointment_fhir_id, epic_appointment_fhir_identifier_system, epic_appointment_fhir_identifier_value, epic_appointment_fhir_stu3_response) " +
+						"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CAST (? AS JSONB))", appointmentId, providerId,
 				accountId, createdByAccountId, appointmentTypeId, acuityAppointmentId, bluejeansMeetingId, bluejeansParticipantPasscode,
 				title, meetingStartTime, meetingEndTime, durationInMinutes, timeZone, videoconferenceUrl, epicContactId,
-				epicContactIdType, videoconferencePlatformId, appointmentPhoneNumber, appointmentReasonId, comment, intakeAssessmentId, appointmentType.getSchedulingSystemId(), intakeAccountSessionId, patientOrderId,
+				epicContactIdType, videoconferencePlatformId, appointmentPhoneNumber, appointmentReasonId, comment, intakeAssessmentId, appointmentType.getSchedulingSystemId(),
+				intakeAccountSessionId, patientOrderId, microsoftTeamsMeeting == null ? null : microsoftTeamsMeeting.getMicrosoftTeamsMeetingId(),
 				epicAppointmentFhirId, epicAppointmentFhirIdentifierSystem, epicAppointmentFhirIdentifierValue, epicAppointmentFhirStu3ResponseJson);
 
 		sendProviderScoreEmail(provider, account, emailAddress, phoneNumber, videoconferenceUrl,
@@ -2368,6 +2399,11 @@ public class AppointmentService {
 	@Nonnull
 	protected MessageService getMessageService() {
 		return this.messageServiceProvider.get();
+	}
+
+	@Nonnull
+	protected SystemService getSystemService() {
+		return this.systemServiceProvider.get();
 	}
 
 	@Nonnull

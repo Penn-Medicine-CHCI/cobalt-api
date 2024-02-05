@@ -34,6 +34,8 @@ public class OnlineMeeting {
 
 	@Nullable
 	private String id;
+	@Nullable
+	private String joinUrl;
 
 	// TODO: additional fields
 
@@ -54,5 +56,14 @@ public class OnlineMeeting {
 
 	public void setId(@Nullable String id) {
 		this.id = id;
+	}
+
+	@Nullable
+	public String getJoinUrl() {
+		return this.joinUrl;
+	}
+
+	public void setJoinUrl(@Nullable String joinUrl) {
+		this.joinUrl = joinUrl;
 	}
 }
