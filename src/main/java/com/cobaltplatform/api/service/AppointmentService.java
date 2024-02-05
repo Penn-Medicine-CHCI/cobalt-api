@@ -53,6 +53,8 @@ import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.InviteAttende
 import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.InviteMethod;
 import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.InviteOrganizer;
 import com.cobaltplatform.api.integration.ical.ICalInviteGenerator.OrganizerAttendeeStrategy;
+import com.cobaltplatform.api.integration.microsoft.MicrosoftClient;
+import com.cobaltplatform.api.integration.microsoft.model.OnlineMeeting;
 import com.cobaltplatform.api.messaging.email.EmailAttachment;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
@@ -865,6 +867,7 @@ public class AppointmentService {
 
 		Provider provider = getProviderService().findProviderById(providerId).get();
 		Institution institution = getInstitutionService().findInstitutionById(provider.getInstitutionId()).get();
+		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institution.getInstitutionId());
 
 		if (provider.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR && epicAppointmentFhirId == null)
 			throw new ValidationException(new FieldError("epicAppointmentFhirId", getStrings().get("Epic FHIR Appointment ID is required.")));
@@ -1014,6 +1017,10 @@ public class AppointmentService {
 			bluejeansMeetingId = (long) meetingResponse.getId();
 			bluejeansParticipantPasscode = meetingResponse.getAttendeePasscode();
 			videoconferenceUrl = meetingResponse.meetingLinkWithAttendeePasscode();
+		} else if (videoconferencePlatformId == VideoconferencePlatformId.MICROSOFT_TEAMS) {
+			MicrosoftClient microsoftClient = enterprisePlugin.microsoftTeamsClientForDaemon().get();
+			OnlineMeeting onlineMeeting = microsoftClient.createOnlineMeeting();
+			videoconferenceUrl = onlineMeeting.getJoinUrl();
 		} else if (videoconferencePlatformId == VideoconferencePlatformId.TELEPHONE) {
 			// Hack: phone number is encoded as the URL in the provider sheet.
 			// The real URL is the webapp - we have a `GET /appointments/{appointmentId}`

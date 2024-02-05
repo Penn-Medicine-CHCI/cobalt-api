@@ -27,12 +27,25 @@ import javax.annotation.concurrent.NotThreadSafe;
  */
 @NotThreadSafe
 public class OnlineMeeting {
+	@Nullable
+	private String rawJson;
+
 	// See https://learn.microsoft.com/en-us/graph/api/resources/onlinemeeting?view=graph-rest-1.0
 
 	@Nullable
 	private String id;
 
 	// TODO: additional fields
+
+
+	@Nullable
+	public String getRawJson() {
+		return this.rawJson;
+	}
+
+	public void setRawJson(@Nullable String rawJson) {
+		this.rawJson = rawJson;
+	}
 
 	@Nullable
 	public String getId() {
