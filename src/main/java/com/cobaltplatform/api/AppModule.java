@@ -85,8 +85,8 @@ import com.cobaltplatform.api.model.api.response.ClientDeviceApiResponse.ClientD
 import com.cobaltplatform.api.model.api.response.ClientDevicePushTokenApiResponse.ClientDevicePushTokenApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ClinicApiResponse.ClinicApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.ContentStatusApiResponse.ContentStatusApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentFeedbackApiResponse.ContentFeedbackApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ContentStatusApiResponse.ContentStatusApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse.CountryApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FaqApiResponse.FaqApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FaqTopicApiResponse.FaqTopicApiResponseFactory;
@@ -154,6 +154,7 @@ import com.cobaltplatform.api.model.api.response.TopicCenterRowApiResponse.Topic
 import com.cobaltplatform.api.model.api.response.TopicCenterRowTagApiResponse.TopicCenterRowTagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.VisitTypeApiResponse.VisitTypeApiResponseFactory;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
+import com.cobaltplatform.api.util.AwsSecretManagerClient;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.HandlebarsTemplater;
 import com.cobaltplatform.api.util.HttpLoggingInterceptor;
@@ -556,6 +557,14 @@ public class AppModule extends AbstractModule {
 		requireNonNull(strings);
 
 		return new JsonPageResponseWriter(configuration, jsonMapper, formatter, strings);
+	}
+
+	@Provides
+	@Singleton
+	@Nonnull
+	public AwsSecretManagerClient provideAwsSecretManagerClient(@Nonnull Configuration configuration) {
+		// Should always be available now that we have migrated away from other methods of storing secrets
+		return configuration.getSecretManagerClient().get();
 	}
 
 	@Provides

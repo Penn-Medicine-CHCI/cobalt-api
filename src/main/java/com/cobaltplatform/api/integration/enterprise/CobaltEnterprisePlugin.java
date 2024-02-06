@@ -24,6 +24,7 @@ import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.InstitutionService;
+import com.cobaltplatform.api.util.AwsSecretManagerClient;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -45,9 +46,10 @@ public class CobaltEnterprisePlugin extends DefaultEnterprisePlugin {
 
 	@Inject
 	public CobaltEnterprisePlugin(@Nonnull InstitutionService institutionService,
+																@Nonnull AwsSecretManagerClient awsSecretManagerClient,
 																@Nonnull ContentService contentService,
 																@Nonnull Configuration configuration) {
-		super(institutionService, configuration);
+		super(institutionService, awsSecretManagerClient, configuration);
 		this.contentService = contentService;
 	}
 

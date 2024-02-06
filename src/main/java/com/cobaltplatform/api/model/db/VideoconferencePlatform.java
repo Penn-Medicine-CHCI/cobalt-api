@@ -35,10 +35,12 @@ public class VideoconferencePlatform {
 	private String description;
 
 	public enum VideoconferencePlatformId {
+		@Deprecated
 		BLUEJEANS,
 		EXTERNAL,
 		TELEPHONE,
-		SWITCHBOARD
+		SWITCHBOARD,
+		MICROSOFT_TEAMS
 	}
 
 	@Override

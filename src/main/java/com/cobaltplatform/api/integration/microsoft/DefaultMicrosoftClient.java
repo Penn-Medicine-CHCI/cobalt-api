@@ -162,7 +162,10 @@ public class DefaultMicrosoftClient implements MicrosoftClient {
 		String requestBody = getGson().toJson(requestBodyJson);
 
 		Function<String, OnlineMeeting> responseBodyMapper = (responseBody) -> {
-			return getGson().fromJson(responseBody, OnlineMeeting.class);
+			OnlineMeeting onlineMeeting = getGson().fromJson(responseBody, OnlineMeeting.class);
+			onlineMeeting.setRawJson(responseBody);
+
+			return onlineMeeting;
 		};
 
 		ApiCall<OnlineMeeting> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)

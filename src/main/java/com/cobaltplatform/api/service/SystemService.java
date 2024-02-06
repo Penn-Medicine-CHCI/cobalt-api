@@ -26,15 +26,20 @@ import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.epic.EpicFhirSyncManager;
 import com.cobaltplatform.api.integration.epic.EpicSyncManager;
+import com.cobaltplatform.api.integration.microsoft.MicrosoftClient;
+import com.cobaltplatform.api.integration.microsoft.model.OnlineMeeting;
+import com.cobaltplatform.api.integration.microsoft.request.OnlineMeetingCreateRequest;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreateMarketingSiteOutreachRequest;
+import com.cobaltplatform.api.model.api.request.CreateMicrosoftTeamsMeetingRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.BetaFeature;
 import com.cobaltplatform.api.model.db.EncryptionKeypair;
 import com.cobaltplatform.api.model.db.FileUploadType.FileUploadTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.MicrosoftTeamsMeeting;
 import com.cobaltplatform.api.model.db.PrivateKeyFormat.PrivateKeyFormatId;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.PublicKeyFormat.PublicKeyFormatId;
@@ -62,6 +67,9 @@ import javax.inject.Singleton;
 import java.security.KeyPair;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Comparator;
@@ -69,6 +77,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -488,6 +497,85 @@ public class SystemService {
 				""", fileUploadId, fileUploadTypeId, accountId, presignedUpload.getAccessUrl(), storageKey, filename, contentType, filesize);
 
 		return new FileUploadResult(fileUploadId, presignedUpload);
+	}
+
+	@Nonnull
+	public UUID createMicrosoftTeamsMeeting(@Nonnull CreateMicrosoftTeamsMeetingRequest request) {
+		requireNonNull(request);
+
+		InstitutionId institutionId = request.getInstitutionId();
+		UUID createdByAccountId = request.getCreatedByAccountId();
+		OnlineMeetingCreateRequest onlineMeetingCreateRequest = request.getOnlineMeetingCreateRequest();
+		UUID microsoftTeamsMeetingId = UUID.randomUUID();
+		LocalDateTime startDateTime = null;
+		LocalDateTime endDateTime = null;
+		ZoneId timeZone = null;
+		ValidationException validationException = new ValidationException();
+
+		if (institutionId == null)
+			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
+
+		if (createdByAccountId == null)
+			validationException.add(new FieldError("createdByAccountId", getStrings().get("Created-by Account ID is required.")));
+
+		if (onlineMeetingCreateRequest == null) {
+			validationException.add(new FieldError("onlineMeetingCreateRequest", getStrings().get("Teams meeting information is required.")));
+		} else {
+			ZonedDateTime zonedStartDateTime = onlineMeetingCreateRequest.getStartDateTime();
+			ZonedDateTime zonedEndDateTime = onlineMeetingCreateRequest.getEndDateTime();
+
+			if (zonedStartDateTime == null) {
+				validationException.add(new FieldError("onlineMeetingCreateRequest.zonedStartDateTime", getStrings().get("Start date and time is required.")));
+			} else {
+				startDateTime = zonedStartDateTime.toLocalDateTime();
+				timeZone = zonedStartDateTime.getZone();
+			}
+
+			if (zonedEndDateTime == null) {
+				validationException.add(new FieldError("onlineMeetingCreateRequest.zonedEndDateTime", getStrings().get("End date and time is required.")));
+			} else {
+				endDateTime = zonedEndDateTime.toLocalDateTime();
+
+				if (!Objects.equals(zonedStartDateTime.getZone(), zonedEndDateTime.getZone()))
+					validationException.add(new FieldError("onlineMeetingCreateRequest", getStrings().get("Start and end timezones don't match.")));
+			}
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId);
+		MicrosoftClient microsoftClient = enterprisePlugin.microsoftTeamsClientForDaemon().get();
+		OnlineMeeting onlineMeeting = microsoftClient.createOnlineMeeting(onlineMeetingCreateRequest);
+
+		getDatabase().execute("""
+						INSERT INTO microsoft_teams_meeting (
+							microsoft_teams_meeting_id,
+							institution_id,
+							created_by_account_id,
+							online_meeting_id,
+							join_url,
+							start_date_time,
+							end_date_time,
+							time_zone,
+							api_response
+						) VALUES (?,?,?,?,?,?,?,?,CAST(? AS JSONB))
+						""", microsoftTeamsMeetingId, institutionId, createdByAccountId, onlineMeeting.getId(), onlineMeeting.getJoinUrl(),
+				startDateTime, endDateTime, timeZone, onlineMeeting.getRawJson());
+
+		return microsoftTeamsMeetingId;
+	}
+
+	@Nonnull
+	public Optional<MicrosoftTeamsMeeting> findMicrosoftTeamsMeetingById(@Nullable UUID microsoftTeamsMeetingId) {
+		if (microsoftTeamsMeetingId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM microsoft_teams_meeting
+				WHERE microsoft_teams_meeting_id=?
+				""", MicrosoftTeamsMeeting.class, microsoftTeamsMeetingId);
 	}
 
 	@ThreadSafe

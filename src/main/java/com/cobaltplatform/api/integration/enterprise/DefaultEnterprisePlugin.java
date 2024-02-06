@@ -39,7 +39,11 @@ import com.cobaltplatform.api.integration.google.GoogleBigQueryClient;
 import com.cobaltplatform.api.integration.google.MockGoogleAnalyticsDataClient;
 import com.cobaltplatform.api.integration.google.MockGoogleBigQueryClient;
 import com.cobaltplatform.api.integration.microsoft.DefaultMicrosoftAuthenticator;
+import com.cobaltplatform.api.integration.microsoft.DefaultMicrosoftClient;
+import com.cobaltplatform.api.integration.microsoft.MicrosoftAccessToken;
 import com.cobaltplatform.api.integration.microsoft.MicrosoftAuthenticator;
+import com.cobaltplatform.api.integration.microsoft.MicrosoftClient;
+import com.cobaltplatform.api.integration.microsoft.request.AccessTokenRequest;
 import com.cobaltplatform.api.integration.mixpanel.DefaultMixpanelClient;
 import com.cobaltplatform.api.integration.mixpanel.MixpanelClient;
 import com.cobaltplatform.api.integration.mixpanel.MockMixpanelClient;
@@ -52,6 +56,7 @@ import com.cobaltplatform.api.model.db.EpicBackendServiceAuthType;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.security.SigningCredentials;
 import com.cobaltplatform.api.service.InstitutionService;
+import com.cobaltplatform.api.util.AwsSecretManagerClient;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 
@@ -62,6 +67,7 @@ import java.util.Optional;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -71,16 +77,21 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 	@Nonnull
 	private final InstitutionService institutionService;
 	@Nonnull
+	private final AwsSecretManagerClient awsSecretManagerClient;
+	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
 	private final LoadingCache<ExpensiveClientCacheKey, Object> expensiveClientCache;
 
 	public DefaultEnterprisePlugin(@Nonnull InstitutionService institutionService,
+																 @Nonnull AwsSecretManagerClient awsSecretManagerClient,
 																 @Nonnull Configuration configuration) {
 		requireNonNull(institutionService);
+		requireNonNull(awsSecretManagerClient);
 		requireNonNull(configuration);
 
 		this.institutionService = institutionService;
+		this.awsSecretManagerClient = awsSecretManagerClient;
 		this.configuration = configuration;
 		this.expensiveClientCache = createExpensiveClientCache();
 	}
@@ -107,6 +118,11 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 	@Override
 	public Optional<MicrosoftAuthenticator> microsoftAuthenticator() {
 		return (Optional<MicrosoftAuthenticator>) getExpensiveClientCache().get(ExpensiveClientCacheKey.MICROSOFT_AUTHENTICATOR);
+	}
+
+	@Nonnull
+	public Optional<MicrosoftClient> microsoftTeamsClientForDaemon() {
+		return (Optional<MicrosoftClient>) getExpensiveClientCache().get(ExpensiveClientCacheKey.MICROSOFT_TEAMS_CLIENT_FOR_DAEMON);
 	}
 
 	@Nonnull
@@ -162,6 +178,8 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 						return uncachedMixpanelClient();
 					if (expensiveClientCacheKey == ExpensiveClientCacheKey.MICROSOFT_AUTHENTICATOR)
 						return uncachedMicrosoftAuthenticator();
+					if (expensiveClientCacheKey == ExpensiveClientCacheKey.MICROSOFT_TEAMS_CLIENT_FOR_DAEMON)
+						return uncachedMicrosoftTeamsClientForDaemon();
 					if (expensiveClientCacheKey == ExpensiveClientCacheKey.MYCHART_AUTHENTICATOR)
 						return uncachedMyChartAuthenticator();
 					if (expensiveClientCacheKey == ExpensiveClientCacheKey.EPIC_CLIENT_FOR_BACKEND_SERVICE)
@@ -293,8 +311,44 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 	}
 
 	@Nonnull
+	protected Optional<MicrosoftClient> uncachedMicrosoftTeamsClientForDaemon() {
+		Institution institution = getInstitutionService().findInstitutionById(getInstitutionId()).get();
+		
+		if (!institution.getMicrosoftTeamsEnabled())
+			return Optional.empty();
+
+		String microsoftTeamsClientId = trimToNull(institution.getMicrosoftTeamsClientId());
+		String microsoftTeamsTenantId = trimToNull(institution.getMicrosoftTeamsTenantId());
+		String microsoftTeamsUserId = trimToNull(institution.getMicrosoftTeamsUserId());
+
+		if (microsoftTeamsClientId == null || microsoftTeamsTenantId == null || microsoftTeamsUserId == null)
+			throw new IllegalStateException(format("Microsoft Teams is enabled for %s but required values are missing on institution record", getInstitutionId().name()));
+
+		// Read client secret from AWS Secrets Manager
+		String clientSecret = getAwsSecretManagerClient().getSecretString(format("%s-microsoft-teams-client-secret-%s",
+				getConfiguration().getAmazonAwsSecretsManagerContext().get(), getInstitutionId().name()));
+
+		MicrosoftAuthenticator microsoftAuthenticator = new DefaultMicrosoftAuthenticator(microsoftTeamsTenantId,
+				microsoftTeamsClientId, getConfiguration().getMicrosoftSigningCredentials());
+
+		AccessTokenRequest accessTokenRequest = new AccessTokenRequest();
+		accessTokenRequest.setClientSecret(clientSecret);
+		accessTokenRequest.setScope("https://graph.microsoft.com/.default");
+		accessTokenRequest.setGrantType("client_credentials");
+
+		MicrosoftAccessToken microsoftAccessToken = microsoftAuthenticator.obtainAccessToken(accessTokenRequest);
+
+		return Optional.of(new DefaultMicrosoftClient(() -> microsoftAccessToken));
+	}
+
+	@Nonnull
 	protected InstitutionService getInstitutionService() {
 		return this.institutionService;
+	}
+
+	@Nonnull
+	protected AwsSecretManagerClient getAwsSecretManagerClient() {
+		return this.awsSecretManagerClient;
 	}
 
 	@Nonnull
@@ -313,6 +367,7 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 		MIXPANEL,
 		MICROSOFT_AUTHENTICATOR,
 		MYCHART_AUTHENTICATOR,
+		MICROSOFT_TEAMS_CLIENT_FOR_DAEMON,
 		EPIC_CLIENT_FOR_BACKEND_SERVICE,
 		GOOGLE_FCM_PUSH_MESSAGE_SENDER
 	}
