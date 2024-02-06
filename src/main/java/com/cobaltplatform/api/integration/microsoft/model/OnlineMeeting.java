@@ -17,52 +17,53 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db;
+package com.cobaltplatform.api.integration.microsoft.model;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-
-import static java.lang.String.format;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class VideoconferencePlatform {
+public class OnlineMeeting {
 	@Nullable
-	private VideoconferencePlatformId videoconferencePlatformId;
-	@Nullable
-	private String description;
+	private String rawJson;
 
-	public enum VideoconferencePlatformId {
-		@Deprecated
-		BLUEJEANS,
-		EXTERNAL,
-		TELEPHONE,
-		SWITCHBOARD,
-		MICROSOFT_TEAMS
-	}
-
-	@Override
-	public String toString() {
-		return format("%s{videoconferencePlatformId=%s, description=%s}", getClass().getSimpleName(), getVideoconferencePlatformId().name(), getDescription());
-	}
+	// See https://learn.microsoft.com/en-us/graph/api/resources/onlinemeeting?view=graph-rest-1.0
 
 	@Nullable
-	public VideoconferencePlatformId getVideoconferencePlatformId() {
-		return videoconferencePlatformId;
+	private String id;
+	@Nullable
+	private String joinUrl;
+
+	// TODO: additional fields
+
+
+	@Nullable
+	public String getRawJson() {
+		return this.rawJson;
 	}
 
-	public void setVideoconferencePlatformId(@Nullable VideoconferencePlatformId videoconferencePlatformId) {
-		this.videoconferencePlatformId = videoconferencePlatformId;
+	public void setRawJson(@Nullable String rawJson) {
+		this.rawJson = rawJson;
 	}
 
 	@Nullable
-	public String getDescription() {
-		return description;
+	public String getId() {
+		return this.id;
 	}
 
-	public void setDescription(@Nullable String description) {
-		this.description = description;
+	public void setId(@Nullable String id) {
+		this.id = id;
+	}
+
+	@Nullable
+	public String getJoinUrl() {
+		return this.joinUrl;
+	}
+
+	public void setJoinUrl(@Nullable String joinUrl) {
+		this.joinUrl = joinUrl;
 	}
 }

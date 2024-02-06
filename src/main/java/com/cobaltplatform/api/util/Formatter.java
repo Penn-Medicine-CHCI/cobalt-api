@@ -575,14 +575,15 @@ public final class Formatter {
 		double durationInSecondsAsDouble = durationInSeconds.doubleValue();
 		List<String> durationComponents = new ArrayList<>(3);
 
-		// 7201 = "2h 1s"
-		// 3599 = "59m 59s"
-		// 59 = "59s"
+		// 7201 = "2 hours, 1 second"
+		// 3599 = "59 minutes, 59 seconds"
+		// 59 = "59 seconds"
 
 		if (durationInSecondsAsDouble >= 3600) {
 			double hours = Math.floor(durationInSecondsAsDouble / 3600);
-			durationComponents.add(getStrings().get("{{duration}} hours", new HashMap<String, Object>() {{
-				put("duration", formatNumber(hours, locale));
+			durationComponents.add(getStrings().get("{{durationDescription}} hours", new HashMap<String, Object>() {{
+				put("durationDescription", formatNumber(hours, locale));
+				put("duration", hours);
 			}}));
 
 			durationInSecondsAsDouble = durationInSecondsAsDouble - 3600 * hours;
@@ -590,8 +591,9 @@ public final class Formatter {
 
 		if (durationInSecondsAsDouble >= 60) {
 			double minutes = Math.floor(durationInSecondsAsDouble / 60);
-			durationComponents.add(getStrings().get("{{duration}} minutes", new HashMap<String, Object>() {{
-				put("duration", formatNumber(minutes, locale));
+			durationComponents.add(getStrings().get("{{durationDescription}} minutes", new HashMap<String, Object>() {{
+				put("durationDescription", formatNumber(minutes, locale));
+				put("duration", minutes);
 			}}));
 
 			durationInSecondsAsDouble = durationInSecondsAsDouble - 60 * minutes;
@@ -600,8 +602,9 @@ public final class Formatter {
 		double seconds = durationInSecondsAsDouble;
 
 		if (seconds > 0) {
-			durationComponents.add(getStrings().get("{{duration}} seconds", new HashMap<String, Object>() {{
-				put("duration", formatNumber(seconds, locale));
+			durationComponents.add(getStrings().get("{{durationDescription}} seconds", new HashMap<String, Object>() {{
+				put("durationDescription", formatNumber(seconds, locale));
+				put("duration", seconds);
 			}}));
 		}
 

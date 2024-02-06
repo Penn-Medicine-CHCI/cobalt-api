@@ -56,4 +56,17 @@ aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager create-secret --
 aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager delete-secret --secret-id "cobalt-local-cobalt-microsoft-pem"  --force-delete-without-recovery --region ${REGION} > /dev/null 2>&1
 aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager create-secret --name "cobalt-local-cobalt-microsoft-pem"  --description "Local Secrets"  --secret-binary fileb:///config/cobalt.microsoft.pem --region ${REGION}  1> /dev/null
 
+if [ -e /localstack/secrets/cobalt-local-microsoft-teams-client-secret-COBALT ]
+then
+    echo "Using localstack secret value for cobalt-local-microsoft-teams-client-secret-COBALT"
+    MICROSOFT_TEAMS_CLIENT_SECRET_COBALT=`cat /localstack/secrets/cobalt-local-microsoft-teams-client-secret-COBALT`
+
+    aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager delete-secret --secret-id "cobalt-local-microsoft-teams-client-secret-COBALT"  --force-delete-without-recovery --region ${REGION} > /dev/null 2>&1
+    aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager create-secret --name "cobalt-local-microsoft-teams-client-secret-COBALT"  --description "Microsoft Teams Client Secret for COBALT institution"  --secret-string ${MICROSOFT_TEAMS_CLIENT_SECRET_COBALT} --region ${REGION}  1> /dev/null
+else
+    echo "No Localstack secret value for cobalt-local-microsoft-teams-client-secret-COBALT, using fake value instead..."
+    aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager delete-secret --secret-id "cobalt-local-microsoft-teams-client-secret-COBALT"  --force-delete-without-recovery --region ${REGION} > /dev/null 2>&1
+    aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager create-secret --name "cobalt-local-microsoft-teams-client-secret-COBALT"  --description "Microsoft Teams Client Secret for COBALT institution"  --secret-string "fake" --region ${REGION}  1> /dev/null
+fi
+
 echo "Localstack initialization complete."

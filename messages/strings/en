@@ -40,6 +40,47 @@
       }
     }
   },
+  "{{durationDescription}} minutes" : {
+    "translation" : "{{durationDescription}} {{minutesPlaceholder}}",
+    "placeholders" : {
+      "minutesPlaceholder" : {
+        "value" : "duration",
+        "translations" : {
+          "CARDINALITY_ONE" : "minute",
+          "CARDINALITY_OTHER" : "minutes"
+        }
+      }
+    },
+    "alternatives" : [
+      {
+        "duration == 0" : "Unknown duration"
+      }
+    ]
+  },
+  "{{durationDescription}} hours" : {
+    "translation" : "{{durationDescription}} {{hoursPlaceholder}}",
+    "placeholders" : {
+      "hoursPlaceholder" : {
+        "value" : "duration",
+        "translations" : {
+          "CARDINALITY_ONE" : "hour",
+          "CARDINALITY_OTHER" : "hours"
+        }
+      }
+    }
+  },
+  "{{durationDescription}} seconds" : {
+    "translation" : "{{durationDescription}} {{secondsPlaceholder}}",
+    "placeholders" : {
+      "secondsPlaceholder" : {
+        "value" : "duration",
+        "translations" : {
+          "CARDINALITY_ONE" : "second",
+          "CARDINALITY_OTHER" : "seconds"
+        }
+      }
+    }
+  },
   "{{seatsDescription}} seats total" : {
     "translation" : "{{seatsDescription}} {{seatsPlaceholder}} total",
     "placeholders" : {

@@ -117,11 +117,11 @@ public class AccountCheckInApiResponse {
 
 		if (checkInActive) {
 			if (includeTimeInDescription)
-				checkInDateDescription = formatter.formatDateTime(accountCheckIn.getCheckInEndDateTime(), FormatStyle.LONG, FormatStyle.MEDIUM);
+				checkInDateDescription = formatter.formatDateTime(accountCheckIn.getCheckInEndDateTime(), FormatStyle.MEDIUM, FormatStyle.MEDIUM);
 			else
 				checkInDateDescription = formatter.formatDate(accountCheckIn.getCheckInEndDateTime().toLocalDate());
 		} else if (includeTimeInDescription)
-			checkInDateDescription = formatter.formatDateTime(accountCheckIn.getCheckInStartDateTime(), FormatStyle.LONG, FormatStyle.MEDIUM);
+			checkInDateDescription = formatter.formatDateTime(accountCheckIn.getCheckInStartDateTime(), FormatStyle.MEDIUM, FormatStyle.MEDIUM);
 		else
 			checkInDateDescription = formatter.formatDate(accountCheckIn.getCheckInStartDateTime().toLocalDate());
 

@@ -73,9 +73,13 @@ public class AccountCheckInActionApiResponse {
 	private final String videoIntro;
 
 	@Nullable
-	private Integer minVideoTimeMinutes;
+	private Integer minVideoTimeSeconds;
 	@Nullable
-	private Integer maxVideoTimeMinutes;
+	private String minVideoTimeSecondsDescription;
+	@Nullable
+	private Integer maxVideoTimeSeconds;
+	@Nullable
+	private String maxVideoTimeSecondsDescription;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -92,19 +96,21 @@ public class AccountCheckInActionApiResponse {
 		requireNonNull(accountCheckInAction);
 		requireNonNull(formatter);
 
-		accountCheckInActionId = accountCheckInAction.getAccountCheckInActionId();
-		checkInActionStatusId = accountCheckInAction.getCheckInActionStatusId();
-		checkInActionStatusId = accountCheckInAction.getCheckInActionStatusId();
-		checkInActionStatusDescription = accountCheckInAction.getCheckInActionStatusDescription();
-		checkInTypeId = accountCheckInAction.getCheckInTypeId();
-		checkInTypeDescription = accountCheckInAction.getCheckInTypeDescription();
-		screeningSessionId = accountCheckInAction.getScreeningSessionId();
-		screeningFlowId = accountCheckInAction.getScreeningFlowId();
-		videoPrompt = accountCheckInAction.getVideoPrompt();
-		videoScript = accountCheckInAction.getVideoScript();
-		videoIntro = accountCheckInAction.getVideoIntro();
-		minVideoTimeMinutes = accountCheckInAction.getMinVideoTimeMinutes();
-		maxVideoTimeMinutes = accountCheckInAction.getMaxVideoTimeMinutes();
+		this.accountCheckInActionId = accountCheckInAction.getAccountCheckInActionId();
+		this.checkInActionStatusId = accountCheckInAction.getCheckInActionStatusId();
+		this.checkInActionStatusId = accountCheckInAction.getCheckInActionStatusId();
+		this.checkInActionStatusDescription = accountCheckInAction.getCheckInActionStatusDescription();
+		this.checkInTypeId = accountCheckInAction.getCheckInTypeId();
+		this.checkInTypeDescription = accountCheckInAction.getCheckInTypeDescription();
+		this.screeningSessionId = accountCheckInAction.getScreeningSessionId();
+		this.screeningFlowId = accountCheckInAction.getScreeningFlowId();
+		this.videoPrompt = accountCheckInAction.getVideoPrompt();
+		this.videoScript = accountCheckInAction.getVideoScript();
+		this.videoIntro = accountCheckInAction.getVideoIntro();
+		this.minVideoTimeSeconds = accountCheckInAction.getMinVideoTimeSeconds();
+		this.minVideoTimeSecondsDescription = this.minVideoTimeSeconds == null ? null : formatter.formatDuration(this.minVideoTimeSeconds);
+		this.maxVideoTimeSeconds = accountCheckInAction.getMaxVideoTimeSeconds();
+		this.maxVideoTimeSecondsDescription = this.maxVideoTimeSeconds == null ? null : formatter.formatDuration(this.maxVideoTimeSeconds);
 	}
 
 	@Nullable
@@ -158,12 +164,22 @@ public class AccountCheckInActionApiResponse {
 	}
 
 	@Nullable
-	public Integer getMinVideoTimeMinutes() {
-		return minVideoTimeMinutes;
+	public Integer getMinVideoTimeSeconds() {
+		return minVideoTimeSeconds;
 	}
 
 	@Nullable
-	public Integer getMaxVideoTimeMinutes() {
-		return maxVideoTimeMinutes;
+	public String getMinVideoTimeSecondsDescription() {
+		return this.minVideoTimeSecondsDescription;
+	}
+
+	@Nullable
+	public Integer getMaxVideoTimeSeconds() {
+		return this.maxVideoTimeSeconds;
+	}
+
+	@Nullable
+	public String getMaxVideoTimeSecondsDescription() {
+		return this.maxVideoTimeSecondsDescription;
 	}
 }

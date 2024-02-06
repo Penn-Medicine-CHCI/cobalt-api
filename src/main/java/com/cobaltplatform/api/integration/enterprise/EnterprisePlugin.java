@@ -112,6 +112,11 @@ public interface EnterprisePlugin {
 	}
 
 	@Nonnull
+	default Optional<MicrosoftClient> microsoftTeamsClientForDaemon() {
+		return microsoftClientForDaemon();
+	}
+
+	@Nonnull
 	default Optional<String> extractPatientFhirIdFromMyChartAccessToken(@Nullable MyChartAccessToken myChartAccessToken) {
 		if (myChartAccessToken == null)
 			return Optional.empty();

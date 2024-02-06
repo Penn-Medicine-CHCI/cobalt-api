@@ -200,9 +200,8 @@ public class StudyService {
 	}
 
 	@Nonnull
-	public Optional<Study> findStudyByIdentifier(@Nullable Object studyIdentifier,
-																							 @Nullable InstitutionId institutionId) {
-		if (studyIdentifier == null || institutionId == null)
+	public Optional<Study> findStudyByIdentifier(@Nullable Object studyIdentifier) {
+		if (studyIdentifier == null)
 			return Optional.empty();
 
 		if (studyIdentifier instanceof UUID)
@@ -214,7 +213,7 @@ public class StudyService {
 			if (isValidUUID(studyIdentifierAsString))
 				return findStudyById(UUID.fromString(studyIdentifierAsString));
 
-			return findStudyByInstitutionIdAndUrlName(institutionId, studyIdentifierAsString);
+			return findStudyByInstitutionIdAndUrlName(studyIdentifierAsString);
 		}
 
 		return Optional.empty();
@@ -233,9 +232,8 @@ public class StudyService {
 	}
 
 	@Nonnull
-	public Optional<Study> findStudyByInstitutionIdAndUrlName(@Nullable InstitutionId institutionId,
-																														@Nullable String urlName) {
-		if (institutionId == null || urlName == null)
+	public Optional<Study> findStudyByInstitutionIdAndUrlName(@Nullable String urlName) {
+		if (urlName == null)
 			return Optional.empty();
 
 		urlName = urlName.trim();
@@ -243,9 +241,8 @@ public class StudyService {
 		return getDatabase().queryForObject("""
 				SELECT *
 				FROM study
-				WHERE institution_id=?
-				AND url_name=?
-				""", Study.class, institutionId, urlName);
+				WHERE url_name=?
+				""", Study.class, urlName);
 	}
 
 	@Nonnull
@@ -405,7 +402,7 @@ public class StudyService {
 		Boolean rescheduleFirstCheckIn = false;
 		getLogger().debug("Rescheduling check-ins");
 		for (AccountCheckIn accountCheckIn : accountCheckIns) {
-			if (accountCheckActive(account, accountCheckIn)) {
+			if (accountCheckActive(account, accountCheckIn) && !rescheduleFirstCheckIn) {
 				getLogger().debug(format("Breaking because check-in %s is active.", accountCheckIn.getCheckInNumber()));
 				break;
 			} else if (accountCheckIn.getCheckInNumber() == 1 && !accountCheckIn.getCheckInStatusId().equals(CheckInStatusId.COMPLETE)) {
@@ -524,8 +521,10 @@ public class StudyService {
 				validationException.add(new FieldError("accountCheckIn", getStrings().get("Account check-in not found.")));
 			else if (accountCheckIn.get().getCheckInStatusId().equals(CheckInStatusId.COMPLETE))
 				validationException.add(new FieldError("accountCheckIn", getStrings().get("Account check-in is complete.")));
-			else if (accountCheckIn.get().getCheckInStartDateTime().isAfter(currentLocalDateTime) || accountCheckIn.get().getCheckInEndDateTime().isBefore(currentLocalDateTime))
+			else if (accountCheckInAction.get().getCheckInActionStatusId().compareTo(CheckInActionStatusId.IN_PROGRESS) != 0) {
+					if (accountCheckIn.get().getCheckInStartDateTime().isAfter(currentLocalDateTime) || accountCheckIn.get().getCheckInEndDateTime().isBefore(currentLocalDateTime))
 				validationException.add(new FieldError("accountCheckIn", getStrings().get("Account check-in is not permitted at this time.")));
+			}
 		}
 
 		if (checkInActionStatusId == null)

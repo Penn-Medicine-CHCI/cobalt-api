@@ -249,24 +249,17 @@ public class InstitutionService {
 	}
 
 	@Nonnull
-	public List<Institution> findNonCobaltInstitutions() {
-		return findInstitutions().stream()
-				.filter(institution -> institution.getInstitutionId() != InstitutionId.COBALT)
-				.collect(Collectors.toList());
+	public List<Institution> findInstitutionsWhoAreSharingWithMe() {
+		return getDatabase().queryForList("""
+				SELECT * 
+				FROM institution 
+				WHERE sharing_content = true ORDER BY institution_id
+				""", Institution.class);
 	}
 
 	@Nonnull
 	public List<Institution> findInstitutions() {
 		return getDatabase().queryForList("SELECT * FROM institution ORDER BY institution_id", Institution.class);
-	}
-
-	@Nonnull
-	public List<Institution> findInstitutionsWithoutSpecifiedContentId(@Nullable UUID contentId) {
-		if (contentId == null)
-			return findNonCobaltInstitutions();
-
-		return getDatabase().queryForList("SELECT i.* FROM institution i WHERE i.institution_id NOT IN " +
-				"(SELECT ic.institution_id FROM institution_content ic WHERE ic.content_id = ?)", Institution.class, contentId);
 	}
 
 	@Nonnull

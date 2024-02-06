@@ -102,6 +102,12 @@ public class Content {
 	@Nullable
 	private LocalDate dateCreated;
 
+	@Nullable
+	private UUID fileUploadId;
+
+	@Nullable
+	private String fileUrl;
+
 	@Nonnull
 	public UUID getContentId() {
 		return contentId;
@@ -345,4 +351,30 @@ public class Content {
 		this.contentStatusDescription = contentStatusDescription;
 	}
 
+	@Nullable
+	public String getContentTypeLabel() {
+		return contentTypeLabel;
+	}
+
+	public void setContentTypeLabel(@Nullable String contentTypeLabel) {
+		this.contentTypeLabel = contentTypeLabel;
+	}
+
+	@Nullable
+	public UUID getFileUploadId() {
+		return fileUploadId;
+	}
+
+	public void setFileUploadId(@Nullable UUID fileUploadId) {
+		this.fileUploadId = fileUploadId;
+	}
+
+	@Nullable
+	public String getFileUrl() {
+		return fileUrl;
+	}
+
+	public void setFileUrl(@Nullable String fileUrl) {
+		this.fileUrl = fileUrl;
+	}
 }
