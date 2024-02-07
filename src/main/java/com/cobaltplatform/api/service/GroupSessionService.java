@@ -1677,7 +1677,7 @@ public class GroupSessionService implements AutoCloseable {
 			GroupSessionReservation groupSessionReservation = findGroupSessionReservationPairById(groupSessionReservationId, account).get().getRight();
 			Map<String, Object> attendeeMessageContext = new HashMap<String, Object>() {{
 				put("groupSession", groupSession);
-				put("imageUrl", firstNonNull((groupSession), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
+				put("imageUrl", firstNonNull((groupSession.getImageFileUploadUrl()), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
 				put("attendeeName", attendeeName);
 				put("groupSessionStartDateDescription", getFormatter().formatDate(groupSession.getStartDateTime().toLocalDate()));
 				put("groupSessionStartTimeDescription", getFormatter().formatTime(groupSession.getStartDateTime().toLocalTime(), FormatStyle.SHORT));
