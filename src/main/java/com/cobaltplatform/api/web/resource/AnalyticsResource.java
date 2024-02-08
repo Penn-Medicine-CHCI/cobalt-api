@@ -1632,6 +1632,10 @@ public class AnalyticsResource {
 		for (TagPageView contentTagPageView : resourceAndTopicSummary.getContentTagPageViews()) {
 			TagGroup tagGroup = tagGroupsByTagGroupId.get(contentTagPageView.getTagGroupId());
 			Long contentCount = contentCountsByTagId.get(contentTagPageView.getTagId());
+
+			if (contentCount == null)
+				contentCount = 0L;
+
 			double contentPercentage = totalTaggedContentCount == 0 ? 0 : (double) contentCount / (double) totalTaggedContentCount;
 
 			AnalyticsWidgetTableRow row = new AnalyticsWidgetTableRow();
