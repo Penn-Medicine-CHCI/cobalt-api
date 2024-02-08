@@ -218,7 +218,6 @@ public class App implements AutoCloseable {
 		try {
 			ContentService contentService = getInjector().getInstance(ContentService.class);
 			contentService.startBackgroundTask();
-			getLogger().debug("Started Content Service background task");
 		} catch (Exception e) {
 			getLogger().warn("Failed to start Content Service background task", e);
 		}
@@ -226,7 +225,6 @@ public class App implements AutoCloseable {
 		try {
 			PatientOrderSyncService patientOrderSyncService = getInjector().getInstance(PatientOrderSyncService.class);
 			patientOrderSyncService.startBackgroundTask();
-			getLogger().debug("Started Patient Order Sync Service background task");
 		} catch (Exception e) {
 			getLogger().warn("Failed to start Patient Order Sync Service background task", e);
 		}

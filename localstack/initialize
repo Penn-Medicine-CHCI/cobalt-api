@@ -3,6 +3,7 @@
 REGION=us-east-2
 BUCKET=cobalt
 IC_ORDER_HL7_BUCKET=cobalt-ic-example-hl7
+IC_ORDER_HL7_TEST_DIR=/localstack/secrets/patient-order-hl7
 
 function fail() {
     echo $2
@@ -21,10 +22,14 @@ aws --endpoint-url=http://localstack-cobalt:4801 s3api create-bucket --bucket ${
 aws --endpoint-url=http://localstack-cobalt:4801 s3api put-bucket-acl --bucket ${IC_ORDER_HL7_BUCKET} --region ${REGION} --acl public-read
 aws --endpoint-url=http://localstack-cobalt:4801 s3api put-bucket-cors --bucket ${IC_ORDER_HL7_BUCKET} --region ${REGION} --cors-configuration file://s3-bucket-cors.json
 
-if [ -e /localstack/secrets/patient-order-hl7/To_COBALT_Ord_20240201_08.txt ]
+if [ -e $IC_ORDER_HL7_TEST_DIR ]
 then
-    echo "Using localstack secret value for /localstack/secrets/patient-order-hl7/To_COBALT_Ord_20240201_08.txt"
-    aws --endpoint-url=http://localstack-cobalt:4801 s3api put-object --bucket ${IC_ORDER_HL7_BUCKET} --region ${REGION} --key To_COBALT_Ord_20240201_08.txt --body /localstack/secrets/patient-order-hl7/To_COBALT_Ord_20240201_08.txt
+    for IC_ORDER_HL7_TEST_FILE in "$IC_ORDER_HL7_TEST_DIR"/*
+    do
+        IC_ORDER_HL7_TEST_FILENAME=$(basename ${IC_ORDER_HL7_TEST_FILE})
+        echo "Loading Integrated Care HL7 Order file '$IC_ORDER_HL7_TEST_FILENAME' into S3 bucket '${IC_ORDER_HL7_BUCKET}'..."
+        aws --endpoint-url=http://localstack-cobalt:4801 s3api put-object --bucket ${IC_ORDER_HL7_BUCKET} --region ${REGION} --key ${IC_ORDER_HL7_TEST_FILENAME} --body ${IC_ORDER_HL7_TEST_FILE} 1> /dev/null
+    done
 fi
 
 echo "Verifying SES identity..."
