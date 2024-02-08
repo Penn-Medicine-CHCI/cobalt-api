@@ -23,16 +23,19 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.error.ErrorReporter;
+import com.cobaltplatform.api.integration.hl7.Hl7Client;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.S3Object;
@@ -44,6 +47,9 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.util.HashSet;
 import java.util.List;
@@ -76,6 +82,8 @@ public class PatientOrderSyncService implements AutoCloseable {
 	@Nonnull
 	private final S3Client s3Client;
 	@Nonnull
+	private final Hl7Client hl7Client;
+	@Nonnull
 	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Configuration configuration;
@@ -98,11 +106,13 @@ public class PatientOrderSyncService implements AutoCloseable {
 	@Inject
 	public PatientOrderSyncService(@Nonnull Provider<BackgroundSyncTask> backgroundSyncTaskProvider,
 																 @Nonnull Provider<InstitutionService> institutionServiceProvider,
+																 @Nonnull Hl7Client hl7Client,
 																 @Nonnull DatabaseProvider databaseProvider,
 																 @Nonnull Configuration configuration,
 																 @Nonnull Strings strings) {
 		requireNonNull(backgroundSyncTaskProvider);
 		requireNonNull(institutionServiceProvider);
+		requireNonNull(hl7Client);
 		requireNonNull(databaseProvider);
 		requireNonNull(configuration);
 		requireNonNull(strings);
@@ -111,6 +121,7 @@ public class PatientOrderSyncService implements AutoCloseable {
 		this.institutionServiceProvider = institutionServiceProvider;
 		this.databaseProvider = databaseProvider;
 		this.configuration = configuration;
+		this.hl7Client = hl7Client;
 		this.s3Client = createS3Client(configuration);
 		this.strings = strings;
 		this.backgroundTaskLock = new Object();
@@ -183,18 +194,34 @@ public class PatientOrderSyncService implements AutoCloseable {
 		if (institution == null || !institution.getIntegratedCareEnabled() || institution.getIntegratedCareOrderImportBucketName() == null)
 			return Set.of();
 
+		String bucket = institution.getIntegratedCareOrderImportBucketName();
+
 		Set<UUID> patientOrderIds = new HashSet<>();
 
 		ListObjectsV2Request request = ListObjectsV2Request.builder()
-				.bucket(institution.getIntegratedCareOrderImportBucketName())
+				.bucket(bucket)
 				.prefix("To_COBALT_Ord_") // e.g. To_COBALT_Ord_20240201_08.txt
 				.build();
 
 		ListObjectsV2Iterable response = getS3Client().listObjectsV2Paginator(request);
 
 		for (ListObjectsV2Response page : response) {
-			page.contents().forEach((S3Object object) -> {
-				getLogger().info("TODO: process {}", object);
+			page.contents().forEach((S3Object s3Object) -> {
+				getLogger().info("Downloading {} HL7 Order message from {}/{}...",
+						institution.getInstitutionId().name(), bucket, s3Object.key());
+
+				GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+						.bucket(bucket)
+						.key(s3Object.key())
+						.build();
+
+				try (InputStream inputStream = getS3Client().getObject(getObjectRequest)) {
+					byte[] rawHl7Message = IOUtils.toByteArray(inputStream);
+					getLogger().info("{} HL7 Order message download completed for {}/{} ({} bytes).",
+							institution.getInstitutionId().name(), bucket, s3Object.key(), rawHl7Message.length);
+				} catch (IOException e) {
+					throw new UncheckedIOException(e);
+				}
 			});
 		}
 
@@ -331,6 +358,11 @@ public class PatientOrderSyncService implements AutoCloseable {
 	@Nonnull
 	protected S3Client getS3Client() {
 		return this.s3Client;
+	}
+
+	@Nonnull
+	protected Hl7Client getHl7Client() {
+		return this.hl7Client;
 	}
 
 	@Nonnull
