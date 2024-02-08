@@ -31,6 +31,12 @@ import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3ClientBuilder;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
+import software.amazon.awssdk.services.s3.model.S3Object;
+import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Iterable;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -38,8 +44,12 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.net.URI;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -62,7 +72,13 @@ public class PatientOrderSyncService implements AutoCloseable {
 	@Nonnull
 	private final Provider<BackgroundSyncTask> backgroundSyncTaskProvider;
 	@Nonnull
+	private final Provider<InstitutionService> institutionServiceProvider;
+	@Nonnull
+	private final S3Client s3Client;
+	@Nonnull
 	private final DatabaseProvider databaseProvider;
+	@Nonnull
+	private final Configuration configuration;
 	@Nonnull
 	private final Strings strings;
 	@Nonnull
@@ -81,14 +97,21 @@ public class PatientOrderSyncService implements AutoCloseable {
 
 	@Inject
 	public PatientOrderSyncService(@Nonnull Provider<BackgroundSyncTask> backgroundSyncTaskProvider,
+																 @Nonnull Provider<InstitutionService> institutionServiceProvider,
 																 @Nonnull DatabaseProvider databaseProvider,
+																 @Nonnull Configuration configuration,
 																 @Nonnull Strings strings) {
 		requireNonNull(backgroundSyncTaskProvider);
+		requireNonNull(institutionServiceProvider);
 		requireNonNull(databaseProvider);
+		requireNonNull(configuration);
 		requireNonNull(strings);
 
 		this.backgroundSyncTaskProvider = backgroundSyncTaskProvider;
+		this.institutionServiceProvider = institutionServiceProvider;
 		this.databaseProvider = databaseProvider;
+		this.configuration = configuration;
+		this.s3Client = createS3Client(configuration);
 		this.strings = strings;
 		this.backgroundTaskLock = new Object();
 		this.backgroundTaskStarted = false;
@@ -108,7 +131,7 @@ public class PatientOrderSyncService implements AutoCloseable {
 
 			getLogger().trace("Starting patient order sync background task...");
 
-			this.backgroundTaskExecutorService = Executors.newScheduledThreadPool(1, new ThreadFactoryBuilder().setNameFormat("group-session-background-task").build());
+			this.backgroundTaskExecutorService = Executors.newScheduledThreadPool(1, new ThreadFactoryBuilder().setNameFormat("patient-order-sync-background-task").build());
 			this.backgroundTaskStarted = true;
 
 			getBackgroundTaskExecutorService().get().scheduleWithFixedDelay(new Runnable() {
@@ -146,8 +169,54 @@ public class PatientOrderSyncService implements AutoCloseable {
 		}
 	}
 
+	@Nonnull
+	public Set<UUID> syncPatientOrdersForInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return Set.of();
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).orElse(null);
+		return institution == null ? Set.of() : syncPatientOrdersForInstitution(institution);
+	}
+
+	@Nonnull
+	public Set<UUID> syncPatientOrdersForInstitution(@Nullable Institution institution) {
+		if (institution == null || !institution.getIntegratedCareEnabled() || institution.getIntegratedCareOrderImportBucketName() == null)
+			return Set.of();
+
+		Set<UUID> patientOrderIds = new HashSet<>();
+
+		ListObjectsV2Request request = ListObjectsV2Request.builder()
+				.bucket(institution.getIntegratedCareOrderImportBucketName())
+				.prefix("To_COBALT_Ord_") // e.g. To_COBALT_Ord_20240201_08.txt
+				.build();
+
+		ListObjectsV2Iterable response = getS3Client().listObjectsV2Paginator(request);
+
+		for (ListObjectsV2Response page : response) {
+			page.contents().forEach((S3Object object) -> {
+				getLogger().info("TODO: process {}", object);
+			});
+		}
+
+		return patientOrderIds;
+	}
+
+	@Nonnull
+	protected S3Client createS3Client(@Nonnull Configuration configuration) {
+		requireNonNull(configuration);
+
+		S3ClientBuilder builder = S3Client.builder().region(configuration.getAmazonS3Region());
+
+		if (configuration.getAmazonUseLocalstack())
+			builder.endpointOverride(URI.create(configuration.getAmazonS3BaseUrl()));
+
+		return builder.build();
+	}
+
 	@ThreadSafe
 	protected static class BackgroundSyncTask implements Runnable {
+		@Nonnull
+		private final Provider<PatientOrderSyncService> patientOrderSyncServiceProvider;
 		@Nonnull
 		private final Provider<InstitutionService> institutionServiceProvider;
 		@Nonnull
@@ -162,17 +231,20 @@ public class PatientOrderSyncService implements AutoCloseable {
 		private final Logger logger;
 
 		@Inject
-		public BackgroundSyncTask(@Nonnull Provider<InstitutionService> institutionServiceProvider,
+		public BackgroundSyncTask(@Nonnull Provider<PatientOrderSyncService> patientOrderSyncServiceProvider,
+															@Nonnull Provider<InstitutionService> institutionServiceProvider,
 															@Nonnull CurrentContextExecutor currentContextExecutor,
 															@Nonnull ErrorReporter errorReporter,
 															@Nonnull DatabaseProvider databaseProvider,
 															@Nonnull Configuration configuration) {
+			requireNonNull(patientOrderSyncServiceProvider);
 			requireNonNull(institutionServiceProvider);
 			requireNonNull(currentContextExecutor);
 			requireNonNull(errorReporter);
 			requireNonNull(databaseProvider);
 			requireNonNull(configuration);
 
+			this.patientOrderSyncServiceProvider = patientOrderSyncServiceProvider;
 			this.institutionServiceProvider = institutionServiceProvider;
 			this.currentContextExecutor = currentContextExecutor;
 			this.errorReporter = errorReporter;
@@ -194,40 +266,23 @@ public class PatientOrderSyncService implements AutoCloseable {
 
 					for (Institution institution : orderImportEnabledInstitutions) {
 						try {
-							performOrderImportForInstitution(institution);
+							getPatientOrderSyncService().syncPatientOrdersForInstitution(institution);
 						} catch (Exception e) {
-							getLogger().error(format("Unable to sync incoming HL7 patient orders for institution ID %s",
+							getLogger().error(format("Unable to sync incoming patient orders for institution ID %s",
 									institution.getInstitutionId().name()), e);
 							getErrorReporter().report(e);
 						}
 					}
 				} catch (Exception e) {
-					getLogger().error("Unable to sync incoming HL7 patient orders", e);
+					getLogger().error("Unable to sync incoming patient orders", e);
 					getErrorReporter().report(e);
 				}
 			});
 		}
 
 		@Nonnull
-		public Boolean performOrderImportForInstitutionId(@Nullable InstitutionId institutionId) {
-			if (institutionId == null)
-				return false;
-
-			Institution institution = getInstitutionService().findInstitutionById(institutionId).orElse(null);
-			return institution == null ? false : performOrderImportForInstitution(institution);
-		}
-
-		@Nonnull
-		public Boolean performOrderImportForInstitution(@Nullable Institution institution) {
-			if (institution == null)
-				return false;
-
-			if (!institution.getIntegratedCareEnabled() || institution.getIntegratedCareOrderImportBucketName() == null)
-				return false;
-
-			// TODO: perform import
-
-			return true;
+		protected PatientOrderSyncService getPatientOrderSyncService() {
+			return this.patientOrderSyncServiceProvider.get();
 		}
 
 		@Nonnull
@@ -266,6 +321,21 @@ public class PatientOrderSyncService implements AutoCloseable {
 		synchronized (getBackgroundTaskLock()) {
 			return this.backgroundTaskStarted;
 		}
+	}
+
+	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return this.institutionServiceProvider.get();
+	}
+
+	@Nonnull
+	protected S3Client getS3Client() {
+		return this.s3Client;
+	}
+
+	@Nonnull
+	protected Configuration getConfiguration() {
+		return this.configuration;
 	}
 
 	@Nonnull

@@ -29,6 +29,7 @@ import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.GroupSessionService;
 import com.cobaltplatform.api.service.MessageService;
 import com.cobaltplatform.api.service.PatientOrderService;
+import com.cobaltplatform.api.service.PatientOrderSyncService;
 import com.cobaltplatform.api.service.Way2HealthService;
 import com.cobaltplatform.api.util.db.ReadReplica;
 import com.cobaltplatform.api.util.db.WritableMaster;
@@ -221,9 +222,31 @@ public class App implements AutoCloseable {
 		} catch (Exception e) {
 			getLogger().warn("Failed to start Content Service background task", e);
 		}
+
+		try {
+			PatientOrderSyncService patientOrderSyncService = getInjector().getInstance(PatientOrderSyncService.class);
+			patientOrderSyncService.startBackgroundTask();
+			getLogger().debug("Started Patient Order Sync Service background task");
+		} catch (Exception e) {
+			getLogger().warn("Failed to start Patient Order Sync Service background task", e);
+		}
 	}
 
 	public void performShutdownTasks() {
+		try {
+			PatientOrderSyncService patientOrderSyncService = getInjector().getInstance(PatientOrderSyncService.class);
+			patientOrderSyncService.stopBackgroundTask();
+		} catch (Exception e) {
+			getLogger().warn("Failed to stop Patient Order Sync background task", e);
+		}
+
+		try {
+			ContentService contentService = getInjector().getInstance(ContentService.class);
+			contentService.stopBackgroundTask();
+		} catch (Exception e) {
+			getLogger().warn("Failed to stop Content background task", e);
+		}
+
 		try {
 			AnalyticsService analyticsService = getInjector().getInstance(AnalyticsService.class);
 			analyticsService.stopAnalyticsSync();
@@ -318,13 +341,6 @@ public class App implements AutoCloseable {
 				((Closeable) writableMasterDataSource).close();
 		} catch (Exception e) {
 			getLogger().warn("Unable to close writable-master datasource", e);
-		}
-
-		try {
-			ContentService contentService = getInjector().getInstance(ContentService.class);
-			contentService.stopBackgroundTask();
-		} catch (Exception e) {
-			getLogger().warn("Failed to stop Content background task", e);
 		}
 
 		getLogger().debug("Shutdown complete.");

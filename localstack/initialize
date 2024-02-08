@@ -2,6 +2,7 @@
 
 REGION=us-east-2
 BUCKET=cobalt
+IC_ORDER_HL7_BUCKET=cobalt-ic-example-hl7
 
 function fail() {
     echo $2
@@ -13,6 +14,18 @@ echo "Creating S3 bucket..."
 aws --endpoint-url=http://localstack-cobalt:4801 s3api create-bucket --bucket ${BUCKET} --region ${REGION} --create-bucket-configuration LocationConstraint=${REGION}
 aws --endpoint-url=http://localstack-cobalt:4801 s3api put-bucket-acl --bucket ${BUCKET} --region ${REGION} --acl public-read
 aws --endpoint-url=http://localstack-cobalt:4801 s3api put-bucket-cors --bucket ${BUCKET} --region ${REGION} --cors-configuration file://s3-bucket-cors.json
+
+echo "Creating S3 Integrated Care HL7 Order bucket..."
+
+aws --endpoint-url=http://localstack-cobalt:4801 s3api create-bucket --bucket ${IC_ORDER_HL7_BUCKET} --region ${REGION} --create-bucket-configuration LocationConstraint=${REGION}
+aws --endpoint-url=http://localstack-cobalt:4801 s3api put-bucket-acl --bucket ${IC_ORDER_HL7_BUCKET} --region ${REGION} --acl public-read
+aws --endpoint-url=http://localstack-cobalt:4801 s3api put-bucket-cors --bucket ${IC_ORDER_HL7_BUCKET} --region ${REGION} --cors-configuration file://s3-bucket-cors.json
+
+if [ -e /localstack/secrets/patient-order-hl7/To_COBALT_Ord_20240201_08.txt ]
+then
+    echo "Using localstack secret value for /localstack/secrets/patient-order-hl7/To_COBALT_Ord_20240201_08.txt"
+    aws --endpoint-url=http://localstack-cobalt:4801 s3api put-object --bucket ${IC_ORDER_HL7_BUCKET} --region ${REGION} --key To_COBALT_Ord_20240201_08.txt --body /localstack/secrets/patient-order-hl7/To_COBALT_Ord_20240201_08.txt
+fi
 
 echo "Verifying SES identity..."
 
