@@ -186,6 +186,7 @@ import com.soklet.converter.ValueConverterRegistry;
 import com.soklet.jetty.JettyServer;
 import com.soklet.util.InstanceProvider;
 import com.soklet.web.HashedUrlManifest;
+import com.soklet.web.exception.MethodNotAllowedException;
 import com.soklet.web.request.DefaultRequestHandler;
 import com.soklet.web.request.RequestContext;
 import com.soklet.web.request.RequestHandler;
@@ -490,7 +491,10 @@ public class AppModule extends AbstractModule {
 																	Optional<Route> route,
 																	Optional<Object> response,
 																	Exception exception) {
-				errorReporter.report(exception);
+				if (exception instanceof MethodNotAllowedException)
+					getLogger().warn("Method not allowed: {}", exception.getMessage());
+				else
+					errorReporter.report(exception);
 			}
 
 			@Override
