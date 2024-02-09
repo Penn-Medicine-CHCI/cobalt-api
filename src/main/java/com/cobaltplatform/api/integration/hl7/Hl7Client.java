@@ -28,14 +28,15 @@ import ca.uhn.hl7v2.model.v251.message.ORM_O01;
 import ca.uhn.hl7v2.model.v251.segment.MSH;
 import ca.uhn.hl7v2.model.v251.segment.ORC;
 import ca.uhn.hl7v2.parser.Parser;
+import com.cobaltplatform.api.integration.hl7.model.Hl7CodedElement;
+import com.cobaltplatform.api.integration.hl7.model.Hl7CommonOrder;
+import com.cobaltplatform.api.integration.hl7.model.Hl7EntityIdentifier;
+import com.cobaltplatform.api.integration.hl7.model.Hl7HierarchicDesignator;
+import com.cobaltplatform.api.integration.hl7.model.Hl7MessageHeader;
+import com.cobaltplatform.api.integration.hl7.model.Hl7MessageType;
 import com.cobaltplatform.api.integration.hl7.model.Hl7OrderMessage;
-import com.cobaltplatform.api.integration.hl7.model.Hl7OrderMessage.CodedElement;
-import com.cobaltplatform.api.integration.hl7.model.Hl7OrderMessage.CommonOrder;
-import com.cobaltplatform.api.integration.hl7.model.Hl7OrderMessage.EntityIdentifier;
-import com.cobaltplatform.api.integration.hl7.model.Hl7OrderMessage.HierarchicDesignator;
-import com.cobaltplatform.api.integration.hl7.model.Hl7OrderMessage.MessageHeader;
-import com.cobaltplatform.api.integration.hl7.model.Hl7OrderMessage.MessageType;
-import com.cobaltplatform.api.integration.hl7.model.Hl7OrderMessage.ProcessingType;
+import com.cobaltplatform.api.integration.hl7.model.Hl7ProcessingType;
+import com.cobaltplatform.api.integration.hl7.model.Hl7VersionId;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -97,35 +98,35 @@ public class Hl7Client {
 			MSH msh = ormMessage.getMSH();
 
 			// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/Segments/MSH
-			MessageHeader messageHeader = new MessageHeader();
+			Hl7MessageHeader messageHeader = new Hl7MessageHeader();
 			messageHeader.setFieldSeparator(trimToNull(msh.getFieldSeparator().getValueOrEmpty()));
 			messageHeader.setEncodingCharacters(trimToNull(msh.getEncodingCharacters().getValueOrEmpty()));
 
-			if (HierarchicDesignator.isPresent(msh.getSendingApplication()))
-				messageHeader.setSendingApplication(new HierarchicDesignator(msh.getSendingApplication()));
+			if (Hl7HierarchicDesignator.isPresent(msh.getSendingApplication()))
+				messageHeader.setSendingApplication(new Hl7HierarchicDesignator(msh.getSendingApplication()));
 
-			if (HierarchicDesignator.isPresent(msh.getSendingFacility()))
-				messageHeader.setSendingFacility(new HierarchicDesignator(msh.getSendingFacility()));
+			if (Hl7HierarchicDesignator.isPresent(msh.getSendingFacility()))
+				messageHeader.setSendingFacility(new Hl7HierarchicDesignator(msh.getSendingFacility()));
 
-			if (HierarchicDesignator.isPresent(msh.getReceivingApplication()))
-				messageHeader.setReceivingApplication(new HierarchicDesignator(msh.getReceivingApplication()));
+			if (Hl7HierarchicDesignator.isPresent(msh.getReceivingApplication()))
+				messageHeader.setReceivingApplication(new Hl7HierarchicDesignator(msh.getReceivingApplication()));
 
-			if (HierarchicDesignator.isPresent(msh.getReceivingFacility()))
-				messageHeader.setReceivingFacility(new HierarchicDesignator(msh.getReceivingFacility()));
+			if (Hl7HierarchicDesignator.isPresent(msh.getReceivingFacility()))
+				messageHeader.setReceivingFacility(new Hl7HierarchicDesignator(msh.getReceivingFacility()));
 
 			messageHeader.setDateTimeOfMessage(trimToNull(msh.getDateTimeOfMessage().getTime().getValue()));
 			messageHeader.setSecurity(trimToNull(msh.getSecurity().getValueOrEmpty()));
 
-			if (MessageType.isPresent(msh.getMessageType()))
-				messageHeader.setMessageType(new MessageType(msh.getMessageType()));
+			if (Hl7MessageType.isPresent(msh.getMessageType()))
+				messageHeader.setMessageType(new Hl7MessageType(msh.getMessageType()));
 
 			messageHeader.setMessageControlId(trimToNull(msh.getMessageControlID().getValueOrEmpty()));
 
-			if (ProcessingType.isPresent(msh.getProcessingID()))
-				messageHeader.setProcessingId(new ProcessingType(msh.getProcessingID()));
+			if (Hl7ProcessingType.isPresent(msh.getProcessingID()))
+				messageHeader.setProcessingId(new Hl7ProcessingType(msh.getProcessingID()));
 
-			if (Hl7OrderMessage.VersionId.isPresent(msh.getVersionID()))
-				messageHeader.setVersionId(new Hl7OrderMessage.VersionId(msh.getVersionID()));
+			if (Hl7VersionId.isPresent(msh.getVersionID()))
+				messageHeader.setVersionId(new Hl7VersionId(msh.getVersionID()));
 
 			messageHeader.setSequenceNumber(trimToNull(msh.getSequenceNumber().getValue()));
 			messageHeader.setContinuationPointer(trimToNull(msh.getContinuationPointer().getValue()));
@@ -139,32 +140,31 @@ public class Hl7Client {
 						.filter(cs -> cs != null)
 						.collect(Collectors.toList()));
 
-
-			if (CodedElement.isPresent(msh.getPrincipalLanguageOfMessage()))
-				messageHeader.setPrincipalLanguageOfMessage(new CodedElement(msh.getPrincipalLanguageOfMessage()));
+			if (Hl7CodedElement.isPresent(msh.getPrincipalLanguageOfMessage()))
+				messageHeader.setPrincipalLanguageOfMessage(new Hl7CodedElement(msh.getPrincipalLanguageOfMessage()));
 
 			messageHeader.setAlternateCharacterSetHandlingScheme(trimToNull(msh.getAlternateCharacterSetHandlingScheme().getValueOrEmpty()));
 
 			if (msh.getMessageProfileIdentifier() != null && msh.getMessageProfileIdentifier().length > 0)
 				messageHeader.setMessageProfileIdentifier(Arrays.stream(msh.getMessageProfileIdentifier())
-						.map(mpi -> EntityIdentifier.isPresent(mpi) ? new EntityIdentifier(mpi) : null)
+						.map(mpi -> Hl7EntityIdentifier.isPresent(mpi) ? new Hl7EntityIdentifier(mpi) : null)
 						.filter(mpi -> mpi != null)
 						.collect(Collectors.toList()));
 
-			orderMessage.setMessageHeaderSegment(messageHeader);
+			orderMessage.setMessageHeader(messageHeader);
 
 			ORM_O01_ORDER order = ormMessage.getORDER();
 			ORC orc = order.getORC();
 
 			// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/Segments/ORC
-			CommonOrder commonOrder = new CommonOrder();
+			Hl7CommonOrder commonOrder = new Hl7CommonOrder();
 			commonOrder.setOrderControl(trimToNull(orc.getOrc1_OrderControl().getValueOrEmpty()));
 			commonOrder.setPlacerOrderNumber(trimToNull(orc.getOrc2_PlacerOrderNumber().getEi1_EntityIdentifier().getValue()));
 			commonOrder.setFillerOrderNumber(trimToNull(orc.getOrc3_FillerOrderNumber().getEi1_EntityIdentifier().getValue()));
 			commonOrder.setPlacerGroupNumber(trimToNull(orc.getOrc4_PlacerGroupNumber().getEi1_EntityIdentifier().getValue()));
 			commonOrder.setOrderStatus(trimToNull(orc.getOrc5_OrderStatus().getValue()));
 
-			orderMessage.setCommonOrderSegment(commonOrder);
+			orderMessage.setCommonOrder(commonOrder);
 
 			ORM_O01_PATIENT patient = ormMessage.getPATIENT();
 

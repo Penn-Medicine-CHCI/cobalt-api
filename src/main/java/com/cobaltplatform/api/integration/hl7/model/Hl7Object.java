@@ -19,36 +19,26 @@
 
 package com.cobaltplatform.api.integration.hl7.model;
 
-import javax.annotation.Nullable;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
+import javax.annotation.Nonnull;
 import javax.annotation.concurrent.NotThreadSafe;
 
 /**
- * See https://hl7-definition.caristix.com/v2/hl7v2.5.1/TriggerEvents/ORM_O01
- *
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class Hl7OrderMessage extends Hl7Object {
-	@Nullable
-	private Hl7MessageHeader messageHeader;
-	@Nullable
-	private Hl7CommonOrder commonOrder;
+public abstract class Hl7Object {
+	@Nonnull
+	private static final Gson GSON;
 
-	@Nullable
-	public Hl7MessageHeader getMessageHeader() {
-		return this.messageHeader;
+	static {
+		GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 	}
 
-	public void setMessageHeader(@Nullable Hl7MessageHeader messageHeader) {
-		this.messageHeader = messageHeader;
-	}
-
-	@Nullable
-	public Hl7CommonOrder getCommonOrder() {
-		return this.commonOrder;
-	}
-
-	public void setCommonOrder(@Nullable Hl7CommonOrder commonOrder) {
-		this.commonOrder = commonOrder;
+	@Override
+	public String toString() {
+		return GSON.toJson(this);
 	}
 }
