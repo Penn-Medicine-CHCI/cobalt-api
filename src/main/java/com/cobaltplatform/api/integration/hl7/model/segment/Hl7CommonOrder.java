@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.integration.hl7.model.segment;
 
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifier;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -34,11 +35,11 @@ public class Hl7CommonOrder extends Hl7Object {
 	@Nullable
 	private String orderControl; // ORC.1 - Order Control
 	@Nullable
-	private String placerOrderNumber; // ORC.2 - Placer Order Number
+	private Hl7EntityIdentifier placerOrderNumber; // ORC.2 - Placer Order Number
 	@Nullable
-	private String fillerOrderNumber; // ORC.3 - Filler Order Number
+	private Hl7EntityIdentifier fillerOrderNumber; // ORC.3 - Filler Order Number
 	@Nullable
-	private String placerGroupNumber; // ORC.4 - Placer Group Number
+	private Hl7EntityIdentifier placerGroupNumber; // ORC.4 - Placer Group Number
 	@Nullable
 	private String orderStatus; // ORC.5 - Order Status
 	@Nullable
@@ -69,6 +70,30 @@ public class Hl7CommonOrder extends Hl7Object {
 	private String enteringDevice; // ORC.18 - Entering Device
 	@Nullable
 	private String actionBy; // ORC.19 - Action By
+	@Nullable
+	private String advancedBeneficiaryNoticeCode; // ORC.20 - Advanced Beneficiary Notice Code
+	@Nullable
+	private String orderingFacilityName; // ORC.21 - Ordering Facility Name
+	@Nullable
+	private String orderingFacilityAddress; // ORC.22 - Ordering Facility Address
+	@Nullable
+	private String orderingFacilityPhoneNumber; // ORC.23 - Ordering Facility Phone Number
+	@Nullable
+	private String orderingProviderAddress; // ORC.24 - Ordering Provider Address
+	@Nullable
+	private String orderStatusModifier; // ORC.25 - Order Status Modifier
+	@Nullable
+	private String advancedBeneficiaryNoticeOverrideReason; // ORC.26 - Advanced Beneficiary Notice Override Reason
+	@Nullable
+	private String fillersExpectedAvailabilityDateTime; // ORC.27 - Filler's Expected Availability Date/Time
+	@Nullable
+	private String confidentialityCode; // ORC.28 - Confidentiality Code
+	@Nullable
+	private String orderType; // ORC.29 - Order Type
+	@Nullable
+	private String entererAuthorizationMode; // ORC.30 - Enterer Authorization Mode
+	@Nullable
+	private String parentUniversalServiceIdentifier; // ORC.31 - Parent Universal Service Identifier
 
 	@Nullable
 	public String getOrderControl() {
@@ -80,29 +105,29 @@ public class Hl7CommonOrder extends Hl7Object {
 	}
 
 	@Nullable
-	public String getPlacerOrderNumber() {
+	public Hl7EntityIdentifier getPlacerOrderNumber() {
 		return this.placerOrderNumber;
 	}
 
-	public void setPlacerOrderNumber(@Nullable String placerOrderNumber) {
+	public void setPlacerOrderNumber(@Nullable Hl7EntityIdentifier placerOrderNumber) {
 		this.placerOrderNumber = placerOrderNumber;
 	}
 
 	@Nullable
-	public String getFillerOrderNumber() {
+	public Hl7EntityIdentifier getFillerOrderNumber() {
 		return this.fillerOrderNumber;
 	}
 
-	public void setFillerOrderNumber(@Nullable String fillerOrderNumber) {
+	public void setFillerOrderNumber(@Nullable Hl7EntityIdentifier fillerOrderNumber) {
 		this.fillerOrderNumber = fillerOrderNumber;
 	}
 
 	@Nullable
-	public String getPlacerGroupNumber() {
+	public Hl7EntityIdentifier getPlacerGroupNumber() {
 		return this.placerGroupNumber;
 	}
 
-	public void setPlacerGroupNumber(@Nullable String placerGroupNumber) {
+	public void setPlacerGroupNumber(@Nullable Hl7EntityIdentifier placerGroupNumber) {
 		this.placerGroupNumber = placerGroupNumber;
 	}
 
@@ -239,5 +264,113 @@ public class Hl7CommonOrder extends Hl7Object {
 
 	public void setActionBy(@Nullable String actionBy) {
 		this.actionBy = actionBy;
+	}
+
+	@Nullable
+	public String getAdvancedBeneficiaryNoticeCode() {
+		return this.advancedBeneficiaryNoticeCode;
+	}
+
+	public void setAdvancedBeneficiaryNoticeCode(@Nullable String advancedBeneficiaryNoticeCode) {
+		this.advancedBeneficiaryNoticeCode = advancedBeneficiaryNoticeCode;
+	}
+
+	@Nullable
+	public String getOrderingFacilityName() {
+		return this.orderingFacilityName;
+	}
+
+	public void setOrderingFacilityName(@Nullable String orderingFacilityName) {
+		this.orderingFacilityName = orderingFacilityName;
+	}
+
+	@Nullable
+	public String getOrderingFacilityAddress() {
+		return this.orderingFacilityAddress;
+	}
+
+	public void setOrderingFacilityAddress(@Nullable String orderingFacilityAddress) {
+		this.orderingFacilityAddress = orderingFacilityAddress;
+	}
+
+	@Nullable
+	public String getOrderingFacilityPhoneNumber() {
+		return this.orderingFacilityPhoneNumber;
+	}
+
+	public void setOrderingFacilityPhoneNumber(@Nullable String orderingFacilityPhoneNumber) {
+		this.orderingFacilityPhoneNumber = orderingFacilityPhoneNumber;
+	}
+
+	@Nullable
+	public String getOrderingProviderAddress() {
+		return this.orderingProviderAddress;
+	}
+
+	public void setOrderingProviderAddress(@Nullable String orderingProviderAddress) {
+		this.orderingProviderAddress = orderingProviderAddress;
+	}
+
+	@Nullable
+	public String getOrderStatusModifier() {
+		return this.orderStatusModifier;
+	}
+
+	public void setOrderStatusModifier(@Nullable String orderStatusModifier) {
+		this.orderStatusModifier = orderStatusModifier;
+	}
+
+	@Nullable
+	public String getAdvancedBeneficiaryNoticeOverrideReason() {
+		return this.advancedBeneficiaryNoticeOverrideReason;
+	}
+
+	public void setAdvancedBeneficiaryNoticeOverrideReason(@Nullable String advancedBeneficiaryNoticeOverrideReason) {
+		this.advancedBeneficiaryNoticeOverrideReason = advancedBeneficiaryNoticeOverrideReason;
+	}
+
+	@Nullable
+	public String getFillersExpectedAvailabilityDateTime() {
+		return this.fillersExpectedAvailabilityDateTime;
+	}
+
+	public void setFillersExpectedAvailabilityDateTime(@Nullable String fillersExpectedAvailabilityDateTime) {
+		this.fillersExpectedAvailabilityDateTime = fillersExpectedAvailabilityDateTime;
+	}
+
+	@Nullable
+	public String getConfidentialityCode() {
+		return this.confidentialityCode;
+	}
+
+	public void setConfidentialityCode(@Nullable String confidentialityCode) {
+		this.confidentialityCode = confidentialityCode;
+	}
+
+	@Nullable
+	public String getOrderType() {
+		return this.orderType;
+	}
+
+	public void setOrderType(@Nullable String orderType) {
+		this.orderType = orderType;
+	}
+
+	@Nullable
+	public String getEntererAuthorizationMode() {
+		return this.entererAuthorizationMode;
+	}
+
+	public void setEntererAuthorizationMode(@Nullable String entererAuthorizationMode) {
+		this.entererAuthorizationMode = entererAuthorizationMode;
+	}
+
+	@Nullable
+	public String getParentUniversalServiceIdentifier() {
+		return this.parentUniversalServiceIdentifier;
+	}
+
+	public void setParentUniversalServiceIdentifier(@Nullable String parentUniversalServiceIdentifier) {
+		this.parentUniversalServiceIdentifier = parentUniversalServiceIdentifier;
 	}
 }

@@ -17,16 +17,12 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.integration.hl7.model.event;
+package com.cobaltplatform.api.integration.hl7.model.segment;
 
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
-import com.cobaltplatform.api.integration.hl7.model.segment.Hl7MessageHeader;
-import com.cobaltplatform.api.integration.hl7.model.segment.Hl7NotesAndComments;
-import com.cobaltplatform.api.integration.hl7.model.segment.Hl7Order;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.util.List;
 
 /**
  * See https://hl7-definition.caristix.com/v2/hl7v2.5.1/TriggerEvents/ORM_O01
@@ -34,38 +30,22 @@ import java.util.List;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class Hl7GeneralOrder extends Hl7Object {
+public class Hl7Order extends Hl7Object {
 	@Nullable
-	private Hl7MessageHeader messageHeader;
-	@Nullable
-	private List<Hl7NotesAndComments> notesAndComments;
-	@Nullable
-	private List<Hl7Order> orders;
+	private Hl7CommonOrder commonOrder;
+
+	// TODO
+	// FT1 - Financial Transaction
+	// CTI - Clinical Trial Identification
+	// BLG - Billing
+  // ORDER DETAIL
 
 	@Nullable
-	public Hl7MessageHeader getMessageHeader() {
-		return this.messageHeader;
+	public Hl7CommonOrder getCommonOrder() {
+		return this.commonOrder;
 	}
 
-	public void setMessageHeader(@Nullable Hl7MessageHeader messageHeader) {
-		this.messageHeader = messageHeader;
-	}
-
-	@Nullable
-	public List<Hl7NotesAndComments> getNotesAndComments() {
-		return this.notesAndComments;
-	}
-
-	public void setNotesAndComments(@Nullable List<Hl7NotesAndComments> notesAndComments) {
-		this.notesAndComments = notesAndComments;
-	}
-
-	@Nullable
-	public List<Hl7Order> getOrders() {
-		return this.orders;
-	}
-
-	public void setOrders(@Nullable List<Hl7Order> orders) {
-		this.orders = orders;
+	public void setCommonOrder(@Nullable Hl7CommonOrder commonOrder) {
+		this.commonOrder = commonOrder;
 	}
 }

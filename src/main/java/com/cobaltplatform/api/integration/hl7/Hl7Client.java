@@ -22,7 +22,6 @@ package com.cobaltplatform.api.integration.hl7;
 import ca.uhn.hl7v2.DefaultHapiContext;
 import ca.uhn.hl7v2.HapiContext;
 import ca.uhn.hl7v2.model.Message;
-import ca.uhn.hl7v2.model.v251.group.ORM_O01_ORDER;
 import ca.uhn.hl7v2.model.v251.group.ORM_O01_PATIENT;
 import ca.uhn.hl7v2.model.v251.message.ORM_O01;
 import ca.uhn.hl7v2.model.v251.segment.MSH;
@@ -32,6 +31,7 @@ import com.cobaltplatform.api.integration.hl7.model.event.Hl7GeneralOrder;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7CommonOrder;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7MessageHeader;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7NotesAndComments;
+import com.cobaltplatform.api.integration.hl7.model.segment.Hl7Order;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedElement;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifier;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7HierarchicDesignator;
@@ -183,18 +183,34 @@ public class Hl7Client {
 						.collect(Collectors.toList())
 				);
 
-			// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/Segments/ORC
-			ORM_O01_ORDER order = ormMessage.getORDER();
-			ORC orc = order.getORC();
+			// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/TriggerEvents/ORM_O01
+			if (ormMessage.getORDERAll() != null && ormMessage.getORDERAll().size() > 0) {
+				orderMessage.setOrders(ormMessage.getORDERAll().stream()
+						.map(ormOrder -> {
+							Hl7Order order = new Hl7Order();
+							ORC orc = ormOrder.getORC();
 
-			Hl7CommonOrder commonOrder = new Hl7CommonOrder();
-			commonOrder.setOrderControl(trimToNull(orc.getOrc1_OrderControl().getValueOrEmpty()));
-			commonOrder.setPlacerOrderNumber(trimToNull(orc.getOrc2_PlacerOrderNumber().getEi1_EntityIdentifier().getValue()));
-			commonOrder.setFillerOrderNumber(trimToNull(orc.getOrc3_FillerOrderNumber().getEi1_EntityIdentifier().getValue()));
-			commonOrder.setPlacerGroupNumber(trimToNull(orc.getOrc4_PlacerGroupNumber().getEi1_EntityIdentifier().getValue()));
-			commonOrder.setOrderStatus(trimToNull(orc.getOrc5_OrderStatus().getValue()));
+							// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/Segments/ORC
+							Hl7CommonOrder commonOrder = new Hl7CommonOrder();
+							commonOrder.setOrderControl(trimToNull(orc.getOrderControl().getValueOrEmpty()));
 
-			orderMessage.setCommonOrder(commonOrder);
+							if (Hl7EntityIdentifier.isPresent(orc.getPlacerOrderNumber()))
+								commonOrder.setPlacerOrderNumber(new Hl7EntityIdentifier(orc.getPlacerOrderNumber()));
+
+							if (Hl7EntityIdentifier.isPresent(orc.getPlacerGroupNumber()))
+								commonOrder.setPlacerGroupNumber(new Hl7EntityIdentifier(orc.getPlacerGroupNumber()));
+
+							if (Hl7EntityIdentifier.isPresent(orc.getFillerOrderNumber()))
+								commonOrder.setFillerOrderNumber(new Hl7EntityIdentifier(orc.getFillerOrderNumber()));
+
+							// TODO: additional fields
+
+							order.setCommonOrder(commonOrder);
+
+							return order;
+						})
+						.collect(Collectors.toList()));
+			}
 
 			ORM_O01_PATIENT patient = ormMessage.getPATIENT();
 
