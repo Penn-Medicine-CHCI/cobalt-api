@@ -29,7 +29,9 @@ import ca.uhn.hl7v2.model.v251.segment.MSH;
 import ca.uhn.hl7v2.model.v251.segment.ORC;
 import ca.uhn.hl7v2.parser.Parser;
 import com.cobaltplatform.api.integration.hl7.model.Hl7OrderMessage;
+import com.cobaltplatform.api.integration.hl7.model.Hl7OrderMessage.CodedElement;
 import com.cobaltplatform.api.integration.hl7.model.Hl7OrderMessage.CommonOrder;
+import com.cobaltplatform.api.integration.hl7.model.Hl7OrderMessage.EntityIdentifier;
 import com.cobaltplatform.api.integration.hl7.model.Hl7OrderMessage.HierarchicDesignator;
 import com.cobaltplatform.api.integration.hl7.model.Hl7OrderMessage.MessageHeader;
 import com.cobaltplatform.api.integration.hl7.model.Hl7OrderMessage.MessageType;
@@ -39,6 +41,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Singleton;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -130,12 +133,23 @@ public class Hl7Client {
 			messageHeader.setApplicationAcknowledgementType(trimToNull(msh.getApplicationAcknowledgmentType().getValueOrEmpty()));
 			messageHeader.setCountryCode(trimToNull(msh.getCountryCode().getValueOrEmpty()));
 
-			// TODO: finish up
+			if (msh.getCharacterSet() != null && msh.getCharacterSet().length > 0)
+				messageHeader.setCharacterSet(Arrays.stream(msh.getCharacterSet())
+						.map(cs -> trimToNull(cs.getValueOrEmpty()))
+						.filter(cs -> cs != null)
+						.collect(Collectors.toList()));
 
-			//		@Nullable
-			//		private String characterSet; // MSH.18 - Character Set
-			//		@Nullable
-			//		private String principalLanguageOfMessage; // MSH.19 - Principal Language of Message
+
+			if (CodedElement.isPresent(msh.getPrincipalLanguageOfMessage()))
+				messageHeader.setPrincipalLanguageOfMessage(new CodedElement(msh.getPrincipalLanguageOfMessage()));
+
+			messageHeader.setAlternateCharacterSetHandlingScheme(trimToNull(msh.getAlternateCharacterSetHandlingScheme().getValueOrEmpty()));
+
+			if (msh.getMessageProfileIdentifier() != null && msh.getMessageProfileIdentifier().length > 0)
+				messageHeader.setMessageProfileIdentifier(Arrays.stream(msh.getMessageProfileIdentifier())
+						.map(mpi -> EntityIdentifier.isPresent(mpi) ? new EntityIdentifier(mpi) : null)
+						.filter(mpi -> mpi != null)
+						.collect(Collectors.toList()));
 
 			orderMessage.setMessageHeaderSegment(messageHeader);
 

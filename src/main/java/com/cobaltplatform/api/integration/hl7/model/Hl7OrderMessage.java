@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.integration.hl7.model;
 
 import ca.uhn.hl7v2.model.v251.datatype.CE;
+import ca.uhn.hl7v2.model.v251.datatype.EI;
 import ca.uhn.hl7v2.model.v251.datatype.HD;
 import ca.uhn.hl7v2.model.v251.datatype.MSG;
 import ca.uhn.hl7v2.model.v251.datatype.PT;
@@ -30,6 +31,7 @@ import com.google.gson.GsonBuilder;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.List;
 
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
@@ -73,6 +75,73 @@ public class Hl7OrderMessage {
 
 	public void setCommonOrderSegment(@Nullable CommonOrder commonOrder) {
 		this.commonOrder = commonOrder;
+	}
+
+	/**
+	 * See https://hl7-definition.caristix.com/v2/HL7v2.5.1/DataTypes/EI
+	 */
+	@NotThreadSafe
+	public static class EntityIdentifier {
+		@Nullable
+		private String namespaceId;
+		@Nullable
+		private String universalId;
+		@Nullable
+		private String universalIdType;
+
+		@Nonnull
+		public static Boolean isPresent(@Nullable EI ei) {
+			if (ei == null)
+				return false;
+
+			return trimToNull(ei.getNamespaceID().getValueOrEmpty()) != null
+					|| trimToNull(ei.getUniversalID().getValueOrEmpty()) != null
+					|| trimToNull(ei.getUniversalIDType().getValueOrEmpty()) != null;
+		}
+
+		public EntityIdentifier() {
+			// Nothing to do
+		}
+
+		public EntityIdentifier(@Nullable EI ei) {
+			if (ei != null) {
+				this.namespaceId = trimToNull(ei.getNamespaceID().getValueOrEmpty());
+				this.universalId = trimToNull(ei.getUniversalID().getValueOrEmpty());
+				this.universalIdType = trimToNull(ei.getUniversalIDType().getValueOrEmpty());
+			}
+		}
+
+		@Override
+		public String toString() {
+			return GSON.toJson(this);
+		}
+
+		@Nullable
+		public String getNamespaceId() {
+			return this.namespaceId;
+		}
+
+		public void setNamespaceId(@Nullable String namespaceId) {
+			this.namespaceId = namespaceId;
+		}
+
+		@Nullable
+		public String getUniversalId() {
+			return this.universalId;
+		}
+
+		public void setUniversalId(@Nullable String universalId) {
+			this.universalId = universalId;
+		}
+
+		@Nullable
+		public String getUniversalIdType() {
+			return this.universalIdType;
+		}
+
+		public void setUniversalIdType(@Nullable String universalIdType) {
+			this.universalIdType = universalIdType;
+		}
 	}
 
 	/**
@@ -480,9 +549,13 @@ public class Hl7OrderMessage {
 		@Nullable
 		private String countryCode; // MSH.17 - Country Code
 		@Nullable
-		private String characterSet; // MSH.18 - Character Set
+		private List<String> characterSet; // MSH.18 - Character Set
 		@Nullable
-		private String principalLanguageOfMessage; // MSH.19 - Principal Language of Message
+		private CodedElement principalLanguageOfMessage; // MSH.19 - Principal Language of Message
+		@Nullable
+		private String alternateCharacterSetHandlingScheme; // MSH.20 - Alternate Character Set Handling Scheme
+		@Nullable
+		private List<EntityIdentifier> messageProfileIdentifier; // MSH.21 - Message Profile Identifier
 
 		@Override
 		public String toString() {
@@ -643,21 +716,39 @@ public class Hl7OrderMessage {
 		}
 
 		@Nullable
-		public String getCharacterSet() {
+		public List<String> getCharacterSet() {
 			return this.characterSet;
 		}
 
-		public void setCharacterSet(@Nullable String characterSet) {
+		public void setCharacterSet(@Nullable List<String> characterSet) {
 			this.characterSet = characterSet;
 		}
 
 		@Nullable
-		public String getPrincipalLanguageOfMessage() {
+		public CodedElement getPrincipalLanguageOfMessage() {
 			return this.principalLanguageOfMessage;
 		}
 
-		public void setPrincipalLanguageOfMessage(@Nullable String principalLanguageOfMessage) {
+		public void setPrincipalLanguageOfMessage(@Nullable CodedElement principalLanguageOfMessage) {
 			this.principalLanguageOfMessage = principalLanguageOfMessage;
+		}
+
+		@Nullable
+		public String getAlternateCharacterSetHandlingScheme() {
+			return this.alternateCharacterSetHandlingScheme;
+		}
+
+		public void setAlternateCharacterSetHandlingScheme(@Nullable String alternateCharacterSetHandlingScheme) {
+			this.alternateCharacterSetHandlingScheme = alternateCharacterSetHandlingScheme;
+		}
+
+		@Nullable
+		public List<EntityIdentifier> getMessageProfileIdentifier() {
+			return this.messageProfileIdentifier;
+		}
+
+		public void setMessageProfileIdentifier(@Nullable List<EntityIdentifier> messageProfileIdentifier) {
+			this.messageProfileIdentifier = messageProfileIdentifier;
 		}
 	}
 
