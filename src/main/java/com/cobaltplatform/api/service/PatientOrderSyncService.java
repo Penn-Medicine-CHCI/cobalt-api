@@ -24,6 +24,8 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.hl7.Hl7Client;
+import com.cobaltplatform.api.integration.hl7.Hl7ParsingException;
+import com.cobaltplatform.api.integration.hl7.model.Hl7OrderMessage;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
@@ -216,9 +218,19 @@ public class PatientOrderSyncService implements AutoCloseable {
 						.build();
 
 				try (InputStream inputStream = getS3Client().getObject(getObjectRequest)) {
-					byte[] rawHl7Message = IOUtils.toByteArray(inputStream);
+					byte[] orderMessageAsBytes = IOUtils.toByteArray(inputStream);
 					getLogger().info("{} HL7 Order message download completed for {}/{} ({} bytes).",
-							institution.getInstitutionId().name(), bucket, s3Object.key(), rawHl7Message.length);
+							institution.getInstitutionId().name(), bucket, s3Object.key(), orderMessageAsBytes.length);
+
+					String orderMessageAsString = getHl7Client().messageFromBytes(orderMessageAsBytes);
+					System.out.println("HL7 Order message as string: " + orderMessageAsString);
+
+					try {
+						Hl7OrderMessage hl7OrderMessage = getHl7Client().parseOrderMessage(orderMessageAsString);
+						System.out.println(hl7OrderMessage);
+					} catch (Hl7ParsingException e) {
+						getLogger().warn("Unable to parse HL7 message", e);
+					}
 				} catch (IOException e) {
 					throw new UncheckedIOException(e);
 				}

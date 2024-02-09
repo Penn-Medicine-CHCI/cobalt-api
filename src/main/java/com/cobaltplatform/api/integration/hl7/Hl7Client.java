@@ -25,17 +25,25 @@ import ca.uhn.hl7v2.model.Message;
 import ca.uhn.hl7v2.model.v251.group.ORM_O01_ORDER;
 import ca.uhn.hl7v2.model.v251.group.ORM_O01_PATIENT;
 import ca.uhn.hl7v2.model.v251.message.ORM_O01;
+import ca.uhn.hl7v2.model.v251.segment.MSH;
 import ca.uhn.hl7v2.model.v251.segment.ORC;
 import ca.uhn.hl7v2.parser.Parser;
-import com.cobaltplatform.api.integration.hl7.model.Hl7PatientOrder;
+import com.cobaltplatform.api.integration.hl7.model.Hl7OrderMessage;
+import com.cobaltplatform.api.integration.hl7.model.Hl7OrderMessage.CommonOrder;
+import com.cobaltplatform.api.integration.hl7.model.Hl7OrderMessage.HierarchicDesignator;
+import com.cobaltplatform.api.integration.hl7.model.Hl7OrderMessage.MessageHeader;
+import com.cobaltplatform.api.integration.hl7.model.Hl7OrderMessage.MessageType;
+import com.cobaltplatform.api.integration.hl7.model.Hl7OrderMessage.ProcessingType;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Singleton;
+import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * See https://github.com/hapifhir/hapi-hl7v2 for details.
@@ -46,7 +54,20 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class Hl7Client {
 	@Nonnull
-	public Hl7PatientOrder parsePatientOrderMessage(@Nonnull String patientOrderMessage) throws Hl7ParsingException {
+	public String messageFromBytes(@Nonnull byte[] bytes) {
+		requireNonNull(bytes);
+		// Messages are in ASCII and generally contain only carriage returns (not CRLF). Here we force newlines
+		return new String(bytes, StandardCharsets.US_ASCII).replace("\r", "\r\n").trim();
+	}
+
+	@Nonnull
+	public Hl7OrderMessage parseOrderMessage(@Nonnull byte[] patientOrderMessage) throws Hl7ParsingException {
+		requireNonNull(patientOrderMessage);
+		return parseOrderMessage(messageFromBytes(patientOrderMessage));
+	}
+
+	@Nonnull
+	public Hl7OrderMessage parseOrderMessage(@Nonnull String patientOrderMessage) throws Hl7ParsingException {
 		requireNonNull(patientOrderMessage);
 
 		// TODO: determine if these are threadsafe, would be nice to share them across threads
@@ -65,38 +86,80 @@ public class Hl7Client {
 		}
 
 		try {
+			Hl7OrderMessage orderMessage = new Hl7OrderMessage();
+
+			// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/TriggerEvents/ORM_O01
 			ORM_O01 ormMessage = (ORM_O01) hapiMessage;
+
+			MSH msh = ormMessage.getMSH();
+
+			// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/Segments/MSH
+			MessageHeader messageHeader = new MessageHeader();
+			messageHeader.setFieldSeparator(trimToNull(msh.getFieldSeparator().getValueOrEmpty()));
+			messageHeader.setEncodingCharacters(trimToNull(msh.getEncodingCharacters().getValueOrEmpty()));
+
+			if (HierarchicDesignator.isPresent(msh.getSendingApplication()))
+				messageHeader.setSendingApplication(new HierarchicDesignator(msh.getSendingApplication()));
+
+			if (HierarchicDesignator.isPresent(msh.getSendingFacility()))
+				messageHeader.setSendingFacility(new HierarchicDesignator(msh.getSendingFacility()));
+
+			if (HierarchicDesignator.isPresent(msh.getReceivingApplication()))
+				messageHeader.setReceivingApplication(new HierarchicDesignator(msh.getReceivingApplication()));
+
+			if (HierarchicDesignator.isPresent(msh.getReceivingFacility()))
+				messageHeader.setReceivingFacility(new HierarchicDesignator(msh.getReceivingFacility()));
+
+			messageHeader.setDateTimeOfMessage(trimToNull(msh.getDateTimeOfMessage().getTime().getValue()));
+			messageHeader.setSecurity(trimToNull(msh.getSecurity().getValueOrEmpty()));
+
+			if (MessageType.isPresent(msh.getMessageType()))
+				messageHeader.setMessageType(new MessageType(msh.getMessageType()));
+
+			messageHeader.setMessageControlId(trimToNull(msh.getMessageControlID().getValueOrEmpty()));
+
+			if (ProcessingType.isPresent(msh.getProcessingID()))
+				messageHeader.setProcessingId(new ProcessingType(msh.getProcessingID()));
+
+			if (Hl7OrderMessage.VersionId.isPresent(msh.getVersionID()))
+				messageHeader.setVersionId(new Hl7OrderMessage.VersionId(msh.getVersionID()));
+
+			messageHeader.setSequenceNumber(trimToNull(msh.getSequenceNumber().getValue()));
+			messageHeader.setContinuationPointer(trimToNull(msh.getContinuationPointer().getValue()));
+			messageHeader.setAcceptAcknowledgementType(trimToNull(msh.getAcceptAcknowledgmentType().getValueOrEmpty()));
+			messageHeader.setApplicationAcknowledgementType(trimToNull(msh.getApplicationAcknowledgmentType().getValueOrEmpty()));
+			messageHeader.setCountryCode(trimToNull(msh.getCountryCode().getValueOrEmpty()));
+
+			// TODO: finish up
+
+			//		@Nullable
+			//		private String characterSet; // MSH.18 - Character Set
+			//		@Nullable
+			//		private String principalLanguageOfMessage; // MSH.19 - Principal Language of Message
+
+			orderMessage.setMessageHeaderSegment(messageHeader);
 
 			ORM_O01_ORDER order = ormMessage.getORDER();
 			ORC orc = order.getORC();
 
-			String orderId = orc.getOrc2_PlacerOrderNumber().getEi1_EntityIdentifier().getValue();
+			// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/Segments/ORC
+			CommonOrder commonOrder = new CommonOrder();
+			commonOrder.setOrderControl(trimToNull(orc.getOrc1_OrderControl().getValueOrEmpty()));
+			commonOrder.setPlacerOrderNumber(trimToNull(orc.getOrc2_PlacerOrderNumber().getEi1_EntityIdentifier().getValue()));
+			commonOrder.setFillerOrderNumber(trimToNull(orc.getOrc3_FillerOrderNumber().getEi1_EntityIdentifier().getValue()));
+			commonOrder.setPlacerGroupNumber(trimToNull(orc.getOrc4_PlacerGroupNumber().getEi1_EntityIdentifier().getValue()));
+			commonOrder.setOrderStatus(trimToNull(orc.getOrc5_OrderStatus().getValue()));
 
-			if (orderId == null)
-				throw new Hl7ParsingException(format("HL7 message did not contain an order ID:\n%s", patientOrderMessage));
+			orderMessage.setCommonOrderSegment(commonOrder);
 
 			ORM_O01_PATIENT patient = ormMessage.getPATIENT();
 
-			String patientId = patient.getPID().getPatientID().getIDNumber().getValue();
+			// String patientId = patient.getPID().getPatientID().getIDNumber().getValue();
+			// String patientIdType = patient.getPID().getPatientID().getIdentifierTypeCode().getValue();
 
-			if (patientId == null)
-				throw new Hl7ParsingException(format("HL7 message did not contain a patient ID:\n%s", patientOrderMessage));
-
-			String patientIdType = patient.getPID().getPatientID().getIdentifierTypeCode().getValue();
-
-			if (patientIdType == null)
-				throw new Hl7ParsingException(format("HL7 message did not contain a patient ID type:\n%s", patientOrderMessage));
-
-			Hl7PatientOrder hl7PatientOrder = new Hl7PatientOrder();
-			hl7PatientOrder.setOrderId(orderId);
-			hl7PatientOrder.setPatientId(patientId);
-			hl7PatientOrder.setPatientIdType(patientIdType);
-
-			return hl7PatientOrder;
-		} catch (Hl7ParsingException e) {
-			throw e;
+			return orderMessage;
 		} catch (Exception e) {
-			throw new Hl7ParsingException(format("Encountered an unexpected issue while processing HL7 message:\n%s", patientOrderMessage), e);
+			throw new Hl7ParsingException(format("Encountered an unexpected problem while processing HL7 message:\n%s", patientOrderMessage), e);
 		}
 	}
 }
