@@ -17,9 +17,10 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.integration.hl7.model;
+package com.cobaltplatform.api.integration.hl7.model.type;
 
 import ca.uhn.hl7v2.model.v251.datatype.CE;
+import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -74,7 +75,7 @@ public class Hl7CodedElement extends Hl7Object {
 			this.nameOfAlternateCodingSystem = trimToNull(ce.getNameOfAlternateCodingSystem().getValueOrEmpty());
 		}
 	}
-	
+
 	@Nullable
 	public String getIdentifier() {
 		return this.identifier;

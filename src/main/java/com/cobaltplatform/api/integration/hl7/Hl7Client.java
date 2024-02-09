@@ -28,15 +28,16 @@ import ca.uhn.hl7v2.model.v251.message.ORM_O01;
 import ca.uhn.hl7v2.model.v251.segment.MSH;
 import ca.uhn.hl7v2.model.v251.segment.ORC;
 import ca.uhn.hl7v2.parser.Parser;
-import com.cobaltplatform.api.integration.hl7.model.Hl7CodedElement;
-import com.cobaltplatform.api.integration.hl7.model.Hl7CommonOrder;
-import com.cobaltplatform.api.integration.hl7.model.Hl7EntityIdentifier;
-import com.cobaltplatform.api.integration.hl7.model.Hl7HierarchicDesignator;
-import com.cobaltplatform.api.integration.hl7.model.Hl7MessageHeader;
-import com.cobaltplatform.api.integration.hl7.model.Hl7MessageType;
-import com.cobaltplatform.api.integration.hl7.model.Hl7OrderMessage;
-import com.cobaltplatform.api.integration.hl7.model.Hl7ProcessingType;
-import com.cobaltplatform.api.integration.hl7.model.Hl7VersionId;
+import com.cobaltplatform.api.integration.hl7.model.event.Hl7GeneralOrder;
+import com.cobaltplatform.api.integration.hl7.model.segment.Hl7CommonOrder;
+import com.cobaltplatform.api.integration.hl7.model.segment.Hl7MessageHeader;
+import com.cobaltplatform.api.integration.hl7.model.segment.Hl7NotesAndComments;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedElement;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifier;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7HierarchicDesignator;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7MessageType;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7ProcessingType;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7VersionId;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -65,14 +66,14 @@ public class Hl7Client {
 	}
 
 	@Nonnull
-	public Hl7OrderMessage parseOrderMessage(@Nonnull byte[] patientOrderMessage) throws Hl7ParsingException {
-		requireNonNull(patientOrderMessage);
-		return parseOrderMessage(messageFromBytes(patientOrderMessage));
+	public Hl7GeneralOrder parseGeneralOrder(@Nonnull byte[] generalOrderHl7) throws Hl7ParsingException {
+		requireNonNull(generalOrderHl7);
+		return parseGeneralOrder(messageFromBytes(generalOrderHl7));
 	}
 
 	@Nonnull
-	public Hl7OrderMessage parseOrderMessage(@Nonnull String patientOrderMessage) throws Hl7ParsingException {
-		requireNonNull(patientOrderMessage);
+	public Hl7GeneralOrder parseGeneralOrder(@Nonnull String generalOrderHl7AsString) throws Hl7ParsingException {
+		requireNonNull(generalOrderHl7AsString);
 
 		// TODO: determine if these are threadsafe, would be nice to share them across threads
 		HapiContext hapiContext = new DefaultHapiContext();
@@ -81,23 +82,23 @@ public class Hl7Client {
 		Message hapiMessage;
 
 		// Patient order messages must have CRLF endings, otherwise parsing will fail.  Ensure that here.
-		patientOrderMessage = patientOrderMessage.trim().lines().collect(Collectors.joining("\r\n"));
+		generalOrderHl7AsString = generalOrderHl7AsString.trim().lines().collect(Collectors.joining("\r\n"));
 
 		try {
-			hapiMessage = parser.parse(patientOrderMessage);
+			hapiMessage = parser.parse(generalOrderHl7AsString);
 		} catch (Exception e) {
-			throw new Hl7ParsingException(format("Unable to parse HL7 message:\n%s", patientOrderMessage), e);
+			throw new Hl7ParsingException(format("Unable to parse HL7 message:\n%s", generalOrderHl7AsString), e);
 		}
 
 		try {
-			Hl7OrderMessage orderMessage = new Hl7OrderMessage();
+			Hl7GeneralOrder orderMessage = new Hl7GeneralOrder();
 
 			// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/TriggerEvents/ORM_O01
 			ORM_O01 ormMessage = (ORM_O01) hapiMessage;
 
+			// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/Segments/MSH
 			MSH msh = ormMessage.getMSH();
 
-			// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/Segments/MSH
 			Hl7MessageHeader messageHeader = new Hl7MessageHeader();
 			messageHeader.setFieldSeparator(trimToNull(msh.getFieldSeparator().getValueOrEmpty()));
 			messageHeader.setEncodingCharacters(trimToNull(msh.getEncodingCharacters().getValueOrEmpty()));
@@ -153,10 +154,39 @@ public class Hl7Client {
 
 			orderMessage.setMessageHeader(messageHeader);
 
+			// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/Segments/NTE
+
+			if (ormMessage.getNTEAll() != null && ormMessage.getNTEAll().size() > 0)
+				orderMessage.setNotesAndComments(ormMessage.getNTEAll().stream()
+						.map(nte -> {
+							Hl7NotesAndComments notesAndComments = new Hl7NotesAndComments();
+
+							String setIdAsString = trimToNull(nte.getSetIDNTE().getValue());
+
+							if (setIdAsString != null)
+								notesAndComments.setSetId(Integer.parseInt(setIdAsString, 10));
+
+							notesAndComments.setSourceOfComment(trimToNull(nte.getSourceOfComment().getValueOrEmpty()));
+
+							if (nte.getComment() != null && nte.getComment().length > 0)
+								notesAndComments.setComment(Arrays.stream(nte.getComment())
+										.map(nteComment -> trimToNull(nteComment.getValueOrEmpty()))
+										.filter(comment -> comment != null)
+										.collect(Collectors.toList())
+								);
+
+							if (Hl7CodedElement.isPresent(nte.getCommentType()))
+								notesAndComments.setCommentType(new Hl7CodedElement(nte.getCommentType()));
+
+							return notesAndComments;
+						})
+						.collect(Collectors.toList())
+				);
+
+			// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/Segments/ORC
 			ORM_O01_ORDER order = ormMessage.getORDER();
 			ORC orc = order.getORC();
 
-			// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/Segments/ORC
 			Hl7CommonOrder commonOrder = new Hl7CommonOrder();
 			commonOrder.setOrderControl(trimToNull(orc.getOrc1_OrderControl().getValueOrEmpty()));
 			commonOrder.setPlacerOrderNumber(trimToNull(orc.getOrc2_PlacerOrderNumber().getEi1_EntityIdentifier().getValue()));
@@ -173,7 +203,7 @@ public class Hl7Client {
 
 			return orderMessage;
 		} catch (Exception e) {
-			throw new Hl7ParsingException(format("Encountered an unexpected problem while processing HL7 message:\n%s", patientOrderMessage), e);
+			throw new Hl7ParsingException(format("Encountered an unexpected problem while processing HL7 message:\n%s", generalOrderHl7AsString), e);
 		}
 	}
 }

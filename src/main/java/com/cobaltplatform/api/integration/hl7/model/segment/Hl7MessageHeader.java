@@ -17,7 +17,15 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.integration.hl7.model;
+package com.cobaltplatform.api.integration.hl7.model.segment;
+
+import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedElement;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifier;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7HierarchicDesignator;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7MessageType;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7ProcessingType;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7VersionId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;

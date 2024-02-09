@@ -17,7 +17,9 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.integration.hl7.model;
+package com.cobaltplatform.api.integration.hl7.model.segment;
+
+import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;

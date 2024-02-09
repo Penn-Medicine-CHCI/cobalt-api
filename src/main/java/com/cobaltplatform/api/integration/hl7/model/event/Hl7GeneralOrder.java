@@ -17,10 +17,16 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.integration.hl7.model;
+package com.cobaltplatform.api.integration.hl7.model.event;
+
+import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
+import com.cobaltplatform.api.integration.hl7.model.segment.Hl7CommonOrder;
+import com.cobaltplatform.api.integration.hl7.model.segment.Hl7MessageHeader;
+import com.cobaltplatform.api.integration.hl7.model.segment.Hl7NotesAndComments;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.List;
 
 /**
  * See https://hl7-definition.caristix.com/v2/hl7v2.5.1/TriggerEvents/ORM_O01
@@ -28,9 +34,11 @@ import javax.annotation.concurrent.NotThreadSafe;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class Hl7OrderMessage extends Hl7Object {
+public class Hl7GeneralOrder extends Hl7Object {
 	@Nullable
 	private Hl7MessageHeader messageHeader;
+	@Nullable
+	private List<Hl7NotesAndComments> notesAndComments;
 	@Nullable
 	private Hl7CommonOrder commonOrder;
 
@@ -41,6 +49,15 @@ public class Hl7OrderMessage extends Hl7Object {
 
 	public void setMessageHeader(@Nullable Hl7MessageHeader messageHeader) {
 		this.messageHeader = messageHeader;
+	}
+
+	@Nullable
+	public List<Hl7NotesAndComments> getNotesAndComments() {
+		return this.notesAndComments;
+	}
+
+	public void setNotesAndComments(@Nullable List<Hl7NotesAndComments> notesAndComments) {
+		this.notesAndComments = notesAndComments;
 	}
 
 	@Nullable

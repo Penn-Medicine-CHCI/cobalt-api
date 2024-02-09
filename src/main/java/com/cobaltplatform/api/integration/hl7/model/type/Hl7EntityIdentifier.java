@@ -17,9 +17,10 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.integration.hl7.model;
+package com.cobaltplatform.api.integration.hl7.model.type;
 
 import ca.uhn.hl7v2.model.v251.datatype.EI;
+import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;

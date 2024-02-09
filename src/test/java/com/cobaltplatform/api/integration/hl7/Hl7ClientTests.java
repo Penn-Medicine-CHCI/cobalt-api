@@ -19,7 +19,7 @@
 
 package com.cobaltplatform.api.integration.hl7;
 
-import com.cobaltplatform.api.integration.hl7.model.Hl7OrderMessage;
+import com.cobaltplatform.api.integration.hl7.model.event.Hl7GeneralOrder;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -42,13 +42,13 @@ public class Hl7ClientTests {
 
 	@Test
 	public void testHl7Parsing() throws Exception {
-		byte[] hl7MessageAsBytes = Files.readAllBytes(Path.of("localstack/secrets/patient-order-hl7/To_COBALT_Ord_20240208_09.txt"));
+		byte[] generalOrderHl7 = Files.readAllBytes(Path.of("localstack/secrets/patient-order-hl7/To_COBALT_Ord_20240208_09.txt"));
 
 		Hl7Client hl7Client = new Hl7Client();
-		String hl7MessageAsString = hl7Client.messageFromBytes(hl7MessageAsBytes);
-		Hl7OrderMessage hl7OrderMessage = hl7Client.parseOrderMessage(hl7MessageAsString);
+		String generalOrderHl7AsString = hl7Client.messageFromBytes(generalOrderHl7);
+		Hl7GeneralOrder generalOrder = hl7Client.parseGeneralOrder(generalOrderHl7AsString);
 
-		System.out.println(hl7MessageAsString);
-		System.out.println(hl7OrderMessage);
+		System.out.println(generalOrderHl7AsString);
+		System.out.println(generalOrder);
 	}
 }
