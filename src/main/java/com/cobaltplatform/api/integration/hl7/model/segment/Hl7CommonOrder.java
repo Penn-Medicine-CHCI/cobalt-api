@@ -21,9 +21,11 @@ package com.cobaltplatform.api.integration.hl7.model.segment;
 
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifier;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7TimingQuantity;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.List;
 
 /**
  * See https://hl7-definition.caristix.com/v2/hl7v2.5.1/Segments/ORC
@@ -45,7 +47,7 @@ public class Hl7CommonOrder extends Hl7Object {
 	@Nullable
 	private String responseFlag; // ORC.6 - Response Flag
 	@Nullable
-	private String quantityTiming; // ORC.7 - Quantity/Timing
+	private List<Hl7TimingQuantity> quantityTiming; // ORC.7 - Quantity/Timing
 	@Nullable
 	private String parentOrder; // ORC.8 - Parent Order
 	@Nullable
@@ -150,11 +152,11 @@ public class Hl7CommonOrder extends Hl7Object {
 	}
 
 	@Nullable
-	public String getQuantityTiming() {
+	public List<Hl7TimingQuantity> getQuantityTiming() {
 		return this.quantityTiming;
 	}
 
-	public void setQuantityTiming(@Nullable String quantityTiming) {
+	public void setQuantityTiming(@Nullable List<Hl7TimingQuantity> quantityTiming) {
 		this.quantityTiming = quantityTiming;
 	}
 

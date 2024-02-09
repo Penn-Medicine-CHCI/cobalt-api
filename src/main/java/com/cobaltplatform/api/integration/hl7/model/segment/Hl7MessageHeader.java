@@ -29,6 +29,7 @@ import com.cobaltplatform.api.integration.hl7.model.type.Hl7VersionId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -51,7 +52,7 @@ public class Hl7MessageHeader extends Hl7Object {
 	@Nullable
 	private Hl7HierarchicDesignator receivingFacility; // MSH.6 - Receiving Facility
 	@Nullable
-	private String dateTimeOfMessage; // MSH.7 - Date / Time of Message
+	private Instant dateTimeOfMessage; // MSH.7 - Date / Time of Message
 	@Nullable
 	private String security; // MSH.8 - Security
 	@Nullable
@@ -63,7 +64,7 @@ public class Hl7MessageHeader extends Hl7Object {
 	@Nullable
 	private Hl7VersionId versionId; // MSH.12 - Version ID
 	@Nullable
-	private String sequenceNumber; // MSH.13 - Sequence Number
+	private Double sequenceNumber; // MSH.13 - Sequence Number
 	@Nullable
 	private String continuationPointer; // MSH.14 - Continuation Pointer
 	@Nullable
@@ -136,11 +137,11 @@ public class Hl7MessageHeader extends Hl7Object {
 	}
 
 	@Nullable
-	public String getDateTimeOfMessage() {
+	public Instant getDateTimeOfMessage() {
 		return this.dateTimeOfMessage;
 	}
 
-	public void setDateTimeOfMessage(@Nullable String dateTimeOfMessage) {
+	public void setDateTimeOfMessage(@Nullable Instant dateTimeOfMessage) {
 		this.dateTimeOfMessage = dateTimeOfMessage;
 	}
 
@@ -190,11 +191,11 @@ public class Hl7MessageHeader extends Hl7Object {
 	}
 
 	@Nullable
-	public String getSequenceNumber() {
+	public Double getSequenceNumber() {
 		return this.sequenceNumber;
 	}
 
-	public void setSequenceNumber(@Nullable String sequenceNumber) {
+	public void setSequenceNumber(@Nullable Double sequenceNumber) {
 		this.sequenceNumber = sequenceNumber;
 	}
 

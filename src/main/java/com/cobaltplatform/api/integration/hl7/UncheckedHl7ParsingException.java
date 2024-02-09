@@ -17,31 +17,29 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.integration.hl7.model;
-
-import com.cobaltplatform.api.util.GsonUtility;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+package com.cobaltplatform.api.integration.hl7;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.NotThreadSafe;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public abstract class Hl7Object {
+public class UncheckedHl7ParsingException extends RuntimeException {
 	@Nonnull
-	private static final Gson GSON;
+	private Hl7ParsingException hl7ParsingException;
 
-	static {
-		GsonBuilder gsonBuilder = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping();
-		GsonUtility.applyDefaultTypeAdapters(gsonBuilder);
-		GSON = gsonBuilder.create();
+	public UncheckedHl7ParsingException(@Nonnull Hl7ParsingException cause) {
+		super(cause);
+		requireNonNull(cause);
+		this.hl7ParsingException = cause;
 	}
 
-	@Override
-	public String toString() {
-		return GSON.toJson(this);
+	@Nonnull
+	public Hl7ParsingException getHl7ParsingException() {
+		return this.hl7ParsingException;
 	}
 }

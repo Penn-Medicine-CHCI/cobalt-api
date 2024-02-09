@@ -37,6 +37,7 @@ import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifier;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7HierarchicDesignator;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7MessageType;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ProcessingType;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7TimingQuantity;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7VersionId;
 
 import javax.annotation.Nonnull;
@@ -44,6 +45,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Singleton;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -115,7 +117,12 @@ public class Hl7Client {
 			if (Hl7HierarchicDesignator.isPresent(msh.getReceivingFacility()))
 				messageHeader.setReceivingFacility(new Hl7HierarchicDesignator(msh.getReceivingFacility()));
 
-			messageHeader.setDateTimeOfMessage(trimToNull(msh.getDateTimeOfMessage().getTime().getValue()));
+			Date dateTimeOfMessage = (msh.getDateTimeOfMessage() != null && msh.getDateTimeOfMessage().getTime() != null) ?
+					msh.getDateTimeOfMessage().getTime().getValueAsDate() : null;
+
+			if (dateTimeOfMessage != null)
+				messageHeader.setDateTimeOfMessage(dateTimeOfMessage.toInstant());
+
 			messageHeader.setSecurity(trimToNull(msh.getSecurity().getValueOrEmpty()));
 
 			if (Hl7MessageType.isPresent(msh.getMessageType()))
@@ -129,7 +136,11 @@ public class Hl7Client {
 			if (Hl7VersionId.isPresent(msh.getVersionID()))
 				messageHeader.setVersionId(new Hl7VersionId(msh.getVersionID()));
 
-			messageHeader.setSequenceNumber(trimToNull(msh.getSequenceNumber().getValue()));
+			String sequenceNumberAsString = trimToNull(msh.getSequenceNumber().getValue());
+
+			if (sequenceNumberAsString != null)
+				messageHeader.setSequenceNumber(Double.parseDouble(sequenceNumberAsString));
+
 			messageHeader.setContinuationPointer(trimToNull(msh.getContinuationPointer().getValue()));
 			messageHeader.setAcceptAcknowledgementType(trimToNull(msh.getAcceptAcknowledgmentType().getValueOrEmpty()));
 			messageHeader.setApplicationAcknowledgementType(trimToNull(msh.getApplicationAcknowledgmentType().getValueOrEmpty()));
@@ -203,7 +214,21 @@ public class Hl7Client {
 							if (Hl7EntityIdentifier.isPresent(orc.getFillerOrderNumber()))
 								commonOrder.setFillerOrderNumber(new Hl7EntityIdentifier(orc.getFillerOrderNumber()));
 
-							// TODO: additional fields
+							commonOrder.setOrderStatus(trimToNull(orc.getOrderStatus().getValueOrEmpty()));
+							commonOrder.setResponseFlag(trimToNull(orc.getResponseFlag().getValueOrEmpty()));
+
+							if (orc.getQuantityTiming() != null && orc.getQuantityTiming().length > 0) {
+								commonOrder.setQuantityTiming(Arrays.stream(orc.getQuantityTiming())
+										.map((qt) -> {
+											try {
+												return Hl7TimingQuantity.isPresent(qt) ? new Hl7TimingQuantity(qt) : null;
+											} catch (Hl7ParsingException e) {
+												throw new UncheckedHl7ParsingException(e);
+											}
+										})
+										.filter(tq -> tq != null)
+										.collect(Collectors.toList()));
+							}
 
 							order.setCommonOrder(commonOrder);
 
