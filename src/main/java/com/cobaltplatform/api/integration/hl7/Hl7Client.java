@@ -35,6 +35,7 @@ import com.cobaltplatform.api.integration.hl7.model.segment.Hl7Order;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedElement;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifier;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifierPair;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedAddress;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdNumberAndNameForPersons;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeNameAndIdentificationNumberForOrganizations;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedTelecommunicationNumber;
@@ -293,6 +294,13 @@ public class Hl7Client {
 								commonOrder.setOrderingFacilityName(Arrays.stream(orc.getOrderingFacilityName())
 										.map(xon -> Hl7ExtendedCompositeNameAndIdentificationNumberForOrganizations.isPresent(xon) ? new Hl7ExtendedCompositeNameAndIdentificationNumberForOrganizations(xon) : null)
 										.filter(orderingFacilityName -> orderingFacilityName != null)
+										.collect(Collectors.toList()));
+							}
+
+							if (orc.getOrderingFacilityAddress() != null && orc.getOrderingFacilityAddress().length > 0) {
+								commonOrder.setOrderingFacilityAddress(Arrays.stream(orc.getOrderingFacilityAddress())
+										.map(xad -> Hl7ExtendedAddress.isPresent(xad) ? new Hl7ExtendedAddress(xad) : null)
+										.filter(orderingFacilityAddress -> orderingFacilityAddress != null)
 										.collect(Collectors.toList()));
 							}
 

@@ -23,6 +23,7 @@ import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedElement;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifier;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifierPair;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedAddress;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdNumberAndNameForPersons;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeNameAndIdentificationNumberForOrganizations;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedTelecommunicationNumber;
@@ -84,7 +85,7 @@ public class Hl7CommonOrder extends Hl7Object {
 	@Nullable
 	private List<Hl7ExtendedCompositeNameAndIdentificationNumberForOrganizations> orderingFacilityName; // ORC.21 - Ordering Facility Name
 	@Nullable
-	private String orderingFacilityAddress; // ORC.22 - Ordering Facility Address
+	private List<Hl7ExtendedAddress> orderingFacilityAddress; // ORC.22 - Ordering Facility Address
 	@Nullable
 	private String orderingFacilityPhoneNumber; // ORC.23 - Ordering Facility Phone Number
 	@Nullable
@@ -294,11 +295,11 @@ public class Hl7CommonOrder extends Hl7Object {
 	}
 
 	@Nullable
-	public String getOrderingFacilityAddress() {
+	public List<Hl7ExtendedAddress> getOrderingFacilityAddress() {
 		return this.orderingFacilityAddress;
 	}
 
-	public void setOrderingFacilityAddress(@Nullable String orderingFacilityAddress) {
+	public void setOrderingFacilityAddress(@Nullable List<Hl7ExtendedAddress> orderingFacilityAddress) {
 		this.orderingFacilityAddress = orderingFacilityAddress;
 	}
 
