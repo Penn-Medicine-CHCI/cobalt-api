@@ -38,6 +38,7 @@ import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifierPair
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdNumberAndNameForPersons;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7HierarchicDesignator;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7MessageType;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7PersonLocation;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ProcessingType;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7TimeStamp;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7TimingQuantity;
@@ -253,6 +254,9 @@ public class Hl7Client {
 										.filter(orderingProvider -> orderingProvider != null)
 										.collect(Collectors.toList()));
 							}
+
+							if (Hl7PersonLocation.isPresent(orc.getEntererSLocation()))
+								commonOrder.setEnterersLocation(new Hl7PersonLocation(orc.getEntererSLocation()));
 
 							order.setCommonOrder(commonOrder);
 

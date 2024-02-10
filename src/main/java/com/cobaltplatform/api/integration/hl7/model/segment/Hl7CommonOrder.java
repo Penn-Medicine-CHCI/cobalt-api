@@ -23,6 +23,7 @@ import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifier;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifierPair;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdNumberAndNameForPersons;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7PersonLocation;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7TimeStamp;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7TimingQuantity;
 
@@ -62,7 +63,7 @@ public class Hl7CommonOrder extends Hl7Object {
 	@Nullable
 	private List<Hl7ExtendedCompositeIdNumberAndNameForPersons> orderingProvider; // ORC.12 - Ordering Provider
 	@Nullable
-	private String enterersLocation; // ORC.13 - Enterer's Location
+	private Hl7PersonLocation enterersLocation; // ORC.13 - Enterer's Location
 	@Nullable
 	private String callBackPhoneNumber; // ORC.14 - Call Back Phone Number
 	@Nullable
@@ -209,11 +210,11 @@ public class Hl7CommonOrder extends Hl7Object {
 	}
 
 	@Nullable
-	public String getEnterersLocation() {
+	public Hl7PersonLocation getEnterersLocation() {
 		return this.enterersLocation;
 	}
 
-	public void setEnterersLocation(@Nullable String enterersLocation) {
+	public void setEnterersLocation(@Nullable Hl7PersonLocation enterersLocation) {
 		this.enterersLocation = enterersLocation;
 	}
 
