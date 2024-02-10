@@ -54,9 +54,8 @@ public class Hl7TimingQuantity extends Hl7Object {
 	private String text; // ORC.7.8 - Text
 	@Nullable
 	private String conjunction; // ORC.7.9 - Conjunction
-
-	// TODO: order sequencing // ORC.7.10 - Order Sequencing
-
+	@Nullable
+	private Hl7OrderSequenceDefinition orderSequencing; // ORC.7.10 - Order Sequencing
 	@Nullable
 	private Hl7CodedElement occurrenceDuration; // ORC.7.11 - Occurrence Duration
 	@Nullable
@@ -76,7 +75,7 @@ public class Hl7TimingQuantity extends Hl7Object {
 				|| trimToNull(tq.getCondition().getValueOrEmpty()) != null
 				|| trimToNull(tq.getText().getValueOrEmpty()) != null
 				|| trimToNull(tq.getConjunction().getValueOrEmpty()) != null
-				// TODO: order sequencing // ORC.7.10 - Order Sequencing
+				|| Hl7OrderSequenceDefinition.isPresent(tq.getOrderSequencing())
 				|| Hl7CodedElement.isPresent(tq.getOccurrenceDuration())
 				|| trimToNull(tq.getTotalOccurrences().getValue()) != null;
 	}
@@ -96,7 +95,7 @@ public class Hl7TimingQuantity extends Hl7Object {
 			this.condition = trimToNull(tq.getCondition().getValueOrEmpty());
 			this.text = trimToNull(tq.getText().getValueOrEmpty());
 			this.conjunction = trimToNull(tq.getConjunction().getValueOrEmpty());
-			// TODO: order sequencing // ORC.7.10 - Order Sequencing
+			this.orderSequencing = Hl7OrderSequenceDefinition.isPresent(tq.getOrderSequencing()) ? new Hl7OrderSequenceDefinition(tq.getOrderSequencing()) : null;
 			this.occurrenceDuration = Hl7CodedElement.isPresent(tq.getOccurrenceDuration()) ? new Hl7CodedElement(tq.getTq11_OccurrenceDuration()) : null;
 
 			String totalOccurrencesAsString = trimToNull(tq.getTotalOccurrences().getValue());
@@ -131,5 +130,77 @@ public class Hl7TimingQuantity extends Hl7Object {
 
 	public void setDuration(@Nullable String duration) {
 		this.duration = duration;
+	}
+
+	@Nullable
+	public Hl7TimeStamp getStartDateTime() {
+		return this.startDateTime;
+	}
+
+	public void setStartDateTime(@Nullable Hl7TimeStamp startDateTime) {
+		this.startDateTime = startDateTime;
+	}
+
+	@Nullable
+	public Hl7TimeStamp getEndDateTime() {
+		return this.endDateTime;
+	}
+
+	public void setEndDateTime(@Nullable Hl7TimeStamp endDateTime) {
+		this.endDateTime = endDateTime;
+	}
+
+	@Nullable
+	public String getPriority() {
+		return this.priority;
+	}
+
+	public void setPriority(@Nullable String priority) {
+		this.priority = priority;
+	}
+
+	@Nullable
+	public String getCondition() {
+		return this.condition;
+	}
+
+	public void setCondition(@Nullable String condition) {
+		this.condition = condition;
+	}
+
+	@Nullable
+	public String getText() {
+		return this.text;
+	}
+
+	public void setText(@Nullable String text) {
+		this.text = text;
+	}
+
+	@Nullable
+	public String getConjunction() {
+		return this.conjunction;
+	}
+
+	public void setConjunction(@Nullable String conjunction) {
+		this.conjunction = conjunction;
+	}
+
+	@Nullable
+	public Hl7CodedElement getOccurrenceDuration() {
+		return this.occurrenceDuration;
+	}
+
+	public void setOccurrenceDuration(@Nullable Hl7CodedElement occurrenceDuration) {
+		this.occurrenceDuration = occurrenceDuration;
+	}
+
+	@Nullable
+	public Double getTotalOccurrences() {
+		return this.totalOccurrences;
+	}
+
+	public void setTotalOccurrences(@Nullable Double totalOccurrences) {
+		this.totalOccurrences = totalOccurrences;
 	}
 }
