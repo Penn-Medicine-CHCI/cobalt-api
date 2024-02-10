@@ -21,6 +21,8 @@ package com.cobaltplatform.api.integration.hl7.model.segment;
 
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedElement;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedWithExceptions;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedWithNoExceptions;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifier;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifierPair;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedAddress;
@@ -87,23 +89,23 @@ public class Hl7CommonOrder extends Hl7Object {
 	@Nullable
 	private List<Hl7ExtendedAddress> orderingFacilityAddress; // ORC.22 - Ordering Facility Address
 	@Nullable
-	private String orderingFacilityPhoneNumber; // ORC.23 - Ordering Facility Phone Number
+	private List<Hl7ExtendedTelecommunicationNumber> orderingFacilityPhoneNumber; // ORC.23 - Ordering Facility Phone Number
 	@Nullable
-	private String orderingProviderAddress; // ORC.24 - Ordering Provider Address
+	private List<Hl7ExtendedAddress> orderingProviderAddress; // ORC.24 - Ordering Provider Address
 	@Nullable
-	private String orderStatusModifier; // ORC.25 - Order Status Modifier
+	private Hl7CodedWithExceptions orderStatusModifier; // ORC.25 - Order Status Modifier
 	@Nullable
-	private String advancedBeneficiaryNoticeOverrideReason; // ORC.26 - Advanced Beneficiary Notice Override Reason
+	private Hl7CodedWithExceptions advancedBeneficiaryNoticeOverrideReason; // ORC.26 - Advanced Beneficiary Notice Override Reason
 	@Nullable
-	private String fillersExpectedAvailabilityDateTime; // ORC.27 - Filler's Expected Availability Date/Time
+	private Hl7TimeStamp fillersExpectedAvailabilityDateTime; // ORC.27 - Filler's Expected Availability Date/Time
 	@Nullable
-	private String confidentialityCode; // ORC.28 - Confidentiality Code
+	private Hl7CodedWithExceptions confidentialityCode; // ORC.28 - Confidentiality Code
 	@Nullable
-	private String orderType; // ORC.29 - Order Type
+	private Hl7CodedWithExceptions orderType; // ORC.29 - Order Type
 	@Nullable
-	private String entererAuthorizationMode; // ORC.30 - Enterer Authorization Mode
+	private Hl7CodedWithNoExceptions entererAuthorizationMode; // ORC.30 - Enterer Authorization Mode
 	@Nullable
-	private String parentUniversalServiceIdentifier; // ORC.31 - Parent Universal Service Identifier
+	private Hl7CodedWithExceptions parentUniversalServiceIdentifier; // ORC.31 - Parent Universal Service Identifier
 
 	@Nullable
 	public String getOrderControl() {
@@ -304,83 +306,83 @@ public class Hl7CommonOrder extends Hl7Object {
 	}
 
 	@Nullable
-	public String getOrderingFacilityPhoneNumber() {
+	public List<Hl7ExtendedTelecommunicationNumber> getOrderingFacilityPhoneNumber() {
 		return this.orderingFacilityPhoneNumber;
 	}
 
-	public void setOrderingFacilityPhoneNumber(@Nullable String orderingFacilityPhoneNumber) {
+	public void setOrderingFacilityPhoneNumber(@Nullable List<Hl7ExtendedTelecommunicationNumber> orderingFacilityPhoneNumber) {
 		this.orderingFacilityPhoneNumber = orderingFacilityPhoneNumber;
 	}
 
 	@Nullable
-	public String getOrderingProviderAddress() {
+	public List<Hl7ExtendedAddress> getOrderingProviderAddress() {
 		return this.orderingProviderAddress;
 	}
 
-	public void setOrderingProviderAddress(@Nullable String orderingProviderAddress) {
+	public void setOrderingProviderAddress(@Nullable List<Hl7ExtendedAddress> orderingProviderAddress) {
 		this.orderingProviderAddress = orderingProviderAddress;
 	}
 
 	@Nullable
-	public String getOrderStatusModifier() {
+	public Hl7CodedWithExceptions getOrderStatusModifier() {
 		return this.orderStatusModifier;
 	}
 
-	public void setOrderStatusModifier(@Nullable String orderStatusModifier) {
+	public void setOrderStatusModifier(@Nullable Hl7CodedWithExceptions orderStatusModifier) {
 		this.orderStatusModifier = orderStatusModifier;
 	}
 
 	@Nullable
-	public String getAdvancedBeneficiaryNoticeOverrideReason() {
+	public Hl7CodedWithExceptions getAdvancedBeneficiaryNoticeOverrideReason() {
 		return this.advancedBeneficiaryNoticeOverrideReason;
 	}
 
-	public void setAdvancedBeneficiaryNoticeOverrideReason(@Nullable String advancedBeneficiaryNoticeOverrideReason) {
+	public void setAdvancedBeneficiaryNoticeOverrideReason(@Nullable Hl7CodedWithExceptions advancedBeneficiaryNoticeOverrideReason) {
 		this.advancedBeneficiaryNoticeOverrideReason = advancedBeneficiaryNoticeOverrideReason;
 	}
 
 	@Nullable
-	public String getFillersExpectedAvailabilityDateTime() {
+	public Hl7TimeStamp getFillersExpectedAvailabilityDateTime() {
 		return this.fillersExpectedAvailabilityDateTime;
 	}
 
-	public void setFillersExpectedAvailabilityDateTime(@Nullable String fillersExpectedAvailabilityDateTime) {
+	public void setFillersExpectedAvailabilityDateTime(@Nullable Hl7TimeStamp fillersExpectedAvailabilityDateTime) {
 		this.fillersExpectedAvailabilityDateTime = fillersExpectedAvailabilityDateTime;
 	}
 
 	@Nullable
-	public String getConfidentialityCode() {
+	public Hl7CodedWithExceptions getConfidentialityCode() {
 		return this.confidentialityCode;
 	}
 
-	public void setConfidentialityCode(@Nullable String confidentialityCode) {
+	public void setConfidentialityCode(@Nullable Hl7CodedWithExceptions confidentialityCode) {
 		this.confidentialityCode = confidentialityCode;
 	}
 
 	@Nullable
-	public String getOrderType() {
+	public Hl7CodedWithExceptions getOrderType() {
 		return this.orderType;
 	}
 
-	public void setOrderType(@Nullable String orderType) {
+	public void setOrderType(@Nullable Hl7CodedWithExceptions orderType) {
 		this.orderType = orderType;
 	}
 
 	@Nullable
-	public String getEntererAuthorizationMode() {
+	public Hl7CodedWithNoExceptions getEntererAuthorizationMode() {
 		return this.entererAuthorizationMode;
 	}
 
-	public void setEntererAuthorizationMode(@Nullable String entererAuthorizationMode) {
+	public void setEntererAuthorizationMode(@Nullable Hl7CodedWithNoExceptions entererAuthorizationMode) {
 		this.entererAuthorizationMode = entererAuthorizationMode;
 	}
 
 	@Nullable
-	public String getParentUniversalServiceIdentifier() {
+	public Hl7CodedWithExceptions getParentUniversalServiceIdentifier() {
 		return this.parentUniversalServiceIdentifier;
 	}
 
-	public void setParentUniversalServiceIdentifier(@Nullable String parentUniversalServiceIdentifier) {
+	public void setParentUniversalServiceIdentifier(@Nullable Hl7CodedWithExceptions parentUniversalServiceIdentifier) {
 		this.parentUniversalServiceIdentifier = parentUniversalServiceIdentifier;
 	}
 }

@@ -33,6 +33,8 @@ import com.cobaltplatform.api.integration.hl7.model.segment.Hl7MessageHeader;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7NotesAndComments;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7Order;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedElement;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedWithExceptions;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedWithNoExceptions;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifier;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifierPair;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedAddress;
@@ -303,6 +305,41 @@ public class Hl7Client {
 										.filter(orderingFacilityAddress -> orderingFacilityAddress != null)
 										.collect(Collectors.toList()));
 							}
+
+							if (orc.getOrderingFacilityPhoneNumber() != null && orc.getOrderingFacilityPhoneNumber().length > 0) {
+								commonOrder.setOrderingFacilityPhoneNumber(Arrays.stream(orc.getOrderingFacilityPhoneNumber())
+										.map(xtn -> Hl7ExtendedTelecommunicationNumber.isPresent(xtn) ? new Hl7ExtendedTelecommunicationNumber(xtn) : null)
+										.filter(orderingFacilityPhoneNumber -> orderingFacilityPhoneNumber != null)
+										.collect(Collectors.toList()));
+							}
+
+							if (orc.getOrderingProviderAddress() != null && orc.getOrderingProviderAddress().length > 0) {
+								commonOrder.setOrderingProviderAddress(Arrays.stream(orc.getOrderingProviderAddress())
+										.map(xad -> Hl7ExtendedAddress.isPresent(xad) ? new Hl7ExtendedAddress(xad) : null)
+										.filter(orderingProviderAddress -> orderingProviderAddress != null)
+										.collect(Collectors.toList()));
+							}
+
+							if (Hl7CodedWithExceptions.isPresent(orc.getOrderStatusModifier()))
+								commonOrder.setOrderStatusModifier(new Hl7CodedWithExceptions(orc.getOrderStatusModifier()));
+
+							if (Hl7CodedWithExceptions.isPresent(orc.getAdvancedBeneficiaryNoticeOverrideReason()))
+								commonOrder.setAdvancedBeneficiaryNoticeOverrideReason(new Hl7CodedWithExceptions(orc.getAdvancedBeneficiaryNoticeOverrideReason()));
+
+							if (Hl7TimeStamp.isPresent(orc.getFillerSExpectedAvailabilityDateTime()))
+								commonOrder.setFillersExpectedAvailabilityDateTime(new Hl7TimeStamp(orc.getFillerSExpectedAvailabilityDateTime()));
+
+							if (Hl7CodedWithExceptions.isPresent(orc.getConfidentialityCode()))
+								commonOrder.setConfidentialityCode(new Hl7CodedWithExceptions(orc.getConfidentialityCode()));
+
+							if (Hl7CodedWithExceptions.isPresent(orc.getOrderType()))
+								commonOrder.setOrderType(new Hl7CodedWithExceptions(orc.getOrderType()));
+
+							if (Hl7CodedWithNoExceptions.isPresent(orc.getEntererAuthorizationMode()))
+								commonOrder.setEntererAuthorizationMode(new Hl7CodedWithNoExceptions(orc.getEntererAuthorizationMode()));
+
+							if (Hl7CodedWithExceptions.isPresent(orc.getParentUniversalServiceIdentifier()))
+								commonOrder.setParentUniversalServiceIdentifier(new Hl7CodedWithExceptions(orc.getParentUniversalServiceIdentifier()));
 
 							order.setCommonOrder(commonOrder);
 
