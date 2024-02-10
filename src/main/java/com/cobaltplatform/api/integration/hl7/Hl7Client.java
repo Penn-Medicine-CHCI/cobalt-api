@@ -266,6 +266,28 @@ public class Hl7Client {
 										.collect(Collectors.toList()));
 							}
 
+							if (Hl7TimeStamp.isPresent(orc.getOrderEffectiveDateTime()))
+								commonOrder.setOrderEffectiveDateTime(new Hl7TimeStamp(orc.getOrderEffectiveDateTime()));
+
+							if (Hl7CodedElement.isPresent(orc.getOrderControlCodeReason()))
+								commonOrder.setOrderControlCodeReason(new Hl7CodedElement(orc.getOrderControlCodeReason()));
+
+							if (Hl7CodedElement.isPresent(orc.getEnteringOrganization()))
+								commonOrder.setEnteringOrganization(new Hl7CodedElement(orc.getEnteringOrganization()));
+
+							if (Hl7CodedElement.isPresent(orc.getEnteringDevice()))
+								commonOrder.setEnteringDevice(new Hl7CodedElement(orc.getEnteringDevice()));
+
+							if (orc.getActionBy() != null && orc.getActionBy().length > 0) {
+								commonOrder.setActionBy(Arrays.stream(orc.getActionBy())
+										.map(xcn -> Hl7ExtendedCompositeIdNumberAndNameForPersons.isPresent(xcn) ? new Hl7ExtendedCompositeIdNumberAndNameForPersons(xcn) : null)
+										.filter(actionBy -> actionBy != null)
+										.collect(Collectors.toList()));
+							}
+
+							if (Hl7CodedElement.isPresent(orc.getAdvancedBeneficiaryNoticeCode()))
+								commonOrder.setAdvancedBeneficiaryNoticeCode(new Hl7CodedElement(orc.getAdvancedBeneficiaryNoticeCode()));
+
 							order.setCommonOrder(commonOrder);
 
 							return order;

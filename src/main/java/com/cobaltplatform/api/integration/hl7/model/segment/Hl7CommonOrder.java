@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.integration.hl7.model.segment;
 
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedElement;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifier;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifierPair;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdNumberAndNameForPersons;
@@ -68,17 +69,17 @@ public class Hl7CommonOrder extends Hl7Object {
 	@Nullable
 	private List<Hl7ExtendedTelecommunicationNumber> callBackPhoneNumber; // ORC.14 - Call Back Phone Number
 	@Nullable
-	private String orderEffectiveDateTime; // ORC.15 - Order Effective Date/Time
+	private Hl7TimeStamp orderEffectiveDateTime; // ORC.15 - Order Effective Date/Time
 	@Nullable
-	private String orderControlCodeReason; // ORC.16 - Order Control Code Reason
+	private Hl7CodedElement orderControlCodeReason; // ORC.16 - Order Control Code Reason
 	@Nullable
-	private String enteringOrganization; // ORC.17 - Entering Organization
+	private Hl7CodedElement enteringOrganization; // ORC.17 - Entering Organization
 	@Nullable
-	private String enteringDevice; // ORC.18 - Entering Device
+	private Hl7CodedElement enteringDevice; // ORC.18 - Entering Device
 	@Nullable
-	private String actionBy; // ORC.19 - Action By
+	private List<Hl7ExtendedCompositeIdNumberAndNameForPersons> actionBy; // ORC.19 - Action By
 	@Nullable
-	private String advancedBeneficiaryNoticeCode; // ORC.20 - Advanced Beneficiary Notice Code
+	private Hl7CodedElement advancedBeneficiaryNoticeCode; // ORC.20 - Advanced Beneficiary Notice Code
 	@Nullable
 	private String orderingFacilityName; // ORC.21 - Ordering Facility Name
 	@Nullable
@@ -229,56 +230,56 @@ public class Hl7CommonOrder extends Hl7Object {
 	}
 
 	@Nullable
-	public String getOrderEffectiveDateTime() {
+	public Hl7TimeStamp getOrderEffectiveDateTime() {
 		return this.orderEffectiveDateTime;
 	}
 
-	public void setOrderEffectiveDateTime(@Nullable String orderEffectiveDateTime) {
+	public void setOrderEffectiveDateTime(@Nullable Hl7TimeStamp orderEffectiveDateTime) {
 		this.orderEffectiveDateTime = orderEffectiveDateTime;
 	}
 
 	@Nullable
-	public String getOrderControlCodeReason() {
+	public Hl7CodedElement getOrderControlCodeReason() {
 		return this.orderControlCodeReason;
 	}
 
-	public void setOrderControlCodeReason(@Nullable String orderControlCodeReason) {
+	public void setOrderControlCodeReason(@Nullable Hl7CodedElement orderControlCodeReason) {
 		this.orderControlCodeReason = orderControlCodeReason;
 	}
 
 	@Nullable
-	public String getEnteringOrganization() {
+	public Hl7CodedElement getEnteringOrganization() {
 		return this.enteringOrganization;
 	}
 
-	public void setEnteringOrganization(@Nullable String enteringOrganization) {
+	public void setEnteringOrganization(@Nullable Hl7CodedElement enteringOrganization) {
 		this.enteringOrganization = enteringOrganization;
 	}
 
 	@Nullable
-	public String getEnteringDevice() {
+	public Hl7CodedElement getEnteringDevice() {
 		return this.enteringDevice;
 	}
 
-	public void setEnteringDevice(@Nullable String enteringDevice) {
+	public void setEnteringDevice(@Nullable Hl7CodedElement enteringDevice) {
 		this.enteringDevice = enteringDevice;
 	}
 
 	@Nullable
-	public String getActionBy() {
+	public List<Hl7ExtendedCompositeIdNumberAndNameForPersons> getActionBy() {
 		return this.actionBy;
 	}
 
-	public void setActionBy(@Nullable String actionBy) {
+	public void setActionBy(@Nullable List<Hl7ExtendedCompositeIdNumberAndNameForPersons> actionBy) {
 		this.actionBy = actionBy;
 	}
 
 	@Nullable
-	public String getAdvancedBeneficiaryNoticeCode() {
+	public Hl7CodedElement getAdvancedBeneficiaryNoticeCode() {
 		return this.advancedBeneficiaryNoticeCode;
 	}
 
-	public void setAdvancedBeneficiaryNoticeCode(@Nullable String advancedBeneficiaryNoticeCode) {
+	public void setAdvancedBeneficiaryNoticeCode(@Nullable Hl7CodedElement advancedBeneficiaryNoticeCode) {
 		this.advancedBeneficiaryNoticeCode = advancedBeneficiaryNoticeCode;
 	}
 
