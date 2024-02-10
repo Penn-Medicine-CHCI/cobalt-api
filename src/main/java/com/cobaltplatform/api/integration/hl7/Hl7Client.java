@@ -34,9 +34,11 @@ import com.cobaltplatform.api.integration.hl7.model.segment.Hl7NotesAndComments;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7Order;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedElement;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifier;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifierPair;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7HierarchicDesignator;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7MessageType;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ProcessingType;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7TimeStamp;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7TimingQuantity;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7VersionId;
 
@@ -228,6 +230,16 @@ public class Hl7Client {
 										})
 										.filter(tq -> tq != null)
 										.collect(Collectors.toList()));
+							}
+
+							if (Hl7EntityIdentifierPair.isPresent(orc.getORCParent()))
+								commonOrder.setParentOrder(new Hl7EntityIdentifierPair(orc.getORCParent()));
+
+							try {
+								if (Hl7TimeStamp.isPresent(orc.getDateTimeOfTransaction()))
+									commonOrder.setDateTimeOfTransaction(new Hl7TimeStamp(orc.getDateTimeOfTransaction()));
+							} catch (Hl7ParsingException e) {
+								throw new UncheckedHl7ParsingException(e);
 							}
 
 							order.setCommonOrder(commonOrder);

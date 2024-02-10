@@ -21,6 +21,8 @@ package com.cobaltplatform.api.integration.hl7.model.segment;
 
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifier;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifierPair;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7TimeStamp;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7TimingQuantity;
 
 import javax.annotation.Nullable;
@@ -49,9 +51,9 @@ public class Hl7CommonOrder extends Hl7Object {
 	@Nullable
 	private List<Hl7TimingQuantity> quantityTiming; // ORC.7 - Quantity/Timing
 	@Nullable
-	private String parentOrder; // ORC.8 - Parent Order
+	private Hl7EntityIdentifierPair parentOrder; // ORC.8 - Parent Order
 	@Nullable
-	private String dateTimeOfTransaction; // ORC.9 - Date/Time of Transaction
+	private Hl7TimeStamp dateTimeOfTransaction; // ORC.9 - Date/Time of Transaction
 	@Nullable
 	private String enteredBy; // ORC.10 - Entered By
 	@Nullable
@@ -161,20 +163,20 @@ public class Hl7CommonOrder extends Hl7Object {
 	}
 
 	@Nullable
-	public String getParentOrder() {
+	public Hl7EntityIdentifierPair getParentOrder() {
 		return this.parentOrder;
 	}
 
-	public void setParentOrder(@Nullable String parentOrder) {
+	public void setParentOrder(@Nullable Hl7EntityIdentifierPair parentOrder) {
 		this.parentOrder = parentOrder;
 	}
 
 	@Nullable
-	public String getDateTimeOfTransaction() {
+	public Hl7TimeStamp getDateTimeOfTransaction() {
 		return this.dateTimeOfTransaction;
 	}
 
-	public void setDateTimeOfTransaction(@Nullable String dateTimeOfTransaction) {
+	public void setDateTimeOfTransaction(@Nullable Hl7TimeStamp dateTimeOfTransaction) {
 		this.dateTimeOfTransaction = dateTimeOfTransaction;
 	}
 
