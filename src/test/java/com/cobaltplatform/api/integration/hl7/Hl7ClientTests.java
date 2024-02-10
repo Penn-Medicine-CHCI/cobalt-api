@@ -19,7 +19,7 @@
 
 package com.cobaltplatform.api.integration.hl7;
 
-import com.cobaltplatform.api.integration.hl7.model.event.Hl7GeneralOrder;
+import com.cobaltplatform.api.integration.hl7.model.event.Hl7GeneralOrderTriggerEvent;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -46,7 +46,7 @@ public class Hl7ClientTests {
 
 		Hl7Client hl7Client = new Hl7Client();
 		String generalOrderHl7AsString = hl7Client.messageFromBytes(generalOrderHl7);
-		Hl7GeneralOrder generalOrder = hl7Client.parseGeneralOrder(generalOrderHl7AsString);
+		Hl7GeneralOrderTriggerEvent generalOrder = hl7Client.parseGeneralOrder(generalOrderHl7AsString);
 
 		System.out.println(generalOrderHl7AsString);
 		System.out.println(generalOrder);

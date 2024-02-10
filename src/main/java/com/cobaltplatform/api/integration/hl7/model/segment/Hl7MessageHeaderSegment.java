@@ -38,7 +38,7 @@ import java.util.List;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class Hl7MessageHeader extends Hl7Object {
+public class Hl7MessageHeaderSegment extends Hl7Object {
 	@Nullable
 	private String fieldSeparator; // MSH.1 - Field Separator
 	@Nullable

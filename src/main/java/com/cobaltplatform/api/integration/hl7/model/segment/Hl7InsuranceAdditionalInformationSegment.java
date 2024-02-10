@@ -19,33 +19,39 @@
 
 package com.cobaltplatform.api.integration.hl7.model.segment;
 
+import ca.uhn.hl7v2.model.v251.segment.PID;
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
 /**
- * See https://hl7-definition.caristix.com/v2/hl7v2.5.1/TriggerEvents/ORM_O01
+ * See https://hl7-definition.caristix.com/v2/hl7v2.5.1/Segments/IN2
  *
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class Hl7Order extends Hl7Object {
-	@Nullable
-	private Hl7CommonOrder commonOrder;
-
+public class Hl7InsuranceAdditionalInformationSegment extends Hl7Object {
 	// TODO
-	// FT1 - Financial Transaction
-	// CTI - Clinical Trial Identification
-	// BLG - Billing
-  // ORDER DETAIL
 
-	@Nullable
-	public Hl7CommonOrder getCommonOrder() {
-		return this.commonOrder;
+	@Nonnull
+	public static Boolean isPresent(@Nullable PID pid) {
+		if (pid == null)
+			return false;
+
+		// TODO
+
+		return true;
 	}
 
-	public void setCommonOrder(@Nullable Hl7CommonOrder commonOrder) {
-		this.commonOrder = commonOrder;
+	public Hl7InsuranceAdditionalInformationSegment() {
+		// Nothing to do
+	}
+
+	public Hl7InsuranceAdditionalInformationSegment(@Nullable PID pid) {
+		if (pid != null) {
+			// TODO
+		}
 	}
 }

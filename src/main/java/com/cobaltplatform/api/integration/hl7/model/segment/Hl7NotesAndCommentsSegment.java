@@ -32,7 +32,7 @@ import java.util.List;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class Hl7NotesAndComments extends Hl7Object {
+public class Hl7NotesAndCommentsSegment extends Hl7Object {
 	@Nullable
 	private Integer setId; // NTE.1 - Set ID
 	@Nullable

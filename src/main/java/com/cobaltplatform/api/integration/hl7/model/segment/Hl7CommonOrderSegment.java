@@ -43,7 +43,7 @@ import java.util.List;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class Hl7CommonOrder extends Hl7Object {
+public class Hl7CommonOrderSegment extends Hl7Object {
 	@Nullable
 	private String orderControl; // ORC.1 - Order Control
 	@Nullable

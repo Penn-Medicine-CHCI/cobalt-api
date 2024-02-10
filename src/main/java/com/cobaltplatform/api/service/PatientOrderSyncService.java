@@ -25,7 +25,7 @@ import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.hl7.Hl7Client;
 import com.cobaltplatform.api.integration.hl7.Hl7ParsingException;
-import com.cobaltplatform.api.integration.hl7.model.event.Hl7GeneralOrder;
+import com.cobaltplatform.api.integration.hl7.model.event.Hl7GeneralOrderTriggerEvent;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
@@ -226,7 +226,7 @@ public class PatientOrderSyncService implements AutoCloseable {
 					System.out.println("HL7 Order message as string: " + generalOrderHl7AsString);
 
 					try {
-						Hl7GeneralOrder generalOrder = getHl7Client().parseGeneralOrder(generalOrderHl7AsString);
+						Hl7GeneralOrderTriggerEvent generalOrder = getHl7Client().parseGeneralOrder(generalOrderHl7AsString);
 					} catch (Hl7ParsingException e) {
 						// TODO: should write to error reporter; this should never occur
 						getLogger().warn("Unable to parse HL7 message", e);

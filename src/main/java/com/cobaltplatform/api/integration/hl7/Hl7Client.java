@@ -27,11 +27,11 @@ import ca.uhn.hl7v2.model.v251.message.ORM_O01;
 import ca.uhn.hl7v2.model.v251.segment.MSH;
 import ca.uhn.hl7v2.model.v251.segment.ORC;
 import ca.uhn.hl7v2.parser.Parser;
-import com.cobaltplatform.api.integration.hl7.model.event.Hl7GeneralOrder;
-import com.cobaltplatform.api.integration.hl7.model.segment.Hl7CommonOrder;
-import com.cobaltplatform.api.integration.hl7.model.segment.Hl7MessageHeader;
-import com.cobaltplatform.api.integration.hl7.model.segment.Hl7NotesAndComments;
-import com.cobaltplatform.api.integration.hl7.model.segment.Hl7Order;
+import com.cobaltplatform.api.integration.hl7.model.event.Hl7GeneralOrderTriggerEvent;
+import com.cobaltplatform.api.integration.hl7.model.segment.Hl7CommonOrderSegment;
+import com.cobaltplatform.api.integration.hl7.model.segment.Hl7MessageHeaderSegment;
+import com.cobaltplatform.api.integration.hl7.model.segment.Hl7NotesAndCommentsSegment;
+import com.cobaltplatform.api.integration.hl7.model.section.Hl7OrderSection;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedElement;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedWithExceptions;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedWithNoExceptions;
@@ -77,13 +77,13 @@ public class Hl7Client {
 	}
 
 	@Nonnull
-	public Hl7GeneralOrder parseGeneralOrder(@Nonnull byte[] generalOrderHl7) throws Hl7ParsingException {
+	public Hl7GeneralOrderTriggerEvent parseGeneralOrder(@Nonnull byte[] generalOrderHl7) throws Hl7ParsingException {
 		requireNonNull(generalOrderHl7);
 		return parseGeneralOrder(messageFromBytes(generalOrderHl7));
 	}
 
 	@Nonnull
-	public Hl7GeneralOrder parseGeneralOrder(@Nonnull String generalOrderHl7AsString) throws Hl7ParsingException {
+	public Hl7GeneralOrderTriggerEvent parseGeneralOrder(@Nonnull String generalOrderHl7AsString) throws Hl7ParsingException {
 		requireNonNull(generalOrderHl7AsString);
 
 		// TODO: determine if these are threadsafe, would be nice to share them across threads
@@ -102,7 +102,7 @@ public class Hl7Client {
 		}
 
 		try {
-			Hl7GeneralOrder orderMessage = new Hl7GeneralOrder();
+			Hl7GeneralOrderTriggerEvent generalOrder = new Hl7GeneralOrderTriggerEvent();
 
 			// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/TriggerEvents/ORM_O01
 			ORM_O01 ormMessage = (ORM_O01) hapiMessage;
@@ -110,7 +110,7 @@ public class Hl7Client {
 			// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/Segments/MSH
 			MSH msh = ormMessage.getMSH();
 
-			Hl7MessageHeader messageHeader = new Hl7MessageHeader();
+			Hl7MessageHeaderSegment messageHeader = new Hl7MessageHeaderSegment();
 			messageHeader.setFieldSeparator(trimToNull(msh.getFieldSeparator().getValueOrEmpty()));
 			messageHeader.setEncodingCharacters(trimToNull(msh.getEncodingCharacters().getValueOrEmpty()));
 
@@ -172,14 +172,14 @@ public class Hl7Client {
 						.filter(mpi -> mpi != null)
 						.collect(Collectors.toList()));
 
-			orderMessage.setMessageHeader(messageHeader);
+			generalOrder.setMessageHeader(messageHeader);
 
 			// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/Segments/NTE
 
 			if (ormMessage.getNTEAll() != null && ormMessage.getNTEAll().size() > 0)
-				orderMessage.setNotesAndComments(ormMessage.getNTEAll().stream()
+				generalOrder.setNotesAndComments(ormMessage.getNTEAll().stream()
 						.map(nte -> {
-							Hl7NotesAndComments notesAndComments = new Hl7NotesAndComments();
+							Hl7NotesAndCommentsSegment notesAndComments = new Hl7NotesAndCommentsSegment();
 
 							String setIdAsString = trimToNull(nte.getSetIDNTE().getValue());
 
@@ -205,13 +205,13 @@ public class Hl7Client {
 
 			// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/TriggerEvents/ORM_O01
 			if (ormMessage.getORDERAll() != null && ormMessage.getORDERAll().size() > 0) {
-				orderMessage.setOrders(ormMessage.getORDERAll().stream()
+				generalOrder.setOrders(ormMessage.getORDERAll().stream()
 						.map(ormOrder -> {
-							Hl7Order order = new Hl7Order();
+							Hl7OrderSection order = new Hl7OrderSection();
 							ORC orc = ormOrder.getORC();
 
 							// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/Segments/ORC
-							Hl7CommonOrder commonOrder = new Hl7CommonOrder();
+							Hl7CommonOrderSegment commonOrder = new Hl7CommonOrderSegment();
 							commonOrder.setOrderControl(trimToNull(orc.getOrderControl().getValueOrEmpty()));
 
 							if (Hl7EntityIdentifier.isPresent(orc.getPlacerOrderNumber()))
@@ -350,10 +350,17 @@ public class Hl7Client {
 
 			ORM_O01_PATIENT patient = ormMessage.getPATIENT();
 
+
+
+			//patient.getPATIENT_VISIT();
+			//patient.getINSURANCEAll();
+			//patient.getGT1();
+			//patient.getAL1All()
+
 			// String patientId = patient.getPID().getPatientID().getIDNumber().getValue();
 			// String patientIdType = patient.getPID().getPatientID().getIdentifierTypeCode().getValue();
 
-			return orderMessage;
+			return generalOrder;
 		} catch (Exception e) {
 			throw new Hl7ParsingException(format("Encountered an unexpected problem while processing HL7 message:\n%s", generalOrderHl7AsString), e);
 		}
