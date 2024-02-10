@@ -22,6 +22,7 @@ package com.cobaltplatform.api.integration.hl7.model.segment;
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifier;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifierPair;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdNumberAndNameForPersons;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7TimeStamp;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7TimingQuantity;
 
@@ -55,11 +56,11 @@ public class Hl7CommonOrder extends Hl7Object {
 	@Nullable
 	private Hl7TimeStamp dateTimeOfTransaction; // ORC.9 - Date/Time of Transaction
 	@Nullable
-	private String enteredBy; // ORC.10 - Entered By
+	private List<Hl7ExtendedCompositeIdNumberAndNameForPersons> enteredBy; // ORC.10 - Entered By
 	@Nullable
-	private String verifiedBy; // ORC.11 - Verified By
+	private List<Hl7ExtendedCompositeIdNumberAndNameForPersons> verifiedBy; // ORC.11 - Verified By
 	@Nullable
-	private String orderingProvider; // ORC.12 - Ordering Provider
+	private List<Hl7ExtendedCompositeIdNumberAndNameForPersons> orderingProvider; // ORC.12 - Ordering Provider
 	@Nullable
 	private String enterersLocation; // ORC.13 - Enterer's Location
 	@Nullable
@@ -181,29 +182,29 @@ public class Hl7CommonOrder extends Hl7Object {
 	}
 
 	@Nullable
-	public String getEnteredBy() {
+	public List<Hl7ExtendedCompositeIdNumberAndNameForPersons> getEnteredBy() {
 		return this.enteredBy;
 	}
 
-	public void setEnteredBy(@Nullable String enteredBy) {
+	public void setEnteredBy(@Nullable List<Hl7ExtendedCompositeIdNumberAndNameForPersons> enteredBy) {
 		this.enteredBy = enteredBy;
 	}
 
 	@Nullable
-	public String getVerifiedBy() {
+	public List<Hl7ExtendedCompositeIdNumberAndNameForPersons> getVerifiedBy() {
 		return this.verifiedBy;
 	}
 
-	public void setVerifiedBy(@Nullable String verifiedBy) {
+	public void setVerifiedBy(@Nullable List<Hl7ExtendedCompositeIdNumberAndNameForPersons> verifiedBy) {
 		this.verifiedBy = verifiedBy;
 	}
 
 	@Nullable
-	public String getOrderingProvider() {
+	public List<Hl7ExtendedCompositeIdNumberAndNameForPersons> getOrderingProvider() {
 		return this.orderingProvider;
 	}
 
-	public void setOrderingProvider(@Nullable String orderingProvider) {
+	public void setOrderingProvider(@Nullable List<Hl7ExtendedCompositeIdNumberAndNameForPersons> orderingProvider) {
 		this.orderingProvider = orderingProvider;
 	}
 

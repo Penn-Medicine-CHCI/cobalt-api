@@ -35,6 +35,7 @@ import com.cobaltplatform.api.integration.hl7.model.segment.Hl7Order;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedElement;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifier;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifierPair;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdNumberAndNameForPersons;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7HierarchicDesignator;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7MessageType;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ProcessingType;
@@ -240,6 +241,27 @@ public class Hl7Client {
 									commonOrder.setDateTimeOfTransaction(new Hl7TimeStamp(orc.getDateTimeOfTransaction()));
 							} catch (Hl7ParsingException e) {
 								throw new UncheckedHl7ParsingException(e);
+							}
+
+							if (orc.getEnteredBy() != null && orc.getEnteredBy().length > 0) {
+								commonOrder.setEnteredBy(Arrays.stream(orc.getEnteredBy())
+										.map(xcn -> Hl7ExtendedCompositeIdNumberAndNameForPersons.isPresent(xcn) ? new Hl7ExtendedCompositeIdNumberAndNameForPersons(xcn) : null)
+										.filter(enteredBy -> enteredBy != null)
+										.collect(Collectors.toList()));
+							}
+
+							if (orc.getVerifiedBy() != null && orc.getVerifiedBy().length > 0) {
+								commonOrder.setVerifiedBy(Arrays.stream(orc.getVerifiedBy())
+										.map(xcn -> Hl7ExtendedCompositeIdNumberAndNameForPersons.isPresent(xcn) ? new Hl7ExtendedCompositeIdNumberAndNameForPersons(xcn) : null)
+										.filter(verifiedBy -> verifiedBy != null)
+										.collect(Collectors.toList()));
+							}
+
+							if (orc.getOrderingProvider() != null && orc.getOrderingProvider().length > 0) {
+								commonOrder.setOrderingProvider(Arrays.stream(orc.getOrderingProvider())
+										.map(xcn -> Hl7ExtendedCompositeIdNumberAndNameForPersons.isPresent(xcn) ? new Hl7ExtendedCompositeIdNumberAndNameForPersons(xcn) : null)
+										.filter(orderingProvider -> orderingProvider != null)
+										.collect(Collectors.toList()));
 							}
 
 							order.setCommonOrder(commonOrder);
