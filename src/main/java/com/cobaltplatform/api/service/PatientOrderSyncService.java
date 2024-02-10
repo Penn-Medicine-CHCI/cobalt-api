@@ -229,6 +229,7 @@ public class PatientOrderSyncService implements AutoCloseable {
 						Hl7GeneralOrder generalOrder = getHl7Client().parseGeneralOrder(generalOrderHl7AsString);
 						System.out.println(generalOrder);
 					} catch (Hl7ParsingException e) {
+						// TODO: should write to error reporter; this should never occur
 						getLogger().warn("Unable to parse HL7 message", e);
 					}
 				} catch (IOException e) {

@@ -21,7 +21,7 @@ package com.cobaltplatform.api.integration.hl7.model.type;
 
 import ca.uhn.hl7v2.model.DataTypeException;
 import ca.uhn.hl7v2.model.v251.datatype.TS;
-import com.cobaltplatform.api.integration.hl7.Hl7ParsingException;
+import com.cobaltplatform.api.integration.hl7.UncheckedHl7ParsingException;
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 
 import javax.annotation.Nonnull;
@@ -44,7 +44,7 @@ public class Hl7TimeStamp extends Hl7Object {
 	private String degreeOfPrecision;
 
 	@Nonnull
-	public static Boolean isPresent(@Nullable TS ts) throws Hl7ParsingException {
+	public static Boolean isPresent(@Nullable TS ts) {
 		if (ts == null)
 			return false;
 
@@ -52,7 +52,7 @@ public class Hl7TimeStamp extends Hl7Object {
 			return ts.getTime().getValueAsDate() != null
 					|| trimToNull(ts.getDegreeOfPrecision().getValueOrEmpty()) != null;
 		} catch (DataTypeException e) {
-			throw new Hl7ParsingException("Unable to parse time value", e);
+			throw new UncheckedHl7ParsingException("Unable to parse time value", e);
 		}
 	}
 
@@ -60,13 +60,13 @@ public class Hl7TimeStamp extends Hl7Object {
 		// Nothing to do
 	}
 
-	public Hl7TimeStamp(@Nullable TS ts) throws Hl7ParsingException {
+	public Hl7TimeStamp(@Nullable TS ts) {
 		if (ts != null) {
 			try {
 				this.time = ts == null ? null : ts.getTime().getValueAsDate().toInstant();
 				this.degreeOfPrecision = trimToNull(ts.getDegreeOfPrecision().getValueOrEmpty());
 			} catch (DataTypeException e) {
-				throw new Hl7ParsingException("Unable to parse time value", e);
+				throw new UncheckedHl7ParsingException("Unable to parse time value", e);
 			}
 		}
 	}

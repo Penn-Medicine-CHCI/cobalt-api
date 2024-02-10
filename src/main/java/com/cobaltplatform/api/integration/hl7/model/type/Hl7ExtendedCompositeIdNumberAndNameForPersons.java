@@ -67,8 +67,20 @@ public class Hl7ExtendedCompositeIdNumberAndNameForPersons extends Hl7Object {
 	private String nameRepresentationCode; // XCN.15 - Name Representation Code
 	@Nullable
 	private Hl7CodedElement nameContext; // XCN.16 - Name Context
-
-	// TODO: finish up
+	@Nullable
+	private Hl7DateTimeRange nameValidityRange; // XCN.17 - Name Validity Range
+	@Nullable
+	private String nameAssemblyOrder; // XCN.18 - Name Assembly Order
+	@Nullable
+	private Hl7TimeStamp effectiveDate; // XCN.19 - Effective Date
+	@Nullable
+	private Hl7TimeStamp expirationDate; // XCN.20 - Expiration Date
+	@Nullable
+	private String professionalSuffix; // XCN.21 - Professional Suffix
+	@Nullable
+	private Hl7CodedWithExceptions assigningJurisdiction; // XCN.22 - Assigning Jurisdiction
+	@Nullable
+	private Hl7CodedWithExceptions assigningAgencyOrDepartment; // XCN.23 - Assigning Agency Or Department
 
 	@Nonnull
 	public static Boolean isPresent(@Nullable XCN xcn) {
@@ -91,7 +103,13 @@ public class Hl7ExtendedCompositeIdNumberAndNameForPersons extends Hl7Object {
 				|| Hl7HierarchicDesignator.isPresent(xcn.getAssigningFacility())
 				|| trimToNull(xcn.getNameRepresentationCode().getValueOrEmpty()) != null
 				|| Hl7CodedElement.isPresent(xcn.getNameContext())
-				;
+				|| Hl7DateTimeRange.isPresent(xcn.getNameValidityRange())
+				|| trimToNull(xcn.getNameAssemblyOrder().getValueOrEmpty()) != null
+				|| Hl7TimeStamp.isPresent(xcn.getEffectiveDate())
+				|| Hl7TimeStamp.isPresent(xcn.getExpirationDate())
+				|| trimToNull(xcn.getProfessionalSuffix().getValueOrEmpty()) != null
+				|| Hl7CodedWithExceptions.isPresent(xcn.getAssigningJurisdiction())
+				|| Hl7CodedWithExceptions.isPresent(xcn.getAssigningAgencyOrDepartment());
 	}
 
 	public Hl7ExtendedCompositeIdNumberAndNameForPersons() {
@@ -116,8 +134,220 @@ public class Hl7ExtendedCompositeIdNumberAndNameForPersons extends Hl7Object {
 			this.assigningFacility = Hl7HierarchicDesignator.isPresent(xcn.getAssigningFacility()) ? new Hl7HierarchicDesignator(xcn.getAssigningFacility()) : null;
 			this.nameRepresentationCode = trimToNull(xcn.getNameRepresentationCode().getValueOrEmpty());
 			this.nameContext = Hl7CodedElement.isPresent(xcn.getNameContext()) ? new Hl7CodedElement(xcn.getNameContext()) : null;
+			this.nameValidityRange = Hl7DateTimeRange.isPresent(xcn.getNameValidityRange()) ? new Hl7DateTimeRange(xcn.getNameValidityRange()) : null;
+			this.nameAssemblyOrder = trimToNull(xcn.getNameAssemblyOrder().getValueOrEmpty());
+			this.effectiveDate = Hl7TimeStamp.isPresent(xcn.getEffectiveDate()) ? new Hl7TimeStamp(xcn.getEffectiveDate()) : null;
+			this.expirationDate = Hl7TimeStamp.isPresent(xcn.getExpirationDate()) ? new Hl7TimeStamp(xcn.getExpirationDate()) : null;
+			this.professionalSuffix = trimToNull(xcn.getProfessionalSuffix().getValueOrEmpty());
+			this.assigningJurisdiction = Hl7CodedWithExceptions.isPresent(xcn.getAssigningJurisdiction()) ? new Hl7CodedWithExceptions(xcn.getAssigningJurisdiction()) : null;
+			this.assigningAgencyOrDepartment = Hl7CodedWithExceptions.isPresent(xcn.getAssigningAgencyOrDepartment()) ? new Hl7CodedWithExceptions(xcn.getAssigningAgencyOrDepartment()) : null;
 		}
 	}
 
-	// TODO: getters and setters
+	@Nullable
+	public String getIdNumber() {
+		return this.idNumber;
+	}
+
+	public void setIdNumber(@Nullable String idNumber) {
+		this.idNumber = idNumber;
+	}
+
+	@Nullable
+	public Hl7FamilyName getFamilyName() {
+		return this.familyName;
+	}
+
+	public void setFamilyName(@Nullable Hl7FamilyName familyName) {
+		this.familyName = familyName;
+	}
+
+	@Nullable
+	public String getGivenName() {
+		return this.givenName;
+	}
+
+	public void setGivenName(@Nullable String givenName) {
+		this.givenName = givenName;
+	}
+
+	@Nullable
+	public String getSecondAndFurtherGivenNamesOrInitialsThereof() {
+		return this.secondAndFurtherGivenNamesOrInitialsThereof;
+	}
+
+	public void setSecondAndFurtherGivenNamesOrInitialsThereof(@Nullable String secondAndFurtherGivenNamesOrInitialsThereof) {
+		this.secondAndFurtherGivenNamesOrInitialsThereof = secondAndFurtherGivenNamesOrInitialsThereof;
+	}
+
+	@Nullable
+	public String getSuffix() {
+		return this.suffix;
+	}
+
+	public void setSuffix(@Nullable String suffix) {
+		this.suffix = suffix;
+	}
+
+	@Nullable
+	public String getPrefix() {
+		return this.prefix;
+	}
+
+	public void setPrefix(@Nullable String prefix) {
+		this.prefix = prefix;
+	}
+
+	@Nullable
+	public String getDegree() {
+		return this.degree;
+	}
+
+	public void setDegree(@Nullable String degree) {
+		this.degree = degree;
+	}
+
+	@Nullable
+	public String getSourceTable() {
+		return this.sourceTable;
+	}
+
+	public void setSourceTable(@Nullable String sourceTable) {
+		this.sourceTable = sourceTable;
+	}
+
+	@Nullable
+	public Hl7HierarchicDesignator getAssigningAuthority() {
+		return this.assigningAuthority;
+	}
+
+	public void setAssigningAuthority(@Nullable Hl7HierarchicDesignator assigningAuthority) {
+		this.assigningAuthority = assigningAuthority;
+	}
+
+	@Nullable
+	public String getNameTypeCode() {
+		return this.nameTypeCode;
+	}
+
+	public void setNameTypeCode(@Nullable String nameTypeCode) {
+		this.nameTypeCode = nameTypeCode;
+	}
+
+	@Nullable
+	public String getIdentifierCheckDigit() {
+		return this.identifierCheckDigit;
+	}
+
+	public void setIdentifierCheckDigit(@Nullable String identifierCheckDigit) {
+		this.identifierCheckDigit = identifierCheckDigit;
+	}
+
+	@Nullable
+	public String getCheckDigitScheme() {
+		return this.checkDigitScheme;
+	}
+
+	public void setCheckDigitScheme(@Nullable String checkDigitScheme) {
+		this.checkDigitScheme = checkDigitScheme;
+	}
+
+	@Nullable
+	public String getIdentifierTypeCode() {
+		return this.identifierTypeCode;
+	}
+
+	public void setIdentifierTypeCode(@Nullable String identifierTypeCode) {
+		this.identifierTypeCode = identifierTypeCode;
+	}
+
+	@Nullable
+	public Hl7HierarchicDesignator getAssigningFacility() {
+		return this.assigningFacility;
+	}
+
+	public void setAssigningFacility(@Nullable Hl7HierarchicDesignator assigningFacility) {
+		this.assigningFacility = assigningFacility;
+	}
+
+	@Nullable
+	public String getNameRepresentationCode() {
+		return this.nameRepresentationCode;
+	}
+
+	public void setNameRepresentationCode(@Nullable String nameRepresentationCode) {
+		this.nameRepresentationCode = nameRepresentationCode;
+	}
+
+	@Nullable
+	public Hl7CodedElement getNameContext() {
+		return this.nameContext;
+	}
+
+	public void setNameContext(@Nullable Hl7CodedElement nameContext) {
+		this.nameContext = nameContext;
+	}
+
+	@Nullable
+	public Hl7DateTimeRange getNameValidityRange() {
+		return this.nameValidityRange;
+	}
+
+	public void setNameValidityRange(@Nullable Hl7DateTimeRange nameValidityRange) {
+		this.nameValidityRange = nameValidityRange;
+	}
+
+	@Nullable
+	public String getNameAssemblyOrder() {
+		return this.nameAssemblyOrder;
+	}
+
+	public void setNameAssemblyOrder(@Nullable String nameAssemblyOrder) {
+		this.nameAssemblyOrder = nameAssemblyOrder;
+	}
+
+	@Nullable
+	public Hl7TimeStamp getEffectiveDate() {
+		return this.effectiveDate;
+	}
+
+	public void setEffectiveDate(@Nullable Hl7TimeStamp effectiveDate) {
+		this.effectiveDate = effectiveDate;
+	}
+
+	@Nullable
+	public Hl7TimeStamp getExpirationDate() {
+		return this.expirationDate;
+	}
+
+	public void setExpirationDate(@Nullable Hl7TimeStamp expirationDate) {
+		this.expirationDate = expirationDate;
+	}
+
+	@Nullable
+	public String getProfessionalSuffix() {
+		return this.professionalSuffix;
+	}
+
+	public void setProfessionalSuffix(@Nullable String professionalSuffix) {
+		this.professionalSuffix = professionalSuffix;
+	}
+
+	@Nullable
+	public Hl7CodedWithExceptions getAssigningJurisdiction() {
+		return this.assigningJurisdiction;
+	}
+
+	public void setAssigningJurisdiction(@Nullable Hl7CodedWithExceptions assigningJurisdiction) {
+		this.assigningJurisdiction = assigningJurisdiction;
+	}
+
+	@Nullable
+	public Hl7CodedWithExceptions getAssigningAgencyOrDepartment() {
+		return this.assigningAgencyOrDepartment;
+	}
+
+	public void setAssigningAgencyOrDepartment(@Nullable Hl7CodedWithExceptions assigningAgencyOrDepartment) {
+		this.assigningAgencyOrDepartment = assigningAgencyOrDepartment;
+	}
 }

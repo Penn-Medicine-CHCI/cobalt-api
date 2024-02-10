@@ -19,27 +19,20 @@
 
 package com.cobaltplatform.api.integration.hl7;
 
-import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
 public class UncheckedHl7ParsingException extends RuntimeException {
-	@Nonnull
-	private Hl7ParsingException hl7ParsingException;
-
-	public UncheckedHl7ParsingException(@Nonnull Hl7ParsingException cause) {
+	public UncheckedHl7ParsingException(@Nullable Throwable cause) {
 		super(cause);
-		requireNonNull(cause);
-		this.hl7ParsingException = cause;
 	}
 
-	@Nonnull
-	public Hl7ParsingException getHl7ParsingException() {
-		return this.hl7ParsingException;
+	public UncheckedHl7ParsingException(@Nullable String message,
+																			@Nullable Throwable cause) {
+		super(message, cause);
 	}
 }

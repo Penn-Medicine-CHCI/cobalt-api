@@ -20,7 +20,6 @@
 package com.cobaltplatform.api.integration.hl7.model.type;
 
 import ca.uhn.hl7v2.model.v251.datatype.TQ;
-import com.cobaltplatform.api.integration.hl7.Hl7ParsingException;
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 
 import javax.annotation.Nonnull;
@@ -62,7 +61,7 @@ public class Hl7TimingQuantity extends Hl7Object {
 	private Double totalOccurrences; // ORC.7.12 - Total Occurrences
 
 	@Nonnull
-	public static Boolean isPresent(@Nullable TQ tq) throws Hl7ParsingException {
+	public static Boolean isPresent(@Nullable TQ tq) {
 		if (tq == null)
 			return false;
 
@@ -84,7 +83,7 @@ public class Hl7TimingQuantity extends Hl7Object {
 		// Nothing to do
 	}
 
-	public Hl7TimingQuantity(@Nullable TQ tq) throws Hl7ParsingException {
+	public Hl7TimingQuantity(@Nullable TQ tq) {
 		if (tq != null) {
 			this.quantity = Hl7CompositeQuantity.isPresent(tq.getQuantity()) ? new Hl7CompositeQuantity(tq.getQuantity()) : null;
 			this.interval = Hl7RepeatInterval.isPresent(tq.getInterval()) ? new Hl7RepeatInterval(tq.getInterval()) : null;

@@ -222,13 +222,7 @@ public class Hl7Client {
 
 							if (orc.getQuantityTiming() != null && orc.getQuantityTiming().length > 0) {
 								commonOrder.setQuantityTiming(Arrays.stream(orc.getQuantityTiming())
-										.map((qt) -> {
-											try {
-												return Hl7TimingQuantity.isPresent(qt) ? new Hl7TimingQuantity(qt) : null;
-											} catch (Hl7ParsingException e) {
-												throw new UncheckedHl7ParsingException(e);
-											}
-										})
+										.map((qt) -> Hl7TimingQuantity.isPresent(qt) ? new Hl7TimingQuantity(qt) : null)
 										.filter(tq -> tq != null)
 										.collect(Collectors.toList()));
 							}
@@ -236,12 +230,8 @@ public class Hl7Client {
 							if (Hl7EntityIdentifierPair.isPresent(orc.getORCParent()))
 								commonOrder.setParentOrder(new Hl7EntityIdentifierPair(orc.getORCParent()));
 
-							try {
-								if (Hl7TimeStamp.isPresent(orc.getDateTimeOfTransaction()))
-									commonOrder.setDateTimeOfTransaction(new Hl7TimeStamp(orc.getDateTimeOfTransaction()));
-							} catch (Hl7ParsingException e) {
-								throw new UncheckedHl7ParsingException(e);
-							}
+							if (Hl7TimeStamp.isPresent(orc.getDateTimeOfTransaction()))
+								commonOrder.setDateTimeOfTransaction(new Hl7TimeStamp(orc.getDateTimeOfTransaction()));
 
 							if (orc.getEnteredBy() != null && orc.getEnteredBy().length > 0) {
 								commonOrder.setEnteredBy(Arrays.stream(orc.getEnteredBy())
