@@ -23,6 +23,7 @@ import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifier;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifierPair;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdNumberAndNameForPersons;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedTelecommunicationNumber;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7PersonLocation;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7TimeStamp;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7TimingQuantity;
@@ -65,7 +66,7 @@ public class Hl7CommonOrder extends Hl7Object {
 	@Nullable
 	private Hl7PersonLocation enterersLocation; // ORC.13 - Enterer's Location
 	@Nullable
-	private String callBackPhoneNumber; // ORC.14 - Call Back Phone Number
+	private List<Hl7ExtendedTelecommunicationNumber> callBackPhoneNumber; // ORC.14 - Call Back Phone Number
 	@Nullable
 	private String orderEffectiveDateTime; // ORC.15 - Order Effective Date/Time
 	@Nullable
@@ -219,11 +220,11 @@ public class Hl7CommonOrder extends Hl7Object {
 	}
 
 	@Nullable
-	public String getCallBackPhoneNumber() {
+	public List<Hl7ExtendedTelecommunicationNumber> getCallBackPhoneNumber() {
 		return this.callBackPhoneNumber;
 	}
 
-	public void setCallBackPhoneNumber(@Nullable String callBackPhoneNumber) {
+	public void setCallBackPhoneNumber(@Nullable List<Hl7ExtendedTelecommunicationNumber> callBackPhoneNumber) {
 		this.callBackPhoneNumber = callBackPhoneNumber;
 	}
 

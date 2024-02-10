@@ -36,6 +36,7 @@ import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedElement;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifier;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifierPair;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdNumberAndNameForPersons;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedTelecommunicationNumber;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7HierarchicDesignator;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7MessageType;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7PersonLocation;
@@ -257,6 +258,13 @@ public class Hl7Client {
 
 							if (Hl7PersonLocation.isPresent(orc.getEntererSLocation()))
 								commonOrder.setEnterersLocation(new Hl7PersonLocation(orc.getEntererSLocation()));
+
+							if (orc.getCallBackPhoneNumber() != null && orc.getCallBackPhoneNumber().length > 0) {
+								commonOrder.setCallBackPhoneNumber(Arrays.stream(orc.getCallBackPhoneNumber())
+										.map(xtn -> Hl7ExtendedTelecommunicationNumber.isPresent(xtn) ? new Hl7ExtendedTelecommunicationNumber(xtn) : null)
+										.filter(extendedTelecommunicationNumber -> extendedTelecommunicationNumber != null)
+										.collect(Collectors.toList()));
+							}
 
 							order.setCommonOrder(commonOrder);
 
