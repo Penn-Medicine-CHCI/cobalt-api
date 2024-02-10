@@ -24,6 +24,7 @@ import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedElement;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifier;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifierPair;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdNumberAndNameForPersons;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeNameAndIdentificationNumberForOrganizations;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedTelecommunicationNumber;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7PersonLocation;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7TimeStamp;
@@ -81,7 +82,7 @@ public class Hl7CommonOrder extends Hl7Object {
 	@Nullable
 	private Hl7CodedElement advancedBeneficiaryNoticeCode; // ORC.20 - Advanced Beneficiary Notice Code
 	@Nullable
-	private String orderingFacilityName; // ORC.21 - Ordering Facility Name
+	private List<Hl7ExtendedCompositeNameAndIdentificationNumberForOrganizations> orderingFacilityName; // ORC.21 - Ordering Facility Name
 	@Nullable
 	private String orderingFacilityAddress; // ORC.22 - Ordering Facility Address
 	@Nullable
@@ -284,11 +285,11 @@ public class Hl7CommonOrder extends Hl7Object {
 	}
 
 	@Nullable
-	public String getOrderingFacilityName() {
+	public List<Hl7ExtendedCompositeNameAndIdentificationNumberForOrganizations> getOrderingFacilityName() {
 		return this.orderingFacilityName;
 	}
 
-	public void setOrderingFacilityName(@Nullable String orderingFacilityName) {
+	public void setOrderingFacilityName(@Nullable List<Hl7ExtendedCompositeNameAndIdentificationNumberForOrganizations> orderingFacilityName) {
 		this.orderingFacilityName = orderingFacilityName;
 	}
 

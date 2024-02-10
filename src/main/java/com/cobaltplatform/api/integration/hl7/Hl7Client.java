@@ -36,6 +36,7 @@ import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedElement;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifier;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifierPair;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdNumberAndNameForPersons;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeNameAndIdentificationNumberForOrganizations;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedTelecommunicationNumber;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7HierarchicDesignator;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7MessageType;
@@ -287,6 +288,13 @@ public class Hl7Client {
 
 							if (Hl7CodedElement.isPresent(orc.getAdvancedBeneficiaryNoticeCode()))
 								commonOrder.setAdvancedBeneficiaryNoticeCode(new Hl7CodedElement(orc.getAdvancedBeneficiaryNoticeCode()));
+
+							if (orc.getOrderingFacilityName() != null && orc.getOrderingFacilityName().length > 0) {
+								commonOrder.setOrderingFacilityName(Arrays.stream(orc.getOrderingFacilityName())
+										.map(xon -> Hl7ExtendedCompositeNameAndIdentificationNumberForOrganizations.isPresent(xon) ? new Hl7ExtendedCompositeNameAndIdentificationNumberForOrganizations(xon) : null)
+										.filter(orderingFacilityName -> orderingFacilityName != null)
+										.collect(Collectors.toList()));
+							}
 
 							order.setCommonOrder(commonOrder);
 
