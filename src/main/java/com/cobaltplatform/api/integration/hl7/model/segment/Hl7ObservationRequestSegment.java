@@ -25,6 +25,8 @@ import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedElement;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7CompositeQuantityWithUnits;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifier;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdNumberAndNameForPersons;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedTelecommunicationNumber;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7MoneyAndCode;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7SpecimenSource;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7TimeStamp;
 
@@ -74,6 +76,22 @@ public class Hl7ObservationRequestSegment extends Hl7Object {
 	private Hl7TimeStamp specimenReceivedDateTime; // OBR.14 - Specimen Received Date/Time
 	@Nullable
 	private Hl7SpecimenSource specimenSource; // OBR.15 - Specimen Source
+	@Nullable
+	private List<Hl7ExtendedCompositeIdNumberAndNameForPersons> orderingProvider; // OBR.16 - Ordering Provider
+	@Nullable
+	private List<Hl7ExtendedTelecommunicationNumber> orderCallbackPhoneNumber; // OBR.17 - Order Callback Phone Number
+	@Nullable
+	private String placerField1; // OBR.18 - Placer Field 1
+	@Nullable
+	private String placerField2; // OBR.19 - Placer Field 2
+	@Nullable
+	private String fillerField1; // OBR.20 - Filler Field 1
+	@Nullable
+	private String fillerField2; // OBR.21 - Filler Field 2
+	@Nullable
+	private Hl7TimeStamp resultsRptStatusChngDateTime; // OBR.22 - Results Rpt/Status Chng - Date/Time
+	@Nullable
+	private Hl7MoneyAndCode chargeToPractice; // OBR.23 - Charge to Practice
 
 	@Nonnull
 	public static Boolean isPresent(@Nullable OBR obr) {
@@ -134,6 +152,29 @@ public class Hl7ObservationRequestSegment extends Hl7Object {
 
 			if (Hl7SpecimenSource.isPresent(obr.getSpecimenSource()))
 				this.specimenSource = new Hl7SpecimenSource(obr.getSpecimenSource());
+
+			if (obr.getOrderingProvider() != null && obr.getOrderingProvider().length > 0)
+				this.orderingProvider = Arrays.stream(obr.getOrderingProvider())
+						.map(xcn -> Hl7ExtendedCompositeIdNumberAndNameForPersons.isPresent(xcn) ? new Hl7ExtendedCompositeIdNumberAndNameForPersons(xcn) : null)
+						.filter(orderingProvider -> orderingProvider != null)
+						.collect(Collectors.toList());
+
+			if (obr.getOrderCallbackPhoneNumber() != null && obr.getOrderCallbackPhoneNumber().length > 0)
+				this.orderCallbackPhoneNumber = Arrays.stream(obr.getOrderCallbackPhoneNumber())
+						.map(xtn -> Hl7ExtendedTelecommunicationNumber.isPresent(xtn) ? new Hl7ExtendedTelecommunicationNumber(xtn) : null)
+						.filter(orderCallbackPhoneNumber -> orderCallbackPhoneNumber != null)
+						.collect(Collectors.toList());
+
+			this.placerField1 = trimToNull(obr.getPlacerField1().getValueOrEmpty());
+			this.placerField2 = trimToNull(obr.getPlacerField2().getValueOrEmpty());
+			this.fillerField1 = trimToNull(obr.getFillerField1().getValueOrEmpty());
+			this.fillerField2 = trimToNull(obr.getFillerField2().getValueOrEmpty());
+
+			if (Hl7TimeStamp.isPresent(obr.getResultsRptStatusChngDateTime()))
+				this.resultsRptStatusChngDateTime = new Hl7TimeStamp(obr.getResultsRptStatusChngDateTime());
+
+			if (Hl7MoneyAndCode.isPresent(obr.getChargeToPractice()))
+				this.chargeToPractice = new Hl7MoneyAndCode(obr.getChargeToPractice());
 		}
 	}
 }
