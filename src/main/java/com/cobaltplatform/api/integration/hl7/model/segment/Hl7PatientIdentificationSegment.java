@@ -22,6 +22,7 @@ package com.cobaltplatform.api.integration.hl7.model.segment;
 import ca.uhn.hl7v2.model.v251.segment.PID;
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdWithCheckDigit;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedPersonName;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -47,6 +48,10 @@ public class Hl7PatientIdentificationSegment extends Hl7Object {
 	private List<Hl7ExtendedCompositeIdWithCheckDigit> patientIdentifierList; // PID.3 - Patient Identifier List
 	@Nullable
 	private List<Hl7ExtendedCompositeIdWithCheckDigit> alternatePatientId; // PID.4 - Alternate Patient ID - PID
+	@Nullable
+	private List<Hl7ExtendedPersonName> patientName; // PID.5 - Patient Name
+	@Nullable
+	private List<Hl7ExtendedPersonName> mothersMaidenName; // PID.6 - Mother's Maiden Name
 
 	@Nonnull
 	public static Boolean isPresent(@Nullable PID pid) {
@@ -57,6 +62,8 @@ public class Hl7PatientIdentificationSegment extends Hl7Object {
 				|| Hl7ExtendedCompositeIdWithCheckDigit.isPresent(pid.getPatientID())
 				|| pid.getPatientIdentifierList() != null && pid.getPatientIdentifierList().length > 0
 				|| pid.getAlternatePatientIDPID() != null && pid.getAlternatePatientIDPID().length > 0
+				|| pid.getPatientName() != null && pid.getPatientName().length > 0
+				|| pid.getMotherSMaidenName() != null && pid.getMotherSMaidenName().length > 0
 				;
 	}
 
@@ -82,6 +89,18 @@ public class Hl7PatientIdentificationSegment extends Hl7Object {
 				this.alternatePatientId = Arrays.stream(pid.getAlternatePatientIDPID())
 						.map(cx -> Hl7ExtendedCompositeIdWithCheckDigit.isPresent(cx) ? new Hl7ExtendedCompositeIdWithCheckDigit(cx) : null)
 						.filter(patientIdentifier -> patientIdentifier != null)
+						.collect(Collectors.toList());
+
+			if (pid.getPatientName() != null && pid.getPatientName().length > 0)
+				this.patientName = Arrays.stream(pid.getPatientName())
+						.map(xpn -> Hl7ExtendedPersonName.isPresent(xpn) ? new Hl7ExtendedPersonName(xpn) : null)
+						.filter(patientName -> patientName != null)
+						.collect(Collectors.toList());
+
+			if (pid.getMotherSMaidenName() != null && pid.getMotherSMaidenName().length > 0)
+				this.mothersMaidenName = Arrays.stream(pid.getMotherSMaidenName())
+						.map(xpn -> Hl7ExtendedPersonName.isPresent(xpn) ? new Hl7ExtendedPersonName(xpn) : null)
+						.filter(mothersMaidenName -> mothersMaidenName != null)
 						.collect(Collectors.toList());
 		}
 	}
