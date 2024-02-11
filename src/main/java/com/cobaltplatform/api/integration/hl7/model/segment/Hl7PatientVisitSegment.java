@@ -21,10 +21,13 @@ package com.cobaltplatform.api.integration.hl7.model.segment;
 
 import ca.uhn.hl7v2.model.v251.segment.PV1;
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedElement;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7DischargeLocationAndDate;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdNumberAndNameForPersons;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdWithCheckDigit;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7FinancialClass;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7PersonLocation;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7TimeStamp;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -114,6 +117,38 @@ public class Hl7PatientVisitSegment extends Hl7Object {
 	private String deleteAccountDate; // PV1.35 - Delete Account Date
 	@Nullable
 	private String dischargeDisposition; // PV1.36 - Discharge Disposition
+	@Nullable
+	private Hl7DischargeLocationAndDate dischargedToLocation; // PV1.37 - Discharged to Location
+	@Nullable
+	private Hl7CodedElement dietType; // PV1.38 - Diet Type
+	@Nullable
+	private String servicingFacility; // PV1.39 - Servicing Facility
+	@Nullable
+	private String bedStatus; // PV1.40 - Bed Status
+	@Nullable
+	private String accountStatus; // PV1.41 - Account Status
+	@Nullable
+	private Hl7PersonLocation pendingLocation; // PV1.42 - Pending Location
+	@Nullable
+	private Hl7PersonLocation priorTemporaryLocation; // PV1.43 - Prior Temporary Location
+	@Nullable
+	private Hl7TimeStamp admitDateTime; // PV1.44 - Admit Date/Time
+	@Nullable
+	private List<Hl7TimeStamp> dischargeDateTime; // PV1.45 - Discharge Date/Time
+	@Nullable
+	private Double currentPatientBalance; // PV1.46 - Current Patient Balance
+	@Nullable
+	private Double totalCharges; // PV1.47 - Total Charges
+	@Nullable
+	private Double totalAdjustments; // PV1.48 - Total Adjustments
+	@Nullable
+	private Double totalPayments; // PV1.49 - Total Payments
+	@Nullable
+	private Hl7ExtendedCompositeIdWithCheckDigit alternateVisitId; // PV1.50 - Alternate Visit ID
+	@Nullable
+	private String visitIndicator; // PV1.51 - Visit Indicator
+	@Nullable
+	private List<Hl7ExtendedCompositeIdNumberAndNameForPersons> otherHealthcareProvider; // PV1.52 - Other Healthcare Provider
 
 	@Nonnull
 	public static Boolean isPresent(@Nullable PV1 pv1) {
@@ -156,8 +191,22 @@ public class Hl7PatientVisitSegment extends Hl7Object {
 				|| trimToNull(pv1.getDeleteAccountIndicator().getValueOrEmpty()) != null
 				|| trimToNull(pv1.getDeleteAccountDate().getValue()) != null
 				|| trimToNull(pv1.getDischargeDisposition().getValueOrEmpty()) != null
-				;
-
+				|| Hl7DischargeLocationAndDate.isPresent(pv1.getDischargedToLocation())
+				|| Hl7CodedElement.isPresent(pv1.getDietType())
+				|| trimToNull(pv1.getServicingFacility().getValueOrEmpty()) != null
+				|| trimToNull(pv1.getBedStatus().getValueOrEmpty()) != null
+				|| trimToNull(pv1.getAccountStatus().getValueOrEmpty()) != null
+				|| Hl7PersonLocation.isPresent(pv1.getPendingLocation())
+				|| Hl7PersonLocation.isPresent(pv1.getPriorTemporaryLocation())
+				|| Hl7TimeStamp.isPresent(pv1.getAdmitDateTime())
+				|| (pv1.getDischargeDateTime() != null && pv1.getDischargeDateTime().length > 0)
+				|| trimToNull(pv1.getCurrentPatientBalance().getValue()) != null
+				|| trimToNull(pv1.getTotalCharges().getValue()) != null
+				|| trimToNull(pv1.getTotalAdjustments().getValue()) != null
+				|| trimToNull(pv1.getTotalPayments().getValue()) != null
+				|| Hl7ExtendedCompositeIdWithCheckDigit.isPresent(pv1.getAlternateVisitID())
+				|| trimToNull(pv1.getVisitIndicator().getValueOrEmpty()) != null
+				|| (pv1.getOtherHealthcareProvider() != null && pv1.getOtherHealthcareProvider().length > 0);
 	}
 
 	public Hl7PatientVisitSegment() {
@@ -280,6 +329,57 @@ public class Hl7PatientVisitSegment extends Hl7Object {
 			this.deleteAccountDate = trimToNull(pv1.getDeleteAccountDate().getValue());
 			this.dischargeDisposition = trimToNull(pv1.getDischargeDisposition().getValueOrEmpty());
 
+			if (Hl7DischargeLocationAndDate.isPresent(pv1.getDischargedToLocation()))
+				this.dischargedToLocation = new Hl7DischargeLocationAndDate(pv1.getDischargedToLocation());
+
+			if (Hl7CodedElement.isPresent(pv1.getDietType()))
+				this.dietType = new Hl7CodedElement(pv1.getDietType());
+
+			this.servicingFacility = trimToNull(pv1.getServicingFacility().getValueOrEmpty());
+			this.bedStatus = trimToNull(pv1.getBedStatus().getValueOrEmpty());
+			this.accountStatus = trimToNull(pv1.getAccountStatus().getValueOrEmpty());
+
+			if (Hl7PersonLocation.isPresent(pv1.getPendingLocation()))
+				this.pendingLocation = new Hl7PersonLocation(pv1.getPendingLocation());
+
+			if (Hl7PersonLocation.isPresent(pv1.getPriorTemporaryLocation()))
+				this.priorTemporaryLocation = new Hl7PersonLocation(pv1.getPriorTemporaryLocation());
+
+			if (Hl7TimeStamp.isPresent(pv1.getAdmitDateTime()))
+				this.admitDateTime = new Hl7TimeStamp(pv1.getAdmitDateTime());
+
+			if (pv1.getDischargeDateTime() != null && pv1.getDischargeDateTime().length > 0)
+				this.dischargeDateTime = Arrays.stream(pv1.getDischargeDateTime())
+						.map(ts -> Hl7TimeStamp.isPresent(ts) ? new Hl7TimeStamp(ts) : null)
+						.filter(dischargeDateTime -> dischargeDateTime != null)
+						.collect(Collectors.toList());
+
+			String currentPatientBalanceAsString = trimToNull(pv1.getCurrentPatientBalance().getValue());
+			if (currentPatientBalanceAsString != null)
+				this.currentPatientBalance = Double.parseDouble(currentPatientBalanceAsString);
+
+			String totalChargesAsString = trimToNull(pv1.getTotalCharges().getValue());
+			if (totalChargesAsString != null)
+				this.totalCharges = Double.parseDouble(totalChargesAsString);
+
+			String totalAdjustmentsAsString = trimToNull(pv1.getTotalAdjustments().getValue());
+			if (totalAdjustmentsAsString != null)
+				this.totalAdjustments = Double.parseDouble(totalAdjustmentsAsString);
+
+			String totalPaymentsAsString = trimToNull(pv1.getTotalPayments().getValue());
+			if (totalPaymentsAsString != null)
+				this.totalPayments = Double.parseDouble(totalPaymentsAsString);
+
+			if (Hl7ExtendedCompositeIdWithCheckDigit.isPresent(pv1.getAlternateVisitID()))
+				this.alternateVisitId = new Hl7ExtendedCompositeIdWithCheckDigit(pv1.getAlternateVisitID());
+
+			this.visitIndicator = trimToNull(pv1.getVisitIndicator().getValueOrEmpty());
+
+			if (pv1.getOtherHealthcareProvider() != null && pv1.getOtherHealthcareProvider().length > 0)
+				this.otherHealthcareProvider = Arrays.stream(pv1.getOtherHealthcareProvider())
+						.map(xcn -> Hl7ExtendedCompositeIdNumberAndNameForPersons.isPresent(xcn) ? new Hl7ExtendedCompositeIdNumberAndNameForPersons(xcn) : null)
+						.filter(otherHealthcareProvider -> otherHealthcareProvider != null)
+						.collect(Collectors.toList());
 		}
 	}
 }
