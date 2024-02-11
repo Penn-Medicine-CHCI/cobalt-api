@@ -19,15 +19,21 @@
 
 package com.cobaltplatform.api.integration.hl7.model.event;
 
+import ca.uhn.hl7v2.HL7Exception;
+import ca.uhn.hl7v2.model.v251.group.ORM_O01_PATIENT;
+import ca.uhn.hl7v2.model.v251.message.ORM_O01;
+import com.cobaltplatform.api.integration.hl7.UncheckedHl7ParsingException;
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 import com.cobaltplatform.api.integration.hl7.model.section.Hl7OrderSection;
 import com.cobaltplatform.api.integration.hl7.model.section.Hl7PatientSection;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7MessageHeaderSegment;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7NotesAndCommentsSegment;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * See https://hl7-definition.caristix.com/v2/hl7v2.5.1/TriggerEvents/ORM_O01
@@ -44,6 +50,44 @@ public class Hl7GeneralOrderTriggerEvent extends Hl7Object {
 	private Hl7PatientSection patient;
 	@Nullable
 	private List<Hl7OrderSection> orders;
+
+	@Nonnull
+	public static Boolean isPresent(@Nullable ORM_O01 ormMessage) {
+		if (ormMessage == null)
+			return false;
+
+		return Hl7MessageHeaderSegment.isPresent(ormMessage.getMSH());
+	}
+
+	public Hl7GeneralOrderTriggerEvent() {
+		// Nothing to do
+	}
+
+	public Hl7GeneralOrderTriggerEvent(@Nullable ORM_O01 ormMessage) {
+		if (Hl7MessageHeaderSegment.isPresent(ormMessage.getMSH()))
+			this.messageHeader = new Hl7MessageHeaderSegment(ormMessage.getMSH());
+
+		try {
+			if (ormMessage.getNTEAll() != null && ormMessage.getNTEAll().size() > 0)
+				this.notesAndComments = ormMessage.getNTEAll().stream()
+						.map(nte -> Hl7NotesAndCommentsSegment.isPresent(nte) ? new Hl7NotesAndCommentsSegment(nte) : null)
+						.filter(notesAndComments -> notesAndComments != null)
+						.collect(Collectors.toList());
+
+			if (ormMessage.getORDERAll() != null && ormMessage.getORDERAll().size() > 0)
+				this.orders = ormMessage.getORDERAll().stream()
+						.map(order -> Hl7OrderSection.isPresent(order) ? new Hl7OrderSection(order) : null)
+						.filter(order -> order != null)
+						.collect(Collectors.toList());
+		} catch (HL7Exception e) {
+			throw new UncheckedHl7ParsingException(e);
+		}
+
+		ORM_O01_PATIENT patient = ormMessage.getPATIENT();
+
+		if (Hl7PatientSection.isPresent(patient))
+			this.patient = new Hl7PatientSection(patient);
+	}
 
 	@Nullable
 	public Hl7MessageHeaderSegment getMessageHeader() {

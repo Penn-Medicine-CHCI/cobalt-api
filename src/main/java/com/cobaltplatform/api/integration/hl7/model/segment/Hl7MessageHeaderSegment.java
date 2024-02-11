@@ -19,6 +19,9 @@
 
 package com.cobaltplatform.api.integration.hl7.model.segment;
 
+import ca.uhn.hl7v2.model.DataTypeException;
+import ca.uhn.hl7v2.model.v251.segment.MSH;
+import com.cobaltplatform.api.integration.hl7.UncheckedHl7ParsingException;
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedElement;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifier;
@@ -27,10 +30,16 @@ import com.cobaltplatform.api.integration.hl7.model.type.Hl7MessageType;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ProcessingType;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7VersionId;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
+
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * See https://hl7-definition.caristix.com/v2/hl7v2.5.1/Segments/MSH
@@ -81,6 +90,87 @@ public class Hl7MessageHeaderSegment extends Hl7Object {
 	private String alternateCharacterSetHandlingScheme; // MSH.20 - Alternate Character Set Handling Scheme
 	@Nullable
 	private List<Hl7EntityIdentifier> messageProfileIdentifier; // MSH.21 - Message Profile Identifier
+
+	@Nonnull
+	public static Boolean isPresent(@Nullable MSH msh) {
+		if (msh == null)
+			return false;
+
+		return trimToNull(msh.getFieldSeparator().getValueOrEmpty()) != null;
+	}
+
+	public Hl7MessageHeaderSegment() {
+		// Nothing to do
+	}
+
+	public Hl7MessageHeaderSegment(@Nullable MSH msh) {
+		if (msh != null) {
+			this.fieldSeparator = trimToNull(msh.getFieldSeparator().getValueOrEmpty());
+			this.encodingCharacters = trimToNull(msh.getEncodingCharacters().getValueOrEmpty());
+
+			if (Hl7HierarchicDesignator.isPresent(msh.getSendingApplication()))
+				this.sendingApplication = new Hl7HierarchicDesignator(msh.getSendingApplication());
+
+			if (Hl7HierarchicDesignator.isPresent(msh.getSendingFacility()))
+				this.sendingFacility = new Hl7HierarchicDesignator(msh.getSendingFacility());
+
+			if (Hl7HierarchicDesignator.isPresent(msh.getReceivingApplication()))
+				this.receivingApplication = new Hl7HierarchicDesignator(msh.getReceivingApplication());
+
+			if (Hl7HierarchicDesignator.isPresent(msh.getReceivingFacility()))
+				this.receivingFacility = new Hl7HierarchicDesignator(msh.getReceivingFacility());
+
+			try {
+				Date dateTimeOfMessage = (msh.getDateTimeOfMessage() != null && msh.getDateTimeOfMessage().getTime() != null) ?
+						msh.getDateTimeOfMessage().getTime().getValueAsDate() : null;
+
+				if (dateTimeOfMessage != null)
+					this.dateTimeOfMessage = dateTimeOfMessage.toInstant();
+			} catch (DataTypeException e) {
+				throw new UncheckedHl7ParsingException(e);
+			}
+
+			this.security = trimToNull(msh.getSecurity().getValueOrEmpty());
+
+			if (Hl7MessageType.isPresent(msh.getMessageType()))
+				this.messageType = new Hl7MessageType(msh.getMessageType());
+
+			this.messageControlId = trimToNull(msh.getMessageControlID().getValueOrEmpty());
+
+			if (Hl7ProcessingType.isPresent(msh.getProcessingID()))
+				this.processingId = new Hl7ProcessingType(msh.getProcessingID());
+
+			if (Hl7VersionId.isPresent(msh.getVersionID()))
+				this.versionId = new Hl7VersionId(msh.getVersionID());
+
+			String sequenceNumberAsString = trimToNull(msh.getSequenceNumber().getValue());
+
+			if (sequenceNumberAsString != null)
+				this.sequenceNumber = Double.parseDouble(sequenceNumberAsString);
+
+			this.continuationPointer = trimToNull(msh.getContinuationPointer().getValue());
+			this.acceptAcknowledgementType = trimToNull(msh.getAcceptAcknowledgmentType().getValueOrEmpty());
+			this.applicationAcknowledgementType = trimToNull(msh.getApplicationAcknowledgmentType().getValueOrEmpty());
+			this.countryCode = trimToNull(msh.getCountryCode().getValueOrEmpty());
+
+			if (msh.getCharacterSet() != null && msh.getCharacterSet().length > 0)
+				this.characterSet = Arrays.stream(msh.getCharacterSet())
+						.map(cs -> trimToNull(cs.getValueOrEmpty()))
+						.filter(cs -> cs != null)
+						.collect(Collectors.toList());
+
+			if (Hl7CodedElement.isPresent(msh.getPrincipalLanguageOfMessage()))
+				this.principalLanguageOfMessage = new Hl7CodedElement(msh.getPrincipalLanguageOfMessage());
+
+			this.alternateCharacterSetHandlingScheme = trimToNull(msh.getAlternateCharacterSetHandlingScheme().getValueOrEmpty());
+
+			if (msh.getMessageProfileIdentifier() != null && msh.getMessageProfileIdentifier().length > 0)
+				this.messageProfileIdentifier = Arrays.stream(msh.getMessageProfileIdentifier())
+						.map(mpi -> Hl7EntityIdentifier.isPresent(mpi) ? new Hl7EntityIdentifier(mpi) : null)
+						.filter(mpi -> mpi != null)
+						.collect(Collectors.toList());
+		}
+	}
 
 	@Nullable
 	public String getFieldSeparator() {
