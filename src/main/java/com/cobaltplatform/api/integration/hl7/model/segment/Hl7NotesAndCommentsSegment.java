@@ -19,12 +19,18 @@
 
 package com.cobaltplatform.api.integration.hl7.model.segment;
 
+import ca.uhn.hl7v2.model.v251.segment.NTE;
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedElement;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
+
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * See https://hl7-definition.caristix.com/v2/HL7v2.5.1/Segments/NTE
@@ -41,6 +47,40 @@ public class Hl7NotesAndCommentsSegment extends Hl7Object {
 	private List<String> comment; // NTE.3 - Comment
 	@Nullable
 	private Hl7CodedElement commentType; // NTE.4 - Comment Type
+
+	@Nonnull
+	public static Boolean isPresent(@Nullable NTE nte) {
+		if (nte == null)
+			return false;
+
+		return trimToNull(nte.getSetIDNTE().getValue()) != null
+				|| trimToNull(nte.getSourceOfComment().getValueOrEmpty()) != null
+				|| (nte.getComment() != null && nte.getComment().length > 0)
+				|| Hl7CodedElement.isPresent(nte.getCommentType());
+	}
+
+	public Hl7NotesAndCommentsSegment() {
+		// Nothing to do
+	}
+
+	public Hl7NotesAndCommentsSegment(@Nullable NTE nte) {
+		if (nte != null) {
+			String setIdAsString = trimToNull(nte.getSetIDNTE().getValue());
+			if (setIdAsString != null)
+				this.setId = Integer.parseInt(setIdAsString, 10);
+
+			this.sourceOfComment = trimToNull(nte.getSourceOfComment().getValueOrEmpty());
+
+			if (nte.getComment() != null && nte.getComment().length > 0)
+				setComment(Arrays.stream(nte.getComment())
+						.map(comment -> trimToNull(comment.getValueOrEmpty()))
+						.filter(comment -> comment != null)
+						.collect(Collectors.toList()));
+
+			if (Hl7CodedElement.isPresent(nte.getCommentType()))
+				this.commentType = new Hl7CodedElement(nte.getCommentType());
+		}
+	}
 
 	@Nullable
 	public Integer getSetId() {

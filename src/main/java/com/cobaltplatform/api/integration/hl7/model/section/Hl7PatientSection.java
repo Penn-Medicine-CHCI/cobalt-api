@@ -33,6 +33,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * See https://hl7-definition.caristix.com/v2/hl7v2.5.1/TriggerEvents/ORM_O01
@@ -75,18 +76,25 @@ public class Hl7PatientSection extends Hl7Object {
 	}
 
 	public Hl7PatientSection() {
-		// Nothing to dos
+		// Nothing to do
 	}
 
 	public Hl7PatientSection(@Nullable ORM_O01_PATIENT patient) {
 		if (patient != null) {
 			this.patientIdentification = Hl7PatientIdentificationSegment.isPresent(patient.getPID()) ? new Hl7PatientIdentificationSegment(patient.getPID()) : null;
 
-			// TODO: others
-			
-			//	private Hl7PatientAdditionalDemographicSegment patientAdditionalDemographic;
-			//	@Nullable
-			//	private List<Hl7NotesAndCommentsSegment> notesAndComments;
+			// TODO: Hl7PatientAdditionalDemographicSegment patientAdditionalDemographic
+
+			try {
+				if (patient.getNTEAll() != null && patient.getNTEAll().size() > 0)
+					this.notesAndComments = patient.getNTEAll().stream()
+							.map(nte -> Hl7NotesAndCommentsSegment.isPresent(nte) ? new Hl7NotesAndCommentsSegment(nte) : null)
+							.filter(notesAndComments -> notesAndComments != null)
+							.collect(Collectors.toList());
+			} catch (HL7Exception e) {
+				throw new UncheckedHl7ParsingException(e);
+			}
+
 			//	@Nullable
 			//	private Hl7PatientVisitSection patientVisit;
 			//	@Nullable

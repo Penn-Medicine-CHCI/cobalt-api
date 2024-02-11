@@ -133,43 +133,43 @@ public class Hl7PatientIdentificationSegment extends Hl7Object {
 
 		return trimToNull(pid.getSetIDPID().getValue()) != null
 				|| Hl7ExtendedCompositeIdWithCheckDigit.isPresent(pid.getPatientID())
-				|| pid.getPatientIdentifierList() != null && pid.getPatientIdentifierList().length > 0
-				|| pid.getAlternatePatientIDPID() != null && pid.getAlternatePatientIDPID().length > 0
-				|| pid.getPatientName() != null && pid.getPatientName().length > 0
-				|| pid.getMotherSMaidenName() != null && pid.getMotherSMaidenName().length > 0
+				|| (pid.getPatientIdentifierList() != null && pid.getPatientIdentifierList().length > 0)
+				|| (pid.getAlternatePatientIDPID() != null && pid.getAlternatePatientIDPID().length > 0)
+				|| (pid.getPatientName() != null && pid.getPatientName().length > 0)
+				|| (pid.getMotherSMaidenName() != null && pid.getMotherSMaidenName().length > 0)
 				|| Hl7TimeStamp.isPresent(pid.getDateTimeOfBirth())
 				|| trimToNull(pid.getAdministrativeSex().getValueOrEmpty()) != null
-				|| pid.getPatientAlias() != null && pid.getPatientAlias().length > 0
-				|| pid.getRace() != null && pid.getRace().length > 0
-				|| pid.getPatientAddress() != null && pid.getPatientAddress().length > 0
+				|| (pid.getPatientAlias() != null && pid.getPatientAlias().length > 0)
+				|| (pid.getRace() != null && pid.getRace().length > 0)
+				|| (pid.getPatientAddress() != null && pid.getPatientAddress().length > 0)
 				|| trimToNull(pid.getCountyCode().getValueOrEmpty()) != null
-				|| pid.getPhoneNumberHome() != null && pid.getPhoneNumberHome().length > 0
-				|| pid.getPhoneNumberBusiness() != null && pid.getPhoneNumberBusiness().length > 0
+				|| (pid.getPhoneNumberHome() != null && pid.getPhoneNumberHome().length > 0)
+				|| (pid.getPhoneNumberBusiness() != null && pid.getPhoneNumberBusiness().length > 0)
 				|| Hl7CodedElement.isPresent(pid.getPrimaryLanguage())
 				|| Hl7CodedElement.isPresent(pid.getMaritalStatus())
 				|| Hl7CodedElement.isPresent(pid.getReligion())
 				|| Hl7ExtendedCompositeIdWithCheckDigit.isPresent(pid.getPatientAccountNumber())
 				|| trimToNull(pid.getSSNNumberPatient().getValueOrEmpty()) != null
 				|| Hl7DriverLicenseNumber.isPresent(pid.getDriverSLicenseNumberPatient())
-				|| pid.getMotherSIdentifier() != null && pid.getMotherSIdentifier().length > 0
-				|| pid.getEthnicGroup() != null && pid.getEthnicGroup().length > 0
+				|| (pid.getMotherSIdentifier() != null && pid.getMotherSIdentifier().length > 0)
+				|| (pid.getEthnicGroup() != null && pid.getEthnicGroup().length > 0)
 				|| trimToNull(pid.getBirthPlace().getValueOrEmpty()) != null
 				|| trimToNull(pid.getMultipleBirthIndicator().getValueOrEmpty()) != null
 				|| trimToNull(pid.getBirthOrder().getValue()) != null
-				|| pid.getCitizenship() != null && pid.getCitizenship().length > 0
+				|| (pid.getCitizenship() != null && pid.getCitizenship().length > 0)
 				|| Hl7CodedElement.isPresent(pid.getVeteransMilitaryStatus())
 				|| Hl7CodedElement.isPresent(pid.getNationality())
 				|| Hl7TimeStamp.isPresent(pid.getPatientDeathDateAndTime())
 				|| trimToNull(pid.getPatientDeathIndicator().getValue()) != null
 				|| trimToNull(pid.getIdentityUnknownIndicator().getValue()) != null
-				|| pid.getIdentityReliabilityCode() != null && pid.getIdentityReliabilityCode().length > 0
+				|| (pid.getIdentityReliabilityCode() != null && pid.getIdentityReliabilityCode().length > 0)
 				|| Hl7TimeStamp.isPresent(pid.getLastUpdateDateTime())
 				|| Hl7HierarchicDesignator.isPresent(pid.getLastUpdateFacility())
 				|| Hl7CodedElement.isPresent(pid.getSpeciesCode())
 				|| Hl7CodedElement.isPresent(pid.getBreedCode())
 				|| trimToNull(pid.getStrain().getValue()) != null
 				|| Hl7CodedElement.isPresent(pid.getProductionClassCode())
-				|| pid.getTribalCitizenship() != null && pid.getTribalCitizenship().length > 0;
+				|| (pid.getTribalCitizenship() != null && pid.getTribalCitizenship().length > 0);
 	}
 
 	public Hl7PatientIdentificationSegment() {
