@@ -75,7 +75,7 @@ public class Hl7CodedWithNoExceptions extends Hl7Object {
 	}
 
 	public Hl7CodedWithNoExceptions(@Nullable CNE cne) {
-		if (cne == null) {
+		if (cne != null) {
 			this.identifier = trimToNull(cne.getIdentifier().getValueOrEmpty());
 			this.text = trimToNull(cne.getText().getValueOrEmpty());
 			this.nameOfCodingSystem = trimToNull(cne.getNameOfCodingSystem().getValueOrEmpty());

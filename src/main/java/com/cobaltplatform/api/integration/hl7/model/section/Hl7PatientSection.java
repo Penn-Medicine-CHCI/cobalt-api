@@ -19,6 +19,9 @@
 
 package com.cobaltplatform.api.integration.hl7.model.section;
 
+import ca.uhn.hl7v2.HL7Exception;
+import ca.uhn.hl7v2.model.v251.group.ORM_O01_PATIENT;
+import com.cobaltplatform.api.integration.hl7.UncheckedHl7ParsingException;
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7GuarantorSegment;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7NotesAndCommentsSegment;
@@ -26,6 +29,7 @@ import com.cobaltplatform.api.integration.hl7.model.segment.Hl7PatientAdditional
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7PatientAllergyInformationSegment;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7PatientIdentificationSegment;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.List;
@@ -51,6 +55,48 @@ public class Hl7PatientSection extends Hl7Object {
 	private Hl7GuarantorSegment guarantor;
 	@Nullable
 	private List<Hl7PatientAllergyInformationSegment> patientAllergyInformation;
+
+	@Nonnull
+	public static Boolean isPresent(@Nullable ORM_O01_PATIENT patient) {
+		if (patient == null)
+			return false;
+
+		try {
+			return patient.getPID() != null
+					|| patient.getPD1() != null
+					|| patient.getNTEAll() != null
+					|| patient.getPATIENT_VISIT() != null
+					|| patient.getINSURANCEAll() != null
+					|| patient.getGT1() != null
+					|| patient.getAL1All() != null;
+		} catch (HL7Exception e) {
+			throw new UncheckedHl7ParsingException(e);
+		}
+	}
+
+	public Hl7PatientSection() {
+		// Nothing to dos
+	}
+
+	public Hl7PatientSection(@Nullable ORM_O01_PATIENT patient) {
+		if (patient != null) {
+			this.patientIdentification = Hl7PatientIdentificationSegment.isPresent(patient.getPID()) ? new Hl7PatientIdentificationSegment(patient.getPID()) : null;
+
+			// TODO: others
+			
+			//	private Hl7PatientAdditionalDemographicSegment patientAdditionalDemographic;
+			//	@Nullable
+			//	private List<Hl7NotesAndCommentsSegment> notesAndComments;
+			//	@Nullable
+			//	private Hl7PatientVisitSection patientVisit;
+			//	@Nullable
+			//	private List<Hl7InsuranceSection> insurance;
+			//	@Nullable
+			//	private Hl7GuarantorSegment guarantor;
+			//	@Nullable
+			//	private List<Hl7PatientAllergyInformationSegment> patientAllergyInformation;
+		}
+	}
 
 	@Nullable
 	public Hl7PatientIdentificationSegment getPatientIdentification() {

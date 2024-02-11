@@ -21,10 +21,16 @@ package com.cobaltplatform.api.integration.hl7.model.segment;
 
 import ca.uhn.hl7v2.model.v251.segment.PID;
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdWithCheckDigit;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * See https://hl7-definition.caristix.com/v2/hl7v2.5.1/Segments/PID
@@ -33,16 +39,25 @@ import javax.annotation.concurrent.NotThreadSafe;
  */
 @NotThreadSafe
 public class Hl7PatientIdentificationSegment extends Hl7Object {
-	// TODO
+	@Nullable
+	private Integer setId; // PID.1 - Set ID - PID
+	@Nullable
+	private Hl7ExtendedCompositeIdWithCheckDigit patientId; // PID.2 - Patient ID
+	@Nullable
+	private List<Hl7ExtendedCompositeIdWithCheckDigit> patientIdentifierList; // PID.3 - Patient Identifier List
+	@Nullable
+	private List<Hl7ExtendedCompositeIdWithCheckDigit> alternatePatientId; // PID.4 - Alternate Patient ID - PID
 
 	@Nonnull
 	public static Boolean isPresent(@Nullable PID pid) {
 		if (pid == null)
 			return false;
 
-		// TODO
-
-		return true;
+		return trimToNull(pid.getSetIDPID().getValue()) != null
+				|| Hl7ExtendedCompositeIdWithCheckDigit.isPresent(pid.getPatientID())
+				|| pid.getPatientIdentifierList() != null && pid.getPatientIdentifierList().length > 0
+				|| pid.getAlternatePatientIDPID() != null && pid.getAlternatePatientIDPID().length > 0
+				;
 	}
 
 	public Hl7PatientIdentificationSegment() {
@@ -51,7 +66,23 @@ public class Hl7PatientIdentificationSegment extends Hl7Object {
 
 	public Hl7PatientIdentificationSegment(@Nullable PID pid) {
 		if (pid != null) {
-			// TODO
+			String setIdAsString = trimToNull(pid.getSetIDPID().getValue());
+			if (setIdAsString != null)
+				this.setId = Integer.parseInt(setIdAsString, 10);
+
+			this.patientId = Hl7ExtendedCompositeIdWithCheckDigit.isPresent(pid.getPatientID()) ? new Hl7ExtendedCompositeIdWithCheckDigit(pid.getPatientID()) : null;
+
+			if (pid.getPatientIdentifierList() != null && pid.getPatientIdentifierList().length > 0)
+				this.patientIdentifierList = Arrays.stream(pid.getPatientIdentifierList())
+						.map(cx -> Hl7ExtendedCompositeIdWithCheckDigit.isPresent(cx) ? new Hl7ExtendedCompositeIdWithCheckDigit(cx) : null)
+						.filter(patientIdentifier -> patientIdentifier != null)
+						.collect(Collectors.toList());
+
+			if (pid.getAlternatePatientIDPID() != null && pid.getAlternatePatientIDPID().length > 0)
+				this.alternatePatientId = Arrays.stream(pid.getAlternatePatientIDPID())
+						.map(cx -> Hl7ExtendedCompositeIdWithCheckDigit.isPresent(cx) ? new Hl7ExtendedCompositeIdWithCheckDigit(cx) : null)
+						.filter(patientIdentifier -> patientIdentifier != null)
+						.collect(Collectors.toList());
 		}
 	}
 }

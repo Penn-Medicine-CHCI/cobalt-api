@@ -75,7 +75,7 @@ public class Hl7CodedWithExceptions extends Hl7Object {
 	}
 
 	public Hl7CodedWithExceptions(@Nullable CWE cwe) {
-		if (cwe == null) {
+		if (cwe != null) {
 			this.identifier = trimToNull(cwe.getIdentifier().getValueOrEmpty());
 			this.text = trimToNull(cwe.getText().getValueOrEmpty());
 			this.nameOfCodingSystem = trimToNull(cwe.getNameOfCodingSystem().getValueOrEmpty());

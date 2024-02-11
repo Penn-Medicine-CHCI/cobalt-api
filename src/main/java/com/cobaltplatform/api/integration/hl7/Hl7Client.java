@@ -28,10 +28,11 @@ import ca.uhn.hl7v2.model.v251.segment.MSH;
 import ca.uhn.hl7v2.model.v251.segment.ORC;
 import ca.uhn.hl7v2.parser.Parser;
 import com.cobaltplatform.api.integration.hl7.model.event.Hl7GeneralOrderTriggerEvent;
+import com.cobaltplatform.api.integration.hl7.model.section.Hl7OrderSection;
+import com.cobaltplatform.api.integration.hl7.model.section.Hl7PatientSection;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7CommonOrderSegment;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7MessageHeaderSegment;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7NotesAndCommentsSegment;
-import com.cobaltplatform.api.integration.hl7.model.section.Hl7OrderSection;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedElement;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedWithExceptions;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedWithNoExceptions;
@@ -52,6 +53,8 @@ import com.cobaltplatform.api.integration.hl7.model.type.Hl7VersionId;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Singleton;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Date;
@@ -86,283 +89,278 @@ public class Hl7Client {
 	public Hl7GeneralOrderTriggerEvent parseGeneralOrder(@Nonnull String generalOrderHl7AsString) throws Hl7ParsingException {
 		requireNonNull(generalOrderHl7AsString);
 
-		// TODO: determine if these are threadsafe, would be nice to share them across threads
-		HapiContext hapiContext = new DefaultHapiContext();
-		Parser parser = hapiContext.getGenericParser();
-
-		Message hapiMessage;
-
-		// Patient order messages must have CRLF endings, otherwise parsing will fail.  Ensure that here.
-		generalOrderHl7AsString = generalOrderHl7AsString.trim().lines().collect(Collectors.joining("\r\n"));
-
-		try {
-			hapiMessage = parser.parse(generalOrderHl7AsString);
-		} catch (Exception e) {
-			throw new Hl7ParsingException(format("Unable to parse HL7 message:\n%s", generalOrderHl7AsString), e);
-		}
-
-		try {
-			Hl7GeneralOrderTriggerEvent generalOrder = new Hl7GeneralOrderTriggerEvent();
-
-			// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/TriggerEvents/ORM_O01
-			ORM_O01 ormMessage = (ORM_O01) hapiMessage;
-
-			// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/Segments/MSH
-			MSH msh = ormMessage.getMSH();
-
-			Hl7MessageHeaderSegment messageHeader = new Hl7MessageHeaderSegment();
-			messageHeader.setFieldSeparator(trimToNull(msh.getFieldSeparator().getValueOrEmpty()));
-			messageHeader.setEncodingCharacters(trimToNull(msh.getEncodingCharacters().getValueOrEmpty()));
-
-			if (Hl7HierarchicDesignator.isPresent(msh.getSendingApplication()))
-				messageHeader.setSendingApplication(new Hl7HierarchicDesignator(msh.getSendingApplication()));
-
-			if (Hl7HierarchicDesignator.isPresent(msh.getSendingFacility()))
-				messageHeader.setSendingFacility(new Hl7HierarchicDesignator(msh.getSendingFacility()));
-
-			if (Hl7HierarchicDesignator.isPresent(msh.getReceivingApplication()))
-				messageHeader.setReceivingApplication(new Hl7HierarchicDesignator(msh.getReceivingApplication()));
-
-			if (Hl7HierarchicDesignator.isPresent(msh.getReceivingFacility()))
-				messageHeader.setReceivingFacility(new Hl7HierarchicDesignator(msh.getReceivingFacility()));
-
-			Date dateTimeOfMessage = (msh.getDateTimeOfMessage() != null && msh.getDateTimeOfMessage().getTime() != null) ?
-					msh.getDateTimeOfMessage().getTime().getValueAsDate() : null;
-
-			if (dateTimeOfMessage != null)
-				messageHeader.setDateTimeOfMessage(dateTimeOfMessage.toInstant());
-
-			messageHeader.setSecurity(trimToNull(msh.getSecurity().getValueOrEmpty()));
-
-			if (Hl7MessageType.isPresent(msh.getMessageType()))
-				messageHeader.setMessageType(new Hl7MessageType(msh.getMessageType()));
-
-			messageHeader.setMessageControlId(trimToNull(msh.getMessageControlID().getValueOrEmpty()));
-
-			if (Hl7ProcessingType.isPresent(msh.getProcessingID()))
-				messageHeader.setProcessingId(new Hl7ProcessingType(msh.getProcessingID()));
-
-			if (Hl7VersionId.isPresent(msh.getVersionID()))
-				messageHeader.setVersionId(new Hl7VersionId(msh.getVersionID()));
-
-			String sequenceNumberAsString = trimToNull(msh.getSequenceNumber().getValue());
-
-			if (sequenceNumberAsString != null)
-				messageHeader.setSequenceNumber(Double.parseDouble(sequenceNumberAsString));
-
-			messageHeader.setContinuationPointer(trimToNull(msh.getContinuationPointer().getValue()));
-			messageHeader.setAcceptAcknowledgementType(trimToNull(msh.getAcceptAcknowledgmentType().getValueOrEmpty()));
-			messageHeader.setApplicationAcknowledgementType(trimToNull(msh.getApplicationAcknowledgmentType().getValueOrEmpty()));
-			messageHeader.setCountryCode(trimToNull(msh.getCountryCode().getValueOrEmpty()));
-
-			if (msh.getCharacterSet() != null && msh.getCharacterSet().length > 0)
-				messageHeader.setCharacterSet(Arrays.stream(msh.getCharacterSet())
-						.map(cs -> trimToNull(cs.getValueOrEmpty()))
-						.filter(cs -> cs != null)
-						.collect(Collectors.toList()));
-
-			if (Hl7CodedElement.isPresent(msh.getPrincipalLanguageOfMessage()))
-				messageHeader.setPrincipalLanguageOfMessage(new Hl7CodedElement(msh.getPrincipalLanguageOfMessage()));
-
-			messageHeader.setAlternateCharacterSetHandlingScheme(trimToNull(msh.getAlternateCharacterSetHandlingScheme().getValueOrEmpty()));
-
-			if (msh.getMessageProfileIdentifier() != null && msh.getMessageProfileIdentifier().length > 0)
-				messageHeader.setMessageProfileIdentifier(Arrays.stream(msh.getMessageProfileIdentifier())
-						.map(mpi -> Hl7EntityIdentifier.isPresent(mpi) ? new Hl7EntityIdentifier(mpi) : null)
-						.filter(mpi -> mpi != null)
-						.collect(Collectors.toList()));
-
-			generalOrder.setMessageHeader(messageHeader);
-
-			// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/Segments/NTE
-
-			if (ormMessage.getNTEAll() != null && ormMessage.getNTEAll().size() > 0)
-				generalOrder.setNotesAndComments(ormMessage.getNTEAll().stream()
-						.map(nte -> {
-							Hl7NotesAndCommentsSegment notesAndComments = new Hl7NotesAndCommentsSegment();
-
-							String setIdAsString = trimToNull(nte.getSetIDNTE().getValue());
-
-							if (setIdAsString != null)
-								notesAndComments.setSetId(Integer.parseInt(setIdAsString, 10));
-
-							notesAndComments.setSourceOfComment(trimToNull(nte.getSourceOfComment().getValueOrEmpty()));
-
-							if (nte.getComment() != null && nte.getComment().length > 0)
-								notesAndComments.setComment(Arrays.stream(nte.getComment())
-										.map(nteComment -> trimToNull(nteComment.getValueOrEmpty()))
-										.filter(comment -> comment != null)
-										.collect(Collectors.toList())
-								);
-
-							if (Hl7CodedElement.isPresent(nte.getCommentType()))
-								notesAndComments.setCommentType(new Hl7CodedElement(nte.getCommentType()));
-
-							return notesAndComments;
-						})
-						.collect(Collectors.toList())
-				);
-
-			// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/TriggerEvents/ORM_O01
-			if (ormMessage.getORDERAll() != null && ormMessage.getORDERAll().size() > 0) {
-				generalOrder.setOrders(ormMessage.getORDERAll().stream()
-						.map(ormOrder -> {
-							Hl7OrderSection order = new Hl7OrderSection();
-							ORC orc = ormOrder.getORC();
-
-							// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/Segments/ORC
-							Hl7CommonOrderSegment commonOrder = new Hl7CommonOrderSegment();
-							commonOrder.setOrderControl(trimToNull(orc.getOrderControl().getValueOrEmpty()));
-
-							if (Hl7EntityIdentifier.isPresent(orc.getPlacerOrderNumber()))
-								commonOrder.setPlacerOrderNumber(new Hl7EntityIdentifier(orc.getPlacerOrderNumber()));
-
-							if (Hl7EntityIdentifier.isPresent(orc.getPlacerGroupNumber()))
-								commonOrder.setPlacerGroupNumber(new Hl7EntityIdentifier(orc.getPlacerGroupNumber()));
-
-							if (Hl7EntityIdentifier.isPresent(orc.getFillerOrderNumber()))
-								commonOrder.setFillerOrderNumber(new Hl7EntityIdentifier(orc.getFillerOrderNumber()));
-
-							commonOrder.setOrderStatus(trimToNull(orc.getOrderStatus().getValueOrEmpty()));
-							commonOrder.setResponseFlag(trimToNull(orc.getResponseFlag().getValueOrEmpty()));
-
-							if (orc.getQuantityTiming() != null && orc.getQuantityTiming().length > 0) {
-								commonOrder.setQuantityTiming(Arrays.stream(orc.getQuantityTiming())
-										.map((qt) -> Hl7TimingQuantity.isPresent(qt) ? new Hl7TimingQuantity(qt) : null)
-										.filter(tq -> tq != null)
-										.collect(Collectors.toList()));
-							}
-
-							if (Hl7EntityIdentifierPair.isPresent(orc.getORCParent()))
-								commonOrder.setParentOrder(new Hl7EntityIdentifierPair(orc.getORCParent()));
-
-							if (Hl7TimeStamp.isPresent(orc.getDateTimeOfTransaction()))
-								commonOrder.setDateTimeOfTransaction(new Hl7TimeStamp(orc.getDateTimeOfTransaction()));
-
-							if (orc.getEnteredBy() != null && orc.getEnteredBy().length > 0) {
-								commonOrder.setEnteredBy(Arrays.stream(orc.getEnteredBy())
-										.map(xcn -> Hl7ExtendedCompositeIdNumberAndNameForPersons.isPresent(xcn) ? new Hl7ExtendedCompositeIdNumberAndNameForPersons(xcn) : null)
-										.filter(enteredBy -> enteredBy != null)
-										.collect(Collectors.toList()));
-							}
-
-							if (orc.getVerifiedBy() != null && orc.getVerifiedBy().length > 0) {
-								commonOrder.setVerifiedBy(Arrays.stream(orc.getVerifiedBy())
-										.map(xcn -> Hl7ExtendedCompositeIdNumberAndNameForPersons.isPresent(xcn) ? new Hl7ExtendedCompositeIdNumberAndNameForPersons(xcn) : null)
-										.filter(verifiedBy -> verifiedBy != null)
-										.collect(Collectors.toList()));
-							}
-
-							if (orc.getOrderingProvider() != null && orc.getOrderingProvider().length > 0) {
-								commonOrder.setOrderingProvider(Arrays.stream(orc.getOrderingProvider())
-										.map(xcn -> Hl7ExtendedCompositeIdNumberAndNameForPersons.isPresent(xcn) ? new Hl7ExtendedCompositeIdNumberAndNameForPersons(xcn) : null)
-										.filter(orderingProvider -> orderingProvider != null)
-										.collect(Collectors.toList()));
-							}
-
-							if (Hl7PersonLocation.isPresent(orc.getEntererSLocation()))
-								commonOrder.setEnterersLocation(new Hl7PersonLocation(orc.getEntererSLocation()));
-
-							if (orc.getCallBackPhoneNumber() != null && orc.getCallBackPhoneNumber().length > 0) {
-								commonOrder.setCallBackPhoneNumber(Arrays.stream(orc.getCallBackPhoneNumber())
-										.map(xtn -> Hl7ExtendedTelecommunicationNumber.isPresent(xtn) ? new Hl7ExtendedTelecommunicationNumber(xtn) : null)
-										.filter(extendedTelecommunicationNumber -> extendedTelecommunicationNumber != null)
-										.collect(Collectors.toList()));
-							}
-
-							if (Hl7TimeStamp.isPresent(orc.getOrderEffectiveDateTime()))
-								commonOrder.setOrderEffectiveDateTime(new Hl7TimeStamp(orc.getOrderEffectiveDateTime()));
-
-							if (Hl7CodedElement.isPresent(orc.getOrderControlCodeReason()))
-								commonOrder.setOrderControlCodeReason(new Hl7CodedElement(orc.getOrderControlCodeReason()));
-
-							if (Hl7CodedElement.isPresent(orc.getEnteringOrganization()))
-								commonOrder.setEnteringOrganization(new Hl7CodedElement(orc.getEnteringOrganization()));
-
-							if (Hl7CodedElement.isPresent(orc.getEnteringDevice()))
-								commonOrder.setEnteringDevice(new Hl7CodedElement(orc.getEnteringDevice()));
-
-							if (orc.getActionBy() != null && orc.getActionBy().length > 0) {
-								commonOrder.setActionBy(Arrays.stream(orc.getActionBy())
-										.map(xcn -> Hl7ExtendedCompositeIdNumberAndNameForPersons.isPresent(xcn) ? new Hl7ExtendedCompositeIdNumberAndNameForPersons(xcn) : null)
-										.filter(actionBy -> actionBy != null)
-										.collect(Collectors.toList()));
-							}
-
-							if (Hl7CodedElement.isPresent(orc.getAdvancedBeneficiaryNoticeCode()))
-								commonOrder.setAdvancedBeneficiaryNoticeCode(new Hl7CodedElement(orc.getAdvancedBeneficiaryNoticeCode()));
-
-							if (orc.getOrderingFacilityName() != null && orc.getOrderingFacilityName().length > 0) {
-								commonOrder.setOrderingFacilityName(Arrays.stream(orc.getOrderingFacilityName())
-										.map(xon -> Hl7ExtendedCompositeNameAndIdentificationNumberForOrganizations.isPresent(xon) ? new Hl7ExtendedCompositeNameAndIdentificationNumberForOrganizations(xon) : null)
-										.filter(orderingFacilityName -> orderingFacilityName != null)
-										.collect(Collectors.toList()));
-							}
-
-							if (orc.getOrderingFacilityAddress() != null && orc.getOrderingFacilityAddress().length > 0) {
-								commonOrder.setOrderingFacilityAddress(Arrays.stream(orc.getOrderingFacilityAddress())
-										.map(xad -> Hl7ExtendedAddress.isPresent(xad) ? new Hl7ExtendedAddress(xad) : null)
-										.filter(orderingFacilityAddress -> orderingFacilityAddress != null)
-										.collect(Collectors.toList()));
-							}
-
-							if (orc.getOrderingFacilityPhoneNumber() != null && orc.getOrderingFacilityPhoneNumber().length > 0) {
-								commonOrder.setOrderingFacilityPhoneNumber(Arrays.stream(orc.getOrderingFacilityPhoneNumber())
-										.map(xtn -> Hl7ExtendedTelecommunicationNumber.isPresent(xtn) ? new Hl7ExtendedTelecommunicationNumber(xtn) : null)
-										.filter(orderingFacilityPhoneNumber -> orderingFacilityPhoneNumber != null)
-										.collect(Collectors.toList()));
-							}
-
-							if (orc.getOrderingProviderAddress() != null && orc.getOrderingProviderAddress().length > 0) {
-								commonOrder.setOrderingProviderAddress(Arrays.stream(orc.getOrderingProviderAddress())
-										.map(xad -> Hl7ExtendedAddress.isPresent(xad) ? new Hl7ExtendedAddress(xad) : null)
-										.filter(orderingProviderAddress -> orderingProviderAddress != null)
-										.collect(Collectors.toList()));
-							}
-
-							if (Hl7CodedWithExceptions.isPresent(orc.getOrderStatusModifier()))
-								commonOrder.setOrderStatusModifier(new Hl7CodedWithExceptions(orc.getOrderStatusModifier()));
-
-							if (Hl7CodedWithExceptions.isPresent(orc.getAdvancedBeneficiaryNoticeOverrideReason()))
-								commonOrder.setAdvancedBeneficiaryNoticeOverrideReason(new Hl7CodedWithExceptions(orc.getAdvancedBeneficiaryNoticeOverrideReason()));
-
-							if (Hl7TimeStamp.isPresent(orc.getFillerSExpectedAvailabilityDateTime()))
-								commonOrder.setFillersExpectedAvailabilityDateTime(new Hl7TimeStamp(orc.getFillerSExpectedAvailabilityDateTime()));
-
-							if (Hl7CodedWithExceptions.isPresent(orc.getConfidentialityCode()))
-								commonOrder.setConfidentialityCode(new Hl7CodedWithExceptions(orc.getConfidentialityCode()));
-
-							if (Hl7CodedWithExceptions.isPresent(orc.getOrderType()))
-								commonOrder.setOrderType(new Hl7CodedWithExceptions(orc.getOrderType()));
-
-							if (Hl7CodedWithNoExceptions.isPresent(orc.getEntererAuthorizationMode()))
-								commonOrder.setEntererAuthorizationMode(new Hl7CodedWithNoExceptions(orc.getEntererAuthorizationMode()));
-
-							if (Hl7CodedWithExceptions.isPresent(orc.getParentUniversalServiceIdentifier()))
-								commonOrder.setParentUniversalServiceIdentifier(new Hl7CodedWithExceptions(orc.getParentUniversalServiceIdentifier()));
-
-							order.setCommonOrder(commonOrder);
-
-							return order;
-						})
-						.collect(Collectors.toList()));
+		// TODO: determine if HapiContext/Parser instances are threadsafe, would be nice to share them across threads
+		try (HapiContext hapiContext = new DefaultHapiContext()) {
+			Parser parser = hapiContext.getGenericParser();
+			Message hapiMessage;
+
+			// Patient order messages must have CRLF endings, otherwise parsing will fail.  Ensure that here.
+			generalOrderHl7AsString = generalOrderHl7AsString.trim().lines().collect(Collectors.joining("\r\n"));
+
+			try {
+				hapiMessage = parser.parse(generalOrderHl7AsString);
+			} catch (Exception e) {
+				throw new Hl7ParsingException(format("Unable to parse HL7 message:\n%s", generalOrderHl7AsString), e);
 			}
 
-			ORM_O01_PATIENT patient = ormMessage.getPATIENT();
+			try {
+				Hl7GeneralOrderTriggerEvent generalOrder = new Hl7GeneralOrderTriggerEvent();
 
+				// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/TriggerEvents/ORM_O01
+				ORM_O01 ormMessage = (ORM_O01) hapiMessage;
 
+				// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/Segments/MSH
+				MSH msh = ormMessage.getMSH();
 
-			//patient.getPATIENT_VISIT();
-			//patient.getINSURANCEAll();
-			//patient.getGT1();
-			//patient.getAL1All()
+				Hl7MessageHeaderSegment messageHeader = new Hl7MessageHeaderSegment();
+				messageHeader.setFieldSeparator(trimToNull(msh.getFieldSeparator().getValueOrEmpty()));
+				messageHeader.setEncodingCharacters(trimToNull(msh.getEncodingCharacters().getValueOrEmpty()));
 
-			// String patientId = patient.getPID().getPatientID().getIDNumber().getValue();
-			// String patientIdType = patient.getPID().getPatientID().getIdentifierTypeCode().getValue();
+				if (Hl7HierarchicDesignator.isPresent(msh.getSendingApplication()))
+					messageHeader.setSendingApplication(new Hl7HierarchicDesignator(msh.getSendingApplication()));
 
-			return generalOrder;
-		} catch (Exception e) {
-			throw new Hl7ParsingException(format("Encountered an unexpected problem while processing HL7 message:\n%s", generalOrderHl7AsString), e);
+				if (Hl7HierarchicDesignator.isPresent(msh.getSendingFacility()))
+					messageHeader.setSendingFacility(new Hl7HierarchicDesignator(msh.getSendingFacility()));
+
+				if (Hl7HierarchicDesignator.isPresent(msh.getReceivingApplication()))
+					messageHeader.setReceivingApplication(new Hl7HierarchicDesignator(msh.getReceivingApplication()));
+
+				if (Hl7HierarchicDesignator.isPresent(msh.getReceivingFacility()))
+					messageHeader.setReceivingFacility(new Hl7HierarchicDesignator(msh.getReceivingFacility()));
+
+				Date dateTimeOfMessage = (msh.getDateTimeOfMessage() != null && msh.getDateTimeOfMessage().getTime() != null) ?
+						msh.getDateTimeOfMessage().getTime().getValueAsDate() : null;
+
+				if (dateTimeOfMessage != null)
+					messageHeader.setDateTimeOfMessage(dateTimeOfMessage.toInstant());
+
+				messageHeader.setSecurity(trimToNull(msh.getSecurity().getValueOrEmpty()));
+
+				if (Hl7MessageType.isPresent(msh.getMessageType()))
+					messageHeader.setMessageType(new Hl7MessageType(msh.getMessageType()));
+
+				messageHeader.setMessageControlId(trimToNull(msh.getMessageControlID().getValueOrEmpty()));
+
+				if (Hl7ProcessingType.isPresent(msh.getProcessingID()))
+					messageHeader.setProcessingId(new Hl7ProcessingType(msh.getProcessingID()));
+
+				if (Hl7VersionId.isPresent(msh.getVersionID()))
+					messageHeader.setVersionId(new Hl7VersionId(msh.getVersionID()));
+
+				String sequenceNumberAsString = trimToNull(msh.getSequenceNumber().getValue());
+
+				if (sequenceNumberAsString != null)
+					messageHeader.setSequenceNumber(Double.parseDouble(sequenceNumberAsString));
+
+				messageHeader.setContinuationPointer(trimToNull(msh.getContinuationPointer().getValue()));
+				messageHeader.setAcceptAcknowledgementType(trimToNull(msh.getAcceptAcknowledgmentType().getValueOrEmpty()));
+				messageHeader.setApplicationAcknowledgementType(trimToNull(msh.getApplicationAcknowledgmentType().getValueOrEmpty()));
+				messageHeader.setCountryCode(trimToNull(msh.getCountryCode().getValueOrEmpty()));
+
+				if (msh.getCharacterSet() != null && msh.getCharacterSet().length > 0)
+					messageHeader.setCharacterSet(Arrays.stream(msh.getCharacterSet())
+							.map(cs -> trimToNull(cs.getValueOrEmpty()))
+							.filter(cs -> cs != null)
+							.collect(Collectors.toList()));
+
+				if (Hl7CodedElement.isPresent(msh.getPrincipalLanguageOfMessage()))
+					messageHeader.setPrincipalLanguageOfMessage(new Hl7CodedElement(msh.getPrincipalLanguageOfMessage()));
+
+				messageHeader.setAlternateCharacterSetHandlingScheme(trimToNull(msh.getAlternateCharacterSetHandlingScheme().getValueOrEmpty()));
+
+				if (msh.getMessageProfileIdentifier() != null && msh.getMessageProfileIdentifier().length > 0)
+					messageHeader.setMessageProfileIdentifier(Arrays.stream(msh.getMessageProfileIdentifier())
+							.map(mpi -> Hl7EntityIdentifier.isPresent(mpi) ? new Hl7EntityIdentifier(mpi) : null)
+							.filter(mpi -> mpi != null)
+							.collect(Collectors.toList()));
+
+				generalOrder.setMessageHeader(messageHeader);
+
+				// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/Segments/NTE
+
+				if (ormMessage.getNTEAll() != null && ormMessage.getNTEAll().size() > 0)
+					generalOrder.setNotesAndComments(ormMessage.getNTEAll().stream()
+							.map(nte -> {
+								Hl7NotesAndCommentsSegment notesAndComments = new Hl7NotesAndCommentsSegment();
+
+								String setIdAsString = trimToNull(nte.getSetIDNTE().getValue());
+
+								if (setIdAsString != null)
+									notesAndComments.setSetId(Integer.parseInt(setIdAsString, 10));
+
+								notesAndComments.setSourceOfComment(trimToNull(nte.getSourceOfComment().getValueOrEmpty()));
+
+								if (nte.getComment() != null && nte.getComment().length > 0)
+									notesAndComments.setComment(Arrays.stream(nte.getComment())
+											.map(nteComment -> trimToNull(nteComment.getValueOrEmpty()))
+											.filter(comment -> comment != null)
+											.collect(Collectors.toList())
+									);
+
+								if (Hl7CodedElement.isPresent(nte.getCommentType()))
+									notesAndComments.setCommentType(new Hl7CodedElement(nte.getCommentType()));
+
+								return notesAndComments;
+							})
+							.collect(Collectors.toList())
+					);
+
+				// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/TriggerEvents/ORM_O01
+				if (ormMessage.getORDERAll() != null && ormMessage.getORDERAll().size() > 0) {
+					generalOrder.setOrders(ormMessage.getORDERAll().stream()
+							.map(ormOrder -> {
+								Hl7OrderSection order = new Hl7OrderSection();
+								ORC orc = ormOrder.getORC();
+
+								// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/Segments/ORC
+								Hl7CommonOrderSegment commonOrder = new Hl7CommonOrderSegment();
+								commonOrder.setOrderControl(trimToNull(orc.getOrderControl().getValueOrEmpty()));
+
+								if (Hl7EntityIdentifier.isPresent(orc.getPlacerOrderNumber()))
+									commonOrder.setPlacerOrderNumber(new Hl7EntityIdentifier(orc.getPlacerOrderNumber()));
+
+								if (Hl7EntityIdentifier.isPresent(orc.getPlacerGroupNumber()))
+									commonOrder.setPlacerGroupNumber(new Hl7EntityIdentifier(orc.getPlacerGroupNumber()));
+
+								if (Hl7EntityIdentifier.isPresent(orc.getFillerOrderNumber()))
+									commonOrder.setFillerOrderNumber(new Hl7EntityIdentifier(orc.getFillerOrderNumber()));
+
+								commonOrder.setOrderStatus(trimToNull(orc.getOrderStatus().getValueOrEmpty()));
+								commonOrder.setResponseFlag(trimToNull(orc.getResponseFlag().getValueOrEmpty()));
+
+								if (orc.getQuantityTiming() != null && orc.getQuantityTiming().length > 0) {
+									commonOrder.setQuantityTiming(Arrays.stream(orc.getQuantityTiming())
+											.map((qt) -> Hl7TimingQuantity.isPresent(qt) ? new Hl7TimingQuantity(qt) : null)
+											.filter(tq -> tq != null)
+											.collect(Collectors.toList()));
+								}
+
+								if (Hl7EntityIdentifierPair.isPresent(orc.getORCParent()))
+									commonOrder.setParentOrder(new Hl7EntityIdentifierPair(orc.getORCParent()));
+
+								if (Hl7TimeStamp.isPresent(orc.getDateTimeOfTransaction()))
+									commonOrder.setDateTimeOfTransaction(new Hl7TimeStamp(orc.getDateTimeOfTransaction()));
+
+								if (orc.getEnteredBy() != null && orc.getEnteredBy().length > 0) {
+									commonOrder.setEnteredBy(Arrays.stream(orc.getEnteredBy())
+											.map(xcn -> Hl7ExtendedCompositeIdNumberAndNameForPersons.isPresent(xcn) ? new Hl7ExtendedCompositeIdNumberAndNameForPersons(xcn) : null)
+											.filter(enteredBy -> enteredBy != null)
+											.collect(Collectors.toList()));
+								}
+
+								if (orc.getVerifiedBy() != null && orc.getVerifiedBy().length > 0) {
+									commonOrder.setVerifiedBy(Arrays.stream(orc.getVerifiedBy())
+											.map(xcn -> Hl7ExtendedCompositeIdNumberAndNameForPersons.isPresent(xcn) ? new Hl7ExtendedCompositeIdNumberAndNameForPersons(xcn) : null)
+											.filter(verifiedBy -> verifiedBy != null)
+											.collect(Collectors.toList()));
+								}
+
+								if (orc.getOrderingProvider() != null && orc.getOrderingProvider().length > 0) {
+									commonOrder.setOrderingProvider(Arrays.stream(orc.getOrderingProvider())
+											.map(xcn -> Hl7ExtendedCompositeIdNumberAndNameForPersons.isPresent(xcn) ? new Hl7ExtendedCompositeIdNumberAndNameForPersons(xcn) : null)
+											.filter(orderingProvider -> orderingProvider != null)
+											.collect(Collectors.toList()));
+								}
+
+								if (Hl7PersonLocation.isPresent(orc.getEntererSLocation()))
+									commonOrder.setEnterersLocation(new Hl7PersonLocation(orc.getEntererSLocation()));
+
+								if (orc.getCallBackPhoneNumber() != null && orc.getCallBackPhoneNumber().length > 0) {
+									commonOrder.setCallBackPhoneNumber(Arrays.stream(orc.getCallBackPhoneNumber())
+											.map(xtn -> Hl7ExtendedTelecommunicationNumber.isPresent(xtn) ? new Hl7ExtendedTelecommunicationNumber(xtn) : null)
+											.filter(extendedTelecommunicationNumber -> extendedTelecommunicationNumber != null)
+											.collect(Collectors.toList()));
+								}
+
+								if (Hl7TimeStamp.isPresent(orc.getOrderEffectiveDateTime()))
+									commonOrder.setOrderEffectiveDateTime(new Hl7TimeStamp(orc.getOrderEffectiveDateTime()));
+
+								if (Hl7CodedElement.isPresent(orc.getOrderControlCodeReason()))
+									commonOrder.setOrderControlCodeReason(new Hl7CodedElement(orc.getOrderControlCodeReason()));
+
+								if (Hl7CodedElement.isPresent(orc.getEnteringOrganization()))
+									commonOrder.setEnteringOrganization(new Hl7CodedElement(orc.getEnteringOrganization()));
+
+								if (Hl7CodedElement.isPresent(orc.getEnteringDevice()))
+									commonOrder.setEnteringDevice(new Hl7CodedElement(orc.getEnteringDevice()));
+
+								if (orc.getActionBy() != null && orc.getActionBy().length > 0) {
+									commonOrder.setActionBy(Arrays.stream(orc.getActionBy())
+											.map(xcn -> Hl7ExtendedCompositeIdNumberAndNameForPersons.isPresent(xcn) ? new Hl7ExtendedCompositeIdNumberAndNameForPersons(xcn) : null)
+											.filter(actionBy -> actionBy != null)
+											.collect(Collectors.toList()));
+								}
+
+								if (Hl7CodedElement.isPresent(orc.getAdvancedBeneficiaryNoticeCode()))
+									commonOrder.setAdvancedBeneficiaryNoticeCode(new Hl7CodedElement(orc.getAdvancedBeneficiaryNoticeCode()));
+
+								if (orc.getOrderingFacilityName() != null && orc.getOrderingFacilityName().length > 0) {
+									commonOrder.setOrderingFacilityName(Arrays.stream(orc.getOrderingFacilityName())
+											.map(xon -> Hl7ExtendedCompositeNameAndIdentificationNumberForOrganizations.isPresent(xon) ? new Hl7ExtendedCompositeNameAndIdentificationNumberForOrganizations(xon) : null)
+											.filter(orderingFacilityName -> orderingFacilityName != null)
+											.collect(Collectors.toList()));
+								}
+
+								if (orc.getOrderingFacilityAddress() != null && orc.getOrderingFacilityAddress().length > 0) {
+									commonOrder.setOrderingFacilityAddress(Arrays.stream(orc.getOrderingFacilityAddress())
+											.map(xad -> Hl7ExtendedAddress.isPresent(xad) ? new Hl7ExtendedAddress(xad) : null)
+											.filter(orderingFacilityAddress -> orderingFacilityAddress != null)
+											.collect(Collectors.toList()));
+								}
+
+								if (orc.getOrderingFacilityPhoneNumber() != null && orc.getOrderingFacilityPhoneNumber().length > 0) {
+									commonOrder.setOrderingFacilityPhoneNumber(Arrays.stream(orc.getOrderingFacilityPhoneNumber())
+											.map(xtn -> Hl7ExtendedTelecommunicationNumber.isPresent(xtn) ? new Hl7ExtendedTelecommunicationNumber(xtn) : null)
+											.filter(orderingFacilityPhoneNumber -> orderingFacilityPhoneNumber != null)
+											.collect(Collectors.toList()));
+								}
+
+								if (orc.getOrderingProviderAddress() != null && orc.getOrderingProviderAddress().length > 0) {
+									commonOrder.setOrderingProviderAddress(Arrays.stream(orc.getOrderingProviderAddress())
+											.map(xad -> Hl7ExtendedAddress.isPresent(xad) ? new Hl7ExtendedAddress(xad) : null)
+											.filter(orderingProviderAddress -> orderingProviderAddress != null)
+											.collect(Collectors.toList()));
+								}
+
+								if (Hl7CodedWithExceptions.isPresent(orc.getOrderStatusModifier()))
+									commonOrder.setOrderStatusModifier(new Hl7CodedWithExceptions(orc.getOrderStatusModifier()));
+
+								if (Hl7CodedWithExceptions.isPresent(orc.getAdvancedBeneficiaryNoticeOverrideReason()))
+									commonOrder.setAdvancedBeneficiaryNoticeOverrideReason(new Hl7CodedWithExceptions(orc.getAdvancedBeneficiaryNoticeOverrideReason()));
+
+								if (Hl7TimeStamp.isPresent(orc.getFillerSExpectedAvailabilityDateTime()))
+									commonOrder.setFillersExpectedAvailabilityDateTime(new Hl7TimeStamp(orc.getFillerSExpectedAvailabilityDateTime()));
+
+								if (Hl7CodedWithExceptions.isPresent(orc.getConfidentialityCode()))
+									commonOrder.setConfidentialityCode(new Hl7CodedWithExceptions(orc.getConfidentialityCode()));
+
+								if (Hl7CodedWithExceptions.isPresent(orc.getOrderType()))
+									commonOrder.setOrderType(new Hl7CodedWithExceptions(orc.getOrderType()));
+
+								if (Hl7CodedWithNoExceptions.isPresent(orc.getEntererAuthorizationMode()))
+									commonOrder.setEntererAuthorizationMode(new Hl7CodedWithNoExceptions(orc.getEntererAuthorizationMode()));
+
+								if (Hl7CodedWithExceptions.isPresent(orc.getParentUniversalServiceIdentifier()))
+									commonOrder.setParentUniversalServiceIdentifier(new Hl7CodedWithExceptions(orc.getParentUniversalServiceIdentifier()));
+
+								order.setCommonOrder(commonOrder);
+
+								return order;
+							})
+							.collect(Collectors.toList()));
+				}
+
+				ORM_O01_PATIENT patient = ormMessage.getPATIENT();
+
+				if (Hl7PatientSection.isPresent(patient))
+					generalOrder.setPatient(new Hl7PatientSection(patient));
+				
+				return generalOrder;
+			} catch (Exception e) {
+				throw new Hl7ParsingException(format("Encountered an unexpected problem while processing HL7 message:\n%s", generalOrderHl7AsString), e);
+			}
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
 		}
 	}
 }

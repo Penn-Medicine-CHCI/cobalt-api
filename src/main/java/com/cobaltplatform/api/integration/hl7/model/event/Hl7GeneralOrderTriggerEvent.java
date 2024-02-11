@@ -20,9 +20,10 @@
 package com.cobaltplatform.api.integration.hl7.model.event;
 
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
+import com.cobaltplatform.api.integration.hl7.model.section.Hl7OrderSection;
+import com.cobaltplatform.api.integration.hl7.model.section.Hl7PatientSection;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7MessageHeaderSegment;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7NotesAndCommentsSegment;
-import com.cobaltplatform.api.integration.hl7.model.section.Hl7OrderSection;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -39,6 +40,8 @@ public class Hl7GeneralOrderTriggerEvent extends Hl7Object {
 	private Hl7MessageHeaderSegment messageHeader;
 	@Nullable
 	private List<Hl7NotesAndCommentsSegment> notesAndComments;
+	@Nullable
+	private Hl7PatientSection patient;
 	@Nullable
 	private List<Hl7OrderSection> orders;
 
@@ -58,6 +61,15 @@ public class Hl7GeneralOrderTriggerEvent extends Hl7Object {
 
 	public void setNotesAndComments(@Nullable List<Hl7NotesAndCommentsSegment> notesAndComments) {
 		this.notesAndComments = notesAndComments;
+	}
+
+	@Nullable
+	public Hl7PatientSection getPatient() {
+		return this.patient;
+	}
+
+	public void setPatient(@Nullable Hl7PatientSection patient) {
+		this.patient = patient;
 	}
 
 	@Nullable
