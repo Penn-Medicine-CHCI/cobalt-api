@@ -57,7 +57,7 @@ public class Hl7OrderDetailSection extends Hl7Object {
 			return false;
 
 		try {
-			return Hl7OrderDetailSegmentSection.isPresent(orderDetail.getOBR())
+			return Hl7OrderDetailSegmentSection.isPresent(orderDetail)
 					|| (orderDetail.getNTEAll() != null && orderDetail.getNTEAll().size() > 0)
 					|| Hl7ContactDataSegment.isPresent(orderDetail.getCTD())
 					|| Hl7DiagnosisSegment.isPresent(orderDetail.getDG1())
@@ -74,8 +74,8 @@ public class Hl7OrderDetailSection extends Hl7Object {
 	public Hl7OrderDetailSection(@Nullable ORM_O01_ORDER_DETAIL orderDetail) {
 		try {
 			if (orderDetail != null) {
-				if (Hl7OrderDetailSegmentSection.isPresent(orderDetail.getOBR()))
-					this.orderDetailSegment = new Hl7OrderDetailSegmentSection(orderDetail.getOBR());
+				if (Hl7OrderDetailSegmentSection.isPresent(orderDetail))
+					this.orderDetailSegment = new Hl7OrderDetailSegmentSection(orderDetail);
 
 				if (orderDetail.getNTEAll() != null && orderDetail.getNTEAll().size() > 0)
 					this.notesAndComments = orderDetail.getNTEAll().stream()

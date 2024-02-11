@@ -19,7 +19,7 @@
 
 package com.cobaltplatform.api.integration.hl7.model.section;
 
-import ca.uhn.hl7v2.model.v251.segment.OBR;
+import ca.uhn.hl7v2.model.v251.group.ORM_O01_ORDER_DETAIL;
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7DietTrayInstructionsSegment;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7ObservationRequestSegment;
@@ -50,22 +50,37 @@ public class Hl7OrderDetailSegmentSection extends Hl7Object {
 	private Hl7DietTrayInstructionsSegment dietTrayInstructions;
 
 	@Nonnull
-	public static Boolean isPresent(@Nullable OBR obr) {
-		if (obr == null)
+	public static Boolean isPresent(@Nullable ORM_O01_ORDER_DETAIL orderDetail) {
+		if (orderDetail == null)
 			return false;
 
-		// TODO
-
-		return true;
+		return Hl7ObservationRequestSegment.isPresent(orderDetail.getOBR())
+				|| Hl7RequisitionDetailSegment.isPresent(orderDetail.getRQD())
+				|| Hl7RequisitionDetail1Segment.isPresent(orderDetail.getRQ1())
+				|| Hl7PharmacyTreatmentOrderSegment.isPresent(orderDetail.getRXO())
+				|| Hl7DietTrayInstructionsSegment.isPresent(orderDetail.getODT());
 	}
 
 	public Hl7OrderDetailSegmentSection() {
 		// Nothing to do
 	}
 
-	public Hl7OrderDetailSegmentSection(@Nullable OBR obr) {
-		if (obr != null) {
-			// TODO
+	public Hl7OrderDetailSegmentSection(@Nullable ORM_O01_ORDER_DETAIL orderDetail) {
+		if (orderDetail != null) {
+			if (Hl7ObservationRequestSegment.isPresent(orderDetail.getOBR()))
+				this.observationRequest = new Hl7ObservationRequestSegment(orderDetail.getOBR());
+
+			if (Hl7RequisitionDetailSegment.isPresent(orderDetail.getRQD()))
+				this.requisitionDetail = new Hl7RequisitionDetailSegment(orderDetail.getRQD());
+
+			if (Hl7RequisitionDetail1Segment.isPresent(orderDetail.getRQ1()))
+				this.requisitionDetail1 = new Hl7RequisitionDetail1Segment(orderDetail.getRQ1());
+
+			if (Hl7PharmacyTreatmentOrderSegment.isPresent(orderDetail.getRXO()))
+				this.pharmacyTreatmentOrder = new Hl7PharmacyTreatmentOrderSegment(orderDetail.getRXO());
+
+			if (Hl7DietTrayInstructionsSegment.isPresent(orderDetail.getODT()))
+				this.dietTrayInstructions = new Hl7DietTrayInstructionsSegment(orderDetail.getODT());
 		}
 	}
 
