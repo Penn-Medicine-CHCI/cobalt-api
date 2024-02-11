@@ -49,6 +49,6 @@ public class Hl7ClientTests {
 		Hl7GeneralOrderTriggerEvent generalOrder = hl7Client.parseGeneralOrder(generalOrderHl7AsString);
 
 		System.out.println(generalOrderHl7AsString);
-		System.out.println(generalOrder);
+		System.out.println(generalOrder.getOrders().get(0).getOrderDetail().getOrderDetailSegment().getObservationRequest());
 	}
 }

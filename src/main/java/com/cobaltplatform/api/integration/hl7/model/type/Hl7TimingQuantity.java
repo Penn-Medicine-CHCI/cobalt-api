@@ -36,7 +36,7 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @NotThreadSafe
 public class Hl7TimingQuantity extends Hl7Object {
 	@Nullable
-	private Hl7CompositeQuantity quantity; // ORC.7.1 - Quantity
+	private Hl7CompositeQuantityWithUnits quantity; // ORC.7.1 - Quantity
 	@Nullable
 	private Hl7RepeatInterval interval; // ORC.7.2 - Interval
 	@Nullable
@@ -65,7 +65,7 @@ public class Hl7TimingQuantity extends Hl7Object {
 		if (tq == null)
 			return false;
 
-		return Hl7CompositeQuantity.isPresent(tq.getQuantity())
+		return Hl7CompositeQuantityWithUnits.isPresent(tq.getQuantity())
 				|| Hl7RepeatInterval.isPresent(tq.getInterval())
 				|| trimToNull(tq.getDuration().getValueOrEmpty()) != null
 				|| Hl7TimeStamp.isPresent(tq.getStartDateTime())
@@ -85,7 +85,7 @@ public class Hl7TimingQuantity extends Hl7Object {
 
 	public Hl7TimingQuantity(@Nullable TQ tq) {
 		if (tq != null) {
-			this.quantity = Hl7CompositeQuantity.isPresent(tq.getQuantity()) ? new Hl7CompositeQuantity(tq.getQuantity()) : null;
+			this.quantity = Hl7CompositeQuantityWithUnits.isPresent(tq.getQuantity()) ? new Hl7CompositeQuantityWithUnits(tq.getQuantity()) : null;
 			this.interval = Hl7RepeatInterval.isPresent(tq.getInterval()) ? new Hl7RepeatInterval(tq.getInterval()) : null;
 			this.duration = trimToNull(tq.getDuration().getValueOrEmpty());
 			this.startDateTime = Hl7TimeStamp.isPresent(tq.getStartDateTime()) ? new Hl7TimeStamp(tq.getStartDateTime()) : null;
@@ -105,11 +105,11 @@ public class Hl7TimingQuantity extends Hl7Object {
 	}
 
 	@Nullable
-	public Hl7CompositeQuantity getQuantity() {
+	public Hl7CompositeQuantityWithUnits getQuantity() {
 		return this.quantity;
 	}
 
-	public void setQuantity(@Nullable Hl7CompositeQuantity quantity) {
+	public void setQuantity(@Nullable Hl7CompositeQuantityWithUnits quantity) {
 		this.quantity = quantity;
 	}
 

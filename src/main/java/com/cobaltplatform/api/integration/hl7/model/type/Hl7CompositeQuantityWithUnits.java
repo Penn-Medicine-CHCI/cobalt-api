@@ -34,7 +34,7 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class Hl7CompositeQuantity extends Hl7Object {
+public class Hl7CompositeQuantityWithUnits extends Hl7Object {
 	@Nullable
 	private Double quantity;
 	@Nullable
@@ -49,11 +49,11 @@ public class Hl7CompositeQuantity extends Hl7Object {
 				|| Hl7CodedElement.isPresent(cq.getUnits());
 	}
 
-	public Hl7CompositeQuantity() {
+	public Hl7CompositeQuantityWithUnits() {
 		// Nothing to do
 	}
 
-	public Hl7CompositeQuantity(@Nullable CQ cq) {
+	public Hl7CompositeQuantityWithUnits(@Nullable CQ cq) {
 		if (cq != null) {
 			String quantityAsString = trimToNull(cq.getQuantity().getValue());
 			this.quantity = quantityAsString == null ? null : Double.parseDouble(quantityAsString);
