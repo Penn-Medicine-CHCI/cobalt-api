@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.integration.hl7.model.section;
 
+import ca.uhn.hl7v2.model.v251.segment.OBR;
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7DietTrayInstructionsSegment;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7ObservationRequestSegment;
@@ -26,6 +27,7 @@ import com.cobaltplatform.api.integration.hl7.model.segment.Hl7PharmacyTreatment
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7RequisitionDetail1Segment;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7RequisitionDetailSegment;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -46,6 +48,26 @@ public class Hl7OrderDetailSegmentSection extends Hl7Object {
 	private Hl7PharmacyTreatmentOrderSegment pharmacyTreatmentOrder;
 	@Nullable
 	private Hl7DietTrayInstructionsSegment dietTrayInstructions;
+
+	@Nonnull
+	public static Boolean isPresent(@Nullable OBR obr) {
+		if (obr == null)
+			return false;
+
+		// TODO
+
+		return true;
+	}
+
+	public Hl7OrderDetailSegmentSection() {
+		// Nothing to do
+	}
+
+	public Hl7OrderDetailSegmentSection(@Nullable OBR obr) {
+		if (obr != null) {
+			// TODO
+		}
+	}
 
 	@Nullable
 	public Hl7ObservationRequestSegment getObservationRequest() {

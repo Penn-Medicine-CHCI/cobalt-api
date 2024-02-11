@@ -118,7 +118,7 @@ public class Hl7CommonOrderSegment extends Hl7Object {
 		if (orc == null)
 			return false;
 
-		return true;
+		return trimToNull(orc.getOrderControl().getValueOrEmpty()) != null;
 	}
 
 	public Hl7CommonOrderSegment() {

@@ -25,29 +25,17 @@ import ca.uhn.hl7v2.model.Message;
 import ca.uhn.hl7v2.model.v251.group.ORM_O01_PATIENT;
 import ca.uhn.hl7v2.model.v251.message.ORM_O01;
 import ca.uhn.hl7v2.model.v251.segment.MSH;
-import ca.uhn.hl7v2.model.v251.segment.ORC;
 import ca.uhn.hl7v2.parser.Parser;
 import com.cobaltplatform.api.integration.hl7.model.event.Hl7GeneralOrderTriggerEvent;
 import com.cobaltplatform.api.integration.hl7.model.section.Hl7OrderSection;
 import com.cobaltplatform.api.integration.hl7.model.section.Hl7PatientSection;
-import com.cobaltplatform.api.integration.hl7.model.segment.Hl7CommonOrderSegment;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7MessageHeaderSegment;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7NotesAndCommentsSegment;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedElement;
-import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedWithExceptions;
-import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedWithNoExceptions;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifier;
-import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifierPair;
-import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedAddress;
-import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdNumberAndNameForPersons;
-import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeNameAndIdentificationNumberForOrganizations;
-import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedTelecommunicationNumber;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7HierarchicDesignator;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7MessageType;
-import com.cobaltplatform.api.integration.hl7.model.type.Hl7PersonLocation;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ProcessingType;
-import com.cobaltplatform.api.integration.hl7.model.type.Hl7TimeStamp;
-import com.cobaltplatform.api.integration.hl7.model.type.Hl7TimingQuantity;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7VersionId;
 
 import javax.annotation.Nonnull;
@@ -206,27 +194,17 @@ public class Hl7Client {
 					);
 
 				// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/TriggerEvents/ORM_O01
-				if (ormMessage.getORDERAll() != null && ormMessage.getORDERAll().size() > 0) {
+				if (ormMessage.getORDERAll() != null && ormMessage.getORDERAll().size() > 0)
 					generalOrder.setOrders(ormMessage.getORDERAll().stream()
-							.map(ormOrder -> {
-								Hl7OrderSection order = new Hl7OrderSection();
-								ORC orc = ormOrder.getORC();
-
-								// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/Segments/ORC
-								Hl7CommonOrderSegment commonOrder = new Hl7CommonOrderSegment();
-
-								order.setCommonOrder(commonOrder);
-
-								return order;
-							})
+							.map(order -> Hl7OrderSection.isPresent(order) ? new Hl7OrderSection(order) : null)
+							.filter(order -> order != null)
 							.collect(Collectors.toList()));
-				}
 
 				ORM_O01_PATIENT patient = ormMessage.getPATIENT();
 
 				if (Hl7PatientSection.isPresent(patient))
 					generalOrder.setPatient(new Hl7PatientSection(patient));
-				
+
 				return generalOrder;
 			} catch (Exception e) {
 				throw new Hl7ParsingException(format("Encountered an unexpected problem while processing HL7 message:\n%s", generalOrderHl7AsString), e);

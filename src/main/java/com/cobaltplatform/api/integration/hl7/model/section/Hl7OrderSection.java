@@ -51,11 +51,24 @@ public class Hl7OrderSection extends Hl7Object {
 
 	@Nonnull
 	public static Boolean isPresent(@Nullable ORM_O01_ORDER order) {
-		if(order == null)
+		if (order == null)
 			return false;
 
-		return Hl7CommonOrderSegment.isPresent(order.getORC())
-				;
+		return Hl7CommonOrderSegment.isPresent(order.getORC());
+	}
+
+	public Hl7OrderSection() {
+		// Nothing to do
+	}
+
+	public Hl7OrderSection(@Nullable ORM_O01_ORDER order) {
+		if (order != null) {
+			if (Hl7CommonOrderSegment.isPresent(order.getORC()))
+				this.commonOrder = new Hl7CommonOrderSegment(order.getORC());
+
+			if (Hl7OrderDetailSection.isPresent(order.getORDER_DETAIL()))
+				this.orderDetail = new Hl7OrderDetailSection(order.getORDER_DETAIL());
+		}
 	}
 
 	@Nullable

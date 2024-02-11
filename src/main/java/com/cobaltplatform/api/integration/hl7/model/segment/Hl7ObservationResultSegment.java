@@ -19,7 +19,7 @@
 
 package com.cobaltplatform.api.integration.hl7.model.segment;
 
-import ca.uhn.hl7v2.model.v251.segment.PID;
+import ca.uhn.hl7v2.model.v251.segment.OBX;
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 
 import javax.annotation.Nonnull;
@@ -36,8 +36,8 @@ public class Hl7ObservationResultSegment extends Hl7Object {
 	// TODO
 
 	@Nonnull
-	public static Boolean isPresent(@Nullable PID pid) {
-		if (pid == null)
+	public static Boolean isPresent(@Nullable OBX obx) {
+		if (obx == null)
 			return false;
 
 		// TODO
@@ -49,8 +49,8 @@ public class Hl7ObservationResultSegment extends Hl7Object {
 		// Nothing to do
 	}
 
-	public Hl7ObservationResultSegment(@Nullable PID pid) {
-		if (pid != null) {
+	public Hl7ObservationResultSegment(@Nullable OBX obx) {
+		if (obx != null) {
 			// TODO
 		}
 	}

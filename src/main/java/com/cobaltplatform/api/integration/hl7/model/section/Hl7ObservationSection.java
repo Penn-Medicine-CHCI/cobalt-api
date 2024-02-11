@@ -19,13 +19,18 @@
 
 package com.cobaltplatform.api.integration.hl7.model.section;
 
+import ca.uhn.hl7v2.HL7Exception;
+import ca.uhn.hl7v2.model.v251.group.ORM_O01_OBSERVATION;
+import com.cobaltplatform.api.integration.hl7.UncheckedHl7ParsingException;
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7NotesAndCommentsSegment;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7ObservationResultSegment;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * See https://hl7-definition.caristix.com/v2/hl7v2.5.1/TriggerEvents/ORM_O01
@@ -38,6 +43,38 @@ public class Hl7ObservationSection extends Hl7Object {
 	private Hl7ObservationResultSegment observationResultSegment;
 	@Nullable
 	private List<Hl7NotesAndCommentsSegment> notesAndComments;
+
+	@Nonnull
+	public static Boolean isPresent(@Nullable ORM_O01_OBSERVATION observation) {
+		if (observation == null)
+			return false;
+
+		try {
+			return Hl7ObservationResultSegment.isPresent(observation.getOBX())
+					|| observation.getNTEAll() != null && observation.getNTEAll().size() > 0;
+		} catch (HL7Exception e) {
+			throw new UncheckedHl7ParsingException(e);
+		}
+	}
+
+	public Hl7ObservationSection() {
+		// Nothing to do
+	}
+
+	public Hl7ObservationSection(@Nullable ORM_O01_OBSERVATION observation) {
+		try {
+			if (Hl7ObservationResultSegment.isPresent(observation.getOBX()))
+				this.observationResultSegment = new Hl7ObservationResultSegment(observation.getOBX());
+
+			if (observation.getNTEAll() != null && observation.getNTEAll().size() > 0)
+				this.notesAndComments = observation.getNTEAll().stream()
+						.map(nte -> Hl7NotesAndCommentsSegment.isPresent(nte) ? new Hl7NotesAndCommentsSegment(nte) : null)
+						.filter(notesAndComments -> notesAndComments != null)
+						.collect(Collectors.toList());
+		} catch (HL7Exception e) {
+			throw new UncheckedHl7ParsingException(e);
+		}
+	}
 
 	@Nullable
 	public Hl7ObservationResultSegment getObservationResultSegment() {
