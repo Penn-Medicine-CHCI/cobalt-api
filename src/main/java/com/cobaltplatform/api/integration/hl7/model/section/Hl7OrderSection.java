@@ -19,12 +19,14 @@
 
 package com.cobaltplatform.api.integration.hl7.model.section;
 
+import ca.uhn.hl7v2.model.v251.group.ORM_O01_ORDER;
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7BillingSegment;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7ClinicalTrialIdentificationSegment;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7CommonOrderSegment;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7FinancialTransactionSegment;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.List;
@@ -46,6 +48,15 @@ public class Hl7OrderSection extends Hl7Object {
 	private List<Hl7ClinicalTrialIdentificationSegment> clinicalTrialIdentification;
 	@Nullable
 	private Hl7BillingSegment billing;
+
+	@Nonnull
+	public static Boolean isPresent(@Nullable ORM_O01_ORDER order) {
+		if(order == null)
+			return false;
+
+		return Hl7CommonOrderSegment.isPresent(order.getORC())
+				;
+	}
 
 	@Nullable
 	public Hl7CommonOrderSegment getCommonOrder() {

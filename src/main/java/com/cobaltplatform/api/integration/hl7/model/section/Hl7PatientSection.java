@@ -98,12 +98,9 @@ public class Hl7PatientSection extends Hl7Object {
 			if (Hl7PatientVisitSection.isPresent(patient.getPATIENT_VISIT()))
 				this.patientVisit = new Hl7PatientVisitSection(patient.getPATIENT_VISIT());
 
-			//	@Nullable
-			//	private List<Hl7InsuranceSection> insurance;
-			//	@Nullable
-			//	private Hl7GuarantorSegment guarantor;
-			//	@Nullable
-			//	private List<Hl7PatientAllergyInformationSegment> patientAllergyInformation;
+			// TODO: List<Hl7InsuranceSection> insurance
+			// TODO: Hl7GuarantorSegment guarantor
+			// TODO: List<Hl7PatientAllergyInformationSegment> patientAllergyInformation
 		}
 	}
 

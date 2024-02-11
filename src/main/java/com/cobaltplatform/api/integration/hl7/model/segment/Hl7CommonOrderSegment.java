@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.integration.hl7.model.segment;
 
+import ca.uhn.hl7v2.model.v251.segment.ORC;
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedElement;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedWithExceptions;
@@ -33,9 +34,14 @@ import com.cobaltplatform.api.integration.hl7.model.type.Hl7PersonLocation;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7TimeStamp;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7TimingQuantity;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
+
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * See https://hl7-definition.caristix.com/v2/hl7v2.5.1/Segments/ORC
@@ -106,6 +112,141 @@ public class Hl7CommonOrderSegment extends Hl7Object {
 	private Hl7CodedWithNoExceptions entererAuthorizationMode; // ORC.30 - Enterer Authorization Mode
 	@Nullable
 	private Hl7CodedWithExceptions parentUniversalServiceIdentifier; // ORC.31 - Parent Universal Service Identifier
+
+	@Nonnull
+	public static Boolean isPresent(@Nullable ORC orc) {
+		if (orc == null)
+			return false;
+
+		return true;
+	}
+
+	public Hl7CommonOrderSegment() {
+		// Nothing to do
+	}
+
+	public Hl7CommonOrderSegment(@Nullable ORC orc) {
+		if (orc != null) {
+			this.orderControl = trimToNull(orc.getOrderControl().getValueOrEmpty());
+
+			if (Hl7EntityIdentifier.isPresent(orc.getPlacerOrderNumber()))
+				this.placerOrderNumber = new Hl7EntityIdentifier(orc.getPlacerOrderNumber());
+
+			if (Hl7EntityIdentifier.isPresent(orc.getPlacerGroupNumber()))
+				this.placerGroupNumber = new Hl7EntityIdentifier(orc.getPlacerGroupNumber());
+
+			if (Hl7EntityIdentifier.isPresent(orc.getFillerOrderNumber()))
+				this.fillerOrderNumber = new Hl7EntityIdentifier(orc.getFillerOrderNumber());
+
+			this.orderStatus = trimToNull(orc.getOrderStatus().getValueOrEmpty());
+			this.responseFlag = trimToNull(orc.getResponseFlag().getValueOrEmpty());
+
+			if (orc.getQuantityTiming() != null && orc.getQuantityTiming().length > 0)
+				this.quantityTiming = Arrays.stream(orc.getQuantityTiming())
+						.map((qt) -> Hl7TimingQuantity.isPresent(qt) ? new Hl7TimingQuantity(qt) : null)
+						.filter(tq -> tq != null)
+						.collect(Collectors.toList());
+
+			if (Hl7EntityIdentifierPair.isPresent(orc.getORCParent()))
+				this.parentOrder = new Hl7EntityIdentifierPair(orc.getORCParent());
+
+			if (Hl7TimeStamp.isPresent(orc.getDateTimeOfTransaction()))
+				this.dateTimeOfTransaction = new Hl7TimeStamp(orc.getDateTimeOfTransaction());
+
+			if (orc.getEnteredBy() != null && orc.getEnteredBy().length > 0)
+				this.enteredBy = Arrays.stream(orc.getEnteredBy())
+						.map(xcn -> Hl7ExtendedCompositeIdNumberAndNameForPersons.isPresent(xcn) ? new Hl7ExtendedCompositeIdNumberAndNameForPersons(xcn) : null)
+						.filter(enteredBy -> enteredBy != null)
+						.collect(Collectors.toList());
+
+			if (orc.getVerifiedBy() != null && orc.getVerifiedBy().length > 0)
+				this.verifiedBy = Arrays.stream(orc.getVerifiedBy())
+						.map(xcn -> Hl7ExtendedCompositeIdNumberAndNameForPersons.isPresent(xcn) ? new Hl7ExtendedCompositeIdNumberAndNameForPersons(xcn) : null)
+						.filter(verifiedBy -> verifiedBy != null)
+						.collect(Collectors.toList());
+
+			if (orc.getOrderingProvider() != null && orc.getOrderingProvider().length > 0)
+				this.orderingProvider = Arrays.stream(orc.getOrderingProvider())
+						.map(xcn -> Hl7ExtendedCompositeIdNumberAndNameForPersons.isPresent(xcn) ? new Hl7ExtendedCompositeIdNumberAndNameForPersons(xcn) : null)
+						.filter(orderingProvider -> orderingProvider != null)
+						.collect(Collectors.toList());
+
+			if (Hl7PersonLocation.isPresent(orc.getEntererSLocation()))
+				this.enterersLocation = new Hl7PersonLocation(orc.getEntererSLocation());
+
+			if (orc.getCallBackPhoneNumber() != null && orc.getCallBackPhoneNumber().length > 0)
+				this.callBackPhoneNumber = Arrays.stream(orc.getCallBackPhoneNumber())
+						.map(xtn -> Hl7ExtendedTelecommunicationNumber.isPresent(xtn) ? new Hl7ExtendedTelecommunicationNumber(xtn) : null)
+						.filter(extendedTelecommunicationNumber -> extendedTelecommunicationNumber != null)
+						.collect(Collectors.toList());
+
+			if (Hl7TimeStamp.isPresent(orc.getOrderEffectiveDateTime()))
+				this.orderEffectiveDateTime = new Hl7TimeStamp(orc.getOrderEffectiveDateTime());
+
+			if (Hl7CodedElement.isPresent(orc.getOrderControlCodeReason()))
+				this.orderControlCodeReason = new Hl7CodedElement(orc.getOrderControlCodeReason());
+
+			if (Hl7CodedElement.isPresent(orc.getEnteringOrganization()))
+				this.enteringOrganization = new Hl7CodedElement(orc.getEnteringOrganization());
+
+			if (Hl7CodedElement.isPresent(orc.getEnteringDevice()))
+				this.enteringDevice = new Hl7CodedElement(orc.getEnteringDevice());
+
+			if (orc.getActionBy() != null && orc.getActionBy().length > 0)
+				this.actionBy = Arrays.stream(orc.getActionBy())
+						.map(xcn -> Hl7ExtendedCompositeIdNumberAndNameForPersons.isPresent(xcn) ? new Hl7ExtendedCompositeIdNumberAndNameForPersons(xcn) : null)
+						.filter(actionBy -> actionBy != null)
+						.collect(Collectors.toList());
+
+			if (Hl7CodedElement.isPresent(orc.getAdvancedBeneficiaryNoticeCode()))
+				this.advancedBeneficiaryNoticeCode = new Hl7CodedElement(orc.getAdvancedBeneficiaryNoticeCode());
+
+			if (orc.getOrderingFacilityName() != null && orc.getOrderingFacilityName().length > 0)
+				this.orderingFacilityName = Arrays.stream(orc.getOrderingFacilityName())
+						.map(xon -> Hl7ExtendedCompositeNameAndIdentificationNumberForOrganizations.isPresent(xon) ? new Hl7ExtendedCompositeNameAndIdentificationNumberForOrganizations(xon) : null)
+						.filter(orderingFacilityName -> orderingFacilityName != null)
+						.collect(Collectors.toList());
+
+			if (orc.getOrderingFacilityAddress() != null && orc.getOrderingFacilityAddress().length > 0)
+				this.orderingFacilityAddress = Arrays.stream(orc.getOrderingFacilityAddress())
+						.map(xad -> Hl7ExtendedAddress.isPresent(xad) ? new Hl7ExtendedAddress(xad) : null)
+						.filter(orderingFacilityAddress -> orderingFacilityAddress != null)
+						.collect(Collectors.toList());
+
+			if (orc.getOrderingFacilityPhoneNumber() != null && orc.getOrderingFacilityPhoneNumber().length > 0)
+				this.orderingFacilityPhoneNumber = Arrays.stream(orc.getOrderingFacilityPhoneNumber())
+						.map(xtn -> Hl7ExtendedTelecommunicationNumber.isPresent(xtn) ? new Hl7ExtendedTelecommunicationNumber(xtn) : null)
+						.filter(orderingFacilityPhoneNumber -> orderingFacilityPhoneNumber != null)
+						.collect(Collectors.toList());
+
+			if (orc.getOrderingProviderAddress() != null && orc.getOrderingProviderAddress().length > 0)
+				this.orderingProviderAddress = Arrays.stream(orc.getOrderingProviderAddress())
+						.map(xad -> Hl7ExtendedAddress.isPresent(xad) ? new Hl7ExtendedAddress(xad) : null)
+						.filter(orderingProviderAddress -> orderingProviderAddress != null)
+						.collect(Collectors.toList());
+
+			if (Hl7CodedWithExceptions.isPresent(orc.getOrderStatusModifier()))
+				this.orderStatusModifier = new Hl7CodedWithExceptions(orc.getOrderStatusModifier());
+
+			if (Hl7CodedWithExceptions.isPresent(orc.getAdvancedBeneficiaryNoticeOverrideReason()))
+				this.advancedBeneficiaryNoticeOverrideReason = new Hl7CodedWithExceptions(orc.getAdvancedBeneficiaryNoticeOverrideReason());
+
+			if (Hl7TimeStamp.isPresent(orc.getFillerSExpectedAvailabilityDateTime()))
+				this.fillersExpectedAvailabilityDateTime = new Hl7TimeStamp(orc.getFillerSExpectedAvailabilityDateTime());
+
+			if (Hl7CodedWithExceptions.isPresent(orc.getConfidentialityCode()))
+				this.confidentialityCode = new Hl7CodedWithExceptions(orc.getConfidentialityCode());
+
+			if (Hl7CodedWithExceptions.isPresent(orc.getOrderType()))
+				this.orderType = new Hl7CodedWithExceptions(orc.getOrderType());
+
+			if (Hl7CodedWithNoExceptions.isPresent(orc.getEntererAuthorizationMode()))
+				this.entererAuthorizationMode = new Hl7CodedWithNoExceptions(orc.getEntererAuthorizationMode());
+
+			if (Hl7CodedWithExceptions.isPresent(orc.getParentUniversalServiceIdentifier()))
+				this.parentUniversalServiceIdentifier = new Hl7CodedWithExceptions(orc.getParentUniversalServiceIdentifier());
+		}
+	}
 
 	@Nullable
 	public String getOrderControl() {

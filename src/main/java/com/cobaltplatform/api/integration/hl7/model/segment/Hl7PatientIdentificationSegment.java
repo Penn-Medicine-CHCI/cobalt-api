@@ -329,4 +329,355 @@ public class Hl7PatientIdentificationSegment extends Hl7Object {
 						.collect(Collectors.toList());
 		}
 	}
+
+	@Nullable
+	public Integer getSetId() {
+		return this.setId;
+	}
+
+	public void setSetId(@Nullable Integer setId) {
+		this.setId = setId;
+	}
+
+	@Nullable
+	public Hl7ExtendedCompositeIdWithCheckDigit getPatientId() {
+		return this.patientId;
+	}
+
+	public void setPatientId(@Nullable Hl7ExtendedCompositeIdWithCheckDigit patientId) {
+		this.patientId = patientId;
+	}
+
+	@Nullable
+	public List<Hl7ExtendedCompositeIdWithCheckDigit> getPatientIdentifierList() {
+		return this.patientIdentifierList;
+	}
+
+	public void setPatientIdentifierList(@Nullable List<Hl7ExtendedCompositeIdWithCheckDigit> patientIdentifierList) {
+		this.patientIdentifierList = patientIdentifierList;
+	}
+
+	@Nullable
+	public List<Hl7ExtendedCompositeIdWithCheckDigit> getAlternatePatientId() {
+		return this.alternatePatientId;
+	}
+
+	public void setAlternatePatientId(@Nullable List<Hl7ExtendedCompositeIdWithCheckDigit> alternatePatientId) {
+		this.alternatePatientId = alternatePatientId;
+	}
+
+	@Nullable
+	public List<Hl7ExtendedPersonName> getPatientName() {
+		return this.patientName;
+	}
+
+	public void setPatientName(@Nullable List<Hl7ExtendedPersonName> patientName) {
+		this.patientName = patientName;
+	}
+
+	@Nullable
+	public List<Hl7ExtendedPersonName> getMothersMaidenName() {
+		return this.mothersMaidenName;
+	}
+
+	public void setMothersMaidenName(@Nullable List<Hl7ExtendedPersonName> mothersMaidenName) {
+		this.mothersMaidenName = mothersMaidenName;
+	}
+
+	@Nullable
+	public Hl7TimeStamp getDateTimeOfBirth() {
+		return this.dateTimeOfBirth;
+	}
+
+	public void setDateTimeOfBirth(@Nullable Hl7TimeStamp dateTimeOfBirth) {
+		this.dateTimeOfBirth = dateTimeOfBirth;
+	}
+
+	@Nullable
+	public String getAdministrativeSex() {
+		return this.administrativeSex;
+	}
+
+	public void setAdministrativeSex(@Nullable String administrativeSex) {
+		this.administrativeSex = administrativeSex;
+	}
+
+	@Nullable
+	public List<Hl7ExtendedPersonName> getPatientAlias() {
+		return this.patientAlias;
+	}
+
+	public void setPatientAlias(@Nullable List<Hl7ExtendedPersonName> patientAlias) {
+		this.patientAlias = patientAlias;
+	}
+
+	@Nullable
+	public List<Hl7CodedElement> getRace() {
+		return this.race;
+	}
+
+	public void setRace(@Nullable List<Hl7CodedElement> race) {
+		this.race = race;
+	}
+
+	@Nullable
+	public List<Hl7ExtendedAddress> getPatientAddress() {
+		return this.patientAddress;
+	}
+
+	public void setPatientAddress(@Nullable List<Hl7ExtendedAddress> patientAddress) {
+		this.patientAddress = patientAddress;
+	}
+
+	@Nullable
+	public String getCountyCode() {
+		return this.countyCode;
+	}
+
+	public void setCountyCode(@Nullable String countyCode) {
+		this.countyCode = countyCode;
+	}
+
+	@Nullable
+	public List<Hl7ExtendedTelecommunicationNumber> getPhoneNumberHome() {
+		return this.phoneNumberHome;
+	}
+
+	public void setPhoneNumberHome(@Nullable List<Hl7ExtendedTelecommunicationNumber> phoneNumberHome) {
+		this.phoneNumberHome = phoneNumberHome;
+	}
+
+	@Nullable
+	public List<Hl7ExtendedTelecommunicationNumber> getPhoneNumberBusiness() {
+		return this.phoneNumberBusiness;
+	}
+
+	public void setPhoneNumberBusiness(@Nullable List<Hl7ExtendedTelecommunicationNumber> phoneNumberBusiness) {
+		this.phoneNumberBusiness = phoneNumberBusiness;
+	}
+
+	@Nullable
+	public Hl7CodedElement getPrimaryLanguage() {
+		return this.primaryLanguage;
+	}
+
+	public void setPrimaryLanguage(@Nullable Hl7CodedElement primaryLanguage) {
+		this.primaryLanguage = primaryLanguage;
+	}
+
+	@Nullable
+	public Hl7CodedElement getMaritalStatus() {
+		return this.maritalStatus;
+	}
+
+	public void setMaritalStatus(@Nullable Hl7CodedElement maritalStatus) {
+		this.maritalStatus = maritalStatus;
+	}
+
+	@Nullable
+	public Hl7CodedElement getReligion() {
+		return this.religion;
+	}
+
+	public void setReligion(@Nullable Hl7CodedElement religion) {
+		this.religion = religion;
+	}
+
+	@Nullable
+	public Hl7ExtendedCompositeIdWithCheckDigit getPatientAccountNumber() {
+		return this.patientAccountNumber;
+	}
+
+	public void setPatientAccountNumber(@Nullable Hl7ExtendedCompositeIdWithCheckDigit patientAccountNumber) {
+		this.patientAccountNumber = patientAccountNumber;
+	}
+
+	@Nullable
+	public String getSsnNumberPatient() {
+		return this.ssnNumberPatient;
+	}
+
+	public void setSsnNumberPatient(@Nullable String ssnNumberPatient) {
+		this.ssnNumberPatient = ssnNumberPatient;
+	}
+
+	@Nullable
+	public Hl7DriverLicenseNumber getDriversLicenseNumberPatient() {
+		return this.driversLicenseNumberPatient;
+	}
+
+	public void setDriversLicenseNumberPatient(@Nullable Hl7DriverLicenseNumber driversLicenseNumberPatient) {
+		this.driversLicenseNumberPatient = driversLicenseNumberPatient;
+	}
+
+	@Nullable
+	public List<Hl7ExtendedCompositeIdWithCheckDigit> getMothersIdentifier() {
+		return this.mothersIdentifier;
+	}
+
+	public void setMothersIdentifier(@Nullable List<Hl7ExtendedCompositeIdWithCheckDigit> mothersIdentifier) {
+		this.mothersIdentifier = mothersIdentifier;
+	}
+
+	@Nullable
+	public List<Hl7CodedElement> getEthnicGroup() {
+		return this.ethnicGroup;
+	}
+
+	public void setEthnicGroup(@Nullable List<Hl7CodedElement> ethnicGroup) {
+		this.ethnicGroup = ethnicGroup;
+	}
+
+	@Nullable
+	public String getBirthPlace() {
+		return this.birthPlace;
+	}
+
+	public void setBirthPlace(@Nullable String birthPlace) {
+		this.birthPlace = birthPlace;
+	}
+
+	@Nullable
+	public String getMultipleBirthIndicator() {
+		return this.multipleBirthIndicator;
+	}
+
+	public void setMultipleBirthIndicator(@Nullable String multipleBirthIndicator) {
+		this.multipleBirthIndicator = multipleBirthIndicator;
+	}
+
+	@Nullable
+	public Integer getBirthOrder() {
+		return this.birthOrder;
+	}
+
+	public void setBirthOrder(@Nullable Integer birthOrder) {
+		this.birthOrder = birthOrder;
+	}
+
+	@Nullable
+	public List<Hl7CodedElement> getCitizenship() {
+		return this.citizenship;
+	}
+
+	public void setCitizenship(@Nullable List<Hl7CodedElement> citizenship) {
+		this.citizenship = citizenship;
+	}
+
+	@Nullable
+	public Hl7CodedElement getVeteransMilitaryStatus() {
+		return this.veteransMilitaryStatus;
+	}
+
+	public void setVeteransMilitaryStatus(@Nullable Hl7CodedElement veteransMilitaryStatus) {
+		this.veteransMilitaryStatus = veteransMilitaryStatus;
+	}
+
+	@Nullable
+	public Hl7CodedElement getNationality() {
+		return this.nationality;
+	}
+
+	public void setNationality(@Nullable Hl7CodedElement nationality) {
+		this.nationality = nationality;
+	}
+
+	@Nullable
+	public Hl7TimeStamp getPatientDeathDateAndTime() {
+		return this.patientDeathDateAndTime;
+	}
+
+	public void setPatientDeathDateAndTime(@Nullable Hl7TimeStamp patientDeathDateAndTime) {
+		this.patientDeathDateAndTime = patientDeathDateAndTime;
+	}
+
+	@Nullable
+	public String getPatientDeathIndicator() {
+		return this.patientDeathIndicator;
+	}
+
+	public void setPatientDeathIndicator(@Nullable String patientDeathIndicator) {
+		this.patientDeathIndicator = patientDeathIndicator;
+	}
+
+	@Nullable
+	public String getIdentityUnknownIndicator() {
+		return this.identityUnknownIndicator;
+	}
+
+	public void setIdentityUnknownIndicator(@Nullable String identityUnknownIndicator) {
+		this.identityUnknownIndicator = identityUnknownIndicator;
+	}
+
+	@Nullable
+	public List<String> getIdentityReliabilityCode() {
+		return this.identityReliabilityCode;
+	}
+
+	public void setIdentityReliabilityCode(@Nullable List<String> identityReliabilityCode) {
+		this.identityReliabilityCode = identityReliabilityCode;
+	}
+
+	@Nullable
+	public Hl7TimeStamp getLastUpdateDateTime() {
+		return this.lastUpdateDateTime;
+	}
+
+	public void setLastUpdateDateTime(@Nullable Hl7TimeStamp lastUpdateDateTime) {
+		this.lastUpdateDateTime = lastUpdateDateTime;
+	}
+
+	@Nullable
+	public Hl7HierarchicDesignator getLastUpdateFacility() {
+		return this.lastUpdateFacility;
+	}
+
+	public void setLastUpdateFacility(@Nullable Hl7HierarchicDesignator lastUpdateFacility) {
+		this.lastUpdateFacility = lastUpdateFacility;
+	}
+
+	@Nullable
+	public Hl7CodedElement getSpeciesCode() {
+		return this.speciesCode;
+	}
+
+	public void setSpeciesCode(@Nullable Hl7CodedElement speciesCode) {
+		this.speciesCode = speciesCode;
+	}
+
+	@Nullable
+	public Hl7CodedElement getBreedCode() {
+		return this.breedCode;
+	}
+
+	public void setBreedCode(@Nullable Hl7CodedElement breedCode) {
+		this.breedCode = breedCode;
+	}
+
+	@Nullable
+	public String getStrain() {
+		return this.strain;
+	}
+
+	public void setStrain(@Nullable String strain) {
+		this.strain = strain;
+	}
+
+	@Nullable
+	public Hl7CodedElement getProductionClassCode() {
+		return this.productionClassCode;
+	}
+
+	public void setProductionClassCode(@Nullable Hl7CodedElement productionClassCode) {
+		this.productionClassCode = productionClassCode;
+	}
+
+	@Nullable
+	public List<Hl7CodedWithExceptions> getTribalCitizenship() {
+		return this.tribalCitizenship;
+	}
+
+	public void setTribalCitizenship(@Nullable List<Hl7CodedWithExceptions> tribalCitizenship) {
+		this.tribalCitizenship = tribalCitizenship;
+	}
 }
