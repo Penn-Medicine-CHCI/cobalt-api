@@ -19,7 +19,7 @@
 
 package com.cobaltplatform.api.integration.hl7.model.segment;
 
-import ca.uhn.hl7v2.model.v251.segment.PID;
+import ca.uhn.hl7v2.model.v251.segment.PV2;
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 
 import javax.annotation.Nonnull;
@@ -36,21 +36,21 @@ public class Hl7PatientVisitAdditionalInformationSegment extends Hl7Object {
 	// TODO
 
 	@Nonnull
-	public static Boolean isPresent(@Nullable PID pid) {
-		if (pid == null)
+	public static Boolean isPresent(@Nullable PV2 pv2) {
+		if (pv2 == null)
 			return false;
 
 		// TODO
 
-		return true;
+		return false;
 	}
 
 	public Hl7PatientVisitAdditionalInformationSegment() {
 		// Nothing to do
 	}
 
-	public Hl7PatientVisitAdditionalInformationSegment(@Nullable PID pid) {
-		if (pid != null) {
+	public Hl7PatientVisitAdditionalInformationSegment(@Nullable PV2 pv2) {
+		if (pv2 != null) {
 			// TODO
 		}
 	}

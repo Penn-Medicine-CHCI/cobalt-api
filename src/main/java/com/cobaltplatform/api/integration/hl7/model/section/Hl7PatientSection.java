@@ -95,8 +95,9 @@ public class Hl7PatientSection extends Hl7Object {
 				throw new UncheckedHl7ParsingException(e);
 			}
 
-			//	@Nullable
-			//	private Hl7PatientVisitSection patientVisit;
+			if (Hl7PatientVisitSection.isPresent(patient.getPATIENT_VISIT()))
+				this.patientVisit = new Hl7PatientVisitSection(patient.getPATIENT_VISIT());
+
 			//	@Nullable
 			//	private List<Hl7InsuranceSection> insurance;
 			//	@Nullable

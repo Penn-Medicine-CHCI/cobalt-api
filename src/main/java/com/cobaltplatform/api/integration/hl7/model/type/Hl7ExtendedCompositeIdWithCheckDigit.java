@@ -63,7 +63,7 @@ public class Hl7ExtendedCompositeIdWithCheckDigit extends Hl7Object {
 
 		return trimToNull(cx.getIDNumber().getValueOrEmpty()) != null
 				|| trimToNull(cx.getCheckDigit().getValueOrEmpty()) != null
-				|| Hl7HierarchicDesignator.isPresent(cx.getAssigningAuthority()) != null
+				|| Hl7HierarchicDesignator.isPresent(cx.getAssigningAuthority())
 				|| trimToNull(cx.getCheckDigitScheme().getValueOrEmpty()) != null
 				|| trimToNull(cx.getIdentifierTypeCode().getValueOrEmpty()) != null
 				|| Hl7HierarchicDesignator.isPresent(cx.getAssigningFacility())

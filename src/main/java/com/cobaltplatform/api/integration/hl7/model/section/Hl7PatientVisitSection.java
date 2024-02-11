@@ -19,10 +19,12 @@
 
 package com.cobaltplatform.api.integration.hl7.model.section;
 
+import ca.uhn.hl7v2.model.v251.group.ORM_O01_PATIENT_VISIT;
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
-import com.cobaltplatform.api.integration.hl7.model.segment.Hl7PatientVisitSegment;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7PatientVisitAdditionalInformationSegment;
+import com.cobaltplatform.api.integration.hl7.model.segment.Hl7PatientVisitSegment;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -37,6 +39,29 @@ public class Hl7PatientVisitSection extends Hl7Object {
 	private Hl7PatientVisitSegment patientVisit;
 	@Nullable
 	private Hl7PatientVisitAdditionalInformationSegment patientVisitAdditionalInformation;
+
+	@Nonnull
+	public static Boolean isPresent(@Nullable ORM_O01_PATIENT_VISIT patientVisit) {
+		if (patientVisit == null)
+			return false;
+
+		return Hl7PatientVisitSegment.isPresent(patientVisit.getPV1())
+				|| Hl7PatientVisitAdditionalInformationSegment.isPresent(patientVisit.getPV2());
+	}
+
+	public Hl7PatientVisitSection() {
+		// Nothing to do
+	}
+
+	public Hl7PatientVisitSection(@Nullable ORM_O01_PATIENT_VISIT patientVisit) {
+		if (patientVisit != null) {
+			if (Hl7PatientVisitSegment.isPresent(patientVisit.getPV1()))
+				this.patientVisit = new Hl7PatientVisitSegment(patientVisit.getPV1());
+
+			if (Hl7PatientVisitAdditionalInformationSegment.isPresent(patientVisit.getPV2()))
+				this.patientVisitAdditionalInformation = new Hl7PatientVisitAdditionalInformationSegment(patientVisit.getPV2());
+		}
+	}
 
 	@Nullable
 	public Hl7PatientVisitSegment getPatientVisit() {
