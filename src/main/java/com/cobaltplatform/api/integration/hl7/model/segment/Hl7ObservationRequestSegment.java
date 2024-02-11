@@ -24,11 +24,14 @@ import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedElement;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7CompositeQuantityWithUnits;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifier;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifierPair;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdNumberAndNameForPersons;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedTelecommunicationNumber;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7MoneyAndCode;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7ParentResultLink;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7SpecimenSource;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7TimeStamp;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7TimingQuantity;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -92,6 +95,22 @@ public class Hl7ObservationRequestSegment extends Hl7Object {
 	private Hl7TimeStamp resultsRptStatusChngDateTime; // OBR.22 - Results Rpt/Status Chng - Date/Time
 	@Nullable
 	private Hl7MoneyAndCode chargeToPractice; // OBR.23 - Charge to Practice
+	@Nullable
+	private String diagnosticServSectId; // OBR.24 - Diagnostic Serv Sect ID
+	@Nullable
+	private String resultStatus; // OBR.25 - Result Status
+	@Nullable
+	private Hl7ParentResultLink parentResult; // OBR.26 - Parent Result
+	@Nullable
+	private List<Hl7TimingQuantity> quantityTiming; // OBR.27 - Quantity/Timing
+	@Nullable
+	private List<Hl7ExtendedCompositeIdNumberAndNameForPersons> resultCopiesTo; // OBR.28 - Result Copies To
+	@Nullable
+	private Hl7EntityIdentifierPair parent; // OBR.29 - Parent
+	@Nullable
+	private String transportationMode; // OBR.30 - Transportation Mode
+	@Nullable
+	private List<Hl7CodedElement> reasonForStudy; // OBR.31 - Reason for Study
 
 	@Nonnull
 	public static Boolean isPresent(@Nullable OBR obr) {
@@ -175,6 +194,35 @@ public class Hl7ObservationRequestSegment extends Hl7Object {
 
 			if (Hl7MoneyAndCode.isPresent(obr.getChargeToPractice()))
 				this.chargeToPractice = new Hl7MoneyAndCode(obr.getChargeToPractice());
+
+			this.diagnosticServSectId = trimToNull(obr.getDiagnosticServSectID().getValueOrEmpty());
+			this.resultStatus = trimToNull(obr.getResultStatus().getValueOrEmpty());
+
+			if (Hl7ParentResultLink.isPresent(obr.getParentResult()))
+				this.parentResult = new Hl7ParentResultLink(obr.getParentResult());
+
+			if (obr.getQuantityTiming() != null && obr.getQuantityTiming().length > 0)
+				this.quantityTiming = Arrays.stream(obr.getQuantityTiming())
+						.map(tq -> Hl7TimingQuantity.isPresent(tq) ? new Hl7TimingQuantity(tq) : null)
+						.filter(quantityTiming -> quantityTiming != null)
+						.collect(Collectors.toList());
+
+			if (obr.getResultCopiesTo() != null && obr.getResultCopiesTo().length > 0)
+				this.resultCopiesTo = Arrays.stream(obr.getResultCopiesTo())
+						.map(xcn -> Hl7ExtendedCompositeIdNumberAndNameForPersons.isPresent(xcn) ? new Hl7ExtendedCompositeIdNumberAndNameForPersons(xcn) : null)
+						.filter(resultCopiesTo -> resultCopiesTo != null)
+						.collect(Collectors.toList());
+
+			if (Hl7EntityIdentifierPair.isPresent(obr.getObr29_Parent()))
+				this.parent = new Hl7EntityIdentifierPair(obr.getObr29_Parent());
+
+			this.transportationMode = trimToNull(obr.getTransportationMode().getValueOrEmpty());
+
+			if (obr.getReasonForStudy() != null && obr.getReasonForStudy().length > 0)
+				this.reasonForStudy = Arrays.stream(obr.getReasonForStudy())
+						.map(ce -> Hl7CodedElement.isPresent(ce) ? new Hl7CodedElement(ce) : null)
+						.filter(reasonForStudy -> reasonForStudy != null)
+						.collect(Collectors.toList());
 		}
 	}
 }
