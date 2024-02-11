@@ -44,11 +44,74 @@ public class Hl7PatientSection extends Hl7Object {
 	@Nullable
 	private List<Hl7NotesAndCommentsSegment> notesAndComments;
 	@Nullable
-	private Hl7GuarantorSegment guarantor;
-	@Nullable
-	private List<Hl7PatientAllergyInformationSegment> patientAllergyInformation;
-	@Nullable
 	private Hl7PatientVisitSection patientVisit;
 	@Nullable
 	private List<Hl7InsuranceSection> insurance;
+	@Nullable
+	private Hl7GuarantorSegment guarantor;
+	@Nullable
+	private List<Hl7PatientAllergyInformationSegment> patientAllergyInformation;
+
+	@Nullable
+	public Hl7PatientIdentificationSegment getPatientIdentification() {
+		return this.patientIdentification;
+	}
+
+	public void setPatientIdentification(@Nullable Hl7PatientIdentificationSegment patientIdentification) {
+		this.patientIdentification = patientIdentification;
+	}
+
+	@Nullable
+	public Hl7PatientAdditionalDemographicSegment getPatientAdditionalDemographic() {
+		return this.patientAdditionalDemographic;
+	}
+
+	public void setPatientAdditionalDemographic(@Nullable Hl7PatientAdditionalDemographicSegment patientAdditionalDemographic) {
+		this.patientAdditionalDemographic = patientAdditionalDemographic;
+	}
+
+	@Nullable
+	public List<Hl7NotesAndCommentsSegment> getNotesAndComments() {
+		return this.notesAndComments;
+	}
+
+	public void setNotesAndComments(@Nullable List<Hl7NotesAndCommentsSegment> notesAndComments) {
+		this.notesAndComments = notesAndComments;
+	}
+
+	@Nullable
+	public Hl7PatientVisitSection getPatientVisit() {
+		return this.patientVisit;
+	}
+
+	public void setPatientVisit(@Nullable Hl7PatientVisitSection patientVisit) {
+		this.patientVisit = patientVisit;
+	}
+
+	@Nullable
+	public List<Hl7InsuranceSection> getInsurance() {
+		return this.insurance;
+	}
+
+	public void setInsurance(@Nullable List<Hl7InsuranceSection> insurance) {
+		this.insurance = insurance;
+	}
+
+	@Nullable
+	public Hl7GuarantorSegment getGuarantor() {
+		return this.guarantor;
+	}
+
+	public void setGuarantor(@Nullable Hl7GuarantorSegment guarantor) {
+		this.guarantor = guarantor;
+	}
+
+	@Nullable
+	public List<Hl7PatientAllergyInformationSegment> getPatientAllergyInformation() {
+		return this.patientAllergyInformation;
+	}
+
+	public void setPatientAllergyInformation(@Nullable List<Hl7PatientAllergyInformationSegment> patientAllergyInformation) {
+		this.patientAllergyInformation = patientAllergyInformation;
+	}
 }

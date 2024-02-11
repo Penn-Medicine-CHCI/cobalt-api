@@ -20,9 +20,8 @@
 package com.cobaltplatform.api.integration.hl7.model.section;
 
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
-import com.cobaltplatform.api.integration.hl7.model.segment.Hl7ContactDataSegment;
-import com.cobaltplatform.api.integration.hl7.model.segment.Hl7DiagnosisSegment;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7NotesAndCommentsSegment;
+import com.cobaltplatform.api.integration.hl7.model.segment.Hl7ObservationResultSegment;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -34,25 +33,19 @@ import java.util.List;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class Hl7OrderDetailSection extends Hl7Object {
+public class Hl7ObservationSection extends Hl7Object {
 	@Nullable
-	private Hl7OrderDetailSegmentSection orderDetailSegment;
+	private Hl7ObservationResultSegment observationResultSegment;
 	@Nullable
 	private List<Hl7NotesAndCommentsSegment> notesAndComments;
-	@Nullable
-	private Hl7ContactDataSegment contactData;
-	@Nullable
-	private Hl7DiagnosisSegment diagnosis;
-	@Nullable
-	private List<Hl7ObservationSection> observation;
 
 	@Nullable
-	public Hl7OrderDetailSegmentSection getOrderDetailSegment() {
-		return this.orderDetailSegment;
+	public Hl7ObservationResultSegment getObservationResultSegment() {
+		return this.observationResultSegment;
 	}
 
-	public void setOrderDetailSegment(@Nullable Hl7OrderDetailSegmentSection orderDetailSegment) {
-		this.orderDetailSegment = orderDetailSegment;
+	public void setObservationResultSegment(@Nullable Hl7ObservationResultSegment observationResultSegment) {
+		this.observationResultSegment = observationResultSegment;
 	}
 
 	@Nullable
@@ -62,32 +55,5 @@ public class Hl7OrderDetailSection extends Hl7Object {
 
 	public void setNotesAndComments(@Nullable List<Hl7NotesAndCommentsSegment> notesAndComments) {
 		this.notesAndComments = notesAndComments;
-	}
-
-	@Nullable
-	public Hl7ContactDataSegment getContactData() {
-		return this.contactData;
-	}
-
-	public void setContactData(@Nullable Hl7ContactDataSegment contactData) {
-		this.contactData = contactData;
-	}
-
-	@Nullable
-	public Hl7DiagnosisSegment getDiagnosis() {
-		return this.diagnosis;
-	}
-
-	public void setDiagnosis(@Nullable Hl7DiagnosisSegment diagnosis) {
-		this.diagnosis = diagnosis;
-	}
-
-	@Nullable
-	public List<Hl7ObservationSection> getObservation() {
-		return this.observation;
-	}
-
-	public void setObservation(@Nullable List<Hl7ObservationSection> observation) {
-		this.observation = observation;
 	}
 }
