@@ -24,6 +24,7 @@ import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7AuthorizationInformation;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedElement;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedAddress;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdNumberAndNameForPersons;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdWithCheckDigit;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeNameAndIdentificationNumberForOrganizations;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedPersonName;
@@ -102,7 +103,20 @@ public class Hl7InsuranceSegment extends Hl7Object {
 	private String releaseInformationCode; // IN1.27 - Release Information Code
 	@Nullable
 	private String preAdmitCert; // IN1.28 - Pre-Admit Cert (PAC)
-
+	@Nullable
+	private Hl7TimeStamp verificationDateTime; // IN1.29 - Verification Date/Time
+	@Nullable
+	private List<Hl7ExtendedCompositeIdNumberAndNameForPersons> verificationBy; // IN1.30 - Verification By
+	@Nullable
+	private String typeOfAgreementCode; // IN1.31 - Type Of Agreement Code
+	@Nullable
+	private String billingStatus; // IN1.32 - Billing Status
+	@Nullable
+	private Double lifetimeReserveDays; // IN1.33 - Lifetime Reserve Days
+	@Nullable
+	private Double delayBeforeLrDay; // IN1.34 - Delay Before L.R. Day
+	@Nullable
+	private String companyPlanCode; // IN1.35 - Company Plan Code
 
 	@Nonnull
 	public static Boolean isPresent(@Nullable IN1 in1) {
@@ -210,6 +224,28 @@ public class Hl7InsuranceSegment extends Hl7Object {
 			this.reportOfEligibilityDate = trimToNull(in1.getReportOfEligibilityDate().getValue());
 			this.releaseInformationCode = trimToNull(in1.getReleaseInformationCode().getValueOrEmpty());
 			this.preAdmitCert = trimToNull(in1.getPreAdmitCert().getValueOrEmpty());
+
+			if (Hl7TimeStamp.isPresent(in1.getVerificationDateTime()))
+				this.verificationDateTime = new Hl7TimeStamp(in1.getVerificationDateTime());
+
+			if (in1.getVerificationBy() != null && in1.getVerificationBy().length > 0)
+				this.verificationBy = Arrays.stream(in1.getVerificationBy())
+						.map(xcn -> Hl7ExtendedCompositeIdNumberAndNameForPersons.isPresent(xcn) ? new Hl7ExtendedCompositeIdNumberAndNameForPersons(xcn) : null)
+						.filter(verificationBy -> verificationBy != null)
+						.collect(Collectors.toList());
+
+			this.typeOfAgreementCode = trimToNull(in1.getTypeOfAgreementCode().getValueOrEmpty());
+			this.billingStatus = trimToNull(in1.getBillingStatus().getValueOrEmpty());
+
+			String lifetimeReserveDaysAsString = trimToNull(in1.getLifetimeReserveDays().getValue());
+			if (lifetimeReserveDaysAsString != null)
+				this.lifetimeReserveDays = Double.parseDouble(lifetimeReserveDaysAsString);
+
+			String delayBeforeLrDayAsString = trimToNull(in1.getDelayBeforeLRDay().getValue());
+			if (delayBeforeLrDayAsString != null)
+				this.delayBeforeLrDay = Double.parseDouble(delayBeforeLrDayAsString);
+
+			this.companyPlanCode = trimToNull(in1.getCompanyPlanCode().getValueOrEmpty());
 		}
 	}
 }
