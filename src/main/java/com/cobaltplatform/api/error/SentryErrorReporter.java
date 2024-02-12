@@ -153,7 +153,7 @@ public class SentryErrorReporter extends AbstractErrorReporter {
 	@Nonnull
 	protected IHub createHub() {
 		// Hack for now, Sentry flags for debugging should be exposed as methods in Configuration object itself
-		boolean production = "prod".equals(getConfiguration().getEnvironment());
+		boolean production = getConfiguration().isProduction();
 
 		SentryOptions options = new SentryOptions();
 		options.setDsn(getConfiguration().getSentryDsn());

@@ -214,8 +214,11 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 
 		// TODO: gracefully detect "data is not ready yet" from response body and throw a specific exception.
 		// This way sync code can catch something like GoogleBigQueryNoDataAvailableYetException and know it's OK to re-try syncing later
-		if (response.getRows() == null)
-			throw new IllegalStateException(format("BigQuery data is not available yet. Page JSON was: %s", pageJson));
+		if (response.getRows() == null) {
+			// throw new IllegalStateException(format("BigQuery data is not available yet. Page JSON was: %s", pageJson));
+			response.setRows(List.of());
+			return new GoogleBigQueryExportRecordsPage(response, List.of());
+		}
 
 		List<GoogleBigQueryRestApiQueryResponse.Row> rows = new ArrayList<>(response.getRows());
 		List<GoogleBigQueryExportRecord> exportRecords = new ArrayList<>(rows.size());
