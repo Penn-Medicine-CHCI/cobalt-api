@@ -28,6 +28,7 @@ import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdW
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeNameAndIdentificationNumberForOrganizations;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedPersonName;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedTelecommunicationNumber;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7TimeStamp;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -79,6 +80,29 @@ public class Hl7InsuranceSegment extends Hl7Object {
 	private List<Hl7ExtendedPersonName> nameOfInsured; // IN1.16 - Name Of Insured
 	@Nullable
 	private Hl7CodedElement insuredsRelationshipToPatient; // IN1.17 - Insured's Relationship To Patient
+	@Nullable
+	private Hl7TimeStamp insuredsDateOfBirth; // IN1.18 - Insured's Date Of Birth
+	@Nullable
+	private List<Hl7ExtendedAddress> insuredsAddress; // IN1.19 - Insured's Address
+	@Nullable
+	private String assignmentOfBenefits; // IN1.20 - Assignment Of Benefits
+	@Nullable
+	private String coordinationOfBenefits; // IN1.21 - Coordination Of Benefits
+	@Nullable
+	private String coordOfBenPriority; // IN1.22 - Coord Of Ben. Priority
+	@Nullable
+	private String noticeOfAdmissionFlag; // IN1.23 - Notice Of Admission Flag
+	@Nullable
+	private String noticeOfAdmissionDate; // IN1.24 - Notice Of Admission Date
+	@Nullable
+	private String reportOfEligibilityFlag; // IN1.25 - Report Of Eligibility Flag
+	@Nullable
+	private String reportOfEligibilityDate; // IN1.26 - Report Of Eligibility Date
+	@Nullable
+	private String releaseInformationCode; // IN1.27 - Release Information Code
+	@Nullable
+	private String preAdmitCert; // IN1.28 - Pre-Admit Cert (PAC)
+
 
 	@Nonnull
 	public static Boolean isPresent(@Nullable IN1 in1) {
@@ -167,7 +191,25 @@ public class Hl7InsuranceSegment extends Hl7Object {
 
 			if (Hl7CodedElement.isPresent(in1.getInsuredSRelationshipToPatient()))
 				this.insuredsRelationshipToPatient = new Hl7CodedElement(in1.getInsuredSRelationshipToPatient());
-			
+
+			if (Hl7TimeStamp.isPresent(in1.getInsuredSDateOfBirth()))
+				this.insuredsDateOfBirth = new Hl7TimeStamp(in1.getInsuredSDateOfBirth());
+
+			if (in1.getInsuredSAddress() != null && in1.getInsuredSAddress().length > 0)
+				this.insuredsAddress = Arrays.stream(in1.getInsuredSAddress())
+						.map(xad -> Hl7ExtendedAddress.isPresent(xad) ? new Hl7ExtendedAddress(xad) : null)
+						.filter(insuredsAddress -> insuredsAddress != null)
+						.collect(Collectors.toList());
+
+			this.assignmentOfBenefits = trimToNull(in1.getAssignmentOfBenefits().getValueOrEmpty());
+			this.coordinationOfBenefits = trimToNull(in1.getCoordinationOfBenefits().getValueOrEmpty());
+			this.coordOfBenPriority = trimToNull(in1.getCoordOfBenPriority().getValueOrEmpty());
+			this.noticeOfAdmissionFlag = trimToNull(in1.getNoticeOfAdmissionFlag().getValueOrEmpty());
+			this.noticeOfAdmissionDate = trimToNull(in1.getNoticeOfAdmissionDate().getValue());
+			this.reportOfEligibilityFlag = trimToNull(in1.getReportOfEligibilityFlag().getValueOrEmpty());
+			this.reportOfEligibilityDate = trimToNull(in1.getReportOfEligibilityDate().getValue());
+			this.releaseInformationCode = trimToNull(in1.getReleaseInformationCode().getValueOrEmpty());
+			this.preAdmitCert = trimToNull(in1.getPreAdmitCert().getValueOrEmpty());
 		}
 	}
 }
