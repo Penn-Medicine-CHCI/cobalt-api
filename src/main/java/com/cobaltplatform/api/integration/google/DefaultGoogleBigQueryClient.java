@@ -216,6 +216,7 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 		// This way sync code can catch something like GoogleBigQueryNoDataAvailableYetException and know it's OK to re-try syncing later
 		if (response.getRows() == null) {
 			// throw new IllegalStateException(format("BigQuery data is not available yet. Page JSON was: %s", pageJson));
+			response.setRows(List.of());
 			return new GoogleBigQueryExportRecordsPage(response, List.of());
 		}
 
