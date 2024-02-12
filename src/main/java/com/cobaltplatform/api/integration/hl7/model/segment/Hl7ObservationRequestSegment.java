@@ -22,6 +22,7 @@ package com.cobaltplatform.api.integration.hl7.model.segment;
 import ca.uhn.hl7v2.model.v251.segment.OBR;
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedElement;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7CodedWithExceptions;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7CompositeQuantityWithUnits;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifier;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifierPair;
@@ -120,6 +121,36 @@ public class Hl7ObservationRequestSegment extends Hl7Object {
 	private List<Hl7NameWithDateAndLocation> technician; // OBR.34 - Technician
 	@Nullable
 	private List<Hl7NameWithDateAndLocation> transcriptionist; // OBR.35 - Transcriptionist
+	@Nullable
+	private Hl7TimeStamp scheduledDateTime; // OBR.36 - Scheduled Date/Time
+	@Nullable
+	private Integer numberOfSampleContainers; // OBR.37 - Number of Sample Containers
+	@Nullable
+	private List<Hl7CodedElement> transportLogisticsOfCollectedSample; // OBR.38 - Transport Logistics of Collected Sample
+	@Nullable
+	private List<Hl7CodedElement> collectorsComment; // OBR.39 - Collector's Comment
+	@Nullable
+	private Hl7CodedElement transportArrangementResponsibility; // OBR.40 - Transport Arrangement Responsibility
+	@Nullable
+	private String transportArranged; // OBR.41 - Transport Arranged
+	@Nullable
+	String escortRequired; // OBR.42 - Escort Required
+	@Nullable
+	private List<Hl7CodedElement> plannedPatientTransportComment; // OBR.43 - Planned Patient Transport Comment
+	@Nullable
+	private Hl7CodedElement procedureCode; // OBR.44 - Procedure Code
+	@Nullable
+	private List<Hl7CodedElement> procedureCodeModifier; // OBR.45 - Procedure Code Modifier
+	@Nullable
+	private List<Hl7CodedElement> placerSupplementalServiceInformation; // OBR.46 - Placer Supplemental Service Information
+	@Nullable
+	private List<Hl7CodedElement> fillerSupplementalServiceInformation; //  OBR.47 - Filler Supplemental Service Information
+	@Nullable
+	private Hl7CodedWithExceptions medicallyNecessaryDuplicateProcedureReason; // OBR.48 - Medically Necessary Duplicate Procedure Reason
+	@Nullable
+	private String resultHandling; // OBR.49 - Result Handling
+	@Nullable
+	private Hl7CodedWithExceptions parentUniversalServiceIdentifier; // OBR.50 - Parent Universal Service Identifier
 
 	@Nonnull
 	public static Boolean isPresent(@Nullable OBR obr) {
@@ -253,6 +284,66 @@ public class Hl7ObservationRequestSegment extends Hl7Object {
 						.map(ndl -> Hl7NameWithDateAndLocation.isPresent(ndl) ? new Hl7NameWithDateAndLocation(ndl) : null)
 						.filter(transcriptionist -> transcriptionist != null)
 						.collect(Collectors.toList());
+
+			if (Hl7TimeStamp.isPresent(obr.getScheduledDateTime()))
+				this.scheduledDateTime = new Hl7TimeStamp(obr.getScheduledDateTime());
+
+			String numberOfSampleContainersAsString = trimToNull(obr.getNumberOfSampleContainers().getValue());
+			if (numberOfSampleContainersAsString != null)
+				this.numberOfSampleContainers = Integer.parseInt(numberOfSampleContainersAsString, 10);
+
+			if (obr.getTransportLogisticsOfCollectedSample() != null && obr.getTransportLogisticsOfCollectedSample().length > 0)
+				this.transportLogisticsOfCollectedSample = Arrays.stream(obr.getTransportLogisticsOfCollectedSample())
+						.map(ce -> Hl7CodedElement.isPresent(ce) ? new Hl7CodedElement(ce) : null)
+						.filter(transportLogisticsOfCollectedSample -> transportLogisticsOfCollectedSample != null)
+						.collect(Collectors.toList());
+
+			if (obr.getCollectorSComment() != null && obr.getCollectorSComment().length > 0)
+				this.collectorsComment = Arrays.stream(obr.getCollectorSComment())
+						.map(ce -> Hl7CodedElement.isPresent(ce) ? new Hl7CodedElement(ce) : null)
+						.filter(collectorsComment -> collectorsComment != null)
+						.collect(Collectors.toList());
+
+			if (Hl7CodedElement.isPresent(obr.getTransportArrangementResponsibility()))
+				this.transportArrangementResponsibility = new Hl7CodedElement(obr.getTransportArrangementResponsibility());
+
+			this.transportArranged = trimToNull(obr.getTransportArranged().getValueOrEmpty());
+			this.escortRequired = trimToNull(obr.getEscortRequired().getValueOrEmpty());
+
+			if (obr.getPlannedPatientTransportComment() != null && obr.getPlannedPatientTransportComment().length > 0)
+				this.plannedPatientTransportComment = Arrays.stream(obr.getPlannedPatientTransportComment())
+						.map(ce -> Hl7CodedElement.isPresent(ce) ? new Hl7CodedElement(ce) : null)
+						.filter(plannedPatientTransportComment -> plannedPatientTransportComment != null)
+						.collect(Collectors.toList());
+
+			if (Hl7CodedElement.isPresent(obr.getProcedureCode()))
+				this.procedureCode = new Hl7CodedElement(obr.getProcedureCode());
+
+			if (obr.getProcedureCodeModifier() != null && obr.getProcedureCodeModifier().length > 0)
+				this.procedureCodeModifier = Arrays.stream(obr.getProcedureCodeModifier())
+						.map(ce -> Hl7CodedElement.isPresent(ce) ? new Hl7CodedElement(ce) : null)
+						.filter(procedureCodeModifier -> procedureCodeModifier != null)
+						.collect(Collectors.toList());
+
+			if (obr.getPlacerSupplementalServiceInformation() != null && obr.getPlacerSupplementalServiceInformation().length > 0)
+				this.placerSupplementalServiceInformation = Arrays.stream(obr.getPlacerSupplementalServiceInformation())
+						.map(ce -> Hl7CodedElement.isPresent(ce) ? new Hl7CodedElement(ce) : null)
+						.filter(placerSupplementalServiceInformation -> placerSupplementalServiceInformation != null)
+						.collect(Collectors.toList());
+
+			if (obr.getFillerSupplementalServiceInformation() != null && obr.getFillerSupplementalServiceInformation().length > 0)
+				this.fillerSupplementalServiceInformation = Arrays.stream(obr.getFillerSupplementalServiceInformation())
+						.map(ce -> Hl7CodedElement.isPresent(ce) ? new Hl7CodedElement(ce) : null)
+						.filter(fillerSupplementalServiceInformation -> fillerSupplementalServiceInformation != null)
+						.collect(Collectors.toList());
+
+			if (Hl7CodedWithExceptions.isPresent(obr.getMedicallyNecessaryDuplicateProcedureReason()))
+				this.medicallyNecessaryDuplicateProcedureReason = new Hl7CodedWithExceptions(obr.getMedicallyNecessaryDuplicateProcedureReason());
+
+			this.resultHandling = trimToNull(obr.getResultHandling().getValueOrEmpty());
+
+			if (Hl7CodedWithExceptions.isPresent(obr.getParentUniversalServiceIdentifier()))
+				this.parentUniversalServiceIdentifier = new Hl7CodedWithExceptions(obr.getParentUniversalServiceIdentifier());
 		}
 	}
 }
