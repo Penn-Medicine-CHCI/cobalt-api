@@ -180,10 +180,11 @@ public class TagService {
 
 		return getDatabase().queryForList("""
 				    SELECT t.*
-				    FROM tag t, tag_content tc
+				    FROM tag t, tag_content tc, institution_content ic
 				    WHERE tc.tag_id=t.tag_id
+				    AND tc.content_id = ic.content_id
 				    AND tc.content_id=?
-				    AND tc.institution_id=?
+				    AND ic.institution_id=?
 				    ORDER BY t.name
 				""", Tag.class, contentId, institutionId);
 	}
@@ -195,8 +196,9 @@ public class TagService {
 
 		return getDatabase().queryForList("""
 				SELECT *
-				FROM tag_content
-				WHERE institution_id=?
+				FROM tag_content tc, institution_content ic
+				WHERE tc.content_id = ic.content_id 
+				AND ic.institution_id=?
 				""", TagContent.class, institutionId);
 	}
 

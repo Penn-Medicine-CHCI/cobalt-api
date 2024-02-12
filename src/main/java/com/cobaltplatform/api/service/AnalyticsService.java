@@ -1378,10 +1378,11 @@ public class AnalyticsService implements AutoCloseable {
 				        GROUP BY url_path
 				    )
 				    SELECT cpnv.page_view_count, cpnv.url_path, c.content_id, c.title AS content_title, tc.tag_id
-				    FROM content_page_normalized_view cpnv, content c, tag_content tc
+				    FROM content_page_normalized_view cpnv, content c, tag_content tc, institution_content ic
 				    WHERE c.content_id = (REVERSE(SUBSTR(REVERSE(cpnv.url_path), 0, STRPOS(REVERSE(cpnv.url_path), '/'))))::UUID
 				    AND c.content_id = tc.content_id
-				    AND tc.institution_id = ?
+				    AND tc.content_id = ic.content_id
+				    AND ic.institution_id = ?
 				)
 				SELECT SUM(pvbt.page_view_count) AS page_view_count, pvbt.tag_id, t.name AS tag_name, t.tag_group_id, t.url_name AS url_path
 				FROM page_views_by_tag pvbt, tag t
@@ -1435,9 +1436,10 @@ public class AnalyticsService implements AutoCloseable {
 		StringBuilder contentPageViewTagsSql = new StringBuilder();
 		contentPageViewTagsSql.append("""
 				SELECT t.tag_id, tc.content_id, t.name AS tag_description, t.url_name AS tag_url_name
-				FROM tag_content tc, tag t
-				WHERE tc.institution_id=?
+				FROM tag_content tc, tag t, institution_content ic
+				WHERE ic.institution_id=?
 				AND tc.tag_id=t.tag_id
+				AND tc.content_id = ic.content_id
 				""");
 
 		if (contentIds.size() > 0) {
@@ -1732,8 +1734,9 @@ public class AnalyticsService implements AutoCloseable {
 
 		List<TagCount> contentTagCounts = getDatabase().queryForList("""
 				SELECT COUNT(*), tag_id
-				FROM tag_content
-				WHERE institution_id=?
+				FROM tag_content tc, institution_content ic
+				WHERE tc.content_id = ic.content_id
+				AND ic.institution_id=?
 				GROUP BY tag_id
 				""", TagCount.class, institutionId);
 
