@@ -91,16 +91,21 @@ public class Hl7PatientSection extends Hl7Object {
 							.map(nte -> Hl7NotesAndCommentsSegment.isPresent(nte) ? new Hl7NotesAndCommentsSegment(nte) : null)
 							.filter(notesAndComments -> notesAndComments != null)
 							.collect(Collectors.toList());
+
+				if (Hl7PatientVisitSection.isPresent(patient.getPATIENT_VISIT()))
+					this.patientVisit = new Hl7PatientVisitSection(patient.getPATIENT_VISIT());
+
+				if (patient.getINSURANCEAll() != null && patient.getINSURANCEAll().size() > 0)
+					this.insurance = patient.getINSURANCEAll().stream()
+							.map(insurance -> Hl7InsuranceSection.isPresent(insurance) ? new Hl7InsuranceSection(insurance) : null)
+							.filter(insurance -> insurance != null)
+							.collect(Collectors.toList());
+
+				// TODO: Hl7GuarantorSegment guarantor
+				// TODO: List<Hl7PatientAllergyInformationSegment> patientAllergyInformation
 			} catch (HL7Exception e) {
 				throw new UncheckedHl7ParsingException(e);
 			}
-
-			if (Hl7PatientVisitSection.isPresent(patient.getPATIENT_VISIT()))
-				this.patientVisit = new Hl7PatientVisitSection(patient.getPATIENT_VISIT());
-
-			// TODO: List<Hl7InsuranceSection> insurance
-			// TODO: Hl7GuarantorSegment guarantor
-			// TODO: List<Hl7PatientAllergyInformationSegment> patientAllergyInformation
 		}
 	}
 

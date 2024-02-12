@@ -19,11 +19,13 @@
 
 package com.cobaltplatform.api.integration.hl7.model.section;
 
+import ca.uhn.hl7v2.model.v251.group.ORM_O01_INSURANCE;
 import com.cobaltplatform.api.integration.hl7.model.Hl7Object;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7InsuranceAdditionalInformationCertificationSegment;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7InsuranceAdditionalInformationSegment;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7InsuranceSegment;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -40,6 +42,25 @@ public class Hl7InsuranceSection extends Hl7Object {
 	private Hl7InsuranceAdditionalInformationSegment insuranceAdditionalInformation;
 	@Nullable
 	private Hl7InsuranceAdditionalInformationCertificationSegment insuranceAdditionalInformationCertification;
+
+	@Nonnull
+	public static Boolean isPresent(@Nullable ORM_O01_INSURANCE insurance) {
+		if (insurance == null || insurance.getIN1() == null)
+			return false;
+
+		return Hl7InsuranceSegment.isPresent(insurance.getIN1());
+	}
+
+	public Hl7InsuranceSection() {
+		// Nothing to do
+	}
+
+	public Hl7InsuranceSection(@Nullable ORM_O01_INSURANCE insurance) {
+		if (insurance != null) {
+			if (Hl7InsuranceSegment.isPresent(insurance.getIN1()))
+				this.insurance = new Hl7InsuranceSegment(insurance.getIN1());
+		}
+	}
 
 	@Nullable
 	public Hl7InsuranceSegment getInsurance() {
