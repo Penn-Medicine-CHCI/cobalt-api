@@ -28,6 +28,7 @@ import com.cobaltplatform.api.integration.hl7.model.type.Hl7EntityIdentifierPair
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdNumberAndNameForPersons;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedTelecommunicationNumber;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7MoneyAndCode;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7NameWithDateAndLocation;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ParentResultLink;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7SpecimenSource;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7TimeStamp;
@@ -111,6 +112,14 @@ public class Hl7ObservationRequestSegment extends Hl7Object {
 	private String transportationMode; // OBR.30 - Transportation Mode
 	@Nullable
 	private List<Hl7CodedElement> reasonForStudy; // OBR.31 - Reason for Study
+	@Nullable
+	private Hl7NameWithDateAndLocation principalResultInterpreter; // OBR.32 - Principal Result Interpreter
+	@Nullable
+	private List<Hl7NameWithDateAndLocation> assistantResultInterpreter; // OBR.33 - Assistant Result Interpreter
+	@Nullable
+	private List<Hl7NameWithDateAndLocation> technician; // OBR.34 - Technician
+	@Nullable
+	private List<Hl7NameWithDateAndLocation> transcriptionist; // OBR.35 - Transcriptionist
 
 	@Nonnull
 	public static Boolean isPresent(@Nullable OBR obr) {
@@ -222,6 +231,27 @@ public class Hl7ObservationRequestSegment extends Hl7Object {
 				this.reasonForStudy = Arrays.stream(obr.getReasonForStudy())
 						.map(ce -> Hl7CodedElement.isPresent(ce) ? new Hl7CodedElement(ce) : null)
 						.filter(reasonForStudy -> reasonForStudy != null)
+						.collect(Collectors.toList());
+
+			if (Hl7NameWithDateAndLocation.isPresent(obr.getPrincipalResultInterpreter()))
+				this.principalResultInterpreter = new Hl7NameWithDateAndLocation(obr.getPrincipalResultInterpreter());
+
+			if (obr.getAssistantResultInterpreter() != null && obr.getAssistantResultInterpreter().length > 0)
+				this.assistantResultInterpreter = Arrays.stream(obr.getAssistantResultInterpreter())
+						.map(ndl -> Hl7NameWithDateAndLocation.isPresent(ndl) ? new Hl7NameWithDateAndLocation(ndl) : null)
+						.filter(assistantResultInterpreter -> assistantResultInterpreter != null)
+						.collect(Collectors.toList());
+
+			if (obr.getTechnician() != null && obr.getTechnician().length > 0)
+				this.technician = Arrays.stream(obr.getTechnician())
+						.map(ndl -> Hl7NameWithDateAndLocation.isPresent(ndl) ? new Hl7NameWithDateAndLocation(ndl) : null)
+						.filter(technician -> technician != null)
+						.collect(Collectors.toList());
+
+			if (obr.getTranscriptionist() != null && obr.getTranscriptionist().length > 0)
+				this.transcriptionist = Arrays.stream(obr.getTranscriptionist())
+						.map(ndl -> Hl7NameWithDateAndLocation.isPresent(ndl) ? new Hl7NameWithDateAndLocation(ndl) : null)
+						.filter(transcriptionist -> transcriptionist != null)
 						.collect(Collectors.toList());
 		}
 	}
