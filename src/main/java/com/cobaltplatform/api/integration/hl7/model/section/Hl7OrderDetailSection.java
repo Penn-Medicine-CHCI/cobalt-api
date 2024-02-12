@@ -47,7 +47,7 @@ public class Hl7OrderDetailSection extends Hl7Object {
 	@Nullable
 	private Hl7ContactDataSegment contactData;
 	@Nullable
-	private Hl7DiagnosisSegment diagnosis;
+	private List<Hl7DiagnosisSegment> diagnosis;
 	@Nullable
 	private List<Hl7ObservationSection> observation;
 
@@ -60,7 +60,7 @@ public class Hl7OrderDetailSection extends Hl7Object {
 			return Hl7OrderDetailSegmentSection.isPresent(orderDetail)
 					|| (orderDetail.getNTEAll() != null && orderDetail.getNTEAll().size() > 0)
 					|| Hl7ContactDataSegment.isPresent(orderDetail.getCTD())
-					|| Hl7DiagnosisSegment.isPresent(orderDetail.getDG1())
+					|| (orderDetail.getDG1All() != null && orderDetail.getDG1All().size() > 0)
 					|| (orderDetail.getOBSERVATIONAll() != null && orderDetail.getOBSERVATIONAll().size() > 0);
 		} catch (HL7Exception e) {
 			throw new UncheckedHl7ParsingException(e);
@@ -86,8 +86,11 @@ public class Hl7OrderDetailSection extends Hl7Object {
 				if (Hl7ContactDataSegment.isPresent(orderDetail.getCTD()))
 					this.contactData = new Hl7ContactDataSegment(orderDetail.getCTD());
 
-				if (Hl7DiagnosisSegment.isPresent(orderDetail.getDG1()))
-					this.diagnosis = new Hl7DiagnosisSegment(orderDetail.getDG1());
+				if (orderDetail.getDG1All() != null && orderDetail.getDG1All().size() > 0)
+					this.diagnosis = orderDetail.getDG1All().stream()
+							.map(dg1 -> Hl7DiagnosisSegment.isPresent(dg1) ? new Hl7DiagnosisSegment(dg1) : null)
+							.filter(diagnosis -> diagnosis != null)
+							.collect(Collectors.toList());
 
 				if (orderDetail.getOBSERVATIONAll() != null && orderDetail.getOBSERVATIONAll().size() > 0)
 					this.observation = orderDetail.getOBSERVATIONAll().stream()
@@ -128,11 +131,11 @@ public class Hl7OrderDetailSection extends Hl7Object {
 	}
 
 	@Nullable
-	public Hl7DiagnosisSegment getDiagnosis() {
+	public List<Hl7DiagnosisSegment> getDiagnosis() {
 		return this.diagnosis;
 	}
 
-	public void setDiagnosis(@Nullable Hl7DiagnosisSegment diagnosis) {
+	public void setDiagnosis(@Nullable List<Hl7DiagnosisSegment> diagnosis) {
 		this.diagnosis = diagnosis;
 	}
 
