@@ -245,9 +245,11 @@ public class ContentService implements AutoCloseable {
 		if (tagGroupId != null) {
 			fromClauseComponents.add("tag_content tc");
 			fromClauseComponents.add("tag t");
+			fromClauseComponents.add("institution_content ic");
 
 			whereClauseComponents.add("AND tc.content_id=c.content_id");
-			whereClauseComponents.add("AND tc.institution_id=?");
+			whereClauseComponents.add("AND tc.content_id=ic.content_id");
+			whereClauseComponents.add("AND ic.institution_id=?");
 			whereClauseComponents.add("AND tc.tag_id=t.tag_id");
 			whereClauseComponents.add("AND t.tag_group_id=?");
 
@@ -260,9 +262,11 @@ public class ContentService implements AutoCloseable {
 			}
 		} else if (tagIds.size() > 0) {
 			fromClauseComponents.add("tag_content tc");
+			fromClauseComponents.add("institution_content ic");
 
 			whereClauseComponents.add("AND tc.content_id=c.content_id");
-			whereClauseComponents.add("AND tc.institution_id=?");
+			whereClauseComponents.add("AND tc.content_id=ic.content_id");
+			whereClauseComponents.add("AND ic.institution_id=?");
 			whereClauseComponents.add(format("AND tc.tag_id IN %s", sqlInListPlaceholders(tagIds)));
 
 			parameters.add(institutionId);
