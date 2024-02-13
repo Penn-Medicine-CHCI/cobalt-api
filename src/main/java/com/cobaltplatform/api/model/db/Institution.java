@@ -235,6 +235,8 @@ public class Institution {
 	@Nullable
 	private UUID featuredTopicCenterId;
 	@Nullable
+	private UUID featuredSecondaryTopicCenterId;
+	@Nullable
 	private String techSupportPhoneNumber;
 	@Nullable
 	private String privacyPolicyUrl;
@@ -1129,6 +1131,15 @@ public class Institution {
 
 	public void setFeaturedTopicCenterId(@Nullable UUID featuredTopicCenterId) {
 		this.featuredTopicCenterId = featuredTopicCenterId;
+	}
+
+	@Nullable
+	public UUID getFeaturedSecondaryTopicCenterId() {
+		return this.featuredSecondaryTopicCenterId;
+	}
+
+	public void setFeaturedSecondaryTopicCenterId(@Nullable UUID featuredSecondaryTopicCenterId) {
+		this.featuredSecondaryTopicCenterId = featuredSecondaryTopicCenterId;
 	}
 
 	@Nullable

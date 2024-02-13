@@ -64,6 +64,8 @@ public class TopicCenterApiResponse {
 	@Nonnull
 	private final String urlName;
 	@Nullable
+	private final String urlOverride;
+	@Nullable
 	private final String featuredTitle;
 	@Nullable
 	private final String featuredDescription;
@@ -112,6 +114,7 @@ public class TopicCenterApiResponse {
 		this.name = topicCenter.getName();
 		this.description = topicCenter.getDescription();
 		this.urlName = topicCenter.getUrlName();
+		this.urlOverride = topicCenter.getUrlOverride();
 		this.topicCenterDisplayStyleId = topicCenter.getTopicCenterDisplayStyleId();
 		this.featuredTitle = topicCenter.getFeaturedTitle();
 		this.featuredDescription = topicCenter.getFeaturedDescription();
@@ -151,6 +154,11 @@ public class TopicCenterApiResponse {
 	@Nonnull
 	public String getUrlName() {
 		return this.urlName;
+	}
+
+	@Nonnull
+	public Optional<String> getUrlOverride() {
+		return Optional.ofNullable(this.urlOverride);
 	}
 
 	@Nonnull
