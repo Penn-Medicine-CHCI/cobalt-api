@@ -42,6 +42,8 @@ public class TopicCenter {
 	@Nullable
 	private String urlName;
 	@Nullable
+	private String urlOverride;
+	@Nullable
 	private String featuredTitle;
 	@Nullable
 	private String featuredDescription;
@@ -92,6 +94,15 @@ public class TopicCenter {
 
 	public void setUrlName(@Nullable String urlName) {
 		this.urlName = urlName;
+	}
+
+	@Nullable
+	public String getUrlOverride() {
+		return this.urlOverride;
+	}
+
+	public void setUrlOverride(@Nullable String urlOverride) {
+		this.urlOverride = urlOverride;
 	}
 
 	@Nullable

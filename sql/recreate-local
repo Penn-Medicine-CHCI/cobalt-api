@@ -154,7 +154,9 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/146-content-vi
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/147-video-time-seconds.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/148-study-url.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/149-microsoft-teams.sql
-PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/150-ic-updates.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/150-tag-content.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/151-institution-secondary-topic-center.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/152-ic-updates.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

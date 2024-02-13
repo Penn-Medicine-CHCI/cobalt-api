@@ -364,9 +364,9 @@ public class AdminContentService {
 				continue;
 
 			getDatabase().execute("""
-					INSERT INTO tag_content(tag_id, institution_id, content_id) 
-					VALUES (?,?,?)
-					""", tagId, account.getInstitutionId(), contentId);
+					INSERT INTO tag_content(tag_id, content_id) 
+					VALUES (?,?)
+					""", tagId, contentId);
 		}
 
 		AdminContent adminContent = findAdminContentByIdForInstitution(account.getInstitutionId(), contentId).get();
@@ -472,8 +472,7 @@ public class AdminContentService {
 		getDatabase().execute("""
 				DELETE FROM tag_content
 				WHERE content_id=?
-				AND institution_id=? 
-				""", command.getContentId(), account.getInstitutionId());
+				""", command.getContentId());
 
 		for (String tagId : tagIds) {
 			tagId = trimToNull(tagId);
@@ -482,9 +481,9 @@ public class AdminContentService {
 				continue;
 
 			getDatabase().execute("""
-					INSERT INTO tag_content(tag_id, institution_id, content_id) 
-					VALUES (?,?,?)
-					""", tagId, account.getInstitutionId(), command.getContentId());
+					INSERT INTO tag_content(tag_id, content_id) 
+					VALUES (?,?)
+					""", tagId, command.getContentId());
 		}
 
 		/*
