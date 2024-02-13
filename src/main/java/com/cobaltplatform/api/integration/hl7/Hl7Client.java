@@ -34,6 +34,7 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
 
+import static com.soklet.util.StringUtils.trimToNull;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -65,20 +66,28 @@ public class Hl7Client {
 		// TODO: determine if HapiContext/Parser instances are threadsafe, would be nice to share them across threads
 		try (HapiContext hapiContext = new DefaultHapiContext()) {
 			Parser parser = hapiContext.getGenericParser();
-			Message hapiMessage;
+			Message message;
 
 			// Patient order messages must have CRLF endings, otherwise parsing will fail.  Ensure that here.
 			generalOrderHl7AsString = generalOrderHl7AsString.trim().lines().collect(Collectors.joining("\r\n"));
 
 			try {
-				hapiMessage = parser.parse(generalOrderHl7AsString);
+				message = parser.parse(generalOrderHl7AsString);
 			} catch (Exception e) {
 				throw new Hl7ParsingException(format("Unable to parse HL7 message:\n%s", generalOrderHl7AsString), e);
 			}
 
 			try {
+				final String SUPPORTED_HL7_VERSION = "2.5.1";
+				String messageVersion = trimToNull(message.getVersion());
+
 				// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/TriggerEvents/ORM_O01
-				ORM_O01 ormMessage = (ORM_O01) hapiMessage;
+				if (!SUPPORTED_HL7_VERSION.equals(messageVersion)) {
+					throw new Hl7ParsingException(format("Supported HL7 version is %s but received message with version %s",
+							SUPPORTED_HL7_VERSION, messageVersion == null ? "[unknown]" : messageVersion));
+				}
+
+				ORM_O01 ormMessage = (ORM_O01) message;
 
 				if (!Hl7GeneralOrderTriggerEvent.isPresent(ormMessage))
 					throw new Hl7ParsingException(format("No %s message data was found", ORM_O01.class.getSimpleName()));

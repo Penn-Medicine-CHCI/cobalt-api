@@ -26,8 +26,10 @@ import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.hl7.Hl7Client;
 import com.cobaltplatform.api.integration.hl7.Hl7ParsingException;
 import com.cobaltplatform.api.integration.hl7.model.event.Hl7GeneralOrderTriggerEvent;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
@@ -82,11 +84,15 @@ public class PatientOrderSyncService implements AutoCloseable {
 	@Nonnull
 	private final Provider<InstitutionService> institutionServiceProvider;
 	@Nonnull
+	private final Provider<PatientOrderService> patientOrderServiceProvider;
+	@Nonnull
 	private final S3Client s3Client;
 	@Nonnull
 	private final Hl7Client hl7Client;
 	@Nonnull
 	private final DatabaseProvider databaseProvider;
+	@Nonnull
+	private final ErrorReporter errorReporter;
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
@@ -102,26 +108,32 @@ public class PatientOrderSyncService implements AutoCloseable {
 
 	static {
 		BACKGROUND_TASK_INTERVAL_IN_SECONDS = 60L;
-		BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS = 10L;
+		BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS = 1L;
 	}
 
 	@Inject
 	public PatientOrderSyncService(@Nonnull Provider<BackgroundSyncTask> backgroundSyncTaskProvider,
 																 @Nonnull Provider<InstitutionService> institutionServiceProvider,
+																 @Nonnull Provider<PatientOrderService> patientOrderServiceProvider,
 																 @Nonnull Hl7Client hl7Client,
 																 @Nonnull DatabaseProvider databaseProvider,
+																 @Nonnull ErrorReporter errorReporter,
 																 @Nonnull Configuration configuration,
 																 @Nonnull Strings strings) {
 		requireNonNull(backgroundSyncTaskProvider);
 		requireNonNull(institutionServiceProvider);
+		requireNonNull(patientOrderServiceProvider);
 		requireNonNull(hl7Client);
 		requireNonNull(databaseProvider);
+		requireNonNull(errorReporter);
 		requireNonNull(configuration);
 		requireNonNull(strings);
 
 		this.backgroundSyncTaskProvider = backgroundSyncTaskProvider;
 		this.institutionServiceProvider = institutionServiceProvider;
+		this.patientOrderServiceProvider = patientOrderServiceProvider;
 		this.databaseProvider = databaseProvider;
+		this.errorReporter = errorReporter;
 		this.configuration = configuration;
 		this.hl7Client = hl7Client;
 		this.s3Client = createS3Client(configuration);
@@ -196,6 +208,8 @@ public class PatientOrderSyncService implements AutoCloseable {
 		if (institution == null || !institution.getIntegratedCareEnabled() || institution.getIntegratedCareOrderImportBucketName() == null)
 			return Set.of();
 
+		// TODO: acquire lock
+
 		String bucket = institution.getIntegratedCareOrderImportBucketName();
 
 		Set<UUID> patientOrderIds = new HashSet<>();
@@ -223,14 +237,32 @@ public class PatientOrderSyncService implements AutoCloseable {
 							institution.getInstitutionId().name(), bucket, s3Object.key(), generalOrderHl7.length);
 
 					String generalOrderHl7AsString = getHl7Client().messageFromBytes(generalOrderHl7);
-					System.out.println("HL7 Order message as string: " + generalOrderHl7AsString);
+
+					getLogger().info("HL7 Order content for {}/{}:\n{}", bucket, s3Object.key(), generalOrderHl7AsString);
+
+					Hl7GeneralOrderTriggerEvent generalOrder = null;
 
 					try {
-						Hl7GeneralOrderTriggerEvent generalOrder = getHl7Client().parseGeneralOrder(generalOrderHl7AsString);
+						generalOrder = getHl7Client().parseGeneralOrder(generalOrderHl7AsString);
 					} catch (Hl7ParsingException e) {
-						// TODO: should write to error reporter; this should never occur
-						getLogger().warn("Unable to parse HL7 message", e);
+						getErrorReporter().report(e);
 					}
+
+					if (generalOrder == null) {
+						// TODO: handle error case
+					} else {
+
+					}
+
+					// TODO: need an account ID for this
+					UUID accountId = null;
+
+					CreatePatientOrderImportRequest importRequest = new CreatePatientOrderImportRequest();
+					importRequest.setPatientOrderImportTypeId(PatientOrderImportTypeId.HL7_MESSAGE);
+					importRequest.setInstitutionId(institution.getInstitutionId());
+					importRequest.setAccountId(accountId);
+					getPatientOrderService().createPatientOrderImport(importRequest);
+
 				} catch (IOException e) {
 					throw new UncheckedIOException(e);
 				}
@@ -368,6 +400,11 @@ public class PatientOrderSyncService implements AutoCloseable {
 	}
 
 	@Nonnull
+	protected PatientOrderService getPatientOrderService() {
+		return this.patientOrderServiceProvider.get();
+	}
+
+	@Nonnull
 	protected S3Client getS3Client() {
 		return this.s3Client;
 	}
@@ -385,6 +422,11 @@ public class PatientOrderSyncService implements AutoCloseable {
 	@Nonnull
 	protected Database getDatabase() {
 		return this.databaseProvider.get();
+	}
+
+	@Nonnull
+	protected ErrorReporter getErrorReporter() {
+		return this.errorReporter;
 	}
 
 	@Nonnull

@@ -3771,9 +3771,6 @@ public class PatientOrderService implements AutoCloseable {
 				if (existingPatientOrderImportMatchingChecksum != null)
 					validationException.add(new FieldError("csvContent", getStrings().get("This file has already been imported.")));
 			}
-
-			if (accountId == null)
-				validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
 		} else if (patientOrderImportTypeId == PatientOrderImportTypeId.HL7_MESSAGE) {
 			// TODO: implement
 			throw new UnsupportedOperationException();
@@ -3781,6 +3778,9 @@ public class PatientOrderService implements AutoCloseable {
 			throw new IllegalArgumentException(format("We do not yet support %s.%s", PatientOrderImportTypeId.class.getSimpleName(),
 					patientOrderImportTypeId.name()));
 		}
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
