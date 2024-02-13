@@ -145,6 +145,8 @@ public class InstitutionApiResponse {
 	@Nullable
 	private final UUID featuredTopicCenterId;
 	@Nullable
+	private final UUID featuredSecondaryTopicCenterId;
+	@Nullable
 	private final String techSupportPhoneNumber;
 	@Nullable
 	private final String techSupportPhoneNumberDescription;
@@ -248,6 +250,7 @@ public class InstitutionApiResponse {
 		this.myChartInstructionsUrl = institution.getMyChartInstructionsUrl();
 		this.epicFhirEnabled = institution.getEpicFhirEnabled();
 		this.featuredTopicCenterId = institution.getFeaturedTopicCenterId();
+		this.featuredSecondaryTopicCenterId = institution.getFeaturedSecondaryTopicCenterId();
 
 		this.techSupportPhoneNumber = institution.getTechSupportPhoneNumber();
 		this.techSupportPhoneNumberDescription = institution.getTechSupportPhoneNumber() == null ? null : formatter.formatPhoneNumber(institution.getTechSupportPhoneNumber());

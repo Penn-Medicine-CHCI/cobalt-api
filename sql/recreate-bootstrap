@@ -155,7 +155,7 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/147-vide
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/148-study-url.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/149-microsoft-teams.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/150-tag-content.sql
-
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/151-institution-secondary-topic-center.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
