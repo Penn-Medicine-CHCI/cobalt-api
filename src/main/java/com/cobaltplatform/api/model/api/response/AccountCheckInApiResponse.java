@@ -134,7 +134,7 @@ public class AccountCheckInApiResponse {
 				accountCheckIn.getCheckInStatusId().equals(CheckInStatus.CheckInStatusId.EXPIRED) ?
 				strings.get("{{completedCheckInActionCount}} of {{totalCheckInActionCount}} Complete", Map.of(
 						"completedCheckInActionCount", completedCheckInActionCount,
-						"totalCheckInActionCount", accountCheckInActionList.size())) : strings.get("Upcoming");
+						"totalCheckInActionCount", accountCheckInActionList.size())) : strings.get("Starts {{checkInDateDescription}}", Map.of("checkInDateDescription", checkInDateDescription));
 		this.checkInActive = checkInActive;
 		this.accountCheckInActions = accountCheckInActionList.stream().map(accountCheckInAction -> accountCheckInActionApiResponseFactory.create(accountCheckInAction)).collect(Collectors.toList());
 
