@@ -412,7 +412,7 @@ public class StudyService {
 				if (checkInStarted) {
 					getLogger().debug("First check-in is started but not complete so expiring and continuing on.");
 					updateCheckInStatusId(accountCheckIn.getAccountCheckInId(), CheckInStatusId.EXPIRED);
-					checkInCount++;
+					checkInCount = 1;
 					continue;
 				} else {
 					getLogger().debug("First check-in is NOT started and not complete so setting start time to now and continuing on.");
@@ -420,15 +420,18 @@ public class StudyService {
 					newStartDateTime = currentDateTime;
 				}
 			} else if (accountCheckIn.getCheckInStatusId().equals(CheckInStatusId.COMPLETE)) {
-				getLogger().debug(format("Check-in %s is complete so continuing to next check-in", accountCheckIn));
+				getLogger().debug(format("Check-in %s is complete so continuing to next check-in", accountCheckIn.getCheckInNumber()));
 				newStartDateTime = accountCheckIn.getCompletedDate();
-				checkInCount++;
+				checkInCount = 1;
 				continue;
 			} else if (accountCheckExpired(account, accountCheckIn) && !rescheduleFirstCheckIn) {
-				getLogger().debug(format("Check-in %s has expired so setting to expired and continuing to next check-in", accountCheckIn));
+				getLogger().debug(format("Check-in %s has expired so continuing to next check-in", accountCheckIn.getCheckInNumber()));
 				newStartDateTime = currentDateTime;
-				updateCheckInStatusId(accountCheckIn.getAccountCheckInId(), CheckInStatusId.EXPIRED);
-				checkInCount++;
+				checkInCount = 1;
+				if (!accountCheckIn.getCheckInStatusId().equals(CheckInStatusId.EXPIRED)) {
+					getLogger().debug(format("Check-in %s was not set to expired so expiring", accountCheckIn.getCheckInNumber()));
+					updateCheckInStatusId(accountCheckIn.getAccountCheckInId(), CheckInStatusId.EXPIRED);
+				}
 				continue;
 			}
 
@@ -438,7 +441,7 @@ public class StudyService {
 				LocalDate checkInStartDate = newStartDateTime.toLocalDate().plusDays(daysToAdd);
 				checkInStartDateTime = LocalDateTime.of(checkInStartDate, LocalTime.of(0, 0, 0));
 			} else {
-				Integer minutesToAdd = study.get().getMinutesBetweenCheckIns() * checkInCount;
+				Integer minutesToAdd = checkInCount == 0 ? 0 : study.get().getMinutesBetweenCheckIns() * checkInCount;
 				checkInStartDateTime = newStartDateTime.plus(minutesToAdd, ChronoUnit.MINUTES);
 				getLogger().debug(format("Adding %s minutes to %s and setting next check-in to %s", minutesToAdd, newStartDateTime, checkInStartDateTime));
 			}
