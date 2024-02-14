@@ -47,6 +47,9 @@ import com.cobaltplatform.api.integration.microsoft.request.AccessTokenRequest;
 import com.cobaltplatform.api.integration.mixpanel.DefaultMixpanelClient;
 import com.cobaltplatform.api.integration.mixpanel.MixpanelClient;
 import com.cobaltplatform.api.integration.mixpanel.MockMixpanelClient;
+import com.cobaltplatform.api.integration.tableau.DefaultTableauClient;
+import com.cobaltplatform.api.integration.tableau.TableauClient;
+import com.cobaltplatform.api.integration.tableau.TableauDirectTrustCredential;
 import com.cobaltplatform.api.messaging.MessageSender;
 import com.cobaltplatform.api.messaging.push.ConsolePushMessageSender;
 import com.cobaltplatform.api.messaging.push.GoogleFcmPushMessageSender;
@@ -133,6 +136,12 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 
 	@Nonnull
 	@Override
+	public Optional<TableauClient> tableauClient() {
+		return (Optional<TableauClient>) getExpensiveClientCache().get(ExpensiveClientCacheKey.TABLEAU);
+	}
+
+	@Nonnull
+	@Override
 	public Optional<EpicClient> epicClientForBackendService() {
 		return (Optional<EpicClient>) getExpensiveClientCache().get(ExpensiveClientCacheKey.EPIC_CLIENT_FOR_BACKEND_SERVICE);
 	}
@@ -186,6 +195,8 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 						return uncachedEpicClientForBackendService();
 					if (expensiveClientCacheKey == ExpensiveClientCacheKey.GOOGLE_FCM_PUSH_MESSAGE_SENDER)
 						return uncachedGoogleFcmPushMessageSender();
+					if (expensiveClientCacheKey == ExpensiveClientCacheKey.TABLEAU)
+						return uncachedTableauClient();
 
 					throw new IllegalStateException(format("Unexpected value %s was provided for %s",
 							expensiveClientCacheKey.name(), ExpensiveClientCacheKey.class.getSimpleName()));
@@ -313,7 +324,7 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 	@Nonnull
 	protected Optional<MicrosoftClient> uncachedMicrosoftTeamsClientForDaemon() {
 		Institution institution = getInstitutionService().findInstitutionById(getInstitutionId()).get();
-		
+
 		if (!institution.getMicrosoftTeamsEnabled())
 			return Optional.empty();
 
@@ -339,6 +350,29 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 		MicrosoftAccessToken microsoftAccessToken = microsoftAuthenticator.obtainAccessToken(accessTokenRequest);
 
 		return Optional.of(new DefaultMicrosoftClient(() -> microsoftAccessToken));
+	}
+
+	@Nonnull
+	protected Optional<TableauClient> uncachedTableauClient() {
+		Institution institution = getInstitutionService().findInstitutionById(getInstitutionId()).get();
+
+		if (!institution.getMicrosoftTeamsEnabled())
+			return Optional.empty();
+
+		String clientId = trimToNull(institution.getTableauClientId());
+		String apiBaseUrl = trimToNull(institution.getTableauApiBaseUrl());
+
+		if (clientId == null || apiBaseUrl == null)
+			throw new IllegalStateException(format("Tableau is enabled for %s but required values are missing on institution record", getInstitutionId().name()));
+
+		// Read client secret from AWS Secrets Manager
+		String secretId = getAwsSecretManagerClient().getSecretString(format("%s-tableau-secret-id-%s",
+				getConfiguration().getAmazonAwsSecretsManagerContext().get(), getInstitutionId().name()));
+		String secretValue = getAwsSecretManagerClient().getSecretString(format("%s-tableau-secret-value-%s",
+				getConfiguration().getAmazonAwsSecretsManagerContext().get(), getInstitutionId().name()));
+
+		TableauDirectTrustCredential directTrustCredential = new TableauDirectTrustCredential(clientId, secretId, secretValue);
+		return Optional.of(new DefaultTableauClient(apiBaseUrl, directTrustCredential));
 	}
 
 	@Nonnull
@@ -369,6 +403,7 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 		MYCHART_AUTHENTICATOR,
 		MICROSOFT_TEAMS_CLIENT_FOR_DAEMON,
 		EPIC_CLIENT_FOR_BACKEND_SERVICE,
-		GOOGLE_FCM_PUSH_MESSAGE_SENDER
+		GOOGLE_FCM_PUSH_MESSAGE_SENDER,
+		TABLEAU
 	}
 }

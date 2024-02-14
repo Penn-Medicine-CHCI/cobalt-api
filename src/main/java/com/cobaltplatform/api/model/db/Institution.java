@@ -281,6 +281,18 @@ public class Institution {
 	@Nullable
 	private String microsoftTeamsUserId;
 
+	// Tableau config
+	@Nullable
+	private Boolean tableauEnabled;
+	@Nullable
+	private String tableauClientId;
+	@Nullable
+	private String tableauApiBaseUrl;
+	@Nullable
+	private String tableauContentUrl;
+	@Nullable
+	private String tableauEmailAddress;
+
 	public enum InstitutionId {
 		COBALT,
 		COBALT_IC,
@@ -1310,5 +1322,50 @@ public class Institution {
 
 	public void setMicrosoftTeamsUserId(@Nullable String microsoftTeamsUserId) {
 		this.microsoftTeamsUserId = microsoftTeamsUserId;
+	}
+
+	@Nullable
+	public Boolean getTableauEnabled() {
+		return this.tableauEnabled;
+	}
+
+	public void setTableauEnabled(@Nullable Boolean tableauEnabled) {
+		this.tableauEnabled = tableauEnabled;
+	}
+
+	@Nullable
+	public String getTableauClientId() {
+		return this.tableauClientId;
+	}
+
+	public void setTableauClientId(@Nullable String tableauClientId) {
+		this.tableauClientId = tableauClientId;
+	}
+
+	@Nullable
+	public String getTableauApiBaseUrl() {
+		return this.tableauApiBaseUrl;
+	}
+
+	public void setTableauApiBaseUrl(@Nullable String tableauApiBaseUrl) {
+		this.tableauApiBaseUrl = tableauApiBaseUrl;
+	}
+
+	@Nullable
+	public String getTableauContentUrl() {
+		return this.tableauContentUrl;
+	}
+
+	public void setTableauContentUrl(@Nullable String tableauContentUrl) {
+		this.tableauContentUrl = tableauContentUrl;
+	}
+
+	@Nullable
+	public String getTableauEmailAddress() {
+		return this.tableauEmailAddress;
+	}
+
+	public void setTableauEmailAddress(@Nullable String tableauEmailAddress) {
+		this.tableauEmailAddress = tableauEmailAddress;
 	}
 }
