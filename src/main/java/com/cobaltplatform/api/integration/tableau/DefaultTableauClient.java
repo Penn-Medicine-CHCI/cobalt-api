@@ -92,7 +92,6 @@ public class DefaultTableauClient implements TableauClient {
 		String jti = UUID.randomUUID().toString();
 		String sub = accessTokenRequest.getEmailAddress();
 		Long iat = now.toEpochMilli() / 1_000L;
-		String email = accessTokenRequest.getEmailAddress();
 
 		Map<String, Object> header = new HashMap<>();
 		header.put("alg", alg);
@@ -108,7 +107,7 @@ public class DefaultTableauClient implements TableauClient {
 		claims.put("iss", iss);
 
 		// Let's verify that this is truly necessary
-		// claims.put("email", email);
+		// claims.put("email", sub);
 
 		if (accessTokenRequest.getScopes().size() > 0)
 			claims.put("scp", accessTokenRequest.getScopes());

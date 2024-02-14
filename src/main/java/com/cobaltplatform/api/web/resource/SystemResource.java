@@ -26,11 +26,18 @@ import com.cobaltplatform.api.cache.LocalCache;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.integration.acuity.AcuitySchedulingCache;
 import com.cobaltplatform.api.integration.acuity.AcuitySchedulingClient;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.epic.EpicSyncManager;
+import com.cobaltplatform.api.integration.tableau.TableauClient;
+import com.cobaltplatform.api.integration.tableau.request.AccessTokenRequest;
 import com.cobaltplatform.api.model.api.request.CreateMarketingSiteOutreachRequest;
+import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.service.AuthorizationService;
+import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.service.Way2HealthService;
 import com.cobaltplatform.api.util.Authenticator;
@@ -65,6 +72,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.SortedMap;
 import java.util.SortedSet;
@@ -101,6 +109,12 @@ public class SystemResource {
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
 	@Nonnull
+	private final EnterprisePluginProvider enterprisePluginProvider;
+	@Nonnull
+	private final AuthorizationService authorizationService;
+	@Nonnull
+	private final InstitutionService institutionService;
+	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final Formatter formatter;
@@ -118,6 +132,9 @@ public class SystemResource {
 												@Nonnull EpicSyncManager epicSyncManager,
 												@Nonnull Way2HealthService way2HealthService,
 												@Nonnull RequestBodyParser requestBodyParser,
+												@Nonnull EnterprisePluginProvider enterprisePluginProvider,
+												@Nonnull AuthorizationService authorizationService,
+												@Nonnull InstitutionService institutionService,
 												@Nonnull Provider<CurrentContext> currentContextProvider,
 												@Nonnull Formatter formatter,
 												@Nonnull Strings strings) {
@@ -130,6 +147,10 @@ public class SystemResource {
 		requireNonNull(acuitySchedulingClient);
 		requireNonNull(epicSyncManager);
 		requireNonNull(way2HealthService);
+		requireNonNull(requestBodyParser);
+		requireNonNull(enterprisePluginProvider);
+		requireNonNull(authorizationService);
+		requireNonNull(institutionService);
 		requireNonNull(requestBodyParser);
 		requireNonNull(currentContextProvider);
 		requireNonNull(formatter);
@@ -145,6 +166,9 @@ public class SystemResource {
 		this.epicSyncManager = epicSyncManager;
 		this.way2HealthService = way2HealthService;
 		this.requestBodyParser = requestBodyParser;
+		this.enterprisePluginProvider = enterprisePluginProvider;
+		this.authorizationService = authorizationService;
+		this.institutionService = institutionService;
 		this.currentContextProvider = currentContextProvider;
 		this.formatter = formatter;
 		this.strings = strings;
@@ -368,6 +392,46 @@ public class SystemResource {
 	}
 
 	@Nonnull
+	@GET("/system/tableau-test")
+	@AuthenticationRequired
+	public BinaryResponse tableauTest() throws Exception {
+		CurrentContext currentContext = getCurrentContext();
+		Account account = currentContext.getAccount().get();
+		Institution institution = getInstitutionService().findInstitutionById(currentContext.getInstitutionId()).get();
+
+		if (!getAuthorizationService().canViewAnalytics(institution.getInstitutionId(), account))
+			throw new AuthorizationException();
+
+		TableauClient tableauClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institution.getInstitutionId()).tableauClient().orElse(null);
+
+		if (tableauClient == null)
+			throw new NotFoundException();
+
+		String jwt = tableauClient.generateDirectTrustJwt(new AccessTokenRequest.Builder(institution.getTableauEmailAddress())
+				.scopes(List.of("tableau:views:embed"))
+				.claims(Map.of("https://tableau.com/oda", "true"))
+				.build());
+
+		// Verify that this JWT is legal
+		tableauClient.authenticateUsingDirectTrustJwt(jwt, institution.getTableauContentUrl());
+
+		// TODO: finalize data modeling for Tableau reports, e.g. CobaltAdminAnalytics/Sheet1
+		String html = """
+				<html>
+				<head></head>
+					<script type='module' src='$TABLEAU_API_BASE_URL/javascripts/api/tableau.embedding.3.latest.min.js'></script>
+					<tableau-viz id='tableau-viz' token='$TABLEAU_JWT' src='$TABLEAU_API_BASE_URL/t/$TABLEAU_CONTENT_URL/views/CobaltAdminAnalytics/Sheet1' width='1399' height='723' hide-tabs toolbar='bottom' ></tableau-viz>
+				<body></body>
+				</html>
+				"""
+				.replace("$TABLEAU_JWT", jwt)
+				.replace("$TABLEAU_API_BASE_URL", institution.getTableauApiBaseUrl())
+				.replace("$TABLEAU_CONTENT_URL", institution.getTableauContentUrl());
+
+		return ResponseGenerator.utf8Response(html, "text/html");
+	}
+
+	@Nonnull
 	protected SystemService getSystemService() {
 		return this.systemService;
 	}
@@ -430,5 +494,20 @@ public class SystemResource {
 	@Nonnull
 	protected CurrentContext getCurrentContext() {
 		return this.currentContextProvider.get();
+	}
+
+	@Nonnull
+	protected EnterprisePluginProvider getEnterprisePluginProvider() {
+		return this.enterprisePluginProvider;
+	}
+
+	@Nonnull
+	protected AuthorizationService getAuthorizationService() {
+		return this.authorizationService;
+	}
+
+	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return this.institutionService;
 	}
 }

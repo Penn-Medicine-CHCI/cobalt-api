@@ -31,6 +31,7 @@ import com.cobaltplatform.api.integration.microsoft.MicrosoftAuthenticator;
 import com.cobaltplatform.api.integration.microsoft.MicrosoftClient;
 import com.cobaltplatform.api.integration.mixpanel.MixpanelClient;
 import com.cobaltplatform.api.integration.mixpanel.MockMixpanelClient;
+import com.cobaltplatform.api.integration.tableau.TableauClient;
 import com.cobaltplatform.api.messaging.MessageSender;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.push.ConsolePushMessageSender;
@@ -108,6 +109,11 @@ public interface EnterprisePlugin {
 
 	@Nonnull
 	default Optional<MicrosoftAuthenticator> microsoftAuthenticator() {
+		return Optional.empty();
+	}
+
+	@Nonnull
+	default Optional<TableauClient> tableauClient() {
 		return Optional.empty();
 	}
 

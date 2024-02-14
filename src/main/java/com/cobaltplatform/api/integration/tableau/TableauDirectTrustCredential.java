@@ -52,9 +52,9 @@ public class TableauDirectTrustCredential {
 	@Nonnull
 	private final String secretValue;
 
-	protected TableauDirectTrustCredential(@Nonnull String clientId,
-																				 @Nonnull String secretId,
-																				 @Nonnull String secretValue) {
+	public TableauDirectTrustCredential(@Nonnull String clientId,
+																			@Nonnull String secretId,
+																			@Nonnull String secretValue) {
 		requireNonNull(clientId);
 		requireNonNull(secretId);
 		requireNonNull(secretValue);
