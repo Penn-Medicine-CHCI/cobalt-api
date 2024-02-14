@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('152-ic-updates', NULL, NULL);
+SELECT _v.register_patch('153-ic-updates', NULL, NULL);
 
 CREATE TABLE department_availability_status (
 	department_availability_status_id VARCHAR NOT NULL PRIMARY KEY,
