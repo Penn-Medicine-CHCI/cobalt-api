@@ -105,7 +105,10 @@ public class DefaultTableauClient implements TableauClient {
 		claims.put("aud", aud);
 		claims.put("sub", sub);
 		claims.put("iat", iat);
-		claims.put("email", email);
+		claims.put("iss", iss);
+
+		// Let's verify that this is truly necessary
+		// claims.put("email", email);
 
 		if (accessTokenRequest.getScopes().size() > 0)
 			claims.put("scp", accessTokenRequest.getScopes());
@@ -116,7 +119,7 @@ public class DefaultTableauClient implements TableauClient {
 		return Jwts.builder()
 				.setHeader(header)
 				.setClaims(claims)
-				.signWith(SignatureAlgorithm.HS256, getDirectTrustCredential().getSecretValue())
+				.signWith(SignatureAlgorithm.HS256, getDirectTrustCredential().getSecretValue().getBytes(StandardCharsets.UTF_8))
 				.compact();
 	}
 
