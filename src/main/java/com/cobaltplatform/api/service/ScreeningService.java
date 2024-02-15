@@ -37,6 +37,7 @@ import com.cobaltplatform.api.model.api.request.UpdateCheckInAction;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
 import com.cobaltplatform.api.model.api.response.ScreeningConfirmationPromptApiResponse.ScreeningConfirmationPromptApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AccountCheckIn;
 import com.cobaltplatform.api.model.db.AccountCheckInAction;
 import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.Assessment;
@@ -2285,6 +2286,13 @@ public class ScreeningService {
 				groupSession = getGroupSessionService().findGroupSessionByIdIncludingDeleted(screeningSession.getGroupSessionId()).get();
 
 			context.put("groupSession", groupSession);
+		}
+
+		if (screeningSession.getAccountCheckInActionId() != null) {
+			Optional<AccountCheckIn> accountCheckIn = getStudyService().findAccountCheckInByActionId(screeningSession.getAccountCheckInActionId());
+			if (accountCheckIn.isPresent()) {
+				context.put("checkInNumber", accountCheckIn.get().getCheckInNumber());
+			}
 		}
 
 		try {
