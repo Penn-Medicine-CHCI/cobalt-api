@@ -1184,6 +1184,19 @@ public class AccountService {
 	}
 
 	@Nonnull
+	public Optional<Account> findServiceAccountByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM account
+				WHERE role_id=?
+				AND institution_id=?
+				""", Account.class, RoleId.SERVICE_ACCOUNT, institutionId);
+	}
+
+	@Nonnull
 	public void requestRoleForAccount(@Nonnull AccountRoleRequest request) {
 		requireNonNull(request);
 

@@ -40,8 +40,13 @@ public abstract class Hl7Object {
 		GSON = gsonBuilder.create();
 	}
 
+	@Nonnull
+	public String toJsonRepresentation() {
+		return GSON.toJson(this);
+	}
+
 	@Override
 	public String toString() {
-		return GSON.toJson(this);
+		return toJsonRepresentation();
 	}
 }

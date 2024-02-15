@@ -1,6 +1,11 @@
 BEGIN;
 SELECT _v.register_patch('153-ic-updates', NULL, NULL);
 
+INSERT INTO role VALUES ('SERVICE_ACCOUNT', 'Service Account');
+
+-- Only one service account can exist per institution
+CREATE UNIQUE INDEX on account (role_id, institution_id)  where role_id = 'SERVICE_ACCOUNT';
+
 CREATE TABLE department_availability_status (
 	department_availability_status_id VARCHAR NOT NULL PRIMARY KEY,
 	description VARCHAR NOT NULL

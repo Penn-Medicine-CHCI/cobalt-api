@@ -24,9 +24,8 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.hl7.Hl7Client;
-import com.cobaltplatform.api.integration.hl7.Hl7ParsingException;
-import com.cobaltplatform.api.integration.hl7.model.event.Hl7GeneralOrderTriggerEvent;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
@@ -84,6 +83,8 @@ public class PatientOrderSyncService implements AutoCloseable {
 	@Nonnull
 	private final Provider<InstitutionService> institutionServiceProvider;
 	@Nonnull
+	private final Provider<AccountService> accountServiceProvider;
+	@Nonnull
 	private final Provider<PatientOrderService> patientOrderServiceProvider;
 	@Nonnull
 	private final S3Client s3Client;
@@ -114,6 +115,7 @@ public class PatientOrderSyncService implements AutoCloseable {
 	@Inject
 	public PatientOrderSyncService(@Nonnull Provider<BackgroundSyncTask> backgroundSyncTaskProvider,
 																 @Nonnull Provider<InstitutionService> institutionServiceProvider,
+																 @Nonnull Provider<AccountService> accountServiceProvider,
 																 @Nonnull Provider<PatientOrderService> patientOrderServiceProvider,
 																 @Nonnull Hl7Client hl7Client,
 																 @Nonnull DatabaseProvider databaseProvider,
@@ -122,6 +124,7 @@ public class PatientOrderSyncService implements AutoCloseable {
 																 @Nonnull Strings strings) {
 		requireNonNull(backgroundSyncTaskProvider);
 		requireNonNull(institutionServiceProvider);
+		requireNonNull(accountServiceProvider);
 		requireNonNull(patientOrderServiceProvider);
 		requireNonNull(hl7Client);
 		requireNonNull(databaseProvider);
@@ -131,6 +134,7 @@ public class PatientOrderSyncService implements AutoCloseable {
 
 		this.backgroundSyncTaskProvider = backgroundSyncTaskProvider;
 		this.institutionServiceProvider = institutionServiceProvider;
+		this.accountServiceProvider = accountServiceProvider;
 		this.patientOrderServiceProvider = patientOrderServiceProvider;
 		this.databaseProvider = databaseProvider;
 		this.errorReporter = errorReporter;
@@ -233,36 +237,33 @@ public class PatientOrderSyncService implements AutoCloseable {
 
 				try (InputStream inputStream = getS3Client().getObject(getObjectRequest)) {
 					byte[] generalOrderHl7 = IOUtils.toByteArray(inputStream);
-					getLogger().info("{} HL7 Order message download completed for {}/{} ({} bytes).",
-							institution.getInstitutionId().name(), bucket, s3Object.key(), generalOrderHl7.length);
+					String objectPath = format("%s/%s", bucket, s3Object.key());
+
+					getLogger().info("{} HL7 Order message download completed for {} ({} bytes).",
+							institution.getInstitutionId().name(), objectPath, generalOrderHl7.length);
 
 					String generalOrderHl7AsString = getHl7Client().messageFromBytes(generalOrderHl7);
 
-					getLogger().info("HL7 Order content for {}/{}:\n{}", bucket, s3Object.key(), generalOrderHl7AsString);
-
-					Hl7GeneralOrderTriggerEvent generalOrder = null;
+					getLogger().info("HL7 Order content for {}:\n{}", objectPath, generalOrderHl7AsString);
 
 					try {
-						generalOrder = getHl7Client().parseGeneralOrder(generalOrderHl7AsString);
-					} catch (Hl7ParsingException e) {
+						getDatabase().transaction(() -> {
+							Account serviceAccount = getAccountService().findServiceAccountByInstitutionId(institution.getInstitutionId()).get();
+
+							CreatePatientOrderImportRequest importRequest = new CreatePatientOrderImportRequest();
+							importRequest.setPatientOrderImportTypeId(PatientOrderImportTypeId.HL7_MESSAGE);
+							importRequest.setInstitutionId(institution.getInstitutionId());
+							importRequest.setAccountId(serviceAccount.getAccountId());
+							importRequest.setHl7GeneralOrderTriggerEventMessage(generalOrderHl7AsString);
+							importRequest.setAutomaticallyAssignToPanelAccounts(true);
+							importRequest.setFilename(s3Object.key());
+
+							getPatientOrderService().createPatientOrderImport(importRequest);
+						});
+					} catch (Exception e) {
+						getLogger().error(String.format("Unable to perform HL7 import for message:\n%s", generalOrderHl7AsString), e);
 						getErrorReporter().report(e);
 					}
-
-					if (generalOrder == null) {
-						// TODO: handle error case
-					} else {
-
-					}
-
-					// TODO: need an account ID for this
-					UUID accountId = null;
-
-					CreatePatientOrderImportRequest importRequest = new CreatePatientOrderImportRequest();
-					importRequest.setPatientOrderImportTypeId(PatientOrderImportTypeId.HL7_MESSAGE);
-					importRequest.setInstitutionId(institution.getInstitutionId());
-					importRequest.setAccountId(accountId);
-					getPatientOrderService().createPatientOrderImport(importRequest);
-
 				} catch (IOException e) {
 					throw new UncheckedIOException(e);
 				}
@@ -397,6 +398,11 @@ public class PatientOrderSyncService implements AutoCloseable {
 	@Nonnull
 	protected InstitutionService getInstitutionService() {
 		return this.institutionServiceProvider.get();
+	}
+
+	@Nonnull
+	protected AccountService getAccountService() {
+		return this.accountServiceProvider.get();
 	}
 
 	@Nonnull

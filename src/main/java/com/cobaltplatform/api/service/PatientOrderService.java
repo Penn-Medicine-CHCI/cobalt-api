@@ -28,6 +28,9 @@ import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.epic.EpicClient;
 import com.cobaltplatform.api.integration.epic.request.PatientSearchRequest;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse;
+import com.cobaltplatform.api.integration.hl7.Hl7Client;
+import com.cobaltplatform.api.integration.hl7.Hl7ParsingException;
+import com.cobaltplatform.api.integration.hl7.model.event.Hl7GeneralOrderTriggerEvent;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.messaging.sms.SmsMessage;
@@ -256,6 +259,8 @@ public class PatientOrderService implements AutoCloseable {
 	@Nonnull
 	private final PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory;
 	@Nonnull
+	private final Hl7Client hl7Client;
+	@Nonnull
 	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Normalizer normalizer;
@@ -288,6 +293,7 @@ public class PatientOrderService implements AutoCloseable {
 														 @Nonnull Provider<BackgroundTask> backgroundTaskProvider,
 														 @Nonnull PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory,
 														 @Nonnull DatabaseProvider databaseProvider,
+														 @Nonnull Hl7Client hl7Client,
 														 @Nonnull Normalizer normalizer,
 														 @Nonnull Formatter formatter,
 														 @Nonnull Authenticator authenticator,
@@ -301,6 +307,7 @@ public class PatientOrderService implements AutoCloseable {
 		requireNonNull(backgroundTaskProvider);
 		requireNonNull(patientOrderScheduledMessageGroupApiResponseFactory);
 		requireNonNull(databaseProvider);
+		requireNonNull(hl7Client);
 		requireNonNull(normalizer);
 		requireNonNull(formatter);
 		requireNonNull(authenticator);
@@ -315,6 +322,7 @@ public class PatientOrderService implements AutoCloseable {
 		this.backgroundTaskProvider = backgroundTaskProvider;
 		this.patientOrderScheduledMessageGroupApiResponseFactory = patientOrderScheduledMessageGroupApiResponseFactory;
 		this.databaseProvider = databaseProvider;
+		this.hl7Client = hl7Client;
 		this.normalizer = normalizer;
 		this.formatter = formatter;
 		this.authenticator = authenticator;
@@ -3741,7 +3749,12 @@ public class PatientOrderService implements AutoCloseable {
 		PatientOrderImportTypeId patientOrderImportTypeId = request.getPatientOrderImportTypeId();
 		UUID accountId = request.getAccountId();
 		String csvContent = trimToNull(request.getCsvContent());
+		String filename = trimToNull(request.getFilename());
+		String hl7GeneralOrderTriggerEventMessage = trimToNull(request.getHl7GeneralOrderTriggerEventMessage());
+		Hl7GeneralOrderTriggerEvent hl7GeneralOrderTriggerEvent = null;
+		String rawOrder = null;
 		String rawOrderChecksum = null;
+		String rawOrderJsonRepresentation = null;
 		boolean automaticallyAssignToPanelAccounts = request.getAutomaticallyAssignToPanelAccounts() == null ? false : request.getAutomaticallyAssignToPanelAccounts();
 		UUID patientOrderImportId = UUID.randomUUID();
 		List<UUID> patientOrderIds = new ArrayList<>();
@@ -3756,24 +3769,40 @@ public class PatientOrderService implements AutoCloseable {
 			if (csvContent == null) {
 				validationException.add(new FieldError("csvContent", getStrings().get("CSV file is required.")));
 			} else {
+				rawOrder = csvContent;
 				rawOrderChecksum = Hashing.sha256()
 						.hashString(csvContent, StandardCharsets.UTF_8)
 						.toString();
 
-				PatientOrderImport existingPatientOrderImportMatchingChecksum = getDatabase().queryForObject("""
-						SELECT *
-						FROM patient_order_import
-						WHERE raw_order_checksum=?
-						AND institution_id=?
-						AND patient_order_import_type=?
-						""", PatientOrderImport.class, rawOrderChecksum, institutionId, PatientOrderImportTypeId.CSV).orElse(null);
+				PatientOrderImport existingPatientOrderImportMatchingChecksum =
+						findPatientOrderImportByRawOrderChecksum(rawOrderChecksum, institutionId, patientOrderImportTypeId).orElse(null);
 
 				if (existingPatientOrderImportMatchingChecksum != null)
 					validationException.add(new FieldError("csvContent", getStrings().get("This file has already been imported.")));
 			}
 		} else if (patientOrderImportTypeId == PatientOrderImportTypeId.HL7_MESSAGE) {
-			// TODO: implement
-			throw new UnsupportedOperationException();
+			if (hl7GeneralOrderTriggerEventMessage == null) {
+				validationException.add(new FieldError("hl7GeneralOrderTriggerEventMessage", getStrings().get("HL7 General Order Trigger Event Message is required.")));
+			} else {
+				rawOrder = hl7GeneralOrderTriggerEventMessage;
+				rawOrderChecksum = Hashing.sha256()
+						.hashString(hl7GeneralOrderTriggerEventMessage, StandardCharsets.UTF_8)
+						.toString();
+
+				PatientOrderImport existingPatientOrderImportMatchingChecksum =
+						findPatientOrderImportByRawOrderChecksum(rawOrderChecksum, institutionId, patientOrderImportTypeId).orElse(null);
+
+				if (existingPatientOrderImportMatchingChecksum != null) {
+					validationException.add(new FieldError("hl7GeneralOrderTriggerEventMessage", getStrings().get("This HL7 General Order Trigger Event Message has already been imported.")));
+				} else {
+					try {
+						hl7GeneralOrderTriggerEvent = getHl7Client().parseGeneralOrder(hl7GeneralOrderTriggerEventMessage);
+						rawOrderJsonRepresentation = hl7GeneralOrderTriggerEvent.toJsonRepresentation();
+					} catch (Hl7ParsingException e) {
+						validationException.add(new FieldError("hl7GeneralOrderTriggerEventMessage", "Unable to parse HL7 General Order Trigger Event message."));
+					}
+				}
+			}
 		} else {
 			throw new IllegalArgumentException(format("We do not yet support %s.%s", PatientOrderImportTypeId.class.getSimpleName(),
 					patientOrderImportTypeId.name()));
@@ -3791,15 +3820,18 @@ public class PatientOrderService implements AutoCloseable {
 			throw new IllegalStateException(format("No Epic Patient Unique ID Type configured for institution ID %s", institution.getName()));
 
 		getDatabase().execute("""
-				INSERT INTO patient_order_import (
-				patient_order_import_id,
-				patient_order_import_type_id,
-				institution_id,
-				account_id,
-				raw_order,
-				raw_order_checksum
-				) VALUES (?,?,?,?,?,?)
-				""", patientOrderImportId, patientOrderImportTypeId, institutionId, accountId, csvContent, rawOrderChecksum);
+						INSERT INTO patient_order_import (
+						patient_order_import_id,
+						patient_order_import_type_id,
+						institution_id,
+						account_id,
+						raw_order,
+						raw_order_checksum,
+						raw_order_json_representation,
+						raw_order_filename
+						) VALUES (?,?,?,?,?,?,CAST (? AS JSONB),?)
+						""", patientOrderImportId, patientOrderImportTypeId, institutionId, accountId, rawOrder,
+				rawOrderChecksum, rawOrderJsonRepresentation, filename);
 
 		if (patientOrderImportTypeId == PatientOrderImportTypeId.CSV) {
 			Map<Integer, ValidationException> validationExceptionsByRowNumber = new HashMap<>();
@@ -4076,6 +4108,8 @@ public class PatientOrderService implements AutoCloseable {
 
 				throw new ValidationException(globalErrors, List.of());
 			}
+		} else if (patientOrderImportTypeId == PatientOrderImportTypeId.HL7_MESSAGE) {
+			// TODO: HL7 import
 		}
 
 		if (automaticallyAssignToPanelAccounts) {
@@ -4136,6 +4170,24 @@ public class PatientOrderService implements AutoCloseable {
 		}
 
 		return new PatientOrderImportResult(patientOrderImportId, patientOrderIds);
+	}
+
+	@Nullable
+	protected Optional<PatientOrderImport> findPatientOrderImportByRawOrderChecksum(@Nullable String rawOrderChecksum,
+																																									@Nullable InstitutionId institutionId,
+																																									@Nullable PatientOrderImportTypeId patientOrderImportTypeId) {
+		rawOrderChecksum = trimToNull(rawOrderChecksum);
+
+		if (rawOrderChecksum == null | institutionId == null || patientOrderImportTypeId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM patient_order_import
+				WHERE raw_order_checksum=?
+				AND institution_id=?
+				AND patient_order_import_type_id=?
+				""", PatientOrderImport.class, rawOrderChecksum, institutionId, patientOrderImportTypeId);
 	}
 
 	@Nonnull
@@ -5272,6 +5324,11 @@ public class PatientOrderService implements AutoCloseable {
 	@Nonnull
 	protected Database getDatabase() {
 		return this.databaseProvider.get();
+	}
+
+	@Nonnull
+	protected Hl7Client getHl7Client() {
+		return this.hl7Client;
 	}
 
 	@Nonnull
