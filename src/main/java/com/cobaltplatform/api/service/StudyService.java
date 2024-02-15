@@ -495,6 +495,19 @@ public class StudyService {
 	}
 
 	@Nonnull
+	public Optional<AccountCheckIn> findAccountCheckInByActionId(@Nullable UUID accountCheckInActionId) {
+		if (accountCheckInActionId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM account_check_in ac, account_check_in_action aci
+				WHERE ac.account_check_in_id = aci.account_check_in_id
+				AND aci.account_check_in_action_id = ?
+				""", AccountCheckIn.class, accountCheckInActionId);
+	}
+
+	@Nonnull
 	private Boolean checkInComplete(@Nonnull UUID accountCheckInId) {
 		return getDatabase().queryForObject("""
 				SELECT COUNT(*) = 0
