@@ -13,11 +13,18 @@ INSERT INTO department_availability_status VALUES ('BUSY', 'Busy');
 ALTER TABLE epic_department ADD COLUMN department_availability_status_id VARCHAR NOT NULL DEFAULT 'AVAILABLE' REFERENCES department_availability_status;
 CREATE UNIQUE INDEX epic_department_name_unique_idx ON epic_department USING btree (institution_id, name);
 
--- Let's consider introducing this in the future...
---ALTER TABLE patient_order_import ADD COLUMN raw_order_json_representation JSONB;
+ALTER TABLE patient_order_import ADD COLUMN raw_order_json_representation JSONB;
 
 -- Keep track of which department we're tied to
-ALTER TABLE patient_order ADD COLUMN epic_department_id UUID NOT NULL REFERENCES epic_department;
+ALTER TABLE patient_order ADD COLUMN epic_department_id UUID REFERENCES epic_department;
+
+-- For existing test data, make a fake department to associate with
+INSERT INTO epic_department (epic_department_id, institution_id, department_id, department_id_type, name)
+VALUES ('6536407a-3bc2-4065-97df-aaeedb67d348', 'COBALT', '0', 'EXTERNAL', 'Fake Department');
+
+UPDATE patient_order SET epic_department_id='6536407a-3bc2-4065-97df-aaeedb67d348';
+
+ALTER TABLE patient_order ALTER COLUMN epic_department_id SET NOT NULL;
 
 -- Bookkeeping for encounter sync
 ALTER TABLE patient_order ADD COLUMN encounter_id TEXT;
@@ -31,7 +38,6 @@ ALTER TABLE patient_order_import ADD COLUMN raw_order_filename TEXT;
 
 UPDATE patient_order_import_type SET patient_order_import_type_id='HL7_MESSAGE', description='HL7 Message' WHERE patient_order_import_type_id='EPIC';
 
--- TODO: add epic_department to patient_order
 -- TODO: store off raw hl7 messages
 -- TODO: store off epic encounter ID to patient order
 -- TODO: keep track of epic encounter sync status (and introduce flag in UI) for patient order

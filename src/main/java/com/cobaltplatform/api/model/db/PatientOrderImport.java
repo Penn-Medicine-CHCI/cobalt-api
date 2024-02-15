@@ -43,6 +43,8 @@ public class PatientOrderImport {
 	@Nullable
 	private String rawOrder;
 	@Nullable
+	private String rawOrderJsonRepresentation;
+	@Nullable
 	private String rawOrderChecksum;
 	@Nullable
 	private String rawOrderFilename;
@@ -94,6 +96,15 @@ public class PatientOrderImport {
 
 	public void setRawOrder(@Nullable String rawOrder) {
 		this.rawOrder = rawOrder;
+	}
+
+	@Nullable
+	public String getRawOrderJsonRepresentation() {
+		return this.rawOrderJsonRepresentation;
+	}
+
+	public void setRawOrderJsonRepresentation(@Nullable String rawOrderJsonRepresentation) {
+		this.rawOrderJsonRepresentation = rawOrderJsonRepresentation;
 	}
 
 	@Nullable
