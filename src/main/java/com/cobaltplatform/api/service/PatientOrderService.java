@@ -26,19 +26,21 @@ import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.epic.EpicClient;
-import com.cobaltplatform.api.integration.epic.request.PatientSearchRequest;
-import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse;
+import com.cobaltplatform.api.integration.epic.response.PatientReadFhirR4Response;
 import com.cobaltplatform.api.integration.hl7.Hl7Client;
 import com.cobaltplatform.api.integration.hl7.Hl7ParsingException;
 import com.cobaltplatform.api.integration.hl7.model.event.Hl7GeneralOrderTriggerEvent;
 import com.cobaltplatform.api.integration.hl7.model.section.Hl7InsuranceSection;
 import com.cobaltplatform.api.integration.hl7.model.section.Hl7OrderSection;
 import com.cobaltplatform.api.integration.hl7.model.section.Hl7PatientSection;
+import com.cobaltplatform.api.integration.hl7.model.segment.Hl7DiagnosisSegment;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7InsuranceSegment;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7NotesAndCommentsSegment;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedAddress;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdNumberAndNameForPersons;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdWithCheckDigit;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedPersonName;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedTelecommunicationNumber;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7PersonLocation;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
@@ -87,6 +89,7 @@ import com.cobaltplatform.api.model.api.response.PatientOrderTriageGroupApiRespo
 import com.cobaltplatform.api.model.api.response.PatientOrderTriageGroupApiResponse.PatientOrderTriageGroupFocusApiResponse;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution;
@@ -2694,6 +2697,19 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
+	public List<EpicDepartment> findEpicDepartmentsByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM epic_department
+				WHERE institution_id=?
+				ORDER BY name
+				""", EpicDepartment.class, institutionId);
+	}
+
+	@Nonnull
 	public Optional<PatientOrderScheduledScreening> findPatientOrderScheduledScreeningById(@Nullable UUID patientOrderScheduledScreeningId) {
 		if (patientOrderScheduledScreeningId == null)
 			return Optional.empty();
@@ -4234,48 +4250,64 @@ public class PatientOrderService implements AutoCloseable {
 			patientOrderRequest.setPatientBirthdate(format("%d/%d/%d", dateTimeOfBirthAsLocalDate.getMonthValue(),
 					dateTimeOfBirthAsLocalDate.getDayOfMonth(), dateTimeOfBirthAsLocalDate.getYear()));
 
-			if (hl7GeneralOrderTriggerEvent.getPatient().getInsurance() == null)
-				throw new ValidationException(getStrings().get("Unable to find patient insurance in HL7 message"));
+			String primaryPayorId = null;
+			String primaryPayorName = null;
+			String primaryPlanId = null;
+			String primaryPlanName = null;
 
-			Hl7InsuranceSection insuranceSection = hl7GeneralOrderTriggerEvent.getPatient().getInsurance().stream().findFirst().orElse(null);
+			List<Hl7InsuranceSection> insuranceSections = hl7GeneralOrderTriggerEvent.getPatient().getInsurance();
+			Hl7InsuranceSection insuranceSection = insuranceSections == null || insuranceSections.size() == 0 ? null : insuranceSections.get(0);
 			Hl7InsuranceSegment insurance = insuranceSection == null ? null : insuranceSection.getInsurance();
 
-			if (insuranceSection == null || insurance == null)
-				throw new ValidationException(getStrings().get("Unable to find patient insurance in HL7 message"));
+			if (insuranceSections == null || insuranceSection == null || insurance == null) {
+				getLogger().warn("Unable to find patient insurance in HL7 message");
+			} else {
+				// Example:
+				//
+				// "insuranceCompanyId": [
+				//   {
+				//     "idNumber": "300500"
+				//   }
+				// ],
+				// "insuranceCompanyName": [
+				//   {
+				//     "organizationName": "MEDICARE"
+				//   }
+				// ]
+				primaryPayorId = insurance.getInsuranceCompanyId().stream()
+						.map(insuranceCompanyId -> insuranceCompanyId.getIdNumber())
+						.findFirst()
+						.orElse(null);
 
-			// Example:
-			//
-			// "insuranceCompanyId": [
-			//   {
-			//     "idNumber": "300500"
-			//   }
-			// ],
-			// "insuranceCompanyName": [
-			//   {
-			//     "organizationName": "MEDICARE"
-			//   }
-			// ]
-			String primaryPayorId = insurance.getInsuranceCompanyId().stream()
-					.map(insuranceCompanyId -> insuranceCompanyId.getIdNumber())
-					.findFirst()
-					.orElse(null);
+				primaryPayorName = insurance.getInsuranceCompanyName().stream()
+						.map(insuranceCompanyName -> insuranceCompanyName.getOrganizationName())
+						.findFirst()
+						.orElse(null);
 
-			String primaryPayorName = insurance.getInsuranceCompanyName().stream()
-					.map(insuranceCompanyName -> insuranceCompanyName.getOrganizationName())
-					.findFirst()
-					.orElse(null);
+				// Example:
+				//
+				// "insurancePlanId": {
+				//   "identifier": "137003",
+				//   "text": "MEDICARE PART A & B"
+				// }
+				primaryPlanId = insurance.getInsurancePlanId().getIdentifier();
+				primaryPlanName = insurance.getInsurancePlanId().getText();
+			}
+
+			// TODO: confirm this is OK
+			if (primaryPayorId == null)
+				primaryPayorId = "UNKNOWN";
+			if (primaryPayorName == null)
+				primaryPayorName = "Unknown";
+			if (primaryPlanId == null)
+				primaryPlanId = "UNKNOWN";
+			if (primaryPlanName == null)
+				primaryPlanName = "Unknown";
 
 			patientOrderRequest.setPrimaryPayorId(primaryPayorId);
 			patientOrderRequest.setPrimaryPayorName(primaryPayorName);
-
-			// Example:
-			//
-			// "insurancePlanId": {
-			//   "identifier": "137003",
-			//   "text": "MEDICARE PART A & B"
-			// }
-			patientOrderRequest.setPrimaryPlanId(insurance.getInsurancePlanId().getIdentifier());
-			patientOrderRequest.setPrimaryPlanName(insurance.getInsurancePlanId().getText());
+			patientOrderRequest.setPrimaryPlanId(primaryPlanId);
+			patientOrderRequest.setPrimaryPlanName(primaryPlanName);
 
 			order.getCommonOrder().getDateTimeOfTransaction();
 
@@ -4392,35 +4424,126 @@ public class PatientOrderService implements AutoCloseable {
 
 			patientOrderRequest.setReasonsForReferral(reasonsForReferral);
 
-			/* TODO: complete
+			// Example:
+			//
+			// "diagnosis": [
+			//   {
+			//     "setId": 1,
+			//     "diagnosisCodingMethod": "ICD-10-CM",
+			//     "diagnosisCode": {
+			//       "identifier": "E78.2",
+			//       "text": "Mixed hyperlipidemia",
+			//       "nameOfCodingSystem": "ICD-10-CM"
+			//     },
+			//     "diagnosisDescription": "Mixed hyperlipidemia"
+			//   }
+			// ]
 
+			List<Hl7DiagnosisSegment> diagnoses = order.getOrderDetail().getDiagnosis();
 
-			// Might be encoded as names + bracketed IDs in CSV like this (a single field with newlines)
-			// "GAD (generalized anxiety disorder) [213881]
-			// Smoker [283397]
-			// Alcohol abuse [155739]"
-			String diagnosesAsString = trimToNull(record.get("DX"));
-			List<CreatePatientOrderDiagnosisRequest> diagnoses = parseNamesWithEmbeddedIds(diagnosesAsString).stream()
-					.map(nameWithEmbeddedId -> {
+			if (diagnoses == null || diagnoses.size() == 0)
+				throw new ValidationException(getStrings().get("HL7 Order is missing diagnoses."));
+
+			patientOrderRequest.setDiagnoses(diagnoses.stream()
+					.map(diagnosis -> {
 						CreatePatientOrderDiagnosisRequest diagnosisRequest = new CreatePatientOrderDiagnosisRequest();
-						diagnosisRequest.setDiagnosisId(nameWithEmbeddedId.getId().orElse(null));
-						diagnosisRequest.setDiagnosisName(nameWithEmbeddedId.getName());
+						diagnosisRequest.setDiagnosisId(diagnosis.getDiagnosisCode().getIdentifier());
+						diagnosisRequest.setDiagnosisName(diagnosis.getDiagnosisDescription());
 						return diagnosisRequest;
 					})
-					.collect(Collectors.toList());
+					.collect(Collectors.toList()));
 
-			patientOrderRequest.setDiagnoses(diagnoses);
+			// TODO: confirm we don't need this
+			patientOrderRequest.setAssociatedDiagnosis(null);
 
-			patientOrderRequest.setAssociatedDiagnosis(trimToNull(record.get("Order Associated Diagnosis (ICD-10)")));
-			patientOrderRequest.setPatientPhoneNumber(trimToNull(record.get("Call Back Number")));
-			patientOrderRequest.setPreferredContactHours(trimToNull(record.get("Preferred Contact Hours")));
-			patientOrderRequest.setComments(trimToNull(record.get("Order Comments")));
-			patientOrderRequest.setCcRecipients(trimToNull(record.get("IMG CC Recipients")));
-			patientOrderRequest.setPatientAddressLine1(trimToNull(record.get("Patient Address (Line 1)")));
-			patientOrderRequest.setPatientAddressLine2(trimToNull(record.get("Patient Address (Line 2)")));
-			patientOrderRequest.setPatientLocality(trimToNull(record.get("City")));
-			patientOrderRequest.setPatientRegion(trimToNull(record.get("Patient State")));
-			patientOrderRequest.setPatientPostalCode(trimToNull(record.get("ZIP Code")));
+			// For patient phone number, look at notes first.
+			//
+			// Example:
+			///
+			// {
+			//   "setId": 5,
+			//   "comment": [
+			//     "Preferred phone number:->XXX-XXX-XXXX"
+			//   ]
+			// }
+
+			String patientPhoneNumber = null;
+
+			for (Hl7NotesAndCommentsSegment notesAndComments : order.getOrderDetail().getNotesAndComments()) {
+				for (String comment : notesAndComments.getComment()) {
+					comment = trimToNull(comment);
+
+					if (comment == null)
+						continue;
+
+					if (comment.startsWith("Preferred phone number:->")) {
+						patientPhoneNumber = comment.replace("Preferred phone number:->", "").trim();
+						break;
+					}
+				}
+			}
+
+			// No phone number in the notes?  Check patient details
+			if (patientPhoneNumber == null && order.getCommonOrder().getCallBackPhoneNumber() != null) {
+				for (Hl7ExtendedTelecommunicationNumber callBackPhoneNumber : order.getCommonOrder().getCallBackPhoneNumber()) {
+					if (callBackPhoneNumber.getTelephoneNumber() != null) {
+						patientPhoneNumber = callBackPhoneNumber.getTelephoneNumber();
+						break;
+					}
+				}
+			}
+
+			// Some test phone numbers are 800 numbers, which Google libphonenumber doesn't like.
+			// Adjust them in nonproduction environments.
+			if (!getConfiguration().isProduction()) {
+				if (patientPhoneNumber.startsWith("800"))
+					patientPhoneNumber = format("+1%s", patientPhoneNumber);
+			}
+
+			patientOrderRequest.setPatientPhoneNumber(patientPhoneNumber);
+			patientOrderRequest.setPreferredContactHours(null);
+
+			List<String> comments = new ArrayList<>();
+
+			for (Hl7NotesAndCommentsSegment notesAndComments : order.getOrderDetail().getNotesAndComments()) {
+				for (String comment : notesAndComments.getComment()) {
+					comment = trimToNull(comment);
+
+					if (comment != null)
+						comments.add(comment);
+				}
+			}
+
+			patientOrderRequest.setComments(comments.stream().collect(Collectors.joining("\n")));
+			patientOrderRequest.setCcRecipients(null);
+
+			Hl7ExtendedAddress patientAddress = patient.getPatientIdentification().getPatientAddress().stream().findFirst().orElse(null);
+
+			if (patientAddress != null) {
+				// Example:
+				//
+				// "patientAddress": [
+				//   {
+				//     "streetAddress": {
+				//       "streetOrMailingAddress": "STARK TOWER"
+				//     },
+				//     "city": "NEW YORK",
+				//     "stateOrProvince": "NY",
+				//     "zipOrPostalCode": "10108",
+				//     "country": "USA",
+				//     "addressType": "P",
+				//     "countyParishCode": "NEW YORK"
+				//   }
+				// ]
+
+				patientOrderRequest.setPatientAddressLine1(trimToNull(patientAddress.getStreetAddress().getStreetOrMailingAddress()));
+				patientOrderRequest.setPatientAddressLine2(trimToNull(patientAddress.getOtherDesignation()));
+				patientOrderRequest.setPatientLocality(trimToNull(patientAddress.getCity()));
+				patientOrderRequest.setPatientRegion(trimToNull(patientAddress.getStateOrProvince()));
+				patientOrderRequest.setPatientPostalCode(trimToNull(patientAddress.getZipOrPostalCode()));
+			}
+
+			/* TODO: complete
 
 			// e.g. "Take 1 tablet by mouth daily.<br>E-Prescribe, Disp-60 tablet, R-1"
 			String lastActiveMedicationOrderSummary = trimToNull(record.get("CCBH Last Active Med Order Summary"));
@@ -4607,8 +4730,8 @@ public class PatientOrderService implements AutoCloseable {
 		String testPatientEmailAddress = trimToNull(request.getTestPatientEmailAddress());
 		String testPatientPassword = trimToNull(request.getTestPatientPassword());
 		boolean testPatientOrder = request.getTestPatientOrder() != null ? request.getTestPatientOrder() : false;
+		UUID epicDepartmentId = null;
 		UUID patientOrderId = UUID.randomUUID();
-		Institution institution = null;
 		ValidationException validationException = new ValidationException();
 
 		// TODO: revisit when we support non-US institutions
@@ -4622,8 +4745,6 @@ public class PatientOrderService implements AutoCloseable {
 
 		if (institutionId == null)
 			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
-		else
-			institution = getInstitutionService().findInstitutionById(institutionId).get();
 
 		if (patientMrn == null)
 			validationException.add(new FieldError("patientMrn", getStrings().get("Patient MRN is required.")));
@@ -4715,9 +4836,9 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientBirthSexIdAsString != null) {
 			String normalizedPatientBirthSexIdAsString = patientBirthSexIdAsString.toUpperCase(Locale.US);
 
-			if ("MALE".equals(normalizedPatientBirthSexIdAsString))
+			if ("MALE".equals(normalizedPatientBirthSexIdAsString) || "M".equals(normalizedPatientBirthSexIdAsString))
 				patientBirthSexId = BirthSexId.MALE;
-			else if ("FEMALE".equals(normalizedPatientBirthSexIdAsString))
+			else if ("FEMALE".equals(normalizedPatientBirthSexIdAsString) || "F".equals(normalizedPatientBirthSexIdAsString))
 				patientBirthSexId = BirthSexId.FEMALE;
 		}
 
@@ -4778,6 +4899,31 @@ public class PatientOrderService implements AutoCloseable {
 		if (primaryPlanName == null)
 			validationException.add(new FieldError("primaryPlanName", getStrings().get("Primary plan name is required.")));
 
+		if (encounterDepartmentId == null) {
+			validationException.add(new FieldError("encounterDepartmentId", getStrings().get("Encounter department ID is required.")));
+		} else {
+			List<EpicDepartment> epicDepartments = findEpicDepartmentsByInstitutionId(institutionId);
+
+			for (EpicDepartment epicDepartment : epicDepartments) {
+				if (epicDepartment.getDepartmentId().equals(encounterDepartmentId)) {
+					epicDepartmentId = epicDepartment.getEpicDepartmentId();
+					break;
+				}
+			}
+
+			if (epicDepartmentId == null) {
+				if (getConfiguration().isProduction()) {
+					validationException.add(new FieldError("encounterDepartmentId", getStrings().get("Unsupported encounter department ID '{{encounterDepartmentId}}' was specified.",
+							Map.of("encounterDepartmentId", encounterDepartmentId))));
+				} else {
+					EpicDepartment fallbackEpicDepartment = epicDepartments.get(0);
+					getLogger().warn("Unsupported encounter department ID '{}' was specified, going to default to fallback '{}' instead.",
+							encounterDepartmentId, fallbackEpicDepartment.getDepartmentId());
+					epicDepartmentId = fallbackEpicDepartment.getEpicDepartmentId();
+				}
+			}
+		}
+
 		if (validationException.hasErrors())
 			throw validationException;
 
@@ -4792,6 +4938,7 @@ public class PatientOrderService implements AutoCloseable {
 						  encounter_department_id,
 						  encounter_department_id_type,
 						  encounter_department_name,
+						  epic_department_id,
 						  referring_practice_id,
 						  referring_practice_id_type,
 						  referring_practice_name,
@@ -4831,10 +4978,10 @@ public class PatientOrderService implements AutoCloseable {
 						  test_patient_email_address,
 						  test_patient_password,
 						  test_patient_order
-						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				patientOrderId, patientOrderDispositionId, patientOrderImportId,
-				institutionId, encounterDepartmentId, encounterDepartmentIdType, encounterDepartmentName, referringPracticeId,
+				institutionId, encounterDepartmentId, encounterDepartmentIdType, encounterDepartmentName, epicDepartmentId, referringPracticeId,
 				referringPracticeIdType, referringPracticeName, orderingProviderId, orderingProviderIdType, orderingProviderLastName,
 				orderingProviderFirstName, orderingProviderMiddleName, billingProviderId, billingProviderIdType,
 				billingProviderLastName, billingProviderFirstName, billingProviderMiddleName, patientLastName, patientFirstName,
@@ -5402,20 +5549,15 @@ public class PatientOrderService implements AutoCloseable {
 
 						// Per https://fhir.epic.com/Specifications?api=30
 						// identifiers are of the format <OID>|<value>
-						PatientSearchResponse patientSearchResponse = epicClient.performPatientSearch(new PatientSearchRequest() {{
-							setIdentifier(format("%s|%s", institution.getEpicPatientUniqueIdType(), demographicsImportNeededPatientOrder.getPatientUniqueId()));
-						}});
+						PatientReadFhirR4Response patientReadResponse = epicClient.patientReadFhirR4(institution.getEpicPatientUniqueIdType(), demographicsImportNeededPatientOrder.getPatientUniqueId()).orElse(null);
 
-						if (patientSearchResponse.getTotal() == null)
+						if (patientReadResponse == null)
 							throw new IllegalStateException(format("Unable to extract total count for %s patient with ID %s",
 									institution.getInstitutionId().name(), demographicsImportNeededPatientOrder.getPatientUniqueId()));
-						else if (patientSearchResponse.getTotal() != 1)
-							throw new IllegalStateException(format("Expected 1 result for %s patient with ID %s but got %s instead",
-									institution.getInstitutionId().name(), demographicsImportNeededPatientOrder.getPatientUniqueId(), patientSearchResponse.getTotal()));
 
-						EthnicityId ethnicityId = patientSearchResponse.extractEthnicityId().orElse(EthnicityId.NOT_ASKED);
-						RaceId raceId = patientSearchResponse.extractRaceId().orElse(RaceId.NOT_ASKED);
-						BirthSexId birthSexId = patientSearchResponse.extractBirthSexId().orElse(BirthSexId.NOT_ASKED);
+						EthnicityId ethnicityId = patientReadResponse.extractEthnicityId().orElse(EthnicityId.NOT_ASKED);
+						RaceId raceId = patientReadResponse.extractRaceId().orElse(RaceId.NOT_ASKED);
+						BirthSexId birthSexId = patientReadResponse.extractBirthSexId().orElse(BirthSexId.NOT_ASKED);
 
 						getDatabase().execute("""
 										UPDATE patient_order
@@ -5640,7 +5782,8 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
-	protected PatientOrderScheduledMessageGroupApiResponseFactory getPatientOrderScheduledMessageGroupApiResponseFactory() {
+	protected PatientOrderScheduledMessageGroupApiResponseFactory getPatientOrderScheduledMessageGroupApiResponseFactory
+			() {
 		return this.patientOrderScheduledMessageGroupApiResponseFactory;
 	}
 
