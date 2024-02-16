@@ -306,7 +306,11 @@ public class MyChartService {
 
 		String epicPatientMrn = institution.getEpicPatientMrnSystem() != null
 				? patient.extractIdentifierBySystem(institution.getEpicPatientMrnSystem()).orElse(null)
-				: patient.extractIdentifierByType(institution.getEpicMrnTypeName()).orElse(null);
+				: patient.extractIdentifierByType(institution.getEpicPatientMrnTypeName()).orElse(null);
+
+		// One last try
+		if (epicPatientMrn == null)
+			epicPatientMrn = patient.extractIdentifierByType(institution.getEpicPatientMrnTypeAlternateName()).orElse(null);
 
 		// Failsafe; should never occur unless institution is misconfigured
 		if (epicPatientMrn == null)
@@ -394,13 +398,14 @@ public class MyChartService {
 		}
 
 		CreateAddressRequest pinnedAddressRequest = addressRequest;
+		String pinnedEpicPatientMrn = epicPatientMrn;
 		String pinnedEpicPatientFhirId = epicPatientFhirId;
 		String pinnedEpicPatientUniqueId = epicPatientUniqueId;
 		String pinnedEpicPatientUniqueIdType = epicPatientUniqueIdType;
 		String pinnedSsoId = ssoId;
 
 		return getAccountService().createAccount(new CreateAccountRequest() {{
-			setEpicPatientMrn(epicPatientMrn);
+			setEpicPatientMrn(pinnedEpicPatientMrn);
 			setEpicPatientFhirId(pinnedEpicPatientFhirId);
 			setEpicPatientUniqueId(pinnedEpicPatientUniqueId);
 			setEpicPatientUniqueIdType(pinnedEpicPatientUniqueIdType);

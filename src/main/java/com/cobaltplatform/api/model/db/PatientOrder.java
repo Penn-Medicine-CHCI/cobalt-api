@@ -222,7 +222,7 @@ public class PatientOrder {
 	@Nullable
 	private UUID epicDepartmentId;
 	@Nullable
-	private String encounterId;
+	private String encounterCsn;
 	@Nullable
 	private Instant encounterSyncedAt;
 	@Nullable
@@ -1764,5 +1764,41 @@ public class PatientOrder {
 
 	public void setMostRecentIntakeAndClinicalScreeningsSatisfied(@Nullable Boolean mostRecentIntakeAndClinicalScreeningsSatisfied) {
 		this.mostRecentIntakeAndClinicalScreeningsSatisfied = mostRecentIntakeAndClinicalScreeningsSatisfied;
+	}
+
+	@Nullable
+	public UUID getEpicDepartmentId() {
+		return this.epicDepartmentId;
+	}
+
+	public void setEpicDepartmentId(@Nullable UUID epicDepartmentId) {
+		this.epicDepartmentId = epicDepartmentId;
+	}
+
+	@Nullable
+	public String getEncounterCsn() {
+		return this.encounterCsn;
+	}
+
+	public void setEncounterCsn(@Nullable String encounterCsn) {
+		this.encounterCsn = encounterCsn;
+	}
+
+	@Nullable
+	public Instant getEncounterSyncedAt() {
+		return this.encounterSyncedAt;
+	}
+
+	public void setEncounterSyncedAt(@Nullable Instant encounterSyncedAt) {
+		this.encounterSyncedAt = encounterSyncedAt;
+	}
+
+	@Nullable
+	public String getEpicDepartmentName() {
+		return this.epicDepartmentName;
+	}
+
+	public void setEpicDepartmentName(@Nullable String epicDepartmentName) {
+		this.epicDepartmentName = epicDepartmentName;
 	}
 }

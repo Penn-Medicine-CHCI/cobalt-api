@@ -346,4 +346,454 @@ public class Hl7ObservationRequestSegment extends Hl7Object {
 				this.parentUniversalServiceIdentifier = new Hl7CodedWithExceptions(obr.getParentUniversalServiceIdentifier());
 		}
 	}
+
+	@Nullable
+	public Integer getSetId() {
+		return this.setId;
+	}
+
+	public void setSetId(@Nullable Integer setId) {
+		this.setId = setId;
+	}
+
+	@Nullable
+	public Hl7EntityIdentifier getPlacerOrderNumber() {
+		return this.placerOrderNumber;
+	}
+
+	public void setPlacerOrderNumber(@Nullable Hl7EntityIdentifier placerOrderNumber) {
+		this.placerOrderNumber = placerOrderNumber;
+	}
+
+	@Nullable
+	public Hl7EntityIdentifier getFillerOrderNumber() {
+		return this.fillerOrderNumber;
+	}
+
+	public void setFillerOrderNumber(@Nullable Hl7EntityIdentifier fillerOrderNumber) {
+		this.fillerOrderNumber = fillerOrderNumber;
+	}
+
+	@Nullable
+	public Hl7CodedElement getUniversalServiceIdentifier() {
+		return this.universalServiceIdentifier;
+	}
+
+	public void setUniversalServiceIdentifier(@Nullable Hl7CodedElement universalServiceIdentifier) {
+		this.universalServiceIdentifier = universalServiceIdentifier;
+	}
+
+	@Nullable
+	public String getPriority() {
+		return this.priority;
+	}
+
+	public void setPriority(@Nullable String priority) {
+		this.priority = priority;
+	}
+
+	@Nullable
+	public Hl7TimeStamp getRequestedDateTime() {
+		return this.requestedDateTime;
+	}
+
+	public void setRequestedDateTime(@Nullable Hl7TimeStamp requestedDateTime) {
+		this.requestedDateTime = requestedDateTime;
+	}
+
+	@Nullable
+	public Hl7TimeStamp getObservationDateTime() {
+		return this.observationDateTime;
+	}
+
+	public void setObservationDateTime(@Nullable Hl7TimeStamp observationDateTime) {
+		this.observationDateTime = observationDateTime;
+	}
+
+	@Nullable
+	public Hl7TimeStamp getObservationEndDateTime() {
+		return this.observationEndDateTime;
+	}
+
+	public void setObservationEndDateTime(@Nullable Hl7TimeStamp observationEndDateTime) {
+		this.observationEndDateTime = observationEndDateTime;
+	}
+
+	@Nullable
+	public Hl7CompositeQuantityWithUnits getCollectionVolume() {
+		return this.collectionVolume;
+	}
+
+	public void setCollectionVolume(@Nullable Hl7CompositeQuantityWithUnits collectionVolume) {
+		this.collectionVolume = collectionVolume;
+	}
+
+	@Nullable
+	public List<Hl7ExtendedCompositeIdNumberAndNameForPersons> getCollectorIdentifier() {
+		return this.collectorIdentifier;
+	}
+
+	public void setCollectorIdentifier(@Nullable List<Hl7ExtendedCompositeIdNumberAndNameForPersons> collectorIdentifier) {
+		this.collectorIdentifier = collectorIdentifier;
+	}
+
+	@Nullable
+	public String getSpecimenActionCode() {
+		return this.specimenActionCode;
+	}
+
+	public void setSpecimenActionCode(@Nullable String specimenActionCode) {
+		this.specimenActionCode = specimenActionCode;
+	}
+
+	@Nullable
+	public Hl7CodedElement getDangerCode() {
+		return this.dangerCode;
+	}
+
+	public void setDangerCode(@Nullable Hl7CodedElement dangerCode) {
+		this.dangerCode = dangerCode;
+	}
+
+	@Nullable
+	public String getRelevantClinicalInformation() {
+		return this.relevantClinicalInformation;
+	}
+
+	public void setRelevantClinicalInformation(@Nullable String relevantClinicalInformation) {
+		this.relevantClinicalInformation = relevantClinicalInformation;
+	}
+
+	@Nullable
+	public Hl7TimeStamp getSpecimenReceivedDateTime() {
+		return this.specimenReceivedDateTime;
+	}
+
+	public void setSpecimenReceivedDateTime(@Nullable Hl7TimeStamp specimenReceivedDateTime) {
+		this.specimenReceivedDateTime = specimenReceivedDateTime;
+	}
+
+	@Nullable
+	public Hl7SpecimenSource getSpecimenSource() {
+		return this.specimenSource;
+	}
+
+	public void setSpecimenSource(@Nullable Hl7SpecimenSource specimenSource) {
+		this.specimenSource = specimenSource;
+	}
+
+	@Nullable
+	public List<Hl7ExtendedCompositeIdNumberAndNameForPersons> getOrderingProvider() {
+		return this.orderingProvider;
+	}
+
+	public void setOrderingProvider(@Nullable List<Hl7ExtendedCompositeIdNumberAndNameForPersons> orderingProvider) {
+		this.orderingProvider = orderingProvider;
+	}
+
+	@Nullable
+	public List<Hl7ExtendedTelecommunicationNumber> getOrderCallbackPhoneNumber() {
+		return this.orderCallbackPhoneNumber;
+	}
+
+	public void setOrderCallbackPhoneNumber(@Nullable List<Hl7ExtendedTelecommunicationNumber> orderCallbackPhoneNumber) {
+		this.orderCallbackPhoneNumber = orderCallbackPhoneNumber;
+	}
+
+	@Nullable
+	public String getPlacerField1() {
+		return this.placerField1;
+	}
+
+	public void setPlacerField1(@Nullable String placerField1) {
+		this.placerField1 = placerField1;
+	}
+
+	@Nullable
+	public String getPlacerField2() {
+		return this.placerField2;
+	}
+
+	public void setPlacerField2(@Nullable String placerField2) {
+		this.placerField2 = placerField2;
+	}
+
+	@Nullable
+	public String getFillerField1() {
+		return this.fillerField1;
+	}
+
+	public void setFillerField1(@Nullable String fillerField1) {
+		this.fillerField1 = fillerField1;
+	}
+
+	@Nullable
+	public String getFillerField2() {
+		return this.fillerField2;
+	}
+
+	public void setFillerField2(@Nullable String fillerField2) {
+		this.fillerField2 = fillerField2;
+	}
+
+	@Nullable
+	public Hl7TimeStamp getResultsRptStatusChngDateTime() {
+		return this.resultsRptStatusChngDateTime;
+	}
+
+	public void setResultsRptStatusChngDateTime(@Nullable Hl7TimeStamp resultsRptStatusChngDateTime) {
+		this.resultsRptStatusChngDateTime = resultsRptStatusChngDateTime;
+	}
+
+	@Nullable
+	public Hl7MoneyAndCode getChargeToPractice() {
+		return this.chargeToPractice;
+	}
+
+	public void setChargeToPractice(@Nullable Hl7MoneyAndCode chargeToPractice) {
+		this.chargeToPractice = chargeToPractice;
+	}
+
+	@Nullable
+	public String getDiagnosticServSectId() {
+		return this.diagnosticServSectId;
+	}
+
+	public void setDiagnosticServSectId(@Nullable String diagnosticServSectId) {
+		this.diagnosticServSectId = diagnosticServSectId;
+	}
+
+	@Nullable
+	public String getResultStatus() {
+		return this.resultStatus;
+	}
+
+	public void setResultStatus(@Nullable String resultStatus) {
+		this.resultStatus = resultStatus;
+	}
+
+	@Nullable
+	public Hl7ParentResultLink getParentResult() {
+		return this.parentResult;
+	}
+
+	public void setParentResult(@Nullable Hl7ParentResultLink parentResult) {
+		this.parentResult = parentResult;
+	}
+
+	@Nullable
+	public List<Hl7TimingQuantity> getQuantityTiming() {
+		return this.quantityTiming;
+	}
+
+	public void setQuantityTiming(@Nullable List<Hl7TimingQuantity> quantityTiming) {
+		this.quantityTiming = quantityTiming;
+	}
+
+	@Nullable
+	public List<Hl7ExtendedCompositeIdNumberAndNameForPersons> getResultCopiesTo() {
+		return this.resultCopiesTo;
+	}
+
+	public void setResultCopiesTo(@Nullable List<Hl7ExtendedCompositeIdNumberAndNameForPersons> resultCopiesTo) {
+		this.resultCopiesTo = resultCopiesTo;
+	}
+
+	@Nullable
+	public Hl7EntityIdentifierPair getParent() {
+		return this.parent;
+	}
+
+	public void setParent(@Nullable Hl7EntityIdentifierPair parent) {
+		this.parent = parent;
+	}
+
+	@Nullable
+	public String getTransportationMode() {
+		return this.transportationMode;
+	}
+
+	public void setTransportationMode(@Nullable String transportationMode) {
+		this.transportationMode = transportationMode;
+	}
+
+	@Nullable
+	public List<Hl7CodedElement> getReasonForStudy() {
+		return this.reasonForStudy;
+	}
+
+	public void setReasonForStudy(@Nullable List<Hl7CodedElement> reasonForStudy) {
+		this.reasonForStudy = reasonForStudy;
+	}
+
+	@Nullable
+	public Hl7NameWithDateAndLocation getPrincipalResultInterpreter() {
+		return this.principalResultInterpreter;
+	}
+
+	public void setPrincipalResultInterpreter(@Nullable Hl7NameWithDateAndLocation principalResultInterpreter) {
+		this.principalResultInterpreter = principalResultInterpreter;
+	}
+
+	@Nullable
+	public List<Hl7NameWithDateAndLocation> getAssistantResultInterpreter() {
+		return this.assistantResultInterpreter;
+	}
+
+	public void setAssistantResultInterpreter(@Nullable List<Hl7NameWithDateAndLocation> assistantResultInterpreter) {
+		this.assistantResultInterpreter = assistantResultInterpreter;
+	}
+
+	@Nullable
+	public List<Hl7NameWithDateAndLocation> getTechnician() {
+		return this.technician;
+	}
+
+	public void setTechnician(@Nullable List<Hl7NameWithDateAndLocation> technician) {
+		this.technician = technician;
+	}
+
+	@Nullable
+	public List<Hl7NameWithDateAndLocation> getTranscriptionist() {
+		return this.transcriptionist;
+	}
+
+	public void setTranscriptionist(@Nullable List<Hl7NameWithDateAndLocation> transcriptionist) {
+		this.transcriptionist = transcriptionist;
+	}
+
+	@Nullable
+	public Hl7TimeStamp getScheduledDateTime() {
+		return this.scheduledDateTime;
+	}
+
+	public void setScheduledDateTime(@Nullable Hl7TimeStamp scheduledDateTime) {
+		this.scheduledDateTime = scheduledDateTime;
+	}
+
+	@Nullable
+	public Integer getNumberOfSampleContainers() {
+		return this.numberOfSampleContainers;
+	}
+
+	public void setNumberOfSampleContainers(@Nullable Integer numberOfSampleContainers) {
+		this.numberOfSampleContainers = numberOfSampleContainers;
+	}
+
+	@Nullable
+	public List<Hl7CodedElement> getTransportLogisticsOfCollectedSample() {
+		return this.transportLogisticsOfCollectedSample;
+	}
+
+	public void setTransportLogisticsOfCollectedSample(@Nullable List<Hl7CodedElement> transportLogisticsOfCollectedSample) {
+		this.transportLogisticsOfCollectedSample = transportLogisticsOfCollectedSample;
+	}
+
+	@Nullable
+	public List<Hl7CodedElement> getCollectorsComment() {
+		return this.collectorsComment;
+	}
+
+	public void setCollectorsComment(@Nullable List<Hl7CodedElement> collectorsComment) {
+		this.collectorsComment = collectorsComment;
+	}
+
+	@Nullable
+	public Hl7CodedElement getTransportArrangementResponsibility() {
+		return this.transportArrangementResponsibility;
+	}
+
+	public void setTransportArrangementResponsibility(@Nullable Hl7CodedElement transportArrangementResponsibility) {
+		this.transportArrangementResponsibility = transportArrangementResponsibility;
+	}
+
+	@Nullable
+	public String getTransportArranged() {
+		return this.transportArranged;
+	}
+
+	public void setTransportArranged(@Nullable String transportArranged) {
+		this.transportArranged = transportArranged;
+	}
+
+	@Nullable
+	public String getEscortRequired() {
+		return this.escortRequired;
+	}
+
+	public void setEscortRequired(@Nullable String escortRequired) {
+		this.escortRequired = escortRequired;
+	}
+
+	@Nullable
+	public List<Hl7CodedElement> getPlannedPatientTransportComment() {
+		return this.plannedPatientTransportComment;
+	}
+
+	public void setPlannedPatientTransportComment(@Nullable List<Hl7CodedElement> plannedPatientTransportComment) {
+		this.plannedPatientTransportComment = plannedPatientTransportComment;
+	}
+
+	@Nullable
+	public Hl7CodedElement getProcedureCode() {
+		return this.procedureCode;
+	}
+
+	public void setProcedureCode(@Nullable Hl7CodedElement procedureCode) {
+		this.procedureCode = procedureCode;
+	}
+
+	@Nullable
+	public List<Hl7CodedElement> getProcedureCodeModifier() {
+		return this.procedureCodeModifier;
+	}
+
+	public void setProcedureCodeModifier(@Nullable List<Hl7CodedElement> procedureCodeModifier) {
+		this.procedureCodeModifier = procedureCodeModifier;
+	}
+
+	@Nullable
+	public List<Hl7CodedElement> getPlacerSupplementalServiceInformation() {
+		return this.placerSupplementalServiceInformation;
+	}
+
+	public void setPlacerSupplementalServiceInformation(@Nullable List<Hl7CodedElement> placerSupplementalServiceInformation) {
+		this.placerSupplementalServiceInformation = placerSupplementalServiceInformation;
+	}
+
+	@Nullable
+	public List<Hl7CodedElement> getFillerSupplementalServiceInformation() {
+		return this.fillerSupplementalServiceInformation;
+	}
+
+	public void setFillerSupplementalServiceInformation(@Nullable List<Hl7CodedElement> fillerSupplementalServiceInformation) {
+		this.fillerSupplementalServiceInformation = fillerSupplementalServiceInformation;
+	}
+
+	@Nullable
+	public Hl7CodedWithExceptions getMedicallyNecessaryDuplicateProcedureReason() {
+		return this.medicallyNecessaryDuplicateProcedureReason;
+	}
+
+	public void setMedicallyNecessaryDuplicateProcedureReason(@Nullable Hl7CodedWithExceptions medicallyNecessaryDuplicateProcedureReason) {
+		this.medicallyNecessaryDuplicateProcedureReason = medicallyNecessaryDuplicateProcedureReason;
+	}
+
+	@Nullable
+	public String getResultHandling() {
+		return this.resultHandling;
+	}
+
+	public void setResultHandling(@Nullable String resultHandling) {
+		this.resultHandling = resultHandling;
+	}
+
+	@Nullable
+	public Hl7CodedWithExceptions getParentUniversalServiceIdentifier() {
+		return this.parentUniversalServiceIdentifier;
+	}
+
+	public void setParentUniversalServiceIdentifier(@Nullable Hl7CodedWithExceptions parentUniversalServiceIdentifier) {
+		this.parentUniversalServiceIdentifier = parentUniversalServiceIdentifier;
+	}
 }

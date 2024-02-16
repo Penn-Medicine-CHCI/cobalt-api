@@ -42,7 +42,7 @@ public class Hl7ClientTests {
 
 	@Test
 	public void testHl7Parsing() throws Exception {
-		byte[] generalOrderHl7 = Files.readAllBytes(Path.of("localstack/secrets/patient-order-hl7/To_COBALT_Ord_20240208_09.txt"));
+		byte[] generalOrderHl7 = Files.readAllBytes(Path.of("localstack/secrets/patient-order-hl7/To_COBALT_Ord_20240206_16.txt"));
 
 		Hl7Client hl7Client = new Hl7Client();
 		String generalOrderHl7AsString = hl7Client.messageFromBytes(generalOrderHl7);

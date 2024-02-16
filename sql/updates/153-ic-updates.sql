@@ -1,11 +1,22 @@
 BEGIN;
 SELECT _v.register_patch('153-ic-updates', NULL, NULL);
 
+-- Establish some naming consistency
+ALTER TABLE institution RENAME COLUMN epic_mrn_type_name TO epic_patient_mrn_type_name;
+
+-- Some institutions can have more than one name for MRNs
+ALTER TABLE institution ADD COLUMN epic_patient_mrn_type_alternate_name TEXT;
+
+-- Need to have a way to key on CSN identifiers - use the system value
+ALTER TABLE institution ADD COLUMN epic_patient_encounter_csn_system TEXT;
+
+-- We need to have service accounts to stand in for e.g. "created by" values when a backend process is doing the work
 INSERT INTO role VALUES ('SERVICE_ACCOUNT', 'Service Account');
 
 -- Only one service account can exist per institution
 CREATE UNIQUE INDEX on account (role_id, institution_id)  where role_id = 'SERVICE_ACCOUNT';
 
+-- Epic departments can be flagged as unavailable or busy and this has special meaning, e.g. for triage rules
 CREATE TABLE department_availability_status (
 	department_availability_status_id VARCHAR NOT NULL PRIMARY KEY,
 	description VARCHAR NOT NULL
@@ -18,6 +29,7 @@ INSERT INTO department_availability_status VALUES ('BUSY', 'Busy');
 ALTER TABLE epic_department ADD COLUMN department_availability_status_id VARCHAR NOT NULL DEFAULT 'AVAILABLE' REFERENCES department_availability_status;
 CREATE UNIQUE INDEX epic_department_name_unique_idx ON epic_department USING btree (institution_id, name);
 
+-- HL7 orders are much easier to read/report over in JSON form
 ALTER TABLE patient_order_import ADD COLUMN raw_order_json_representation JSONB;
 
 -- Keep track of which department we're tied to
@@ -32,7 +44,7 @@ UPDATE patient_order SET epic_department_id='6536407a-3bc2-4065-97df-aaeedb67d34
 ALTER TABLE patient_order ALTER COLUMN epic_department_id SET NOT NULL;
 
 -- Bookkeeping for encounter sync
-ALTER TABLE patient_order ADD COLUMN encounter_id TEXT;
+ALTER TABLE patient_order ADD COLUMN encounter_csn TEXT;
 ALTER TABLE patient_order ADD COLUMN encounter_synced_at TIMESTAMPTZ;
 
 -- S3 bucket where incoming IC orders will appear
@@ -44,11 +56,11 @@ ALTER TABLE patient_order_import ADD COLUMN raw_order_filename TEXT;
 UPDATE patient_order_import_type SET patient_order_import_type_id='HL7_MESSAGE', description='HL7 Message' WHERE patient_order_import_type_id='EPIC';
 
 -- TODO: store off raw hl7 messages
--- TODO: store off epic encounter ID to patient order
+-- TODO: store off epic encounter CSN to patient order
 -- TODO: keep track of epic encounter sync status (and introduce flag in UI) for patient order
 
 -- Add epic_department_id and epic_department_name fields
--- Add encounter_id, encounter_synced_at fields
+-- Add encounter_csn, encounter_synced_at fields
 CREATE or replace VIEW v_all_patient_order AS WITH
 poo_query AS (
     -- Count up the patient outreach attempts for each patient order

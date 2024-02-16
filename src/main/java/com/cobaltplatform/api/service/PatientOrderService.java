@@ -31,6 +31,15 @@ import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse;
 import com.cobaltplatform.api.integration.hl7.Hl7Client;
 import com.cobaltplatform.api.integration.hl7.Hl7ParsingException;
 import com.cobaltplatform.api.integration.hl7.model.event.Hl7GeneralOrderTriggerEvent;
+import com.cobaltplatform.api.integration.hl7.model.section.Hl7InsuranceSection;
+import com.cobaltplatform.api.integration.hl7.model.section.Hl7OrderSection;
+import com.cobaltplatform.api.integration.hl7.model.section.Hl7PatientSection;
+import com.cobaltplatform.api.integration.hl7.model.segment.Hl7InsuranceSegment;
+import com.cobaltplatform.api.integration.hl7.model.segment.Hl7NotesAndCommentsSegment;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdNumberAndNameForPersons;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdWithCheckDigit;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedPersonName;
+import com.cobaltplatform.api.integration.hl7.model.type.Hl7PersonLocation;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.messaging.sms.SmsMessage;
@@ -4109,7 +4118,345 @@ public class PatientOrderService implements AutoCloseable {
 				throw new ValidationException(globalErrors, List.of());
 			}
 		} else if (patientOrderImportTypeId == PatientOrderImportTypeId.HL7_MESSAGE) {
-			// TODO: HL7 import
+			getLogger().info("Importing patient order from HL7 message...");
+
+			int orderCount = 0;
+
+			if (hl7GeneralOrderTriggerEvent.getOrders() != null)
+				orderCount = hl7GeneralOrderTriggerEvent.getOrders().size();
+
+			if (orderCount != 1)
+				throw new ValidationException(getStrings().get("Unexpected number of orders: expected 1 but found {{orderCount}}",
+						Map.of("orderCount", orderCount)));
+
+			Hl7OrderSection order = hl7GeneralOrderTriggerEvent.getOrders().get(0);
+
+			CreatePatientOrderRequest patientOrderRequest = new CreatePatientOrderRequest();
+			patientOrderRequest.setPatientOrderImportId(patientOrderImportId);
+			patientOrderRequest.setInstitutionId(institutionId);
+			patientOrderRequest.setAccountId(accountId);
+
+			// Example:
+			//
+			// "enterersLocation": {
+			//   "pointOfCare": "5102001",
+			//   "facility": {
+			//      "namespaceId": "510200001"
+			//    },
+			//    "locationDescription": "CC PENTAHEALTH COLONIAL FAMILY PRACTICE"
+			// }
+
+			Hl7PersonLocation encounterDepartmentLocation = order.getCommonOrder().getEnterersLocation();
+			patientOrderRequest.setEncounterDepartmentName(encounterDepartmentLocation.getLocationDescription());
+			patientOrderRequest.setEncounterDepartmentId(trimToNull(encounterDepartmentLocation.getPointOfCare()));
+
+			// Same as above
+			patientOrderRequest.setReferringPracticeId(encounterDepartmentLocation.getPointOfCare());
+			patientOrderRequest.setReferringPracticeName(encounterDepartmentLocation.getLocationDescription());
+
+			// Example:
+			//
+			// "orderingProvider": [
+			//   {
+			//     "idNumber": "1588691968",
+			//     "familyName": {
+			//       "surname": "EISENHOWER"
+			//     },
+			//     "givenName": "MICHELLE",
+			//     "secondAndFurtherGivenNamesOrInitialsThereof": "MARIE",
+			//     "assigningAuthority": {
+			//       "namespaceId": "NPI"
+			//     },
+			//     "identifierTypeCode": "NPI"
+			//   }
+			// ]
+
+			List<Hl7ExtendedCompositeIdNumberAndNameForPersons> orderingProviders = order.getOrderDetail().getOrderDetailSegment().getObservationRequest().getOrderingProvider();
+
+			if (orderingProviders == null || orderingProviders.size() == 0)
+				throw new ValidationException(getStrings().get("Unable to find ordering provider in HL7 message"));
+
+			Hl7ExtendedCompositeIdNumberAndNameForPersons orderingProvider = orderingProviders.get(0);
+			patientOrderRequest.setOrderingProviderLastName(orderingProvider.getFamilyName().getSurname());
+			patientOrderRequest.setOrderingProviderFirstName(orderingProvider.getGivenName());
+			patientOrderRequest.setOrderingProviderMiddleName(orderingProvider.getSecondAndFurtherGivenNamesOrInitialsThereof());
+
+			// TODO: determine where Billing Provider data is
+			Hl7ExtendedCompositeIdNumberAndNameForPersons billingProvider = null;
+
+			if (billingProvider != null) {
+				patientOrderRequest.setBillingProviderLastName(billingProvider.getFamilyName().getSurname());
+				patientOrderRequest.setBillingProviderFirstName(billingProvider.getGivenName());
+				patientOrderRequest.setBillingProviderMiddleName(billingProvider.getSecondAndFurtherGivenNamesOrInitialsThereof());
+			}
+
+			Hl7PatientSection patient = hl7GeneralOrderTriggerEvent.getPatient();
+
+			if (patient.getPatientIdentification().getPatientName() == null || patient.getPatientIdentification().getPatientName().size() == 0)
+				throw new ValidationException(getStrings().get("Unable to find patient name in HL7 message"));
+
+			Hl7ExtendedPersonName patientName = patient.getPatientIdentification().getPatientName().get(0);
+
+			if (patient.getPatientIdentification().getPatientIdentifierList() == null || patient.getPatientIdentification().getPatientIdentifierList().size() == 0)
+				throw new ValidationException(getStrings().get("Unable to find patient identifier elements in HL7 message"));
+
+			Hl7ExtendedCompositeIdWithCheckDigit patientMrn = patient.getPatientIdentification().getPatientIdentifierList().stream()
+					.filter(patientIdentifier -> {
+						return Objects.equals(institution.getEpicPatientMrnTypeName(), patientIdentifier.getIdentifierTypeCode())
+								|| Objects.equals(institution.getEpicPatientMrnTypeAlternateName(), patientIdentifier.getIdentifierTypeCode());
+					})
+					.findFirst()
+					.orElse(null);
+
+			if (patientMrn == null)
+				throw new ValidationException(getStrings().get("Unable to find patient MRN in HL7 message"));
+
+			Hl7ExtendedCompositeIdWithCheckDigit patientUniqueIdentifier = patient.getPatientIdentification().getPatientIdentifierList().stream()
+					.filter(patientIdentifier -> {
+						return Objects.equals(institution.getEpicPatientUniqueIdType(), patientIdentifier.getIdentifierTypeCode());
+					})
+					.findFirst()
+					.orElse(null);
+
+			if (patientUniqueIdentifier == null)
+				throw new ValidationException(getStrings().get("Unable to find patient unique identifier in HL7 message"));
+
+			patientOrderRequest.setPatientLastName(patientName.getFamilyName().getSurname());
+			patientOrderRequest.setPatientFirstName(patientName.getGivenName());
+			patientOrderRequest.setPatientMrn(trimToNull(patientMrn.getIdNumber()));
+			patientOrderRequest.setPatientUniqueId(patientUniqueIdentifier.getIdNumber());
+			patientOrderRequest.setPatientUniqueIdType(institution.getEpicPatientUniqueIdType());
+			patientOrderRequest.setPatientBirthSexId(patient.getPatientIdentification().getAdministrativeSex());
+
+			Instant dateTimeOfBirth = patient.getPatientIdentification().getDateTimeOfBirth().getTime();
+			LocalDate dateTimeOfBirthAsLocalDate = LocalDateTime.ofInstant(dateTimeOfBirth, institution.getTimeZone()).toLocalDate();
+
+			patientOrderRequest.setPatientBirthdate(format("%d/%d/%d", dateTimeOfBirthAsLocalDate.getMonthValue(),
+					dateTimeOfBirthAsLocalDate.getDayOfMonth(), dateTimeOfBirthAsLocalDate.getYear()));
+
+			if (hl7GeneralOrderTriggerEvent.getPatient().getInsurance() == null)
+				throw new ValidationException(getStrings().get("Unable to find patient insurance in HL7 message"));
+
+			Hl7InsuranceSection insuranceSection = hl7GeneralOrderTriggerEvent.getPatient().getInsurance().stream().findFirst().orElse(null);
+			Hl7InsuranceSegment insurance = insuranceSection == null ? null : insuranceSection.getInsurance();
+
+			if (insuranceSection == null || insurance == null)
+				throw new ValidationException(getStrings().get("Unable to find patient insurance in HL7 message"));
+
+			// Example:
+			//
+			// "insuranceCompanyId": [
+			//   {
+			//     "idNumber": "300500"
+			//   }
+			// ],
+			// "insuranceCompanyName": [
+			//   {
+			//     "organizationName": "MEDICARE"
+			//   }
+			// ]
+			String primaryPayorId = insurance.getInsuranceCompanyId().stream()
+					.map(insuranceCompanyId -> insuranceCompanyId.getIdNumber())
+					.findFirst()
+					.orElse(null);
+
+			String primaryPayorName = insurance.getInsuranceCompanyName().stream()
+					.map(insuranceCompanyName -> insuranceCompanyName.getOrganizationName())
+					.findFirst()
+					.orElse(null);
+
+			patientOrderRequest.setPrimaryPayorId(primaryPayorId);
+			patientOrderRequest.setPrimaryPayorName(primaryPayorName);
+
+			// Example:
+			//
+			// "insurancePlanId": {
+			//   "identifier": "137003",
+			//   "text": "MEDICARE PART A & B"
+			// }
+			patientOrderRequest.setPrimaryPlanId(insurance.getInsurancePlanId().getIdentifier());
+			patientOrderRequest.setPrimaryPlanName(insurance.getInsurancePlanId().getText());
+
+			order.getCommonOrder().getDateTimeOfTransaction();
+
+			Instant orderDate = order.getCommonOrder().getDateTimeOfTransaction().getTime();
+			LocalDate orderDateAsLocalDate = LocalDateTime.ofInstant(orderDate, institution.getTimeZone()).toLocalDate();
+
+			patientOrderRequest.setOrderDate(format("%d/%d/%d", orderDateAsLocalDate.getMonthValue(),
+					orderDateAsLocalDate.getDayOfMonth(), orderDateAsLocalDate.getYear()));
+
+			// Example:
+			//
+			// "orders": [
+			// {
+			//   "commonOrder": {
+			//      "orderControl": "NW",
+			//      "placerOrderNumber": {
+			//         "entityIdentifier": "958590",
+			//         "namespaceId": "EPC"
+			//       }
+			//
+			// TODO: confirm this is correct
+			patientOrderRequest.setOrderId(order.getCommonOrder().getPlacerOrderNumber().getEntityIdentifier());
+
+			// TODO: confirm we don't have/need this?
+			patientOrderRequest.setOrderAge("0d 0h 0m");
+
+			// TODO: confirm this is correct
+			patientOrderRequest.setRouting("Phone by Resource Center");
+
+			// Example:
+			//
+			// [{
+			//   "setId": 1,
+			//   "comment": [
+			//     "Your provider's care team is available to help you with your mental health concerns...[elided]"
+			//   ]
+			// }, {
+			//   "setId": 2,
+			//   "comment": [
+			//     "Did the patient consent to participate in IC?->Yes"
+			//   ]
+			// }, {
+			//   "setId": 3,
+			//   "comment": [
+			//     "What is the preferred type of assessment:->Phone by Resource Center"
+			//   ]
+			// }, {
+			//   "setId": 4,
+			//   "comment": [
+			//     "Instruct your patient to call XXX-XXX-XXX. [elided]"
+			//   ]
+			// }, {
+			//   "setId": 5,
+			//   "comment": [
+			//     "Preferred phone number:->XXX-XXX-XXXX"
+			//   ]
+			// }, {
+			//   "setId": 6,
+			//   "comment": [
+			//     "The number above has been auto populated. You must confirm with the patient:->Confirm"
+			//   ]
+			// }, {
+			//   "setId": 7,
+			//   "comment": [
+			//     "Referring Practice:->"FAMILY CARE PMUC"
+			//   ]
+			// }, {
+			//   "setId": 8,
+			//   "comment": [
+			//     "Reason(s) for referral: (Click on drop down menu for other reasons for consult)->Mood or depression symptoms"
+			//   ]
+			// }, {
+			//   "setId": 9,
+			//   "comment": [
+			//     "Billing provider (must be attending)->LASTNAME, FIRSTNAME X"
+			//   ]
+			// }]
+
+			List<String> reasonsForReferral = new ArrayList<>();
+			Set<String> uniqueReasonsForReferral = new HashSet<>();
+
+			for (Hl7NotesAndCommentsSegment notesAndComments : order.getOrderDetail().getNotesAndComments()) {
+				for (String comment : notesAndComments.getComment()) {
+					comment = trimToNull(comment);
+
+					if (comment == null)
+						continue;
+
+					if (comment.startsWith("Reason(s) for referral:")) {
+						comment = comment.replace("Reason(s) for referral: (Click on drop down menu for other reasons for consult)->", "").trim();
+
+						for (String reasonForReferral : comment.split(",")) {
+							reasonForReferral = trimToNull(reasonForReferral);
+
+							if (reasonForReferral != null) {
+								// Prevent duplicates for this order
+								if (uniqueReasonsForReferral.contains(reasonsForReferral))
+									continue;
+
+								uniqueReasonsForReferral.add(reasonForReferral);
+								reasonsForReferral.add(reasonForReferral);
+							}
+						}
+					}
+				}
+			}
+
+			if (!getConfiguration().isProduction()) {
+				if (reasonsForReferral.size() == 0) {
+					getLogger().warn("HL7 Order is missing reason for referral. Filling in an example one...");
+					reasonsForReferral.add("Mood or depression symptoms");
+				}
+			}
+
+			patientOrderRequest.setReasonsForReferral(reasonsForReferral);
+
+			/* TODO: complete
+
+
+			// Might be encoded as names + bracketed IDs in CSV like this (a single field with newlines)
+			// "GAD (generalized anxiety disorder) [213881]
+			// Smoker [283397]
+			// Alcohol abuse [155739]"
+			String diagnosesAsString = trimToNull(record.get("DX"));
+			List<CreatePatientOrderDiagnosisRequest> diagnoses = parseNamesWithEmbeddedIds(diagnosesAsString).stream()
+					.map(nameWithEmbeddedId -> {
+						CreatePatientOrderDiagnosisRequest diagnosisRequest = new CreatePatientOrderDiagnosisRequest();
+						diagnosisRequest.setDiagnosisId(nameWithEmbeddedId.getId().orElse(null));
+						diagnosisRequest.setDiagnosisName(nameWithEmbeddedId.getName());
+						return diagnosisRequest;
+					})
+					.collect(Collectors.toList());
+
+			patientOrderRequest.setDiagnoses(diagnoses);
+
+			patientOrderRequest.setAssociatedDiagnosis(trimToNull(record.get("Order Associated Diagnosis (ICD-10)")));
+			patientOrderRequest.setPatientPhoneNumber(trimToNull(record.get("Call Back Number")));
+			patientOrderRequest.setPreferredContactHours(trimToNull(record.get("Preferred Contact Hours")));
+			patientOrderRequest.setComments(trimToNull(record.get("Order Comments")));
+			patientOrderRequest.setCcRecipients(trimToNull(record.get("IMG CC Recipients")));
+			patientOrderRequest.setPatientAddressLine1(trimToNull(record.get("Patient Address (Line 1)")));
+			patientOrderRequest.setPatientAddressLine2(trimToNull(record.get("Patient Address (Line 2)")));
+			patientOrderRequest.setPatientLocality(trimToNull(record.get("City")));
+			patientOrderRequest.setPatientRegion(trimToNull(record.get("Patient State")));
+			patientOrderRequest.setPatientPostalCode(trimToNull(record.get("ZIP Code")));
+
+			// e.g. "Take 1 tablet by mouth daily.<br>E-Prescribe, Disp-60 tablet, R-1"
+			String lastActiveMedicationOrderSummary = trimToNull(record.get("CCBH Last Active Med Order Summary"));
+
+			if (lastActiveMedicationOrderSummary != null)
+				// Replacing just <br> for now - any others?
+				lastActiveMedicationOrderSummary = lastActiveMedicationOrderSummary.replace("<br>", "\n");
+
+			patientOrderRequest.setLastActiveMedicationOrderSummary(lastActiveMedicationOrderSummary);
+
+			// e.g. "escitalopram 10 mg tablet [517587114]"
+			// Might have multiple lines...
+			String medicationsAsString = trimToNull(record.get("CCBH Medications List"));
+
+			List<CreatePatientOrderMedicationRequest> medications = parseNamesWithEmbeddedIds(medicationsAsString).stream()
+					.map(nameWithEmbeddedId -> {
+						CreatePatientOrderMedicationRequest medicationRequest = new CreatePatientOrderMedicationRequest();
+						medicationRequest.setMedicationId(nameWithEmbeddedId.getId().orElse(null));
+
+						String medicationName = nameWithEmbeddedId.getName();
+
+						// e.g. "escitalopram 10 mg tablet" -> "Escitalopram 10 mg tablet"
+						if (medicationName != null)
+							medicationName = StringUtils.capitalize(medicationName);
+
+						medicationRequest.setMedicationName(medicationName);
+						return medicationRequest;
+					})
+					.collect(Collectors.toList());
+
+			patientOrderRequest.setMedications(medications);
+			patientOrderRequest.setRecentPsychotherapeuticMedications(trimToNull(record.get("Psychotherapeutic Med Lst 2 Weeks")));
+
+			 */
+			UUID patientOrderId = createPatientOrder(patientOrderRequest);
+			patientOrderIds.add(patientOrderId);
 		}
 
 		if (automaticallyAssignToPanelAccounts) {
@@ -4134,7 +4481,8 @@ public class PatientOrderService implements AutoCloseable {
 		List<PatientOrder> importedPatientOrders = findPatientOrdersByPatientOrderImportId(patientOrderImportId);
 		LocalDateTime now = LocalDateTime.now(institution.getTimeZone());
 
-		for (PatientOrder importedPatientOrder : importedPatientOrders) {
+		for (
+				PatientOrder importedPatientOrder : importedPatientOrders) {
 			// If the order's insurance and region (state in US) are OK, then send the welcome message...
 			if (importedPatientOrder.getPrimaryPlanAccepted() && importedPatientOrder.getPatientAddressRegionAccepted()) {
 				getLogger().info("Patient Order ID {} has an accepted region and insurance - automatically sending welcome message.", importedPatientOrder.getPatientOrderId());
@@ -4169,7 +4517,9 @@ public class PatientOrderService implements AutoCloseable {
 			}
 		}
 
-		return new PatientOrderImportResult(patientOrderImportId, patientOrderIds);
+		return new
+
+				PatientOrderImportResult(patientOrderImportId, patientOrderIds);
 	}
 
 	@Nullable
@@ -4274,7 +4624,6 @@ public class PatientOrderService implements AutoCloseable {
 			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
 		else
 			institution = getInstitutionService().findInstitutionById(institutionId).get();
-
 
 		if (patientMrn == null)
 			validationException.add(new FieldError("patientMrn", getStrings().get("Patient MRN is required.")));

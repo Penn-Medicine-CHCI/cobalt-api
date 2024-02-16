@@ -153,7 +153,9 @@ public class Institution {
 	@Nullable
 	private String epicAuthorizeUrl;
 	@Nullable
-	private String epicMrnTypeName;
+	private String epicPatientMrnTypeName;
+	@Nullable
+	private String epicPatientMrnTypeAlternateName;
 	@Nullable
 	private String epicPatientUniqueIdType;
 	@Nullable
@@ -887,12 +889,21 @@ public class Institution {
 	}
 
 	@Nullable
-	public String getEpicMrnTypeName() {
-		return this.epicMrnTypeName;
+	public String getEpicPatientMrnTypeName() {
+		return this.epicPatientMrnTypeName;
 	}
 
-	public void setEpicMrnTypeName(@Nullable String epicMrnTypeName) {
-		this.epicMrnTypeName = epicMrnTypeName;
+	public void setEpicPatientMrnTypeName(@Nullable String epicPatientMrnTypeName) {
+		this.epicPatientMrnTypeName = epicPatientMrnTypeName;
+	}
+
+	@Nullable
+	public String getEpicPatientMrnTypeAlternateName() {
+		return this.epicPatientMrnTypeAlternateName;
+	}
+
+	public void setEpicPatientMrnTypeAlternateName(@Nullable String epicPatientMrnTypeAlternateName) {
+		this.epicPatientMrnTypeAlternateName = epicPatientMrnTypeAlternateName;
 	}
 
 	@Nullable
