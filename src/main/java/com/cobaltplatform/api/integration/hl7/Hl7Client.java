@@ -50,7 +50,7 @@ public class Hl7Client {
 	public String messageFromBytes(@Nonnull byte[] bytes) {
 		requireNonNull(bytes);
 		// Messages are in ASCII and generally contain only carriage returns (not CRLF). Here we force newlines
-		return new String(bytes, StandardCharsets.US_ASCII).replace("\r", "\r\n").trim();
+		return new String(bytes, StandardCharsets.US_ASCII /* Charset.forName("Windows-1252") */).replace("\r", "\r\n").trim();
 	}
 
 	@Nonnull
