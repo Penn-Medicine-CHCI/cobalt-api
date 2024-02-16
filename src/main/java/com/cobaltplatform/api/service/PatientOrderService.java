@@ -4298,11 +4298,11 @@ public class PatientOrderService implements AutoCloseable {
 			if (primaryPayorId == null)
 				primaryPayorId = "UNKNOWN";
 			if (primaryPayorName == null)
-				primaryPayorName = "Unknown";
+				primaryPayorName = "Unknown Payor";
 			if (primaryPlanId == null)
 				primaryPlanId = "UNKNOWN";
 			if (primaryPlanName == null)
-				primaryPlanName = "Unknown";
+				primaryPlanName = "Unknown Plan";
 
 			patientOrderRequest.setPrimaryPayorId(primaryPayorId);
 			patientOrderRequest.setPrimaryPayorName(primaryPayorName);
@@ -4491,13 +4491,6 @@ public class PatientOrderService implements AutoCloseable {
 						break;
 					}
 				}
-			}
-
-			// Some test phone numbers are 800 numbers, which Google libphonenumber doesn't like.
-			// Adjust them in nonproduction environments.
-			if (!getConfiguration().isProduction()) {
-				if (patientPhoneNumber.startsWith("800"))
-					patientPhoneNumber = format("+1%s", patientPhoneNumber);
 			}
 
 			patientOrderRequest.setPatientPhoneNumber(patientPhoneNumber);
@@ -4867,9 +4860,31 @@ public class PatientOrderService implements AutoCloseable {
 			String originalPatientPhoneNumber = patientPhoneNumber;
 			patientPhoneNumber = getNormalizer().normalizePhoneNumberToE164(patientPhoneNumber, Locale.US).orElse(null);
 
-			if (patientPhoneNumber == null)
-				validationException.add(new FieldError("patientPhoneNumber", getStrings().get("Invalid patient phone number: {{patientPhoneNumber}}.",
-						Map.of("patientPhoneNumber", originalPatientPhoneNumber))));
+			if (patientPhoneNumber == null) {
+				if (getConfiguration().isProduction()) {
+					validationException.add(new FieldError("patientPhoneNumber", getStrings().get("Invalid patient phone number: {{patientPhoneNumber}}.",
+							Map.of("patientPhoneNumber", originalPatientPhoneNumber))));
+				} else {
+					// For nonproduction environments, some test data has technically illegal phone numbers (e.g. 215-555-1212).
+					// Here we force those illegal numbers through so long as they have the correct number of digits.
+					//
+					// 1. Remove all nondigit characters
+					patientPhoneNumber = originalPatientPhoneNumber.replaceAll("[^0-9]", "");
+
+					if (!patientPhoneNumber.startsWith("1") && !patientPhoneNumber.startsWith("+"))
+						patientPhoneNumber = format("1%s", patientPhoneNumber);
+
+					if (!patientPhoneNumber.startsWith("+"))
+						patientPhoneNumber = format("+%s", patientPhoneNumber);
+
+					// Should now be of the form +12155551212.
+					// If it's not enough digits, throw an error, otherwise accept the number as legitimate because it's "long enough"
+
+					if (patientPhoneNumber.length() != 12)
+						validationException.add(new FieldError("patientPhoneNumber", getStrings().get("Invalid patient phone number: {{patientPhoneNumber}}.",
+								Map.of("patientPhoneNumber", originalPatientPhoneNumber))));
+				}
+			}
 		}
 
 		if (testPatientEmailAddress == null && testPatientPassword != null)

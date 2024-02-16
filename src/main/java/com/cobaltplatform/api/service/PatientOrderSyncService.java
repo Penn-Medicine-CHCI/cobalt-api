@@ -38,6 +38,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
@@ -62,6 +64,7 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -246,6 +249,8 @@ public class PatientOrderSyncService implements AutoCloseable {
 
 					getLogger().info("HL7 Order content for {}:\n{}", objectPath, generalOrderHl7AsString);
 
+					AtomicBoolean imported = new AtomicBoolean(false);
+
 					try {
 						getDatabase().transaction(() -> {
 							Account serviceAccount = getAccountService().findServiceAccountByInstitutionId(institution.getInstitutionId()).get();
@@ -259,10 +264,49 @@ public class PatientOrderSyncService implements AutoCloseable {
 							importRequest.setFilename(s3Object.key());
 
 							getPatientOrderService().createPatientOrderImport(importRequest);
+
+							imported.set(true);
 						});
 					} catch (Exception e) {
-						getLogger().error(String.format("Unable to perform HL7 import for message:\n%s", generalOrderHl7AsString), e);
+						getLogger().error(format("Unable to perform HL7 import for message:\n%s", generalOrderHl7AsString), e);
 						getErrorReporter().report(e);
+					}
+
+					// Move to an "imported" or "failed" directory depending on result of import.
+					// Move/rename is 2 steps (nonatomic) in S3: first you need to copy the object, then you need to delete the original
+					String destinationKey = imported.get() ? format("imported/%s", s3Object.key()) : format("failed/%s", s3Object.key());
+
+					getLogger().info("Moving {} to {}...", s3Object.key(), destinationKey);
+
+					boolean safeToDelete = false;
+
+					try {
+						CopyObjectRequest copyObjectRequest = CopyObjectRequest.builder()
+								.sourceBucket(bucket)
+								.sourceKey(s3Object.key())
+								.destinationBucket(bucket)
+								.destinationKey(destinationKey)
+								.build();
+
+						getS3Client().copyObject(copyObjectRequest);
+						safeToDelete = true;
+					} catch (Exception e) {
+						getErrorReporter().report(e);
+						getLogger().error(format("Unable to copy S3 file %s to %s", s3Object.key(), destinationKey), e);
+					}
+
+					if (safeToDelete) {
+						try {
+							DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
+									.bucket(bucket)
+									.key(s3Object.key())
+									.build();
+
+							getS3Client().deleteObject(deleteObjectRequest);
+						} catch (Exception e) {
+							getErrorReporter().report(e);
+							getLogger().error(format("Unable to delete S3 file %s", s3Object.key()), e);
+						}
 					}
 				} catch (IOException e) {
 					throw new UncheckedIOException(e);
