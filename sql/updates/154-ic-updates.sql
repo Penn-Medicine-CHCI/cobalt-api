@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('153-ic-updates', NULL, NULL);
+SELECT _v.register_patch('154-ic-updates', NULL, NULL);
 
 -- Establish some naming consistency
 ALTER TABLE institution RENAME COLUMN epic_mrn_type_name TO epic_patient_mrn_type_name;
