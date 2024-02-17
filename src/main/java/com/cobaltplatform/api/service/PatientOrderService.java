@@ -153,6 +153,7 @@ import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.IcTestPatientEmailAddress;
 import com.cobaltplatform.api.model.service.PatientOrderAssignmentStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderAutocompleteResult;
+import com.cobaltplatform.api.model.service.PatientOrderEncounterDocumentationStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderFilterFlagTypeId;
 import com.cobaltplatform.api.model.service.PatientOrderImportResult;
 import com.cobaltplatform.api.model.service.PatientOrderOutreachStatusId;
@@ -800,6 +801,9 @@ public class PatientOrderService implements AutoCloseable {
 		// NEED_ASSESSMENT
 		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.NEED_ASSESSMENT, findNeedAssessmentPatientOrderCountForInstitutionId(institutionId, panelAccountId));
 
+		// NEED_DOCUMENTATION
+		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.NEED_DOCUMENTATION, findNeedDocumentationPatientOrderCountForInstitutionId(institutionId, panelAccountId));
+
 		// SUBCLINICAL
 		// MHP
 		// SPECIALTY_CARE
@@ -833,6 +837,42 @@ public class PatientOrderService implements AutoCloseable {
 		parameters.add(PatientOrderDispositionId.OPEN);
 		whereClauseLines.add("AND patient_order_screening_status_id=?");
 		parameters.add(PatientOrderScreeningStatusId.SCHEDULED);
+
+		if (panelAccountId != null) {
+			whereClauseLines.add("AND panel_account_id=?");
+			parameters.add(panelAccountId);
+		}
+
+		String sql = """
+				  SELECT COUNT(*)
+				  FROM v_patient_order
+				  WHERE institution_id=?
+				  {{whereClauseLines}}
+				""".trim()
+				.replace("{{whereClauseLines}}", whereClauseLines.stream().collect(Collectors.joining("\n")));
+
+		return getDatabase().queryForObject(sql, Integer.class, sqlVaragsParameters(parameters)).get();
+	}
+
+	@Nonnull
+	public Integer findNeedDocumentationPatientOrderCountForInstitutionId(@Nullable InstitutionId institutionId,
+																																				@Nullable UUID panelAccountId) {
+		if (institutionId == null)
+			return 0;
+
+		List<String> whereClauseLines = new ArrayList<>();
+		List<Object> parameters = new ArrayList<>();
+
+		parameters.add(institutionId);
+
+		// Need Documentation: Patients scheduled to take the assessment by phone
+		// Definition:
+		// Order State = Open
+		// Encounter Documentation Status = Needs Documentation
+		whereClauseLines.add("AND patient_order_disposition_id=?");
+		parameters.add(PatientOrderDispositionId.OPEN);
+		whereClauseLines.add("AND patient_order_encounter_documentation_status_id=?");
+		parameters.add(PatientOrderEncounterDocumentationStatusId.NEEDS_DOCUMENTATION);
 
 		if (panelAccountId != null) {
 			whereClauseLines.add("AND panel_account_id=?");
@@ -1371,6 +1411,11 @@ public class PatientOrderService implements AutoCloseable {
 
 				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.PATIENT_BELOW_AGE_THRESHOLD)) {
 					filterFlagWhereClauseLines.add("po.patient_below_age_threshold=TRUE");
+				}
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.NEEDS_DOCUMENTATION)) {
+					filterFlagWhereClauseLines.add("po.patient_order_encounter_documentation_status_id=?");
+					parameters.add(PatientOrderEncounterDocumentationStatusId.NEEDS_DOCUMENTATION);
 				}
 
 				whereClauseLines.add(format("AND (%s)", filterFlagWhereClauseLines.stream().collect(Collectors.joining(" OR "))));

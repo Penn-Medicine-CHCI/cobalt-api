@@ -62,6 +62,7 @@ import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTria
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
+import com.cobaltplatform.api.model.service.PatientOrderEncounterDocumentationStatusId;
 import com.cobaltplatform.api.model.service.ScreeningSessionResult;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AddressService;
@@ -496,6 +497,20 @@ public class PatientOrderApiResponse {
 	private PatientOrderIntakeInsuranceStatusId patientOrderIntakeInsuranceStatusId;
 	@Nullable
 	private Boolean mostRecentIntakeAndClinicalScreeningsSatisfied;
+	@Nullable
+	private UUID epicDepartmentId;
+	@Nullable
+	private String epicDepartmentName;
+	@Nullable
+	private String epicDepartmentDepartmentId;
+	@Nullable
+	private String encounterCsn;
+	@Nullable
+	private Instant encounterSyncedAt;
+	@Nullable
+	private String encounterSyncedAtDescription;
+	@Nullable
+	private PatientOrderEncounterDocumentationStatusId patientOrderEncounterDocumentationStatusId;
 
 	public enum PatientOrderApiResponseSupplement {
 		MINIMAL,
@@ -856,6 +871,10 @@ public class PatientOrderApiResponse {
 
 		this.mostRecentIntakeAndClinicalScreeningsSatisfied = patientOrder.getMostRecentIntakeAndClinicalScreeningsSatisfied();
 
+		this.epicDepartmentId = patientOrder.getEpicDepartmentId();
+		this.epicDepartmentName = patientOrder.getEpicDepartmentName();
+		this.epicDepartmentDepartmentId = patientOrder.getEpicDepartmentDepartmentId();
+
 		// MHIC-only view of the data
 		if (format == PatientOrderApiResponseFormat.MHIC) {
 			this.panelAccountId = patientOrder.getPanelAccountId();
@@ -953,6 +972,11 @@ public class PatientOrderApiResponse {
 			this.mostRecentIntakeScreeningSessionCreatedByAccountLastName = patientOrder.getMostRecentIntakeScreeningSessionCreatedByAccountLastName();
 			this.mostRecentIntakeScreeningSessionCreatedByAccountDisplayName = Normalizer.normalizeName(patientOrder.getMostRecentIntakeScreeningSessionCreatedByAccountFirstName(), patientOrder.getMostRecentIntakeScreeningSessionCreatedByAccountLastName(), null).orElse(null);
 			this.mostRecentIntakeScreeningSessionCreatedByAccountDisplayNameWithLastFirst = Normalizer.normalizeNameWithLastFirst(patientOrder.getMostRecentIntakeScreeningSessionCreatedByAccountFirstName(), patientOrder.getMostRecentIntakeScreeningSessionCreatedByAccountLastName(), null).orElse(null);
+
+			this.encounterCsn = patientOrder.getEncounterCsn();
+			this.encounterSyncedAt = patientOrder.getEncounterSyncedAt();
+			this.encounterSyncedAtDescription = patientOrder.getEncounterSyncedAt() == null ? null : formatter.formatTimestamp(patientOrder.getEncounterSyncedAt());
+			this.patientOrderEncounterDocumentationStatusId = patientOrder.getPatientOrderEncounterDocumentationStatusId();
 		}
 	}
 
@@ -1939,5 +1963,40 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public Boolean getMostRecentIntakeAndClinicalScreeningsSatisfied() {
 		return this.mostRecentIntakeAndClinicalScreeningsSatisfied;
+	}
+
+	@Nullable
+	public UUID getEpicDepartmentId() {
+		return this.epicDepartmentId;
+	}
+
+	@Nullable
+	public String getEpicDepartmentName() {
+		return this.epicDepartmentName;
+	}
+
+	@Nullable
+	public String getEpicDepartmentDepartmentId() {
+		return this.epicDepartmentDepartmentId;
+	}
+
+	@Nullable
+	public String getEncounterCsn() {
+		return this.encounterCsn;
+	}
+
+	@Nullable
+	public Instant getEncounterSyncedAt() {
+		return this.encounterSyncedAt;
+	}
+
+	@Nullable
+	public String getEncounterSyncedAtDescription() {
+		return this.encounterSyncedAtDescription;
+	}
+
+	@Nullable
+	public PatientOrderEncounterDocumentationStatusId getPatientOrderEncounterDocumentationStatusId() {
+		return this.patientOrderEncounterDocumentationStatusId;
 	}
 }

@@ -59,9 +59,12 @@ UPDATE patient_order_import_type SET patient_order_import_type_id='HL7_MESSAGE',
 -- TODO: store off epic encounter CSN to patient order
 -- TODO: keep track of epic encounter sync status (and introduce flag in UI) for patient order
 
--- Add epic_department_id and epic_department_name fields
--- Add encounter_csn, encounter_synced_at fields
-CREATE or replace VIEW v_all_patient_order AS WITH
+DROP VIEW v_patient_order;
+DROP VIEW v_all_patient_order;
+
+-- Add epic_department_id, epic_department_department_id, and epic_department_name fields
+-- Add encounter_csn, encounter_synced_at fields + computed patient_order_encounter_documentation_status_id field
+CREATE OR REPLACE VIEW v_all_patient_order AS WITH
 poo_query AS (
     -- Count up the patient outreach attempts for each patient order
     select
@@ -271,6 +274,11 @@ select
     	AND ssq.completed = FALSE
     	AND ssq.created < (NOW() - INTERVAL '1 hour')
     ) AS most_recent_screening_session_appears_abandoned,
+    CASE
+      WHEN ssq.completed = TRUE AND poq.encounter_synced_at IS NULL THEN 'NEEDS_DOCUMENTATION'
+      WHEN ssq.completed = TRUE AND poq.encounter_synced_at IS NOT NULL THEN 'DOCUMENTED'
+      ELSE 'NOT_DOCUMENTED'
+    END patient_order_encounter_documentation_status_id,
     ssiq.screening_session_id AS most_recent_intake_screening_session_id,
     ssiq.created AS most_recent_intake_screening_session_created_at,
     ssiq.created_by_account_id AS most_recent_intake_screening_session_created_by_account_id,
@@ -433,6 +441,8 @@ select
     porcirs.description AS patient_order_resource_check_in_response_status_description,
     patient_demographics_confirmed_at IS NOT NULL AS patient_demographics_confirmed,
     DATE_PART('day', (COALESCE(poq.episode_closed_at, now()) - (poq.order_date + make_interval(mins => poq.order_age_in_minutes)))) AS episode_duration_in_days,
+    ed.name AS epic_department_name,
+    ed.department_id AS epic_department_department_id,
     poq.*
 from
     patient_order poq
@@ -441,6 +451,7 @@ from
     left join institution i ON poq.institution_id = i.institution_id
     left join permitted_regions_query prq ON poq.institution_id = prq.institution_id
     left join patient_order_resource_check_in_response_status porcirs ON poq.patient_order_resource_check_in_response_status_id=porcirs.patient_order_resource_check_in_response_status_id
+    left join epic_department ed ON poq.epic_department_id = ed.epic_department_id
     left outer join address patient_address ON poq.patient_address_id = patient_address.address_id
     left outer join poo_query pooq ON poq.patient_order_id = pooq.patient_order_id
     left outer join poomax_query poomaxq ON poq.patient_order_id = poomaxq.patient_order_id
@@ -460,6 +471,6 @@ from
 
 CREATE or replace VIEW v_patient_order AS
 SELECT * FROM v_all_patient_order
-where patient_order_disposition_id != 'ARCHIVED';
+WHERE patient_order_disposition_id != 'ARCHIVED';
 
 COMMIT;

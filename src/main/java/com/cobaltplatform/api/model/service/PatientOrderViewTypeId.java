@@ -25,6 +25,7 @@ package com.cobaltplatform.api.model.service;
 public enum PatientOrderViewTypeId {
 	NEED_ASSESSMENT,
 	SCHEDULED,
+	NEED_DOCUMENTATION,
 	SUBCLINICAL,
 	MHP,
 	SPECIALTY_CARE,

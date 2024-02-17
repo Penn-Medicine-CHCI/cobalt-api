@@ -197,4 +197,8 @@ public interface EnterprisePlugin {
 	default Optional<String> fileUploadStorageKeyPrefix() {
 		return Optional.empty();
 	}
+
+	default void performPatientOrderEncounterWriteback(@Nullable UUID patientOrderId) {
+		throw new UnsupportedOperationException();
+	}
 }
