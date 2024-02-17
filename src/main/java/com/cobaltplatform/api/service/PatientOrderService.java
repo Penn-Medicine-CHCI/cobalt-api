@@ -1252,6 +1252,15 @@ public class PatientOrderService implements AutoCloseable {
 				parameters.add(PatientOrderDispositionId.OPEN);
 				whereClauseLines.add("AND po.patient_order_screening_status_id=?");
 				parameters.add(PatientOrderScreeningStatusId.SCHEDULED);
+			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.NEED_DOCUMENTATION) {
+				// Need Documentation: Patients scheduled to take the assessment by phone
+				// Definition:
+				// Order State = Open
+				// Encounter Documentation Status = Needs Documentation
+				whereClauseLines.add("AND po.patient_order_disposition_id=?");
+				parameters.add(PatientOrderDispositionId.OPEN);
+				whereClauseLines.add("AND po.patient_order_encounter_documentation_status_id=?");
+				parameters.add(PatientOrderEncounterDocumentationStatusId.NEEDS_DOCUMENTATION);
 			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.NEED_ASSESSMENT) {
 				// Need Assessment: Patients that have not started or been scheduled for an assessment
 				// Definition:
