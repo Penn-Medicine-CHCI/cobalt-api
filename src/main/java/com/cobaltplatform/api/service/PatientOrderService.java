@@ -159,6 +159,7 @@ import com.cobaltplatform.api.model.service.PatientOrderImportResult;
 import com.cobaltplatform.api.model.service.PatientOrderOutreachStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderResponseStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderViewTypeId;
+import com.cobaltplatform.api.model.service.ReferringPractice;
 import com.cobaltplatform.api.model.service.ScreeningSessionResult;
 import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningQuestionResult;
 import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningSessionScreeningResult;
@@ -579,16 +580,16 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public List<String> findReferringPracticeNamesByInstitutionId(@Nullable InstitutionId institutionId) {
+	public List<ReferringPractice> findReferringPracticesByInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return List.of();
 
 		return getDatabase().queryForList("""
-				SELECT DISTINCT ON (UPPER(referring_practice_name)) referring_practice_name
+				SELECT DISTINCT UPPER(referring_practice_name) referring_practice_name, referring_practice_id
 				FROM patient_order
 				WHERE institution_id=?
 				ORDER BY UPPER(referring_practice_name)
-				""", String.class, institutionId);
+				""", ReferringPractice.class, institutionId);
 	}
 
 	@Nonnull
@@ -1187,7 +1188,7 @@ public class PatientOrderService implements AutoCloseable {
 		PatientOrderResponseStatusId patientOrderResponseStatusId = request.getPatientOrderResponseStatusId();
 		PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId = request.getPatientOrderSafetyPlanningStatusId();
 		Set<PatientOrderFilterFlagTypeId> patientOrderFilterFlagTypeIds = request.getPatientOrderFilterFlagTypeIds() == null ? Set.of() : request.getPatientOrderFilterFlagTypeIds();
-		Set<String> referringPracticeNames = request.getReferringPracticeNames() == null ? Set.of() : request.getReferringPracticeNames();
+		Set<String> referringPracticeIds = request.getReferringPracticeIds() == null ? Set.of() : request.getReferringPracticeIds();
 		Set<UUID> panelAccountIds = request.getPanelAccountIds() == null ? Set.of() : request.getPanelAccountIds();
 		String patientMrn = trimToNull(request.getPatientMrn());
 		String searchQuery = trimToNull(request.getSearchQuery());
@@ -1430,9 +1431,9 @@ public class PatientOrderService implements AutoCloseable {
 				whereClauseLines.add(format("AND (%s)", filterFlagWhereClauseLines.stream().collect(Collectors.joining(" OR "))));
 			}
 
-			if (referringPracticeNames.size() > 0) {
-				whereClauseLines.add(format("AND po.referring_practice_name IN %s", sqlInListPlaceholders(referringPracticeNames)));
-				parameters.addAll(referringPracticeNames);
+			if (referringPracticeIds.size() > 0) {
+				whereClauseLines.add(format("AND po.referring_practice_id IN %s", sqlInListPlaceholders(referringPracticeIds)));
+				parameters.addAll(referringPracticeIds);
 			}
 
 			if (panelAccountIds.size() > 0) {

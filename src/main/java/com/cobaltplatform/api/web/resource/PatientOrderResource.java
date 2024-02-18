@@ -101,6 +101,7 @@ import com.cobaltplatform.api.model.service.PatientOrderImportResult;
 import com.cobaltplatform.api.model.service.PatientOrderOutreachStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderResponseStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderViewTypeId;
+import com.cobaltplatform.api.model.service.ReferringPractice;
 import com.cobaltplatform.api.model.service.Region;
 import com.cobaltplatform.api.model.service.SortDirectionId;
 import com.cobaltplatform.api.model.service.SortNullsId;
@@ -632,7 +633,7 @@ public class PatientOrderResource {
 																			 @Nonnull @QueryParameter Optional<PatientOrderResponseStatusId> patientOrderResponseStatusId,
 																			 @Nonnull @QueryParameter Optional<PatientOrderSafetyPlanningStatusId> patientOrderSafetyPlanningStatusId,
 																			 @Nonnull @QueryParameter("patientOrderFilterFlagTypeId") Optional<List<PatientOrderFilterFlagTypeId>> patientOrderFilterFlagTypeIds,
-																			 @Nonnull @QueryParameter Optional<List<String>> referringPracticeNames,
+																			 @Nonnull @QueryParameter Optional<List<String>> referringPracticeIds,
 																			 @Nonnull @QueryParameter("panelAccountId") Optional<List<UUID>> panelAccountIds,
 																			 @Nonnull @QueryParameter Optional<String> patientMrn,
 																			 @Nonnull @QueryParameter Optional<String> searchQuery,
@@ -652,7 +653,7 @@ public class PatientOrderResource {
 		requireNonNull(patientOrderResponseStatusId);
 		requireNonNull(patientOrderSafetyPlanningStatusId);
 		requireNonNull(patientOrderFilterFlagTypeIds);
-		requireNonNull(referringPracticeNames);
+		requireNonNull(referringPracticeIds);
 		requireNonNull(panelAccountIds);
 		requireNonNull(patientMrn);
 		requireNonNull(searchQuery);
@@ -713,7 +714,7 @@ public class PatientOrderResource {
 				setPatientOrderResponseStatusId(patientOrderResponseStatusId.orElse(null));
 				setPatientOrderSafetyPlanningStatusId(patientOrderSafetyPlanningStatusId.orElse(null));
 				setPatientOrderFilterFlagTypeIds(new HashSet<>(patientOrderFilterFlagTypeIds.orElse(List.of())));
-				setReferringPracticeNames(new HashSet<>(referringPracticeNames.orElse(List.of())));
+				setReferringPracticeIds(new HashSet<>(referringPracticeIds.orElse(List.of())));
 				setPanelAccountIds(new HashSet<>(panelAccountIds.orElse(List.of())));
 				setPatientMrn(patientMrn.orElse(null));
 				setSearchQuery(searchQuery.orElse(null));
@@ -1721,7 +1722,7 @@ public class PatientOrderResource {
 				})
 				.collect(Collectors.toList());
 
-		List<String> referringPracticeNames = getPatientOrderService().findReferringPracticeNamesByInstitutionId(institutionId);
+		List<ReferringPractice> referringPractices = getPatientOrderService().findReferringPracticesByInstitutionId(institutionId);
 
 		List<Map<String, Object>> patientOrderReferralReasons = getPatientOrderService().findPatientOrderReferralReasonsByInstitutionId(institutionId).stream()
 				.map(patientOrderReferralReason -> {
@@ -1768,7 +1769,7 @@ public class PatientOrderResource {
 			put("patientOrderScheduledMessageTypes", patientOrderScheduledMessageTypes);
 			put("patientOrderCareTypes", patientOrderCareTypes);
 			put("patientOrderFocusTypes", patientOrderFocusTypes);
-			put("referringPracticeNames", referringPracticeNames);
+			put("referringPractices", referringPractices);
 			put("patientOrderReferralReasons", patientOrderReferralReasons);
 			put("patientOrderResourcingTypes", patientOrderResourcingTypes);
 			put("patientOrderCarePreferences", patientOrderCarePreferences);
