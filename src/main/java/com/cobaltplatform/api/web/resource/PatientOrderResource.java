@@ -55,6 +55,7 @@ import com.cobaltplatform.api.model.api.response.AccountApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse.CountryApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.EncounterApiResponse.EncounterApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.EpicDepartmentApiResponse.EpicDepartmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.LanguageApiResponse;
 import com.cobaltplatform.api.model.api.response.LanguageApiResponse.LanguageApiResponseFactory;
@@ -96,6 +97,7 @@ import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTria
 import com.cobaltplatform.api.model.db.PatientOrderVoicemailTask;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.service.Encounter;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.PatientOrderAssignmentStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderAutocompleteResult;
@@ -191,6 +193,8 @@ public class PatientOrderResource {
 	@Nonnull
 	private final EpicDepartmentApiResponseFactory epicDepartmentApiResponseFactory;
 	@Nonnull
+	private final EncounterApiResponseFactory encounterApiResponseFactory;
+	@Nonnull
 	private final AccountApiResponseFactory accountApiResponseFactory;
 	@Nonnull
 	private final TimeZoneApiResponseFactory timeZoneApiResponseFactory;
@@ -234,6 +238,7 @@ public class PatientOrderResource {
 															@Nonnull PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory,
 															@Nonnull PatientOrderOutreachApiResponseFactory patientOrderOutreachApiResponseFactory,
 															@Nonnull EpicDepartmentApiResponseFactory epicDepartmentApiResponseFactory,
+															@Nonnull EncounterApiResponseFactory encounterApiResponseFactory,
 															@Nonnull AccountApiResponseFactory accountApiResponseFactory,
 															@Nonnull TimeZoneApiResponseFactory timeZoneApiResponseFactory,
 															@Nonnull LanguageApiResponseFactory languageApiResponseFactory,
@@ -259,6 +264,7 @@ public class PatientOrderResource {
 		requireNonNull(patientOrderNoteApiResponseFactory);
 		requireNonNull(patientOrderOutreachApiResponseFactory);
 		requireNonNull(epicDepartmentApiResponseFactory);
+		requireNonNull(encounterApiResponseFactory);
 		requireNonNull(accountApiResponseFactory);
 		requireNonNull(timeZoneApiResponseFactory);
 		requireNonNull(languageApiResponseFactory);
@@ -285,6 +291,7 @@ public class PatientOrderResource {
 		this.patientOrderNoteApiResponseFactory = patientOrderNoteApiResponseFactory;
 		this.patientOrderOutreachApiResponseFactory = patientOrderOutreachApiResponseFactory;
 		this.epicDepartmentApiResponseFactory = epicDepartmentApiResponseFactory;
+		this.encounterApiResponseFactory = encounterApiResponseFactory;
 		this.accountApiResponseFactory = accountApiResponseFactory;
 		this.timeZoneApiResponseFactory = timeZoneApiResponseFactory;
 		this.languageApiResponseFactory = languageApiResponseFactory;
@@ -1649,6 +1656,31 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
+	@GET("/patient-orders/{patientOrderId}/encounters")
+	@AuthenticationRequired
+	public ApiResponse patientOrderEncounters(@Nonnull @PathParameter UUID patientOrderId) {
+		requireNonNull(patientOrderId);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+
+		if (patientOrder == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		List<Encounter> encounters = getPatientOrderService().findEncountersByPatientOrderId(patientOrderId);
+
+		return new ApiResponse(Map.of(
+				"encounters", encounters.stream()
+						.map(encounter -> getEncounterApiResponseFactory().create(encounter))
+						.collect(Collectors.toList())
+		));
+	}
+
+	@Nonnull
 	@GET("/patient-orders/reference-data")
 	@AuthenticationRequired
 	public ApiResponse patientOrderReferenceData() {
@@ -1924,6 +1956,11 @@ public class PatientOrderResource {
 	@Nonnull
 	protected EpicDepartmentApiResponseFactory getEpicDepartmentApiResponseFactory() {
 		return this.epicDepartmentApiResponseFactory;
+	}
+
+	@Nonnull
+	protected EncounterApiResponseFactory getEncounterApiResponseFactory() {
+		return this.encounterApiResponseFactory;
 	}
 
 	@Nonnull

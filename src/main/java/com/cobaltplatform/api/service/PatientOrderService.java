@@ -149,6 +149,7 @@ import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.ScreeningType;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
+import com.cobaltplatform.api.model.service.Encounter;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.IcTestPatientEmailAddress;
 import com.cobaltplatform.api.model.service.PatientOrderAssignmentStatusId;
@@ -2765,6 +2766,14 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
+	public List<Encounter> findEncountersByPatientOrderId(@Nullable UUID patientOrderId) {
+		if (patientOrderId == null)
+			return List.of();
+
+		return List.of();
+	}
+
+	@Nonnull
 	public Optional<PatientOrderScheduledScreening> findPatientOrderScheduledScreeningById(@Nullable UUID patientOrderScheduledScreeningId) {
 		if (patientOrderScheduledScreeningId == null)
 			return Optional.empty();
@@ -5353,7 +5362,7 @@ public class PatientOrderService implements AutoCloseable {
 
 		getDatabase().execute("""
 				INSERT INTO patient_order_event (
-				patient_order_event_id, 
+				patient_order_event_id,
 				patient_order_event_type_id,
 				patient_order_id,
 				account_id,
