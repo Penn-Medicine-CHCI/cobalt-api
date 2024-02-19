@@ -30,7 +30,7 @@ public class AccountCapabilityFlags {
 	private boolean canViewIcReports;
 	private boolean canEditIcSafetyPlanning;
 	private boolean canImportIcPatientOrders;
-	private boolean canAdministerIcDepartmentAvailability;
+	private boolean canAdministerIcDepartments;
 	private boolean canAdministerGroupSessions;
 	private boolean canAdministerContent;
 	private boolean canViewAnalytics;
@@ -72,12 +72,12 @@ public class AccountCapabilityFlags {
 		this.canImportIcPatientOrders = canImportIcPatientOrders;
 	}
 
-	public boolean isCanAdministerIcDepartmentAvailability() {
-		return this.canAdministerIcDepartmentAvailability;
+	public boolean isCanAdministerIcDepartments() {
+		return this.canAdministerIcDepartments;
 	}
 
-	public void setCanAdministerIcDepartmentAvailability(boolean canAdministerIcDepartmentAvailability) {
-		this.canAdministerIcDepartmentAvailability = canAdministerIcDepartmentAvailability;
+	public void setCanAdministerIcDepartments(boolean canAdministerIcDepartments) {
+		this.canAdministerIcDepartments = canAdministerIcDepartments;
 	}
 
 	public boolean isCanAdministerGroupSessions() {

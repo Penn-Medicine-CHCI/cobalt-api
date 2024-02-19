@@ -1,7 +1,7 @@
 BEGIN;
 SELECT _v.register_patch('154-ic-updates', NULL, NULL);
 
-INSERT INTO account_capability_type VALUES ('MHIC_DEPARTMENT_AVAILABILITY_ADMIN', 'MHIC Department Availability Admin');
+INSERT INTO account_capability_type VALUES ('MHIC_DEPARTMENT_ADMIN', 'MHIC Department Admin');
 
 -- Establish some naming consistency
 ALTER TABLE institution RENAME COLUMN epic_mrn_type_name TO epic_patient_mrn_type_name;

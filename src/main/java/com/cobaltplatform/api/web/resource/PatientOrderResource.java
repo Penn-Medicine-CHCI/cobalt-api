@@ -41,6 +41,7 @@ import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest.Patient
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest.PatientOrderSortRule;
 import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
+import com.cobaltplatform.api.model.api.request.UpdateEpicDepartmentRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderConsentStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachRequest;
@@ -54,6 +55,7 @@ import com.cobaltplatform.api.model.api.response.AccountApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse.CountryApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.EpicDepartmentApiResponse.EpicDepartmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.LanguageApiResponse;
 import com.cobaltplatform.api.model.api.response.LanguageApiResponse.LanguageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse;
@@ -72,6 +74,7 @@ import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -109,6 +112,7 @@ import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.PatientOrderService;
+import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
@@ -169,6 +173,8 @@ public class PatientOrderResource {
 	@Nonnull
 	private final PatientOrderService patientOrderService;
 	@Nonnull
+	private final ProviderService providerService;
+	@Nonnull
 	private final AccountService accountService;
 	@Nonnull
 	private final InstitutionService institutionService;
@@ -182,6 +188,8 @@ public class PatientOrderResource {
 	private final PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory;
 	@Nonnull
 	private final PatientOrderOutreachApiResponseFactory patientOrderOutreachApiResponseFactory;
+	@Nonnull
+	private final EpicDepartmentApiResponseFactory epicDepartmentApiResponseFactory;
 	@Nonnull
 	private final AccountApiResponseFactory accountApiResponseFactory;
 	@Nonnull
@@ -217,6 +225,7 @@ public class PatientOrderResource {
 
 	@Inject
 	public PatientOrderResource(@Nonnull PatientOrderService patientOrderService,
+															@Nonnull ProviderService providerService,
 															@Nonnull AccountService accountService,
 															@Nonnull InstitutionService institutionService,
 															@Nonnull AuthorizationService authorizationService,
@@ -224,6 +233,7 @@ public class PatientOrderResource {
 															@Nonnull PatientOrderApiResponseFactory patientOrderApiResponseFactory,
 															@Nonnull PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory,
 															@Nonnull PatientOrderOutreachApiResponseFactory patientOrderOutreachApiResponseFactory,
+															@Nonnull EpicDepartmentApiResponseFactory epicDepartmentApiResponseFactory,
 															@Nonnull AccountApiResponseFactory accountApiResponseFactory,
 															@Nonnull TimeZoneApiResponseFactory timeZoneApiResponseFactory,
 															@Nonnull LanguageApiResponseFactory languageApiResponseFactory,
@@ -240,6 +250,7 @@ public class PatientOrderResource {
 															@Nonnull Provider<CurrentContext> currentContextProvider,
 															@Nonnull Strings strings) {
 		requireNonNull(patientOrderService);
+		requireNonNull(providerService);
 		requireNonNull(accountService);
 		requireNonNull(institutionService);
 		requireNonNull(authorizationService);
@@ -247,6 +258,7 @@ public class PatientOrderResource {
 		requireNonNull(patientOrderApiResponseFactory);
 		requireNonNull(patientOrderNoteApiResponseFactory);
 		requireNonNull(patientOrderOutreachApiResponseFactory);
+		requireNonNull(epicDepartmentApiResponseFactory);
 		requireNonNull(accountApiResponseFactory);
 		requireNonNull(timeZoneApiResponseFactory);
 		requireNonNull(languageApiResponseFactory);
@@ -264,6 +276,7 @@ public class PatientOrderResource {
 		requireNonNull(strings);
 
 		this.patientOrderService = patientOrderService;
+		this.providerService = providerService;
 		this.accountService = accountService;
 		this.institutionService = institutionService;
 		this.authorizationService = authorizationService;
@@ -271,6 +284,7 @@ public class PatientOrderResource {
 		this.patientOrderApiResponseFactory = patientOrderApiResponseFactory;
 		this.patientOrderNoteApiResponseFactory = patientOrderNoteApiResponseFactory;
 		this.patientOrderOutreachApiResponseFactory = patientOrderOutreachApiResponseFactory;
+		this.epicDepartmentApiResponseFactory = epicDepartmentApiResponseFactory;
 		this.accountApiResponseFactory = accountApiResponseFactory;
 		this.timeZoneApiResponseFactory = timeZoneApiResponseFactory;
 		this.languageApiResponseFactory = languageApiResponseFactory;
@@ -1587,6 +1601,54 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
+	@GET("/integrated-care/epic-departments")
+	@AuthenticationRequired
+	public ApiResponse epicDepartments() {
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = account.getInstitutionId();
+
+		if (!getAuthorizationService().canAdministerIcDepartments(institutionId, account))
+			throw new AuthorizationException();
+
+		List<EpicDepartment> epicDepartments = getProviderService().findEpicDepartmentsByInstitutionId(institutionId);
+
+		return new ApiResponse(Map.of(
+				"epicDepartments", epicDepartments.stream()
+						.map(epicDepartment -> getEpicDepartmentApiResponseFactory().create(epicDepartment))
+						.collect(Collectors.toList())
+		));
+	}
+
+	@Nonnull
+	@PUT("/integrated-care/epic-departments/{epicDepartmentId}")
+	@AuthenticationRequired
+	public ApiResponse updateEpicDepartment(@Nonnull @PathParameter UUID epicDepartmentId,
+																					@Nonnull @RequestBody String requestBody) {
+		requireNonNull(epicDepartmentId);
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+		EpicDepartment epicDepartment = getProviderService().findEpicDepartmentById(epicDepartmentId).orElse(null);
+
+		if (epicDepartment == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canAdministerIcDepartments(epicDepartment.getInstitutionId(), account))
+			throw new AuthorizationException();
+
+		UpdateEpicDepartmentRequest request = getRequestBodyParser().parse(requestBody, UpdateEpicDepartmentRequest.class);
+		request.setEpicDepartmentId(epicDepartmentId);
+
+		getProviderService().updateEpicDepartment(request);
+
+		EpicDepartment updatedEpicDepartment = getProviderService().findEpicDepartmentById(epicDepartmentId).get();
+
+		return new ApiResponse(Map.of(
+				"epicDepartment", getEpicDepartmentApiResponseFactory().create(updatedEpicDepartment)
+		));
+	}
+
+	@Nonnull
 	@GET("/patient-orders/reference-data")
 	@AuthenticationRequired
 	public ApiResponse patientOrderReferenceData() {
@@ -1820,6 +1882,11 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
+	protected ProviderService getProviderService() {
+		return this.providerService;
+	}
+
+	@Nonnull
 	protected AccountService getAccountService() {
 		return this.accountService;
 	}
@@ -1852,6 +1919,11 @@ public class PatientOrderResource {
 	@Nonnull
 	protected PatientOrderOutreachApiResponseFactory getPatientOrderOutreachApiResponseFactory() {
 		return this.patientOrderOutreachApiResponseFactory;
+	}
+
+	@Nonnull
+	protected EpicDepartmentApiResponseFactory getEpicDepartmentApiResponseFactory() {
+		return this.epicDepartmentApiResponseFactory;
 	}
 
 	@Nonnull

@@ -28,11 +28,14 @@ import com.cobaltplatform.api.model.api.request.ProviderFindRequest;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest.ProviderFindAvailability;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest.ProviderFindLicenseType;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest.ProviderFindSupplement;
+import com.cobaltplatform.api.model.api.request.UpdateEpicDepartmentRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Assessment;
+import com.cobaltplatform.api.model.db.DepartmentAvailabilityStatus.DepartmentAvailabilityStatusId;
+import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.EpicFhirAppointmentFindCache;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -2215,6 +2218,55 @@ public class ProviderService {
 		}
 
 		return specialtiesByProviderId;
+	}
+
+	@Nonnull
+	public Optional<EpicDepartment> findEpicDepartmentById(@Nullable UUID epicDepartmentId) {
+		if (epicDepartmentId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM epic_department
+				WHERE epic_department_id=?
+				""", EpicDepartment.class, epicDepartmentId);
+	}
+
+	@Nonnull
+	public List<EpicDepartment> findEpicDepartmentsByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM epic_department
+				WHERE institution_id=?
+				ORDER BY name, department_id
+				""", EpicDepartment.class, institutionId);
+	}
+
+	@Nonnull
+	public Boolean updateEpicDepartment(@Nonnull UpdateEpicDepartmentRequest request) {
+		requireNonNull(request);
+
+		UUID epicDepartmentId = request.getEpicDepartmentId();
+		DepartmentAvailabilityStatusId departmentAvailabilityStatusId = request.getDepartmentAvailabilityStatusId();
+		ValidationException validationException = new ValidationException();
+
+		if (epicDepartmentId == null)
+			validationException.add(new FieldError("epicDepartmentId", getStrings().get("Epic Department ID is required.")));
+
+		if (departmentAvailabilityStatusId == null)
+			validationException.add(new FieldError("departmentAvailabilityStatusId", getStrings().get("Department Availability Status ID is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		return getDatabase().execute("""
+				UPDATE epic_department
+				SET department_availability_status_id=?
+				WHERE epic_department_id=?
+				""", departmentAvailabilityStatusId, epicDepartmentId) > 0;
 	}
 
 	@NotThreadSafe
