@@ -76,6 +76,7 @@ import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest.Patient
 import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderConsentStatusRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderEncounterCsnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourceCheckInResponseStatusRequest;
@@ -2876,6 +2877,45 @@ public class PatientOrderService implements AutoCloseable {
 				// .filter(encounter -> !encounter.getPeriodStart().toLocalDate().isBefore(patientOrder.getOrderDate()))
 				.limit(5L) // Only show 5 most recent
 				.collect(Collectors.toList());
+	}
+
+	@Nonnull
+	public Boolean updatePatientOrderEncounterCsn(@Nonnull UpdatePatientOrderEncounterCsnRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderId = request.getPatientOrderId();
+		String encounterCsn = trimToNull(request.getEncounterCsn());
+		PatientOrder patientOrder = null;
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderId == null) {
+			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+		} else {
+			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+
+			if (patientOrder == null) {
+				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+			} else {
+				// TODO: do we need additional checks?  Prevent CSN updates for closed orders?  etc.
+			}
+		}
+
+		if (encounterCsn == null)
+			validationException.add(new FieldError("encounterCsn", getStrings().get("Encounter CSN is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(patientOrder.getInstitutionId());
+		enterprisePlugin.performPatientOrderEncounterWriteback(patientOrderId);
+
+		boolean updated = getDatabase().execute("""
+				UPDATE patient_order
+				SET encounter_csn=?, encounter_synced_at=NOW()
+				WHERE patient_order_id=?
+				""", encounterCsn, patientOrderId) > 0;
+
+		return updated;
 	}
 
 	@Nonnull

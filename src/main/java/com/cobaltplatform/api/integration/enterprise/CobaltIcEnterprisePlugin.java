@@ -23,11 +23,13 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.AwsSecretManagerClient;
+import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
@@ -46,5 +48,10 @@ public class CobaltIcEnterprisePlugin extends DefaultEnterprisePlugin {
 	@Override
 	public InstitutionId getInstitutionId() {
 		return InstitutionId.COBALT_IC;
+	}
+
+	@Override
+	public void performPatientOrderEncounterWriteback(@Nullable UUID patientOrderId) {
+		// This is a no-op for Cobalt IC for now...
 	}
 }

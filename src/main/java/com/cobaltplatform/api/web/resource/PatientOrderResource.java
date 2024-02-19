@@ -43,6 +43,7 @@ import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdateEpicDepartmentRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderConsentStatusRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderEncounterCsnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourceCheckInResponseStatusRequest;
@@ -1677,6 +1678,36 @@ public class PatientOrderResource {
 				"encounters", encounters.stream()
 						.map(encounter -> getEncounterApiResponseFactory().create(encounter))
 						.collect(Collectors.toList())
+		));
+	}
+
+	@Nonnull
+	@PUT("/patient-orders/{patientOrderId}/encounter-csn")
+	@AuthenticationRequired
+	public ApiResponse updatePatientOrderEncounterCsn(@Nonnull @PathParameter UUID patientOrderId,
+																										@Nonnull @RequestBody String requestBody) {
+		requireNonNull(patientOrderId);
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+
+		if (patientOrder == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canUpdatePatientOrderEncounterCsn(patientOrder, account))
+			throw new AuthorizationException();
+
+		UpdatePatientOrderEncounterCsnRequest request = getRequestBodyParser().parse(requestBody, UpdatePatientOrderEncounterCsnRequest.class);
+		request.setPatientOrderId(patientOrderId);
+
+		getPatientOrderService().updatePatientOrderEncounterCsn(request);
+
+		PatientOrder updatedPatientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).get();
+		PatientOrderApiResponseFormat responseFormat = PatientOrderApiResponseFormat.fromRoleId(account.getRoleId());
+
+		return new ApiResponse(Map.of(
+				"patientOrder", getPatientOrderApiResponseFactory().create(updatedPatientOrder, responseFormat, Set.of(PatientOrderApiResponseSupplement.EVERYTHING))
 		));
 	}
 

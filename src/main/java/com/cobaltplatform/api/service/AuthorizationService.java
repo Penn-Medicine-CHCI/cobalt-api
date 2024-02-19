@@ -564,6 +564,15 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
+	public Boolean canUpdatePatientOrderEncounterCsn(@Nonnull PatientOrder patientOrder,
+																									 @Nonnull Account account) {
+		requireNonNull(patientOrder);
+		requireNonNull(account);
+
+		return canUpdatePatientOrderTriages(patientOrder, account);
+	}
+
+	@Nonnull
 	public Boolean canViewPanelAccounts(@Nonnull InstitutionId institutionId,
 																			@Nonnull Account account) {
 		requireNonNull(institutionId);
