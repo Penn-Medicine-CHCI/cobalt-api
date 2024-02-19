@@ -160,6 +160,7 @@ public class AuthorizationService {
 				|| accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_SAFETY_PLANNING_ADMIN));
 		accountCapabilityFlags.setCanViewIcReports(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_ADMIN));
 		accountCapabilityFlags.setCanImportIcPatientOrders(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_ADMIN));
+		accountCapabilityFlags.setCanAdministerIcDepartmentAvailability(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_DEPARTMENT_AVAILABILITY_ADMIN));
 		accountCapabilityFlags.setCanAdministerContent(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.CONTENT_ADMIN));
 		accountCapabilityFlags.setCanAdministerGroupSessions(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.GROUP_SESSION_ADMIN));
 		accountCapabilityFlags.setCanViewAnalytics(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.ANALYTICS_VIEWER));
