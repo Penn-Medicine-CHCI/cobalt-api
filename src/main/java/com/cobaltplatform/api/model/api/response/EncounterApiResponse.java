@@ -50,6 +50,8 @@ public class EncounterApiResponse {
 	@Nullable
 	private final String subjectDisplay;
 	@Nullable
+	private final String classDisplay;
+	@Nullable
 	private final String serviceTypeText;
 	@Nullable
 	private final LocalDateTime periodStart;
@@ -80,20 +82,27 @@ public class EncounterApiResponse {
 		this.csn = encounter.getCsn();
 		this.status = encounter.getStatus();
 		this.subjectDisplay = encounter.getSubjectDisplay();
+		this.classDisplay = encounter.getClassDisplay();
 		this.serviceTypeText = encounter.getServiceTypeText();
 		this.periodStart = encounter.getPeriodStart();
-		this.periodStartDescription = encounter.getPeriodStart() == null ? null : formatter.formatDateTime(encounter.getPeriodStart(), FormatStyle.MEDIUM, FormatStyle.MEDIUM);
+		this.periodStartDescription = encounter.getPeriodStart() == null ? null : formatter.formatDateTime(encounter.getPeriodStart(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 		this.periodEnd = encounter.getPeriodEnd();
-		this.periodEndDescription = encounter.getPeriodEnd() == null ? null : formatter.formatDateTime(encounter.getPeriodEnd(), FormatStyle.MEDIUM, FormatStyle.MEDIUM);
+		this.periodEndDescription = encounter.getPeriodEnd() == null ? null : formatter.formatDateTime(encounter.getPeriodEnd(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 
 		List<String> descriptions = new ArrayList<>();
 		descriptions.add(strings.get("CSN {{csn}}", Map.of("csn", encounter.getCsn())));
 
-		if (getServiceTypeText() != null)
-			descriptions.add(serviceTypeText);
-
 		if (getPeriodStartDescription() != null)
 			descriptions.add(getPeriodStartDescription());
+
+		if (getStatus() != null)
+			descriptions.add(strings.get("Status: {{status}}", Map.of("status", getStatus())));
+
+		if (getClassDisplay() != null)
+			descriptions.add(strings.get("Class: {{classDisplay}}", Map.of("classDisplay", getClassDisplay())));
+
+		if (getServiceTypeText() != null)
+			descriptions.add(strings.get("Service Type: {{serviceType}}", Map.of("serviceType", getServiceTypeText())));
 
 		this.description = descriptions.stream().collect(Collectors.joining(", "));
 	}
@@ -111,6 +120,11 @@ public class EncounterApiResponse {
 	@Nullable
 	public String getSubjectDisplay() {
 		return this.subjectDisplay;
+	}
+
+	@Nullable
+	public String getClassDisplay() {
+		return this.classDisplay;
 	}
 
 	@Nullable

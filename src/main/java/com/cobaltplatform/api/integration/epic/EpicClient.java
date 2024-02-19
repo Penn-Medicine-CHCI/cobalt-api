@@ -88,8 +88,8 @@ public interface EpicClient {
 	 * @return the patient, or an empty value if none was found for the given identifier system and value
 	 */
 	@Nonnull
-	Optional<PatientReadFhirR4Response> patientReadFhirR4(@Nullable String patientIdSystem,
-																												@Nullable String patientIdValue);
+	PatientSearchResponse patientSearchFhirR4(@Nullable String patientIdSystem,
+																						@Nullable String patientIdValue);
 
 	/**
 	 * <a href="https://fhir.epic.com/Specifications?api=840">FHIR Appointment $find (STU3)</a>

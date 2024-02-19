@@ -183,6 +183,8 @@ public class Encounter {
 	@Nullable
 	private String subjectDisplay;
 	@Nullable
+	private String classDisplay;
+	@Nullable
 	private String serviceTypeText;
 	@Nullable
 	private LocalDateTime periodStart;
@@ -214,6 +216,15 @@ public class Encounter {
 
 	public void setSubjectDisplay(@Nullable String subjectDisplay) {
 		this.subjectDisplay = subjectDisplay;
+	}
+
+	@Nullable
+	public String getClassDisplay() {
+		return this.classDisplay;
+	}
+
+	public void setClassDisplay(@Nullable String classDisplay) {
+		this.classDisplay = classDisplay;
 	}
 
 	@Nullable

@@ -133,32 +133,6 @@ public class DefaultEpicClient implements EpicClient {
 			return Optional.empty();
 
 		String url = format("api/FHIR/R4/Patient/%s", patientId);
-		return patientReadFhirR4Internal(url, null);
-	}
-
-	@Nonnull
-	@Override
-	public Optional<PatientReadFhirR4Response> patientReadFhirR4(@Nullable String patientIdSystem,
-																															 @Nullable String patientIdValue) {
-		patientIdSystem = trimToNull(patientIdSystem);
-		patientIdValue = trimToNull(patientIdValue);
-
-		if (patientIdSystem == null || patientIdValue == null)
-			return Optional.empty();
-
-		String url = "api/FHIR/R4/Patient";
-		Map<String, Object> queryParameters = Map.of("identifier", format("%s|%s", patientIdSystem, patientIdValue));
-
-		return patientReadFhirR4Internal(url, queryParameters);
-	}
-
-	@Nonnull
-	public Optional<PatientReadFhirR4Response> patientReadFhirR4Internal(@Nullable String url,
-																																			 @Nullable Map<String, Object> queryParameters) {
-		url = trimToNull(url);
-
-		if (url == null)
-			return Optional.empty();
 
 		HttpMethod httpMethod = HttpMethod.GET;
 
@@ -199,6 +173,41 @@ public class DefaultEpicClient implements EpicClient {
 		};
 
 		ApiCall<Optional<PatientReadFhirR4Response>> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+				.build();
+
+		return makeApiCall(apiCall);
+	}
+
+	@Nonnull
+	@Override
+	public PatientSearchResponse patientSearchFhirR4(@Nullable String patientIdSystem,
+																									 @Nullable String patientIdValue) {
+		patientIdSystem = trimToNull(patientIdSystem);
+		patientIdValue = trimToNull(patientIdValue);
+
+		if (patientIdSystem == null || patientIdValue == null) {
+			PatientSearchResponse patientSearchResponse = new PatientSearchResponse();
+			patientSearchResponse.setEntry(List.of());
+			patientSearchResponse.setLink(List.of());
+			patientSearchResponse.setType("searchset");
+			patientSearchResponse.setTotal(0);
+			patientSearchResponse.setResourceType("Bundle");
+			return patientSearchResponse;
+		}
+
+		String url = "api/FHIR/R4/Patient";
+		Map<String, Object> queryParameters = Map.of("identifier", format("%s|%s", patientIdSystem, patientIdValue));
+
+		HttpMethod httpMethod = HttpMethod.GET;
+
+		Function<String, PatientSearchResponse> responseBodyMapper = (responseBody) -> {
+			PatientSearchResponse response = getGson().fromJson(responseBody, PatientSearchResponse.class);
+			response.setRawJson(responseBody.trim());
+
+			return response;
+		};
+
+		ApiCall<PatientSearchResponse> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
 				.queryParameters(queryParameters)
 				.build();
 

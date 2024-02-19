@@ -163,6 +163,8 @@ public class Institution {
 	@Nullable
 	private String epicPatientMrnSystem;
 	@Nullable
+	private String epicPatientEncounterCsnSystem;
+	@Nullable
 	@DatabaseColumn("mychart_client_id") // In DB, it's "mychart", in code, it's "MyChart"
 	private String myChartClientId;
 	@Nullable
@@ -823,6 +825,15 @@ public class Institution {
 
 	public void setEpicPatientMrnSystem(@Nullable String epicPatientMrnSystem) {
 		this.epicPatientMrnSystem = epicPatientMrnSystem;
+	}
+
+	@Nullable
+	public String getEpicPatientEncounterCsnSystem() {
+		return this.epicPatientEncounterCsnSystem;
+	}
+
+	public void setEpicPatientEncounterCsnSystem(@Nullable String epicPatientEncounterCsnSystem) {
+		this.epicPatientEncounterCsnSystem = epicPatientEncounterCsnSystem;
 	}
 
 	@Nullable

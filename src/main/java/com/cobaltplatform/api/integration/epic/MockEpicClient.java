@@ -56,6 +56,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import static java.lang.String.format;
@@ -81,9 +82,16 @@ public class MockEpicClient implements EpicClient {
 
 	@Nonnull
 	@Override
-	public Optional<PatientReadFhirR4Response> patientReadFhirR4(@Nullable String patientIdSystem,
-																															 @Nullable String patientIdValue) {
-		return Optional.empty();
+	public PatientSearchResponse patientSearchFhirR4(@Nullable String patientIdSystem,
+																									 @Nullable String patientIdValue) {
+		PatientSearchResponse patientSearchResponse = new PatientSearchResponse();
+		patientSearchResponse.setEntry(List.of());
+		patientSearchResponse.setLink(List.of());
+		patientSearchResponse.setType("searchset");
+		patientSearchResponse.setTotal(0);
+		patientSearchResponse.setResourceType("Bundle");
+		
+		return patientSearchResponse;
 	}
 
 	@Nonnull

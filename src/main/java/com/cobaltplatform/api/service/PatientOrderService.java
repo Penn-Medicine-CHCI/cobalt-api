@@ -26,7 +26,8 @@ import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.epic.EpicClient;
-import com.cobaltplatform.api.integration.epic.response.PatientReadFhirR4Response;
+import com.cobaltplatform.api.integration.epic.response.EncounterSearchFhirR4Response;
+import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse;
 import com.cobaltplatform.api.integration.hl7.Hl7Client;
 import com.cobaltplatform.api.integration.hl7.Hl7ParsingException;
 import com.cobaltplatform.api.integration.hl7.model.event.Hl7GeneralOrderTriggerEvent;
@@ -272,6 +273,8 @@ public class PatientOrderService implements AutoCloseable {
 	@Nonnull
 	private final Provider<BackgroundTask> backgroundTaskProvider;
 	@Nonnull
+	private final EnterprisePluginProvider enterprisePluginProvider;
+	@Nonnull
 	private final PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory;
 	@Nonnull
 	private final Hl7Client hl7Client;
@@ -306,6 +309,7 @@ public class PatientOrderService implements AutoCloseable {
 														 @Nonnull Provider<InstitutionService> institutionServiceProvider,
 														 @Nonnull Provider<ScreeningService> screeningServiceProvider,
 														 @Nonnull Provider<BackgroundTask> backgroundTaskProvider,
+														 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
 														 @Nonnull PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory,
 														 @Nonnull DatabaseProvider databaseProvider,
 														 @Nonnull Hl7Client hl7Client,
@@ -320,6 +324,7 @@ public class PatientOrderService implements AutoCloseable {
 		requireNonNull(institutionServiceProvider);
 		requireNonNull(screeningServiceProvider);
 		requireNonNull(backgroundTaskProvider);
+		requireNonNull(enterprisePluginProvider);
 		requireNonNull(patientOrderScheduledMessageGroupApiResponseFactory);
 		requireNonNull(databaseProvider);
 		requireNonNull(hl7Client);
@@ -335,6 +340,7 @@ public class PatientOrderService implements AutoCloseable {
 		this.institutionServiceProvider = institutionServiceProvider;
 		this.screeningServiceProvider = screeningServiceProvider;
 		this.backgroundTaskProvider = backgroundTaskProvider;
+		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.patientOrderScheduledMessageGroupApiResponseFactory = patientOrderScheduledMessageGroupApiResponseFactory;
 		this.databaseProvider = databaseProvider;
 		this.hl7Client = hl7Client;
@@ -2770,7 +2776,106 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientOrderId == null)
 			return List.of();
 
-		return List.of();
+		PatientOrder patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+
+		if (patientOrder == null)
+			return List.of();
+
+		// TODO: remove, this is for testing
+		if (getConfiguration().isLocal()) {
+			Encounter mockEncounter = new Encounter();
+			mockEncounter.setCsn("123456789");
+			mockEncounter.setStatus("finished");
+			mockEncounter.setSubjectDisplay("Pbtest, Aetna");
+			mockEncounter.setClassDisplay("Appointment");
+			mockEncounter.setPeriodStart(LocalDateTime.of(LocalDate.of(2022, 6, 29), LocalTime.of(10, 20)));
+			mockEncounter.setPeriodEnd(LocalDateTime.of(LocalDate.of(2022, 6, 29), LocalTime.of(10, 40)));
+
+			return List.of(mockEncounter);
+		}
+
+		Institution institution = getInstitutionService().findInstitutionById(patientOrder.getInstitutionId()).get();
+		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(patientOrder.getInstitutionId());
+
+		// TODO: remove, this is for testing
+		// patientOrder.setPatientUniqueId("XXXX");
+
+		EpicClient epicClient = enterprisePlugin.epicClientForBackendService().get();
+		PatientSearchResponse patientSearchResponse = epicClient.patientSearchFhirR4(patientOrder.getPatientUniqueIdType(), patientOrder.getPatientUniqueId());
+
+		if (patientSearchResponse.getTotal() == null || patientSearchResponse.getTotal() == 0)
+			throw new ValidationException(getStrings().get("Unable to find patient record for {{patientUniqueIdType}} {{patientUniqueId}}.", Map.of(
+					"patientUniqueIdType", patientOrder.getPatientUniqueIdType(),
+					"patientUniqueId", patientOrder.getPatientUniqueId()
+			)));
+
+		String patientFhirId = patientSearchResponse.getEntry().get(0).getResource().getId();
+		EncounterSearchFhirR4Response encounterSearchResponse = epicClient.encounterSearchFhirR4(patientFhirId);
+
+		return encounterSearchResponse.getEntry().stream()
+				.map(entry -> entry.getResource())
+				.map(resource -> {
+					String csn = null;
+
+					for (EncounterSearchFhirR4Response.Entry.Resource.Identifier identifier : resource.getIdentifier()) {
+						if (Objects.equals(institution.getEpicPatientEncounterCsnSystem(), identifier.getSystem())) {
+							csn = trimToNull(identifier.getValue());
+							break;
+						}
+					}
+
+					if (csn == null) {
+						getLogger().warn("Could not find a CSN for encounter, ignoring...");
+						return null;
+					}
+
+					Encounter encounter = new Encounter();
+					encounter.setCsn(csn);
+					encounter.setStatus(trimToNull(resource.getStatus()));
+
+					if (resource.getClassValue() != null)
+						encounter.setClassDisplay(trimToNull(resource.getClassValue().getDisplay()));
+
+					if (resource.getServiceType() != null)
+						encounter.setServiceTypeText(trimToNull(resource.getServiceType().getText()));
+
+					if (resource.getSubject() != null)
+						encounter.setSubjectDisplay(trimToNull(resource.getSubject().getDisplay()));
+
+					if (resource.getPeriod() != null) {
+						String periodStartAsString = trimToNull(resource.getPeriod().getStart());
+						String periodEndAsString = trimToNull(resource.getPeriod().getEnd());
+
+						if (periodStartAsString != null) {
+							if (periodStartAsString.length() == 10) {
+								// Must be a date, e.g. 2022-04-29
+								LocalDate periodStart = LocalDate.parse(periodStartAsString);
+								encounter.setPeriodStart(LocalDateTime.of(periodStart, LocalTime.MIDNIGHT));
+							} else {
+								Instant periodStart = Instant.parse(periodStartAsString);
+								encounter.setPeriodStart(LocalDateTime.ofInstant(periodStart, institution.getTimeZone()));
+							}
+						}
+
+						if (periodEndAsString != null) {
+							if (periodEndAsString.length() == 10) {
+								// Must be a date, e.g. 2022-04-29
+								LocalDate periodEnd = LocalDate.parse(periodEndAsString);
+								encounter.setPeriodEnd(LocalDateTime.of(periodEnd, LocalTime.MIDNIGHT));
+							} else {
+								Instant periodEnd = Instant.parse(periodEndAsString);
+								encounter.setPeriodEnd(LocalDateTime.ofInstant(periodEnd, institution.getTimeZone()));
+							}
+						}
+					}
+
+					return encounter;
+				})
+				.filter(encounter -> encounter != null)
+				// TODO: re-enable for prod?
+				// .filter(encounter -> !encounter.getPeriodStart().toLocalDate().isBefore(patientOrder.getOrderDate()))
+				.limit(5L) // Only show 5 most recent
+				.collect(Collectors.toList());
 	}
 
 	@Nonnull
@@ -5628,15 +5733,15 @@ public class PatientOrderService implements AutoCloseable {
 
 						// Per https://fhir.epic.com/Specifications?api=30
 						// identifiers are of the format <OID>|<value>
-						PatientReadFhirR4Response patientReadResponse = epicClient.patientReadFhirR4(institution.getEpicPatientUniqueIdType(), demographicsImportNeededPatientOrder.getPatientUniqueId()).orElse(null);
+						PatientSearchResponse patientSearchResponse = epicClient.patientSearchFhirR4(institution.getEpicPatientUniqueIdType(), demographicsImportNeededPatientOrder.getPatientUniqueId());
 
-						if (patientReadResponse == null)
+						if (patientSearchResponse.getTotal() == null || patientSearchResponse.getTotal().equals(0))
 							throw new IllegalStateException(format("Unable to extract total count for %s patient with ID %s",
 									institution.getInstitutionId().name(), demographicsImportNeededPatientOrder.getPatientUniqueId()));
 
-						EthnicityId ethnicityId = patientReadResponse.extractEthnicityId().orElse(EthnicityId.NOT_ASKED);
-						RaceId raceId = patientReadResponse.extractRaceId().orElse(RaceId.NOT_ASKED);
-						BirthSexId birthSexId = patientReadResponse.extractBirthSexId().orElse(BirthSexId.NOT_ASKED);
+						EthnicityId ethnicityId = patientSearchResponse.extractEthnicityId().orElse(EthnicityId.NOT_ASKED);
+						RaceId raceId = patientSearchResponse.extractRaceId().orElse(RaceId.NOT_ASKED);
+						BirthSexId birthSexId = patientSearchResponse.extractBirthSexId().orElse(BirthSexId.NOT_ASKED);
 
 						getDatabase().execute("""
 										UPDATE patient_order
@@ -5890,6 +5995,11 @@ public class PatientOrderService implements AutoCloseable {
 	@Nonnull
 	protected Optional<ScheduledExecutorService> getBackgroundTaskExecutorService() {
 		return Optional.ofNullable(this.backgroundTaskExecutorService);
+	}
+
+	@Nonnull
+	protected EnterprisePluginProvider getEnterprisePluginProvider() {
+		return this.enterprisePluginProvider;
 	}
 
 	@Nonnull
