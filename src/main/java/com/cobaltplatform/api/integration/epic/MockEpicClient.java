@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.integration.epic;
 
+import com.cobaltplatform.api.integration.epic.request.AddFlowsheetValueRequest;
 import com.cobaltplatform.api.integration.epic.request.AppointmentBookFhirStu3Request;
 import com.cobaltplatform.api.integration.epic.request.AppointmentFindFhirStu3Request;
 import com.cobaltplatform.api.integration.epic.request.AppointmentSearchFhirStu3Request;
@@ -29,6 +30,7 @@ import com.cobaltplatform.api.integration.epic.request.GetProviderScheduleReques
 import com.cobaltplatform.api.integration.epic.request.PatientCreateRequest;
 import com.cobaltplatform.api.integration.epic.request.PatientSearchRequest;
 import com.cobaltplatform.api.integration.epic.request.ScheduleAppointmentWithInsuranceRequest;
+import com.cobaltplatform.api.integration.epic.response.AddFlowsheetValueResponse;
 import com.cobaltplatform.api.integration.epic.response.AppointmentBookFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.AppointmentFindFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.AppointmentSearchFhirStu3Response;
@@ -90,7 +92,7 @@ public class MockEpicClient implements EpicClient {
 		patientSearchResponse.setType("searchset");
 		patientSearchResponse.setTotal(0);
 		patientSearchResponse.setResourceType("Bundle");
-		
+
 		return patientSearchResponse;
 	}
 
@@ -179,6 +181,13 @@ public class MockEpicClient implements EpicClient {
 	public CancelAppointmentResponse performCancelAppointment(@Nonnull CancelAppointmentRequest request) {
 		requireNonNull(request);
 		return acquireMockResponseInstance(CancelAppointmentResponse.class);
+	}
+
+	@Nonnull
+	@Override
+	public AddFlowsheetValueResponse addFlowsheetValue(@Nonnull AddFlowsheetValueRequest request) {
+		AddFlowsheetValueResponse response = new AddFlowsheetValueResponse();
+		return response;
 	}
 
 	/**

@@ -24,6 +24,7 @@ import com.cobaltplatform.api.http.HttpClient;
 import com.cobaltplatform.api.http.HttpMethod;
 import com.cobaltplatform.api.http.HttpRequest;
 import com.cobaltplatform.api.http.HttpResponse;
+import com.cobaltplatform.api.integration.epic.request.AddFlowsheetValueRequest;
 import com.cobaltplatform.api.integration.epic.request.AppointmentBookFhirStu3Request;
 import com.cobaltplatform.api.integration.epic.request.AppointmentFindFhirStu3Request;
 import com.cobaltplatform.api.integration.epic.request.AppointmentSearchFhirStu3Request;
@@ -34,6 +35,7 @@ import com.cobaltplatform.api.integration.epic.request.GetProviderScheduleReques
 import com.cobaltplatform.api.integration.epic.request.PatientCreateRequest;
 import com.cobaltplatform.api.integration.epic.request.PatientSearchRequest;
 import com.cobaltplatform.api.integration.epic.request.ScheduleAppointmentWithInsuranceRequest;
+import com.cobaltplatform.api.integration.epic.response.AddFlowsheetValueResponse;
 import com.cobaltplatform.api.integration.epic.response.AppointmentBookFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.AppointmentFindFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.AppointmentSearchFhirStu3Response;
@@ -941,6 +943,69 @@ public class DefaultEpicClient implements EpicClient {
 
 		ApiCall<CancelAppointmentResponse> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
 				.requestBody(getGson().toJson(request))
+				.build();
+
+		return makeApiCall(apiCall);
+	}
+
+	@Nonnull
+	@Override
+	public AddFlowsheetValueResponse addFlowsheetValue(@Nonnull AddFlowsheetValueRequest request) {
+		requireNonNull(request);
+
+		String PatientID = trimToNull(request.getPatientID());
+		String PatientIDType = trimToNull(request.getPatientIDType());
+		String ContactID = trimToNull(request.getContactID());
+		String ContactIDType = trimToNull(request.getContactIDType());
+		String UserID = trimToNull(request.getUserID());
+		String UserIDType = trimToNull(request.getUserIDType());
+		String FlowsheetID = trimToNull(request.getFlowsheetID());
+		String FlowsheetIDType = trimToNull(request.getFlowsheetIDType());
+		String Value = trimToNull(request.getValue());
+		String Comment = trimToNull(request.getComment());
+		String InstantValueTaken = request.getInstantValueToken() == null ? null : DateTimeFormatter.ISO_INSTANT.format(request.getInstantValueToken());
+		String FlowsheetTemplateID = trimToNull(request.getFlowsheetTemplateID());
+		String FlowsheetTemplateIDType = trimToNull(request.getFlowsheetTemplateIDType());
+
+		HttpMethod httpMethod = HttpMethod.POST;
+		String url = "api/epic/2011/Clinical/Patient/ADDFLOWSHEETVALUE/FlowsheetValue";
+		Function<String, AddFlowsheetValueResponse> responseBodyMapper = (responseBody) -> {
+			AddFlowsheetValueResponse response = getGson().fromJson(responseBody, AddFlowsheetValueResponse.class);
+			response.setRawJson(responseBody);
+			return response;
+		};
+
+		Map<String, Object> queryParameters = new HashMap<>(16);
+
+		if (PatientID != null)
+			queryParameters.put("PatientID", PatientID);
+		if (PatientIDType != null)
+			queryParameters.put("PatientIDType", PatientIDType);
+		if (ContactID != null)
+			queryParameters.put("ContactID", ContactID);
+		if (ContactIDType != null)
+			queryParameters.put("ContactIDType", ContactIDType);
+		if (UserID != null)
+			queryParameters.put("UserID", UserID);
+		if (UserIDType != null)
+			queryParameters.put("UserIDType", UserIDType);
+		if (FlowsheetID != null)
+			queryParameters.put("FlowsheetID", FlowsheetID);
+		if (FlowsheetIDType != null)
+			queryParameters.put("FlowsheetIDType", FlowsheetIDType);
+		if (Value != null)
+			queryParameters.put("Value", Value);
+		if (Comment != null)
+			queryParameters.put("Comment", Comment);
+		if (InstantValueTaken != null)
+			queryParameters.put("InstantValueTaken", InstantValueTaken);
+		if (FlowsheetTemplateID != null)
+			queryParameters.put("FlowsheetTemplateID", FlowsheetTemplateID);
+		if (FlowsheetTemplateIDType != null)
+			queryParameters.put("FlowsheetTemplateIDType", FlowsheetTemplateIDType);
+
+		ApiCall<AddFlowsheetValueResponse> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+				.queryParameters(queryParameters)
 				.build();
 
 		return makeApiCall(apiCall);
