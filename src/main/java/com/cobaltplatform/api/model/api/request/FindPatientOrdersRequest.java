@@ -69,7 +69,7 @@ public class FindPatientOrdersRequest {
 	@Nullable
 	private Set<PatientOrderFilterFlagTypeId> patientOrderFilterFlagTypeIds;
 	@Nullable
-	private Set<String> referringPracticeNames;
+	private Set<String> referringPracticeIds;
 	@Nullable
 	private Set<String> reasonsForReferral;
 	@Nullable
@@ -242,12 +242,12 @@ public class FindPatientOrdersRequest {
 	}
 
 	@Nullable
-	public Set<String> getReferringPracticeNames() {
-		return this.referringPracticeNames;
+	public Set<String> getReferringPracticeIds() {
+		return this.referringPracticeIds;
 	}
 
-	public void setReferringPracticeNames(@Nullable Set<String> referringPracticeNames) {
-		this.referringPracticeNames = referringPracticeNames;
+	public void setReferringPracticeIds(@Nullable Set<String> referringPracticeIds) {
+		this.referringPracticeIds = referringPracticeIds;
 	}
 
 	@Nullable

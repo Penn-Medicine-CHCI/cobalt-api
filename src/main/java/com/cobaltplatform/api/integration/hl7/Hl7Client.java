@@ -22,18 +22,19 @@ package com.cobaltplatform.api.integration.hl7;
 import ca.uhn.hl7v2.DefaultHapiContext;
 import ca.uhn.hl7v2.HapiContext;
 import ca.uhn.hl7v2.model.Message;
-import ca.uhn.hl7v2.model.v251.group.ORM_O01_ORDER;
-import ca.uhn.hl7v2.model.v251.group.ORM_O01_PATIENT;
 import ca.uhn.hl7v2.model.v251.message.ORM_O01;
-import ca.uhn.hl7v2.model.v251.segment.ORC;
 import ca.uhn.hl7v2.parser.Parser;
-import com.cobaltplatform.api.integration.hl7.model.Hl7PatientOrder;
+import com.cobaltplatform.api.integration.hl7.model.event.Hl7GeneralOrderTriggerEvent;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Singleton;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
 
+import static com.soklet.util.StringUtils.trimToNull;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -46,57 +47,57 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class Hl7Client {
 	@Nonnull
-	public Hl7PatientOrder parsePatientOrderMessage(@Nonnull String patientOrderMessage) throws Hl7ParsingException {
-		requireNonNull(patientOrderMessage);
+	public String messageFromBytes(@Nonnull byte[] bytes) {
+		requireNonNull(bytes);
+		// Messages are in ASCII and generally contain only carriage returns (not CRLF). Here we force newlines
+		return new String(bytes, StandardCharsets.US_ASCII /* Charset.forName("Windows-1252") */).replace("\r", "\r\n").trim();
+	}
 
-		// TODO: determine if these are threadsafe, would be nice to share them across threads
-		HapiContext hapiContext = new DefaultHapiContext();
-		Parser parser = hapiContext.getGenericParser();
+	@Nonnull
+	public Hl7GeneralOrderTriggerEvent parseGeneralOrder(@Nonnull byte[] generalOrderHl7) throws Hl7ParsingException {
+		requireNonNull(generalOrderHl7);
+		return parseGeneralOrder(messageFromBytes(generalOrderHl7));
+	}
 
-		Message hapiMessage;
+	@Nonnull
+	public Hl7GeneralOrderTriggerEvent parseGeneralOrder(@Nonnull String generalOrderHl7AsString) throws Hl7ParsingException {
+		requireNonNull(generalOrderHl7AsString);
 
-		// Patient order messages must have CRLF endings, otherwise parsing will fail.  Ensure that here.
-		patientOrderMessage = patientOrderMessage.trim().lines().collect(Collectors.joining("\r\n"));
+		// TODO: determine if HapiContext/Parser instances are threadsafe, would be nice to share them across threads
+		try (HapiContext hapiContext = new DefaultHapiContext()) {
+			Parser parser = hapiContext.getGenericParser();
+			Message message;
 
-		try {
-			hapiMessage = parser.parse(patientOrderMessage);
-		} catch (Exception e) {
-			throw new Hl7ParsingException(format("Unable to parse HL7 message:\n%s", patientOrderMessage), e);
-		}
+			// Patient order messages must have CRLF endings, otherwise parsing will fail.  Ensure that here.
+			generalOrderHl7AsString = generalOrderHl7AsString.trim().lines().collect(Collectors.joining("\r\n"));
 
-		try {
-			ORM_O01 ormMessage = (ORM_O01) hapiMessage;
+			try {
+				message = parser.parse(generalOrderHl7AsString);
+			} catch (Exception e) {
+				throw new Hl7ParsingException(format("Unable to parse HL7 message:\n%s", generalOrderHl7AsString), e);
+			}
 
-			ORM_O01_ORDER order = ormMessage.getORDER();
-			ORC orc = order.getORC();
+			try {
+				final String SUPPORTED_HL7_VERSION = "2.5.1";
+				String messageVersion = trimToNull(message.getVersion());
 
-			String orderId = orc.getOrc2_PlacerOrderNumber().getEi1_EntityIdentifier().getValue();
+				// See https://hl7-definition.caristix.com/v2/hl7v2.5.1/TriggerEvents/ORM_O01
+				if (!SUPPORTED_HL7_VERSION.equals(messageVersion)) {
+					throw new Hl7ParsingException(format("Supported HL7 version is %s but received message with version %s",
+							SUPPORTED_HL7_VERSION, messageVersion == null ? "[unknown]" : messageVersion));
+				}
 
-			if (orderId == null)
-				throw new Hl7ParsingException(format("HL7 message did not contain an order ID:\n%s", patientOrderMessage));
+				ORM_O01 ormMessage = (ORM_O01) message;
 
-			ORM_O01_PATIENT patient = ormMessage.getPATIENT();
+				if (!Hl7GeneralOrderTriggerEvent.isPresent(ormMessage))
+					throw new Hl7ParsingException(format("No %s message data was found", ORM_O01.class.getSimpleName()));
 
-			String patientId = patient.getPID().getPatientID().getIDNumber().getValue();
-
-			if (patientId == null)
-				throw new Hl7ParsingException(format("HL7 message did not contain a patient ID:\n%s", patientOrderMessage));
-
-			String patientIdType = patient.getPID().getPatientID().getIdentifierTypeCode().getValue();
-
-			if (patientIdType == null)
-				throw new Hl7ParsingException(format("HL7 message did not contain a patient ID type:\n%s", patientOrderMessage));
-
-			Hl7PatientOrder hl7PatientOrder = new Hl7PatientOrder();
-			hl7PatientOrder.setOrderId(orderId);
-			hl7PatientOrder.setPatientId(patientId);
-			hl7PatientOrder.setPatientIdType(patientIdType);
-
-			return hl7PatientOrder;
-		} catch (Hl7ParsingException e) {
-			throw e;
-		} catch (Exception e) {
-			throw new Hl7ParsingException(format("Encountered an unexpected issue while processing HL7 message:\n%s", patientOrderMessage), e);
+				return new Hl7GeneralOrderTriggerEvent(ormMessage);
+			} catch (Exception e) {
+				throw new Hl7ParsingException(format("Encountered an unexpected problem while processing HL7 message:\n%s", generalOrderHl7AsString), e);
+			}
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
 		}
 	}
 }

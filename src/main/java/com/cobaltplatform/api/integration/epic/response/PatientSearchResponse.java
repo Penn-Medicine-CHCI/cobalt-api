@@ -40,6 +40,9 @@ import java.util.Optional;
 @NotThreadSafe
 public class PatientSearchResponse {
 	@Nullable
+	private String rawJson;
+
+	@Nullable
 	private String resourceType;
 	@Nullable
 	private String type;
@@ -466,7 +469,7 @@ public class PatientSearchResponse {
 				@Nullable
 				private String text;
 				@Nullable
-				private List<String> family;
+				private String family;
 				@Nullable
 				private List<String> given;
 
@@ -489,11 +492,11 @@ public class PatientSearchResponse {
 				}
 
 				@Nullable
-				public List<String> getFamily() {
-					return family;
+				public String getFamily() {
+					return this.family;
 				}
 
-				public void setFamily(@Nullable List<String> family) {
+				public void setFamily(@Nullable String family) {
 					this.family = family;
 				}
 
@@ -863,5 +866,14 @@ public class PatientSearchResponse {
 
 	public void setEntry(@Nullable List<Entry> entry) {
 		this.entry = entry;
+	}
+
+	@Nullable
+	public String getRawJson() {
+		return this.rawJson;
+	}
+
+	public void setRawJson(@Nullable String rawJson) {
+		this.rawJson = rawJson;
 	}
 }

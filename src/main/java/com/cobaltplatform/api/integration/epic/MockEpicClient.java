@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.integration.epic;
 
+import com.cobaltplatform.api.integration.epic.request.AddFlowsheetValueRequest;
 import com.cobaltplatform.api.integration.epic.request.AppointmentBookFhirStu3Request;
 import com.cobaltplatform.api.integration.epic.request.AppointmentFindFhirStu3Request;
 import com.cobaltplatform.api.integration.epic.request.AppointmentSearchFhirStu3Request;
@@ -29,10 +30,12 @@ import com.cobaltplatform.api.integration.epic.request.GetProviderScheduleReques
 import com.cobaltplatform.api.integration.epic.request.PatientCreateRequest;
 import com.cobaltplatform.api.integration.epic.request.PatientSearchRequest;
 import com.cobaltplatform.api.integration.epic.request.ScheduleAppointmentWithInsuranceRequest;
+import com.cobaltplatform.api.integration.epic.response.AddFlowsheetValueResponse;
 import com.cobaltplatform.api.integration.epic.response.AppointmentBookFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.AppointmentFindFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.AppointmentSearchFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.CancelAppointmentResponse;
+import com.cobaltplatform.api.integration.epic.response.EncounterSearchFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.GetPatientAppointmentsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetPatientDemographicsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse;
@@ -43,6 +46,7 @@ import com.cobaltplatform.api.integration.epic.response.ScheduleAppointmentWithI
 import com.google.gson.Gson;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -54,6 +58,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import static java.lang.String.format;
@@ -73,8 +78,22 @@ public class MockEpicClient implements EpicClient {
 
 	@Nonnull
 	@Override
-	public Optional<PatientReadFhirR4Response> patientReadFhirR4(@Nonnull String patientId) {
+	public Optional<PatientReadFhirR4Response> patientReadFhirR4(@Nullable String patientId) {
 		return Optional.empty();
+	}
+
+	@Nonnull
+	@Override
+	public PatientSearchResponse patientSearchFhirR4(@Nullable String patientIdSystem,
+																									 @Nullable String patientIdValue) {
+		PatientSearchResponse patientSearchResponse = new PatientSearchResponse();
+		patientSearchResponse.setEntry(List.of());
+		patientSearchResponse.setLink(List.of());
+		patientSearchResponse.setType("searchset");
+		patientSearchResponse.setTotal(0);
+		patientSearchResponse.setResourceType("Bundle");
+
+		return patientSearchResponse;
 	}
 
 	@Nonnull
@@ -96,6 +115,12 @@ public class MockEpicClient implements EpicClient {
 	public AppointmentSearchFhirStu3Response appointmentSearchFhirStu3(@Nonnull AppointmentSearchFhirStu3Request request) {
 		requireNonNull(request);
 		return acquireMockResponseInstance(AppointmentSearchFhirStu3Response.class);
+	}
+
+	@Nonnull
+	@Override
+	public EncounterSearchFhirR4Response encounterSearchFhirR4(@Nullable String patientId) {
+		return acquireMockResponseInstance(EncounterSearchFhirR4Response.class);
 	}
 
 	@Nonnull
@@ -156,6 +181,13 @@ public class MockEpicClient implements EpicClient {
 	public CancelAppointmentResponse performCancelAppointment(@Nonnull CancelAppointmentRequest request) {
 		requireNonNull(request);
 		return acquireMockResponseInstance(CancelAppointmentResponse.class);
+	}
+
+	@Nonnull
+	@Override
+	public AddFlowsheetValueResponse addFlowsheetValue(@Nonnull AddFlowsheetValueRequest request) {
+		AddFlowsheetValueResponse response = new AddFlowsheetValueResponse();
+		return response;
 	}
 
 	/**

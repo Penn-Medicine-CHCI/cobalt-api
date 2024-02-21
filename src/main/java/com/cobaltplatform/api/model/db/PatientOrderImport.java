@@ -43,7 +43,11 @@ public class PatientOrderImport {
 	@Nullable
 	private String rawOrder;
 	@Nullable
+	private String rawOrderJsonRepresentation;
+	@Nullable
 	private String rawOrderChecksum;
+	@Nullable
+	private String rawOrderFilename;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -95,12 +99,30 @@ public class PatientOrderImport {
 	}
 
 	@Nullable
+	public String getRawOrderJsonRepresentation() {
+		return this.rawOrderJsonRepresentation;
+	}
+
+	public void setRawOrderJsonRepresentation(@Nullable String rawOrderJsonRepresentation) {
+		this.rawOrderJsonRepresentation = rawOrderJsonRepresentation;
+	}
+
+	@Nullable
 	public String getRawOrderChecksum() {
 		return this.rawOrderChecksum;
 	}
 
 	public void setRawOrderChecksum(@Nullable String rawOrderChecksum) {
 		this.rawOrderChecksum = rawOrderChecksum;
+	}
+
+	@Nullable
+	public String getRawOrderFilename() {
+		return this.rawOrderFilename;
+	}
+
+	public void setRawOrderFilename(@Nullable String rawOrderFilename) {
+		this.rawOrderFilename = rawOrderFilename;
 	}
 
 	@Nullable

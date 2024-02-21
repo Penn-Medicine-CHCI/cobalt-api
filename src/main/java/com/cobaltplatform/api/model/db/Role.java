@@ -38,7 +38,8 @@ public class Role {
 		PATIENT,
 		PROVIDER,
 		ADMINISTRATOR,
-		MHIC
+		MHIC,
+		SERVICE_ACCOUNT
 	}
 
 	@Override

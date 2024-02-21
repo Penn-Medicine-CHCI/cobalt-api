@@ -43,6 +43,7 @@ import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTria
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
+import com.cobaltplatform.api.model.service.PatientOrderEncounterDocumentationStatusId;
 import com.pyranid.DatabaseColumn;
 
 import javax.annotation.Nullable;
@@ -220,6 +221,12 @@ public class PatientOrder {
 	@Nullable
 	private DistanceUnitId inPersonCareRadiusDistanceUnitId;
 	@Nullable
+	private UUID epicDepartmentId;
+	@Nullable
+	private String encounterCsn;
+	@Nullable
+	private Instant encounterSyncedAt;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -371,6 +378,12 @@ public class PatientOrder {
 	private PatientOrderIntakeInsuranceStatusId patientOrderIntakeInsuranceStatusId;
 	@Nullable
 	private Boolean mostRecentIntakeAndClinicalScreeningsSatisfied;
+	@Nullable
+	private String epicDepartmentName;
+	@Nullable
+	private String epicDepartmentDepartmentId;
+	@Nullable
+	private PatientOrderEncounterDocumentationStatusId patientOrderEncounterDocumentationStatusId;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -1756,5 +1769,59 @@ public class PatientOrder {
 
 	public void setMostRecentIntakeAndClinicalScreeningsSatisfied(@Nullable Boolean mostRecentIntakeAndClinicalScreeningsSatisfied) {
 		this.mostRecentIntakeAndClinicalScreeningsSatisfied = mostRecentIntakeAndClinicalScreeningsSatisfied;
+	}
+
+	@Nullable
+	public UUID getEpicDepartmentId() {
+		return this.epicDepartmentId;
+	}
+
+	public void setEpicDepartmentId(@Nullable UUID epicDepartmentId) {
+		this.epicDepartmentId = epicDepartmentId;
+	}
+
+	@Nullable
+	public String getEncounterCsn() {
+		return this.encounterCsn;
+	}
+
+	public void setEncounterCsn(@Nullable String encounterCsn) {
+		this.encounterCsn = encounterCsn;
+	}
+
+	@Nullable
+	public Instant getEncounterSyncedAt() {
+		return this.encounterSyncedAt;
+	}
+
+	public void setEncounterSyncedAt(@Nullable Instant encounterSyncedAt) {
+		this.encounterSyncedAt = encounterSyncedAt;
+	}
+
+	@Nullable
+	public String getEpicDepartmentName() {
+		return this.epicDepartmentName;
+	}
+
+	public void setEpicDepartmentName(@Nullable String epicDepartmentName) {
+		this.epicDepartmentName = epicDepartmentName;
+	}
+
+	@Nullable
+	public String getEpicDepartmentDepartmentId() {
+		return this.epicDepartmentDepartmentId;
+	}
+
+	public void setEpicDepartmentDepartmentId(@Nullable String epicDepartmentDepartmentId) {
+		this.epicDepartmentDepartmentId = epicDepartmentDepartmentId;
+	}
+
+	@Nullable
+	public PatientOrderEncounterDocumentationStatusId getPatientOrderEncounterDocumentationStatusId() {
+		return this.patientOrderEncounterDocumentationStatusId;
+	}
+
+	public void setPatientOrderEncounterDocumentationStatusId(@Nullable PatientOrderEncounterDocumentationStatusId patientOrderEncounterDocumentationStatusId) {
+		this.patientOrderEncounterDocumentationStatusId = patientOrderEncounterDocumentationStatusId;
 	}
 }

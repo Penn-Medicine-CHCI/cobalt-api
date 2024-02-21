@@ -19,12 +19,11 @@
 
 package com.cobaltplatform.api.integration.hl7;
 
-import com.cobaltplatform.api.integration.hl7.model.Hl7PatientOrder;
+import com.cobaltplatform.api.integration.hl7.model.event.Hl7GeneralOrderTriggerEvent;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import javax.annotation.concurrent.ThreadSafe;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -43,8 +42,13 @@ public class Hl7ClientTests {
 
 	@Test
 	public void testHl7Parsing() throws Exception {
+		byte[] generalOrderHl7 = Files.readAllBytes(Path.of("localstack/secrets/patient-order-hl7/To_COBALT_Ord_20240206_16.txt"));
+
 		Hl7Client hl7Client = new Hl7Client();
-		String patientOrderMessage = Files.readString(Path.of("resources/mock/hl7/ic-order-1.txt"), StandardCharsets.UTF_8);
-		Hl7PatientOrder hl7PatientOrder = hl7Client.parsePatientOrderMessage(patientOrderMessage);
+		String generalOrderHl7AsString = hl7Client.messageFromBytes(generalOrderHl7);
+		Hl7GeneralOrderTriggerEvent generalOrder = hl7Client.parseGeneralOrder(generalOrderHl7AsString);
+
+		System.out.println(generalOrderHl7AsString);
+		System.out.println(generalOrder);
 	}
 }

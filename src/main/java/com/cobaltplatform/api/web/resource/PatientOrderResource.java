@@ -41,7 +41,9 @@ import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest.Patient
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest.PatientOrderSortRule;
 import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
+import com.cobaltplatform.api.model.api.request.UpdateEpicDepartmentRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderConsentStatusRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderEncounterCsnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourceCheckInResponseStatusRequest;
@@ -54,6 +56,8 @@ import com.cobaltplatform.api.model.api.response.AccountApiResponse;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse.CountryApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.EncounterApiResponse.EncounterApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.EpicDepartmentApiResponse.EpicDepartmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.LanguageApiResponse;
 import com.cobaltplatform.api.model.api.response.LanguageApiResponse.LanguageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse;
@@ -72,6 +76,7 @@ import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -93,6 +98,7 @@ import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTria
 import com.cobaltplatform.api.model.db.PatientOrderVoicemailTask;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.service.Encounter;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.PatientOrderAssignmentStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderAutocompleteResult;
@@ -101,6 +107,7 @@ import com.cobaltplatform.api.model.service.PatientOrderImportResult;
 import com.cobaltplatform.api.model.service.PatientOrderOutreachStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderResponseStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderViewTypeId;
+import com.cobaltplatform.api.model.service.ReferringPractice;
 import com.cobaltplatform.api.model.service.Region;
 import com.cobaltplatform.api.model.service.SortDirectionId;
 import com.cobaltplatform.api.model.service.SortNullsId;
@@ -108,6 +115,7 @@ import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.PatientOrderService;
+import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
@@ -168,6 +176,8 @@ public class PatientOrderResource {
 	@Nonnull
 	private final PatientOrderService patientOrderService;
 	@Nonnull
+	private final ProviderService providerService;
+	@Nonnull
 	private final AccountService accountService;
 	@Nonnull
 	private final InstitutionService institutionService;
@@ -181,6 +191,10 @@ public class PatientOrderResource {
 	private final PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory;
 	@Nonnull
 	private final PatientOrderOutreachApiResponseFactory patientOrderOutreachApiResponseFactory;
+	@Nonnull
+	private final EpicDepartmentApiResponseFactory epicDepartmentApiResponseFactory;
+	@Nonnull
+	private final EncounterApiResponseFactory encounterApiResponseFactory;
 	@Nonnull
 	private final AccountApiResponseFactory accountApiResponseFactory;
 	@Nonnull
@@ -216,6 +230,7 @@ public class PatientOrderResource {
 
 	@Inject
 	public PatientOrderResource(@Nonnull PatientOrderService patientOrderService,
+															@Nonnull ProviderService providerService,
 															@Nonnull AccountService accountService,
 															@Nonnull InstitutionService institutionService,
 															@Nonnull AuthorizationService authorizationService,
@@ -223,6 +238,8 @@ public class PatientOrderResource {
 															@Nonnull PatientOrderApiResponseFactory patientOrderApiResponseFactory,
 															@Nonnull PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory,
 															@Nonnull PatientOrderOutreachApiResponseFactory patientOrderOutreachApiResponseFactory,
+															@Nonnull EpicDepartmentApiResponseFactory epicDepartmentApiResponseFactory,
+															@Nonnull EncounterApiResponseFactory encounterApiResponseFactory,
 															@Nonnull AccountApiResponseFactory accountApiResponseFactory,
 															@Nonnull TimeZoneApiResponseFactory timeZoneApiResponseFactory,
 															@Nonnull LanguageApiResponseFactory languageApiResponseFactory,
@@ -239,6 +256,7 @@ public class PatientOrderResource {
 															@Nonnull Provider<CurrentContext> currentContextProvider,
 															@Nonnull Strings strings) {
 		requireNonNull(patientOrderService);
+		requireNonNull(providerService);
 		requireNonNull(accountService);
 		requireNonNull(institutionService);
 		requireNonNull(authorizationService);
@@ -246,6 +264,8 @@ public class PatientOrderResource {
 		requireNonNull(patientOrderApiResponseFactory);
 		requireNonNull(patientOrderNoteApiResponseFactory);
 		requireNonNull(patientOrderOutreachApiResponseFactory);
+		requireNonNull(epicDepartmentApiResponseFactory);
+		requireNonNull(encounterApiResponseFactory);
 		requireNonNull(accountApiResponseFactory);
 		requireNonNull(timeZoneApiResponseFactory);
 		requireNonNull(languageApiResponseFactory);
@@ -263,6 +283,7 @@ public class PatientOrderResource {
 		requireNonNull(strings);
 
 		this.patientOrderService = patientOrderService;
+		this.providerService = providerService;
 		this.accountService = accountService;
 		this.institutionService = institutionService;
 		this.authorizationService = authorizationService;
@@ -270,6 +291,8 @@ public class PatientOrderResource {
 		this.patientOrderApiResponseFactory = patientOrderApiResponseFactory;
 		this.patientOrderNoteApiResponseFactory = patientOrderNoteApiResponseFactory;
 		this.patientOrderOutreachApiResponseFactory = patientOrderOutreachApiResponseFactory;
+		this.epicDepartmentApiResponseFactory = epicDepartmentApiResponseFactory;
+		this.encounterApiResponseFactory = encounterApiResponseFactory;
 		this.accountApiResponseFactory = accountApiResponseFactory;
 		this.timeZoneApiResponseFactory = timeZoneApiResponseFactory;
 		this.languageApiResponseFactory = languageApiResponseFactory;
@@ -632,7 +655,7 @@ public class PatientOrderResource {
 																			 @Nonnull @QueryParameter Optional<PatientOrderResponseStatusId> patientOrderResponseStatusId,
 																			 @Nonnull @QueryParameter Optional<PatientOrderSafetyPlanningStatusId> patientOrderSafetyPlanningStatusId,
 																			 @Nonnull @QueryParameter("patientOrderFilterFlagTypeId") Optional<List<PatientOrderFilterFlagTypeId>> patientOrderFilterFlagTypeIds,
-																			 @Nonnull @QueryParameter Optional<List<String>> referringPracticeNames,
+																			 @Nonnull @QueryParameter Optional<List<String>> referringPracticeIds,
 																			 @Nonnull @QueryParameter("panelAccountId") Optional<List<UUID>> panelAccountIds,
 																			 @Nonnull @QueryParameter Optional<String> patientMrn,
 																			 @Nonnull @QueryParameter Optional<String> searchQuery,
@@ -652,7 +675,7 @@ public class PatientOrderResource {
 		requireNonNull(patientOrderResponseStatusId);
 		requireNonNull(patientOrderSafetyPlanningStatusId);
 		requireNonNull(patientOrderFilterFlagTypeIds);
-		requireNonNull(referringPracticeNames);
+		requireNonNull(referringPracticeIds);
 		requireNonNull(panelAccountIds);
 		requireNonNull(patientMrn);
 		requireNonNull(searchQuery);
@@ -713,7 +736,7 @@ public class PatientOrderResource {
 				setPatientOrderResponseStatusId(patientOrderResponseStatusId.orElse(null));
 				setPatientOrderSafetyPlanningStatusId(patientOrderSafetyPlanningStatusId.orElse(null));
 				setPatientOrderFilterFlagTypeIds(new HashSet<>(patientOrderFilterFlagTypeIds.orElse(List.of())));
-				setReferringPracticeNames(new HashSet<>(referringPracticeNames.orElse(List.of())));
+				setReferringPracticeIds(new HashSet<>(referringPracticeIds.orElse(List.of())));
 				setPanelAccountIds(new HashSet<>(panelAccountIds.orElse(List.of())));
 				setPatientMrn(patientMrn.orElse(null));
 				setSearchQuery(searchQuery.orElse(null));
@@ -1586,6 +1609,109 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
+	@GET("/integrated-care/epic-departments")
+	@AuthenticationRequired
+	public ApiResponse epicDepartments() {
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = account.getInstitutionId();
+
+		if (!getAuthorizationService().canAdministerIcDepartments(institutionId, account))
+			throw new AuthorizationException();
+
+		List<EpicDepartment> epicDepartments = getProviderService().findEpicDepartmentsByInstitutionId(institutionId);
+
+		return new ApiResponse(Map.of(
+				"epicDepartments", epicDepartments.stream()
+						.map(epicDepartment -> getEpicDepartmentApiResponseFactory().create(epicDepartment))
+						.collect(Collectors.toList())
+		));
+	}
+
+	@Nonnull
+	@PUT("/integrated-care/epic-departments/{epicDepartmentId}")
+	@AuthenticationRequired
+	public ApiResponse updateEpicDepartment(@Nonnull @PathParameter UUID epicDepartmentId,
+																					@Nonnull @RequestBody String requestBody) {
+		requireNonNull(epicDepartmentId);
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+		EpicDepartment epicDepartment = getProviderService().findEpicDepartmentById(epicDepartmentId).orElse(null);
+
+		if (epicDepartment == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canAdministerIcDepartments(epicDepartment.getInstitutionId(), account))
+			throw new AuthorizationException();
+
+		UpdateEpicDepartmentRequest request = getRequestBodyParser().parse(requestBody, UpdateEpicDepartmentRequest.class);
+		request.setEpicDepartmentId(epicDepartmentId);
+
+		getProviderService().updateEpicDepartment(request);
+
+		EpicDepartment updatedEpicDepartment = getProviderService().findEpicDepartmentById(epicDepartmentId).get();
+
+		return new ApiResponse(Map.of(
+				"epicDepartment", getEpicDepartmentApiResponseFactory().create(updatedEpicDepartment)
+		));
+	}
+
+	@Nonnull
+	@GET("/patient-orders/{patientOrderId}/encounters")
+	@AuthenticationRequired
+	public ApiResponse patientOrderEncounters(@Nonnull @PathParameter UUID patientOrderId) {
+		requireNonNull(patientOrderId);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+
+		if (patientOrder == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		List<Encounter> encounters = getPatientOrderService().findEncountersByPatientOrderId(patientOrderId);
+
+		return new ApiResponse(Map.of(
+				"encounters", encounters.stream()
+						.map(encounter -> getEncounterApiResponseFactory().create(encounter))
+						.collect(Collectors.toList())
+		));
+	}
+
+	@Nonnull
+	@PUT("/patient-orders/{patientOrderId}/encounter-csn")
+	@AuthenticationRequired
+	public ApiResponse updatePatientOrderEncounterCsn(@Nonnull @PathParameter UUID patientOrderId,
+																										@Nonnull @RequestBody String requestBody) {
+		requireNonNull(patientOrderId);
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+
+		if (patientOrder == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canUpdatePatientOrderEncounterCsn(patientOrder, account))
+			throw new AuthorizationException();
+
+		UpdatePatientOrderEncounterCsnRequest request = getRequestBodyParser().parse(requestBody, UpdatePatientOrderEncounterCsnRequest.class);
+		request.setPatientOrderId(patientOrderId);
+
+		getPatientOrderService().updatePatientOrderEncounterCsn(request);
+
+		PatientOrder updatedPatientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).get();
+		PatientOrderApiResponseFormat responseFormat = PatientOrderApiResponseFormat.fromRoleId(account.getRoleId());
+
+		return new ApiResponse(Map.of(
+				"patientOrder", getPatientOrderApiResponseFactory().create(updatedPatientOrder, responseFormat, Set.of(PatientOrderApiResponseSupplement.EVERYTHING))
+		));
+	}
+
+	@Nonnull
 	@GET("/patient-orders/reference-data")
 	@AuthenticationRequired
 	public ApiResponse patientOrderReferenceData() {
@@ -1721,7 +1847,7 @@ public class PatientOrderResource {
 				})
 				.collect(Collectors.toList());
 
-		List<String> referringPracticeNames = getPatientOrderService().findReferringPracticeNamesByInstitutionId(institutionId);
+		List<ReferringPractice> referringPractices = getPatientOrderService().findReferringPracticesByInstitutionId(institutionId);
 
 		List<Map<String, Object>> patientOrderReferralReasons = getPatientOrderService().findPatientOrderReferralReasonsByInstitutionId(institutionId).stream()
 				.map(patientOrderReferralReason -> {
@@ -1768,7 +1894,7 @@ public class PatientOrderResource {
 			put("patientOrderScheduledMessageTypes", patientOrderScheduledMessageTypes);
 			put("patientOrderCareTypes", patientOrderCareTypes);
 			put("patientOrderFocusTypes", patientOrderFocusTypes);
-			put("referringPracticeNames", referringPracticeNames);
+			put("referringPractices", referringPractices);
 			put("patientOrderReferralReasons", patientOrderReferralReasons);
 			put("patientOrderResourcingTypes", patientOrderResourcingTypes);
 			put("patientOrderCarePreferences", patientOrderCarePreferences);
@@ -1819,6 +1945,11 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
+	protected ProviderService getProviderService() {
+		return this.providerService;
+	}
+
+	@Nonnull
 	protected AccountService getAccountService() {
 		return this.accountService;
 	}
@@ -1851,6 +1982,16 @@ public class PatientOrderResource {
 	@Nonnull
 	protected PatientOrderOutreachApiResponseFactory getPatientOrderOutreachApiResponseFactory() {
 		return this.patientOrderOutreachApiResponseFactory;
+	}
+
+	@Nonnull
+	protected EpicDepartmentApiResponseFactory getEpicDepartmentApiResponseFactory() {
+		return this.epicDepartmentApiResponseFactory;
+	}
+
+	@Nonnull
+	protected EncounterApiResponseFactory getEncounterApiResponseFactory() {
+		return this.encounterApiResponseFactory;
 	}
 
 	@Nonnull

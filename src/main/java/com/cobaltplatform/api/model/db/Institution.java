@@ -153,13 +153,17 @@ public class Institution {
 	@Nullable
 	private String epicAuthorizeUrl;
 	@Nullable
-	private String epicMrnTypeName;
+	private String epicPatientMrnTypeName;
+	@Nullable
+	private String epicPatientMrnTypeAlternateName;
 	@Nullable
 	private String epicPatientUniqueIdType;
 	@Nullable
 	private String epicPatientUniqueIdSystem;
 	@Nullable
 	private String epicPatientMrnSystem;
+	@Nullable
+	private String epicPatientEncounterCsnSystem;
 	@Nullable
 	@DatabaseColumn("mychart_client_id") // In DB, it's "mychart", in code, it's "MyChart"
 	private String myChartClientId;
@@ -270,6 +274,8 @@ public class Institution {
 	private LocalDate mixpanelSyncStartsAt;
 	@Nullable
 	private String googleFcmServiceAccountPrivateKey;
+	@Nullable
+	private String integratedCareOrderImportBucketName;
 
 	// Microsoft Teams config
 	@Nullable
@@ -822,6 +828,15 @@ public class Institution {
 	}
 
 	@Nullable
+	public String getEpicPatientEncounterCsnSystem() {
+		return this.epicPatientEncounterCsnSystem;
+	}
+
+	public void setEpicPatientEncounterCsnSystem(@Nullable String epicPatientEncounterCsnSystem) {
+		this.epicPatientEncounterCsnSystem = epicPatientEncounterCsnSystem;
+	}
+
+	@Nullable
 	public String getMyChartClientId() {
 		return this.myChartClientId;
 	}
@@ -885,12 +900,21 @@ public class Institution {
 	}
 
 	@Nullable
-	public String getEpicMrnTypeName() {
-		return this.epicMrnTypeName;
+	public String getEpicPatientMrnTypeName() {
+		return this.epicPatientMrnTypeName;
 	}
 
-	public void setEpicMrnTypeName(@Nullable String epicMrnTypeName) {
-		this.epicMrnTypeName = epicMrnTypeName;
+	public void setEpicPatientMrnTypeName(@Nullable String epicPatientMrnTypeName) {
+		this.epicPatientMrnTypeName = epicPatientMrnTypeName;
+	}
+
+	@Nullable
+	public String getEpicPatientMrnTypeAlternateName() {
+		return this.epicPatientMrnTypeAlternateName;
+	}
+
+	public void setEpicPatientMrnTypeAlternateName(@Nullable String epicPatientMrnTypeAlternateName) {
+		this.epicPatientMrnTypeAlternateName = epicPatientMrnTypeAlternateName;
 	}
 
 	@Nullable
@@ -1286,6 +1310,15 @@ public class Institution {
 
 	public void setGoogleFcmServiceAccountPrivateKey(@Nullable String googleFcmServiceAccountPrivateKey) {
 		this.googleFcmServiceAccountPrivateKey = googleFcmServiceAccountPrivateKey;
+	}
+
+	@Nullable
+	public String getIntegratedCareOrderImportBucketName() {
+		return this.integratedCareOrderImportBucketName;
+	}
+
+	public void setIntegratedCareOrderImportBucketName(@Nullable String integratedCareOrderImportBucketName) {
+		this.integratedCareOrderImportBucketName = integratedCareOrderImportBucketName;
 	}
 
 	@Nullable

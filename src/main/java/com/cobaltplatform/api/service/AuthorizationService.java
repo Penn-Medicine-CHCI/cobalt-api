@@ -160,6 +160,7 @@ public class AuthorizationService {
 				|| accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_SAFETY_PLANNING_ADMIN));
 		accountCapabilityFlags.setCanViewIcReports(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_ADMIN));
 		accountCapabilityFlags.setCanImportIcPatientOrders(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_ADMIN));
+		accountCapabilityFlags.setCanAdministerIcDepartments(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_DEPARTMENT_ADMIN));
 		accountCapabilityFlags.setCanAdministerContent(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.CONTENT_ADMIN));
 		accountCapabilityFlags.setCanAdministerGroupSessions(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.GROUP_SESSION_ADMIN));
 		accountCapabilityFlags.setCanViewAnalytics(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.ANALYTICS_VIEWER));
@@ -563,6 +564,15 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
+	public Boolean canUpdatePatientOrderEncounterCsn(@Nonnull PatientOrder patientOrder,
+																									 @Nonnull Account account) {
+		requireNonNull(patientOrder);
+		requireNonNull(account);
+
+		return canUpdatePatientOrderTriages(patientOrder, account);
+	}
+
+	@Nonnull
 	public Boolean canViewPanelAccounts(@Nonnull InstitutionId institutionId,
 																			@Nonnull Account account) {
 		requireNonNull(institutionId);
@@ -570,6 +580,19 @@ public class AuthorizationService {
 
 		// Re-use existing logic
 		return canImportPatientOrders(institutionId, account);
+	}
+
+	@Nonnull
+	public Boolean canAdministerIcDepartments(@Nonnull InstitutionId institutionId,
+																						@Nonnull Account account) {
+		requireNonNull(institutionId);
+		requireNonNull(account);
+
+		if (!institutionId.equals(account.getInstitutionId()))
+			return false;
+
+		AccountCapabilityFlags accountCapabilityFlags = determineAccountCapabilityFlagsForAccount(account);
+		return accountCapabilityFlags.isCanAdministerIcDepartments();
 	}
 
 	@Nonnull

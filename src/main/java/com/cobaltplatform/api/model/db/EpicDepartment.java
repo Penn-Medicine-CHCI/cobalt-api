@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.DepartmentAvailabilityStatus.DepartmentAvailabilityStatusId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 import javax.annotation.Nullable;
@@ -36,11 +37,13 @@ public class EpicDepartment {
 	@Nullable
 	private InstitutionId institutionId;
 	@Nullable
+	private DepartmentAvailabilityStatusId departmentAvailabilityStatusId;
+	@Nullable
 	private String departmentId; // e.g. "603"
 	@Nullable
 	private String departmentIdType; // e.g. "EXTERNAL"
 	@Nullable
-	private String name; // e.g. "PBH OPC 3535 MARKET ST 2ND FLOOR" (user-facing, can be whatever we like)
+	private String name; // e.g. "PBH OPC 3535 MARKET ST 2ND FLOOR"
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -62,6 +65,15 @@ public class EpicDepartment {
 
 	public void setInstitutionId(@Nullable InstitutionId institutionId) {
 		this.institutionId = institutionId;
+	}
+
+	@Nullable
+	public DepartmentAvailabilityStatusId getDepartmentAvailabilityStatusId() {
+		return this.departmentAvailabilityStatusId;
+	}
+
+	public void setDepartmentAvailabilityStatusId(@Nullable DepartmentAvailabilityStatusId departmentAvailabilityStatusId) {
+		this.departmentAvailabilityStatusId = departmentAvailabilityStatusId;
 	}
 
 	@Nullable

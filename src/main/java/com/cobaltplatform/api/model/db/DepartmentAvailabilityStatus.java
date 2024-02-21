@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.integration.hl7.model;
+package com.cobaltplatform.api.model.db;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -25,47 +25,42 @@ import javax.annotation.concurrent.NotThreadSafe;
 import static java.lang.String.format;
 
 /**
- * @author Transmogrify, LLC.
+ * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class Hl7PatientOrder {
+public class DepartmentAvailabilityStatus {
 	@Nullable
-	private String orderId; // e.g. "881102"
+	private DepartmentAvailabilityStatusId departmentAvailabilityStatusId;
 	@Nullable
-	private String patientId; // e.g. "555555555"
-	@Nullable
-	private String patientIdType; // e.g. "UID"
+	private String description;
+
+	public enum DepartmentAvailabilityStatusId {
+		AVAILABLE,
+		UNAVAILABLE,
+		BUSY
+	}
 
 	@Override
 	public String toString() {
-		return format("%s{orderId=%s, patientId=%s, patientIdType=%s}", getClass().getSimpleName(),
-				getOrderId(), getPatientId(), getPatientIdType());
+		return format("%s{departmentAvailabilityStatusId=%s, description=%s}", getClass().getSimpleName(),
+				getDepartmentAvailabilityStatusId(), getDescription());
 	}
 
 	@Nullable
-	public String getOrderId() {
-		return this.orderId;
+	public DepartmentAvailabilityStatusId getDepartmentAvailabilityStatusId() {
+		return this.departmentAvailabilityStatusId;
 	}
 
-	public void setOrderId(@Nullable String orderId) {
-		this.orderId = orderId;
-	}
-
-	@Nullable
-	public String getPatientId() {
-		return this.patientId;
-	}
-
-	public void setPatientId(@Nullable String patientId) {
-		this.patientId = patientId;
+	public void setDepartmentAvailabilityStatusId(@Nullable DepartmentAvailabilityStatusId departmentAvailabilityStatusId) {
+		this.departmentAvailabilityStatusId = departmentAvailabilityStatusId;
 	}
 
 	@Nullable
-	public String getPatientIdType() {
-		return this.patientIdType;
+	public String getDescription() {
+		return description;
 	}
 
-	public void setPatientIdType(@Nullable String patientIdType) {
-		this.patientIdType = patientIdType;
+	public void setDescription(@Nullable String description) {
+		this.description = description;
 	}
 }

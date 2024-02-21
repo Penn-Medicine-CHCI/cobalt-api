@@ -30,6 +30,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.servlet.http.HttpServletRequest;
+import java.util.Objects;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -105,6 +106,12 @@ public class DatabaseProvider {
 		if (route == null) {
 			getLogger().warn("Unable to determine route, using writable master database");
 			return getWritableMasterDatabase();
+		}
+
+		// If request header indicates this is an "autorefresh" polling call to keep the UI up-to-date, use the read replica
+		if (Objects.equals(httpServletRequest.getHeader("X-Cobalt-Autorefresh"), "true")) {
+			getLogger().trace("Route {} is being invoked as an 'autorefresh' call, use read replica", route);
+			return getReadReplicaDatabase();
 		}
 
 		// See if a preference was indicated on the resource method to use writable master or read replica
