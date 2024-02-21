@@ -57,9 +57,61 @@ ALTER TABLE patient_order_import ADD COLUMN raw_order_filename TEXT;
 
 UPDATE patient_order_import_type SET patient_order_import_type_id='HL7_MESSAGE', description='HL7 Message' WHERE patient_order_import_type_id='EPIC';
 
--- TODO: store off raw hl7 messages
--- TODO: store off epic encounter CSN to patient order
--- TODO: keep track of epic encounter sync status (and introduce flag in UI) for patient order
+-- Flavors of flowsheets for assessment writeback
+CREATE TABLE flowsheet_type (
+	flowsheet_type_id VARCHAR NOT NULL PRIMARY KEY,
+	description VARCHAR NOT NULL
+);
+
+INSERT INTO flowsheet_type VALUES ('CSSRS_QUESTION_1', 'CSSRS Question 1');
+INSERT INTO flowsheet_type VALUES ('CSSRS_QUESTION_2', 'CSSRS Question 2');
+INSERT INTO flowsheet_type VALUES ('CSSRS_QUESTION_3', 'CSSRS Question 3');
+INSERT INTO flowsheet_type VALUES ('CSSRS_QUESTION_4', 'CSSRS Question 4');
+INSERT INTO flowsheet_type VALUES ('CSSRS_QUESTION_5', 'CSSRS Question 5');
+INSERT INTO flowsheet_type VALUES ('CSSRS_QUESTION_6_LIFETIME', 'CSSRS Question 6 (Lifetime)');
+INSERT INTO flowsheet_type VALUES ('CSSRS_QUESTION_6_3_MONTHS', 'CSSRS Question 6 (3 Months)');
+INSERT INTO flowsheet_type VALUES ('CSSRS_QUESTION_6_DESCRIPTION', 'CSSRS Question 6 (Description)');
+INSERT INTO flowsheet_type VALUES ('CSSRS_IC_RISK_SCORE', 'CSSRS Question (IC Risk Score)');
+
+INSERT INTO flowsheet_type VALUES ('PHQ9_QUESTION_1', 'PHQ9 Question 1');
+INSERT INTO flowsheet_type VALUES ('PHQ9_QUESTION_2', 'PHQ9 Question 2');
+INSERT INTO flowsheet_type VALUES ('PHQ2_SCORE', 'PHQ2 Score');
+INSERT INTO flowsheet_type VALUES ('PHQ9_QUESTION_3', 'PHQ9 Question 3');
+INSERT INTO flowsheet_type VALUES ('PHQ9_QUESTION_4', 'PHQ9 Question 4');
+INSERT INTO flowsheet_type VALUES ('PHQ9_QUESTION_5', 'PHQ9 Question 5');
+INSERT INTO flowsheet_type VALUES ('PHQ9_QUESTION_6', 'PHQ9 Question 6');
+INSERT INTO flowsheet_type VALUES ('PHQ9_QUESTION_7', 'PHQ9 Question 7');
+INSERT INTO flowsheet_type VALUES ('PHQ9_QUESTION_8', 'PHQ9 Question 8');
+INSERT INTO flowsheet_type VALUES ('PHQ9_QUESTION_9', 'PHQ9 Question 9');
+INSERT INTO flowsheet_type VALUES ('PHQ9_TOTAL_SCORE', 'PHQ9 Total Score');
+INSERT INTO flowsheet_type VALUES ('PHQ9_DIFFICULTY_FUNCTIONING', 'PHQ9 (Difficulty Functioning)');
+
+INSERT INTO flowsheet_type VALUES ('GAD7_QUESTION_1', 'GAD7 Question 1');
+INSERT INTO flowsheet_type VALUES ('GAD7_QUESTION_2', 'GAD7 Question 2');
+INSERT INTO flowsheet_type VALUES ('GAD7_QUESTION_3', 'GAD7 Question 3');
+INSERT INTO flowsheet_type VALUES ('GAD7_QUESTION_4', 'GAD7 Question 4');
+INSERT INTO flowsheet_type VALUES ('GAD7_QUESTION_5', 'GAD7 Question 5');
+INSERT INTO flowsheet_type VALUES ('GAD7_QUESTION_6', 'GAD7 Question 6');
+INSERT INTO flowsheet_type VALUES ('GAD7_QUESTION_7', 'GAD7 Question 7');
+INSERT INTO flowsheet_type VALUES ('GAD7_TOTAL_SCORE', 'GAD7 Total Score');
+INSERT INTO flowsheet_type VALUES ('GAD7_DIFFICULTY_FUNCTIONING', 'GAD7 (Difficulty Functioning)');
+
+-- Associate flowsheet types with institution-specific Epic identifiers
+CREATE TABLE flowsheet (
+  flowsheet_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  flowsheet_type_id VARCHAR NOT NULL REFERENCES flowsheet_type,
+  institution_id VARCHAR NOT NULL REFERENCES institution,
+  epic_flowsheet_id VARCHAR NOT NULL,
+  epic_flowsheet_template_id VARCHAR NOT NULL,
+  permitted_values JSONB NOT NULL,
+  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON flowsheet FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+-- It is likely a data entry error if we have multiple rows pointing to the same flowsheet id + flowsheet template id at the same institution
+CREATE UNIQUE INDEX flowsheet_template_unique_idx ON flowsheet USING btree (institution_id, epic_flowsheet_id, epic_flowsheet_template_id);
 
 DROP VIEW v_patient_order;
 DROP VIEW v_all_patient_order;

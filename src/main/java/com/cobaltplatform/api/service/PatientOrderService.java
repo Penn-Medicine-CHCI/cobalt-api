@@ -93,6 +93,7 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
+import com.cobaltplatform.api.model.db.Flowsheet;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -3772,6 +3773,19 @@ public class PatientOrderService implements AutoCloseable {
 				AND enabled=TRUE
 				ORDER BY name, phone_number
 				""", PatientOrderCrisisHandler.class, institutionId);
+	}
+
+	@Nonnull
+	public List<Flowsheet> findFlowsheetsByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM flowsheet
+				WHERE institution_id=?
+				ORDER BY flowsheet_type_id
+				""", Flowsheet.class, institutionId);
 	}
 
 	@Nonnull
