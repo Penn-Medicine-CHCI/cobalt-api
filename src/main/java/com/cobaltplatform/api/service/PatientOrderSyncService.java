@@ -221,6 +221,12 @@ public class PatientOrderSyncService implements AutoCloseable {
 		if (institution == null || !institution.getIntegratedCareEnabled() || institution.getIntegratedCareOrderImportBucketName() == null)
 			return Set.of();
 
+		// TODO: remove this once we are ready for go-live and have cleared out any existing orders
+		if (getConfiguration().isProduction()) {
+			getLogger().info("Ignoring patient order sync in production for now.");
+			return Set.of();
+		}
+
 		Set<UUID> patientOrderIds = new HashSet<>();
 
 		getSystemService().performAdvisoryLockOperationIfAvailable(AdvisoryLock.PATIENT_ORDER_IMPORT_SYNC, () -> {
