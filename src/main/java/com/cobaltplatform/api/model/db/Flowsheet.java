@@ -58,7 +58,11 @@ public class Flowsheet {
 	@Nullable
 	private String epicFlowsheetId;
 	@Nullable
+	private String epicFlowsheetIdType;
+	@Nullable
 	private String epicFlowsheetTemplateId;
+	@Nullable
+	private String epicFlowsheetTemplateIdType;
 	@DatabaseColumn("permitted_values")
 	private String permittedValuesAsJson;
 	@Nullable
@@ -109,12 +113,30 @@ public class Flowsheet {
 	}
 
 	@Nullable
+	public String getEpicFlowsheetIdType() {
+		return this.epicFlowsheetIdType;
+	}
+
+	public void setEpicFlowsheetIdType(@Nullable String epicFlowsheetIdType) {
+		this.epicFlowsheetIdType = epicFlowsheetIdType;
+	}
+
+	@Nullable
 	public String getEpicFlowsheetTemplateId() {
 		return this.epicFlowsheetTemplateId;
 	}
 
 	public void setEpicFlowsheetTemplateId(@Nullable String epicFlowsheetTemplateId) {
 		this.epicFlowsheetTemplateId = epicFlowsheetTemplateId;
+	}
+
+	@Nullable
+	public String getEpicFlowsheetTemplateIdType() {
+		return this.epicFlowsheetTemplateIdType;
+	}
+
+	public void setEpicFlowsheetTemplateIdType(@Nullable String epicFlowsheetTemplateIdType) {
+		this.epicFlowsheetTemplateIdType = epicFlowsheetTemplateIdType;
 	}
 
 	public String getPermittedValuesAsJson() {

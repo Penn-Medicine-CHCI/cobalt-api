@@ -102,7 +102,9 @@ CREATE TABLE flowsheet (
   flowsheet_type_id VARCHAR NOT NULL REFERENCES flowsheet_type,
   institution_id VARCHAR NOT NULL REFERENCES institution,
   epic_flowsheet_id VARCHAR NOT NULL,
+  epic_flowsheet_id_type VARCHAR NOT NULL DEFAULT 'INTERNAL',
   epic_flowsheet_template_id VARCHAR NOT NULL,
+  epic_flowsheet_template_id_type VARCHAR NOT NULL DEFAULT 'INTERNAL',
   permitted_values JSONB NOT NULL,
   created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()

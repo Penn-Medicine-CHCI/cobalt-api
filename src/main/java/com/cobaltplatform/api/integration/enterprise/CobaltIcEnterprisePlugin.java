@@ -21,9 +21,12 @@ package com.cobaltplatform.api.integration.enterprise;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.integration.epic.EpicClient;
+import com.cobaltplatform.api.integration.epic.request.AddFlowsheetValueRequest;
 import com.cobaltplatform.api.model.db.Flowsheet;
 import com.cobaltplatform.api.model.db.FlowsheetType.FlowsheetTypeId;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.ScreeningFlowType.ScreeningFlowTypeId;
 import com.cobaltplatform.api.model.db.ScreeningQuestion;
 import com.cobaltplatform.api.model.db.ScreeningSession;
@@ -91,7 +94,16 @@ public class CobaltIcEnterprisePlugin extends DefaultEnterprisePlugin {
 	}
 
 	@Override
-	public void performPatientOrderEncounterWriteback(@Nullable UUID patientOrderId) {
+	public void performPatientOrderEncounterWriteback(@Nullable UUID patientOrderId,
+																										@Nullable String encounterCsn) {
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+
+		if (patientOrder == null)
+			throw new ValidationException(getStrings().get("Cannot perform encounter writeback; could not locate patient order."));
+
+		if (encounterCsn == null)
+			throw new ValidationException(getStrings().get("Cannot perform encounter writeback; encounter CSN is required."));
+
 		// Look for a completed screening session...
 		List<ScreeningSession> screeningSessions = getScreeningService().findScreeningSessionsByPatientOrderIdAndScreeningFlowTypeId(patientOrderId, ScreeningFlowTypeId.INTEGRATED_CARE);
 		ScreeningSession completedScreeningSession = screeningSessions.stream()
@@ -244,11 +256,34 @@ public class CobaltIcEnterprisePlugin extends DefaultEnterprisePlugin {
 		}
 
 		// For each flowsheet, write it back.
+		// TODO: this should be done in parallel
 		EpicClient epicClient = epicClientForBackendService().get();
+		Institution institution = getInstitutionService().findInstitutionById(patientOrder.getInstitutionId()).get();
+		String epicUserId = institution.getEpicUserId();
+		String epicUserIdType = institution.getEpicUserIdType();
 		List<FlowsheetTypeId> flowsheetTypeIds = flowsheetValuesByTypeId.keySet().stream().sorted().collect(Collectors.toList());
 
 		for (FlowsheetTypeId flowsheetTypeId : flowsheetTypeIds) {
+			System.out.printf("Writing Flowsheet %s...\n", flowsheetTypeId.name());
 
+			Flowsheet flowsheet = flowsheetsByTypeId.get(flowsheetTypeId);
+
+			AddFlowsheetValueRequest request = new AddFlowsheetValueRequest();
+			request.setPatientID(patientOrder.getPatientUniqueId());
+			request.setPatientIDType(patientOrder.getPatientUniqueIdType());
+			request.setContactID(encounterCsn);
+			request.setContactIDType("CSN");
+			request.setFlowsheetID(flowsheet.getEpicFlowsheetId());
+			request.setFlowsheetIDType(flowsheet.getEpicFlowsheetIdType());
+			request.setFlowsheetTemplateID(flowsheet.getEpicFlowsheetTemplateId());
+			request.setFlowsheetTemplateIDType(flowsheet.getEpicFlowsheetTemplateIdType());
+			request.setUserID(epicUserId);
+			request.setUserIDType(epicUserIdType);
+			request.setComment("Written by Cobalt");
+			request.setValue(flowsheetValuesByTypeId.get(flowsheetTypeId));
+			request.setInstantValueToken(completedScreeningSession.getCompletedAt());
+
+			epicClient.addFlowsheetValue(request);
 		}
 
 		// This is a no-op for Cobalt IC for now...

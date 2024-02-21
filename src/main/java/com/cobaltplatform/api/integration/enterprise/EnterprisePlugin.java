@@ -198,7 +198,8 @@ public interface EnterprisePlugin {
 		return Optional.empty();
 	}
 
-	default void performPatientOrderEncounterWriteback(@Nullable UUID patientOrderId) {
+	default void performPatientOrderEncounterWriteback(@Nullable UUID patientOrderId,
+																										 @Nullable String encounterCsn) {
 		throw new UnsupportedOperationException();
 	}
 }

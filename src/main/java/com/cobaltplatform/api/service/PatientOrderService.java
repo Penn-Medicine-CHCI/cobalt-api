@@ -2908,7 +2908,7 @@ public class PatientOrderService implements AutoCloseable {
 			throw validationException;
 
 		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(patientOrder.getInstitutionId());
-		enterprisePlugin.performPatientOrderEncounterWriteback(patientOrderId);
+		enterprisePlugin.performPatientOrderEncounterWriteback(patientOrderId, encounterCsn);
 
 		boolean updated = getDatabase().execute("""
 				UPDATE patient_order
@@ -5790,8 +5790,8 @@ public class PatientOrderService implements AutoCloseable {
 						PatientSearchResponse patientSearchResponse = epicClient.patientSearchFhirR4(institution.getEpicPatientUniqueIdType(), demographicsImportNeededPatientOrder.getPatientUniqueId());
 
 						if (patientSearchResponse.getTotal() == null || patientSearchResponse.getTotal().equals(0))
-							throw new IllegalStateException(format("Unable to extract total count for %s patient with ID %s",
-									institution.getInstitutionId().name(), demographicsImportNeededPatientOrder.getPatientUniqueId()));
+							throw new IllegalStateException(format("Unable to find %s patient record for patient %s %s",
+									institution.getInstitutionId().name(), institution.getEpicPatientUniqueIdType(), demographicsImportNeededPatientOrder.getPatientUniqueId()));
 
 						EthnicityId ethnicityId = patientSearchResponse.extractEthnicityId().orElse(EthnicityId.NOT_ASKED);
 						RaceId raceId = patientSearchResponse.extractRaceId().orElse(RaceId.NOT_ASKED);
