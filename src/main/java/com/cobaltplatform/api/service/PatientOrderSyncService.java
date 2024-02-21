@@ -29,6 +29,7 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
+import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
@@ -90,6 +91,8 @@ public class PatientOrderSyncService implements AutoCloseable {
 	@Nonnull
 	private final Provider<PatientOrderService> patientOrderServiceProvider;
 	@Nonnull
+	private final Provider<SystemService> systemServiceProvider;
+	@Nonnull
 	private final S3Client s3Client;
 	@Nonnull
 	private final Hl7Client hl7Client;
@@ -112,7 +115,7 @@ public class PatientOrderSyncService implements AutoCloseable {
 
 	static {
 		BACKGROUND_TASK_INTERVAL_IN_SECONDS = 60L;
-		BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS = 1L;
+		BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS = 10L;
 	}
 
 	@Inject
@@ -120,6 +123,7 @@ public class PatientOrderSyncService implements AutoCloseable {
 																 @Nonnull Provider<InstitutionService> institutionServiceProvider,
 																 @Nonnull Provider<AccountService> accountServiceProvider,
 																 @Nonnull Provider<PatientOrderService> patientOrderServiceProvider,
+																 @Nonnull Provider<SystemService> systemServiceProvider,
 																 @Nonnull Hl7Client hl7Client,
 																 @Nonnull DatabaseProvider databaseProvider,
 																 @Nonnull ErrorReporter errorReporter,
@@ -129,6 +133,7 @@ public class PatientOrderSyncService implements AutoCloseable {
 		requireNonNull(institutionServiceProvider);
 		requireNonNull(accountServiceProvider);
 		requireNonNull(patientOrderServiceProvider);
+		requireNonNull(systemServiceProvider);
 		requireNonNull(hl7Client);
 		requireNonNull(databaseProvider);
 		requireNonNull(errorReporter);
@@ -139,6 +144,7 @@ public class PatientOrderSyncService implements AutoCloseable {
 		this.institutionServiceProvider = institutionServiceProvider;
 		this.accountServiceProvider = accountServiceProvider;
 		this.patientOrderServiceProvider = patientOrderServiceProvider;
+		this.systemServiceProvider = systemServiceProvider;
 		this.databaseProvider = databaseProvider;
 		this.errorReporter = errorReporter;
 		this.configuration = configuration;
@@ -215,104 +221,104 @@ public class PatientOrderSyncService implements AutoCloseable {
 		if (institution == null || !institution.getIntegratedCareEnabled() || institution.getIntegratedCareOrderImportBucketName() == null)
 			return Set.of();
 
-		// TODO: acquire lock
-
-		String bucket = institution.getIntegratedCareOrderImportBucketName();
-
 		Set<UUID> patientOrderIds = new HashSet<>();
 
-		ListObjectsV2Request request = ListObjectsV2Request.builder()
-				.bucket(bucket)
-				.prefix("To_COBALT_Ord_") // e.g. To_COBALT_Ord_20240201_08.txt
-				.build();
+		getSystemService().performAdvisoryLockOperationIfAvailable(AdvisoryLock.PATIENT_ORDER_IMPORT_SYNC, () -> {
+			String bucket = institution.getIntegratedCareOrderImportBucketName();
 
-		ListObjectsV2Iterable response = getS3Client().listObjectsV2Paginator(request);
+			ListObjectsV2Request request = ListObjectsV2Request.builder()
+					.bucket(bucket)
+					.prefix("To_COBALT_Ord_") // e.g. To_COBALT_Ord_20240201_08.txt
+					.build();
 
-		for (ListObjectsV2Response page : response) {
-			page.contents().forEach((S3Object s3Object) -> {
-				getLogger().info("Downloading {} HL7 Order message from {}/{}...",
-						institution.getInstitutionId().name(), bucket, s3Object.key());
+			ListObjectsV2Iterable response = getS3Client().listObjectsV2Paginator(request);
 
-				GetObjectRequest getObjectRequest = GetObjectRequest.builder()
-						.bucket(bucket)
-						.key(s3Object.key())
-						.build();
+			for (ListObjectsV2Response page : response) {
+				page.contents().forEach((S3Object s3Object) -> {
+					getLogger().info("Downloading {} HL7 Order message from {}/{}...",
+							institution.getInstitutionId().name(), bucket, s3Object.key());
 
-				try (InputStream inputStream = getS3Client().getObject(getObjectRequest)) {
-					byte[] generalOrderHl7 = IOUtils.toByteArray(inputStream);
-					String objectPath = format("%s/%s", bucket, s3Object.key());
+					GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+							.bucket(bucket)
+							.key(s3Object.key())
+							.build();
 
-					getLogger().info("{} HL7 Order message download completed for {} ({} bytes).",
-							institution.getInstitutionId().name(), objectPath, generalOrderHl7.length);
+					try (InputStream inputStream = getS3Client().getObject(getObjectRequest)) {
+						byte[] generalOrderHl7 = IOUtils.toByteArray(inputStream);
+						String objectPath = format("%s/%s", bucket, s3Object.key());
 
-					String generalOrderHl7AsString = getHl7Client().messageFromBytes(generalOrderHl7);
+						getLogger().info("{} HL7 Order message download completed for {} ({} bytes).",
+								institution.getInstitutionId().name(), objectPath, generalOrderHl7.length);
 
-					getLogger().info("HL7 Order content for {}:\n{}", objectPath, generalOrderHl7AsString);
+						String generalOrderHl7AsString = getHl7Client().messageFromBytes(generalOrderHl7);
 
-					AtomicBoolean imported = new AtomicBoolean(false);
+						getLogger().info("HL7 Order content for {}:\n{}", objectPath, generalOrderHl7AsString);
 
-					try {
-						getDatabase().transaction(() -> {
-							Account serviceAccount = getAccountService().findServiceAccountByInstitutionId(institution.getInstitutionId()).get();
+						AtomicBoolean imported = new AtomicBoolean(false);
 
-							CreatePatientOrderImportRequest importRequest = new CreatePatientOrderImportRequest();
-							importRequest.setPatientOrderImportTypeId(PatientOrderImportTypeId.HL7_MESSAGE);
-							importRequest.setInstitutionId(institution.getInstitutionId());
-							importRequest.setAccountId(serviceAccount.getAccountId());
-							importRequest.setHl7GeneralOrderTriggerEventMessage(generalOrderHl7AsString);
-							importRequest.setAutomaticallyAssignToPanelAccounts(true);
-							importRequest.setFilename(s3Object.key());
-
-							getPatientOrderService().createPatientOrderImport(importRequest);
-
-							imported.set(true);
-						});
-					} catch (Exception e) {
-						getLogger().error(format("Unable to perform HL7 import for message:\n%s", generalOrderHl7AsString), e);
-						getErrorReporter().report(e);
-					}
-
-					// Move to an "imported" or "failed" directory depending on result of import.
-					// Move/rename is 2 steps (nonatomic) in S3: first you need to copy the object, then you need to delete the original
-					String destinationKey = imported.get() ? format("imported/%s", s3Object.key()) : format("failed/%s", s3Object.key());
-
-					getLogger().info("Moving {} to {}...", s3Object.key(), destinationKey);
-
-					boolean safeToDelete = false;
-
-					try {
-						CopyObjectRequest copyObjectRequest = CopyObjectRequest.builder()
-								.sourceBucket(bucket)
-								.sourceKey(s3Object.key())
-								.destinationBucket(bucket)
-								.destinationKey(destinationKey)
-								.build();
-
-						getS3Client().copyObject(copyObjectRequest);
-						safeToDelete = true;
-					} catch (Exception e) {
-						getErrorReporter().report(e);
-						getLogger().error(format("Unable to copy S3 file %s to %s", s3Object.key(), destinationKey), e);
-					}
-
-					if (safeToDelete) {
 						try {
-							DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
-									.bucket(bucket)
-									.key(s3Object.key())
+							getDatabase().transaction(() -> {
+								Account serviceAccount = getAccountService().findServiceAccountByInstitutionId(institution.getInstitutionId()).get();
+
+								CreatePatientOrderImportRequest importRequest = new CreatePatientOrderImportRequest();
+								importRequest.setPatientOrderImportTypeId(PatientOrderImportTypeId.HL7_MESSAGE);
+								importRequest.setInstitutionId(institution.getInstitutionId());
+								importRequest.setAccountId(serviceAccount.getAccountId());
+								importRequest.setHl7GeneralOrderTriggerEventMessage(generalOrderHl7AsString);
+								importRequest.setAutomaticallyAssignToPanelAccounts(true);
+								importRequest.setFilename(s3Object.key());
+
+								getPatientOrderService().createPatientOrderImport(importRequest);
+
+								imported.set(true);
+							});
+						} catch (Exception e) {
+							getLogger().error(format("Unable to perform HL7 import for message:\n%s", generalOrderHl7AsString), e);
+							getErrorReporter().report(e);
+						}
+
+						// Move to an "imported" or "failed" directory depending on result of import.
+						// Move/rename is 2 steps (nonatomic) in S3: first you need to copy the object, then you need to delete the original
+						String destinationKey = imported.get() ? format("imported/%s", s3Object.key()) : format("failed/%s", s3Object.key());
+
+						getLogger().info("Moving {} to {}...", s3Object.key(), destinationKey);
+
+						boolean safeToDelete = false;
+
+						try {
+							CopyObjectRequest copyObjectRequest = CopyObjectRequest.builder()
+									.sourceBucket(bucket)
+									.sourceKey(s3Object.key())
+									.destinationBucket(bucket)
+									.destinationKey(destinationKey)
 									.build();
 
-							getS3Client().deleteObject(deleteObjectRequest);
+							getS3Client().copyObject(copyObjectRequest);
+							safeToDelete = true;
 						} catch (Exception e) {
 							getErrorReporter().report(e);
-							getLogger().error(format("Unable to delete S3 file %s", s3Object.key()), e);
+							getLogger().error(format("Unable to copy S3 file %s to %s", s3Object.key(), destinationKey), e);
 						}
+
+						if (safeToDelete) {
+							try {
+								DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
+										.bucket(bucket)
+										.key(s3Object.key())
+										.build();
+
+								getS3Client().deleteObject(deleteObjectRequest);
+							} catch (Exception e) {
+								getErrorReporter().report(e);
+								getLogger().error(format("Unable to delete S3 file %s", s3Object.key()), e);
+							}
+						}
+					} catch (IOException e) {
+						throw new UncheckedIOException(e);
 					}
-				} catch (IOException e) {
-					throw new UncheckedIOException(e);
-				}
-			});
-		}
+				});
+			}
+		});
 
 		return patientOrderIds;
 	}
@@ -452,6 +458,11 @@ public class PatientOrderSyncService implements AutoCloseable {
 	@Nonnull
 	protected PatientOrderService getPatientOrderService() {
 		return this.patientOrderServiceProvider.get();
+	}
+
+	@Nonnull
+	protected SystemService getSystemService() {
+		return this.systemServiceProvider.get();
 	}
 
 	@Nonnull
