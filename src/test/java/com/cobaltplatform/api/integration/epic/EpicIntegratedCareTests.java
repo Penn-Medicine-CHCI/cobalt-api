@@ -58,7 +58,7 @@ public class EpicIntegratedCareTests {
 		).build();
 
 		EpicClient epicClient = new DefaultEpicClient(epicConfiguration);
-		epicClient.patientReadFhirR4("UID", "8641707922");
+		epicClient.patientSearchFhirR4("UID", "8641707922");
 	}
 
 	@Test
