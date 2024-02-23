@@ -240,7 +240,7 @@ public class TopicCenterService {
 		// Pull all of the content across all rows in the topic center (so we don't have to query for each row individually)
 		List<ContentTopicCenterRow> contentTopicCenterRows = getDatabase().queryForList("""
 				SELECT c.*, tcr.topic_center_row_id
-				FROM topic_center_row tcr, content c, topic_center_row_content tcrc
+				FROM topic_center_row tcr, v_institution_content c, topic_center_row_content tcrc
 				WHERE tcr.topic_center_id=?
 				AND tcr.topic_center_row_id=tcrc.topic_center_row_id
 				AND tcrc.content_id=c.content_id
