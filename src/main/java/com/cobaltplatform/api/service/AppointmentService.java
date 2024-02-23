@@ -1950,7 +1950,8 @@ public class AppointmentService {
 				EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(account.getInstitutionId()).epicClientForBackendService().get();
 
 				com.cobaltplatform.api.integration.epic.request.CancelAppointmentRequest.Patient patient = new com.cobaltplatform.api.integration.epic.request.CancelAppointmentRequest.Patient();
-				patient.setID(account.getEpicPatientFhirId());
+				patient.setID(account.getEpicPatientUniqueId());
+				patient.setType(account.getEpicPatientUniqueIdType());
 
 				com.cobaltplatform.api.integration.epic.request.CancelAppointmentRequest.Contact contact = new com.cobaltplatform.api.integration.epic.request.CancelAppointmentRequest.Contact();
 				contact.setID(appointment.getEpicContactId());
@@ -2104,6 +2105,11 @@ public class AppointmentService {
 
 		if (provider.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR) {
 			getLogger().debug("Provider {} uses Epic FHIR scheduling, do not send a provider score email.", provider.getName());
+			return;
+		}
+
+		if (provider.getSchedulingSystemId() == SchedulingSystemId.EPIC) {
+			getLogger().debug("Provider {} uses Epic scheduling, do not send a provider score email.", provider.getName());
 			return;
 		}
 

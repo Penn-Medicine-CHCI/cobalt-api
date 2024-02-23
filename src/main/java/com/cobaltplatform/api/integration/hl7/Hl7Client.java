@@ -31,7 +31,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Singleton;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.util.stream.Collectors;
 
 import static com.soklet.util.StringUtils.trimToNull;
@@ -49,8 +49,8 @@ public class Hl7Client {
 	@Nonnull
 	public String messageFromBytes(@Nonnull byte[] bytes) {
 		requireNonNull(bytes);
-		// Messages are in ASCII and generally contain only carriage returns (not CRLF). Here we force newlines
-		return new String(bytes, StandardCharsets.US_ASCII /* Charset.forName("Windows-1252") */).replace("\r", "\r\n").trim();
+		// Messages should be in ASCII (but in practice, Windows-1252) and generally contain only carriage returns (not CRLF). Here we force newlines.
+		return new String(bytes, Charset.forName("Windows-1252")).replace("\r", "\r\n").trim();
 	}
 
 	@Nonnull

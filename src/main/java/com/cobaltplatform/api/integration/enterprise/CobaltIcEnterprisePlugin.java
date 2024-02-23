@@ -125,10 +125,10 @@ public class CobaltIcEnterprisePlugin extends DefaultEnterprisePlugin {
 		Map<FlowsheetTypeId, String> flowsheetValuesByTypeId = new HashMap<>(flowsheetsByTypeId.size());
 
 		Map<Integer, String> phq9FlowsheetValuesByAnswerScore = Map.of(
-				1, "Not at all",
-				2, "Several days",
-				3, "More than half the days",
-				4, "Nearly every day"
+				0, "Not at all",
+				1, "Several days",
+				2, "More than half the days",
+				3, "Nearly every day"
 		);
 
 		ScreeningSessionResult screeningSessionResult = getScreeningService().findScreeningSessionResult(completedScreeningSession).get();
@@ -141,23 +141,6 @@ public class CobaltIcEnterprisePlugin extends DefaultEnterprisePlugin {
 				continue;
 			}
 
-			Integer overallScore = screeningSessionScreeningResult.getScreeningScore().getOverallScore();
-
-			// Keep track of CSSRS scores so we can figure out value to send for CSSRS_IC_RISK_SCORE.
-			// C-SSRS-8 crisis is indicated if (Q3, Q4, Q5, or Q6 is scored >= 1) OR (Q7 and Q8 are scored >= 1).
-			Map<Integer, Integer> cssrsAnswerScoresByQuestionDisplayOrder = new HashMap<>(8);
-
-			// Keep track of PHQ9 scores (need for PHQ2 calculation)
-			Map<Integer, Integer> phq9AnswerScoresByQuestionDisplayOrder = new HashMap<>(9);
-
-			// PHQ9 total score
-			if (screeningSessionScreeningResult.getScreeningTypeId() == ScreeningTypeId.PHQ_9)
-				flowsheetValuesByTypeId.put(FlowsheetTypeId.PHQ9_TOTAL_SCORE, String.valueOf(overallScore));
-
-			// Only need GAD7 total score, don't need to keep track of additional values
-			if (screeningSessionScreeningResult.getScreeningTypeId() == ScreeningTypeId.GAD_7)
-				flowsheetValuesByTypeId.put(FlowsheetTypeId.GAD7_TOTAL_SCORE, String.valueOf(overallScore));
-
 			for (ScreeningQuestionResult screeningQuestionResult : screeningSessionScreeningResult.getScreeningQuestionResults()) {
 				ScreeningQuestion screeningQuestion = getScreeningService().findScreeningQuestionById(screeningQuestionResult.getScreeningQuestionId()).get();
 				int questionOrder = screeningQuestion.getDisplayOrder();
@@ -165,9 +148,6 @@ public class CobaltIcEnterprisePlugin extends DefaultEnterprisePlugin {
 				int answerScore = answer.getScore();
 
 				if (screeningSessionScreeningResult.getScreeningTypeId() == ScreeningTypeId.C_SSRS_8) {
-					// Keep track of CSSRS scores so we can figure out value to send for CSSRS_IC_RISK_SCORE.
-					cssrsAnswerScoresByQuestionDisplayOrder.put(questionOrder, answerScore);
-
 					if (questionOrder == 1)
 						flowsheetValuesByTypeId.put(FlowsheetTypeId.CSSRS_QUESTION_1, answerScore == 1 ? "Yes" : "No");
 					else if (questionOrder == 2)
@@ -178,16 +158,11 @@ public class CobaltIcEnterprisePlugin extends DefaultEnterprisePlugin {
 						flowsheetValuesByTypeId.put(FlowsheetTypeId.CSSRS_QUESTION_4, answerScore == 1 ? "Yes" : "No");
 					else if (questionOrder == 5)
 						flowsheetValuesByTypeId.put(FlowsheetTypeId.CSSRS_QUESTION_5, answerScore == 1 ? "Yes" : "No");
-						// TODO: how to handle question 6 ("Do you intend to carry out this plan?")?
-						// TODO: how to handle CSSRS_QUESTION_6_DESCRIPTION?
 					else if (questionOrder == 7)
 						flowsheetValuesByTypeId.put(FlowsheetTypeId.CSSRS_QUESTION_6_LIFETIME, answerScore == 1 ? "Yes" : "No");
 					else if (questionOrder == 8)
 						flowsheetValuesByTypeId.put(FlowsheetTypeId.CSSRS_QUESTION_6_3_MONTHS, answerScore == 1 ? "Yes" : "No");
 				} else if (screeningSessionScreeningResult.getScreeningTypeId() == ScreeningTypeId.PHQ_9) {
-					// Keep track of PHQ9 scores (need for PHQ2 calculation)
-					phq9AnswerScoresByQuestionDisplayOrder.put(questionOrder, answerScore);
-
 					if (questionOrder == 1)
 						flowsheetValuesByTypeId.put(FlowsheetTypeId.PHQ9_QUESTION_1, phq9FlowsheetValuesByAnswerScore.get(answerScore));
 					if (questionOrder == 2)
@@ -206,8 +181,6 @@ public class CobaltIcEnterprisePlugin extends DefaultEnterprisePlugin {
 						flowsheetValuesByTypeId.put(FlowsheetTypeId.PHQ9_QUESTION_8, phq9FlowsheetValuesByAnswerScore.get(answerScore));
 					if (questionOrder == 9)
 						flowsheetValuesByTypeId.put(FlowsheetTypeId.PHQ9_QUESTION_9, phq9FlowsheetValuesByAnswerScore.get(answerScore));
-
-					// TODO: how to handle PHQ9_DIFFICULTY_FUNCTIONING?
 				} else if (screeningSessionScreeningResult.getScreeningTypeId() == ScreeningTypeId.GAD_7) {
 					if (questionOrder == 1)
 						flowsheetValuesByTypeId.put(FlowsheetTypeId.GAD7_QUESTION_1, String.valueOf(answerScore));
@@ -223,36 +196,8 @@ public class CobaltIcEnterprisePlugin extends DefaultEnterprisePlugin {
 						flowsheetValuesByTypeId.put(FlowsheetTypeId.GAD7_QUESTION_6, String.valueOf(answerScore));
 					else if (questionOrder == 7)
 						flowsheetValuesByTypeId.put(FlowsheetTypeId.GAD7_QUESTION_7, String.valueOf(answerScore));
-
-					// TODO: how to handle GAD7_DIFFICULTY_FUNCTIONING?
 				}
 			}
-
-			// C-SSRS-8 crisis is indicated if (Q3, Q4, Q5, or Q6 is scored >= 1) OR (Q7 and Q8 are scored >= 1).
-			if (cssrsAnswerScoresByQuestionDisplayOrder.size() > 0) {
-				boolean crisis = false;
-
-				int question3Score = cssrsAnswerScoresByQuestionDisplayOrder.getOrDefault(3, 0);
-				int question4Score = cssrsAnswerScoresByQuestionDisplayOrder.getOrDefault(4, 0);
-				int question5Score = cssrsAnswerScoresByQuestionDisplayOrder.getOrDefault(5, 0);
-				int question6Score = cssrsAnswerScoresByQuestionDisplayOrder.getOrDefault(6, 0);
-				int question7Score = cssrsAnswerScoresByQuestionDisplayOrder.getOrDefault(7, 0);
-				int question8Score = cssrsAnswerScoresByQuestionDisplayOrder.getOrDefault(8, 0);
-
-				if (question3Score >= 1 || question4Score >= 1 || question5Score >= 1 || question6Score >= 1)
-					crisis = true;
-
-				if (question7Score >= 1 && question8Score >= 1)
-					crisis = true;
-
-				flowsheetValuesByTypeId.put(FlowsheetTypeId.CSSRS_IC_RISK_SCORE, crisis ? "Positive" : "Negative");
-			}
-
-			Integer phq9Question1AnswerScore = phq9AnswerScoresByQuestionDisplayOrder.get(1);
-			Integer phq9Question2AnswerScore = phq9AnswerScoresByQuestionDisplayOrder.get(2);
-
-			if (phq9Question1AnswerScore != null && phq9Question2AnswerScore != null)
-				flowsheetValuesByTypeId.put(FlowsheetTypeId.PHQ2_SCORE, String.valueOf(phq9Question1AnswerScore + phq9Question2AnswerScore));
 		}
 
 		// For each flowsheet, write it back.
@@ -279,15 +224,12 @@ public class CobaltIcEnterprisePlugin extends DefaultEnterprisePlugin {
 			request.setFlowsheetTemplateIDType(flowsheet.getEpicFlowsheetTemplateIdType());
 			request.setUserID(epicUserId);
 			request.setUserIDType(epicUserIdType);
-			request.setComment("Written by Cobalt");
+			request.setComment(null); // Don't currently need/want this
 			request.setValue(flowsheetValuesByTypeId.get(flowsheetTypeId));
 			request.setInstantValueToken(completedScreeningSession.getCompletedAt());
 
 			epicClient.addFlowsheetValue(request);
 		}
-
-		// This is a no-op for Cobalt IC for now...
-		throw new UnsupportedOperationException("TODO");
 	}
 
 	@Nonnull
