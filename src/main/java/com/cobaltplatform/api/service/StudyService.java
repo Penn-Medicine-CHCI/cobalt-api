@@ -500,9 +500,10 @@ public class StudyService {
 			return Optional.empty();
 
 		return getDatabase().queryForObject("""
-				SELECT *
-				FROM account_check_in ac, account_check_in_action aci
+				SELECT ac.*, sci.check_in_number
+				FROM account_check_in ac, account_check_in_action aci, study_check_in sci
 				WHERE ac.account_check_in_id = aci.account_check_in_id
+				AND ac.study_check_in_id = sci.study_check_in_id
 				AND aci.account_check_in_action_id = ?
 				""", AccountCheckIn.class, accountCheckInActionId);
 	}

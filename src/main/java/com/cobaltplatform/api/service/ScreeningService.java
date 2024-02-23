@@ -2291,7 +2291,7 @@ public class ScreeningService {
 		if (screeningSession.getAccountCheckInActionId() != null) {
 			Optional<AccountCheckIn> accountCheckIn = getStudyService().findAccountCheckInByActionId(screeningSession.getAccountCheckInActionId());
 			if (accountCheckIn.isPresent()) {
-				context.put("checkInNumber", accountCheckIn.get().getCheckInNumber());
+				context.put("askContentSatisfaction", accountCheckIn.get().getCheckInNumber() == null ? false : accountCheckIn.get().getCheckInNumber() > 1);
 			}
 		}
 
