@@ -254,6 +254,7 @@ public class CurrentContextRequestHandler {
 			// For cases like mobile apps, where there is no webapp URL, look for a special "institution ID" header and use that
 			if (institution == null) {
 				String institutionIdAsString = extractValueFromRequest(httpServletRequest, getInstitutionIdPropertyName()).orElse(null);
+				getLogger().debug(format("Received %s for %s", institutionIdAsString, getInstitutionIdPropertyName()));
 
 				if (institutionIdAsString != null) {
 					InstitutionId institutionId = InstitutionId.valueOf(institutionIdAsString);
