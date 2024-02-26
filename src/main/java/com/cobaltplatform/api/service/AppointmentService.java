@@ -1755,6 +1755,7 @@ public class AppointmentService {
 			cobaltPatientEmailMessageContext.put("icalUrl", format("%s/appointments/%s/ical", webappBaseUrlForPatient, appointmentId));
 			cobaltPatientEmailMessageContext.put("googleCalendarUrl", format("%s/appointments/%s/google-calendar", webappBaseUrlForPatient, appointmentId));
 			cobaltPatientEmailMessageContext.put("anotherTimeUrl", format("%s/connect-with-support", webappBaseUrlForPatient));
+			cobaltPatientEmailMessageContext.put("showMicrosoftTeamsAnonymousDirections", appointment.getVideoconferencePlatformId() == VideoconferencePlatformId.MICROSOFT_TEAMS);
 
 			EmailMessage patientEmailMessage = new EmailMessage.Builder(account.getInstitutionId(), EmailMessageTemplate.APPOINTMENT_CREATED_PATIENT, account.getLocale())
 					.toAddresses(Collections.singletonList(account.getEmailAddress()))
