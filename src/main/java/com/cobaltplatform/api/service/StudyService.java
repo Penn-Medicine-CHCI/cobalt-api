@@ -34,7 +34,6 @@ import com.cobaltplatform.api.model.db.AccountStudy;
 import com.cobaltplatform.api.model.db.CheckInActionStatus.CheckInActionStatusId;
 import com.cobaltplatform.api.model.db.CheckInStatus.CheckInStatusId;
 import com.cobaltplatform.api.model.db.CheckInStatusGroup.CheckInStatusGroupId;
-import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Study;
 import com.cobaltplatform.api.model.db.StudyBeiweConfig;
@@ -539,8 +538,8 @@ public class StudyService {
 			else if (accountCheckIn.get().getCheckInStatusId().equals(CheckInStatusId.COMPLETE))
 				validationException.add(new FieldError("accountCheckIn", getStrings().get("Account check-in is complete.")));
 			else if (accountCheckInAction.get().getCheckInActionStatusId().compareTo(CheckInActionStatusId.IN_PROGRESS) != 0) {
-					if (accountCheckIn.get().getCheckInStartDateTime().isAfter(currentLocalDateTime) || accountCheckIn.get().getCheckInEndDateTime().isBefore(currentLocalDateTime))
-				validationException.add(new FieldError("accountCheckIn", getStrings().get("Account check-in is not permitted at this time.")));
+				if (accountCheckIn.get().getCheckInStartDateTime().isAfter(currentLocalDateTime) || accountCheckIn.get().getCheckInEndDateTime().isBefore(currentLocalDateTime))
+					validationException.add(new FieldError("accountCheckIn", getStrings().get("Account check-in is not permitted at this time.")));
 			}
 		}
 
@@ -679,6 +678,13 @@ public class StudyService {
 
 		FileUploadResult fileUploadResult = getSystemService().createFileUpload(fileUploadRequest);
 
+		getDatabase().execute("""
+				INSERT INTO account_check_in_action_file_upload (
+				  account_check_in_action_id,
+				  file_upload_id
+				) VALUES (?,?)
+				""", accountCheckInAction.getAccountCheckInActionId(), fileUploadResult.getFileUploadId());
+
 		return fileUploadResult;
 	}
 
@@ -719,6 +725,13 @@ public class StudyService {
 		));
 
 		FileUploadResult fileUploadResult = getSystemService().createFileUpload(fileUploadRequest);
+
+		getDatabase().execute("""
+				INSERT INTO study_file_upload (
+				  study_id,
+				  file_upload_id
+				) VALUES (?,?)
+				""", study.getStudyId(), fileUploadResult.getFileUploadId());
 
 		return fileUploadResult;
 	}
