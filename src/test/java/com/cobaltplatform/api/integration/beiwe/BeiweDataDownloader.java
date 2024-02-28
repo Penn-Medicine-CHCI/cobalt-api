@@ -64,6 +64,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
 import static com.soklet.util.LoggingUtils.initializeLogback;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -93,11 +94,31 @@ public class BeiweDataDownloader {
 
 			logger.debug("Processing study ID {} (URL name {})...", studyId, beiweDataDownloaderConfig.getStudyUrlName());
 
-			List<AccountStudy> accountStudies = database.queryForList("""
-					SELECT *
-					FROM account_study
-					WHERE study_id=?
-					""", AccountStudy.class, studyId);
+			List<AccountStudy> accountStudies;
+
+			if (beiweDataDownloaderConfig.getRestrictToUsernames().size() > 0) {
+				logger.info("Restricting data pull to usernames: {}", beiweDataDownloaderConfig.getRestrictToUsernames());
+
+				List<Object> parameters = new ArrayList<>();
+				parameters.add(studyId);
+				parameters.addAll(beiweDataDownloaderConfig.getRestrictToUsernames());
+
+				accountStudies = database.queryForList(format("""
+						SELECT acs.*
+						FROM account_study acs, account a
+						WHERE acs.study_id=?
+						AND acs.account_id=a.account_id
+						AND a.username IN %s
+						ORDER BY a.username
+						""", sqlInListPlaceholders(beiweDataDownloaderConfig.getRestrictToUsernames())), AccountStudy.class, parameters.toArray(new Object[]{}));
+			} else {
+				accountStudies = database.queryForList("""
+						SELECT *
+						FROM account_study
+						WHERE study_id=?
+						ORDER BY account_id
+						""", AccountStudy.class, studyId);
+			}
 
 			logger.debug("There are {} accounts for this study.", accountStudies.size());
 
@@ -133,13 +154,9 @@ public class BeiweDataDownloader {
 
 			for (AccountStudy accountStudy : accountStudies) {
 				String username = database.queryForObject("SELECT username FROM account WHERE account_id=?", String.class, accountStudy.getAccountId()).get();
+
 				BeiweDownloadResult beiweDownloadResult = new BeiweDownloadResult();
-
 				beiweDownloadResultsByUsername.put(username, beiweDownloadResult);
-
-				// If you only want to pull a single username's data...
-				// if (!username.equals("XXXX"))
-				//   continue;
 
 				logger.debug("Processing username {} ({} of {})...", username, i + 1, accountStudies.size());
 
@@ -161,10 +178,10 @@ public class BeiweDataDownloader {
 						.filter(fileUpload -> fileUpload.getStorageKey().startsWith("file-uploads/studies/"))
 						.collect(Collectors.toMap(FileUpload::getFileUploadId, Function.identity()));
 
-				logger.debug("\tUsername {} has {} check-in uploads and {} passive data uploads", username, accountCheckInActionFileUploadsById.size(), studyFileUploadsById.size());
+				logger.debug("Username {} has {} check-in uploads and {} passive data uploads", username, accountCheckInActionFileUploadsById.size(), studyFileUploadsById.size());
 
 				if (fileUploads.size() == 0) {
-					logger.debug("\tNo uploaded files for {}, moving on to next...", username);
+					logger.debug("No uploaded files for {}, moving on to next...", username);
 					++i;
 					continue;
 				}
@@ -205,7 +222,7 @@ public class BeiweDataDownloader {
 				}
 
 				for (FileUpload fileUpload : fileUploads) {
-					logger.debug("\tFetching file from {}...", fileUpload.getStorageKey());
+					logger.debug("Fetching file from {}...", fileUpload.getStorageKey());
 
 					GetObjectRequest objectRequest = GetObjectRequest.builder()
 							.bucket(beiweDataDownloaderConfig.getAmazonS3BucketName())
@@ -228,7 +245,7 @@ public class BeiweDataDownloader {
 							IOUtils.copy(s3Object, outputStream);
 						}
 
-						logger.debug("\tFile successfully fetched from {}.", fileUpload.getStorageKey());
+						logger.debug("File successfully fetched from {}.", fileUpload.getStorageKey());
 
 						// Decrypt passive data
 						if (studyFileUploadsById.containsKey(fileUpload.getFileUploadId())) {
@@ -237,14 +254,14 @@ public class BeiweDataDownloader {
 
 							try {
 								beiweCryptoManager.decryptBeiweTextFile(file, decryptedFile, privateKey);
-								logger.debug("\tFile successfully decrypted.");
+								logger.debug("File successfully decrypted.");
 							} catch (Exception e) {
 								logger.error("An error occurred during decryption", e);
 								beiweDownloadResult.decryptionFailures++;
 							}
 						}
 					} catch (NoSuchKeyException e) {
-						logger.debug("\tFile at {} does not exist.", fileUpload.getStorageKey());
+						logger.debug("File at {} does not exist.", fileUpload.getStorageKey());
 						beiweDownloadResult.missingFiles++;
 					} catch (IOException e) {
 						logger.error("An error occurred during download", e);
@@ -294,6 +311,9 @@ public class BeiweDataDownloader {
 			if (!Files.isDirectory(Path.of(beiweDataDownloaderConfig.getDataDownloadDirectory())))
 				throw new IllegalArgumentException(format("Download directory at %s does not exist, please create it.", beiweDataDownloaderConfig.getDataDownloadDirectory()));
 
+			if (beiweDataDownloaderConfig.getRestrictToUsernames() == null)
+				beiweDataDownloaderConfig.setRestrictToUsernames(List.of());
+
 			return beiweDataDownloaderConfig;
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
@@ -334,6 +354,8 @@ public class BeiweDataDownloader {
 		@Nullable
 		private String studyUrlName;
 		@Nullable
+		private List<String> restrictToUsernames;
+		@Nullable
 		private String dataDownloadDirectory;
 		@Nullable
 		private String amazonS3AccessKey;
@@ -357,6 +379,15 @@ public class BeiweDataDownloader {
 
 		public void setStudyUrlName(@Nullable String studyUrlName) {
 			this.studyUrlName = studyUrlName;
+		}
+
+		@Nullable
+		public List<String> getRestrictToUsernames() {
+			return this.restrictToUsernames;
+		}
+
+		public void setRestrictToUsernames(@Nullable List<String> restrictToUsernames) {
+			this.restrictToUsernames = restrictToUsernames;
 		}
 
 		@Nullable
