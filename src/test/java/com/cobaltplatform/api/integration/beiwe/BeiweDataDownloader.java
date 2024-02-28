@@ -21,26 +21,42 @@ package com.cobaltplatform.api.integration.beiwe;
 
 import com.cobaltplatform.api.model.db.AccountStudy;
 import com.cobaltplatform.api.model.db.EncryptionKeypair;
+import com.cobaltplatform.api.model.db.FileUpload;
+import com.cobaltplatform.api.util.CryptoUtility;
 import com.google.gson.Gson;
 import com.pyranid.Database;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import org.apache.commons.io.IOUtils;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.PrivateKey;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -92,10 +108,175 @@ public class BeiweDataDownloader {
 					AND acs.study_id=?
 					""", EncryptionKeypair.class, studyId);
 
-			Map<UUID, EncryptionKeypair> encryptionKeypairsById = encryptionKeypairs.stream()
-					.collect(Collectors.toMap(EncryptionKeypair::getEncryptionKeypairId, Function.identity()));
+			Map<UUID, EncryptionKeypair> encryptionKeypairsById = new HashMap<>(encryptionKeypairs.size());
+			Map<UUID, PrivateKey> privateKeysByEncryptionKeypairId = new HashMap<>(encryptionKeypairs.size());
 
+			for (EncryptionKeypair encryptionKeypair : encryptionKeypairs) {
+				encryptionKeypairsById.put(encryptionKeypair.getEncryptionKeypairId(), encryptionKeypair);
+				privateKeysByEncryptionKeypairId.put(encryptionKeypair.getEncryptionKeypairId(), CryptoUtility.toPrivateKey(encryptionKeypair.getPrivateKeyAsString()));
+			}
 
+			// This is using credentials for beiwe-data-downloader
+			AwsBasicCredentials awsBasicCredentials = AwsBasicCredentials.create(
+					beiweDataDownloaderConfig.getAmazonS3AccessKey(),
+					beiweDataDownloaderConfig.getAmazonS3SecretKey()
+			);
+
+			S3Client s3Client = S3Client.builder().credentialsProvider(StaticCredentialsProvider.create(awsBasicCredentials))
+					.region(Region.of(beiweDataDownloaderConfig.getAmazonS3Region()))
+					.build();
+
+			BeiweCryptoManager beiweCryptoManager = new BeiweCryptoManager();
+			Map<String, BeiweDownloadResult> beiweDownloadResultsByUsername = new HashMap<>(accountStudies.size());
+
+			int i = 0;
+
+			for (AccountStudy accountStudy : accountStudies) {
+				String username = database.queryForObject("SELECT username FROM account WHERE account_id=?", String.class, accountStudy.getAccountId()).get();
+				BeiweDownloadResult beiweDownloadResult = new BeiweDownloadResult();
+
+				beiweDownloadResultsByUsername.put(username, beiweDownloadResult);
+
+				// If you only want to pull a single username's data...
+				// if (!username.equals("XXXX"))
+				//   continue;
+
+				logger.debug("Processing username {} ({} of {})...", username, i + 1, accountStudies.size());
+
+				// TODO: correct thing is to look at account_check_in_action_file_upload and study_file_upload, but those are missing test data prior to Feb 28 2024.
+				List<FileUpload> fileUploads = database.queryForList("""
+						SELECT *
+						FROM file_upload
+						WHERE account_id=?
+						AND (storage_key LIKE 'file-uploads/account-check-in-actions/%' OR storage_key LIKE 'file-uploads/studies/%')
+							""", FileUpload.class, accountStudy.getAccountId());
+
+				beiweDownloadResult.totalFiles = fileUploads.size();
+
+				Map<UUID, FileUpload> accountCheckInActionFileUploadsById = fileUploads.stream()
+						.filter(fileUpload -> fileUpload.getStorageKey().startsWith("file-uploads/account-check-in-actions/"))
+						.collect(Collectors.toMap(FileUpload::getFileUploadId, Function.identity()));
+
+				Map<UUID, FileUpload> studyFileUploadsById = fileUploads.stream()
+						.filter(fileUpload -> fileUpload.getStorageKey().startsWith("file-uploads/studies/"))
+						.collect(Collectors.toMap(FileUpload::getFileUploadId, Function.identity()));
+
+				logger.debug("\tUsername {} has {} check-in uploads and {} passive data uploads", username, accountCheckInActionFileUploadsById.size(), studyFileUploadsById.size());
+
+				if (fileUploads.size() == 0) {
+					logger.debug("\tNo uploaded files for {}, moving on to next...", username);
+					++i;
+					continue;
+				}
+
+				Path usernameDirectory = Path.of(beiweDataDownloaderConfig.getDataDownloadDirectory(), username);
+
+				try {
+					if (!Files.isDirectory(usernameDirectory))
+						Files.createDirectory(usernameDirectory);
+				} catch (IOException e) {
+					throw new UncheckedIOException(format("Cannot create username directory %s", usernameDirectory.toAbsolutePath()), e);
+				}
+
+				Path accountCheckInActionsDirectory = null;
+
+				if (accountCheckInActionFileUploadsById.size() > 0) {
+					accountCheckInActionsDirectory = usernameDirectory.resolve("account-check-in-actions");
+
+					try {
+						if (!Files.isDirectory(accountCheckInActionsDirectory))
+							Files.createDirectory(accountCheckInActionsDirectory);
+					} catch (IOException e) {
+						throw new UncheckedIOException(format("Cannot create account check-in actions directory %s", accountCheckInActionsDirectory.toAbsolutePath()), e);
+					}
+				}
+
+				Path studiesDirectory = null;
+
+				if (studyFileUploadsById.size() > 0) {
+					studiesDirectory = usernameDirectory.resolve("studies");
+
+					try {
+						if (!Files.isDirectory(studiesDirectory))
+							Files.createDirectory(studiesDirectory);
+					} catch (IOException e) {
+						throw new UncheckedIOException(format("Cannot create studies directory %s", studiesDirectory.toAbsolutePath()), e);
+					}
+				}
+
+				for (FileUpload fileUpload : fileUploads) {
+					logger.debug("\tFetching file from {}...", fileUpload.getStorageKey());
+
+					GetObjectRequest objectRequest = GetObjectRequest.builder()
+							.bucket(beiweDataDownloaderConfig.getAmazonS3BucketName())
+							.key(fileUpload.getStorageKey())
+							.build();
+
+					try (ResponseInputStream<GetObjectResponse> s3Object = s3Client.getObject(objectRequest)) {
+						Path storageDirectory;
+
+						if (accountCheckInActionFileUploadsById.containsKey(fileUpload.getFileUploadId()))
+							storageDirectory = accountCheckInActionsDirectory;
+						else if (studyFileUploadsById.containsKey(fileUpload.getFileUploadId()))
+							storageDirectory = studiesDirectory;
+						else
+							throw new IllegalStateException("Not sure what this upload is...");
+
+						Path file = storageDirectory.resolve(fileUpload.getFilename());
+
+						try (OutputStream outputStream = new FileOutputStream(file.toFile())) {
+							IOUtils.copy(s3Object, outputStream);
+						}
+
+						logger.debug("\tFile successfully fetched from {}.", fileUpload.getStorageKey());
+
+						// Decrypt passive data
+						if (studyFileUploadsById.containsKey(fileUpload.getFileUploadId())) {
+							PrivateKey privateKey = privateKeysByEncryptionKeypairId.get(accountStudy.getEncryptionKeypairId());
+							Path decryptedFile = storageDirectory.resolve(format("DECRYPTED-%s", fileUpload.getFilename()));
+
+							try {
+								beiweCryptoManager.decryptBeiweTextFile(file, decryptedFile, privateKey);
+								logger.debug("\tFile successfully decrypted.");
+							} catch (Exception e) {
+								logger.error("An error occurred during decryption", e);
+								beiweDownloadResult.decryptionFailures++;
+							}
+						}
+					} catch (NoSuchKeyException e) {
+						logger.debug("\tFile at {} does not exist.", fileUpload.getStorageKey());
+						beiweDownloadResult.missingFiles++;
+					} catch (IOException e) {
+						logger.error("An error occurred during download", e);
+						beiweDownloadResult.downloadErrors++;
+					}
+				}
+
+				++i;
+			}
+
+			List<String> results = new ArrayList<>();
+
+			for (Map.Entry<String, BeiweDownloadResult> entry : beiweDownloadResultsByUsername.entrySet()) {
+				String username = entry.getKey();
+				BeiweDownloadResult beiweDownloadResult = entry.getValue();
+
+				List<String> resultComponents = new ArrayList<>();
+				resultComponents.add(format("%s: %d files", username, beiweDownloadResult.totalFiles));
+
+				if (beiweDownloadResult.missingFiles > 0)
+					resultComponents.add(format("%d missing files", beiweDownloadResult.missingFiles));
+
+				if (beiweDownloadResult.downloadErrors > 0)
+					resultComponents.add(format("%d download errors", beiweDownloadResult.downloadErrors));
+
+				if (beiweDownloadResult.decryptionFailures > 0)
+					resultComponents.add(format("%d decryption failures", beiweDownloadResult.decryptionFailures));
+
+				results.add(resultComponents.stream().collect(Collectors.joining(", ")));
+			}
+
+			logger.info("*** RESULTS ***\n{}", results.stream().collect(Collectors.joining("\n")));
 		});
 	}
 
@@ -108,7 +289,12 @@ public class BeiweDataDownloader {
 
 		try {
 			String beiweDataDownloaderConfigJson = Files.readString(configFile, StandardCharsets.UTF_8);
-			return new Gson().fromJson(beiweDataDownloaderConfigJson, BeiweDataDownloaderConfig.class);
+			BeiweDataDownloaderConfig beiweDataDownloaderConfig = new Gson().fromJson(beiweDataDownloaderConfigJson, BeiweDataDownloaderConfig.class);
+
+			if (!Files.isDirectory(Path.of(beiweDataDownloaderConfig.getDataDownloadDirectory())))
+				throw new IllegalArgumentException(format("Download directory at %s does not exist, please create it.", beiweDataDownloaderConfig.getDataDownloadDirectory()));
+
+			return beiweDataDownloaderConfig;
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
@@ -136,9 +322,27 @@ public class BeiweDataDownloader {
 	}
 
 	@NotThreadSafe
+	protected static class BeiweDownloadResult {
+		int totalFiles;
+		int missingFiles;
+		int downloadErrors;
+		int decryptionFailures;
+	}
+
+	@NotThreadSafe
 	protected static class BeiweDataDownloaderConfig {
 		@Nullable
 		private String studyUrlName;
+		@Nullable
+		private String dataDownloadDirectory;
+		@Nullable
+		private String amazonS3AccessKey;
+		@Nullable
+		private String amazonS3SecretKey;
+		@Nullable
+		private String amazonS3Region;
+		@Nullable
+		private String amazonS3BucketName;
 		@Nullable
 		private String jdbcUrl;
 		@Nullable
@@ -153,6 +357,51 @@ public class BeiweDataDownloader {
 
 		public void setStudyUrlName(@Nullable String studyUrlName) {
 			this.studyUrlName = studyUrlName;
+		}
+
+		@Nullable
+		public String getDataDownloadDirectory() {
+			return this.dataDownloadDirectory;
+		}
+
+		public void setDataDownloadDirectory(@Nullable String dataDownloadDirectory) {
+			this.dataDownloadDirectory = dataDownloadDirectory;
+		}
+
+		@Nullable
+		public String getAmazonS3AccessKey() {
+			return this.amazonS3AccessKey;
+		}
+
+		public void setAmazonS3AccessKey(@Nullable String amazonS3AccessKey) {
+			this.amazonS3AccessKey = amazonS3AccessKey;
+		}
+
+		@Nullable
+		public String getAmazonS3SecretKey() {
+			return this.amazonS3SecretKey;
+		}
+
+		public void setAmazonS3SecretKey(@Nullable String amazonS3SecretKey) {
+			this.amazonS3SecretKey = amazonS3SecretKey;
+		}
+
+		@Nullable
+		public String getAmazonS3Region() {
+			return this.amazonS3Region;
+		}
+
+		public void setAmazonS3Region(@Nullable String amazonS3Region) {
+			this.amazonS3Region = amazonS3Region;
+		}
+
+		@Nullable
+		public String getAmazonS3BucketName() {
+			return this.amazonS3BucketName;
+		}
+
+		public void setAmazonS3BucketName(@Nullable String amazonS3BucketName) {
+			this.amazonS3BucketName = amazonS3BucketName;
 		}
 
 		@Nullable
