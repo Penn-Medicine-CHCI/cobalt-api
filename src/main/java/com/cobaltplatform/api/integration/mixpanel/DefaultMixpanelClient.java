@@ -38,6 +38,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -68,8 +69,13 @@ public class DefaultMixpanelClient implements MixpanelClient {
 		this.projectId = projectId;
 		this.serviceAccountUsername = serviceAccountUsername;
 		this.serviceAccountSecret = serviceAccountSecret;
-		this.httpClient = new DefaultHttpClient("mixpanel-client");
 		this.gson = new Gson();
+		this.httpClient = new DefaultHttpClient("mixpanel-client", (okHttpClientBuilder) -> {
+			// Nice long timeouts because Mixpanel can take a long time...
+			okHttpClientBuilder.connectTimeout(60, TimeUnit.SECONDS)
+					.writeTimeout(5, TimeUnit.MINUTES)
+					.readTimeout(5, TimeUnit.MINUTES);
+		});
 	}
 
 	@Nonnull
