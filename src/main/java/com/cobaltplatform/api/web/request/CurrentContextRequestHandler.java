@@ -338,22 +338,21 @@ public class CurrentContextRequestHandler {
 
 		ClientDeviceTypeId clientDeviceTypeId = remoteClient.getTypeId().orElse(null);
 
-		// Currently, we only store off client devices if...
-		// 1. They are native apps
-		// 2. There is an account present
-		if (clientDeviceTypeId == null || !clientDeviceTypeId.isNativeApp() || account == null)
+		// Currently, we only store off client devices if 1: they are native apps...
+		if (clientDeviceTypeId == null || !clientDeviceTypeId.isNativeApp())
 			return false;
 
+		UUID accountId = account == null ? null : account.getAccountId();
 		String fingerprint = remoteClient.getFingerprint().orElse(null);
 
-		// ...and 3. They have a fingerprint specified
+		// ...and 2: They have a fingerprint specified
 		if (fingerprint == null) {
 			getLogger().warn("Native app request does not have a Fingerprint specified");
 			return false;
 		}
 
 		UpsertClientDeviceRequest request = new UpsertClientDeviceRequest();
-		request.setAccountId(account.getAccountId());
+		request.setAccountId(accountId);
 		request.setClientDeviceTypeId(clientDeviceTypeId);
 		request.setFingerprint(fingerprint);
 		request.setBrand(remoteClient.getBrand().orElse(null));

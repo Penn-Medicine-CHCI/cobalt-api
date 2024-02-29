@@ -87,4 +87,11 @@ else
     aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager create-secret --name "cobalt-local-microsoft-teams-client-secret-COBALT"  --description "Microsoft Teams Client Secret for COBALT institution"  --secret-string "fake" --region ${REGION}  1> /dev/null
 fi
 
+if [ -e /localstack/secrets/cobalt-local-google-fcm-service-account-private-key-COBALT ]
+then
+    echo "Using Localstack secret value for cobalt-local-google-fcm-service-account-private-key-COBALT..."
+    aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager delete-secret --secret-id "cobalt-local-google-fcm-service-account-private-key-COBALT"  --force-delete-without-recovery --region ${REGION} > /dev/null 2>&1
+    aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager create-secret --name "cobalt-local-google-fcm-service-account-private-key-COBALT"  --description "Cobalt FCM Service Account Private Key for COBALT institution" --secret-string file:///localstack/secrets/cobalt-local-google-fcm-service-account-private-key-COBALT --region ${REGION}  1> /dev/null
+fi
+
 echo "Localstack initialization complete."

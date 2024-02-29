@@ -20,13 +20,16 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.request.CreateClientDeviceActivityRequest;
 import com.cobaltplatform.api.model.api.request.TestClientDevicePushMessageRequest;
 import com.cobaltplatform.api.model.api.request.UpsertClientDevicePushTokenRequest;
 import com.cobaltplatform.api.model.api.request.UpsertClientDeviceRequest;
+import com.cobaltplatform.api.model.api.response.ClientDeviceActivityApiResponse.ClientDeviceActivityApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ClientDeviceApiResponse.ClientDeviceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ClientDevicePushTokenApiResponse.ClientDevicePushTokenApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ClientDevice;
+import com.cobaltplatform.api.model.db.ClientDeviceActivity;
 import com.cobaltplatform.api.model.db.ClientDevicePushToken;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.RemoteClient;
@@ -63,6 +66,8 @@ public class ClientDeviceResource {
 	@Nonnull
 	private final ClientDevicePushTokenApiResponseFactory clientDevicePushTokenApiResponseFactory;
 	@Nonnull
+	private final ClientDeviceActivityApiResponseFactory clientDeviceActivityApiResponseFactory;
+	@Nonnull
 	private final RequestBodyParser requestBodyParser;
 	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
@@ -73,17 +78,20 @@ public class ClientDeviceResource {
 	public ClientDeviceResource(@Nonnull ClientDeviceService clientDeviceService,
 															@Nonnull ClientDeviceApiResponseFactory clientDeviceApiResponseFactory,
 															@Nonnull ClientDevicePushTokenApiResponseFactory clientDevicePushTokenApiResponseFactory,
+															@Nonnull ClientDeviceActivityApiResponseFactory clientDeviceActivityApiResponseFactory,
 															@Nonnull RequestBodyParser requestBodyParser,
 															@Nonnull Provider<CurrentContext> currentContextProvider) {
 		requireNonNull(clientDeviceService);
 		requireNonNull(clientDeviceApiResponseFactory);
 		requireNonNull(clientDevicePushTokenApiResponseFactory);
+		requireNonNull(clientDeviceActivityApiResponseFactory);
 		requireNonNull(requestBodyParser);
 		requireNonNull(currentContextProvider);
 
 		this.clientDeviceService = clientDeviceService;
 		this.clientDeviceApiResponseFactory = clientDeviceApiResponseFactory;
 		this.clientDevicePushTokenApiResponseFactory = clientDevicePushTokenApiResponseFactory;
+		this.clientDeviceActivityApiResponseFactory = clientDeviceActivityApiResponseFactory;
 		this.requestBodyParser = requestBodyParser;
 		this.currentContextProvider = currentContextProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -91,13 +99,16 @@ public class ClientDeviceResource {
 
 	@Nonnull
 	@POST("/client-devices")
-	@AuthenticationRequired
 	public ApiResponse upsertClientDevice(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
 
-		Account account = getCurrentContext().getAccount().get();
 		UpsertClientDeviceRequest request = getRequestBodyParser().parse(requestBody, UpsertClientDeviceRequest.class);
-		request.setAccountId(account.getAccountId());
+
+		// Not strictly required to have an account associated, e.g. a device for which a user has not yet signed in
+		Account account = getCurrentContext().getAccount().orElse(null);
+
+		if (account != null)
+			request.setAccountId(account.getAccountId());
 
 		UUID clientDeviceId = getClientDeviceService().upsertClientDevice(request);
 		ClientDevice clientDevice = getClientDeviceService().findClientDeviceById(clientDeviceId).get();
@@ -109,15 +120,11 @@ public class ClientDeviceResource {
 
 	@Nonnull
 	@POST("/client-device-push-tokens")
-	@AuthenticationRequired
 	public ApiResponse upsertClientDevicePushToken(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
 
-		Account account = getCurrentContext().getAccount().get();
 		RemoteClient remoteClient = getCurrentContext().getRemoteClient().orElse(null);
-
 		UpsertClientDevicePushTokenRequest request = getRequestBodyParser().parse(requestBody, UpsertClientDevicePushTokenRequest.class);
-		request.setAccountId(account.getAccountId());
 
 		// Fill in field from client (here, X-Client-Device-Fingerprint header) if not explicitly specified in request body.
 		// Lets clients say "register for the current device, for which you already have fingerprint data"
@@ -129,6 +136,30 @@ public class ClientDeviceResource {
 
 		return new ApiResponse(Map.of(
 				"clientDevicePushToken", getClientDevicePushTokenApiResponseFactory().create(clientDevicePushToken)
+		));
+	}
+
+	@Nonnull
+	@POST("/client-device-activities")
+	public ApiResponse createClientDeviceActivity(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().orElse(null);
+		RemoteClient remoteClient = getCurrentContext().getRemoteClient().orElse(null);
+
+		CreateClientDeviceActivityRequest request = getRequestBodyParser().parse(requestBody, CreateClientDeviceActivityRequest.class);
+		request.setAccountId(account == null ? null : account.getAccountId());
+
+		// Fill in field from client (here, X-Client-Device-Fingerprint header) if not explicitly specified in request body.
+		// Lets clients say "register for the current device, for which you already have fingerprint data"
+		if (remoteClient != null && request.getFingerprint() == null)
+			request.setFingerprint(remoteClient.getFingerprint().orElse(null));
+
+		UUID clientDeviceActivityId = getClientDeviceService().createClientDeviceActivity(request);
+		ClientDeviceActivity clientDeviceActivity = getClientDeviceService().findClientDeviceActivityById(clientDeviceActivityId).get();
+
+		return new ApiResponse(Map.of(
+				"clientDeviceActivity", getClientDeviceActivityApiResponseFactory().create(clientDeviceActivity)
 		));
 	}
 
@@ -162,6 +193,11 @@ public class ClientDeviceResource {
 	@Nonnull
 	protected ClientDevicePushTokenApiResponseFactory getClientDevicePushTokenApiResponseFactory() {
 		return this.clientDevicePushTokenApiResponseFactory;
+	}
+
+	@Nonnull
+	protected ClientDeviceActivityApiResponseFactory getClientDeviceActivityApiResponseFactory() {
+		return this.clientDeviceActivityApiResponseFactory;
 	}
 
 	@Nonnull
