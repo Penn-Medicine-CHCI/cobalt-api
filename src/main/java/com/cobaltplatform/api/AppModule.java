@@ -81,6 +81,7 @@ import com.cobaltplatform.api.model.api.response.AssessmentFormApiResponse.Asses
 import com.cobaltplatform.api.model.api.response.AvailabilityTimeApiResponse.AvailabilityTimeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.BetaFeatureAlertApiResponse.BetaFeatureAlertApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CallToActionApiResponse.CallToActionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ClientDeviceActivityApiResponse.ClientDeviceActivityApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ClientDeviceApiResponse.ClientDeviceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ClientDevicePushTokenApiResponse.ClientDevicePushTokenApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ClinicApiResponse.ClinicApiResponseFactory;
@@ -340,6 +341,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(ContentFeedbackApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(EpicDepartmentApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(EncounterApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(ClientDeviceActivityApiResponseFactory.class)));
 	}
 
 	@Provides

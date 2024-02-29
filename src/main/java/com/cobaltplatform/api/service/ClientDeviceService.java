@@ -24,11 +24,14 @@ import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.messaging.MessageSender;
 import com.cobaltplatform.api.messaging.push.PushMessage;
 import com.cobaltplatform.api.messaging.push.PushMessageTemplate;
+import com.cobaltplatform.api.model.api.request.CreateClientDeviceActivityRequest;
 import com.cobaltplatform.api.model.api.request.TestClientDevicePushMessageRequest;
 import com.cobaltplatform.api.model.api.request.UpsertClientDevicePushTokenRequest;
 import com.cobaltplatform.api.model.api.request.UpsertClientDeviceRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ClientDevice;
+import com.cobaltplatform.api.model.db.ClientDeviceActivity;
+import com.cobaltplatform.api.model.db.ClientDeviceActivityType.ClientDeviceActivityTypeId;
 import com.cobaltplatform.api.model.db.ClientDevicePushToken;
 import com.cobaltplatform.api.model.db.ClientDevicePushTokenType.ClientDevicePushTokenTypeId;
 import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
@@ -179,9 +182,6 @@ public class ClientDeviceService {
 
 		ValidationException validationException = new ValidationException();
 
-		if (accountId == null)
-			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
-
 		if (clientDeviceTypeId == null)
 			validationException.add(new FieldError("clientDeviceTypeId", getStrings().get("Client Device Type ID is required.")));
 
@@ -208,22 +208,24 @@ public class ClientDeviceService {
 				RETURNING client_device_id
 				""", UUID.class, clientDeviceTypeId, fingerprint, model, brand, operatingSystemName, operatingSystemVersion).get();
 
-		Transaction transaction = getDatabase().currentTransaction().get();
-		Savepoint savepoint = transaction.createSavepoint();
+		if (accountId != null) {
+			Transaction transaction = getDatabase().currentTransaction().get();
+			Savepoint savepoint = transaction.createSavepoint();
 
-		try {
-			getDatabase().execute("""
-					    INSERT INTO account_client_device (
-					      client_device_id,
-					      account_id
-					    ) VALUES (?,?)
-					""", clientDeviceId, accountId);
-		} catch (DatabaseException e) {
-			if ("account_client_device_unique_idx".equals(e.constraint().orElse(null))) {
-				getLogger().trace("Client device already associated with account, don't need to re-associate.");
-				transaction.rollback(savepoint);
-			} else {
-				throw e;
+			try {
+				getDatabase().execute("""
+						    INSERT INTO account_client_device (
+						      client_device_id,
+						      account_id
+						    ) VALUES (?,?)
+						""", clientDeviceId, accountId);
+			} catch (DatabaseException e) {
+				if ("account_client_device_unique_idx".equals(e.constraint().orElse(null))) {
+					getLogger().trace("Client device already associated with account, don't need to re-associate.");
+					transaction.rollback(savepoint);
+				} else {
+					throw e;
+				}
 			}
 		}
 
@@ -238,7 +240,6 @@ public class ClientDeviceService {
 		String fingerprint = trimToNull(request.getFingerprint());
 		String pushToken = trimToNull(request.getPushToken());
 		ClientDevicePushTokenTypeId clientDevicePushTokenTypeId = request.getClientDevicePushTokenTypeId();
-		UUID accountId = request.getAccountId();
 		ClientDevice clientDevice = null;
 
 		ValidationException validationException = new ValidationException();
@@ -263,21 +264,11 @@ public class ClientDeviceService {
 		if (clientDevicePushTokenTypeId == null)
 			validationException.add(new FieldError("clientDevicePushTokenTypeId", getStrings().get("Client Device Push Token Type ID is required.")));
 
-		if (accountId == null)
-			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
-
 		if (validationException.hasErrors())
 			throw validationException;
 
 		// Make our life simpler and ensure "clientDeviceId" is always set correctly
 		clientDeviceId = clientDevice.getClientDeviceId();
-
-		// Don't let people "guess" fingerprints or IDs and associate push tokens with others' devices
-		if (!isAccountAssociatedWithClientDeviceId(accountId, clientDeviceId))
-			throw new ValidationException(getStrings().get("Cannot persist push token because Account ID {{accountId}} is not associated with Client Device ID {{clientDeviceId}}.", Map.of(
-					"accountId", accountId,
-					"clientDeviceId", clientDeviceId
-			)));
 
 		UUID clientDevicePushTokenId = getDatabase().executeReturning("""					
 				INSERT INTO client_device_push_token (
@@ -300,6 +291,66 @@ public class ClientDeviceService {
 					.getClientDevicePushTokenId();
 
 		return clientDevicePushTokenId;
+	}
+
+	@Nonnull
+	public Optional<ClientDeviceActivity> findClientDeviceActivityById(@Nullable UUID clientDeviceActivityId) {
+		if (clientDeviceActivityId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM client_device_activity
+				WHERE client_device_activity_id=?
+				""", ClientDeviceActivity.class, clientDeviceActivityId);
+	}
+
+	@Nonnull
+	public UUID createClientDeviceActivity(@Nonnull CreateClientDeviceActivityRequest request) {
+		requireNonNull(request);
+
+		UUID clientDeviceId = request.getClientDeviceId();
+		String fingerprint = trimToNull(request.getFingerprint());
+		ClientDeviceActivityTypeId clientDeviceActivityTypeId = request.getClientDeviceActivityTypeId();
+		UUID accountId = request.getAccountId();
+		UUID clientDeviceActivityId = UUID.randomUUID();
+		ClientDevice clientDevice = null;
+		ValidationException validationException = new ValidationException();
+
+		if (clientDeviceId != null) {
+			clientDevice = findClientDeviceById(clientDeviceId).orElse(null);
+
+			if (clientDevice == null)
+				validationException.add(new FieldError("clientDeviceId", getStrings().get("Client Device ID is invalid.")));
+		} else if (fingerprint != null) {
+			clientDevice = findClientDeviceByFingerprint(fingerprint).orElse(null);
+
+			if (clientDevice == null)
+				validationException.add(new FieldError("fingerprint", getStrings().get("Client Device Fingerprint is invalid.")));
+		} else {
+			validationException.add(getStrings().get("Either a Client Device ID or Client Device Fingerprint is required."));
+		}
+
+		if (clientDeviceActivityTypeId == null)
+			validationException.add(new FieldError("clientDeviceActivityTypeId", getStrings().get("Client Device Activity Type ID is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		// Make our life simpler and ensure "clientDeviceId" is always set correctly
+		clientDeviceId = clientDevice.getClientDeviceId();
+
+		getDatabase().execute("""					
+				INSERT INTO client_device_activity (
+				  client_device_activity_id,
+				  client_device_id,
+				  client_device_activity_type_id,
+				  account_id
+				)
+				VALUES (?,?,?,?)
+				""", clientDeviceActivityId, clientDeviceId, clientDeviceActivityTypeId, accountId);
+
+		return clientDeviceActivityId;
 	}
 
 	@Nonnull
