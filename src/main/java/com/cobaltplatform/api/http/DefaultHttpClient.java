@@ -99,6 +99,11 @@ public class DefaultHttpClient implements HttpClient {
 	}
 
 	public DefaultHttpClient(@Nullable String loggingBaseName,
+													 @Nullable Boolean permitUnsafeCerts) {
+		this(loggingBaseName, permitUnsafeCerts, null);
+	}
+
+	public DefaultHttpClient(@Nullable String loggingBaseName,
 													 @Nullable Consumer<OkHttpClient.Builder> builderCustomizer) {
 		this(loggingBaseName, null, builderCustomizer);
 	}
