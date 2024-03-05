@@ -79,7 +79,7 @@ AND cd.client_device_id = cdp.client_device_id;
 CREATE OR REPLACE VIEW v_account_study
 AS
 SELECT a.*, ac.institution_id, ac.time_zone, s.send_check_in_reminder_notification, s.check_in_reminder_notification_minutes,
-s.check_in_reminder_notification_message_title, s.check_in_reminder_notification_message_body
+s.check_in_reminder_notification_message_title, s.check_in_reminder_notification_message_body, ac.password_reset_required
 FROM account_study a, study s, account ac
 WHERE a.study_id = s.study_id
 AND a.account_id = ac.account_id;
