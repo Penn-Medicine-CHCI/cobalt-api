@@ -45,6 +45,8 @@ public class EpicDepartment {
 	@Nullable
 	private String name; // e.g. "PBH OPC 3535 MARKET ST 2ND FLOOR"
 	@Nullable
+	private Boolean patientOrderAutomaticImportEnabled;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -101,6 +103,15 @@ public class EpicDepartment {
 
 	public void setName(@Nullable String name) {
 		this.name = name;
+	}
+
+	@Nullable
+	public Boolean getPatientOrderAutomaticImportEnabled() {
+		return this.patientOrderAutomaticImportEnabled;
+	}
+
+	public void setPatientOrderAutomaticImportEnabled(@Nullable Boolean patientOrderAutomaticImportEnabled) {
+		this.patientOrderAutomaticImportEnabled = patientOrderAutomaticImportEnabled;
 	}
 
 	@Nullable

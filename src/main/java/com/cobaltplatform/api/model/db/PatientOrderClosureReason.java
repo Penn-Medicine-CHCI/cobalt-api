@@ -43,7 +43,8 @@ public class PatientOrderClosureReason {
 		LOST_TO_FOLLOWUP,
 		DECLINED_CARE,
 		INELIGIBLE_FOR_IC,
-		REFERRED_TO_QUARTET
+		REFERRED_TO_QUARTET,
+		SCHEDULED_WITH_BHS
 	}
 
 	@Override

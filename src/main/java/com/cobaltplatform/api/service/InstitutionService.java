@@ -22,6 +22,7 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Color.ColorId;
+import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -56,6 +57,7 @@ import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -429,6 +431,47 @@ public class InstitutionService {
 				""", InstitutionColorValue.class, colorId, institutionId);
 	}
 
+	@Nonnull
+	public List<EpicDepartment> findEpicDepartmentsByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+				SELECT * FROM epic_department
+				WHERE institution_id=?
+				ORDER BY name
+				""", EpicDepartment.class, institutionId);
+	}
+
+	@Nonnull
+	public List<EpicDepartment> findEpicDepartmentsByProviderId(@Nullable UUID providerId) {
+		if (providerId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+				SELECT ed.*
+				FROM epic_department ed, provider_epic_department ped
+				WHERE ped.provider_id=?
+				AND ped.epic_department_id=ed.epic_department_id
+				ORDER BY ed.name
+				""", EpicDepartment.class, providerId);
+	}
+
+	@Nonnull
+	public Optional<EpicDepartment> findEpicDepartmentByProviderIdAndTimeslot(@Nullable UUID providerId,
+																																						@Nullable LocalDateTime timeslot) {
+		if (providerId == null || timeslot == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				  SELECT DISTINCT ed.*
+				  FROM epic_department ed, provider_availability pa
+				  WHERE pa.provider_id=?
+				  AND pa.epic_department_id=ed.epic_department_id
+				  AND pa.date_time=?
+				""", EpicDepartment.class, providerId, timeslot);
+	}
+
 	@Immutable
 	private static final class WebappBaseUrlCacheKey {
 		@Nonnull
@@ -468,7 +511,6 @@ public class InstitutionService {
 			return this.userExperienceTypeId;
 		}
 	}
-
 
 	@Nonnull
 	protected Database getDatabase() {

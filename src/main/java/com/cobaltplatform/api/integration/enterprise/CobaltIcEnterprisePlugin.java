@@ -22,6 +22,9 @@ package com.cobaltplatform.api.integration.enterprise;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.integration.epic.EpicClient;
 import com.cobaltplatform.api.integration.epic.request.AddFlowsheetValueRequest;
+import com.cobaltplatform.api.integration.hl7.model.section.Hl7OrderSection;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest;
+import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.Flowsheet;
 import com.cobaltplatform.api.model.db.FlowsheetType.FlowsheetTypeId;
 import com.cobaltplatform.api.model.db.Institution;
@@ -49,6 +52,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
@@ -229,6 +233,46 @@ public class CobaltIcEnterprisePlugin extends DefaultEnterprisePlugin {
 			request.setInstantValueToken(completedScreeningSession.getCompletedAt());
 
 			epicClient.addFlowsheetValue(request);
+		}
+	}
+
+	@Override
+	public void applyCustomizationsToCreatePatientOrderRequestForHl7Order(@Nonnull CreatePatientOrderRequest request,
+																																				@Nonnull Hl7OrderSection order) {
+		requireNonNull(request);
+		requireNonNull(order);
+
+		List<EpicDepartment> enabledEpicDepartments = getInstitutionService().findEpicDepartmentsByInstitutionId(getInstitutionId()).stream()
+				.filter(epicDepartment -> epicDepartment.getPatientOrderAutomaticImportEnabled())
+				.collect(Collectors.toList());
+
+		// Referring department names come in via ALL_UPPERCASE, so enable quick lookup
+		Map<String, EpicDepartment> enabledEpicDepartmentsByName = enabledEpicDepartments.stream()
+				.collect(Collectors.toMap(epicDepartment -> epicDepartment.getName().toUpperCase(Locale.ENGLISH), Function.identity()));
+
+		String routingLine = null;
+		String preferredPhoneNumberLine = null;
+		String referringPracticeLine = null;
+		String reasonsForReferralLine = null;
+		String billingProviderLine = null;
+
+		if (routingLine != null)
+			request.setRouting(routingLine);
+
+		if (preferredPhoneNumberLine != null)
+			request.setPatientPhoneNumber(preferredPhoneNumberLine);
+
+		if (referringPracticeLine != null) {
+			EpicDepartment epicDepartment = enabledEpicDepartmentsByName.get(referringPracticeLine);
+			// TODO: finish up
+		}
+
+		if (reasonsForReferralLine != null) {
+			// TODO: finish up
+		}
+
+		if (billingProviderLine != null) {
+			// TODO: finish up
 		}
 	}
 

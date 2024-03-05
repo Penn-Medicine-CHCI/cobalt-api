@@ -4521,11 +4521,11 @@ public class PatientOrderService implements AutoCloseable {
 			if (primaryPayorId == null)
 				primaryPayorId = "UNKNOWN";
 			if (primaryPayorName == null)
-				primaryPayorName = "Unknown Payor";
+				primaryPayorName = getStrings().get("UNKNOWN PAYOR");
 			if (primaryPlanId == null)
 				primaryPlanId = "UNKNOWN";
 			if (primaryPlanName == null)
-				primaryPlanName = "Unknown Plan";
+				primaryPlanName = getStrings().get("UNKNOWN PLAN");
 
 			patientOrderRequest.setPrimaryPayorId(primaryPayorId);
 			patientOrderRequest.setPrimaryPayorName(primaryPayorName);
@@ -4554,11 +4554,7 @@ public class PatientOrderService implements AutoCloseable {
 			// TODO: confirm this is correct
 			patientOrderRequest.setOrderId(order.getCommonOrder().getPlacerOrderNumber().getEntityIdentifier());
 
-			// TODO: confirm we don't have/need this?
 			patientOrderRequest.setOrderAge("0d 0h 0m");
-
-			// TODO: confirm this is correct
-			patientOrderRequest.setRouting("Phone by Resource Center");
 
 			// Example:
 			//
@@ -4676,7 +4672,6 @@ public class PatientOrderService implements AutoCloseable {
 					})
 					.collect(Collectors.toList()));
 
-			// TODO: confirm we don't need this
 			patientOrderRequest.setAssociatedDiagnosis(null);
 
 			// For patient phone number, look at notes first.
@@ -4759,41 +4754,10 @@ public class PatientOrderService implements AutoCloseable {
 				patientOrderRequest.setPatientPostalCode(trimToNull(patientAddress.getZipOrPostalCode()));
 			}
 
-			/* TODO: complete
+			// Apply any institution-specific customizations
+			EnterprisePlugin enterprisePlugin = enterprisePluginProvider.enterprisePluginForInstitutionId(institutionId);
+			enterprisePlugin.applyCustomizationsToCreatePatientOrderRequestForHl7Order(patientOrderRequest, order);
 
-			// e.g. "Take 1 tablet by mouth daily.<br>E-Prescribe, Disp-60 tablet, R-1"
-			String lastActiveMedicationOrderSummary = trimToNull(record.get("CCBH Last Active Med Order Summary"));
-
-			if (lastActiveMedicationOrderSummary != null)
-				// Replacing just <br> for now - any others?
-				lastActiveMedicationOrderSummary = lastActiveMedicationOrderSummary.replace("<br>", "\n");
-
-			patientOrderRequest.setLastActiveMedicationOrderSummary(lastActiveMedicationOrderSummary);
-
-			// e.g. "escitalopram 10 mg tablet [517587114]"
-			// Might have multiple lines...
-			String medicationsAsString = trimToNull(record.get("CCBH Medications List"));
-
-			List<CreatePatientOrderMedicationRequest> medications = parseNamesWithEmbeddedIds(medicationsAsString).stream()
-					.map(nameWithEmbeddedId -> {
-						CreatePatientOrderMedicationRequest medicationRequest = new CreatePatientOrderMedicationRequest();
-						medicationRequest.setMedicationId(nameWithEmbeddedId.getId().orElse(null));
-
-						String medicationName = nameWithEmbeddedId.getName();
-
-						// e.g. "escitalopram 10 mg tablet" -> "Escitalopram 10 mg tablet"
-						if (medicationName != null)
-							medicationName = StringUtils.capitalize(medicationName);
-
-						medicationRequest.setMedicationName(medicationName);
-						return medicationRequest;
-					})
-					.collect(Collectors.toList());
-
-			patientOrderRequest.setMedications(medications);
-			patientOrderRequest.setRecentPsychotherapeuticMedications(trimToNull(record.get("Psychotherapeutic Med Lst 2 Weeks")));
-
-			 */
 			UUID patientOrderId = createPatientOrder(patientOrderRequest);
 			patientOrderIds.add(patientOrderId);
 		}

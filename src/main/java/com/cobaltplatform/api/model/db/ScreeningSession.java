@@ -19,9 +19,17 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
+import com.pyranid.DatabaseColumn;
+
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -29,6 +37,17 @@ import java.util.UUID;
  */
 @NotThreadSafe
 public class ScreeningSession {
+	@Nonnull
+	private static final Gson GSON;
+
+	static {
+		GsonBuilder gsonBuilder = new GsonBuilder()
+				.setPrettyPrinting()
+				.disableHtmlEscaping();
+
+		GSON = gsonBuilder.create();
+	}
+
 	@Nullable
 	private UUID screeningSessionId;
 	@Nullable
@@ -57,8 +76,25 @@ public class ScreeningSession {
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
+	@Nullable
+	private UUID accountCheckInActionId;
+	@Nullable
+	@DatabaseColumn("metadata")
+	private String metadataAsJson;
 
-	@Nullable UUID accountCheckInActionId;
+	@Nonnull
+	public static Optional<String> metadataToJson(@Nullable Map<String, Object> metadata) {
+		if (metadata == null)
+			return Optional.empty();
+
+		return Optional.of(GSON.toJson(metadata));
+	}
+
+	@Nonnull
+	public Map<String, Object> getMetadata() {
+		return this.metadataAsJson == null ? Map.of() : GSON.fromJson(this.metadataAsJson, new TypeToken<Map<String, Object>>() {
+		}.getType());
+	}
 
 	@Nullable
 	public UUID getScreeningSessionId() {
@@ -193,5 +229,14 @@ public class ScreeningSession {
 
 	public void setAccountCheckInActionId(@Nullable UUID accountCheckInActionId) {
 		this.accountCheckInActionId = accountCheckInActionId;
+	}
+
+	@Nullable
+	public String getMetadataAsJson() {
+		return this.metadataAsJson;
+	}
+
+	public void setMetadataAsJson(@Nullable String metadataAsJson) {
+		this.metadataAsJson = metadataAsJson;
 	}
 }

@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.api.request;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -44,6 +45,8 @@ public class CreateScreeningSessionRequest {
 	private UUID createdByAccountId;
 	@Nullable
 	private Boolean immediatelySkip;
+	@Nullable
+	private Map<String, Object> metadata;
 
 	@Nullable
 	public UUID getScreeningFlowId() {
@@ -115,5 +118,14 @@ public class CreateScreeningSessionRequest {
 
 	public void setAccountCheckInActionId(@Nullable UUID accountCheckInActionId) {
 		this.accountCheckInActionId = accountCheckInActionId;
+	}
+
+	@Nullable
+	public Map<String, Object> getMetadata() {
+		return this.metadata;
+	}
+
+	public void setMetadata(@Nullable Map<String, Object> metadata) {
+		this.metadata = metadata;
 	}
 }
