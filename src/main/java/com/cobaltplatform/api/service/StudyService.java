@@ -941,12 +941,19 @@ public class StudyService implements AutoCloseable {
 					(SELECT 'X'
 					FROM v_account_check_in vaci
 					WHERE ast.account_study_id = vaci.account_study_id
-					AND vaci.completed_date > now() + INTERVAL '1 MINUTE' * s.check_in_reminder_notification_minutes)
+					AND EXTRACT(EPOCH FROM NOW() - vaci.completed_date) / 60 <  s.check_in_reminder_notification_minutes)
 					AND NOT EXISTS
 					(SELECT 'X'
 					FROM account_study_scheduled_message ass, scheduled_message sm
-					WHERE ast.account_study_id = ass.account_study_id
-					AND ass.created > now() + INTERVAL '1 MINUTE' * s.check_in_reminder_notification_minutes)
+					WHERE ass.scheduled_message_id = sm.scheduled_message_id
+					AND ast.account_study_id = ass.account_study_id
+					AND EXTRACT(EPOCH FROM NOW() - ass.created) / 60 < s.check_in_reminder_notification_minutes)
+					AND NOT EXISTS
+					(SELECT assm.account_study_id
+					FROM account_study_scheduled_message assm
+					WHERE ast.account_study_id = assm.account_study_id
+					GROUP BY assm.account_study_id
+					HAVING COUNT(*) >= s.max_check_in_reminder)
 					""", AccountStudy.class);
 
 			for (AccountStudy accountStudy : accountStudies) {
