@@ -58,6 +58,7 @@ import com.cobaltplatform.api.model.db.BetaFeatureAlert.BetaFeatureAlertStatusId
 import com.cobaltplatform.api.model.db.BetaStatus.BetaStatusId;
 import com.cobaltplatform.api.model.db.BirthSex;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.ClientDevicePushToken;
 import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.model.db.Ethnicity;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
@@ -1462,6 +1463,16 @@ public class AccountService {
 			throw validationException;
 
 		getDatabase().execute("UPDATE account SET institution_location_id = ?, prompted_for_institution_location = true WHERE account_id = ?", institutionLocationId, accountId);
+	}
+
+	@Nonnull
+	public List<ClientDevicePushToken> findClientDevicePushTokensForAccountId(@Nonnull UUID accountId) {
+		requireNonNull(accountId);
+
+		return getDatabase().queryForList("""
+						SELECT * 
+						FROM v_account_client_device_push_token vac
+						WHERE vac.account_id = ?""", ClientDevicePushToken.class, accountId);
 	}
 
 	@Nonnull
