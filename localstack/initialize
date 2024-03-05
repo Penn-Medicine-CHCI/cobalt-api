@@ -42,10 +42,13 @@ aws --endpoint-url=http://localstack-cobalt:4801 ses verify-email-identity --ema
 
 echo "Creating Secrets"
 
-SECRET='{"com.cobaltplatform.api.jdbc.password":"password"}'
+if [ ! -f /localstack/secrets/cobalt-local-configuration ]
+then
+    fail 1 "*** Missing file ./localstack/secrets/cobalt-local-configuration, cannot complete bootstrap. ***"
+fi
 
 aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager delete-secret --secret-id "cobalt-local-configuration"  --force-delete-without-recovery --region ${REGION} > /dev/null 2>&1
-aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager create-secret --name "cobalt-local-configuration"  --description "Local Secrets"  --secret-string ${SECRET} --region ${REGION}  1> /dev/null
+aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager create-secret --name "cobalt-local-configuration"  --description "Local Secrets"  --secret-string file:///localstack/secrets/cobalt-local-configuration --region ${REGION}  1> /dev/null
 
 aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager delete-secret --secret-id "cobalt-local-cobalt-crt"  --force-delete-without-recovery --region ${REGION} > /dev/null 2>&1
 aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager create-secret --name "cobalt-local-cobalt-crt"  --description "Local Secrets"  --secret-binary fileb:///config/cobalt.crt --region ${REGION}  1> /dev/null
@@ -66,7 +69,6 @@ aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager create-secret --
 
 aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager delete-secret --secret-id "cobalt-local-cobalt-epic-prod-pem"  --force-delete-without-recovery --region ${REGION} > /dev/null 2>&1
 aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager create-secret --name "cobalt-local-cobalt-epic-prod-pem"  --description "Local Secrets"  --secret-binary fileb:///config/cobalt.epic.prod.pem --region ${REGION}  1> /dev/null
-
 
 aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager delete-secret --secret-id "cobalt-local-cobalt-microsoft-crt"  --force-delete-without-recovery --region ${REGION} > /dev/null 2>&1
 aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager create-secret --name "cobalt-local-cobalt-microsoft-crt"  --description "Local Secrets"  --secret-binary fileb:///config/cobalt.microsoft.crt --region ${REGION}  1> /dev/null

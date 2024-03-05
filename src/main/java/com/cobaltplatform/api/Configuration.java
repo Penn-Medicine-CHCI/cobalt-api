@@ -279,6 +279,8 @@ public class Configuration {
 	private final SigningCredentials epicCurrentEnvironmentSigningCredentials;
 	@Nonnull
 	private final SigningCredentials microsoftSigningCredentials;
+	@Nonnull
+	private final String tinymceApiKey;
 
 	@Nonnull
 	private final Map<SamlIdentityProvider, Map<String, Object>> samlSettingsByIdentityProvider;
@@ -440,6 +442,8 @@ public class Configuration {
 
 		this.way2HealthAccessToken = valueFor("com.cobaltplatform.api.way2health.accessToken", String.class);
 		this.way2HealthEnvironment = valueFor("com.cobaltplatform.api.way2health.environment", Way2HealthEnvironment.class);
+
+		this.tinymceApiKey = valueFor("com.cobaltplatform.api.tinymce.apiKey", String.class);
 
 		// TODO: data-drive, institution-specific
 		this.epicNonProdKeyId = "e8c96880-4a36-4dbd-9a32-1f1009cc507c";
@@ -1412,6 +1416,11 @@ public class Configuration {
 	@Nonnull
 	public Way2HealthEnvironment getWay2HealthEnvironment() {
 		return way2HealthEnvironment;
+	}
+
+	@Nonnull
+	public String getTinymceApiKey() {
+		return this.tinymceApiKey;
 	}
 
 	@Nonnull
