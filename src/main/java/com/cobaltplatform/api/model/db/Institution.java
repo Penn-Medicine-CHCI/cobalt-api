@@ -273,7 +273,7 @@ public class Institution {
 	@Nullable
 	private LocalDate mixpanelSyncStartsAt;
 	@Nullable
-	private String googleFcmServiceAccountPrivateKey;
+	private Boolean googleFcmPushNotificationsEnabled;
 	@Nullable
 	private String integratedCareOrderImportBucketName;
 
@@ -1304,12 +1304,12 @@ public class Institution {
 	}
 
 	@Nullable
-	public String getGoogleFcmServiceAccountPrivateKey() {
-		return this.googleFcmServiceAccountPrivateKey;
+	public Boolean getGoogleFcmPushNotificationsEnabled() {
+		return this.googleFcmPushNotificationsEnabled;
 	}
 
-	public void setGoogleFcmServiceAccountPrivateKey(@Nullable String googleFcmServiceAccountPrivateKey) {
-		this.googleFcmServiceAccountPrivateKey = googleFcmServiceAccountPrivateKey;
+	public void setGoogleFcmPushNotificationsEnabled(@Nullable Boolean googleFcmPushNotificationsEnabled) {
+		this.googleFcmPushNotificationsEnabled = googleFcmPushNotificationsEnabled;
 	}
 
 	@Nullable

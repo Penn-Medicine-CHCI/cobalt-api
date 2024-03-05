@@ -313,10 +313,12 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 	protected MessageSender<PushMessage> uncachedGoogleFcmPushMessageSender() {
 		Institution institution = getInstitutionService().findInstitutionById(getInstitutionId()).get();
 
-		String googleFcmServiceAccountPrivateKey = institution.getGoogleFcmServiceAccountPrivateKey();
-
-		if (googleFcmServiceAccountPrivateKey == null)
+		if (!institution.getGoogleFcmPushNotificationsEnabled())
 			return new ConsolePushMessageSender();
+
+		// Read client secret from AWS Secrets Manager
+		String googleFcmServiceAccountPrivateKey = getAwsSecretManagerClient().getSecretString(format("%s-google-fcm-service-account-private-key-%s",
+				getConfiguration().getAmazonAwsSecretsManagerContext().get(), getInstitutionId().name()));
 
 		return new GoogleFcmPushMessageSender(googleFcmServiceAccountPrivateKey);
 	}

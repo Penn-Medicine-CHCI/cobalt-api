@@ -754,6 +754,13 @@ public class StudyService implements AutoCloseable {
 
 		FileUploadResult fileUploadResult = getSystemService().createFileUpload(fileUploadRequest);
 
+		getDatabase().execute("""
+				INSERT INTO account_check_in_action_file_upload (
+				  account_check_in_action_id,
+				  file_upload_id
+				) VALUES (?,?)
+				""", accountCheckInAction.getAccountCheckInActionId(), fileUploadResult.getFileUploadId());
+
 		return fileUploadResult;
 	}
 
@@ -794,6 +801,13 @@ public class StudyService implements AutoCloseable {
 		));
 
 		FileUploadResult fileUploadResult = getSystemService().createFileUpload(fileUploadRequest);
+
+		getDatabase().execute("""
+				INSERT INTO study_file_upload (
+				  study_id,
+				  file_upload_id
+				) VALUES (?,?)
+				""", study.getStudyId(), fileUploadResult.getFileUploadId());
 
 		return fileUploadResult;
 	}

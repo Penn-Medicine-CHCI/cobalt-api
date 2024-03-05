@@ -45,10 +45,10 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
@@ -87,17 +87,40 @@ public class DefaultHttpClient implements HttpClient {
 	}
 
 	public DefaultHttpClient() {
-		this(DefaultHttpClient.class.getPackage().getName());
+		this(null, null, null);
 	}
 
-	public DefaultHttpClient(@Nonnull String loggingBaseName) {
-		this(loggingBaseName, false);
+	public DefaultHttpClient(@Nullable Consumer<OkHttpClient.Builder> builderCustomizer) {
+		this(null, null, builderCustomizer);
 	}
 
-	public DefaultHttpClient(@Nonnull String loggingBaseName,
-													 @Nonnull Boolean permitUnsafeCerts) {
-		requireNonNull(loggingBaseName);
-		requireNonNull(permitUnsafeCerts);
+	public DefaultHttpClient(@Nullable String loggingBaseName) {
+		this(loggingBaseName, null, null);
+	}
+
+	public DefaultHttpClient(@Nullable String loggingBaseName,
+													 @Nullable Boolean permitUnsafeCerts) {
+		this(loggingBaseName, permitUnsafeCerts, null);
+	}
+
+	public DefaultHttpClient(@Nullable String loggingBaseName,
+													 @Nullable Consumer<OkHttpClient.Builder> builderCustomizer) {
+		this(loggingBaseName, null, builderCustomizer);
+	}
+
+	public DefaultHttpClient(@Nullable String loggingBaseName,
+													 @Nullable Boolean permitUnsafeCerts,
+													 @Nullable Consumer<OkHttpClient.Builder> builderCustomizer) {
+		if (loggingBaseName == null)
+			loggingBaseName = DefaultHttpClient.class.getPackage().getName();
+
+		if (permitUnsafeCerts == null)
+			permitUnsafeCerts = false;
+
+		if (builderCustomizer == null)
+			builderCustomizer = (ignored) -> {
+				// No-op
+			};
 
 		OkHttpClient.Builder okHttpClientBuilder = new OkHttpClient.Builder()
 				.connectTimeout(30, TimeUnit.SECONDS)
@@ -141,6 +164,9 @@ public class DefaultHttpClient implements HttpClient {
 				throw new RuntimeException(e);
 			}
 		}
+
+		// Let callers modify if needed
+		builderCustomizer.accept(okHttpClientBuilder);
 
 		this.okHttpClient = okHttpClientBuilder.build();
 
