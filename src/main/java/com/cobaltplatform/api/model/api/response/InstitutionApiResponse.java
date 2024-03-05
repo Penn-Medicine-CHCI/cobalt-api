@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.AlertApiResponse.AlertApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
@@ -156,6 +157,8 @@ public class InstitutionApiResponse {
 	private final String secureFilesharingPlatformName;
 	@Nullable
 	private final String secureFilesharingPlatformUrl;
+	@Nullable
+	private String tinymceApiKey;
 	@Nonnull
 	private final List<AlertApiResponse> alerts;
 
@@ -173,6 +176,7 @@ public class InstitutionApiResponse {
 																@Nonnull TopicCenterService topicCenterService,
 																@Nonnull InstitutionService institutionService,
 																@Nonnull ScreeningService screeningService,
+																@Nonnull Configuration configuration,
 																@Nonnull Formatter formatter,
 																@Nonnull Strings strings,
 																@Assisted @Nonnull Institution institution,
@@ -182,6 +186,7 @@ public class InstitutionApiResponse {
 		requireNonNull(topicCenterService);
 		requireNonNull(institutionService);
 		requireNonNull(screeningService);
+		requireNonNull(configuration);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(institution);
@@ -258,6 +263,8 @@ public class InstitutionApiResponse {
 		this.privacyPolicyUrl = institution.getPrivacyPolicyUrl();
 		this.secureFilesharingPlatformName = institution.getSecureFilesharingPlatformName();
 		this.secureFilesharingPlatformUrl = institution.getSecureFilesharingPlatformUrl();
+
+		this.tinymceApiKey = configuration.getTinymceApiKey();
 
 		if (account == null) {
 			this.alerts = alertService.findAlertsByInstitutionId(institution.getInstitutionId()).stream()
@@ -528,5 +535,15 @@ public class InstitutionApiResponse {
 	@Nullable
 	public String getSecureFilesharingPlatformUrl() {
 		return this.secureFilesharingPlatformUrl;
+	}
+
+	@Nullable
+	public UUID getFeaturedSecondaryTopicCenterId() {
+		return this.featuredSecondaryTopicCenterId;
+	}
+
+	@Nullable
+	public String getTinymceApiKey() {
+		return this.tinymceApiKey;
 	}
 }
