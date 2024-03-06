@@ -23,6 +23,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.UUID;
 
 /**
@@ -38,6 +39,18 @@ public class AccountStudy {
 	private UUID studyId;
 	@Nullable
 	private UUID encryptionKeypairId;
+	@Nullable
+	private Institution.InstitutionId institutionId;
+	@Nullable
+	private ZoneId timeZone;
+	@Nullable
+	private Boolean sendCheckInReminderNotification;
+	@Nullable
+	private Integer checkInReminderNotificationMinutes;
+	@Nullable
+	private String checkInReminderNotificationMessageTitle;
+	@Nullable
+	private String checkInReminderNotificationMessageBody;
 	@Nonnull
 	private Instant created;
 	@Nonnull
@@ -95,5 +108,59 @@ public class AccountStudy {
 
 	public void setLastUpdated(@Nonnull Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
+	}
+
+	@Nullable
+	public Institution.InstitutionId getInstitutionId() {
+		return institutionId;
+	}
+
+	public void setInstitutionId(@Nullable Institution.InstitutionId institutionId) {
+		this.institutionId = institutionId;
+	}
+
+	@Nullable
+	public ZoneId getTimeZone() {
+		return timeZone;
+	}
+
+	public void setTimeZone(@Nullable ZoneId timeZone) {
+		this.timeZone = timeZone;
+	}
+
+	@Nullable
+	public Boolean getSendCheckInReminderNotification() {
+		return sendCheckInReminderNotification;
+	}
+
+	public void setSendCheckInReminderNotification(@Nullable Boolean sendCheckInReminderNotification) {
+		this.sendCheckInReminderNotification = sendCheckInReminderNotification;
+	}
+
+	@Nullable
+	public Integer getCheckInReminderNotificationMinutes() {
+		return checkInReminderNotificationMinutes;
+	}
+
+	public void setCheckInReminderNotificationMinutes(@Nullable Integer checkInReminderNotificationMinutes) {
+		this.checkInReminderNotificationMinutes = checkInReminderNotificationMinutes;
+	}
+
+	@Nullable
+	public String getCheckInReminderNotificationMessageTitle() {
+		return checkInReminderNotificationMessageTitle;
+	}
+
+	public void setCheckInReminderNotificationMessageTitle(@Nullable String checkInReminderNotificationMessageTitle) {
+		this.checkInReminderNotificationMessageTitle = checkInReminderNotificationMessageTitle;
+	}
+
+	@Nullable
+	public String getCheckInReminderNotificationMessageBody() {
+		return checkInReminderNotificationMessageBody;
+	}
+
+	public void setCheckInReminderNotificationMessageBody(@Nullable String checkInReminderNotificationMessageBody) {
+		this.checkInReminderNotificationMessageBody = checkInReminderNotificationMessageBody;
 	}
 }

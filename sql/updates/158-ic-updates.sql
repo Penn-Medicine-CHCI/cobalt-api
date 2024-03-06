@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('157-ic-updates', NULL, NULL);
+SELECT _v.register_patch('158-ic-updates', NULL, NULL);
 
 -- Enables gradual "turning on" for accepting orders from specific departments.
 -- We receive the full universe of orders via HL7 messages, but we should ignore any for which the

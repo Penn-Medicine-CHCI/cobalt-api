@@ -30,6 +30,7 @@ import com.cobaltplatform.api.service.GroupSessionService;
 import com.cobaltplatform.api.service.MessageService;
 import com.cobaltplatform.api.service.PatientOrderService;
 import com.cobaltplatform.api.service.PatientOrderSyncService;
+import com.cobaltplatform.api.service.StudyService;
 import com.cobaltplatform.api.service.Way2HealthService;
 import com.cobaltplatform.api.util.db.ReadReplica;
 import com.cobaltplatform.api.util.db.WritableMaster;
@@ -228,6 +229,13 @@ public class App implements AutoCloseable {
 		} catch (Exception e) {
 			getLogger().warn("Failed to start Patient Order Sync Service background task", e);
 		}
+
+		try {
+			StudyService studyService = getInjector().getInstance(StudyService.class);
+			studyService.startBackgroundTask();
+		} catch (Exception e) {
+			getLogger().warn("Failed to start Study Service background task", e);
+		}
 	}
 
 	public void performShutdownTasks() {
@@ -243,6 +251,13 @@ public class App implements AutoCloseable {
 			contentService.stopBackgroundTask();
 		} catch (Exception e) {
 			getLogger().warn("Failed to stop Content background task", e);
+		}
+
+		try {
+			StudyService studyService = getInjector().getInstance(StudyService.class);
+			studyService.stopBackgroundTask();
+		} catch (Exception e) {
+			getLogger().warn("Failed to stop Study Service background task", e);
 		}
 
 		try {
