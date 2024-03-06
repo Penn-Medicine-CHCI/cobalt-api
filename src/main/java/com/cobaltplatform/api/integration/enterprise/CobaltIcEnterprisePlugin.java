@@ -22,6 +22,10 @@ package com.cobaltplatform.api.integration.enterprise;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.integration.epic.EpicClient;
 import com.cobaltplatform.api.integration.epic.request.AddFlowsheetValueRequest;
+import com.cobaltplatform.api.integration.hl7.model.section.Hl7OrderSection;
+import com.cobaltplatform.api.integration.hl7.model.segment.Hl7NotesAndCommentsSegment;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest;
+import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.Flowsheet;
 import com.cobaltplatform.api.model.db.FlowsheetType.FlowsheetTypeId;
 import com.cobaltplatform.api.model.db.Institution;
@@ -37,6 +41,7 @@ import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningQues
 import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningSessionScreeningResult;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.PatientOrderService;
+import com.cobaltplatform.api.service.PatientOrderService.CsvName;
 import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.util.AwsSecretManagerClient;
 import com.cobaltplatform.api.util.ValidationException;
@@ -47,14 +52,17 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -229,6 +237,86 @@ public class CobaltIcEnterprisePlugin extends DefaultEnterprisePlugin {
 			request.setInstantValueToken(completedScreeningSession.getCompletedAt());
 
 			epicClient.addFlowsheetValue(request);
+		}
+	}
+
+	@Override
+	public void applyCustomizationsToCreatePatientOrderRequestForHl7Order(@Nonnull CreatePatientOrderRequest request,
+																																				@Nonnull Hl7OrderSection order) {
+		requireNonNull(request);
+		requireNonNull(order);
+
+		List<EpicDepartment> enabledEpicDepartments = getInstitutionService().findEpicDepartmentsByInstitutionId(getInstitutionId()).stream()
+				.filter(epicDepartment -> epicDepartment.getPatientOrderAutomaticImportEnabled())
+				.collect(Collectors.toList());
+
+		// Referring department names come in via ALL_UPPERCASE, so enable quick lookup
+		Map<String, EpicDepartment> enabledEpicDepartmentsByName = enabledEpicDepartments.stream()
+				.collect(Collectors.toMap(epicDepartment -> epicDepartment.getName().toUpperCase(Locale.ENGLISH), Function.identity()));
+
+		final String ROUTING_PREFIX = "What is the preferred type of assessment:->";
+		final String PREFERRED_PHONE_NUMBER_PREFIX = "Preferred phone number:->";
+		final String REFERRING_PRACTICE_PREFIX = "Referring Practice:->";
+		final String REASONS_FOR_REFERRAL_PREFIX = "Reason(s) for referral: (Click on drop down menu for other reasons for consult)->";
+		final String BILLING_PROVIDER_PREFIX = "Billing provider (must be attending)->";
+
+		String routingLine = null;
+		String preferredPhoneNumberLine = null;
+		String referringPracticeLine = null;
+		List<String> reasonsForReferralLines = new ArrayList<>();
+		String billingProviderLine = null;
+
+		for (Hl7NotesAndCommentsSegment notesAndComments : order.getOrderDetail().getNotesAndComments()) {
+			for (String comment : notesAndComments.getComment()) {
+				comment = trimToNull(comment);
+
+				if (comment == null)
+					continue;
+
+				if (comment.startsWith(ROUTING_PREFIX)) {
+					routingLine = trimToNull(comment.replace(ROUTING_PREFIX, ""));
+				} else if (comment.startsWith(PREFERRED_PHONE_NUMBER_PREFIX)) {
+					preferredPhoneNumberLine = trimToNull(comment.replace(PREFERRED_PHONE_NUMBER_PREFIX, ""));
+				} else if (comment.startsWith(REFERRING_PRACTICE_PREFIX)) {
+					referringPracticeLine = trimToNull(comment.replace(REFERRING_PRACTICE_PREFIX, ""));
+				} else if (comment.startsWith(REASONS_FOR_REFERRAL_PREFIX)) {
+					String reasonForReferralLine = trimToNull(comment.replace(REASONS_FOR_REFERRAL_PREFIX, ""));
+
+					if (reasonForReferralLine != null)
+						reasonsForReferralLines.add(reasonForReferralLine);
+				} else if (comment.startsWith(BILLING_PROVIDER_PREFIX)) {
+					billingProviderLine = trimToNull(comment.replace(BILLING_PROVIDER_PREFIX, ""));
+				}
+			}
+		}
+
+		if (routingLine != null)
+			request.setRouting(routingLine);
+
+		if (preferredPhoneNumberLine != null)
+			request.setPatientPhoneNumber(preferredPhoneNumberLine);
+
+		if (referringPracticeLine != null) {
+			EpicDepartment epicDepartment = enabledEpicDepartmentsByName.get(referringPracticeLine);
+
+			if (epicDepartment != null) {
+				request.setReferringPracticeId(epicDepartment.getDepartmentId());
+				request.setReferringPracticeName(epicDepartment.getName());
+				request.setReferringPracticeIdType(epicDepartment.getDepartmentIdType());
+				request.setEncounterDepartmentId(epicDepartment.getDepartmentId());
+				request.setEncounterDepartmentName(epicDepartment.getName());
+				request.setEncounterDepartmentIdType(epicDepartment.getDepartmentIdType());
+			}
+		}
+
+		if (reasonsForReferralLines.size() > 0)
+			request.setReasonsForReferral(reasonsForReferralLines);
+
+		if (billingProviderLine != null) {
+			CsvName billingProviderName = new CsvName(billingProviderLine);
+			request.setBillingProviderFirstName(billingProviderName.getFirstName().orElse(null));
+			request.setBillingProviderLastName(billingProviderName.getLastName().orElse(null));
+			request.setBillingProviderMiddleName(billingProviderName.getMiddleName().orElse(null));
 		}
 	}
 

@@ -668,34 +668,6 @@ public class AppointmentService {
 	}
 
 	@Nonnull
-	public List<EpicDepartment> findEpicDepartmentsByInstitutionId(@Nullable InstitutionId institutionId) {
-		if (institutionId == null)
-			return Collections.emptyList();
-
-		return getDatabase().queryForList("SELECT * FROM epic_department " +
-				"WHERE institution_id=? ORDER BY name", EpicDepartment.class, institutionId);
-	}
-
-	@Nonnull
-	public List<EpicDepartment> findEpicDepartmentsByProviderId(@Nullable UUID providerId) {
-		if (providerId == null)
-			return Collections.emptyList();
-
-		return getDatabase().queryForList("SELECT ed.* FROM epic_department ed, provider_epic_department ped " +
-				"WHERE ped.provider_id=? AND ped.epic_department_id=ed.epic_department_id ORDER BY ed.name", EpicDepartment.class, providerId);
-	}
-
-	@Nonnull
-	public Optional<EpicDepartment> findEpicDepartmentByProviderIdAndTimeslot(@Nullable UUID providerId,
-																																						@Nullable LocalDateTime timeslot) {
-		if (providerId == null || timeslot == null)
-			return Optional.empty();
-
-		return getDatabase().queryForObject("SELECT DISTINCT ed.* FROM epic_department ed, provider_availability pa " +
-				"WHERE pa.provider_id=? AND pa.epic_department_id=ed.epic_department_id AND pa.date_time=?", EpicDepartment.class, providerId, timeslot);
-	}
-
-	@Nonnull
 	public UUID createAcuityAppointmentType(@Nonnull CreateAcuityAppointmentTypeRequest request) {
 		requireNonNull(request);
 
@@ -1126,7 +1098,7 @@ public class AppointmentService {
 				account = getAccountService().findAccountById(accountId).get();
 
 				// Figure out the department for this provider and timeslot
-				EpicDepartment epicDepartment = findEpicDepartmentByProviderIdAndTimeslot(providerId, LocalDateTime.of(date, time)).orElse(null);
+				EpicDepartment epicDepartment = getInstitutionService().findEpicDepartmentByProviderIdAndTimeslot(providerId, LocalDateTime.of(date, time)).orElse(null);
 
 				// Should not occur...
 				if (epicDepartment == null)

@@ -26,10 +26,13 @@ import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.hl7.Hl7Client;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
+import com.cobaltplatform.api.model.service.EpicDepartmentPatientOrderImportDisabledException;
+import com.cobaltplatform.api.util.Holder;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
@@ -65,7 +68,6 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -221,9 +223,12 @@ public class PatientOrderSyncService implements AutoCloseable {
 		if (institution == null || !institution.getIntegratedCareEnabled() || institution.getIntegratedCareOrderImportBucketName() == null)
 			return Set.of();
 
-		// TODO: remove this once we are ready for go-live and have cleared out any existing orders
-		if (getConfiguration().isProduction()) {
-			getLogger().info("Ignoring patient order sync in production for now.");
+		List<EpicDepartment> enabledEpicDepartments = getInstitutionService().findEpicDepartmentsByInstitutionId(institution.getInstitutionId()).stream()
+				.filter(epicDepartment -> epicDepartment.getPatientOrderAutomaticImportEnabled())
+				.collect(Collectors.toList());
+
+		if (enabledEpicDepartments.size() == 0) {
+			getLogger().info("No Epic departments in {} are enabled for automatic order import, not performing sync.", institution.getInstitutionId().name());
 			return Set.of();
 		}
 
@@ -260,7 +265,7 @@ public class PatientOrderSyncService implements AutoCloseable {
 
 						getLogger().info("HL7 Order content for {}:\n{}", objectPath, generalOrderHl7AsString);
 
-						AtomicBoolean imported = new AtomicBoolean(false);
+						Holder<PatientOrderImportResult> resultHolder = new Holder<>();
 
 						try {
 							getDatabase().transaction(() -> {
@@ -276,16 +281,31 @@ public class PatientOrderSyncService implements AutoCloseable {
 
 								getPatientOrderService().createPatientOrderImport(importRequest);
 
-								imported.set(true);
+								resultHolder.setValue(PatientOrderImportResult.IMPORTED);
 							});
+						} catch (EpicDepartmentPatientOrderImportDisabledException e) {
+							resultHolder.setValue(PatientOrderImportResult.IGNORED);
+							getLogger().info(format("Ignoring HL7 import for message:\n%s", generalOrderHl7AsString), e);
 						} catch (Exception e) {
+							resultHolder.setValue(PatientOrderImportResult.FAILED);
 							getLogger().error(format("Unable to perform HL7 import for message:\n%s", generalOrderHl7AsString), e);
 							getErrorReporter().report(e);
 						}
 
-						// Move to an "imported" or "failed" directory depending on result of import.
+						// Move to an "imported" or "failed" or "ignored" directory depending on result of import.
 						// Move/rename is 2 steps (nonatomic) in S3: first you need to copy the object, then you need to delete the original
-						String destinationKey = imported.get() ? format("imported/%s", s3Object.key()) : format("failed/%s", s3Object.key());
+						PatientOrderImportResult result = resultHolder.getValue().get();
+						String destinationKey;
+
+						if (result == PatientOrderImportResult.IMPORTED)
+							destinationKey = format("imported/%s", s3Object.key());
+						else if (result == PatientOrderImportResult.FAILED)
+							destinationKey = format("failed/%s", s3Object.key());
+						else if (result == PatientOrderImportResult.IGNORED)
+							destinationKey = format("ignored/%s", s3Object.key());
+						else
+							throw new IllegalStateException(format("Encountered unsupported value '%s' for %s",
+									result.name(), PatientOrderImportResult.class.getSimpleName()));
 
 						getLogger().info("Moving {} to {}...", s3Object.key(), destinationKey);
 
@@ -449,6 +469,12 @@ public class PatientOrderSyncService implements AutoCloseable {
 		synchronized (getBackgroundTaskLock()) {
 			return this.backgroundTaskStarted;
 		}
+	}
+
+	protected enum PatientOrderImportResult {
+		IMPORTED,
+		FAILED,
+		IGNORED
 	}
 
 	@Nonnull

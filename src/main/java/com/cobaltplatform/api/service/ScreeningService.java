@@ -671,6 +671,7 @@ public class ScreeningService {
 		Account targetAccount = null;
 		Account createdByAccount = null;
 		boolean immediatelySkip = request.getImmediatelySkip() == null ? false : request.getImmediatelySkip();
+		Map<String, Object> metadata = request.getMetadata();
 		UUID screeningSessionId = UUID.randomUUID();
 		ValidationException validationException = new ValidationException();
 
@@ -778,10 +779,22 @@ public class ScreeningService {
 		if (validationException.hasErrors())
 			throw validationException;
 
+		String metadataAsJson = ScreeningSession.metadataToJson(metadata).orElse(null);
+
 		getDatabase().execute("""
-				INSERT INTO screening_session(screening_session_id, screening_flow_version_id, target_account_id, created_by_account_id, patient_order_id, group_session_id, account_check_in_action_id)
-				VALUES (?,?,?,?,?,?,?)
-				""", screeningSessionId, screeningFlowVersion.getScreeningFlowVersionId(), targetAccountId, createdByAccountId, patientOrderId, groupSessionId, accountCheckInActionId);
+						INSERT INTO screening_session(
+							screening_session_id,
+							screening_flow_version_id,
+							target_account_id,
+							created_by_account_id,
+							patient_order_id,
+							group_session_id,
+							account_check_in_action_id,
+							metadata
+						)
+						VALUES (?,?,?,?,?,?,?,CAST(? AS JSONB))
+						""", screeningSessionId, screeningFlowVersion.getScreeningFlowVersionId(), targetAccountId, createdByAccountId,
+				patientOrderId, groupSessionId, accountCheckInActionId, metadataAsJson);
 
 		// If we're immediately skipping, mark this session as completed/skipped and do nothing else.
 		// If we're not immediately skipping, create an initial screening session screening
@@ -1799,9 +1812,7 @@ public class ScreeningService {
 				updateCheckInActionRequest.setCheckInActionStatusId(CheckInActionStatusId.COMPLETE);
 
 				getStudyService().updateAccountCheckInAction(createdByAccount, updateCheckInActionRequest);
-
 			}
-
 		}
 
 		return screeningAnswerIds;

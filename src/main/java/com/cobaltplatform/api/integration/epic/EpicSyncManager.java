@@ -267,7 +267,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 				.filter(appointmentType -> appointmentType.getSchedulingSystemId().equals(SchedulingSystemId.EPIC) && provider.getActive())
 				.collect(Collectors.toList());
 
-		List<EpicDepartment> epicDepartments = getAppointmentService().findEpicDepartmentsByProviderId(provider.getProviderId());
+		List<EpicDepartment> epicDepartments = getInstitutionService().findEpicDepartmentsByProviderId(provider.getProviderId());
 		List<ProviderAvailabilityDateInsertRow> rows = new ArrayList<>();
 
 		if (provider.getEpicAppointmentFilterId().equals(EpicAppointmentFilterId.VISIT_TYPE)) {

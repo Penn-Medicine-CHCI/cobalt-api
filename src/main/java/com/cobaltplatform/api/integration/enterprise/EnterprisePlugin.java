@@ -26,6 +26,7 @@ import com.cobaltplatform.api.integration.google.GoogleAnalyticsDataClient;
 import com.cobaltplatform.api.integration.google.GoogleBigQueryClient;
 import com.cobaltplatform.api.integration.google.MockGoogleAnalyticsDataClient;
 import com.cobaltplatform.api.integration.google.MockGoogleBigQueryClient;
+import com.cobaltplatform.api.integration.hl7.model.section.Hl7OrderSection;
 import com.cobaltplatform.api.integration.microsoft.MicrosoftAccessToken;
 import com.cobaltplatform.api.integration.microsoft.MicrosoftAuthenticator;
 import com.cobaltplatform.api.integration.microsoft.MicrosoftClient;
@@ -36,6 +37,7 @@ import com.cobaltplatform.api.messaging.MessageSender;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.push.ConsolePushMessageSender;
 import com.cobaltplatform.api.messaging.push.PushMessage;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ClientDevicePushTokenType.ClientDevicePushTokenTypeId;
 import com.cobaltplatform.api.model.db.Content;
@@ -201,5 +203,18 @@ public interface EnterprisePlugin {
 	default void performPatientOrderEncounterWriteback(@Nullable UUID patientOrderId,
 																										 @Nullable String encounterCsn) {
 		throw new UnsupportedOperationException();
+	}
+
+	default void applyCustomizationsToCreatePatientOrderRequestForHl7Order(@Nonnull CreatePatientOrderRequest request,
+																																				 @Nonnull Hl7OrderSection order) {
+		requireNonNull(request);
+		requireNonNull(order);
+
+		// Institutions might want to perform custom parsing of HL7 messages to create orders, e.g. freeform notes
+		// fields might contain structured data that is institution-specific.
+		//
+		// This method gives you a hook to perform any customization needed.
+		//
+		// No-op by default.
 	}
 }

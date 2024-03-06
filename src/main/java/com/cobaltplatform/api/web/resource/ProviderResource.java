@@ -542,7 +542,7 @@ public class ProviderResource {
 			if (providerFind.getEpicDepartmentIds() != null)
 				epicDepartmentIds.addAll(providerFind.getEpicDepartmentIds());
 
-		List<Map<String, Object>> epicDepartmentsJson = getAppointmentService().findEpicDepartmentsByInstitutionId(institution.getInstitutionId()).stream()
+		List<Map<String, Object>> epicDepartmentsJson = getInstitutionService().findEpicDepartmentsByInstitutionId(institution.getInstitutionId()).stream()
 				.filter((epicDepartment -> epicDepartmentIds.contains(epicDepartment.getEpicDepartmentId())))
 				.map((epicDepartment -> {
 					Map<String, Object> epicDepartmentJson = new LinkedHashMap<>();
