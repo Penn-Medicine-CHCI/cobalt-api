@@ -971,7 +971,7 @@ public class StudyService implements AutoCloseable {
 					UUID scheduledMessageId = messageService.createScheduledMessage(new CreateScheduledMessageRequest<>() {{
 						setMessage(pushMessage);
 						setTimeZone(accountStudy.getTimeZone());
-						setScheduledAt(LocalDateTime.now(accountStudy.getTimeZone()).plusMinutes(accountStudy.getCheckInReminderNotificationMinutes()));
+						setScheduledAt(LocalDateTime.now(accountStudy.getTimeZone()));
 					}});
 
 					getDatabase().execute("""

@@ -5,7 +5,8 @@ ALTER TABLE study
 ADD COLUMN send_check_in_reminder_notification BOOLEAN NOT NULL DEFAULT false,
 ADD COLUMN check_in_reminder_notification_minutes INTEGER,
 ADD COLUMN check_in_reminder_notification_message_title VARCHAR,
-ADD COLUMN check_in_reminder_notification_message_body VARCHAR;
+ADD COLUMN check_in_reminder_notification_message_body VARCHAR,
+ADD COLUMN max_check_in_reminder INTEGER;
 
 ALTER TABLE study_check_in_action
 ADD COLUMN send_followup_notification BOOLEAN NOT NULL DEFAULT false,
